@@ -1,4 +1,5 @@
 import { createRng, type RngState } from './rng.js';
+import { createInitialEconomy, type EconomyAction, type EconomyState } from './economy-state.js';
 
 export const SIM_TICKS_PER_SECOND = 60;
 export const FIXED_UNITS_PER_PIXEL = 16;
@@ -34,11 +35,12 @@ export interface CollisionMap {
 }
 
 export interface FarmState {
-  readonly version: 1;
+  readonly version: 2;
   readonly tick: number;
   readonly rng: RngState;
   readonly player: PlayerState;
   readonly collision: CollisionMap;
+  readonly economy: EconomyState;
 }
 
 export interface MoveAction {
@@ -51,15 +53,16 @@ export interface TransitionAction {
   readonly location: PlayerState['location'];
 }
 
-export type Action = MoveAction | TransitionAction;
+export type Action = MoveAction | TransitionAction | EconomyAction;
 
-export function createEstateCollisionMap(width = 64, height = 64): CollisionMap {
+export function createEstateCollisionMap(treeTiles: readonly { readonly x: number; readonly y: number }[] = [], width = 64, height = 64): CollisionMap {
+  const trees = new Set(treeTiles.map((tree) => `${tree.x},${tree.y}`));
   const blocked = Array.from({ length: width * height }, (_, index) => {
     const x = index % width;
     const y = Math.floor(index / width);
     const border = x === 0 || y === 0 || x === width - 1 || y === height - 1;
     const farmhouse = x >= 25 && x <= 31 && y >= 5 && y <= 9;
-    const orchardTrees = x >= 12 && x <= 20 && y >= 17 && y <= 37 && x % 4 === 0 && y % 5 === 2;
+    const orchardTrees = trees.has(`${x},${y}`);
     const pond = x >= 44 && x <= 54 && y >= 18 && y <= 28;
     const hillside = y >= 48 && (x < 20 || x > 43);
     return border || farmhouse || orchardTrees || pond || hillside;
@@ -79,12 +82,13 @@ export function createCellarCollisionMap(width = 40, height = 24): CollisionMap 
 }
 
 export function createPlaceholderCollisionMap(width = 48, height = 32): CollisionMap {
-  return createEstateCollisionMap(width, height);
+  return createEstateCollisionMap([], width, height);
 }
 
 export function createInitialState(seed = 0x0cce11a): FarmState {
+  const economy = createInitialEconomy();
   return {
-    version: 1,
+    version: 2,
     tick: 0,
     rng: createRng(seed),
     player: {
@@ -93,6 +97,7 @@ export function createInitialState(seed = 0x0cce11a): FarmState {
       moving: false,
       location: 'estate',
     },
-    collision: createEstateCollisionMap(),
+    collision: createEstateCollisionMap(economy.trees),
+    economy,
   };
 }

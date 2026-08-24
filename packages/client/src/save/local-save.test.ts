@@ -12,7 +12,7 @@ class MemoryStorage {
 describe('schema-versioned local saves', () => {
   it('round-trips deterministic farm state', () => {
     const storage = new MemoryStorage();
-    const store = new LocalSaveStore(storage);
+    const store = new LocalSaveStore(storage, () => 1_000);
     const state = createInitialState(123);
     store.save(state);
     expect(store.load()).toEqual(state);
@@ -20,9 +20,26 @@ describe('schema-versioned local saves', () => {
     expect(storage.getItem(LOCAL_SAVE_KEY)).toBeNull();
   });
 
+  it('applies capped deterministic offline progress from the saved timestamp', () => {
+    const storage = new MemoryStorage();
+    const state = createInitialState(123);
+    new LocalSaveStore(storage, () => 1_000).save(state);
+    const loaded = new LocalSaveStore(storage, () => 61_000).load();
+    expect(loaded?.tick).toBe(state.tick + 60 * 60);
+    expect(loaded?.economy.vigour).toBe(0);
+  });
+
   it('rejects corrupt, truncated, or future-version saves', () => {
     expect(parseSave(null)).toBeNull();
-    expect(parseSave({ schemaVersion: 2, state: createInitialState() })).toBeNull();
-    expect(parseSave({ schemaVersion: 1, state: { ...createInitialState(), collision: { width: 2, height: 2, blocked: [] } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 3, state: createInitialState() })).toBeNull();
+    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), collision: { width: 2, height: 2, blocked: [] } } })).toBeNull();
+  });
+
+  it('migrates M3 schema-one saves into the starter economy', () => {
+    const current = createInitialState(9);
+    const legacy = { ...current, version: 1, economy: undefined };
+    const migrated = parseSave({ schemaVersion: 1, state: legacy });
+    expect(migrated).toMatchObject({ version: 2, tick: current.tick, player: current.player });
+    expect(migrated?.economy.trees).toHaveLength(1);
   });
 });

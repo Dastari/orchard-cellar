@@ -32,6 +32,7 @@ export class InputController {
   private interactPressed = false;
   private devWarp: 'day' | 'season' | null = null;
   private devToggleLocation = false;
+  private command: 'plant' | 'buyPress' | 'buyCask' | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -70,6 +71,12 @@ export class InputController {
     return toggle;
   }
 
+  consumeCommand(): 'plant' | 'buyPress' | 'buyCask' | null {
+    const command = this.command;
+    this.command = null;
+    return command;
+  }
+
   destroy(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
@@ -93,6 +100,11 @@ export class InputController {
     if (import.meta.env.DEV && event.code === 'F8') {
       event.preventDefault();
       this.devToggleLocation = true;
+      return;
+    }
+    if (event.code === 'KeyN' || event.code === 'KeyP' || event.code === 'KeyC') {
+      event.preventDefault();
+      this.command = event.code === 'KeyN' ? 'plant' : event.code === 'KeyP' ? 'buyPress' : 'buyCask';
       return;
     }
     if (!MOVEMENT_CODES.has(event.code)) return;

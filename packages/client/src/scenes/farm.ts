@@ -10,6 +10,7 @@ import {
   nextDayTick,
   type Action,
   type FarmState,
+  type OrchardTreeState,
   type Season,
 } from '@orchard/sim';
 import type { GameAudio } from '../audio/audio-bus.js';
@@ -30,6 +31,9 @@ export interface SeasonalFarmAssets {
   readonly path: LoadedAsset;
   readonly soil: LoadedAsset;
   readonly farmhouse: LoadedAsset;
+  readonly treeSapling: LoadedAsset;
+  readonly treeYoung: LoadedAsset;
+  readonly treeMature: LoadedAsset;
   readonly fruitTree: LoadedAsset;
 }
 
@@ -50,6 +54,10 @@ function nearTile(state: FarmState, x: number, y: number, radius = 2): boolean {
   const playerX = state.player.position.x / TILE_SIZE_FIXED;
   const playerY = state.player.position.y / TILE_SIZE_FIXED;
   return Math.abs(playerX - x) <= radius && Math.abs(playerY - y) <= radius;
+}
+
+function nearTree(state: FarmState, radius = 2): OrchardTreeState | undefined {
+  return state.economy.trees.find((tree) => nearTile(state, tree.x, tree.y, radius));
 }
 
 export class FarmScene implements Scene {
@@ -89,6 +97,12 @@ export class FarmScene implements Scene {
 
   getState(): FarmState { return this.state; }
 
+  devDispatch(action: Action): void {
+    this.previousState = this.state;
+    this.state = advanceTick(this.state, [{ type: 'move', direction: null }, action], this.state.tick + 1);
+    this.onStateChanged(this.state);
+  }
+
   devWarp(kind: 'day' | 'season'): void {
     const previousSeason = calendarAtTick(this.state.tick).season;
     const tick = kind === 'day' ? nextDayTick(this.state.tick) : this.state.tick + TICKS_PER_DAY * 7;
@@ -124,11 +138,16 @@ export class FarmScene implements Scene {
     const warp = this.input.consumeDevWarp();
     if (warp === 'day') tick = nextDayTick(this.state.tick);
     if (warp === 'season') tick = this.state.tick + TICKS_PER_DAY * 7;
+    const command = this.input.consumeCommand();
+    if (command === 'plant' && this.state.player.location === 'estate') actions.push({ type: 'plant', species: 'seedlingApple' });
+    if (command === 'buyPress' && this.state.player.location === 'estate') actions.push({ type: 'buyPress', tier: 1 });
+    if (command === 'buyCask' && this.state.player.location === 'cellar') actions.push({ type: 'buyCask', tier: 1 });
     if (this.input.consumeDevToggleLocation()) {
       actions.push({ type: 'transition', location: this.state.player.location === 'estate' ? 'cellar' : 'estate' });
     } else if (this.input.consumeInteract()) {
       const transition = this.assets.maps[this.state.player.location].transitions.find((candidate) => nearTile(this.state, candidate.x, candidate.y, candidate.radius));
       if (transition) actions.push({ type: 'transition', location: transition.target });
+      else actions.push(...this.contextActions());
       void this.audio.playSfx('ui_confirm');
     }
     const previousLocation = this.state.player.location;
@@ -181,11 +200,19 @@ export class FarmScene implements Scene {
   }
 
   private estateSprites(season: Season, avatar: YSortableSprite): YSortableSprite[] {
-    return [avatar, ...this.assets.maps.estate.objects.map((object) => this.objectSprite(object, season))];
+    const scenery = this.assets.maps.estate.objects
+      .filter((object) => object.asset !== 'tree_apple_fruiting')
+      .map((object) => this.objectSprite(object, season));
+    const trees = this.state.economy.trees.map((tree) => this.treeSprite(tree, season));
+    return [avatar, ...scenery, ...trees];
   }
 
   private cellarSprites(avatar: YSortableSprite): YSortableSprite[] {
-    return [avatar, ...this.assets.maps.cellar.objects.map((object) => this.objectSprite(object, calendarAtTick(this.state.tick).season))];
+    const season = calendarAtTick(this.state.tick).season;
+    const caskCount = this.state.economy.casks.reduce((sum, count) => sum + count, 0);
+    const fixed = this.assets.maps.cellar.objects.filter((object) => object.asset !== 'prop_oak_barrel');
+    const casks = this.assets.maps.cellar.objects.filter((object) => object.asset === 'prop_oak_barrel').slice(0, caskCount);
+    return [avatar, ...[...fixed, ...casks].map((object) => this.objectSprite(object, season))];
   }
 
   private objectSprite(object: MapObjectSource, season: Season): YSortableSprite {
@@ -197,6 +224,15 @@ export class FarmScene implements Scene {
       : object.asset === 'tree_apple_fruiting' ? seasonAssets.fruitTree
         : object.asset === 'prop_basket_press' ? this.assets.press : this.assets.barrel;
     return this.worldAssetSprite(asset, object.animation, object.x * 16, object.y * 16);
+  }
+
+  private treeSprite(tree: OrchardTreeState, season: Season): YSortableSprite {
+    const seasonal = this.assets.seasons[season];
+    const asset = tree.stage === 'sapling' ? seasonal.treeSapling
+      : tree.stage === 'young' ? seasonal.treeYoung
+        : tree.bufferMicro >= 1_000_000 ? seasonal.fruitTree : seasonal.treeMature;
+    const animation = tree.stage === 'mature' && tree.bufferMicro >= 1_000_000 ? 'fruiting' : 'base';
+    return this.worldAssetSprite(asset, animation, tree.x * 16, tree.y * 16);
   }
 
   private drawAvatar(context: CanvasRenderingContext2D, x: number, y: number): void {
@@ -244,9 +280,10 @@ export class FarmScene implements Scene {
 
   private drawHud(context: CanvasRenderingContext2D): void {
     const calendar = calendarAtTick(this.state.tick);
-    context.fillStyle = '#182018dd'; context.fillRect(6, 6, 150, 18);
-    context.strokeStyle = '#d5b568'; context.strokeRect(6.5, 6.5, 149, 17);
-    drawBitmapText(context, this.state.player.location === 'cellar' ? 'CELLAR E TO EXIT' : 'WASD WALK E USE', 12, 12, '#f5e5b8', 1);
+    context.fillStyle = '#182018dd'; context.fillRect(6, 6, 212, 18);
+    context.strokeStyle = '#d5b568'; context.strokeRect(6.5, 6.5, 211, 17);
+    const resources = this.state.economy.resources;
+    drawBitmapText(context, `F${resources.fruit} P${resources.pomace} M${resources.must} B${resources.bottles}`, 12, 12, '#f5e5b8', 1);
     const dialX = 454; const dialY = 18;
     const seasonColors: Record<Season, string> = { spring: '#d4699b', summer: '#58a346', autumn: '#e0a62d', winter: '#84b8c4' };
     context.fillStyle = '#182018dd'; context.beginPath(); context.arc(dialX, dialY, 14, 0, Math.PI * 2); context.fill();
@@ -258,11 +295,16 @@ export class FarmScene implements Scene {
     const hour = String(calendar.hour).padStart(2, '0'); const minute = String(calendar.minute).padStart(2, '0');
     context.fillStyle = '#182018dd'; context.fillRect(352, 6, 78, 18);
     drawBitmapText(context, `${calendar.season.slice(0, 3)} ${hour}:${minute}`, 358, 12, '#f5e5b8', 1);
-    const transition = this.assets.maps[this.state.player.location].transitions.find((candidate) => nearTile(this.state, candidate.x, candidate.y, candidate.radius));
-    if (transition) {
-      context.fillStyle = '#f5e5b8ee'; context.fillRect(196, 224, 88, 14);
-      drawBitmapText(context, this.state.player.location === 'estate' ? 'E ENTER CELLAR' : 'E RETURN FARM', 202, 229, '#2b1d0e', 1);
+    const prompt = this.contextPrompt();
+    if (prompt) {
+      const width = Math.min(210, prompt.length * 6 + 12);
+      context.fillStyle = '#f5e5b8ee'; context.fillRect(240 - width / 2, 218, width, 14);
+      drawBitmapText(context, prompt, Math.round(246 - width / 2), 223, '#2b1d0e', 1);
     }
+    context.fillStyle = '#182018dd'; context.fillRect(126, 246, 228, 18);
+    context.fillStyle = '#3d3130'; context.fillRect(132, 251, 120, 8);
+    context.fillStyle = '#d5b568'; context.fillRect(132, 251, Math.floor(120 * this.state.economy.vigour / 10_000), 8);
+    drawBitmapText(context, `VIGOUR ${Math.floor(this.state.economy.vigour / 100)} N PLANT P PRESS C CASK`, 258, 252, '#f5e5b8', 1);
   }
 
   private footstepSurface(): 'grass' | 'path' | 'cellar' {
@@ -274,5 +316,43 @@ export class FarmScene implements Scene {
   private updateAudioContext(): void {
     const calendar = calendarAtTick(this.state.tick);
     this.audio.setAmbienceContext(calendar.season, calendar.dayProgress, this.state.player.location);
+  }
+
+  private contextActions(): Action[] {
+    const tree = nearTree(this.state);
+    if (tree && this.state.player.location === 'estate') {
+      return [tree.bufferMicro >= 1_000_000 ? { type: 'harvest', treeId: tree.id } : { type: 'tend', treeId: tree.id }];
+    }
+    if (this.state.player.location === 'estate' && nearTile(this.state, 10, 47, 3)) {
+      const economy = this.state.economy;
+      if (!economy.firstPressRepaired) return [{ type: 'repairPress' }];
+      if (economy.resources.fruit > 0) return [{ type: 'haulFruit' }];
+      if (economy.yardMustMicro >= 1_000_000) return [{ type: 'haulMust', destination: 'bank' }];
+      return [];
+    }
+    if (this.state.player.location === 'cellar') {
+      if (this.state.economy.casks.every((count) => count === 0)) return [{ type: 'buyCask', tier: 1 }];
+      if (this.state.economy.resources.must > 0) return [{ type: 'rackMust' }];
+    }
+    return [];
+  }
+
+  private contextPrompt(): string | null {
+    const transition = this.assets.maps[this.state.player.location].transitions.find((candidate) => nearTile(this.state, candidate.x, candidate.y, candidate.radius));
+    if (transition) return this.state.player.location === 'estate' ? 'E ENTER CELLAR' : 'E RETURN FARM';
+    const tree = nearTree(this.state);
+    if (tree && this.state.player.location === 'estate') return tree.bufferMicro >= 1_000_000
+      ? `E HARVEST ${Math.floor(tree.bufferMicro / 1_000_000)}` : `E TEND CARE ${tree.care}`;
+    if (this.state.player.location === 'estate' && nearTile(this.state, 10, 47, 3)) {
+      if (!this.state.economy.firstPressRepaired) return 'E REPAIR PRESS 50 FRUIT';
+      if (this.state.economy.resources.fruit > 0) return 'E HAUL FRUIT TO HOPPER';
+      if (this.state.economy.yardMustMicro >= 1_000_000) return 'E COLLECT MUST JUGS';
+      return 'PRESS WAITING FOR FRUIT';
+    }
+    if (this.state.player.location === 'cellar') {
+      if (this.state.economy.casks.every((count) => count === 0)) return 'E BUY DEMIJOHN 40 MUST';
+      if (this.state.economy.resources.must > 0) return 'E RACK MUST INTO CASKS';
+    }
+    return null;
   }
 }

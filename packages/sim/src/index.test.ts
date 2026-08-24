@@ -36,7 +36,7 @@ describe('deterministic simulation', () => {
     let state = createInitialState(7);
     state = {
       ...state,
-      player: { ...state.player, position: { x: 12 * TILE_SIZE_FIXED, y: 15 * TILE_SIZE_FIXED } },
+      player: { ...state.player, position: { x: 20 * TILE_SIZE_FIXED, y: 15 * TILE_SIZE_FIXED } },
     };
     for (let tick = 1; tick <= 250; tick += 1) {
       state = advanceTick(state, [{ type: 'move', direction: 'down' }], tick);
@@ -46,12 +46,12 @@ describe('deterministic simulation', () => {
   });
 
   it('blocks exactly the authored orchard tree columns', () => {
-    const collision = createEstateCollisionMap();
+    const collision = createEstateCollisionMap([{ x: 20, y: 17 }]);
     const blockedAt = (x: number, y: number): boolean => collision.blocked[y * collision.width + x] ?? false;
-    for (const y of [17, 22, 27, 32, 37]) {
-      expect(blockedAt(8, y)).toBe(false);
-      for (const x of [12, 16, 20]) expect(blockedAt(x, y)).toBe(true);
-    }
+    expect(blockedAt(8, 17)).toBe(false);
+    expect(blockedAt(12, 17)).toBe(false);
+    expect(blockedAt(16, 17)).toBe(false);
+    expect(blockedAt(20, 17)).toBe(true);
   });
 
   it('moves diagonally without cardinal speed inflation', () => {

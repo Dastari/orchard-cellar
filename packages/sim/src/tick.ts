@@ -1,4 +1,6 @@
 import { movePlayer } from './movement.js';
+import { advanceEconomy, applyEconomyAction } from './economy.js';
+import type { EconomyAction } from './economy-state.js';
 import {
   TILE_SIZE_FIXED,
   createCellarCollisionMap,
@@ -11,16 +13,19 @@ import {
 export function advanceTick(state: FarmState, actions: readonly Action[], tick: number): FarmState {
   let direction: Direction | null = null;
   let transition: Extract<Action, { type: 'transition' }> | null = null;
+  let economy = advanceEconomy(state.economy, state.tick, Math.max(state.tick, tick));
   for (const action of actions) {
     if (action.type === 'move') direction = action.direction;
-    else transition = action;
+    else if (action.type === 'transition') transition = action;
+    else economy = applyEconomyAction(economy, action as EconomyAction, tick);
   }
   if (transition) {
     const cellar = transition.location === 'cellar';
     return {
       ...state,
       tick,
-      collision: cellar ? createCellarCollisionMap() : createEstateCollisionMap(),
+      economy,
+      collision: cellar ? createCellarCollisionMap() : createEstateCollisionMap(economy.trees),
       player: {
         ...state.player,
         location: transition.location,
@@ -32,9 +37,12 @@ export function advanceTick(state: FarmState, actions: readonly Action[], tick: 
       },
     };
   }
+  const collision = state.player.location === 'estate' ? createEstateCollisionMap(economy.trees) : state.collision;
   return {
     ...state,
     tick,
-    player: movePlayer(state.player, direction, state.collision),
+    economy,
+    collision,
+    player: movePlayer(state.player, direction, collision),
   };
 }

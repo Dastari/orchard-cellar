@@ -45,14 +45,17 @@ async function start(): Promise<void> {
     Z: ['#2e2c33', '#6e6a75', '#141420'],
   });
   const seasonEntries = await Promise.all(SEASONS.map(async (season) => {
-    const [grass, path, soil, farmhouse, fruitTree] = await Promise.all([
+    const [grass, path, soil, farmhouse, treeSapling, treeYoung, treeMature, fruitTree] = await Promise.all([
       loadGeneratedAsset('tile_grass', season),
       loadGeneratedAsset('tile_path', season),
       loadGeneratedAsset('tile_soil', season),
       loadGeneratedAsset('farmhouse', season),
+      loadGeneratedAsset('tree_apple_sapling', season),
+      loadGeneratedAsset('tree_apple_young', season),
+      loadGeneratedAsset('tree_apple_mature', season),
       loadGeneratedAsset('tree_apple_fruiting', season),
     ]);
-    const assets: SeasonalFarmAssets = { grass, path, soil, farmhouse, fruitTree };
+    const assets: SeasonalFarmAssets = { grass, path, soil, farmhouse, treeSapling, treeYoung, treeMature, fruitTree };
     return [season, assets] as const;
   }));
   const seasons = Object.fromEntries(seasonEntries) as Record<Season, SeasonalFarmAssets>;
@@ -87,6 +90,7 @@ async function start(): Promise<void> {
       warp: (kind: 'day' | 'season') => farm.devWarp(kind),
       toggleLocation: () => farm.devToggleLocation(),
       setDayProgress: (progress: number) => farm.devSetDayProgress(progress),
+      act: (action: Parameters<typeof farm.devDispatch>[0]) => farm.devDispatch(action),
       render: () => {
         gameContext.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         scenes.render(gameContext, 0);
