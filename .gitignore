@@ -9,3 +9,6 @@ references/asset-pack/
 *.sqlite-shm
 *.sqlite-wal
 .env
+.env.local
+.spacetime-data/
+packages/world/dist/

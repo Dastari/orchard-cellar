@@ -5,9 +5,9 @@
   "type": "module",
   "workspaces": ["packages/*"],
   "scripts": {
-    "dev": "npm run assets:build && concurrently -k -n client,server,assets -c green,blue,yellow \"npm run dev -w @orchard/client\" \"npm run dev -w @orchard/server\" \"npm run watch -w @orchard/tools\"",
-    "build": "npm run assets:build && npm run build -w @orchard/sim && npm run build -w @orchard/tools && npm run build -w @orchard/client && npm run build -w @orchard/server",
-    "check": "npm run typecheck && npm run lint && npm test && npm run assets:validate",
+    "dev": "npm run assets:build && concurrently -k -n world-host,world,client,assets -c magenta,blue,green,yellow \"npm run world:host\" \"npm run world:dev\" \"npm run dev -w @orchard/client\" \"npm run watch -w @orchard/tools\"",
+    "build": "npm run assets:build && npm run build -w @orchard/sim && npm run build -w @orchard/tools && npm run build -w @orchard/world && npm run build -w @orchard/client",
+    "check": "npm run build -w @orchard/world && npm run typecheck && npm run lint && npm test && npm run assets:validate",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "vitest run --coverage",
@@ -16,7 +16,10 @@
     "assets:render": "npm run render -w @orchard/tools --",
     "assets:preview": "npm run preview -w @orchard/tools",
     "assets:import": "npm run import -w @orchard/tools --",
-    "sim:pace": "tsx packages/tools/src/pace-sim.ts"
+    "sim:pace": "tsx packages/tools/src/pace-sim.ts",
+    "world:host": "spacetime start --listen-addr 127.0.0.1:3000 --data-dir .spacetime-data --non-interactive",
+    "world:dev": "sh -c 'until curl -fsS http://127.0.0.1:3000/v1/ping >/dev/null 2>&1; do sleep 0.2; done; exec spacetime dev orchard-cellar-world --no-config --server local --project-path . --module-path packages/world --module-bindings-path packages/client/src/net/generated --client-lang typescript --yes --server-only'",
+    "world:smoke": "tsx scripts/world-smoke.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,0 +1,19 @@
+{
+  "name": "@orchard/world",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "spacetime build",
+    "generate": "spacetime generate --lang typescript --out-dir ../client/src/net/generated --module-path . --yes",
+    "publish:local": "spacetime publish orchard-cellar-world --server local --module-path . --yes",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@orchard/sim": "*",
+    "spacetimedb": "2.8.2"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.2"
+  }
+}

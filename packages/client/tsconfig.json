@@ -5,8 +5,9 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
+    "exactOptionalPropertyTypes": false,
+    "declaration": false,
     "noEmit": true
   },
   "include": ["src", "vite.config.ts"]
 }
-

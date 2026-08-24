@@ -2,13 +2,10 @@
 
 Binding architecture for Orchard & Cellar. Read [01-engine-decision.md](01-engine-decision.md) first.
 
-> **M5.5 architecture gate (2026-08-24):** the isolated `FarmRoom` and custom WebSocket
-> sections below are paused, not yet implemented. The expanded target is a persistent
-> friends-only overworld with walkable farm boundaries and real cooperative play.
-> Implement the reversible SpaceTimeDB slice in
-> [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) before M6.
-> Client rendering, the pure deterministic `packages/sim` rules, fixed-point movement,
-> and authored assets remain binding regardless of the backend result.
+> **Backend adopted (2026-08-24):** the persistent friends-only overworld runs on a
+> SpaceTimeDB 2.8 TypeScript module. The M5.5 proof passed all checks in
+> [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md). The former
+> `FarmRoom`, custom WebSocket, Fastify, and SQLite design is retired.
 
 ## Repository layout (npm workspaces monorepo)
 
@@ -42,14 +39,10 @@ orchard-cellar/
 │   │       ├── audio/        # mixer, music sequencer, sfx synth
 │   │       ├── ui/           # in-canvas UI: HUD, menus, dialogs, bitmap font
 │   │       └── scenes/       # title, login, farm, cellar-interior, visiting
-│   ├── server/
+│   ├── world/
 │   │   └── src/
-│   │       ├── index.ts      # Fastify boot
-│   │       ├── auth/         # register/login/logout/session (09-auth.md)
-│   │       ├── ws/           # connection handling, message router
-│   │       ├── rooms.ts      # one FarmRoom per loaded farm; owner + visitors
-│   │       ├── persist.ts    # snapshot scheduling, offline progress on load
-│   │       └── db/           # Drizzle schema + migrations (08-database.md)
+│   │       ├── index.ts      # SpaceTimeDB schema, reducers, lifecycle, schedules
+│   │       └── world-rules.ts# pure authority helpers covered by replay tests
 │   ├── assets/               # text-authored art + audio sources (11-asset-pipeline.md)
 │   │   ├── palette.json      # THE palette — single source of truth
 │   │   ├── sprites/          # *.sprite.json pixel grids
@@ -68,19 +61,20 @@ orchard-cellar/
 
 ## The golden rule: deterministic shared simulation
 
-`packages/sim` is a pure, deterministic state machine:
+`packages/sim` is a pure, deterministic rules library:
 
 ```ts
 advanceTick(state: FarmState, actions: Action[], tick: number): FarmState
 ```
 
-- Runs at **60 Hz** on the server (authoritative) and on the client (prediction).
+- Movement runs at **60 Hz** in the predicting client. The SpaceTimeDB authority runs
+  at 20 Hz and applies exactly three shared movement steps per authority tick.
 - No `Date.now()`, no `Math.random()` (seeded RNG stored in state), no I/O, no floats
   where determinism matters — use integers for currency (see below).
-- Every player intent is an `Action` (`{type:'move',dir}`, `{type:'tend',targetTile}`,
-  `{type:'buy',building}` …). The client sends actions; the server applies them; both
-  sides converge. This one property makes multiplayer, replay, offline progress, and
-  testing all tractable.
+- Player intent reaches identity-authorized reducers. Movement sends the latest
+  direction plus a monotonic sequence; it never sends position. Interactions send a
+  target id and the authority validates reach, role, cooldown, ownership, and state in
+  the same transaction.
 
 ### Numbers
 
@@ -104,43 +98,42 @@ Incremental-game quantities overflow doubles' integer range eventually. Rule:
   above-avatar canopy) redrawn only on tile change; dynamic sprites Y-sorted between
   detail and canopy. Camera scales by integer factor (2×/3×/4×) to fit window;
   `imageSmoothingEnabled=false`; virtual resolution 480×270 base.
-- **Prediction**: client applies own movement actions immediately; server sends
-  authoritative snapshots at 10 Hz + event deltas; client reconciles (rewind–replay
-  own unacked actions). Economy actions (buy/tend) are optimistic with rollback on
-  server rejection.
+- **Prediction**: the client applies movement immediately at 60 Hz, softly reconciles
+  to 20 Hz authoritative rows, and interpolates remote avatars. Economy interactions
+  wait for transactional reducer results.
+- **Interest management**: subscribe to the current chunk and its eight neighbors.
+  Subscribe to the new 3×3 region and wait for `onApplied` before unsubscribing the old
+  handle so boundary crossings have no empty frame.
 
-## Server architecture
+## World authority
 
-- **FarmRoom** per loaded farm: holds `FarmState`, applies queued actions at 60 Hz
-  (batched; sleeps when no connections and state is quiescent — persisted + unloaded
-  after 60 s idle).
-- Owner connection + up to **4 visitor** connections per room (see 07-multiplayer.md).
-- Snapshots persisted to SQLite every 30 s of activity and on unload.
-- Single Node process at launch. Scale path (not built now): rooms are already
-  share-nothing, so sharding farms across processes by `farm_id` is mechanical.
+- `packages/world` declares normalized public/private tables, lifecycle reducers,
+  gameplay reducers, and private schedule tables.
+- A private 50 ms schedule advances connected players at 20 Hz. It performs no world
+  writes with no live/leased presence. Durable position rows survive disconnect;
+  heartbeat-leased connection rows control public online state and expire crash ghosts.
+- Public spatial rows carry indexed chunk coordinates. The client receives atomic
+  table-cache changes through generated bindings rather than a hand-authored protocol.
+- Farm economy is timestamp/lazy driven. Entering or mutating a farm advances its
+  deterministic offline state once; absent farms are never scanned at movement rate.
+- SpaceTimeDB reducer transactions are the mutation boundary and commit log is the
+  durable source of truth. See [08-database.md](08-database.md).
 
-## Message protocol (WebSocket, JSON at first — binary later only if measured need)
+## Generated client protocol
 
-```
-Client → Server: {t:'act', tick, actions: Action[]}
-                 {t:'visit', farmId} / {t:'goHome'}
-                 {t:'chat', text}                       // visiting only, 200 char cap
-Server → Client: {t:'welcome', farmState, youAre, tick}
-                 {t:'snap', tick, dyn}                  // 10 Hz dynamic state (positions, timers)
-                 {t:'ev', events:[...]}                 // discrete: harvests, purchases, toasts
-                 {t:'reject', actionId, reason}
-                 {t:'presence', players:[...]}
-```
-
-Protocol types live in `packages/sim/src/protocol.ts` — imported by both sides; no
-hand-maintained duplicates.
+The schema generates `packages/client/src/net/generated`. Reducer parameters and row
+types are therefore single-source, build-checked protocol definitions. Hand-authored
+client networking wraps generated bindings for token persistence, global/private
+subscriptions, spatial handover, prediction, reconciliation, and UI-facing errors.
 
 ## Build & dev workflow
 
-- `npm run dev` — concurrently: Vite (client), tsx watch (server), asset watcher
-  (rebuild atlases on `assets/` change, hot-reload into client).
-- `npm run build` — assets → atlases, client → static bundle, server → dist. Server
-  serves the client bundle (single deployable).
+- `npm run dev` — builds assets, then concurrently starts the durable local
+  SpaceTimeDB host, module build/generate/publish watcher, Vite, and asset watcher.
+- `npm run build` — assets → atlases, sim/tools → JS, world → SpaceTimeDB bundle,
+  client → static bundle containing the solo and overworld entry pages.
+- `npm run world:smoke` — against a running local world, proves distinct identities,
+  reducer surface, atomic contention, private-state rejection, and reconnect.
 - `npm test` — Vitest. Sim package target: >80% line coverage; economy/prestige
   formulas require golden-number tests pinned to 06-progression-economy.md tables.
 - CI gates (add from milestone 1): typecheck, tests, `validate-assets`.

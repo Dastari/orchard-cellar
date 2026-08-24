@@ -1,101 +1,99 @@
-# 07 — Multiplayer: Visiting, Presence & Social
+# 07 — Persistent Overworld, Co-op & Social
 
-> **Scope superseded for M5.5 (2026-08-24):** the owner expanded the game to a
-> friends-only persistent overworld with contiguous travel between farms and genuine
-> cooperative multiplayer. The launch whitelist below is retained as the safe minimum
-> authorization policy, not as the final interaction ceiling. See
-> [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md). Do not
-> implement the former disconnected `FarmRoom` visit flow while the gate is active.
+Binding multiplayer design after the owner expanded Orchard & Cellar into a private,
+friends-only cozy MMO and the M5.5 SpaceTimeDB gate passed. Farms are estates in one
+continuous overworld; walking through a gate crosses an ownership boundary without a
+disconnected visit room.
 
-Original scope decision: **asymmetric social, not co-op simulation.** You can visit friends'
-live farms, help a little, gift, sign guestbooks, and share festivals — but every
-farm has exactly one owner whose progression is authoritative and solo-balanced.
-This delivers 90% of the warmth for 10% of the complexity, and it cannot corrupt the
-economy. Full co-op farming is explicitly out of scope for launch.
+## 1. World model
 
-## 1. Model
+- One shared world clock and authored overworld contain roads, common spaces, and
+  player-owned estate parcels.
+- A player has one durable avatar position and one owned farm. Friends may walk onto
+  an estate and cooperate while its owner is online or offline, subject to permissions.
+- Public spatial entities use indexed chunk coordinates. Each client subscribes to a
+  3×3 chunk region and hands regions over subscribe-first.
+- Movement is server-authoritative at 20 Hz with 60 Hz local prediction and remote
+  interpolation. Interactions are transactional reducers.
+- Small-group launch target is 25 concurrent friends. M9 must measure CPU, bandwidth,
+  memory, and reconciliation under that load before deployment.
 
-- Each farm = one `FarmRoom` on the server ([02-architecture.md](02-architecture.md)).
-  The owner's connection drives it; **up to 4 visitors** may join.
-- Visitors are *embodied* — their avatars walk the host's farm, with nameplates and
-  emotes — but interact through a whitelist (§3). Visitors' own farms keep running
-  offline-style while they're away (no double-dipping: visiting pauses your active
-  presence bonus at home).
-- A farm is visitable when its owner is **online and has visiting enabled**
-  (default: friends only). Offline farms are browsable in read-only "postcard" mode:
-  a static snapshot render + guestbook (no live room spun up).
+## 2. Estate permissions
 
-## 2. Friends & discovery
+Every farm has an owner and an access mode: `friends`, `invited`, or `closed`.
+Per-member roles may grant `visitor`, `helper`, or `steward`. The authority checks the
+current role for every reducer; UI visibility is never authorization.
 
-- **Friend codes** `ORCH-XXXX-XXXX` (format pinned in [13-ui-ux.md](13-ui-ux.md)),
-  regenerable. Enter a code → friend request → accept = mutual friendship
-  (tables in [08-database.md](08-database.md)).
-- Friends list (Estate Book, social tab): online status, farm name, lineage/vintage
-  count, "Visit" button, favorite star.
-- Visibility settings per farm: `friends` (default) / `open` (anyone with the code
-  or via festival matchmaking) / `closed`.
-- No global chat, no public server browser at launch. Abuse surface stays tiny.
+| Action | Visitor | Helper | Steward | Owner |
+|---|---:|---:|---:|---:|
+| Walk, emote, taste, pet dog | yes | yes | yes | yes |
+| Helping-hand tend | yes, 5/host-day | yes | yes | yes |
+| Harvest into host stores | no | yes | yes | yes |
+| Feed/empty machines | no | yes | yes | yes |
+| Spend host currency or buy upgrades | no | no | yes | yes |
+| Move/place/delete objects | no | no | permission-gated | yes |
+| Prestige, permissions, farm deletion | no | no | no | yes |
 
-## 3. What visitors can do (whitelist — everything else is inert)
+Helping-hand tending grants Care to the host tree and never pays fruit to the visitor.
+Shared harvest/machine operations mutate the host farm exactly once in a transaction.
+Co-op must not duplicate inventory, rewards, Vigour, or first-event Knowledge.
 
-| Action | Effect | Limits |
-|---|---|---|
-| Walk, run, emote (6 emotes) | social | — |
-| **Helping hand**: tend a tree with their own Vigour meter | Host tree gets +1 Care (no fruit payout to anyone); host gains "helped" toast | 5 tends per visitor per host-day |
-| Sign the guestbook | persistent entry (140 chars, host can delete) | 1/visit-day |
-| Leave a gift at the gate basket | from visitor's gift pouch (forage items, honey, a bottle from their cellar) → host claims; both get a small Knowledge tick (+1 Estate) the first time each day | 1/visitor/day |
-| Taste at the tasting table | see the host's best vintage label + stats; both receive a 30-min +5% production "good company" buff (stacks to 2 visitors) | — |
-| Pet the dog | essential | unlimited |
-| Chat bubbles | proximity text bubbles, 120 chars, bitmap-font charset only | rate-limited 1/2 s |
+## 3. Friends and discovery
 
-Visitors can never: spend host resources, move/place objects, trigger ceremonies,
-harvest fruit, or see host settings. Server enforces the whitelist — the visitor
-client's actions are validated against role, never trusted.
+- No public server browser and no global chat.
+- Production connection requires approved membership per [09-auth.md](09-auth.md).
+- The Estate Book lists members, online presence, farm name, public prestige summary,
+  role, favorite, and navigate-to-estate action.
+- Estate gates and the world map provide directions; a teleport shortcut may unlock
+  later but never replaces the walkable route.
+- Blocking removes estate access, hides authored text, and prevents direct social
+  interactions. Owner/moderators can revoke world membership.
 
-## 4. Festivals together
+## 4. Social verbs
 
-On festival days ([03-gameplay-core.md](03-gameplay-core.md) §7), a "celebrate
-together" prompt lets friends gather on one host's farm; festival mini-games get a
-shared scoreboard (Pressing Fair rhythm scores, Harvest chain lengths) and a
-cosmetic prize (bunting, lantern strings — placed decor, no production effect).
-Festival attendance grants each participant their own festival Knowledge tick on
-their own farm state.
+Retain the cozy launch verbs from the original design:
 
-## 5. Protocol & sync (extends 02's message set)
+- Guestbook: 140 characters, one entry per visitor per host-day; host can delete.
+- Gift basket: one gift per pair/day from an explicit gift pouch; transactional
+  removal and claim prevent duplication.
+- Tasting table: shows a public vintage label and grants the documented time-limited
+  good-company buff.
+- Proximity chat bubbles: 120 characters, bitmap-font charset, one message per two
+  seconds. No persistent global channel.
+- Six emotes, festival participation, and dog petting.
 
-- Visitor join: `{t:'visit', farmId}` → server checks friendship/visibility/capacity
-  → visitor's client receives `{t:'welcome', farmState, youAre:'visitor'}` and joins
-  the room's snapshot stream.
-- Visitor avatars ride the same 10 Hz `snap` messages (positions, facing, anim
-  state); their whitelist actions go through the same `act` envelope with
-  server-side role validation; rejections return `{t:'reject'}` with a reason toast.
-- Host disconnect: room persists 60 s; visitors get a "the farmer has gone in for
-  the night" toast and are returned home gracefully on unload.
-- Visiting client keeps its *own* farm's state untouched; on `goHome`, normal farm
-  load path (with offline gains for time away) runs.
-- Clock: visitors render the host's day/season. All timers derive from the host
-  room's tick.
+All authored text passes authority-side charset, length, denylist, block, and rate
+checks. Reports retain the offending text plus identities in a private moderation row.
 
-## 6. Safety & abuse
+## 5. Clock, offline farms, and presence
 
-- All player-authored text (names, guestbook, chat, farm names) passes the denylist
-  filter ([09-auth.md](09-auth.md)) and renders in the limited bitmap charset —
-  no unicode abuse surface.
-- Block list: blocking removes friendship, bans that account from your farm and
-  hides their guestbook entries; silent to the blocked party.
-- Host tools: kick visitor (instant, no message), clear any guestbook entry,
-  regenerate friend code.
-- Rate limits server-side on every social verb; visitors exceeding limits are
-  soft-throttled, never error-spammed.
-- Report action stores a snapshot of the offending text + ids in a moderation table
-  (reviewed manually — this is a small self-hosted community, not a platform).
+The overworld uses one shared seasonal clock. A farm stores the timestamp represented
+by its economy state and advances lazily when entered or mutated. Occupied farms may
+receive slow targeted maintenance; absent farms do not tick globally.
 
-## 7. Implementation order (mirrors [14-roadmap.md](14-roadmap.md))
+Positions persist across disconnects, but only identities with at least one live
+connection are rendered online. Multiple tabs for one identity remain online until
+the last connection closes. Reconnect restores the identity and authoritative
+position before accepting input.
 
-1. **M5a**: sessions → rooms → second-client spectate (walk + emotes only).
-2. **M5b**: friend codes, requests, visibility settings, visit flow + go-home.
-3. **M5c**: whitelist verbs (helping hand, guestbook, gifts, tasting buff).
-4. **M5d**: postcard mode for offline farms; festival gatherings; host tools.
+## 6. Implementation order
 
-Each step is shippable; if multiplayer slips, the game stands alone — nothing in
-docs 03–06 depends on a second player existing.
+1. **M5.5 complete:** durable shared chunk, two predicted avatars, shared atomic tree,
+   reconnect, restart persistence, private-state isolation.
+2. **M6:** OIDC + friends allowlist, owned farm/public/private tables, local-save
+   import, farm timestamp adapter, self-host deploy and backup/restore.
+3. **M7a:** authored overworld chunks and contiguous estate parcels; 25-client load
+   harness and latency/reconciliation controls.
+4. **M7b:** estate access modes and visitor/helper/steward reducer matrix.
+5. **M7c:** friends UI, guestbook, gifts, tasting, proximity chat, blocks/moderation.
+6. **M7d:** co-op festivals, reconnect/rollback soak, owner host tools.
+
+## 7. Required tests
+
+- Every permission-table cell has an allowed/denied reducer test.
+- Two identities racing a harvest, machine, gift claim, or purchase commit once.
+- Chunk crossings do not lose or duplicate entities and old subscriptions close.
+- Artificial latency/loss keeps local movement responsive and reconciles exactly.
+- Block/revoke takes effect on active connections and private views remain isolated.
+- Offline advance is identical whether a farm is entered by owner or permitted friend.
+- Twenty-five simulated friends meet the M9 resource/latency budget.

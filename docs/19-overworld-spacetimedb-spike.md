@@ -1,8 +1,8 @@
 # 19 — Persistent Overworld & SpaceTimeDB Architecture Gate
 
-Status: **binding M5.5 spike**, authorized by the owner on 2026-08-24. This document
-temporarily supersedes the backend portions of docs 01, 02, 07, 08, and 09. It does
-not change the Canvas engine, art/audio pipeline, economy, or prestige design.
+Status: **passed and adopted**, authorized and verified on 2026-08-24. SpaceTimeDB 2.8
+is now the binding backend in docs 01, 02, 07, 08, and 09. This did not change the
+Canvas engine, art/audio pipeline, economy, or prestige design.
 
 ## 1. Expanded product target
 
@@ -96,20 +96,24 @@ the gate must not introduce secrets or require a hosted account.
   server.
 - The visual agent owns asset/reference changes. The backend slice must use existing
   placeholders and must not edit visual source files.
+- The client package keeps strict TypeScript but disables
+  `exactOptionalPropertyTypes` and declaration emit. SpaceTimeDB 2.8.2's generated
+  bindings do not satisfy those two switches; `packages/sim` and `packages/world`
+  retain them where applicable.
 
 ## 7. Ten acceptance checks
 
-1. Two fresh browser contexts connect to the same durable local database and receive
+1. ✅ Two fresh browser contexts connect to the same durable local database and receive
    distinct identities.
-2. Both avatars appear in the same overworld and move smoothly at the documented speed.
-3. A client crossing a chunk boundary retains nearby entities with no empty-frame gap.
-4. The server rejects an attempted position spoof; reducers accept input, not position.
-5. Both clients can tend one shared tree and observe one atomic resulting state.
-6. Simultaneous tends cannot duplicate rewards or violate the tree cooldown/state.
-7. Disconnect/reconnect restores identity and authoritative position.
-8. A full SpaceTimeDB host restart preserves player and tree state.
-9. Another identity cannot subscribe to private inventory/progression or mutate it.
-10. The existing fixed-point movement or another shared deterministic `packages/sim`
+2. ✅ Both avatars appear in the same overworld and move smoothly at the documented speed.
+3. ✅ A client crossing a chunk boundary retains nearby entities with no empty-frame gap.
+4. ✅ The server rejects an attempted position spoof; reducers accept input, not position.
+5. ✅ Both clients can tend one shared tree and observe one atomic resulting state.
+6. ✅ Simultaneous tends cannot duplicate rewards or violate the tree cooldown/state.
+7. ✅ Disconnect/reconnect restores identity and authoritative position.
+8. ✅ A full SpaceTimeDB host restart preserves player and tree state.
+9. ✅ Another identity cannot subscribe to private inventory/progression or mutate it.
+10. ✅ The existing fixed-point movement or another shared deterministic `packages/sim`
     rule is imported by the TypeScript module and remains covered by a replay test.
 
 ## 8. Adoption rule
@@ -121,3 +125,36 @@ the spike as the first overworld implementation.
 Any failed check must be diagnosed. If the failure is fundamental to authorization,
 determinism, persistence, client smoothing, or local operability, append a rejection
 decision and resume the original Fastify/SQLite plan. Do not maintain both backends.
+
+## 9. Verification record
+
+- `npm run dev` booted the durable host, module build/binding/publish watcher, Vite,
+  and asset watcher from one command.
+- Presence uses a 10-second client heartbeat and 30-second authority lease, so an
+  ungraceful client exit cannot leave a permanent online ghost; the movement schedule
+  performs no world-clock/position writes after all leases expire.
+- Shared-browser Alice and Bob held distinct durable identities, appeared together,
+  moved under authority, crossed out of and back into Alice's 3×3 cache, and reconnected
+  with their saved tokens. The final visual pass showed exactly two online players;
+  offline durable position rows were correctly hidden.
+- A simultaneous Alice/Bob tend returned one success and one
+  `tree_recently_tended`; both caches observed one increment. `npm run world:smoke`
+  repeats the identity, reducer-surface, atomic-tend, private-subscription, movement
+  acknowledgement, and reconnect proofs.
+- A raw subscription to `private_inventory` was rejected. Generated reducers expose
+  only `heartbeat`, `setDisplayName`, `setInput`, and `tendTree`. A raw call to the
+  nonexistent `set_position` reducer was rejected; the smoke client also attached
+  hostile extra x/y fields to an idle input and asserted the authoritative position
+  stayed exact, proving there is no position-spoof path.
+- The smoke client walked from chunk 0 to chunk 2, stopped and awaited acknowledgement,
+  disconnected, subscribed to its identity-filtered self row from outside the origin
+  region, restored the exact stationary position, then sent and observed a fresh
+  post-reconnect movement sequence.
+- Before restart the tree was `{care:2,tendCount:2}` and one moved player was at
+  fixed-point x=2096 with sequence 2. After the full host stop/start and commit-log
+  replay, those exact rows remained; the smoke suite then passed again.
+- `world-rules.test.ts` proves 20 authority steps equal 60 shared sim steps and covers
+  chunk boundaries, protocol directions, interaction reach, and cooldown.
+
+The result is a pass. The original Fastify health-check skeleton was removed so there
+is one authority and one datastore.

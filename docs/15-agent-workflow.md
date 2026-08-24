@@ -49,12 +49,15 @@ Rules:
 
 ## 3. Code conventions
 
-- **TypeScript strict** everywhere (`tsconfig.base.json`, per 02). No `any` without an
+- **TypeScript strict** everywhere (`tsconfig.base.json`, per 02). The client alone
+  disables `exactOptionalPropertyTypes` and declaration emit because committed
+  SpaceTimeDB 2.8.2 generated bindings are not compatible with those two switches;
+  handwritten code remains strict. No `any` without an
   adjacent `// why:` comment explaining the escape hatch.
 - **No new dependencies** without a `DECISIONS.md` entry. The dependency budget is the
   stack table in [02-architecture.md](02-architecture.md); everything outside it needs
   a logged reason. Prefer 50 lines of in-repo code to a package.
-- **`packages/sim` is pure**: zero imports from client or server, no DOM, no Node APIs.
+- **`packages/sim` is pure**: zero imports from client or world, no DOM, no Node APIs.
   `Math.random` and `Date.now` are **banned in sim** — enforced by lint rule
   (`no-restricted-properties`); use `rng.ts` and the tick counter. Do not disable the rule.
 - File size soft cap: **400 lines**. Crossing it is a smell — split by responsibility
@@ -75,7 +78,7 @@ Vitest, per 02. The bar:
 - **Determinism test** (runs in CI): construct a state, run the same seed + action
   sequence through `advanceTick` twice from scratch, deep-equal the resulting states.
   Any nondeterminism is a release blocker, not a flake.
-- Minimum coverage bar: `sim` ≥ 80% lines; every server route tested for the happy
+- Minimum coverage bar: `sim` ≥ 80% lines; every world reducer tested for the happy
   path **and** the auth-failure path; client tested at the logic layer (input mapping,
   prediction/reconciliation, UI state) — do not attempt to assert on rendered pixels.
 

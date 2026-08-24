@@ -95,35 +95,46 @@ Cultivars with their rule-change implementations, achievements roster.
 Vintage → Succession → Lineage with all carries/resets exactly per 05 §3/§4 tables
 (golden test).
 
-## M5.5 — Persistent overworld backend gate `⏳ in progress (codex, 2026-08-24)`
+## M5.5 — Persistent overworld backend gate `✅ complete (2026-08-24)`
 
 This owner-directed architecture gate runs before M6 despite its fractional label.
 Build the reversible SpaceTimeDB 2.8 vertical slice specified in
 [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md): two browser
 clients share one chunked overworld, cross a chunk boundary without state loss, move
 under server authority with client smoothing, and interact with one shared tree.
-Restart persistence and private-state isolation must be demonstrated. Do not delete
-the Fastify skeleton or implement production auth during the spike.
+Restart persistence and private-state isolation must be demonstrated. Production auth
+was intentionally deferred until the candidate passed; the obsolete skeleton was then
+removed as required by doc 19's one-backend adoption rule.
 
 **Done when:** all ten acceptance checks in doc 19 pass and the result is recorded in
 `DECISIONS.md`. A pass rewrites M6/M7 around SpaceTimeDB; a fail removes the spike and
 resumes the original M6 unchanged.
 
-## M6 — Server, accounts & persistence `☐`
-Auth per [09-auth.md](09-auth.md), DB per [08-database.md](08-database.md),
-FarmRooms, protocol, client prediction/reconciliation, server-side offline gains,
-snapshots, TitleScene + LoginScene ([13-ui-ux.md](13-ui-ux.md)), deploy story
-(single node serving client bundle). Local-save users migrate via one-time import.
-**Done when:** two browsers, two accounts, each playing their own farm through a
-server restart with no lost progress. This original plan remains paused until M5.5
-accepts or rejects the SpaceTimeDB candidate.
+**Verification:** Two shared-browser identities rendered together, crossed chunk
+subscription boundaries, contended for one tree atomically, reconnected, and hid
+offline durable avatars correctly. A private-table subscription was rejected and the
+public reducer surface contains no position setter. `npm run world:smoke` repeats the
+security/atomicity/reconnect checks. A full host stop/start replayed the commit log and
+preserved exact player/tree rows. The module imports shared fixed-point movement and
+its replay test proves 20 Hz authority matches 60 Hz sim movement. The final browser
+snapshot showed `WORLD ONLINE PLAYERS 2` after the one-command dev boot.
 
-## M7 — Multiplayer `☐`
-[07-multiplayer.md](07-multiplayer.md) steps M5a–M5d: spectate → friends/visiting →
-whitelist verbs (helping hand, guestbook, gifts, tasting) → postcards, festivals
-together, host tools.
-**Done when:** the 07 §3 whitelist table is fully enforced by server tests, and a
-visit + gift + guestbook round-trip works between two accounts.
+## M6 — Accounts, farm authority & persistence `☐`
+OIDC + owner-managed friends allowlist per [09-auth.md](09-auth.md); normalized owned
+farm/public/private tables per [08-database.md](08-database.md); caller-dependent
+private views; deterministic timestamp/offline farm adapter; Title/Login account UX;
+one-time local-save import; self-host HTTPS and tested backup/restore.
+**Done when:** two approved accounts each own and play a distinct farm through restart,
+an unapproved identity is rejected, cross-account private reads/mutations fail, local
+state imports once without loss, and a backup restores both farms into a fresh host.
+
+## M7 — Overworld & co-op `☐`
+[07-multiplayer.md](07-multiplayer.md) steps M7a–M7d: authored overworld/estate parcels
+→ estate permission roles → guestbook/gifts/tasting/chat/blocking → co-op festivals
+and host tools. Add the 25-friend load and artificial-latency harnesses.
+**Done when:** players walk between two owned farms, every permission-table cell is
+enforced by reducer tests, shared harvest/machine/gift races commit once, social verbs
+round-trip, and 25 simulated friends stay within the M9 resource/latency budget.
 
 ## M8 — Texture & delight `☐`
 Festivals (4, with mini-games), daily micro-events, the dog, forageables + bees,

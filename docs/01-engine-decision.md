@@ -2,13 +2,12 @@
 
 **Decision: TypeScript + HTML5 Canvas 2D, custom lightweight engine. Not Bevy.**
 
-**Backend evaluation amendment (2026-08-24):** the rendering/engine decision remains
-binding. The owner has expanded multiplayer into a friends-only persistent overworld
-where players can walk between farms and cooperate. Fastify + `ws` + SQLite is paused
-before M6 while the reversible SpaceTimeDB 2.8 spike in
-[19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) is evaluated.
-Until that gate is resolved, do not build either production backend or delete the
-existing server skeleton.
+**Backend amendment (2026-08-24):** the rendering/engine decision remains binding.
+The owner expanded multiplayer into a friends-only persistent overworld where players
+walk between farms and cooperate. The M5.5 gate in
+[19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) passed all ten
+checks, so SpaceTimeDB 2.8 replaces Fastify + `ws` + SQLite as the binding authority
+and store. Do not reintroduce the discarded server stack.
 
 This is a binding decision. Every other document in this suite assumes it. Do not
 re-litigate it mid-build; if a hard blocker appears, stop and raise it with the user.
@@ -60,26 +59,20 @@ No general-purpose engine. A small set of purpose-built modules (specified in
 |---|---|
 | Language | TypeScript everywhere (strict mode) |
 | Client | HTML5 Canvas 2D, Vite dev/build, no UI framework — in-canvas UI (see 13-ui-ux.md) |
-| Server | Node 22+, Fastify (HTTP/auth) + `ws` (realtime), authoritative simulation |
+| Server | SpaceTimeDB 2.8 TypeScript module, identity-authorized reducers, scheduled authority |
 | Shared | `packages/sim` — pure, deterministic game logic, zero DOM/Node imports |
-| Database | SQLite via better-sqlite3, WAL mode, Drizzle ORM (see 08-database.md) |
-| Auth | Email + password, Argon2id, server-side cookie sessions (see 09-auth.md) |
+| Database | SpaceTimeDB normalized durable tables and commit log (see 08-database.md) |
+| Auth | OIDC identity + explicit friends allowlist; local tokens only in development (see 09-auth.md) |
 | Assets | Text-authored pixel grids compiled to PNG atlases by build script (see 11-asset-pipeline.md) |
 | Audio | ZzFX-style synthesized SFX + in-repo tracker music via Web Audio (see 12-audio-design.md) |
-| Monorepo | npm workspaces: `packages/{client,server,sim,assets,tools}` |
+| Monorepo | npm workspaces: `packages/{client,world,sim,assets,tools}` |
 | Tests | Vitest; sim logic is pure functions and must be heavily unit-tested |
-
-The Server/Database/Auth rows above describe the original isolated-farm plan. During
-M5.5 only, the candidate stack is a TypeScript SpaceTimeDB module, generated TypeScript
-client bindings, durable SpaceTimeDB tables, and development identities. A passing
-M5.5 gate replaces those rows in a follow-up decision and doc rewrite; a failing gate
-restores them unchanged.
 
 ## Consequences accepted
 
 - No native desktop build at launch. If ever wanted: wrap in Electron/Tauri — the web
   build runs unchanged.
-- Single-threaded sim. Fine: one farm's simulation is trivial; the server runs one sim
-  instance per *loaded* farm and unloads idle ones.
+- The 20 Hz network authority and 60 Hz client prediction use the same fixed-point sim
+  rules. Farm economy advances lazily/from timestamps, never in a global 60 Hz scan.
 - Canvas 2D text/UI is hand-rolled. Accepted deliberately — a bitmap-font UI keeps the
   pixel aesthetic consistent (no DOM widgets breaking the look).

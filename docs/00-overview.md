@@ -12,9 +12,9 @@ following this doc suite.
 
 **Headline decisions** (rationale in the docs):
 - **TypeScript + HTML5 Canvas 2D**, custom micro-engine — *not* Rust/Bevy (01)
-- One deterministic simulation package shared by client & server (02)
-- SpaceTimeDB 2.8 is under a binding M5.5 architecture gate for realtime authority,
-  durable world state, and subscriptions; Fastify/SQLite is the rollback plan (19)
+- One deterministic simulation package shared by client & world authority (02)
+- SpaceTimeDB 2.8 is the binding realtime authority and durable store after passing
+  the M5.5 architecture gate; generated subscriptions stream the shared world (19)
 - Friends-only contiguous overworld with cooperative farming and permissioned estates (07, 19)
 - All art & audio authored as text (pixel-grid JSON, tracker JSON) and compiled —
   enforceable style consistency for agent-made assets (10–12)
