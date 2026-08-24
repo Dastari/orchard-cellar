@@ -23,13 +23,15 @@ import {
   type UiScale,
 } from './display.js';
 import { FixedStepLoop } from './loop.js';
-import type { PlayerPosition, PlayerPublic, WorldItem, WorldResource } from './net/generated/types.js';
+import { AudioBus } from './audio/audio-bus.js';
+import type { PlayerPosition, WorldItem, WorldResource } from './net/generated/types.js';
 import {
   OverworldConnection,
   viewRadiusForViewport,
   type NetworkDirection,
-  type OverworldSnapshot,
+  type OverworldView,
 } from './net/overworld-connection.js';
+import { AvatarAnimationController, PresentationCorrection, RemoteSnapshotBuffer, RenderTickClock, type SampledRemote } from './net/netcode.js';
 import {
   drawOverworldAvatar,
   drawOverworldItem,
@@ -37,6 +39,8 @@ import {
   drawOverworldStump,
   drawOverworldTree,
   drawUiAsset,
+  actionAnimationForDirection,
+  avatarAnimationForDirection,
   loadOverworldArt,
 } from './overworld-art.js';
 import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
@@ -60,7 +64,7 @@ import {
   type WorldDepthItem,
 } from './render/renderer.js';
 import { terrainForWorld, type TerrainArray } from './render/terrain.js';
-import { interpolateFixedPosition, reconcilePredictedPlayer } from './overworld-prediction.js';
+import { interpolateFixedPosition } from './overworld-prediction.js';
 import {
   HOTBAR_HEIGHT,
   HOTBAR_SLOT_COUNT,
@@ -90,18 +94,19 @@ const groundCache = new GroundChunkCache();
 const lightmap = new TileLightmap();
 const rain = new RainWeather(art.rainStreak, art.rainSplash);
 const renderMetrics = new RenderMetrics();
+const audio = new AudioBus(false);
 
 const keys = new Set<string>();
 const accountSlot = new URLSearchParams(location.search).get('slot') ?? 'Farmer One';
 let networkDirty = true;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
-let latestSnapshot = network.snapshot();
+let latestSnapshot = network.view();
 let predicted: PlayerState | null = null;
 let previousPredicted: PlayerState | null = null;
 let lastDirection: NetworkDirection = 'idle';
 let toast = 'CONNECTING TO SHARED ISLAND';
 let toastTicks = 180;
-let animationTick = 0;
+let effectPhase = 0;
 let worldZoom = DEFAULT_WORLD_ZOOM;
 let worldZoomTarget = DEFAULT_WORLD_ZOOM;
 let desiredUiScale: UiScale = DEFAULT_UI_SCALE;
@@ -112,12 +117,18 @@ let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
 let lastNetworkStatus = '';
 let debugCollision = false;
 let debugMetrics = false;
-const remoteDisplay = new Map<string, { x: number; y: number }>();
-const previousRemoteDisplay = new Map<string, { x: number; y: number }>();
+const unknownActionKinds = new Set<string>();
+const remoteBuffers = new Map<string, RemoteSnapshotBuffer>();
+const remoteDisplay = new Map<string, SampledRemote>();
+const previousRemoteDisplay = new Map<string, SampledRemote>();
+const renderTickClock = new RenderTickClock();
+const presentationCorrection = new PresentationCorrection();
+const avatarAnimations = new Map<string, AvatarAnimationController>();
 const resourceHealth = new Map<bigint, number>();
-const treeShakeUntil = new Map<bigint, number>();
-let axeActionStartedTick: number | null = null;
-let axePreviewFrame: number | null = null;
+const treeShakeRemaining = new Map<bigint, number>();
+let localActionStartedAtMs: number | null = null;
+let localPredictedActionKind = 'none';
+let latestPositionAuthorityTick = 0n;
 let hoveredHotbarSlot: number | null = null;
 let lightingTickOverride: bigint | null = null;
 let lightPreviewKind: 'lantern' | 'torch' | null = null;
@@ -156,7 +167,7 @@ function playerState(row: PlayerPosition): PlayerState {
   };
 }
 
-function refreshCollision(snapshot: OverworldSnapshot): void {
+function refreshCollision(snapshot: OverworldView): void {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
   const nextKey = `${seed}:${version}:${network.resourceRevision}`;
@@ -167,11 +178,14 @@ function refreshCollision(snapshot: OverworldSnapshot): void {
 
 function update(): void {
   const previous = predicted;
-  animationTick = (animationTick + 1) % 1_000_000;
+  effectPhase = (effectPhase + 1) % 4;
   worldZoom = easeWorldZoom(worldZoom, worldZoomTarget);
   network.setViewRadius(viewRadiusForViewport(renderer.cssWidth, renderer.cssHeight, worldZoom));
-  latestSnapshot = network.snapshot();
+  latestSnapshot = network.view();
   const snapshot = latestSnapshot;
+  if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
+    optimisticSelectedSlot = null;
+  }
   const weatherTick = lightingTickOverride ?? snapshot.clock?.authorityTick ?? 0n;
   rain.update(
     rainOverride ?? rainActiveAtTick(weatherTick),
@@ -182,11 +196,14 @@ function update(): void {
   for (const resource of snapshot.resources) {
     const previous = resourceHealth.get(resource.id);
     if (previous !== undefined && resource.health < previous && !resource.depleted) {
-      treeShakeUntil.set(resource.id, animationTick + 16);
+      treeShakeRemaining.set(resource.id, 16);
     }
     resourceHealth.set(resource.id, resource.health);
   }
-  if (axeActionStartedTick !== null && animationTick - axeActionStartedTick >= 24) axeActionStartedTick = null;
+  for (const [id, remaining] of treeShakeRemaining) {
+    if (remaining <= 1) treeShakeRemaining.delete(id);
+    else treeShakeRemaining.set(id, remaining - 1);
+  }
   if (networkDirty) refreshCollision(snapshot);
   const direction = directionFromKeys();
   if (direction !== lastDirection) {
@@ -195,24 +212,43 @@ function update(): void {
   }
   const authoritative = network.ownPosition();
   if (authoritative !== null) {
-    predicted = reconcilePredictedPlayer(
-      predicted,
-      playerState(authoritative),
-      direction === 'idle' ? null : direction,
-      network.ownInputAcknowledged(),
-    );
+    const reconciliation = network.reconcile(predicted, playerState(authoritative), worldCollision);
+    if (reconciliation !== null) {
+      if (predicted !== null && reconciliation.errorFixed > 0 && !reconciliation.hardSnap) {
+        presentationCorrection.begin(predicted.position, reconciliation.player.position);
+      } else if (reconciliation.hardSnap) presentationCorrection.clear();
+      predicted = reconciliation.player;
+    }
   }
-  if (predicted !== null) predicted = movePlayer(predicted, direction === 'idle' ? null : direction, worldCollision);
+  if (predicted !== null) {
+    predicted = movePlayer(predicted, direction === 'idle' ? null : direction, worldCollision);
+    network.recordPredictedStep(direction, predicted);
+  }
   previousPredicted = previous ?? predicted;
+  presentationCorrection.advance(1 / 60);
 
-  for (const player of snapshot.players) {
-    if (player.identity.toHexString() === snapshot.identityHex) continue;
+  network.drainPositionCommits((player) => {
     const id = player.identity.toHexString();
-    const display = remoteDisplay.get(id) ?? { x: player.x, y: player.y };
-    previousRemoteDisplay.set(id, { x: display.x, y: display.y });
-    display.x += (player.x - display.x) / 3;
-    display.y += (player.y - display.y) / 3;
-    remoteDisplay.set(id, display);
+    if (player.authorityTick > latestPositionAuthorityTick) latestPositionAuthorityTick = player.authorityTick;
+    if (id === snapshot.identityHex) return;
+    const buffer = remoteBuffers.get(id) ?? new RemoteSnapshotBuffer();
+    buffer.push(player);
+    remoteBuffers.set(id, buffer);
+  });
+  network.drainDeletedPositionIds((id) => {
+    remoteBuffers.delete(id);
+    remoteDisplay.delete(id);
+    previousRemoteDisplay.delete(id);
+    avatarAnimations.delete(id);
+  });
+  const renderTick = renderTickClock.advance(1 / 60, latestPositionAuthorityTick);
+  for (const [id, buffer] of remoteBuffers) {
+    const sample = buffer.sample(renderTick, worldCollision);
+    if (sample !== null) {
+      const current = remoteDisplay.get(id);
+      if (current !== undefined) previousRemoteDisplay.set(id, current);
+      remoteDisplay.set(id, sample);
+    }
   }
   if (networkDirty) {
     networkDirty = false;
@@ -228,33 +264,35 @@ function update(): void {
   if (toastTicks > 0) toastTicks -= 1;
 }
 
-function profileName(profiles: readonly PlayerPublic[], identity: string): string {
+function profileName(profiles: OverworldView['profiles'], identity: string): string {
   return profiles.find((profile) => profile.identity.toHexString() === identity)?.displayName ?? 'FARMER';
 }
 
-function selectedItem(snapshot: OverworldSnapshot): string {
-  const selected = snapshot.survival?.selectedSlot ?? 0;
+let optimisticSelectedSlot: number | null = null;
+
+function selectedItem(snapshot: OverworldView): string {
+  const selected = optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0;
   return snapshot.inventorySlots.find((inventory) => inventory.slot === selected)?.itemKind ?? 'empty';
 }
 
-function targetResource(snapshot: OverworldSnapshot): WorldResource | null {
+function targetResource(snapshot: OverworldView): WorldResource | null {
   if (predicted === null) return null;
   return facedResource(predicted.position.x, predicted.position.y, predicted.facing, snapshot.resources);
 }
 
-function targetWorldItem(snapshot: OverworldSnapshot): WorldItem | null {
+function targetWorldItem(snapshot: OverworldView): WorldItem | null {
   if (predicted === null) return null;
   return facedWorldItem(predicted.position.x, predicted.position.y, predicted.facing, snapshot.worldItems);
 }
 
 function drawHotbar(
   context: CanvasRenderingContext2D,
-  snapshot: OverworldSnapshot,
+  snapshot: OverworldView,
   viewportWidth: number,
   viewportHeight: number,
 ): void {
   const layout = hotbarLayout(viewportWidth, viewportHeight);
-  const selected = snapshot.survival?.selectedSlot ?? 0;
+  const selected = optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0;
   const icons = {
     axe: art.iconAxe,
     pickaxe: art.iconPickaxe,
@@ -308,7 +346,7 @@ function drawPlayerCollisionOverlay(
   cameraX: number,
   cameraY: number,
   scale: number,
-  snapshot: OverworldSnapshot,
+  snapshot: OverworldView,
 ): void {
   for (const player of snapshot.players) {
     const id = player.identity.toHexString();
@@ -415,9 +453,10 @@ function render(alpha = 1): void {
   let drawCalls = 0;
   const snapshot = latestSnapshot;
   const predictedPosition = predicted?.position;
-  const renderedLocal = predictedPosition === undefined
+  const renderedLocalBase = predictedPosition === undefined
     ? null
     : interpolateFixedPosition(previousPredicted?.position ?? predictedPosition, predictedPosition, alpha);
+  const renderedLocal = renderedLocalBase === null ? null : presentationCorrection.apply(renderedLocalBase);
   const localX = (renderedLocal?.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const localY = (renderedLocal?.y ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const frame = renderer.beginWorld(worldZoom);
@@ -457,8 +496,8 @@ function render(alpha = 1): void {
           drawOverworldStump(context, art, resourceX, resourceY, cameraX, cameraY, scale);
           return;
         }
-        const shaking = (treeShakeUntil.get(resource.id) ?? -1) > animationTick;
-        const shakeX = shaking ? (animationTick % 4 < 2 ? -1 : 1) : 0;
+        const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;
+        const shakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
         drawOverworldTree(
           context,
           art,
@@ -497,12 +536,16 @@ function render(alpha = 1): void {
     const x = xFixed / FIXED_UNITS_PER_PIXEL;
     const y = yFixed / FIXED_UNITS_PER_PIXEL;
     if (!worldPointVisible(x, y, visible)) continue;
-    const facing = (local ? predicted?.facing ?? player.facing : player.facing) as Direction;
-    const moving = local ? lastDirection !== 'idle' : player.moving;
+    const facing = (local ? predicted?.facing ?? player.facing : display?.facing ?? player.facing) as Direction;
+    const displayedDx = local
+      ? (renderedLocal?.x ?? player.x) - (previousPredicted?.position.x ?? renderedLocal?.x ?? player.x)
+      : (display?.x ?? player.x) - (previousDisplay?.x ?? display?.x ?? player.x);
+    const displayedDy = local
+      ? (renderedLocal?.y ?? player.y) - (previousPredicted?.position.y ?? renderedLocal?.y ?? player.y)
+      : (display?.y ?? player.y) - (previousDisplay?.y ?? display?.y ?? player.y);
+    const moving = Math.abs(displayedDx) + Math.abs(displayedDy) > 0.01;
     nameplates.push({ x, y, name: profileName(snapshot.profiles, id) });
-    const equipped = local
-      ? lightPreviewKind ?? selectedItem(snapshot)
-      : snapshot.equipment.find((row) => row.identity.toHexString() === id)?.itemKind ?? 'empty';
+    const equipped = local ? lightPreviewKind ?? selectedItem(snapshot) : display?.equippedKind ?? player.equippedKind;
     if (equipped === 'lantern' || equipped === 'torch') {
       const [lightX, lightY] = playerLightPosition(x, y);
       pointLights.push({
@@ -516,9 +559,36 @@ function render(alpha = 1): void {
       footY: y,
       tie: `player:${id}`,
       draw: () => {
-        const axeElapsed = local && axeActionStartedTick !== null ? animationTick - axeActionStartedTick : -1;
-        const axeFrame = axePreviewFrame ?? (axeElapsed >= 0 && axeElapsed < 24 ? Math.min(3, Math.floor(axeElapsed / 6)) : null);
-        drawOverworldAvatar(context, art, x, y, facing, moving, animationTick, cameraX, cameraY, scale, axeFrame);
+        const controller = avatarAnimations.get(id) ?? new AvatarAnimationController();
+        avatarAnimations.set(id, controller);
+        const renderTick = renderTickClock.renderTick;
+        const localPreviewActive = local && localActionStartedAtMs !== null && performance.now() - localActionStartedAtMs < 500;
+        const actionKind = localPreviewActive ? localPredictedActionKind : display?.actionKind ?? player.actionKind;
+        const actionStartedTick = localPreviewActive
+          ? BigInt(Math.floor(renderTick - (performance.now() - (localActionStartedAtMs ?? performance.now())) / 50))
+          : display?.actionStartedTick ?? player.actionStartedTick;
+        const walkAnimation = avatarAnimationForDirection(facing);
+        const actionAnimation = actionAnimationForDirection(art, actionKind, facing);
+        const actionFrames = actionAnimation === null
+          ? 4
+          : art.avatarAxe.metadata.animations[actionAnimation]?.length ?? 4;
+        const actionFps = actionAnimation === null
+          ? 10
+          : art.avatarAxe.metadata.animationMeta?.[actionAnimation]?.fps ?? 10;
+        const animation = controller.update(
+          xFixed, yFixed, actionKind, actionStartedTick, renderTick,
+          art.avatar.metadata.animations[walkAnimation]?.length ?? 4,
+          art.avatar.metadata.animationMeta?.[walkAnimation]?.fps ?? 8,
+          actionFrames,
+          actionFps,
+          actionAnimation !== null,
+        );
+        if (animation.fallback) unknownActionKinds.add(actionKind);
+        const actionFrame = animation.channel === 'action' && !animation.fallback ? animation.frame : null;
+        drawOverworldAvatar(
+          context, art, x, y, facing, moving, animation.frame,
+          cameraX, cameraY, scale, actionFrame, actionAnimation,
+        );
       },
     });
   }
@@ -595,13 +665,22 @@ function render(alpha = 1): void {
   );
   if (debugMetrics) {
     const metrics = renderMetrics.snapshot();
+    const net = network.metrics();
+    const remoteDepths = [...remoteBuffers.values()].map((buffer) => buffer.depth);
+    const remoteMin = remoteDepths.length === 0 ? 0 : Math.min(...remoteDepths);
+    const remoteMax = remoteDepths.length === 0 ? 0 : Math.max(...remoteDepths);
     const lines = [
       `FRAME ${metrics.averageFrameMs.toFixed(2)} AVG ${metrics.worstFrameMs.toFixed(2)} WORST`,
       `DRAWS ${metrics.drawCalls} CHUNKS ${groundCache.residentCount} PARTICLES ${rain.activeCount}`,
       `ZOOM ${worldZoom.toFixed(2)} K ${frame.layout.integerScale} DPR ${renderer.dpr.toFixed(2)}`,
+      `NET RTT ${net.rttMs.toFixed(0)}ms LAG ${net.lagMs}+/-${net.jitterMs}`,
+      `REPLAY ${net.replayDepth} ERROR ${net.reconciliationErrorFixed.toFixed(1)} FIXED`,
+      `REMOTE BUFFER ${remoteMin}-${remoteMax} REFRESH ${net.inputRefreshAgeSteps}/20`,
+      `HANDOVERS ${net.handoverCount}${net.persistentInputError === null ? '' : ` INPUT ${net.persistentInputError}`}`,
+      `UNKNOWN ACTIONS ${[...unknownActionKinds].join(',') || 'NONE'}`,
     ];
     const width = Math.max(...lines.map((line) => measurePixelText(line))) + 14;
-    drawPixelPanel(uiContext, art.ui, 4, 27, width, 35);
+    drawPixelPanel(uiContext, art.ui, 4, 27, width, lines.length * 9 + 8);
     for (let index = 0; index < lines.length; index += 1) {
       drawPixelText(uiContext, art.ui, lines[index] ?? '', 11, 32 + index * 9);
     }
@@ -646,11 +725,27 @@ function showResult(promise: Promise<void>, success: string): void {
   });
 }
 
+function selectSlotOptimistically(slot: number): void {
+  optimisticSelectedSlot = slot;
+  void network.selectHotbar(slot).then(() => {
+    if (latestSnapshot.survival?.selectedSlot === slot) optimisticSelectedSlot = null;
+  }).catch((error: unknown) => {
+    optimisticSelectedSlot = null;
+    toast = error instanceof Error ? error.message : String(error);
+    toastTicks = 120;
+  });
+}
+
+function startPredictedAction(kind: string): void {
+  localPredictedActionKind = kind;
+  localActionStartedAtMs = performance.now();
+}
+
 window.addEventListener('resize', resize);
 window.addEventListener('keydown', (event) => {
   const selectedSlot = hotbarSlotForCode(event.code);
   if (selectedSlot !== null && !event.repeat) {
-    showResult(network.selectHotbar(selectedSlot), `SELECTED SLOT ${selectedSlot + 1}`);
+    selectSlotOptimistically(selectedSlot);
     event.preventDefault();
     return;
   }
@@ -695,7 +790,8 @@ window.addEventListener('keydown', (event) => {
       toast = `NO ${hotbarItemLabel(item)} USE ACTION YET`;
       toastTicks = 120;
     } else {
-      axeActionStartedTick = animationTick;
+      startPredictedAction('swing_axe');
+      void audio.unlock().then(async () => await audio.playSfx('tool_swing')).catch(() => undefined);
       const resource = targetResource(snapshot);
       if (resource === null) {
         toast = 'SWING';
@@ -708,6 +804,7 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyE' && !event.repeat) {
+    startPredictedAction('pickup');
     const item = targetWorldItem(latestSnapshot);
     if (item === null) {
       toast = 'NOTHING TO PICK UP';
@@ -719,6 +816,7 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyQ' && !event.repeat) {
+    startPredictedAction('drop');
     showResult(network.dropSelected(), 'DROPPED SELECTED SLOT');
     event.preventDefault();
     return;
@@ -756,7 +854,7 @@ canvas.addEventListener('pointerdown', (event) => {
   const slot = hotbarSlotForPointer(event);
   if (slot === null) return;
   hoveredHotbarSlot = slot;
-  showResult(network.selectHotbar(slot), `SELECTED SLOT ${slot + 1}`);
+  selectSlotOptimistically(slot);
   event.preventDefault();
 });
 canvas.addEventListener('pointerup', (event) => {
@@ -800,12 +898,15 @@ Object.assign(window, {
     setCollisionDebug: (enabled: boolean) => { debugCollision = enabled; },
     setMetricsDebug: (enabled: boolean) => { debugMetrics = enabled; },
     renderMetrics: () => renderMetrics.snapshot(),
+    netcodeMetrics: () => network.metrics(),
+    audioStatus: () => audio.getStatus(),
+    predictedPosition: () => predicted === null ? null : { ...predicted.position },
+    remoteBufferDepths: () => [...remoteBuffers.entries()].map(([identity, buffer]) => ({ identity, depth: buffer.depth })),
     setWorldZoom: (zoom: number) => {
       worldZoom = Math.max(renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16), Math.min(MAX_WORLD_ZOOM, zoom));
       worldZoomTarget = worldZoom;
     },
     setUiScale: (scale: UiScale) => { desiredUiScale = scale; },
-    setAxePreviewFrame: (frame: number | null) => { axePreviewFrame = frame; },
     setLightingTick: (tick: bigint | null) => { lightingTickOverride = tick; },
     setLightPreview: (kind: 'lantern' | 'torch' | null) => { lightPreviewKind = kind; },
     setRain: (enabled: boolean | null) => { rainOverride = enabled; },

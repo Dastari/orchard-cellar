@@ -4,25 +4,35 @@ import {
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_VERSION,
   TILE_SIZE_FIXED,
+  avatarActionAfterMovement,
   generateSurvivalResources,
+  movePlayer,
   survivalSpawnPosition,
   type Direction,
   type PlayerState,
 } from '@orchard/sim';
 import { ScheduleAt, SenderError, schema, table, t } from 'spacetimedb/server';
 import {
-  advanceAuthorityPlayer,
   canTendTree,
   canUseFarmTile,
   chunkAt,
   CROP_GROWTH_TICKS,
   createAuthoritySurvivalCollisionMap,
   decodeDirection,
+  inputIsStale,
   itemDropPosition,
   itemWithinPickupReach,
   isFarmBedTile,
+  MAX_SETTLE_STEPS_PER_TICK,
+  movementCreditAvailable,
+  queueMovementAcknowledgement,
+  drainMovementAcknowledgement,
+  drainMovementRunQueue,
+  nextActionStartedTick,
   presenceLeaseExpired,
   resourceHarvestResult,
+  SIM_STEPS_PER_AUTHORITY_TICK,
+  settleMovementRun,
 } from './world-rules.js';
 
 const HOTBAR_SLOTS = ['axe', 'pickaxe', 'hoe', 'watering_can', 'empty', 'empty', 'empty', 'empty', 'empty'] as const;
@@ -54,6 +64,9 @@ const player_position = table(
     moving: t.bool(),
     lastProcessedSequence: t.u64(),
     authorityTick: t.u64(),
+    actionKind: t.string(),
+    actionStartedTick: t.u64(),
+    equippedKind: t.string(),
   },
 );
 
@@ -63,6 +76,15 @@ const player_input = table(
     identity: t.identity().primaryKey(),
     direction: t.string(),
     sequence: t.u64(),
+    settledSequence: t.u64(),
+    pendingSequence: t.u64(),
+    updatedAtMicros: t.u64(),
+    runStartClientTick: t.u64(),
+    appliedSteps: t.u64(),
+    settleDirection: t.string(),
+    settleSteps: t.u8(),
+    creditStartedAtMicros: t.u64(),
+    creditedSteps: t.u64(),
   },
 );
 
@@ -429,8 +451,24 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       moving: false,
       lastProcessedSequence: 0n,
       authorityTick: 0n,
+      actionKind: 'none',
+      actionStartedTick: 0n,
+      equippedKind: HOTBAR_SLOTS[0],
     });
-    ctx.db.player_input.insert({ identity: ctx.sender, direction: 'idle', sequence: 0n });
+    ctx.db.player_input.insert({
+      identity: ctx.sender,
+      direction: 'idle',
+      sequence: 0n,
+      settledSequence: 0n,
+      pendingSequence: 0n,
+      updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+      runStartClientTick: 0n,
+      appliedSteps: 0n,
+      settleDirection: 'idle',
+      settleSteps: 0,
+      creditStartedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+      creditedSteps: 0n,
+    });
     ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
   } else {
     ctx.db.player_public.identity.update({ ...profile, online: true });
@@ -446,6 +484,9 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         moving: false,
         lastProcessedSequence: 0n,
         authorityTick: 0n,
+        actionKind: 'none',
+        actionStartedTick: 0n,
+        equippedKind: HOTBAR_SLOTS[0],
       });
     } else if (enteringSurvivalWorld) {
       ctx.db.player_position.identity.update({
@@ -455,10 +496,50 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         chunkX: chunkAt(spawn.x),
         chunkY: chunkAt(spawn.y),
         moving: false,
+        actionKind: 'none',
+        actionStartedTick: 0n,
       });
     }
     if (ctx.db.player_input.identity.find(ctx.sender) === null) {
-      ctx.db.player_input.insert({ identity: ctx.sender, direction: 'idle', sequence: 0n });
+      ctx.db.player_input.insert({
+        identity: ctx.sender,
+        direction: 'idle',
+        sequence: 0n,
+        settledSequence: 0n,
+        pendingSequence: 0n,
+        updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+        runStartClientTick: 0n,
+        appliedSteps: 0n,
+        settleDirection: 'idle',
+        settleSteps: 0,
+        creditStartedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+        creditedSteps: 0n,
+      });
+    } else {
+      const input = ctx.db.player_input.identity.find(ctx.sender);
+      if (input !== null) {
+        ctx.db.player_input.identity.update({
+          ...input,
+          direction: 'idle',
+          updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+          runStartClientTick: 0n,
+          appliedSteps: 0n,
+          settleDirection: 'idle',
+          settleSteps: 0,
+          settledSequence: input.sequence,
+          pendingSequence: 0n,
+          creditStartedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+          creditedSteps: 0n,
+        });
+        const reconnectPosition = ctx.db.player_position.identity.find(ctx.sender);
+        if (reconnectPosition !== null && reconnectPosition.lastProcessedSequence !== input.sequence) {
+          ctx.db.player_position.identity.update({
+            ...reconnectPosition,
+            moving: false,
+            lastProcessedSequence: input.sequence,
+          });
+        }
+      }
     }
     if (ctx.db.private_inventory.identity.find(ctx.sender) === null) {
       ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
@@ -470,31 +551,20 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
   const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
   const equippedItem = selected?.itemKind ?? 'empty';
+  const position = ctx.db.player_position.identity.find(ctx.sender);
+  if (position !== null && position.equippedKind !== equippedItem) {
+    ctx.db.player_position.identity.update({ ...position, equippedKind: equippedItem });
+  }
   if (equipment === null) ctx.db.player_equipment.insert({ identity: ctx.sender, itemKind: equippedItem });
   else if (equipment.itemKind !== equippedItem) {
     ctx.db.player_equipment.identity.update({ ...equipment, itemKind: equippedItem });
   }
 });
 
-export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
-  if (ctx.connectionId !== null) {
-    ctx.db.connection_presence_v2.connectionId.delete(ctx.connectionId);
-  }
-  const profile = ctx.db.player_public.identity.find(ctx.sender);
-  const stillOnline = [...ctx.db.connection_presence_v2.by_identity.filter(ctx.sender)].length > 0;
-  if (profile !== null) ctx.db.player_public.identity.update({ ...profile, online: stillOnline });
-  if (stillOnline) return;
-  const input = ctx.db.player_input.identity.find(ctx.sender);
-  if (input !== null) ctx.db.player_input.identity.update({ ...input, direction: 'idle' });
-  const position = ctx.db.player_position.identity.find(ctx.sender);
-  if (position !== null) {
-    ctx.db.player_position.identity.update({
-      ...position,
-      moving: false,
-      lastProcessedSequence: input?.sequence ?? position.lastProcessedSequence,
-    });
-  }
-});
+// Keep the lease row after a transport disconnect. A killed process must stop
+// through the 2 s stale-input failsafe while remaining visibly online until the
+// existing 30 s presence lease expires; stepWorld owns that cleanup.
+export const onDisconnect = spacetimedb.clientDisconnected(() => {});
 
 export const setDisplayName = spacetimedb.reducer(
   { displayName: t.string() },
@@ -533,16 +603,51 @@ export const heartbeat = spacetimedb.reducer((ctx) => {
     ...presence,
     lastSeenAt: ctx.timestamp,
   });
+  const input = ctx.db.player_input.identity.find(ctx.sender);
+  if (input !== null) {
+    ctx.db.player_input.identity.update({
+      ...input,
+      updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+    });
+  }
 });
 
 export const setInput = spacetimedb.reducer(
-  { direction: t.string(), sequence: t.u64() },
-  (ctx, { direction, sequence }) => {
+  { direction: t.string(), sequence: t.u64(), clientTick: t.u64() },
+  (ctx, { direction, sequence, clientTick }) => {
     parseDirection(direction);
     const input = ctx.db.player_input.identity.find(ctx.sender);
     if (input === null) throw new SenderError('player_not_ready');
     if (sequence <= input.sequence) return;
-    ctx.db.player_input.identity.update({ ...input, direction, sequence });
+    if (direction === input.direction) {
+      ctx.db.player_input.identity.update({
+        ...input,
+        sequence,
+        updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+        settledSequence: input.settleSteps === 0 ? sequence : input.settledSequence,
+        pendingSequence: input.settleSteps === 0 ? 0n : sequence,
+      });
+      return;
+    }
+    const settled = settleMovementRun(
+      input.direction,
+      input.runStartClientTick,
+      clientTick,
+      input.appliedSteps,
+      input.settleDirection,
+      input.settleSteps,
+    );
+    ctx.db.player_input.identity.update({
+      ...input,
+      direction,
+      sequence,
+      updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+      runStartClientTick: clientTick > input.runStartClientTick ? clientTick : input.runStartClientTick,
+      appliedSteps: 0n,
+      settleDirection: settled.pendingDirection,
+      settleSteps: settled.pendingSteps,
+      ...queueMovementAcknowledgement(input.settledSequence, sequence, settled.pendingSteps),
+    });
   },
 );
 
@@ -555,9 +660,12 @@ export const selectHotbar = spacetimedb.reducer(
     ctx.db.player_survival.identity.update({ ...survival, selectedSlot: slot });
     const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${slot}`);
     const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const equippedKind = selected?.itemKind ?? 'empty';
     if (equipment !== null) {
-      ctx.db.player_equipment.identity.update({ ...equipment, itemKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_equipment.identity.update({ ...equipment, itemKind: equippedKind });
     }
+    if (position !== null) ctx.db.player_position.identity.update({ ...position, equippedKind });
   },
 );
 
@@ -573,6 +681,12 @@ export const dropSelected = spacetimedb.reducer((ctx) => {
   ctx.db.inventory_slot.id.update({ ...slot, itemKind: 'empty', quantity: 0 });
   const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
   if (equipment !== null) ctx.db.player_equipment.identity.update({ ...equipment, itemKind: 'empty' });
+  ctx.db.player_position.identity.update({
+    ...position,
+    equippedKind: 'empty',
+    actionKind: 'drop',
+    actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
+  });
   ctx.db.world_item.insert({
     id: 0n,
     itemKind: slot.itemKind,
@@ -590,7 +704,8 @@ export const pickupWorldItem = spacetimedb.reducer(
   (ctx, { itemId }) => {
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const item = ctx.db.world_item.id.find(itemId);
-    if (position === null || item === null) throw new SenderError('item_not_ready');
+    const clock = ctx.db.world_clock.id.find(0);
+    if (position === null || item === null || clock === null) throw new SenderError('item_not_ready');
     if (!itemWithinPickupReach(position.x, position.y, item.x, item.y)) throw new SenderError('item_out_of_range');
     const slots = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)].sort((left, right) => left.slot - right.slot);
     const destination = slots.find((slot) => slot.itemKind === item.itemKind && slot.quantity + item.quantity <= 65_535)
@@ -606,6 +721,12 @@ export const pickupWorldItem = spacetimedb.reducer(
     if (survival?.selectedSlot === destination.slot && equipment !== null) {
       ctx.db.player_equipment.identity.update({ ...equipment, itemKind: item.itemKind });
     }
+    ctx.db.player_position.identity.update({
+      ...position,
+      equippedKind: survival?.selectedSlot === destination.slot ? item.itemKind : position.equippedKind,
+      actionKind: 'pickup',
+      actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
+    });
     ctx.db.world_item.id.delete(item.id);
   },
 );
@@ -625,6 +746,12 @@ export const harvestResource = spacetimedb.reducer(
     if (result === 'depleted') throw new SenderError('resource_depleted');
     if (result === 'wrong_tool') throw new SenderError('wrong_tool');
     if (result === 'out_of_range') throw new SenderError('target_out_of_range');
+
+    ctx.db.player_position.identity.update({
+      ...position,
+      actionKind: 'swing_axe',
+      actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
+    });
 
     if (resource.health > 1) {
       ctx.db.world_resource.id.update({ ...resource, health: resource.health - 1 });
@@ -755,7 +882,14 @@ export const stepWorld = spacetimedb.reducer(
         ctx.db.player_public.identity.update({ ...profile, online: false });
       }
       const input = ctx.db.player_input.identity.find(presence.identity);
-      if (input !== null) ctx.db.player_input.identity.update({ ...input, direction: 'idle' });
+      if (input !== null) ctx.db.player_input.identity.update({
+        ...input,
+        direction: 'idle',
+        settleDirection: 'idle',
+        settleSteps: 0,
+        settledSequence: input.sequence,
+        pendingSequence: 0n,
+      });
       const position = ctx.db.player_position.identity.find(presence.identity);
       if (position !== null) {
         ctx.db.player_position.identity.update({
@@ -777,14 +911,60 @@ export const stepWorld = spacetimedb.reducer(
       ].length > 0;
       if (!online) continue;
       const input = ctx.db.player_input.identity.find(row.identity);
-      const direction = input === null ? null : parseDirection(input.direction);
+      const stale = input === null || inputIsStale(
+        input.updatedAtMicros,
+        ctx.timestamp.microsSinceUnixEpoch,
+      );
       let player: PlayerState = {
         position: { x: row.x, y: row.y },
         facing: parseDirection(row.facing) ?? 'down',
         moving: row.moving,
         location: 'estate',
       };
-      player = advanceAuthorityPlayer(player, direction, collision);
+      const startedX = player.position.x;
+      const startedY = player.position.y;
+      let lastProcessedSequence = row.lastProcessedSequence;
+      if (input !== null && !stale) {
+        let available = movementCreditAvailable(
+          input.creditStartedAtMicros,
+          input.creditedSteps,
+          ctx.timestamp.microsSinceUnixEpoch,
+        );
+        const settledThisTick = Math.min(input.settleSteps, MAX_SETTLE_STEPS_PER_TICK, available);
+        const drained = drainMovementRunQueue(
+          input.settleDirection,
+          input.settleSteps,
+          settledThisTick,
+        );
+        for (const settleDirection of drained.directions) {
+          player = movePlayer(player, settleDirection, collision);
+        }
+        available -= settledThisTick;
+        const direction = parseDirection(input.direction);
+        const appliedThisTick = Math.min(SIM_STEPS_PER_AUTHORITY_TICK, available);
+        for (let step = 0; step < appliedThisTick; step += 1) {
+          player = movePlayer(player, direction, collision);
+        }
+        const creditedThisTick = settledThisTick + appliedThisTick;
+        const remainingSettleSteps = drained.pendingSteps;
+        const acknowledgement = drainMovementAcknowledgement(
+          input.settledSequence,
+          input.pendingSequence,
+          remainingSettleSteps,
+        );
+        ctx.db.player_input.identity.update({
+          ...input,
+          appliedSteps: input.appliedSteps + BigInt(appliedThisTick),
+          settleDirection: drained.pendingDirection,
+          settleSteps: remainingSettleSteps,
+          ...acknowledgement,
+          creditedSteps: input.creditedSteps + BigInt(creditedThisTick),
+        });
+        lastProcessedSequence = acknowledgement.settledSequence;
+      }
+      const moved = player.position.x !== startedX || player.position.y !== startedY;
+      const nextActionKind = avatarActionAfterMovement(row.actionKind, moved);
+      const clearAction = nextActionKind === 'none' && row.actionKind !== 'none';
       ctx.db.player_position.identity.update({
         ...row,
         x: player.position.x,
@@ -792,9 +972,11 @@ export const stepWorld = spacetimedb.reducer(
         chunkX: chunkAt(player.position.x),
         chunkY: chunkAt(player.position.y),
         facing: player.facing,
-        moving: player.moving,
-        lastProcessedSequence: input?.sequence ?? row.lastProcessedSequence,
+        moving: moved,
+        lastProcessedSequence,
         authorityTick,
+        actionKind: nextActionKind,
+        actionStartedTick: clearAction ? authorityTick : row.actionStartedTick,
       });
     }
   },

@@ -159,19 +159,20 @@ export function drawOverworldAvatar(
   y: number,
   facing: Direction,
   moving: boolean,
-  animationTick: number,
+  locomotionFrame: number,
   cameraX: number,
   cameraY: number,
   zoom: number,
-  axeFrame: number | null,
+  actionFrame: number | null,
+  actionAnimation: string | null = null,
 ): void {
   const animation = avatarAnimationForDirection(facing);
-  const frameIndex = avatarFrameIndex(moving, animationTick);
+  const frameIndex = moving ? locomotionFrame : 0;
   drawAnchored(
     context,
-    axeFrame === null ? art.avatar : art.avatarAxe,
-    axeFrame === null ? animation : axeAnimationForDirection(facing),
-    axeFrame ?? frameIndex,
+    actionFrame === null || actionAnimation === null ? art.avatar : art.avatarAxe,
+    actionFrame === null || actionAnimation === null ? animation : actionAnimation,
+    actionFrame ?? frameIndex,
     x,
     y,
     cameraX,
@@ -211,12 +212,30 @@ export function axeAnimationForDirection(facing: Direction): 'axe_up' | 'axe_rig
   return 'axe_right';
 }
 
+function actionFacing(facing: Direction): 'up' | 'right' | 'down' {
+  if (facing === 'up') return 'up';
+  if (facing === 'down') return 'down';
+  return 'right';
+}
+
+/** Resolve the semantic `<kind>_<facing>` contract, retaining the purchased
+ * farmer sheet's legacy axe group names as an explicit compatibility path. */
+export function actionAnimationForDirection(
+  art: OverworldArt,
+  actionKind: string,
+  facing: Direction,
+): string | null {
+  const semantic = `${actionKind}_${actionFacing(facing)}`;
+  if (art.avatarAxe.metadata.animations[semantic] !== undefined) return semantic;
+  if (actionKind === 'swing_axe') {
+    const legacy = axeAnimationForDirection(facing);
+    if (art.avatarAxe.metadata.animations[legacy] !== undefined) return legacy;
+  }
+  return null;
+}
+
 export function avatarAnimationForDirection(facing: Direction): 'walk_up' | 'walk_right' | 'walk_down' {
   if (facing === 'up') return 'walk_up';
   if (facing === 'down') return 'walk_down';
   return 'walk_right';
-}
-
-export function avatarFrameIndex(moving: boolean, animationTick: number): number {
-  return moving ? Math.floor(animationTick / 8) % 4 : 0;
 }

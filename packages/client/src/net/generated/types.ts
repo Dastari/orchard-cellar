@@ -87,6 +87,15 @@ export const PlayerInput = __t.object("PlayerInput", {
   identity: __t.identity(),
   direction: __t.string(),
   sequence: __t.u64(),
+  settledSequence: __t.u64(),
+  pendingSequence: __t.u64(),
+  updatedAtMicros: __t.u64(),
+  runStartClientTick: __t.u64(),
+  appliedSteps: __t.u64(),
+  settleDirection: __t.string(),
+  settleSteps: __t.u8(),
+  creditStartedAtMicros: __t.u64(),
+  creditedSteps: __t.u64(),
 });
 export type PlayerInput = __Infer<typeof PlayerInput>;
 
@@ -100,6 +109,9 @@ export const PlayerPosition = __t.object("PlayerPosition", {
   moving: __t.bool(),
   lastProcessedSequence: __t.u64(),
   authorityTick: __t.u64(),
+  actionKind: __t.string(),
+  actionStartedTick: __t.u64(),
+  equippedKind: __t.string(),
 });
 export type PlayerPosition = __Infer<typeof PlayerPosition>;
 

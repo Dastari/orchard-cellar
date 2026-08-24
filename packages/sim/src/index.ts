@@ -1,4 +1,5 @@
 export * from './movement.js';
+export * from './actions.js';
 export * from './prestige.js';
 export * from './progression-state.js';
 export * from './offline.js';

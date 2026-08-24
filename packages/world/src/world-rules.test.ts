@@ -25,8 +25,15 @@ import {
   isFarmBedTile,
   itemDropPosition,
   itemWithinPickupReach,
+  inputIsStale,
+  movementCreditAvailable,
+  queueMovementAcknowledgement,
+  drainMovementAcknowledgement,
+  drainMovementRunQueue,
+  nextActionStartedTick,
   presenceLeaseExpired,
   resourceHarvestResult,
+  settleMovementRun,
 } from './world-rules.js';
 
 const START: PlayerState = {
@@ -70,6 +77,66 @@ describe('overworld authority rules', () => {
   it('expires crash ghosts after the heartbeat lease, not at its boundary', () => {
     expect(presenceLeaseExpired(1_000_000n, 31_000_000n)).toBe(false);
     expect(presenceLeaseExpired(1_000_000n, 31_000_001n)).toBe(true);
+  });
+
+  it('stops stale input after two seconds while leaving presence alive', () => {
+    expect(inputIsStale(1_000_000n, 3_000_000n)).toBe(false);
+    expect(inputIsStale(1_000_000n, 3_000_001n)).toBe(true);
+    expect(presenceLeaseExpired(1_000_000n, 3_000_001n)).toBe(false);
+  });
+
+  it('settles taps between authority ticks and caps conflicting backlog', () => {
+    expect(settleMovementRun('right', 10n, 12n, 0n, 'idle', 0)).toEqual({
+      pendingDirection: 'right', pendingSteps: 2, rejectedSteps: 0n,
+    });
+    expect(settleMovementRun('right', 10n, 12n, 3n, 'idle', 0)).toEqual({
+      pendingDirection: 'idle', pendingSteps: 0, rejectedSteps: 0n,
+    });
+    expect(settleMovementRun('left', 0n, 20n, 0n, 'right', 4)).toEqual({
+      pendingDirection: 'right:4|left:8', pendingSteps: 12, rejectedSteps: 12n,
+    });
+    expect(settleMovementRun('right', 0n, 20n, 0n, 'right', 4)).toEqual({
+      pendingDirection: 'right', pendingSteps: 12, rejectedSteps: 12n,
+    });
+  });
+
+  it('drains compressed direction transitions in original run order', () => {
+    expect(drainMovementRunQueue('right:4|up:6', 10, 6)).toEqual({
+      directions: ['right', 'right', 'right', 'right', 'up', 'up'],
+      pendingDirection: 'up',
+      pendingSteps: 4,
+    });
+    expect(drainMovementRunQueue('up', 4, 6)).toEqual({
+      directions: ['up', 'up', 'up', 'up'],
+      pendingDirection: 'idle',
+      pendingSteps: 0,
+    });
+  });
+
+  it('does not acknowledge a transition until its entire catch-up queue drains', () => {
+    expect(queueMovementAcknowledgement(4n, 5n, 7)).toEqual({
+      settledSequence: 4n, pendingSequence: 5n,
+    });
+    expect(drainMovementAcknowledgement(4n, 5n, 1)).toEqual({
+      settledSequence: 4n, pendingSequence: 5n,
+    });
+    expect(drainMovementAcknowledgement(4n, 5n, 0)).toEqual({
+      settledSequence: 5n, pendingSequence: 0n,
+    });
+    expect(queueMovementAcknowledgement(5n, 6n, 0)).toEqual({
+      settledSequence: 6n, pendingSequence: 0n,
+    });
+  });
+
+  it('clamps movement credit to elapsed server time plus the burst allowance', () => {
+    expect(movementCreditAvailable(1_000_000n, 0n, 1_000_000n)).toBe(6);
+    expect(movementCreditAvailable(1_000_000n, 6n, 1_050_000n)).toBe(3);
+    expect(movementCreditAvailable(1_000_000n, 9n, 1_050_000n)).toBe(0);
+  });
+
+  it('re-triggers repeated one-shots even inside one authority tick', () => {
+    expect(nextActionStartedTick(10n, 12n)).toBe(12n);
+    expect(nextActionStartedTick(12n, 12n)).toBe(13n);
   });
 
   it('lays out 25 non-overlapping farms and validates only authored bed tiles', () => {

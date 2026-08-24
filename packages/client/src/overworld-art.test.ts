@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { axeAnimationForDirection, avatarAnimationForDirection, avatarFrameIndex, isOverworldRoad, sortWorldDrawItems } from './overworld-art.js';
+import { axeAnimationForDirection, avatarAnimationForDirection, isOverworldRoad, sortWorldDrawItems } from './overworld-art.js';
 import { canonicalBlob47Index } from './render/tilemap.js';
 
 describe('overworld art topology', () => {
@@ -15,12 +15,6 @@ describe('overworld art topology', () => {
     expect(isOverworldRoad(16, 8)).toBe(true);
     expect(isOverworldRoad(17, 8)).toBe(false);
     expect(isOverworldRoad(8, 15)).toBe(true);
-  });
-
-  it('never advances the idle avatar animation', () => {
-    expect(avatarFrameIndex(false, 0)).toBe(0);
-    expect(avatarFrameIndex(false, 999)).toBe(0);
-    expect(avatarFrameIndex(true, 8)).toBe(1);
   });
 
   it('uses the side pose for diagonal travel when the licensed sheet has cardinal poses only', () => {

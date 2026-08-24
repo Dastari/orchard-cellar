@@ -51,10 +51,18 @@ observe or mutate another identity's private rows.
   they never send authoritative positions.
 - A scheduled reducer advances connected players at 20 Hz, applies collision and world
   bounds, updates chunk coordinates, and publishes the last processed input sequence.
-- The owning client predicts locally and reconciles to its authoritative row. Remote
-  clients interpolate between received rows; they do not predict other players.
-- A client subscribes to its current chunk and the eight neighboring chunks. On a
-  boundary crossing it subscribes to the new 3×3 region before dropping the old one.
+- The owning client predicts locally from shared fixed-point movement, rebases on each
+  new authoritative row, and replays the still-unacknowledged tick history. Movement
+  transitions carry monotonic client ticks; the authority settles every run under a
+  server-time rate cap, including taps wholly between 20 Hz samples. Remote clients do
+  not predict other players: they interpolate ten-row buffers at a fixed 1.5-authority-
+  tick render delay and collision-clamped extrapolation stops after two ticks.
+- Held input refreshes every 20 client ticks. A reducer failure gets one immediate
+  retry, while authority ignores non-idle input older than two seconds without ending
+  the separate 30-second presence lease.
+- A client derives its chunk radius from the viewport after zoom settles. On a boundary
+  crossing it subscribes to the new region before dropping the old one. Generated table
+  callbacks maintain persistent keyed stores rather than rebuilding SDK arrays per frame.
 - Interactions use the sender identity and authoritative position. Target id, reach,
   ownership/permission, cooldown, and current entity state are validated atomically.
 

@@ -26,6 +26,11 @@ export const FARM_HEIGHT_TILES = 14;
 export const FARM_GAP_TILES = 2;
 export const FARM_FIRST_TILE = 1;
 export const PRESENCE_LEASE_MICROS = 30_000_000n;
+export const STALE_INPUT_MICROS = 2_000_000n;
+export const MOVEMENT_RATE_HZ = 60n;
+export const MOVEMENT_RATE_BURST_STEPS = 6n;
+export const MAX_SETTLE_BACKLOG_STEPS = 12;
+export const MAX_SETTLE_STEPS_PER_TICK = 6;
 const SURVIVAL_TERRAIN_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
 
 export interface AuthoritySurvivalResource {
@@ -158,6 +163,153 @@ export function decodeDirection(value: string): Direction | null | undefined {
 
 export function presenceLeaseExpired(lastSeenMicros: bigint, nowMicros: bigint): boolean {
   return nowMicros - lastSeenMicros > PRESENCE_LEASE_MICROS;
+}
+
+export function inputIsStale(updatedAtMicros: bigint, nowMicros: bigint): boolean {
+  return nowMicros - updatedAtMicros > STALE_INPUT_MICROS;
+}
+
+export interface SettledMovementRun {
+  readonly pendingDirection: string;
+  readonly pendingSteps: number;
+  readonly rejectedSteps: bigint;
+}
+
+interface MovementRunSegment {
+  readonly direction: Direction;
+  readonly steps: number;
+}
+
+function decodeMovementRunQueue(value: string, totalSteps: number): MovementRunSegment[] {
+  if (totalSteps <= 0) return [];
+  if (!value.includes(':')) {
+    const direction = decodeDirection(value);
+    return direction === undefined || direction === null ? [] : [{ direction, steps: totalSteps }];
+  }
+  const segments: MovementRunSegment[] = [];
+  for (const token of value.split('|')) {
+    const [rawDirection, rawSteps] = token.split(':');
+    const direction = decodeDirection(rawDirection ?? '');
+    const steps = Number(rawSteps);
+    if (direction === undefined || direction === null || !Number.isSafeInteger(steps) || steps <= 0) continue;
+    segments.push({ direction, steps });
+  }
+  return segments;
+}
+
+function encodeMovementRunQueue(segments: readonly MovementRunSegment[]): string {
+  if (segments.length === 0) return 'idle';
+  if (segments.length === 1) return segments[0]?.direction ?? 'idle';
+  return segments.map((segment) => `${segment.direction}:${segment.steps}`).join('|');
+}
+
+export interface DrainedMovementRunQueue {
+  readonly directions: readonly Direction[];
+  readonly pendingDirection: string;
+  readonly pendingSteps: number;
+}
+
+export function drainMovementRunQueue(
+  pendingDirection: string,
+  pendingSteps: number,
+  maximumSteps: number,
+): DrainedMovementRunQueue {
+  const segments = decodeMovementRunQueue(pendingDirection, pendingSteps);
+  const directions: Direction[] = [];
+  let remainingDrain = Math.max(0, Math.min(pendingSteps, maximumSteps));
+  while (remainingDrain > 0 && segments.length > 0) {
+    const segment = segments[0];
+    if (segment === undefined) break;
+    const taken = Math.min(segment.steps, remainingDrain);
+    for (let step = 0; step < taken; step += 1) directions.push(segment.direction);
+    remainingDrain -= taken;
+    if (taken === segment.steps) segments.shift();
+    else segments[0] = { ...segment, steps: segment.steps - taken };
+  }
+  const nextSteps = segments.reduce((sum, segment) => sum + segment.steps, 0);
+  return {
+    directions,
+    pendingDirection: encodeMovementRunQueue(segments),
+    pendingSteps: nextSteps,
+  };
+}
+
+export interface MovementAcknowledgement {
+  readonly settledSequence: bigint;
+  readonly pendingSequence: bigint;
+}
+
+export function queueMovementAcknowledgement(
+  settledSequence: bigint,
+  sequence: bigint,
+  pendingSteps: number,
+): MovementAcknowledgement {
+  return pendingSteps === 0
+    ? { settledSequence: sequence, pendingSequence: 0n }
+    : { settledSequence, pendingSequence: sequence };
+}
+
+export function drainMovementAcknowledgement(
+  settledSequence: bigint,
+  pendingSequence: bigint,
+  remainingSteps: number,
+): MovementAcknowledgement {
+  return remainingSteps === 0 && pendingSequence !== 0n
+    ? { settledSequence: pendingSequence, pendingSequence: 0n }
+    : { settledSequence, pendingSequence };
+}
+
+export function settleMovementRun(
+  direction: string,
+  runStartClientTick: bigint,
+  closingClientTick: bigint,
+  appliedSteps: bigint,
+  existingPendingDirection: string,
+  existingPendingSteps: number,
+): SettledMovementRun {
+  const claimedSteps = closingClientTick > runStartClientTick
+    ? closingClientTick - runStartClientTick
+    : 0n;
+  const shortfall = claimedSteps > appliedSteps ? claimedSteps - appliedSteps : 0n;
+  if (shortfall === 0n) {
+    return {
+      pendingDirection: existingPendingDirection,
+      pendingSteps: existingPendingSteps,
+      rejectedSteps: 0n,
+    };
+  }
+  const available = BigInt(MAX_SETTLE_BACKLOG_STEPS - existingPendingSteps);
+  const accepted = shortfall < available ? shortfall : available;
+  const segments = decodeMovementRunQueue(existingPendingDirection, existingPendingSteps);
+  const decodedDirection = decodeDirection(direction);
+  if (accepted > 0n && decodedDirection !== undefined && decodedDirection !== null) {
+    const previous = segments[segments.length - 1];
+    if (previous?.direction === decodedDirection) {
+      segments[segments.length - 1] = { direction: decodedDirection, steps: previous.steps + Number(accepted) };
+    } else {
+      segments.push({ direction: decodedDirection, steps: Number(accepted) });
+    }
+  }
+  return {
+    pendingDirection: encodeMovementRunQueue(segments),
+    pendingSteps: existingPendingSteps + Number(accepted),
+    rejectedSteps: shortfall - accepted,
+  };
+}
+
+export function movementCreditAvailable(
+  creditStartedAtMicros: bigint,
+  creditedSteps: bigint,
+  nowMicros: bigint,
+): number {
+  const elapsed = nowMicros > creditStartedAtMicros ? nowMicros - creditStartedAtMicros : 0n;
+  const allowance = elapsed * MOVEMENT_RATE_HZ / 1_000_000n + MOVEMENT_RATE_BURST_STEPS;
+  const available = allowance > creditedSteps ? allowance - creditedSteps : 0n;
+  return Number(available > 64n ? 64n : available);
+}
+
+export function nextActionStartedTick(current: bigint, authorityTick: bigint): bigint {
+  return authorityTick > current ? authorityTick : current + 1n;
 }
 
 export function advanceAuthorityPlayer(

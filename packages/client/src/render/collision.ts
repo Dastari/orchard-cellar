@@ -5,14 +5,16 @@ import type { TerrainArray } from './terrain.js';
 /** Reuses immutable terrain collision and rebuilds only subscribed live trunks. */
 export function createClientCollisionMap(
   terrain: TerrainArray,
-  resources: readonly WorldResource[],
+  resources: Iterable<WorldResource>,
 ): CollisionMap {
+  const obstacles = [];
+  for (const resource of resources) {
+    if (!resource.depleted) obstacles.push(survivalTreeObstacle(resource.tileX, resource.tileY));
+  }
   return {
     width: terrain.width,
     height: terrain.height,
     blocked: terrain.blocked,
-    obstacles: resources
-      .filter((resource) => !resource.depleted)
-      .map((resource) => survivalTreeObstacle(resource.tileX, resource.tileY)),
+    obstacles,
   };
 }

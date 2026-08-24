@@ -29,7 +29,7 @@ export function facedResource<T extends TargetableResource>(
   playerX: number,
   playerY: number,
   facing: Direction,
-  resources: readonly T[],
+  resources: Iterable<T>,
 ): T | null {
   const [facingX, facingY] = FACING_VECTOR[facing];
   const reachSquared = (2 * TILE_SIZE_FIXED) ** 2;
@@ -53,7 +53,7 @@ export function facedWorldItem<T extends TargetableWorldItem>(
   playerX: number,
   playerY: number,
   facing: Direction,
-  items: readonly T[],
+  items: Iterable<T>,
 ): T | null {
   const [facingX, facingY] = FACING_VECTOR[facing];
   const reachSquared = (24 * FIXED_UNITS_PER_PIXEL) ** 2;

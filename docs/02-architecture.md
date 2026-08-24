@@ -103,12 +103,17 @@ Incremental-game quantities overflow doubles' integer range eventually. Rule:
 - **Zoom**: world zoom is continuous in 0.25 steps from the display/world-derived
   minimum to 8, eased between inputs. Source zoom 2 is labelled `1×`; UI scale remains
   independent. All visible-world culling is derived from the current renderer layout.
-- **Prediction**: the client applies movement immediately at 60 Hz, softly reconciles
-  to 20 Hz authoritative rows, and interpolates remote avatars. Economy interactions
-  wait for transactional reducer results.
-- **Interest management**: subscribe to the current chunk and its eight neighbors.
-  Subscribe to the new 3×3 region and wait for `onApplied` before unsubscribing the old
-  handle so boundary crossings have no empty frame.
+- **Prediction**: the client applies movement immediately at 60 Hz and keeps a bounded
+  tick/input history. Each new own-position row becomes an authoritative base, then
+  unacknowledged steps replay through shared fixed-point movement. Only presentation
+  offsets may smooth genuine corrections, for at most 100 ms. The authority settles
+  client-tick movement runs under server-time rate caps so short taps cannot disappear
+  between 20 Hz ticks. Remote avatars use ten-row snapshot buffers on a softly synced
+  timeline 1.5 authority ticks behind. Interaction cosmetics may predict immediately,
+  but durable state waits for transactional reducer results.
+- **Interest management**: derive the subscription radius from the viewport after zoom
+  settles. Subscribe to the new region and wait for `onApplied` before unsubscribing the
+  old handle so boundary crossings have no empty frame.
 
 ## World authority
 
@@ -128,8 +133,10 @@ Incremental-game quantities overflow doubles' integer range eventually. Rule:
 
 The schema generates `packages/client/src/net/generated`. Reducer parameters and row
 types are therefore single-source, build-checked protocol definitions. Hand-authored
-client networking wraps generated bindings for token persistence, global/private
-subscriptions, spatial handover, prediction, reconciliation, and UI-facing errors.
+client networking wraps generated bindings for token persistence, event-maintained
+keyed stores, global/private subscriptions, hysteretic spatial handover, prediction,
+replay reconciliation, timed remote interpolation, development latency injection,
+and UI-facing errors/metrics.
 
 ## Build & dev workflow
 

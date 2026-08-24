@@ -20,4 +20,7 @@ export default __t.row({
   moving: __t.bool(),
   lastProcessedSequence: __t.u64().name("last_processed_sequence"),
   authorityTick: __t.u64().name("authority_tick"),
+  actionKind: __t.string().name("action_kind"),
+  actionStartedTick: __t.u64().name("action_started_tick"),
+  equippedKind: __t.string().name("equipped_kind"),
 });
