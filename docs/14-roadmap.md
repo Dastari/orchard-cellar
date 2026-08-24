@@ -142,7 +142,7 @@ and Bob planting, watering, and harvesting. The generated protocol exposes no
 position setter; crop reach, 25-parcel layout, clock stages, and bounds are covered by
 deterministic tests.
 
-## M6 — Accounts, farm authority & persistence `☐`
+## M6 — Accounts, farm authority & persistence `⏳ in progress (codex, 2026-08-24)`
 OIDC + owner-managed friends allowlist per [09-auth.md](09-auth.md); normalized owned
 farm/public/private tables per [08-database.md](08-database.md); caller-dependent
 private views; deterministic timestamp/offline farm adapter; Title/Login account UX;
@@ -150,6 +150,12 @@ one-time local-save import; self-host HTTPS and tested backup/restore.
 **Done when:** two approved accounts each own and play a distinct farm through restart,
 an unapproved identity is rejected, cross-account private reads/mutations fail, local
 state imports once without loss, and a backup restores both farms into a fresh host.
+
+**Handoff:** A canvas-native local account chooser now remembers named development
+slots and reconnects each to its durable SpaceTimeDB identity token. The returning
+Alice flow was screenshot-verified against her existing parcel. This is intentionally
+not production authentication; OIDC, the friends allowlist, private farm views,
+one-time import, HTTPS, and backup/restore remain.
 
 ## M7 — Overworld & co-op `☐`
 [07-multiplayer.md](07-multiplayer.md) steps M7a–M7d: authored overworld/estate parcels

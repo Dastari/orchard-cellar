@@ -40,6 +40,12 @@ During local development only, the host-issued token is stored in `localStorage`
 one browser profile can exercise two identities. They are not usernames or security
 boundaries.
 
+The local preview starts at `/account.html`, where a player may remember up to twelve
+named slots and continue the last-used slot. This chooser only selects the matching
+host-issued token above; its labels explicitly identify it as a local friends preview.
+Opening `/overworld.html` without a slot returns to the chooser. This development UX
+must be replaced by the configured OIDC flow before internet exposure.
+
 ## 4. Names and authored text
 
 Display and farm names are labels, never lookup keys. They are 3–20 characters from

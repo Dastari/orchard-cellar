@@ -9,6 +9,12 @@
     <main id="game-shell">
       <canvas id="game" width="480" height="270" aria-label="Orchard and Cellar shared overworld prototype"></canvas>
     </main>
-    <script type="module" src="/src/overworld-main.ts"></script>
+    <script type="module">
+      if (new URLSearchParams(location.search).has('slot')) {
+        await import('/src/overworld-main.ts');
+      } else {
+        location.replace('/account.html');
+      }
+    </script>
   </body>
 </html>
