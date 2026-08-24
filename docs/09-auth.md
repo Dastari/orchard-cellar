@@ -40,23 +40,25 @@ During local development only, the host-issued token is stored in `localStorage`
 one browser profile can exercise two identities. They are not usernames or security
 boundaries.
 
-The local preview starts at `/account.html`, where a player may remember up to twelve
-named slots and continue the last-used slot. This chooser only selects the matching
-host-issued token above; its labels explicitly identify it as a local friends preview.
-Opening `/overworld.html` without a slot returns to the chooser. This development UX
-must be replaced by the configured OIDC flow before internet exposure.
+The application starts at `/`, where a player may remember up to twelve named slots
+and continue the last-used slot. The local game URL remains on `/?slot=<name>`; there
+are no separate account or overworld HTML entry points. This chooser only selects the
+matching host-issued token above, and its labels explicitly identify it as a local
+friends preview. This development UX must be replaced by the configured OIDC flow
+before internet exposure.
 
-The browser now implements Authorization Code + PKCE against SpacetimeAuth. Configure
-`VITE_OIDC_CLIENT_ID` and register `/account.html` as an allowed redirect URI; optional
-issuer and redirect overrides are documented in `.env.example`. Identity and refresh
-tokens are kept in `sessionStorage`, never URL parameters or the local profile store.
-The account screen handles provider account creation/sign-in, callback validation,
-refresh, and sign-out. When no client ID is configured it visibly falls back to the
-development profile chooser.
+The browser implements Authorization Code + PKCE against a configured OIDC provider.
+Configure `VITE_OIDC_CLIENT_ID` and register the exact application root as an allowed
+redirect URI; issuer and redirect overrides are documented in `.env.example`.
+Identity and refresh tokens are kept in `sessionStorage`, never URL parameters or the
+local profile store. The account screen handles account creation/sign-in, callback
+validation, refresh, and sign-out. When no client ID is configured it visibly falls
+back to the development profile chooser. The self-hosted production rollout is
+specified in [24-self-hosted-oidc.md](24-self-hosted-oidc.md).
 
 Before publishing an internet-facing module, copy the same public client ID into
 `OIDC_CLIENT_IDS` in `packages/world/src/auth-policy.ts` and republish. A non-empty list
-enforces a JWT from the pinned SpacetimeAuth issuer and audience during connection;
+enforces a JWT from the pinned configured issuer and audience during connection;
 the empty list is intentionally local-development-only. No client secret belongs in
 either location.
 
