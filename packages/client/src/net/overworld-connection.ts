@@ -156,6 +156,11 @@ export class OverworldConnection {
     return connection.db.playerPosition.identity.find(identity) ?? null;
   }
 
+  ownInputAcknowledged(): boolean {
+    const position = this.ownPosition();
+    return position !== null && position.lastProcessedSequence >= this.sequence;
+  }
+
   setDirection(direction: NetworkDirection): void {
     this.desiredDirection = direction;
     this.sendDesiredDirection();

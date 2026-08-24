@@ -44,6 +44,7 @@ import {
 } from './overworld-art.js';
 import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
 import { drawPixelPanel, drawPixelText, measurePixelText } from './render/pixel-ui.js';
+import { interpolateFixedPosition, reconcilePredictedPlayer } from './overworld-prediction.js';
 import {
   HOTBAR_HEIGHT,
   HOTBAR_SLOT_COUNT,
@@ -74,6 +75,7 @@ const accountSlot = new URLSearchParams(location.search).get('slot') ?? 'Farmer 
 let networkDirty = true;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
 let predicted: PlayerState | null = null;
+let previousPredicted: PlayerState | null = null;
 let lastDirection: NetworkDirection = 'idle';
 let toast = 'CONNECTING TO SHARED ISLAND';
 let toastTicks = 180;
@@ -86,6 +88,7 @@ let worldCollision: CollisionMap = createSurvivalCollisionMap(SURVIVAL_WORLD_SEE
 let lastNetworkStatus = '';
 let debugCollision = false;
 const remoteDisplay = new Map<string, { x: number; y: number }>();
+const previousRemoteDisplay = new Map<string, { x: number; y: number }>();
 const resourceHealth = new Map<bigint, number>();
 const treeShakeUntil = new Map<bigint, number>();
 let axeActionStartedTick: number | null = null;
@@ -122,26 +125,6 @@ function playerState(row: PlayerPosition): PlayerState {
   };
 }
 
-function reconcile(row: PlayerPosition): void {
-  if (predicted === null) {
-    predicted = playerState(row);
-    return;
-  }
-  const dx = row.x - predicted.position.x;
-  const dy = row.y - predicted.position.y;
-  if (dx * dx + dy * dy > (TILE_SIZE_FIXED * 2) ** 2) {
-    predicted = playerState(row);
-    return;
-  }
-  predicted = {
-    ...predicted,
-    position: {
-      x: predicted.position.x + Math.trunc(dx / 8),
-      y: predicted.position.y + Math.trunc(dy / 8),
-    },
-  };
-}
-
 function refreshCollision(snapshot: OverworldSnapshot): void {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const mutableKey = snapshot.resources
@@ -161,6 +144,7 @@ function refreshCollision(snapshot: OverworldSnapshot): void {
 }
 
 function update(): void {
+  const previous = predicted;
   animationTick = (animationTick + 1) % 1_000_000;
   network.setViewRadius(viewRadiusForViewport(canvas.width, canvas.height, worldZoom));
   const snapshot = network.snapshot();
@@ -179,15 +163,24 @@ function update(): void {
     network.setDirection(direction);
   }
   const authoritative = network.ownPosition();
-  if (authoritative !== null) reconcile(authoritative);
+  if (authoritative !== null) {
+    predicted = reconcilePredictedPlayer(
+      predicted,
+      playerState(authoritative),
+      direction === 'idle' ? null : direction,
+      network.ownInputAcknowledged(),
+    );
+  }
   if (predicted !== null) predicted = movePlayer(predicted, direction === 'idle' ? null : direction, worldCollision);
+  previousPredicted = previous ?? predicted;
 
   for (const player of snapshot.players) {
     if (player.identity.toHexString() === snapshot.identityHex) continue;
     const id = player.identity.toHexString();
     const display = remoteDisplay.get(id) ?? { x: player.x, y: player.y };
-    display.x += Math.trunc((player.x - display.x) / 3);
-    display.y += Math.trunc((player.y - display.y) / 3);
+    previousRemoteDisplay.set(id, { x: display.x, y: display.y });
+    display.x += (player.x - display.x) / 3;
+    display.y += (player.y - display.y) / 3;
     remoteDisplay.set(id, display);
   }
   if (networkDirty) {
@@ -259,7 +252,7 @@ function drawPlayerCollisionOverlay(
   for (const player of snapshot.players) {
     const id = player.identity.toHexString();
     const local = id === snapshot.identityHex;
-    const display = local ? null : remoteDisplay.get(id);
+    const display = local ? null : remoteDisplay.get(id) ?? null;
     const position = {
       x: local ? predicted?.position.x ?? player.x : display?.x ?? player.x,
       y: local ? predicted?.position.y ?? player.y : display?.y ?? player.y,
@@ -328,10 +321,14 @@ function drawCollisionOverlay(cameraX: number, cameraY: number, seed: number): v
   }
 }
 
-function render(): void {
+function render(alpha = 1): void {
   const snapshot = network.snapshot();
-  const localX = (predicted?.position.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
-  const localY = (predicted?.position.y ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
+  const predictedPosition = predicted?.position;
+  const renderedLocal = predictedPosition === undefined
+    ? null
+    : interpolateFixedPosition(previousPredicted?.position ?? predictedPosition, predictedPosition, alpha);
+  const localX = (renderedLocal?.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
+  const localY = (renderedLocal?.y ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const viewportWidth = canvas.width / worldZoom;
   const viewportHeight = canvas.height / worldZoom;
   const worldPixels = SURVIVAL_WORLD_SIZE * 16;
@@ -385,9 +382,13 @@ function render(): void {
   for (const player of snapshot.players) {
     const id = player.identity.toHexString();
     const local = id === snapshot.identityHex;
-    const display = local ? null : remoteDisplay.get(id);
-    const xFixed = local ? predicted?.position.x ?? player.x : display?.x ?? player.x;
-    const yFixed = local ? predicted?.position.y ?? player.y : display?.y ?? player.y;
+    const display = local ? null : remoteDisplay.get(id) ?? null;
+    const previousDisplay = local || display === null ? null : previousRemoteDisplay.get(id) ?? display;
+    const renderedRemote = display === null || previousDisplay === null
+      ? null
+      : interpolateFixedPosition(previousDisplay, display, alpha);
+    const xFixed = local ? renderedLocal?.x ?? player.x : renderedRemote?.x ?? player.x;
+    const yFixed = local ? renderedLocal?.y ?? player.y : renderedRemote?.y ?? player.y;
     const x = xFixed / FIXED_UNITS_PER_PIXEL;
     const y = yFixed / FIXED_UNITS_PER_PIXEL;
     if (!worldPointVisible(x, y, visible)) continue;

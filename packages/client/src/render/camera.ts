@@ -1,6 +1,6 @@
 export function cameraAxisOffset(target: number, viewportSize: number, worldSize: number): number {
-  if (worldSize <= viewportSize) return Math.round((worldSize - viewportSize) / 2);
-  return Math.round(Math.max(0, Math.min(target - viewportSize / 2, worldSize - viewportSize)));
+  if (worldSize <= viewportSize) return (worldSize - viewportSize) / 2;
+  return Math.max(0, Math.min(target - viewportSize / 2, worldSize - viewportSize));
 }
 
 export interface VisibleWorldBounds {
