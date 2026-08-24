@@ -29,6 +29,9 @@ export function axesFromCodes(codes: ReadonlySet<string>): readonly [number, num
 export class InputController {
   private readonly keys = new Set<string>();
   private touchAxes: readonly [number, number] = [0, 0];
+  private interactPressed = false;
+  private devWarp: 'day' | 'season' | null = null;
+  private devToggleLocation = false;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -49,6 +52,24 @@ export class InputController {
     return directionFromAxes(horizontal, vertical);
   }
 
+  consumeInteract(): boolean {
+    const pressed = this.interactPressed;
+    this.interactPressed = false;
+    return pressed;
+  }
+
+  consumeDevWarp(): 'day' | 'season' | null {
+    const warp = this.devWarp;
+    this.devWarp = null;
+    return warp;
+  }
+
+  consumeDevToggleLocation(): boolean {
+    const toggle = this.devToggleLocation;
+    this.devToggleLocation = false;
+    return toggle;
+  }
+
   destroy(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
@@ -58,6 +79,22 @@ export class InputController {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
+    if (event.repeat) return;
+    if (event.code === 'KeyE' || event.code === 'Space') {
+      event.preventDefault();
+      this.interactPressed = true;
+      return;
+    }
+    if (import.meta.env.DEV && event.code === 'F9') {
+      event.preventDefault();
+      this.devWarp = event.shiftKey ? 'season' : 'day';
+      return;
+    }
+    if (import.meta.env.DEV && event.code === 'F8') {
+      event.preventDefault();
+      this.devToggleLocation = true;
+      return;
+    }
     if (!MOVEMENT_CODES.has(event.code)) return;
     event.preventDefault();
     this.keys.add(event.code);
@@ -79,4 +116,3 @@ export class InputController {
     this.touchAxes = [0, 0];
   };
 }
-

@@ -1,6 +1,7 @@
-import { TILE_SIZE_PIXELS, type CollisionMap } from '@orchard/sim';
+import { TILE_SIZE_PIXELS, type CollisionMap, type Season } from '@orchard/sim';
 import type { Camera } from './camera.js';
 import type { AtlasFrame } from './sprite.js';
+import type { MapSource } from './map-source.js';
 
 export type CachedLayerName = 'ground' | 'detail' | 'canopy';
 
@@ -23,6 +24,52 @@ export interface TileMapData {
   readonly layers: readonly TileLayerData[];
 }
 
+export interface EstateTileAtlases {
+  readonly grass?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly path?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly soil?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly season?: Season | undefined;
+}
+
+const authoredDefinitions: Readonly<Record<string, number>> = {
+  empty: 0,
+  grass_base: 1,
+  grass_detail: 2,
+  path: 3,
+  soil: 4,
+  water: 5,
+  hillside: 6,
+  cellar_floor: 7,
+  cellar_wall: 8,
+  cellar_rack: 9,
+};
+
+export function createAuthoredTileMap(source: MapSource, atlases: EstateTileAtlases = {}): TileMapData {
+  const groundColor: Readonly<Record<Season, string>> = {
+    spring: '#58a346',
+    summer: '#58a346',
+    autumn: '#c68a53',
+    winter: '#57a374',
+  };
+  const grass = groundColor[atlases.season ?? 'spring'];
+  const definitions: Readonly<Record<number, TileDefinition>> = {
+    1: { fill: grass },
+    2: { fill: grass, ...(atlases.grass ? { atlas: atlases.grass } : {}) },
+    3: { fill: '#98724c', ...(atlases.path ? { atlas: atlases.path } : {}) },
+    4: { fill: '#79513b', ...(atlases.soil ? { atlas: atlases.soil } : {}) },
+    5: { fill: '#3f7e8b', inset: { color: '#65a6ae', x: 2, y: 4, width: 9, height: 1 } },
+    6: { fill: '#315938' },
+    7: { fill: '#8a613f', inset: { color: '#a87952', x: 0, y: 0, width: 16, height: 1 } },
+    8: { fill: '#3d3130', inset: { color: '#5e4a40', x: 0, y: 12, width: 16, height: 4 } },
+    9: { fill: '#5a382d', inset: { color: '#c67f49', x: 2, y: 2, width: 12, height: 3 } },
+  };
+  const layers = (['ground', 'detail', 'canopy'] as const).map((name): TileLayerData => ({
+    name,
+    tiles: source.layers[name].flatMap((row) => [...row].map((character) => authoredDefinitions[source.legend[character] ?? 'empty'] ?? 0)),
+  }));
+  return { width: source.size[0], height: source.size[1], tileSize: TILE_SIZE_PIXELS, definitions, layers };
+}
+
 function makeLayer(width: number, height: number): HTMLCanvasElement {
   const layer = document.createElement('canvas');
   layer.width = width;
@@ -36,43 +83,35 @@ function blankLayer(width: number, height: number, name: CachedLayerName): TileL
   return { name, tiles: Array.from({ length: width * height }, () => 0) };
 }
 
-export function createPlaceholderTileMap(
+export function createEstateTileMap(
   collision: CollisionMap,
-  grassAtlas?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame },
+  atlases: EstateTileAtlases = {},
 ): TileMapData {
   const ground = Array.from({ length: collision.width * collision.height }, (_, index) => {
     const x = index % collision.width;
     const y = Math.floor(index / collision.width);
-    if (x >= 30 && x <= 38 && y >= 18 && y <= 24) return (x + y) % 2 === 0 ? 3 : 4;
+    if (x >= 44 && x <= 54 && y >= 18 && y <= 28) return 5;
+    if ((x >= 27 && x <= 29 && y >= 10 && y <= 46) || (y >= 44 && y <= 46 && x >= 27 && x <= 36)) return 3;
+    if (x >= 7 && x <= 23 && y >= 15 && y <= 39 && x % 4 !== 3 && y % 5 !== 4) return 4;
+    if (y >= 48 && (x < 20 || x > 43)) return 6;
     return (x * 7 + y * 11) % 13 === 0 ? 2 : 1;
   });
   const detail = [...blankLayer(collision.width, collision.height, 'detail').tiles];
   const canopy = [...blankLayer(collision.width, collision.height, 'canopy').tiles];
 
-  for (let index = 0; index < collision.blocked.length; index += 1) {
-    if (!(collision.blocked[index] ?? false)) continue;
-    const x = index % collision.width;
-    const y = Math.floor(index / collision.width);
-    if (x >= 30 && x <= 38 && y >= 18 && y <= 24) continue;
-    if (x >= 17 && x <= 23 && y >= 7 && y <= 12) continue;
-    if (x === 12 && y === 14) continue;
-    detail[index] = y === 16 ? 5 : 6;
-  }
+  // Collision is simulation data, never a visible fallback layer. Authored maps
+  // provide fences, hedges, water, and cliffs independently of walkability.
   return {
     width: collision.width,
     height: collision.height,
     tileSize: TILE_SIZE_PIXELS,
     definitions: {
       1: { fill: '#58a346' },
-      2: { fill: '#58a346', ...(grassAtlas ? { atlas: grassAtlas } : {}) },
-      3: { fill: '#3f7e8b' },
-      4: { fill: '#397482' },
-      5: { fill: 'transparent', inset: { color: '#8a613f', x: 0, y: 8, width: 16, height: 8 } },
-      6: { fill: 'transparent', inset: { color: '#315938', x: 0, y: 8, width: 16, height: 8 } },
-      7: { fill: '#b47b4e' },
-      8: { fill: '#b47b4e', inset: { color: '#6d3e36', x: 5, y: 0, width: 6, height: 16 } },
-      9: { fill: '#713f3b' },
-      10: { fill: '#99594c' },
+      2: { fill: '#58a346', ...(atlases.grass ? { atlas: atlases.grass } : {}) },
+      3: { fill: '#98724c', ...(atlases.path ? { atlas: atlases.path } : {}) },
+      4: { fill: '#79513b', ...(atlases.soil ? { atlas: atlases.soil } : {}) },
+      5: { fill: '#3f7e8b', inset: { color: '#65a6ae', x: 2, y: 4, width: 9, height: 1 } },
+      6: { fill: '#315938' },
     },
     layers: [
       { name: 'ground', tiles: ground },
@@ -80,6 +119,39 @@ export function createPlaceholderTileMap(
       { name: 'canopy', tiles: canopy },
     ],
   };
+}
+
+export function createCellarTileMap(collision: CollisionMap): TileMapData {
+  const ground = Array.from({ length: collision.width * collision.height }, () => 7);
+  const detail = Array.from({ length: collision.width * collision.height }, (_, index) => {
+    if (!(collision.blocked[index] ?? false)) return 0;
+    const x = index % collision.width;
+    const y = Math.floor(index / collision.width);
+    const border = x === 0 || y === 0 || x === collision.width - 1 || y === collision.height - 1;
+    return border ? 8 : 9;
+  });
+  return {
+    width: collision.width,
+    height: collision.height,
+    tileSize: TILE_SIZE_PIXELS,
+    definitions: {
+      7: { fill: '#8a613f', inset: { color: '#a87952', x: 0, y: 0, width: 16, height: 1 } },
+      8: { fill: '#3d3130', inset: { color: '#5e4a40', x: 0, y: 12, width: 16, height: 4 } },
+      9: { fill: '#5a382d', inset: { color: '#c67f49', x: 2, y: 2, width: 12, height: 3 } },
+    },
+    layers: [
+      { name: 'ground', tiles: ground },
+      { name: 'detail', tiles: detail },
+      { name: 'canopy', tiles: blankLayer(collision.width, collision.height, 'canopy').tiles },
+    ],
+  };
+}
+
+export function createPlaceholderTileMap(
+  collision: CollisionMap,
+  grassAtlas?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame },
+): TileMapData {
+  return createEstateTileMap(collision, grassAtlas ? { grass: grassAtlas } : {});
 }
 
 export class CachedTileMapRenderer {

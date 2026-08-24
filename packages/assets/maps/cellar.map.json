@@ -1,0 +1,151 @@
+{
+  "name": "cellar",
+  "size": [
+    40,
+    24
+  ],
+  "legend": {
+    "f": "cellar_floor",
+    "M": "cellar_wall",
+    "R": "cellar_rack",
+    ".": "empty"
+  },
+  "layers": {
+    "ground": [
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff",
+      "ffffffffffffffffffffffffffffffffffffffff"
+    ],
+    "detail": [
+      "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM",
+      "M......................................M",
+      "M......................................M",
+      "M......................................M",
+      "M......................................M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M......................................M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M......................................M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M......................................M",
+      "M...RRRRRRRRR....RRRRRRRRR.............M",
+      "M......................................M",
+      "M......................................M",
+      "M......................................M",
+      "M......................................M",
+      "M......................................M",
+      "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+    ],
+    "canopy": [
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................",
+      "........................................"
+    ]
+  },
+  "objects": [
+    {
+      "asset": "prop_oak_barrel",
+      "animation": "base",
+      "x": 6,
+      "y": 7
+    },
+    {
+      "asset": "prop_oak_barrel",
+      "animation": "base",
+      "x": 10,
+      "y": 7
+    },
+    {
+      "asset": "prop_oak_barrel",
+      "animation": "base",
+      "x": 19,
+      "y": 7
+    },
+    {
+      "asset": "prop_oak_barrel",
+      "animation": "base",
+      "x": 23,
+      "y": 7
+    },
+    {
+      "asset": "prop_oak_barrel",
+      "animation": "base",
+      "x": 6,
+      "y": 15
+    },
+    {
+      "asset": "prop_oak_barrel",
+      "animation": "base",
+      "x": 10,
+      "y": 15
+    },
+    {
+      "asset": "prop_oak_barrel",
+      "animation": "base",
+      "x": 19,
+      "y": 15
+    },
+    {
+      "asset": "prop_oak_barrel",
+      "animation": "base",
+      "x": 23,
+      "y": 15
+    }
+  ],
+  "transitions": [
+    {
+      "x": 20,
+      "y": 2,
+      "radius": 2,
+      "target": "estate"
+    }
+  ]
+}

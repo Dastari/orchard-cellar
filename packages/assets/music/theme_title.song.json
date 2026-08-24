@@ -1,0 +1,582 @@
+{
+  "name": "theme_title",
+  "bpm": 76,
+  "swing": 0.03,
+  "key": "G",
+  "mode": "major",
+  "stepsPerBeat": 4,
+  "beatsPerBar": 4,
+  "loopBars": 48,
+  "masterGainDb": -10,
+  "signatureMotif": {
+    "id": "orchard_home",
+    "steps": 64,
+    "notes": [
+      [
+        0,
+        "G4",
+        4
+      ],
+      [
+        8,
+        "B4",
+        4
+      ],
+      [
+        16,
+        "D5",
+        8
+      ],
+      [
+        32,
+        "A4",
+        4
+      ],
+      [
+        40,
+        "B4",
+        4
+      ],
+      [
+        48,
+        "G4",
+        8
+      ]
+    ]
+  },
+  "channels": [
+    {
+      "patch": "pad",
+      "vol": 0.44,
+      "patterns": [
+        "Pad_GC",
+        "Pad_EmD",
+        "Pad_GC",
+        "Pad_DG",
+        "Pad_GC",
+        "Pad_EmD",
+        "Pad_CD",
+        "Pad_DG",
+        "Pad_GC",
+        "Pad_EmD",
+        "Pad_CD",
+        "Pad_GG"
+      ]
+    },
+    {
+      "patch": "flute",
+      "vol": 0.66,
+      "patterns": [
+        "Rest",
+        "MotifHome",
+        "Rest",
+        "AnswerWarm",
+        "MotifHomeLow",
+        "Rest",
+        "AnswerLift",
+        "Rest",
+        "MotifHome",
+        "Rest",
+        "MotifReturn",
+        "Rest"
+      ]
+    },
+    {
+      "patch": "bells",
+      "vol": 0.28,
+      "patterns": [
+        "Rest",
+        "Rest",
+        "BellG",
+        "Rest",
+        "Rest",
+        "BellDew",
+        "Rest",
+        "BellG",
+        "Rest",
+        "BellDew",
+        "Rest",
+        "BellHome"
+      ]
+    },
+    {
+      "patch": "bass",
+      "vol": 0.36,
+      "patterns": [
+        "Bass_GC",
+        "Bass_EmD",
+        "Bass_GC",
+        "Bass_DG",
+        "Bass_GC",
+        "Bass_EmD",
+        "Bass_CD",
+        "Bass_DG",
+        "Bass_GC",
+        "Bass_EmD",
+        "Bass_CD",
+        "Bass_GG"
+      ]
+    }
+  ],
+  "patterns": {
+    "Rest": {
+      "steps": 64,
+      "notes": []
+    },
+    "MotifHome": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "G4",
+          4
+        ],
+        [
+          8,
+          "B4",
+          4
+        ],
+        [
+          16,
+          "D5",
+          8
+        ],
+        [
+          32,
+          "A4",
+          4
+        ],
+        [
+          40,
+          "B4",
+          4
+        ],
+        [
+          48,
+          "G4",
+          8
+        ]
+      ]
+    },
+    "MotifHomeLow": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "D4",
+          4
+        ],
+        [
+          8,
+          "G4",
+          4
+        ],
+        [
+          16,
+          "B4",
+          8
+        ],
+        [
+          32,
+          "F#4",
+          4
+        ],
+        [
+          40,
+          "A4",
+          4
+        ],
+        [
+          48,
+          "G4",
+          8
+        ]
+      ]
+    },
+    "AnswerWarm": {
+      "steps": 64,
+      "notes": [
+        [
+          4,
+          "E4",
+          6
+        ],
+        [
+          28,
+          "A4",
+          8
+        ],
+        [
+          44,
+          "F#4",
+          4
+        ],
+        [
+          52,
+          "D4",
+          8
+        ]
+      ]
+    },
+    "AnswerLift": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "B4",
+          4
+        ],
+        [
+          12,
+          "D5",
+          6
+        ],
+        [
+          40,
+          "D5",
+          6
+        ],
+        [
+          52,
+          "A4",
+          8
+        ]
+      ]
+    },
+    "MotifReturn": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "G4",
+          4
+        ],
+        [
+          8,
+          "B4",
+          4
+        ],
+        [
+          16,
+          "D5",
+          8
+        ],
+        [
+          36,
+          "A4",
+          4
+        ],
+        [
+          44,
+          "B4",
+          4
+        ],
+        [
+          52,
+          "G4",
+          10
+        ]
+      ]
+    },
+    "BellG": {
+      "steps": 64,
+      "notes": [
+        [
+          12,
+          "D5",
+          6
+        ],
+        [
+          36,
+          "B4",
+          6
+        ],
+        [
+          52,
+          "G5",
+          8
+        ]
+      ]
+    },
+    "BellDew": {
+      "steps": 64,
+      "notes": [
+        [
+          8,
+          "G5",
+          4
+        ],
+        [
+          28,
+          "E5",
+          6
+        ],
+        [
+          48,
+          "B4",
+          8
+        ]
+      ]
+    },
+    "BellHome": {
+      "steps": 64,
+      "notes": [
+        [
+          16,
+          "D5",
+          8
+        ],
+        [
+          40,
+          "B4",
+          6
+        ],
+        [
+          52,
+          "G5",
+          10
+        ]
+      ]
+    },
+    "Pad_GC": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "G3",
+          28
+        ],
+        [
+          0,
+          "B3",
+          28
+        ],
+        [
+          0,
+          "D4",
+          28
+        ],
+        [
+          32,
+          "C3",
+          28
+        ],
+        [
+          32,
+          "E3",
+          28
+        ],
+        [
+          32,
+          "G3",
+          28
+        ]
+      ]
+    },
+    "Pad_EmD": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "E3",
+          28
+        ],
+        [
+          0,
+          "G3",
+          28
+        ],
+        [
+          0,
+          "B3",
+          28
+        ],
+        [
+          32,
+          "D3",
+          28
+        ],
+        [
+          32,
+          "F#3",
+          28
+        ],
+        [
+          32,
+          "A3",
+          28
+        ]
+      ]
+    },
+    "Pad_DG": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "D3",
+          28
+        ],
+        [
+          0,
+          "F#3",
+          28
+        ],
+        [
+          0,
+          "A3",
+          28
+        ],
+        [
+          32,
+          "G3",
+          28
+        ],
+        [
+          32,
+          "B3",
+          28
+        ],
+        [
+          32,
+          "D4",
+          28
+        ]
+      ]
+    },
+    "Pad_CD": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "C3",
+          28
+        ],
+        [
+          0,
+          "E3",
+          28
+        ],
+        [
+          0,
+          "G3",
+          28
+        ],
+        [
+          32,
+          "D3",
+          28
+        ],
+        [
+          32,
+          "F#3",
+          28
+        ],
+        [
+          32,
+          "A3",
+          28
+        ]
+      ]
+    },
+    "Pad_GG": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "G3",
+          60
+        ],
+        [
+          0,
+          "B3",
+          60
+        ],
+        [
+          0,
+          "D4",
+          60
+        ]
+      ]
+    },
+    "Bass_GC": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "G2",
+          20
+        ],
+        [
+          32,
+          "C3",
+          20
+        ]
+      ]
+    },
+    "Bass_EmD": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "E2",
+          20
+        ],
+        [
+          32,
+          "D2",
+          20
+        ]
+      ]
+    },
+    "Bass_DG": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "D2",
+          20
+        ],
+        [
+          32,
+          "G2",
+          20
+        ]
+      ]
+    },
+    "Bass_CD": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "C3",
+          20
+        ],
+        [
+          32,
+          "D2",
+          20
+        ]
+      ]
+    },
+    "Bass_GG": {
+      "steps": 64,
+      "notes": [
+        [
+          0,
+          "G2",
+          28
+        ],
+        [
+          32,
+          "G2",
+          24
+        ]
+      ]
+    }
+  },
+  "loop": true,
+  "iterationNotes": [
+    "Pass 2: removed two mid-phrase flute notes to preserve breathing room; listening pass pending audio preview."
+  ]
+}
+

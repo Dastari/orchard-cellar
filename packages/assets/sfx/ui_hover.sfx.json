@@ -1,0 +1,38 @@
+{
+  "name": "ui_hover",
+  "category": "ui",
+  "bus": "sfx",
+  "gainDb": -11,
+  "polyphony": 2,
+  "synth": {
+    "wave": "triangle",
+    "frequencyHz": 660,
+    "attackMs": 2,
+    "decayMs": 42,
+    "sustain": 0,
+    "releaseMs": 18,
+    "slideHzPerSecond": -110,
+    "noiseMix": 0,
+    "filter": {
+      "type": "lowpass",
+      "frequencyHz": 2400,
+      "q": 0.55
+    },
+    "reverbSend": 0.08
+  },
+  "jitter": {
+    "pitch": [
+      -0.04,
+      0.04
+    ],
+    "decay": [
+      -0.1,
+      0.1
+    ],
+    "gainDb": [
+      -0.6,
+      0.4
+    ]
+  }
+}
+

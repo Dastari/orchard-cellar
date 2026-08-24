@@ -1,0 +1,38 @@
+{
+  "name": "footstep_grass",
+  "category": "footstep",
+  "bus": "sfx",
+  "gainDb": -18,
+  "polyphony": 3,
+  "synth": {
+    "wave": "triangle",
+    "frequencyHz": 112,
+    "attackMs": 2,
+    "decayMs": 72,
+    "sustain": 0,
+    "releaseMs": 28,
+    "slideHzPerSecond": -42,
+    "noiseMix": 0.58,
+    "filter": {
+      "type": "lowpass",
+      "frequencyHz": 680,
+      "q": 0.65
+    },
+    "reverbSend": 0.05
+  },
+  "jitter": {
+    "pitch": [
+      -0.07,
+      0.07
+    ],
+    "decay": [
+      -0.1,
+      0.1
+    ],
+    "gainDb": [
+      -1.2,
+      0.8
+    ]
+  }
+}
+

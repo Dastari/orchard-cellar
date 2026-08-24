@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { advanceTick } from './tick.js';
-import { createInitialState, FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type Action, type FarmState } from './state.js';
+import { createEstateCollisionMap, createInitialState, FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type Action, type FarmState } from './state.js';
 import { createRng, nextRng } from './rng.js';
+import { calendarAtTick, nextDayTick, TICKS_PER_DAY } from './time.js';
 
 function replay(seed: number, actions: readonly Action[]): FarmState {
   let state = createInitialState(seed);
@@ -31,13 +32,26 @@ describe('deterministic simulation', () => {
     expect(state.player.moving).toBe(false);
   });
 
-  it('stops at the internal farmhouse obstacle', () => {
+  it('stops at an internal orchard obstacle', () => {
     let state = createInitialState(7);
-    for (let tick = 1; tick <= 500; tick += 1) {
-      state = advanceTick(state, [{ type: 'move', direction: 'right' }], tick);
+    state = {
+      ...state,
+      player: { ...state.player, position: { x: 12 * TILE_SIZE_FIXED, y: 15 * TILE_SIZE_FIXED } },
+    };
+    for (let tick = 1; tick <= 250; tick += 1) {
+      state = advanceTick(state, [{ type: 'move', direction: 'down' }], tick);
     }
-    expect(state.player.position.x).toBeLessThan(17 * TILE_SIZE_FIXED);
+    expect(state.player.position.y).toBeLessThan(17 * TILE_SIZE_FIXED);
     expect(state.player.moving).toBe(false);
+  });
+
+  it('blocks exactly the authored orchard tree columns', () => {
+    const collision = createEstateCollisionMap();
+    const blockedAt = (x: number, y: number): boolean => collision.blocked[y * collision.width + x] ?? false;
+    for (const y of [17, 22, 27, 32, 37]) {
+      expect(blockedAt(8, y)).toBe(false);
+      for (const x of [12, 16, 20]) expect(blockedAt(x, y)).toBe(true);
+    }
   });
 
   it('moves diagonally without cardinal speed inflation', () => {
@@ -57,5 +71,23 @@ describe('deterministic simulation', () => {
     }
     expect(values).toEqual([1962818870, 1222316584, 3741832822, 3850430075]);
     expect(rng).toEqual(nextRng(nextRng(nextRng(nextRng(createRng(42)).state).state).state).state);
+  });
+
+  it('maps the 15-minute day and seven-day seasons at exact boundaries', () => {
+    expect(calendarAtTick(0)).toMatchObject({ season: 'spring', dayOfSeason: 1, year: 1, hour: 6, minute: 0 });
+    expect(calendarAtTick(TICKS_PER_DAY - 1)).toMatchObject({ season: 'spring', dayOfSeason: 1, hour: 25, minute: 59 });
+    expect(calendarAtTick(TICKS_PER_DAY * 7)).toMatchObject({ season: 'summer', dayOfSeason: 1, year: 1 });
+    expect(calendarAtTick(TICKS_PER_DAY * 28)).toMatchObject({ season: 'spring', dayOfSeason: 1, year: 2 });
+    expect(nextDayTick(TICKS_PER_DAY + 9)).toBe(TICKS_PER_DAY * 2);
+  });
+
+  it('transitions between estate and cellar collision spaces', () => {
+    const estate = createInitialState(7);
+    const cellar = advanceTick(estate, [{ type: 'transition', location: 'cellar' }], 1);
+    expect(cellar.player.location).toBe('cellar');
+    expect(cellar.collision.width).toBe(40);
+    const returned = advanceTick(cellar, [{ type: 'transition', location: 'estate' }], 2);
+    expect(returned.player.location).toBe('estate');
+    expect(returned.collision.width).toBe(64);
   });
 });

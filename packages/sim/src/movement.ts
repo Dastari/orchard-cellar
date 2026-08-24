@@ -59,5 +59,5 @@ export function movePlayer(player: PlayerState, direction: Direction | null, map
     const movedY = { x: position.x, y: position.y + vector.y };
     if (!positionCollides(movedY, map)) position = movedY;
   }
-  return { position, facing: direction, moving: position !== player.position };
+  return { position, facing: direction, moving: position !== player.position, location: player.location };
 }

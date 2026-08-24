@@ -48,7 +48,7 @@ autotile variants). A fresh hidden-tab load synchronously rendered all 129,600 c
 pixels; runtime skin/hair/shirt/pants recolors were present. Asset validation, tests,
 typecheck, lint, production builds, and the milestone reviewer all pass.
 
-## M3 — Farm alive `⏳ in progress (codex, 2026-08-24)`
+## M3 — Farm alive `☑ complete (codex, 2026-08-24)`
 Estate exterior map (64×64 per [03-gameplay-core.md](03-gameplay-core.md) §3),
 cellar interior, day/night lighting tint + season recolor swap, day/season clock +
 HUD dial, audio foundation (mixer, `theme_spring`, ambience layer, footsteps/UI sfx
@@ -56,6 +56,15 @@ per [12-audio-design.md](12-audio-design.md)), local save/load (localStorage now
 schema-versioned FarmState from day one).
 **Done when:** a full in-game day passes with dawn/dusk tint, music, and the state
 survives reload.
+
+**Verification:** Shared-browser play exercised the estate and cellar, a complete
+day plus seasonal warps, dawn/dusk/night lighting, contextual ambience, footsteps,
+music unlock, and exact save/reload restoration. Final snapshots confirmed sparse
+grass on a solid ground field, a static idle avatar, no debug collision lines, and
+visible scenery at every blocked interior tile. The exact runtime audio preview
+triggered all 2 songs and 9 SFX without errors (0.211 observed peak). `npm run check`
+(24 tests, 100% sim line coverage), asset validation, production builds, save
+corruption tests, and milestone review all pass.
 
 ## M4 — The chain `☐`
 The sim economy end-to-end per [04](04-orchard-design.md)/[05](05-cellar-design.md)/[06](06-progression-economy.md):

@@ -1,0 +1,38 @@
+{
+  "name": "footstep_path",
+  "category": "footstep",
+  "bus": "sfx",
+  "gainDb": -18,
+  "polyphony": 3,
+  "synth": {
+    "wave": "triangle",
+    "frequencyHz": 168,
+    "attackMs": 1,
+    "decayMs": 48,
+    "sustain": 0,
+    "releaseMs": 22,
+    "slideHzPerSecond": -78,
+    "noiseMix": 0.32,
+    "filter": {
+      "type": "lowpass",
+      "frequencyHz": 1250,
+      "q": 0.75
+    },
+    "reverbSend": 0.04
+  },
+  "jitter": {
+    "pitch": [
+      -0.06,
+      0.06
+    ],
+    "decay": [
+      -0.1,
+      0.1
+    ],
+    "gainDb": [
+      -1,
+      0.7
+    ]
+  }
+}
+

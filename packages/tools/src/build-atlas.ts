@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { loadAssets, loadPalette, readJson, workspaceRoot } from './assets/load.js';
 import { encodePng, hexToRgba, setPixel } from './assets/png.js';
@@ -16,6 +16,17 @@ type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 const seasons: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
 const outputRoot = new URL('packages/client/public/generated/', workspaceRoot);
 const ATLAS_WIDTH = 512;
+
+async function copyJsonAssets(folder: 'maps' | 'music' | 'sfx'): Promise<void> {
+  const source = new URL(`packages/assets/${folder}/`, workspaceRoot);
+  const target = new URL(`${folder}/`, outputRoot);
+  await mkdir(target, { recursive: true });
+  const entries = await readdir(source, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    await writeFile(new URL(entry.name, target), await readFile(new URL(entry.name, source)));
+  }
+}
 
 function rotateGrid(grid: PixelGrid, turns: number): string[] {
   let result = [...grid];
@@ -183,6 +194,7 @@ export async function buildAtlases(): Promise<void> {
     }
   }
   await writeFile(new URL('atlas.meta.json', outputRoot), `${JSON.stringify(metadata, null, 2)}\n`);
+  await Promise.all([copyJsonAssets('maps'), copyJsonAssets('music'), copyJsonAssets('sfx')]);
   console.log(`Built ${assets.length} assets across ${categories.length} atlas categories.`);
 }
 

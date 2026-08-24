@@ -1,0 +1,56 @@
+{
+  "name": "bird_chirp_1",
+  "category": "ambience",
+  "bus": "ambience",
+  "gainDb": -17,
+  "polyphony": 4,
+  "synth": {
+    "wave": "sine",
+    "frequencyHz": 1568,
+    "attackMs": 8,
+    "decayMs": 145,
+    "sustain": 0.12,
+    "releaseMs": 90,
+    "slideHzPerSecond": 1850,
+    "noiseMix": 0.02,
+    "filter": {
+      "type": "lowpass",
+      "frequencyHz": 4200,
+      "q": 0.7
+    },
+    "reverbSend": 0.32
+  },
+  "jitter": {
+    "pitch": [
+      -0.08,
+      0.08
+    ],
+    "decay": [
+      -0.1,
+      0.1
+    ],
+    "gainDb": [
+      -1.5,
+      1
+    ],
+    "pan": [
+      -0.8,
+      0.8
+    ]
+  },
+  "schedule": {
+    "intervalSeconds": [
+      5,
+      12
+    ],
+    "probability": 0.48,
+    "time": [
+      "day"
+    ],
+    "season": [
+      "spring",
+      "summer"
+    ]
+  }
+}
+

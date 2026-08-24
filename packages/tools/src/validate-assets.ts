@@ -12,6 +12,87 @@ interface SeasonSource {
 
 const seasonNames = ['spring', 'summer', 'autumn', 'winter'] as const;
 const outlineCharacters = new Set(['0', '1', '9', 'f', 'j', 'o', 't', 'y', 'D', 'Q', 'R', 'S']);
+const audioPatches = new Set(['flute', 'pad', 'pluck', 'bass', 'bells', 'strings', 'accordion', 'woodblock', 'shaker']);
+const ambienceTimes = new Set(['dawn', 'day', 'dusk', 'night']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+async function readFolder(folder: string, suffix: string): Promise<unknown[]> {
+  const root = new URL(`${folder}/`, assetsRoot);
+  const files = (await readdir(root)).filter((name) => name.endsWith(suffix)).sort();
+  return await Promise.all(files.map(async (name) => await readJson(new URL(name, root))));
+}
+
+function validateSongs(songs: readonly unknown[], errors: string[]): void {
+  for (const value of songs) {
+    if (!isRecord(value) || typeof value['name'] !== 'string') { errors.push('music: invalid song object'); continue; }
+    const name = value['name'];
+    if (typeof value['bpm'] !== 'number' || value['bpm'] < 72 || value['bpm'] > 96) errors.push(`${name}: bpm must be 72-96`);
+    if (typeof value['swing'] !== 'number' || value['swing'] < 0 || value['swing'] > 0.12) errors.push(`${name}: swing must be 0-0.12`);
+    if (value['loopBars'] !== 48 && value['loopBars'] !== 64 && value['loopBars'] !== 96) errors.push(`${name}: theme loop must be 48, 64, or 96 bars`);
+    if (!Array.isArray(value['channels']) || !isRecord(value['patterns'])) { errors.push(`${name}: channels/patterns missing`); continue; }
+    for (const channel of value['channels']) {
+      if (!isRecord(channel) || typeof channel['patch'] !== 'string' || !audioPatches.has(channel['patch'])) errors.push(`${name}: channel uses a patch outside the closed set`);
+      if (!isRecord(channel) || !Array.isArray(channel['patterns'])) continue;
+      for (const patternName of channel['patterns']) if (typeof patternName !== 'string' || !value['patterns'][patternName]) errors.push(`${name}: missing pattern ${String(patternName)}`);
+    }
+    for (const [patternName, patternValue] of Object.entries(value['patterns'])) {
+      if (!isRecord(patternValue) || typeof patternValue['steps'] !== 'number' || !Array.isArray(patternValue['notes'])) { errors.push(`${name}:${patternName} invalid pattern`); continue; }
+      for (const note of patternValue['notes']) {
+        if (!Array.isArray(note) || note.length !== 3 || typeof note[0] !== 'number' || typeof note[1] !== 'string' || typeof note[2] !== 'number'
+          || note[0] < 0 || note[2] <= 0 || note[0] + note[2] > patternValue['steps']) errors.push(`${name}:${patternName} invalid note`);
+      }
+    }
+  }
+}
+
+function validateSfx(sources: readonly unknown[], errors: string[]): void {
+  for (const value of sources) {
+    if (!isRecord(value) || typeof value['name'] !== 'string') { errors.push('sfx: invalid source object'); continue; }
+    const name = value['name'];
+    if (!isRecord(value['synth']) || !isRecord(value['jitter'])) { errors.push(`${name}: synth/jitter missing`); continue; }
+    for (const field of ['pitch', 'decay', 'gainDb']) {
+      const range = value['jitter'][field];
+      if (!Array.isArray(range) || range.length !== 2 || !range.every((entry) => typeof entry === 'number')) errors.push(`${name}: jitter.${field} must be a numeric range`);
+    }
+    if (value['bus'] !== 'sfx' && value['bus'] !== 'ambience') errors.push(`${name}: invalid audio bus`);
+    if (typeof value['synth']['frequencyHz'] !== 'number' || value['synth']['frequencyHz'] <= 0) errors.push(`${name}: invalid frequency`);
+    if (value['schedule'] !== undefined) {
+      if (!isRecord(value['schedule'])) { errors.push(`${name}: schedule must be an object`); continue; }
+      const time = value['schedule']['time'];
+      const season = value['schedule']['season'];
+      if (time !== undefined && (!Array.isArray(time) || time.some((entry) => typeof entry !== 'string' || !ambienceTimes.has(entry)))) errors.push(`${name}: invalid ambience time`);
+      if (season !== undefined && (!Array.isArray(season) || season.some((entry) => typeof entry !== 'string' || !seasonNames.includes(entry as typeof seasonNames[number])))) errors.push(`${name}: invalid ambience season`);
+    }
+  }
+}
+
+function validateMaps(maps: readonly unknown[], errors: string[]): void {
+  for (const value of maps) {
+    if (!isRecord(value) || typeof value['name'] !== 'string' || !Array.isArray(value['size']) || value['size'].length !== 2 || !isRecord(value['layers']) || !isRecord(value['legend'])) {
+      errors.push('maps: invalid map header'); continue;
+    }
+    const [width, height] = value['size'];
+    if (typeof width !== 'number' || typeof height !== 'number') { errors.push(`${value['name']}: invalid map size`); continue; }
+    for (const layer of ['ground', 'detail', 'canopy']) {
+      const rows = value['layers'][layer];
+      if (!Array.isArray(rows) || rows.length !== height || rows.some((row) => typeof row !== 'string' || row.length !== width)) errors.push(`${value['name']}:${layer} dimensions must match ${width}x${height}`);
+      if (Array.isArray(rows)) for (const row of rows) if (typeof row === 'string') for (const character of row) if (value['legend'][character] === undefined) errors.push(`${value['name']}:${layer} unknown legend character ${character}`);
+    }
+    if (value['name'] === 'estate') {
+      const objects = Array.isArray(value['objects']) ? value['objects'] : [];
+      const visibleTrees = new Set(objects.flatMap((object) => isRecord(object) && object['asset'] === 'tree_apple_fruiting'
+        && typeof object['x'] === 'number' && typeof object['y'] === 'number' ? [`${object['x']},${object['y']}`] : []));
+      const collisionTrees = new Set<string>();
+      for (const y of [17, 22, 27, 32, 37]) for (const x of [12, 16, 20]) collisionTrees.add(`${x},${y}`);
+      if (visibleTrees.size !== collisionTrees.size || [...collisionTrees].some((position) => !visibleTrees.has(position))) {
+        errors.push('estate: every orchard collision tile must have one visible tree object');
+      }
+    }
+  }
+}
 
 function validateCanonicalSize(asset: AssetSource, errors: string[]): void {
   const [width, height] = asset.size;
@@ -89,6 +170,11 @@ export async function validateAssetSources(): Promise<void> {
     loadPalette(),
     readJson(new URL('seasons.json', assetsRoot)) as Promise<SeasonSource>,
   ]);
+  const [songs, sfx, maps] = await Promise.all([
+    readFolder('music', '.song.json'),
+    readFolder('sfx', '.sfx.json'),
+    readFolder('maps', '.map.json'),
+  ]);
   if (Object.keys(palette.colors).length !== 55) errors.push('palette.json must contain the binding 55 colors');
   for (const [character, hex] of Object.entries(palette.colors)) {
     if (!/^#[0-9a-f]{6}$/i.test(hex)) errors.push(`palette ${character}: invalid hex ${hex}`);
@@ -114,8 +200,12 @@ export async function validateAssetSources(): Promise<void> {
       if (!target || !palette.colors[target]) errors.push(`seasons.json ${season}: missing valid mapping for ${character}`);
     }
   }
+  validateSongs(songs, errors);
+  validateSfx(sfx, errors);
+  validateMaps(maps, errors);
   if (errors.length > 0) throw new Error(`Asset validation failed:\n${errors.join('\n')}`);
-  console.log(`Validated ${assets.length} authored assets, 55 palette colors, and four seasonal remaps.`);
+  console.log(`Validated ${assets.length} art assets, ${songs.length} songs, ${sfx.length} SFX, ${maps.length} maps, 55 palette colors, and four seasonal remaps.`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await validateAssetSources();
+import { readdir } from 'node:fs/promises';
