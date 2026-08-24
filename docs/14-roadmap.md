@@ -48,7 +48,7 @@ autotile variants). A fresh hidden-tab load synchronously rendered all 129,600 c
 pixels; runtime skin/hair/shirt/pants recolors were present. Asset validation, tests,
 typecheck, lint, production builds, and the milestone reviewer all pass.
 
-## M3 — Farm alive `☐`
+## M3 — Farm alive `⏳ in progress (codex, 2026-08-24)`
 Estate exterior map (64×64 per [03-gameplay-core.md](03-gameplay-core.md) §3),
 cellar interior, day/night lighting tint + season recolor swap, day/season clock +
 HUD dial, audio foundation (mixer, `theme_spring`, ambience layer, footsteps/UI sfx
