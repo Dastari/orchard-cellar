@@ -158,9 +158,9 @@ export class FarmScene implements Scene {
       actions.push({ type: 'transition', location: this.state.player.location === 'estate' ? 'cellar' : 'estate' });
     } else if (this.input.consumeInteract()) {
       const transition = this.assets.maps[this.state.player.location].transitions.find((candidate) => nearTile(this.state, candidate.x, candidate.y, candidate.radius));
-      if (transition) actions.push({ type: 'transition', location: transition.target });
-      else actions.push(...this.contextActions());
-      void this.audio.playSfx('ui_confirm');
+      const context = transition ? [{ type: 'transition', location: transition.target } satisfies Action] : this.contextActions();
+      actions.push(...context);
+      void this.audio.playSfx(context.length > 0 ? 'ui_confirm' : 'ui_hover');
     }
     const previousLocation = this.state.player.location;
     const previousSeason = calendarAtTick(this.state.tick).season;
