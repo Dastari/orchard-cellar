@@ -29,6 +29,7 @@ import {
   VIGOUR_PARTIAL_SECONDS,
   WINTER_AGING_MULTIPLIER,
   WORKBENCH_UPGRADES,
+  YARD_MUST_CAPACITY,
   YOUNG_GROWTH_DAYS,
   YOUNG_PRODUCTION_MULTIPLIER,
   equipmentMilestoneMultiplier,
@@ -158,18 +159,22 @@ function advancePresses(economy: EconomyState, deltaTicks: number, season: Seaso
     * fedCapacityMultiplier(economy, 'feedsPress');
   const numerator = Math.round(rate * MICRO * efficiency) * deltaTicks + economy.pressRemainder;
   const capacity = Math.floor(numerator / SIM_TICKS_PER_SECOND);
-  const processed = Math.min(economy.hopperFruitMicro, capacity);
+  const pipe = hasUpgrade(economy, 'copperPipe');
+  const yardRoom = pipe ? Number.POSITIVE_INFINITY : Math.max(0, YARD_MUST_CAPACITY * MICRO - economy.yardMustMicro);
+  const yardLimitedFruit = pipe ? Number.POSITIVE_INFINITY : Math.floor(yardRoom / PRESS_MUST_YIELD);
+  const processed = Math.min(economy.hopperFruitMicro, capacity, yardLimitedFruit);
   if (processed <= 0) return { ...economy, pressRemainder: numerator % SIM_TICKS_PER_SECOND };
   const pomaceMicro = economy.pomaceMicro + Math.floor(processed * POMACE_YIELD);
   const pomace = Math.floor(pomaceMicro / MICRO);
   const mustOutput = Math.floor(processed * PRESS_MUST_YIELD);
-  const pipedMust = hasUpgrade(economy, 'copperPipe') ? Math.floor(mustOutput / MICRO) : 0;
+  const combinedYardMust = economy.yardMustMicro + mustOutput;
+  const pipedMust = pipe ? Math.floor(combinedYardMust / MICRO) : 0;
   const firstRun = !economy.firsts.pressRun;
   return {
     ...economy,
     resources: { ...economy.resources, pomace: economy.resources.pomace + pomace, must: economy.resources.must + pipedMust },
     hopperFruitMicro: economy.hopperFruitMicro - processed,
-    yardMustMicro: economy.yardMustMicro + (hasUpgrade(economy, 'copperPipe') ? mustOutput % MICRO : mustOutput),
+    yardMustMicro: pipe ? combinedYardMust % MICRO : combinedYardMust,
     pressRemainder: numerator % SIM_TICKS_PER_SECOND,
     pomaceMicro: pomaceMicro % MICRO,
     knowledge: firstRun ? { ...economy.knowledge, press: economy.knowledge.press + 1 } : economy.knowledge,

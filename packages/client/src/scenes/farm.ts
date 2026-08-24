@@ -11,6 +11,7 @@ import {
   TILE_SIZE_PIXELS,
   TICKS_PER_DAY,
   WORKBENCH_UPGRADES,
+  YARD_MUST_CAPACITY,
   advanceTick,
   calendarAtTick,
   createInitialState,
@@ -199,6 +200,7 @@ export class FarmScene implements Scene {
     const sprites = this.state.player.location === 'estate' ? this.estateSprites(calendar.season, avatar) : this.cellarSprites(avatar);
     drawYSorted(context, sprites);
     tilemap.drawLayer(context, this.camera, 'canopy');
+    if (this.state.player.location === 'estate') this.drawPressStatus(context);
     this.drawLighting(context, calendar.dayProgress);
     this.drawHud(context);
   }
@@ -276,6 +278,20 @@ export class FarmScene implements Scene {
     context.fillStyle = '#315938'; context.fillRect(x - 18, y - 12, 36, 12);
     context.fillStyle = '#2b1d0e'; context.fillRect(x - 8, y - 14, 16, 14);
     context.fillStyle = '#a97744'; context.fillRect(x - 5, y - 11, 10, 11);
+  }
+
+  private drawPressStatus(context: CanvasRenderingContext2D): void {
+    const economy = this.state.economy;
+    const status = !economy.firstPressRepaired ? 'BROKEN'
+      : !economy.upgrades.includes('copperPipe') && economy.yardMustMicro >= YARD_MUST_CAPACITY * 1_000_000 ? 'BACKED'
+        : economy.hopperFruitMicro <= 0 ? 'STARVED' : 'WORKING';
+    const x = Math.round(10 * TILE_SIZE_PIXELS - this.camera.x);
+    const y = Math.round(47 * TILE_SIZE_PIXELS - this.camera.y - 24);
+    if (x < -50 || x > VIEWPORT_WIDTH + 10 || y < -12 || y > VIEWPORT_HEIGHT) return;
+    const width = status.length * 6 + 8;
+    context.fillStyle = status === 'WORKING' ? '#315938ee' : '#f5e5b8ee';
+    context.fillRect(x - Math.floor(width / 2), y, width, 12);
+    drawBitmapText(context, status, x - Math.floor(width / 2) + 4, y + 4, status === 'WORKING' ? '#f5e5b8' : '#2b1d0e', 1);
   }
 
   private drawLighting(context: CanvasRenderingContext2D, progress: number): void {
@@ -381,10 +397,13 @@ export class FarmScene implements Scene {
     if (this.state.player.location === 'estate' && nearTile(this.state, 10, 47, 3)) {
       if (!this.state.economy.firstPressRepaired) return `${held} REPAIR PRESS 50 FRUIT`;
       if (this.state.economy.resources.fruit > 0) return `${held} HAUL FRUIT TO HOPPER`;
-      if (this.state.economy.yardMustMicro >= 1_000_000) return `${held} COLLECT MUST JUGS`;
+      if (this.state.economy.yardMustMicro >= 1_000_000) {
+        const backed = !this.state.economy.upgrades.includes('copperPipe') && this.state.economy.yardMustMicro >= YARD_MUST_CAPACITY * 1_000_000;
+        return `${held} COLLECT MUST ${backed ? 'BACKED' : Math.floor(this.state.economy.yardMustMicro / 1_000_000)}`;
+      }
       const basketCost = repeatCost(PRESS_BALANCE[0]?.cost ?? 25, this.state.economy.presses[0] ?? 0, PRESS_COST_GROWTH);
       if (this.state.economy.resources.pomace >= basketCost) return `${held} BUY BASKET PRESS ${basketCost}`;
-      return 'PRESS WAITING FOR FRUIT';
+      return this.state.economy.hopperFruitMicro > 0 ? 'PRESS WORKING' : 'PRESS STARVED NEEDS FRUIT';
     }
     if (this.state.player.location === 'estate' && nearTile(this.state, 28, 11, 2)) {
       const economy = this.state.economy;

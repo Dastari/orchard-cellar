@@ -130,6 +130,29 @@ describe('M4 deterministic orchard economy', () => {
     expect(economy.firsts).toEqual({ harvested: false, pressRun: true, bottle: true });
   });
 
+  it('stops presses at yard capacity and lets Copper Pipe bypass the bottleneck', () => {
+    let economy: EconomyState = {
+      ...createInitialEconomy(),
+      firstPressRepaired: true,
+      presses: [1, 0, 0, 0, 0],
+      hopperFruitMicro: 300 * MICRO,
+    };
+    economy = advanceEconomy(economy, 0, 1_000 * SIM_TICKS_PER_SECOND);
+    expect(economy.yardMustMicro).toBe(100 * MICRO);
+    expect(economy.hopperFruitMicro).toBe(100 * MICRO);
+    const backed = advanceEconomy(economy, 1_000 * SIM_TICKS_PER_SECOND, 2_000 * SIM_TICKS_PER_SECOND);
+    expect(backed.hopperFruitMicro).toBe(economy.hopperFruitMicro);
+
+    const piped = advanceEconomy({
+      ...economy,
+      hopperFruitMicro: 10 * MICRO,
+      yardMustMicro: 0,
+      upgrades: ['copperPipe'],
+    }, 0, 10 * SIM_TICKS_PER_SECOND);
+    expect(piped.resources.must).toBe(2);
+    expect(piped.yardMustMicro).toBe(500_000);
+  });
+
   it('applies Summer pressing, Winter aging, and Autumn Vigour at season boundaries', () => {
     const press = {
       ...createInitialEconomy(),
@@ -257,8 +280,9 @@ describe('M4 deterministic orchard economy', () => {
     expect(state.economy.resources.fruit).toBe(67);
 
     state = advanceTick(state, [], summerDayOne + TICKS_PER_DAY);
-    expect(state.economy.resources.pomace).toBe(60);
-    expect(state.economy.yardMustMicro).toBe(200 * MICRO);
+    expect(state.economy.resources.pomace).toBe(30);
+    expect(state.economy.yardMustMicro).toBe(100 * MICRO);
+    expect(state.economy.hopperFruitMicro).toBe(200 * MICRO);
 
     state = advanceTick(state, [
       { type: 'haulMust', destination: 'bank', amount: 40 },
@@ -266,10 +290,10 @@ describe('M4 deterministic orchard economy', () => {
       { type: 'haulMust', destination: 'casks' },
     ], summerDayOne + TICKS_PER_DAY);
     expect(state.economy.resources.must).toBe(0);
-    expect(state.economy.cellarMustMicro).toBe(160 * MICRO);
+    expect(state.economy.cellarMustMicro).toBe(60 * MICRO);
 
     state = advanceTick(state, [], summerDayOne + TICKS_PER_DAY * 2);
-    expect(state.economy.resources.bottles).toBe(16);
+    expect(state.economy.resources.bottles).toBe(6);
     expect(state.economy.firsts).toEqual({ harvested: true, pressRun: true, bottle: true });
     expect(state.economy.knowledge).toMatchObject({ grove: 1, press: 1, cellar: 1 });
   });
