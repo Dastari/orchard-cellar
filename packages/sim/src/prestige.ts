@@ -18,6 +18,7 @@ function resetRun(state: FarmState, multiplier: number): FarmState['economy'] {
     ...fresh,
     plotsUnlocked: state.economy.plotsUnlocked,
     knowledge: state.economy.knowledge,
+    firsts: state.economy.firsts,
     legacyMultiplier: multiplier,
   };
 }

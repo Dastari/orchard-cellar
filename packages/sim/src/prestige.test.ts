@@ -16,6 +16,7 @@ describe('M5 prestige reset and carry contracts', () => {
         upgrades: ['pruningShears'] as const,
         plotsUnlocked: 30,
         knowledge: { grove: 2, press: 3, cellar: 4, estate: 5 },
+        firsts: { harvested: true, harvestedSpecies: ['seedlingApple'], pressRun: true, bottle: true },
       },
       progression: { ...initial.progression, skillRanks: { mulching: 2 }, cultivars: ['graftedStock'], achievements: ['firstTend'] },
     };
@@ -26,6 +27,7 @@ describe('M5 prestige reset and carry contracts', () => {
     expect(state.economy).toMatchObject({
       resources: { fruit: 0, pomace: 0, must: 0, bottles: 0 }, presses: [0, 0, 0, 0, 0], casks: [0, 0, 0, 0, 0],
       upgrades: [], plotsUnlocked: 30, knowledge: { grove: 3, press: 4, cellar: 5, estate: 6 },
+      firsts: { harvested: true, harvestedSpecies: ['seedlingApple'], pressRun: true, bottle: true },
     });
     expect(state.player.location).toBe('estate');
 
