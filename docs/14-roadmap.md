@@ -72,8 +72,9 @@ planting, growth stages, Care, harvest buffers, Vigour tend with charge curve +
 Autumn chain, hopper/hauling, presses (pomace!), casks, bottles, workbench upgrades,
 milestones, seasons' mechanical effects, offline progress (local), golden-number
 tests for every 06 table.
-**Done when:** a tester can play 30 minutes from first tend to first bottle at the
-06 §10 pacing, and sim coverage ≥80%.
+**Done when:** a tester can exercise first tend through first bottle in a ≤30-minute
+accelerated browser verification using dev time-warp, the unwarped pacing harness
+lands inside 06 §10's 45–70 minute first-bottle window, and sim coverage ≥80%.
 
 ## M5 — Progression & prestige `☐`
 Estate Book UI (skill tree pannable + Knowledge gates, almanac, records,
