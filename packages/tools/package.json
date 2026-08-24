@@ -1,0 +1,16 @@
+{
+  "name": "@orchard/tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "validate": "tsx src/validate-assets.ts",
+    "watch": "tsx src/watch-assets.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.23.12"
+  }
+}

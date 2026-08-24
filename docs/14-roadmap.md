@@ -7,11 +7,15 @@ hand-off notes. Single-player ships value before any server work: the shared
 deterministic sim ([02-architecture.md](02-architecture.md)) is what makes moving
 authority to the server later a mechanical change, not a rewrite.
 
-## M0 — Skeleton `⏳ in progress (codex, 2026-08-24)`
+## M0 — Skeleton `☑ complete (codex, 2026-08-24)`
 Monorepo (npm workspaces per 02), strict tsconfig, Vitest, ESLint (incl. sim bans on
 `Math.random`/`Date.now`), Vite client shell showing a colored canvas at 480×270
 with integer scaling, empty Fastify server, CI (typecheck+test+assets:validate).
 **Done when:** `npm run dev` opens a scaled canvas; CI green.
+
+**Verification:** Shared-browser snapshot confirmed a 480×270 intrinsic canvas at 4×
+integer scale with smoothing disabled and no console errors. `npm run check`, production
+build, server health route, and the client/server/asset-watcher dev trio all pass.
 
 ## M1 — Engine core `☐`
 Fixed-timestep loop, input mapping (keyboard/gamepad/touch stubs), camera, tilemap

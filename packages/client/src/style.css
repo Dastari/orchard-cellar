@@ -1,0 +1,28 @@
+:root {
+  color-scheme: dark;
+  background: #101813;
+  font-family: monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #game-shell {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+#game-shell {
+  display: grid;
+  place-items: center;
+  background: #101813;
+}
+
+#game {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  box-shadow: 0 0 0 2px #382b26, 0 18px 50px #0009;
+}
+

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+packages/client/public/generated/
+packages/assets/review/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+
