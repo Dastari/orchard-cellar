@@ -86,7 +86,7 @@ passes 68 tests with 99.14% sim line and 89.53% branch coverage; asset validatio
 production build, offline/save corruption cases, and the second milestone review
 all pass (`READY`).
 
-## M5 — Progression & prestige `☐`
+## M5 — Progression & prestige `⏳ in progress (codex, 2026-08-24)`
 Estate Book UI (skill tree pannable + Knowledge gates, almanac, records,
 achievements), Terroir/Knowledge earning, Vintage ceremony flow + label wall,
 Succession (heir creation + portraits), Lineage (map reshuffle + baseline bonus),
