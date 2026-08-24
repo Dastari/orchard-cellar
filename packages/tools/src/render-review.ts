@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { loadAssets, loadPalette, workspaceRoot } from './assets/load.js';
-import { encodePng, hexToRgba, setPixel } from './assets/png.js';
+import { blendPixel, encodePng, hexToRgba, setPixel } from './assets/png.js';
 import type { AssetSource, PaletteSource, PixelGrid } from './assets/types.js';
 import { expandBlob47 } from './build-atlas.js';
 
@@ -40,7 +40,7 @@ function drawGrid(
       if (!hex) continue;
       const color = hexToRgba(hex);
       for (let sy = 0; sy < scale; sy += 1) {
-        for (let sx = 0; sx < scale; sx += 1) setPixel(rgba, canvasWidth, originX + x * scale + sx, originY + y * scale + sy, color);
+        for (let sx = 0; sx < scale; sx += 1) blendPixel(rgba, canvasWidth, originX + x * scale + sx, originY + y * scale + sy, color);
       }
     }
   }

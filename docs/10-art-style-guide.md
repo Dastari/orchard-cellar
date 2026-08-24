@@ -21,13 +21,17 @@ and built) and the `pixel-art` skill in `.claude/skills/` (working instructions)
 | Buildings | multiples of 16 in both axes |
 | Virtual resolution | 480×270 (30×~17 tiles on screen), integer-scaled |
 | Palette | bespoke art uses `packages/assets/palette.json` — **55 colors, closed** (see §2); reviewed owner-licensed imports retain native source ramps |
-| Transparency | binary only — a pixel is a palette color or fully transparent; no alpha blending inside sprites |
+| Transparency | binary for bespoke art; reviewed licensed imports preserve native nonzero alpha (notably soft ground shadows) |
 | Outlines | 1 px, **not pure black** — use the palette's darkest hue-relative color (see §3) |
 
 Adding a bespoke palette color is a design decision requiring an explicit doc update
 + user sign-off. A reviewed owner-licensed import may instead declare a per-asset
-`sourcePalette`: this preserves exact opaque RGB ramps while retaining binary
-transparency, text grids, validation, and semantic asset IDs.
+`sourcePalette`: this preserves exact native RGB ramps and source-authored alpha
+while retaining text grids, validation, and semantic asset IDs.
+
+Licensed `sourcePalette` values may be `#rrggbbaa` when the original pixel is
+translucent. Alpha is never synthesized or softened: it is copied exactly from the
+owner-provided source, while fully transparent pixels remain `.` in the text grid.
 
 ## 2. The palette — "Late Summer Orchard"
 

@@ -76,12 +76,14 @@ function buildFrame(originX: number, originY: number): string[] {
       const sourceX = Math.min(decoded.width - 1, originX + Math.floor((x + 0.5) * inputFrameWidth / outputWidth));
       const sourceY = Math.min(decoded.height - 1, originY + Math.floor((y + 0.5) * inputFrameHeight / outputHeight));
       const offset = (sourceY * decoded.width + sourceX) * 4;
-      if ((decoded.rgba[offset + 3] ?? 0) < 128) { row += '.'; continue; }
+      const alpha = decoded.rgba[offset + 3] ?? 0;
+      if (preserveSourcePalette ? alpha === 0 : alpha < 128) { row += '.'; continue; }
       const red = decoded.rgba[offset] ?? 0;
       const green = decoded.rgba[offset + 1] ?? 0;
       const blue = decoded.rgba[offset + 2] ?? 0;
       if (preserveSourcePalette) {
-        const hex = `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+        const rgb = `${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+        const hex = `#${rgb}${alpha === 255 ? '' : alpha.toString(16).padStart(2, '0')}`;
         row += exactSourceCharacter(hex);
         continue;
       }

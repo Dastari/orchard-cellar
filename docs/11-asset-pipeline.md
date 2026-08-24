@@ -38,12 +38,13 @@ table in 10-art-style-guide.md §2, ordered ramp by ramp (R1 dark first). The bu
 fails on any character not in the palette. **This is the style-consistency enforcement
 point — never widen it casually.**
 
-Reviewed owner-licensed imports may add `"sourcePalette": {"b":"#3e8948", ...}`.
+Reviewed owner-licensed imports may add `"sourcePalette": {"b":"#3e8948", "s":"#091b1528", ...}`.
 Those values override the global color for that asset only, preserving the source
 pack's native ramps without committing PNG sheets or abandoning inspectable text
-grids. Values must be opaque six-digit RGB hex and keys must already be valid grid
-characters. Seasonal palette remaps do not alter native source ramps.
-The importer assigns every distinct opaque source RGB value its own grid key and
+grids. Values are six-digit RGB or eight-digit RGBA hex and keys must already be
+valid grid characters. RGBA is allowed only to retain nonzero alpha found in the
+licensed source; seasonal palette remaps do not alter native source ramps.
+The importer assigns every distinct nontransparent source RGBA value its own grid key and
 does not run orphan-pixel cleanup on licensed inputs. A same-size semantic crop must
 therefore render pixel-for-pixel like its source region rather than collapsing nearby
 dark shades through the global Orchard palette.

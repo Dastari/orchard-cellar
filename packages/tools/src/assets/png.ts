@@ -98,8 +98,10 @@ export function decodePng(buffer: Buffer): DecodedPng {
 }
 
 export function hexToRgba(hex: string): readonly [number, number, number, number] {
-  const value = Number.parseInt(hex.slice(1), 16);
-  return [(value >>> 16) & 255, (value >>> 8) & 255, value & 255, 255];
+  if (!/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(hex)) throw new Error(`Invalid RGB(A) color ${hex}`);
+  const rgb = Number.parseInt(hex.slice(1, 7), 16);
+  const alpha = hex.length === 9 ? Number.parseInt(hex.slice(7, 9), 16) : 255;
+  return [(rgb >>> 16) & 255, (rgb >>> 8) & 255, rgb & 255, alpha];
 }
 
 export function setPixel(
@@ -115,4 +117,25 @@ export function setPixel(
   rgba[offset + 1] = color[1];
   rgba[offset + 2] = color[2];
   rgba[offset + 3] = color[3];
+}
+
+export function blendPixel(
+  rgba: Uint8Array,
+  width: number,
+  x: number,
+  y: number,
+  color: readonly [number, number, number, number],
+): void {
+  if (x < 0 || y < 0 || x >= width || y >= rgba.length / (width * 4)) return;
+  const offset = (y * width + x) * 4;
+  const sourceAlpha = color[3] / 255;
+  const destinationAlpha = (rgba[offset + 3] ?? 0) / 255;
+  const outputAlpha = sourceAlpha + destinationAlpha * (1 - sourceAlpha);
+  if (outputAlpha === 0) return;
+  for (let channel = 0; channel < 3; channel += 1) {
+    const source = color[channel] ?? 0;
+    const destination = rgba[offset + channel] ?? 0;
+    rgba[offset + channel] = Math.round((source * sourceAlpha + destination * destinationAlpha * (1 - sourceAlpha)) / outputAlpha);
+  }
+  rgba[offset + 3] = Math.round(outputAlpha * 255);
 }

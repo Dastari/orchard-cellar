@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { basename, resolve } from 'node:path';
 import { workspaceRoot } from './assets/load.js';
-import { decodePng, encodePng, hexToRgba, setPixel } from './assets/png.js';
+import { blendPixel, decodePng, encodePng, hexToRgba, setPixel } from './assets/png.js';
 
 const [sourceArg, cellArg = '16x16', scaleArg = '4', rowsArg = '6'] = process.argv.slice(2);
 if (!sourceArg) {
@@ -66,7 +66,7 @@ for (let pageStart = 0; pageStart < rows; pageStart += rowsPerPage) {
           ] as const;
           for (let scaleY = 0; scaleY < scale; scaleY += 1) {
             for (let scaleX = 0; scaleX < scale; scaleX += 1) {
-              setPixel(rgba, pageWidth, originX + cellX * scale + scaleX, originY + cellY * scale + scaleY, color);
+              blendPixel(rgba, pageWidth, originX + cellX * scale + scaleX, originY + cellY * scale + scaleY, color);
             }
           }
         }

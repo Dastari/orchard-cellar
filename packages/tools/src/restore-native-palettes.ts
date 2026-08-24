@@ -94,7 +94,9 @@ function locateFrames(
     const candidates = candidateCrops(decoded, asset.size[0], asset.size[1], exhaustive);
     const located = new Map<PixelGrid, SourceCrop>();
     for (const target of targets) {
-      const match = candidates.find((crop) => sameGrid(target, snappedCrop(decoded, crop, asset.size[0], asset.size[1], palette)));
+      const match = candidates.find((crop) => asset.sourcePaletteMode === 'exact'
+        ? exactCropMatches(decoded, crop, target, asset.sourcePalette ?? {})
+        : sameGrid(target, snappedCrop(decoded, crop, asset.size[0], asset.size[1], palette)));
       if (!match) break;
       located.set(target, match);
     }
@@ -103,13 +105,38 @@ function locateFrames(
   return null;
 }
 
+function exactCropMatches(
+  decoded: DecodedPng,
+  crop: SourceCrop,
+  grid: PixelGrid,
+  sourcePalette: Readonly<Record<string, string>>,
+): boolean {
+  for (let y = 0; y < grid.length; y += 1) for (let x = 0; x < (grid[y]?.length ?? 0); x += 1) {
+    const character = grid[y]?.[x] ?? '.';
+    const offset = ((crop.y + y) * decoded.width + crop.x + x) * 4;
+    const alpha = decoded.rgba[offset + 3] ?? 0;
+    if (character === '.') {
+      if (alpha >= 128) return false;
+      continue;
+    }
+    const expectedValue = sourcePalette[character]?.toLowerCase();
+    const expected = expectedValue?.slice(0, 7);
+    const actual = `#${(decoded.rgba[offset] ?? 0).toString(16).padStart(2, '0')}${(decoded.rgba[offset + 1] ?? 0).toString(16).padStart(2, '0')}${(decoded.rgba[offset + 2] ?? 0).toString(16).padStart(2, '0')}`;
+    const expectedAlpha = expectedValue?.length === 9 ? Number.parseInt(expectedValue.slice(7), 16) : null;
+    if ((expectedAlpha === null ? alpha < 128 : alpha !== expectedAlpha) || expected !== actual) return false;
+  }
+  return true;
+}
+
 function nativeHex(decoded: DecodedPng, x: number, y: number): string | null {
   const offset = (y * decoded.width + x) * 4;
-  if ((decoded.rgba[offset + 3] ?? 0) < 128) return null;
+  const alpha = decoded.rgba[offset + 3] ?? 0;
+  if (alpha === 0) return null;
   const red = decoded.rgba[offset] ?? 0;
   const green = decoded.rgba[offset + 1] ?? 0;
   const blue = decoded.rgba[offset + 2] ?? 0;
-  return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+  const rgb = `${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+  return `#${rgb}${alpha === 255 ? '' : alpha.toString(16).padStart(2, '0')}`;
 }
 
 function exactFrames(
@@ -192,10 +219,6 @@ let exactCount = 0;
 const unresolved: string[] = [];
 for (const asset of assets) {
   if (!asset.importedFrom) continue;
-  if (asset.sourcePaletteMode === 'exact' && !asset.sourceRegion) {
-    exactCount += 1;
-    continue;
-  }
   const candidates = sourcesByName.get(asset.importedFrom);
   if (!candidates?.length) continue;
   let restored: { readonly sourcePath: string; readonly frames: AssetSource['frames']; readonly sourcePalette: Record<string, string> } | null = null;

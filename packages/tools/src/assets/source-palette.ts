@@ -50,7 +50,9 @@ export function sourcePaletteErrors(asset: AssetSource, allowed: ReadonlySet<str
   used.delete('.');
   for (const [character, hex] of Object.entries(asset.sourcePalette)) {
     if (!allowed.has(character)) errors.push(`${asset.name}: sourcePalette overrides unknown character ${character}`);
-    if (!/^#[0-9a-f]{6}$/i.test(hex)) errors.push(`${asset.name}: sourcePalette ${character} has invalid hex ${hex}`);
+    if (!/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(hex) || (hex.length === 9 && hex.toLowerCase().endsWith('00'))) {
+      errors.push(`${asset.name}: sourcePalette ${character} has invalid RGB(A) hex ${hex}`);
+    }
     if (!used.has(character)) errors.push(`${asset.name}: sourcePalette contains unused character ${character}`);
   }
   for (const character of used) {

@@ -16,7 +16,7 @@ export interface AssetSource {
   readonly variantTopologies?: Readonly<Record<string, 'blob47'>>;
   readonly markers?: Readonly<Record<string, string>>;
   readonly markerRamps?: Readonly<Record<string, readonly string[]>>;
-  /** Native colors retained from an owner-licensed source image. */
+  /** Native RGB(A) values retained from an owner-licensed source image. */
   readonly sourcePalette?: Readonly<Record<string, string>>;
   readonly lintAllow?: readonly string[];
   readonly tags?: readonly string[];

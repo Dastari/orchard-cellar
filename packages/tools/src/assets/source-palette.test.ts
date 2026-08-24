@@ -25,6 +25,10 @@ describe('licensed source palette provenance', () => {
     expect(sourcePaletteErrors(valid, new Set(['a']))).toEqual([]);
   });
 
+  it('allows nonzero native alpha for licensed shadows', () => {
+    expect(sourcePaletteErrors({ ...valid, sourcePalette: { a: '#091b1528' } }, new Set(['a']))).toEqual([]);
+  });
+
   it('rejects arbitrary overrides and incomplete exact palettes', () => {
     expect(sourcePaletteErrors({
       ...valid,
