@@ -21,7 +21,6 @@ import {
   stepUiScale,
   stepWorldZoom,
   toggleFullscreen,
-  worldZoomLabel,
   type UiScale,
   type WorldZoom,
 } from './display.js';
@@ -45,7 +44,18 @@ import {
 } from './overworld-art.js';
 import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
 import { drawPixelPanel, drawPixelText, measurePixelText } from './render/pixel-ui.js';
-import { facedResource, facedWorldItem, harvestPrompt, hotbarItemLabel, hotbarSlotForCode } from './survival-ui.js';
+import {
+  HOTBAR_HEIGHT,
+  HOTBAR_SLOT_COUNT,
+  HOTBAR_SLOT_WIDTH,
+  facedResource,
+  facedWorldItem,
+  hotbarItemLabel,
+  hotbarItemName,
+  hotbarLayout,
+  hotbarSlotAtPoint,
+  hotbarSlotForCode,
+} from './survival-ui.js';
 import './style.css';
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
@@ -80,6 +90,7 @@ const resourceHealth = new Map<bigint, number>();
 const treeShakeUntil = new Map<bigint, number>();
 let axeActionStartedTick: number | null = null;
 let axePreviewFrame: number | null = null;
+let hoveredHotbarSlot: number | null = null;
 
 function resize(): void {
   resizePixelCanvas(canvas);
@@ -213,10 +224,7 @@ function targetWorldItem(snapshot: OverworldSnapshot): WorldItem | null {
 }
 
 function drawHotbar(snapshot: OverworldSnapshot, viewportWidth: number, viewportHeight: number): void {
-  const slotWidth = 35;
-  const totalWidth = slotWidth * 9;
-  const startX = Math.round((viewportWidth - totalWidth) / 2);
-  const y = viewportHeight - 43;
+  const layout = hotbarLayout(viewportWidth, viewportHeight);
   const selected = snapshot.survival?.selectedSlot ?? 0;
   const icons = {
     axe: art.iconAxe,
@@ -225,28 +233,21 @@ function drawHotbar(snapshot: OverworldSnapshot, viewportWidth: number, viewport
     watering_can: art.iconWateringCan,
     wood: art.itemWood,
   };
-  for (let index = 0; index < 9; index += 1) {
+  for (let index = 0; index < HOTBAR_SLOT_COUNT; index += 1) {
     const inventory = snapshot.inventorySlots.find((candidate) => candidate.slot === index);
-    drawPixelPanel(context, art.ui, startX + index * slotWidth, y, 34, 38);
+    const slotX = layout.startX + index * HOTBAR_SLOT_WIDTH;
+    drawPixelPanel(context, art.ui, slotX, layout.y, HOTBAR_HEIGHT, HOTBAR_HEIGHT);
     if (index === selected) {
       context.strokeStyle = '#ffe98a';
       context.lineWidth = 2;
-      context.strokeRect(startX + index * slotWidth + 1, y + 1, 31, 35);
+      context.strokeRect(slotX + 1, layout.y + 1, HOTBAR_HEIGHT - 3, HOTBAR_HEIGHT - 3);
     }
-    drawPixelText(context, art.ui, String(index + 1), startX + index * slotWidth + 4, y + 4);
     const icon = icons[inventory?.itemKind as keyof typeof icons];
-    if (icon) drawUiAsset(context, icon, startX + index * slotWidth + 9, y + 7);
+    if (icon) drawUiAsset(context, icon, slotX + 9, layout.y + 9);
+    drawPixelText(context, art.ui, String(index + 1), slotX + 4, layout.y + 4);
     if ((inventory?.quantity ?? 0) > 1) {
-      drawPixelText(context, art.ui, String(inventory?.quantity ?? 0), startX + index * slotWidth + 29, y + 18, { align: 'right' });
+      drawPixelText(context, art.ui, String(inventory?.quantity ?? 0), slotX + 30, layout.y + 23, { align: 'right' });
     }
-    drawPixelText(
-      context,
-      art.ui,
-      hotbarItemLabel(inventory?.itemKind ?? 'empty'),
-      startX + index * slotWidth + 17,
-      y + 27,
-      { align: 'center' },
-    );
   }
 }
 
@@ -398,7 +399,7 @@ function render(): void {
       draw: () => {
         const axeElapsed = local && axeActionStartedTick !== null ? animationTick - axeActionStartedTick : -1;
         const axeFrame = axePreviewFrame ?? (axeElapsed >= 0 && axeElapsed < 24 ? Math.min(3, Math.floor(axeElapsed / 6)) : null);
-        drawOverworldAvatar(context, art, x, y, facing, moving, animationTick, cameraX, cameraY, worldZoom, axeFrame, profileName(snapshot.profiles, id), uiScale);
+        drawOverworldAvatar(context, art, x, y, facing, moving, animationTick, cameraX, cameraY, worldZoom, axeFrame, profileName(snapshot.profiles, id));
       },
     });
   }
@@ -408,41 +409,41 @@ function render(): void {
     drawPlayerCollisionOverlay(cameraX, cameraY, snapshot);
   }
 
-  const target = targetResource(snapshot);
-  if (target !== null) {
-    context.strokeStyle = '#ffe98a';
-    context.lineWidth = 2;
-    context.strokeRect(
-      Math.round((target.tileX * 16 - cameraX + 1) * worldZoom),
-      Math.round((target.tileY * 16 - cameraY + 1) * worldZoom),
-      14 * worldZoom,
-      14 * worldZoom,
-    );
-  }
-
   const uiWidth = canvas.width / uiScale;
   const uiHeight = canvas.height / uiScale;
   context.save();
   context.scale(uiScale, uiScale);
-  drawPixelPanel(context, art.ui, 4, 4, 290, 48);
-  drawPixelText(context, art.ui, `ISLAND ${snapshot.connected ? 'ONLINE' : 'CONNECTING'}  PLAYERS ${snapshot.players.length}`, 11, 11);
-  drawPixelText(context, art.ui, `VIEW ${worldZoomLabel(worldZoom)}  UI ${uiScale}X  SLOT ${(snapshot.survival?.selectedSlot ?? 0) + 1}`, 11, 22);
-  drawPixelText(context, art.ui, 'WASD WALK  E PICKUP  F USE  Q DROP', 11, 33);
+  const islandStatus = `ISLAND ${snapshot.connected ? 'ONLINE' : 'CONNECTING'} PLAYERS ${snapshot.players.length}`;
+  drawPixelPanel(context, art.ui, 4, 4, measurePixelText(islandStatus) + 14, 19);
+  drawPixelText(context, art.ui, islandStatus, 11, 11);
   const pickup = targetWorldItem(snapshot);
-  const prompt = pickup === null
-    ? harvestPrompt(target, selectedItem(snapshot))
-    : `[E] PICK UP ${hotbarItemLabel(pickup.itemKind)} x${pickup.quantity}`;
-  if (prompt !== null) {
-    const width = Math.max(104, measurePixelText(prompt) + 14);
-    drawPixelPanel(context, art.ui, uiWidth / 2 - width / 2, uiHeight - 66, width, 19);
-    drawPixelText(context, art.ui, prompt, uiWidth / 2, uiHeight - 60, { align: 'center' });
+  const prompt = pickup === null ? null : `[E] PICK UP ${hotbarItemLabel(pickup.itemKind)} x${pickup.quantity}`;
+  const hoveredInventory = hoveredHotbarSlot === null
+    ? undefined
+    : snapshot.inventorySlots.find((candidate) => candidate.slot === hoveredHotbarSlot);
+  const hoverName = hotbarItemName(hoveredInventory?.itemKind ?? 'empty');
+  const tooltip = hoverName ?? prompt ?? (toastTicks > 0 ? toast.slice(0, 42) : null);
+  if (tooltip !== null) {
+    const width = Math.max(104, measurePixelText(tooltip) + 14);
+    drawPixelPanel(context, art.ui, uiWidth / 2 - width / 2, uiHeight - 62, width, 19);
+    drawPixelText(context, art.ui, tooltip, uiWidth / 2, uiHeight - 56, { align: 'center' });
   }
   drawHotbar(snapshot, uiWidth, uiHeight);
-  if (toastTicks > 0) {
-    drawPixelPanel(context, art.ui, uiWidth / 2 - 135, uiHeight - 66, 270, 19);
-    drawPixelText(context, art.ui, toast.slice(0, 42), uiWidth / 2, uiHeight - 60, { align: 'center' });
-  }
   context.restore();
+}
+
+function pointerUiPosition(event: PointerEvent): readonly [number, number] {
+  const rect = canvas.getBoundingClientRect();
+  const canvasX = (event.clientX - rect.left) * canvas.width / rect.width;
+  const canvasY = (event.clientY - rect.top) * canvas.height / rect.height;
+  const uiScale = fittedUiScale(desiredUiScale, canvas.width, canvas.height);
+  return [canvasX / uiScale, canvasY / uiScale];
+}
+
+function hotbarSlotForPointer(event: PointerEvent): number | null {
+  const [x, y] = pointerUiPosition(event);
+  const uiScale = fittedUiScale(desiredUiScale, canvas.width, canvas.height);
+  return hotbarSlotAtPoint(x, y, canvas.width / uiScale, canvas.height / uiScale);
 }
 
 function showResult(promise: Promise<void>, success: string): void {
@@ -523,6 +524,15 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('keyup', (event) => keys.delete(event.code));
 window.addEventListener('blur', () => keys.clear());
 canvas.addEventListener('dblclick', () => { void toggleFullscreen(shellElement).catch(() => undefined); });
+canvas.addEventListener('pointermove', (event) => { hoveredHotbarSlot = hotbarSlotForPointer(event); });
+canvas.addEventListener('pointerleave', () => { hoveredHotbarSlot = null; });
+canvas.addEventListener('pointerdown', (event) => {
+  const slot = hotbarSlotForPointer(event);
+  if (slot === null) return;
+  hoveredHotbarSlot = slot;
+  showResult(network.selectHotbar(slot), `SELECTED SLOT ${slot + 1}`);
+  event.preventDefault();
+});
 canvas.addEventListener('wheel', (event) => {
   if (event.ctrlKey || event.deltaY === 0) return;
   event.preventDefault();

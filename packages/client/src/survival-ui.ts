@@ -77,6 +77,43 @@ export function hotbarSlotForCode(code: string): number | null {
   return null;
 }
 
+export const HOTBAR_SLOT_COUNT = 9;
+export const HOTBAR_SLOT_WIDTH = 35;
+export const HOTBAR_HEIGHT = 34;
+export const HOTBAR_BOTTOM_MARGIN = 5;
+
+export interface HotbarLayout {
+  readonly startX: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export function hotbarLayout(viewportWidth: number, viewportHeight: number): HotbarLayout {
+  const width = HOTBAR_SLOT_WIDTH * HOTBAR_SLOT_COUNT;
+  return {
+    startX: Math.round((viewportWidth - width) / 2),
+    y: viewportHeight - HOTBAR_HEIGHT - HOTBAR_BOTTOM_MARGIN,
+    width,
+    height: HOTBAR_HEIGHT,
+  };
+}
+
+export function hotbarSlotAtPoint(
+  x: number,
+  y: number,
+  viewportWidth: number,
+  viewportHeight: number,
+): number | null {
+  const layout = hotbarLayout(viewportWidth, viewportHeight);
+  if (x < layout.startX || x >= layout.startX + layout.width || y < layout.y || y >= layout.y + layout.height) {
+    return null;
+  }
+  const slot = Math.floor((x - layout.startX) / HOTBAR_SLOT_WIDTH);
+  const slotX = layout.startX + slot * HOTBAR_SLOT_WIDTH;
+  return x < slotX + HOTBAR_HEIGHT ? slot : null;
+}
+
 const HOTBAR_LABELS: Readonly<Record<string, string>> = {
   axe: 'AXE',
   pickaxe: 'PICK',
@@ -89,9 +126,14 @@ export function hotbarItemLabel(itemKind: string): string {
   return HOTBAR_LABELS[itemKind] ?? '--';
 }
 
-export function harvestPrompt(resource: TargetableResource | null, selectedItem: string): string | null {
-  if (resource === null) return null;
-  if (resource.kind === 'tree' && selectedItem === 'axe') return '[F] CHOP TREE';
-  if (resource.kind === 'tree') return 'SELECT AXE TO CHOP';
-  return 'NO TOOL FOR THIS RESOURCE';
+const HOTBAR_NAMES: Readonly<Record<string, string>> = {
+  axe: 'AXE',
+  pickaxe: 'PICKAXE',
+  hoe: 'HOE',
+  watering_can: 'WATERING CAN',
+  wood: 'WOOD',
+};
+
+export function hotbarItemName(itemKind: string): string | null {
+  return HOTBAR_NAMES[itemKind] ?? null;
 }

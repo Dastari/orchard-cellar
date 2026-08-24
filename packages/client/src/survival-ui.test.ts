@@ -1,6 +1,14 @@
 import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
-import { facedResource, facedWorldItem, harvestPrompt, hotbarItemLabel, hotbarSlotForCode } from './survival-ui.js';
+import {
+  facedResource,
+  facedWorldItem,
+  hotbarItemLabel,
+  hotbarItemName,
+  hotbarLayout,
+  hotbarSlotAtPoint,
+  hotbarSlotForCode,
+} from './survival-ui.js';
 
 const tree = { id: 2n, kind: 'tree', tileX: 12, tileY: 10, depleted: false };
 
@@ -25,6 +33,21 @@ describe('survival controls', () => {
       .toEqual(['AXE', 'PICK', 'HOE', 'WATER', 'WOOD', '--']);
   });
 
+  it('gives occupied slots full hover names', () => {
+    expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemName))
+      .toEqual(['AXE', 'PICKAXE', 'HOE', 'WATERING CAN', 'WOOD', null]);
+  });
+
+  it('centers nine pointer-selectable slots and excludes their one-pixel gaps', () => {
+    expect(hotbarLayout(480, 270)).toEqual({ startX: 83, y: 231, width: 315, height: 34 });
+    expect(hotbarSlotAtPoint(83, 231, 480, 270)).toBe(0);
+    expect(hotbarSlotAtPoint(116, 264, 480, 270)).toBe(0);
+    expect(hotbarSlotAtPoint(117, 240, 480, 270)).toBeNull();
+    expect(hotbarSlotAtPoint(118, 240, 480, 270)).toBe(1);
+    expect(hotbarSlotAtPoint(396, 264, 480, 270)).toBe(8);
+    expect(hotbarSlotAtPoint(397, 264, 480, 270)).toBeNull();
+  });
+
   it('selects the nearest faced ground item inside pickup reach', () => {
     const x = 10 * TILE_SIZE_FIXED;
     const y = 10 * TILE_SIZE_FIXED;
@@ -32,10 +55,5 @@ describe('survival controls', () => {
     const far = { id: 2n, x: x + 25 * FIXED_UNITS_PER_PIXEL, y };
     expect(facedWorldItem(x, y, 'right', [far, near])).toEqual(near);
     expect(facedWorldItem(x, y, 'left', [near])).toBeNull();
-  });
-
-  it('describes the selected tool requirement', () => {
-    expect(harvestPrompt(tree, 'axe')).toBe('[F] CHOP TREE');
-    expect(harvestPrompt(tree, 'hoe')).toBe('SELECT AXE TO CHOP');
   });
 });

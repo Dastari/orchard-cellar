@@ -1,4 +1,5 @@
 import { SURVIVAL_WORLD_SIZE, survivalBiomeAt, type Direction } from '@orchard/sim';
+import { DEFAULT_WORLD_ZOOM } from './display.js';
 import type { CropPatch, FarmParcel } from './net/generated/types.js';
 import { loadGeneratedAsset, type LoadedAsset } from './render/assets.js';
 import { drawPixelPanel, drawPixelText, loadPixelUi, measurePixelText, type PixelUi } from './render/pixel-ui.js';
@@ -139,10 +140,21 @@ export function drawUiAsset(
   asset: LoadedAsset,
   x: number,
   y: number,
+  scale = 1,
 ): void {
   const source = frame(asset);
   if (source === null) return;
-  context.drawImage(asset.image, source.x, source.y, source.width, source.height, Math.round(x), Math.round(y), source.width, source.height);
+  context.drawImage(
+    asset.image,
+    source.x,
+    source.y,
+    source.width,
+    source.height,
+    Math.round(x),
+    Math.round(y),
+    source.width * scale,
+    source.height * scale,
+  );
 }
 
 function tileHash(x: number, y: number): number {
@@ -309,7 +321,6 @@ export function drawOverworldAvatar(
   zoom: number,
   axeFrame: number | null,
   name: string,
-  uiScale: number,
 ): void {
   const animation = avatarAnimationForDirection(facing);
   const frameIndex = avatarFrameIndex(moving, animationTick);
@@ -326,12 +337,12 @@ export function drawOverworldAvatar(
     facing === 'left' || facing === 'upLeft' || facing === 'downLeft',
   );
   const screenX = Math.round((x - cameraX) * zoom);
-  const screenY = Math.round((y - cameraY - 36) * zoom);
+  const screenY = Math.round((y - cameraY - 42) * zoom);
   const label = name.slice(0, 20);
   const width = measurePixelText(label) + 8;
   context.save();
   context.translate(screenX, screenY);
-  context.scale(uiScale, uiScale);
+  context.scale(zoom / DEFAULT_WORLD_ZOOM, zoom / DEFAULT_WORLD_ZOOM);
   drawPixelPanel(context, art.ui, -width / 2, 0, width, 15);
   drawPixelText(context, art.ui, label, 0, 4, { align: 'center' });
   context.restore();
