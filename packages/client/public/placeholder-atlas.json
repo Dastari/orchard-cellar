@@ -1,0 +1,12 @@
+{
+  "image": "generated:placeholder-avatar",
+  "animations": {
+    "idle": [
+      { "x": 0, "y": 0, "width": 16, "height": 20, "durationTicks": 30 }
+    ],
+    "walk": [
+      { "x": 0, "y": 0, "width": 16, "height": 20, "durationTicks": 10 },
+      { "x": 16, "y": 0, "width": 16, "height": 20, "durationTicks": 10 }
+    ]
+  }
+}

@@ -17,12 +17,17 @@ with integer scaling, empty Fastify server, CI (typecheck+test+assets:validate).
 integer scale with smoothing disabled and no console errors. `npm run check`, production
 build, server health route, and the client/server/asset-watcher dev trio all pass.
 
-## M1 — Engine core `⏳ in progress (codex, 2026-08-24)`
+## M1 — Engine core `☑ complete (codex, 2026-08-24)`
 Fixed-timestep loop, input mapping (keyboard/gamepad/touch stubs), camera, tilemap
 renderer with cached layers, sprite/animation system reading atlas metadata, AABB
 collision + walkability, Y-sorting, bitmap font renderer, scene stack.
 **Done when:** placeholder avatar walks a placeholder map at 60 fps with collision;
 determinism test (seed+actions replay → identical state) passes.
+
+**Verification:** Shared-browser play exercised walking, interpolation, camera follow,
+and farmhouse collision on the live 480×270 canvas; a clean snapshot had no console
+errors. Deterministic replay passes, with sim at 100% line coverage and focused engine
+tests covering loop timing, camera, atlas animation, Y-sort, scene stack, and map layers.
 
 ## M2 — Art foundation `☐`
 `palette.json` generated from [10-art-style-guide.md](10-art-style-guide.md) §2,

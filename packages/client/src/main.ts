@@ -1,4 +1,8 @@
-import { SIM_TICKS_PER_SECOND } from '@orchard/sim';
+import { InputController } from './input/input.js';
+import { FixedStepLoop } from './loop.js';
+import { loadAtlasMetadata } from './render/sprite.js';
+import { FarmScene } from './scenes/farm.js';
+import { SceneStack } from './scenes/scene.js';
 import './style.css';
 
 const VIRTUAL_WIDTH = 480;
@@ -22,21 +26,19 @@ function resizeCanvas(): void {
   gameCanvas.dataset.scale = String(scale);
 }
 
-function renderShell(): void {
-  gameContext.fillStyle = '#18261f';
-  gameContext.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
-  gameContext.fillStyle = '#345e3f';
-  gameContext.fillRect(24, 24, VIRTUAL_WIDTH - 48, VIRTUAL_HEIGHT - 48);
-  gameContext.fillStyle = '#d7b36a';
-  gameContext.fillRect(40, 40, VIRTUAL_WIDTH - 80, VIRTUAL_HEIGHT - 80);
-  gameContext.fillStyle = '#5b3429';
-  gameContext.font = 'bold 20px monospace';
-  gameContext.textAlign = 'center';
-  gameContext.fillText('ORCHARD & CELLAR', VIRTUAL_WIDTH / 2, 124);
-  gameContext.font = '10px monospace';
-  gameContext.fillText(`${SIM_TICKS_PER_SECOND} Hz deterministic simulation`, VIRTUAL_WIDTH / 2, 148);
-}
-
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
-renderShell();
+
+const input = new InputController(gameCanvas);
+const scenes = new SceneStack();
+const avatarMetadata = await loadAtlasMetadata('/placeholder-atlas.json');
+scenes.push(new FarmScene(input, avatarMetadata));
+
+const loop = new FixedStepLoop({
+  update: () => scenes.update(),
+  render: (alpha) => {
+    gameContext.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+    scenes.render(gameContext, alpha);
+  },
+});
+loop.start();
