@@ -1,0 +1,27 @@
+import { TILE_SIZE_FIXED } from '@orchard/sim';
+import { describe, expect, it } from 'vitest';
+import { facedResource, harvestPrompt, hotbarSlotForCode } from './survival-ui.js';
+
+const tree = { id: 2n, kind: 'tree', tileX: 12, tileY: 10, depleted: false };
+
+describe('survival controls', () => {
+  it('targets only a live resource in reach and in front of the player', () => {
+    const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const y = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(facedResource(x, y, 'right', [tree])).toEqual(tree);
+    expect(facedResource(x, y, 'left', [tree])).toBeNull();
+    expect(facedResource(x, y, 'right', [{ ...tree, tileX: 13 }])).toBeNull();
+    expect(facedResource(x, y, 'right', [{ ...tree, depleted: true }])).toBeNull();
+  });
+
+  it('maps both number rows to nine persisted hotbar slots', () => {
+    expect(hotbarSlotForCode('Digit1')).toBe(0);
+    expect(hotbarSlotForCode('Numpad9')).toBe(8);
+    expect(hotbarSlotForCode('Digit0')).toBeNull();
+  });
+
+  it('describes the selected tool requirement', () => {
+    expect(harvestPrompt(tree, 'axe')).toBe('[E] CHOP TREE');
+    expect(harvestPrompt(tree, 'hoe')).toBe('SELECT AXE TO CHOP');
+  });
+});

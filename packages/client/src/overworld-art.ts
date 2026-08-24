@@ -1,4 +1,4 @@
-import type { Direction } from '@orchard/sim';
+import { SURVIVAL_WORLD_SIZE, survivalBiomeAt, type Direction } from '@orchard/sim';
 import type { CropPatch, FarmParcel } from './net/generated/types.js';
 import { loadGeneratedAsset, type LoadedAsset } from './render/assets.js';
 import { drawPixelPanel, drawPixelText, loadPixelUi, measurePixelText, type PixelUi } from './render/pixel-ui.js';
@@ -14,7 +14,14 @@ export interface OverworldArt {
   readonly flowersGold: LoadedAsset;
   readonly flowersPink: LoadedAsset;
   readonly grassTuft: LoadedAsset;
+  readonly hillside: LoadedAsset;
+  readonly iconAxe: LoadedAsset;
+  readonly iconHoe: LoadedAsset;
+  readonly iconPickaxe: LoadedAsset;
+  readonly iconWateringCan: LoadedAsset;
   readonly path: LoadedAsset;
+  readonly water: LoadedAsset;
+  readonly waterRipples: LoadedAsset;
   readonly treeFruiting: LoadedAsset;
   readonly treeMature: LoadedAsset;
   readonly ui: PixelUi;
@@ -23,7 +30,9 @@ export interface OverworldArt {
 export async function loadOverworldArt(): Promise<OverworldArt> {
   const [
     avatar, crop, farmland, farmlandWet, fenceHorizontal, fenceVertical,
-    flowersGold, flowersPink, grassTuft, path, treeFruiting, treeMature, ui,
+    flowersGold, flowersPink, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
+    iconWateringCan, path, water, waterRipples,
+    treeFruiting, treeMature, ui,
   ] = await Promise.all([
     loadGeneratedAsset('avatar_cf_farmer', 'summer'),
     loadGeneratedAsset('crop_cf_carrot_mature', 'summer'),
@@ -34,14 +43,23 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('prop_cf_flowers_gold', 'summer'),
     loadGeneratedAsset('prop_cf_flowers_pink', 'summer'),
     loadGeneratedAsset('tile_cf_grass_tuft', 'summer'),
+    loadGeneratedAsset('tile_cf_hillside', 'summer'),
+    loadGeneratedAsset('icon_cf_axe', 'summer'),
+    loadGeneratedAsset('icon_cf_hoe', 'summer'),
+    loadGeneratedAsset('icon_cf_pickaxe', 'summer'),
+    loadGeneratedAsset('icon_cf_watering_can', 'summer'),
     loadGeneratedAsset('tile_cf_path', 'summer'),
+    loadGeneratedAsset('tile_cf_water', 'summer'),
+    loadGeneratedAsset('tile_cf_water_ripples', 'summer'),
     loadGeneratedAsset('tree_cf_fruit_fruiting', 'summer'),
     loadGeneratedAsset('tree_cf_fruit_mature', 'summer'),
     loadPixelUi(),
   ]);
   return {
     avatar, crop, farmland, farmlandWet, fenceHorizontal, fenceVertical,
-    flowersGold, flowersPink, grassTuft, path, treeFruiting, treeMature, ui,
+    flowersGold, flowersPink, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
+    iconWateringCan, path, water, waterRipples,
+    treeFruiting, treeMature, ui,
   };
 }
 
@@ -63,32 +81,6 @@ export function isOverworldRoad(tileX: number, tileY: number): boolean {
   const vertical = tileX > 0 && tileX < 79 && (tileX % 16 === 15 || tileX % 16 === 0);
   const horizontal = tileY > 0 && tileY < 79 && (tileY % 16 === 15 || tileY % 16 === 0);
   return vertical || horizontal;
-}
-
-function roadVariant(tileX: number, tileY: number): number {
-  const connected = (x: number, y: number): boolean => isOverworldRoad(x, y);
-  const north = connected(tileX, tileY - 1);
-  const east = connected(tileX + 1, tileY);
-  const south = connected(tileX, tileY + 1);
-  const west = connected(tileX - 1, tileY);
-  const cardinals = Number(north) | Number(east) << 1 | Number(south) << 2 | Number(west) << 3;
-  const diagonals = [
-    north && east && connected(tileX + 1, tileY - 1),
-    east && south && connected(tileX + 1, tileY + 1),
-    south && west && connected(tileX - 1, tileY + 1),
-    west && north && connected(tileX - 1, tileY - 1),
-  ];
-  let diagonalChoice = 0;
-  let choiceBit = 0;
-  const eligible = [north && east, east && south, south && west, west && north];
-  for (let diagonalIndex = 0; diagonalIndex < eligible.length; diagonalIndex += 1) {
-    const allowed = eligible[diagonalIndex] ?? false;
-    if (allowed) {
-      if (diagonals[diagonalIndex]) diagonalChoice |= 1 << choiceBit;
-      choiceBit += 1;
-    }
-  }
-  return canonicalBlob47Index(cardinals, diagonalChoice);
 }
 
 function frame(asset: LoadedAsset, animation = 'base', index = 0): AtlasFrame | null {
@@ -135,6 +127,17 @@ function drawTile(
   drawAnchored(context, asset, 'base', frameIndex, tileX * 16 + 8, tileY * 16 + 15, cameraX, cameraY, zoom);
 }
 
+export function drawUiAsset(
+  context: CanvasRenderingContext2D,
+  asset: LoadedAsset,
+  x: number,
+  y: number,
+): void {
+  const source = frame(asset);
+  if (source === null) return;
+  context.drawImage(asset.image, source.x, source.y, source.width, source.height, Math.round(x), Math.round(y), source.width, source.height);
+}
+
 function tileHash(x: number, y: number): number {
   return (Math.imul(x, 73_856_093) ^ Math.imul(y, 19_349_663)) >>> 0;
 }
@@ -145,18 +148,55 @@ export function drawOverworldGround(
   cameraX: number,
   cameraY: number,
   zoom: number,
+  viewportWidth: number,
+  viewportHeight: number,
+  seed: number,
 ): void {
-  // Match Cute Fantasy's native Grass_1_Middle base; detail sprites sit on top.
-  context.fillStyle = '#3e8948';
-  context.fillRect(0, 0, 480, 270);
+  // Every fill is taken directly from a reviewed Cute Fantasy source ramp. The
+  // canvas has no global tint/filter; authored pixels are drawn unchanged.
+  context.fillStyle = '#0095e9';
+  context.fillRect(0, 0, viewportWidth, viewportHeight);
   const minX = Math.max(0, Math.floor(cameraX / 16) - 1);
   const minY = Math.max(0, Math.floor(cameraY / 16) - 1);
-  const maxX = Math.min(79, Math.ceil((cameraX + 480 / zoom) / 16) + 1);
-  const maxY = Math.min(79, Math.ceil((cameraY + 270 / zoom) / 16) + 1);
+  const maxX = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraX + viewportWidth / zoom) / 16) + 1);
+  const maxY = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraY + viewportHeight / zoom) / 16) + 1);
   for (let tileY = minY; tileY <= maxY; tileY += 1) for (let tileX = minX; tileX <= maxX; tileX += 1) {
-    if (isOverworldRoad(tileX, tileY)) drawTile(context, art.path, tileX, tileY, cameraX, cameraY, zoom, roadVariant(tileX, tileY));
-    else if (tileHash(tileX, tileY) % 23 === 0) drawTile(context, art.grassTuft, tileX, tileY, cameraX, cameraY, zoom);
+    const biome = survivalBiomeAt(seed, tileX, tileY);
+    const colors: Record<typeof biome, string> = {
+      water: '#0095e9',
+      beach: '#e4a672',
+      plains: '#3e8948',
+      meadow: '#50af5d',
+      forest: '#33713b',
+      valley: '#3f886c',
+      highland: '#56627b',
+      ridge: '#3c4258',
+    };
+    context.fillStyle = colors[biome];
+    context.fillRect(
+      Math.round((tileX * 16 - cameraX) * zoom),
+      Math.round((tileY * 16 - cameraY) * zoom),
+      16 * zoom,
+      16 * zoom,
+    );
+    const hash = tileHash(tileX, tileY);
+    if (biome === 'water' && hash % 13 === 0) {
+      drawTile(context, art.waterRipples, tileX, tileY, cameraX, cameraY, zoom);
+    } else if ((biome === 'plains' || biome === 'meadow') && hash % (biome === 'meadow' ? 9 : 23) === 0) {
+      drawTile(context, art.grassTuft, tileX, tileY, cameraX, cameraY, zoom);
+    } else if ((biome === 'valley' || biome === 'highland') && hash % 17 === 0) {
+      drawTile(context, art.hillside, tileX, tileY, cameraX, cameraY, zoom);
+    }
   }
+}
+
+export interface WorldDrawItem {
+  readonly footY: number;
+  readonly tie: string;
+}
+
+export function sortWorldDrawItems<T extends WorldDrawItem>(items: readonly T[]): T[] {
+  return [...items].sort((left, right) => left.footY - right.footY || left.tie.localeCompare(right.tie));
 }
 
 export function drawOverworldParcel(

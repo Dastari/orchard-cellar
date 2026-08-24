@@ -34,7 +34,9 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import HarvestResourceReducer from "./harvest_resource_reducer";
 import HeartbeatReducer from "./heartbeat_reducer";
+import SelectHotbarReducer from "./select_hotbar_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SetInputReducer from "./set_input_reducer";
 import TendTreeReducer from "./tend_tree_reducer";
@@ -46,9 +48,13 @@ import UseFarmTileReducer from "./use_farm_tile_reducer";
 import CropPatchRow from "./crop_patch_table";
 import FarmActivityRow from "./farm_activity_table";
 import FarmParcelRow from "./farm_parcel_table";
+import OwnInventorySlotsRow from "./own_inventory_slots_table";
+import OwnSurvivalRow from "./own_survival_table";
 import PlayerPositionRow from "./player_position_table";
 import PlayerPublicRow from "./player_public_table";
 import WorldClockRow from "./world_clock_table";
+import WorldResourceRow from "./world_resource_table";
+import WorldSeedRow from "./world_seed_table";
 import WorldTreeRow from "./world_tree_table";
 
 /** Type-only namespace exports for generated type groups. */
@@ -135,6 +141,32 @@ const tablesSchema = __schema({
       { name: 'world_clock_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldClockRow),
+  worldResource: __table({
+    name: 'world_resource',
+    indexes: [
+      { accessor: 'by_chunk', name: 'world_resource_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'chunkX',
+        'chunkY',
+      ] },
+      { accessor: 'id', name: 'world_resource_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_resource_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldResourceRow),
+  worldSeed: __table({
+    name: 'world_seed',
+    indexes: [
+      { accessor: 'id', name: 'world_seed_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_seed_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldSeedRow),
   worldTree: __table({
     name: 'world_tree',
     indexes: [
@@ -150,11 +182,27 @@ const tablesSchema = __schema({
       { name: 'world_tree_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldTreeRow),
+  ownInventorySlots: __table({
+    name: 'own_inventory_slots',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnInventorySlotsRow),
+  ownSurvival: __table({
+    name: 'own_survival',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnSurvivalRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("harvest_resource", HarvestResourceReducer),
   __reducerSchema("heartbeat", HeartbeatReducer),
+  __reducerSchema("select_hotbar", SelectHotbarReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("set_input", SetInputReducer),
   __reducerSchema("tend_tree", TendTreeReducer),
@@ -179,6 +227,10 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "player_public": Omit<typeof tablesSchema.schemaType.tables["playerPublic"], "accessorName"> & { readonly accessorName: "player_public" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
     readonly "world_clock": Omit<typeof tablesSchema.schemaType.tables["worldClock"], "accessorName"> & { readonly accessorName: "world_clock" };
+    /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
+    readonly "world_resource": Omit<typeof tablesSchema.schemaType.tables["worldResource"], "accessorName"> & { readonly accessorName: "world_resource" };
+    /** @deprecated Use `worldSeed` instead. This alias will be removed in the next major version. */
+    readonly "world_seed": Omit<typeof tablesSchema.schemaType.tables["worldSeed"], "accessorName"> & { readonly accessorName: "world_seed" };
     /** @deprecated Use `worldTree` instead. This alias will be removed in the next major version. */
     readonly "world_tree": Omit<typeof tablesSchema.schemaType.tables["worldTree"], "accessorName"> & { readonly accessorName: "world_tree" };
   };
@@ -205,6 +257,8 @@ const tableAccessorAliases = {
   "player_position": "playerPosition",
   "player_public": "playerPublic",
   "world_clock": "worldClock",
+  "world_resource": "worldResource",
+  "world_seed": "worldSeed",
   "world_tree": "worldTree",
 } as const;
 
@@ -238,6 +292,10 @@ export type DbView = __DbViewBase & {
   readonly "player_public": __DbViewBase["playerPublic"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __DbViewBase["worldClock"];
+  /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
+  readonly "world_resource": __DbViewBase["worldResource"];
+  /** @deprecated Use `worldSeed` instead. This alias will be removed in the next major version. */
+  readonly "world_seed": __DbViewBase["worldSeed"];
   /** @deprecated Use `worldTree` instead. This alias will be removed in the next major version. */
   readonly "world_tree": __DbViewBase["worldTree"];
 };
@@ -256,6 +314,10 @@ export type Tables = __TablesBase & {
   readonly "player_public": __TablesBase["playerPublic"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __TablesBase["worldClock"];
+  /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
+  readonly "world_resource": __TablesBase["worldResource"];
+  /** @deprecated Use `worldSeed` instead. This alias will be removed in the next major version. */
+  readonly "world_seed": __TablesBase["worldSeed"];
   /** @deprecated Use `worldTree` instead. This alias will be removed in the next major version. */
   readonly "world_tree": __TablesBase["worldTree"];
 };

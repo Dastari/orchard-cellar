@@ -142,7 +142,7 @@ and Bob planting, watering, and harvesting. The generated protocol exposes no
 position setter; crop reach, 25-parcel layout, clock stages, and bounds are covered by
 deterministic tests.
 
-## M5.7 — Generated survival island `⏳ in progress (codex, 2026-08-24)`
+## M5.7 — Generated survival island `✅ complete (codex, 2026-08-24)`
 
 Owner-directed M7a foundation pulled forward before deeper farming progression. Build
 the deterministic 192×192 island, biome terrain, 25 safe spawn clearings, generated
@@ -155,6 +155,18 @@ coast/forest/meadow/valley/highland layout, cannot cross water/ridges or live tr
 walk correctly in front of/behind tree canopies, and each can equip the starter axe,
 fell a nearby tree, receive Wood exactly once, and retain hotbar/inventory/resource
 state through reconnect and host restart.
+
+**Verification:** Shared-browser play rendered the version-3 192×192 island at a
+screen-sized true 2× camera with two durable identities, distinct clearings, native
+Cute Fantasy terrain/trees/avatar/UI, y-sorted canopies, and no legacy farm parcels.
+The `G` overlay showed green walkable tiles, red water/ridge terrain, and amber live
+tree bases on the exact camera grid. Alice walked 15 tiles down a guaranteed trail in
+five seconds without reconciliation snap-back, then three authoritative Axe calls
+changed one tree from health 3 to depleted and granted exactly 3 Wood. A complete
+SpaceTimeDB host stop/start replayed 114,091 transactions; reconnect restored Alice's
+exact position `(11340,22046)`, selected slot `0`, Wood `6`, world version `3`, and the
+depleted resource at health `0`. `npm run check` passed 122 tests with 97.09% sim
+statement coverage; `npm run build` produced every package and the Vite client.
 
 ## M6 — Accounts, farm authority & persistence `⏳ in progress (codex, 2026-08-24)`
 OIDC + owner-managed friends allowlist per [09-auth.md](09-auth.md); normalized owned

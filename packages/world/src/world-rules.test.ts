@@ -1,7 +1,11 @@
 import {
+  SURVIVAL_WORLD_SEED,
+  SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
   createPlaceholderCollisionMap,
+  generateSurvivalResources,
   movePlayer,
+  survivalBiomeAt,
   type PlayerState,
 } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
@@ -14,11 +18,13 @@ import {
   chunkAt,
   cropStage,
   CROP_GROWTH_TICKS,
+  createAuthoritySurvivalCollisionMap,
   createMmoFarmCollisionMap,
   decodeDirection,
   farmParcelLayout,
   isFarmBedTile,
   presenceLeaseExpired,
+  resourceHarvestResult,
 } from './world-rules.js';
 
 const START: PlayerState = {
@@ -92,5 +98,35 @@ describe('overworld authority rules', () => {
     const collision = createMmoFarmCollisionMap(80, 80);
     expect(collision.blocked[0]).toBe(true);
     expect(collision.blocked[16 * collision.width + 24]).toBe(false);
+  });
+
+  it('blocks generated water, ridge, and live resources but opens depleted resource bases', () => {
+    const terrain = Array.from({ length: SURVIVAL_WORLD_SIZE ** 2 }, (_, index) => ({
+      tileX: index % SURVIVAL_WORLD_SIZE,
+      tileY: Math.floor(index / SURVIVAL_WORLD_SIZE),
+    }));
+    const water = terrain.find(({ tileX, tileY }) => survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY) === 'water');
+    const ridge = terrain.find(({ tileX, tileY }) => survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY) === 'ridge');
+    const resource = generateSurvivalResources()[0];
+    if (!water || !ridge || !resource) throw new Error('missing generated-world fixture');
+
+    const live = createAuthoritySurvivalCollisionMap([{ ...resource, depleted: false }]);
+    const depleted = createAuthoritySurvivalCollisionMap([{ ...resource, depleted: true }]);
+    expect(live.blocked[water.tileY * live.width + water.tileX]).toBe(true);
+    expect(live.blocked[ridge.tileY * live.width + ridge.tileX]).toBe(true);
+    expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(true);
+    expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(false);
+  });
+
+  it('requires the matching tool and authoritative two-tile harvesting reach', () => {
+    const resource = generateSurvivalResources()[0];
+    if (!resource) throw new Error('missing generated resource fixture');
+    const x = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const y = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(resourceHarvestResult(x, y, 'axe', { ...resource, depleted: false })).toBe('ok');
+    expect(resourceHarvestResult(x, y, 'pickaxe', { ...resource, depleted: false })).toBe('wrong_tool');
+    expect(resourceHarvestResult(x, y, 'axe', { ...resource, depleted: true })).toBe('depleted');
+    expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');
+    expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED + 1, y, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveGeneratedAssetName, type BuiltAtlasManifest } from './assets.js';
+import { atlasImageUrl, resolveGeneratedAssetName, type BuiltAtlasManifest } from './assets.js';
 
 const manifest = {
   schemaVersion: 3,
@@ -18,5 +18,9 @@ describe('resolveGeneratedAssetName', () => {
 
   it('uses the visible placeholder for unknown/newer ids', () => {
     expect(resolveGeneratedAssetName(manifest, 999_999)).toBe('system_missing_asset');
+  });
+
+  it('cache-busts stable atlas filenames with the content revision', () => {
+    expect(atlasImageUrl('atlas_ui_summer.png', 'a/b c')).toBe('/generated/atlas_ui_summer.png?rev=a%2Fb%20c');
   });
 });

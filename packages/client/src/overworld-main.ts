@@ -1,24 +1,32 @@
 import {
   FIXED_UNITS_PER_PIXEL,
+  SURVIVAL_WORLD_SEED,
+  SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
+  createSurvivalCollisionMap,
+  generateSurvivalResources,
   movePlayer,
+  survivalBiomeAt,
+  survivalBiomeBlocksMovement,
   type CollisionMap,
   type Direction,
   type PlayerState,
 } from '@orchard/sim';
+import { DEFAULT_WORLD_ZOOM, resizePixelCanvas, stepWorldZoom, toggleFullscreen, type WorldZoom } from './display.js';
 import { FixedStepLoop } from './loop.js';
-import { resizePixelCanvas, stepWorldZoom, toggleFullscreen, type WorldZoom } from './display.js';
-import { OverworldConnection, type NetworkDirection } from './net/overworld-connection.js';
-import type { CropPatch, FarmParcel, PlayerPosition, PlayerPublic } from './net/generated/types.js';
+import type { PlayerPosition, PlayerPublic, WorldResource } from './net/generated/types.js';
+import { OverworldConnection, type NetworkDirection, type OverworldSnapshot } from './net/overworld-connection.js';
 import {
   drawOverworldAvatar,
-  drawOverworldCrop,
   drawOverworldGround,
-  drawOverworldParcel,
   drawOverworldTree,
+  drawUiAsset,
   loadOverworldArt,
+  sortWorldDrawItems,
 } from './overworld-art.js';
+import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
 import { drawPixelPanel, drawPixelText, measurePixelText } from './render/pixel-ui.js';
+import { facedResource, harvestPrompt, hotbarSlotForCode } from './survival-ui.js';
 import './style.css';
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
@@ -32,32 +40,25 @@ const shellElement = document.querySelector<HTMLElement>('#game-shell');
 if (shellElement === null) throw new Error('Missing overworld shell');
 const art = await loadOverworldArt();
 
-const WORLD_WIDTH = 80;
-const WORLD_HEIGHT = 80;
-const CROP_GROWTH_TICKS = 200n;
-const WORLD_COLLISION: CollisionMap = {
-  width: WORLD_WIDTH,
-  height: WORLD_HEIGHT,
-  blocked: Array.from({ length: WORLD_WIDTH * WORLD_HEIGHT }, (_, index) => {
-    const x = index % WORLD_WIDTH;
-    const y = Math.floor(index / WORLD_WIDTH);
-    return x === 0 || y === 0 || x === WORLD_WIDTH - 1 || y === WORLD_HEIGHT - 1;
-  }),
-};
 const keys = new Set<string>();
-const slot = new URLSearchParams(location.search).get('slot') ?? 'Farmer One';
+const accountSlot = new URLSearchParams(location.search).get('slot') ?? 'Farmer One';
 let networkDirty = true;
-const network = new OverworldConnection(slot, () => { networkDirty = true; });
+const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
 let predicted: PlayerState | null = null;
 let lastDirection: NetworkDirection = 'idle';
-let toast = 'CONNECTING TO SHARED WORLD';
+let toast = 'CONNECTING TO SHARED ISLAND';
 let toastTicks = 180;
 let animationTick = 0;
-let worldZoom: WorldZoom = 2;
+let worldZoom: WorldZoom = DEFAULT_WORLD_ZOOM;
+let collisionKey = '';
+let worldCollision: CollisionMap = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED);
+let lastNetworkStatus = '';
+let debugCollision = false;
 const remoteDisplay = new Map<string, { x: number; y: number }>();
 
 function resize(): void {
   resizePixelCanvas(canvas);
+  context.imageSmoothingEnabled = false;
 }
 
 function directionFromKeys(): NetworkDirection {
@@ -77,10 +78,9 @@ function directionFromKeys(): NetworkDirection {
 }
 
 function playerState(row: PlayerPosition): PlayerState {
-  const facing = row.facing as Direction;
   return {
     position: { x: row.x, y: row.y },
-    facing,
+    facing: row.facing as Direction,
     moving: row.moving,
     location: 'estate',
   };
@@ -93,8 +93,7 @@ function reconcile(row: PlayerPosition): void {
   }
   const dx = row.x - predicted.position.x;
   const dy = row.y - predicted.position.y;
-  const errorSquared = dx * dx + dy * dy;
-  if (errorSquared > (TILE_SIZE_FIXED * 2) ** 2) {
+  if (dx * dx + dy * dy > (TILE_SIZE_FIXED * 2) ** 2) {
     predicted = playerState(row);
     return;
   }
@@ -107,8 +106,29 @@ function reconcile(row: PlayerPosition): void {
   };
 }
 
+function refreshCollision(snapshot: OverworldSnapshot): void {
+  const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
+  const mutableKey = snapshot.resources
+    .map((resource) => `${resource.id}:${Number(resource.depleted)}`)
+    .sort()
+    .join(',');
+  const nextKey = `${seed}|${mutableKey}`;
+  if (collisionKey === nextKey) return;
+  collisionKey = nextKey;
+  const subscribed = new Map(snapshot.resources.map((resource) => [resource.id, resource]));
+  const resources = generateSurvivalResources(seed).map((resource) => ({
+    tileX: resource.tileX,
+    tileY: resource.tileY,
+    depleted: subscribed.get(BigInt(resource.id))?.depleted ?? false,
+  }));
+  worldCollision = createSurvivalCollisionMap(seed, resources);
+}
+
 function update(): void {
   animationTick = (animationTick + 1) % 1_000_000;
+  network.setViewRadius(Math.ceil(Math.max(canvas.width, canvas.height) / (worldZoom * 512)) + 1);
+  const snapshot = network.snapshot();
+  if (networkDirty) refreshCollision(snapshot);
   const direction = directionFromKeys();
   if (direction !== lastDirection) {
     lastDirection = direction;
@@ -116,10 +136,8 @@ function update(): void {
   }
   const authoritative = network.ownPosition();
   if (authoritative !== null) reconcile(authoritative);
-  if (predicted !== null) {
-    predicted = movePlayer(predicted, direction === 'idle' ? null : direction, WORLD_COLLISION);
-  }
-  const snapshot = network.snapshot();
+  if (predicted !== null) predicted = movePlayer(predicted, direction === 'idle' ? null : direction, worldCollision);
+
   for (const player of snapshot.players) {
     if (player.identity.toHexString() === snapshot.identityHex) continue;
     const id = player.identity.toHexString();
@@ -130,10 +148,14 @@ function update(): void {
   }
   if (networkDirty) {
     networkDirty = false;
-    toast = snapshot.error === null
-      ? snapshot.connected ? 'SHARED WORLD ONLINE' : 'CONNECTING TO SHARED WORLD'
+    const status = snapshot.error === null
+      ? snapshot.connected ? 'SHARED ISLAND ONLINE' : 'CONNECTING TO SHARED ISLAND'
       : `NETWORK ${snapshot.error}`;
-    toastTicks = 120;
+    if (status !== lastNetworkStatus) {
+      lastNetworkStatus = status;
+      toast = status;
+      toastTicks = 120;
+    }
   }
   if (toastTicks > 0) toastTicks -= 1;
 }
@@ -142,127 +164,171 @@ function profileName(profiles: readonly PlayerPublic[], identity: string): strin
   return profiles.find((profile) => profile.identity.toHexString() === identity)?.displayName ?? 'FARMER';
 }
 
-function isFarmBedTile(parcel: FarmParcel, tileX: number, tileY: number): boolean {
-  return tileX >= parcel.originX + 2
-    && tileX <= parcel.originX + 11
-    && tileY >= parcel.originY + 5
-    && tileY <= parcel.originY + 11;
+function selectedItem(snapshot: OverworldSnapshot): string {
+  const selected = snapshot.survival?.selectedSlot ?? 0;
+  return snapshot.inventorySlots.find((inventory) => inventory.slot === selected)?.itemKind ?? 'empty';
 }
 
-function targetFarmTile(): { readonly x: number; readonly y: number } | null {
+function targetResource(snapshot: OverworldSnapshot): WorldResource | null {
   if (predicted === null) return null;
-  const vectors: Record<Direction, readonly [number, number]> = {
-    up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0],
-    upLeft: [-1, -1], upRight: [1, -1], downLeft: [-1, 1], downRight: [1, 1],
-  };
-  const [dx, dy] = vectors[predicted.facing];
-  return {
-    x: Math.round(predicted.position.x / TILE_SIZE_FIXED + dx),
-    y: Math.round(predicted.position.y / TILE_SIZE_FIXED + dy),
-  };
+  return facedResource(predicted.position.x, predicted.position.y, predicted.facing, snapshot.resources);
 }
 
-function cropStage(crop: CropPatch, authorityTick: bigint): 0 | 1 | 2 | 3 {
-  if (!crop.watered) return 0;
-  const elapsed = authorityTick - crop.wateredAtTick;
-  if (elapsed >= CROP_GROWTH_TICKS) return 3;
-  if (elapsed >= CROP_GROWTH_TICKS * 2n / 3n) return 2;
-  if (elapsed >= CROP_GROWTH_TICKS / 3n) return 1;
-  return 0;
+function drawHotbar(snapshot: OverworldSnapshot): void {
+  const slotWidth = 31;
+  const totalWidth = slotWidth * 9;
+  const startX = Math.round((canvas.width - totalWidth) / 2);
+  const y = canvas.height - 34;
+  const selected = snapshot.survival?.selectedSlot ?? 0;
+  const icons = {
+    axe: art.iconAxe,
+    pickaxe: art.iconPickaxe,
+    hoe: art.iconHoe,
+    watering_can: art.iconWateringCan,
+  };
+  for (let index = 0; index < 9; index += 1) {
+    const inventory = snapshot.inventorySlots.find((candidate) => candidate.slot === index);
+    drawPixelPanel(context, art.ui, startX + index * slotWidth, y, 30, 29);
+    if (index === selected) {
+      context.strokeStyle = '#ffe98a';
+      context.lineWidth = 2;
+      context.strokeRect(startX + index * slotWidth + 1, y + 1, 27, 26);
+    }
+    drawPixelText(context, art.ui, String(index + 1), startX + index * slotWidth + 4, y + 4);
+    const icon = icons[inventory?.itemKind as keyof typeof icons];
+    if (icon) drawUiAsset(context, icon, startX + index * slotWidth + 7, y + 10);
+    else drawPixelText(context, art.ui, '--', startX + index * slotWidth + 15, y + 16, { align: 'center' });
+  }
 }
 
-function farmPrompt(
-  target: { readonly x: number; readonly y: number } | null,
-  snapshot: ReturnType<OverworldConnection['snapshot']>,
-): string | null {
-  if (target === null) return null;
-  const parcel = snapshot.parcels.find((candidate) => isFarmBedTile(candidate, target.x, target.y));
-  if (parcel === undefined) return null;
-  const crop = snapshot.crops.find((candidate) => candidate.tileX === target.x && candidate.tileY === target.y);
-  const ownFarm = parcel.owner.toHexString() === snapshot.identityHex;
-  if (crop === undefined) return ownFarm ? '[E] PLANT SEED' : 'OWNER PLANTS HERE';
-  if (!crop.watered) return '[E] WATER CROP';
-  if (cropStage(crop, snapshot.clock?.authorityTick ?? 0n) < 3) return 'CROP GROWING';
-  return ownFarm ? '[E] HARVEST' : 'READY FOR OWNER';
+function drawCollisionOverlay(cameraX: number, cameraY: number, seed: number): void {
+  const minX = Math.max(0, Math.floor(cameraX / 16));
+  const minY = Math.max(0, Math.floor(cameraY / 16));
+  const maxX = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraX + canvas.width / worldZoom) / 16));
+  const maxY = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraY + canvas.height / worldZoom) / 16));
+  for (let tileY = minY; tileY <= maxY; tileY += 1) for (let tileX = minX; tileX <= maxX; tileX += 1) {
+    const index = tileY * SURVIVAL_WORLD_SIZE + tileX;
+    const blocked = worldCollision.blocked[index] ?? true;
+    const terrainBlocked = survivalBiomeBlocksMovement(survivalBiomeAt(seed, tileX, tileY));
+    context.fillStyle = blocked ? terrainBlocked ? '#ff335577' : '#ff9d2377' : '#55ff8850';
+    context.fillRect(
+      Math.round((tileX * 16 - cameraX) * worldZoom),
+      Math.round((tileY * 16 - cameraY) * worldZoom),
+      16 * worldZoom,
+      16 * worldZoom,
+    );
+    context.strokeStyle = '#fff3';
+    context.lineWidth = 1;
+    context.strokeRect(
+      Math.round((tileX * 16 - cameraX) * worldZoom),
+      Math.round((tileY * 16 - cameraY) * worldZoom),
+      16 * worldZoom,
+      16 * worldZoom,
+    );
+  }
 }
 
 function render(): void {
   const snapshot = network.snapshot();
-  const localX = (predicted?.position.x ?? 8 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
-  const localY = (predicted?.position.y ?? 12 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
-  const viewportWidth = 480 / worldZoom;
-  const viewportHeight = 270 / worldZoom;
-  const cameraX = Math.max(0, Math.min(WORLD_WIDTH * 16 - viewportWidth, localX - viewportWidth / 2));
-  const cameraY = Math.max(0, Math.min(WORLD_HEIGHT * 16 - viewportHeight, localY - viewportHeight / 2));
-  drawOverworldGround(context, art, cameraX, cameraY, worldZoom);
+  const localX = (predicted?.position.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
+  const localY = (predicted?.position.y ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
+  const viewportWidth = canvas.width / worldZoom;
+  const viewportHeight = canvas.height / worldZoom;
+  const worldPixels = SURVIVAL_WORLD_SIZE * 16;
+  const cameraX = cameraAxisOffset(localX, viewportWidth, worldPixels);
+  const cameraY = cameraAxisOffset(localY, viewportHeight, worldPixels);
+  const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
+  drawOverworldGround(context, art, cameraX, cameraY, worldZoom, canvas.width, canvas.height, seed);
+  if (debugCollision) drawCollisionOverlay(cameraX, cameraY, seed);
 
-  for (const parcel of snapshot.parcels) drawOverworldParcel(context, art, parcel, snapshot.crops, cameraX, cameraY, worldZoom);
-
-  const authorityTick = snapshot.clock?.authorityTick ?? 0n;
-  for (const crop of snapshot.crops) {
-    drawOverworldCrop(context, art, crop, cropStage(crop, authorityTick), cameraX, cameraY, worldZoom);
+  const visible = visibleWorldBounds(cameraX, cameraY, canvas.width, canvas.height, worldZoom, 64);
+  const drawItems: Array<{ footY: number; tie: string; draw: () => void }> = [];
+  for (const resource of snapshot.resources) {
+    if (resource.depleted) continue;
+    const resourceX = resource.tileX * 16 + 8;
+    const resourceY = (resource.tileY + 1) * 16;
+    if (!worldPointVisible(resourceX, resourceY, visible)) continue;
+    drawItems.push({
+      footY: resourceY,
+      tie: `resource:${resource.id}`,
+      draw: () => drawOverworldTree(
+        context,
+        art,
+        resource.tileX * 16 + 8,
+        (resource.tileY + 1) * 16 - 4,
+        false,
+        cameraX,
+        cameraY,
+        worldZoom,
+      ),
+    });
   }
-
-  for (const tree of snapshot.trees) {
-    drawOverworldTree(
-      context,
-      art,
-      tree.x / FIXED_UNITS_PER_PIXEL,
-      tree.y / FIXED_UNITS_PER_PIXEL,
-      tree.care > 0,
-      cameraX,
-      cameraY,
-      worldZoom,
-    );
-  }
-
-  const target = targetFarmTile();
-  const targetParcel = target === null
-    ? undefined
-    : snapshot.parcels.find((parcel) => isFarmBedTile(parcel, target.x, target.y));
-  if (target !== null && targetParcel !== undefined) {
-    context.strokeStyle = '#ffe98a';
-    context.lineWidth = 2;
-    context.strokeRect(
-      Math.round((target.x * 16 - cameraX + 1) * worldZoom),
-      Math.round((target.y * 16 - cameraY + 1) * worldZoom),
-      14 * worldZoom,
-      14 * worldZoom,
-    );
-  }
-
   for (const player of snapshot.players) {
     const id = player.identity.toHexString();
     const local = id === snapshot.identityHex;
     const display = local ? null : remoteDisplay.get(id);
-    const x = (local ? predicted?.position.x ?? player.x : display?.x ?? player.x) / FIXED_UNITS_PER_PIXEL;
-    const y = (local ? predicted?.position.y ?? player.y : display?.y ?? player.y) / FIXED_UNITS_PER_PIXEL;
+    const xFixed = local ? predicted?.position.x ?? player.x : display?.x ?? player.x;
+    const yFixed = local ? predicted?.position.y ?? player.y : display?.y ?? player.y;
+    const x = xFixed / FIXED_UNITS_PER_PIXEL;
+    const y = yFixed / FIXED_UNITS_PER_PIXEL;
+    if (!worldPointVisible(x, y, visible)) continue;
     const facing = (local ? predicted?.facing ?? player.facing : player.facing) as Direction;
     const moving = local ? lastDirection !== 'idle' : player.moving;
-    drawOverworldAvatar(context, art, x, y, facing, moving, animationTick, cameraX, cameraY, worldZoom, profileName(snapshot.profiles, id));
+    drawItems.push({
+      footY: y,
+      tie: `player:${id}`,
+      draw: () => drawOverworldAvatar(context, art, x, y, facing, moving, animationTick, cameraX, cameraY, worldZoom, profileName(snapshot.profiles, id)),
+    });
+  }
+  for (const item of sortWorldDrawItems(drawItems)) item.draw();
+
+  const target = targetResource(snapshot);
+  if (target !== null) {
+    context.strokeStyle = '#ffe98a';
+    context.lineWidth = 2;
+    context.strokeRect(
+      Math.round((target.tileX * 16 - cameraX + 1) * worldZoom),
+      Math.round((target.tileY * 16 - cameraY + 1) * worldZoom),
+      14 * worldZoom,
+      14 * worldZoom,
+    );
   }
 
-  drawPixelPanel(context, art.ui, 4, 4, 278, 58);
-  drawPixelText(context, art.ui, `WORLD ${snapshot.connected ? 'ONLINE' : 'CONNECTING'}  PLAYERS ${snapshot.players.length}`, 11, 11);
-  drawPixelText(context, art.ui, `FARMS ${snapshot.parcels.length}  CROPS ${snapshot.crops.length}  TICK ${authorityTick}`, 11, 22);
-  const ownActivity = snapshot.activity.find((row) => row.identity.toHexString() === snapshot.identityHex);
-  drawPixelText(context, art.ui, `PLANTED ${ownActivity?.planted ?? 0}  WATERED ${ownActivity?.watered ?? 0}  HARVESTED ${ownActivity?.harvested ?? 0}`, 11, 33);
-  drawPixelText(context, art.ui, 'WASD WALK  -/+ ZOOM  F FULLSCREEN', 11, 44);
-  drawPixelText(context, art.ui, `VIEW ${worldZoom}X`, 272, 53, { align: 'right' });
-  const prompt = farmPrompt(target, snapshot);
+  drawPixelPanel(context, art.ui, 4, 4, 290, 48);
+  drawPixelText(context, art.ui, `ISLAND ${snapshot.connected ? 'ONLINE' : 'CONNECTING'}  PLAYERS ${snapshot.players.length}`, 11, 11);
+  drawPixelText(context, art.ui, `WOOD ${snapshot.survival?.wood ?? 0}  STONE ${snapshot.survival?.stone ?? 0}  VIEW ${worldZoom}X`, 11, 22);
+  drawPixelText(context, art.ui, 'WASD WALK  1-9 TOOLS  E USE  G COLLISION  F FULL', 11, 33);
+  const prompt = harvestPrompt(target, selectedItem(snapshot));
   if (prompt !== null) {
-    const promptWidth = Math.max(104, measurePixelText(prompt) + 14);
-    drawPixelPanel(context, art.ui, 240 - promptWidth / 2, 216, promptWidth, 19);
-    drawPixelText(context, art.ui, prompt, 240, 222, { align: 'center' });
+    const width = Math.max(104, measurePixelText(prompt) + 14);
+    drawPixelPanel(context, art.ui, canvas.width / 2 - width / 2, canvas.height - 58, width, 19);
+    drawPixelText(context, art.ui, prompt, canvas.width / 2, canvas.height - 52, { align: 'center' });
   }
+  drawHotbar(snapshot);
   if (toastTicks > 0) {
-    drawPixelPanel(context, art.ui, 105, 244, 270, 19);
-    drawPixelText(context, art.ui, toast.slice(0, 42), 240, 250, { align: 'center' });
+    drawPixelPanel(context, art.ui, canvas.width / 2 - 135, canvas.height - 61, 270, 19);
+    drawPixelText(context, art.ui, toast.slice(0, 42), canvas.width / 2, canvas.height - 55, { align: 'center' });
   }
+}
+
+function showResult(promise: Promise<void>, success: string): void {
+  void promise.then(() => {
+    toast = success;
+    toastTicks = 120;
+  }).catch((error: unknown) => {
+    toast = error instanceof Error ? error.message : String(error);
+    toastTicks = 120;
+  });
 }
 
 window.addEventListener('resize', resize);
 window.addEventListener('keydown', (event) => {
+  const selectedSlot = hotbarSlotForCode(event.code);
+  if (selectedSlot !== null && !event.repeat) {
+    showResult(network.selectHotbar(selectedSlot), `SELECTED SLOT ${selectedSlot + 1}`);
+    event.preventDefault();
+    return;
+  }
   if ((event.code === 'Minus' || event.code === 'NumpadSubtract') && !event.repeat) {
     worldZoom = stepWorldZoom(worldZoom, -1);
     event.preventDefault();
@@ -278,33 +344,35 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
     return;
   }
+  if (event.code === 'KeyG' && !event.repeat) {
+    debugCollision = !debugCollision;
+    toast = debugCollision ? 'COLLISION: GREEN OPEN / RED TERRAIN / AMBER RESOURCE' : 'COLLISION OVERLAY OFF';
+    toastTicks = 180;
+    event.preventDefault();
+    return;
+  }
+  if (event.code === 'KeyE' && !event.repeat) {
+    const resource = targetResource(network.snapshot());
+    if (resource === null) {
+      toast = 'FACE A NEARBY RESOURCE';
+      toastTicks = 120;
+    } else {
+      showResult(network.harvestResource(resource.id), resource.health > 1 ? 'CHOP!' : '+3 WOOD');
+    }
+    event.preventDefault();
+    return;
+  }
   if (event.code.startsWith('Arrow')) event.preventDefault();
   keys.add(event.code);
-  if (event.code === 'KeyE' && !event.repeat) {
-    const target = targetFarmTile();
-    const before = network.snapshot();
-    const parcel = target === null
-      ? undefined
-      : before.parcels.find((candidate) => isFarmBedTile(candidate, target.x, target.y));
-    if (target !== null && parcel !== undefined) {
-      const crop = before.crops.find((candidate) => candidate.tileX === target.x && candidate.tileY === target.y);
-      const result = crop === undefined ? 'SEED PLANTED' : !crop.watered ? 'CROP WATERED' : 'CROP HARVESTED';
-      void network.useFarmTile(target.x, target.y).then(() => {
-        toast = result;
-        toastTicks = 120;
-      }).catch((error: unknown) => {
-        toast = error instanceof Error ? error.message : String(error);
-        toastTicks = 120;
-      });
-    } else {
-      toast = 'FACE A FARM BED TO WORK IT';
-      toastTicks = 120;
-    }
-  }
 });
 window.addEventListener('keyup', (event) => keys.delete(event.code));
 window.addEventListener('blur', () => keys.clear());
 canvas.addEventListener('dblclick', () => { void toggleFullscreen(shellElement).catch(() => undefined); });
+canvas.addEventListener('wheel', (event) => {
+  if (event.ctrlKey || event.deltaY === 0) return;
+  worldZoom = stepWorldZoom(worldZoom, event.deltaY > 0 ? -1 : 1);
+  event.preventDefault();
+}, { passive: false });
 
 resize();
 const loop = new FixedStepLoop({ update, render });
@@ -314,8 +382,9 @@ Object.assign(window, {
     update,
     render,
     setDirection: (direction: NetworkDirection) => network.setDirection(direction),
-    tendTree: (treeId = 1n) => network.tendTree(treeId),
-    useFarmTile: (tileX: number, tileY: number) => network.useFarmTile(tileX, tileY),
+    harvestResource: (resourceId: bigint) => network.harvestResource(resourceId),
+    selectHotbar: (selectedSlot: number) => network.selectHotbar(selectedSlot),
+    setCollisionDebug: (enabled: boolean) => { debugCollision = enabled; },
   },
 });
 loop.start();

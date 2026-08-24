@@ -1,4 +1,13 @@
-import { TILE_SIZE_FIXED, type Direction, type PlayerState } from '@orchard/sim';
+import {
+  SURVIVAL_CHUNK_TILES,
+  SURVIVAL_WORLD_SEED,
+  SURVIVAL_WORLD_VERSION,
+  TILE_SIZE_FIXED,
+  generateSurvivalResources,
+  survivalSpawnPosition,
+  type Direction,
+  type PlayerState,
+} from '@orchard/sim';
 import { ScheduleAt, SenderError, schema, table, t } from 'spacetimedb/server';
 import {
   advanceAuthorityPlayer,
@@ -6,18 +15,14 @@ import {
   canUseFarmTile,
   chunkAt,
   CROP_GROWTH_TICKS,
-  createMmoFarmCollisionMap,
+  createAuthoritySurvivalCollisionMap,
   decodeDirection,
-  FARM_COLUMNS,
-  FARM_ROWS,
-  farmParcelLayout,
   isFarmBedTile,
   presenceLeaseExpired,
+  resourceHarvestResult,
 } from './world-rules.js';
 
-const WORLD_COLLISION = createMmoFarmCollisionMap(80, 80);
-const START_X = 8 * TILE_SIZE_FIXED;
-const START_Y = 12 * TILE_SIZE_FIXED;
+const HOTBAR_SLOTS = ['axe', 'pickaxe', 'hoe', 'watering_can', 'empty', 'empty', 'empty', 'empty', 'empty'] as const;
 
 const player_public = table(
   { name: 'player_public', public: true },
@@ -65,6 +70,33 @@ const private_inventory = table(
     fruit: t.u64(),
     bottles: t.u64(),
     knowledge: t.u32(),
+  },
+);
+
+const player_survival = table(
+  { name: 'player_survival' },
+  {
+    identity: t.identity().primaryKey(),
+    spawnSlot: t.u8(),
+    wood: t.u32(),
+    stone: t.u32(),
+    selectedSlot: t.u8(),
+  },
+);
+
+const inventory_slot = table(
+  {
+    name: 'inventory_slot',
+    indexes: [
+      { accessor: 'by_identity', algorithm: 'btree', columns: ['identity'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    identity: t.identity(),
+    slot: t.u8(),
+    itemKind: t.string(),
+    quantity: t.u16(),
   },
 );
 
@@ -121,6 +153,35 @@ const world_clock = table(
   {
     id: t.u8().primaryKey(),
     authorityTick: t.u64(),
+  },
+);
+
+const world_seed = table(
+  { name: 'world_seed', public: true },
+  {
+    id: t.u8().primaryKey(),
+    seed: t.u32(),
+    version: t.u16(),
+  },
+);
+
+const world_resource = table(
+  {
+    name: 'world_resource',
+    public: true,
+    indexes: [
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey(),
+    kind: t.string(),
+    tileX: t.i16(),
+    tileY: t.i16(),
+    chunkX: t.i16(),
+    chunkY: t.i16(),
+    health: t.u8(),
+    depleted: t.bool(),
   },
 );
 
@@ -189,10 +250,14 @@ const spacetimedb = schema({
   player_position,
   player_input,
   private_inventory,
+  player_survival,
+  inventory_slot,
   connection_presence,
   connection_presence_v2,
   world_tree,
   world_clock,
+  world_seed,
+  world_resource,
   farm_parcel,
   crop_patch,
   farm_activity,
@@ -200,6 +265,18 @@ const spacetimedb = schema({
 });
 
 export default spacetimedb;
+
+export const ownSurvival = spacetimedb.view(
+  { name: 'own_survival', public: true },
+  t.option(player_survival.rowType),
+  (ctx) => ctx.db.player_survival.identity.find(ctx.sender) ?? undefined,
+);
+
+export const ownInventorySlots = spacetimedb.view(
+  { name: 'own_inventory_slots', public: true },
+  t.array(inventory_slot.rowType),
+  (ctx) => [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)],
+);
 
 function parseDirection(value: string): Direction | null {
   const direction = decodeDirection(value);
@@ -217,6 +294,19 @@ function validateDisplayName(value: string): string {
 
 export const init = spacetimedb.init((ctx) => {
   ctx.db.world_clock.insert({ id: 0, authorityTick: 0n });
+  ctx.db.world_seed.insert({ id: 0, seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION });
+  for (const resource of generateSurvivalResources()) {
+    ctx.db.world_resource.insert({
+      id: BigInt(resource.id),
+      kind: resource.kind,
+      tileX: resource.tileX,
+      tileY: resource.tileY,
+      chunkX: Math.floor(resource.tileX / SURVIVAL_CHUNK_TILES),
+      chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
+      health: 3,
+      depleted: false,
+    });
+  }
   ctx.db.world_tree.insert({
     id: 1n,
     owner: ctx.databaseIdentity,
@@ -236,11 +326,59 @@ export const init = spacetimedb.init((ctx) => {
 
 export const onConnect = spacetimedb.clientConnected((ctx) => {
   if (ctx.connectionId === null) throw new SenderError('missing_connection_id');
+  // Additive module publishes do not rerun init. The first post-upgrade connection
+  // transactionally installs the immutable seed and initial mutable resources.
+  const installedWorld = ctx.db.world_seed.id.find(0);
+  if (installedWorld === null || installedWorld.version < SURVIVAL_WORLD_VERSION) {
+    for (const crop of ctx.db.crop_patch.iter()) ctx.db.crop_patch.id.delete(crop.id);
+    for (const parcel of ctx.db.farm_parcel.iter()) ctx.db.farm_parcel.id.delete(parcel.id);
+    for (const resource of ctx.db.world_resource.iter()) ctx.db.world_resource.id.delete(resource.id);
+    const nextWorld = { id: 0, seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION };
+    if (installedWorld === null) ctx.db.world_seed.insert(nextWorld);
+    else ctx.db.world_seed.id.update(nextWorld);
+    for (const resource of generateSurvivalResources()) {
+      ctx.db.world_resource.insert({
+        id: BigInt(resource.id),
+        kind: resource.kind,
+        tileX: resource.tileX,
+        tileY: resource.tileY,
+        chunkX: Math.floor(resource.tileX / SURVIVAL_CHUNK_TILES),
+        chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
+        health: 3,
+        depleted: false,
+      });
+    }
+  }
   ctx.db.connection_presence_v2.insert({
     connectionId: ctx.connectionId,
     identity: ctx.sender,
     lastSeenAt: ctx.timestamp,
   });
+  let survival = ctx.db.player_survival.identity.find(ctx.sender);
+  const enteringSurvivalWorld = survival === null;
+  if (survival === null) {
+    const occupied = new Set([...ctx.db.player_survival.iter()].map((row) => row.spawnSlot));
+    const spawnSlot = Array.from({ length: 25 }, (_, slot) => slot).find((slot) => !occupied.has(slot));
+    if (spawnSlot === undefined) throw new SenderError('survival_world_full');
+    survival = ctx.db.player_survival.insert({
+      identity: ctx.sender,
+      spawnSlot,
+      wood: 0,
+      stone: 0,
+      selectedSlot: 0,
+    });
+    for (const [slot, itemKind] of HOTBAR_SLOTS.entries()) {
+      ctx.db.inventory_slot.insert({
+        id: `${ctx.sender.toHexString()}:${slot}`,
+        identity: ctx.sender,
+        slot,
+        itemKind,
+        quantity: itemKind === 'empty' ? 0 : 1,
+      });
+    }
+  }
+  const spawn = survivalSpawnPosition(survival.spawnSlot);
+  if (spawn === null) throw new SenderError('invalid_spawn_slot');
   const profile = ctx.db.player_public.identity.find(ctx.sender);
   if (profile === null) {
     ctx.db.player_public.insert({
@@ -250,10 +388,10 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     });
     ctx.db.player_position.insert({
       identity: ctx.sender,
-      x: START_X,
-      y: START_Y,
-      chunkX: 0,
-      chunkY: 0,
+      x: spawn.x,
+      y: spawn.y,
+      chunkX: chunkAt(spawn.x),
+      chunkY: chunkAt(spawn.y),
       facing: 'down',
       moving: false,
       lastProcessedSequence: 0n,
@@ -263,34 +401,39 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
   } else {
     ctx.db.player_public.identity.update({ ...profile, online: true });
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    if (position === null) {
+      ctx.db.player_position.insert({
+        identity: ctx.sender,
+        x: spawn.x,
+        y: spawn.y,
+        chunkX: chunkAt(spawn.x),
+        chunkY: chunkAt(spawn.y),
+        facing: 'down',
+        moving: false,
+        lastProcessedSequence: 0n,
+        authorityTick: 0n,
+      });
+    } else if (enteringSurvivalWorld) {
+      ctx.db.player_position.identity.update({
+        ...position,
+        x: spawn.x,
+        y: spawn.y,
+        chunkX: chunkAt(spawn.x),
+        chunkY: chunkAt(spawn.y),
+        moving: false,
+      });
+    }
+    if (ctx.db.player_input.identity.find(ctx.sender) === null) {
+      ctx.db.player_input.insert({ identity: ctx.sender, direction: 'idle', sequence: 0n });
+    }
+    if (ctx.db.private_inventory.identity.find(ctx.sender) === null) {
+      ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
+    }
   }
   if (ctx.db.farm_activity.identity.find(ctx.sender) === null) {
     ctx.db.farm_activity.insert({ identity: ctx.sender, planted: 0, watered: 0, harvested: 0 });
   }
-  const existingParcel = [...ctx.db.farm_parcel.by_owner.filter(ctx.sender)][0];
-  if (existingParcel !== undefined) return;
-  const occupiedLayouts = new Set(
-    [...ctx.db.farm_parcel.iter()].map((parcel) => `${parcel.originX},${parcel.originY}`),
-  );
-  let layout = null;
-  for (let slot = 0; slot < FARM_COLUMNS * FARM_ROWS; slot += 1) {
-    const candidate = farmParcelLayout(slot);
-    if (candidate !== null && !occupiedLayouts.has(`${candidate.originX},${candidate.originY}`)) {
-      layout = candidate;
-      break;
-    }
-  }
-  if (layout === null) return;
-  const currentProfile = ctx.db.player_public.identity.find(ctx.sender);
-  ctx.db.farm_parcel.insert({
-    id: 0n,
-    owner: ctx.sender,
-    name: `${currentProfile?.displayName ?? 'New Farmer'}'s Farm`,
-    originX: layout.originX,
-    originY: layout.originY,
-    width: layout.width,
-    height: layout.height,
-  });
 });
 
 export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
@@ -360,6 +503,40 @@ export const setInput = spacetimedb.reducer(
     if (input === null) throw new SenderError('player_not_ready');
     if (sequence <= input.sequence) return;
     ctx.db.player_input.identity.update({ ...input, direction, sequence });
+  },
+);
+
+export const selectHotbar = spacetimedb.reducer(
+  { slot: t.u8() },
+  (ctx, { slot }) => {
+    if (slot >= HOTBAR_SLOTS.length) throw new SenderError('invalid_hotbar_slot');
+    const survival = ctx.db.player_survival.identity.find(ctx.sender);
+    if (survival === null) throw new SenderError('player_not_ready');
+    ctx.db.player_survival.identity.update({ ...survival, selectedSlot: slot });
+  },
+);
+
+export const harvestResource = spacetimedb.reducer(
+  { resourceId: t.u64() },
+  (ctx, { resourceId }) => {
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const survival = ctx.db.player_survival.identity.find(ctx.sender);
+    const resource = ctx.db.world_resource.id.find(resourceId);
+    if (position === null || survival === null || resource === null) {
+      throw new SenderError('target_not_ready');
+    }
+    const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const result = resourceHarvestResult(position.x, position.y, slot?.itemKind ?? 'empty', resource);
+    if (result === 'depleted') throw new SenderError('resource_depleted');
+    if (result === 'wrong_tool') throw new SenderError('wrong_tool');
+    if (result === 'out_of_range') throw new SenderError('target_out_of_range');
+
+    if (resource.health > 1) {
+      ctx.db.world_resource.id.update({ ...resource, health: resource.health - 1 });
+      return;
+    }
+    ctx.db.world_resource.id.update({ ...resource, health: 0, depleted: true });
+    ctx.db.player_survival.identity.update({ ...survival, wood: survival.wood + 3 });
   },
 );
 
@@ -486,6 +663,7 @@ export const stepWorld = spacetimedb.reducer(
     if ([...ctx.db.connection_presence_v2.iter()].length === 0) return;
     const authorityTick = clock.authorityTick + 1n;
     ctx.db.world_clock.id.update({ ...clock, authorityTick });
+    const collision = createAuthoritySurvivalCollisionMap([...ctx.db.world_resource.iter()]);
 
     for (const row of ctx.db.player_position.iter()) {
       const online = [
@@ -500,7 +678,7 @@ export const stepWorld = spacetimedb.reducer(
         moving: row.moving,
         location: 'estate',
       };
-      player = advanceAuthorityPlayer(player, direction, WORLD_COLLISION);
+      player = advanceAuthorityPlayer(player, direction, collision);
       ctx.db.player_position.identity.update({
         ...row,
         x: player.position.x,

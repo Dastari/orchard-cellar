@@ -6,13 +6,13 @@ import {
   type SubscriptionHandle,
 } from './generated/index.js';
 import type {
-  CropPatch,
-  FarmActivity,
-  FarmParcel,
+  InventorySlot,
   PlayerPosition,
   PlayerPublic,
+  PlayerSurvival,
   WorldClock,
-  WorldTree,
+  WorldResource,
+  WorldSeed,
 } from './generated/types.js';
 
 const DEFAULT_DATABASE = 'orchard-cellar-world';
@@ -24,10 +24,10 @@ export interface OverworldSnapshot {
   readonly region: readonly [number, number];
   readonly profiles: readonly PlayerPublic[];
   readonly players: readonly PlayerPosition[];
-  readonly parcels: readonly FarmParcel[];
-  readonly crops: readonly CropPatch[];
-  readonly activity: readonly FarmActivity[];
-  readonly trees: readonly WorldTree[];
+  readonly resources: readonly WorldResource[];
+  readonly inventorySlots: readonly InventorySlot[];
+  readonly survival: PlayerSurvival | null;
+  readonly worldSeed: WorldSeed | null;
   readonly clock: WorldClock | null;
 }
 
@@ -43,6 +43,8 @@ export class OverworldConnection {
   private error: string | null = null;
   private identity: Identity | null = null;
   private region: readonly [number, number] = [0, 0];
+  private viewRadius = 1;
+  private subscribedRadius = 0;
   private pendingRegion: string | null = null;
   private regionSubscription: SubscriptionHandle | null = null;
   private heartbeatTimer: number | null = null;
@@ -108,10 +110,12 @@ export class OverworldConnection {
       players: connection === null
         ? []
         : [...connection.db.playerPosition.iter()].filter((row) => online.has(identityHex(row.identity))),
-      parcels: connection === null ? [] : [...connection.db.farmParcel.iter()],
-      crops: connection === null ? [] : [...connection.db.cropPatch.iter()],
-      activity: connection === null ? [] : [...connection.db.farmActivity.iter()],
-      trees: connection === null ? [] : [...connection.db.worldTree.iter()],
+      resources: connection === null ? [] : [...connection.db.worldResource.iter()],
+      inventorySlots: connection === null
+        ? []
+        : [...connection.db.ownInventorySlots.iter()].sort((left, right) => left.slot - right.slot),
+      survival: connection === null ? null : [...connection.db.ownSurvival.iter()][0] ?? null,
+      worldSeed: connection === null ? null : [...connection.db.worldSeed.iter()][0] ?? null,
       clock: connection === null ? null : [...connection.db.worldClock.iter()][0] ?? null,
     };
   }
@@ -128,6 +132,16 @@ export class OverworldConnection {
     this.sendDesiredDirection();
   }
 
+  setViewRadius(radius: number): void {
+    const next = Math.max(1, Math.min(6, Math.ceil(radius)));
+    if (next === this.viewRadius) return;
+    this.viewRadius = next;
+    const position = this.ownPosition();
+    if (position !== null && this.connection !== null) {
+      this.subscribeRegion(this.connection, position.chunkX, position.chunkY);
+    }
+  }
+
   private sendDesiredDirection(): void {
     const connection = this.connection;
     if (!this.connected || !this.inputReady || connection === null) return;
@@ -141,16 +155,16 @@ export class OverworldConnection {
     });
   }
 
-  tendTree(treeId: bigint): Promise<void> {
+  selectHotbar(slot: number): Promise<void> {
     const connection = this.connection;
     if (!this.connected || connection === null) return Promise.reject(new Error('not_connected'));
-    return connection.reducers.tendTree({ treeId }).then(() => undefined);
+    return connection.reducers.selectHotbar({ slot }).then(() => undefined);
   }
 
-  useFarmTile(tileX: number, tileY: number): Promise<void> {
+  harvestResource(resourceId: bigint): Promise<void> {
     const connection = this.connection;
     if (!this.connected || connection === null) return Promise.reject(new Error('not_connected'));
-    return connection.reducers.useFarmTile({ tileX, tileY }).then(() => undefined);
+    return connection.reducers.harvestResource({ resourceId }).then(() => undefined);
   }
 
   private displayName(): string {
@@ -165,7 +179,11 @@ export class OverworldConnection {
         this.error = 'global_subscription_failed';
         this.onChanged();
       })
-      .subscribe([tables.playerPublic, tables.worldClock, tables.farmParcel, tables.farmActivity]);
+      .subscribe([
+        tables.playerPublic,
+        tables.worldClock,
+        tables.worldSeed,
+      ]);
   }
 
   private subscribeSelf(connection: DbConnection, identity: Identity): void {
@@ -189,29 +207,30 @@ export class OverworldConnection {
         this.error = 'self_subscription_failed';
         this.onChanged();
       })
-      .subscribe(tables.playerPosition.where((row) => row.identity.eq(identity)));
+      .subscribe([
+        tables.playerPosition.where((row) => row.identity.eq(identity)),
+        tables.ownSurvival,
+        tables.ownInventorySlots,
+      ]);
   }
 
   private subscribeRegion(connection: DbConnection, chunkX: number, chunkY: number): void {
-    const regionKey = `${chunkX},${chunkY}`;
+    const radius = this.viewRadius;
+    const regionKey = `${chunkX},${chunkY},${radius}`;
     if (
       this.pendingRegion === regionKey ||
-      (`${this.region[0]},${this.region[1]}` === regionKey && this.regionSubscription !== null)
+      (`${this.region[0]},${this.region[1]},${this.subscribedRadius}` === regionKey && this.regionSubscription !== null)
     ) return;
     this.pendingRegion = regionKey;
     const positions = [];
-    const trees = [];
-    const crops = [];
-    for (let y = chunkY - 1; y <= chunkY + 1; y += 1) {
-      for (let x = chunkX - 1; x <= chunkX + 1; x += 1) {
+    const resources = [];
+    for (let y = chunkY - radius; y <= chunkY + radius; y += 1) {
+      for (let x = chunkX - radius; x <= chunkX + radius; x += 1) {
         positions.push(
           tables.playerPosition.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)),
         );
-        trees.push(
-          tables.worldTree.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)),
-        );
-        crops.push(
-          tables.cropPatch.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)),
+        resources.push(
+          tables.worldResource.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)),
         );
       }
     }
@@ -219,6 +238,7 @@ export class OverworldConnection {
     this.regionSubscription = connection.subscriptionBuilder()
       .onApplied(() => {
         this.region = [chunkX, chunkY];
+        this.subscribedRadius = radius;
         this.pendingRegion = null;
         if (previous?.isActive()) previous.unsubscribe();
         this.onChanged();
@@ -228,7 +248,7 @@ export class OverworldConnection {
         this.error = 'region_subscription_failed';
         this.onChanged();
       })
-      .subscribe([...positions, ...trees, ...crops]);
+      .subscribe([...positions, ...resources]);
   }
 
   private bindTableEvents(connection: DbConnection): void {
@@ -236,20 +256,19 @@ export class OverworldConnection {
     connection.db.playerPublic.onInsert(changed);
     connection.db.playerPublic.onUpdate(changed);
     connection.db.playerPublic.onDelete(changed);
-    connection.db.worldTree.onInsert(changed);
-    connection.db.worldTree.onUpdate(changed);
-    connection.db.worldTree.onDelete(changed);
-    connection.db.farmParcel.onInsert(changed);
-    connection.db.farmParcel.onUpdate(changed);
-    connection.db.farmParcel.onDelete(changed);
-    connection.db.cropPatch.onInsert(changed);
-    connection.db.cropPatch.onUpdate(changed);
-    connection.db.cropPatch.onDelete(changed);
-    connection.db.farmActivity.onInsert(changed);
-    connection.db.farmActivity.onUpdate(changed);
-    connection.db.farmActivity.onDelete(changed);
     connection.db.worldClock.onInsert(changed);
     connection.db.worldClock.onUpdate(changed);
+    connection.db.worldSeed.onInsert(changed);
+    connection.db.worldSeed.onUpdate(changed);
+    connection.db.worldResource.onInsert(changed);
+    connection.db.worldResource.onUpdate(changed);
+    connection.db.worldResource.onDelete(changed);
+    connection.db.ownSurvival.onInsert(changed);
+    connection.db.ownSurvival.onUpdate(changed);
+    connection.db.ownSurvival.onDelete(changed);
+    connection.db.ownInventorySlots.onInsert(changed);
+    connection.db.ownInventorySlots.onUpdate(changed);
+    connection.db.ownInventorySlots.onDelete(changed);
     connection.db.playerPosition.onInsert((_context, row) => {
       this.updateRegionFor(row);
       changed();

@@ -56,11 +56,26 @@ export const FarmParcel = __t.object("FarmParcel", {
 });
 export type FarmParcel = __Infer<typeof FarmParcel>;
 
+export const InventorySlot = __t.object("InventorySlot", {
+  id: __t.string(),
+  identity: __t.identity(),
+  slot: __t.u8(),
+  itemKind: __t.string(),
+  quantity: __t.u16(),
+});
+export type InventorySlot = __Infer<typeof InventorySlot>;
+
 export const MovementTimer = __t.object("MovementTimer", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
 });
 export type MovementTimer = __Infer<typeof MovementTimer>;
+
+export const OwnInventorySlots = __t.object("OwnInventorySlots", {});
+export type OwnInventorySlots = __Infer<typeof OwnInventorySlots>;
+
+export const OwnSurvival = __t.object("OwnSurvival", {});
+export type OwnSurvival = __Infer<typeof OwnSurvival>;
 
 export const PlayerInput = __t.object("PlayerInput", {
   identity: __t.identity(),
@@ -89,6 +104,15 @@ export const PlayerPublic = __t.object("PlayerPublic", {
 });
 export type PlayerPublic = __Infer<typeof PlayerPublic>;
 
+export const PlayerSurvival = __t.object("PlayerSurvival", {
+  identity: __t.identity(),
+  spawnSlot: __t.u8(),
+  wood: __t.u32(),
+  stone: __t.u32(),
+  selectedSlot: __t.u8(),
+});
+export type PlayerSurvival = __Infer<typeof PlayerSurvival>;
+
 export const PrivateInventory = __t.object("PrivateInventory", {
   identity: __t.identity(),
   fruit: __t.u64(),
@@ -102,6 +126,25 @@ export const WorldClock = __t.object("WorldClock", {
   authorityTick: __t.u64(),
 });
 export type WorldClock = __Infer<typeof WorldClock>;
+
+export const WorldResource = __t.object("WorldResource", {
+  id: __t.u64(),
+  kind: __t.string(),
+  tileX: __t.i16(),
+  tileY: __t.i16(),
+  chunkX: __t.i16(),
+  chunkY: __t.i16(),
+  health: __t.u8(),
+  depleted: __t.bool(),
+});
+export type WorldResource = __Infer<typeof WorldResource>;
+
+export const WorldSeed = __t.object("WorldSeed", {
+  id: __t.u8(),
+  seed: __t.u32(),
+  version: __t.u16(),
+});
+export type WorldSeed = __Infer<typeof WorldSeed>;
 
 export const WorldTree = __t.object("WorldTree", {
   id: __t.u64(),

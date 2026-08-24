@@ -10,6 +10,7 @@ import {
   survivalClearingAt,
   survivalClearings,
   survivalSpawnPosition,
+  survivalTrailAt,
   survivalTerrainBytes,
   type SurvivalBiome,
 } from './survival-world.js';
@@ -55,6 +56,32 @@ describe('deterministic survival island', () => {
       }
     }
     expect(survivalSpawnPosition(25)).toBeNull();
+  });
+
+  it('connects all 25 clearings with walkable resource-free trails', () => {
+    const collision = createSurvivalCollisionMap();
+    const clearings = survivalClearings();
+    const first = clearings[0];
+    if (!first) throw new Error('missing first clearing');
+    const visited = new Set([`${first.tileX},${first.tileY}`]);
+    const queue = [{ x: first.tileX, y: first.tileY }];
+    for (let index = 0; index < queue.length; index += 1) {
+      const point = queue[index];
+      if (!point) continue;
+      for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+        const x = point.x + dx;
+        const y = point.y + dy;
+        const key = `${x},${y}`;
+        if (visited.has(key) || collision.blocked[y * collision.width + x]) continue;
+        visited.add(key);
+        queue.push({ x, y });
+      }
+    }
+    expect(clearings.every((clearing) => visited.has(`${clearing.tileX},${clearing.tileY}`))).toBe(true);
+    expect(survivalTrailAt(60, 48)).toBe(true);
+    expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, 60, 48)).toBeNull();
+    expect(survivalTrailAt(47, 60)).toBe(true);
+    expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, 47, 60)).toBeNull();
   });
 
   it('adds live resource bases to terrain collision and removes depleted bases', () => {

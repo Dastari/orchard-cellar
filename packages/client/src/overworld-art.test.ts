@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { avatarFrameIndex, canonicalBlob47Index, isOverworldRoad } from './overworld-art.js';
+import { avatarFrameIndex, canonicalBlob47Index, isOverworldRoad, sortWorldDrawItems } from './overworld-art.js';
 
 describe('overworld art topology', () => {
   it('uses the generated atlas canonical blob ordering', () => {
@@ -20,5 +20,13 @@ describe('overworld art topology', () => {
     expect(avatarFrameIndex(false, 0)).toBe(0);
     expect(avatarFrameIndex(false, 999)).toBe(0);
     expect(avatarFrameIndex(true, 8)).toBe(1);
+  });
+
+  it('sorts world objects by foot point with a deterministic tie-break', () => {
+    expect(sortWorldDrawItems([
+      { footY: 32, tie: 'player' },
+      { footY: 16, tie: 'tree' },
+      { footY: 32, tie: 'apple' },
+    ]).map((item) => item.tie)).toEqual(['tree', 'apple', 'player']);
   });
 });

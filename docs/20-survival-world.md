@@ -21,7 +21,9 @@ become later homestead content inside this world.
 There are 25 deterministic clearings on a 5×5 interior grid. A durable identity is
 assigned one slot transactionally on first survival-world entry and returns there only
 for initial spawn/recovery. Each radius-5 clearing is forced walkable plains and has no
-generated resources. Claiming, building, and farm ownership inside/around a clearing
+generated resources. Narrow resource-free plains trails connect the clearing grid so
+forest generation can never enclose a player; forests remain dense visual regions but
+tree occupancy is capped below wall-forming density. Claiming, building, and farm ownership inside/around a clearing
 remain M7a work; the M5.7 slice does not grant land permissions.
 
 ## 3. Terrain and resource collision

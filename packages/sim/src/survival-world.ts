@@ -2,7 +2,7 @@ import { TILE_SIZE_FIXED, type CollisionMap } from './state.js';
 
 export const SURVIVAL_WORLD_SIZE = 192;
 export const SURVIVAL_WORLD_SEED = 0x4f434852;
-export const SURVIVAL_WORLD_VERSION = 1;
+export const SURVIVAL_WORLD_VERSION = 3;
 export const SURVIVAL_CHUNK_TILES = 16;
 
 export type SurvivalBiome =
@@ -72,6 +72,18 @@ export function survivalClearingAt(tileX: number, tileY: number): SurvivalCleari
   return null;
 }
 
+/** A narrow shared trail network prevents resource clusters from enclosing a spawn. */
+export function survivalTrailAt(tileX: number, tileY: number): boolean {
+  const first = 48;
+  const last = 144;
+  if (tileX < first - 1 || tileX > last + 1 || tileY < first - 1 || tileY > last + 1) return false;
+  const nearGridLine = (value: number): boolean => {
+    const offset = (value - first) % 24;
+    return (offset >= -1 && offset <= 1) || offset >= 23;
+  };
+  return nearGridLine(tileX) || nearGridLine(tileY);
+}
+
 export function survivalSpawnPosition(slot: number): { readonly x: number; readonly y: number } | null {
   const clearing = survivalClearings()[slot];
   if (!clearing) return null;
@@ -84,6 +96,7 @@ export function survivalSpawnPosition(slot: number): { readonly x: number; reado
 export function survivalBiomeAt(seed: number, tileX: number, tileY: number): SurvivalBiome {
   if (tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return 'water';
   if (survivalClearingAt(tileX, tileY)) return 'plains';
+  if (survivalTrailAt(tileX, tileY)) return 'plains';
   if (tileX < 3 || tileY < 3 || tileX >= SURVIVAL_WORLD_SIZE - 3 || tileY >= SURVIVAL_WORLD_SIZE - 3) return 'water';
 
   const doubledX = tileX * 2 - (SURVIVAL_WORLD_SIZE - 1);
@@ -116,9 +129,9 @@ export function survivalBiomeBlocksMovement(biome: SurvivalBiome): boolean {
 }
 
 export function generatedSurvivalResourceAt(seed: number, tileX: number, tileY: number): GeneratedSurvivalResource | null {
-  if (survivalClearingAt(tileX, tileY)) return null;
+  if (survivalClearingAt(tileX, tileY) || survivalTrailAt(tileX, tileY)) return null;
   const biome = survivalBiomeAt(seed, tileX, tileY);
-  const chance = biome === 'forest' ? 38 : biome === 'meadow' ? 8 : biome === 'highland' ? 5 : biome === 'plains' ? 2 : 0;
+  const chance = biome === 'forest' ? 22 : biome === 'meadow' ? 6 : biome === 'highland' ? 4 : biome === 'plains' ? 2 : 0;
   if (chance === 0 || hash(seed ^ 0x2ec931ad, tileX, tileY) % 100 >= chance) return null;
   return {
     id: tileY * SURVIVAL_WORLD_SIZE + tileX + 1,

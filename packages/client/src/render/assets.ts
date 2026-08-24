@@ -72,16 +72,21 @@ async function loadManifest(): Promise<BuiltAtlasManifest> {
   return await manifestPromise;
 }
 
-async function loadImage(filename: string): Promise<HTMLImageElement> {
-  const existing = imagePromises.get(filename);
+export function atlasImageUrl(filename: string, revision: string): string {
+  return `/generated/${filename}?rev=${encodeURIComponent(revision)}`;
+}
+
+async function loadImage(filename: string, revision: string): Promise<HTMLImageElement> {
+  const url = atlasImageUrl(filename, revision);
+  const existing = imagePromises.get(url);
   if (existing) return await existing;
   const promise = new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error(`Unable to load atlas image ${filename}`));
-    image.src = `/generated/${filename}`;
+    image.src = url;
   });
-  imagePromises.set(filename, promise);
+  imagePromises.set(url, promise);
   return await promise;
 }
 
@@ -137,7 +142,7 @@ async function loadRecord(
 ): Promise<LoadedAsset> {
   const filename = manifest.atlases[`${record.category}:${season}`];
   if (!filename) throw new Error(`Atlas not found for ${record.category}:${season}`);
-  const image = await loadImage(filename);
+  const image = await loadImage(filename, manifest.revision);
   return {
     assetId: record.assetId,
     name,

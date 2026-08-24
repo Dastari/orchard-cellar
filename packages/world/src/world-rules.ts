@@ -1,5 +1,8 @@
 import {
+  SURVIVAL_WORLD_SEED,
+  SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
+  createSurvivalCollisionMap,
   movePlayer,
   type CollisionMap,
   type Direction,
@@ -20,6 +23,41 @@ export const FARM_HEIGHT_TILES = 14;
 export const FARM_GAP_TILES = 2;
 export const FARM_FIRST_TILE = 1;
 export const PRESENCE_LEASE_MICROS = 30_000_000n;
+const SURVIVAL_TERRAIN_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
+
+export interface AuthoritySurvivalResource {
+  readonly tileX: number;
+  readonly tileY: number;
+  readonly depleted: boolean;
+}
+
+export function createAuthoritySurvivalCollisionMap(
+  resources: readonly AuthoritySurvivalResource[],
+): CollisionMap {
+  const blocked = [...SURVIVAL_TERRAIN_COLLISION.blocked];
+  for (const resource of resources) {
+    if (resource.depleted || resource.tileX < 0 || resource.tileY < 0
+      || resource.tileX >= SURVIVAL_WORLD_SIZE || resource.tileY >= SURVIVAL_WORLD_SIZE) continue;
+    blocked[resource.tileY * SURVIVAL_WORLD_SIZE + resource.tileX] = true;
+  }
+  return { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE, blocked };
+}
+
+export function resourceHarvestResult(
+  playerX: number,
+  playerY: number,
+  selectedItem: string,
+  resource: { readonly kind: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean },
+): 'ok' | 'depleted' | 'wrong_tool' | 'out_of_range' {
+  if (resource.depleted) return 'depleted';
+  if (resource.kind !== 'tree' || selectedItem !== 'axe') return 'wrong_tool';
+  const resourceX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const resourceY = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const dx = resourceX - playerX;
+  const dy = resourceY - playerY;
+  if (dx * dx + dy * dy > TREE_REACH_FIXED * TREE_REACH_FIXED) return 'out_of_range';
+  return 'ok';
+}
 
 export interface FarmParcelLayout {
   readonly originX: number;
