@@ -16,6 +16,8 @@ import {
   OFFLINE_EFFICIENCY,
   OFF_SEASON_MULTIPLIER,
   POMACE_YIELD,
+  MULCH_POMACE_COST,
+  PLOT_CLEARINGS,
   PRESS_BALANCE,
   PRESS_COST_GROWTH,
   PRESS_MUST_YIELD,
@@ -27,6 +29,7 @@ import {
   VIGOUR_CHARGE_PER_SECOND,
   VIGOUR_PARTIAL_SECONDS,
   WINTER_AGING_MULTIPLIER,
+  WORKBENCH_UPGRADES,
   YOUNG_PRODUCTION_MULTIPLIER,
   equipmentMilestoneMultiplier,
   lineageSeeds,
@@ -79,6 +82,18 @@ describe('06 golden balance tables', () => {
     expect(AUTUMN_CHAIN_STEP).toBe(0.1);
     expect(AUTUMN_CHAIN_CAP).toBe(2);
     expect(WINTER_AGING_MULTIPLIER).toBe(1.6);
+  });
+
+  it('06§2 workbench, yard, cellar, mulch, and plot upgrades', () => {
+    expect(WORKBENCH_UPGRADES.map(({ cost }) => cost)).toEqual([75, 450, 3_000, 20_000, 140_000, 75, 500, 4_000, 250, 1_800, 13_000]);
+    expect(WORKBENCH_UPGRADES.slice(0, 5).map(({ currency }) => currency)).toEqual(['fruit', 'fruit', 'fruit', 'fruit', 'fruit']);
+    expect(WORKBENCH_UPGRADES.slice(5, 8).map(({ currency }) => currency)).toEqual(['pomace', 'pomace', 'pomace']);
+    expect(WORKBENCH_UPGRADES.slice(8).map(({ effect }) => effect)).toEqual([0.15, 0.25, 0.4]);
+    expect(PLOT_CLEARINGS).toEqual([
+      { plots: 15, fruitCost: 0 }, { plots: 30, fruitCost: 2_000 }, { plots: 60, fruitCost: 16_000 },
+      { plots: 90, fruitCost: 130_000 }, { plots: 120, fruitCost: 1_000_000 },
+    ]);
+    expect(MULCH_POMACE_COST).toBe(5);
   });
 
   it('06§4 prestige formulas quote the table', () => {

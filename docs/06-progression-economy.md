@@ -48,7 +48,8 @@ a fixed-point fractional accumulator). Nothing exceeds 2^53.
 - Per-species milestones at 5/10/15 planted: that species ×2 each; at **25**: ×3
   (endgame target, not a per-Vintage expectation — PDF §7).
 - Care multiplies ×1.0–×2.0 ([04](04-orchard-design.md) §3). Season: featured ×1.6
-  (+ skill), off-season ×0.85.
+  (+ skill), off-season ×0.85. Species whose table trait names a season use that
+  more-specific ×1.8 value instead of ×1.6; the two bonuses do not stack.
 
 ### Presses (first Basket Press: repaired for 50 fruit, one time; all others cost Pomace)
 
@@ -77,6 +78,28 @@ owned: ×2/×2/×3 that tier.
 Cost ×1.35 per same tier. Bottles = must aged × **bottleValue 0.1** (upgrades/skills
 to ~0.4). Milestones as presses. Cellar digs: level 2 = 500 bottles, level 3 =
 25,000 bottles (bottle sink — spend vs. score).
+
+### Workbench, capacity, and compost upgrades
+
+The original draft referenced this table from 04 without including it. Costs keep
+each stage funded by its own capital and follow the documented ×6–8 tier spacing.
+
+| Upgrade | Currency | Cost | Rule |
+|---|---:|---:|---|
+| Pruning Shears | Fruit | 75 | Care decay interval 2 → 3 days |
+| Tall Ladders | Fruit | 450 | Harvest interaction radius 2 → 4 tiles |
+| Irrigation | Fruit | 3,000 | Halves the off-season penalty |
+| Bee Boost | Fruit | 20,000 | Blossom-adjacent trees +10% fruit |
+| Cart & Mule | Fruit | 140,000 | Automatically hauls harvested Fruit to the hopper |
+| Copper Pipe | Pomace | 75 | Routes yard Must directly to the cellar bank |
+| Yard Expansion I / II | Pomace | 500 / 4,000 | Press pads 5 → 8 → 12 |
+| Cork Bench | Must | 250 | bottleValue 0.10 → 0.15 |
+| Blending Bench | Must | 1,800 | bottleValue → 0.25 |
+| Cellar Book | Must | 13,000 | bottleValue → 0.40 |
+
+Compost mulch costs **5 Pomace per tree** and holds Care decay for three days.
+Plot clearing is permanent spatial progress: 15 plots initially, then 30 / 60 /
+90 / 120 plots for 2,000 / 16,000 / 130,000 / 1,000,000 Fruit.
 
 ## 3. Vigour & tending
 

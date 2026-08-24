@@ -78,6 +78,43 @@ export const PRESS_MUST_YIELD = 0.5;
 export const POMACE_YIELD = 0.15;
 export const BOTTLE_VALUE = 0.1;
 export const CELLAR_DIG_COSTS = [0, 500, 25_000] as const;
+export const MULCH_POMACE_COST = 5;
+
+export type UpgradeCurrency = 'fruit' | 'pomace' | 'must' | 'bottles';
+export type WorkbenchUpgradeId =
+  | 'pruningShears' | 'tallLadders' | 'irrigation' | 'beeBoost' | 'cartMule'
+  | 'copperPipe' | 'yardExpansion1' | 'yardExpansion2'
+  | 'corkBench' | 'blendingBench' | 'cellarBook';
+
+export interface WorkbenchUpgradeBalance {
+  readonly id: WorkbenchUpgradeId;
+  readonly name: string;
+  readonly currency: UpgradeCurrency;
+  readonly cost: number;
+  readonly effect: number;
+}
+
+export const WORKBENCH_UPGRADES: readonly WorkbenchUpgradeBalance[] = [
+  { id: 'pruningShears', name: 'Pruning Shears', currency: 'fruit', cost: 75, effect: 3 },
+  { id: 'tallLadders', name: 'Tall Ladders', currency: 'fruit', cost: 450, effect: 4 },
+  { id: 'irrigation', name: 'Irrigation', currency: 'fruit', cost: 3_000, effect: 0.5 },
+  { id: 'beeBoost', name: 'Bee Boost', currency: 'fruit', cost: 20_000, effect: 0.1 },
+  { id: 'cartMule', name: 'Cart & Mule', currency: 'fruit', cost: 140_000, effect: 1 },
+  { id: 'copperPipe', name: 'Copper Pipe', currency: 'pomace', cost: 75, effect: 1 },
+  { id: 'yardExpansion1', name: 'Yard Expansion I', currency: 'pomace', cost: 500, effect: 3 },
+  { id: 'yardExpansion2', name: 'Yard Expansion II', currency: 'pomace', cost: 4_000, effect: 4 },
+  { id: 'corkBench', name: 'Cork Bench', currency: 'must', cost: 250, effect: 0.15 },
+  { id: 'blendingBench', name: 'Blending Bench', currency: 'must', cost: 1_800, effect: 0.25 },
+  { id: 'cellarBook', name: 'Cellar Book', currency: 'must', cost: 13_000, effect: 0.4 },
+] as const;
+
+export const PLOT_CLEARINGS = [
+  { plots: 15, fruitCost: 0 },
+  { plots: 30, fruitCost: 2_000 },
+  { plots: 60, fruitCost: 16_000 },
+  { plots: 90, fruitCost: 130_000 },
+  { plots: 120, fruitCost: 1_000_000 },
+] as const;
 export const CARE_MULTIPLIERS = [1, 1.25, 1.5, 2] as const;
 export const CARE_DECAY_DAYS = 2;
 export const MULCH_HOLD_DAYS = 3;
