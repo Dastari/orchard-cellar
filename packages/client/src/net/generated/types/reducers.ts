@@ -10,9 +10,11 @@ import HeartbeatReducer from "../heartbeat_reducer";
 import SetDisplayNameReducer from "../set_display_name_reducer";
 import SetInputReducer from "../set_input_reducer";
 import TendTreeReducer from "../tend_tree_reducer";
+import UseFarmTileReducer from "../use_farm_tile_reducer";
 
 export type HeartbeatParams = __Infer<typeof HeartbeatReducer>;
 export type SetDisplayNameParams = __Infer<typeof SetDisplayNameReducer>;
 export type SetInputParams = __Infer<typeof SetInputReducer>;
 export type TendTreeParams = __Infer<typeof TendTreeReducer>;
+export type UseFarmTileParams = __Infer<typeof UseFarmTileReducer>;
 

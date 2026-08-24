@@ -9,9 +9,15 @@ import {
   AUTHORITY_HZ,
   CHUNK_SIZE_FIXED,
   advanceAuthorityPlayer,
+  canUseFarmTile,
   canTendTree,
   chunkAt,
+  cropStage,
+  CROP_GROWTH_TICKS,
+  createMmoFarmCollisionMap,
   decodeDirection,
+  farmParcelLayout,
+  isFarmBedTile,
   presenceLeaseExpired,
 } from './world-rules.js';
 
@@ -56,5 +62,35 @@ describe('overworld authority rules', () => {
   it('expires crash ghosts after the heartbeat lease, not at its boundary', () => {
     expect(presenceLeaseExpired(1_000_000n, 31_000_000n)).toBe(false);
     expect(presenceLeaseExpired(1_000_000n, 31_000_001n)).toBe(true);
+  });
+
+  it('lays out 25 non-overlapping farms and validates only authored bed tiles', () => {
+    const parcels = Array.from({ length: 25 }, (_, slot) => farmParcelLayout(slot));
+    expect(parcels.every((parcel) => parcel !== null)).toBe(true);
+    expect(farmParcelLayout(25)).toBeNull();
+    const first = parcels[0];
+    const second = parcels[1];
+    if (first === undefined || first === null || second === undefined || second === null) {
+      throw new Error('missing fixture parcel');
+    }
+    expect(second.originX).toBeGreaterThanOrEqual(first.originX + first.width);
+    expect(isFarmBedTile(first, first.originX + 2, first.originY + 5)).toBe(true);
+    expect(isFarmBedTile(first, first.originX + 1, first.originY + 5)).toBe(false);
+  });
+
+  it('keeps farm use within authoritative reach and derives growth from the world clock', () => {
+    expect(canUseFarmTile(4 * TILE_SIZE_FIXED, 4 * TILE_SIZE_FIXED, 6, 4)).toBe(true);
+    expect(canUseFarmTile(4 * TILE_SIZE_FIXED, 4 * TILE_SIZE_FIXED, 7, 4)).toBe(false);
+    expect(cropStage(10n, 10n)).toBe(0);
+    expect(cropStage(10n, 10n + CROP_GROWTH_TICKS / 3n)).toBe(1);
+    expect(cropStage(10n, 10n + CROP_GROWTH_TICKS * 2n / 3n)).toBe(2);
+    expect(cropStage(10n, 10n + CROP_GROWTH_TICKS)).toBe(3);
+    expect(cropStage(0n, CROP_GROWTH_TICKS)).toBe(3);
+  });
+
+  it('uses only world bounds as collision in the open farm sample', () => {
+    const collision = createMmoFarmCollisionMap(80, 80);
+    expect(collision.blocked[0]).toBe(true);
+    expect(collision.blocked[16 * collision.width + 24]).toBe(false);
   });
 });

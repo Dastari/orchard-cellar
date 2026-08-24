@@ -80,13 +80,18 @@ position before accepting input.
 
 1. **M5.5 complete:** durable shared chunk, two predicted avatars, shared atomic tree,
    reconnect, restart persistence, private-state isolation.
-2. **M6:** OIDC + friends allowlist, owned farm/public/private tables, local-save
+2. **M5.6 complete, owner-directed sample:** up to 25 persistent adjacent parcel
+   slots, live crop stages, owner plant/harvest, and nearby-friend watering. This is
+   deliberately one reducer and one crop type; it proves the contiguous farm loop
+   before the complete permission matrix and economy move server-side.
+3. **M6:** OIDC + friends allowlist, owned farm/public/private tables, local-save
    import, farm timestamp adapter, self-host deploy and backup/restore.
-3. **M7a:** authored overworld chunks and contiguous estate parcels; 25-client load
+4. **M7a:** authored overworld chunks and production contiguous estate parcels;
+   replace the sample geometry with the approved Cute Fantasy-derived tilemaps; 25-client load
    harness and latency/reconciliation controls.
-4. **M7b:** estate access modes and visitor/helper/steward reducer matrix.
-5. **M7c:** friends UI, guestbook, gifts, tasting, proximity chat, blocks/moderation.
-6. **M7d:** co-op festivals, reconnect/rollback soak, owner host tools.
+5. **M7b:** estate access modes and visitor/helper/steward reducer matrix.
+6. **M7c:** friends UI, guestbook, gifts, tasting, proximity chat, blocks/moderation.
+7. **M7d:** co-op festivals, reconnect/rollback soak, owner host tools.
 
 ## 7. Required tests
 

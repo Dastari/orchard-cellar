@@ -119,6 +119,29 @@ preserved exact player/tree rows. The module imports shared fixed-point movement
 its replay test proves 20 Hz authority matches 60 Hz sim movement. The final browser
 snapshot showed `WORLD ONLINE PLAYERS 2` after the one-command dev boot.
 
+## M5.6 — Playable MMO farm sample `✅ complete (codex, 2026-08-24)`
+
+Owner-directed narrow M7a slice, pulled forward while the Cute Fantasy pack is being
+split into production tilesets by a separate visual agent. The shared world exposes
+up to 25 persistent adjacent parcel slots. Owners plant and harvest; any nearby
+friend may water; growth derives from the authoritative world clock and every action
+is one atomic `use_farm_tile` transaction. This sample intentionally has one crop,
+infinite seed stock, and no role editor—the full farm economy and permission matrix
+remain M6/M7 work.
+
+**Done when:** two live identities walk between named farms; an owner plants, a friend
+waters, a premature or non-owner harvest is rejected, and the owner harvests after
+the visible crop reaches maturity. State and activity counters replicate to both
+clients and persist in SpaceTimeDB.
+
+**Verification:** Shared-browser play rendered three adjacent named farms and live
+players in one canvas. Bob planted/watered a crop; Alice crossed the roads and watered
+Bob's dry crop; Alice received `owner_only_harvest` at maturity; Bob harvested his
+own crop. Both clients observed deletion and durable counters showed Alice watering
+and Bob planting, watering, and harvesting. The generated protocol exposes no
+position setter; crop reach, 25-parcel layout, clock stages, and bounds are covered by
+deterministic tests.
+
 ## M6 — Accounts, farm authority & persistence `☐`
 OIDC + owner-managed friends allowlist per [09-auth.md](09-auth.md); normalized owned
 farm/public/private tables per [08-database.md](08-database.md); caller-dependent

@@ -23,6 +23,39 @@ export const ConnectionPresenceV2 = __t.object("ConnectionPresenceV2", {
 });
 export type ConnectionPresenceV2 = __Infer<typeof ConnectionPresenceV2>;
 
+export const CropPatch = __t.object("CropPatch", {
+  id: __t.u64(),
+  parcelId: __t.u64(),
+  owner: __t.identity(),
+  tileX: __t.i16(),
+  tileY: __t.i16(),
+  chunkX: __t.i16(),
+  chunkY: __t.i16(),
+  plantedAtTick: __t.u64(),
+  watered: __t.bool(),
+  wateredAtTick: __t.u64(),
+});
+export type CropPatch = __Infer<typeof CropPatch>;
+
+export const FarmActivity = __t.object("FarmActivity", {
+  identity: __t.identity(),
+  planted: __t.u32(),
+  watered: __t.u32(),
+  harvested: __t.u32(),
+});
+export type FarmActivity = __Infer<typeof FarmActivity>;
+
+export const FarmParcel = __t.object("FarmParcel", {
+  id: __t.u64(),
+  owner: __t.identity(),
+  name: __t.string(),
+  originX: __t.i16(),
+  originY: __t.i16(),
+  width: __t.u8(),
+  height: __t.u8(),
+});
+export type FarmParcel = __Infer<typeof FarmParcel>;
+
 export const MovementTimer = __t.object("MovementTimer", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),

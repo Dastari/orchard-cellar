@@ -1,9 +1,13 @@
 import { DbConnection, tables } from '../packages/client/src/net/generated/index.js';
+import { TILE_SIZE_FIXED } from '../packages/sim/src/index.js';
+import { readFile, writeFile } from 'node:fs/promises';
 import type { Identity } from 'spacetimedb';
 
 const HOST = process.env['SPACETIMEDB_HOST'] ?? 'http://127.0.0.1:3000';
 const DATABASE = process.env['SPACETIMEDB_DATABASE'] ?? 'orchard-cellar-world';
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 30_000;
+const TOKEN_CACHE_PATH = process.env['WORLD_SMOKE_TOKEN_CACHE'] ?? '.world-smoke-tokens.json';
+const TOKEN_CACHE_KEY = `${HOST}|${DATABASE}`;
 
 interface ConnectedClient {
   readonly connection: DbConnection;
@@ -12,13 +16,44 @@ interface ConnectedClient {
   readonly token: string;
 }
 
+interface Sequence {
+  value: bigint;
+}
+
+interface SmokeTokens {
+  readonly alice: string;
+  readonly bob: string;
+}
+
+async function loadTokenCache(): Promise<Record<string, SmokeTokens>> {
+  try {
+    const parsed = JSON.parse(await readFile(TOKEN_CACHE_PATH, 'utf8')) as unknown;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+    return parsed as Record<string, SmokeTokens>;
+  } catch {
+    return {};
+  }
+}
+
+async function saveTokens(cache: Record<string, SmokeTokens>, tokens: SmokeTokens): Promise<void> {
+  cache[TOKEN_CACHE_KEY] = tokens;
+  await writeFile(TOKEN_CACHE_PATH, `${JSON.stringify(cache, null, 2)}\n`, { mode: 0o600 });
+}
+
 function timeout<T>(label: string, promise: Promise<T>): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_resolve, reject) => {
-      setTimeout(() => reject(new Error(`${label}_timeout`)), TIMEOUT_MS);
-    }),
-  ]);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label}_timeout`)), TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 function connect(token?: string): Promise<ConnectedClient> {
@@ -40,7 +75,15 @@ function subscribeWorld(client: ConnectedClient): Promise<void> {
     client.connection.subscriptionBuilder()
       .onApplied(() => resolve())
       .onError((context) => reject(new Error(String(context.event))))
-      .subscribe([tables.playerPublic, tables.playerPosition, tables.worldTree, tables.worldClock]);
+      .subscribe([
+        tables.playerPublic,
+        tables.playerPosition,
+        tables.worldTree,
+        tables.worldClock,
+        tables.farmParcel,
+        tables.cropPatch,
+        tables.farmActivity,
+      ]);
   }));
 }
 
@@ -61,6 +104,37 @@ async function waitUntil(label: string, condition: () => boolean): Promise<void>
   }
 }
 
+async function moveNear(
+  client: ConnectedClient,
+  sequence: Sequence,
+  tileX: number,
+  tileY: number,
+): Promise<void> {
+  const moveAxis = async (axis: 'x' | 'y', target: number): Promise<void> => {
+    const row = client.connection.db.playerPosition.identity.find(client.identity);
+    if (row === null) throw new Error('farm_move_position_missing');
+    const current = axis === 'x' ? row.x : row.y;
+    if (Math.abs(current - target) <= TILE_SIZE_FIXED) return;
+    const direction = axis === 'x'
+      ? current < target ? 'right' : 'left'
+      : current < target ? 'down' : 'up';
+    sequence.value += 1n;
+    await client.connection.reducers.setInput({ direction, sequence: sequence.value });
+    await waitUntil(`farm_move_${axis}`, () => {
+      const position = client.connection.db.playerPosition.identity.find(client.identity);
+      if (position === null) return false;
+      return Math.abs((axis === 'x' ? position.x : position.y) - target) <= TILE_SIZE_FIXED;
+    });
+    sequence.value += 1n;
+    await client.connection.reducers.setInput({ direction: 'idle', sequence: sequence.value });
+    await waitUntil(`farm_move_${axis}_idle`, () => {
+      return client.connection.db.playerPosition.identity.find(client.identity)?.lastProcessedSequence === sequence.value;
+    });
+  };
+  await moveAxis('x', tileX * TILE_SIZE_FIXED);
+  await moveAxis('y', tileY * TILE_SIZE_FIXED);
+}
+
 function privateInventoryIsRejected(client: ConnectedClient): Promise<boolean> {
   return timeout('private_subscription', new Promise((resolve) => {
     client.connection.subscriptionBuilder()
@@ -71,7 +145,16 @@ function privateInventoryIsRejected(client: ConnectedClient): Promise<boolean> {
 }
 
 async function main(): Promise<void> {
-  const [alice, bob] = await Promise.all([connect(), connect()]);
+  const tokenCache = await loadTokenCache();
+  const cached = tokenCache[TOKEN_CACHE_KEY];
+  const aliceToken = process.env['WORLD_SMOKE_ALICE_TOKEN'] ?? cached?.alice;
+  const bobToken = process.env['WORLD_SMOKE_BOB_TOKEN'] ?? cached?.bob;
+  const [alice, bob] = await Promise.all([connect(aliceToken), connect(bobToken)]);
+  await saveTokens(tokenCache, { alice: alice.token, bob: bob.token });
+  const heartbeatTimer = setInterval(() => {
+    void alice.connection.reducers.heartbeat({}).catch(() => undefined);
+    void bob.connection.reducers.heartbeat({}).catch(() => undefined);
+  }, 10_000);
   try {
     if (alice.identityHex === bob.identityHex) throw new Error('identities_not_distinct');
     await Promise.all([subscribeWorld(alice), subscribeWorld(bob)]);
@@ -80,6 +163,17 @@ async function main(): Promise<void> {
     if (reducerNames.some((name) => name.toLowerCase().includes('position'))) {
       throw new Error('position_spoof_reducer_exposed');
     }
+    if (!reducerNames.includes('useFarmTile')) throw new Error('farm_action_reducer_missing');
+    const aliceStart = alice.connection.db.playerPosition.identity.find(alice.identity);
+    const bobStart = bob.connection.db.playerPosition.identity.find(bob.identity);
+    if (aliceStart === null || bobStart === null) throw new Error('initial_position_missing');
+    const aliceSequence: Sequence = { value: aliceStart.lastProcessedSequence };
+    const bobSequence: Sequence = { value: bobStart.lastProcessedSequence };
+
+    await Promise.all([
+      moveNear(alice, aliceSequence, 10, 12),
+      moveNear(bob, bobSequence, 10, 12),
+    ]);
 
     const treeBefore = [...alice.connection.db.worldTree.iter()][0];
     if (treeBefore === undefined) throw new Error('tree_missing');
@@ -105,6 +199,58 @@ async function main(): Promise<void> {
 
     if (!await privateInventoryIsRejected(alice)) throw new Error('private_inventory_was_readable');
 
+    const aliceParcel = [...alice.connection.db.farmParcel.iter()]
+      .find((parcel) => parcel.owner.isEqual(alice.identity));
+    if (aliceParcel === undefined) throw new Error('alice_parcel_missing');
+    const farmTileX = aliceParcel.originX + 2;
+    const farmTileY = aliceParcel.originY + 5;
+    await Promise.all([
+      moveNear(alice, aliceSequence, farmTileX, farmTileY),
+      moveNear(bob, bobSequence, farmTileX, farmTileY),
+    ]);
+    const aliceActivityBefore = alice.connection.db.farmActivity.identity.find(alice.identity);
+    const bobActivityBefore = bob.connection.db.farmActivity.identity.find(bob.identity);
+    if (aliceActivityBefore === null || bobActivityBefore === null) throw new Error('farm_activity_missing');
+    await alice.connection.reducers.useFarmTile({ tileX: farmTileX, tileY: farmTileY });
+    await bob.connection.reducers.useFarmTile({ tileX: farmTileX, tileY: farmTileY });
+    await waitUntil('cooperative_water_replication', () => {
+      const crop = [...alice.connection.db.cropPatch.iter()]
+        .find((row) => row.tileX === farmTileX && row.tileY === farmTileY);
+      const aliceActivity = alice.connection.db.farmActivity.identity.find(alice.identity);
+      const bobActivity = alice.connection.db.farmActivity.identity.find(bob.identity);
+      return crop?.watered === true
+        && crop.owner.isEqual(alice.identity)
+        && aliceActivity?.planted === aliceActivityBefore.planted + 1
+        && bobActivity?.watered === bobActivityBefore.watered + 1;
+    });
+    const premature = await Promise.allSettled([
+      alice.connection.reducers.useFarmTile({ tileX: farmTileX, tileY: farmTileY }),
+    ]);
+    if (premature[0]?.status !== 'rejected') throw new Error('premature_harvest_was_accepted');
+    const plantedCrop = [...alice.connection.db.cropPatch.iter()]
+      .find((row) => row.tileX === farmTileX && row.tileY === farmTileY);
+    if (plantedCrop === undefined) throw new Error('planted_crop_missing');
+    await waitUntil('crop_maturity', () => {
+      const clock = [...alice.connection.db.worldClock.iter()][0];
+      return clock !== undefined && clock.authorityTick - plantedCrop.wateredAtTick >= 200n;
+    });
+    const harvestRace = await Promise.allSettled([
+      alice.connection.reducers.useFarmTile({ tileX: farmTileX, tileY: farmTileY }),
+      bob.connection.reducers.useFarmTile({ tileX: farmTileX, tileY: farmTileY }),
+    ]);
+    if (harvestRace.filter((result) => result.status === 'fulfilled').length !== 1) {
+      throw new Error('harvest_race_did_not_commit_exactly_once');
+    }
+    await waitUntil('harvest_replication', () => {
+      const cropStillExists = [...bob.connection.db.cropPatch.iter()]
+        .some((row) => row.tileX === farmTileX && row.tileY === farmTileY);
+      const aliceActivity = bob.connection.db.farmActivity.identity.find(alice.identity);
+      const bobActivity = bob.connection.db.farmActivity.identity.find(bob.identity);
+      return !cropStillExists
+        && aliceActivity?.harvested === aliceActivityBefore.harvested + 1
+        && bobActivity?.harvested === bobActivityBefore.harvested;
+    });
+
     const beforeSpoof = alice.connection.db.playerPosition.identity.find(alice.identity);
     if (beforeSpoof === null) throw new Error('position_missing_before_spoof');
     const rawSpoof = await Promise.allSettled([
@@ -116,26 +262,32 @@ async function main(): Promise<void> {
     if (rawSpoof[0]?.status !== 'rejected') throw new Error('raw_position_spoof_was_accepted');
     const hostileInput = {
       direction: 'idle' as const,
-      sequence: 1n,
+      sequence: aliceSequence.value + 1n,
       x: beforeSpoof.x + 1_000_000,
       y: beforeSpoof.y + 1_000_000,
     };
+    aliceSequence.value = hostileInput.sequence;
     await alice.connection.reducers.setInput(hostileInput);
     await waitUntil('spoof_ack', () => {
-      return alice.connection.db.playerPosition.identity.find(alice.identity)?.lastProcessedSequence === 1n;
+      return alice.connection.db.playerPosition.identity.find(alice.identity)?.lastProcessedSequence === aliceSequence.value;
     });
     const afterSpoof = alice.connection.db.playerPosition.identity.find(alice.identity);
     if (afterSpoof?.x !== beforeSpoof.x || afterSpoof.y !== beforeSpoof.y) {
       throw new Error('position_spoof_succeeded');
     }
 
-    alice.connection.reducers.setInput({ direction: 'right', sequence: 2n });
+    const startingChunk = afterSpoof?.chunkX ?? 0;
+    const chunkDirection = startingChunk >= 1 ? 'left' : 'right';
+    const destinationChunk = startingChunk >= 1 ? startingChunk - 1 : startingChunk + 1;
+    aliceSequence.value += 1n;
+    alice.connection.reducers.setInput({ direction: chunkDirection, sequence: aliceSequence.value });
     await waitUntil('chunk_crossing', () => {
-      return (alice.connection.db.playerPosition.identity.find(alice.identity)?.chunkX ?? 0) >= 2;
+      return alice.connection.db.playerPosition.identity.find(alice.identity)?.chunkX === destinationChunk;
     });
-    alice.connection.reducers.setInput({ direction: 'idle', sequence: 3n });
+    aliceSequence.value += 1n;
+    alice.connection.reducers.setInput({ direction: 'idle', sequence: aliceSequence.value });
     await waitUntil('idle_ack', () => {
-      return alice.connection.db.playerPosition.identity.find(alice.identity)?.lastProcessedSequence === 3n;
+      return alice.connection.db.playerPosition.identity.find(alice.identity)?.lastProcessedSequence === aliceSequence.value;
     });
     const positionBeforeReconnect = alice.connection.db.playerPosition.identity.find(alice.identity);
     alice.connection.disconnect();
@@ -147,15 +299,17 @@ async function main(): Promise<void> {
       if (reconnected.identityHex !== alice.identityHex) throw new Error('identity_not_restored');
       const restored = reconnected.connection.db.playerPosition.identity.find(reconnected.identity);
       if (restored === null || positionBeforeReconnect === null) throw new Error('position_not_restored');
-      if (restored.chunkX < 2 || restored.x !== positionBeforeReconnect.x) {
+      if (restored.chunkX !== positionBeforeReconnect.chunkX || restored.x !== positionBeforeReconnect.x) {
         throw new Error('non_origin_position_not_restored');
       }
-      reconnected.connection.reducers.setInput({ direction: 'right', sequence: 4n });
+      aliceSequence.value += 1n;
+      reconnected.connection.reducers.setInput({ direction: 'right', sequence: aliceSequence.value });
       await waitUntil('post_reconnect_input', () => {
         const row = reconnected.connection.db.playerPosition.identity.find(reconnected.identity);
-        return row?.lastProcessedSequence === 4n && row.x > restored.x;
+        return row?.lastProcessedSequence === aliceSequence.value && row.x > restored.x;
       });
-      reconnected.connection.reducers.setInput({ direction: 'idle', sequence: 5n });
+      aliceSequence.value += 1n;
+      reconnected.connection.reducers.setInput({ direction: 'idle', sequence: aliceSequence.value });
     } finally {
       reconnected.connection.disconnect();
       await new Promise((resolve) => setTimeout(resolve, 150));
@@ -171,9 +325,14 @@ async function main(): Promise<void> {
       postReconnectInput: true,
       privateInventoryRejected: true,
       reconnectIdentity: true,
+      farmSampleReducer: true,
+      publicFarmTables: ['farmParcel', 'cropPatch', 'farmActivity'],
+      cooperativeFarmLoop: true,
+      atomicHarvestRace: true,
     }, null, 2));
     process.stdout.write('\n');
   } finally {
+    clearInterval(heartbeatTimer);
     alice.connection.disconnect();
     bob.connection.disconnect();
     await new Promise((resolve) => setTimeout(resolve, 150));

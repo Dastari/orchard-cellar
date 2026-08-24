@@ -1,19 +1,21 @@
-import {
-  TILE_SIZE_FIXED,
-  createPlaceholderCollisionMap,
-  type Direction,
-  type PlayerState,
-} from '@orchard/sim';
+import { TILE_SIZE_FIXED, type Direction, type PlayerState } from '@orchard/sim';
 import { ScheduleAt, SenderError, schema, table, t } from 'spacetimedb/server';
 import {
   advanceAuthorityPlayer,
   canTendTree,
+  canUseFarmTile,
   chunkAt,
+  CROP_GROWTH_TICKS,
+  createMmoFarmCollisionMap,
   decodeDirection,
+  FARM_COLUMNS,
+  FARM_ROWS,
+  farmParcelLayout,
+  isFarmBedTile,
   presenceLeaseExpired,
 } from './world-rules.js';
 
-const WORLD_COLLISION = createPlaceholderCollisionMap(48, 32);
+const WORLD_COLLISION = createMmoFarmCollisionMap(80, 80);
 const START_X = 8 * TILE_SIZE_FIXED;
 const START_Y = 12 * TILE_SIZE_FIXED;
 
@@ -122,6 +124,58 @@ const world_clock = table(
   },
 );
 
+const farm_parcel = table(
+  {
+    name: 'farm_parcel',
+    public: true,
+    indexes: [
+      { accessor: 'by_owner', algorithm: 'btree', columns: ['owner'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    owner: t.identity(),
+    name: t.string(),
+    originX: t.i16(),
+    originY: t.i16(),
+    width: t.u8(),
+    height: t.u8(),
+  },
+);
+
+const crop_patch = table(
+  {
+    name: 'crop_patch',
+    public: true,
+    indexes: [
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_parcel', algorithm: 'btree', columns: ['parcelId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    parcelId: t.u64(),
+    owner: t.identity(),
+    tileX: t.i16(),
+    tileY: t.i16(),
+    chunkX: t.i16(),
+    chunkY: t.i16(),
+    plantedAtTick: t.u64(),
+    watered: t.bool(),
+    wateredAtTick: t.u64(),
+  },
+);
+
+const farm_activity = table(
+  { name: 'farm_activity', public: true },
+  {
+    identity: t.identity().primaryKey(),
+    planted: t.u32(),
+    watered: t.u32(),
+    harvested: t.u32(),
+  },
+);
+
 const movement_timer = table(
   { name: 'movement_timer' },
   {
@@ -139,6 +193,9 @@ const spacetimedb = schema({
   connection_presence_v2,
   world_tree,
   world_clock,
+  farm_parcel,
+  crop_patch,
+  farm_activity,
   movement_timer,
 });
 
@@ -204,9 +261,36 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     });
     ctx.db.player_input.insert({ identity: ctx.sender, direction: 'idle', sequence: 0n });
     ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
-    return;
+  } else {
+    ctx.db.player_public.identity.update({ ...profile, online: true });
   }
-  ctx.db.player_public.identity.update({ ...profile, online: true });
+  if (ctx.db.farm_activity.identity.find(ctx.sender) === null) {
+    ctx.db.farm_activity.insert({ identity: ctx.sender, planted: 0, watered: 0, harvested: 0 });
+  }
+  const existingParcel = [...ctx.db.farm_parcel.by_owner.filter(ctx.sender)][0];
+  if (existingParcel !== undefined) return;
+  const occupiedLayouts = new Set(
+    [...ctx.db.farm_parcel.iter()].map((parcel) => `${parcel.originX},${parcel.originY}`),
+  );
+  let layout = null;
+  for (let slot = 0; slot < FARM_COLUMNS * FARM_ROWS; slot += 1) {
+    const candidate = farmParcelLayout(slot);
+    if (candidate !== null && !occupiedLayouts.has(`${candidate.originX},${candidate.originY}`)) {
+      layout = candidate;
+      break;
+    }
+  }
+  if (layout === null) return;
+  const currentProfile = ctx.db.player_public.identity.find(ctx.sender);
+  ctx.db.farm_parcel.insert({
+    id: 0n,
+    owner: ctx.sender,
+    name: `${currentProfile?.displayName ?? 'New Farmer'}'s Farm`,
+    originX: layout.originX,
+    originY: layout.originY,
+    width: layout.width,
+    height: layout.height,
+  });
 });
 
 export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
@@ -234,10 +318,15 @@ export const setDisplayName = spacetimedb.reducer(
   (ctx, { displayName }) => {
     const profile = ctx.db.player_public.identity.find(ctx.sender);
     if (profile === null) throw new SenderError('player_not_ready');
+    const validName = validateDisplayName(displayName);
     ctx.db.player_public.identity.update({
       ...profile,
-      displayName: validateDisplayName(displayName),
+      displayName: validName,
     });
+    const parcel = [...ctx.db.farm_parcel.by_owner.filter(ctx.sender)][0];
+    if (parcel !== undefined) {
+      ctx.db.farm_parcel.id.update({ ...parcel, name: `${validName}'s Farm` });
+    }
   },
 );
 
@@ -311,6 +400,53 @@ export const tendTree = spacetimedb.reducer(
         knowledge: inventory.knowledge + 1,
       });
     }
+  },
+);
+
+export const useFarmTile = spacetimedb.reducer(
+  { tileX: t.i16(), tileY: t.i16() },
+  (ctx, { tileX, tileY }) => {
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const clock = ctx.db.world_clock.id.find(0);
+    if (position === null || clock === null) throw new SenderError('player_not_ready');
+    if (!canUseFarmTile(position.x, position.y, tileX, tileY)) {
+      throw new SenderError('farm_tile_out_of_range');
+    }
+    const parcel = [...ctx.db.farm_parcel.iter()].find((candidate) => isFarmBedTile(candidate, tileX, tileY));
+    if (parcel === undefined) throw new SenderError('not_a_farm_bed');
+    const crop = [...ctx.db.crop_patch.by_parcel.filter(parcel.id)]
+      .find((candidate) => candidate.tileX === tileX && candidate.tileY === tileY);
+    const actor = ctx.db.farm_activity.identity.find(ctx.sender);
+    if (actor === null) throw new SenderError('farm_activity_not_ready');
+
+    if (crop === undefined) {
+      if (!parcel.owner.isEqual(ctx.sender)) throw new SenderError('owner_only_planting');
+      ctx.db.crop_patch.insert({
+        id: 0n,
+        parcelId: parcel.id,
+        owner: parcel.owner,
+        tileX,
+        tileY,
+        chunkX: chunkAt(tileX * TILE_SIZE_FIXED),
+        chunkY: chunkAt(tileY * TILE_SIZE_FIXED),
+        plantedAtTick: clock.authorityTick,
+        watered: false,
+        wateredAtTick: 0n,
+      });
+      ctx.db.farm_activity.identity.update({ ...actor, planted: actor.planted + 1 });
+      return;
+    }
+    if (!crop.watered) {
+      ctx.db.crop_patch.id.update({ ...crop, watered: true, wateredAtTick: clock.authorityTick });
+      ctx.db.farm_activity.identity.update({ ...actor, watered: actor.watered + 1 });
+      return;
+    }
+    if (clock.authorityTick - crop.wateredAtTick < CROP_GROWTH_TICKS) {
+      throw new SenderError('crop_still_growing');
+    }
+    if (!crop.owner.isEqual(ctx.sender)) throw new SenderError('owner_only_harvest');
+    ctx.db.crop_patch.id.delete(crop.id);
+    ctx.db.farm_activity.identity.update({ ...actor, harvested: actor.harvested + 1 });
   },
 );
 

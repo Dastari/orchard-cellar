@@ -38,10 +38,14 @@ import HeartbeatReducer from "./heartbeat_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SetInputReducer from "./set_input_reducer";
 import TendTreeReducer from "./tend_tree_reducer";
+import UseFarmTileReducer from "./use_farm_tile_reducer";
 
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import CropPatchRow from "./crop_patch_table";
+import FarmActivityRow from "./farm_activity_table";
+import FarmParcelRow from "./farm_parcel_table";
 import PlayerPositionRow from "./player_position_table";
 import PlayerPublicRow from "./player_public_table";
 import WorldClockRow from "./world_clock_table";
@@ -51,6 +55,49 @@ import WorldTreeRow from "./world_tree_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  cropPatch: __table({
+    name: 'crop_patch',
+    indexes: [
+      { accessor: 'by_chunk', name: 'crop_patch_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'chunkX',
+        'chunkY',
+      ] },
+      { accessor: 'id', name: 'crop_patch_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_parcel', name: 'crop_patch_parcel_id_idx_btree', algorithm: 'btree', columns: [
+        'parcelId',
+      ] },
+    ],
+    constraints: [
+      { name: 'crop_patch_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CropPatchRow),
+  farmActivity: __table({
+    name: 'farm_activity',
+    indexes: [
+      { accessor: 'identity', name: 'farm_activity_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
+    ],
+    constraints: [
+      { name: 'farm_activity_identity_key', constraint: 'unique', columns: ['identity'] },
+    ],
+  }, FarmActivityRow),
+  farmParcel: __table({
+    name: 'farm_parcel',
+    indexes: [
+      { accessor: 'id', name: 'farm_parcel_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_owner', name: 'farm_parcel_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'farm_parcel_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FarmParcelRow),
   playerPosition: __table({
     name: 'player_position',
     indexes: [
@@ -111,6 +158,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("set_input", SetInputReducer),
   __reducerSchema("tend_tree", TendTreeReducer),
+  __reducerSchema("use_farm_tile", UseFarmTileReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
@@ -119,6 +167,12 @@ const proceduresSchema = __procedures(
 
 type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {
   tables: typeof tablesSchema.schemaType.tables & {
+    /** @deprecated Use `cropPatch` instead. This alias will be removed in the next major version. */
+    readonly "crop_patch": Omit<typeof tablesSchema.schemaType.tables["cropPatch"], "accessorName"> & { readonly accessorName: "crop_patch" };
+    /** @deprecated Use `farmActivity` instead. This alias will be removed in the next major version. */
+    readonly "farm_activity": Omit<typeof tablesSchema.schemaType.tables["farmActivity"], "accessorName"> & { readonly accessorName: "farm_activity" };
+    /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
+    readonly "farm_parcel": Omit<typeof tablesSchema.schemaType.tables["farmParcel"], "accessorName"> & { readonly accessorName: "farm_parcel" };
     /** @deprecated Use `playerPosition` instead. This alias will be removed in the next major version. */
     readonly "player_position": Omit<typeof tablesSchema.schemaType.tables["playerPosition"], "accessorName"> & { readonly accessorName: "player_position" };
     /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
@@ -145,6 +199,9 @@ const REMOTE_MODULE = {
 >;
 
 const tableAccessorAliases = {
+  "crop_patch": "cropPatch",
+  "farm_activity": "farmActivity",
+  "farm_parcel": "farmParcel",
   "player_position": "playerPosition",
   "player_public": "playerPublic",
   "world_clock": "worldClock",
@@ -169,6 +226,12 @@ function __withTableAccessorAliases<T extends object>(target: T, freeze = false)
 
 type __DbViewBase = __DbConnectionImpl<typeof REMOTE_MODULE>["db"];
 export type DbView = __DbViewBase & {
+  /** @deprecated Use `cropPatch` instead. This alias will be removed in the next major version. */
+  readonly "crop_patch": __DbViewBase["cropPatch"];
+  /** @deprecated Use `farmActivity` instead. This alias will be removed in the next major version. */
+  readonly "farm_activity": __DbViewBase["farmActivity"];
+  /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
+  readonly "farm_parcel": __DbViewBase["farmParcel"];
   /** @deprecated Use `playerPosition` instead. This alias will be removed in the next major version. */
   readonly "player_position": __DbViewBase["playerPosition"];
   /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
@@ -181,6 +244,12 @@ export type DbView = __DbViewBase & {
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
 export type Tables = __TablesBase & {
+  /** @deprecated Use `cropPatch` instead. This alias will be removed in the next major version. */
+  readonly "crop_patch": __TablesBase["cropPatch"];
+  /** @deprecated Use `farmActivity` instead. This alias will be removed in the next major version. */
+  readonly "farm_activity": __TablesBase["farmActivity"];
+  /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
+  readonly "farm_parcel": __TablesBase["farmParcel"];
   /** @deprecated Use `playerPosition` instead. This alias will be removed in the next major version. */
   readonly "player_position": __TablesBase["playerPosition"];
   /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */

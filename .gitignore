@@ -11,4 +11,5 @@ references/asset-pack/
 .env
 .env.local
 .spacetime-data/
+.world-smoke-tokens.json
 packages/world/dist/
