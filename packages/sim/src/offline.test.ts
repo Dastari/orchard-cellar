@@ -42,6 +42,31 @@ describe('deterministic offline progress', () => {
     expect(atBoundary.economy.trees[0]?.care).toBe(2);
   });
 
+  it('splits production exactly across a season boundary', () => {
+    const summerStart = TICKS_PER_DAY * 7;
+    const state = {
+      ...matureState({ species: 'fig' }),
+      tick: summerStart - 30 * SIM_TICKS_PER_SECOND,
+    };
+    const progressed = applyOffline(state, 60);
+    expect(progressed.economy.trees[0]?.bufferMicro).toBe(15_741_000_000);
+  });
+
+  it('honors the press-yard bottleneck while offline', () => {
+    const state = createInitialState(22);
+    const progressed = applyOffline({
+      ...state,
+      economy: {
+        ...state.economy,
+        firstPressRepaired: true,
+        presses: [1, 0, 0, 0, 0],
+        hopperFruitMicro: 300_000_000,
+      },
+    }, 3_600);
+    expect(progressed.economy.yardMustMicro).toBe(100_000_000);
+    expect(progressed.economy.hopperFruitMicro).toBe(100_000_000);
+  });
+
   it('is stable for negative, fractional, and zero elapsed input', () => {
     const state = createInitialState(12);
     expect(applyOffline(state, -10)).toBe(state);
