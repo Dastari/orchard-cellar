@@ -6,16 +6,20 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
+import DropSelectedReducer from "../drop_selected_reducer";
 import HarvestResourceReducer from "../harvest_resource_reducer";
 import HeartbeatReducer from "../heartbeat_reducer";
+import PickupWorldItemReducer from "../pickup_world_item_reducer";
 import SelectHotbarReducer from "../select_hotbar_reducer";
 import SetDisplayNameReducer from "../set_display_name_reducer";
 import SetInputReducer from "../set_input_reducer";
 import TendTreeReducer from "../tend_tree_reducer";
 import UseFarmTileReducer from "../use_farm_tile_reducer";
 
+export type DropSelectedParams = __Infer<typeof DropSelectedReducer>;
 export type HarvestResourceParams = __Infer<typeof HarvestResourceReducer>;
 export type HeartbeatParams = __Infer<typeof HeartbeatReducer>;
+export type PickupWorldItemParams = __Infer<typeof PickupWorldItemReducer>;
 export type SelectHotbarParams = __Infer<typeof SelectHotbarReducer>;
 export type SetDisplayNameParams = __Infer<typeof SetDisplayNameReducer>;
 export type SetInputParams = __Infer<typeof SetInputReducer>;

@@ -127,6 +127,18 @@ export const WorldClock = __t.object("WorldClock", {
 });
 export type WorldClock = __Infer<typeof WorldClock>;
 
+export const WorldItem = __t.object("WorldItem", {
+  id: __t.u64(),
+  itemKind: __t.string(),
+  quantity: __t.u16(),
+  x: __t.i32(),
+  y: __t.i32(),
+  chunkX: __t.i16(),
+  chunkY: __t.i16(),
+  droppedAtTick: __t.u64(),
+});
+export type WorldItem = __Infer<typeof WorldItem>;
+
 export const WorldResource = __t.object("WorldResource", {
   id: __t.u64(),
   kind: __t.string(),

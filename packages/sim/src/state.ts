@@ -33,6 +33,15 @@ export interface CollisionMap {
   readonly width: number;
   readonly height: number;
   readonly blocked: readonly boolean[];
+  /** Optional fixed-point AABBs for sub-tile blockers such as tree trunks. */
+  readonly obstacles?: readonly CollisionObstacle[];
+}
+
+export interface CollisionObstacle {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
 }
 
 export interface FarmState {

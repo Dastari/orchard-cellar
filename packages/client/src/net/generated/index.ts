@@ -34,8 +34,10 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import DropSelectedReducer from "./drop_selected_reducer";
 import HarvestResourceReducer from "./harvest_resource_reducer";
 import HeartbeatReducer from "./heartbeat_reducer";
+import PickupWorldItemReducer from "./pickup_world_item_reducer";
 import SelectHotbarReducer from "./select_hotbar_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SetInputReducer from "./set_input_reducer";
@@ -53,6 +55,7 @@ import OwnSurvivalRow from "./own_survival_table";
 import PlayerPositionRow from "./player_position_table";
 import PlayerPublicRow from "./player_public_table";
 import WorldClockRow from "./world_clock_table";
+import WorldItemRow from "./world_item_table";
 import WorldResourceRow from "./world_resource_table";
 import WorldSeedRow from "./world_seed_table";
 import WorldTreeRow from "./world_tree_table";
@@ -141,6 +144,21 @@ const tablesSchema = __schema({
       { name: 'world_clock_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldClockRow),
+  worldItem: __table({
+    name: 'world_item',
+    indexes: [
+      { accessor: 'by_chunk', name: 'world_item_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'chunkX',
+        'chunkY',
+      ] },
+      { accessor: 'id', name: 'world_item_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_item_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldItemRow),
   worldResource: __table({
     name: 'world_resource',
     indexes: [
@@ -200,8 +218,10 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("drop_selected", DropSelectedReducer),
   __reducerSchema("harvest_resource", HarvestResourceReducer),
   __reducerSchema("heartbeat", HeartbeatReducer),
+  __reducerSchema("pickup_world_item", PickupWorldItemReducer),
   __reducerSchema("select_hotbar", SelectHotbarReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("set_input", SetInputReducer),
@@ -227,6 +247,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "player_public": Omit<typeof tablesSchema.schemaType.tables["playerPublic"], "accessorName"> & { readonly accessorName: "player_public" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
     readonly "world_clock": Omit<typeof tablesSchema.schemaType.tables["worldClock"], "accessorName"> & { readonly accessorName: "world_clock" };
+    /** @deprecated Use `worldItem` instead. This alias will be removed in the next major version. */
+    readonly "world_item": Omit<typeof tablesSchema.schemaType.tables["worldItem"], "accessorName"> & { readonly accessorName: "world_item" };
     /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
     readonly "world_resource": Omit<typeof tablesSchema.schemaType.tables["worldResource"], "accessorName"> & { readonly accessorName: "world_resource" };
     /** @deprecated Use `worldSeed` instead. This alias will be removed in the next major version. */
@@ -257,6 +279,7 @@ const tableAccessorAliases = {
   "player_position": "playerPosition",
   "player_public": "playerPublic",
   "world_clock": "worldClock",
+  "world_item": "worldItem",
   "world_resource": "worldResource",
   "world_seed": "worldSeed",
   "world_tree": "worldTree",
@@ -292,6 +315,8 @@ export type DbView = __DbViewBase & {
   readonly "player_public": __DbViewBase["playerPublic"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __DbViewBase["worldClock"];
+  /** @deprecated Use `worldItem` instead. This alias will be removed in the next major version. */
+  readonly "world_item": __DbViewBase["worldItem"];
   /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
   readonly "world_resource": __DbViewBase["worldResource"];
   /** @deprecated Use `worldSeed` instead. This alias will be removed in the next major version. */
@@ -314,6 +339,8 @@ export type Tables = __TablesBase & {
   readonly "player_public": __TablesBase["playerPublic"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __TablesBase["worldClock"];
+  /** @deprecated Use `worldItem` instead. This alias will be removed in the next major version. */
+  readonly "world_item": __TablesBase["worldItem"];
   /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
   readonly "world_resource": __TablesBase["worldResource"];
   /** @deprecated Use `worldSeed` instead. This alias will be removed in the next major version. */

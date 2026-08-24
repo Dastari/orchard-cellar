@@ -10,6 +10,7 @@ import {
   survivalClearingAt,
   survivalClearings,
   survivalSpawnPosition,
+  survivalTreeObstacle,
   survivalTrailAt,
   survivalTerrainBytes,
   type SurvivalBiome,
@@ -84,13 +85,19 @@ describe('deterministic survival island', () => {
     expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, 47, 60)).toBeNull();
   });
 
-  it('adds live resource bases to terrain collision and removes depleted bases', () => {
+  it('adds narrow live trunk obstacles and removes depleted trunks', () => {
     const resource = generateSurvivalResources()[0];
     expect(resource).toBeDefined();
     if (!resource) return;
     const index = resource.tileY * SURVIVAL_WORLD_SIZE + resource.tileX;
-    expect(createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [{ ...resource, depleted: false }]).blocked[index]).toBe(true);
-    expect(createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [{ ...resource, depleted: true }]).blocked[index]).toBe(
+    const live = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [{ ...resource, depleted: false }]);
+    const depleted = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [{ ...resource, depleted: true }]);
+    expect(live.blocked[index]).toBe(
+      survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY)),
+    );
+    expect(live.obstacles).toEqual([survivalTreeObstacle(resource.tileX, resource.tileY)]);
+    expect(depleted.obstacles).toEqual([]);
+    expect(depleted.blocked[index]).toBe(
       survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY)),
     );
     expect(survivalBiomeBlocksMovement('water')).toBe(true);

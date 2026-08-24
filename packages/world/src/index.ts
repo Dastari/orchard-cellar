@@ -1,4 +1,5 @@
 import {
+  FIXED_UNITS_PER_PIXEL,
   SURVIVAL_CHUNK_TILES,
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_VERSION,
@@ -17,6 +18,8 @@ import {
   CROP_GROWTH_TICKS,
   createAuthoritySurvivalCollisionMap,
   decodeDirection,
+  itemDropPosition,
+  itemWithinPickupReach,
   isFarmBedTile,
   presenceLeaseExpired,
   resourceHarvestResult,
@@ -185,6 +188,26 @@ const world_resource = table(
   },
 );
 
+const world_item = table(
+  {
+    name: 'world_item',
+    public: true,
+    indexes: [
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    itemKind: t.string(),
+    quantity: t.u16(),
+    x: t.i32(),
+    y: t.i32(),
+    chunkX: t.i16(),
+    chunkY: t.i16(),
+    droppedAtTick: t.u64(),
+  },
+);
+
 const farm_parcel = table(
   {
     name: 'farm_parcel',
@@ -258,6 +281,7 @@ const spacetimedb = schema({
   world_clock,
   world_seed,
   world_resource,
+  world_item,
   farm_parcel,
   crop_patch,
   farm_activity,
@@ -516,13 +540,56 @@ export const selectHotbar = spacetimedb.reducer(
   },
 );
 
+export const dropSelected = spacetimedb.reducer((ctx) => {
+  const position = ctx.db.player_position.identity.find(ctx.sender);
+  const survival = ctx.db.player_survival.identity.find(ctx.sender);
+  const clock = ctx.db.world_clock.id.find(0);
+  if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
+  const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  if (slot === null || slot.itemKind === 'empty' || slot.quantity === 0) throw new SenderError('selected_slot_empty');
+  const facing = parseDirection(position.facing) ?? 'down';
+  const drop = itemDropPosition(position.x, position.y, facing);
+  ctx.db.inventory_slot.id.update({ ...slot, itemKind: 'empty', quantity: 0 });
+  ctx.db.world_item.insert({
+    id: 0n,
+    itemKind: slot.itemKind,
+    quantity: slot.quantity,
+    x: drop.x,
+    y: drop.y,
+    chunkX: chunkAt(drop.x),
+    chunkY: chunkAt(drop.y),
+    droppedAtTick: clock.authorityTick,
+  });
+});
+
+export const pickupWorldItem = spacetimedb.reducer(
+  { itemId: t.u64() },
+  (ctx, { itemId }) => {
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const item = ctx.db.world_item.id.find(itemId);
+    if (position === null || item === null) throw new SenderError('item_not_ready');
+    if (!itemWithinPickupReach(position.x, position.y, item.x, item.y)) throw new SenderError('item_out_of_range');
+    const slots = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)].sort((left, right) => left.slot - right.slot);
+    const destination = slots.find((slot) => slot.itemKind === item.itemKind && slot.quantity + item.quantity <= 65_535)
+      ?? slots.find((slot) => slot.itemKind === 'empty' || slot.quantity === 0);
+    if (destination === undefined) throw new SenderError('inventory_full');
+    ctx.db.inventory_slot.id.update({
+      ...destination,
+      itemKind: item.itemKind,
+      quantity: destination.itemKind === item.itemKind ? destination.quantity + item.quantity : item.quantity,
+    });
+    ctx.db.world_item.id.delete(item.id);
+  },
+);
+
 export const harvestResource = spacetimedb.reducer(
   { resourceId: t.u64() },
   (ctx, { resourceId }) => {
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     const resource = ctx.db.world_resource.id.find(resourceId);
-    if (position === null || survival === null || resource === null) {
+    const clock = ctx.db.world_clock.id.find(0);
+    if (position === null || survival === null || resource === null || clock === null) {
       throw new SenderError('target_not_ready');
     }
     const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
@@ -536,7 +603,18 @@ export const harvestResource = spacetimedb.reducer(
       return;
     }
     ctx.db.world_resource.id.update({ ...resource, health: 0, depleted: true });
-    ctx.db.player_survival.identity.update({ ...survival, wood: survival.wood + 3 });
+    const itemX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 + 10 * FIXED_UNITS_PER_PIXEL;
+    const itemY = (resource.tileY + 1) * TILE_SIZE_FIXED + 3 * FIXED_UNITS_PER_PIXEL;
+    ctx.db.world_item.insert({
+      id: 0n,
+      itemKind: 'wood',
+      quantity: 3,
+      x: itemX,
+      y: itemY,
+      chunkX: chunkAt(itemX),
+      chunkY: chunkAt(itemY),
+      droppedAtTick: clock.authorityTick,
+    });
   },
 );
 

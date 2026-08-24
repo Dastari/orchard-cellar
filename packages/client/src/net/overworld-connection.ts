@@ -16,6 +16,7 @@ import type {
   PlayerPublic,
   PlayerSurvival,
   WorldClock,
+  WorldItem,
   WorldResource,
   WorldSeed,
 } from './generated/types.js';
@@ -51,6 +52,7 @@ export interface OverworldSnapshot {
   readonly profiles: readonly PlayerPublic[];
   readonly players: readonly PlayerPosition[];
   readonly resources: readonly WorldResource[];
+  readonly worldItems: readonly WorldItem[];
   readonly inventorySlots: readonly InventorySlot[];
   readonly survival: PlayerSurvival | null;
   readonly worldSeed: WorldSeed | null;
@@ -137,6 +139,7 @@ export class OverworldConnection {
         ? []
         : [...connection.db.playerPosition.iter()].filter((row) => online.has(identityHex(row.identity))),
       resources: connection === null ? [] : [...connection.db.worldResource.iter()],
+      worldItems: connection === null ? [] : [...connection.db.worldItem.iter()],
       inventorySlots: connection === null
         ? []
         : [...connection.db.ownInventorySlots.iter()].sort((left, right) => left.slot - right.slot),
@@ -191,6 +194,18 @@ export class OverworldConnection {
     const connection = this.connection;
     if (!this.connected || connection === null) return Promise.reject(new Error('not_connected'));
     return connection.reducers.harvestResource({ resourceId }).then(() => undefined);
+  }
+
+  dropSelected(): Promise<void> {
+    const connection = this.connection;
+    if (!this.connected || connection === null) return Promise.reject(new Error('not_connected'));
+    return connection.reducers.dropSelected({}).then(() => undefined);
+  }
+
+  pickupWorldItem(itemId: bigint): Promise<void> {
+    const connection = this.connection;
+    if (!this.connected || connection === null) return Promise.reject(new Error('not_connected'));
+    return connection.reducers.pickupWorldItem({ itemId }).then(() => undefined);
   }
 
   private displayName(): string {
@@ -250,6 +265,7 @@ export class OverworldConnection {
     this.pendingRegion = regionKey;
     const positions = [];
     const resources = [];
+    const worldItems = [];
     const bounds = subscriptionChunkBounds(chunkX, chunkY, radius);
     for (let y = bounds.minY; y <= bounds.maxY; y += 1) {
       for (let x = bounds.minX; x <= bounds.maxX; x += 1) {
@@ -258,6 +274,9 @@ export class OverworldConnection {
         );
         resources.push(
           tables.worldResource.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)),
+        );
+        worldItems.push(
+          tables.worldItem.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)),
         );
       }
     }
@@ -275,7 +294,7 @@ export class OverworldConnection {
         this.error = 'region_subscription_failed';
         this.onChanged();
       })
-      .subscribe([...positions, ...resources]);
+      .subscribe([...positions, ...resources, ...worldItems]);
   }
 
   private bindTableEvents(connection: DbConnection): void {
@@ -290,6 +309,9 @@ export class OverworldConnection {
     connection.db.worldResource.onInsert(changed);
     connection.db.worldResource.onUpdate(changed);
     connection.db.worldResource.onDelete(changed);
+    connection.db.worldItem.onInsert(changed);
+    connection.db.worldItem.onUpdate(changed);
+    connection.db.worldItem.onDelete(changed);
     connection.db.ownSurvival.onInsert(changed);
     connection.db.ownSurvival.onUpdate(changed);
     connection.db.ownSurvival.onDelete(changed);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { avatarAnimationForDirection, avatarFrameIndex, canonicalBlob47Index, isOverworldRoad, sortWorldDrawItems } from './overworld-art.js';
+import { axeAnimationForDirection, avatarAnimationForDirection, avatarFrameIndex, canonicalBlob47Index, isOverworldRoad, sortWorldDrawItems } from './overworld-art.js';
 
 describe('overworld art topology', () => {
   it('uses the generated atlas canonical blob ordering', () => {
@@ -27,6 +27,13 @@ describe('overworld art topology', () => {
     expect(avatarAnimationForDirection('upLeft')).toBe('walk_right');
     expect(avatarAnimationForDirection('upRight')).toBe('walk_right');
     expect(avatarAnimationForDirection('down')).toBe('walk_down');
+  });
+
+  it('uses the licensed directional axe rows and mirrors side swings', () => {
+    expect(axeAnimationForDirection('up')).toBe('axe_up');
+    expect(axeAnimationForDirection('down')).toBe('axe_down');
+    expect(axeAnimationForDirection('left')).toBe('axe_right');
+    expect(axeAnimationForDirection('upRight')).toBe('axe_right');
   });
 
   it('sorts world objects by foot point with a deterministic tie-break', () => {

@@ -30,21 +30,24 @@ remain M7a work; the M5.7 slice does not grant land permissions.
 
 - Water and ridge tiles block movement. Beaches, plains, meadow, forest floor,
   valleys, and highlands are walkable.
-- Live tree resource bases block one tile; depleted trees do not. The authority
+- Live tree resources use an 8×6 px trunk box at the lower center of their tile;
+  depleted trees do not block. The authority
   validates movement against terrain and the current resource table. Client
   prediction begins from the deterministic resource layout and applies subscribed
   depletion updates, then reconciles as usual.
 - The player body uses a compact 8×6 px foot box ending at the authoritative foot
   point. The `G` diagnostic draws that exact box in cyan over terrain/resource
-  collision, so canopy depth and blocked trunk bases can be checked independently.
+  collision. Live trunk boxes appear amber, so canopy depth and blocked bases can
+  be checked independently without treating the full art tile as solid.
 - Render ground first. Sort resource sprites and player sprites by their foot-point Y;
   canopy pixels naturally cover actors north of a tree and actors south of it cover
   the trunk/canopy. HUD is never part of world sorting.
 
 ## 4. First survival transaction
 
-Private survival state contains Wood, Stone, and selected hotbar slot. A private slot
-table has nine slots. New players receive Axe, Pickaxe, Hoe, and Watering Can in slots
+Private survival state contains the selected hotbar slot; legacy Wood/Stone columns
+remain migration-only while all usable possessions live in the nine private slots.
+New players receive Axe, Pickaxe, Hoe, and Watering Can in slots
 0–3; slots 4–8 are empty. Caller-dependent SpaceTimeDB views expose only the caller's
 survival row and slots.
 
@@ -57,8 +60,14 @@ declared meanings rather than visual filename inference.
 1. sender exists and has selected the required tool;
 2. sender's authoritative position is within two tiles;
 3. resource is live and tool/resource pairing is valid;
-4. each Axe hit removes one of three tree health; the final hit marks it depleted and
-   grants exactly 3 Wood once.
+4. each Axe hit removes one of three tree health; the final hit marks it depleted,
+   leaves a persistent stump, and atomically creates one shared Wood ×3 ground stack.
+
+`pickup_world_item(itemId)` checks authoritative reach and stacks into a matching or
+empty private slot before deleting the shared row. `drop_selected()` takes no item,
+quantity, owner, or position from the client: it moves the complete selected stack to
+a shared ground row in front of the server-owned player position and facing. A full
+inventory rejects pickup without deleting the item.
 
 No client-supplied quantity, position, owner, damage, or reward is accepted. Resource
 respawn and durability are deliberately deferred.
@@ -66,16 +75,15 @@ respawn and durability are deliberately deferred.
 ## 5. Client UX
 
 - `1`–`9` selects a hotbar slot; the server persists selection.
-- Mouse-wheel up/down selects the previous/next slot with wraparound. It never zooms
-  the world.
-- `E` uses the selected tool on the faced resource. Prompt names the action or states
-  which tool is required.
+- Mouse-wheel up/down zooms the world. Unshifted `-`/`+` provide the same stepped
+  world zoom; `Shift -`/`Shift +` scale UI chrome and player name tags.
+- `E` picks up a faced ground item, `F` uses the selected tool on a faced resource,
+  and `Q` drops the selected slot in front of the player.
 - The bottom-center nine-slot hotbar uses parchment/wood pixel UI, short item labels,
-  and a visible selected bracket. The HUD shows Wood and Stone counts.
+  stack quantities, and a visible selected bracket. There is no parallel resource
+  counter: Wood appears only in the nine slots until a backpack exists.
 - The three render scales are shown relative to the intended default: source scale 2
-  is `1×`, with `0.5×` and `1.5×` steps on `-`/`+`. `Shift -`/`Shift +` changes the
-  HUD by whole-pixel scale when the current window can fit it.
-- `F` has no fullscreen binding. Double-clicking the canvas retains fullscreen.
+  is `1×`, with `0.5×` and `1.5×` steps. Double-clicking the canvas retains fullscreen.
 - The licensed character sheet has cardinal walk poses only. Diagonal travel remains
   true diagonal movement and uses the mirrored side pose so it does not falsely read
   as straight-up walking.

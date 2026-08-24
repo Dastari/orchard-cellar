@@ -1,6 +1,6 @@
-import { TILE_SIZE_FIXED } from '@orchard/sim';
+import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
-import { cycleHotbarSlot, facedResource, harvestPrompt, hotbarItemLabel, hotbarSlotForCode } from './survival-ui.js';
+import { facedResource, facedWorldItem, harvestPrompt, hotbarItemLabel, hotbarSlotForCode } from './survival-ui.js';
 
 const tree = { id: 2n, kind: 'tree', tileX: 12, tileY: 10, depleted: false };
 
@@ -21,18 +21,21 @@ describe('survival controls', () => {
   });
 
   it('gives occupied hotbar tools compact unambiguous labels', () => {
-    expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'empty'].map(hotbarItemLabel))
-      .toEqual(['AXE', 'PICK', 'HOE', 'WATER', '--']);
+    expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemLabel))
+      .toEqual(['AXE', 'PICK', 'HOE', 'WATER', 'WOOD', '--']);
   });
 
-  it('wraps mouse-wheel selection around the nine-slot inventory', () => {
-    expect(cycleHotbarSlot(0, -1)).toBe(8);
-    expect(cycleHotbarSlot(8, 1)).toBe(0);
-    expect(cycleHotbarSlot(3, 1)).toBe(4);
+  it('selects the nearest faced ground item inside pickup reach', () => {
+    const x = 10 * TILE_SIZE_FIXED;
+    const y = 10 * TILE_SIZE_FIXED;
+    const near = { id: 1n, x: x + TILE_SIZE_FIXED, y };
+    const far = { id: 2n, x: x + 25 * FIXED_UNITS_PER_PIXEL, y };
+    expect(facedWorldItem(x, y, 'right', [far, near])).toEqual(near);
+    expect(facedWorldItem(x, y, 'left', [near])).toBeNull();
   });
 
   it('describes the selected tool requirement', () => {
-    expect(harvestPrompt(tree, 'axe')).toBe('[E] CHOP TREE');
+    expect(harvestPrompt(tree, 'axe')).toBe('[F] CHOP TREE');
     expect(harvestPrompt(tree, 'hoe')).toBe('SELECT AXE TO CHOP');
   });
 });

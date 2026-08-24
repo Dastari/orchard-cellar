@@ -36,12 +36,16 @@ export function positionCollides(position: Vec2Fixed, map: CollisionMap): boolea
   const tileTop = Math.floor(top / TILE_SIZE_FIXED);
   const tileBottom = Math.floor(bottom / TILE_SIZE_FIXED);
 
-  return (
+  const tileCollision = (
     tileIsBlocked(map, tileLeft, tileTop) ||
     tileIsBlocked(map, tileRight, tileTop) ||
     tileIsBlocked(map, tileLeft, tileBottom) ||
     tileIsBlocked(map, tileRight, tileBottom)
   );
+  if (tileCollision) return true;
+  return map.obstacles?.some((obstacle) => (
+    left <= obstacle.right && right >= obstacle.left && top <= obstacle.bottom && bottom >= obstacle.top
+  )) ?? false;
 }
 
 export function playerHitboxBounds(position: Vec2Fixed): {

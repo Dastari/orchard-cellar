@@ -1,9 +1,11 @@
 import {
+  FIXED_UNITS_PER_PIXEL,
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
   createSurvivalCollisionMap,
   movePlayer,
+  survivalTreeObstacle,
   type CollisionMap,
   type Direction,
   type PlayerState,
@@ -14,6 +16,7 @@ export const SIM_STEPS_PER_AUTHORITY_TICK = 60 / AUTHORITY_HZ;
 export const CHUNK_TILES = 16;
 export const CHUNK_SIZE_FIXED = CHUNK_TILES * TILE_SIZE_FIXED;
 export const TREE_REACH_FIXED = 2 * TILE_SIZE_FIXED;
+export const ITEM_PICKUP_REACH_FIXED = 24 * FIXED_UNITS_PER_PIXEL;
 export const TREE_TEND_COOLDOWN_TICKS = 20n;
 export const CROP_GROWTH_TICKS = 200n;
 export const FARM_COLUMNS = 5;
@@ -35,12 +38,13 @@ export function createAuthoritySurvivalCollisionMap(
   resources: readonly AuthoritySurvivalResource[],
 ): CollisionMap {
   const blocked = [...SURVIVAL_TERRAIN_COLLISION.blocked];
+  const obstacles = [];
   for (const resource of resources) {
     if (resource.depleted || resource.tileX < 0 || resource.tileY < 0
       || resource.tileX >= SURVIVAL_WORLD_SIZE || resource.tileY >= SURVIVAL_WORLD_SIZE) continue;
-    blocked[resource.tileY * SURVIVAL_WORLD_SIZE + resource.tileX] = true;
+    obstacles.push(survivalTreeObstacle(resource.tileX, resource.tileY));
   }
-  return { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE, blocked };
+  return { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE, blocked, obstacles };
 }
 
 export function resourceHarvestResult(
@@ -57,6 +61,27 @@ export function resourceHarvestResult(
   const dy = resourceY - playerY;
   if (dx * dx + dy * dy > TREE_REACH_FIXED * TREE_REACH_FIXED) return 'out_of_range';
   return 'ok';
+}
+
+export function itemDropPosition(playerX: number, playerY: number, facing: Direction): { readonly x: number; readonly y: number } {
+  const cardinal = 12 * FIXED_UNITS_PER_PIXEL;
+  const diagonal = 8 * FIXED_UNITS_PER_PIXEL;
+  switch (facing) {
+    case 'up': return { x: playerX, y: playerY - cardinal };
+    case 'down': return { x: playerX, y: playerY + cardinal };
+    case 'left': return { x: playerX - cardinal, y: playerY };
+    case 'right': return { x: playerX + cardinal, y: playerY };
+    case 'upLeft': return { x: playerX - diagonal, y: playerY - diagonal };
+    case 'upRight': return { x: playerX + diagonal, y: playerY - diagonal };
+    case 'downLeft': return { x: playerX - diagonal, y: playerY + diagonal };
+    case 'downRight': return { x: playerX + diagonal, y: playerY + diagonal };
+  }
+}
+
+export function itemWithinPickupReach(playerX: number, playerY: number, itemX: number, itemY: number): boolean {
+  const dx = itemX - playerX;
+  const dy = itemY - playerY;
+  return dx * dx + dy * dy <= ITEM_PICKUP_REACH_FIXED * ITEM_PICKUP_REACH_FIXED;
 }
 
 export interface FarmParcelLayout {

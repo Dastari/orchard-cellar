@@ -30,4 +30,21 @@ describe('player movement collision', () => {
     expect(moved.position).not.toEqual(start.position);
     expect(positionCollides(moved.position, { ...open, blocked })).toBe(false);
   });
+
+  it('collides with a sub-tile trunk but can pass beside it', () => {
+    const obstacle = {
+      left: 2 * TILE_SIZE_FIXED + 4 * FIXED_UNITS_PER_PIXEL,
+      right: 2 * TILE_SIZE_FIXED + 12 * FIXED_UNITS_PER_PIXEL - 1,
+      top: 3 * TILE_SIZE_FIXED - 6 * FIXED_UNITS_PER_PIXEL,
+      bottom: 3 * TILE_SIZE_FIXED - 1,
+    };
+    expect(positionCollides({ x: 2 * TILE_SIZE_FIXED + 8 * FIXED_UNITS_PER_PIXEL, y: 3 * TILE_SIZE_FIXED }, {
+      ...open,
+      obstacles: [obstacle],
+    })).toBe(true);
+    expect(positionCollides({ x: 2 * TILE_SIZE_FIXED - FIXED_UNITS_PER_PIXEL, y: 3 * TILE_SIZE_FIXED }, {
+      ...open,
+      obstacles: [obstacle],
+    })).toBe(false);
+  });
 });

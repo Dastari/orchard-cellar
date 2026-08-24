@@ -23,6 +23,8 @@ import {
   decodeDirection,
   farmParcelLayout,
   isFarmBedTile,
+  itemDropPosition,
+  itemWithinPickupReach,
   presenceLeaseExpired,
   resourceHarvestResult,
 } from './world-rules.js';
@@ -100,7 +102,7 @@ describe('overworld authority rules', () => {
     expect(collision.blocked[16 * collision.width + 24]).toBe(false);
   });
 
-  it('blocks generated water, ridge, and live resources but opens depleted resource bases', () => {
+  it('blocks generated water and ridge while using narrow mutable trunk obstacles', () => {
     const terrain = Array.from({ length: SURVIVAL_WORLD_SIZE ** 2 }, (_, index) => ({
       tileX: index % SURVIVAL_WORLD_SIZE,
       tileY: Math.floor(index / SURVIVAL_WORLD_SIZE),
@@ -114,7 +116,9 @@ describe('overworld authority rules', () => {
     const depleted = createAuthoritySurvivalCollisionMap([{ ...resource, depleted: true }]);
     expect(live.blocked[water.tileY * live.width + water.tileX]).toBe(true);
     expect(live.blocked[ridge.tileY * live.width + ridge.tileX]).toBe(true);
-    expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(true);
+    expect(live.obstacles).toHaveLength(1);
+    expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(false);
+    expect(depleted.obstacles).toHaveLength(0);
     expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(false);
   });
 
@@ -128,5 +132,18 @@ describe('overworld authority rules', () => {
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, depleted: true })).toBe('depleted');
     expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');
     expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED + 1, y, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
+  });
+
+  it('derives ground-item placement and pickup reach from authority state', () => {
+    expect(itemDropPosition(10 * TILE_SIZE_FIXED, 10 * TILE_SIZE_FIXED, 'right')).toEqual({
+      x: 10 * TILE_SIZE_FIXED + 12 * 16,
+      y: 10 * TILE_SIZE_FIXED,
+    });
+    expect(itemDropPosition(10 * TILE_SIZE_FIXED, 10 * TILE_SIZE_FIXED, 'upLeft')).toEqual({
+      x: 10 * TILE_SIZE_FIXED - 8 * 16,
+      y: 10 * TILE_SIZE_FIXED - 8 * 16,
+    });
+    expect(itemWithinPickupReach(0, 0, 24 * 16, 0)).toBe(true);
+    expect(itemWithinPickupReach(0, 0, 24 * 16 + 1, 0)).toBe(false);
   });
 });

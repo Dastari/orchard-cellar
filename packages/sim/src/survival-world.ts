@@ -1,4 +1,4 @@
-import { TILE_SIZE_FIXED, type CollisionMap } from './state.js';
+import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type CollisionMap, type CollisionObstacle } from './state.js';
 
 export const SURVIVAL_WORLD_SIZE = 192;
 export const SURVIVAL_WORLD_SEED = 0x4f434852;
@@ -32,6 +32,17 @@ export interface SurvivalResourceCollision {
   readonly tileX: number;
   readonly tileY: number;
   readonly depleted: boolean;
+}
+
+export function survivalTreeObstacle(tileX: number, tileY: number): CollisionObstacle {
+  const centerX = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const footY = (tileY + 1) * TILE_SIZE_FIXED;
+  return {
+    left: centerX - 4 * FIXED_UNITS_PER_PIXEL,
+    right: centerX + 4 * FIXED_UNITS_PER_PIXEL - 1,
+    top: footY - 6 * FIXED_UNITS_PER_PIXEL,
+    bottom: footY - 1,
+  };
 }
 
 function hash(seed: number, x: number, y: number): number {
@@ -161,13 +172,14 @@ export function createSurvivalCollisionMap(
     const tileY = Math.floor(index / SURVIVAL_WORLD_SIZE);
     return survivalBiomeBlocksMovement(survivalBiomeAt(seed, tileX, tileY));
   });
+  const obstacles: CollisionObstacle[] = [];
   for (const resource of resources) {
     if (!resource.depleted && resource.tileX >= 0 && resource.tileY >= 0
       && resource.tileX < SURVIVAL_WORLD_SIZE && resource.tileY < SURVIVAL_WORLD_SIZE) {
-      blocked[resource.tileY * SURVIVAL_WORLD_SIZE + resource.tileX] = true;
+      obstacles.push(survivalTreeObstacle(resource.tileX, resource.tileY));
     }
   }
-  return { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE, blocked };
+  return { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE, blocked, obstacles };
 }
 
 export function survivalTerrainBytes(seed = SURVIVAL_WORLD_SEED): Uint8Array {

@@ -6,6 +6,7 @@ import { selectAtlasFrame, type AtlasFrame } from './render/sprite.js';
 
 export interface OverworldArt {
   readonly avatar: LoadedAsset;
+  readonly avatarAxe: LoadedAsset;
   readonly crop: LoadedAsset;
   readonly farmland: LoadedAsset;
   readonly farmlandWet: LoadedAsset;
@@ -19,22 +20,25 @@ export interface OverworldArt {
   readonly iconHoe: LoadedAsset;
   readonly iconPickaxe: LoadedAsset;
   readonly iconWateringCan: LoadedAsset;
+  readonly itemWood: LoadedAsset;
   readonly path: LoadedAsset;
   readonly water: LoadedAsset;
   readonly waterRipples: LoadedAsset;
   readonly treeFruiting: LoadedAsset;
   readonly treeMature: LoadedAsset;
+  readonly treeStump: LoadedAsset;
   readonly ui: PixelUi;
 }
 
 export async function loadOverworldArt(): Promise<OverworldArt> {
   const [
-    avatar, crop, farmland, farmlandWet, fenceHorizontal, fenceVertical,
+    avatar, avatarAxe, crop, farmland, farmlandWet, fenceHorizontal, fenceVertical,
     flowersGold, flowersPink, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
-    iconWateringCan, path, water, waterRipples,
-    treeFruiting, treeMature, ui,
+    iconWateringCan, itemWood, path, water, waterRipples,
+    treeFruiting, treeMature, treeStump, ui,
   ] = await Promise.all([
     loadGeneratedAsset('avatar_cf_farmer', 'summer'),
+    loadGeneratedAsset('avatar_cf_farmer_axe', 'summer'),
     loadGeneratedAsset('crop_cf_carrot_mature', 'summer'),
     loadGeneratedAsset('tile_cf_farmland', 'summer'),
     loadGeneratedAsset('tile_cf_farmland_wet', 'summer'),
@@ -48,18 +52,20 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('icon_cf_hoe', 'summer'),
     loadGeneratedAsset('icon_cf_pickaxe', 'summer'),
     loadGeneratedAsset('icon_cf_watering_can', 'summer'),
+    loadGeneratedAsset('item_cf_wood', 'summer'),
     loadGeneratedAsset('tile_cf_path', 'summer'),
     loadGeneratedAsset('tile_cf_water', 'summer'),
     loadGeneratedAsset('tile_cf_water_ripples', 'summer'),
     loadGeneratedAsset('tree_cf_fruit_fruiting', 'summer'),
     loadGeneratedAsset('tree_cf_fruit_mature', 'summer'),
+    loadGeneratedAsset('tree_cf_oak_stump', 'summer'),
     loadPixelUi(),
   ]);
   return {
-    avatar, crop, farmland, farmlandWet, fenceHorizontal, fenceVertical,
+    avatar, avatarAxe, crop, farmland, farmlandWet, fenceHorizontal, fenceVertical,
     flowersGold, flowersPink, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
-    iconWateringCan, path, water, waterRipples,
-    treeFruiting, treeMature, ui,
+    iconWateringCan, itemWood, path, water, waterRipples,
+    treeFruiting, treeMature, treeStump, ui,
   };
 }
 
@@ -264,6 +270,31 @@ export function drawOverworldTree(
   drawAnchored(context, fruiting ? art.treeFruiting : art.treeMature, 'base', 0, x, y + 4, cameraX, cameraY, zoom);
 }
 
+export function drawOverworldStump(
+  context: CanvasRenderingContext2D,
+  art: OverworldArt,
+  x: number,
+  y: number,
+  cameraX: number,
+  cameraY: number,
+  zoom: number,
+): void {
+  drawAnchored(context, art.treeStump, 'base', 0, x, y, cameraX, cameraY, zoom);
+}
+
+export function drawOverworldItem(
+  context: CanvasRenderingContext2D,
+  art: OverworldArt,
+  x: number,
+  y: number,
+  arcHeight: number,
+  cameraX: number,
+  cameraY: number,
+  zoom: number,
+): void {
+  drawAnchored(context, art.itemWood, 'base', 0, x, y - arcHeight, cameraX, cameraY, zoom);
+}
+
 export function drawOverworldAvatar(
   context: CanvasRenderingContext2D,
   art: OverworldArt,
@@ -275,17 +306,40 @@ export function drawOverworldAvatar(
   cameraX: number,
   cameraY: number,
   zoom: number,
+  axeFrame: number | null,
   name: string,
+  uiScale: number,
 ): void {
   const animation = avatarAnimationForDirection(facing);
   const frameIndex = avatarFrameIndex(moving, animationTick);
-  drawAnchored(context, art.avatar, animation, frameIndex, x, y, cameraX, cameraY, zoom, facing === 'left' || facing === 'upLeft' || facing === 'downLeft');
+  drawAnchored(
+    context,
+    axeFrame === null ? art.avatar : art.avatarAxe,
+    axeFrame === null ? animation : axeAnimationForDirection(facing),
+    axeFrame ?? frameIndex,
+    x,
+    y,
+    cameraX,
+    cameraY,
+    zoom,
+    facing === 'left' || facing === 'upLeft' || facing === 'downLeft',
+  );
   const screenX = Math.round((x - cameraX) * zoom);
   const screenY = Math.round((y - cameraY - 36) * zoom);
   const label = name.slice(0, 20);
   const width = measurePixelText(label) + 8;
-  drawPixelPanel(context, art.ui, screenX - width / 2, screenY, width, 15);
-  drawPixelText(context, art.ui, label, screenX, screenY + 4, { align: 'center' });
+  context.save();
+  context.translate(screenX, screenY);
+  context.scale(uiScale, uiScale);
+  drawPixelPanel(context, art.ui, -width / 2, 0, width, 15);
+  drawPixelText(context, art.ui, label, 0, 4, { align: 'center' });
+  context.restore();
+}
+
+export function axeAnimationForDirection(facing: Direction): 'axe_up' | 'axe_right' | 'axe_down' {
+  if (facing === 'up') return 'axe_up';
+  if (facing === 'down') return 'axe_down';
+  return 'axe_right';
 }
 
 export function avatarAnimationForDirection(facing: Direction): 'walk_up' | 'walk_right' | 'walk_down' {

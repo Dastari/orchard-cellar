@@ -1,0 +1,46 @@
+{
+  "name": "item_cf_wood",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".........SSSS...",
+        "........4444MM..",
+        ".......4444MMMS.",
+        "......4444MMM2S.",
+        ".....4444MMM22S.",
+        "....S444MMM222S.",
+        "...SSSSMMM2222..",
+        "..66PPPPM2222...",
+        ".S6666PPS222....",
+        ".SP6PP6PSSS.....",
+        ".SP6PP6PSS......",
+        ".SSS6666S.......",
+        "..SSPP66........",
+        "...SSSS.........",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "2": "#743f39",
+    "4": "#b86f50",
+    "6": "#e4a672",
+    "M": "#91533b",
+    "P": "#ead4aa",
+    "S": "#000000"
+  },
+  "approved": true,
+  "importedFrom": "Resources_Icons_NO_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/No Outline/Resources_Icons_NO_Outline.png",
+  "sourcePaletteMode": "exact"
+}
