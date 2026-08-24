@@ -187,6 +187,11 @@ export async function validateAssetSources(): Promise<void> {
     if (names.has(asset.name)) errors.push(`${asset.name}: duplicate asset name`);
     names.add(asset.name);
     validateCanonicalSize(asset, errors);
+    for (const [character, hex] of Object.entries(asset.sourcePalette ?? {})) {
+      if (!allowed.has(character)) errors.push(`${asset.name}: sourcePalette overrides unknown character ${character}`);
+      if (!/^#[0-9a-f]{6}$/i.test(hex)) errors.push(`${asset.name}: sourcePalette ${character} has invalid hex ${hex}`);
+      if (character === '.') errors.push(`${asset.name}: sourcePalette cannot override transparency`);
+    }
     for (const [animation, frames] of Object.entries(asset.frames)) {
       if (frames.length === 0) errors.push(`${asset.name}:${animation} must have at least one frame`);
       frames.forEach((grid, index) => validateGrid(asset, grid, animation, index, allowed, errors));

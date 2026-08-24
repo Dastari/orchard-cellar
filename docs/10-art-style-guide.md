@@ -19,12 +19,14 @@ and built) and the `pixel-art` skill in `.claude/skills/` (working instructions)
 | Trees (mature) | 48×64 px (3×4 tiles), trunk base occupies 1 collision tile |
 | Buildings | multiples of 16 in both axes |
 | Virtual resolution | 480×270 (30×~17 tiles on screen), integer-scaled |
-| Palette | `packages/assets/palette.json` — **55 colors, closed** (see §2) |
+| Palette | bespoke art uses `packages/assets/palette.json` — **55 colors, closed** (see §2); reviewed owner-licensed imports retain native source ramps |
 | Transparency | binary only — a pixel is a palette color or fully transparent; no alpha blending inside sprites |
 | Outlines | 1 px, **not pure black** — use the palette's darkest hue-relative color (see §3) |
 
-Adding a palette color is a design decision requiring an explicit doc update + user
-sign-off. Everything ships from these 55.
+Adding a bespoke palette color is a design decision requiring an explicit doc update
++ user sign-off. A reviewed owner-licensed import may instead declare a per-asset
+`sourcePalette`: this preserves exact opaque RGB ramps while retaining binary
+transparency, text grids, validation, and semantic asset IDs.
 
 ## 2. The palette — "Late Summer Orchard"
 
@@ -134,7 +136,8 @@ smoke) — this is what makes it feel alive — but nothing that loops faster th
 
 ## 8. Review checklist (every asset PR)
 
-- [ ] Only palette colors (CI `validate-assets` enforces; do not bypass)
+- [ ] Bespoke art uses only the closed palette; licensed imports use only their
+  validated `sourcePalette` colors (CI `validate-assets` enforces both)
 - [ ] Correct canonical size; anchored to tile grid
 - [ ] Silhouette test passes at 1×
 - [ ] Light from top-left; no pillow shading; no banding

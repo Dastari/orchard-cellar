@@ -32,5 +32,9 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Grass_4_Middle.png"
+  "importedFrom": "Grass_4_Middle.png",
+  "sourcePalette": {
+    "h": "#3f886c"
+  },
+  "sourcePath": "references/Cute_Fantasy/Tiles/Grass/Grass_4_Middle.png"
 }

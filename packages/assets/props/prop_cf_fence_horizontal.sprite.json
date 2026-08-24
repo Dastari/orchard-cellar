@@ -32,5 +32,13 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Fences.png"
+  "importedFrom": "Fences.png",
+  "sourcePalette": {
+    "2": "#743f39",
+    "4": "#b86f50",
+    "6": "#e4a672",
+    "M": "#91533b",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Fences.png"
 }

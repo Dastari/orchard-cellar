@@ -160,5 +160,21 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Barn_Base_Red.png"
+  "importedFrom": "Barn_Base_Red.png",
+  "sourcePalette": {
+    "0": "#340c11",
+    "1": "#4a2e2b",
+    "2": "#743f39",
+    "4": "#b86f50",
+    "L": "#5e3c08",
+    "M": "#91533b",
+    "N": "#c78e75",
+    "S": "#1b1b1b",
+    "j": "#602432",
+    "k": "#80282e",
+    "l": "#ac353d",
+    "o": "#5f5624",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Buildings/Buildings/Unique_Buildings/Barn/Barn_Base_Red.png"
 }

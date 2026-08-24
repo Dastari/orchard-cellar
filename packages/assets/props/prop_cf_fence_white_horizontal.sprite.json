@@ -32,5 +32,13 @@
     ]
   },
   "approved": true,
-  "importedFrom": "White_Fence.png"
+  "importedFrom": "White_Fence.png",
+  "sourcePalette": {
+    "B": "#988d7f",
+    "I": "#ffffff",
+    "J": "#eee9e3",
+    "K": "#d8cec1",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/White_Fence.png"
 }

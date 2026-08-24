@@ -16,6 +16,8 @@ export interface AssetSource {
   readonly variantTopologies?: Readonly<Record<string, 'blob47'>>;
   readonly markers?: Readonly<Record<string, string>>;
   readonly markerRamps?: Readonly<Record<string, readonly string[]>>;
+  /** Native colors retained from an owner-licensed source image. */
+  readonly sourcePalette?: Readonly<Record<string, string>>;
   readonly lintAllow?: readonly string[];
   readonly tags?: readonly string[];
   readonly placement?: {
@@ -25,6 +27,13 @@ export interface AssetSource {
     readonly builderAvailable?: boolean;
   };
   readonly approved?: boolean;
+  readonly importedFrom?: string;
+  readonly sourcePath?: string;
+  readonly charset?: string;
+  readonly glyphSize?: readonly [number, number];
+  readonly cellSize?: readonly [number, number];
+  readonly columns?: number;
+  readonly slice?: readonly [number, number, number, number];
 }
 
 export interface PaletteSource {

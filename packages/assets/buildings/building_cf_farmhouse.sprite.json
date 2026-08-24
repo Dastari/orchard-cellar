@@ -144,5 +144,23 @@
     ]
   },
   "approved": true,
-  "importedFrom": "House_1_Wood_Base_Red.png"
+  "importedFrom": "House_1_Wood_Base_Red.png",
+  "sourcePalette": {
+    "2": "#743f39",
+    "4": "#b86f50",
+    "A": "#7c6f6a",
+    "B": "#a2877c",
+    "M": "#91533b",
+    "N": "#c78e75",
+    "R": "#122b3a",
+    "S": "#1b1b1b",
+    "j": "#602432",
+    "k": "#80282e",
+    "l": "#ac353d",
+    "v": "#0098dc",
+    "w": "#00cdf9",
+    "y": "#3f2832",
+    "z": "#5c5857"
+  },
+  "sourcePath": "references/Cute_Fantasy/Buildings/Buildings/Houses/Wood/House_1_Wood_Base_Red.png"
 }

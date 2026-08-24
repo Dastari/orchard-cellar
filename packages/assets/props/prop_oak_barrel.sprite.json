@@ -48,5 +48,14 @@
     ]
   },
   "approved": true,
-  "importedFrom": "barrels.png"
+  "importedFrom": "barrels.png",
+  "sourcePalette": {
+    "2": "#743f39",
+    "4": "#b86f50",
+    "M": "#91533b",
+    "R": "#03193f",
+    "l": "#ad3e3b",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/barrels.png"
 }

@@ -32,5 +32,14 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Flowers.png"
+  "importedFrom": "Flowers.png",
+  "sourcePalette": {
+    "E": "#571f7a",
+    "H": "#bf92dd",
+    "J": "#fdd2ed",
+    "b": "#3e8948",
+    "c": "#50af5d",
+    "g": "#265c42"
+  },
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Flowers.png"
 }

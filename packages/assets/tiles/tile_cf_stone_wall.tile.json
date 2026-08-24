@@ -32,5 +32,11 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Stone_Wall_Fillers.png"
+  "importedFrom": "Stone_Wall_Fillers.png",
+  "sourcePalette": {
+    "A": "#6c7c9d",
+    "B": "#8e9ab4",
+    "z": "#3c4258"
+  },
+  "sourcePath": "references/Cute_Fantasy/Buildings/Houses_Interiors/Stone_Wall_Fillers.png"
 }

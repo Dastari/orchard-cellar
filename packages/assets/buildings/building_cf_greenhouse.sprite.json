@@ -144,5 +144,18 @@
     ]
   },
   "approved": true,
-  "importedFrom": "GreenHouse_Wood.png"
+  "importedFrom": "GreenHouse_Wood.png",
+  "sourcePalette": {
+    "2": "#743f39",
+    "4": "#b86f50",
+    "6": "#e4a672",
+    "A": "#58666e",
+    "B": "#918574",
+    "C": "#a6b6a7",
+    "M": "#91533b",
+    "N": "#ae9883",
+    "x": "#94fdff",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Buildings/Buildings/Unique_Buildings/Greenhouse/GreenHouse_Wood.png"
 }

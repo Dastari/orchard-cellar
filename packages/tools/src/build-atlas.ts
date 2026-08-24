@@ -32,7 +32,6 @@ function defaultLayer(category: string): PlacementLayer {
 }
 
 function assetTags(asset: AssetSource): string[] {
-  const builderCategory = ['buildings', 'crops', 'props', 'tiles', 'trees'].includes(asset.category);
   const groups = Object.entries(framesForAsset(asset));
   return [...new Set([
     ...(asset.tags ?? []),
@@ -43,7 +42,7 @@ function assetTags(asset: AssetSource): string[] {
       return [`${kind}.${name}`, ...(topology ? [`topology.${topology}`] : [])];
     }),
     ...(asset.collision?.length ? ['collision.solid'] : []),
-    ...(asset.approved === true && (asset.placement?.builderAvailable ?? builderCategory) ? ['builder.available'] : []),
+    ...(asset.approved === true && asset.placement?.builderAvailable === true ? ['builder.available'] : []),
     ...(asset.approved === true ? ['review.approved'] : ['review.required']),
   ])].sort();
 }
@@ -139,8 +138,11 @@ function resolveColor(
   palette: PaletteSource,
   remap: Readonly<Record<string, string>>,
   markers: Readonly<Record<string, string>>,
+  sourcePalette: Readonly<Record<string, string>>,
 ): readonly [number, number, number, number] {
   if (character === '.') return [0, 0, 0, 0];
+  const sourceHex = sourcePalette[character];
+  if (sourceHex) return hexToRgba(sourceHex);
   const marker = markers[character] ?? palette.markerDefaults[character] ?? character;
   const remapped = remap[marker] ?? marker;
   const hex = palette.colors[remapped];
@@ -258,12 +260,21 @@ export async function buildAtlases(): Promise<void> {
         variantMeta,
         states,
         markerLayers,
+        ...(asset.charset && asset.glyphSize && asset.cellSize && asset.columns ? {
+          font: {
+            charset: asset.charset,
+            glyphSize: asset.glyphSize,
+            cellSize: asset.cellSize,
+            columns: asset.columns,
+          },
+        } : {}),
+        ...(asset.slice ? { slice: asset.slice } : {}),
         tags: assetTags(asset),
         placement: {
           layer: asset.placement?.layer ?? defaultLayer(category),
           footprint,
           blocksMovement: asset.placement?.blocksMovement ?? Boolean(asset.collision?.length),
-          builderAvailable: asset.approved === true && (asset.placement?.builderAvailable ?? ['buildings', 'crops', 'props', 'tiles', 'trees'].includes(category)),
+          builderAvailable: asset.approved === true && asset.placement?.builderAvailable === true,
         },
       };
     }
@@ -274,7 +285,13 @@ export async function buildAtlases(): Promise<void> {
         for (let pixelY = 0; pixelY < placement.asset.size[1]; pixelY += 1) {
           for (let pixelX = 0; pixelX < placement.asset.size[0]; pixelX += 1) {
             const character = placement.grid[pixelY]?.[pixelX] ?? '.';
-            const color = resolveColor(character, palette, seasonSource[season], placement.asset.markers ?? {});
+            const color = resolveColor(
+              character,
+              palette,
+              seasonSource[season],
+              placement.asset.markers ?? {},
+              placement.asset.sourcePalette ?? {},
+            );
             setPixel(rgba, ATLAS_WIDTH, placement.frame.x + pixelX, placement.frame.y + pixelY, color);
           }
         }

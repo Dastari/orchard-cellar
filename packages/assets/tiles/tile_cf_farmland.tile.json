@@ -32,5 +32,9 @@
     ]
   },
   "approved": true,
-  "importedFrom": "FarmLand_Tile.png"
+  "importedFrom": "FarmLand_Tile.png",
+  "sourcePalette": {
+    "4": "#b86f50"
+  },
+  "sourcePath": "references/Cute_Fantasy/Tiles/FarmLand/FarmLand_Tile.png"
 }

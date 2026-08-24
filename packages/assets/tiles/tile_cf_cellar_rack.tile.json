@@ -32,5 +32,24 @@
     ]
   },
   "approved": true,
-  "importedFrom": "BookShelves.png"
+  "importedFrom": "BookShelves.png",
+  "sourcePalette": {
+    "4": "#bf6f4a",
+    "6": "#e69c69",
+    "B": "#8c8c8c",
+    "F": "#93388f",
+    "G": "#ca52c9",
+    "L": "#5d2c28",
+    "M": "#8a4836",
+    "g": "#134c4c",
+    "h": "#1e6f50",
+    "k": "#891e2b",
+    "l": "#c42430",
+    "m": "#ed7614",
+    "q": "#ffa214",
+    "u": "#0069aa",
+    "v": "#0098dc",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Buildings/House_Decor/BookShelves.png"
 }

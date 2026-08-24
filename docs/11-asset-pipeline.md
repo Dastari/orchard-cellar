@@ -38,6 +38,12 @@ table in 10-art-style-guide.md §2, ordered ramp by ramp (R1 dark first). The bu
 fails on any character not in the palette. **This is the style-consistency enforcement
 point — never widen it casually.**
 
+Reviewed owner-licensed imports may add `"sourcePalette": {"b":"#3e8948", ...}`.
+Those values override the global color for that asset only, preserving the source
+pack's native ramps without committing PNG sheets or abandoning inspectable text
+grids. Values must be opaque six-digit RGB hex and keys must already be valid grid
+characters. Seasonal palette remaps do not alter native source ramps.
+
 Tiles use the same format with `"size": [16,16]` (`*.tile.json`), plus optional
 `"autotile": "blob47"` — the tool then expects the 5-tile template (center, edge,
 outer corner, inner corner, isolated) and generates all 47 blob variants.
@@ -155,9 +161,10 @@ text-grid format and validated through the normal palette/review pipeline, ship.
 **Project decision (2026-08-24):** the owner-supplied Sprout Lands Basic Pack and
 owner-purchased Cute Fantasy collection are approved for this private build. Cute
 Fantasy is the primary coherent source for terrain, characters, vegetation,
-buildings, props, and UI. Assets may be cropped and palette-remapped into committed
-text grids through `assets:import`; original packs remain ignored and are not
-redistributed. Credit Cup Nooble and Kenmi Art in the game.
+buildings, props, and UI. Assets may be cropped into committed text grids through
+`assets:import`; reviewed Cute Fantasy extracts retain native per-asset ramps rather
+than being flattened into the Orchard palette. Original packs remain ignored and are
+not redistributed. Credit Cup Nooble and Kenmi Art in the game.
 
 
 ## 7. Asset inventory & naming

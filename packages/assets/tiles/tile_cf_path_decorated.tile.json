@@ -32,5 +32,10 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Path_Decoration.png"
+  "importedFrom": "Path_Decoration.png",
+  "sourcePalette": {
+    "4": "#b86f50",
+    "6": "#e4a672"
+  },
+  "sourcePath": "references/Cute_Fantasy/Tiles/Grass/Path_Decoration.png"
 }

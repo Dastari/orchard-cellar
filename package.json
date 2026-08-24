@@ -16,6 +16,7 @@
     "assets:render": "npm run render -w @orchard/tools --",
     "assets:preview": "npm run preview -w @orchard/tools",
     "assets:import": "npm run import -w @orchard/tools --",
+    "assets:restore-native": "npm run restore-native -w @orchard/tools",
     "sim:pace": "tsx packages/tools/src/pace-sim.ts",
     "world:host": "spacetime start --listen-addr 127.0.0.1:3000 --data-dir .spacetime-data --non-interactive",
     "world:dev": "sh -c 'until curl -fsS http://127.0.0.1:3000/v1/ping >/dev/null 2>&1; do sleep 0.2; done; exec spacetime dev orchard-cellar-world --no-config --server local --project-path . --module-path packages/world --module-bindings-path packages/client/src/net/generated --client-lang typescript --yes --server-only'",

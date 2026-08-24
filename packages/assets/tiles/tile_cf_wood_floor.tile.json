@@ -32,5 +32,10 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Wood_Floor_Tiles.png"
+  "importedFrom": "Wood_Floor_Tiles.png",
+  "sourcePalette": {
+    "2": "#743f39",
+    "M": "#91533b"
+  },
+  "sourcePath": "references/Cute_Fantasy/Buildings/Houses_Interiors/Wood_Floor_Tiles.png"
 }

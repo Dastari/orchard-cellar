@@ -146,7 +146,8 @@ export function drawOverworldGround(
   cameraY: number,
   zoom: number,
 ): void {
-  context.fillStyle = '#3f7d32';
+  // Match Cute Fantasy's native Grass_1_Middle base; detail sprites sit on top.
+  context.fillStyle = '#3e8948';
   context.fillRect(0, 0, 480, 270);
   const minX = Math.max(0, Math.floor(cameraX / 16) - 1);
   const minY = Math.max(0, Math.floor(cameraY / 16) - 1);

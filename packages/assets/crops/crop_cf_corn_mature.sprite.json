@@ -32,5 +32,11 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Crops.png"
+  "importedFrom": "Crops.png",
+  "sourcePalette": {
+    "d": "#5ac54f",
+    "g": "#134c4c",
+    "h": "#1e6f50"
+  },
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png"
 }

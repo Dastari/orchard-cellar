@@ -427,5 +427,18 @@
   },
   "fps": 8,
   "approved": true,
-  "importedFrom": "Player.png"
+  "importedFrom": "Player.png",
+  "sourcePalette": {
+    "2": "#704643",
+    "6": "#d29f70",
+    "L": "#5d2c28",
+    "P": "#f6ca9f",
+    "Q": "#0e071b",
+    "c": "#33984b",
+    "g": "#134c4c",
+    "h": "#1e6f50",
+    "u": "#0069aa",
+    "v": "#0098dc"
+  },
+  "sourcePath": "references/Cute_Fantasy_Free/Player/Player.png"
 }

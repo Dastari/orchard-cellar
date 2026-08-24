@@ -108,8 +108,14 @@ song's `iterationNotes`).
   the whole game. **Rule: nothing with `importedFrom` pointing at a pack file may
   remain in `packages/assets/` at M9** — redraw or delete; CI should eventually
   assert it.
-- **Cute Fantasy** (`references/Cute_Fantasy*/`, by Kenmi Art): the included license
-  permits commercial and non-commercial project use and modification, and prohibits
-  redistribution or resale. The owner explicitly approved it as this private build's
-  primary coherent visual source. Purchased sheets remain ignored local inputs; only
-  reviewed, palette-authored semantic extracts under `packages/assets/` ship.
+- **Cute Fantasy paid packs** (`references/Cute_Fantasy*/`, excluding
+  `Cute_Fantasy_Free`, by Kenmi Art): the included paid-pack licenses permit
+  commercial and non-commercial project use and modification, and prohibit
+  redistribution or resale. The owner explicitly approved them as this private
+  build's primary coherent visual source.
+- **Cute Fantasy Free** (`references/Cute_Fantasy_Free/`, by Kenmi Art): its bundled
+  terms are non-commercial only. The current `avatar_cf_farmer` derives from its
+  `Player.png`, which is permitted for this private non-commercial game but must be
+  replaced or separately licensed before any commercial release. Purchased/source
+  sheets remain ignored local inputs; only reviewed text-grid semantic extracts with
+  validated native ramps under `packages/assets/` ship.

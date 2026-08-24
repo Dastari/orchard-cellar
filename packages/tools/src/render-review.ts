@@ -12,6 +12,8 @@ const divider = hexToRgba('#1a1210');
 
 function resolveHex(character: string, asset: AssetSource, palette: PaletteSource): string | null {
   if (character === '.') return null;
+  const sourceHex = asset.sourcePalette?.[character];
+  if (sourceHex) return sourceHex;
   const marker = asset.markers?.[character] ?? palette.markerDefaults[character] ?? character;
   return palette.colors[marker] ?? null;
 }

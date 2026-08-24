@@ -80,5 +80,22 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Apple_Tree.png"
+  "importedFrom": "Apple_Tree.png",
+  "sourcePalette": {
+    "2": "#743f39",
+    "4": "#b86f50",
+    "M": "#91533b",
+    "Q": "#0e071b",
+    "S": "#091b15",
+    "c": "#33984b",
+    "d": "#5ac54f",
+    "g": "#134c4c",
+    "h": "#1e6f50",
+    "j": "#571c27",
+    "k": "#891e2b",
+    "l": "#c42430",
+    "m": "#f5555d",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Crops/Apple_Tree.png"
 }

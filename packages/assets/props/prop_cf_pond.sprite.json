@@ -64,5 +64,16 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Water_Tile_1.png"
+  "importedFrom": "Water_Tile_1.png",
+  "sourcePalette": {
+    "2": "#6d483b",
+    "M": "#9c6754",
+    "b": "#3e8948",
+    "f": "#193c3e",
+    "g": "#265c42",
+    "u": "#006da8",
+    "v": "#0095e9",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Tiles/Water/Water_Tile_1.png"
 }

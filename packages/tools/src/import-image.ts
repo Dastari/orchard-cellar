@@ -58,6 +58,8 @@ const paletteLabs = Object.entries(palette.colors).map(([character, hex]) => {
   const value = Number.parseInt(hex.slice(1), 16);
   return { character, lab: oklab((value >>> 16) & 255, (value >>> 8) & 255, value & 255) };
 });
+const preserveSourcePalette = inputPath.includes('/Cute_Fantasy');
+const sourceColorCounts = new Map<string, Map<string, number>>();
 function buildFrame(originX: number, originY: number): string[] {
   const rows: string[] = [];
   for (let y = 0; y < outputHeight; y += 1) {
@@ -73,6 +75,15 @@ function buildFrame(originX: number, originY: number): string[] {
       for (const candidate of paletteLabs) {
         const next = (sourceLab[0] - candidate.lab[0]) ** 2 + (sourceLab[1] - candidate.lab[1]) ** 2 + (sourceLab[2] - candidate.lab[2]) ** 2;
         if (next < distance) { nearest = candidate; distance = next; }
+      }
+      if (preserveSourcePalette) {
+        const red = decoded.rgba[offset] ?? 0;
+        const green = decoded.rgba[offset + 1] ?? 0;
+        const blue = decoded.rgba[offset + 2] ?? 0;
+        const hex = `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+        const colors = sourceColorCounts.get(nearest.character) ?? new Map<string, number>();
+        colors.set(hex, (colors.get(hex) ?? 0) + 1);
+        sourceColorCounts.set(nearest.character, colors);
       }
       row += nearest.character;
     }
@@ -126,6 +137,12 @@ const source = {
   anchor: [Math.floor(targetWidth / 2), targetHeight - 1],
   frames,
   ...(fpsOption ? { fps: Number(fpsOption) } : {}),
+  ...(preserveSourcePalette ? {
+    sourcePalette: Object.fromEntries([...sourceColorCounts].sort(([left], [right]) => left.localeCompare(right)).map(([character, colors]) => [
+      character,
+      [...colors].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]![0],
+    ])),
+  } : {}),
   approved: false,
   importedFrom: basename(input),
 };
@@ -134,4 +151,4 @@ await mkdir(directory, { recursive: true });
 const suffix = category === 'tiles' ? 'tile' : 'sprite';
 const output = new URL(`${name}.${suffix}.json`, directory);
 await writeFile(output, `${JSON.stringify(source, null, 2)}\n`);
-console.log(`Wrote palette-snapped draft ${fileURLToPath(output)}`);
+console.log(`Wrote ${preserveSourcePalette ? 'native-ramp' : 'palette-snapped'} draft ${fileURLToPath(output)}`);

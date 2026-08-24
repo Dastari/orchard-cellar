@@ -48,5 +48,16 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Fruit_Tree_Stages.png"
+  "importedFrom": "Fruit_Tree_Stages.png",
+  "sourcePalette": {
+    "2": "#743f39",
+    "M": "#91533b",
+    "S": "#091b15",
+    "c": "#33984b",
+    "d": "#5ac54f",
+    "g": "#134c4c",
+    "h": "#1e6f50",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Crops/Fruit_Tree_Stages.png"
 }

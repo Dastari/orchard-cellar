@@ -32,5 +32,9 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Water_Middle.png"
+  "importedFrom": "Water_Middle.png",
+  "sourcePalette": {
+    "v": "#0095e9"
+  },
+  "sourcePath": "references/Cute_Fantasy/Tiles/Water/Water_Middle.png"
 }

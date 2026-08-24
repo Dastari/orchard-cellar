@@ -128,5 +128,17 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Windmill.png"
+  "importedFrom": "Windmill.png",
+  "sourcePalette": {
+    "2": "#743f39",
+    "4": "#b86f50",
+    "6": "#e69c69",
+    "M": "#91533b",
+    "S": "#1b1b1b",
+    "j": "#602432",
+    "k": "#80282e",
+    "l": "#ac353d",
+    "y": "#3f2832"
+  },
+  "sourcePath": "references/Cute_Fantasy/Buildings/Buildings/Unique_Buildings/Windmill/Windmill.png"
 }

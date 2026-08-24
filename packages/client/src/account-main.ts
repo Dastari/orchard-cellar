@@ -39,9 +39,8 @@ function launch(name: string): void {
   location.assign(localProfileWorldUrl(profiles.lastUsed ?? name, location.origin));
 }
 
-function drawText(text: string, x: number, y: number, _color = '#f7e7b2', align: CanvasTextAlign = 'left'): void {
-  context.fillStyle = _color;
-  drawPixelText(context, ui, text, x, y - 7, { align });
+function drawText(text: string, x: number, y: number, color = '#f7e7b2', align: CanvasTextAlign = 'left'): void {
+  drawPixelText(context, ui, text, x, y - 7, { align, color });
 }
 
 function render(): void {
@@ -53,7 +52,7 @@ function render(): void {
   }
   drawPixelPanel(context, ui, 58, 25, 364, 222);
 
-  drawText('ORCHARD & CELLAR', 240, 55, '#6f451f', 'center');
+  drawPixelText(context, ui, 'ORCHARD & CELLAR', 240, 43, { align: 'center', color: '#6f451f', font: 'header' });
   drawText('LOCAL FRIENDS PREVIEW', 240, 68, '#91672e', 'center');
   drawText(message, 240, 83, '#6f451f', 'center');
 

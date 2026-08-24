@@ -32,5 +32,9 @@
     ]
   },
   "approved": true,
-  "importedFrom": "FarmLand_Wet_Tile.png"
+  "importedFrom": "FarmLand_Wet_Tile.png",
+  "sourcePalette": {
+    "M": "#8a4836"
+  },
+  "sourcePath": "references/Cute_Fantasy/Tiles/FarmLand/FarmLand_Wet_Tile.png"
 }

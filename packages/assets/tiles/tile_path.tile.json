@@ -859,8 +859,20 @@
       ]
     ]
   },
-  "frameKinds": { "base": "variant" },
-  "variantTopologies": { "base": "blob47" },
+  "frameKinds": {
+    "base": "variant"
+  },
+  "variantTopologies": {
+    "base": "blob47"
+  },
   "approved": true,
-  "importedFrom": "Grass_Tiles_1_Blob_TEST.png"
+  "importedFrom": "Grass_Tiles_1_Blob_TEST.png",
+  "sourcePalette": {
+    "4": "#b86f50",
+    "6": "#e4a672",
+    "b": "#3e8948",
+    "f": "#193c3e",
+    "g": "#265c42"
+  },
+  "sourcePath": "references/Cute_Fantasy/Tiles/Grass/Grass_Tiles_1_Blob_TEST.png"
 }

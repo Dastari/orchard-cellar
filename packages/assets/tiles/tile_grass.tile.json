@@ -32,5 +32,10 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Grass_3_Anim.png"
+  "importedFrom": "Grass_3_Anim.png",
+  "sourcePalette": {
+    "b": "#33713b",
+    "c": "#50af5d"
+  },
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Grass_Animations/Grass_3_Anim.png"
 }

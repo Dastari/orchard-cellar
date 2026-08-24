@@ -32,5 +32,10 @@
     ]
   },
   "approved": true,
-  "importedFrom": "Water_Decoration.png"
+  "importedFrom": "Water_Decoration.png",
+  "sourcePalette": {
+    "u": "#006da8",
+    "v": "#0095e9"
+  },
+  "sourcePath": "references/Cute_Fantasy/Tiles/Water/Water_Decoration.png"
 }
