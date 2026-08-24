@@ -33,6 +33,17 @@ describe('schema-versioned local saves', () => {
     expect(parseSave(null)).toBeNull();
     expect(parseSave({ schemaVersion: 3, state: createInitialState() })).toBeNull();
     expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), collision: { width: 2, height: 2, blocked: [] } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), economy: { ...createInitialState().economy, resources: { fruit: -1, pomace: 0, must: 0, bottles: 0 } } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), economy: { ...createInitialState().economy, presses: [1] } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), economy: { ...createInitialState().economy, trees: [{ ...createInitialState().economy.trees[0], species: 'poisonApple' }] } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), economy: { ...createInitialState().economy, upgrades: ['timeMachine'] } } })).toBeNull();
+  });
+
+  it('rebuilds collision data instead of trusting a valid-sized saved collision map', () => {
+    const state = createInitialState(11);
+    const blocked = state.collision.blocked.map(() => false);
+    const parsed = parseSave({ schemaVersion: 2, state: { ...state, collision: { ...state.collision, blocked } } });
+    expect(parsed?.collision.blocked.some(Boolean)).toBe(true);
   });
 
   it('migrates M3 schema-one saves into the starter economy', () => {

@@ -1,4 +1,4 @@
-import { applyOffline, createCellarCollisionMap, createEstateCollisionMap, createInitialState, type Direction, type FarmState, type PlayerState } from '@orchard/sim';
+import { TREE_BALANCE, WORKBENCH_UPGRADES, applyOffline, createCellarCollisionMap, createEstateCollisionMap, createInitialState, type Direction, type FarmState, type PlayerState } from '@orchard/sim';
 
 export const LOCAL_SAVE_KEY = 'orchard-cellar.farm';
 export const SAVE_SCHEMA_VERSION = 2;
@@ -27,6 +27,14 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function isNonNegativeInteger(value: unknown): value is number {
+  return isFiniteNumber(value) && Number.isInteger(value) && value >= 0;
+}
+
+function hasNonNegativeIntegers(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  return keys.every((key) => isNonNegativeInteger(value[key]));
+}
+
 function isPlayer(value: unknown): value is PlayerState {
   if (!isRecord(value) || !isRecord(value['position'])) return false;
   const facing = value['facing'];
@@ -43,10 +51,10 @@ export function parseSave(value: unknown): FarmState | null {
   const state = value['state'];
   const rng = state['rng'];
   const collision = state['collision'];
-  if (!isFiniteNumber(state['tick']) || state['tick'] < 0) return null;
-  if (!isRecord(rng) || !['a', 'b', 'c', 'd'].every((key) => isFiniteNumber(rng[key]))) return null;
+  if (!isNonNegativeInteger(state['tick'])) return null;
+  if (!isRecord(rng) || !['a', 'b', 'c', 'd'].every((key) => isNonNegativeInteger(rng[key]) && Number(rng[key]) <= 0xffff_ffff)) return null;
   if (!isPlayer(state['player'])) return null;
-  if (!isRecord(collision) || !isFiniteNumber(collision['width']) || !isFiniteNumber(collision['height'])) return null;
+  if (!isRecord(collision) || !isNonNegativeInteger(collision['width']) || !isNonNegativeInteger(collision['height']) || collision['width'] === 0 || collision['height'] === 0) return null;
   if (!Array.isArray(collision['blocked']) || !collision['blocked'].every((entry) => typeof entry === 'boolean')) return null;
   if (collision['blocked'].length !== collision['width'] * collision['height']) return null;
   if (value['schemaVersion'] === 1 && state['version'] === 1) {
@@ -64,8 +72,38 @@ export function parseSave(value: unknown): FarmState | null {
   const economy = state['economy'];
   if (!isRecord(economy['resources']) || !Array.isArray(economy['trees']) || !Array.isArray(economy['presses']) || !Array.isArray(economy['casks'])) return null;
   const resources = economy['resources'];
-  if (!['fruit', 'pomace', 'must', 'bottles'].every((key) => isFiniteNumber(resources[key]))) return null;
-  return state as unknown as FarmState;
+  if (!['fruit', 'pomace', 'must', 'bottles'].every((key) => isNonNegativeInteger(resources[key]))) return null;
+  if (economy['presses'].length !== 5 || economy['casks'].length !== 5 || ![...economy['presses'], ...economy['casks']].every(isNonNegativeInteger)) return null;
+  if (!hasNonNegativeIntegers(economy, [
+    'nextTreeId', 'hopperFruitMicro', 'yardMustMicro', 'cellarMustMicro', 'vigour', 'vigourRemainder',
+    'autumnChain', 'pressRemainder', 'pomaceMicro', 'caskRemainder', 'bottleMicro',
+  ]) || Number(economy['vigour']) > 10_000) return null;
+  if (economy['lastFullTendTick'] !== null && !isNonNegativeInteger(economy['lastFullTendTick'])) return null;
+  const species = new Set(TREE_BALANCE.map((entry) => entry.id));
+  for (const tree of economy['trees']) {
+    if (!isRecord(tree) || !isNonNegativeInteger(tree['id']) || typeof tree['species'] !== 'string' || !species.has(tree['species'] as typeof TREE_BALANCE[number]['id'])) return null;
+    if (!isNonNegativeInteger(tree['x']) || Number(tree['x']) >= 64 || !isNonNegativeInteger(tree['y']) || Number(tree['y']) >= 64 || !['sapling', 'young', 'mature'].includes(String(tree['stage']))) return null;
+    if (!isNonNegativeInteger(tree['care']) || tree['care'] > 3 || !hasNonNegativeIntegers(tree, [
+      'stageAgeTicks', 'nextCareDecayTick', 'mulchUntilTick', 'bufferMicro', 'productionRemainder',
+    ])) return null;
+  }
+  const validUpgrades = new Set(WORKBENCH_UPGRADES.map((entry) => entry.id));
+  const upgrades = Array.isArray(economy['upgrades']) ? economy['upgrades'] : [];
+  if (upgrades.some((id) => typeof id !== 'string' || !validUpgrades.has(id as typeof WORKBENCH_UPGRADES[number]['id']))) return null;
+  const plotsUnlocked = economy['plotsUnlocked'] === undefined ? 15 : economy['plotsUnlocked'];
+  if (!isNonNegativeInteger(plotsUnlocked) || plotsUnlocked < economy['trees'].length || plotsUnlocked > 120) return null;
+  if (Number(economy['nextTreeId']) <= Math.max(0, ...economy['trees'].map((tree) => Number((tree as Record<string, unknown>)['id'])))) return null;
+  if (!isRecord(economy['knowledge']) || !hasNonNegativeIntegers(economy['knowledge'], ['grove', 'press', 'cellar', 'estate'])) return null;
+  const firsts = economy['firsts'];
+  if (!isRecord(firsts) || !['harvested', 'pressRun', 'bottle'].every((key) => typeof firsts[key] === 'boolean')) return null;
+  if (typeof economy['firstPressRepaired'] !== 'boolean') return null;
+  const parsed = state as unknown as FarmState;
+  const normalizedEconomy: FarmState['economy'] = { ...parsed.economy, upgrades: upgrades as FarmState['economy']['upgrades'], plotsUnlocked };
+  return {
+    ...parsed,
+    economy: normalizedEconomy,
+    collision: parsed.player.location === 'cellar' ? createCellarCollisionMap() : createEstateCollisionMap(normalizedEconomy.trees),
+  };
 }
 
 export class LocalSaveStore {

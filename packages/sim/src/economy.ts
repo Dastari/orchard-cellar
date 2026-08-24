@@ -10,7 +10,10 @@ import {
   CASK_COST_GROWTH,
   FED_BONUS_CAP,
   FIRST_PRESS_REPAIR_FRUIT,
+  MULCH_HOLD_DAYS,
+  MULCH_POMACE_COST,
   POMACE_YIELD,
+  PLOT_CLEARINGS,
   PRESS_BALANCE,
   PRESS_COST_GROWTH,
   PRESS_MUST_YIELD,
@@ -25,6 +28,7 @@ import {
   VIGOUR_CHARGE_PER_SECOND,
   VIGOUR_PARTIAL_SECONDS,
   WINTER_AGING_MULTIPLIER,
+  WORKBENCH_UPGRADES,
   YOUNG_GROWTH_DAYS,
   YOUNG_PRODUCTION_MULTIPLIER,
   equipmentMilestoneMultiplier,
@@ -52,9 +56,14 @@ function countSpecies(economy: EconomyState, species: TreeSpeciesId): number {
   return economy.trees.filter((tree) => tree.species === species).length;
 }
 
-function seasonMultiplier(entry: TreeBalance, season: Season): number {
+function hasUpgrade(economy: EconomyState, id: EconomyState['upgrades'][number]): boolean {
+  return economy.upgrades.includes(id);
+}
+
+function seasonMultiplier(entry: TreeBalance, season: Season, economy: EconomyState): number {
   if (!entry.featuredSeason) return 1;
-  return entry.featuredSeason === season ? SEASON_TRAIT_MULTIPLIER : 0.85;
+  if (entry.featuredSeason === season) return SEASON_TRAIT_MULTIPLIER;
+  return hasUpgrade(economy, 'irrigation') ? 0.925 : 0.85;
 }
 
 function productionStageMultiplier(tree: OrchardTreeState): number {
@@ -78,9 +87,11 @@ function treeRateMicro(tree: OrchardTreeState, economy: EconomyState, season: Se
     * productionStageMultiplier(tree)
     * (CARE_MULTIPLIERS[tree.care] ?? 1)
     * treeMilestoneMultiplier(count)
-    * seasonMultiplier(entry, season)
+    * seasonMultiplier(entry, season, economy)
     * liftMultiplier(tree, economy);
-  return Math.round(rate * MICRO);
+  const beeBoost = hasUpgrade(economy, 'beeBoost') && economy.trees.some((other) => other.id !== tree.id
+    && Math.abs(other.x - tree.x) <= 4 && Math.abs(other.y - tree.y) <= 4) ? 1.1 : 1;
+  return Math.round(rate * beeBoost * MICRO);
 }
 
 export function groveFruitPerSecond(economy: EconomyState, season: Season): number {
@@ -95,14 +106,15 @@ function fedCapacityMultiplier(economy: EconomyState, trait: 'feedsPress' | 'fee
   return 1 + Math.min(FED_BONUS_CAP, bonus);
 }
 
-function decrementCare(tree: OrchardTreeState, tick: number): OrchardTreeState {
+function decrementCare(tree: OrchardTreeState, tick: number, economy: EconomyState): OrchardTreeState {
   if (tree.care === 0 || tree.nextCareDecayTick === 0 || tick < tree.nextCareDecayTick || tick < tree.mulchUntilTick) return tree;
   const care = Math.max(0, tree.care - 1) as OrchardTreeState['care'];
-  return { ...tree, care, nextCareDecayTick: care === 0 ? 0 : tree.nextCareDecayTick + CARE_DECAY_DAYS * TICKS_PER_DAY };
+  const decayDays = hasUpgrade(economy, 'pruningShears') ? 3 : CARE_DECAY_DAYS;
+  return { ...tree, care, nextCareDecayTick: care === 0 ? 0 : tree.nextCareDecayTick + decayDays * TICKS_PER_DAY };
 }
 
 function advanceTree(tree: OrchardTreeState, economy: EconomyState, startTick: number, endTick: number, season: Season, efficiency: number): OrchardTreeState {
-  let current = decrementCare(tree, startTick);
+  let current = decrementCare(tree, startTick, economy);
   let cursor = startTick;
   while (cursor < endTick) {
     const growthMultiplier = (season === 'spring' ? SPRING_GROWTH_MULTIPLIER : 1) * efficiency;
@@ -128,7 +140,7 @@ function advanceTree(tree: OrchardTreeState, economy: EconomyState, startTick: n
     if (cursor === growthBoundary) {
       current = { ...current, stage: current.stage === 'sapling' ? 'young' : 'mature', stageAgeTicks: 0 };
     }
-    current = decrementCare(current, cursor);
+    current = decrementCare(current, cursor, economy);
   }
   return current;
 }
@@ -150,12 +162,14 @@ function advancePresses(economy: EconomyState, deltaTicks: number, season: Seaso
   if (processed <= 0) return { ...economy, pressRemainder: numerator % SIM_TICKS_PER_SECOND };
   const pomaceMicro = economy.pomaceMicro + Math.floor(processed * POMACE_YIELD);
   const pomace = Math.floor(pomaceMicro / MICRO);
+  const mustOutput = Math.floor(processed * PRESS_MUST_YIELD);
+  const pipedMust = hasUpgrade(economy, 'copperPipe') ? Math.floor(mustOutput / MICRO) : 0;
   const firstRun = !economy.firsts.pressRun;
   return {
     ...economy,
-    resources: { ...economy.resources, pomace: economy.resources.pomace + pomace },
+    resources: { ...economy.resources, pomace: economy.resources.pomace + pomace, must: economy.resources.must + pipedMust },
     hopperFruitMicro: economy.hopperFruitMicro - processed,
-    yardMustMicro: economy.yardMustMicro + Math.floor(processed * PRESS_MUST_YIELD),
+    yardMustMicro: economy.yardMustMicro + (hasUpgrade(economy, 'copperPipe') ? mustOutput % MICRO : mustOutput),
     pressRemainder: numerator % SIM_TICKS_PER_SECOND,
     pomaceMicro: pomaceMicro % MICRO,
     knowledge: firstRun ? { ...economy.knowledge, press: economy.knowledge.press + 1 } : economy.knowledge,
@@ -171,7 +185,10 @@ function advanceCasks(economy: EconomyState, deltaTicks: number, season: Season,
   const capacity = Math.floor(numerator / SIM_TICKS_PER_SECOND);
   const aged = Math.min(economy.cellarMustMicro, capacity);
   if (aged <= 0) return { ...economy, caskRemainder: numerator % SIM_TICKS_PER_SECOND };
-  const bottleMicro = economy.bottleMicro + Math.floor(aged * BOTTLE_VALUE);
+  const bottleValue = hasUpgrade(economy, 'cellarBook') ? 0.4
+    : hasUpgrade(economy, 'blendingBench') ? 0.25
+      : hasUpgrade(economy, 'corkBench') ? 0.15 : BOTTLE_VALUE;
+  const bottleMicro = economy.bottleMicro + Math.floor(aged * bottleValue);
   const bottles = Math.floor(bottleMicro / MICRO);
   const firstBottle = bottles > 0 && !economy.firsts.bottle;
   return {
@@ -256,7 +273,8 @@ function applyHarvest(economy: EconomyState, action: Extract<EconomyAction, { ty
   const firstHarvest = !economy.firsts.harvested;
   return {
     ...next,
-    resources: { ...next.resources, fruit: next.resources.fruit + fruit },
+    resources: { ...next.resources, fruit: next.resources.fruit + (hasUpgrade(economy, 'cartMule') ? 0 : fruit) },
+    hopperFruitMicro: next.hopperFruitMicro + (hasUpgrade(economy, 'cartMule') ? fruit * MICRO : 0),
     knowledge: firstHarvest ? { ...next.knowledge, grove: next.knowledge.grove + 1 } : next.knowledge,
     firsts: firstHarvest ? { ...next.firsts, harvested: true } : next.firsts,
   };
@@ -264,7 +282,7 @@ function applyHarvest(economy: EconomyState, action: Extract<EconomyAction, { ty
 
 function applyPlant(economy: EconomyState, species: TreeSpeciesId, tick: number): EconomyState {
   const occupied = new Set(economy.trees.map((tree) => `${tree.x},${tree.y}`));
-  const plot = ORCHARD_PLOTS.find(([x, y]) => !occupied.has(`${x},${y}`));
+  const plot = ORCHARD_PLOTS.slice(0, economy.plotsUnlocked).find(([x, y]) => !occupied.has(`${x},${y}`));
   const entry = treeBalance(species);
   const cost = repeatCost(entry.saplingCost, countSpecies(economy, species), TREE_COST_GROWTH);
   if (!plot || economy.resources.fruit < cost) return economy;
@@ -290,7 +308,8 @@ function applyBuyPress(economy: EconomyState, tier: number): EconomyState {
   const entry = PRESS_BALANCE[tier - 1];
   if (!entry || !economy.firstPressRepaired) return economy;
   const usedPads = PRESS_BALANCE.reduce((sum, candidate, index) => sum + (economy.presses[index] ?? 0) * (candidate.pads ?? 1), 0);
-  if (usedPads + (entry.pads ?? 1) > STARTING_PRESS_PADS) return economy;
+  const pads = STARTING_PRESS_PADS + (hasUpgrade(economy, 'yardExpansion1') ? 3 : 0) + (hasUpgrade(economy, 'yardExpansion2') ? 4 : 0);
+  if (usedPads + (entry.pads ?? 1) > pads) return economy;
   const owned = economy.presses[tier - 1] ?? 0;
   const cost = repeatCost(entry.cost, owned, PRESS_COST_GROWTH);
   if (economy.resources.pomace < cost) return economy;
@@ -333,6 +352,37 @@ export function applyEconomyAction(economy: EconomyState, action: EconomyAction,
     case 'rackMust': {
       const amount = Math.min(economy.resources.must, Math.max(0, action.amount ?? economy.resources.must));
       return { ...economy, resources: { ...economy.resources, must: economy.resources.must - amount }, cellarMustMicro: economy.cellarMustMicro + amount * MICRO };
+    }
+    case 'mulch': {
+      const tree = economy.trees.find((candidate) => candidate.id === action.treeId);
+      if (!tree || tick < tree.mulchUntilTick || economy.resources.pomace < MULCH_POMACE_COST) return economy;
+      const mulchUntilTick = tick + MULCH_HOLD_DAYS * TICKS_PER_DAY;
+      const mulched = {
+        ...tree,
+        mulchUntilTick,
+        nextCareDecayTick: Math.max(tree.nextCareDecayTick, mulchUntilTick + CARE_DECAY_DAYS * TICKS_PER_DAY),
+      };
+      const next = replaceTree(economy, mulched);
+      return { ...next, resources: { ...next.resources, pomace: next.resources.pomace - MULCH_POMACE_COST } };
+    }
+    case 'buyUpgrade': {
+      const upgrade = WORKBENCH_UPGRADES.find((candidate) => candidate.id === action.id);
+      if (!upgrade || hasUpgrade(economy, action.id) || economy.resources[upgrade.currency] < upgrade.cost) return economy;
+      return {
+        ...economy,
+        resources: { ...economy.resources, [upgrade.currency]: economy.resources[upgrade.currency] - upgrade.cost },
+        upgrades: [...economy.upgrades, action.id],
+      };
+    }
+    case 'clearPlots': {
+      const index = PLOT_CLEARINGS.findIndex((clearing) => clearing.plots === economy.plotsUnlocked);
+      const next = PLOT_CLEARINGS[index + 1];
+      if (!next || economy.resources.fruit < next.fruitCost) return economy;
+      return {
+        ...economy,
+        resources: { ...economy.resources, fruit: economy.resources.fruit - next.fruitCost },
+        plotsUnlocked: next.plots,
+      };
     }
   }
 }

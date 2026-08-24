@@ -29,10 +29,10 @@ export function axesFromCodes(codes: ReadonlySet<string>): readonly [number, num
 export class InputController {
   private readonly keys = new Set<string>();
   private touchAxes: readonly [number, number] = [0, 0];
-  private interactPressed = false;
+  private interactHeld = false;
+  private interactReleased = false;
   private devWarp: 'day' | 'season' | null = null;
   private devToggleLocation = false;
-  private command: 'plant' | 'buyPress' | 'buyCask' | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -54,10 +54,12 @@ export class InputController {
   }
 
   consumeInteract(): boolean {
-    const pressed = this.interactPressed;
-    this.interactPressed = false;
-    return pressed;
+    const released = this.interactReleased;
+    this.interactReleased = false;
+    return released;
   }
+
+  isInteractHeld(): boolean { return this.interactHeld; }
 
   consumeDevWarp(): 'day' | 'season' | null {
     const warp = this.devWarp;
@@ -69,12 +71,6 @@ export class InputController {
     const toggle = this.devToggleLocation;
     this.devToggleLocation = false;
     return toggle;
-  }
-
-  consumeCommand(): 'plant' | 'buyPress' | 'buyCask' | null {
-    const command = this.command;
-    this.command = null;
-    return command;
   }
 
   destroy(): void {
@@ -89,7 +85,7 @@ export class InputController {
     if (event.repeat) return;
     if (event.code === 'KeyE' || event.code === 'Space') {
       event.preventDefault();
-      this.interactPressed = true;
+      this.interactHeld = true;
       return;
     }
     if (import.meta.env.DEV && event.code === 'F9') {
@@ -102,17 +98,17 @@ export class InputController {
       this.devToggleLocation = true;
       return;
     }
-    if (event.code === 'KeyN' || event.code === 'KeyP' || event.code === 'KeyC') {
-      event.preventDefault();
-      this.command = event.code === 'KeyN' ? 'plant' : event.code === 'KeyP' ? 'buyPress' : 'buyCask';
-      return;
-    }
     if (!MOVEMENT_CODES.has(event.code)) return;
     event.preventDefault();
     this.keys.add(event.code);
   };
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
+    if ((event.code === 'KeyE' || event.code === 'Space') && this.interactHeld) {
+      event.preventDefault();
+      this.interactHeld = false;
+      this.interactReleased = true;
+    }
     this.keys.delete(event.code);
   };
 

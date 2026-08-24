@@ -1,13 +1,21 @@
 import {
   FIXED_UNITS_PER_PIXEL,
+  CASK_BALANCE,
+  CASK_COST_GROWTH,
+  ORCHARD_PLOTS,
+  PLOT_CLEARINGS,
+  PRESS_BALANCE,
+  PRESS_COST_GROWTH,
   SEASONS,
   TILE_SIZE_FIXED,
   TILE_SIZE_PIXELS,
   TICKS_PER_DAY,
+  WORKBENCH_UPGRADES,
   advanceTick,
   calendarAtTick,
   createInitialState,
   nextDayTick,
+  repeatCost,
   type Action,
   type FarmState,
   type OrchardTreeState,
@@ -56,8 +64,15 @@ function nearTile(state: FarmState, x: number, y: number, radius = 2): boolean {
   return Math.abs(playerX - x) <= radius && Math.abs(playerY - y) <= radius;
 }
 
-function nearTree(state: FarmState, radius = 2): OrchardTreeState | undefined {
-  return state.economy.trees.find((tree) => nearTile(state, tree.x, tree.y, radius));
+function nearTree(state: FarmState, radius?: number): OrchardTreeState | undefined {
+  const reach = radius ?? (state.economy.upgrades.includes('tallLadders') ? 4 : 2);
+  return state.economy.trees.find((tree) => nearTile(state, tree.x, tree.y, reach));
+}
+
+function nearOpenPlot(state: FarmState, radius = 2): readonly [number, number] | undefined {
+  const occupied = new Set(state.economy.trees.map((tree) => `${tree.x},${tree.y}`));
+  return ORCHARD_PLOTS.slice(0, state.economy.plotsUnlocked)
+    .find(([x, y]) => !occupied.has(`${x},${y}`) && nearTile(state, x, y, radius));
 }
 
 export class FarmScene implements Scene {
@@ -138,10 +153,6 @@ export class FarmScene implements Scene {
     const warp = this.input.consumeDevWarp();
     if (warp === 'day') tick = nextDayTick(this.state.tick);
     if (warp === 'season') tick = this.state.tick + TICKS_PER_DAY * 7;
-    const command = this.input.consumeCommand();
-    if (command === 'plant' && this.state.player.location === 'estate') actions.push({ type: 'plant', species: 'seedlingApple' });
-    if (command === 'buyPress' && this.state.player.location === 'estate') actions.push({ type: 'buyPress', tier: 1 });
-    if (command === 'buyCask' && this.state.player.location === 'cellar') actions.push({ type: 'buyCask', tier: 1 });
     if (this.input.consumeDevToggleLocation()) {
       actions.push({ type: 'transition', location: this.state.player.location === 'estate' ? 'cellar' : 'estate' });
     } else if (this.input.consumeInteract()) {
@@ -304,7 +315,7 @@ export class FarmScene implements Scene {
     context.fillStyle = '#182018dd'; context.fillRect(126, 246, 228, 18);
     context.fillStyle = '#3d3130'; context.fillRect(132, 251, 120, 8);
     context.fillStyle = '#d5b568'; context.fillRect(132, 251, Math.floor(120 * this.state.economy.vigour / 10_000), 8);
-    drawBitmapText(context, `VIGOUR ${Math.floor(this.state.economy.vigour / 100)} N PLANT P PRESS C CASK`, 258, 252, '#f5e5b8', 1);
+    drawBitmapText(context, `VIGOUR ${Math.floor(this.state.economy.vigour / 100)} HOLD E RELEASE TO USE`, 258, 252, '#f5e5b8', 1);
   }
 
   private footstepSurface(): 'grass' | 'path' | 'cellar' {
@@ -321,17 +332,35 @@ export class FarmScene implements Scene {
   private contextActions(): Action[] {
     const tree = nearTree(this.state);
     if (tree && this.state.player.location === 'estate') {
-      return [tree.bufferMicro >= 1_000_000 ? { type: 'harvest', treeId: tree.id } : { type: 'tend', treeId: tree.id }];
+      if (tree.bufferMicro >= 1_000_000) return [{ type: 'harvest', treeId: tree.id }];
+      if (this.state.economy.vigour > 0) return [{ type: 'tend', treeId: tree.id }];
+      if (this.state.tick >= tree.mulchUntilTick && this.state.economy.resources.pomace >= 5) return [{ type: 'mulch', treeId: tree.id }];
+      return [];
     }
+    if (this.state.player.location === 'estate' && nearOpenPlot(this.state)) return [{ type: 'plant', species: 'seedlingApple' }];
     if (this.state.player.location === 'estate' && nearTile(this.state, 10, 47, 3)) {
       const economy = this.state.economy;
       if (!economy.firstPressRepaired) return [{ type: 'repairPress' }];
       if (economy.resources.fruit > 0) return [{ type: 'haulFruit' }];
       if (economy.yardMustMicro >= 1_000_000) return [{ type: 'haulMust', destination: 'bank' }];
+      const basketCost = repeatCost(PRESS_BALANCE[0]?.cost ?? 25, economy.presses[0] ?? 0, PRESS_COST_GROWTH);
+      if (economy.resources.pomace >= basketCost) return [{ type: 'buyPress', tier: 1 }];
       return [];
     }
-    if (this.state.player.location === 'cellar') {
+    if (this.state.player.location === 'estate' && nearTile(this.state, 28, 11, 2)) {
+      const economy = this.state.economy;
+      const upgrade = WORKBENCH_UPGRADES.find((candidate) => !economy.upgrades.includes(candidate.id)
+        && economy.resources[candidate.currency] >= candidate.cost);
+      if (upgrade) return [{ type: 'buyUpgrade', id: upgrade.id }];
+      const clearingIndex = PLOT_CLEARINGS.findIndex((candidate) => candidate.plots === economy.plotsUnlocked);
+      const clearing = PLOT_CLEARINGS[clearingIndex + 1];
+      if (clearing && economy.resources.fruit >= clearing.fruitCost) return [{ type: 'clearPlots' }];
+      return [];
+    }
+    if (this.state.player.location === 'cellar' && nearTile(this.state, 19, 7, 3)) {
       if (this.state.economy.casks.every((count) => count === 0)) return [{ type: 'buyCask', tier: 1 }];
+      const nextCost = repeatCost(CASK_BALANCE[0]?.cost ?? 40, this.state.economy.casks[0] ?? 0, CASK_COST_GROWTH);
+      if (this.state.economy.cellarMustMicro > 0 && this.state.economy.resources.must >= nextCost) return [{ type: 'buyCask', tier: 1 }];
       if (this.state.economy.resources.must > 0) return [{ type: 'rackMust' }];
     }
     return [];
@@ -341,17 +370,38 @@ export class FarmScene implements Scene {
     const transition = this.assets.maps[this.state.player.location].transitions.find((candidate) => nearTile(this.state, candidate.x, candidate.y, candidate.radius));
     if (transition) return this.state.player.location === 'estate' ? 'E ENTER CELLAR' : 'E RETURN FARM';
     const tree = nearTree(this.state);
-    if (tree && this.state.player.location === 'estate') return tree.bufferMicro >= 1_000_000
-      ? `E HARVEST ${Math.floor(tree.bufferMicro / 1_000_000)}` : `E TEND CARE ${tree.care}`;
+    const held = this.input.isInteractHeld() ? 'RELEASE' : 'HOLD E';
+    if (tree && this.state.player.location === 'estate') {
+      if (tree.bufferMicro >= 1_000_000) return `${held} HARVEST ${Math.floor(tree.bufferMicro / 1_000_000)}`;
+      if (this.state.economy.vigour > 0) return `${held} TEND ${Math.floor(this.state.economy.vigour / 100)} PCT`;
+      if (this.state.tick >= tree.mulchUntilTick && this.state.economy.resources.pomace >= 5) return `${held} MULCH 5 POMACE`;
+      return 'VIGOUR CHARGING';
+    }
+    if (this.state.player.location === 'estate' && nearOpenPlot(this.state)) return `${held} PLANT SEEDLING`;
     if (this.state.player.location === 'estate' && nearTile(this.state, 10, 47, 3)) {
-      if (!this.state.economy.firstPressRepaired) return 'E REPAIR PRESS 50 FRUIT';
-      if (this.state.economy.resources.fruit > 0) return 'E HAUL FRUIT TO HOPPER';
-      if (this.state.economy.yardMustMicro >= 1_000_000) return 'E COLLECT MUST JUGS';
+      if (!this.state.economy.firstPressRepaired) return `${held} REPAIR PRESS 50 FRUIT`;
+      if (this.state.economy.resources.fruit > 0) return `${held} HAUL FRUIT TO HOPPER`;
+      if (this.state.economy.yardMustMicro >= 1_000_000) return `${held} COLLECT MUST JUGS`;
+      const basketCost = repeatCost(PRESS_BALANCE[0]?.cost ?? 25, this.state.economy.presses[0] ?? 0, PRESS_COST_GROWTH);
+      if (this.state.economy.resources.pomace >= basketCost) return `${held} BUY BASKET PRESS ${basketCost}`;
       return 'PRESS WAITING FOR FRUIT';
     }
-    if (this.state.player.location === 'cellar') {
-      if (this.state.economy.casks.every((count) => count === 0)) return 'E BUY DEMIJOHN 40 MUST';
-      if (this.state.economy.resources.must > 0) return 'E RACK MUST INTO CASKS';
+    if (this.state.player.location === 'estate' && nearTile(this.state, 28, 11, 2)) {
+      const economy = this.state.economy;
+      const upgrade = WORKBENCH_UPGRADES.find((candidate) => !economy.upgrades.includes(candidate.id)
+        && economy.resources[candidate.currency] >= candidate.cost);
+      if (upgrade) return `${held} BUY ${upgrade.name.toUpperCase()} ${upgrade.cost}`;
+      const clearingIndex = PLOT_CLEARINGS.findIndex((candidate) => candidate.plots === economy.plotsUnlocked);
+      const clearing = PLOT_CLEARINGS[clearingIndex + 1];
+      if (clearing && economy.resources.fruit >= clearing.fruitCost) return `${held} CLEAR TO ${clearing.plots} PLOTS ${clearing.fruitCost}`;
+      const next = WORKBENCH_UPGRADES.find((candidate) => !economy.upgrades.includes(candidate.id));
+      return next ? `NEED ${next.cost} ${next.currency.toUpperCase()} FOR ${next.name.toUpperCase()}` : 'WORKBENCH COMPLETE';
+    }
+    if (this.state.player.location === 'cellar' && nearTile(this.state, 19, 7, 3)) {
+      if (this.state.economy.casks.every((count) => count === 0)) return `${held} BUY DEMIJOHN 40 MUST`;
+      const nextCost = repeatCost(CASK_BALANCE[0]?.cost ?? 40, this.state.economy.casks[0] ?? 0, CASK_COST_GROWTH);
+      if (this.state.economy.cellarMustMicro > 0 && this.state.economy.resources.must >= nextCost) return `${held} BUY DEMIJOHN ${nextCost}`;
+      if (this.state.economy.resources.must > 0) return `${held} RACK MUST INTO CASKS`;
     }
     return null;
   }

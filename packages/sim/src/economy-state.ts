@@ -1,4 +1,4 @@
-import type { TreeSpeciesId } from './balance.js';
+import type { TreeSpeciesId, WorkbenchUpgradeId } from './balance.js';
 
 export type TreeStage = 'sapling' | 'young' | 'mature';
 
@@ -33,6 +33,8 @@ export interface EconomyState {
   readonly presses: readonly number[];
   readonly casks: readonly number[];
   readonly firstPressRepaired: boolean;
+  readonly upgrades: readonly WorkbenchUpgradeId[];
+  readonly plotsUnlocked: number;
   readonly vigour: number;
   readonly vigourRemainder: number;
   readonly autumnChain: number;
@@ -58,15 +60,25 @@ export type EconomyAction =
   | { readonly type: 'buyPress'; readonly tier: number }
   | { readonly type: 'haulMust'; readonly destination: 'bank' | 'casks'; readonly amount?: number }
   | { readonly type: 'rackMust'; readonly amount?: number }
+  | { readonly type: 'mulch'; readonly treeId: number }
+  | { readonly type: 'buyUpgrade'; readonly id: WorkbenchUpgradeId }
+  | { readonly type: 'clearPlots' }
   | { readonly type: 'buyCask'; readonly tier: number };
 
-export const ORCHARD_PLOTS = [
+const initialPlots: readonly (readonly [number, number])[] = [
   [12, 17], [16, 17], [20, 17],
   [12, 22], [16, 22], [20, 22],
   [12, 27], [16, 27], [20, 27],
   [12, 32], [16, 32], [20, 32],
   [12, 37], [16, 37], [20, 37],
 ] as const;
+const expansionPlots = Array.from({ length: 10 }, (_, row) => [16 + row * 3, 0] as const)
+  .flatMap(([y]) => [4, 7, 10, 13, 16, 19, 22, 25, 32, 35, 38, 41].map((x) => [x, y] as const));
+const initialKeys = new Set(initialPlots.map(([x, y]) => `${x},${y}`));
+export const ORCHARD_PLOTS: readonly (readonly [number, number])[] = [
+  ...initialPlots,
+  ...expansionPlots.filter(([x, y]) => !initialKeys.has(`${x},${y}`)),
+].slice(0, 120);
 
 export function createInitialEconomy(): EconomyState {
   return {
@@ -91,6 +103,8 @@ export function createInitialEconomy(): EconomyState {
     presses: [0, 0, 0, 0, 0],
     casks: [0, 0, 0, 0, 0],
     firstPressRepaired: false,
+    upgrades: [],
+    plotsUnlocked: 15,
     vigour: 0,
     vigourRemainder: 0,
     autumnChain: 0,

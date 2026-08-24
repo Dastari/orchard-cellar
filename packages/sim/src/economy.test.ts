@@ -166,6 +166,59 @@ describe('M4 deterministic orchard economy', () => {
     expect(autumnCharge.vigour).toBe(10_000);
   });
 
+  it('uses the explicit species season trait and the irrigation-reduced off-season penalty', () => {
+    const pear = matureTree({ species: 'pear' });
+    const tenSeconds = 10 * SIM_TICKS_PER_SECOND;
+    const summerStart = TICKS_PER_DAY * 7;
+    const autumnStart = TICKS_PER_DAY * 14;
+
+    const featured = advanceEconomy(pear, autumnStart, autumnStart + tenSeconds);
+    const offSeason = advanceEconomy(pear, summerStart, summerStart + tenSeconds);
+    const irrigated = advanceEconomy({ ...pear, upgrades: ['irrigation'] }, summerStart, summerStart + tenSeconds);
+
+    expect(featured.trees[0]?.bufferMicro).toBe(57_600_000);
+    expect(offSeason.trees[0]?.bufferMicro).toBe(27_200_000);
+    expect(irrigated.trees[0]?.bufferMicro).toBe(29_600_000);
+  });
+
+  it('buys wallet-specific workbench upgrades and clears plots up to the authored cap', () => {
+    let economy = withResources(createInitialEconomy(), { fruit: 1_200_000, pomace: 75, must: 250 });
+    economy = applyEconomyAction(economy, { type: 'buyUpgrade', id: 'pruningShears' }, 0);
+    economy = applyEconomyAction(economy, { type: 'buyUpgrade', id: 'copperPipe' }, 0);
+    economy = applyEconomyAction(economy, { type: 'buyUpgrade', id: 'corkBench' }, 0);
+    expect(economy.upgrades).toEqual(['pruningShears', 'copperPipe', 'corkBench']);
+    expect(economy.resources).toMatchObject({ fruit: 1_199_925, pomace: 0, must: 0 });
+
+    for (const expected of [30, 60, 90, 120]) {
+      economy = applyEconomyAction(economy, { type: 'clearPlots' }, 0);
+      expect(economy.plotsUnlocked).toBe(expected);
+    }
+    const capped = applyEconomyAction(economy, { type: 'clearPlots' }, 0);
+    expect(capped).toBe(economy);
+  });
+
+  it('spends pomace once to hold Care decay for the documented three days', () => {
+    let economy = withResources(matureTree({
+      care: 3,
+      nextCareDecayTick: TICKS_PER_DAY * 2,
+      mulchUntilTick: 0,
+    }), { pomace: 10 });
+
+    economy = applyEconomyAction(economy, { type: 'mulch', treeId: 1 }, 0);
+    expect(economy.resources.pomace).toBe(5);
+    expect(economy.trees[0]).toMatchObject({
+      mulchUntilTick: TICKS_PER_DAY * 3,
+      nextCareDecayTick: TICKS_PER_DAY * 5,
+    });
+    const duplicate = applyEconomyAction(economy, { type: 'mulch', treeId: 1 }, TICKS_PER_DAY);
+    expect(duplicate).toBe(economy);
+
+    economy = advanceEconomy(economy, 0, TICKS_PER_DAY * 5 - 1);
+    expect(economy.trees[0]?.care).toBe(3);
+    economy = advanceEconomy(economy, TICKS_PER_DAY * 5 - 1, TICKS_PER_DAY * 5);
+    expect(economy.trees[0]?.care).toBe(2);
+  });
+
   it('charges each purchase only to its documented wallet and repeat-cost count', () => {
     const wallets = { fruit: 18, pomace: 34, must: 40, bottles: 7 };
     const planted = applyEconomyAction(withResources(createInitialEconomy(), wallets), { type: 'plant', species: 'seedlingApple' }, 0);
