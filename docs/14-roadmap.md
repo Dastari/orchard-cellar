@@ -66,7 +66,7 @@ triggered all 2 songs and 9 SFX without errors (0.211 observed peak). `npm run c
 (24 tests, 100% sim line coverage), asset validation, production builds, save
 corruption tests, and milestone review all pass.
 
-## M4 — The chain `⏳ in progress (codex, 2026-08-24)`
+## M4 — The chain `✅ complete (codex, 2026-08-24)`
 The sim economy end-to-end per [04](04-orchard-design.md)/[05](05-cellar-design.md)/[06](06-progression-economy.md):
 planting, growth stages, Care, harvest buffers, Vigour tend with charge curve +
 Autumn chain, hopper/hauling, presses (pomace!), casks, bottles, workbench upgrades,
@@ -75,6 +75,16 @@ tests for every 06 table.
 **Done when:** a tester can exercise first tend through first bottle in a ≤30-minute
 accelerated browser verification using dev time-warp, the unwarped pacing harness
 lands inside 06 §10's 45–70 minute first-bottle window, and sim coverage ≥80%.
+
+**Verification:** Shared-browser play used facing-cone spatial targets and held-E
+release to tend, grew and harvested the starter tree, repaired and fed the press,
+observed the visible 100-Must `BACKED` state, hauled jugs, bought an 80-Must
+Demijohn, racked the remainder, and aged two bottles with Grove/Press/Cellar
+Knowledge awards. Reload restored the exact cellar state. The deterministic pacing
+harness lands at 18.00 min first press / 45.83 min first bottle. `npm run check`
+passes 68 tests with 99.14% sim line and 89.53% branch coverage; asset validation,
+production build, offline/save corruption cases, and the second milestone review
+all pass (`READY`).
 
 ## M5 — Progression & prestige `☐`
 Estate Book UI (skill tree pannable + Knowledge gates, almanac, records,
