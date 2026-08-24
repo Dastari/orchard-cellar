@@ -21,6 +21,8 @@ Flow: harvested crates go to the **hopper** (haul by hand; cart & mule automates
 each press pulls from the hopper at its rate, outputs **Must** (piped to the cellar
 intake once the pipe upgrade is bought; jugs hauled by hand before that) and
 **Pomace** at 15% of fruit pressed (the PDF's 10–20% band, midpoint).
+The yard jug rack holds **100 Must** before it backs up; Copper Pipe bypasses this
+yard cap by routing completed whole Must directly to the cellar bank.
 
 **Pomace is the press capital** (PDF P0): new presses, tier upgrades, and press-yard
 upgrades cost Pomace. Surplus pomace composts into mulch ([04](04-orchard-design.md) §3)

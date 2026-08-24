@@ -77,6 +77,7 @@ export const FIRST_PRESS_REPAIR_FRUIT = 50;
 export const PRESS_MUST_YIELD = 0.5;
 export const POMACE_YIELD = 0.15;
 export const BOTTLE_VALUE = 0.1;
+export const YARD_MUST_CAPACITY = 100;
 export const CELLAR_DIG_COSTS = [0, 500, 25_000] as const;
 export const MULCH_POMACE_COST = 5;
 

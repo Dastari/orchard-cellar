@@ -97,6 +97,8 @@ each stage funded by its own capital and follow the documented ×6–8 tier spac
 | Blending Bench | Must | 1,800 | bottleValue → 0.25 |
 | Cellar Book | Must | 13,000 | bottleValue → 0.40 |
 
+The press-yard jug rack has a base capacity of **100 Must**. Without Copper Pipe,
+presses stop at that cap until the player hauls jugs away; the pipe bypasses it.
 Compost mulch costs **5 Pomace per tree** and holds Care decay for three days.
 Plot clearing is permanent spatial progress: 15 plots initially, then 30 / 60 /
 90 / 120 plots for 2,000 / 16,000 / 130,000 / 1,000,000 Fruit.

@@ -30,6 +30,7 @@ import {
   VIGOUR_PARTIAL_SECONDS,
   WINTER_AGING_MULTIPLIER,
   WORKBENCH_UPGRADES,
+  YARD_MUST_CAPACITY,
   YOUNG_PRODUCTION_MULTIPLIER,
   equipmentMilestoneMultiplier,
   lineageSeeds,
@@ -61,6 +62,7 @@ describe('06 golden balance tables', () => {
     expect(PRESS_COST_GROWTH).toBe(1.35);
     expect(PRESS_MUST_YIELD).toBe(0.5);
     expect(POMACE_YIELD).toBe(0.15);
+    expect(YARD_MUST_CAPACITY).toBe(100);
     expect([2, 3, 6, 10].map(equipmentMilestoneMultiplier)).toEqual([1, 2, 4, 12]);
   });
 
