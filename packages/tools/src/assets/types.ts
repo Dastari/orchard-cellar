@@ -13,6 +13,13 @@ export interface AssetSource {
   readonly markers?: Readonly<Record<string, string>>;
   readonly markerRamps?: Readonly<Record<string, readonly string[]>>;
   readonly lintAllow?: readonly string[];
+  readonly tags?: readonly string[];
+  readonly placement?: {
+    readonly layer?: 'ground' | 'object' | 'canopy' | 'ui';
+    readonly footprint?: readonly [number, number];
+    readonly blocksMovement?: boolean;
+    readonly builderAvailable?: boolean;
+  };
   readonly approved?: boolean;
 }
 

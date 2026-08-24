@@ -1,0 +1,41 @@
+{
+  "contractVersion": 1,
+  "authority": {
+    "assetPipeline": [
+      "stable semantic asset ids",
+      "atlas revisions",
+      "collision metadata",
+      "animation metadata",
+      "visual tags and placement metadata"
+    ],
+    "spacetimeDb": [
+      "world and chunk revisions",
+      "tile and object asset ids",
+      "crop and object state",
+      "transforms and gameplay flags",
+      "offers and player unlocks"
+    ]
+  },
+  "assetId": {
+    "storageType": "u32",
+    "algorithm": "fnv1a-32-utf8-semantic-name",
+    "placeholderId": 0,
+    "placeholderName": "system_missing_asset"
+  },
+  "atlasRevision": {
+    "storageType": "u32",
+    "algorithm": "fnv1a-32-utf8-atlas-colon-content-revision"
+  },
+  "clientArtifacts": {
+    "manifest": "/generated/atlas.meta.json",
+    "registry": "/generated/asset-registry.json",
+    "unknownAssetBehavior": "resolve-to-placeholder"
+  },
+  "worldReferenceFields": {
+    "assetId": "u32",
+    "variant": "u16",
+    "rotation": "u8",
+    "state": "u8",
+    "flags": "u32"
+  }
+}

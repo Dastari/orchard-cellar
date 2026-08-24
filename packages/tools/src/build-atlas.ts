@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { stableAssetId } from './assets/asset-id.js';
 import { loadAssets, loadPalette, readJson, workspaceRoot } from './assets/load.js';
 import { encodePng, hexToRgba, setPixel } from './assets/png.js';
 import type { AssetSource, BuiltFrame, PaletteSource, PixelGrid } from './assets/types.js';
@@ -16,6 +18,30 @@ type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 const seasons: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
 const outputRoot = new URL('packages/client/public/generated/', workspaceRoot);
 const ATLAS_WIDTH = 512;
+const MISSING_ASSET_NAME = 'system_missing_asset';
+const MISSING_ASSET_ID = 0;
+
+type PlacementLayer = 'ground' | 'object' | 'canopy' | 'ui';
+
+function defaultLayer(category: string): PlacementLayer {
+  if (category === 'tiles') return 'ground';
+  if (category === 'trees') return 'canopy';
+  if (category === 'ui') return 'ui';
+  return 'object';
+}
+
+function assetTags(asset: AssetSource): string[] {
+  const builderCategory = ['buildings', 'crops', 'props', 'tiles', 'trees'].includes(asset.category);
+  return [...new Set([
+    ...(asset.tags ?? []),
+    `kind.${asset.category}`,
+    ...(asset.autotile ? [`topology.${asset.autotile}`] : []),
+    ...(asset.collision?.length ? ['collision.solid'] : []),
+    ...Object.keys(asset.frames).map((animation) => `animation.${animation}`),
+    ...(asset.approved === true && (asset.placement?.builderAvailable ?? builderCategory) ? ['builder.available'] : []),
+    ...(asset.approved === true ? ['review.approved'] : ['review.required']),
+  ])].sort();
+}
 
 async function copyJsonAssets(folder: 'maps' | 'music' | 'sfx'): Promise<void> {
   const source = new URL(`packages/assets/${folder}/`, workspaceRoot);
@@ -126,9 +152,24 @@ export async function buildAtlases(): Promise<void> {
   await mkdir(outputRoot, { recursive: true });
 
   const categories = [...new Set(assets.map((asset) => asset.category))].sort();
-  const metadata: Record<string, unknown> = { atlases: {}, assets: {} };
+  const revision = createHash('sha256')
+    .update(JSON.stringify({ assets, palette, seasons: seasonSource }))
+    .digest('hex')
+    .slice(0, 20);
+  const revisionId = stableAssetId(`atlas:${revision}`);
+  const metadata: Record<string, unknown> = {
+    schemaVersion: 2,
+    revision,
+    revisionId,
+    placeholderAssetId: MISSING_ASSET_ID,
+    atlases: {},
+    assets: {},
+    assetsById: {},
+  };
   const atlasRecords = metadata['atlases'] as Record<string, string>;
   const assetRecords = metadata['assets'] as Record<string, unknown>;
+  const assetsById = metadata['assetsById'] as Record<string, string>;
+  const idOwners = new Map<number, string>([[MISSING_ASSET_ID, MISSING_ASSET_NAME]]);
 
   for (const category of categories) {
     const categoryAssets = assets.filter((asset) => asset.category === category).sort((a, b) => a.name.localeCompare(b.name));
@@ -168,12 +209,31 @@ export async function buildAtlases(): Promise<void> {
           rowHeight = Math.max(rowHeight, asset.size[1]);
         }
       }
+      const assetId = asset.name === MISSING_ASSET_NAME ? MISSING_ASSET_ID : stableAssetId(asset.name);
+      const collisionOwner = idOwners.get(assetId);
+      if (collisionOwner && collisionOwner !== asset.name) {
+        throw new Error(`Stable asset id collision: ${collisionOwner} and ${asset.name} both resolve to ${assetId}`);
+      }
+      idOwners.set(assetId, asset.name);
+      assetsById[String(assetId)] = asset.name;
+      const footprint = asset.placement?.footprint ?? [
+        Math.max(1, Math.ceil(asset.size[0] / 16)),
+        Math.max(1, Math.ceil(asset.size[1] / 16)),
+      ];
       assetRecords[asset.name] = {
+        assetId,
         category,
         anchor: asset.anchor,
         collision: asset.collision ?? [],
         animations,
         markerLayers,
+        tags: assetTags(asset),
+        placement: {
+          layer: asset.placement?.layer ?? defaultLayer(category),
+          footprint,
+          blocksMovement: asset.placement?.blocksMovement ?? Boolean(asset.collision?.length),
+          builderAvailable: asset.approved === true && (asset.placement?.builderAvailable ?? ['buildings', 'crops', 'props', 'tiles', 'trees'].includes(category)),
+        },
       };
     }
     const height = Math.max(1, y + rowHeight);
@@ -193,7 +253,39 @@ export async function buildAtlases(): Promise<void> {
       atlasRecords[`${category}:${season}`] = filename;
     }
   }
+  if (assetsById[String(MISSING_ASSET_ID)] !== MISSING_ASSET_NAME) {
+    throw new Error(`Required placeholder asset ${MISSING_ASSET_NAME} is missing`);
+  }
   await writeFile(new URL('atlas.meta.json', outputRoot), `${JSON.stringify(metadata, null, 2)}\n`);
+  const registry = {
+    schemaVersion: 1,
+    revision,
+    revisionId,
+    placeholderAssetId: MISSING_ASSET_ID,
+    assets: Object.entries(assetRecords)
+      .map(([name, value]) => {
+        const record = value as {
+          assetId: number;
+          category: string;
+          tags: readonly string[];
+          placement: Readonly<Record<string, unknown>>;
+          animations: Readonly<Record<string, readonly BuiltFrame[]>>;
+        };
+        return {
+          assetId: record.assetId,
+          name,
+          category: record.category,
+          tags: record.tags,
+          placement: record.placement,
+          animations: Object.fromEntries(Object.entries(record.animations).map(([animation, frames]) => [animation, {
+            frameCount: frames.length,
+            durationTicks: frames[0]?.durationTicks ?? 0,
+          }])),
+        };
+      })
+      .sort((left, right) => left.assetId - right.assetId),
+  };
+  await writeFile(new URL('asset-registry.json', outputRoot), `${JSON.stringify(registry, null, 2)}\n`);
   await Promise.all([copyJsonAssets('maps'), copyJsonAssets('music'), copyJsonAssets('sfx')]);
   console.log(`Built ${assets.length} assets across ${categories.length} atlas categories.`);
 }

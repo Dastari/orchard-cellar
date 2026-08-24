@@ -33,11 +33,18 @@ const size = option('--size');
 const cropOption = option('--crop');
 const crop = cropOption ?? '0,0';
 const sourceSizeOption = option('--source-size');
+const frameGridOption = option('--frame-grid');
+const frameStrideOption = option('--frame-stride');
+const animationNamesOption = option('--animation-names');
+const frameOrderOption = option('--frame-order');
+const fpsOption = option('--fps');
 const category = option('--category') ?? 'tiles';
 if (!input || !name || !size) throw new Error('Usage: assets:import <png> --size WxH --name foo [--crop x,y] [--category tiles]');
 const [targetWidth, targetHeight] = size.split('x').map(Number);
 const [cropX, cropY] = crop.split(',').map(Number);
 if (!targetWidth || !targetHeight || cropX === undefined || cropY === undefined) throw new Error('Invalid size or crop');
+const outputWidth = targetWidth;
+const outputHeight = targetHeight;
 
 const inputPath = isAbsolute(input) ? input : resolve(fileURLToPath(workspaceRoot), input);
 const [decoded, palette] = await Promise.all([decodePng(await readFile(inputPath)), loadPalette()]);
@@ -45,38 +52,71 @@ const [sourceWidth, sourceHeight] = sourceSizeOption
   ? sourceSizeOption.split('x').map(Number)
   : cropOption ? [targetWidth, targetHeight] : [decoded.width - cropX, decoded.height - cropY];
 if (!sourceWidth || !sourceHeight) throw new Error('Invalid source size');
+const inputFrameWidth = sourceWidth;
+const inputFrameHeight = sourceHeight;
 const paletteLabs = Object.entries(palette.colors).map(([character, hex]) => {
   const value = Number.parseInt(hex.slice(1), 16);
   return { character, lab: oklab((value >>> 16) & 255, (value >>> 8) & 255, value & 255) };
 });
-const rows: string[] = [];
-for (let y = 0; y < targetHeight; y += 1) {
-  let row = '';
-  for (let x = 0; x < targetWidth; x += 1) {
-    const sourceX = Math.min(decoded.width - 1, cropX + Math.floor((x + 0.5) * sourceWidth / targetWidth));
-    const sourceY = Math.min(decoded.height - 1, cropY + Math.floor((y + 0.5) * sourceHeight / targetHeight));
-    const offset = (sourceY * decoded.width + sourceX) * 4;
-    if ((decoded.rgba[offset + 3] ?? 0) < 128) { row += '.'; continue; }
-    const sourceLab = oklab(decoded.rgba[offset] ?? 0, decoded.rgba[offset + 1] ?? 0, decoded.rgba[offset + 2] ?? 0);
-    let nearest = paletteLabs[0]!;
-    let distance = Number.POSITIVE_INFINITY;
-    for (const candidate of paletteLabs) {
-      const next = (sourceLab[0] - candidate.lab[0]) ** 2 + (sourceLab[1] - candidate.lab[1]) ** 2 + (sourceLab[2] - candidate.lab[2]) ** 2;
-      if (next < distance) { nearest = candidate; distance = next; }
+function buildFrame(originX: number, originY: number): string[] {
+  const rows: string[] = [];
+  for (let y = 0; y < outputHeight; y += 1) {
+    let row = '';
+    for (let x = 0; x < outputWidth; x += 1) {
+      const sourceX = Math.min(decoded.width - 1, originX + Math.floor((x + 0.5) * inputFrameWidth / outputWidth));
+      const sourceY = Math.min(decoded.height - 1, originY + Math.floor((y + 0.5) * inputFrameHeight / outputHeight));
+      const offset = (sourceY * decoded.width + sourceX) * 4;
+      if ((decoded.rgba[offset + 3] ?? 0) < 128) { row += '.'; continue; }
+      const sourceLab = oklab(decoded.rgba[offset] ?? 0, decoded.rgba[offset + 1] ?? 0, decoded.rgba[offset + 2] ?? 0);
+      let nearest = paletteLabs[0]!;
+      let distance = Number.POSITIVE_INFINITY;
+      for (const candidate of paletteLabs) {
+        const next = (sourceLab[0] - candidate.lab[0]) ** 2 + (sourceLab[1] - candidate.lab[1]) ** 2 + (sourceLab[2] - candidate.lab[2]) ** 2;
+        if (next < distance) { nearest = candidate; distance = next; }
+      }
+      row += nearest.character;
     }
-    row += nearest.character;
+    rows.push(row);
   }
-  rows.push(row);
+  const cleanedRows = rows.map((row) => [...row]);
+  for (let y = 0; y < outputHeight; y += 1) {
+    for (let x = 0; x < outputWidth; x += 1) {
+      const character = cleanedRows[y]?.[x] ?? '.';
+      if (character === '.') continue;
+      const neighbors = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const;
+      if (neighbors.some(([nx, ny]) => cleanedRows[ny]?.[nx] === character)) continue;
+      const replacement = neighbors.map(([nx, ny]) => cleanedRows[ny]?.[nx] ?? '.').find((candidate) => candidate !== '.') ?? '.';
+      cleanedRows[y]![x] = replacement;
+    }
+  }
+  return cleanedRows.map((row) => row.join(''));
 }
-const cleanedRows = rows.map((row) => [...row]);
-for (let y = 0; y < targetHeight; y += 1) {
-  for (let x = 0; x < targetWidth; x += 1) {
-    const character = cleanedRows[y]?.[x] ?? '.';
-    if (character === '.') continue;
-    const neighbors = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const;
-    if (neighbors.some(([nx, ny]) => cleanedRows[ny]?.[nx] === character)) continue;
-    const replacement = neighbors.map(([nx, ny]) => cleanedRows[ny]?.[nx] ?? '.').find((candidate) => candidate !== '.') ?? '.';
-    cleanedRows[y]![x] = replacement;
+
+let frames: Readonly<Record<string, readonly string[][]>> = { base: [buildFrame(cropX, cropY)] };
+if (frameGridOption) {
+  const [frameColumns, frameRows] = frameGridOption.split('x').map(Number);
+  const [strideX, strideY] = (frameStrideOption ?? `${inputFrameWidth}x${inputFrameHeight}`).split('x').map(Number);
+  const animationNames = animationNamesOption?.split(',').filter(Boolean) ?? [];
+  if (!frameColumns || !frameRows || !strideX || !strideY || (animationNames.length !== 1 && animationNames.length !== frameRows)) {
+    throw new Error('--frame-grid requires CxR, --frame-stride WxH, and either one flattened animation name or one name per row');
+  }
+  if (animationNames.length === 1) {
+    const gridFrames = Array.from({ length: frameColumns * frameRows }, (_, index) => {
+      const column = index % frameColumns;
+      const row = Math.floor(index / frameColumns);
+      return buildFrame(cropX + column * strideX, cropY + row * strideY);
+    });
+    const frameOrder = frameOrderOption?.split(',').map(Number) ?? gridFrames.map((_, index) => index);
+    if (frameOrder.some((index) => !Number.isInteger(index) || index < 0 || index >= gridFrames.length)) {
+      throw new Error('--frame-order contains an index outside the source frame grid');
+    }
+    frames = { [animationNames[0]!]: frameOrder.map((index) => gridFrames[index]!) };
+  } else {
+    if (frameOrderOption) throw new Error('--frame-order is only supported with one flattened animation name');
+    frames = Object.fromEntries(animationNames.map((animation, row) => [
+      animation,
+      Array.from({ length: frameColumns }, (_, column) => buildFrame(cropX + column * strideX, cropY + row * strideY)),
+    ]));
   }
 }
 const source = {
@@ -84,7 +124,8 @@ const source = {
   category,
   size: [targetWidth, targetHeight],
   anchor: [Math.floor(targetWidth / 2), targetHeight - 1],
-  frames: { base: [cleanedRows.map((row) => row.join(''))] },
+  frames,
+  ...(fpsOption ? { fps: Number(fpsOption) } : {}),
   approved: false,
   importedFrom: basename(input),
 };
