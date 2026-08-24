@@ -10,6 +10,7 @@
     "watch": "tsx src/watch-assets.ts",
     "atlas": "tsx src/build-atlas.ts",
     "render": "tsx src/render-review.ts",
+    "render:source-sheet": "tsx src/render-source-sheet.ts",
     "preview": "tsx src/preview.ts",
     "import": "tsx src/import-image.ts",
     "restore-native": "tsx src/restore-native-palettes.ts"
