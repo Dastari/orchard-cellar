@@ -15,7 +15,8 @@
     "assets:build": "npm run atlas -w @orchard/tools",
     "assets:render": "npm run render -w @orchard/tools --",
     "assets:preview": "npm run preview -w @orchard/tools",
-    "assets:import": "npm run import -w @orchard/tools --"
+    "assets:import": "npm run import -w @orchard/tools --",
+    "sim:pace": "tsx packages/tools/src/pace-sim.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
