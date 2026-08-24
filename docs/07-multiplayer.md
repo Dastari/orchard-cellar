@@ -7,8 +7,9 @@ disconnected visit room.
 
 ## 1. World model
 
-- One shared world clock and authored overworld contain roads, common spaces, and
-  player-owned estate parcels.
+- One shared world clock and deterministic generated island contain wilderness,
+  common spaces, resources, and player homestead clearings. Generation and the
+  survival loop are specified in [20-survival-world.md](20-survival-world.md).
 - A player has one durable avatar position and one owned farm. Friends may walk onto
   an estate and cooperate while its owner is online or offline, subject to permissions.
 - Public spatial entities use indexed chunk coordinates. Each client subscribes to a
@@ -86,12 +87,15 @@ position before accepting input.
    before the complete permission matrix and economy move server-side.
 3. **M6:** OIDC + friends allowlist, owned farm/public/private tables, local-save
    import, farm timestamp adapter, self-host deploy and backup/restore.
-4. **M7a:** authored overworld chunks and production contiguous estate parcels;
-   replace the sample geometry with the approved Cute Fantasy-derived tilemaps; 25-client load
+4. **M5.7 owner-directed vertical slice:** generated island terrain, biomes, resource
+   collision, distinct spawn clearings, private inventory views, starter hotbar, and
+   transactional tree harvesting.
+5. **M7a:** production chunk streaming and homestead claiming/building over the
+   generated island; approved Cute Fantasy-derived biome tile sets; 25-client load
    harness and latency/reconciliation controls.
-5. **M7b:** estate access modes and visitor/helper/steward reducer matrix.
-6. **M7c:** friends UI, guestbook, gifts, tasting, proximity chat, blocks/moderation.
-7. **M7d:** co-op festivals, reconnect/rollback soak, owner host tools.
+6. **M7b:** estate access modes and visitor/helper/steward reducer matrix.
+7. **M7c:** friends UI, guestbook, gifts, tasting, proximity chat, blocks/moderation.
+8. **M7d:** co-op festivals, reconnect/rollback soak, owner host tools.
 
 ## 7. Required tests
 

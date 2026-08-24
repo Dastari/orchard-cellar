@@ -142,6 +142,20 @@ and Bob planting, watering, and harvesting. The generated protocol exposes no
 position setter; crop reach, 25-parcel layout, clock stages, and bounds are covered by
 deterministic tests.
 
+## M5.7 — Generated survival island `⏳ in progress (codex, 2026-08-24)`
+
+Owner-directed M7a foundation pulled forward before deeper farming progression. Build
+the deterministic 192×192 island, biome terrain, 25 safe spawn clearings, generated
+resource nodes, server/client collision parity, y-sorted world rendering, private
+inventory views, a nine-slot hotbar with starter tools, and transactional axe-to-wood
+collection per [20-survival-world.md](20-survival-world.md).
+
+**Done when:** two durable identities begin in distinct clearings, explore the same
+coast/forest/meadow/valley/highland layout, cannot cross water/ridges or live trees,
+walk correctly in front of/behind tree canopies, and each can equip the starter axe,
+fell a nearby tree, receive Wood exactly once, and retain hotbar/inventory/resource
+state through reconnect and host restart.
+
 ## M6 — Accounts, farm authority & persistence `⏳ in progress (codex, 2026-08-24)`
 OIDC + owner-managed friends allowlist per [09-auth.md](09-auth.md); normalized owned
 farm/public/private tables per [08-database.md](08-database.md); caller-dependent

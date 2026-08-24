@@ -43,6 +43,7 @@ following this doc suite.
 | [18-visual-style-addendum.md](18-visual-style-addendum.md) | Island estate, curve rules, sway rule, music arcs, pack licensing | Any art/map/audio work (with 10 and 12) |
 | [17-reference-redesign.md](17-reference-redesign.md) | The redesign PDF (end build target) | Design questions |
 | [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) | Persistent overworld target and backend adoption gate | M5.5 and all server/network work |
+| [20-survival-world.md](20-survival-world.md) | Generated island, biomes, resources, collision, inventory/hotbar | M5.7 and survival-world work |
 
 Minimal startup ritual for an implementing agent: **00 → 01 → 02 → 15 → your
 milestone in 14 → the docs that milestone lists.** Docs are binding; deviations go
