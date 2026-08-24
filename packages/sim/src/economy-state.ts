@@ -46,13 +46,14 @@ export interface EconomyState {
   readonly knowledge: Readonly<Record<'grove' | 'press' | 'cellar' | 'estate', number>>;
   readonly firsts: {
     readonly harvested: boolean;
+    readonly harvestedSpecies: readonly TreeSpeciesId[];
     readonly pressRun: boolean;
     readonly bottle: boolean;
   };
 }
 
 export type EconomyAction =
-  | { readonly type: 'plant'; readonly species: TreeSpeciesId }
+  | { readonly type: 'plant'; readonly species: TreeSpeciesId; readonly x: number; readonly y: number }
   | { readonly type: 'tend'; readonly treeId: number }
   | { readonly type: 'harvest'; readonly treeId: number }
   | { readonly type: 'haulFruit'; readonly amount?: number }
@@ -114,6 +115,6 @@ export function createInitialEconomy(): EconomyState {
     caskRemainder: 0,
     bottleMicro: 0,
     knowledge: { grove: 0, press: 0, cellar: 0, estate: 0 },
-    firsts: { harvested: false, pressRun: false, bottle: false },
+    firsts: { harvested: false, harvestedSpecies: [], pressRun: false, bottle: false },
   };
 }

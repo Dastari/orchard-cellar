@@ -47,9 +47,10 @@ a fixed-point fractional accumulator). Nothing exceeds 2^53.
 - Global synergy (skill-gated): +0.15%–0.4% all fruit per tree planted.
 - Per-species milestones at 5/10/15 planted: that species ×2 each; at **25**: ×3
   (endgame target, not a per-Vintage expectation — PDF §7).
-- Care multiplies ×1.0–×2.0 ([04](04-orchard-design.md) §3). Season: featured ×1.6
-  (+ skill), off-season ×0.85. Species whose table trait names a season use that
-  more-specific ×1.8 value instead of ×1.6; the two bonuses do not stack.
+- Care multiplies ×1.0–×2.0 ([04](04-orchard-design.md) §3). Spring features the
+  whole Grove at ×1.6 (+ skill). A species whose table trait names the current
+  season uses its more-specific ×1.8 value; other stage/species combinations run
+  off-season at ×0.85. The two featured bonuses never stack.
 
 ### Presses (first Basket Press: repaired for 50 fruit, one time; all others cost Pomace)
 

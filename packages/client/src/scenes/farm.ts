@@ -60,20 +60,40 @@ function atlasFrame(asset: LoadedAsset, animation = 'base', frameIndex = 0): { i
 }
 
 function nearTile(state: FarmState, x: number, y: number, radius = 2): boolean {
+  return targetScore(state, x, y, radius) !== undefined;
+}
+
+export function targetScore(state: FarmState, x: number, y: number, radius: number): number | undefined {
   const playerX = state.player.position.x / TILE_SIZE_FIXED;
   const playerY = state.player.position.y / TILE_SIZE_FIXED;
-  return Math.abs(playerX - x) <= radius && Math.abs(playerY - y) <= radius;
+  const dx = x - playerX;
+  const dy = y - playerY;
+  const distance = Math.hypot(dx, dy);
+  if (distance > radius + 0.5) return undefined;
+  if (distance < 0.5) return distance;
+  const facing = state.player.facing;
+  const facingX = facing.includes('Left') || facing === 'left' ? -1 : facing.includes('Right') || facing === 'right' ? 1 : 0;
+  const facingY = facing.startsWith('up') ? -1 : facing.startsWith('down') || facing === 'down' ? 1 : 0;
+  const facingLength = Math.hypot(facingX, facingY) || 1;
+  const dot = (dx * facingX + dy * facingY) / (distance * facingLength);
+  return dot >= 0.15 ? distance - dot * 0.25 : undefined;
 }
 
-function nearTree(state: FarmState, radius?: number): OrchardTreeState | undefined {
+export function nearTree(state: FarmState, radius?: number): OrchardTreeState | undefined {
   const reach = radius ?? (state.economy.upgrades.includes('tallLadders') ? 4 : 2);
-  return state.economy.trees.find((tree) => nearTile(state, tree.x, tree.y, reach));
+  return state.economy.trees
+    .map((tree) => ({ tree, score: targetScore(state, tree.x, tree.y, reach) }))
+    .filter((candidate): candidate is { tree: OrchardTreeState; score: number } => candidate.score !== undefined)
+    .sort((a, b) => a.score - b.score || a.tree.id - b.tree.id)[0]?.tree;
 }
 
-function nearOpenPlot(state: FarmState, radius = 2): readonly [number, number] | undefined {
+export function nearOpenPlot(state: FarmState, radius = 2): readonly [number, number] | undefined {
   const occupied = new Set(state.economy.trees.map((tree) => `${tree.x},${tree.y}`));
   return ORCHARD_PLOTS.slice(0, state.economy.plotsUnlocked)
-    .find(([x, y]) => !occupied.has(`${x},${y}`) && nearTile(state, x, y, radius));
+    .filter(([x, y]) => !occupied.has(`${x},${y}`))
+    .map((plot) => ({ plot, score: targetScore(state, plot[0], plot[1], radius) }))
+    .filter((candidate): candidate is { plot: readonly [number, number]; score: number } => candidate.score !== undefined)
+    .sort((a, b) => a.score - b.score || a.plot[1] - b.plot[1] || a.plot[0] - b.plot[0])[0]?.plot;
 }
 
 export class FarmScene implements Scene {
@@ -349,11 +369,12 @@ export class FarmScene implements Scene {
     const tree = nearTree(this.state);
     if (tree && this.state.player.location === 'estate') {
       if (tree.bufferMicro >= 1_000_000) return [{ type: 'harvest', treeId: tree.id }];
+      if (tree.care === 3 && this.state.tick >= tree.mulchUntilTick && this.state.economy.resources.pomace >= 5) return [{ type: 'mulch', treeId: tree.id }];
       if (this.state.economy.vigour > 0) return [{ type: 'tend', treeId: tree.id }];
-      if (this.state.tick >= tree.mulchUntilTick && this.state.economy.resources.pomace >= 5) return [{ type: 'mulch', treeId: tree.id }];
       return [];
     }
-    if (this.state.player.location === 'estate' && nearOpenPlot(this.state)) return [{ type: 'plant', species: 'seedlingApple' }];
+    const plot = this.state.player.location === 'estate' ? nearOpenPlot(this.state) : undefined;
+    if (plot) return [{ type: 'plant', species: 'seedlingApple', x: plot[0], y: plot[1] }];
     if (this.state.player.location === 'estate' && nearTile(this.state, 10, 47, 3)) {
       const economy = this.state.economy;
       if (!economy.firstPressRepaired) return [{ type: 'repairPress' }];
@@ -389,8 +410,8 @@ export class FarmScene implements Scene {
     const held = this.input.isInteractHeld() ? 'RELEASE' : 'HOLD E';
     if (tree && this.state.player.location === 'estate') {
       if (tree.bufferMicro >= 1_000_000) return `${held} HARVEST ${Math.floor(tree.bufferMicro / 1_000_000)}`;
+      if (tree.care === 3 && this.state.tick >= tree.mulchUntilTick && this.state.economy.resources.pomace >= 5) return `${held} MULCH 5 POMACE`;
       if (this.state.economy.vigour > 0) return `${held} TEND ${Math.floor(this.state.economy.vigour / 100)} PCT`;
-      if (this.state.tick >= tree.mulchUntilTick && this.state.economy.resources.pomace >= 5) return `${held} MULCH 5 POMACE`;
       return 'VIGOUR CHARGING';
     }
     if (this.state.player.location === 'estate' && nearOpenPlot(this.state)) return `${held} PLANT SEEDLING`;
@@ -417,7 +438,7 @@ export class FarmScene implements Scene {
       return next ? `NEED ${next.cost} ${next.currency.toUpperCase()} FOR ${next.name.toUpperCase()}` : 'WORKBENCH COMPLETE';
     }
     if (this.state.player.location === 'cellar' && nearTile(this.state, 19, 7, 3)) {
-      if (this.state.economy.casks.every((count) => count === 0)) return `${held} BUY DEMIJOHN 40 MUST`;
+      if (this.state.economy.casks.every((count) => count === 0)) return `${held} BUY DEMIJOHN ${CASK_BALANCE[0]?.cost ?? 40} MUST`;
       const nextCost = repeatCost(CASK_BALANCE[0]?.cost ?? 40, this.state.economy.casks[0] ?? 0, CASK_COST_GROWTH);
       if (this.state.economy.cellarMustMicro > 0 && this.state.economy.resources.must >= nextCost) return `${held} BUY DEMIJOHN ${nextCost}`;
       if (this.state.economy.resources.must > 0) return `${held} RACK MUST INTO CASKS`;

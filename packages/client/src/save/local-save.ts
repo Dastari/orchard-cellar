@@ -96,9 +96,18 @@ export function parseSave(value: unknown): FarmState | null {
   if (!isRecord(economy['knowledge']) || !hasNonNegativeIntegers(economy['knowledge'], ['grove', 'press', 'cellar', 'estate'])) return null;
   const firsts = economy['firsts'];
   if (!isRecord(firsts) || !['harvested', 'pressRun', 'bottle'].every((key) => typeof firsts[key] === 'boolean')) return null;
+  const harvestedSpecies = firsts['harvestedSpecies'] === undefined
+    ? (firsts['harvested'] ? ['seedlingApple'] : [])
+    : firsts['harvestedSpecies'];
+  if (!Array.isArray(harvestedSpecies) || harvestedSpecies.some((id) => typeof id !== 'string' || !species.has(id as typeof TREE_BALANCE[number]['id']))) return null;
   if (typeof economy['firstPressRepaired'] !== 'boolean') return null;
   const parsed = state as unknown as FarmState;
-  const normalizedEconomy: FarmState['economy'] = { ...parsed.economy, upgrades: upgrades as FarmState['economy']['upgrades'], plotsUnlocked };
+  const normalizedEconomy: FarmState['economy'] = {
+    ...parsed.economy,
+    upgrades: upgrades as FarmState['economy']['upgrades'],
+    plotsUnlocked,
+    firsts: { ...parsed.economy.firsts, harvestedSpecies: harvestedSpecies as FarmState['economy']['firsts']['harvestedSpecies'] },
+  };
   return {
     ...parsed,
     economy: normalizedEconomy,

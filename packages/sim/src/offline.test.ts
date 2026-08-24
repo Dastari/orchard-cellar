@@ -22,7 +22,7 @@ describe('deterministic offline progress', () => {
   it('runs at sixty percent efficiency without charging Vigour', () => {
     const progressed = applyOffline(matureState(), 60);
     expect(progressed.tick).toBe(60 * SIM_TICKS_PER_SECOND);
-    expect(progressed.economy.trees[0]?.bufferMicro).toBe(3_600_000);
+    expect(progressed.economy.trees[0]?.bufferMicro).toBe(5_760_000);
     expect(progressed.economy.vigour).toBe(0);
     expect(progressed.player.moving).toBe(false);
   });
@@ -49,7 +49,7 @@ describe('deterministic offline progress', () => {
       tick: summerStart - 30 * SIM_TICKS_PER_SECOND,
     };
     const progressed = applyOffline(state, 60);
-    expect(progressed.economy.trees[0]?.bufferMicro).toBe(15_741_000_000);
+    expect(progressed.economy.trees[0]?.bufferMicro).toBe(20_196_000_000);
   });
 
   it('honors the press-yard bottleneck while offline', () => {

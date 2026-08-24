@@ -1,4 +1,6 @@
 import {
+  ORCHARD_PLOTS,
+  CASK_BALANCE,
   TREE_COST_GROWTH,
   advanceTick,
   createInitialState,
@@ -31,9 +33,13 @@ function chooseAction(state: FarmState): Action | null {
   const nextSeedlingCost = repeatCost(15, economy.trees.length, TREE_COST_GROWTH);
   // A sensible first grove reaches and slightly passes the five-tree milestone
   // before diverting all Fruit into pressing capital.
-  if (economy.trees.length < 6 && economy.resources.fruit >= nextSeedlingCost) return { type: 'plant', species: 'seedlingApple' };
+  if (economy.trees.length < 6 && economy.resources.fruit >= nextSeedlingCost) {
+    const occupied = new Set(economy.trees.map((candidate) => `${candidate.x},${candidate.y}`));
+    const plot = ORCHARD_PLOTS.slice(0, economy.plotsUnlocked).find(([x, y]) => !occupied.has(`${x},${y}`));
+    if (plot) return { type: 'plant', species: 'seedlingApple', x: plot[0], y: plot[1] };
+  }
   if (economy.resources.fruit > 0) return { type: 'haulFruit' };
-  if (economy.casks.every((count) => count === 0) && economy.resources.must >= 40) return { type: 'buyCask', tier: 1 };
+  if (economy.casks.every((count) => count === 0) && economy.resources.must >= (CASK_BALANCE[0]?.cost ?? 40)) return { type: 'buyCask', tier: 1 };
   if (economy.casks.some((count) => count > 0) && economy.resources.must > 0) return { type: 'rackMust' };
   if (economy.yardMustMicro >= 1_000_000) return { type: 'haulMust', destination: 'bank' };
   if (tree.bufferMicro >= 5_000_000) return { type: 'harvest', treeId: tree.id };
