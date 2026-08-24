@@ -24,3 +24,23 @@ texture clusters and wall-edge shading").
 
 Note the gif is animated; static Reads show one frame — that's sufficient for
 composition/palette comparison.
+
+## Second batch (2026-08-24): the "rounded/cozy" bar
+
+| File | What it benchmarks | Compare at |
+|---|---|---|
+| `benchmark-curved-edges-cutefantasy.png` | The owner's target for terrain curves: scalloped rounded path/water edges, grass overhang, decor density (mushrooms/flowers/rocks), timber-frame buildings, river-bordered island feel | Terrain/decor/building work; docs/18 §2–4 |
+| `benchmark-rounded-paths-simple.png` | Minimal example of rounded path blobs with darker rim on grass | Path autotile template |
+
+## Asset packs (local authoring inputs; see docs/18 §7 for licensing)
+
+- `../asset-pack/` — **Sprout Lands Basic** (Cup Nooble). Non-commercial license;
+  style reference explicitly allowed. Study: `Tilesets/Grass.png` (rounded blob
+  edges), `Tilesets/Wooden House.png` (frame+fill building grammar), `Objects/`.
+- `../Cute_Fantasy*/` — owner-purchased **Cute Fantasy** collection by Kenmi Art.
+  It is the approved primary visual source. Study and extract through the semantic
+  catalog/import pipeline; never commit or redistribute the purchased sheets.
+
+Only reviewed palette-authored semantic extracts belong in deliverables. Raw pack
+sheets stay ignored local inputs; `importedFrom` records provenance for credits and
+license audits.

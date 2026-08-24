@@ -1,0 +1,36 @@
+{
+  "name": "tile_cf_water_ripples",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvuuvvvvvvvv",
+        "vvvvuuuuuvvvvvvv",
+        "vvvuuuuuuvvvvvvv",
+        "vvvuuuuuvvvvvvvv",
+        "vvvvuuvvvvuuvvvv",
+        "vvvvvvvvvvuuuvvv",
+        "vvvvvuuvvvvuuvvv",
+        "vvvvvuuvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Water_Decoration.png"
+}

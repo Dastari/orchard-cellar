@@ -1,0 +1,36 @@
+{
+  "name": "tile_cf_hillside",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh",
+        "hhhhhhhhhhhhhhhh"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Grass_4_Middle.png"
+}

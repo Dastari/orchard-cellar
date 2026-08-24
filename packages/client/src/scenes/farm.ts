@@ -36,7 +36,8 @@ const VIEWPORT_WIDTH = 480;
 const VIEWPORT_HEIGHT = 270;
 
 export interface SeasonalFarmAssets {
-  readonly grass: LoadedAsset;
+  readonly grassBase: LoadedAsset;
+  readonly grassDetail: LoadedAsset;
   readonly path: LoadedAsset;
   readonly soil: LoadedAsset;
   readonly farmhouse: LoadedAsset;
@@ -44,6 +45,7 @@ export interface SeasonalFarmAssets {
   readonly treeYoung: LoadedAsset;
   readonly treeMature: LoadedAsset;
   readonly fruitTree: LoadedAsset;
+  readonly scenery: Readonly<Record<string, LoadedAsset>>;
 }
 
 export interface FarmAssets {
@@ -51,12 +53,31 @@ export interface FarmAssets {
   readonly seasons: Readonly<Record<Season, SeasonalFarmAssets>>;
   readonly press: LoadedAsset;
   readonly barrel: LoadedAsset;
+  readonly worldTiles: {
+    readonly water: LoadedAsset;
+    readonly waterDetail: LoadedAsset;
+    readonly cellarFloor: LoadedAsset;
+    readonly cellarWall: LoadedAsset;
+    readonly hillside: LoadedAsset;
+    readonly cellarRack: LoadedAsset;
+  };
   readonly maps: Readonly<Record<'estate' | 'cellar', MapSource>>;
 }
 
 function atlasFrame(asset: LoadedAsset, animation = 'base', frameIndex = 0): { image: CanvasImageSource; frame: AtlasFrame } | undefined {
   const frame = asset.metadata.animations[animation]?.[frameIndex];
   return frame ? { image: asset.image, frame } : undefined;
+}
+
+function blob47Atlas(asset: LoadedAsset): {
+  image: CanvasImageSource;
+  frame: AtlasFrame;
+  frames: readonly AtlasFrame[];
+  autotile: 'blob47';
+} | undefined {
+  const frames = asset.metadata.animations['base'] ?? [];
+  const frame = frames[46] ?? frames[0];
+  return frame ? { image: asset.image, frame, frames, autotile: 'blob47' } : undefined;
 }
 
 function nearTile(state: FarmState, x: number, y: number, radius = 2): boolean {
@@ -119,12 +140,20 @@ export class FarmScene implements Scene {
       const seasonAssets = assets.seasons[season];
       return [season, new CachedTileMapRenderer(createAuthoredTileMap(assets.maps.estate, {
         season,
-        grass: atlasFrame(seasonAssets.grass, 'base', seasonAssets.grass.metadata.animations['base']?.length === 47 ? 46 : 0),
-        path: atlasFrame(seasonAssets.path, 'base', seasonAssets.path.metadata.animations['base']?.length === 47 ? 46 : 0),
+        grassBase: atlasFrame(seasonAssets.grassBase),
+        grass: atlasFrame(seasonAssets.grassDetail),
+        path: blob47Atlas(seasonAssets.path),
         soil: atlasFrame(seasonAssets.soil, 'base', seasonAssets.soil.metadata.animations['base']?.length === 47 ? 46 : 0),
+        water: atlasFrame(assets.worldTiles.water),
+        waterDetail: atlasFrame(assets.worldTiles.waterDetail),
+        hillside: atlasFrame(assets.worldTiles.hillside),
       }))];
     })) as unknown as Readonly<Record<Season, CachedTileMapRenderer>>;
-    this.cellarTilemap = new CachedTileMapRenderer(createAuthoredTileMap(assets.maps.cellar));
+    this.cellarTilemap = new CachedTileMapRenderer(createAuthoredTileMap(assets.maps.cellar, {
+      cellarFloor: atlasFrame(assets.worldTiles.cellarFloor),
+      cellarWall: atlasFrame(assets.worldTiles.cellarWall),
+      cellarRack: atlasFrame(assets.worldTiles.cellarRack),
+    }));
     this.avatarAnimator = new SpriteAnimator(assets.avatar.metadata, 'walk_down');
     const calendar = calendarAtTick(this.state.tick);
     this.audio.setAmbienceContext(calendar.season, calendar.dayProgress, this.state.player.location);
@@ -255,7 +284,10 @@ export class FarmScene implements Scene {
     }
     const asset = object.asset === 'farmhouse' ? seasonAssets.farmhouse
       : object.asset === 'tree_apple_fruiting' ? seasonAssets.fruitTree
-        : object.asset === 'prop_basket_press' ? this.assets.press : this.assets.barrel;
+        : object.asset === 'prop_basket_press' ? this.assets.press
+          : object.asset === 'prop_oak_barrel' ? this.assets.barrel
+            : seasonAssets.scenery[object.asset];
+    if (!asset) throw new Error(`Missing loaded map asset: ${object.asset}`);
     return this.worldAssetSprite(asset, object.animation, object.x * 16, object.y * 16);
   }
 
@@ -264,19 +296,28 @@ export class FarmScene implements Scene {
     const asset = tree.stage === 'sapling' ? seasonal.treeSapling
       : tree.stage === 'young' ? seasonal.treeYoung
         : tree.bufferMicro >= 1_000_000 ? seasonal.fruitTree : seasonal.treeMature;
-    const animation = tree.stage === 'mature' && tree.bufferMicro >= 1_000_000 ? 'fruiting' : 'base';
-    return this.worldAssetSprite(asset, animation, tree.x * 16, tree.y * 16);
+    return this.worldAssetSprite(asset, 'base', tree.x * 16, tree.y * 16);
   }
 
   private drawAvatar(context: CanvasRenderingContext2D, x: number, y: number): void {
     const frame = this.avatarAnimator.getFrame();
-    if (frame) drawAtlasFrame(context, this.assets.avatar.image, frame, x, y + 8);
+    if (!frame) return;
+    const facing = this.state.player.facing;
+    const mirror = facing.includes('Left') || facing === 'left';
+    if (!mirror) {
+      drawAtlasFrame(context, this.assets.avatar.image, frame, x, y + 8);
+      return;
+    }
+    context.save();
+    context.translate(x * 2, 0);
+    context.scale(-1, 1);
+    drawAtlasFrame(context, this.assets.avatar.image, frame, x, y + 8);
+    context.restore();
   }
 
   private animationForFacing(): string {
     const facing = this.state.player.facing;
-    if (facing.includes('Left') || facing === 'left') return 'walk_left';
-    if (facing.includes('Right') || facing === 'right') return 'walk_right';
+    if (facing.includes('Left') || facing === 'left' || facing.includes('Right') || facing === 'right') return 'walk_right';
     if (facing.startsWith('up')) return 'walk_up';
     return 'walk_down';
   }

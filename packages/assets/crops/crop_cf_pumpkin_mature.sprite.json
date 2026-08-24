@@ -1,0 +1,36 @@
+{
+  "name": "crop_cf_pumpkin_mature",
+  "category": "crops",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".dddddddddddd...",
+        "gddccdddccdddg..",
+        "gdccccggcccddg..",
+        "ggggccgghhcddg..",
+        ".gcccccnnhhhggg.",
+        ".LggggnnngggLLLg",
+        ".LLLnnnnnmLmLhhg",
+        ".LggnnnmmmLmLhh.",
+        ".ddddmmmmmgggg..",
+        "gdcccgmmmmmmg...",
+        "ggggggLLLLLhhg..",
+        ".ggg.....hhhhg..",
+        "..........ggg...",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Crops.png"
+}

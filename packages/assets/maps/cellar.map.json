@@ -138,6 +138,24 @@
       "animation": "base",
       "x": 23,
       "y": 15
+    },
+    {
+      "asset": "prop_cf_barrel_apples",
+      "animation": "base",
+      "x": 30,
+      "y": 8
+    },
+    {
+      "asset": "prop_cf_barrel",
+      "animation": "base",
+      "x": 33,
+      "y": 8
+    },
+    {
+      "asset": "prop_cf_barrel",
+      "animation": "base",
+      "x": 30,
+      "y": 16
     }
   ],
   "transitions": [

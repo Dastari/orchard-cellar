@@ -1,0 +1,36 @@
+{
+  "name": "tile_cf_wood_floor",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "MMMMMMMM2MMMMMMM",
+        "MMMMMMMM2MMMMMMM",
+        "MMMMMMMM2MMMMMMM",
+        "2222M222222222MM",
+        "MMMMMMMMMMMM2MMM",
+        "MMMMMMMMMMMM2MMM",
+        "MMMMMMMMMMMM2MMM",
+        "222M22M2222222MM",
+        "MMMMMMMM2MMMMMMM",
+        "MMMMMMMM2MMMMMMM",
+        "MMMMMMMM2MMMMMMM",
+        "2222222222222M22",
+        "MMMM2MMMMMMMMMMM",
+        "MMMM2MMMMMMMMMMM",
+        "MMMM2MMMMMMMMMMM",
+        "22M22222222M2222"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Wood_Floor_Tiles.png"
+}

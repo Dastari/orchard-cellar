@@ -147,11 +147,17 @@ while writing rows of characters.
   tiles only*, palette-remapped to ours by the import tool. Characters, trees, and
   buildings stay authored regardless.
 
-**Project decision (2026-08-24):** the owner-supplied Sprout Lands Basic Pack is the
-single adopted terrain source for this private, non-commercial build. Terrain tiles
-may be cropped from it and palette-remapped into committed text grids through
-`assets:import`; the original pack remains ignored and is not redistributed. Credit
-Cup Nooble in the game. Characters, trees, buildings, machinery, and UI remain bespoke.
+**Owner-licensed paid packs:** may be used when the owner explicitly supplies and
+approves them. Purchased source sheets remain ignored local authoring inputs and are
+never committed or redistributed. Only reviewed semantic extracts, converted to the
+text-grid format and validated through the normal palette/review pipeline, ship.
+
+**Project decision (2026-08-24):** the owner-supplied Sprout Lands Basic Pack and
+owner-purchased Cute Fantasy collection are approved for this private build. Cute
+Fantasy is the primary coherent source for terrain, characters, vegetation,
+buildings, props, and UI. Assets may be cropped and palette-remapped into committed
+text grids through `assets:import`; original packs remain ignored and are not
+redistributed. Credit Cup Nooble and Kenmi Art in the game.
 
 
 ## 7. Asset inventory & naming

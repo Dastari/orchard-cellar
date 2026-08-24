@@ -1,0 +1,68 @@
+{
+  "name": "prop_cf_pond",
+  "category": "props",
+  "size": [
+    48,
+    48
+  ],
+  "anchor": [
+    24,
+    47
+  ],
+  "frames": {
+    "base": [
+      [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbggbbbbbggbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbgfgbbgfgbbbbbfgbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbgbggfggbgfggbbbffggggbbgbbbbbbbbbbbb",
+        "bbbbbbbbbbbggggf22ggg22gggg22ff2fgbggbbbbbbbbbbb",
+        "bbbbbbbbbggggggf22ff222fff22M222fggggbbbbbbbbbbb",
+        "bbbbbbbbbbgg2ff22MM222M22222MMM22ff22222bbbbbbbb",
+        "bbbbbbbbbgf22MM22MMM22MMM222MMMM2MM22fgbbbbbbbbb",
+        "bbbbbbbbbgf2MMMyyyMMyyyMM2yyyMMyyyMM2fgbbbbbbbbb",
+        "bbbbbbbbggf22yyuuyyyuuuyyyuuuyyuuyy22fggbbbbbbbb",
+        "bbbbbbgggggyyuuuuuuuuuuuuuuuuuuuuuuyyyygggbbbbbb",
+        "bbbbbgfff2MyuuuvvuuuvvvuuuvvvuuvvuuuyM2fffgbbbbb",
+        "bbbbbgff22MyuuvvvvvvvvvvvvvvvvvvvvuuyM22ffgbbbbb",
+        "bbbbbbggg2MyuuvvvvvvvvvvvvvvvvvvvvuuyM22ggbbbbbb",
+        "bbbbbbbggffyuuvvvvvvvvvvvvvvvvvvvvuuyyfggbbbbbbb",
+        "bbbbbbbbgfyuuvvvvvvvvvvvvvvvvvvvvvvuuyfgbbbbbbbb",
+        "bbbbbbgggfyuuvvvvvvvvvvvvvvvvvvvvvvuuyfgggbbbbbb",
+        "bbbbbgfff22yuuvvvvvvvvvvvvvvvvvvvvuuy22fffgbbbbb",
+        "bbbbbgggffMyuuvvvvvvvvvvvvvvvvvvvvuuyMffgggbbbbb",
+        "bbbbbbbggfMyuuvvvvvvvvvvvvvvvvvvvvuuyMfggbbbbbbb",
+        "bbbbbbbbgfMyuuvvvvvvvvvvvvvvvvvvvvuuyMfgbbbbbbbb",
+        "bbbbbbbbgffyuuvvvvvvvvvvvvvvvvvvvvuuyyfgbbbbbbbb",
+        "bbbbbbbggfyuuvvvvvvvvvvvvvvvvvvvvvvuuyfggbbbbbbb",
+        "bbbbbbggggyuuvvvvvvvvvvvvvvvvvvvvvvuuyyyggbbbbbb",
+        "bbbbbgfffMyuuvvvvvvvvvvvvvvvvvvvvvvuuyMMffgbbbbb",
+        "bbbbbgggfMyuuvvvvvvvvvvvvvvvvvvvvvvuuyMfgggbbbbb",
+        "bbbbbbbgffuuvvvvvvvvvvvvvvvvvvvvvvvvuuufgbbbbbbb",
+        "bbbbbbbf222uuvvvvvvvvvvvvvvvvvvvvvvuuu22ffbbbbbb",
+        "bbbbbbfff22yuuvvvvvvvvvvvvvvvvvvvvuuyy2ffffbbbbb",
+        "bbbbbbgggg2yuuvvvvvvvvvvvvvvvvvvvvuuyyygggbbbbbb",
+        "bbbbbbbbggfffuuvvvvvvvvvvvvvvvvvvuuuufggbbbbbbbb",
+        "bbbbbbbbbgf2MyuuvvvvvvvvvvvvvvvvuuyM2fgbbbbbbbbb",
+        "bbbbbbbbbgf2MyuuvuuuvvvuuuvvvvvvuuyM2fgbbbbbbbbb",
+        "bbbbbbbbbbgggffuuuuuuvuuuuuvvuuuufffffffbbbbbbbb",
+        "bbbbbbbbbggggggfufffuuufffuuuuuufggfgbbffbbbbbbb",
+        "bbbbbbbbbbbggggffgggguugggguuffufgbggbbbbbbbbbbb",
+        "bbbbbbbbbbbbgbggfggbgfggbbgffggggbbgbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbgggbbgfgbbbbbfgbgbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbggbbbbbggbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Water_Tile_1.png"
+}

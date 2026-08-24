@@ -5,6 +5,7 @@ build/
 packages/client/public/generated/
 packages/assets/review/
 references/asset-pack/
+references/Cute_Fantasy*/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

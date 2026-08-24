@@ -1,0 +1,36 @@
+{
+  "name": "crop_cf_corn_mature",
+  "category": "crops",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "..gggggggg.ggg..",
+        "..ggggggggggg...",
+        "...ggggggggg....",
+        "....gggggggdg...",
+        "...ddgggggddg...",
+        "..gddgggggggg...",
+        "..gdd.ggg.......",
+        "..gg..ghg.......",
+        "......ghg.......",
+        "......ghg.......",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Crops.png"
+}

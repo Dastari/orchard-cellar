@@ -1,0 +1,36 @@
+{
+  "name": "crop_cf_tomato_mature",
+  "category": "crops",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".......ggg......",
+        "......ddddd.....",
+        ".....ddggggg....",
+        "....gdg.ggggg...",
+        "....gcggccgccc..",
+        "....gcgggcgcccg.",
+        ".....gggggggccg.",
+        ".....ggggggggg..",
+        "......gggmmlll..",
+        "........mmlll...",
+        ".........jjj....",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Crops.png"
+}

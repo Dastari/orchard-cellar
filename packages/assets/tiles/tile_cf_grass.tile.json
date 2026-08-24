@@ -1,0 +1,36 @@
+{
+  "name": "tile_cf_grass",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbb"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Grass_1_Middle.png"
+}

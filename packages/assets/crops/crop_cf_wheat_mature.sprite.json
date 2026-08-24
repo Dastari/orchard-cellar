@@ -1,0 +1,36 @@
+{
+  "name": "crop_cf_wheat_mature",
+  "category": "crops",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "....yyy...yyy...",
+        "....yssy.sssy...",
+        "..yyyssyysssyy..",
+        ".ysssyssyyssssy.",
+        ".yyssys7yyyssyy.",
+        "...ysyy7y7yyy...",
+        "..yyyyy7y7ysss..",
+        ".sssyyy7yyyyssy.",
+        "yssssyy7yy77yyy.",
+        "yyys7yy7y777....",
+        "...777y7y7y.....",
+        "....y7y7y7y.....",
+        "....y7y7y7y.....",
+        "....y7y.........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Crops.png"
+}

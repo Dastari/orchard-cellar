@@ -65,9 +65,18 @@ export function createEstateCollisionMap(treeTiles: readonly { readonly x: numbe
     const border = x === 0 || y === 0 || x === width - 1 || y === height - 1;
     const farmhouse = x >= 25 && x <= 31 && y >= 5 && y <= 9;
     const orchardTrees = trees.has(`${x},${y}`);
-    const pond = x >= 44 && x <= 54 && y >= 18 && y <= 28;
+    const pond = ((x - 49) / 5.5) ** 2 + ((y - 23) / 4.5) ** 2 <= 1;
+    const upperGardenPond = x >= 39 && x <= 41 && y >= 34 && y <= 36;
+    const lowerGardenPond = x >= 40 && x <= 42 && y >= 44 && y <= 46;
+    const orchardFence = (y === 15 && x >= 8 && x <= 23)
+      || (x === 7 && y >= 16 && y <= 39)
+      || (y === 40 && x >= 8 && x <= 23);
+    const greenhouse = x >= 36 && x <= 42 && y >= 10 && y <= 16;
+    const barn = x >= 46 && x <= 54 && y >= 34 && y <= 41;
+    const windmill = x >= 56 && x <= 60 && y >= 36 && y <= 41;
     const hillside = y >= 48 && (x < 20 || x > 43);
-    return border || farmhouse || orchardTrees || pond || hillside;
+    return border || farmhouse || orchardTrees || pond || upperGardenPond || lowerGardenPond
+      || orchardFence || greenhouse || barn || windmill || hillside;
   });
   return { width, height, blocked };
 }

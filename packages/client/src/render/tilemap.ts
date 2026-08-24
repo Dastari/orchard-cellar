@@ -8,7 +8,13 @@ export type CachedLayerName = 'ground' | 'detail' | 'canopy';
 export interface TileDefinition {
   readonly fill: string;
   readonly inset?: { readonly color: string; readonly x: number; readonly y: number; readonly width: number; readonly height: number };
-  readonly atlas?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame };
+  readonly atlas?: {
+    readonly image: CanvasImageSource;
+    readonly frame: AtlasFrame;
+    readonly frames?: readonly AtlasFrame[];
+    readonly autotile?: 'blob47';
+  };
+  readonly overlayAtlas?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame };
 }
 
 export interface TileLayerData {
@@ -25,10 +31,61 @@ export interface TileMapData {
 }
 
 export interface EstateTileAtlases {
+  readonly grassBase?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
   readonly grass?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
-  readonly path?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly path?: {
+    readonly image: CanvasImageSource;
+    readonly frame: AtlasFrame;
+    readonly frames?: readonly AtlasFrame[];
+    readonly autotile?: 'blob47';
+  } | undefined;
   readonly soil?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly water?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly waterDetail?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly cellarFloor?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly cellarWall?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly hillside?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
+  readonly cellarRack?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame } | undefined;
   readonly season?: Season | undefined;
+}
+
+function eligibleDiagonalCount(cardinals: number): number {
+  const north = (cardinals & 1) !== 0;
+  const east = (cardinals & 2) !== 0;
+  const south = (cardinals & 4) !== 0;
+  const west = (cardinals & 8) !== 0;
+  return Number(north && east) + Number(east && south) + Number(south && west) + Number(west && north);
+}
+
+export function blob47FrameIndex(tiles: readonly number[], width: number, index: number, tileId: number): number {
+  const height = Math.ceil(tiles.length / width);
+  const x = index % width;
+  const y = Math.floor(index / width);
+  const matches = (offsetX: number, offsetY: number): boolean => {
+    const neighborX = x + offsetX;
+    const neighborY = y + offsetY;
+    if (neighborX < 0 || neighborY < 0 || neighborX >= width || neighborY >= height) return false;
+    return tiles[neighborY * width + neighborX] === tileId;
+  };
+  const north = matches(0, -1);
+  const east = matches(1, 0);
+  const south = matches(0, 1);
+  const west = matches(-1, 0);
+  const cardinals = Number(north) | (Number(east) << 1) | (Number(south) << 2) | (Number(west) << 3);
+  const diagonals = [matches(1, -1), matches(1, 1), matches(-1, 1), matches(-1, -1)];
+  const eligible = [north && east, east && south, south && west, west && north];
+  let diagonalChoice = 0;
+  let choiceBit = 0;
+  for (let diagonal = 0; diagonal < eligible.length; diagonal += 1) {
+    if (!eligible[diagonal]) continue;
+    if (diagonals[diagonal]) diagonalChoice |= 1 << choiceBit;
+    choiceBit += 1;
+  }
+  let frameIndex = diagonalChoice;
+  for (let previous = 0; previous < cardinals; previous += 1) {
+    frameIndex += 1 << eligibleDiagonalCount(previous);
+  }
+  return frameIndex;
 }
 
 const authoredDefinitions: Readonly<Record<string, number>> = {
@@ -42,6 +99,7 @@ const authoredDefinitions: Readonly<Record<string, number>> = {
   cellar_floor: 7,
   cellar_wall: 8,
   cellar_rack: 9,
+  water_detail: 10,
 };
 
 export function createAuthoredTileMap(source: MapSource, atlases: EstateTileAtlases = {}): TileMapData {
@@ -53,15 +111,22 @@ export function createAuthoredTileMap(source: MapSource, atlases: EstateTileAtla
   };
   const grass = groundColor[atlases.season ?? 'spring'];
   const definitions: Readonly<Record<number, TileDefinition>> = {
-    1: { fill: grass },
-    2: { fill: grass, ...(atlases.grass ? { atlas: atlases.grass } : {}) },
+    1: { fill: grass, ...(atlases.grassBase ? { atlas: atlases.grassBase } : {}) },
+    2: {
+      fill: grass,
+      ...(atlases.grassBase ? { atlas: atlases.grassBase } : {}),
+      ...(atlases.grass ? { overlayAtlas: atlases.grass } : {}),
+    },
     3: { fill: '#98724c', ...(atlases.path ? { atlas: atlases.path } : {}) },
     4: { fill: '#79513b', ...(atlases.soil ? { atlas: atlases.soil } : {}) },
-    5: { fill: '#3f7e8b', inset: { color: '#65a6ae', x: 2, y: 4, width: 9, height: 1 } },
-    6: { fill: '#315938' },
-    7: { fill: '#8a613f', inset: { color: '#a87952', x: 0, y: 0, width: 16, height: 1 } },
-    8: { fill: '#3d3130', inset: { color: '#5e4a40', x: 0, y: 12, width: 16, height: 4 } },
-    9: { fill: '#5a382d', inset: { color: '#c67f49', x: 2, y: 2, width: 12, height: 3 } },
+    5: { fill: '#3f7e8b', ...(atlases.water ? { atlas: atlases.water } : { inset: { color: '#65a6ae', x: 2, y: 4, width: 9, height: 1 } }) },
+    6: { fill: '#315938', ...(atlases.hillside ? { atlas: atlases.hillside } : {}) },
+    7: { fill: '#8a613f', ...(atlases.cellarFloor ? { atlas: atlases.cellarFloor } : { inset: { color: '#a87952', x: 0, y: 0, width: 16, height: 1 } }) },
+    8: { fill: '#3d3130', ...(atlases.cellarWall ? { atlas: atlases.cellarWall } : { inset: { color: '#5e4a40', x: 0, y: 12, width: 16, height: 4 } }) },
+    9: { fill: '#5a382d', ...(atlases.cellarRack
+      ? { atlas: atlases.cellarRack }
+      : { inset: { color: '#c67f49', x: 2, y: 2, width: 12, height: 3 } }) },
+    10: { fill: '#3f7e8b', ...(atlases.waterDetail ? { atlas: atlases.waterDetail } : {}) },
   };
   const layers = (['ground', 'detail', 'canopy'] as const).map((name): TileLayerData => ({
     name,
@@ -206,8 +271,15 @@ export class CachedTileMapRenderer {
         context.fillRect(x, y, this.map.tileSize, this.map.tileSize);
       }
       if (tile.atlas) {
-        const frame = tile.atlas.frame;
+        const frameIndex = tile.atlas.autotile === 'blob47'
+          ? blob47FrameIndex(layer.tiles, this.map.width, index, layer.tiles[index] ?? 0)
+          : 0;
+        const frame = tile.atlas.frames?.[frameIndex] ?? tile.atlas.frame;
         context.drawImage(tile.atlas.image, frame.x, frame.y, frame.width, frame.height, x, y, this.map.tileSize, this.map.tileSize);
+      }
+      if (tile.overlayAtlas) {
+        const frame = tile.overlayAtlas.frame;
+        context.drawImage(tile.overlayAtlas.image, frame.x, frame.y, frame.width, frame.height, x, y, this.map.tileSize, this.map.tileSize);
       }
       if (tile.inset) {
         context.fillStyle = tile.inset.color;

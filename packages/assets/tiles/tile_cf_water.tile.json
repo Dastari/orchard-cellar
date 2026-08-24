@@ -1,0 +1,36 @@
+{
+  "name": "tile_cf_water",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        "vvvvvvvvvvvvvvvv"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Water_Middle.png"
+}

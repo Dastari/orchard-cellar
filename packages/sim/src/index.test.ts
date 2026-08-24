@@ -54,6 +54,18 @@ describe('deterministic simulation', () => {
     expect(blockedAt(20, 17)).toBe(true);
   });
 
+  it('matches the authored estate lakes, fences, and building footprints', () => {
+    const collision = createEstateCollisionMap();
+    const blockedAt = (x: number, y: number): boolean => collision.blocked[y * collision.width + x] ?? false;
+    expect(blockedAt(40, 36)).toBe(true);
+    expect(blockedAt(41, 46)).toBe(true);
+    expect(blockedAt(7, 20)).toBe(true);
+    expect(blockedAt(39, 12)).toBe(true);
+    expect(blockedAt(50, 38)).toBe(true);
+    expect(blockedAt(58, 38)).toBe(true);
+    expect(blockedAt(33, 20)).toBe(false);
+  });
+
   it('moves diagonally without cardinal speed inflation', () => {
     const state = createInitialState(7);
     const next = advanceTick(state, [{ type: 'move', direction: 'downRight' }], 1);

@@ -11,6 +11,28 @@ import './style.css';
 
 const VIRTUAL_WIDTH = 480;
 const VIRTUAL_HEIGHT = 270;
+const SCENERY_ASSET_NAMES = [
+  'building_cf_barn',
+  'building_cf_greenhouse',
+  'building_cf_windmill',
+  'crop_cf_carrot_mature',
+  'crop_cf_corn_mature',
+  'crop_cf_grapes_mature',
+  'crop_cf_pumpkin_mature',
+  'crop_cf_tomato_mature',
+  'crop_cf_wheat_mature',
+  'prop_cf_barrel',
+  'prop_cf_barrel_apples',
+  'prop_cf_fence_corner',
+  'prop_cf_fence_horizontal',
+  'prop_cf_fence_vertical',
+  'prop_cf_fence_white_horizontal',
+  'prop_cf_flowers_gold',
+  'prop_cf_flowers_pink',
+  'prop_cf_pond',
+  'tree_cf_fruit_fruiting',
+  'tree_cf_fruit_mature',
+] as const;
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvas) throw new Error('Missing game canvas');
 const context = canvas.getContext('2d');
@@ -38,30 +60,34 @@ async function start(): Promise<void> {
   const scenes = new SceneStack();
   const audio = new AudioBus();
   const saveStore = new LocalSaveStore(localStorage);
-  const avatarAsset = await loadGeneratedAsset('avatar_base', 'summer', {
-    W: ['#8a5b3c', '#eab98f'],
-    X: ['#2b1d0e', '#a97744'],
-    Y: ['#6b2154', '#d4699b', '#3d1230'],
-    Z: ['#2e2c33', '#6e6a75', '#141420'],
-  });
+  const avatarAsset = await loadGeneratedAsset('avatar_cf_farmer', 'summer');
   const seasonEntries = await Promise.all(SEASONS.map(async (season) => {
-    const [grass, path, soil, farmhouse, treeSapling, treeYoung, treeMature, fruitTree] = await Promise.all([
-      loadGeneratedAsset('tile_grass', season),
-      loadGeneratedAsset('tile_path', season),
-      loadGeneratedAsset('tile_soil', season),
+    const [grassBase, grassDetail, path, soil, farmhouse, treeSapling, treeYoung, treeMature, fruitTree, ...sceneryAssets] = await Promise.all([
+      loadGeneratedAsset('tile_cf_grass', season),
+      loadGeneratedAsset('tile_cf_grass_tuft', season),
+      loadGeneratedAsset('tile_cf_path', season),
+      loadGeneratedAsset('tile_cf_farmland', season),
       loadGeneratedAsset('farmhouse', season),
-      loadGeneratedAsset('tree_apple_sapling', season),
-      loadGeneratedAsset('tree_apple_young', season),
-      loadGeneratedAsset('tree_apple_mature', season),
-      loadGeneratedAsset('tree_apple_fruiting', season),
+      loadGeneratedAsset('tree_cf_fruit_sapling', season),
+      loadGeneratedAsset('tree_cf_fruit_young', season),
+      loadGeneratedAsset('tree_cf_fruit_mature', season),
+      loadGeneratedAsset('tree_cf_fruit_fruiting', season),
+      ...SCENERY_ASSET_NAMES.map(async (name) => await loadGeneratedAsset(name, season)),
     ]);
-    const assets: SeasonalFarmAssets = { grass, path, soil, farmhouse, treeSapling, treeYoung, treeMature, fruitTree };
+    const scenery = Object.fromEntries(SCENERY_ASSET_NAMES.map((name, index) => [name, sceneryAssets[index]!]));
+    const assets: SeasonalFarmAssets = { grassBase, grassDetail, path, soil, farmhouse, treeSapling, treeYoung, treeMature, fruitTree, scenery };
     return [season, assets] as const;
   }));
   const seasons = Object.fromEntries(seasonEntries) as Record<Season, SeasonalFarmAssets>;
-  const [press, barrel, estateMap, cellarMap] = await Promise.all([
+  const [press, barrel, water, waterDetail, cellarFloor, cellarWall, hillside, cellarRack, estateMap, cellarMap] = await Promise.all([
     loadGeneratedAsset('prop_basket_press', 'summer'),
     loadGeneratedAsset('prop_oak_barrel', 'summer'),
+    loadGeneratedAsset('tile_cf_water', 'summer'),
+    loadGeneratedAsset('tile_cf_water_ripples', 'summer'),
+    loadGeneratedAsset('tile_cf_wood_floor', 'summer'),
+    loadGeneratedAsset('tile_cf_stone_wall', 'summer'),
+    loadGeneratedAsset('tile_cf_hillside', 'summer'),
+    loadGeneratedAsset('tile_cf_cellar_rack', 'summer'),
     loadGeneratedMap('estate'),
     loadGeneratedMap('cellar'),
   ]);
@@ -71,6 +97,7 @@ async function start(): Promise<void> {
     seasons,
     press,
     barrel,
+    worldTiles: { water, waterDetail, cellarFloor, cellarWall, hillside, cellarRack },
     maps: { estate: estateMap, cellar: cellarMap },
   }, freshDevEstate ? null : saveStore.load(), audio, (state) => saveStore.save(state));
   scenes.push(farm);

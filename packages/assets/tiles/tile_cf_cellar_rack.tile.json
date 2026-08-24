@@ -1,0 +1,36 @@
+{
+  "name": "tile_cf_cellar_rack",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".yyyyyyyyyyyyyyy",
+        ".y44444444444444",
+        ".y44444444444444",
+        ".y64444444444444",
+        ".y66666666666666",
+        ".y44444MMMMMMMMM",
+        ".y4yyyyyyyyyyyyy",
+        ".y4yBBLLBBLLBBLL",
+        ".y4ykkBBmmBBkkBB",
+        ".y4ylkggqmuulkFF",
+        ".y4ylkhgqmvulkGF",
+        ".y4ylkhgqmvulkGF",
+        ".y4yyMMM44444444",
+        ".yyyyyyyyyyyyyyy",
+        ".yyyBBLLBBLLBBLL"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "BookShelves.png"
+}

@@ -1,0 +1,36 @@
+{
+  "name": "tile_cf_farmland_wet",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM",
+        "MMMMMMMMMMMMMMMM"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "FarmLand_Wet_Tile.png"
+}

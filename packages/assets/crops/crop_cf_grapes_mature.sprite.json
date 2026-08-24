@@ -1,0 +1,52 @@
+{
+  "name": "crop_cf_grapes_mature",
+  "category": "crops",
+  "size": [
+    16,
+    32
+  ],
+  "anchor": [
+    8,
+    31
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "......yyy.......",
+        ".....y444y......",
+        ".....y444y......",
+        "...RRy444y......",
+        "..ccccggggg.....",
+        ".Rcccccggggg....",
+        ".RRRRRRRRRcdgyy.",
+        "yyRRRRRRRccdgggy",
+        "yyyyyRRRRhhhgyyy",
+        ".dddddRRRgggg...",
+        "gdcccccRgghccc..",
+        "gdcccccMghhhcccc",
+        "gdcccggMghccccdg",
+        "gddccccgghccccdg",
+        ".gggccccccccccdg",
+        "FFFFFgdchhgcdddg",
+        ".EEEggdcchggggg.",
+        "GGGEEgdccccccggy",
+        "RRRRggggggggggyy",
+        "..R.ggggggggg...",
+        ".....ggggg.g....",
+        ".....ggggg......",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Crops.png"
+}

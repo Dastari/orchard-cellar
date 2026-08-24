@@ -1,0 +1,36 @@
+{
+  "name": "prop_cf_fence_white_horizontal",
+  "category": "props",
+  "size": [
+    32,
+    16
+  ],
+  "anchor": [
+    16,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "...yy......yy......yy......yy...",
+        "..IIII....IIII....IIII....IIII..",
+        ".yIIIIy..yIIIIy..yIIIIy..yIIIIy.",
+        ".yIIIIy..yIIIIy..yIIIIy..yIIIIy.",
+        ".yJKKByyyyJKKByyyyJKKByyyyJKKByy",
+        ".yJKKByIIyJKKByIIyJKKByIIyJKKByy",
+        ".yJKKByKKyJKKByKKyJKKByKKyJKKByy",
+        ".yJKKByyyyJKKByyyyJKKByyyyJKKByy",
+        ".yJKKBy..yJKKBy..yJKKBy..yJKKBy.",
+        ".yJKKByyyyJKKByyyyJKKByyyyJKKByy",
+        ".yJKKByIIyJKKByIIyJKKByIIyJKKByy",
+        ".yJKKByKKyJKKByKKyJKKByKKyJKKByy",
+        ".yJKKByyyyJKKByyyyJKKByyyyJKKByy",
+        ".yJJBBy..yJJBBy..yJJBBy..yJJBBy.",
+        "..yyyy....yyyy....yyyy....yyyy..",
+        "................................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "White_Fence.png"
+}

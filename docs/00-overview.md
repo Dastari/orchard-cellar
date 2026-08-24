@@ -40,6 +40,7 @@ following this doc suite.
 | [14-roadmap.md](14-roadmap.md) | Milestones M0–M9 + asset inventory | Always — claim work here |
 | [15-agent-workflow.md](15-agent-workflow.md) | Working agreement, DoD, DECISIONS.md | Always, third |
 | [16-reference-original.md](16-reference-original.md) | Extraction of the source incremental | Design questions ("why is it like this?") |
+| [18-visual-style-addendum.md](18-visual-style-addendum.md) | Island estate, curve rules, sway rule, music arcs, pack licensing | Any art/map/audio work (with 10 and 12) |
 | [17-reference-redesign.md](17-reference-redesign.md) | The redesign PDF (end build target) | Design questions |
 | [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) | Persistent overworld target and backend adoption gate | M5.5 and all server/network work |
 
