@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { assetsRoot, loadAssets, loadPalette, readJson } from './assets/load.js';
 import { frameKind, variantTopology } from './assets/frame-kind.js';
+import { sourcePaletteErrors } from './assets/source-palette.js';
 import type { AssetSource, PixelGrid } from './assets/types.js';
 
 interface SeasonSource {
@@ -100,7 +101,9 @@ function validateCanonicalSize(asset: AssetSource, errors: string[]): void {
   if (asset.category === 'tiles' && (width !== 16 || height !== 16)) errors.push(`${asset.name}: tiles must be 16x16`);
   if (asset.category === 'characters' && (width !== 16 || height !== 32)) errors.push(`${asset.name}: characters must be 16x32`);
   if (asset.category === 'trees') {
-    const valid = (width === 16 && (height === 16 || height === 32)) || (width === 48 && height === 64);
+    const valid = (width === 16 && (height === 16 || height === 32))
+      || (width === 32 && height === 32)
+      || (width === 48 && height === 64);
     if (!valid) errors.push(`${asset.name}: tree size is not a canonical growth-stage size`);
   }
   if (asset.category === 'buildings' && (width % 16 !== 0 || height % 16 !== 0)) {
@@ -112,7 +115,7 @@ function validateCanonicalSize(asset: AssetSource, errors: string[]): void {
 }
 
 function validateOrphans(asset: AssetSource, grid: PixelGrid, animation: string, frameIndex: number, errors: string[]): void {
-  if (asset.lintAllow?.includes('sparkle')) return;
+  if (asset.lintAllow?.includes('sparkle') || asset.sourcePaletteMode === 'exact') return;
   const height = grid.length;
   const width = grid[0]?.length ?? 0;
   for (let y = 0; y < height; y += 1) {
@@ -144,7 +147,7 @@ function validateGrid(
     }
   }
   validateOrphans(asset, grid, animation, frameIndex, errors);
-  if (asset.category === 'characters') {
+  if (asset.category === 'characters' && asset.sourcePaletteMode !== 'exact') {
     let boundary = 0;
     let outlined = 0;
     for (let y = 0; y < grid.length; y += 1) {
@@ -187,11 +190,7 @@ export async function validateAssetSources(): Promise<void> {
     if (names.has(asset.name)) errors.push(`${asset.name}: duplicate asset name`);
     names.add(asset.name);
     validateCanonicalSize(asset, errors);
-    for (const [character, hex] of Object.entries(asset.sourcePalette ?? {})) {
-      if (!allowed.has(character)) errors.push(`${asset.name}: sourcePalette overrides unknown character ${character}`);
-      if (!/^#[0-9a-f]{6}$/i.test(hex)) errors.push(`${asset.name}: sourcePalette ${character} has invalid hex ${hex}`);
-      if (character === '.') errors.push(`${asset.name}: sourcePalette cannot override transparency`);
-    }
+    errors.push(...sourcePaletteErrors(asset, allowed));
     for (const [animation, frames] of Object.entries(asset.frames)) {
       if (frames.length === 0) errors.push(`${asset.name}:${animation} must have at least one frame`);
       frames.forEach((grid, index) => validateGrid(asset, grid, animation, index, allowed, errors));

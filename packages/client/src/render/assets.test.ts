@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveGeneratedAssetName, type BuiltAtlasManifest } from './assets.js';
 
 const manifest = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   revision: 'test',
   revisionId: 1,
   placeholderAssetId: 0,

@@ -52,7 +52,9 @@ Organized as ramps (dark → light). Shade *within a ramp*; jump ramps only at o
 | — | Deep outline | `#1a1210` (warm near-black; the only "black") |
 
 Rules:
-- **No pure `#000000` or `#ffffff` anywhere.**
+- Bespoke art uses no pure `#000000` or `#ffffff`. Exact licensed source crops are
+  not recolored to satisfy this bespoke rule; e.g. Cute Fantasy's white fence keeps
+  its authored `#ffffff` highlight.
 - Shadows are *cooler and darker*, highlights *warmer and lighter* (hue-shift, never
   plain darken/lighten). E.g. foliage shadow dips from R3 into R4; wood highlight
   leans from R1 into R2.

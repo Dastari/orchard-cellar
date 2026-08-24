@@ -12,19 +12,19 @@
   "frames": {
     "base": [
       [
-        ".dddddddddddd...",
-        "gddccdddccdddg..",
-        "gdccccggcccddg..",
-        "ggggccgghhcddg..",
-        ".gcccccnnhhhggg.",
-        ".LggggnnngggLLLg",
-        ".LLLnnnnnmLmLhhg",
-        ".LggnnnmmmLmLhh.",
-        ".ddddmmmmmgggg..",
-        "gdcccgmmmmmmg...",
-        "ggggggLLLLLhhg..",
-        ".ggg.....hhhhg..",
-        "..........ggg...",
+        ".033303303230...",
+        "03322320203230..",
+        "03220201222330..",
+        "02302100112310..",
+        ".02210760111000.",
+        ".400076660004230",
+        ".454666665454110",
+        ".40066655545410.",
+        ".0330555550000..",
+        "0322105550320...",
+        "02310044012120..",
+        ".000.....01110..",
+        "..........000...",
         "................",
         "................",
         "................"
@@ -34,13 +34,15 @@
   "approved": true,
   "importedFrom": "Crops.png",
   "sourcePalette": {
-    "L": "#5a360c",
-    "c": "#33984b",
-    "d": "#5ac54f",
-    "g": "#134c4c",
-    "h": "#1e6f50",
-    "m": "#d45608",
-    "n": "#f77622"
+    "0": "#134c4c",
+    "1": "#1e6f50",
+    "2": "#33984b",
+    "3": "#5ac54f",
+    "4": "#612a0a",
+    "5": "#d45608",
+    "6": "#f77622",
+    "7": "#feae34"
   },
-  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png"
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourcePaletteMode": "exact"
 }

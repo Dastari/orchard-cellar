@@ -12,29 +12,30 @@
   "frames": {
     "base": [
       [
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh",
-        "hhhhhhhhhhhhhhhh"
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
       ]
     ]
   },
   "approved": true,
   "importedFrom": "Grass_4_Middle.png",
   "sourcePalette": {
-    "h": "#3f886c"
+    "0": "#3f886c"
   },
-  "sourcePath": "references/Cute_Fantasy/Tiles/Grass/Grass_4_Middle.png"
+  "sourcePath": "references/Cute_Fantasy/Tiles/Grass/Grass_4_Middle.png",
+  "sourcePaletteMode": "exact"
 }

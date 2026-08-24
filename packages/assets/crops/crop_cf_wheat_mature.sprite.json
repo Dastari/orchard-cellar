@@ -12,20 +12,20 @@
   "frames": {
     "base": [
       [
-        "....yyy...yyy...",
-        "....yssy.sssy...",
-        "..yyyssyysssyy..",
-        ".ysssyssyyssssy.",
-        ".yyssys7yyyssyy.",
-        "...ysyy7y7yyy...",
-        "..yyyyy7y7ysss..",
-        ".sssyyy7yyyyssy.",
-        "yssssyy7yy77yyy.",
-        "yyys7yy7y777....",
-        "...777y7y7y.....",
-        "....y7y7y7y.....",
-        "....y7y7y7y.....",
-        "....y7y.........",
+        "....000...000...",
+        "....0220.0220...",
+        "..000210021200..",
+        ".02220220120220.",
+        ".00210210202100.",
+        "...0200101000...",
+        "..000101010220..",
+        ".02200010021220.",
+        "022120010012000.",
+        "000210010110....",
+        "...01101010.....",
+        "....0101010.....",
+        "....0101010.....",
+        "....010.........",
         "................",
         "................"
       ]
@@ -34,9 +34,10 @@
   "approved": true,
   "importedFrom": "Crops.png",
   "sourcePalette": {
-    "7": "#feae34",
-    "s": "#fee761",
-    "y": "#3f2832"
+    "0": "#3f2832",
+    "1": "#feae34",
+    "2": "#fee761"
   },
-  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png"
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourcePaletteMode": "exact"
 }

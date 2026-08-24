@@ -12,30 +12,31 @@
   "frames": {
     "base": [
       [
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvuuvvvvvvvv",
-        "vvvvuuuuuvvvvvvv",
-        "vvvuuuuuuvvvvvvv",
-        "vvvuuuuuvvvvvvvv",
-        "vvvvuuvvvvuuvvvv",
-        "vvvvvvvvvvuuuvvv",
-        "vvvvvuuvvvvuuvvv",
-        "vvvvvuuvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv"
+        "1111111111111111",
+        "1111111111111111",
+        "1111111111111111",
+        "1111111111111111",
+        "1111110011111111",
+        "1111000001111111",
+        "1110000001111111",
+        "1110000011111111",
+        "1111001111001111",
+        "1111111111000111",
+        "1111100111100111",
+        "1111100111111111",
+        "1111111111111111",
+        "1111111111111111",
+        "1111111111111111",
+        "1111111111111111"
       ]
     ]
   },
   "approved": true,
   "importedFrom": "Water_Decoration.png",
   "sourcePalette": {
-    "u": "#006da8",
-    "v": "#0095e9"
+    "0": "#006da8",
+    "1": "#0095e9"
   },
-  "sourcePath": "references/Cute_Fantasy/Tiles/Water/Water_Decoration.png"
+  "sourcePath": "references/Cute_Fantasy/Tiles/Water/Water_Decoration.png",
+  "sourcePaletteMode": "exact"
 }

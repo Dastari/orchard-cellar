@@ -58,7 +58,7 @@ overrides; the farm map spec lives in 03-gameplay-core.md.
   (sorted by name) so diffs are stable.
 - `npm run assets:validate` — CI gate:
   - only palette chars; canonical sizes; anchor inside sprite
-  - no pure black/white; outline rule heuristics (border pixels of character-category
+  - no pure black/white in bespoke art; outline rule heuristics (border pixels of character-category
     sprites must be dark-ramp indices)
   - orphan-pixel lint (single-pixel color islands → error, allowlist for eye
     highlights via `"lintAllow": ["sparkle"]`)

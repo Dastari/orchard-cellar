@@ -12,29 +12,30 @@
   "frames": {
     "base": [
       [
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        "vvvvvvvvvvvvvvvv"
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
       ]
     ]
   },
   "approved": true,
   "importedFrom": "Water_Middle.png",
   "sourcePalette": {
-    "v": "#0095e9"
+    "0": "#0095e9"
   },
-  "sourcePath": "references/Cute_Fantasy/Tiles/Water/Water_Middle.png"
+  "sourcePath": "references/Cute_Fantasy/Tiles/Water/Water_Middle.png",
+  "sourcePaletteMode": "exact"
 }

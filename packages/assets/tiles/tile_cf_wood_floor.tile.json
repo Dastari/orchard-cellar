@@ -12,30 +12,31 @@
   "frames": {
     "base": [
       [
-        "MMMMMMMM2MMMMMMM",
-        "MMMMMMMM2MMMMMMM",
-        "MMMMMMMM2MMMMMMM",
-        "2222M222222222MM",
-        "MMMMMMMMMMMM2MMM",
-        "MMMMMMMMMMMM2MMM",
-        "MMMMMMMMMMMM2MMM",
-        "222M22M2222222MM",
-        "MMMMMMMM2MMMMMMM",
-        "MMMMMMMM2MMMMMMM",
-        "MMMMMMMM2MMMMMMM",
-        "2222222222222M22",
-        "MMMM2MMMMMMMMMMM",
-        "MMMM2MMMMMMMMMMM",
-        "MMMM2MMMMMMMMMMM",
-        "22M22222222M2222"
+        "1111111101111111",
+        "1111110101011111",
+        "1111111101111111",
+        "0000100000000010",
+        "1111111111110111",
+        "1111111111010101",
+        "1111111111110111",
+        "0001001000000010",
+        "1111111101111111",
+        "1111110101011111",
+        "1111111101111111",
+        "0000000000000100",
+        "1111011111111111",
+        "1101010111111111",
+        "1111011111111111",
+        "0010000000010000"
       ]
     ]
   },
   "approved": true,
   "importedFrom": "Wood_Floor_Tiles.png",
   "sourcePalette": {
-    "2": "#743f39",
-    "M": "#91533b"
+    "0": "#743f39",
+    "1": "#91533b"
   },
-  "sourcePath": "references/Cute_Fantasy/Buildings/Houses_Interiors/Wood_Floor_Tiles.png"
+  "sourcePath": "references/Cute_Fantasy/Buildings/Houses_Interiors/Wood_Floor_Tiles.png",
+  "sourcePaletteMode": "exact"
 }

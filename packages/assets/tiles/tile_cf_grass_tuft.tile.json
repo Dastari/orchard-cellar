@@ -16,14 +16,14 @@
         "................",
         "................",
         "................",
-        ".....b...ccc....",
-        ".....bc.bbb.....",
-        ".....bc.........",
-        ".....bb.........",
-        ".....bb..ccc....",
-        "......b.ccc.....",
-        "........cc......",
-        "........c.......",
+        ".....1...110....",
+        ".....01.100.....",
+        ".....01.........",
+        ".....00.........",
+        ".....00..111....",
+        "......0.110.....",
+        "........10......",
+        "........0.......",
         "................",
         "................",
         "................",
@@ -34,8 +34,9 @@
   "approved": true,
   "importedFrom": "Grass_3_Anim.png",
   "sourcePalette": {
-    "b": "#33713b",
-    "c": "#50af5d"
+    "0": "#33713b",
+    "1": "#50af5d"
   },
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Grass_Animations/Grass_3_Anim.png"
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Grass_Animations/Grass_3_Anim.png",
+  "sourcePaletteMode": "exact"
 }

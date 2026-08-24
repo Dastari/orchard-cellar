@@ -21,6 +21,50 @@ const outputRoot = new URL('packages/client/public/generated/', workspaceRoot);
 const ATLAS_WIDTH = 512;
 const MISSING_ASSET_NAME = 'system_missing_asset';
 const MISSING_ASSET_ID = 0;
+export const ASSET_REGISTRY_SCHEMA_VERSION = 2;
+
+interface RegistrySourceRecord {
+  readonly assetId: number;
+  readonly category: string;
+  readonly tags: readonly string[];
+  readonly placement: Readonly<Record<string, unknown>>;
+  readonly animations: Readonly<Record<string, readonly BuiltFrame[]>>;
+  readonly animationMeta: Readonly<Record<string, { readonly fps: number; readonly loop: boolean }>>;
+  readonly variants: Readonly<Record<string, readonly BuiltFrame[]>>;
+  readonly variantMeta: Readonly<Record<string, { readonly topology?: 'blob47' }>>;
+  readonly states: Readonly<Record<string, BuiltFrame>>;
+}
+
+interface CompactRegistryAsset {
+  readonly assetId: number;
+  readonly name: string;
+  readonly category: string;
+  readonly tags: readonly string[];
+  readonly placement: Readonly<Record<string, unknown>>;
+  readonly animations: Readonly<Record<string, unknown>>;
+  readonly variants: Readonly<Record<string, unknown>>;
+  readonly states: readonly string[];
+}
+
+export function compactRegistryAsset(name: string, record: RegistrySourceRecord): CompactRegistryAsset {
+  return {
+    assetId: record.assetId,
+    name,
+    category: record.category,
+    tags: record.tags,
+    placement: record.placement,
+    animations: Object.fromEntries(Object.entries(record.animations).map(([animation, frames]) => [animation, {
+      frameCount: frames.length,
+      fps: record.animationMeta[animation]?.fps ?? 1,
+      loop: record.animationMeta[animation]?.loop ?? true,
+    }])),
+    variants: Object.fromEntries(Object.entries(record.variants).map(([variant, frames]) => [variant, {
+      frameCount: frames.length,
+      ...(record.variantMeta[variant]?.topology ? { topology: record.variantMeta[variant].topology } : {}),
+    }])),
+    states: Object.keys(record.states).sort(),
+  };
+}
 
 type PlacementLayer = 'ground' | 'object' | 'canopy' | 'ui';
 
@@ -306,41 +350,12 @@ export async function buildAtlases(): Promise<void> {
   }
   await writeFile(new URL('atlas.meta.json', outputRoot), `${JSON.stringify(metadata, null, 2)}\n`);
   const registry = {
-    schemaVersion: 1,
+    schemaVersion: ASSET_REGISTRY_SCHEMA_VERSION,
     revision,
     revisionId,
     placeholderAssetId: MISSING_ASSET_ID,
     assets: Object.entries(assetRecords)
-      .map(([name, value]) => {
-        const record = value as {
-          assetId: number;
-          category: string;
-          tags: readonly string[];
-          placement: Readonly<Record<string, unknown>>;
-          animations: Readonly<Record<string, readonly BuiltFrame[]>>;
-          animationMeta: Readonly<Record<string, { readonly fps: number; readonly loop: boolean }>>;
-          variants: Readonly<Record<string, readonly BuiltFrame[]>>;
-          variantMeta: Readonly<Record<string, { readonly topology?: 'blob47' }>>;
-          states: Readonly<Record<string, BuiltFrame>>;
-        };
-        return {
-          assetId: record.assetId,
-          name,
-          category: record.category,
-          tags: record.tags,
-          placement: record.placement,
-          animations: Object.fromEntries(Object.entries(record.animations).map(([animation, frames]) => [animation, {
-            frameCount: frames.length,
-            fps: record.animationMeta[animation]?.fps ?? 1,
-            loop: record.animationMeta[animation]?.loop ?? true,
-          }])),
-          variants: Object.fromEntries(Object.entries(record.variants).map(([variant, frames]) => [variant, {
-            frameCount: frames.length,
-            ...(record.variantMeta[variant]?.topology ? { topology: record.variantMeta[variant].topology } : {}),
-          }])),
-          states: Object.keys(record.states).sort(),
-        };
-      })
+      .map(([name, value]) => compactRegistryAsset(name, value as RegistrySourceRecord))
       .sort((left, right) => left.assetId - right.assetId),
   };
   await writeFile(new URL('asset-registry.json', outputRoot), `${JSON.stringify(registry, null, 2)}\n`);

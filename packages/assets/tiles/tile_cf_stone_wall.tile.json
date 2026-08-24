@@ -12,31 +12,33 @@
   "frames": {
     "base": [
       [
-        "BBBBBzzzBBBBBzzz",
-        "BBAAAAzBBBBAAAzB",
-        "AAAAAAzBAAAAAAzB",
-        "AAAAAzzAAAAAAzzz",
-        "zzAAzzzzzAAzzzzz",
-        "BBBzzzBBBBBzzzBB",
-        "AABBzBBBBAAAzBBB",
-        "AAAAzBAAAAAAzBAA",
-        "AAAAzAAAAAAAzAAA",
-        "AAAzzzAAAAAzzzAA",
-        "zzAAzzzzzzAAzzzz",
-        "zzBBBBzzzBBBBBAA",
-        "zBBBABBzBBBBAAAA",
-        "zBBAAAAzBBAAAAAA",
-        "zBBBAAAzzBBAAAAz",
-        "zzzzzzzzzzzAAAzz"
+        "3333300033333000",
+        "3322230333322303",
+        "2222210322222103",
+        "1221100122111000",
+        "0011000001100000",
+        "3330003333300033",
+        "2233033332230333",
+        "2222032222220322",
+        "2221012222210122",
+        "2110001221100012",
+        "0011000000110000",
+        "0033330003333321",
+        "0333233033332232",
+        "0332221033222221",
+        "0333211003322210",
+        "0000000000011100"
       ]
     ]
   },
   "approved": true,
   "importedFrom": "Stone_Wall_Fillers.png",
   "sourcePalette": {
-    "A": "#6c7c9d",
-    "B": "#8e9ab4",
-    "z": "#3c4258"
+    "0": "#3c4258",
+    "1": "#56627b",
+    "2": "#6c7c9d",
+    "3": "#8e9ab4"
   },
-  "sourcePath": "references/Cute_Fantasy/Buildings/Houses_Interiors/Stone_Wall_Fillers.png"
+  "sourcePath": "references/Cute_Fantasy/Buildings/Houses_Interiors/Stone_Wall_Fillers.png",
+  "sourcePaletteMode": "exact"
 }

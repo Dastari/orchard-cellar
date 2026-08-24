@@ -29,6 +29,8 @@ export interface AssetSource {
   readonly approved?: boolean;
   readonly importedFrom?: string;
   readonly sourcePath?: string;
+  readonly sourceRegion?: readonly [number, number, number, number];
+  readonly sourcePaletteMode?: 'exact';
   readonly charset?: string;
   readonly glyphSize?: readonly [number, number];
   readonly cellSize?: readonly [number, number];

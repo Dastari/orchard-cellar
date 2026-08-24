@@ -1,11 +1,13 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
-import { decodePng } from './assets/png.js';
+import { decodePng, type DecodedPng } from './assets/png.js';
 import { loadAssets, loadPalette, readJson, workspaceRoot } from './assets/load.js';
-import type { AssetSource } from './assets/types.js';
+import type { AssetSource, PixelGrid } from './assets/types.js';
 
 interface CatalogSheet { readonly source: string }
 interface Catalog { readonly sheets: readonly CatalogSheet[] }
+interface PaletteLab { readonly character: string; readonly lab: readonly [number, number, number] }
+interface SourceCrop { readonly x: number; readonly y: number }
 
 function srgb(value: number): number {
   const normalized = value / 255;
@@ -29,12 +31,142 @@ function distance(left: readonly number[], right: readonly number[]): number {
   return (left[0]! - right[0]!) ** 2 + (left[1]! - right[1]!) ** 2 + (left[2]! - right[2]!) ** 2;
 }
 
-function usedCharacters(asset: AssetSource): ReadonlySet<string> {
-  const used = new Set<string>();
-  for (const groups of Object.values(asset.frames)) {
-    for (const grid of groups) for (const row of grid) for (const character of row) if (character !== '.') used.add(character);
+function nearestCharacter(red: number, green: number, blue: number, palette: readonly PaletteLab[]): string {
+  const lab = oklab(red, green, blue);
+  let nearest = palette[0]!;
+  for (const entry of palette) if (distance(lab, entry.lab) < distance(lab, nearest.lab)) nearest = entry;
+  return nearest.character;
+}
+
+function cleanOrphans(rows: readonly string[]): string[] {
+  const cleaned = rows.map((row) => [...row]);
+  for (let y = 0; y < cleaned.length; y += 1) for (let x = 0; x < (cleaned[y]?.length ?? 0); x += 1) {
+    const character = cleaned[y]?.[x] ?? '.';
+    if (character === '.') continue;
+    const neighbors = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const;
+    if (neighbors.some(([nx, ny]) => cleaned[ny]?.[nx] === character)) continue;
+    cleaned[y]![x] = neighbors.map(([nx, ny]) => cleaned[ny]?.[nx] ?? '.').find((candidate) => candidate !== '.') ?? '.';
   }
-  return used;
+  return cleaned.map((row) => row.join(''));
+}
+
+function snappedCrop(
+  decoded: DecodedPng,
+  crop: SourceCrop,
+  width: number,
+  height: number,
+  palette: readonly PaletteLab[],
+): string[] {
+  const rows: string[] = [];
+  for (let y = 0; y < height; y += 1) {
+    let row = '';
+    for (let x = 0; x < width; x += 1) {
+      const offset = ((crop.y + y) * decoded.width + crop.x + x) * 4;
+      if ((decoded.rgba[offset + 3] ?? 0) < 128) row += '.';
+      else row += nearestCharacter(decoded.rgba[offset] ?? 0, decoded.rgba[offset + 1] ?? 0, decoded.rgba[offset + 2] ?? 0, palette);
+    }
+    rows.push(row);
+  }
+  return cleanOrphans(rows);
+}
+
+function sameGrid(left: PixelGrid, right: PixelGrid): boolean {
+  return left.length === right.length && left.every((row, index) => row === right[index]);
+}
+
+function candidateCrops(decoded: DecodedPng, width: number, height: number, exhaustive: boolean): SourceCrop[] {
+  const crops: SourceCrop[] = [];
+  const stepX = exhaustive ? 1 : width;
+  const stepY = exhaustive ? 1 : height;
+  for (let y = 0; y <= decoded.height - height; y += stepY) {
+    for (let x = 0; x <= decoded.width - width; x += stepX) crops.push({ x, y });
+  }
+  return crops;
+}
+
+function locateFrames(
+  decoded: DecodedPng,
+  asset: AssetSource,
+  palette: readonly PaletteLab[],
+): Map<PixelGrid, SourceCrop> | null {
+  const targets = Object.values(asset.frames).flatMap((frames) => [...frames]);
+  for (const exhaustive of [false, true]) {
+    const candidates = candidateCrops(decoded, asset.size[0], asset.size[1], exhaustive);
+    const located = new Map<PixelGrid, SourceCrop>();
+    for (const target of targets) {
+      const match = candidates.find((crop) => sameGrid(target, snappedCrop(decoded, crop, asset.size[0], asset.size[1], palette)));
+      if (!match) break;
+      located.set(target, match);
+    }
+    if (located.size === targets.length) return located;
+  }
+  return null;
+}
+
+function nativeHex(decoded: DecodedPng, x: number, y: number): string | null {
+  const offset = (y * decoded.width + x) * 4;
+  if ((decoded.rgba[offset + 3] ?? 0) < 128) return null;
+  const red = decoded.rgba[offset] ?? 0;
+  const green = decoded.rgba[offset + 1] ?? 0;
+  const blue = decoded.rgba[offset + 2] ?? 0;
+  return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+}
+
+function exactFrames(
+  decoded: DecodedPng,
+  asset: AssetSource,
+  locations: ReadonlyMap<PixelGrid, SourceCrop>,
+  characters: readonly string[],
+): { readonly frames: AssetSource['frames']; readonly sourcePalette: Record<string, string> } | null {
+  const nativeColors = new Set<string>();
+  for (const [grid, crop] of locations) for (let y = 0; y < grid.length; y += 1) for (let x = 0; x < (grid[y]?.length ?? 0); x += 1) {
+    const hex = nativeHex(decoded, crop.x + x, crop.y + y);
+    if (hex) nativeColors.add(hex);
+  }
+  const sortedColors = [...nativeColors].sort();
+  if (sortedColors.length > characters.length) return null;
+  const colorCharacters = new Map(sortedColors.map((hex, index) => [hex, characters[index]!]));
+  const sourcePalette = Object.fromEntries(sortedColors.map((hex) => [colorCharacters.get(hex)!, hex]));
+  const frames = Object.fromEntries(Object.entries(asset.frames).map(([name, grids]) => [name, grids.map((grid) => {
+    const crop = locations.get(grid);
+    if (!crop) throw new Error(`Missing located crop for ${asset.name}.${name}`);
+    return Array.from({ length: asset.size[1] }, (_, y) => Array.from({ length: asset.size[0] }, (_, x) => {
+      const hex = nativeHex(decoded, crop.x + x, crop.y + y);
+      return hex ? colorCharacters.get(hex)! : '.';
+    }).join(''));
+  })]));
+  return { frames, sourcePalette };
+}
+
+function exactRegionFrames(
+  decoded: DecodedPng,
+  asset: AssetSource,
+  region: readonly [number, number, number, number],
+  characters: readonly string[],
+): { readonly frames: AssetSource['frames']; readonly sourcePalette: Record<string, string> } | null {
+  const [sourceX, sourceY, width, height] = region;
+  if (width > asset.size[0] || height > asset.size[1]
+    || sourceX < 0 || sourceY < 0 || sourceX + width > decoded.width || sourceY + height > decoded.height) return null;
+  const colors = new Set<string>();
+  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
+    const hex = nativeHex(decoded, sourceX + x, sourceY + y);
+    if (hex) colors.add(hex);
+  }
+  const sortedColors = [...colors].sort();
+  if (sortedColors.length > characters.length) return null;
+  const colorCharacters = new Map(sortedColors.map((hex, index) => [hex, characters[index]!]));
+  const sourcePalette = Object.fromEntries(sortedColors.map((hex) => [colorCharacters.get(hex)!, hex]));
+  const destinationX = Math.floor((asset.size[0] - width) / 2);
+  const destinationY = asset.size[1] - height;
+  const frame = Array.from({ length: asset.size[1] }, (_, y) => Array.from({ length: asset.size[0] }, (_, x) => {
+    const regionX = x - destinationX;
+    const regionY = y - destinationY;
+    if (regionX < 0 || regionY < 0 || regionX >= width || regionY >= height) return '.';
+    const hex = nativeHex(decoded, sourceX + regionX, sourceY + regionY);
+    return hex ? colorCharacters.get(hex)! : '.';
+  }).join(''));
+  const groupName = Object.keys(asset.frames)[0] ?? 'base';
+  return { frames: { [groupName]: [frame] }, sourcePalette };
 }
 
 function assetPath(asset: AssetSource): URL {
@@ -48,6 +180,7 @@ const paletteLabs = Object.entries(palette.colors).map(([character, hex]) => {
   const value = Number.parseInt(hex.slice(1), 16);
   return { character, lab: oklab((value >>> 16) & 255, (value >>> 8) & 255, value & 255) };
 });
+const paletteCharacters = Object.keys(palette.colors);
 const sourcesByName = new Map<string, string[]>();
 for (const sheet of catalog.sheets) {
   const paths = sourcesByName.get(basename(sheet.source)) ?? [];
@@ -55,46 +188,45 @@ for (const sheet of catalog.sheets) {
   sourcesByName.set(basename(sheet.source), paths);
 }
 
-let updated = 0;
+let exactCount = 0;
+const unresolved: string[] = [];
 for (const asset of assets) {
   if (!asset.importedFrom) continue;
+  if (asset.sourcePaletteMode === 'exact' && !asset.sourceRegion) {
+    exactCount += 1;
+    continue;
+  }
   const candidates = sourcesByName.get(asset.importedFrom);
   if (!candidates?.length) continue;
-  const used = usedCharacters(asset);
-  let best: { source: string; sourcePalette: Record<string, string>; coverage: number } | undefined;
-  for (const sourcePath of candidates.sort()) {
+  let restored: { readonly sourcePath: string; readonly frames: AssetSource['frames']; readonly sourcePalette: Record<string, string> } | null = null;
+  const preferred = asset.sourcePath ? [asset.sourcePath, ...candidates.filter((candidate) => candidate !== asset.sourcePath)] : candidates;
+  for (const sourcePath of preferred) {
     const decoded = decodePng(await readFile(new URL(sourcePath, workspaceRoot)));
-    const counts = new Map<string, Map<string, number>>();
-    for (let offset = 0; offset < decoded.rgba.length; offset += 4) {
-      if ((decoded.rgba[offset + 3] ?? 0) < 128) continue;
-      const red = decoded.rgba[offset] ?? 0;
-      const green = decoded.rgba[offset + 1] ?? 0;
-      const blue = decoded.rgba[offset + 2] ?? 0;
-      const lab = oklab(red, green, blue);
-      let nearest = paletteLabs[0]!;
-      for (const entry of paletteLabs) if (distance(lab, entry.lab) < distance(lab, nearest.lab)) nearest = entry;
-      if (!used.has(nearest.character)) continue;
-      const hex = `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
-      const colors = counts.get(nearest.character) ?? new Map<string, number>();
-      colors.set(hex, (colors.get(hex) ?? 0) + 1);
-      counts.set(nearest.character, colors);
+    if (asset.sourceRegion) {
+      const exact = exactRegionFrames(decoded, asset, asset.sourceRegion, paletteCharacters);
+      if (exact) restored = { sourcePath, ...exact };
+      if (restored) break;
     }
-    const sourcePalette: Record<string, string> = {};
-    for (const character of [...used].sort()) {
-      const colors = counts.get(character);
-      if (!colors?.size) continue;
-      sourcePalette[character] = [...colors].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]![0];
-    }
-    const coverage = Object.keys(sourcePalette).length;
-    if (!best || coverage > best.coverage) best = { source: sourcePath, sourcePalette, coverage };
+    const locations = locateFrames(decoded, asset, paletteLabs);
+    if (!locations) continue;
+    const exact = exactFrames(decoded, asset, locations, paletteCharacters);
+    if (!exact) continue;
+    restored = { sourcePath, ...exact };
+    break;
   }
-  if (!best || best.coverage === 0) continue;
+  if (!restored) {
+    unresolved.push(asset.name);
+    continue;
+  }
   const path = assetPath(asset);
   const source = await readJson(path) as Record<string, unknown>;
-  source['sourcePalette'] = best.sourcePalette;
-  source['sourcePath'] = best.source;
+  source['frames'] = restored.frames;
+  source['sourcePalette'] = restored.sourcePalette;
+  source['sourcePath'] = restored.sourcePath;
+  source['sourcePaletteMode'] = 'exact';
   await writeFile(path, `${JSON.stringify(source, null, 2)}\n`);
-  updated += 1;
-  console.log(`${asset.name}: ${best.coverage}/${used.size} native colors from ${best.source}`);
+  exactCount += 1;
+  console.log(`${asset.name}: exact ${Object.keys(restored.sourcePalette).length}-color crop from ${restored.sourcePath}`);
 }
-console.log(`Restored native source ramps for ${updated} assets.`);
+if (unresolved.length) throw new Error(`Could not reconstruct exact source crops: ${unresolved.join(', ')}`);
+console.log(`Restored exact native source pixels for ${exactCount} assets.`);
