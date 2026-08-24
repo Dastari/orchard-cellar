@@ -1,8 +1,8 @@
 # 21 — Unified Overworld Renderer
 
 Binding owner-directed spec (2026-08-24). The solo farm scene is **retired for now**;
-the overworld (`overworld.html`) is the only game client. Farms return later as
-instanced per-player interiors rendered by this same renderer (M7+). The engine
+the root Vite application loads the overworld as its only game client. Farms return
+later as instanced per-player interiors rendered by this same renderer (M7+). The engine
 decision in [01-engine-decision.md](01-engine-decision.md) stands: **Canvas 2D**.
 WebGL2 was evaluated (owner hardware includes a GT730, which does support WebGL2 via
 ANGLE/D3D11) and deliberately deferred — everything below must live behind one
@@ -27,12 +27,13 @@ module republish and is a separate task.
 
 ## 2. Farm-scene removal
 
-Delete (git history preserves them): the `index.html` solo entry and `src/main.ts`,
-`src/scenes/` (scene stack + farm scene), `src/render/bitmap-font.ts` (per-pixel
+Delete (git history preserves them): `src/scenes/` (scene stack + farm scene),
+`src/render/bitmap-font.ts` (per-pixel
 `fillRect` font — the atlas font in `render/pixel-ui.ts` is the only text path),
 `src/render/map-source.ts` consumers in the client, `src/save/local-save.ts` (+ test),
-and the farm wiring in `src/engine.test.ts`. Update the Vite build inputs so only
-`overworld.html`, `account.html`, and dev preview pages remain. Keep untouched:
+and the farm wiring in `src/engine.test.ts`. The conventional `index.html` and
+`src/main.ts` root entry select between account and overworld modules; only the root
+application and explicit developer preview pages are Vite build inputs. Keep untouched:
 `packages/sim` economy/tick/tests (the future instanced farm), `packages/assets`
 maps/sprites, audio, `account-main.ts`. `CachedTileMapRenderer` in
 `render/tilemap.ts` is superseded by the chunk cache (§4) — retire it, but

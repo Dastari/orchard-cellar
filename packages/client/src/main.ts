@@ -4,6 +4,10 @@ import {
   oidcConfigured,
 } from './auth/oidc.js';
 
+if (location.pathname !== '/') {
+  history.replaceState(null, '', `/${location.search}${location.hash}`);
+}
+
 const parameters = new URLSearchParams(location.search);
 const loggingOut = parameters.has('logout');
 const oidcCallback = hasOidcCallback();

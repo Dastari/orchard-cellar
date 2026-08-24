@@ -13,6 +13,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: { input: ['index.html', 'account.html', 'audio-preview.html', 'overworld.html'] },
+    rollupOptions: { input: ['index.html', 'audio-preview.html'] },
   },
 });

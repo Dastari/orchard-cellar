@@ -93,7 +93,8 @@ Incremental-game quantities overflow doubles' integer range eventually. Rule:
 
 ## Client architecture
 
-- **One game client**: `overworld.html` boots `overworld-main.ts`. The former solo
+- **One Vite application entry**: `/` serves `index.html`; `src/main.ts` selects the
+  account or shared-overworld module from authenticated session state. The former solo
   farm scene stack is retired until farms return as instances using the same renderer.
 - **Rendering**: `UnifiedRenderer` owns the DPR-sized display canvas, integer-scaled
   nearest-neighbour world pass, and its single smooth final blit. Ground is cached in
