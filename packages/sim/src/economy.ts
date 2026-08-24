@@ -90,7 +90,8 @@ function treeRateMicro(tree: OrchardTreeState, economy: EconomyState, season: Se
     * (CARE_MULTIPLIERS[tree.care] ?? 1)
     * treeMilestoneMultiplier(count)
     * seasonMultiplier(entry, season, economy)
-    * liftMultiplier(tree, economy);
+    * liftMultiplier(tree, economy)
+    * economy.legacyMultiplier;
   const beeBoost = hasUpgrade(economy, 'beeBoost') && economy.trees.some((other) => other.id !== tree.id
     && Math.abs(other.x - tree.x) <= 4 && Math.abs(other.y - tree.y) <= 4) ? 1.1 : 1;
   return Math.round(rate * beeBoost * MICRO);
@@ -157,7 +158,8 @@ function equipmentRate(balance: typeof PRESS_BALANCE | typeof CASK_BALANCE, coun
 function advancePresses(economy: EconomyState, deltaTicks: number, season: Season, efficiency: number): EconomyState {
   const rate = equipmentRate(PRESS_BALANCE, economy.presses)
     * (season === 'summer' ? SUMMER_PRESS_MULTIPLIER : 1)
-    * fedCapacityMultiplier(economy, 'feedsPress');
+    * fedCapacityMultiplier(economy, 'feedsPress')
+    * economy.legacyMultiplier;
   const numerator = Math.round(rate * MICRO * efficiency) * deltaTicks + economy.pressRemainder;
   const capacity = Math.floor(numerator / SIM_TICKS_PER_SECOND);
   const pipe = hasUpgrade(economy, 'copperPipe');
@@ -186,7 +188,8 @@ function advancePresses(economy: EconomyState, deltaTicks: number, season: Seaso
 function advanceCasks(economy: EconomyState, deltaTicks: number, season: Season, efficiency: number): EconomyState {
   const rate = equipmentRate(CASK_BALANCE, economy.casks)
     * (season === 'winter' ? WINTER_AGING_MULTIPLIER : 1)
-    * fedCapacityMultiplier(economy, 'feedsCellar');
+    * fedCapacityMultiplier(economy, 'feedsCellar')
+    * economy.legacyMultiplier;
   const numerator = Math.round(rate * MICRO * efficiency) * deltaTicks + economy.caskRemainder;
   const capacity = Math.floor(numerator / SIM_TICKS_PER_SECOND);
   const aged = Math.min(economy.cellarMustMicro, capacity);

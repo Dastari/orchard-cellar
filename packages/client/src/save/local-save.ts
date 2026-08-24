@@ -1,7 +1,7 @@
-import { TREE_BALANCE, WORKBENCH_UPGRADES, applyOffline, createCellarCollisionMap, createEstateCollisionMap, createInitialState, type Direction, type FarmState, type PlayerState } from '@orchard/sim';
+import { TREE_BALANCE, WORKBENCH_UPGRADES, applyOffline, createCellarCollisionMap, createEstateCollisionMap, createInitialProgression, createInitialState, type Direction, type FarmState, type PlayerState, type ProgressionState } from '@orchard/sim';
 
 export const LOCAL_SAVE_KEY = 'orchard-cellar.farm';
-export const SAVE_SCHEMA_VERSION = 2;
+export const SAVE_SCHEMA_VERSION = 3;
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -68,7 +68,9 @@ export function parseSave(value: unknown): FarmState | null {
       collision: player.location === 'cellar' ? createCellarCollisionMap() : createEstateCollisionMap(initial.economy.trees),
     };
   }
-  if (value['schemaVersion'] !== SAVE_SCHEMA_VERSION || state['version'] !== 2 || !isRecord(state['economy'])) return null;
+  const legacyV2 = value['schemaVersion'] === 2 && state['version'] === 2;
+  if (!legacyV2 && (value['schemaVersion'] !== SAVE_SCHEMA_VERSION || state['version'] !== 3)) return null;
+  if (!isRecord(state['economy'])) return null;
   const economy = state['economy'];
   if (!isRecord(economy['resources']) || !Array.isArray(economy['trees']) || !Array.isArray(economy['presses']) || !Array.isArray(economy['casks'])) return null;
   const resources = economy['resources'];
@@ -104,13 +106,27 @@ export function parseSave(value: unknown): FarmState | null {
   const parsed = state as unknown as FarmState;
   const normalizedEconomy: FarmState['economy'] = {
     ...parsed.economy,
+    legacyMultiplier: isFiniteNumber(economy['legacyMultiplier']) && economy['legacyMultiplier'] > 0 ? economy['legacyMultiplier'] : 1,
     upgrades: upgrades as FarmState['economy']['upgrades'],
     plotsUnlocked,
     firsts: { ...parsed.economy.firsts, harvestedSpecies: harvestedSpecies as FarmState['economy']['firsts']['harvestedSpecies'] },
   };
+  let progression: ProgressionState = createInitialProgression();
+  if (!legacyV2) {
+    const candidate = state['progression'];
+    if (!isRecord(candidate) || !hasNonNegativeIntegers(candidate, [
+      'terroir', 'lifetimeTerroir', 'heirlooms', 'lifetimeHeirlooms', 'seeds', 'seedsClaimed',
+      'vintages', 'successions', 'lineages',
+    ])) return null;
+    if (!isRecord(candidate['skillRanks']) || !Object.values(candidate['skillRanks']).every(isNonNegativeInteger)) return null;
+    if (!['cultivars', 'achievements', 'almanacSpecies', 'vintageHistory'].every((key) => Array.isArray(candidate[key]))) return null;
+    progression = candidate as unknown as ProgressionState;
+  }
   return {
     ...parsed,
+    version: 3,
     economy: normalizedEconomy,
+    progression,
     collision: parsed.player.location === 'cellar' ? createCellarCollisionMap() : createEstateCollisionMap(normalizedEconomy.trees),
   };
 }

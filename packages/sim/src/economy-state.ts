@@ -24,6 +24,7 @@ export interface RunResources {
 }
 
 export interface EconomyState {
+  readonly legacyMultiplier: number;
   readonly resources: RunResources;
   readonly trees: readonly OrchardTreeState[];
   readonly nextTreeId: number;
@@ -83,6 +84,7 @@ export const ORCHARD_PLOTS: readonly (readonly [number, number])[] = [
 
 export function createInitialEconomy(): EconomyState {
   return {
+    legacyMultiplier: 1,
     resources: { fruit: 0, pomace: 0, must: 0, bottles: 0 },
     trees: [{
       id: 1,

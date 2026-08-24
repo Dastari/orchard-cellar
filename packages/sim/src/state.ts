@@ -1,5 +1,6 @@
 import { createRng, type RngState } from './rng.js';
 import { createInitialEconomy, type EconomyAction, type EconomyState } from './economy-state.js';
+import { createInitialProgression, type PrestigeAction, type ProgressionState } from './progression-state.js';
 
 export const SIM_TICKS_PER_SECOND = 60;
 export const FIXED_UNITS_PER_PIXEL = 16;
@@ -35,12 +36,13 @@ export interface CollisionMap {
 }
 
 export interface FarmState {
-  readonly version: 2;
+  readonly version: 3;
   readonly tick: number;
   readonly rng: RngState;
   readonly player: PlayerState;
   readonly collision: CollisionMap;
   readonly economy: EconomyState;
+  readonly progression: ProgressionState;
 }
 
 export interface MoveAction {
@@ -53,7 +55,7 @@ export interface TransitionAction {
   readonly location: PlayerState['location'];
 }
 
-export type Action = MoveAction | TransitionAction | EconomyAction;
+export type Action = MoveAction | TransitionAction | EconomyAction | PrestigeAction;
 
 export function createEstateCollisionMap(treeTiles: readonly { readonly x: number; readonly y: number }[] = [], width = 64, height = 64): CollisionMap {
   const trees = new Set(treeTiles.map((tree) => `${tree.x},${tree.y}`));
@@ -88,7 +90,7 @@ export function createPlaceholderCollisionMap(width = 48, height = 32): Collisio
 export function createInitialState(seed = 0x0cce11a): FarmState {
   const economy = createInitialEconomy();
   return {
-    version: 2,
+    version: 3,
     tick: 0,
     rng: createRng(seed),
     player: {
@@ -99,5 +101,6 @@ export function createInitialState(seed = 0x0cce11a): FarmState {
     },
     collision: createEstateCollisionMap(economy.trees),
     economy,
+    progression: createInitialProgression(),
   };
 }

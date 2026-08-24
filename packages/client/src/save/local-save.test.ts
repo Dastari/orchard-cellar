@@ -31,18 +31,18 @@ describe('schema-versioned local saves', () => {
 
   it('rejects corrupt, truncated, or future-version saves', () => {
     expect(parseSave(null)).toBeNull();
-    expect(parseSave({ schemaVersion: 3, state: createInitialState() })).toBeNull();
-    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), collision: { width: 2, height: 2, blocked: [] } } })).toBeNull();
-    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), economy: { ...createInitialState().economy, resources: { fruit: -1, pomace: 0, must: 0, bottles: 0 } } } })).toBeNull();
-    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), economy: { ...createInitialState().economy, presses: [1] } } })).toBeNull();
-    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), economy: { ...createInitialState().economy, trees: [{ ...createInitialState().economy.trees[0], species: 'poisonApple' }] } } })).toBeNull();
-    expect(parseSave({ schemaVersion: 2, state: { ...createInitialState(), economy: { ...createInitialState().economy, upgrades: ['timeMachine'] } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 4, state: createInitialState() })).toBeNull();
+    expect(parseSave({ schemaVersion: 3, state: { ...createInitialState(), collision: { width: 2, height: 2, blocked: [] } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 3, state: { ...createInitialState(), economy: { ...createInitialState().economy, resources: { fruit: -1, pomace: 0, must: 0, bottles: 0 } } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 3, state: { ...createInitialState(), economy: { ...createInitialState().economy, presses: [1] } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 3, state: { ...createInitialState(), economy: { ...createInitialState().economy, trees: [{ ...createInitialState().economy.trees[0], species: 'poisonApple' }] } } })).toBeNull();
+    expect(parseSave({ schemaVersion: 3, state: { ...createInitialState(), economy: { ...createInitialState().economy, upgrades: ['timeMachine'] } } })).toBeNull();
   });
 
   it('rebuilds collision data instead of trusting a valid-sized saved collision map', () => {
     const state = createInitialState(11);
     const blocked = state.collision.blocked.map(() => false);
-    const parsed = parseSave({ schemaVersion: 2, state: { ...state, collision: { ...state.collision, blocked } } });
+    const parsed = parseSave({ schemaVersion: 3, state: { ...state, collision: { ...state.collision, blocked } } });
     expect(parsed?.collision.blocked.some(Boolean)).toBe(true);
   });
 
@@ -50,7 +50,14 @@ describe('schema-versioned local saves', () => {
     const current = createInitialState(9);
     const legacy = { ...current, version: 1, economy: undefined };
     const migrated = parseSave({ schemaVersion: 1, state: legacy });
-    expect(migrated).toMatchObject({ version: 2, tick: current.tick, player: current.player });
+    expect(migrated).toMatchObject({ version: 3, tick: current.tick, player: current.player });
     expect(migrated?.economy.trees).toHaveLength(1);
+  });
+
+  it('migrates M4 schema-two saves into empty persistent progression', () => {
+    const current = createInitialState(10);
+    const legacy = { ...current, version: 2, progression: undefined, economy: { ...current.economy, legacyMultiplier: undefined } };
+    const migrated = parseSave({ schemaVersion: 2, state: legacy });
+    expect(migrated).toMatchObject({ version: 3, progression: { terroir: 0, lineages: 0 }, economy: { legacyMultiplier: 1 } });
   });
 });

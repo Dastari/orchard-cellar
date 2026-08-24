@@ -1,6 +1,8 @@
 import { movePlayer } from './movement.js';
 import { advanceEconomy, applyEconomyAction } from './economy.js';
 import type { EconomyAction } from './economy-state.js';
+import { applyPrestigeAction } from './prestige.js';
+import { isPrestigeAction, type PrestigeAction } from './progression-state.js';
 import {
   TILE_SIZE_FIXED,
   createCellarCollisionMap,
@@ -14,15 +16,20 @@ export function advanceTick(state: FarmState, actions: readonly Action[], tick: 
   let direction: Direction | null = null;
   let transition: Extract<Action, { type: 'transition' }> | null = null;
   let economy = advanceEconomy(state.economy, state.tick, Math.max(state.tick, tick));
+  const prestigeActions: PrestigeAction[] = [];
   for (const action of actions) {
     if (action.type === 'move') direction = action.direction;
     else if (action.type === 'transition') transition = action;
+    else if (isPrestigeAction(action)) prestigeActions.push(action);
     else economy = applyEconomyAction(economy, action as EconomyAction, tick);
   }
+  let progressedState = { ...state, tick, economy };
+  for (const action of prestigeActions) progressedState = applyPrestigeAction(progressedState, action);
+  economy = progressedState.economy;
   if (transition) {
     const cellar = transition.location === 'cellar';
     return {
-      ...state,
+      ...progressedState,
       tick,
       economy,
       collision: cellar ? createCellarCollisionMap() : createEstateCollisionMap(economy.trees),
@@ -37,9 +44,9 @@ export function advanceTick(state: FarmState, actions: readonly Action[], tick: 
       },
     };
   }
-  const collision = state.player.location === 'estate' ? createEstateCollisionMap(economy.trees) : state.collision;
+  const collision = progressedState.player.location === 'estate' ? createEstateCollisionMap(economy.trees) : progressedState.collision;
   return {
-    ...state,
+    ...progressedState,
     tick,
     economy,
     collision,
