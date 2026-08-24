@@ -3,6 +3,12 @@
 Binding storage design for Orchard & Cellar. Read [02-architecture.md](02-architecture.md)
 first. All code below lives in `packages/server/src/db/` unless noted otherwise.
 
+> **Paused by the M5.5 backend gate (2026-08-24).** Do not implement this SQLite
+> schema until the SpaceTimeDB overworld slice in
+> [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) is accepted
+> or rejected. Local single-player save migration remains required whichever backend
+> wins. This document is retained as the rollback design during the reversible spike.
+
 ## Why SQLite
 
 Single-node, self-hosted, one Node process — SQLite is the correct database, not a

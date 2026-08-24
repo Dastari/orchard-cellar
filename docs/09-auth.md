@@ -4,6 +4,13 @@ Binding auth design. Assumes the stack in [01-engine-decision.md](01-engine-deci
 [02-architecture.md](02-architecture.md): Fastify HTTP + `ws`, SQLite + Drizzle
 (`users` / `sessions` tables are defined in [08-database.md](08-database.md) — do not
 redefine them here or elsewhere). All auth code lives in `packages/server/src/auth/`.
+
+> **Paused by the M5.5 backend gate (2026-08-24).** The SpaceTimeDB slice uses
+> host-issued development identities persisted by the browser solely for local testing.
+> Those non-recoverable tokens are not production auth. If the slice passes, replace
+> this document with an OIDC + invite-allowlist design before deployment; if it fails,
+> this password/session design becomes binding again. No production auth dependency is
+> selected by the spike itself.
 The login/register UI is the in-canvas `LoginScene` ([13-ui-ux.md](13-ui-ux.md)) calling
 the JSON endpoints below; there is no DOM form. Deployment is single-node behind an
 HTTPS reverse proxy (Caddy/nginx) — the Node process never terminates TLS itself.

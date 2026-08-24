@@ -1,6 +1,13 @@
 # 07 — Multiplayer: Visiting, Presence & Social
 
-Scope decision: **asymmetric social, not co-op simulation.** You can visit friends'
+> **Scope superseded for M5.5 (2026-08-24):** the owner expanded the game to a
+> friends-only persistent overworld with contiguous travel between farms and genuine
+> cooperative multiplayer. The launch whitelist below is retained as the safe minimum
+> authorization policy, not as the final interaction ceiling. See
+> [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md). Do not
+> implement the former disconnected `FarmRoom` visit flow while the gate is active.
+
+Original scope decision: **asymmetric social, not co-op simulation.** You can visit friends'
 live farms, help a little, gift, sign guestbooks, and share festivals — but every
 farm has exactly one owner whose progression is authoritative and solo-balanced.
 This delivers 90% of the warmth for 10% of the complexity, and it cannot corrupt the

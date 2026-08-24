@@ -95,13 +95,28 @@ Cultivars with their rule-change implementations, achievements roster.
 Vintage → Succession → Lineage with all carries/resets exactly per 05 §3/§4 tables
 (golden test).
 
+## M5.5 — Persistent overworld backend gate `⏳ in progress (codex, 2026-08-24)`
+
+This owner-directed architecture gate runs before M6 despite its fractional label.
+Build the reversible SpaceTimeDB 2.8 vertical slice specified in
+[19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md): two browser
+clients share one chunked overworld, cross a chunk boundary without state loss, move
+under server authority with client smoothing, and interact with one shared tree.
+Restart persistence and private-state isolation must be demonstrated. Do not delete
+the Fastify skeleton or implement production auth during the spike.
+
+**Done when:** all ten acceptance checks in doc 19 pass and the result is recorded in
+`DECISIONS.md`. A pass rewrites M6/M7 around SpaceTimeDB; a fail removes the spike and
+resumes the original M6 unchanged.
+
 ## M6 — Server, accounts & persistence `☐`
 Auth per [09-auth.md](09-auth.md), DB per [08-database.md](08-database.md),
 FarmRooms, protocol, client prediction/reconciliation, server-side offline gains,
 snapshots, TitleScene + LoginScene ([13-ui-ux.md](13-ui-ux.md)), deploy story
 (single node serving client bundle). Local-save users migrate via one-time import.
 **Done when:** two browsers, two accounts, each playing their own farm through a
-server restart with no lost progress.
+server restart with no lost progress. This original plan remains paused until M5.5
+accepts or rejects the SpaceTimeDB candidate.
 
 ## M7 — Multiplayer `☐`
 [07-multiplayer.md](07-multiplayer.md) steps M5a–M5d: spectate → friends/visiting →

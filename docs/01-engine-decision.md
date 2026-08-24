@@ -2,6 +2,14 @@
 
 **Decision: TypeScript + HTML5 Canvas 2D, custom lightweight engine. Not Bevy.**
 
+**Backend evaluation amendment (2026-08-24):** the rendering/engine decision remains
+binding. The owner has expanded multiplayer into a friends-only persistent overworld
+where players can walk between farms and cooperate. Fastify + `ws` + SQLite is paused
+before M6 while the reversible SpaceTimeDB 2.8 spike in
+[19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) is evaluated.
+Until that gate is resolved, do not build either production backend or delete the
+existing server skeleton.
+
 This is a binding decision. Every other document in this suite assumes it. Do not
 re-litigate it mid-build; if a hard blocker appears, stop and raise it with the user.
 
@@ -60,6 +68,12 @@ No general-purpose engine. A small set of purpose-built modules (specified in
 | Audio | ZzFX-style synthesized SFX + in-repo tracker music via Web Audio (see 12-audio-design.md) |
 | Monorepo | npm workspaces: `packages/{client,server,sim,assets,tools}` |
 | Tests | Vitest; sim logic is pure functions and must be heavily unit-tested |
+
+The Server/Database/Auth rows above describe the original isolated-farm plan. During
+M5.5 only, the candidate stack is a TypeScript SpaceTimeDB module, generated TypeScript
+client bindings, durable SpaceTimeDB tables, and development identities. A passing
+M5.5 gate replaces those rows in a follow-up decision and doc rewrite; a failing gate
+restores them unchanged.
 
 ## Consequences accepted
 

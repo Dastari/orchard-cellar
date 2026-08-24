@@ -6,14 +6,16 @@
 
 A cozy, Stardew-Valley-style pixel-art farm game, adapted from the incremental web
 game *Orchard & Cellar* (in `references/`), implementing its redesign document's
-recommendations, rebuilt as an avatar-controlled world with accounts and multiplayer
-farm visiting. Built end-to-end by AI agents following this doc suite.
+recommendations, rebuilt as an avatar-controlled, friends-only persistent overworld
+where players can walk between farms and play together. Built end-to-end by AI agents
+following this doc suite.
 
 **Headline decisions** (rationale in the docs):
 - **TypeScript + HTML5 Canvas 2D**, custom micro-engine — *not* Rust/Bevy (01)
 - One deterministic simulation package shared by client & server (02)
-- SQLite + Drizzle; email/password auth with cookie sessions (08, 09)
-- Asymmetric multiplayer: visit, help, gift — one owner per farm (07)
+- SpaceTimeDB 2.8 is under a binding M5.5 architecture gate for realtime authority,
+  durable world state, and subscriptions; Fastify/SQLite is the rollback plan (19)
+- Friends-only contiguous overworld with cooperative farming and permissioned estates (07, 19)
 - All art & audio authored as text (pixel-grid JSON, tracker JSON) and compiled —
   enforceable style consistency for agent-made assets (10–12)
 - Prestige is diegetic: **Vintage = build, Succession = power, Lineage = rules** (05, 06)
@@ -39,6 +41,7 @@ farm visiting. Built end-to-end by AI agents following this doc suite.
 | [15-agent-workflow.md](15-agent-workflow.md) | Working agreement, DoD, DECISIONS.md | Always, third |
 | [16-reference-original.md](16-reference-original.md) | Extraction of the source incremental | Design questions ("why is it like this?") |
 | [17-reference-redesign.md](17-reference-redesign.md) | The redesign PDF (end build target) | Design questions |
+| [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) | Persistent overworld target and backend adoption gate | M5.5 and all server/network work |
 
 Minimal startup ritual for an implementing agent: **00 → 01 → 02 → 15 → your
 milestone in 14 → the docs that milestone lists.** Docs are binding; deviations go

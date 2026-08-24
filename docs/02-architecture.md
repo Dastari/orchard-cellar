@@ -2,6 +2,14 @@
 
 Binding architecture for Orchard & Cellar. Read [01-engine-decision.md](01-engine-decision.md) first.
 
+> **M5.5 architecture gate (2026-08-24):** the isolated `FarmRoom` and custom WebSocket
+> sections below are paused, not yet implemented. The expanded target is a persistent
+> friends-only overworld with walkable farm boundaries and real cooperative play.
+> Implement the reversible SpaceTimeDB slice in
+> [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) before M6.
+> Client rendering, the pure deterministic `packages/sim` rules, fixed-point movement,
+> and authored assets remain binding regardless of the backend result.
+
 ## Repository layout (npm workspaces monorepo)
 
 ```
