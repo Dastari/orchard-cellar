@@ -66,7 +66,7 @@ triggered all 2 songs and 9 SFX without errors (0.211 observed peak). `npm run c
 (24 tests, 100% sim line coverage), asset validation, production builds, save
 corruption tests, and milestone review all pass.
 
-## M4 — The chain `☐`
+## M4 — The chain `⏳ in progress (codex, 2026-08-24)`
 The sim economy end-to-end per [04](04-orchard-design.md)/[05](05-cellar-design.md)/[06](06-progression-economy.md):
 planting, growth stages, Care, harvest buffers, Vigour tend with charge curve +
 Autumn chain, hopper/hauling, presses (pomace!), casks, bottles, workbench upgrades,
