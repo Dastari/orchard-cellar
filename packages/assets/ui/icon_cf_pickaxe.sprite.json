@@ -1,0 +1,65 @@
+{
+  "name": "icon_cf_pickaxe",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......777777....",
+        ".....700000077..",
+        "....70666666007.",
+        "....70000646607.",
+        ".....77770644607",
+        ".......705314107",
+        "......7053201107",
+        ".....70532070107",
+        "....705320770107",
+        "...7053207.70107",
+        "..7053207..7007.",
+        ".7053207....77..",
+        "7053207.........",
+        "703207..........",
+        "70007...........",
+        ".777............"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "Tool_Icons_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/Outline/Tool_Icons_Outline.png",
+  "sourceRegion": [
+    32,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "item.tool"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#657392",
+    "2": "#743f39",
+    "3": "#91533b",
+    "4": "#92a1b9",
+    "5": "#b86f50",
+    "6": "#c7cfdd",
+    "7": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact"
+}

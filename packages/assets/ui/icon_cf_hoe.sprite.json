@@ -1,0 +1,64 @@
+{
+  "name": "icon_cf_hoe",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........66....",
+        ".........6006...",
+        "........600506..",
+        ".......60605506.",
+        "......606.60506.",
+        ".....606..60506.",
+        "....606..605406.",
+        "...606..6004406.",
+        "..606..6032006..",
+        ".600066002106...",
+        ".60550055006....",
+        "..605554406.....",
+        "...6000006......",
+        "....66666.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "Tool_Icons_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/Outline/Tool_Icons_Outline.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "item.tool"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#134c4c",
+    "2": "#1e6f50",
+    "3": "#33984b",
+    "4": "#8a4836",
+    "5": "#bf6f4a",
+    "6": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact"
+}
