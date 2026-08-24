@@ -52,6 +52,7 @@ import FarmActivityRow from "./farm_activity_table";
 import FarmParcelRow from "./farm_parcel_table";
 import OwnInventorySlotsRow from "./own_inventory_slots_table";
 import OwnSurvivalRow from "./own_survival_table";
+import PlayerEquipmentRow from "./player_equipment_table";
 import PlayerPositionRow from "./player_position_table";
 import PlayerPublicRow from "./player_public_table";
 import WorldClockRow from "./world_clock_table";
@@ -107,6 +108,17 @@ const tablesSchema = __schema({
       { name: 'farm_parcel_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FarmParcelRow),
+  playerEquipment: __table({
+    name: 'player_equipment',
+    indexes: [
+      { accessor: 'identity', name: 'player_equipment_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
+    ],
+    constraints: [
+      { name: 'player_equipment_identity_key', constraint: 'unique', columns: ['identity'] },
+    ],
+  }, PlayerEquipmentRow),
   playerPosition: __table({
     name: 'player_position',
     indexes: [
@@ -241,6 +253,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "farm_activity": Omit<typeof tablesSchema.schemaType.tables["farmActivity"], "accessorName"> & { readonly accessorName: "farm_activity" };
     /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
     readonly "farm_parcel": Omit<typeof tablesSchema.schemaType.tables["farmParcel"], "accessorName"> & { readonly accessorName: "farm_parcel" };
+    /** @deprecated Use `playerEquipment` instead. This alias will be removed in the next major version. */
+    readonly "player_equipment": Omit<typeof tablesSchema.schemaType.tables["playerEquipment"], "accessorName"> & { readonly accessorName: "player_equipment" };
     /** @deprecated Use `playerPosition` instead. This alias will be removed in the next major version. */
     readonly "player_position": Omit<typeof tablesSchema.schemaType.tables["playerPosition"], "accessorName"> & { readonly accessorName: "player_position" };
     /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
@@ -276,6 +290,7 @@ const tableAccessorAliases = {
   "crop_patch": "cropPatch",
   "farm_activity": "farmActivity",
   "farm_parcel": "farmParcel",
+  "player_equipment": "playerEquipment",
   "player_position": "playerPosition",
   "player_public": "playerPublic",
   "world_clock": "worldClock",
@@ -309,6 +324,8 @@ export type DbView = __DbViewBase & {
   readonly "farm_activity": __DbViewBase["farmActivity"];
   /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
   readonly "farm_parcel": __DbViewBase["farmParcel"];
+  /** @deprecated Use `playerEquipment` instead. This alias will be removed in the next major version. */
+  readonly "player_equipment": __DbViewBase["playerEquipment"];
   /** @deprecated Use `playerPosition` instead. This alias will be removed in the next major version. */
   readonly "player_position": __DbViewBase["playerPosition"];
   /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
@@ -333,6 +350,8 @@ export type Tables = __TablesBase & {
   readonly "farm_activity": __TablesBase["farmActivity"];
   /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
   readonly "farm_parcel": __TablesBase["farmParcel"];
+  /** @deprecated Use `playerEquipment` instead. This alias will be removed in the next major version. */
+  readonly "player_equipment": __TablesBase["playerEquipment"];
   /** @deprecated Use `playerPosition` instead. This alias will be removed in the next major version. */
   readonly "player_position": __TablesBase["playerPosition"];
   /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */

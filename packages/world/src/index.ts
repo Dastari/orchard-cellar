@@ -66,6 +66,14 @@ const player_input = table(
   },
 );
 
+const player_equipment = table(
+  { name: 'player_equipment', public: true },
+  {
+    identity: t.identity().primaryKey(),
+    itemKind: t.string(),
+  },
+);
+
 const private_inventory = table(
   { name: 'private_inventory' },
   {
@@ -272,6 +280,7 @@ const spacetimedb = schema({
   player_public,
   player_position,
   player_input,
+  player_equipment,
   private_inventory,
   player_survival,
   inventory_slot,
@@ -458,6 +467,13 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   if (ctx.db.farm_activity.identity.find(ctx.sender) === null) {
     ctx.db.farm_activity.insert({ identity: ctx.sender, planted: 0, watered: 0, harvested: 0 });
   }
+  const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
+  const equippedItem = selected?.itemKind ?? 'empty';
+  if (equipment === null) ctx.db.player_equipment.insert({ identity: ctx.sender, itemKind: equippedItem });
+  else if (equipment.itemKind !== equippedItem) {
+    ctx.db.player_equipment.identity.update({ ...equipment, itemKind: equippedItem });
+  }
 });
 
 export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
@@ -537,6 +553,11 @@ export const selectHotbar = spacetimedb.reducer(
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     if (survival === null) throw new SenderError('player_not_ready');
     ctx.db.player_survival.identity.update({ ...survival, selectedSlot: slot });
+    const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${slot}`);
+    const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
+    if (equipment !== null) {
+      ctx.db.player_equipment.identity.update({ ...equipment, itemKind: selected?.itemKind ?? 'empty' });
+    }
   },
 );
 
@@ -550,6 +571,8 @@ export const dropSelected = spacetimedb.reducer((ctx) => {
   const facing = parseDirection(position.facing) ?? 'down';
   const drop = itemDropPosition(position.x, position.y, facing);
   ctx.db.inventory_slot.id.update({ ...slot, itemKind: 'empty', quantity: 0 });
+  const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
+  if (equipment !== null) ctx.db.player_equipment.identity.update({ ...equipment, itemKind: 'empty' });
   ctx.db.world_item.insert({
     id: 0n,
     itemKind: slot.itemKind,
@@ -578,6 +601,11 @@ export const pickupWorldItem = spacetimedb.reducer(
       itemKind: item.itemKind,
       quantity: destination.itemKind === item.itemKind ? destination.quantity + item.quantity : item.quantity,
     });
+    const survival = ctx.db.player_survival.identity.find(ctx.sender);
+    const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
+    if (survival?.selectedSlot === destination.slot && equipment !== null) {
+      ctx.db.player_equipment.identity.update({ ...equipment, itemKind: item.itemKind });
+    }
     ctx.db.world_item.id.delete(item.id);
   },
 );

@@ -11,6 +11,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: { input: ['index.html', 'account.html', 'overworld.html'] },
+    rollupOptions: { input: ['account.html', 'audio-preview.html', 'overworld.html'] },
   },
 });

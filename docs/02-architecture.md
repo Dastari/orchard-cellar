@@ -31,14 +31,14 @@ orchard-cellar/
 │   │       └── rng.ts        # seeded PRNG (xoshiro128**); Math.random is banned in sim
 │   ├── client/
 │   │   └── src/
-│   │       ├── main.ts       # boot, scene stack (Title → Login → Game)
+│   │       ├── overworld-main.ts # sole game client boot + unified world render
 │   │       ├── loop.ts       # fixed 60 Hz update, interpolated render
-│   │       ├── render/       # tilemap layers, sprites, camera, lighting tint
+│   │       ├── render/       # unified Canvas 2D compositor, chunks, lightmap, particles
 │   │       ├── input/        # keyboard/gamepad/touch → Action objects
 │   │       ├── net/          # WebSocket client, prediction + reconciliation
 │   │       ├── audio/        # mixer, music sequencer, sfx synth
 │   │       ├── ui/           # in-canvas UI: HUD, menus, dialogs, bitmap font
-│   │       └── scenes/       # title, login, farm, cellar-interior, visiting
+│   │       └── account-main.ts # account/profile entry; no retired farm scene stack
 │   ├── world/
 │   │   └── src/
 │   │       ├── index.ts      # SpaceTimeDB schema, reducers, lifecycle, schedules
@@ -92,12 +92,17 @@ Incremental-game quantities overflow doubles' integer range eventually. Rule:
 
 ## Client architecture
 
-- **Scene stack**: `TitleScene → LoginScene → FarmScene` (+ modal scenes: cellar
-  interior, skill tree, map). Each scene: `update(dt)`, `render(ctx, alpha)`, input focus.
-- **Rendering**: three cached offscreen layers (ground, below-avatar detail,
-  above-avatar canopy) redrawn only on tile change; dynamic sprites Y-sorted between
-  detail and canopy. Camera scales by integer factor (2×/3×/4×) to fit window;
-  `imageSmoothingEnabled=false`; virtual resolution 480×270 base.
+- **One game client**: `overworld.html` boots `overworld-main.ts`. The former solo
+  farm scene stack is retired until farms return as instances using the same renderer.
+- **Rendering**: `UnifiedRenderer` owns the DPR-sized display canvas, integer-scaled
+  nearest-neighbour world pass, and its single smooth final blit. Ground is cached in
+  16×16-tile LRU chunks; world sprites are deterministically foot-Y sorted; a
+  pooled weather layer is interleaved by ground-impact depth; a tile-resolution pixel
+  lightmap composes before world-rendered nameplates. Screen HUD is drawn last at a
+  separate whole-pixel UI scale.
+- **Zoom**: world zoom is continuous in 0.25 steps from the display/world-derived
+  minimum to 8, eased between inputs. Source zoom 2 is labelled `1×`; UI scale remains
+  independent. All visible-world culling is derived from the current renderer layout.
 - **Prediction**: the client applies movement immediately at 60 Hz, softly reconciles
   to 20 Hz authoritative rows, and interpolates remote avatars. Economy interactions
   wait for transactional reducer results.
@@ -131,7 +136,7 @@ subscriptions, spatial handover, prediction, reconciliation, and UI-facing error
 - `npm run dev` — builds assets, then concurrently starts the durable local
   SpaceTimeDB host, module build/generate/publish watcher, Vite, and asset watcher.
 - `npm run build` — assets → atlases, sim/tools → JS, world → SpaceTimeDB bundle,
-  client → static bundle containing the solo and overworld entry pages.
+  client → static bundle containing the overworld, account, and preview entry pages.
 - `npm run world:smoke` — against a running local world, proves distinct identities,
   reducer surface, atomic contention, private-state rejection, and reconnect.
 - `npm test` — Vitest. Sim package target: >80% line coverage; economy/prestige

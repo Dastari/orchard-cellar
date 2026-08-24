@@ -1,14 +1,13 @@
 import {
   FIXED_UNITS_PER_PIXEL,
+  SURVIVAL_CHUNK_TILES,
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
+  SURVIVAL_WORLD_VERSION,
   TILE_SIZE_FIXED,
-  createSurvivalCollisionMap,
-  generateSurvivalResources,
+  TICKS_PER_DAY,
   movePlayer,
   playerHitboxBounds,
-  survivalBiomeAt,
-  survivalBiomeBlocksMovement,
   type CollisionMap,
   type Direction,
   type PlayerState,
@@ -16,13 +15,12 @@ import {
 import {
   DEFAULT_UI_SCALE,
   DEFAULT_WORLD_ZOOM,
+  easeWorldZoom,
   fittedUiScale,
-  resizePixelCanvas,
   stepUiScale,
   stepWorldZoom,
   toggleFullscreen,
   type UiScale,
-  type WorldZoom,
 } from './display.js';
 import { FixedStepLoop } from './loop.js';
 import type { PlayerPosition, PlayerPublic, WorldItem, WorldResource } from './net/generated/types.js';
@@ -34,16 +32,34 @@ import {
 } from './net/overworld-connection.js';
 import {
   drawOverworldAvatar,
-  drawOverworldGround,
   drawOverworldItem,
+  drawOverworldNameplate,
   drawOverworldStump,
   drawOverworldTree,
   drawUiAsset,
   loadOverworldArt,
-  sortWorldDrawItems,
 } from './overworld-art.js';
 import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
+import { createClientCollisionMap } from './render/collision.js';
+import { GroundChunkCache } from './render/ground-cache.js';
+import {
+  ambientAtTick,
+  LANTERN_LIGHT,
+  playerLightPosition,
+  TileLightmap,
+  TORCH_LIGHT,
+  type PointLight,
+} from './render/lighting.js';
+import { RenderMetrics } from './render/metrics.js';
+import { RainWeather, rainActiveAtTick } from './render/particles.js';
 import { drawPixelPanel, drawPixelText, measurePixelText } from './render/pixel-ui.js';
+import {
+  MAX_WORLD_ZOOM,
+  UnifiedRenderer,
+  drawWorldDepthQueue,
+  type WorldDepthItem,
+} from './render/renderer.js';
+import { terrainForWorld, type TerrainArray } from './render/terrain.js';
 import { interpolateFixedPosition, reconcilePredictedPlayer } from './overworld-prediction.js';
 import {
   HOTBAR_HEIGHT,
@@ -56,37 +72,46 @@ import {
   hotbarLayout,
   hotbarSlotAtPoint,
   hotbarSlotForCode,
+  formatDayTime,
+  weatherControlAtPoint,
+  weatherPanelLayout,
+  weatherTimeFractionAtPoint,
 } from './survival-ui.js';
 import './style.css';
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
 if (canvasElement === null) throw new Error('Missing overworld canvas');
 const canvas: HTMLCanvasElement = canvasElement;
-const canvasContext = canvas.getContext('2d');
-if (canvasContext === null) throw new Error('Canvas 2D unavailable');
-const context: CanvasRenderingContext2D = canvasContext;
-context.imageSmoothingEnabled = false;
+const renderer = new UnifiedRenderer(canvas);
 const shellElement = document.querySelector<HTMLElement>('#game-shell');
 if (shellElement === null) throw new Error('Missing overworld shell');
 const art = await loadOverworldArt();
+const groundCache = new GroundChunkCache();
+const lightmap = new TileLightmap();
+const rain = new RainWeather(art.rainStreak, art.rainSplash);
+const renderMetrics = new RenderMetrics();
 
 const keys = new Set<string>();
 const accountSlot = new URLSearchParams(location.search).get('slot') ?? 'Farmer One';
 let networkDirty = true;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
+let latestSnapshot = network.snapshot();
 let predicted: PlayerState | null = null;
 let previousPredicted: PlayerState | null = null;
 let lastDirection: NetworkDirection = 'idle';
 let toast = 'CONNECTING TO SHARED ISLAND';
 let toastTicks = 180;
 let animationTick = 0;
-let worldZoom: WorldZoom = DEFAULT_WORLD_ZOOM;
+let worldZoom = DEFAULT_WORLD_ZOOM;
+let worldZoomTarget = DEFAULT_WORLD_ZOOM;
 let desiredUiScale: UiScale = DEFAULT_UI_SCALE;
 let wheelZoomLockedUntil = 0;
 let collisionKey = '';
-let worldCollision: CollisionMap = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED);
+const initialTerrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
+let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
 let lastNetworkStatus = '';
 let debugCollision = false;
+let debugMetrics = false;
 const remoteDisplay = new Map<string, { x: number; y: number }>();
 const previousRemoteDisplay = new Map<string, { x: number; y: number }>();
 const resourceHealth = new Map<bigint, number>();
@@ -94,10 +119,16 @@ const treeShakeUntil = new Map<bigint, number>();
 let axeActionStartedTick: number | null = null;
 let axePreviewFrame: number | null = null;
 let hoveredHotbarSlot: number | null = null;
+let lightingTickOverride: bigint | null = null;
+let lightPreviewKind: 'lantern' | 'torch' | null = null;
+let rainOverride: boolean | null = null;
+let draggingTimeSlider = false;
 
 function resize(): void {
-  resizePixelCanvas(canvas);
-  context.imageSmoothingEnabled = false;
+  renderer.resize();
+  const minimum = renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16);
+  worldZoomTarget = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoomTarget));
+  worldZoom = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoom));
 }
 
 function directionFromKeys(): NetworkDirection {
@@ -127,27 +158,27 @@ function playerState(row: PlayerPosition): PlayerState {
 
 function refreshCollision(snapshot: OverworldSnapshot): void {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
-  const mutableKey = snapshot.resources
-    .map((resource) => `${resource.id}:${Number(resource.depleted)}`)
-    .sort()
-    .join(',');
-  const nextKey = `${seed}|${mutableKey}`;
+  const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
+  const nextKey = `${seed}:${version}:${network.resourceRevision}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
-  const subscribed = new Map(snapshot.resources.map((resource) => [resource.id, resource]));
-  const resources = generateSurvivalResources(seed).map((resource) => ({
-    tileX: resource.tileX,
-    tileY: resource.tileY,
-    depleted: subscribed.get(BigInt(resource.id))?.depleted ?? false,
-  }));
-  worldCollision = createSurvivalCollisionMap(seed, resources);
+  worldCollision = createClientCollisionMap(terrainForWorld(seed, version), snapshot.resources);
 }
 
 function update(): void {
   const previous = predicted;
   animationTick = (animationTick + 1) % 1_000_000;
-  network.setViewRadius(viewRadiusForViewport(canvas.width, canvas.height, worldZoom));
-  const snapshot = network.snapshot();
+  worldZoom = easeWorldZoom(worldZoom, worldZoomTarget);
+  network.setViewRadius(viewRadiusForViewport(renderer.cssWidth, renderer.cssHeight, worldZoom));
+  latestSnapshot = network.snapshot();
+  const snapshot = latestSnapshot;
+  const weatherTick = lightingTickOverride ?? snapshot.clock?.authorityTick ?? 0n;
+  rain.update(
+    rainOverride ?? rainActiveAtTick(weatherTick),
+    renderer.cssWidth,
+    renderer.cssHeight,
+    worldZoom,
+  );
   for (const resource of snapshot.resources) {
     const previous = resourceHealth.get(resource.id);
     if (previous !== undefined && resource.health < previous && !resource.depleted) {
@@ -216,7 +247,12 @@ function targetWorldItem(snapshot: OverworldSnapshot): WorldItem | null {
   return facedWorldItem(predicted.position.x, predicted.position.y, predicted.facing, snapshot.worldItems);
 }
 
-function drawHotbar(snapshot: OverworldSnapshot, viewportWidth: number, viewportHeight: number): void {
+function drawHotbar(
+  context: CanvasRenderingContext2D,
+  snapshot: OverworldSnapshot,
+  viewportWidth: number,
+  viewportHeight: number,
+): void {
   const layout = hotbarLayout(viewportWidth, viewportHeight);
   const selected = snapshot.survival?.selectedSlot ?? 0;
   const icons = {
@@ -244,9 +280,34 @@ function drawHotbar(snapshot: OverworldSnapshot, viewportWidth: number, viewport
   }
 }
 
+function drawWeatherPanel(
+  context: CanvasRenderingContext2D,
+  viewportWidth: number,
+  authorityTick: bigint,
+): void {
+  const layout = weatherPanelLayout(viewportWidth);
+  const dayTick = Number(authorityTick % BigInt(TICKS_PER_DAY));
+  const fraction = dayTick / TICKS_PER_DAY;
+  drawPixelPanel(context, art.ui, layout.x, layout.y, layout.width, layout.height);
+  drawPixelText(context, art.ui, `TIME ${formatDayTime(dayTick, TICKS_PER_DAY)}`, layout.x + 8, layout.y + 6);
+  context.fillStyle = '#2b1d0e';
+  context.fillRect(layout.sliderX, layout.sliderY, layout.sliderWidth, 3);
+  context.fillStyle = '#e0a51f';
+  context.fillRect(layout.sliderX, layout.sliderY, Math.round(layout.sliderWidth * fraction), 3);
+  const handleX = Math.round(layout.sliderX + layout.sliderWidth * fraction);
+  context.fillStyle = '#f2e3c2';
+  context.fillRect(handleX - 2, layout.sliderY - 2, 5, 7);
+  context.fillStyle = '#2b1d0e';
+  context.fillRect(handleX - 1, layout.sliderY - 1, 3, 5);
+  drawPixelPanel(context, art.ui, layout.rainX, layout.rainY, layout.rainWidth, layout.rainHeight);
+  drawPixelText(context, art.ui, `RAIN ${rain.enabled ? 'ON' : 'OFF'}`, layout.rainX + layout.rainWidth / 2, layout.rainY + 4, { align: 'center' });
+}
+
 function drawPlayerCollisionOverlay(
+  context: CanvasRenderingContext2D,
   cameraX: number,
   cameraY: number,
+  scale: number,
   snapshot: OverworldSnapshot,
 ): void {
   for (const player of snapshot.players) {
@@ -258,45 +319,53 @@ function drawPlayerCollisionOverlay(
       y: local ? predicted?.position.y ?? player.y : display?.y ?? player.y,
     };
     const bounds = playerHitboxBounds(position);
-    const left = (bounds.left / FIXED_UNITS_PER_PIXEL - cameraX) * worldZoom;
-    const top = (bounds.top / FIXED_UNITS_PER_PIXEL - cameraY) * worldZoom;
-    const width = (bounds.right - bounds.left + 1) / FIXED_UNITS_PER_PIXEL * worldZoom;
-    const height = (bounds.bottom - bounds.top + 1) / FIXED_UNITS_PER_PIXEL * worldZoom;
+    const left = (bounds.left / FIXED_UNITS_PER_PIXEL - cameraX) * scale;
+    const top = (bounds.top / FIXED_UNITS_PER_PIXEL - cameraY) * scale;
+    const width = (bounds.right - bounds.left + 1) / FIXED_UNITS_PER_PIXEL * scale;
+    const height = (bounds.bottom - bounds.top + 1) / FIXED_UNITS_PER_PIXEL * scale;
     context.fillStyle = local ? '#33e6ff55' : '#d36dff44';
     context.strokeStyle = local ? '#33e6ff' : '#d36dff';
     context.lineWidth = 1;
     context.fillRect(Math.round(left), Math.round(top), Math.ceil(width), Math.ceil(height));
     context.strokeRect(Math.round(left), Math.round(top), Math.ceil(width), Math.ceil(height));
-    const footX = Math.round((position.x / FIXED_UNITS_PER_PIXEL - cameraX) * worldZoom);
-    const footY = Math.round((position.y / FIXED_UNITS_PER_PIXEL - cameraY) * worldZoom);
+    const footX = Math.round((position.x / FIXED_UNITS_PER_PIXEL - cameraX) * scale);
+    const footY = Math.round((position.y / FIXED_UNITS_PER_PIXEL - cameraY) * scale);
     context.fillRect(footX - 2, footY, 5, 1);
     context.fillRect(footX, footY - 2, 1, 5);
   }
 }
 
-function drawCollisionOverlay(cameraX: number, cameraY: number, seed: number): void {
+function drawCollisionOverlay(
+  context: CanvasRenderingContext2D,
+  cameraX: number,
+  cameraY: number,
+  scale: number,
+  viewportWidth: number,
+  viewportHeight: number,
+  terrain: TerrainArray,
+): void {
   const minX = Math.max(0, Math.floor(cameraX / 16));
   const minY = Math.max(0, Math.floor(cameraY / 16));
-  const maxX = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraX + canvas.width / worldZoom) / 16));
-  const maxY = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraY + canvas.height / worldZoom) / 16));
+  const maxX = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraX + viewportWidth / scale) / 16));
+  const maxY = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraY + viewportHeight / scale) / 16));
   for (let tileY = minY; tileY <= maxY; tileY += 1) for (let tileX = minX; tileX <= maxX; tileX += 1) {
     const index = tileY * SURVIVAL_WORLD_SIZE + tileX;
     const blocked = worldCollision.blocked[index] ?? true;
-    const terrainBlocked = survivalBiomeBlocksMovement(survivalBiomeAt(seed, tileX, tileY));
+    const terrainBlocked = terrain.blocked[index] ?? true;
     context.fillStyle = blocked ? terrainBlocked ? '#ff335577' : '#ff9d2377' : '#55ff8850';
     context.fillRect(
-      Math.round((tileX * 16 - cameraX) * worldZoom),
-      Math.round((tileY * 16 - cameraY) * worldZoom),
-      16 * worldZoom,
-      16 * worldZoom,
+      Math.round((tileX * 16 - cameraX) * scale),
+      Math.round((tileY * 16 - cameraY) * scale),
+      16 * scale,
+      16 * scale,
     );
     context.strokeStyle = '#fff3';
     context.lineWidth = 1;
     context.strokeRect(
-      Math.round((tileX * 16 - cameraX) * worldZoom),
-      Math.round((tileY * 16 - cameraY) * worldZoom),
-      16 * worldZoom,
-      16 * worldZoom,
+      Math.round((tileX * 16 - cameraX) * scale),
+      Math.round((tileY * 16 - cameraY) * scale),
+      16 * scale,
+      16 * scale,
     );
   }
   for (const obstacle of worldCollision.obstacles ?? []) {
@@ -307,49 +376,85 @@ function drawCollisionOverlay(cameraX: number, cameraY: number, seed: number): v
     context.fillStyle = '#ff9d2377';
     context.strokeStyle = '#ffbf57';
     context.fillRect(
-      Math.round((left - cameraX) * worldZoom),
-      Math.round((top - cameraY) * worldZoom),
-      Math.ceil(width * worldZoom),
-      Math.ceil(height * worldZoom),
+      Math.round((left - cameraX) * scale),
+      Math.round((top - cameraY) * scale),
+      Math.ceil(width * scale),
+      Math.ceil(height * scale),
     );
     context.strokeRect(
-      Math.round((left - cameraX) * worldZoom),
-      Math.round((top - cameraY) * worldZoom),
-      Math.ceil(width * worldZoom),
-      Math.ceil(height * worldZoom),
+      Math.round((left - cameraX) * scale),
+      Math.round((top - cameraY) * scale),
+      Math.ceil(width * scale),
+      Math.ceil(height * scale),
     );
+  }
+  const chunkPixels = SURVIVAL_CHUNK_TILES * 16;
+  const residentKeys = groundCache.residentKeys;
+  const minChunkX = Math.max(0, Math.floor(cameraX / chunkPixels));
+  const minChunkY = Math.max(0, Math.floor(cameraY / chunkPixels));
+  const lastChunkX = Math.ceil(terrain.width / SURVIVAL_CHUNK_TILES) - 1;
+  const lastChunkY = Math.ceil(terrain.height / SURVIVAL_CHUNK_TILES) - 1;
+  const maxChunkX = Math.min(lastChunkX, Math.floor((cameraX + viewportWidth / scale) / chunkPixels));
+  const maxChunkY = Math.min(lastChunkY, Math.floor((cameraY + viewportHeight / scale) / chunkPixels));
+  context.lineWidth = Math.max(1, scale);
+  for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY += 1) {
+    for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
+      context.strokeStyle = residentKeys.includes(`${chunkX},${chunkY}`) ? '#44ffe0cc' : '#ffffff66';
+      context.strokeRect(
+        Math.round((chunkX * chunkPixels - cameraX) * scale),
+        Math.round((chunkY * chunkPixels - cameraY) * scale),
+        chunkPixels * scale,
+        chunkPixels * scale,
+      );
+    }
   }
 }
 
 function render(alpha = 1): void {
-  const snapshot = network.snapshot();
+  const renderStarted = performance.now();
+  let drawCalls = 0;
+  const snapshot = latestSnapshot;
   const predictedPosition = predicted?.position;
   const renderedLocal = predictedPosition === undefined
     ? null
     : interpolateFixedPosition(previousPredicted?.position ?? predictedPosition, predictedPosition, alpha);
   const localX = (renderedLocal?.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const localY = (renderedLocal?.y ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
-  const viewportWidth = canvas.width / worldZoom;
-  const viewportHeight = canvas.height / worldZoom;
+  const frame = renderer.beginWorld(worldZoom);
+  const context = frame.world;
+  const scale = frame.layout.integerScale;
+  const viewportWidth = frame.layout.width / scale;
+  const viewportHeight = frame.layout.height / scale;
   const worldPixels = SURVIVAL_WORLD_SIZE * 16;
   const cameraX = cameraAxisOffset(localX, viewportWidth, worldPixels);
   const cameraY = cameraAxisOffset(localY, viewportHeight, worldPixels);
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
-  const uiScale = fittedUiScale(desiredUiScale, canvas.width, canvas.height);
-  drawOverworldGround(context, art, cameraX, cameraY, worldZoom, canvas.width, canvas.height, seed);
+  const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
+  const terrain = terrainForWorld(seed, version);
+  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
+  drawCalls += groundCache.draw(context, art, terrain, cameraX, cameraY, scale, frame.layout.width, frame.layout.height);
+  rain.followViewport(
+    cameraX + viewportWidth / 2,
+    cameraY + viewportHeight / 2,
+    worldZoom,
+  );
 
-  const visible = visibleWorldBounds(cameraX, cameraY, canvas.width, canvas.height, worldZoom, 64);
-  const drawItems: Array<{ footY: number; tie: string; draw: () => void }> = [];
+  const visible = visibleWorldBounds(cameraX, cameraY, frame.layout.width, frame.layout.height, scale, 64);
+  // All non-ground world art (players, trees, items, future buildings/props/NPCs)
+  // must enter this queue so weather and later depth layers cannot bypass it.
+  const worldDepthItems: WorldDepthItem[] = [];
+  const nameplates: Array<{ x: number; y: number; name: string }> = [];
+  const pointLights: PointLight[] = [];
   for (const resource of snapshot.resources) {
     const resourceX = resource.tileX * 16 + 8;
     const resourceY = (resource.tileY + 1) * 16;
     if (!worldPointVisible(resourceX, resourceY, visible)) continue;
-    drawItems.push({
+    worldDepthItems.push({
       footY: resourceY,
       tie: `resource:${resource.id}`,
       draw: () => {
         if (resource.depleted) {
-          drawOverworldStump(context, art, resourceX, resourceY, cameraX, cameraY, worldZoom);
+          drawOverworldStump(context, art, resourceX, resourceY, cameraX, cameraY, scale);
           return;
         }
         const shaking = (treeShakeUntil.get(resource.id) ?? -1) > animationTick;
@@ -362,7 +467,7 @@ function render(alpha = 1): void {
           false,
           cameraX,
           cameraY,
-          worldZoom,
+          scale,
         );
       },
     });
@@ -373,10 +478,10 @@ function render(alpha = 1): void {
     if (!worldPointVisible(x, y, visible)) continue;
     const age = Number((snapshot.clock?.authorityTick ?? item.droppedAtTick) - item.droppedAtTick);
     const arcHeight = age >= 0 && age < 8 ? Math.round(Math.sin(age / 8 * Math.PI) * 8) : 0;
-    drawItems.push({
+    worldDepthItems.push({
       footY: y,
       tie: `item:${item.id}`,
-      draw: () => drawOverworldItem(context, art, x, y, arcHeight, cameraX, cameraY, worldZoom),
+      draw: () => drawOverworldItem(context, art, x, y, arcHeight, cameraX, cameraY, scale),
     });
   }
   for (const player of snapshot.players) {
@@ -394,29 +499,82 @@ function render(alpha = 1): void {
     if (!worldPointVisible(x, y, visible)) continue;
     const facing = (local ? predicted?.facing ?? player.facing : player.facing) as Direction;
     const moving = local ? lastDirection !== 'idle' : player.moving;
-    drawItems.push({
+    nameplates.push({ x, y, name: profileName(snapshot.profiles, id) });
+    const equipped = local
+      ? lightPreviewKind ?? selectedItem(snapshot)
+      : snapshot.equipment.find((row) => row.identity.toHexString() === id)?.itemKind ?? 'empty';
+    if (equipped === 'lantern' || equipped === 'torch') {
+      const [lightX, lightY] = playerLightPosition(x, y);
+      pointLights.push({
+        worldX: lightX,
+        worldY: lightY,
+        radiusTiles: equipped === 'lantern' ? 5 : 3,
+        color: equipped === 'lantern' ? LANTERN_LIGHT : TORCH_LIGHT,
+      });
+    }
+    worldDepthItems.push({
       footY: y,
       tie: `player:${id}`,
       draw: () => {
         const axeElapsed = local && axeActionStartedTick !== null ? animationTick - axeActionStartedTick : -1;
         const axeFrame = axePreviewFrame ?? (axeElapsed >= 0 && axeElapsed < 24 ? Math.min(3, Math.floor(axeElapsed / 6)) : null);
-        drawOverworldAvatar(context, art, x, y, facing, moving, animationTick, cameraX, cameraY, worldZoom, axeFrame, profileName(snapshot.profiles, id));
+        drawOverworldAvatar(context, art, x, y, facing, moving, animationTick, cameraX, cameraY, scale, axeFrame);
       },
     });
   }
-  for (const item of sortWorldDrawItems(drawItems)) item.draw();
+  drawCalls += drawWorldDepthQueue(
+    worldDepthItems,
+    cameraY,
+    scale,
+    (minimumDepth, maximumDepth) => rain.drawDepthRange(
+      context,
+      cameraX,
+      cameraY,
+      scale,
+      worldZoom,
+      minimumDepth,
+      maximumDepth,
+    ),
+  );
+  drawCalls += worldDepthItems.length;
+  lightmap.draw(
+    context,
+    terrain,
+    cameraX,
+    cameraY,
+    scale,
+    frame.layout.width,
+    frame.layout.height,
+    ambientAtTick(lightingTickOverride ?? snapshot.clock?.authorityTick ?? 0n, rain.enabled ? 0.12 : 0),
+    pointLights,
+  );
+  drawCalls += 1;
   if (debugCollision) {
-    drawCollisionOverlay(cameraX, cameraY, seed);
-    drawPlayerCollisionOverlay(cameraX, cameraY, snapshot);
+    drawCollisionOverlay(context, cameraX, cameraY, scale, frame.layout.width, frame.layout.height, terrain);
+    drawPlayerCollisionOverlay(context, cameraX, cameraY, scale, snapshot);
   }
+  for (const nameplate of nameplates) {
+    drawOverworldNameplate(
+      context,
+      art,
+      nameplate.x,
+      nameplate.y,
+      cameraX,
+      cameraY,
+      scale,
+      nameplate.name,
+    );
+  }
+  drawCalls += nameplates.reduce((total, nameplate) => total + 2 + nameplate.name.slice(0, 20).length, 0);
+  renderer.compositeWorld();
+  drawCalls += 1;
 
-  const uiWidth = canvas.width / uiScale;
-  const uiHeight = canvas.height / uiScale;
-  context.save();
-  context.scale(uiScale, uiScale);
+  const uiWidth = renderer.cssWidth / uiScale;
+  const uiHeight = renderer.cssHeight / uiScale;
+  const uiContext = renderer.beginUi(uiScale);
   const islandStatus = `ISLAND ${snapshot.connected ? 'ONLINE' : 'CONNECTING'} PLAYERS ${snapshot.players.length}`;
-  drawPixelPanel(context, art.ui, 4, 4, measurePixelText(islandStatus) + 14, 19);
-  drawPixelText(context, art.ui, islandStatus, 11, 11);
+  drawPixelPanel(uiContext, art.ui, 4, 4, measurePixelText(islandStatus) + 14, 19);
+  drawPixelText(uiContext, art.ui, islandStatus, 11, 11);
   const pickup = targetWorldItem(snapshot);
   const prompt = pickup === null ? null : `[E] PICK UP ${hotbarItemLabel(pickup.itemKind)} x${pickup.quantity}`;
   const hoveredInventory = hoveredHotbarSlot === null
@@ -426,25 +584,56 @@ function render(alpha = 1): void {
   const tooltip = hoverName ?? prompt ?? (toastTicks > 0 ? toast.slice(0, 42) : null);
   if (tooltip !== null) {
     const width = Math.max(104, measurePixelText(tooltip) + 14);
-    drawPixelPanel(context, art.ui, uiWidth / 2 - width / 2, uiHeight - 62, width, 19);
-    drawPixelText(context, art.ui, tooltip, uiWidth / 2, uiHeight - 56, { align: 'center' });
+    drawPixelPanel(uiContext, art.ui, uiWidth / 2 - width / 2, uiHeight - 62, width, 19);
+    drawPixelText(uiContext, art.ui, tooltip, uiWidth / 2, uiHeight - 56, { align: 'center' });
   }
-  drawHotbar(snapshot, uiWidth, uiHeight);
-  context.restore();
+  drawHotbar(uiContext, snapshot, uiWidth, uiHeight);
+  drawWeatherPanel(
+    uiContext,
+    uiWidth,
+    lightingTickOverride ?? snapshot.clock?.authorityTick ?? 0n,
+  );
+  if (debugMetrics) {
+    const metrics = renderMetrics.snapshot();
+    const lines = [
+      `FRAME ${metrics.averageFrameMs.toFixed(2)} AVG ${metrics.worstFrameMs.toFixed(2)} WORST`,
+      `DRAWS ${metrics.drawCalls} CHUNKS ${groundCache.residentCount} PARTICLES ${rain.activeCount}`,
+      `ZOOM ${worldZoom.toFixed(2)} K ${frame.layout.integerScale} DPR ${renderer.dpr.toFixed(2)}`,
+    ];
+    const width = Math.max(...lines.map((line) => measurePixelText(line))) + 14;
+    drawPixelPanel(uiContext, art.ui, 4, 27, width, 35);
+    for (let index = 0; index < lines.length; index += 1) {
+      drawPixelText(uiContext, art.ui, lines[index] ?? '', 11, 32 + index * 9);
+    }
+  }
+  renderer.endUi();
+  renderMetrics.record(performance.now() - renderStarted, drawCalls);
 }
 
-function pointerUiPosition(event: PointerEvent): readonly [number, number] {
+function pointerUiPosition(event: MouseEvent): readonly [number, number] {
   const rect = canvas.getBoundingClientRect();
-  const canvasX = (event.clientX - rect.left) * canvas.width / rect.width;
-  const canvasY = (event.clientY - rect.top) * canvas.height / rect.height;
-  const uiScale = fittedUiScale(desiredUiScale, canvas.width, canvas.height);
+  const canvasX = (event.clientX - rect.left) * renderer.cssWidth / rect.width;
+  const canvasY = (event.clientY - rect.top) * renderer.cssHeight / rect.height;
+  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
   return [canvasX / uiScale, canvasY / uiScale];
 }
 
 function hotbarSlotForPointer(event: PointerEvent): number | null {
   const [x, y] = pointerUiPosition(event);
-  const uiScale = fittedUiScale(desiredUiScale, canvas.width, canvas.height);
-  return hotbarSlotAtPoint(x, y, canvas.width / uiScale, canvas.height / uiScale);
+  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
+  return hotbarSlotAtPoint(x, y, renderer.cssWidth / uiScale, renderer.cssHeight / uiScale);
+}
+
+function weatherPointer(event: MouseEvent): readonly [number, number, number] {
+  const [x, y] = pointerUiPosition(event);
+  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
+  return [x, y, renderer.cssWidth / uiScale];
+}
+
+function setTimeFromPointer(event: PointerEvent): void {
+  const [x, , uiWidth] = weatherPointer(event);
+  const fraction = weatherTimeFractionAtPoint(x, uiWidth);
+  lightingTickOverride = BigInt(Math.min(TICKS_PER_DAY - 1, Math.round(fraction * (TICKS_PER_DAY - 1))));
 }
 
 function showResult(promise: Promise<void>, success: string): void {
@@ -467,13 +656,23 @@ window.addEventListener('keydown', (event) => {
   }
   if ((event.code === 'Minus' || event.code === 'NumpadSubtract') && !event.repeat) {
     if (event.shiftKey) desiredUiScale = stepUiScale(desiredUiScale, -1);
-    else worldZoom = stepWorldZoom(worldZoom, -1);
+    else worldZoomTarget = stepWorldZoom(
+      worldZoomTarget,
+      -1,
+      renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16),
+      MAX_WORLD_ZOOM,
+    );
     event.preventDefault();
     return;
   }
   if ((event.code === 'Equal' || event.code === 'NumpadAdd') && !event.repeat) {
     if (event.shiftKey) desiredUiScale = stepUiScale(desiredUiScale, 1);
-    else worldZoom = stepWorldZoom(worldZoom, 1);
+    else worldZoomTarget = stepWorldZoom(
+      worldZoomTarget,
+      1,
+      renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16),
+      MAX_WORLD_ZOOM,
+    );
     event.preventDefault();
     return;
   }
@@ -484,8 +683,13 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
     return;
   }
+  if (event.code === 'F3' && !event.repeat) {
+    debugMetrics = !debugMetrics;
+    event.preventDefault();
+    return;
+  }
   if (event.code === 'KeyF' && !event.repeat) {
-    const snapshot = network.snapshot();
+    const snapshot = latestSnapshot;
     const item = selectedItem(snapshot);
     if (item !== 'axe') {
       toast = `NO ${hotbarItemLabel(item)} USE ACTION YET`;
@@ -504,7 +708,7 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyE' && !event.repeat) {
-    const item = targetWorldItem(network.snapshot());
+    const item = targetWorldItem(latestSnapshot);
     if (item === null) {
       toast = 'NOTHING TO PICK UP';
       toastTicks = 90;
@@ -525,21 +729,60 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('keyup', (event) => keys.delete(event.code));
 window.addEventListener('blur', () => keys.clear());
 canvas.addEventListener('dblclick', () => { void toggleFullscreen(shellElement).catch(() => undefined); });
-canvas.addEventListener('pointermove', (event) => { hoveredHotbarSlot = hotbarSlotForPointer(event); });
-canvas.addEventListener('pointerleave', () => { hoveredHotbarSlot = null; });
+canvas.addEventListener('pointermove', (event) => {
+  if (draggingTimeSlider) {
+    setTimeFromPointer(event);
+    event.preventDefault();
+    return;
+  }
+  hoveredHotbarSlot = hotbarSlotForPointer(event);
+});
+canvas.addEventListener('pointerleave', () => { if (!draggingTimeSlider) hoveredHotbarSlot = null; });
 canvas.addEventListener('pointerdown', (event) => {
+  const [x, y, uiWidth] = weatherPointer(event);
+  const weatherControl = weatherControlAtPoint(x, y, uiWidth);
+  if (weatherControl === 'time') {
+    draggingTimeSlider = true;
+    canvas.setPointerCapture(event.pointerId);
+    setTimeFromPointer(event);
+    event.preventDefault();
+    return;
+  }
+  if (weatherControl === 'rain') {
+    rainOverride = !rain.enabled;
+    event.preventDefault();
+    return;
+  }
   const slot = hotbarSlotForPointer(event);
   if (slot === null) return;
   hoveredHotbarSlot = slot;
   showResult(network.selectHotbar(slot), `SELECTED SLOT ${slot + 1}`);
   event.preventDefault();
 });
+canvas.addEventListener('pointerup', (event) => {
+  if (!draggingTimeSlider) return;
+  setTimeFromPointer(event);
+  draggingTimeSlider = false;
+  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  event.preventDefault();
+});
+canvas.addEventListener('pointercancel', () => { draggingTimeSlider = false; });
 canvas.addEventListener('wheel', (event) => {
+  const [x, y, uiWidth] = weatherPointer(event);
+  if (weatherControlAtPoint(x, y, uiWidth) !== null) {
+    event.preventDefault();
+    return;
+  }
   if (event.ctrlKey || event.deltaY === 0) return;
   event.preventDefault();
   if (event.timeStamp < wheelZoomLockedUntil) return;
   wheelZoomLockedUntil = event.timeStamp + 120;
-  worldZoom = stepWorldZoom(worldZoom, event.deltaY > 0 ? -1 : 1);
+  worldZoomTarget = stepWorldZoom(
+    worldZoomTarget,
+    event.deltaY > 0 ? -1 : 1,
+    renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16),
+    MAX_WORLD_ZOOM,
+  );
 }, { passive: false });
 
 resize();
@@ -555,9 +798,17 @@ Object.assign(window, {
     dropSelected: () => network.dropSelected(),
     selectHotbar: (selectedSlot: number) => network.selectHotbar(selectedSlot),
     setCollisionDebug: (enabled: boolean) => { debugCollision = enabled; },
-    setWorldZoom: (zoom: WorldZoom) => { worldZoom = zoom; },
+    setMetricsDebug: (enabled: boolean) => { debugMetrics = enabled; },
+    renderMetrics: () => renderMetrics.snapshot(),
+    setWorldZoom: (zoom: number) => {
+      worldZoom = Math.max(renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16), Math.min(MAX_WORLD_ZOOM, zoom));
+      worldZoomTarget = worldZoom;
+    },
     setUiScale: (scale: UiScale) => { desiredUiScale = scale; },
     setAxePreviewFrame: (frame: number | null) => { axePreviewFrame = frame; },
+    setLightingTick: (tick: bigint | null) => { lightingTickOverride = tick; },
+    setLightPreview: (kind: 'lantern' | 'torch' | null) => { lightPreviewKind = kind; },
+    setRain: (enabled: boolean | null) => { rainOverride = enabled; },
   },
 });
 loop.start();

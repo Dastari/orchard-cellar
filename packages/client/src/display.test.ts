@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_WORLD_ZOOM,
-  WORLD_ZOOM_LEVELS,
   canvasViewport,
+  easeWorldZoom,
   fittedCanvasScale,
   fittedUiScale,
   integerCanvasScale,
@@ -30,14 +30,14 @@ describe('pixel display controls', () => {
 
   it('steps and clamps world zoom', () => {
     expect(DEFAULT_WORLD_ZOOM).toBe(2);
-    expect(WORLD_ZOOM_LEVELS).toEqual([1, 2, 3]);
-    expect(stepWorldZoom(2, -1)).toBe(1);
-    expect(stepWorldZoom(1, -1)).toBe(1);
-    expect(stepWorldZoom(2, 1)).toBe(3);
-    expect(stepWorldZoom(3, 1)).toBe(3);
+    expect(stepWorldZoom(2, -1)).toBe(1.75);
+    expect(stepWorldZoom(0.25, -1)).toBe(0.25);
+    expect(stepWorldZoom(2, 1)).toBe(2.25);
+    expect(stepWorldZoom(8, 1)).toBe(8);
     expect(worldZoomLabel(1)).toBe('0.5X');
     expect(worldZoomLabel(2)).toBe('1X');
     expect(worldZoomLabel(3)).toBe('1.5X');
+    expect(easeWorldZoom(2, 2.25)).toBeCloseTo(2.075);
   });
 
   it('scales the HUD only by whole pixels that fit the current canvas', () => {

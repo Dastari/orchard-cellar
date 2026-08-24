@@ -12,6 +12,7 @@ import {
 } from './generated/index.js';
 import type {
   InventorySlot,
+  PlayerEquipment,
   PlayerPosition,
   PlayerPublic,
   PlayerSurvival,
@@ -26,7 +27,7 @@ const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILE
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 
 export function viewRadiusForViewport(canvasWidth: number, canvasHeight: number, zoom: number): number {
-  const halfSpanChunks = Math.ceil(Math.max(canvasWidth, canvasHeight) / (Math.max(1, zoom) * SURVIVAL_CHUNK_PIXELS * 2));
+  const halfSpanChunks = Math.ceil(Math.max(canvasWidth, canvasHeight) / (Math.max(0.01, zoom) * SURVIVAL_CHUNK_PIXELS * 2));
   return Math.max(1, Math.min(SURVIVAL_CHUNK_COUNT, halfSpanChunks + 1));
 }
 
@@ -50,6 +51,7 @@ export interface OverworldSnapshot {
   readonly identityHex: string | null;
   readonly region: readonly [number, number];
   readonly profiles: readonly PlayerPublic[];
+  readonly equipment: readonly PlayerEquipment[];
   readonly players: readonly PlayerPosition[];
   readonly resources: readonly WorldResource[];
   readonly worldItems: readonly WorldItem[];
@@ -79,6 +81,7 @@ export class OverworldConnection {
   private sequence = 0n;
   private inputReady = false;
   private desiredDirection: NetworkDirection = 'idle';
+  private resourceRevisionValue = 0;
 
   constructor(
     private readonly slot: string,
@@ -135,6 +138,7 @@ export class OverworldConnection {
       identityHex: this.identity === null ? null : identityHex(this.identity),
       region: this.region,
       profiles,
+      equipment: connection === null ? [] : [...connection.db.playerEquipment.iter()],
       players: connection === null
         ? []
         : [...connection.db.playerPosition.iter()].filter((row) => online.has(identityHex(row.identity))),
@@ -160,6 +164,8 @@ export class OverworldConnection {
     const position = this.ownPosition();
     return position !== null && position.lastProcessedSequence >= this.sequence;
   }
+
+  get resourceRevision(): number { return this.resourceRevisionValue; }
 
   setDirection(direction: NetworkDirection): void {
     this.desiredDirection = direction;
@@ -227,6 +233,7 @@ export class OverworldConnection {
       })
       .subscribe([
         tables.playerPublic,
+        tables.playerEquipment,
         tables.worldClock,
         tables.worldSeed,
       ]);
@@ -292,6 +299,7 @@ export class OverworldConnection {
         this.subscribedRadius = radius;
         this.pendingRegion = null;
         if (previous?.isActive()) previous.unsubscribe();
+        this.resourceRevisionValue += 1;
         this.onChanged();
       })
       .onError(() => {
@@ -304,16 +312,23 @@ export class OverworldConnection {
 
   private bindTableEvents(connection: DbConnection): void {
     const changed = (): void => this.onChanged();
+    const resourceChanged = (): void => {
+      this.resourceRevisionValue += 1;
+      changed();
+    };
     connection.db.playerPublic.onInsert(changed);
     connection.db.playerPublic.onUpdate(changed);
     connection.db.playerPublic.onDelete(changed);
+    connection.db.playerEquipment.onInsert(changed);
+    connection.db.playerEquipment.onUpdate(changed);
+    connection.db.playerEquipment.onDelete(changed);
     connection.db.worldClock.onInsert(changed);
     connection.db.worldClock.onUpdate(changed);
     connection.db.worldSeed.onInsert(changed);
     connection.db.worldSeed.onUpdate(changed);
-    connection.db.worldResource.onInsert(changed);
-    connection.db.worldResource.onUpdate(changed);
-    connection.db.worldResource.onDelete(changed);
+    connection.db.worldResource.onInsert(resourceChanged);
+    connection.db.worldResource.onUpdate(resourceChanged);
+    connection.db.worldResource.onDelete(resourceChanged);
     connection.db.worldItem.onInsert(changed);
     connection.db.worldItem.onUpdate(changed);
     connection.db.worldItem.onDelete(changed);

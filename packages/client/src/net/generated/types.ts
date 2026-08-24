@@ -77,6 +77,12 @@ export type OwnInventorySlots = __Infer<typeof OwnInventorySlots>;
 export const OwnSurvival = __t.object("OwnSurvival", {});
 export type OwnSurvival = __Infer<typeof OwnSurvival>;
 
+export const PlayerEquipment = __t.object("PlayerEquipment", {
+  identity: __t.identity(),
+  itemKind: __t.string(),
+});
+export type PlayerEquipment = __Infer<typeof PlayerEquipment>;
+
 export const PlayerInput = __t.object("PlayerInput", {
   identity: __t.identity(),
   direction: __t.string(),

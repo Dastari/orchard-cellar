@@ -76,14 +76,24 @@ respawn and durability are deliberately deferred.
 
 - `1`–`9` selects a hotbar slot; the server persists selection.
 - Mouse-wheel up/down zooms the world. Unshifted `-`/`+` provide the same stepped
-  world zoom; `Shift -`/`Shift +` scale UI chrome and player name tags.
+  world zoom; `Shift -`/`Shift +` scale UI chrome independently.
 - `E` picks up a faced ground item, `F` uses the selected tool on a faced resource,
   and `Q` drops the selected slot in front of the player.
-- The bottom-center nine-slot hotbar uses parchment/wood pixel UI, short item labels,
-  stack quantities, and a visible selected bracket. There is no parallel resource
-  counter: Wood appears only in the nine slots until a backpack exists.
-- The three render scales are shown relative to the intended default: source scale 2
-  is `1×`, with `0.5×` and `1.5×` steps. Double-clicking the canvas retains fullscreen.
+- The bottom-center nine-slot hotbar uses parchment/wood pixel UI, centered native-size
+  icons, stack quantities, click selection, hover names, and a visible selected bracket.
+  There is no parallel resource counter: Wood appears only in the nine slots until a
+  backpack exists.
+- Continuous world zoom moves in eased 0.25 steps; source scale 2 is labelled `1×`.
+  Player nameplates live in the world pass, scale with world zoom, and use a compact
+  translucent backing instead of DOM/UI overlays. Double-click retains fullscreen.
+- The in-canvas top-right weather test frame can scrub the 54,000-tick day and override
+  rain without mutating authority state. Licensed diagonal rain and its seven-frame
+  impact animation share an exact endpoint, move opposite camera travel, and scale
+  with world zoom around the source-scale-2 reference. Velocity scales with the same
+  ratio and close views thin the active pool to preserve apparent rainfall density.
+  Each drop and splash sorts at its ground-impact foot Y, so weather landing north of
+  a tree passes behind its canopy while southern impacts pass in front. Rain and
+  day/night are composable; spatial weather regions/cloud emitters remain future work.
 - The licensed character sheet has cardinal walk poses only. Diagonal travel remains
   true diagonal movement and uses the mirrored side pose so it does not falsely read
   as straight-up walking.

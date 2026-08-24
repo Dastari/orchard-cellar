@@ -137,3 +137,66 @@ const HOTBAR_NAMES: Readonly<Record<string, string>> = {
 export function hotbarItemName(itemKind: string): string | null {
   return HOTBAR_NAMES[itemKind] ?? null;
 }
+
+export const WEATHER_PANEL_WIDTH = 142;
+export const WEATHER_PANEL_HEIGHT = 45;
+
+export interface WeatherPanelLayout {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly sliderX: number;
+  readonly sliderY: number;
+  readonly sliderWidth: number;
+  readonly rainX: number;
+  readonly rainY: number;
+  readonly rainWidth: number;
+  readonly rainHeight: number;
+}
+
+export type WeatherControl = 'time' | 'rain';
+
+export function weatherPanelLayout(viewportWidth: number): WeatherPanelLayout {
+  const x = Math.round(viewportWidth - WEATHER_PANEL_WIDTH - 4);
+  const y = 4;
+  return {
+    x,
+    y,
+    width: WEATHER_PANEL_WIDTH,
+    height: WEATHER_PANEL_HEIGHT,
+    sliderX: x + 8,
+    sliderY: y + 18,
+    sliderWidth: WEATHER_PANEL_WIDTH - 16,
+    rainX: x + 8,
+    rainY: y + 26,
+    rainWidth: 58,
+    rainHeight: 14,
+  };
+}
+
+export function weatherControlAtPoint(x: number, y: number, viewportWidth: number): WeatherControl | null {
+  const layout = weatherPanelLayout(viewportWidth);
+  if (
+    x >= layout.rainX && x < layout.rainX + layout.rainWidth
+    && y >= layout.rainY && y < layout.rainY + layout.rainHeight
+  ) return 'rain';
+  if (
+    x >= layout.sliderX - 3 && x <= layout.sliderX + layout.sliderWidth + 3
+    && y >= layout.sliderY - 4 && y <= layout.sliderY + 5
+  ) return 'time';
+  return null;
+}
+
+export function weatherTimeFractionAtPoint(x: number, viewportWidth: number): number {
+  const layout = weatherPanelLayout(viewportWidth);
+  return Math.max(0, Math.min(1, (x - layout.sliderX) / layout.sliderWidth));
+}
+
+export function formatDayTime(dayTick: number, ticksPerDay: number): string {
+  const normalized = ((dayTick % ticksPerDay) + ticksPerDay) % ticksPerDay;
+  const totalMinutes = (6 * 60 + Math.floor(normalized / ticksPerDay * 20 * 60)) % (24 * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}

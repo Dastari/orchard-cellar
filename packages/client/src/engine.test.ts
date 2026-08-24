@@ -2,9 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { FixedStepAccumulator } from './loop.js';
 import { Camera } from './render/camera.js';
 import { parseAtlasMetadata, sortByY, SpriteAnimator, type YSortableSprite } from './render/sprite.js';
-import { SceneStack, type Scene } from './scenes/scene.js';
-import { createPlaceholderTileMap } from './render/tilemap.js';
-import { createPlaceholderCollisionMap } from '@orchard/sim';
 
 const metadata = parseAtlasMetadata({
   image: 'test.png',
@@ -41,6 +38,12 @@ describe('engine logic', () => {
     expect([camera.x, camera.y]).toEqual([200, 160]);
   });
 
+  it('centers a world that is smaller than the zoomed-out viewport', () => {
+    const camera = new Camera(400, 300, 320, 240);
+    camera.follow(160, 120);
+    expect([camera.x, camera.y]).toEqual([-40, -30]);
+  });
+
   it('advances atlas frames at metadata cadence and resets animations', () => {
     const animator = new SpriteAnimator(metadata, 'walk');
     animator.update();
@@ -62,25 +65,4 @@ describe('engine logic', () => {
     expect(sortByY(sprites).map((sprite) => sprite.y)).toEqual([2, 5, 9]);
   });
 
-  it('updates only the focused scene and renders the full stack', () => {
-    const calls: string[] = [];
-    const makeScene = (name: string): Scene => ({
-      update: () => calls.push(`update:${name}`),
-      render: () => calls.push(`render:${name}`),
-    });
-    const stack = new SceneStack();
-    stack.push(makeScene('base'));
-    stack.push(makeScene('modal'));
-    stack.update();
-    stack.render({} as CanvasRenderingContext2D, 0);
-    expect(calls).toEqual(['update:modal', 'render:base', 'render:modal']);
-  });
-
-  it('builds independent data-driven ground, detail, and canopy layers', () => {
-    const map = createPlaceholderTileMap(createPlaceholderCollisionMap(48, 32));
-    expect(map.layers.map((layer) => layer.name)).toEqual(['ground', 'detail', 'canopy']);
-    expect(map.layers.every((layer) => layer.tiles.length === 48 * 32)).toBe(true);
-    expect(map.layers[1]?.tiles.every((tile) => tile === 0)).toBe(true);
-    expect(map.layers[2]?.tiles.every((tile) => tile === 0)).toBe(true);
-  });
 });

@@ -8,6 +8,10 @@ import {
   hotbarLayout,
   hotbarSlotAtPoint,
   hotbarSlotForCode,
+  formatDayTime,
+  weatherControlAtPoint,
+  weatherPanelLayout,
+  weatherTimeFractionAtPoint,
 } from './survival-ui.js';
 
 const tree = { id: 2n, kind: 'tree', tileX: 12, tileY: 10, depleted: false };
@@ -55,5 +59,24 @@ describe('survival controls', () => {
     const far = { id: 2n, x: x + 25 * FIXED_UNITS_PER_PIXEL, y };
     expect(facedWorldItem(x, y, 'right', [far, near])).toEqual(near);
     expect(facedWorldItem(x, y, 'left', [near])).toBeNull();
+  });
+
+  it('lays out and hit-tests the top-right weather test controls', () => {
+    const layout = weatherPanelLayout(480);
+    expect(layout.x).toBe(334);
+    expect(weatherControlAtPoint(layout.sliderX + 20, layout.sliderY, 480)).toBe('time');
+    expect(weatherControlAtPoint(layout.rainX + 10, layout.rainY + 5, 480)).toBe('rain');
+    expect(weatherControlAtPoint(20, 20, 480)).toBeNull();
+    expect(weatherTimeFractionAtPoint(layout.sliderX - 50, 480)).toBe(0);
+    expect(weatherTimeFractionAtPoint(layout.sliderX + layout.sliderWidth / 2, 480)).toBe(0.5);
+    expect(weatherTimeFractionAtPoint(layout.sliderX + layout.sliderWidth + 50, 480)).toBe(1);
+  });
+
+  it('formats slider ticks as a full 24-hour day', () => {
+    expect(formatDayTime(0, 54_000)).toBe('06:00');
+    expect(formatDayTime(13_500, 54_000)).toBe('11:00');
+    expect(formatDayTime(27_000, 54_000)).toBe('16:00');
+    expect(formatDayTime(48_600, 54_000)).toBe('00:00');
+    expect(formatDayTime(53_999, 54_000)).toBe('01:59');
   });
 });

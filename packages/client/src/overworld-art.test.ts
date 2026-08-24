@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { axeAnimationForDirection, avatarAnimationForDirection, avatarFrameIndex, canonicalBlob47Index, isOverworldRoad, sortWorldDrawItems } from './overworld-art.js';
+import { axeAnimationForDirection, avatarAnimationForDirection, avatarFrameIndex, isOverworldRoad, sortWorldDrawItems } from './overworld-art.js';
+import { canonicalBlob47Index } from './render/tilemap.js';
 
 describe('overworld art topology', () => {
   it('uses the generated atlas canonical blob ordering', () => {
