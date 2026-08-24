@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { drawWorldDepthQueue, minimumWorldZoom, worldPassLayout } from './renderer.js';
+import { drawWorldDepthQueue, minimumWorldZoom, worldPassCapacity, worldPassLayout } from './renderer.js';
 
 describe('unified renderer zoom math', () => {
   it('uses an integer sharp pass and a DPR-aware final scale', () => {
@@ -21,6 +21,14 @@ describe('unified renderer zoom math', () => {
     expect(layout.width).toBeLessThanOrEqual(4096);
     expect(layout.height).toBeLessThanOrEqual(2304);
     expect(1920 / minimum).toBeLessThanOrEqual(192 * 16);
+  });
+
+  it('keeps a stable backing allocation through nearby eased zoom frames', () => {
+    const first = worldPassCapacity(1_921, 1_081);
+    expect(first).toEqual({ width: 2_048, height: 1_152 });
+    expect(worldPassCapacity(1_980, 1_110, first.width, first.height)).toEqual(first);
+    expect(worldPassCapacity(1_700, 900, first.width, first.height)).toEqual(first);
+    expect(worldPassCapacity(2_049, 1_153, first.width, first.height)).toEqual({ width: 2_304, height: 1_296 });
   });
 
   it('interleaves depth layers around every sorted world drawable', () => {

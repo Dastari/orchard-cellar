@@ -2,17 +2,12 @@ import {
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
-  createPlaceholderCollisionMap,
   generateSurvivalResources,
-  movePlayer,
   survivalBiomeAt,
-  type PlayerState,
 } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import {
-  AUTHORITY_HZ,
   CHUNK_SIZE_FIXED,
-  advanceAuthorityPlayer,
   canUseFarmTile,
   canTendTree,
   chunkAt,
@@ -36,28 +31,7 @@ import {
   settleMovementRun,
 } from './world-rules.js';
 
-const START: PlayerState = {
-  position: { x: 8 * TILE_SIZE_FIXED, y: 12 * TILE_SIZE_FIXED },
-  facing: 'down',
-  moving: false,
-  location: 'estate',
-};
-
 describe('overworld authority rules', () => {
-  it('advances at the same one-second pace as the 60 Hz shared sim', () => {
-    const collision = createPlaceholderCollisionMap(48, 32);
-    let authoritative = START;
-    for (let tick = 0; tick < AUTHORITY_HZ; tick += 1) {
-      authoritative = advanceAuthorityPlayer(authoritative, 'right', collision);
-    }
-
-    let direct = START;
-    for (let tick = 0; tick < 60; tick += 1) {
-      direct = movePlayer(direct, 'right', collision);
-    }
-    expect(authoritative).toEqual(direct);
-  });
-
   it('uses stable chunk boundaries and decodes only protocol directions', () => {
     expect(chunkAt(CHUNK_SIZE_FIXED - 1)).toBe(0);
     expect(chunkAt(CHUNK_SIZE_FIXED)).toBe(1);
@@ -86,17 +60,17 @@ describe('overworld authority rules', () => {
   });
 
   it('settles taps between authority ticks and caps conflicting backlog', () => {
-    expect(settleMovementRun('right', 10n, 12n, 0n, 'idle', 0)).toEqual({
+    expect(settleMovementRun('right', 10n, 12n, 'idle', 0)).toEqual({
       pendingDirection: 'right', pendingSteps: 2, rejectedSteps: 0n,
     });
-    expect(settleMovementRun('right', 10n, 12n, 3n, 'idle', 0)).toEqual({
+    expect(settleMovementRun('idle', 10n, 12n, 'idle', 0)).toEqual({
       pendingDirection: 'idle', pendingSteps: 0, rejectedSteps: 0n,
     });
-    expect(settleMovementRun('left', 0n, 20n, 0n, 'right', 4)).toEqual({
-      pendingDirection: 'right:4|left:8', pendingSteps: 12, rejectedSteps: 12n,
+    expect(settleMovementRun('left', 0n, 40n, 'right', 4)).toEqual({
+      pendingDirection: 'right:4|left:20', pendingSteps: 24, rejectedSteps: 20n,
     });
-    expect(settleMovementRun('right', 0n, 20n, 0n, 'right', 4)).toEqual({
-      pendingDirection: 'right', pendingSteps: 12, rejectedSteps: 12n,
+    expect(settleMovementRun('right', 0n, 40n, 'right', 4)).toEqual({
+      pendingDirection: 'right', pendingSteps: 24, rejectedSteps: 20n,
     });
   });
 

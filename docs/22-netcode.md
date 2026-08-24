@@ -107,34 +107,32 @@ silently lost to sampling and never duplicated. Replay then makes predicted and
 authoritative positions bit-identical in steady state, so stopping and rapid
 tapping produce zero visible correction.
 
-- **Runs, not samples.** A held direction is a *run*: opened by the transition
-  that starts it (`direction`, `clientTick`), closed by the next transition. While
-  a run is open the authority integrates 3 steps/tick exactly as today; when the
-  closing transition arrives, it settles the run to the exact step count implied
-  by the client-tick delta. A shortfall — including a tap that fell entirely
-  between two authority ticks — is queued and drained at up to 6 steps/tick
-  (catch-up), each step still collision-checked through shared `movePlayer`.
-  Overshoot within jitter bounds (≤ one authority tick) is forgiven, not rewound
-  — committed rows are never walked back.
+- **Confirmed intervals, not samples.** Transitions send immediately and held input
+  refreshes every three client steps. Each command closes the preceding interval;
+  the authority queues exactly its claimed direction/client-tick delta and applies
+  it through shared `movePlayer`. It never speculatively advances an open run, so a
+  release, repeated short tap, or rapid diagonal turn cannot accumulate a sampled
+  overshoot. An accepted queue is committed as one transaction only when the whole
+  batch has server-time credit; publishing a half-drained batch under the old
+  acknowledgement would make the client replay it twice.
 - **Rate cap (anti-speedhack).** Total credited steps per player ≤ elapsed server
-  time × 60 Hz + a burst allowance of ~6 steps; settle backlog capped at ~12
+  time × 60 Hz + a burst allowance of ~6 steps; confirmed backlog is capped at 24
   steps. Excess is dropped and the input rejected, which the client observes via
   `lastProcessedSequence` and replays against — a cheating client slows down, an
   honest client under jitter never notices.
 - **Replay integration.** The §3 ring buffer stores `(sequence, direction,
-  clientTick)`; replay re-applies exactly the steps of runs (or run fragments)
-  past the ack point. The periodic refresh (§5) carries the current `clientTick`
-  for observability but does not close a same-direction run: settlement happens on
-  direction transitions. Treating a refresh as a close double-credits steps already
-  due in the next authority tick when reducer arrival straddles that tick.
+  clientTick)`; every transition and refresh is an exact acknowledgement boundary.
+  Replay rebases on that command's client tick and reapplies later movement steps.
+  It never guesses the processed prefix by matching positions—rapid turns can revisit
+  the same coordinate, making that heuristic ambiguous.
 - **Presentation smoothing.** Genuine mispredictions (a tree felled mid-flight, a
   rate-cap rejection) correct predicted state *instantly*; the renderer may
   smooth the resulting visual offset over ≤100 ms. The smoothing offset lives in
   the render layer only — never fed back into predicted or authoritative state.
 - Acceptance (all at 150 ± 50 ms artificial latency): releasing a held key stops
-  with zero net correction; 5 Hz direction tapping for 10 s ends with client and
-  authority byte-identical positions; a single 30 ms tap moves both sides the
-  same number of steps.
+  with zero net correction; repeated 30 ms same-direction taps and rapid diagonal
+  reversals end with client and authority byte-identical positions; a single 30 ms
+  tap moves both sides the same number of steps.
 
 ## 4. Remote players: timed snapshot interpolation
 
@@ -163,12 +161,12 @@ Replace the `/3` filter with a snapshot buffer per remote identity:
 ## 5. Input channel robustness
 
 - **Periodic refresh:** while direction is non-idle, or until an idle transition is
-  acknowledged, resend the current direction with a fresh sequence every 20 sim
-  ticks (~333 ms). Cheap (a no-op-sized reducer
-  3×/s), and it bounds the damage of any single lost/rejected call — including the
+  acknowledged, resend the current direction with a fresh sequence every 3 sim
+  ticks (20×/s while moving). The reducer payload is compact, and it bounds the
+  damage of any single lost/rejected call — including the
   critical *stop* edge — to one refresh interval instead of 10 s. Each refresh
-  carries the current `clientTick`, refreshes liveness, and advances the
-  acknowledgement sequence without closing or re-settling a same-direction run (§3.1).
+  carries the current `clientTick`, confirms the preceding interval, refreshes
+  liveness, and advances the acknowledgement sequence (§3.1).
 - **Failure retry:** on a `setInput` reducer error callback, resend the current
   direction immediately with the next sequence (one retry, then rely on the
   periodic refresh). Never silently swallow reducer errors — surface persistent
@@ -311,9 +309,9 @@ step-accounted movement runs settled against server-clamped client ticks.
 
 - Additive schema published over the durable local database and SpaceTimeDB 2.8
   TypeScript bindings regenerated without resetting data.
-- Deterministic acceptance fixtures pass straight travel and 5 Hz direction tapping
-  at 0 ms, 150 ms, and ordered 150 ± 50 ms latency/jitter. Run settlement tests cover
-  between-tick taps, catch-up acknowledgement, overshoot forgiveness, backlog/rate
+- Deterministic acceptance fixtures pass straight travel, repeated short taps, and
+  rapid diagonal reversals at 0 ms, 150 ms, and ordered 150 ± 50 ms latency/jitter.
+  Interval settlement tests cover between-tick taps, atomic acknowledgement, backlog/rate
   caps and rejection replay, collision-divergence replay, reconnect ring reset,
   snapshot selection/collision-stepped extrapolation, timeline discontinuity resync,
   locomotion restart, and missing/unknown animation fallback. A live shared-browser
@@ -340,6 +338,13 @@ step-accounted movement runs settled against server-clamped client ticks.
   one-shot window the authoritative action was `none`, predicted and authoritative
   positions were identical, and reconciliation error was 0
   (`browser-recording-mt7blixo`).
-- `npm run check` passes 208 tests, 99.29% sim line coverage, lint, all workspace
+- Post-review shared-browser stress used repeated 30 ms taps and rapid direction
+  reversals under ordered 150 ± 50 ms injected latency. Predicted and authoritative
+  fixed-point positions finished identical with zero reconciliation error. The
+  latency injector now serializes dispatch order even when jittered timers coalesce.
+- Selected-tool use writes the replicated action channel even when no resource is
+  hit, so observers see an Axe swing on both hits and misses; resource damage remains
+  in the same validated transaction when a target id is supplied.
+- `npm run check` passes 217 tests, 99.31% sim line coverage, lint, all workspace
   typechecks, the module build, and validation of 100 art assets, 3 songs, 10 SFX, 2 maps,
   55 palette colors, and four seasonal remaps.

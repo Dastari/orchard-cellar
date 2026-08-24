@@ -1,5 +1,10 @@
 import {
+  AUTHORITY_HZ,
   FIXED_UNITS_PER_PIXEL,
+  INPUT_REFRESH_STEPS,
+  REMOTE_INTERPOLATION_DELAY_TICKS,
+  REMOTE_SNAPSHOT_CAPACITY,
+  SIM_TICKS_PER_SECOND,
   TILE_SIZE_FIXED,
   avatarActionDefinition,
   movePlayer,
@@ -15,7 +20,7 @@ export function inputRefreshDue(
   direction: InputDirection,
   idleAcknowledgementPending: boolean,
   ageSteps: number,
-  intervalSteps = 20,
+  intervalSteps = INPUT_REFRESH_STEPS,
 ): boolean {
   return ageSteps >= intervalSteps && (direction !== 'idle' || idleAcknowledgementPending);
 }
@@ -24,8 +29,6 @@ export interface InputCommand {
   readonly sequence: bigint;
   readonly direction: InputDirection;
   readonly clientTick: bigint;
-  readonly coveredSteps: number;
-  readonly advancesMovementAcknowledgement: boolean;
 }
 
 interface PredictedStep {
@@ -66,7 +69,6 @@ export class LocalPredictionBuffer {
   private commands: InputCommand[] = [];
   private steps: PredictedStep[] = [];
   private tickValue = 0n;
-  private lastSentTick = 0n;
   private lastAcknowledgedTick = 0n;
 
   constructor(
@@ -80,16 +82,12 @@ export class LocalPredictionBuffer {
   recordSend(
     sequence: bigint,
     direction: InputDirection,
-    advancesMovementAcknowledgement = true,
   ): InputCommand {
     const command = {
       sequence,
       direction,
       clientTick: this.tickValue,
-      coveredSteps: Number(this.tickValue - this.lastSentTick),
-      advancesMovementAcknowledgement,
     } satisfies InputCommand;
-    this.lastSentTick = this.tickValue;
     this.commands.push(command);
     if (this.commands.length > this.commandCapacity) this.commands.splice(0, this.commands.length - this.commandCapacity);
     return command;
@@ -97,6 +95,9 @@ export class LocalPredictionBuffer {
 
   recordStep(direction: InputDirection, state: PlayerState): void {
     this.tickValue += 1n;
+    // Idle time still advances the protocol clock, but it has no positional
+    // effect to replay. Keeping it would fill the ring while standing still.
+    if (direction === 'idle') return;
     this.steps.push({ clientTick: this.tickValue, direction, state });
     if (this.steps.length > this.stepCapacity) this.steps.splice(0, this.steps.length - this.stepCapacity);
   }
@@ -109,23 +110,13 @@ export class LocalPredictionBuffer {
   ): ReconciliationResult {
     const acknowledged = [...this.commands]
       .reverse()
-      .find((entry) => entry.sequence <= lastProcessedSequence && entry.advancesMovementAcknowledgement);
+      .find((entry) => entry.sequence <= lastProcessedSequence);
     if (acknowledged !== undefined && acknowledged.clientTick > this.lastAcknowledgedTick) {
       this.lastAcknowledgedTick = acknowledged.clientTick;
     }
     this.commands = this.commands.filter((entry) => entry.sequence > lastProcessedSequence);
 
-    // The authority can integrate an open run beyond its latest refresh. Matching
-    // its fixed-point position to our recorded timeline identifies that prefix
-    // without adding another replicated acknowledgement field.
-    let matchedTick = this.lastAcknowledgedTick;
-    for (const step of this.steps) {
-      if (step.clientTick < this.lastAcknowledgedTick) continue;
-      if (step.state.position.x === authoritative.position.x && step.state.position.y === authoritative.position.y) {
-        matchedTick = step.clientTick;
-      }
-    }
-    const remaining = this.steps.filter((step) => step.clientTick > matchedTick);
+    const remaining = this.steps.filter((step) => step.clientTick > this.lastAcknowledgedTick);
     this.steps = remaining;
     let replayed = authoritative;
     for (const step of remaining) {
@@ -145,7 +136,6 @@ export class LocalPredictionBuffer {
     this.commands = [];
     this.steps = [];
     this.tickValue = 0n;
-    this.lastSentTick = 0n;
     this.lastAcknowledgedTick = 0n;
     void lastProcessedSequence;
   }
@@ -176,7 +166,7 @@ export interface SampledRemote {
 export class RemoteSnapshotBuffer {
   private snapshots: RemoteSnapshot[] = [];
 
-  constructor(private readonly capacity = 10) {}
+  constructor(private readonly capacity = REMOTE_SNAPSHOT_CAPACITY) {}
   get depth(): number { return this.snapshots.length; }
 
   push(snapshot: RemoteSnapshot): void {
@@ -250,7 +240,10 @@ export class RemoteSnapshotBuffer {
 
 export class RenderTickClock {
   private value: number | null = null;
-  constructor(private readonly delayTicks = 1.5, private readonly authorityHz = 20) {}
+  constructor(
+    private readonly delayTicks = REMOTE_INTERPOLATION_DELAY_TICKS,
+    private readonly authorityHz = AUTHORITY_HZ,
+  ) {}
   get renderTick(): number { return this.value ?? 0; }
   advance(dtSeconds: number, latestAuthorityTick: bigint): number {
     const target = Number(latestAuthorityTick) - this.delayTicks;
@@ -309,7 +302,7 @@ export class AvatarAnimationController {
     if (actionKind !== 'none') {
       const definition = avatarActionDefinition(actionKind);
       const fallback = definition === null || !actionArtAvailable;
-      const elapsedSeconds = Math.max(0, renderTick - Number(actionStartedTick)) / 20;
+      const elapsedSeconds = Math.max(0, renderTick - Number(actionStartedTick)) / AUTHORITY_HZ;
       const rawFrame = Math.floor(elapsedSeconds * Math.max(1, actionFps));
       const playback = definition?.playback ?? 'oneShot';
       if (playback !== 'oneShot' || rawFrame < Math.max(1, actionFrames)) {
@@ -319,7 +312,7 @@ export class AvatarAnimationController {
         return { channel: 'action', kind: fallback ? 'fallback_use' : actionKind, frame, fallback };
       }
     }
-    const pixelsPerFrame = Math.max(1, 60 / Math.max(1, locomotionFps));
+    const pixelsPerFrame = Math.max(1, SIM_TICKS_PER_SECOND / Math.max(1, locomotionFps));
     const frame = Math.floor(this.locomotionDistance / (pixelsPerFrame * FIXED_UNITS_PER_PIXEL))
       % Math.max(1, locomotionFrames);
     return { channel: 'locomotion', kind: moving ? 'walk' : 'idle', frame: moving ? frame : 0, fallback: false };
@@ -329,6 +322,8 @@ export class AvatarAnimationController {
 export class LatencyInjector {
   private outgoingReadyAt = 0;
   private incomingReadyAt = 0;
+  private outgoingDispatch: Promise<void> = Promise.resolve();
+  private incomingDispatch: Promise<void> = Promise.resolve();
   private ungroupedIncomingId = 0;
   private readonly incomingGroups = new Map<string, { readonly callbacks: Array<() => void>; scheduled: boolean }>();
   constructor(
@@ -340,12 +335,23 @@ export class LatencyInjector {
     const jitter = (this.random() * 2 - 1) * this.jitterMs;
     return Math.max(0, this.lagMs + jitter);
   }
-  async outgoing<T>(call: () => Promise<T>): Promise<T> {
+  outgoing<T>(call: () => Promise<T>): Promise<T> {
     const now = performance.now();
     this.outgoingReadyAt = Math.max(now + this.delayMs(), this.outgoingReadyAt + 0.01);
-    const delay = Math.max(0, this.outgoingReadyAt - now);
-    if (delay > 0) await new Promise<void>((resolve) => globalThis.setTimeout(resolve, delay));
-    return await call();
+    const readyAt = this.outgoingReadyAt;
+    return new Promise<T>((resolve, reject) => {
+      this.outgoingDispatch = this.outgoingDispatch.then(async () => {
+        const delay = Math.max(0, readyAt - performance.now());
+        if (delay > 0) await new Promise<void>((done) => globalThis.setTimeout(done, delay));
+        // Serialize dispatch, not reducer completion: WebSocket order is retained
+        // without adding a round trip of head-of-line blocking to every input.
+        try {
+          void call().then(resolve, reject);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
   }
   incoming(apply: () => void): void {
     this.ungroupedIncomingId += 1;
@@ -361,16 +367,16 @@ export class LatencyInjector {
     this.incomingGroups.set(groupId, group);
     const now = performance.now();
     this.incomingReadyAt = Math.max(now + this.delayMs(), this.incomingReadyAt + 0.01);
-    const delay = Math.max(0, this.incomingReadyAt - now);
+    const readyAt = this.incomingReadyAt;
     queueMicrotask(() => {
       if (group.scheduled) return;
       group.scheduled = true;
-      const applyGroup = (): void => {
+      this.incomingDispatch = this.incomingDispatch.then(async () => {
+        const delay = Math.max(0, readyAt - performance.now());
+        if (delay > 0) await new Promise<void>((done) => globalThis.setTimeout(done, delay));
         this.incomingGroups.delete(groupId);
         for (const callback of group.callbacks) callback();
-      };
-      if (delay <= 0) applyGroup();
-      else globalThis.setTimeout(applyGroup, delay);
+      });
     });
   }
 }

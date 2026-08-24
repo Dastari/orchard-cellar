@@ -53,11 +53,12 @@ observe or mutate another identity's private rows.
   bounds, updates chunk coordinates, and publishes the last processed input sequence.
 - The owning client predicts locally from shared fixed-point movement, rebases on each
   new authoritative row, and replays the still-unacknowledged tick history. Movement
-  transitions carry monotonic client ticks; the authority settles every run under a
-  server-time rate cap, including taps wholly between 20 Hz samples. Remote clients do
+  transitions and three-step refreshes carry monotonic client ticks; the authority
+  atomically settles confirmed intervals under a server-time rate cap, including taps
+  wholly between 20 Hz samples. Remote clients do
   not predict other players: they interpolate ten-row buffers at a fixed 1.5-authority-
   tick render delay and collision-clamped extrapolation stops after two ticks.
-- Held input refreshes every 20 client ticks. A reducer failure gets one immediate
+- Held input refreshes every 3 client ticks. A reducer failure gets one immediate
   retry, while authority ignores non-idle input older than two seconds without ending
   the separate 30-second presence lease.
 - A client derives its chunk radius from the viewport after zoom settles. On a boundary

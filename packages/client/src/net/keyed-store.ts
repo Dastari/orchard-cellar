@@ -20,3 +20,29 @@ export class KeyedStore<K, V> implements ReadonlyKeyedStore<K, V> {
   [Symbol.iterator](): MapIterator<V> { return this.rows.values(); }
   toArray(): V[] { return [...this.rows.values()]; }
 }
+
+/** Keeps only the latest bounded history per key while the render loop is paused. */
+export class BoundedKeyedQueue<K, V> {
+  private readonly rows = new Map<K, V[]>();
+
+  constructor(private readonly capacityPerKey: number) {}
+
+  get size(): number {
+    let size = 0;
+    for (const values of this.rows.values()) size += values.length;
+    return size;
+  }
+
+  push(key: K, value: V): void {
+    const values = this.rows.get(key) ?? [];
+    values.push(value);
+    const overflow = values.length - Math.max(1, this.capacityPerKey);
+    if (overflow > 0) values.splice(0, overflow);
+    this.rows.set(key, values);
+  }
+
+  drain(visit: (value: V) => void): void {
+    for (const values of this.rows.values()) for (const value of values) visit(value);
+    this.rows.clear();
+  }
+}

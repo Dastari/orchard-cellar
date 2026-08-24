@@ -1,10 +1,12 @@
 import {
+  AUTHORITY_TICK_MICROS,
   FIXED_UNITS_PER_PIXEL,
   SURVIVAL_CHUNK_TILES,
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_VERSION,
   TILE_SIZE_FIXED,
   avatarActionAfterMovement,
+  avatarActionForEquippedKind,
   generateSurvivalResources,
   movePlayer,
   survivalSpawnPosition,
@@ -31,7 +33,6 @@ import {
   nextActionStartedTick,
   presenceLeaseExpired,
   resourceHarvestResult,
-  SIM_STEPS_PER_AUTHORITY_TICK,
   settleMovementRun,
 } from './world-rules.js';
 
@@ -375,7 +376,7 @@ export const init = spacetimedb.init((ctx) => {
   });
   ctx.db.movement_timer.insert({
     scheduledId: 0n,
-    scheduledAt: ScheduleAt.interval(50_000n),
+    scheduledAt: ScheduleAt.interval(AUTHORITY_TICK_MICROS),
   });
 });
 
@@ -549,15 +550,10 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     ctx.db.farm_activity.insert({ identity: ctx.sender, planted: 0, watered: 0, harvested: 0 });
   }
   const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-  const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
   const equippedItem = selected?.itemKind ?? 'empty';
   const position = ctx.db.player_position.identity.find(ctx.sender);
   if (position !== null && position.equippedKind !== equippedItem) {
     ctx.db.player_position.identity.update({ ...position, equippedKind: equippedItem });
-  }
-  if (equipment === null) ctx.db.player_equipment.insert({ identity: ctx.sender, itemKind: equippedItem });
-  else if (equipment.itemKind !== equippedItem) {
-    ctx.db.player_equipment.identity.update({ ...equipment, itemKind: equippedItem });
   }
 });
 
@@ -619,21 +615,10 @@ export const setInput = spacetimedb.reducer(
     const input = ctx.db.player_input.identity.find(ctx.sender);
     if (input === null) throw new SenderError('player_not_ready');
     if (sequence <= input.sequence) return;
-    if (direction === input.direction) {
-      ctx.db.player_input.identity.update({
-        ...input,
-        sequence,
-        updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
-        settledSequence: input.settleSteps === 0 ? sequence : input.settledSequence,
-        pendingSequence: input.settleSteps === 0 ? 0n : sequence,
-      });
-      return;
-    }
     const settled = settleMovementRun(
       input.direction,
       input.runStartClientTick,
       clientTick,
-      input.appliedSteps,
       input.settleDirection,
       input.settleSteps,
     );
@@ -659,12 +644,8 @@ export const selectHotbar = spacetimedb.reducer(
     if (survival === null) throw new SenderError('player_not_ready');
     ctx.db.player_survival.identity.update({ ...survival, selectedSlot: slot });
     const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${slot}`);
-    const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const equippedKind = selected?.itemKind ?? 'empty';
-    if (equipment !== null) {
-      ctx.db.player_equipment.identity.update({ ...equipment, itemKind: equippedKind });
-    }
     if (position !== null) ctx.db.player_position.identity.update({ ...position, equippedKind });
   },
 );
@@ -679,8 +660,6 @@ export const dropSelected = spacetimedb.reducer((ctx) => {
   const facing = parseDirection(position.facing) ?? 'down';
   const drop = itemDropPosition(position.x, position.y, facing);
   ctx.db.inventory_slot.id.update({ ...slot, itemKind: 'empty', quantity: 0 });
-  const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
-  if (equipment !== null) ctx.db.player_equipment.identity.update({ ...equipment, itemKind: 'empty' });
   ctx.db.player_position.identity.update({
     ...position,
     equippedKind: 'empty',
@@ -717,10 +696,6 @@ export const pickupWorldItem = spacetimedb.reducer(
       quantity: destination.itemKind === item.itemKind ? destination.quantity + item.quantity : item.quantity,
     });
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
-    const equipment = ctx.db.player_equipment.identity.find(ctx.sender);
-    if (survival?.selectedSlot === destination.slot && equipment !== null) {
-      ctx.db.player_equipment.identity.update({ ...equipment, itemKind: item.itemKind });
-    }
     ctx.db.player_position.identity.update({
       ...position,
       equippedKind: survival?.selectedSlot === destination.slot ? item.itemKind : position.equippedKind,
@@ -736,12 +711,23 @@ export const harvestResource = spacetimedb.reducer(
   (ctx, { resourceId }) => {
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
-    const resource = ctx.db.world_resource.id.find(resourceId);
     const clock = ctx.db.world_clock.id.find(0);
-    if (position === null || survival === null || resource === null || clock === null) {
-      throw new SenderError('target_not_ready');
-    }
+    if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
     const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const actionKind = avatarActionForEquippedKind(slot?.itemKind ?? 'empty');
+    if (actionKind === null) throw new SenderError('selected_tool_has_no_action');
+
+    if (resourceId === 0n) {
+      ctx.db.player_position.identity.update({
+        ...position,
+        actionKind,
+        actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
+      });
+      return;
+    }
+
+    const resource = ctx.db.world_resource.id.find(resourceId);
+    if (resource === null) throw new SenderError('target_not_ready');
     const result = resourceHarvestResult(position.x, position.y, slot?.itemKind ?? 'empty', resource);
     if (result === 'depleted') throw new SenderError('resource_depleted');
     if (result === 'wrong_tool') throw new SenderError('wrong_tool');
@@ -749,7 +735,7 @@ export const harvestResource = spacetimedb.reducer(
 
     ctx.db.player_position.identity.update({
       ...position,
-      actionKind: 'swing_axe',
+      actionKind,
       actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
     });
 
@@ -925,12 +911,13 @@ export const stepWorld = spacetimedb.reducer(
       const startedY = player.position.y;
       let lastProcessedSequence = row.lastProcessedSequence;
       if (input !== null && !stale) {
-        let available = movementCreditAvailable(
+        const available = movementCreditAvailable(
           input.creditStartedAtMicros,
           input.creditedSteps,
           ctx.timestamp.microsSinceUnixEpoch,
         );
-        const settledThisTick = Math.min(input.settleSteps, MAX_SETTLE_STEPS_PER_TICK, available);
+        const acceptedBatch = Math.min(input.settleSteps, MAX_SETTLE_STEPS_PER_TICK);
+        const settledThisTick = acceptedBatch <= available ? acceptedBatch : 0;
         const drained = drainMovementRunQueue(
           input.settleDirection,
           input.settleSteps,
@@ -939,13 +926,7 @@ export const stepWorld = spacetimedb.reducer(
         for (const settleDirection of drained.directions) {
           player = movePlayer(player, settleDirection, collision);
         }
-        available -= settledThisTick;
-        const direction = parseDirection(input.direction);
-        const appliedThisTick = Math.min(SIM_STEPS_PER_AUTHORITY_TICK, available);
-        for (let step = 0; step < appliedThisTick; step += 1) {
-          player = movePlayer(player, direction, collision);
-        }
-        const creditedThisTick = settledThisTick + appliedThisTick;
+        const creditedThisTick = settledThisTick;
         const remainingSettleSteps = drained.pendingSteps;
         const acknowledgement = drainMovementAcknowledgement(
           input.settledSequence,
@@ -954,7 +935,7 @@ export const stepWorld = spacetimedb.reducer(
         );
         ctx.db.player_input.identity.update({
           ...input,
-          appliedSteps: input.appliedSteps + BigInt(appliedThisTick),
+          appliedSteps: 0n,
           settleDirection: drained.pendingDirection,
           settleSteps: remainingSettleSteps,
           ...acknowledgement,

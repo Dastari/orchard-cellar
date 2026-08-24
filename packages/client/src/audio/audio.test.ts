@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { decibelsToGain, PATCHES } from './patches.js';
 import { noteFrequency } from './sequencer.js';
-import { ambienceTimeAtProgress, DEFAULT_AUDIO_SETTINGS, isAmbienceEligible } from './audio-bus.js';
+import {
+  ambienceTimeAtProgress,
+  DEFAULT_AUDIO_SETTINGS,
+  isAmbienceEligible,
+  songForAmbience,
+} from './audio-bus.js';
 import type { SfxSource } from './types.js';
 
 describe('text-authored audio', () => {
@@ -31,5 +36,10 @@ describe('text-authored audio', () => {
     expect(isAmbienceEligible(bird, { season: 'winter', time: 'day', location: 'estate' })).toBe(false);
     expect(isAmbienceEligible(bird, { season: 'spring', time: 'night', location: 'estate' })).toBe(false);
     expect(isAmbienceEligible(bird, { season: 'spring', time: 'day', location: 'cellar' })).toBe(false);
+  });
+
+  it('switches the exterior score to the authored night theme', () => {
+    expect(songForAmbience({ season: 'spring', time: 'day', location: 'estate' })).toBe('theme_spring');
+    expect(songForAmbience({ season: 'spring', time: 'night', location: 'estate' })).toBe('theme_night');
   });
 });

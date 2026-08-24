@@ -1,0 +1,434 @@
+{
+ "name": "theme_night",
+ "bpm": 72,
+ "swing": 0.02,
+ "key": "G",
+ "mode": "major",
+ "stepsPerBeat": 4,
+ "beatsPerBar": 4,
+ "loopBars": 48,
+ "masterGainDb": -13,
+ "quotesMotif": {
+  "id": "orchard_home",
+  "channel": "bells",
+  "pattern": "NightMotif",
+  "exactPitch": false
+ },
+ "loop": true,
+ "iterationNotes": [
+  "Pass 1: sparse night arrangement per docs/12 \u2014 pads centered on Em/C with the motif quoted in bells at half speed, strings only breathing at phrase ends, lone pluck notes after midnight of the loop. Listening pass pending shared-browser audio preview."
+ ],
+ "channels": [
+  {
+   "patch": "pad",
+   "vol": 0.36,
+   "patterns": [
+    "NPad_EmC",
+    "NPad_GD",
+    "NPad_EmC",
+    "NPad_CG",
+    "NPad_EmC",
+    "NPad_GD",
+    "NPad_CG",
+    "NPad_EmC",
+    "NPad_EmC",
+    "NPad_GD",
+    "NPad_CG",
+    "NPad_GG"
+   ]
+  },
+  {
+   "patch": "bells",
+   "vol": 0.3,
+   "patterns": [
+    "Rest",
+    "NightMotif",
+    "Rest",
+    "Rest",
+    "NightAnswer",
+    "Rest",
+    "Rest",
+    "NightMotif",
+    "Rest",
+    "NightAnswer",
+    "Rest",
+    "NightHome"
+   ]
+  },
+  {
+   "patch": "strings",
+   "vol": 0.14,
+   "patterns": [
+    "Rest",
+    "Rest",
+    "Rest",
+    "NStr_C",
+    "Rest",
+    "Rest",
+    "Rest",
+    "NStr_Em",
+    "Rest",
+    "Rest",
+    "NStr_C",
+    "NStr_G"
+   ]
+  },
+  {
+   "patch": "pluck",
+   "vol": 0.18,
+   "patterns": [
+    "Rest",
+    "Rest",
+    "Rest",
+    "Rest",
+    "Rest",
+    "Rest",
+    "NPk_A",
+    "Rest",
+    "NPk_B",
+    "Rest",
+    "NPk_A",
+    "Rest"
+   ]
+  },
+  {
+   "patch": "bass",
+   "vol": 0.3,
+   "patterns": [
+    "NBass_EmC",
+    "NBass_GD",
+    "NBass_EmC",
+    "NBass_CG",
+    "NBass_EmC",
+    "NBass_GD",
+    "NBass_CG",
+    "NBass_EmC",
+    "NBass_EmC",
+    "NBass_GD",
+    "NBass_CG",
+    "NBass_GG"
+   ]
+  }
+ ],
+ "patterns": {
+  "Rest": {
+   "steps": 64,
+   "notes": []
+  },
+  "NPad_EmC": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E3",
+     30
+    ],
+    [
+     0,
+     "G3",
+     30
+    ],
+    [
+     0,
+     "B3",
+     30
+    ],
+    [
+     32,
+     "C4",
+     30
+    ],
+    [
+     32,
+     "E4",
+     30
+    ],
+    [
+     32,
+     "G4",
+     30
+    ]
+   ]
+  },
+  "NPad_GD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     30
+    ],
+    [
+     0,
+     "B3",
+     30
+    ],
+    [
+     0,
+     "D4",
+     30
+    ],
+    [
+     32,
+     "D4",
+     30
+    ],
+    [
+     32,
+     "F#4",
+     30
+    ],
+    [
+     32,
+     "A4",
+     30
+    ]
+   ]
+  },
+  "NPad_CG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C4",
+     30
+    ],
+    [
+     0,
+     "E4",
+     30
+    ],
+    [
+     0,
+     "G4",
+     30
+    ],
+    [
+     32,
+     "G3",
+     30
+    ],
+    [
+     32,
+     "B3",
+     30
+    ],
+    [
+     32,
+     "D4",
+     30
+    ]
+   ]
+  },
+  "NPad_GG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     60
+    ],
+    [
+     0,
+     "B3",
+     60
+    ],
+    [
+     0,
+     "D4",
+     60
+    ]
+   ]
+  },
+  "NightMotif": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G4",
+     8
+    ],
+    [
+     16,
+     "B4",
+     8
+    ],
+    [
+     32,
+     "D5",
+     14
+    ]
+   ]
+  },
+  "NightAnswer": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "A4",
+     8
+    ],
+    [
+     16,
+     "B4",
+     8
+    ],
+    [
+     32,
+     "G4",
+     16
+    ]
+   ]
+  },
+  "NightHome": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D5",
+     10
+    ],
+    [
+     24,
+     "B4",
+     10
+    ],
+    [
+     48,
+     "G4",
+     14
+    ]
+   ]
+  },
+  "NStr_C": {
+   "steps": 64,
+   "notes": [
+    [
+     16,
+     "C4",
+     40
+    ],
+    [
+     16,
+     "G4",
+     40
+    ]
+   ]
+  },
+  "NStr_Em": {
+   "steps": 64,
+   "notes": [
+    [
+     16,
+     "E3",
+     40
+    ],
+    [
+     16,
+     "B3",
+     40
+    ]
+   ]
+  },
+  "NStr_G": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     56
+    ],
+    [
+     0,
+     "D4",
+     56
+    ]
+   ]
+  },
+  "NPk_A": {
+   "steps": 64,
+   "notes": [
+    [
+     8,
+     "B4",
+     6
+    ],
+    [
+     40,
+     "E4",
+     6
+    ]
+   ]
+  },
+  "NPk_B": {
+   "steps": 64,
+   "notes": [
+    [
+     12,
+     "D5",
+     6
+    ],
+    [
+     44,
+     "G4",
+     6
+    ]
+   ]
+  },
+  "NBass_EmC": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E2",
+     30
+    ],
+    [
+     32,
+     "C3",
+     30
+    ]
+   ]
+  },
+  "NBass_GD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G2",
+     30
+    ],
+    [
+     32,
+     "D3",
+     30
+    ]
+   ]
+  },
+  "NBass_CG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C3",
+     30
+    ],
+    [
+     32,
+     "G2",
+     30
+    ]
+   ]
+  },
+  "NBass_GG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G2",
+     60
+    ]
+   ]
+  }
+ }
+}

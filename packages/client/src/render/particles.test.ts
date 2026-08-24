@@ -1,4 +1,4 @@
-import { TICKS_PER_DAY } from '@orchard/sim';
+import { AUTHORITY_TICKS_PER_DAY } from '@orchard/sim';
 import { describe, expect, it, vi } from 'vitest';
 import {
   animationFrameForProgress,
@@ -57,8 +57,8 @@ describe('pooled weather particles', () => {
 
   it('schedules deterministic rain windows', () => {
     expect(rainActiveAtTick(0n)).toBe(false);
-    expect(rainActiveAtTick(BigInt(TICKS_PER_DAY) + BigInt(Math.floor(TICKS_PER_DAY * 0.2)))).toBe(true);
-    expect(rainActiveAtTick(BigInt(TICKS_PER_DAY) * 2n)).toBe(false);
+    expect(rainActiveAtTick(BigInt(AUTHORITY_TICKS_PER_DAY) + BigInt(Math.floor(AUTHORITY_TICKS_PER_DAY * 0.2)))).toBe(true);
+    expect(rainActiveAtTick(BigInt(AUTHORITY_TICKS_PER_DAY) * 2n)).toBe(false);
   });
 
   it('uses the full authored splash range without wrapping', () => {

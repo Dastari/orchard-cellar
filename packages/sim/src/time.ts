@@ -1,7 +1,9 @@
 import { SIM_TICKS_PER_SECOND } from './state.js';
+import { SIM_STEPS_PER_AUTHORITY_TICK } from './net-timing.js';
 
 export const REAL_MINUTES_PER_GAME_DAY = 15;
 export const TICKS_PER_DAY = SIM_TICKS_PER_SECOND * 60 * REAL_MINUTES_PER_GAME_DAY;
+export const AUTHORITY_TICKS_PER_DAY = TICKS_PER_DAY / SIM_STEPS_PER_AUTHORITY_TICK;
 export const DAYS_PER_SEASON = 7;
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
 export type Season = (typeof SEASONS)[number];
@@ -38,4 +40,18 @@ export function calendarAtTick(tick: number): CalendarTime {
 
 export function nextDayTick(tick: number): number {
   return (Math.floor(Math.max(0, tick) / TICKS_PER_DAY) + 1) * TICKS_PER_DAY;
+}
+
+export function authorityDayIndex(authorityTick: bigint): bigint {
+  return authorityTick / BigInt(AUTHORITY_TICKS_PER_DAY);
+}
+
+export function authorityDayProgress(authorityTick: bigint): number {
+  const tickOfDay = authorityTick % BigInt(AUTHORITY_TICKS_PER_DAY);
+  return Number(tickOfDay) / AUTHORITY_TICKS_PER_DAY;
+}
+
+export function simTickOfDayAtAuthorityTick(authorityTick: bigint): number {
+  const authorityTickOfDay = authorityTick % BigInt(AUTHORITY_TICKS_PER_DAY);
+  return Number(authorityTickOfDay) * SIM_STEPS_PER_AUTHORITY_TICK;
 }

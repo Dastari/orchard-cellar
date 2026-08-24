@@ -13,6 +13,33 @@ export interface WorldPassLayout {
   readonly height: number;
 }
 
+export interface WorldPassCapacity {
+  readonly width: number;
+  readonly height: number;
+}
+
+const WORLD_PASS_WIDTH_BUCKET = 256;
+const WORLD_PASS_HEIGHT_BUCKET = 144;
+
+/**
+ * Grows the backing store in coarse buckets and never shrinks it during play.
+ * The active source rectangle still follows the eased zoom exactly, but zoom
+ * animation no longer reallocates a multi-megabyte canvas every frame.
+ */
+export function worldPassCapacity(
+  requiredWidth: number,
+  requiredHeight: number,
+  currentWidth = 0,
+  currentHeight = 0,
+): WorldPassCapacity {
+  const bucketedWidth = Math.ceil(Math.max(1, requiredWidth) / WORLD_PASS_WIDTH_BUCKET) * WORLD_PASS_WIDTH_BUCKET;
+  const bucketedHeight = Math.ceil(Math.max(1, requiredHeight) / WORLD_PASS_HEIGHT_BUCKET) * WORLD_PASS_HEIGHT_BUCKET;
+  return {
+    width: Math.min(MAX_WORLD_PASS_WIDTH, Math.max(currentWidth, bucketedWidth)),
+    height: Math.min(MAX_WORLD_PASS_HEIGHT, Math.max(currentHeight, bucketedHeight)),
+  };
+}
+
 export function worldPassLayout(
   cssWidth: number,
   cssHeight: number,
@@ -135,8 +162,14 @@ export class UnifiedRenderer {
 
   beginWorld(zoom: number): RenderFrame {
     const layout = worldPassLayout(this.cssWidthValue, this.cssHeightValue, this.dprValue, zoom);
-    if (this.worldCanvas.width !== layout.width) this.worldCanvas.width = layout.width;
-    if (this.worldCanvas.height !== layout.height) this.worldCanvas.height = layout.height;
+    const capacity = worldPassCapacity(
+      layout.width,
+      layout.height,
+      this.worldCanvas.width,
+      this.worldCanvas.height,
+    );
+    if (this.worldCanvas.width !== capacity.width) this.worldCanvas.width = capacity.width;
+    if (this.worldCanvas.height !== capacity.height) this.worldCanvas.height = capacity.height;
     this.worldContextValue.setTransform(1, 0, 0, 1, 0, 0);
     this.worldContextValue.imageSmoothingEnabled = false;
     this.worldContextValue.globalCompositeOperation = 'source-over';
@@ -157,8 +190,8 @@ export class UnifiedRenderer {
       this.worldCanvas,
       0,
       0,
-      this.worldCanvas.width,
-      this.worldCanvas.height,
+      this.frameLayout.width,
+      this.frameLayout.height,
       0,
       0,
       this.canvas.width,

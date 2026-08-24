@@ -1,4 +1,4 @@
-import { TICKS_PER_DAY } from '@orchard/sim';
+import { SIM_TICKS_PER_SECOND, authorityDayIndex, authorityDayProgress } from '@orchard/sim';
 import type { LoadedAsset } from './assets.js';
 import { selectAtlasFrame } from './sprite.js';
 
@@ -240,8 +240,8 @@ export class ParticlePool {
 }
 
 export function rainActiveAtTick(authorityTick: bigint): boolean {
-  const day = authorityTick / BigInt(TICKS_PER_DAY);
-  const progress = Number(authorityTick % BigInt(TICKS_PER_DAY)) / TICKS_PER_DAY;
+  const day = authorityDayIndex(authorityTick);
+  const progress = authorityDayProgress(authorityTick);
   return day % 4n === 1n && progress >= 0.15 && progress <= 0.55;
 }
 
@@ -326,8 +326,8 @@ export class RainWeather {
         this.spawnStreak(this.streaks.activeCount < Math.max(0, target - 10));
       }
     }
-    this.streaks.update(1 / 60, this.splashAtStreakEnd);
-    this.splashes.update(1 / 60);
+    this.streaks.update(1 / SIM_TICKS_PER_SECOND, this.splashAtStreakEnd);
+    this.splashes.update(1 / SIM_TICKS_PER_SECOND);
   }
 
   drawDepthRange(
@@ -399,7 +399,7 @@ export class RainWeather {
   private splashDuration(): number {
     const frames = this.splashAsset?.metadata.animations['splash']?.length ?? 0;
     const fps = this.splashAsset?.metadata.animationMeta?.['splash']?.fps ?? 30;
-    return Math.max(1 / 60, frames > 0 ? frames / fps : 0.12);
+    return Math.max(1 / SIM_TICKS_PER_SECOND, frames > 0 ? frames / fps : 0.12);
   }
 
   private spawnStreak(initial: boolean): void {
@@ -409,7 +409,7 @@ export class RainWeather {
     const minimumTravel = Math.min(12, Math.max(1, this.viewportHeight - startY));
     const groundY = startY + minimumTravel
       + this.random() * Math.max(0, this.viewportHeight - startY - minimumTravel);
-    const lifetime = Math.max(1 / 60, (groundY - startY) / velocityY);
+    const lifetime = Math.max(1 / SIM_TICKS_PER_SECOND, (groundY - startY) / velocityY);
     const impactX = this.random() * this.viewportWidth;
     this.streaks.spawnValues(
       'screen',

@@ -1,10 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR_ACTIONS, avatarActionAfterMovement, avatarActionDefinition, isAvatarActionKind } from './actions.js';
+import {
+  AVATAR_ACTIONS,
+  avatarActionAfterMovement,
+  avatarActionDefinition,
+  avatarActionForEquippedKind,
+  isAvatarActionKind,
+} from './actions.js';
 
 describe('avatar action registry', () => {
   it('declares one-shot and looping behavior in one shared registry', () => {
-    expect(AVATAR_ACTIONS.swing_axe).toEqual({ playback: 'oneShot', interruptibleByMovement: false });
+    expect(AVATAR_ACTIONS.swing_axe).toEqual({
+      playback: 'oneShot',
+      interruptibleByMovement: false,
+      equippedKind: 'axe',
+    });
     expect(AVATAR_ACTIONS.fishing_wait).toEqual({ playback: 'loop', interruptibleByMovement: true });
+  });
+
+  it('maps equipment to its shared action without client-side tool rules', () => {
+    expect(avatarActionForEquippedKind('axe')).toBe('swing_axe');
+    expect(avatarActionForEquippedKind('watering_can')).toBeNull();
   });
 
   it('clears only movement-interruptible loops', () => {

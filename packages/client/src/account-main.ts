@@ -4,7 +4,7 @@ import {
   rememberLocalProfile,
   validLocalProfileName,
 } from './account-profile.js';
-import { resizePixelCanvas, toggleFullscreen } from './display.js';
+import { resizeFixedPixelCanvas, toggleFullscreen } from './display.js';
 import { drawPixelPanel, drawPixelText, loadPixelUi } from './render/pixel-ui.js';
 import './style.css';
 
@@ -26,7 +26,7 @@ let selected = Math.max(0, profiles.names.findIndex((name) => name === profiles.
 let message = profiles.names.length === 0 ? 'NAME YOUR FIRST FARMER' : 'CHOOSE A FARMER OR TYPE A NEW NAME';
 
 function resize(): void {
-  const scale = resizePixelCanvas(canvas);
+  const scale = resizeFixedPixelCanvas(canvas);
   const rect = canvas.getBoundingClientRect();
   input.style.left = `${rect.left + 102 * scale}px`;
   input.style.top = `${rect.top + 202 * scale}px`;

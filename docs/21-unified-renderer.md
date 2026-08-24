@@ -205,3 +205,7 @@ unification.
   rain scaling/density/speed at zoom 1 and 4, and impact-depth weather ordering.
 - Rain-heavy measured frames remained below the 4 ms renderer budget in the shared
   preview; the widest tested view recorded a 2.7 ms worst frame.
+- Review hardening makes the world-pass backing canvas grow only in coarse buckets
+  while compositing the active source rectangle, avoiding full offscreen reallocations
+  during eased zoom. Resource effect caches prune on region revisions, and client
+  terrain walkability delegates to the shared survival-biome rule.

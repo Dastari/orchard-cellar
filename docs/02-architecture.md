@@ -67,8 +67,9 @@ orchard-cellar/
 advanceTick(state: FarmState, actions: Action[], tick: number): FarmState
 ```
 
-- Movement runs at **60 Hz** in the predicting client. The SpaceTimeDB authority runs
-  at 20 Hz and applies exactly three shared movement steps per authority tick.
+- Movement runs at **60 Hz** in the predicting client. It confirms input in
+  three-step intervals; the SpaceTimeDB authority runs at 20 Hz and atomically drains
+  credited intervals through the same shared movement function.
 - No `Date.now()`, no `Math.random()` (seeded RNG stored in state), no I/O, no floats
   where determinism matters — use integers for currency (see below).
 - Player intent reaches identity-authorized reducers. Movement sends the latest
@@ -107,7 +108,7 @@ Incremental-game quantities overflow doubles' integer range eventually. Rule:
   tick/input history. Each new own-position row becomes an authoritative base, then
   unacknowledged steps replay through shared fixed-point movement. Only presentation
   offsets may smooth genuine corrections, for at most 100 ms. The authority settles
-  client-tick movement runs under server-time rate caps so short taps cannot disappear
+  confirmed client-tick intervals under server-time rate caps so short taps cannot disappear
   between 20 Hz ticks. Remote avatars use ten-row snapshot buffers on a softly synced
   timeline 1.5 authority ticks behind. Interaction cosmetics may predict immediately,
   but durable state waits for transactional reducer results.
@@ -119,7 +120,8 @@ Incremental-game quantities overflow doubles' integer range eventually. Rule:
 
 - `packages/world` declares normalized public/private tables, lifecycle reducers,
   gameplay reducers, and private schedule tables.
-- A private 50 ms schedule advances connected players at 20 Hz. It performs no world
+- A private 50 ms schedule advances connected players at 20 Hz from confirmed input
+  batches. It performs no world
   writes with no live/leased presence. Durable position rows survive disconnect;
   heartbeat-leased connection rows control public online state and expire crash ghosts.
 - Public spatial rows carry indexed chunk coordinates. The client receives atomic

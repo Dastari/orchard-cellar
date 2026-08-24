@@ -1,4 +1,4 @@
-import { TICKS_PER_DAY } from '@orchard/sim';
+import { authorityDayProgress } from '@orchard/sim';
 import type { TerrainArray } from './terrain.js';
 
 export interface RgbColor {
@@ -63,8 +63,7 @@ export function ambientAtProgress(dayProgress: number, rainDarkening = 0): RgbCo
 }
 
 export function ambientAtTick(authorityTick: bigint, rainDarkening = 0): RgbColor {
-  const tickOfDay = Number(authorityTick % BigInt(TICKS_PER_DAY));
-  return ambientAtProgress(tickOfDay / TICKS_PER_DAY, rainDarkening);
+  return ambientAtProgress(authorityDayProgress(authorityTick), rainDarkening);
 }
 
 export function fillLightmap(buffer: Uint8ClampedArray, ambient: RgbColor): void {

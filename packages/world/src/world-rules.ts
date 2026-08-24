@@ -1,18 +1,18 @@
 import {
+  AUTHORITY_HZ,
   FIXED_UNITS_PER_PIXEL,
+  SIM_STEPS_PER_AUTHORITY_TICK,
+  SIM_TICKS_PER_SECOND,
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
   createSurvivalCollisionMap,
-  movePlayer,
   survivalTreeObstacle,
   type CollisionMap,
   type Direction,
-  type PlayerState,
 } from '@orchard/sim';
 
-export const AUTHORITY_HZ = 20;
-export const SIM_STEPS_PER_AUTHORITY_TICK = 60 / AUTHORITY_HZ;
+export { AUTHORITY_HZ, SIM_STEPS_PER_AUTHORITY_TICK };
 export const CHUNK_TILES = 16;
 export const CHUNK_SIZE_FIXED = CHUNK_TILES * TILE_SIZE_FIXED;
 export const TREE_REACH_FIXED = 2 * TILE_SIZE_FIXED;
@@ -27,10 +27,11 @@ export const FARM_GAP_TILES = 2;
 export const FARM_FIRST_TILE = 1;
 export const PRESENCE_LEASE_MICROS = 30_000_000n;
 export const STALE_INPUT_MICROS = 2_000_000n;
-export const MOVEMENT_RATE_HZ = 60n;
+export const MOVEMENT_RATE_HZ = BigInt(SIM_TICKS_PER_SECOND);
 export const MOVEMENT_RATE_BURST_STEPS = 6n;
-export const MAX_SETTLE_BACKLOG_STEPS = 12;
-export const MAX_SETTLE_STEPS_PER_TICK = 6;
+export const MAX_SETTLE_BACKLOG_STEPS = 24;
+/** Drain every accepted confirmed batch atomically once server-time credit permits. */
+export const MAX_SETTLE_STEPS_PER_TICK = MAX_SETTLE_BACKLOG_STEPS;
 const SURVIVAL_TERRAIN_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
 
 export interface AuthoritySurvivalResource {
@@ -263,15 +264,15 @@ export function settleMovementRun(
   direction: string,
   runStartClientTick: bigint,
   closingClientTick: bigint,
-  appliedSteps: bigint,
   existingPendingDirection: string,
   existingPendingSteps: number,
 ): SettledMovementRun {
   const claimedSteps = closingClientTick > runStartClientTick
     ? closingClientTick - runStartClientTick
     : 0n;
-  const shortfall = claimedSteps > appliedSteps ? claimedSteps - appliedSteps : 0n;
-  if (shortfall === 0n) {
+  const decodedDirection = decodeDirection(direction);
+  const confirmedSteps = decodedDirection === undefined || decodedDirection === null ? 0n : claimedSteps;
+  if (confirmedSteps === 0n) {
     return {
       pendingDirection: existingPendingDirection,
       pendingSteps: existingPendingSteps,
@@ -279,9 +280,8 @@ export function settleMovementRun(
     };
   }
   const available = BigInt(MAX_SETTLE_BACKLOG_STEPS - existingPendingSteps);
-  const accepted = shortfall < available ? shortfall : available;
+  const accepted = confirmedSteps < available ? confirmedSteps : available;
   const segments = decodeMovementRunQueue(existingPendingDirection, existingPendingSteps);
-  const decodedDirection = decodeDirection(direction);
   if (accepted > 0n && decodedDirection !== undefined && decodedDirection !== null) {
     const previous = segments[segments.length - 1];
     if (previous?.direction === decodedDirection) {
@@ -293,7 +293,7 @@ export function settleMovementRun(
   return {
     pendingDirection: encodeMovementRunQueue(segments),
     pendingSteps: existingPendingSteps + Number(accepted),
-    rejectedSteps: shortfall - accepted,
+    rejectedSteps: confirmedSteps - accepted,
   };
 }
 
@@ -310,18 +310,6 @@ export function movementCreditAvailable(
 
 export function nextActionStartedTick(current: bigint, authorityTick: bigint): bigint {
   return authorityTick > current ? authorityTick : current + 1n;
-}
-
-export function advanceAuthorityPlayer(
-  player: PlayerState,
-  direction: Direction | null,
-  collision: CollisionMap,
-): PlayerState {
-  let next = player;
-  for (let step = 0; step < SIM_STEPS_PER_AUTHORITY_TICK; step += 1) {
-    next = movePlayer(next, direction, collision);
-  }
-  return next;
 }
 
 export function canTendTree(

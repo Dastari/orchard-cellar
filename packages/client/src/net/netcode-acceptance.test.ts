@@ -1,4 +1,12 @@
-import { createPlaceholderCollisionMap, movePlayer, type Direction, type PlayerState } from '@orchard/sim';
+import {
+  INPUT_REFRESH_STEPS,
+  SIM_STEPS_PER_AUTHORITY_TICK,
+  SIM_TICKS_PER_SECOND,
+  createPlaceholderCollisionMap,
+  movePlayer,
+  type Direction,
+  type PlayerState,
+} from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import { LocalPredictionBuffer } from './netcode.js';
 
@@ -12,101 +20,109 @@ const PROFILES: readonly LatencyProfile[] = [
   { name: '150 +/- 50 ms', lagMs: 150, jitterMs: 50 },
 ];
 
-function directionAt(tick: number, tapping: boolean): Direction | null {
-  if (!tapping) return tick < 300 ? 'right' : null;
-  if (tick >= 600) return null;
-  const phase = Math.floor(tick / 6) % 4;
-  return phase === 0 ? 'up' : phase === 1 ? 'right' : phase === 2 ? 'down' : 'left';
+type MovementPattern = 'straight' | 'repeatTap' | 'rapidTurns';
+
+function directionAt(tick: number, pattern: MovementPattern): Direction | null {
+  if (pattern === 'straight') return tick < 300 ? 'right' : null;
+  if (tick >= 360) return null;
+  if (pattern === 'repeatTap') return tick % 4 < 2 ? 'right' : null;
+  return (['upLeft', 'upRight', 'downRight', 'downLeft'] as const)[Math.floor(tick / 2) % 4] ?? null;
 }
 
-function run(profile: LatencyProfile, tapping: boolean): { error: number; maximumCorrection: number } {
+interface QueuedRun { direction: Direction; steps: number }
+
+function run(profile: LatencyProfile, pattern: MovementPattern): { error: number; maximumCorrection: number } {
   const history = new LocalPredictionBuffer();
   let predicted = start();
   let authority = start();
   let sequence = 0n;
   let previousDirection: Direction | null = null;
+  let refreshAge = 0;
   let maximumCorrection = 0;
   let serverDirection: Direction | null = null;
-  let serverSequence = 0n;
+  let serverClientTick = 0n;
   let settledSequence = 0n;
   let pendingSequence = 0n;
-  let runStartClientTick = 0n;
-  let appliedSteps = 0;
-  const pendingRuns: Array<{ direction: Direction; steps: number }> = [];
-  const pendingStepCount = (): number => pendingRuns.reduce((sum, run) => sum + run.steps, 0);
+  const queue: QueuedRun[] = [];
   const outgoing: Array<{ deliverTick: number; direction: Direction | null; sequence: bigint; clientTick: bigint }> = [];
   const delayedRows: Array<{ deliverTick: number; state: PlayerState; sequence: bigint }> = [];
   let lastOutgoingTick = -1;
   let lastDeliveryTick = -1;
   let outgoingIndex = 0;
   const deterministicJitter = (index: number): number => profile.jitterMs === 0 ? 0 : index % 2 === 0 ? -profile.jitterMs : profile.jitterMs;
-  for (let tick = 0; tick < 780; tick += 1) {
-    const direction = directionAt(tick, tapping);
-    if (direction !== previousDirection || (direction !== null && tick % 20 === 0)) {
+
+  for (let tick = 0; tick < 900; tick += 1) {
+    const direction = directionAt(tick, pattern);
+    const transitioned = direction !== previousDirection;
+    refreshAge = transitioned ? 0 : refreshAge + 1;
+    if (transitioned || (direction !== null && refreshAge >= INPUT_REFRESH_STEPS)) {
       sequence += 1n;
-      const movementBoundary = direction !== previousDirection;
-      const command = history.recordSend(sequence, direction ?? 'idle', movementBoundary);
-      const oneWayTicks = Math.max(0, Math.round((profile.lagMs + deterministicJitter(outgoingIndex)) / (1_000 / 60)));
+      const command = history.recordSend(sequence, direction ?? 'idle');
+      const oneWayTicks = Math.max(0, Math.round(
+        (profile.lagMs + deterministicJitter(outgoingIndex)) / (1_000 / SIM_TICKS_PER_SECOND),
+      ));
       outgoingIndex += 1;
       lastOutgoingTick = Math.max(tick + oneWayTicks, lastOutgoingTick + 1);
       outgoing.push({ deliverTick: lastOutgoingTick, direction, sequence, clientTick: command.clientTick });
       previousDirection = direction;
+      refreshAge = 0;
     }
-    predicted = movePlayer(predicted, direction, collision); history.recordStep(direction ?? 'idle', predicted);
+
+    predicted = movePlayer(predicted, direction, collision);
+    history.recordStep(direction ?? 'idle', predicted);
+
     for (const command of outgoing.filter((candidate) => candidate.deliverTick === tick)) {
-      if (command.direction !== serverDirection) {
-        const claimed = Number(command.clientTick - runStartClientTick);
-        const shortfall = Math.max(0, claimed - appliedSteps);
-        if (shortfall > 0 && serverDirection !== null) {
-          const accepted = Math.min(shortfall, 12 - pendingStepCount());
-          const previousRun = pendingRuns.at(-1);
-          if (previousRun?.direction === serverDirection) previousRun.steps += accepted;
-          else if (accepted > 0) pendingRuns.push({ direction: serverDirection, steps: accepted });
-        }
-        serverDirection = command.direction;
-        runStartClientTick = command.clientTick;
-        appliedSteps = 0;
+      const covered = Number(command.clientTick - serverClientTick);
+      if (serverDirection !== null && covered > 0) {
+        const previousRun = queue.at(-1);
+        if (previousRun?.direction === serverDirection) previousRun.steps += covered;
+        else queue.push({ direction: serverDirection, steps: covered });
       }
-      serverSequence = command.sequence;
-      if (pendingStepCount() === 0) settledSequence = command.sequence;
-      else pendingSequence = command.sequence;
+      serverDirection = command.direction;
+      serverClientTick = command.clientTick;
+      pendingSequence = command.sequence;
+      if (queue.length === 0) {
+        settledSequence = pendingSequence;
+        pendingSequence = 0n;
+      }
     }
-    if (tick % 3 === 2) {
-      let settle = Math.min(6, pendingStepCount());
-      while (settle > 0) {
-        const run = pendingRuns[0];
-        if (run === undefined) break;
-        authority = movePlayer(authority, run.direction, collision);
-        run.steps -= 1; settle -= 1;
-        if (run.steps === 0) pendingRuns.shift();
+
+    if (tick % SIM_STEPS_PER_AUTHORITY_TICK === SIM_STEPS_PER_AUTHORITY_TICK - 1) {
+      let remaining = 12;
+      while (remaining > 0 && queue.length > 0) {
+        const queued = queue[0];
+        if (queued === undefined) break;
+        authority = movePlayer(authority, queued.direction, collision);
+        queued.steps -= 1;
+        remaining -= 1;
+        if (queued.steps === 0) queue.shift();
       }
-      if (pendingStepCount() === 0) {
-        if (pendingSequence !== 0n) {
-          settledSequence = pendingSequence;
-          pendingSequence = 0n;
-        }
+      if (queue.length === 0 && pendingSequence !== 0n) {
+        settledSequence = pendingSequence;
+        pendingSequence = 0n;
       }
-      for (let step = 0; step < 3; step += 1) authority = movePlayer(authority, serverDirection, collision);
-      appliedSteps += 3;
-      const oneWayTicks = Math.max(0, Math.round((profile.lagMs - deterministicJitter(Number(serverSequence))) / (1_000 / 60)));
+      const oneWayTicks = Math.max(0, Math.round(
+        (profile.lagMs - deterministicJitter(Number(settledSequence))) / (1_000 / SIM_TICKS_PER_SECOND),
+      ));
       lastDeliveryTick = Math.max(tick + oneWayTicks, lastDeliveryTick + 1);
       delayedRows.push({ deliverTick: lastDeliveryTick, state: authority, sequence: settledSequence });
     }
+
     for (const row of delayedRows.filter((candidate) => candidate.deliverTick === tick)) {
       const result = history.reconcile(predicted, row.state, row.sequence, collision);
-      maximumCorrection = Math.max(maximumCorrection, result.errorFixed); predicted = result.player;
+      maximumCorrection = Math.max(maximumCorrection, result.errorFixed);
+      predicted = result.player;
     }
   }
-  return { error: Math.hypot(predicted.position.x - authority.position.x, predicted.position.y - authority.position.y), maximumCorrection };
+
+  return {
+    error: Math.hypot(predicted.position.x - authority.position.x, predicted.position.y - authority.position.y),
+    maximumCorrection,
+  };
 }
 
 describe.each(PROFILES)('prediction acceptance at $name', (profile) => {
-  it('walks straight without rubber-band error', () => {
-    expect(run(profile, false)).toEqual({ error: 0, maximumCorrection: 0 });
-  });
-  it('keeps 5 Hz direction tapping byte-identical', () => {
-    const result = run(profile, true);
-    expect(result.error).toBe(0);
-    expect(result.maximumCorrection).toBeLessThanOrEqual(256);
+  it.each<MovementPattern>(['straight', 'repeatTap', 'rapidTurns'])('%s stays byte-identical without corrections', (pattern) => {
+    expect(run(profile, pattern)).toEqual({ error: 0, maximumCorrection: 0 });
   });
 });

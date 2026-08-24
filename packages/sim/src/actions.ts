@@ -1,10 +1,11 @@
 export interface AvatarActionDefinition {
   readonly playback: 'oneShot' | 'loop';
   readonly interruptibleByMovement: boolean;
+  readonly equippedKind?: string;
 }
 
 export const AVATAR_ACTIONS = {
-  swing_axe: { playback: 'oneShot', interruptibleByMovement: false },
+  swing_axe: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'axe' },
   pickup: { playback: 'oneShot', interruptibleByMovement: false },
   drop: { playback: 'oneShot', interruptibleByMovement: false },
   fishing_wait: { playback: 'loop', interruptibleByMovement: true },
@@ -21,6 +22,15 @@ export function avatarActionDefinition(kind: string): AvatarActionDefinition | n
 
 export function isAvatarActionKind(kind: string): kind is AvatarActionKind {
   return avatarActionDefinition(kind) !== null;
+}
+
+export function avatarActionForEquippedKind(equippedKind: string): AvatarActionKind | null {
+  for (const [kind, definition] of Object.entries(AVATAR_ACTIONS)) {
+    if ('equippedKind' in definition && definition.equippedKind === equippedKind) {
+      return kind as AvatarActionKind;
+    }
+  }
+  return null;
 }
 
 export function avatarActionAfterMovement(kind: string, moved: boolean): string {

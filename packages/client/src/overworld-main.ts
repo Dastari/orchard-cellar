@@ -1,11 +1,18 @@
 import {
+  AUTHORITY_TICK_MS,
+  AUTHORITY_TICKS_PER_DAY,
   FIXED_UNITS_PER_PIXEL,
+  INPUT_REFRESH_STEPS,
+  SIM_TICKS_PER_SECOND,
   SURVIVAL_CHUNK_TILES,
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
   SURVIVAL_WORLD_VERSION,
   TILE_SIZE_FIXED,
   TICKS_PER_DAY,
+  authorityDayProgress,
+  avatarActionForEquippedKind,
+  simTickOfDayAtAuthorityTick,
   movePlayer,
   playerHitboxBounds,
   type CollisionMap,
@@ -39,7 +46,7 @@ import {
   drawOverworldStump,
   drawOverworldTree,
   drawUiAsset,
-  actionAnimationForDirection,
+  actionVisualForDirection,
   avatarAnimationForDirection,
   loadOverworldArt,
 } from './overworld-art.js';
@@ -112,6 +119,7 @@ let worldZoomTarget = DEFAULT_WORLD_ZOOM;
 let desiredUiScale: UiScale = DEFAULT_UI_SCALE;
 let wheelZoomLockedUntil = 0;
 let collisionKey = '';
+let observedResourceRevision = -1;
 const initialTerrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
 let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
 let lastNetworkStatus = '';
@@ -187,18 +195,30 @@ function update(): void {
     optimisticSelectedSlot = null;
   }
   const weatherTick = lightingTickOverride ?? snapshot.clock?.authorityTick ?? 0n;
+  audio.setAmbienceContext('spring', authorityDayProgress(weatherTick), 'estate');
   rain.update(
     rainOverride ?? rainActiveAtTick(weatherTick),
     renderer.cssWidth,
     renderer.cssHeight,
     worldZoom,
   );
-  for (const resource of snapshot.resources) {
-    const previous = resourceHealth.get(resource.id);
-    if (previous !== undefined && resource.health < previous && !resource.depleted) {
-      treeShakeRemaining.set(resource.id, 16);
+  if (observedResourceRevision !== network.resourceRevision) {
+    observedResourceRevision = network.resourceRevision;
+    const visibleResourceIds = new Set<bigint>();
+    for (const resource of snapshot.resources) {
+      visibleResourceIds.add(resource.id);
+      const previousHealth = resourceHealth.get(resource.id);
+      if (previousHealth !== undefined && resource.health < previousHealth && !resource.depleted) {
+        treeShakeRemaining.set(resource.id, 16);
+      }
+      resourceHealth.set(resource.id, resource.health);
     }
-    resourceHealth.set(resource.id, resource.health);
+    for (const id of resourceHealth.keys()) {
+      if (!visibleResourceIds.has(id)) resourceHealth.delete(id);
+    }
+    for (const id of treeShakeRemaining.keys()) {
+      if (!visibleResourceIds.has(id)) treeShakeRemaining.delete(id);
+    }
   }
   for (const [id, remaining] of treeShakeRemaining) {
     if (remaining <= 1) treeShakeRemaining.delete(id);
@@ -225,7 +245,7 @@ function update(): void {
     network.recordPredictedStep(direction, predicted);
   }
   previousPredicted = previous ?? predicted;
-  presentationCorrection.advance(1 / 60);
+  presentationCorrection.advance(1 / SIM_TICKS_PER_SECOND);
 
   network.drainPositionCommits((player) => {
     const id = player.identity.toHexString();
@@ -241,7 +261,7 @@ function update(): void {
     previousRemoteDisplay.delete(id);
     avatarAnimations.delete(id);
   });
-  const renderTick = renderTickClock.advance(1 / 60, latestPositionAuthorityTick);
+  const renderTick = renderTickClock.advance(1 / SIM_TICKS_PER_SECOND, latestPositionAuthorityTick);
   for (const [id, buffer] of remoteBuffers) {
     const sample = buffer.sample(renderTick, worldCollision);
     if (sample !== null) {
@@ -324,8 +344,8 @@ function drawWeatherPanel(
   authorityTick: bigint,
 ): void {
   const layout = weatherPanelLayout(viewportWidth);
-  const dayTick = Number(authorityTick % BigInt(TICKS_PER_DAY));
-  const fraction = dayTick / TICKS_PER_DAY;
+  const dayTick = simTickOfDayAtAuthorityTick(authorityTick);
+  const fraction = authorityDayProgress(authorityTick);
   drawPixelPanel(context, art.ui, layout.x, layout.y, layout.width, layout.height);
   drawPixelText(context, art.ui, `TIME ${formatDayTime(dayTick, TICKS_PER_DAY)}`, layout.x + 8, layout.y + 6);
   context.fillStyle = '#2b1d0e';
@@ -565,29 +585,29 @@ function render(alpha = 1): void {
         const localPreviewActive = local && localActionStartedAtMs !== null && performance.now() - localActionStartedAtMs < 500;
         const actionKind = localPreviewActive ? localPredictedActionKind : display?.actionKind ?? player.actionKind;
         const actionStartedTick = localPreviewActive
-          ? BigInt(Math.floor(renderTick - (performance.now() - (localActionStartedAtMs ?? performance.now())) / 50))
+          ? BigInt(Math.floor(renderTick - (performance.now() - (localActionStartedAtMs ?? performance.now())) / AUTHORITY_TICK_MS))
           : display?.actionStartedTick ?? player.actionStartedTick;
         const walkAnimation = avatarAnimationForDirection(facing);
-        const actionAnimation = actionAnimationForDirection(art, actionKind, facing);
-        const actionFrames = actionAnimation === null
+        const actionVisual = actionVisualForDirection(art, actionKind, facing);
+        const actionFrames = actionVisual === null
           ? 4
-          : art.avatarAxe.metadata.animations[actionAnimation]?.length ?? 4;
-        const actionFps = actionAnimation === null
+          : actionVisual.asset.metadata.animations[actionVisual.animation]?.length ?? 4;
+        const actionFps = actionVisual === null
           ? 10
-          : art.avatarAxe.metadata.animationMeta?.[actionAnimation]?.fps ?? 10;
+          : actionVisual.asset.metadata.animationMeta?.[actionVisual.animation]?.fps ?? 10;
         const animation = controller.update(
           xFixed, yFixed, actionKind, actionStartedTick, renderTick,
           art.avatar.metadata.animations[walkAnimation]?.length ?? 4,
           art.avatar.metadata.animationMeta?.[walkAnimation]?.fps ?? 8,
           actionFrames,
           actionFps,
-          actionAnimation !== null,
+          actionVisual !== null,
         );
         if (animation.fallback) unknownActionKinds.add(actionKind);
         const actionFrame = animation.channel === 'action' && !animation.fallback ? animation.frame : null;
         drawOverworldAvatar(
           context, art, x, y, facing, moving, animation.frame,
-          cameraX, cameraY, scale, actionFrame, actionAnimation,
+          cameraX, cameraY, scale, actionFrame, actionVisual,
         );
       },
     });
@@ -675,7 +695,7 @@ function render(alpha = 1): void {
       `ZOOM ${worldZoom.toFixed(2)} K ${frame.layout.integerScale} DPR ${renderer.dpr.toFixed(2)}`,
       `NET RTT ${net.rttMs.toFixed(0)}ms LAG ${net.lagMs}+/-${net.jitterMs}`,
       `REPLAY ${net.replayDepth} ERROR ${net.reconciliationErrorFixed.toFixed(1)} FIXED`,
-      `REMOTE BUFFER ${remoteMin}-${remoteMax} REFRESH ${net.inputRefreshAgeSteps}/20`,
+      `REMOTE BUFFER ${remoteMin}-${remoteMax} REFRESH ${net.inputRefreshAgeSteps}/${INPUT_REFRESH_STEPS}`,
       `HANDOVERS ${net.handoverCount}${net.persistentInputError === null ? '' : ` INPUT ${net.persistentInputError}`}`,
       `UNKNOWN ACTIONS ${[...unknownActionKinds].join(',') || 'NONE'}`,
     ];
@@ -712,7 +732,10 @@ function weatherPointer(event: MouseEvent): readonly [number, number, number] {
 function setTimeFromPointer(event: PointerEvent): void {
   const [x, , uiWidth] = weatherPointer(event);
   const fraction = weatherTimeFractionAtPoint(x, uiWidth);
-  lightingTickOverride = BigInt(Math.min(TICKS_PER_DAY - 1, Math.round(fraction * (TICKS_PER_DAY - 1))));
+  lightingTickOverride = BigInt(Math.min(
+    AUTHORITY_TICKS_PER_DAY - 1,
+    Math.round(fraction * (AUTHORITY_TICKS_PER_DAY - 1)),
+  ));
 }
 
 function showResult(promise: Promise<void>, success: string): void {
@@ -786,16 +809,16 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyF' && !event.repeat) {
     const snapshot = latestSnapshot;
     const item = selectedItem(snapshot);
-    if (item !== 'axe') {
+    const actionKind = avatarActionForEquippedKind(item);
+    if (actionKind === null) {
       toast = `NO ${hotbarItemLabel(item)} USE ACTION YET`;
       toastTicks = 120;
     } else {
-      startPredictedAction('swing_axe');
+      startPredictedAction(actionKind);
       void audio.unlock().then(async () => await audio.playSfx('tool_swing')).catch(() => undefined);
       const resource = targetResource(snapshot);
       if (resource === null) {
-        toast = 'SWING';
-        toastTicks = 60;
+        showResult(network.harvestResource(0n), 'SWING');
       } else {
         showResult(network.harvestResource(resource.id), resource.health > 1 ? 'CHOP!' : 'TREE FELLED');
       }

@@ -68,19 +68,6 @@ export function fittedUiScale(desired: UiScale, canvasWidth: number, canvasHeigh
   return UI_SCALE_LEVELS.findLast((scale) => scale <= limit) ?? 1;
 }
 
-export function resizePixelCanvas(
-  canvas: HTMLCanvasElement,
-  viewportWidth = innerWidth,
-  viewportHeight = innerHeight,
-): CanvasViewport {
-  const viewport = canvasViewport(viewportWidth, viewportHeight);
-  if (canvas.width !== viewport.width) canvas.width = viewport.width;
-  if (canvas.height !== viewport.height) canvas.height = viewport.height;
-  canvas.style.width = `${viewport.width}px`;
-  canvas.style.height = `${viewport.height}px`;
-  return viewport;
-}
-
 export async function toggleFullscreen(element: HTMLElement): Promise<void> {
   if (document.fullscreenElement === null) await element.requestFullscreen();
   else await document.exitFullscreen();

@@ -1,4 +1,11 @@
-import { createPlaceholderCollisionMap, movePlayer, positionCollides, type PlayerState } from '@orchard/sim';
+import {
+  INPUT_REFRESH_STEPS,
+  SIM_TICKS_PER_SECOND,
+  createPlaceholderCollisionMap,
+  movePlayer,
+  positionCollides,
+  type PlayerState,
+} from '@orchard/sim';
 import { describe, expect, it, vi } from 'vitest';
 import {
   AvatarAnimationController,
@@ -23,7 +30,7 @@ describe('local prediction replay', () => {
     expect(history.clientTick).toBe(0n);
   });
 
-  it('rebases and replays only movement after the matched authoritative prefix', () => {
+  it('rebases from an acknowledged confirmed interval without position guessing', () => {
     const history = new LocalPredictionBuffer();
     history.recordSend(1n, 'right');
     let predicted = start;
@@ -34,17 +41,17 @@ describe('local prediction replay', () => {
       history.recordStep('right', predicted);
     }
     history.recordSend(2n, 'right');
-    const authoritative = timeline[4];
+    const authoritative = timeline[7];
     if (authoritative === undefined) throw new Error('fixture');
-    const result = history.reconcile(predicted, authoritative, 1n, collision);
+    const result = history.reconcile(predicted, authoritative, 2n, collision);
     expect(result.player.position).toEqual(predicted.position);
-    expect(result.replayDepth).toBe(3);
+    expect(result.replayDepth).toBe(0);
     expect(result.errorFixed).toBe(0);
   });
 
-  it('does not treat a same-direction liveness refresh as an applied movement boundary', () => {
+  it('uses a same-direction refresh as an exact confirmed movement boundary', () => {
     const history = new LocalPredictionBuffer();
-    history.recordSend(1n, 'right', true);
+    history.recordSend(1n, 'right');
     let predicted = start;
     const timeline: PlayerState[] = [];
     for (let step = 0; step < 4; step += 1) {
@@ -52,18 +59,18 @@ describe('local prediction replay', () => {
       timeline.push(predicted);
       history.recordStep('right', predicted);
     }
-    history.recordSend(2n, 'right', false);
+    history.recordSend(2n, 'right');
     for (let step = 0; step < 4; step += 1) {
       predicted = movePlayer(predicted, 'right', collision);
       timeline.push(predicted);
       history.recordStep('right', predicted);
     }
-    const authority = timeline[1];
+    const authority = timeline[3];
     if (authority === undefined) throw new Error('fixture');
     const result = history.reconcile(predicted, authority, 2n, collision);
     expect(result.player.position).toEqual(predicted.position);
     expect(result.errorFixed).toBe(0);
-    expect(result.replayDepth).toBe(6);
+    expect(result.replayDepth).toBe(4);
   });
 
   it('keeps correction smoothing presentation-only and finishes within 100 ms', () => {
@@ -152,16 +159,16 @@ describe('remote interpolation', () => {
   it('snaps across a background-tab discontinuity so expired actions cannot freeze', () => {
     const clock = new RenderTickClock();
     clock.advance(0, 100n);
-    expect(clock.advance(1 / 60, 10_000n)).toBe(9_998.5);
+    expect(clock.advance(1 / SIM_TICKS_PER_SECOND, 10_000n)).toBe(9_998.5);
   });
 });
 
 describe('avatar animation and latency helpers', () => {
   it('refreshes held input and unacknowledged stops, but not confirmed idle', () => {
-    expect(inputRefreshDue('right', false, 20)).toBe(true);
-    expect(inputRefreshDue('idle', true, 20)).toBe(true);
-    expect(inputRefreshDue('idle', false, 20)).toBe(false);
-    expect(inputRefreshDue('right', false, 19)).toBe(false);
+    expect(inputRefreshDue('right', false, INPUT_REFRESH_STEPS)).toBe(true);
+    expect(inputRefreshDue('idle', true, INPUT_REFRESH_STEPS)).toBe(true);
+    expect(inputRefreshDue('idle', false, INPUT_REFRESH_STEPS)).toBe(false);
+    expect(inputRefreshDue('right', false, INPUT_REFRESH_STEPS - 1)).toBe(false);
   });
 
   it('retriggers a one-shot and degrades unknown kinds to fallback', () => {
@@ -184,6 +191,28 @@ describe('avatar animation and latency helpers', () => {
   it('uses deterministic bounded jitter', () => {
     expect(new LatencyInjector(150, 50, () => 0).delayMs()).toBe(100);
     expect(new LatencyInjector(150, 50, () => 1).delayMs()).toBe(200);
+  });
+
+  it('keeps jitter-compressed outgoing and incoming work strictly ordered', async () => {
+    vi.useFakeTimers();
+    try {
+      const delays = [1, 0, 1, 0];
+      const injector = new LatencyInjector(150, 50, () => delays.shift() ?? 0.5);
+      const outgoing: number[] = [];
+      const first = injector.outgoing(async () => { outgoing.push(1); return 1; });
+      await vi.advanceTimersByTimeAsync(25);
+      const second = injector.outgoing(async () => { outgoing.push(2); return 2; });
+      const incoming: number[] = [];
+      injector.incoming(() => incoming.push(1));
+      await vi.advanceTimersByTimeAsync(25);
+      injector.incoming(() => incoming.push(2));
+      await vi.advanceTimersByTimeAsync(500);
+      await expect(Promise.all([first, second])).resolves.toEqual([1, 2]);
+      expect(outgoing).toEqual([1, 2]);
+      expect(incoming).toEqual([1, 2]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('applies every table callback from one transaction in one delayed group', async () => {

@@ -6,6 +6,7 @@ import { selectAtlasFrame, type AtlasFrame } from './render/sprite.js';
 export interface OverworldArt {
   readonly avatar: LoadedAsset;
   readonly avatarAxe: LoadedAsset;
+  readonly actionAssets: Readonly<Record<string, LoadedAsset>>;
   readonly grassTuft: LoadedAsset;
   readonly hillside: LoadedAsset;
   readonly iconAxe: LoadedAsset;
@@ -46,7 +47,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadPixelUi(),
   ]);
   return {
-    avatar, avatarAxe, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
+    avatar, avatarAxe, actionAssets: { swing_axe: avatarAxe }, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
     iconWateringCan, itemWood, rainStreak, rainSplash, waterRipples,
     treeFruiting, treeMature, treeStump, ui,
   };
@@ -164,14 +165,14 @@ export function drawOverworldAvatar(
   cameraY: number,
   zoom: number,
   actionFrame: number | null,
-  actionAnimation: string | null = null,
+  actionVisual: ActionVisual | null = null,
 ): void {
   const animation = avatarAnimationForDirection(facing);
   const frameIndex = moving ? locomotionFrame : 0;
   drawAnchored(
     context,
-    actionFrame === null || actionAnimation === null ? art.avatar : art.avatarAxe,
-    actionFrame === null || actionAnimation === null ? animation : actionAnimation,
+    actionFrame === null || actionVisual === null ? art.avatar : actionVisual.asset,
+    actionFrame === null || actionVisual === null ? animation : actionVisual.animation,
     actionFrame ?? frameIndex,
     x,
     y,
@@ -220,16 +221,23 @@ function actionFacing(facing: Direction): 'up' | 'right' | 'down' {
 
 /** Resolve the semantic `<kind>_<facing>` contract, retaining the purchased
  * farmer sheet's legacy axe group names as an explicit compatibility path. */
-export function actionAnimationForDirection(
+export interface ActionVisual {
+  readonly asset: LoadedAsset;
+  readonly animation: string;
+}
+
+export function actionVisualForDirection(
   art: OverworldArt,
   actionKind: string,
   facing: Direction,
-): string | null {
+): ActionVisual | null {
+  const asset = art.actionAssets[actionKind];
+  if (asset === undefined) return null;
   const semantic = `${actionKind}_${actionFacing(facing)}`;
-  if (art.avatarAxe.metadata.animations[semantic] !== undefined) return semantic;
+  if (asset.metadata.animations[semantic] !== undefined) return { asset, animation: semantic };
   if (actionKind === 'swing_axe') {
     const legacy = axeAnimationForDirection(facing);
-    if (art.avatarAxe.metadata.animations[legacy] !== undefined) return legacy;
+    if (asset.metadata.animations[legacy] !== undefined) return { asset, animation: legacy };
   }
   return null;
 }

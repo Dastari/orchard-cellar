@@ -1,5 +1,6 @@
 import {
   SURVIVAL_WORLD_SIZE,
+  survivalBiomeBlocksMovement,
   survivalTerrainBytes,
   type SurvivalBiome,
 } from '@orchard/sim';
@@ -27,8 +28,6 @@ export const BIOME_COLORS = [
 ] as const;
 
 const WATER = 0;
-const RIDGE = 7;
-
 export interface TerrainArray {
   readonly seed: number;
   readonly version: number;
@@ -43,7 +42,9 @@ let cachedTerrain: TerrainArray | null = null;
 export function terrainForWorld(seed: number, version: number): TerrainArray {
   if (cachedTerrain?.seed === seed && cachedTerrain.version === version) return cachedTerrain;
   const biomes = survivalTerrainBytes(seed);
-  const blocked = Array.from(biomes, (biome) => biome === WATER || biome === RIDGE);
+  const blocked = Array.from(biomes, (biome) => (
+    survivalBiomeBlocksMovement(SURVIVAL_BIOMES[biome] ?? 'water')
+  ));
   cachedTerrain = {
     seed,
     version,

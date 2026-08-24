@@ -81,6 +81,12 @@ export function isAmbienceEligible(source: SfxSource, context: AmbienceContext):
   return timeMatches && seasonMatches;
 }
 
+export function songForAmbience(context: AmbienceContext): string {
+  if (context.location === 'cellar') return 'theme_spring';
+  if (context.time === 'night') return 'theme_night';
+  return 'theme_spring';
+}
+
 export class AudioBus implements GameAudio {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -104,18 +110,23 @@ export class AudioBus implements GameAudio {
     if (!this.context) this.createGraph();
     if (!this.context) return;
     if (this.context.state !== 'running') await this.context.resume();
-    await this.setSeason(this.ambienceContext.season);
+    await this.playSong(songForAmbience(this.ambienceContext));
     if (this.ambienceEnabled) this.startAmbience();
   }
 
   async setSeason(season: Season): Promise<void> {
     this.ambienceContext = { ...this.ambienceContext, season };
-    const name = season === 'spring' ? 'theme_spring' : 'theme_spring';
-    await this.playSong(name);
+    await this.playSong(songForAmbience(this.ambienceContext));
   }
 
   setAmbienceContext(season: Season, dayProgress: number, location: 'estate' | 'cellar'): void {
-    this.ambienceContext = { season, time: ambienceTimeAtProgress(dayProgress), location };
+    const time = ambienceTimeAtProgress(dayProgress);
+    if (season === this.ambienceContext.season
+      && time === this.ambienceContext.time
+      && location === this.ambienceContext.location) return;
+    const next = { season, time, location } as const;
+    this.ambienceContext = next;
+    void this.playSong(songForAmbience(next)).catch(() => undefined);
   }
 
   async playSong(name: string): Promise<void> {

@@ -1,14 +1,15 @@
 import {
+  INPUT_REFRESH_STEPS, REMOTE_SNAPSHOT_CAPACITY,
   SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, TILE_SIZE_PIXELS,
   type CollisionMap, type PlayerState,
 } from '@orchard/sim';
 import type { Identity } from 'spacetimedb';
 import { DbConnection, tables, type SubscriptionHandle } from './generated/index.js';
 import type {
-  InventorySlot, PlayerEquipment, PlayerPosition, PlayerPublic, PlayerSurvival,
+  InventorySlot, PlayerPosition, PlayerPublic, PlayerSurvival,
   WorldClock, WorldItem, WorldResource, WorldSeed,
 } from './generated/types.js';
-import { KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
+import { BoundedKeyedQueue, KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
 import {
   LatencyInjector, LocalPredictionBuffer, latencyFromSearch,
   inputRefreshDue,
@@ -18,8 +19,8 @@ import {
 const DEFAULT_DATABASE = 'orchard-cellar-world';
 const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILES);
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
-const INPUT_REFRESH_STEPS = 20;
 const RADIUS_SETTLE_MS = 180;
+const RTT_SAMPLE_CAPACITY = 256;
 
 export function viewRadiusForViewport(canvasWidth: number, canvasHeight: number, zoom: number): number {
   const halfSpanChunks = Math.ceil(Math.max(canvasWidth, canvasHeight) / (Math.max(0.01, zoom) * SURVIVAL_CHUNK_PIXELS * 2));
@@ -38,7 +39,6 @@ export interface OverworldView {
   readonly connected: boolean; readonly error: string | null; readonly identityHex: string | null;
   readonly region: readonly [number, number];
   readonly profiles: ReadonlyKeyedStore<string, PlayerPublic>;
-  readonly equipment: ReadonlyKeyedStore<string, PlayerEquipment>;
   readonly players: ReadonlyKeyedStore<string, PlayerPosition>;
   readonly resources: ReadonlyKeyedStore<bigint, WorldResource>;
   readonly worldItems: ReadonlyKeyedStore<bigint, WorldItem>;
@@ -49,7 +49,7 @@ export interface OverworldView {
 export interface OverworldSnapshot {
   readonly connected: boolean; readonly error: string | null; readonly identityHex: string | null;
   readonly region: readonly [number, number]; readonly profiles: readonly PlayerPublic[];
-  readonly equipment: readonly PlayerEquipment[]; readonly players: readonly PlayerPosition[];
+  readonly players: readonly PlayerPosition[];
   readonly resources: readonly WorldResource[]; readonly worldItems: readonly WorldItem[];
   readonly inventorySlots: readonly InventorySlot[]; readonly survival: PlayerSurvival | null;
   readonly worldSeed: WorldSeed | null; readonly clock: WorldClock | null;
@@ -92,12 +92,11 @@ export class OverworldConnection {
   private replayDepth = 0;
   private reconciliationErrorFixed = 0;
   private lastReconciledRowKey = '';
-  private readonly positionCommits: PlayerPosition[] = [];
-  private readonly deletedPositionIds: string[] = [];
+  private readonly positionCommits = new BoundedKeyedQueue<string, PlayerPosition>(REMOTE_SNAPSHOT_CAPACITY);
+  private readonly deletedPositionIds = new Set<string>();
   private readonly prediction = new LocalPredictionBuffer();
   private readonly latency: LatencyInjector;
   private readonly profiles = new KeyedStore<string, PlayerPublic>();
-  private readonly equipment = new KeyedStore<string, PlayerEquipment>();
   private readonly positions = new KeyedStore<string, PlayerPosition>();
   private readonly visiblePlayers = new KeyedStore<string, PlayerPosition>();
   private readonly resources = new KeyedStore<bigint, WorldResource>();
@@ -137,7 +136,7 @@ export class OverworldConnection {
   view(): OverworldView {
     return { connected: this.connected, error: this.error,
       identityHex: this.identity === null ? null : identityHex(this.identity), region: this.region,
-      profiles: this.profiles, equipment: this.equipment, players: this.visiblePlayers,
+      profiles: this.profiles, players: this.visiblePlayers,
       resources: this.resources, worldItems: this.worldItems, inventorySlots: this.inventorySlots,
       survival: this.survival, worldSeed: this.worldSeed, clock: this.clock };
   }
@@ -145,7 +144,7 @@ export class OverworldConnection {
   /** Materialized compatibility view for tests and browser diagnostics only. */
   snapshot(): OverworldSnapshot {
     const view = this.view();
-    return { ...view, profiles: this.profiles.toArray(), equipment: this.equipment.toArray(),
+    return { ...view, profiles: this.profiles.toArray(),
       players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), worldItems: this.worldItems.toArray(),
       inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot) };
   }
@@ -157,7 +156,7 @@ export class OverworldConnection {
     if (direction === this.desiredDirection) return;
     this.desiredDirection = direction;
     if (direction === 'idle') this.idleRefreshPending = true;
-    this.retryArmed = true; this.sendDesiredDirection(true);
+    this.retryArmed = true; this.sendDesiredDirection();
   }
   recordPredictedStep(direction: NetworkDirection, state: PlayerState): void {
     this.prediction.recordStep(direction, state);
@@ -167,7 +166,7 @@ export class OverworldConnection {
     }
     this.inputRefreshAge += 1;
     if (inputRefreshDue(direction, this.idleRefreshPending, this.inputRefreshAge, INPUT_REFRESH_STEPS)) {
-      this.retryArmed = true; this.sendDesiredDirection(false);
+      this.retryArmed = true; this.sendDesiredDirection();
     }
   }
   reconcile(predicted: PlayerState | null, authoritative: PlayerState, collision: CollisionMap): ReconciliationResult | null {
@@ -186,12 +185,11 @@ export class OverworldConnection {
       lagMs: this.latency.lagMs, jitterMs: this.latency.jitterMs };
   }
   drainPositionCommits(visit: (row: PlayerPosition) => void): void {
-    for (const row of this.positionCommits) visit(row);
-    this.positionCommits.length = 0;
+    this.positionCommits.drain(visit);
   }
   drainDeletedPositionIds(visit: (identity: string) => void): void {
     for (const identity of this.deletedPositionIds) visit(identity);
-    this.deletedPositionIds.length = 0;
+    this.deletedPositionIds.clear();
   }
 
   setViewRadius(radius: number): void {
@@ -216,24 +214,24 @@ export class OverworldConnection {
     return this.call(() => call(connection)).then(() => undefined);
   }
   private call<T>(call: () => Promise<T>): Promise<T> { return this.latency.outgoing(call); }
-  private sendDesiredDirection(advancesMovementAcknowledgement = false): void {
+  private sendDesiredDirection(): void {
     const connection = this.connection;
     if (!this.connected || !this.inputReady || connection === null) return;
     this.sequence += 1n; this.inputRefreshAge = 0;
-    const command = this.prediction.recordSend(
-      this.sequence,
-      this.desiredDirection,
-      advancesMovementAcknowledgement,
-    );
+    const command = this.prediction.recordSend(this.sequence, this.desiredDirection);
     if (command.direction === 'idle') this.lastIdleSequence = command.sequence;
     this.sentAt.set(command.sequence, performance.now());
+    if (this.sentAt.size > RTT_SAMPLE_CAPACITY) {
+      const oldest = this.sentAt.keys().next().value as bigint | undefined;
+      if (oldest !== undefined) this.sentAt.delete(oldest);
+    }
     void this.call(() => connection.reducers.setInput({ direction: command.direction, sequence: command.sequence, clientTick: command.clientTick }))
       .then(() => { this.persistentInputError = null; })
       .catch((error: unknown) => {
         this.persistentInputError = error instanceof Error ? error.message : String(error); this.onChanged();
         if (this.retryArmed) {
           this.retryArmed = false;
-          this.sendDesiredDirection(advancesMovementAcknowledgement);
+          this.sendDesiredDirection();
         }
       });
   }
@@ -245,7 +243,7 @@ export class OverworldConnection {
   private subscribeGlobals(connection: DbConnection): void {
     connection.subscriptionBuilder().onApplied(() => this.hydrateGlobals(connection)).onError(() => {
       this.error = 'global_subscription_failed'; this.onChanged();
-    }).subscribe([tables.playerPublic, tables.playerEquipment, tables.worldClock, tables.worldSeed]);
+    }).subscribe([tables.playerPublic, tables.worldClock, tables.worldSeed]);
   }
   private subscribeSelf(connection: DbConnection, identity: Identity): void {
     connection.subscriptionBuilder().onApplied(() => this.latency.incoming(() => {
@@ -285,9 +283,6 @@ export class OverworldConnection {
     connection.db.playerPublic.onInsert((context, row) => incoming(context.event.id, () => this.setProfile(row)));
     connection.db.playerPublic.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setProfile(row)));
     connection.db.playerPublic.onDelete((context, row) => incoming(context.event.id, () => { const id = identityHex(row.identity); this.profiles.delete(id); this.visiblePlayers.delete(id); }));
-    connection.db.playerEquipment.onInsert((context, row) => incoming(context.event.id, () => this.equipment.set(identityHex(row.identity), row)));
-    connection.db.playerEquipment.onUpdate((context, _old, row) => incoming(context.event.id, () => this.equipment.set(identityHex(row.identity), row)));
-    connection.db.playerEquipment.onDelete((context, row) => incoming(context.event.id, () => this.equipment.delete(identityHex(row.identity))));
     connection.db.worldClock.onInsert((context, row) => incoming(context.event.id, () => { this.clock = row; }));
     connection.db.worldClock.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.clock = row; }));
     connection.db.worldSeed.onInsert((context, row) => incoming(context.event.id, () => { this.worldSeed = row; }));
@@ -308,7 +303,7 @@ export class OverworldConnection {
     connection.db.playerPosition.onInsert((context, row) => incoming(context.event.id, () => this.setPosition(row)));
     connection.db.playerPosition.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setPosition(row)));
     connection.db.playerPosition.onDelete((context, row) => incoming(context.event.id, () => {
-      const id = identityHex(row.identity); this.positions.delete(id); this.visiblePlayers.delete(id); this.deletedPositionIds.push(id);
+      const id = identityHex(row.identity); this.positions.delete(id); this.visiblePlayers.delete(id); this.deletedPositionIds.add(id);
     }));
   }
 
@@ -318,7 +313,7 @@ export class OverworldConnection {
   }
   private setPosition(row: PlayerPosition): void {
     const id = identityHex(row.identity); this.positions.set(id, row);
-    this.positionCommits.push(row);
+    this.positionCommits.push(id, row);
     if (this.profiles.get(id)?.online ?? true) this.visiblePlayers.set(id, row); else this.visiblePlayers.delete(id);
     if (this.identity !== null && row.identity.isEqual(this.identity)) {
       if (row.lastProcessedSequence > this.sequence) this.sequence = row.lastProcessedSequence;
@@ -336,7 +331,6 @@ export class OverworldConnection {
   private hydrateGlobals(connection: DbConnection): void {
     this.latency.incoming(() => {
       for (const row of connection.db.playerPublic.iter()) this.setProfile(row);
-      for (const row of connection.db.playerEquipment.iter()) this.equipment.set(identityHex(row.identity), row);
       this.clock = [...connection.db.worldClock.iter()][0] ?? null; this.worldSeed = [...connection.db.worldSeed.iter()][0] ?? null; this.onChanged();
     });
   }
