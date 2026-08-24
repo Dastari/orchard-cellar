@@ -6,6 +6,10 @@ export interface BuiltAssetRecord {
   readonly anchor: readonly [number, number];
   readonly collision: readonly (readonly [number, number, number, number])[];
   readonly animations: Readonly<Record<string, readonly AtlasFrame[]>>;
+  readonly animationMeta: Readonly<Record<string, { readonly fps: number; readonly loop: boolean }>>;
+  readonly variants: Readonly<Record<string, readonly AtlasFrame[]>>;
+  readonly variantMeta: Readonly<Record<string, { readonly topology?: 'blob47' }>>;
+  readonly states: Readonly<Record<string, AtlasFrame>>;
   readonly markerLayers?: Readonly<Record<string, readonly (readonly MarkerPixel[])[]>>;
   readonly tags: readonly string[];
   readonly placement: {
@@ -134,7 +138,14 @@ async function loadRecord(
     tags: record.tags,
     placement: record.placement,
     atlasRevision: manifest.revisionId,
-    metadata: { image: filename, animations: record.animations },
+    metadata: {
+      image: filename,
+      animations: record.animations,
+      animationMeta: record.animationMeta,
+      variants: record.variants,
+      variantMeta: record.variantMeta,
+      states: record.states,
+    },
   };
 }
 

@@ -2,7 +2,7 @@ import type { Direction } from '@orchard/sim';
 import type { CropPatch, FarmParcel } from './net/generated/types.js';
 import { loadGeneratedAsset, type LoadedAsset } from './render/assets.js';
 import { drawPixelPanel, drawPixelText, loadPixelUi, measurePixelText, type PixelUi } from './render/pixel-ui.js';
-import type { AtlasFrame } from './render/sprite.js';
+import { selectAtlasFrame, type AtlasFrame } from './render/sprite.js';
 
 export interface OverworldArt {
   readonly avatar: LoadedAsset;
@@ -92,8 +92,7 @@ function roadVariant(tileX: number, tileY: number): number {
 }
 
 function frame(asset: LoadedAsset, animation = 'base', index = 0): AtlasFrame | null {
-  const frames = asset.metadata.animations[animation] ?? [];
-  return frames[index % Math.max(1, frames.length)] ?? frames[0] ?? null;
+  return selectAtlasFrame(asset.metadata, animation, index);
 }
 
 function drawAnchored(

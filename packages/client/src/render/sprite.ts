@@ -9,6 +9,10 @@ export interface AtlasFrame {
 export interface AtlasMetadata {
   readonly image: string;
   readonly animations: Readonly<Record<string, readonly AtlasFrame[]>>;
+  readonly animationMeta?: Readonly<Record<string, { readonly fps: number; readonly loop: boolean }>>;
+  readonly variants?: Readonly<Record<string, readonly AtlasFrame[]>>;
+  readonly variantMeta?: Readonly<Record<string, { readonly topology?: 'blob47' }>>;
+  readonly states?: Readonly<Record<string, AtlasFrame>>;
 }
 
 function isNumber(value: unknown): value is number {
@@ -48,6 +52,21 @@ export async function loadAtlasMetadata(url: string): Promise<AtlasMetadata> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Unable to load atlas metadata: ${response.status}`);
   return parseAtlasMetadata(await response.json());
+}
+
+/** Select a named visual without confusing variants/states with timed animation. */
+export function atlasFrames(metadata: AtlasMetadata, name: string): readonly AtlasFrame[] {
+  const animation = metadata.animations[name];
+  if (animation) return animation;
+  const variants = metadata.variants?.[name];
+  if (variants) return variants;
+  const state = metadata.states?.[name];
+  return state ? [state] : [];
+}
+
+export function selectAtlasFrame(metadata: AtlasMetadata, name: string, index = 0): AtlasFrame | null {
+  const frames = atlasFrames(metadata, name);
+  return frames[index % Math.max(1, frames.length)] ?? frames[0] ?? null;
 }
 
 export class SpriteAnimator {

@@ -28,7 +28,7 @@ import type { LoadedAsset } from '../render/assets.js';
 import { drawBitmapText } from '../render/bitmap-font.js';
 import { Camera } from '../render/camera.js';
 import type { MapObjectSource, MapSource } from '../render/map-source.js';
-import { SpriteAnimator, drawAtlasFrame, drawYSorted, type AtlasFrame, type YSortableSprite } from '../render/sprite.js';
+import { SpriteAnimator, atlasFrames, drawAtlasFrame, drawYSorted, selectAtlasFrame, type AtlasFrame, type YSortableSprite } from '../render/sprite.js';
 import { CachedTileMapRenderer, createAuthoredTileMap } from '../render/tilemap.js';
 import type { Scene } from './scene.js';
 
@@ -65,7 +65,7 @@ export interface FarmAssets {
 }
 
 function atlasFrame(asset: LoadedAsset, animation = 'base', frameIndex = 0): { image: CanvasImageSource; frame: AtlasFrame } | undefined {
-  const frame = asset.metadata.animations[animation]?.[frameIndex];
+  const frame = selectAtlasFrame(asset.metadata, animation, frameIndex);
   return frame ? { image: asset.image, frame } : undefined;
 }
 
@@ -75,7 +75,7 @@ function blob47Atlas(asset: LoadedAsset): {
   frames: readonly AtlasFrame[];
   autotile: 'blob47';
 } | undefined {
-  const frames = asset.metadata.animations['base'] ?? [];
+  const frames = asset.metadata.variants?.['base'] ?? [];
   const frame = frames[46] ?? frames[0];
   return frame ? { image: asset.image, frame, frames, autotile: 'blob47' } : undefined;
 }
@@ -143,7 +143,7 @@ export class FarmScene implements Scene {
         grassBase: atlasFrame(seasonAssets.grassBase),
         grass: atlasFrame(seasonAssets.grassDetail),
         path: blob47Atlas(seasonAssets.path),
-        soil: atlasFrame(seasonAssets.soil, 'base', seasonAssets.soil.metadata.animations['base']?.length === 47 ? 46 : 0),
+        soil: atlasFrame(seasonAssets.soil, 'base', atlasFrames(seasonAssets.soil.metadata, 'base').length === 47 ? 46 : 0),
         water: atlasFrame(assets.worldTiles.water),
         waterDetail: atlasFrame(assets.worldTiles.waterDetail),
         hillside: atlasFrame(assets.worldTiles.hillside),
@@ -326,7 +326,7 @@ export class FarmScene implements Scene {
     return {
       y: worldY - this.camera.y,
       draw: (context) => {
-        const frames = asset.metadata.animations[animation] ?? [];
+        const frames = atlasFrames(asset.metadata, animation);
         const frame = frames[Math.floor(this.state.tick / 40) % Math.max(1, frames.length)];
         if (!frame) return;
         context.drawImage(asset.image, frame.x, frame.y, frame.width, frame.height,

@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { assetsRoot, loadAssets, loadPalette, readJson } from './assets/load.js';
+import { frameKind, variantTopology } from './assets/frame-kind.js';
 import type { AssetSource, PixelGrid } from './assets/types.js';
 
 interface SeasonSource {
@@ -189,7 +190,20 @@ export async function validateAssetSources(): Promise<void> {
     for (const [animation, frames] of Object.entries(asset.frames)) {
       if (frames.length === 0) errors.push(`${asset.name}:${animation} must have at least one frame`);
       frames.forEach((grid, index) => validateGrid(asset, grid, animation, index, allowed, errors));
+      const kind = frameKind(asset, animation, frames);
+      if (kind === 'state' && frames.length !== 1) errors.push(`${asset.name}:${animation} state must contain exactly one frame`);
+      if (kind === 'animation' && asset.animationFps?.[animation] === undefined && asset.fps === undefined) {
+        errors.push(`${asset.name}:${animation} animation must declare fps or animationFps`);
+      }
+      const topology = variantTopology(asset, animation, frames);
+      if (topology === 'blob47' && kind !== 'variant') errors.push(`${asset.name}:${animation} blob47 topology must be a variant`);
+      if (topology === 'blob47' && asset.autotile !== 'blob47' && frames.length !== 47) {
+        errors.push(`${asset.name}:${animation} expanded blob47 variant must contain 47 frames`);
+      }
     }
+    for (const name of Object.keys(asset.frameKinds ?? {})) if (!asset.frames[name]) errors.push(`${asset.name}: frameKinds references missing group ${name}`);
+    for (const name of Object.keys(asset.variantTopologies ?? {})) if (!asset.frames[name]) errors.push(`${asset.name}: variantTopologies references missing group ${name}`);
+    for (const name of Object.keys(asset.animationLoop ?? {})) if (!asset.frames[name]) errors.push(`${asset.name}: animationLoop references missing group ${name}`);
     if (asset.autotile === 'blob47' && asset.frames['base']?.length !== 5) {
       errors.push(`${asset.name}: blob47 source must contain five template frames`);
     }

@@ -1,5 +1,5 @@
 import { loadGeneratedAsset, type LoadedAsset } from './assets.js';
-import type { AtlasFrame } from './sprite.js';
+import { selectAtlasFrame, type AtlasFrame } from './sprite.js';
 
 const FONT_5X7_CHARSET = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~×→♪♥☀❄';
 
@@ -17,7 +17,7 @@ export async function loadPixelUi(): Promise<PixelUi> {
 }
 
 function baseFrame(asset: LoadedAsset): AtlasFrame | null {
-  return asset.metadata.animations['base']?.[0] ?? null;
+  return selectAtlasFrame(asset.metadata, 'base');
 }
 
 export function measurePixelText(text: string, scale = 1): number {

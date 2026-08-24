@@ -1,4 +1,5 @@
 export type PixelGrid = readonly string[];
+export type FrameKind = 'animation' | 'variant' | 'state';
 
 export interface AssetSource {
   readonly name: string;
@@ -10,6 +11,9 @@ export interface AssetSource {
   readonly frames: Readonly<Record<string, readonly PixelGrid[]>>;
   readonly fps?: number;
   readonly animationFps?: Readonly<Record<string, number>>;
+  readonly animationLoop?: Readonly<Record<string, boolean>>;
+  readonly frameKinds?: Readonly<Record<string, FrameKind>>;
+  readonly variantTopologies?: Readonly<Record<string, 'blob47'>>;
   readonly markers?: Readonly<Record<string, string>>;
   readonly markerRamps?: Readonly<Record<string, readonly string[]>>;
   readonly lintAllow?: readonly string[];

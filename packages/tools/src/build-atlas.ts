@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { stableAssetId } from './assets/asset-id.js';
+import { frameKind, variantTopology } from './assets/frame-kind.js';
 import { loadAssets, loadPalette, readJson, workspaceRoot } from './assets/load.js';
 import { encodePng, hexToRgba, setPixel } from './assets/png.js';
 import type { AssetSource, BuiltFrame, PaletteSource, PixelGrid } from './assets/types.js';
@@ -32,12 +33,16 @@ function defaultLayer(category: string): PlacementLayer {
 
 function assetTags(asset: AssetSource): string[] {
   const builderCategory = ['buildings', 'crops', 'props', 'tiles', 'trees'].includes(asset.category);
+  const groups = Object.entries(framesForAsset(asset));
   return [...new Set([
     ...(asset.tags ?? []),
     `kind.${asset.category}`,
-    ...(asset.autotile ? [`topology.${asset.autotile}`] : []),
+    ...groups.flatMap(([name, frames]) => {
+      const kind = frameKind(asset, name, frames);
+      const topology = kind === 'variant' ? variantTopology(asset, name, frames) : undefined;
+      return [`${kind}.${name}`, ...(topology ? [`topology.${topology}`] : [])];
+    }),
     ...(asset.collision?.length ? ['collision.solid'] : []),
-    ...Object.keys(asset.frames).map((animation) => `animation.${animation}`),
     ...(asset.approved === true && (asset.placement?.builderAvailable ?? builderCategory) ? ['builder.available'] : []),
     ...(asset.approved === true ? ['review.approved'] : ['review.required']),
   ])].sort();
@@ -158,7 +163,7 @@ export async function buildAtlases(): Promise<void> {
     .slice(0, 20);
   const revisionId = stableAssetId(`atlas:${revision}`);
   const metadata: Record<string, unknown> = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     revision,
     revisionId,
     placeholderAssetId: MISSING_ASSET_ID,
@@ -179,10 +184,15 @@ export async function buildAtlases(): Promise<void> {
     let rowHeight = 0;
     for (const asset of categoryAssets) {
       const animations: Record<string, BuiltFrame[]> = {};
+      const animationMeta: Record<string, { fps: number; loop: boolean }> = {};
+      const variants: Record<string, BuiltFrame[]> = {};
+      const variantMeta: Record<string, { topology?: 'blob47' }> = {};
+      const states: Record<string, BuiltFrame> = {};
       const markerLayers: Record<string, { x: number; y: number; marker: string; shade: number }[][]> = {};
-      for (const [animation, grids] of Object.entries(framesForAsset(asset))) {
-        animations[animation] = [];
-        markerLayers[animation] = [];
+      for (const [groupName, grids] of Object.entries(framesForAsset(asset))) {
+        const kind = frameKind(asset, groupName, grids);
+        const builtFrames: BuiltFrame[] = [];
+        markerLayers[groupName] = [];
         for (const grid of grids) {
           if (x + asset.size[0] > ATLAS_WIDTH) { x = 0; y += rowHeight; rowHeight = 0; }
           const frame = {
@@ -190,10 +200,12 @@ export async function buildAtlases(): Promise<void> {
             y,
             width: asset.size[0],
             height: asset.size[1],
-            durationTicks: Math.max(1, Math.round(60 / (asset.animationFps?.[animation] ?? asset.fps ?? 1))),
+            durationTicks: kind === 'animation'
+              ? Math.max(1, Math.round(60 / (asset.animationFps?.[groupName] ?? asset.fps ?? 1)))
+              : 0,
           };
-          placements.push({ asset, animation, grid, frame });
-          animations[animation].push(frame);
+          placements.push({ asset, animation: groupName, grid, frame });
+          builtFrames.push(frame);
           const markerPixels: { x: number; y: number; marker: string; shade: number }[] = [];
           for (const [marker, ramp] of Object.entries(asset.markerRamps ?? {})) {
             ramp.forEach((character, shade) => {
@@ -204,9 +216,24 @@ export async function buildAtlases(): Promise<void> {
               });
             });
           }
-          markerLayers[animation].push(markerPixels);
+          markerLayers[groupName].push(markerPixels);
           x += asset.size[0];
           rowHeight = Math.max(rowHeight, asset.size[1]);
+        }
+        if (kind === 'animation') {
+          animations[groupName] = builtFrames;
+          animationMeta[groupName] = {
+            fps: asset.animationFps?.[groupName] ?? asset.fps ?? 1,
+            loop: asset.animationLoop?.[groupName] ?? true,
+          };
+        } else if (kind === 'variant') {
+          variants[groupName] = builtFrames;
+          const topology = variantTopology(asset, groupName, grids);
+          variantMeta[groupName] = topology ? { topology } : {};
+        } else {
+          const state = builtFrames[0];
+          if (!state) throw new Error(`${asset.name}.${groupName} state has no frame`);
+          states[groupName] = state;
         }
       }
       const assetId = asset.name === MISSING_ASSET_NAME ? MISSING_ASSET_ID : stableAssetId(asset.name);
@@ -226,6 +253,10 @@ export async function buildAtlases(): Promise<void> {
         anchor: asset.anchor,
         collision: asset.collision ?? [],
         animations,
+        animationMeta,
+        variants,
+        variantMeta,
+        states,
         markerLayers,
         tags: assetTags(asset),
         placement: {
@@ -270,6 +301,10 @@ export async function buildAtlases(): Promise<void> {
           tags: readonly string[];
           placement: Readonly<Record<string, unknown>>;
           animations: Readonly<Record<string, readonly BuiltFrame[]>>;
+          animationMeta: Readonly<Record<string, { readonly fps: number; readonly loop: boolean }>>;
+          variants: Readonly<Record<string, readonly BuiltFrame[]>>;
+          variantMeta: Readonly<Record<string, { readonly topology?: 'blob47' }>>;
+          states: Readonly<Record<string, BuiltFrame>>;
         };
         return {
           assetId: record.assetId,
@@ -279,8 +314,14 @@ export async function buildAtlases(): Promise<void> {
           placement: record.placement,
           animations: Object.fromEntries(Object.entries(record.animations).map(([animation, frames]) => [animation, {
             frameCount: frames.length,
-            durationTicks: frames[0]?.durationTicks ?? 0,
+            fps: record.animationMeta[animation]?.fps ?? 1,
+            loop: record.animationMeta[animation]?.loop ?? true,
           }])),
+          variants: Object.fromEntries(Object.entries(record.variants).map(([variant, frames]) => [variant, {
+            frameCount: frames.length,
+            ...(record.variantMeta[variant]?.topology ? { topology: record.variantMeta[variant].topology } : {}),
+          }])),
+          states: Object.keys(record.states).sort(),
         };
       })
       .sort((left, right) => left.assetId - right.assetId),

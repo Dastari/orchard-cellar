@@ -859,6 +859,8 @@
       ]
     ]
   },
+  "frameKinds": { "base": "variant" },
+  "variantTopologies": { "base": "blob47" },
   "approved": true,
   "importedFrom": "Grass_Tiles_1_Blob_TEST.png"
 }

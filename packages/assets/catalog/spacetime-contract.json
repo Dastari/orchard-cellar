@@ -1,11 +1,12 @@
 {
-  "contractVersion": 1,
+  "contractVersion": 2,
   "authority": {
     "assetPipeline": [
       "stable semantic asset ids",
       "atlas revisions",
       "collision metadata",
       "animation metadata",
+      "variant topology and named visual states",
       "visual tags and placement metadata"
     ],
     "spacetimeDb": [

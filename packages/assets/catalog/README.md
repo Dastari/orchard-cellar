@@ -35,6 +35,20 @@ runtime-authoritative only after it has a reviewed semantic file under
 - A client that receives an unknown/newer ID renders asset `0` instead of
   failing a subscription or dropping the world object.
 
+## Frames, variants, and states
+
+Generated schema version 3 keeps three separate visual collections:
+
+- `animations` are ordered in time and include explicit FPS and looping data.
+- `variants` are selected by topology/direction/appearance. A 47-way path is a
+  `blob47` variant group and must never advance with the game clock.
+- `states` are single named visuals such as `base`, `open`, or a crop stage.
+
+Reviewed source files may set `frameKinds` and `variantTopologies` explicitly.
+For older files the build uses a conservative migration rule: a single frame is
+a state, a multi-frame group with FPS is an animation, and an untimed
+multi-frame group is a variant. Filenames are not used as runtime authority.
+
 ## SpaceTimeDB row shape
 
 Use normalized scalar columns that can be indexed and subscribed by region.
