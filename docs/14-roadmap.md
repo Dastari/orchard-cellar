@@ -29,7 +29,7 @@ and farmhouse collision on the live 480×270 canvas; a clean snapshot had no con
 errors. Deterministic replay passes, with sim at 100% line coverage and focused engine
 tests covering loop timing, camera, atlas animation, Y-sort, scene stack, and map layers.
 
-## M2 — Art foundation `☐`
+## M2 — Art foundation `⏳ in progress (codex, 2026-08-24)`
 `palette.json` generated from [10-art-style-guide.md](10-art-style-guide.md) §2,
 sprite/tile JSON formats, atlas builder + validator + preview tool
 ([11-asset-pipeline.md](11-asset-pipeline.md)), seasonal remap tables, and the
