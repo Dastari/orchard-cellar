@@ -1,0 +1,132 @@
+export const RESOURCE_SCALE = 1_000;
+
+export const TREE_COST_GROWTH = 1.18;
+export const PRESS_COST_GROWTH = 1.35;
+export const CASK_COST_GROWTH = 1.35;
+export const TREE_BUFFER_SECONDS = 4 * 60 * 60;
+export const SAPLING_GROWTH_DAYS = 1;
+export const YOUNG_GROWTH_DAYS = 2;
+export const YOUNG_PRODUCTION_MULTIPLIER = 0.25;
+export const SPRING_GROWTH_MULTIPLIER = 2;
+export const FEATURED_SEASON_MULTIPLIER = 1.6;
+export const OFF_SEASON_MULTIPLIER = 0.85;
+export const SEASON_TRAIT_MULTIPLIER = 1.8;
+export const SUMMER_PRESS_MULTIPLIER = 1.6;
+export const WINTER_AGING_MULTIPLIER = 1.6;
+
+export type TreeSpeciesId =
+  | 'seedlingApple'
+  | 'orchardApple'
+  | 'pear'
+  | 'quince'
+  | 'plum'
+  | 'fig'
+  | 'cherry'
+  | 'heritageGrafts'
+  | 'frostMedlar'
+  | 'valeMedlar';
+
+export interface TreeBalance {
+  readonly id: TreeSpeciesId;
+  readonly name: string;
+  readonly saplingCost: number;
+  readonly fruitPerSecond: number;
+  readonly trait: 'none' | 'lifts' | 'feedsPress' | 'feedsCellar' | 'season';
+  readonly traitValue: number;
+  readonly featuredSeason?: 'summer' | 'autumn' | 'winter';
+}
+
+export const TREE_BALANCE: readonly TreeBalance[] = [
+  { id: 'seedlingApple', name: 'Seedling Apple', saplingCost: 15, fruitPerSecond: 0.1, trait: 'none', traitValue: 0 },
+  { id: 'orchardApple', name: 'Orchard Apple', saplingCost: 120, fruitPerSecond: 0.6, trait: 'lifts', traitValue: 0.015 },
+  { id: 'pear', name: 'Pear', saplingCost: 900, fruitPerSecond: 3.2, trait: 'season', traitValue: SEASON_TRAIT_MULTIPLIER, featuredSeason: 'autumn' },
+  { id: 'quince', name: 'Quince', saplingCost: 6_500, fruitPerSecond: 15, trait: 'feedsPress', traitValue: 0.02 },
+  { id: 'plum', name: 'Plum', saplingCost: 48_000, fruitPerSecond: 70, trait: 'lifts', traitValue: 0.012 },
+  { id: 'fig', name: 'Fig', saplingCost: 360_000, fruitPerSecond: 330, trait: 'season', traitValue: SEASON_TRAIT_MULTIPLIER, featuredSeason: 'summer' },
+  { id: 'cherry', name: 'Cherry', saplingCost: 2_800_000, fruitPerSecond: 1_600, trait: 'season', traitValue: SEASON_TRAIT_MULTIPLIER, featuredSeason: 'summer' },
+  { id: 'heritageGrafts', name: 'Heritage Grafts', saplingCost: 22_000_000, fruitPerSecond: 7_500, trait: 'lifts', traitValue: 0.02 },
+  { id: 'frostMedlar', name: 'Frost Medlar', saplingCost: 170_000_000, fruitPerSecond: 36_000, trait: 'season', traitValue: SEASON_TRAIT_MULTIPLIER, featuredSeason: 'winter' },
+  { id: 'valeMedlar', name: 'Vale Medlar', saplingCost: 1_300_000_000, fruitPerSecond: 170_000, trait: 'feedsCellar', traitValue: 0.025 },
+] as const;
+
+export interface EquipmentBalance {
+  readonly tier: number;
+  readonly name: string;
+  readonly cost: number;
+  readonly ratePerSecond: number;
+  readonly pads?: number;
+}
+
+export const PRESS_BALANCE: readonly EquipmentBalance[] = [
+  { tier: 1, name: 'Basket Press', cost: 25, ratePerSecond: 0.5, pads: 1 },
+  { tier: 2, name: 'Screw Press', cost: 180, ratePerSecond: 3, pads: 1 },
+  { tier: 3, name: 'Hydraulic Press', cost: 1_400, ratePerSecond: 18, pads: 1 },
+  { tier: 4, name: 'Belt Line', cost: 12_000, ratePerSecond: 120, pads: 1 },
+  { tier: 5, name: 'Pressing Works', cost: 100_000, ratePerSecond: 900, pads: 2 },
+] as const;
+
+export const CASK_BALANCE: readonly EquipmentBalance[] = [
+  { tier: 1, name: 'Demijohn shelf', cost: 40, ratePerSecond: 0.2 },
+  { tier: 2, name: 'Oak Barrels', cost: 300, ratePerSecond: 1.2 },
+  { tier: 3, name: 'Foudre', cost: 2_400, ratePerSecond: 7 },
+  { tier: 4, name: 'Stone Vault', cost: 20_000, ratePerSecond: 40 },
+  { tier: 5, name: 'Cellar Cathedral', cost: 170_000, ratePerSecond: 240 },
+] as const;
+
+export const FIRST_PRESS_REPAIR_FRUIT = 50;
+export const PRESS_MUST_YIELD = 0.5;
+export const POMACE_YIELD = 0.15;
+export const BOTTLE_VALUE = 0.1;
+export const CELLAR_DIG_COSTS = [0, 500, 25_000] as const;
+export const CARE_MULTIPLIERS = [1, 1.25, 1.5, 2] as const;
+export const CARE_DECAY_DAYS = 2;
+export const MULCH_HOLD_DAYS = 3;
+export const FED_BONUS_CAP = 0.5;
+
+export const VIGOUR_CHARGE_PER_SECOND = 0.04;
+export const AUTUMN_VIGOUR_MULTIPLIER = 4;
+export const VIGOUR_BURST_POWER = 2;
+export const VIGOUR_PARTIAL_SECONDS = [2, 5, 9, 15] as const;
+export const AUTUMN_CHAIN_WINDOW_SECONDS = 8;
+export const AUTUMN_CHAIN_STEP = 0.1;
+export const AUTUMN_CHAIN_CAP = 2;
+
+export const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
+export const OFFLINE_EFFICIENCY = 0.6;
+export const OFFLINE_CHUNKS = 60;
+
+export function repeatCost(base: number, owned: number, growth: number): number {
+  return Math.ceil(base * growth ** owned);
+}
+
+export function treeMilestoneMultiplier(count: number): number {
+  if (count >= 25) return 24;
+  if (count >= 15) return 8;
+  if (count >= 10) return 4;
+  if (count >= 5) return 2;
+  return 1;
+}
+
+export function equipmentMilestoneMultiplier(count: number): number {
+  if (count >= 10) return 12;
+  if (count >= 6) return 4;
+  if (count >= 3) return 2;
+  return 1;
+}
+
+export function vintageTerroir(bottles: number, terroirGain = 0): number {
+  if (bottles < 100) return 0;
+  return Math.floor((bottles / 100) ** 0.45 * 6 * (1 + terroirGain));
+}
+
+export function successionHeirlooms(terroirEver: number, heirloomsHeld: number): number {
+  return Math.max(0, Math.floor((terroirEver / 500) ** 0.5) - heirloomsHeld);
+}
+
+export function lineageSeeds(heirloomsEver: number, seedsClaimed: number): number {
+  return Math.max(0, Math.floor((heirloomsEver / 20) ** 0.5) - seedsClaimed);
+}
+
+export function soften(cap: number, base: number, sum: number): number {
+  return cap - (cap - base) * Math.exp(-sum / (cap - base));
+}
