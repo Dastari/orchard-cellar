@@ -100,7 +100,7 @@ Rules:
 
 - **Trees are the heroes.** Fruit trees get the biggest color budget: R3 canopy with
   R4 shadow mass, R1 trunk, fruit dots (3×3 px, R5 or R6) that visibly appear as the
-  tree matures — growth stages: sapling (16×16) → young (16×32) → mature (48×64) →
+  tree matures — growth stages: sapling (16×32) → young (32×32) → mature (48×64) →
   fruiting (48×64 + fruit overlay) → each is its own sprite, no scaling.
 - Terrain uses **47-blob autotiles** for grass/path/tilled-soil edges (the pipeline
   tool generates the 47 variants from a 5-tile template — see 11).

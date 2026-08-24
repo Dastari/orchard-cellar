@@ -27,4 +27,14 @@ describe('licensed source palette provenance', () => {
       expect.stringContaining('missing used character b'),
     ]));
   });
+
+  it.each([
+    'references/Cute_Fantasy/../unlicensed/Test.png',
+    'references/Cute_Fantasy_Evil/Test.png',
+    'references/Cute_Fantasy/Tiles/../../unlicensed/Test.png',
+  ])('rejects traversal and prefix-confusion provenance: %s', (sourcePath) => {
+    expect(sourcePaletteErrors({ ...valid, sourcePath }, new Set(['a']))).toContainEqual(
+      expect.stringContaining('not an approved Cute Fantasy input'),
+    );
+  });
 });
