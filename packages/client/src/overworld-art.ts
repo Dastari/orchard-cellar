@@ -2,6 +2,7 @@ import type { Direction } from '@orchard/sim';
 import { loadGeneratedAsset, type LoadedAsset } from './render/assets.js';
 import { drawPixelText, loadPixelUi, measurePixelText, type PixelUi } from './render/pixel-ui.js';
 import { selectAtlasFrame, type AtlasFrame } from './render/sprite.js';
+import { loadUiSkin, type UiSkin } from './ui/skin.js';
 
 export interface OverworldArt {
   readonly avatar: LoadedAsset;
@@ -21,13 +22,14 @@ export interface OverworldArt {
   readonly treeMature: LoadedAsset;
   readonly treeStump: LoadedAsset;
   readonly ui: PixelUi;
+  readonly uiSkin: UiSkin;
 }
 
 export async function loadOverworldArt(): Promise<OverworldArt> {
   const [
     avatar, avatarAxe, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
     iconWateringCan, itemWood, rainStreak, rainSplash, waterRipples,
-    treeFruiting, treeMature, treeStump, ui,
+    treeFruiting, treeMature, treeStump, ui, uiSkin,
   ] = await Promise.all([
     loadGeneratedAsset('avatar_cf_farmer', 'summer'),
     loadGeneratedAsset('avatar_cf_farmer_axe', 'summer'),
@@ -45,11 +47,12 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('tree_cf_fruit_mature', 'summer'),
     loadGeneratedAsset('tree_cf_oak_stump', 'summer'),
     loadPixelUi(),
+    loadUiSkin(),
   ]);
   return {
     avatar, avatarAxe, actionAssets: { swing_axe: avatarAxe }, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
     iconWateringCan, itemWood, rainStreak, rainSplash, waterRipples,
-    treeFruiting, treeMature, treeStump, ui,
+    treeFruiting, treeMature, treeStump, ui, uiSkin,
   };
 }
 

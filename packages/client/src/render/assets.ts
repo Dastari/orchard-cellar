@@ -51,6 +51,8 @@ export interface LoadedAsset {
   readonly placement: BuiltAssetRecord['placement'];
   readonly font?: BuiltAssetRecord['font'];
   readonly slice?: BuiltAssetRecord['slice'];
+  readonly uiSizing?: BuiltAssetRecord['uiSizing'];
+  readonly uiRequiredStates?: BuiltAssetRecord['uiRequiredStates'];
   readonly atlasRevision: number;
   readonly metadata: AtlasMetadata;
 }
@@ -155,6 +157,8 @@ async function loadRecord(
     placement: record.placement,
     font: record.font,
     slice: record.slice,
+    uiSizing: record.uiSizing,
+    uiRequiredStates: record.uiRequiredStates,
     atlasRevision: manifest.revisionId,
     metadata: {
       image: filename,

@@ -7,10 +7,13 @@
   </head>
   <body>
     <main id="game-shell">
-      <canvas id="game" width="480" height="270" aria-label="Orchard and Cellar shared overworld prototype"></canvas>
+      <canvas id="game" class="custom-cursor" width="480" height="270" aria-label="Orchard and Cellar shared overworld prototype"></canvas>
     </main>
     <script type="module">
-      if (new URLSearchParams(location.search).has('slot')) {
+      const { ensureOidcSession, oidcConfigured } = await import('/src/auth/oidc.ts');
+      const hasLocalSlot = new URLSearchParams(location.search).has('slot');
+      const authenticated = oidcConfigured && await ensureOidcSession() !== null;
+      if (authenticated || (import.meta.env.DEV && hasLocalSlot)) {
         await import('/src/overworld-main.ts');
       } else {
         location.replace('/account.html');

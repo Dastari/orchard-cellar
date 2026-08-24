@@ -31,6 +31,7 @@ import {
 } from './display.js';
 import { FixedStepLoop } from './loop.js';
 import { AudioBus } from './audio/audio-bus.js';
+import { readOidcSession } from './auth/oidc.js';
 import type { PlayerPosition, WorldItem, WorldResource } from './net/generated/types.js';
 import {
   OverworldConnection,
@@ -42,10 +43,8 @@ import { AvatarAnimationController, PresentationCorrection, RemoteSnapshotBuffer
 import {
   drawOverworldAvatar,
   drawOverworldItem,
-  drawOverworldNameplate,
   drawOverworldStump,
   drawOverworldTree,
-  drawUiAsset,
   actionVisualForDirection,
   avatarAnimationForDirection,
   loadOverworldArt,
@@ -72,21 +71,13 @@ import {
 } from './render/renderer.js';
 import { terrainForWorld, type TerrainArray } from './render/terrain.js';
 import { interpolateFixedPosition } from './overworld-prediction.js';
+import { OverworldUi } from './ui/overworld-ui.js';
 import {
-  HOTBAR_HEIGHT,
-  HOTBAR_SLOT_COUNT,
-  HOTBAR_SLOT_WIDTH,
   facedResource,
   facedWorldItem,
   hotbarItemLabel,
-  hotbarItemName,
-  hotbarLayout,
-  hotbarSlotAtPoint,
   hotbarSlotForCode,
   formatDayTime,
-  weatherControlAtPoint,
-  weatherPanelLayout,
-  weatherTimeFractionAtPoint,
 } from './survival-ui.js';
 import './style.css';
 
@@ -104,7 +95,7 @@ const renderMetrics = new RenderMetrics();
 const audio = new AudioBus(false);
 
 const keys = new Set<string>();
-const accountSlot = new URLSearchParams(location.search).get('slot') ?? 'Farmer One';
+const accountSlot = new URLSearchParams(location.search).get('slot') ?? readOidcSession()?.displayName ?? 'Farmer';
 let networkDirty = true;
 const network = new OverworldConnection(accountSlot, () => { networkDirty = true; });
 let latestSnapshot = network.view();
@@ -137,11 +128,26 @@ const treeShakeRemaining = new Map<bigint, number>();
 let localActionStartedAtMs: number | null = null;
 let localPredictedActionKind = 'none';
 let latestPositionAuthorityTick = 0n;
-let hoveredHotbarSlot: number | null = null;
 let lightingTickOverride: bigint | null = null;
 let lightPreviewKind: 'lantern' | 'torch' | null = null;
 let rainOverride: boolean | null = null;
-let draggingTimeSlider = false;
+const overworldUi = new OverworldUi(art.uiSkin, art.ui, {
+  axe: art.iconAxe,
+  pickaxe: art.iconPickaxe,
+  hoe: art.iconHoe,
+  watering_can: art.iconWateringCan,
+  wood: art.itemWood,
+}, {
+  selectHotbar: (slot) => selectSlotOptimistically(slot),
+  setTimeFraction: (fraction) => {
+    lightingTickOverride = BigInt(Math.min(
+      AUTHORITY_TICKS_PER_DAY - 1,
+      Math.round(fraction * (AUTHORITY_TICKS_PER_DAY - 1)),
+    ));
+  },
+  toggleRain: () => { rainOverride = !rain.enabled; },
+  signOut: () => { location.assign('/account.html?logout=1'); },
+});
 
 function resize(): void {
   renderer.resize();
@@ -303,62 +309,6 @@ function targetResource(snapshot: OverworldView): WorldResource | null {
 function targetWorldItem(snapshot: OverworldView): WorldItem | null {
   if (predicted === null) return null;
   return facedWorldItem(predicted.position.x, predicted.position.y, predicted.facing, snapshot.worldItems);
-}
-
-function drawHotbar(
-  context: CanvasRenderingContext2D,
-  snapshot: OverworldView,
-  viewportWidth: number,
-  viewportHeight: number,
-): void {
-  const layout = hotbarLayout(viewportWidth, viewportHeight);
-  const selected = optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0;
-  const icons = {
-    axe: art.iconAxe,
-    pickaxe: art.iconPickaxe,
-    hoe: art.iconHoe,
-    watering_can: art.iconWateringCan,
-    wood: art.itemWood,
-  };
-  for (let index = 0; index < HOTBAR_SLOT_COUNT; index += 1) {
-    const inventory = snapshot.inventorySlots.find((candidate) => candidate.slot === index);
-    const slotX = layout.startX + index * HOTBAR_SLOT_WIDTH;
-    drawPixelPanel(context, art.ui, slotX, layout.y, HOTBAR_HEIGHT, HOTBAR_HEIGHT);
-    if (index === selected) {
-      context.strokeStyle = '#ffe98a';
-      context.lineWidth = 2;
-      context.strokeRect(slotX + 1, layout.y + 1, HOTBAR_HEIGHT - 3, HOTBAR_HEIGHT - 3);
-    }
-    const icon = icons[inventory?.itemKind as keyof typeof icons];
-    if (icon) drawUiAsset(context, icon, slotX + 9, layout.y + 9);
-    drawPixelText(context, art.ui, String(index + 1), slotX + 4, layout.y + 4);
-    if ((inventory?.quantity ?? 0) > 1) {
-      drawPixelText(context, art.ui, String(inventory?.quantity ?? 0), slotX + 30, layout.y + 23, { align: 'right' });
-    }
-  }
-}
-
-function drawWeatherPanel(
-  context: CanvasRenderingContext2D,
-  viewportWidth: number,
-  authorityTick: bigint,
-): void {
-  const layout = weatherPanelLayout(viewportWidth);
-  const dayTick = simTickOfDayAtAuthorityTick(authorityTick);
-  const fraction = authorityDayProgress(authorityTick);
-  drawPixelPanel(context, art.ui, layout.x, layout.y, layout.width, layout.height);
-  drawPixelText(context, art.ui, `TIME ${formatDayTime(dayTick, TICKS_PER_DAY)}`, layout.x + 8, layout.y + 6);
-  context.fillStyle = '#2b1d0e';
-  context.fillRect(layout.sliderX, layout.sliderY, layout.sliderWidth, 3);
-  context.fillStyle = '#e0a51f';
-  context.fillRect(layout.sliderX, layout.sliderY, Math.round(layout.sliderWidth * fraction), 3);
-  const handleX = Math.round(layout.sliderX + layout.sliderWidth * fraction);
-  context.fillStyle = '#f2e3c2';
-  context.fillRect(handleX - 2, layout.sliderY - 2, 5, 7);
-  context.fillStyle = '#2b1d0e';
-  context.fillRect(handleX - 1, layout.sliderY - 1, 3, 5);
-  drawPixelPanel(context, art.ui, layout.rainX, layout.rainY, layout.rainWidth, layout.rainHeight);
-  drawPixelText(context, art.ui, `RAIN ${rain.enabled ? 'ON' : 'OFF'}`, layout.rainX + layout.rainWidth / 2, layout.rainY + 4, { align: 'center' });
 }
 
 function drawPlayerCollisionOverlay(
@@ -643,46 +593,34 @@ function render(alpha = 1): void {
     drawCollisionOverlay(context, cameraX, cameraY, scale, frame.layout.width, frame.layout.height, terrain);
     drawPlayerCollisionOverlay(context, cameraX, cameraY, scale, snapshot);
   }
-  for (const nameplate of nameplates) {
-    drawOverworldNameplate(
-      context,
-      art,
-      nameplate.x,
-      nameplate.y,
-      cameraX,
-      cameraY,
-      scale,
-      nameplate.name,
-    );
-  }
-  drawCalls += nameplates.reduce((total, nameplate) => total + 2 + nameplate.name.slice(0, 20).length, 0);
   renderer.compositeWorld();
   drawCalls += 1;
 
   const uiWidth = renderer.cssWidth / uiScale;
   const uiHeight = renderer.cssHeight / uiScale;
   const uiContext = renderer.beginUi(uiScale);
-  const islandStatus = `ISLAND ${snapshot.connected ? 'ONLINE' : 'CONNECTING'} PLAYERS ${snapshot.players.length}`;
-  drawPixelPanel(uiContext, art.ui, 4, 4, measurePixelText(islandStatus) + 14, 19);
-  drawPixelText(uiContext, art.ui, islandStatus, 11, 11);
   const pickup = targetWorldItem(snapshot);
   const prompt = pickup === null ? null : `[E] PICK UP ${hotbarItemLabel(pickup.itemKind)} x${pickup.quantity}`;
-  const hoveredInventory = hoveredHotbarSlot === null
-    ? undefined
-    : snapshot.inventorySlots.find((candidate) => candidate.slot === hoveredHotbarSlot);
-  const hoverName = hotbarItemName(hoveredInventory?.itemKind ?? 'empty');
-  const tooltip = hoverName ?? prompt ?? (toastTicks > 0 ? toast.slice(0, 42) : null);
-  if (tooltip !== null) {
-    const width = Math.max(104, measurePixelText(tooltip) + 14);
-    drawPixelPanel(uiContext, art.ui, uiWidth / 2 - width / 2, uiHeight - 62, width, 19);
-    drawPixelText(uiContext, art.ui, tooltip, uiWidth / 2, uiHeight - 56, { align: 'center' });
-  }
-  drawHotbar(uiContext, snapshot, uiWidth, uiHeight);
-  drawWeatherPanel(
-    uiContext,
-    uiWidth,
-    lightingTickOverride ?? snapshot.clock?.authorityTick ?? 0n,
-  );
+  const authorityTick = lightingTickOverride ?? snapshot.clock?.authorityTick ?? 0n;
+  overworldUi.update({
+    width: uiWidth,
+    height: uiHeight,
+    connected: snapshot.connected,
+    playerCount: snapshot.players.length,
+    selectedSlot: optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0,
+    inventory: [...snapshot.inventorySlots],
+    timeLabel: formatDayTime(simTickOfDayAtAuthorityTick(authorityTick), TICKS_PER_DAY),
+    timeFraction: authorityDayProgress(authorityTick),
+    raining: rain.enabled,
+    prompt,
+    toast: toastTicks > 0 ? toast.slice(0, 42) : null,
+  });
+  overworldUi.drawNameplates(uiContext, nameplates.map((nameplate) => ({
+    x: (nameplate.x - cameraX) * worldZoom / uiScale,
+    y: (nameplate.y - cameraY - 42) * worldZoom / uiScale,
+    text: nameplate.name,
+  })));
+  overworldUi.draw(uiContext);
   if (debugMetrics) {
     const metrics = renderMetrics.snapshot();
     const net = network.metrics();
@@ -717,27 +655,6 @@ function pointerUiPosition(event: MouseEvent): readonly [number, number] {
   return [canvasX / uiScale, canvasY / uiScale];
 }
 
-function hotbarSlotForPointer(event: PointerEvent): number | null {
-  const [x, y] = pointerUiPosition(event);
-  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
-  return hotbarSlotAtPoint(x, y, renderer.cssWidth / uiScale, renderer.cssHeight / uiScale);
-}
-
-function weatherPointer(event: MouseEvent): readonly [number, number, number] {
-  const [x, y] = pointerUiPosition(event);
-  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
-  return [x, y, renderer.cssWidth / uiScale];
-}
-
-function setTimeFromPointer(event: PointerEvent): void {
-  const [x, , uiWidth] = weatherPointer(event);
-  const fraction = weatherTimeFractionAtPoint(x, uiWidth);
-  lightingTickOverride = BigInt(Math.min(
-    AUTHORITY_TICKS_PER_DAY - 1,
-    Math.round(fraction * (AUTHORITY_TICKS_PER_DAY - 1)),
-  ));
-}
-
 function showResult(promise: Promise<void>, success: string): void {
   void promise.then(() => {
     toast = success;
@@ -766,6 +683,10 @@ function startPredictedAction(kind: string): void {
 
 window.addEventListener('resize', resize);
 window.addEventListener('keydown', (event) => {
+  if (overworldUi.handleKeyDown(event.code, event.repeat)) {
+    event.preventDefault();
+    return;
+  }
   const selectedSlot = hotbarSlotForCode(event.code);
   if (selectedSlot !== null && !event.repeat) {
     selectSlotOptimistically(selectedSlot);
@@ -851,46 +772,27 @@ window.addEventListener('keyup', (event) => keys.delete(event.code));
 window.addEventListener('blur', () => keys.clear());
 canvas.addEventListener('dblclick', () => { void toggleFullscreen(shellElement).catch(() => undefined); });
 canvas.addEventListener('pointermove', (event) => {
-  if (draggingTimeSlider) {
-    setTimeFromPointer(event);
-    event.preventDefault();
-    return;
-  }
-  hoveredHotbarSlot = hotbarSlotForPointer(event);
+  const [x, y] = pointerUiPosition(event);
+  overworldUi.pointerMove({ x, y });
 });
-canvas.addEventListener('pointerleave', () => { if (!draggingTimeSlider) hoveredHotbarSlot = null; });
+canvas.addEventListener('pointerleave', () => overworldUi.pointerLeave());
 canvas.addEventListener('pointerdown', (event) => {
-  const [x, y, uiWidth] = weatherPointer(event);
-  const weatherControl = weatherControlAtPoint(x, y, uiWidth);
-  if (weatherControl === 'time') {
-    draggingTimeSlider = true;
+  const [x, y] = pointerUiPosition(event);
+  if (overworldUi.pointerDown({ x, y }, event.button)) {
     canvas.setPointerCapture(event.pointerId);
-    setTimeFromPointer(event);
     event.preventDefault();
-    return;
   }
-  if (weatherControl === 'rain') {
-    rainOverride = !rain.enabled;
-    event.preventDefault();
-    return;
-  }
-  const slot = hotbarSlotForPointer(event);
-  if (slot === null) return;
-  hoveredHotbarSlot = slot;
-  selectSlotOptimistically(slot);
-  event.preventDefault();
 });
 canvas.addEventListener('pointerup', (event) => {
-  if (!draggingTimeSlider) return;
-  setTimeFromPointer(event);
-  draggingTimeSlider = false;
+  const [x, y] = pointerUiPosition(event);
+  const consumed = overworldUi.pointerUp({ x, y }, event.button);
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  event.preventDefault();
+  if (consumed) event.preventDefault();
 });
-canvas.addEventListener('pointercancel', () => { draggingTimeSlider = false; });
+canvas.addEventListener('pointercancel', () => overworldUi.pointerLeave());
 canvas.addEventListener('wheel', (event) => {
-  const [x, y, uiWidth] = weatherPointer(event);
-  if (weatherControlAtPoint(x, y, uiWidth) !== null) {
+  const [x, y] = pointerUiPosition(event);
+  if (overworldUi.wheel({ x, y }, event.deltaX, event.deltaY)) {
     event.preventDefault();
     return;
   }
@@ -933,6 +835,7 @@ Object.assign(window, {
     setLightingTick: (tick: bigint | null) => { lightingTickOverride = tick; },
     setLightPreview: (kind: 'lantern' | 'torch' | null) => { lightPreviewKind = kind; },
     setRain: (enabled: boolean | null) => { rainOverride = enabled; },
+    openWindow: (window: 'pack' | 'crafting' | 'barrel' | null) => { overworldUi.openWindow = window; },
   },
 });
 loop.start();

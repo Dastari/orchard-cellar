@@ -46,6 +46,20 @@ host-issued token above; its labels explicitly identify it as a local friends pr
 Opening `/overworld.html` without a slot returns to the chooser. This development UX
 must be replaced by the configured OIDC flow before internet exposure.
 
+The browser now implements Authorization Code + PKCE against SpacetimeAuth. Configure
+`VITE_OIDC_CLIENT_ID` and register `/account.html` as an allowed redirect URI; optional
+issuer and redirect overrides are documented in `.env.example`. Identity and refresh
+tokens are kept in `sessionStorage`, never URL parameters or the local profile store.
+The account screen handles provider account creation/sign-in, callback validation,
+refresh, and sign-out. When no client ID is configured it visibly falls back to the
+development profile chooser.
+
+Before publishing an internet-facing module, copy the same public client ID into
+`OIDC_CLIENT_IDS` in `packages/world/src/auth-policy.ts` and republish. A non-empty list
+enforces a JWT from the pinned SpacetimeAuth issuer and audience during connection;
+the empty list is intentionally local-development-only. No client secret belongs in
+either location.
+
 ## 4. Names and authored text
 
 Display and farm names are labels, never lookup keys. They are 3–20 characters from

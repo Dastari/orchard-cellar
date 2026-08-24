@@ -35,6 +35,7 @@ import {
   resourceHarvestResult,
   settleMovementRun,
 } from './world-rules.js';
+import { authenticationRejection } from './auth-policy.js';
 
 const HOTBAR_SLOTS = ['axe', 'pickaxe', 'hoe', 'watering_can', 'empty', 'empty', 'empty', 'empty', 'empty'] as const;
 
@@ -382,6 +383,8 @@ export const init = spacetimedb.init((ctx) => {
 
 export const onConnect = spacetimedb.clientConnected((ctx) => {
   if (ctx.connectionId === null) throw new SenderError('missing_connection_id');
+  const authRejection = authenticationRejection(ctx.senderAuth.jwt);
+  if (authRejection !== null) throw new SenderError(authRejection);
   // Additive module publishes do not rerun init. The first post-upgrade connection
   // transactionally installs the immutable seed and initial mutable resources.
   const installedWorld = ctx.db.world_seed.id.find(0);

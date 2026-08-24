@@ -5,6 +5,7 @@ import {
 } from '@orchard/sim';
 import type { Identity } from 'spacetimedb';
 import { DbConnection, tables, type SubscriptionHandle } from './generated/index.js';
+import { readOidcSession } from '../auth/oidc.js';
 import type {
   InventorySlot, PlayerPosition, PlayerPublic, PlayerSurvival,
   WorldClock, WorldItem, WorldResource, WorldSeed,
@@ -115,10 +116,11 @@ export class OverworldConnection {
   ) {
     this.latency = latency;
     const tokenKey = `orchard:world:${host}:${database}:${slot}:token`;
-    const savedToken = localStorage.getItem(tokenKey) ?? undefined;
+    const oidcSession = readOidcSession();
+    const savedToken = oidcSession?.idToken ?? localStorage.getItem(tokenKey) ?? undefined;
     this.connection = DbConnection.builder().withUri(host).withDatabaseName(database).withToken(savedToken)
       .onConnect((connection, identity, token) => {
-        if (savedToken === undefined) localStorage.setItem(tokenKey, token);
+        if (oidcSession === null && savedToken === undefined) localStorage.setItem(tokenKey, token);
         this.connected = true; this.error = null; this.identity = identity;
         this.bindTableEvents(connection); this.subscribeGlobals(connection); this.subscribeSelf(connection, identity);
         void this.call(() => connection.reducers.setDisplayName({ displayName: this.displayName() }));

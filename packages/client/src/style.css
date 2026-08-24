@@ -26,6 +26,8 @@ html, body, #game-shell {
   box-shadow: 0 0 0 2px #382b26, 0 18px 50px #0009;
 }
 
+#game.custom-cursor { cursor: none; }
+
 .canvas-input {
   position: fixed;
   z-index: 2;
