@@ -1,6 +1,6 @@
 import { TILE_SIZE_FIXED } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
-import { facedResource, harvestPrompt, hotbarItemLabel, hotbarSlotForCode } from './survival-ui.js';
+import { cycleHotbarSlot, facedResource, harvestPrompt, hotbarItemLabel, hotbarSlotForCode } from './survival-ui.js';
 
 const tree = { id: 2n, kind: 'tree', tileX: 12, tileY: 10, depleted: false };
 
@@ -23,6 +23,12 @@ describe('survival controls', () => {
   it('gives occupied hotbar tools compact unambiguous labels', () => {
     expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'empty'].map(hotbarItemLabel))
       .toEqual(['AXE', 'PICK', 'HOE', 'WATER', '--']);
+  });
+
+  it('wraps mouse-wheel selection around the nine-slot inventory', () => {
+    expect(cycleHotbarSlot(0, -1)).toBe(8);
+    expect(cycleHotbarSlot(8, 1)).toBe(0);
+    expect(cycleHotbarSlot(3, 1)).toBe(4);
   });
 
   it('describes the selected tool requirement', () => {

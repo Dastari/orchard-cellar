@@ -9,9 +9,9 @@ import {
 
 const CARDINAL_SPEED = FIXED_UNITS_PER_PIXEL;
 const DIAGONAL_SPEED = 11;
-const HITBOX_HALF_WIDTH = 5 * FIXED_UNITS_PER_PIXEL;
-const HITBOX_TOP = 5 * FIXED_UNITS_PER_PIXEL;
-const HITBOX_BOTTOM = 7 * FIXED_UNITS_PER_PIXEL;
+export const PLAYER_HITBOX_HALF_WIDTH = 4 * FIXED_UNITS_PER_PIXEL;
+export const PLAYER_HITBOX_TOP = 3 * FIXED_UNITS_PER_PIXEL;
+export const PLAYER_HITBOX_BOTTOM = 3 * FIXED_UNITS_PER_PIXEL;
 
 const DIRECTION_VECTORS: Record<Direction, Vec2Fixed> = {
   up: { x: 0, y: -CARDINAL_SPEED },
@@ -30,10 +30,7 @@ function tileIsBlocked(map: CollisionMap, tileX: number, tileY: number): boolean
 }
 
 export function positionCollides(position: Vec2Fixed, map: CollisionMap): boolean {
-  const left = position.x - HITBOX_HALF_WIDTH;
-  const right = position.x + HITBOX_HALF_WIDTH - 1;
-  const top = position.y - HITBOX_TOP;
-  const bottom = position.y + HITBOX_BOTTOM - 1;
+  const { left, right, top, bottom } = playerHitboxBounds(position);
   const tileLeft = Math.floor(left / TILE_SIZE_FIXED);
   const tileRight = Math.floor(right / TILE_SIZE_FIXED);
   const tileTop = Math.floor(top / TILE_SIZE_FIXED);
@@ -45,6 +42,20 @@ export function positionCollides(position: Vec2Fixed, map: CollisionMap): boolea
     tileIsBlocked(map, tileLeft, tileBottom) ||
     tileIsBlocked(map, tileRight, tileBottom)
   );
+}
+
+export function playerHitboxBounds(position: Vec2Fixed): {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+} {
+  return {
+    left: position.x - PLAYER_HITBOX_HALF_WIDTH,
+    right: position.x + PLAYER_HITBOX_HALF_WIDTH - 1,
+    top: position.y - PLAYER_HITBOX_TOP,
+    bottom: position.y + PLAYER_HITBOX_BOTTOM - 1,
+  };
 }
 
 export function movePlayer(player: PlayerState, direction: Direction | null, map: CollisionMap): PlayerState {

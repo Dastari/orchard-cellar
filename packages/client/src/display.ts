@@ -1,8 +1,11 @@
 export const VIRTUAL_WIDTH = 480;
 export const VIRTUAL_HEIGHT = 270;
-export const WORLD_ZOOM_LEVELS = [1, 2, 3, 4] as const;
+export const WORLD_ZOOM_LEVELS = [1, 2, 3] as const;
 export type WorldZoom = typeof WORLD_ZOOM_LEVELS[number];
 export const DEFAULT_WORLD_ZOOM: WorldZoom = 2;
+export const UI_SCALE_LEVELS = [1, 2, 3] as const;
+export type UiScale = typeof UI_SCALE_LEVELS[number];
+export const DEFAULT_UI_SCALE: UiScale = 1;
 
 export function integerCanvasScale(viewportWidth: number, viewportHeight: number): number {
   return Math.max(1, Math.floor(Math.min(viewportWidth / VIRTUAL_WIDTH, viewportHeight / VIRTUAL_HEIGHT)));
@@ -42,6 +45,23 @@ export function stepWorldZoom(current: WorldZoom, direction: -1 | 1): WorldZoom 
   const index = Math.max(0, WORLD_ZOOM_LEVELS.indexOf(current));
   const next = Math.max(0, Math.min(WORLD_ZOOM_LEVELS.length - 1, index + direction));
   return WORLD_ZOOM_LEVELS[next] ?? DEFAULT_WORLD_ZOOM;
+}
+
+export function worldZoomLabel(zoom: WorldZoom): string {
+  return `${zoom / DEFAULT_WORLD_ZOOM}X`;
+}
+
+export function stepUiScale(current: UiScale, direction: -1 | 1): UiScale {
+  const index = Math.max(0, UI_SCALE_LEVELS.indexOf(current));
+  const next = Math.max(0, Math.min(UI_SCALE_LEVELS.length - 1, index + direction));
+  return UI_SCALE_LEVELS[next] ?? DEFAULT_UI_SCALE;
+}
+
+export function fittedUiScale(desired: UiScale, canvasWidth: number, canvasHeight: number): UiScale {
+  const widthLimit = Math.max(1, Math.floor(canvasWidth / 323));
+  const heightLimit = Math.max(1, Math.floor(canvasHeight / 110));
+  const limit = Math.min(desired, widthLimit, heightLimit);
+  return UI_SCALE_LEVELS.findLast((scale) => scale <= limit) ?? 1;
 }
 
 export function resizePixelCanvas(

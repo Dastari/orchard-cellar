@@ -1,4 +1,9 @@
-import type { Direction } from '@orchard/sim';
+import {
+  SURVIVAL_CHUNK_TILES,
+  SURVIVAL_WORLD_SIZE,
+  TILE_SIZE_PIXELS,
+  type Direction,
+} from '@orchard/sim';
 import type { Identity } from 'spacetimedb';
 import {
   DbConnection,
@@ -16,6 +21,27 @@ import type {
 } from './generated/types.js';
 
 const DEFAULT_DATABASE = 'orchard-cellar-world';
+const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILES);
+const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
+
+export function viewRadiusForViewport(canvasWidth: number, canvasHeight: number, zoom: number): number {
+  const halfSpanChunks = Math.ceil(Math.max(canvasWidth, canvasHeight) / (Math.max(1, zoom) * SURVIVAL_CHUNK_PIXELS * 2));
+  return Math.max(1, Math.min(SURVIVAL_CHUNK_COUNT, halfSpanChunks + 1));
+}
+
+export function subscriptionChunkBounds(chunkX: number, chunkY: number, radius: number): {
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
+} {
+  return {
+    minX: Math.max(0, chunkX - radius),
+    minY: Math.max(0, chunkY - radius),
+    maxX: Math.min(SURVIVAL_CHUNK_COUNT - 1, chunkX + radius),
+    maxY: Math.min(SURVIVAL_CHUNK_COUNT - 1, chunkY + radius),
+  };
+}
 
 export interface OverworldSnapshot {
   readonly connected: boolean;
@@ -133,7 +159,7 @@ export class OverworldConnection {
   }
 
   setViewRadius(radius: number): void {
-    const next = Math.max(1, Math.min(6, Math.ceil(radius)));
+    const next = Math.max(1, Math.min(SURVIVAL_CHUNK_COUNT, Math.ceil(radius)));
     if (next === this.viewRadius) return;
     this.viewRadius = next;
     const position = this.ownPosition();
@@ -224,8 +250,9 @@ export class OverworldConnection {
     this.pendingRegion = regionKey;
     const positions = [];
     const resources = [];
-    for (let y = chunkY - radius; y <= chunkY + radius; y += 1) {
-      for (let x = chunkX - radius; x <= chunkX + radius; x += 1) {
+    const bounds = subscriptionChunkBounds(chunkX, chunkY, radius);
+    for (let y = bounds.minY; y <= bounds.maxY; y += 1) {
+      for (let x = bounds.minX; x <= bounds.maxX; x += 1) {
         positions.push(
           tables.playerPosition.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)),
         );

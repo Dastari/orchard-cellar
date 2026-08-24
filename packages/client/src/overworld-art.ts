@@ -45,7 +45,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('tile_cf_grass_tuft', 'summer'),
     loadGeneratedAsset('tile_cf_hillside', 'summer'),
     loadGeneratedAsset('icon_cf_axe', 'summer'),
-    loadGeneratedAsset('icon_hoe', 'summer'),
+    loadGeneratedAsset('icon_cf_hoe', 'summer'),
     loadGeneratedAsset('icon_cf_pickaxe', 'summer'),
     loadGeneratedAsset('icon_cf_watering_can', 'summer'),
     loadGeneratedAsset('tile_cf_path', 'summer'),
@@ -277,16 +277,21 @@ export function drawOverworldAvatar(
   zoom: number,
   name: string,
 ): void {
-  const horizontal = facing === 'left' || facing === 'right' || facing === 'upLeft' || facing === 'upRight' || facing === 'downLeft' || facing === 'downRight';
-  const animation = facing === 'up' || facing === 'upLeft' || facing === 'upRight' ? 'walk_up' : horizontal ? 'walk_right' : 'walk_down';
+  const animation = avatarAnimationForDirection(facing);
   const frameIndex = avatarFrameIndex(moving, animationTick);
-  drawAnchored(context, art.avatar, animation, frameIndex, x, y + 4, cameraX, cameraY, zoom, facing === 'left' || facing === 'upLeft' || facing === 'downLeft');
+  drawAnchored(context, art.avatar, animation, frameIndex, x, y, cameraX, cameraY, zoom, facing === 'left' || facing === 'upLeft' || facing === 'downLeft');
   const screenX = Math.round((x - cameraX) * zoom);
   const screenY = Math.round((y - cameraY - 36) * zoom);
   const label = name.slice(0, 20);
   const width = measurePixelText(label) + 8;
   drawPixelPanel(context, art.ui, screenX - width / 2, screenY, width, 15);
   drawPixelText(context, art.ui, label, screenX, screenY + 4, { align: 'center' });
+}
+
+export function avatarAnimationForDirection(facing: Direction): 'walk_up' | 'walk_right' | 'walk_down' {
+  if (facing === 'up') return 'walk_up';
+  if (facing === 'down') return 'walk_down';
+  return 'walk_right';
 }
 
 export function avatarFrameIndex(moving: boolean, animationTick: number): number {

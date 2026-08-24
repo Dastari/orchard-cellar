@@ -1,5 +1,5 @@
 {
-  "name": "icon_cf_seed_bag",
+  "name": "icon_cf_bow",
   "category": "ui",
   "size": [
     16,
@@ -45,7 +45,7 @@
   ],
   "tags": [
     "ui.icon",
-    "item.seed_bag"
+    "item.weapon"
   ],
   "placement": {
     "layer": "ui",

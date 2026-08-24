@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_WORLD_ZOOM, WORLD_ZOOM_LEVELS, canvasViewport, fittedCanvasScale, integerCanvasScale, stepWorldZoom } from './display.js';
+import {
+  DEFAULT_WORLD_ZOOM,
+  WORLD_ZOOM_LEVELS,
+  canvasViewport,
+  fittedCanvasScale,
+  fittedUiScale,
+  integerCanvasScale,
+  stepUiScale,
+  stepWorldZoom,
+  worldZoomLabel,
+} from './display.js';
 
 describe('pixel display controls', () => {
   it('fits only whole virtual pixels', () => {
@@ -20,11 +30,20 @@ describe('pixel display controls', () => {
 
   it('steps and clamps world zoom', () => {
     expect(DEFAULT_WORLD_ZOOM).toBe(2);
-    expect(WORLD_ZOOM_LEVELS).toEqual([1, 2, 3, 4]);
+    expect(WORLD_ZOOM_LEVELS).toEqual([1, 2, 3]);
     expect(stepWorldZoom(2, -1)).toBe(1);
     expect(stepWorldZoom(1, -1)).toBe(1);
     expect(stepWorldZoom(2, 1)).toBe(3);
-    expect(stepWorldZoom(3, 1)).toBe(4);
-    expect(stepWorldZoom(4, 1)).toBe(4);
+    expect(stepWorldZoom(3, 1)).toBe(3);
+    expect(worldZoomLabel(1)).toBe('0.5X');
+    expect(worldZoomLabel(2)).toBe('1X');
+    expect(worldZoomLabel(3)).toBe('1.5X');
+  });
+
+  it('scales the HUD only by whole pixels that fit the current canvas', () => {
+    expect(stepUiScale(1, 1)).toBe(2);
+    expect(stepUiScale(3, 1)).toBe(3);
+    expect(fittedUiScale(3, 1920, 1080)).toBe(3);
+    expect(fittedUiScale(3, 640, 480)).toBe(1);
   });
 });

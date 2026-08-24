@@ -34,6 +34,9 @@ remain M7a work; the M5.7 slice does not grant land permissions.
   validates movement against terrain and the current resource table. Client
   prediction begins from the deterministic resource layout and applies subscribed
   depletion updates, then reconciles as usual.
+- The player body uses a compact 8×6 px foot box centered on the authoritative
+  position. The `G` diagnostic draws that exact box in cyan over terrain/resource
+  collision, so canopy depth and blocked trunk bases can be checked independently.
 - Render ground first. Sort resource sprites and player sprites by their foot-point Y;
   canopy pixels naturally cover actors north of a tree and actors south of it cover
   the trunk/canopy. HUD is never part of world sorting.
@@ -44,6 +47,10 @@ Private survival state contains Wood, Stone, and selected hotbar slot. A private
 table has nine slots. New players receive Axe, Pickaxe, Hoe, and Watering Can in slots
 0–3; slots 4–8 are empty. Caller-dependent SpaceTimeDB views expose only the caller's
 survival row and slots.
+
+The reviewed Cute Fantasy tool strip is semantically ordered Bow, Arrow, Pickaxe,
+Axe, Sword, Hoe, Watering Can, Fishing Rod, Lantern, Torch. Runtime crops use those
+declared meanings rather than visual filename inference.
 
 `harvest_resource(resourceId)` is atomic and authoritative:
 
@@ -59,11 +66,19 @@ respawn and durability are deliberately deferred.
 ## 5. Client UX
 
 - `1`–`9` selects a hotbar slot; the server persists selection.
+- Mouse-wheel up/down selects the previous/next slot with wraparound. It never zooms
+  the world.
 - `E` uses the selected tool on the faced resource. Prompt names the action or states
   which tool is required.
 - The bottom-center nine-slot hotbar uses parchment/wood pixel UI, short item labels,
   and a visible selected bracket. The HUD shows Wood and Stone counts.
-- `-`/`+` retains 1×/2×/3× camera zoom and `F`/double-click retains fullscreen.
+- The three render scales are shown relative to the intended default: source scale 2
+  is `1×`, with `0.5×` and `1.5×` steps on `-`/`+`. `Shift -`/`Shift +` changes the
+  HUD by whole-pixel scale when the current window can fit it.
+- `F` has no fullscreen binding. Double-clicking the canvas retains fullscreen.
+- The licensed character sheet has cardinal walk poses only. Diagonal travel remains
+  true diagonal movement and uses the mirrored side pose so it does not falsely read
+  as straight-up walking.
 
 ## 6. Required tests
 

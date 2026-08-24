@@ -28,7 +28,7 @@ describe('deterministic simulation', () => {
     for (let tick = 1; tick <= 5000; tick += 1) {
       state = advanceTick(state, [{ type: 'move', direction: 'left' }], tick);
     }
-    expect(state.player.position.x).toBeGreaterThanOrEqual(TILE_SIZE_FIXED + 5 * FIXED_UNITS_PER_PIXEL);
+    expect(state.player.position.x).toBeGreaterThanOrEqual(TILE_SIZE_FIXED + 4 * FIXED_UNITS_PER_PIXEL);
     expect(state.player.moving).toBe(false);
   });
 

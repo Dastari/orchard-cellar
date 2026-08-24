@@ -59,6 +59,10 @@ export function hotbarItemLabel(itemKind: string): string {
   return HOTBAR_LABELS[itemKind] ?? '--';
 }
 
+export function cycleHotbarSlot(current: number, direction: -1 | 1): number {
+  return (Math.max(0, Math.min(8, current)) + direction + 9) % 9;
+}
+
 export function harvestPrompt(resource: TargetableResource | null, selectedItem: string): string | null {
   if (resource === null) return null;
   if (resource.kind === 'tree' && selectedItem === 'axe') return '[E] CHOP TREE';

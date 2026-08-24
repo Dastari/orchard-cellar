@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { avatarFrameIndex, canonicalBlob47Index, isOverworldRoad, sortWorldDrawItems } from './overworld-art.js';
+import { avatarAnimationForDirection, avatarFrameIndex, canonicalBlob47Index, isOverworldRoad, sortWorldDrawItems } from './overworld-art.js';
 
 describe('overworld art topology', () => {
   it('uses the generated atlas canonical blob ordering', () => {
@@ -20,6 +20,13 @@ describe('overworld art topology', () => {
     expect(avatarFrameIndex(false, 0)).toBe(0);
     expect(avatarFrameIndex(false, 999)).toBe(0);
     expect(avatarFrameIndex(true, 8)).toBe(1);
+  });
+
+  it('uses the side pose for diagonal travel when the licensed sheet has cardinal poses only', () => {
+    expect(avatarAnimationForDirection('up')).toBe('walk_up');
+    expect(avatarAnimationForDirection('upLeft')).toBe('walk_right');
+    expect(avatarAnimationForDirection('upRight')).toBe('walk_right');
+    expect(avatarAnimationForDirection('down')).toBe('walk_down');
   });
 
   it('sorts world objects by foot point with a deterministic tie-break', () => {

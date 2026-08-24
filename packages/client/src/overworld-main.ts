@@ -6,16 +6,33 @@ import {
   createSurvivalCollisionMap,
   generateSurvivalResources,
   movePlayer,
+  playerHitboxBounds,
   survivalBiomeAt,
   survivalBiomeBlocksMovement,
   type CollisionMap,
   type Direction,
   type PlayerState,
 } from '@orchard/sim';
-import { DEFAULT_WORLD_ZOOM, resizePixelCanvas, stepWorldZoom, toggleFullscreen, type WorldZoom } from './display.js';
+import {
+  DEFAULT_UI_SCALE,
+  DEFAULT_WORLD_ZOOM,
+  fittedUiScale,
+  resizePixelCanvas,
+  stepUiScale,
+  stepWorldZoom,
+  toggleFullscreen,
+  worldZoomLabel,
+  type UiScale,
+  type WorldZoom,
+} from './display.js';
 import { FixedStepLoop } from './loop.js';
 import type { PlayerPosition, PlayerPublic, WorldResource } from './net/generated/types.js';
-import { OverworldConnection, type NetworkDirection, type OverworldSnapshot } from './net/overworld-connection.js';
+import {
+  OverworldConnection,
+  viewRadiusForViewport,
+  type NetworkDirection,
+  type OverworldSnapshot,
+} from './net/overworld-connection.js';
 import {
   drawOverworldAvatar,
   drawOverworldGround,
@@ -26,7 +43,7 @@ import {
 } from './overworld-art.js';
 import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
 import { drawPixelPanel, drawPixelText, measurePixelText } from './render/pixel-ui.js';
-import { facedResource, harvestPrompt, hotbarItemLabel, hotbarSlotForCode } from './survival-ui.js';
+import { cycleHotbarSlot, facedResource, harvestPrompt, hotbarItemLabel, hotbarSlotForCode } from './survival-ui.js';
 import './style.css';
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
@@ -50,6 +67,8 @@ let toast = 'CONNECTING TO SHARED ISLAND';
 let toastTicks = 180;
 let animationTick = 0;
 let worldZoom: WorldZoom = DEFAULT_WORLD_ZOOM;
+let desiredUiScale: UiScale = DEFAULT_UI_SCALE;
+let wheelSelectionLockedUntil = 0;
 let collisionKey = '';
 let worldCollision: CollisionMap = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED);
 let lastNetworkStatus = '';
@@ -126,7 +145,7 @@ function refreshCollision(snapshot: OverworldSnapshot): void {
 
 function update(): void {
   animationTick = (animationTick + 1) % 1_000_000;
-  network.setViewRadius(Math.ceil(Math.max(canvas.width, canvas.height) / (worldZoom * 512)) + 1);
+  network.setViewRadius(viewRadiusForViewport(canvas.width, canvas.height, worldZoom));
   const snapshot = network.snapshot();
   if (networkDirty) refreshCollision(snapshot);
   const direction = directionFromKeys();
@@ -174,11 +193,11 @@ function targetResource(snapshot: OverworldSnapshot): WorldResource | null {
   return facedResource(predicted.position.x, predicted.position.y, predicted.facing, snapshot.resources);
 }
 
-function drawHotbar(snapshot: OverworldSnapshot): void {
+function drawHotbar(snapshot: OverworldSnapshot, viewportWidth: number, viewportHeight: number): void {
   const slotWidth = 35;
   const totalWidth = slotWidth * 9;
-  const startX = Math.round((canvas.width - totalWidth) / 2);
-  const y = canvas.height - 43;
+  const startX = Math.round((viewportWidth - totalWidth) / 2);
+  const y = viewportHeight - 43;
   const selected = snapshot.survival?.selectedSlot ?? 0;
   const icons = {
     axe: art.iconAxe,
@@ -205,6 +224,36 @@ function drawHotbar(snapshot: OverworldSnapshot): void {
       y + 27,
       { align: 'center' },
     );
+  }
+}
+
+function drawPlayerCollisionOverlay(
+  cameraX: number,
+  cameraY: number,
+  snapshot: OverworldSnapshot,
+): void {
+  for (const player of snapshot.players) {
+    const id = player.identity.toHexString();
+    const local = id === snapshot.identityHex;
+    const display = local ? null : remoteDisplay.get(id);
+    const position = {
+      x: local ? predicted?.position.x ?? player.x : display?.x ?? player.x,
+      y: local ? predicted?.position.y ?? player.y : display?.y ?? player.y,
+    };
+    const bounds = playerHitboxBounds(position);
+    const left = (bounds.left / FIXED_UNITS_PER_PIXEL - cameraX) * worldZoom;
+    const top = (bounds.top / FIXED_UNITS_PER_PIXEL - cameraY) * worldZoom;
+    const width = (bounds.right - bounds.left + 1) / FIXED_UNITS_PER_PIXEL * worldZoom;
+    const height = (bounds.bottom - bounds.top + 1) / FIXED_UNITS_PER_PIXEL * worldZoom;
+    context.fillStyle = local ? '#33e6ff55' : '#d36dff44';
+    context.strokeStyle = local ? '#33e6ff' : '#d36dff';
+    context.lineWidth = 1;
+    context.fillRect(Math.round(left), Math.round(top), Math.ceil(width), Math.ceil(height));
+    context.strokeRect(Math.round(left), Math.round(top), Math.ceil(width), Math.ceil(height));
+    const footX = Math.round((position.x / FIXED_UNITS_PER_PIXEL - cameraX) * worldZoom);
+    const footY = Math.round((position.y / FIXED_UNITS_PER_PIXEL - cameraY) * worldZoom);
+    context.fillRect(footX - 2, footY, 5, 1);
+    context.fillRect(footX, footY - 2, 1, 5);
   }
 }
 
@@ -246,7 +295,6 @@ function render(): void {
   const cameraY = cameraAxisOffset(localY, viewportHeight, worldPixels);
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   drawOverworldGround(context, art, cameraX, cameraY, worldZoom, canvas.width, canvas.height, seed);
-  if (debugCollision) drawCollisionOverlay(cameraX, cameraY, seed);
 
   const visible = visibleWorldBounds(cameraX, cameraY, canvas.width, canvas.height, worldZoom, 64);
   const drawItems: Array<{ footY: number; tie: string; draw: () => void }> = [];
@@ -288,6 +336,10 @@ function render(): void {
     });
   }
   for (const item of sortWorldDrawItems(drawItems)) item.draw();
+  if (debugCollision) {
+    drawCollisionOverlay(cameraX, cameraY, seed);
+    drawPlayerCollisionOverlay(cameraX, cameraY, snapshot);
+  }
 
   const target = targetResource(snapshot);
   if (target !== null) {
@@ -301,21 +353,27 @@ function render(): void {
     );
   }
 
+  const uiScale = fittedUiScale(desiredUiScale, canvas.width, canvas.height);
+  const uiWidth = canvas.width / uiScale;
+  const uiHeight = canvas.height / uiScale;
+  context.save();
+  context.scale(uiScale, uiScale);
   drawPixelPanel(context, art.ui, 4, 4, 290, 48);
   drawPixelText(context, art.ui, `ISLAND ${snapshot.connected ? 'ONLINE' : 'CONNECTING'}  PLAYERS ${snapshot.players.length}`, 11, 11);
-  drawPixelText(context, art.ui, `WOOD ${snapshot.survival?.wood ?? 0}  STONE ${snapshot.survival?.stone ?? 0}  VIEW ${worldZoom}X`, 11, 22);
-  drawPixelText(context, art.ui, 'WASD WALK  1-9 TOOLS  E USE  G COLLISION  F FULL', 11, 33);
+  drawPixelText(context, art.ui, `WOOD ${snapshot.survival?.wood ?? 0}  STONE ${snapshot.survival?.stone ?? 0}  VIEW ${worldZoomLabel(worldZoom)}  UI ${uiScale}X`, 11, 22);
+  drawPixelText(context, art.ui, 'WASD WALK  1-9 ITEMS  E USE  +/- ZOOM', 11, 33);
   const prompt = harvestPrompt(target, selectedItem(snapshot));
   if (prompt !== null) {
     const width = Math.max(104, measurePixelText(prompt) + 14);
-    drawPixelPanel(context, art.ui, canvas.width / 2 - width / 2, canvas.height - 58, width, 19);
-    drawPixelText(context, art.ui, prompt, canvas.width / 2, canvas.height - 52, { align: 'center' });
+    drawPixelPanel(context, art.ui, uiWidth / 2 - width / 2, uiHeight - 66, width, 19);
+    drawPixelText(context, art.ui, prompt, uiWidth / 2, uiHeight - 60, { align: 'center' });
   }
-  drawHotbar(snapshot);
+  drawHotbar(snapshot, uiWidth, uiHeight);
   if (toastTicks > 0) {
-    drawPixelPanel(context, art.ui, canvas.width / 2 - 135, canvas.height - 61, 270, 19);
-    drawPixelText(context, art.ui, toast.slice(0, 42), canvas.width / 2, canvas.height - 55, { align: 'center' });
+    drawPixelPanel(context, art.ui, uiWidth / 2 - 135, uiHeight - 66, 270, 19);
+    drawPixelText(context, art.ui, toast.slice(0, 42), uiWidth / 2, uiHeight - 60, { align: 'center' });
   }
+  context.restore();
 }
 
 function showResult(promise: Promise<void>, success: string): void {
@@ -337,23 +395,20 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if ((event.code === 'Minus' || event.code === 'NumpadSubtract') && !event.repeat) {
-    worldZoom = stepWorldZoom(worldZoom, -1);
+    if (event.shiftKey) desiredUiScale = stepUiScale(desiredUiScale, -1);
+    else worldZoom = stepWorldZoom(worldZoom, -1);
     event.preventDefault();
     return;
   }
   if ((event.code === 'Equal' || event.code === 'NumpadAdd') && !event.repeat) {
-    worldZoom = stepWorldZoom(worldZoom, 1);
-    event.preventDefault();
-    return;
-  }
-  if (event.code === 'KeyF' && !event.repeat) {
-    void toggleFullscreen(shellElement).catch(() => undefined);
+    if (event.shiftKey) desiredUiScale = stepUiScale(desiredUiScale, 1);
+    else worldZoom = stepWorldZoom(worldZoom, 1);
     event.preventDefault();
     return;
   }
   if (event.code === 'KeyG' && !event.repeat) {
     debugCollision = !debugCollision;
-    toast = debugCollision ? 'COLLISION: GREEN OPEN / RED TERRAIN / AMBER RESOURCE' : 'COLLISION OVERLAY OFF';
+    toast = debugCollision ? 'COLLISION: CYAN PLAYER / RED TERRAIN / AMBER RESOURCE' : 'COLLISION OVERLAY OFF';
     toastTicks = 180;
     event.preventDefault();
     return;
@@ -377,8 +432,12 @@ window.addEventListener('blur', () => keys.clear());
 canvas.addEventListener('dblclick', () => { void toggleFullscreen(shellElement).catch(() => undefined); });
 canvas.addEventListener('wheel', (event) => {
   if (event.ctrlKey || event.deltaY === 0) return;
-  worldZoom = stepWorldZoom(worldZoom, event.deltaY > 0 ? -1 : 1);
   event.preventDefault();
+  if (event.timeStamp < wheelSelectionLockedUntil) return;
+  wheelSelectionLockedUntil = event.timeStamp + 120;
+  const current = network.snapshot().survival?.selectedSlot ?? 0;
+  const next = cycleHotbarSlot(current, event.deltaY > 0 ? 1 : -1);
+  showResult(network.selectHotbar(next), `SELECTED SLOT ${next + 1}`);
 }, { passive: false });
 
 resize();
@@ -392,6 +451,8 @@ Object.assign(window, {
     harvestResource: (resourceId: bigint) => network.harvestResource(resourceId),
     selectHotbar: (selectedSlot: number) => network.selectHotbar(selectedSlot),
     setCollisionDebug: (enabled: boolean) => { debugCollision = enabled; },
+    setWorldZoom: (zoom: WorldZoom) => { worldZoom = zoom; },
+    setUiScale: (scale: UiScale) => { desiredUiScale = scale; },
   },
 });
 loop.start();
