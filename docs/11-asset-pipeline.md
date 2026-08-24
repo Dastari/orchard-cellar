@@ -24,13 +24,14 @@ critically — style-enforceable by CI.
     "fruit": [ ["..."] ]
   },
   "fps": 1.5,                        // if >1 frame
-  "markers": {}                      // palette-swap groups, see §4
+  "markers": {"W": "N"},            // build-time default palette color, see §4
+  "markerRamps": {"W": ["W", "P"]} // runtime swap group's grid chars, dark→light
 }
 ```
 
 Pixel rows are strings, one character per pixel:
 - `.` = transparent
-- `0-9 a-z A-Z` = palette index 0–61 (we use 0–55 + marker slots)
+- `0-9 a-z A-Z` = palette index 0–61 (we use 0–54 + marker slots)
 
 The palette (`packages/assets/palette.json`) maps chars → hex, generated from the
 table in 10-art-style-guide.md §2, ordered ramp by ramp (R1 dark first). The build
@@ -73,16 +74,25 @@ overrides; the farm map spec lives in 03-gameplay-core.md.
 4. Outline per rules; run validate; run preview; compare against neighbors.
 5. Commit source JSON only — atlases are build artifacts (gitignored).
 
+During the initial M2 anchor bootstrap, a category with fewer than three approved
+neighbors uses every available same-category anchor plus three supplied style
+benchmarks. Once three anchors exist in that category, the normal three-neighbor
+requirement applies. This exception cannot be used for post-M2 asset production.
+
 Budget guidance: a 16×16 tile is ~10 min of agent effort; don't gold-plate. A hero
 asset (mature tree, farmhouse) deserves iteration; a rock does not.
 
 ## 4. Palette-swap markers (character customization, seasons)
 
-Characters are drawn once using **marker indices** (chars `W X Y Z` reserved):
-`W`=skin, `X`=hair, `Y`=shirt, `Z`=pants, each with `W1 W2 W3` shade steps declared in
-`"markers"`. At load, the client substitutes the player's chosen ramp steps. Seasonal
-recolors are palette remap tables in `packages/assets/seasons.json` applied at atlas
-build (four atlas variants). Never hand-duplicate a sprite to recolor it.
+Characters are drawn once using four **marker groups**: `W`=skin, `X`=hair,
+`Y`=shirt, `Z`=pants. `"markers"` maps a reserved group character to its closed-palette
+default for atlas generation. `"markerRamps"` declares every grid character belonging
+to that runtime swap group, ordered dark→light; ramps may contain two or three shade
+steps (the base avatar uses two for skin/hair and three for shirt/pants). The atlas
+metadata preserves each marker pixel and its shade index, then the client substitutes
+the player's chosen ramp at load. Seasonal recolors are palette remap tables in
+`packages/assets/seasons.json` applied at atlas build (four atlas variants). Never
+hand-duplicate a sprite to recolor it.
 
 ## 5. The iteration loop: agents must SEE their work
 
@@ -136,6 +146,13 @@ while writing rows of characters.
   anchor set proves too slow, ONE coherent CC0 pack may be adopted for *terrain
   tiles only*, palette-remapped to ours by the import tool. Characters, trees, and
   buildings stay authored regardless.
+
+**Project decision (2026-08-24):** the owner-supplied Sprout Lands Basic Pack is the
+single adopted terrain source for this private, non-commercial build. Terrain tiles
+may be cropped from it and palette-remapped into committed text grids through
+`assets:import`; the original pack remains ignored and is not redistributed. Credit
+Cup Nooble in the game. Characters, trees, buildings, machinery, and UI remain bespoke.
+
 
 ## 7. Asset inventory & naming
 

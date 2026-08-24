@@ -49,6 +49,11 @@ describe('engine logic', () => {
     expect(animator.getFrame()?.x).toBe(16);
     animator.setAnimation('idle');
     expect(animator.getFrame()?.x).toBe(0);
+    animator.setAnimation('walk');
+    animator.update();
+    animator.update();
+    animator.reset();
+    expect(animator.getFrame()?.x).toBe(0);
   });
 
   it('sorts dynamic sprites by their feet', () => {
@@ -75,6 +80,7 @@ describe('engine logic', () => {
     const map = createPlaceholderTileMap(createPlaceholderCollisionMap(48, 32));
     expect(map.layers.map((layer) => layer.name)).toEqual(['ground', 'detail', 'canopy']);
     expect(map.layers.every((layer) => layer.tiles.length === 48 * 32)).toBe(true);
-    expect(map.layers[2]?.tiles.some((tile) => tile === 9 || tile === 10)).toBe(true);
+    expect(map.layers[1]?.tiles.some((tile) => tile !== 0)).toBe(true);
+    expect(map.layers[2]?.tiles.every((tile) => tile === 0)).toBe(true);
   });
 });

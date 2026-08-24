@@ -1,0 +1,109 @@
+{
+  "name": "tile_grass",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "autotile": "blob47",
+  "frames": {
+    "base": [
+      [
+        "cccccccccccccccc",
+        "ccccddcccccccccc",
+        "cccdddcccccccccc",
+        "cccccccccccccccc",
+        "cccccccccccccccc",
+        "cccccccccccccccc",
+        "cccbcccccccccccc",
+        "ccbbbccccccccccc",
+        "cccccccccccccccc",
+        "ccccccccccbbcccc",
+        "ccccccccccbbbccc",
+        "cccccccccccbbccc",
+        "cccccccccccccccc",
+        "ccccccddcccccccc",
+        "cccccccddccccccc",
+        "cccccccccccccccc"
+      ],
+      [
+        "................",
+        "...ccccccccccccc",
+        ".ccccccccccccccc",
+        "cccccccccccccccc",
+        "ccccddcccccccccc",
+        "cccdddcccccccccc",
+        "cccccccccccccccc",
+        "cccbcccccccccccc",
+        "ccbbbccccccccccc",
+        "cccccccccccccccc",
+        "ccccccccccbbcccc",
+        "ccccccccccbbbccc",
+        "cccccccccccbbccc",
+        "ccccccddcccccccc",
+        "cccccccddccccccc",
+        "cccccccccccccccc"
+      ],
+      [
+        "........cccccccc",
+        "......cccccccccc",
+        "....cccccccccccc",
+        "...ccccccccccccc",
+        "..cccccccccccccc",
+        ".ccccccccccccccc",
+        ".cccccbccccccccc",
+        "ccccbbbccccccccc",
+        "cccccccccccccccc",
+        "ccccccccccbbcccc",
+        "ccccccccccbbbccc",
+        "cccccccccccbbccc",
+        "cccccccccccccccc",
+        "ccccccddcccccccc",
+        "cccccccddccccccc",
+        "cccccccccccccccc"
+      ],
+      [
+        "cccccccccccccccc",
+        "cccccccccccccccc",
+        "cccccccccccccccc",
+        "cccccccccccccccc",
+        "cccc....cccccccc",
+        "ccc.....cccccccc",
+        "cccc....cccccccc",
+        "cccb...ccccccccc",
+        "ccbbbccccccccccc",
+        "cccccccccccccccc",
+        "ccccccccccbbcccc",
+        "ccccccccccbbbccc",
+        "cccccccccccbbccc",
+        "ccccccddcccccccc",
+        "cccccccddccccccc",
+        "cccccccccccccccc"
+      ],
+      [
+        ".....cccccc.....",
+        "...cccccccccc...",
+        "..cccccccccccc..",
+        ".ccccddcccccccc.",
+        ".cccdddcccccccc.",
+        "cccccccccccccccc",
+        "cccbcccccccccccc",
+        "ccbbbccccccccccc",
+        "cccccccccccccccc",
+        "ccccccccccbbcccc",
+        "ccccccccccbbbccc",
+        ".ccccccccccbbcc.",
+        ".cccccccccccccc.",
+        "..ccccddcccccc..",
+        "...cccccddccc...",
+        ".....cccccc....."
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Grass.png"
+}

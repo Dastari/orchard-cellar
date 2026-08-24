@@ -1,0 +1,39 @@
+{
+  "name": "icon_resource_fruit",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".......SSSSSS...",
+        ".......22cddS...",
+        ".......22cccS...",
+        "....SSS22lS.....",
+        "...SlnnnlllSS...",
+        "..SllnnnlllllS..",
+        "..SlmmlllllllS..",
+        "..SlmmlllllllS..",
+        "..SllllllkkklS..",
+        "..SllllllkkklS..",
+        "...SSlljjjlSS...",
+        ".....SSSSSS.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "approved": true
+}
+

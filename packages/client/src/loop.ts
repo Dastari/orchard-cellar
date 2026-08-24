@@ -31,6 +31,7 @@ export class FixedStepLoop {
   start(): void {
     if (this.frameRequest !== null) return;
     this.previousTime = performance.now() / 1000;
+    this.callbacks.render(0);
     this.frameRequest = requestAnimationFrame(this.frame);
   }
 

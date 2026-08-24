@@ -5,13 +5,17 @@
   "type": "module",
   "workspaces": ["packages/*"],
   "scripts": {
-    "dev": "concurrently -k -n client,server,assets -c green,blue,yellow \"npm run dev -w @orchard/client\" \"npm run dev -w @orchard/server\" \"npm run watch -w @orchard/tools\"",
-    "build": "npm run build -w @orchard/sim && npm run build -w @orchard/tools && npm run build -w @orchard/client && npm run build -w @orchard/server",
+    "dev": "npm run assets:build && concurrently -k -n client,server,assets -c green,blue,yellow \"npm run dev -w @orchard/client\" \"npm run dev -w @orchard/server\" \"npm run watch -w @orchard/tools\"",
+    "build": "npm run assets:build && npm run build -w @orchard/sim && npm run build -w @orchard/tools && npm run build -w @orchard/client && npm run build -w @orchard/server",
     "check": "npm run typecheck && npm run lint && npm test && npm run assets:validate",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "vitest run --coverage",
-    "assets:validate": "npm run validate -w @orchard/tools"
+    "assets:validate": "npm run validate -w @orchard/tools",
+    "assets:build": "npm run atlas -w @orchard/tools",
+    "assets:render": "npm run render -w @orchard/tools --",
+    "assets:preview": "npm run preview -w @orchard/tools",
+    "assets:import": "npm run import -w @orchard/tools --"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

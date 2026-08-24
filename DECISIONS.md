@@ -1,0 +1,5 @@
+<!-- date | area | decision | reason | supersedes -->
+2026-08-24 | art/palette | use 55 closed palette colors indexed 0–54 | docs/10 §2 table contains 55 hex values despite saying 56; generating the table verbatim avoids inventing an unsigned color | —
+2026-08-24 | art/terrain | adopt Sprout Lands Basic Pack as the single terrain reference/source, imported into palette-closed text grids | owner confirmed the paid pack is for a private non-commercial project and explicitly approved its use; this accelerates terrain while bespoke characters, trees, buildings, and UI preserve Orchard identity | docs/11 §6 public-pack default
+2026-08-24 | art/review | allow M2 bootstrap anchors to use all available same-category anchors plus three style benchmarks when fewer than three approved neighbors exist | the first asset in a category cannot be rendered beside three pre-existing approved assets; generated review sheets record the available count and later assets enforce the full neighbor comparison | docs/10 §8 three-neighbor requirement during initial anchor bootstrap
+

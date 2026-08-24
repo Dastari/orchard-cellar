@@ -19,12 +19,12 @@ and built) and the `pixel-art` skill in `.claude/skills/` (working instructions)
 | Trees (mature) | 48×64 px (3×4 tiles), trunk base occupies 1 collision tile |
 | Buildings | multiples of 16 in both axes |
 | Virtual resolution | 480×270 (30×~17 tiles on screen), integer-scaled |
-| Palette | `packages/assets/palette.json` — **56 colors, closed** (see §2) |
+| Palette | `packages/assets/palette.json` — **55 colors, closed** (see §2) |
 | Transparency | binary only — a pixel is a palette color or fully transparent; no alpha blending inside sprites |
 | Outlines | 1 px, **not pure black** — use the palette's darkest hue-relative color (see §3) |
 
 Adding a palette color is a design decision requiring an explicit doc update + user
-sign-off. Everything ships from these 56.
+sign-off. Everything ships from these 55.
 
 ## 2. The palette — "Late Summer Orchard"
 

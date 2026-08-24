@@ -67,7 +67,7 @@ Trust the render over your mental image of the grid, always.
 
 ## Palette discipline
 
-- 56 colors + markers `W X Y Z` (skin/hair/shirt/pants swap groups) — nothing else.
+- 55 colors + markers `W X Y Z` (skin/hair/shirt/pants swap groups) — nothing else.
   The validator enforces this; never edit the palette to make a sprite pass.
 - No pure black or white. The only near-black is `#1a1210`.
 - Seasonal variants come from remap tables in `packages/assets/seasons.json`,

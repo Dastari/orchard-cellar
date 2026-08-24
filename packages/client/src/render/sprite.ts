@@ -63,6 +63,11 @@ export class SpriteAnimator {
     this.frameIndex = 0;
   }
 
+  reset(): void {
+    this.frameTick = 0;
+    this.frameIndex = 0;
+  }
+
   update(): void {
     const frames = this.metadata.animations[this.animation] ?? [];
     if (frames.length === 0) return;

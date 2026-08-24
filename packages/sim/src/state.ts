@@ -53,9 +53,10 @@ export function createPlaceholderCollisionMap(width = 48, height = 32): Collisio
     const y = Math.floor(index / width);
     const border = x === 0 || y === 0 || x === width - 1 || y === height - 1;
     const barn = x >= 17 && x <= 23 && y >= 7 && y <= 12;
+    const orchardTree = x === 12 && y === 14;
     const pond = x >= 30 && x <= 38 && y >= 18 && y <= 24;
     const fence = y === 16 && x >= 5 && x <= 14 && x !== 10;
-    return border || barn || pond || fence;
+    return border || barn || orchardTree || pond || fence;
   });
   return { width, height, blocked };
 }
@@ -73,4 +74,3 @@ export function createInitialState(seed = 0x0cce11a): FarmState {
     collision: createPlaceholderCollisionMap(),
   };
 }
-

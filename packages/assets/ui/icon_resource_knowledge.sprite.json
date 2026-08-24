@@ -1,0 +1,39 @@
+{
+  "name": "icon_resource_knowledge",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "...SSSSSSSSSS...",
+        "..SwwwwvvxxxvS..",
+        "..SwwwwttxxxvS..",
+        "..SvvvvttvvvvS..",
+        "..StttvttvtttS..",
+        "..SvvvvttvvvvS..",
+        "..SuuuuttuuuvS..",
+        "..SvvvvttvvvvS..",
+        "..SvwwwttwwwvS..",
+        "..SSSSSttSSSSS..",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "approved": true
+}
+

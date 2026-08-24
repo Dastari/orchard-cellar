@@ -1,10 +1,11 @@
 node_modules/
 dist/
 coverage/
+build/
 packages/client/public/generated/
 packages/assets/review/
+references/asset-pack/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
 .env
-

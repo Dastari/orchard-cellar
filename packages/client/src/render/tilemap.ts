@@ -1,11 +1,13 @@
 import { TILE_SIZE_PIXELS, type CollisionMap } from '@orchard/sim';
 import type { Camera } from './camera.js';
+import type { AtlasFrame } from './sprite.js';
 
 export type CachedLayerName = 'ground' | 'detail' | 'canopy';
 
 export interface TileDefinition {
   readonly fill: string;
   readonly inset?: { readonly color: string; readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly atlas?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame };
 }
 
 export interface TileLayerData {
@@ -34,12 +36,15 @@ function blankLayer(width: number, height: number, name: CachedLayerName): TileL
   return { name, tiles: Array.from({ length: width * height }, () => 0) };
 }
 
-export function createPlaceholderTileMap(collision: CollisionMap): TileMapData {
+export function createPlaceholderTileMap(
+  collision: CollisionMap,
+  grassAtlas?: { readonly image: CanvasImageSource; readonly frame: AtlasFrame },
+): TileMapData {
   const ground = Array.from({ length: collision.width * collision.height }, (_, index) => {
     const x = index % collision.width;
     const y = Math.floor(index / collision.width);
     if (x >= 30 && x <= 38 && y >= 18 && y <= 24) return (x + y) % 2 === 0 ? 3 : 4;
-    return (x + y) % 3 === 0 ? 1 : 2;
+    return (x * 7 + y * 11) % 13 === 0 ? 2 : 1;
   });
   const detail = [...blankLayer(collision.width, collision.height, 'detail').tiles];
   const canopy = [...blankLayer(collision.width, collision.height, 'canopy').tiles];
@@ -49,22 +54,17 @@ export function createPlaceholderTileMap(collision: CollisionMap): TileMapData {
     const x = index % collision.width;
     const y = Math.floor(index / collision.width);
     if (x >= 30 && x <= 38 && y >= 18 && y <= 24) continue;
+    if (x >= 17 && x <= 23 && y >= 7 && y <= 12) continue;
+    if (x === 12 && y === 14) continue;
     detail[index] = y === 16 ? 5 : 6;
   }
-  for (let y = 7; y <= 12; y += 1) {
-    for (let x = 17; x <= 23; x += 1) detail[y * collision.width + x] = x === 20 && y >= 10 ? 8 : 7;
-  }
-  for (let y = 5; y <= 8; y += 1) {
-    for (let x = 16; x <= 24; x += 1) canopy[y * collision.width + x] = y <= 6 ? 10 : 9;
-  }
-
   return {
     width: collision.width,
     height: collision.height,
     tileSize: TILE_SIZE_PIXELS,
     definitions: {
-      1: { fill: '#4f8b4a' },
-      2: { fill: '#57964e' },
+      1: { fill: '#58a346' },
+      2: { fill: '#58a346', ...(grassAtlas ? { atlas: grassAtlas } : {}) },
       3: { fill: '#3f7e8b' },
       4: { fill: '#397482' },
       5: { fill: 'transparent', inset: { color: '#8a613f', x: 0, y: 8, width: 16, height: 8 } },
@@ -132,6 +132,10 @@ export class CachedTileMapRenderer {
       if (tile.fill !== 'transparent') {
         context.fillStyle = tile.fill;
         context.fillRect(x, y, this.map.tileSize, this.map.tileSize);
+      }
+      if (tile.atlas) {
+        const frame = tile.atlas.frame;
+        context.drawImage(tile.atlas.image, frame.x, frame.y, frame.width, frame.height, x, y, this.map.tileSize, this.map.tileSize);
       }
       if (tile.inset) {
         context.fillStyle = tile.inset.color;

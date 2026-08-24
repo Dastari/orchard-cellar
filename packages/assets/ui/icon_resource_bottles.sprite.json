@@ -1,0 +1,39 @@
+{
+  "name": "icon_resource_bottles",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......2222......",
+        "......2222......",
+        "......SHHS......",
+        ".....SGHHGS.....",
+        ".....SGGGGS.....",
+        "....SGGGGGGS....",
+        "....SHHGGGGS....",
+        "....SHHGGEES....",
+        "....SHHGGEES....",
+        "....SFFFGEES....",
+        "....SFFFGEES....",
+        "....SSSSSSSS....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "approved": true
+}
+

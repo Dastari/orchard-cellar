@@ -7,7 +7,11 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "validate": "tsx src/validate-assets.ts",
-    "watch": "tsx src/watch-assets.ts"
+    "watch": "tsx src/watch-assets.ts",
+    "atlas": "tsx src/build-atlas.ts",
+    "render": "tsx src/render-review.ts",
+    "preview": "tsx src/preview.ts",
+    "import": "tsx src/import-image.ts"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

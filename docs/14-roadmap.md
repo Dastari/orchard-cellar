@@ -29,7 +29,7 @@ and farmhouse collision on the live 480×270 canvas; a clean snapshot had no con
 errors. Deterministic replay passes, with sim at 100% line coverage and focused engine
 tests covering loop timing, camera, atlas animation, Y-sort, scene stack, and map layers.
 
-## M2 — Art foundation `⏳ in progress (codex, 2026-08-24)`
+## M2 — Art foundation `☑ complete (codex, 2026-08-24)`
 `palette.json` generated from [10-art-style-guide.md](10-art-style-guide.md) §2,
 sprite/tile JSON formats, atlas builder + validator + preview tool
 ([11-asset-pipeline.md](11-asset-pipeline.md)), seasonal remap tables, and the
@@ -39,6 +39,14 @@ both fonts + resource icons. These anchor assets set the bar every later asset i
 compared against — spend real iteration here, screenshots reviewed in preview tool.
 **Done when:** avatar walks on real tiles past the farmhouse and a fruiting tree,
 validated and screenshotted.
+
+**Verification:** Shared-browser play confirmed the customized avatar walking and
+returning to a static idle frame on a solid field with sparse terrain tufts, past the
+authored farmhouse and fruiting tree. The animated preview and generated review PNGs
+were visually inspected across all 22 anchors (including all 32 avatar frames and 47
+autotile variants). A fresh hidden-tab load synchronously rendered all 129,600 canvas
+pixels; runtime skin/hair/shirt/pants recolors were present. Asset validation, tests,
+typecheck, lint, production builds, and the milestone reviewer all pass.
 
 ## M3 — Farm alive `☐`
 Estate exterior map (64×64 per [03-gameplay-core.md](03-gameplay-core.md) §3),

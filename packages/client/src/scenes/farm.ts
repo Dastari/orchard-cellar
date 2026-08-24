@@ -12,10 +12,10 @@ import {
   SpriteAnimator,
   drawAtlasFrame,
   drawYSorted,
-  type AtlasMetadata,
   type YSortableSprite,
 } from '../render/sprite.js';
 import { createPlaceholderTileMap, CachedTileMapRenderer } from '../render/tilemap.js';
+import type { LoadedAsset } from '../render/assets.js';
 import type { Scene } from './scene.js';
 
 const VIEWPORT_WIDTH = 480;
@@ -27,18 +27,26 @@ export class FarmScene implements Scene {
   private readonly camera: Camera;
   private readonly tilemap: CachedTileMapRenderer;
   private readonly avatarAnimator: SpriteAnimator;
-  private readonly avatarAtlas: HTMLCanvasElement;
+  private readonly avatarAsset: LoadedAsset;
 
-  constructor(private readonly input: InputController, avatarMetadata: AtlasMetadata) {
+  constructor(
+    private readonly input: InputController,
+    avatarAsset: LoadedAsset,
+    grassAsset: LoadedAsset,
+    private readonly farmhouseAsset: LoadedAsset,
+    private readonly fruitTreeAsset: LoadedAsset,
+  ) {
     this.camera = new Camera(
       VIEWPORT_WIDTH,
       VIEWPORT_HEIGHT,
       this.state.collision.width * TILE_SIZE_PIXELS,
       this.state.collision.height * TILE_SIZE_PIXELS,
     );
-    this.tilemap = new CachedTileMapRenderer(createPlaceholderTileMap(this.state.collision));
-    this.avatarAnimator = new SpriteAnimator(avatarMetadata, 'idle');
-    this.avatarAtlas = this.createPlaceholderAvatarAtlas();
+    const grassFrame = grassAsset?.metadata.animations['base']?.at(-1);
+    const grassAtlas = grassAsset && grassFrame ? { image: grassAsset.image, frame: grassFrame } : undefined;
+    this.tilemap = new CachedTileMapRenderer(createPlaceholderTileMap(this.state.collision, grassAtlas));
+    this.avatarAsset = avatarAsset;
+    this.avatarAnimator = new SpriteAnimator(avatarAsset.metadata, 'walk_down');
   }
 
   update(): void {
@@ -48,8 +56,9 @@ export class FarmScene implements Scene {
       [{ type: 'move', direction: this.input.getDirection() }],
       this.state.tick + 1,
     );
-    this.avatarAnimator.setAnimation(this.state.player.moving ? 'walk' : 'idle');
-    this.avatarAnimator.update();
+    this.avatarAnimator.setAnimation(this.animationForFacing());
+    if (this.state.player.moving) this.avatarAnimator.update();
+    else this.avatarAnimator.reset();
     const playerX = this.state.player.position.x / FIXED_UNITS_PER_PIXEL;
     const playerY = this.state.player.position.y / FIXED_UNITS_PER_PIXEL;
     this.camera.follow(playerX, playerY);
@@ -69,40 +78,49 @@ export class FarmScene implements Scene {
       y: screenY,
       draw: (target) => this.drawAvatar(target, screenX, screenY),
     };
+    const farmhouse = this.worldAssetSprite(this.farmhouseAsset, 'base', 20 * 16, 13 * 16);
+    const fruitTree = this.worldAssetSprite(this.fruitTreeAsset, 'fruiting', 12 * 16, 14 * 16);
     const mailbox: YSortableSprite = {
       y: 190 - this.camera.y,
       draw: (target) => this.drawMailbox(target, 150 - this.camera.x, 190 - this.camera.y),
     };
-    drawYSorted(context, [avatar, mailbox]);
+    drawYSorted(context, [avatar, mailbox, farmhouse, fruitTree]);
     this.tilemap.drawLayer(context, this.camera, 'canopy');
     this.drawHud(context);
   }
 
   private drawAvatar(context: CanvasRenderingContext2D, x: number, y: number): void {
     const frame = this.avatarAnimator.getFrame();
-    if (frame) drawAtlasFrame(context, this.avatarAtlas, frame, x, y + 8);
+    if (frame) drawAtlasFrame(context, this.avatarAsset.image, frame, x, y + 8);
   }
 
-  private createPlaceholderAvatarAtlas(): HTMLCanvasElement {
-    const atlas = document.createElement('canvas');
-    atlas.width = 32;
-    atlas.height = 20;
-    const context = atlas.getContext('2d');
-    if (!context) return atlas;
-    for (const offset of [0, 16]) {
-      context.fillStyle = '#2a293b';
-      context.fillRect(offset + 3, 0, 10, 5);
-      context.fillStyle = '#efbf88';
-      context.fillRect(offset + 4, 5, 8, 7);
-      context.fillStyle = '#4c6190';
-      context.fillRect(offset + 3, 12, 10, 5);
-    }
-    context.fillStyle = '#45342e';
-    context.fillRect(3, 17, 4, 3);
-    context.fillRect(9, 17, 4, 3);
-    context.fillRect(18, 17, 4, 3);
-    context.fillRect(27, 17, 4, 3);
-    return atlas;
+  private animationForFacing(): string {
+    const facing = this.state.player.facing;
+    if (facing.includes('Left') || facing === 'left') return 'walk_left';
+    if (facing.includes('Right') || facing === 'right') return 'walk_right';
+    if (facing.startsWith('up')) return 'walk_up';
+    return 'walk_down';
+  }
+
+  private worldAssetSprite(asset: LoadedAsset, animation: string, worldX: number, worldY: number): YSortableSprite {
+    return {
+      y: worldY - this.camera.y,
+      draw: (context) => {
+        const frame = asset.metadata.animations[animation]?.[Math.floor(this.state.tick / 40) % (asset.metadata.animations[animation]?.length ?? 1)];
+        if (!frame) return;
+        context.drawImage(
+          asset.image,
+          frame.x,
+          frame.y,
+          frame.width,
+          frame.height,
+          Math.round(worldX - asset.anchor[0] - this.camera.x),
+          Math.round(worldY - asset.anchor[1] - this.camera.y),
+          frame.width,
+          frame.height,
+        );
+      },
+    };
   }
 
   private drawMailbox(context: CanvasRenderingContext2D, x: number, y: number): void {
