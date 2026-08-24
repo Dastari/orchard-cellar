@@ -3,21 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Orchard &amp; Cellar — Shared Overworld</title>
+    <title>Opening Orchard &amp; Cellar…</title>
   </head>
   <body>
-    <main id="game-shell">
-      <canvas id="game" class="custom-cursor" width="480" height="270" aria-label="Orchard and Cellar shared overworld prototype"></canvas>
-    </main>
     <script type="module">
-      const { ensureOidcSession, oidcConfigured } = await import('/src/auth/oidc.ts');
-      const hasLocalSlot = new URLSearchParams(location.search).has('slot');
-      const authenticated = oidcConfigured && await ensureOidcSession() !== null;
-      if (authenticated || (import.meta.env.DEV && hasLocalSlot)) {
-        await import('/src/overworld-main.ts');
-      } else {
-        location.replace('/account.html');
-      }
+      const target = new URL('/', location.origin);
+      target.search = location.search;
+      target.hash = location.hash;
+      location.replace(target);
     </script>
   </body>
 </html>

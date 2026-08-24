@@ -3,13 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Orchard &amp; Cellar — Account</title>
+    <title>Opening Orchard &amp; Cellar…</title>
   </head>
   <body>
-    <main id="game-shell">
-      <canvas id="game" width="480" height="270" aria-label="Create or sign in to an Orchard and Cellar account"></canvas>
-      <input id="account-name" class="canvas-input" maxlength="20" autocomplete="nickname" aria-label="New local development profile name" />
-    </main>
-    <script type="module" src="/src/account-main.ts"></script>
+    <script type="module">
+      const target = new URL('/', location.origin);
+      target.search = location.search;
+      target.hash = location.hash;
+      location.replace(target);
+    </script>
   </body>
 </html>

@@ -146,7 +146,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, {
     ));
   },
   toggleRain: () => { rainOverride = !rain.enabled; },
-  signOut: () => { location.assign('/account.html?logout=1'); },
+  signOut: () => { location.assign('/?logout=1'); },
 });
 
 function resize(): void {

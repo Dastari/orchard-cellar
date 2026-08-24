@@ -33,7 +33,7 @@ const [ui, skin] = await Promise.all([loadPixelUi(), loadUiSkin()]);
 
 if (new URLSearchParams(location.search).has('logout')) {
   clearOidcSession();
-  history.replaceState(null, '', '/account.html');
+  history.replaceState(null, '', '/');
 }
 
 let authSession: OidcSession | null = null;
@@ -43,10 +43,10 @@ if (hasOidcCallback()) {
   authBusy = true;
   try {
     authSession = await completeOidcCallback();
-    history.replaceState(null, '', '/account.html');
+    history.replaceState(null, '', '/');
   } catch (error: unknown) {
     authError = error instanceof Error ? error.message : 'Login failed. Please try again.';
-    history.replaceState(null, '', '/account.html');
+    history.replaceState(null, '', '/');
   } finally {
     authBusy = false;
   }
@@ -77,7 +77,7 @@ function launchLocal(name: string): void {
 }
 
 function launchAccount(): void {
-  if (authSession !== null) location.assign('/overworld.html');
+  if (authSession !== null) location.assign('/');
 }
 
 function drawText(text: string, x: number, y: number, color = '#f7e7b2', align: CanvasTextAlign = 'left'): void {

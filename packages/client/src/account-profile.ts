@@ -55,7 +55,7 @@ export function rememberLocalProfile(storage: StorageLike, rawName: string): Loc
 
 export function localProfileWorldUrl(name: string, base: string): string {
   if (!validLocalProfileName(name)) throw new Error('invalid_profile_name');
-  const url = new URL('/overworld.html', base);
+  const url = new URL('/', base);
   url.searchParams.set('slot', name);
   return url.toString();
 }

@@ -54,7 +54,7 @@ function browserSessionStorage(): StorageLike | null {
 
 function redirectUri(): string {
   const configured = (import.meta.env['VITE_OIDC_REDIRECT_URI'] as string | undefined)?.trim();
-  return configured || new URL('/account.html', location.origin).toString();
+  return configured || new URL('/', location.origin).toString();
 }
 
 function encodeBase64Url(bytes: Uint8Array): string {

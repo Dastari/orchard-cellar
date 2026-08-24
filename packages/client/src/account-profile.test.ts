@@ -35,7 +35,7 @@ describe('local SpaceTimeDB profile chooser', () => {
     storage.setItem(LOCAL_PROFILES_KEY, '{broken');
     expect(readLocalProfiles(storage)).toEqual({ names: [], lastUsed: null });
     expect(localProfileWorldUrl("Mae's Farm", 'http://localhost:5173')).toBe(
-      'http://localhost:5173/overworld.html?slot=Mae%27s+Farm',
+      'http://localhost:5173/?slot=Mae%27s+Farm',
     );
   });
 });
