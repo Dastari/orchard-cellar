@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sourcePaletteErrors } from './source-palette.js';
+import { allocateExactSourceCharacter, sourcePaletteErrors } from './source-palette.js';
 import type { AssetSource } from './types.js';
 
 const valid: AssetSource = {
@@ -10,6 +10,17 @@ const valid: AssetSource = {
 };
 
 describe('licensed source palette provenance', () => {
+  it('allocates a distinct stable grid key for every native RGB color', () => {
+    const characterByColor = new Map<string, string>();
+    const colorByCharacter = new Map<string, string>();
+    expect(allocateExactSourceCharacter('#000000', characterByColor, colorByCharacter, ['a', 'b'])).toBe('a');
+    expect(allocateExactSourceCharacter('#743f39', characterByColor, colorByCharacter, ['a', 'b'])).toBe('b');
+    expect(allocateExactSourceCharacter('#000000', characterByColor, colorByCharacter, ['a', 'b'])).toBe('a');
+    expect(Object.fromEntries(colorByCharacter)).toEqual({ a: '#000000', b: '#743f39' });
+    expect(() => allocateExactSourceCharacter('#ffffff', characterByColor, colorByCharacter, ['a', 'b']))
+      .toThrow('more than 2 opaque colors');
+  });
+
   it('allows exact native colors, including source white, with matching provenance', () => {
     expect(sourcePaletteErrors(valid, new Set(['a']))).toEqual([]);
   });

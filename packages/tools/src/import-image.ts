@@ -1,8 +1,9 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { basename, isAbsolute, resolve } from 'node:path';
+import { basename, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assetsRoot, loadPalette, workspaceRoot } from './assets/load.js';
 import { decodePng } from './assets/png.js';
+import { allocateExactSourceCharacter } from './assets/source-palette.js';
 
 function option(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -59,7 +60,14 @@ const paletteLabs = Object.entries(palette.colors).map(([character, hex]) => {
   return { character, lab: oklab((value >>> 16) & 255, (value >>> 8) & 255, value & 255) };
 });
 const preserveSourcePalette = inputPath.includes('/Cute_Fantasy');
-const sourceColorCounts = new Map<string, Map<string, number>>();
+const sourceColors = new Map<string, string>();
+const sourceCharacters = Object.keys(palette.colors);
+const characterForSourceColor = new Map<string, string>();
+
+function exactSourceCharacter(hex: string): string {
+  return allocateExactSourceCharacter(hex, characterForSourceColor, sourceColors, sourceCharacters);
+}
+
 function buildFrame(originX: number, originY: number): string[] {
   const rows: string[] = [];
   for (let y = 0; y < outputHeight; y += 1) {
@@ -69,26 +77,26 @@ function buildFrame(originX: number, originY: number): string[] {
       const sourceY = Math.min(decoded.height - 1, originY + Math.floor((y + 0.5) * inputFrameHeight / outputHeight));
       const offset = (sourceY * decoded.width + sourceX) * 4;
       if ((decoded.rgba[offset + 3] ?? 0) < 128) { row += '.'; continue; }
-      const sourceLab = oklab(decoded.rgba[offset] ?? 0, decoded.rgba[offset + 1] ?? 0, decoded.rgba[offset + 2] ?? 0);
+      const red = decoded.rgba[offset] ?? 0;
+      const green = decoded.rgba[offset + 1] ?? 0;
+      const blue = decoded.rgba[offset + 2] ?? 0;
+      if (preserveSourcePalette) {
+        const hex = `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+        row += exactSourceCharacter(hex);
+        continue;
+      }
+      const sourceLab = oklab(red, green, blue);
       let nearest = paletteLabs[0]!;
       let distance = Number.POSITIVE_INFINITY;
       for (const candidate of paletteLabs) {
         const next = (sourceLab[0] - candidate.lab[0]) ** 2 + (sourceLab[1] - candidate.lab[1]) ** 2 + (sourceLab[2] - candidate.lab[2]) ** 2;
         if (next < distance) { nearest = candidate; distance = next; }
       }
-      if (preserveSourcePalette) {
-        const red = decoded.rgba[offset] ?? 0;
-        const green = decoded.rgba[offset + 1] ?? 0;
-        const blue = decoded.rgba[offset + 2] ?? 0;
-        const hex = `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
-        const colors = sourceColorCounts.get(nearest.character) ?? new Map<string, number>();
-        colors.set(hex, (colors.get(hex) ?? 0) + 1);
-        sourceColorCounts.set(nearest.character, colors);
-      }
       row += nearest.character;
     }
     rows.push(row);
   }
+  if (preserveSourcePalette) return rows;
   const cleanedRows = rows.map((row) => [...row]);
   for (let y = 0; y < outputHeight; y += 1) {
     for (let x = 0; x < outputWidth; x += 1) {
@@ -138,10 +146,9 @@ const source = {
   frames,
   ...(fpsOption ? { fps: Number(fpsOption) } : {}),
   ...(preserveSourcePalette ? {
-    sourcePalette: Object.fromEntries([...sourceColorCounts].sort(([left], [right]) => left.localeCompare(right)).map(([character, colors]) => [
-      character,
-      [...colors].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]![0],
-    ])),
+    sourcePalette: Object.fromEntries([...sourceColors].sort(([left], [right]) => left.localeCompare(right))),
+    sourcePath: relative(fileURLToPath(workspaceRoot), inputPath).replaceAll('\\', '/'),
+    sourcePaletteMode: 'exact',
   } : {}),
   approved: false,
   importedFrom: basename(input),

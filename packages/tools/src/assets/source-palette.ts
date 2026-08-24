@@ -14,6 +14,21 @@ const LICENSED_PACK_ROOTS = [
   'references/Cute_Fantasy_Volcano',
 ] as const;
 
+export function allocateExactSourceCharacter(
+  hex: string,
+  characterByColor: Map<string, string>,
+  colorByCharacter: Map<string, string>,
+  availableCharacters: readonly string[],
+): string {
+  const existing = characterByColor.get(hex);
+  if (existing !== undefined) return existing;
+  const character = availableCharacters[characterByColor.size];
+  if (character === undefined) throw new Error(`Licensed source uses more than ${availableCharacters.length} opaque colors`);
+  characterByColor.set(hex, character);
+  colorByCharacter.set(character, hex);
+  return character;
+}
+
 export function sourcePaletteErrors(asset: AssetSource, allowed: ReadonlySet<string>): string[] {
   if (!asset.sourcePalette) return asset.sourcePaletteMode ? [`${asset.name}: sourcePaletteMode requires sourcePalette`] : [];
   const errors: string[] = [];

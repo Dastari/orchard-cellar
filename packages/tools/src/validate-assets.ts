@@ -99,7 +99,11 @@ function validateMaps(maps: readonly unknown[], errors: string[]): void {
 function validateCanonicalSize(asset: AssetSource, errors: string[]): void {
   const [width, height] = asset.size;
   if (asset.category === 'tiles' && (width !== 16 || height !== 16)) errors.push(`${asset.name}: tiles must be 16x16`);
-  if (asset.category === 'characters' && (width !== 16 || height !== 32)) errors.push(`${asset.name}: characters must be 16x32`);
+  if (asset.category === 'characters') {
+    const bodyCanvas = width === 16 && height === 32;
+    const licensedActionCanvas = width === 32 && height === 32 && asset.sourcePaletteMode === 'exact';
+    if (!bodyCanvas && !licensedActionCanvas) errors.push(`${asset.name}: characters must be 16x32, or licensed actions 32x32`);
+  }
   if (asset.category === 'trees') {
     const valid = (width === 16 && (height === 16 || height === 32))
       || (width === 32 && height === 32)

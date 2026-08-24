@@ -16,6 +16,7 @@ and built) and the `pixel-art` skill in `.claude/skills/` (working instructions)
 |---|---|
 | Tile size | **16×16 px** |
 | Avatar/NPC body | 16×32 px (2 tiles tall), feet anchored to tile bottom |
+| Licensed character action | 32×32 px when the effect/tool extends beyond the 16 px body cell; retain the body's foot anchor |
 | Trees (mature) | 48×64 px (3×4 tiles), trunk base occupies 1 collision tile |
 | Buildings | multiples of 16 in both axes |
 | Virtual resolution | 480×270 (30×~17 tiles on screen), integer-scaled |

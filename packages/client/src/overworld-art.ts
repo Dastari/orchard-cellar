@@ -107,7 +107,8 @@ function drawAnchored(
 ): void {
   const source = frame(asset, animation, frameIndex);
   if (source === null) return;
-  const x = Math.round((worldX - cameraX - asset.anchor[0]) * zoom);
+  const anchorX = flipX ? source.width - 1 - asset.anchor[0] : asset.anchor[0];
+  const x = Math.round((worldX - cameraX - anchorX) * zoom);
   const y = Math.round((worldY - cameraY - asset.anchor[1]) * zoom);
   context.save();
   if (flipX) {

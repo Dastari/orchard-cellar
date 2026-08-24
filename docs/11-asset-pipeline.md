@@ -43,6 +43,10 @@ Those values override the global color for that asset only, preserving the sourc
 pack's native ramps without committing PNG sheets or abandoning inspectable text
 grids. Values must be opaque six-digit RGB hex and keys must already be valid grid
 characters. Seasonal palette remaps do not alter native source ramps.
+The importer assigns every distinct opaque source RGB value its own grid key and
+does not run orphan-pixel cleanup on licensed inputs. A same-size semantic crop must
+therefore render pixel-for-pixel like its source region rather than collapsing nearby
+dark shades through the global Orchard palette.
 
 Tiles use the same format with `"size": [16,16]` (`*.tile.json`), plus optional
 `"autotile": "blob47"` — the tool then expects the 5-tile template (center, edge,

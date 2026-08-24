@@ -79,6 +79,7 @@ const remoteDisplay = new Map<string, { x: number; y: number }>();
 const resourceHealth = new Map<bigint, number>();
 const treeShakeUntil = new Map<bigint, number>();
 let axeActionStartedTick: number | null = null;
+let axePreviewFrame: number | null = null;
 
 function resize(): void {
   resizePixelCanvas(canvas);
@@ -396,7 +397,7 @@ function render(): void {
       tie: `player:${id}`,
       draw: () => {
         const axeElapsed = local && axeActionStartedTick !== null ? animationTick - axeActionStartedTick : -1;
-        const axeFrame = axeElapsed >= 0 && axeElapsed < 24 ? Math.min(3, Math.floor(axeElapsed / 6)) : null;
+        const axeFrame = axePreviewFrame ?? (axeElapsed >= 0 && axeElapsed < 24 ? Math.min(3, Math.floor(axeElapsed / 6)) : null);
         drawOverworldAvatar(context, art, x, y, facing, moving, animationTick, cameraX, cameraY, worldZoom, axeFrame, profileName(snapshot.profiles, id), uiScale);
       },
     });
@@ -545,6 +546,7 @@ Object.assign(window, {
     setCollisionDebug: (enabled: boolean) => { debugCollision = enabled; },
     setWorldZoom: (zoom: WorldZoom) => { worldZoom = zoom; },
     setUiScale: (scale: UiScale) => { desiredUiScale = scale; },
+    setAxePreviewFrame: (frame: number | null) => { axePreviewFrame = frame; },
   },
 });
 loop.start();
