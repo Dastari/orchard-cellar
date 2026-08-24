@@ -70,7 +70,7 @@ owned: ×2/×2/×3 that tier.
 
 | Tier | Name | Cost (must) | Ages must/s |
 |---|---|---|---|
-| 1 | Demijohn shelf | 40 | 0.2 |
+| 1 | Demijohn shelf | 80 | 0.2 |
 | 2 | Oak Barrels | 300 | 1.2 |
 | 3 | Foudre | 2,400 | 7 |
 | 4 | Stone Vault | 20,000 | 40 |

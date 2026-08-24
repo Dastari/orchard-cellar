@@ -72,7 +72,7 @@ describe('06 golden balance tables', () => {
   });
 
   it('06§2 cask table, bottle value, and digs', () => {
-    expect(CASK_BALANCE.map(({ cost }) => cost)).toEqual([40, 300, 2_400, 20_000, 170_000]);
+    expect(CASK_BALANCE.map(({ cost }) => cost)).toEqual([80, 300, 2_400, 20_000, 170_000]);
     expect(CASK_BALANCE.map(({ ratePerSecond }) => ratePerSecond)).toEqual([0.2, 1.2, 7, 40, 240]);
     expect(CASK_COST_GROWTH).toBe(1.35);
     expect(BOTTLE_VALUE).toBe(0.1);

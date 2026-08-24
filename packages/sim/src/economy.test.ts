@@ -106,25 +106,25 @@ describe('M4 deterministic orchard economy', () => {
   });
 
   it('manually hauls fruit through a press, banks must, fills a cask, and makes a bottle', () => {
-    let economy = withResources(createInitialEconomy(), { fruit: 200 });
+    let economy = withResources(createInitialEconomy(), { fruit: 300 });
     economy = applyEconomyAction(economy, { type: 'repairPress' }, 0);
-    economy = applyEconomyAction(economy, { type: 'haulFruit', amount: 100 }, 0);
-    economy = advanceEconomy(economy, 0, 200 * SIM_TICKS_PER_SECOND);
+    economy = applyEconomyAction(economy, { type: 'haulFruit', amount: 200 }, 0);
+    economy = advanceEconomy(economy, 0, 400 * SIM_TICKS_PER_SECOND);
 
-    expect(economy.resources).toEqual({ fruit: 50, pomace: 15, must: 0, bottles: 0 });
+    expect(economy.resources).toEqual({ fruit: 50, pomace: 30, must: 0, bottles: 0 });
     expect(economy.hopperFruitMicro).toBe(0);
-    expect(economy.yardMustMicro).toBe(50 * MICRO);
+    expect(economy.yardMustMicro).toBe(100 * MICRO);
     expect(economy.knowledge.press).toBe(1);
 
-    economy = applyEconomyAction(economy, { type: 'haulMust', destination: 'bank', amount: 40 }, 200 * SIM_TICKS_PER_SECOND);
-    expect(economy.resources.must).toBe(40);
-    expect(economy.yardMustMicro).toBe(10 * MICRO);
+    economy = applyEconomyAction(economy, { type: 'haulMust', destination: 'bank', amount: 80 }, 400 * SIM_TICKS_PER_SECOND);
+    expect(economy.resources.must).toBe(80);
+    expect(economy.yardMustMicro).toBe(20 * MICRO);
 
-    economy = applyEconomyAction(economy, { type: 'buyCask', tier: 1 }, 200 * SIM_TICKS_PER_SECOND);
-    economy = applyEconomyAction(economy, { type: 'haulMust', destination: 'casks' }, 200 * SIM_TICKS_PER_SECOND);
-    economy = advanceEconomy(economy, 200 * SIM_TICKS_PER_SECOND, 700 * SIM_TICKS_PER_SECOND);
+    economy = applyEconomyAction(economy, { type: 'buyCask', tier: 1 }, 400 * SIM_TICKS_PER_SECOND);
+    economy = applyEconomyAction(economy, { type: 'haulMust', destination: 'casks' }, 400 * SIM_TICKS_PER_SECOND);
+    economy = advanceEconomy(economy, 400 * SIM_TICKS_PER_SECOND, 500 * SIM_TICKS_PER_SECOND);
 
-    expect(economy.resources).toEqual({ fruit: 50, pomace: 15, must: 0, bottles: 1 });
+    expect(economy.resources).toEqual({ fruit: 50, pomace: 30, must: 0, bottles: 2 });
     expect(economy.cellarMustMicro).toBe(0);
     expect(economy.knowledge.cellar).toBe(1);
     expect(economy.firsts).toEqual({ harvested: false, harvestedSpecies: [], pressRun: true, bottle: true });
@@ -333,7 +333,7 @@ describe('M4 deterministic orchard economy', () => {
   });
 
   it('charges each purchase only to its documented wallet and repeat-cost count', () => {
-    const wallets = { fruit: 18, pomace: 34, must: 40, bottles: 7 };
+    const wallets = { fruit: 18, pomace: 34, must: 80, bottles: 7 };
     const planted = applyEconomyAction(withResources(createInitialEconomy(), wallets), { type: 'plant', species: 'seedlingApple', x: 12, y: 17 }, 0);
     expect(planted.resources).toEqual({ ...wallets, fruit: 0 });
     expect(planted.trees).toHaveLength(2);
@@ -342,11 +342,11 @@ describe('M4 deterministic orchard economy', () => {
     const repaired = applyEconomyAction(underfundedRepair, { type: 'repairPress' }, 0);
     expect(repaired).toBe(underfundedRepair);
 
-    let pressEconomy = withResources(createInitialEconomy(), { fruit: 50, pomace: 34, must: 40, bottles: 7 });
+    let pressEconomy = withResources(createInitialEconomy(), { fruit: 50, pomace: 34, must: 80, bottles: 7 });
     pressEconomy = applyEconomyAction(pressEconomy, { type: 'repairPress' }, 0);
-    expect(pressEconomy.resources).toEqual({ fruit: 0, pomace: 34, must: 40, bottles: 7 });
+    expect(pressEconomy.resources).toEqual({ fruit: 0, pomace: 34, must: 80, bottles: 7 });
     pressEconomy = applyEconomyAction(pressEconomy, { type: 'buyPress', tier: 1 }, 0);
-    expect(pressEconomy.resources).toEqual({ fruit: 0, pomace: 0, must: 40, bottles: 7 });
+    expect(pressEconomy.resources).toEqual({ fruit: 0, pomace: 0, must: 80, bottles: 7 });
     expect(pressEconomy.presses[0]).toBe(2);
 
     const caskEconomy = applyEconomyAction(withResources(createInitialEconomy(), wallets), { type: 'buyCask', tier: 1 }, 0);
@@ -375,15 +375,15 @@ describe('M4 deterministic orchard economy', () => {
     expect(state.economy.hopperFruitMicro).toBe(200 * MICRO);
 
     state = advanceTick(state, [
-      { type: 'haulMust', destination: 'bank', amount: 40 },
+      { type: 'haulMust', destination: 'bank', amount: 80 },
       { type: 'buyCask', tier: 1 },
       { type: 'haulMust', destination: 'casks' },
     ], summerDayOne + TICKS_PER_DAY);
     expect(state.economy.resources.must).toBe(0);
-    expect(state.economy.cellarMustMicro).toBe(60 * MICRO);
+    expect(state.economy.cellarMustMicro).toBe(20 * MICRO);
 
     state = advanceTick(state, [], summerDayOne + TICKS_PER_DAY * 2);
-    expect(state.economy.resources.bottles).toBe(6);
+    expect(state.economy.resources.bottles).toBe(2);
     expect(state.economy.firsts).toEqual({ harvested: true, harvestedSpecies: ['seedlingApple'], pressRun: true, bottle: true });
     expect(state.economy.knowledge).toMatchObject({ grove: 1, press: 1, cellar: 1 });
   });

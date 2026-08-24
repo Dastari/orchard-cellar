@@ -66,7 +66,7 @@ export const PRESS_BALANCE: readonly EquipmentBalance[] = [
 ] as const;
 
 export const CASK_BALANCE: readonly EquipmentBalance[] = [
-  { tier: 1, name: 'Demijohn shelf', cost: 40, ratePerSecond: 0.2 },
+  { tier: 1, name: 'Demijohn shelf', cost: 80, ratePerSecond: 0.2 },
   { tier: 2, name: 'Oak Barrels', cost: 300, ratePerSecond: 1.2 },
   { tier: 3, name: 'Foudre', cost: 2_400, ratePerSecond: 7 },
   { tier: 4, name: 'Stone Vault', cost: 20_000, ratePerSecond: 40 },
