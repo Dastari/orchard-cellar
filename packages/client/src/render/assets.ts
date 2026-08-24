@@ -17,6 +17,8 @@ export interface BuiltAssetRecord {
     readonly columns: number;
   };
   readonly slice?: readonly [number, number, number, number];
+  readonly uiSizing?: 'fixed' | 'nine_slice' | 'corners' | 'segmented';
+  readonly uiRequiredStates?: readonly string[];
   readonly markerLayers?: Readonly<Record<string, readonly (readonly MarkerPixel[])[]>>;
   readonly tags: readonly string[];
   readonly placement: {

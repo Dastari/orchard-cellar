@@ -313,6 +313,8 @@ export async function buildAtlases(): Promise<void> {
           },
         } : {}),
         ...(asset.slice ? { slice: asset.slice } : {}),
+        ...(asset.uiSizing ? { uiSizing: asset.uiSizing } : {}),
+        ...(asset.uiRequiredStates ? { uiRequiredStates: asset.uiRequiredStates } : {}),
         tags: assetTags(asset),
         placement: {
           layer: asset.placement?.layer ?? defaultLayer(category),

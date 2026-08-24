@@ -1,0 +1,52 @@
+{
+  "name": "ui_cf_bar_fill_blue",
+  "category": "ui",
+  "size": [
+    28,
+    3
+  ],
+  "anchor": [
+    14,
+    1
+  ],
+  "frames": {
+    "base": [
+      [
+        "0000000000000000000000000000",
+        "0000000000000000000000000000",
+        "1111111111111111111111111111"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#0095e9",
+    "1": "#124e89"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Bars.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Bars.png",
+  "sourceRegions": {
+    "base": [
+      [
+        34,
+        7,
+        28,
+        3
+      ]
+    ]
+  },
+  "uiSizing": "segmented",
+  "tags": [
+    "ui.bar",
+    "ui.bar.fill",
+    "ui.color.blue"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

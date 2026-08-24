@@ -1,0 +1,68 @@
+{
+  "name": "ui_cf_cursor",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    8
+  ],
+  "frames": {
+    "idle": [
+      [
+        "................",
+        "................",
+        "....00..........",
+        "....020.........",
+        "....0220........",
+        "....02220.......",
+        "....022220......",
+        "....0222220.....",
+        "....02222220....",
+        "....022222110...",
+        "....022122000...",
+        "....01101220....",
+        ".....00.0110....",
+        ".........00.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "idle": "state"
+  },
+  "sourcePalette": {
+    "0": "#181425",
+    "1": "#8b9bb4",
+    "2": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Icons.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
+  "sourceRegions": {
+    "idle": [
+      [
+        0,
+        224,
+        16,
+        16
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "uiRequiredStates": [
+    "idle"
+  ],
+  "tags": [
+    "ui.cursor",
+    "ui.pointer"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

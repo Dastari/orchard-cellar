@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { assetsRoot, loadAssets, loadPalette, readJson } from './assets/load.js';
 import { frameKind, variantTopology } from './assets/frame-kind.js';
 import { sourcePaletteErrors } from './assets/source-palette.js';
+import { uiMetadataErrors } from './assets/ui-metadata.js';
 import type { AssetSource, PixelGrid } from './assets/types.js';
 
 interface SeasonSource {
@@ -194,6 +195,7 @@ export async function validateAssetSources(): Promise<void> {
     if (names.has(asset.name)) errors.push(`${asset.name}: duplicate asset name`);
     names.add(asset.name);
     validateCanonicalSize(asset, errors);
+    errors.push(...uiMetadataErrors(asset));
     errors.push(...sourcePaletteErrors(asset, allowed));
     for (const [animation, frames] of Object.entries(asset.frames)) {
       if (frames.length === 0) errors.push(`${asset.name}:${animation} must have at least one frame`);

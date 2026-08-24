@@ -1,0 +1,55 @@
+{
+  "name": "ui_cf_slider_track",
+  "category": "ui",
+  "size": [
+    32,
+    6
+  ],
+  "anchor": [
+    16,
+    3
+  ],
+  "frames": {
+    "base": [
+      [
+        "..1111111111111111111111111111..",
+        ".100000000000000000000000000001.",
+        "10222222222222222222222222222201",
+        "12222222222222222222222222222221",
+        ".122222222222222222222222222221.",
+        "..1111111111111111111111111111.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3e8948",
+    "1": "#3f2832",
+    "2": "#63c74d"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Sliders.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Sliders.png",
+  "sourceRegions": {
+    "base": [
+      [
+        8,
+        85,
+        32,
+        6
+      ]
+    ]
+  },
+  "uiSizing": "segmented",
+  "tags": [
+    "ui.slider",
+    "ui.slider.track"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

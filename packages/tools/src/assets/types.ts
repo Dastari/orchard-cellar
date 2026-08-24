@@ -1,5 +1,6 @@
 export type PixelGrid = readonly string[];
 export type FrameKind = 'animation' | 'variant' | 'state';
+export type UiSizing = 'fixed' | 'nine_slice' | 'corners' | 'segmented';
 
 export interface AssetSource {
   readonly name: string;
@@ -30,12 +31,17 @@ export interface AssetSource {
   readonly importedFrom?: string;
   readonly sourcePath?: string;
   readonly sourceRegion?: readonly [number, number, number, number];
+  readonly sourceRegions?: Readonly<Record<string, readonly (readonly [number, number, number, number])[]>>;
   readonly sourcePaletteMode?: 'exact';
   readonly charset?: string;
   readonly glyphSize?: readonly [number, number];
   readonly cellSize?: readonly [number, number];
   readonly columns?: number;
   readonly slice?: readonly [number, number, number, number];
+  /** Runtime layout intent for UI assets. Required for newly catalogued UI art. */
+  readonly uiSizing?: UiSizing;
+  /** Complete state contract for a stateful widget; must include idle. */
+  readonly uiRequiredStates?: readonly string[];
 }
 
 export interface PaletteSource {
