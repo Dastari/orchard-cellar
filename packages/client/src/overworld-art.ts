@@ -45,7 +45,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('tile_cf_grass_tuft', 'summer'),
     loadGeneratedAsset('tile_cf_hillside', 'summer'),
     loadGeneratedAsset('icon_cf_axe', 'summer'),
-    loadGeneratedAsset('icon_cf_hoe', 'summer'),
+    loadGeneratedAsset('icon_hoe', 'summer'),
     loadGeneratedAsset('icon_cf_pickaxe', 'summer'),
     loadGeneratedAsset('icon_cf_watering_can', 'summer'),
     loadGeneratedAsset('tile_cf_path', 'summer'),

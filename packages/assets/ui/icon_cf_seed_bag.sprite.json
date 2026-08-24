@@ -1,5 +1,5 @@
 {
-  "name": "icon_cf_hoe",
+  "name": "icon_cf_seed_bag",
   "category": "ui",
   "size": [
     16,
@@ -45,7 +45,7 @@
   ],
   "tags": [
     "ui.icon",
-    "item.tool"
+    "item.seed_bag"
   ],
   "placement": {
     "layer": "ui",

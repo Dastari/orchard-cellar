@@ -48,6 +48,17 @@ export function hotbarSlotForCode(code: string): number | null {
   return null;
 }
 
+const HOTBAR_LABELS: Readonly<Record<string, string>> = {
+  axe: 'AXE',
+  pickaxe: 'PICK',
+  hoe: 'HOE',
+  watering_can: 'WATER',
+};
+
+export function hotbarItemLabel(itemKind: string): string {
+  return HOTBAR_LABELS[itemKind] ?? '--';
+}
+
 export function harvestPrompt(resource: TargetableResource | null, selectedItem: string): string | null {
   if (resource === null) return null;
   if (resource.kind === 'tree' && selectedItem === 'axe') return '[E] CHOP TREE';

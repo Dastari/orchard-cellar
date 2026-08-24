@@ -26,7 +26,7 @@ import {
 } from './overworld-art.js';
 import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
 import { drawPixelPanel, drawPixelText, measurePixelText } from './render/pixel-ui.js';
-import { facedResource, harvestPrompt, hotbarSlotForCode } from './survival-ui.js';
+import { facedResource, harvestPrompt, hotbarItemLabel, hotbarSlotForCode } from './survival-ui.js';
 import './style.css';
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
@@ -175,10 +175,10 @@ function targetResource(snapshot: OverworldSnapshot): WorldResource | null {
 }
 
 function drawHotbar(snapshot: OverworldSnapshot): void {
-  const slotWidth = 31;
+  const slotWidth = 35;
   const totalWidth = slotWidth * 9;
   const startX = Math.round((canvas.width - totalWidth) / 2);
-  const y = canvas.height - 34;
+  const y = canvas.height - 43;
   const selected = snapshot.survival?.selectedSlot ?? 0;
   const icons = {
     axe: art.iconAxe,
@@ -188,16 +188,23 @@ function drawHotbar(snapshot: OverworldSnapshot): void {
   };
   for (let index = 0; index < 9; index += 1) {
     const inventory = snapshot.inventorySlots.find((candidate) => candidate.slot === index);
-    drawPixelPanel(context, art.ui, startX + index * slotWidth, y, 30, 29);
+    drawPixelPanel(context, art.ui, startX + index * slotWidth, y, 34, 38);
     if (index === selected) {
       context.strokeStyle = '#ffe98a';
       context.lineWidth = 2;
-      context.strokeRect(startX + index * slotWidth + 1, y + 1, 27, 26);
+      context.strokeRect(startX + index * slotWidth + 1, y + 1, 31, 35);
     }
     drawPixelText(context, art.ui, String(index + 1), startX + index * slotWidth + 4, y + 4);
     const icon = icons[inventory?.itemKind as keyof typeof icons];
-    if (icon) drawUiAsset(context, icon, startX + index * slotWidth + 7, y + 10);
-    else drawPixelText(context, art.ui, '--', startX + index * slotWidth + 15, y + 16, { align: 'center' });
+    if (icon) drawUiAsset(context, icon, startX + index * slotWidth + 9, y + 7);
+    drawPixelText(
+      context,
+      art.ui,
+      hotbarItemLabel(inventory?.itemKind ?? 'empty'),
+      startX + index * slotWidth + 17,
+      y + 27,
+      { align: 'center' },
+    );
   }
 }
 
