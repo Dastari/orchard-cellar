@@ -4,6 +4,8 @@ import {
   rememberLocalProfile,
   validLocalProfileName,
 } from './account-profile.js';
+import { resizePixelCanvas, toggleFullscreen } from './display.js';
+import { drawPixelPanel, drawPixelText, loadPixelUi } from './render/pixel-ui.js';
 import './style.css';
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
@@ -15,15 +17,16 @@ const canvasContext = canvas.getContext('2d');
 if (canvasContext === null) throw new Error('Canvas 2D unavailable');
 const context: CanvasRenderingContext2D = canvasContext;
 context.imageSmoothingEnabled = false;
+const shellElement = document.querySelector<HTMLElement>('#game-shell');
+if (shellElement === null) throw new Error('Missing account shell');
+const ui = await loadPixelUi();
 
 let profiles = readLocalProfiles(localStorage);
 let selected = Math.max(0, profiles.names.findIndex((name) => name === profiles.lastUsed));
 let message = profiles.names.length === 0 ? 'NAME YOUR FIRST FARMER' : 'CHOOSE A FARMER OR TYPE A NEW NAME';
 
 function resize(): void {
-  const scale = Math.max(1, Math.floor(Math.min(innerWidth / 480, innerHeight / 270)));
-  canvas.style.width = `${480 * scale}px`;
-  canvas.style.height = `${270 * scale}px`;
+  const scale = resizePixelCanvas(canvas);
   const rect = canvas.getBoundingClientRect();
   input.style.left = `${rect.left + 102 * scale}px`;
   input.style.top = `${rect.top + 202 * scale}px`;
@@ -36,11 +39,9 @@ function launch(name: string): void {
   location.assign(localProfileWorldUrl(profiles.lastUsed ?? name, location.origin));
 }
 
-function drawText(text: string, x: number, y: number, color = '#f7e7b2', align: CanvasTextAlign = 'left'): void {
-  context.fillStyle = color;
-  context.textAlign = align;
-  context.font = '8px monospace';
-  context.fillText(text, x, y);
+function drawText(text: string, x: number, y: number, _color = '#f7e7b2', align: CanvasTextAlign = 'left'): void {
+  context.fillStyle = _color;
+  drawPixelText(context, ui, text, x, y - 7, { align });
 }
 
 function render(): void {
@@ -50,12 +51,7 @@ function render(): void {
   for (let y = 9; y < 270; y += 29) {
     for (let x = 7 + (y % 4) * 13; x < 480; x += 47) context.fillRect(x, y, 2, 3);
   }
-  context.fillStyle = '#2b1d0e';
-  context.fillRect(58, 25, 364, 222);
-  context.fillStyle = '#d6b978';
-  context.fillRect(62, 29, 356, 214);
-  context.fillStyle = '#f0d89a';
-  context.fillRect(67, 34, 346, 204);
+  drawPixelPanel(context, ui, 58, 25, 364, 222);
 
   drawText('ORCHARD & CELLAR', 240, 55, '#6f451f', 'center');
   drawText('LOCAL FRIENDS PREVIEW', 240, 68, '#91672e', 'center');
@@ -83,7 +79,7 @@ function render(): void {
     context.fillRect(caretX, 207, 1, 9);
   }
   drawText('ARROWS SELECT  ENTER CONTINUE  N NEW', 240, 232, '#6f451f', 'center');
-  drawText('LOCAL TOKEN ACCOUNT - DISCORD LOGIN COMES IN M6', 240, 241, '#91672e', 'center');
+  drawText('F FULLSCREEN - DISCORD LOGIN COMES IN M6', 240, 241, '#91672e', 'center');
   requestAnimationFrame(render);
 }
 
@@ -108,6 +104,11 @@ function submit(): void {
 
 window.addEventListener('resize', resize);
 window.addEventListener('keydown', (event) => {
+  if (event.key.toLowerCase() === 'f' && document.activeElement !== input && !event.repeat) {
+    void toggleFullscreen(shellElement).catch(() => undefined);
+    event.preventDefault();
+    return;
+  }
   if (document.activeElement === input && event.key !== 'Escape') {
     if (event.key === 'Enter') submit();
     return;
@@ -128,6 +129,7 @@ window.addEventListener('keydown', (event) => {
     message = 'CHOOSE A FARMER OR TYPE A NEW NAME';
   }
 });
+canvas.addEventListener('dblclick', () => { void toggleFullscreen(shellElement).catch(() => undefined); });
 canvas.addEventListener('pointerdown', (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = (event.clientX - rect.left) * 480 / rect.width;
