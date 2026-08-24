@@ -10,8 +10,8 @@ describe('player movement collision', () => {
     expect(playerHitboxBounds(position)).toEqual({
       left: position.x - 4 * FIXED_UNITS_PER_PIXEL,
       right: position.x + 4 * FIXED_UNITS_PER_PIXEL - 1,
-      top: position.y - 3 * FIXED_UNITS_PER_PIXEL,
-      bottom: position.y + 3 * FIXED_UNITS_PER_PIXEL - 1,
+      top: position.y - 6 * FIXED_UNITS_PER_PIXEL,
+      bottom: position.y - 1,
     });
     expect(positionCollides(position, open)).toBe(false);
   });

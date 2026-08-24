@@ -34,8 +34,8 @@ remain M7a work; the M5.7 slice does not grant land permissions.
   validates movement against terrain and the current resource table. Client
   prediction begins from the deterministic resource layout and applies subscribed
   depletion updates, then reconciles as usual.
-- The player body uses a compact 8×6 px foot box centered on the authoritative
-  position. The `G` diagnostic draws that exact box in cyan over terrain/resource
+- The player body uses a compact 8×6 px foot box ending at the authoritative foot
+  point. The `G` diagnostic draws that exact box in cyan over terrain/resource
   collision, so canopy depth and blocked trunk bases can be checked independently.
 - Render ground first. Sort resource sprites and player sprites by their foot-point Y;
   canopy pixels naturally cover actors north of a tree and actors south of it cover
