@@ -2,6 +2,7 @@ import type { LoadedAsset } from '../render/assets.js';
 import { drawPixelText, measurePixelText, type PixelUi } from '../render/pixel-ui.js';
 import type { UiPoint, UiRect } from './geometry.js';
 import { UiInputRouter } from './input-router.js';
+import { Slider } from './slider.js';
 import { drawUiSkinAsset, drawUiSkinNatural, uiAssetFrame, type UiSkin } from './skin.js';
 import { widget, type WidgetNode } from './widget.js';
 
@@ -93,7 +94,7 @@ export class OverworldUi {
   private readonly router: UiInputRouter;
   private readonly hotbarNodes: WidgetNode[];
   private readonly weatherNode: WidgetNode;
-  private readonly sliderNode: WidgetNode;
+  private readonly timeSlider: Slider;
   private readonly rainNode: WidgetNode;
   private readonly windowNode: WidgetNode;
   private readonly closeNode: WidgetNode;
@@ -105,7 +106,6 @@ export class OverworldUi {
   private layout = overworldUiLayout(480, 270);
   private pointer: UiPoint = { x: -100, y: -100 };
   private hoveredSlot: number | null = null;
-  private sliderDragging = false;
   private clickStartedAt = Number.NEGATIVE_INFINITY;
   private openWindowValue: OverworldWindow | null = null;
 
@@ -117,14 +117,10 @@ export class OverworldUi {
   ) {
     this.root = widget('root', 'overworld.ui.root');
     this.weatherNode = widget('panel', 'hud.weather', { capturePointer: true });
-    this.sliderNode = widget('slider', 'hud.weather.time', {
-      onPointer: (event) => {
-        if (event.kind !== 'pointer_down') return false;
-        this.sliderDragging = true;
-        this.setTimeAt(event.point.x);
-        return true;
-      },
-      onWheel: () => true,
+    this.timeSlider = new Slider({
+      id: 'hud.weather.time',
+      skin,
+      onChange: (value) => this.callbacks.setTimeFraction(value),
     });
     this.rainNode = widget('button', 'hud.weather.rain', {
       onPointer: (event) => {
@@ -133,7 +129,7 @@ export class OverworldUi {
         return true;
       },
     });
-    this.weatherNode.add(this.sliderNode, this.rainNode);
+    this.weatherNode.add(this.timeSlider.node, this.rainNode);
     const hotbar = widget('inventory_grid', 'hud.hotbar', { capturePointer: true });
     this.hotbarNodes = Array.from({ length: HOTBAR_SLOTS }, (_, slot) => widget('slot', `hud.hotbar.${slot}`, {
       onPointer: (event) => {
@@ -174,7 +170,8 @@ export class OverworldUi {
     this.layout = overworldUiLayout(model.width, model.height);
     this.root.setBounds({ x: 0, y: 0, width: model.width, height: model.height });
     this.weatherNode.setBounds(this.layout.weather);
-    this.sliderNode.setBounds(this.layout.timeSlider);
+    this.timeSlider.setBounds(this.layout.timeSlider);
+    this.timeSlider.value = model.timeFraction;
     this.rainNode.setBounds(this.layout.rainButton);
     const hotbar = this.root.children.find((child) => child.id === 'hud.hotbar');
     hotbar?.setBounds(this.layout.hotbar);
@@ -199,7 +196,7 @@ export class OverworldUi {
     this.pointer = point;
     this.hoveredSlot = this.hotbarNodes.findIndex((node) => node.contains(point));
     if (this.hoveredSlot < 0) this.hoveredSlot = null;
-    if (this.sliderDragging) this.setTimeAt(point.x);
+    this.timeSlider.pointerMove(point);
   }
 
   pointerDown(point: UiPoint, button: number): boolean {
@@ -211,15 +208,10 @@ export class OverworldUi {
   pointerUp(point: UiPoint, button: number): boolean {
     this.pointer = point;
     const consumed = this.router.routePointer({ kind: 'pointer_up', point, button });
-    if (this.sliderDragging) {
-      this.setTimeAt(point.x);
-      this.sliderDragging = false;
-      return true;
-    }
-    return consumed;
+    return this.timeSlider.pointerUp(point) || consumed;
   }
 
-  pointerLeave(): void { this.hoveredSlot = null; this.sliderDragging = false; }
+  pointerLeave(): void { this.hoveredSlot = null; this.timeSlider.pointerLeave(); }
 
   wheel(point: UiPoint, deltaX: number, deltaY: number): boolean {
     return this.router.routeWheel({ point, deltaX, deltaY });
@@ -245,19 +237,16 @@ export class OverworldUi {
   }
 
   private drawStatus(context: CanvasRenderingContext2D): void {
-    drawUiSkinAsset(context, this.skin.panelWood, this.layout.status);
+    drawUiSkinAsset(context, this.skin.frameThin, this.layout.status);
     const status = `${this.model.connected ? 'ONLINE' : 'CONNECTING'}  ${this.model.playerCount} FARMER${this.model.playerCount === 1 ? '' : 'S'}`;
     drawLabel(context, this.fonts, status, this.layout.status.x + this.layout.status.width / 2, this.layout.status.y + 7, { align: 'center', color: '#4d2e22' });
   }
 
   private drawWeather(context: CanvasRenderingContext2D): void {
-    const { weather, timeSlider, rainButton } = this.layout;
-    drawUiSkinAsset(context, this.skin.panelWood, weather);
-    drawLabel(context, this.fonts, `TIME ${this.model.timeLabel}`, weather.x + 10, weather.y + 9, { color: '#f8dfb4' });
-    drawUiSkinAsset(context, this.skin.sliderTrack, { x: timeSlider.x, y: timeSlider.y + 4, width: timeSlider.width, height: 6 });
-    const fillWidth = Math.max(1, Math.round((timeSlider.width - 2) * this.model.timeFraction));
-    drawUiSkinAsset(context, this.skin.barGold, { x: timeSlider.x + 1, y: timeSlider.y + 5, width: fillWidth, height: 4 });
-    drawUiSkinNatural(context, this.skin.sliderHandle, timeSlider.x + Math.round((timeSlider.width - 6) * this.model.timeFraction), timeSlider.y);
+    const { weather, rainButton } = this.layout;
+    drawUiSkinAsset(context, this.skin.frameThin, weather);
+    drawLabel(context, this.fonts, `TIME ${this.model.timeLabel}`, weather.x + 10, weather.y + 9, { color: '#4d2e22' });
+    this.timeSlider.draw(context);
     drawUiSkinAsset(context, this.model.raining ? this.skin.buttonConfirm : this.skin.button, rainButton, 'idle');
     drawLabel(context, this.fonts, `RAIN ${this.model.raining ? 'ON' : 'OFF'}`, rainButton.x + rainButton.width / 2, rainButton.y + 4, { align: 'center', color: '#f8dfb4' });
   }
@@ -351,10 +340,5 @@ export class OverworldUi {
     drawUiSkinNatural(context, this.skin.cursor, this.pointer.x, this.pointer.y, 'idle');
     const elapsed = performance.now() - this.clickStartedAt;
     if (elapsed < 280) drawUiSkinNatural(context, this.skin.cursorClick, this.pointer.x - 8, this.pointer.y - 8, 'click', Math.min(3, Math.floor(elapsed / 70)));
-  }
-
-  private setTimeAt(pointerX: number): void {
-    const fraction = Math.max(0, Math.min(1, (pointerX - this.layout.timeSlider.x) / this.layout.timeSlider.width));
-    this.callbacks.setTimeFraction(fraction);
   }
 }

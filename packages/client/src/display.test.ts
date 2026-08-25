@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_UI_SCALE,
   DEFAULT_WORLD_ZOOM,
   canvasViewport,
   easeWorldZoom,
@@ -41,6 +42,7 @@ describe('pixel display controls', () => {
   });
 
   it('scales the HUD only by whole pixels that fit the current canvas', () => {
+    expect(DEFAULT_UI_SCALE).toBe(2);
     expect(stepUiScale(1, 1)).toBe(2);
     expect(stepUiScale(3, 1)).toBe(3);
     expect(fittedUiScale(3, 1920, 1080)).toBe(3);

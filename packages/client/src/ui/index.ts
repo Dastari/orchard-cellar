@@ -7,4 +7,5 @@ export * from './drag-context.js';
 export * from './container-binding.js';
 export * from './compositions.js';
 export * from './skin.js';
+export * from './slider.js';
 export * from './overworld-ui.js';

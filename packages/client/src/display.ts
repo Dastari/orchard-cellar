@@ -4,7 +4,7 @@ export const WORLD_ZOOM_STEP = 0.25;
 export const DEFAULT_WORLD_ZOOM = 2;
 export const UI_SCALE_LEVELS = [1, 2, 3] as const;
 export type UiScale = typeof UI_SCALE_LEVELS[number];
-export const DEFAULT_UI_SCALE: UiScale = 1;
+export const DEFAULT_UI_SCALE: UiScale = 2;
 
 export function integerCanvasScale(viewportWidth: number, viewportHeight: number): number {
   return Math.max(1, Math.floor(Math.min(viewportWidth / VIRTUAL_WIDTH, viewportHeight / VIRTUAL_HEIGHT)));
