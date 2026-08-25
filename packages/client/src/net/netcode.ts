@@ -238,6 +238,90 @@ export class RemoteSnapshotBuffer {
   }
 }
 
+export interface ProjectileSnapshot {
+  readonly authorityTick: bigint;
+  readonly spawnedTick: bigint;
+  readonly x: number;
+  readonly y: number;
+  readonly velocityX: number;
+  readonly velocityY: number;
+  readonly state: string;
+}
+
+export interface SampledProjectile {
+  readonly x: number;
+  readonly y: number;
+  readonly velocityX: number;
+  readonly velocityY: number;
+  readonly state: string;
+  readonly extrapolated: boolean;
+}
+
+/** Smooths a server-authoritative linear projectile without changing its hit
+ * path. Rendering uses confirmed snapshots when available and at most two
+ * ticks of velocity-based presentation extrapolation between network updates. */
+export class ProjectileSnapshotBuffer {
+  private snapshots: ProjectileSnapshot[] = [];
+
+  constructor(private readonly capacity = REMOTE_SNAPSHOT_CAPACITY) {}
+  get depth(): number { return this.snapshots.length; }
+
+  push(snapshot: ProjectileSnapshot): void {
+    const existing = this.snapshots.findIndex((entry) => entry.authorityTick === snapshot.authorityTick);
+    if (existing >= 0) this.snapshots[existing] = snapshot;
+    else this.snapshots.push(snapshot);
+    this.snapshots.sort((left, right) => Number(left.authorityTick - right.authorityTick));
+    if (this.snapshots.length > this.capacity) this.snapshots.splice(0, this.snapshots.length - this.capacity);
+  }
+
+  sample(renderTick: number): SampledProjectile | null {
+    const first = this.snapshots[0];
+    const last = this.snapshots.at(-1);
+    if (first === undefined || last === undefined) return null;
+
+    const before = [...this.snapshots].reverse()
+      .find((entry) => Number(entry.authorityTick) <= renderTick);
+    const after = this.snapshots.find((entry) => Number(entry.authorityTick) >= renderTick);
+    if (before !== undefined && after !== undefined && before.authorityTick !== after.authorityTick) {
+      const span = Number(after.authorityTick - before.authorityTick);
+      const alpha = Math.max(0, Math.min(1, (renderTick - Number(before.authorityTick)) / span));
+      return {
+        x: before.x + (after.x - before.x) * alpha,
+        y: before.y + (after.y - before.y) * alpha,
+        velocityX: before.velocityX + (after.velocityX - before.velocityX) * alpha,
+        velocityY: before.velocityY + (after.velocityY - before.velocityY) * alpha,
+        state: alpha < 1 ? before.state : after.state,
+        extrapolated: false,
+      };
+    }
+
+    if (renderTick < Number(first.authorityTick) && first.state === 'flying') {
+      const earliest = Number(first.spawnedTick);
+      const sampledTick = Math.max(earliest, renderTick);
+      const delta = sampledTick - Number(first.authorityTick);
+      return {
+        x: first.x + first.velocityX * delta,
+        y: first.y + first.velocityY * delta,
+        velocityX: first.velocityX,
+        velocityY: first.velocityY,
+        state: first.state,
+        extrapolated: delta !== 0,
+      };
+    }
+
+    if (last.state !== 'flying') return { ...last, extrapolated: false };
+    const tickDelta = Math.max(0, Math.min(2, renderTick - Number(last.authorityTick)));
+    return {
+      x: last.x + last.velocityX * tickDelta,
+      y: last.y + last.velocityY * tickDelta,
+      velocityX: last.velocityX,
+      velocityY: last.velocityY,
+      state: last.state,
+      extrapolated: tickDelta > 0,
+    };
+  }
+}
+
 export class RenderTickClock {
   private value: number | null = null;
   constructor(
@@ -265,6 +349,8 @@ export interface AvatarAnimationFrame {
   readonly channel: 'locomotion' | 'action';
   readonly kind: string;
   readonly frame: number;
+  /** Continues advancing even while an upper-body action owns `frame`. */
+  readonly locomotionFrame: number;
   readonly fallback: boolean;
 }
 
@@ -299,6 +385,9 @@ export class AvatarAnimationController {
       this.lastActionKind = actionKind;
       this.lastActionStartedTick = actionStartedTick;
     }
+    const pixelsPerFrame = Math.max(1, SIM_TICKS_PER_SECOND / Math.max(1, locomotionFps));
+    const locomotionFrame = Math.floor(this.locomotionDistance / (pixelsPerFrame * FIXED_UNITS_PER_PIXEL))
+      % Math.max(1, locomotionFrames);
     if (actionKind !== 'none') {
       const definition = avatarActionDefinition(actionKind);
       const fallback = definition === null || !actionArtAvailable;
@@ -309,13 +398,16 @@ export class AvatarAnimationController {
         const frame = playback === 'loop'
           ? rawFrame % Math.max(1, actionFrames)
           : Math.min(Math.max(1, actionFrames) - 1, rawFrame);
-        return { channel: 'action', kind: fallback ? 'fallback_use' : actionKind, frame, fallback };
+        return { channel: 'action', kind: fallback ? 'fallback_use' : actionKind, frame, locomotionFrame, fallback };
       }
     }
-    const pixelsPerFrame = Math.max(1, SIM_TICKS_PER_SECOND / Math.max(1, locomotionFps));
-    const frame = Math.floor(this.locomotionDistance / (pixelsPerFrame * FIXED_UNITS_PER_PIXEL))
-      % Math.max(1, locomotionFrames);
-    return { channel: 'locomotion', kind: moving ? 'walk' : 'idle', frame: moving ? frame : 0, fallback: false };
+    return {
+      channel: 'locomotion',
+      kind: moving ? 'walk' : 'idle',
+      frame: moving ? locomotionFrame : 0,
+      locomotionFrame: moving ? locomotionFrame : 0,
+      fallback: false,
+    };
   }
 }
 

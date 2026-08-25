@@ -39,6 +39,12 @@ const frameStrideOption = option('--frame-stride');
 const animationNamesOption = option('--animation-names');
 const frameOrderOption = option('--frame-order');
 const fpsOption = option('--fps');
+const transparentColors = new Set(
+  (option('--transparent-color') ?? '')
+    .split(',')
+    .map((color) => color.trim().toLowerCase())
+    .filter(Boolean),
+);
 const category = option('--category') ?? 'tiles';
 if (!input || !name || !size) throw new Error('Usage: assets:import <png> --size WxH --name foo [--crop x,y] [--category tiles]');
 const [targetWidth, targetHeight] = size.split('x').map(Number);
@@ -84,6 +90,10 @@ function buildFrame(originX: number, originY: number): string[] {
       if (preserveSourcePalette) {
         const rgb = `${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
         const hex = `#${rgb}${alpha === 255 ? '' : alpha.toString(16).padStart(2, '0')}`;
+        if (transparentColors.has(`#${rgb}`) || transparentColors.has(hex)) {
+          row += '.';
+          continue;
+        }
         row += exactSourceCharacter(hex);
         continue;
       }

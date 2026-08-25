@@ -13,6 +13,7 @@ import {
   LocalPredictionBuffer,
   PresentationCorrection,
   RemoteSnapshotBuffer,
+  ProjectileSnapshotBuffer,
   RenderTickClock,
   inputRefreshDue,
 } from './netcode.js';
@@ -148,6 +149,26 @@ describe('remote interpolation', () => {
     expect(sampled?.x).toBeGreaterThanOrEqual(10_480);
   });
 
+  it('smooths linear projectiles and holds their authoritative hit point', () => {
+    const buffer = new ProjectileSnapshotBuffer();
+    buffer.push({
+      authorityTick: 10n, spawnedTick: 8n, x: 100, y: 200,
+      velocityX: 30, velocityY: -10, state: 'flying',
+    });
+    expect(buffer.sample(8)).toMatchObject({ x: 40, y: 220, state: 'flying' });
+    buffer.push({
+      authorityTick: 11n, spawnedTick: 8n, x: 130, y: 190,
+      velocityX: 30, velocityY: -10, state: 'flying',
+    });
+    expect(buffer.sample(10.5)).toMatchObject({ x: 115, y: 195, extrapolated: false });
+    expect(buffer.sample(11.5)).toMatchObject({ x: 145, y: 185, extrapolated: true });
+    buffer.push({
+      authorityTick: 12n, spawnedTick: 8n, x: 150, y: 183,
+      velocityX: 30, velocityY: -10, state: 'hit',
+    });
+    expect(buffer.sample(20)).toMatchObject({ x: 150, y: 183, state: 'hit', extrapolated: false });
+  });
+
   it('softly advances and resynchronizes render time without jumping', () => {
     const clock = new RenderTickClock();
     expect(clock.advance(0, 100n)).toBe(98.5);
@@ -186,6 +207,13 @@ describe('avatar animation and latency helpers', () => {
     controller.update(1_000, 0, 'none', 0n, 2, 4, 8, 4, 10);
     const restarted = controller.update(1_016, 0, 'none', 0n, 3, 4, 8, 4, 10);
     expect(restarted).toMatchObject({ channel: 'locomotion', kind: 'walk', frame: 0 });
+  });
+
+  it('keeps a locomotion frame advancing underneath an upper-body action', () => {
+    const controller = new AvatarAnimationController();
+    controller.update(0, 0, 'ranged_weapon', 0n, 0, 6, 8, 6, 10);
+    const walkingDraw = controller.update(120, 0, 'ranged_weapon', 0n, 1, 6, 8, 6, 10);
+    expect(walkingDraw).toMatchObject({ channel: 'action', locomotionFrame: 1 });
   });
 
   it('uses deterministic bounded jitter', () => {

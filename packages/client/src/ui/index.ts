@@ -8,4 +8,7 @@ export * from './container-binding.js';
 export * from './compositions.js';
 export * from './skin.js';
 export * from './slider.js';
+export * from './ribbon.js';
+export * from './item-slot.js';
+export * from './help-book.js';
 export * from './overworld-ui.js';

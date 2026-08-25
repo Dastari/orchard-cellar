@@ -21,6 +21,7 @@ export type DragEvent =
   | { readonly type: 'hover'; readonly target: DragSlotRef; readonly accepts: boolean }
   | { readonly type: 'leave' }
   | { readonly type: 'drop' }
+  | { readonly type: 'place_one' }
   | { readonly type: 'cancel' }
   | { readonly type: 'commit' }
   | { readonly type: 'error'; readonly code: string };
@@ -39,6 +40,11 @@ export function reduceDrag(state: DragState, event: DragEvent): DragTransition {
   }
   if (event.type === 'cancel' || event.type === 'commit') return { state: IDLE_DRAG };
   if (state.phase === 'idle') return { state };
+  if (event.type === 'place_one'
+    && (state.phase === 'grabbing' || state.phase === 'hovering' || state.phase === 'error')) {
+    if (state.quantity <= 1) return { state: IDLE_DRAG };
+    return { state: { ...state, quantity: state.quantity - 1 } };
+  }
   if (event.type === 'error') return { state: { phase: 'error', source: state.source, item: state.item, quantity: state.quantity, code: event.code } };
   if (event.type === 'hover' && (state.phase === 'grabbing' || state.phase === 'hovering')) {
     return { state: { phase: 'hovering', source: state.source, item: state.item, quantity: state.quantity, target: event.target, accepts: event.accepts } };

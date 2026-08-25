@@ -1,17 +1,29 @@
+import { craftingRecipeOutput, matchingRecipeId, maxStackFor, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
 import type { LoadedAsset } from '../render/assets.js';
-import { drawPixelText, measurePixelText, type PixelUi } from '../render/pixel-ui.js';
-import type { UiPoint, UiRect } from './geometry.js';
+import { drawOutlinedPixelText, drawPixelText, measurePixelText, type PixelUi } from '../render/pixel-ui.js';
+import { hotbarItemName } from '../survival-ui.js';
+import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
 import { UiInputRouter } from './input-router.js';
 import { Slider } from './slider.js';
-import { drawUiSkinAsset, drawUiSkinNatural, uiAssetFrame, type UiSkin } from './skin.js';
+import { Ribbon } from './ribbon.js';
+import { DragContext } from './drag-context.js';
+import { EQUIPMENT_SLOT_RESTRICTIONS, ItemSlot } from './item-slot.js';
+import { HelpBook } from './help-book.js';
+import { ScrollBar } from './scrollbar.js';
+import { drawUiLabelPlate, drawUiSkinAsset, drawUiSkinNatural, uiAssetFrame, type UiSkin } from './skin.js';
 import { widget, type WidgetNode } from './widget.js';
 
-export type OverworldWindow = 'pack' | 'crafting' | 'barrel';
+export type OverworldWindow = 'inventory' | 'pack' | 'crafting' | 'chest' | 'barrel' | 'system' | 'settings' | 'help';
 
 export interface OverworldUiInventorySlot {
   readonly slot: number;
   readonly itemKind: string;
   readonly quantity: number;
+}
+
+export interface OnlinePlayerListEntry {
+  readonly displayName: string;
+  readonly self: boolean;
 }
 
 export interface OverworldUiModel {
@@ -21,9 +33,17 @@ export interface OverworldUiModel {
   readonly playerCount: number;
   readonly selectedSlot: number;
   readonly inventory: readonly OverworldUiInventorySlot[];
+  readonly openChestInventory?: readonly OverworldUiInventorySlot[];
+  readonly hasBackpack: boolean;
+  readonly audioVolumes: { readonly master: number; readonly music: number; readonly sfx: number };
+  readonly canAdministerWorld: boolean;
+  readonly dateLabel: string;
   readonly timeLabel: string;
   readonly timeFraction: number;
   readonly raining: boolean;
+  readonly weatherMode: WeatherMode;
+  readonly windDirectionMode?: WindDirectionMode;
+  readonly windDirectionLabel?: string;
   readonly prompt: string | null;
   readonly toast: string | null;
 }
@@ -31,11 +51,23 @@ export interface OverworldUiModel {
 export interface OverworldUiCallbacks {
   readonly selectHotbar: (slot: number) => void;
   readonly setTimeFraction: (fraction: number) => void;
-  readonly toggleRain: () => void;
+  readonly shiftDay: (days: number) => void;
+  readonly cycleWeather: () => void;
+  readonly cycleWindDirection: () => void;
+  readonly setAudioVolume: (bus: 'master' | 'music' | 'sfx', value: number) => void;
   readonly signOut: () => void;
+  readonly quitToTitle: () => void;
+  readonly moveInventoryItem: (request: MoveItemRequest) => void;
+  readonly quickMoveInventoryItem: (fromContainer: string, fromIndex: number, toContainers: readonly string[]) => void;
+  readonly distributeInventoryItem: (fromContainer: string, fromIndex: number, targets: readonly { container: string; index: number }[], quantity: number) => void;
+  readonly craftInventoryRecipe: (recipeId: string) => void;
+  readonly closeChest: () => void;
+  readonly closeCrafting: () => void;
 }
 
 export interface OverworldUiItemArt {
+  readonly [itemKind: string]: LoadedAsset;
+  readonly avatar: LoadedAsset;
   readonly axe: LoadedAsset;
   readonly pickaxe: LoadedAsset;
   readonly hoe: LoadedAsset;
@@ -47,37 +79,135 @@ export interface OverworldUiLayout {
   readonly status: UiRect;
   readonly weather: UiRect;
   readonly timeSlider: UiRect;
-  readonly rainButton: UiRect;
+  readonly previousDayButton: UiRect;
+  readonly nextDayButton: UiRect;
+  readonly weatherButton: UiRect;
+  readonly windDirectionButton: UiRect;
   readonly hotbar: UiRect;
   readonly slots: readonly UiRect[];
   readonly tooltip: UiRect;
   readonly window: UiRect;
+  readonly inventoryWindow: UiRect;
+  readonly systemWindow: UiRect;
+  readonly settingsWindow: UiRect;
   readonly closeButton: UiRect;
+  readonly equipmentSlots: readonly UiRect[];
+  readonly backpackSlots: readonly UiRect[];
+  readonly inventoryHotbarSlots: readonly UiRect[];
+  readonly craftingSlots: readonly UiRect[];
+  readonly craftingResult: UiRect;
+  readonly craftingInventorySlots: readonly UiRect[];
+  readonly chestSlots: readonly UiRect[];
+  readonly resumeButton: UiRect;
+  readonly helpButton: UiRect;
+  readonly settingsButton: UiRect;
   readonly signOutButton: UiRect;
+  readonly quitButton: UiRect;
+  readonly masterSlider: UiRect;
+  readonly musicSlider: UiRect;
+  readonly sfxSlider: UiRect;
+  readonly settingsBackButton: UiRect;
 }
 
 const SLOT_WIDTH = 30;
 const SLOT_HEIGHT = 31;
 const HOTBAR_SLOTS = 9;
+const BACKPACK_SLOTS = 20;
+const DEFAULT_INVENTORY_SLOTS = 8;
+const BACKPACK_SLOT_OFFSET = HOTBAR_SLOTS;
+const EQUIPMENT_SLOT_OFFSET = BACKPACK_SLOT_OFFSET + BACKPACK_SLOTS;
+const CRAFTING_SLOT_OFFSET = EQUIPMENT_SLOT_OFFSET + 9;
+const NAMEPLATE_HORIZONTAL_PADDING = 5;
+const NAMEPLATE_HEIGHT = 11;
+export const ONLINE_PLAYER_LIST_BOTTOM_PADDING = 12;
+const ONLINE_PLAYER_LIST_CONTENT_TOP = 29;
+const ONLINE_PLAYER_LIST_ROW_HEIGHT = 12;
+const EQUIPMENT_SLOT_KINDS = ['neck', 'head', 'ring', 'main_hand', 'body', 'off_hand', 'hands', 'legs', 'feet'] as const;
+
+export function nameplateRect(centerX: number, y: number, text: string): UiRect {
+  const width = measurePixelText(fitLabel(text, 20)) + NAMEPLATE_HORIZONTAL_PADDING * 2;
+  return {
+    x: Math.round(centerX - width / 2),
+    y: Math.round(y),
+    width,
+    height: NAMEPLATE_HEIGHT,
+  };
+}
+
+export function isNameplateToggle(code: string, repeat: boolean): boolean {
+  return code === 'KeyN' && !repeat;
+}
+
+export function onlinePlayerListFrameHeight(contentRows: number): number {
+  return ONLINE_PLAYER_LIST_CONTENT_TOP
+    + Math.max(0, contentRows) * ONLINE_PLAYER_LIST_ROW_HEIGHT
+    + ONLINE_PLAYER_LIST_BOTTOM_PADDING;
+}
+
+/** Lower-right quantity label position inside the slot's usable face. The
+ * bottom six rows belong to the bevel and must not be treated as content. */
+export function slotStackLabelPosition(rect: UiRect): UiPoint {
+  return {
+    x: rect.x + rect.width - 5,
+    y: rect.y + rect.height - 14,
+  };
+}
 
 export function overworldUiLayout(width: number, height: number): OverworldUiLayout {
   const hotbarWidth = HOTBAR_SLOTS * SLOT_WIDTH;
   const hotbar = { x: Math.round((width - hotbarWidth) / 2), y: height - SLOT_HEIGHT - 6, width: hotbarWidth, height: SLOT_HEIGHT };
-  const weather = { x: width - 174, y: 4, width: 170, height: 51 };
+  const weather = { x: width - 174, y: 4, width: 170, height: 110 };
   const windowWidth = Math.min(270, Math.max(220, width - 16));
   const windowHeight = Math.min(184, Math.max(150, height - 30));
   const window = { x: Math.round((width - windowWidth) / 2), y: Math.round((height - windowHeight) / 2), width: windowWidth, height: windowHeight };
+  const inventoryWidth = Math.min(350, Math.max(320, width - 16));
+  const inventoryHeight = Math.min(240, Math.max(220, height - 16));
+  const inventoryWindow = { x: Math.round((width - inventoryWidth) / 2), y: Math.round((height - inventoryHeight) / 2), width: inventoryWidth, height: inventoryHeight };
+  const systemWindow = { x: Math.round((width - 190) / 2), y: Math.round((height - 178) / 2), width: 190, height: 178 };
+  const settingsWindow = { x: Math.round((width - 270) / 2), y: Math.round((height - 184) / 2), width: 270, height: 184 };
+  const paperOrigin = { x: inventoryWindow.x + 22, y: inventoryWindow.y + 51 };
+  const equipmentCells = [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2]] as const;
+  const backpackOrigin = { x: inventoryWindow.x + inventoryWindow.width - 183, y: inventoryWindow.y + 51 };
+  const inventoryHotbarX = inventoryWindow.x + Math.round((inventoryWindow.width - hotbarWidth) / 2);
+  const menuButton = (row: number): UiRect => ({ x: systemWindow.x + 35, y: systemWindow.y + 42 + row * 24, width: 120, height: 19 });
+  const settingsSlider = (row: number): UiRect => ({ x: settingsWindow.x + 91, y: settingsWindow.y + 49 + row * 28, width: 132, height: 14 });
   return {
-    status: { x: 4, y: 4, width: 190, height: 21 },
+    status: { x: 4, y: 4, width: 190, height: 24 },
     weather,
-    timeSlider: { x: weather.x + 9, y: weather.y + 23, width: weather.width - 18, height: 14 },
-    rainButton: { x: weather.x + 9, y: weather.y + 35, width: 64, height: 14 },
+    previousDayButton: { x: weather.x + 7, y: weather.y + 22, width: 48, height: 18 },
+    timeSlider: { x: weather.x + 58, y: weather.y + 24, width: weather.width - 116, height: 14 },
+    nextDayButton: { x: weather.x + weather.width - 55, y: weather.y + 22, width: 48, height: 18 },
+    weatherButton: { x: weather.x + 7, y: weather.y + 44, width: weather.width - 14, height: 20 },
+    windDirectionButton: { x: weather.x + 7, y: weather.y + 68, width: weather.width - 14, height: 20 },
     hotbar,
     slots: Array.from({ length: HOTBAR_SLOTS }, (_, slot) => ({ x: hotbar.x + slot * SLOT_WIDTH, y: hotbar.y, width: 28, height: SLOT_HEIGHT })),
-    tooltip: { x: Math.round(width / 2) - 100, y: hotbar.y - 25, width: 200, height: 19 },
+    tooltip: { x: Math.round(width / 2) - 100, y: hotbar.y - 22, width: 200, height: 16 },
     window,
+    inventoryWindow,
+    systemWindow,
+    settingsWindow,
     closeButton: { x: window.x + window.width - 24, y: window.y + 8, width: 16, height: 16 },
-    signOutButton: { x: window.x + 17, y: window.y + window.height - 23, width: 68, height: 16 },
+    equipmentSlots: equipmentCells.map(([column, row]) => ({ x: paperOrigin.x + column * 31, y: paperOrigin.y + row * 34, width: 28, height: 31 })),
+    backpackSlots: Array.from({ length: 20 }, (_, index) => ({ x: backpackOrigin.x + index % 5 * 31, y: backpackOrigin.y + Math.floor(index / 5) * 31, width: 28, height: 31 })),
+    inventoryHotbarSlots: Array.from({ length: HOTBAR_SLOTS }, (_, slot) => ({ x: inventoryHotbarX + slot * SLOT_WIDTH, y: inventoryWindow.y + inventoryWindow.height - 48, width: 28, height: 31 })),
+    craftingSlots: Array.from({ length: 9 }, (_, index) => ({ x: inventoryWindow.x + 20 + index % 3 * 31, y: inventoryWindow.y + 51 + Math.floor(index / 3) * 31, width: 28, height: 31 })),
+    craftingResult: { x: inventoryWindow.x + 144, y: inventoryWindow.y + 82, width: 28, height: 31 },
+    craftingInventorySlots: Array.from({ length: BACKPACK_SLOTS }, (_, index) => ({
+      x: inventoryWindow.x + 184 + index % 5 * 31,
+      y: inventoryWindow.y + 51 + Math.floor(index / 5) * 31,
+      width: 28,
+      height: 31,
+    })),
+    chestSlots: Array.from({ length: 27 }, (_, index) => ({ x: inventoryWindow.x + 40 + index % 9 * 30, y: inventoryWindow.y + 50 + Math.floor(index / 9) * 31, width: 28, height: 31 })),
+    resumeButton: menuButton(0),
+    helpButton: menuButton(1),
+    settingsButton: menuButton(2),
+    signOutButton: menuButton(3),
+    quitButton: menuButton(4),
+    masterSlider: settingsSlider(0),
+    musicSlider: settingsSlider(1),
+    sfxSlider: settingsSlider(2),
+    settingsBackButton: { x: settingsWindow.x + 91, y: settingsWindow.y + 142, width: 88, height: 18 },
   };
 }
 
@@ -95,19 +225,47 @@ export class OverworldUi {
   private readonly hotbarNodes: WidgetNode[];
   private readonly weatherNode: WidgetNode;
   private readonly timeSlider: Slider;
-  private readonly rainNode: WidgetNode;
+  private readonly previousDayNode: WidgetNode;
+  private readonly nextDayNode: WidgetNode;
+  private readonly weatherModeNode: WidgetNode;
+  private readonly windDirectionNode: WidgetNode;
   private readonly windowNode: WidgetNode;
   private readonly closeNode: WidgetNode;
+  private readonly inventoryHotbarSlots: ItemSlot[];
+  private readonly backpackItemSlots: ItemSlot[];
+  private readonly equipmentItemSlots: ItemSlot[];
+  private readonly craftingItemSlots: ItemSlot[];
+  private readonly chestItemSlots: ItemSlot[];
+  private readonly resumeNode: WidgetNode;
+  private readonly helpNode: WidgetNode;
+  private readonly settingsNode: WidgetNode;
   private readonly signOutNode: WidgetNode;
+  private readonly quitNode: WidgetNode;
+  private readonly settingsBackNode: WidgetNode;
+  private readonly masterSlider: Slider;
+  private readonly musicSlider: Slider;
+  private readonly sfxSlider: Slider;
+  private readonly windowRibbon: Ribbon;
+  private readonly helpBook: HelpBook;
+  private readonly onlinePlayersScrollBar: ScrollBar;
+  private readonly drag = new DragContext();
   private model: OverworldUiModel = {
     width: 480, height: 270, connected: false, playerCount: 0, selectedSlot: 0,
-    inventory: [], timeLabel: '06:00', timeFraction: 0, raining: false, prompt: null, toast: null,
+    inventory: [], openChestInventory: [], hasBackpack: false, audioVolumes: { master: 0.8, music: 0.7, sfx: 0.35 },
+    canAdministerWorld: false, dateLabel: 'SPRING 1', timeLabel: '06:00',
+    timeFraction: 0, raining: false, weatherMode: 'auto', prompt: null, toast: null,
   };
   private layout = overworldUiLayout(480, 270);
   private pointer: UiPoint = { x: -100, y: -100 };
   private hoveredSlot: number | null = null;
+  private pressedInventorySlot: ItemSlot | null = null;
+  private shiftDrag = false;
+  private shiftDragTargets: ItemSlot[] = [];
+  private holdingClickStack = false;
   private clickStartedAt = Number.NEGATIVE_INFINITY;
   private openWindowValue: OverworldWindow | null = null;
+  private onlinePlayerListActive = false;
+  private onlinePlayerListRect: UiRect = { x: 0, y: 0, width: 0, height: 0 };
 
   constructor(
     private readonly skin: UiSkin,
@@ -116,20 +274,44 @@ export class OverworldUi {
     private readonly callbacks: OverworldUiCallbacks,
   ) {
     this.root = widget('root', 'overworld.ui.root');
+    this.windowRibbon = new Ribbon(skin.banner, fonts);
+    this.helpBook = new HelpBook(skin, fonts);
+    this.onlinePlayersScrollBar = new ScrollBar(skin);
     this.weatherNode = widget('panel', 'hud.weather', { capturePointer: true });
     this.timeSlider = new Slider({
       id: 'hud.weather.time',
       skin,
       onChange: (value) => this.callbacks.setTimeFraction(value),
     });
-    this.rainNode = widget('button', 'hud.weather.rain', {
+    this.previousDayNode = widget('button', 'hud.weather.previous-day', {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down') return false;
-        this.callbacks.toggleRain();
+        this.callbacks.shiftDay(-1);
         return true;
       },
     });
-    this.weatherNode.add(this.timeSlider.node, this.rainNode);
+    this.nextDayNode = widget('button', 'hud.weather.next-day', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.callbacks.shiftDay(1);
+        return true;
+      },
+    });
+    this.weatherModeNode = widget('button', 'hud.weather.mode', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.callbacks.cycleWeather();
+        return true;
+      },
+    });
+    this.windDirectionNode = widget('button', 'hud.weather.wind-direction', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.callbacks.cycleWindDirection();
+        return true;
+      },
+    });
+    this.weatherNode.add(this.previousDayNode, this.timeSlider.node, this.nextDayNode, this.weatherModeNode, this.windDirectionNode);
     const hotbar = widget('inventory_grid', 'hud.hotbar', { capturePointer: true });
     this.hotbarNodes = Array.from({ length: HOTBAR_SLOTS }, (_, slot) => widget('slot', `hud.hotbar.${slot}`, {
       onPointer: (event) => {
@@ -147,93 +329,427 @@ export class OverworldUi {
         return true;
       },
     });
-    this.signOutNode = widget('button', 'window.pack.sign-out', {
+    this.inventoryHotbarSlots = Array.from({ length: HOTBAR_SLOTS }, (_, slot) => new ItemSlot(`window.inventory.hotbar.${slot}`, 'hotbar', slot));
+    this.backpackItemSlots = Array.from({ length: BACKPACK_SLOTS }, (_, slot) => new ItemSlot(`window.inventory.backpack.${slot}`, 'backpack', slot));
+    this.equipmentItemSlots = EQUIPMENT_SLOT_RESTRICTIONS.map((restriction, slot) => (
+      new ItemSlot(`window.inventory.equipment.${slot}`, 'equipment', slot, restriction)
+    ));
+    this.craftingItemSlots = Array.from({ length: 9 }, (_, slot) => new ItemSlot(`window.crafting.${slot}`, 'crafting', slot));
+    this.chestItemSlots = Array.from({ length: 27 }, (_, slot) => new ItemSlot(`window.chest.${slot}`, 'chest', slot));
+    this.resumeNode = widget('button', 'window.system.resume', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.openWindow = null;
+        return true;
+      },
+    });
+    this.helpNode = widget('button', 'window.system.help', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.openWindow = 'help';
+        return true;
+      },
+    });
+    this.settingsNode = widget('button', 'window.system.settings', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.openWindow = 'settings';
+        return true;
+      },
+    });
+    this.signOutNode = widget('button', 'window.system.sign-out', {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down') return false;
         this.callbacks.signOut();
         return true;
       },
     });
-    this.windowNode.add(this.closeNode, this.signOutNode);
+    this.quitNode = widget('button', 'window.system.quit', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.callbacks.quitToTitle();
+        return true;
+      },
+    });
+    this.settingsBackNode = widget('button', 'window.settings.back', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.openWindow = 'system';
+        return true;
+      },
+    });
+    this.masterSlider = new Slider({ id: 'window.settings.master', skin, onChange: (value) => this.callbacks.setAudioVolume('master', value) });
+    this.musicSlider = new Slider({ id: 'window.settings.music', skin, onChange: (value) => this.callbacks.setAudioVolume('music', value) });
+    this.sfxSlider = new Slider({ id: 'window.settings.sfx', skin, onChange: (value) => this.callbacks.setAudioVolume('sfx', value) });
+    this.windowNode.add(
+      this.closeNode,
+      ...this.inventoryHotbarSlots.map((slot) => slot.node),
+      ...this.backpackItemSlots.map((slot) => slot.node),
+      ...this.equipmentItemSlots.map((slot) => slot.node),
+      ...this.craftingItemSlots.map((slot) => slot.node),
+      ...this.chestItemSlots.map((slot) => slot.node),
+      this.resumeNode,
+      this.helpNode,
+      this.settingsNode,
+      this.signOutNode,
+      this.quitNode,
+      this.settingsBackNode,
+      this.masterSlider.node,
+      this.musicSlider.node,
+      this.sfxSlider.node,
+    );
     this.root.add(widget('label', 'hud.status'), this.weatherNode, hotbar, this.windowNode);
     this.router = new UiInputRouter(this.root);
   }
 
   get openWindow(): OverworldWindow | null { return this.openWindowValue; }
   set openWindow(window: OverworldWindow | null) {
-    this.openWindowValue = window;
-    this.windowNode.visible = window !== null;
+    const nextWindow = window === 'pack' ? 'inventory' : window;
+    if (this.openWindowValue === 'chest' && nextWindow !== 'chest') this.callbacks.closeChest();
+    if (this.openWindowValue === 'crafting' && nextWindow !== 'crafting') this.callbacks.closeCrafting();
+    if (this.isInventoryWindow(this.openWindowValue) && !this.isInventoryWindow(nextWindow)) {
+      this.pressedInventorySlot = null;
+      this.shiftDrag = false;
+      this.shiftDragTargets = [];
+      this.holdingClickStack = false;
+      this.drag.dispatch({ type: 'cancel' });
+    }
+    if (nextWindow === 'help' && this.openWindowValue !== 'help') this.helpBook.reset();
+    this.openWindowValue = nextWindow;
+    this.syncActiveWindow();
   }
 
   update(model: OverworldUiModel): void {
+    this.onlinePlayerListActive = false;
     this.model = model;
     this.layout = overworldUiLayout(model.width, model.height);
     this.root.setBounds({ x: 0, y: 0, width: model.width, height: model.height });
     this.weatherNode.setBounds(this.layout.weather);
     this.timeSlider.setBounds(this.layout.timeSlider);
     this.timeSlider.value = model.timeFraction;
-    this.rainNode.setBounds(this.layout.rainButton);
+    this.previousDayNode.setBounds(this.layout.previousDayButton);
+    this.nextDayNode.setBounds(this.layout.nextDayButton);
+    this.weatherModeNode.setBounds(this.layout.weatherButton);
+    this.windDirectionNode.setBounds(this.layout.windDirectionButton);
+    this.previousDayNode.visible = model.canAdministerWorld;
+    this.timeSlider.node.visible = model.canAdministerWorld;
+    this.nextDayNode.visible = model.canAdministerWorld;
+    this.weatherModeNode.visible = model.canAdministerWorld;
+    this.windDirectionNode.visible = model.canAdministerWorld;
     const hotbar = this.root.children.find((child) => child.id === 'hud.hotbar');
     hotbar?.setBounds(this.layout.hotbar);
     this.hotbarNodes.forEach((node, slot) => node.setBounds(this.layout.slots[slot]!));
-    this.windowNode.setBounds(this.layout.window);
-    this.windowNode.visible = this.openWindowValue !== null;
-    this.closeNode.setBounds(this.layout.closeButton);
+    // The world table keeps explicit `empty` rows for vacant cells. Those are a
+    // persistence detail, not an item stack: retaining them here makes a slot
+    // look empty while drop validation sees an incompatible item occupying it.
+    const inventoryBySlot = new Map(model.inventory
+      .filter((item) => item.itemKind !== 'empty' && item.quantity > 0)
+      .map((item) => [item.slot, item]));
+    this.inventoryHotbarSlots.forEach((slot, index) => {
+      slot.setBounds(this.layout.inventoryHotbarSlots[index]!);
+      slot.enabled = true;
+      slot.item = inventoryBySlot.get(index) ?? null;
+    });
+    this.backpackItemSlots.forEach((slot, index) => {
+      slot.setBounds(this.layout.backpackSlots[index]!);
+      slot.enabled = index < DEFAULT_INVENTORY_SLOTS || model.hasBackpack;
+      slot.item = inventoryBySlot.get(BACKPACK_SLOT_OFFSET + index) ?? null;
+    });
+    this.equipmentItemSlots.forEach((slot, index) => {
+      slot.setBounds(this.layout.equipmentSlots[index]!);
+      slot.enabled = true;
+      slot.item = inventoryBySlot.get(EQUIPMENT_SLOT_OFFSET + index) ?? null;
+    });
+    this.craftingItemSlots.forEach((slot, index) => {
+      slot.setBounds(this.layout.craftingSlots[index]!); slot.enabled = true;
+      slot.item = inventoryBySlot.get(CRAFTING_SLOT_OFFSET + index) ?? null;
+    });
+    const chestBySlot = new Map((model.openChestInventory ?? [])
+      .filter((item) => item.itemKind !== 'empty' && item.quantity > 0)
+      .map((item) => [item.slot, item]));
+    this.chestItemSlots.forEach((slot, index) => {
+      slot.setBounds(this.layout.chestSlots[index]!); slot.enabled = true; slot.item = chestBySlot.get(index) ?? null;
+    });
+    this.resumeNode.setBounds(this.layout.resumeButton);
+    this.helpNode.setBounds(this.layout.helpButton);
+    this.settingsNode.setBounds(this.layout.settingsButton);
     this.signOutNode.setBounds(this.layout.signOutButton);
-    this.signOutNode.visible = this.openWindowValue === 'pack';
+    this.quitNode.setBounds(this.layout.quitButton);
+    this.settingsBackNode.setBounds(this.layout.settingsBackButton);
+    this.masterSlider.setBounds(this.layout.masterSlider);
+    this.musicSlider.setBounds(this.layout.musicSlider);
+    this.sfxSlider.setBounds(this.layout.sfxSlider);
+    this.masterSlider.value = model.audioVolumes.master;
+    this.musicSlider.value = model.audioVolumes.music;
+    this.sfxSlider.value = model.audioVolumes.sfx;
+    this.syncActiveWindow();
   }
 
   handleKeyDown(code: string, repeat: boolean): boolean {
     if (repeat) return false;
-    if (code === 'Escape' && this.openWindowValue !== null) { this.openWindow = null; return true; }
-    if (code === 'Tab' || code === 'KeyI') { this.openWindow = this.openWindowValue === 'pack' ? null : 'pack'; return true; }
+    if (this.openWindowValue === 'help' && this.helpBook.handleKeyDown(code)) return true;
+    if (code === 'Escape') {
+      if (this.openWindowValue === 'settings' || this.openWindowValue === 'help') this.openWindow = 'system';
+      else if (this.openWindowValue === 'system') this.openWindow = null;
+      else this.openWindow = 'system';
+      return true;
+    }
+    if (code === 'KeyI') { this.openWindow = this.openWindowValue === 'inventory' ? null : 'inventory'; return true; }
     if (code === 'KeyC') { this.openWindow = this.openWindowValue === 'crafting' ? null : 'crafting'; return true; }
     if (code === 'KeyV') { this.openWindow = this.openWindowValue === 'barrel' ? null : 'barrel'; return true; }
-    return false;
+    return this.openWindowValue !== null;
   }
 
-  pointerMove(point: UiPoint): void {
+  handleOnlinePlayersKeyDown(code: string): boolean {
+    return this.onlinePlayerListActive && this.onlinePlayersScrollBar.handleKey(code);
+  }
+
+  pointerMove(point: UiPoint, modifiers: { readonly shift?: boolean } = {}): void {
     this.pointer = point;
-    this.hoveredSlot = this.hotbarNodes.findIndex((node) => node.contains(point));
+    if (this.onlinePlayerListActive) this.onlinePlayersScrollBar.pointerMove(point);
+    const slotNodes = this.openWindowValue === 'inventory' ? this.inventoryHotbarSlots.map((slot) => slot.node) : this.hotbarNodes;
+    this.hoveredSlot = slotNodes.findIndex((node) => node.contains(point));
     if (this.hoveredSlot < 0) this.hoveredSlot = null;
+    if (this.drag.state.phase !== 'idle' && this.drag.state.phase !== 'awaiting_commit') {
+      if (modifiers.shift) this.shiftDrag = true;
+      const target = this.inventoryItemSlotAt(point);
+      if (target === null) this.drag.dispatch({ type: 'leave' });
+      else {
+        this.drag.dispatch({ type: 'hover', target, accepts: this.canDropOn(target) });
+        const sourceIsTarget = target.containerId === this.drag.state.source.containerId
+          && target.index === this.drag.state.source.index;
+        if (this.shiftDrag && modifiers.shift && !sourceIsTarget
+          && this.canDropOn(target) && !this.shiftDragTargets.includes(target)) this.shiftDragTargets.push(target);
+      }
+    }
     this.timeSlider.pointerMove(point);
+    this.masterSlider.pointerMove(point);
+    this.musicSlider.pointerMove(point);
+    this.sfxSlider.pointerMove(point);
   }
 
-  pointerDown(point: UiPoint, button: number): boolean {
+  pointerDown(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
     this.pointer = point;
     this.clickStartedAt = performance.now();
+    if (button === 2 && this.drag.state.phase !== 'idle') {
+      const state = this.drag.state;
+      const target = this.inventoryItemSlotAt(point);
+      const sourceIsTarget = target !== null
+        && target.containerId === state.source.containerId
+        && target.index === state.source.index;
+      this.pressedInventorySlot = null;
+      this.shiftDrag = false;
+      this.shiftDragTargets = [];
+      if (target !== null && !sourceIsTarget && this.canDropOn(target)) {
+        this.callbacks.moveInventoryItem({
+          fromContainer: state.source.containerId,
+          fromIndex: state.source.index,
+          toContainer: target.containerId,
+          toIndex: target.index,
+          quantity: 1,
+        });
+        const hasRemainder = state.quantity > 1;
+        this.drag.dispatch({ type: 'place_one' });
+        this.holdingClickStack = hasRemainder;
+      } else {
+        this.holdingClickStack = false;
+        this.drag.dispatch({ type: 'cancel' });
+      }
+      return true;
+    }
+    if (button === 0 && this.onlinePlayerListActive && this.onlinePlayersScrollBar.pointerDown(point)) return true;
+    if (this.openWindowValue === 'help') {
+      const result = this.helpBook.pointerDown(point);
+      if (result === 'back') this.openWindow = 'system';
+      if (result !== null) return true;
+    }
+    if (this.openWindowValue === 'crafting' && button === 0 && containsPoint(this.layout.craftingResult, point)) {
+      const recipeId = this.currentRecipeId();
+      if (recipeId !== null) this.callbacks.craftInventoryRecipe(recipeId);
+      return true;
+    }
+    if (this.isInventoryWindow(this.openWindowValue)) {
+      const slot = this.inventoryItemSlotAt(point);
+      if (slot !== null) {
+        const continuingShiftDrag = this.drag.state.phase !== 'idle' && modifiers.shift === true && this.shiftDrag;
+        this.pressedInventorySlot = slot;
+        this.shiftDrag = modifiers.shift === true;
+        if (!continuingShiftDrag) this.shiftDragTargets = [];
+        if (this.drag.state.phase === 'idle' && slot.item !== null) this.drag.dispatch({
+          type: 'grab',
+          source: slot,
+          item: slot.item,
+          half: button === 2,
+        });
+        if (this.drag.state.phase !== 'idle' && this.shiftDrag) {
+          const sourceIsTarget = slot.containerId === this.drag.state.source.containerId
+            && slot.index === this.drag.state.source.index;
+          if (!sourceIsTarget && this.canDropOn(slot) && !this.shiftDragTargets.includes(slot)) {
+            this.shiftDragTargets.push(slot);
+          }
+        }
+        return true;
+      }
+    }
     return this.router.routePointer({ kind: 'pointer_down', point, button });
   }
 
-  pointerUp(point: UiPoint, button: number): boolean {
+  pointerUp(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
     this.pointer = point;
+    if (this.onlinePlayersScrollBar.pointerUp()) return true;
+    if (this.pressedInventorySlot !== null) {
+      const pressed = this.pressedInventorySlot;
+      const target = this.inventoryItemSlotAt(point);
+      this.pressedInventorySlot = null;
+      if (this.drag.state.phase !== 'idle') {
+        const sourceIsTarget = target !== null
+          && target.containerId === this.drag.state.source.containerId
+          && target.index === this.drag.state.source.index;
+        if (this.shiftDrag && this.shiftDragTargets.length > 0) {
+          const source = this.drag.state.source;
+          this.callbacks.distributeInventoryItem(
+            source.containerId, source.index,
+            this.shiftDragTargets.map((slot) => ({ container: slot.containerId, index: slot.index })),
+            this.drag.state.quantity,
+          );
+          this.drag.dispatch({ type: 'commit' });
+          this.holdingClickStack = false;
+        } else if (modifiers.shift && target === pressed) {
+          this.callbacks.quickMoveInventoryItem(pressed.containerId, pressed.index, this.quickMoveDestinations(pressed.containerId));
+          this.drag.dispatch({ type: 'commit' });
+          this.holdingClickStack = false;
+        } else if (target !== null && !sourceIsTarget) {
+          this.drag.dispatch({ type: 'hover', target, accepts: this.canDropOn(target) });
+          if (this.canDropOn(target)) {
+            const state = this.drag.state;
+            this.callbacks.moveInventoryItem({
+              fromContainer: state.source.containerId, fromIndex: state.source.index,
+              toContainer: target.containerId, toIndex: target.index,
+              quantity: button === 2 && this.holdingClickStack ? 1 : state.quantity,
+            });
+            this.drag.dispatch({ type: 'commit' });
+            this.holdingClickStack = false;
+          } else {
+            this.holdingClickStack = true;
+          }
+        } else if (sourceIsTarget) {
+          // A first click may pick a stack up for click-to-place. Clicking its
+          // source again, or dragging away and returning to it, puts it back.
+          const returningToSource = this.holdingClickStack || this.drag.state.phase === 'hovering';
+          if (returningToSource) {
+            this.drag.dispatch({ type: 'cancel' });
+            this.holdingClickStack = false;
+          } else {
+            this.holdingClickStack = true;
+          }
+        } else {
+          this.drag.dispatch({ type: 'commit' });
+          this.holdingClickStack = false;
+        }
+      }
+      this.shiftDrag = false;
+      this.shiftDragTargets = [];
+      if (target === pressed && pressed.containerId === 'hotbar' && button === 0) this.callbacks.selectHotbar(pressed.index);
+      return true;
+    }
     const consumed = this.router.routePointer({ kind: 'pointer_up', point, button });
-    return this.timeSlider.pointerUp(point) || consumed;
+    return this.timeSlider.pointerUp(point)
+      || this.masterSlider.pointerUp(point)
+      || this.musicSlider.pointerUp(point)
+      || this.sfxSlider.pointerUp(point)
+      || consumed;
   }
 
-  pointerLeave(): void { this.hoveredSlot = null; this.timeSlider.pointerLeave(); }
+  pointerLeave(): void {
+    this.hoveredSlot = null;
+    this.pressedInventorySlot = null;
+    this.shiftDrag = false;
+    this.shiftDragTargets = [];
+    this.holdingClickStack = false;
+    this.drag.dispatch({ type: 'cancel' });
+    this.timeSlider.pointerLeave();
+    this.masterSlider.pointerLeave();
+    this.musicSlider.pointerLeave();
+    this.sfxSlider.pointerLeave();
+    this.onlinePlayersScrollBar.pointerLeave();
+  }
 
   wheel(point: UiPoint, deltaX: number, deltaY: number): boolean {
+    if (this.onlinePlayerListActive && containsPoint(this.onlinePlayerListRect, point) && deltaY !== 0) {
+      this.onlinePlayersScrollBar.wheel(deltaY, 1);
+      return true;
+    }
     return this.router.routeWheel({ point, deltaX, deltaY });
   }
 
   draw(context: CanvasRenderingContext2D): void {
     this.drawStatus(context);
     this.drawWeather(context);
-    this.drawHotbar(context);
-    if (this.openWindowValue) this.drawWindow(context, this.openWindowValue);
-    this.drawTooltip(context);
+    if (!this.isInventoryWindow(this.openWindowValue)) this.drawHotbar(context);
+    if (this.openWindowValue === 'help') this.helpBook.draw(context, this.model.width, this.model.height);
+    else if (this.openWindowValue) this.drawWindow(context, this.openWindowValue);
+    if (this.isInventoryWindow(this.openWindowValue)) this.drawShiftDragTargets(context);
+    if (this.isInventoryWindow(this.openWindowValue)) this.drawDraggedItem(context);
+    if (this.openWindowValue === null || this.isInventoryWindow(this.openWindowValue)) this.drawTooltip(context);
     this.drawCursor(context);
   }
 
   drawNameplates(context: CanvasRenderingContext2D, labels: readonly { readonly x: number; readonly y: number; readonly text: string }[]): void {
     for (const label of labels) {
-      const text = fitLabel(label.text.toUpperCase(), 20);
-      const width = measurePixelText(text) + 10;
-      const rect = { x: Math.round(label.x - width / 2), y: Math.round(label.y), width, height: 15 };
-      drawUiSkinAsset(context, this.skin.panelParchment, rect);
-      drawLabel(context, this.fonts, text, label.x, rect.y + 4, { align: 'center', color: '#5f3b24' });
+      const text = fitLabel(label.text, 20);
+      const rect = nameplateRect(label.x, label.y, text);
+      context.save();
+      context.fillStyle = 'rgba(0, 0, 0, 0.58)';
+      context.fillRect(rect.x, rect.y, rect.width, rect.height);
+      context.restore();
+      drawLabel(context, this.fonts, text, label.x, rect.y + 2, { align: 'center', color: '#fff1cf' });
     }
+  }
+
+  drawOnlinePlayers(context: CanvasRenderingContext2D, players: readonly OnlinePlayerListEntry[]): void {
+    const maximumRows = Math.max(1, Math.floor((this.model.height - 65) / ONLINE_PLAYER_LIST_ROW_HEIGHT));
+    this.onlinePlayersScrollBar.setMetrics(players.length, maximumRows);
+    const visiblePlayers = players.slice(
+      this.onlinePlayersScrollBar.position,
+      this.onlinePlayersScrollBar.position + maximumRows,
+    );
+    const width = Math.min(230, Math.max(170, this.model.width - 16));
+    const height = onlinePlayerListFrameHeight(visiblePlayers.length);
+    const rect = {
+      x: Math.round((this.model.width - width) / 2),
+      y: 12,
+      width,
+      height,
+    };
+    this.onlinePlayerListActive = true;
+    this.onlinePlayerListRect = rect;
+    this.onlinePlayersScrollBar.setBounds({
+      x: rect.x + rect.width - 24,
+      y: rect.y + ONLINE_PLAYER_LIST_CONTENT_TOP,
+      width: 14,
+      height: visiblePlayers.length * ONLINE_PLAYER_LIST_ROW_HEIGHT,
+    });
+    drawUiSkinAsset(context, this.skin.panelWood, rect);
+    drawUiSkinAsset(context, this.skin.panelParchment, {
+      x: rect.x + 8,
+      y: rect.y + 10,
+      width: rect.width - 16,
+      height: rect.height - 18,
+    });
+    drawLabel(context, this.fonts, `ONLINE PLAYERS  ${players.length}`, rect.x + rect.width / 2, rect.y + 15, {
+      align: 'center',
+      color: '#4d2e22',
+    });
+    visiblePlayers.forEach((player, index) => {
+      const rowY = rect.y + ONLINE_PLAYER_LIST_CONTENT_TOP + index * ONLINE_PLAYER_LIST_ROW_HEIGHT;
+      context.fillStyle = '#4f8f42';
+      context.fillRect(rect.x + 17, rowY + 2, 4, 4);
+      const suffix = player.self ? '  (YOU)' : '';
+      drawLabel(context, this.fonts, fitLabel(`${player.displayName}${suffix}`, 25), rect.x + 27, rowY, {
+        color: player.self ? '#4d2e22' : '#6b4428',
+      });
+    });
+    this.onlinePlayersScrollBar.draw(context);
   }
 
   private drawStatus(context: CanvasRenderingContext2D): void {
@@ -242,13 +758,66 @@ export class OverworldUi {
     drawLabel(context, this.fonts, status, this.layout.status.x + this.layout.status.width / 2, this.layout.status.y + 7, { align: 'center', color: '#4d2e22' });
   }
 
+  private activeWindowRect(): UiRect {
+    if (this.openWindowValue === 'help') return { x: 0, y: 0, width: this.model.width, height: this.model.height };
+    if (this.isInventoryWindow(this.openWindowValue)) return this.layout.inventoryWindow;
+    if (this.openWindowValue === 'system') return this.layout.systemWindow;
+    if (this.openWindowValue === 'settings') return this.layout.settingsWindow;
+    return this.layout.window;
+  }
+
+  /** Keep the active modal's hit targets in lockstep with its visual state. */
+  private syncActiveWindow(): void {
+    const activeWindow = this.activeWindowRect();
+    const inventoryVisible = this.openWindowValue === 'inventory';
+    const craftingVisible = this.openWindowValue === 'crafting';
+    const chestVisible = this.openWindowValue === 'chest';
+    const systemVisible = this.openWindowValue === 'system';
+    const settingsVisible = this.openWindowValue === 'settings';
+    this.windowNode.setBounds(activeWindow);
+    this.windowNode.visible = this.openWindowValue !== null;
+    this.closeNode.setBounds({ x: activeWindow.x + activeWindow.width - 17, y: activeWindow.y + 7, width: 16, height: 16 });
+    for (const slot of this.inventoryHotbarSlots) slot.visible = inventoryVisible || craftingVisible || chestVisible;
+    this.backpackItemSlots.forEach((slot, index) => {
+      slot.visible = inventoryVisible || craftingVisible;
+      slot.setBounds(craftingVisible ? this.layout.craftingInventorySlots[index]! : this.layout.backpackSlots[index]!);
+    });
+    for (const slot of this.equipmentItemSlots) slot.visible = inventoryVisible;
+    for (const slot of this.craftingItemSlots) slot.visible = craftingVisible;
+    for (const slot of this.chestItemSlots) slot.visible = chestVisible;
+    for (const node of [this.resumeNode, this.helpNode, this.settingsNode, this.signOutNode, this.quitNode]) node.visible = systemVisible;
+    this.settingsBackNode.visible = settingsVisible;
+    for (const slider of [this.masterSlider, this.musicSlider, this.sfxSlider]) {
+      slider.node.visible = settingsVisible;
+      slider.enabled = settingsVisible;
+    }
+  }
+
   private drawWeather(context: CanvasRenderingContext2D): void {
-    const { weather, rainButton } = this.layout;
+    const { weather, previousDayButton, nextDayButton, weatherButton, windDirectionButton } = this.layout;
     drawUiSkinAsset(context, this.skin.frameThin, weather);
-    drawLabel(context, this.fonts, `TIME ${this.model.timeLabel}`, weather.x + 10, weather.y + 9, { color: '#4d2e22' });
+    drawLabel(context, this.fonts, `${this.model.dateLabel}  ${this.model.timeLabel}`, weather.x + weather.width / 2, weather.y + 8, { align: 'center', color: '#4d2e22' });
+    if (!this.model.canAdministerWorld) {
+      drawLabel(context, this.fonts, `WEATHER ${this.model.raining ? 'RAIN' : 'CLEAR'}`, weather.x + weather.width / 2, weather.y + 29, { align: 'center', color: '#6b4428' });
+      return;
+    }
+    drawUiSkinAsset(context, this.skin.button, previousDayButton, 'idle');
+    drawLabel(context, this.fonts, '-DAY', previousDayButton.x + previousDayButton.width / 2, previousDayButton.y + 6, { align: 'center', color: '#5f3b24' });
     this.timeSlider.draw(context);
-    drawUiSkinAsset(context, this.model.raining ? this.skin.buttonConfirm : this.skin.button, rainButton, 'idle');
-    drawLabel(context, this.fonts, `RAIN ${this.model.raining ? 'ON' : 'OFF'}`, rainButton.x + rainButton.width / 2, rainButton.y + 4, { align: 'center', color: '#f8dfb4' });
+    drawUiSkinAsset(context, this.skin.button, nextDayButton, 'idle');
+    drawLabel(context, this.fonts, '+DAY', nextDayButton.x + nextDayButton.width / 2, nextDayButton.y + 6, { align: 'center', color: '#5f3b24' });
+    drawUiSkinAsset(context, this.model.raining ? this.skin.buttonConfirm : this.skin.button, weatherButton, 'idle');
+    drawLabel(context, this.fonts, `WEATHER ${this.model.weatherMode.toUpperCase()}`, weatherButton.x + weatherButton.width / 2, weatherButton.y + 7, {
+      align: 'center', color: this.model.raining ? '#fff2d0' : '#5f3b24',
+    });
+    drawUiSkinAsset(context, this.skin.button, windDirectionButton, 'idle');
+    const directionMode = (this.model.windDirectionMode ?? 'auto').toUpperCase();
+    const effectiveDirection = directionMode === 'AUTO' && this.model.windDirectionLabel
+      ? ` (${this.model.windDirectionLabel})` : '';
+    drawLabel(context, this.fonts, `WIND DIR ${directionMode}${effectiveDirection}`, windDirectionButton.x + windDirectionButton.width / 2, windDirectionButton.y + 7, {
+      align: 'center', color: '#5f3b24',
+    });
+    drawLabel(context, this.fonts, 'OWNER WORLD CONTROLS', weather.x + weather.width / 2, weather.y + 96, { align: 'center', color: '#8c5d3a' });
   }
 
   private drawHotbar(context: CanvasRenderingContext2D): void {
@@ -263,7 +832,12 @@ export class OverworldUi {
         if (frame) context.drawImage(asset.image, frame.x, frame.y, frame.width, frame.height, rect.x + 6, rect.y + 7, 16, 16);
       }
       drawLabel(context, this.fonts, String(slot + 1), rect.x + 3, rect.y + 3, { color: '#51351f' });
-      if ((item?.quantity ?? 0) > 1) drawLabel(context, this.fonts, String(item!.quantity), rect.x + rect.width - 3, rect.y + rect.height - 9, { align: 'right', color: '#f8ead0' });
+      if ((item?.quantity ?? 0) > 1) {
+        const stackLabel = slotStackLabelPosition(rect);
+        drawOutlinedPixelText(context, this.fonts, String(item!.quantity), stackLabel.x, stackLabel.y, {
+          align: 'right', color: '#3f2832', outlineColor: '#f8ead0',
+        });
+      }
       if (slot === this.model.selectedSlot || slot === this.hoveredSlot) {
         const selector = slot === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
         drawUiSkinNatural(context, selector, rect.x - 10, rect.y - 9, 'idle');
@@ -272,59 +846,227 @@ export class OverworldUi {
   }
 
   private drawTooltip(context: CanvasRenderingContext2D): void {
-    const hovered = this.hoveredSlot === null ? null : this.model.inventory.find((item) => item.slot === this.hoveredSlot) ?? null;
-    const text = hovered?.itemKind.replaceAll('_', ' ').toUpperCase() ?? this.model.prompt ?? this.model.toast;
+    const text = this.tooltipText();
     if (!text) return;
     const width = Math.min(this.model.width - 12, Math.max(104, measurePixelText(text) + 16));
     const rect = { ...this.layout.tooltip, x: Math.round((this.model.width - width) / 2), width };
-    drawUiSkinAsset(context, this.skin.panelParchment, rect);
-    drawLabel(context, this.fonts, fitLabel(text, 44), rect.x + rect.width / 2, rect.y + 6, { align: 'center', color: '#5f3b24' });
+    drawUiLabelPlate(context, this.skin, rect);
+    drawLabel(context, this.fonts, fitLabel(text, 44), rect.x + rect.width / 2, rect.y + 4, { align: 'center', color: '#5f3b24' });
+  }
+
+  private drawShiftDragTargets(context: CanvasRenderingContext2D): void {
+    if (!this.shiftDrag) return;
+    for (const slot of this.shiftDragTargets) {
+      if (!slot.visible || !slot.enabled) continue;
+      drawUiSkinNatural(context, this.skin.selectorNeutral, slot.bounds.x - 10, slot.bounds.y - 9, 'idle');
+    }
+  }
+
+  tooltipText(): string | null {
+    const itemKind = this.hoveredItemKind();
+    if (itemKind !== null) return hotbarItemName(itemKind) ?? itemKind.replaceAll('_', ' ').toUpperCase();
+    return this.openWindowValue === null ? this.model.prompt ?? this.model.toast : null;
+  }
+
+  private hoveredItemKind(): string | null {
+    if (this.isInventoryWindow(this.openWindowValue)) {
+      if (this.openWindowValue === 'crafting' && containsPoint(this.layout.craftingResult, this.pointer)) {
+        return craftingRecipeOutput(this.currentRecipeId() ?? '')?.itemKind ?? null;
+      }
+      return this.visibleItemSlots()
+        .find((slot) => slot.node.contains(this.pointer))?.item?.itemKind ?? null;
+    }
+    if (this.hoveredSlot === null) return null;
+    const hovered = this.model.inventory.find((item) => item.slot === this.hoveredSlot);
+    return hovered && hovered.itemKind !== 'empty' && hovered.quantity > 0 ? hovered.itemKind : null;
   }
 
   private drawWindow(context: CanvasRenderingContext2D, window: OverworldWindow): void {
-    const rect = this.layout.window;
+    const rect = this.activeWindowRect();
     drawUiSkinAsset(context, this.skin.panelWood, rect);
     drawUiSkinAsset(context, this.skin.panelParchment, { x: rect.x + 10, y: rect.y + 13, width: rect.width - 20, height: rect.height - 23 });
-    drawUiSkinNatural(context, this.skin.banner, rect.x + rect.width / 2 - 39, rect.y - 2);
-    drawLabel(context, this.fonts, window === 'pack' ? 'PACK' : window === 'crafting' ? 'CRAFTING' : 'TEST BARREL', rect.x + rect.width / 2, rect.y + 7, { align: 'center', color: '#4d2e22', font: 'header' });
-    drawUiSkinAsset(context, this.skin.buttonDeny, this.layout.closeButton, 'idle');
-    drawLabel(context, this.fonts, 'X', this.layout.closeButton.x + 8, this.layout.closeButton.y + 5, { align: 'center', color: '#fff2d0' });
-    if (window === 'pack') this.drawPack(context, rect);
+    const title = window === 'inventory' || window === 'pack' ? 'INVENTORY'
+      : window === 'crafting' ? 'CRAFTING'
+        : window === 'chest' ? 'CHEST'
+          : window === 'barrel' ? 'TEST BARREL'
+          : window === 'settings' ? 'SETTINGS' : 'MENU';
+    this.windowRibbon.draw(context, title, rect.x + rect.width / 2, rect.y - 5);
+    drawUiSkinAsset(context, this.skin.buttonDeny, this.closeNode.bounds, 'idle');
+    drawLabel(context, this.fonts, 'X', this.closeNode.bounds.x + 8, this.closeNode.bounds.y + 5, { align: 'center', color: '#fff2d0' });
+    if (window === 'inventory' || window === 'pack') this.drawInventory(context, rect);
     else if (window === 'crafting') this.drawCrafting(context, rect);
-    else this.drawBarrel(context, rect);
+    else if (window === 'chest') this.drawChest(context, rect);
+    else if (window === 'barrel') this.drawBarrel(context, rect);
+    else if (window === 'settings') this.drawSettings(context);
+    else this.drawSystemMenu(context);
   }
 
-  private drawPack(context: CanvasRenderingContext2D, rect: UiRect): void {
-    drawLabel(context, this.fonts, 'EQUIPMENT', rect.x + 20, rect.y + 32, { color: '#6b4428' });
-    for (let index = 0; index < 4; index += 1) drawUiSkinAsset(context, this.skin.slot, { x: rect.x + 22, y: rect.y + 45 + index * 31, width: 28, height: 31 }, 'idle');
-    const items = new Map(this.model.inventory.map((item) => [item.slot, item]));
-    const startX = rect.x + 68; const startY = rect.y + 42;
-    for (let index = 0; index < 20; index += 1) {
-      const x = startX + index % 5 * 32; const y = startY + Math.floor(index / 5) * 31;
-      drawUiSkinAsset(context, this.skin.slot, { x, y, width: 28, height: 31 }, 'idle');
-      const item = items.get(index);
-      const asset = item ? this.itemArt[item.itemKind as keyof OverworldUiItemArt] : undefined;
-      const frame = asset ? uiAssetFrame(asset) : null;
-      if (asset && frame) context.drawImage(asset.image, frame.x, frame.y, frame.width, frame.height, x + 6, y + 6, 16, 16);
-      if ((item?.quantity ?? 0) > 1) drawLabel(context, this.fonts, String(item!.quantity), x + 25, y + 19, { align: 'right', color: '#f8ead0' });
+  private drawInventory(context: CanvasRenderingContext2D, rect: UiRect): void {
+    drawLabel(context, this.fonts, 'EQUIPMENT', rect.x + 21, rect.y + 35, { color: '#6b4428' });
+    drawLabel(context, this.fonts, this.model.hasBackpack ? 'BACKPACK - 20 SLOTS' : 'INVENTORY - 8 SLOTS', rect.x + rect.width - 183, rect.y + 35, {
+      color: '#6b4428',
+    });
+    this.equipmentItemSlots.forEach((slot, index) => {
+      const equipmentSlot = slot.bounds;
+      drawUiSkinAsset(context, this.skin.slot, equipmentSlot, 'idle');
+      if (slot.item === null) drawUiSkinNatural(
+          context,
+          this.skin.equipmentSlotIcons,
+          equipmentSlot.x + Math.round((equipmentSlot.width - 16) / 2),
+          equipmentSlot.y + Math.round((equipmentSlot.height - 16) / 2) - 1,
+          EQUIPMENT_SLOT_KINDS[index],
+        );
+      else this.drawInventoryItem(context, equipmentSlot, slot.item.itemKind, slot.item.quantity);
+    });
+    for (const slot of this.backpackItemSlots) {
+      drawUiSkinAsset(context, this.skin.slot, slot.bounds, slot.enabled ? 'idle' : 'disabled');
+      if (slot.enabled && slot.item !== null) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity);
     }
-    const signOut = this.layout.signOutButton;
-    drawUiSkinAsset(context, this.skin.buttonDeny, signOut, 'idle');
-    drawLabel(context, this.fonts, 'SIGN OUT', signOut.x + signOut.width / 2, signOut.y + 5, { align: 'center', color: '#fff2d0' });
+    context.fillStyle = '#9d6843';
+    context.fillRect(rect.x + 17, rect.y + rect.height - 61, rect.width - 34, 1);
+    drawLabel(context, this.fonts, 'HOTBAR', rect.x + 21, rect.y + rect.height - 59, { color: '#6b4428' });
+    this.inventoryHotbarSlots.forEach((slot, index) => {
+      const slotRect = slot.bounds;
+      drawUiSkinAsset(context, this.skin.slot, slotRect, 'idle');
+      const item = slot.item;
+      if (item) this.drawInventoryItem(context, slotRect, item.itemKind, item.quantity);
+      drawLabel(context, this.fonts, String(index + 1), slotRect.x + 3, slotRect.y + 3, { color: '#51351f' });
+      if (index === this.model.selectedSlot || index === this.hoveredSlot) {
+        const selector = index === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
+        drawUiSkinNatural(context, selector, slotRect.x - 10, slotRect.y - 9, 'idle');
+      }
+    });
+  }
+
+  private inventoryItemSlotAt(point: UiPoint): ItemSlot | null {
+    const visible = this.visibleItemSlots();
+    return visible
+      .find((slot) => slot.node.contains(point) && slot.enabled) ?? null;
+  }
+
+  private canDropOn(target: ItemSlot): boolean {
+    const state = this.drag.state;
+    if (state.phase === 'idle' || state.phase === 'awaiting_commit' || !target.accepts(state.item.itemKind)) return false;
+    const targetItem = target.item;
+    if (targetItem === null) return true;
+    if (targetItem.itemKind === state.item.itemKind) return targetItem.quantity < (maxStackFor(targetItem.itemKind) ?? 0);
+    const source = this.visibleItemSlots()
+      .find((slot) => slot.containerId === state.source.containerId && slot.index === state.source.index);
+    return source?.accepts(targetItem.itemKind) ?? false;
+  }
+
+  private drawInventoryItem(context: CanvasRenderingContext2D, rect: UiRect, itemKind: string, quantity: number): void {
+    const asset = this.itemArt[itemKind as keyof OverworldUiItemArt];
+    const frame = asset ? uiAssetFrame(asset) : null;
+    if (asset && frame) context.drawImage(asset.image, frame.x, frame.y, frame.width, frame.height, rect.x + 6, rect.y + 7, 16, 16);
+    if (quantity > 1) {
+      const stackLabel = slotStackLabelPosition(rect);
+      drawOutlinedPixelText(context, this.fonts, String(quantity), stackLabel.x, stackLabel.y, {
+        align: 'right', color: '#3f2832', outlineColor: '#f8ead0',
+      });
+    }
+  }
+
+  private drawDraggedItem(context: CanvasRenderingContext2D): void {
+    const state = this.drag.state;
+    if (state.phase === 'idle') return;
+    const destination = { x: this.pointer.x - 14, y: this.pointer.y - 15, width: 28, height: 31 };
+    drawUiSkinAsset(context, this.skin.slot, destination, state.phase === 'hovering' && !state.accepts ? 'disabled' : 'idle');
+    this.drawInventoryItem(context, destination, state.item.itemKind, state.quantity);
+  }
+
+  private drawSystemMenu(context: CanvasRenderingContext2D): void {
+    const buttons = [
+      [this.layout.resumeButton, 'RESUME', this.skin.buttonConfirm],
+      [this.layout.helpButton, 'HELP', this.skin.button],
+      [this.layout.settingsButton, 'SETTINGS', this.skin.button],
+      [this.layout.signOutButton, 'SIGN OUT', this.skin.buttonDeny],
+      [this.layout.quitButton, 'QUIT TO TITLE', this.skin.button],
+    ] as const;
+    for (const [rect, label, asset] of buttons) {
+      drawUiSkinAsset(context, asset, rect, 'idle');
+      drawLabel(context, this.fonts, label, rect.x + rect.width / 2, rect.y + 6, {
+        align: 'center', color: asset === this.skin.button ? '#5f3b24' : '#fff2d0',
+      });
+    }
+  }
+
+  private drawSettings(context: CanvasRenderingContext2D): void {
+    const rows = [
+      ['MASTER', this.masterSlider, this.model.audioVolumes.master],
+      ['MUSIC', this.musicSlider, this.model.audioVolumes.music],
+      ['SFX', this.sfxSlider, this.model.audioVolumes.sfx],
+    ] as const;
+    for (const [label, slider, value] of rows) {
+      drawLabel(context, this.fonts, label, slider.node.bounds.x - 12, slider.node.bounds.y + 4, { align: 'right', color: '#6b4428' });
+      slider.draw(context);
+      drawLabel(context, this.fonts, `${Math.round(value * 100)}%`, slider.node.bounds.x + slider.node.bounds.width + 5, slider.node.bounds.y + 4, { color: '#8c5d3a' });
+    }
+    drawUiSkinAsset(context, this.skin.button, this.layout.settingsBackButton, 'idle');
+    drawLabel(context, this.fonts, 'BACK', this.layout.settingsBackButton.x + this.layout.settingsBackButton.width / 2, this.layout.settingsBackButton.y + 5, {
+      align: 'center', color: '#5f3b24',
+    });
   }
 
   private drawCrafting(context: CanvasRenderingContext2D, rect: UiRect): void {
-    const startX = rect.x + 25; const startY = rect.y + 48;
-    for (let index = 0; index < 9; index += 1) drawUiSkinAsset(context, this.skin.slot, {
-      x: startX + index % 3 * 31, y: startY + Math.floor(index / 3) * 31, width: 28, height: 31,
-    }, 'idle');
-    drawLabel(context, this.fonts, '2 WOOD', startX + 46, startY - 14, { align: 'center', color: '#6b4428' });
-    drawLabel(context, this.fonts, '>', rect.x + 134, rect.y + 86, { align: 'center', color: '#6b4428', font: 'header' });
-    drawUiSkinAsset(context, this.skin.slot, { x: rect.x + 155, y: rect.y + 71, width: 28, height: 31 }, 'idle');
-    drawLabel(context, this.fonts, '4 PLANKS', rect.x + 197, rect.y + 81, { color: '#6b4428' });
-    const button = { x: rect.x + 150, y: rect.y + 117, width: 84, height: 16 };
-    drawUiSkinAsset(context, this.skin.button, button, 'disabled');
-    drawLabel(context, this.fonts, 'SERVER PENDING', button.x + button.width / 2, button.y + 5, { align: 'center', color: '#d5c6ad' });
+    drawLabel(context, this.fonts, 'CRAFTING GRID', rect.x + 20, rect.y + 35, { color: '#6b4428' });
+    for (const slot of this.craftingItemSlots) {
+      drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
+      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity);
+    }
+    drawLabel(context, this.fonts, '>', rect.x + 128, rect.y + 88, { align: 'center', color: '#6b4428', font: 'header' });
+    drawUiSkinAsset(context, this.skin.slot, this.layout.craftingResult, this.currentRecipeId() === null ? 'disabled' : 'idle');
+    const output = craftingRecipeOutput(this.currentRecipeId() ?? '');
+    if (output) this.drawInventoryItem(context, this.layout.craftingResult, output.itemKind, output.quantity);
+    drawLabel(context, this.fonts, output ? 'TAKE' : 'RECIPE', rect.x + 158, rect.y + 120, { align: 'center', color: '#6b4428' });
+    drawLabel(context, this.fonts, this.model.hasBackpack ? 'BACKPACK' : 'INVENTORY', rect.x + 184, rect.y + 35, { color: '#6b4428' });
+    for (const slot of this.backpackItemSlots) {
+      drawUiSkinAsset(context, this.skin.slot, slot.bounds, slot.enabled ? 'idle' : 'disabled');
+      if (slot.enabled && slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity);
+    }
+    this.drawWindowHotbar(context, rect);
+  }
+
+  private drawChest(context: CanvasRenderingContext2D, rect: UiRect): void {
+    drawLabel(context, this.fonts, 'STORAGE', rect.x + 40, rect.y + 35, { color: '#6b4428' });
+    for (const slot of this.chestItemSlots) {
+      drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
+      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity);
+    }
+    this.drawWindowHotbar(context, rect);
+  }
+
+  private drawWindowHotbar(context: CanvasRenderingContext2D, rect: UiRect): void {
+    context.fillStyle = '#9d6843'; context.fillRect(rect.x + 17, rect.y + rect.height - 61, rect.width - 34, 1);
+    drawLabel(context, this.fonts, 'HOTBAR', rect.x + 21, rect.y + rect.height - 59, { color: '#6b4428' });
+    this.inventoryHotbarSlots.forEach((slot, index) => {
+      drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
+      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity);
+      drawLabel(context, this.fonts, String(index + 1), slot.bounds.x + 3, slot.bounds.y + 3, { color: '#51351f' });
+    });
+  }
+
+  private isInventoryWindow(window: OverworldWindow | null): boolean {
+    return window === 'inventory' || window === 'pack' || window === 'crafting' || window === 'chest';
+  }
+
+  private visibleItemSlots(): ItemSlot[] {
+    if (this.openWindowValue === 'inventory') return [...this.equipmentItemSlots, ...this.backpackItemSlots, ...this.inventoryHotbarSlots];
+    if (this.openWindowValue === 'crafting') return [...this.craftingItemSlots, ...this.backpackItemSlots, ...this.inventoryHotbarSlots];
+    if (this.openWindowValue === 'chest') return [...this.chestItemSlots, ...this.inventoryHotbarSlots];
+    return [];
+  }
+
+  private currentRecipeId(): string | null {
+    return matchingRecipeId({ id: 'crafting', capacity: 9, slots: this.craftingItemSlots.map((slot) => slot.item) });
+  }
+
+  private quickMoveDestinations(source: string): readonly string[] {
+    if (source === 'chest') return ['hotbar', 'backpack'];
+    if (this.openWindowValue === 'chest') return ['chest'];
+    if (this.openWindowValue === 'crafting') return source === 'crafting' ? ['hotbar', 'backpack'] : ['crafting'];
+    if (source === 'hotbar') return ['backpack'];
+    return ['hotbar'];
   }
 
   private drawBarrel(context: CanvasRenderingContext2D, rect: UiRect): void {

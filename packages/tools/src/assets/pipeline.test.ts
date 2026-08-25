@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { expandBlob47 } from '../build-atlas.js';
+import { loadAssets } from './load.js';
 import { blendPixel, decodePng, encodePng, hexToRgba } from './png.js';
 
 describe('asset pipeline', () => {
@@ -24,5 +25,28 @@ describe('asset pipeline', () => {
     const variants = expandBlob47([grid, grid, grid, grid, grid]);
     expect(variants).toHaveLength(47);
     expect(variants.every((variant) => variant.length === 16 && variant.every((row) => row.length === 16))).toBe(true);
+  });
+
+  it('keeps the full mature acacia canopy inside its authored source cell', async () => {
+    const assets = await loadAssets();
+    const acacia = assets.find((asset) => asset.name === 'tree_cf_acacia_mature');
+    expect(acacia?.size).toEqual([80, 64]);
+    const frame = acacia?.frames['base']?.[0] ?? [];
+    expect(frame).toHaveLength(64);
+    expect(frame.every((row) => row.length === 80)).toBe(true);
+    expect(frame.every((row) => row[0] === '.' && row.at(-1) === '.')).toBe(true);
+  });
+
+  it('extracts each butterfly colour as one 8px two-state animation', async () => {
+    const assets = await loadAssets();
+    const butterflies = assets.filter((asset) => asset.name.startsWith('wildlife_cf_butterfly_'));
+    expect(butterflies).toHaveLength(8);
+    for (const butterfly of butterflies) {
+      expect(butterfly.size).toEqual([8, 8]);
+      expect(butterfly.frames['flutter']).toHaveLength(2);
+      expect(butterfly.frames['flutter']?.every((frame) => (
+        frame.length === 8 && frame.every((row) => row.length === 8)
+      ))).toBe(true);
+    }
   });
 });

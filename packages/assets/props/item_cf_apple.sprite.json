@@ -1,0 +1,74 @@
+{
+  "name": "item_cf_apple",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "......00........",
+        ".....02100......",
+        "......020.......",
+        ".......000......",
+        "......06550.....",
+        "......05540.....",
+        "......05430.....",
+        ".......000......",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#1e6f50",
+    "2": "#33984b",
+    "3": "#571c27",
+    "4": "#891e2b",
+    "5": "#c42430",
+    "6": "#f5555d"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Fruit_Trees_Fruit_Objects.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Fruit_Trees_Fruit_Objects.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

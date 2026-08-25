@@ -102,13 +102,19 @@ function validateCanonicalSize(asset: AssetSource, errors: string[]): void {
   if (asset.category === 'tiles' && (width !== 16 || height !== 16)) errors.push(`${asset.name}: tiles must be 16x16`);
   if (asset.category === 'characters') {
     const bodyCanvas = width === 16 && height === 32;
-    const licensedActionCanvas = width === 32 && height === 32 && asset.sourcePaletteMode === 'exact';
-    if (!bodyCanvas && !licensedActionCanvas) errors.push(`${asset.name}: characters must be 16x32, or licensed actions 32x32`);
+    const licensedActionCanvas = width === 32 && (height === 32 || height === 40) && asset.sourcePaletteMode === 'exact';
+    const licensedToolActionCanvas = width === 64 && height === 64
+      && asset.name.startsWith('tool_cf_') && asset.sourcePaletteMode === 'exact';
+    if (!bodyCanvas && !licensedActionCanvas && !licensedToolActionCanvas) {
+      errors.push(`${asset.name}: characters must be 16x32, exact licensed bodies 32x32/32x40, or exact licensed tool actions 64x64`);
+    }
   }
   if (asset.category === 'trees') {
     const valid = (width === 16 && (height === 16 || height === 32))
       || (width === 32 && height === 32)
-      || (width === 48 && height === 64);
+      || (width === 32 && height === 64 && asset.sourcePaletteMode === 'exact')
+      || (width === 48 && height === 64)
+      || (width === 80 && height === 64 && asset.sourcePaletteMode === 'exact');
     if (!valid) errors.push(`${asset.name}: tree size is not a canonical growth-stage size`);
   }
   if (asset.category === 'buildings' && (width % 16 !== 0 || height % 16 !== 0)) {

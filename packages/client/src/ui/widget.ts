@@ -1,6 +1,6 @@
 import { containsPoint, type UiPoint, type UiRect, type UiSize } from './geometry.js';
 
-export type WidgetKind = 'root' | 'panel' | 'label' | 'icon' | 'button' | 'bar' | 'slider' | 'slot' | 'inventory_grid' | 'window' | 'tooltip' | 'speech_bubble' | 'cursor' | 'row' | 'column';
+export type WidgetKind = 'root' | 'panel' | 'label' | 'icon' | 'button' | 'bar' | 'slider' | 'scrollbar' | 'slot' | 'inventory_grid' | 'window' | 'tooltip' | 'speech_bubble' | 'cursor' | 'row' | 'column';
 export type UiPointerEventKind = 'pointer_down' | 'pointer_up' | 'pointer_move' | 'click';
 
 export interface UiPointerEvent {
@@ -21,6 +21,7 @@ export interface WidgetOptions {
   readonly minSize?: UiSize;
   readonly props?: Readonly<Record<string, unknown>>;
   readonly capturePointer?: boolean;
+  readonly enabled?: boolean;
   readonly onPointer?: (event: UiPointerEvent, widget: WidgetNode) => boolean;
   readonly onWheel?: (event: UiWheelEvent, widget: WidgetNode) => boolean;
   readonly paint?: (context: CanvasRenderingContext2D, widget: WidgetNode) => void;
@@ -39,7 +40,7 @@ export class WidgetNode {
   readonly children: WidgetNode[] = [];
   bounds: UiRect = { x: 0, y: 0, width: 0, height: 0 };
   visible = true;
-  enabled = true;
+  enabled: boolean;
 
   constructor(options: WidgetOptions) {
     this.id = options.id;
@@ -47,6 +48,7 @@ export class WidgetNode {
     this.minSize = options.minSize ?? { width: 0, height: 0 };
     this.props = options.props ?? {};
     this.capturePointer = options.capturePointer ?? false;
+    this.enabled = options.enabled ?? true;
     this.onPointer = options.onPointer;
     this.onWheel = options.onWheel;
     this.paint = options.paint;

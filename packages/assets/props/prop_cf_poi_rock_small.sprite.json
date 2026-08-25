@@ -1,0 +1,70 @@
+{
+  "name": "prop_cf_poi_rock_small",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "......11111.....",
+        "....116656511...",
+        "...16555555551..",
+        "..165555555551..",
+        "..4655555555510.",
+        ".33465555555200.",
+        "..334465652330..",
+        "....004222330...",
+        "......00000.....",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#262b44",
+    "2": "#3c4258",
+    "3": "#50af5d",
+    "4": "#6c7c9d",
+    "5": "#8e9ab4",
+    "6": "#c7cfdd"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Outdoor_Decor.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        112,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "resource.mineable",
+    "decor.rock",
+    "resource.rock"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

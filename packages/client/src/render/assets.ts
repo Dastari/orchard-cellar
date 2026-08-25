@@ -67,6 +67,7 @@ export interface GeneratedAssetRegistry {
 
 let manifestPromise: Promise<BuiltAtlasManifest> | null = null;
 const imagePromises = new Map<string, Promise<HTMLImageElement>>();
+const warnedMissingAssets = new Set<string>();
 
 async function loadManifest(): Promise<BuiltAtlasManifest> {
   manifestPromise ??= fetch('/generated/atlas.meta.json').then(async (response) => {
@@ -101,6 +102,11 @@ export function resolveGeneratedAssetName(manifest: BuiltAtlasManifest, assetId:
   return requested ?? fallback;
 }
 
+export function resolveGeneratedAssetRequestName(manifest: BuiltAtlasManifest, requestedName: string): string {
+  if (manifest.assets[requestedName] !== undefined) return requestedName;
+  return resolveGeneratedAssetName(manifest, manifest.placeholderAssetId);
+}
+
 function applyMarkerOverrides(
   image: HTMLImageElement,
   record: BuiltAssetRecord,
@@ -132,9 +138,25 @@ export async function loadGeneratedAsset(
   markerOverrides: Readonly<Record<string, readonly string[]>> = {},
 ): Promise<LoadedAsset> {
   const manifest = await loadManifest();
-  const record = manifest.assets[name];
-  if (!record) throw new Error(`Generated asset not found: ${name}`);
-  return await loadRecord(manifest, name, record, season, markerOverrides);
+  const resolvedName = resolveGeneratedAssetRequestName(manifest, name);
+  const record = manifest.assets[resolvedName];
+  if (!record) throw new Error(`Generated asset placeholder is missing: ${resolvedName}`);
+  if (resolvedName !== name && !warnedMissingAssets.has(name)) {
+    warnedMissingAssets.add(name);
+    console.warn(`Generated asset not found: ${name}; using ${resolvedName}`);
+  }
+  try {
+    return await loadRecord(manifest, name, record, season, markerOverrides);
+  } catch (error: unknown) {
+    const placeholderName = resolveGeneratedAssetName(manifest, manifest.placeholderAssetId);
+    const placeholder = manifest.assets[placeholderName];
+    if (resolvedName === placeholderName || placeholder === undefined) throw error;
+    if (!warnedMissingAssets.has(name)) {
+      warnedMissingAssets.add(name);
+      console.warn(`Generated asset failed to load: ${name}; using ${placeholderName}`, error);
+    }
+    return await loadRecord(manifest, name, placeholder, season, {});
+  }
 }
 
 async function loadRecord(

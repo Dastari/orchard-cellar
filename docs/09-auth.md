@@ -1,29 +1,53 @@
 # 09 — Authentication, Membership & Sessions
 
 Binding auth design after the successful M5.5 SpaceTimeDB gate. Production uses an
-OIDC identity accepted by SpaceTimeDB plus an explicit owner-managed friends/invite
-allowlist. Local host-issued anonymous identities are development-only, disposable,
-and never a production account system.
+OIDC identity accepted by SpaceTimeDB plus a private game membership record. A verified
+new account is admitted automatically as a `friend`; privileged roles and moderation
+remain owner-managed. Local host-issued anonymous identities are development-only,
+disposable, and never a production account system.
 
 ## 1. Identity model
 
 - The durable SpaceTimeDB `Identity` is the account key used by owned rows.
 - Production connections must present a token from the configured OIDC issuer and
-  audience. The module rejects anonymous, wrong-issuer, wrong-audience, and unapproved
-  identities in the connection lifecycle before creating player state.
-- Provider choice is an M6 deployment decision. Prefer a provider the friend group
-  already uses (Discord via SpacetimeAuth is the first integration to test), but keep
-  authorization keyed to SpaceTimeDB identity rather than provider display names.
-- Account linking/recovery must be explicitly tested before a provider is considered
-  production-ready. SpaceTimeAuth beta status is an accepted integration risk, not a
-  reason to weaken membership checks.
+  audience. The module rejects anonymous, wrong-issuer, and wrong-audience identities
+  before creating player state, then automatically provisions a valid first connection
+  with the non-privileged `friend` role.
+- The approved implementation baseline is self-hosted Keycloak with PostgreSQL, using
+  issuer `https://auth.orchard.dastari.net/realms/orchard` and public browser client
+  `orchard-web`. The digest-pinned production deployment and acceptance evidence are
+  recorded in [24-self-hosted-oidc.md](24-self-hosted-oidc.md).
+- Account linking/recovery must be explicitly tested before the provider is considered
+  production-ready. Existing host-issued identities remain disposable unless the owner
+  chooses a separately reviewed proof-of-both-identities migration. The owner approved
+  discarding those development identities for this rollout.
 
-## 2. Friends allowlist
+## 2. Membership and moderation
 
 A private membership table stores identity, role (`owner`, `friend`, `moderator`),
-approval/revocation timestamps, and moderation state. Only the owner/moderator may
-approve or revoke members. The bootstrap owner identity is supplied as deployment
-configuration, never inferred from the first arbitrary internet connection.
+approval/revocation timestamps, and moderation state. A valid first-time Orchard OIDC
+identity receives an audited `friend` row automatically. Only the owner may grant
+privileged roles; owners and moderators may revoke or block friends. The bootstrap
+owner identity is supplied as deployment configuration, never inferred from the first
+arbitrary internet connection.
+
+The module implements private membership/audit tables, owner/moderator role checks,
+last-owner lockout protection, immediate presence removal on revocation, and membership
+checks at connection and reducer boundaries. Production enforcement stays gated by a
+non-empty OIDC client list until the captured owner identity is in the bootstrap
+allowlist and backed up.
+
+Identity-provider administration and game administration are deliberately separate.
+The named Keycloak master-realm administrators operate accounts and recovery; the
+captured Orchard identity is an `owner` in the private SpaceTimeDB membership table.
+Keycloak roles may later be displayed as hints, but they are never authoritative game
+permissions. This avoids token-lifetime permission lag and duplicate role state.
+
+Owner-only world controls use audited SpaceTimeDB reducers. The caller-filtered
+`own_membership` view lets the client reveal the controls only to an owner, while the
+reducers independently enforce the current membership row. Shared calendar/weather
+state is replicated from `world_environment`; no client-local date, time, or rain
+override can mutate the world.
 
 Revocation prevents new connections immediately and terminates active presence on the
 next authorization check. Every sensitive reducer checks current membership and role;
@@ -52,9 +76,11 @@ Configure `VITE_OIDC_CLIENT_ID` and register the exact application root as an al
 redirect URI; issuer and redirect overrides are documented in `.env.example`.
 Identity and refresh tokens are kept in `sessionStorage`, never URL parameters or the
 local profile store. The account screen handles account creation/sign-in, callback
-validation, refresh, and sign-out. When no client ID is configured it visibly falls
-back to the development profile chooser. The self-hosted production rollout is
-specified in [24-self-hosted-oidc.md](24-self-hosted-oidc.md).
+validation, refresh, and sign-out. The local chooser is routed only when both Vite
+development mode and `VITE_ENABLE_LOCAL_PROFILES=true` are present. A production build
+with missing OIDC configuration fails closed at the account screen and never reuses a
+local host token. The self-hosted production rollout is specified in
+[24-self-hosted-oidc.md](24-self-hosted-oidc.md).
 
 Before publishing an internet-facing module, copy the same public client ID into
 `OIDC_CLIENT_IDS` in `packages/world/src/auth-policy.ts` and republish. A non-empty list
@@ -84,8 +110,9 @@ text use the bitmap-font character set and documented length/rate limits.
 
 ## 6. Required M6 tests
 
-- Valid approved OIDC identity connects and reconnects to the same player.
-- Anonymous, wrong issuer/audience, unapproved, revoked, and blocked identities fail.
+- A valid newly registered OIDC identity is auto-provisioned as `friend` and reconnects
+  to the same player.
+- Anonymous, wrong issuer/audience, revoked, and blocked identities fail.
 - Revocation affects an already-connected client.
 - A second identity cannot read or mutate private inventory/progression.
 - Owner/moderator membership operations are role-checked and audited.

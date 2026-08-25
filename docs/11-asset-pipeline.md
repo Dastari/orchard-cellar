@@ -56,6 +56,172 @@ outer corner, inner corner, isolated) and generates all 47 blob variants.
 Maps (`*.map.json`) are layer grids of tile names + object placements + walkability
 overrides; the farm map spec lives in 03-gameplay-core.md.
 
+### Raised cliff metatile contract
+
+Raised cliffs and walls are layered metatiles, not one independently selected tile
+per map cell. Every matching natural cliff tileset must follow this draw order:
+
+1. base terrain fill;
+2. the continuous rear structure (top cap, side wall, south cap, and projected face);
+3. a transparent foreground inverse-corner overlay at a stepped turn;
+4. ramps and natural decals; then normal world objects.
+
+Never replace a straight side-wall frame with an inverse-corner frame. At a stepped
+turn the straight wall continues behind the foreground corner. A map cell may therefore
+have several projected face depths in the background and its own cap/side role in the
+foreground; return every applicable face and draw deepest-to-nearest. The licensed
+face frames' translucent shadow pixels expose the wall behind the nearer wall. Do not
+collapse those layers into a single chosen frame. The inverse-corner foreground extract
+must contain only the corner's edge, stone, and shadow pixels: remove the source
+sheet's flat-ground pixels rather than drawing its opaque 16x16 quadrant directly.
+Otherwise it erases the rear wall and produces a false green strip. Collision and
+elevation come from the semantic cliff role and are independent of both draw layers.
+
+The shared resolver is `packages/sim/src/raised-terrain-autotile.ts`. It accepts a
+`RaisedTerrainGrid` occupancy contour plus a `RaisedTerrainTileSet` and returns a
+`RaisedTerrainTilePlan` containing the ordered face layers, rear edge, inverse-corner
+overlays, ramp, and collision semantic for one cell. World generation and rendering
+must call this resolver instead of adding shape-specific frame tests.
+
+Editors should store integer elevation, not selected cliff frames. Adapt each contour
+with `raisedTerrainContourGrid(elevationAt, contourLevel)`, resolve every affected cell,
+and redraw the returned plan. Raising or lowering one cell therefore automatically
+recomputes its caps, sides, convex/concave turns, rear overlaps, faces, and shadows.
+Resolve every level independently to stack multi-level terrain.
+
+Face height is tileset data. `RaisedTerrainTileSet.faceProfiles` contains an ordered
+list of face rows with left/middle/right frames and collision behavior. A tall profile
+can contain `wall`, `lower_wall`, and nonblocking `foot` rows; a one-cell-high profile
+can contain only its compact wall row. Switching profiles changes the projected height
+without changing topology code. Do not obtain a short cliff by sprinkling exceptions
+through generation or rendering.
+
+Cliff structure assets must not bake in a terrain fill. Import the stone rim, face,
+edge vegetation, and translucent shadow as an overlay, making the sheet's broad grass
+or sand fill colours transparent. Draw that structure over the cell's semantic base
+terrain. The same cliff topology can then sit over grass, sand, snow, or editor-painted
+ground without producing a rectangular colour slab. A tileset may retain small authored
+moss/tuft accents, but its empty cap area must reveal the base layer.
+
+The 14-column Cute Fantasy Stone Cliff topology used by
+`STONE_RAISED_CLIFF_TILE_SET` is:
+
+| Semantic role | Frame indices |
+| --- | --- |
+| north cap (left, middle, right) | 1, 2, 3 |
+| rear side (left, right) | 15, 17 |
+| south cap (left, middle, right) | 29, 30, 31 |
+| upper face (left, middle, right) | 43, 44, 45 |
+| lower face (left, middle, right) | 57, 58, 59 |
+| foot (left, middle, right) | 71, 72, 73 |
+| authored inverse-corner source quadrants | 19, 20, 33, 34 |
+
+For a descending step where a face arrives from the west, composite source quadrant
+20 over rear side 15; mirror it with source quadrant 19 over rear side 17 when the
+face arrives from the east. The runtime foreground asset stores source quadrants 19
+and 20 as frames 0 and 1 with flat-ground pixels knocked out. Matching cliff
+sheets should declare their own `RaisedTerrainTileSet`, retaining this semantic
+topology while using an overlay extracted from that sheet's own palette. Do not mix
+frames from differently colored cliff sheets within one boundary.
+
+Select inverse overlays from plateau occupancy, not from the names of neighboring
+edge roles. For an occupied cell, emit an inner corner whenever both orthogonal
+neighbors are occupied but their shared diagonal is empty: north+west without
+northwest, north+east without northeast, south+west without southwest, and
+south+east without southeast. Check all four cases independently because a pinched
+organic shape can require two overlays in one cell. This is the same diagonal rule
+used by blob/autotile renderers and covers short steps, tall steps, consecutive
+outward steps, and their mirrors without special cases.
+
+Inverse overlays are visual joins on the walkable plateau cell and never add
+collision themselves. The neighboring semantic `left`, `right`, `top_*`, `bottom_*`,
+and projected face roles remain the blocking boundary. Keep the inset cell walkable;
+blocking it would turn a partial visual corner into an invisible full-tile obstacle.
+The final `foot_*` row is also visual overlap: it renders the wall base and shadow but
+does not block movement. Players can walk onto that approach tile and stand directly
+against the blocking wall/lower-wall row. Keep resources and decorations off foot cells
+despite their walkable collision state.
+An inset cell also terminates any projected face crossing that cell, including the
+remaining lower face and foot/shadow frames in that projection column. Its transparent
+quadrant must reveal the plateau top, not an older rear face; wall-behind-wall layering
+remains active on the neighboring semantic edge and wall cells.
+
+Procedural generation does not cut ramps into any contour. Ramp roles and tiles remain
+available to future editor tooling, but a ramp exists only when explicitly authored.
+For an authored two-row ramp, anchor its top row one tile inside the plateau
+(`boundaryY - 1`) and its bottom row at `boundaryY`; omit projected wall roles below
+the opening. Art, collision, resource exclusion, and debug overlays must all consume
+those same roles.
+
+The shallow dirt formation is a lowered inset rather than raised terrain. Its blob
+edge is visual only and remains walkable from both sides; it must not be classified as
+a solid cliff or require a ramp. Keep resources and decorations off its edge cells so
+the transition remains readable.
+
+### Natural shoreline and biome-transition contract
+
+Natural boundaries are layered autotiles, never hard switches between two solid
+ground fills. Store semantic biome/elevation data and derive these frames at render
+time from the same eight-neighbour mask used by collision and world generation.
+
+For water against sand, draw the water/sand outer 3x3 shoreline frame first. If
+both cardinal neighbours remain land but the intervening diagonal is water, draw
+the matching inward-corner frame from the sheet's following 2x2 block. The authored
+frame order is southeast, southwest, northeast, northwest. This second layer is
+required for coves and must not be replaced with a square center tile.
+
+For grass against beach, sand is the base and the canonical 47-frame grass fringe
+is the foreground. Ocean counts as part of the sand mask so grass is emitted only
+on the landward edge, never over water. Desert uses its own olive 3x3 edge and 2x2
+inverse-corner sheets so the savanna palette remains coherent. Remove one-cell
+spurs and diagonal pinholes from generated masks before resolving art; do not solve
+invalid topology by adding one-off frame exceptions.
+
+A noisy coast-depth band is not an elevation contour and must never select cliff
+frames directly. Keep generated coast cells as beach, then place ocean cliffs only
+from a deliberate height contour resolved by the shared layered-cliff utility.
+Perspective sheets with a downward-projected face also require a coherent broad
+south-facing section; use beach on east/west sides until matching side-facing art is
+mapped. This prevents isolated rock dashes and perspective-invalid wall fragments.
+
+### Cute Fantasy modular player animation rows
+
+The pack creator's canonical player-sheet map was supplied from their Discord by the
+asset owner on 2026-08-25. Treat it as authoritative for
+`Player/Player_Base/Player_Base_animations.png` and matching modular hair, clothing,
+hands, and equipment sheets. These sheets are 576×3584: nine 64×64 frame cells across
+and 56 animation rows down. A row may use fewer than nine cells; import exactly the
+declared frame count and never infer it from the sheet width. `side` is authored facing
+right and is mirrored at runtime for left-facing characters.
+
+| Rows | Animation | Directions | Frames |
+| --- | --- | --- | --- |
+| 0–2 | `idle` | down, side, up | 6 |
+| 3–5 | `walk` | down, side, up | 6 |
+| 6–8 | `attack_1`, `attack_2`, `attack_3` | down | 4 |
+| 9–11 | `attack_1`, `attack_2`, `attack_3` | side | 4 |
+| 12–14 | `attack_1`, `attack_2`, `attack_3` | up | 4 |
+| 15 | `collapse` | none | 4 |
+| 16 | `climb_ladder` | none | 6 |
+| 17–19 | `dodge` | down, side, up | 8 |
+| 20–22 | `hold_idle` | down, side, up | 1 |
+| 23–25 | `hold_walk` | down, side, up | 5 |
+| 26–28 | `jump` | down, side, up | 6 |
+| 29–31 | `ranged_weapon` | down, side, up | 6 |
+| 32–34 | `tool_axe` | down, side, up | 6 |
+| 35–37 | `tool_pickaxe` | down, side, up | 6 |
+| 38–40 | `tool_hoe` | down, side, up | 6 |
+| 41–43 | `tool_watercan` | down, side, up | 6 |
+| 44–46 | `fish_cast` | down (9), side (8), up (9) | varies |
+| 47–49 | `fish_reel` | side, down, up | 8 |
+| 50–52 | `mount_idle` | down, side, up | 2 |
+| 53–55 | `mount_walk` | down, side, up | 6 |
+
+Modular body-layer runtime extracts use the centered 32×40 character crop from each
+64×64 cell; held tools and effects retain the full 64×64 cell. All composited layers
+must select the same semantic row and frame index. In particular, do not substitute
+an `attack_*` row for a tool row or truncate the six-frame tool sequences.
+
 ## 2. Build tool (`packages/tools`)
 
 - `npm run assets:build` — packs every sprite/tile into `atlas_<category>.png` +

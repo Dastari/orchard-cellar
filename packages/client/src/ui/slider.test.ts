@@ -27,4 +27,14 @@ describe('Slider', () => {
     slider.node.onWheel?.({ point: { x: 50, y: 10 }, deltaX: 0, deltaY: 1 }, slider.node);
     expect(onChange).toHaveBeenLastCalledWith(0.95);
   });
+
+  it('does not respond while disabled', () => {
+    const onChange = vi.fn();
+    const slider = new Slider({ id: 'disabled-volume', skin: {} as UiSkin, value: 0.5, onChange });
+    slider.setBounds({ x: 0, y: 0, width: 100, height: 14 });
+    slider.enabled = false;
+    expect(slider.node.onPointer?.({ kind: 'pointer_down', point: { x: 80, y: 7 }, button: 0 }, slider.node)).toBe(false);
+    expect(slider.node.onWheel?.({ point: { x: 80, y: 7 }, deltaX: 0, deltaY: -1 }, slider.node)).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

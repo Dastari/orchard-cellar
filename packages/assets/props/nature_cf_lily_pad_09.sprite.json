@@ -1,0 +1,260 @@
+{
+  "name": "nature_cf_lily_pad_09",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "sway": [
+      [
+        "................",
+        "................",
+        "................",
+        ".....ee..ee.....",
+        "....eiieeiie....",
+        "...4ehieiihe....",
+        "..0eeehiiheee0..",
+        ".0ehiiiieiiihe0.",
+        ".0eehheiiehhe40.",
+        ".04geeehheeeg40.",
+        ".00dggfeeffgd00.",
+        ".200bdggggdb002.",
+        "..200000000002..",
+        "...2200000022...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        "................",
+        ".....ee..ee.....",
+        "....eiieeiie....",
+        "...4ehieiihe....",
+        "..0eeehiiheee0..",
+        ".0ehiiiieiiihe0.",
+        ".0eehheiiehhe40.",
+        ".04geeehheeeg40.",
+        ".03dggfeeffgd30.",
+        ".213bdggggdb312.",
+        "..213889988312..",
+        "...2210000122...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ee..ee.....",
+        "....eiieeiie....",
+        "...4ehieiihe....",
+        "...eeehiiheee...",
+        "..ehiiiieiiihe..",
+        ".0eehheiiehhe40.",
+        ".04geeehheeeg40.",
+        ".05dggfeeffgd50.",
+        ".025bdggggdb520.",
+        "..025aaccaa5200.",
+        "...02200002200..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ee..ee.....",
+        "....eiieeiie....",
+        "...4ehieiihe....",
+        "...eeehiiheee...",
+        "..ehiiiieiiihe..",
+        ".0eehheiiehhe40.",
+        ".04geeehheeeg40.",
+        ".04dggfeeffgd40.",
+        ".026bdggggdb620.",
+        "..026bbddbb6200.",
+        "...07210012700..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ee..ee.....",
+        "....eiieeiie....",
+        "...4ehieiihe....",
+        "...eeehiiheee...",
+        "..ehiiiieiiihe..",
+        ".0eehheiiehhe40.",
+        ".04geeehheeeg40.",
+        ".02dggfeeffgd20.",
+        ".007bdggggdb700.",
+        "..0072bddb27000.",
+        "...00000000000..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ee..ee.....",
+        "....eiieeiie....",
+        "...4ehieiihe....",
+        "...eeehiiheee...",
+        "..ehiiiieiiihe..",
+        ".0eehheiiehhe40.",
+        ".04geeehheeeg40.",
+        ".04dggfeeffgd40.",
+        ".026bdggggdb620.",
+        "..026bbddbb6200.",
+        "...07210012700..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ee..ee.....",
+        "....eiieeiie....",
+        "...4ehieiihe....",
+        "...eeehiiheee...",
+        "..ehiiiieiiihe..",
+        ".0eehheiiehhe40.",
+        ".04geeehheeeg40.",
+        ".05dggfeeffgd50.",
+        ".025bdggggdb520.",
+        "..025aaccaa5200.",
+        "...02200002200..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        "................",
+        ".....ee..ee.....",
+        "....eiieeiie....",
+        "...4ehieiihe....",
+        "..0eeehiiheee0..",
+        ".0ehiiiieiiihe0.",
+        ".0eehheiiehhe40.",
+        ".04geeehheeeg40.",
+        ".03dggfeeffgd30.",
+        ".213bdggggdb312.",
+        "..213889988312..",
+        "...2210000122...",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "sway": "animation"
+  },
+  "animationFps": {
+    "sway": 4
+  },
+  "animationLoop": {
+    "sway": true
+  },
+  "sourcePalette": {
+    "0": "#006da8",
+    "1": "#00a5d7",
+    "2": "#00cdf9",
+    "3": "#024a7c",
+    "4": "#03193f",
+    "5": "#03315d",
+    "6": "#0897b1",
+    "7": "#0cf1ff",
+    "8": "#19487e",
+    "9": "#294e8a",
+    "a": "#2a2e60",
+    "b": "#3b1443",
+    "c": "#463975",
+    "d": "#622461",
+    "e": "#8e251d",
+    "f": "#93388f",
+    "g": "#ca52c9",
+    "h": "#ffa214",
+    "i": "#ffeb57"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Lillypad_Purple_5_Anim.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Water_Decor_Animations/Water_Plants/Lillypad_Purple_5_Anim.png",
+  "sourceRegions": {
+    "sway": [
+      [
+        0,
+        0,
+        16,
+        16
+      ],
+      [
+        16,
+        0,
+        16,
+        16
+      ],
+      [
+        32,
+        0,
+        16,
+        16
+      ],
+      [
+        48,
+        0,
+        16,
+        16
+      ],
+      [
+        64,
+        0,
+        16,
+        16
+      ],
+      [
+        80,
+        0,
+        16,
+        16
+      ],
+      [
+        96,
+        0,
+        16,
+        16
+      ],
+      [
+        112,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

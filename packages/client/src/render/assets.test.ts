@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atlasImageUrl, resolveGeneratedAssetName, type BuiltAtlasManifest } from './assets.js';
+import { atlasImageUrl, resolveGeneratedAssetName, resolveGeneratedAssetRequestName, type BuiltAtlasManifest } from './assets.js';
 
 const manifest = {
   schemaVersion: 3,
@@ -18,6 +18,15 @@ describe('resolveGeneratedAssetName', () => {
 
   it('uses the visible placeholder for unknown/newer ids', () => {
     expect(resolveGeneratedAssetName(manifest, 999_999)).toBe('system_missing_asset');
+  });
+
+  it('uses the visible placeholder for missing named assets instead of aborting bootstrap', () => {
+    const namedManifest = {
+      ...manifest,
+      assets: { system_missing_asset: {}, tile_cf_grass: {} },
+    } as unknown as BuiltAtlasManifest;
+    expect(resolveGeneratedAssetRequestName(namedManifest, 'tile_cf_grass')).toBe('tile_cf_grass');
+    expect(resolveGeneratedAssetRequestName(namedManifest, 'tile_from_newer_client')).toBe('system_missing_asset');
   });
 
   it('cache-busts stable atlas filenames with the content revision', () => {

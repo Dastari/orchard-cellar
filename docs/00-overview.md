@@ -44,6 +44,15 @@ following this doc suite.
 | [17-reference-redesign.md](17-reference-redesign.md) | The redesign PDF (end build target) | Design questions |
 | [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md) | Persistent overworld target and backend adoption gate | M5.5 and all server/network work |
 | [20-survival-world.md](20-survival-world.md) | Generated island, biomes, resources, collision, inventory/hotbar | M5.7 and survival-world work |
+| [21-unified-renderer.md](21-unified-renderer.md) | Compositing, chunk cache, lighting, particles, UI pass | Any renderer work |
+| [22-netcode.md](22-netcode.md) | Prediction, interpolation, action channel, input robustness | Any client/server netcode work |
+| [23-ui-system.md](23-ui-system.md) | Widgets, windows, generic containers, UI skin | Any UI work (with 13) |
+| [24-self-hosted-oidc.md](24-self-hosted-oidc.md) | Keycloak deployment, OIDC rollout record | Auth/infra work (with 09) |
+| [29-wildlife.md](29-wildlife.md) | Habitat packs, animal lifecycle, hives, animation contract | Wildlife/NPC work |
+| [25-stats-and-vitals.md](25-stats-and-vitals.md) | Attributes, health/mana/vigour, modifier pipeline, effects, creature statlines | Any stats/vitals/combat-adjacent work |
+| [26-underground-mines.md](26-underground-mines.md) | Spaces/instancing model, cave generation, portals/zoning, darkness & torches | Mines, interiors, any multi-space work |
+| [27-lighting-design.md](27-lighting-design.md) | Blocky-light charter, tile-flood occlusion, colored/flickering lights, water glints, rain | Any lighting/atmosphere work (supersedes 21 §5) |
+| [28-crafting.md](28-crafting.md) | Material chains, stations (workbench/furnace/anvil/campfire), recipe list, placeables | Any crafting/item/placement work |
 
 Minimal startup ritual for an implementing agent: **00 → 01 → 02 → 15 → your
 milestone in 14 → the docs that milestone lists.** Docs are binding; deviations go

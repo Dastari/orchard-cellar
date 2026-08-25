@@ -1,0 +1,77 @@
+{
+  "name": "prop_cf_bee_hive",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........1.......",
+        "........1.......",
+        ".......111......",
+        "......14431.....",
+        ".....1111111....",
+        "....143434321...",
+        "...11111111111..",
+        "...14434143221..",
+        "...14331013321..",
+        "...11110001111..",
+        "....141000121...",
+        ".....1110111....",
+        "......14321.....",
+        ".......111......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "animation"
+  },
+  "animationFps": {
+    "base": 1
+  },
+  "animationLoop": {
+    "base": true
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#3f2832",
+    "2": "#bf6f4a",
+    "3": "#e69c69",
+    "4": "#f6ca9f"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Bee_Hive.png",
+  "sourcePath": "references/Cute_Fantasy/Animals/Bee/Bee_Hive.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  },
+  "tags": [
+    "wildlife",
+    "source.cute_fantasy"
+  ]
+}

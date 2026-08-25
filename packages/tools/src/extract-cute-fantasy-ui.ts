@@ -50,6 +50,11 @@ const extracts: readonly UiExtract[] = [
     uiSizing: 'nine_slice', slice: [8, 8, 8, 8], tags: ['ui.panel', 'ui.material.parchment'],
   },
   {
+    name: 'ui_cf_book_open', source: `${uiRoot}/Book_UI.png`, size: [224, 133],
+    groups: { base: [r(8, 6, 224, 133)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.book', 'ui.help', 'ui.material.parchment'],
+  },
+  {
     name: 'ui_cf_frame_thin', source: `${uiRoot}/UI_Frames.png`, size: [28, 31],
     groups: { base: [r(202, 10, 28, 31)] }, frameKinds: { base: 'state' },
     uiSizing: 'nine_slice', slice: [6, 6, 6, 7], tags: ['ui.frame', 'ui.border.thin'],
@@ -147,6 +152,16 @@ const extracts: readonly UiExtract[] = [
     groups: { base: [r(14, 14, 20, 24)] }, frameKinds: { base: 'state' }, uiSizing: 'fixed', tags: ['ui.speech_bubble'],
   },
   {
+    name: 'ui_cf_speech_bubble', source: `${uiRoot}/UI_Frames.png`, size: [28, 31],
+    groups: { base: [r(202, 10, 28, 31)] }, frameKinds: { base: 'state' },
+    uiSizing: 'nine_slice', slice: [6, 6, 6, 7], tags: ['ui.speech_bubble', 'ui.color.neutral'],
+  },
+  {
+    name: 'ui_cf_speech_bubble_red', source: `${uiRoot}/UI_Frames.png`, size: [28, 31],
+    groups: { base: [r(202, 250, 28, 31)] }, frameKinds: { base: 'state' },
+    uiSizing: 'nine_slice', slice: [6, 6, 6, 7], tags: ['ui.speech_bubble', 'ui.color.red'],
+  },
+  {
     name: 'ui_cf_bubble_tail_down', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
     groups: { base: [r(780, 12, 24, 31)] }, frameKinds: { base: 'state' }, uiSizing: 'fixed', tags: ['ui.speech_bubble', 'ui.tail.down'],
   },
@@ -161,6 +176,22 @@ const extracts: readonly UiExtract[] = [
   {
     name: 'ui_cf_bubble_tail_right', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
     groups: { base: [r(726, 12, 30, 26, 2)] }, frameKinds: { base: 'state' }, uiSizing: 'fixed', tags: ['ui.speech_bubble', 'ui.tail.right', 'derived.rotation'],
+  },
+  {
+    name: 'ui_cf_bubble_tail_down_red', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
+    groups: { base: [r(780, 252, 24, 31)] }, frameKinds: { base: 'state' }, uiSizing: 'fixed', tags: ['ui.speech_bubble', 'ui.tail.down', 'ui.color.red'],
+  },
+  {
+    name: 'ui_cf_bubble_tail_up_red', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
+    groups: { base: [r(780, 252, 24, 31, 2)] }, frameKinds: { base: 'state' }, uiSizing: 'fixed', tags: ['ui.speech_bubble', 'ui.tail.up', 'ui.color.red', 'derived.rotation'],
+  },
+  {
+    name: 'ui_cf_bubble_tail_left_red', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
+    groups: { base: [r(726, 252, 30, 26)] }, frameKinds: { base: 'state' }, uiSizing: 'fixed', tags: ['ui.speech_bubble', 'ui.tail.left', 'ui.color.red'],
+  },
+  {
+    name: 'ui_cf_bubble_tail_right_red', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
+    groups: { base: [r(726, 252, 30, 26, 2)] }, frameKinds: { base: 'state' }, uiSizing: 'fixed', tags: ['ui.speech_bubble', 'ui.tail.right', 'ui.color.red', 'derived.rotation'],
   },
   {
     name: 'ui_cf_cursor', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],

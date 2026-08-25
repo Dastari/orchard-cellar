@@ -6,6 +6,8 @@ import {
   TICKS_PER_DAY,
   authorityDayIndex,
   authorityDayProgress,
+  authorityTickAtDayProgress,
+  shiftAuthorityDay,
   simTickOfDayAtAuthorityTick,
 } from './index.js';
 
@@ -21,5 +23,14 @@ describe('shared authority timing', () => {
     expect(authorityDayProgress(noon)).toBe(0.5);
     expect(simTickOfDayAtAuthorityTick(noon)).toBe(TICKS_PER_DAY / 2);
     expect(authorityDayIndex(BigInt(AUTHORITY_TICKS_PER_DAY) * 3n)).toBe(3n);
+  });
+
+  it('changes calendar day/time without changing the selected time of day', () => {
+    const dayThreeNoon = BigInt(AUTHORITY_TICKS_PER_DAY) * 3n + BigInt(AUTHORITY_TICKS_PER_DAY / 2);
+    expect(authorityTickAtDayProgress(dayThreeNoon, 0.25)).toBe(
+      BigInt(AUTHORITY_TICKS_PER_DAY) * 3n + BigInt(Math.round((AUTHORITY_TICKS_PER_DAY - 1) * 0.25)),
+    );
+    expect(shiftAuthorityDay(dayThreeNoon, 1)).toBe(dayThreeNoon + BigInt(AUTHORITY_TICKS_PER_DAY));
+    expect(shiftAuthorityDay(dayThreeNoon, -10)).toBe(BigInt(AUTHORITY_TICKS_PER_DAY / 2));
   });
 });

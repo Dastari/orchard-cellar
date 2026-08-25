@@ -1,0 +1,48 @@
+{
+  "name": "icon_cf_hammer",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".......JJJJJJ...",
+        "......JSSSSSSJ..",
+        ".....JSCCCBBSJ..",
+        ".....JSCBBBASJ..",
+        ".....JSBBAAASJ..",
+        "......JSSMSSJ...",
+        ".......JSM2SJ...",
+        "......JSM2SJ....",
+        ".....JSM2SJ.....",
+        "....JSM2SJ......",
+        "...JSM2SJ.......",
+        "..JSM2SJ........",
+        "..JS2SJ.........",
+        "...JSSJ.........",
+        "....JJ.........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "tags": [
+    "ui.icon",
+    "item.tool"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

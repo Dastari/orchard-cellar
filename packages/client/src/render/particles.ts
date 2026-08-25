@@ -1,4 +1,4 @@
-import { SIM_TICKS_PER_SECOND, authorityDayIndex, authorityDayProgress } from '@orchard/sim';
+import { SIM_TICKS_PER_SECOND, scheduledRainAtTick } from '@orchard/sim';
 import type { LoadedAsset } from './assets.js';
 import { selectAtlasFrame } from './sprite.js';
 
@@ -240,9 +240,7 @@ export class ParticlePool {
 }
 
 export function rainActiveAtTick(authorityTick: bigint): boolean {
-  const day = authorityDayIndex(authorityTick);
-  const progress = authorityDayProgress(authorityTick);
-  return day % 4n === 1n && progress >= 0.15 && progress <= 0.55;
+  return scheduledRainAtTick(authorityTick);
 }
 
 export function animationFrameForProgress(frameCount: number, progress: number): number {

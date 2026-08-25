@@ -1,6 +1,8 @@
 export const VIRTUAL_WIDTH = 480;
 export const VIRTUAL_HEIGHT = 270;
 export const WORLD_ZOOM_STEP = 0.25;
+/** Never shrink world pixels below their authored native scale. */
+export const MIN_WORLD_ZOOM = 1.5;
 export const DEFAULT_WORLD_ZOOM = 2;
 export const UI_SCALE_LEVELS = [1, 2, 3] as const;
 export type UiScale = typeof UI_SCALE_LEVELS[number];
@@ -15,6 +17,12 @@ export interface CanvasViewport {
   readonly height: number;
 }
 
+export interface CenteredFixedSceneLayout extends CanvasViewport {
+  readonly x: number;
+  readonly y: number;
+  readonly scale: number;
+}
+
 export function canvasViewport(viewportWidth: number, viewportHeight: number): CanvasViewport {
   return {
     width: Math.max(1, Math.floor(viewportWidth)),
@@ -24,6 +32,28 @@ export function canvasViewport(viewportWidth: number, viewportHeight: number): C
 
 export function fittedCanvasScale(viewportWidth: number, viewportHeight: number): number {
   return Math.max(0.01, Math.min(viewportWidth / VIRTUAL_WIDTH, viewportHeight / VIRTUAL_HEIGHT));
+}
+
+/** Centers a fixed pixel scene without allowing large displays to enlarge it indefinitely. */
+export function centeredFixedSceneLayout(
+  viewportWidth: number,
+  viewportHeight: number,
+  maximumScale = DEFAULT_UI_SCALE,
+): CenteredFixedSceneLayout {
+  const viewport = canvasViewport(viewportWidth, viewportHeight);
+  const fittedScale = fittedCanvasScale(viewport.width, viewport.height);
+  const scale = fittedScale < 1
+    ? fittedScale
+    : Math.max(1, Math.min(maximumScale, Math.floor(fittedScale)));
+  const width = VIRTUAL_WIDTH * scale;
+  const height = VIRTUAL_HEIGHT * scale;
+  return {
+    x: Math.round((viewport.width - width) / 2),
+    y: Math.round((viewport.height - height) / 2),
+    width,
+    height,
+    scale,
+  };
 }
 
 /** Keep fixed-layout screens responsive without changing their logical grid. */
@@ -40,7 +70,7 @@ export function resizeFixedPixelCanvas(
   return scale;
 }
 
-export function stepWorldZoom(current: number, direction: -1 | 1, minimum = 0.25, maximum = 8): number {
+export function stepWorldZoom(current: number, direction: -1 | 1, minimum = MIN_WORLD_ZOOM, maximum = 8): number {
   const next = Math.round((current + direction * WORLD_ZOOM_STEP) / WORLD_ZOOM_STEP) * WORLD_ZOOM_STEP;
   return Math.max(minimum, Math.min(maximum, next));
 }

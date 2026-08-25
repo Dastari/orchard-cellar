@@ -1,0 +1,48 @@
+{
+  "name": "icon_cf_shovel",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "...........JJ...",
+        "..........JSSJ..",
+        ".........JSCBSJ.",
+        "........JSCCBASJ",
+        ".......JSCCBBASJ",
+        "......JSCBBAASJ.",
+        "......JSCBBASJ..",
+        ".....JSAASJ.....",
+        "....JSM2SJ......",
+        "...JSM2SJ.......",
+        "..JSM2SJ........",
+        ".JSM2SJ.........",
+        "JS2M2SJ.........",
+        ".JSSSJ..........",
+        "..JJJ..........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "tags": [
+    "ui.icon",
+    "item.tool"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

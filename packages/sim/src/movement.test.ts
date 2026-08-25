@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from './state.js';
-import { movePlayer, playerHitboxBounds, positionCollides } from './movement.js';
+import { movePlayer, movePlayerAtSpeed, playerHitboxBounds, positionCollides } from './movement.js';
 
 describe('player movement collision', () => {
   const open = { width: 4, height: 4, blocked: Array<boolean>(16).fill(false) };
@@ -10,8 +10,8 @@ describe('player movement collision', () => {
     expect(playerHitboxBounds(position)).toEqual({
       left: position.x - 4 * FIXED_UNITS_PER_PIXEL,
       right: position.x + 4 * FIXED_UNITS_PER_PIXEL - 1,
-      top: position.y - 6 * FIXED_UNITS_PER_PIXEL,
-      bottom: position.y - 1,
+      top: position.y - 12 * FIXED_UNITS_PER_PIXEL,
+      bottom: position.y - 6 * FIXED_UNITS_PER_PIXEL - 1,
     });
     expect(positionCollides(position, open)).toBe(false);
   });
@@ -35,8 +35,8 @@ describe('player movement collision', () => {
     const obstacle = {
       left: 2 * TILE_SIZE_FIXED + 4 * FIXED_UNITS_PER_PIXEL,
       right: 2 * TILE_SIZE_FIXED + 12 * FIXED_UNITS_PER_PIXEL - 1,
-      top: 3 * TILE_SIZE_FIXED - 6 * FIXED_UNITS_PER_PIXEL,
-      bottom: 3 * TILE_SIZE_FIXED - 1,
+      top: 3 * TILE_SIZE_FIXED - 10 * FIXED_UNITS_PER_PIXEL,
+      bottom: 3 * TILE_SIZE_FIXED - 4 * FIXED_UNITS_PER_PIXEL - 1,
     };
     expect(positionCollides({ x: 2 * TILE_SIZE_FIXED + 8 * FIXED_UNITS_PER_PIXEL, y: 3 * TILE_SIZE_FIXED }, {
       ...open,
@@ -46,5 +46,17 @@ describe('player movement collision', () => {
       ...open,
       obstacles: [obstacle],
     })).toBe(false);
+  });
+
+  it('applies mounted speed as repeated collision-safe steps', () => {
+    const start = {
+      position: { x: 2 * TILE_SIZE_FIXED, y: 2 * TILE_SIZE_FIXED },
+      facing: 'down' as const,
+      moving: false,
+      location: 'estate' as const,
+    };
+    const walking = movePlayer(start, 'right', open);
+    const riding = movePlayerAtSpeed(start, 'right', open, 2);
+    expect(riding.position.x - start.position.x).toBe(2 * (walking.position.x - start.position.x));
   });
 });

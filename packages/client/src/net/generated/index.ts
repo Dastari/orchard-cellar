@@ -34,15 +34,46 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AdminTeleportReducer from "./admin_teleport_reducer";
+import ApproveMemberReducer from "./approve_member_reducer";
+import CloseChestReducer from "./close_chest_reducer";
+import CloseCraftingReducer from "./close_crafting_reducer";
+import CraftInventoryRecipeReducer from "./craft_inventory_recipe_reducer";
+import CreateChatChannelReducer from "./create_chat_channel_reducer";
+import DistributeChestItemReducer from "./distribute_chest_item_reducer";
+import DistributeInventoryItemReducer from "./distribute_inventory_item_reducer";
 import DropSelectedReducer from "./drop_selected_reducer";
+import FireBowReducer from "./fire_bow_reducer";
+import GatherWorldResourceReducer from "./gather_world_resource_reducer";
 import HarvestResourceReducer from "./harvest_resource_reducer";
 import HeartbeatReducer from "./heartbeat_reducer";
+import InteractChestReducer from "./interact_chest_reducer";
+import InteractHorseReducer from "./interact_horse_reducer";
+import InviteChatMemberReducer from "./invite_chat_member_reducer";
+import JoinChatChannelReducer from "./join_chat_channel_reducer";
+import JumpHorseReducer from "./jump_horse_reducer";
+import LeaveChatChannelReducer from "./leave_chat_channel_reducer";
+import MoveChestItemReducer from "./move_chest_item_reducer";
+import MoveInventoryItemReducer from "./move_inventory_item_reducer";
 import PickupWorldItemReducer from "./pickup_world_item_reducer";
+import QuickMoveChestItemReducer from "./quick_move_chest_item_reducer";
+import QuickMoveInventoryItemReducer from "./quick_move_inventory_item_reducer";
+import RestoreFarmTileReducer from "./restore_farm_tile_reducer";
+import RevokeMemberReducer from "./revoke_member_reducer";
 import SelectHotbarReducer from "./select_hotbar_reducer";
+import SendChatMessageReducer from "./send_chat_message_reducer";
+import SendWhisperReducer from "./send_whisper_reducer";
+import SendWorldSpeechReducer from "./send_world_speech_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SetInputReducer from "./set_input_reducer";
+import SetMessageOfDayReducer from "./set_message_of_day_reducer";
+import SetWorldTimeReducer from "./set_world_time_reducer";
+import SetWorldWeatherReducer from "./set_world_weather_reducer";
+import SetWorldWindDirectionReducer from "./set_world_wind_direction_reducer";
 import TendTreeReducer from "./tend_tree_reducer";
 import UseFarmTileReducer from "./use_farm_tile_reducer";
+import UseFarmToolReducer from "./use_farm_tool_reducer";
+import UseHandsReducer from "./use_hands_reducer";
 
 // Import all procedure arg schemas
 
@@ -50,16 +81,33 @@ import UseFarmTileReducer from "./use_farm_tile_reducer";
 import CropPatchRow from "./crop_patch_table";
 import FarmActivityRow from "./farm_activity_table";
 import FarmParcelRow from "./farm_parcel_table";
+import OwnActiveChestRow from "./own_active_chest_table";
+import OwnCharacterProfileRow from "./own_character_profile_table";
+import OwnChatChannelsRow from "./own_chat_channels_table";
+import OwnConnectionNoticesRow from "./own_connection_notices_table";
 import OwnInventorySlotsRow from "./own_inventory_slots_table";
+import OwnMembershipRow from "./own_membership_table";
+import OwnOpenChestSlotsRow from "./own_open_chest_slots_table";
 import OwnSurvivalRow from "./own_survival_table";
+import PlayerAppearanceRow from "./player_appearance_table";
 import PlayerEquipmentRow from "./player_equipment_table";
 import PlayerPositionRow from "./player_position_table";
 import PlayerPublicRow from "./player_public_table";
+import VisibleChatMessagesRow from "./visible_chat_messages_table";
+import VisibleWorldSpeechRow from "./visible_world_speech_table";
+import WorldChestRow from "./world_chest_table";
 import WorldClockRow from "./world_clock_table";
+import WorldEnvironmentRow from "./world_environment_table";
+import WorldHiveRow from "./world_hive_table";
 import WorldItemRow from "./world_item_table";
+import WorldNpcRow from "./world_npc_table";
+import WorldProjectileRow from "./world_projectile_table";
 import WorldResourceRow from "./world_resource_table";
 import WorldSeedRow from "./world_seed_table";
+import WorldSoilRow from "./world_soil_table";
 import WorldTreeRow from "./world_tree_table";
+import WorldWildlifeProfileRow from "./world_wildlife_profile_table";
+import WorldWindRow from "./world_wind_table";
 
 /** Type-only namespace exports for generated type groups. */
 
@@ -108,6 +156,17 @@ const tablesSchema = __schema({
       { name: 'farm_parcel_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FarmParcelRow),
+  playerAppearance: __table({
+    name: 'player_appearance',
+    indexes: [
+      { accessor: 'identity', name: 'player_appearance_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
+    ],
+    constraints: [
+      { name: 'player_appearance_identity_key', constraint: 'unique', columns: ['identity'] },
+    ],
+  }, PlayerAppearanceRow),
   playerEquipment: __table({
     name: 'player_equipment',
     indexes: [
@@ -145,6 +204,24 @@ const tablesSchema = __schema({
       { name: 'player_public_identity_key', constraint: 'unique', columns: ['identity'] },
     ],
   }, PlayerPublicRow),
+  worldChest: __table({
+    name: 'world_chest',
+    indexes: [
+      { accessor: 'by_carrier', name: 'world_chest_carried_by_idx_btree', algorithm: 'btree', columns: [
+        'carriedBy',
+      ] },
+      { accessor: 'by_chunk', name: 'world_chest_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'chunkX',
+        'chunkY',
+      ] },
+      { accessor: 'id', name: 'world_chest_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_chest_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldChestRow),
   worldClock: __table({
     name: 'world_clock',
     indexes: [
@@ -156,6 +233,32 @@ const tablesSchema = __schema({
       { name: 'world_clock_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldClockRow),
+  worldEnvironment: __table({
+    name: 'world_environment',
+    indexes: [
+      { accessor: 'id', name: 'world_environment_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_environment_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldEnvironmentRow),
+  worldHive: __table({
+    name: 'world_hive',
+    indexes: [
+      { accessor: 'by_chunk', name: 'world_hive_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'chunkX',
+        'chunkY',
+      ] },
+      { accessor: 'id', name: 'world_hive_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_hive_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldHiveRow),
   worldItem: __table({
     name: 'world_item',
     indexes: [
@@ -171,6 +274,36 @@ const tablesSchema = __schema({
       { name: 'world_item_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldItemRow),
+  worldNpc: __table({
+    name: 'world_npc',
+    indexes: [
+      { accessor: 'by_chunk', name: 'world_npc_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'chunkX',
+        'chunkY',
+      ] },
+      { accessor: 'id', name: 'world_npc_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_npc_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldNpcRow),
+  worldProjectile: __table({
+    name: 'world_projectile',
+    indexes: [
+      { accessor: 'by_chunk', name: 'world_projectile_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'chunkX',
+        'chunkY',
+      ] },
+      { accessor: 'id', name: 'world_projectile_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_projectile_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldProjectileRow),
   worldResource: __table({
     name: 'world_resource',
     indexes: [
@@ -197,6 +330,21 @@ const tablesSchema = __schema({
       { name: 'world_seed_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldSeedRow),
+  worldSoil: __table({
+    name: 'world_soil',
+    indexes: [
+      { accessor: 'by_chunk', name: 'world_soil_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'chunkX',
+        'chunkY',
+      ] },
+      { accessor: 'id', name: 'world_soil_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_soil_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldSoilRow),
   worldTree: __table({
     name: 'world_tree',
     indexes: [
@@ -212,6 +360,56 @@ const tablesSchema = __schema({
       { name: 'world_tree_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldTreeRow),
+  worldWildlifeProfile: __table({
+    name: 'world_wildlife_profile',
+    indexes: [
+      { accessor: 'npcId', name: 'world_wildlife_profile_npc_id_idx_btree', algorithm: 'btree', columns: [
+        'npcId',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_wildlife_profile_npc_id_key', constraint: 'unique', columns: ['npcId'] },
+    ],
+  }, WorldWildlifeProfileRow),
+  worldWind: __table({
+    name: 'world_wind',
+    indexes: [
+      { accessor: 'id', name: 'world_wind_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_wind_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldWindRow),
+  ownActiveChest: __table({
+    name: 'own_active_chest',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnActiveChestRow),
+  ownCharacterProfile: __table({
+    name: 'own_character_profile',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnCharacterProfileRow),
+  ownChatChannels: __table({
+    name: 'own_chat_channels',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnChatChannelsRow),
+  ownConnectionNotices: __table({
+    name: 'own_connection_notices',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnConnectionNoticesRow),
   ownInventorySlots: __table({
     name: 'own_inventory_slots',
     indexes: [
@@ -219,6 +417,20 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnInventorySlotsRow),
+  ownMembership: __table({
+    name: 'own_membership',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnMembershipRow),
+  ownOpenChestSlots: __table({
+    name: 'own_open_chest_slots',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnOpenChestSlotsRow),
   ownSurvival: __table({
     name: 'own_survival',
     indexes: [
@@ -226,19 +438,64 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnSurvivalRow),
+  visibleChatMessages: __table({
+    name: 'visible_chat_messages',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, VisibleChatMessagesRow),
+  visibleWorldSpeech: __table({
+    name: 'visible_world_speech',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, VisibleWorldSpeechRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("admin_teleport", AdminTeleportReducer),
+  __reducerSchema("approve_member", ApproveMemberReducer),
+  __reducerSchema("close_chest", CloseChestReducer),
+  __reducerSchema("close_crafting", CloseCraftingReducer),
+  __reducerSchema("craft_inventory_recipe", CraftInventoryRecipeReducer),
+  __reducerSchema("create_chat_channel", CreateChatChannelReducer),
+  __reducerSchema("distribute_chest_item", DistributeChestItemReducer),
+  __reducerSchema("distribute_inventory_item", DistributeInventoryItemReducer),
   __reducerSchema("drop_selected", DropSelectedReducer),
+  __reducerSchema("fire_bow", FireBowReducer),
+  __reducerSchema("gather_world_resource", GatherWorldResourceReducer),
   __reducerSchema("harvest_resource", HarvestResourceReducer),
   __reducerSchema("heartbeat", HeartbeatReducer),
+  __reducerSchema("interact_chest", InteractChestReducer),
+  __reducerSchema("interact_horse", InteractHorseReducer),
+  __reducerSchema("invite_chat_member", InviteChatMemberReducer),
+  __reducerSchema("join_chat_channel", JoinChatChannelReducer),
+  __reducerSchema("jump_horse", JumpHorseReducer),
+  __reducerSchema("leave_chat_channel", LeaveChatChannelReducer),
+  __reducerSchema("move_chest_item", MoveChestItemReducer),
+  __reducerSchema("move_inventory_item", MoveInventoryItemReducer),
   __reducerSchema("pickup_world_item", PickupWorldItemReducer),
+  __reducerSchema("quick_move_chest_item", QuickMoveChestItemReducer),
+  __reducerSchema("quick_move_inventory_item", QuickMoveInventoryItemReducer),
+  __reducerSchema("restore_farm_tile", RestoreFarmTileReducer),
+  __reducerSchema("revoke_member", RevokeMemberReducer),
   __reducerSchema("select_hotbar", SelectHotbarReducer),
+  __reducerSchema("send_chat_message", SendChatMessageReducer),
+  __reducerSchema("send_whisper", SendWhisperReducer),
+  __reducerSchema("send_world_speech", SendWorldSpeechReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("set_input", SetInputReducer),
+  __reducerSchema("set_message_of_day", SetMessageOfDayReducer),
+  __reducerSchema("set_world_time", SetWorldTimeReducer),
+  __reducerSchema("set_world_weather", SetWorldWeatherReducer),
+  __reducerSchema("set_world_wind_direction", SetWorldWindDirectionReducer),
   __reducerSchema("tend_tree", TendTreeReducer),
   __reducerSchema("use_farm_tile", UseFarmTileReducer),
+  __reducerSchema("use_farm_tool", UseFarmToolReducer),
+  __reducerSchema("use_hands", UseHandsReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
@@ -253,22 +510,40 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "farm_activity": Omit<typeof tablesSchema.schemaType.tables["farmActivity"], "accessorName"> & { readonly accessorName: "farm_activity" };
     /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
     readonly "farm_parcel": Omit<typeof tablesSchema.schemaType.tables["farmParcel"], "accessorName"> & { readonly accessorName: "farm_parcel" };
+    /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
+    readonly "player_appearance": Omit<typeof tablesSchema.schemaType.tables["playerAppearance"], "accessorName"> & { readonly accessorName: "player_appearance" };
     /** @deprecated Use `playerEquipment` instead. This alias will be removed in the next major version. */
     readonly "player_equipment": Omit<typeof tablesSchema.schemaType.tables["playerEquipment"], "accessorName"> & { readonly accessorName: "player_equipment" };
     /** @deprecated Use `playerPosition` instead. This alias will be removed in the next major version. */
     readonly "player_position": Omit<typeof tablesSchema.schemaType.tables["playerPosition"], "accessorName"> & { readonly accessorName: "player_position" };
     /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
     readonly "player_public": Omit<typeof tablesSchema.schemaType.tables["playerPublic"], "accessorName"> & { readonly accessorName: "player_public" };
+    /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
+    readonly "world_chest": Omit<typeof tablesSchema.schemaType.tables["worldChest"], "accessorName"> & { readonly accessorName: "world_chest" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
     readonly "world_clock": Omit<typeof tablesSchema.schemaType.tables["worldClock"], "accessorName"> & { readonly accessorName: "world_clock" };
+    /** @deprecated Use `worldEnvironment` instead. This alias will be removed in the next major version. */
+    readonly "world_environment": Omit<typeof tablesSchema.schemaType.tables["worldEnvironment"], "accessorName"> & { readonly accessorName: "world_environment" };
+    /** @deprecated Use `worldHive` instead. This alias will be removed in the next major version. */
+    readonly "world_hive": Omit<typeof tablesSchema.schemaType.tables["worldHive"], "accessorName"> & { readonly accessorName: "world_hive" };
     /** @deprecated Use `worldItem` instead. This alias will be removed in the next major version. */
     readonly "world_item": Omit<typeof tablesSchema.schemaType.tables["worldItem"], "accessorName"> & { readonly accessorName: "world_item" };
+    /** @deprecated Use `worldNpc` instead. This alias will be removed in the next major version. */
+    readonly "world_npc": Omit<typeof tablesSchema.schemaType.tables["worldNpc"], "accessorName"> & { readonly accessorName: "world_npc" };
+    /** @deprecated Use `worldProjectile` instead. This alias will be removed in the next major version. */
+    readonly "world_projectile": Omit<typeof tablesSchema.schemaType.tables["worldProjectile"], "accessorName"> & { readonly accessorName: "world_projectile" };
     /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
     readonly "world_resource": Omit<typeof tablesSchema.schemaType.tables["worldResource"], "accessorName"> & { readonly accessorName: "world_resource" };
     /** @deprecated Use `worldSeed` instead. This alias will be removed in the next major version. */
     readonly "world_seed": Omit<typeof tablesSchema.schemaType.tables["worldSeed"], "accessorName"> & { readonly accessorName: "world_seed" };
+    /** @deprecated Use `worldSoil` instead. This alias will be removed in the next major version. */
+    readonly "world_soil": Omit<typeof tablesSchema.schemaType.tables["worldSoil"], "accessorName"> & { readonly accessorName: "world_soil" };
     /** @deprecated Use `worldTree` instead. This alias will be removed in the next major version. */
     readonly "world_tree": Omit<typeof tablesSchema.schemaType.tables["worldTree"], "accessorName"> & { readonly accessorName: "world_tree" };
+    /** @deprecated Use `worldWildlifeProfile` instead. This alias will be removed in the next major version. */
+    readonly "world_wildlife_profile": Omit<typeof tablesSchema.schemaType.tables["worldWildlifeProfile"], "accessorName"> & { readonly accessorName: "world_wildlife_profile" };
+    /** @deprecated Use `worldWind` instead. This alias will be removed in the next major version. */
+    readonly "world_wind": Omit<typeof tablesSchema.schemaType.tables["worldWind"], "accessorName"> & { readonly accessorName: "world_wind" };
   };
 };
 
@@ -290,14 +565,23 @@ const tableAccessorAliases = {
   "crop_patch": "cropPatch",
   "farm_activity": "farmActivity",
   "farm_parcel": "farmParcel",
+  "player_appearance": "playerAppearance",
   "player_equipment": "playerEquipment",
   "player_position": "playerPosition",
   "player_public": "playerPublic",
+  "world_chest": "worldChest",
   "world_clock": "worldClock",
+  "world_environment": "worldEnvironment",
+  "world_hive": "worldHive",
   "world_item": "worldItem",
+  "world_npc": "worldNpc",
+  "world_projectile": "worldProjectile",
   "world_resource": "worldResource",
   "world_seed": "worldSeed",
+  "world_soil": "worldSoil",
   "world_tree": "worldTree",
+  "world_wildlife_profile": "worldWildlifeProfile",
+  "world_wind": "worldWind",
 } as const;
 
 function __withTableAccessorAliases<T extends object>(target: T, freeze = false): T {
@@ -324,22 +608,40 @@ export type DbView = __DbViewBase & {
   readonly "farm_activity": __DbViewBase["farmActivity"];
   /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
   readonly "farm_parcel": __DbViewBase["farmParcel"];
+  /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
+  readonly "player_appearance": __DbViewBase["playerAppearance"];
   /** @deprecated Use `playerEquipment` instead. This alias will be removed in the next major version. */
   readonly "player_equipment": __DbViewBase["playerEquipment"];
   /** @deprecated Use `playerPosition` instead. This alias will be removed in the next major version. */
   readonly "player_position": __DbViewBase["playerPosition"];
   /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
   readonly "player_public": __DbViewBase["playerPublic"];
+  /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
+  readonly "world_chest": __DbViewBase["worldChest"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __DbViewBase["worldClock"];
+  /** @deprecated Use `worldEnvironment` instead. This alias will be removed in the next major version. */
+  readonly "world_environment": __DbViewBase["worldEnvironment"];
+  /** @deprecated Use `worldHive` instead. This alias will be removed in the next major version. */
+  readonly "world_hive": __DbViewBase["worldHive"];
   /** @deprecated Use `worldItem` instead. This alias will be removed in the next major version. */
   readonly "world_item": __DbViewBase["worldItem"];
+  /** @deprecated Use `worldNpc` instead. This alias will be removed in the next major version. */
+  readonly "world_npc": __DbViewBase["worldNpc"];
+  /** @deprecated Use `worldProjectile` instead. This alias will be removed in the next major version. */
+  readonly "world_projectile": __DbViewBase["worldProjectile"];
   /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
   readonly "world_resource": __DbViewBase["worldResource"];
   /** @deprecated Use `worldSeed` instead. This alias will be removed in the next major version. */
   readonly "world_seed": __DbViewBase["worldSeed"];
+  /** @deprecated Use `worldSoil` instead. This alias will be removed in the next major version. */
+  readonly "world_soil": __DbViewBase["worldSoil"];
   /** @deprecated Use `worldTree` instead. This alias will be removed in the next major version. */
   readonly "world_tree": __DbViewBase["worldTree"];
+  /** @deprecated Use `worldWildlifeProfile` instead. This alias will be removed in the next major version. */
+  readonly "world_wildlife_profile": __DbViewBase["worldWildlifeProfile"];
+  /** @deprecated Use `worldWind` instead. This alias will be removed in the next major version. */
+  readonly "world_wind": __DbViewBase["worldWind"];
 };
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
@@ -350,22 +652,40 @@ export type Tables = __TablesBase & {
   readonly "farm_activity": __TablesBase["farmActivity"];
   /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
   readonly "farm_parcel": __TablesBase["farmParcel"];
+  /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
+  readonly "player_appearance": __TablesBase["playerAppearance"];
   /** @deprecated Use `playerEquipment` instead. This alias will be removed in the next major version. */
   readonly "player_equipment": __TablesBase["playerEquipment"];
   /** @deprecated Use `playerPosition` instead. This alias will be removed in the next major version. */
   readonly "player_position": __TablesBase["playerPosition"];
   /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
   readonly "player_public": __TablesBase["playerPublic"];
+  /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
+  readonly "world_chest": __TablesBase["worldChest"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __TablesBase["worldClock"];
+  /** @deprecated Use `worldEnvironment` instead. This alias will be removed in the next major version. */
+  readonly "world_environment": __TablesBase["worldEnvironment"];
+  /** @deprecated Use `worldHive` instead. This alias will be removed in the next major version. */
+  readonly "world_hive": __TablesBase["worldHive"];
   /** @deprecated Use `worldItem` instead. This alias will be removed in the next major version. */
   readonly "world_item": __TablesBase["worldItem"];
+  /** @deprecated Use `worldNpc` instead. This alias will be removed in the next major version. */
+  readonly "world_npc": __TablesBase["worldNpc"];
+  /** @deprecated Use `worldProjectile` instead. This alias will be removed in the next major version. */
+  readonly "world_projectile": __TablesBase["worldProjectile"];
   /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
   readonly "world_resource": __TablesBase["worldResource"];
   /** @deprecated Use `worldSeed` instead. This alias will be removed in the next major version. */
   readonly "world_seed": __TablesBase["worldSeed"];
+  /** @deprecated Use `worldSoil` instead. This alias will be removed in the next major version. */
+  readonly "world_soil": __TablesBase["worldSoil"];
   /** @deprecated Use `worldTree` instead. This alias will be removed in the next major version. */
   readonly "world_tree": __TablesBase["worldTree"];
+  /** @deprecated Use `worldWildlifeProfile` instead. This alias will be removed in the next major version. */
+  readonly "world_wildlife_profile": __TablesBase["worldWildlifeProfile"];
+  /** @deprecated Use `worldWind` instead. This alias will be removed in the next major version. */
+  readonly "world_wind": __TablesBase["worldWind"];
 };
 
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */

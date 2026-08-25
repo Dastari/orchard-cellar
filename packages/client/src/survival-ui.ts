@@ -25,14 +25,56 @@ const FACING_VECTOR: Record<Direction, readonly [number, number]> = {
   downRight: [1, 1],
 };
 
+export interface TargetableFarmTile { readonly tileX: number; readonly tileY: number }
+
+export const FARM_TILE_REACH_FIXED = TILE_SIZE_FIXED * 2;
+
+/** The farming cursor follows the adjacent tile in the player's eight-way
+ * facing, keeping keyboard tool use precise without requiring mouse aim. */
+export function facedFarmTile(playerX: number, playerY: number, facing: Direction): TargetableFarmTile {
+  const [offsetX, offsetY] = FACING_VECTOR[facing];
+  return {
+    tileX: Math.floor(playerX / TILE_SIZE_FIXED) + offsetX,
+    tileY: Math.floor(playerY / TILE_SIZE_FIXED) + offsetY,
+  };
+}
+
+export function farmTileInReach(
+  playerX: number,
+  playerY: number,
+  tile: TargetableFarmTile,
+): boolean {
+  const targetX = tile.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const targetY = tile.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const dx = targetX - playerX;
+  const dy = targetY - playerY;
+  return dx * dx + dy * dy <= FARM_TILE_REACH_FIXED * FARM_TILE_REACH_FIXED;
+}
+
+/** Converts a world-space pointer to a tile and applies the same reach circle
+ * enforced by the server. Out-of-bounds pointers cannot become tool targets. */
+export function farmTileAtWorldPoint(
+  playerX: number,
+  playerY: number,
+  worldX: number,
+  worldY: number,
+  worldSize: number,
+): TargetableFarmTile | null {
+  if (!Number.isFinite(worldX) || !Number.isFinite(worldY)) return null;
+  const tile = { tileX: Math.floor(worldX / 16), tileY: Math.floor(worldY / 16) };
+  if (tile.tileX < 0 || tile.tileY < 0 || tile.tileX >= worldSize || tile.tileY >= worldSize) return null;
+  return farmTileInReach(playerX, playerY, tile) ? tile : null;
+}
+
 export function facedResource<T extends TargetableResource>(
   playerX: number,
   playerY: number,
   facing: Direction,
   resources: Iterable<T>,
+  reachFixed = 2 * TILE_SIZE_FIXED,
 ): T | null {
   const [facingX, facingY] = FACING_VECTOR[facing];
-  const reachSquared = (2 * TILE_SIZE_FIXED) ** 2;
+  const reachSquared = reachFixed ** 2;
   let target: T | null = null;
   let targetDistance = Number.POSITIVE_INFINITY;
   for (const resource of resources) {
@@ -119,7 +161,21 @@ const HOTBAR_LABELS: Readonly<Record<string, string>> = {
   pickaxe: 'PICK',
   hoe: 'HOE',
   watering_can: 'WATER',
+  bow: 'BOW',
+  arrow: 'ARROW',
   wood: 'WOOD',
+  plank: 'PLANK',
+  stick: 'STICK',
+  chest: 'CHEST',
+  stone: 'STONE',
+  iron_ore: 'IRON',
+  copper_ore: 'COPPER',
+  gold_ore: 'GOLD',
+  emerald_ore: 'EMERALD',
+  sapphire_ore: 'SAPPHIRE',
+  topaz_ore: 'TOPAZ',
+  ruby_ore: 'RUBY',
+  amethyst_ore: 'AMETHYST',
 };
 
 export function hotbarItemLabel(itemKind: string): string {
@@ -131,11 +187,31 @@ const HOTBAR_NAMES: Readonly<Record<string, string>> = {
   pickaxe: 'PICKAXE',
   hoe: 'HOE',
   watering_can: 'WATERING CAN',
+  bow: 'WOODEN BOW',
+  arrow: 'ARROWS',
   wood: 'WOOD',
+  plank: 'WOODEN PLANKS',
+  stick: 'STICKS',
+  chest: 'CHEST',
+  stone: 'STONE',
+  iron_ore: 'IRON ORE',
+  copper_ore: 'COPPER ORE',
+  gold_ore: 'GOLD ORE',
+  emerald_ore: 'EMERALD ORE',
+  sapphire_ore: 'SAPPHIRE ORE',
+  topaz_ore: 'TOPAZ ORE',
+  ruby_ore: 'RUBY ORE',
+  amethyst_ore: 'AMETHYST ORE',
 };
 
 export function hotbarItemName(itemKind: string): string | null {
   return HOTBAR_NAMES[itemKind] ?? null;
+}
+
+/** Only ranged aiming continuously overrides locomotion facing. Other tools
+ * turn toward their target when their action is performed. */
+export function equippedItemTracksCursor(itemKind: string): boolean {
+  return itemKind === 'bow';
 }
 
 export const WEATHER_PANEL_WIDTH = 142;

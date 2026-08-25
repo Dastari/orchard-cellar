@@ -1,507 +1,826 @@
 {
-  "name": "theme_spring",
-  "bpm": 84,
-  "swing": 0.06,
-  "key": "G",
-  "mode": "major",
-  "stepsPerBeat": 4,
-  "beatsPerBar": 4,
-  "loopBars": 48,
-  "masterGainDb": -11,
-  "quotesMotif": {
-    "id": "orchard_home",
-    "channel": "flute",
-    "pattern": "SpringMotif",
-    "exactPitch": true
+ "name": "theme_spring",
+ "bpm": 84,
+ "swing": 0.06,
+ "key": "G",
+ "mode": "major",
+ "stepsPerBeat": 4,
+ "beatsPerBar": 4,
+ "loopBars": 48,
+ "masterGainDb": -11,
+ "quotesMotif": {
+  "id": "orchard_home",
+  "channel": "flute",
+  "pattern": "SpringMotif",
+  "exactPitch": true
+ },
+ "channels": [
+  {
+   "patch": "flute",
+   "vol": 0.62,
+   "patterns": [
+    "SpringMotif",
+    "Rest",
+    "SpringAnswerA",
+    "Rest",
+    "SpringMotif",
+    "SpringAnswerB",
+    "Rest",
+    "SpringRise",
+    "SpringMotif",
+    "Rest",
+    "SpringAnswerA",
+    "Rest"
+   ]
   },
-  "channels": [
-    {
-      "patch": "flute",
-      "vol": 0.62,
-      "patterns": [
-        "SpringMotif",
-        "Rest",
-        "SpringAnswerA",
-        "Rest",
-        "SpringMotif",
-        "SpringAnswerB",
-        "Rest",
-        "SpringRise",
-        "SpringMotif",
-        "Rest",
-        "SpringAnswerA",
-        "Rest"
-      ]
-    },
-    {
-      "patch": "bells",
-      "vol": 0.3,
-      "patterns": [
-        "Rest",
-        "DewA",
-        "Rest",
-        "DewB",
-        "Rest",
-        "DewA",
-        "Rest",
-        "DewB",
-        "Rest",
-        "DewA",
-        "Rest",
-        "DewHome"
-      ]
-    },
-    {
-      "patch": "pad",
-      "vol": 0.4,
-      "patterns": [
-        "Pad_GC",
-        "Pad_EmD",
-        "Pad_GC",
-        "Pad_DG",
-        "Pad_GC",
-        "Pad_EmD",
-        "Pad_CD",
-        "Pad_DG",
-        "Pad_GC",
-        "Pad_EmD",
-        "Pad_CD",
-        "Pad_GG"
-      ]
-    },
-    {
-      "patch": "bass",
-      "vol": 0.38,
-      "patterns": [
-        "Bass_GC",
-        "Bass_EmD",
-        "Bass_GC",
-        "Bass_DG",
-        "Bass_GC",
-        "Bass_EmD",
-        "Bass_CD",
-        "Bass_DG",
-        "Bass_GC",
-        "Bass_EmD",
-        "Bass_CD",
-        "Bass_GG"
-      ]
-    }
-  ],
-  "patterns": {
-    "Rest": {
-      "steps": 64,
-      "notes": []
-    },
-    "SpringMotif": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "G4",
-          4
-        ],
-        [
-          8,
-          "B4",
-          4
-        ],
-        [
-          16,
-          "D5",
-          8
-        ],
-        [
-          32,
-          "A4",
-          4
-        ],
-        [
-          40,
-          "B4",
-          4
-        ],
-        [
-          48,
-          "G4",
-          8
-        ]
-      ]
-    },
-    "SpringAnswerA": {
-      "steps": 64,
-      "notes": [
-        [
-          4,
-          "B4",
-          4
-        ],
-        [
-          32,
-          "E5",
-          4
-        ],
-        [
-          44,
-          "D5",
-          6
-        ],
-        [
-          56,
-          "B4",
-          6
-        ]
-      ]
-    },
-    "SpringAnswerB": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "D5",
-          4
-        ],
-        [
-          24,
-          "B4",
-          8
-        ],
-        [
-          40,
-          "A4",
-          4
-        ],
-        [
-          52,
-          "G4",
-          8
-        ]
-      ]
-    },
-    "SpringRise": {
-      "steps": 64,
-      "notes": [
-        [
-          8,
-          "G4",
-          4
-        ],
-        [
-          20,
-          "A4",
-          4
-        ],
-        [
-          32,
-          "B4",
-          6
-        ],
-        [
-          48,
-          "D5",
-          8
-        ]
-      ]
-    },
-    "DewA": {
-      "steps": 64,
-      "notes": [
-        [
-          12,
-          "G5",
-          4
-        ],
-        [
-          36,
-          "D5",
-          6
-        ],
-        [
-          52,
-          "B4",
-          6
-        ]
-      ]
-    },
-    "DewB": {
-      "steps": 64,
-      "notes": [
-        [
-          8,
-          "E5",
-          5
-        ],
-        [
-          28,
-          "G5",
-          5
-        ],
-        [
-          48,
-          "D5",
-          7
-        ]
-      ]
-    },
-    "DewHome": {
-      "steps": 64,
-      "notes": [
-        [
-          16,
-          "B4",
-          6
-        ],
-        [
-          36,
-          "D5",
-          6
-        ],
-        [
-          52,
-          "G5",
-          8
-        ]
-      ]
-    },
-    "Pad_GC": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "G3",
-          28
-        ],
-        [
-          0,
-          "B3",
-          28
-        ],
-        [
-          0,
-          "D4",
-          28
-        ],
-        [
-          32,
-          "C3",
-          28
-        ],
-        [
-          32,
-          "E3",
-          28
-        ],
-        [
-          32,
-          "G3",
-          28
-        ]
-      ]
-    },
-    "Pad_EmD": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "E3",
-          28
-        ],
-        [
-          0,
-          "G3",
-          28
-        ],
-        [
-          0,
-          "B3",
-          28
-        ],
-        [
-          32,
-          "D3",
-          28
-        ],
-        [
-          32,
-          "F#3",
-          28
-        ],
-        [
-          32,
-          "A3",
-          28
-        ]
-      ]
-    },
-    "Pad_DG": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "D3",
-          28
-        ],
-        [
-          0,
-          "F#3",
-          28
-        ],
-        [
-          0,
-          "A3",
-          28
-        ],
-        [
-          32,
-          "G3",
-          28
-        ],
-        [
-          32,
-          "B3",
-          28
-        ],
-        [
-          32,
-          "D4",
-          28
-        ]
-      ]
-    },
-    "Pad_CD": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "C3",
-          28
-        ],
-        [
-          0,
-          "E3",
-          28
-        ],
-        [
-          0,
-          "G3",
-          28
-        ],
-        [
-          32,
-          "D3",
-          28
-        ],
-        [
-          32,
-          "F#3",
-          28
-        ],
-        [
-          32,
-          "A3",
-          28
-        ]
-      ]
-    },
-    "Pad_GG": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "G3",
-          60
-        ],
-        [
-          0,
-          "B3",
-          60
-        ],
-        [
-          0,
-          "D4",
-          60
-        ]
-      ]
-    },
-    "Bass_GC": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "G2",
-          20
-        ],
-        [
-          32,
-          "C3",
-          20
-        ]
-      ]
-    },
-    "Bass_EmD": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "E2",
-          20
-        ],
-        [
-          32,
-          "D2",
-          20
-        ]
-      ]
-    },
-    "Bass_DG": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "D2",
-          20
-        ],
-        [
-          32,
-          "G2",
-          20
-        ]
-      ]
-    },
-    "Bass_CD": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "C3",
-          20
-        ],
-        [
-          32,
-          "D2",
-          20
-        ]
-      ]
-    },
-    "Bass_GG": {
-      "steps": 64,
-      "notes": [
-        [
-          0,
-          "G2",
-          28
-        ],
-        [
-          32,
-          "G2",
-          24
-        ]
-      ]
-    }
+  {
+   "patch": "bells",
+   "vol": 0.3,
+   "patterns": [
+    "Rest",
+    "DewA",
+    "Rest",
+    "DewB",
+    "Rest",
+    "DewA",
+    "Rest",
+    "DewB",
+    "Rest",
+    "DewA",
+    "Rest",
+    "DewHome"
+   ]
   },
-  "loop": true,
-  "iterationNotes": [
-    "Pass 2: removed two answer-phrase notes; motif and cadence retained; listening pass pending audio preview."
-  ]
+  {
+   "patch": "pad",
+   "vol": 0.4,
+   "patterns": [
+    "Pad_GC",
+    "Pad_EmD",
+    "Pad_GC",
+    "Pad_DG",
+    "Pad_GC",
+    "Pad_EmD",
+    "Pad_CD",
+    "Pad_DG",
+    "Pad_GC",
+    "Pad_EmD",
+    "Pad_CD",
+    "Pad_GG"
+   ]
+  },
+  {
+   "patch": "bass",
+   "vol": 0.38,
+   "patterns": [
+    "Bass_GC",
+    "Bass_EmD",
+    "Bass_GC",
+    "Bass_DG",
+    "Bass_GC",
+    "Bass_EmD",
+    "Bass_CD",
+    "Bass_DG",
+    "Bass_GC",
+    "Bass_EmD",
+    "Bass_CD",
+    "Bass_GG"
+   ]
+  },
+  {
+   "patch": "pluck",
+   "vol": 0.28,
+   "patterns": [
+    "Rest",
+    "Rest",
+    "Pk_GC",
+    "Pk_DG",
+    "Rest",
+    "Pk_EmD",
+    "Pk_CD",
+    "Pk_DG",
+    "Pk_GC",
+    "Pk_EmD",
+    "Pk_CD",
+    "Rest"
+   ]
+  },
+  {
+   "patch": "shaker",
+   "vol": 0.12,
+   "patterns": [
+    "Rest",
+    "Rest",
+    "Rest",
+    "Rest",
+    "Shk",
+    "Shk",
+    "Shk",
+    "Shk",
+    "Shk",
+    "Shk",
+    "Shk",
+    "Rest"
+   ]
+  },
+  {
+   "patch": "strings",
+   "vol": 0.16,
+   "patterns": [
+    "Rest",
+    "Rest",
+    "Rest",
+    "Rest",
+    "Rest",
+    "Rest",
+    "Str_CD",
+    "Rest",
+    "Rest",
+    "Rest",
+    "Str_CD",
+    "Str_GG"
+   ]
+  }
+ ],
+ "patterns": {
+  "Rest": {
+   "steps": 64,
+   "notes": []
+  },
+  "SpringMotif": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G4",
+     4
+    ],
+    [
+     8,
+     "B4",
+     4
+    ],
+    [
+     16,
+     "D5",
+     8
+    ],
+    [
+     32,
+     "A4",
+     4
+    ],
+    [
+     40,
+     "B4",
+     4
+    ],
+    [
+     48,
+     "G4",
+     8
+    ]
+   ]
+  },
+  "SpringAnswerA": {
+   "steps": 64,
+   "notes": [
+    [
+     4,
+     "B4",
+     4
+    ],
+    [
+     32,
+     "E5",
+     4
+    ],
+    [
+     44,
+     "D5",
+     6
+    ],
+    [
+     56,
+     "B4",
+     6
+    ]
+   ]
+  },
+  "SpringAnswerB": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D5",
+     4
+    ],
+    [
+     24,
+     "B4",
+     8
+    ],
+    [
+     40,
+     "A4",
+     4
+    ],
+    [
+     52,
+     "G4",
+     8
+    ]
+   ]
+  },
+  "SpringRise": {
+   "steps": 64,
+   "notes": [
+    [
+     8,
+     "G4",
+     4
+    ],
+    [
+     20,
+     "A4",
+     4
+    ],
+    [
+     32,
+     "B4",
+     6
+    ],
+    [
+     48,
+     "D5",
+     8
+    ]
+   ]
+  },
+  "DewA": {
+   "steps": 64,
+   "notes": [
+    [
+     12,
+     "G5",
+     4
+    ],
+    [
+     36,
+     "D5",
+     6
+    ],
+    [
+     52,
+     "B4",
+     6
+    ]
+   ]
+  },
+  "DewB": {
+   "steps": 64,
+   "notes": [
+    [
+     8,
+     "E5",
+     5
+    ],
+    [
+     28,
+     "G5",
+     5
+    ],
+    [
+     48,
+     "D5",
+     7
+    ]
+   ]
+  },
+  "DewHome": {
+   "steps": 64,
+   "notes": [
+    [
+     16,
+     "B4",
+     6
+    ],
+    [
+     36,
+     "D5",
+     6
+    ],
+    [
+     52,
+     "G5",
+     8
+    ]
+   ]
+  },
+  "Pad_GC": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     28
+    ],
+    [
+     0,
+     "B3",
+     28
+    ],
+    [
+     0,
+     "D4",
+     28
+    ],
+    [
+     32,
+     "C3",
+     28
+    ],
+    [
+     32,
+     "E3",
+     28
+    ],
+    [
+     32,
+     "G3",
+     28
+    ]
+   ]
+  },
+  "Pad_EmD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E3",
+     28
+    ],
+    [
+     0,
+     "G3",
+     28
+    ],
+    [
+     0,
+     "B3",
+     28
+    ],
+    [
+     32,
+     "D3",
+     28
+    ],
+    [
+     32,
+     "F#3",
+     28
+    ],
+    [
+     32,
+     "A3",
+     28
+    ]
+   ]
+  },
+  "Pad_DG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D3",
+     28
+    ],
+    [
+     0,
+     "F#3",
+     28
+    ],
+    [
+     0,
+     "A3",
+     28
+    ],
+    [
+     32,
+     "G3",
+     28
+    ],
+    [
+     32,
+     "B3",
+     28
+    ],
+    [
+     32,
+     "D4",
+     28
+    ]
+   ]
+  },
+  "Pad_CD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C3",
+     28
+    ],
+    [
+     0,
+     "E3",
+     28
+    ],
+    [
+     0,
+     "G3",
+     28
+    ],
+    [
+     32,
+     "D3",
+     28
+    ],
+    [
+     32,
+     "F#3",
+     28
+    ],
+    [
+     32,
+     "A3",
+     28
+    ]
+   ]
+  },
+  "Pad_GG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     60
+    ],
+    [
+     0,
+     "B3",
+     60
+    ],
+    [
+     0,
+     "D4",
+     60
+    ]
+   ]
+  },
+  "Bass_GC": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G2",
+     20
+    ],
+    [
+     32,
+     "C3",
+     20
+    ]
+   ]
+  },
+  "Bass_EmD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E2",
+     20
+    ],
+    [
+     32,
+     "D2",
+     20
+    ]
+   ]
+  },
+  "Bass_DG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D2",
+     20
+    ],
+    [
+     32,
+     "G2",
+     20
+    ]
+   ]
+  },
+  "Bass_CD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C3",
+     20
+    ],
+    [
+     32,
+     "D2",
+     20
+    ]
+   ]
+  },
+  "Bass_GG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G2",
+     28
+    ],
+    [
+     32,
+     "G2",
+     24
+    ]
+   ]
+  },
+  "Pk_GC": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G4",
+     4
+    ],
+    [
+     8,
+     "B4",
+     4
+    ],
+    [
+     16,
+     "D5",
+     4
+    ],
+    [
+     24,
+     "B4",
+     4
+    ],
+    [
+     32,
+     "E4",
+     4
+    ],
+    [
+     40,
+     "G4",
+     4
+    ],
+    [
+     48,
+     "C5",
+     4
+    ],
+    [
+     56,
+     "G4",
+     4
+    ]
+   ]
+  },
+  "Pk_EmD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E4",
+     4
+    ],
+    [
+     8,
+     "G4",
+     4
+    ],
+    [
+     16,
+     "B4",
+     4
+    ],
+    [
+     24,
+     "G4",
+     4
+    ],
+    [
+     32,
+     "D4",
+     4
+    ],
+    [
+     40,
+     "F#4",
+     4
+    ],
+    [
+     48,
+     "A4",
+     4
+    ],
+    [
+     56,
+     "F#4",
+     4
+    ]
+   ]
+  },
+  "Pk_DG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "D4",
+     4
+    ],
+    [
+     8,
+     "F#4",
+     4
+    ],
+    [
+     16,
+     "A4",
+     4
+    ],
+    [
+     24,
+     "F#4",
+     4
+    ],
+    [
+     32,
+     "G4",
+     4
+    ],
+    [
+     40,
+     "B4",
+     4
+    ],
+    [
+     48,
+     "D5",
+     4
+    ],
+    [
+     56,
+     "B4",
+     4
+    ]
+   ]
+  },
+  "Pk_CD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "E4",
+     4
+    ],
+    [
+     8,
+     "G4",
+     4
+    ],
+    [
+     16,
+     "C5",
+     4
+    ],
+    [
+     24,
+     "G4",
+     4
+    ],
+    [
+     32,
+     "D4",
+     4
+    ],
+    [
+     40,
+     "F#4",
+     4
+    ],
+    [
+     48,
+     "A4",
+     4
+    ],
+    [
+     56,
+     "D5",
+     4
+    ]
+   ]
+  },
+  "Shk": {
+   "steps": 64,
+   "notes": [
+    [
+     4,
+     "C5",
+     1
+    ],
+    [
+     12,
+     "C5",
+     1
+    ],
+    [
+     20,
+     "C5",
+     1
+    ],
+    [
+     28,
+     "C5",
+     1
+    ],
+    [
+     36,
+     "C5",
+     1
+    ],
+    [
+     44,
+     "C5",
+     1
+    ],
+    [
+     52,
+     "C5",
+     1
+    ],
+    [
+     60,
+     "C5",
+     1
+    ]
+   ]
+  },
+  "Str_CD": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "C4",
+     30
+    ],
+    [
+     0,
+     "G4",
+     30
+    ],
+    [
+     32,
+     "D4",
+     30
+    ],
+    [
+     32,
+     "F#4",
+     30
+    ]
+   ]
+  },
+  "Str_GG": {
+   "steps": 64,
+   "notes": [
+    [
+     0,
+     "G3",
+     56
+    ],
+    [
+     0,
+     "D4",
+     56
+    ]
+   ]
+  }
+ },
+ "loop": true,
+ "iterationNotes": [
+  "Pass 2: removed two answer-phrase notes; motif and cadence retained; listening pass pending audio preview.",
+  "Pass 3: pluck arpeggios from slot 3, soft shaker pulse from slot 5 (drops out for the final phrase), strings only on the two cadence slots. Melody untouched; listening pass pending shared-browser audio preview."
+ ]
 }
-

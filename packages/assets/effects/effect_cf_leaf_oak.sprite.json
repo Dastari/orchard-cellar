@@ -1,0 +1,47 @@
+{
+  "name": "effect_cf_leaf_oak",
+  "category": "effects",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".......0.000....",
+        "......010120....",
+        ".....0031230....",
+        "....0101230.....",
+        "....03123430....",
+        "....0123000.....",
+        "....023430......",
+        "....02000.......",
+        ".....0..........",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#091b15",
+    "1": "#5ac54f",
+    "2": "#134c4c",
+    "3": "#33984b",
+    "4": "#1e6f50"
+  },
+  "sourcePath": "references/Cute_Fantasy/Trees/Oak_Leaf_Particle.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Oak_Leaf_Particle.png",
+  "tags": ["effect.weather", "effect.wind", "effect.leaf"],
+  "placement": { "layer": "effect", "builderAvailable": false }
+}

@@ -15,7 +15,7 @@ describe('unified renderer zoom math', () => {
   });
 
   it('clamps zoom-out to the island and offscreen budgets', () => {
-    expect(minimumWorldZoom(960, 540, 1, 192 * 16)).toBe(0.313);
+    expect(minimumWorldZoom(960, 540, 1, 192 * 16)).toBe(1.5);
     const minimum = minimumWorldZoom(1920, 1080, 2, 192 * 16);
     const layout = worldPassLayout(1920, 1080, 2, minimum);
     expect(layout.width).toBeLessThanOrEqual(4096);
@@ -29,6 +29,14 @@ describe('unified renderer zoom math', () => {
     expect(worldPassCapacity(1_980, 1_110, first.width, first.height)).toEqual(first);
     expect(worldPassCapacity(1_700, 900, first.width, first.height)).toEqual(first);
     expect(worldPassCapacity(2_049, 1_153, first.width, first.height)).toEqual({ width: 2_304, height: 1_296 });
+  });
+
+  it('never clips the active world pass at fractional integer-scale thresholds', () => {
+    for (const zoom of [0.75, 1, 1.01, 1.25, 1.5, 2, 2.01, 2.25]) {
+      const layout = worldPassLayout(1_400, 1_254, 2, zoom);
+      expect(layout.width).toBeLessThanOrEqual(4_096);
+      expect(layout.height).toBeLessThanOrEqual(2_304);
+    }
   });
 
   it('interleaves depth layers around every sorted world drawable', () => {

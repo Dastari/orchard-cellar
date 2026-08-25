@@ -1,0 +1,85 @@
+{
+  "name": "wildlife_cf_butterfly_08",
+  "category": "props",
+  "size": [
+    8,
+    8
+  ],
+  "anchor": [
+    4,
+    7
+  ],
+  "frames": {
+    "flutter": [
+      [
+        "........",
+        ".11.11..",
+        ".10101..",
+        ".14141..",
+        "..121...",
+        ".10101..",
+        "..1.1...",
+        "........"
+      ],
+      [
+        "........",
+        "11...11.",
+        "101.101.",
+        "1401041.",
+        ".13231..",
+        "1021201.",
+        ".11.11..",
+        "........"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "flutter": "animation"
+  },
+  "animationFps": {
+    "flutter": 8
+  },
+  "animationLoop": {
+    "flutter": true
+  },
+  "sourcePalette": {
+    "0": "#0cf1ff",
+    "1": "#1b1b1b",
+    "2": "#1e6f50",
+    "3": "#33984b",
+    "4": "#5ac54f"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Butterfly.png",
+  "sourcePath": "references/Cute_Fantasy/Animals/Butterfly/Butterfly.png",
+  "sourceRegions": {
+    "flutter": [
+      [
+        0,
+        56,
+        8,
+        8
+      ],
+      [
+        8,
+        56,
+        8,
+        8
+      ]
+    ]
+  },
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  },
+  "tags": [
+    "wildlife",
+    "source.cute_fantasy"
+  ]
+}

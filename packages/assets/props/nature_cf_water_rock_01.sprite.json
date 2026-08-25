@@ -1,0 +1,254 @@
+{
+  "name": "nature_cf_water_rock_01",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "sway": [
+      [
+        "................",
+        ".........88.....",
+        ".......88cc8....",
+        "......8ccccc8...",
+        "....88ccccbb8...",
+        "...8baccbbbbb8..",
+        ".08bbbabbbccc80.",
+        "08bbbbbaccccc800",
+        "08abbbacccccca80",
+        "00aaaaaaaccaaa80",
+        "2000aaaaaaaaaa80",
+        ".220000aaaaaaa00",
+        "....02000aaa0002",
+        "......220000022.",
+        ".........00000..",
+        "................"
+      ],
+      [
+        "................",
+        ".........88.....",
+        ".......88cc8....",
+        "......8ccccc8...",
+        "....88ccccbb8...",
+        "...8baccbbbbb8..",
+        ".08bbbabbbccc80.",
+        "08bbbbbaccccc800",
+        "08abbbacccccca80",
+        "00aaaaaaaccaaa80",
+        "2100aaaaaaaaaa80",
+        ".221000aaaaaaa00",
+        "....02100aaa0012",
+        "......221000122.",
+        ".........00000..",
+        "................"
+      ],
+      [
+        "................",
+        ".........88.....",
+        ".......88cc8....",
+        "......8ccccc8...",
+        "....88ccccbb8...",
+        "...8baccbbbbb8..",
+        ".08bbbabbbccc80.",
+        "08bbbbbaccccc800",
+        "07abbbacccccca80",
+        "0299aaaaaccaaa80",
+        ".022999aaaaaaa70",
+        "..0000299aaa9920",
+        "....000229992200",
+        ".......00000000.",
+        ".........00000..",
+        "................"
+      ],
+      [
+        "................",
+        ".........88.....",
+        ".......88cc8....",
+        "......8ccccc8...",
+        "....88ccccbb8...",
+        "...8baccbbbbb8..",
+        ".08bbbabbbccc80.",
+        "08bbbbbaccccc800",
+        "05abbbacccccca80",
+        "0236aaaaaccaaa80",
+        ".042666aaaaaaa50",
+        "..0000236aaa6320",
+        "....000426632400",
+        ".......00000000.",
+        ".........00000..",
+        "................"
+      ],
+      [
+        "................",
+        ".........88.....",
+        ".......88cc8....",
+        "......8ccccc8...",
+        "....88ccccbb8...",
+        "...8baccbbbbb8..",
+        ".08bbbabbbccc80.",
+        "08bbbbbaccccc800",
+        "02abbbacccccca80",
+        "0042aaaaaccaaa80",
+        ".000002aaaaaaa40",
+        "..0000042aaa2400",
+        "....000000020000",
+        ".......00000000.",
+        ".........00000..",
+        "................"
+      ],
+      [
+        "................",
+        ".........88.....",
+        ".......88cc8....",
+        "......8ccccc8...",
+        "....88ccccbb8...",
+        "...8baccbbbbb8..",
+        ".08bbbabbbccc80.",
+        "08bbbbbaccccc800",
+        "05abbbacccccca80",
+        "0236aaaaaccaaa80",
+        ".042666aaaaaaa50",
+        "..0000236aaa6320",
+        "....000426632400",
+        ".......00000000.",
+        ".........00000..",
+        "................"
+      ],
+      [
+        "................",
+        ".........88.....",
+        ".......88cc8....",
+        "......8ccccc8...",
+        "....88ccccbb8...",
+        "...8baccbbbbb8..",
+        ".08bbbabbbccc80.",
+        "08bbbbbaccccc800",
+        "07abbbacccccca80",
+        "0299aaaaaccaaa80",
+        ".022999aaaaaaa70",
+        "..0000299aaa9920",
+        "....000229992200",
+        ".......00000000.",
+        ".........00000..",
+        "................"
+      ],
+      [
+        "................",
+        ".........88.....",
+        ".......88cc8....",
+        "......8ccccc8...",
+        "....88ccccbb8...",
+        "...8baccbbbbb8..",
+        ".08bbbabbbccc80.",
+        "08bbbbbaccccc800",
+        "08abbbacccccca80",
+        "00aaaaaaaccaaa80",
+        "2100aaaaaaaaaa80",
+        ".221000aaaaaaa00",
+        "....02100aaa0012",
+        "......221000122.",
+        ".........00000..",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "sway": "animation"
+  },
+  "animationFps": {
+    "sway": 4
+  },
+  "animationLoop": {
+    "sway": true
+  },
+  "sourcePalette": {
+    "0": "#006da8",
+    "1": "#00a5d7",
+    "2": "#00cdf9",
+    "3": "#0b9eca",
+    "4": "#0cf1ff",
+    "5": "#10517e",
+    "6": "#195b87",
+    "7": "#1b3e61",
+    "8": "#262b44",
+    "9": "#2b4e6f",
+    "a": "#3c4258",
+    "b": "#6c7c9d",
+    "c": "#8e9ab4"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Rock_3_Water_Anim.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Water_Decor_Animations/Water_Rocks/Rock_3_Water_Anim.png",
+  "sourceRegions": {
+    "sway": [
+      [
+        0,
+        0,
+        16,
+        16
+      ],
+      [
+        16,
+        0,
+        16,
+        16
+      ],
+      [
+        32,
+        0,
+        16,
+        16
+      ],
+      [
+        48,
+        0,
+        16,
+        16
+      ],
+      [
+        64,
+        0,
+        16,
+        16
+      ],
+      [
+        80,
+        0,
+        16,
+        16
+      ],
+      [
+        96,
+        0,
+        16,
+        16
+      ],
+      [
+        112,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

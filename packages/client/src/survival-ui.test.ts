@@ -2,7 +2,11 @@ import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import {
   facedResource,
+  facedFarmTile,
+  farmTileAtWorldPoint,
+  farmTileInReach,
   facedWorldItem,
+  equippedItemTracksCursor,
   hotbarItemLabel,
   hotbarItemName,
   hotbarLayout,
@@ -17,6 +21,24 @@ import {
 const tree = { id: 2n, kind: 'tree', tileX: 12, tileY: 10, depleted: false };
 
 describe('survival controls', () => {
+  it('targets the adjacent farm tile in all eight facing directions', () => {
+    const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const y = 20 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(facedFarmTile(x, y, 'up')).toEqual({ tileX: 10, tileY: 19 });
+    expect(facedFarmTile(x, y, 'downRight')).toEqual({ tileX: 11, tileY: 21 });
+    expect(facedFarmTile(x, y, 'left')).toEqual({ tileX: 9, tileY: 20 });
+  });
+
+  it('maps a world pointer to a nearby farm tile using the server reach circle', () => {
+    const playerX = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const playerY = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(farmTileAtWorldPoint(playerX, playerY, 11 * 16 + 4, 10 * 16 + 12, 192))
+      .toEqual({ tileX: 11, tileY: 10 });
+    expect(farmTileAtWorldPoint(playerX, playerY, 13 * 16, 10 * 16, 192)).toBeNull();
+    expect(farmTileAtWorldPoint(playerX, playerY, -1, 10 * 16, 192)).toBeNull();
+    expect(farmTileInReach(playerX, playerY, { tileX: 11, tileY: 11 })).toBe(true);
+  });
+
   it('targets only a live resource in reach and in front of the player', () => {
     const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     const y = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
@@ -40,6 +62,13 @@ describe('survival controls', () => {
   it('gives occupied slots full hover names', () => {
     expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemName))
       .toEqual(['AXE', 'PICKAXE', 'HOE', 'WATERING CAN', 'WOOD', null]);
+  });
+
+  it('continuously faces the cursor only while the bow is equipped', () => {
+    expect(equippedItemTracksCursor('bow')).toBe(true);
+    for (const item of ['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty']) {
+      expect(equippedItemTracksCursor(item)).toBe(false);
+    }
   });
 
   it('centers nine pointer-selectable slots and excludes their one-pixel gaps', () => {

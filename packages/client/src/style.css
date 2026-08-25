@@ -11,6 +11,10 @@ html, body, #game-shell {
   height: 100%;
   margin: 0;
   overflow: hidden;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #game-shell {
@@ -24,6 +28,13 @@ html, body, #game-shell {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   box-shadow: 0 0 0 2px #382b26, 0 18px 50px #0009;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#game.account-screen {
+  box-shadow: none;
 }
 
 #game.custom-cursor { cursor: none; }
@@ -31,10 +42,17 @@ html, body, #game-shell {
 .canvas-input {
   position: fixed;
   z-index: 2;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
   margin: 0;
   padding: 0;
   border: 0;
   opacity: 0;
+  pointer-events: none;
+  clip-path: inset(50%);
+  transform: translate(-200vw, -200vh);
   background: transparent;
   color: transparent;
   caret-color: transparent;

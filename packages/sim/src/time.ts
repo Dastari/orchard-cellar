@@ -51,6 +51,23 @@ export function authorityDayProgress(authorityTick: bigint): number {
   return Number(tickOfDay) / AUTHORITY_TICKS_PER_DAY;
 }
 
+export function authorityTickAtDayProgress(authorityTick: bigint, progress: number): bigint {
+  const ticksPerDay = BigInt(AUTHORITY_TICKS_PER_DAY);
+  const day = authorityTick / ticksPerDay;
+  const safeProgress = Math.max(0, Math.min(1, progress));
+  const tickOfDay = BigInt(Math.min(
+    AUTHORITY_TICKS_PER_DAY - 1,
+    Math.round(safeProgress * (AUTHORITY_TICKS_PER_DAY - 1)),
+  ));
+  return day * ticksPerDay + tickOfDay;
+}
+
+export function shiftAuthorityDay(authorityTick: bigint, days: number): bigint {
+  const ticksPerDay = BigInt(AUTHORITY_TICKS_PER_DAY);
+  const shifted = authorityTick + BigInt(Math.trunc(days)) * ticksPerDay;
+  return shifted < 0n ? authorityTick % ticksPerDay : shifted;
+}
+
 export function simTickOfDayAtAuthorityTick(authorityTick: bigint): number {
   const authorityTickOfDay = authorityTick % BigInt(AUTHORITY_TICKS_PER_DAY);
   return Number(authorityTickOfDay) * SIM_STEPS_PER_AUTHORITY_TICK;

@@ -1,3 +1,5 @@
+import { MIN_WORLD_ZOOM } from '../display.js';
+
 export const MAX_WORLD_PASS_WIDTH = 4096;
 export const MAX_WORLD_PASS_HEIGHT = 2304;
 export const MAX_WORLD_ZOOM = 8;
@@ -51,7 +53,13 @@ export function worldPassLayout(
   const safeDpr = Math.max(1, dpr);
   const safeZoom = Math.max(0.01, zoom);
   const deviceZoom = safeZoom * safeDpr;
-  const integerScale = Math.max(1, Math.ceil(deviceZoom));
+  const preferredScale = Math.max(1, Math.ceil(deviceZoom));
+  // Fractional zoom/DPR thresholds can increase ceil(deviceZoom) by one and
+  // make the logical pass wider than its capped backing canvas. Limit the
+  // integer pass first so the active source rectangle is never clipped.
+  const widthScaleLimit = Math.floor(MAX_WORLD_PASS_WIDTH * deviceZoom / (safeWidth * safeDpr));
+  const heightScaleLimit = Math.floor(MAX_WORLD_PASS_HEIGHT * deviceZoom / (safeHeight * safeDpr));
+  const integerScale = Math.max(1, Math.min(preferredScale, widthScaleLimit, heightScaleLimit));
   return {
     cssWidth: safeWidth,
     cssHeight: safeHeight,
@@ -70,7 +78,7 @@ export function minimumWorldZoom(
   dpr: number,
   worldPixels: number,
 ): number {
-  const viewMinimum = Math.max(cssWidth / worldPixels, cssHeight / worldPixels, 0.25);
+  const viewMinimum = Math.max(cssWidth / worldPixels, cssHeight / worldPixels, MIN_WORLD_ZOOM);
   let zoom = Math.ceil(viewMinimum * 1000) / 1000;
   while (zoom < MAX_WORLD_ZOOM) {
     const layout = worldPassLayout(cssWidth, cssHeight, dpr, zoom);

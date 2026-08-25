@@ -12,6 +12,11 @@
     "render": "tsx src/render-review.ts",
     "render:source-sheet": "tsx src/render-source-sheet.ts",
     "extract:cute-fantasy-ui": "tsx src/extract-cute-fantasy-ui.ts",
+    "extract:cute-fantasy-farmland": "tsx src/extract-cute-fantasy-farmland.ts",
+    "extract:cute-fantasy-player-actions": "tsx src/extract-cute-fantasy-player-actions.ts",
+    "extract:cute-fantasy-mining-tools": "tsx src/extract-cute-fantasy-ores.ts",
+    "extract:cute-fantasy-wildlife": "tsx src/extract-cute-fantasy-wildlife.ts",
+    "extract:cute-fantasy-nature": "tsx src/extract-cute-fantasy-nature.ts",
     "preview": "tsx src/preview.ts",
     "import": "tsx src/import-image.ts",
     "restore-native": "tsx src/restore-native-palettes.ts"

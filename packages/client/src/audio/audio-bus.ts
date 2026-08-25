@@ -29,9 +29,11 @@ export interface GameAudio {
   playFootstep(surface: 'grass' | 'path' | 'cellar'): Promise<void>;
   stop(): void;
   getStatus(): AudioStatus;
+  getSettings(): AudioSettings;
+  setVolume(bus: keyof AudioSettings, value: number): void;
 }
 
-interface AudioSettings { readonly master: number; readonly music: number; readonly sfx: number }
+export interface AudioSettings { readonly master: number; readonly music: number; readonly sfx: number }
 export const DEFAULT_AUDIO_SETTINGS: AudioSettings = { master: 0.8, music: 0.7, sfx: 0.35 };
 
 function loadSettings(): AudioSettings {
@@ -100,7 +102,7 @@ export class AudioBus implements GameAudio {
   private ambienceContext: AmbienceContext = { season: 'spring', time: 'dawn', location: 'estate' };
   private ambienceTimer: number | null = null;
   private readonly sfxCache = new Map<string, Promise<SfxSource>>();
-  private readonly settings = loadSettings();
+  private settings = loadSettings();
 
   constructor(private readonly ambienceEnabled = true) {
     document.addEventListener('visibilitychange', this.onVisibilityChange);
@@ -171,6 +173,20 @@ export class AudioBus implements GameAudio {
       meter,
       ambience: this.ambienceContext,
     };
+  }
+
+  getSettings(): AudioSettings { return { ...this.settings }; }
+
+  setVolume(bus: keyof AudioSettings, value: number): void {
+    const next = Math.max(0, Math.min(1, value));
+    this.settings = { ...this.settings, [bus]: next };
+    localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(this.settings));
+    if (bus === 'master' && this.master) this.master.gain.value = next;
+    if (bus === 'music' && this.music) this.music.gain.value = next;
+    if (bus === 'sfx') {
+      if (this.sfx) this.sfx.gain.value = next;
+      if (this.ambience) this.ambience.gain.value = next * 0.42;
+    }
   }
 
   private createGraph(): void {
@@ -259,4 +275,6 @@ export class NullAudioBus implements GameAudio {
   async playFootstep(): Promise<void> {}
   stop(): void {}
   getStatus(): AudioStatus { return { unlocked: false, state: 'unavailable', song: null, meter: 0, ambience: { season: 'spring', time: 'dawn', location: 'estate' } }; }
+  getSettings(): AudioSettings { return DEFAULT_AUDIO_SETTINGS; }
+  setVolume(): void {}
 }

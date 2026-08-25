@@ -1,0 +1,68 @@
+{
+  "name": "item_cf_stone",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "......1111......",
+        ".....155551.....",
+        "....15555521....",
+        "....15555221....",
+        "..3334444233....",
+        "..0333442330....",
+        "...03300000.....",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#262b44",
+    "2": "#3c4258",
+    "3": "#50af5d",
+    "4": "#6c7c9d",
+    "5": "#8e9ab4"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Outdoor_Decor.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        80,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.resource",
+    "material.stone"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

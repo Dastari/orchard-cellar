@@ -183,6 +183,14 @@ Alice flow was screenshot-verified against her existing parcel. This is intentio
 not production authentication; OIDC, the friends allowlist, private farm views,
 one-time import, HTTPS, and backup/restore remain.
 
+**OIDC handoff (2026-08-25):** Digest-pinned Keycloak/PostgreSQL, private upstream TLS,
+NPM edge hardening, SMTP verification/recovery, PKCE browser integration, issuer/audience
+enforcement, the owner membership bootstrap, two named Keycloak administrators,
+encrypted off-machine backup/restore, and the local-profile production gate are live.
+The owner identity also has audited server-authoritative date/time/weather controls;
+other roles receive read-only environment state. See doc 24 for sanitized evidence and
+the remaining manual multi-account acceptance items before M6 as a whole is complete.
+
 ## M7 — Overworld & co-op `☐`
 [07-multiplayer.md](07-multiplayer.md) steps M7a–M7d: authored overworld/estate parcels
 → estate permission roles → guestbook/gifts/tasting/chat/blocking → co-op festivals
@@ -197,6 +205,13 @@ traveling merchant, estate-hand NPCs with visible work loops, full soundtrack
 (all songs from 12 §2 table), remaining SFX, title-screen final art + wordmark,
 emotes, decor prizes.
 **Done when:** the 12 soundtrack table and the asset appendix below are fully ✅.
+
+**Wildlife foundation (2026-08-25):** The generated survival island now has a
+deterministic, server-authoritative wildlife layer with habitat packs, solitary
+nameless horses, water creatures, hive colonies, bounded honey production, authored
+colour/animation variants, and a three-chunk activation range for several hundred
+durable NPCs. Health, drops, breeding, taming, and hive harvesting remain future
+gameplay work; see [29-wildlife.md](29-wildlife.md).
 
 ## M9 — Polish & launch `☐`
 Pacing playtests against 06 §10 (tune `balance.ts` only, `balance:` commits),

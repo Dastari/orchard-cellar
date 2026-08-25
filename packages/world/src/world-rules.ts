@@ -8,15 +8,23 @@ import {
   TILE_SIZE_FIXED,
   createSurvivalCollisionMap,
   isChoppableTreeKind,
-  survivalTreeObstacle,
+  isBreakableRockKind,
+  isGatherableResourceKind,
+  isMineableOreKind,
+  survivalBiomeAt,
+  survivalGatherableDrop,
+  survivalResourceBlocksMovement,
+  survivalResourceObstacle,
   type CollisionMap,
   type Direction,
+  type MovementMedium,
 } from '@orchard/sim';
 
 export { AUTHORITY_HZ, SIM_STEPS_PER_AUTHORITY_TICK };
 export const CHUNK_TILES = 16;
 export const CHUNK_SIZE_FIXED = CHUNK_TILES * TILE_SIZE_FIXED;
 export const TREE_REACH_FIXED = 2 * TILE_SIZE_FIXED;
+export const FARM_TOOL_REACH_FIXED = 2 * TILE_SIZE_FIXED;
 export const ITEM_PICKUP_REACH_FIXED = 24 * FIXED_UNITS_PER_PIXEL;
 export const TREE_TEND_COOLDOWN_TICKS = 20n;
 export const CROP_GROWTH_TICKS = 200n;
@@ -34,24 +42,58 @@ export const MAX_SETTLE_BACKLOG_STEPS = 24;
 /** Drain every accepted confirmed batch atomically once server-time credit permits. */
 export const MAX_SETTLE_STEPS_PER_TICK = MAX_SETTLE_BACKLOG_STEPS;
 const SURVIVAL_TERRAIN_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
+const SURVIVAL_WATER_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], 'water');
+const SURVIVAL_AIR_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], 'air');
 
 export interface AuthoritySurvivalResource {
+  readonly kind: string;
   readonly tileX: number;
   readonly tileY: number;
   readonly depleted: boolean;
 }
 
+export interface AuthorityPlacedChest {
+  readonly tileX: number;
+  readonly tileY: number;
+  readonly carriedBy?: unknown;
+}
+
 export function createAuthoritySurvivalCollisionMap(
   resources: readonly AuthoritySurvivalResource[],
+  chests: readonly AuthorityPlacedChest[] = [],
+  medium: MovementMedium = 'ground',
 ): CollisionMap {
-  const blocked = [...SURVIVAL_TERRAIN_COLLISION.blocked];
-  const obstacles = [];
-  for (const resource of resources) {
+  // Terrain is immutable for a world version. Reusing the cached array avoids
+  // copying the entire expanded ocean map for every movement/action reducer.
+  const terrain = medium === 'water' ? SURVIVAL_WATER_COLLISION
+    : medium === 'air' ? SURVIVAL_AIR_COLLISION : SURVIVAL_TERRAIN_COLLISION;
+  const blocked = terrain.blocked;
+  const horseJumpableTerrain = terrain.horseJumpableTerrain ?? [];
+  const obstacles = [...(terrain.obstacles ?? [])];
+  for (const resource of medium === 'ground' ? resources : []) {
     if (resource.depleted || resource.tileX < 0 || resource.tileY < 0
       || resource.tileX >= SURVIVAL_WORLD_SIZE || resource.tileY >= SURVIVAL_WORLD_SIZE) continue;
-    obstacles.push(survivalTreeObstacle(resource.tileX, resource.tileY));
+    if (survivalResourceBlocksMovement(resource.kind)) {
+      obstacles.push(survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY));
+    }
   }
-  return { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE, blocked, obstacles };
+  for (const chest of medium === 'ground' ? chests : []) {
+    if (chest.carriedBy !== undefined || chest.tileX < 0 || chest.tileY < 0
+      || chest.tileX >= SURVIVAL_WORLD_SIZE || chest.tileY >= SURVIVAL_WORLD_SIZE) continue;
+    obstacles.push({
+      left: chest.tileX * TILE_SIZE_FIXED,
+      top: chest.tileY * TILE_SIZE_FIXED,
+      right: (chest.tileX + 1) * TILE_SIZE_FIXED,
+      bottom: (chest.tileY + 1) * TILE_SIZE_FIXED,
+    });
+  }
+  return {
+    width: SURVIVAL_WORLD_SIZE,
+    height: SURVIVAL_WORLD_SIZE,
+    blocked,
+    horseJumpableTerrain,
+    obstacles,
+  };
 }
 
 export function resourceHarvestResult(
@@ -61,13 +103,97 @@ export function resourceHarvestResult(
   resource: { readonly kind: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean },
 ): 'ok' | 'depleted' | 'wrong_tool' | 'out_of_range' {
   if (resource.depleted) return 'depleted';
-  if (!isChoppableTreeKind(resource.kind) || selectedItem !== 'axe') return 'wrong_tool';
+  const matchingTool = (isChoppableTreeKind(resource.kind) && selectedItem === 'axe')
+    || ((isMineableOreKind(resource.kind) || isBreakableRockKind(resource.kind)) && selectedItem === 'pickaxe');
+  if (!matchingTool) return 'wrong_tool';
   const resourceX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const resourceY = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const dx = resourceX - playerX;
   const dy = resourceY - playerY;
   if (dx * dx + dy * dy > TREE_REACH_FIXED * TREE_REACH_FIXED) return 'out_of_range';
   return 'ok';
+}
+
+export function resourceGatherResult(
+  playerX: number,
+  playerY: number,
+  resource: { readonly kind: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean },
+): 'ok' | 'depleted' | 'not_gatherable' | 'out_of_range' {
+  if (resource.depleted) return 'depleted';
+  if (!isGatherableResourceKind(resource.kind) || survivalGatherableDrop(resource.kind) === null) return 'not_gatherable';
+  const resourceX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const resourceY = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const dx = resourceX - playerX;
+  const dy = resourceY - playerY;
+  return dx * dx + dy * dy <= ITEM_PICKUP_REACH_FIXED * ITEM_PICKUP_REACH_FIXED ? 'ok' : 'out_of_range';
+}
+
+export type FarmToolUseResult = 'ok'
+  | 'wrong_tool'
+  | 'invalid_tile'
+  | 'out_of_range'
+  | 'not_grass'
+  | 'tile_occupied'
+  | 'already_tilled'
+  | 'not_tilled'
+  | 'already_watered';
+
+/** Only natural grass-surface biomes can become player-authored soil. Cliffs,
+ * beaches, desert, water, and authored dirt terraces remain immutable. */
+export function isTillableSurvivalTile(seed: number, tileX: number, tileY: number): boolean {
+  if (!Number.isInteger(tileX) || !Number.isInteger(tileY)
+    || tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return false;
+  const biome = survivalBiomeAt(seed, tileX, tileY);
+  return biome === 'plains' || biome === 'meadow' || biome === 'forest'
+    || biome === 'valley' || biome === 'highland';
+}
+
+export function farmToolUseResult(
+  seed: number,
+  playerX: number,
+  playerY: number,
+  selectedItem: string,
+  tileX: number,
+  tileY: number,
+  soil: { readonly watered: boolean } | null,
+  occupied: boolean,
+): FarmToolUseResult {
+  if (!Number.isInteger(tileX) || !Number.isInteger(tileY)
+    || tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return 'invalid_tile';
+  if (selectedItem !== 'hoe' && selectedItem !== 'watering_can') return 'wrong_tool';
+  const targetX = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const targetY = tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const dx = targetX - playerX;
+  const dy = targetY - playerY;
+  if (dx * dx + dy * dy > FARM_TOOL_REACH_FIXED * FARM_TOOL_REACH_FIXED) return 'out_of_range';
+  if (selectedItem === 'hoe') {
+    if (!isTillableSurvivalTile(seed, tileX, tileY)) return 'not_grass';
+    if (occupied) return 'tile_occupied';
+    return soil === null ? 'ok' : 'already_tilled';
+  }
+  if (soil === null) return 'not_tilled';
+  return soil.watered ? 'already_watered' : 'ok';
+}
+
+/** Right-click hoe cleanup uses the same authoritative range and inventory
+ * checks as tilling, but only an existing soil row can be restored to grass. */
+export function farmSoilRestoreResult(
+  playerX: number,
+  playerY: number,
+  selectedItem: string,
+  tileX: number,
+  tileY: number,
+  soil: unknown | null,
+): FarmToolUseResult {
+  if (!Number.isInteger(tileX) || !Number.isInteger(tileY)
+    || tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return 'invalid_tile';
+  if (selectedItem !== 'hoe') return 'wrong_tool';
+  const targetX = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const targetY = tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const dx = targetX - playerX;
+  const dy = targetY - playerY;
+  if (dx * dx + dy * dy > FARM_TOOL_REACH_FIXED * FARM_TOOL_REACH_FIXED) return 'out_of_range';
+  return soil === null ? 'not_tilled' : 'ok';
 }
 
 export function itemDropPosition(playerX: number, playerY: number, facing: Direction): { readonly x: number; readonly y: number } {

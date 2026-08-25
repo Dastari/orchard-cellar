@@ -23,4 +23,7 @@ export default __t.row({
   actionKind: __t.string().name("action_kind"),
   actionStartedTick: __t.u64().name("action_started_tick"),
   equippedKind: __t.string().name("equipped_kind"),
+  jumpFromX: __t.option(__t.i32()).name("jump_from_x"),
+  jumpFromY: __t.option(__t.i32()).name("jump_from_y"),
+  jumpUntilTick: __t.option(__t.u64()).name("jump_until_tick"),
 });

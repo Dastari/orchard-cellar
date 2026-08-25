@@ -6,12 +6,19 @@ become later homestead content inside this world.
 
 ## 1. World contract
 
-- One deterministic **192×192 tile** island, seed `0x4f434852` (`OCHR`).
+- One deterministic **320×320 tile** legacy island, seed `0x4f434852` (`OCHR`),
+  translated intact into the centre of an **832×832 tile** surface world. A
+  256-tile ocean apron surrounds every side for long-distance boat travel and
+  future islands.
 - A radial coast plus low-frequency seeded noise produces water, beach, plains,
   meadow, forest, valley, highland, and impassable ridge terrain.
 - The generator lives in pure `packages/sim`; server collision and client rendering
   call the same functions. SpaceTimeDB stores seed/version and mutable entities, not
-  36,864 duplicated terrain rows.
+  hundreds of thousands of duplicated terrain rows.
+- Surface coordinates are migrated by the same fixed +256-tile offset when the
+  ocean apron is installed. Players, NPC/home positions, farms/soil/crops,
+  chests, loose items, and hives therefore stay on their original relative
+  island tile; only deterministic resources are regenerated for the new version.
 - The purchased Cute Fantasy atlas supplies water, path/sand, grass detail,
   hillside, tree, character, and UI visuals. Missing biome-specific tiles use quiet
   palette fills until reviewed semantic extracts land.
@@ -28,8 +35,15 @@ remain M7a work; the M5.7 slice does not grant land permissions.
 
 ## 3. Terrain and resource collision
 
-- Water and ridge tiles block movement. Beaches, plains, meadow, forest floor,
-  valleys, and highlands are walkable.
+- Collision is resolved by a shared traversal medium. `ground` actors are blocked
+  by water and ridges; `water` actors and future boats may cross calm ocean,
+  freshwater, and oasis water but are blocked by every shoreline/land tile,
+  waterfalls, and authored water rocks; `air` actors ignore terrain while still
+  remaining inside world bounds. Add future movement types through this semantic
+  rule rather than bypassing collision in entity-specific code.
+- Beaches, plains, meadow, forest floor, valleys, and highlands are walkable for
+  ground actors. Shoreline blends remain land for water collision, so boats and
+  swimmers cannot visually overlap a bank.
 - Live tree resources use an 8×6 px trunk box at the lower center of their tile;
   depleted trees do not block. The authority
   validates movement against terrain and the current resource table. Client
@@ -62,6 +76,14 @@ declared meanings rather than visual filename inference.
 3. resource is live and tool/resource pairing is valid;
 4. each Axe hit removes one of three tree health; the final hit marks it depleted,
    leaves a persistent stump, and atomically creates one shared Wood ×3 ground stack.
+   Sparse apple, pear, peach, and cherry trees occur only beside river corridors and
+   additionally drop Fruit ×2 matching the visible tree.
+
+Generated inland-water decoration requires a complete 3×3 water neighbourhood; fish
+shadows and all swimming wildlife require 5×5 clearance. Lakes use a sparse mix of
+single and grouped lily pads/flowers, cattails, grasses, rocks, and fish shadows rather
+than filling every interior tile. Two subtle animated surface families are scattered
+only across full 3×3 ocean tiles, never across shoreline blends.
 
 `pickup_world_item(itemId)` checks authoritative reach and stacks into a matching or
 empty private slot before deleting the shared row. `drop_selected()` takes no item,

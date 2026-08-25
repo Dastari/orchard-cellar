@@ -9,6 +9,13 @@ export interface PixelUi {
   readonly panel: LoadedAsset;
 }
 
+export interface PixelTextOptions {
+  readonly align?: CanvasTextAlign;
+  readonly scale?: number;
+  readonly color?: string;
+  readonly font?: 'body' | 'header';
+}
+
 interface FontMetrics {
   readonly charset: string;
   readonly glyphWidth: number;
@@ -78,12 +85,7 @@ export function drawPixelText(
   text: string,
   x: number,
   y: number,
-  options: {
-    readonly align?: CanvasTextAlign;
-    readonly scale?: number;
-    readonly color?: string;
-    readonly font?: 'body' | 'header';
-  } = {},
+  options: PixelTextOptions = {},
 ): void {
   const asset = options.font === 'header' ? ui.headerFont : ui.font;
   const frame = baseFrame(asset);
@@ -116,6 +118,27 @@ export function drawPixelText(
     }
     cursor += metrics.cellWidth * scale;
   }
+}
+
+/** Bitmap-font outline rendered as eight one-pixel neighbours, preserving the
+ * crisp authored glyph instead of applying a browser-smoothed text stroke. */
+export function drawOutlinedPixelText(
+  context: CanvasRenderingContext2D,
+  ui: PixelUi,
+  text: string,
+  x: number,
+  y: number,
+  options: PixelTextOptions & { readonly outlineColor?: string } = {},
+): void {
+  const outlineColor = options.outlineColor ?? '#f8ead0';
+  for (const [offsetX, offsetY] of [
+    [-1, -1], [0, -1], [1, -1],
+    [-1, 0], [1, 0],
+    [-1, 1], [0, 1], [1, 1],
+  ] as const) {
+    drawPixelText(context, ui, text, x + offsetX, y + offsetY, { ...options, color: outlineColor });
+  }
+  drawPixelText(context, ui, text, x, y, options);
 }
 
 export function drawPixelPanel(

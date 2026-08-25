@@ -1,0 +1,99 @@
+name: orchard-auth
+
+services:
+  postgres:
+    image: docker.io/library/postgres:17.11-alpine3.24@sha256:7456ef82e5f5bc43d997f4781bbd7c0d6389bff397564649a356e206ba473aee
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - keycloak-postgres:/var/lib/postgresql/data
+    networks:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  keycloak:
+    image: orchard-keycloak:26.7.2-optimized
+    build:
+      context: .
+      dockerfile: Containerfile.keycloak
+    pull_policy: never
+    restart: unless-stopped
+    command: ["start", "--optimized", "--import-realm"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER:?set POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      KC_HOSTNAME: https://auth.orchard.dastari.net
+      KC_HTTP_ENABLED: "false"
+      KC_HTTPS_CERTIFICATE_FILE: /run/orchard-tls/server.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /run/orchard-tls/server.key
+      KC_HTTPS_PORT: "8443"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_HTTP_MANAGEMENT_SCHEME: http
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:?set bootstrap username}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?set bootstrap password}
+      KC_LOG_LEVEL: INFO
+      # Realm events remain audited in PostgreSQL. Console event records can include
+      # redirect_uri query parameters (including one-time OIDC codes) on failures.
+      KC_LOG_LEVEL_ORG_KEYCLOAK_EVENTS: "off"
+      KC_LOG_CONSOLE_OUTPUT: default
+    ports:
+      - "10.0.1.150:8443:8443"
+    volumes:
+      - ./realm:/opt/keycloak/data/import:ro
+      - ./tls:/run/orchard-tls:ro
+    networks:
+      - database
+      - edge
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '200 OK' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 45s
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /opt/keycloak/data/tmp:size=64m,uid=1000,gid=0,mode=0770
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+volumes:
+  keycloak-postgres:
+
+networks:
+  database:
+    internal: true
+  edge:
+    driver: bridge

@@ -29,10 +29,17 @@ export interface PlayerState {
   readonly location: 'estate' | 'cellar';
 }
 
+/** The surface an actor is physically allowed to traverse. Collision maps are
+ * resolved for one medium so the ordinary movement solver can be shared by
+ * walking actors, swimmers, flying actors, and future boats. */
+export type MovementMedium = 'ground' | 'water' | 'air';
+
 export interface CollisionMap {
   readonly width: number;
   readonly height: number;
   readonly blocked: readonly boolean[];
+  /** Blocked terrain tiles a mounted horse may cross during a jump. */
+  readonly horseJumpableTerrain?: readonly boolean[];
   /** Optional fixed-point AABBs for sub-tile blockers such as tree trunks. */
   readonly obstacles?: readonly CollisionObstacle[];
 }

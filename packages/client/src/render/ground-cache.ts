@@ -1,4 +1,4 @@
-import { SURVIVAL_CHUNK_TILES, TILE_SIZE_PIXELS, survivalTrailAt, type SurvivalBiome } from '@orchard/sim';
+import { SURVIVAL_CHUNK_TILES, TILE_SIZE_PIXELS, type SurvivalBiome } from '@orchard/sim';
 import type { OverworldArt } from '../overworld-art.js';
 import type { LoadedAsset } from './assets.js';
 import { selectAtlasFrame } from './sprite.js';
@@ -6,14 +6,23 @@ import {
   beachFrameIndexAt,
   cliffFrameIndexAt,
   desertCliffFrameIndexAt,
+  desertGrassEdgeFrameIndexAt,
+  desertGrassInsetFrameIndicesAt,
   desertShoreFrameIndexAt,
+  grassSandTransitionFrameIndexAt,
+  savannaGrassTransitionFrameIndexAt,
+  shorelineInsetFrameIndicesAt,
+  dirtTerraceFrameIndexAt,
+  dirtTerraceRampFrameIndexAt,
   freshwaterFrameIndexAt,
+  plateauLayerPlanAt,
+  terrainDecorationHash,
   terrainBiomeAt,
   terrainColorAt,
+  waterDecorationAllowedAt,
   waterfallFrameIndexAt,
   type TerrainArray,
 } from './terrain.js';
-import { blob47FrameIndexFor } from './tilemap.js';
 
 export const GROUND_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 
@@ -71,10 +80,6 @@ export class ChunkLruCache<T> {
   }
 }
 
-function tileHash(x: number, y: number): number {
-  return (Math.imul(x, 73_856_093) ^ Math.imul(y, 19_349_663)) >>> 0;
-}
-
 function drawGroundAsset(
   context: CanvasRenderingContext2D,
   asset: LoadedAsset,
@@ -97,17 +102,51 @@ function drawGroundAsset(
   );
 }
 
+/** Frame zero in the grass-fringe blob sheet is intentionally solid grass.
+ * Compose its authored north/south halves for an isolated sandy tile, matching
+ * the reusable farmland renderer's handling of the same source sheet. */
+function drawGrassSandTransition(
+  context: CanvasRenderingContext2D,
+  asset: LoadedAsset,
+  tileX: number,
+  tileY: number,
+  frameIndex: number,
+): void {
+  if (frameIndex !== 0) {
+    drawGroundAsset(context, asset, tileX, tileY, frameIndex);
+    return;
+  }
+  const destinationX = tileX * TILE_SIZE_PIXELS;
+  const destinationY = tileY * TILE_SIZE_PIXELS;
+  for (const [sourceFrame, sourceY, destinationOffset] of [[5, 0, 0], [1, 8, 8]] as const) {
+    const source = selectAtlasFrame(asset.metadata, 'base', sourceFrame);
+    if (source === null) continue;
+    context.drawImage(
+      asset.image,
+      source.x,
+      source.y + sourceY,
+      source.width,
+      8,
+      destinationX,
+      destinationY + destinationOffset,
+      source.width,
+      8,
+    );
+  }
+}
+
 function groundAssetForBiome(art: OverworldArt, biome: SurvivalBiome): LoadedAsset {
   if (biome === 'water' || biome === 'oasis_water') return art.water;
   if (biome === 'freshwater') return art.grass;
-  if (biome === 'waterfall') return art.highlandGrass;
+  if (biome === 'waterfall') return art.grass;
   if (biome === 'beach') return art.beach;
+  // Coastal cliff art is transparent outside the authored rock face. Sand is
+  // the correct substrate there; using the default grass base made those
+  // transparent pixels look like opaque green slabs around the cliff.
+  if (biome === 'coastal_cliff') return art.beach;
   if (biome === 'desert_shore') return art.desertShore;
   if (biome === 'desert' || biome === 'desert_ridge') return art.desert;
   if (biome === 'oasis' || biome === 'savanna') return art.desertGrass;
-  if (biome === 'meadow') return art.meadowGrass;
-  if (biome === 'valley') return art.valleyGrass;
-  if (biome === 'highland' || biome === 'ridge' || biome === 'coastal_cliff') return art.highlandGrass;
   return art.grass;
 }
 
@@ -197,36 +236,92 @@ export class GroundChunkCache {
         context.fillRect(destinationX, destinationY, TILE_SIZE_PIXELS, TILE_SIZE_PIXELS);
         const base = groundAssetForBiome(art, biome);
         const baseFrame = biome === 'beach' ? beachFrameIndexAt(terrain, tileX, tileY)
+          : biome === 'coastal_cliff' ? 4
           : biome === 'desert_shore' ? desertShoreFrameIndexAt(terrain, tileX, tileY)
             : 0;
         drawGroundAsset(context, base, localX, localY, baseFrame);
 
-        if (biome === 'freshwater') {
-          drawGroundAsset(context, art.freshwater, localX, localY, freshwaterFrameIndexAt(terrain, tileX, tileY));
+        for (const shorelineInsetFrame of shorelineInsetFrameIndicesAt(terrain, tileX, tileY)) {
+          drawGroundAsset(
+            context,
+            biome === 'beach' ? art.beachInset : art.desertShoreInset,
+            localX,
+            localY,
+            shorelineInsetFrame,
+          );
         }
+
+        const grassSandFrame = grassSandTransitionFrameIndexAt(terrain, tileX, tileY);
+        if (grassSandFrame !== null) drawGrassSandTransition(
+          context,
+          art.farmlandGrassInset,
+          localX,
+          localY,
+          grassSandFrame,
+        );
+
+        const savannaGrassFrame = savannaGrassTransitionFrameIndexAt(terrain, tileX, tileY);
+        if (savannaGrassFrame !== null) drawGrassSandTransition(
+          context,
+          art.savannaGrassInset,
+          localX,
+          localY,
+          savannaGrassFrame,
+        );
+
+        const desertGrassFrame = desertGrassEdgeFrameIndexAt(terrain, tileX, tileY);
+        if (desertGrassFrame !== null) drawGroundAsset(
+          context,
+          art.desertGrassEdge,
+          localX,
+          localY,
+          desertGrassFrame,
+        );
+        for (const desertGrassInsetFrame of desertGrassInsetFrameIndicesAt(terrain, tileX, tileY)) {
+          drawGroundAsset(context, art.desertGrassInset, localX, localY, desertGrassInsetFrame);
+        }
+
+        if (biome === 'freshwater') drawGroundAsset(
+          context,
+          art.freshwater,
+          localX,
+          localY,
+          freshwaterFrameIndexAt(terrain, tileX, tileY),
+        );
 
         const waterfallFrame = waterfallFrameIndexAt(terrain, tileX, tileY);
         if (waterfallFrame !== null) drawGroundAsset(context, art.waterfall, localX, localY, waterfallFrame);
 
-        if (survivalTrailAt(tileX, tileY)) {
-          const pathFrame = blob47FrameIndexFor((offsetX, offsetY) => survivalTrailAt(tileX + offsetX, tileY + offsetY));
-          drawGroundAsset(context, art.path, localX, localY, pathFrame);
+        const dirtTerraceFrame = dirtTerraceFrameIndexAt(terrain, tileX, tileY);
+        if (dirtTerraceFrame !== null) {
+          drawGroundAsset(context, art.dirtTerrace, localX, localY, dirtTerraceFrame);
+          drawGroundAsset(context, art.dirtCliffEdge, localX, localY, dirtTerraceFrame);
         }
+        const dirtRampFrame = dirtTerraceRampFrameIndexAt(terrain, tileX, tileY);
+        if (dirtRampFrame !== null) drawGroundAsset(context, art.dirtCliffRamp, localX, localY, dirtRampFrame);
+
+        const plateau = plateauLayerPlanAt(terrain, tileX, tileY);
+        for (const face of plateau.faceLayers) {
+          drawGroundAsset(context, art.cliff, localX, localY, face.frame);
+        }
+        if (plateau.edgeFrame !== null) drawGroundAsset(context, art.cliff, localX, localY, plateau.edgeFrame);
+        for (const insetFrame of plateau.insetFrames) {
+          drawGroundAsset(context, art.stoneCliffInverseOverlay, localX, localY, insetFrame);
+        }
+        if (plateau.rampFrame !== null) drawGroundAsset(context, art.grassCliffRamp, localX, localY, plateau.rampFrame);
 
         const cliffFrame = cliffFrameIndexAt(terrain, tileX, tileY);
         if (cliffFrame !== null) {
-          const cliffVariants = [art.cliff, art.cliff2, art.cliff3, art.cliff4] as const;
-          const geology = tileHash(Math.floor(tileX / 32), Math.floor(tileY / 32)) % cliffVariants.length;
-          drawGroundAsset(context, cliffVariants[geology] ?? art.cliff, localX, localY, cliffFrame);
+          // Coastal faces use Stone Cliff 3 over sand. Raised inland plateaus
+          // deliberately keep Stone Cliff 1's dark-grass cap above.
+          drawGroundAsset(context, art.coastalCliffOverlay, localX, localY, cliffFrame);
         }
         const desertCliffFrame = desertCliffFrameIndexAt(terrain, tileX, tileY);
         if (desertCliffFrame !== null) drawGroundAsset(context, art.desertCliff, localX, localY, desertCliffFrame);
 
-        const hash = tileHash(tileX, tileY);
-        if ((biome === 'water' || biome === 'freshwater' || biome === 'oasis_water') && hash % 13 === 0) {
+        const hash = terrainDecorationHash(tileX, tileY);
+        if (waterDecorationAllowedAt(terrain, tileX, tileY) && hash % 37 === 0) {
           drawGroundAsset(context, art.waterRipples, localX, localY);
-        } else if ((biome === 'plains' || biome === 'meadow' || biome === 'forest') && hash % (biome === 'meadow' ? 9 : 23) === 0) {
-          drawGroundAsset(context, art.grassTuft, localX, localY);
         }
       }
     }

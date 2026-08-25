@@ -2,6 +2,8 @@ import {
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
   SURVIVAL_TREE_KINDS,
+  SURVIVAL_ORE_KINDS,
+  FIXED_UNITS_PER_PIXEL,
   TILE_SIZE_FIXED,
   generateSurvivalResources,
   survivalBiomeAt,
@@ -18,7 +20,10 @@ import {
   createMmoFarmCollisionMap,
   decodeDirection,
   farmParcelLayout,
+  farmToolUseResult,
+  farmSoilRestoreResult,
   isFarmBedTile,
+  isTillableSurvivalTile,
   itemDropPosition,
   itemWithinPickupReach,
   inputIsStale,
@@ -29,6 +34,7 @@ import {
   nextActionStartedTick,
   presenceLeaseExpired,
   resourceHarvestResult,
+  resourceGatherResult,
   settleMovementRun,
 } from './world-rules.js';
 
@@ -151,7 +157,7 @@ describe('overworld authority rules', () => {
     }));
     const water = terrain.find(({ tileX, tileY }) => survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY) === 'water');
     const ridge = terrain.find(({ tileX, tileY }) => survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY) === 'ridge');
-    const resource = generateSurvivalResources()[0];
+    const resource = generateSurvivalResources().find((candidate) => candidate.kind.startsWith('tree_'));
     if (!water || !ridge || !resource) throw new Error('missing generated-world fixture');
 
     const live = createAuthoritySurvivalCollisionMap([{ ...resource, depleted: false }]);
@@ -164,8 +170,24 @@ describe('overworld authority rules', () => {
     expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(false);
   });
 
+  it('allows water traversal while blocking shorelines and water rocks', () => {
+    const collision = createAuthoritySurvivalCollisionMap([], [], 'water');
+    let waterIndex = -1;
+    let beachIndex = -1;
+    for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE && (waterIndex < 0 || beachIndex < 0); tileY += 1) {
+      for (let tileX = 0; tileX < SURVIVAL_WORLD_SIZE && (waterIndex < 0 || beachIndex < 0); tileX += 1) {
+        const biome = survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY);
+        if (biome === 'water') waterIndex = tileY * SURVIVAL_WORLD_SIZE + tileX;
+        if (biome === 'beach') beachIndex = tileY * SURVIVAL_WORLD_SIZE + tileX;
+      }
+    }
+    expect(collision.blocked[waterIndex]).toBe(false);
+    expect(collision.blocked[beachIndex]).toBe(true);
+    expect(collision.obstacles?.length).toBeGreaterThan(0);
+  });
+
   it('requires the matching tool and authoritative two-tile harvesting reach', () => {
-    const resource = generateSurvivalResources()[0];
+    const resource = generateSurvivalResources().find((candidate) => candidate.kind.startsWith('tree_'));
     if (!resource) throw new Error('missing generated resource fixture');
     const x = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     const y = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
@@ -175,9 +197,59 @@ describe('overworld authority rules', () => {
     }
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind: 'rock', depleted: false })).toBe('wrong_tool');
     expect(resourceHarvestResult(x, y, 'pickaxe', { ...resource, depleted: false })).toBe('wrong_tool');
+    for (const kind of SURVIVAL_ORE_KINDS) {
+      expect(resourceHarvestResult(x, y, 'pickaxe', { ...resource, kind, depleted: false })).toBe('ok');
+      expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind, depleted: false })).toBe('wrong_tool');
+    }
+    expect(resourceHarvestResult(x, y, 'pickaxe', { ...resource, kind: 'rock_large', depleted: false })).toBe('ok');
+    expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind: 'rock_large', depleted: false })).toBe('wrong_tool');
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, depleted: true })).toBe('depleted');
     expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');
     expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED + 1, y, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
+  });
+
+  it('allows nearby loose resources to be gathered without a tool', () => {
+    const resource = { kind: 'loose_stone', tileX: 10, tileY: 10, depleted: false };
+    const x = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const y = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(resourceGatherResult(x, y, resource)).toBe('ok');
+    expect(resourceGatherResult(x, y, { ...resource, kind: 'fallen_branch' })).toBe('ok');
+    expect(resourceGatherResult(x, y, { ...resource, kind: 'rock_large' })).toBe('not_gatherable');
+    expect(resourceGatherResult(x, y, { ...resource, depleted: true })).toBe('depleted');
+    expect(resourceGatherResult(x + 25 * FIXED_UNITS_PER_PIXEL, y, resource)).toBe('out_of_range');
+  });
+
+  it('authorizes hoeing and watering from tool, terrain, occupancy, state, and reach', () => {
+    let grass: { tileX: number; tileY: number } | undefined;
+    let water: { tileX: number; tileY: number } | undefined;
+    for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE && (!grass || !water); tileY += 1) {
+      for (let tileX = 0; tileX < SURVIVAL_WORLD_SIZE && (!grass || !water); tileX += 1) {
+        const tile = { tileX, tileY };
+        if (!grass && isTillableSurvivalTile(SURVIVAL_WORLD_SEED, tileX, tileY)) grass = tile;
+        if (!water && survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY) === 'water') water = tile;
+      }
+    }
+    if (!grass || !water) throw new Error('missing farmland terrain fixtures');
+    const playerX = grass.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const playerY = grass.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX, grass.tileY, null, false)).toBe('ok');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'axe', grass.tileX, grass.tileY, null, false)).toBe('wrong_tool');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX, grass.tileY, null, true)).toBe('tile_occupied');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX, grass.tileY, { watered: false }, false)).toBe('already_tilled');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, null, false)).toBe('not_tilled');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, { watered: false }, false)).toBe('ok');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, { watered: true }, false)).toBe('already_watered');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', water.tileX, water.tileY, null, false)).toBe('out_of_range');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX + 3, grass.tileY, null, false)).toBe('out_of_range');
+    const waterX = water.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const waterY = water.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, waterX, waterY, 'hoe', water.tileX, water.tileY, null, false)).toBe('not_grass');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', -1, grass.tileY, null, false)).toBe('invalid_tile');
+    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX, grass.tileY, { watered: true })).toBe('ok');
+    expect(farmSoilRestoreResult(playerX, playerY, 'watering_can', grass.tileX, grass.tileY, {})).toBe('wrong_tool');
+    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX, grass.tileY, null)).toBe('not_tilled');
+    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX + 3, grass.tileY, {})).toBe('out_of_range');
+    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', -1, grass.tileY, {})).toBe('invalid_tile');
   });
 
   it('derives ground-item placement and pickup reach from authority state', () => {

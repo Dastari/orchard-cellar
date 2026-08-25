@@ -1,0 +1,79 @@
+{
+  "name": "nature_cf_water_flower_01",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "sway": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "....11.11.......",
+        "...01515510.....",
+        "..0154354410....",
+        "..0154444510....",
+        "..0135545310....",
+        "..0012332100....",
+        "...000000000....",
+        "....0000000.....",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "sway": "animation"
+  },
+  "animationFps": {
+    "sway": 1
+  },
+  "animationLoop": {
+    "sway": true
+  },
+  "sourcePalette": {
+    "0": "#006da8",
+    "1": "#134c4c",
+    "2": "#1e6f50",
+    "3": "#33984b",
+    "4": "#5ac54f",
+    "5": "#99e65f"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Outdoor_Decor.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor.png",
+  "sourceRegions": {
+    "sway": [
+      [
+        80,
+        272,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

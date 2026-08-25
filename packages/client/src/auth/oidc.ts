@@ -1,4 +1,14 @@
-const DEFAULT_ISSUER = 'https://auth.spacetimedb.com/oidc';
+import {
+  decodeJwtClaims,
+  encodeBase64Url,
+  validateIdTokenClaims,
+  verifyIdTokenSignature,
+  type JwtClaims,
+} from './oidc-token.js';
+
+export { decodeJwtClaims, validateIdTokenClaims } from './oidc-token.js';
+
+const DEFAULT_ISSUER = 'https://auth.orchard.dastari.net/realms/orchard';
 const SESSION_KEY = 'orchard:oidc:session:v1';
 const PENDING_KEY = 'orchard:oidc:pending:v1';
 const EXPIRY_SKEW_MS = 30_000;
@@ -9,6 +19,7 @@ export interface OidcSession {
   readonly expiresAt: number;
   readonly subject: string;
   readonly displayName: string;
+  readonly emailVerified: boolean;
   readonly issuer: string;
 }
 
@@ -19,23 +30,20 @@ interface OidcPending {
   readonly redirectUri: string;
 }
 
+interface OidcDiscovery {
+  readonly issuer: string;
+  readonly authorization_endpoint: string;
+  readonly token_endpoint: string;
+  readonly jwks_uri: string;
+  readonly end_session_endpoint?: string;
+  readonly revocation_endpoint?: string;
+}
+
 interface TokenResponse {
   readonly id_token?: unknown;
   readonly refresh_token?: unknown;
   readonly expires_in?: unknown;
   readonly error?: unknown;
-  readonly error_description?: unknown;
-}
-
-interface JwtClaims {
-  readonly iss?: unknown;
-  readonly aud?: unknown;
-  readonly sub?: unknown;
-  readonly exp?: unknown;
-  readonly nonce?: unknown;
-  readonly preferred_username?: unknown;
-  readonly name?: unknown;
-  readonly email?: unknown;
 }
 
 interface StorageLike {
@@ -47,6 +55,10 @@ interface StorageLike {
 export const oidcIssuer = (import.meta.env['VITE_OIDC_ISSUER'] as string | undefined)?.replace(/\/$/, '') ?? DEFAULT_ISSUER;
 export const oidcClientId = (import.meta.env['VITE_OIDC_CLIENT_ID'] as string | undefined)?.trim() ?? '';
 export const oidcConfigured = oidcClientId.length > 0;
+export const localProfilesEnabled = import.meta.env.DEV
+  && (import.meta.env['VITE_ENABLE_LOCAL_PROFILES'] as string | undefined) === 'true';
+
+let discoveryPromise: Promise<OidcDiscovery> | null = null;
 
 function browserSessionStorage(): StorageLike | null {
   return typeof sessionStorage === 'undefined' ? null : sessionStorage;
@@ -57,10 +69,11 @@ function redirectUri(): string {
   return configured || new URL('/', location.origin).toString();
 }
 
-function encodeBase64Url(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+function allowedEndpoint(endpoint: string): boolean {
+  const url = new URL(endpoint);
+  const issuer = new URL(oidcIssuer);
+  if (url.origin !== issuer.origin) return false;
+  return url.protocol === 'https:' || (import.meta.env.DEV && url.hostname === 'localhost');
 }
 
 function randomValue(bytes = 32): string {
@@ -74,24 +87,6 @@ async function challengeFor(verifier: string): Promise<string> {
   return encodeBase64Url(new Uint8Array(digest));
 }
 
-export function decodeJwtClaims(token: string): JwtClaims | null {
-  try {
-    const payload = token.split('.')[1];
-    if (!payload) return null;
-    const padded = payload.replaceAll('-', '+').replaceAll('_', '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
-    const bytes = Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
-    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
-    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed as JwtClaims : null;
-  } catch {
-    return null;
-  }
-}
-
-function audiences(claim: unknown): readonly string[] {
-  if (typeof claim === 'string') return [claim];
-  return Array.isArray(claim) ? claim.filter((entry): entry is string => typeof entry === 'string') : [];
-}
-
 function displayNameFor(claims: JwtClaims): string {
   for (const candidate of [claims.preferred_username, claims.name, claims.email]) {
     if (typeof candidate === 'string' && candidate.trim().length > 0) return candidate.trim().slice(0, 20);
@@ -99,21 +94,59 @@ function displayNameFor(claims: JwtClaims): string {
   return 'Farmer';
 }
 
-function sessionForToken(idToken: string, refreshToken: string | null, expectedNonce?: string): OidcSession {
-  const claims = decodeJwtClaims(idToken);
-  if (!claims || typeof claims.iss !== 'string' || typeof claims.sub !== 'string' || typeof claims.exp !== 'number') {
-    throw new Error('The identity provider returned an invalid identity token.');
+function validateDiscovery(value: unknown): OidcDiscovery {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('The account service is unavailable.');
   }
-  if (claims.iss.replace(/\/$/, '') !== oidcIssuer) throw new Error('The identity token came from an unexpected issuer.');
-  if (!audiences(claims.aud).includes(oidcClientId)) throw new Error('The identity token was not issued for this game.');
-  if (expectedNonce !== undefined && claims.nonce !== expectedNonce) throw new Error('The login response nonce did not match.');
-  if (claims.exp * 1000 <= Date.now()) throw new Error('The identity token has already expired.');
+  const candidate = value as Partial<OidcDiscovery>;
+  const endpoints = [candidate.authorization_endpoint, candidate.token_endpoint, candidate.jwks_uri];
+  if (candidate.issuer !== oidcIssuer || endpoints.some((endpoint) => typeof endpoint !== 'string' || !allowedEndpoint(endpoint))) {
+    throw new Error('The account service configuration is invalid.');
+  }
+  if (candidate.end_session_endpoint !== undefined && !allowedEndpoint(candidate.end_session_endpoint)) {
+    throw new Error('The account service configuration is invalid.');
+  }
+  if (candidate.revocation_endpoint !== undefined && !allowedEndpoint(candidate.revocation_endpoint)) {
+    throw new Error('The account service configuration is invalid.');
+  }
+  return candidate as OidcDiscovery;
+}
+
+export async function oidcDiscovery(): Promise<OidcDiscovery> {
+  discoveryPromise ??= fetch(`${oidcIssuer}/.well-known/openid-configuration`, {
+    headers: { accept: 'application/json' },
+    cache: 'no-store',
+    credentials: 'omit',
+    referrerPolicy: 'no-referrer',
+  }).then(async (response) => {
+    if (!response.ok) throw new Error('The account service is unavailable.');
+    return validateDiscovery(await response.json() as unknown);
+  }).catch((error: unknown) => {
+    discoveryPromise = null;
+    throw error;
+  });
+  return discoveryPromise;
+}
+
+async function sessionForToken(
+  idToken: string,
+  refreshToken: string | null,
+  expectedNonce?: string,
+): Promise<OidcSession> {
+  const discovery = await oidcDiscovery();
+  await verifyIdTokenSignature(idToken, discovery.jwks_uri);
+  const claims = decodeJwtClaims(idToken);
+  validateIdTokenClaims(claims, expectedNonce, Date.now(), oidcIssuer, oidcClientId);
+  if (claims === null || typeof claims.sub !== 'string' || typeof claims.exp !== 'number' || typeof claims.iss !== 'string') {
+    throw new Error('The account service returned an invalid identity token.');
+  }
   return {
     idToken,
     refreshToken,
     expiresAt: claims.exp * 1000,
     subject: claims.sub,
     displayName: displayNameFor(claims),
+    emailVerified: claims.email_verified === true,
     issuer: claims.iss,
   };
 }
@@ -124,7 +157,11 @@ function readRawSession(storage = browserSessionStorage()): OidcSession | null {
     const parsed = JSON.parse(storage.getItem(SESSION_KEY) ?? 'null') as Partial<OidcSession> | null;
     if (!parsed || typeof parsed.idToken !== 'string' || typeof parsed.expiresAt !== 'number'
       || typeof parsed.subject !== 'string' || typeof parsed.displayName !== 'string' || typeof parsed.issuer !== 'string') return null;
-    return { ...parsed, refreshToken: typeof parsed.refreshToken === 'string' ? parsed.refreshToken : null } as OidcSession;
+    return {
+      ...parsed,
+      refreshToken: typeof parsed.refreshToken === 'string' ? parsed.refreshToken : null,
+      emailVerified: parsed.emailVerified === true,
+    } as OidcSession;
   } catch {
     return null;
   }
@@ -144,30 +181,33 @@ export function clearOidcSession(storage = browserSessionStorage()): void {
   storage?.removeItem(PENDING_KEY);
 }
 
-async function requestTokens(parameters: URLSearchParams): Promise<TokenResponse> {
-  const response = await fetch(`${oidcIssuer}/token`, {
+async function requestTokens(endpoint: string, parameters: URLSearchParams): Promise<TokenResponse> {
+  const response = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
     body: parameters,
+    credentials: 'omit',
+    cache: 'no-store',
+    referrerPolicy: 'no-referrer',
   });
   const result = await response.json() as TokenResponse;
   if (!response.ok || typeof result.error === 'string') {
-    throw new Error(typeof result.error_description === 'string' ? result.error_description : 'The identity provider rejected the login request.');
+    throw new Error(result.error === 'invalid_grant'
+      ? 'The login session expired or was already used. Please sign in again.'
+      : 'The account service rejected the login request.');
   }
   return result;
 }
 
 export async function beginOidcLogin(storage = browserSessionStorage()): Promise<void> {
-  if (!oidcConfigured) throw new Error('Set VITE_OIDC_CLIENT_ID before using account login.');
+  if (!oidcConfigured) throw new Error('Account login is not configured.');
   if (!storage) throw new Error('Browser session storage is unavailable.');
   const pending: OidcPending = {
-    state: randomValue(),
-    nonce: randomValue(),
-    verifier: randomValue(48),
-    redirectUri: redirectUri(),
+    state: randomValue(), nonce: randomValue(), verifier: randomValue(48), redirectUri: redirectUri(),
   };
   storage.setItem(PENDING_KEY, JSON.stringify(pending));
-  const url = new URL(`${oidcIssuer}/auth`);
+  const discovery = await oidcDiscovery();
+  const url = new URL(discovery.authorization_endpoint);
   url.search = new URLSearchParams({
     client_id: oidcClientId,
     redirect_uri: pending.redirectUri,
@@ -186,11 +226,13 @@ export function hasOidcCallback(search = location.search): boolean {
   return parameters.has('code') || parameters.has('error');
 }
 
-export async function completeOidcCallback(search = location.search, storage = browserSessionStorage()): Promise<OidcSession> {
+export async function completeOidcCallback(
+  search = location.search,
+  storage = browserSessionStorage(),
+): Promise<OidcSession> {
   if (!oidcConfigured || !storage) throw new Error('Account login is not configured.');
   const parameters = new URLSearchParams(search);
-  const providerError = parameters.get('error');
-  if (providerError !== null) throw new Error(parameters.get('error_description') ?? 'Login was cancelled.');
+  if (parameters.has('error')) throw new Error('Login was cancelled or rejected.');
   const code = parameters.get('code');
   const state = parameters.get('state');
   let pending: OidcPending | null;
@@ -199,15 +241,20 @@ export async function completeOidcCallback(search = location.search, storage = b
   if (!code || !state || !pending || state !== pending.state || !pending.verifier || !pending.nonce) {
     throw new Error('The login response did not match the request. Please try again.');
   }
-  const result = await requestTokens(new URLSearchParams({
+  const discovery = await oidcDiscovery();
+  const result = await requestTokens(discovery.token_endpoint, new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: oidcClientId,
     code,
     redirect_uri: pending.redirectUri,
     code_verifier: pending.verifier,
   }));
-  if (typeof result.id_token !== 'string') throw new Error('The identity provider did not return an identity token.');
-  const session = sessionForToken(result.id_token, typeof result.refresh_token === 'string' ? result.refresh_token : null, pending.nonce);
+  if (typeof result.id_token !== 'string') throw new Error('The account service did not return an identity token.');
+  const session = await sessionForToken(
+    result.id_token,
+    typeof result.refresh_token === 'string' ? result.refresh_token : null,
+    pending.nonce,
+  );
   writeSession(session, storage);
   return session;
 }
@@ -221,17 +268,52 @@ export async function ensureOidcSession(storage = browserSessionStorage()): Prom
     return null;
   }
   try {
-    const result = await requestTokens(new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: oidcClientId,
-      refresh_token: expired.refreshToken,
+    const discovery = await oidcDiscovery();
+    const result = await requestTokens(discovery.token_endpoint, new URLSearchParams({
+      grant_type: 'refresh_token', client_id: oidcClientId, refresh_token: expired.refreshToken,
     }));
-    const idToken = typeof result.id_token === 'string' ? result.id_token : expired.idToken;
-    const session = sessionForToken(idToken, typeof result.refresh_token === 'string' ? result.refresh_token : expired.refreshToken);
+    if (typeof result.id_token !== 'string') throw new Error('The account service did not refresh the identity token.');
+    const session = await sessionForToken(
+      result.id_token,
+      typeof result.refresh_token === 'string' ? result.refresh_token : expired.refreshToken,
+    );
     writeSession(session, storage);
     return session;
   } catch {
     clearOidcSession(storage);
     return null;
   }
+}
+
+export async function signOutOidc(storage = browserSessionStorage()): Promise<void> {
+  const session = readRawSession(storage);
+  clearOidcSession(storage);
+  if (!oidcConfigured) {
+    location.assign('/');
+    return;
+  }
+  try {
+    const discovery = await oidcDiscovery();
+    if (session?.refreshToken && discovery.revocation_endpoint) {
+      await fetch(discovery.revocation_endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: oidcClientId, token: session.refreshToken, token_type_hint: 'refresh_token' }),
+        credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+      }).catch(() => undefined);
+    }
+    if (discovery.end_session_endpoint) {
+      const logout = new URL(discovery.end_session_endpoint);
+      logout.search = new URLSearchParams({
+        client_id: oidcClientId,
+        post_logout_redirect_uri: redirectUri(),
+      }).toString();
+      location.assign(logout.toString());
+      return;
+    }
+  } catch {
+    // Browser credentials are already cleared. A provider outage must not trap
+    // the player in a locally authenticated state.
+  }
+  location.assign('/');
 }

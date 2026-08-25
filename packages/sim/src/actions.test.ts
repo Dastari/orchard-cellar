@@ -14,12 +14,20 @@ describe('avatar action registry', () => {
       interruptibleByMovement: false,
       equippedKind: 'axe',
     });
+    expect(AVATAR_ACTIONS.swing_pickaxe).toEqual({
+      playback: 'oneShot',
+      interruptibleByMovement: false,
+      equippedKind: 'pickaxe',
+    });
     expect(AVATAR_ACTIONS.fishing_wait).toEqual({ playback: 'loop', interruptibleByMovement: true });
   });
 
   it('maps equipment to its shared action without client-side tool rules', () => {
     expect(avatarActionForEquippedKind('axe')).toBe('swing_axe');
-    expect(avatarActionForEquippedKind('watering_can')).toBeNull();
+    expect(avatarActionForEquippedKind('pickaxe')).toBe('swing_pickaxe');
+    expect(avatarActionForEquippedKind('hoe')).toBe('swing_hoe');
+    expect(avatarActionForEquippedKind('watering_can')).toBe('water');
+    expect(avatarActionForEquippedKind('bow')).toBe('ranged_weapon');
   });
 
   it('clears only movement-interruptible loops', () => {

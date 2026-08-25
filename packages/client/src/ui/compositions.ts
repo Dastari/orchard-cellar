@@ -16,15 +16,22 @@ export function craftingWindow(binding: ContainerBinding = 'dev:crafting'): Widg
 }
 
 export function packWindow(backpack: ContainerBinding = 'self:backpack', equipment = 'self:equipment'): WidgetNode {
-  const paperDoll = widget('column', 'column.paper_doll', { props: { binding: equipment } })
-    .add(...Array.from({ length: 4 }, (_, index) => widget('slot', `slot.equipment.${index}`, {
-      minSize: { width: 28, height: 31 }, props: { binding: equipment, index },
+  const paperDoll = widget('inventory_grid', 'grid.paper_doll', { props: { binding: equipment, columns: 3, rows: 3 } })
+    .add(...Array.from({ length: 8 }, (_, index) => widget('slot', `slot.equipment.${index}`, {
+      minSize: { width: 28, height: 31 }, enabled: false, props: { binding: equipment, index, disabled: true },
     })));
-  return widget('window', 'window.pack', { minSize: { width: 210, height: 154 }, props: { title: 'Pack' }, capturePointer: true })
+  const backpackGrid = widget('inventory_grid', 'grid.backpack', {
+    minSize: { width: 150, height: 120 }, enabled: false,
+    props: { binding: backpack, columns: 5, rows: 4, disabled: true, unlockRequirement: 'backpack' },
+  });
+  const hotbar = widget('inventory_grid', 'grid.hotbar', {
+    minSize: { width: 270, height: 31 }, props: { binding: 'self:hotbar', columns: 9, rows: 1 },
+  });
+  return widget('window', 'window.pack', { minSize: { width: 320, height: 220 }, props: { title: 'Inventory' }, capturePointer: true })
     .add(widget('row', 'row.pack').add(
       paperDoll,
-      widget('inventory_grid', 'grid.backpack', { minSize: { width: 150, height: 120 }, props: { binding: backpack, columns: 5, rows: 4 } }),
-    ));
+      backpackGrid,
+    ), hotbar);
 }
 
 export const UI_FIXTURE_ROWS = [
