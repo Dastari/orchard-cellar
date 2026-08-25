@@ -463,7 +463,7 @@ function render(alpha = 1): void {
       tie: `resource:${resource.id}`,
       draw: () => {
         if (resource.depleted) {
-          drawOverworldStump(context, art, resourceX, resourceY, cameraX, cameraY, scale);
+          drawOverworldStump(context, art, resourceX, resourceY, cameraX, cameraY, scale, resource.kind);
           return;
         }
         const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;
@@ -477,6 +477,7 @@ function render(alpha = 1): void {
           cameraX,
           cameraY,
           scale,
+          resource.kind,
         );
       },
     });

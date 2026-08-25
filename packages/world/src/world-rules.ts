@@ -7,6 +7,7 @@ import {
   SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
   createSurvivalCollisionMap,
+  isChoppableTreeKind,
   survivalTreeObstacle,
   type CollisionMap,
   type Direction,
@@ -60,7 +61,7 @@ export function resourceHarvestResult(
   resource: { readonly kind: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean },
 ): 'ok' | 'depleted' | 'wrong_tool' | 'out_of_range' {
   if (resource.depleted) return 'depleted';
-  if (resource.kind !== 'tree' || selectedItem !== 'axe') return 'wrong_tool';
+  if (!isChoppableTreeKind(resource.kind) || selectedItem !== 'axe') return 'wrong_tool';
   const resourceX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const resourceY = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const dx = resourceX - playerX;

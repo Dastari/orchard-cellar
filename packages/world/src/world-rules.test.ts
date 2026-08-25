@@ -1,6 +1,7 @@
 import {
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
+  SURVIVAL_TREE_KINDS,
   TILE_SIZE_FIXED,
   generateSurvivalResources,
   survivalBiomeAt,
@@ -169,6 +170,10 @@ describe('overworld authority rules', () => {
     const x = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     const y = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, depleted: false })).toBe('ok');
+    for (const kind of SURVIVAL_TREE_KINDS) {
+      expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind, depleted: false })).toBe('ok');
+    }
+    expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind: 'rock', depleted: false })).toBe('wrong_tool');
     expect(resourceHarvestResult(x, y, 'pickaxe', { ...resource, depleted: false })).toBe('wrong_tool');
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, depleted: true })).toBe('depleted');
     expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');

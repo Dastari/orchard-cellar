@@ -389,8 +389,12 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   // transactionally installs the immutable seed and initial mutable resources.
   const installedWorld = ctx.db.world_seed.id.find(0);
   if (installedWorld === null || installedWorld.version < SURVIVAL_WORLD_VERSION) {
-    for (const crop of ctx.db.crop_patch.iter()) ctx.db.crop_patch.id.delete(crop.id);
-    for (const parcel of ctx.db.farm_parcel.iter()) ctx.db.farm_parcel.id.delete(parcel.id);
+    // Terrain/resource revisions must not erase player-authored farms. Only the
+    // legacy pre-v3 layout migration owned those rows.
+    if (installedWorld !== null && installedWorld.version < 3) {
+      for (const crop of ctx.db.crop_patch.iter()) ctx.db.crop_patch.id.delete(crop.id);
+      for (const parcel of ctx.db.farm_parcel.iter()) ctx.db.farm_parcel.id.delete(parcel.id);
+    }
     for (const resource of ctx.db.world_resource.iter()) ctx.db.world_resource.id.delete(resource.id);
     const nextWorld = { id: 0, seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION };
     if (installedWorld === null) ctx.db.world_seed.insert(nextWorld);

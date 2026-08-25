@@ -8,8 +8,24 @@ export interface OverworldArt {
   readonly avatar: LoadedAsset;
   readonly avatarAxe: LoadedAsset;
   readonly actionAssets: Readonly<Record<string, LoadedAsset>>;
+  readonly grass: LoadedAsset;
+  readonly meadowGrass: LoadedAsset;
+  readonly highlandGrass: LoadedAsset;
+  readonly valleyGrass: LoadedAsset;
   readonly grassTuft: LoadedAsset;
-  readonly hillside: LoadedAsset;
+  readonly water: LoadedAsset;
+  readonly freshwater: LoadedAsset;
+  readonly waterfall: LoadedAsset;
+  readonly beach: LoadedAsset;
+  readonly desert: LoadedAsset;
+  readonly desertShore: LoadedAsset;
+  readonly desertGrass: LoadedAsset;
+  readonly path: LoadedAsset;
+  readonly cliff: LoadedAsset;
+  readonly cliff2: LoadedAsset;
+  readonly cliff3: LoadedAsset;
+  readonly cliff4: LoadedAsset;
+  readonly desertCliff: LoadedAsset;
   readonly iconAxe: LoadedAsset;
   readonly iconHoe: LoadedAsset;
   readonly iconPickaxe: LoadedAsset;
@@ -20,21 +36,47 @@ export interface OverworldArt {
   readonly waterRipples: LoadedAsset;
   readonly treeFruiting: LoadedAsset;
   readonly treeMature: LoadedAsset;
+  readonly treeOak: LoadedAsset;
+  readonly treeBirch: LoadedAsset;
+  readonly treeSpruce: LoadedAsset;
+  readonly treeAcacia: LoadedAsset;
+  readonly treePalm: LoadedAsset;
   readonly treeStump: LoadedAsset;
+  readonly treeAcaciaStump: LoadedAsset;
+  readonly treePalmStump: LoadedAsset;
   readonly ui: PixelUi;
   readonly uiSkin: UiSkin;
 }
 
 export async function loadOverworldArt(): Promise<OverworldArt> {
   const [
-    avatar, avatarAxe, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
-    iconWateringCan, itemWood, rainStreak, rainSplash, waterRipples,
-    treeFruiting, treeMature, treeStump, ui, uiSkin,
+    avatar, avatarAxe, grass, meadowGrass, highlandGrass, valleyGrass, grassTuft,
+    water, freshwater, waterfall, beach, desert, desertShore, desertGrass, path,
+    cliff, cliff2, cliff3, cliff4, desertCliff, iconAxe, iconHoe, iconPickaxe, iconWateringCan,
+    itemWood, rainStreak, rainSplash, waterRipples, treeFruiting, treeMature,
+    treeOak, treeBirch, treeSpruce, treeAcacia, treePalm,
+    treeStump, treeAcaciaStump, treePalmStump, ui, uiSkin,
   ] = await Promise.all([
     loadGeneratedAsset('avatar_cf_farmer', 'summer'),
     loadGeneratedAsset('avatar_cf_farmer_axe', 'summer'),
-    loadGeneratedAsset('tile_cf_grass_tuft', 'summer'),
+    loadGeneratedAsset('tile_cf_grass', 'summer'),
+    loadGeneratedAsset('tile_cf_grass_meadow', 'summer'),
+    loadGeneratedAsset('tile_cf_grass_highland', 'summer'),
     loadGeneratedAsset('tile_cf_hillside', 'summer'),
+    loadGeneratedAsset('tile_cf_grass_tuft', 'summer'),
+    loadGeneratedAsset('tile_cf_water', 'summer'),
+    loadGeneratedAsset('tile_cf_freshwater', 'summer'),
+    loadGeneratedAsset('tile_cf_waterfall', 'summer'),
+    loadGeneratedAsset('tile_cf_beach', 'summer'),
+    loadGeneratedAsset('tile_cf_desert', 'summer'),
+    loadGeneratedAsset('tile_cf_desert_shore', 'summer'),
+    loadGeneratedAsset('tile_cf_desert_grass', 'summer'),
+    loadGeneratedAsset('tile_cf_path', 'summer'),
+    loadGeneratedAsset('tile_cf_stone_cliff_variants', 'summer'),
+    loadGeneratedAsset('tile_cf_stone_cliff_2', 'summer'),
+    loadGeneratedAsset('tile_cf_stone_cliff_3', 'summer'),
+    loadGeneratedAsset('tile_cf_stone_cliff_4', 'summer'),
+    loadGeneratedAsset('tile_cf_desert_cliff', 'summer'),
     loadGeneratedAsset('icon_cf_axe', 'summer'),
     loadGeneratedAsset('icon_cf_hoe', 'summer'),
     loadGeneratedAsset('icon_cf_pickaxe', 'summer'),
@@ -45,14 +87,25 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('tile_cf_water_ripples', 'summer'),
     loadGeneratedAsset('tree_cf_fruit_fruiting', 'summer'),
     loadGeneratedAsset('tree_cf_fruit_mature', 'summer'),
+    loadGeneratedAsset('tree_cf_oak_mature', 'summer'),
+    loadGeneratedAsset('tree_cf_birch_mature', 'summer'),
+    loadGeneratedAsset('tree_cf_spruce_mature', 'summer'),
+    loadGeneratedAsset('tree_cf_acacia_mature', 'summer'),
+    loadGeneratedAsset('tree_cf_palm_mature', 'summer'),
     loadGeneratedAsset('tree_cf_oak_stump', 'summer'),
+    loadGeneratedAsset('tree_cf_acacia_stump', 'summer'),
+    loadGeneratedAsset('tree_cf_palm_stump', 'summer'),
     loadPixelUi(),
     loadUiSkin(),
   ]);
   return {
-    avatar, avatarAxe, actionAssets: { swing_axe: avatarAxe }, grassTuft, hillside, iconAxe, iconHoe, iconPickaxe,
-    iconWateringCan, itemWood, rainStreak, rainSplash, waterRipples,
-    treeFruiting, treeMature, treeStump, ui, uiSkin,
+    avatar, avatarAxe, actionAssets: { swing_axe: avatarAxe },
+    grass, meadowGrass, highlandGrass, valleyGrass, grassTuft,
+    water, freshwater, waterfall, beach, desert, desertShore, desertGrass, path,
+    cliff, cliff2, cliff3, cliff4, desertCliff,
+    iconAxe, iconHoe, iconPickaxe, iconWateringCan, itemWood, rainStreak, rainSplash, waterRipples,
+    treeFruiting, treeMature, treeOak, treeBirch, treeSpruce, treeAcacia, treePalm,
+    treeStump, treeAcaciaStump, treePalmStump, ui, uiSkin,
   };
 }
 
@@ -127,8 +180,16 @@ export function drawOverworldTree(
   cameraX: number,
   cameraY: number,
   zoom: number,
+  kind = 'tree',
 ): void {
-  drawAnchored(context, fruiting ? art.treeFruiting : art.treeMature, 'base', 0, x, y + 4, cameraX, cameraY, zoom);
+  const tree = fruiting ? art.treeFruiting
+    : kind === 'tree_oak' ? art.treeOak
+      : kind === 'tree_birch' ? art.treeBirch
+        : kind === 'tree_spruce' ? art.treeSpruce
+          : kind === 'tree_acacia' ? art.treeAcacia
+            : kind === 'tree_palm' ? art.treePalm
+              : art.treeMature;
+  drawAnchored(context, tree, 'base', 0, x, y + 4, cameraX, cameraY, zoom);
 }
 
 export function drawOverworldStump(
@@ -139,8 +200,12 @@ export function drawOverworldStump(
   cameraX: number,
   cameraY: number,
   zoom: number,
+  kind = 'tree',
 ): void {
-  drawAnchored(context, art.treeStump, 'base', 0, x, y, cameraX, cameraY, zoom);
+  const stump = kind === 'tree_acacia' ? art.treeAcaciaStump
+    : kind === 'tree_palm' ? art.treePalmStump
+      : art.treeStump;
+  drawAnchored(context, stump, 'base', 0, x, y, cameraX, cameraY, zoom);
 }
 
 export function drawOverworldItem(

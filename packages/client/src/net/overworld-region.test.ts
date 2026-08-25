@@ -5,13 +5,13 @@ describe('overworld regional subscriptions', () => {
   it('covers an ultrawide 1x viewport without a six-chunk ceiling', () => {
     const radius = viewRadiusForViewport(3840, 2160, 1);
     expect(radius).toBe(9);
-    expect(subscriptionChunkBounds(3, 5, radius)).toEqual({ minX: 0, minY: 0, maxX: 11, maxY: 11 });
+    expect(subscriptionChunkBounds(3, 5, radius)).toEqual({ minX: 0, minY: 0, maxX: 12, maxY: 14 });
   });
 
-  it('clamps queries to the twelve by twelve island at every supported zoom', () => {
+  it('clamps queries to the twenty by twenty expanded world at every supported zoom', () => {
     expect([1, 2, 3].map((zoom) => viewRadiusForViewport(1920, 1080, zoom))).toEqual([5, 3, 3]);
     expect(subscriptionChunkBounds(0, 0, 5)).toEqual({ minX: 0, minY: 0, maxX: 5, maxY: 5 });
-    expect(subscriptionChunkBounds(11, 11, 5)).toEqual({ minX: 6, minY: 6, maxX: 11, maxY: 11 });
+    expect(subscriptionChunkBounds(19, 19, 5)).toEqual({ minX: 14, minY: 14, maxX: 19, maxY: 19 });
   });
 
   it('includes the far visible chunk plus a safety margin', () => {

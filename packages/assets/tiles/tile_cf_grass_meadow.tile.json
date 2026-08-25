@@ -1,0 +1,55 @@
+{
+  "name": "tile_cf_grass_meadow",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#33984b"
+  },
+  "sourcePath": "references/Cute_Fantasy/Tiles/Grass/Grass_2_Middle.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Grass_2_Middle.png",
+  "tags": [
+    "terrain.grass",
+    "terrain.meadow"
+  ],
+  "placement": {
+    "layer": "ground",
+    "builderAvailable": false
+  }
+}

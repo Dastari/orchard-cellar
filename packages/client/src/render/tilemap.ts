@@ -36,16 +36,7 @@ export function canonicalBlob47Index(cardinals: number, diagonalChoice: number):
   return index;
 }
 
-export function blob47FrameIndex(tiles: readonly number[], width: number, index: number, tileId: number): number {
-  const height = Math.ceil(tiles.length / width);
-  const x = index % width;
-  const y = Math.floor(index / width);
-  const matches = (offsetX: number, offsetY: number): boolean => {
-    const neighborX = x + offsetX;
-    const neighborY = y + offsetY;
-    if (neighborX < 0 || neighborY < 0 || neighborX >= width || neighborY >= height) return false;
-    return tiles[neighborY * width + neighborX] === tileId;
-  };
+export function blob47FrameIndexFor(matches: (offsetX: number, offsetY: number) => boolean): number {
   const north = matches(0, -1);
   const east = matches(1, 0);
   const south = matches(0, 1);
@@ -61,4 +52,17 @@ export function blob47FrameIndex(tiles: readonly number[], width: number, index:
     choiceBit += 1;
   }
   return canonicalBlob47Index(cardinals, diagonalChoice);
+}
+
+export function blob47FrameIndex(tiles: readonly number[], width: number, index: number, tileId: number): number {
+  const height = Math.ceil(tiles.length / width);
+  const x = index % width;
+  const y = Math.floor(index / width);
+  const matches = (offsetX: number, offsetY: number): boolean => {
+    const neighborX = x + offsetX;
+    const neighborY = y + offsetY;
+    if (neighborX < 0 || neighborY < 0 || neighborX >= width || neighborY >= height) return false;
+    return tiles[neighborY * width + neighborX] === tileId;
+  };
+  return blob47FrameIndexFor(matches);
 }

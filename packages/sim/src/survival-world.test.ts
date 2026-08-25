@@ -2,17 +2,24 @@ import { describe, expect, it } from 'vitest';
 import {
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
+  SURVIVAL_BIOMES,
+  SURVIVAL_SETTLEMENT_FIRST_TILE,
+  SURVIVAL_TREE_KINDS,
   createSurvivalCollisionMap,
   generateSurvivalResources,
   generatedSurvivalResourceAt,
+  isChoppableTreeKind,
   survivalBiomeAt,
   survivalBiomeBlocksMovement,
   survivalClearingAt,
   survivalClearings,
   survivalSpawnPosition,
+  survivalStreamAt,
   survivalTreeObstacle,
   survivalTrailAt,
   survivalTerrainBytes,
+  survivalTreeKindAt,
+  survivalWaterfallAt,
   type SurvivalBiome,
 } from './survival-world.js';
 
@@ -23,6 +30,7 @@ describe('deterministic survival island', () => {
   });
 
   it('surrounds the world with water and includes every biome at useful scale', () => {
+    expect(SURVIVAL_WORLD_SIZE).toBe(320);
     for (let index = 0; index < SURVIVAL_WORLD_SIZE; index += 1) {
       expect(survivalBiomeAt(SURVIVAL_WORLD_SEED, index, 0)).toBe('water');
       expect(survivalBiomeAt(SURVIVAL_WORLD_SEED, index, SURVIVAL_WORLD_SIZE - 1)).toBe('water');
@@ -30,19 +38,39 @@ describe('deterministic survival island', () => {
       expect(survivalBiomeAt(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_SIZE - 1, index)).toBe('water');
     }
     const counts = new Map<SurvivalBiome, number>();
-    for (const biome of ['water', 'beach', 'plains', 'meadow', 'forest', 'valley', 'highland', 'ridge'] as const) counts.set(biome, 0);
+    for (const biome of SURVIVAL_BIOMES) counts.set(biome, 0);
     for (const value of survivalTerrainBytes()) {
-      const biome = (['water', 'beach', 'plains', 'meadow', 'forest', 'valley', 'highland', 'ridge'] as const)[value];
+      const biome = SURVIVAL_BIOMES[value];
       if (biome) counts.set(biome, (counts.get(biome) ?? 0) + 1);
     }
-    for (const [biome, count] of counts) expect(count, biome).toBeGreaterThan(40);
-    expect([
-      survivalBiomeAt(SURVIVAL_WORLD_SEED, 95, 10),
-      survivalBiomeAt(SURVIVAL_WORLD_SEED, 63, 40),
-      survivalBiomeAt(SURVIVAL_WORLD_SEED, 96, 13),
-      survivalBiomeAt(SURVIVAL_WORLD_SEED, 108, 15),
-      survivalBiomeAt(SURVIVAL_WORLD_SEED, 69, 37),
-    ]).toEqual(['beach', 'forest', 'meadow', 'valley', 'highland']);
+    for (const [biome, count] of counts) {
+      expect(count, biome).toBeGreaterThan(biome === 'waterfall' ? 10 : 40);
+    }
+  });
+
+  it('generates connected freshwater, a five-row waterfall, desert cliffs, and an oasis', () => {
+    const counts = new Map<SurvivalBiome, number>();
+    let streamTiles = 0;
+    let waterfallTiles = 0;
+    for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE; tileY += 1) {
+      for (let tileX = 0; tileX < SURVIVAL_WORLD_SIZE; tileX += 1) {
+        const biome = survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY);
+        counts.set(biome, (counts.get(biome) ?? 0) + 1);
+        if (survivalStreamAt(SURVIVAL_WORLD_SEED, tileX, tileY)) streamTiles += 1;
+        if (survivalWaterfallAt(SURVIVAL_WORLD_SEED, tileX, tileY)) {
+          waterfallTiles += 1;
+          expect(biome === 'waterfall' || biome === 'plains').toBe(true);
+        }
+      }
+    }
+    expect(streamTiles).toBeGreaterThan(350);
+    expect(waterfallTiles).toBe(15);
+    expect(counts.get('freshwater')).toBeGreaterThan(500);
+    expect(counts.get('desert_ridge')).toBeGreaterThan(100);
+    expect(counts.get('coastal_cliff')).toBeGreaterThan(250);
+    expect(counts.get('savanna')).toBeGreaterThan(2_000);
+    expect(counts.get('oasis_water')).toBeGreaterThan(30);
+    expect(counts.get('oasis')).toBeGreaterThan(100);
   });
 
   it('keeps all 25 spawn clearings walkable and free of generated resources', () => {
@@ -79,10 +107,11 @@ describe('deterministic survival island', () => {
       }
     }
     expect(clearings.every((clearing) => visited.has(`${clearing.tileX},${clearing.tileY}`))).toBe(true);
-    expect(survivalTrailAt(60, 48)).toBe(true);
-    expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, 60, 48)).toBeNull();
-    expect(survivalTrailAt(47, 60)).toBe(true);
-    expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, 47, 60)).toBeNull();
+    const firstTile = SURVIVAL_SETTLEMENT_FIRST_TILE;
+    expect(survivalTrailAt(firstTile + 12, firstTile)).toBe(true);
+    expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, firstTile + 12, firstTile)).toBeNull();
+    expect(survivalTrailAt(firstTile - 1, firstTile + 12)).toBe(true);
+    expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, firstTile - 1, firstTile + 12)).toBeNull();
   });
 
   it('adds narrow live trunk obstacles and removes depleted trunks', () => {
@@ -101,7 +130,38 @@ describe('deterministic survival island', () => {
       survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY)),
     );
     expect(survivalBiomeBlocksMovement('water')).toBe(true);
+    expect(survivalBiomeBlocksMovement('freshwater')).toBe(true);
+    expect(survivalBiomeBlocksMovement('waterfall')).toBe(true);
     expect(survivalBiomeBlocksMovement('ridge')).toBe(true);
+    expect(survivalBiomeBlocksMovement('desert_ridge')).toBe(true);
+    expect(survivalBiomeBlocksMovement('oasis_water')).toBe(true);
+    expect(survivalBiomeBlocksMovement('coastal_cliff')).toBe(true);
     expect(survivalBiomeBlocksMovement('forest')).toBe(false);
+  });
+
+  it('creates dense mixed-species forests whose trees are all choppable', () => {
+    const resources = generateSurvivalResources();
+    const kinds = new Map(SURVIVAL_TREE_KINDS.map((kind) => [kind, 0]));
+    let forestTiles = 0;
+    let forestTrees = 0;
+    const resourceTiles = new Set(resources.map((resource) => `${resource.tileX},${resource.tileY}`));
+    for (const resource of resources) {
+      kinds.set(resource.kind, (kinds.get(resource.kind) ?? 0) + 1);
+      expect(isChoppableTreeKind(resource.kind)).toBe(true);
+      expect(resource.kind).toBe(survivalTreeKindAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY));
+    }
+    for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE; tileY += 1) {
+      for (let tileX = 0; tileX < SURVIVAL_WORLD_SIZE; tileX += 1) {
+        if (survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY) !== 'forest') continue;
+        forestTiles += 1;
+        if (resourceTiles.has(`${tileX},${tileY}`)) forestTrees += 1;
+      }
+    }
+    expect(forestTrees / forestTiles).toBeGreaterThan(0.38);
+    expect(forestTrees / forestTiles).toBeLessThan(0.68);
+    for (const [kind, count] of kinds) {
+      const minimum = kind === 'tree_palm' ? 10 : kind === 'tree_acacia' ? 50 : 100;
+      expect(count, kind).toBeGreaterThan(minimum);
+    }
   });
 });
