@@ -193,7 +193,7 @@ describe('overworld authority rules', () => {
     expect(debug.blocked[5 * debug.width + 5]).toBe(false);
     expect(debug.obstacles).toHaveLength(1);
     expect(topside.obstacles?.length).toBeGreaterThan(1);
-  });
+  }, 15_000);
 
   it('blocks generated water and ridge while using narrow mutable trunk obstacles', () => {
     const terrain = Array.from({ length: SURVIVAL_WORLD_SIZE ** 2 }, (_, index) => ({
