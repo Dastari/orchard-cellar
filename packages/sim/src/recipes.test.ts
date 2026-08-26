@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recipeMatches, RECIPES, normalizeShapedRecipe } from './recipes.js';
+import { recipeIngredientStacks, recipeMatches, RECIPES, normalizeShapedRecipe } from './recipes.js';
 import { consumeCraftingRecipe, matchingRecipeId } from './item-containers.js';
 import type { ItemStack } from './item-containers.js';
 
@@ -36,6 +36,14 @@ describe('28§1 shift-invariant shaped recipes', () => {
 });
 
 describe('06§12 phases 1–3 crafting recipe goldens', () => {
+  it('derives break salvage from the exact recipe inputs', () => {
+    expect(recipeIngredientStacks(RECIPES.chest)).toEqual([{ itemKind: 'plank', quantity: 8 }]);
+    expect(recipeIngredientStacks(RECIPES.campfire)).toEqual([
+      { itemKind: 'stick', quantity: 3 },
+      { itemKind: 'wood', quantity: 3 },
+    ]);
+  });
+
   it('pins hand recipe inputs and outputs', () => {
     expect(RECIPES.planks).toMatchObject({ inputs: { wood: 1 }, output: { itemKind: 'plank', quantity: 4 } });
     expect(RECIPES.sticks).toMatchObject({ pattern: [['plank'], ['plank']], output: { itemKind: 'stick', quantity: 4 } });

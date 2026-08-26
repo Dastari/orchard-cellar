@@ -102,6 +102,15 @@ describe('pooled weather particles', () => {
     expect(rain.enabled).toBe(false);
   });
 
+  it('keeps tool splashes alive and drawable without rainy weather', () => {
+    const rain = new RainWeather();
+    rain.spawnWorldSplash(40, 56);
+    expect(rain.enabled).toBe(false);
+    expect(rain.splashCount).toBe(1);
+    rain.update(false, 320, 180);
+    expect(rain.splashCount).toBe(1);
+  });
+
   it('moves the pack slash-shaped drop diagonally down-left', () => {
     expect(RAIN_STREAK_VELOCITY[0]).toBeLessThan(0);
     expect(RAIN_STREAK_VELOCITY[1]).toBeGreaterThan(0);

@@ -3,6 +3,7 @@ import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from './state.js';
 import {
   movePlayer,
   movePlayerAtSpeed,
+  movePlayerAtSpeedPermille,
   playerHitboxBounds,
   playerInteractionOrigin,
   positionCollides,
@@ -68,5 +69,46 @@ describe('player movement collision', () => {
     const walking = movePlayer(start, 'right', open);
     const riding = movePlayerAtSpeed(start, 'right', open, 2);
     expect(riding.position.x - start.position.x).toBe(2 * (walking.position.x - start.position.x));
+  });
+
+  it('applies the baseline sprint as exactly 125% cardinal speed', () => {
+    const start = {
+      position: { x: 2 * TILE_SIZE_FIXED, y: 2 * TILE_SIZE_FIXED },
+      facing: 'down' as const,
+      moving: false,
+      location: 'estate' as const,
+    };
+    const walking = movePlayer(start, 'right', open);
+    const sprinting = movePlayerAtSpeedPermille(start, 'right', open, 1_250);
+    expect(sprinting.position.x - start.position.x).toBe(
+      (walking.position.x - start.position.x) * 1.25,
+    );
+  });
+
+  it('30§3 rejects a height step unless a walkable contour transition connects it', () => {
+    const start = {
+      position: { x: TILE_SIZE_FIXED - 1, y: TILE_SIZE_FIXED },
+      facing: 'right' as const,
+      moving: false,
+      location: 'estate' as const,
+    };
+    const elevations = Uint8Array.from([0, 1]);
+    const legacy = { width: 2, height: 1, blocked: [false, false], elevations };
+    expect(movePlayer(start, 'right', legacy).position.x).toBeGreaterThan(start.position.x);
+    const cliff = { ...legacy, terrainTransitions: [] };
+    expect(movePlayer(start, 'right', cliff).position).toEqual(start.position);
+    const slope = {
+      ...cliff,
+      terrainTransitions: [{
+        contourLevel: 1,
+        kind: 'slope' as const,
+        direction: 'right' as const,
+        lowerTileX: 0,
+        lowerTileY: 0,
+        upperTileX: 1,
+        upperTileY: 0,
+      }],
+    };
+    expect(movePlayer(start, 'right', slope).position.x).toBeGreaterThan(start.position.x);
   });
 });

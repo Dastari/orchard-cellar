@@ -15,7 +15,6 @@ import {
   dirtTerraceFrameIndexAt,
   dirtTerraceRampFrameIndexAt,
   freshwaterFrameIndexAt,
-  plateauLayerPlanAt,
   terrainDecorationHash,
   terrainBiomeAt,
   terrainColorAt,
@@ -307,16 +306,6 @@ export class GroundChunkCache {
         }
         const dirtRampFrame = dirtTerraceRampFrameIndexAt(terrain, tileX, tileY);
         if (dirtRampFrame !== null) drawGroundAsset(context, art.dirtCliffRamp, localX, localY, dirtRampFrame);
-
-        const plateau = plateauLayerPlanAt(terrain, tileX, tileY);
-        for (const face of plateau.faceLayers) {
-          drawGroundAsset(context, art.cliff, localX, localY, face.frame);
-        }
-        if (plateau.edgeFrame !== null) drawGroundAsset(context, art.cliff, localX, localY, plateau.edgeFrame);
-        for (const insetFrame of plateau.insetFrames) {
-          drawGroundAsset(context, art.stoneCliffInverseOverlay, localX, localY, insetFrame);
-        }
-        if (plateau.rampFrame !== null) drawGroundAsset(context, art.grassCliffRamp, localX, localY, plateau.rampFrame);
 
         const cliffFrame = cliffFrameIndexAt(terrain, tileX, tileY);
         if (cliffFrame !== null) {

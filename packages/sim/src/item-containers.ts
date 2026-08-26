@@ -7,6 +7,12 @@ import {
   type RecipeId,
 } from './recipes.js';
 
+/** Shared chest geometry. Keeping capacity derived from its authored grid
+ * prevents the client layout and server authority from drifting apart. */
+export const CHEST_STORAGE_COLUMNS = 4;
+export const CHEST_STORAGE_ROWS = 4;
+export const CHEST_STORAGE_CAPACITY = CHEST_STORAGE_COLUMNS * CHEST_STORAGE_ROWS;
+
 export interface ItemDefinition {
   readonly displayName: string;
   readonly iconKey: string;
@@ -61,6 +67,7 @@ export const ITEM_DEFINITIONS = {
   amethyst_ore: defineItem('amethyst_ore', 'Amethyst Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.amethyst'], undefined, { key: 'item_cf_amethyst_ore' }),
   plank: defineItem('plank', 'Wooden Planks', 99, ['item.resource', 'material.wood', 'item.crafted'], undefined, { key: 'item_cf_plank' }),
   stick: defineItem('stick', 'Stick', 99, ['item.resource', 'material.wood', 'item.crafted'], undefined, { key: 'item_cf_stick' }),
+  cactus: defineItem('cactus', 'Cactus', 99, ['item.resource', 'material.plant', 'biome.desert'], undefined, { key: 'resource_cf_cactus' }),
   chest: defineItem('chest', 'Chest', 16, ['item.placeable', 'item.crafted', 'container.chest'], undefined, { key: 'prop_cf_chest', animation: 'chest' }),
   workbench: defineItem('workbench', 'Workbench', 16, ['item.placeable', 'item.crafted', 'station.workbench'], undefined, { key: 'prop_cf_workbench' }),
   campfire: defineItem('campfire', 'Campfire', 16, ['item.placeable', 'item.crafted', 'station.campfire', 'emits.light'], undefined, { key: 'prop_cf_campfire', animation: 'burn' }),
@@ -94,6 +101,17 @@ export interface ItemStack {
   /** Present only for non-stackable durable tools. Storage authorities must
    * preserve it when moving/swapping the stack. */
   readonly durability?: number;
+  /** Power state for switchable light sources. It is item metadata, so storage
+   * authorities must preserve it through moves, drops, and container swaps. */
+  readonly lit?: boolean;
+}
+
+export function isSwitchableLightKind(itemKind: string): boolean {
+  return itemKind === 'lantern';
+}
+
+function stackMetadataMatches(left: ItemStack, right: ItemStack): boolean {
+  return left.durability === right.durability && left.lit === right.lit;
 }
 
 export interface SlotRestriction {
@@ -245,7 +263,9 @@ export function insertItemStack(container: ContainerSnapshot, item: ItemStack): 
     if (!slotAcceptsItem(normalized, index, item.itemKind)) continue;
     const stack = normalized.slots[index];
     if (stack == null) available += maxStack;
-    else if (stack.itemKind === item.itemKind && validStack(stack)) available += maxStack - stack.quantity;
+    else if (stack.itemKind === item.itemKind && validStack(stack) && stackMetadataMatches(stack, item)) {
+      available += maxStack - stack.quantity;
+    }
   }
   if (available < item.quantity) return failure('container_full');
 
@@ -253,7 +273,8 @@ export function insertItemStack(container: ContainerSnapshot, item: ItemStack): 
   let remaining = item.quantity;
   for (let index = 0; index < slots.length && remaining > 0; index += 1) {
     const stack = slots[index];
-    if (stack?.itemKind !== item.itemKind || !slotAcceptsItem(normalized, index, item.itemKind)) continue;
+    if (stack?.itemKind !== item.itemKind || !stackMetadataMatches(stack, item)
+      || !slotAcceptsItem(normalized, index, item.itemKind)) continue;
     const inserted = Math.min(remaining, maxStack - stack.quantity);
     if (inserted <= 0) continue;
     slots[index] = { ...stack, quantity: stack.quantity + inserted };
@@ -280,7 +301,8 @@ export function insertItemStackPartial(container: ContainerSnapshot, item: ItemS
   let remaining = item.quantity;
   for (let index = 0; index < slots.length && remaining > 0; index += 1) {
     const stack = slots[index];
-    if (stack?.itemKind !== item.itemKind || !slotAcceptsItem(normalized, index, item.itemKind)) continue;
+    if (stack?.itemKind !== item.itemKind || !stackMetadataMatches(stack, item)
+      || !slotAcceptsItem(normalized, index, item.itemKind)) continue;
     const inserted = Math.min(remaining, maxStack - stack.quantity);
     if (inserted <= 0) continue;
     slots[index] = { ...stack, quantity: stack.quantity + inserted };
@@ -360,7 +382,7 @@ export function moveItemStacks(
     fromSlots[request.fromIndex] = sourceRemainder ? { ...source, quantity: sourceRemainder } : null;
     toSlots[request.toIndex] = { ...source, quantity: request.quantity };
     outcome = sourceRemainder ? 'split' : 'move';
-  } else if (target.itemKind === source.itemKind) {
+  } else if (target.itemKind === source.itemKind && stackMetadataMatches(target, source)) {
     const maxStack = maxStackFor(source.itemKind)!;
     movedQuantity = Math.min(request.quantity, maxStack - target.quantity);
     if (movedQuantity <= 0) return failure('target_stack_full');
@@ -411,7 +433,7 @@ export function quickMoveItemStack(
     for (let index = 0; index < destination.capacity && remaining > 0; index += 1) {
       if (!slotAcceptsItem(destination, index, source.itemKind)) continue;
       const stack = slots[index];
-      if (pass === 'merge' && stack?.itemKind === source.itemKind) {
+      if (pass === 'merge' && stack?.itemKind === source.itemKind && stackMetadataMatches(stack, source)) {
         const moved = Math.min(remaining, maximum - stack.quantity);
         if (moved > 0) slots[index] = { ...stack, quantity: stack.quantity + moved };
         remaining -= moved;

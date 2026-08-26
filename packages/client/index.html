@@ -5,13 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self' 'unsafe-eval'; style-src 'self'; connect-src 'self' https://auth.orchard.dastari.net wss://orchard.dastari.net; form-action 'self' https://auth.orchard.dastari.net" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>Orchard &amp; Cellar</title>
   </head>
   <body>
-    <main id="game-shell">
+    <main id="game-shell" aria-busy="true">
       <canvas id="game" width="480" height="270" aria-label="Orchard and Cellar"></canvas>
       <input id="account-name" class="canvas-input" maxlength="20" autocomplete="nickname" aria-label="New local development profile name" />
       <input id="character-name" class="canvas-input" maxlength="20" autocomplete="off" aria-label="Character name" hidden />
+      <section id="loading-screen" class="loading-screen" role="status" aria-live="polite" aria-label="Loading Orchard and Cellar">
+        <canvas id="loading-canvas" class="loading-canvas" width="480" height="270" aria-hidden="true"></canvas>
+        <div class="loading-sky" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="loading-card">
+          <div class="loading-ribbon">ORCHARD &amp; CELLAR</div>
+          <img class="loading-emblem" src="/favicon.svg" alt="" width="64" height="64" />
+          <h1 id="loading-title">OPENING THE ORCHARD</h1>
+          <p id="loading-detail">PREPARING YOUR JOURNEY</p>
+          <progress id="loading-progress" max="100" value="8" aria-label="World loading progress">8%</progress>
+          <div class="loading-seeds" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <p class="loading-note">PLEASE WAIT WHILE YOUR ISLAND GROWS</p>
+        </div>
+        <div class="loading-ground" aria-hidden="true"></div>
+      </section>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

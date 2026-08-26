@@ -5,19 +5,25 @@ import {
   SURVIVAL_WORLD_SIZE,
   TOPSIDE_SPACE_ID,
   resolveRaisedTerrainTile,
+  resolveRaisedTerrainContoursAt,
+  maximumTerrainElevation,
+  terrainElevationAt as sampleTerrainElevation,
+  terrainProjectedDepthOffset,
+  survivalElevationBytes,
   survivalCliffRoleBytes,
   survivalBiomeAllowsHorseJump,
   survivalBiomeBlocksMovement,
   survivalDirtCliffRoleBytes,
   survivalDirtTerraceBytes,
-  survivalPlateauBytes,
   survivalTerrainBytes,
   type RaisedTerrainGrid,
   type RaisedTerrainRampRole,
   type RaisedTerrainTilePlan,
+  type RaisedTerrainContourPlan,
   type RaisedTerrainTileSet,
   type SurvivalBiome,
   type SpaceDefinition,
+  type TerrainTransition,
 } from '@orchard/sim';
 import { blob47FrameIndexFor } from './tilemap.js';
 
@@ -56,6 +62,13 @@ export interface TerrainArray {
   readonly blocked: readonly boolean[];
   readonly horseJumpableTerrain: readonly boolean[];
   readonly cliffRoles: Uint8Array;
+  /** Integer logical terrain height. This is the editor/generator source of
+   * truth; every raised contour is derived independently from it. */
+  readonly elevations: Uint8Array;
+  /** Present on v2/generated/editor terrain. Omission preserves the legacy
+   * island's collision-authored ramps; an empty list means no crossings. */
+  readonly terrainTransitions?: readonly TerrainTransition[];
+  /** @deprecated Compatibility alias while the v1 island generator is retired. */
   readonly plateaus: Uint8Array;
   readonly dirtCliffRoles: Uint8Array;
   readonly dirtTerraces: Uint8Array;
@@ -85,6 +98,7 @@ export function terrainForSpace(space: SpaceDefinition, seed: number, version: n
   if (!classification) {
     if (space.generator === 'island') {
       const biomes = survivalTerrainBytes(seed);
+      const elevations = survivalElevationBytes(seed);
       classification = {
         spaceId: space.spaceId,
         width: SURVIVAL_WORLD_SIZE,
@@ -97,12 +111,14 @@ export function terrainForSpace(space: SpaceDefinition, seed: number, version: n
           survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biome] ?? 'water')
         )),
         cliffRoles: survivalCliffRoleBytes(seed),
-        plateaus: survivalPlateauBytes(seed),
+        elevations,
+        plateaus: elevations,
         dirtCliffRoles: survivalDirtCliffRoleBytes(seed),
         dirtTerraces: survivalDirtTerraceBytes(seed),
       };
     } else {
       const length = space.sizeTiles * space.sizeTiles;
+      const elevations = new Uint8Array(length);
       const plains = Math.max(0, SURVIVAL_BIOMES.indexOf('plains'));
       const biomes = new Uint8Array(length).fill(plains);
       const blocked = Array.from({ length }, (_, index) => {
@@ -118,7 +134,8 @@ export function terrainForSpace(space: SpaceDefinition, seed: number, version: n
         blocked,
         horseJumpableTerrain: Array<boolean>(length).fill(false),
         cliffRoles: new Uint8Array(length),
-        plateaus: new Uint8Array(length),
+        elevations,
+        plateaus: elevations,
         dirtCliffRoles: new Uint8Array(length),
         dirtTerraces: new Uint8Array(length),
       };
@@ -357,8 +374,23 @@ export function waterfallFrameIndexAt(terrain: TerrainArray, tileX: number, tile
 }
 
 function plateauAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
-  return tileX >= 0 && tileY >= 0 && tileX < terrain.width && tileY < terrain.height
-    && terrain.plateaus[tileY * terrain.width + tileX] === 1;
+  return terrainElevationAt(terrain, tileX, tileY) >= 1;
+}
+
+export function terrainElevationAt(terrain: TerrainArray, tileX: number, tileY: number): number {
+  return sampleTerrainElevation(terrain.elevations, terrain.width, terrain.height, tileX, tileY);
+}
+
+export function terrainElevationAtWorldFoot(
+  terrain: TerrainArray,
+  worldX: number,
+  worldFootY: number,
+): number {
+  return terrainElevationAt(
+    terrain,
+    Math.floor(worldX / 16),
+    Math.floor((worldFootY - 0.001) / 16),
+  );
 }
 
 function cliffRoleAt(terrain: TerrainArray, tileX: number, tileY: number): typeof SURVIVAL_CLIFF_ROLES[number] {
@@ -419,6 +451,8 @@ function plateauRampRoleAt(terrain: TerrainArray, tileX: number, tileY: number):
 }
 
 const plateauGridCache = new WeakMap<TerrainArray, RaisedTerrainGrid>();
+const maximumElevationCache = new WeakMap<TerrainArray, number>();
+const contourPlanCache = new WeakMap<TerrainArray, Map<number, readonly RaisedTerrainContourPlan[]>>();
 
 function plateauGridFor(terrain: TerrainArray): RaisedTerrainGrid {
   let grid = plateauGridCache.get(terrain);
@@ -440,6 +474,66 @@ export function plateauLayerPlanAt(terrain: TerrainArray, tileX: number, tileY: 
     tileX,
     tileY,
   );
+}
+
+export function plateauLayerPlansAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): readonly RaisedTerrainContourPlan[] {
+  let plansByTile = contourPlanCache.get(terrain);
+  if (plansByTile === undefined) {
+    plansByTile = new Map();
+    contourPlanCache.set(terrain, plansByTile);
+  }
+  const tileKey = tileY * terrain.width + tileX;
+  const cached = plansByTile.get(tileKey);
+  if (cached !== undefined) return cached;
+  const maximumElevation = terrainMaximumElevation(terrain);
+  const plans = resolveRaisedTerrainContoursAt(
+    (x, y) => terrainElevationAt(terrain, x, y),
+    maximumElevation,
+    STONE_RAISED_CLIFF_TILE_SET,
+    'tall',
+    tileX,
+    tileY,
+    (contourLevel, x, y) => contourLevel === 1 ? plateauRampRoleAt(terrain, x, y) : null,
+  );
+  plansByTile.set(tileKey, plans);
+  return plans;
+}
+
+export function terrainMaximumElevation(terrain: TerrainArray): number {
+  let maximumElevation = maximumElevationCache.get(terrain);
+  if (maximumElevation === undefined) {
+    maximumElevation = maximumTerrainElevation(terrain.elevations);
+    maximumElevationCache.set(terrain, maximumElevation);
+  }
+  return maximumElevation;
+}
+
+export function terrainProjectedDepthAtFoot(
+  terrain: TerrainArray,
+  worldX: number,
+  worldFootY: number,
+): number {
+  return terrainProjectedDepthOffset(
+    terrainElevationAtWorldFoot(terrain, worldX, worldFootY),
+    terrainProjectedRowsPerLevel(),
+    16,
+  );
+}
+
+export function terrainProjectedRowsPerLevel(): number {
+  return STONE_RAISED_CLIFF_TILE_SET.faceProfiles.tall?.rows.length ?? 0;
+}
+
+/** Editor preview mutates a working elevation buffer in place. Production
+ * terrain snapshots stay immutable; the editor calls this after each stroke. */
+export function invalidateTerrainElevationCaches(terrain: TerrainArray): void {
+  maximumElevationCache.delete(terrain);
+  contourPlanCache.delete(terrain);
+  plateauGridCache.delete(terrain);
 }
 
 /** Background faces are returned deepest-to-nearest for correct compositing. */

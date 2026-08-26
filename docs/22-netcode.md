@@ -309,6 +309,12 @@ interpolation timeline; the two-channel animation model (derived locomotion +
 registry-driven replicated action channel) with the public `equippedKind` mirror;
 step-accounted movement runs settled against server-clamped client ticks.
 
+Sprint extends that same protocol rather than creating a side channel. Each input
+command carries its Shift intent; compressed settlement segments retain the intent
+that was active for their original client-step range. Prediction records the
+resolved per-mille speed on each replay step, while authority alone decides whether
+Vigour funds Sprint and falls back to walking when it does not.
+
 ## 11. Implementation verification
 
 - Additive schema published over the durable local database and SpaceTimeDB 2.8

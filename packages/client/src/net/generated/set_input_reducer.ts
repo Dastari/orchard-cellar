@@ -14,4 +14,5 @@ export default {
   direction: __t.string(),
   sequence: __t.u64(),
   clientTick: __t.u64(),
+  sprinting: __t.bool(),
 };

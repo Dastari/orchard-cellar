@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   LIGHT_BANDS,
+  LIGHT_CLIFF_FACE_BLOCKER,
   LIGHT_HARD_BLOCKER,
   LIGHT_SPRITE_BLOCKER,
   LIGHT_SOFT_ATTENUATOR,
-  LIGHT_TRUNK_BLOCKER,
-  TRUNK_SHADOW_LENGTH_TEXELS,
   QuantizedLightFlood,
 } from './light-flood.js';
 
@@ -88,6 +87,33 @@ describe('27§1/§3 quantized light flood', () => {
     expect(redAt(setup.pixels, width, 5, 3)).toBe(0);
   });
 
+  it('27§3 lights stacked front cliff artwork without leaking onto the plateau behind it', () => {
+    const width = 9;
+    const height = 10;
+    const setup = fixture(width, height);
+    for (let y = 3; y <= 6; y += 1) {
+      setup.mask[y * width + 4] = LIGHT_CLIFF_FACE_BLOCKER;
+    }
+    setup.flood.apply(setup.pixels, null, width, height, {
+      centerX: 4, centerY: 9, radius: 12, color: { r: 250, g: 200, b: 150 },
+    }, setup.mask);
+    expect(redAt(setup.pixels, width, 4, 6)).toBeGreaterThan(0);
+    expect(redAt(setup.pixels, width, 4, 3)).toBeGreaterThan(0);
+    expect(redAt(setup.pixels, width, 4, 2)).toBe(0);
+  });
+
+  it('27§3 lets ordinary blockers cast onto a front cliff receiver', () => {
+    const width = 9;
+    const height = 10;
+    const setup = fixture(width, height);
+    setup.mask[3 * width + 4] = LIGHT_CLIFF_FACE_BLOCKER;
+    setup.mask[6 * width + 4] = LIGHT_SPRITE_BLOCKER;
+    setup.flood.apply(setup.pixels, null, width, height, {
+      centerX: 4, centerY: 9, radius: 12, color: { r: 250, g: 200, b: 150 },
+    }, setup.mask);
+    expect(redAt(setup.pixels, width, 4, 3)).toBe(0);
+  });
+
   it('spills through a doorway and dims around its corners by path distance', () => {
     const width = 9;
     const setup = fixture(width, 7);
@@ -125,7 +151,7 @@ describe('27§1/§3 quantized light flood', () => {
     expect(redAt(setup.pixels, width, 8, 0)).toBeGreaterThan(0);
   });
 
-  it('casts a short feathered trunk shadow without shadowing its elevated owner', () => {
+  it('27§3 casts a long collision-width trunk column without shadowing its canopy', () => {
     const width = 24;
     const height = 7;
     const open = fixture(width, height);
@@ -133,8 +159,10 @@ describe('27§1/§3 quantized light flood', () => {
     const trunkOwners = new Uint16Array(width * height);
     const receiverOwners = new Uint16Array(width * height);
     const trunkIndex = 3 * width + 7;
-    shadowed.mask[trunkIndex] = LIGHT_TRUNK_BLOCKER;
+    shadowed.mask[trunkIndex] = LIGHT_SPRITE_BLOCKER;
     trunkOwners[trunkIndex] = 1;
+    const trunkCellIndices = new Uint32Array(width * height);
+    trunkCellIndices[0] = trunkIndex;
     // A canopy pixel projected behind its own trunk remains a lit elevated
     // receiver, while the ground alongside it receives the compact shadow.
     receiverOwners[3 * width + 9] = 1;
@@ -142,13 +170,74 @@ describe('27§1/§3 quantized light flood', () => {
     open.flood.apply(open.pixels, null, width, height, light, open.mask);
     shadowed.flood.apply(
       shadowed.pixels, null, width, height, light, shadowed.mask, null,
-      trunkOwners, receiverOwners,
+      trunkOwners, receiverOwners, trunkCellIndices, 1,
     );
     expect(redAt(shadowed.pixels, width, 9, 3)).toBe(redAt(open.pixels, width, 9, 3));
     expect(redAt(shadowed.pixels, width, 10, 3)).toBeLessThan(redAt(open.pixels, width, 10, 3));
-    const beyondShadow = 7 + TRUNK_SHADOW_LENGTH_TEXELS + 2;
-    expect(redAt(shadowed.pixels, width, beyondShadow, 3))
-      .toBe(redAt(open.pixels, width, beyondShadow, 3));
+    expect(redAt(shadowed.pixels, width, width - 2, 3)).toBe(0);
+    expect(redAt(shadowed.pixels, width, 10, 2))
+      .toBe(redAt(open.pixels, width, 10, 2));
+  });
+
+  it('27§3 keeps an above-light prop face lit and casts its shadow behind it', () => {
+    const width = 9;
+    const height = 17;
+    const open = fixture(width, height);
+    const shadowed = fixture(width, height);
+    const trunkOwners = new Uint16Array(width * height);
+    const receiverOwners = new Uint16Array(width * height);
+    const casterX = 4;
+    const casterY = 8;
+    const casterIndex = casterY * width + casterX;
+    shadowed.mask[casterIndex] = LIGHT_SPRITE_BLOCKER;
+    trunkOwners[casterIndex] = 1;
+    // The light is below the object. Its elevated visible front occupies the
+    // same screen-space direction as the projected ground shadow.
+    receiverOwners[6 * width + casterX] = 1;
+    const casterCellIndices = new Uint32Array(width * height);
+    casterCellIndices[0] = casterIndex;
+    const light = { centerX: casterX, centerY: 13, radius: 16, color: { r: 250, g: 200, b: 150 } };
+    open.flood.apply(open.pixels, null, width, height, light, open.mask);
+    shadowed.flood.apply(
+      shadowed.pixels, null, width, height, light, shadowed.mask, null,
+      trunkOwners, receiverOwners, casterCellIndices, 1,
+    );
+    expect(redAt(shadowed.pixels, width, casterX, 6))
+      .toBe(redAt(open.pixels, width, casterX, 6));
+    expect(redAt(shadowed.pixels, width, casterX, 5))
+      .toBe(0);
+  });
+
+  it('27§3 does not punch partial receiver ownership into the ground umbra', () => {
+    const width = 9;
+    const height = 17;
+    const partial = fixture(width, height);
+    const solid = fixture(width, height);
+    const trunkOwners = new Uint16Array(width * height);
+    const receiverOwners = new Uint16Array(width * height);
+    const relitReceiverOwners = new Uint16Array(width * height);
+    const casterX = 4;
+    const casterY = 8;
+    const casterIndex = casterY * width + casterX;
+    partial.mask[casterIndex] = LIGHT_SPRITE_BLOCKER;
+    solid.mask[casterIndex] = LIGHT_SPRITE_BLOCKER;
+    trunkOwners[casterIndex] = 1;
+    const receiverIndex = 6 * width + casterX;
+    receiverOwners[receiverIndex] = 1;
+    const casterCellIndices = new Uint32Array(width * height);
+    casterCellIndices[0] = casterIndex;
+    const light = { centerX: casterX, centerY: 13, radius: 16, color: { r: 250, g: 200, b: 150 } };
+    partial.flood.apply(
+      partial.pixels, null, width, height, light, partial.mask, null,
+      trunkOwners, receiverOwners, casterCellIndices, 1, relitReceiverOwners,
+    );
+    relitReceiverOwners[receiverIndex] = 1;
+    solid.flood.apply(
+      solid.pixels, null, width, height, light, solid.mask, null,
+      trunkOwners, receiverOwners, casterCellIndices, 1, relitReceiverOwners,
+    );
+    expect(redAt(partial.pixels, width, casterX, 6)).toBe(0);
+    expect(redAt(solid.pixels, width, casterX, 6)).toBeGreaterThan(0);
   });
 
   it('biases a facing seed out of its wall and emits a quantized flame halo', () => {
@@ -160,7 +249,25 @@ describe('27§1/§3 quantized light flood', () => {
       facing: 'right', profile: 'flame',
     }, setup.mask);
     expect(redAt(setup.pixels, width, 5, 3)).toBe(250);
-    expect(setup.halo[(3 * width + 5) * 4 + 3]).toBe(32);
+    expect(setup.halo[(3 * width + 5) * 4 + 3]).toBe(24);
     expect(redAt(setup.pixels, width, 3, 3)).toBe(0);
+  });
+
+  it('27§2 moves the additive flame core continuously between light texels', () => {
+    const width = 12;
+    const centered = fixture(width, 7);
+    const shifted = fixture(width, 7);
+    const base = {
+      centerY: 3, radius: 5, color: { r: 250, g: 180, b: 100 }, profile: 'flame' as const,
+    };
+    centered.flood.apply(centered.pixels, centered.halo, width, 7, { ...base, centerX: 5 }, centered.mask);
+    shifted.flood.apply(shifted.pixels, shifted.halo, width, 7, { ...base, centerX: 5.1 }, shifted.mask);
+    const centeredAlpha = centered.halo[(3 * width + 5) * 4 + 3] ?? 0;
+    const shiftedAlpha = shifted.halo[(3 * width + 5) * 4 + 3] ?? 0;
+    expect(centeredAlpha).toBe(24);
+    expect(shiftedAlpha).toBeGreaterThanOrEqual(20);
+    expect(shifted.halo[(3 * width + 6) * 4 + 3]).toBeGreaterThan(
+      centered.halo[(3 * width + 6) * 4 + 3] ?? 0,
+    );
   });
 });

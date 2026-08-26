@@ -2,6 +2,8 @@ import {
   AUTHORITY_TICKS_PER_DAY,
   AUTHORITY_TICK_MICROS,
   BRONZE_PER_GOLD,
+  CHEST_INTERACTION_REACH_FIXED,
+  CHEST_STORAGE_CAPACITY,
   BASE_ATTRIBUTES,
   EFFECT_KINDS,
   REGEN_SWEEP_TICKS,
@@ -10,6 +12,9 @@ import {
   DAYS_PER_SEASON,
   FIXED_UNITS_PER_PIXEL,
   MARLOW_CAMP,
+  MARLOW_CAMPFIRE_ID,
+  MARLOW_CAMPFIRE_TILE,
+  NPC_INTERACTION_REACH_FIXED,
   STARTER_HORSE_ID,
   STARTER_HORSE_NAME,
   SURVIVAL_CHUNK_TILES,
@@ -27,17 +32,21 @@ import {
   generateSurvivalWildlifeHives,
   hiveProducesHoneyAtTick,
   insertItemStack,
+  insertItemStackPartial,
   fiberDropsFromTilling,
   craftingStationWithinReach,
   itemDefinition,
   placeableDefinition,
   recipeDefinition,
+  recipeIngredientStacks,
   itemEconomyDefinition,
   itemModifiers,
   commerceTotal,
   isDurableToolKind,
+  isSwitchableLightKind,
   maxStackFor,
   modifiersForEffects,
+  nearestTileTarget,
   normalizeToolDurability,
   findHorseDismountPosition,
   findHorseJumpLanding,
@@ -47,6 +56,7 @@ import {
   isWildlifeSpecies,
   isWindDirectionMode,
   isWeatherMode,
+  rainForWeatherMode,
   consumeCraftingRecipe,
   distributeItemStack,
   matchingRecipeId,
@@ -55,6 +65,7 @@ import {
   quickMoveAllMatchingStacks,
   movePlayer,
   movePlayerAtSpeed,
+  movePlayerAtSpeedPermille,
   mountedHorseFacing,
   bowProjectileOrigin,
   bowShotForCharge,
@@ -66,8 +77,10 @@ import {
   playerHitboxBounds,
   positionCollides,
   tileTargetBounds,
+  tileTargetWithinFixedReach,
   isGatherableResourceKind,
   isBreakableRockKind,
+  isAxeHarvestableResourceKind,
   isChoppableTreeKind,
   isMineableOreKind,
   survivalGatherableDrop,
@@ -75,6 +88,13 @@ import {
   survivalResourceObstacle,
   survivalResourceDropsAfterHit,
   survivalResourceInitialHealth,
+  TREE_GROWTH_STAGE_BIG,
+  TREE_REGROWTH_PROGRESS_MAX,
+  TREE_REGROWTH_SWEEP_TICKS,
+  normalizeTreeGrowthStage,
+  treeGrowthStageForProgress,
+  treeHealthForGrowthStage,
+  treeRegrowthProgressAtSweep,
   TOOL_VIGOUR_BALANCE,
   advanceVitals,
   createFullVitalState,
@@ -83,6 +103,8 @@ import {
   resolveCreatureStats,
   resolveModifierTarget,
   resolveStats,
+  resolveSprintAbility,
+  sprintVigourCostForSteps,
   forageFindBonus,
   playerStatisticDefinition,
   statisticMilestonesCrossed,
@@ -95,6 +117,8 @@ import {
   TOOL_MERCHANT_OFFERS,
   dialogueChoice,
   stepWanderingNpc,
+  stepNpcTowardPoint,
+  marlowCampfireShouldBeLit,
   stepAmbientWildlife,
   survivalSpawnPosition,
   wildlifeActivityNearPlayers,
@@ -173,14 +197,17 @@ import {
   DEFAULT_MESSAGE_OF_DAY,
   GENERAL_CHAT_CHANNEL_ID,
   GENERAL_CHAT_CHANNEL_SLUG,
+  SESSION_CHAT_NOTICE_LIMIT,
   canJoinChatChannel,
   channelConversationKey,
   chatMembershipId,
+  isLegacyPersistentLifecycleMessage,
   normalizeChatChannelName,
   normalizeChatMessage,
   normalizeMessageOfDay,
   validCreatableChatChannelKind,
   whisperConversationKey,
+  worldDisconnectMessage,
   worldEntryMessage,
 } from './chat-policy.js';
 
@@ -195,7 +222,6 @@ const EQUIPMENT_SLOT_OFFSET = BACKPACK_SLOT_OFFSET + BACKPACK_CAPACITY;
 const CRAFTING_SLOT_OFFSET = EQUIPMENT_SLOT_OFFSET + EQUIPMENT_CAPACITY;
 const CRAFTING_CAPACITY = 9;
 const INVENTORY_SLOT_CAPACITY = CRAFTING_SLOT_OFFSET + CRAFTING_CAPACITY;
-const CHEST_CAPACITY = 27;
 const TOOL_MERCHANT_ID = 2n;
 const STARTING_CURRENCY_BRONZE = BRONZE_PER_GOLD;
 const EQUIPMENT_RESTRICTIONS = {
@@ -251,9 +277,7 @@ function facingTile(x: number, y: number, facing: string): { readonly tileX: num
 }
 
 function chestWithinReach(playerX: number, playerY: number, chest: { readonly tileX: number; readonly tileY: number }): boolean {
-  const dx = chest.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - playerX;
-  const dy = chest.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - playerY;
-  return dx * dx + dy * dy <= (2 * TILE_SIZE_FIXED) ** 2;
+  return tileTargetWithinFixedReach(playerX, playerY, chest, CHEST_INTERACTION_REACH_FIXED);
 }
 
 function npcWithinInteractionReach(
@@ -325,6 +349,8 @@ const player_position = table(
     jumpFromY: t.option(t.i32()),
     jumpUntilTick: t.option(t.u64()),
     spaceId: t.u16().default(0),
+    /** Additive migration: switchable held lights default to on. */
+    equippedLit: t.bool().default(true),
   },
 );
 
@@ -343,6 +369,8 @@ const player_input = table(
     settleSteps: t.u8(),
     creditStartedAtMicros: t.u64(),
     creditedSteps: t.u64(),
+    /** Append-only migration: whether the current movement run requests Sprint. */
+    sprinting: t.bool().default(false),
   },
 );
 
@@ -391,6 +419,7 @@ const inventory_slot = table(
     itemKind: t.string(),
     quantity: t.u16(),
     durability: t.u16().default(0),
+    lit: t.bool().default(true),
   },
 );
 
@@ -410,6 +439,7 @@ const inventory_overflow = table(
     itemKind: t.string(),
     quantity: t.u16(),
     durability: t.u16().default(0),
+    lit: t.bool().default(true),
   },
 );
 
@@ -569,6 +599,27 @@ const connection_notice = table(
   },
 );
 
+// Presence notices are copied into each live connection's private session inbox.
+// They are intentionally separate from durable channel history and are deleted
+// when the recipient connection ends or its presence lease expires.
+const session_chat_notice = table(
+  {
+    name: 'session_chat_notice',
+    indexes: [
+      { accessor: 'by_recipient_identity', algorithm: 'btree', columns: ['recipientIdentity'] },
+      { accessor: 'by_recipient_connection', algorithm: 'btree', columns: ['recipientConnectionId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    recipientIdentity: t.identity(),
+    recipientConnectionId: t.connectionId(),
+    kind: t.string(),
+    body: t.string(),
+    issuedAt: t.timestamp(),
+  },
+);
+
 const membership = table(
   { name: 'membership' },
   {
@@ -671,6 +722,14 @@ const chat_sender_state = table(
   },
 );
 
+const chat_migration = table(
+  { name: 'chat_migration' },
+  {
+    id: t.u8().primaryKey(),
+    sessionNoticesVersion: t.u8(),
+  },
+);
+
 // Transient speech is private storage exposed only through a distance-filtered
 // caller view. This prevents /say from becoming a global broadcast and caps
 // /shout at a deliberately finite world radius.
@@ -734,6 +793,22 @@ const world_environment = table(
   },
 );
 
+/** Stateful authored fires live separately from generated decoration geometry.
+ * This keeps the seeded landmark stable while allowing server-authoritative
+ * lighting and a permanent player override of NPC automation. */
+const world_campfire_state = table(
+  { name: 'world_campfire_state', public: true },
+  {
+    id: t.u64().primaryKey(),
+    tileX: t.i16(),
+    tileY: t.i16(),
+    spaceId: t.u16().default(0),
+    lit: t.bool().default(true),
+    manualOverride: t.bool().default(false),
+    automatedByNpc: t.option(t.u64()),
+  },
+);
+
 const world_wind = table(
   { name: 'world_wind', public: true },
   {
@@ -790,6 +865,8 @@ const world_resource = table(
     health: t.u8(),
     depleted: t.bool(),
     spaceId: t.u16().default(0),
+    growthStage: t.u8().default(3),
+    regrowthProgress: t.u8().default(24),
   },
 );
 
@@ -835,6 +912,8 @@ const world_item = table(
     droppedAtTick: t.u64(),
     durability: t.u16().default(0),
     spaceId: t.u16().default(0),
+    /** Additive migration: switchable dropped lights default to on. */
+    lit: t.bool().default(true),
   },
 );
 
@@ -904,6 +983,7 @@ const world_chest_slot = table(
     itemKind: t.string(),
     quantity: t.u16(),
     durability: t.u16().default(0),
+    lit: t.bool().default(true),
   },
 );
 
@@ -940,6 +1020,8 @@ const world_placeable = table(
     facing: t.string(),
     open: t.bool(),
     smeltStartTick: t.option(t.u64()),
+    /** Additive migration: switchable placed lights default to on. */
+    lit: t.bool().default(true),
   },
 );
 
@@ -957,6 +1039,7 @@ const world_placeable_slot = table(
     itemKind: t.string(),
     quantity: t.u16(),
     durability: t.u16().default(0),
+    lit: t.bool().default(true),
   },
 );
 
@@ -1168,6 +1251,7 @@ const spacetimedb = schema({
   connection_audit,
   world_motd,
   connection_notice,
+  session_chat_notice,
   membership,
   membership_audit,
   world_admin_audit,
@@ -1175,10 +1259,12 @@ const spacetimedb = schema({
   chat_channel_member,
   chat_message,
   chat_sender_state,
+  chat_migration,
   world_speech,
   world_tree,
   world_clock,
   world_environment,
+  world_campfire_state,
   world_wind,
   world_seed,
   space_portal,
@@ -1209,11 +1295,118 @@ const spacetimedb = schema({
 export default spacetimedb;
 
 type WorldReducerContext = Parameters<Parameters<typeof spacetimedb.init>[1]>[0];
+type WorldConnectionId = NonNullable<WorldReducerContext['connectionId']>;
 type WorldNpcRow = NonNullable<ReturnType<WorldReducerContext['db']['world_npc']['id']['find']>>;
 type PlayerPositionRow = NonNullable<ReturnType<WorldReducerContext['db']['player_position']['identity']['find']>>;
 type WorldResourceRow = NonNullable<ReturnType<WorldReducerContext['db']['world_resource']['id']['find']>>;
 type WorldChestRow = NonNullable<ReturnType<WorldReducerContext['db']['world_chest']['id']['find']>>;
+type WorldChestSlotRow = NonNullable<ReturnType<WorldReducerContext['db']['world_chest_slot']['id']['find']>>;
 type WorldPlaceableRow = NonNullable<ReturnType<WorldReducerContext['db']['world_placeable']['id']['find']>>;
+type WorldItemRow = NonNullable<ReturnType<WorldReducerContext['db']['world_item']['id']['find']>>;
+
+/** Lazily normalizes chests created under an older capacity. Stacks are first
+ * compacted entirely in memory; persistence is changed only after everything
+ * is proven to fit, so shrinking a chest can never silently discard contents. */
+function ensureChestStorageRows(ctx: WorldReducerContext, chestId: bigint): WorldChestSlotRow[] {
+  const rows = [...ctx.db.world_chest_slot.by_chest.filter(chestId)];
+  const legacyRows = rows.filter((row) => row.slot >= CHEST_STORAGE_CAPACITY);
+  if (legacyRows.length > 0) {
+    let compacted: ContainerSnapshot = {
+      id: 'chest',
+      capacity: CHEST_STORAGE_CAPACITY,
+      slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, () => null),
+    };
+    for (const row of rows
+      .filter((candidate) => candidate.itemKind !== 'empty' && candidate.quantity > 0)
+      .sort((left, right) => left.slot - right.slot)) {
+      const stack = storedStack(row.itemKind, row.quantity, row.durability, row.lit);
+      if (stack === null) continue;
+      const inserted = insertItemStackPartial(compacted, stack);
+      if (!inserted.ok || inserted.remainderQuantity > 0) throw new SenderError('legacy_chest_over_capacity');
+      compacted = inserted.container;
+    }
+
+    const bySlot = new Map(rows.map((row) => [row.slot, row]));
+    const normalizedRows: WorldChestSlotRow[] = [];
+    for (let slot = 0; slot < CHEST_STORAGE_CAPACITY; slot += 1) {
+      const next = compacted.slots[slot];
+      const existing = bySlot.get(slot);
+      const values = {
+        itemKind: next?.itemKind ?? 'empty',
+        quantity: next?.quantity ?? 0,
+        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+      };
+      normalizedRows.push(existing === undefined
+        ? ctx.db.world_chest_slot.insert({ id: `${chestId}:${slot}`, chestId, slot, ...values })
+        : ctx.db.world_chest_slot.id.update({ ...existing, ...values }));
+    }
+    for (const row of legacyRows) ctx.db.world_chest_slot.id.delete(row.id);
+    return normalizedRows;
+  }
+
+  const occupiedIndexes = new Set(rows.map((row) => row.slot));
+  for (let slot = 0; slot < CHEST_STORAGE_CAPACITY; slot += 1) {
+    if (occupiedIndexes.has(slot)) continue;
+    rows.push(ctx.db.world_chest_slot.insert({
+      id: `${chestId}:${slot}`,
+      chestId,
+      slot,
+      itemKind: 'empty',
+      quantity: 0,
+      durability: 0,
+      lit: true,
+    }));
+  }
+  return rows;
+}
+
+function migrateSessionChatNotices(ctx: WorldReducerContext): void {
+  const migration = ctx.db.chat_migration.id.find(0);
+  if ((migration?.sessionNoticesVersion ?? 0) >= 1) return;
+  for (const message of ctx.db.chat_message.iter()) {
+    if (isLegacyPersistentLifecycleMessage(message.kind)) ctx.db.chat_message.id.delete(message.id);
+  }
+  const next = { id: 0, sessionNoticesVersion: 1 };
+  if (migration === null) ctx.db.chat_migration.insert(next);
+  else ctx.db.chat_migration.id.update(next);
+}
+
+function deleteSessionChatNoticesForConnection(
+  ctx: WorldReducerContext,
+  connectionId: WorldConnectionId,
+): void {
+  for (const notice of ctx.db.session_chat_notice.by_recipient_connection.filter(connectionId)) {
+    ctx.db.session_chat_notice.id.delete(notice.id);
+  }
+}
+
+function broadcastSessionChatNotice(
+  ctx: WorldReducerContext,
+  kind: 'entry' | 'disconnect',
+  body: string,
+): void {
+  for (const presence of ctx.db.connection_presence_v2.iter()) {
+    if (presenceLeaseExpired(
+      presence.lastSeenAt.microsSinceUnixEpoch,
+      ctx.timestamp.microsSinceUnixEpoch,
+    )) continue;
+    if (ctx.db.connection_notice.connectionId.find(presence.connectionId) === null) continue;
+    ctx.db.session_chat_notice.insert({
+      id: 0n,
+      recipientIdentity: presence.identity,
+      recipientConnectionId: presence.connectionId,
+      kind,
+      body,
+      issuedAt: ctx.timestamp,
+    });
+    const notices = [...ctx.db.session_chat_notice.by_recipient_connection.filter(presence.connectionId)]
+      .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    for (const expired of notices.slice(0, Math.max(0, notices.length - SESSION_CHAT_NOTICE_LIMIT))) {
+      ctx.db.session_chat_notice.id.delete(expired.id);
+    }
+  }
+}
 
 function installDebugPortals(ctx: WorldReducerContext): void {
   if (ctx.db.space_portal.id.find(DEBUG_PORTAL_TOPSIDE_ID) === null) {
@@ -1270,6 +1463,7 @@ function teleportPlayer(
     ctx.db.player_input.identity.update({
       ...input,
       direction: 'idle',
+      sprinting: false,
       settleDirection: 'idle',
       settleSteps: 0,
       settledSequence: input.sequence,
@@ -1533,14 +1727,28 @@ function flushPlayerStatisticTime(
   recordPlayerStatistic(ctx, identity, 'time_played', elapsed, authorityTick);
 }
 
-function storedStack(itemKind: string, quantity: number, durability: number): ContainerSnapshot['slots'][number] {
+function storedStack(
+  itemKind: string,
+  quantity: number,
+  durability: number,
+  lit = true,
+): ContainerSnapshot['slots'][number] {
   return itemKind === 'empty' || quantity === 0
     ? null
-    : { itemKind, quantity, ...(isDurableToolKind(itemKind) ? { durability } : {}) };
+    : {
+        itemKind,
+        quantity,
+        ...(isDurableToolKind(itemKind) ? { durability } : {}),
+        ...(isSwitchableLightKind(itemKind) ? { lit } : {}),
+      };
 }
 
 function storedDurability(itemKind: string, durability?: number): number {
   return isDurableToolKind(itemKind) ? normalizeToolDurability(itemKind, durability) : 0;
+}
+
+function storedLit(itemKind: string, lit?: boolean): boolean {
+  return isSwitchableLightKind(itemKind) ? lit ?? true : true;
 }
 
 function sameStoredStack(
@@ -1549,7 +1757,79 @@ function sameStoredStack(
 ): boolean {
   return left?.itemKind === right?.itemKind
     && left?.quantity === right?.quantity
-    && left?.durability === right?.durability;
+    && left?.durability === right?.durability
+    && left?.lit === right?.lit;
+}
+
+const WORLD_ITEM_MERGE_RADIUS_FIXED = 8 * FIXED_UNITS_PER_PIXEL;
+
+interface WorldItemDrop {
+  readonly itemKind: string;
+  readonly quantity: number;
+  readonly x: number;
+  readonly y: number;
+  readonly droppedAtTick: bigint;
+  readonly durability: number;
+  readonly lit?: boolean;
+  readonly spaceId: number;
+}
+
+/** Adds a recoverable world stack without proliferating rows at one drop
+ * point. Compatible nearby rows fill first, then capped remainder rows are
+ * inserted. Durable/non-stackable items intentionally remain distinct. */
+function dropWorldItemStack(ctx: WorldReducerContext, drop: WorldItemDrop): void {
+  const maximum = maxStackFor(drop.itemKind);
+  if (maximum === null || !Number.isSafeInteger(drop.quantity) || drop.quantity <= 0) {
+    throw new SenderError('invalid_item_stack');
+  }
+  let remaining = drop.quantity;
+  const lit = storedLit(drop.itemKind, drop.lit);
+  if (maximum > 1) {
+    const mergeRadiusSquared = WORLD_ITEM_MERGE_RADIUS_FIXED ** 2;
+    const compatible = [...ctx.db.world_item.iter()]
+      .filter((item) => {
+        if (item.spaceId !== drop.spaceId || item.itemKind !== drop.itemKind
+          || item.durability !== drop.durability || item.lit !== lit
+          || item.quantity >= maximum) return false;
+        const dx = item.x - drop.x;
+        const dy = item.y - drop.y;
+        return dx * dx + dy * dy <= mergeRadiusSquared;
+      })
+      .sort((left, right) => {
+        const leftDistance = (left.x - drop.x) ** 2 + (left.y - drop.y) ** 2;
+        const rightDistance = (right.x - drop.x) ** 2 + (right.y - drop.y) ** 2;
+        if (leftDistance !== rightDistance) return leftDistance - rightDistance;
+        return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+      });
+    for (const item of compatible) {
+      const inserted = Math.min(remaining, maximum - item.quantity);
+      if (inserted <= 0) continue;
+      ctx.db.world_item.id.update({
+        ...item,
+        quantity: item.quantity + inserted,
+        droppedAtTick: drop.droppedAtTick,
+      });
+      remaining -= inserted;
+      if (remaining === 0) return;
+    }
+  }
+  while (remaining > 0) {
+    const quantity = Math.min(remaining, maximum);
+    ctx.db.world_item.insert({
+      id: 0n,
+      itemKind: drop.itemKind,
+      quantity,
+      x: drop.x,
+      y: drop.y,
+      chunkX: chunkAt(drop.x),
+      chunkY: chunkAt(drop.y),
+      droppedAtTick: drop.droppedAtTick,
+      durability: drop.durability,
+      lit,
+      spaceId: drop.spaceId,
+    });
+    remaining -= quantity;
+  }
 }
 
 function isEffectKind(value: string): value is EffectKind {
@@ -1629,10 +1909,15 @@ function advancePlayerStats(
   ctx: WorldReducerContext,
   identity: WorldReducerContext['sender'],
   authorityTick: bigint,
+  suppressVigourRegen = false,
 ) {
   const row = ensurePlayerStats(ctx, identity, authorityTick);
   const resolved = resolvedStatsForRow(ctx, row, identity, authorityTick);
-  const advanced = advanceVitals(vitalStateFromRow(row), resolved, authorityTick);
+  const advanced = advanceVitals(
+    vitalStateFromRow(row),
+    suppressVigourRegen ? { ...resolved, vigourRegenCentiPerSecond: 0 } : resolved,
+    authorityTick,
+  );
   if (advanced.healthCenti === row.healthCenti && advanced.manaCenti === row.manaCenti
     && advanced.vigourCenti === row.vigourCenti && advanced.healthRemainder === row.healthRemainder
     && advanced.manaRemainder === row.manaRemainder && advanced.vigourRemainder === row.vigourRemainder
@@ -1712,7 +1997,7 @@ function loadPlayerInventory(ctx: WorldReducerContext, identity: WorldReducerCon
       capacity,
       slots: Array.from({ length: capacity }, (_, index) => {
         const row = rowBySlot.get(offset + index);
-        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
       }),
       ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}),
     };
@@ -1751,6 +2036,7 @@ function writePlayerInventory(
         itemKind: next?.itemKind ?? 'empty',
         quantity: next?.quantity ?? 0,
         durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
       });
     }
   }
@@ -1759,7 +2045,7 @@ function writePlayerInventory(
 function stashOverflow(
   ctx: WorldReducerContext,
   identity: WorldReducerContext['sender'],
-  stack: { readonly itemKind: string; readonly quantity: number; readonly durability?: number },
+  stack: { readonly itemKind: string; readonly quantity: number; readonly durability?: number; readonly lit?: boolean },
 ): void {
   const maximum = maxStackFor(stack.itemKind);
   if (maximum === null || stack.quantity <= 0) throw new SenderError('invalid_overflow_item');
@@ -1769,6 +2055,7 @@ function stashOverflow(
     ctx.db.inventory_overflow.insert({
       id: 0n, identity, itemKind: stack.itemKind, quantity,
       durability: storedDurability(stack.itemKind, stack.durability),
+      lit: storedLit(stack.itemKind, stack.lit),
     });
     remaining -= quantity;
   }
@@ -1789,6 +2076,7 @@ function drainPlayerOverflow(ctx: WorldReducerContext, identity: WorldReducerCon
       [sourceId]: { id: sourceId, capacity: 1, slots: [{
         itemKind: row.itemKind, quantity: row.quantity,
         ...(isDurableToolKind(row.itemKind) ? { durability: row.durability } : {}),
+        ...(isSwitchableLightKind(row.itemKind) ? { lit: row.lit } : {}),
       }] },
     }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] });
     if (!moved.ok) {
@@ -1806,6 +2094,7 @@ function drainPlayerOverflow(ctx: WorldReducerContext, identity: WorldReducerCon
     else ctx.db.inventory_overflow.id.update({
       ...row, quantity: remainder.quantity,
       durability: storedDurability(remainder.itemKind, remainder.durability),
+      lit: storedLit(remainder.itemKind, remainder.lit),
     });
   }
   writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, containers);
@@ -1813,8 +2102,9 @@ function drainPlayerOverflow(ctx: WorldReducerContext, identity: WorldReducerCon
   const position = ctx.db.player_position.identity.find(identity);
   if (survival !== null && position !== null) {
     const selected = containers.hotbar?.slots[survival.selectedSlot];
-    if (position.equippedKind !== (selected?.itemKind ?? 'empty')) {
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+    if (position.equippedKind !== (selected?.itemKind ?? 'empty')
+      || position.equippedLit !== storedLit(selected?.itemKind ?? 'empty', selected?.lit)) {
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   }
 }
@@ -2054,6 +2344,12 @@ export const ownConnectionNotices = spacetimedb.view(
   (ctx) => [...ctx.db.connection_notice.by_identity.filter(ctx.sender)],
 );
 
+export const ownSessionChatNotices = spacetimedb.view(
+  { name: 'own_session_chat_notices', public: true },
+  t.array(session_chat_notice.rowType),
+  (ctx) => [...ctx.db.session_chat_notice.by_recipient_identity.filter(ctx.sender)],
+);
+
 export const ownChatChannels = spacetimedb.view(
   { name: 'own_chat_channels', public: true },
   t.array(chat_channel.rowType),
@@ -2071,6 +2367,7 @@ export const visibleChatMessages = spacetimedb.view(
         .map((member) => member.channelId.toString()),
     );
     return [...ctx.db.chat_message.iter()].filter((message) => {
+      if (isLegacyPersistentLifecycleMessage(message.kind)) return false;
       if (message.kind === 'whisper') {
         return message.sender.isEqual(ctx.sender) || message.recipient?.isEqual(ctx.sender) === true;
       }
@@ -2291,6 +2588,15 @@ function requireWorldOwner(
 export const init = spacetimedb.init((ctx) => {
   ctx.db.world_clock.insert({ id: 0, authorityTick: 0n });
   ctx.db.world_environment.insert({ id: 0, calendarTick: 0n, weatherMode: 'auto' });
+  ctx.db.world_campfire_state.insert({
+    id: MARLOW_CAMPFIRE_ID,
+    tileX: MARLOW_CAMPFIRE_TILE.tileX,
+    tileY: MARLOW_CAMPFIRE_TILE.tileY,
+    spaceId: TOPSIDE_SPACE_ID,
+    lit: true,
+    manualOverride: false,
+    automatedByNpc: TOOL_MERCHANT_ID,
+  });
   ctx.db.world_wind.insert({ id: 0, direction: 'auto' });
   ctx.db.world_seed.insert({ id: 0, seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION, mineVersion: 0 });
   installDebugPortals(ctx);
@@ -2318,6 +2624,8 @@ export const init = spacetimedb.init((ctx) => {
       chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
       health: survivalResourceInitialHealth(resource.kind),
       depleted: false,
+      growthStage: TREE_GROWTH_STAGE_BIG,
+      regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
       spaceId: TOPSIDE_SPACE_ID,
     });
   }
@@ -2396,6 +2704,8 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     });
   }
   requireAuthorizedSender(ctx.senderAuth.jwt, member);
+  migrateSessionChatNotices(ctx);
+  deleteSessionChatNoticesForConnection(ctx, ctx.connectionId);
   installDebugPortals(ctx);
   let motd = ctx.db.world_motd.id.find(0);
   if (motd === null) {
@@ -2452,6 +2762,17 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   }
   if (ctx.db.world_merchant.npcId.find(TOOL_MERCHANT_ID) === null) {
     ctx.db.world_merchant.insert(toolMerchantProfileRow());
+  }
+  if (ctx.db.world_campfire_state.id.find(MARLOW_CAMPFIRE_ID) === null) {
+    ctx.db.world_campfire_state.insert({
+      id: MARLOW_CAMPFIRE_ID,
+      tileX: MARLOW_CAMPFIRE_TILE.tileX,
+      tileY: MARLOW_CAMPFIRE_TILE.tileY,
+      spaceId: TOPSIDE_SPACE_ID,
+      lit: marlowCampfireShouldBeLit(ctx.db.world_environment.id.find(0)?.calendarTick ?? 0n),
+      manualOverride: false,
+      automatedByNpc: TOOL_MERCHANT_ID,
+    });
   }
   const scalabilityMigration = ctx.db.world_scalability_migration.id.find(0);
   if (scalabilityMigration === null || scalabilityMigration.wildlifeProfileChunkVersion < 1) {
@@ -2511,6 +2832,8 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
         health: survivalResourceInitialHealth(resource.kind),
         depleted: false,
+        growthStage: TREE_GROWTH_STAGE_BIG,
+        regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
         spaceId: TOPSIDE_SPACE_ID,
       });
     }
@@ -2582,6 +2905,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         itemKind,
         quantity: itemKind === 'empty' ? 0 : STARTER_ITEM_QUANTITIES[itemKind] ?? 1,
         durability: storedDurability(itemKind),
+        lit: storedLit(itemKind),
       });
     }
   }
@@ -2603,6 +2927,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       itemKind: 'empty',
       quantity: 0,
       durability: 0,
+      lit: true,
     });
   }
   // Existing characters receive the ranged starter kit only in genuinely
@@ -2653,6 +2978,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       actionKind: 'none',
       actionStartedTick: 0n,
       equippedKind: HOTBAR_SLOTS[0],
+      equippedLit: true,
       jumpFromX: undefined,
       jumpFromY: undefined,
       jumpUntilTick: undefined,
@@ -2671,6 +2997,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       settleSteps: 0,
       creditStartedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
       creditedSteps: 0n,
+      sprinting: false,
     });
     ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
   } else {
@@ -2690,6 +3017,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         actionKind: 'none',
         actionStartedTick: 0n,
         equippedKind: HOTBAR_SLOTS[0],
+        equippedLit: true,
         jumpFromX: undefined,
         jumpFromY: undefined,
         jumpUntilTick: undefined,
@@ -2725,6 +3053,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         settleSteps: 0,
         creditStartedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
         creditedSteps: 0n,
+        sprinting: false,
       });
     } else {
       const input = ctx.db.player_input.identity.find(ctx.sender);
@@ -2732,6 +3061,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         ctx.db.player_input.identity.update({
           ...input,
           direction: 'idle',
+          sprinting: false,
           updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
           runStartClientTick: 0n,
           appliedSteps: 0n,
@@ -2763,8 +3093,9 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
   const equippedItem = selected?.itemKind ?? 'empty';
   const position = ctx.db.player_position.identity.find(ctx.sender);
-  if (position !== null && position.equippedKind !== equippedItem) {
-    ctx.db.player_position.identity.update({ ...position, equippedKind: equippedItem });
+  if (position !== null && (position.equippedKind !== equippedItem
+    || position.equippedLit !== storedLit(equippedItem, selected?.lit))) {
+      ctx.db.player_position.identity.update({ ...position, equippedKind: equippedItem, equippedLit: storedLit(equippedItem, selected?.lit) });
   }
   const connectedProfile = ctx.db.player_public.identity.find(ctx.sender);
   ctx.db.connection_audit.insert({
@@ -2787,24 +3118,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   if (firstLiveConnection
     && connectedProfile !== null
     && ctx.db.character_profile.identity.find(ctx.sender)?.nameChosen === true) {
-    const conversationKey = channelConversationKey(GENERAL_CHAT_CHANNEL_ID);
-    ctx.db.chat_message.insert({
-      id: 0n,
-      conversationKey,
-      channelId: GENERAL_CHAT_CHANNEL_ID,
-      sender: ctx.databaseIdentity,
-      senderDisplayName: 'World',
-      recipient: undefined,
-      kind: 'system',
-      body: worldEntryMessage(connectedProfile.displayName),
-      itemLinksJson: '[]',
-      sentAt: ctx.timestamp,
-    });
-    const history = [...ctx.db.chat_message.by_conversation.filter(conversationKey)]
-      .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-    for (const expired of history.slice(0, Math.max(0, history.length - CHAT_CHANNEL_HISTORY_LIMIT))) {
-      ctx.db.chat_message.id.delete(expired.id);
-    }
+    broadcastSessionChatNotice(ctx, 'entry', worldEntryMessage(connectedProfile.displayName));
   }
 });
 
@@ -2813,6 +3127,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
 // existing 30 s presence lease expires; stepWorld owns that cleanup.
 export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
   if (ctx.connectionId === null) return;
+  deleteSessionChatNoticesForConnection(ctx, ctx.connectionId);
   const notice = ctx.db.connection_notice.connectionId.find(ctx.connectionId);
   if (notice === null || !notice.identity.isEqual(ctx.sender)) return;
   const profile = ctx.db.player_public.identity.find(ctx.sender);
@@ -3134,6 +3449,7 @@ export const revokeMember = spacetimedb.reducer(
     });
     for (const presence of ctx.db.connection_presence_v2.by_identity.filter(identity)) {
       ctx.db.connection_presence_v2.connectionId.delete(presence.connectionId);
+      deleteSessionChatNoticesForConnection(ctx, presence.connectionId);
     }
     const profile = ctx.db.player_public.identity.find(identity);
     if (profile !== null) ctx.db.player_public.identity.update({ ...profile, online: false });
@@ -3141,6 +3457,7 @@ export const revokeMember = spacetimedb.reducer(
     if (input !== null) ctx.db.player_input.identity.update({
       ...input,
       direction: 'idle',
+      sprinting: false,
       settleDirection: 'idle',
       settleSteps: 0,
       settledSequence: input.sequence,
@@ -3363,24 +3680,7 @@ export const setDisplayName = spacetimedb.reducer(
       ctx, ctx.sender, 'character_names_chosen', 1n,
       ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
     );
-    const conversationKey = channelConversationKey(GENERAL_CHAT_CHANNEL_ID);
-    ctx.db.chat_message.insert({
-      id: 0n,
-      conversationKey,
-      channelId: GENERAL_CHAT_CHANNEL_ID,
-      sender: ctx.databaseIdentity,
-      senderDisplayName: 'World',
-      recipient: undefined,
-      kind: 'system',
-      body: worldEntryMessage(validName),
-      itemLinksJson: '[]',
-      sentAt: ctx.timestamp,
-    });
-    const history = [...ctx.db.chat_message.by_conversation.filter(conversationKey)]
-      .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-    for (const expired of history.slice(0, Math.max(0, history.length - CHAT_CHANNEL_HISTORY_LIMIT))) {
-      ctx.db.chat_message.id.delete(expired.id);
-    }
+    broadcastSessionChatNotice(ctx, 'entry', worldEntryMessage(validName));
     const parcel = [...ctx.db.farm_parcel.by_owner.filter(ctx.sender)][0];
     if (parcel !== undefined) {
       ctx.db.farm_parcel.id.update({ ...parcel, name: `${validName}'s Farm` });
@@ -3419,15 +3719,20 @@ export const heartbeat = spacetimedb.reducer((ctx) => {
 });
 
 export const setInput = spacetimedb.reducer(
-  { direction: t.string(), sequence: t.u64(), clientTick: t.u64() },
-  (ctx, { direction, sequence, clientTick }) => {
+  { direction: t.string(), sequence: t.u64(), clientTick: t.u64(), sprinting: t.bool() },
+  (ctx, { direction, sequence, clientTick, sprinting }) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     parseDirection(direction);
     const input = ctx.db.player_input.identity.find(ctx.sender);
     if (input === null) throw new SenderError('player_not_ready');
     if (sequence <= input.sequence) return;
+    if (sprinting && !input.sprinting) {
+      const clock = ctx.db.world_clock.id.find(0);
+      if (clock !== null) advancePlayerStats(ctx, ctx.sender, clock.authorityTick);
+    }
     const settled = settleMovementRun(
       input.direction,
+      input.sprinting,
       input.runStartClientTick,
       clientTick,
       input.settleDirection,
@@ -3436,6 +3741,7 @@ export const setInput = spacetimedb.reducer(
     ctx.db.player_input.identity.update({
       ...input,
       direction,
+      sprinting,
       sequence,
       updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
       runStartClientTick: clientTick > input.runStartClientTick ? clientTick : input.runStartClientTick,
@@ -3547,7 +3853,7 @@ export const moveInventoryItem = spacetimedb.reducer(
         capacity,
         slots: Array.from({ length: capacity }, (_, index) => {
           const row = rowBySlot.get(offset + index);
-          return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+          return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
         }),
         ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}),
       };
@@ -3574,15 +3880,16 @@ export const moveInventoryItem = spacetimedb.reducer(
           ...row,
           itemKind: next?.itemKind ?? 'empty',
           quantity: next?.quantity ?? 0,
-          durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        });
+        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+      });
       }
     }
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     const position = ctx.db.player_position.identity.find(ctx.sender);
     if (survival !== null && position !== null) {
       const selected = result.containers.hotbar!.slots[survival.selectedSlot];
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   },
 );
@@ -3600,7 +3907,7 @@ export const quickMoveInventoryItem = spacetimedb.reducer(
       const capacity = accessibleInventoryContainerCapacity(id, hasBackpack); const offset = inventorySlotOffset(id);
       return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
         const row = rowBySlot.get(offset + index);
-        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
       }), ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}) };
     };
     const containers = { hotbar: container('hotbar'), backpack: container('backpack'), equipment: container('equipment'), crafting: container('crafting') };
@@ -3614,14 +3921,15 @@ export const quickMoveInventoryItem = spacetimedb.reducer(
         const row = rowBySlot.get(offset + index); if (row === undefined) throw new SenderError('inventory_slot_missing');
         ctx.db.inventory_slot.id.update({
           ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-          durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        });
+        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+      });
       }
     }
     const survival = ctx.db.player_survival.identity.find(ctx.sender); const position = ctx.db.player_position.identity.find(ctx.sender);
     if (survival !== null && position !== null) {
       const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   },
 );
@@ -3641,7 +3949,7 @@ export const quickMoveAllInventoryItems = spacetimedb.reducer(
     const position = ctx.db.player_position.identity.find(ctx.sender);
     if (survival !== null && position !== null) {
       const selected = result.containers.hotbar!.slots[survival.selectedSlot];
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   },
 );
@@ -3663,7 +3971,7 @@ export const distributeInventoryItem = spacetimedb.reducer(
       const capacity = accessibleInventoryContainerCapacity(id, hasBackpack); const offset = inventorySlotOffset(id);
       return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
         const row = rowBySlot.get(offset + index);
-        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
       }), ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}) };
     };
     const containers = { hotbar: container('hotbar'), backpack: container('backpack'), equipment: container('equipment'), crafting: container('crafting') };
@@ -3680,14 +3988,15 @@ export const distributeInventoryItem = spacetimedb.reducer(
         const row = rowBySlot.get(offset + index); if (row === undefined) throw new SenderError('inventory_slot_missing');
         ctx.db.inventory_slot.id.update({
           ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-          durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        });
+        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+      });
       }
     }
     const survival = ctx.db.player_survival.identity.find(ctx.sender); const position = ctx.db.player_position.identity.find(ctx.sender);
     if (survival !== null && position !== null) {
       const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   },
 );
@@ -3719,7 +4028,7 @@ export const craftInventoryRecipe = spacetimedb.reducer(
       const capacity = accessibleInventoryContainerCapacity(id, hasBackpack); const offset = inventorySlotOffset(id);
       return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
         const row = rowBySlot.get(offset + index);
-        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
       }) };
     };
     const original = { crafting: make('crafting'), hotbar: make('hotbar'), backpack: make('backpack') };
@@ -3764,14 +4073,15 @@ export const craftInventoryRecipe = spacetimedb.reducer(
         const row = rowBySlot.get(offset + index); if (row === undefined) throw new SenderError('inventory_slot_missing');
         ctx.db.inventory_slot.id.update({
           ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-          durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        });
+        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+      });
       }
     }
     const survival = ctx.db.player_survival.identity.find(ctx.sender); const position = ctx.db.player_position.identity.find(ctx.sender);
     if (survival !== null && position !== null) {
       const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
     if (craftedItemKind !== null) {
       const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
@@ -3800,7 +4110,7 @@ export const closeCrafting = spacetimedb.reducer({}, (ctx) => {
       const row = rowBySlot.get(offset + index);
       return row === undefined || row.itemKind === 'empty' || row.quantity === 0
         ? null
-        : storedStack(row.itemKind, row.quantity, row.durability);
+        : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
     }) };
   };
   const original = { hotbar: make('hotbar'), backpack: make('backpack'), crafting: make('crafting') };
@@ -3833,6 +4143,7 @@ export const closeCrafting = spacetimedb.reducer({}, (ctx) => {
       ctx.db.inventory_slot.id.update({
         ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
         durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
       });
     }
   }
@@ -3840,7 +4151,7 @@ export const closeCrafting = spacetimedb.reducer({}, (ctx) => {
   const survival = ctx.db.player_survival.identity.find(ctx.sender);
   if (survival !== null) {
     const selected = containers.hotbar?.slots[survival.selectedSlot];
-    ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
   }
 });
 
@@ -3945,7 +4256,7 @@ export const useHands = spacetimedb.reducer(
         chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES), chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
         carriedBy: undefined,
       });
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
       recordPlayerStatistic(
         ctx, ctx.sender, 'chests_placed', 1n,
         ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
@@ -3960,8 +4271,8 @@ export const useHands = spacetimedb.reducer(
         chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES), chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES), carriedBy: undefined,
         spaceId: position.spaceId,
       });
-      for (let slot = 0; slot < CHEST_CAPACITY; slot += 1) ctx.db.world_chest_slot.insert({
-        id: `${chest.id}:${slot}`, chestId: chest.id, slot, itemKind: 'empty', quantity: 0, durability: 0,
+      for (let slot = 0; slot < CHEST_STORAGE_CAPACITY; slot += 1) ctx.db.world_chest_slot.insert({
+        id: `${chest.id}:${slot}`, chestId: chest.id, slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true,
       });
       ctx.db.inventory_slot.id.update({
         ...selected,
@@ -3969,7 +4280,7 @@ export const useHands = spacetimedb.reducer(
         quantity: selected.quantity - 1,
         durability: selected.quantity === 1 ? 0 : selected.durability,
       });
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected.quantity === 1 ? 'empty' : 'chest' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected.quantity === 1 ? 'empty' : 'chest', equippedLit: true });
       recordPlayerStatistic(
         ctx, ctx.sender, 'chests_placed', 1n,
         ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
@@ -3994,6 +4305,7 @@ export const useHands = spacetimedb.reducer(
         placedBy: ctx.sender,
         facing: position.facing,
         open: false,
+        lit: true,
         smeltStartTick: undefined,
       });
       for (let slot = 0; slot < selectedPlaceable.slotCapacity; slot += 1) {
@@ -4004,6 +4316,7 @@ export const useHands = spacetimedb.reducer(
           itemKind: 'empty',
           quantity: 0,
           durability: 0,
+          lit: true,
         });
       }
       const remaining = selected.quantity - 1;
@@ -4016,6 +4329,7 @@ export const useHands = spacetimedb.reducer(
       ctx.db.player_position.identity.update({
         ...position,
         equippedKind: remaining === 0 ? 'empty' : selected.itemKind,
+        equippedLit: storedLit(remaining === 0 ? 'empty' : selected.itemKind, selected.lit),
       });
       recordPlayerStatistic(
         ctx, ctx.sender, 'placeables_placed', 1n,
@@ -4059,7 +4373,7 @@ export const useHands = spacetimedb.reducer(
       if (active !== null) ctx.db.active_chest.identity.delete(ctx.sender);
       if (hasContents) {
         ctx.db.world_chest.id.update({ ...targetChest, carriedBy: ctx.sender });
-        ctx.db.player_position.identity.update({ ...position, equippedKind: 'empty', actionKind: 'none' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: 'empty', equippedLit: true, actionKind: 'none' });
         recordPlayerStatistic(
           ctx, ctx.sender, 'chests_picked_up', 1n,
           ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
@@ -4073,7 +4387,7 @@ export const useHands = spacetimedb.reducer(
         const capacity = accessibleInventoryContainerCapacity(id, hasBackpack); const offset = inventorySlotOffset(id);
         return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
           const row = rowBySlot.get(offset + index);
-          return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+          return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
         }) };
       };
       const hotbar = make('hotbar'); const backpack = make('backpack');
@@ -4087,8 +4401,9 @@ export const useHands = spacetimedb.reducer(
           if (sameStoredStack(previous, next)) continue;
           const row = rowBySlot.get(offset + index); if (row !== undefined) ctx.db.inventory_slot.id.update({
             ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-            durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-          });
+        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+      });
         }
       }
       for (const slot of slots) ctx.db.world_chest_slot.id.delete(slot.id);
@@ -4103,17 +4418,22 @@ export const useHands = spacetimedb.reducer(
   },
 );
 
-/** E: open the chest in the facing tile. */
+/** E: open the nearest chest inside the shared radial interaction reach. */
 export const interactChest = spacetimedb.reducer(
   {},
   (ctx) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const position = ctx.db.player_position.identity.find(ctx.sender); if (position === null) throw new SenderError('player_not_ready');
     if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
-    const target = facingTile(position.x, position.y, position.facing);
-    const chest = [...ctx.db.world_chest.by_chunk.filter(position.spaceId)]
-      .find((row) => row.carriedBy === undefined && row.tileX === target.tileX && row.tileY === target.tileY);
-    if (chest === undefined) throw new SenderError('chest_not_found');
+    const chest = nearestTileTarget(
+      position.x,
+      position.y,
+      [...ctx.db.world_chest.by_chunk.filter(position.spaceId)]
+        .filter((row) => row.carriedBy === undefined),
+      CHEST_INTERACTION_REACH_FIXED,
+    );
+    if (chest === null) throw new SenderError('chest_not_found');
+    ensureChestStorageRows(ctx, chest.id);
     const current = ctx.db.active_chest.identity.find(ctx.sender);
     if (current === null) ctx.db.active_chest.insert({ identity: ctx.sender, chestId: chest.id });
     else ctx.db.active_chest.identity.update({ ...current, chestId: chest.id });
@@ -4147,6 +4467,35 @@ export const interactPlaceable = spacetimedb.reducer({}, (ctx) => {
   else ctx.db.active_placeable.identity.update({ ...active, placeableId: placeable.id });
 });
 
+/** F controls a nearby fire. Authored campfires use radial interaction like
+ * their cooking prompt; placed campfires use the normal facing-tile contract.
+ * Touching an NPC-managed fire permanently hands its schedule to the player. */
+export const toggleCampfire = spacetimedb.reducer(
+  { targetKind: t.string(), targetId: t.u64() },
+  (ctx, { targetKind, targetId }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    if (position === null) throw new SenderError('player_not_ready');
+    if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
+    if (targetKind === 'landmark') {
+      const fire = ctx.db.world_campfire_state.id.find(targetId);
+      if (fire === null || fire.spaceId !== position.spaceId) throw new SenderError('campfire_not_found');
+      const x = fire.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+      const y = fire.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+      const dx = x - position.x;
+      const dy = y - position.y;
+      if (dx * dx + dy * dy > (2 * TILE_SIZE_FIXED) ** 2) throw new SenderError('campfire_out_of_range');
+      ctx.db.world_campfire_state.id.update({ ...fire, lit: !fire.lit, manualOverride: true });
+      return;
+    }
+    if (targetKind !== 'placeable') throw new SenderError('campfire_target_invalid');
+    const fire = ctx.db.world_placeable.id.find(targetId);
+    const faced = placeableAtFacingTile(ctx, position);
+    if (fire === null || fire.kind !== 'campfire' || faced?.id !== fire.id) throw new SenderError('campfire_not_found');
+    ctx.db.world_placeable.id.update({ ...fire, lit: !fire.lit });
+  },
+);
+
 export const closePlaceable = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const active = ctx.db.active_placeable.identity.find(ctx.sender);
@@ -4178,7 +4527,7 @@ export const movePlaceableItem = spacetimedb.reducer(
         capacity: definition.slotCapacity,
         slots: Array.from({ length: definition.slotCapacity }, (_, index) => {
           const row = placeableBySlot.get(index);
-          return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+          return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
         }),
       },
     };
@@ -4189,13 +4538,14 @@ export const movePlaceableItem = spacetimedb.reducer(
     for (let index = 0; index < after.capacity; index += 1) {
       const row = placeableBySlot.get(index);
       const next = after.slots[index];
-      if (row !== undefined && !sameStoredStack(storedStack(row.itemKind, row.quantity, row.durability), next)) {
+      if (row !== undefined && !sameStoredStack(storedStack(row.itemKind, row.quantity, row.durability, row.lit), next)) {
         ctx.db.world_placeable_slot.id.update({
           ...row,
           itemKind: next?.itemKind ?? 'empty',
           quantity: next?.quantity ?? 0,
-          durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        });
+        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+      });
       }
     }
   },
@@ -4326,7 +4676,7 @@ export const buyMerchantItem = spacetimedb.reducer(
     const position = ctx.db.player_position.identity.find(ctx.sender);
     if (survival !== null && position !== null) {
       const selected = containers.hotbar?.slots[survival.selectedSlot];
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
     const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
     recordPlayerStatistic(ctx, ctx.sender, 'merchant_transactions', 1n, authorityTick, 'buy');
@@ -4372,7 +4722,7 @@ export const sellMerchantItem = spacetimedb.reducer(
     const position = ctx.db.player_position.identity.find(ctx.sender);
     if (survival !== null && position !== null) {
       const selected = next.hotbar?.slots[survival.selectedSlot];
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
     const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
     recordPlayerStatistic(ctx, ctx.sender, 'merchant_transactions', 1n, authorityTick, 'sell');
@@ -4382,7 +4732,7 @@ export const sellMerchantItem = spacetimedb.reducer(
 );
 
 /** Axe strikes break a placed chest after three authoritative hits. The final
- * transaction closes every viewer and spills both the chest item and every
+ * transaction closes every viewer and spills its recipe components plus every
  * stored stack into recoverable world-item rows. */
 export const harvestChest = spacetimedb.reducer(
   { chestId: t.u64() },
@@ -4423,11 +4773,14 @@ export const harvestChest = spacetimedb.reducer(
       else ctx.db.world_chest_damage.chestId.update({ ...damage, hits });
       return;
     }
-    const stacks = [...ctx.db.world_chest_slot.by_chest.filter(chest.id)]
+    const stacks: Array<{ itemKind: string; quantity: number; durability: number; lit: boolean }> = [...ctx.db.world_chest_slot.by_chest.filter(chest.id)]
       .filter((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)
       .sort((left, right) => left.slot - right.slot)
-      .map((slot) => ({ itemKind: slot.itemKind, quantity: slot.quantity, durability: slot.durability }));
-    stacks.unshift({ itemKind: 'chest', quantity: 1, durability: 0 });
+      .map((slot) => ({ itemKind: slot.itemKind, quantity: slot.quantity, durability: slot.durability, lit: slot.lit }));
+    const chestRecipe = recipeDefinition('chest');
+    if (chestRecipe === null) throw new SenderError('salvage_recipe_missing');
+    stacks.unshift(...recipeIngredientStacks(chestRecipe)
+      .map((stack) => ({ ...stack, durability: 0, lit: true })));
     const centerX = chest.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     const centerY = chest.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     for (const [index, stack] of stacks.entries()) {
@@ -4435,16 +4788,14 @@ export const harvestChest = spacetimedb.reducer(
       const offsetY = (Math.floor(index / 5) - 1) * 2 * FIXED_UNITS_PER_PIXEL;
       const x = centerX + offsetX;
       const y = centerY + offsetY;
-      ctx.db.world_item.insert({
-        id: 0n,
+      dropWorldItemStack(ctx, {
         itemKind: stack.itemKind,
         quantity: stack.quantity,
         x,
         y,
-        chunkX: chunkAt(x),
-        chunkY: chunkAt(y),
         droppedAtTick: clock.authorityTick,
         durability: stack.durability,
+        lit: stack.lit,
         spaceId: chest.spaceId,
       });
     }
@@ -4473,15 +4824,15 @@ export const moveChestItem = spacetimedb.reducer(
     if (position === null || !chestWithinReach(position.x, position.y, chest)) throw new SenderError('chest_out_of_range');
     const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]; const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
     const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
-    const chestRows = [...ctx.db.world_chest_slot.by_chest.filter(chest.id)]; const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
+    const chestRows = ensureChestStorageRows(ctx, chest.id); const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
     const makeInventory = (id: InventoryContainerId): ContainerSnapshot => {
       const capacity = accessibleInventoryContainerCapacity(id, hasBackpack); const offset = inventorySlotOffset(id);
       return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
-        const row = rowBySlot.get(offset + index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+        const row = rowBySlot.get(offset + index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
       }), ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}) };
     };
-    const containers: Record<string, ContainerSnapshot> = { chest: { id: 'chest', capacity: CHEST_CAPACITY, slots: Array.from({ length: CHEST_CAPACITY }, (_, index) => {
-      const row = chestBySlot.get(index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+    const containers: Record<string, ContainerSnapshot> = { chest: { id: 'chest', capacity: CHEST_STORAGE_CAPACITY, slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, index) => {
+      const row = chestBySlot.get(index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
     }) } };
     for (const id of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) containers[id] = makeInventory(id);
     const result = moveItemStacks(containers, request); if (!result.ok) throw new SenderError(result.code);
@@ -4490,19 +4841,23 @@ export const moveChestItem = spacetimedb.reducer(
       for (let index = 0; index < after.capacity; index += 1) {
         const next = after.slots[index];
         if (id === 'chest') {
-          const row = chestBySlot.get(index); if (row !== undefined && (row.itemKind !== (next?.itemKind ?? 'empty') || row.quantity !== (next?.quantity ?? 0))) {
+          const row = chestBySlot.get(index); if (row !== undefined
+            && !sameStoredStack(storedStack(row.itemKind, row.quantity, row.durability, row.lit), next)) {
             ctx.db.world_chest_slot.id.update({
               ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-              durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-            });
+        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+      });
           }
         } else {
           const inventoryId = id as InventoryContainerId; const row = rowBySlot.get(inventorySlotOffset(inventoryId) + index);
-          if (row !== undefined && (row.itemKind !== (next?.itemKind ?? 'empty') || row.quantity !== (next?.quantity ?? 0))) {
+          if (row !== undefined
+            && !sameStoredStack(storedStack(row.itemKind, row.quantity, row.durability, row.lit), next)) {
             ctx.db.inventory_slot.id.update({
               ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-              durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-            });
+        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+      });
           }
         }
       }
@@ -4510,7 +4865,7 @@ export const moveChestItem = spacetimedb.reducer(
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     if (survival !== null) {
       const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   },
 );
@@ -4526,26 +4881,26 @@ export const quickMoveChestItem = spacetimedb.reducer(
     if (position === null || !chestWithinReach(position.x, position.y, chest)) throw new SenderError('chest_out_of_range');
     const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]; const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
     const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
-    const chestRows = [...ctx.db.world_chest_slot.by_chest.filter(chest.id)]; const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
+    const chestRows = ensureChestStorageRows(ctx, chest.id); const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
     const make = (id: InventoryContainerId): ContainerSnapshot => { const capacity = accessibleInventoryContainerCapacity(id, hasBackpack); const offset = inventorySlotOffset(id); return {
-      id, capacity, slots: Array.from({ length: capacity }, (_, index) => { const row = rowBySlot.get(offset + index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability); }),
+      id, capacity, slots: Array.from({ length: capacity }, (_, index) => { const row = rowBySlot.get(offset + index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit); }),
       ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}),
     }; };
-    const containers: Record<string, ContainerSnapshot> = { chest: { id: 'chest', capacity: CHEST_CAPACITY, slots: Array.from({ length: CHEST_CAPACITY }, (_, index) => { const row = chestBySlot.get(index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability); }) } };
+    const containers: Record<string, ContainerSnapshot> = { chest: { id: 'chest', capacity: CHEST_STORAGE_CAPACITY, slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, index) => { const row = chestBySlot.get(index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit); }) } };
     for (const id of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) containers[id] = make(id);
     const result = quickMoveItemStack(containers, request); if (!result.ok) throw new SenderError(result.code);
     for (const id of ['chest', 'hotbar', 'backpack', 'equipment', 'crafting'] as const) {
       const before = containers[id]!; const after = result.containers[id]!;
       for (let index = 0; index < after.capacity; index += 1) {
         const previous = before.slots[index]; const next = after.slots[index]; if (sameStoredStack(previous, next)) continue;
-        if (id === 'chest') { const row = chestBySlot.get(index); if (row !== undefined) ctx.db.world_chest_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability) }); }
-        else { const row = rowBySlot.get(inventorySlotOffset(id) + index); if (row !== undefined) ctx.db.inventory_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability) }); }
+        if (id === 'chest') { const row = chestBySlot.get(index); if (row !== undefined) ctx.db.world_chest_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
+        else { const row = rowBySlot.get(inventorySlotOffset(id) + index); if (row !== undefined) ctx.db.inventory_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
       }
     }
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     if (survival !== null) {
       const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   },
 );
@@ -4563,16 +4918,16 @@ export const quickMoveAllChestItems = spacetimedb.reducer(
     if (chest === null || chest.carriedBy !== undefined || position === null
       || !chestWithinReach(position.x, position.y, chest)) throw new SenderError('chest_out_of_range');
     const inventory = loadPlayerInventory(ctx, ctx.sender);
-    const chestRows = [...ctx.db.world_chest_slot.by_chest.filter(chest.id)];
+    const chestRows = ensureChestStorageRows(ctx, chest.id);
     const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
     const chestContainer: ContainerSnapshot = {
       id: 'chest',
-      capacity: CHEST_CAPACITY,
-      slots: Array.from({ length: CHEST_CAPACITY }, (_, index) => {
+      capacity: CHEST_STORAGE_CAPACITY,
+      slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, index) => {
         const row = chestBySlot.get(index);
         return row === undefined || row.itemKind === 'empty' || row.quantity === 0
           ? null
-          : storedStack(row.itemKind, row.quantity, row.durability);
+          : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
       }),
     };
     const containers = { ...inventory.containers, chest: chestContainer };
@@ -4591,12 +4946,13 @@ export const quickMoveAllChestItems = spacetimedb.reducer(
         itemKind: next?.itemKind ?? 'empty',
         quantity: next?.quantity ?? 0,
         durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
       });
     }
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     if (survival !== null) {
       const selected = result.containers.hotbar!.slots[survival.selectedSlot];
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   },
 );
@@ -4613,12 +4969,12 @@ export const distributeChestItem = spacetimedb.reducer(
     if (position === null || !chestWithinReach(position.x, position.y, chest)) throw new SenderError('chest_out_of_range');
     const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]; const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
     const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
-    const chestRows = [...ctx.db.world_chest_slot.by_chest.filter(chest.id)]; const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
+    const chestRows = ensureChestStorageRows(ctx, chest.id); const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
     const make = (id: InventoryContainerId): ContainerSnapshot => { const capacity = accessibleInventoryContainerCapacity(id, hasBackpack); const offset = inventorySlotOffset(id); return {
-      id, capacity, slots: Array.from({ length: capacity }, (_, index) => { const row = rowBySlot.get(offset + index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability); }),
+      id, capacity, slots: Array.from({ length: capacity }, (_, index) => { const row = rowBySlot.get(offset + index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit); }),
       ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}),
     }; };
-    const containers: Record<string, ContainerSnapshot> = { chest: { id: 'chest', capacity: CHEST_CAPACITY, slots: Array.from({ length: CHEST_CAPACITY }, (_, index) => { const row = chestBySlot.get(index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability); }) } };
+    const containers: Record<string, ContainerSnapshot> = { chest: { id: 'chest', capacity: CHEST_STORAGE_CAPACITY, slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, index) => { const row = chestBySlot.get(index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit); }) } };
     for (const id of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) containers[id] = make(id);
     const result = distributeItemStack(containers, { fromContainer: request.fromContainer, fromIndex: request.fromIndex, quantity: request.quantity,
       targets: request.targetContainers.map((containerId, index) => ({ container: containerId, index: request.targetIndexes[index]! })) });
@@ -4627,14 +4983,14 @@ export const distributeChestItem = spacetimedb.reducer(
       const before = containers[id]!; const after = result.containers[id]!;
       for (let index = 0; index < after.capacity; index += 1) {
         const previous = before.slots[index]; const next = after.slots[index]; if (sameStoredStack(previous, next)) continue;
-        if (id === 'chest') { const row = chestBySlot.get(index); if (row !== undefined) ctx.db.world_chest_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability) }); }
-        else { const row = rowBySlot.get(inventorySlotOffset(id) + index); if (row !== undefined) ctx.db.inventory_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability) }); }
+        if (id === 'chest') { const row = chestBySlot.get(index); if (row !== undefined) ctx.db.world_chest_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
+        else { const row = rowBySlot.get(inventorySlotOffset(id) + index); if (row !== undefined) ctx.db.inventory_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
       }
     }
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     if (survival !== null) {
       const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty' });
+      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   },
 );
@@ -4764,6 +5120,7 @@ export const jumpHorse = spacetimedb.reducer((ctx) => {
   if (input !== null) ctx.db.player_input.identity.update({
     ...input,
     direction: 'idle',
+    sprinting: false,
     appliedSteps: 0n,
     settleDirection: 'idle',
     settleSteps: 0,
@@ -4790,23 +5147,22 @@ export const dropSelected = spacetimedb.reducer((ctx) => {
   if (slot === null || slot.itemKind === 'empty' || slot.quantity === 0) throw new SenderError('selected_slot_empty');
   const facing = parseDirection(position.facing) ?? 'down';
   const drop = itemDropPosition(position.x, position.y, facing);
-  ctx.db.inventory_slot.id.update({ ...slot, itemKind: 'empty', quantity: 0, durability: 0 });
+  ctx.db.inventory_slot.id.update({ ...slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true });
   ctx.db.player_position.identity.update({
     ...position,
     equippedKind: 'empty',
+    equippedLit: true,
     actionKind: 'drop',
     actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
   });
-  ctx.db.world_item.insert({
-    id: 0n,
+  dropWorldItemStack(ctx, {
     itemKind: slot.itemKind,
     quantity: slot.quantity,
     x: drop.x,
     y: drop.y,
-    chunkX: chunkAt(drop.x),
-    chunkY: chunkAt(drop.y),
     droppedAtTick: clock.authorityTick,
     durability: slot.durability,
+    lit: slot.lit,
     spaceId: position.spaceId,
   });
   recordPlayerStatistic(
@@ -4824,6 +5180,8 @@ export const pickupWorldItem = spacetimedb.reducer(
     if (position === null || item === null || clock === null) throw new SenderError('item_not_ready');
     if (item.spaceId !== position.spaceId) throw new SenderError('item_not_ready');
     if (!itemWithinPickupReach(position.x, position.y, item.x, item.y)) throw new SenderError('item_out_of_range');
+    const maximum = maxStackFor(item.itemKind);
+    if (maximum === null) throw new SenderError('unknown_item_kind');
     const slots = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)].sort((left, right) => left.slot - right.slot);
     const hasBackpack = slots.some((slot) => slot.itemKind === 'backpack' && slot.quantity > 0);
     const capacity = BACKPACK_SLOT_OFFSET + (hasBackpack ? BACKPACK_CAPACITY : DEFAULT_BACKPACK_CAPACITY);
@@ -4834,18 +5192,49 @@ export const pickupWorldItem = spacetimedb.reducer(
         const row = slots.find((slot) => slot.slot === index);
         return row === undefined || row.itemKind === 'empty' || row.quantity === 0
           ? null
-          : storedStack(row.itemKind, row.quantity, row.durability);
+          : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
       }),
     };
-    const inserted = insertItemStack(carried, {
-      itemKind: item.itemKind, quantity: item.quantity,
-      ...(isDurableToolKind(item.itemKind) ? { durability: item.durability } : {}),
-    });
-    if (!inserted.ok) throw new SenderError(inserted.code === 'container_full' ? 'inventory_full' : inserted.code);
+    const candidates: WorldItemRow[] = maximum === 1
+      ? [item]
+      : [...ctx.db.world_item.iter()]
+        .filter((candidate) => candidate.spaceId === position.spaceId
+          && candidate.itemKind === item.itemKind
+          && candidate.durability === item.durability
+          && candidate.lit === item.lit
+          && itemWithinPickupReach(position.x, position.y, candidate.x, candidate.y))
+        .sort((left, right) => {
+          if (left.id === item.id) return -1;
+          if (right.id === item.id) return 1;
+          const leftDistance = (left.x - position.x) ** 2 + (left.y - position.y) ** 2;
+          const rightDistance = (right.x - position.x) ** 2 + (right.y - position.y) ** 2;
+          if (leftDistance !== rightDistance) return leftDistance - rightDistance;
+          return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+        });
+    let nextCarried = carried;
+    let totalInserted = 0;
+    const consumed: { readonly row: WorldItemRow; readonly quantity: number }[] = [];
+    for (const candidate of candidates) {
+      const inserted = insertItemStackPartial(nextCarried, {
+        itemKind: candidate.itemKind,
+        quantity: candidate.quantity,
+        ...(isDurableToolKind(candidate.itemKind) ? { durability: candidate.durability } : {}),
+        ...(isSwitchableLightKind(candidate.itemKind) ? { lit: candidate.lit } : {}),
+      });
+      if (!inserted.ok) {
+        if (inserted.code === 'container_full') break;
+        throw new SenderError(inserted.code);
+      }
+      nextCarried = inserted.container;
+      totalInserted += inserted.insertedQuantity;
+      consumed.push({ row: candidate, quantity: inserted.insertedQuantity });
+      if (inserted.remainderQuantity > 0) break;
+    }
+    if (totalInserted === 0) throw new SenderError('inventory_full');
     let destinationSlot: number | null = null;
-    for (let slot = 0; slot < inserted.container.capacity; slot += 1) {
+    for (let slot = 0; slot < nextCarried.capacity; slot += 1) {
       const before = carried.slots[slot];
-      const after = inserted.container.slots[slot];
+      const after = nextCarried.slots[slot];
       if (sameStoredStack(before, after)) continue;
       const row = slots.find((candidate) => candidate.slot === slot);
       if (row === undefined) throw new SenderError('inventory_slot_missing');
@@ -4854,6 +5243,7 @@ export const pickupWorldItem = spacetimedb.reducer(
         itemKind: after?.itemKind ?? 'empty',
         quantity: after?.quantity ?? 0,
         durability: storedDurability(after?.itemKind ?? 'empty', after?.durability),
+        lit: storedLit(after?.itemKind ?? 'empty', after?.lit),
       });
       if (destinationSlot === null) destinationSlot = slot;
     }
@@ -4861,16 +5251,54 @@ export const pickupWorldItem = spacetimedb.reducer(
     ctx.db.player_position.identity.update({
       ...position,
       equippedKind: survival?.selectedSlot === destinationSlot ? item.itemKind : position.equippedKind,
+      equippedLit: survival?.selectedSlot === destinationSlot ? storedLit(item.itemKind, item.lit) : position.equippedLit,
       actionKind: 'pickup',
       actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
     });
     recordPlayerStatistic(
-      ctx, ctx.sender, 'items_picked_up', BigInt(item.quantity), clock.authorityTick, item.itemKind,
+      ctx, ctx.sender, 'items_picked_up', BigInt(totalInserted), clock.authorityTick, item.itemKind,
     );
     recordPlayerStatistic(
-      ctx, ctx.sender, 'items_obtained', BigInt(item.quantity), clock.authorityTick, item.itemKind,
+      ctx, ctx.sender, 'items_obtained', BigInt(totalInserted), clock.authorityTick, item.itemKind,
     );
-    ctx.db.world_item.id.delete(item.id);
+    for (const entry of consumed) {
+      const remainder = entry.row.quantity - entry.quantity;
+      if (remainder === 0) ctx.db.world_item.id.delete(entry.row.id);
+      else ctx.db.world_item.id.update({ ...entry.row, quantity: remainder });
+    }
+  },
+);
+
+/** Switches the selected carried lantern. The slot is authoritative so its
+ * state follows the item through later drops and container transfers. */
+export const toggleHeldLantern = spacetimedb.reducer((ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const survival = ctx.db.player_survival.identity.find(ctx.sender);
+  const position = ctx.db.player_position.identity.find(ctx.sender);
+  if (survival === null || position === null) throw new SenderError('player_not_ready');
+  const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  if (slot === null || slot.itemKind !== 'lantern' || slot.quantity !== 1) {
+    throw new SenderError('lantern_not_selected');
+  }
+  const lit = !slot.lit;
+  ctx.db.inventory_slot.id.update({ ...slot, lit });
+  ctx.db.player_position.identity.update({ ...position, equippedKind: 'lantern', equippedLit: lit });
+});
+
+/** Switches a dropped lantern without collecting it. The same radial reach as
+ * E-pickup is enforced server-side; spoofed or cross-space ids are rejected. */
+export const toggleWorldLantern = spacetimedb.reducer(
+  { itemId: t.u64() },
+  (ctx, { itemId }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const item = ctx.db.world_item.id.find(itemId);
+    if (position === null || item === null || item.itemKind !== 'lantern'
+      || item.spaceId !== position.spaceId) throw new SenderError('lantern_not_ready');
+    if (!itemWithinPickupReach(position.x, position.y, item.x, item.y)) {
+      throw new SenderError('lantern_out_of_range');
+    }
+    ctx.db.world_item.id.update({ ...item, lit: !item.lit });
   },
 );
 
@@ -4914,7 +5342,7 @@ export const gatherWorldResource = spacetimedb.reducer(
         const row = slots.find((slot) => slot.slot === index);
         return row === undefined || row.itemKind === 'empty' || row.quantity === 0
           ? null
-          : storedStack(row.itemKind, row.quantity, row.durability);
+          : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
       }),
     };
     const inserted = insertItemStack(carried, found);
@@ -4931,6 +5359,7 @@ export const gatherWorldResource = spacetimedb.reducer(
         itemKind: after?.itemKind ?? 'empty',
         quantity: after?.quantity ?? 0,
         durability: storedDurability(after?.itemKind ?? 'empty', after?.durability),
+        lit: storedLit(after?.itemKind ?? 'empty', after?.lit),
       });
       if (destinationSlot === null) destinationSlot = slot;
     }
@@ -4943,6 +5372,9 @@ export const gatherWorldResource = spacetimedb.reducer(
       ...position,
       facing: resourceFacing ?? position.facing,
       equippedKind: survival?.selectedSlot === destinationSlot ? found.itemKind : position.equippedKind,
+      equippedLit: survival?.selectedSlot === destinationSlot
+        ? storedLit(found.itemKind)
+        : position.equippedLit,
       actionKind: 'pickup',
       actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
     });
@@ -5010,7 +5442,15 @@ export const harvestResource = spacetimedb.reducer(
     });
 
     const nextHealth = Math.max(0, resource.health - 1);
-    ctx.db.world_resource.id.update({ ...resource, health: nextHealth, depleted: nextHealth === 0 });
+    const treeGrowthStage = normalizeTreeGrowthStage(resource.growthStage);
+    ctx.db.world_resource.id.update({
+      ...resource,
+      health: nextHealth,
+      depleted: nextHealth === 0,
+      regrowthProgress: nextHealth === 0 && isAxeHarvestableResourceKind(resource.kind)
+        ? 0
+        : resource.regrowthProgress,
+    });
     wearInventoryTool(ctx, slot);
     recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
     recordPlayerStatistic(ctx, ctx.sender, 'resource_hits', 1n, clock.authorityTick, resource.kind);
@@ -5018,26 +5458,25 @@ export const harvestResource = spacetimedb.reducer(
       recordPlayerStatistic(ctx, ctx.sender, 'resources_depleted', 1n, clock.authorityTick, resource.kind);
       if (isChoppableTreeKind(resource.kind)) {
         recordPlayerStatistic(ctx, ctx.sender, 'trees_cut_down', 1n, clock.authorityTick);
+      } else if (resource.kind === 'cactus') {
+        recordPlayerStatistic(ctx, ctx.sender, 'cacti_cut_down', 1n, clock.authorityTick);
       } else if (isBreakableRockKind(resource.kind)) {
         recordPlayerStatistic(ctx, ctx.sender, 'rocks_broken', 1n, clock.authorityTick);
       } else if (isMineableOreKind(resource.kind)) {
         recordPlayerStatistic(ctx, ctx.sender, 'ore_nodes_depleted', 1n, clock.authorityTick, resource.kind);
       }
     }
-    const drops = survivalResourceDropsAfterHit(resource.kind, nextHealth);
+    const drops = survivalResourceDropsAfterHit(resource.kind, nextHealth, treeGrowthStage);
     if (drops.length === 0) return;
     const itemX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 + 10 * FIXED_UNITS_PER_PIXEL;
     const itemY = (resource.tileY + 1) * TILE_SIZE_FIXED + 3 * FIXED_UNITS_PER_PIXEL;
     for (const [index, drop] of drops.entries()) {
       const dropX = itemX + index * 4 * FIXED_UNITS_PER_PIXEL;
-      ctx.db.world_item.insert({
-        id: 0n,
+      dropWorldItemStack(ctx, {
         itemKind: drop.itemKind,
         quantity: drop.quantity,
         x: dropX,
         y: itemY,
-        chunkX: chunkAt(dropX),
-        chunkY: chunkAt(itemY),
         droppedAtTick: clock.authorityTick,
         durability: 0,
         spaceId: resource.spaceId,
@@ -5101,6 +5540,7 @@ export const fireBow = spacetimedb.reducer(
       actionKind: 'ranged_weapon',
       actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
       equippedKind: 'bow',
+      equippedLit: true,
     });
     recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, 'bow');
     recordPlayerStatistic(ctx, ctx.sender, 'arrows_fired', 1n, clock.authorityTick);
@@ -5172,14 +5612,11 @@ export const useFarmTool = spacetimedb.reducer(
         if (!insertPlayerCarriedItem(ctx, 'fiber', 1)) {
           const x = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
           const y = tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-          ctx.db.world_item.insert({
-            id: 0n,
+          dropWorldItemStack(ctx, {
             itemKind: 'fiber',
             quantity: 1,
             x,
             y,
-            chunkX: chunkAt(x),
-            chunkY: chunkAt(y),
             droppedAtTick: clock.authorityTick,
             durability: 0,
             spaceId: position.spaceId,
@@ -5386,6 +5823,8 @@ export const stepWorld = spacetimedb.reducer(
           chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
           health: survivalResourceInitialHealth(resource.kind),
           depleted: false,
+          growthStage: TREE_GROWTH_STAGE_BIG,
+          regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
           spaceId: TOPSIDE_SPACE_ID,
         });
       }
@@ -5446,6 +5885,7 @@ export const stepWorld = spacetimedb.reducer(
         ctx.timestamp.microsSinceUnixEpoch,
       )) continue;
       ctx.db.connection_presence_v2.connectionId.delete(presence.connectionId);
+      deleteSessionChatNoticesForConnection(ctx, presence.connectionId);
       const abandonedNotice = ctx.db.connection_notice.connectionId.find(presence.connectionId);
       if (abandonedNotice !== null) {
         const abandonedProfile = ctx.db.player_public.identity.find(presence.identity);
@@ -5466,12 +5906,16 @@ export const stepWorld = spacetimedb.reducer(
       if (stillOnline) continue;
       const profile = ctx.db.player_public.identity.find(presence.identity);
       if (profile !== null) {
+        if (ctx.db.character_profile.identity.find(presence.identity)?.nameChosen === true) {
+          broadcastSessionChatNotice(ctx, 'disconnect', worldDisconnectMessage(profile.displayName));
+        }
         ctx.db.player_public.identity.update({ ...profile, online: false });
       }
       const input = ctx.db.player_input.identity.find(presence.identity);
       if (input !== null) ctx.db.player_input.identity.update({
         ...input,
         direction: 'idle',
+        sprinting: false,
         settleDirection: 'idle',
         settleSteps: 0,
         settledSequence: input.sequence,
@@ -5509,6 +5953,32 @@ export const stepWorld = spacetimedb.reducer(
     const calendarTick = environment.calendarTick + 1n;
     ctx.db.world_environment.id.update({ ...environment, calendarTick });
     recordTickRowTouch(updateCounters, undefined, 2);
+    if (authorityTick % BigInt(TREE_REGROWTH_SWEEP_TICKS) === 0n) {
+      const weatherMode = isWeatherMode(environment.weatherMode) ? environment.weatherMode : 'auto';
+      const raining = rainForWeatherMode(weatherMode, calendarTick);
+      for (const resource of ctx.db.world_resource.iter()) {
+        if (!isAxeHarvestableResourceKind(resource.kind)) continue;
+        const storedProgress = resource.depleted && resource.health === 0
+          && resource.regrowthProgress >= TREE_REGROWTH_PROGRESS_MAX
+          ? 0
+          : resource.regrowthProgress;
+        if (storedProgress >= TREE_REGROWTH_PROGRESS_MAX) continue;
+        const progress = treeRegrowthProgressAtSweep(storedProgress, authorityTick, raining, Number(resource.id & 0xffffffffn));
+        const nextStage = treeGrowthStageForProgress(progress);
+        const stageChanged = nextStage !== null && nextStage !== resource.growthStage;
+        const returnsToLife = nextStage !== null && resource.depleted;
+        ctx.db.world_resource.id.update({
+          ...resource,
+          growthStage: nextStage ?? resource.growthStage,
+          regrowthProgress: progress,
+          health: stageChanged || returnsToLife
+            ? treeHealthForGrowthStage(nextStage ?? resource.growthStage)
+            : resource.health,
+          depleted: nextStage === null ? resource.depleted : false,
+        });
+        recordTickRowTouch(updateCounters);
+      }
+    }
     const statisticSessions = new Map<string, WorldReducerContext['sender']>();
     for (const presence of activePresences) {
       if (ctx.db.connection_notice.connectionId.find(presence.connectionId) === null) continue;
@@ -5556,7 +6026,15 @@ export const stepWorld = spacetimedb.reducer(
       for (const presence of activePresences) {
         online.set(presence.identity.toHexString(), presence.identity);
       }
-      for (const identity of online.values()) advancePlayerStats(ctx, identity, authorityTick);
+      for (const identity of online.values()) {
+        const input = ctx.db.player_input.identity.find(identity);
+        const activelySprinting = input !== null
+          && ((input.sprinting && input.direction !== 'idle')
+            || input.settleDirection.includes('!'))
+          && !inputIsStale(input.updatedAtMicros, ctx.timestamp.microsSinceUnixEpoch)
+          && mountedNpcFor(ctx, identity) === null;
+        advancePlayerStats(ctx, identity, authorityTick, activelySprinting);
+      }
     }
     const wildlifeSeed = ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED;
     if (hiveProducesHoneyAtTick(calendarTick)) {
@@ -5755,10 +6233,60 @@ export const stepWorld = spacetimedb.reducer(
           input.settleSteps,
           settledThisTick,
         );
-        for (const settleDirection of drained.directions) {
+        const hasSprintIntent = !mounted && drained.intents.some((intent) => intent.sprinting);
+        const sprintStatsRow = hasSprintIntent
+          ? advancePlayerStats(ctx, row.identity, authorityTick, true)
+          : null;
+        const sprintModifiers = sprintStatsRow === null
+          ? []
+          : activePlayerModifiers(ctx, row.identity, authorityTick);
+        const sprintResolvedStats = sprintStatsRow === null
+          ? null
+          : resolveStats({
+            str: sprintStatsRow.str,
+            dex: sprintStatsRow.dex,
+            con: sprintStatsRow.con,
+            int: sprintStatsRow.int,
+            wis: sprintStatsRow.wis,
+            cha: sprintStatsRow.cha,
+          }, sprintModifiers);
+        const sprintAbility = sprintResolvedStats === null
+          ? null
+          : resolveSprintAbility(sprintResolvedStats.attributes, sprintModifiers);
+        let sprintStepsMoved = 0;
+        let sprintCostCenti = 0;
+        for (const intent of drained.intents) {
+          const nextSprintCost = sprintAbility === null
+            ? 0
+            : sprintVigourCostForSteps(
+              sprintAbility.vigourDrainCentiPerSecond,
+              sprintStepsMoved + 1,
+            );
+          const canSprint = intent.sprinting
+            && sprintStatsRow !== null
+            && sprintAbility !== null
+            && sprintStatsRow.vigourCenti >= nextSprintCost;
+          const beforeX = player.position.x;
+          const beforeY = player.position.y;
           player = mounted
-            ? movePlayerAtSpeed(player, settleDirection, collision, 2)
-            : movePlayer(player, settleDirection, collision);
+            ? movePlayerAtSpeed(player, intent.direction, collision, 2)
+            : canSprint
+              ? movePlayerAtSpeedPermille(
+                player, intent.direction, collision, sprintAbility.speedPermille,
+              )
+              : movePlayer(player, intent.direction, collision);
+          if (canSprint && (player.position.x !== beforeX || player.position.y !== beforeY)) {
+            sprintStepsMoved += 1;
+            sprintCostCenti = nextSprintCost;
+          }
+        }
+        if (sprintStatsRow !== null && sprintCostCenti > 0) {
+          ctx.db.player_stats.identity.update({
+            ...sprintStatsRow,
+            vigourCenti: sprintStatsRow.vigourCenti - sprintCostCenti,
+            vigourRemainder: 0,
+            regenTick: authorityTick,
+          });
         }
         const creditedThisTick = settledThisTick;
         const remainingSettleSteps = drained.pendingSteps;
@@ -5949,7 +6477,27 @@ export const stepWorld = spacetimedb.reducer(
         continue;
       }
 
-      const stepped = stepWanderingNpc({
+      const marlowFire = npc.id === TOOL_MERCHANT_ID
+        ? ctx.db.world_campfire_state.id.find(MARLOW_CAMPFIRE_ID)
+        : null;
+      const marlowReturningToFire = marlowFire !== null
+        && !marlowFire.manualOverride
+        && marlowFire.lit !== marlowCampfireShouldBeLit(calendarTick);
+      const marlowTarget = {
+        x: MARLOW_CAMPFIRE_TILE.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+        y: MARLOW_CAMPFIRE_TILE.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      };
+      if (marlowReturningToFire && marlowFire !== null) {
+        const dx = marlowTarget.x - npc.x;
+        const dy = marlowTarget.y - npc.y;
+        if (dx * dx + dy * dy <= NPC_INTERACTION_REACH_FIXED * NPC_INTERACTION_REACH_FIXED) {
+          ctx.db.world_campfire_state.id.update({
+            ...marlowFire,
+            lit: marlowCampfireShouldBeLit(calendarTick),
+          });
+        }
+      }
+      const wanderingState = {
         id: npc.id,
         position: { x: npc.x, y: npc.y },
         home: { x: npc.homeX, y: npc.homeY },
@@ -5957,7 +6505,10 @@ export const stepWorld = spacetimedb.reducer(
         moving: npc.moving,
         wanderDirection: npcDirection(npc.wanderDirection),
         nextDecisionTick: Number(npc.nextDecisionTick),
-      }, Number(authorityTick), collision);
+      };
+      const stepped = marlowReturningToFire
+        ? stepNpcTowardPoint(wanderingState, marlowTarget, Number(authorityTick), collision)
+        : stepWanderingNpc(wanderingState, Number(authorityTick), collision);
       const nextNpc = {
         ...npc,
         x: stepped.position.x,

@@ -1,0 +1,50 @@
+{
+  "name": "nature_cf_desert_rock_02",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".....000........",
+        "....011200......",
+        "...01122220.....",
+        "...022222340....",
+        "...0522534406...",
+        "...6055334406...",
+        "...6605344066...",
+        "....666666666...",
+        ".....6666666....",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#6c4737",
+    "1": "#eab890",
+    "2": "#e4a672",
+    "3": "#a26b53",
+    "4": "#875945",
+    "5": "#bd8770",
+    "6": "#00000064"
+  },
+  "sourcePath": "references/Cute_Fantasy_Desert/Props/Desert_Rocks.png",
+  "sourcePaletteMode": "exact",
+  "sourceRegion": [16, 0, 16, 16],
+  "approved": true,
+  "importedFrom": "Desert_Rocks.png",
+  "tags": ["decoration.rock", "decoration.desert"],
+  "placement": { "layer": "ground", "footprint": [1, 1], "blocksMovement": false, "builderAvailable": false }
+}

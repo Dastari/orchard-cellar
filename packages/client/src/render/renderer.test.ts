@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { drawWorldDepthQueue, minimumWorldZoom, worldPassCapacity, worldPassLayout } from './renderer.js';
+import {
+  drawWorldDepthQueue,
+  minimumWorldZoom,
+  sortWorldDepthItems,
+  worldPassCapacity,
+  worldPassLayout,
+} from './renderer.js';
 
 describe('unified renderer zoom math', () => {
   it('uses an integer sharp pass and a DPR-aware final scale', () => {
@@ -59,6 +65,21 @@ describe('unified renderer zoom math', () => {
       'weather:40:40',
       'player',
       'weather:40:Infinity',
+    ]);
+  });
+
+  it('30§5 orders lower-behind, cliff, upper-on-top, and lower-in-front correctly', () => {
+    const items = [
+      { footY: 80, tie: 'lower-behind' },
+      { footY: 96, tie: 'terrain-cliff' },
+      { footY: 50, depthOffset: 48, tie: 'upper-on-top' },
+      { footY: 112, tie: 'lower-in-front' },
+    ];
+    expect(sortWorldDepthItems(items).map(({ tie }) => tie)).toEqual([
+      'lower-behind',
+      'terrain-cliff',
+      'upper-on-top',
+      'lower-in-front',
     ]);
   });
 });

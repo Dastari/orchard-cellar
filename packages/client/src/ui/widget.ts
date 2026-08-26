@@ -1,6 +1,6 @@
 import { containsPoint, type UiPoint, type UiRect, type UiSize } from './geometry.js';
 
-export type WidgetKind = 'root' | 'panel' | 'label' | 'icon' | 'button' | 'bar' | 'slider' | 'scrollbar' | 'slot' | 'inventory_grid' | 'window' | 'tooltip' | 'speech_bubble' | 'cursor' | 'row' | 'column';
+export type WidgetKind = 'root' | 'panel' | 'label' | 'icon' | 'button' | 'bar' | 'slider' | 'toggle' | 'scrollbar' | 'slot' | 'inventory_grid' | 'window' | 'tooltip' | 'speech_bubble' | 'cursor' | 'row' | 'column';
 export type UiPointerEventKind = 'pointer_down' | 'pointer_up' | 'pointer_move' | 'click';
 
 export interface UiPointerEvent {

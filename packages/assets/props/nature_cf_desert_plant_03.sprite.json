@@ -1,0 +1,48 @@
+{
+  "name": "nature_cf_desert_plant_03",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....000...0.....",
+        "....0110.010....",
+        "....02110120....",
+        ".....0230130....",
+        "...00030120.....",
+        "..0111001300....",
+        ".011221020110...",
+        ".0103323212210..",
+        "..0.0032322010..",
+        "......0333040...",
+        ".....4.03044....",
+        ".....4402044....",
+        "......44444.....",
+        ".......444......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#091b15",
+    "1": "#5ac54f",
+    "2": "#33984b",
+    "3": "#1e6f50",
+    "4": "#00a3a8"
+  },
+  "sourcePath": "references/Cute_Fantasy_Desert/Props/Ambarakaman_Plant.png",
+  "sourcePaletteMode": "exact",
+  "sourceRegion": [32, 0, 16, 16],
+  "approved": true,
+  "importedFrom": "Ambarakaman_Plant.png",
+  "tags": ["vegetation.plant", "vegetation.desert"],
+  "placement": { "layer": "ground", "footprint": [1, 1], "blocksMovement": false, "builderAvailable": false }
+}

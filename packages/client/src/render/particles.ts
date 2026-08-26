@@ -281,6 +281,7 @@ export function weatherCameraOffset(
 export class RainWeather {
   readonly streaks = new ParticlePool(220);
   readonly splashes = new ParticlePool(60);
+  readonly interactionSplashes = new ParticlePool(16);
   private randomState = 0x4f434852;
   private enabledValue = false;
   private viewportWidth = 1;
@@ -300,8 +301,18 @@ export class RainWeather {
   ) {}
 
   get enabled(): boolean { return this.enabledValue; }
-  get activeCount(): number { return this.streaks.activeCount + this.splashes.activeCount; }
-  get splashCount(): number { return this.splashes.activeCount; }
+  get activeCount(): number {
+    return this.streaks.activeCount + this.splashes.activeCount + this.interactionSplashes.activeCount;
+  }
+  get splashCount(): number { return this.splashes.activeCount + this.interactionSplashes.activeCount; }
+
+  /** Tool impacts use the same authored splash strip as rain, but remain in
+   * world space and render even when the weather itself is dry. */
+  spawnWorldSplash(worldX: number, worldY: number): void {
+    this.interactionSplashes.spawnValues(
+      'world', worldX, worldY, 0, 0, this.splashDuration(), 'rain_splash', worldY,
+    );
+  }
 
   update(
     enabled: boolean,
@@ -326,6 +337,7 @@ export class RainWeather {
     }
     this.streaks.update(1 / SIM_TICKS_PER_SECOND, this.splashAtStreakEnd);
     this.splashes.update(1 / SIM_TICKS_PER_SECOND);
+    this.interactionSplashes.update(1 / SIM_TICKS_PER_SECOND);
   }
 
   drawDepthRange(
@@ -337,7 +349,7 @@ export class RainWeather {
     minimumDepth = Number.NEGATIVE_INFINITY,
     maximumDepth = Number.POSITIVE_INFINITY,
   ): number {
-    if (!this.enabledValue) return 0;
+    if (!this.enabledValue && this.splashes.activeCount === 0 && this.interactionSplashes.activeCount === 0) return 0;
     const screenPositionScale = screenParticleScale(scale, worldZoom);
     const screenSizeScale = rainVisualScale(scale);
     const previousAlpha = context.globalAlpha;
@@ -356,6 +368,19 @@ export class RainWeather {
       maximumDepth,
     )
       + this.splashes.draw(
+        context,
+        cameraX,
+        cameraY,
+        scale,
+        '#b7e6ed80',
+        screenPositionScale,
+        screenSizeScale,
+        this.splashAsset,
+        null,
+        minimumDepth,
+        maximumDepth,
+      )
+      + this.interactionSplashes.draw(
         context,
         cameraX,
         cameraY,

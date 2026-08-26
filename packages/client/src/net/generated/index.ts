@@ -85,6 +85,9 @@ import SetWorldTimeReducer from "./set_world_time_reducer";
 import SetWorldWeatherReducer from "./set_world_weather_reducer";
 import SetWorldWindDirectionReducer from "./set_world_wind_direction_reducer";
 import TendTreeReducer from "./tend_tree_reducer";
+import ToggleCampfireReducer from "./toggle_campfire_reducer";
+import ToggleHeldLanternReducer from "./toggle_held_lantern_reducer";
+import ToggleWorldLanternReducer from "./toggle_world_lantern_reducer";
 import UseFarmTileReducer from "./use_farm_tile_reducer";
 import UseFarmToolReducer from "./use_farm_tool_reducer";
 import UseHandsReducer from "./use_hands_reducer";
@@ -112,6 +115,7 @@ import OwnOpenChestSlotsRow from "./own_open_chest_slots_table";
 import OwnOpenPlaceableSlotsRow from "./own_open_placeable_slots_table";
 import OwnPlayerStatisticMilestonesRow from "./own_player_statistic_milestones_table";
 import OwnPlayerStatisticsRow from "./own_player_statistics_table";
+import OwnSessionChatNoticesRow from "./own_session_chat_notices_table";
 import OwnStatsRow from "./own_stats_table";
 import OwnSurvivalRow from "./own_survival_table";
 import OwnWalletRow from "./own_wallet_table";
@@ -121,6 +125,7 @@ import PlayerPublicRow from "./player_public_table";
 import SpacePortalRow from "./space_portal_table";
 import VisibleChatMessagesRow from "./visible_chat_messages_table";
 import VisibleWorldSpeechRow from "./visible_world_speech_table";
+import WorldCampfireStateRow from "./world_campfire_state_table";
 import WorldChestRow from "./world_chest_table";
 import WorldClockRow from "./world_clock_table";
 import WorldEnvironmentRow from "./world_environment_table";
@@ -237,6 +242,17 @@ const tablesSchema = __schema({
       { name: 'space_portal_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, SpacePortalRow),
+  worldCampfireState: __table({
+    name: 'world_campfire_state',
+    indexes: [
+      { accessor: 'id', name: 'world_campfire_state_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_campfire_state_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldCampfireStateRow),
   worldChest: __table({
     name: 'world_chest',
     indexes: [
@@ -570,6 +586,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnPlayerStatisticsRow),
+  ownSessionChatNotices: __table({
+    name: 'own_session_chat_notices',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnSessionChatNoticesRow),
   ownStats: __table({
     name: 'own_stats',
     indexes: [
@@ -660,6 +683,9 @@ const reducersSchema = __reducers(
   __reducerSchema("set_world_weather", SetWorldWeatherReducer),
   __reducerSchema("set_world_wind_direction", SetWorldWindDirectionReducer),
   __reducerSchema("tend_tree", TendTreeReducer),
+  __reducerSchema("toggle_campfire", ToggleCampfireReducer),
+  __reducerSchema("toggle_held_lantern", ToggleHeldLanternReducer),
+  __reducerSchema("toggle_world_lantern", ToggleWorldLanternReducer),
   __reducerSchema("use_farm_tile", UseFarmTileReducer),
   __reducerSchema("use_farm_tool", UseFarmToolReducer),
   __reducerSchema("use_hands", UseHandsReducer),
@@ -686,6 +712,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "player_public": Omit<typeof tablesSchema.schemaType.tables["playerPublic"], "accessorName"> & { readonly accessorName: "player_public" };
     /** @deprecated Use `spacePortal` instead. This alias will be removed in the next major version. */
     readonly "space_portal": Omit<typeof tablesSchema.schemaType.tables["spacePortal"], "accessorName"> & { readonly accessorName: "space_portal" };
+    /** @deprecated Use `worldCampfireState` instead. This alias will be removed in the next major version. */
+    readonly "world_campfire_state": Omit<typeof tablesSchema.schemaType.tables["worldCampfireState"], "accessorName"> & { readonly accessorName: "world_campfire_state" };
     /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
     readonly "world_chest": Omit<typeof tablesSchema.schemaType.tables["worldChest"], "accessorName"> & { readonly accessorName: "world_chest" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
@@ -741,6 +769,7 @@ const tableAccessorAliases = {
   "player_position": "playerPosition",
   "player_public": "playerPublic",
   "space_portal": "spacePortal",
+  "world_campfire_state": "worldCampfireState",
   "world_chest": "worldChest",
   "world_clock": "worldClock",
   "world_environment": "worldEnvironment",
@@ -790,6 +819,8 @@ export type DbView = __DbViewBase & {
   readonly "player_public": __DbViewBase["playerPublic"];
   /** @deprecated Use `spacePortal` instead. This alias will be removed in the next major version. */
   readonly "space_portal": __DbViewBase["spacePortal"];
+  /** @deprecated Use `worldCampfireState` instead. This alias will be removed in the next major version. */
+  readonly "world_campfire_state": __DbViewBase["worldCampfireState"];
   /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
   readonly "world_chest": __DbViewBase["worldChest"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
@@ -838,6 +869,8 @@ export type Tables = __TablesBase & {
   readonly "player_public": __TablesBase["playerPublic"];
   /** @deprecated Use `spacePortal` instead. This alias will be removed in the next major version. */
   readonly "space_portal": __TablesBase["spacePortal"];
+  /** @deprecated Use `worldCampfireState` instead. This alias will be removed in the next major version. */
+  readonly "world_campfire_state": __TablesBase["worldCampfireState"];
   /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
   readonly "world_chest": __TablesBase["worldChest"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */

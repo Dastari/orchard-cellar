@@ -123,14 +123,14 @@ async function moveNear(
       ? current < target ? 'right' : 'left'
       : current < target ? 'down' : 'up';
     sequence.value += 1n;
-    await client.connection.reducers.setInput({ direction, sequence: sequence.value, clientTick: clientTickNow() });
+    await client.connection.reducers.setInput({ direction, sequence: sequence.value, clientTick: clientTickNow(), sprinting: false });
     await waitUntil(`farm_move_${axis}`, () => {
       const position = client.connection.db.playerPosition.identity.find(client.identity);
       if (position === null) return false;
       return Math.abs((axis === 'x' ? position.x : position.y) - target) <= TILE_SIZE_FIXED;
     });
     sequence.value += 1n;
-    await client.connection.reducers.setInput({ direction: 'idle', sequence: sequence.value, clientTick: clientTickNow() });
+    await client.connection.reducers.setInput({ direction: 'idle', sequence: sequence.value, clientTick: clientTickNow(), sprinting: false });
     await waitUntil(`farm_move_${axis}_idle`, () => {
       return client.connection.db.playerPosition.identity.find(client.identity)?.lastProcessedSequence === sequence.value;
     });
@@ -285,12 +285,12 @@ async function main(): Promise<void> {
     const chunkDirection = startingChunk >= 1 ? 'left' : 'right';
     const destinationChunk = startingChunk >= 1 ? startingChunk - 1 : startingChunk + 1;
     aliceSequence.value += 1n;
-    alice.connection.reducers.setInput({ direction: chunkDirection, sequence: aliceSequence.value, clientTick: clientTickNow() });
+    alice.connection.reducers.setInput({ direction: chunkDirection, sequence: aliceSequence.value, clientTick: clientTickNow(), sprinting: false });
     await waitUntil('chunk_crossing', () => {
       return alice.connection.db.playerPosition.identity.find(alice.identity)?.chunkX === destinationChunk;
     });
     aliceSequence.value += 1n;
-    alice.connection.reducers.setInput({ direction: 'idle', sequence: aliceSequence.value, clientTick: clientTickNow() });
+    alice.connection.reducers.setInput({ direction: 'idle', sequence: aliceSequence.value, clientTick: clientTickNow(), sprinting: false });
     await waitUntil('idle_ack', () => {
       return alice.connection.db.playerPosition.identity.find(alice.identity)?.lastProcessedSequence === aliceSequence.value;
     });
@@ -308,13 +308,13 @@ async function main(): Promise<void> {
         throw new Error('non_origin_position_not_restored');
       }
       aliceSequence.value += 1n;
-      reconnected.connection.reducers.setInput({ direction: 'right', sequence: aliceSequence.value, clientTick: clientTickNow() });
+      reconnected.connection.reducers.setInput({ direction: 'right', sequence: aliceSequence.value, clientTick: clientTickNow(), sprinting: false });
       await waitUntil('post_reconnect_input', () => {
         const row = reconnected.connection.db.playerPosition.identity.find(reconnected.identity);
         return row?.lastProcessedSequence === aliceSequence.value && row.x > restored.x;
       });
       aliceSequence.value += 1n;
-      reconnected.connection.reducers.setInput({ direction: 'idle', sequence: aliceSequence.value, clientTick: clientTickNow() });
+      reconnected.connection.reducers.setInput({ direction: 'idle', sequence: aliceSequence.value, clientTick: clientTickNow(), sprinting: false });
     } finally {
       reconnected.connection.disconnect();
       await new Promise((resolve) => setTimeout(resolve, 150));

@@ -96,6 +96,9 @@ export interface RenderFrame {
 /** Every non-ground world object supplies this foot/door-line depth. */
 export interface WorldDepthItem {
   readonly footY: number;
+  /** Projected terrain height beneath this drawable. It changes painter
+   * ordering only; world/screen position remains unchanged. */
+  readonly depthOffset?: number;
   readonly tie: string;
   readonly draw: () => void;
 }
@@ -103,7 +106,12 @@ export interface WorldDepthItem {
 export function sortWorldDepthItems<T extends Pick<WorldDepthItem, 'footY' | 'tie'>>(
   items: readonly T[],
 ): T[] {
-  return [...items].sort((left, right) => left.footY - right.footY || left.tie.localeCompare(right.tie));
+  return [...items].sort((left, right) => worldDepthY(left) - worldDepthY(right)
+    || left.tie.localeCompare(right.tie));
+}
+
+export function worldDepthY(item: Pick<WorldDepthItem, 'footY' | 'depthOffset'>): number {
+  return item.footY + (item.depthOffset ?? 0);
 }
 
 /** Interleaves an impact-depth layer (weather today) around every world drawable. */
@@ -116,7 +124,7 @@ export function drawWorldDepthQueue(
   let draws = 0;
   let previousDepth = Number.NEGATIVE_INFINITY;
   for (const item of sortWorldDepthItems(items)) {
-    const depth = (item.footY - cameraY) * scale;
+    const depth = (worldDepthY(item) - cameraY) * scale;
     draws += drawDepthRange(previousDepth, depth);
     previousDepth = depth;
     item.draw();

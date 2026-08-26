@@ -23,6 +23,7 @@ import {
   generatedSurvivalResourceAt,
   findSurvivalSpawnTile,
   isChoppableTreeKind,
+  isRegrowingPlantKind,
   isBreakableRockKind,
   isGatherableResourceKind,
   isInteractivePoiDecorationKind,
@@ -470,6 +471,11 @@ describe('deterministic survival island', () => {
     expect(count('nature_water_grass')).toBeGreaterThan(0);
     expect(count('nature_water_rock')).toBeGreaterThan(0);
     expect(count('nature_fish_shadow')).toBeGreaterThan(0);
+    expect(count('nature_desert_grass')).toBeGreaterThan(0);
+    expect(count('nature_desert_fern')).toBeGreaterThan(0);
+    expect(count('nature_desert_bush')).toBeGreaterThan(0);
+    expect(count('nature_desert_plant')).toBeGreaterThan(0);
+    expect(count('nature_desert_rock')).toBeGreaterThan(0);
     expect(first.filter((decoration) => decoration.kind.startsWith('nature_water_')).length)
       .toBeLessThan(50);
 
@@ -551,11 +557,27 @@ describe('deterministic survival island', () => {
     expect(survivalResourceDropAfterHit('ore_iron', 93)).toEqual({ itemKind: 'iron_ore', quantity: 1 });
     expect(survivalResourceDropAfterHit('ore_amethyst', 0)).toEqual({ itemKind: 'amethyst_ore', quantity: 1 });
     expect(survivalResourceDropAfterHit('tree_oak', 0)).toEqual({ itemKind: 'wood', quantity: 3 });
+    expect(survivalResourceDropAfterHit('tree_oak', 0, 2)).toEqual({ itemKind: 'wood', quantity: 1 });
+    expect(survivalResourceDropAfterHit('tree_oak', 0, 1)).toEqual({ itemKind: 'stick', quantity: 1 });
     expect(survivalResourceDropAfterHit('tree_oak', 2)).toBeNull();
     expect(survivalResourceDropsAfterHit('tree_pear', 0)).toEqual([
       { itemKind: 'wood', quantity: 3 },
       { itemKind: 'pear', quantity: 2 },
     ]);
+    expect(survivalResourceDropsAfterHit('tree_pear', 0, 1)).toEqual([
+      { itemKind: 'stick', quantity: 1 },
+    ]);
+    expect(survivalResourceDropAfterHit('cactus', 0, 1)).toEqual({ itemKind: 'cactus', quantity: 1 });
+    expect(survivalResourceDropAfterHit('cactus', 0, 3)).toEqual({ itemKind: 'cactus', quantity: 3 });
     expect(survivalOreObstacle(10, 10)).not.toEqual(survivalTreeObstacle(10, 10));
+  });
+
+  it('places regrowing cacti only on desert ground', () => {
+    const cacti = generateSurvivalResources().filter((resource) => resource.kind === 'cactus');
+    expect(cacti.length).toBeGreaterThan(20);
+    expect(cacti.every((cactus) => isRegrowingPlantKind(cactus.kind))).toBe(true);
+    expect(cacti.every((cactus) => ['desert', 'desert_shore'].includes(survivalBiomeAt(
+      SURVIVAL_WORLD_SEED, cactus.tileX, cactus.tileY,
+    )))).toBe(true);
   });
 });

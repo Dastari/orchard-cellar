@@ -44,6 +44,24 @@ describe('shared container stacking rules', () => {
     expect(containers.bag.slots).toEqual([{ itemKind: 'wood', quantity: 4 }, null]);
   });
 
+  it('preserves switchable-light state through moves, swaps, and quick moves', () => {
+    const containers = {
+      hotbar: {
+        id: 'hotbar', capacity: 2,
+        slots: [{ itemKind: 'lantern', quantity: 1, lit: false }, { itemKind: 'lantern', quantity: 1, lit: true }],
+      },
+      backpack: { id: 'backpack', capacity: 1, slots: [null] },
+    } as const;
+    const swapped = moveItemStacks(containers, {
+      fromContainer: 'hotbar', fromIndex: 0, toContainer: 'hotbar', toIndex: 1, quantity: 1,
+    });
+    expect(swapped.ok && swapped.containers.hotbar?.slots.map((stack) => stack?.lit)).toEqual([true, false]);
+    const quick = quickMoveItemStack(containers, {
+      fromContainer: 'hotbar', fromIndex: 0, toContainers: ['backpack'],
+    });
+    expect(quick.ok && quick.containers.backpack?.slots[0]?.lit).toBe(false);
+  });
+
   it('splits a pickup across the current stack and free slots', () => {
     const result = insertItemStack({
       id: 'hotbar', capacity: 3, slots: [{ itemKind: 'wood', quantity: 95 }, null, null],

@@ -33,7 +33,7 @@ red=danger) for buttons/selectors, not all eight recolors:
 | Slot | `ui_cf_slot` | the square inventory cell from the premade sheet; 9-slice so slot size can vary |
 | Selector brackets | `ui_cf_selector_{neutral,confirm,deny}` | 4-corner bracket frames (white/green/red rows); drawn corners-only at any size — selection, drag-target highlight, hotbar bracket |
 | Sliders | `ui_cf_slider_track`, `ui_cf_slider_handle` | horizontal 9-slice track + handle sprite |
-| Bars | `ui_cf_bar_frame`, `ui_cf_bar_fill_{red,green,blue,gold}` | segmented fills; fill drawn clipped to fraction |
+| Bars | `ui_cf_bar_frame`, `ui_cf_bar_fill_{red,green,blue,gold}` | authored fixed-size player-vitals HUD only; do not stretch it as a generic meter. Resizable loading/task meters use the shared pixel `ProgressBar` primitive with fixed-thickness borders and segmented fill |
 | Ribbons | `ui_cf_ribbon`, `ui_cf_banner_flag` | window titles, headers |
 | Speech popups | `ui_cf_bubble` + `tail_{up,down,left,right}` state frames | 9-slice body, tail composited at anchor edge |
 | Crosshair/cursor | `ui_cf_cursor`, `ui_cf_cursor_click` (animation), `ui_cf_crosshair` | `Pointer_Click_Anim.png`; OS cursor hidden over canvas, cursor drawn in UI pass |
@@ -74,6 +74,15 @@ docs/02 always reserved), rendered by the doc 21 UI pass. No DOM, no framework.
   `InventoryGrid` bound to the hotbar container; toasts become a `Label` queue
   widget; player name tags move to `SpeechBubble`'s positioning helper. The F3
   debug overlay stays raw text (not widgetized).
+
+### Storage-frame compositions
+
+All windows containing item containers must use the implemented composition and
+resizing contract in [38-storage-frame-system.md](38-storage-frame-system.md).
+That contract supersedes screen-local slot offsets: it derives minimum frame
+size from one or more declared panes, guarantees hotbar width, distributes fixed
+panes with equal gutters, allocates surplus width to explicit flex panes, and
+provides the shared corner-resize interaction used for layout testing.
 
 ## 3. Drag and drop
 

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Native icon_resource_fruit pixels from the Orchard asset registry. -->
+  <g fill="#1a1210">
+    <path d="M7 2h6v1H7zM12 3h1v2h-1zM4 5h3v1H4zM10 5h1v1h-1zM3 6h1v1H3zM11 6h2v1h-2zM2 7h1v5H2zM13 7h1v5h-1zM3 12h2v1H3zM11 12h2v1h-2zM5 13h6v1H5z"/>
+  </g>
+  <g fill="#6b4423">
+    <path d="M7 3h2v3H7z"/>
+  </g>
+  <g fill="#58a346">
+    <path d="M9 3h1v1H9zM9 4h3v1H9z"/>
+  </g>
+  <path fill="#7ec850" d="M10 3h2v1h-2z"/>
+  <g fill="#c03a2b">
+    <path d="M9 5h1v1H9zM4 6h1v1H4zM8 6h3v1H8zM3 7h2v1H3zM8 7h5v1H8zM3 8h1v2H3zM6 8h7v2H6zM3 10h6v2H3zM12 10h1v2h-1zM5 12h2v1H5zM10 12h1v1h-1z"/>
+  </g>
+  <g fill="#ff8f5e">
+    <path d="M5 6h3v2H5z"/>
+  </g>
+  <g fill="#e85d3d">
+    <path d="M4 8h2v2H4z"/>
+  </g>
+  <g fill="#8c2333">
+    <path d="M9 10h3v2H9z"/>
+  </g>
+  <path fill="#5c1423" d="M7 12h3v1H7z"/>
+</svg>

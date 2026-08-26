@@ -256,23 +256,29 @@ numbers; §3 above remains the retired solo farm scene's tend-charge economy.
   `10 × STR`, max Mana `10 × INT`, and max Vigour `10 × CON`; all baseline at
   **100 displayed / 10,000 centi**.
 - Health regenerates **0.2/s** flat. Mana regenerates **0.1 × WIS/s** (1.0/s at
-  baseline). Vigour regenerates **0.8 × CON/s** (8.0/s at baseline; empty to full
-  in about 12.5 seconds). Lazy online sweeps run every **10 authority ticks / 0.5
+  baseline). Vigour regenerates **1.2 × CON/s** (12.0/s at baseline; empty to full
+  in about 8.3 seconds). Lazy online sweeps run every **10 authority ticks / 0.5
   seconds**; offline catch-up is allowed.
 - Modifier percentages use basis points (**10,000 = 100%**) and resolve in the
   sole order flat → summed additive percent → stable-id multiplicative percent →
   highest override → bounds/softcap. Attributes hard-cap at 30; regen uses the
   shared softcap path.
+- Hold Shift while moving on foot to Sprint at **125% speed**. Baseline drain is
+  **10 Vigour/s** and regeneration pauses while Sprint is active, including
+  queued sprint steps awaiting authority processing. The pre-modifier
+  drain is `10 × 10 / CON` (rounded upward in centi-units); `sprintSpeed` and
+  `sprintVigourCost` accept equipment, effect/buff/debuff, skill, and environment
+  modifiers. Insufficient Vigour degrades the next step to ordinary walking.
 
 | Tool | Vigour cost | Minimum interval at 20 Hz |
 |---|---:|---:|
 | Watering can | 8 | 6 ticks / 300 ms |
-| Hoe | 10 | 6 ticks / 300 ms |
+| Hoe | 50 | 6 ticks / 300 ms |
 | Fishing rod | 6 | 6 ticks / 300 ms |
 | Bow | 10 | 6 ticks / 300 ms |
 | Sword | 12 | 7 ticks / 350 ms |
-| Axe | 15 | 8 ticks / 400 ms |
-| Pickaxe | 20 | 10 ticks / 500 ms |
+| Axe | 50 | 8 ticks / 400 ms |
+| Pickaxe | 50 | 10 ticks / 500 ms |
 | Shovel | 12 | 7 ticks / 350 ms |
 | Hammer | 18 | 9 ticks / 450 ms |
 

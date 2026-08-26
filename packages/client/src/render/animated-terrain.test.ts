@@ -15,6 +15,7 @@ function waterTerrain(): TerrainArray {
     blocked: Array.from({ length: width * height }, () => true),
     horseJumpableTerrain: Array.from({ length: width * height }, () => false),
     cliffRoles: new Uint8Array(width * height),
+    elevations: new Uint8Array(width * height),
     plateaus: new Uint8Array(width * height),
     dirtCliffRoles: new Uint8Array(width * height),
     dirtTerraces: new Uint8Array(width * height),

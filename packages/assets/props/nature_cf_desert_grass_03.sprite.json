@@ -1,0 +1,45 @@
+{
+  "name": "nature_cf_desert_grass_03",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".........00.....",
+        "........0011....",
+        "....00...11.....",
+        "...1000.........",
+        "...1100..000....",
+        "....110.00011...",
+        "........0011....",
+        "........011.....",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#a09d46",
+    "1": "#00000064"
+  },
+  "sourcePath": "references/Cute_Fantasy_Desert/Props/Desert_Grass_Props.png",
+  "sourcePaletteMode": "exact",
+  "sourceRegion": [32, 0, 16, 16],
+  "approved": true,
+  "importedFrom": "Desert_Grass_Props.png",
+  "tags": ["vegetation.grass", "vegetation.desert"],
+  "placement": { "layer": "ground", "footprint": [1, 1], "blocksMovement": false, "builderAvailable": false }
+}

@@ -29,12 +29,12 @@ currency conflicts).
 | Unit | Value | Notes |
 |---|---|---|
 | Sim tick | 1/60 s | fixed timestep |
-| In-game day | 15 real minutes | 6:00 → 26:00 game clock; night is playable (lantern light, slower Vigour) |
+| In-game day | 15 real minutes | full 24-hour cycle, 06:00 → 05:59; night is playable (lantern light, slower Vigour) |
 | Season | 7 days | Spring / Summer / Autumn / Winter, each with a world recolor + mechanical identity (see §6) |
 | Year | 4 seasons ≈ 7 h real play | One Vintage cycle |
 | Lunar month | 29.5 days ≈ 7 h 22.5 min real play | Eight phases; does not reset with the 28-day seasonal year ([27](27-lighting-design.md) §7) |
 
-No forced sleep and no day-end pass-out: the day rolls over at 26:00 wherever you
+No forced sleep and no day-end pass-out: the named day rolls over at 06:00 wherever you
 stand (this is a cozy incremental at heart — punishing timeouts are out of character).
 Sleeping in the farmhouse bed skips to next morning and grants +25% Vigour charge
 rate for 2 h real time ("well rested").
@@ -62,8 +62,12 @@ the farmhouse are visible, permanent-feeling changes that sell the incremental g
 ## 4. The avatar & core verbs
 
 16×32 customizable farmer (skin/hair/shirt/pants palette-swaps). 8-direction
-movement, walk 4.5 tiles/s, run (hold Shift) 7 tiles/s — running costs nothing;
-Vigour is for *tending*, not locomotion (no stamina-starvation misery).
+movement; hold Shift while moving to sprint at **125% walking speed**. Sprint
+consumes player Vigour slowly, pauses Vigour regeneration while active, and falls
+back to walking when Vigour cannot fund another movement step. Constitution
+improves sprint efficiency; equipment, effects/buffs/debuffs, skills, and
+environment modifiers can alter sprint speed or cost through the shared stat
+pipeline (binding implementation in docs/25 §4.2).
 
 | Verb | Input | What it does |
 |---|---|---|

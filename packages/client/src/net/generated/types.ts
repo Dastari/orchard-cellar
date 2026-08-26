@@ -70,6 +70,12 @@ export const ChatMessage = __t.object("ChatMessage", {
 });
 export type ChatMessage = __Infer<typeof ChatMessage>;
 
+export const ChatMigration = __t.object("ChatMigration", {
+  id: __t.u8(),
+  sessionNoticesVersion: __t.u8(),
+});
+export type ChatMigration = __Infer<typeof ChatMigration>;
+
 export const ChatSenderState = __t.object("ChatSenderState", {
   identity: __t.identity(),
   lastSentAtMicros: __t.u64(),
@@ -148,6 +154,7 @@ export const InventoryOverflow = __t.object("InventoryOverflow", {
   itemKind: __t.string(),
   quantity: __t.u16(),
   durability: __t.u16(),
+  lit: __t.bool(),
 });
 export type InventoryOverflow = __Infer<typeof InventoryOverflow>;
 
@@ -158,6 +165,7 @@ export const InventorySlot = __t.object("InventorySlot", {
   itemKind: __t.string(),
   quantity: __t.u16(),
   durability: __t.u16(),
+  lit: __t.bool(),
 });
 export type InventorySlot = __Infer<typeof InventorySlot>;
 
@@ -235,6 +243,9 @@ export type OwnPlayerStatisticMilestones = __Infer<typeof OwnPlayerStatisticMile
 export const OwnPlayerStatistics = __t.object("OwnPlayerStatistics", {});
 export type OwnPlayerStatistics = __Infer<typeof OwnPlayerStatistics>;
 
+export const OwnSessionChatNotices = __t.object("OwnSessionChatNotices", {});
+export type OwnSessionChatNotices = __Infer<typeof OwnSessionChatNotices>;
+
 export const OwnStats = __t.object("OwnStats", {});
 export type OwnStats = __Infer<typeof OwnStats>;
 
@@ -276,6 +287,7 @@ export const PlayerInput = __t.object("PlayerInput", {
   settleSteps: __t.u8(),
   creditStartedAtMicros: __t.u64(),
   creditedSteps: __t.u64(),
+  sprinting: __t.bool(),
 });
 export type PlayerInput = __Infer<typeof PlayerInput>;
 
@@ -296,6 +308,7 @@ export const PlayerPosition = __t.object("PlayerPosition", {
   jumpFromY: __t.option(__t.i32()),
   jumpUntilTick: __t.option(__t.u64()),
   spaceId: __t.u16(),
+  equippedLit: __t.bool(),
 });
 export type PlayerPosition = __Infer<typeof PlayerPosition>;
 
@@ -376,6 +389,16 @@ export const PrivateInventory = __t.object("PrivateInventory", {
 });
 export type PrivateInventory = __Infer<typeof PrivateInventory>;
 
+export const SessionChatNotice = __t.object("SessionChatNotice", {
+  id: __t.u64(),
+  recipientIdentity: __t.identity(),
+  recipientConnectionId: __t.connectionId(),
+  kind: __t.string(),
+  body: __t.string(),
+  issuedAt: __t.timestamp(),
+});
+export type SessionChatNotice = __Infer<typeof SessionChatNotice>;
+
 export const SpacePortal = __t.object("SpacePortal", {
   id: __t.u32(),
   kind: __t.string(),
@@ -409,6 +432,17 @@ export const WorldAdminAudit = __t.object("WorldAdminAudit", {
 });
 export type WorldAdminAudit = __Infer<typeof WorldAdminAudit>;
 
+export const WorldCampfireState = __t.object("WorldCampfireState", {
+  id: __t.u64(),
+  tileX: __t.i16(),
+  tileY: __t.i16(),
+  spaceId: __t.u16(),
+  lit: __t.bool(),
+  manualOverride: __t.bool(),
+  automatedByNpc: __t.option(__t.u64()),
+});
+export type WorldCampfireState = __Infer<typeof WorldCampfireState>;
+
 export const WorldChest = __t.object("WorldChest", {
   id: __t.u64(),
   owner: __t.identity(),
@@ -434,6 +468,7 @@ export const WorldChestSlot = __t.object("WorldChestSlot", {
   itemKind: __t.string(),
   quantity: __t.u16(),
   durability: __t.u16(),
+  lit: __t.bool(),
 });
 export type WorldChestSlot = __Infer<typeof WorldChestSlot>;
 
@@ -476,6 +511,7 @@ export const WorldItem = __t.object("WorldItem", {
   droppedAtTick: __t.u64(),
   durability: __t.u16(),
   spaceId: __t.u16(),
+  lit: __t.bool(),
 });
 export type WorldItem = __Infer<typeof WorldItem>;
 
@@ -527,6 +563,7 @@ export const WorldPlaceable = __t.object("WorldPlaceable", {
   facing: __t.string(),
   open: __t.bool(),
   smeltStartTick: __t.option(__t.u64()),
+  lit: __t.bool(),
 });
 export type WorldPlaceable = __Infer<typeof WorldPlaceable>;
 
@@ -537,6 +574,7 @@ export const WorldPlaceableSlot = __t.object("WorldPlaceableSlot", {
   itemKind: __t.string(),
   quantity: __t.u16(),
   durability: __t.u16(),
+  lit: __t.bool(),
 });
 export type WorldPlaceableSlot = __Infer<typeof WorldPlaceableSlot>;
 
@@ -568,6 +606,8 @@ export const WorldResource = __t.object("WorldResource", {
   health: __t.u8(),
   depleted: __t.bool(),
   spaceId: __t.u16(),
+  growthStage: __t.u8(),
+  regrowthProgress: __t.u8(),
 });
 export type WorldResource = __Infer<typeof WorldResource>;
 

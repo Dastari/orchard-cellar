@@ -6,8 +6,10 @@ import {
   normalizeChatChannelName,
   normalizeChatMessage,
   normalizeMessageOfDay,
+  isLegacyPersistentLifecycleMessage,
   validCreatableChatChannelKind,
   whisperConversationKey,
+  worldDisconnectMessage,
   worldEntryMessage,
 } from './chat-policy.js';
 
@@ -43,10 +45,14 @@ describe('chat policy', () => {
     expect(validCreatableChatChannelKind('general')).toBe(false);
   });
 
-  it('normalizes the MOTD and formats server-authored entry messages', () => {
+  it('normalizes the MOTD and formats session-only lifecycle notices', () => {
     expect(normalizeMessageOfDay('  Welcome\n farmers!  ')).toBe('Welcome farmers!');
     expect(normalizeMessageOfDay('')).toBeNull();
     expect(normalizeMessageOfDay('x'.repeat(241))).toBeNull();
     expect(worldEntryMessage('Toby')).toBe('Toby entered the world.');
+    expect(worldDisconnectMessage('Toby')).toBe('Toby disconnected.');
+    expect(isLegacyPersistentLifecycleMessage('system')).toBe(true);
+    expect(isLegacyPersistentLifecycleMessage('channel')).toBe(false);
+    expect(isLegacyPersistentLifecycleMessage('whisper')).toBe(false);
   });
 });

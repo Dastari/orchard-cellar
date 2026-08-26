@@ -6,6 +6,7 @@ import {
   type PlayerState,
   type Vec2Fixed,
 } from './state.js';
+import { terrainWalkingStepAllowed } from './terrain-elevation.js';
 
 const CARDINAL_SPEED = FIXED_UNITS_PER_PIXEL;
 const DIAGONAL_SPEED = 11;
@@ -81,6 +82,37 @@ export function positionCollides(position: Vec2Fixed, map: CollisionMap): boolea
   )) ?? false;
 }
 
+function movementCrossesBlockedElevation(
+  from: Vec2Fixed,
+  to: Vec2Fixed,
+  map: CollisionMap,
+): boolean {
+  // Legacy maps expose height for rendering but still encode their authored
+  // ramps in `blocked`. New/generated/editor maps opt into strict contour
+  // validation by supplying the transition channel; an empty list therefore
+  // deliberately means that no height crossing is allowed.
+  if (map.elevations === undefined || map.terrainTransitions === undefined) return false;
+  const fromTileX = Math.floor(from.x / TILE_SIZE_FIXED);
+  const fromTileY = Math.floor((from.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED);
+  const toTileX = Math.floor(to.x / TILE_SIZE_FIXED);
+  const toTileY = Math.floor((to.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED);
+  if (fromTileX === toTileX && fromTileY === toTileY) return false;
+  return !terrainWalkingStepAllowed(
+    map.elevations,
+    map.width,
+    map.height,
+    map.terrainTransitions,
+    fromTileX,
+    fromTileY,
+    toTileX,
+    toTileY,
+  );
+}
+
+function movementPositionAllowed(from: Vec2Fixed, to: Vec2Fixed, map: CollisionMap): boolean {
+  return !movementCrossesBlockedElevation(from, to, map) && !positionCollides(to, map);
+}
+
 export function playerHitboxBounds(position: Vec2Fixed): {
   readonly left: number;
   readonly right: number;
@@ -112,11 +144,48 @@ function movePlayerStep(player: PlayerState, direction: Direction | null, map: C
   let position = player.position;
   if (vector.x !== 0) {
     const movedX = { x: position.x + vector.x, y: position.y };
-    if (!positionCollides(movedX, map)) position = movedX;
+    if (movementPositionAllowed(position, movedX, map)) position = movedX;
   }
   if (vector.y !== 0) {
     const movedY = { x: position.x, y: position.y + vector.y };
-    if (!positionCollides(movedY, map)) position = movedY;
+    if (movementPositionAllowed(position, movedY, map)) position = movedY;
+  }
+  return { position, facing: direction, moving: position !== player.position, location: player.location };
+}
+
+/** Applies an integer per-mille movement scale without rounding 1.5x down to a
+ * whole repeated step. Fixed-point coordinates keep cardinal sprint speed exact
+ * and both client prediction and authority call this same solver. */
+export function movePlayerAtSpeedPermille(
+  player: PlayerState,
+  direction: Direction | null,
+  map: CollisionMap,
+  speedPermille: number,
+): PlayerState {
+  if (direction === null) return { ...player, moving: false };
+  const scale = Math.max(1_000, Math.min(4_000, Math.floor(speedPermille)));
+  const base = DIRECTION_VECTORS[direction];
+  const vector = {
+    x: Math.round(base.x * scale / 1_000),
+    y: Math.round(base.y * scale / 1_000),
+  };
+  let position = player.position;
+  let remainingX = vector.x;
+  let remainingY = vector.y;
+  const maximumSubstep = Math.max(Math.abs(base.x), Math.abs(base.y));
+  while (remainingX !== 0 || remainingY !== 0) {
+    const stepX = Math.sign(remainingX) * Math.min(Math.abs(remainingX), maximumSubstep);
+    const stepY = Math.sign(remainingY) * Math.min(Math.abs(remainingY), maximumSubstep);
+    if (stepX !== 0) {
+      const movedX = { x: position.x + stepX, y: position.y };
+      if (movementPositionAllowed(position, movedX, map)) position = movedX;
+    }
+    if (stepY !== 0) {
+      const movedY = { x: position.x, y: position.y + stepY };
+      if (movementPositionAllowed(position, movedY, map)) position = movedY;
+    }
+    remainingX -= stepX;
+    remainingY -= stepY;
   }
   return { position, facing: direction, moving: position !== player.position, location: player.location };
 }

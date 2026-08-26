@@ -1,10 +1,72 @@
-import type { Season } from '@orchard/sim';
-import { Sequencer } from './sequencer.js';
+import { dayProgressAtClockTime, type Season } from '@orchard/sim';
 import { playSynthSfx } from './sfx.js';
-import type { AmbienceTime, SfxSource, SongSource } from './types.js';
+import type { AmbienceTime, SfxSource } from './types.js';
 
 const AUDIO_SETTINGS_KEY = 'orchard-cellar.audio';
+const MUSIC_PLAYBACK_KEY = 'orchard-cellar.music-playback';
 const AMBIENCE_NAMES = ['bird_chirp_1', 'bird_chirp_2', 'bird_chirp_3', 'wind_gust'] as const;
+const MUSIC_CROSSFADE_SECONDS = 8;
+const MUSIC_END_FADE_SECONDS = 8;
+const MUSIC_NAVIGATION_FADE_SECONDS = 0.65;
+
+interface StreamedMusicDefinition {
+  readonly url: string;
+  readonly continuous: boolean;
+  readonly silenceSeconds: readonly [number, number];
+}
+
+export const STREAMED_MUSIC = {
+  theme_title: {
+    url: '/music/orchard-title.mp3', continuous: true, silenceSeconds: [0, 0],
+  },
+  theme_spring: {
+    url: '/music/orchard-day.mp3', continuous: false, silenceSeconds: [55, 140],
+  },
+  theme_night: {
+    url: '/music/orchard-night.mp3', continuous: false, silenceSeconds: [40, 105],
+  },
+} as const satisfies Readonly<Record<string, StreamedMusicDefinition>>;
+
+type StreamedSongName = keyof typeof STREAMED_MUSIC;
+
+export interface PersistedMusicPlayback {
+  readonly version: 1;
+  readonly song: StreamedSongName;
+  readonly phase: 'playing' | 'gap';
+  readonly positionSeconds: number;
+  readonly gapRemainingSeconds: number;
+}
+
+export function parsePersistedMusicPlayback(value: string | null): PersistedMusicPlayback | null {
+  if (value === null) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<PersistedMusicPlayback>;
+    if (parsed.version !== 1 || typeof parsed.song !== 'string' || !(parsed.song in STREAMED_MUSIC)
+      || (parsed.phase !== 'playing' && parsed.phase !== 'gap')
+      || typeof parsed.positionSeconds !== 'number' || !Number.isFinite(parsed.positionSeconds)
+      || parsed.positionSeconds < 0
+      || typeof parsed.gapRemainingSeconds !== 'number' || !Number.isFinite(parsed.gapRemainingSeconds)
+      || parsed.gapRemainingSeconds < 0) return null;
+    return parsed as PersistedMusicPlayback;
+  } catch {
+    return null;
+  }
+}
+
+function loadMusicPlayback(): PersistedMusicPlayback | null {
+  try {
+    return parsePersistedMusicPlayback(localStorage.getItem(MUSIC_PLAYBACK_KEY));
+  } catch {
+    return null;
+  }
+}
+
+interface MusicDeck {
+  readonly element: HTMLAudioElement;
+  readonly gain: GainNode;
+  song: StreamedSongName | null;
+  endingFadeScheduled: boolean;
+}
 
 export interface AudioStatus {
   readonly unlocked: boolean;
@@ -27,14 +89,32 @@ export interface GameAudio {
   playSong(name: string): Promise<void>;
   playSfx(name: string): Promise<void>;
   playFootstep(surface: 'grass' | 'path' | 'cellar'): Promise<void>;
+  fadeOutForNavigation(): Promise<void>;
   stop(): void;
   getStatus(): AudioStatus;
   getSettings(): AudioSettings;
-  setVolume(bus: keyof AudioSettings, value: number): void;
+  setVolume(bus: AudioVolumeBus, value: number): void;
+  setBackgroundPlayback(bus: AudioBackgroundBus, enabled: boolean): void;
 }
 
-export interface AudioSettings { readonly master: number; readonly music: number; readonly sfx: number }
-export const DEFAULT_AUDIO_SETTINGS: AudioSettings = { master: 0.8, music: 0.7, sfx: 0.35 };
+export type AudioVolumeBus = 'master' | 'music' | 'sfx';
+export type AudioBackgroundBus = 'music' | 'sounds';
+
+export interface AudioSettings {
+  readonly master: number;
+  readonly music: number;
+  readonly sfx: number;
+  readonly musicInBackground: boolean;
+  readonly soundsInBackground: boolean;
+}
+
+export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
+  master: 0.8,
+  music: 0.7,
+  sfx: 0.35,
+  musicInBackground: false,
+  soundsInBackground: false,
+};
 
 function loadSettings(): AudioSettings {
   try {
@@ -43,6 +123,10 @@ function loadSettings(): AudioSettings {
       master: typeof parsed.master === 'number' ? parsed.master : DEFAULT_AUDIO_SETTINGS.master,
       music: typeof parsed.music === 'number' ? parsed.music : DEFAULT_AUDIO_SETTINGS.music,
       sfx: typeof parsed.sfx === 'number' ? parsed.sfx : DEFAULT_AUDIO_SETTINGS.sfx,
+      musicInBackground: typeof parsed.musicInBackground === 'boolean'
+        ? parsed.musicInBackground : DEFAULT_AUDIO_SETTINGS.musicInBackground,
+      soundsInBackground: typeof parsed.soundsInBackground === 'boolean'
+        ? parsed.soundsInBackground : DEFAULT_AUDIO_SETTINGS.soundsInBackground,
     };
   } catch {
     return DEFAULT_AUDIO_SETTINGS;
@@ -70,10 +154,11 @@ function createImpulse(context: AudioContext): AudioBuffer {
 }
 
 export function ambienceTimeAtProgress(progress: number): AmbienceTime {
-  if (progress < 0.12) return 'dawn';
-  if (progress < 0.65) return 'day';
-  if (progress < 0.78) return 'dusk';
-  return 'night';
+  if (progress < dayProgressAtClockTime(8)) return 'dawn';
+  if (progress < dayProgressAtClockTime(19)) return 'day';
+  if (progress < dayProgressAtClockTime(21)) return 'dusk';
+  if (progress < dayProgressAtClockTime(4)) return 'night';
+  return 'dawn';
 }
 
 export function isAmbienceEligible(source: SfxSource, context: AmbienceContext): boolean {
@@ -85,7 +170,7 @@ export function isAmbienceEligible(source: SfxSource, context: AmbienceContext):
 
 export function songForAmbience(context: AmbienceContext): string {
   if (context.location === 'cellar') return 'theme_spring';
-  if (context.time === 'night') return 'theme_night';
+  if (context.time === 'dusk' || context.time === 'night') return 'theme_night';
   return 'theme_spring';
 }
 
@@ -97,7 +182,21 @@ export class AudioBus implements GameAudio {
   private ambience: GainNode | null = null;
   private reverb: ConvolverNode | null = null;
   private analyser: AnalyserNode | null = null;
-  private sequencer: Sequencer | null = null;
+  private musicDecks: readonly [MusicDeck, MusicDeck] | null = null;
+  private activeMusicDeck: 0 | 1 | null = null;
+  private desiredSong: StreamedSongName | null = null;
+  private persistedPlayback = loadMusicPlayback();
+  private musicInitialized = false;
+  private musicInitialization: Promise<void> | null = null;
+  private musicGapTimer: number | null = null;
+  private musicGapEndsAtMs: number | null = null;
+  private backgroundMusicGap: { readonly song: StreamedSongName; readonly remainingSeconds: number } | null = null;
+  private musicPausedForBackground = false;
+  private musicChangeDeferredForBackground = false;
+  private contextSuspendedForBackground = false;
+  private backgroundSuspendPromise: Promise<void> | null = null;
+  private musicCheckpointTimer: number | null = null;
+  private musicTransitionGeneration = 0;
   private song: string | null = null;
   private ambienceContext: AmbienceContext = { season: 'spring', time: 'dawn', location: 'estate' };
   private ambienceTimer: number | null = null;
@@ -106,13 +205,23 @@ export class AudioBus implements GameAudio {
 
   constructor(private readonly ambienceEnabled = true) {
     document.addEventListener('visibilitychange', this.onVisibilityChange);
+    window.addEventListener('pagehide', this.onPageHide);
   }
 
   async unlock(): Promise<void> {
     if (!this.context) this.createGraph();
     if (!this.context) return;
     if (this.context.state !== 'running') await this.context.resume();
-    await this.playSong(songForAmbience(this.ambienceContext));
+    if (!this.musicInitialized) {
+      this.musicInitialization ??= this.initializeMusic();
+      try {
+        await this.musicInitialization;
+      } finally {
+        this.musicInitialization = null;
+      }
+    } else {
+      await this.playSong(this.desiredSong ?? songForAmbience(this.ambienceContext));
+    }
     if (this.ambienceEnabled) this.startAmbience();
   }
 
@@ -132,20 +241,23 @@ export class AudioBus implements GameAudio {
   }
 
   async playSong(name: string): Promise<void> {
-    if (!this.context || !this.sequencer || !this.music) return;
-    if (this.song === name) return;
-    const source = await loadJson<SongSource>(`/generated/music/${name}.song.json`);
-    const now = this.context.currentTime;
-    this.music.gain.cancelScheduledValues(now);
-    this.music.gain.linearRampToValueAtTime(0.0001, now + 0.2);
-    this.sequencer.play(source);
-    this.music.gain.linearRampToValueAtTime(this.settings.music, now + 1);
-    this.song = name;
+    if (!(name in STREAMED_MUSIC)) throw new Error(`Unknown streamed song ${name}`);
+    const song = name as StreamedSongName;
+    if (this.desiredSong === song && (this.song === song || this.musicGapTimer !== null)) return;
+    this.desiredSong = song;
+    if (!this.context || !this.musicDecks || !this.musicInitialized) return;
+    if (document.hidden && !this.settings.musicInBackground) {
+      this.musicChangeDeferredForBackground = true;
+      return;
+    }
+    await this.transitionToSong(song);
   }
 
   async playSfx(name: string): Promise<void> {
+    if (document.hidden && !this.settings.soundsInBackground) return;
     if (!this.context || !this.sfx || !this.reverb || this.context.state !== 'running') return;
     const source = await this.loadSfx(name);
+    if (document.hidden && !this.settings.soundsInBackground) return;
     const output = source.bus === 'ambience' && this.ambience ? this.ambience : this.sfx;
     playSynthSfx(this.context, output, this.reverb, source);
   }
@@ -154,8 +266,41 @@ export class AudioBus implements GameAudio {
     await this.playSfx(`footstep_${surface}`);
   }
 
+  async fadeOutForNavigation(): Promise<void> {
+    this.saveMusicPlayback();
+    if (!this.context || !this.musicDecks || this.activeMusicDeck === null) return;
+    const now = this.context.currentTime;
+    for (const deck of this.musicDecks) {
+      if (deck.element.paused) continue;
+      deck.gain.gain.cancelScheduledValues(now);
+      deck.gain.gain.setValueAtTime(deck.gain.gain.value, now);
+      deck.gain.gain.linearRampToValueAtTime(0, now + MUSIC_NAVIGATION_FADE_SECONDS);
+    }
+    await new Promise<void>((resolve) => window.setTimeout(resolve, MUSIC_NAVIGATION_FADE_SECONDS * 1000));
+    this.saveMusicPlayback();
+  }
+
   stop(): void {
-    this.sequencer?.stop();
+    this.musicTransitionGeneration += 1;
+    this.clearMusicGap();
+    this.persistedPlayback = null;
+    try { localStorage.removeItem(MUSIC_PLAYBACK_KEY); } catch { /* Storage can be disabled. */ }
+    const generation = this.musicTransitionGeneration;
+    const now = this.context?.currentTime ?? 0;
+    for (const deck of this.musicDecks ?? []) {
+      deck.gain.gain.cancelScheduledValues(now);
+      deck.gain.gain.setValueAtTime(deck.gain.gain.value, now);
+      deck.gain.gain.linearRampToValueAtTime(0, now + 1);
+      window.setTimeout(() => {
+        if (generation !== this.musicTransitionGeneration) return;
+        deck.element.pause();
+        deck.element.removeAttribute('src');
+        deck.element.load();
+        deck.song = null;
+      }, 1_050);
+    }
+    this.activeMusicDeck = null;
+    this.desiredSong = null;
     this.song = null;
   }
 
@@ -177,7 +322,7 @@ export class AudioBus implements GameAudio {
 
   getSettings(): AudioSettings { return { ...this.settings }; }
 
-  setVolume(bus: keyof AudioSettings, value: number): void {
+  setVolume(bus: AudioVolumeBus, value: number): void {
     const next = Math.max(0, Math.min(1, value));
     this.settings = { ...this.settings, [bus]: next };
     localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(this.settings));
@@ -187,6 +332,13 @@ export class AudioBus implements GameAudio {
       if (this.sfx) this.sfx.gain.value = next;
       if (this.ambience) this.ambience.gain.value = next * 0.42;
     }
+  }
+
+  setBackgroundPlayback(bus: AudioBackgroundBus, enabled: boolean): void {
+    const setting = bus === 'music' ? 'musicInBackground' : 'soundsInBackground';
+    this.settings = { ...this.settings, [setting]: enabled };
+    try { localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(this.settings)); } catch { /* Storage can be disabled. */ }
+    if (document.hidden) this.applyBackgroundPlaybackPolicy();
   }
 
   private createGraph(): void {
@@ -223,7 +375,155 @@ export class AudioBus implements GameAudio {
     this.ambience = ambience;
     this.reverb = reverb;
     this.analyser = analyser;
-    this.sequencer = new Sequencer(context, music, reverb);
+    this.musicDecks = [this.createMusicDeck(context, music, 0), this.createMusicDeck(context, music, 1)];
+    this.musicCheckpointTimer = window.setInterval(() => this.saveMusicPlayback(), 1_000);
+  }
+
+  private createMusicDeck(context: AudioContext, destination: AudioNode, index: 0 | 1): MusicDeck {
+    const element = new Audio();
+    element.preload = 'metadata';
+    const gain = context.createGain();
+    gain.gain.value = 0;
+    context.createMediaElementSource(element).connect(gain).connect(destination);
+    const deck: MusicDeck = { element, gain, song: null, endingFadeScheduled: false };
+    element.addEventListener('ended', () => this.onMusicEnded(index));
+    element.addEventListener('timeupdate', () => this.onMusicTimeUpdate(index));
+    return deck;
+  }
+
+  private async initializeMusic(): Promise<void> {
+    const requested = this.desiredSong ?? songForAmbience(this.ambienceContext) as StreamedSongName;
+    this.desiredSong = requested;
+    const restored = this.persistedPlayback;
+    if (restored !== null && restored.phase === 'gap' && restored.song === requested) {
+      this.scheduleMusicGap(restored.song, restored.gapRemainingSeconds);
+    } else if (restored !== null && restored.phase === 'playing') {
+      this.desiredSong = restored.song;
+      await this.transitionToSong(restored.song, restored.positionSeconds);
+      const destination = this.desiredSong === restored.song ? requested : this.desiredSong;
+      this.desiredSong = destination;
+      if (destination !== restored.song) await this.transitionToSong(destination);
+    } else {
+      await this.transitionToSong(requested);
+    }
+    this.persistedPlayback = null;
+    this.musicInitialized = true;
+    this.saveMusicPlayback();
+  }
+
+  private async transitionToSong(song: StreamedSongName, positionSeconds = 0): Promise<void> {
+    if (!this.context || !this.musicDecks) return;
+    this.clearMusicGap();
+    const generation = ++this.musicTransitionGeneration;
+    const previousIndex = this.activeMusicDeck;
+    const previous = previousIndex === null ? null : this.musicDecks[previousIndex];
+    const reusePausedDeck = previous !== null && this.song === null && previous.song === song;
+    const incomingIndex: 0 | 1 = reusePausedDeck ? previousIndex! : previousIndex === 0 ? 1 : 0;
+    const incoming = this.musicDecks[incomingIndex];
+    const definition = STREAMED_MUSIC[song];
+    if (incoming.song !== song) {
+      incoming.element.src = definition.url;
+      incoming.song = song;
+    }
+    incoming.element.loop = definition.continuous;
+    incoming.endingFadeScheduled = false;
+    try { incoming.element.currentTime = Math.max(0, positionSeconds); } catch { /* Seek retries after metadata. */ }
+    const now = this.context.currentTime;
+    incoming.gain.gain.cancelScheduledValues(now);
+    incoming.gain.gain.setValueAtTime(0, now);
+    await incoming.element.play();
+    if (generation !== this.musicTransitionGeneration) {
+      incoming.element.pause();
+      return;
+    }
+    const fadeSeconds = previous === null || reusePausedDeck ? 2.5 : MUSIC_CROSSFADE_SECONDS;
+    incoming.gain.gain.linearRampToValueAtTime(1, now + fadeSeconds);
+    if (previous !== null && previous !== incoming) {
+      previous.gain.gain.cancelScheduledValues(now);
+      previous.gain.gain.setValueAtTime(previous.gain.gain.value, now);
+      previous.gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+      window.setTimeout(() => {
+        if (generation === this.musicTransitionGeneration) previous.element.pause();
+      }, fadeSeconds * 1000 + 50);
+    }
+    this.activeMusicDeck = incomingIndex;
+    this.song = song;
+    this.saveMusicPlayback();
+  }
+
+  private onMusicTimeUpdate(index: 0 | 1): void {
+    if (this.activeMusicDeck !== index || !this.context || !this.musicDecks) return;
+    const deck = this.musicDecks[index];
+    const song = deck.song;
+    if (song === null || STREAMED_MUSIC[song].continuous || deck.endingFadeScheduled) return;
+    const remaining = deck.element.duration - deck.element.currentTime;
+    if (!Number.isFinite(remaining) || remaining <= 0 || remaining > MUSIC_END_FADE_SECONDS) return;
+    deck.endingFadeScheduled = true;
+    const now = this.context.currentTime;
+    deck.gain.gain.cancelScheduledValues(now);
+    deck.gain.gain.setValueAtTime(deck.gain.gain.value, now);
+    deck.gain.gain.linearRampToValueAtTime(0, now + remaining);
+  }
+
+  private onMusicEnded(index: 0 | 1): void {
+    if (this.activeMusicDeck !== index || !this.context || !this.musicDecks) return;
+    const deck = this.musicDecks[index];
+    const song = deck.song;
+    if (song === null || song !== this.desiredSong) return;
+    deck.gain.gain.setValueAtTime(0, this.context.currentTime);
+    this.song = null;
+    const [minimum, maximum] = STREAMED_MUSIC[song].silenceSeconds;
+    const delaySeconds = minimum + Math.random() * (maximum - minimum);
+    this.scheduleMusicGap(song, delaySeconds);
+  }
+
+  private scheduleMusicGap(song: StreamedSongName, delaySeconds: number): void {
+    this.clearMusicGap();
+    this.song = null;
+    this.desiredSong = song;
+    this.musicGapEndsAtMs = performance.now() + delaySeconds * 1000;
+    this.musicGapTimer = window.setTimeout(() => {
+      this.musicGapTimer = null;
+      this.musicGapEndsAtMs = null;
+      if (this.desiredSong === song) void this.transitionToSong(song).catch(() => undefined);
+    }, delaySeconds * 1000);
+    this.saveMusicPlayback();
+  }
+
+  private clearMusicGap(): void {
+    if (this.musicGapTimer === null) return;
+    window.clearTimeout(this.musicGapTimer);
+    this.musicGapTimer = null;
+    this.musicGapEndsAtMs = null;
+  }
+
+  private saveMusicPlayback(): void {
+    const song = this.desiredSong;
+    if (song === null) return;
+    let playback: PersistedMusicPlayback;
+    if (this.musicGapTimer !== null || this.backgroundMusicGap !== null) {
+      const backgroundGap = this.backgroundMusicGap;
+      playback = {
+        version: 1,
+        song,
+        phase: 'gap',
+        positionSeconds: 0,
+        gapRemainingSeconds: backgroundGap?.remainingSeconds
+          ?? Math.max(0, ((this.musicGapEndsAtMs ?? performance.now()) - performance.now()) / 1000),
+      };
+    } else {
+      const deck = this.activeMusicDeck === null ? null : this.musicDecks?.[this.activeMusicDeck] ?? null;
+      playback = {
+        version: 1,
+        song,
+        phase: 'playing',
+        positionSeconds: deck?.song === song && Number.isFinite(deck.element.currentTime)
+          ? Math.max(0, deck.element.currentTime)
+          : 0,
+        gapRemainingSeconds: 0,
+      };
+    }
+    try { localStorage.setItem(MUSIC_PLAYBACK_KEY, JSON.stringify(playback)); } catch { /* Storage can be disabled. */ }
   }
 
   private loadSfx(name: string): Promise<SfxSource> {
@@ -252,18 +552,87 @@ export class AudioBus implements GameAudio {
   }
 
   private readonly onVisibilityChange = (): void => {
-    if (!this.context || !this.master) return;
     if (document.hidden) {
-      void this.context.suspend();
+      this.saveMusicPlayback();
+      this.applyBackgroundPlaybackPolicy();
       return;
     }
-    void this.context.resume().then(() => {
-      if (!this.context || !this.master) return;
+    void this.restoreForegroundPlayback();
+  };
+
+  private applyBackgroundPlaybackPolicy(): void {
+    if (!this.context) return;
+    if (!this.settings.musicInBackground) this.pauseMusicForBackground();
+    if (!this.settings.soundsInBackground) this.setSoundBusGains(0);
+    if (!this.settings.musicInBackground && !this.settings.soundsInBackground
+      && this.context.state === 'running') {
+      this.contextSuspendedForBackground = true;
+      this.backgroundSuspendPromise = this.context.suspend().catch(() => undefined);
+    }
+  }
+
+  private pauseMusicForBackground(): void {
+    if (this.musicGapTimer !== null && this.desiredSong !== null) {
+      this.backgroundMusicGap = {
+        song: this.desiredSong,
+        remainingSeconds: Math.max(0, ((this.musicGapEndsAtMs ?? performance.now()) - performance.now()) / 1000),
+      };
+      window.clearTimeout(this.musicGapTimer);
+      this.musicGapTimer = null;
+      this.musicGapEndsAtMs = null;
+    }
+    for (const deck of this.musicDecks ?? []) {
+      if (deck.element.paused) continue;
+      deck.element.pause();
+      this.musicPausedForBackground = true;
+    }
+  }
+
+  private async restoreForegroundPlayback(): Promise<void> {
+    if (!this.context) return;
+    const shouldFadeMaster = this.contextSuspendedForBackground;
+    if (this.backgroundSuspendPromise !== null) await this.backgroundSuspendPromise;
+    this.backgroundSuspendPromise = null;
+    if (this.contextSuspendedForBackground && this.context.state !== 'running') await this.context.resume();
+    this.contextSuspendedForBackground = false;
+    this.setSoundBusGains(this.settings.sfx);
+    if (shouldFadeMaster && this.master) {
       const now = this.context.currentTime;
+      this.master.gain.cancelScheduledValues(now);
       this.master.gain.setValueAtTime(0.0001, now);
       this.master.gain.linearRampToValueAtTime(this.settings.master, now + 1);
-    });
-  };
+    }
+    if (this.musicChangeDeferredForBackground && this.desiredSong !== null) {
+      this.musicChangeDeferredForBackground = false;
+      this.backgroundMusicGap = null;
+      this.musicPausedForBackground = false;
+      await this.transitionToSong(this.desiredSong);
+      return;
+    }
+    const pausedGap = this.backgroundMusicGap;
+    this.backgroundMusicGap = null;
+    if (pausedGap !== null) {
+      this.scheduleMusicGap(pausedGap.song, pausedGap.remainingSeconds);
+      return;
+    }
+    if (!this.musicPausedForBackground || !this.musicDecks || this.activeMusicDeck === null) return;
+    this.musicPausedForBackground = false;
+    const deck = this.musicDecks[this.activeMusicDeck];
+    const now = this.context.currentTime;
+    deck.gain.gain.cancelScheduledValues(now);
+    deck.gain.gain.setValueAtTime(0, now);
+    try {
+      await deck.element.play();
+      deck.gain.gain.linearRampToValueAtTime(1, now + 1);
+    } catch { /* Browser autoplay policy will retry after the next unlock gesture. */ }
+  }
+
+  private setSoundBusGains(sfxGain: number): void {
+    if (this.sfx) this.sfx.gain.value = sfxGain;
+    if (this.ambience) this.ambience.gain.value = sfxGain * 0.42;
+  }
+
+  private readonly onPageHide = (): void => { this.saveMusicPlayback(); };
 }
 
 export class NullAudioBus implements GameAudio {
@@ -273,8 +642,10 @@ export class NullAudioBus implements GameAudio {
   async playSong(): Promise<void> {}
   async playSfx(): Promise<void> {}
   async playFootstep(): Promise<void> {}
+  async fadeOutForNavigation(): Promise<void> {}
   stop(): void {}
   getStatus(): AudioStatus { return { unlocked: false, state: 'unavailable', song: null, meter: 0, ambience: { season: 'spring', time: 'dawn', location: 'estate' } }; }
   getSettings(): AudioSettings { return DEFAULT_AUDIO_SETTINGS; }
   setVolume(): void {}
+  setBackgroundPlayback(): void {}
 }

@@ -33,6 +33,7 @@ export const HORSE_DISMOUNT_DISTANCE_FIXED = 18 * FIXED_UNITS_PER_PIXEL;
 export const HORSE_JUMP_MAX_BLOCKED_TILES = 3;
 export const HORSE_JUMP_MAX_APPROACH_TILES = 1;
 export const HORSE_JUMP_DURATION_TICKS = 10;
+export const NPC_INTERACTION_REACH_FIXED = Math.floor(TILE_SIZE_FIXED * 1.5);
 
 export function npcFacingForDirection(direction: Direction): NpcFacing {
   switch (direction) {
@@ -130,6 +131,48 @@ export function stepWanderingNpc(
     moving: true,
     wanderDirection: direction,
     nextDecisionTick,
+  };
+}
+
+/** Temporarily steers a wandering NPC toward a world interaction without
+ * teleporting it or replacing its normal home/leash. Cardinal fallbacks let
+ * it skirt a simple obstacle while preserving the same collision authority. */
+export function stepNpcTowardPoint(
+  state: WanderingNpcState,
+  target: Vec2Fixed,
+  authorityTick: number,
+  collision: CollisionMap,
+  reach = NPC_INTERACTION_REACH_FIXED,
+): WanderingNpcState {
+  const dx = target.x - state.position.x;
+  const dy = target.y - state.position.y;
+  if (dx * dx + dy * dy <= reach * reach) {
+    const facing: NpcFacing = Math.abs(dx) >= Math.abs(dy)
+      ? (dx < 0 ? 'left' : 'right')
+      : (dy < 0 ? 'up' : 'down');
+    return { ...state, facing, moving: false, wanderDirection: null, nextDecisionTick: authorityTick + 20 };
+  }
+  const horizontal: NpcFacing = dx < 0 ? 'left' : 'right';
+  const vertical: NpcFacing = dy < 0 ? 'up' : 'down';
+  const directions = Math.abs(dx) >= Math.abs(dy) ? [horizontal, vertical] : [vertical, horizontal];
+  for (const direction of directions) {
+    const vector = DIRECTION_VECTORS[direction];
+    const candidate = { x: state.position.x + vector.x, y: state.position.y + vector.y };
+    if (positionCollides(candidate, collision)) continue;
+    return {
+      ...state,
+      position: candidate,
+      facing: direction,
+      moving: true,
+      wanderDirection: direction,
+      nextDecisionTick: authorityTick + 20,
+    };
+  }
+  return {
+    ...state,
+    moving: false,
+    wanderDirection: null,
+    nextDecisionTick: authorityTick + 8,
   };
 }
 

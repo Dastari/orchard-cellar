@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemIconKey, overworldPoiDecorationDepthY, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
+import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, heldLightFrameIndices, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemIconKey, overworldPoiDecorationDepthY, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
 import { canonicalBlob47Index } from './render/tilemap.js';
 
 describe('overworld art topology', () => {
@@ -38,6 +38,8 @@ describe('overworld art topology', () => {
     expect(heldLightAnimationForDirection('right', true)).toBe('hold_walk_right');
     expect(heldLightAnimationForDirection('left', true)).toBe('hold_walk_right');
     expect(heldLightAnimationForDirection('up', false)).toBe('hold_idle_up');
+    expect(heldLightFrameIndices(true, 3, 11)).toEqual({ light: 11, hands: 3 });
+    expect(heldLightFrameIndices(false, 3, 11)).toEqual({ light: 11, hands: 0 });
   });
 
   it('uses the licensed directional axe rows and mirrors side swings', () => {

@@ -87,7 +87,8 @@ describe('deterministic simulation', () => {
 
   it('maps the 15-minute day and seven-day seasons at exact boundaries', () => {
     expect(calendarAtTick(0)).toMatchObject({ season: 'spring', dayOfSeason: 1, year: 1, hour: 6, minute: 0 });
-    expect(calendarAtTick(TICKS_PER_DAY - 1)).toMatchObject({ season: 'spring', dayOfSeason: 1, hour: 25, minute: 59 });
+    expect(calendarAtTick(Math.floor(TICKS_PER_DAY * 0.75))).toMatchObject({ hour: 0, minute: 0 });
+    expect(calendarAtTick(TICKS_PER_DAY - 1)).toMatchObject({ season: 'spring', dayOfSeason: 1, hour: 5, minute: 59 });
     expect(calendarAtTick(TICKS_PER_DAY * 7)).toMatchObject({ season: 'summer', dayOfSeason: 1, year: 1 });
     expect(calendarAtTick(TICKS_PER_DAY * 28)).toMatchObject({ season: 'spring', dayOfSeason: 1, year: 2 });
     expect(nextDayTick(TICKS_PER_DAY + 9)).toBe(TICKS_PER_DAY * 2);

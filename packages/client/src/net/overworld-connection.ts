@@ -8,8 +8,8 @@ import type { Identity } from 'spacetimedb';
 import { DbConnection, tables, type SubscriptionHandle } from './generated/index.js';
 import { localProfilesEnabled, oidcConfigured, readOidcSession } from '../auth/oidc.js';
 import type {
-  CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerStats, PlayerSurvival,
-  SpacePortal, WorldChest, WorldChestSlot, WorldClock, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
+  CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerStats, PlayerSurvival, SessionChatNotice,
+  SpacePortal, WorldCampfireState, WorldChest, WorldChestSlot, WorldClock, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
 } from './generated/types.js';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
 import { BoundedKeyedQueue, KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
@@ -102,6 +102,7 @@ export interface OverworldView {
   readonly projectiles: ReadonlyKeyedStore<bigint, WorldProjectile>;
   readonly chests: ReadonlyKeyedStore<bigint, WorldChest>;
   readonly placeables: ReadonlyKeyedStore<bigint, WorldPlaceable>;
+  readonly campfires?: ReadonlyKeyedStore<bigint, WorldCampfireState>;
   readonly npcs: ReadonlyKeyedStore<bigint, WorldNpc>;
   readonly merchants: ReadonlyKeyedStore<bigint, WorldMerchant>;
   readonly wildlifeProfiles: ReadonlyKeyedStore<bigint, WorldWildlifeProfile>;
@@ -113,6 +114,7 @@ export interface OverworldView {
   readonly openPlaceableSlots: ReadonlyKeyedStore<number, WorldPlaceableSlot>;
   readonly chatChannels: ReadonlyKeyedStore<bigint, ChatChannel>;
   readonly chatMessages: ReadonlyKeyedStore<bigint, ChatMessage>;
+  readonly sessionChatNotices: ReadonlyKeyedStore<bigint, SessionChatNotice>;
   readonly worldSpeech: ReadonlyKeyedStore<bigint, WorldSpeech>;
   readonly motd: string | null;
   readonly characterProfile: CharacterProfile | null; readonly membership: Membership | null; readonly survival: PlayerSurvival | null;
@@ -129,12 +131,12 @@ export interface OverworldSnapshot {
   readonly appearances: readonly PlayerAppearance[];
   readonly players: readonly PlayerPosition[];
   readonly resources: readonly WorldResource[]; readonly soil: readonly WorldSoil[];
-  readonly worldItems: readonly WorldItem[]; readonly projectiles: readonly WorldProjectile[]; readonly chests: readonly WorldChest[]; readonly placeables: readonly WorldPlaceable[]; readonly npcs: readonly WorldNpc[]; readonly merchants: readonly WorldMerchant[];
+  readonly worldItems: readonly WorldItem[]; readonly projectiles: readonly WorldProjectile[]; readonly chests: readonly WorldChest[]; readonly placeables: readonly WorldPlaceable[]; readonly campfires?: readonly WorldCampfireState[]; readonly npcs: readonly WorldNpc[]; readonly merchants: readonly WorldMerchant[];
   readonly wildlifeProfiles: readonly WorldWildlifeProfile[]; readonly hives: readonly WorldHive[];
   readonly portals: readonly SpacePortal[];
   readonly inventorySlots: readonly InventorySlot[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly openPlaceableSlots: readonly WorldPlaceableSlot[]; readonly chatChannels: readonly ChatChannel[];
   readonly effects: readonly PlayerEffect[];
-  readonly chatMessages: readonly ChatMessage[]; readonly worldSpeech: readonly WorldSpeech[];
+  readonly chatMessages: readonly ChatMessage[]; readonly sessionChatNotices: readonly SessionChatNotice[]; readonly worldSpeech: readonly WorldSpeech[];
   readonly motd: string | null; readonly characterProfile: CharacterProfile | null;
   readonly membership: Membership | null; readonly survival: PlayerSurvival | null; readonly stats: PlayerStats | null; readonly activeChest: WorldChest | null; readonly activePlaceable: WorldPlaceable | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
@@ -178,6 +180,7 @@ export class OverworldConnection {
   private sequence = 0n;
   private inputReady = false;
   private desiredDirection: NetworkDirection = 'idle';
+  private desiredSprinting = false;
   private idleRefreshPending = false;
   private lastIdleSequence = 0n;
   private inputRefreshAge = 0;
@@ -213,6 +216,7 @@ export class OverworldConnection {
   private readonly projectiles = new KeyedStore<bigint, WorldProjectile>();
   private readonly chests = new KeyedStore<bigint, WorldChest>();
   private readonly placeables = new KeyedStore<bigint, WorldPlaceable>();
+  private readonly campfires = new KeyedStore<bigint, WorldCampfireState>();
   private readonly npcs = new KeyedStore<bigint, WorldNpc>();
   private readonly merchants = new KeyedStore<bigint, WorldMerchant>();
   private readonly wildlifeProfiles = new KeyedStore<bigint, WorldWildlifeProfile>();
@@ -224,6 +228,7 @@ export class OverworldConnection {
   private readonly openPlaceableSlots = new KeyedStore<number, WorldPlaceableSlot>();
   private readonly chatChannels = new KeyedStore<bigint, ChatChannel>();
   private readonly chatMessages = new KeyedStore<bigint, ChatMessage>();
+  private readonly sessionChatNotices = new KeyedStore<bigint, SessionChatNotice>();
   private readonly worldSpeech = new KeyedStore<bigint, WorldSpeech>();
   private motd: string | null = null;
   private characterProfile: CharacterProfile | null = null;
@@ -269,6 +274,7 @@ export class OverworldConnection {
         if (this.heartbeatTimer !== null) window.clearInterval(this.heartbeatTimer);
         this.heartbeatTimer = null; this.inputReady = false; this.connected = false;
         this.error = error?.message ?? 'disconnected'; this.prediction.reset(); this.sentAt.clear();
+        this.sessionChatNotices.clear();
         this.globalSubscriptionQueryCount = 0; this.selfSubscriptionQueryCount = 0;
         this.activeRegionQueryCount = 0; this.pendingRegionQueryCount = 0; this.onChanged();
       }).build();
@@ -278,11 +284,11 @@ export class OverworldConnection {
     return { connected: this.connected, error: this.error,
       identityHex: this.identity === null ? null : identityHex(this.identity), region: this.region,
       profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers,
-      resources: this.resources, soil: this.soil, worldItems: this.worldItems, projectiles: this.projectiles, chests: this.chests, placeables: this.placeables, npcs: this.npcs, merchants: this.merchants,
+      resources: this.resources, soil: this.soil, worldItems: this.worldItems, projectiles: this.projectiles, chests: this.chests, placeables: this.placeables, campfires: this.campfires, npcs: this.npcs, merchants: this.merchants,
       wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, inventorySlots: this.inventorySlots, effects: this.effects,
       openChestSlots: this.openChestSlots,
       openPlaceableSlots: this.openPlaceableSlots,
-      chatChannels: this.chatChannels, chatMessages: this.chatMessages, worldSpeech: this.worldSpeech, motd: this.motd,
+      chatChannels: this.chatChannels, chatMessages: this.chatMessages, sessionChatNotices: this.sessionChatNotices, worldSpeech: this.worldSpeech, motd: this.motd,
       characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest, activePlaceable: this.activePlaceable,
       activeDialogue: this.activeDialogue, wallet: this.wallet, worldSeed: this.worldSeed,
       clock: this.clock, environment: this.environment, wind: this.wind };
@@ -292,7 +298,7 @@ export class OverworldConnection {
   snapshot(): OverworldSnapshot {
     const view = this.view();
     return { ...view, profiles: this.profiles.toArray(), appearances: this.appearances.toArray(),
-      players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
+      players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
       wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(),
       inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot),
       effects: this.effects.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
@@ -300,6 +306,7 @@ export class OverworldConnection {
       openPlaceableSlots: this.openPlaceableSlots.toArray().sort((left, right) => left.slot - right.slot),
       chatChannels: this.chatChannels.toArray(),
       chatMessages: this.chatMessages.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+      sessionChatNotices: this.sessionChatNotices.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       worldSpeech: this.worldSpeech.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0) };
   }
 
@@ -307,13 +314,18 @@ export class OverworldConnection {
   get resourceRevision(): number { return this.resourceRevisionValue; }
 
   setDirection(direction: NetworkDirection): void {
-    if (direction === this.desiredDirection) return;
+    this.setMovementIntent(direction, false);
+  }
+  setMovementIntent(direction: NetworkDirection, sprinting: boolean): void {
+    const nextSprinting = direction !== 'idle' && sprinting;
+    if (direction === this.desiredDirection && nextSprinting === this.desiredSprinting) return;
     this.desiredDirection = direction;
+    this.desiredSprinting = nextSprinting;
     if (direction === 'idle') this.idleRefreshPending = true;
     this.retryArmed = true; this.sendDesiredDirection();
   }
-  recordPredictedStep(direction: NetworkDirection, state: PlayerState): void {
-    this.prediction.recordStep(direction, state);
+  recordPredictedStep(direction: NetworkDirection, state: PlayerState, speedPermille = 1_000): void {
+    this.prediction.recordStep(direction, state, speedPermille);
     if (direction === 'idle' && !this.idleRefreshPending) {
       this.inputRefreshAge = 0;
       return;
@@ -367,6 +379,7 @@ export class OverworldConnection {
         inventory: this.inventorySlots.size,
         effects: this.effects.size,
         chat: this.chatMessages.size,
+        chatNotices: this.sessionChatNotices.size,
         speech: this.worldSpeech.size,
       } };
   }
@@ -441,6 +454,9 @@ export class OverworldConnection {
     return this.reducer((connection) => connection.reducers.useHands({ tileX, tileY }));
   }
   interactPlaceable(): Promise<void> { return this.reducer((connection) => connection.reducers.interactPlaceable({})); }
+  toggleCampfire(targetKind: 'landmark' | 'placeable', targetId: bigint): Promise<void> {
+    return this.reducer((connection) => connection.reducers.toggleCampfire({ targetKind, targetId }));
+  }
   closePlaceable(): Promise<void> { return this.reducer((connection) => connection.reducers.closePlaceable({})); }
   interactChest(): Promise<void> { return this.reducer((c) => c.reducers.interactChest({})); }
   closeChest(): Promise<void> { return this.reducer((c) => c.reducers.closeChest({})); }
@@ -474,6 +490,10 @@ export class OverworldConnection {
   }
   dropSelected(): Promise<void> { return this.reducer((c) => c.reducers.dropSelected({})); }
   pickupWorldItem(itemId: bigint): Promise<void> { return this.reducer((c) => c.reducers.pickupWorldItem({ itemId })); }
+  toggleHeldLantern(): Promise<void> { return this.reducer((c) => c.reducers.toggleHeldLantern({})); }
+  toggleWorldLantern(itemId: bigint): Promise<void> {
+    return this.reducer((connection) => connection.reducers.toggleWorldLantern({ itemId }));
+  }
   gatherWorldResource(resourceId: bigint): Promise<void> {
     return this.reducer((connection) => connection.reducers.gatherWorldResource({ resourceId }));
   }
@@ -534,14 +554,21 @@ export class OverworldConnection {
     const connection = this.connection;
     if (!this.connected || !this.inputReady || connection === null) return;
     this.sequence += 1n; this.inputRefreshAge = 0;
-    const command = this.prediction.recordSend(this.sequence, this.desiredDirection);
+    const command = this.prediction.recordSend(
+      this.sequence, this.desiredDirection, this.desiredSprinting,
+    );
     if (command.direction === 'idle') this.lastIdleSequence = command.sequence;
     this.sentAt.set(command.sequence, performance.now());
     if (this.sentAt.size > RTT_SAMPLE_CAPACITY) {
       const oldest = this.sentAt.keys().next().value as bigint | undefined;
       if (oldest !== undefined) this.sentAt.delete(oldest);
     }
-    void this.call(() => connection.reducers.setInput({ direction: command.direction, sequence: command.sequence, clientTick: command.clientTick }))
+    void this.call(() => connection.reducers.setInput({
+      direction: command.direction,
+      sequence: command.sequence,
+      clientTick: command.clientTick,
+      sprinting: command.sprinting,
+    }))
       .then(() => { this.persistentInputError = null; })
       .catch((error: unknown) => {
         this.persistentInputError = error instanceof Error ? error.message : String(error); this.onChanged();
@@ -558,7 +585,7 @@ export class OverworldConnection {
 
   private subscribeGlobals(connection: DbConnection): void {
     const queries = [tables.onlinePlayerPublic, tables.onlinePlayerAppearances, tables.worldClock,
-      tables.worldEnvironment, tables.worldWind, tables.worldSeed, tables.worldMerchant, tables.spacePortal];
+      tables.worldEnvironment, tables.worldWind, tables.worldSeed, tables.worldMerchant, tables.worldCampfireState, tables.spacePortal];
     this.globalSubscriptionQueryCount = queries.length;
     connection.subscriptionBuilder().onApplied(() => this.hydrateGlobals(connection)).onError(() => {
       this.error = 'global_subscription_failed'; this.onChanged();
@@ -580,6 +607,7 @@ export class OverworldConnection {
       tables.ownCharacterProfile,
       tables.ownMembership,
       tables.ownConnectionNotices,
+      tables.ownSessionChatNotices,
       tables.ownChatChannels,
       tables.visibleChatMessages,
       tables.visibleWorldSpeech,
@@ -683,6 +711,9 @@ export class OverworldConnection {
     connection.db.worldClock.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.clock = row; }));
     connection.db.worldEnvironment.onInsert((context, row) => incoming(context.event.id, () => { this.environment = row; }));
     connection.db.worldEnvironment.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.environment = row; }));
+    connection.db.worldCampfireState.onInsert((context, row) => incoming(context.event.id, () => this.campfires.set(row.id, row)));
+    connection.db.worldCampfireState.onUpdate((context, _old, row) => incoming(context.event.id, () => this.campfires.set(row.id, row)));
+    connection.db.worldCampfireState.onDelete((context, row) => incoming(context.event.id, () => this.campfires.delete(row.id)));
     connection.db.worldWind.onInsert((context, row) => incoming(context.event.id, () => { this.wind = row; }));
     connection.db.worldWind.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.wind = row; }));
     connection.db.spacePortal.onInsert((context, row) => incoming(context.event.id, () => this.portals.set(row.id, row)));
@@ -749,6 +780,15 @@ export class OverworldConnection {
     connection.db.ownConnectionNotices.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setConnectionNotice(connection, row)));
     connection.db.ownConnectionNotices.onDelete((context, row) => incoming(context.event.id, () => {
       if (row.connectionId.isEqual(connection.connectionId)) this.motd = null;
+    }));
+    connection.db.ownSessionChatNotices.onInsert((context, row) => incoming(context.event.id, () => {
+      if (row.recipientConnectionId.isEqual(connection.connectionId)) this.sessionChatNotices.set(row.id, row);
+    }));
+    connection.db.ownSessionChatNotices.onUpdate((context, _old, row) => incoming(context.event.id, () => {
+      if (row.recipientConnectionId.isEqual(connection.connectionId)) this.sessionChatNotices.set(row.id, row);
+    }));
+    connection.db.ownSessionChatNotices.onDelete((context, row) => incoming(context.event.id, () => {
+      if (row.recipientConnectionId.isEqual(connection.connectionId)) this.sessionChatNotices.delete(row.id);
     }));
     connection.db.ownInventorySlots.onInsert((context, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
     connection.db.ownInventorySlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
@@ -855,6 +895,8 @@ export class OverworldConnection {
       for (const row of connection.db.onlinePlayerAppearances.iter()) this.appearances.set(identityHex(row.identity), row);
       this.clock = [...connection.db.worldClock.iter()][0] ?? null;
       this.environment = [...connection.db.worldEnvironment.iter()][0] ?? null;
+      this.campfires.clear();
+      for (const row of connection.db.worldCampfireState.iter()) this.campfires.set(row.id, row);
       this.wind = [...connection.db.worldWind.iter()][0] ?? null;
       this.merchants.clear();
       for (const row of connection.db.worldMerchant.iter()) this.merchants.set(row.npcId, row);
@@ -871,6 +913,10 @@ export class OverworldConnection {
     this.openPlaceableSlots.clear(); for (const row of connection.db.ownOpenPlaceableSlots.iter()) this.openPlaceableSlots.set(row.slot, row);
     for (const row of connection.db.ownChatChannels.iter()) this.chatChannels.set(row.id, row);
     for (const row of connection.db.visibleChatMessages.iter()) this.chatMessages.set(row.id, row);
+    this.sessionChatNotices.clear();
+    for (const row of connection.db.ownSessionChatNotices.iter()) {
+      if (row.recipientConnectionId.isEqual(connection.connectionId)) this.sessionChatNotices.set(row.id, row);
+    }
     for (const row of connection.db.visibleWorldSpeech.iter()) this.worldSpeech.set(row.id, row);
     this.motd = null;
     for (const row of connection.db.ownConnectionNotices.iter()) this.setConnectionNotice(connection, row);

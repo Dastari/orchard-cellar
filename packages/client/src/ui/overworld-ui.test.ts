@@ -1,15 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
+import { CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CHEST_STORAGE_ROWS } from '@orchard/sim';
 import type { PixelUi } from '../render/pixel-ui.js';
 import {
   ONLINE_PLAYER_LIST_BOTTOM_PADDING,
   OverworldUi,
   onlinePlayerListFrameHeight,
   overworldUiLayout,
+  hotbarReticleRect,
   itemIconAnimation,
   slotStackLabelPosition,
   slotDurabilityBarRect,
   type OverworldUiCallbacks,
   type OverworldUiItemArt,
+  type OverworldUiLayout,
 } from './overworld-ui.js';
 import type { UiSkin } from './skin.js';
 import { RIBBON_TEXT_TOP_OFFSET, ribbonWidth } from './ribbon.js';
@@ -22,6 +25,7 @@ function callbacks(): OverworldUiCallbacks {
     cycleWeather: vi.fn(),
     cycleWindDirection: vi.fn(),
     setAudioVolume: vi.fn(),
+    setAudioBackground: vi.fn(),
     signOut: vi.fn(),
     quitToTitle: vi.fn(),
     moveInventoryItem: vi.fn(),
@@ -42,10 +46,13 @@ describe('overworld retained UI layout', () => {
     expect(itemIconAnimation('wood')).toBe('base');
   });
 
-  it('anchors status, weather, hotbar, and window at 480x270', () => {
+  it('anchors the zone ribbon, currency, hotbar, and window at 480x270', () => {
     const layout = overworldUiLayout(480, 270);
-    expect(layout.status).toEqual({ x: 4, y: 4, width: 190, height: 24 });
-    expect(layout.weather.x + layout.weather.width).toBe(476);
+    expect(layout.status).toEqual({ x: 4, y: 2, width: 220, height: 34 });
+    expect(layout.moon).toEqual({ x: 173, y: 11, width: 16, height: 16 });
+    expect(layout.moon.x).toBeGreaterThanOrEqual(layout.status.x);
+    expect(layout.moon.x + layout.moon.width).toBeLessThanOrEqual(layout.status.x + layout.status.width);
+    expect(layout.currency).toEqual({ x: 376, y: 4, width: 100, height: 24 });
     expect(layout.previousDayButton).toMatchObject({ width: 64, height: 20 });
     expect(layout.nextDayButton).toMatchObject({ width: 64, height: 20 });
     expect(layout.weatherButton.height).toBe(22);
@@ -59,8 +66,46 @@ describe('overworld retained UI layout', () => {
     expect(layout.targetVitals.x + layout.targetVitals.width).toBe(layout.hotbar.x + layout.hotbar.width);
     expect(layout.vitals.y + layout.vitals.height).toBe(layout.hotbar.y - 4);
     expect(layout.tooltip.height).toBe(16);
+    expect(layout.notification.y + layout.notification.height).toBeLessThan(layout.tooltip.y);
     expect(layout.window.x).toBe(105);
     expect(layout.window.y).toBe(43);
+  });
+
+  it('keeps action failures visible independently of prompts and item tooltips', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: '[E] OPEN CHEST',
+      toast: 'NOT ENOUGH INVENTORY SPACE', toastKind: 'failure',
+    });
+
+    expect(ui.tooltipText()).toBe('[E] OPEN CHEST');
+    expect(ui.notificationText()).toBe('NOT ENOUGH INVENTORY SPACE');
+
+    const hotbar = overworldUiLayout(480, 270).slots[0]!;
+    ui.pointerMove({ x: hotbar.x + 4, y: hotbar.y + 4 });
+    expect(ui.tooltipText()).toBe('WOOD');
+    expect(ui.notificationText()).toBe('NOT ENOUGH INVENTORY SPACE');
+  });
+
+  it('shows lunar details only while hovering the moon, not the ribbon', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 12', timeLabel: '14:35', timeFraction: 0.6,
+      moonPhase: 'waxing_crescent', moonIlluminationPerMille: 250,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(480, 270);
+    ui.pointerMove({ x: layout.status.x + 20, y: layout.status.y + 10 });
+    expect(ui.tooltipText()).toBeNull();
+    ui.pointerMove({ x: layout.moon.x + 5, y: layout.moon.y + 5 });
+    expect(ui.tooltipText()).toBe('Waxing Crescent — 250/1000');
   });
 
   it('only exposes owner world controls through the framed developer window', () => {
@@ -86,7 +131,7 @@ describe('overworld retained UI layout', () => {
 
   it('keeps all anchored UI inside a narrow viewport', () => {
     const layout = overworldUiLayout(360, 180);
-    for (const rect of [layout.status, layout.weather, layout.hotbar, layout.window, layout.closeButton]) {
+    for (const rect of [layout.status, layout.currency, layout.hotbar, layout.window, layout.closeButton]) {
       expect(rect.x).toBeGreaterThanOrEqual(0);
       expect(rect.y).toBeGreaterThanOrEqual(0);
       expect(rect.x + rect.width).toBeLessThanOrEqual(360);
@@ -101,7 +146,7 @@ describe('overworld retained UI layout', () => {
       expect(layout.targetVitals.x + layout.targetVitals.width).toBe(layout.hotbar.x + layout.hotbar.width);
       expect(layout.vitals.y + layout.vitals.height).toBe(layout.hotbar.y - 4);
       expect(layout.targetVitals.y).toBe(layout.vitals.y);
-      expect(layout.vitals.y).toBeGreaterThanOrEqual(layout.weather.y + layout.weather.height);
+      expect(layout.vitals.y).toBeGreaterThanOrEqual(layout.status.y + layout.status.height);
       expect(layout.vitals.x + layout.vitals.width).toBeLessThanOrEqual(cssWidth / scale);
       expect(layout.vitals.y + layout.vitals.height).toBeLessThanOrEqual(cssHeight / scale);
     }
@@ -136,6 +181,11 @@ describe('overworld retained UI layout', () => {
       .toEqual({ x: 63, y: 87 });
   });
 
+  it('places the selected and hovered hotbar reticle outside the slot labels', () => {
+    expect(hotbarReticleRect({ x: 40, y: 70, width: 28, height: 31 }))
+      .toEqual({ x: 24, y: 56, width: 60, height: 60 });
+  });
+
   it('keeps durability bars inside the usable slot face above the bottom bevel', () => {
     const slot = { x: 40, y: 70, width: 28, height: 31 };
     const bar = slotDurabilityBarRect(slot);
@@ -166,6 +216,71 @@ describe('overworld inventory and system menu', () => {
     }
     const inventoryBottom = layout.inventoryWindow.y + layout.inventoryWindow.height;
     expect(Math.max(...layout.inventoryHotbarSlots.map((slot) => slot.y + slot.height))).toBeLessThanOrEqual(inventoryBottom - 17);
+  });
+
+  it('fits chest storage beside the player backpack without overlapping', () => {
+    const layout = overworldUiLayout(480, 270);
+    const chestRight = Math.max(...layout.chestSlots.map((slot) => slot.x + slot.width));
+    const backpackLeft = Math.min(...layout.chestBackpackSlots.map((slot) => slot.x));
+    expect(layout.chestSlots).toHaveLength(CHEST_STORAGE_CAPACITY);
+    expect(layout.chestBackpackSlots).toHaveLength(20);
+    expect(new Set(layout.chestSlots.map((slot) => slot.x)).size).toBe(CHEST_STORAGE_COLUMNS);
+    expect(new Set(layout.chestSlots.map((slot) => slot.y)).size).toBe(CHEST_STORAGE_ROWS);
+    expect(layout.chestWindow.width).toBeLessThan(layout.inventoryWindow.width);
+    expect(Math.min(...layout.chestSlots.map((slot) => slot.x))).toBeGreaterThanOrEqual(layout.chestWindow.x + 17);
+    expect(chestRight).toBeLessThanOrEqual(backpackLeft);
+    for (const slot of [...layout.chestSlots, ...layout.chestBackpackSlots, ...layout.chestHotbarSlots]) {
+      expect(slot.x).toBeGreaterThanOrEqual(layout.chestWindow.x);
+      expect(slot.x + slot.width).toBeLessThanOrEqual(layout.chestWindow.x + layout.chestWindow.width);
+    }
+  });
+
+  it('moves items directly between the visible backpack and an open chest', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'chest';
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [{ slot: 9, itemKind: 'wood', quantity: 3 }],
+      openChestInventory: [], hasBackpack: true,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(480, 270);
+    const source = layout.chestBackpackSlots[0]!;
+    const target = layout.chestSlots.at(-1)!;
+    ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0);
+    ui.pointerMove({ x: target.x + 4, y: target.y + 4 });
+    ui.pointerUp({ x: target.x + 4, y: target.y + 4 }, 0);
+    expect(handlers.moveInventoryItem).toHaveBeenCalledWith({
+      fromContainer: 'backpack', fromIndex: 0, toContainer: 'chest', toIndex: CHEST_STORAGE_CAPACITY - 1, quantity: 3,
+    });
+  });
+
+  it('resizes the composed chest frame from a corner without moving the opposite corner', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.openWindow = 'chest';
+    ui.update({
+      width: 640, height: 400, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], openChestInventory: [], hasBackpack: true,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const original = overworldUiLayout(640, 400).chestStorageFrame;
+    const handle = original.resizeHandles.south_east;
+    const point = { x: handle.x + 4, y: handle.y + 4 };
+    expect(ui.pointerDown(point, 0)).toBe(true);
+    ui.pointerMove({ x: point.x + 30, y: point.y + 20 });
+    expect(ui.pointerUp({ x: point.x + 30, y: point.y + 20 }, 0)).toBe(true);
+    const resized = (ui as unknown as { layout: OverworldUiLayout }).layout.chestStorageFrame.frame;
+    expect(resized).toEqual({
+      x: original.frame.x,
+      y: original.frame.y,
+      width: original.frame.width + 30,
+      height: original.frame.height + 20,
+    });
   });
 
   it('returns transient crafting inputs when the window closes', () => {
@@ -246,6 +361,34 @@ describe('overworld inventory and system menu', () => {
     }, 0)).toBe(true);
     expect(ui.openWindow).toBe('settings');
     expect(handlers.moveInventoryItem).not.toHaveBeenCalled();
+  });
+
+  it('persists independent background playback choices from the settings window', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 0.8, music: 0.7, sfx: 0.35 },
+      audioBackground: { music: false, sounds: true },
+      canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    ui.openWindow = 'settings';
+    const layout = overworldUiLayout(480, 270);
+    expect(ui.pointerDown({
+      x: layout.musicBackgroundToggle.x + 4, y: layout.musicBackgroundToggle.y + 4,
+    }, 0)).toBe(true);
+    expect(ui.pointerDown({
+      x: layout.soundsBackgroundToggle.x + 4, y: layout.soundsBackgroundToggle.y + 4,
+    }, 0)).toBe(true);
+    expect(handlers.setAudioBackground).toHaveBeenNthCalledWith(1, 'music', true);
+    expect(handlers.setAudioBackground).toHaveBeenNthCalledWith(2, 'sounds', false);
+    expect(layout.musicBackgroundToggle.y + layout.musicBackgroundToggle.height)
+      .toBeLessThan(layout.soundsBackgroundToggle.y);
+    expect(layout.soundsBackgroundToggle.y + layout.soundsBackgroundToggle.height)
+      .toBeLessThan(layout.settingsBackButton.y);
   });
 
   it('drags a compatible hotbar item into its typed equipment slot', () => {
@@ -530,7 +673,7 @@ describe('overworld inventory and system menu', () => {
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
-    const source = overworldUiLayout(480, 270).inventoryHotbarSlots[0]!;
+    const source = overworldUiLayout(480, 270).chestHotbarSlots[0]!;
     const point = { x: source.x + 4, y: source.y + 4 };
     ui.pointerDown(point, 0, { shift: true });
     ui.pointerUp(point, 0, { shift: true });

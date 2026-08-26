@@ -1,9 +1,10 @@
 import {
-  FIXED_UNITS_PER_PIXEL,
   PLAYER_HITBOX_FOOT_OFFSET,
   PLAYER_HITBOX_TOP,
   TILE_SIZE_FIXED,
+  ITEM_PICKUP_REACH_FIXED,
   resourceToolReachFixed,
+  resourceToolForwardOffsetFixed,
   survivalResourceObstacle,
 } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
@@ -12,8 +13,9 @@ import {
   facedInteractionTile,
   interactionTileAtWorldPoint,
   interactionTileInReach,
-  facedWorldItem,
+  nearbyWorldItem,
   equippedItemTracksCursor,
+  equippedItemFacing,
   hotbarItemLabel,
   hotbarItemName,
   hotbarLayout,
@@ -77,12 +79,19 @@ describe('survival controls', () => {
     expect(facedResource(x, y, 'right', [{ ...tree, depleted: true }])).toBeNull();
   });
 
-  it('selects a tree across the wider axe swing radius', () => {
+  it('selects a tree in the one-tile area shifted ahead of the player', () => {
     const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     const y = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-    const distantTree = { ...tree, tileX: 13 };
-    expect(facedResource(x, y, 'right', [distantTree], resourceToolReachFixed('axe'))).toEqual(distantTree);
-    expect(facedResource(x, y, 'right', [distantTree], resourceToolReachFixed('pickaxe'))).toBeNull();
+    const forwardTree = { ...tree, tileX: 12 };
+    expect(facedResource(
+      x,
+      y,
+      'right',
+      [forwardTree],
+      resourceToolReachFixed('axe'),
+      resourceToolForwardOffsetFixed('axe'),
+    )).toEqual(forwardTree);
+    expect(facedResource(x, y, 'right', [forwardTree], resourceToolReachFixed('axe'))).toBeNull();
   });
 
   it('targets the physical trunk from north and south contact positions', () => {
@@ -91,10 +100,24 @@ describe('survival controls', () => {
     const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     const southContactY = trunk.bottom + 1 + PLAYER_HITBOX_FOOT_OFFSET + PLAYER_HITBOX_TOP;
     const northContactY = trunk.top + PLAYER_HITBOX_FOOT_OFFSET;
-    expect(facedResource(x, southContactY, 'up', [closeTree], resourceToolReachFixed('axe'))).toEqual(closeTree);
-    expect(facedResource(x, southContactY, 'down', [closeTree], resourceToolReachFixed('axe'))).toBeNull();
-    expect(facedResource(x, northContactY, 'down', [closeTree], resourceToolReachFixed('axe'))).toEqual(closeTree);
-    expect(facedResource(x, northContactY, 'up', [closeTree], resourceToolReachFixed('axe'))).toBeNull();
+    const reach = resourceToolReachFixed('axe');
+    const offset = resourceToolForwardOffsetFixed('axe');
+    expect(facedResource(x, southContactY, 'up', [closeTree], reach, offset)).toEqual(closeTree);
+    expect(facedResource(x, southContactY, 'down', [closeTree], reach, offset)).toBeNull();
+    expect(facedResource(x, northContactY, 'down', [closeTree], reach, offset)).toEqual(closeTree);
+    expect(facedResource(x, northContactY, 'up', [closeTree], reach, offset)).toBeNull();
+  });
+
+  it('targets trees at useful north and south swing distances', () => {
+    const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const reach = resourceToolReachFixed('axe');
+    const offset = resourceToolForwardOffsetFixed('axe');
+    const northTree = { ...tree, tileX: 10, tileY: 10 };
+    const northPlayerY = 12 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(facedResource(x, northPlayerY, 'up', [northTree], reach, offset)).toEqual(northTree);
+    const southTree = { ...tree, tileX: 10, tileY: 11 };
+    const southPlayerY = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(facedResource(x, southPlayerY, 'down', [southTree], reach, offset)).toEqual(southTree);
   });
 
   it('maps both number rows to nine persisted hotbar slots', () => {
@@ -118,6 +141,9 @@ describe('survival controls', () => {
     for (const item of ['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty']) {
       expect(equippedItemTracksCursor(item)).toBe(false);
     }
+    expect(equippedItemFacing('bow', 'down', 'upLeft')).toBe('upLeft');
+    expect(equippedItemFacing('axe', 'down', 'upLeft')).toBe('down');
+    expect(equippedItemFacing('pickaxe', 'right', 'up')).toBe('right');
   });
 
   it('centers nine pointer-selectable slots and excludes their one-pixel gaps', () => {
@@ -130,13 +156,13 @@ describe('survival controls', () => {
     expect(hotbarSlotAtPoint(397, 264, 480, 270)).toBeNull();
   });
 
-  it('selects the nearest faced ground item inside pickup reach', () => {
+  it('selects the nearest ground item anywhere inside the circular pickup reach', () => {
     const x = 10 * TILE_SIZE_FIXED;
     const y = 10 * TILE_SIZE_FIXED;
-    const near = { id: 1n, x: x + TILE_SIZE_FIXED, y };
-    const far = { id: 2n, x: x + 25 * FIXED_UNITS_PER_PIXEL, y };
-    expect(facedWorldItem(x, y, 'right', [far, near])).toEqual(near);
-    expect(facedWorldItem(x, y, 'left', [near])).toBeNull();
+    const behind = { id: 1n, x: x - ITEM_PICKUP_REACH_FIXED, y };
+    const outside = { id: 2n, x: x + ITEM_PICKUP_REACH_FIXED + 1, y };
+    expect(nearbyWorldItem(x, y, [outside, behind])).toEqual(behind);
+    expect(nearbyWorldItem(x, y, [outside])).toBeNull();
   });
 
   it('lays out and hit-tests the top-right weather test controls', () => {
@@ -152,9 +178,10 @@ describe('survival controls', () => {
 
   it('formats slider ticks as a full 24-hour day', () => {
     expect(formatDayTime(0, 54_000)).toBe('06:00');
-    expect(formatDayTime(13_500, 54_000)).toBe('11:00');
-    expect(formatDayTime(27_000, 54_000)).toBe('16:00');
-    expect(formatDayTime(48_600, 54_000)).toBe('00:00');
-    expect(formatDayTime(53_999, 54_000)).toBe('01:59');
+    expect(formatDayTime(13_500, 54_000)).toBe('12:00');
+    expect(formatDayTime(27_000, 54_000)).toBe('18:00');
+    expect(formatDayTime(40_500, 54_000)).toBe('00:00');
+    expect(formatDayTime(48_600, 54_000)).toBe('03:36');
+    expect(formatDayTime(53_999, 54_000)).toBe('05:59');
   });
 });

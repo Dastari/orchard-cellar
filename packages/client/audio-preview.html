@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <title>Orchard &amp; Cellar Runtime Audio Review</title>
     <style>
       :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -17,7 +18,7 @@
   </head>
   <body>
     <h1>Runtime audio review</h1>
-    <p>This panel instantiates the same AudioBus, sequencer, patches, limiter, reverb, and SFX synthesizer used by the game.</p>
+    <p>This panel instantiates the same streamed-music decks, mixer, limiter, reverb, and SFX synthesizer used by the game.</p>
     <p><progress id="meter" max="1" value="0"></progress> <span id="status">idle</span> <button id="stop">Stop</button></p>
     <p id="error" role="alert"></p>
     <section id="songs"><h2>Songs</h2></section>

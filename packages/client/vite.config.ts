@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import clientPackage from './package.json' with { type: 'json' };
 
 export function developmentCsp(html: string): string {
   return html.replace("style-src 'self';", "style-src 'self' 'unsafe-inline';");
@@ -6,6 +7,9 @@ export function developmentCsp(html: string): string {
 
 export default defineConfig(({ command }) => ({
   envDir: '../..',
+  define: {
+    'import.meta.env.VITE_CLIENT_VERSION': JSON.stringify(clientPackage.version),
+  },
   // The browser SDK is already distributed as ESM. Serving it directly also
   // avoids invalidating the running game when Vite rotates its optimized-dep
   // generation after bindings or workspace packages change.

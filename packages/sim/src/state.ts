@@ -1,6 +1,7 @@
 import { createRng, type RngState } from './rng.js';
 import { createInitialEconomy, type EconomyAction, type EconomyState } from './economy-state.js';
 import { createInitialProgression, type PrestigeAction, type ProgressionState } from './progression-state.js';
+import type { TerrainTransition } from './terrain-elevation.js';
 
 export const SIM_TICKS_PER_SECOND = 60;
 export const FIXED_UNITS_PER_PIXEL = 16;
@@ -38,6 +39,10 @@ export interface CollisionMap {
   readonly width: number;
   readonly height: number;
   readonly blocked: readonly boolean[];
+  /** Optional integer height field and explicit contour crossings. Generated
+   * terrain supplies both to client prediction and authority movement. */
+  readonly elevations?: Uint8Array;
+  readonly terrainTransitions?: readonly TerrainTransition[];
   /** Blocked terrain tiles a mounted horse may cross during a jump. */
   readonly horseJumpableTerrain?: readonly boolean[];
   /** Optional fixed-point AABBs for sub-tile blockers such as tree trunks. */

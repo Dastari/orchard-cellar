@@ -93,6 +93,7 @@ export const PLAYER_STATISTIC_DEFINITIONS = {
   resource_hits: { name: 'Resource Hits', description: 'Successful tool hits against world resources, split by resource kind.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'resource_kind', milestones: COUNT_MILESTONES },
   resources_depleted: { name: 'Resources Depleted', description: 'World resources fully depleted by the player, split by resource kind.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'resource_kind', milestones: RARE_COUNT_MILESTONES },
   trees_cut_down: { name: 'Trees Cut Down', description: 'Deciduous, conifer, or fruit trees fully felled.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
+  cacti_cut_down: { name: 'Cacti Cut Down', description: 'Regrowing desert cacti fully harvested.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
   rocks_broken: { name: 'Rocks Broken', description: 'Ordinary stone resources fully broken.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
   ore_nodes_depleted: { name: 'Ore Nodes Depleted', description: 'Ore or gem nodes fully mined.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'resource_kind', milestones: RARE_COUNT_MILESTONES },
 

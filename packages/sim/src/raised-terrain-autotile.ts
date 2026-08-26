@@ -85,6 +85,17 @@ export interface RaisedTerrainTilePlan {
   readonly blocksMovement: boolean;
 }
 
+export interface RaisedTerrainContourPlan {
+  readonly contourLevel: number;
+  readonly plan: RaisedTerrainTilePlan;
+}
+
+export type RaisedTerrainRampRoleAtLevel = (
+  contourLevel: number,
+  tileX: number,
+  tileY: number,
+) => RaisedTerrainRampRole | null;
+
 function horizontalRole(
   left: boolean,
   right: boolean,
@@ -231,4 +242,32 @@ export function resolveRaisedTerrainTile(
       || faceLayers.some((layer) => layer.direct && layer.blocksMovement)
     ),
   };
+}
+
+/** Resolves every integer contour independently. This is the shared operation
+ * used by generated mountains and a future raise/lower editor brush. */
+export function resolveRaisedTerrainContoursAt(
+  elevationAt: (tileX: number, tileY: number) => number,
+  maximumElevation: number,
+  tileSet: RaisedTerrainTileSet,
+  faceProfile: string,
+  tileX: number,
+  tileY: number,
+  rampRoleAtLevel?: RaisedTerrainRampRoleAtLevel,
+): readonly RaisedTerrainContourPlan[] {
+  const contours: RaisedTerrainContourPlan[] = [];
+  for (let contourLevel = 1; contourLevel <= maximumElevation; contourLevel += 1) {
+    const grid = raisedTerrainContourGrid(
+      elevationAt,
+      contourLevel,
+      rampRoleAtLevel === undefined
+        ? undefined
+        : (x, y) => rampRoleAtLevel(contourLevel, x, y),
+    );
+    const plan = resolveRaisedTerrainTile(grid, tileSet, faceProfile, tileX, tileY);
+    if (plan.edgeFrame === null && plan.faceLayers.length === 0
+      && plan.insetFrames.length === 0 && plan.rampFrame === null) continue;
+    contours.push({ contourLevel, plan });
+  }
+  return contours;
 }

@@ -1,4 +1,4 @@
-import { craftingRecipeOutput, durabilityFraction, distributeItemStack, itemDefinition, matchingRecipeId, maxStackFor, recipeDefinition, toolDurabilityDefinition, type ContainerSnapshot, type CraftingStation, type ItemStack, type MoonPhase, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
+import { CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, craftingRecipeOutput, durabilityFraction, distributeItemStack, itemDefinition, matchingRecipeId, maxStackFor, recipeDefinition, toolDurabilityDefinition, type ContainerSnapshot, type CraftingStation, type ItemStack, type MoonPhase, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
 import type { LoadedAsset } from '../render/assets.js';
 import { drawOutlinedPixelText, drawPixelText, measurePixelText, type PixelUi } from '../render/pixel-ui.js';
 import { hotbarItemName } from '../survival-ui.js';
@@ -6,11 +6,20 @@ import { craftingRecipeBookEntries } from './recipe-book.js';
 import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
 import { UiInputRouter } from './input-router.js';
 import { Slider } from './slider.js';
-import { Ribbon } from './ribbon.js';
+import { Toggle } from './toggle.js';
+import { Ribbon, STACKED_RIBBON_HEIGHT } from './ribbon.js';
 import { DragContext } from './drag-context.js';
 import { EQUIPMENT_SLOT_RESTRICTIONS, ItemSlot } from './item-slot.js';
 import { HelpBook } from './help-book.js';
 import { ScrollBar } from './scrollbar.js';
+import {
+  StorageFrameResizeController,
+  drawStorageFrameChrome,
+  drawStorageResizeHandles,
+  layoutStorageFrame,
+  type StorageFrameLayout,
+  type StorageFrameSpec,
+} from './storage-frame.js';
 import { CurrencyDisplay } from './currency-display.js';
 import { PlayerResourceFrame } from './player-resource-frame.js';
 import { drawUiLabelPlate, drawUiSkinAsset, drawUiSkinNatural, uiAssetFrame, type UiSkin } from './skin.js';
@@ -86,6 +95,7 @@ export interface OverworldUiModel {
   readonly height: number;
   readonly connected: boolean;
   readonly playerCount: number;
+  readonly zoneName?: string;
   readonly selectedSlot: number;
   readonly balanceBronze?: bigint;
   readonly inventory: readonly OverworldUiInventorySlot[];
@@ -97,6 +107,7 @@ export interface OverworldUiModel {
   readonly openPlaceableInventory?: readonly OverworldUiInventorySlot[];
   readonly hasBackpack: boolean;
   readonly audioVolumes: { readonly master: number; readonly music: number; readonly sfx: number };
+  readonly audioBackground?: { readonly music: boolean; readonly sounds: boolean };
   readonly canAdministerWorld: boolean;
   readonly dateLabel: string;
   readonly timeLabel: string;
@@ -109,6 +120,7 @@ export interface OverworldUiModel {
   readonly windDirectionLabel?: string;
   readonly prompt: string | null;
   readonly toast: string | null;
+  readonly toastKind?: 'info' | 'success' | 'failure';
   readonly nearbyCraftingStations?: readonly CraftingStation[];
 }
 
@@ -119,6 +131,7 @@ export interface OverworldUiCallbacks {
   readonly cycleWeather: () => void;
   readonly cycleWindDirection: () => void;
   readonly setAudioVolume: (bus: 'master' | 'music' | 'sfx', value: number) => void;
+  readonly setAudioBackground: (bus: 'music' | 'sounds', enabled: boolean) => void;
   readonly signOut: () => void;
   readonly quitToTitle: () => void;
   readonly moveInventoryItem: (request: MoveItemRequest) => void;
@@ -140,7 +153,8 @@ export interface OverworldUiItemArt {
 
 export interface OverworldUiLayout {
   readonly status: UiRect;
-  readonly weather: UiRect;
+  readonly moon: UiRect;
+  readonly currency: UiRect;
   readonly timeSlider: UiRect;
   readonly previousDayButton: UiRect;
   readonly nextDayButton: UiRect;
@@ -151,8 +165,11 @@ export interface OverworldUiLayout {
   readonly targetVitals: UiRect;
   readonly slots: readonly UiRect[];
   readonly tooltip: UiRect;
+  readonly notification: UiRect;
   readonly window: UiRect;
   readonly inventoryWindow: UiRect;
+  readonly chestWindow: UiRect;
+  readonly chestStorageFrame: StorageFrameLayout;
   readonly systemWindow: UiRect;
   readonly settingsWindow: UiRect;
   readonly developerWindow: UiRect;
@@ -165,6 +182,8 @@ export interface OverworldUiLayout {
   readonly craftingInventorySlots: readonly UiRect[];
   readonly craftingRecipeRows: readonly UiRect[];
   readonly chestSlots: readonly UiRect[];
+  readonly chestBackpackSlots: readonly UiRect[];
+  readonly chestHotbarSlots: readonly UiRect[];
   readonly barrelSlots: readonly UiRect[];
   readonly resumeButton: UiRect;
   readonly helpButton: UiRect;
@@ -175,12 +194,15 @@ export interface OverworldUiLayout {
   readonly masterSlider: UiRect;
   readonly musicSlider: UiRect;
   readonly sfxSlider: UiRect;
+  readonly musicBackgroundToggle: UiRect;
+  readonly soundsBackgroundToggle: UiRect;
   readonly settingsBackButton: UiRect;
   readonly developerBackButton: UiRect;
 }
 
 const SLOT_WIDTH = 30;
 const SLOT_HEIGHT = 31;
+const HOTBAR_RETICLE_SIZE = 60;
 const HOTBAR_SLOTS = 9;
 const BACKPACK_SLOTS = 20;
 const DEFAULT_INVENTORY_SLOTS = 8;
@@ -195,7 +217,24 @@ const NAMEPLATE_HEIGHT = 11;
 export const ONLINE_PLAYER_LIST_BOTTOM_PADDING = 12;
 const ONLINE_PLAYER_LIST_CONTENT_TOP = 29;
 const ONLINE_PLAYER_LIST_ROW_HEIGHT = 12;
+const HUD_MOON_SCALE = 2;
 const EQUIPMENT_SLOT_KINDS = ['neck', 'head', 'ring', 'main_hand', 'body', 'off_hand', 'hands', 'legs', 'feet'] as const;
+
+export const CHEST_STORAGE_FRAME_SPEC: StorageFrameSpec = {
+  title: 'CHEST',
+  style: 'wood_parchment',
+  preferredWidth: 380,
+  resizable: true,
+  panes: [
+    { id: 'chest', label: 'CHEST', columns: CHEST_STORAGE_COLUMNS, rows: CHEST_STORAGE_CAPACITY / CHEST_STORAGE_COLUMNS },
+    { id: 'backpack', label: 'INVENTORY', columns: 5, rows: 4, columnGap: 3 },
+  ],
+  hotbar: { label: 'HOT BAR', columns: HOTBAR_SLOTS },
+};
+
+export interface OverworldUiLayoutOptions {
+  readonly chestFrame?: UiRect;
+}
 
 export function nameplateRect(centerX: number, y: number, text: string): UiRect {
   const width = measurePixelText(fitLabel(text, 20)) + NAMEPLATE_HORIZONTAL_PADDING * 2;
@@ -230,11 +269,22 @@ export function slotDurabilityBarRect(rect: UiRect): UiRect {
   return { x: rect.x + 5, y: rect.y + rect.height - 7, width: rect.width - 10, height: 3 };
 }
 
+/** Centres the selector's transparent 60 px canvas around a slot. Its opaque
+ * corners then sit a few pixels outside the bevel instead of covering labels. */
+export function hotbarReticleRect(rect: UiRect): UiRect {
+  return {
+    x: Math.round(rect.x + (rect.width - HOTBAR_RETICLE_SIZE) / 2),
+    y: Math.round(rect.y + (rect.height - HOTBAR_RETICLE_SIZE) / 2),
+    width: HOTBAR_RETICLE_SIZE,
+    height: HOTBAR_RETICLE_SIZE,
+  };
+}
+
 export function itemIconAnimation(itemKind: string): string {
   return itemDefinition(itemKind)?.iconAnimation ?? 'base';
 }
 
-export function overworldUiLayout(width: number, height: number): OverworldUiLayout {
+export function overworldUiLayout(width: number, height: number, options: OverworldUiLayoutOptions = {}): OverworldUiLayout {
   const hotbarWidth = HOTBAR_SLOTS * SLOT_WIDTH;
   const hotbar = { x: Math.round((width - hotbarWidth) / 2), y: height - SLOT_HEIGHT - 6, width: hotbarWidth, height: SLOT_HEIGHT };
   const vitals = {
@@ -245,16 +295,31 @@ export function overworldUiLayout(width: number, height: number): OverworldUiLay
     x: hotbar.x + hotbar.width - HUD_RESOURCE_FRAME_WIDTH, y: vitals.y,
     width: HUD_RESOURCE_FRAME_WIDTH, height: HUD_RESOURCE_FRAME_HEIGHT,
   };
-  const weather = { x: width - 224, y: 4, width: 220, height: 24 };
+  const status = { x: 4, y: 2, width: Math.min(220, width - 112), height: STACKED_RIBBON_HEIGHT };
+  const moonSize = 16;
+  const moon = {
+    x: status.x + status.width - 51,
+    y: status.y + Math.floor((status.height - moonSize) / 2),
+    width: moonSize,
+    height: moonSize,
+  };
+  const currency = { x: width - 104, y: 4, width: 100, height: 24 };
   const windowWidth = Math.min(270, Math.max(220, width - 16));
   const windowHeight = Math.min(184, Math.max(150, height - 30));
   const window = { x: Math.round((width - windowWidth) / 2), y: Math.round((height - windowHeight) / 2), width: windowWidth, height: windowHeight };
   const inventoryWidth = Math.min(464, Math.max(350, width - 16));
   const inventoryHeight = Math.min(240, Math.max(220, height - 16));
   const inventoryWindow = { x: Math.round((width - inventoryWidth) / 2), y: Math.round((height - inventoryHeight) / 2), width: inventoryWidth, height: inventoryHeight };
+  const chestStorageFrame = layoutStorageFrame({ width, height }, CHEST_STORAGE_FRAME_SPEC, options.chestFrame);
+  const chestWindow = chestStorageFrame.frame;
   const systemHeight = Math.min(202, height - 16);
   const systemWindow = { x: Math.round((width - 190) / 2), y: Math.round((height - systemHeight) / 2), width: 190, height: systemHeight };
-  const settingsWindow = { x: Math.round((width - 270) / 2), y: Math.round((height - 184) / 2), width: 270, height: 184 };
+  const settingsWidth = Math.min(310, Math.max(270, width - 16));
+  const settingsHeight = Math.min(226, Math.max(184, height - 16));
+  const settingsWindow = {
+    x: Math.round((width - settingsWidth) / 2), y: Math.round((height - settingsHeight) / 2),
+    width: settingsWidth, height: settingsHeight,
+  };
   const developerWidth = Math.min(400, Math.max(220, width - 24));
   const developerHeight = Math.min(230, Math.max(170, height - 24));
   const developerWindow = { x: Math.round((width - developerWidth) / 2), y: Math.round((height - developerHeight) / 2), width: developerWidth, height: developerHeight };
@@ -264,10 +329,16 @@ export function overworldUiLayout(width: number, height: number): OverworldUiLay
   const inventoryHotbarX = inventoryWindow.x + Math.round((inventoryWindow.width - hotbarWidth) / 2);
   const menuStep = Math.min(24, Math.max(19, Math.floor((systemWindow.height - 61) / 5)));
   const menuButton = (row: number): UiRect => ({ x: systemWindow.x + 35, y: systemWindow.y + 31 + row * menuStep, width: 120, height: 19 });
-  const settingsSlider = (row: number): UiRect => ({ x: settingsWindow.x + 91, y: settingsWindow.y + 49 + row * 28, width: 132, height: 14 });
+  const settingsSlider = (row: number): UiRect => ({
+    x: settingsWindow.x + 95,
+    y: settingsWindow.y + 49 + row * 28,
+    width: settingsWindow.width - 160,
+    height: 14,
+  });
   return {
-    status: { x: 4, y: 4, width: 190, height: 24 },
-    weather,
+    status,
+    moon,
+    currency,
     previousDayButton: { x: developerWindow.x + 30, y: developerWindow.y + 49, width: 64, height: 20 },
     timeSlider: { x: developerWindow.x + 102, y: developerWindow.y + 52, width: developerWindow.width - 204, height: 14 },
     nextDayButton: { x: developerWindow.x + developerWindow.width - 94, y: developerWindow.y + 49, width: 64, height: 20 },
@@ -278,8 +349,11 @@ export function overworldUiLayout(width: number, height: number): OverworldUiLay
     targetVitals,
     slots: Array.from({ length: HOTBAR_SLOTS }, (_, slot) => ({ x: hotbar.x + slot * SLOT_WIDTH, y: hotbar.y, width: 28, height: SLOT_HEIGHT })),
     tooltip: { x: Math.round(width / 2) - 100, y: vitals.y - 20, width: 200, height: 16 },
+    notification: { x: Math.round(width / 2) - 100, y: Math.max(32, vitals.y - 40), width: 200, height: 16 },
     window,
     inventoryWindow,
+    chestWindow,
+    chestStorageFrame,
     systemWindow,
     settingsWindow,
     developerWindow,
@@ -301,7 +375,9 @@ export function overworldUiLayout(width: number, height: number): OverworldUiLay
       width: Math.max(72, inventoryWindow.width - 182 - 191),
       height: 15,
     })),
-    chestSlots: Array.from({ length: 27 }, (_, index) => ({ x: inventoryWindow.x + 40 + index % 9 * 30, y: inventoryWindow.y + 50 + Math.floor(index / 9) * 31, width: 28, height: 31 })),
+    chestSlots: chestStorageFrame.panes.find((pane) => pane.id === 'chest')!.slots,
+    chestBackpackSlots: chestStorageFrame.panes.find((pane) => pane.id === 'backpack')!.slots,
+    chestHotbarSlots: chestStorageFrame.hotbar!.slots,
     barrelSlots: Array.from({ length: 8 }, (_, index) => ({
       x: inventoryWindow.x + Math.round((inventoryWindow.width - 4 * 34) / 2) + index % 4 * 34,
       y: inventoryWindow.y + 58 + Math.floor(index / 4) * 34,
@@ -317,7 +393,18 @@ export function overworldUiLayout(width: number, height: number): OverworldUiLay
     masterSlider: settingsSlider(0),
     musicSlider: settingsSlider(1),
     sfxSlider: settingsSlider(2),
-    settingsBackButton: { x: settingsWindow.x + 91, y: settingsWindow.y + 142, width: 88, height: 18 },
+    musicBackgroundToggle: {
+      x: settingsWindow.x + settingsWindow.width - 67, y: settingsWindow.y + 139, width: 52, height: 18,
+    },
+    soundsBackgroundToggle: {
+      x: settingsWindow.x + settingsWindow.width - 67, y: settingsWindow.y + 165, width: 52, height: 18,
+    },
+    settingsBackButton: {
+      x: settingsWindow.x + Math.round((settingsWindow.width - 88) / 2),
+      y: settingsWindow.y + settingsWindow.height - 30,
+      width: 88,
+      height: 18,
+    },
     developerBackButton: { x: developerWindow.x + Math.round((developerWindow.width - 88) / 2), y: developerWindow.y + developerWindow.height - 32, width: 88, height: 18 },
   };
 }
@@ -334,7 +421,8 @@ export class OverworldUi {
   readonly root: WidgetNode;
   private readonly router: UiInputRouter;
   private readonly hotbarNodes: WidgetNode[];
-  private readonly weatherNode: WidgetNode;
+  private readonly zoneNode: WidgetNode;
+  private readonly currencyNode: WidgetNode;
   private readonly timeSlider: Slider;
   private readonly previousDayNode: WidgetNode;
   private readonly nextDayNode: WidgetNode;
@@ -359,16 +447,21 @@ export class OverworldUi {
   private readonly masterSlider: Slider;
   private readonly musicSlider: Slider;
   private readonly sfxSlider: Slider;
+  private readonly musicBackgroundToggle: Toggle;
+  private readonly soundsBackgroundToggle: Toggle;
   private readonly windowRibbon: Ribbon;
+  private readonly zoneRibbon: Ribbon;
   private readonly helpBook: HelpBook;
   private readonly onlinePlayersScrollBar: ScrollBar;
   private readonly currencyDisplay: CurrencyDisplay;
   private readonly playerResourceFrame: PlayerResourceFrame;
   private readonly targetResourceFrame: PlayerResourceFrame;
   private readonly drag = new DragContext();
+  private readonly chestFrameResize = new StorageFrameResizeController();
   private model: OverworldUiModel = {
     width: 480, height: 270, connected: false, playerCount: 0, selectedSlot: 0, balanceBronze: 0n,
     inventory: [], openChestInventory: [], hasBackpack: false, audioVolumes: { master: 0.8, music: 0.7, sfx: 0.35 },
+    audioBackground: { music: false, sounds: false },
     canAdministerWorld: false, dateLabel: 'SPRING 1', timeLabel: '06:00',
     timeFraction: 0, raining: false, weatherMode: 'auto', prompt: null, toast: null,
   };
@@ -385,6 +478,7 @@ export class OverworldUi {
   private lastShiftClick: { readonly key: string; readonly itemKind: string; readonly at: number } | null = null;
   private clickStartedAt = Number.NEGATIVE_INFINITY;
   private openWindowValue: OverworldWindow | null = null;
+  private chestFrameOverride: UiRect | null = null;
   private onlinePlayerListActive = false;
   private onlinePlayerListRect: UiRect = { x: 0, y: 0, width: 0, height: 0 };
   private craftingRecipeScroll = 0;
@@ -399,6 +493,7 @@ export class OverworldUi {
   ) {
     this.root = widget('root', 'overworld.ui.root');
     this.windowRibbon = new Ribbon(skin.banner, fonts);
+    this.zoneRibbon = new Ribbon(skin.banner, fonts);
     this.helpBook = new HelpBook(skin, fonts);
     this.onlinePlayersScrollBar = new ScrollBar(skin);
     this.currencyDisplay = new CurrencyDisplay(skin, fonts);
@@ -413,7 +508,8 @@ export class OverworldUi {
         if (target?.targetId === targetId) drawTargetPortrait(context, target, rect);
       },
     });
-    this.weatherNode = widget('panel', 'hud.weather', { capturePointer: true });
+    this.zoneNode = widget('panel', 'hud.zone', { capturePointer: true });
+    this.currencyNode = widget('panel', 'hud.currency', { capturePointer: true });
     this.timeSlider = new Slider({
       id: 'hud.weather.time',
       skin,
@@ -470,7 +566,7 @@ export class OverworldUi {
       new ItemSlot(`window.inventory.equipment.${slot}`, 'equipment', slot, restriction)
     ));
     this.craftingItemSlots = Array.from({ length: 9 }, (_, slot) => new ItemSlot(`window.crafting.${slot}`, 'crafting', slot));
-    this.chestItemSlots = Array.from({ length: 27 }, (_, slot) => new ItemSlot(`window.chest.${slot}`, 'chest', slot));
+    this.chestItemSlots = Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, slot) => new ItemSlot(`window.chest.${slot}`, 'chest', slot));
     this.barrelItemSlots = Array.from({ length: 8 }, (_, slot) => new ItemSlot(`window.barrel.${slot}`, 'placeable', slot));
     this.resumeNode = widget('button', 'window.system.resume', {
       onPointer: (event) => {
@@ -531,6 +627,14 @@ export class OverworldUi {
     this.masterSlider = new Slider({ id: 'window.settings.master', skin, onChange: (value) => this.callbacks.setAudioVolume('master', value) });
     this.musicSlider = new Slider({ id: 'window.settings.music', skin, onChange: (value) => this.callbacks.setAudioVolume('music', value) });
     this.sfxSlider = new Slider({ id: 'window.settings.sfx', skin, onChange: (value) => this.callbacks.setAudioVolume('sfx', value) });
+    this.musicBackgroundToggle = new Toggle({
+      id: 'window.settings.music-background', skin, fonts,
+      onChange: (value) => this.callbacks.setAudioBackground('music', value),
+    });
+    this.soundsBackgroundToggle = new Toggle({
+      id: 'window.settings.sounds-background', skin, fonts,
+      onChange: (value) => this.callbacks.setAudioBackground('sounds', value),
+    });
     this.windowNode.add(
       this.closeNode,
       ...this.inventoryHotbarSlots.map((slot) => slot.node),
@@ -555,8 +659,10 @@ export class OverworldUi {
       this.masterSlider.node,
       this.musicSlider.node,
       this.sfxSlider.node,
+      this.musicBackgroundToggle.node,
+      this.soundsBackgroundToggle.node,
     );
-    this.root.add(widget('label', 'hud.status'), this.weatherNode, hotbar, this.windowNode);
+    this.root.add(this.zoneNode, this.currencyNode, hotbar, this.windowNode);
     this.router = new UiInputRouter(this.root);
   }
 
@@ -568,6 +674,7 @@ export class OverworldUi {
       this.clearShiftDistributionPreview();
     }
     if (this.openWindowValue === 'chest' && nextWindow !== 'chest') this.callbacks.closeChest();
+    if (nextWindow !== 'chest') this.chestFrameResize.cancel();
     if (this.openWindowValue === 'barrel' && nextWindow !== 'barrel') this.callbacks.closePlaceable();
     if (this.openWindowValue === 'crafting' && nextWindow !== 'crafting') this.callbacks.closeCrafting();
     if (this.isInventoryWindow(this.openWindowValue) && !this.isInventoryWindow(nextWindow)) {
@@ -586,9 +693,13 @@ export class OverworldUi {
     this.onlinePlayerListActive = false;
     this.model = model;
     if (this.openWindowValue === 'developer' && !model.canAdministerWorld) this.openWindowValue = 'system';
-    this.layout = overworldUiLayout(model.width, model.height);
+    this.layout = overworldUiLayout(model.width, model.height, {
+      ...(this.chestFrameOverride === null ? {} : { chestFrame: this.chestFrameOverride }),
+    });
+    if (this.chestFrameOverride !== null) this.chestFrameOverride = this.layout.chestWindow;
     this.root.setBounds({ x: 0, y: 0, width: model.width, height: model.height });
-    this.weatherNode.setBounds(this.layout.weather);
+    this.zoneNode.setBounds(this.layout.status);
+    this.currencyNode.setBounds(this.layout.currency);
     this.timeSlider.setBounds(this.layout.timeSlider);
     this.timeSlider.value = model.timeFraction;
     this.previousDayNode.setBounds(this.layout.previousDayButton);
@@ -647,9 +758,13 @@ export class OverworldUi {
     this.masterSlider.setBounds(this.layout.masterSlider);
     this.musicSlider.setBounds(this.layout.musicSlider);
     this.sfxSlider.setBounds(this.layout.sfxSlider);
+    this.musicBackgroundToggle.setBounds(this.layout.musicBackgroundToggle);
+    this.soundsBackgroundToggle.setBounds(this.layout.soundsBackgroundToggle);
     this.masterSlider.value = model.audioVolumes.master;
     this.musicSlider.value = model.audioVolumes.music;
     this.sfxSlider.value = model.audioVolumes.sfx;
+    this.musicBackgroundToggle.value = model.audioBackground?.music ?? false;
+    this.soundsBackgroundToggle.value = model.audioBackground?.sounds ?? false;
     this.syncActiveWindow();
   }
 
@@ -674,6 +789,14 @@ export class OverworldUi {
 
   pointerMove(point: UiPoint, modifiers: { readonly shift?: boolean } = {}): void {
     this.pointer = point;
+    if (this.chestFrameResize.active) {
+      const resized = this.chestFrameResize.pointerMove(point, { width: this.model.width, height: this.model.height });
+      if (resized !== null) {
+        this.chestFrameOverride = resized;
+        this.update(this.model);
+      }
+      return;
+    }
     if (this.onlinePlayerListActive) this.onlinePlayersScrollBar.pointerMove(point);
     const slotNodes = this.openWindowValue === 'inventory' ? this.inventoryHotbarSlots.map((slot) => slot.node) : this.hotbarNodes;
     this.hoveredSlot = slotNodes.findIndex((node) => node.contains(point));
@@ -702,6 +825,8 @@ export class OverworldUi {
   pointerDown(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
     this.pointer = point;
     this.clickStartedAt = performance.now();
+    if (this.openWindowValue === 'chest' && this.drag.state.phase === 'idle'
+      && this.chestFrameResize.pointerDown(point, button, this.layout.chestStorageFrame)) return true;
     if (button === 2 && this.drag.state.phase !== 'idle') {
       const state = this.drag.state;
       const target = this.inventoryItemSlotAt(point);
@@ -783,6 +908,7 @@ export class OverworldUi {
 
   pointerUp(point: UiPoint, button: number, modifiers: { readonly shift?: boolean } = {}): boolean {
     this.pointer = point;
+    if (this.chestFrameResize.pointerUp()) return true;
     if (this.onlinePlayersScrollBar.pointerUp()) return true;
     if (this.pressedInventorySlot !== null) {
       const pressed = this.pressedInventorySlot;
@@ -876,6 +1002,7 @@ export class OverworldUi {
     this.musicSlider.pointerLeave();
     this.sfxSlider.pointerLeave();
     this.onlinePlayersScrollBar.pointerLeave();
+    this.chestFrameResize.cancel();
   }
 
   wheel(point: UiPoint, deltaX: number, deltaY: number): boolean {
@@ -894,7 +1021,7 @@ export class OverworldUi {
 
   draw(context: CanvasRenderingContext2D): void {
     this.drawStatus(context);
-    this.drawWeather(context);
+    this.drawCurrency(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawHotbar(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawVitals(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawTargetVitals(context);
@@ -904,6 +1031,7 @@ export class OverworldUi {
     if (this.isInventoryWindow(this.openWindowValue)) this.drawShiftDragTargets(context);
     if (this.isInventoryWindow(this.openWindowValue)) this.drawDraggedItem(context);
     if (this.openWindowValue === null || this.isInventoryWindow(this.openWindowValue)) this.drawTooltip(context);
+    this.drawNotification(context);
     this.drawCursor(context);
   }
 
@@ -966,13 +1094,31 @@ export class OverworldUi {
   }
 
   private drawStatus(context: CanvasRenderingContext2D): void {
-    drawUiSkinAsset(context, this.skin.frameThin, this.layout.status);
-    const status = `${this.model.connected ? 'ONLINE' : 'CONNECTING'}  ${this.model.playerCount} FARMER${this.model.playerCount === 1 ? '' : 'S'}`;
-    drawLabel(context, this.fonts, status, this.layout.status.x + this.layout.status.width / 2, this.layout.status.y + 7, { align: 'center', color: '#4d2e22' });
+    this.zoneRibbon.drawStacked(
+      context,
+      fitLabel(this.model.zoneName ?? 'Overworld', 21),
+      `${this.model.dateLabel}  |  ${this.model.timeLabel}`,
+      this.layout.status,
+    );
+    const phase = this.model.moonPhase ?? 'full_moon';
+    for (let y = 0; y < 7; y += 1) {
+      for (let x = 0; x < 7; x += 1) {
+        const pixel = moonPhasePixel(phase, x, y);
+        if (pixel === 0) continue;
+        context.fillStyle = pixel === 2 ? '#fff2d0' : '#3f2832';
+        context.fillRect(
+          this.layout.moon.x + 1 + x * HUD_MOON_SCALE,
+          this.layout.moon.y + 1 + y * HUD_MOON_SCALE,
+          HUD_MOON_SCALE,
+          HUD_MOON_SCALE,
+        );
+      }
+    }
   }
 
   private activeWindowRect(): UiRect {
     if (this.openWindowValue === 'help') return { x: 0, y: 0, width: this.model.width, height: this.model.height };
+    if (this.openWindowValue === 'chest') return this.layout.chestWindow;
     if (this.isInventoryWindow(this.openWindowValue)) return this.layout.inventoryWindow;
     if (this.openWindowValue === 'system') return this.layout.systemWindow;
     if (this.openWindowValue === 'settings') return this.layout.settingsWindow;
@@ -993,10 +1139,15 @@ export class OverworldUi {
     this.windowNode.setBounds(activeWindow);
     this.windowNode.visible = this.openWindowValue !== null;
     this.closeNode.setBounds({ x: activeWindow.x + activeWindow.width - 17, y: activeWindow.y + 7, width: 16, height: 16 });
-    for (const slot of this.inventoryHotbarSlots) slot.visible = inventoryVisible || craftingVisible || chestVisible || barrelVisible;
+    this.inventoryHotbarSlots.forEach((slot, index) => {
+      slot.visible = inventoryVisible || craftingVisible || chestVisible || barrelVisible;
+      slot.setBounds(chestVisible ? this.layout.chestHotbarSlots[index]! : this.layout.inventoryHotbarSlots[index]!);
+    });
     this.backpackItemSlots.forEach((slot, index) => {
-      slot.visible = inventoryVisible || craftingVisible;
-      slot.setBounds(craftingVisible ? this.layout.craftingInventorySlots[index]! : this.layout.backpackSlots[index]!);
+      slot.visible = inventoryVisible || craftingVisible || chestVisible;
+      slot.setBounds(craftingVisible
+        ? this.layout.craftingInventorySlots[index]!
+        : chestVisible ? this.layout.chestBackpackSlots[index]! : this.layout.backpackSlots[index]!);
     });
     for (const slot of this.equipmentItemSlots) slot.visible = inventoryVisible;
     for (const slot of this.craftingItemSlots) slot.visible = craftingVisible;
@@ -1013,22 +1164,16 @@ export class OverworldUi {
       slider.node.visible = settingsVisible;
       slider.enabled = settingsVisible;
     }
+    for (const toggle of [this.musicBackgroundToggle, this.soundsBackgroundToggle]) {
+      toggle.node.visible = settingsVisible;
+      toggle.enabled = settingsVisible;
+    }
   }
 
-  private drawWeather(context: CanvasRenderingContext2D): void {
-    const { weather } = this.layout;
-    drawUiSkinAsset(context, this.skin.frameThin, weather);
-    drawLabel(context, this.fonts, `${this.model.dateLabel}  ${this.model.timeLabel}`, weather.x + 10, weather.y + 8, { color: '#4d2e22' });
-    const phase = this.model.moonPhase ?? 'full_moon';
-    for (let y = 0; y < 7; y += 1) {
-      for (let x = 0; x < 7; x += 1) {
-        const pixel = moonPhasePixel(phase, x, y);
-        if (pixel === 0) continue;
-        context.fillStyle = pixel === 2 ? '#fff2d0' : '#3f2832';
-        context.fillRect(weather.x + 132 + x, weather.y + 8 + y, 1, 1);
-      }
-    }
-    this.currencyDisplay.draw(context, this.model.balanceBronze ?? 0n, weather.x + weather.width - 9, weather.y + 8, {
+  private drawCurrency(context: CanvasRenderingContext2D): void {
+    const { currency } = this.layout;
+    drawUiSkinAsset(context, this.skin.frameThin, currency);
+    this.currencyDisplay.draw(context, this.model.balanceBronze ?? 0n, currency.x + currency.width - 9, currency.y + 8, {
       size: 'small', align: 'right', color: '#5f3b24', includeZero: true,
     });
   }
@@ -1068,6 +1213,10 @@ export class OverworldUi {
       const item = itemBySlot.get(slot);
       const asset = item ? this.itemArt[item.itemKind as keyof OverworldUiItemArt] : undefined;
       if (asset && item) this.drawItemArtwork(context, rect, item.itemKind, asset);
+      if (slot === this.model.selectedSlot || slot === this.hoveredSlot) {
+        const selector = slot === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
+        drawUiSkinAsset(context, selector, hotbarReticleRect(rect), 'idle');
+      }
       drawLabel(context, this.fonts, String(slot + 1), rect.x + 3, rect.y + 3, { color: '#51351f' });
       if ((item?.quantity ?? 0) > 1) {
         const stackLabel = slotStackLabelPosition(rect);
@@ -1076,10 +1225,6 @@ export class OverworldUi {
         });
       }
       if (item) this.drawDurabilityBar(context, rect, item.itemKind, item.durability);
-      if (slot === this.model.selectedSlot || slot === this.hoveredSlot) {
-        const selector = slot === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
-        drawUiSkinNatural(context, selector, rect.x - 10, rect.y - 9, 'idle');
-      }
     }
   }
 
@@ -1160,6 +1305,24 @@ export class OverworldUi {
     drawLabel(context, this.fonts, fitLabel(text, 44), rect.x + rect.width / 2, rect.y + 4, { align: 'center', color: '#5f3b24' });
   }
 
+  private drawNotification(context: CanvasRenderingContext2D): void {
+    const text = this.notificationText();
+    if (!text) return;
+    const width = Math.min(this.model.width - 12, Math.max(104, measurePixelText(text) + 16));
+    const rect = { ...this.layout.notification, x: Math.round((this.model.width - width) / 2), width };
+    const kind = this.model.toastKind ?? 'info';
+    const asset = kind === 'failure' ? this.skin.buttonDeny
+      : kind === 'success' ? this.skin.buttonConfirm : this.skin.button;
+    drawUiSkinAsset(context, asset, rect, 'idle');
+    drawLabel(context, this.fonts, fitLabel(text, 44), rect.x + rect.width / 2, rect.y + 4, {
+      align: 'center', color: kind === 'info' ? '#5f3b24' : '#fff1cf',
+    });
+  }
+
+  notificationText(): string | null {
+    return this.model.toast;
+  }
+
   private drawShiftDragTargets(context: CanvasRenderingContext2D): void {
     if (!this.shiftDrag) return;
     for (const slot of this.shiftDragTargets) {
@@ -1169,9 +1332,9 @@ export class OverworldUi {
   }
 
   tooltipText(): string | null {
-    if (this.openWindowValue === null && containsPoint(this.layout.weather, this.pointer)) {
+    if (this.openWindowValue === null && containsPoint(this.layout.moon, this.pointer)) {
       const phase = this.model.moonPhase ?? 'full_moon';
-      return `${this.model.dateLabel} — ${MOON_PHASE_LABELS[phase]} — ${this.model.moonIlluminationPerMille ?? 1000}/1000`;
+      return `${MOON_PHASE_LABELS[phase]} — ${this.model.moonIlluminationPerMille ?? 1000}/1000`;
     }
     if (this.openWindowValue === 'crafting'
       && containsPoint(this.layout.craftingResult, this.pointer)
@@ -1215,7 +1378,7 @@ export class OverworldUi {
         return `${target.displayName.toUpperCase()}  ${name}  ${Math.round(current)}/${Math.round(maximum)}`;
       }
     }
-    return this.openWindowValue === null ? this.model.prompt ?? this.model.toast : null;
+    return this.openWindowValue === null ? this.model.prompt : null;
   }
 
   private hoveredItem(): ItemStack | null {
@@ -1233,8 +1396,11 @@ export class OverworldUi {
 
   private drawWindow(context: CanvasRenderingContext2D, window: OverworldWindow): void {
     const rect = this.activeWindowRect();
-    drawUiSkinAsset(context, this.skin.panelWood, rect);
-    drawUiSkinAsset(context, this.skin.panelParchment, { x: rect.x + 10, y: rect.y + 13, width: rect.width - 20, height: rect.height - 23 });
+    if (window === 'chest') drawStorageFrameChrome(context, this.skin, this.layout.chestStorageFrame);
+    else {
+      drawUiSkinAsset(context, this.skin.panelWood, rect);
+      drawUiSkinAsset(context, this.skin.panelParchment, { x: rect.x + 10, y: rect.y + 13, width: rect.width - 20, height: rect.height - 23 });
+    }
     const title = window === 'inventory' || window === 'pack' ? 'INVENTORY'
       : window === 'crafting' ? 'CRAFTING'
         : window === 'chest' ? 'CHEST'
@@ -1253,6 +1419,7 @@ export class OverworldUi {
     else if (window === 'settings') this.drawSettings(context);
     else if (window === 'developer') this.drawDeveloper(context);
     else this.drawSystemMenu(context);
+    if (window === 'chest') drawStorageResizeHandles(context, this.layout.chestStorageFrame);
   }
 
   private drawInventory(context: CanvasRenderingContext2D, rect: UiRect): void {
@@ -1270,11 +1437,11 @@ export class OverworldUi {
           equipmentSlot.y + Math.round((equipmentSlot.height - 16) / 2) - 1,
           EQUIPMENT_SLOT_KINDS[index],
         );
-      else this.drawInventoryItem(context, equipmentSlot, slot.item.itemKind, slot.item.quantity, slot.item.durability);
+      else this.drawInventoryItem(context, equipmentSlot, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     });
     for (const slot of this.backpackItemSlots) {
       drawUiSkinAsset(context, this.skin.slot, slot.bounds, slot.enabled ? 'idle' : 'disabled');
-      if (slot.enabled && slot.item !== null) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability);
+      if (slot.enabled && slot.item !== null) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     context.fillStyle = '#9d6843';
     context.fillRect(rect.x + 17, rect.y + rect.height - 61, rect.width - 34, 1);
@@ -1283,12 +1450,12 @@ export class OverworldUi {
       const slotRect = slot.bounds;
       drawUiSkinAsset(context, this.skin.slot, slotRect, 'idle');
       const item = slot.item;
-      if (item) this.drawInventoryItem(context, slotRect, item.itemKind, item.quantity, item.durability);
-      drawLabel(context, this.fonts, String(index + 1), slotRect.x + 3, slotRect.y + 3, { color: '#51351f' });
       if (index === this.model.selectedSlot || index === this.hoveredSlot) {
         const selector = index === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
-        drawUiSkinNatural(context, selector, slotRect.x - 10, slotRect.y - 9, 'idle');
+        drawUiSkinAsset(context, selector, hotbarReticleRect(slotRect), 'idle');
       }
+      if (item) this.drawInventoryItem(context, slotRect, item.itemKind, item.quantity, item.durability, item.lit);
+      drawLabel(context, this.fonts, String(index + 1), slotRect.x + 3, slotRect.y + 3, { color: '#51351f' });
     });
   }
 
@@ -1309,9 +1476,16 @@ export class OverworldUi {
     return source?.accepts(targetItem.itemKind) ?? false;
   }
 
-  private drawInventoryItem(context: CanvasRenderingContext2D, rect: UiRect, itemKind: string, quantity: number, durability?: number): void {
+  private drawInventoryItem(
+    context: CanvasRenderingContext2D,
+    rect: UiRect,
+    itemKind: string,
+    quantity: number,
+    durability?: number,
+    lit = true,
+  ): void {
     const asset = this.itemArt[itemKind as keyof OverworldUiItemArt] ?? this.itemArt['missing'];
-    if (asset) this.drawItemArtwork(context, rect, itemKind, asset);
+    if (asset) this.drawItemArtwork(context, rect, itemKind, asset, lit);
     if (quantity > 1) {
       const stackLabel = slotStackLabelPosition(rect);
       drawOutlinedPixelText(context, this.fonts, String(quantity), stackLabel.x, stackLabel.y, {
@@ -1324,7 +1498,13 @@ export class OverworldUi {
   /** Inventory art is fitted without stretching so tall authored props such as
    * torches and lanterns remain crisp while the closed chest tile becomes the
    * expected compact slot icon. */
-  private drawItemArtwork(context: CanvasRenderingContext2D, rect: UiRect, itemKind: string, asset: LoadedAsset): void {
+  private drawItemArtwork(
+    context: CanvasRenderingContext2D,
+    rect: UiRect,
+    itemKind: string,
+    asset: LoadedAsset,
+    lit = true,
+  ): void {
     const frame = uiAssetFrame(asset, itemIconAnimation(itemKind));
     if (!frame) return;
     const scale = Math.min(16 / frame.width, 16 / frame.height);
@@ -1332,7 +1512,13 @@ export class OverworldUi {
     const height = Math.max(1, Math.round(frame.height * scale));
     const x = Math.round(rect.x + 6 + (16 - width) / 2);
     const y = Math.round(rect.y + 7 + (16 - height) / 2);
+    context.save();
+    if (itemKind === 'lantern' && !lit) {
+      context.filter = 'brightness(42%) saturate(55%)';
+      context.globalAlpha *= 0.88;
+    }
     context.drawImage(asset.image, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
+    context.restore();
   }
 
   private drawDraggedItem(context: CanvasRenderingContext2D): void {
@@ -1341,7 +1527,9 @@ export class OverworldUi {
     const destination = { x: this.pointer.x - 14, y: this.pointer.y - 15, width: 28, height: 31 };
     drawUiSkinAsset(context, this.skin.slot, destination, state.phase === 'hovering' && !state.accepts ? 'disabled' : 'idle');
     const quantity = this.shiftDragRemaining ?? state.quantity;
-    if (quantity > 0) this.drawInventoryItem(context, destination, state.item.itemKind, quantity, state.item.durability);
+    if (quantity > 0) this.drawInventoryItem(
+      context, destination, state.item.itemKind, quantity, state.item.durability, state.item.lit,
+    );
   }
 
   private drawSystemMenu(context: CanvasRenderingContext2D): void {
@@ -1373,6 +1561,12 @@ export class OverworldUi {
       slider.draw(context);
       drawLabel(context, this.fonts, `${Math.round(value * 100)}%`, slider.node.bounds.x + slider.node.bounds.width + 5, slider.node.bounds.y + 4, { color: '#8c5d3a' });
     }
+    drawLabel(context, this.fonts, 'MUSIC IN BACKGROUND', this.layout.settingsWindow.x + 25,
+      this.layout.musicBackgroundToggle.y + 5, { color: '#6b4428' });
+    drawLabel(context, this.fonts, 'SOUNDS IN BACKGROUND', this.layout.settingsWindow.x + 25,
+      this.layout.soundsBackgroundToggle.y + 5, { color: '#6b4428' });
+    this.musicBackgroundToggle.draw(context);
+    this.soundsBackgroundToggle.draw(context);
     drawUiSkinAsset(context, this.skin.button, this.layout.settingsBackButton, 'idle');
     drawLabel(context, this.fonts, 'BACK', this.layout.settingsBackButton.x + this.layout.settingsBackButton.width / 2, this.layout.settingsBackButton.y + 5, {
       align: 'center', color: '#5f3b24',
@@ -1395,7 +1589,7 @@ export class OverworldUi {
     drawLabel(context, this.fonts, 'CRAFTING GRID', rect.x + 20, rect.y + 35, { color: '#6b4428' });
     for (const slot of this.craftingItemSlots) {
       drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability);
+      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     drawLabel(context, this.fonts, '>', rect.x + 128, rect.y + 88, { align: 'center', color: '#6b4428', font: 'header' });
     const stationLocked = this.currentRecipeStationLocked();
@@ -1424,26 +1618,38 @@ export class OverworldUi {
     drawLabel(context, this.fonts, this.model.hasBackpack ? 'BACKPACK' : 'INVENTORY', inventoryLabelX, rect.y + 35, { color: '#6b4428' });
     for (const slot of this.backpackItemSlots) {
       drawUiSkinAsset(context, this.skin.slot, slot.bounds, slot.enabled ? 'idle' : 'disabled');
-      if (slot.enabled && slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability);
+      if (slot.enabled && slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     this.drawWindowHotbar(context, rect);
   }
 
   private drawChest(context: CanvasRenderingContext2D, rect: UiRect): void {
-    drawLabel(context, this.fonts, 'STORAGE', rect.x + 40, rect.y + 35, { color: '#6b4428' });
+    const chestPane = this.layout.chestStorageFrame.panes.find((pane) => pane.id === 'chest')!;
+    const backpackPane = this.layout.chestStorageFrame.panes.find((pane) => pane.id === 'backpack')!;
+    drawLabel(context, this.fonts, chestPane.label, chestPane.labelPosition.x, chestPane.labelPosition.y, { color: '#6b4428' });
     for (const slot of this.chestItemSlots) {
       drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability);
+      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
-    this.drawWindowHotbar(context, rect);
+    drawLabel(context, this.fonts, this.model.hasBackpack ? 'BACKPACK' : backpackPane.label,
+      backpackPane.labelPosition.x, backpackPane.labelPosition.y, { color: '#6b4428' });
+    for (const slot of this.backpackItemSlots) {
+      drawUiSkinAsset(context, this.skin.slot, slot.bounds, slot.enabled ? 'idle' : 'disabled');
+      if (slot.enabled && slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
+    }
+    this.drawWindowHotbar(context, rect, this.layout.chestStorageFrame);
   }
 
-  private drawWindowHotbar(context: CanvasRenderingContext2D, rect: UiRect): void {
-    context.fillStyle = '#9d6843'; context.fillRect(rect.x + 17, rect.y + rect.height - 61, rect.width - 34, 1);
-    drawLabel(context, this.fonts, 'HOTBAR', rect.x + 21, rect.y + rect.height - 59, { color: '#6b4428' });
+  private drawWindowHotbar(context: CanvasRenderingContext2D, rect: UiRect, storageFrame?: StorageFrameLayout): void {
+    const divider = storageFrame?.divider ?? { x: rect.x + 17, y: rect.y + rect.height - 61, width: rect.width - 34, height: 1 };
+    const label = storageFrame?.hotbar?.label ?? 'HOT BAR';
+    const labelPosition = storageFrame?.hotbar?.labelPosition
+      ?? { x: this.inventoryHotbarSlots[0]!.bounds.x, y: rect.y + rect.height - 59 };
+    context.fillStyle = '#9d6843'; context.fillRect(divider.x, divider.y, divider.width, divider.height);
+    drawLabel(context, this.fonts, label, labelPosition.x, labelPosition.y, { color: '#6b4428' });
     this.inventoryHotbarSlots.forEach((slot, index) => {
       drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability);
+      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
       drawLabel(context, this.fonts, String(index + 1), slot.bounds.x + 3, slot.bounds.y + 3, { color: '#51351f' });
     });
   }
@@ -1455,7 +1661,7 @@ export class OverworldUi {
   private visibleItemSlots(): ItemSlot[] {
     if (this.openWindowValue === 'inventory') return [...this.equipmentItemSlots, ...this.backpackItemSlots, ...this.inventoryHotbarSlots];
     if (this.openWindowValue === 'crafting') return [...this.craftingItemSlots, ...this.backpackItemSlots, ...this.inventoryHotbarSlots];
-    if (this.openWindowValue === 'chest') return [...this.chestItemSlots, ...this.inventoryHotbarSlots];
+    if (this.openWindowValue === 'chest') return [...this.chestItemSlots, ...this.backpackItemSlots, ...this.inventoryHotbarSlots];
     if (this.openWindowValue === 'barrel') return [...this.barrelItemSlots, ...this.inventoryHotbarSlots];
     return [];
   }
@@ -1537,7 +1743,7 @@ export class OverworldUi {
     drawLabel(context, this.fonts, '8-SLOT STORAGE', rect.x + rect.width / 2, rect.y + 35, { align: 'center', color: '#6b4428' });
     for (const slot of this.barrelItemSlots) {
       drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
-      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability);
+      if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     this.drawWindowHotbar(context, rect);
   }

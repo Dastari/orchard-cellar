@@ -35,6 +35,16 @@ describe('26§3 additive spaces schema', () => {
     expect(placeable).toContain("columns: ['spaceId', 'chunkX', 'chunkY']");
   });
 
+  it('appends growth columns after the legacy resource row to keep migration additive', () => {
+    const resource = tableSource('world_resource', 'world_soil');
+    const spaceId = resource.indexOf('spaceId: t.u16().default(0)');
+    const growthStage = resource.indexOf('growthStage: t.u8().default(3)');
+    const progress = resource.indexOf('regrowthProgress: t.u8().default(24)');
+    expect(spaceId).toBeGreaterThanOrEqual(0);
+    expect(growthStage).toBeGreaterThan(spaceId);
+    expect(progress).toBeGreaterThan(growthStage);
+  });
+
   it('declares the public bidirectional portal shape and generalized reducers', () => {
     const portals = tableSource('space_portal', 'world_resource');
     expect(portals).toContain("name: 'space_portal'");

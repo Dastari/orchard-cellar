@@ -23,12 +23,15 @@ import {
   plateauEdgeFrameIndexAt,
   plateauForegroundFrameIndicesAt,
   plateauLayerPlanAt,
+  plateauLayerPlansAt,
   plateauRampFrameIndexAt,
   savannaGrassTransitionFrameIndexAt,
   shorelineInsetFrameIndicesAt,
   terrainBiomeAt,
   terrainForWorld,
   terrainForSpace,
+  invalidateTerrainElevationCaches,
+  terrainProjectedDepthAtFoot,
   waterDecorationAllowedAt,
   waterfallTopLeftAt,
   waterfallFrameIndexAt,
@@ -36,6 +39,7 @@ import {
 } from './terrain.js';
 
 function terrainFixture(width: number, height: number, fill = 4): TerrainArray {
+  const elevations = new Uint8Array(width * height);
   return {
     spaceId: 0,
     seed: 1,
@@ -46,7 +50,8 @@ function terrainFixture(width: number, height: number, fill = 4): TerrainArray {
     blocked: Array.from({ length: width * height }, () => false),
     horseJumpableTerrain: Array.from({ length: width * height }, () => false),
     cliffRoles: new Uint8Array(width * height),
-    plateaus: new Uint8Array(width * height),
+    elevations,
+    plateaus: elevations,
     dirtCliffRoles: new Uint8Array(width * height),
     dirtTerraces: new Uint8Array(width * height),
   };
@@ -174,6 +179,47 @@ describe('shared client terrain array', () => {
     expect(plateauRampFrameIndexAt(terrain, 1, 3)).toBe(2);
     expect(plateauRampFrameIndexAt(terrain, 2, 3)).toBe(3);
     expect(plateauBackgroundFrameIndicesAt(terrain, 3, 4)).toEqual([43]);
+  });
+
+  it('30§3 derives nested cliff plans from integer elevation alone', () => {
+    const terrain = terrainFixture(7, 7);
+    const index = (x: number, y: number): number => y * terrain.width + x;
+    for (let y = 1; y <= 5; y += 1) for (let x = 1; x <= 5; x += 1) {
+      terrain.elevations[index(x, y)] = 1;
+    }
+    for (let y = 2; y <= 4; y += 1) for (let x = 2; x <= 4; x += 1) {
+      terrain.elevations[index(x, y)] = 2;
+    }
+    terrain.elevations[index(3, 3)] = 3;
+
+    expect(plateauLayerPlansAt(terrain, 3, 3).map(({ contourLevel }) => contourLevel))
+      .toEqual([3]);
+    expect(plateauLayerPlansAt(terrain, 3, 4).map(({ contourLevel }) => contourLevel))
+      .toEqual([2, 3]);
+    expect(plateauLayerPlansAt(terrain, 3, 5).map(({ contourLevel }) => contourLevel))
+      .toEqual([1, 2, 3]);
+  });
+
+  it('30§5 projects painter depth by logical elevation, not blocking rows', () => {
+    const terrain = terrainFixture(3, 3);
+    terrain.elevations[4] = 2;
+    expect(terrainProjectedDepthAtFoot(terrain, 24, 24)).toBe(96);
+    expect(terrainProjectedDepthAtFoot(terrain, 8, 8)).toBe(0);
+  });
+
+  it('30§7 raising then lowering an editor cell restores identical contour plans', () => {
+    const terrain = terrainFixture(5, 5);
+    const index = (x: number, y: number): number => y * terrain.width + x;
+    for (let y = 1; y <= 3; y += 1) for (let x = 1; x <= 3; x += 1) {
+      terrain.elevations[index(x, y)] = 1;
+    }
+    const before = JSON.stringify(plateauLayerPlansAt(terrain, 2, 3));
+    terrain.elevations[index(2, 2)] = 2;
+    invalidateTerrainElevationCaches(terrain);
+    expect(plateauLayerPlansAt(terrain, 2, 3).some(({ contourLevel }) => contourLevel === 2)).toBe(true);
+    terrain.elevations[index(2, 2)] = 1;
+    invalidateTerrainElevationCaches(terrain);
+    expect(JSON.stringify(plateauLayerPlansAt(terrain, 2, 3))).toBe(before);
   });
 
   it('layers a projected wall and inverse corner behind a continuing plateau step', () => {

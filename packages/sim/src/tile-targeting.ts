@@ -1,4 +1,4 @@
-import { TILE_SIZE_FIXED, type CollisionMap, type Direction } from './state.js';
+import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type CollisionMap, type Direction } from './state.js';
 
 export interface TileTarget {
   readonly tileX: number;
@@ -15,12 +15,29 @@ export interface FixedBounds {
 /** Shared reach for mouse-targeted tools and placeable world objects. */
 export const TILE_INTERACTION_REACH_TILES = 3;
 export const TILE_INTERACTION_REACH_FIXED = TILE_INTERACTION_REACH_TILES * TILE_SIZE_FIXED;
-export const RESOURCE_TOOL_REACH_TILES = 2;
-export const AXE_SWING_REACH_TILES = 3;
+/** Chests open and accept axe strikes radially within two tiles. Physical
+ * hands-pickup remains a separate faced-tile action. */
+export const CHEST_INTERACTION_REACH_TILES = 2;
+export const CHEST_INTERACTION_REACH_FIXED = CHEST_INTERACTION_REACH_TILES * TILE_SIZE_FIXED;
+/** Ground items can be collected from any direction inside this radial reach. */
+export const ITEM_PICKUP_REACH_FIXED = 24 * FIXED_UNITS_PER_PIXEL;
+/** Base contact-tool radius. Skill-tree progression will expand this through
+ * a range modifier; keep the unskilled axe/pickaxe/sword/hammer area small. */
+export const RESOURCE_TOOL_REACH_TILES = 1;
+export const AXE_SWING_REACH_TILES = RESOURCE_TOOL_REACH_TILES;
+export const FORWARD_SWING_OFFSET_TILES = 1;
 
-/** Axe art describes a broad swing around visually large tree crowns. Mining
- * retains the tighter resource reach so an axe adjustment cannot silently
- * increase every tool's authority range. */
+const FORWARD_SWING_TOOL_KINDS = new Set(['axe', 'pickaxe', 'sword', 'hammer']);
+
+export function isForwardSwingToolKind(itemKind: string): boolean {
+  return FORWARD_SWING_TOOL_KINDS.has(itemKind);
+}
+
+export function resourceToolForwardOffsetFixed(itemKind: string): number {
+  return isForwardSwingToolKind(itemKind) ? FORWARD_SWING_OFFSET_TILES * TILE_SIZE_FIXED : 0;
+}
+
+/** Radius of the contact area after any forward swing offset is applied. */
 export function resourceToolReachFixed(itemKind: string): number {
   const tiles = itemKind === 'axe' ? AXE_SWING_REACH_TILES : RESOURCE_TOOL_REACH_TILES;
   return tiles * TILE_SIZE_FIXED;
@@ -37,6 +54,12 @@ const FACING_VECTOR: Record<Direction, readonly [number, number]> = {
   downRight: [1, 1],
 };
 
+export function directionUnitVector(direction: Direction): readonly [number, number] {
+  const [x, y] = FACING_VECTOR[direction];
+  const length = Math.hypot(x, y);
+  return [x / length, y / length];
+}
+
 /** Keyboard targeting remains the adjacent tile in the avatar's facing. */
 export function facedTileTarget(playerX: number, playerY: number, facing: Direction): TileTarget {
   const [offsetX, offsetY] = FACING_VECTOR[facing];
@@ -48,11 +71,46 @@ export function facedTileTarget(playerX: number, playerY: number, facing: Direct
 
 /** Reach is measured from the player's authority anchor to the tile centre. */
 export function tileTargetInReach(playerX: number, playerY: number, tile: TileTarget): boolean {
+  return tileTargetWithinFixedReach(playerX, playerY, tile, TILE_INTERACTION_REACH_FIXED);
+}
+
+export function tileTargetWithinFixedReach(
+  playerX: number,
+  playerY: number,
+  tile: TileTarget,
+  reachFixed: number,
+): boolean {
   const targetX = tile.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const targetY = tile.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const dx = targetX - playerX;
   const dy = targetY - playerY;
-  return dx * dx + dy * dy <= TILE_INTERACTION_REACH_FIXED * TILE_INTERACTION_REACH_FIXED;
+  return dx * dx + dy * dy <= reachFixed * reachFixed;
+}
+
+/** Selects the nearest tile-centred row inside a circular reach. Stable row id
+ * breaks exact distance ties, making client prompts and authority deterministic. */
+export function nearestTileTarget<T extends TileTarget & { readonly id: bigint }>(
+  playerX: number,
+  playerY: number,
+  targets: Iterable<T>,
+  reachFixed: number,
+): T | null {
+  let nearest: T | null = null;
+  let nearestDistanceSquared = Number.POSITIVE_INFINITY;
+  for (const target of targets) {
+    const targetX = target.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const targetY = target.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const dx = targetX - playerX;
+    const dy = targetY - playerY;
+    const distanceSquared = dx * dx + dy * dy;
+    if (distanceSquared > reachFixed * reachFixed) continue;
+    if (distanceSquared < nearestDistanceSquared
+      || (distanceSquared === nearestDistanceSquared && target.id < (nearest?.id ?? target.id + 1n))) {
+      nearest = target;
+      nearestDistanceSquared = distanceSquared;
+    }
+  }
+  return nearest;
 }
 
 /** Converts a fixed-point world position into an in-bounds, reachable tile. */

@@ -153,17 +153,23 @@ export const MANA_CENTI_PER_INTELLIGENCE = 10 * CENTI_UNITS_PER_DISPLAY_UNIT;
 export const VIGOUR_CENTI_PER_CONSTITUTION = 10 * CENTI_UNITS_PER_DISPLAY_UNIT;
 export const HEALTH_REGEN_CENTI_PER_SECOND = 20;
 export const MANA_REGEN_CENTI_PER_WISDOM = 10;
-export const VIGOUR_REGEN_CENTI_PER_CONSTITUTION = 80;
+export const VIGOUR_REGEN_CENTI_PER_CONSTITUTION = 120;
 export const REGEN_SWEEP_TICKS = 10;
+
+/** Sprint is expressed in integer per-mille/centi units so client prediction and
+ * authority use identical math. Constitution is applied by abilities.ts before
+ * the generic modifier pipeline resolves these two targets. */
+export const SPRINT_SPEED_PERMILLE = 1_250;
+export const SPRINT_VIGOUR_DRAIN_CENTI_PER_SECOND = 1_000;
 
 export const TOOL_VIGOUR_BALANCE = {
   watering_can: { costCenti: 800, minimumSwingTicks: 6 },
-  hoe: { costCenti: 1_000, minimumSwingTicks: 6 },
+  hoe: { costCenti: 5_000, minimumSwingTicks: 6 },
   fishing_rod: { costCenti: 600, minimumSwingTicks: 6 },
   bow: { costCenti: 1_000, minimumSwingTicks: 6 },
   sword: { costCenti: 1_200, minimumSwingTicks: 7 },
-  axe: { costCenti: 1_500, minimumSwingTicks: 8 },
-  pickaxe: { costCenti: 2_000, minimumSwingTicks: 10 },
+  axe: { costCenti: 5_000, minimumSwingTicks: 8 },
+  pickaxe: { costCenti: 5_000, minimumSwingTicks: 10 },
   shovel: { costCenti: 1_200, minimumSwingTicks: 7 },
   hammer: { costCenti: 1_800, minimumSwingTicks: 9 },
 } as const;

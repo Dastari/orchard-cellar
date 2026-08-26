@@ -2,6 +2,7 @@ export interface DragItemSnapshot {
   readonly itemKind: string;
   readonly quantity: number;
   readonly durability?: number;
+  readonly lit?: boolean;
 }
 export interface DragSlotRef { readonly containerId: string; readonly index: number }
 export interface MoveItemIntent {

@@ -11,7 +11,7 @@ describe('25§1 attributes and §2 derived vitals', () => {
       maxVigourCenti: 10_000,
       healthRegenCentiPerSecond: 20,
       manaRegenCentiPerSecond: 100,
-      vigourRegenCentiPerSecond: 800,
+      vigourRegenCentiPerSecond: 1_200,
     });
     expect([7, 8, 9, 10, 11, 12].map(checkModifier)).toEqual([-2, -1, -1, 0, 0, 1]);
   });
@@ -24,7 +24,7 @@ describe('25§1 attributes and §2 derived vitals', () => {
     const stats = resolveStats(BASE_ATTRIBUTES, modifiers);
     expect(stats.attributes.con).toBe(12);
     expect(stats.maxVigourCenti).toBe(12_500);
-    expect(stats.vigourRegenCentiPerSecond).toBe(960);
+    expect(stats.vigourRegenCentiPerSecond).toBe(1_440);
   });
 
   it('makes one large lazy catch-up exactly equal step-by-step remainder carry', () => {
@@ -39,7 +39,21 @@ describe('25§1 attributes and §2 derived vitals', () => {
     let stepped = empty;
     for (let tick = 1n; tick <= 20n; tick += 1n) stepped = advanceVitals(stepped, stats, tick);
     expect(stepped).toEqual(once);
-    expect(once).toMatchObject({ healthCenti: 20, manaCenti: 110, vigourCenti: 800 });
+    expect(once).toMatchObject({ healthCenti: 20, manaCenti: 110, vigourCenti: 1_200 });
+  });
+
+  it('does not regenerate vigour while an ability is actively consuming it', () => {
+    const stats = resolveStats();
+    const depleted = {
+      ...createFullVitalState(stats),
+      vigourCenti: 4_000,
+    };
+    const whileConsumingVigour = {
+      ...stats,
+      vigourRegenCentiPerSecond: 0,
+    };
+
+    expect(advanceVitals(depleted, whileConsumingVigour, 20n).vigourCenti).toBe(4_000);
   });
 
   it('clamps current values when a maximum drops and never banks regen at full', () => {

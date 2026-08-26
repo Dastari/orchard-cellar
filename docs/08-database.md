@@ -106,3 +106,11 @@ whisper history is bounded per conversation *and* by a total-conversation cap.
 Stage 1 checks the connection-audit trim every **2,000 authority ticks / 100
 seconds** via a tick modulo; the other 1,999 ticks do no audit scan. Doc 34
 stage 3 moves this maintenance to its own slow scheduled reducer.
+
+Chat lifecycle notices (`entered the world`, `disconnected`) are not durable
+`chat_message` rows. The authority fans them into private, bounded
+`session_chat_notice` inboxes for each live connection; the recipient inbox is
+deleted on transport logout or presence-lease expiry. A one-time additive migration
+deletes legacy `kind = system` rows from persistent chat storage, and the durable chat
+view excludes them defensively. Authored channel messages and whispers keep their
+existing bounded-history policy; the caller-private MOTD remains separate.

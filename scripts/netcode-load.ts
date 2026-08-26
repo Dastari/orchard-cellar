@@ -119,8 +119,8 @@ async function main(): Promise<void> {
         client.clientTick += 2n;
         const stopSequence = client.sequence;
         await Promise.all([
-          client.connection.reducers.setInput({ direction, sequence: startSequence, clientTick: startTick }),
-          client.connection.reducers.setInput({ direction: 'idle', sequence: stopSequence, clientTick: client.clientTick }),
+          client.connection.reducers.setInput({ direction, sequence: startSequence, clientTick: startTick, sprinting: false }),
+          client.connection.reducers.setInput({ direction: 'idle', sequence: stopSequence, clientTick: client.clientTick, sprinting: false }),
         ]);
         if (random(client) < 0.25) {
           const position = client.expected?.position;

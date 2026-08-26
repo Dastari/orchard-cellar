@@ -1,0 +1,48 @@
+{
+  "name": "nature_cf_desert_bush_01",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "....000.........",
+        "....0110.000....",
+        ".....0210110....",
+        "..000032120.....",
+        "..0111032000....",
+        "...0033233210...",
+        ".....03330030...",
+        "......0304.00...",
+        ".....402044.....",
+        ".....444444.....",
+        "......4444......",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#a37865",
+    "2": "#7f5b4d",
+    "3": "#684945",
+    "4": "#00000028"
+  },
+  "sourcePath": "references/Cute_Fantasy_Desert/Props/Dead_bush.png",
+  "sourcePaletteMode": "exact",
+  "sourceRegion": [0, 0, 16, 16],
+  "approved": true,
+  "importedFrom": "Dead_bush.png",
+  "tags": ["vegetation.bush", "vegetation.desert"],
+  "placement": { "layer": "ground", "footprint": [1, 1], "blocksMovement": false, "builderAvailable": false }
+}

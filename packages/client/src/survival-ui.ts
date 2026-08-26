@@ -1,8 +1,11 @@
 import {
   FIXED_UNITS_PER_PIXEL,
+  ITEM_PICKUP_REACH_FIXED,
   TILE_SIZE_FIXED,
   TILE_INTERACTION_REACH_FIXED,
   boundsOverlap,
+  clockMinutesAtDayProgress,
+  directionUnitVector,
   facedTileTarget,
   itemDefinition,
   playerHitboxBounds,
@@ -95,8 +98,12 @@ export function facedResource<T extends TargetableResource>(
   facing: Direction,
   resources: Iterable<T>,
   reachFixed = 2 * TILE_SIZE_FIXED,
+  forwardOffsetFixed = 0,
 ): T | null {
   const [facingX, facingY] = FACING_VECTOR[facing];
+  const [unitX, unitY] = directionUnitVector(facing);
+  const offsetX = unitX * forwardOffsetFixed;
+  const offsetY = unitY * forwardOffsetFixed;
   const reachSquared = reachFixed ** 2;
   let target: T | null = null;
   let targetDistance = Number.POSITIVE_INFINITY;
@@ -111,7 +118,9 @@ export function facedResource<T extends TargetableResource>(
     );
     const dx = targetVector.x;
     const dy = targetVector.y;
-    const distance = dx * dx + dy * dy;
+    const areaDx = dx - offsetX;
+    const areaDy = dy - offsetY;
+    const distance = areaDx * areaDx + areaDy * areaDy;
     if (distance > reachSquared || dx * facingX + dy * facingY <= 0) continue;
     if (distance < targetDistance || (distance === targetDistance && resource.id < (target?.id ?? resource.id + 1n))) {
       target = resource;
@@ -121,21 +130,20 @@ export function facedResource<T extends TargetableResource>(
   return target;
 }
 
-export function facedWorldItem<T extends TargetableWorldItem>(
+/** Selects the nearest ground item anywhere inside the circular pickup area. */
+export function nearbyWorldItem<T extends TargetableWorldItem>(
   playerX: number,
   playerY: number,
-  facing: Direction,
   items: Iterable<T>,
 ): T | null {
-  const [facingX, facingY] = FACING_VECTOR[facing];
-  const reachSquared = (24 * FIXED_UNITS_PER_PIXEL) ** 2;
+  const reachSquared = ITEM_PICKUP_REACH_FIXED ** 2;
   let target: T | null = null;
   let targetDistance = Number.POSITIVE_INFINITY;
   for (const item of items) {
     const dx = item.x - playerX;
     const dy = item.y - playerY;
     const distance = dx * dx + dy * dy;
-    if (distance > reachSquared || dx * facingX + dy * facingY <= 0) continue;
+    if (distance > reachSquared) continue;
     if (distance < targetDistance || (distance === targetDistance && item.id < (target?.id ?? item.id + 1n))) {
       target = item;
       targetDistance = distance;
@@ -200,6 +208,14 @@ export function equippedItemTracksCursor(itemKind: string): boolean {
   return itemKind === 'bow';
 }
 
+export function equippedItemFacing(
+  itemKind: string,
+  characterFacing: Direction,
+  aimedFacing: Direction | null,
+): Direction {
+  return equippedItemTracksCursor(itemKind) ? aimedFacing ?? characterFacing : characterFacing;
+}
+
 export const WEATHER_PANEL_WIDTH = 142;
 export const WEATHER_PANEL_HEIGHT = 45;
 
@@ -257,7 +273,7 @@ export function weatherTimeFractionAtPoint(x: number, viewportWidth: number): nu
 
 export function formatDayTime(dayTick: number, ticksPerDay: number): string {
   const normalized = ((dayTick % ticksPerDay) + ticksPerDay) % ticksPerDay;
-  const totalMinutes = (6 * 60 + Math.floor(normalized / ticksPerDay * 20 * 60)) % (24 * 60);
+  const totalMinutes = clockMinutesAtDayProgress(normalized / ticksPerDay);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;

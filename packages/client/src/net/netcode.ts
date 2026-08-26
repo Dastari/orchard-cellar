@@ -8,6 +8,7 @@ import {
   TILE_SIZE_FIXED,
   avatarActionDefinition,
   movePlayer,
+  movePlayerAtSpeedPermille,
   positionCollides,
   type CollisionMap,
   type Direction,
@@ -29,12 +30,14 @@ export interface InputCommand {
   readonly sequence: bigint;
   readonly direction: InputDirection;
   readonly clientTick: bigint;
+  readonly sprinting: boolean;
 }
 
 interface PredictedStep {
   readonly clientTick: bigint;
   readonly direction: InputDirection;
   readonly state: PlayerState;
+  readonly speedPermille: number;
 }
 
 export interface ReconciliationResult {
@@ -82,23 +85,25 @@ export class LocalPredictionBuffer {
   recordSend(
     sequence: bigint,
     direction: InputDirection,
+    sprinting = false,
   ): InputCommand {
     const command = {
       sequence,
       direction,
       clientTick: this.tickValue,
+      sprinting,
     } satisfies InputCommand;
     this.commands.push(command);
     if (this.commands.length > this.commandCapacity) this.commands.splice(0, this.commands.length - this.commandCapacity);
     return command;
   }
 
-  recordStep(direction: InputDirection, state: PlayerState): void {
+  recordStep(direction: InputDirection, state: PlayerState, speedPermille = 1_000): void {
     this.tickValue += 1n;
     // Idle time still advances the protocol clock, but it has no positional
     // effect to replay. Keeping it would fill the ring while standing still.
     if (direction === 'idle') return;
-    this.steps.push({ clientTick: this.tickValue, direction, state });
+    this.steps.push({ clientTick: this.tickValue, direction, state, speedPermille });
     if (this.steps.length > this.stepCapacity) this.steps.splice(0, this.steps.length - this.stepCapacity);
   }
 
@@ -120,7 +125,11 @@ export class LocalPredictionBuffer {
     this.steps = remaining;
     let replayed = authoritative;
     for (const step of remaining) {
-      replayed = movePlayer(replayed, step.direction === 'idle' ? null : step.direction, collision);
+      replayed = step.speedPermille === 1_000
+        ? movePlayer(replayed, step.direction === 'idle' ? null : step.direction, collision)
+        : movePlayerAtSpeedPermille(
+          replayed, step.direction === 'idle' ? null : step.direction, collision, step.speedPermille,
+        );
     }
     const dx = (predicted?.position.x ?? authoritative.position.x) - replayed.position.x;
     const dy = (predicted?.position.y ?? authoritative.position.y) - replayed.position.y;
@@ -151,6 +160,7 @@ export interface RemoteSnapshot {
   readonly actionKind: string;
   readonly actionStartedTick: bigint;
   readonly equippedKind: string;
+  readonly equippedLit: boolean;
 }
 
 export interface SampledRemote {
@@ -160,6 +170,7 @@ export interface SampledRemote {
   readonly actionKind: string;
   readonly actionStartedTick: bigint;
   readonly equippedKind: string;
+  readonly equippedLit: boolean;
   readonly extrapolated: boolean;
 }
 
@@ -200,6 +211,7 @@ export class RemoteSnapshotBuffer {
         actionKind: alpha < 0.5 ? before.actionKind : after.actionKind,
         actionStartedTick: alpha < 0.5 ? before.actionStartedTick : after.actionStartedTick,
         equippedKind: alpha < 0.5 ? before.equippedKind : after.equippedKind,
+        equippedLit: alpha < 0.5 ? before.equippedLit : after.equippedLit,
         extrapolated: false,
       };
     }

@@ -58,6 +58,42 @@ export function resourceFillWidth(width: number, current: number | undefined, ma
   return Math.round(width * resourceFraction(current, maximum));
 }
 
+export function resourceFillRect(
+  rect: UiRect,
+  current: number | undefined,
+  maximum: number | undefined,
+  mirrored = false,
+): UiRect {
+  const width = resourceFillWidth(rect.width, current, maximum);
+  return {
+    x: mirrored ? rect.x + rect.width - width : rect.x,
+    y: rect.y,
+    width,
+    height: rect.height,
+  };
+}
+
+export function resourceEndpointRect(
+  rect: UiRect,
+  current: number | undefined,
+  maximum: number | undefined,
+  mirrored = false,
+  authoredWidth = 30,
+): UiRect | null {
+  const fill = resourceFillRect(rect, current, maximum, mirrored);
+  if (fill.width <= 0) return null;
+  const width = Math.max(1, Math.round(rect.width / authoredWidth));
+  const full = fill.width >= rect.width;
+  return {
+    x: mirrored
+      ? fill.x + (full ? width : 0)
+      : fill.x + fill.width - width - (full ? width : 0),
+    y: rect.y + Math.max(1, Math.round(rect.height / 5)),
+    width,
+    height: Math.max(1, rect.height - Math.max(1, Math.round(rect.height / 5)) * 2),
+  };
+}
+
 /** Draws a partial authored bar without stretching its pixels. The empty frame
  * remains visible underneath the clipped fill. */
 function drawResourceFill(
@@ -66,20 +102,48 @@ function drawResourceFill(
   rect: UiRect,
   current: number | undefined,
   maximum: number | undefined,
+  mirrored = false,
+  endpointTop = '#fee761',
+  endpointBottom = '#feae34',
 ): void {
   const source = uiAssetFrame(asset);
   if (source === null) return;
-  const width = resourceFillWidth(rect.width, current, maximum);
-  if (width <= 0) return;
+  const fill = resourceFillRect(rect, current, maximum, mirrored);
+  if (fill.width <= 0) return;
   context.save();
   context.beginPath();
-  context.rect(rect.x, rect.y, width, rect.height);
+  context.rect(fill.x, fill.y, fill.width, fill.height);
   context.clip();
-  context.drawImage(
-    asset.image,
-    source.x, source.y, source.width, source.height,
-    rect.x, rect.y, rect.width, rect.height,
-  );
+  if (mirrored) {
+    context.save();
+    context.translate(rect.x + rect.width, 0);
+    context.scale(-1, 1);
+    context.drawImage(
+      asset.image,
+      source.x, source.y, source.width, source.height,
+      0, rect.y, rect.width, rect.height,
+    );
+    context.restore();
+  } else {
+    context.drawImage(
+      asset.image,
+      source.x, source.y, source.width, source.height,
+      rect.x, rect.y, rect.width, rect.height,
+    );
+  }
+  const endpoint = resourceEndpointRect(rect, current, maximum, mirrored, source.width);
+  if (endpoint !== null) {
+    const topHeight = Math.max(1, Math.ceil(endpoint.height * 2 / 3));
+    context.fillStyle = endpointTop;
+    context.fillRect(endpoint.x, endpoint.y, endpoint.width, topHeight);
+    if (topHeight < endpoint.height) {
+      context.fillStyle = endpointBottom;
+      context.fillRect(
+        endpoint.x, endpoint.y + topHeight,
+        endpoint.width, endpoint.height - topHeight,
+      );
+    }
+  }
   context.restore();
 }
 
@@ -123,9 +187,18 @@ export class PlayerResourceFrame {
     context.clip();
     this.source.drawHead(context, playerId, layout.portrait);
     context.restore();
-    drawResourceFill(context, this.skin.barRed, layout.bars.health, resources.health, resources.maxHealth);
-    drawResourceFill(context, this.skin.barBlue, layout.bars.mana, resources.mana, resources.maxMana);
-    drawResourceFill(context, this.skin.barGreen, layout.bars.vigour, resources.vigour, resources.maxVigour);
+    drawResourceFill(
+      context, this.skin.barRed, layout.bars.health,
+      resources.health, resources.maxHealth, mirrored,
+    );
+    drawResourceFill(
+      context, this.skin.barBlue, layout.bars.mana,
+      resources.mana, resources.maxMana, mirrored, '#2ce8f5', '#0095e9',
+    );
+    drawResourceFill(
+      context, this.skin.barGreen, layout.bars.vigour,
+      resources.vigour, resources.maxVigour, mirrored, '#fee761', '#63c74d',
+    );
     if (vigourDenied && resources.vigour !== undefined) this.drawDeniedCorners(context, layout.bars.vigour);
     return true;
   }

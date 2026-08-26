@@ -33,14 +33,21 @@ export function isLightEmitterKind(kind: string): boolean {
   return kind === 'camp_campfire' || PLACEABLE_LIGHT_EMITTERS[kind] !== undefined;
 }
 
-export function deterministicFlameFlicker(id: bigint, authorityTick: bigint): {
+export function deterministicFlameFlicker(id: bigint, authorityTick: bigint | number): {
   readonly radiusOffset: number;
   readonly strengthPerMille: number;
 } {
   const valueNoise = (frequency: number, salt: bigint): number => {
-    const numerator = authorityTick * BigInt(frequency);
-    const slot = numerator / BigInt(AUTHORITY_HZ);
-    const fraction = Number(numerator % BigInt(AUTHORITY_HZ)) / AUTHORITY_HZ;
+    const [slot, fraction] = typeof authorityTick === 'bigint'
+      ? (() => {
+          const numerator = authorityTick * BigInt(frequency);
+          return [numerator / BigInt(AUTHORITY_HZ), Number(numerator % BigInt(AUTHORITY_HZ)) / AUTHORITY_HZ] as const;
+        })()
+      : (() => {
+          const sampleTime = Math.max(0, authorityTick) * frequency / AUTHORITY_HZ;
+          const sampleSlot = Math.floor(sampleTime);
+          return [BigInt(sampleSlot), sampleTime - sampleSlot] as const;
+        })();
     const smooth = fraction * fraction * (3 - 2 * fraction);
     const sample = (sampleSlot: bigint): number => {
       const mixed = (id * 1_103_515_245n + sampleSlot * 12_345n + salt) & 0xffffn;
@@ -68,9 +75,11 @@ export function placeablePointLight(
     readonly tileX: number;
     readonly tileY: number;
     readonly facing?: string;
+    readonly lit?: boolean;
   },
   authorityTick: bigint,
 ): PointLight | null {
+  if (placeable.lit === false) return null;
   const emitter = PLACEABLE_LIGHT_EMITTERS[placeable.kind];
   if (emitter === undefined) return null;
   const flicker = emitter.profile === 'flame'
@@ -80,6 +89,7 @@ export function placeablePointLight(
   return {
     worldX: placeable.tileX * 16 + 8,
     worldY: (placeable.tileY + 1) * 16 + emitter.offsetY,
+    receiverDirectionWorldY: (placeable.tileY + 1) * 16,
     radiusTiles: Math.max(0.25, emitter.radiusTiles + flicker.radiusOffset),
     color: emitter.color,
     strengthPerMille: flicker.strengthPerMille,

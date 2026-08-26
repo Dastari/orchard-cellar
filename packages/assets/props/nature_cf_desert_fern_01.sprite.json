@@ -1,0 +1,49 @@
+{
+  "name": "nature_cf_desert_fern_01",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......00........",
+        "...000110000....",
+        "..02220302220...",
+        "..024220242200..",
+        "..0001404100310.",
+        ".01301111022010.",
+        ".01024131442205.",
+        ".502220140012055",
+        ".502200422000555",
+        ".50440022240305.",
+        ".55003304440105.",
+        "..5501050005055.",
+        "...55055555555..",
+        "....555.555.....",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#091b15",
+    "1": "#1e6f50",
+    "2": "#5ac54f",
+    "3": "#134c4c",
+    "4": "#33984b",
+    "5": "#00000064"
+  },
+  "sourcePath": "references/Cute_Fantasy_Desert/Props/Desert_Fern.png",
+  "sourcePaletteMode": "exact",
+  "sourceRegion": [0, 0, 16, 16],
+  "approved": true,
+  "importedFrom": "Desert_Fern.png",
+  "tags": ["vegetation.fern", "vegetation.desert"],
+  "placement": { "layer": "ground", "footprint": [1, 1], "blocksMovement": false, "builderAvailable": false }
+}

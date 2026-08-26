@@ -108,12 +108,31 @@ and redraw the returned plan. Raising or lowering one cell therefore automatical
 recomputes its caps, sides, convex/concave turns, rear overlaps, faces, and shadows.
 Resolve every level independently to stack multi-level terrain.
 
+The editor-facing operation is deliberately only `setElevation(tile, level)` (with
+raise/lower brushes as `+1`/`-1`). A level-2 island inside level 1, then a level-3
+island inside level 2, is ordinary data rather than a special nested-cliff shape.
+The editor must preview the same shared resolver used by the game; it never stores a
+selected wall frame or asks the author to repair corners after a brush stroke.
+
 Face height is tileset data. `RaisedTerrainTileSet.faceProfiles` contains an ordered
 list of face rows with left/middle/right frames and collision behavior. A tall profile
 can contain `wall`, `lower_wall`, and nonblocking `foot` rows; a one-cell-high profile
 can contain only its compact wall row. Switching profiles changes the projected height
 without changing topology code. Do not obtain a short cliff by sprinkling exceptions
 through generation or rendering.
+
+Logical height, projected height, and collision thickness are separate values. The
+current tall profile raises terrain by one logical level, projects three visual rows,
+and blocks only its `wall` and `lower_wall` rows; its `foot` remains walkable. Render
+occlusion uses all three authored rows, while movement uses only rows whose
+`blocksMovement` flag is true.
+
+Crossings are semantic contour transitions, not frame overrides. A transition records
+its contour level, orientation, and kind (`slope`, `stairs`, `ladder`, or `rope`). A
+walkable slope/stair cuts the matching opening from that one contour; ladder/rope
+transitions keep the wall solid and connect explicit lower/upper interaction anchors.
+The selected tileset maps that semantic transition to art. Replacing a cliff tileset
+must therefore never require rewriting elevation or transition data.
 
 Cliff structure assets must not bake in a terrain fill. Import the stone rim, face,
 edge vegetation, and translucent shadow as an overlay, making the sheet's broad grass

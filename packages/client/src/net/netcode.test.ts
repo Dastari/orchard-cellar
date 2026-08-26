@@ -3,6 +3,7 @@ import {
   SIM_TICKS_PER_SECOND,
   createPlaceholderCollisionMap,
   movePlayer,
+  movePlayerAtSpeedPermille,
   positionCollides,
   type PlayerState,
 } from '@orchard/sim';
@@ -75,6 +76,19 @@ describe('local prediction replay', () => {
     expect(result.replayDepth).toBe(4);
   });
 
+  it('replays unacknowledged sprint steps at their recorded speed', () => {
+    const history = new LocalPredictionBuffer();
+    history.recordSend(1n, 'right', true);
+    let predicted = start;
+    for (let step = 0; step < 3; step += 1) {
+      predicted = movePlayerAtSpeedPermille(predicted, 'right', collision, 1_250);
+      history.recordStep('right', predicted, 1_250);
+    }
+    const result = history.reconcile(predicted, start, 1n, collision);
+    expect(result.player.position).toEqual(predicted.position);
+    expect(result.replayDepth).toBe(3);
+  });
+
   it('keeps correction smoothing presentation-only and finishes within 100 ms', () => {
     const correction = new PresentationCorrection();
     correction.begin({ x: 120, y: 100 }, { x: 100, y: 100 });
@@ -127,7 +141,7 @@ describe('local prediction replay', () => {
 describe('remote interpolation', () => {
   it('interpolates brackets and clamps extrapolation to two ticks', () => {
     const buffer = new RemoteSnapshotBuffer();
-    const base = { facing: 'right', actionKind: 'none', actionStartedTick: 0n, equippedKind: 'axe' };
+    const base = { facing: 'right', actionKind: 'none', actionStartedTick: 0n, equippedKind: 'axe', equippedLit: true };
     buffer.push({ authorityTick: 10n, x: 100, y: 200, ...base });
     buffer.push({ authorityTick: 11n, x: 130, y: 200, ...base });
     expect(buffer.sample(10.5)?.x).toBe(115);
@@ -136,7 +150,7 @@ describe('remote interpolation', () => {
 
   it('collision-steps the whole extrapolated segment instead of tunnelling', () => {
     const buffer = new RemoteSnapshotBuffer();
-    const base = { facing: 'right', actionKind: 'none', actionStartedTick: 0n, equippedKind: 'axe' };
+    const base = { facing: 'right', actionKind: 'none', actionStartedTick: 0n, equippedKind: 'axe', equippedLit: true };
     buffer.push({ authorityTick: 10n, x: 10_000, y: 10_000, ...base });
     buffer.push({ authorityTick: 11n, x: 10_480, y: 10_000, ...base });
     const obstacleCollision = {

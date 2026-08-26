@@ -3,10 +3,14 @@ import { TILE_SIZE_FIXED, type CollisionMap } from './state.js';
 import { playerHitboxBounds } from './movement.js';
 import {
   AXE_SWING_REACH_TILES,
+  FORWARD_SWING_OFFSET_TILES,
   facedTileTarget,
+  isForwardSwingToolKind,
+  resourceToolForwardOffsetFixed,
   resourceToolReachFixed,
   tileTargetAtFixedPoint,
   tileTargetInReach,
+  nearestTileTarget,
   tileTargetIsBlocked,
 } from './tile-targeting.js';
 
@@ -14,10 +18,25 @@ describe('shared tile targeting', () => {
   const playerX = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const playerY = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
 
-  it('gives the axe a broader resource swing without extending mining tools', () => {
-    expect(AXE_SWING_REACH_TILES).toBe(3);
-    expect(resourceToolReachFixed('axe')).toBe(3 * TILE_SIZE_FIXED);
-    expect(resourceToolReachFixed('pickaxe')).toBe(2 * TILE_SIZE_FIXED);
+  it('uses a smaller forward-offset area for contact tools', () => {
+    expect(AXE_SWING_REACH_TILES).toBe(1);
+    expect(FORWARD_SWING_OFFSET_TILES).toBe(1);
+    expect(resourceToolReachFixed('axe')).toBe(TILE_SIZE_FIXED);
+    expect(resourceToolReachFixed('pickaxe')).toBe(TILE_SIZE_FIXED);
+    expect(resourceToolForwardOffsetFixed('axe')).toBe(TILE_SIZE_FIXED);
+    expect(resourceToolForwardOffsetFixed('pickaxe')).toBe(TILE_SIZE_FIXED);
+    expect(resourceToolForwardOffsetFixed('hoe')).toBe(0);
+    expect(isForwardSwingToolKind('sword')).toBe(true);
+    expect(isForwardSwingToolKind('watering_can')).toBe(false);
+  });
+
+  it('selects the nearest tile interaction inside a radial reach without requiring facing', () => {
+    const playerX = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const playerY = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const farther = { id: 2n, tileX: 12, tileY: 10 };
+    const nearer = { id: 3n, tileX: 10, tileY: 9 };
+    const outOfRange = { id: 1n, tileX: 14, tileY: 10 };
+    expect(nearestTileTarget(playerX, playerY, [farther, outOfRange, nearer], 2 * TILE_SIZE_FIXED)).toBe(nearer);
   });
 
   it('retains adjacent facing targets and accepts mouse targets up to three tiles away', () => {

@@ -3,6 +3,7 @@ import {
   CRAFTING_STATION_REACH_TILES,
   BOW_AIM_SCALE,
   BOW_MAX_CHARGE_MS,
+  CHEST_INTERACTION_REACH_FIXED,
   FIXED_UNITS_PER_PIXEL,
   INPUT_REFRESH_STEPS,
   SIM_STEPS_PER_AUTHORITY_TICK,
@@ -25,6 +26,7 @@ import {
   bowHeldAnimationFrame,
   bowOriginHeightPixels,
   directionFromAim,
+  directionUnitVector,
   isWindDirectionMode,
   isWeatherMode,
   lunarIlluminationAtAuthorityTick,
@@ -33,12 +35,17 @@ import {
   generateMarlowCampPathTiles,
   isBreakableRockKind,
   isChoppableTreeKind,
+  isAxeHarvestableResourceKind,
   isGatherableResourceKind,
   isInteractivePoiDecorationKind,
   isMineableOreKind,
+  isForwardSwingToolKind,
   survivalResourceDropAfterHit,
+  survivalResourceInitialHealth,
   survivalResourceObstacle,
   survivalDecorationBlocksTraversal,
+  survivalDecorationObstacle,
+  treeGrowthStageName,
   isHorseWithinMountReach,
   itemModifiers,
   isWildlifeSpecies,
@@ -52,16 +59,22 @@ import {
   simTickOfDayAtAuthorityTick,
   movePlayer,
   movePlayerAtSpeed,
+  movePlayerAtSpeedPermille,
   modifiersForEffects,
+  nearestTileTarget,
   playerHitboxBounds,
   playerInteractionOrigin,
   resourceToolReachFixed,
+  resourceToolForwardOffsetFixed,
   survivalBiomeAt,
   spaceDefinitionFor,
   resolveStats,
+  resolveSprintAbility,
   resolveModifierTarget,
+  sprintVigourCostForSteps,
   resolveCreatureStats,
   type CollisionMap,
+  type CollisionObstacle,
   type CraftingStation,
   type Direction,
   type EffectKind,
@@ -82,6 +95,7 @@ import {
   type UiScale,
 } from './display.js';
 import { FixedStepLoop } from './loop.js';
+import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen, worldLoadingStage } from './loading-screen.js';
 import { AudioBus } from './audio/audio-bus.js';
 import { readOidcSession } from './auth/oidc.js';
 import type { ChatMessage, PlayerPosition, SpacePortal, WorldChest, WorldItem, WorldNpc, WorldPlaceable, WorldResource } from './net/generated/types.js';
@@ -110,25 +124,29 @@ import {
   drawOverworldRock,
   drawOverworldStump,
   drawOverworldTree,
+  drawOverworldTreeRegrowth,
   drawOverworldWildlife,
   actionVisualForDirection,
   avatarAnimationForDirection,
   horseJumpPose,
+  horseWorldBounds,
   heldLightAnimationForDirection,
   loadOverworldArt,
+  merchantWorldBounds,
   natureDecorationFrame,
   overworldPoiDecorationDepthY,
+  wildlifeWorldBounds,
+  type WorldVisualBounds,
 } from './overworld-art.js';
 import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
 import { createClientCollisionMap } from './render/collision.js';
 import { drawAnimatedTerrain } from './render/animated-terrain.js';
-import { drawFarmSoil, drawFarmTileReticle, drawInsetGround, farmSoilKey } from './render/farmland.js';
+import { drawFarmSoil, drawInteractionTileReticle, drawInsetGround, farmSoilKey } from './render/farmland.js';
 import { GroundChunkCache } from './render/ground-cache.js';
 import {
   createLightOcclusionMap,
   createSpriteLightOccluder,
   type LightOcclusionMap,
-  type LightSpriteOccluder,
   type LightTrunkOccluder,
 } from './render/light-occlusion.js';
 import {
@@ -138,6 +156,7 @@ import {
   LANTERN_LIGHT,
   LANTERN_LIGHT_RADIUS_TILES,
   playerLightPosition,
+  southFacingReceiverBrightness,
   TileLightmap,
   TORCH_LIGHT,
   TORCH_LIGHT_RADIUS_TILES,
@@ -146,6 +165,7 @@ import {
 import { deterministicFlameFlicker, isLightEmitterKind, placeablePointLight } from './render/light-sources.js';
 import { RenderMetrics } from './render/metrics.js';
 import { RainWeather } from './render/particles.js';
+import { enqueueRaisedTerrainDepth } from './render/raised-terrain-depth.js';
 import { treeSwayOffset, WeatherEffects, windDirectionLabel, type WindTreeSource } from './render/weather-effects.js';
 import { drawPixelPanel, drawPixelText, measurePixelText } from './render/pixel-ui.js';
 import {
@@ -154,8 +174,17 @@ import {
   drawWorldDepthQueue,
   type WorldDepthItem,
 } from './render/renderer.js';
-import { terrainForSpace, terrainForWorld, type TerrainArray } from './render/terrain.js';
-import { interpolateFixedPosition } from './overworld-prediction.js';
+import {
+  terrainForSpace,
+  terrainForWorld,
+  terrainProjectedDepthAtFoot,
+  type TerrainArray,
+} from './render/terrain.js';
+import { interpolateFixedPosition, presentationMoving } from './overworld-prediction.js';
+import {
+  nearestInteractionCandidate,
+  type InteractionCandidate,
+} from './interaction-targeting.js';
 import { isNameplateToggle, OverworldUi, type OverworldUiTargetVitals } from './ui/overworld-ui.js';
 import { entityTargetAtWorldPoint, sameEntityTarget, targetKey, type SelectedEntityTarget, type TargetableWorldEntity } from './entity-targeting.js';
 import { ghostFillRecipeMoves } from './ui/recipe-book.js';
@@ -173,9 +202,9 @@ import { NpcInteractionUi } from './ui/npc-interaction-ui.js';
 import {
   facedResource,
   facedInteractionTile,
-  equippedItemTracksCursor,
+  equippedItemFacing,
   interactionTileAtWorldPoint,
-  facedWorldItem,
+  nearbyWorldItem,
   hotbarItemLabel,
   hotbarSlotForCode,
   formatDayTime,
@@ -190,13 +219,21 @@ const chatInputElement = document.querySelector<HTMLInputElement>('#account-name
 if (chatInputElement === null) throw new Error('Missing overworld text input');
 const characterNameInputElement = document.querySelector<HTMLInputElement>('#character-name');
 if (characterNameInputElement === null) throw new Error('Missing character name input');
+setLoadingScreenStage({
+  title: 'PACKING YOUR WAGON', detail: 'LOADING ART, TILESETS, AND UI', progress: 38,
+});
 const art = await loadOverworldArt();
+upgradeLoadingScreen(art.ui, art.uiSkin, art.fruitItems['apple'] ?? art.missingItem);
+setLoadingScreenStage({
+  title: 'SAILING TO YOUR ISLAND', detail: 'CONNECTING TO THE SHARED WORLD', progress: 58,
+});
 const groundCache = new GroundChunkCache();
 const lightmap = new TileLightmap();
 const rain = new RainWeather(art.rainStreak, art.rainSplash);
 const weatherEffects = new WeatherEffects(art.cloudShadow, art.windGust, art.oakLeaf, art.birchLeaf, art.spruceLeaf);
 const renderMetrics = new RenderMetrics();
 const audio = new AudioBus(false);
+void audio.unlock().catch(() => undefined);
 
 const keys = new Set<string>();
 const NAMEPLATES_VISIBLE_SESSION_KEY = 'orchard.ui.nameplates-visible';
@@ -241,13 +278,11 @@ async function submitChatInput(body: string): Promise<void> {
   if (command.kind === 'debug_space') {
     portalTransitionStartedAtMs = performance.now();
     await network.debugUsePortal();
-    toast = 'DEBUG SPACE TRANSIT';
-    toastTicks = 120;
+    setToast('DEBUG SPACE TRANSIT', 'success');
     return;
   }
   await network.adminTeleport(command.destination);
-  toast = `TELEPORTED TO ${command.destination}`;
-  toastTicks = 120;
+  setToast(`TELEPORTED TO ${command.destination}`, 'success');
 }
 const characterNamePrompt = new CharacterNamePrompt(
   art.uiSkin,
@@ -275,11 +310,39 @@ function latestIncomingWhisper(snapshot: OverworldView): ChatMessage | null {
   return latest;
 }
 
+function chatTimelineId(issuedAtMicros: bigint, rowId: bigint, lane: 0n | 1n): bigint {
+  return (issuedAtMicros << 65n) + (rowId << 1n) + lane;
+}
+
 let predicted: PlayerState | null = null;
 let previousPredicted: PlayerState | null = null;
 let lastDirection: NetworkDirection = 'idle';
+let lastSprinting = false;
 let toast = 'CONNECTING TO SHARED ISLAND';
 let toastTicks = 180;
+let toastKind: 'info' | 'success' | 'failure' = 'info';
+
+function setToast(message: string, kind: 'info' | 'success' | 'failure' = 'info', ticks = 120): void {
+  toast = message;
+  toastKind = kind;
+  toastTicks = ticks;
+}
+
+function failureToastText(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const knownFailures = [
+    ['inventory_full', 'NOT ENOUGH INVENTORY SPACE'],
+    ['container_full', 'NOT ENOUGH INVENTORY SPACE'],
+    ['insufficient_vigour', 'INSUFFICIENT VIGOUR'],
+    ['swing_too_soon', 'TOOL IS NOT READY'],
+  ] as const;
+  const known = knownFailures.find(([code]) => raw.toLowerCase().includes(code));
+  return known?.[1] ?? raw.replaceAll('_', ' ').toUpperCase();
+}
+
+function setFailureToast(error: unknown, ticks = 120): void {
+  setToast(failureToastText(error), 'failure', ticks);
+}
 let effectPhase = 0;
 let worldZoom = DEFAULT_WORLD_ZOOM;
 let worldZoomTarget = DEFAULT_WORLD_ZOOM;
@@ -349,6 +412,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     network.setWorldWindDirection(nextWindDirectionMode(worldWindDirection())),
   ),
   setAudioVolume: (bus, value) => audio.setVolume(bus, value),
+  setAudioBackground: (bus, enabled) => audio.setBackgroundPlayback(bus, enabled),
   signOut: () => { location.assign('/?logout=1'); },
   quitToTitle: () => { location.assign('/?menu=1'); },
   moveInventoryItem: (request) => showResult(network.moveInventoryItem(request), 'ITEM MOVED'),
@@ -366,8 +430,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     const rows = [...latestSnapshot.inventorySlots];
     const moves = ghostFillRecipeMoves(recipeId, rows, rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0));
     if (moves === null) {
-      toast = 'RECIPE INGREDIENTS OR EMPTY GRID REQUIRED';
-      toastTicks = 120;
+      setToast('RECIPE INGREDIENTS OR EMPTY GRID REQUIRED', 'failure');
       return;
     }
     showResult(moves.reduce(
@@ -412,8 +475,7 @@ function worldWindDirection(): WindDirectionMode {
 
 function sendOwnerWorldUpdate(request: Promise<void>): void {
   void request.catch((error: unknown) => {
-    toast = error instanceof Error ? error.message : String(error);
-    toastTicks = 120;
+    setFailureToast(error);
   });
 }
 
@@ -467,17 +529,24 @@ function playerState(row: PlayerPosition): PlayerState {
   };
 }
 
-function spriteLightOccluders(snapshot: OverworldView, seed: number): LightSpriteOccluder[] {
-  const result: LightSpriteOccluder[] = [];
+function elevatedLightOccluders(snapshot: OverworldView, seed: number): LightTrunkOccluder[] {
+  const result: LightTrunkOccluder[] = [];
   const add = (
     asset: (typeof art)['chest'] | undefined,
     animation: string,
     worldX: number,
     worldY: number,
+    obstacle: CollisionObstacle | null,
   ): void => {
-    if (asset === undefined) return;
-    const occluder = createSpriteLightOccluder(asset, animation, 0, worldX, worldY);
-    if (occluder !== null) result.push(occluder);
+    if (asset === undefined || obstacle === null) return;
+    result.push({
+      obstacle,
+      receiver: createSpriteLightOccluder(asset, animation, 0, worldX, worldY),
+      footX: worldX,
+      footY: worldY,
+      receiverFacing: 'south',
+      shadowMode: 'silhouette',
+    });
   };
   if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
     for (const decoration of generateSurvivalDecorations(seed)) {
@@ -493,6 +562,7 @@ function spriteLightOccluders(snapshot: OverworldView, seed: number): LightSprit
         decoration.kind === 'camp_campfire' ? 'burn' : 'base',
         decoration.tileX * 16 + 8,
         (decoration.tileY + 1) * 16,
+        survivalDecorationObstacle(decoration, 'ground'),
       );
     }
   }
@@ -502,11 +572,17 @@ function spriteLightOccluders(snapshot: OverworldView, seed: number): LightSprit
     const asset = isBreakableRockKind(resource.kind)
       ? art.poiDecorations.poi_rock_small
       : isMineableOreKind(resource.kind) ? art.oreNodes[resource.kind] : undefined;
-    add(asset, 'base', resource.tileX * 16 + 8, (resource.tileY + 1) * 16);
+    add(
+      asset, 'base', resource.tileX * 16 + 8, (resource.tileY + 1) * 16,
+      survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY),
+    );
   }
   for (const chest of snapshot.chests) {
     if (chest.carriedBy !== undefined) continue;
-    add(art.chest, 'chest', chest.tileX * 16 + 8, (chest.tileY + 1) * 16);
+    add(
+      art.chest, 'chest', chest.tileX * 16 + 8, (chest.tileY + 1) * 16,
+      tileLightObstacle(chest.tileX, chest.tileY),
+    );
   }
   for (const placeable of snapshot.placeables) {
     const definition = placeableDefinition(placeable.kind);
@@ -517,9 +593,19 @@ function spriteLightOccluders(snapshot: OverworldView, seed: number): LightSprit
       itemDefinition(placeable.kind)?.iconAnimation ?? 'base',
       placeable.tileX * 16 + 8,
       (placeable.tileY + 1) * 16,
+      tileLightObstacle(placeable.tileX, placeable.tileY),
     );
   }
   return result;
+}
+
+function tileLightObstacle(tileX: number, tileY: number): CollisionObstacle {
+  return {
+    left: tileX * TILE_SIZE_FIXED,
+    top: tileY * TILE_SIZE_FIXED,
+    right: (tileX + 1) * TILE_SIZE_FIXED - 1,
+    bottom: (tileY + 1) * TILE_SIZE_FIXED - 1,
+  };
 }
 
 function matureTreeLightAsset(kind: string): (typeof art)['treeMature'] {
@@ -550,7 +636,10 @@ function treeLightOccluders(snapshot: OverworldView): LightTrunkOccluder[] {
       receiver: createSpriteLightOccluder(
         matureTreeLightAsset(resource.kind), 'base', 0, worldX, footY,
       ),
+      footX: worldX,
       footY,
+      receiverFacing: 'south',
+      shadowMode: 'column',
     });
   }
   return result;
@@ -573,8 +662,8 @@ function refreshCollision(snapshot: OverworldView): void {
   lightOcclusion = createLightOcclusionMap(
     terrain,
     [],
-    spriteLightOccluders(snapshot, seed),
-    treeLightOccluders(snapshot),
+    [],
+    [...elevatedLightOccluders(snapshot, seed), ...treeLightOccluders(snapshot)],
   );
 }
 
@@ -629,7 +718,10 @@ function update(): void {
     for (const resource of snapshot.resources) {
       visibleResourceIds.add(resource.id);
       const previousHealth = resourceHealth.get(resource.id);
-      if (previousHealth !== undefined && resource.health < previousHealth && !resource.depleted) {
+      if (previousHealth !== undefined
+        && previousHealth <= survivalResourceInitialHealth(resource.kind)
+        && resource.health < previousHealth
+        && !resource.depleted) {
         treeShakeRemaining.set(resource.id, 16);
       }
       resourceHealth.set(resource.id, resource.health);
@@ -647,9 +739,14 @@ function update(): void {
   }
   if (networkDirty) refreshCollision(snapshot);
   const direction = directionFromKeys();
-  if (direction !== lastDirection) {
+  const mounted = localMount(snapshot) !== null;
+  const sprintRequested = direction !== 'idle'
+    && !mounted
+    && (keys.has('ShiftLeft') || keys.has('ShiftRight'));
+  if (direction !== lastDirection || sprintRequested !== lastSprinting) {
     lastDirection = direction;
-    network.setDirection(direction);
+    lastSprinting = sprintRequested;
+    network.setMovementIntent(direction, sprintRequested);
   }
   const authoritative = network.ownPosition();
   if (authoritative !== null) {
@@ -662,10 +759,26 @@ function update(): void {
     }
   }
   if (predicted !== null) {
-    predicted = localMount(snapshot) === null
-      ? movePlayer(predicted, direction === 'idle' ? null : direction, worldCollision)
-      : movePlayerAtSpeed(predicted, direction === 'idle' ? null : direction, worldCollision, 2);
-    network.recordPredictedStep(direction, predicted);
+    const playerVitals = resolvedPlayerVitals(snapshot);
+    const sprintCost = playerVitals === null
+      ? 1
+      : sprintVigourCostForSteps(playerVitals.sprint.vigourDrainCentiPerSecond, 1);
+    const sprinting = sprintRequested
+      && playerVitals !== null
+      && (optimisticVigourCenti ?? playerVitals.vigour) >= sprintCost;
+    predicted = mounted
+      ? movePlayerAtSpeed(predicted, direction === 'idle' ? null : direction, worldCollision, 2)
+      : sprinting
+        ? movePlayerAtSpeedPermille(
+          predicted, direction, worldCollision,
+          playerVitals.sprint.speedPermille,
+        )
+        : movePlayer(predicted, direction === 'idle' ? null : direction, worldCollision);
+    network.recordPredictedStep(
+      direction,
+      predicted,
+      sprinting ? playerVitals.sprint.speedPermille : 1_000,
+    );
   }
   previousPredicted = previous ?? predicted;
   presentationCorrection.advance(1 / SIM_TICKS_PER_SECOND);
@@ -694,6 +807,7 @@ function update(): void {
       actionKind: 'none',
       actionStartedTick: 0n,
       equippedKind: 'empty',
+      equippedLit: true,
     });
     npcBuffers.set(npc.id, buffer);
   });
@@ -748,8 +862,7 @@ function update(): void {
       : `NETWORK ${snapshot.error}`;
     if (status !== lastNetworkStatus) {
       lastNetworkStatus = status;
-      toast = status;
-      toastTicks = 120;
+      setToast(status, snapshot.error === null ? 'info' : 'failure');
     }
   }
   if (toastTicks > 0) toastTicks -= 1;
@@ -767,8 +880,12 @@ const EQUIPMENT_SLOT_FIRST = 29;
 const EQUIPMENT_SLOT_END_EXCLUSIVE = 38;
 
 function selectedItem(snapshot: OverworldView): string {
+  return selectedItemRow(snapshot)?.itemKind ?? 'empty';
+}
+
+function selectedItemRow(snapshot: OverworldView) {
   const selected = optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0;
-  return snapshot.inventorySlots.find((inventory) => inventory.slot === selected)?.itemKind ?? 'empty';
+  return snapshot.inventorySlots.find((inventory) => inventory.slot === selected);
 }
 
 function snapshotEffectModifiers(snapshot: OverworldView) {
@@ -802,11 +919,13 @@ function resolvedPlayerVitals(snapshot: OverworldView) {
   const resolved = resolveStats({
     str: row.str, dex: row.dex, con: row.con, int: row.int, wis: row.wis, cha: row.cha,
   }, snapshotPlayerModifiers(snapshot));
+  const sprint = resolveSprintAbility(resolved.attributes, snapshotPlayerModifiers(snapshot));
   return {
     health: row.healthCenti, maxHealth: resolved.maxHealthCenti,
     mana: row.manaCenti, maxMana: resolved.maxManaCenti,
     vigour: row.vigourCenti, maxVigour: resolved.maxVigourCenti,
     attributes: resolved.attributes,
+    sprint,
   };
 }
 
@@ -815,7 +934,8 @@ function performToolAction(
   success: string,
   itemKind: VitalsToolKind,
   whiff = false,
-): void {
+  presentationElapsedMs = 0,
+): boolean {
   const stats = latestSnapshot.stats;
   const baseCost = TOOL_VIGOUR_BALANCE[itemKind].costCenti;
   const fullCost = resolveModifierTarget('toolVigourCost', baseCost, snapshotPlayerModifiers(latestSnapshot));
@@ -823,12 +943,65 @@ function performToolAction(
   const available = optimisticVigourCenti ?? stats?.vigourCenti ?? 0;
   if (stats !== null && available < cost) {
     vigourDenyTicks = 24;
-    toast = 'INSUFFICIENT VIGOUR';
-    toastTicks = 90;
-    return;
+    setToast('INSUFFICIENT VIGOUR', 'failure', 90);
+    return false;
   }
   if (stats !== null) optimisticVigourCenti = Math.max(0, available - cost);
+  const actionKind = avatarActionForEquippedKind(itemKind);
+  if (actionKind !== null) startPredictedAction(actionKind, presentationElapsedMs);
+  void audio.unlock().then(async () => await audio.playSfx('tool_swing')).catch(() => undefined);
   showResult(call().finally(() => { optimisticVigourCenti = null; }), success);
+  return true;
+}
+
+interface FarmToolTarget {
+  readonly tileX: number;
+  readonly tileY: number;
+}
+
+function facePredictedTowardTile(target: FarmToolTarget): void {
+  if (predicted === null) return;
+  const facing = directionFromAim(
+    target.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - predicted.position.x,
+    target.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - predicted.position.y,
+  );
+  if (facing !== null) predicted = { ...predicted, facing };
+}
+
+function performFarmToolAction(
+  target: FarmToolTarget,
+  itemKind: 'hoe' | 'watering_can',
+  restoring = false,
+): boolean {
+  const performed = performToolAction(
+    () => (restoring
+      ? network.restoreFarmTile(target.tileX, target.tileY)
+      : network.useFarmTool(target.tileX, target.tileY)
+    ).then(() => {
+      if (itemKind !== 'watering_can') return;
+      rain.spawnWorldSplash(
+        target.tileX * 16 + 8,
+        target.tileY * 16 + 12,
+      );
+    }),
+    restoring ? 'GRASS RESTORED' : itemKind === 'hoe' ? 'SOIL TILLED' : 'SOIL WATERED',
+    itemKind,
+  );
+  if (performed) facePredictedTowardTile(target);
+  return performed;
+}
+
+function toolActionHasEnoughVigour(itemKind: VitalsToolKind, whiff = false): boolean {
+  const stats = latestSnapshot.stats;
+  if (stats === null) return true;
+  const baseCost = TOOL_VIGOUR_BALANCE[itemKind].costCenti;
+  const fullCost = resolveModifierTarget('toolVigourCost', baseCost, snapshotPlayerModifiers(latestSnapshot));
+  const cost = whiff ? Math.ceil(fullCost / 2) : fullCost;
+  const available = optimisticVigourCenti ?? stats.vigourCenti;
+  if (available >= cost) return true;
+  vigourDenyTicks = 24;
+  setToast('INSUFFICIENT VIGOUR', 'failure', 90);
+  return false;
 }
 
 function isVitalsTool(value: string): value is VitalsToolKind {
@@ -892,18 +1065,18 @@ function drawBowAimGuide(
 function targetResource(snapshot: OverworldView): WorldResource | null {
   if (predicted === null) return null;
   const itemKind = selectedItem(snapshot);
-  const targetsCursor = itemKind === 'axe' || itemKind === 'pickaxe';
   const eligible = [...snapshot.resources].filter((resource) => itemKind === 'axe'
-    ? isChoppableTreeKind(resource.kind)
+    ? isAxeHarvestableResourceKind(resource.kind)
     : itemKind === 'pickaxe'
       ? isMineableOreKind(resource.kind) || isBreakableRockKind(resource.kind)
       : !isGatherableResourceKind(resource.kind));
   return facedResource(
     predicted.position.x,
     predicted.position.y,
-    targetsCursor ? cursorFacing() ?? predicted.facing : predicted.facing,
+    equippedItemFacing(itemKind, predicted.facing, cursorFacing()),
     eligible,
     resourceToolReachFixed(itemKind),
+    resourceToolForwardOffsetFixed(itemKind),
   );
 }
 
@@ -953,7 +1126,16 @@ function placementTileBlocked(
 
 function targetWorldItem(snapshot: OverworldView): WorldItem | null {
   if (predicted === null) return null;
-  return facedWorldItem(predicted.position.x, predicted.position.y, predicted.facing, snapshot.worldItems);
+  return nearbyWorldItem(predicted.position.x, predicted.position.y, snapshot.worldItems);
+}
+
+function targetGroundLantern(snapshot: OverworldView): WorldItem | null {
+  if (predicted === null) return null;
+  return nearbyWorldItem(
+    predicted.position.x,
+    predicted.position.y,
+    [...snapshot.worldItems].filter((item) => item.itemKind === 'lantern'),
+  );
 }
 
 function carriedChest(snapshot: OverworldView): WorldChest | null {
@@ -962,6 +1144,16 @@ function carriedChest(snapshot: OverworldView): WorldChest | null {
 }
 
 function targetChest(snapshot: OverworldView): WorldChest | null {
+  if (predicted === null) return null;
+  return nearestTileTarget(
+    predicted.position.x,
+    predicted.position.y,
+    [...snapshot.chests].filter((chest) => chest.carriedBy === undefined),
+    CHEST_INTERACTION_REACH_FIXED,
+  );
+}
+
+function targetFacedChest(snapshot: OverworldView): WorldChest | null {
   if (predicted === null) return null;
   let tileX = Math.floor(predicted.position.x / TILE_SIZE_FIXED);
   let tileY = Math.floor(predicted.position.y / TILE_SIZE_FIXED);
@@ -1011,6 +1203,29 @@ function npcTargetDimensions(species: WildlifeSpecies | null): { readonly halfWi
   if (species === 'sheep' || species === 'pig' || species === 'swan' || species === 'goose') return { halfWidth: 12, height: 20 };
   if (species === 'bee' || species === 'butterfly' || species === 'scarab') return { halfWidth: 7, height: 14 };
   return { halfWidth: 10, height: 18 };
+}
+
+function targetableFromVisualBounds(
+  target: SelectedEntityTarget,
+  bounds: WorldVisualBounds | null,
+  fallbackX: number,
+  fallbackY: number,
+  fallback: { readonly halfWidth: number; readonly height: number },
+): TargetableWorldEntity {
+  if (bounds === null) return { target, x: fallbackX, y: fallbackY, ...fallback };
+  const padding = 2;
+  const left = bounds.left - padding;
+  const right = bounds.right + padding;
+  const top = bounds.top - padding;
+  const bottom = bounds.bottom + padding;
+  const y = bottom - 3;
+  return {
+    target,
+    x: (left + right) / 2,
+    y,
+    halfWidth: Math.max(2, (right - left) / 2),
+    height: Math.max(1, y - top),
+  };
 }
 
 function selectedTargetVitals(snapshot: OverworldView): OverworldUiTargetVitals | undefined {
@@ -1122,9 +1337,17 @@ function targetMerchant(snapshot: OverworldView): WorldNpc | null {
   return nearest;
 }
 
-function targetCampfire(snapshot: OverworldView): { readonly tileX: number; readonly tileY: number } | null {
-  if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return null;
+type TargetCampfire =
+  | { readonly targetKind: 'landmark'; readonly id: bigint; readonly tileX: number; readonly tileY: number; readonly lit: boolean }
+  | { readonly targetKind: 'placeable'; readonly id: bigint; readonly tileX: number; readonly tileY: number; readonly lit: boolean };
+
+function targetCampfire(snapshot: OverworldView): TargetCampfire | null {
   if (predicted === null || localMount(snapshot) !== null) return null;
+  const placed = targetPlaceable(snapshot);
+  if (placed?.kind === 'campfire') return {
+    targetKind: 'placeable', id: placed.id, tileX: placed.tileX, tileY: placed.tileY, lit: placed.lit,
+  };
+  if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return null;
   const campfire = generateSurvivalDecorations(snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED)
     .find((decoration) => decoration.kind === 'camp_campfire');
   if (campfire === undefined) return null;
@@ -1132,8 +1355,9 @@ function targetCampfire(snapshot: OverworldView): { readonly tileX: number; read
   const y = campfire.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const dx = x - predicted.position.x;
   const dy = y - predicted.position.y;
+  const state = snapshot.campfires?.get(BigInt(campfire.id));
   return dx * dx + dy * dy <= (2 * TILE_SIZE_FIXED) ** 2
-    ? { tileX: campfire.tileX, tileY: campfire.tileY }
+    ? { targetKind: 'landmark', id: BigInt(campfire.id), tileX: campfire.tileX, tileY: campfire.tileY, lit: state?.lit ?? true }
     : null;
 }
 
@@ -1145,6 +1369,143 @@ function targetPortal(snapshot: OverworldView): SpacePortal | null {
   return [...snapshot.portals].find((portal) => portal.fromSpace === position.spaceId
     && Math.abs(portal.fromTileX - tileX) <= 1
     && Math.abs(portal.fromTileY - tileY) <= 1) ?? null;
+}
+
+type EInteractionTarget =
+  | (InteractionCandidate & { readonly kind: 'portal'; readonly portal: SpacePortal })
+  | (InteractionCandidate & { readonly kind: 'placeable'; readonly placeable: WorldPlaceable })
+  | (InteractionCandidate & { readonly kind: 'chest'; readonly chest: WorldChest })
+  | (InteractionCandidate & { readonly kind: 'campfire'; readonly campfire: TargetCampfire })
+  | (InteractionCandidate & { readonly kind: 'merchant'; readonly npc: WorldNpc })
+  | (InteractionCandidate & { readonly kind: 'horse'; readonly npc: WorldNpc })
+  | (InteractionCandidate & { readonly kind: 'gatherable'; readonly resource: WorldResource })
+  | (InteractionCandidate & { readonly kind: 'world_item'; readonly item: WorldItem });
+
+function tileInteractionPoint(tileX: number, tileY: number): { readonly x: number; readonly y: number } {
+  return {
+    x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+  };
+}
+
+function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
+  if (predicted === null) return null;
+  const candidates: EInteractionTarget[] = [];
+  const portal = targetPortal(snapshot);
+  if (portal !== null) candidates.push({
+    kind: 'portal', ...tileInteractionPoint(portal.fromTileX, portal.fromTileY),
+    stableId: `portal:${portal.id}`, portal,
+  });
+  const placeable = targetPlaceable(snapshot);
+  if (placeable?.kind === 'fence_gate' || placeable?.kind === 'barrel') candidates.push({
+    kind: 'placeable', ...tileInteractionPoint(placeable.tileX, placeable.tileY),
+    stableId: `placeable:${placeable.id}`, placeable,
+  });
+  const chest = targetChest(snapshot);
+  if (chest !== null) candidates.push({
+    kind: 'chest', ...tileInteractionPoint(chest.tileX, chest.tileY),
+    stableId: `chest:${chest.id}`, chest,
+  });
+  const campfire = targetCampfire(snapshot);
+  if (campfire !== null) candidates.push({
+    kind: 'campfire', ...tileInteractionPoint(campfire.tileX, campfire.tileY),
+    stableId: `campfire:${campfire.targetKind}:${campfire.id}`,
+    campfire,
+  });
+  const merchant = targetMerchant(snapshot);
+  if (merchant !== null) candidates.push({
+    kind: 'merchant', x: merchant.x, y: merchant.y,
+    stableId: `merchant:${merchant.id}`, npc: merchant,
+  });
+  const horse = targetHorse(snapshot);
+  if (horse !== null) candidates.push({
+    kind: 'horse', x: horse.x, y: horse.y,
+    stableId: `horse:${horse.id}`, npc: horse,
+  });
+  const gatherable = targetGatherableResource(snapshot);
+  if (gatherable !== null) candidates.push({
+    kind: 'gatherable', ...tileInteractionPoint(gatherable.tileX, gatherable.tileY),
+    stableId: `resource:${gatherable.id}`, resource: gatherable,
+  });
+  const item = targetWorldItem(snapshot);
+  if (item !== null) candidates.push({
+    kind: 'world_item', x: item.x, y: item.y,
+    stableId: `item:${item.id}`, item,
+  });
+  return nearestInteractionCandidate(predicted.position.x, predicted.position.y, candidates);
+}
+
+function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView): string {
+  switch (target.kind) {
+    case 'portal': return '[E] USE PORTAL';
+    case 'placeable': return target.placeable.kind === 'barrel'
+      ? '[E] OPEN BARREL'
+      : target.placeable.open ? '[E] CLOSE GATE' : '[E] OPEN GATE';
+    case 'chest': return selectedItem(snapshot) === 'axe'
+      ? '[E] OPEN CHEST  [F] BREAK WITH AXE'
+      : targetFacedChest(snapshot)?.id === target.chest.id
+        ? '[E] OPEN CHEST  [F] PICK UP'
+        : '[E] OPEN CHEST';
+    case 'campfire': return `[E] COOK  [F] ${target.campfire.lit ? 'EXTINGUISH' : 'LIGHT'} CAMPFIRE`;
+    case 'merchant': return `[E] TALK TO ${target.npc.displayName.toUpperCase()}`;
+    case 'horse': return localMount(snapshot) !== null
+      ? `[E] DISMOUNT ${horseLabel(target.npc).toUpperCase()}`
+      : `[E] RIDE ${horseLabel(target.npc).toUpperCase()}`;
+    case 'gatherable': return `[E] PICK UP ${target.resource.kind === 'loose_stone' ? 'STONE' : 'FALLEN BRANCH'}`;
+    case 'world_item': return target.item.itemKind === 'lantern'
+      ? `[E] PICK UP LANTERN  [F] TURN ${target.item.lit ? 'OFF' : 'ON'}`
+      : `[E] PICK UP ${hotbarItemLabel(target.item.itemKind)} x${target.item.quantity}`;
+  }
+}
+
+function activateInteraction(target: EInteractionTarget, snapshot: OverworldView): void {
+  switch (target.kind) {
+    case 'portal':
+      portalTransitionStartedAtMs = performance.now();
+      showResult(network.usePortal(target.portal.id), 'PORTAL TRANSIT');
+      return;
+    case 'placeable':
+      showResult(
+        network.interactPlaceable(),
+        target.placeable.kind === 'barrel'
+          ? 'BARREL OPENED'
+          : target.placeable.open ? 'GATE CLOSED' : 'GATE OPENED',
+      );
+      return;
+    case 'chest':
+      showResult(network.interactChest(), 'CHEST OPENED');
+      return;
+    case 'campfire':
+      overworldUi.openWindow = 'cooking';
+      return;
+    case 'merchant':
+      overworldUi.openWindow = null;
+      showResult(network.interactNpc(target.npc.id), `TALKING TO ${target.npc.displayName.toUpperCase()}`);
+      return;
+    case 'horse': {
+      const dismounting = localMount(snapshot) !== null;
+      showResult(
+        network.interactHorse(target.npc.id),
+        dismounting
+          ? `DISMOUNTED ${horseLabel(target.npc).toUpperCase()}`
+          : `RIDING ${horseLabel(target.npc).toUpperCase()}`,
+      );
+      return;
+    }
+    case 'gatherable':
+      startPredictedAction('pickup');
+      showResult(
+        network.gatherWorldResource(target.resource.id),
+        target.resource.kind === 'loose_stone' ? 'PICKED UP STONE' : 'PICKED UP WOOD',
+      );
+      return;
+    case 'world_item':
+      startPredictedAction('pickup');
+      showResult(
+        network.pickupWorldItem(target.item.id),
+        `PICKED UP ${hotbarItemLabel(target.item.itemKind)} x${target.item.quantity}`,
+      );
+  }
 }
 
 function drawPlayerCollisionOverlay(
@@ -1188,15 +1549,21 @@ function drawToolInteractionOverlay(
 ): void {
   if (predicted === null) return;
   const itemKind = selectedItem(snapshot);
-  const reachFixed = itemKind === 'axe' || itemKind === 'pickaxe'
+  const swingTool = isForwardSwingToolKind(itemKind);
+  const reachFixed = swingTool
     ? resourceToolReachFixed(itemKind)
     : itemKind === 'hoe' || itemKind === 'watering_can'
       ? TILE_INTERACTION_REACH_FIXED
       : null;
   if (reachFixed === null) return;
-  const origin = playerInteractionOrigin(predicted.position);
-  const x = (origin.x / FIXED_UNITS_PER_PIXEL - cameraX) * scale;
-  const y = (origin.y / FIXED_UNITS_PER_PIXEL - cameraY) * scale;
+  const origin = swingTool ? playerInteractionOrigin(predicted.position) : predicted.position;
+  const facing = equippedItemFacing(itemKind, predicted.facing, cursorFacing());
+  const vector = directionUnitVector(facing);
+  const forwardOffset = resourceToolForwardOffsetFixed(itemKind);
+  const centerX = origin.x + vector[0] * forwardOffset;
+  const centerY = origin.y + vector[1] * forwardOffset;
+  const x = (centerX / FIXED_UNITS_PER_PIXEL - cameraX) * scale;
+  const y = (centerY / FIXED_UNITS_PER_PIXEL - cameraY) * scale;
   const radius = reachFixed / FIXED_UNITS_PER_PIXEL * scale;
   context.save();
   context.fillStyle = '#d77bff18';
@@ -1211,6 +1578,19 @@ function drawToolInteractionOverlay(
   context.fillStyle = '#f3c5ff';
   context.fillRect(Math.round(x) - 2, Math.round(y), 5, 1);
   context.fillRect(Math.round(x), Math.round(y) - 2, 1, 5);
+  const target = swingTool ? targetResource(snapshot) : null;
+  if (target !== null) {
+    const bounds = survivalResourceObstacle(target.kind, target.tileX, target.tileY);
+    const left = (bounds.left / FIXED_UNITS_PER_PIXEL - cameraX) * scale;
+    const top = (bounds.top / FIXED_UNITS_PER_PIXEL - cameraY) * scale;
+    const width = (bounds.right - bounds.left + 1) / FIXED_UNITS_PER_PIXEL * scale;
+    const height = (bounds.bottom - bounds.top + 1) / FIXED_UNITS_PER_PIXEL * scale;
+    context.fillStyle = '#fff36a55';
+    context.strokeStyle = '#fff36a';
+    context.lineWidth = Math.max(1, scale);
+    context.fillRect(Math.round(left), Math.round(top), Math.ceil(width), Math.ceil(height));
+    context.strokeRect(Math.round(left), Math.round(top), Math.ceil(width), Math.ceil(height));
+  }
   context.restore();
 }
 
@@ -1300,6 +1680,15 @@ function render(alpha = 1): void {
     : interpolateFixedPosition(previousPredicted?.position ?? predictedPosition, predictedPosition, alpha);
   const renderedLocal = renderedLocalBase === null ? null : presentationCorrection.apply(renderedLocalBase);
   const localAuthority = snapshot.identityHex === null ? undefined : snapshot.players.get(snapshot.identityHex);
+  const loadingStage = worldLoadingStage({
+    connected: snapshot.connected,
+    error: snapshot.error,
+    identityReady: snapshot.identityHex !== null,
+    worldReady: snapshot.worldSeed !== null && snapshot.clock !== null && snapshot.environment !== null,
+    playerReady: localAuthority !== undefined,
+    profileReady: snapshot.characterProfile !== null && snapshot.membership !== null && snapshot.survival !== null,
+  });
+  setLoadingScreenStage(loadingStage);
   const cameraJump = localAuthority === undefined ? null : horseJumpPose(
     localAuthority.jumpFromX,
     localAuthority.jumpFromY,
@@ -1384,10 +1773,45 @@ function render(alpha = 1): void {
   // All non-ground world art (players, trees, items, future buildings/props/NPCs)
   // must enter this queue so weather and later depth layers cannot bypass it.
   const worldDepthItems: WorldDepthItem[] = [];
+  const enqueueWorldDepth = (
+    worldX: number,
+    worldFootY: number,
+    item: WorldDepthItem,
+  ): void => {
+    worldDepthItems.push({
+      ...item,
+      depthOffset: terrainProjectedDepthAtFoot(terrain, worldX, worldFootY),
+    });
+  };
+  enqueueRaisedTerrainDepth(
+    worldDepthItems,
+    context,
+    art,
+    terrain,
+    cameraX,
+    cameraY,
+    scale,
+    viewportWidth,
+    viewportHeight,
+  );
   const nameplates: Array<{ x: number; y: number; name: string }> = [];
   const renderedPlayerAnchors = new Map<string, { readonly x: number; readonly y: number }>();
   const targetableEntities: TargetableWorldEntity[] = [];
   const pointLights: PointLight[] = [];
+  const frameAmbient = activeSpaceDefinition.ambient === 'clock'
+    ? ambientAtTick(renderWeatherTick, renderWeather.raining ? 0.12 : 0)
+    : activeSpaceDefinition.ambient;
+  const drawSouthFacingReceiver = (
+    footX: number,
+    footY: number,
+    draw: () => void,
+  ): void => {
+    const brightness = southFacingReceiverBrightness(footX, footY, frameAmbient, pointLights);
+    context.save();
+    if (brightness < 0.995) context.filter = `brightness(${Math.round(brightness * 1000) / 10}%)`;
+    draw();
+    context.restore();
+  };
   const windTrees: WindTreeSource[] = [];
   for (const placeable of snapshot.placeables) {
     const light = placeablePointLight(placeable, snapshot.clock?.authorityTick ?? 0n);
@@ -1398,7 +1822,9 @@ function render(alpha = 1): void {
     if (isInteractivePoiDecorationKind(decoration.kind)) continue;
     const decorationX = decoration.tileX * 16 + 8;
     const decorationY = (decoration.tileY + 1) * 16;
-    if (decoration.kind === 'camp_campfire') {
+    const campfireLit = decoration.kind !== 'camp_campfire'
+      || (snapshot.campfires?.get(BigInt(decoration.id))?.lit ?? true);
+    if (decoration.kind === 'camp_campfire' && campfireLit) {
       if (worldPointVisible(decorationX, decorationY, lightVisible)) {
         const flicker = deterministicFlameFlicker(
           BigInt(decoration.id),
@@ -1407,6 +1833,7 @@ function render(alpha = 1): void {
         pointLights.push({
           worldX: decorationX,
           worldY: decorationY - 12,
+          receiverDirectionWorldY: decorationY,
           radiusTiles: CAMPFIRE_LIGHT_RADIUS_TILES + flicker.radiusOffset,
           color: CAMPFIRE_LIGHT,
           strengthPerMille: flicker.strengthPerMille,
@@ -1415,26 +1842,35 @@ function render(alpha = 1): void {
       }
     }
     if (!worldPointVisible(decorationX, decorationY, visible)) continue;
-    worldDepthItems.push({
+    enqueueWorldDepth(decorationX, decorationY, {
       footY: overworldPoiDecorationDepthY(decoration.kind, decorationY),
       tie: `decoration:${decoration.id}`,
-      draw: () => drawOverworldPoiDecoration(
-        context,
-        art,
-        decoration.kind,
-        decorationX,
-        decorationY,
-        cameraX,
-        cameraY,
-        scale,
-        decoration.variant,
-        natureDecorationFrame(
+      draw: () => {
+        const drawDecoration = (): void => drawOverworldPoiDecoration(
+          context,
+          art,
           decoration.kind,
-          visualTickClock.renderTick,
-          decoration.animationOffset,
-          renderWeather.wind,
-        ),
-      ),
+          decorationX,
+          decorationY,
+          cameraX,
+          cameraY,
+          scale,
+          decoration.variant,
+          natureDecorationFrame(
+            decoration.kind,
+            visualTickClock.renderTick,
+            decoration.animationOffset,
+            renderWeather.wind,
+          ),
+          campfireLit,
+        );
+        if (survivalDecorationBlocksTraversal(decoration.kind, 'ground')
+          && decoration.kind !== 'camp_pond' && !isLightEmitterKind(decoration.kind)) {
+          drawSouthFacingReceiver(decorationX, decorationY, drawDecoration);
+        } else {
+          drawDecoration();
+        }
+      },
     });
     }
   }
@@ -1455,7 +1891,7 @@ function render(alpha = 1): void {
       visualTickClock.renderTick,
       Math.imul(resource.tileX, 73_856_093) ^ Math.imul(resource.tileY, 19_349_663),
     );
-    worldDepthItems.push({
+    enqueueWorldDepth(resourceX, resourceY, {
       footY: resourceY,
       tie: `resource:${resource.id}`,
       draw: () => {
@@ -1474,25 +1910,37 @@ function render(alpha = 1): void {
           if (resource.depleted) return;
           const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;
           const shakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
-          drawOverworldPoiDecoration(
+          drawSouthFacingReceiver(resourceX, resourceY, () => drawOverworldPoiDecoration(
             context, art, 'poi_rock_small', resourceX + shakeX, resourceY, cameraX, cameraY, scale,
-          );
+          ));
           return;
         }
         if (isMineableOreKind(resource.kind)) {
           if (resource.depleted) return;
           const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;
           const shakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
-          drawOverworldOreNode(context, art, resource.kind, resourceX + shakeX, resourceY, cameraX, cameraY, scale);
+          drawSouthFacingReceiver(resourceX, resourceY, () => drawOverworldOreNode(
+            context, art, resource.kind, resourceX + shakeX, resourceY, cameraX, cameraY, scale,
+          ));
           return;
         }
         if (resource.depleted) {
-          drawOverworldStump(context, art, resourceX, resourceY, cameraX, cameraY, scale, resource.kind);
+          drawOverworldStump(
+            context, art, resourceX, resourceY, cameraX, cameraY, scale,
+            resource.kind, treeGrowthStageName(resource.growthStage),
+          );
+          return;
+        }
+        const growthStage = treeGrowthStageName(resource.growthStage);
+        if (growthStage !== 'big') {
+          drawOverworldTreeRegrowth(
+            context, art, resourceX, resourceY, cameraX, cameraY, scale, resource.kind, growthStage,
+          );
           return;
         }
         const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;
         const shakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
-        drawOverworldTree(
+        drawSouthFacingReceiver(resourceX, resourceY, () => drawOverworldTree(
           context,
           art,
           resourceX + shakeX,
@@ -1504,7 +1952,7 @@ function render(alpha = 1): void {
           resource.kind,
           sway[0],
           sway[1],
-        );
+        ));
       },
     });
   }
@@ -1514,10 +1962,23 @@ function render(alpha = 1): void {
     if (!worldPointVisible(x, y, visible)) continue;
     const age = Number((snapshot.clock?.authorityTick ?? item.droppedAtTick) - item.droppedAtTick);
     const arcHeight = age >= 0 && age < 8 ? Math.round(Math.sin(age / 8 * Math.PI) * 8) : 0;
-    worldDepthItems.push({
+    if (item.itemKind === 'lantern' && item.lit && worldPointVisible(x, y, lightVisible)) {
+      pointLights.push({
+        worldX: x,
+        worldY: y - 7,
+        receiverDirectionWorldY: y,
+        radiusTiles: LANTERN_LIGHT_RADIUS_TILES,
+        color: LANTERN_LIGHT,
+        strengthPerMille: 1000,
+        profile: 'steady',
+      });
+    }
+    enqueueWorldDepth(x, y, {
       footY: y,
       tie: `item:${item.id}`,
-      draw: () => drawOverworldItem(context, art, item.itemKind, x, y, arcHeight, cameraX, cameraY, scale),
+      draw: () => drawOverworldItem(
+        context, art, item.itemKind, x, y, arcHeight, cameraX, cameraY, scale, item.lit,
+      ),
     });
   }
   if (!debugEntitiesHidden) for (const projectile of snapshot.projectiles) {
@@ -1525,7 +1986,7 @@ function render(alpha = 1): void {
     const x = (display?.x ?? projectile.x) / FIXED_UNITS_PER_PIXEL;
     const y = (display?.y ?? projectile.y) / FIXED_UNITS_PER_PIXEL;
     if (!worldPointVisible(x, y, visible)) continue;
-    worldDepthItems.push({
+    enqueueWorldDepth(x, y, {
       footY: y,
       tie: `projectile:${projectile.id}`,
       draw: () => drawOverworldArrow(
@@ -1554,13 +2015,15 @@ function render(alpha = 1): void {
     if (chest.carriedBy !== undefined) continue;
     const x = chest.tileX * 16 + 8; const y = (chest.tileY + 1) * 16;
     if (!worldPointVisible(x, y, visible)) continue;
-    worldDepthItems.push({
+    enqueueWorldDepth(x, y, {
       footY: y, tie: `chest:${chest.id}`,
       draw: () => {
         const elapsedFrame = Math.min(5, Math.floor((performance.now() - chestAnimationStartedAtMs) / (1_000 / 6)));
         const frameIndex = chest.id === activeChestId ? elapsedFrame
           : chest.id === closingChestId ? 5 - elapsedFrame : 0;
-        drawOverworldChest(context, art, x, y, cameraX, cameraY, scale, frameIndex);
+        drawSouthFacingReceiver(x, y, () => {
+          drawOverworldChest(context, art, x, y, cameraX, cameraY, scale, frameIndex);
+        });
       },
     });
   }
@@ -1571,23 +2034,32 @@ function render(alpha = 1): void {
     const x = placeable.tileX * 16 + 8;
     const y = (placeable.tileY + 1) * 16;
     if (!worldPointVisible(x, y, visible)) continue;
+    const definition = placeableDefinition(placeable.kind);
     const fenceMask = placeable.kind === 'fence'
       ? fenceJoinMask(placeable.tileX, placeable.tileY, (tileX, tileY) => fenceTiles.has(`${tileX}:${tileY}`))
       : 0;
-    worldDepthItems.push({
+    enqueueWorldDepth(x, y, {
       footY: y,
       tie: `placeable:${placeable.id}`,
-      draw: () => drawOverworldPlaceable(
-        context, art, placeable.kind, placeable.open, fenceMask,
-        Math.floor(performance.now() / 125), x, y, cameraX, cameraY, scale,
-      ),
+      draw: () => {
+        const drawPlaceable = (): void => drawOverworldPlaceable(
+          context, art, placeable.kind, placeable.open, fenceMask,
+          Math.floor(performance.now() / 125), x, y, cameraX, cameraY, scale,
+          placeable.lit,
+        );
+        if (definition?.blocksMovement === true && !isLightEmitterKind(placeable.kind)) {
+          drawSouthFacingReceiver(x, y, drawPlaceable);
+        } else {
+          drawPlaceable();
+        }
+      },
     });
   }
   if (!debugEntitiesHidden) for (const hive of snapshot.hives) {
     const x = hive.tileX * 16 + 8;
     const y = (hive.tileY + 1) * 16;
     if (!worldPointVisible(x, y, visible)) continue;
-    worldDepthItems.push({
+    enqueueWorldDepth(x, y, {
       footY: y,
       tie: `hive:${hive.id}`,
       draw: () => drawOverworldHive(context, art, hive.kind, hive.variant, x, y, cameraX, cameraY, scale),
@@ -1603,15 +2075,20 @@ function render(alpha = 1): void {
     if (!worldPointVisible(x, y, visible)) continue;
     const facing = (display?.facing ?? npc.facing) as Direction;
     if (snapshot.merchants.get(npc.id) !== undefined) {
-      targetableEntities.push({
-        target: { kind: 'npc', id: npc.id }, x, y, halfWidth: 9, height: 24,
-      });
+      const moving = sleeping ? false : npc.moving;
+      targetableEntities.push(targetableFromVisualBounds(
+        { kind: 'npc', id: npc.id },
+        merchantWorldBounds(
+          art, x, y, facing, moving, horseAnimationFrame + Number(npc.id % 19n),
+        ),
+        x, y, { halfWidth: 9, height: 24 },
+      ));
       if (npc.displayName.trim()) nameplates.push({ x, y, name: npc.displayName });
-      worldDepthItems.push({
+      enqueueWorldDepth(x, y, {
         footY: y,
         tie: `merchant:${npc.id}`,
         draw: () => drawOverworldMerchant(
-          context, art, x, y, facing, sleeping ? false : npc.moving,
+          context, art, x, y, facing, moving,
           horseAnimationFrame + Number(npc.id % 19n), cameraX, cameraY, scale,
         ),
       });
@@ -1621,7 +2098,6 @@ function render(alpha = 1): void {
     const species = profile?.species ?? (npc.kind === 'horse' ? 'horse' : null);
     if (species === null) continue;
     if (species === 'bee' && npc.wanderDirection === 'inside_hive') continue;
-    targetableEntities.push({ target: { kind: 'npc', id: npc.id }, x, y, ...npcTargetDimensions(species) });
     if (npc.displayName.trim()) nameplates.push({ x, y, name: npc.displayName });
     const animationFrame = horseAnimationFrame + Number(npc.id % 19n);
     const biome = survivalBiomeAt(
@@ -1630,17 +2106,29 @@ function render(alpha = 1): void {
       Math.floor(y / 16),
     );
     const inWater = biome === 'freshwater' || biome === 'oasis_water';
-    worldDepthItems.push({
+    const moving = sleeping ? false : npc.moving;
+    const visualBounds = species === 'horse'
+      ? horseWorldBounds(
+        art, x, y, facing, moving, animationFrame, profile?.variant ?? 0, npc.wanderDirection,
+      )
+      : wildlifeWorldBounds(
+        art, species, profile?.variant ?? 0, npc.wanderDirection,
+        x, y, facing, moving, animationFrame, inWater,
+      );
+    targetableEntities.push(targetableFromVisualBounds(
+      { kind: 'npc', id: npc.id }, visualBounds, x, y, npcTargetDimensions(species),
+    ));
+    enqueueWorldDepth(x, y, {
       footY: y,
       tie: `npc:${npc.id}`,
       draw: () => species === 'horse'
         ? drawOverworldHorse(
-          context, art, x, y, facing, sleeping ? false : npc.moving, animationFrame,
+          context, art, x, y, facing, moving, animationFrame,
           cameraX, cameraY, scale, false, undefined, profile?.variant ?? 0, npc.wanderDirection,
         )
         : drawOverworldWildlife(
           context, art, species, profile?.variant ?? 0, npc.wanderDirection,
-          x, y, facing, sleeping ? false : npc.moving, animationFrame, cameraX, cameraY, scale, inWater,
+          x, y, facing, moving, animationFrame, cameraX, cameraY, scale, inWater,
         ),
     });
   }
@@ -1671,18 +2159,23 @@ function render(alpha = 1): void {
     const y = yFixed / FIXED_UNITS_PER_PIXEL;
     renderedPlayerAnchors.set(id, { x, y });
     const equipped = local ? lightPreviewKind ?? selectedItem(snapshot) : display?.equippedKind ?? player.equippedKind;
-    if ((equipped === 'lantern' || equipped === 'torch') && worldPointVisible(x, y, lightVisible)) {
+    const equippedLit = equipped !== 'lantern' || (local
+      ? lightPreviewKind === 'lantern' || (selectedItemRow(snapshot)?.lit ?? true)
+      : display?.equippedLit ?? player.equippedLit);
+    if ((equipped === 'lantern' || equipped === 'torch') && equippedLit
+      && worldPointVisible(x, y, lightVisible)) {
       const [lightX, lightY] = playerLightPosition(x, y);
       const baseRadius = equipped === 'lantern' ? LANTERN_LIGHT_RADIUS_TILES : TORCH_LIGHT_RADIUS_TILES;
       const flicker = equipped === 'torch'
         ? deterministicFlameFlicker(
             BigInt(`0x${id.slice(0, 16)}`),
-            snapshot.clock?.authorityTick ?? 0n,
+            visualTickClock.renderTick,
           )
         : { radiusOffset: 0, strengthPerMille: 1000 };
       pointLights.push({
         worldX: lightX,
         worldY: lightY,
+        receiverDirectionWorldY: y,
         radiusTiles: baseRadius + flicker.radiusOffset,
         color: equipped === 'lantern' ? LANTERN_LIGHT : TORCH_LIGHT,
         strengthPerMille: flicker.strengthPerMille,
@@ -1696,8 +2189,8 @@ function render(alpha = 1): void {
     });
     const authoritativeFacing = (local ? predicted?.facing ?? player.facing : display?.facing ?? player.facing) as Direction;
     const localEquipped = local ? selectedItem(snapshot) : player.equippedKind;
-    const facing = local && equippedItemTracksCursor(localEquipped)
-      ? cursorFacing() ?? authoritativeFacing
+    const facing = local
+      ? equippedItemFacing(localEquipped, authoritativeFacing, cursorFacing())
       : authoritativeFacing;
     const horseFacing = mount === null ? facing : mount.facing as Direction;
     const displayedDx = local
@@ -1706,10 +2199,16 @@ function render(alpha = 1): void {
     const displayedDy = local
       ? (renderedLocal?.y ?? player.y) - (previousPredicted?.position.y ?? renderedLocal?.y ?? player.y)
       : (display?.y ?? player.y) - (previousDisplay?.y ?? display?.y ?? player.y);
-    const moving = jumpPresentation !== null || Math.abs(displayedDx) + Math.abs(displayedDy) > 0.01;
+    const moving = presentationMoving(
+      local,
+      predicted?.moving,
+      displayedDx,
+      displayedDy,
+      jumpPresentation !== null,
+    );
     const appearance = snapshot.appearances.get(id);
     nameplates.push({ x, y, name: profileName(snapshot.profiles, id) });
-    worldDepthItems.push({
+    enqueueWorldDepth(x, footYFixed / FIXED_UNITS_PER_PIXEL, {
       footY: footYFixed / FIXED_UNITS_PER_PIXEL,
       tie: `player:${id}`,
       draw: () => {
@@ -1771,6 +2270,7 @@ function render(alpha = 1): void {
         drawOverworldAvatar(
           context, art, x, y, facing, moving, animation.locomotionFrame,
           cameraX, cameraY, scale, actionFrame, actionVisual, appearance, equipped, horseAnimationFrame,
+          equippedLit,
         );
         if (snapshot.chests.find((chest) => chest.carriedBy?.toHexString() === id)) {
           drawOverworldChest(context, art, x, y - 17, cameraX, cameraY, scale);
@@ -1816,9 +2316,7 @@ function render(alpha = 1): void {
     scale,
     frame.layout.width,
     frame.layout.height,
-    activeSpaceDefinition.ambient === 'clock'
-      ? ambientAtTick(renderWeatherTick, renderWeather.raining ? 0.12 : 0)
-      : activeSpaceDefinition.ambient,
+    frameAmbient,
     pointLights,
     lightOcclusion,
   );
@@ -1835,24 +2333,23 @@ function render(alpha = 1): void {
     windTrees,
   );
   const farmItem = selectedItem(snapshot);
-  const farmTarget = farmItem === 'hoe' || farmItem === 'watering_can' ? targetFarmTile() : null;
-  if (!debugEntitiesHidden && farmTarget !== null && localMount(snapshot) === null
+  const tileToolSelected = farmItem === 'hoe' || farmItem === 'watering_can';
+  const placeableSelected = carriedChest(snapshot) !== null
+    || itemDefinition(farmItem)?.tags.includes('item.placeable') === true;
+  const interactionTarget = tileToolSelected || placeableSelected ? targetInteractionTile() : null;
+  const farmTarget = tileToolSelected ? interactionTarget : null;
+  if (!debugEntitiesHidden && interactionTarget !== null && localMount(snapshot) === null
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
-    drawFarmTileReticle(context, farmTarget.tileX, farmTarget.tileY, cameraX, cameraY, scale);
-    drawCalls += 1;
-  }
-  const chestPlacementTarget = carriedChest(snapshot) !== null || selectedItem(snapshot) === 'chest'
-    ? targetInteractionTile() : null;
-  if (!debugEntitiesHidden && chestPlacementTarget !== null && localMount(snapshot) === null
-    && overworldUi.openWindow === null && !chatOverlay.isOpen) {
-    drawFarmTileReticle(
+    drawInteractionTileReticle(
       context,
-      chestPlacementTarget.tileX,
-      chestPlacementTarget.tileY,
+      placeableSelected && placementTileBlocked(snapshot, interactionTarget)
+        ? art.uiSkin.selectorDeny
+        : art.uiSkin.selectorNeutral,
+      interactionTarget.tileX,
+      interactionTarget.tileY,
       cameraX,
       cameraY,
       scale,
-      !placementTileBlocked(snapshot, chestPlacementTarget),
     );
     drawCalls += 1;
   }
@@ -1879,40 +2376,30 @@ function render(alpha = 1): void {
   const uiWidth = renderer.cssWidth / uiScale;
   const uiHeight = renderer.cssHeight / uiScale;
   const uiContext = renderer.beginUi(uiScale);
-  const merchant = targetMerchant(snapshot);
-  const campfire = targetCampfire(snapshot);
-  const portal = targetPortal(snapshot);
-  const horse = targetHorse(snapshot);
-  const riding = localMount(snapshot);
-  const pickup = targetWorldItem(snapshot);
-  const gatherable = targetGatherableResource(snapshot);
-  const chest = targetChest(snapshot);
+  const interaction = targetInteraction(snapshot);
   const handsChest = carriedChest(snapshot);
-  const farmSoil = farmTarget === null ? undefined : snapshot.soil.get(farmSoilKey(farmTarget.tileX, farmTarget.tileY));
+  const groundLantern = targetGroundLantern(snapshot);
+  const selectedLantern = selectedItemRow(snapshot);
+  const farmSoil = farmTarget === null ? undefined
+    : snapshot.soil.get(farmSoilKey(farmTarget.tileX, farmTarget.tileY));
   const farmPrompt = farmTarget === null ? null
     : farmItem === 'hoe' ? (farmSoil === undefined ? '[F] TILL SOIL' : '[RIGHT CLICK] RESTORE GRASS')
       : farmSoil === undefined ? 'TILL SOIL BEFORE WATERING'
         : farmSoil.watered ? 'SOIL ALREADY WATERED' : '[F] WATER SOIL';
-  const prompt = debugEntitiesHidden || npcInteractionUi.active ? null : portal !== null
-    ? '[E] USE PORTAL'
-    : handsChest !== null
+  const basePrompt = debugEntitiesHidden || npcInteractionUi.active ? null : handsChest !== null
     ? '[F] PLACE CHEST'
     : selectedItem(snapshot) === 'chest'
       ? '[F] PLACE CHEST'
-      : campfire !== null
-        ? '[E] COOK AT CAMPFIRE'
-      : merchant !== null
-        ? `[E] TALK TO ${merchant.displayName.toUpperCase()}`
-      : riding !== null
-    ? `[E] DISMOUNT ${horseLabel(riding).toUpperCase()}`
-    : horse !== null
-      ? `[E] RIDE ${horseLabel(horse).toUpperCase()}`
-      : chest !== null ? selectedItem(snapshot) === 'axe'
-        ? '[E] OPEN CHEST  [F] BREAK WITH AXE'
-        : '[E] OPEN CHEST  [F] PICK UP'
-        : gatherable !== null
-          ? `[E] PICK UP ${gatherable.kind === 'loose_stone' ? 'STONE' : 'FALLEN BRANCH'}`
-          : pickup === null ? farmPrompt : `[E] PICK UP ${hotbarItemLabel(pickup.itemKind)} x${pickup.quantity}`;
+      : interaction === null ? farmPrompt : interactionPrompt(interaction, snapshot);
+  const lanternPrompt = groundLantern !== null
+    ? `[F] TURN ${groundLantern.lit ? 'OFF' : 'ON'} LANTERN`
+    : selectedLantern?.itemKind === 'lantern'
+      ? `[F] TURN ${selectedLantern.lit ? 'OFF' : 'ON'} LANTERN`
+      : null;
+  const prompt = lanternPrompt === null
+    || (interaction?.kind === 'world_item' && interaction.item.itemKind === 'lantern')
+    ? basePrompt
+    : basePrompt === null ? lanternPrompt : `${basePrompt}  ${lanternPrompt}`;
   const authorityTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
   const calendar = calendarAtTick(Number(authorityTick) * SIM_STEPS_PER_AUTHORITY_TICK);
   const weatherMode = worldWeatherMode();
@@ -1948,6 +2435,12 @@ function render(alpha = 1): void {
     height: uiHeight,
     connected: snapshot.connected,
     playerCount: onlinePlayers.length,
+    zoneName: activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
+      ? 'Overworld'
+      : activeSpaceDefinition.name
+        .split('_')
+        .map((part) => part.length > 0 ? `${part[0]!.toUpperCase()}${part.slice(1)}` : part)
+        .join(' '),
     selectedSlot: optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0,
     balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
     inventory: [...snapshot.inventorySlots],
@@ -1963,8 +2456,12 @@ function render(alpha = 1): void {
     openPlaceableInventory: [...snapshot.openPlaceableSlots],
     hasBackpack: [...snapshot.inventorySlots].some((slot) => slot.itemKind === 'backpack'),
     audioVolumes: audio.getSettings(),
+    audioBackground: {
+      music: audio.getSettings().musicInBackground,
+      sounds: audio.getSettings().soundsInBackground,
+    },
     canAdministerWorld: snapshot.membership?.role === 'owner',
-    dateLabel: `${calendar.season.toUpperCase()} ${calendar.dayOfSeason} Y${calendar.year}`,
+    dateLabel: `${calendar.season.toUpperCase()} ${calendar.dayOfSeason}`,
     timeLabel: formatDayTime(simTickOfDayAtAuthorityTick(authorityTick), TICKS_PER_DAY),
     timeFraction: authorityDayProgress(authorityTick),
     moonPhase: lunarPhaseAtAuthorityTick(authorityTick),
@@ -1975,6 +2472,7 @@ function render(alpha = 1): void {
     windDirectionLabel: windDirectionLabel(renderWeather.windDirectionX, renderWeather.windDirectionY),
     prompt,
     toast: toastTicks > 0 ? toast.slice(0, 42) : null,
+    toastKind,
     nearbyCraftingStations: nearbyCraftingStations(snapshot),
   });
   npcInteractionUi.update(snapshot.activeDialogue === null ? null : {
@@ -2003,8 +2501,16 @@ function render(alpha = 1): void {
         body: snapshot.motd,
         itemLinksJson: '[]',
       }]),
+      ...[...snapshot.sessionChatNotices].map((notice) => ({
+        id: chatTimelineId(notice.issuedAt.microsSinceUnixEpoch, notice.id, 1n),
+        channelName: 'World',
+        senderDisplayName: 'World',
+        kind: 'system',
+        body: notice.body,
+        itemLinksJson: '[]',
+      })),
       ...[...snapshot.chatMessages].map((message) => ({
-        id: message.id,
+        id: chatTimelineId(message.sentAt.microsSinceUnixEpoch, message.id, 0n),
         channelName: channelNames.get(message.channelId) ?? (message.kind === 'whisper' ? 'Whisper' : 'Channel'),
         senderDisplayName: message.kind === 'whisper'
           && message.sender.toHexString() === snapshot.identityHex
@@ -2104,6 +2610,7 @@ function render(alpha = 1): void {
     uiContext.restore();
   }
   renderer.endUi();
+  if (loadingStage.ready === true) dismissLoadingScreen();
   renderMetrics.record(performance.now() - renderStarted, drawCalls);
 }
 
@@ -2122,11 +2629,9 @@ function pointerCanvasPosition(event: MouseEvent): readonly [number, number] {
 
 function showResult(promise: Promise<void>, success: string): void {
   void promise.then(() => {
-    toast = success;
-    toastTicks = 120;
+    setToast(success, 'success');
   }).catch((error: unknown) => {
-    toast = error instanceof Error ? error.message : String(error);
-    toastTicks = 120;
+    setFailureToast(error);
   });
 }
 
@@ -2140,8 +2645,7 @@ function selectSlotOptimistically(slot: number): void {
     if (latestSnapshot.survival?.selectedSlot === slot) optimisticSelectedSlot = null;
   }).catch((error: unknown) => {
     optimisticSelectedSlot = null;
-    toast = error instanceof Error ? error.message : String(error);
-    toastTicks = 120;
+    setFailureToast(error);
   });
 }
 
@@ -2161,17 +2665,18 @@ function releaseBowShot(): void {
   if (length < 0.001) return;
   const aimX = Math.round(aim.x / length * BOW_AIM_SCALE);
   const aimY = Math.round(aim.y / length * BOW_AIM_SCALE);
-  startPredictedAction('ranged_weapon', 450);
-  void audio.unlock().then(async () => await audio.playSfx('tool_swing')).catch(() => undefined);
   performToolAction(
     () => network.fireBow(aimX, aimY, chargeMs),
     'ARROW LOOSED',
     'bow',
+    false,
+    450,
   );
 }
 
 window.addEventListener('resize', resize);
 window.addEventListener('keydown', (event) => {
+  void audio.unlock().catch(() => undefined);
   if (characterNamePrompt.handleGlobalKeyDown()) {
     event.preventDefault();
     return;
@@ -2199,8 +2704,7 @@ window.addEventListener('keydown', (event) => {
   }
   if (isNameplateToggle(event.code, event.repeat)) {
     setNameplatesVisible(!nameplatesVisible);
-    toast = nameplatesVisible ? 'NAMEPLATES ON' : 'NAMEPLATES OFF';
-    toastTicks = 90;
+    setToast(nameplatesVisible ? 'NAMEPLATES ON' : 'NAMEPLATES OFF', 'info', 90);
     event.preventDefault();
     return;
   }
@@ -2234,19 +2738,17 @@ window.addEventListener('keydown', (event) => {
   }
   if (event.code === 'KeyG' && !event.repeat) {
     debugCollision = !debugCollision;
-    toast = debugCollision
+    setToast(debugCollision
       ? 'COLLISION: CYAN PLAYER / RED TERRAIN / AMBER RESOURCE / PURPLE TOOL RANGE'
-      : 'COLLISION OVERLAY OFF';
-    toastTicks = 180;
+      : 'COLLISION OVERLAY OFF', 'info', 180);
     event.preventDefault();
     return;
   }
   if (event.code === 'KeyH' && !event.repeat) {
     debugEntitiesHidden = !debugEntitiesHidden;
-    toast = debugEntitiesHidden
+    setToast(debugEntitiesHidden
       ? 'ENTITY ART HIDDEN: TERRAIN-ONLY DEBUG'
-      : 'ENTITY ART VISIBLE';
-    toastTicks = 180;
+      : 'ENTITY ART VISIBLE', 'info', 180);
     event.preventDefault();
     return;
   }
@@ -2262,15 +2764,40 @@ window.addEventListener('keydown', (event) => {
   }
   if (event.code === 'KeyF' && !event.repeat) {
     const snapshot = latestSnapshot;
+    const groundLantern = targetGroundLantern(snapshot);
+    if (groundLantern !== null) {
+      showResult(
+        network.toggleWorldLantern(groundLantern.id),
+        groundLantern.lit ? 'LANTERN TURNED OFF' : 'LANTERN TURNED ON',
+      );
+      event.preventDefault();
+      return;
+    }
+    const campfire = targetCampfire(snapshot);
+    if (campfire !== null) {
+      showResult(
+        network.toggleCampfire(campfire.targetKind, campfire.id),
+        campfire.lit ? 'CAMPFIRE EXTINGUISHED' : 'CAMPFIRE LIT',
+      );
+      event.preventDefault();
+      return;
+    }
+    if (selectedItem(snapshot) === 'lantern') {
+      const selectedLantern = selectedItemRow(snapshot);
+      showResult(
+        network.toggleHeldLantern(),
+        selectedLantern?.lit === false ? 'LANTERN TURNED ON' : 'LANTERN TURNED OFF',
+      );
+      event.preventDefault();
+      return;
+    }
     const chest = targetChest(snapshot);
     if (chest !== null && selectedItem(snapshot) === 'axe') {
-      startPredictedAction('swing_axe');
-      void audio.unlock().then(async () => await audio.playSfx('tool_swing')).catch(() => undefined);
       performToolAction(() => network.harvestChest(chest.id), 'CHEST STRUCK', 'axe');
       event.preventDefault();
       return;
     }
-    if (carriedChest(snapshot) !== null || targetChest(snapshot) !== null || selectedItem(snapshot) === 'chest') {
+    if (carriedChest(snapshot) !== null || targetFacedChest(snapshot) !== null || selectedItem(snapshot) === 'chest') {
       const placing = carriedChest(snapshot) !== null || selectedItem(snapshot) === 'chest';
       const tile = placing ? targetInteractionTile() : facedInteractionTile(
         predicted?.position.x ?? 0,
@@ -2278,11 +2805,9 @@ window.addEventListener('keydown', (event) => {
         predicted?.facing ?? 'down',
       );
       if (tile === null) {
-        toast = 'NO PLACEMENT TILE TARGETED';
-        toastTicks = 90;
+        setToast('NO PLACEMENT TILE TARGETED', 'failure', 90);
       } else if (placing && placementTileBlocked(snapshot, tile)) {
-        toast = 'CHEST CANNOT BE PLACED THERE';
-        toastTicks = 90;
+        setToast('CHEST CANNOT BE PLACED THERE', 'failure', 90);
       } else {
         showResult(network.useHands(tile.tileX, tile.tileY), placing ? 'CHEST PLACED' : 'CHEST PICKED UP');
       }
@@ -2299,11 +2824,9 @@ window.addEventListener('keydown', (event) => {
         predicted?.facing ?? 'down',
       );
       if (tile === null) {
-        toast = 'NO PLACEMENT TILE TARGETED';
-        toastTicks = 90;
+        setToast('NO PLACEMENT TILE TARGETED', 'failure', 90);
       } else if (placing && placementTileBlocked(snapshot, tile)) {
-        toast = 'PLACEMENT BLOCKED';
-        toastTicks = 90;
+        setToast('PLACEMENT BLOCKED', 'failure', 90);
       } else {
         showResult(
           network.useHands(tile.tileX, tile.tileY),
@@ -2320,43 +2843,32 @@ window.addEventListener('keydown', (event) => {
       return;
     }
     if (item === 'bow') {
-      toast = 'HOLD LEFT MOUSE TO DRAW THE BOW';
-      toastTicks = 120;
+      setToast('HOLD LEFT MOUSE TO DRAW THE BOW');
       event.preventDefault();
       return;
     }
     if (localMount(snapshot) !== null) {
-      toast = 'TOOLS CANNOT BE USED WHILE RIDING';
-      toastTicks = 120;
+      setToast('TOOLS CANNOT BE USED WHILE RIDING', 'failure');
       event.preventDefault();
       return;
     }
     const actionKind = avatarActionForEquippedKind(item);
     if (actionKind === null) {
-      toast = `NO ${hotbarItemLabel(item)} USE ACTION YET`;
-      toastTicks = 120;
+      setToast(`NO ${hotbarItemLabel(item)} USE ACTION YET`, 'failure');
     } else {
-      startPredictedAction(actionKind);
-      void audio.unlock().then(async () => await audio.playSfx('tool_swing')).catch(() => undefined);
       if (item === 'hoe' || item === 'watering_can') {
         const tile = targetFarmTile();
         if (tile === null) {
-          toast = 'NO FARM TILE TARGETED';
-          toastTicks = 90;
+          setToast('NO FARM TILE TARGETED', 'failure', 90);
         } else {
-          performToolAction(
-            () => network.useFarmTool(tile.tileX, tile.tileY),
-            item === 'hoe' ? 'SOIL TILLED' : 'SOIL WATERED',
-            item,
-          );
+          performFarmToolAction(tile, item);
         }
         event.preventDefault();
         return;
       }
       const resource = targetResource(snapshot);
       if (!isVitalsTool(item)) {
-        toast = 'THIS TOOL IS NOT READY FOR WORLD USE';
-        toastTicks = 90;
+        setToast('THIS TOOL IS NOT READY FOR WORLD USE', 'failure', 90);
       } else if (resource === null) {
         performToolAction(() => network.harvestResource(0n), 'SWING', item, true);
       } else {
@@ -2379,76 +2891,14 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyE' && !event.repeat) {
-    const portal = targetPortal(latestSnapshot);
-    if (portal !== null) {
-      portalTransitionStartedAtMs = performance.now();
-      showResult(network.usePortal(portal.id), 'PORTAL TRANSIT');
-      event.preventDefault();
-      return;
-    }
-    const placeable = targetPlaceable(latestSnapshot);
-    if (placeable?.kind === 'fence_gate') {
-      showResult(network.interactPlaceable(), placeable.open ? 'GATE CLOSED' : 'GATE OPENED');
-      event.preventDefault();
-      return;
-    }
-    if (placeable?.kind === 'barrel') {
-      showResult(network.interactPlaceable(), 'BARREL OPENED');
-      event.preventDefault();
-      return;
-    }
-    if (targetCampfire(latestSnapshot) !== null) {
-      overworldUi.openWindow = 'cooking';
-      event.preventDefault();
-      return;
-    }
-    const merchant = targetMerchant(latestSnapshot);
-    if (merchant !== null) {
-      overworldUi.openWindow = null;
-      showResult(network.interactNpc(merchant.id), `TALKING TO ${merchant.displayName.toUpperCase()}`);
-      event.preventDefault();
-      return;
-    }
-    const horse = targetHorse(latestSnapshot);
-    if (horse !== null) {
-      const dismounting = localMount(latestSnapshot) !== null;
-      showResult(
-        network.interactHorse(horse.id),
-        dismounting ? `DISMOUNTED ${horseLabel(horse).toUpperCase()}` : `RIDING ${horseLabel(horse).toUpperCase()}`,
-      );
-      event.preventDefault();
-      return;
-    }
-    if (targetChest(latestSnapshot) !== null) {
-      showResult(network.interactChest(), 'CHEST OPENED');
-      event.preventDefault();
-      return;
-    }
-    const gatherable = targetGatherableResource(latestSnapshot);
-    if (gatherable !== null) {
-      startPredictedAction('pickup');
-      showResult(
-        network.gatherWorldResource(gatherable.id),
-        gatherable.kind === 'loose_stone' ? 'PICKED UP STONE' : 'PICKED UP WOOD',
-      );
-      event.preventDefault();
-      return;
-    }
-    startPredictedAction('pickup');
-    const item = targetWorldItem(latestSnapshot);
-    if (item === null) {
-      toast = 'NOTHING TO PICK UP';
-      toastTicks = 90;
-    } else {
-      showResult(network.pickupWorldItem(item.id), `PICKED UP ${hotbarItemLabel(item.itemKind)} x${item.quantity}`);
-    }
+    const interaction = targetInteraction(latestSnapshot);
+    if (interaction !== null) activateInteraction(interaction, latestSnapshot);
     event.preventDefault();
     return;
   }
   if (event.code === 'KeyQ' && !event.repeat) {
     if (localMount(latestSnapshot) !== null) {
-      toast = 'ITEMS CANNOT BE DROPPED WHILE RIDING';
-      toastTicks = 120;
+      setToast('ITEMS CANNOT BE DROPPED WHILE RIDING', 'failure');
       event.preventDefault();
       return;
     }
@@ -2492,6 +2942,7 @@ canvas.addEventListener('pointerleave', () => {
   overworldUi.pointerLeave();
 });
 canvas.addEventListener('pointerdown', (event) => {
+  void audio.unlock().catch(() => undefined);
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   worldPointer = { x: canvasX, y: canvasY };
   refreshHoveredInteractionTile();
@@ -2535,6 +2986,10 @@ canvas.addEventListener('pointerdown', (event) => {
   if (event.button === 0 && selectedItem(latestSnapshot) === 'bow'
     && carriedChest(latestSnapshot) === null
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
+    if (!toolActionHasEnoughVigour('bow')) {
+      event.preventDefault();
+      return;
+    }
     bowChargeStartedAtMs = performance.now();
     bowChargePointerId = event.pointerId;
     startPredictedAction('ranged_weapon');
@@ -2548,26 +3003,14 @@ canvas.addEventListener('pointerdown', (event) => {
     && latestSnapshot.soil.get(farmSoilKey(farmTarget.tileX, farmTarget.tileY)) !== undefined;
   if (restoringFarmTile && localMount(latestSnapshot) === null
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
-    startPredictedAction('swing_hoe');
-    void audio.unlock().then(async () => await audio.playSfx('tool_swing')).catch(() => undefined);
-    performToolAction(
-      () => network.restoreFarmTile(farmTarget.tileX, farmTarget.tileY),
-      'GRASS RESTORED',
-      'hoe',
-    );
+    performFarmToolAction(farmTarget, 'hoe', true);
     event.preventDefault();
     return;
   }
   if (event.button === 0 && (farmItem === 'hoe' || farmItem === 'watering_can')
     && farmTarget !== null && localMount(latestSnapshot) === null
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
-    startPredictedAction(avatarActionForEquippedKind(farmItem) ?? 'none');
-    void audio.unlock().then(async () => await audio.playSfx('tool_swing')).catch(() => undefined);
-    performToolAction(
-      () => network.useFarmTool(farmTarget.tileX, farmTarget.tileY),
-      farmItem === 'hoe' ? 'SOIL TILLED' : 'SOIL WATERED',
-      farmItem,
-    );
+    performFarmToolAction(farmTarget, farmItem);
     event.preventDefault();
   }
 });

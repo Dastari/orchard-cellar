@@ -12,6 +12,7 @@ import {
   mountedHorseFacing,
   npcFacingForDirection,
   stepWanderingNpc,
+  stepNpcTowardPoint,
   type WanderingNpcState,
 } from './npc.js';
 
@@ -54,6 +55,15 @@ describe('server-authoritative wandering NPCs', () => {
     expect(stepped.position).toEqual(initial.position);
     expect(stepped.moving).toBe(false);
     expect(stepped.nextDecisionTick).toBe(9);
+  });
+
+  it('can temporarily walk toward an interaction and stops within reach', () => {
+    const target = { x: home.x + 4 * TILE_SIZE_FIXED, y: home.y };
+    const walking = stepNpcTowardPoint(initial, target, 1, open, TILE_SIZE_FIXED);
+    expect(walking.position.x).toBeGreaterThan(initial.position.x);
+    expect(walking.facing).toBe('right');
+    const arrived = stepNpcTowardPoint({ ...initial, position: { x: target.x - TILE_SIZE_FIXED, y: target.y } }, target, 2, open, TILE_SIZE_FIXED);
+    expect(arrived.moving).toBe(false);
   });
 });
 

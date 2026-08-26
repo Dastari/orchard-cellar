@@ -10,7 +10,7 @@ import {
   SURVIVAL_WORLD_SIZE,
   type SurvivalBiome,
 } from './survival-world.js';
-import { authorityDayProgress } from './time.js';
+import { authorityDayProgress, dayProgressAtClockTime } from './time.js';
 import {
   FIXED_UNITS_PER_PIXEL,
   TILE_SIZE_FIXED,
@@ -446,7 +446,7 @@ function insideLeash(position: Vec2Fixed, home: Vec2Fixed, radius: number): bool
 export function wildlifeSleepingAtTick(species: WildlifeSpecies, calendarTick: bigint): boolean {
   if (!WILDLIFE_DEFINITIONS[species].sleepsAtNight) return false;
   const progress = authorityDayProgress(calendarTick);
-  return progress < 0.08 || progress > 0.82;
+  return progress < dayProgressAtClockTime(7, 36) || progress > dayProgressAtClockTime(22, 24);
 }
 
 export function wildlifeActivityNearPlayers(
@@ -614,5 +614,5 @@ export function stepAmbientWildlife(
 
 export function hiveProducesHoneyAtTick(calendarTick: bigint): boolean {
   const progress = authorityDayProgress(calendarTick);
-  return progress >= 0.12 && progress <= 0.72;
+  return progress >= dayProgressAtClockTime(8, 24) && progress <= dayProgressAtClockTime(20, 24);
 }

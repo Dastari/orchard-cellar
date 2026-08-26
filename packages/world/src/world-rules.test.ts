@@ -102,31 +102,57 @@ describe('overworld authority rules', () => {
   });
 
   it('settles taps between authority ticks and caps conflicting backlog', () => {
-    expect(settleMovementRun('right', 10n, 12n, 'idle', 0)).toEqual({
+    expect(settleMovementRun('right', false, 10n, 12n, 'idle', 0)).toEqual({
       pendingDirection: 'right', pendingSteps: 2, rejectedSteps: 0n,
     });
-    expect(settleMovementRun('idle', 10n, 12n, 'idle', 0)).toEqual({
+    expect(settleMovementRun('idle', false, 10n, 12n, 'idle', 0)).toEqual({
       pendingDirection: 'idle', pendingSteps: 0, rejectedSteps: 0n,
     });
-    expect(settleMovementRun('left', 0n, 40n, 'right', 4)).toEqual({
+    expect(settleMovementRun('left', false, 0n, 40n, 'right', 4)).toEqual({
       pendingDirection: 'right:4|left:20', pendingSteps: 24, rejectedSteps: 20n,
     });
-    expect(settleMovementRun('right', 0n, 40n, 'right', 4)).toEqual({
+    expect(settleMovementRun('right', false, 0n, 40n, 'right', 4)).toEqual({
       pendingDirection: 'right', pendingSteps: 24, rejectedSteps: 20n,
     });
   });
 
   it('drains compressed direction transitions in original run order', () => {
     expect(drainMovementRunQueue('right:4|up:6', 10, 6)).toEqual({
-      directions: ['right', 'right', 'right', 'right', 'up', 'up'],
+      intents: [
+        { direction: 'right', sprinting: false },
+        { direction: 'right', sprinting: false },
+        { direction: 'right', sprinting: false },
+        { direction: 'right', sprinting: false },
+        { direction: 'up', sprinting: false },
+        { direction: 'up', sprinting: false },
+      ],
       pendingDirection: 'up',
       pendingSteps: 4,
     });
     expect(drainMovementRunQueue('up', 4, 6)).toEqual({
-      directions: ['up', 'up', 'up', 'up'],
+      intents: [
+        { direction: 'up', sprinting: false },
+        { direction: 'up', sprinting: false },
+        { direction: 'up', sprinting: false },
+        { direction: 'up', sprinting: false },
+      ],
       pendingDirection: 'idle',
       pendingSteps: 0,
     });
+  });
+
+  it('preserves sprint state across compressed movement transitions', () => {
+    expect(settleMovementRun('right', true, 10n, 13n, 'idle', 0)).toEqual({
+      pendingDirection: 'right!:3', pendingSteps: 3, rejectedSteps: 0n,
+    });
+    expect(settleMovementRun('right', false, 13n, 16n, 'right!:3', 3)).toEqual({
+      pendingDirection: 'right!:3|right:3', pendingSteps: 6, rejectedSteps: 0n,
+    });
+    expect(drainMovementRunQueue('right!:2|up:1', 3, 3).intents).toEqual([
+      { direction: 'right', sprinting: true },
+      { direction: 'right', sprinting: true },
+      { direction: 'up', sprinting: false },
+    ]);
   });
 
   it('does not acknowledge a transition until its entire catch-up queue drains', () => {
@@ -268,8 +294,8 @@ describe('overworld authority rules', () => {
     const treeBounds = survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY);
     const treeAlignedY = Math.floor((treeBounds.top + treeBounds.bottom) / 2)
       + PLAYER_HITBOX_FOOT_OFFSET + (PLAYER_HITBOX_TOP / 2);
-    expect(resourceHarvestResult(treeBounds.right + 3 * TILE_SIZE_FIXED, treeAlignedY, 'axe', { ...resource, depleted: false })).toBe('ok');
-    expect(resourceHarvestResult(treeBounds.right + 3 * TILE_SIZE_FIXED + 1, treeAlignedY, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
+    expect(resourceHarvestResult(treeBounds.right + 2 * TILE_SIZE_FIXED, treeAlignedY, 'axe', { ...resource, depleted: false })).toBe('ok');
+    expect(resourceHarvestResult(treeBounds.right + 2 * TILE_SIZE_FIXED + 1, treeAlignedY, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
     const rockBounds = survivalResourceObstacle('rock_large', resource.tileX, resource.tileY);
     const rockAlignedY = Math.floor((rockBounds.top + rockBounds.bottom) / 2)
       + PLAYER_HITBOX_FOOT_OFFSET + (PLAYER_HITBOX_TOP / 2);

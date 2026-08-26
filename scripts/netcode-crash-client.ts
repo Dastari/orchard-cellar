@@ -18,6 +18,7 @@ await client.connection.reducers.setInput({
   direction: 'right',
   sequence: row.lastProcessedSequence + 1n,
   clientTick: 0n,
+  sprinting: false,
 });
 const startedX = row.x;
 await new Promise<void>((resolve, reject) => {

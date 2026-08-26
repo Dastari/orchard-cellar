@@ -4,7 +4,12 @@ import {
   localProfilesEnabled,
   oidcConfigured,
 } from './auth/oidc.js';
+import { setLoadingScreenStage } from './loading-screen.js';
 import './style.css';
+
+setLoadingScreenStage({
+  title: 'OPENING THE ORCHARD', detail: 'CHECKING YOUR ACCOUNT', progress: 12,
+});
 
 function isCanvasInput(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement && target.classList.contains('canvas-input');
@@ -31,21 +36,49 @@ const loggingOut = parameters.has('logout');
 const accountMenuRequested = parameters.has('menu');
 const oidcCallback = hasOidcCallback();
 const localDevelopmentSession = localProfilesEnabled && parameters.has('slot');
-const authenticatedSession = !loggingOut
-  && !accountMenuRequested
-  && !oidcCallback
-  && oidcConfigured
-  && await ensureOidcSession() !== null;
+const authenticatedSession = await (async (): Promise<boolean> => {
+  try {
+    return !loggingOut
+      && !accountMenuRequested
+      && !oidcCallback
+      && oidcConfigured
+      && await ensureOidcSession() !== null;
+  } catch (error: unknown) {
+    setLoadingScreenStage({
+      title: 'THE GATE WOULD NOT OPEN',
+      detail: 'CHECK YOUR CONNECTION AND REFRESH TO TRY AGAIN',
+      progress: 100,
+      error: true,
+    });
+    throw error;
+  }
+})();
 
-if (localDevelopmentSession || authenticatedSession) {
-  document.title = 'Orchard & Cellar — Shared Overworld';
-  const canvas = document.querySelector<HTMLCanvasElement>('#game');
-  canvas?.classList.add('custom-cursor');
-  canvas?.setAttribute('aria-label', 'Orchard and Cellar shared overworld');
-  const textInput = document.querySelector<HTMLInputElement>('#account-name');
-  textInput?.setAttribute('aria-label', 'General chat message');
-  await import('./overworld-main.js');
-} else {
-  document.title = 'Orchard & Cellar — Account';
-  await import('./account-main.js');
+try {
+  if (localDevelopmentSession || authenticatedSession) {
+    document.title = 'Orchard & Cellar — Shared Overworld';
+    setLoadingScreenStage({
+      title: 'PACKING YOUR WAGON', detail: 'PREPARING THE WORLD CLIENT', progress: 24,
+    });
+    const canvas = document.querySelector<HTMLCanvasElement>('#game');
+    canvas?.classList.add('custom-cursor');
+    canvas?.setAttribute('aria-label', 'Orchard and Cellar shared overworld');
+    const textInput = document.querySelector<HTMLInputElement>('#account-name');
+    textInput?.setAttribute('aria-label', 'General chat message');
+    await import('./overworld-main.js');
+  } else {
+    document.title = 'Orchard & Cellar — Account';
+    setLoadingScreenStage({
+      title: 'OPENING THE ORCHARD', detail: 'PREPARING THE ACCOUNT DESK', progress: 32,
+    });
+    await import('./account-main.js');
+  }
+} catch (error: unknown) {
+  setLoadingScreenStage({
+    title: 'SOMETHING WENT ASTRAY',
+    detail: 'REFRESH THE PAGE TO TRY THE JOURNEY AGAIN',
+    progress: 100,
+    error: true,
+  });
+  throw error;
 }

@@ -1,6 +1,7 @@
 import {
   AUTHORITY_HZ,
   FIXED_UNITS_PER_PIXEL,
+  ITEM_PICKUP_REACH_FIXED,
   SIM_STEPS_PER_AUTHORITY_TICK,
   SIM_TICKS_PER_SECOND,
   SURVIVAL_WORLD_SEED,
@@ -9,11 +10,14 @@ import {
   TILE_INTERACTION_REACH_FIXED,
   TOPSIDE_SPACE_ID,
   createSurvivalCollisionMap,
-  isChoppableTreeKind,
+  isAxeHarvestableResourceKind,
   isBreakableRockKind,
   isGatherableResourceKind,
   isMineableOreKind,
+  growthProgressForElapsedTicks,
+  growthStageIndexForProgress,
   resourceToolReachFixed,
+  resourceToolForwardOffsetFixed,
   survivalBiomeAt,
   survivalGatherableDrop,
   survivalResourceBlocksMovement,
@@ -32,9 +36,17 @@ export const CHUNK_TILES = 16;
 export const CHUNK_SIZE_FIXED = CHUNK_TILES * TILE_SIZE_FIXED;
 export const TREE_REACH_FIXED = 2 * TILE_SIZE_FIXED;
 export const FARM_TOOL_REACH_FIXED = TILE_INTERACTION_REACH_FIXED;
-export const ITEM_PICKUP_REACH_FIXED = 24 * FIXED_UNITS_PER_PIXEL;
+export { ITEM_PICKUP_REACH_FIXED };
 export const TREE_TEND_COOLDOWN_TICKS = 20n;
 export const CROP_GROWTH_TICKS = 200n;
+const LEGACY_CROP_GROWTH_PROFILE = {
+  maxProgress: Number(CROP_GROWTH_TICKS),
+  stageThresholds: [
+    Number(CROP_GROWTH_TICKS / 3n),
+    Number(CROP_GROWTH_TICKS * 2n / 3n),
+    Number(CROP_GROWTH_TICKS),
+  ],
+} as const;
 export const FARM_COLUMNS = 5;
 export const FARM_ROWS = 5;
 export const FARM_WIDTH_TILES = 14;
@@ -235,7 +247,7 @@ export function resourceHarvestResult(
   resource: { readonly kind: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean },
 ): 'ok' | 'depleted' | 'wrong_tool' | 'out_of_range' {
   if (resource.depleted) return 'depleted';
-  const matchingTool = (isChoppableTreeKind(resource.kind) && selectedItem === 'axe')
+  const matchingTool = (isAxeHarvestableResourceKind(resource.kind) && selectedItem === 'axe')
     || ((isMineableOreKind(resource.kind) || isBreakableRockKind(resource.kind)) && selectedItem === 'pickaxe');
   if (!matchingTool) return 'wrong_tool';
   const targetVector = survivalResourceTargetVector(
@@ -247,8 +259,12 @@ export function resourceHarvestResult(
   );
   const dx = targetVector.x;
   const dy = targetVector.y;
+  const targetLength = Math.hypot(dx, dy);
+  const forwardOffset = resourceToolForwardOffsetFixed(selectedItem);
+  const areaDx = targetLength > 0 ? dx - dx / targetLength * forwardOffset : dx;
+  const areaDy = targetLength > 0 ? dy - dy / targetLength * forwardOffset : dy;
   const reachFixed = resourceToolReachFixed(selectedItem);
-  if (dx * dx + dy * dy > reachFixed * reachFixed) return 'out_of_range';
+  if (areaDx * areaDx + areaDy * areaDy > reachFixed * reachFixed) return 'out_of_range';
   return 'ok';
 }
 
@@ -398,11 +414,10 @@ export function canUseFarmTile(playerX: number, playerY: number, tileX: number, 
 }
 
 export function cropStage(wateredAtTick: bigint, authorityTick: bigint): 0 | 1 | 2 | 3 {
-  const elapsed = authorityTick - wateredAtTick;
-  if (elapsed >= CROP_GROWTH_TICKS) return 3;
-  if (elapsed >= CROP_GROWTH_TICKS * 2n / 3n) return 2;
-  if (elapsed >= CROP_GROWTH_TICKS / 3n) return 1;
-  return 0;
+  const elapsed = authorityTick > wateredAtTick ? authorityTick - wateredAtTick : 0n;
+  const progress = growthProgressForElapsedTicks(0, elapsed, 1, LEGACY_CROP_GROWTH_PROFILE);
+  const stage = growthStageIndexForProgress(LEGACY_CROP_GROWTH_PROFILE, progress);
+  return stage === null ? 0 : Math.min(3, stage + 1) as 1 | 2 | 3;
 }
 
 export function chunkAt(position: number): number {
@@ -443,6 +458,7 @@ export interface SettledMovementRun {
 
 interface MovementRunSegment {
   readonly direction: Direction;
+  readonly sprinting: boolean;
   readonly steps: number;
 }
 
@@ -450,27 +466,39 @@ function decodeMovementRunQueue(value: string, totalSteps: number): MovementRunS
   if (totalSteps <= 0) return [];
   if (!value.includes(':')) {
     const direction = decodeDirection(value);
-    return direction === undefined || direction === null ? [] : [{ direction, steps: totalSteps }];
+    return direction === undefined || direction === null
+      ? []
+      : [{ direction, sprinting: false, steps: totalSteps }];
   }
   const segments: MovementRunSegment[] = [];
   for (const token of value.split('|')) {
     const [rawDirection, rawSteps] = token.split(':');
-    const direction = decodeDirection(rawDirection ?? '');
+    const sprinting = rawDirection?.endsWith('!') === true;
+    const direction = decodeDirection(sprinting ? rawDirection.slice(0, -1) : rawDirection ?? '');
     const steps = Number(rawSteps);
     if (direction === undefined || direction === null || !Number.isSafeInteger(steps) || steps <= 0) continue;
-    segments.push({ direction, steps });
+    segments.push({ direction, sprinting, steps });
   }
   return segments;
 }
 
 function encodeMovementRunQueue(segments: readonly MovementRunSegment[]): string {
   if (segments.length === 0) return 'idle';
-  if (segments.length === 1) return segments[0]?.direction ?? 'idle';
-  return segments.map((segment) => `${segment.direction}:${segment.steps}`).join('|');
+  if (segments.length === 1 && segments[0]?.sprinting === false) {
+    return segments[0].direction;
+  }
+  return segments.map((segment) => (
+    `${segment.direction}${segment.sprinting ? '!' : ''}:${segment.steps}`
+  )).join('|');
+}
+
+export interface MovementRunStep {
+  readonly direction: Direction;
+  readonly sprinting: boolean;
 }
 
 export interface DrainedMovementRunQueue {
-  readonly directions: readonly Direction[];
+  readonly intents: readonly MovementRunStep[];
   readonly pendingDirection: string;
   readonly pendingSteps: number;
 }
@@ -481,20 +509,22 @@ export function drainMovementRunQueue(
   maximumSteps: number,
 ): DrainedMovementRunQueue {
   const segments = decodeMovementRunQueue(pendingDirection, pendingSteps);
-  const directions: Direction[] = [];
+  const intents: MovementRunStep[] = [];
   let remainingDrain = Math.max(0, Math.min(pendingSteps, maximumSteps));
   while (remainingDrain > 0 && segments.length > 0) {
     const segment = segments[0];
     if (segment === undefined) break;
     const taken = Math.min(segment.steps, remainingDrain);
-    for (let step = 0; step < taken; step += 1) directions.push(segment.direction);
+    for (let step = 0; step < taken; step += 1) {
+      intents.push({ direction: segment.direction, sprinting: segment.sprinting });
+    }
     remainingDrain -= taken;
     if (taken === segment.steps) segments.shift();
     else segments[0] = { ...segment, steps: segment.steps - taken };
   }
   const nextSteps = segments.reduce((sum, segment) => sum + segment.steps, 0);
   return {
-    directions,
+    intents,
     pendingDirection: encodeMovementRunQueue(segments),
     pendingSteps: nextSteps,
   };
@@ -527,6 +557,7 @@ export function drainMovementAcknowledgement(
 
 export function settleMovementRun(
   direction: string,
+  sprinting: boolean,
   runStartClientTick: bigint,
   closingClientTick: bigint,
   existingPendingDirection: string,
@@ -549,10 +580,14 @@ export function settleMovementRun(
   const segments = decodeMovementRunQueue(existingPendingDirection, existingPendingSteps);
   if (accepted > 0n && decodedDirection !== undefined && decodedDirection !== null) {
     const previous = segments[segments.length - 1];
-    if (previous?.direction === decodedDirection) {
-      segments[segments.length - 1] = { direction: decodedDirection, steps: previous.steps + Number(accepted) };
+    if (previous?.direction === decodedDirection && previous.sprinting === sprinting) {
+      segments[segments.length - 1] = {
+        direction: decodedDirection,
+        sprinting,
+        steps: previous.steps + Number(accepted),
+      };
     } else {
-      segments.push({ direction: decodedDirection, steps: Number(accepted) });
+      segments.push({ direction: decodedDirection, sprinting, steps: Number(accepted) });
     }
   }
   return {

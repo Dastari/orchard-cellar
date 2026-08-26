@@ -4,6 +4,8 @@ import { SIM_STEPS_PER_AUTHORITY_TICK } from './net-timing.js';
 export const REAL_MINUTES_PER_GAME_DAY = 15;
 export const TICKS_PER_DAY = SIM_TICKS_PER_SECOND * 60 * REAL_MINUTES_PER_GAME_DAY;
 export const AUTHORITY_TICKS_PER_DAY = TICKS_PER_DAY / SIM_STEPS_PER_AUTHORITY_TICK;
+export const GAME_DAY_START_HOUR = 6;
+export const GAME_HOURS_PER_DAY = 24;
 export const DAYS_PER_SEASON = 7;
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
 export type Season = (typeof SEASONS)[number];
@@ -37,12 +39,28 @@ export interface CalendarTime {
   readonly minute: number;
 }
 
+export function clockMinutesAtDayProgress(dayProgress: number): number {
+  const normalized = ((dayProgress % 1) + 1) % 1;
+  return (GAME_DAY_START_HOUR * 60 + Math.floor(normalized * GAME_HOURS_PER_DAY * 60 + 1e-9))
+    % (GAME_HOURS_PER_DAY * 60);
+}
+
+/** Converts a wall-clock time to progress through the named game day, whose
+ * boundary remains 06:00. Times before 06:00 therefore live at its far end. */
+export function dayProgressAtClockTime(hour: number, minute = 0): number {
+  const minutesPerDay = GAME_HOURS_PER_DAY * 60;
+  const clockMinutes = Math.floor(hour * 60 + minute);
+  const sinceDayStart = ((clockMinutes - GAME_DAY_START_HOUR * 60) % minutesPerDay + minutesPerDay)
+    % minutesPerDay;
+  return sinceDayStart / minutesPerDay;
+}
+
 export function calendarAtTick(tick: number): CalendarTime {
   const safeTick = Math.max(0, Math.floor(tick));
   const totalDay = Math.floor(safeTick / TICKS_PER_DAY);
   const tickOfDay = safeTick % TICKS_PER_DAY;
   const dayProgress = tickOfDay / TICKS_PER_DAY;
-  const gameMinutes = Math.floor(dayProgress * 20 * 60);
+  const gameMinutes = clockMinutesAtDayProgress(dayProgress);
   const seasonIndex = Math.floor(totalDay / DAYS_PER_SEASON) % SEASONS.length;
   return {
     totalDay,
@@ -51,7 +69,7 @@ export function calendarAtTick(tick: number): CalendarTime {
     dayOfSeason: (totalDay % DAYS_PER_SEASON) + 1,
     tickOfDay,
     dayProgress,
-    hour: 6 + Math.floor(gameMinutes / 60),
+    hour: Math.floor(gameMinutes / 60),
     minute: gameMinutes % 60,
   };
 }

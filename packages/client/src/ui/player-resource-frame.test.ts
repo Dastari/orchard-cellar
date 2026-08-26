@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PlayerResourceFrame, playerResourceFrameLayout, resourceFillWidth } from './player-resource-frame.js';
+import { PlayerResourceFrame, playerResourceFrameLayout, resourceEndpointRect, resourceFillRect, resourceFillWidth } from './player-resource-frame.js';
 import type { UiSkin } from './skin.js';
 
 describe('player resource frame', () => {
@@ -36,6 +36,22 @@ describe('player resource frame', () => {
     expect(resourceFillWidth(60, 1, 1000)).toBe(0);
     expect(resourceFillWidth(60, 5000, 1000)).toBe(60);
     expect(resourceFillWidth(60, undefined, undefined)).toBe(0);
+  });
+
+  it('anchors mirrored target fills at the right edge so they drain in reverse', () => {
+    const track = { x: 10, y: 5, width: 60, height: 10 };
+    expect(resourceFillRect(track, 500, 1000)).toEqual({ x: 10, y: 5, width: 30, height: 10 });
+    expect(resourceFillRect(track, 500, 1000, true)).toEqual({ x: 40, y: 5, width: 30, height: 10 });
+    expect(resourceFillRect(track, 1000, 1000, true)).toEqual(track);
+  });
+
+  it('places the live endpoint at the current value in either direction', () => {
+    const track = { x: 10, y: 5, width: 60, height: 10 };
+    expect(resourceEndpointRect(track, 500, 1000)).toEqual({ x: 38, y: 7, width: 2, height: 6 });
+    expect(resourceEndpointRect(track, 500, 1000, true)).toEqual({ x: 40, y: 7, width: 2, height: 6 });
+    expect(resourceEndpointRect(track, 1000, 1000)).toEqual({ x: 66, y: 7, width: 2, height: 6 });
+    expect(resourceEndpointRect(track, 1000, 1000, true)).toEqual({ x: 12, y: 7, width: 2, height: 6 });
+    expect(resourceEndpointRect(track, 0, 1000)).toBeNull();
   });
 
   it('resolves resources by player identity and hit-tests each authored bar', () => {

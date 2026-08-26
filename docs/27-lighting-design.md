@@ -78,25 +78,46 @@ silhouettes (this supersedes r1's "sub-tile objects never occlude"):
 
 - **Hard blockers** — walls, cliff faces, closed structural tiles, at tile
   resolution expanded to their 4×4 texels: receive light (lit near faces),
-  never propagate. Doorways/portals/ramps stay transparent (owner rule:
-  light spills through doors).
-- **Alpha-silhouette blockers** — solid *objects*: boulders, ore nodes, placed
-  stations/chests/fences. Opaque authored pixels rasterize into
-  the quarter-tile grid; transparent sprite padding and translucent painted
-  ground shadows do not. The source-facing silhouette receives light and a
-  direct line test leaves a complete umbra behind its facing edges. Emissive
-  props are excluded from their own blocker list. Collision alone never makes
-  an optical blocker: water/ponds, dirt/inset terrace edges, crops, floor
-  decals, and other low obstacles stay transparent.
-- **Tree trunk projectors** — trees use only the existing narrow authoritative
-  trunk collision footprint, never the canopy. A trunk projects a feathered
-  ground shadow capped at two tiles instead of behaving like an infinitely
-  tall wall. The tree's authored alpha silhouette carries its trunk owner and
-  painter-depth foot Y, so its own ground shadow cannot be multiplied back over
-  its elevated sprite; a lower-foot sprite wins overlapping receiver pixels.
+  never propagate. Authored `wall_*` and `lower_wall_*` rows form one
+  south-facing receiver surface: light on the lower approach illuminates the
+  full visible rock face without leaking onto the plateau behind it, and other
+  opaque silhouettes may still cast onto that face. Doorways/portals/ramps
+  stay transparent (owner rule: light spills through doors).
+- **Alpha-silhouette casters and receivers** — solid elevated objects such as
+  boulders, ore nodes, trees, placed stations, chests, fences, and campsite
+  furniture use authored opaque pixels for both the caster shape and visible
+  receiver. Transparent sprite padding and translucent painted ground shadows
+  remain excluded. The silhouette produces the strong, long umbra preferred by
+  the art direction; a directly visible owner mask relights its elevated face
+  without filling the ground shadow behind it. Emissive props are excluded from
+  their own caster list. Collision alone never makes an optical blocker:
+  water/ponds, dirt/inset terrace edges, crops, floor decals, and other low
+  obstacles stay transparent.
+- **Painter-depth ownership** — each authored alpha silhouette carries its
+  owner and painter-depth foot Y, so its own umbra cannot be multiplied back
+  over its elevated sprite; a lower-foot sprite wins overlapping receiver pixels.
+  The same owner records the visible face orientation. Current top-down tree
+  and prop artwork presents a south-facing front: direct light from south fully
+  illuminates it, lateral light is softened, and light north of the ground foot
+  is behind the artwork and contributes no direct front-face light. Ambient
+  remains visible in every case. This restriction is applied as brightness
+  compensation during the receiver's own depth-ordered sprite draw, using its
+  exact authored alpha; it must not punch dark receiver cells into the bilinear
+  ground lightmap, which creates halos and can shade unrelated foreground art.
+  Future multi-face assets must declare their receiver orientation rather than
+  inferring it from collision.
+  Receiver masks have two thresholds: broad alpha ownership prevents a caster's
+  own projected ground shadow from multiplying over its sprite, while only
+  fully opaque receiver texels may bypass the umbra for direct front lighting.
+  Never reuse partially covered edge texels for relighting—the bilinear
+  lightmap turns them into bright holes immediately behind the silhouette.
   Other lights fill these shadows through the normal maximum merge. Players
   and NPCs never occlude (a
   moving silhouette shadow reads as a bug; they get §6 sprite shadows instead).
+- **Tree trunk columns** — trees are the deliberate exception to full-sprite
+  casting. Only the narrow authoritative trunk collision mesh casts, producing
+  a long, strong column away from the source. The canopy receives light and
+  participates in painter depth but never widens or originates a shadow.
 - The field itself: open regions use the direct lookup-table fast path; solid
   regions use symmetric shadowcasting once per light, linear in affected
   texels; the legacy soft-attenuator compatibility path retains the 8-connected
@@ -131,6 +152,11 @@ terrainHeightAt(x: number, y: number): number   // integer level; 0 = base groun
 
 — consumed identically by client and any future authority need. Lighting uses
 it three ways:
+
+Nested terrain is resolved one contour at a time. A level-3 torch is contained by
+the level-3 contour and may illuminate levels 0–3 where line-of-sight permits; it
+does not infer height from cliff pixels. Editor-authored slopes, stairs, ladders,
+and ropes expose the same explicit contour transition used by collision.
 
 1. **Light containment.** A light floods only texels whose height ≤ the
    emitter's level: a torch at a cliff base leaves the plateau above dark; a
@@ -259,7 +285,7 @@ the authority re-derives light pools from pure emitter data.
 
 **2026-08-26 implementation verification (phases 1–3).** The client now uses
 a reusable 8-bit sub-tile flood buffer, quantized flame halo, hard terrain
-occluders, alpha-silhouette object blockers, short trunk-only tree projectors,
+occluders, depth-owned alpha-silhouette prop/tree casters and receivers,
 door/ramp spill, and optional
 facing-seeded emitters. The shared calendar derives all eight moon phases and
 interpolated illumination from the authority tick; clear surface ambient
@@ -268,13 +294,18 @@ phase silhouettes and phase/illumination tooltip text. Placed and held flame
 emitters use the same deterministic blended flame noise. The light-only layer
 is bilinear-filtered during compositing to blend neighboring flood strengths;
 terrain and sprites retain nearest-neighbor pixel rendering. Owner review then
-added quarter-world-pixel fractional seeding and direct geometric umbrae so
-carried light no longer advances in visible steps and solid sprites do not
-darken their transparent tile padding or leak flood light behind them.
-The follow-up depth pass gives tree silhouettes receiver ownership, caps and
-feathers their ground shadows, and excludes low collision or relief such as
-ponds and inset terrain from optical blocking; trees therefore neither shadow
-themselves nor create long grid-shaped corridors.
+added quarter-world-pixel fractional seeding so carried light no longer
+advances in visible steps. The follow-up depth pass gives elevated solid sprites
+receiver ownership ordered by painter-depth foot Y and excludes low collision
+or relief such as ponds and inset terrain from optical blocking. Owner review
+retained the authored long silhouette umbrae—especially the strong tree
+columns—while directly visible owner masks keep those shadows off the caster's
+own elevated face. Tree columns originate exclusively from the authoritative
+trunk collision mesh; canopy pixels are receiver-only.
+Raised terrain now distinguishes its visible south-facing wall artwork from a
+generic hard tile. Stacked wall rows receive approach-side point light as one
+continuous face while remaining terminal blockers, so the plateau behind the
+face stays in umbra.
 
 The public browser's representative 40-light fixture (36 standing torches and
 4 campfires) measured **1.1–1.3 ms warmed** at four texels/tile, below the
@@ -346,8 +377,9 @@ doc 30/06 business).
   charter — quarter-tile texels with 8-bit strength is the revised
   binding look (owner-directed, reference-calibrated); (2) supersede
   "sub-tile objects never occlude" — opaque authored object pixels,
-  walls/cliffs are direct-umbra blockers, while authoritative tree-trunk
-  footprints are short ground-shadow projectors with self-owner/depth masking;
+  walls/cliffs are direct-umbra blockers and south-facing cliff artwork is an
+  opaque receiver, while authoritative tree-trunk footprints are long,
+  collision-width ground-shadow projectors with self-owner/depth masking;
   transparent padding and low collision stay open, emissive props never self-occlude,
   and players/NPCs still never occlude;
   (3) terrain must export the integer `terrainHeightAt` contract (doc 30

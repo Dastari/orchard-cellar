@@ -21,4 +21,5 @@ export default __t.row({
   droppedAtTick: __t.u64().name("dropped_at_tick"),
   durability: __t.u16(),
   spaceId: __t.u16().name("space_id"),
+  lit: __t.bool(),
 });

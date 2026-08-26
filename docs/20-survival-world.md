@@ -77,10 +77,26 @@ the later weapon or metal mechanics forward.
 1. sender exists and has selected the required tool;
 2. sender's authoritative position is within two tiles;
 3. resource is live and tool/resource pairing is valid;
-4. each Axe hit removes one of three tree health; the final hit marks it depleted,
-   leaves a persistent stump, and atomically creates one shared Wood ×3 ground stack.
+4. each Axe hit removes one health from the current growth phase; the final hit marks
+   it depleted and leaves the phase-matched stump. Small trees drop Stick ×1, medium
+   trees Wood ×1, and big trees Wood ×3.
    Sparse apple, pear, peach, and cherry trees occur only beside river corridors and
-   additionally drop Fruit ×2 matching the visible tree.
+   additionally drop Fruit ×2 when a big tree is felled.
+
+Depleted trees regrow server-authoritatively through stump, species-matched small,
+medium, and big stages. Each live stage is independently choppable with one, two, or
+three health. Dry regrowth takes exactly one authority-clock game day
+(15 real minutes at the normal 20 Hz authority rate); continuous rain shortens that by
+only about 9%. The progress byte is advanced in 24 coarse sweeps, including while no
+players are connected. Developer calendar/time controls never add elapsed growth time:
+they may change whether automatic weather is currently rainy, but only subsequent real
+authority ticks advance a tree. Stumps are non-blocking; live phases use the shared
+narrow base collision.
+
+Desert generation places sparse, non-overlapping regrowing cacti plus authored desert
+grass, fern, bush, flowering plant, and rock decals. Cacti are Axe resources, use the
+same small/medium/big lifecycle, and drop Cactus ×1/2/3 by harvested phase. The generic
+modifier and scaling contract is documented in [37-growth-system.md](37-growth-system.md).
 
 Generated inland-water decoration requires a complete 3×3 water neighbourhood; fish
 shadows and all swimming wildlife require 5×5 clearance. Lakes use a sparse mix of
@@ -94,15 +110,16 @@ quantity, owner, or position from the client: it moves the complete selected sta
 a shared ground row in front of the server-owned player position and facing. A full
 inventory rejects pickup without deleting the item.
 
-No client-supplied quantity, position, owner, damage, or reward is accepted. Resource
-respawn and durability are deliberately deferred.
+No client-supplied quantity, position, owner, damage, reward, or regrowth time is
+accepted. Resource durability and tree regrowth are authority-owned.
 
 ## 5. Client UX
 
 - `1`–`9` selects a hotbar slot; the server persists selection.
 - Mouse-wheel up/down zooms the world. Unshifted `-`/`+` provide the same stepped
   world zoom; `Shift -`/`Shift +` scale UI chrome independently.
-- `E` picks up a faced ground item, `F` uses the selected tool on a faced resource,
+- `E` uses the closest eligible interaction point (NPC, chest, placeable, horse,
+  portal, resource, or ground item), `F` uses the selected tool on a faced resource,
   and `Q` drops the selected slot in front of the player.
 - The bottom-center nine-slot hotbar uses parchment/wood pixel UI, centered native-size
   icons, stack quantities, click selection, hover names, and a visible selected bracket.

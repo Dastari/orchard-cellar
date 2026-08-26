@@ -20,4 +20,6 @@ export default __t.row({
   health: __t.u8(),
   depleted: __t.bool(),
   spaceId: __t.u16().name("space_id"),
+  growthStage: __t.u8().name("growth_stage"),
+  regrowthProgress: __t.u8().name("regrowth_progress"),
 });

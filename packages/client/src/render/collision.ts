@@ -56,6 +56,10 @@ export function createClientCollisionMap(
     blocked: medium === 'ground' ? terrain.blocked : Array.from(terrain.biomes, (biome) => (
       survivalBiomeBlocksTraversal(SURVIVAL_BIOMES[biome] ?? 'water', medium)
     )),
+    ...(medium === 'ground' ? { elevations: terrain.elevations } : {}),
+    ...(medium === 'ground' && terrain.terrainTransitions !== undefined
+      ? { terrainTransitions: terrain.terrainTransitions }
+      : {}),
     ...(medium === 'ground' ? { horseJumpableTerrain: terrain.horseJumpableTerrain } : {}),
     obstacles,
   };

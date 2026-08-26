@@ -31,6 +31,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     title: 'MOVEMENT',
     entries: [
       'WASD or arrows: move in eight directions.',
+      'Hold Shift while moving: sprint at 125% speed; spends Vigour.',
       '1-9: select a hotbar slot.',
       '- / +: change world zoom.',
       'Shift - / +: change UI scale.',
@@ -40,7 +41,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     title: 'ACTIONS',
     entries: [
       'Left click another player or NPC to select it; click empty ground to clear it.',
-      'E: ride or dismount a horse, or pick up the faced item.',
+      'E: use the closest available interaction (chest, NPC, horse, portal, or pickup).',
       'F: use the selected tool on the faced target.',
       'Q: drop the selected hotbar item.',
       'Space: jump while mounted.',
@@ -103,7 +104,8 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     entries: [
       'Dropped items keep their actual item type and quantity.',
       'Pickups and inventory moves succeed only when the server validates capacity.',
-      'The axe harvests trees. The pickaxe mines reachable ore veins.',
+      'The axe harvests trees. Chopped trees regrow over one game day; rain helps a little.',
+      'The pickaxe mines reachable ore veins.',
       'Select the hoe, target grass up to 3 tiles away, then click or press F to till it.',
       'Select the watering can and target tilled soil up to 3 tiles away to water it.',
       'Chests use the same tile target. A red frame means terrain, an object, or a player blocks placement.',
@@ -114,6 +116,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       'A broken tool stays in its slot. Select a damaged tool and press R to repair it with Wood or Stone.',
       'Durability bars are green, then gold, then red as the tool wears down.',
       'Craft Orchard Tea from an apple and pear; select it and press F to drink it.',
+      'Press F to switch a selected lantern, or a nearby dropped lantern. E still picks a dropped lantern up.',
       'Equipment, backpack, and hotbar slots enforce their container rules.',
     ],
   },

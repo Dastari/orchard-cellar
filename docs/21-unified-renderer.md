@@ -72,6 +72,14 @@ composite, and the world→screen transform. Nothing else may call
   one `WorldDepthItem` queue with a foot/base/door-line Y. This includes resources,
   ground items, players, NPCs, animals, crops, props, houses, and other buildings.
   Only terrain and genuinely flat ground decals may bypass it beneath the queue.
+- **Elevation-aware terrain depth:** raised caps, projected cliff faces, inverse
+  corners, and transition art are not flat ground. They interleave with the same
+  depth queue at their contour's lower level. An entity's deterministic depth key is
+  its foot Y plus the tileset-projected height of every terrain level beneath its
+  foot tile. A lower-level actor north of a cliff therefore draws behind its opaque
+  foreground pixels; an actor on the plateau draws above that contour; and a
+  lower-level actor farther south still sorts in front. Logical elevation never
+  changes the actor's screen position.
 - **Interpolation:** `render(alpha)` must actually receive and use alpha for the
   local predicted player (previous/current lerp, as the farm scene did at
   `scenes/farm.ts:261`). Remote-player smoothing stays as-is; replacing it is the
@@ -86,6 +94,9 @@ Replace the per-frame procedural ground pass (`overworld-art.ts:145` — ~2,300
   (`world-rules.ts:16`). One offscreen canvas per chunk, drawn once via the existing
   biome fill + hash-gated decal logic, then blitted per frame (≈ 6–12 `drawImage`
   calls per frame at default zoom).
+- Each cached chunk has a flat/base canvas and a sparse raised-structure foreground
+  description. The base canvas blits once; visible foreground rows are submitted in
+  depth order without rebaking. Do not duplicate the whole chunk once per elevation.
 - LRU-evict beyond ~64 resident chunks. Invalidate a single chunk when a resource
   in it changes state, if resource art is baked into the chunk; if resources stay
   in the Y-sorted sprite pass (they must — trees sort against players), ground

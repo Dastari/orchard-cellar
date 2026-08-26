@@ -11,6 +11,14 @@ the shipped wildlife system of [29-wildlife.md](29-wildlife.md)
 (`packages/sim/src/wildlife.ts` — extended by §6 here, not replaced).
 Tile/biome art is bounded by the licensed packs per docs/18 §7.
 
+**2026-08-26 elevation/depth foundation:** implemented ahead of the full terrain
+revamp. The legacy island now exposes its raised land as integer elevation; the
+shared contour resolver supports arbitrary nested levels and semantic crossings;
+movement rejects unconnected height changes; and raised terrain interleaves with
+entities through elevation-aware painter depth. The infinite sampler, generated
+multi-level mountains, transition interactions/art, and owner editor UI remain in
+the phases below and are not claimed as implemented by this note.
+
 The mandate, in one sentence: **Minecraft's world model on our stack** — a
 semi-infinite, seed-deterministic 2D world streamed in 16-tile chunks through
 SpaceTimeDB, with large multi-biome landmasses (plains, valleys, savannas,
@@ -85,6 +93,16 @@ domain-warped and octaved from the existing primitives at different scales:
   consume — no consumer re-derives elevation. Mountains are
   3–5 stacked cliff levels of the existing stone-cliff tilesets; the current
   plateaus/terraces become the 1–2-level foothill case of the same math.
+- **Nested contours are the only raised-terrain model.** Every tile stores one
+  integer level. Each positive contour is resolved independently, so a level-2
+  plateau inside level 1 and a level-3 summit inside level 2 work without nested
+  shape rules. Tilesets supply face profiles; topology never depends on frame ids.
+  Logical height, projected face rows, and blocking rows remain independent.
+- **Terrain crossings are semantic data.** A crossing names its contour level,
+  orientation, and kind (`slope`, `stairs`, `ladder`, or `rope`). Slopes/stairs make
+  a traversable contour opening; ladders/ropes connect validated lower and upper
+  anchors. Generation and the future editor place crossings, while the selected
+  tileset only chooses their art.
 - **Coasts:** every land/ocean border generates the beach/shore band from the
   current coast logic (generalized from radial `coastDepth` to a signed
   distance derived from C) — islands get beaches, cliffs get coastal-cliff
@@ -154,6 +172,11 @@ becomes correctness.
   apron for autotiling) on demand, LRU ~256 chunks, keyed
   `(seed, version, chunkX, chunkY)`. The ground cache above it is already
   chunk-keyed and needs only key plumbing.
+- The chunk cache separates flat base pixels from sparse raised-structure
+  foreground rows. Foreground terrain interleaves with world entities using an
+  elevation-aware depth key: `footY + projectedHeightBelow(elevation)`. This is
+  2.5D painter ordering, not freeform 3D. It lets lower actors walk behind a rear
+  cliff silhouette while actors standing on that cliff remain in front.
 - Camera/zoom bounds decouple from world size (`minimumZoom` from viewport
   only; `cameraAxisOffset` unclamped); `subscriptionChunkBounds` and
   `viewRadiusForViewport` lose their `[0, COUNT−1]` clamps and clamp to the
@@ -281,7 +304,8 @@ phase 2 below, and its stage 3 (chunk-scoped `stepWorld` via Range scans)
 lands with it. Doc 34 §2 is the findings register; nothing below repeats it.
 
 1. **Pure sampler + parity** (sim only): `terrain-gen.ts` fields, biome
-   table, elevation contours, chunk-windowed sampling; golden determinism
+   table, elevation contours, semantic crossings, chunk-windowed sampling;
+   golden determinism
    tests (client/server byte parity per chunk, 1 000 random chunks); the
    legacy generator stays live in-game.
 2. **Infinite plumbing**: `world_chunk`, lazy materialization, id scheme,
@@ -301,7 +325,8 @@ lands with it. Doc 34 §2 is the findings register; nothing below repeats it.
 
 ## 12. Out of scope
 
-Vertical terrain/3D; cave layers under the overworld (doc 26 owns underground);
+Freeform 3D coordinates/physics and arbitrary overhangs (integer 2.5D terrain strata
+and elevation-aware occlusion are in scope); cave layers under the overworld (doc 26 owns underground);
 hostile spawns (combat era); per-biome weather; rivers; structure generation;
 player terraforming (curation is owner-only; player world-editing is fences
 and placeables per doc 28); biome-based farming modifiers.
@@ -316,6 +341,11 @@ and placeables per doc 28); biome-based farming modifiers.
   zigzag id round-trip + uniqueness across sign quadrants; ore-region spacing
   guarantees; wildlife density caps and variant-pool weighting distributions;
   override precedence in `composedTileAt` (render/collision agreement).
+- **Elevation/depth:** nested level-1/2/3 contour goldens; raising and then lowering
+  an editor fixture restores byte-identical plans; every supported tileset profile
+  resolves the same topology; lower-behind/lower-in-front/upper-on-top ordering;
+  transition openings affect exactly their named contour; no cross-level interaction
+  through an unbroken cliff.
 - **Reducer (world):** materialization idempotence (two players racing one
   chunk → one row set); regen policy (curated and modified chunks survive a
   version bump, pristine chunks regenerate); paint/place/erase happy + auth-

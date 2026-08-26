@@ -64,6 +64,7 @@ export const ITEM_ECONOMY = {
   amethyst_ore: { buyPriceBronze: 200, sellPriceBronze: 80 },
   plank: { buyPriceBronze: 3, sellPriceBronze: 1 },
   stick: { buyPriceBronze: 2, sellPriceBronze: 1 },
+  cactus: { buyPriceBronze: null, sellPriceBronze: 3 },
   chest: { buyPriceBronze: 160, sellPriceBronze: 64 },
   workbench: { buyPriceBronze: 120, sellPriceBronze: 48 },
   campfire: { buyPriceBronze: null, sellPriceBronze: 18 },

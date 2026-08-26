@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isLightEmitterKind, PLACEABLE_LIGHT_EMITTERS, placeablePointLight } from './light-sources.js';
+import {
+  deterministicFlameFlicker,
+  isLightEmitterKind,
+  PLACEABLE_LIGHT_EMITTERS,
+  placeablePointLight,
+} from './light-sources.js';
 
 describe('placed crafting light emitters', () => {
   it('keeps luminous bodies out of their own occluder registry', () => {
@@ -30,9 +35,23 @@ describe('placed crafting light emitters', () => {
     }
   });
 
+  it('does not emit light while a placeable fire is extinguished', () => {
+    expect(placeablePointLight({ id: 8n, kind: 'campfire', tileX: 2, tileY: 2, lit: false }, 10n)).toBeNull();
+    expect(placeablePointLight({ id: 8n, kind: 'campfire', tileX: 2, tileY: 2, lit: true }, 10n)).not.toBeNull();
+  });
+
   it('gives both clients the same deterministic flame flicker for one authority tick', () => {
     const row = { id: 99n, kind: 'campfire', tileX: 8, tileY: 8 };
     expect(placeablePointLight(row, 1_234n)).toEqual(placeablePointLight(row, 1_234n));
     expect(placeablePointLight(row, 1_234n)).not.toEqual(placeablePointLight(row, 1_235n));
+  });
+
+  it('27§2 keeps held-flame phase continuous between authority observations', () => {
+    const id = 17n;
+    const before = deterministicFlameFlicker(id, 100.25);
+    const after = deterministicFlameFlicker(id, 100.5);
+    expect(Math.abs(after.strengthPerMille - before.strengthPerMille)).toBeLessThanOrEqual(3);
+    expect(Math.abs(after.radiusOffset - before.radiusOffset)).toBeLessThanOrEqual(0.02);
+    expect(deterministicFlameFlicker(id, 100)).toEqual(deterministicFlameFlicker(id, 100n));
   });
 });

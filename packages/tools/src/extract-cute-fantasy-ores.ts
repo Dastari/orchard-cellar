@@ -19,6 +19,7 @@ interface Extract {
   readonly animationLoop?: Readonly<Record<string, boolean>>;
   readonly tags: readonly string[];
   readonly placement?: AssetSource['placement'];
+  readonly transformPixel?: (color: string | null, x: number, y: number, group: string) => string | null;
 }
 
 const oreSource = 'references/Cute_Fantasy/Outdoor decoration/Ores.png';
@@ -59,8 +60,19 @@ const extracts: readonly Extract[] = [
   {
     name: 'prop_cf_campfire', category: 'props', source: campfireSource,
     size: [16, 32], anchor: [8, 31],
-    groups: { burn: Array.from({ length: 8 }, (_, frame): Region => [frame * 16, 0, 16, 32]) },
-    frameKinds: { burn: 'animation' }, animationFps: { burn: 8 }, animationLoop: { burn: true },
+    groups: {
+      burn: Array.from({ length: 8 }, (_, frame): Region => [frame * 16, 0, 16, 32]),
+      off: [[0, 0, 16, 32]],
+    },
+    frameKinds: { burn: 'animation', off: 'state' }, animationFps: { burn: 8 }, animationLoop: { burn: true },
+    transformPixel: (color, _x, y, group) => {
+      if (group !== 'off') return color;
+      if (!['#ed7614', '#ffa214', '#ffc825'].includes(color ?? '')) return color;
+      if (y < 20) return null;
+      return color === '#ed7614' ? '#391f21'
+        : color === '#ffa214' ? '#743f39'
+          : '#91533b';
+    },
     tags: ['world.landmark', 'station.cooking', 'decor.animated', 'emits.light'],
     placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
   },
@@ -270,7 +282,12 @@ for (const extract of extracts) {
   const nativeFrames = Object.fromEntries(Object.entries(extract.groups).map(([group, regions]) => [
     group,
     regions.map(([x, y, width, height]) => Array.from({ length: height }, (_, py) =>
-      Array.from({ length: width }, (_, px) => nativeHex(image, x + px, y + py)))),
+      Array.from({ length: width }, (_, px) => {
+        const color = nativeHex(image, x + px, y + py);
+        return extract.transformPixel === undefined
+          ? color
+          : extract.transformPixel(color, px, py, group);
+      }))),
   ]));
   const colors = [...new Set(Object.values(nativeFrames).flat(2).flatMap((row) =>
     row.filter((color): color is string => color !== null)))].sort();

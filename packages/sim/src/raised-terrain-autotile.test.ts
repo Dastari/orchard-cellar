@@ -3,6 +3,7 @@ import {
   raisedTerrainEdgeRoleAt,
   raisedTerrainContourGrid,
   raisedTerrainInsetRolesAt,
+  resolveRaisedTerrainContoursAt,
   resolveRaisedTerrainTile,
   type RaisedTerrainGrid,
   type RaisedTerrainRampRole,
@@ -62,6 +63,41 @@ describe('shared raised terrain autotile utility', () => {
     expect(secondLevel.raisedAt(1, 0)).toBe(false);
     expect(secondLevel.raisedAt(1, 1)).toBe(true);
     expect(() => raisedTerrainContourGrid(elevationAt, 0)).toThrow('positive integer');
+  });
+
+  it('30§3 resolves a cliff inside a cliff at every nested contour', () => {
+    const elevations = [
+      [0, 0, 0, 0, 0],
+      [0, 1, 1, 1, 0],
+      [0, 1, 2, 1, 0],
+      [0, 1, 3, 1, 0],
+      [0, 0, 0, 0, 0],
+    ] as const;
+    const elevationAt = (tileX: number, tileY: number): number => elevations[tileY]?.[tileX] ?? 0;
+    const plans = resolveRaisedTerrainContoursAt(elevationAt, 3, TILE_SET, 'tall', 2, 3);
+    expect(plans.map(({ contourLevel }) => contourLevel)).toEqual([1, 2, 3]);
+    expect(plans[0]?.plan.edgeRole).toBe('bottom');
+    expect(plans[1]?.plan.edgeRole).toBe('bottom_left');
+    expect(plans[2]?.plan.edgeRole).toBe('top_left');
+  });
+
+  it('30§3 applies an authored opening to only its named contour', () => {
+    const elevationAt = (tileX: number, tileY: number): number => (
+      tileX >= 0 && tileX <= 2 && tileY === 0 ? 2 : 0
+    );
+    const plans = resolveRaisedTerrainContoursAt(
+      elevationAt,
+      2,
+      TILE_SET,
+      'tall',
+      1,
+      0,
+      (level, tileX, tileY) => level === 2 && tileX === 1 && tileY === 0
+        ? 'ramp_top_left'
+        : null,
+    );
+    expect(plans.find(({ contourLevel }) => contourLevel === 1)?.plan.edgeFrame).toBe(2);
+    expect(plans.find(({ contourLevel }) => contourLevel === 2)?.plan.rampFrame).toBe(201);
   });
 
   it('derives caps, sides, and all diagonal insets from occupancy alone', () => {

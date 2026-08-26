@@ -22,4 +22,5 @@ export default __t.row({
   facing: __t.string(),
   open: __t.bool(),
   smeltStartTick: __t.option(__t.u64()).name("smelt_start_tick"),
+  lit: __t.bool(),
 });

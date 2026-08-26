@@ -77,6 +77,10 @@ connection are rendered online. Multiple tabs for one identity remain online unt
 the last connection closes. Reconnect restores the identity and authoritative
 position before accepting input.
 
+World-entry and final-disconnect notices are session UI, not authored chat. They are
+delivered through each connection's private bounded notice inbox and are discarded
+when that recipient logs out, so reconnecting never restores them as chat history.
+
 ## 6. Implementation order
 
 1. **M5.5 complete:** durable shared chunk, two predicted avatars, shared atomic tree,

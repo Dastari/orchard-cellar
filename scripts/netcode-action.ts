@@ -75,8 +75,8 @@ async function exactRun(client: Client, direction: Direction, steps: number, col
   client.sequence += 1n; const startSequence = client.sequence; const startTick = client.clientTick;
   client.sequence += 1n; client.clientTick += BigInt(steps); const stopSequence = client.sequence;
   await Promise.all([
-    client.connection.reducers.setInput({ direction, sequence: startSequence, clientTick: startTick }),
-    client.connection.reducers.setInput({ direction: 'idle', sequence: stopSequence, clientTick: client.clientTick }),
+    client.connection.reducers.setInput({ direction, sequence: startSequence, clientTick: startTick, sprinting: false }),
+    client.connection.reducers.setInput({ direction: 'idle', sequence: stopSequence, clientTick: client.clientTick, sprinting: false }),
   ]);
   await waitUntil('exact_run', () => {
     const row = client.connection.db.playerPosition.identity.find(client.identity);

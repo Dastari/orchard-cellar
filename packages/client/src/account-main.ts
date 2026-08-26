@@ -16,10 +16,15 @@ import {
   type OidcEntryIntent,
   type OidcSession,
 } from './auth/oidc.js';
-import { canvasViewport, centeredFixedSceneLayout, toggleFullscreen } from './display.js';
+import { canvasViewport, centeredFixedSceneLayout } from './display.js';
+import { loadGeneratedAsset } from './render/assets.js';
 import { drawPixelText, loadPixelUi } from './render/pixel-ui.js';
-import { drawUiSkinAsset, drawUiSkinNatural, loadUiSkin } from './ui/skin.js';
+import { drawUiSkinAsset, loadUiSkin, uiAssetFrame } from './ui/skin.js';
 import { drawCanvasTextInput } from './ui/canvas-text-input.js';
+import { drawOrchardBackdrop } from './ui/orchard-backdrop.js';
+import { Ribbon } from './ui/ribbon.js';
+import { AudioBus } from './audio/audio-bus.js';
+import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen } from './loading-screen.js';
 
 // Remove authorization codes and provider errors from the address bar before
 // loading assets or making the token request. NPM is separately configured to
@@ -39,9 +44,19 @@ const canvasContext = canvas.getContext('2d');
 if (canvasContext === null) throw new Error('Canvas 2D unavailable');
 const context: CanvasRenderingContext2D = canvasContext;
 context.imageSmoothingEnabled = false;
-const shellElement = document.querySelector<HTMLElement>('#game-shell');
-if (shellElement === null) throw new Error('Missing account shell');
-const [ui, skin] = await Promise.all([loadPixelUi(), loadUiSkin()]);
+const audio = new AudioBus(false);
+void audio.playSong('theme_title');
+void audio.unlock().catch(() => undefined);
+setLoadingScreenStage({
+  title: 'OPENING THE ORCHARD', detail: 'LAYING OUT THE ACCOUNT DESK', progress: 55,
+});
+const [ui, skin, orchardEmblem] = await Promise.all([
+  loadPixelUi(), loadUiSkin(), loadGeneratedAsset('icon_resource_fruit', 'summer'),
+]);
+upgradeLoadingScreen(ui, skin, orchardEmblem);
+const accountRibbon = new Ribbon(skin.banner, ui);
+const orchardEmblemFrame = uiAssetFrame(orchardEmblem);
+const clientVersion = import.meta.env.VITE_CLIENT_VERSION;
 
 let authSession: OidcSession | null = null;
 let authBusy = false;
@@ -71,6 +86,13 @@ let message = oidcConfigured
 let viewport = canvasViewport(innerWidth, innerHeight);
 let scene = centeredFixedSceneLayout(viewport.width, viewport.height);
 let displayPixelRatio = Math.max(1, devicePixelRatio);
+let navigationPending = false;
+
+function navigateWithMusic(action: () => void): void {
+  if (navigationPending) return;
+  navigationPending = true;
+  void audio.fadeOutForNavigation().finally(action);
+}
 
 function resize(): void {
   viewport = canvasViewport(innerWidth, innerHeight);
@@ -91,13 +113,15 @@ function resize(): void {
 
 function launchLocal(name: string): void {
   profiles = rememberLocalProfile(localStorage, name);
-  location.assign(localProfileWorldUrl(profiles.lastUsed ?? name, location.origin));
+  navigateWithMusic(() => location.assign(localProfileWorldUrl(profiles.lastUsed ?? name, location.origin)));
 }
 
 function launchAccount(): void {
   if (authSession === null) return;
-  if (location.pathname === '/' && location.search === '' && location.hash === '') location.reload();
-  else location.assign('/');
+  navigateWithMusic(() => {
+    if (location.pathname === '/' && location.search === '' && location.hash === '') location.reload();
+    else location.assign('/');
+  });
 }
 
 function drawText(text: string, x: number, y: number, color = '#f7e7b2', align: CanvasTextAlign = 'left'): void {
@@ -105,7 +129,7 @@ function drawText(text: string, x: number, y: number, color = '#f7e7b2', align: 
 }
 
 function drawAccountLogin(): void {
-  drawUiSkinAsset(context, skin.panelParchment, { x: 82, y: 87, width: 316, height: 123 });
+  drawUiSkinAsset(context, skin.panelParchment, { x: 82, y: 87, width: 316, height: 118 });
   if (authSession !== null) {
     drawText('SIGNED IN AS', 240, 111, '#91672e', 'center');
     drawText(authSession.displayName.toUpperCase(), 240, 129, '#6f451f', 'center');
@@ -115,15 +139,13 @@ function drawAccountLogin(): void {
     drawText('SIGN OUT', 240, 190, '#fff2d0', 'center');
     return;
   }
-  drawText('ORCHARD ACCOUNTS', 240, 112, '#91672e', 'center');
-  drawText('VERIFIED EMAIL AND ACCOUNT RECOVERY', 240, 128, '#6f451f', 'center');
+  drawText('VERIFIED EMAIL AND ACCOUNT RECOVERY', 240, 119, '#6f451f', 'center');
   drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.signIn, 'idle');
   drawText(authBusy ? 'OPENING...' : 'SIGN IN', 167, 157, '#fff2d0', 'center');
   drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.register, 'idle');
   drawText(authBusy ? 'OPENING...' : 'CREATE ACCOUNT', 313, 157, '#fff2d0', 'center');
   drawUiSkinAsset(context, skin.button, accountButtonRects.recover, 'idle');
   drawText('RECOVER ACCOUNT', 240, 188, '#5b3d22', 'center');
-  drawText('SECURE LOGIN BY ORCHARD ACCOUNTS', 240, 204, '#91672e', 'center');
 }
 
 function drawLocalPreview(): void {
@@ -147,33 +169,30 @@ function drawLocalPreview(): void {
   });
 }
 
-function render(): void {
+function render(timeMs = performance.now()): void {
   context.setTransform(displayPixelRatio, 0, 0, displayPixelRatio, 0, 0);
   context.imageSmoothingEnabled = false;
-  context.fillStyle = '#527b48';
-  context.fillRect(0, 0, viewport.width, viewport.height);
-  context.fillStyle = '#648e52';
-  const backgroundScale = Math.max(1, scene.scale);
-  for (let y = 9 * backgroundScale; y < viewport.height; y += 29 * backgroundScale) {
-    for (let x = 7 * backgroundScale + (Math.round(y) % 4) * 13; x < viewport.width; x += 47 * backgroundScale) {
-      context.fillRect(Math.round(x), Math.round(y), 2 * backgroundScale, 3 * backgroundScale);
-    }
-  }
+  drawOrchardBackdrop(context, viewport.width, viewport.height, timeMs);
   context.save();
   context.translate(scene.x, scene.y);
   context.scale(scene.scale, scene.scale);
-  drawUiSkinAsset(context, skin.panelWood, { x: 58, y: 25, width: 364, height: 222 });
-  drawUiSkinAsset(context, skin.panelParchment, { x: 68, y: 35, width: 344, height: 202 });
-  drawUiSkinNatural(context, skin.banner, 201, 21);
-  drawPixelText(context, ui, 'ORCHARD & CELLAR', 240, 43, { align: 'center', color: '#6f451f', font: 'header' });
-  drawText(localPreview ? 'LOCAL DEVELOPMENT PREVIEW' : 'FRIENDS-ONLY ONLINE WORLD', 240, 68, '#91672e', 'center');
+  const accountHeight = localPreview ? 222 : 200;
+  drawUiSkinAsset(context, skin.panelWood, { x: 58, y: 25, width: 364, height: accountHeight });
+  drawUiSkinAsset(context, skin.panelParchment, { x: 68, y: 35, width: 344, height: accountHeight - 20 });
+  accountRibbon.draw(context, 'ORCHARD & CELLAR', 240, 21);
+  drawPixelText(context, ui, `V${clientVersion}`, 402, 41, { align: 'right', color: '#91672e' });
+  if (orchardEmblemFrame !== null) context.drawImage(
+    orchardEmblem.image,
+    orchardEmblemFrame.x, orchardEmblemFrame.y, orchardEmblemFrame.width, orchardEmblemFrame.height,
+    232, 49, 16, 16,
+  );
+  if (localPreview) drawText('LOCAL DEVELOPMENT PREVIEW', 240, 73, '#91672e', 'center');
   drawText((authError ?? message).slice(0, 58).toUpperCase(), 240, 83, authError ? '#a43b2f' : '#6f451f', 'center');
 
   if (localPreview) drawLocalPreview();
   else drawAccountLogin();
 
-  drawText(localPreview ? 'ARROWS SELECT  ENTER CONTINUE  N NEW' : authSession === null ? 'ENTER SIGN IN  C CREATE  R RECOVER' : 'ENTER CONTINUE  L SIGN OUT', 240, 218, '#6f451f', 'center');
-  drawText(oidcConfigured && localProfilesEnabled ? 'D TOGGLE LOCAL DEV  F FULLSCREEN' : 'F FULLSCREEN', 240, 229, '#91672e', 'center');
+  if (localPreview) drawText('ARROWS SELECT  ENTER CONTINUE  N NEW', 240, 218, '#6f451f', 'center');
   context.restore();
   requestAnimationFrame(render);
 }
@@ -207,6 +226,7 @@ async function submitAccount(intent: OidcEntryIntent = 'login'): Promise<void> {
   authBusy = true;
   message = 'OPENING SECURE LOGIN';
   try {
+    await audio.fadeOutForNavigation();
     await beginOidcLogin(intent);
   } catch (error: unknown) {
     authBusy = false;
@@ -216,11 +236,7 @@ async function submitAccount(intent: OidcEntryIntent = 'login'): Promise<void> {
 
 window.addEventListener('resize', resize);
 window.addEventListener('keydown', (event) => {
-  if (event.key.toLowerCase() === 'f' && document.activeElement !== input && !event.repeat) {
-    void toggleFullscreen(shellElement).catch(() => undefined);
-    event.preventDefault();
-    return;
-  }
+  void audio.unlock().catch(() => undefined);
   if (oidcConfigured && localProfilesEnabled && event.key.toLowerCase() === 'd' && document.activeElement !== input && !event.repeat) {
     localPreview = !localPreview;
     input.blur();
@@ -230,13 +246,11 @@ window.addEventListener('keydown', (event) => {
   }
   if (!localPreview) {
     if (event.key === 'Enter' && !event.repeat) void submitAccount();
-    else if (authSession === null && event.key.toLowerCase() === 'c' && !event.repeat) void submitAccount('register');
-    else if (authSession === null && event.key.toLowerCase() === 'r' && !event.repeat) void submitAccount('recover');
     else if (event.key.toLowerCase() === 'l' && authSession !== null && !event.repeat) {
       authSession = null;
       authBusy = true;
       message = 'SIGNING OUT';
-      void signOutOidc();
+      navigateWithMusic(() => { void signOutOidc(); });
     }
     return;
   }
@@ -261,6 +275,7 @@ window.addEventListener('keydown', (event) => {
   }
 });
 canvas.addEventListener('pointerdown', (event) => {
+  void audio.unlock().catch(() => undefined);
   const rect = canvas.getBoundingClientRect();
   const x = (event.clientX - rect.left - scene.x) / scene.scale;
   const y = (event.clientY - rect.top - scene.y) / scene.scale;
@@ -271,7 +286,7 @@ canvas.addEventListener('pointerdown', (event) => {
       authSession = null;
       authBusy = true;
       message = 'SIGNING OUT';
-      void signOutOidc();
+      navigateWithMusic(() => { void signOutOidc(); });
     } else if (action === 'sign-in') void submitAccount();
     else if (action === 'register') void submitAccount('register');
     else if (action === 'recover') void submitAccount('recover');
@@ -297,3 +312,4 @@ input.addEventListener('input', () => {
 
 resize();
 render();
+requestAnimationFrame(() => dismissLoadingScreen());

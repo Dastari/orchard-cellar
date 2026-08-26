@@ -18,6 +18,14 @@ The licensed UI font is included only as a runtime project resource alongside th
 small theme crops; neither the complete source sheets nor editable pack files are
 published.
 
+Login pages use a deliberate hybrid typography rule shared with the game shell:
+the Cute Fantasy pixel font is reserved for the Orchard banner, page headings, and
+primary game-style actions at clean integer-like sizes. Form labels, field values,
+instructions, validation, and recovery copy use the readable UI-monospace stack.
+Do not reapply the decorative pixel font globally. The provider background mirrors
+the account/loading screens with a hard-edged sky, stepped grass horizon, clouds,
+and sparse grass tufts.
+
 The email theme uses one email-safe HTML shell in `email/html/template.ftl`, so all
 Keycloak-generated HTML mail inherits the Orchard palette and framed parchment
 layout. Keep that shell table-based, self-contained, and free of JavaScript,

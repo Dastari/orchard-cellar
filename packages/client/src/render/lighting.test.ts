@@ -1,3 +1,4 @@
+import { dayProgressAtClockTime } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import {
   ambientAtProgress,
@@ -9,6 +10,7 @@ import {
   lightmapCoordinate,
   NEW_MOON_NIGHT_AMBIENT,
   playerLightPosition,
+  southFacingReceiverBrightness,
   stampPointLight,
   TORCH_LIGHT_RADIUS_TILES,
 } from './lighting.js';
@@ -16,24 +18,27 @@ import {
 describe('overworld lighting', () => {
   it('pins dawn, day, dusk, and readable-night keyframes', () => {
     expect(ambientAtProgress(0)).toEqual({ r: 222, g: 174, b: 126 });
-    expect(ambientAtProgress(0.1)).toEqual({ r: 255, g: 255, b: 255 });
-    expect(ambientAtProgress(0.62)).toEqual({ r: 255, g: 255, b: 255 });
-    expect(ambientAtProgress(0.72)).toEqual({ r: 166, g: 128, b: 157 });
-    expect(ambientAtProgress(0.8)).toEqual({ r: 89, g: 89, b: 105 });
-    expect(ambientAtProgress(1)).toEqual(FULL_MOON_NIGHT_AMBIENT);
+    expect(ambientAtProgress(dayProgressAtClockTime(8))).toEqual({ r: 255, g: 255, b: 255 });
+    expect(ambientAtProgress(dayProgressAtClockTime(17))).toEqual({ r: 255, g: 255, b: 255 });
+    expect(ambientAtProgress(dayProgressAtClockTime(19))).toEqual({ r: 166, g: 128, b: 157 });
+    expect(ambientAtProgress(dayProgressAtClockTime(21))).toEqual(FULL_MOON_NIGHT_AMBIENT);
+    expect(ambientAtProgress(dayProgressAtClockTime(4))).toEqual(FULL_MOON_NIGHT_AMBIENT);
+    expect(ambientAtProgress(1)).toEqual({ r: 222, g: 174, b: 126 });
   });
 
   it('composes weather after moonlight without crossing the new-moon floor', () => {
-    expect(ambientAtProgress(0.1, 0.12)).toEqual({ r: 224, g: 224, b: 224 });
-    expect(ambientAtProgress(0.9, 0.12)).toEqual({ r: 78, g: 78, b: 92 });
-    expect(ambientAtProgress(0.9, 0.18, 0)).toEqual(NEW_MOON_NIGHT_AMBIENT);
+    expect(ambientAtProgress(dayProgressAtClockTime(12), 0.12)).toEqual({ r: 224, g: 224, b: 224 });
+    expect(ambientAtProgress(dayProgressAtClockTime(23), 0.12)).toEqual({ r: 78, g: 78, b: 92 });
+    expect(ambientAtProgress(dayProgressAtClockTime(23), 0.18, 0)).toEqual(NEW_MOON_NIGHT_AMBIENT);
   });
 
   it('27§7 preserves Full Moon and makes New Moon deliberately dark only at night', () => {
-    expect(ambientAtProgress(0.9, 0, 1000)).toEqual(FULL_MOON_NIGHT_AMBIENT);
-    expect(ambientAtProgress(0.9, 0, 0)).toEqual(NEW_MOON_NIGHT_AMBIENT);
-    expect(ambientAtProgress(0.4, 0, 0)).toEqual({ r: 255, g: 255, b: 255 });
-    expect(ambientAtProgress(0.76, 0, 0)).toEqual({ r: 74, g: 64, b: 81 });
+    expect(ambientAtProgress(dayProgressAtClockTime(23), 0, 1000)).toEqual(FULL_MOON_NIGHT_AMBIENT);
+    expect(ambientAtProgress(dayProgressAtClockTime(23), 0, 0)).toEqual(NEW_MOON_NIGHT_AMBIENT);
+    expect(ambientAtProgress(dayProgressAtClockTime(12), 0, 0)).toEqual({ r: 255, g: 255, b: 255 });
+    const preDawn = ambientAtProgress(dayProgressAtClockTime(5), 0, 0);
+    expect(preDawn.r).toBeGreaterThan(NEW_MOON_NIGHT_AMBIENT.r);
+    expect(preDawn.r).toBeLessThan(222);
   });
 
   it('stamps radial point light with a bright center and ambient edge', () => {
@@ -59,5 +64,39 @@ describe('overworld lighting', () => {
 
   it('centers a carried light on the avatar torso rather than the movement foot', () => {
     expect(playerLightPosition(100, 200)).toEqual([100, 188]);
+  });
+
+  it('27§3 preserves front light and compensates direct light behind a south-facing sprite', () => {
+    const ambient = { r: 20, g: 20, b: 32 };
+    const common = {
+      worldX: 100,
+      worldY: 88,
+      radiusTiles: 12,
+      color: { r: 255, g: 205, b: 132 },
+    };
+    const behind = southFacingReceiverBrightness(100, 100, ambient, [{
+      ...common,
+      receiverDirectionWorldY: 84,
+    }]);
+    const front = southFacingReceiverBrightness(100, 100, ambient, [{
+      ...common,
+      receiverDirectionWorldY: 116,
+    }]);
+    expect(behind).toBeGreaterThan(0);
+    expect(behind).toBeLessThan(0.2);
+    expect(front).toBe(1);
+  });
+
+  it('27§3 softens side light and classifies carried emitters by their ground foot', () => {
+    const ambient = { r: 20, g: 20, b: 32 };
+    const side = southFacingReceiverBrightness(100, 100, ambient, [{
+      worldX: 84,
+      worldY: 88,
+      receiverDirectionWorldY: 100,
+      radiusTiles: 12,
+      color: { r: 255, g: 205, b: 132 },
+    }]);
+    expect(side).toBeGreaterThan(0.4);
+    expect(side).toBeLessThan(0.7);
   });
 });

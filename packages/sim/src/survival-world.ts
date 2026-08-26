@@ -12,6 +12,12 @@ import {
 } from './raised-terrain-autotile.js';
 import { SURVIVAL_SPAWN_SEARCH_RADIUS_TILES } from './balance.js';
 import { playerInteractionOrigin } from './movement.js';
+import {
+  TREE_GROWTH_STAGE_BIG,
+  TREE_GROWTH_STAGE_MEDIUM,
+  normalizeTreeGrowthStage,
+  treeHealthForGrowthStage,
+} from './tree-regrowth.js';
 
 /** The original generated island remains a 320x320 deterministic local space.
  * A wide ocean apron surrounds it so later islands can be added without moving
@@ -21,7 +27,7 @@ export const SURVIVAL_OCEAN_PADDING_TILES = 256;
 export const SURVIVAL_ISLAND_OFFSET_TILES = SURVIVAL_OCEAN_PADDING_TILES;
 export const SURVIVAL_WORLD_SIZE = SURVIVAL_ISLAND_SIZE + SURVIVAL_OCEAN_PADDING_TILES * 2;
 export const SURVIVAL_WORLD_SEED = 0x4f434852;
-export const SURVIVAL_WORLD_VERSION = 24;
+export const SURVIVAL_WORLD_VERSION = 25;
 export const SURVIVAL_CHUNK_TILES = 16;
 
 export const SURVIVAL_TREE_KINDS = [
@@ -29,6 +35,8 @@ export const SURVIVAL_TREE_KINDS = [
   'tree_apple', 'tree_pear', 'tree_peach', 'tree_cherry',
 ] as const;
 export type SurvivalTreeKind = typeof SURVIVAL_TREE_KINDS[number];
+export const SURVIVAL_REGROWING_PLANT_KINDS = ['cactus'] as const;
+export type SurvivalRegrowingPlantKind = typeof SURVIVAL_REGROWING_PLANT_KINDS[number];
 export const SURVIVAL_FRUIT_TREE_KINDS = ['tree_apple', 'tree_pear', 'tree_peach', 'tree_cherry'] as const;
 export type SurvivalFruitTreeKind = typeof SURVIVAL_FRUIT_TREE_KINDS[number];
 
@@ -41,7 +49,7 @@ export const SURVIVAL_ROCK_KINDS = ['rock_large'] as const;
 export type SurvivalRockKind = typeof SURVIVAL_ROCK_KINDS[number];
 export const SURVIVAL_GATHERABLE_RESOURCE_KINDS = ['loose_stone', 'fallen_branch'] as const;
 export type SurvivalGatherableResourceKind = typeof SURVIVAL_GATHERABLE_RESOURCE_KINDS[number];
-export type SurvivalResourceKind = SurvivalTreeKind | SurvivalOreKind | SurvivalRockKind | SurvivalGatherableResourceKind;
+export type SurvivalResourceKind = SurvivalTreeKind | SurvivalRegrowingPlantKind | SurvivalOreKind | SurvivalRockKind | SurvivalGatherableResourceKind;
 export const ORE_NODE_RESERVE_HITS = 96;
 export const ORE_HITS_PER_DROP = 3;
 export const ORE_NODES_PER_KIND = 6;
@@ -56,7 +64,8 @@ export type SurvivalPoiDecorationKind = typeof SURVIVAL_POI_DECORATION_KINDS[num
 export const SURVIVAL_NATURE_DECORATION_KINDS = [
   'nature_grass', 'nature_flower_grass', 'nature_flower', 'nature_mushroom',
   'nature_lily_pad', 'nature_water_flower', 'nature_cattail', 'nature_water_grass', 'nature_water_rock',
-  'nature_fish_shadow',
+  'nature_fish_shadow', 'nature_desert_grass', 'nature_desert_fern', 'nature_desert_bush',
+  'nature_desert_plant', 'nature_desert_rock',
 ] as const;
 export type SurvivalNatureDecorationKind = typeof SURVIVAL_NATURE_DECORATION_KINDS[number];
 export const SURVIVAL_CAMP_DECORATION_KINDS = [
@@ -76,6 +85,11 @@ export const MARLOW_CAMP = {
   homeTileY: 358,
   reserveRadiusX: 7,
   reserveRadiusY: 6,
+} as const;
+
+export const MARLOW_CAMPFIRE_TILE = {
+  tileX: MARLOW_CAMP.centerTileX,
+  tileY: MARLOW_CAMP.centerTileY,
 } as const;
 
 export const SURVIVAL_BIOMES = [
@@ -756,6 +770,12 @@ export function survivalPlateauAt(seed: number, tileX: number, tileY: number): b
   return plateauMaskFor(seed)[tileY * SURVIVAL_WORLD_SIZE + tileX] === 1;
 }
 
+/** Legacy island elevation adapter. Doc 30's unbounded sampler replaces this
+ * with arbitrary integer levels; current plateaus are level one. */
+export function survivalTerrainHeightAt(seed: number, tileX: number, tileY: number): number {
+  return survivalPlateauAt(seed, tileX, tileY) ? 1 : 0;
+}
+
 export function survivalDirtTerraceAt(seed: number, tileX: number, tileY: number): boolean {
   if (tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return false;
   return dirtTerraceMaskFor(seed)[tileY * SURVIVAL_WORLD_SIZE + tileX] === 1;
@@ -1094,6 +1114,14 @@ export function isChoppableTreeKind(kind: string): boolean {
   return kind === 'tree' || (SURVIVAL_TREE_KINDS as readonly string[]).includes(kind);
 }
 
+export function isRegrowingPlantKind(kind: string): boolean {
+  return isChoppableTreeKind(kind) || (SURVIVAL_REGROWING_PLANT_KINDS as readonly string[]).includes(kind);
+}
+
+export function isAxeHarvestableResourceKind(kind: string): boolean {
+  return isRegrowingPlantKind(kind);
+}
+
 export function isFruitTreeKind(kind: string): kind is SurvivalFruitTreeKind {
   return (SURVIVAL_FRUIT_TREE_KINDS as readonly string[]).includes(kind);
 }
@@ -1110,11 +1138,11 @@ export function rawOreItemKindForResource(kind: SurvivalOreKind): string {
   return `${kind.slice('ore_'.length)}_ore`;
 }
 
-export function survivalResourceInitialHealth(kind: string): number {
+export function survivalResourceInitialHealth(kind: string, treeGrowthStage = TREE_GROWTH_STAGE_BIG): number {
   if (isMineableOreKind(kind)) return ORE_NODE_RESERVE_HITS;
   if (isBreakableRockKind(kind)) return LARGE_ROCK_INITIAL_HEALTH;
   if (isGatherableResourceKind(kind)) return 1;
-  return 3;
+  return isRegrowingPlantKind(kind) ? treeHealthForGrowthStage(treeGrowthStage) : 3;
 }
 
 export interface SurvivalResourceDrop {
@@ -1131,7 +1159,11 @@ const FRUIT_ITEM_BY_TREE: Readonly<Record<SurvivalFruitTreeKind, string>> = {
 
 /** Returns the authoritative drop produced by this completed hit. Ore veins
  * pay out steadily while retaining a large finite reserve for shared mining. */
-export function survivalResourceDropAfterHit(kind: string, remainingHealth: number): SurvivalResourceDrop | null {
+export function survivalResourceDropAfterHit(
+  kind: string,
+  remainingHealth: number,
+  treeGrowthStage = TREE_GROWTH_STAGE_BIG,
+): SurvivalResourceDrop | null {
   if (isMineableOreKind(kind)) {
     const hitsTaken = ORE_NODE_RESERVE_HITS - remainingHealth;
     return hitsTaken > 0 && hitsTaken % ORE_HITS_PER_DROP === 0
@@ -1144,16 +1176,26 @@ export function survivalResourceDropAfterHit(kind: string, remainingHealth: numb
       ? { itemKind: 'stone', quantity: 1 }
       : null;
   }
-  return isChoppableTreeKind(kind) && remainingHealth === 0
+  if (!isRegrowingPlantKind(kind) || remainingHealth !== 0) return null;
+  const stage = normalizeTreeGrowthStage(treeGrowthStage);
+  if (kind === 'cactus') return { itemKind: 'cactus', quantity: stage };
+  return stage === TREE_GROWTH_STAGE_BIG
     ? { itemKind: 'wood', quantity: 3 }
-    : null;
+    : stage === TREE_GROWTH_STAGE_MEDIUM
+      ? { itemKind: 'wood', quantity: 1 }
+      : { itemKind: 'stick', quantity: 1 };
 }
 
 /** A felled fruit tree yields normal timber plus its matching authored fruit. */
-export function survivalResourceDropsAfterHit(kind: string, remainingHealth: number): readonly SurvivalResourceDrop[] {
-  const primary = survivalResourceDropAfterHit(kind, remainingHealth);
+export function survivalResourceDropsAfterHit(
+  kind: string,
+  remainingHealth: number,
+  treeGrowthStage = TREE_GROWTH_STAGE_BIG,
+): readonly SurvivalResourceDrop[] {
+  const primary = survivalResourceDropAfterHit(kind, remainingHealth, treeGrowthStage);
   if (primary === null) return [];
   return isFruitTreeKind(kind) && remainingHealth === 0
+    && normalizeTreeGrowthStage(treeGrowthStage) === TREE_GROWTH_STAGE_BIG
     ? [primary, { itemKind: FRUIT_ITEM_BY_TREE[kind], quantity: 2 }]
     : [primary];
 }
@@ -1360,6 +1402,11 @@ const NATURE_VARIANT_COUNTS: Readonly<Record<SurvivalNatureDecorationKind, numbe
   nature_water_grass: 2,
   nature_water_rock: 10,
   nature_fish_shadow: 1,
+  nature_desert_grass: 3,
+  nature_desert_fern: 1,
+  nature_desert_bush: 2,
+  nature_desert_plant: 3,
+  nature_desert_rock: 4,
 };
 
 function natureGroundBiome(biome: SurvivalBiome): boolean {
@@ -1418,6 +1465,14 @@ function generateNatureDecorations(
   const validGround = (tileX: number, tileY: number): boolean => {
     if (!natureGroundBiome(biomeAt(tileX, tileY)) || survivalSpawnProtectedAt(tileX, tileY)
       || survivalMarlowCampReservedAt(tileX, tileY)) return false;
+    return survivalCliffRoleAt(seed, tileX, tileY) === 'none'
+      && survivalDirtCliffRoleAt(seed, tileX, tileY) === 'none'
+      && !survivalRampApproachAt(seed, tileX, tileY);
+  };
+  const validDesertGround = (tileX: number, tileY: number): boolean => {
+    const biome = biomeAt(tileX, tileY);
+    if (biome !== 'desert' && biome !== 'desert_shore') return false;
+    if (survivalSpawnProtectedAt(tileX, tileY) || survivalMarlowCampReservedAt(tileX, tileY)) return false;
     return survivalCliffRoleAt(seed, tileX, tileY) === 'none'
       && survivalDirtCliffRoleAt(seed, tileX, tileY) === 'none'
       && !survivalRampApproachAt(seed, tileX, tileY);
@@ -1519,6 +1574,19 @@ function generateNatureDecorations(
       const roll = hash(seed ^ 0x47524153, islandTile(tileX), islandTile(tileY)) % 10_000;
       if (roll < chance) add('nature_grass', tileX, tileY);
       else if (roll < chance + 150) add('nature_flower_grass', tileX, tileY);
+    }
+  }
+  // Desert ground gets its own restrained authored mix. Resource generation
+  // runs against these occupied tiles later, so cacti never overlap a decal.
+  for (let tileY = islandMinimum; tileY < islandMaximum; tileY += 1) {
+    for (let tileX = islandMinimum; tileX < islandMaximum; tileX += 1) {
+      if (!validDesertGround(tileX, tileY)) continue;
+      const roll = hash(seed ^ 0x44455350, islandTile(tileX), islandTile(tileY)) % 10_000;
+      if (roll < 680) add('nature_desert_grass', tileX, tileY);
+      else if (roll < 900) add('nature_desert_fern', tileX, tileY);
+      else if (roll < 1_080) add('nature_desert_bush', tileX, tileY);
+      else if (roll < 1_260) add('nature_desert_plant', tileX, tileY);
+      else if (roll < 1_380) add('nature_desert_rock', tileX, tileY);
     }
   }
   return decorations;
@@ -1666,6 +1734,16 @@ function generatedNaturalSurvivalResourceWith(
   if (survivalBiomeBlocksMovement(biome)) return null;
   const localX = islandTile(tileX);
   const localY = islandTile(tileY);
+  if (biome === 'desert' || biome === 'desert_shore') {
+    const cellSize = 7;
+    const cellX = Math.floor(localX / cellSize);
+    const cellY = Math.floor(localY / cellSize);
+    const cactusX = cellX * cellSize + hash(seed ^ 0x43414358, cellX, cellY) % cellSize;
+    const cactusY = cellY * cellSize + hash(seed ^ 0x43414359, cellX, cellY) % cellSize;
+    if (localX === cactusX && localY === cactusY) {
+      return { id: resourceTileId(tileX, tileY), kind: 'cactus', tileX, tileY };
+    }
+  }
   const rockChance = biome === 'beach' || biome === 'desert_shore' || biome === 'oasis' ? 0 : 24;
   if (hash(seed ^ 0x524f434b, localX, localY) % 10_000 < rockChance) {
     return { id: resourceTileId(tileX, tileY), kind: 'loose_stone', tileX, tileY };
@@ -1745,6 +1823,7 @@ export function createSurvivalCollisionMap(
     width: SURVIVAL_WORLD_SIZE,
     height: SURVIVAL_WORLD_SIZE,
     blocked,
+    ...(medium === 'ground' ? { elevations: survivalElevationBytes(seed) } : {}),
     ...(medium === 'ground' ? { horseJumpableTerrain } : {}),
     obstacles,
   };
@@ -1763,6 +1842,10 @@ export function survivalCliffRoleBytes(seed = SURVIVAL_WORLD_SEED): Uint8Array {
 }
 
 export function survivalPlateauBytes(seed = SURVIVAL_WORLD_SEED): Uint8Array {
+  return plateauMaskFor(seed).slice();
+}
+
+export function survivalElevationBytes(seed = SURVIVAL_WORLD_SEED): Uint8Array {
   return plateauMaskFor(seed).slice();
 }
 

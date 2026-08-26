@@ -81,7 +81,9 @@ damage              = max(100, floor(attackPower × variance × crit) − armor)
   Vigour + swing-interval gates (already live for the sword), the standing
   facing-cone target pick restricted to **hostile NPCs**, then §3 damage to
   `world_npc.health`. Swing animation is the existing `AVATAR_ACTIONS`
-  channel; no new netcode.
+  channel; no new netcode. Contact tools start with a one-tile-radius area
+  centred one tile ahead of the character's facing. A future skill-tree range
+  modifier expands that area; the unskilled base range stays at one tile.
 - **Ranged**: `fireBow` gains consequences — consume 1 `arrow`, and on a
   `hit` row whose `hitKind` is a hostile NPC, apply §3 damage in the same
   tick. Arrows that land in terrain persist briefly as recoverable

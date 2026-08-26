@@ -78,4 +78,18 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(move).toContain('moveItemStacks(containers, request)');
     expect(move).toContain('world_placeable_slot.id.update');
   });
+
+  it('salvages chest recipe inputs rather than duplicating the intact crafted object', () => {
+    const harvest = reducerSource('harvestChest');
+    expect(harvest).toContain("recipeDefinition('chest')");
+    expect(harvest).toContain('recipeIngredientStacks(chestRecipe)');
+    expect(harvest).not.toContain("stacks.unshift({ itemKind: 'chest'");
+  });
+
+  it('opens the nearest chest radially instead of requiring one faced tile', () => {
+    const interact = reducerSource('interactChest');
+    expect(interact).toContain('nearestTileTarget(');
+    expect(interact).toContain('CHEST_INTERACTION_REACH_FIXED');
+    expect(interact).not.toContain('facingTile(');
+  });
 });

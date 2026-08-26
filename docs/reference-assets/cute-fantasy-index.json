@@ -13433,7 +13433,9 @@
       "section": "Buildings/House_Decor",
       "name": "Tables",
       "description": "Tables — Buildings / House Decor",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_workbench [world.placeable, station.workbench]"
+      ],
       "dimensions": [
         336,
         896
@@ -13458,14 +13460,20 @@
       "searchTerms": [
         "building-entity",
         "buildings",
+        "cf",
         "cute",
         "decor",
         "entity-solid",
         "fantasy",
         "house",
+        "placeable",
         "png",
+        "prop",
         "references",
-        "tables"
+        "station",
+        "tables",
+        "workbench",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "f3967ea0854ffa8d8c0bdb3cc8d4e920c959b5ed2239df95513d0205ddfea5c8"
@@ -16184,7 +16192,8 @@
       "name": "Food Icons Outline",
       "description": "Food Icons Outline",
       "reviewedAssets": [
-        "icon_cf_effect_orchard_tea [ui.icon, item.food, effect.orchard_tea]"
+        "icon_cf_effect_orchard_tea [ui.icon, item.food, effect.orchard_tea]",
+        "item_cf_grape [item.fruit, fruit.grape]"
       ],
       "dimensions": [
         128,
@@ -16213,6 +16222,8 @@
         "effect",
         "fantasy",
         "food",
+        "fruit",
+        "grape",
         "icon",
         "icons",
         "item",
@@ -16321,6 +16332,8 @@
       "name": "Resources Icons Outline",
       "description": "Resources Icons Outline",
       "reviewedAssets": [
+        "item_cf_backpack [item.equipment, equipment.back]",
+        "item_cf_fiber [item.resource, material.fiber]",
         "item_cf_stick [item.resource, material.wood, item.crafted]"
       ],
       "dimensions": [
@@ -16345,10 +16358,14 @@
       "collisionNotes": "UI atlas content; never place in world collision.",
       "tileSet": null,
       "searchTerms": [
+        "back",
+        "backpack",
         "cf",
         "crafted",
         "cute",
+        "equipment",
         "fantasy",
+        "fiber",
         "icons",
         "item",
         "material",
@@ -20143,7 +20160,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Other_Animations",
       "name": "Fence Big Gate",
       "description": "Fence Big Gate — Outdoor Decor Animations / Other Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_fence_gate [world.placeable, build.fence, interaction.openable]"
+      ],
       "dimensions": [
         240,
         64
@@ -20168,6 +20187,8 @@
       "searchTerms": [
         "animations",
         "big",
+        "build",
+        "cf",
         "cute",
         "decor",
         "decoration",
@@ -20175,10 +20196,15 @@
         "fantasy",
         "fence",
         "gate",
+        "interaction",
+        "openable",
         "other",
         "outdoor",
+        "placeable",
         "png",
+        "prop",
         "references",
+        "world",
         "world-prop"
       ],
       "duplicateOf": null,
@@ -20440,7 +20466,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Other_Animations",
       "name": "Torch Anim",
       "description": "Torch Anim — Outdoor Decor Animations / Other Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_standing_torch [world.placeable, emits.light, light.flame]"
+      ],
       "dimensions": [
         128,
         32
@@ -20467,17 +20495,25 @@
       "searchTerms": [
         "anim",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
+        "emits",
         "entity-animation",
         "entity-nonsolid",
         "fantasy",
+        "flame",
+        "light",
         "other",
         "outdoor",
+        "placeable",
         "png",
+        "prop",
         "references",
-        "torch"
+        "standing",
+        "torch",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "1fcae60e53e2ad328b5faf462baef1b4934304386180e4c3ac4497903243103f"
@@ -24091,7 +24127,9 @@
       "section": "Outdoor decoration",
       "name": "Signs",
       "description": "Signs — Outdoor decoration",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_sign [world.placeable, decor.sign]"
+      ],
       "dimensions": [
         96,
         528
@@ -24114,14 +24152,20 @@
       "collisionNotes": "Decoration/harvestable overlay; reserve placement as needed but do not block movement by default.",
       "tileSet": null,
       "searchTerms": [
+        "cf",
         "cute",
+        "decor",
         "decoration",
         "entity-nonsolid",
         "fantasy",
         "outdoor",
+        "placeable",
         "png",
+        "prop",
         "references",
+        "sign",
         "signs",
+        "world",
         "world-prop"
       ],
       "duplicateOf": null,
@@ -35100,7 +35144,8 @@
       "name": "Big Birch Tree",
       "description": "Big Birch Tree — Trees",
       "reviewedAssets": [
-        "tree_cf_birch_mature [vegetation.tree, vegetation.tree.birch, resource.choppable]"
+        "tree_cf_birch_mature [vegetation.tree, vegetation.tree.birch, resource.choppable]",
+        "tree_cf_birch_stump [vegetation.tree, vegetation.tree.birch, resource.choppable.stump]"
       ],
       "dimensions": [
         96,
@@ -35136,6 +35181,7 @@
         "png",
         "references",
         "resource",
+        "stump",
         "tree",
         "trees",
         "vegetation"
@@ -35151,7 +35197,8 @@
       "name": "Big Fruit Tree",
       "description": "Big Fruit Tree — Trees",
       "reviewedAssets": [
-        "tree_cf_fruit_mature"
+        "tree_cf_fruit_mature",
+        "tree_cf_fruit_stump [vegetation.tree, vegetation.tree.fruit, resource.choppable.stump]"
       ],
       "dimensions": [
         96,
@@ -35177,6 +35224,7 @@
       "searchTerms": [
         "big",
         "cf",
+        "choppable",
         "cute",
         "entity",
         "entity-solid",
@@ -35185,8 +35233,11 @@
         "mature",
         "png",
         "references",
+        "resource",
+        "stump",
         "tree",
-        "trees"
+        "trees",
+        "vegetation"
       ],
       "duplicateOf": null,
       "sha256": "358f6fa0af5485bde61c61bbacc7c294b03cf7bf19ed870e2dd68b455c3a7470"
@@ -35199,7 +35250,8 @@
       "name": "Big Oak Tree",
       "description": "Big Oak Tree — Trees",
       "reviewedAssets": [
-        "tree_cf_oak_mature [vegetation.tree, vegetation.tree.oak, resource.choppable]"
+        "tree_cf_oak_mature [vegetation.tree, vegetation.tree.oak, resource.choppable]",
+        "tree_cf_oak_stump [vegetation.tree, vegetation.tree.oak, resource.choppable.stump]"
       ],
       "dimensions": [
         192,
@@ -35235,6 +35287,7 @@
         "png",
         "references",
         "resource",
+        "stump",
         "tree",
         "trees",
         "vegetation"
@@ -35250,7 +35303,8 @@
       "name": "Big Spruce tree",
       "description": "Big Spruce tree — Trees",
       "reviewedAssets": [
-        "tree_cf_spruce_mature [vegetation.tree, vegetation.tree.spruce, resource.choppable]"
+        "tree_cf_spruce_mature [vegetation.tree, vegetation.tree.spruce, resource.choppable]",
+        "tree_cf_spruce_stump [vegetation.tree, vegetation.tree.spruce, resource.choppable.stump]"
       ],
       "dimensions": [
         192,
@@ -35286,6 +35340,7 @@
         "references",
         "resource",
         "spruce",
+        "stump",
         "tree",
         "trees",
         "vegetation"
@@ -35350,7 +35405,10 @@
       "section": "Trees",
       "name": "Medium Birch Tree",
       "description": "Medium Birch Tree — Trees",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tree_cf_birch_stump_medium [vegetation.tree, vegetation.tree.birch, resource.choppable.stump.medium]",
+        "tree_cf_birch_young [vegetation.tree, vegetation.tree.birch, resource.regrowth.young]"
+      ],
       "dimensions": [
         96,
         48
@@ -35374,6 +35432,8 @@
       "tileSet": null,
       "searchTerms": [
         "birch",
+        "cf",
+        "choppable",
         "cute",
         "entity",
         "entity-solid",
@@ -35381,8 +35441,13 @@
         "medium",
         "png",
         "references",
+        "regrowth",
+        "resource",
+        "stump",
         "tree",
-        "trees"
+        "trees",
+        "vegetation",
+        "young"
       ],
       "duplicateOf": null,
       "sha256": "80e2eb105b0389667a86ef32aaf4239306dd7ede39d67cee6628cbb8a7e174f8"
@@ -35394,7 +35459,10 @@
       "section": "Trees",
       "name": "Medium Fruit Tree",
       "description": "Medium Fruit Tree — Trees",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tree_cf_fruit_medium [vegetation.tree, vegetation.tree.fruit, resource.choppable.medium]",
+        "tree_cf_fruit_stump_medium [vegetation.tree, vegetation.tree.fruit, resource.choppable.stump.medium]"
+      ],
       "dimensions": [
         96,
         64
@@ -35417,6 +35485,8 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "cf",
+        "choppable",
         "cute",
         "entity",
         "entity-solid",
@@ -35425,8 +35495,11 @@
         "medium",
         "png",
         "references",
+        "resource",
+        "stump",
         "tree",
-        "trees"
+        "trees",
+        "vegetation"
       ],
       "duplicateOf": null,
       "sha256": "7de6c27095ef6f7faacf65642b7926397e57943793a9e336fbac87c1f361749e"
@@ -35439,7 +35512,8 @@
       "name": "Medium Oak Tree",
       "description": "Medium Oak Tree — Trees",
       "reviewedAssets": [
-        "tree_cf_oak_stump"
+        "tree_cf_oak_stump_medium [vegetation.tree, vegetation.tree.oak, resource.choppable.stump.medium]",
+        "tree_cf_oak_young [vegetation.tree, vegetation.tree.oak, resource.regrowth.young]"
       ],
       "dimensions": [
         96,
@@ -35464,6 +35538,7 @@
       "tileSet": null,
       "searchTerms": [
         "cf",
+        "choppable",
         "cute",
         "entity",
         "entity-solid",
@@ -35472,9 +35547,13 @@
         "oak",
         "png",
         "references",
+        "regrowth",
+        "resource",
         "stump",
         "tree",
-        "trees"
+        "trees",
+        "vegetation",
+        "young"
       ],
       "duplicateOf": null,
       "sha256": "fe4c8028f05f5564d1a12d3dee07cf7608b9e244ffc5d083f3724f6588d5880f"
@@ -35486,7 +35565,10 @@
       "section": "Trees",
       "name": "Medium Spruce Tree",
       "description": "Medium Spruce Tree — Trees",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tree_cf_spruce_stump_medium [vegetation.tree, vegetation.tree.spruce, resource.choppable.stump.medium]",
+        "tree_cf_spruce_young [vegetation.tree, vegetation.tree.spruce, resource.regrowth.young]"
+      ],
       "dimensions": [
         96,
         48
@@ -35509,6 +35591,8 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "cf",
+        "choppable",
         "cute",
         "entity",
         "entity-solid",
@@ -35516,9 +35600,14 @@
         "medium",
         "png",
         "references",
+        "regrowth",
+        "resource",
         "spruce",
+        "stump",
         "tree",
-        "trees"
+        "trees",
+        "vegetation",
+        "young"
       ],
       "duplicateOf": null,
       "sha256": "5d12138852202d693312a64355513f8045c7a486562258f8cfc2157753d1bc0f"
@@ -35580,7 +35669,10 @@
       "section": "Trees",
       "name": "Small Birch Tree",
       "description": "Small Birch Tree — Trees",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tree_cf_birch_sapling [vegetation.tree, vegetation.tree.birch, resource.regrowth.sapling]",
+        "tree_cf_birch_stump_small [vegetation.tree, vegetation.tree.birch, resource.choppable.stump.small]"
+      ],
       "dimensions": [
         96,
         64
@@ -35604,15 +35696,22 @@
       "tileSet": null,
       "searchTerms": [
         "birch",
+        "cf",
+        "choppable",
         "cute",
         "entity",
         "entity-solid",
         "fantasy",
         "png",
         "references",
+        "regrowth",
+        "resource",
+        "sapling",
         "small",
+        "stump",
         "tree",
-        "trees"
+        "trees",
+        "vegetation"
       ],
       "duplicateOf": null,
       "sha256": "c1c24f75295bff699b3532ea9a4b0dbf6123db4174cb9d072559cacaef1d2d13"
@@ -35624,7 +35723,10 @@
       "section": "Trees",
       "name": "Small Fruit Tree",
       "description": "Small Fruit Tree — Trees",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tree_cf_fruit_small [vegetation.tree, vegetation.tree.fruit, resource.choppable.small]",
+        "tree_cf_fruit_stump_small [vegetation.tree, vegetation.tree.fruit, resource.choppable.stump.small]"
+      ],
       "dimensions": [
         96,
         64
@@ -35647,6 +35749,8 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "cf",
+        "choppable",
         "cute",
         "entity",
         "entity-solid",
@@ -35654,9 +35758,12 @@
         "fruit",
         "png",
         "references",
+        "resource",
         "small",
+        "stump",
         "tree",
-        "trees"
+        "trees",
+        "vegetation"
       ],
       "duplicateOf": null,
       "sha256": "83263fdd175480b25daae3ea92f4e8cdd15ab3d856f3f3be0bc2bd6b8b650ccb"
@@ -35668,7 +35775,10 @@
       "section": "Trees",
       "name": "Small Oak Tree",
       "description": "Small Oak Tree — Trees",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tree_cf_oak_sapling [vegetation.tree, vegetation.tree.oak, resource.regrowth.sapling]",
+        "tree_cf_oak_stump_small [vegetation.tree, vegetation.tree.oak, resource.choppable.stump.small]"
+      ],
       "dimensions": [
         96,
         64
@@ -35691,6 +35801,8 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "cf",
+        "choppable",
         "cute",
         "entity",
         "entity-solid",
@@ -35698,9 +35810,14 @@
         "oak",
         "png",
         "references",
+        "regrowth",
+        "resource",
+        "sapling",
         "small",
+        "stump",
         "tree",
-        "trees"
+        "trees",
+        "vegetation"
       ],
       "duplicateOf": null,
       "sha256": "176e8c152831129b8d40095f22dc6aee97a98ce498b56a610280f5e97dc641cc"
@@ -35712,7 +35829,10 @@
       "section": "Trees",
       "name": "Small Spruce Tree",
       "description": "Small Spruce Tree — Trees",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tree_cf_spruce_sapling [vegetation.tree, vegetation.tree.spruce, resource.regrowth.sapling]",
+        "tree_cf_spruce_stump_small [vegetation.tree, vegetation.tree.spruce, resource.choppable.stump.small]"
+      ],
       "dimensions": [
         96,
         64
@@ -35735,16 +35855,23 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "cf",
+        "choppable",
         "cute",
         "entity",
         "entity-solid",
         "fantasy",
         "png",
         "references",
+        "regrowth",
+        "resource",
+        "sapling",
         "small",
         "spruce",
+        "stump",
         "tree",
-        "trees"
+        "trees",
+        "vegetation"
       ],
       "duplicateOf": null,
       "sha256": "a2227f8cb579416d17b23610b25f4c1104149d4d5915f8710b9b13d40b079bc7"
@@ -38415,7 +38542,11 @@
       "section": "Props",
       "name": "Ambarakaman Plant",
       "description": "Ambarakaman Plant — Props",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_desert_plant_01 [vegetation.plant, vegetation.desert]",
+        "nature_cf_desert_plant_02 [vegetation.plant, vegetation.desert]",
+        "nature_cf_desert_plant_03 [vegetation.plant, vegetation.desert]"
+      ],
       "dimensions": [
         48,
         16
@@ -38438,15 +38569,21 @@
       "collisionNotes": "Decoration/harvestable overlay; reserve placement as needed but do not block movement by default.",
       "tileSet": null,
       "searchTerms": [
+        "01",
+        "02",
+        "03",
         "ambarakaman",
+        "cf",
         "cute",
         "desert",
         "entity-nonsolid",
         "fantasy",
+        "nature",
         "plant",
         "png",
         "props",
         "references",
+        "vegetation",
         "world-prop"
       ],
       "duplicateOf": null,
@@ -38459,7 +38596,9 @@
       "section": "Props",
       "name": "Cactus",
       "description": "Cactus — Props",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "resource_cf_cactus [vegetation.cactus, resource.choppable, resource.regrowing, biome.desert]"
+      ],
       "dimensions": [
         224,
         256
@@ -38482,14 +38621,20 @@
       "collisionNotes": "Composite prop sheet: classify each extracted object as flat decoration, trigger, or solid footprint.",
       "tileSet": null,
       "searchTerms": [
+        "biome",
         "cactus",
+        "cf",
+        "choppable",
         "cute",
         "desert",
         "fantasy",
         "png",
         "props",
         "references",
+        "regrowing",
+        "resource",
         "review-per-component",
+        "vegetation",
         "world-prop"
       ],
       "duplicateOf": null,
@@ -38502,7 +38647,10 @@
       "section": "Props",
       "name": "Dead bush",
       "description": "Dead bush — Props",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_desert_bush_01 [vegetation.bush, vegetation.desert]",
+        "nature_cf_desert_bush_02 [vegetation.bush, vegetation.desert]"
+      ],
       "dimensions": [
         32,
         16
@@ -38525,15 +38673,20 @@
       "collisionNotes": "Composite prop sheet: classify each extracted object as flat decoration, trigger, or solid footprint.",
       "tileSet": null,
       "searchTerms": [
+        "01",
+        "02",
         "bush",
+        "cf",
         "cute",
         "dead",
         "desert",
         "fantasy",
+        "nature",
         "png",
         "props",
         "references",
         "review-per-component",
+        "vegetation",
         "world-prop"
       ],
       "duplicateOf": null,
@@ -38719,7 +38872,9 @@
       "section": "Props",
       "name": "Desert Fern",
       "description": "Desert Fern — Props",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_desert_fern_01 [vegetation.fern, vegetation.desert]"
+      ],
       "dimensions": [
         16,
         16
@@ -38742,14 +38897,18 @@
       "collisionNotes": "Composite prop sheet: classify each extracted object as flat decoration, trigger, or solid footprint.",
       "tileSet": null,
       "searchTerms": [
+        "01",
+        "cf",
         "cute",
         "desert",
         "fantasy",
         "fern",
+        "nature",
         "png",
         "props",
         "references",
         "review-per-component",
+        "vegetation",
         "world-prop"
       ],
       "duplicateOf": null,
@@ -38806,7 +38965,11 @@
       "section": "Props",
       "name": "Desert Grass Props",
       "description": "Desert Grass Props",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_desert_grass_01 [vegetation.grass, vegetation.desert]",
+        "nature_cf_desert_grass_02 [vegetation.grass, vegetation.desert]",
+        "nature_cf_desert_grass_03 [vegetation.grass, vegetation.desert]"
+      ],
       "dimensions": [
         48,
         16
@@ -38829,14 +38992,20 @@
       "collisionNotes": "Decoration/harvestable overlay; reserve placement as needed but do not block movement by default.",
       "tileSet": null,
       "searchTerms": [
+        "01",
+        "02",
+        "03",
+        "cf",
         "cute",
         "desert",
         "entity-nonsolid",
         "fantasy",
         "grass",
+        "nature",
         "png",
         "props",
         "references",
+        "vegetation",
         "world-prop"
       ],
       "duplicateOf": null,
@@ -38936,7 +39105,12 @@
       "section": "Props",
       "name": "Desert Rocks",
       "description": "Desert Rocks — Props",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_desert_rock_01 [decoration.rock, decoration.desert]",
+        "nature_cf_desert_rock_02 [decoration.rock, decoration.desert]",
+        "nature_cf_desert_rock_03 [decoration.rock, decoration.desert]",
+        "nature_cf_desert_rock_04 [decoration.rock, decoration.desert]"
+      ],
       "dimensions": [
         192,
         32
@@ -38959,13 +39133,21 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "cf",
         "cute",
+        "decoration",
         "desert",
         "entity-solid",
         "fantasy",
+        "nature",
         "png",
         "props",
         "references",
+        "rock",
         "rocks",
         "world-prop"
       ],

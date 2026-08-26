@@ -1,4 +1,10 @@
-import { AUTHORITY_TICKS_PER_DAY, DAYS_PER_SEASON, authorityDayIndex, authorityDayProgress } from './time.js';
+import {
+  AUTHORITY_TICKS_PER_DAY,
+  DAYS_PER_SEASON,
+  authorityDayIndex,
+  authorityDayProgress,
+  dayProgressAtClockTime,
+} from './time.js';
 
 export const WEATHER_MODES = ['auto', 'rain', 'clear', 'cloudy', 'wind'] as const;
 export type WeatherMode = (typeof WEATHER_MODES)[number];
@@ -63,9 +69,11 @@ export function scheduledRainAtTick(authorityTick: bigint): boolean {
     : season === 1 ? [3]
       : season === 2 ? [1, 5]
         : [4];
-  const [begin, end] = season === 1 ? [0.22, 0.48]
-    : season === 3 ? [0.18, 0.42]
-      : [0.15, 0.55];
+  const [begin, end] = season === 1
+    ? [dayProgressAtClockTime(10, 24), dayProgressAtClockTime(15, 36)]
+    : season === 3
+      ? [dayProgressAtClockTime(9, 36), dayProgressAtClockTime(14, 24)]
+      : [dayProgressAtClockTime(9), dayProgressAtClockTime(17)];
   return rainDays.includes(dayOfSeason) && progress >= begin && progress <= end;
 }
 
@@ -108,7 +116,13 @@ export function weatherVisualState(
     windDirectionX,
     windDirectionY,
   });
-  const daylight = weatherWindow(progress, 0.05, 0.1, 0.68, 0.76);
+  const daylight = weatherWindow(
+    progress,
+    dayProgressAtClockTime(7),
+    dayProgressAtClockTime(8),
+    dayProgressAtClockTime(19, 36),
+    dayProgressAtClockTime(21, 12),
+  );
   const daylightClouds = (state: WeatherVisualState): WeatherVisualState => ({
     ...state,
     // There is no visible cloud sprite: these are ground shadows, so suppress them
@@ -129,12 +143,24 @@ export function weatherVisualState(
       : season === 2
         ? { cloudBase: 0.14, cloudPulse: 0.3, windBase: 0.12, windPulse: 0.26, rainWind: 0.42 }
         : { cloudBase: 0.1, cloudPulse: 0.22, windBase: 0.09, windPulse: 0.16, rainWind: 0.3 };
-  const fairWeather = weatherWindow(progress, 0.24, 0.34, 0.52, 0.62);
+  const fairWeather = weatherWindow(
+    progress,
+    dayProgressAtClockTime(10, 48),
+    dayProgressAtClockTime(12, 48),
+    dayProgressAtClockTime(16, 24),
+    dayProgressAtClockTime(18, 24),
+  );
   const dayStart = day * BigInt(AUTHORITY_TICKS_PER_DAY);
   const rainDay = scheduledRainAtTick(
-    dayStart + BigInt(Math.round(AUTHORITY_TICKS_PER_DAY * 0.3)),
+    dayStart + BigInt(Math.round(AUTHORITY_TICKS_PER_DAY * dayProgressAtClockTime(12))),
   );
-  const rainBuildUp = rainDay ? weatherWindow(progress, 0.08, 0.14, 0.56, 0.68) : 0;
+  const rainBuildUp = rainDay ? weatherWindow(
+    progress,
+    dayProgressAtClockTime(7, 36),
+    dayProgressAtClockTime(8, 48),
+    dayProgressAtClockTime(17, 12),
+    dayProgressAtClockTime(19, 36),
+  ) : 0;
   const raining = scheduledRainAtTick(authorityTick);
   return daylightClouds(directed({
     raining,

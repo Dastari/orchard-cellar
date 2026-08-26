@@ -5,13 +5,16 @@ export const LIGHT_OPEN = 0;
 export const LIGHT_HARD_BLOCKER = 1;
 export const LIGHT_SOFT_ATTENUATOR = 2;
 export const LIGHT_SPRITE_BLOCKER = 3;
-/** A tree trunk casts a short ground shadow. It is deliberately not an
- * infinitely-tall shadowcasting wall: the elevated tree sprite has separate
- * receiver ownership so it cannot receive its own projected shadow. */
+/** A tree casts a long ground column from only its authoritative trunk
+ * collision footprint. The canopy remains an elevated receiver and therefore
+ * neither widens the column nor receives the tree's own shadow. */
 export const LIGHT_TRUNK_BLOCKER = 4;
+/** A raised terrain face receives light from its visible southern side while
+ * remaining opaque to the plateau and ground behind it. */
+export const LIGHT_CLIFF_FACE_BLOCKER = 5;
 export const SOFT_ATTENUATION_PER_MILLE = 550;
-export const TRUNK_SHADOW_LENGTH_TEXELS = 8;
-const TRUNK_SHADOW_MAX_OPACITY = 700;
+export const TRUNK_SHADOW_LENGTH_TEXELS = 64;
+const TRUNK_SHADOW_MAX_OPACITY = 1000;
 
 export type LightFacing = 'up' | 'right' | 'down' | 'left';
 export type LightProfile = 'steady' | 'flame' | 'pulse';
@@ -64,6 +67,7 @@ export class QuantizedLightFlood {
   private trunkShadowEpoch = new Uint32Array(0);
   private trunkShadowOpacity = new Uint16Array(0);
   private trunkShadowOwner = new Uint16Array(0);
+  private readonly visibleReceiverOwnerEpoch = new Uint32Array(0x10000);
   private readonly bandRed = new Uint8Array(LIGHT_BANDS + 1);
   private readonly bandGreen = new Uint8Array(LIGHT_BANDS + 1);
   private readonly bandBlue = new Uint8Array(LIGHT_BANDS + 1);
@@ -87,6 +91,7 @@ export class QuantizedLightFlood {
     receiverOwners: Uint16Array | null = null,
     trunkCellIndices: Uint32Array | null = null,
     trunkCellCount = 0,
+    relitReceiverOwners: Uint16Array | null = null,
   ): void {
     const cellCount = width * height;
     if (cellCount <= 0 || pixels.length < cellCount * 4 || occlusion.length < cellCount) return;
@@ -100,6 +105,7 @@ export class QuantizedLightFlood {
     const centerY = Math.max(0, Math.min(height - 1, light.centerY + offsetY));
     const initialStrength = Math.max(0, Math.min(MAX_LIGHT_STRENGTH, Math.round(light.strengthPerMille ?? 1000)));
     if (initialStrength === 0) return;
+    this.stampFlameHalo(haloPixels, width, height, centerX, centerY, light, initialStrength);
     const radiusCost = Math.max(1, Math.round(Math.max(0.25, light.radius) * 2));
     const reach = Math.ceil(light.radius * initialStrength / 1000);
     const minX = Math.max(0, Math.floor(centerX - reach));
@@ -107,7 +113,10 @@ export class QuantizedLightFlood {
     const maxX = Math.min(width - 1, Math.ceil(centerX + reach));
     const maxY = Math.min(height - 1, Math.ceil(centerY + reach));
     if (!this.regionHasOcclusion(occlusion, occlusionPrefix, width, minX, minY, maxX, maxY)) {
-      this.applyOpen(pixels, haloPixels, width, centerX, centerY, minX, minY, maxX, maxY, radiusCost, initialStrength, light);
+      this.applyOpen(
+        pixels, haloPixels, width, centerX, centerY,
+        minX, minY, maxX, maxY, radiusCost, initialStrength, light,
+      );
       return;
     }
 
@@ -115,12 +124,18 @@ export class QuantizedLightFlood {
     const lineOfSightOriginY = Math.round(centerY);
     const occlusionKinds = this.regionOcclusionKinds(occlusion, width, minX, minY, maxX, maxY);
     const hasDirectionalBlockers = (occlusionKinds
-      & ((1 << LIGHT_HARD_BLOCKER) | (1 << LIGHT_SPRITE_BLOCKER))) !== 0;
+      & ((1 << LIGHT_HARD_BLOCKER) | (1 << LIGHT_SPRITE_BLOCKER)
+        | (1 << LIGHT_CLIFF_FACE_BLOCKER))) !== 0;
     const hasSoftAttenuators = (occlusionKinds & (1 << LIGHT_SOFT_ATTENUATOR)) !== 0;
     const hasTrunkBlockers = (occlusionKinds & (1 << LIGHT_TRUNK_BLOCKER)) !== 0;
     if (hasDirectionalBlockers) this.buildVisibility(
       width, height, lineOfSightOriginX, lineOfSightOriginY, reach, occlusion,
     );
+    if (hasDirectionalBlockers && trunkOwners !== null && receiverOwners !== null) {
+      this.buildVisibleReceiverOwners(
+        occlusion, trunkOwners, trunkCellIndices, trunkCellCount,
+      );
+    }
     if (hasTrunkBlockers && trunkOwners !== null) this.buildTrunkShadows(
       width, height, centerX, centerY, minX, minY, maxX, maxY,
       occlusion, trunkOwners, trunkCellIndices, trunkCellCount,
@@ -129,7 +144,7 @@ export class QuantizedLightFlood {
       this.applyOpen(
         pixels, haloPixels, width, centerX, centerY,
         minX, minY, maxX, maxY, radiusCost, initialStrength, light,
-        hasDirectionalBlockers, hasTrunkBlockers ? receiverOwners : null,
+        hasDirectionalBlockers, receiverOwners, occlusion, relitReceiverOwners,
       );
       return;
     }
@@ -158,9 +173,9 @@ export class QuantizedLightFlood {
           nextStrength = Math.floor(nextStrength * SOFT_ATTENUATION_PER_MILLE / 1000);
           if (nextStrength <= 0) continue;
         }
-        if ((blocker === LIGHT_HARD_BLOCKER || blocker === LIGHT_SPRITE_BLOCKER)
+        if (this.isOpaqueBlocker(blocker)
           && hasDirectionalBlockers && this.visibleEpoch[nextIndex] !== this.epoch) continue;
-        if (blocker === LIGHT_HARD_BLOCKER || blocker === LIGHT_SPRITE_BLOCKER) {
+        if (this.isOpaqueBlocker(blocker)) {
           this.offerTerminal(pixels, haloPixels, nextIndex, light, nextStrength);
         } else {
           this.offer(nextIndex, nextStrength);
@@ -194,7 +209,7 @@ export class QuantizedLightFlood {
       if (strength <= 0) continue;
       const index = y * width + x;
       const blocker = occlusion[index] ?? LIGHT_OPEN;
-      if (blocker === LIGHT_HARD_BLOCKER || blocker === LIGHT_SPRITE_BLOCKER) {
+      if (this.isOpaqueBlocker(blocker)) {
         this.offerTerminal(pixels, haloPixels, index, light, strength);
       } else {
         this.offer(index, blocker === LIGHT_SOFT_ATTENUATOR
@@ -238,9 +253,28 @@ export class QuantizedLightFlood {
     }
   }
 
-  /** Projects a compact, feathered ground shadow from only the far edge of
-   * each trunk footprint. The shadow is bounded so trees add depth without
-   * turning an orchard into long black corridors. */
+  /** A silhouette's source-facing cells establish direct visibility for the
+   * whole elevated receiver. This preserves the authored long umbra on the
+   * ground while preventing that same umbra from being multiplied over the
+   * caster's front-facing artwork. */
+  private buildVisibleReceiverOwners(
+    occlusion: Uint8Array,
+    casterOwners: Uint16Array,
+    casterCellIndices: Uint32Array | null,
+    casterCellCount: number,
+  ): void {
+    const candidateCount = casterCellIndices === null ? occlusion.length : casterCellCount;
+    for (let candidate = 0; candidate < candidateCount; candidate += 1) {
+      const index = casterCellIndices === null ? candidate : (casterCellIndices[candidate] ?? 0);
+      if (occlusion[index] !== LIGHT_SPRITE_BLOCKER || this.visibleEpoch[index] !== this.epoch) continue;
+      const owner = casterOwners[index] ?? 0;
+      if (owner !== 0) this.visibleReceiverOwnerEpoch[owner] = this.epoch;
+    }
+  }
+
+  /** Projects a strong column from only the far edge of each trunk footprint.
+   * The authored canopy never participates, preserving a narrow collision-width
+   * shadow while retaining the long black columns requested by art direction. */
   private buildTrunkShadows(
     width: number,
     height: number,
@@ -287,8 +321,7 @@ export class QuantizedLightFlood {
         const shadowIndex = shadowY * width + shadowX;
         if (occlusion[shadowIndex] === LIGHT_TRUNK_BLOCKER
           && trunkOwners[shadowIndex] === owner) continue;
-        const progress = (step - 1) / TRUNK_SHADOW_LENGTH_TEXELS;
-        const opacity = Math.round(TRUNK_SHADOW_MAX_OPACITY * (1 - progress) * (1 - progress));
+        const opacity = TRUNK_SHADOW_MAX_OPACITY;
         if (this.trunkShadowEpoch[shadowIndex] !== this.epoch
           || opacity > (this.trunkShadowOpacity[shadowIndex] ?? 0)) {
           this.trunkShadowEpoch[shadowIndex] = this.epoch;
@@ -334,7 +367,7 @@ export class QuantizedLightFlood {
         const index = y * width + x;
         this.visibleEpoch[index] = this.epoch;
         const kind = occlusion[index];
-        const opaque = kind === LIGHT_HARD_BLOCKER || kind === LIGHT_SPRITE_BLOCKER;
+        const opaque = this.isOpaqueBlocker(kind);
         if (blocked) {
           if (opaque) {
             nextStartSlope = rightSlope;
@@ -398,6 +431,8 @@ export class QuantizedLightFlood {
     light: FloodLight,
     visibilityRequired = false,
     receiverOwners: Uint16Array | null = null,
+    occlusion: Uint8Array | null = null,
+    relitReceiverOwners: Uint16Array | null = null,
   ): void {
     const centerSubtexelX = Math.round(centerX * 16);
     const centerSubtexelY = Math.round(centerY * 16);
@@ -412,7 +447,17 @@ export class QuantizedLightFlood {
         let band = this.openPathBands[pathCost] ?? 0;
         if (band === 0) continue;
         const index = y * width + x;
-        if (visibilityRequired && this.visibleEpoch[index] !== this.epoch) continue;
+        if (visibilityRequired && this.visibleEpoch[index] !== this.epoch) {
+          const receiverOwner = (relitReceiverOwners ?? receiverOwners)?.[index] ?? 0;
+          const elevatedReceiverIsVisible = receiverOwner !== 0
+            && this.visibleReceiverOwnerEpoch[receiverOwner] === this.epoch;
+          const frontFaceReceivesLight = occlusion?.[index] === LIGHT_CLIFF_FACE_BLOCKER
+            && centerY > y
+            && this.frontFaceHasClearLine(
+              occlusion, width, Math.round(centerX), Math.round(centerY), x, y,
+            );
+          if (!elevatedReceiverIsVisible && !frontFaceReceivesLight) continue;
+        }
         if (this.trunkShadowEpoch[index] === this.epoch
           && (receiverOwners?.[index] ?? 0) !== (this.trunkShadowOwner[index] ?? 0)) {
           band = Math.round(band * (1000 - (this.trunkShadowOpacity[index] ?? 0)) / 1000);
@@ -424,11 +469,86 @@ export class QuantizedLightFlood {
     }
   }
 
+  private isOpaqueBlocker(kind: number | undefined): boolean {
+    return kind === LIGHT_HARD_BLOCKER
+      || kind === LIGHT_SPRITE_BLOCKER
+      || kind === LIGHT_CLIFF_FACE_BLOCKER;
+  }
+
+  /** A vertical cliff face is one continuous screen-facing receiver. Ignore
+   * its own stacked wall rows when checking the source ray, but retain shadows
+   * from ordinary terrain and sprite silhouettes. */
+  private frontFaceHasClearLine(
+    occlusion: Uint8Array,
+    width: number,
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number,
+  ): boolean {
+    let x = sourceX;
+    let y = sourceY;
+    const dx = Math.abs(targetX - sourceX);
+    const dy = Math.abs(targetY - sourceY);
+    const stepX = sourceX < targetX ? 1 : -1;
+    const stepY = sourceY < targetY ? 1 : -1;
+    let error = dx - dy;
+    while (x !== targetX || y !== targetY) {
+      const doubledError = error * 2;
+      if (doubledError > -dy) {
+        error -= dy;
+        x += stepX;
+      }
+      if (doubledError < dx) {
+        error += dx;
+        y += stepY;
+      }
+      if (x === targetX && y === targetY) return true;
+      const kind = occlusion[y * width + x];
+      if (kind === LIGHT_HARD_BLOCKER || kind === LIGHT_SPRITE_BLOCKER) return false;
+    }
+    return true;
+  }
+
   private prepareColorBands(light: FloodLight): void {
     for (let band = 1; band <= LIGHT_BANDS; band += 1) {
       this.bandRed[band] = Math.round(light.color.r * band / LIGHT_BANDS);
       this.bandGreen[band] = Math.round(light.color.g * band / LIGHT_BANDS);
       this.bandBlue[band] = Math.round(light.color.b * band / LIGHT_BANDS);
+    }
+  }
+
+  /** The additive flame core follows the exact fractional emitter position.
+   * Thresholding flood bands made individual texels toggle whenever a carried
+   * torch crossed the light grid, even while the outer field remained smooth. */
+  private stampFlameHalo(
+    haloPixels: Uint8ClampedArray | null,
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    light: FloodLight,
+    initialStrength: number,
+  ): void {
+    if (haloPixels === null || light.profile !== 'flame') return;
+    const radius = 1.5;
+    const peakAlpha = 24 * initialStrength / 1000;
+    const minX = Math.max(0, Math.floor(centerX - radius));
+    const minY = Math.max(0, Math.floor(centerY - radius));
+    const maxX = Math.min(width - 1, Math.ceil(centerX + radius));
+    const maxY = Math.min(height - 1, Math.ceil(centerY + radius));
+    for (let y = minY; y <= maxY; y += 1) for (let x = minX; x <= maxX; x += 1) {
+      const distance = Math.hypot(x - centerX, y - centerY);
+      if (distance >= radius) continue;
+      const falloff = 1 - distance / radius;
+      const alpha = Math.round(peakAlpha * falloff * falloff);
+      if (alpha <= 0) continue;
+      const offset = (y * width + x) * 4;
+      if (alpha <= (haloPixels[offset + 3] ?? 0)) continue;
+      haloPixels[offset] = light.color.r;
+      haloPixels[offset + 1] = light.color.g;
+      haloPixels[offset + 2] = light.color.b;
+      haloPixels[offset + 3] = alpha;
     }
   }
 
@@ -465,6 +585,7 @@ export class QuantizedLightFlood {
       this.queuedEpoch.fill(0);
       this.visibleEpoch.fill(0);
       this.trunkShadowEpoch.fill(0);
+      this.visibleReceiverOwnerEpoch.fill(0);
       this.epoch = 1;
     }
     this.bucketHeads.fill(-1);
@@ -540,9 +661,9 @@ export class QuantizedLightFlood {
 
   private writeBand(
     pixels: Uint8ClampedArray,
-    haloPixels: Uint8ClampedArray | null,
+    _haloPixels: Uint8ClampedArray | null,
     index: number,
-    light: FloodLight,
+    _light: FloodLight,
     band: number,
   ): void {
     const offset = index * 4;
@@ -552,13 +673,6 @@ export class QuantizedLightFlood {
     if (red > pixels[offset]!) pixels[offset] = red;
     if (green > pixels[offset + 1]!) pixels[offset + 1] = green;
     if (blue > pixels[offset + 2]!) pixels[offset + 2] = blue;
-    if (haloPixels === null || light.profile !== 'flame' || band < Math.round(LIGHT_BANDS * 0.875)) return;
-    haloPixels[offset] = light.color.r;
-    haloPixels[offset + 1] = light.color.g;
-    haloPixels[offset + 2] = light.color.b;
-    haloPixels[offset + 3] = Math.max(
-      haloPixels[offset + 3] ?? 0,
-      Math.round(16 + 16 * band / LIGHT_BANDS),
-    );
   }
+
 }

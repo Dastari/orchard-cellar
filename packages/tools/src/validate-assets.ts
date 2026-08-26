@@ -112,6 +112,7 @@ function validateCanonicalSize(asset: AssetSource, errors: string[]): void {
   if (asset.category === 'trees') {
     const valid = (width === 16 && (height === 16 || height === 32))
       || (width === 32 && height === 32)
+      || (width === 32 && height === 48 && asset.sourcePaletteMode === 'exact')
       || (width === 32 && height === 64 && asset.sourcePaletteMode === 'exact')
       || (width === 48 && height === 64)
       || (width === 80 && height === 64 && asset.sourcePaletteMode === 'exact');

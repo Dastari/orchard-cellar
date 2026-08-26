@@ -85,6 +85,25 @@ export function recipeDefinition(recipeId: string): RecipeDefinition | null {
     : null;
 }
 
+/** Aggregates the exact input stacks consumed by one execution of a recipe.
+ * Object-breaking reducers use this as their salvage source so recipe balance
+ * changes automatically update recovered components. */
+export function recipeIngredientStacks(recipe: RecipeDefinition): readonly ItemStack[] {
+  const totals = new Map<string, number>();
+  if (recipe.kind === 'shapeless') {
+    for (const [itemKind, quantity] of Object.entries(recipe.inputs)) totals.set(itemKind, quantity);
+  } else {
+    for (const row of recipe.pattern) {
+      for (const itemKind of row) {
+        if (itemKind !== null) totals.set(itemKind, (totals.get(itemKind) ?? 0) + 1);
+      }
+    }
+  }
+  return [...totals.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([itemKind, quantity]) => ({ itemKind, quantity }));
+}
+
 export interface NormalizedShapedRecipe {
   readonly width: number;
   readonly height: number;

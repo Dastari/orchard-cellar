@@ -17,6 +17,9 @@ export interface RgbColor {
 export interface PointLight {
   readonly worldX: number;
   readonly worldY: number;
+  /** Ground-plane Y used to decide whether this emitter is in front of or
+   * behind south-facing top-down artwork. Defaults to the emitter's Y. */
+  readonly receiverDirectionWorldY?: number;
   readonly radiusTiles: number;
   readonly color: RgbColor;
   readonly strengthPerMille?: number;
@@ -71,6 +74,56 @@ export const LANTERN_LIGHT_RADIUS_TILES = CAMPFIRE_LIGHT_RADIUS_TILES * 0.75;
 
 export function playerLightPosition(worldX: number, footY: number): readonly [number, number] {
   return [worldX, footY - 12];
+}
+
+function perceivedLight(color: RgbColor): number {
+  return color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+}
+
+function southFaceLightFactor(dx: number, dy: number): number {
+  const distance = Math.hypot(dx, dy);
+  if (distance < 0.25) return 1;
+  const frontDot = dy / distance;
+  const sideBand = 0.35;
+  if (frontDot <= -sideBand) return 0;
+  if (frontDot >= sideBand) return 1;
+  return (frontDot + sideBand) / (sideBand * 2);
+}
+
+/** Pre-darkens only the authored alpha pixels of a south-facing sprite so the
+ * later shared lightmap cannot illuminate its visible front from behind. The
+ * compensation is deliberately applied at sprite resolution rather than to
+ * quarter-tile light texels; that keeps adjacent ground and foreground actors
+ * untouched and avoids a bilinear halo around irregular silhouettes. */
+export function southFacingReceiverBrightness(
+  footX: number,
+  footY: number,
+  ambient: RgbColor,
+  lights: readonly PointLight[],
+): number {
+  const ambientLevel = perceivedLight(ambient);
+  let unrestricted = ambientLevel;
+  let facingRestricted = ambientLevel;
+  for (const light of lights) {
+    const dx = light.worldX - footX;
+    const emitterDy = light.worldY - footY;
+    const absoluteX = Math.abs(dx);
+    const absoluteY = Math.abs(emitterDy);
+    const octileDistance = Math.max(absoluteX, absoluteY) + Math.min(absoluteX, absoluteY) * 0.5;
+    const strength = Math.max(
+      0,
+      (light.strengthPerMille ?? 1000) / 1000 - octileDistance / Math.max(1, light.radiusTiles * 16),
+    );
+    if (strength <= 0) continue;
+    const contribution = perceivedLight(light.color) * strength;
+    unrestricted = Math.max(unrestricted, contribution);
+    const directionY = (light.receiverDirectionWorldY ?? light.worldY) - footY;
+    facingRestricted = Math.max(
+      facingRestricted,
+      contribution * southFaceLightFactor(dx, directionY),
+    );
+  }
+  return unrestricted <= 0 ? 1 : Math.max(0, Math.min(1, facingRestricted / unrestricted));
 }
 
 function lerp(left: number, right: number, amount: number): number {
@@ -190,6 +243,7 @@ export class TileLightmap {
   private occlusion = new Uint8Array(0);
   private trunkOwners = new Uint16Array(0);
   private receiverOwners = new Uint16Array(0);
+  private relitReceiverOwners = new Uint16Array(0);
   private trunkCellIndices = new Uint32Array(0);
   private trunkCellCount = 0;
   private occlusionPrefix = new Uint32Array(0);
@@ -285,6 +339,7 @@ export class TileLightmap {
         this.trunkOwners,
         this.receiverOwners,
         this.trunkCellIndices,
+        this.relitReceiverOwners,
       );
       buildLightOcclusionPrefix(this.occlusionPrefix, width, height, this.occlusion);
       this.floodTexelsVisitedValue = 0;
@@ -309,6 +364,7 @@ export class TileLightmap {
           this.receiverOwners,
           this.trunkCellIndices,
           this.trunkCellCount,
+          this.relitReceiverOwners,
         );
         this.floodTexelsVisitedValue += this.flood.lastVisitedTexels;
       }
@@ -384,6 +440,7 @@ export class TileLightmap {
     this.occlusion = new Uint8Array(width * height);
     this.trunkOwners = new Uint16Array(width * height);
     this.receiverOwners = new Uint16Array(width * height);
+    this.relitReceiverOwners = new Uint16Array(width * height);
     this.trunkCellIndices = new Uint32Array(width * height);
     this.trunkCellCount = 0;
     this.occlusionPrefix = new Uint32Array((width + 1) * (height + 1));

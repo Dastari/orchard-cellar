@@ -51,7 +51,7 @@ Three vitals, all derived — **max values are never stored**, only current valu
 |---|---|---|---|---|
 | Health | `10 × str` | 100 | `HEALTH_REGEN_PER_SECOND = 0.2` (flat trickle) | `ui_cf_bar_fill_red` |
 | Mana | `10 × int` | 100 | `0.1 × wis` → 1.0 | `ui_cf_bar_fill_blue` |
-| Vigour | `10 × con` | 100 | `0.08 × con × 10` → 8.0 (empty→full ≈ 12.5 s) | `ui_cf_bar_fill_green` |
+| Vigour | `10 × con` | 100 | `1.2 × con` → 12.0 (empty→full ≈ 8.3 s) | `ui_cf_bar_fill_green` |
 
 - Current values are stored in **centi-units** (`u32`, display × 100 → 10 000 at
   baseline max), matching the basis-point discipline of `MAX_VIGOUR = 10_000`
@@ -74,7 +74,8 @@ export type StatTarget =
   | 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'            // attributes
   | 'maxHealth' | 'maxMana' | 'maxVigour'                     // derived
   | 'healthRegen' | 'manaRegen' | 'vigourRegen'
-  | 'toolVigourCost' | 'swingSpeed' | 'checkBonus';           // reserved v1 targets
+  | 'toolVigourCost' | 'swingSpeed'
+  | 'sprintSpeed' | 'sprintVigourCost' | 'checkBonus';        // ability/reserved targets
 
 export type ModifierLayer = 'flat' | 'pctAdd' | 'pctMult' | 'override';
 
@@ -134,17 +135,17 @@ currently lacks. Costs live in `balance.ts` + docs/06 mirror:
 | Tool (`itemKind`) | Vigour cost (display units) | Min swing interval (authority ticks @ 20 Hz) |
 |---|---|---|
 | `watering_can` | 8 | 6 (300 ms) |
-| `hoe` | 10 | 6 |
+| `hoe` | 50 | 6 |
 | `fishing_rod` | 6 | 6 |
 | `bow` | 10 | 6 (300 ms) |
 | `sword` | 12 | 7 (350 ms) |
-| `axe` | 15 | 8 (400 ms) |
-| `pickaxe` | 20 | 10 (500 ms) |
+| `axe` | 50 | 8 (400 ms) |
+| `pickaxe` | 50 | 10 (500 ms) |
 | `shovel` | 12 | 7 (350 ms) |
 | `hammer` | 18 | 9 (450 ms) |
 
-- Baseline feel: an axe gets ~6 swings from a full bar (two trees), then ~2 s per
-  swing regen-limited; a pickaxe ~5 swings. Whiff swings (no target in the cone)
+- Baseline feel: an axe, hoe, or pickaxe gets two full-cost uses from a full
+  unmodified bar. Whiff swings (no target in the cone)
   cost **half, rounded up** — mashing at nothing is cheap but not free.
 - Reducer flow in `harvestResource` (and every future tool reducer), after the
   existing auth/mount/tool checks: apply lazy regen (§5) → reject
@@ -188,6 +189,32 @@ the listed renewable material. Loose branches and stones remain hand-gatherable,
 a player can never be durability-softlocked. Durability bars appear along the usable
 bottom interior of every tool slot (hotbar, backpack/equipment, chest); green above
 50%, gold from 21–50%, red at 20% or below, and an empty red bracket when broken.
+
+### 4.2 Sprint — movement ability pacing
+
+Hold either Shift key while moving on foot to request Sprint. The server remains
+authoritative: an accepted sprint step uses **1,250 per-mille / 125%** walking
+speed and spends Vigour; when the next step is unaffordable it executes at normal
+walking speed instead. Mount movement does not use or charge the rider's Sprint.
+
+- Baseline drain is **1,000 centi / 10 displayed Vigour per second**. Cost for a
+  confirmed movement run is `ceil(rate × sprintSteps / 60)`, so one full second
+  costs exactly 1,000 centi without a persisted floating-point remainder. Blocked
+  steps do not spend Vigour.
+- Constitution is the primary ability attribute. Its pre-modifier drain is
+  `ceil(1,000 × 10 / resolved CON)`: 10 CON costs 10/s, 20 CON costs 5/s, and
+  5 CON costs 20/s. CON already also governs maximum Vigour.
+- `sprintSpeed` and `sprintVigourCost` pass through the ordinary modifier layers.
+  The `sprint` entry in `ABILITY_DEFINITIONS` tags movement, Vigour, CON, and all
+  four modifier producers (`equipment`, `effect`, `skill`, `environment`). Thus
+  positive effects/buffs, negative effects/debuffs, equipment, and future skills
+  use data rather than special cases in movement code.
+- Vigour regeneration is suppressed while an online, unmounted player is actively
+  requesting Sprint. Starting Sprint first settles lazy regeneration through the
+  current authority tick, so reconnect/offline recovery is not lost.
+- Sprint intent is stored on each compressed movement-run segment. Shift changes
+  therefore preserve the walking/sprinting classification of already-predicted
+  steps, and reconciliation replays each step with its recorded speed.
 
 ## 5. Regen — lazy, not per-tick
 
@@ -386,7 +413,8 @@ changes; any base-attribute mutation.
   exactly; tool cost/interval goldens named `06§11`; `skillCheck` determinism
   (same seed parts → same roll) and distribution sanity; effect stack/refresh
   rules; clamp-on-max-drop behavior; durability initialization, wear, break,
-  repair, and metadata-preserving inventory moves.
+  repair, and metadata-preserving inventory moves; Sprint's 125% movement,
+  cumulative cost, CON derivation, modifier sources, and run-segment transitions.
 - **Reducer (world):** `harvestResource` happy path deducts exactly the table
   cost; `insufficient_vigour`, `swing_too_soon`, and auth-failure paths each
   tested per docs/15; effect expiry swept and view-filtered; `player_stats` row
@@ -425,6 +453,14 @@ lint, and world build. The populated local world correctly rejected an unrelated
 rollback of another in-progress agent's `space_id`/mine schema; no shared data was
 deleted. The new targeting path therefore has no server-schema dependency, and the
 temporary isolated validation database was removed after use.
+
+Sprint follow-up (2026-08-26): Shift intent, queued-run classification, shared
+125%-speed prediction, server-side Vigour spend/regeneration suppression, CON
+efficiency, ability tags, and modifier targets are implemented end to end. The
+append-only `player_input.sprinting` migration published over the populated world
+with no deletion after an offline archive; 102 files / 610 tests and coverage,
+all workspace typechecks, lint, both production builds, and 528-asset validation
+pass. Both frontend and world services returned healthy after publish.
 
 ## 16. Bookkeeping
 

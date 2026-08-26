@@ -56,12 +56,14 @@ try {
     direction: fixture.direction,
     sequence: startSequence,
     clientTick: 0n,
+    sprinting: false,
   });
   await wait(30);
   const stopCall = client.connection.reducers.setInput({
     direction: 'idle',
     sequence: stopSequence,
     clientTick: 2n,
+    sprinting: false,
   });
   await Promise.all([startCall, stopCall]);
   const started = performance.now();

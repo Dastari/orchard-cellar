@@ -23,7 +23,7 @@ describe('25§6 effect definitions', () => {
     expect(activeEffects([rested], 143_999n)).toEqual([rested]);
     expect(activeEffects([rested], 144_000n)).toEqual([]);
     expect(resolveStats(undefined, modifiersForEffects([rested], 1n)).vigourRegenCentiPerSecond)
-      .toBe(1_000);
+      .toBe(1_500);
   });
 
   it('applies Orchard Tea through the same attribute pipeline', () => {

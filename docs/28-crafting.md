@@ -42,8 +42,10 @@ strip don't exist as items.
   cannot return to normal storage enter private `inventory_overflow` custody;
   world ticks and reconnects drain those rows into hotbar/backpack as space opens.
 - Placed chests use licensed six-frame `Chest_Anim.png`, expose 27 storage cells,
-  block movement, and open through E. Three authoritative axe hits break a chest
-  and spill its item plus every stored stack as world pickups.
+  block movement, and the nearest one within a two-tile radial reach opens through
+  E without requiring the player to face its exact tile. Three authoritative axe hits break a chest
+  and spill its recipe inputs (currently eight planks) plus every stored stack as
+  world pickups. It does not also drop an intact chest, preventing salvage loops.
 - Fruit trees drop their matching fruit pickup as well as timber when felled.
 
 Required fixes folded into phase 1 (each is a landmine for content authoring):

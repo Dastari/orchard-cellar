@@ -1,4 +1,4 @@
-import { FENCE_JOIN_EAST, FENCE_JOIN_NORTH, FENCE_JOIN_SOUTH, FENCE_JOIN_WEST, FIXED_UNITS_PER_PIXEL, HORSE_JUMP_DURATION_TICKS, ITEM_DEFINITIONS, SURVIVAL_ORE_KINDS, itemDefinition, type Direction, type WildlifeSpecies } from '@orchard/sim';
+import { FENCE_JOIN_EAST, FENCE_JOIN_NORTH, FENCE_JOIN_SOUTH, FENCE_JOIN_WEST, FIXED_UNITS_PER_PIXEL, HORSE_JUMP_DURATION_TICKS, ITEM_DEFINITIONS, SURVIVAL_ORE_KINDS, itemDefinition, type Direction, type TreeGrowthStage, type WildlifeSpecies } from '@orchard/sim';
 import { loadGeneratedAsset, type LoadedAsset } from './render/assets.js';
 import { drawPixelText, loadPixelUi, measurePixelText, type PixelUi } from './render/pixel-ui.js';
 import { selectAtlasFrame, type AtlasFrame } from './render/sprite.js';
@@ -127,9 +127,29 @@ export interface OverworldArt {
   readonly treeSpruce: LoadedAsset;
   readonly treeAcacia: LoadedAsset;
   readonly treePalm: LoadedAsset;
+  readonly treeSapling: LoadedAsset;
+  readonly treeYoung: LoadedAsset;
+  readonly treeOakSapling: LoadedAsset;
+  readonly treeOakYoung: LoadedAsset;
+  readonly treeBirchSapling: LoadedAsset;
+  readonly treeBirchYoung: LoadedAsset;
+  readonly treeSpruceSapling: LoadedAsset;
+  readonly treeSpruceYoung: LoadedAsset;
+  readonly treeStumpSmall: LoadedAsset;
+  readonly treeStumpMedium: LoadedAsset;
   readonly treeStump: LoadedAsset;
+  readonly treeBirchStumpSmall: LoadedAsset;
+  readonly treeBirchStumpMedium: LoadedAsset;
+  readonly treeBirchStump: LoadedAsset;
+  readonly treeSpruceStumpSmall: LoadedAsset;
+  readonly treeSpruceStumpMedium: LoadedAsset;
+  readonly treeSpruceStump: LoadedAsset;
+  readonly treeFruitStumpSmall: LoadedAsset;
+  readonly treeFruitStumpMedium: LoadedAsset;
+  readonly treeFruitStump: LoadedAsset;
   readonly treeAcaciaStump: LoadedAsset;
   readonly treePalmStump: LoadedAsset;
+  readonly cactus: LoadedAsset;
   readonly ui: PixelUi;
   readonly uiSkin: UiSkin;
 }
@@ -234,6 +254,11 @@ async function loadNatureDecorationArt(): Promise<Readonly<Record<string, readon
     ['nature_water_grass', 'water_grass', 2],
     ['nature_water_rock', 'water_rock', 10],
     ['nature_fish_shadow', 'fish_shadow', 1],
+    ['nature_desert_grass', 'desert_grass', 3],
+    ['nature_desert_fern', 'desert_fern', 1],
+    ['nature_desert_bush', 'desert_bush', 2],
+    ['nature_desert_plant', 'desert_plant', 3],
+    ['nature_desert_rock', 'desert_rock', 4],
   ];
   return Object.fromEntries(await Promise.all(entries.map(async ([kind, assetKind, count]) => [
     kind,
@@ -281,7 +306,12 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     cliff, cliff2, cliff3, coastalCliffOverlay, cliff4, desertCliff, iconAxe, iconHoe, iconPickaxe, iconWateringCan, iconBow, iconShovel, iconHammer, iconSword, itemArrow,
     itemWood, itemPlank, itemStick, itemTorch, itemLantern, itemOrchardTea, chest, missingItem, rainStreak, rainSplash, cloudShadow, windGust, oakLeaf, birchLeaf, spruceLeaf, waterRipples, treeFruiting, treeMature,
     treeOak, treeBirch, treeSpruce, treeAcacia, treePalm,
-    treeStump, treeAcaciaStump, treePalmStump, ui, uiSkin, itemIcons,
+    treeSapling, treeYoung, treeOakSapling, treeOakYoung, treeBirchSapling, treeBirchYoung, treeSpruceSapling, treeSpruceYoung,
+    treeStumpSmall, treeStumpMedium, treeStump,
+    treeBirchStumpSmall, treeBirchStumpMedium, treeBirchStump,
+    treeSpruceStumpSmall, treeSpruceStumpMedium, treeSpruceStump,
+    treeFruitStumpSmall, treeFruitStumpMedium, treeFruitStump,
+    treeAcaciaStump, treePalmStump, cactus, ui, uiSkin, itemIcons,
   ] = await Promise.all([
     loadGeneratedAsset('avatar_cf_farmer', 'summer'),
     loadGeneratedAsset('avatar_cf_farmer_axe', 'summer'),
@@ -396,9 +426,29 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('tree_cf_spruce_mature', 'summer'),
     loadGeneratedAsset('tree_cf_acacia_mature', 'summer'),
     loadGeneratedAsset('tree_cf_palm_mature', 'summer'),
+    loadGeneratedAsset('tree_cf_fruit_small', 'summer'),
+    loadGeneratedAsset('tree_cf_fruit_medium', 'summer'),
+    loadGeneratedAsset('tree_cf_oak_sapling', 'summer'),
+    loadGeneratedAsset('tree_cf_oak_young', 'summer'),
+    loadGeneratedAsset('tree_cf_birch_sapling', 'summer'),
+    loadGeneratedAsset('tree_cf_birch_young', 'summer'),
+    loadGeneratedAsset('tree_cf_spruce_sapling', 'summer'),
+    loadGeneratedAsset('tree_cf_spruce_young', 'summer'),
+    loadGeneratedAsset('tree_cf_oak_stump_small', 'summer'),
+    loadGeneratedAsset('tree_cf_oak_stump_medium', 'summer'),
     loadGeneratedAsset('tree_cf_oak_stump', 'summer'),
+    loadGeneratedAsset('tree_cf_birch_stump_small', 'summer'),
+    loadGeneratedAsset('tree_cf_birch_stump_medium', 'summer'),
+    loadGeneratedAsset('tree_cf_birch_stump', 'summer'),
+    loadGeneratedAsset('tree_cf_spruce_stump_small', 'summer'),
+    loadGeneratedAsset('tree_cf_spruce_stump_medium', 'summer'),
+    loadGeneratedAsset('tree_cf_spruce_stump', 'summer'),
+    loadGeneratedAsset('tree_cf_fruit_stump_small', 'summer'),
+    loadGeneratedAsset('tree_cf_fruit_stump_medium', 'summer'),
+    loadGeneratedAsset('tree_cf_fruit_stump', 'summer'),
     loadGeneratedAsset('tree_cf_acacia_stump', 'summer'),
     loadGeneratedAsset('tree_cf_palm_stump', 'summer'),
+    loadGeneratedAsset('resource_cf_cactus', 'summer'),
     loadPixelUi(),
     loadUiSkin(),
     loadItemIconArt(),
@@ -459,7 +509,12 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     itemArrow, itemWood, itemPlank, itemStick, itemStone, itemTorch, itemLantern, itemOrchardTea, chest, missingItem,
     rainStreak, rainSplash, cloudShadow, windGust, oakLeaf, birchLeaf, spruceLeaf, waterRipples,
     treeFruiting, treeMature, treeOak, treeBirch, treeSpruce, treeAcacia, treePalm,
-    treeStump, treeAcaciaStump, treePalmStump, ui, uiSkin,
+    treeSapling, treeYoung, treeOakSapling, treeOakYoung, treeBirchSapling, treeBirchYoung, treeSpruceSapling, treeSpruceYoung,
+    treeStumpSmall, treeStumpMedium, treeStump,
+    treeBirchStumpSmall, treeBirchStumpMedium, treeBirchStump,
+    treeSpruceStumpSmall, treeSpruceStumpMedium, treeSpruceStump,
+    treeFruitStumpSmall, treeFruitStumpMedium, treeFruitStump,
+    treeAcaciaStump, treePalmStump, cactus, ui, uiSkin,
   };
 }
 
@@ -484,6 +539,7 @@ function drawAnchored(
   cameraY: number,
   zoom: number,
   flipX = false,
+  dimmed = false,
 ): void {
   const source = frame(asset, animation, frameIndex);
   if (source === null) return;
@@ -491,6 +547,10 @@ function drawAnchored(
   const x = Math.round((worldX - cameraX - anchorX) * zoom);
   const y = Math.round((worldY - cameraY - asset.anchor[1]) * zoom);
   context.save();
+  if (dimmed) {
+    context.filter = 'brightness(42%) saturate(55%)';
+    context.globalAlpha *= 0.88;
+  }
   if (flipX) {
     context.translate(x + source.width * zoom, 0);
     context.scale(-1, 1);
@@ -578,6 +638,35 @@ function drawAnchoredTreeSway(
   context.restore();
 }
 
+function drawAnchoredScaled(
+  context: CanvasRenderingContext2D,
+  asset: LoadedAsset,
+  worldX: number,
+  worldY: number,
+  cameraX: number,
+  cameraY: number,
+  zoom: number,
+  assetScale: number,
+): void {
+  const source = frame(asset, 'base', 0);
+  if (source === null) return;
+  const destinationWidth = source.width * zoom * assetScale;
+  const destinationHeight = source.height * zoom * assetScale;
+  const destinationX = Math.round((worldX - cameraX) * zoom - asset.anchor[0] * zoom * assetScale);
+  const destinationY = Math.round((worldY - cameraY) * zoom - asset.anchor[1] * zoom * assetScale);
+  context.drawImage(
+    asset.image,
+    source.x,
+    source.y,
+    source.width,
+    source.height,
+    destinationX,
+    destinationY,
+    destinationWidth,
+    destinationHeight,
+  );
+}
+
 export function drawUiAsset(
   context: CanvasRenderingContext2D,
   asset: LoadedAsset,
@@ -615,6 +704,10 @@ export function drawOverworldTree(
   swayX = 0,
   swayY = 0,
 ): void {
+  if (kind === 'cactus') {
+    drawAnchored(context, art.cactus, 'base', 0, x, y + 4, cameraX, cameraY, zoom);
+    return;
+  }
   const tree = art.fruitTrees[kind] ?? (fruiting ? art.treeFruiting
     : kind === 'tree_oak' ? art.treeOak
       : kind === 'tree_birch' ? art.treeBirch
@@ -634,11 +727,55 @@ export function drawOverworldStump(
   cameraY: number,
   zoom: number,
   kind = 'tree',
+  stage: TreeGrowthStage = 'big',
 ): void {
-  const stump = kind === 'tree_acacia' ? art.treeAcaciaStump
-    : kind === 'tree_palm' ? art.treePalmStump
-      : art.treeStump;
-  drawAnchored(context, stump, 'base', 0, x, y, cameraX, cameraY, zoom);
+  if (kind === 'cactus') {
+    drawAnchoredScaled(context, art.cactus, x, y, cameraX, cameraY, zoom, 0.35);
+    return;
+  }
+  const small = stage === 'small';
+  const medium = stage === 'medium';
+  const stump = kind === 'tree_birch' ? (small ? art.treeBirchStumpSmall : medium ? art.treeBirchStumpMedium : art.treeBirchStump)
+    : kind === 'tree_spruce' ? (small ? art.treeSpruceStumpSmall : medium ? art.treeSpruceStumpMedium : art.treeSpruceStump)
+      : kind === 'tree_acacia' ? art.treeAcaciaStump
+        : kind === 'tree_palm' ? art.treePalmStump
+          : kind === 'tree_apple' || kind === 'tree_pear' || kind === 'tree_peach' || kind === 'tree_cherry'
+            ? (small ? art.treeFruitStumpSmall : medium ? art.treeFruitStumpMedium : art.treeFruitStump)
+            : (small ? art.treeStumpSmall : medium ? art.treeStumpMedium : art.treeStump);
+  if ((kind === 'tree_acacia' || kind === 'tree_palm') && stage !== 'big') {
+    drawAnchoredScaled(context, stump, x, y, cameraX, cameraY, zoom, small ? 0.5 : 0.75);
+  } else {
+    drawAnchored(context, stump, 'base', 0, x, y, cameraX, cameraY, zoom);
+  }
+}
+
+export function drawOverworldTreeRegrowth(
+  context: CanvasRenderingContext2D,
+  art: OverworldArt,
+  x: number,
+  y: number,
+  cameraX: number,
+  cameraY: number,
+  zoom: number,
+  kind: string,
+  stage: Exclude<TreeGrowthStage, 'big'>,
+): void {
+  const sapling = stage === 'small';
+  if (kind === 'cactus') {
+    drawAnchoredScaled(context, art.cactus, x, y, cameraX, cameraY, zoom, sapling ? 0.55 : 0.76);
+    return;
+  }
+  const authored = kind === 'tree_oak' ? (sapling ? art.treeOakSapling : art.treeOakYoung)
+    : kind === 'tree_birch' ? (sapling ? art.treeBirchSapling : art.treeBirchYoung)
+      : kind === 'tree_spruce' ? (sapling ? art.treeSpruceSapling : art.treeSpruceYoung)
+        : kind === 'tree_acacia' || kind === 'tree_palm' ? null
+          : sapling ? art.treeSapling : art.treeYoung;
+  if (authored !== null) {
+    drawAnchored(context, authored, 'base', 0, x, y, cameraX, cameraY, zoom);
+    return;
+  }
+  const mature = kind === 'tree_acacia' ? art.treeAcacia : art.treePalm;
+  drawAnchoredScaled(context, mature, x, y, cameraX, cameraY, zoom, sapling ? 0.5 : 0.75);
 }
 
 export function drawOverworldOreNode(
@@ -700,17 +837,20 @@ export function drawOverworldPoiDecoration(
   zoom: number,
   variant = 0,
   frameIndex = 0,
+  lit = true,
 ): void {
   const nature = art.natureDecorations[kind];
   if (nature !== undefined && nature.length > 0) {
-    drawAnchored(context, nature[variant % nature.length]!, 'sway', frameIndex, x, y, cameraX, cameraY, zoom);
+    const asset = nature[variant % nature.length]!;
+    const animation = frame(asset, 'sway') === null ? 'base' : 'sway';
+    drawAnchored(context, asset, animation, animation === 'sway' ? frameIndex : 0, x, y, cameraX, cameraY, zoom);
     return;
   }
   drawAnchored(
     context,
     art.poiDecorations[kind] ?? art.missingItem,
-    kind === 'camp_campfire' ? 'burn' : 'base',
-    kind === 'camp_campfire' ? frameIndex : 0,
+    kind === 'camp_campfire' ? (lit ? 'burn' : 'off') : 'base',
+    kind === 'camp_campfire' && lit ? frameIndex : 0,
     x,
     y,
     cameraX,
@@ -729,9 +869,11 @@ export function drawOverworldItem(
   cameraX: number,
   cameraY: number,
   zoom: number,
+  lit = true,
 ): void {
   drawAnchored(context, art.oreItems[itemKind] ?? art.fruitItems[itemKind]
-    ?? art.itemIcons[itemKind] ?? art.missingItem, 'base', 0, x, y - arcHeight, cameraX, cameraY, zoom);
+    ?? art.itemIcons[itemKind] ?? art.missingItem, 'base', 0, x, y - arcHeight, cameraX, cameraY, zoom,
+  false, itemKind === 'lantern' && !lit);
 }
 
 export function drawOverworldPlaceable(
@@ -746,6 +888,7 @@ export function drawOverworldPlaceable(
   cameraX: number,
   cameraY: number,
   zoom: number,
+  lit = true,
 ): void {
   const northSouth = fenceMask & (FENCE_JOIN_NORTH | FENCE_JOIN_SOUTH);
   const eastWest = fenceMask & (FENCE_JOIN_EAST | FENCE_JOIN_WEST);
@@ -753,9 +896,10 @@ export function drawOverworldPlaceable(
     ? art.itemIcons[northSouth !== 0 && eastWest === 0 ? 'fence_vertical'
       : eastWest !== 0 && northSouth === 0 ? 'fence_horizontal' : 'fence_corner']
     : art.itemIcons[kind];
-  const animation = kind === 'fence_gate' ? (open ? 'open' : 'closed')
+  const animation = kind === 'campfire' ? (lit ? 'burn' : 'off')
+    : kind === 'fence_gate' ? (open ? 'open' : 'closed')
     : itemDefinition(kind)?.iconAnimation ?? 'base';
-  drawAnchored(context, asset ?? art.missingItem, animation, frameIndex, x, y, cameraX, cameraY, zoom);
+  drawAnchored(context, asset ?? art.missingItem, animation, lit ? frameIndex : 0, x, y, cameraX, cameraY, zoom);
 }
 
 /** A tiny palette-matched arrow is rotated around its shaft so aiming is not
@@ -833,6 +977,7 @@ export function drawOverworldAvatar(
   appearance: PlayerAppearanceVisual = DEFAULT_PLAYER_APPEARANCE,
   heldItemKind = 'empty',
   heldLightAnimationFrame = 0,
+  heldLightLit = true,
 ): void {
   const heldLight = heldItemKind === 'torch' || heldItemKind === 'lantern'
     ? art.heldLights[heldItemKind]
@@ -848,11 +993,14 @@ export function drawOverworldAvatar(
       : heldLightAnimationForDirection(facing, moving);
     const lightAsset = heldLight === null ? null : moving ? heldLight.running : heldLight.idle;
     const lightHands = heldLight === null ? null : moving ? heldLight.runningHands : heldLight.idleHands;
-    const lightFrame = moving ? frameIndex : heldLightAnimationFrame;
+    // Locomotion chooses the torch/lantern pose, but flame animation remains
+    // on its continuous cosmetic clock. Coupling it to distance-stepped walk
+    // frames makes the flame strobe whenever the player starts moving.
+    const lightFrames = heldLightFrameIndices(moving, frameIndex, heldLightAnimationFrame);
     const drawHeldLight = (): void => {
       if (lightAsset !== null) drawAnchored(
-        context, lightAsset, modularAnimation, lightFrame,
-        x, y, cameraX, cameraY, zoom, flip,
+        context, lightAsset, modularAnimation, lightFrames.light,
+        x, y, cameraX, cameraY, zoom, flip, heldItemKind === 'lantern' && !heldLightLit,
       );
     };
     if (facing === 'up') drawHeldLight();
@@ -865,7 +1013,7 @@ export function drawOverworldAvatar(
         context,
         layer,
         modularAnimation,
-        layer === lightHands ? lightFrame : frameIndex,
+        layer === lightHands ? lightFrames.hands : frameIndex,
         x,
         y,
         cameraX,
@@ -934,6 +1082,19 @@ export function drawOverworldMerchant(
   drawAnchored(context, art.merchantNpc, animation, animationFrame, x, y, cameraX, cameraY, zoom, flip);
 }
 
+export function merchantWorldBounds(
+  art: OverworldArt,
+  x: number,
+  y: number,
+  facing: Direction,
+  moving: boolean,
+  animationFrame: number,
+): WorldVisualBounds | null {
+  const animation = moving ? avatarAnimationForDirection(facing) : idleAvatarAnimationForDirection(facing);
+  const flip = facing === 'left' || facing === 'upLeft' || facing === 'downLeft';
+  return anchoredVisualBounds(art.merchantNpc, animation, animationFrame, x, y, flip);
+}
+
 export const BOW_LOCOMOTION_SPLIT_ROW = 28;
 
 export function bowLocomotionBobOffset(frameIndex: number): number {
@@ -975,6 +1136,14 @@ export function heldLightAnimationForDirection(
   return `${motion}_right`;
 }
 
+export function heldLightFrameIndices(
+  moving: boolean,
+  locomotionFrame: number,
+  flameFrame: number,
+): { readonly light: number; readonly hands: number } {
+  return { light: flameFrame, hands: moving ? locomotionFrame : 0 };
+}
+
 /** Draws the same modular appearance used in-world into the authored HUD
  * portrait well. Cropping the standing down pose preserves hair, skin and
  * clothing without maintaining a second set of avatar thumbnails. */
@@ -985,18 +1154,19 @@ export function drawPlayerHeadPortrait(
   destination: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
 ): void {
   context.imageSmoothingEnabled = false;
-  const portraitScale = Math.max(1, Math.floor(Math.min(destination.width / 12, destination.height / 13)));
+  const portraitSize = Math.max(1, Math.min(destination.width, destination.height));
+  const portraitX = Math.round(destination.x + (destination.width - portraitSize) / 2);
+  const portraitY = Math.round(destination.y + (destination.height - portraitSize) / 2);
   for (const layer of playerLayersForAppearance(art, appearance, false)) {
     const frame = selectAtlasFrame(layer.metadata, 'idle_down', 0);
     if (frame === null) continue;
     const cropWidth = Math.min(16, frame.width);
     const cropHeight = Math.min(16, frame.height);
-    const cropX = frame.x + Math.max(0, Math.floor((frame.width - cropWidth) / 2));
+    const cropX = frame.x + Math.max(0, Math.floor((frame.width - cropWidth) / 2) - 1);
     const cropY = frame.y + Math.min(Math.max(0, frame.height - cropHeight), 12);
     context.drawImage(
       layer.image, cropX, cropY, cropWidth, cropHeight,
-      destination.x - 2 * portraitScale, destination.y - portraitScale,
-      16 * portraitScale, 16 * portraitScale,
+      portraitX, portraitY, portraitSize, portraitSize,
     );
   }
 }
@@ -1031,6 +1201,42 @@ function opaquePortraitFrame(asset: LoadedAsset, frame: AtlasFrame): AtlasFrame 
   } catch {
     return frame;
   }
+}
+
+export interface WorldVisualBounds {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
+/** Resolves the visible pixels of an anchored atlas frame back into world
+ * coordinates. This keeps selection brackets attached to padded and airborne
+ * sprites instead of assuming every creature fills a box above its feet. */
+function anchoredVisualBounds(
+  asset: LoadedAsset,
+  animation: string,
+  frameIndex: number,
+  worldX: number,
+  worldY: number,
+  flipX: boolean,
+): WorldVisualBounds | null {
+  const source = frame(asset, animation, frameIndex);
+  if (source === null) return null;
+  const visible = opaquePortraitFrame(asset, source);
+  const localLeft = visible.x - source.x;
+  const localTop = visible.y - source.y;
+  const anchorX = flipX ? source.width - 1 - asset.anchor[0] : asset.anchor[0];
+  const frameLeft = worldX - anchorX;
+  const left = flipX
+    ? frameLeft + source.width - localLeft - visible.width
+    : frameLeft + localLeft;
+  return {
+    left,
+    top: worldY - asset.anchor[1] + localTop,
+    right: left + visible.width,
+    bottom: worldY - asset.anchor[1] + localTop + visible.height,
+  };
 }
 
 /** Fits an NPC's complete authored model into the target portrait well. Player
@@ -1168,6 +1374,57 @@ function availableAnimation(asset: LoadedAsset, preferred: string): string {
   return Object.keys(asset.metadata.animations)[0] ?? preferred;
 }
 
+interface WildlifeVisual {
+  readonly asset: LoadedAsset;
+  readonly animation: string;
+  readonly frameIndex: number;
+  readonly flip: boolean;
+}
+
+function resolveWildlifeVisual(
+  art: OverworldArt,
+  species: WildlifeSpecies,
+  variant: number,
+  activity: string,
+  facing: Direction,
+  moving: boolean,
+  animationFrame: number,
+  inWater: boolean,
+): WildlifeVisual {
+  const key = species === 'capybara'
+    ? `capybara_${capybaraVisualAtFrame(animationFrame + variant * 17, inWater)}`
+    : species;
+  const variants = art.wildlife[key] ?? [];
+  const asset = variants[variant % Math.max(1, variants.length)] ?? art.missingItem;
+  const preferred = species === 'capybara'
+    ? 'base'
+    : wildlifeAnimationName(species, facing, moving, activity);
+  const animation = availableAnimation(asset, preferred);
+  const authoredFps = asset.metadata.animationMeta?.[animation]?.fps ?? 8;
+  const staticPose = (activity === 'rest' && species !== 'butterfly')
+    || activity === 'inside_hive';
+  const frameIndex = staticPose ? 0 : Math.floor(animationFrame * authoredFps / 8);
+  return { asset, animation, frameIndex, flip: wildlifeFlipsForDirection(species, facing) };
+}
+
+export function wildlifeWorldBounds(
+  art: OverworldArt,
+  species: WildlifeSpecies,
+  variant: number,
+  activity: string,
+  x: number,
+  y: number,
+  facing: Direction,
+  moving: boolean,
+  animationFrame: number,
+  inWater = false,
+): WorldVisualBounds | null {
+  const visual = resolveWildlifeVisual(
+    art, species, variant, activity, facing, moving, animationFrame, inWater,
+  );
+  return anchoredVisualBounds(visual.asset, visual.animation, visual.frameIndex, x, y, visual.flip);
+}
+
 export function drawOverworldWildlife(
   context: CanvasRenderingContext2D,
   art: OverworldArt,
@@ -1184,21 +1441,13 @@ export function drawOverworldWildlife(
   zoom: number,
   inWater = false,
 ): void {
-  const key = species === 'capybara'
-    ? `capybara_${capybaraVisualAtFrame(animationFrame + variant * 17, inWater)}`
-    : species;
-  const variants = art.wildlife[key] ?? [];
-  const asset = variants[variant % Math.max(1, variants.length)] ?? art.missingItem;
-  const preferred = species === 'capybara'
-    ? 'base'
-    : wildlifeAnimationName(species, facing, moving, activity);
-  const animation = availableAnimation(asset, preferred);
-  const authoredFps = asset.metadata.animationMeta?.[animation]?.fps ?? 8;
-  const staticPose = (activity === 'rest' && species !== 'butterfly')
-    || activity === 'inside_hive';
-  const authoredFrame = staticPose ? 0 : Math.floor(animationFrame * authoredFps / 8);
-  const flip = wildlifeFlipsForDirection(species, facing);
-  drawAnchored(context, asset, animation, authoredFrame, x, y, cameraX, cameraY, zoom, flip);
+  const visual = resolveWildlifeVisual(
+    art, species, variant, activity, facing, moving, animationFrame, inWater,
+  );
+  drawAnchored(
+    context, visual.asset, visual.animation, visual.frameIndex,
+    x, y, cameraX, cameraY, zoom, visual.flip,
+  );
 }
 
 export function drawOverworldHive(
@@ -1277,6 +1526,26 @@ export function drawOverworldHorse(
   for (const layer of playerLayersForAppearance(art, appearance, true)) {
     drawAnchored(context, layer, 'mount', frameIndex, x, y, cameraX, cameraY, zoom, flip);
   }
+}
+
+export function horseWorldBounds(
+  art: OverworldArt,
+  x: number,
+  y: number,
+  facing: Direction,
+  moving: boolean,
+  animationFrame: number,
+  variant = 0,
+  activity = 'idle',
+): WorldVisualBounds | null {
+  const horse = art.wildlife.horse?.[variant % (art.wildlife.horse?.length ?? 1)] ?? art.horse;
+  const animation = availableAnimation(horse, wildlifeAnimationName('horse', facing, moving, activity));
+  const authoredFrame = !moving && activity !== 'graze' && activity !== 'sleep'
+    ? 0
+    : animationFrame;
+  return anchoredVisualBounds(
+    horse, animation, authoredFrame, x, y, horseFlipsForDirection(facing, false),
+  );
 }
 
 export const MOUNTED_ACTION_Y_OFFSET = -10;

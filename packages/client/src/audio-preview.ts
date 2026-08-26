@@ -1,6 +1,6 @@
 import { AudioBus } from './audio/audio-bus.js';
 
-const SONGS = ['theme_title', 'theme_spring'] as const;
+const SONGS = ['theme_title', 'theme_spring', 'theme_night'] as const;
 const SFX = [
   'footstep_grass', 'footstep_path', 'footstep_cellar',
   'ui_hover', 'ui_confirm',
