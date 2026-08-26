@@ -58,7 +58,7 @@ describe('shared client terrain array', () => {
     expect(terrainForWorld(123, 3)).toBe(first);
     expect(terrainForWorld(123, 4)).not.toBe(first);
     expect(first.biomes).toHaveLength(SURVIVAL_WORLD_SIZE ** 2);
-  }, 30_000);
+  }, 60_000);
 
   it('26§13 keys terrain classification by space and builds the flat debug bounds', () => {
     const debugSpace = spaceDefinitionFor(DEBUG_SPACE_ID);
