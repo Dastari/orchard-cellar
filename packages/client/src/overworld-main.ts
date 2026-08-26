@@ -103,7 +103,7 @@ import {
 import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
 import { createClientCollisionMap } from './render/collision.js';
 import { drawAnimatedTerrain } from './render/animated-terrain.js';
-import { drawFarmSoil, drawFarmTileReticle, drawInsetGround, farmSoilKey } from './render/farmland.js';
+import { drawFarmSoil, drawInteractionTileReticle, drawInsetGround, farmSoilKey } from './render/farmland.js';
 import { GroundChunkCache } from './render/ground-cache.js';
 import {
   ambientAtTick,
@@ -238,6 +238,10 @@ function latestIncomingWhisper(snapshot: OverworldView): ChatMessage | null {
     if (latest === null || message.id > latest.id) latest = message;
   }
   return latest;
+}
+
+function chatTimelineId(issuedAtMicros: bigint, rowId: bigint, lane: 0n | 1n): bigint {
+  return (issuedAtMicros << 65n) + (rowId << 1n) + lane;
 }
 
 let predicted: PlayerState | null = null;
@@ -1458,24 +1462,22 @@ function render(alpha = 1): void {
     windTrees,
   );
   const farmItem = selectedItem(snapshot);
-  const farmTarget = farmItem === 'hoe' || farmItem === 'watering_can' ? targetFarmTile() : null;
-  if (!debugEntitiesHidden && farmTarget !== null && localMount(snapshot) === null
+  const tileToolSelected = farmItem === 'hoe' || farmItem === 'watering_can';
+  const placeableSelected = carriedChest(snapshot) !== null || farmItem === 'chest';
+  const interactionTarget = tileToolSelected || placeableSelected ? targetInteractionTile() : null;
+  const farmTarget = tileToolSelected ? interactionTarget : null;
+  if (!debugEntitiesHidden && interactionTarget !== null && localMount(snapshot) === null
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
-    drawFarmTileReticle(context, farmTarget.tileX, farmTarget.tileY, cameraX, cameraY, scale);
-    drawCalls += 1;
-  }
-  const chestPlacementTarget = carriedChest(snapshot) !== null || selectedItem(snapshot) === 'chest'
-    ? targetInteractionTile() : null;
-  if (!debugEntitiesHidden && chestPlacementTarget !== null && localMount(snapshot) === null
-    && overworldUi.openWindow === null && !chatOverlay.isOpen) {
-    drawFarmTileReticle(
+    drawInteractionTileReticle(
       context,
-      chestPlacementTarget.tileX,
-      chestPlacementTarget.tileY,
+      placeableSelected && placementTileBlocked(snapshot, interactionTarget)
+        ? art.uiSkin.selectorDeny
+        : art.uiSkin.selectorNeutral,
+      interactionTarget.tileX,
+      interactionTarget.tileY,
       cameraX,
       cameraY,
       scale,
-      !placementTileBlocked(snapshot, chestPlacementTarget),
     );
     drawCalls += 1;
   }
@@ -1615,8 +1617,16 @@ function render(alpha = 1): void {
         body: snapshot.motd,
         itemLinksJson: '[]',
       }]),
+      ...[...snapshot.sessionChatNotices].map((notice) => ({
+        id: chatTimelineId(notice.issuedAt.microsSinceUnixEpoch, notice.id, 1n),
+        channelName: 'World',
+        senderDisplayName: 'World',
+        kind: 'system',
+        body: notice.body,
+        itemLinksJson: '[]',
+      })),
       ...[...snapshot.chatMessages].map((message) => ({
-        id: message.id,
+        id: chatTimelineId(message.sentAt.microsSinceUnixEpoch, message.id, 0n),
         channelName: channelNames.get(message.channelId) ?? (message.kind === 'whisper' ? 'Whisper' : 'Channel'),
         senderDisplayName: message.kind === 'whisper'
           && message.sender.toHexString() === snapshot.identityHex

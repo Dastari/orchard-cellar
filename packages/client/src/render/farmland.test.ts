@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LoadedAsset } from './assets.js';
-import { drawFarmSoil, drawFarmTileReticle, drawInsetGround, farmSoilFrameIndex, farmSoilKey } from './farmland.js';
+import { drawFarmSoil, drawInteractionTileReticle, drawInsetGround, farmSoilFrameIndex, farmSoilKey } from './farmland.js';
 
 const frame = { x: 0, y: 0, width: 16, height: 16, durationTicks: 0 };
 
@@ -95,18 +95,18 @@ describe('dynamic farmland autotiling', () => {
     expect(drawnImages).toEqual([pathImage, grassImage, grassImage]);
   });
 
-  it('renders blocked tile targets with the red placement ramp', () => {
-    let fillStyle = '';
-    const fills: string[] = [];
+  it('fits the authored selector around the shared tool and placement tile', () => {
+    const selectorImage = {} as CanvasImageSource;
+    const draws: unknown[][] = [];
     const context = {
-      get fillStyle() { return fillStyle; },
-      set fillStyle(value: string | CanvasGradient | CanvasPattern) { fillStyle = String(value); },
-      fillRect: () => fills.push(fillStyle),
+      drawImage: (...args: unknown[]) => draws.push(args),
     } as unknown as CanvasRenderingContext2D;
+    const selector = {
+      ...soilAsset(selectorImage),
+      metadata: { image: 'selector.png', animations: {}, variants: { idle: [{ x: 0, y: 0, width: 48, height: 48, durationTicks: 0 }] } },
+    } satisfies LoadedAsset;
 
-    drawFarmTileReticle(context, 2, 3, 0, 0, 1, false);
-    expect(fills).toContain('#e33f55');
-    expect(fills).toContain('#ff93a0');
-    expect(fills).not.toContain('#f7c94b');
+    drawInteractionTileReticle(context, selector, 2, 3, 0, 0, 1);
+    expect(draws).toEqual([[selectorImage, 0, 0, 48, 48, 26, 42, 28, 28]]);
   });
 });

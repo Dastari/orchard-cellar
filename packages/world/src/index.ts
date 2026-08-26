@@ -160,6 +160,7 @@ import {
 } from './auth-policy.js';
 import {
   CHAT_CHANNEL_HISTORY_LIMIT,
+  SESSION_CHAT_NOTICE_LIMIT,
   CHAT_SEND_COOLDOWN_MICROS,
   DEFAULT_MESSAGE_OF_DAY,
   GENERAL_CHAT_CHANNEL_ID,
@@ -170,8 +171,10 @@ import {
   normalizeChatChannelName,
   normalizeChatMessage,
   normalizeMessageOfDay,
+  isLegacyPersistentLifecycleMessage,
   validCreatableChatChannelKind,
   whisperConversationKey,
+  worldDisconnectMessage,
   worldEntryMessage,
 } from './chat-policy.js';
 
@@ -555,6 +558,27 @@ const connection_notice = table(
   },
 );
 
+// Presence notices are copied into each live connection's private session inbox.
+// They are intentionally separate from durable channel history and are deleted
+// when the recipient connection ends or its presence lease expires.
+const session_chat_notice = table(
+  {
+    name: 'session_chat_notice',
+    indexes: [
+      { accessor: 'by_recipient_identity', algorithm: 'btree', columns: ['recipientIdentity'] },
+      { accessor: 'by_recipient_connection', algorithm: 'btree', columns: ['recipientConnectionId'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    recipientIdentity: t.identity(),
+    recipientConnectionId: t.connectionId(),
+    kind: t.string(),
+    body: t.string(),
+    issuedAt: t.timestamp(),
+  },
+);
+
 const membership = table(
   { name: 'membership' },
   {
@@ -654,6 +678,14 @@ const chat_sender_state = table(
   {
     identity: t.identity().primaryKey(),
     lastSentAtMicros: t.u64(),
+  },
+);
+
+const chat_migration = table(
+  { name: 'chat_migration' },
+  {
+    id: t.u8().primaryKey(),
+    sessionNoticesVersion: t.u8(),
   },
 );
 
@@ -1068,6 +1100,7 @@ const spacetimedb = schema({
   connection_audit,
   world_motd,
   connection_notice,
+  session_chat_notice,
   membership,
   membership_audit,
   world_admin_audit,
@@ -1075,6 +1108,7 @@ const spacetimedb = schema({
   chat_channel_member,
   chat_message,
   chat_sender_state,
+  chat_migration,
   world_speech,
   world_tree,
   world_clock,
@@ -1105,6 +1139,7 @@ const spacetimedb = schema({
 export default spacetimedb;
 
 type WorldReducerContext = Parameters<Parameters<typeof spacetimedb.init>[1]>[0];
+type WorldConnectionId = NonNullable<WorldReducerContext['connectionId']>;
 type WorldNpcRow = NonNullable<ReturnType<WorldReducerContext['db']['world_npc']['id']['find']>>;
 
 function firstIndexRow<T>(rows: Iterable<T>): T | null {
@@ -1135,6 +1170,53 @@ function updateWorldNpc(ctx: WorldReducerContext, row: WorldNpcRow): void {
       chunkX: row.chunkX,
       chunkY: row.chunkY,
     });
+  }
+}
+
+function migrateSessionChatNotices(ctx: WorldReducerContext): void {
+  const migration = ctx.db.chat_migration.id.find(0);
+  if ((migration?.sessionNoticesVersion ?? 0) >= 1) return;
+  for (const message of ctx.db.chat_message.iter()) {
+    if (isLegacyPersistentLifecycleMessage(message.kind)) ctx.db.chat_message.id.delete(message.id);
+  }
+  const next = { id: 0, sessionNoticesVersion: 1 };
+  if (migration === null) ctx.db.chat_migration.insert(next);
+  else ctx.db.chat_migration.id.update(next);
+}
+
+function deleteSessionChatNoticesForConnection(
+  ctx: WorldReducerContext,
+  connectionId: WorldConnectionId,
+): void {
+  for (const notice of ctx.db.session_chat_notice.by_recipient_connection.filter(connectionId)) {
+    ctx.db.session_chat_notice.id.delete(notice.id);
+  }
+}
+
+function broadcastSessionChatNotice(
+  ctx: WorldReducerContext,
+  kind: 'entry' | 'disconnect',
+  body: string,
+): void {
+  for (const presence of ctx.db.connection_presence_v2.iter()) {
+    if (presenceLeaseExpired(
+      presence.lastSeenAt.microsSinceUnixEpoch,
+      ctx.timestamp.microsSinceUnixEpoch,
+    )) continue;
+    if (ctx.db.connection_notice.connectionId.find(presence.connectionId) === null) continue;
+    ctx.db.session_chat_notice.insert({
+      id: 0n,
+      recipientIdentity: presence.identity,
+      recipientConnectionId: presence.connectionId,
+      kind,
+      body,
+      issuedAt: ctx.timestamp,
+    });
+    const notices = [...ctx.db.session_chat_notice.by_recipient_connection.filter(presence.connectionId)]
+      .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    for (const expired of notices.slice(0, Math.max(0, notices.length - SESSION_CHAT_NOTICE_LIMIT))) {
+      ctx.db.session_chat_notice.id.delete(expired.id);
+    }
   }
 }
 
@@ -1810,6 +1892,12 @@ export const ownConnectionNotices = spacetimedb.view(
   (ctx) => [...ctx.db.connection_notice.by_identity.filter(ctx.sender)],
 );
 
+export const ownSessionChatNotices = spacetimedb.view(
+  { name: 'own_session_chat_notices', public: true },
+  t.array(session_chat_notice.rowType),
+  (ctx) => [...ctx.db.session_chat_notice.by_recipient_identity.filter(ctx.sender)],
+);
+
 export const ownChatChannels = spacetimedb.view(
   { name: 'own_chat_channels', public: true },
   t.array(chat_channel.rowType),
@@ -1827,6 +1915,7 @@ export const visibleChatMessages = spacetimedb.view(
         .map((member) => member.channelId.toString()),
     );
     return [...ctx.db.chat_message.iter()].filter((message) => {
+      if (isLegacyPersistentLifecycleMessage(message.kind)) return false;
       if (message.kind === 'whisper') {
         return message.sender.isEqual(ctx.sender) || message.recipient?.isEqual(ctx.sender) === true;
       }
@@ -2142,6 +2231,8 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     });
   }
   requireAuthorizedSender(ctx.senderAuth.jwt, member);
+  migrateSessionChatNotices(ctx);
+  deleteSessionChatNoticesForConnection(ctx, ctx.connectionId);
   let motd = ctx.db.world_motd.id.find(0);
   if (motd === null) {
     motd = ctx.db.world_motd.insert({
@@ -2523,24 +2614,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   if (firstLiveConnection
     && connectedProfile !== null
     && ctx.db.character_profile.identity.find(ctx.sender)?.nameChosen === true) {
-    const conversationKey = channelConversationKey(GENERAL_CHAT_CHANNEL_ID);
-    ctx.db.chat_message.insert({
-      id: 0n,
-      conversationKey,
-      channelId: GENERAL_CHAT_CHANNEL_ID,
-      sender: ctx.databaseIdentity,
-      senderDisplayName: 'World',
-      recipient: undefined,
-      kind: 'system',
-      body: worldEntryMessage(connectedProfile.displayName),
-      itemLinksJson: '[]',
-      sentAt: ctx.timestamp,
-    });
-    const history = [...ctx.db.chat_message.by_conversation.filter(conversationKey)]
-      .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-    for (const expired of history.slice(0, Math.max(0, history.length - CHAT_CHANNEL_HISTORY_LIMIT))) {
-      ctx.db.chat_message.id.delete(expired.id);
-    }
+    broadcastSessionChatNotice(ctx, 'entry', worldEntryMessage(connectedProfile.displayName));
   }
 });
 
@@ -2549,6 +2623,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
 // existing 30 s presence lease expires; stepWorld owns that cleanup.
 export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
   if (ctx.connectionId === null) return;
+  deleteSessionChatNoticesForConnection(ctx, ctx.connectionId);
   const notice = ctx.db.connection_notice.connectionId.find(ctx.connectionId);
   if (notice === null || !notice.identity.isEqual(ctx.sender)) return;
   const profile = ctx.db.player_public.identity.find(ctx.sender);
@@ -2869,6 +2944,7 @@ export const revokeMember = spacetimedb.reducer(
     });
     for (const presence of ctx.db.connection_presence_v2.by_identity.filter(identity)) {
       ctx.db.connection_presence_v2.connectionId.delete(presence.connectionId);
+      deleteSessionChatNoticesForConnection(ctx, presence.connectionId);
     }
     const profile = ctx.db.player_public.identity.find(identity);
     if (profile !== null) ctx.db.player_public.identity.update({ ...profile, online: false });
@@ -3089,24 +3165,7 @@ export const setDisplayName = spacetimedb.reducer(
       ctx, ctx.sender, 'character_names_chosen', 1n,
       ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
     );
-    const conversationKey = channelConversationKey(GENERAL_CHAT_CHANNEL_ID);
-    ctx.db.chat_message.insert({
-      id: 0n,
-      conversationKey,
-      channelId: GENERAL_CHAT_CHANNEL_ID,
-      sender: ctx.databaseIdentity,
-      senderDisplayName: 'World',
-      recipient: undefined,
-      kind: 'system',
-      body: worldEntryMessage(validName),
-      itemLinksJson: '[]',
-      sentAt: ctx.timestamp,
-    });
-    const history = [...ctx.db.chat_message.by_conversation.filter(conversationKey)]
-      .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-    for (const expired of history.slice(0, Math.max(0, history.length - CHAT_CHANNEL_HISTORY_LIMIT))) {
-      ctx.db.chat_message.id.delete(expired.id);
-    }
+    broadcastSessionChatNotice(ctx, 'entry', worldEntryMessage(validName));
     const parcel = [...ctx.db.farm_parcel.by_owner.filter(ctx.sender)][0];
     if (parcel !== undefined) {
       ctx.db.farm_parcel.id.update({ ...parcel, name: `${validName}'s Farm` });
@@ -4930,6 +4989,7 @@ export const stepWorld = spacetimedb.reducer(
         ctx.timestamp.microsSinceUnixEpoch,
       )) continue;
       ctx.db.connection_presence_v2.connectionId.delete(presence.connectionId);
+      deleteSessionChatNoticesForConnection(ctx, presence.connectionId);
       const abandonedNotice = ctx.db.connection_notice.connectionId.find(presence.connectionId);
       if (abandonedNotice !== null) {
         const abandonedProfile = ctx.db.player_public.identity.find(presence.identity);
@@ -4950,6 +5010,9 @@ export const stepWorld = spacetimedb.reducer(
       if (stillOnline) continue;
       const profile = ctx.db.player_public.identity.find(presence.identity);
       if (profile !== null) {
+        if (ctx.db.character_profile.identity.find(presence.identity)?.nameChosen === true) {
+          broadcastSessionChatNotice(ctx, 'disconnect', worldDisconnectMessage(profile.displayName));
+        }
         ctx.db.player_public.identity.update({ ...profile, online: false });
       }
       const input = ctx.db.player_input.identity.find(presence.identity);

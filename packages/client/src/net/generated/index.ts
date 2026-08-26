@@ -105,6 +105,7 @@ import OwnMembershipRow from "./own_membership_table";
 import OwnOpenChestSlotsRow from "./own_open_chest_slots_table";
 import OwnPlayerStatisticMilestonesRow from "./own_player_statistic_milestones_table";
 import OwnPlayerStatisticsRow from "./own_player_statistics_table";
+import OwnSessionChatNoticesRow from "./own_session_chat_notices_table";
 import OwnStatsRow from "./own_stats_table";
 import OwnSurvivalRow from "./own_survival_table";
 import OwnWalletRow from "./own_wallet_table";
@@ -506,6 +507,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnPlayerStatisticsRow),
+  ownSessionChatNotices: __table({
+    name: 'own_session_chat_notices',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnSessionChatNoticesRow),
   ownStats: __table({
     name: 'own_stats',
     indexes: [
