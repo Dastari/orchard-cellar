@@ -250,7 +250,9 @@ facing-seeded emitters. The shared calendar derives all eight moon phases and
 interpolated illumination from the authority tick; clear surface ambient
 reaches the exact Full/New Moon anchors, while the HUD supplies distinct 7×7
 phase silhouettes and phase/illumination tooltip text. Placed and held flame
-emitters use the same deterministic blended flame noise.
+emitters use the same deterministic blended flame noise. The light-only layer
+is bilinear-filtered during compositing to blend neighboring flood bands;
+terrain and sprites retain nearest-neighbor pixel rendering.
 
 The public browser's representative 40-light fixture (36 standing torches and
 4 campfires) measured **1.1–1.3 ms warmed** at four texels/tile, below the

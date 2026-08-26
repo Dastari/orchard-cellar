@@ -309,10 +309,10 @@ export class TileLightmap {
       this.lastAmbientSignature = ambientSignature;
     }
     target.save();
-    // Preserve a restrained pixel-art texture in the light falloff. At four
-    // texels per tile these remain smaller than the coarse full-tile blocks
-    // coarse full-tile blocks used by the original lightmap.
-    target.imageSmoothingEnabled = false;
+    // Filter only the low-resolution light overlay. Terrain and sprites are
+    // still drawn nearest-neighbour elsewhere, while bilinear sampling here
+    // blends adjacent flood bands and prevents visible concentric stair steps.
+    target.imageSmoothingEnabled = true;
     target.globalCompositeOperation = 'multiply';
     target.drawImage(
       this.canvas,
@@ -324,7 +324,7 @@ export class TileLightmap {
     target.restore();
     if (this.haloVisible) {
       target.save();
-      target.imageSmoothingEnabled = false;
+      target.imageSmoothingEnabled = true;
       target.globalCompositeOperation = 'lighter';
       target.drawImage(
         this.haloCanvas,
