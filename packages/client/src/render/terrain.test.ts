@@ -30,7 +30,11 @@ import {
   terrainForWorld,
   terrainForSpace,
   invalidateTerrainElevationCaches,
+  terrainContourBoundaryBetween,
+  terrainContactWorldYForPlayer,
   terrainProjectedDepthAtFoot,
+  terrainProjectedElevationAtFoot,
+  terrainProjectedWorldYAtFoot,
   waterDecorationAllowedAt,
   waterfallTopLeftAt,
   waterfallFrameIndexAt,
@@ -208,7 +212,47 @@ describe('shared client terrain array', () => {
     const terrain = terrainFixture(3, 3);
     terrain.elevations[4] = 2;
     expect(terrainProjectedDepthAtFoot(terrain, 24, 24)).toBe(96);
+    expect(terrainProjectedWorldYAtFoot(terrain, 24, 24)).toBe(-72);
     expect(terrainProjectedDepthAtFoot(terrain, 8, 8)).toBe(0);
+    expect(terrainProjectedWorldYAtFoot(terrain, 8, 8)).toBe(8);
+  });
+
+  it('30§5 samples player projection at the same shoe contact used by movement', () => {
+    const terrain = terrainFixture(3, 3);
+    terrain.elevations[2 * terrain.width + 1] = 1;
+    const authorityAnchorY = 32.5;
+    expect(terrainProjectedDepthAtFoot(terrain, 24, authorityAnchorY)).toBe(48);
+    expect(terrainProjectedDepthAtFoot(
+      terrain,
+      24,
+      terrainContactWorldYForPlayer(authorityAnchorY),
+    )).toBe(0);
+  });
+
+  it('30§5 exposes strict contour walls and exact transition openings to the debug view', () => {
+    const terrain = terrainFixture(3, 3);
+    terrain.elevations[4] = 1;
+    expect(terrainContourBoundaryBetween(terrain, 1, 2, 1, 1)).toBe('blocked');
+    expect(terrainContourBoundaryBetween(terrain, 0, 2, 1, 2)).toBe('none');
+
+    const terrainWithTransition: TerrainArray = {
+      ...terrain,
+      terrainTransitions: [{
+        contourLevel: 1,
+        kind: 'slope',
+        direction: 'up',
+        lowerTileX: 1,
+        lowerTileY: 2,
+        upperTileX: 1,
+        upperTileY: 1,
+      }],
+    };
+    expect(terrainContourBoundaryBetween(terrainWithTransition, 1, 2, 1, 1)).toBe('transition');
+    expect(terrainContourBoundaryBetween(terrainWithTransition, 1, 1, 1, 2)).toBe('transition');
+    expect(terrainProjectedElevationAtFoot(terrainWithTransition, 24, 40)).toBe(0);
+    expect(terrainProjectedElevationAtFoot(terrainWithTransition, 24, 32)).toBe(0.5);
+    expect(terrainProjectedElevationAtFoot(terrainWithTransition, 24, 24)).toBe(1);
+    expect(terrainProjectedDepthAtFoot(terrainWithTransition, 24, 32)).toBe(24);
   });
 
   it('30§7 raising then lowering an editor cell restores identical contour plans', () => {

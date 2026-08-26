@@ -96,8 +96,7 @@ export interface RenderFrame {
 /** Every non-ground world object supplies this foot/door-line depth. */
 export interface WorldDepthItem {
   readonly footY: number;
-  /** Projected terrain height beneath this drawable. It changes painter
-   * ordering only; world/screen position remains unchanged. */
+  /** Offset from logical foot Y to projected screen-foot painter depth. */
   readonly depthOffset?: number;
   readonly tie: string;
   readonly draw: () => void;

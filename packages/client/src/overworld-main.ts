@@ -175,9 +175,15 @@ import {
   type WorldDepthItem,
 } from './render/renderer.js';
 import {
+  terrainContourBoundaryBetween,
+  terrainContactWorldYForPlayer,
   terrainForSpace,
   terrainForWorld,
+  terrainMaximumElevation,
   terrainProjectedDepthAtFoot,
+  terrainProjectedElevationAtFoot,
+  terrainProjectedSortOffset,
+  terrainProjectedWorldYAtFoot,
   type TerrainArray,
 } from './render/terrain.js';
 import { interpolateFixedPosition, presentationMoving } from './overworld-prediction.js';
@@ -1627,6 +1633,33 @@ function drawCollisionOverlay(
       16 * scale,
       16 * scale,
     );
+    for (const [deltaX, deltaY] of [[1, 0], [0, 1]] as const) {
+      const neighborX = tileX + deltaX;
+      const neighborY = tileY + deltaY;
+      if (neighborX >= terrain.width || neighborY >= terrain.height) continue;
+      const boundary = terrainContourBoundaryBetween(
+        terrain,
+        tileX,
+        tileY,
+        neighborX,
+        neighborY,
+      );
+      if (boundary === 'none') continue;
+      const edgeX = (tileX + (deltaX === 1 ? 1 : 0)) * 16;
+      const edgeY = (tileY + (deltaY === 1 ? 1 : 0)) * 16;
+      context.beginPath();
+      context.strokeStyle = boundary === 'transition' ? '#38f6ffff' : '#ff36dfff';
+      context.lineWidth = Math.max(2, scale);
+      context.moveTo(
+        Math.round((edgeX - cameraX) * scale),
+        Math.round((edgeY - cameraY) * scale),
+      );
+      context.lineTo(
+        Math.round((edgeX + (deltaY === 1 ? 16 : 0) - cameraX) * scale),
+        Math.round((edgeY + (deltaX === 1 ? 16 : 0) - cameraY) * scale),
+      );
+      context.stroke();
+    }
   }
   for (const obstacle of showEntityObstacles ? worldCollision.obstacles ?? [] : []) {
     const left = obstacle.left / FIXED_UNITS_PER_PIXEL;
@@ -1699,6 +1732,12 @@ function render(alpha = 1): void {
   );
   const localX = (cameraJump?.x ?? renderedLocal?.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const localY = (cameraJump?.footY ?? renderedLocal?.y ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
+  const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
+  const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
+  const terrain = terrainForSpace(activeSpaceDefinition, seed, version);
+  const localTerrainContactY = terrainContactWorldYForPlayer(localY);
+  const projectedLocalY = terrainProjectedWorldYAtFoot(terrain, localX, localTerrainContactY)
+    + (localY - localTerrainContactY);
   const frame = renderer.beginWorld(worldZoom);
   const context = frame.world;
   const scale = frame.layout.integerScale;
@@ -1706,14 +1745,11 @@ function render(alpha = 1): void {
   const viewportHeight = frame.layout.height / scale;
   const worldPixels = activeSpaceDefinition.sizeTiles * 16;
   const cameraX = cameraAxisOffset(localX, viewportWidth, worldPixels);
-  const cameraY = cameraAxisOffset(localY, viewportHeight, worldPixels);
+  const cameraY = cameraAxisOffset(projectedLocalY, viewportHeight, worldPixels);
   latestCameraX = cameraX;
   latestCameraY = cameraY;
   latestRenderedZoom = worldZoom;
   refreshHoveredInteractionTile();
-  const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
-  const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const terrain = terrainForSpace(activeSpaceDefinition, seed, version);
   const renderWeatherTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
   const activeWeather = weatherVisualState(worldWeatherMode(), renderWeatherTick, worldWindDirection());
   const renderWeather = activeSpaceDefinition.weather ? activeWeather : { ...activeWeather, raining: false };
@@ -1761,7 +1797,15 @@ function render(alpha = 1): void {
     worldZoom,
   );
 
-  const visible = visibleWorldBounds(cameraX, cameraY, frame.layout.width, frame.layout.height, scale, 64);
+  const terrainProjectionMargin = terrainMaximumElevation(terrain) * 3 * 16;
+  const visible = visibleWorldBounds(
+    cameraX,
+    cameraY,
+    frame.layout.width,
+    frame.layout.height,
+    scale,
+    Math.max(64, terrainProjectionMargin),
+  );
   const lightVisible = visibleWorldBounds(
     cameraX,
     cameraY,
@@ -1773,14 +1817,37 @@ function render(alpha = 1): void {
   // All non-ground world art (players, trees, items, future buildings/props/NPCs)
   // must enter this queue so weather and later depth layers cannot bypass it.
   const worldDepthItems: WorldDepthItem[] = [];
+  const projectionAt = (worldX: number, worldFootY: number): number => (
+    terrainProjectedDepthAtFoot(terrain, worldX, worldFootY)
+  );
+  const projectedWorldY = (worldX: number, worldFootY: number): number => (
+    worldFootY - projectionAt(worldX, worldFootY)
+  );
+  const projectTargetable = (
+    entity: TargetableWorldEntity,
+    worldX: number,
+    worldFootY: number,
+  ): TargetableWorldEntity => ({
+    ...entity,
+    y: entity.y - projectionAt(worldX, worldFootY),
+  });
   const enqueueWorldDepth = (
     worldX: number,
     worldFootY: number,
     item: WorldDepthItem,
+    terrainSampleY = worldFootY,
   ): void => {
+    const elevation = terrainProjectedElevationAtFoot(terrain, worldX, terrainSampleY);
+    const projection = projectionAt(worldX, terrainSampleY);
     worldDepthItems.push({
       ...item,
-      depthOffset: terrainProjectedDepthAtFoot(terrain, worldX, worldFootY),
+      depthOffset: terrainProjectedSortOffset(elevation),
+      draw: () => {
+        context.save();
+        context.translate(0, -projection * scale);
+        item.draw();
+        context.restore();
+      },
     });
   };
   enqueueRaisedTerrainDepth(
@@ -1798,6 +1865,17 @@ function render(alpha = 1): void {
   const renderedPlayerAnchors = new Map<string, { readonly x: number; readonly y: number }>();
   const targetableEntities: TargetableWorldEntity[] = [];
   const pointLights: PointLight[] = [];
+  const projectedLight = (light: PointLight, terrainSampleY?: number): PointLight => {
+    const receiverY = light.receiverDirectionWorldY ?? light.worldY;
+    const projection = projectionAt(light.worldX, terrainSampleY ?? receiverY);
+    return {
+      ...light,
+      worldY: light.worldY - projection,
+      ...(light.receiverDirectionWorldY === undefined
+        ? {}
+        : { receiverDirectionWorldY: light.receiverDirectionWorldY - projection }),
+    };
+  };
   const frameAmbient = activeSpaceDefinition.ambient === 'clock'
     ? ambientAtTick(renderWeatherTick, renderWeather.raining ? 0.12 : 0)
     : activeSpaceDefinition.ambient;
@@ -1815,7 +1893,9 @@ function render(alpha = 1): void {
   const windTrees: WindTreeSource[] = [];
   for (const placeable of snapshot.placeables) {
     const light = placeablePointLight(placeable, snapshot.clock?.authorityTick ?? 0n);
-    if (light !== null && worldPointVisible(light.worldX, light.worldY, lightVisible)) pointLights.push(light);
+    if (light !== null && worldPointVisible(light.worldX, light.worldY, lightVisible)) {
+      pointLights.push(projectedLight(light));
+    }
   }
   if (!debugEntitiesHidden && activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
     for (const decoration of generateSurvivalDecorations(seed)) {
@@ -1830,7 +1910,7 @@ function render(alpha = 1): void {
           BigInt(decoration.id),
           snapshot.clock?.authorityTick ?? 0n,
         );
-        pointLights.push({
+        pointLights.push(projectedLight({
           worldX: decorationX,
           worldY: decorationY - 12,
           receiverDirectionWorldY: decorationY,
@@ -1838,7 +1918,7 @@ function render(alpha = 1): void {
           color: CAMPFIRE_LIGHT,
           strengthPerMille: flicker.strengthPerMille,
           profile: 'flame',
-        });
+        }));
       }
     }
     if (!worldPointVisible(decorationX, decorationY, visible)) continue;
@@ -1963,7 +2043,7 @@ function render(alpha = 1): void {
     const age = Number((snapshot.clock?.authorityTick ?? item.droppedAtTick) - item.droppedAtTick);
     const arcHeight = age >= 0 && age < 8 ? Math.round(Math.sin(age / 8 * Math.PI) * 8) : 0;
     if (item.itemKind === 'lantern' && item.lit && worldPointVisible(x, y, lightVisible)) {
-      pointLights.push({
+      pointLights.push(projectedLight({
         worldX: x,
         worldY: y - 7,
         receiverDirectionWorldY: y,
@@ -1971,7 +2051,7 @@ function render(alpha = 1): void {
         color: LANTERN_LIGHT,
         strengthPerMille: 1000,
         profile: 'steady',
-      });
+      }));
     }
     enqueueWorldDepth(x, y, {
       footY: y,
@@ -2076,14 +2156,14 @@ function render(alpha = 1): void {
     const facing = (display?.facing ?? npc.facing) as Direction;
     if (snapshot.merchants.get(npc.id) !== undefined) {
       const moving = sleeping ? false : npc.moving;
-      targetableEntities.push(targetableFromVisualBounds(
+      targetableEntities.push(projectTargetable(targetableFromVisualBounds(
         { kind: 'npc', id: npc.id },
         merchantWorldBounds(
           art, x, y, facing, moving, horseAnimationFrame + Number(npc.id % 19n),
         ),
         x, y, { halfWidth: 9, height: 24 },
-      ));
-      if (npc.displayName.trim()) nameplates.push({ x, y, name: npc.displayName });
+      ), x, y));
+      if (npc.displayName.trim()) nameplates.push({ x, y: projectedWorldY(x, y), name: npc.displayName });
       enqueueWorldDepth(x, y, {
         footY: y,
         tie: `merchant:${npc.id}`,
@@ -2098,7 +2178,7 @@ function render(alpha = 1): void {
     const species = profile?.species ?? (npc.kind === 'horse' ? 'horse' : null);
     if (species === null) continue;
     if (species === 'bee' && npc.wanderDirection === 'inside_hive') continue;
-    if (npc.displayName.trim()) nameplates.push({ x, y, name: npc.displayName });
+    if (npc.displayName.trim()) nameplates.push({ x, y: projectedWorldY(x, y), name: npc.displayName });
     const animationFrame = horseAnimationFrame + Number(npc.id % 19n);
     const biome = survivalBiomeAt(
       snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED,
@@ -2115,9 +2195,9 @@ function render(alpha = 1): void {
         art, species, profile?.variant ?? 0, npc.wanderDirection,
         x, y, facing, moving, animationFrame, inWater,
       );
-    targetableEntities.push(targetableFromVisualBounds(
+    targetableEntities.push(projectTargetable(targetableFromVisualBounds(
       { kind: 'npc', id: npc.id }, visualBounds, x, y, npcTargetDimensions(species),
-    ));
+    ), x, y));
     enqueueWorldDepth(x, y, {
       footY: y,
       tie: `npc:${npc.id}`,
@@ -2157,7 +2237,10 @@ function render(alpha = 1): void {
     const footYFixed = jumpPresentation?.footY ?? yFixed;
     const x = xFixed / FIXED_UNITS_PER_PIXEL;
     const y = yFixed / FIXED_UNITS_PER_PIXEL;
-    renderedPlayerAnchors.set(id, { x, y });
+    const footY = footYFixed / FIXED_UNITS_PER_PIXEL;
+    const terrainContactY = terrainContactWorldYForPlayer(footY);
+    const playerProjection = projectionAt(x, terrainContactY);
+    renderedPlayerAnchors.set(id, { x, y: y - playerProjection });
     const equipped = local ? lightPreviewKind ?? selectedItem(snapshot) : display?.equippedKind ?? player.equippedKind;
     const equippedLit = equipped !== 'lantern' || (local
       ? lightPreviewKind === 'lantern' || (selectedItemRow(snapshot)?.lit ?? true)
@@ -2172,7 +2255,7 @@ function render(alpha = 1): void {
             visualTickClock.renderTick,
           )
         : { radiusOffset: 0, strengthPerMille: 1000 };
-      pointLights.push({
+      pointLights.push(projectedLight({
         worldX: lightX,
         worldY: lightY,
         receiverDirectionWorldY: y,
@@ -2180,11 +2263,11 @@ function render(alpha = 1): void {
         color: equipped === 'lantern' ? LANTERN_LIGHT : TORCH_LIGHT,
         strengthPerMille: flicker.strengthPerMille,
         profile: equipped === 'torch' ? 'flame' : 'steady',
-      });
+      }, terrainContactY));
     }
     if (!worldPointVisible(x, y, visible)) continue;
     if (!local) targetableEntities.push({
-      target: { kind: 'player', id }, x, y,
+      target: { kind: 'player', id }, x, y: y - playerProjection,
       halfWidth: mount === null ? 8 : 16, height: mount === null ? 24 : 32,
     });
     const authoritativeFacing = (local ? predicted?.facing ?? player.facing : display?.facing ?? player.facing) as Direction;
@@ -2207,9 +2290,13 @@ function render(alpha = 1): void {
       jumpPresentation !== null,
     );
     const appearance = snapshot.appearances.get(id);
-    nameplates.push({ x, y, name: profileName(snapshot.profiles, id) });
-    enqueueWorldDepth(x, footYFixed / FIXED_UNITS_PER_PIXEL, {
-      footY: footYFixed / FIXED_UNITS_PER_PIXEL,
+    nameplates.push({
+      x,
+      y: y - playerProjection,
+      name: profileName(snapshot.profiles, id),
+    });
+    enqueueWorldDepth(x, footY, {
+      footY,
       tie: `player:${id}`,
       draw: () => {
         const controller = avatarAnimations.get(id) ?? new AvatarAnimationController();
@@ -2276,7 +2363,7 @@ function render(alpha = 1): void {
           drawOverworldChest(context, art, x, y - 17, cameraX, cameraY, scale);
         }
       },
-    });
+    }, terrainContactY);
   }
   latestTargetableEntities = targetableEntities;
   drawCalls += drawWorldDepthQueue(
@@ -2739,7 +2826,7 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyG' && !event.repeat) {
     debugCollision = !debugCollision;
     setToast(debugCollision
-      ? 'COLLISION: CYAN PLAYER / RED TERRAIN / AMBER RESOURCE / PURPLE TOOL RANGE'
+      ? 'COLLISION: MAGENTA CONTOUR / CYAN RAMP / RED TERRAIN / AMBER RESOURCE'
       : 'COLLISION OVERLAY OFF', 'info', 180);
     event.preventDefault();
     return;

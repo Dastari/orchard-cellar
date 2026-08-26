@@ -1,15 +1,18 @@
 import {
+  FIXED_UNITS_PER_PIXEL,
+  PLAYER_HITBOX_FOOT_OFFSET,
   SURVIVAL_BIOMES,
   SURVIVAL_CLIFF_ROLES,
   SURVIVAL_DIRT_CLIFF_ROLES,
   SURVIVAL_RAISED_CLIFF_TILE_SET,
   SURVIVAL_WORLD_SIZE,
   TOPSIDE_SPACE_ID,
+  homesteadBiomeAt,
   resolveRaisedTerrainTile,
   resolveRaisedTerrainContoursAt,
   maximumTerrainElevation,
   terrainElevationAt as sampleTerrainElevation,
-  terrainProjectedDepthOffset,
+  terrainWalkingStepAllowed,
   survivalElevationBytes,
   survivalTerrainTransitions,
   survivalCliffRoleBytes,
@@ -129,6 +132,14 @@ export function terrainForSpace(space: SpaceDefinition, seed: number, version: n
       const elevations = new Uint8Array(length);
       const plains = Math.max(0, SURVIVAL_BIOMES.indexOf('plains'));
       const biomes = new Uint8Array(length).fill(plains);
+      if (space.generator === 'homestead' && space.homesteadSite !== undefined) {
+        for (let index = 0; index < length; index += 1) {
+          const biome = homesteadBiomeAt(
+            seed, space.homesteadSite, index % space.sizeTiles, Math.floor(index / space.sizeTiles), space.sizeTiles,
+          );
+          biomes[index] = Math.max(0, SURVIVAL_BIOMES.indexOf(biome));
+        }
+      }
       const blocked = Array.from({ length }, (_, index) => {
         const x = index % space.sizeTiles;
         const y = Math.floor(index / space.sizeTiles);
@@ -401,6 +412,12 @@ export function terrainElevationAtWorldFoot(
   );
 }
 
+/** The avatar authority anchor sits below its physical shoe contact. Terrain
+ * presentation must sample the same point as the shared movement solver. */
+export function terrainContactWorldYForPlayer(worldAnchorY: number): number {
+  return worldAnchorY - (PLAYER_HITBOX_FOOT_OFFSET + 1) / FIXED_UNITS_PER_PIXEL;
+}
+
 function cliffRoleAt(terrain: TerrainArray, tileX: number, tileY: number): typeof SURVIVAL_CLIFF_ROLES[number] {
   if (tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height) return 'none';
   return SURVIVAL_CLIFF_ROLES[terrain.cliffRoles[tileY * terrain.width + tileX] ?? 0] ?? 'none';
@@ -453,6 +470,7 @@ function plateauRampRoleAt(
 const plateauGridCache = new WeakMap<TerrainArray, RaisedTerrainGrid>();
 const maximumElevationCache = new WeakMap<TerrainArray, number>();
 const contourPlanCache = new WeakMap<TerrainArray, Map<number, readonly RaisedTerrainContourPlan[]>>();
+const transitionsByTileCache = new WeakMap<TerrainArray, Map<number, readonly TerrainTransition[]>>();
 
 function plateauGridFor(terrain: TerrainArray): RaisedTerrainGrid {
   let grid = plateauGridCache.get(terrain);
@@ -517,11 +535,106 @@ export function terrainProjectedDepthAtFoot(
   worldX: number,
   worldFootY: number,
 ): number {
-  return terrainProjectedDepthOffset(
-    terrainElevationAtWorldFoot(terrain, worldX, worldFootY),
-    terrainProjectedRowsPerLevel(),
-    16,
-  );
+  return terrainProjectedElevationAtFoot(terrain, worldX, worldFootY)
+    * terrainProjectedRowsPerLevel() * 16;
+}
+
+function terrainTransitionsByTile(terrain: TerrainArray): Map<number, readonly TerrainTransition[]> {
+  let byTile = transitionsByTileCache.get(terrain);
+  if (byTile !== undefined) return byTile;
+  const mutable = new Map<number, TerrainTransition[]>();
+  for (const transition of terrain.terrainTransitions ?? []) {
+    for (const [tileX, tileY] of [
+      [transition.lowerTileX, transition.lowerTileY],
+      [transition.upperTileX, transition.upperTileY],
+    ] as const) {
+      const key = tileY * terrain.width + tileX;
+      const entries = mutable.get(key) ?? [];
+      entries.push(transition);
+      mutable.set(key, entries);
+    }
+  }
+  byTile = mutable;
+  transitionsByTileCache.set(terrain, byTile);
+  return byTile;
+}
+
+/** Continuous presentation elevation along an authored crossing. Collision
+ * remains integer and authoritative; only the 2.5D screen projection blends
+ * between the lower and upper tile centres. */
+export function terrainProjectedElevationAtFoot(
+  terrain: TerrainArray,
+  worldX: number,
+  worldFootY: number,
+): number {
+  const tileX = Math.floor(worldX / 16);
+  const tileY = Math.floor((worldFootY - 0.001) / 16);
+  const baseElevation = terrainElevationAt(terrain, tileX, tileY);
+  const transitions = terrainTransitionsByTile(terrain).get(tileY * terrain.width + tileX) ?? [];
+  for (const transition of transitions) {
+    if (transition.kind !== 'slope' && transition.kind !== 'stairs') continue;
+    const lowerX = (transition.lowerTileX + 0.5) * 16;
+    const lowerY = (transition.lowerTileY + 0.5) * 16;
+    const deltaX = (transition.upperTileX - transition.lowerTileX) * 16;
+    const deltaY = (transition.upperTileY - transition.lowerTileY) * 16;
+    const distanceSquared = deltaX * deltaX + deltaY * deltaY;
+    const progress = ((worldX - lowerX) * deltaX + (worldFootY - lowerY) * deltaY)
+      / distanceSquared;
+    if (progress < 0 || progress > 1) continue;
+    const perpendicular = Math.abs((worldX - lowerX) * deltaY - (worldFootY - lowerY) * deltaX)
+      / Math.sqrt(distanceSquared);
+    if (perpendicular > 8) continue;
+    return transition.contourLevel - 1 + progress;
+  }
+  return baseElevation;
+}
+
+const TERRAIN_PLANE_SORT_EPSILON = 1 / 1_024;
+
+/** Converts a logical elevation into a projected screen-foot sort offset.
+ * A boundary sits halfway between its lower and upper planes, so a lower
+ * occupant is occluded while an occupant on top remains visible. */
+export function terrainProjectedSortOffset(
+  elevation: number,
+  boundary = false,
+): number {
+  return -elevation * terrainProjectedRowsPerLevel() * 16
+    + (elevation - (boundary ? 0.5 : 0)) * TERRAIN_PLANE_SORT_EPSILON;
+}
+
+/** Screen-space projection for 2.5D terrain. Logical coordinates and server
+ * collision remain unchanged; raised surfaces and their occupants render
+ * north by the selected face height, creating a lower-plane walk-behind band. */
+export function terrainProjectedWorldYAtFoot(
+  terrain: TerrainArray,
+  worldX: number,
+  worldFootY: number,
+): number {
+  return worldFootY - terrainProjectedDepthAtFoot(terrain, worldX, worldFootY);
+}
+
+export type TerrainContourBoundary = 'none' | 'blocked' | 'transition';
+
+export function terrainContourBoundaryBetween(
+  terrain: TerrainArray,
+  fromTileX: number,
+  fromTileY: number,
+  toTileX: number,
+  toTileY: number,
+): TerrainContourBoundary {
+  const fromElevation = terrainElevationAt(terrain, fromTileX, fromTileY);
+  const toElevation = terrainElevationAt(terrain, toTileX, toTileY);
+  if (fromElevation === toElevation) return 'none';
+  return terrainWalkingStepAllowed(
+    terrain.elevations,
+    terrain.width,
+    terrain.height,
+    terrain.terrainTransitions ?? [],
+    fromTileX,
+    fromTileY,
+    toTileX,
+    toTileY,
+  ) ? 'transition' : 'blocked';
 }
 
 export function terrainProjectedRowsPerLevel(): number {
@@ -534,6 +647,7 @@ export function invalidateTerrainElevationCaches(terrain: TerrainArray): void {
   maximumElevationCache.delete(terrain);
   contourPlanCache.delete(terrain);
   plateauGridCache.delete(terrain);
+  transitionsByTileCache.delete(terrain);
 }
 
 /** Background faces are returned deepest-to-nearest for correct compositing. */

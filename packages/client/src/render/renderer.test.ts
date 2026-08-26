@@ -71,8 +71,8 @@ describe('unified renderer zoom math', () => {
   it('30§5 orders lower-behind, cliff, upper-on-top, and lower-in-front correctly', () => {
     const items = [
       { footY: 80, tie: 'lower-behind' },
-      { footY: 96, tie: 'terrain-cliff' },
-      { footY: 50, depthOffset: 48, tie: 'upper-on-top' },
+      { footY: 128, depthOffset: -48 + 0.5 / 1_024, tie: 'terrain-cliff' },
+      { footY: 128, depthOffset: -48 + 1 / 1_024, tie: 'upper-on-top' },
       { footY: 112, tie: 'lower-in-front' },
     ];
     expect(sortWorldDepthItems(items).map(({ tie }) => tie)).toEqual([

@@ -4,7 +4,7 @@ import {
   SURVIVAL_WORLD_VERSION,
   survivalPlateauRamps,
 } from '@orchard/sim';
-import { raisedTerrainDepthEntries } from './raised-terrain-depth.js';
+import { raisedTerrainDepthEntries, raisedTerrainVisualOffset } from './raised-terrain-depth.js';
 import { plateauLayerPlansAt, terrainForWorld, type TerrainArray } from './terrain.js';
 
 function nestedTerrain(): TerrainArray {
@@ -40,7 +40,12 @@ describe('30§5 raised-terrain depth entries', () => {
     const entries = raisedTerrainDepthEntries(nestedTerrain(), 0, 0, 6, 6);
     const nestedSouth = entries.filter(({ tileX, tileY }) => tileX === 3 && tileY === 5);
     expect(nestedSouth.map(({ contourLevel }) => contourLevel)).toEqual([1, 2, 3]);
-    expect(nestedSouth.map(({ depthOffset }) => depthOffset)).toEqual([0, 48, 96]);
+    expect(nestedSouth.map(({ footY, depthOffset }) => footY + depthOffset)).toEqual([
+      48 + 0.5 / 1_024,
+      1.5 / 1_024,
+      -48 + 2.5 / 1_024,
+    ]);
+    expect(nestedSouth.map(raisedTerrainVisualOffset)).toEqual([48, 96, 144]);
   });
 
   it('30§3 maps every generated semantic crossing to its named contour art', () => {

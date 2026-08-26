@@ -176,8 +176,12 @@ becomes correctness.
   chunk-keyed and needs only key plumbing.
 - The chunk cache separates flat base pixels from sparse raised-structure
   foreground rows. Foreground terrain interleaves with world entities using an
-  elevation-aware depth key: `footY + projectedHeightBelow(elevation)`. This is
-  2.5D painter ordering, not freeform 3D. It lets lower actors walk behind a rear
+  elevation-aware projected depth key: `footY - projectedHeight(elevation)`,
+  with a sub-pixel plane bias ordering lower occupant, boundary, then upper
+  occupant where they share a screen foot. This is
+  2.5D projection, not freeform 3D: raised surfaces and their occupants render
+  north by `elevation × faceRows`, while their logical/collision coordinates stay
+  unchanged. The projected overlap lets lower actors walk behind the full rear
   cliff silhouette while actors standing on that cliff remain in front.
 - Camera/zoom bounds decouple from world size (`minimumZoom` from viewport
   only; `cameraAxisOffset` unclamped); `subscriptionChunkBounds` and

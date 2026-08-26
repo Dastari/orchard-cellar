@@ -3,7 +3,9 @@ import type { OverworldArt } from '../overworld-art.js';
 import { selectAtlasFrame } from './sprite.js';
 import {
   plateauLayerPlansAt,
+  terrainMaximumElevation,
   terrainProjectedRowsPerLevel,
+  terrainProjectedSortOffset,
   type TerrainArray,
 } from './terrain.js';
 import type { WorldDepthItem } from './renderer.js';
@@ -18,6 +20,14 @@ export interface RaisedTerrainDepthEntry {
   readonly plan: ReturnType<typeof plateauLayerPlansAt>[number]['plan'];
 }
 
+export function raisedTerrainVisualOffset(entry: Pick<RaisedTerrainDepthEntry, 'contourLevel'>): number {
+  return terrainProjectedDepthOffset(
+    entry.contourLevel,
+    terrainProjectedRowsPerLevel(),
+    TILE_SIZE_PIXELS,
+  );
+}
+
 export function raisedTerrainDepthEntries(
   terrain: TerrainArray,
   minimumTileX: number,
@@ -26,7 +36,6 @@ export function raisedTerrainDepthEntries(
   maximumTileY: number,
 ): readonly RaisedTerrainDepthEntry[] {
   const entries: RaisedTerrainDepthEntry[] = [];
-  const projectedRows = terrainProjectedRowsPerLevel();
   for (let tileY = Math.max(0, minimumTileY); tileY <= Math.min(terrain.height - 1, maximumTileY); tileY += 1) {
     for (let tileX = Math.max(0, minimumTileX); tileX <= Math.min(terrain.width - 1, maximumTileX); tileX += 1) {
       for (const { contourLevel, plan } of plateauLayerPlansAt(terrain, tileX, tileY)) {
@@ -35,11 +44,7 @@ export function raisedTerrainDepthEntries(
           tileY,
           contourLevel,
           footY: (tileY + 1) * TILE_SIZE_PIXELS,
-          depthOffset: terrainProjectedDepthOffset(
-            contourLevel - 1,
-            projectedRows,
-            TILE_SIZE_PIXELS,
-          ),
+          depthOffset: terrainProjectedSortOffset(contourLevel, true),
           plan,
         });
       }
@@ -83,6 +88,8 @@ function drawEntry(
   cameraY: number,
   scale: number,
 ): void {
+  context.save();
+  context.translate(0, -raisedTerrainVisualOffset(entry) * scale);
   for (const face of entry.plan.faceLayers) {
     drawTerrainAsset(context, art.cliff, face.frame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
   }
@@ -113,6 +120,7 @@ function drawEntry(
       scale,
     );
   }
+  context.restore();
 }
 
 export function enqueueRaisedTerrainDepth(
@@ -126,7 +134,10 @@ export function enqueueRaisedTerrainDepth(
   viewportWidth: number,
   viewportHeight: number,
 ): number {
-  const marginTiles = 4;
+  const marginTiles = Math.max(
+    4,
+    terrainMaximumElevation(terrain) * terrainProjectedRowsPerLevel() + 1,
+  );
   const entries = raisedTerrainDepthEntries(
     terrain,
     Math.floor(cameraX / TILE_SIZE_PIXELS) - marginTiles,
