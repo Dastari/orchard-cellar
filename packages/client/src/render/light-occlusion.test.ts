@@ -6,8 +6,18 @@ import {
   SURVIVAL_DIRT_CLIFF_ROLES,
   TOPSIDE_SPACE_ID,
 } from '@orchard/sim';
-import { LIGHT_HARD_BLOCKER, LIGHT_OPEN, LIGHT_SOFT_ATTENUATOR } from './light-flood.js';
-import { buildLightOcclusionPrefix, createLightOcclusionMap, rasterizeLightOcclusion } from './light-occlusion.js';
+import {
+  LIGHT_HARD_BLOCKER,
+  LIGHT_OPEN,
+  LIGHT_SOFT_ATTENUATOR,
+  LIGHT_SPRITE_BLOCKER,
+  LIGHT_TRUNK_BLOCKER,
+} from './light-flood.js';
+import {
+  buildLightOcclusionPrefix,
+  createLightOcclusionMap,
+  rasterizeLightOcclusion,
+} from './light-occlusion.js';
 import type { TerrainArray } from './terrain.js';
 
 function terrain(spaceId = TOPSIDE_SPACE_ID): TerrainArray {
@@ -29,14 +39,14 @@ function terrain(spaceId = TOPSIDE_SPACE_ID): TerrainArray {
 }
 
 describe('27§3 light occlusion classification', () => {
-  it('makes cliff faces hard while ramps and water remain transparent', () => {
+  it('makes raised cliff faces hard while ramps, inset edges, and water remain transparent', () => {
     const source = terrain();
     source.cliffRoles[0] = SURVIVAL_CLIFF_ROLES.indexOf('wall');
     source.cliffRoles[1] = SURVIVAL_CLIFF_ROLES.indexOf('ramp_top_left');
     source.dirtCliffRoles[2] = SURVIVAL_DIRT_CLIFF_ROLES.indexOf('edge');
     source.biomes[3] = SURVIVAL_BIOMES.indexOf('water');
     const map = createLightOcclusionMap(source);
-    expect([...map.hardBlocked.slice(0, 4)]).toEqual([1, 0, 1, 0]);
+    expect([...map.hardBlocked.slice(0, 4)]).toEqual([1, 0, 0, 0]);
   });
 
   it('uses fixed-space border collision as underground walls', () => {
@@ -66,5 +76,37 @@ describe('27§3 light occlusion classification', () => {
     const prefix = new Uint32Array((width + 1) * 13);
     buildLightOcclusionPrefix(prefix, width, 12, mask);
     expect(prefix[4 * (width + 1) + 4]).toBe(16);
+  });
+
+  it('rasterizes authored opacity without darkening transparent sprite pixels', () => {
+    const source = terrain();
+    const opaque = new Uint8Array(8 * 8);
+    for (let y = 4; y < 8; y += 1) for (let x = 4; x < 8; x += 1) opaque[y * 8 + x] = 1;
+    const map = createLightOcclusionMap(source, [], [{
+      left: 0, top: 0, width: 8, height: 8, opaque,
+    }]);
+    const mask = new Uint8Array(12 * 12);
+    rasterizeLightOcclusion(mask, 12, 12, 0, 0, 4, map);
+    expect(mask[0]).toBe(LIGHT_OPEN);
+    expect(mask[1]).toBe(LIGHT_OPEN);
+    expect(mask[12]).toBe(LIGHT_OPEN);
+    expect(mask[12 + 1]).toBe(LIGHT_SPRITE_BLOCKER);
+  });
+
+  it('separates a narrow trunk footprint from its elevated receiver ownership', () => {
+    const unit = FIXED_UNITS_PER_PIXEL;
+    const receiverOpaque = new Uint8Array(16 * 16).fill(1);
+    const map = createLightOcclusionMap(terrain(), [], [], [{
+      obstacle: { left: 4 * unit, top: 8 * unit, right: 11 * unit, bottom: 15 * unit },
+      receiver: { left: 0, top: 0, width: 16, height: 16, opaque: receiverOpaque },
+      footY: 16,
+    }]);
+    const mask = new Uint8Array(12 * 12);
+    const trunkOwners = new Uint16Array(mask.length);
+    const receiverOwners = new Uint16Array(mask.length);
+    rasterizeLightOcclusion(mask, 12, 12, 0, 0, 4, map, trunkOwners, receiverOwners);
+    expect(mask[2 * 12 + 1]).toBe(LIGHT_TRUNK_BLOCKER);
+    expect(trunkOwners[2 * 12 + 1]).toBe(1);
+    expect(receiverOwners[0]).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-import { authorityDayProgress, lunarIlluminationAtAuthorityTick } from '@orchard/sim';
+import { authorityDayProgress, dayProgressAtClockTime, lunarIlluminationAtAuthorityTick } from '@orchard/sim';
 import {
   LIGHT_BANDS,
   QuantizedLightFlood,
@@ -24,10 +24,11 @@ export interface PointLight {
   readonly profile?: LightProfile;
 }
 
-/** Quarter-tile sampling is the owner-reviewed balance between visible pixel
- * texture and a light pool that follows one-pixel player movement smoothly. */
+/** Quarter-tile spatial sampling keeps flood work bounded; 8-bit falloff,
+ * fractional seeds and bilinear composition provide smooth visual movement. */
 export const LIGHT_TEXELS_PER_TILE = 4;
 export const LIGHTMAP_TEXELS_PER_TILE = LIGHT_TEXELS_PER_TILE;
+export const LIGHT_POSITION_SUBPIXELS_PER_WORLD_PIXEL = 4;
 
 interface AmbientKeyframe {
   readonly progress: number;
@@ -35,13 +36,28 @@ interface AmbientKeyframe {
 }
 
 const AMBIENT_KEYFRAMES: readonly AmbientKeyframe[] = [
-  { progress: 0, color: { r: 222, g: 174, b: 126 } },
-  { progress: 0.1, color: { r: 255, g: 255, b: 255 } },
-  { progress: 0.62, color: { r: 255, g: 255, b: 255 } },
-  { progress: 0.72, color: { r: 166, g: 128, b: 157 } },
-  { progress: 0.8, color: { r: 89, g: 89, b: 105 } },
-  { progress: 1, color: { r: 89, g: 89, b: 105 } },
+  { progress: 0, color: { r: 222, g: 174, b: 126 } }, // 06:00
+  { progress: dayProgressAtClockTime(8), color: { r: 255, g: 255, b: 255 } },
+  { progress: dayProgressAtClockTime(17), color: { r: 255, g: 255, b: 255 } },
+  { progress: dayProgressAtClockTime(19), color: { r: 166, g: 128, b: 157 } },
+  { progress: dayProgressAtClockTime(21), color: { r: 89, g: 89, b: 105 } },
+  { progress: dayProgressAtClockTime(4), color: { r: 89, g: 89, b: 105 } },
+  { progress: 1, color: { r: 222, g: 174, b: 126 } }, // next day's 06:00
 ];
+
+const NIGHTFALL_START = dayProgressAtClockTime(19);
+const FULL_NIGHT_START = dayProgressAtClockTime(21);
+const PRE_DAWN_START = dayProgressAtClockTime(4);
+
+export function lunarNightWeightAtProgress(dayProgress: number): number {
+  const progress = Math.max(0, Math.min(1, dayProgress));
+  if (progress <= NIGHTFALL_START) return 0;
+  if (progress < FULL_NIGHT_START) {
+    return (progress - NIGHTFALL_START) / (FULL_NIGHT_START - NIGHTFALL_START);
+  }
+  if (progress <= PRE_DAWN_START) return 1;
+  return Math.max(0, (1 - progress) / (1 - PRE_DAWN_START));
+}
 
 export const NEW_MOON_NIGHT_AMBIENT: RgbColor = { r: 20, g: 20, b: 32 };
 export const FULL_MOON_NIGHT_AMBIENT: RgbColor = { r: 89, g: 89, b: 105 };
@@ -95,7 +111,7 @@ export function ambientAtProgress(
     g: lerp(NEW_MOON_NIGHT_AMBIENT.g, FULL_MOON_NIGHT_AMBIENT.g, moon),
     b: lerp(NEW_MOON_NIGHT_AMBIENT.b, FULL_MOON_NIGHT_AMBIENT.b, moon),
   };
-  const lunarWeight = Math.max(0, Math.min(1, (progress - 0.72) / 0.08));
+  const lunarWeight = lunarNightWeightAtProgress(progress);
   const weather = 1 - Math.max(0, Math.min(0.18, rainDarkening));
   return {
     r: Math.max(NEW_MOON_NIGHT_AMBIENT.r, Math.round(lerp(base.r, lunarNight.r, lunarWeight) * weather)),
@@ -172,6 +188,10 @@ export class TileLightmap {
   private lightPixels = new Uint8ClampedArray(0);
   private haloPixels = new Uint8ClampedArray(0);
   private occlusion = new Uint8Array(0);
+  private trunkOwners = new Uint16Array(0);
+  private receiverOwners = new Uint16Array(0);
+  private trunkCellIndices = new Uint32Array(0);
+  private trunkCellCount = 0;
   private occlusionPrefix = new Uint32Array(0);
   private floodTexelsVisitedValue = 0;
   private floodMsValue = 0;
@@ -208,10 +228,10 @@ export class TileLightmap {
     let hash = 2_166_136_261;
     hash = mixLightHash(hash, lights.length);
     for (const light of lights) {
-      // Quarter-texel signature steps make a four-texel lightmap respond to
-      // each world pixel without changing its deliberately pixelated buffer.
-      hash = mixLightHash(hash, Math.round(light.worldX * LIGHT_TEXELS_PER_TILE / 4));
-      hash = mixLightHash(hash, Math.round(light.worldY * LIGHT_TEXELS_PER_TILE / 4));
+      // Rebuild at quarter-world-pixel increments so the interpolated carried
+      // light follows the rendered avatar rather than the 20 Hz authority step.
+      hash = mixLightHash(hash, Math.round(light.worldX * LIGHT_POSITION_SUBPIXELS_PER_WORLD_PIXEL));
+      hash = mixLightHash(hash, Math.round(light.worldY * LIGHT_POSITION_SUBPIXELS_PER_WORLD_PIXEL));
       hash = mixLightHash(hash, Math.round(light.radiusTiles * 100));
       hash = mixLightHash(hash, light.strengthPerMille ?? 1000);
       hash = mixLightHash(hash, light.color.r);
@@ -254,7 +274,7 @@ export class TileLightmap {
       const startedAt = performance.now();
       this.lightPixels.fill(0);
       this.haloPixels.fill(0);
-      rasterizeLightOcclusion(
+      this.trunkCellCount = rasterizeLightOcclusion(
         this.occlusion,
         width,
         height,
@@ -262,6 +282,9 @@ export class TileLightmap {
         minTileY,
         LIGHT_TEXELS_PER_TILE,
         occlusionMap,
+        this.trunkOwners,
+        this.receiverOwners,
+        this.trunkCellIndices,
       );
       buildLightOcclusionPrefix(this.occlusionPrefix, width, height, this.occlusion);
       this.floodTexelsVisitedValue = 0;
@@ -282,6 +305,10 @@ export class TileLightmap {
           },
           this.occlusion,
           this.occlusionPrefix,
+          this.trunkOwners,
+          this.receiverOwners,
+          this.trunkCellIndices,
+          this.trunkCellCount,
         );
         this.floodTexelsVisitedValue += this.flood.lastVisitedTexels;
       }
@@ -355,6 +382,10 @@ export class TileLightmap {
     this.lightPixels = new Uint8ClampedArray(width * height * 4);
     this.haloPixels = new Uint8ClampedArray(width * height * 4);
     this.occlusion = new Uint8Array(width * height);
+    this.trunkOwners = new Uint16Array(width * height);
+    this.receiverOwners = new Uint16Array(width * height);
+    this.trunkCellIndices = new Uint32Array(width * height);
+    this.trunkCellCount = 0;
     this.occlusionPrefix = new Uint32Array((width + 1) * (height + 1));
     this.image = new ImageData(this.pixels, width, height);
     this.haloImage = new ImageData(this.haloPixels, width, height);

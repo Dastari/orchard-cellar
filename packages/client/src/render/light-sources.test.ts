@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { PLACEABLE_LIGHT_EMITTERS, placeablePointLight } from './light-sources.js';
+import { isLightEmitterKind, PLACEABLE_LIGHT_EMITTERS, placeablePointLight } from './light-sources.js';
 
 describe('placed crafting light emitters', () => {
+  it('keeps luminous bodies out of their own occluder registry', () => {
+    expect(isLightEmitterKind('camp_campfire')).toBe(true);
+    expect(isLightEmitterKind('campfire')).toBe(true);
+    expect(isLightEmitterKind('standing_torch')).toBe(true);
+    expect(isLightEmitterKind('barrel')).toBe(false);
+  });
+
   it('27§2 registers campfires and standing torches in the shared point-light shape', () => {
     expect(Object.keys(PLACEABLE_LIGHT_EMITTERS).sort()).toEqual(['campfire', 'standing_torch']);
     const torch = placeablePointLight({ id: 4n, kind: 'standing_torch', tileX: 3, tileY: 5 }, 20n);

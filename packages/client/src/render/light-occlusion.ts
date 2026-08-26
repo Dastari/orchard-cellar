@@ -1,29 +1,103 @@
 import {
   FIXED_UNITS_PER_PIXEL,
-  SURVIVAL_BIOMES,
   SURVIVAL_CLIFF_ROLES,
-  SURVIVAL_DIRT_CLIFF_ROLES,
   TOPSIDE_SPACE_ID,
   survivalCliffRoleBlocksMovement,
   type CollisionObstacle,
 } from '@orchard/sim';
-import { LIGHT_HARD_BLOCKER, LIGHT_OPEN, LIGHT_SOFT_ATTENUATOR } from './light-flood.js';
+import type { LoadedAsset } from './assets.js';
+import {
+  LIGHT_HARD_BLOCKER,
+  LIGHT_OPEN,
+  LIGHT_SOFT_ATTENUATOR,
+  LIGHT_SPRITE_BLOCKER,
+  LIGHT_TRUNK_BLOCKER,
+} from './light-flood.js';
+import { selectAtlasFrame } from './sprite.js';
 import type { TerrainArray } from './terrain.js';
+
+export interface LightSpriteOccluder {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+  readonly opaque: Uint8Array;
+}
+
+export interface LightTrunkOccluder {
+  readonly obstacle: CollisionObstacle;
+  /** Elevated visible pixels owned by this trunk. Its projected ground shadow
+   * must never be multiplied back over these pixels. */
+  readonly receiver: LightSpriteOccluder | null;
+  readonly footY: number;
+}
 
 export interface LightOcclusionMap {
   readonly width: number;
   readonly height: number;
   readonly hardBlocked: Uint8Array;
   readonly softObstacles: readonly CollisionObstacle[];
+  readonly spriteOccluders: readonly LightSpriteOccluder[];
+  readonly trunkOccluders: readonly LightTrunkOccluder[];
+}
+
+interface LightSpriteMask {
+  readonly width: number;
+  readonly height: number;
+  readonly opaque: Uint8Array;
+}
+
+const spriteMaskCache = new Map<string, LightSpriteMask | null>();
+
+/** Reads the authored sprite alpha once and places that silhouette in world
+ * space. Semi-transparent painted shadows are deliberately excluded. */
+export function createSpriteLightOccluder(
+  asset: LoadedAsset,
+  animation: string,
+  frameIndex: number,
+  worldX: number,
+  worldY: number,
+): LightSpriteOccluder | null {
+  const frame = selectAtlasFrame(asset.metadata, animation, frameIndex);
+  if (frame === null) return null;
+  const key = `${asset.assetId}:${asset.atlasRevision}:${frame.x}:${frame.y}:${frame.width}:${frame.height}`;
+  let mask = spriteMaskCache.get(key);
+  if (mask === undefined) {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = frame.width;
+      canvas.height = frame.height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (context === null) return null;
+      context.drawImage(
+        asset.image, frame.x, frame.y, frame.width, frame.height,
+        0, 0, frame.width, frame.height,
+      );
+      const source = context.getImageData(0, 0, frame.width, frame.height).data;
+      const opaque = new Uint8Array(frame.width * frame.height);
+      for (let index = 0; index < opaque.length; index += 1) {
+        opaque[index] = (source[index * 4 + 3] ?? 0) >= 128 ? 1 : 0;
+      }
+      mask = { width: frame.width, height: frame.height, opaque };
+    } catch {
+      mask = null;
+    }
+    spriteMaskCache.set(key, mask);
+  }
+  if (mask === null) return null;
+  return {
+    left: worldX - asset.anchor[0],
+    top: worldY - asset.anchor[1],
+    ...mask,
+  };
 }
 
 function surfaceTileBlocksLight(terrain: TerrainArray, index: number): boolean {
   const cliffRole = SURVIVAL_CLIFF_ROLES[terrain.cliffRoles[index] ?? 0] ?? 'none';
-  if (survivalCliffRoleBlocksMovement(cliffRole)) return true;
-  const dirtRole = SURVIVAL_DIRT_CLIFF_ROLES[terrain.dirtCliffRoles[index] ?? 0] ?? 'none';
-  if (dirtRole === 'edge') return true;
-  const biome = SURVIVAL_BIOMES[terrain.biomes[index] ?? 0] ?? 'water';
-  return biome === 'ridge' || biome === 'desert_ridge' || biome === 'coastal_cliff' || biome === 'dirt_ridge';
+  // Biome/top-surface labels are not height. Only an authored vertical wall
+  // role casts a surface-terrain shadow; ridge tops, insets, shores and water
+  // remain light receivers.
+  return survivalCliffRoleBlocksMovement(cliffRole);
 }
 
 /** Builds the durable part of the visible light classification when collision
@@ -31,6 +105,8 @@ function surfaceTileBlocksLight(terrain: TerrainArray, index: number): boolean {
 export function createLightOcclusionMap(
   terrain: TerrainArray,
   softObstacles: readonly CollisionObstacle[] = [],
+  spriteOccluders: readonly LightSpriteOccluder[] = [],
+  trunkOccluders: readonly LightTrunkOccluder[] = [],
 ): LightOcclusionMap {
   const hardBlocked = new Uint8Array(terrain.width * terrain.height);
   for (let index = 0; index < hardBlocked.length; index += 1) {
@@ -39,7 +115,16 @@ export function createLightOcclusionMap(
       : terrain.blocked[index] === true;
     hardBlocked[index] = blocked ? 1 : 0;
   }
-  return { width: terrain.width, height: terrain.height, hardBlocked, softObstacles };
+  return {
+    width: terrain.width,
+    height: terrain.height,
+    hardBlocked,
+    softObstacles,
+    spriteOccluders,
+    // Painter-depth order lets the lower foot own overlapping elevated pixels
+    // without allocating a separate depth buffer on every lightmap rebuild.
+    trunkOccluders: [...trunkOccluders].sort((left, right) => left.footY - right.footY),
+  };
 }
 
 /** Rasterizes tile blockers and fixed-point collision footprints into the
@@ -52,9 +137,15 @@ export function rasterizeLightOcclusion(
   minTileY: number,
   texelsPerTile: number,
   map: LightOcclusionMap | null,
-): void {
+  trunkOwners: Uint16Array | null = null,
+  receiverOwners: Uint16Array | null = null,
+  trunkCellIndices: Uint32Array | null = null,
+): number {
   target.fill(LIGHT_OPEN);
-  if (map === null) return;
+  trunkOwners?.fill(0);
+  receiverOwners?.fill(0);
+  let trunkCellCount = 0;
+  if (map === null) return trunkCellCount;
 
   const tileWidth = Math.ceil(width / texelsPerTile);
   const tileHeight = Math.ceil(height / texelsPerTile);
@@ -96,6 +187,99 @@ export function rasterizeLightOcclusion(
       }
     }
   }
+
+  for (const occluder of map.spriteOccluders) {
+    const minX = Math.max(0, Math.floor((occluder.left - originPixelX) / texelPixels));
+    const minY = Math.max(0, Math.floor((occluder.top - originPixelY) / texelPixels));
+    const maxX = Math.min(width - 1, Math.ceil((occluder.left + occluder.width - originPixelX) / texelPixels) - 1);
+    const maxY = Math.min(height - 1, Math.ceil((occluder.top + occluder.height - originPixelY) / texelPixels) - 1);
+    for (let y = minY; y <= maxY; y += 1) for (let x = minX; x <= maxX; x += 1) {
+      const sourceLeft = Math.max(0, Math.floor(originPixelX + x * texelPixels - occluder.left));
+      const sourceTop = Math.max(0, Math.floor(originPixelY + y * texelPixels - occluder.top));
+      const sourceRight = Math.min(
+        occluder.width,
+        Math.ceil(originPixelX + (x + 1) * texelPixels - occluder.left),
+      );
+      const sourceBottom = Math.min(
+        occluder.height,
+        Math.ceil(originPixelY + (y + 1) * texelPixels - occluder.top),
+      );
+      let opaquePixels = 0;
+      let sampledPixels = 0;
+      for (let sourceY = sourceTop; sourceY < sourceBottom; sourceY += 1) {
+        const row = sourceY * occluder.width;
+        for (let sourceX = sourceLeft; sourceX < sourceRight; sourceX += 1) {
+          sampledPixels += 1;
+          opaquePixels += occluder.opaque[row + sourceX] ?? 0;
+        }
+      }
+      if (sampledPixels > 0 && opaquePixels * 4 >= sampledPixels) {
+        const index = y * width + x;
+        if (target[index] !== LIGHT_HARD_BLOCKER) target[index] = LIGHT_SPRITE_BLOCKER;
+      }
+    }
+  }
+
+  for (const [trunkIndex, trunk] of map.trunkOccluders.entries()) {
+    const owner = trunkIndex + 1;
+    if (owner > 0xffff) break;
+    const obstacle = trunk.obstacle;
+    const left = obstacle.left / FIXED_UNITS_PER_PIXEL;
+    const top = obstacle.top / FIXED_UNITS_PER_PIXEL;
+    const rightExclusive = (obstacle.right + 1) / FIXED_UNITS_PER_PIXEL;
+    const bottomExclusive = (obstacle.bottom + 1) / FIXED_UNITS_PER_PIXEL;
+    const minX = Math.max(0, Math.floor((left - originPixelX) / texelPixels));
+    const minY = Math.max(0, Math.floor((top - originPixelY) / texelPixels));
+    const maxX = Math.min(width - 1, Math.ceil((rightExclusive - originPixelX) / texelPixels) - 1);
+    const maxY = Math.min(height - 1, Math.ceil((bottomExclusive - originPixelY) / texelPixels) - 1);
+    for (let y = minY; y <= maxY; y += 1) for (let x = minX; x <= maxX; x += 1) {
+      const index = y * width + x;
+      if (target[index] === LIGHT_HARD_BLOCKER || target[index] === LIGHT_SPRITE_BLOCKER) continue;
+      if (target[index] !== LIGHT_TRUNK_BLOCKER && trunkCellIndices !== null
+        && trunkCellCount < trunkCellIndices.length) {
+        trunkCellIndices[trunkCellCount] = index;
+        trunkCellCount += 1;
+      }
+      target[index] = LIGHT_TRUNK_BLOCKER;
+      if (trunkOwners !== null) trunkOwners[index] = owner;
+    }
+    const receiver = trunk.receiver;
+    if (receiver === null || receiverOwners === null) continue;
+    const receiverMinX = Math.max(0, Math.floor((receiver.left - originPixelX) / texelPixels));
+    const receiverMinY = Math.max(0, Math.floor((receiver.top - originPixelY) / texelPixels));
+    const receiverMaxX = Math.min(
+      width - 1,
+      Math.ceil((receiver.left + receiver.width - originPixelX) / texelPixels) - 1,
+    );
+    const receiverMaxY = Math.min(
+      height - 1,
+      Math.ceil((receiver.top + receiver.height - originPixelY) / texelPixels) - 1,
+    );
+    for (let y = receiverMinY; y <= receiverMaxY; y += 1) for (let x = receiverMinX; x <= receiverMaxX; x += 1) {
+      const sourceLeft = Math.max(0, Math.floor(originPixelX + x * texelPixels - receiver.left));
+      const sourceTop = Math.max(0, Math.floor(originPixelY + y * texelPixels - receiver.top));
+      const sourceRight = Math.min(
+        receiver.width,
+        Math.ceil(originPixelX + (x + 1) * texelPixels - receiver.left),
+      );
+      const sourceBottom = Math.min(
+        receiver.height,
+        Math.ceil(originPixelY + (y + 1) * texelPixels - receiver.top),
+      );
+      let opaquePixels = 0;
+      let sampledPixels = 0;
+      for (let sourceY = sourceTop; sourceY < sourceBottom; sourceY += 1) {
+        const row = sourceY * receiver.width;
+        for (let sourceX = sourceLeft; sourceX < sourceRight; sourceX += 1) {
+          sampledPixels += 1;
+          opaquePixels += receiver.opaque[row + sourceX] ?? 0;
+        }
+      }
+      const index = y * width + x;
+      if (sampledPixels > 0 && opaquePixels * 4 >= sampledPixels) receiverOwners[index] = owner;
+    }
+  }
+  return trunkCellCount;
 }
 
 export function buildLightOcclusionPrefix(

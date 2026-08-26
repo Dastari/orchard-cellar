@@ -28,14 +28,15 @@ reference shots are the calibration: falloff you can see stepping, but pools
 and cones that curve convincingly around walls and furniture.
 
 1. **Quarter-tile texels.** The lightmap resolves at `LIGHT_TEXELS_PER_TILE = 4`
-   → one texel per 4×4 world pixels (16× revision 1's density), upscaled with
-   `imageSmoothingEnabled = false`. This is the single constant the whole
-   system hangs off; 2 (8 px) is the sanctioned fallback if perf demands, 8 is
-   the ceiling nobody should reach.
-2. **Falloff still bands.** Strength quantizes to `LIGHT_BANDS = 16` levels
-   before stamping. At 4 px grain with 16 bands, rings read as texture rather
-   than terracing — the reference look — while staying deliberate and
-   golden-testable. No continuous gradients, ever.
+   → one texel per 4×4 world pixels (16× revision 1's density). Only this
+   light layer is bilinear-upscaled; world sprites remain nearest-neighbour.
+   This is the single constant the whole system hangs off; 2 (8 px) is the
+   sanctioned fallback if perf demands, 8 is the ceiling nobody should reach.
+2. **Spatial grain, continuous falloff.** Strength uses the complete 8-bit
+   `LIGHT_BANDS = 255` range. Quarter-tile texels retain the pixel-art spatial
+   grain, while interpolation between adjacent strengths prevents rings from
+   visibly holding and jumping during player movement. Canvas radial gradients
+   remain forbidden; the flood remains deterministic and golden-testable.
 3. **Smooth glow stays banned; quantized halo is in.** Canvas radial gradients
    remain forbidden. Flame emitters may draw an **ember halo**: 1–2 extra
    bands of additive (`'lighter'`) light at low alpha through the same
@@ -47,9 +48,10 @@ and cones that curve convincingly around walls and furniture.
 **Implemented resolution note (2026-08-26):** owner review of the live
 two-texel/ten-band result found the rings too terraced and a carried light
 snapped too visibly. The shipped constants are therefore the intended
-`LIGHT_TEXELS_PER_TILE = 4` and the revised 16 bands. Open flood centers track
-quarter-texel increments, so the pool reacts to each world pixel while the
-buffer itself remains deliberately crisp.
+`LIGHT_TEXELS_PER_TILE = 4` and 8-bit strength. Open and occluded flood centers
+track quarter-world-pixel increments through fractional multi-seeding, so the
+pool follows interpolated player presentation rather than snapping at the
+authority or light-texel cadence.
 
 ## 2. Light emitters
 
@@ -71,27 +73,39 @@ implemented.
 
 ## 3. Occlusion — the sub-tile flood
 
-Revision 1's tile-BFS design, upgraded to quarter-tile resolution with two
-occluder classes (this supersedes r1's "sub-tile objects never occlude"):
+Revision 1's tile-BFS design, upgraded to quarter-tile resolution with authored
+silhouettes (this supersedes r1's "sub-tile objects never occlude"):
 
 - **Hard blockers** — walls, cliff faces, closed structural tiles, at tile
   resolution expanded to their 4×4 texels: receive light (lit near faces),
   never propagate. Doorways/portals/ramps stay transparent (owner rule:
   light spills through doors).
-- **Soft attenuators** — solid *objects*: trees, boulders, ore nodes, placed
-  stations/chests/fences. Their collision footprints (already sub-tile AABBs)
-  rasterize into the flood grid at quarter-tile resolution; light crossing an
-  attenuator texel is multiplied by `ATTENUATION = 55%` per texel instead of
-  stopping. Result: readable soft shadows *behind* furniture and trunks, and
-  light squeezing between obstacles — the table-and-chair pooling in the
-  reference shots. Players and NPCs never attenuate (a moving flood shimmer
-  reads as a bug; they get §6 sprite shadows instead).
-- The flood itself: per light, BFS over the quarter-tile grid, 8-connected,
-  integer costs (2 orthogonal / 3 diagonal), radius in texels = tiles × 4 × 2
-  cost units; strength from **path** distance (dimmer around corners), banded
-  per §1.2, merged per-channel max. Blocked-tile lit-but-terminal rule and
-  the height gate (§5) apply per step. One reusable visit buffer, zero
-  per-frame allocation.
+- **Alpha-silhouette blockers** — solid *objects*: boulders, ore nodes, placed
+  stations/chests/fences. Opaque authored pixels rasterize into
+  the quarter-tile grid; transparent sprite padding and translucent painted
+  ground shadows do not. The source-facing silhouette receives light and a
+  direct line test leaves a complete umbra behind its facing edges. Emissive
+  props are excluded from their own blocker list. Collision alone never makes
+  an optical blocker: water/ponds, dirt/inset terrace edges, crops, floor
+  decals, and other low obstacles stay transparent.
+- **Tree trunk projectors** — trees use only the existing narrow authoritative
+  trunk collision footprint, never the canopy. A trunk projects a feathered
+  ground shadow capped at two tiles instead of behaving like an infinitely
+  tall wall. The tree's authored alpha silhouette carries its trunk owner and
+  painter-depth foot Y, so its own ground shadow cannot be multiplied back over
+  its elevated sprite; a lower-foot sprite wins overlapping receiver pixels.
+  Other lights fill these shadows through the normal maximum merge. Players
+  and NPCs never occlude (a
+  moving silhouette shadow reads as a bug; they get §6 sprite shadows instead).
+- The field itself: open regions use the direct lookup-table fast path; solid
+  regions use symmetric shadowcasting once per light, linear in affected
+  texels; the legacy soft-attenuator compatibility path retains the 8-connected
+  integer flood. Strength uses octile distance (2 orthogonal / 3 diagonal),
+  fractional centers remove the old rounded-source jump, and every source
+  merges by per-channel maximum. A blocker is lit-but-terminal; doors and
+  transparent sprite gaps pass light while cells behind rocks and walls remain
+  in umbra. Trunk shadows use a separate bounded attenuation buffer. Reusable
+  epoch/owner buffers keep the hot path allocation free.
 
 ## 4. What carries forward verbatim (r1 §§5–9)
 
@@ -244,15 +258,23 @@ the authority re-derives light pools from pure emitter data.
    phase order inside the above.
 
 **2026-08-26 implementation verification (phases 1–3).** The client now uses
-a reusable 16-band sub-tile flood buffer, quantized flame halo, hard terrain
-occluders, 55% collision-footprint attenuators, door/ramp spill, and optional
+a reusable 8-bit sub-tile flood buffer, quantized flame halo, hard terrain
+occluders, alpha-silhouette object blockers, short trunk-only tree projectors,
+door/ramp spill, and optional
 facing-seeded emitters. The shared calendar derives all eight moon phases and
 interpolated illumination from the authority tick; clear surface ambient
 reaches the exact Full/New Moon anchors, while the HUD supplies distinct 7×7
 phase silhouettes and phase/illumination tooltip text. Placed and held flame
 emitters use the same deterministic blended flame noise. The light-only layer
-is bilinear-filtered during compositing to blend neighboring flood bands;
-terrain and sprites retain nearest-neighbor pixel rendering.
+is bilinear-filtered during compositing to blend neighboring flood strengths;
+terrain and sprites retain nearest-neighbor pixel rendering. Owner review then
+added quarter-world-pixel fractional seeding and direct geometric umbrae so
+carried light no longer advances in visible steps and solid sprites do not
+darken their transparent tile padding or leak flood light behind them.
+The follow-up depth pass gives tree silhouettes receiver ownership, caps and
+feathers their ground shadows, and excludes low collision or relief such as
+ponds and inset terrain from optical blocking; trees therefore neither shadow
+themselves nor create long grid-shaped corridors.
 
 The public browser's representative 40-light fixture (36 standing torches and
 4 campfires) measured **1.1–1.3 ms warmed** at four texels/tile, below the
@@ -262,6 +284,15 @@ After composite caching, 120 steady daytime renders measured **0.002 ms
 average lightmap work** and **0.78 ms whole-frame average**. Height,
 directional shadows, global events, water glints, and lit rain remain phases
 4–7 and were not started.
+
+The owner-reviewed motion/umbra refinement replaces per-target rays with one
+symmetric visibility field per light. After adding compact trunk-cell indexing
+and receiver ownership, a deterministic 280×160-texel synthetic fixture with
+36 torch-radius lights, 4 campfires, and 100 mixed silhouette/trunk blockers
+measured **0.81 ms average** (0.73 ms best; 1.79 ms warm-runtime outlier),
+versus 3.51 ms for the rejected naïve ray pass. Overlapping sources remain
+per-channel maximum merges; neither the light buffer nor the single max-merged
+halo layer adds repeated source brightness.
 
 ## 10. Performance and instrumentation (revised budgets)
 
@@ -276,7 +307,7 @@ directional shadows, global events, water glints, and lit rain remain phases
 
 ## 11. Out of scope
 
-Per-pixel (16×/tile) light; smooth gradients; true projected/raycast shadows;
+Per-pixel (16×/tile) light; full-resolution projected/raycast shadows;
 colored shadow tints; player-visible time-of-day shadow puzzles; authority-side
 light state; dynamic weather beyond the existing modes (new weather kinds are
 doc 30/06 business).
@@ -285,7 +316,7 @@ doc 30/06 business).
 
 - **Unit:** banding/falloff goldens at the active profiled resolution (named `27§1`);
   flood goldens on fixture grids — wall containment, door spill, corner
-  dimming, attenuator penumbra profiles, facing-seeded cone shape (named
+  dimming, alpha-silhouette transparency and umbra profiles, facing-seeded cone shape (named
   `27§3`); height gates — containment, rim spill depth, drop-shadow widths vs
   Δheight (named `27§5`); lunar phase-center and wrap boundaries for all eight
   names; 29.5-day rollover and season/year non-reset goldens; Full Moon
@@ -312,10 +343,13 @@ doc 30/06 business).
 ## 13. Bookkeeping
 
 - **DECISIONS.md** on adoption: (1) supersede the 2026-08-25 one-texel-per-tile
-  charter — quarter-tile texels with 16-band quantization is the revised
+  charter — quarter-tile texels with 8-bit strength is the revised
   binding look (owner-directed, reference-calibrated); (2) supersede
-  "sub-tile objects never occlude" — objects are soft attenuators in the
-  flood; walls/cliffs stay hard blockers; players/NPCs still never occlude;
+  "sub-tile objects never occlude" — opaque authored object pixels,
+  walls/cliffs are direct-umbra blockers, while authoritative tree-trunk
+  footprints are short ground-shadow projectors with self-owner/depth masking;
+  transparent padding and low collision stay open, emissive props never self-occlude,
+  and players/NPCs still never occlude;
   (3) terrain must export the integer `terrainHeightAt` contract (doc 30
   elevation) — lighting and future systems consume height, never re-derive
   it; (4) global light events (lightning, shafts) are deterministic functions

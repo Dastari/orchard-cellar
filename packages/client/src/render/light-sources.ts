@@ -29,6 +29,10 @@ export const PLACEABLE_LIGHT_EMITTERS: Readonly<Record<string, LightEmitterDefin
   },
 };
 
+export function isLightEmitterKind(kind: string): boolean {
+  return kind === 'camp_campfire' || PLACEABLE_LIGHT_EMITTERS[kind] !== undefined;
+}
+
 export function deterministicFlameFlicker(id: bigint, authorityTick: bigint): {
   readonly radiusOffset: number;
   readonly strengthPerMille: number;

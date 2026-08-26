@@ -37,6 +37,8 @@ import {
   isInteractivePoiDecorationKind,
   isMineableOreKind,
   survivalResourceDropAfterHit,
+  survivalResourceObstacle,
+  survivalDecorationBlocksTraversal,
   isHorseWithinMountReach,
   itemModifiers,
   isWildlifeSpecies,
@@ -121,7 +123,13 @@ import { createClientCollisionMap } from './render/collision.js';
 import { drawAnimatedTerrain } from './render/animated-terrain.js';
 import { drawFarmSoil, drawFarmTileReticle, drawInsetGround, farmSoilKey } from './render/farmland.js';
 import { GroundChunkCache } from './render/ground-cache.js';
-import { createLightOcclusionMap, type LightOcclusionMap } from './render/light-occlusion.js';
+import {
+  createLightOcclusionMap,
+  createSpriteLightOccluder,
+  type LightOcclusionMap,
+  type LightSpriteOccluder,
+  type LightTrunkOccluder,
+} from './render/light-occlusion.js';
 import {
   ambientAtTick,
   CAMPFIRE_LIGHT,
@@ -134,7 +142,7 @@ import {
   TORCH_LIGHT_RADIUS_TILES,
   type PointLight,
 } from './render/lighting.js';
-import { deterministicFlameFlicker, placeablePointLight } from './render/light-sources.js';
+import { deterministicFlameFlicker, isLightEmitterKind, placeablePointLight } from './render/light-sources.js';
 import { RenderMetrics } from './render/metrics.js';
 import { RainWeather } from './render/particles.js';
 import { treeSwayOffset, WeatherEffects, windDirectionLabel, type WindTreeSource } from './render/weather-effects.js';
@@ -280,7 +288,7 @@ let collisionKey = '';
 let observedResourceRevision = -1;
 const initialTerrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
 let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
-let lightOcclusion: LightOcclusionMap = createLightOcclusionMap(initialTerrain, worldCollision.obstacles);
+let lightOcclusion: LightOcclusionMap = createLightOcclusionMap(initialTerrain);
 let activeSpaceDefinition: SpaceDefinition = spaceDefinitionFor(TOPSIDE_SPACE_ID)!;
 let observedSpaceId = TOPSIDE_SPACE_ID;
 let portalTransitionStartedAtMs = -1;
@@ -458,6 +466,95 @@ function playerState(row: PlayerPosition): PlayerState {
   };
 }
 
+function spriteLightOccluders(snapshot: OverworldView, seed: number): LightSpriteOccluder[] {
+  const result: LightSpriteOccluder[] = [];
+  const add = (
+    asset: (typeof art)['chest'] | undefined,
+    animation: string,
+    worldX: number,
+    worldY: number,
+  ): void => {
+    if (asset === undefined) return;
+    const occluder = createSpriteLightOccluder(asset, animation, 0, worldX, worldY);
+    if (occluder !== null) result.push(occluder);
+  };
+  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
+    for (const decoration of generateSurvivalDecorations(seed)) {
+      if (!survivalDecorationBlocksTraversal(decoration.kind, 'ground')) continue;
+      // A pond reserves traversal space, but is below the light plane. Collision
+      // is not optical height: water and other floor-level art cast no shadow.
+      if (decoration.kind === 'camp_pond') continue;
+      // The emitter is the luminous body: do not let its own alpha silhouette
+      // terminate its seed. Non-emissive solid props remain occluders.
+      if (isLightEmitterKind(decoration.kind)) continue;
+      add(
+        art.poiDecorations[decoration.kind],
+        decoration.kind === 'camp_campfire' ? 'burn' : 'base',
+        decoration.tileX * 16 + 8,
+        (decoration.tileY + 1) * 16,
+      );
+    }
+  }
+  for (const resource of snapshot.resources) {
+    if (resource.depleted) continue;
+    if (isChoppableTreeKind(resource.kind)) continue;
+    const asset = isBreakableRockKind(resource.kind)
+      ? art.poiDecorations.poi_rock_small
+      : isMineableOreKind(resource.kind) ? art.oreNodes[resource.kind] : undefined;
+    add(asset, 'base', resource.tileX * 16 + 8, (resource.tileY + 1) * 16);
+  }
+  for (const chest of snapshot.chests) {
+    if (chest.carriedBy !== undefined) continue;
+    add(art.chest, 'chest', chest.tileX * 16 + 8, (chest.tileY + 1) * 16);
+  }
+  for (const placeable of snapshot.placeables) {
+    const definition = placeableDefinition(placeable.kind);
+    if (definition?.blocksMovement !== true || placeable.open) continue;
+    if (isLightEmitterKind(placeable.kind)) continue;
+    add(
+      art.itemIcons[placeable.kind],
+      itemDefinition(placeable.kind)?.iconAnimation ?? 'base',
+      placeable.tileX * 16 + 8,
+      (placeable.tileY + 1) * 16,
+    );
+  }
+  return result;
+}
+
+function matureTreeLightAsset(kind: string): (typeof art)['treeMature'] {
+  return art.fruitTrees[kind]
+    ?? (kind === 'tree_oak' ? art.treeOak
+      : kind === 'tree_birch' ? art.treeBirch
+        : kind === 'tree_spruce' ? art.treeSpruce
+          : kind === 'tree_acacia' ? art.treeAcacia
+            : kind === 'tree_palm' ? art.treePalm
+              : kind === 'cactus' ? art.cactus
+                : art.treeMature);
+}
+
+// The additive growth column is absent on pre-growth bindings; those rows are
+// mature by definition. Stage 3 is the shared mature-tree wire value.
+const MATURE_TREE_GROWTH_STAGE = 3;
+
+function treeLightOccluders(snapshot: OverworldView): LightTrunkOccluder[] {
+  const result: LightTrunkOccluder[] = [];
+  for (const resource of snapshot.resources) {
+    const growthStage = (resource as WorldResource & { readonly growthStage?: number }).growthStage;
+    if (resource.depleted || !isChoppableTreeKind(resource.kind)
+      || (growthStage !== undefined && growthStage !== MATURE_TREE_GROWTH_STAGE)) continue;
+    const worldX = resource.tileX * 16 + 8;
+    const footY = (resource.tileY + 1) * 16;
+    result.push({
+      obstacle: survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY),
+      receiver: createSpriteLightOccluder(
+        matureTreeLightAsset(resource.kind), 'base', 0, worldX, footY,
+      ),
+      footY,
+    });
+  }
+  return result;
+}
+
 function refreshCollision(snapshot: OverworldView): void {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
@@ -472,7 +569,12 @@ function refreshCollision(snapshot: OverworldView): void {
     'ground',
     snapshot.placeables,
   );
-  lightOcclusion = createLightOcclusionMap(terrain, worldCollision.obstacles);
+  lightOcclusion = createLightOcclusionMap(
+    terrain,
+    [],
+    spriteLightOccluders(snapshot, seed),
+    treeLightOccluders(snapshot),
+  );
 }
 
 function update(): void {

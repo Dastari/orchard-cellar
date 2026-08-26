@@ -1,8 +1,17 @@
-export const LIGHT_BANDS = 16;
+/** Effectively continuous 8-bit falloff after the light-only layer is
+ * bilinear composited. The flood itself remains integer and allocation-free. */
+export const LIGHT_BANDS = 255;
 export const LIGHT_OPEN = 0;
 export const LIGHT_HARD_BLOCKER = 1;
 export const LIGHT_SOFT_ATTENUATOR = 2;
+export const LIGHT_SPRITE_BLOCKER = 3;
+/** A tree trunk casts a short ground shadow. It is deliberately not an
+ * infinitely-tall shadowcasting wall: the elevated tree sprite has separate
+ * receiver ownership so it cannot receive its own projected shadow. */
+export const LIGHT_TRUNK_BLOCKER = 4;
 export const SOFT_ATTENUATION_PER_MILLE = 550;
+export const TRUNK_SHADOW_LENGTH_TEXELS = 8;
+const TRUNK_SHADOW_MAX_OPACITY = 700;
 
 export type LightFacing = 'up' | 'right' | 'down' | 'left';
 export type LightProfile = 'steady' | 'flame' | 'pulse';
@@ -20,6 +29,10 @@ export interface FloodLight {
 const NEIGHBOR_X = new Int8Array([-1, 0, 1, -1, 1, -1, 0, 1]);
 const NEIGHBOR_Y = new Int8Array([-1, -1, -1, 0, 0, 1, 1, 1]);
 const NEIGHBOR_COST = new Uint8Array([3, 2, 3, 2, 2, 3, 2, 3]);
+const VISIBILITY_OCTANTS = [
+  [1, 0, 0, 1], [0, 1, 1, 0], [0, -1, 1, 0], [-1, 0, 0, 1],
+  [-1, 0, 0, -1], [0, -1, -1, 0], [0, 1, -1, 0], [1, 0, 0, -1],
+] as const;
 
 function facingOffset(facing: LightFacing | undefined): readonly [number, number] {
   if (facing === 'up') return [0, -1];
@@ -42,11 +55,15 @@ export class QuantizedLightFlood {
   private bestStrength = new Uint16Array(0);
   private bestEpoch = new Uint32Array(0);
   private finalizedEpoch = new Uint32Array(0);
+  private visibleEpoch = new Uint32Array(0);
   private queuedEpoch = new Uint32Array(0);
   private queuePrevious = new Int32Array(0);
   private queueNext = new Int32Array(0);
   private bucketHeads = new Int32Array(MAX_LIGHT_STRENGTH + 1);
   private openPathBands = new Uint8Array(0);
+  private trunkShadowEpoch = new Uint32Array(0);
+  private trunkShadowOpacity = new Uint16Array(0);
+  private trunkShadowOwner = new Uint16Array(0);
   private readonly bandRed = new Uint8Array(LIGHT_BANDS + 1);
   private readonly bandGreen = new Uint8Array(LIGHT_BANDS + 1);
   private readonly bandBlue = new Uint8Array(LIGHT_BANDS + 1);
@@ -66,6 +83,10 @@ export class QuantizedLightFlood {
     light: FloodLight,
     occlusion: Uint8Array,
     occlusionPrefix: Uint32Array | null = null,
+    trunkOwners: Uint16Array | null = null,
+    receiverOwners: Uint16Array | null = null,
+    trunkCellIndices: Uint32Array | null = null,
+    trunkCellCount = 0,
   ): void {
     const cellCount = width * height;
     if (cellCount <= 0 || pixels.length < cellCount * 4 || occlusion.length < cellCount) return;
@@ -77,16 +98,8 @@ export class QuantizedLightFlood {
     const [offsetX, offsetY] = facingOffset(light.facing);
     const centerX = Math.max(0, Math.min(width - 1, light.centerX + offsetX));
     const centerY = Math.max(0, Math.min(height - 1, light.centerY + offsetY));
-    const seedX = Math.round(centerX);
-    const seedY = Math.round(centerY);
-    const seed = seedY * width + seedX;
     const initialStrength = Math.max(0, Math.min(MAX_LIGHT_STRENGTH, Math.round(light.strengthPerMille ?? 1000)));
     if (initialStrength === 0) return;
-    if (occlusion[seed] === LIGHT_HARD_BLOCKER) {
-      this.writeLight(pixels, haloPixels, seed, light, initialStrength);
-      this.visitedTexels = 1;
-      return;
-    }
     const radiusCost = Math.max(1, Math.round(Math.max(0.25, light.radius) * 2));
     const reach = Math.ceil(light.radius * initialStrength / 1000);
     const minX = Math.max(0, Math.floor(centerX - reach));
@@ -98,14 +111,40 @@ export class QuantizedLightFlood {
       return;
     }
 
-    this.offer(seed, initialStrength);
+    const lineOfSightOriginX = Math.round(centerX);
+    const lineOfSightOriginY = Math.round(centerY);
+    const occlusionKinds = this.regionOcclusionKinds(occlusion, width, minX, minY, maxX, maxY);
+    const hasDirectionalBlockers = (occlusionKinds
+      & ((1 << LIGHT_HARD_BLOCKER) | (1 << LIGHT_SPRITE_BLOCKER))) !== 0;
+    const hasSoftAttenuators = (occlusionKinds & (1 << LIGHT_SOFT_ATTENUATOR)) !== 0;
+    const hasTrunkBlockers = (occlusionKinds & (1 << LIGHT_TRUNK_BLOCKER)) !== 0;
+    if (hasDirectionalBlockers) this.buildVisibility(
+      width, height, lineOfSightOriginX, lineOfSightOriginY, reach, occlusion,
+    );
+    if (hasTrunkBlockers && trunkOwners !== null) this.buildTrunkShadows(
+      width, height, centerX, centerY, minX, minY, maxX, maxY,
+      occlusion, trunkOwners, trunkCellIndices, trunkCellCount,
+    );
+    if ((hasDirectionalBlockers || hasTrunkBlockers) && !hasSoftAttenuators) {
+      this.applyOpen(
+        pixels, haloPixels, width, centerX, centerY,
+        minX, minY, maxX, maxY, radiusCost, initialStrength, light,
+        hasDirectionalBlockers, hasTrunkBlockers ? receiverOwners : null,
+      );
+      return;
+    }
+    this.offerFractionalSeeds(
+      pixels, haloPixels, width, height, centerX, centerY,
+      radiusCost, initialStrength, light, occlusion,
+    );
     while (this.strongestBucket > 0) {
       const index = this.pop();
       const strength = this.bestStrength[index] ?? 0;
-      this.writeLight(pixels, haloPixels, index, light, strength);
-      this.visitedTexels += 1;
       const x = index % width;
       const y = Math.floor(index / width);
+      if (hasDirectionalBlockers && this.visibleEpoch[index] !== this.epoch) continue;
+      this.writeLight(pixels, haloPixels, index, light, strength);
+      this.visitedTexels += 1;
       for (let neighbor = 0; neighbor < NEIGHBOR_X.length; neighbor += 1) {
         const nextX = x + (NEIGHBOR_X[neighbor] ?? 0);
         const nextY = y + (NEIGHBOR_Y[neighbor] ?? 0);
@@ -119,12 +158,200 @@ export class QuantizedLightFlood {
           nextStrength = Math.floor(nextStrength * SOFT_ATTENUATION_PER_MILLE / 1000);
           if (nextStrength <= 0) continue;
         }
-        if (blocker === LIGHT_HARD_BLOCKER) {
+        if ((blocker === LIGHT_HARD_BLOCKER || blocker === LIGHT_SPRITE_BLOCKER)
+          && hasDirectionalBlockers && this.visibleEpoch[nextIndex] !== this.epoch) continue;
+        if (blocker === LIGHT_HARD_BLOCKER || blocker === LIGHT_SPRITE_BLOCKER) {
           this.offerTerminal(pixels, haloPixels, nextIndex, light, nextStrength);
         } else {
           this.offer(nextIndex, nextStrength);
         }
       }
+    }
+  }
+
+  private offerFractionalSeeds(
+    pixels: Uint8ClampedArray,
+    haloPixels: Uint8ClampedArray | null,
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    radiusCost: number,
+    initialStrength: number,
+    light: FloodLight,
+    occlusion: Uint8Array,
+  ): void {
+    const left = Math.floor(centerX);
+    const right = Math.ceil(centerX);
+    const top = Math.floor(centerY);
+    const bottom = Math.ceil(centerY);
+    for (let y = top; y <= bottom; y += 1) for (let x = left; x <= right; x += 1) {
+      if (x < 0 || y < 0 || x >= width || y >= height) continue;
+      const dx = Math.abs(x - centerX);
+      const dy = Math.abs(y - centerY);
+      const pathCost = Math.max(dx, dy) * 2 + Math.min(dx, dy);
+      const strength = initialStrength - Math.ceil(1000 * pathCost / radiusCost);
+      if (strength <= 0) continue;
+      const index = y * width + x;
+      const blocker = occlusion[index] ?? LIGHT_OPEN;
+      if (blocker === LIGHT_HARD_BLOCKER || blocker === LIGHT_SPRITE_BLOCKER) {
+        this.offerTerminal(pixels, haloPixels, index, light, strength);
+      } else {
+        this.offer(index, blocker === LIGHT_SOFT_ATTENUATOR
+          ? Math.floor(strength * SOFT_ATTENUATION_PER_MILLE / 1000)
+          : strength);
+      }
+    }
+  }
+
+  private regionOcclusionKinds(
+    occlusion: Uint8Array,
+    width: number,
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number,
+  ): number {
+    let kinds = 0;
+    for (let y = minY; y <= maxY; y += 1) {
+      const row = y * width;
+      for (let x = minX; x <= maxX; x += 1) kinds |= 1 << (occlusion[row + x] ?? LIGHT_OPEN);
+    }
+    return kinds;
+  }
+
+  private buildVisibility(
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    radius: number,
+    occlusion: Uint8Array,
+  ): void {
+    if (centerX < 0 || centerY < 0 || centerX >= width || centerY >= height) return;
+    this.visibleEpoch[centerY * width + centerX] = this.epoch;
+    for (const [xx, xy, yx, yy] of VISIBILITY_OCTANTS) {
+      this.castVisibilityOctant(
+        width, height, centerX, centerY, 1, 1, 0, radius,
+        xx, xy, yx, yy, occlusion,
+      );
+    }
+  }
+
+  /** Projects a compact, feathered ground shadow from only the far edge of
+   * each trunk footprint. The shadow is bounded so trees add depth without
+   * turning an orchard into long black corridors. */
+  private buildTrunkShadows(
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number,
+    occlusion: Uint8Array,
+    trunkOwners: Uint16Array,
+    trunkCellIndices: Uint32Array | null,
+    trunkCellCount: number,
+  ): void {
+    const candidateCount = trunkCellIndices === null ? width * height : trunkCellCount;
+    for (let candidate = 0; candidate < candidateCount; candidate += 1) {
+      const index = trunkCellIndices === null ? candidate : (trunkCellIndices[candidate] ?? 0);
+      if (occlusion[index] !== LIGHT_TRUNK_BLOCKER) continue;
+      const x = index % width;
+      const y = Math.floor(index / width);
+      if (x < minX || y < minY || x > maxX || y > maxY) continue;
+      const owner = trunkOwners[index] ?? 0;
+      if (owner === 0) continue;
+      const dx = x - centerX;
+      const dy = y - centerY;
+      const distance = Math.hypot(dx, dy);
+      if (distance < 0.25) continue;
+      const unitX = dx / distance;
+      const unitY = dy / distance;
+      // Interior trunk cells do not cast their own duplicate ray; only the
+      // silhouette edge facing away from this light projects onto the ground.
+      const outwardX = Math.round(x + unitX);
+      const outwardY = Math.round(y + unitY);
+      if (outwardX >= 0 && outwardY >= 0 && outwardX < width && outwardY < height) {
+        const outwardIndex = outwardY * width + outwardX;
+        if (occlusion[outwardIndex] === LIGHT_TRUNK_BLOCKER
+          && trunkOwners[outwardIndex] === owner) continue;
+      }
+      for (let step = 1; step <= TRUNK_SHADOW_LENGTH_TEXELS; step += 1) {
+        const shadowX = Math.round(x + unitX * step);
+        const shadowY = Math.round(y + unitY * step);
+        if (shadowX < minX || shadowY < minY || shadowX > maxX || shadowY > maxY
+          || shadowX < 0 || shadowY < 0 || shadowX >= width || shadowY >= height) continue;
+        const shadowIndex = shadowY * width + shadowX;
+        if (occlusion[shadowIndex] === LIGHT_TRUNK_BLOCKER
+          && trunkOwners[shadowIndex] === owner) continue;
+        const progress = (step - 1) / TRUNK_SHADOW_LENGTH_TEXELS;
+        const opacity = Math.round(TRUNK_SHADOW_MAX_OPACITY * (1 - progress) * (1 - progress));
+        if (this.trunkShadowEpoch[shadowIndex] !== this.epoch
+          || opacity > (this.trunkShadowOpacity[shadowIndex] ?? 0)) {
+          this.trunkShadowEpoch[shadowIndex] = this.epoch;
+          this.trunkShadowOpacity[shadowIndex] = opacity;
+          this.trunkShadowOwner[shadowIndex] = owner;
+        }
+      }
+    }
+  }
+
+  /** Symmetric shadowcasting visits each affected texel at most once per
+   * octant, replacing a Bresenham ray from the source to every flood cell. */
+  private castVisibilityOctant(
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    row: number,
+    startSlope: number,
+    endSlope: number,
+    radius: number,
+    xx: number,
+    xy: number,
+    yx: number,
+    yy: number,
+    occlusion: Uint8Array,
+  ): void {
+    if (startSlope < endSlope) return;
+    let nextStartSlope = startSlope;
+    for (let distance = row; distance <= radius; distance += 1) {
+      let blocked = false;
+      let deltaX = -distance - 1;
+      const deltaY = -distance;
+      while (deltaX <= 0) {
+        deltaX += 1;
+        const x = centerX + deltaX * xx + deltaY * xy;
+        const y = centerY + deltaX * yx + deltaY * yy;
+        const leftSlope = (deltaX - 0.5) / (deltaY + 0.5);
+        const rightSlope = (deltaX + 0.5) / (deltaY - 0.5);
+        if (startSlope < rightSlope) continue;
+        if (endSlope > leftSlope) break;
+        if (x < 0 || y < 0 || x >= width || y >= height) continue;
+        const index = y * width + x;
+        this.visibleEpoch[index] = this.epoch;
+        const kind = occlusion[index];
+        const opaque = kind === LIGHT_HARD_BLOCKER || kind === LIGHT_SPRITE_BLOCKER;
+        if (blocked) {
+          if (opaque) {
+            nextStartSlope = rightSlope;
+            continue;
+          }
+          blocked = false;
+          startSlope = nextStartSlope;
+        } else if (opaque && distance < radius) {
+          blocked = true;
+          this.castVisibilityOctant(
+            width, height, centerX, centerY, distance + 1,
+            startSlope, leftSlope, radius, xx, xy, yx, yy, occlusion,
+          );
+          nextStartSlope = rightSlope;
+        }
+      }
+      if (blocked) break;
     }
   }
 
@@ -169,20 +396,29 @@ export class QuantizedLightFlood {
     radiusCost: number,
     initialStrength: number,
     light: FloodLight,
+    visibilityRequired = false,
+    receiverOwners: Uint16Array | null = null,
   ): void {
-    const centerQuarterX = Math.round(centerX * 4);
-    const centerQuarterY = Math.round(centerY * 4);
+    const centerSubtexelX = Math.round(centerX * 16);
+    const centerSubtexelY = Math.round(centerY * 16);
     const maximumPathCost = Math.ceil((Math.max(maxX - centerX, centerX - minX) * 2
-      + Math.max(maxY - centerY, centerY - minY)) * 4);
-    this.prepareOpenPathBands(maximumPathCost, radiusCost * 4, initialStrength);
+      + Math.max(maxY - centerY, centerY - minY)) * 16);
+    this.prepareOpenPathBands(maximumPathCost, radiusCost * 16, initialStrength);
     for (let y = minY; y <= maxY; y += 1) {
-      const dy = Math.abs(y * 4 - centerQuarterY);
+      const dy = Math.abs(y * 16 - centerSubtexelY);
       for (let x = minX; x <= maxX; x += 1) {
-        const dx = Math.abs(x * 4 - centerQuarterX);
+        const dx = Math.abs(x * 16 - centerSubtexelX);
         const pathCost = dx > dy ? dx * 2 + dy : dy * 2 + dx;
-        const band = this.openPathBands[pathCost] ?? 0;
+        let band = this.openPathBands[pathCost] ?? 0;
         if (band === 0) continue;
-        this.writeBand(pixels, haloPixels, y * width + x, light, band);
+        const index = y * width + x;
+        if (visibilityRequired && this.visibleEpoch[index] !== this.epoch) continue;
+        if (this.trunkShadowEpoch[index] === this.epoch
+          && (receiverOwners?.[index] ?? 0) !== (this.trunkShadowOwner[index] ?? 0)) {
+          band = Math.round(band * (1000 - (this.trunkShadowOpacity[index] ?? 0)) / 1000);
+          if (band === 0) continue;
+        }
+        this.writeBand(pixels, haloPixels, index, light, band);
         this.visitedTexels += 1;
       }
     }
@@ -211,6 +447,10 @@ export class QuantizedLightFlood {
     this.bestStrength = new Uint16Array(cellCount);
     this.bestEpoch = new Uint32Array(cellCount);
     this.finalizedEpoch = new Uint32Array(cellCount);
+    this.visibleEpoch = new Uint32Array(cellCount);
+    this.trunkShadowEpoch = new Uint32Array(cellCount);
+    this.trunkShadowOpacity = new Uint16Array(cellCount);
+    this.trunkShadowOwner = new Uint16Array(cellCount);
     this.queuedEpoch = new Uint32Array(cellCount);
     this.queuePrevious = new Int32Array(cellCount);
     this.queueNext = new Int32Array(cellCount);
@@ -223,6 +463,8 @@ export class QuantizedLightFlood {
       this.bestEpoch.fill(0);
       this.finalizedEpoch.fill(0);
       this.queuedEpoch.fill(0);
+      this.visibleEpoch.fill(0);
+      this.trunkShadowEpoch.fill(0);
       this.epoch = 1;
     }
     this.bucketHeads.fill(-1);
@@ -310,10 +552,13 @@ export class QuantizedLightFlood {
     if (red > pixels[offset]!) pixels[offset] = red;
     if (green > pixels[offset + 1]!) pixels[offset + 1] = green;
     if (blue > pixels[offset + 2]!) pixels[offset + 2] = blue;
-    if (haloPixels === null || light.profile !== 'flame' || band < LIGHT_BANDS - 1) return;
+    if (haloPixels === null || light.profile !== 'flame' || band < Math.round(LIGHT_BANDS * 0.875)) return;
     haloPixels[offset] = light.color.r;
     haloPixels[offset + 1] = light.color.g;
     haloPixels[offset + 2] = light.color.b;
-    haloPixels[offset + 3] = Math.max(haloPixels[offset + 3] ?? 0, band === LIGHT_BANDS ? 32 : 16);
+    haloPixels[offset + 3] = Math.max(
+      haloPixels[offset + 3] ?? 0,
+      Math.round(16 + 16 * band / LIGHT_BANDS),
+    );
   }
 }
