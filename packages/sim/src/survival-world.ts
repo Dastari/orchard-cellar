@@ -173,8 +173,8 @@ export const SURVIVAL_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
   faceProfiles: {
     tall: {
       rows: [
-        { id: 'wall', frames: [43, 44, 45], blocksMovement: false, blocksLight: true },
-        { id: 'lower_wall', frames: [57, 58, 59], blocksMovement: false, blocksLight: true },
+        { id: 'wall', frames: [43, 44, 45], blocksMovement: true, blocksLight: true },
+        { id: 'lower_wall', frames: [57, 58, 59], blocksMovement: true, blocksLight: true },
         {
           id: 'foot', frames: [71, 72, 73], blocksMovement: false, blocksLight: false,
           contributesHeight: false,
@@ -182,8 +182,9 @@ export const SURVIVAL_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
       ],
     },
   },
-  // The contour transition, not its projected pixels, is the physical wall.
-  // Lower-plane actors can therefore walk behind all three visual face rows.
+  // The two stone rows are the physical front/side wall on the lower plane.
+  // The authored third row is only ground-contact shadow/trim and stays
+  // walkable; contour transitions remain the only way onto the raised plane.
   edgeBlocksMovement: false,
   edgeBlocksLight: false,
   insetFrames: {
@@ -1066,9 +1067,9 @@ export function survivalRaisedTerrainBlocksMovementAt(
   return cache[index] === 1;
 }
 
-/** True for visual cliff structure even when its projected pixels are
- * walkable on the lower elevation plane. This keeps generation/resource
- * exclusion and light classification independent from physical collision. */
+/** True for every visual cliff row, including the walkable ground-contact
+ * trim. This keeps generation/resource exclusion and light classification
+ * independent from the narrower two-row physical wall. */
 export function survivalRaisedTerrainStructuralAt(
   seed: number,
   tileX: number,
@@ -1352,9 +1353,10 @@ export function survivalBiomeBlocksTraversal(biome: SurvivalBiome, medium: Movem
   return survivalBiomeBlocksMovement(biome);
 }
 
-/** Coordinate-aware ground collision. Raised cliff pixels are visual
- * occluders on the lower plane; strict elevation transitions block the actual
- * contour crossing. Other ridge kinds retain their ordinary solid tiles. */
+/** Coordinate-aware ground collision. The two stone face rows are solid on
+ * the lower plane, the authored ground-contact trim remains walkable, and
+ * strict elevation transitions block the contour crossing. Other ridge kinds
+ * retain their ordinary solid tiles. */
 export function survivalTerrainBlocksTraversalAt(
   seed: number,
   tileX: number,

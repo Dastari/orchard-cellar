@@ -429,7 +429,7 @@ describe('shared client terrain array', () => {
     }
   });
 
-  it('keeps projected raised-terrain roles walkable while walls continue blocking light', () => {
+  it('blocks stone face roles while keeping caps and authored trim walkable', () => {
     const terrain = terrainForWorld(0x4f434852, 16);
     for (let tileY = 0; tileY < terrain.height; tileY += 1) {
       for (let tileX = 0; tileX < terrain.width; tileX += 1) {
@@ -437,8 +437,11 @@ describe('shared client terrain array', () => {
         const role = SURVIVAL_CLIFF_ROLES[terrain.cliffRoles[index] ?? 0] ?? 'none';
         if (role === 'none') continue;
         const plan = plateauLayerPlanAt(terrain, tileX, tileY);
-        expect(plan.blocksMovement).toBe(false);
-        if (role.startsWith('wall') || role.startsWith('lower_wall')) {
+        const directStoneFace = plan.faceLayers.some(
+          (face) => face.direct && face.rowId !== 'foot',
+        );
+        expect(plan.blocksMovement).toBe(directStoneFace);
+        if (directStoneFace) {
           expect(plan.blocksLight).toBe(true);
         }
       }

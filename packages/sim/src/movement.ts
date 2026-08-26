@@ -55,6 +55,33 @@ export function positionCollidesTerrain(position: Vec2Fixed, map: CollisionMap):
   return tileCollision;
 }
 
+function terrainCollisionOverlapArea(position: Vec2Fixed, map: CollisionMap): number {
+  const { left, right, top, bottom } = playerHitboxBounds(position);
+  const tileLeft = Math.floor(left / TILE_SIZE_FIXED);
+  const tileRight = Math.floor(right / TILE_SIZE_FIXED);
+  const tileTop = Math.floor(top / TILE_SIZE_FIXED);
+  const tileBottom = Math.floor(bottom / TILE_SIZE_FIXED);
+  let area = 0;
+  for (let tileY = tileTop; tileY <= tileBottom; tileY += 1) {
+    for (let tileX = tileLeft; tileX <= tileRight; tileX += 1) {
+      if (!tileIsBlocked(map, tileX, tileY)) continue;
+      const overlapWidth = Math.min(right, (tileX + 1) * TILE_SIZE_FIXED - 1)
+        - Math.max(left, tileX * TILE_SIZE_FIXED) + 1;
+      const overlapHeight = Math.min(bottom, (tileY + 1) * TILE_SIZE_FIXED - 1)
+        - Math.max(top, tileY * TILE_SIZE_FIXED) + 1;
+      if (overlapWidth > 0 && overlapHeight > 0) area += overlapWidth * overlapHeight;
+    }
+  }
+  return area;
+}
+
+function positionCollidesObstacle(position: Vec2Fixed, map: CollisionMap): boolean {
+  const { left, right, top, bottom } = playerHitboxBounds(position);
+  return map.obstacles?.some((obstacle) => (
+    left <= obstacle.right && right >= obstacle.left && top <= obstacle.bottom && bottom >= obstacle.top
+  )) ?? false;
+}
+
 /** True only when the hitbox touches blocked tiles explicitly classified as
  * safe for a horse to jump. Missing semantic data deliberately fails closed. */
 export function positionCollidesOnlyHorseJumpableTerrain(position: Vec2Fixed, map: CollisionMap): boolean {
@@ -76,10 +103,7 @@ export function positionCollidesOnlyHorseJumpableTerrain(position: Vec2Fixed, ma
 
 export function positionCollides(position: Vec2Fixed, map: CollisionMap): boolean {
   if (positionCollidesTerrain(position, map)) return true;
-  const { left, right, top, bottom } = playerHitboxBounds(position);
-  return map.obstacles?.some((obstacle) => (
-    left <= obstacle.right && right >= obstacle.left && top <= obstacle.bottom && bottom >= obstacle.top
-  )) ?? false;
+  return positionCollidesObstacle(position, map);
 }
 
 function movementCrossesBlockedElevation(
@@ -161,7 +185,13 @@ export function terrainPlaneAtPosition(position: Vec2Fixed, map: CollisionMap): 
  * destination-only collision check so contour edges block at its current
  * height while lower-plane actors remain free behind projected wall art. */
 export function movementPositionAllowed(from: Vec2Fixed, to: Vec2Fixed, map: CollisionMap): boolean {
-  return !movementCrossesBlockedElevation(from, to, map) && !positionCollides(to, map);
+  if (movementCrossesBlockedElevation(from, to, map) || positionCollidesObstacle(to, map)) return false;
+  const destinationOverlap = terrainCollisionOverlapArea(to, map);
+  if (destinationOverlap === 0) return true;
+  // Schema/map revisions can make a persisted actor's current position newly
+  // solid. Let that actor move only when each substep strictly reduces the
+  // overlap, so recovery is possible without permitting traversal through it.
+  return destinationOverlap < terrainCollisionOverlapArea(from, map);
 }
 
 export function playerHitboxBounds(position: Vec2Fixed): {

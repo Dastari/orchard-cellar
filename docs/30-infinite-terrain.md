@@ -182,8 +182,10 @@ becomes correctness.
   its own occupants remain above it. This is
   2.5D projection, not freeform 3D: raised surfaces and their occupants render
   north by `elevation × faceRows`, while their logical/collision coordinates stay
-  unchanged. The projected overlap lets lower actors walk behind the full rear
-  cliff silhouette while actors standing on that cliff remain in front.
+  unchanged. The projected overlap lets lower actors walk behind the raised
+  rear cap while the two visible front/side stone rows remain solid and actors
+  standing on that cliff remain in front. The cosmetic foot/shadow row is an
+  underlay and remains walkable.
 - Camera/zoom bounds decouple from world size (`minimumZoom` from viewport
   only; `cameraAxisOffset` unclamped); `subscriptionChunkBounds` and
   `viewRadiusForViewport` lose their `[0, COUNT−1]` clamps and clamp to the

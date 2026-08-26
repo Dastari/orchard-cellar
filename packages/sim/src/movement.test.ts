@@ -6,6 +6,7 @@ import {
   movePlayerAtSpeedPermille,
   movementPositionAllowed,
   PLAYER_HITBOX_FOOT_OFFSET,
+  PLAYER_HITBOX_HALF_WIDTH,
   playerHitboxBounds,
   playerInteractionOrigin,
   positionCollides,
@@ -128,6 +129,21 @@ describe('player movement collision', () => {
       elevations: Uint8Array.from([0, 1]),
       terrainTransitions: [],
     })).toBe(false);
+  });
+
+  it('lets a persisted actor escape newly-solid terrain without moving farther through it', () => {
+    const map = { width: 2, height: 1, blocked: [true, false] };
+    const embedded = {
+      x: TILE_SIZE_FIXED - PLAYER_HITBOX_HALF_WIDTH / 2,
+      y: TILE_SIZE_FIXED / 2 + PLAYER_HITBOX_FOOT_OFFSET + 1,
+    };
+    expect(positionCollides(embedded, map)).toBe(true);
+    expect(movementPositionAllowed(embedded, {
+      ...embedded, x: embedded.x + FIXED_UNITS_PER_PIXEL,
+    }, map)).toBe(true);
+    expect(movementPositionAllowed(embedded, {
+      ...embedded, x: embedded.x - FIXED_UNITS_PER_PIXEL,
+    }, map)).toBe(false);
   });
 
   it('30§5 keeps the complete foot width on its plane at walking and sprint speeds', () => {

@@ -3,6 +3,7 @@ import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
   generateSurvivalDecorations,
+  survivalRaisedTerrainBlocksMovementAt,
   survivalRaisedTerrainStructuralAt,
   survivalResourceObstacle,
   survivalWaterRockObstacle,
@@ -32,18 +33,25 @@ describe('client collision cache', () => {
     });
   }, 20_000);
 
-  it('keeps every projected raised-wall art tile passable in client prediction', () => {
+  it('shares stone-face blocking and walkable trim with authority prediction', () => {
     const terrain = terrainForWorld(0x4f434852, 16);
     const collision = createClientCollisionMap(terrain, []);
     let projectedTiles = 0;
+    let blockedFaceTiles = 0;
+    let walkableStructuralTiles = 0;
     for (let tileY = 0; tileY < terrain.height; tileY += 1) {
       for (let tileX = 0; tileX < terrain.width; tileX += 1) {
         if (!survivalRaisedTerrainStructuralAt(terrain.seed, tileX, tileY)) continue;
         projectedTiles += 1;
-        expect(collision.blocked[tileY * terrain.width + tileX]).toBe(false);
+        const blocked = survivalRaisedTerrainBlocksMovementAt(terrain.seed, tileX, tileY);
+        expect(collision.blocked[tileY * terrain.width + tileX]).toBe(blocked);
+        if (blocked) blockedFaceTiles += 1;
+        else walkableStructuralTiles += 1;
       }
     }
     expect(projectedTiles).toBeGreaterThan(0);
+    expect(blockedFaceTiles).toBeGreaterThan(0);
+    expect(walkableStructuralTiles).toBeGreaterThan(0);
   }, 20_000);
 
   it('builds the inverse shoreline layer and water-rock obstacles for watercraft', () => {
