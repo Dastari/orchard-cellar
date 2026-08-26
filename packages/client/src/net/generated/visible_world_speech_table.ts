@@ -20,4 +20,5 @@ export default __t.row({
   y: __t.i32(),
   createdTick: __t.u64().name("created_tick"),
   expiresTick: __t.u64().name("expires_tick"),
+  spaceId: __t.u16().name("space_id"),
 });

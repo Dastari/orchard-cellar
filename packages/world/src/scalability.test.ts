@@ -48,6 +48,27 @@ describe('34§6 stage-1 scalability rules', () => {
     }
   });
 
+  it('26§13 authorizes portal reducers before target and mount lookups', () => {
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const start = source.indexOf('export const usePortal =');
+    const end = source.indexOf('\nexport const debugUsePortal', start);
+    const reducer = source.slice(start, end);
+    expect(reducer.indexOf('requireAuthorizedSender(')).toBeGreaterThanOrEqual(0);
+    expect(reducer.indexOf('space_portal.id.find')).toBeGreaterThan(reducer.indexOf('requireAuthorizedSender('));
+    expect(reducer.indexOf('usePortalRow(')).toBeGreaterThan(reducer.indexOf('requireAuthorizedSender('));
+  });
+
+  it('26§3 keeps scheduled collision and entity work scoped through space/chunk indexes', () => {
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const step = source.slice(source.indexOf('export const stepWorld ='));
+    expect(step).toContain('playersBySpace');
+    expect(step).toContain('world_resource.by_chunk.filter(spaceId)');
+    expect(step).toContain('world_chest.by_chunk.filter(spaceId)');
+    expect(step).toContain('world_projectile.by_chunk.filter(spaceId)');
+    expect(step).toContain('world_npc.by_chunk.filter(spaceId)');
+    expect(step).toContain('player_position.identity.find(presence.identity)');
+  });
+
   it('keeps identity index results equivalent to the removed full scans', () => {
     const rows = [
       { id: 1, identity: 'alice' },
@@ -119,9 +140,10 @@ describe('34§6 stage-2 scalability rules', () => {
       source.indexOf('const world_wildlife_profile ='),
       source.indexOf('const world_merchant ='),
     );
-    expect(profileSchema).toContain("{ accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] }");
+    expect(profileSchema).toContain("{ accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] }");
     expect(profileSchema).toContain('chunkX: t.i16().default(0)');
     expect(profileSchema).toContain('chunkY: t.i16().default(0)');
+    expect(profileSchema).toContain('spaceId: t.u16().default(0)');
     expect(source.match(/ctx\.db\.world_npc\.id\.update/g)).toHaveLength(1);
     expect(source).toContain('function updateWorldNpc(');
     expect(source).toContain('ctx.db.world_wildlife_profile.npcId.update');

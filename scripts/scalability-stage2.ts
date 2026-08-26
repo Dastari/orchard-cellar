@@ -70,8 +70,10 @@ async function main(): Promise<void> {
     const profiles = [];
     const hives = [];
     for (let y = bounds.minY; y <= bounds.maxY; y += 1) for (let x = bounds.minX; x <= bounds.maxX; x += 1) {
-      profiles.push(tables.worldWildlifeProfile.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      hives.push(tables.worldHive.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      profiles.push(tables.worldWildlifeProfile.where((row) => row.spaceId.eq(alicePosition.spaceId))
+        .where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      hives.push(tables.worldHive.where((row) => row.spaceId.eq(alicePosition.spaceId))
+        .where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
     }
     await Promise.all([
       subscribe(alice, [tables.onlinePlayerPublic, tables.onlinePlayerAppearances, ...profiles, ...hives]),

@@ -18,4 +18,5 @@ export default __t.row({
   habitat: __t.string(),
   chunkX: __t.i16().name("chunk_x"),
   chunkY: __t.i16().name("chunk_y"),
+  spaceId: __t.u16().name("space_id"),
 });

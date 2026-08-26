@@ -44,6 +44,7 @@ import CloseNpcDialogueReducer from "./close_npc_dialogue_reducer";
 import ConsumeOrchardTeaReducer from "./consume_orchard_tea_reducer";
 import CraftInventoryRecipeReducer from "./craft_inventory_recipe_reducer";
 import CreateChatChannelReducer from "./create_chat_channel_reducer";
+import DebugUsePortalReducer from "./debug_use_portal_reducer";
 import DistributeChestItemReducer from "./distribute_chest_item_reducer";
 import DistributeInventoryItemReducer from "./distribute_inventory_item_reducer";
 import DropSelectedReducer from "./drop_selected_reducer";
@@ -84,6 +85,7 @@ import TendTreeReducer from "./tend_tree_reducer";
 import UseFarmTileReducer from "./use_farm_tile_reducer";
 import UseFarmToolReducer from "./use_farm_tool_reducer";
 import UseHandsReducer from "./use_hands_reducer";
+import UsePortalReducer from "./use_portal_reducer";
 
 // Import all procedure arg schemas
 
@@ -111,6 +113,7 @@ import OwnWalletRow from "./own_wallet_table";
 import PlayerAppearanceRow from "./player_appearance_table";
 import PlayerPositionRow from "./player_position_table";
 import PlayerPublicRow from "./player_public_table";
+import SpacePortalRow from "./space_portal_table";
 import VisibleChatMessagesRow from "./visible_chat_messages_table";
 import VisibleWorldSpeechRow from "./visible_world_speech_table";
 import WorldChestRow from "./world_chest_table";
@@ -135,15 +138,16 @@ const tablesSchema = __schema({
   cropPatch: __table({
     name: 'crop_patch',
     indexes: [
-      { accessor: 'by_chunk', name: 'crop_patch_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'id', name: 'crop_patch_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
       { accessor: 'by_parcel', name: 'crop_patch_parcel_id_idx_btree', algorithm: 'btree', columns: [
         'parcelId',
+      ] },
+      { accessor: 'by_chunk', name: 'crop_patch_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -189,12 +193,13 @@ const tablesSchema = __schema({
   playerPosition: __table({
     name: 'player_position',
     indexes: [
-      { accessor: 'by_chunk', name: 'player_position_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'identity', name: 'player_position_identity_idx_btree', algorithm: 'btree', columns: [
         'identity',
+      ] },
+      { accessor: 'by_chunk', name: 'player_position_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -212,18 +217,33 @@ const tablesSchema = __schema({
       { name: 'player_public_identity_key', constraint: 'unique', columns: ['identity'] },
     ],
   }, PlayerPublicRow),
+  spacePortal: __table({
+    name: 'space_portal',
+    indexes: [
+      { accessor: 'by_from_space', name: 'space_portal_from_space_idx_btree', algorithm: 'btree', columns: [
+        'fromSpace',
+      ] },
+      { accessor: 'id', name: 'space_portal_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'space_portal_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SpacePortalRow),
   worldChest: __table({
     name: 'world_chest',
     indexes: [
       { accessor: 'by_carrier', name: 'world_chest_carried_by_idx_btree', algorithm: 'btree', columns: [
         'carriedBy',
       ] },
-      { accessor: 'by_chunk', name: 'world_chest_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'id', name: 'world_chest_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_chest_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -255,12 +275,13 @@ const tablesSchema = __schema({
   worldHive: __table({
     name: 'world_hive',
     indexes: [
-      { accessor: 'by_chunk', name: 'world_hive_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'id', name: 'world_hive_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_hive_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -270,12 +291,13 @@ const tablesSchema = __schema({
   worldItem: __table({
     name: 'world_item',
     indexes: [
-      { accessor: 'by_chunk', name: 'world_item_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'id', name: 'world_item_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_item_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -296,15 +318,16 @@ const tablesSchema = __schema({
   worldNpc: __table({
     name: 'world_npc',
     indexes: [
-      { accessor: 'by_chunk', name: 'world_npc_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'id', name: 'world_npc_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
       { accessor: 'by_rider', name: 'world_npc_rider_idx_hash', algorithm: 'btree', columns: [
         'rider',
+      ] },
+      { accessor: 'by_chunk', name: 'world_npc_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -314,12 +337,13 @@ const tablesSchema = __schema({
   worldProjectile: __table({
     name: 'world_projectile',
     indexes: [
-      { accessor: 'by_chunk', name: 'world_projectile_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'id', name: 'world_projectile_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_projectile_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -329,12 +353,13 @@ const tablesSchema = __schema({
   worldResource: __table({
     name: 'world_resource',
     indexes: [
-      { accessor: 'by_chunk', name: 'world_resource_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'id', name: 'world_resource_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_resource_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -355,12 +380,13 @@ const tablesSchema = __schema({
   worldSoil: __table({
     name: 'world_soil',
     indexes: [
-      { accessor: 'by_chunk', name: 'world_soil_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'id', name: 'world_soil_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_soil_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -370,12 +396,13 @@ const tablesSchema = __schema({
   worldTree: __table({
     name: 'world_tree',
     indexes: [
-      { accessor: 'by_chunk', name: 'world_tree_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'id', name: 'world_tree_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_tree_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -385,12 +412,13 @@ const tablesSchema = __schema({
   worldWildlifeProfile: __table({
     name: 'world_wildlife_profile',
     indexes: [
-      { accessor: 'by_chunk', name: 'world_wildlife_profile_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'chunkX',
-        'chunkY',
-      ] },
       { accessor: 'npcId', name: 'world_wildlife_profile_npc_id_idx_btree', algorithm: 'btree', columns: [
         'npcId',
+      ] },
+      { accessor: 'by_chunk', name: 'world_wildlife_profile_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
       ] },
     ],
     constraints: [
@@ -555,6 +583,7 @@ const reducersSchema = __reducers(
   __reducerSchema("consume_orchard_tea", ConsumeOrchardTeaReducer),
   __reducerSchema("craft_inventory_recipe", CraftInventoryRecipeReducer),
   __reducerSchema("create_chat_channel", CreateChatChannelReducer),
+  __reducerSchema("debug_use_portal", DebugUsePortalReducer),
   __reducerSchema("distribute_chest_item", DistributeChestItemReducer),
   __reducerSchema("distribute_inventory_item", DistributeInventoryItemReducer),
   __reducerSchema("drop_selected", DropSelectedReducer),
@@ -595,6 +624,7 @@ const reducersSchema = __reducers(
   __reducerSchema("use_farm_tile", UseFarmTileReducer),
   __reducerSchema("use_farm_tool", UseFarmToolReducer),
   __reducerSchema("use_hands", UseHandsReducer),
+  __reducerSchema("use_portal", UsePortalReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
@@ -615,6 +645,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "player_position": Omit<typeof tablesSchema.schemaType.tables["playerPosition"], "accessorName"> & { readonly accessorName: "player_position" };
     /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
     readonly "player_public": Omit<typeof tablesSchema.schemaType.tables["playerPublic"], "accessorName"> & { readonly accessorName: "player_public" };
+    /** @deprecated Use `spacePortal` instead. This alias will be removed in the next major version. */
+    readonly "space_portal": Omit<typeof tablesSchema.schemaType.tables["spacePortal"], "accessorName"> & { readonly accessorName: "space_portal" };
     /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
     readonly "world_chest": Omit<typeof tablesSchema.schemaType.tables["worldChest"], "accessorName"> & { readonly accessorName: "world_chest" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
@@ -667,6 +699,7 @@ const tableAccessorAliases = {
   "player_appearance": "playerAppearance",
   "player_position": "playerPosition",
   "player_public": "playerPublic",
+  "space_portal": "spacePortal",
   "world_chest": "worldChest",
   "world_clock": "worldClock",
   "world_environment": "worldEnvironment",
@@ -713,6 +746,8 @@ export type DbView = __DbViewBase & {
   readonly "player_position": __DbViewBase["playerPosition"];
   /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
   readonly "player_public": __DbViewBase["playerPublic"];
+  /** @deprecated Use `spacePortal` instead. This alias will be removed in the next major version. */
+  readonly "space_portal": __DbViewBase["spacePortal"];
   /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
   readonly "world_chest": __DbViewBase["worldChest"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
@@ -757,6 +792,8 @@ export type Tables = __TablesBase & {
   readonly "player_position": __TablesBase["playerPosition"];
   /** @deprecated Use `playerPublic` instead. This alias will be removed in the next major version. */
   readonly "player_public": __TablesBase["playerPublic"];
+  /** @deprecated Use `spacePortal` instead. This alias will be removed in the next major version. */
+  readonly "space_portal": __TablesBase["spacePortal"];
   /** @deprecated Use `worldChest` instead. This alias will be removed in the next major version. */
   readonly "world_chest": __TablesBase["worldChest"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
