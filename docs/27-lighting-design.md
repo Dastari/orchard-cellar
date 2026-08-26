@@ -1,6 +1,9 @@
-# 27 — Lighting Design: Sub-Tile Light, Shadows, Height, and Global Events
+# 27 — Lighting Design: Sub-Tile Light, Shadows, Height, and Sky Cycles
 
-Binding owner-directed spec. **Revision 2 (2026-08-26)** — the owner raised the
+Binding owner-directed spec. **Revision 3 (2026-08-26)** — adds the complete
+eight-phase lunar cycle and makes moon illumination control clear-night ambient
+darkness. Full Moon preserves the current readable night; New Moon is deliberately
+near-black and makes local light sources matter. Revision 2 raised the
 fidelity target with visual references (Core-Keeper-style dungeon shots: light
 pooling between obstacles, sconce cones on walls, soft-but-pixelated falloff)
 and added shadow casting, terrain height awareness, and global light events.
@@ -88,10 +91,12 @@ occluder classes (this supersedes r1's "sub-tile objects never occlude"):
 Colored light rules and the capped `LIGHT_COLORS` table; flicker profiles;
 water glints via `sampleLight` (now sampling the finer buffer — glints gain
 sub-tile placement for free); rain interaction (channel-weighted cool
-darkening, lit rain streaks/splashes sampling the buffer); the consolidated
-per-space ambient pipeline with the 89/channel surface comfort floor and
-below-floor fixed mine ambients. All numeric goldens re-baked at the new
-resolution.
+darkening, lit rain streaks/splashes sampling the buffer); and the consolidated
+per-space ambient pipeline. The former 89/channel surface comfort floor is now
+the **Full Moon clear-night baseline**, not a universal floor: §7 may lower
+surface night ambient as far as `#141420` at New Moon. Fixed mine ambients remain
+unchanged and never receive moon or surface-weather modulation. All numeric
+goldens are re-baked at the new resolution.
 
 ## 5. Height — the terrain contract
 
@@ -128,7 +133,8 @@ A new **shadow pass**, drawn into the world offscreen at low-alpha multiply
 - **Sun azimuth** is a pure function of the world clock: shadows stretch long
   to the west at dawn, shrink toward noon (minimum length, straight south),
   stretch east toward dusk; fixed dim short shadows on overcast/rain; a faint
-  static offset at night (moon), or none under heavy dark.
+  static offset at night whose alpha follows §7's moon illumination (strongest
+  at Full Moon, absent at New Moon), or none under heavy cloud.
 - **Entities** (trees, props, placeables, resources, players, NPCs, horses):
   one skewed, vertically-flattened blit of the sprite's silhouette — affine
   skew only, "primitive" by design, no projection math. Alpha ~25%, quantized
@@ -141,11 +147,49 @@ A new **shadow pass**, drawn into the world offscreen at low-alpha multiply
   (mines) the directional pass is off entirely; the flood is the only shadow
   source underground — matching the references, which are interiors.
 
-## 7. Global light events
+## 7. Lunar cycle and global light events
 
-The ambient pipeline (r1 §9) grows an **events layer** — deterministic
+The ambient pipeline (r1 §9) grows a **sky layer** — deterministic
 functions of `(authorityTick, weatherMode, space)` so every client renders the
 same sky with zero new netcode:
+
+### 7.1 Eight-phase lunar cycle (binding)
+
+The surface has a **29.5 in-game-day lunar month** (`59 / 2` days), derived from
+the shared authority tick. It does not reset at dawn, season boundaries, or New
+Year. Because the calendar year is 28 days, the moon drifts by 1.5 days against
+the seasons each year; over time, every season receives every lunar phase rather
+than permanently owning one kind of night.
+
+- Calendar epoch (`authorityTick = 0`, Spring 1 Year 1) is the center of **Full
+  Moon**. The ordered phase centers are: **Full Moon → Waning Gibbous → Last
+  Quarter → Waning Crescent → New Moon → Waxing Crescent → First Quarter →
+  Waxing Gibbous → Full Moon**. Phase labels select the nearest eighth of the
+  cycle, including a wrap-safe Full Moon window around progress 0/1.
+- `packages/sim/src/time.ts` owns pure helpers for lunar progress, phase, and
+  illumination. Use integer/fixed-point interpolation between the phase-center
+  illumination anchors `[1000, 854, 500, 146, 0, 146, 500, 854]`; do not store a
+  moon row, advance it with scheduled writes, use wall-clock time, or call
+  `Math.random`. Admin date/time changes naturally move the moon because they
+  move the same authoritative calendar tick.
+- Lunar modulation is surface-only and fades in over the dusk keyframes. It has
+  zero influence during full daylight. At clear midnight, interpolate each RGB
+  channel from **New Moon `#141420`** at illumination 0 to **Full Moon
+  `#595969`** at illumination 1000. `#595969` is byte-for-byte the current
+  readable-night ambient, so a clear Full Moon looks exactly as bright as night
+  does before this revision. New Moon is intentionally very dark outside point
+  lights.
+- Weather composes after lunar ambient. Rain/cloud cover may attenuate moonlight
+  further but clamps at `#141420`; lightning still overrides the result for its
+  flash envelope. Mines and other fixed-ambient spaces ignore the lunar cycle.
+  Moon illumination is ambient dressing, not a point emitter and not an
+  authority-side combat light source.
+- The day/season dial renders all eight distinct pixel silhouettes: waxing light
+  grows on the right, waning light recedes on the left. Its tooltip appends the
+  phase name (for example, `Autumn, Day 3 — Year 2 — Waxing Crescent`). No
+  full-screen moon sprite or new licensed visual asset is required for v1.
+
+### 7.2 Deterministic events
 
 - **Lightning.** During storm weather, strikes schedule from a tick hash
   (mean ~45 s apart, never < 8 s). Envelope: full-screen ambient lifts to
@@ -178,15 +222,18 @@ the authority re-derives light pools from pure emitter data.
 
 1. **Resolution lift**: quarter-tile buffer, banding, halo pass, re-baked
    goldens — the whole world immediately looks like the references at night.
-2. **Flood occlusion**: hard blockers + soft attenuators + facing-seeded
+2. **Lunar ambient**: shared pure 29.5-day calendar helpers, all eight UI
+   silhouettes, phase-dependent night ambient, and F3 readout. This is additive
+   to the clock and requires no schema or subscription change.
+3. **Flood occlusion**: hard blockers + soft attenuators + facing-seeded
    sconces (unblocks doc 26's cave feel at the new fidelity).
-3. **Height**: `terrainHeightAt` contract wired (current plateau generator
+4. **Height**: `terrainHeightAt` contract wired (current plateau generator
    first, doc 30 sampler when it lands), light containment + cliff
    drop-shadows + rim spill.
-4. **Directional shadows**: sun azimuth, entity silhouette blits, overcast/
-   night states.
-5. **Global events**: lightning + reduceFlashes, portal rays, canopy shafts.
-6. **Carried-forward content** (water glints, lit rain) lands with its r1
+5. **Directional shadows**: sun azimuth, entity silhouette blits, overcast/
+   phase-weighted moon states.
+6. **Global events**: lightning + reduceFlashes, portal rays, canopy shafts.
+7. **Carried-forward content** (water glints, lit rain) lands with its r1
    phase order inside the above.
 
 ## 10. Performance and instrumentation (revised budgets)
@@ -197,8 +244,8 @@ the authority re-derives light pools from pure emitter data.
   sampling ≤ 0.2 ms. No per-frame allocations anywhere in the light path.
 - If profiling on low-end hardware breaks the budget, the sanctioned lever is
   `LIGHT_TEXELS_PER_TILE = 2` — not disabling features.
-- F3: light count, flood texels visited, lightmap ms, shadow-pass ms, active
-  event (storm/shaft) state.
+- F3: light count, flood texels visited, lightmap ms, shadow-pass ms, lunar
+  phase + illumination per mille, and active event (storm/shaft) state.
 
 ## 11. Out of scope
 
@@ -213,7 +260,12 @@ doc 30/06 business).
   flood goldens on fixture grids — wall containment, door spill, corner
   dimming, attenuator penumbra profiles, facing-seeded cone shape (named
   `27§3`); height gates — containment, rim spill depth, drop-shadow widths vs
-  Δheight (named `27§5`); sun azimuth curve keyframes; lightning schedule
+  Δheight (named `27§5`); lunar phase-center and wrap boundaries for all eight
+  names; 29.5-day rollover and season/year non-reset goldens; Full Moon
+  midnight equals the pre-r3 `{89, 89, 105}` baseline exactly; New Moon
+  midnight is `{20, 20, 32}`; lunar modulation is absent at midday and in
+  fixed-ambient spaces; weather composition never brightens the lunar result;
+  sun azimuth curve keyframes; lightning schedule
   determinism (same tick window → same strikes on two simulated clients) and
   minimum-gap invariant; shaft placement determinism + caps; `LIGHT_COLORS`
   caps; `sampleLight` round-trips at sub-tile coordinates.
@@ -221,12 +273,12 @@ doc 30/06 business).
   owner reference shots recreated in-engine — a mine gallery with facing
   sconces and furniture (pooling + soft object shadows), and a lit interior
   row of tables; cliff edge at dawn/noon/dusk (drop-shadow + rim spill);
-  orchard at dawn with canopy shafts; storm night with lightning (and with
-  `reduceFlashes` on); regression shot: midnight overworld outside light
-  radii unchanged from r1 targets.
-- **Two-client:** identical flicker patterns, identical lightning timing,
-  identical shaft placement (all hash-derived); remote torch floods/shadows
-  identically.
+  orchard at dawn with canopy shafts; clear Full Moon and New Moon at the same
+  place/time-of-night (with and without a standing torch); all eight dial
+  silhouettes; storm night with lightning (and with `reduceFlashes` on).
+- **Two-client:** identical lunar phase/illumination and ambient RGB at the same
+  authority tick; identical flicker patterns, lightning timing, and shaft
+  placement (all tick/hash-derived); remote torch floods/shadows identically.
 - **Perf:** §10 budgets asserted via F3 under a 40-light + 200-entity + storm
   fixture scene.
 
@@ -241,10 +293,13 @@ doc 30/06 business).
   elevation) — lighting and future systems consume height, never re-derive
   it; (4) global light events (lightning, shafts) are deterministic functions
   of the authority tick — zero netcode, identical on every client, with the
-  `reduceFlashes` accessibility cap mandatory.
+  `reduceFlashes` accessibility cap mandatory; (5) the 29.5-day eight-phase
+  lunar cycle is derived from that same tick, drifts across the 28-day year,
+  and explicitly supersedes the universal 89/channel surface-night floor.
 - **docs/30 §3**: annotate the elevation bullet as the `terrainHeightAt`
   provider. **docs/26 §6**: mine sconces gain facing; portal rays noted.
-  **docs/21 §5**: still superseded, now by r2. **docs/13**: `reduceFlashes`
-  added to the a11y list.
+  **docs/21 §5**: still superseded, now by r3. **docs/13**: `reduceFlashes`
+  added to the a11y list and the day/season dial gains eight lunar silhouettes
+  plus the phase-name tooltip.
 - Art tickets: none — shafts/halos/shadows are runtime effects; the water
   glint decal from r1 remains the only sprite ask.

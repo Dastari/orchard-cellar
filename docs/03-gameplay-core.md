@@ -32,6 +32,7 @@ currency conflicts).
 | In-game day | 15 real minutes | 6:00 → 26:00 game clock; night is playable (lantern light, slower Vigour) |
 | Season | 7 days | Spring / Summer / Autumn / Winter, each with a world recolor + mechanical identity (see §6) |
 | Year | 4 seasons ≈ 7 h real play | One Vintage cycle |
+| Lunar month | 29.5 days ≈ 7 h 22.5 min real play | Eight phases; does not reset with the 28-day seasonal year ([27](27-lighting-design.md) §7) |
 
 No forced sleep and no day-end pass-out: the day rolls over at 26:00 wherever you
 stand (this is a cozy incremental at heart — punishing timeouts are out of character).

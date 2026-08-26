@@ -150,9 +150,11 @@ All HUD chrome sits inside a 4 px safe margin. Wireframe of the 480×270 buffer:
 - **Day/season dial** (top-right, 28×28): a circular dial whose outer 2 px ring is
   season-colored — spring R9 blossom pink, summer R3 green, autumn R6/R5 gold-red,
   winter R7 ice blue — echoing the original game's season arc. A sun/moon pip
-  travels the ring over the 15-minute day; the disc face darkens toward R12 at
-  night. Center shows `D3` (day of season) in `font-5x7`. Hover/tap tooltip:
-  `"Summer, Day 3 — Year 2"`.
+  travels the ring over the 15-minute day; at night the moon pip uses the current
+  one of all eight lunar silhouettes from [27](27-lighting-design.md) §7 and the
+  disc face darkens toward the phase-controlled ambient. Center shows `D3` (day
+  of season) in `font-5x7`. Hover/tap tooltip includes the phase, for example:
+  `"Summer, Day 3 — Year 2 — Last Quarter"`.
 - **Vigour meter** (bottom-center, 96×10 wood-framed bar): fills over time (rate set
   in `sim/balance.ts`). At 100% the frame gains a 2-frame R6 glow pulse. Holding
   interact on a tendable target charges the tend action: the bar overlays the charge

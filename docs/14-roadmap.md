@@ -261,7 +261,9 @@ round-trip, and 25 simulated friends stay within the M9 resource/latency budget.
 Festivals (4, with mini-games), daily micro-events, the dog, forageables + bees,
 traveling merchant, estate-hand NPCs with visible work loops, full soundtrack
 (all songs from 12 §2 table), remaining SFX, title-screen final art + wordmark,
-emotes, decor prizes.
+emotes, decor prizes. Complete [27-lighting-design.md](27-lighting-design.md),
+including its 29.5-day eight-phase lunar cycle: Full Moon retains the current
+clear-night brightness while New Moon reaches the R12 near-black ambient.
 **Done when:** the 12 soundtrack table and the asset appendix below are fully ✅.
 
 **Wildlife foundation (2026-08-25):** The generated survival island now has a
