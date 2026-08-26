@@ -2215,6 +2215,56 @@ function migrateWorldForOceanExpansion(ctx: WorldReducerContext, installedVersio
   }
 }
 
+type GeneratedSurvivalResource = ReturnType<typeof generateSurvivalResources>[number];
+
+function generatedWorldResourceRow(resource: GeneratedSurvivalResource) {
+  return {
+    id: BigInt(resource.id),
+    kind: resource.kind,
+    tileX: resource.tileX,
+    tileY: resource.tileY,
+    chunkX: Math.floor(resource.tileX / SURVIVAL_CHUNK_TILES),
+    chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
+    health: survivalResourceInitialHealth(resource.kind),
+    depleted: false,
+    growthStage: TREE_GROWTH_STAGE_BIG,
+    regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
+    spaceId: TOPSIDE_SPACE_ID,
+  };
+}
+
+/** A terrain version may move generated resources off new contour walls, but
+ * unchanged rows retain depletion and regrowth progress. Player inventories,
+ * soil, chests, and placeables are never part of this reconciliation. */
+function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
+  const desired = new Map(generateSurvivalResources().map((resource) => [BigInt(resource.id), resource]));
+  for (const existing of [...ctx.db.world_resource.iter()]) {
+    if (existing.spaceId !== TOPSIDE_SPACE_ID) continue;
+    const generated = desired.get(existing.id);
+    if (generated === undefined) {
+      ctx.db.world_resource.id.delete(existing.id);
+      continue;
+    }
+    desired.delete(existing.id);
+    const nextBase = generatedWorldResourceRow(generated);
+    if (existing.kind !== generated.kind) {
+      ctx.db.world_resource.id.update(nextBase);
+      continue;
+    }
+    if (existing.tileX !== generated.tileX || existing.tileY !== generated.tileY
+      || existing.chunkX !== nextBase.chunkX || existing.chunkY !== nextBase.chunkY) {
+      ctx.db.world_resource.id.update({
+        ...existing,
+        tileX: generated.tileX,
+        tileY: generated.tileY,
+        chunkX: nextBase.chunkX,
+        chunkY: nextBase.chunkY,
+      });
+    }
+  }
+  for (const resource of desired.values()) ctx.db.world_resource.insert(generatedWorldResourceRow(resource));
+}
+
 export const ownSurvival = spacetimedb.view(
   { name: 'own_survival', public: true },
   t.option(player_survival.rowType),
@@ -2615,19 +2665,7 @@ export const init = spacetimedb.init((ctx) => {
     updatedBy: ctx.databaseIdentity,
   });
   for (const resource of generateSurvivalResources()) {
-    ctx.db.world_resource.insert({
-      id: BigInt(resource.id),
-      kind: resource.kind,
-      tileX: resource.tileX,
-      tileY: resource.tileY,
-      chunkX: Math.floor(resource.tileX / SURVIVAL_CHUNK_TILES),
-      chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
-      health: survivalResourceInitialHealth(resource.kind),
-      depleted: false,
-      growthStage: TREE_GROWTH_STAGE_BIG,
-      regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
-      spaceId: TOPSIDE_SPACE_ID,
-    });
+    ctx.db.world_resource.insert(generatedWorldResourceRow(resource));
   }
   ctx.db.world_tree.insert({
     id: 1n,
@@ -2813,7 +2851,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       ctx.db.crop_patch.clear();
       ctx.db.farm_parcel.clear();
     }
-    ctx.db.world_resource.clear();
+    reconcileGeneratedSurvivalResources(ctx);
     const nextWorld = {
       id: 0,
       seed: SURVIVAL_WORLD_SEED,
@@ -2822,21 +2860,6 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     };
     if (installedWorld === null) ctx.db.world_seed.insert(nextWorld);
     else ctx.db.world_seed.id.update(nextWorld);
-    for (const resource of generateSurvivalResources()) {
-      ctx.db.world_resource.insert({
-        id: BigInt(resource.id),
-        kind: resource.kind,
-        tileX: resource.tileX,
-        tileY: resource.tileY,
-        chunkX: Math.floor(resource.tileX / SURVIVAL_CHUNK_TILES),
-        chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
-        health: survivalResourceInitialHealth(resource.kind),
-        depleted: false,
-        growthStage: TREE_GROWTH_STAGE_BIG,
-        regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
-        spaceId: TOPSIDE_SPACE_ID,
-      });
-    }
   }
   const existingPresences = [...ctx.db.connection_presence_v2.by_identity.filter(ctx.sender)];
   const firstLiveConnection = existingPresences
@@ -5804,7 +5827,7 @@ export const stepWorld = spacetimedb.reducer(
         ctx.db.crop_patch.clear();
         ctx.db.farm_parcel.clear();
       }
-      ctx.db.world_resource.clear();
+      reconcileGeneratedSurvivalResources(ctx);
       const nextWorld = {
         id: 0,
         seed: SURVIVAL_WORLD_SEED,
@@ -5813,21 +5836,6 @@ export const stepWorld = spacetimedb.reducer(
       };
       if (installedWorld === null) ctx.db.world_seed.insert(nextWorld);
       else ctx.db.world_seed.id.update(nextWorld);
-      for (const resource of generateSurvivalResources()) {
-        ctx.db.world_resource.insert({
-          id: BigInt(resource.id),
-          kind: resource.kind,
-          tileX: resource.tileX,
-          tileY: resource.tileY,
-          chunkX: Math.floor(resource.tileX / SURVIVAL_CHUNK_TILES),
-          chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
-          health: survivalResourceInitialHealth(resource.kind),
-          depleted: false,
-          growthStage: TREE_GROWTH_STAGE_BIG,
-          regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
-          spaceId: TOPSIDE_SPACE_ID,
-        });
-      }
     }
     let environment = ctx.db.world_environment.id.find(0);
     if (environment === null) {

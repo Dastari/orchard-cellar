@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from './state.js';
+import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type PlayerState } from './state.js';
+import { movePlayer, PLAYER_HITBOX_FOOT_OFFSET, positionCollides } from './movement.js';
+import { NPC_INTERACTION_REACH_FIXED, stepNpcTowardPoint, stepWanderingNpc, type WanderingNpcState } from './npc.js';
 import {
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
@@ -16,6 +18,8 @@ import {
   LARGE_ROCK_INITIAL_HEALTH,
   LARGE_ROCK_STONE_RESERVE,
   MARLOW_CAMP,
+  MARLOW_CAMPFIRE_TILE,
+  SURVIVAL_MAX_TERRAIN_ELEVATION,
   createSurvivalCollisionMap,
   generateSurvivalResources,
   generateSurvivalDecorations,
@@ -33,13 +37,16 @@ import {
   survivalBiomeAllowsHorseJump,
   survivalBiomeBlocksMovement,
   survivalCliffRoleAt,
-  survivalCliffRoleBytes,
   survivalDirtCliffRoleAt,
   survivalDirtTerraceAt,
   survivalDirtTerraceRamps,
   survivalMainStreamCenterAt,
   survivalPlateauAt,
   survivalPlateauRamps,
+  survivalElevationBytes,
+  survivalRaisedTerrainBlocksMovementAt,
+  survivalTerrainHeightAt,
+  survivalTerrainTransitions,
   survivalSpawnPosition,
   survivalSpawnTiles,
   survivalOreObstacle,
@@ -84,6 +91,40 @@ describe('deterministic survival island', () => {
     expect(path.some((tile) => tile.tileX > MARLOW_CAMP.centerTileX + MARLOW_CAMP.reserveRadiusX)).toBe(true);
     expect(path.some((tile) => tile.tileY > MARLOW_CAMP.centerTileY + MARLOW_CAMP.reserveRadiusY)).toBe(true);
     expect(survivalBiomeAt(SURVIVAL_WORLD_SEED, MARLOW_CAMP.homeTileX, MARLOW_CAMP.homeTileY)).toBe('plains');
+
+    const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
+    const home = {
+      x: MARLOW_CAMP.homeTileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: MARLOW_CAMP.homeTileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    };
+    expect(positionCollides(home, collision)).toBe(false);
+    const wandering = stepWanderingNpc({
+      id: 2n,
+      position: home,
+      home,
+      facing: 'down',
+      moving: false,
+      wanderDirection: 'down',
+      nextDecisionTick: 100,
+    }, 1, collision);
+    expect(wandering.position).not.toEqual(home);
+    expect(wandering.moving).toBe(true);
+
+    const campfire = {
+      x: MARLOW_CAMPFIRE_TILE.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: MARLOW_CAMPFIRE_TILE.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    };
+    let tending: WanderingNpcState = { ...wandering, position: home, wanderDirection: null };
+    for (let tick = 1; tick <= 512; tick += 1) {
+      tending = stepNpcTowardPoint(tending, campfire, tick, collision);
+      const dx = campfire.x - tending.position.x;
+      const dy = campfire.y - tending.position.y;
+      if (dx * dx + dy * dy <= NPC_INTERACTION_REACH_FIXED ** 2) break;
+    }
+    const fireDx = campfire.x - tending.position.x;
+    const fireDy = campfire.y - tending.position.y;
+    expect(fireDx * fireDx + fireDy * fireDy).toBeLessThanOrEqual(NPC_INTERACTION_REACH_FIXED ** 2);
+    expect(positionCollides(tending.position, collision)).toBe(false);
   }, 20_000);
 
   it('is byte-identical for one seed and differs for another', () => {
@@ -160,7 +201,7 @@ describe('deterministic survival island', () => {
     expect(counts.get('oasis')).toBeGreaterThan(100);
   });
 
-  it('builds connected organic plateaus with one walkable authored ramp each', () => {
+  it('30§3 builds connected organic plateaus with one generated slope per nested contour', () => {
     const roleCounts = new Map(SURVIVAL_CLIFF_ROLES.map((role) => [role, 0]));
     const plateauMask = new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE);
     let plateauTiles = 0;
@@ -203,11 +244,15 @@ describe('deterministic survival island', () => {
     expect(roleCounts.get('wall')).toBeGreaterThan(20);
     expect(roleCounts.get('lower_wall')).toBeGreaterThan(20);
     expect(roleCounts.get('foot')).toBeGreaterThan(20);
-    expect(ridgeTiles).toBe((survivalCliffRoleBytes(SURVIVAL_WORLD_SEED)).filter((role) => (
-      role !== 0
-      && !SURVIVAL_CLIFF_ROLES[role]?.startsWith('ramp_')
-      && !SURVIVAL_CLIFF_ROLES[role]?.startsWith('foot')
-    )).length);
+    const raisedBlockingTiles = Array.from(
+      { length: SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE },
+      (_, index) => survivalRaisedTerrainBlocksMovementAt(
+        SURVIVAL_WORLD_SEED,
+        index % SURVIVAL_WORLD_SIZE,
+        Math.floor(index / SURVIVAL_WORLD_SIZE),
+      ),
+    ).filter(Boolean).length;
+    expect(ridgeTiles).toBe(raisedBlockingTiles);
 
     const visited = new Uint8Array(plateauMask.length);
     const componentShapeMetrics: Array<{ readonly fill: number; readonly rowWidths: Set<number>; readonly asymmetry: number }> = [];
@@ -261,10 +306,87 @@ describe('deterministic survival island', () => {
       expect(shape.asymmetry).toBeGreaterThan(0.04);
     }
 
-    expect(survivalPlateauRamps(SURVIVAL_WORLD_SEED)).toEqual([]);
-    for (const role of SURVIVAL_CLIFF_ROLES.filter((value) => value.startsWith('ramp_'))) {
-      expect(roleCounts.get(role) ?? 0, role).toBe(0);
+    const elevations = survivalElevationBytes(SURVIVAL_WORLD_SEED);
+    const elevationCounts = Array.from({ length: SURVIVAL_MAX_TERRAIN_ELEVATION + 1 }, (_, level) => (
+      elevations.filter((elevation) => elevation === level).length
+    ));
+    expect(elevationCounts).toEqual([689_345, 1_770, 918, 191]);
+    const ramps = survivalPlateauRamps(SURVIVAL_WORLD_SEED);
+    expect(ramps.map(({ contourLevel }) => contourLevel)).toEqual([
+      1, 1, 1, 1,
+      2, 2, 2, 2,
+      3, 3, 3,
+    ]);
+    expect(survivalTerrainTransitions(SURVIVAL_WORLD_SEED)).toHaveLength(ramps.length * 2);
+    for (const ramp of ramps) {
+      for (let lane = 0; lane < 2; lane += 1) {
+        expect(survivalTerrainHeightAt(
+          SURVIVAL_WORLD_SEED, ramp.tileX + lane, ramp.tileY - 1,
+        )).toBe(ramp.contourLevel);
+        expect(survivalTerrainHeightAt(
+          SURVIVAL_WORLD_SEED, ramp.tileX + lane, ramp.tileY,
+        )).toBe(ramp.contourLevel - 1);
+        expect(generatedSurvivalResourceAt(
+          SURVIVAL_WORLD_SEED, ramp.tileX + lane, ramp.tileY,
+        )).toBeNull();
+      }
     }
+    for (const role of SURVIVAL_CLIFF_ROLES.filter((value) => value.startsWith('ramp_'))) {
+      expect(roleCounts.get(role) ?? 0, role).toBe(4);
+    }
+  });
+
+  it('30§3 climbs and descends generated slopes while unconnected contours stay solid', () => {
+    const ramp = survivalPlateauRamps(SURVIVAL_WORLD_SEED)
+      .find(({ contourLevel }) => contourLevel === SURVIVAL_MAX_TERRAIN_ELEVATION);
+    expect(ramp).toBeDefined();
+    if (ramp === undefined) return;
+    const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
+    const start = {
+      position: {
+        x: ramp.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+        y: ramp.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      },
+      facing: 'up' as const,
+      moving: false,
+      location: 'estate' as const,
+    };
+    let climbed: PlayerState = start;
+    for (let step = 0; step < 24; step += 1) climbed = movePlayer(climbed, 'up', collision);
+    const climbedTileX = Math.floor(climbed.position.x / TILE_SIZE_FIXED);
+    const climbedTileY = Math.floor(
+      (climbed.position.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED,
+    );
+    expect(survivalTerrainHeightAt(SURVIVAL_WORLD_SEED, climbedTileX, climbedTileY))
+      .toBe(ramp.contourLevel);
+    let descended: PlayerState = climbed;
+    for (let step = 0; step < 24; step += 1) descended = movePlayer(descended, 'down', collision);
+    expect(descended.position).toEqual(start.position);
+
+    const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
+    let solidEdge: { readonly tileX: number; readonly lowerTileY: number } | null = null;
+    for (let tileY = 1; tileY < SURVIVAL_WORLD_SIZE - 1 && solidEdge === null; tileY += 1) {
+      for (let tileX = 1; tileX < SURVIVAL_WORLD_SIZE - 1; tileX += 1) {
+        if (survivalTerrainHeightAt(SURVIVAL_WORLD_SEED, tileX, tileY) !== ramp.contourLevel
+          || survivalTerrainHeightAt(SURVIVAL_WORLD_SEED, tileX, tileY + 1) !== ramp.contourLevel - 1
+          || transitions.some((transition) => transition.contourLevel === ramp.contourLevel
+            && transition.lowerTileX === tileX && transition.lowerTileY === tileY + 1)) continue;
+        solidEdge = { tileX, lowerTileY: tileY + 1 };
+        break;
+      }
+    }
+    expect(solidEdge).not.toBeNull();
+    if (solidEdge === null) return;
+    const solidStart = {
+      ...start,
+      position: {
+        x: solidEdge.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+        y: solidEdge.lowerTileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      },
+    };
+    let blocked: PlayerState = solidStart;
+    for (let step = 0; step < 24; step += 1) blocked = movePlayer(blocked, 'up', collision);
+    expect(solidStart.position.y - blocked.position.y).toBeLessThan(24 * FIXED_UNITS_PER_PIXEL);
   });
 
   it('adds smaller organic lowered dirt terraces with walkable inset rims and no generated ramps', () => {

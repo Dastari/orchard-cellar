@@ -20,7 +20,9 @@ import {
 } from './state.js';
 import type { NpcFacing } from './npc.js';
 
-export const WILDLIFE_GENERATION_VERSION = 4;
+// Terrain v26 adds nested ridge rows; regenerate ambient homes so no durable
+// animal or hive remains inside a newly raised contour wall.
+export const WILDLIFE_GENERATION_VERSION = 5;
 export const WILDLIFE_FIRST_NPC_ID = 10_000;
 export const WILDLIFE_ACTIVE_RADIUS_CHUNKS = 3;
 

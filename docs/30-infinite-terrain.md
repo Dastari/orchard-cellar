@@ -11,13 +11,15 @@ the shipped wildlife system of [29-wildlife.md](29-wildlife.md)
 (`packages/sim/src/wildlife.ts` — extended by §6 here, not replaced).
 Tile/biome art is bounded by the licensed packs per docs/18 §7.
 
-**2026-08-26 elevation/depth foundation:** implemented ahead of the full terrain
-revamp. The legacy island now exposes its raised land as integer elevation; the
-shared contour resolver supports arbitrary nested levels and semantic crossings;
-movement rejects unconnected height changes; and raised terrain interleaves with
-entities through elevation-aware painter depth. The infinite sampler, generated
-multi-level mountains, transition interactions/art, and owner editor UI remain in
-the phases below and are not claimed as implemented by this note.
+**2026-08-26 legacy-island elevation slice:** implemented ahead of the full terrain
+revamp. World version 26 repeatedly insets the island's four organic highland masks
+into level-1/2/3 stepped mountains, generates one paired slope for every connected
+contour, rejects every unconnected height change, reconciles generated resources by
+stable id, regenerates wildlife homes, and interleaves raised terrain/entities through
+elevation-aware painter depth. The same integer/semantic contracts support arbitrary
+future levels and editor brushes. The infinite sampler, chunk terrain cache,
+transition kinds beyond slopes, and owner editor UI remain in the phases below and
+are not claimed as implemented by this note.
 
 The mandate, in one sentence: **Minecraft's world model on our stack** — a
 semi-infinite, seed-deterministic 2D world streamed in 16-tile chunks through

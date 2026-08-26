@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import {
+  SURVIVAL_WORLD_SEED,
+  SURVIVAL_WORLD_VERSION,
+  survivalPlateauRamps,
+} from '@orchard/sim';
 import { raisedTerrainDepthEntries } from './raised-terrain-depth.js';
-import type { TerrainArray } from './terrain.js';
+import { plateauLayerPlansAt, terrainForWorld, type TerrainArray } from './terrain.js';
 
 function nestedTerrain(): TerrainArray {
   const width = 7;
@@ -37,4 +42,26 @@ describe('30§5 raised-terrain depth entries', () => {
     expect(nestedSouth.map(({ contourLevel }) => contourLevel)).toEqual([1, 2, 3]);
     expect(nestedSouth.map(({ depthOffset }) => depthOffset)).toEqual([0, 48, 96]);
   });
+
+  it('30§3 maps every generated semantic crossing to its named contour art', () => {
+    const terrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
+    for (const ramp of survivalPlateauRamps(SURVIVAL_WORLD_SEED)) {
+      const upperLeft = plateauLayerPlansAt(terrain, ramp.tileX, ramp.tileY - 1)
+        .find(({ contourLevel }) => contourLevel === ramp.contourLevel);
+      const upperRight = plateauLayerPlansAt(terrain, ramp.tileX + 1, ramp.tileY - 1)
+        .find(({ contourLevel }) => contourLevel === ramp.contourLevel);
+      const lowerLeft = plateauLayerPlansAt(terrain, ramp.tileX, ramp.tileY)
+        .find(({ contourLevel }) => contourLevel === ramp.contourLevel);
+      const lowerRight = plateauLayerPlansAt(terrain, ramp.tileX + 1, ramp.tileY)
+        .find(({ contourLevel }) => contourLevel === ramp.contourLevel);
+      expect([
+        upperLeft?.plan.rampRole,
+        upperRight?.plan.rampRole,
+        lowerLeft?.plan.rampRole,
+        lowerRight?.plan.rampRole,
+      ]).toEqual([
+        'ramp_top_left', 'ramp_top_right', 'ramp_bottom_left', 'ramp_bottom_right',
+      ]);
+    }
+  }, 20_000);
 });

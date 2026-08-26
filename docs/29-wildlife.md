@@ -104,6 +104,10 @@ and applies dry-landing semantics to airborne wildlife. It remains a source/buil
 change until the concurrent surface-world expansion is ready for its coordinated
 backup and publication gate.
 
+Generation version 5 accompanies surface terrain version 26. It regenerates only the
+deterministic ambient wildlife/profile/hive layer so homes are reselected against the
+new nested ridge rows; the authored starter horse and all player/account state remain.
+
 The version-2 correction was preceded by another verified quiesced backup at
 `/home/toby/backups/orchard/20260825T120536Z-pre-wildlife-v2` and
 `orchard/world/20260825T120536Z-pre-wildlife-v2` on the NAS.

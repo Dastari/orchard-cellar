@@ -2,6 +2,7 @@ import {
   SURVIVAL_BIOMES,
   SURVIVAL_CLIFF_ROLES,
   SURVIVAL_DIRT_CLIFF_ROLES,
+  SURVIVAL_RAISED_CLIFF_TILE_SET,
   SURVIVAL_WORLD_SIZE,
   TOPSIDE_SPACE_ID,
   resolveRaisedTerrainTile,
@@ -10,6 +11,7 @@ import {
   terrainElevationAt as sampleTerrainElevation,
   terrainProjectedDepthOffset,
   survivalElevationBytes,
+  survivalTerrainTransitions,
   survivalCliffRoleBytes,
   survivalBiomeAllowsHorseJump,
   survivalBiomeBlocksMovement,
@@ -20,7 +22,6 @@ import {
   type RaisedTerrainRampRole,
   type RaisedTerrainTilePlan,
   type RaisedTerrainContourPlan,
-  type RaisedTerrainTileSet,
   type SurvivalBiome,
   type SpaceDefinition,
   type TerrainTransition,
@@ -68,6 +69,8 @@ export interface TerrainArray {
   /** Present on v2/generated/editor terrain. Omission preserves the legacy
    * island's collision-authored ramps; an empty list means no crossings. */
   readonly terrainTransitions?: readonly TerrainTransition[];
+  /** True when `blocked`/biomes already include every nested contour plan. */
+  readonly raisedTerrainCollisionClassified?: true;
   /** @deprecated Compatibility alias while the v1 island generator is retired. */
   readonly plateaus: Uint8Array;
   readonly dirtCliffRoles: Uint8Array;
@@ -112,6 +115,8 @@ export function terrainForSpace(space: SpaceDefinition, seed: number, version: n
         )),
         cliffRoles: survivalCliffRoleBytes(seed),
         elevations,
+        terrainTransitions: survivalTerrainTransitions(seed),
+        raisedTerrainCollisionClassified: true,
         plateaus: elevations,
         dirtCliffRoles: survivalDirtCliffRoleBytes(seed),
         dirtTerraces: survivalDirtTerraceBytes(seed),
@@ -412,41 +417,33 @@ function dirtTerraceAt(terrain: TerrainArray, tileX: number, tileY: number): boo
 
 /** Stone Cliff 1 plugs into the generic raised-terrain topology. Other natural
  * wall sheets provide another data object rather than another resolver. */
-export const STONE_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
-  edgeFrames: {
-    top_left: 1, top: 2, top_right: 3,
-    left: 15, right: 17,
-    bottom_left: 29, bottom: 30, bottom_right: 31,
-  },
-  faceProfiles: {
-    tall: {
-      rows: [
-        { id: 'wall', frames: [43, 44, 45], blocksMovement: true },
-        { id: 'lower_wall', frames: [57, 58, 59], blocksMovement: true },
-        { id: 'foot', frames: [71, 72, 73], blocksMovement: false },
-      ],
-    },
-  },
-  insetFrames: {
-    // The source sheet stores quadrants of a central hole. These names describe
-    // the corner drawn inside the destination cell, hence the apparent reversal.
-    inner_bottom_right: 0,
-    inner_bottom_left: 1,
-    inner_top_right: 2,
-    inner_top_left: 3,
-  },
-  rampFrames: {
-    ramp_top_left: 0,
-    ramp_top_right: 1,
-    ramp_bottom_left: 2,
-    ramp_bottom_right: 3,
-  },
-};
+export const STONE_RAISED_CLIFF_TILE_SET = SURVIVAL_RAISED_CLIFF_TILE_SET;
 
-function plateauRampRoleAt(terrain: TerrainArray, tileX: number, tileY: number): RaisedTerrainRampRole | null {
-  const role = cliffRoleAt(terrain, tileX, tileY);
-  if (role === 'ramp_top_left' || role === 'ramp_top_right'
-    || role === 'ramp_bottom_left' || role === 'ramp_bottom_right') return role;
+function plateauRampRoleAt(
+  terrain: TerrainArray,
+  contourLevel: number,
+  tileX: number,
+  tileY: number,
+): RaisedTerrainRampRole | null {
+  for (const transition of terrain.terrainTransitions ?? []) {
+    if (transition.contourLevel !== contourLevel || transition.direction !== 'up') continue;
+    const peerOnRight = terrain.terrainTransitions?.some((candidate) => (
+      candidate.contourLevel === contourLevel && candidate.direction === 'up'
+      && candidate.lowerTileX === transition.lowerTileX + 1
+      && candidate.lowerTileY === transition.lowerTileY
+    )) ?? false;
+    const side = peerOnRight ? 'left' : 'right';
+    if (tileX === transition.upperTileX && tileY === transition.upperTileY) {
+      return side === 'left' ? 'ramp_top_left' : 'ramp_top_right';
+    }
+    if (tileX === transition.lowerTileX && tileY === transition.lowerTileY) {
+      return side === 'left' ? 'ramp_bottom_left' : 'ramp_bottom_right';
+    }
+  }
+  if (contourLevel !== 1) return null;
+  const legacyRole = cliffRoleAt(terrain, tileX, tileY);
+  if (legacyRole === 'ramp_top_left' || legacyRole === 'ramp_top_right'
+    || legacyRole === 'ramp_bottom_left' || legacyRole === 'ramp_bottom_right') return legacyRole;
   return null;
 }
 
@@ -459,7 +456,7 @@ function plateauGridFor(terrain: TerrainArray): RaisedTerrainGrid {
   if (!grid) {
     grid = {
       raisedAt: (tileX, tileY) => plateauAt(terrain, tileX, tileY),
-      rampRoleAt: (tileX, tileY) => plateauRampRoleAt(terrain, tileX, tileY),
+      rampRoleAt: (tileX, tileY) => plateauRampRoleAt(terrain, 1, tileX, tileY),
     };
     plateauGridCache.set(terrain, grid);
   }
@@ -497,7 +494,7 @@ export function plateauLayerPlansAt(
     'tall',
     tileX,
     tileY,
-    (contourLevel, x, y) => contourLevel === 1 ? plateauRampRoleAt(terrain, x, y) : null,
+    (contourLevel, x, y) => plateauRampRoleAt(terrain, contourLevel, x, y),
   );
   plansByTile.set(tileKey, plans);
   return plans;

@@ -7,10 +7,19 @@ import {
 } from './state.js';
 import {
   raisedTerrainEdgeRoleAt,
+  resolveRaisedTerrainContoursAt,
+  type RaisedTerrainContourPlan,
   type RaisedTerrainGrid,
   type RaisedTerrainRampRole,
+  type RaisedTerrainTileSet,
 } from './raised-terrain-autotile.js';
-import { SURVIVAL_SPAWN_SEARCH_RADIUS_TILES } from './balance.js';
+import type { TerrainTransition } from './terrain-elevation.js';
+import {
+  SURVIVAL_SPAWN_SEARCH_RADIUS_TILES,
+  SURVIVAL_TERRAIN_CONTOUR_INSET_TILES,
+  SURVIVAL_TERRAIN_MAX_ELEVATION,
+  SURVIVAL_TERRAIN_MINIMUM_SUMMIT_TILES,
+} from './balance.js';
 import { playerInteractionOrigin } from './movement.js';
 import {
   TREE_GROWTH_STAGE_BIG,
@@ -27,7 +36,7 @@ export const SURVIVAL_OCEAN_PADDING_TILES = 256;
 export const SURVIVAL_ISLAND_OFFSET_TILES = SURVIVAL_OCEAN_PADDING_TILES;
 export const SURVIVAL_WORLD_SIZE = SURVIVAL_ISLAND_SIZE + SURVIVAL_OCEAN_PADDING_TILES * 2;
 export const SURVIVAL_WORLD_SEED = 0x4f434852;
-export const SURVIVAL_WORLD_VERSION = 25;
+export const SURVIVAL_WORLD_VERSION = 26;
 export const SURVIVAL_CHUNK_TILES = 16;
 
 export const SURVIVAL_TREE_KINDS = [
@@ -148,9 +157,43 @@ export function survivalCliffRoleBlocksMovement(role: SurvivalCliffRole): boolea
 }
 
 export interface SurvivalPlateauRamp {
+  readonly contourLevel: number;
   readonly tileX: number;
+  /** Lower/southern row; the paired upper row is `tileY - 1`. */
   readonly tileY: number;
 }
+
+/** Stone Cliff 1's topology and collision profile is shared by authority and
+ * client. Frame ids remain tileset data; logical elevation never depends on
+ * them. */
+export const SURVIVAL_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
+  edgeFrames: {
+    top_left: 1, top: 2, top_right: 3,
+    left: 15, right: 17,
+    bottom_left: 29, bottom: 30, bottom_right: 31,
+  },
+  faceProfiles: {
+    tall: {
+      rows: [
+        { id: 'wall', frames: [43, 44, 45], blocksMovement: true },
+        { id: 'lower_wall', frames: [57, 58, 59], blocksMovement: true },
+        { id: 'foot', frames: [71, 72, 73], blocksMovement: false },
+      ],
+    },
+  },
+  insetFrames: {
+    inner_bottom_right: 0,
+    inner_bottom_left: 1,
+    inner_top_right: 2,
+    inner_top_left: 3,
+  },
+  rampFrames: {
+    ramp_top_left: 0,
+    ramp_top_right: 1,
+    ramp_bottom_left: 2,
+    ramp_bottom_right: 3,
+  },
+};
 
 export const SURVIVAL_DIRT_CLIFF_ROLES = [
   'none',
@@ -755,6 +798,83 @@ function plateauMaskFor(seed: number): Uint8Array {
   return mask;
 }
 
+export const SURVIVAL_MAX_TERRAIN_ELEVATION = SURVIVAL_TERRAIN_MAX_ELEVATION;
+const elevationMaskCache = new Map<number, Uint8Array>();
+
+function erodeTerrainMask(source: Uint8Array, passes: number): Uint8Array {
+  let current = source;
+  for (let pass = 0; pass < passes; pass += 1) {
+    const next = new Uint8Array(current.length);
+    for (let tileY = 1; tileY < SURVIVAL_WORLD_SIZE - 1; tileY += 1) {
+      for (let tileX = 1; tileX < SURVIVAL_WORLD_SIZE - 1; tileX += 1) {
+        const index = tileY * SURVIVAL_WORLD_SIZE + tileX;
+        if (current[index] !== 1) continue;
+        let enclosed = true;
+        for (let offsetY = -1; offsetY <= 1 && enclosed; offsetY += 1) {
+          for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+            if (current[(tileY + offsetY) * SURVIVAL_WORLD_SIZE + tileX + offsetX] !== 1) {
+              enclosed = false;
+              break;
+            }
+          }
+        }
+        if (enclosed) next[index] = 1;
+      }
+    }
+    current = next;
+  }
+  return current;
+}
+
+function retainTerrainComponents(source: Uint8Array, minimumTiles: number): Uint8Array {
+  const retained = new Uint8Array(source.length);
+  const visited = new Uint8Array(source.length);
+  for (let start = 0; start < source.length; start += 1) {
+    if (source[start] !== 1 || visited[start] === 1) continue;
+    const component = [start];
+    visited[start] = 1;
+    for (let cursor = 0; cursor < component.length; cursor += 1) {
+      const index = component[cursor]!;
+      const tileX = index % SURVIVAL_WORLD_SIZE;
+      for (const neighbor of [
+        index - 1,
+        index + 1,
+        index - SURVIVAL_WORLD_SIZE,
+        index + SURVIVAL_WORLD_SIZE,
+      ]) {
+        if (neighbor < 0 || neighbor >= source.length || visited[neighbor] === 1
+          || source[neighbor] !== 1 || Math.abs(neighbor % SURVIVAL_WORLD_SIZE - tileX) > 1) continue;
+        visited[neighbor] = 1;
+        component.push(neighbor);
+      }
+    }
+    if (component.length < minimumTiles) continue;
+    for (const index of component) retained[index] = 1;
+  }
+  return retained;
+}
+
+/** The live island's organic plateaus become stepped mountains by repeatedly
+ * insetting the exact same mask. Every higher level is therefore a strict
+ * subset of the level below, matching future editor raise/lower semantics. */
+function elevationMaskFor(seed: number): Uint8Array {
+  const cached = elevationMaskCache.get(seed);
+  if (cached) return cached;
+  const elevations = plateauMaskFor(seed).slice();
+  let contour = plateauMaskFor(seed);
+  for (let level = 2; level <= SURVIVAL_MAX_TERRAIN_ELEVATION; level += 1) {
+    contour = retainTerrainComponents(
+      erodeTerrainMask(contour, SURVIVAL_TERRAIN_CONTOUR_INSET_TILES),
+      SURVIVAL_TERRAIN_MINIMUM_SUMMIT_TILES,
+    );
+    contour.forEach((inside, index) => {
+      if (inside === 1) elevations[index] = level;
+    });
+  }
+  elevationMaskCache.set(seed, elevations);
+  return elevations;
+}
+
 const dirtTerraceMaskCache = new Map<number, Uint8Array>();
 
 function dirtTerraceMaskFor(seed: number): Uint8Array {
@@ -770,10 +890,10 @@ export function survivalPlateauAt(seed: number, tileX: number, tileY: number): b
   return plateauMaskFor(seed)[tileY * SURVIVAL_WORLD_SIZE + tileX] === 1;
 }
 
-/** Legacy island elevation adapter. Doc 30's unbounded sampler replaces this
- * with arbitrary integer levels; current plateaus are level one. */
+/** Legacy-island adapter for the shared arbitrary integer elevation contract. */
 export function survivalTerrainHeightAt(seed: number, tileX: number, tileY: number): number {
-  return survivalPlateauAt(seed, tileX, tileY) ? 1 : 0;
+  if (tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return 0;
+  return elevationMaskFor(seed)[tileY * SURVIVAL_WORLD_SIZE + tileX] ?? 0;
 }
 
 export function survivalDirtTerraceAt(seed: number, tileX: number, tileY: number): boolean {
@@ -781,11 +901,101 @@ export function survivalDirtTerraceAt(seed: number, tileX: number, tileY: number
   return dirtTerraceMaskFor(seed)[tileY * SURVIVAL_WORLD_SIZE + tileX] === 1;
 }
 
-/** Procedural terrain never cuts ramps into a contour. The API remains the
- * single source for explicitly authored ramps when editor placement is added. */
+const plateauRampCache = new Map<number, readonly SurvivalPlateauRamp[]>();
+
+function generatedRampForComponent(
+  seed: number,
+  contourLevel: number,
+  component: readonly number[],
+  elevations: Uint8Array,
+): SurvivalPlateauRamp | null {
+  const componentSet = new Set(component);
+  const centerX = component.reduce((sum, index) => sum + index % SURVIVAL_WORLD_SIZE, 0) / component.length;
+  const maximumY = Math.max(...component.map((index) => Math.floor(index / SURVIVAL_WORLD_SIZE)));
+  let selected: { readonly tileX: number; readonly upperTileY: number; readonly score: number } | null = null;
+  for (const index of component) {
+    const tileX = index % SURVIVAL_WORLD_SIZE;
+    const upperTileY = Math.floor(index / SURVIVAL_WORLD_SIZE);
+    if (tileX <= 1 || tileX >= SURVIVAL_WORLD_SIZE - 2 || upperTileY >= SURVIVAL_WORLD_SIZE - 2) continue;
+    const right = index + 1;
+    const lowerLeft = index + SURVIVAL_WORLD_SIZE;
+    const lowerRight = lowerLeft + 1;
+    const approachLeft = lowerLeft + SURVIVAL_WORLD_SIZE;
+    const approachRight = approachLeft + 1;
+    if (!componentSet.has(right)
+      || elevations[index] !== contourLevel || elevations[right] !== contourLevel
+      || elevations[lowerLeft] !== contourLevel - 1 || elevations[lowerRight] !== contourLevel - 1
+      || elevations[approachLeft] !== contourLevel - 1 || elevations[approachRight] !== contourLevel - 1) continue;
+    const waterFeature = [index, right, lowerLeft, lowerRight, approachLeft, approachRight]
+      .some((candidate) => {
+        const x = candidate % SURVIVAL_WORLD_SIZE;
+        const y = Math.floor(candidate / SURVIVAL_WORLD_SIZE);
+        return survivalLakeAt(seed, x, y) || survivalStreamAt(seed, x, y)
+          || survivalOasisDistanceSquared(seed, x, y) <= 46;
+      });
+    if (waterFeature) continue;
+    const score = (maximumY - upperTileY) * 100_000
+      + Math.round(Math.abs(tileX + 0.5 - centerX) * 1_000)
+      + hash(seed ^ Math.imul(contourLevel, 0x45d9f3b), tileX, upperTileY) % 1_000;
+    if (selected === null || score < selected.score) selected = { tileX, upperTileY, score };
+  }
+  return selected === null ? null : {
+    contourLevel,
+    tileX: selected.tileX,
+    tileY: selected.upperTileY + 1,
+  };
+}
+
+/** One deterministic, two-tile south-facing slope is generated for every
+ * connected contour. That keeps each mountain level reachable without making
+ * the elevation mask depend on art frame ids. */
 export function survivalPlateauRamps(seed: number): readonly SurvivalPlateauRamp[] {
-  void seed;
-  return [];
+  const cached = plateauRampCache.get(seed);
+  if (cached) return cached;
+  const elevations = elevationMaskFor(seed);
+  const ramps: SurvivalPlateauRamp[] = [];
+  for (let contourLevel = 1; contourLevel <= SURVIVAL_MAX_TERRAIN_ELEVATION; contourLevel += 1) {
+    const visited = new Uint8Array(elevations.length);
+    for (let start = 0; start < elevations.length; start += 1) {
+      if (elevations[start]! < contourLevel || visited[start] === 1) continue;
+      const component = [start];
+      visited[start] = 1;
+      for (let cursor = 0; cursor < component.length; cursor += 1) {
+        const index = component[cursor]!;
+        const tileX = index % SURVIVAL_WORLD_SIZE;
+        for (const neighbor of [
+          index - 1,
+          index + 1,
+          index - SURVIVAL_WORLD_SIZE,
+          index + SURVIVAL_WORLD_SIZE,
+        ]) {
+          if (neighbor < 0 || neighbor >= elevations.length || visited[neighbor] === 1
+            || elevations[neighbor]! < contourLevel
+            || Math.abs(neighbor % SURVIVAL_WORLD_SIZE - tileX) > 1) continue;
+          visited[neighbor] = 1;
+          component.push(neighbor);
+        }
+      }
+      const ramp = generatedRampForComponent(seed, contourLevel, component, elevations);
+      if (ramp !== null) ramps.push(ramp);
+    }
+  }
+  ramps.sort((left, right) => left.contourLevel - right.contourLevel
+    || left.tileY - right.tileY || left.tileX - right.tileX);
+  plateauRampCache.set(seed, ramps);
+  return ramps;
+}
+
+export function survivalTerrainTransitions(seed: number): readonly TerrainTransition[] {
+  return survivalPlateauRamps(seed).flatMap((ramp) => [0, 1].map((lane): TerrainTransition => ({
+    contourLevel: ramp.contourLevel,
+    kind: 'slope',
+    direction: 'up',
+    lowerTileX: ramp.tileX + lane,
+    lowerTileY: ramp.tileY,
+    upperTileX: ramp.tileX + lane,
+    upperTileY: ramp.tileY - 1,
+  })));
 }
 
 export function survivalDirtTerraceRamps(seed: number): readonly SurvivalPlateauRamp[] {
@@ -793,14 +1003,61 @@ export function survivalDirtTerraceRamps(seed: number): readonly SurvivalPlateau
   return [];
 }
 
-function plateauRampRoleAt(seed: number, tileX: number, tileY: number): SurvivalCliffRole {
+function plateauRampRoleAt(
+  seed: number,
+  contourLevel: number,
+  tileX: number,
+  tileY: number,
+): SurvivalCliffRole {
   for (const ramp of survivalPlateauRamps(seed)) {
+    if (ramp.contourLevel !== contourLevel) continue;
     if (tileX === ramp.tileX && tileY === ramp.tileY - 1) return 'ramp_top_left';
     if (tileX === ramp.tileX + 1 && tileY === ramp.tileY - 1) return 'ramp_top_right';
     if (tileX === ramp.tileX && tileY === ramp.tileY) return 'ramp_bottom_left';
     if (tileX === ramp.tileX + 1 && tileY === ramp.tileY) return 'ramp_bottom_right';
   }
   return 'none';
+}
+
+export function survivalRaisedTerrainPlansAt(
+  seed: number,
+  tileX: number,
+  tileY: number,
+): readonly RaisedTerrainContourPlan[] {
+  return resolveRaisedTerrainContoursAt(
+    (x, y) => survivalTerrainHeightAt(seed, x, y),
+    SURVIVAL_MAX_TERRAIN_ELEVATION,
+    SURVIVAL_RAISED_CLIFF_TILE_SET,
+    'tall',
+    tileX,
+    tileY,
+    (contourLevel, x, y) => {
+      const role = plateauRampRoleAt(seed, contourLevel, x, y);
+      return role === 'none' ? null : role as RaisedTerrainRampRole;
+    },
+  );
+}
+
+const raisedTerrainBlockingCache = new Map<number, Uint8Array>();
+
+export function survivalRaisedTerrainBlocksMovementAt(
+  seed: number,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return false;
+  let cache = raisedTerrainBlockingCache.get(seed);
+  if (!cache) {
+    cache = new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE);
+    cache.fill(255);
+    raisedTerrainBlockingCache.set(seed, cache);
+  }
+  const index = tileY * SURVIVAL_WORLD_SIZE + tileX;
+  if (cache[index] === 255) {
+    cache[index] = Number(survivalRaisedTerrainPlansAt(seed, tileX, tileY)
+      .some(({ plan }) => plan.blocksMovement));
+  }
+  return cache[index] === 1;
 }
 
 function horizontalRole(
@@ -813,7 +1070,7 @@ function horizontalRole(
 
 function plateauSouthFaceAt(seed: number, tileX: number, tileY: number): boolean {
   if (!survivalPlateauAt(seed, tileX, tileY) || survivalPlateauAt(seed, tileX, tileY + 1)) return false;
-  const role = plateauRampRoleAt(seed, tileX, tileY);
+  const role = plateauRampRoleAt(seed, 1, tileX, tileY);
   return !role.startsWith('ramp_');
 }
 
@@ -826,7 +1083,7 @@ function raisedTerrainGridFor(seed: number): RaisedTerrainGrid {
     grid = {
       raisedAt: (tileX, tileY) => survivalPlateauAt(seed, tileX, tileY),
       rampRoleAt: (tileX, tileY) => {
-        const role = plateauRampRoleAt(seed, tileX, tileY);
+        const role = plateauRampRoleAt(seed, 1, tileX, tileY);
         return role === 'none' ? null : role as RaisedTerrainRampRole;
       },
     };
@@ -837,7 +1094,7 @@ function raisedTerrainGridFor(seed: number): RaisedTerrainGrid {
 
 /** Boundary roles drive collision; blob47 selects the connected authored art. */
 function classifySurvivalCliffRoleAt(seed: number, tileX: number, tileY: number): SurvivalCliffRole {
-  const ramp = plateauRampRoleAt(seed, tileX, tileY);
+  const ramp = plateauRampRoleAt(seed, 1, tileX, tileY);
   if (ramp !== 'none') return ramp;
   if (survivalPlateauAt(seed, tileX, tileY)) return raisedTerrainEdgeRoleAt(
     raisedTerrainGridFor(seed), tileX, tileY,
@@ -1024,8 +1281,8 @@ export function survivalBiomeAt(seed: number, tileX: number, tileY: number): Sur
 
   const cliffRole = survivalCliffRoleAt(seed, tileX, tileY);
   if (cliffRole.startsWith('ramp_')) return 'highland';
-  if (survivalCliffRoleBlocksMovement(cliffRole)) return 'ridge';
-  if (survivalPlateauAt(seed, tileX, tileY)) return 'highland';
+  if (survivalRaisedTerrainBlocksMovementAt(seed, tileX, tileY)) return 'ridge';
+  if (survivalTerrainHeightAt(seed, tileX, tileY) > 0) return 'highland';
 
   const dirtCliffRole = survivalDirtCliffRoleAt(seed, tileX, tileY);
   if (dirtCliffRole.startsWith('ramp_')) return 'dirt_terrace';
@@ -1823,7 +2080,10 @@ export function createSurvivalCollisionMap(
     width: SURVIVAL_WORLD_SIZE,
     height: SURVIVAL_WORLD_SIZE,
     blocked,
-    ...(medium === 'ground' ? { elevations: survivalElevationBytes(seed) } : {}),
+    ...(medium === 'ground' ? {
+      elevations: survivalElevationBytes(seed),
+      terrainTransitions: survivalTerrainTransitions(seed),
+    } : {}),
     ...(medium === 'ground' ? { horseJumpableTerrain } : {}),
     obstacles,
   };
@@ -1846,7 +2106,7 @@ export function survivalPlateauBytes(seed = SURVIVAL_WORLD_SEED): Uint8Array {
 }
 
 export function survivalElevationBytes(seed = SURVIVAL_WORLD_SEED): Uint8Array {
-  return plateauMaskFor(seed).slice();
+  return elevationMaskFor(seed).slice();
 }
 
 export function survivalDirtTerraceBytes(seed = SURVIVAL_WORLD_SEED): Uint8Array {

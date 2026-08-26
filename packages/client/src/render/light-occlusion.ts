@@ -17,6 +17,7 @@ import {
 import { selectAtlasFrame } from './sprite.js';
 import {
   plateauLayerPlansAt,
+  terrainBiomeAt,
   terrainMaximumElevation,
   type TerrainArray,
 } from './terrain.js';
@@ -117,6 +118,12 @@ export function createSpriteLightOccluder(
 function surfaceTileBlocksLight(terrain: TerrainArray, index: number, nested: boolean): boolean {
   const tileX = index % terrain.width;
   const tileY = Math.floor(index / terrain.width);
+  // The shared terrain sampler already classifies every blocking contour row
+  // as ridge. Avoid resolving/caching three contour plans for all 692k ocean
+  // and flat tiles when the live island contains only ~1.3k raised blockers.
+  if (nested && terrain.raisedTerrainCollisionClassified === true) {
+    return terrainBiomeAt(terrain, tileX, tileY) === 'ridge';
+  }
   if (nested && plateauLayerPlansAt(terrain, tileX, tileY).some(({ plan }) => plan.blocksMovement)) return true;
   const cliffRole = SURVIVAL_CLIFF_ROLES[terrain.cliffRoles[index] ?? 0] ?? 'none';
   // Biome/top-surface labels are not height. Only an authored vertical wall
@@ -128,7 +135,9 @@ function surfaceTileBlocksLight(terrain: TerrainArray, index: number, nested: bo
 function surfaceTileIsFrontFace(terrain: TerrainArray, index: number, nested: boolean): boolean {
   const tileX = index % terrain.width;
   const tileY = Math.floor(index / terrain.width);
-  if (nested && plateauLayerPlansAt(terrain, tileX, tileY).some(({ plan }) => (
+  if (nested && (terrain.raisedTerrainCollisionClassified !== true
+    || terrainBiomeAt(terrain, tileX, tileY) === 'ridge')
+    && plateauLayerPlansAt(terrain, tileX, tileY).some(({ plan }) => (
     plan.faceLayers.some((face) => face.direct && face.blocksMovement)
   ))) return true;
   const cliffRole = SURVIVAL_CLIFF_ROLES[terrain.cliffRoles[index] ?? 0] ?? 'none';

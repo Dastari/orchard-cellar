@@ -22,8 +22,22 @@ describe('34§6 stage-1 scalability rules', () => {
     expect(source).not.toMatch(/name: 'connection_presence'/);
     expect(source).not.toMatch(/name: 'player_equipment'/);
     expect(source).toContain('ctx.db.connection_presence_v2.count()');
-    expect(source).toContain('ctx.db.world_resource.clear()');
+    expect(source).not.toContain('ctx.db.world_resource.clear()');
+    expect(source.match(/reconcileGeneratedSurvivalResources\(ctx\)/g)?.length ?? 0)
+      .toBeGreaterThanOrEqual(2);
     expect(source).toContain('ctx.db.world_hive.clear()');
+  });
+
+  it('30§4 reconciles generated terrain resources without resetting unchanged progress', () => {
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const start = source.indexOf('function reconcileGeneratedSurvivalResources');
+    const end = source.indexOf('\nexport const ownSurvival', start);
+    const migration = source.slice(start, end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(migration).toContain('if (existing.kind !== generated.kind)');
+    expect(migration).toContain('ctx.db.world_resource.id.update({\n        ...existing,');
+    expect(migration).toContain('for (const resource of desired.values())');
+    expect(migration).not.toContain('.clear()');
   });
 
   it('keeps authorization ahead of indexed lookups in changed client reducers', () => {

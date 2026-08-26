@@ -11,14 +11,19 @@ become later homestead content inside this world.
   256-tile ocean apron surrounds every side for long-distance boat travel and
   future islands.
 - A radial coast plus low-frequency seeded noise produces water, beach, plains,
-  meadow, forest, valley, highland, and impassable ridge terrain.
+  meadow, forest, valley, highland, and impassable ridge terrain. The four
+  organic highland masks are repeatedly inset into deterministic level-1/2/3
+  contours; every connected contour gets one two-tile south-facing slope.
 - The generator lives in pure `packages/sim`; server collision and client rendering
   call the same functions. SpaceTimeDB stores seed/version and mutable entities, not
   hundreds of thousands of duplicated terrain rows.
 - Surface coordinates are migrated by the same fixed +256-tile offset when the
   ocean apron is installed. Players, NPC/home positions, farms/soil/crops,
   chests, loose items, and hives therefore stay on their original relative
-  island tile; only deterministic resources are regenerated for the new version.
+  island tile. Terrain version 26 reconciles deterministic resources by stable
+  id: removed/new rows follow the new terrain, while unchanged depleted and
+  regrowing rows retain their progress. Ambient wildlife/hives regenerate onto
+  habitat-valid homes; accounts, inventories, soil, chests, and placeables remain.
 - The purchased Cute Fantasy atlas supplies water, path/sand, grass detail,
   hillside, tree, character, and UI visuals. Missing biome-specific tiles use quiet
   palette fills until reviewed semantic extracts land.
@@ -41,6 +46,12 @@ remain M7a work; the M5.7 slice does not grant land permissions.
   waterfalls, and authored water rocks; `air` actors ignore terrain while still
   remaining inside world bounds. Add future movement types through this semantic
   rule rather than bypassing collision in entity-specific code.
+- Terrain height is an integer rather than a raised/not-raised flag. Every level
+  resolves the same edge, inset, three-row face, and collision profile independently.
+  Movement may cross adjacent heights only through the exact paired `slope`
+  transitions generated for that contour; all other height boundaries fail closed.
+  Projected cliff feet remain visual overlap and walkable, while caps and the two
+  authored wall rows block movement.
 - Beaches, plains, meadow, forest floor, valleys, and highlands are walkable for
   ground actors. Shoreline blends remain land for water collision, so boats and
   swimmers cannot visually overlap a bank.
@@ -144,6 +155,9 @@ accepted. Resource durability and tree regrowth are authority-owned.
 
 - Same seed yields byte-identical terrain/resource classifications; a different seed
   differs. Island border is all water and all 25 spawn clearings are walkable/resource-free.
+- The default seed has four level-1 components, four level-2 components, and three
+  retained level-3 summits; each connected contour has exactly one paired crossing.
+  Climbing and descending every crossing succeeds, while an unconnected edge rejects.
 - Biome fixture points cover coast, forest, meadow, valley, and highland; the generated
   map contains every required biome above a nontrivial tile count.
 - Authority movement rejects water, ridge, and live-tree entry and permits a depleted
