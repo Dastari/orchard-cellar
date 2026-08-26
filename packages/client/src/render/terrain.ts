@@ -612,6 +612,30 @@ export function terrainProjectedWorldYAtFoot(
 }
 
 export type TerrainContourBoundary = 'none' | 'blocked' | 'transition';
+export type TerrainPlaneCollisionCell = 'open' | 'blocked' | 'transition';
+
+/** Classifies one logical tile for the actor's current elevation plane. This
+ * is the debug/editor counterpart of the movement guard: other elevations are
+ * solid, while authored slope/stair endpoints remain visibly traversable. */
+export function terrainPlaneCollisionCellAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+  activeElevation: number,
+): TerrainPlaneCollisionCell {
+  if (tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height) return 'blocked';
+  const index = tileY * terrain.width + tileX;
+  if (terrain.blocked[index] ?? true) return 'blocked';
+  const transition = (terrainTransitionsByTile(terrain).get(index) ?? []).some((candidate) => {
+    if (candidate.kind !== 'slope' && candidate.kind !== 'stairs') return false;
+    const endpoint = (candidate.lowerTileX === tileX && candidate.lowerTileY === tileY)
+      || (candidate.upperTileX === tileX && candidate.upperTileY === tileY);
+    return endpoint && (candidate.contourLevel === activeElevation
+      || candidate.contourLevel - 1 === activeElevation);
+  });
+  if (transition) return 'transition';
+  return terrainElevationAt(terrain, tileX, tileY) === activeElevation ? 'open' : 'blocked';
+}
 
 export function terrainContourBoundaryBetween(
   terrain: TerrainArray,

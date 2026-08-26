@@ -32,6 +32,7 @@ import {
   invalidateTerrainElevationCaches,
   terrainContourBoundaryBetween,
   terrainContactWorldYForPlayer,
+  terrainPlaneCollisionCellAt,
   terrainProjectedDepthAtFoot,
   terrainProjectedElevationAtFoot,
   terrainProjectedWorldYAtFoot,
@@ -61,6 +62,27 @@ function terrainFixture(width: number, height: number, fill = 4): TerrainArray {
 }
 
 describe('shared client terrain array', () => {
+  it('classifies collision against the coordinate-derived active elevation plane', () => {
+    const terrain = terrainFixture(3, 1);
+    terrain.elevations.set([0, 1, 2]);
+    const withRamp = {
+      ...terrain,
+      terrainTransitions: [{
+        contourLevel: 1,
+        kind: 'slope' as const,
+        direction: 'right' as const,
+        lowerTileX: 0,
+        lowerTileY: 0,
+        upperTileX: 1,
+        upperTileY: 0,
+      }],
+    };
+    expect(terrainPlaneCollisionCellAt(withRamp, 0, 0, 0)).toBe('transition');
+    expect(terrainPlaneCollisionCellAt(withRamp, 1, 0, 0)).toBe('transition');
+    expect(terrainPlaneCollisionCellAt(withRamp, 2, 0, 0)).toBe('blocked');
+    expect(terrainPlaneCollisionCellAt(withRamp, 2, 0, 2)).toBe('open');
+  });
+
   it('reuses one classification for a seed/version pair', () => {
     const first = terrainForWorld(123, 3);
     expect(terrainForWorld(123, 3)).toBe(first);

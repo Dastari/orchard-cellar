@@ -64,6 +64,25 @@ describe('27§3 light occlusion classification', () => {
     expect(map.hardBlocked[4]).toBe(1);
     expect(map.frontFaces[4]).toBe(1);
     expect(map.hardBlocked[7]).toBe(1);
+    expect(map.terrainOccluders?.length).toBeGreaterThan(0);
+    expect(new Set(map.terrainOccluders?.map((occluder) => occluder.elevationLayer))).toEqual(
+      new Set([0, 1]),
+    );
+  });
+
+  it('rasterizes only occluders on the light source elevation plane', () => {
+    const unit = FIXED_UNITS_PER_PIXEL;
+    const obstacle = { left: 4 * unit, top: 8 * unit, right: 11 * unit, bottom: 15 * unit };
+    const map = createLightOcclusionMap(terrain(), [], [], [
+      { obstacle, receiver: null, footY: 16, elevationLayer: 0 },
+      { obstacle, receiver: null, footY: 16, elevationLayer: 1 },
+    ]);
+    const mask = new Uint8Array(12 * 12);
+    const owners = new Uint16Array(mask.length);
+    rasterizeLightOcclusion(mask, 12, 12, 0, 0, 4, map, owners, null, null, null, 0);
+    expect(owners[2 * 12 + 1]).toBe(1);
+    rasterizeLightOcclusion(mask, 12, 12, 0, 0, 4, map, owners, null, null, null, 1);
+    expect(owners[2 * 12 + 1]).toBe(2);
   });
 
   it('expands hard tiles and rasterizes sub-tile object footprints', () => {

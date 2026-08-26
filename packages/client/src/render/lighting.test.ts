@@ -99,4 +99,21 @@ describe('overworld lighting', () => {
     expect(side).toBeGreaterThan(0.4);
     expect(side).toBeLessThan(0.7);
   });
+
+  it('does not let a light on another elevation pre-darken a receiver', () => {
+    expect(southFacingReceiverBrightness(
+      100,
+      100,
+      { r: 20, g: 20, b: 32 },
+      [{
+        worldX: 100,
+        worldY: 84,
+        receiverDirectionWorldY: 84,
+        radiusTiles: 12,
+        color: { r: 255, g: 205, b: 132 },
+        elevationLayer: 1,
+      }],
+      0,
+    )).toBe(1);
+  });
 });

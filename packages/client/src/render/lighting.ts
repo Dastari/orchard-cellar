@@ -25,6 +25,9 @@ export interface PointLight {
   readonly strengthPerMille?: number;
   readonly facing?: LightFacing;
   readonly profile?: LightProfile;
+  /** Integer terrain plane sampled at the emitter's ground contact. Lights
+   * share shadows only with geometry on that plane. */
+  readonly elevationLayer?: number;
 }
 
 /** Quarter-tile spatial sampling keeps flood work bounded; 8-bit falloff,
@@ -100,11 +103,14 @@ export function southFacingReceiverBrightness(
   footY: number,
   ambient: RgbColor,
   lights: readonly PointLight[],
+  receiverElevationLayer?: number,
 ): number {
   const ambientLevel = perceivedLight(ambient);
   let unrestricted = ambientLevel;
   let facingRestricted = ambientLevel;
   for (const light of lights) {
+    if (receiverElevationLayer !== undefined
+      && (light.elevationLayer ?? 0) !== receiverElevationLayer) continue;
     const dx = light.worldX - footX;
     const emitterDy = light.worldY - footY;
     const absoluteX = Math.abs(dx);
@@ -293,6 +299,7 @@ export class TileLightmap {
       hash = mixLightHash(hash, light.color.b);
       hash = mixLightHash(hash, light.facing === 'up' ? 1 : light.facing === 'right' ? 2 : light.facing === 'down' ? 3 : light.facing === 'left' ? 4 : 0);
       hash = mixLightHash(hash, light.profile === 'flame' ? 1 : light.profile === 'pulse' ? 2 : 0);
+      hash = mixLightHash(hash, light.elevationLayer ?? 0);
     }
     return hash;
   }
@@ -328,45 +335,57 @@ export class TileLightmap {
       const startedAt = performance.now();
       this.lightPixels.fill(0);
       this.haloPixels.fill(0);
-      this.trunkCellCount = rasterizeLightOcclusion(
-        this.occlusion,
-        width,
-        height,
-        minTileX,
-        minTileY,
-        LIGHT_TEXELS_PER_TILE,
-        occlusionMap,
-        this.trunkOwners,
-        this.receiverOwners,
-        this.trunkCellIndices,
-        this.relitReceiverOwners,
-      );
-      buildLightOcclusionPrefix(this.occlusionPrefix, width, height, this.occlusion);
       this.floodTexelsVisitedValue = 0;
+      this.trunkCellCount = 0;
+      const lightsByElevation = new Map<number, PointLight[]>();
       for (const light of lights) {
-        this.flood.apply(
-          this.lightPixels,
-          this.haloPixels,
+        const elevation = light.elevationLayer ?? 0;
+        const group = lightsByElevation.get(elevation) ?? [];
+        group.push(light);
+        lightsByElevation.set(elevation, group);
+      }
+      for (const [elevation, elevationLights] of lightsByElevation) {
+        const trunkCellCount = rasterizeLightOcclusion(
+          this.occlusion,
           width,
           height,
-          {
-            centerX: lightmapCoordinate(light.worldX, minTileX, LIGHT_TEXELS_PER_TILE),
-            centerY: lightmapCoordinate(light.worldY, minTileY, LIGHT_TEXELS_PER_TILE),
-            radius: light.radiusTiles * LIGHT_TEXELS_PER_TILE,
-            color: light.color,
-            ...(light.strengthPerMille === undefined ? {} : { strengthPerMille: light.strengthPerMille }),
-            ...(light.facing === undefined ? {} : { facing: light.facing }),
-            ...(light.profile === undefined ? {} : { profile: light.profile }),
-          },
-          this.occlusion,
-          this.occlusionPrefix,
+          minTileX,
+          minTileY,
+          LIGHT_TEXELS_PER_TILE,
+          occlusionMap,
           this.trunkOwners,
           this.receiverOwners,
           this.trunkCellIndices,
-          this.trunkCellCount,
           this.relitReceiverOwners,
+          elevation,
         );
-        this.floodTexelsVisitedValue += this.flood.lastVisitedTexels;
+        this.trunkCellCount += trunkCellCount;
+        buildLightOcclusionPrefix(this.occlusionPrefix, width, height, this.occlusion);
+        for (const light of elevationLights) {
+          this.flood.apply(
+            this.lightPixels,
+            this.haloPixels,
+            width,
+            height,
+            {
+              centerX: lightmapCoordinate(light.worldX, minTileX, LIGHT_TEXELS_PER_TILE),
+              centerY: lightmapCoordinate(light.worldY, minTileY, LIGHT_TEXELS_PER_TILE),
+              radius: light.radiusTiles * LIGHT_TEXELS_PER_TILE,
+              color: light.color,
+              ...(light.strengthPerMille === undefined ? {} : { strengthPerMille: light.strengthPerMille }),
+              ...(light.facing === undefined ? {} : { facing: light.facing }),
+              ...(light.profile === undefined ? {} : { profile: light.profile }),
+            },
+            this.occlusion,
+            this.occlusionPrefix,
+            this.trunkOwners,
+            this.receiverOwners,
+            this.trunkCellIndices,
+            trunkCellCount,
+            this.relitReceiverOwners,
+          );
+          this.floodTexelsVisitedValue += this.flood.lastVisitedTexels;
+        }
       }
       this.floodMsValue = performance.now() - startedAt;
       this.lastMinTileX = minTileX;

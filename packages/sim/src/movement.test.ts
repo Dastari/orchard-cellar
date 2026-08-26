@@ -8,6 +8,7 @@ import {
   playerHitboxBounds,
   playerInteractionOrigin,
   positionCollides,
+  terrainPlaneAtPosition,
 } from './movement.js';
 
 describe('player movement collision', () => {
@@ -126,5 +127,22 @@ describe('player movement collision', () => {
       elevations: Uint8Array.from([0, 1]),
       terrainTransitions: [],
     })).toBe(false);
+  });
+
+  it('30§5 derives the terrain plane from coordinates without traversal history', () => {
+    const map = {
+      width: 3,
+      height: 1,
+      blocked: [false, false, false],
+      elevations: Uint8Array.from([0, 1, 2]),
+      terrainTransitions: [],
+    };
+    const positionAt = (tileX: number) => ({
+      x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: TILE_SIZE_FIXED / 2 + 6 * FIXED_UNITS_PER_PIXEL + 1,
+    });
+    expect(terrainPlaneAtPosition(positionAt(0), map)).toBe(0);
+    expect(terrainPlaneAtPosition(positionAt(1), map)).toBe(1);
+    expect(terrainPlaneAtPosition(positionAt(2), map)).toBe(2);
   });
 });

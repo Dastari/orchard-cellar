@@ -19,6 +19,7 @@ import {
   plateauLayerPlansAt,
   terrainBiomeAt,
   terrainMaximumElevation,
+  terrainProjectedRowsPerLevel,
   type TerrainArray,
 } from './terrain.js';
 
@@ -28,6 +29,9 @@ export interface LightSpriteOccluder {
   readonly width: number;
   readonly height: number;
   readonly opaque: Uint8Array;
+  /** Logical terrain plane occupied by this caster. Undefined preserves the
+   * legacy plane-zero behaviour for flat/fixed spaces. */
+  readonly elevationLayer?: number;
 }
 
 export interface LightTrunkOccluder {
@@ -49,6 +53,7 @@ export interface LightTrunkOccluder {
   /** Silhouette casters retain their authored umbra. Column casters use only
    * the collision base for a long projected shadow. */
   readonly shadowMode?: 'column' | 'silhouette';
+  readonly elevationLayer?: number;
 }
 
 export interface LightOcclusionMap {
@@ -62,6 +67,9 @@ export interface LightOcclusionMap {
   readonly softObstacles: readonly CollisionObstacle[];
   readonly spriteOccluders: readonly LightSpriteOccluder[];
   readonly trunkOccluders: readonly LightTrunkOccluder[];
+  /** Nested cliff faces in projected screen-world coordinates. Presence of
+   * this channel replaces the old unprojected whole-tile terrain mask. */
+  readonly terrainOccluders?: readonly LightSpriteOccluder[];
 }
 
 interface LightSpriteMask {
@@ -151,6 +159,7 @@ export function createLightOcclusionMap(
   softObstacles: readonly CollisionObstacle[] = [],
   spriteOccluders: readonly LightSpriteOccluder[] = [],
   trunkOccluders: readonly LightTrunkOccluder[] = [],
+  raisedTerrainAsset?: LoadedAsset,
 ): LightOcclusionMap {
   const hardBlocked = new Uint8Array(terrain.width * terrain.height);
   const frontFaces = new Uint8Array(hardBlocked.length);
@@ -163,6 +172,39 @@ export function createLightOcclusionMap(
     frontFaces[index] = terrain.spaceId === TOPSIDE_SPACE_ID
       && surfaceTileIsFrontFace(terrain, index, nested) ? 1 : 0;
   }
+  const terrainOccluders: LightSpriteOccluder[] | undefined =
+    terrain.spaceId === TOPSIDE_SPACE_ID && nested ? [] : undefined;
+  if (terrainOccluders !== undefined) {
+    const projectionRows = terrainProjectedRowsPerLevel();
+    for (let index = 0; index < hardBlocked.length; index += 1) {
+      if (hardBlocked[index] !== 1) continue;
+      const tileX = index % terrain.width;
+      const tileY = Math.floor(index / terrain.width);
+      for (const { contourLevel, plan } of plateauLayerPlansAt(terrain, tileX, tileY)) {
+        const projection = contourLevel * projectionRows * 16;
+        for (const face of plan.faceLayers) {
+          if (!face.direct || !face.blocksLight) continue;
+          const authored = raisedTerrainAsset === undefined ? null : createSpriteLightOccluder(
+            raisedTerrainAsset,
+            'base',
+            face.frame,
+            tileX * 16 + 8,
+            (tileY + 1) * 16 - 1 - projection,
+          );
+          terrainOccluders.push({
+            ...(authored ?? {
+              left: tileX * 16,
+              top: tileY * 16 - projection,
+              width: 16,
+              height: 16,
+              opaque: new Uint8Array(16 * 16).fill(1),
+            }),
+            elevationLayer: contourLevel - 1,
+          });
+        }
+      }
+    }
+  }
   return {
     width: terrain.width,
     height: terrain.height,
@@ -170,10 +212,53 @@ export function createLightOcclusionMap(
     frontFaces,
     softObstacles,
     spriteOccluders,
+    ...(terrainOccluders === undefined ? {} : { terrainOccluders }),
     // Painter-depth order lets the lower foot own overlapping elevated pixels
     // without allocating a separate depth buffer on every lightmap rebuild.
     trunkOccluders: [...trunkOccluders].sort((left, right) => left.footY - right.footY),
   };
+}
+
+function rasterizeSpriteBlocker(
+  target: Uint8Array,
+  width: number,
+  height: number,
+  originPixelX: number,
+  originPixelY: number,
+  texelPixels: number,
+  occluder: LightSpriteOccluder,
+  blocker: number,
+): void {
+  const minX = Math.max(0, Math.floor((occluder.left - originPixelX) / texelPixels));
+  const minY = Math.max(0, Math.floor((occluder.top - originPixelY) / texelPixels));
+  const maxX = Math.min(width - 1, Math.ceil((occluder.left + occluder.width - originPixelX) / texelPixels) - 1);
+  const maxY = Math.min(height - 1, Math.ceil((occluder.top + occluder.height - originPixelY) / texelPixels) - 1);
+  for (let y = minY; y <= maxY; y += 1) for (let x = minX; x <= maxX; x += 1) {
+    const sourceLeft = Math.max(0, Math.floor(originPixelX + x * texelPixels - occluder.left));
+    const sourceTop = Math.max(0, Math.floor(originPixelY + y * texelPixels - occluder.top));
+    const sourceRight = Math.min(
+      occluder.width,
+      Math.ceil(originPixelX + (x + 1) * texelPixels - occluder.left),
+    );
+    const sourceBottom = Math.min(
+      occluder.height,
+      Math.ceil(originPixelY + (y + 1) * texelPixels - occluder.top),
+    );
+    let opaquePixels = 0;
+    let sampledPixels = 0;
+    for (let sourceY = sourceTop; sourceY < sourceBottom; sourceY += 1) {
+      const row = sourceY * occluder.width;
+      for (let sourceX = sourceLeft; sourceX < sourceRight; sourceX += 1) {
+        sampledPixels += 1;
+        opaquePixels += occluder.opaque[row + sourceX] ?? 0;
+      }
+    }
+    if (sampledPixels === 0 || opaquePixels * 4 < sampledPixels) continue;
+    const index = y * width + x;
+    if (blocker === LIGHT_SPRITE_BLOCKER
+      && (target[index] === LIGHT_HARD_BLOCKER || target[index] === LIGHT_CLIFF_FACE_BLOCKER)) continue;
+    target[index] = blocker;
+  }
 }
 
 /** Rasterizes tile blockers and fixed-point collision footprints into the
@@ -190,6 +275,7 @@ export function rasterizeLightOcclusion(
   receiverOwners: Uint16Array | null = null,
   trunkCellIndices: Uint32Array | null = null,
   relitReceiverOwners: Uint16Array | null = null,
+  elevationLayer = 0,
 ): number {
   target.fill(LIGHT_OPEN);
   trunkOwners?.fill(0);
@@ -200,7 +286,7 @@ export function rasterizeLightOcclusion(
 
   const tileWidth = Math.ceil(width / texelsPerTile);
   const tileHeight = Math.ceil(height / texelsPerTile);
-  for (let localTileY = 0; localTileY < tileHeight; localTileY += 1) {
+  if (map.terrainOccluders === undefined) for (let localTileY = 0; localTileY < tileHeight; localTileY += 1) {
     const tileY = minTileY + localTileY;
     if (tileY < 0 || tileY >= map.height) continue;
     for (let localTileX = 0; localTileX < tileWidth; localTileX += 1) {
@@ -224,6 +310,19 @@ export function rasterizeLightOcclusion(
   const texelPixels = 16 / texelsPerTile;
   const originPixelX = minTileX * 16;
   const originPixelY = minTileY * 16;
+  for (const occluder of map.terrainOccluders ?? []) {
+    if ((occluder.elevationLayer ?? 0) !== elevationLayer) continue;
+    rasterizeSpriteBlocker(
+      target,
+      width,
+      height,
+      originPixelX,
+      originPixelY,
+      texelPixels,
+      occluder,
+      LIGHT_CLIFF_FACE_BLOCKER,
+    );
+  }
   for (const obstacle of map.softObstacles) {
     const left = obstacle.left / FIXED_UNITS_PER_PIXEL;
     const top = obstacle.top / FIXED_UNITS_PER_PIXEL;
@@ -244,40 +343,15 @@ export function rasterizeLightOcclusion(
   }
 
   for (const occluder of map.spriteOccluders) {
-    const minX = Math.max(0, Math.floor((occluder.left - originPixelX) / texelPixels));
-    const minY = Math.max(0, Math.floor((occluder.top - originPixelY) / texelPixels));
-    const maxX = Math.min(width - 1, Math.ceil((occluder.left + occluder.width - originPixelX) / texelPixels) - 1);
-    const maxY = Math.min(height - 1, Math.ceil((occluder.top + occluder.height - originPixelY) / texelPixels) - 1);
-    for (let y = minY; y <= maxY; y += 1) for (let x = minX; x <= maxX; x += 1) {
-      const sourceLeft = Math.max(0, Math.floor(originPixelX + x * texelPixels - occluder.left));
-      const sourceTop = Math.max(0, Math.floor(originPixelY + y * texelPixels - occluder.top));
-      const sourceRight = Math.min(
-        occluder.width,
-        Math.ceil(originPixelX + (x + 1) * texelPixels - occluder.left),
-      );
-      const sourceBottom = Math.min(
-        occluder.height,
-        Math.ceil(originPixelY + (y + 1) * texelPixels - occluder.top),
-      );
-      let opaquePixels = 0;
-      let sampledPixels = 0;
-      for (let sourceY = sourceTop; sourceY < sourceBottom; sourceY += 1) {
-        const row = sourceY * occluder.width;
-        for (let sourceX = sourceLeft; sourceX < sourceRight; sourceX += 1) {
-          sampledPixels += 1;
-          opaquePixels += occluder.opaque[row + sourceX] ?? 0;
-        }
-      }
-      if (sampledPixels > 0 && opaquePixels * 4 >= sampledPixels) {
-        const index = y * width + x;
-        if (target[index] !== LIGHT_HARD_BLOCKER && target[index] !== LIGHT_CLIFF_FACE_BLOCKER) {
-          target[index] = LIGHT_SPRITE_BLOCKER;
-        }
-      }
-    }
+    if ((occluder.elevationLayer ?? 0) !== elevationLayer) continue;
+    rasterizeSpriteBlocker(
+      target, width, height, originPixelX, originPixelY, texelPixels,
+      occluder, LIGHT_SPRITE_BLOCKER,
+    );
   }
 
   for (const [trunkIndex, trunk] of map.trunkOccluders.entries()) {
+    if ((trunk.elevationLayer ?? 0) !== elevationLayer) continue;
     const owner = trunkIndex + 1;
     if (owner > 0xffff) break;
     const receiver = trunk.receiver;

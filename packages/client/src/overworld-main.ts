@@ -8,7 +8,6 @@ import {
   INPUT_REFRESH_STEPS,
   SIM_STEPS_PER_AUTHORITY_TICK,
   SIM_TICKS_PER_SECOND,
-  SURVIVAL_CHUNK_TILES,
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_VERSION,
   TILE_SIZE_FIXED,
@@ -175,13 +174,15 @@ import {
   type WorldDepthItem,
 } from './render/renderer.js';
 import {
-  terrainContourBoundaryBetween,
   terrainContactWorldYForPlayer,
+  terrainElevationAtWorldFoot,
   terrainForSpace,
   terrainForWorld,
   terrainMaximumElevation,
+  terrainPlaneCollisionCellAt,
   terrainProjectedDepthAtFoot,
   terrainProjectedElevationAtFoot,
+  terrainProjectedRowsPerLevel,
   terrainProjectedSortOffset,
   terrainProjectedWorldYAtFoot,
   type TerrainArray,
@@ -358,7 +359,9 @@ let collisionKey = '';
 let observedResourceRevision = -1;
 const initialTerrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
 let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
-let lightOcclusion: LightOcclusionMap = createLightOcclusionMap(initialTerrain);
+let lightOcclusion: LightOcclusionMap = createLightOcclusionMap(
+  initialTerrain, [], [], [], art.cliff,
+);
 let activeSpaceDefinition: SpaceDefinition = spaceDefinitionFor(TOPSIDE_SPACE_ID)!;
 let observedSpaceId = TOPSIDE_SPACE_ID;
 let portalTransitionStartedAtMs = -1;
@@ -535,7 +538,23 @@ function playerState(row: PlayerPosition): PlayerState {
   };
 }
 
-function elevatedLightOccluders(snapshot: OverworldView, seed: number): LightTrunkOccluder[] {
+function projectedLightObstacle(
+  obstacle: CollisionObstacle,
+  projection: number,
+): CollisionObstacle {
+  const offset = Math.round(projection * FIXED_UNITS_PER_PIXEL);
+  return {
+    ...obstacle,
+    top: obstacle.top - offset,
+    bottom: obstacle.bottom - offset,
+  };
+}
+
+function elevatedLightOccluders(
+  snapshot: OverworldView,
+  seed: number,
+  terrain: TerrainArray,
+): LightTrunkOccluder[] {
   const result: LightTrunkOccluder[] = [];
   const add = (
     asset: (typeof art)['chest'] | undefined,
@@ -545,13 +564,17 @@ function elevatedLightOccluders(snapshot: OverworldView, seed: number): LightTru
     obstacle: CollisionObstacle | null,
   ): void => {
     if (asset === undefined || obstacle === null) return;
+    const projection = terrainProjectedDepthAtFoot(terrain, worldX, worldY);
+    const elevationLayer = terrainElevationAtWorldFoot(terrain, worldX, worldY);
+    const projectedWorldY = worldY - projection;
     result.push({
-      obstacle,
-      receiver: createSpriteLightOccluder(asset, animation, 0, worldX, worldY),
+      obstacle: projectedLightObstacle(obstacle, projection),
+      receiver: createSpriteLightOccluder(asset, animation, 0, worldX, projectedWorldY),
       footX: worldX,
-      footY: worldY,
+      footY: projectedWorldY,
       receiverFacing: 'south',
       shadowMode: 'silhouette',
+      elevationLayer,
     });
   };
   if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
@@ -629,7 +652,7 @@ function matureTreeLightAsset(kind: string): (typeof art)['treeMature'] {
 // mature by definition. Stage 3 is the shared mature-tree wire value.
 const MATURE_TREE_GROWTH_STAGE = 3;
 
-function treeLightOccluders(snapshot: OverworldView): LightTrunkOccluder[] {
+function treeLightOccluders(snapshot: OverworldView, terrain: TerrainArray): LightTrunkOccluder[] {
   const result: LightTrunkOccluder[] = [];
   for (const resource of snapshot.resources) {
     const growthStage = (resource as WorldResource & { readonly growthStage?: number }).growthStage;
@@ -637,15 +660,21 @@ function treeLightOccluders(snapshot: OverworldView): LightTrunkOccluder[] {
       || (growthStage !== undefined && growthStage !== MATURE_TREE_GROWTH_STAGE)) continue;
     const worldX = resource.tileX * 16 + 8;
     const footY = (resource.tileY + 1) * 16;
+    const projection = terrainProjectedDepthAtFoot(terrain, worldX, footY);
+    const projectedFootY = footY - projection;
     result.push({
-      obstacle: survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY),
+      obstacle: projectedLightObstacle(
+        survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY),
+        projection,
+      ),
       receiver: createSpriteLightOccluder(
-        matureTreeLightAsset(resource.kind), 'base', 0, worldX, footY,
+        matureTreeLightAsset(resource.kind), 'base', 0, worldX, projectedFootY,
       ),
       footX: worldX,
-      footY,
+      footY: projectedFootY,
       receiverFacing: 'south',
       shadowMode: 'column',
+      elevationLayer: terrainElevationAtWorldFoot(terrain, worldX, footY),
     });
   }
   return result;
@@ -669,7 +698,8 @@ function refreshCollision(snapshot: OverworldView): void {
     terrain,
     [],
     [],
-    [...elevatedLightOccluders(snapshot, seed), ...treeLightOccluders(snapshot)],
+    [...elevatedLightOccluders(snapshot, seed, terrain), ...treeLightOccluders(snapshot, terrain)],
+    art.cliff,
   );
 }
 
@@ -1625,64 +1655,37 @@ function drawCollisionOverlay(
   viewportWidth: number,
   viewportHeight: number,
   terrain: TerrainArray,
+  activeElevation: number,
   showEntityObstacles: boolean,
 ): void {
+  const planeProjection = activeElevation * terrainProjectedRowsPerLevel() * 16;
   const minX = Math.max(0, Math.floor(cameraX / 16));
-  const minY = Math.max(0, Math.floor(cameraY / 16));
+  const minY = Math.max(0, Math.floor((cameraY + planeProjection) / 16));
   const maxX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16));
-  const maxY = Math.min(terrain.height - 1, Math.ceil((cameraY + viewportHeight / scale) / 16));
+  const maxY = Math.min(
+    terrain.height - 1,
+    Math.ceil((cameraY + viewportHeight / scale + planeProjection) / 16),
+  );
   for (let tileY = minY; tileY <= maxY; tileY += 1) for (let tileX = minX; tileX <= maxX; tileX += 1) {
     const index = tileY * terrain.width + tileX;
-    const blocked = worldCollision.blocked[index] ?? true;
-    const terrainBlocked = terrain.blocked[index] ?? true;
-    context.fillStyle = blocked ? terrainBlocked ? '#ff335577' : '#ff9d2377' : '#55ff8850';
-    context.fillRect(
-      Math.round((tileX * 16 - cameraX) * scale),
-      Math.round((tileY * 16 - cameraY) * scale),
-      16 * scale,
-      16 * scale,
-    );
-    context.strokeStyle = '#fff3';
-    context.lineWidth = 1;
-    context.strokeRect(
-      Math.round((tileX * 16 - cameraX) * scale),
-      Math.round((tileY * 16 - cameraY) * scale),
-      16 * scale,
-      16 * scale,
-    );
-    for (const [deltaX, deltaY] of [[1, 0], [0, 1]] as const) {
-      const neighborX = tileX + deltaX;
-      const neighborY = tileY + deltaY;
-      if (neighborX >= terrain.width || neighborY >= terrain.height) continue;
-      const boundary = terrainContourBoundaryBetween(
-        terrain,
-        tileX,
-        tileY,
-        neighborX,
-        neighborY,
-      );
-      if (boundary === 'none') continue;
-      const edgeX = (tileX + (deltaX === 1 ? 1 : 0)) * 16;
-      const edgeY = (tileY + (deltaY === 1 ? 1 : 0)) * 16;
-      context.beginPath();
-      context.strokeStyle = boundary === 'transition' ? '#38f6ffff' : '#ff36dfff';
-      context.lineWidth = Math.max(2, scale);
-      context.moveTo(
-        Math.round((edgeX - cameraX) * scale),
-        Math.round((edgeY - cameraY) * scale),
-      );
-      context.lineTo(
-        Math.round((edgeX + (deltaY === 1 ? 16 : 0) - cameraX) * scale),
-        Math.round((edgeY + (deltaX === 1 ? 16 : 0) - cameraY) * scale),
-      );
-      context.stroke();
+    const cell = terrainPlaneCollisionCellAt(terrain, tileX, tileY, activeElevation);
+    const blocked = cell === 'blocked' || (worldCollision.blocked[index] ?? true);
+    const screenX = Math.round((tileX * 16 - cameraX) * scale);
+    const screenY = Math.round((tileY * 16 - planeProjection - cameraY) * scale);
+    if (blocked || cell === 'transition') {
+      context.fillStyle = blocked ? '#ff335588' : '#38f6ff77';
+      context.fillRect(screenX, screenY, 16 * scale, 16 * scale);
     }
+    context.strokeStyle = blocked ? '#ff7588cc' : cell === 'transition' ? '#76fbffff' : '#ffffff24';
+    context.lineWidth = 1;
+    context.strokeRect(screenX, screenY, 16 * scale, 16 * scale);
   }
   for (const obstacle of showEntityObstacles ? worldCollision.obstacles ?? [] : []) {
     const left = obstacle.left / FIXED_UNITS_PER_PIXEL;
     const top = obstacle.top / FIXED_UNITS_PER_PIXEL;
     const width = (obstacle.right - obstacle.left + 1) / FIXED_UNITS_PER_PIXEL;
     const height = (obstacle.bottom - obstacle.top + 1) / FIXED_UNITS_PER_PIXEL;
+    if (terrainElevationAtWorldFoot(terrain, left + width / 2, top + height) !== activeElevation) continue;
     const projection = terrainProjectedDepthAtFoot(
       terrain,
       left + width / 2,
@@ -1703,26 +1706,14 @@ function drawCollisionOverlay(
       Math.ceil(height * scale),
     );
   }
-  const chunkPixels = SURVIVAL_CHUNK_TILES * 16;
-  const residentKeys = groundCache.residentKeys;
-  const minChunkX = Math.max(0, Math.floor(cameraX / chunkPixels));
-  const minChunkY = Math.max(0, Math.floor(cameraY / chunkPixels));
-  const lastChunkX = Math.ceil(terrain.width / SURVIVAL_CHUNK_TILES) - 1;
-  const lastChunkY = Math.ceil(terrain.height / SURVIVAL_CHUNK_TILES) - 1;
-  const maxChunkX = Math.min(lastChunkX, Math.floor((cameraX + viewportWidth / scale) / chunkPixels));
-  const maxChunkY = Math.min(lastChunkY, Math.floor((cameraY + viewportHeight / scale) / chunkPixels));
-  context.lineWidth = Math.max(1, scale);
-  for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY += 1) {
-    for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
-      context.strokeStyle = residentKeys.includes(`${chunkX},${chunkY}`) ? '#44ffe0cc' : '#ffffff66';
-      context.strokeRect(
-        Math.round((chunkX * chunkPixels - cameraX) * scale),
-        Math.round((chunkY * chunkPixels - cameraY) * scale),
-        chunkPixels * scale,
-        chunkPixels * scale,
-      );
-    }
-  }
+  context.save();
+  context.font = `${Math.max(8, Math.round(8 * scale))}px monospace`;
+  context.textBaseline = 'top';
+  context.fillStyle = '#07120ddd';
+  context.fillRect(4, 4, Math.max(96, 58 * scale), Math.max(14, 11 * scale));
+  context.fillStyle = '#f6f0d8';
+  context.fillText(`HEIGHT ${activeElevation}`, 8, 6);
+  context.restore();
 }
 
 function render(alpha = 1): void {
@@ -1893,10 +1884,12 @@ function render(alpha = 1): void {
   const pointLights: PointLight[] = [];
   const projectedLight = (light: PointLight, terrainSampleY?: number): PointLight => {
     const receiverY = light.receiverDirectionWorldY ?? light.worldY;
-    const projection = projectionAt(light.worldX, terrainSampleY ?? receiverY);
+    const sampleY = terrainSampleY ?? receiverY;
+    const projection = projectionAt(light.worldX, sampleY);
     return {
       ...light,
       worldY: light.worldY - projection,
+      elevationLayer: terrainElevationAtWorldFoot(terrain, light.worldX, sampleY),
       ...(light.receiverDirectionWorldY === undefined
         ? {}
         : { receiverDirectionWorldY: light.receiverDirectionWorldY - projection }),
@@ -1910,7 +1903,15 @@ function render(alpha = 1): void {
     footY: number,
     draw: () => void,
   ): void => {
-    const brightness = southFacingReceiverBrightness(footX, footY, frameAmbient, pointLights);
+    const projection = projectionAt(footX, footY);
+    const elevationLayer = terrainElevationAtWorldFoot(terrain, footX, footY);
+    const brightness = southFacingReceiverBrightness(
+      footX,
+      footY - projection,
+      frameAmbient,
+      pointLights,
+      elevationLayer,
+    );
     context.save();
     if (brightness < 0.995) context.filter = `brightness(${Math.round(brightness * 1000) / 10}%)`;
     draw();
@@ -2470,6 +2471,7 @@ function render(alpha = 1): void {
     && overworldUi.openWindow === null && !chatOverlay.isOpen
     && drawBowAimGuide(context, cameraX, cameraY, scale)) drawCalls += 1;
   if (debugCollision) {
+    const activeElevation = terrainElevationAtWorldFoot(terrain, localX, localTerrainContactY);
     drawCollisionOverlay(
       context,
       cameraX,
@@ -2478,6 +2480,7 @@ function render(alpha = 1): void {
       frame.layout.width,
       frame.layout.height,
       terrain,
+      activeElevation,
       !debugEntitiesHidden,
     );
     if (!debugEntitiesHidden) drawPlayerCollisionOverlay(context, cameraX, cameraY, scale, snapshot, terrain);
@@ -2852,7 +2855,7 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyG' && !event.repeat) {
     debugCollision = !debugCollision;
     setToast(debugCollision
-      ? 'COLLISION: MAGENTA CONTOUR / CYAN RAMP / RED TERRAIN / AMBER RESOURCE'
+      ? 'COLLISION: CURRENT HEIGHT / RED BLOCKED / CYAN TRANSITION / AMBER OBJECT'
       : 'COLLISION OVERLAY OFF', 'info', 180);
     event.preventDefault();
     return;

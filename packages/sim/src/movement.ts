@@ -6,7 +6,7 @@ import {
   type PlayerState,
   type Vec2Fixed,
 } from './state.js';
-import { terrainWalkingStepAllowed } from './terrain-elevation.js';
+import { terrainElevationAt, terrainWalkingStepAllowed } from './terrain-elevation.js';
 
 const CARDINAL_SPEED = FIXED_UNITS_PER_PIXEL;
 const DIAGONAL_SPEED = 11;
@@ -106,6 +106,20 @@ function movementCrossesBlockedElevation(
     fromTileY,
     toTileX,
     toTileY,
+  );
+}
+
+/** Resolves an actor's terrain plane from its physical ground-contact point.
+ * This is deliberately position-derived: teleports, respawns, and ordinary
+ * walking all land on the same height without relying on transition history. */
+export function terrainPlaneAtPosition(position: Vec2Fixed, map: CollisionMap): number {
+  if (map.elevations === undefined) return 0;
+  return terrainElevationAt(
+    map.elevations,
+    map.width,
+    map.height,
+    Math.floor(position.x / TILE_SIZE_FIXED),
+    Math.floor((position.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED),
   );
 }
 
