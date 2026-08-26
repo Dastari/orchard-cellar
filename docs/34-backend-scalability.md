@@ -60,6 +60,7 @@ disciplined follow-through.
 | N10 | 3.1 s first-call wildlife generation inside a 50 ms scheduled transaction after restart; `migrateWorldForOceanExpansion` walks 11 tables in one transaction | `index.ts:4846, 1483` |
 | N11 | Dead schema: `connection_presence` v1 and never-written `player_equipment` still registered and shipped to clients | `index.ts:484, 325` |
 | N12 | Unbounded caches: client `terrainClassificationCache` and sim seed-keyed mask caches never evict; a seed change leaks ~15 MB | `render/terrain.ts:62`, `survival-world.ts:446+` |
+| N13 | Dynamic homesteads turn the authority `SPACE_TERRAIN_COLLISION` map into an unbounded per-space memory leak; leaving a subscription does not release server memory | `world-rules.ts:63-97`, docs/35 §3.1 |
 
 ### Verified healthy (do not re-litigate)
 
@@ -125,6 +126,16 @@ timings logged at 1 Hz aggregate; alert threshold at 60% of the 50 ms budget.
 Client F3: cache sizes per table, subscription query count, resubscription
 rate, ground-cache hit rate. Every stage's Done-when cites these numbers.
 
+### Homestead instance gate
+
+Before docs/35 phase 2, add per-space cache entry count/bytes, hit/miss, and
+eviction counters. Replace the unbounded authority collision map with a bounded
+LRU and/or final-occupant eviction, and resolve dynamic space definitions from
+the indexed `homestead` row rather than static lookup alone. A client
+unsubscribe controls only its replicated cache; it is not a server-memory
+primitive. The hot tick must construct work from occupied `spaceId` chunk
+neighborhoods and perform no scan over offline homesteads.
+
 ## 6. Tests and acceptance
 
 - **Reducer:** index-path equivalence tests (carrier/rider/chunk lookups
@@ -138,6 +149,11 @@ rate, ground-cache hit rate. Every stage's Done-when cites these numbers.
   in this doc's §7 log.
 - **Client:** 4K + min-zoom ground-cache soak (no thrash); long-travel soak
   (stable memory, bounded caches).
+- **Homesteads:** cycle through 1,000 synthetic `spaceId` values with a small
+  configured terrain/collision cache; assert bounded resident entries after
+  every departure and zero hot-tick work for unoccupied spaces. Re-enter an
+  evicted farm and prove deterministic terrain plus persisted mutations rebuild
+  the same result.
 
 ## 7. Verification log
 

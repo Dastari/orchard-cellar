@@ -257,6 +257,22 @@ and host tools. Add the 25-friend load and artificial-latency harnesses.
 enforced by reducer tests, shared harvest/machine/gift races commit once, social verbs
 round-trip, and 25 simulated friends stay within the M9 resource/latency budget.
 
+## M7.1 — Instanced homesteads and farming `☐`
+
+Implement [35-homesteads-and-farming.md](35-homesteads-and-farming.md) on the
+shared SpaceTimeDB world database. Homesteads are logical `spaceId` coordinate
+worlds—not separate database deployments—with generated base terrain and sparse
+persistent mutation rows. Complete dynamic `homestead` definition lookup, atomic
+portal transitions, make-before-break regional subscriptions, private roster/request
+views, occupancy-scoped simulation, timestamp-derived crop/curing progress, and the
+bounded per-space terrain/collision cache gate from docs/34 before opening deeds.
+
+**Done when:** two accounts own distinct homesteads and can visit according to role;
+restart/backup preserves both; leaving evicts client rows and generated cache entries
+without deleting durable state; offline farms receive zero 20 Hz work; re-entry
+reconstructs identical terrain plus mutations; and the 1,000-space cache soak remains
+within its configured bound.
+
 ## M8 — Texture & delight `☐`
 Festivals (4, with mini-games), daily micro-events, the dog, forageables + bees,
 traveling merchant, estate-hand NPCs with visible work loops, full soundtrack

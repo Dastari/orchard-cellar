@@ -31,12 +31,25 @@ Committed transactions are restored from the SpaceTimeDB commit log after restar
 The M5.5 proof preserved player position and shared-tree state through a full host
 stop/start and a compatible module republish.
 
-Farm production does not run for every farm on the 20 Hz movement schedule. Each farm
-stores the timestamp represented by its economy state. Before a farm interaction or
-when a farm becomes occupied, the authority applies the deterministic
-`applyOffline(state, elapsedSeconds)` logic once and advances the timestamp in the same
-transaction. A slow schedule may maintain specifically active entities; a global
-per-tick farm scan is forbidden.
+One Orchard Cellar friends-server uses **one SpaceTimeDB database**, not one database
+per farm. Overworld, mines, interiors, and per-player homesteads are logical spaces in
+shared normalized tables, partitioned by `spaceId`. A separate database is a future
+world/shard boundary only; it is not the homestead lifecycle mechanism. This keeps
+portal travel, inventory transfer, permissions, moderation, migrations, and backups
+inside one transactional authority.
+
+The server's authoritative tables remain memory-resident and durable after every
+player leaves a space. “Unload” means that clients unsubscribe and evict replicated
+rows from their local caches, hot simulation excludes the now-unoccupied `spaceId`,
+and disposable generated terrain/collision caches may evict it. It never means
+deleting persistent rows or expecting a subscription to release server table memory.
+
+Farm production does not run for every farm on the 20 Hz movement schedule. Legacy
+aggregate production may store the timestamp represented by its economy state and
+apply deterministic `applyOffline(state, elapsedSeconds)` once. Doc 35 homestead crops
+and barrels instead derive their current stage directly from planted/sealed timestamps
+without a catch-up write. A slow schedule may maintain specifically active entities;
+a global per-tick farm scan is forbidden.
 
 The schema-versioned browser save remains only until M6 implements and verifies a
 one-time local import. After successful import, authoritative progression comes only
@@ -77,7 +90,10 @@ path, then verify restoration automatically.
 - No whole-farm blob updated at movement frequency.
 - No public inventory/progression rows.
 - No authorization based on what a client happened to subscribe to.
+- No database/module deployment per homestead; use `spaceId` in the shared world
+  database.
 - No per-tick economy writes for absent farms.
+- No unbounded generated terrain, collision, or per-space caches.
 - No destructive production publish/reset as a migration shortcut.
 
 ## Retention addendum (2026-08-26)

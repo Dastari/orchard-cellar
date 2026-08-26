@@ -41,20 +41,21 @@ down a corridor before you see them. Combat creatures arrive in the combat era
 
 ## 2. Spaces — the instancing model
 
-A **space** is a self-contained coordinate world: its own size, terrain
-generator, collision, ambient light, audio bed, and camera bounds. Spaces are
-static data in `packages/sim/src/spaces.ts`:
+A **space** is a self-contained coordinate world inside the same SpaceTimeDB
+database: its own size, terrain generator, collision, ambient light, audio bed,
+and camera bounds. Static spaces are data in `packages/sim/src/spaces.ts`;
+dynamic homesteads are resolved from their `homestead` registry row (doc 35):
 
 ```ts
 export interface SpaceDefinition {
-  readonly spaceId: number;              // u8; 0 = overworld, stable forever
+  readonly spaceId: number;              // u16; 0 = overworld, stable forever
   readonly name: string;
   readonly sizeTiles: number;            // square, multiple of SURVIVAL_CHUNK_TILES
-  readonly generator: 'island' | 'mine';
+  readonly generator: 'island' | 'mine' | 'homestead' | 'debug_flat';
   readonly generatorParams?: MineParams; // depth level, richness, water chance…
   readonly ambient: 'clock' | RgbColor;  // 'clock' = day/night; literal = fixed
   readonly weather: boolean;             // rain/audio; false underground
-  readonly audioBed: 'estate' | 'cave';
+  readonly audioBed: 'estate' | 'cave' | 'homestead' | 'debug';
 }
 
 export const SPACES: readonly SpaceDefinition[] = [
@@ -84,7 +85,7 @@ export const SPACES: readonly SpaceDefinition[] = [
 
 Additive columns, with one honest caveat about indexes:
 
-- **`spaceId: u8` (default 0)** added to `player_position`, `world_resource`,
+- **`spaceId: u16` (default 0)** added to `player_position`, `world_resource`,
   `world_item`, `world_chest`, `world_npc`, `world_soil`, `world_speech`.
   Existing rows are all legitimately space 0, so the default *is* the backfill.
 - **`by_chunk` btree indexes become `['spaceId','chunkX','chunkY']`.** Index
@@ -98,7 +99,7 @@ Additive columns, with one honest caveat about indexes:
 - **New table `space_portal`** — authored by generation at publish/init time so
   both sides agree, but small and public so the client needn't re-derive it:
   `{ id: u32 pk, kind: 'cave_mouth'|'ladder_down'|'ladder_up'|'mine_shaft',
-  fromSpace: u8, fromTileX/Y: u16, toSpace: u8, toTileX/Y: u16 }`. Portals are
+  fromSpace: u16, fromTileX/Y: u16, toSpace: u16, toTileX/Y: u16 }`. Portals are
   bidirectional pairs (two rows).
 - **New reducer `usePortal(portalId)`**: reject if mounted (`no_horses_underground`
   — horses stay topside, the pack has no cave horse and neither should we),
@@ -114,7 +115,8 @@ Additive columns, with one honest caveat about indexes:
   `naturalSpawnTile` stay overworld-only (fainting underground wakes you topside
   at your spawn — diegetically, friends carried you out).
 - **Authority collision goes per-space:** the `SURVIVAL_TERRAIN_COLLISION`
-  module singleton (`world-rules.ts:40`) becomes a per-`spaceId` lazy cache;
+  module singleton (`world-rules.ts:40`) becomes a bounded per-`spaceId` lazy
+  cache, with LRU/final-occupant eviction rather than permanent retention;
   `stepWorld` partitions online players by space and builds collision only for
   occupied spaces, filtering resource/chest scans by `spaceId` instead of
   full-table iteration (a scoped win over today's per-tick full scan).
@@ -205,6 +207,8 @@ interact input triggers `usePortal`.
 
 Remote players in another space are simply **not subscribed** (the spaceId term
 does this for free) — no ghost nameplates, no cross-space speech.
+This is client interest management only: all spaces still share one authoritative
+database, and access-controlled data/reducers must not trust subscription scope.
 
 ## 6. Darkness and light — the point of the whole feature
 
@@ -299,7 +303,8 @@ N/A underground (mines are season-invariant — one less axis to author).
 The codebase bakes "one island" into specific places; phase 2 owns this list
 (from the audit, ranked by coupling):
 
-1. `world-rules.ts` collision singleton → per-space lazy cache (§3).
+1. `world-rules.ts` collision singleton → bounded per-space lazy cache with
+   eviction (§3); a plain unbounded `Map<spaceId, CollisionMap>` is not complete.
 2. `movePlayer` bounds + scattered `SURVIVAL_WORLD_SIZE` literals (authority:
    `adminTeleport`, `useHands`, collision-map builders; client:
    `visibleWorldBounds`, `minimumZoom`, `cameraAxisOffset` call sites) → read

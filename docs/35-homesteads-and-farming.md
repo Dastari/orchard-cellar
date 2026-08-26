@@ -78,6 +78,43 @@ one session; sprinklers are the first "the game plays while I sleep" beat).
 - Interior terrain is generated + curatable by the owner through build mode,
   not hand-authored — homesteads never touch the overworld curation tables.
 
+### 3.1 SpaceTimeDB deployment and residency contract
+
+“Instanced” means a separate **coordinate world**, not a separate SpaceTimeDB
+database. One friends-server deployment owns one authoritative database and all
+homesteads live in its shared tables, partitioned by `spaceId`. Do not deploy a
+database/module instance per homestead: portal travel must remain one atomic
+player-position transaction followed by a subscription handover, and inventory,
+permissions, moderation, migrations, and backups must retain one authority.
+The deed reducer allocates the `u16` ID server-side from a durable allocator,
+skipping static/reserved IDs and relying on the `homestead.spaceId` primary key
+plus owner uniqueness; clients never propose IDs, and exhaustion fails cleanly.
+
+SpaceTimeDB keeps the authoritative table state memory-resident and persists
+committed transactions. Leaving a homestead therefore does **not** unload its
+rows from server memory. The bounded lifecycle is instead:
+
+1. the portal reducer validates access and writes the player's destination
+   `spaceId` and local coordinates atomically;
+2. the client observes its own position, subscribes to the destination
+   space/chunk rectangle, and only after `onApplied` unsubscribes the old
+   rectangle (make-before-break);
+3. unsubscribe evicts the old rows from that client's cache; it is bandwidth
+   and client-memory lifecycle, not server persistence or authorization;
+4. authority simulation considers a homestead active only while an online
+   player occupies that `spaceId`; crops and curing still derive from timestamps
+   and require no catch-up tick loop;
+5. generated terrain/render/collision products may be recreated on demand and
+   must use bounded caches with explicit eviction. Persistent mutation rows
+   remain in SpaceTimeDB.
+
+The `homestead` row is the dynamic definition source for
+`spaceDefinitionFor(spaceId, homesteadRow)`. Every authority and client path
+that resolves a non-static space must first obtain that row; calling
+`spaceDefinitionFor(spaceId)` alone is valid only for static spaces. The current
+`spaces.ts` dynamic-definition shape is scaffolding: the table, lookup path, and
+subscription ordering remain phase-2 work.
+
 ## 4. Crops — zero-write growth
 
 Six crops at launch, all with committed or sheet-verified stage art
@@ -209,7 +246,29 @@ doc 33 conventions; no UI in this doc's scope.
   banned (doc 34).
 - Homestead tables are `spaceId`-scoped and chunk-indexed; a client
   subscribes to homestead rows only when inside one (the doc 26 subscription
-  swap). Overworld cost of N homesteads = their building footprints only.
+  swap). Hot-tick and overworld-subscription cost of N offline homesteads is
+  their overworld building footprints only; their durable sparse rows still
+  occupy shared server database memory.
+- The homestead registry row needed to resolve the destination is subscribed
+  before or with the regional handover. The destination subscription becomes
+  renderable only after both its definition and regional snapshot are applied;
+  only then may the old region subscription be released.
+- Server-side occupancy is derived from online `player_position` rows grouped
+  by `spaceId`. No offline homestead may participate in the 20 Hz movement,
+  collision, NPC, projectile, crop, or automation loops. Slow global work must
+  use an index/schedule and may not scan every homestead.
+- **Bounded generated-data caches are a launch gate.** The current
+  `SPACE_TERRAIN_COLLISION` process-level `Map` has no eviction. Homestead work
+  must replace it with a capacity-bounded LRU and/or eviction when a space loses
+  its final occupant; simple homestead terrain should prefer compact procedural
+  collision over retaining a full array per farm. Client terrain/ground caches
+  obey the same bounded-key rule. Persistent table rows are never treated as a
+  cache and are not deleted when a player leaves.
+- Subscription predicates are interest management, never authorization. Public
+  spatial rows are readable by any approved connected friend even when their
+  normal client is elsewhere. Roster, requests, permissions, inventories, and
+  private storage use private tables plus caller-filtered views; every reducer
+  independently validates sender, membership role, and target `spaceId`.
 - All farm/build verbs are inputs-not-values reducers (docs/22): the client
   sends tile + action; stages, yields, cure levels, and costs are always
   server-recomputed. Ghost previews are pure client cosmetics.
@@ -230,6 +289,9 @@ one art gap); scarecrows (`Scarecrows.png`). Extraction follows docs/11/18 +
 
 1. **Spaces prerequisite** (shared with doc 26 phase 1, whichever lands
    first): `spaceId: u16` plumbing, portals, per-space collision/subscription.
+   The static/debug-space plumbing is implemented; before phase 2, finish the
+   dynamic-definition lookup/subscription path and bounded generated-data cache
+   required by §3.1/§10.
 2. **Homestead core**: deed, siting, farmhouse on overworld, instanced space,
    door lock (owner-only), expansion tiers. Retire legacy farm tables.
 3. **Crops + gold loop**: seeds in commerce, plant/water/harvest, derived
@@ -272,7 +334,10 @@ seasonal crop festivals; prestige integration.
   validity feedback; B-key mode across UI scales; offline growth (clock
   advance) correctness.
 - **Perf:** zero farm writes during idle ticks with 10 populated homesteads
-  (doc 34 counters); subscription swap on door transit within one handover.
+  (doc 34 counters); subscription swap on door transit within one handover;
+  create/visit/leave at least 1,000 synthetic homesteads under a small cache
+  capacity and prove terrain/collision memory returns to its configured bound;
+  prove an unoccupied farm contributes zero rows to every hot-tick working set.
 
 ## 15. Bookkeeping
 
