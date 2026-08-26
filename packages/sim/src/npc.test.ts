@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TILE_SIZE_FIXED } from './state.js';
+import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from './state.js';
 import {
   HORSE_DISMOUNT_DISTANCE_FIXED,
   HORSE_JUMP_DURATION_TICKS,
@@ -55,6 +55,23 @@ describe('server-authoritative wandering NPCs', () => {
     expect(stepped.position).toEqual(initial.position);
     expect(stepped.moving).toBe(false);
     expect(stepped.nextDecisionTick).toBe(9);
+  });
+
+  it('keeps grounded NPCs on their current elevation plane away from a ramp', () => {
+    const position = {
+      x: TILE_SIZE_FIXED - 1,
+      y: TILE_SIZE_FIXED / 2 + 6 * FIXED_UNITS_PER_PIXEL,
+    };
+    const state = { ...initial, position, home: position, wanderDirection: 'right' as const };
+    const stepped = stepWanderingNpc(state, 1, {
+      width: 2,
+      height: 1,
+      blocked: [false, false],
+      elevations: Uint8Array.from([0, 1]),
+      terrainTransitions: [],
+    });
+    expect(stepped.position).toEqual(position);
+    expect(stepped.moving).toBe(false);
   });
 
   it('can temporarily walk toward an interaction and stops within reach', () => {

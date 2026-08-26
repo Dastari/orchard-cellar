@@ -109,7 +109,15 @@ export function terrainWalkingStepAllowed(
 ): boolean {
   const fromElevation = terrainElevationAt(elevations, width, height, fromTileX, fromTileY);
   const toElevation = terrainElevationAt(elevations, width, height, toTileX, toTileY);
-  if (fromElevation === toElevation) return true;
+  if (fromElevation === toElevation) {
+    return terrainTransitionLaneStepAllowed(
+      transitions,
+      fromTileX,
+      fromTileY,
+      toTileX,
+      toTileY,
+    );
+  }
   return transitions.some((transition) => (
     (transition.kind === 'slope' || transition.kind === 'stairs')
     && terrainTransitionConnects(
@@ -121,5 +129,70 @@ export function terrainWalkingStepAllowed(
       toTileY,
       toElevation,
     )
+  ));
+}
+
+function walkingTransitionEndpointsAt(
+  transitions: readonly TerrainTransition[],
+  tileX: number,
+  tileY: number,
+): readonly { readonly transition: TerrainTransition; readonly endpoint: 'lower' | 'upper' }[] {
+  return transitions.flatMap<{ readonly transition: TerrainTransition; readonly endpoint: 'lower' | 'upper' }>((transition) => {
+    if (transition.kind !== 'slope' && transition.kind !== 'stairs') return [];
+    if (transition.lowerTileX === tileX && transition.lowerTileY === tileY) {
+      return [{ transition, endpoint: 'lower' as const }];
+    }
+    if (transition.upperTileX === tileX && transition.upperTileY === tileY) {
+      return [{ transition, endpoint: 'upper' as const }];
+    }
+    return [];
+  });
+}
+
+/** A slope/stair endpoint is a one-way lane through a contour, rather than a
+ * magic tile that may be entered from either side. This keeps presentation
+ * interpolation and authority in lockstep: actors approach at the low/high
+ * end, cross the named contour, and may move between parallel ramp lanes. */
+function terrainTransitionLaneStepAllowed(
+  transitions: readonly TerrainTransition[],
+  fromTileX: number,
+  fromTileY: number,
+  toTileX: number,
+  toTileY: number,
+): boolean {
+  const fromEndpoints = walkingTransitionEndpointsAt(transitions, fromTileX, fromTileY);
+  const toEndpoints = walkingTransitionEndpointsAt(transitions, toTileX, toTileY);
+  if (fromEndpoints.length === 0 && toEndpoints.length === 0) return true;
+
+  const endpointAllowsNeighbor = (
+    endpoint: typeof fromEndpoints[number],
+    neighborX: number,
+    neighborY: number,
+    neighborEndpoints: typeof toEndpoints,
+  ): boolean => {
+    const transition = endpoint.transition;
+    const delta = TRANSITION_DIRECTION_DELTA[transition.direction];
+    const anchorX = endpoint.endpoint === 'lower' ? transition.lowerTileX : transition.upperTileX;
+    const anchorY = endpoint.endpoint === 'lower' ? transition.lowerTileY : transition.upperTileY;
+    const outsideX = anchorX + (endpoint.endpoint === 'lower' ? -delta[0] : delta[0]);
+    const outsideY = anchorY + (endpoint.endpoint === 'lower' ? -delta[1] : delta[1]);
+    if (neighborX === outsideX && neighborY === outsideY) return true;
+    return neighborEndpoints.some((neighbor) => (
+      neighbor.endpoint === endpoint.endpoint
+      && neighbor.transition.contourLevel === transition.contourLevel
+      && neighbor.transition.direction === transition.direction
+    ));
+  };
+
+  return fromEndpoints.every((endpoint) => endpointAllowsNeighbor(
+    endpoint,
+    toTileX,
+    toTileY,
+    toEndpoints,
+  )) && toEndpoints.every((endpoint) => endpointAllowsNeighbor(
+    endpoint,
+    fromTileX,
+    fromTileY,
+    fromEndpoints,
   ));
 }

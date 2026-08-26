@@ -1,4 +1,4 @@
-import { positionCollides } from './movement.js';
+import { movementPositionAllowed } from './movement.js';
 import {
   generateSurvivalDecorations,
   generateSurvivalResources,
@@ -587,7 +587,8 @@ export function stepAmbientWildlife(
   const habitatAllowed = wildlifeHabitatAllowsTile(definition.habitat, seed, tileX, tileY);
   const airborneTraversalAllowed = definition.locomotion === 'flutter'
     && tileX >= 0 && tileY >= 0 && tileX < SURVIVAL_WORLD_SIZE && tileY < SURVIVAL_WORLD_SIZE;
-  const collides = !definition.ignoresObstacles && positionCollides(candidate, options.collision);
+  const collides = !definition.ignoresObstacles
+    && !movementPositionAllowed(state.position, candidate, options.collision);
   const candidateHomeDistance = Math.max(
     Math.abs(state.home.x - candidate.x),
     Math.abs(state.home.y - candidate.y),

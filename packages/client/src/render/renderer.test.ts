@@ -70,11 +70,11 @@ describe('unified renderer zoom math', () => {
 
   it('30§5 lets a lower-plane actor pass behind a cliff and then paint in front south of its foot line', () => {
     const items = [
-      { footY: 80, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'lower-behind' },
-      { footY: 96, elevationLayer: 1, depthPhase: 'surface' as const, tie: 'upper-surface' },
-      { footY: 96, elevationLayer: 1, depthPhase: 'boundary' as const, tie: 'terrain-cliff' },
-      { footY: 104, elevationLayer: 1, depthPhase: 'entity' as const, tie: 'upper-on-top' },
-      { footY: 112, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'lower-in-front' },
+      { footY: 44, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'lower-behind' },
+      { footY: 48, elevationLayer: 1, depthPhase: 'surface' as const, tie: 'upper-surface' },
+      { footY: 48, elevationLayer: 1, depthPhase: 'boundary' as const, tie: 'terrain-cliff' },
+      { footY: 48, elevationLayer: 1, depthPhase: 'entity' as const, tie: 'upper-on-top' },
+      { footY: 52, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'lower-in-front' },
     ];
     expect(sortWorldDepthItems(items).map(({ tie }) => tie)).toEqual([
       'lower-behind',
@@ -83,5 +83,12 @@ describe('unified renderer zoom math', () => {
       'upper-on-top',
       'lower-in-front',
     ]);
+  });
+
+  it('30§5 paints a wall before a lower actor once the actor foot is south of the visible wall', () => {
+    expect(sortWorldDepthItems([
+      { footY: 80, elevationLayer: 1, depthPhase: 'boundary' as const, tie: 'visible-wall' },
+      { footY: 81, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'player-head-must-survive' },
+    ]).map(({ tie }) => tie)).toEqual(['visible-wall', 'player-head-must-survive']);
   });
 });

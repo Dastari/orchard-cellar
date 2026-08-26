@@ -4,6 +4,7 @@ import {
   movePlayer,
   movePlayerAtSpeed,
   movePlayerAtSpeedPermille,
+  movementPositionAllowed,
   playerHitboxBounds,
   playerInteractionOrigin,
   positionCollides,
@@ -110,5 +111,20 @@ describe('player movement collision', () => {
       }],
     };
     expect(movePlayer(start, 'right', slope).position.x).toBeGreaterThan(start.position.x);
+  });
+
+  it('30§5 exposes the same per-height edge guard to every grounded actor', () => {
+    const from = {
+      x: TILE_SIZE_FIXED - 1,
+      y: TILE_SIZE_FIXED / 2 + 6 * FIXED_UNITS_PER_PIXEL,
+    };
+    const to = { ...from, x: from.x + FIXED_UNITS_PER_PIXEL };
+    expect(movementPositionAllowed(from, to, {
+      width: 2,
+      height: 1,
+      blocked: [false, false],
+      elevations: Uint8Array.from([0, 1]),
+      terrainTransitions: [],
+    })).toBe(false);
   });
 });

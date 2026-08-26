@@ -1520,6 +1520,7 @@ function drawPlayerCollisionOverlay(
   cameraY: number,
   scale: number,
   snapshot: OverworldView,
+  terrain: TerrainArray,
 ): void {
   for (const player of snapshot.players) {
     const id = player.identity.toHexString();
@@ -1530,8 +1531,13 @@ function drawPlayerCollisionOverlay(
       y: local ? predicted?.position.y ?? player.y : display?.y ?? player.y,
     };
     const bounds = playerHitboxBounds(position);
+    const projection = terrainProjectedDepthAtFoot(
+      terrain,
+      position.x / FIXED_UNITS_PER_PIXEL,
+      terrainContactWorldYForPlayer(position.y / FIXED_UNITS_PER_PIXEL),
+    );
     const left = (bounds.left / FIXED_UNITS_PER_PIXEL - cameraX) * scale;
-    const top = (bounds.top / FIXED_UNITS_PER_PIXEL - cameraY) * scale;
+    const top = (bounds.top / FIXED_UNITS_PER_PIXEL - projection - cameraY) * scale;
     const width = (bounds.right - bounds.left + 1) / FIXED_UNITS_PER_PIXEL * scale;
     const height = (bounds.bottom - bounds.top + 1) / FIXED_UNITS_PER_PIXEL * scale;
     context.fillStyle = local ? '#33e6ff55' : '#d36dff44';
@@ -1540,7 +1546,7 @@ function drawPlayerCollisionOverlay(
     context.fillRect(Math.round(left), Math.round(top), Math.ceil(width), Math.ceil(height));
     context.strokeRect(Math.round(left), Math.round(top), Math.ceil(width), Math.ceil(height));
     const footX = Math.round((position.x / FIXED_UNITS_PER_PIXEL - cameraX) * scale);
-    const footY = Math.round((position.y / FIXED_UNITS_PER_PIXEL - cameraY) * scale);
+    const footY = Math.round((position.y / FIXED_UNITS_PER_PIXEL - projection - cameraY) * scale);
     context.fillRect(footX - 2, footY, 5, 1);
     context.fillRect(footX, footY - 2, 1, 5);
   }
@@ -1552,6 +1558,7 @@ function drawToolInteractionOverlay(
   cameraY: number,
   scale: number,
   snapshot: OverworldView,
+  terrain: TerrainArray,
 ): void {
   if (predicted === null) return;
   const itemKind = selectedItem(snapshot);
@@ -1568,8 +1575,13 @@ function drawToolInteractionOverlay(
   const forwardOffset = resourceToolForwardOffsetFixed(itemKind);
   const centerX = origin.x + vector[0] * forwardOffset;
   const centerY = origin.y + vector[1] * forwardOffset;
+  const projection = terrainProjectedDepthAtFoot(
+    terrain,
+    centerX / FIXED_UNITS_PER_PIXEL,
+    centerY / FIXED_UNITS_PER_PIXEL,
+  );
   const x = (centerX / FIXED_UNITS_PER_PIXEL - cameraX) * scale;
-  const y = (centerY / FIXED_UNITS_PER_PIXEL - cameraY) * scale;
+  const y = (centerY / FIXED_UNITS_PER_PIXEL - projection - cameraY) * scale;
   const radius = reachFixed / FIXED_UNITS_PER_PIXEL * scale;
   context.save();
   context.fillStyle = '#d77bff18';
@@ -1588,7 +1600,12 @@ function drawToolInteractionOverlay(
   if (target !== null) {
     const bounds = survivalResourceObstacle(target.kind, target.tileX, target.tileY);
     const left = (bounds.left / FIXED_UNITS_PER_PIXEL - cameraX) * scale;
-    const top = (bounds.top / FIXED_UNITS_PER_PIXEL - cameraY) * scale;
+    const targetProjection = terrainProjectedDepthAtFoot(
+      terrain,
+      (bounds.left + bounds.right + 1) / 2 / FIXED_UNITS_PER_PIXEL,
+      bounds.bottom / FIXED_UNITS_PER_PIXEL,
+    );
+    const top = (bounds.top / FIXED_UNITS_PER_PIXEL - targetProjection - cameraY) * scale;
     const width = (bounds.right - bounds.left + 1) / FIXED_UNITS_PER_PIXEL * scale;
     const height = (bounds.bottom - bounds.top + 1) / FIXED_UNITS_PER_PIXEL * scale;
     context.fillStyle = '#fff36a55';
@@ -1666,17 +1683,22 @@ function drawCollisionOverlay(
     const top = obstacle.top / FIXED_UNITS_PER_PIXEL;
     const width = (obstacle.right - obstacle.left + 1) / FIXED_UNITS_PER_PIXEL;
     const height = (obstacle.bottom - obstacle.top + 1) / FIXED_UNITS_PER_PIXEL;
+    const projection = terrainProjectedDepthAtFoot(
+      terrain,
+      left + width / 2,
+      top + height,
+    );
     context.fillStyle = '#ff9d2377';
     context.strokeStyle = '#ffbf57';
     context.fillRect(
       Math.round((left - cameraX) * scale),
-      Math.round((top - cameraY) * scale),
+      Math.round((top - projection - cameraY) * scale),
       Math.ceil(width * scale),
       Math.ceil(height * scale),
     );
     context.strokeRect(
       Math.round((left - cameraX) * scale),
-      Math.round((top - cameraY) * scale),
+      Math.round((top - projection - cameraY) * scale),
       Math.ceil(width * scale),
       Math.ceil(height * scale),
     );
@@ -1841,6 +1863,7 @@ function render(alpha = 1): void {
     const projection = projectionAt(worldX, terrainSampleY);
     worldDepthItems.push({
       ...item,
+      footY: item.footY - projection,
       depthOffset: terrainProjectedSortOffset(elevation),
       elevationLayer: Math.ceil(Math.max(0, elevation - 0.001)),
       depthPhase: 'entity',
@@ -2457,8 +2480,8 @@ function render(alpha = 1): void {
       terrain,
       !debugEntitiesHidden,
     );
-    if (!debugEntitiesHidden) drawPlayerCollisionOverlay(context, cameraX, cameraY, scale, snapshot);
-    drawToolInteractionOverlay(context, cameraX, cameraY, scale, snapshot);
+    if (!debugEntitiesHidden) drawPlayerCollisionOverlay(context, cameraX, cameraY, scale, snapshot, terrain);
+    drawToolInteractionOverlay(context, cameraX, cameraY, scale, snapshot, terrain);
   }
   renderer.compositeWorld();
   drawCalls += 1;

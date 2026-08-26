@@ -95,13 +95,14 @@ export interface RenderFrame {
 
 /** Every non-ground world object supplies this foot/door-line depth. */
 export interface WorldDepthItem {
+  /** Projected screen-space foot/bottom line. Sorting what is actually drawn
+   * prevents an unprojected cliff row from painting over an actor already
+   * standing south of its visible wall. */
   readonly footY: number;
   /** Small logical-foot painter tie-break within one elevation/phase. */
   readonly depthOffset?: number;
   /** Integer/fractional terrain plane used only to resolve items sharing a
-   * logical foot row. World foot Y remains the primary painter key so an
-   * actor south of a tall cliff is not hidden merely because the cliff's cap
-   * belongs to a higher elevation. */
+   * projected foot row. */
   readonly elevationLayer?: number;
   /** Within one plane: surface, cliff boundary, then world entities. */
   readonly depthPhase?: 'surface' | 'boundary' | 'entity';

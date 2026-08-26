@@ -59,4 +59,26 @@ describe('30§3 integer terrain elevation', () => {
       elevations, 2, 1, [{ ...base, kind: 'ladder' }], 0, 0, 1, 0,
     )).toBe(false);
   });
+
+  it('treats a two-lane slope as an axial corridor instead of a side-entry teleport tile', () => {
+    const elevations = Uint8Array.from([
+      1, 1, 1, 1,
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+    ]);
+    const transitions: TerrainTransition[] = [1, 2].map((tileX) => ({
+      contourLevel: 1,
+      kind: 'slope',
+      direction: 'up',
+      lowerTileX: tileX,
+      lowerTileY: 1,
+      upperTileX: tileX,
+      upperTileY: 0,
+    }));
+    expect(terrainWalkingStepAllowed(elevations, 4, 3, transitions, 1, 2, 1, 1)).toBe(true);
+    expect(terrainWalkingStepAllowed(elevations, 4, 3, transitions, 1, 1, 1, 0)).toBe(true);
+    expect(terrainWalkingStepAllowed(elevations, 4, 3, transitions, 1, 1, 2, 1)).toBe(true);
+    expect(terrainWalkingStepAllowed(elevations, 4, 3, transitions, 0, 1, 1, 1)).toBe(false);
+    expect(terrainWalkingStepAllowed(elevations, 4, 3, transitions, 1, 0, 0, 0)).toBe(false);
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  movementPositionAllowed,
   positionCollides,
   positionCollidesOnlyHorseJumpableTerrain,
   positionCollidesTerrain,
@@ -115,7 +116,8 @@ export function stepWanderingNpc(
     x: state.position.x + vector.x,
     y: state.position.y + vector.y,
   };
-  if (!insideWanderArea(candidate, state.home) || positionCollides(candidate, collision)) {
+  if (!insideWanderArea(candidate, state.home)
+    || !movementPositionAllowed(state.position, candidate, collision)) {
     return {
       ...state,
       facing: direction,
@@ -158,7 +160,7 @@ export function stepNpcTowardPoint(
   for (const direction of directions) {
     const vector = DIRECTION_VECTORS[direction];
     const candidate = { x: state.position.x + vector.x, y: state.position.y + vector.y };
-    if (positionCollides(candidate, collision)) continue;
+    if (!movementPositionAllowed(state.position, candidate, collision)) continue;
     return {
       ...state,
       position: candidate,
@@ -201,7 +203,7 @@ export function findHorseDismountPosition(
     visited.add(direction);
     const offset = offsets[direction];
     const candidate = { x: horse.x + offset.x, y: horse.y + offset.y };
-    if (!positionCollides(candidate, collision)) return candidate;
+    if (movementPositionAllowed(horse, candidate, collision)) return candidate;
   }
   return null;
 }

@@ -3,6 +3,7 @@ import {
   createSurvivalCollisionMap,
   generateSurvivalDecorations,
   SURVIVAL_WORLD_SEED,
+  SURVIVAL_WORLD_SIZE,
 } from './survival-world.js';
 import { TILE_SIZE_FIXED } from './state.js';
 import {
@@ -138,6 +139,47 @@ describe('activated wildlife lifecycle', () => {
     expect(decisions.filter((decision) => !decision.moving).length).toBeGreaterThan(
       decisions.filter((decision) => decision.moving).length,
     );
+  });
+
+  it('keeps grounded wildlife on its current elevation plane', () => {
+    let pair: { x: number; y: number } | null = null;
+    for (let y = 4; y < SURVIVAL_WORLD_SIZE - 4 && pair === null; y += 1) {
+      for (let x = 4; x < SURVIVAL_WORLD_SIZE - 5; x += 1) {
+        if (wildlifeHabitatAllowsTile('pasture', SURVIVAL_WORLD_SEED, x, y)
+          && wildlifeHabitatAllowsTile('pasture', SURVIVAL_WORLD_SEED, x + 1, y)) {
+          pair = { x, y };
+          break;
+        }
+      }
+    }
+    expect(pair).not.toBeNull();
+    const speed = WILDLIFE_DEFINITIONS.horse.speedFixed;
+    const position = {
+      x: (pair!.x + 1) * TILE_SIZE_FIXED - speed,
+      y: pair!.y * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    };
+    const elevations = new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE);
+    elevations[pair!.y * SURVIVAL_WORLD_SIZE + pair!.x + 1] = 1;
+    const stepped = stepAmbientWildlife({
+      ...initial,
+      position,
+      home: position,
+      activity: 'right',
+      nextDecisionTick: 100,
+    }, {
+      species: 'horse',
+      authorityTick: 1,
+      calendarTick: BigInt(Math.floor(AUTHORITY_TICKS_PER_DAY * 0.4)),
+      collision: {
+        width: SURVIVAL_WORLD_SIZE,
+        height: SURVIVAL_WORLD_SIZE,
+        blocked: Array<boolean>(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(false),
+        elevations,
+        terrainTransitions: [],
+      },
+    });
+    expect(stepped.position).toEqual(position);
+    expect(stepped.moving).toBe(false);
   });
 
   it('keeps bees inside between sorties and returns flying bees to the hive at night', () => {

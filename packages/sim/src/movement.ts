@@ -109,7 +109,10 @@ function movementCrossesBlockedElevation(
   );
 }
 
-function movementPositionAllowed(from: Vec2Fixed, to: Vec2Fixed, map: CollisionMap): boolean {
+/** Shared actor-plane guard. Every grounded mover must use this instead of a
+ * destination-only collision check so contour edges block at its current
+ * height while lower-plane actors remain free behind projected wall art. */
+export function movementPositionAllowed(from: Vec2Fixed, to: Vec2Fixed, map: CollisionMap): boolean {
   return !movementCrossesBlockedElevation(from, to, map) && !positionCollides(to, map);
 }
 

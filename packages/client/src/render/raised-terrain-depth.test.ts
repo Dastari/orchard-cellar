@@ -45,26 +45,28 @@ describe('30§5 raised-terrain depth entries', () => {
     const nestedSouth = entries.filter(({ tileX, tileY }) => tileX === 3 && tileY === 5);
     expect(nestedSouth.map(({ contourLevel }) => contourLevel)).toEqual([1, 2, 3]);
     expect(nestedSouth.map(({ footY, depthOffset }) => footY + depthOffset)).toEqual([
-      96 + 0.5 / 1_024,
-      96 + 1.5 / 1_024,
-      96 + 2.5 / 1_024,
+      48 + 0.5 / 1_024,
+      0 + 1.5 / 1_024,
+      -48 + 2.5 / 1_024,
     ]);
     expect(nestedSouth.map(raisedTerrainVisualOffset)).toEqual([48, 96, 144]);
   });
 
-  it('30§5 submits internal raised cap tiles as elevation-priority surface runs', () => {
+  it('30§5 submits only interior caps, leaving edge transparency to the shaped boundary sheet', () => {
     const runs = raisedTerrainSurfaceRuns(nestedTerrain(), 0, 0, 6, 6);
-    expect(runs.filter(({ tileY }) => tileY === 3).map((run) => ({
+    expect(runs).toEqual([]);
+
+    const base = nestedTerrain();
+    const terrain = { ...base, elevations: new Uint8Array(base.width * base.height).fill(1) };
+    const interiorRuns = raisedTerrainSurfaceRuns(terrain, 0, 0, 6, 6);
+    expect(interiorRuns.filter(({ tileY }) => tileY === 3).map((run) => ({
       firstTileX: run.firstTileX,
       lastTileX: run.lastTileX,
       elevation: run.elevation,
+      footY: run.footY,
       visualOffset: run.visualOffset,
     }))).toEqual([
-      { firstTileX: 1, lastTileX: 1, elevation: 1, visualOffset: 48 },
-      { firstTileX: 2, lastTileX: 2, elevation: 2, visualOffset: 96 },
-      { firstTileX: 3, lastTileX: 3, elevation: 3, visualOffset: 144 },
-      { firstTileX: 4, lastTileX: 4, elevation: 2, visualOffset: 96 },
-      { firstTileX: 5, lastTileX: 5, elevation: 1, visualOffset: 48 },
+      { firstTileX: 1, lastTileX: 5, elevation: 1, footY: 16, visualOffset: 48 },
     ]);
   });
 

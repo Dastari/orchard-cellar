@@ -42,6 +42,15 @@ export function raisedTerrainSurfaceRuns(
   maximumTileX: number,
   maximumTileY: number,
 ): readonly RaisedTerrainSurfaceRun[] {
+  const projectsAsOpaqueSurface = (tileX: number, tileY: number, elevation: number): boolean => {
+    const boundary = plateauLayerPlansAt(terrain, tileX, tileY)
+      .find((entry) => entry.contourLevel === elevation)?.plan;
+    // Boundary and ramp sheets already contain the correctly shaped cap.
+    // Copying the rectangular ground tile underneath them fills their
+    // transparent corners and produces the green occlusion blocks seen at
+    // concave/side cliff edges.
+    return boundary === undefined || (boundary.edgeFrame === null && boundary.rampFrame === null);
+  };
   const runs: RaisedTerrainSurfaceRun[] = [];
   const firstX = Math.max(0, minimumTileX);
   const lastX = Math.min(terrain.width - 1, maximumTileX);
@@ -49,7 +58,7 @@ export function raisedTerrainSurfaceRuns(
     let tileX = firstX;
     while (tileX <= lastX) {
       const elevation = terrainElevationAt(terrain, tileX, tileY);
-      if (elevation <= 0) {
+      if (elevation <= 0 || !projectsAsOpaqueSurface(tileX, tileY, elevation)) {
         tileX += 1;
         continue;
       }
@@ -57,13 +66,18 @@ export function raisedTerrainSurfaceRuns(
       const chunkX = Math.floor(tileX / SURVIVAL_CHUNK_TILES);
       while (tileX + 1 <= lastX
         && Math.floor((tileX + 1) / SURVIVAL_CHUNK_TILES) === chunkX
-        && terrainElevationAt(terrain, tileX + 1, tileY) === elevation) tileX += 1;
+        && terrainElevationAt(terrain, tileX + 1, tileY) === elevation
+        && projectsAsOpaqueSurface(tileX + 1, tileY, elevation)) tileX += 1;
       runs.push({
         firstTileX: runStart,
         lastTileX: tileX,
         tileY,
         elevation,
-        footY: (tileY + 1) * TILE_SIZE_PIXELS,
+        footY: (tileY + 1) * TILE_SIZE_PIXELS - terrainProjectedDepthOffset(
+          elevation,
+          terrainProjectedRowsPerLevel(),
+          TILE_SIZE_PIXELS,
+        ),
         visualOffset: terrainProjectedDepthOffset(
           elevation,
           terrainProjectedRowsPerLevel(),
@@ -99,7 +113,7 @@ export function raisedTerrainDepthEntries(
           tileX,
           tileY,
           contourLevel,
-          footY: (tileY + 1) * TILE_SIZE_PIXELS,
+          footY: (tileY + 1) * TILE_SIZE_PIXELS - raisedTerrainVisualOffset({ contourLevel }),
           depthOffset: terrainProjectedSortOffset(contourLevel, true),
           plan,
         });
