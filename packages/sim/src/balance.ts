@@ -1,4 +1,6 @@
 export const RESOURCE_SCALE = 1_000;
+export const FIBER_TILL_DROP_PERCENT = 30;
+export const CRAFTING_STATION_REACH_TILES = 2;
 
 export const TREE_COST_GROWTH = 1.18;
 export const PRESS_COST_GROWTH = 1.35;
