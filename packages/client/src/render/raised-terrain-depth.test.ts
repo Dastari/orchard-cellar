@@ -67,6 +67,38 @@ describe('30§5 raised-terrain depth entries', () => {
     });
   });
 
+  it('30§5 keeps indirect rear corner faces above lower-plane actors', () => {
+    const base = nestedTerrain();
+    const elevations = new Uint8Array(base.width * base.height);
+    // The left column continues south while the right column ends. Resolving
+    // the next projected row on the left therefore emits indirect rear
+    // coverage around the convex corner rather than a direct south face.
+    elevations[1 * base.width + 1] = 1;
+    elevations[2 * base.width + 1] = 1;
+    elevations[1 * base.width + 2] = 1;
+    const entries = raisedTerrainDepthEntries({ ...base, elevations }, 0, 0, 6, 6);
+    const rearFace = entries.find(({ plan }) => plan.faceLayers.some((face) => !face.direct));
+    expect(rearFace).toBeDefined();
+    expect(raisedTerrainDepthLayers(rearFace!)).toContainEqual({
+      stratum: 'rear_face',
+      elevationLayer: rearFace!.contourLevel,
+      depthPhase: 'boundary',
+    });
+  });
+
+  it('30§5 submits the cosmetic ground-contact row as a lower-plane underlay', () => {
+    const entries = raisedTerrainDepthEntries(nestedTerrain(), 0, 0, 6, 6);
+    const foot = entries.find(({ plan }) => plan.faceLayers.some(
+      (face) => face.direct && face.rowId === 'foot',
+    ));
+    expect(foot).toBeDefined();
+    expect(raisedTerrainDepthLayers(foot!)).toContainEqual({
+      stratum: 'face_foot',
+      elevationLayer: foot!.contourLevel - 1,
+      depthPhase: 'surface',
+    });
+  });
+
   it('30§5 submits only interior caps, leaving edge transparency to the shaped boundary sheet', () => {
     const runs = raisedTerrainSurfaceRuns(nestedTerrain(), 0, 0, 6, 6);
     expect(runs).toEqual([]);

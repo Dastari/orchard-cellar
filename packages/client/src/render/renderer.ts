@@ -116,6 +116,10 @@ function depthPhaseOrder(phase: WorldDepthItem['depthPhase']): number {
   return 2;
 }
 
+function terrainUnderlayOrder(phase: WorldDepthItem['depthPhase']): number {
+  return phase === 'surface' ? 0 : 1;
+}
+
 export function sortWorldDepthItems<T extends Pick<
   WorldDepthItem,
   'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase'
@@ -123,6 +127,10 @@ export function sortWorldDepthItems<T extends Pick<
   items: readonly T[],
 ): T[] {
   return [...items].sort((left, right) => (left.elevationLayer ?? 0) - (right.elevationLayer ?? 0)
+    // A plane's opaque surface and cosmetic ground-contact trim must be below
+    // every painter-sorted actor on that plane, regardless of their row. A
+    // raised cap still covers all lower-plane actors by elevation ordering.
+    || terrainUnderlayOrder(left.depthPhase) - terrainUnderlayOrder(right.depthPhase)
     || worldDepthY(left) - worldDepthY(right)
     || depthPhaseOrder(left.depthPhase) - depthPhaseOrder(right.depthPhase)
     || left.tie.localeCompare(right.tie));

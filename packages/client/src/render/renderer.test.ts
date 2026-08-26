@@ -91,4 +91,11 @@ describe('unified renderer zoom math', () => {
       { footY: 81, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'player-head-must-survive' },
     ]).map(({ tie }) => tie)).toEqual(['visible-wall', 'player-head-must-survive']);
   });
+
+  it('30§5 keeps plane surfaces and cosmetic cliff trim below actors at every row', () => {
+    expect(sortWorldDepthItems([
+      { footY: 12, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'actor' },
+      { footY: 96, elevationLayer: 0, depthPhase: 'surface' as const, tie: 'cliff-foot-trim' },
+    ]).map(({ tie }) => tie)).toEqual(['cliff-foot-trim', 'actor']);
+  });
 });
