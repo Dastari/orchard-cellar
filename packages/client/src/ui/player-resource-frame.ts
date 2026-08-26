@@ -10,10 +10,10 @@ export type PlayerResourceKind = 'health' | 'mana' | 'vigour';
 export interface PlayerResourceValues {
   readonly health: number;
   readonly maxHealth: number;
-  readonly mana: number;
-  readonly maxMana: number;
-  readonly vigour: number;
-  readonly maxVigour: number;
+  readonly mana?: number;
+  readonly maxMana?: number;
+  readonly vigour?: number;
+  readonly maxVigour?: number;
 }
 
 export interface PlayerResourceFrameSource {
@@ -27,14 +27,23 @@ export interface PlayerResourceFrameLayout {
   readonly bars: Readonly<Record<PlayerResourceKind, UiRect>>;
 }
 
-export function playerResourceFrameLayout(x: number, y: number, scale = 1): PlayerResourceFrameLayout {
+export function playerResourceFrameLayout(
+  x: number,
+  y: number,
+  scale = 1,
+  mirrored = false,
+): PlayerResourceFrameLayout {
+  const scaled = (value: number): number => Math.round(value * scale);
   return {
-    frame: { x, y, width: PLAYER_RESOURCE_FRAME_WIDTH * scale, height: PLAYER_RESOURCE_FRAME_HEIGHT * scale },
-    portrait: { x: x + 3 * scale, y: y + 3 * scale, width: 12 * scale, height: 13 * scale },
+    frame: { x, y, width: scaled(PLAYER_RESOURCE_FRAME_WIDTH), height: scaled(PLAYER_RESOURCE_FRAME_HEIGHT) },
+    portrait: {
+      x: x + scaled(mirrored ? 33 : 3), y: y + scaled(3),
+      width: scaled(12), height: scaled(13),
+    },
     bars: {
-      health: { x: x + 18 * scale, y: y + 3 * scale, width: 30 * scale, height: 5 * scale },
-      mana: { x: x + 18 * scale, y: y + 7 * scale, width: 30 * scale, height: 5 * scale },
-      vigour: { x: x + 18 * scale, y: y + 11 * scale, width: 30 * scale, height: 5 * scale },
+      health: { x: x + scaled(mirrored ? 0 : 18), y: y + scaled(3), width: scaled(30), height: scaled(5) },
+      mana: { x: x + scaled(mirrored ? 0 : 18), y: y + scaled(7), width: scaled(30), height: scaled(5) },
+      vigour: { x: x + scaled(mirrored ? 0 : 18), y: y + scaled(11), width: scaled(30), height: scaled(5) },
     },
   };
 }
@@ -44,17 +53,23 @@ function resourceFraction(current: number, maximum: number): number {
   return Math.max(0, Math.min(1, current / maximum));
 }
 
+export function resourceFillWidth(width: number, current: number | undefined, maximum: number | undefined): number {
+  if (current === undefined || maximum === undefined) return 0;
+  return Math.round(width * resourceFraction(current, maximum));
+}
+
 /** Draws a partial authored bar without stretching its pixels. The empty frame
  * remains visible underneath the clipped fill. */
 function drawResourceFill(
   context: CanvasRenderingContext2D,
   asset: LoadedAsset,
   rect: UiRect,
-  fraction: number,
+  current: number | undefined,
+  maximum: number | undefined,
 ): void {
   const source = uiAssetFrame(asset);
   if (source === null) return;
-  const width = Math.round(rect.width * fraction);
+  const width = resourceFillWidth(rect.width, current, maximum);
   if (width <= 0) return;
   context.save();
   context.beginPath();
@@ -83,33 +98,40 @@ export class PlayerResourceFrame {
     y: number,
     vigourDenied = false,
     scale = 1,
+    mirrored = false,
   ): boolean {
     const resources = this.source.resolve(playerId);
     if (resources === null) return false;
     const frame = uiAssetFrame(this.skin.barFrame);
     if (frame === null) return false;
-    const layout = playerResourceFrameLayout(x, y, scale);
+    const layout = playerResourceFrameLayout(x, y, scale, mirrored);
     context.imageSmoothingEnabled = false;
-    context.drawImage(
-      this.skin.barFrame.image,
-      frame.x, frame.y, frame.width, frame.height,
-      x, y, PLAYER_RESOURCE_FRAME_WIDTH * scale, PLAYER_RESOURCE_FRAME_HEIGHT * scale,
-    );
+    context.save();
+    if (mirrored) {
+      context.translate(layout.frame.x + layout.frame.width, layout.frame.y);
+      context.scale(-1, 1);
+      context.drawImage(this.skin.barFrame.image, frame.x, frame.y, frame.width, frame.height,
+        0, 0, layout.frame.width, layout.frame.height);
+    } else {
+      context.drawImage(this.skin.barFrame.image, frame.x, frame.y, frame.width, frame.height,
+        layout.frame.x, layout.frame.y, layout.frame.width, layout.frame.height);
+    }
+    context.restore();
     context.save();
     context.beginPath();
     context.rect(layout.portrait.x, layout.portrait.y, layout.portrait.width, layout.portrait.height);
     context.clip();
     this.source.drawHead(context, playerId, layout.portrait);
     context.restore();
-    drawResourceFill(context, this.skin.barRed, layout.bars.health, resourceFraction(resources.health, resources.maxHealth));
-    drawResourceFill(context, this.skin.barBlue, layout.bars.mana, resourceFraction(resources.mana, resources.maxMana));
-    drawResourceFill(context, this.skin.barGreen, layout.bars.vigour, resourceFraction(resources.vigour, resources.maxVigour));
-    if (vigourDenied) this.drawDeniedCorners(context, layout.bars.vigour);
+    drawResourceFill(context, this.skin.barRed, layout.bars.health, resources.health, resources.maxHealth);
+    drawResourceFill(context, this.skin.barBlue, layout.bars.mana, resources.mana, resources.maxMana);
+    drawResourceFill(context, this.skin.barGreen, layout.bars.vigour, resources.vigour, resources.maxVigour);
+    if (vigourDenied && resources.vigour !== undefined) this.drawDeniedCorners(context, layout.bars.vigour);
     return true;
   }
 
-  resourceAtPoint(x: number, y: number, point: UiPoint, scale = 1): PlayerResourceKind | null {
-    const bars = playerResourceFrameLayout(x, y, scale).bars;
+  resourceAtPoint(x: number, y: number, point: UiPoint, scale = 1, mirrored = false): PlayerResourceKind | null {
+    const bars = playerResourceFrameLayout(x, y, scale, mirrored).bars;
     for (const kind of ['health', 'mana', 'vigour'] as const) {
       const rect = bars[kind];
       if (point.x >= rect.x && point.x < rect.x + rect.width

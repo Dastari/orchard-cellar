@@ -974,6 +974,69 @@ export function drawPlayerHeadPortrait(
   }
 }
 
+const npcPortraitBounds = new Map<string, AtlasFrame>();
+
+function opaquePortraitFrame(asset: LoadedAsset, frame: AtlasFrame): AtlasFrame {
+  const key = `${asset.assetId}:${frame.x}:${frame.y}:${frame.width}:${frame.height}`;
+  const cached = npcPortraitBounds.get(key);
+  if (cached !== undefined) return cached;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = frame.width; canvas.height = frame.height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (context === null) return frame;
+    context.drawImage(asset.image, frame.x, frame.y, frame.width, frame.height, 0, 0, frame.width, frame.height);
+    const pixels = context.getImageData(0, 0, frame.width, frame.height).data;
+    let left = frame.width; let right = -1; let top = frame.height; let bottom = -1;
+    for (let y = 0; y < frame.height; y += 1) for (let x = 0; x < frame.width; x += 1) {
+      if ((pixels[(y * frame.width + x) * 4 + 3] ?? 0) === 0) continue;
+      left = Math.min(left, x); right = Math.max(right, x);
+      top = Math.min(top, y); bottom = Math.max(bottom, y);
+    }
+    if (right < left || bottom < top) return frame;
+    const cropped = {
+      x: frame.x + left, y: frame.y + top,
+      width: right - left + 1, height: bottom - top + 1,
+      durationTicks: frame.durationTicks,
+    };
+    npcPortraitBounds.set(key, cropped);
+    return cropped;
+  } catch {
+    return frame;
+  }
+}
+
+/** Fits an NPC's complete authored model into the target portrait well. Player
+ * targets use the modular head crop above; non-human silhouettes remain more
+ * recognisable when the complete animal or merchant sprite is preserved. */
+export function drawNpcPortrait(
+  context: CanvasRenderingContext2D,
+  art: OverworldArt,
+  npc: { readonly npcKind: string; readonly species?: string; readonly variant: number },
+  destination: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+): void {
+  const speciesKey = npc.species === 'capybara' ? 'capybara_idle' : npc.species;
+  const variants = speciesKey === undefined ? undefined : art.wildlife[speciesKey];
+  const asset = npc.npcKind === 'merchant'
+    ? art.merchantNpc
+    : variants?.[npc.variant % Math.max(1, variants.length)] ?? art.missingItem;
+  const preferred = npc.npcKind === 'merchant' ? 'idle_down'
+    : 'idle_side';
+  const animation = availableAnimation(asset, preferred);
+  const selectedFrame = selectAtlasFrame(asset.metadata, animation, 0);
+  if (selectedFrame === null) return;
+  const frame = opaquePortraitFrame(asset, selectedFrame);
+  const availableWidth = Math.max(1, destination.width - 2);
+  const availableHeight = Math.max(1, destination.height - 2);
+  const scale = Math.min(availableWidth / frame.width, availableHeight / frame.height);
+  const width = Math.max(1, Math.round(frame.width * scale));
+  const height = Math.max(1, Math.round(frame.height * scale));
+  const x = Math.round(destination.x + (destination.width - width) / 2);
+  const y = Math.round(destination.y + (destination.height - height) / 2);
+  context.imageSmoothingEnabled = false;
+  context.drawImage(asset.image, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
+}
+
 export function idleAvatarAnimationForDirection(facing: Direction): 'idle_up' | 'idle_right' | 'idle_down' {
   if (facing === 'up') return 'idle_up';
   if (facing === 'down') return 'idle_down';

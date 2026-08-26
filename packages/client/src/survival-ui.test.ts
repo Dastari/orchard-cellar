@@ -1,4 +1,4 @@
-import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from '@orchard/sim';
+import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, resourceToolReachFixed } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import {
   facedResource,
@@ -68,6 +68,14 @@ describe('survival controls', () => {
     expect(facedResource(x, y, 'left', [tree])).toBeNull();
     expect(facedResource(x, y, 'right', [{ ...tree, tileX: 13 }])).toBeNull();
     expect(facedResource(x, y, 'right', [{ ...tree, depleted: true }])).toBeNull();
+  });
+
+  it('selects a tree across the wider axe swing radius', () => {
+    const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const y = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const distantTree = { ...tree, tileX: 13 };
+    expect(facedResource(x, y, 'right', [distantTree], resourceToolReachFixed('axe'))).toEqual(distantTree);
+    expect(facedResource(x, y, 'right', [distantTree], resourceToolReachFixed('pickaxe'))).toBeNull();
   });
 
   it('maps both number rows to nine persisted hotbar slots', () => {

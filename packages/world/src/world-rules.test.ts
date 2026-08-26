@@ -203,7 +203,7 @@ describe('overworld authority rules', () => {
     expect(collision.obstacles?.length).toBeGreaterThan(0);
   });
 
-  it('requires the matching tool and authoritative two-tile harvesting reach', () => {
+  it('requires the matching tool and gives axes a broader authoritative reach', () => {
     const resource = generateSurvivalResources().find((candidate) => candidate.kind.startsWith('tree_'));
     if (!resource) throw new Error('missing generated resource fixture');
     const x = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
@@ -222,7 +222,11 @@ describe('overworld authority rules', () => {
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind: 'rock_large', depleted: false })).toBe('wrong_tool');
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, depleted: true })).toBe('depleted');
     expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');
-    expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED + 1, y, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
+    expect(resourceHarvestResult(x + 3 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');
+    expect(resourceHarvestResult(x + 3 * TILE_SIZE_FIXED + 1, y, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
+    expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED + 1, y, 'pickaxe', {
+      ...resource, kind: 'rock_large', depleted: false,
+    })).toBe('out_of_range');
   });
 
   it('allows nearby loose resources to be gathered without a tool', () => {

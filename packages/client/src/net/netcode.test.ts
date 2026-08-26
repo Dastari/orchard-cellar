@@ -15,6 +15,7 @@ import {
   RemoteSnapshotBuffer,
   ProjectileSnapshotBuffer,
   RenderTickClock,
+  VisualTickClock,
   inputRefreshDue,
 } from './netcode.js';
 
@@ -181,6 +182,22 @@ describe('remote interpolation', () => {
     const clock = new RenderTickClock();
     clock.advance(0, 100n);
     expect(clock.advance(1 / SIM_TICKS_PER_SECOND, 10_000n)).toBe(9_998.5);
+  });
+
+  it('keeps cosmetic presentation moving without new authority rows', () => {
+    const clock = new VisualTickClock();
+    const initial = clock.advance(0, 100n);
+    let rendered = initial;
+    for (let step = 0; step < SIM_TICKS_PER_SECOND; step += 1) {
+      rendered = clock.advance(1 / SIM_TICKS_PER_SECOND, 100n);
+    }
+    expect(rendered).toBeGreaterThan(initial + 10);
+  });
+
+  it('resynchronizes cosmetic time after a reconnect discontinuity', () => {
+    const clock = new VisualTickClock();
+    clock.advance(0, 100n);
+    expect(clock.advance(1 / SIM_TICKS_PER_SECOND, 10_000n)).toBe(10_000);
   });
 });
 

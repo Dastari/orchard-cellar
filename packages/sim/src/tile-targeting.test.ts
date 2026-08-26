@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { TILE_SIZE_FIXED, type CollisionMap } from './state.js';
 import { playerHitboxBounds } from './movement.js';
 import {
+  AXE_SWING_REACH_TILES,
   facedTileTarget,
+  resourceToolReachFixed,
   tileTargetAtFixedPoint,
   tileTargetInReach,
   tileTargetIsBlocked,
@@ -11,6 +13,12 @@ import {
 describe('shared tile targeting', () => {
   const playerX = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const playerY = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+
+  it('gives the axe a broader resource swing without extending mining tools', () => {
+    expect(AXE_SWING_REACH_TILES).toBe(3);
+    expect(resourceToolReachFixed('axe')).toBe(3 * TILE_SIZE_FIXED);
+    expect(resourceToolReachFixed('pickaxe')).toBe(2 * TILE_SIZE_FIXED);
+  });
 
   it('retains adjacent facing targets and accepts mouse targets up to three tiles away', () => {
     expect(facedTileTarget(playerX, playerY, 'upLeft')).toEqual({ tileX: 9, tileY: 9 });

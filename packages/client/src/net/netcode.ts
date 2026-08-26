@@ -345,6 +345,28 @@ export class RenderTickClock {
   reset(): void { this.value = null; }
 }
 
+/** A cosmetic timeline that continues between authority observations. Unlike
+ * RenderTickClock it is not capped at the most recent row: sparse/unchanged
+ * position traffic must never stop clouds, water, fire, or foliage. */
+export class VisualTickClock {
+  private value: number | null = null;
+
+  get renderTick(): number { return this.value ?? 0; }
+
+  advance(dtSeconds: number, latestAuthorityTick: bigint): number {
+    const authority = Number(latestAuthorityTick);
+    if (this.value === null || Math.abs(authority - this.value) > AUTHORITY_HZ * 4) {
+      this.value = authority;
+      return this.value;
+    }
+    this.value += Math.max(0, dtSeconds) * AUTHORITY_HZ;
+    this.value += Math.max(-0.05, Math.min(0.05, (authority - this.value) * 0.025));
+    return this.value;
+  }
+
+  reset(): void { this.value = null; }
+}
+
 export interface AvatarAnimationFrame {
   readonly channel: 'locomotion' | 'action';
   readonly kind: string;

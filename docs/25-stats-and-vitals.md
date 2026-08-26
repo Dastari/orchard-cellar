@@ -288,24 +288,27 @@ Per docs/08 schema evolution — no column renames, no repurposing:
   full-durability backfill; its marker is what preserves a genuinely broken tool.
 - **`stats_migration`** marks the one-time legacy NPC-health backfill. Never infer
   migrations forever from `health === 0`, because zero becomes valid combat state.
-- Reserved, not added now: public `player_vitals_public { identity, healthPct: u8 }`
-  for remote health bars — a combat-era addition, one additive table away.
+- Reserved: public `player_vitals_public { identity, healthPct: u8 }` for remote
+  health bars. It remains behind the combat/world-migration gate; exact maxima,
+  attributes, Mana, Vigour, effects, equipment, and progression stay private.
 - New `SenderError` codes: `insufficient_vigour`, `swing_too_soon` (toast strings
   via the existing `showResult` map), plus `tool_broken`, `tool_not_damaged`, and
   `repair_material_missing` for durability.
 
 ## 10. UI — the vitals cluster
 
-Bottom-right of the 480×270 virtual buffer, drawn by a new `drawVitals()` in the
-doc 23 UI pass, called from `OverworldUi.draw()` after `drawHotbar`:
+Immediately above the hotbar, drawn by `OverworldUi.draw()` after `drawHotbar`:
 
-- Three bars stacked, top→bottom **Health (red), Mana (blue), Vigour (green)**;
-  each 60×10 (`ui_cf_bar_frame` nine-slice — its `[7,4,7,5]` insets set the 9 px
-  height floor, so 10 px is the minimum honest height), 1 px gaps; cluster
-  anchored `anchoredRect(root, {60, 32}, 'bottom_right')` with a 4 px margin.
-  Fill = the `Slider.draw()` fraction-clip math over the segmented fill sprites.
-  The bottom-right region is currently empty; 32 px tall fits the
-  `fittedUiScale` `h/110` budget at every UI scale.
+- The own-character composite is 72×29 (1.5× authored scale), aligned to the
+  hotbar's left edge. Three bars stack top→bottom: **Health (red), Mana (blue),
+  Vigour (green)**. The licensed composite supplies only portrait well and empty
+  tracks; each coloured fill width is derived every draw from current/max.
+- Clicking another visible player or NPC selects it. A mirrored 72×29 target
+  frame aligns to the hotbar's right edge, with its portrait on the outside.
+  Players use their modular head; non-player NPCs fit their entire authored model
+  inside the portrait well. NPC health uses authoritative `world_npc.health`.
+  Until the additive public percentage migration lands with combat, player targets
+  show the current full-health baseline and leave both private-resource tracks empty.
 - Fill values render from the **displayed** (subscription + cosmetic prediction)
   vitals; numbers `current/max` appear in the existing tooltip layer on hover
   only — bars stay clean.
@@ -371,7 +374,7 @@ systems (§11/§14).
 ## 14. Out of scope
 
 Damage dealing and taking; hostile AI; XP and levelling; character sheet UI;
-remote/overhead health bars; spells; death penalties beyond §11; authority-rate
+overhead health bars; spells; death penalties beyond §11; authority-rate
 changes; any base-attribute mutation.
 
 ## 15. Tests and acceptance
@@ -392,7 +395,7 @@ changes; any base-attribute mutation.
 - **Two-client:** client A cannot see B's `player_stats`/`player_effect` rows;
   A spamming `F` is rate-bound by Vigour + interval while B's view of the world
   stays consistent (no phantom resource damage).
-- **Browser:** vitals cluster renders bottom-right at UI scales 1/2/3 without
+- **Browser:** own/target vitals align to the hotbar edges at UI scales 1/2/3 without
   overlapping the hotbar or weather panel; cosmetic dip then authoritative
   settle on tool use; deny flash on empty Vigour; bars survive `fittedUiScale`
   downgrade on a short viewport; durability bars remain inside every beveled slot
@@ -409,6 +412,19 @@ tests. The existing isolated two-client OIDC harness now also asserts that `ownS
 contains exactly the caller and that `ownEffects` never contains another identity;
 its identity, reconnect, private-read, and mutation-isolation baseline is recorded in
 [24-self-hosted-oidc.md](24-self-hosted-oidc.md) §10.
+
+Target-frame follow-up (2026-08-26): pointer hit-testing now selects visible remote
+players and NPCs by their rendered, foot-anchored bounds, with closest-centre/frontmost
+resolution for overlaps and gold world-space selection corners. The own 1.5× frame is
+hotbar-left; its mirrored target peer is hotbar-right with the portrait outside. A
+browser-only composition render exercised 72.5/35/61% own fills and a 65% NPC health
+fill, then verified an opaque-bounds-cropped whole horse portrait. Focused targeting,
+layout, click-capture, mirrored hit-area, and fill-fraction tests pass. The full gate
+passes 81 files/496 tests, production client build, 488-asset validation, typechecks,
+lint, and world build. The populated local world correctly rejected an unrelated
+rollback of another in-progress agent's `space_id`/mine schema; no shared data was
+deleted. The new targeting path therefore has no server-schema dependency, and the
+temporary isolated validation database was removed after use.
 
 ## 16. Bookkeeping
 

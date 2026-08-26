@@ -31,6 +31,17 @@ export interface OverworldUiVitals {
   readonly vigour: number; readonly maxVigour: number;
 }
 
+export interface OverworldUiTargetVitals {
+  readonly targetId: string;
+  readonly displayName: string;
+  readonly health: number; readonly maxHealth: number;
+  readonly mana?: number; readonly maxMana?: number;
+  readonly vigour?: number; readonly maxVigour?: number;
+  readonly portrait:
+    | { readonly kind: 'player'; readonly playerId: string }
+    | { readonly kind: 'npc'; readonly npcKind: string; readonly species?: string; readonly variant: number };
+}
+
 export interface OverworldUiEffect {
   readonly effectKind: string; readonly name: string; readonly stacks: number;
   readonly remainingTicks: number; readonly durationTicks: number;
@@ -50,6 +61,7 @@ export interface OverworldUiModel {
   readonly balanceBronze?: bigint;
   readonly inventory: readonly OverworldUiInventorySlot[];
   readonly vitals?: OverworldUiVitals;
+  readonly targetVitals?: OverworldUiTargetVitals;
   readonly effects?: readonly OverworldUiEffect[];
   readonly vigourDenied?: boolean;
   readonly openChestInventory?: readonly OverworldUiInventorySlot[];
@@ -105,6 +117,7 @@ export interface OverworldUiLayout {
   readonly windDirectionButton: UiRect;
   readonly hotbar: UiRect;
   readonly vitals: UiRect;
+  readonly targetVitals: UiRect;
   readonly slots: readonly UiRect[];
   readonly tooltip: UiRect;
   readonly window: UiRect;
@@ -141,6 +154,9 @@ const DEFAULT_INVENTORY_SLOTS = 8;
 const BACKPACK_SLOT_OFFSET = HOTBAR_SLOTS;
 const EQUIPMENT_SLOT_OFFSET = BACKPACK_SLOT_OFFSET + BACKPACK_SLOTS;
 const CRAFTING_SLOT_OFFSET = EQUIPMENT_SLOT_OFFSET + 9;
+export const HUD_RESOURCE_FRAME_SCALE = 1.5;
+const HUD_RESOURCE_FRAME_WIDTH = Math.round(48 * HUD_RESOURCE_FRAME_SCALE);
+const HUD_RESOURCE_FRAME_HEIGHT = Math.round(19 * HUD_RESOURCE_FRAME_SCALE);
 const NAMEPLATE_HORIZONTAL_PADDING = 5;
 const NAMEPLATE_HEIGHT = 11;
 export const ONLINE_PLAYER_LIST_BOTTOM_PADDING = 12;
@@ -188,7 +204,14 @@ export function itemIconAnimation(itemKind: string): string {
 export function overworldUiLayout(width: number, height: number): OverworldUiLayout {
   const hotbarWidth = HOTBAR_SLOTS * SLOT_WIDTH;
   const hotbar = { x: Math.round((width - hotbarWidth) / 2), y: height - SLOT_HEIGHT - 6, width: hotbarWidth, height: SLOT_HEIGHT };
-  const vitals = { x: Math.round((width - 96) / 2), y: hotbar.y - 42, width: 96, height: 38 };
+  const vitals = {
+    x: hotbar.x, y: hotbar.y - HUD_RESOURCE_FRAME_HEIGHT - 4,
+    width: HUD_RESOURCE_FRAME_WIDTH, height: HUD_RESOURCE_FRAME_HEIGHT,
+  };
+  const targetVitals = {
+    x: hotbar.x + hotbar.width - HUD_RESOURCE_FRAME_WIDTH, y: vitals.y,
+    width: HUD_RESOURCE_FRAME_WIDTH, height: HUD_RESOURCE_FRAME_HEIGHT,
+  };
   const weather = { x: width - 224, y: 4, width: 220, height: 24 };
   const windowWidth = Math.min(270, Math.max(220, width - 16));
   const windowHeight = Math.min(184, Math.max(150, height - 30));
@@ -219,6 +242,7 @@ export function overworldUiLayout(width: number, height: number): OverworldUiLay
     windDirectionButton: { x: developerWindow.x + 30, y: developerWindow.y + 119, width: developerWindow.width - 60, height: 22 },
     hotbar,
     vitals,
+    targetVitals,
     slots: Array.from({ length: HOTBAR_SLOTS }, (_, slot) => ({ x: hotbar.x + slot * SLOT_WIDTH, y: hotbar.y, width: 28, height: SLOT_HEIGHT })),
     tooltip: { x: Math.round(width / 2) - 100, y: vitals.y - 20, width: 200, height: 16 },
     window,
@@ -294,6 +318,7 @@ export class OverworldUi {
   private readonly onlinePlayersScrollBar: ScrollBar;
   private readonly currencyDisplay: CurrencyDisplay;
   private readonly playerResourceFrame: PlayerResourceFrame;
+  private readonly targetResourceFrame: PlayerResourceFrame;
   private readonly drag = new DragContext();
   private model: OverworldUiModel = {
     width: 480, height: 270, connected: false, playerCount: 0, selectedSlot: 0, balanceBronze: 0n,
@@ -323,6 +348,7 @@ export class OverworldUi {
     private readonly itemArt: OverworldUiItemArt,
     private readonly callbacks: OverworldUiCallbacks,
     drawPlayerHead: (context: CanvasRenderingContext2D, playerId: string, rect: UiRect) => void = () => undefined,
+    drawTargetPortrait: (context: CanvasRenderingContext2D, target: OverworldUiTargetVitals, rect: UiRect) => void = () => undefined,
   ) {
     this.root = widget('root', 'overworld.ui.root');
     this.windowRibbon = new Ribbon(skin.banner, fonts);
@@ -332,6 +358,13 @@ export class OverworldUi {
     this.playerResourceFrame = new PlayerResourceFrame(skin, {
       resolve: (playerId) => this.model.vitals?.playerId === playerId ? this.model.vitals : null,
       drawHead: drawPlayerHead,
+    });
+    this.targetResourceFrame = new PlayerResourceFrame(skin, {
+      resolve: (targetId) => this.model.targetVitals?.targetId === targetId ? this.model.targetVitals : null,
+      drawHead: (context, targetId, rect) => {
+        const target = this.model.targetVitals;
+        if (target?.targetId === targetId) drawTargetPortrait(context, target, rect);
+      },
     });
     this.weatherNode = widget('panel', 'hud.weather', { capturePointer: true });
     this.timeSlider = new Slider({
@@ -642,6 +675,9 @@ export class OverworldUi {
       return true;
     }
     if (button === 0 && this.onlinePlayerListActive && this.onlinePlayersScrollBar.pointerDown(point)) return true;
+    if (this.openWindowValue === null
+      && ((this.model.vitals !== undefined && containsPoint(this.layout.vitals, point))
+        || (this.model.targetVitals !== undefined && containsPoint(this.layout.targetVitals, point)))) return true;
     if (this.openWindowValue === 'help') {
       const result = this.helpBook.pointerDown(point);
       if (result === 'back') this.openWindow = 'system';
@@ -790,6 +826,7 @@ export class OverworldUi {
     this.drawWeather(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawHotbar(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawVitals(context);
+    if (!this.isInventoryWindow(this.openWindowValue)) this.drawTargetVitals(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawEffects(context);
     if (this.openWindowValue === 'help') this.helpBook.draw(context, this.model.width, this.model.height);
     else if (this.openWindowValue) this.drawWindow(context, this.openWindowValue);
@@ -967,7 +1004,25 @@ export class OverworldUi {
   private drawVitals(context: CanvasRenderingContext2D): void {
     const vitals = this.model.vitals;
     if (!vitals) return;
-    this.playerResourceFrame.draw(context, vitals.playerId, this.layout.vitals.x, this.layout.vitals.y, this.model.vigourDenied, 2);
+    this.playerResourceFrame.draw(
+      context, vitals.playerId, this.layout.vitals.x, this.layout.vitals.y,
+      this.model.vigourDenied, HUD_RESOURCE_FRAME_SCALE,
+    );
+  }
+
+  private drawTargetVitals(context: CanvasRenderingContext2D): void {
+    const target = this.model.targetVitals;
+    if (!target) return;
+    this.targetResourceFrame.draw(
+      context, target.targetId, this.layout.targetVitals.x, this.layout.targetVitals.y,
+      false, HUD_RESOURCE_FRAME_SCALE, true,
+    );
+    drawOutlinedPixelText(
+      context, this.fonts, fitLabel(target.displayName.toUpperCase(), 18),
+      this.layout.targetVitals.x + this.layout.targetVitals.width,
+      this.layout.targetVitals.y - 2,
+      { align: 'right', color: '#fff1cf', outlineColor: '#3f2832' },
+    );
   }
 
   private effectRects(): readonly UiRect[] {
@@ -1042,7 +1097,9 @@ export class OverworldUi {
     const effect = (this.model.effects ?? [])[effectIndex];
     if (effect) return `${effect.name.toUpperCase()}  ${Math.ceil(effect.remainingTicks / 20)}S`;
     if (this.openWindowValue === null && this.model.vitals) {
-      const resource = this.playerResourceFrame.resourceAtPoint(this.layout.vitals.x, this.layout.vitals.y, this.pointer, 2);
+      const resource = this.playerResourceFrame.resourceAtPoint(
+        this.layout.vitals.x, this.layout.vitals.y, this.pointer, HUD_RESOURCE_FRAME_SCALE,
+      );
       if (resource !== null) {
         const entries = {
           health: ['HEALTH', this.model.vitals.health, this.model.vitals.maxHealth],
@@ -1051,6 +1108,22 @@ export class OverworldUi {
         } as const;
         const [name, current, maximum] = entries[resource];
         return `${name}  ${(current / 100).toFixed(1)}/${(maximum / 100).toFixed(1)}`;
+      }
+    }
+    if (this.openWindowValue === null && this.model.targetVitals) {
+      const target = this.model.targetVitals;
+      const resource = this.targetResourceFrame.resourceAtPoint(
+        this.layout.targetVitals.x, this.layout.targetVitals.y, this.pointer,
+        HUD_RESOURCE_FRAME_SCALE, true,
+      );
+      const values = resource === 'health' ? ['HEALTH', target.health, target.maxHealth] as const
+        : resource === 'mana' && target.mana !== undefined && target.maxMana !== undefined
+          ? ['MANA', target.mana, target.maxMana] as const
+          : resource === 'vigour' && target.vigour !== undefined && target.maxVigour !== undefined
+            ? ['VIGOUR', target.vigour, target.maxVigour] as const : null;
+      if (values !== null) {
+        const [name, current, maximum] = values;
+        return `${target.displayName.toUpperCase()}  ${name}  ${Math.round(current)}/${Math.round(maximum)}`;
       }
     }
     return this.openWindowValue === null ? this.model.prompt ?? this.model.toast : null;

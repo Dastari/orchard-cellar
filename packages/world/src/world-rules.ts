@@ -12,6 +12,7 @@ import {
   isBreakableRockKind,
   isGatherableResourceKind,
   isMineableOreKind,
+  resourceToolReachFixed,
   survivalBiomeAt,
   survivalGatherableDrop,
   survivalResourceBlocksMovement,
@@ -160,7 +161,8 @@ export function resourceHarvestResult(
   const resourceY = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const dx = resourceX - playerX;
   const dy = resourceY - playerY;
-  if (dx * dx + dy * dy > TREE_REACH_FIXED * TREE_REACH_FIXED) return 'out_of_range';
+  const reachFixed = resourceToolReachFixed(selectedItem);
+  if (dx * dx + dy * dy > reachFixed * reachFixed) return 'out_of_range';
   return 'ok';
 }
 

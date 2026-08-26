@@ -15,6 +15,16 @@ export interface FixedBounds {
 /** Shared reach for mouse-targeted tools and placeable world objects. */
 export const TILE_INTERACTION_REACH_TILES = 3;
 export const TILE_INTERACTION_REACH_FIXED = TILE_INTERACTION_REACH_TILES * TILE_SIZE_FIXED;
+export const RESOURCE_TOOL_REACH_TILES = 2;
+export const AXE_SWING_REACH_TILES = 3;
+
+/** Axe art describes a broad swing around visually large tree crowns. Mining
+ * retains the tighter resource reach so an axe adjustment cannot silently
+ * increase every tool's authority range. */
+export function resourceToolReachFixed(itemKind: string): number {
+  const tiles = itemKind === 'axe' ? AXE_SWING_REACH_TILES : RESOURCE_TOOL_REACH_TILES;
+  return tiles * TILE_SIZE_FIXED;
+}
 
 const FACING_VECTOR: Record<Direction, readonly [number, number]> = {
   up: [0, -1],

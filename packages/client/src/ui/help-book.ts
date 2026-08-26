@@ -39,6 +39,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
   {
     title: 'ACTIONS',
     entries: [
+      'Left click another player or NPC to select it; click empty ground to clear it.',
       'E: ride or dismount a horse, or pick up the faced item.',
       'F: use the selected tool on the faced target.',
       'Q: drop the selected hotbar item.',

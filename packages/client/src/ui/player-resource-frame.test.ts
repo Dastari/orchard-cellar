@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PlayerResourceFrame, playerResourceFrameLayout } from './player-resource-frame.js';
+import { PlayerResourceFrame, playerResourceFrameLayout, resourceFillWidth } from './player-resource-frame.js';
 import type { UiSkin } from './skin.js';
 
 describe('player resource frame', () => {
@@ -19,6 +19,23 @@ describe('player resource frame', () => {
         vigour: { x: 46, y: 42, width: 60, height: 10 },
       },
     });
+    expect(playerResourceFrameLayout(10, 20, 1.5, true)).toEqual({
+      frame: { x: 10, y: 20, width: 72, height: 29 },
+      portrait: { x: 60, y: 25, width: 18, height: 20 },
+      bars: {
+        health: { x: 10, y: 25, width: 45, height: 8 },
+        mana: { x: 10, y: 31, width: 45, height: 8 },
+        vigour: { x: 10, y: 37, width: 45, height: 8 },
+      },
+    });
+  });
+
+  it('derives every visible fill width from live current/max values', () => {
+    expect(resourceFillWidth(60, 1000, 1000)).toBe(60);
+    expect(resourceFillWidth(60, 500, 1000)).toBe(30);
+    expect(resourceFillWidth(60, 1, 1000)).toBe(0);
+    expect(resourceFillWidth(60, 5000, 1000)).toBe(60);
+    expect(resourceFillWidth(60, undefined, undefined)).toBe(0);
   });
 
   it('resolves resources by player identity and hit-tests each authored bar', () => {
@@ -29,6 +46,8 @@ describe('player resource frame', () => {
     expect(frame.resourceAtPoint(10, 20, { x: 30, y: 34 })).toBe('vigour');
     expect(frame.resourceAtPoint(10, 20, { x: 14, y: 24 })).toBeNull();
     expect(frame.resourceAtPoint(10, 20, { x: 50, y: 44 }, 2)).toBe('vigour');
+    expect(frame.resourceAtPoint(10, 20, { x: 20, y: 26 }, 1.5, true)).toBe('health');
+    expect(frame.resourceAtPoint(10, 20, { x: 65, y: 26 }, 1.5, true)).toBeNull();
     expect(frame.draw({} as CanvasRenderingContext2D, 'player-2', 10, 20)).toBe(false);
     expect(resolve).toHaveBeenCalledWith('player-2');
   });

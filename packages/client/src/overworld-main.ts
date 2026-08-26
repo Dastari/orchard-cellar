@@ -44,9 +44,11 @@ import {
   movePlayerAtSpeed,
   modifiersForEffects,
   playerHitboxBounds,
+  resourceToolReachFixed,
   survivalBiomeAt,
   resolveStats,
   resolveModifierTarget,
+  resolveCreatureStats,
   type CollisionMap,
   type Direction,
   type EffectKind,
@@ -75,7 +77,7 @@ import {
   type NetworkDirection,
   type OverworldView,
 } from './net/overworld-connection.js';
-import { AvatarAnimationController, PresentationCorrection, ProjectileSnapshotBuffer, RemoteSnapshotBuffer, RenderTickClock, type SampledProjectile, type SampledRemote } from './net/netcode.js';
+import { AvatarAnimationController, PresentationCorrection, ProjectileSnapshotBuffer, RemoteSnapshotBuffer, RenderTickClock, VisualTickClock, type SampledProjectile, type SampledRemote } from './net/netcode.js';
 import {
   DEFAULT_PLAYER_APPEARANCE,
   drawOverworldAvatar,
@@ -87,6 +89,7 @@ import {
   drawOverworldMerchant,
   drawOverworldMountedAction,
   drawPlayerHeadPortrait,
+  drawNpcPortrait,
   drawOverworldOreNode,
   drawOverworldPoiDecoration,
   drawOverworldRock,
@@ -129,7 +132,8 @@ import {
 } from './render/renderer.js';
 import { terrainForWorld, type TerrainArray } from './render/terrain.js';
 import { interpolateFixedPosition } from './overworld-prediction.js';
-import { isNameplateToggle, OverworldUi } from './ui/overworld-ui.js';
+import { isNameplateToggle, OverworldUi, type OverworldUiTargetVitals } from './ui/overworld-ui.js';
+import { entityTargetAtWorldPoint, sameEntityTarget, targetKey, type SelectedEntityTarget, type TargetableWorldEntity } from './entity-targeting.js';
 import { ChatOverlay } from './ui/chat-overlay.js';
 import { parseChatSubmission } from './ui/chat-command.js';
 import {
@@ -269,6 +273,7 @@ const npcDisplay = new Map<bigint, SampledRemote>();
 const projectileBuffers = new Map<bigint, ProjectileSnapshotBuffer>();
 const projectileDisplay = new Map<bigint, SampledProjectile>();
 const renderTickClock = new RenderTickClock();
+const visualTickClock = new VisualTickClock();
 const presentationCorrection = new PresentationCorrection();
 const avatarAnimations = new Map<string, AvatarAnimationController>();
 const resourceHealth = new Map<bigint, number>();
@@ -287,6 +292,8 @@ let closingChestId: bigint | null = null;
 let latestCameraX = 0;
 let latestCameraY = 0;
 let latestRenderedZoom = worldZoom;
+let selectedEntityTarget: SelectedEntityTarget | null = null;
+let latestTargetableEntities: readonly TargetableWorldEntity[] = [];
 const itemArt = {
   missing: art.missingItem,
   avatar: art.avatar,
@@ -343,6 +350,13 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
 }, (context, playerId, rect) => {
   const appearance = latestSnapshot.appearances.get(playerId) ?? undefined;
   drawPlayerHeadPortrait(context, art, appearance ?? DEFAULT_PLAYER_APPEARANCE, rect);
+}, (context, target, rect) => {
+  if (target.portrait.kind === 'player') {
+    const appearance = latestSnapshot.appearances.get(target.portrait.playerId) ?? undefined;
+    drawPlayerHeadPortrait(context, art, appearance ?? DEFAULT_PLAYER_APPEARANCE, rect);
+    return;
+  }
+  drawNpcPortrait(context, art, target.portrait, rect);
 });
 const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
   chooseDialogueOption: (choiceId) => showResult(network.chooseDialogueOption(choiceId), 'DIALOGUE UPDATED'),
@@ -549,6 +563,10 @@ function update(): void {
     projectileDisplay.delete(id);
   });
   const renderTick = renderTickClock.advance(1 / SIM_TICKS_PER_SECOND, latestPositionAuthorityTick);
+  visualTickClock.advance(
+    1 / SIM_TICKS_PER_SECOND,
+    snapshot.clock?.authorityTick ?? latestPositionAuthorityTick,
+  );
   for (const [id, buffer] of remoteBuffers) {
     const sample = buffer.sample(renderTick, worldCollision);
     if (sample !== null) {
@@ -729,6 +747,7 @@ function targetResource(snapshot: OverworldView): WorldResource | null {
     predicted.position.y,
     targetsCursor ? cursorFacing() ?? predicted.facing : predicted.facing,
     eligible,
+    resourceToolReachFixed(itemKind),
   );
 }
 
@@ -806,6 +825,81 @@ function wildlifeProfile(snapshot: OverworldView, npcId: bigint): { readonly spe
   const profile = snapshot.wildlifeProfiles.get(npcId);
   if (profile === undefined || !isWildlifeSpecies(profile.species)) return null;
   return { species: profile.species, variant: profile.variant };
+}
+
+function npcTargetDimensions(species: WildlifeSpecies | null): { readonly halfWidth: number; readonly height: number } {
+  if (species === 'horse' || species === 'cow' || species === 'camel') return { halfWidth: 16, height: 26 };
+  if (species === 'sheep' || species === 'pig' || species === 'swan' || species === 'goose') return { halfWidth: 12, height: 20 };
+  if (species === 'bee' || species === 'butterfly' || species === 'scarab') return { halfWidth: 7, height: 14 };
+  return { halfWidth: 10, height: 18 };
+}
+
+function selectedTargetVitals(snapshot: OverworldView): OverworldUiTargetVitals | undefined {
+  const target = selectedEntityTarget;
+  if (target === null) return undefined;
+  if (target.kind === 'player') {
+    if (target.id === snapshot.identityHex || snapshot.players.get(target.id) === undefined) return undefined;
+    const displayName = profileName(snapshot.profiles, target.id);
+    return {
+      targetId: targetKey(target), displayName,
+      // Exact remote player vitals remain private until the combat-era public
+      // percentage projection can be added through the world migration gate.
+      health: 100, maxHealth: 100,
+      portrait: { kind: 'player', playerId: target.id },
+    };
+  }
+  const npc = snapshot.npcs.get(target.id);
+  if (npc === undefined || npc.rider !== undefined || npc.wanderDirection === 'inside_hive') return undefined;
+  const profile = wildlifeProfile(snapshot, npc.id);
+  const merchant = snapshot.merchants.get(npc.id) !== undefined;
+  const maximumHealth = profile === null
+    ? Math.max(1, npc.health, 100)
+    : Math.ceil(resolveCreatureStats(profile.species).maxHealthCenti / 100);
+  return {
+    targetId: targetKey(target),
+    displayName: npc.displayName.trim() || profile?.species.replaceAll('_', ' ') || npc.kind.replaceAll('_', ' '),
+    health: npc.health,
+    maxHealth: maximumHealth,
+    portrait: {
+      kind: 'npc', npcKind: merchant ? 'merchant' : npc.kind,
+      ...(profile === null ? {} : { species: profile.species }),
+      variant: profile?.variant ?? 0,
+    },
+  };
+}
+
+function drawSelectedEntityMarker(
+  context: CanvasRenderingContext2D,
+  entity: TargetableWorldEntity,
+  cameraX: number,
+  cameraY: number,
+  zoom: number,
+): void {
+  const left = Math.round((entity.x - entity.halfWidth - cameraX) * zoom);
+  const right = Math.round((entity.x + entity.halfWidth - cameraX) * zoom);
+  const top = Math.round((entity.y - entity.height - cameraY) * zoom);
+  const bottom = Math.round((entity.y + 3 - cameraY) * zoom);
+  const arm = Math.max(3, Math.round(4 * zoom));
+  const thickness = Math.max(1, Math.round(zoom));
+  context.save();
+  context.fillStyle = '#3f2832';
+  for (const offset of [-thickness, thickness] as const) {
+    context.fillRect(left + offset, top + offset, arm, thickness);
+    context.fillRect(left + offset, top + offset, thickness, arm);
+    context.fillRect(right - arm + offset, top + offset, arm, thickness);
+    context.fillRect(right - thickness + offset, top + offset, thickness, arm);
+    context.fillRect(left + offset, bottom - thickness + offset, arm, thickness);
+    context.fillRect(left + offset, bottom - arm + offset, thickness, arm);
+    context.fillRect(right - arm + offset, bottom - thickness + offset, arm, thickness);
+    context.fillRect(right - thickness + offset, bottom - arm + offset, thickness, arm);
+  }
+  context.fillStyle = '#fee761';
+  context.fillRect(left, top, arm, thickness); context.fillRect(left, top, thickness, arm);
+  context.fillRect(right - arm, top, arm, thickness); context.fillRect(right - thickness, top, thickness, arm);
+  context.fillRect(left, bottom - thickness, arm, thickness); context.fillRect(left, bottom - arm, thickness, arm);
+  context.fillRect(right - arm, bottom - thickness, arm, thickness);
+  context.fillRect(right - thickness, bottom - arm, thickness, arm);
+  context.restore();
 }
 
 function horseLabel(horse: WorldNpc): string {
@@ -1019,7 +1113,7 @@ function render(alpha = 1): void {
     scale,
     viewportWidth,
     viewportHeight,
-    renderTickClock.renderTick * AUTHORITY_TICK_MS,
+    visualTickClock.renderTick * AUTHORITY_TICK_MS,
     renderWeather.wind,
     renderWeather.windDirectionX,
   );
@@ -1066,6 +1160,7 @@ function render(alpha = 1): void {
   const worldDepthItems: WorldDepthItem[] = [];
   const nameplates: Array<{ x: number; y: number; name: string }> = [];
   const renderedPlayerAnchors = new Map<string, { readonly x: number; readonly y: number }>();
+  const targetableEntities: TargetableWorldEntity[] = [];
   const pointLights: PointLight[] = [];
   const windTrees: WindTreeSource[] = [];
   if (!debugEntitiesHidden) for (const decoration of generateSurvivalDecorations(seed)) {
@@ -1098,7 +1193,7 @@ function render(alpha = 1): void {
         decoration.variant,
         natureDecorationFrame(
           decoration.kind,
-          renderTickClock.renderTick,
+          visualTickClock.renderTick,
           decoration.animationOffset,
           renderWeather.wind,
         ),
@@ -1119,7 +1214,7 @@ function render(alpha = 1): void {
     }
     const sway = treeSwayOffset(
       renderWeather,
-      renderTickClock.renderTick,
+      visualTickClock.renderTick,
       Math.imul(resource.tileX, 73_856_093) ^ Math.imul(resource.tileY, 19_349_663),
     );
     worldDepthItems.push({
@@ -1251,6 +1346,9 @@ function render(alpha = 1): void {
     if (!worldPointVisible(x, y, visible)) continue;
     const facing = (display?.facing ?? npc.facing) as Direction;
     if (snapshot.merchants.get(npc.id) !== undefined) {
+      targetableEntities.push({
+        target: { kind: 'npc', id: npc.id }, x, y, halfWidth: 9, height: 24,
+      });
       if (npc.displayName.trim()) nameplates.push({ x, y, name: npc.displayName });
       worldDepthItems.push({
         footY: y,
@@ -1266,6 +1364,7 @@ function render(alpha = 1): void {
     const species = profile?.species ?? (npc.kind === 'horse' ? 'horse' : null);
     if (species === null) continue;
     if (species === 'bee' && npc.wanderDirection === 'inside_hive') continue;
+    targetableEntities.push({ target: { kind: 'npc', id: npc.id }, x, y, ...npcTargetDimensions(species) });
     if (npc.displayName.trim()) nameplates.push({ x, y, name: npc.displayName });
     const animationFrame = horseAnimationFrame + Number(npc.id % 19n);
     const biome = survivalBiomeAt(
@@ -1325,6 +1424,10 @@ function render(alpha = 1): void {
       });
     }
     if (!worldPointVisible(x, y, visible)) continue;
+    if (!local) targetableEntities.push({
+      target: { kind: 'player', id }, x, y,
+      halfWidth: mount === null ? 8 : 16, height: mount === null ? 24 : 32,
+    });
     const authoritativeFacing = (local ? predicted?.facing ?? player.facing : display?.facing ?? player.facing) as Direction;
     const localEquipped = local ? selectedItem(snapshot) : player.equippedKind;
     const facing = local && equippedItemTracksCursor(localEquipped)
@@ -1409,6 +1512,7 @@ function render(alpha = 1): void {
       },
     });
   }
+  latestTargetableEntities = targetableEntities;
   drawCalls += drawWorldDepthQueue(
     worldDepthItems,
     cameraY,
@@ -1423,11 +1527,15 @@ function render(alpha = 1): void {
       maximumDepth,
     ),
   );
+  const markerTarget = selectedEntityTarget;
+  const markedTarget = markerTarget === null ? undefined
+    : targetableEntities.find((entity) => sameEntityTarget(entity.target, markerTarget));
+  if (markedTarget !== undefined) drawSelectedEntityMarker(context, markedTarget, cameraX, cameraY, scale);
   drawCalls += worldDepthItems.length;
   drawCalls += weatherEffects.drawCloudShadows(
     context,
     renderWeather,
-    renderTickClock.renderTick,
+    visualTickClock.renderTick,
     cameraX,
     cameraY,
     scale,
@@ -1449,7 +1557,7 @@ function render(alpha = 1): void {
   drawCalls += weatherEffects.drawWind(
     context,
     renderWeather,
-    renderTickClock.renderTick,
+    visualTickClock.renderTick,
     cameraX,
     cameraY,
     scale,
@@ -1544,6 +1652,8 @@ function render(alpha = 1): void {
     .sort((left, right) => Number(right.self) - Number(left.self)
       || left.displayName.localeCompare(right.displayName));
   const playerVitals = resolvedPlayerVitals(snapshot);
+  const targetVitals = selectedTargetVitals(snapshot);
+  if (selectedEntityTarget !== null && targetVitals === undefined) selectedEntityTarget = null;
   const effectAuthorityTick = snapshot.clock?.authorityTick ?? 0n;
   const visibleEffects = [...snapshot.effects]
     .filter((effect) => (EFFECT_KINDS as readonly string[]).includes(effect.effectKind)
@@ -1573,6 +1683,7 @@ function render(alpha = 1): void {
       ...playerVitals,
       vigour: optimisticVigourCenti ?? playerVitals.vigour,
     } }),
+    ...(targetVitals === undefined ? {} : { targetVitals }),
     vigourDenied: vigourDenyTicks > 0,
     effects: visibleEffects,
     openChestInventory: [...snapshot.openChestSlots],
@@ -2070,6 +2181,23 @@ canvas.addEventListener('pointerdown', (event) => {
     canvas.setPointerCapture(event.pointerId);
     event.preventDefault();
     return;
+  }
+  if (event.button === 0 && overworldUi.openWindow === null && !chatOverlay.isOpen) {
+    const nextTarget = entityTargetAtWorldPoint(
+      latestCameraX + canvasX / latestRenderedZoom,
+      latestCameraY + canvasY / latestRenderedZoom,
+      latestTargetableEntities,
+    );
+    const equipped = selectedItem(latestSnapshot);
+    if (nextTarget !== null) {
+      selectedEntityTarget = nextTarget;
+      if (equipped !== 'bow') {
+        event.preventDefault();
+        return;
+      }
+    } else if (equipped !== 'bow' && equipped !== 'hoe' && equipped !== 'watering_can') {
+      selectedEntityTarget = null;
+    }
   }
   if (event.button === 0 && selectedItem(latestSnapshot) === 'bow'
     && carriedChest(latestSnapshot) === null

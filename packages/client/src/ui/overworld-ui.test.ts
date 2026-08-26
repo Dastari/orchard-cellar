@@ -51,8 +51,10 @@ describe('overworld retained UI layout', () => {
     expect(layout.windDirectionButton.y + layout.windDirectionButton.height).toBeLessThan(layout.developerWindow.y + layout.developerWindow.height);
     expect(layout.hotbar.x).toBe(105);
     expect(layout.hotbar.y + layout.hotbar.height).toBe(264);
-    expect(layout.vitals).toEqual({ x: 192, y: 191, width: 96, height: 38 });
-    expect(layout.vitals.x + layout.vitals.width / 2).toBe(layout.hotbar.x + layout.hotbar.width / 2);
+    expect(layout.vitals).toEqual({ x: 105, y: 200, width: 72, height: 29 });
+    expect(layout.targetVitals).toEqual({ x: 303, y: 200, width: 72, height: 29 });
+    expect(layout.vitals.x).toBe(layout.hotbar.x);
+    expect(layout.targetVitals.x + layout.targetVitals.width).toBe(layout.hotbar.x + layout.hotbar.width);
     expect(layout.vitals.y + layout.vitals.height).toBe(layout.hotbar.y - 4);
     expect(layout.tooltip.height).toBe(16);
     expect(layout.window.x).toBe(105);
@@ -90,15 +92,36 @@ describe('overworld retained UI layout', () => {
     }
   });
 
-  it('centres the doubled vitals frame immediately above the hotbar at UI scales 1/2/3', () => {
+  it('aligns smaller self and mirrored target frames to the hotbar edges at UI scales 1/2/3', () => {
     for (const [cssWidth, cssHeight, scale] of [[480, 270, 1], [1280, 720, 2], [1920, 1080, 3]] as const) {
       const layout = overworldUiLayout(Math.floor(cssWidth / scale), Math.floor(cssHeight / scale));
-      expect(layout.vitals.x + layout.vitals.width / 2).toBe(layout.hotbar.x + layout.hotbar.width / 2);
+      expect(layout.vitals.x).toBe(layout.hotbar.x);
+      expect(layout.targetVitals.x + layout.targetVitals.width).toBe(layout.hotbar.x + layout.hotbar.width);
       expect(layout.vitals.y + layout.vitals.height).toBe(layout.hotbar.y - 4);
+      expect(layout.targetVitals.y).toBe(layout.vitals.y);
       expect(layout.vitals.y).toBeGreaterThanOrEqual(layout.weather.y + layout.weather.height);
       expect(layout.vitals.x + layout.vitals.width).toBeLessThanOrEqual(cssWidth / scale);
       expect(layout.vitals.y + layout.vitals.height).toBeLessThanOrEqual(cssHeight / scale);
     }
+  });
+
+  it('captures HUD portrait clicks instead of targeting the world behind them', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 2, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      vitals: { playerId: 'self', health: 100, maxHealth: 100, mana: 100, maxMana: 100, vigour: 100, maxVigour: 100 },
+      targetVitals: {
+        targetId: 'npc:7', displayName: 'Horse', health: 80, maxHealth: 100,
+        portrait: { kind: 'npc', npcKind: 'horse', species: 'horse', variant: 0 },
+      },
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(480, 270);
+    expect(ui.pointerDown({ x: layout.vitals.x + 2, y: layout.vitals.y + 2 }, 0)).toBe(true);
+    expect(ui.pointerDown({ x: layout.targetVitals.x + 2, y: layout.targetVitals.y + 2 }, 0)).toBe(true);
   });
 
   it('reserves explicit bottom padding as the online roster grows', () => {
