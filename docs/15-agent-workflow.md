@@ -112,6 +112,10 @@ not permission to increment them early.
 
 ## 6. Asset work
 
+- Always use the **`.claude/skills/asset-discovery` skill** when hunting for an
+  existing entity, tile/tileset, resource/item, skill icon, prop, building,
+  sprite, or animation source. It routes searches through the exhaustive Cute
+  Fantasy index and its collision/tileset classifications before manual browsing.
 - Always work through the **`.claude/skills/pixel-art` skill** for sprites/tiles/maps
   and the **`game-music` skill** for songs and SFX. They encode
   [10-art-style-guide.md](10-art-style-guide.md) and [11-asset-pipeline.md](11-asset-pipeline.md)

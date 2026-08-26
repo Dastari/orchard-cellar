@@ -66,7 +66,9 @@ suite.
 Minimal startup ritual for an implementing agent: **00 → 01 → 02 → 15 → your
 milestone in 14 → the docs that milestone lists.** Docs are binding; deviations go
 through DECISIONS.md (15 §2). Project skills installed in `.claude/skills/`:
-`pixel-art`, `game-music`, `balance-tuning`.
+`asset-discovery`, `pixel-art`, `game-music`, `balance-tuning`. Use
+`asset-discovery` before manually searching for an entity, tile/tileset,
+resource/item, skill icon, prop, building, sprite, or animation source.
 
 ## Source material
 
