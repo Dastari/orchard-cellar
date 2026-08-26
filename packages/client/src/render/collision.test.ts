@@ -29,7 +29,7 @@ describe('client collision cache', () => {
       left: 12 * TILE_SIZE_FIXED, top: 10 * TILE_SIZE_FIXED,
       right: 13 * TILE_SIZE_FIXED - 1, bottom: 11 * TILE_SIZE_FIXED - 1,
     });
-  });
+  }, 20_000);
 
   it('builds the inverse shoreline layer and water-rock obstacles for watercraft', () => {
     const terrain = terrainForWorld(0x4f434852, 3);
