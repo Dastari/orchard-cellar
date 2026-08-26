@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemIconKey, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
+import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemIconKey, overworldPoiDecorationDepthY, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
 import { canonicalBlob47Index } from './render/tilemap.js';
 
 describe('overworld art topology', () => {
+  it('sorts a tent at its walkable entrance boundary', () => {
+    expect(overworldPoiDecorationDepthY('camp_tent', 160)).toBe(144);
+    expect(overworldPoiDecorationDepthY('camp_pond', 160)).toBe(112);
+    expect(overworldPoiDecorationDepthY('camp_bench', 160)).toBe(160);
+  });
+
   it('uses the generated atlas canonical blob ordering', () => {
     expect(canonicalBlob47Index(0, 0)).toBe(0);
     expect(canonicalBlob47Index(3, 1)).toBe(4);

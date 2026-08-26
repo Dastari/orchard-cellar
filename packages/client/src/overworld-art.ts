@@ -680,6 +680,15 @@ export function natureDecorationFrame(
   return kind.startsWith('nature_') && windStrength < 0.3 ? 0 : animatedFrame;
 }
 
+/** Returns the painter-sort line for a POI sprite's authored ground anchor.
+ * A tent becomes foreground at the top of its walkable entrance row rather
+ * than at the sprite's bottom edge, matching its authoritative collision. */
+export function overworldPoiDecorationDepthY(kind: string, anchorY: number): number {
+  if (kind === 'camp_tent') return anchorY - 16;
+  if (kind === 'camp_pond') return anchorY - 48;
+  return anchorY;
+}
+
 export function drawOverworldPoiDecoration(
   context: CanvasRenderingContext2D,
   art: OverworldArt,

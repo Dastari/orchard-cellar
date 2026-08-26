@@ -117,6 +117,7 @@ import {
   heldLightAnimationForDirection,
   loadOverworldArt,
   natureDecorationFrame,
+  overworldPoiDecorationDepthY,
 } from './overworld-art.js';
 import { cameraAxisOffset, visibleWorldBounds, worldPointVisible } from './render/camera.js';
 import { createClientCollisionMap } from './render/collision.js';
@@ -1415,7 +1416,7 @@ function render(alpha = 1): void {
     }
     if (!worldPointVisible(decorationX, decorationY, visible)) continue;
     worldDepthItems.push({
-      footY: decoration.kind === 'camp_pond' ? decorationY - 48 : decorationY,
+      footY: overworldPoiDecorationDepthY(decoration.kind, decorationY),
       tie: `decoration:${decoration.id}`,
       draw: () => drawOverworldPoiDecoration(
         context,
