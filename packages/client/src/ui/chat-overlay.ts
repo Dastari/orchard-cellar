@@ -9,6 +9,7 @@ import { ScrollBar } from './scrollbar.js';
 
 export const CHAT_FADE_DELAY_MS = 8_000;
 export const CHAT_FADE_DURATION_MS = 4_000;
+export const CHAT_HOVER_SHADE_ALPHA = 0.28;
 const CHAT_LINE_HEIGHT = 9;
 const CHAT_VISIBLE_LINES = 7;
 const CHAT_FRAME_CONTENT_PADDING = 2;
@@ -241,6 +242,14 @@ export class ChatOverlay {
       context.globalAlpha = 0.9;
       drawUiSkinAsset(context, this.skin.panelParchment, this.historyRect);
       context.restore();
+      if (this.hovered) {
+        const panelContent = uiSkinContentRect(this.skin.panelParchment, this.historyRect, 0);
+        context.save();
+        context.globalAlpha = CHAT_HOVER_SHADE_ALPHA;
+        context.fillStyle = '#251b18';
+        context.fillRect(panelContent.x, panelContent.y, panelContent.width, panelContent.height);
+        context.restore();
+      }
     }
     const content = this.historyContentRect();
     const firstLineY = content.y + content.height - visible.length * CHAT_LINE_HEIGHT;
