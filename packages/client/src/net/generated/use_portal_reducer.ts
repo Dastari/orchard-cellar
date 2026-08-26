@@ -10,13 +10,6 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  owner: __t.identity(),
-  tileX: __t.i16().name("tile_x"),
-  tileY: __t.i16().name("tile_y"),
-  chunkX: __t.i16().name("chunk_x"),
-  chunkY: __t.i16().name("chunk_y"),
-  carriedBy: __t.option(__t.identity()).name("carried_by"),
-  spaceId: __t.u16().name("space_id"),
-});
+export default {
+  portalId: __t.u32(),
+};

@@ -4,6 +4,7 @@ import {
   SURVIVAL_TREE_KINDS,
   SURVIVAL_ORE_KINDS,
   FIXED_UNITS_PER_PIXEL,
+  DEBUG_SPACE_ID,
   TILE_SIZE_FIXED,
   generateSurvivalResources,
   survivalBiomeAt,
@@ -17,6 +18,7 @@ import {
   cropStage,
   CROP_GROWTH_TICKS,
   createAuthoritySurvivalCollisionMap,
+  createAuthoritySpaceCollisionMap,
   createMmoFarmCollisionMap,
   decodeDirection,
   farmParcelLayout,
@@ -34,6 +36,7 @@ import {
   drainMovementRunQueue,
   nextActionStartedTick,
   presenceLeaseExpired,
+  portalUseResult,
   resourceHarvestResult,
   resourceGatherResult,
   settleMovementRun,
@@ -41,6 +44,18 @@ import {
 } from './world-rules.js';
 
 describe('overworld authority rules', () => {
+  it('26§13 accepts nearby portal use and rejects range, space, and mounted paths', () => {
+    const portal = { fromSpace: 0, fromTileX: 10, fromTileY: 12 };
+    const nearby = {
+      spaceId: 0,
+      x: 11 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: 12 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    };
+    expect(portalUseResult(nearby, portal, false)).toBe('ok');
+    expect(portalUseResult({ ...nearby, x: 13 * TILE_SIZE_FIXED }, portal, false)).toBe('portal_out_of_range');
+    expect(portalUseResult({ ...nearby, spaceId: 1 }, portal, false)).toBe('portal_out_of_range');
+    expect(portalUseResult(nearby, portal, true)).toBe('no_horses_underground');
+  });
   it('25§15 commits exact tool costs and leaves rejected spends unchanged', () => {
     expect(toolSpendResult(10_000, 0n, 100n, 1_500, 8, false)).toEqual({
       ok: true, costCenti: 1_500, vigourCenti: 8_500, lastSwingTick: 100n,
@@ -165,6 +180,19 @@ describe('overworld authority rules', () => {
     const collision = createMmoFarmCollisionMap(80, 80);
     expect(collision.blocked[0]).toBe(true);
     expect(collision.blocked[16 * collision.width + 24]).toBe(false);
+  });
+
+  it('26§13 keeps collision dimensions and mutable obstacles local to each space', () => {
+    const debug = createAuthoritySpaceCollisionMap(DEBUG_SPACE_ID, [{
+      kind: 'rock_small', tileX: 5, tileY: 5, depleted: false,
+    }]);
+    const topside = createAuthoritySurvivalCollisionMap([]);
+    expect(debug.width).toBe(32);
+    expect(topside.width).toBe(SURVIVAL_WORLD_SIZE);
+    expect(debug.blocked[0]).toBe(true);
+    expect(debug.blocked[5 * debug.width + 5]).toBe(false);
+    expect(debug.obstacles).toHaveLength(1);
+    expect(topside.obstacles?.length).toBeGreaterThan(1);
   });
 
   it('blocks generated water and ridge while using narrow mutable trunk obstacles', () => {

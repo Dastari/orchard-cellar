@@ -11,12 +11,12 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64().primaryKey(),
-  owner: __t.identity(),
-  tileX: __t.i16().name("tile_x"),
-  tileY: __t.i16().name("tile_y"),
-  chunkX: __t.i16().name("chunk_x"),
-  chunkY: __t.i16().name("chunk_y"),
-  carriedBy: __t.option(__t.identity()).name("carried_by"),
-  spaceId: __t.u16().name("space_id"),
+  id: __t.u32().primaryKey(),
+  kind: __t.string(),
+  fromSpace: __t.u16().name("from_space"),
+  fromTileX: __t.u16().name("from_tile_x"),
+  fromTileY: __t.u16().name("from_tile_y"),
+  toSpace: __t.u16().name("to_space"),
+  toTileX: __t.u16().name("to_tile_x"),
+  toTileY: __t.u16().name("to_tile_y"),
 });

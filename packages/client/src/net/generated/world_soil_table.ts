@@ -19,4 +19,5 @@ export default __t.row({
   watered: __t.bool(),
   tilledAtTick: __t.u64().name("tilled_at_tick"),
   wateredAtTick: __t.u64().name("watered_at_tick"),
+  spaceId: __t.u16().name("space_id"),
 });

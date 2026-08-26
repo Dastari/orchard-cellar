@@ -24,4 +24,5 @@ export default __t.row({
   state: __t.string(),
   hitKind: __t.string().name("hit_kind"),
   hitId: __t.string().name("hit_id"),
+  spaceId: __t.u16().name("space_id"),
 });

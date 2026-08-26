@@ -7,6 +7,7 @@ import {
   SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
   TILE_INTERACTION_REACH_FIXED,
+  TOPSIDE_SPACE_ID,
   createSurvivalCollisionMap,
   isChoppableTreeKind,
   isBreakableRockKind,
@@ -16,6 +17,7 @@ import {
   survivalGatherableDrop,
   survivalResourceBlocksMovement,
   survivalResourceObstacle,
+  spaceDefinitionFor,
   tileTargetInReach,
   tileTargetIsBlocked,
   type CollisionMap,
@@ -44,9 +46,43 @@ export const MOVEMENT_RATE_BURST_STEPS = 6n;
 export const MAX_SETTLE_BACKLOG_STEPS = 24;
 /** Drain every accepted confirmed batch atomically once server-time credit permits. */
 export const MAX_SETTLE_STEPS_PER_TICK = MAX_SETTLE_BACKLOG_STEPS;
-const SURVIVAL_TERRAIN_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
-const SURVIVAL_WATER_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], 'water');
-const SURVIVAL_AIR_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], 'air');
+const SPACE_TERRAIN_COLLISION = new Map<string, CollisionMap>();
+
+function flatSpaceCollision(sizeTiles: number, medium: MovementMedium): CollisionMap {
+  const blocked = Array.from({ length: sizeTiles * sizeTiles }, (_, index) => {
+    if (medium !== 'ground') return true;
+    const x = index % sizeTiles;
+    const y = Math.floor(index / sizeTiles);
+    return x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1;
+  });
+  return {
+    width: sizeTiles,
+    height: sizeTiles,
+    blocked,
+    horseJumpableTerrain: Array<boolean>(blocked.length).fill(false),
+    obstacles: [],
+  };
+}
+
+export function terrainCollisionForSpace(
+  spaceId: number,
+  medium: MovementMedium = 'ground',
+): CollisionMap {
+  const key = `${spaceId}:${medium}`;
+  const cached = SPACE_TERRAIN_COLLISION.get(key);
+  if (cached !== undefined) return cached;
+  const definition = spaceDefinitionFor(spaceId);
+  let collision: CollisionMap;
+  if (definition?.generator === 'island') {
+    collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], medium);
+  } else if (definition?.generator === 'debug_flat' || definition?.generator === 'homestead') {
+    collision = flatSpaceCollision(definition.sizeTiles, medium);
+  } else {
+    collision = flatSpaceCollision(1, medium);
+  }
+  SPACE_TERRAIN_COLLISION.set(key, collision);
+  return collision;
+}
 
 export type ToolSpendResult =
   | { readonly ok: false; readonly code: 'swing_too_soon' | 'insufficient_vigour' }
@@ -94,23 +130,31 @@ export function createAuthoritySurvivalCollisionMap(
   chests: readonly AuthorityPlacedChest[] = [],
   medium: MovementMedium = 'ground',
 ): CollisionMap {
-  // Terrain is immutable for a world version. Reusing the cached array avoids
-  // copying the entire expanded ocean map for every movement/action reducer.
-  const terrain = medium === 'water' ? SURVIVAL_WATER_COLLISION
-    : medium === 'air' ? SURVIVAL_AIR_COLLISION : SURVIVAL_TERRAIN_COLLISION;
+  return createAuthoritySpaceCollisionMap(TOPSIDE_SPACE_ID, resources, chests, medium);
+}
+
+export function createAuthoritySpaceCollisionMap(
+  spaceId: number,
+  resources: readonly AuthoritySurvivalResource[],
+  chests: readonly AuthorityPlacedChest[] = [],
+  medium: MovementMedium = 'ground',
+): CollisionMap {
+  // Terrain is immutable for a space definition. Reusing the cached arrays
+  // avoids rebuilding the large topside terrain for every authority tick.
+  const terrain = terrainCollisionForSpace(spaceId, medium);
   const blocked = terrain.blocked;
   const horseJumpableTerrain = terrain.horseJumpableTerrain ?? [];
   const obstacles = [...(terrain.obstacles ?? [])];
   for (const resource of medium === 'ground' ? resources : []) {
     if (resource.depleted || resource.tileX < 0 || resource.tileY < 0
-      || resource.tileX >= SURVIVAL_WORLD_SIZE || resource.tileY >= SURVIVAL_WORLD_SIZE) continue;
+      || resource.tileX >= terrain.width || resource.tileY >= terrain.height) continue;
     if (survivalResourceBlocksMovement(resource.kind)) {
       obstacles.push(survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY));
     }
   }
   for (const chest of medium === 'ground' ? chests : []) {
     if (chest.carriedBy !== undefined || chest.tileX < 0 || chest.tileY < 0
-      || chest.tileX >= SURVIVAL_WORLD_SIZE || chest.tileY >= SURVIVAL_WORLD_SIZE) continue;
+      || chest.tileX >= terrain.width || chest.tileY >= terrain.height) continue;
     obstacles.push({
       left: chest.tileX * TILE_SIZE_FIXED,
       top: chest.tileY * TILE_SIZE_FIXED,
@@ -119,8 +163,8 @@ export function createAuthoritySurvivalCollisionMap(
     });
   }
   return {
-    width: SURVIVAL_WORLD_SIZE,
-    height: SURVIVAL_WORLD_SIZE,
+    width: terrain.width,
+    height: terrain.height,
     blocked,
     horseJumpableTerrain,
     obstacles,
@@ -128,6 +172,22 @@ export function createAuthoritySurvivalCollisionMap(
 }
 
 export type TilePlacementResult = 'ok' | 'invalid_tile' | 'out_of_range' | 'tile_blocked';
+
+export type PortalUseResult = 'ok' | 'no_horses_underground' | 'portal_out_of_range';
+
+export function portalUseResult(
+  player: { readonly spaceId: number; readonly x: number; readonly y: number },
+  portal: { readonly fromSpace: number; readonly fromTileX: number; readonly fromTileY: number },
+  mounted: boolean,
+): PortalUseResult {
+  if (mounted) return 'no_horses_underground';
+  if (player.spaceId !== portal.fromSpace) return 'portal_out_of_range';
+  const tileX = Math.floor(player.x / TILE_SIZE_FIXED);
+  const tileY = Math.floor(player.y / TILE_SIZE_FIXED);
+  return Math.abs(tileX - portal.fromTileX) <= 1 && Math.abs(tileY - portal.fromTileY) <= 1
+    ? 'ok'
+    : 'portal_out_of_range';
+}
 
 /** Shared authority gate for placeables. Dynamic actor occupancy is supplied
  * separately because players are not movement-map obstacles. */

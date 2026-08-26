@@ -18,4 +18,5 @@ export default __t.row({
   chunkX: __t.i16().name("chunk_x"),
   chunkY: __t.i16().name("chunk_y"),
   carriedBy: __t.option(__t.identity()).name("carried_by"),
+  spaceId: __t.u16().name("space_id"),
 });

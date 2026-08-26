@@ -26,4 +26,5 @@ export default __t.row({
   jumpFromX: __t.option(__t.i32()).name("jump_from_x"),
   jumpFromY: __t.option(__t.i32()).name("jump_from_y"),
   jumpUntilTick: __t.option(__t.u64()).name("jump_until_tick"),
+  spaceId: __t.u16().name("space_id"),
 });

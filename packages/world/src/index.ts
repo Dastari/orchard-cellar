@@ -14,9 +14,10 @@ import {
   SURVIVAL_CHUNK_TILES,
   SURVIVAL_ISLAND_OFFSET_TILES,
   SURVIVAL_WORLD_SEED,
-  SURVIVAL_WORLD_SIZE,
   SURVIVAL_WORLD_VERSION,
   TILE_SIZE_FIXED,
+  DEBUG_SPACE_ID,
+  TOPSIDE_SPACE_ID,
   avatarActionAfterMovement,
   avatarActionForEquippedKind,
   generateSurvivalResources,
@@ -93,6 +94,7 @@ import {
   wildlifeActivityNearPlayers,
   wildlifeMovementMedium,
   wildlifePosition,
+  spaceDefinitionFor,
   WILDLIFE_FIRST_NPC_ID,
   WILDLIFE_GENERATION_VERSION,
   type GeneratedWildlife,
@@ -119,7 +121,7 @@ import {
   canUseFarmTile,
   chunkAt,
   CROP_GROWTH_TICKS,
-  createAuthoritySurvivalCollisionMap,
+  createAuthoritySpaceCollisionMap,
   decodeDirection,
   inputIsStale,
   itemDropPosition,
@@ -135,6 +137,7 @@ import {
   tilePlacementResult,
   nextActionStartedTick,
   presenceLeaseExpired,
+  portalUseResult,
   resourceHarvestResult,
   toolSpendResult,
   resourceGatherResult,
@@ -205,6 +208,10 @@ const HIVE_PRODUCTION_INTERVAL_TICKS = BigInt(Math.max(1, Math.floor(AUTHORITY_T
 const HIVE_HONEY_CAPACITY = 1_000;
 const WORLD_OCEAN_EXPANSION_VERSION = 22;
 const WORLD_OCEAN_SHIFT_FIXED = SURVIVAL_ISLAND_OFFSET_TILES * TILE_SIZE_FIXED;
+const DEBUG_PORTAL_TOPSIDE_TILE = { x: SURVIVAL_ISLAND_OFFSET_TILES + 20, y: SURVIVAL_ISLAND_OFFSET_TILES + 20 } as const;
+const DEBUG_PORTAL_INTERIOR_TILE = { x: 4, y: 4 } as const;
+const DEBUG_PORTAL_TOPSIDE_ID = 4_294_967_000;
+const DEBUG_PORTAL_INTERIOR_ID = 4_294_967_001;
 
 type InventoryContainerId = 'hotbar' | 'backpack' | 'equipment' | 'crafting';
 
@@ -292,7 +299,7 @@ const player_position = table(
     name: 'player_position',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
     ],
   },
   {
@@ -311,6 +318,7 @@ const player_position = table(
     jumpFromX: t.option(t.i32()),
     jumpFromY: t.option(t.i32()),
     jumpUntilTick: t.option(t.u64()),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -677,6 +685,7 @@ const world_speech = table(
     y: t.i32(),
     createdTick: t.u64(),
     expiresTick: t.u64(),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -685,7 +694,7 @@ const world_tree = table(
     name: 'world_tree',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
     ],
   },
   {
@@ -698,6 +707,7 @@ const world_tree = table(
     care: t.u16(),
     tendCount: t.u32(),
     lastTendedTick: t.u64(),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -732,6 +742,27 @@ const world_seed = table(
     id: t.u8().primaryKey(),
     seed: t.u32(),
     version: t.u16(),
+    mineVersion: t.u16().default(0),
+  },
+);
+
+const space_portal = table(
+  {
+    name: 'space_portal',
+    public: true,
+    indexes: [
+      { accessor: 'by_from_space', algorithm: 'btree', columns: ['fromSpace'] },
+    ],
+  },
+  {
+    id: t.u32().primaryKey(),
+    kind: t.string(),
+    fromSpace: t.u16(),
+    fromTileX: t.u16(),
+    fromTileY: t.u16(),
+    toSpace: t.u16(),
+    toTileX: t.u16(),
+    toTileY: t.u16(),
   },
 );
 
@@ -740,7 +771,7 @@ const world_resource = table(
     name: 'world_resource',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
     ],
   },
   {
@@ -752,6 +783,7 @@ const world_resource = table(
     chunkY: t.i16(),
     health: t.u8(),
     depleted: t.bool(),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -762,7 +794,7 @@ const world_soil = table(
     name: 'world_soil',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
     ],
   },
   {
@@ -774,6 +806,7 @@ const world_soil = table(
     watered: t.bool(),
     tilledAtTick: t.u64(),
     wateredAtTick: t.u64(),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -782,7 +815,7 @@ const world_item = table(
     name: 'world_item',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
     ],
   },
   {
@@ -795,6 +828,7 @@ const world_item = table(
     chunkY: t.i16(),
     droppedAtTick: t.u64(),
     durability: t.u16().default(0),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -805,7 +839,7 @@ const world_projectile = table(
     name: 'world_projectile',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
     ],
   },
   {
@@ -822,6 +856,7 @@ const world_projectile = table(
     state: t.string(),
     hitKind: t.string(),
     hitId: t.string(),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -833,7 +868,7 @@ const world_chest = table(
     name: 'world_chest',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
       { accessor: 'by_carrier', algorithm: 'btree', columns: ['carriedBy'] },
     ],
   },
@@ -845,6 +880,7 @@ const world_chest = table(
     chunkX: t.i16(),
     chunkY: t.i16(),
     carriedBy: t.option(t.identity()),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -898,7 +934,7 @@ const world_npc = table(
     name: 'world_npc',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
       { accessor: 'by_rider', algorithm: 'hash', columns: ['rider'] },
     ],
   },
@@ -919,6 +955,7 @@ const world_npc = table(
     nextDecisionTick: t.u64(),
     authorityTick: t.u64(),
     health: t.u16().default(0),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -929,7 +966,7 @@ const world_wildlife_profile = table(
     name: 'world_wildlife_profile',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
     ],
   },
   {
@@ -940,6 +977,7 @@ const world_wildlife_profile = table(
     habitat: t.string(),
     chunkX: t.i16().default(0),
     chunkY: t.i16().default(0),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -959,7 +997,7 @@ const world_hive = table(
     name: 'world_hive',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
     ],
   },
   {
@@ -973,6 +1011,7 @@ const world_hive = table(
     honey: t.u16(),
     beeCount: t.u8(),
     nextProductionTick: t.u64(),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -1010,7 +1049,7 @@ const crop_patch = table(
     name: 'crop_patch',
     public: true,
     indexes: [
-      { accessor: 'by_chunk', algorithm: 'btree', columns: ['chunkX', 'chunkY'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
       { accessor: 'by_parcel', algorithm: 'btree', columns: ['parcelId'] },
     ],
   },
@@ -1025,6 +1064,7 @@ const crop_patch = table(
     plantedAtTick: t.u64(),
     watered: t.bool(),
     wateredAtTick: t.u64(),
+    spaceId: t.u16().default(0),
   },
 );
 
@@ -1081,6 +1121,7 @@ const spacetimedb = schema({
   world_environment,
   world_wind,
   world_seed,
+  space_portal,
   world_resource,
   world_soil,
   world_item,
@@ -1106,6 +1147,118 @@ export default spacetimedb;
 
 type WorldReducerContext = Parameters<Parameters<typeof spacetimedb.init>[1]>[0];
 type WorldNpcRow = NonNullable<ReturnType<WorldReducerContext['db']['world_npc']['id']['find']>>;
+type PlayerPositionRow = NonNullable<ReturnType<WorldReducerContext['db']['player_position']['identity']['find']>>;
+type WorldResourceRow = NonNullable<ReturnType<WorldReducerContext['db']['world_resource']['id']['find']>>;
+type WorldChestRow = NonNullable<ReturnType<WorldReducerContext['db']['world_chest']['id']['find']>>;
+
+function installDebugPortals(ctx: WorldReducerContext): void {
+  if (ctx.db.space_portal.id.find(DEBUG_PORTAL_TOPSIDE_ID) === null) {
+    ctx.db.space_portal.insert({
+      id: DEBUG_PORTAL_TOPSIDE_ID,
+      kind: 'debug_door',
+      fromSpace: TOPSIDE_SPACE_ID,
+      fromTileX: DEBUG_PORTAL_TOPSIDE_TILE.x,
+      fromTileY: DEBUG_PORTAL_TOPSIDE_TILE.y,
+      toSpace: DEBUG_SPACE_ID,
+      toTileX: DEBUG_PORTAL_INTERIOR_TILE.x,
+      toTileY: DEBUG_PORTAL_INTERIOR_TILE.y,
+    });
+  }
+  if (ctx.db.space_portal.id.find(DEBUG_PORTAL_INTERIOR_ID) === null) {
+    ctx.db.space_portal.insert({
+      id: DEBUG_PORTAL_INTERIOR_ID,
+      kind: 'debug_door',
+      fromSpace: DEBUG_SPACE_ID,
+      fromTileX: DEBUG_PORTAL_INTERIOR_TILE.x,
+      fromTileY: DEBUG_PORTAL_INTERIOR_TILE.y,
+      toSpace: TOPSIDE_SPACE_ID,
+      toTileX: DEBUG_PORTAL_TOPSIDE_TILE.x,
+      toTileY: DEBUG_PORTAL_TOPSIDE_TILE.y,
+    });
+  }
+}
+
+function teleportPlayer(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+  spaceId: number,
+  nextX: number,
+  nextY: number,
+): void {
+  const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? position.authorityTick;
+  ctx.db.player_position.identity.update({
+    ...position,
+    x: nextX,
+    y: nextY,
+    spaceId,
+    chunkX: chunkAt(nextX),
+    chunkY: chunkAt(nextY),
+    moving: false,
+    authorityTick,
+    actionKind: 'none',
+    actionStartedTick: authorityTick,
+    jumpFromX: undefined,
+    jumpFromY: undefined,
+    jumpUntilTick: undefined,
+  });
+  const input = ctx.db.player_input.identity.find(position.identity);
+  if (input !== null) {
+    ctx.db.player_input.identity.update({
+      ...input,
+      direction: 'idle',
+      settleDirection: 'idle',
+      settleSteps: 0,
+      settledSequence: input.sequence,
+      pendingSequence: 0n,
+      appliedSteps: 0n,
+      updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+    });
+  }
+  for (const chest of ctx.db.world_chest.by_carrier.filter(position.identity)) {
+    const tileX = Math.floor(nextX / TILE_SIZE_FIXED);
+    const tileY = Math.floor(nextY / TILE_SIZE_FIXED);
+    ctx.db.world_chest.id.update({
+      ...chest,
+      tileX,
+      tileY,
+      chunkX: chunkAt(nextX),
+      chunkY: chunkAt(nextY),
+      spaceId,
+    });
+  }
+  ctx.db.active_chest.identity.delete(position.identity);
+  ctx.db.active_dialogue.identity.delete(position.identity);
+}
+
+function usePortalRow(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+  portal: NonNullable<ReturnType<WorldReducerContext['db']['space_portal']['id']['find']>>,
+  requireRange: boolean,
+): void {
+  if (requireRange) {
+    const result = portalUseResult(position, portal, mountedNpcFor(ctx, position.identity) !== null);
+    if (result !== 'ok') throw new SenderError(result);
+  } else if (mountedNpcFor(ctx, position.identity) !== null) {
+    throw new SenderError('no_horses_underground');
+  }
+  if (spaceDefinitionFor(portal.toSpace) === undefined) throw new SenderError('portal_destination_unavailable');
+  teleportPlayer(
+    ctx,
+    position,
+    portal.toSpace,
+    portal.toTileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    portal.toTileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+  );
+}
+
+function collisionForSpace(ctx: WorldReducerContext, spaceId: number) {
+  return createAuthoritySpaceCollisionMap(
+    spaceId,
+    [...ctx.db.world_resource.by_chunk.filter(spaceId)],
+    [...ctx.db.world_chest.by_chunk.filter(spaceId)],
+  );
+}
 
 function firstIndexRow<T>(rows: Iterable<T>): T | null {
   for (const row of rows) return row;
@@ -1844,6 +1997,7 @@ export const visibleWorldSpeech = spacetimedb.view(
     const clock = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
     return [...ctx.db.world_speech.iter()].filter((speech) => {
       if (speech.expiresTick <= clock) return false;
+      if (speech.spaceId !== caller.spaceId) return false;
       const rangeTiles = speech.kind === 'shout' ? 80 : 18;
       const range = rangeTiles * TILE_SIZE_FIXED;
       const dx = speech.x - caller.x;
@@ -1905,6 +2059,7 @@ function toolMerchantRow(authorityTick = 0n) {
     nextDecisionTick: authorityTick + 30n,
     authorityTick,
     health: 100,
+    spaceId: TOPSIDE_SPACE_ID,
   };
 }
 
@@ -1931,6 +2086,7 @@ function starterHorseRow() {
     nextDecisionTick: 1n,
     authorityTick: 0n,
     health,
+    spaceId: TOPSIDE_SPACE_ID,
   };
 }
 
@@ -1943,6 +2099,7 @@ function starterHorseWildlifeProfileRow() {
     habitat: 'pasture',
     chunkX: chunkAt(STARTER_HORSE_HOME.x),
     chunkY: chunkAt(STARTER_HORSE_HOME.y),
+    spaceId: TOPSIDE_SPACE_ID,
   };
 }
 
@@ -1970,6 +2127,7 @@ function generatedWildlifeNpcRow(animal: GeneratedWildlife, authorityTick = 0n) 
     nextDecisionTick: authorityTick + BigInt(40 + animal.id % 240),
     authorityTick,
     health: Math.ceil(resolveCreatureStats(animal.species).maxHealthCenti / 100),
+    spaceId: TOPSIDE_SPACE_ID,
   };
 }
 
@@ -1983,6 +2141,7 @@ function generatedWildlifeProfileRow(animal: GeneratedWildlife) {
     habitat: animal.habitat,
     chunkX: npc.chunkX,
     chunkY: npc.chunkY,
+    spaceId: TOPSIDE_SPACE_ID,
   };
 }
 
@@ -1998,6 +2157,7 @@ function generatedHiveRow(hive: GeneratedWildlifeHive) {
     honey: 0,
     beeCount: hive.beeCount,
     nextProductionTick: 1n,
+    spaceId: TOPSIDE_SPACE_ID,
   };
 }
 
@@ -2041,7 +2201,8 @@ export const init = spacetimedb.init((ctx) => {
   ctx.db.world_clock.insert({ id: 0, authorityTick: 0n });
   ctx.db.world_environment.insert({ id: 0, calendarTick: 0n, weatherMode: 'auto' });
   ctx.db.world_wind.insert({ id: 0, direction: 'auto' });
-  ctx.db.world_seed.insert({ id: 0, seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION });
+  ctx.db.world_seed.insert({ id: 0, seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION, mineVersion: 0 });
+  installDebugPortals(ctx);
   ctx.db.chat_channel.insert({
     id: GENERAL_CHAT_CHANNEL_ID,
     slug: GENERAL_CHAT_CHANNEL_SLUG,
@@ -2066,6 +2227,7 @@ export const init = spacetimedb.init((ctx) => {
       chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
       health: survivalResourceInitialHealth(resource.kind),
       depleted: false,
+      spaceId: TOPSIDE_SPACE_ID,
     });
   }
   ctx.db.world_tree.insert({
@@ -2078,6 +2240,7 @@ export const init = spacetimedb.init((ctx) => {
     care: 0,
     tendCount: 0,
     lastTendedTick: 0n,
+    spaceId: TOPSIDE_SPACE_ID,
   });
   ctx.db.world_npc.insert(starterHorseRow());
   ctx.db.world_npc.insert(toolMerchantRow());
@@ -2142,6 +2305,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     });
   }
   requireAuthorizedSender(ctx.senderAuth.jwt, member);
+  installDebugPortals(ctx);
   let motd = ctx.db.world_motd.id.find(0);
   if (motd === null) {
     motd = ctx.db.world_motd.insert({
@@ -2238,7 +2402,12 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       ctx.db.farm_parcel.clear();
     }
     ctx.db.world_resource.clear();
-    const nextWorld = { id: 0, seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION };
+    const nextWorld = {
+      id: 0,
+      seed: SURVIVAL_WORLD_SEED,
+      version: SURVIVAL_WORLD_VERSION,
+      mineVersion: installedWorld?.mineVersion ?? 0,
+    };
     if (installedWorld === null) ctx.db.world_seed.insert(nextWorld);
     else ctx.db.world_seed.id.update(nextWorld);
     for (const resource of generateSurvivalResources()) {
@@ -2251,6 +2420,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
         health: survivalResourceInitialHealth(resource.kind),
         depleted: false,
+        spaceId: TOPSIDE_SPACE_ID,
       });
     }
   }
@@ -2395,6 +2565,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       jumpFromX: undefined,
       jumpFromY: undefined,
       jumpUntilTick: undefined,
+      spaceId: TOPSIDE_SPACE_ID,
     });
     ctx.db.player_input.insert({
       identity: ctx.sender,
@@ -2431,6 +2602,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         jumpFromX: undefined,
         jumpFromY: undefined,
         jumpUntilTick: undefined,
+        spaceId: TOPSIDE_SPACE_ID,
       });
     } else if (enteringSurvivalWorld) {
       ctx.db.player_position.identity.update({
@@ -2445,6 +2617,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         jumpFromX: undefined,
         jumpFromY: undefined,
         jumpUntilTick: undefined,
+        spaceId: TOPSIDE_SPACE_ID,
       });
     }
     if (ctx.db.player_input.identity.find(ctx.sender) === null) {
@@ -2803,6 +2976,7 @@ export const sendWorldSpeech = spacetimedb.reducer(
       y: position.y,
       createdTick: clock.authorityTick,
       expiresTick: clock.authorityTick + readingTicks,
+      spaceId: position.spaceId,
     });
     recordPlayerStatistic(ctx, ctx.sender, 'messages_sent', 1n, clock.authorityTick, kind);
   },
@@ -2965,30 +3139,65 @@ export const setMessageOfDay = spacetimedb.reducer(
   },
 );
 
+export const usePortal = spacetimedb.reducer(
+  { portalId: t.u32() },
+  (ctx, { portalId }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    if (position === null) throw new SenderError('player_not_ready');
+    const portal = ctx.db.space_portal.id.find(portalId);
+    if (portal === null) throw new SenderError('portal_not_found');
+    if (spaceDefinitionFor(portal.toSpace)?.ownerOnly === true) {
+      requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    }
+    usePortalRow(ctx, position, portal, true);
+  },
+);
+
+/** Owner-only verification vehicle. It exercises the same transition helper
+ * while allowing F3/browser checks without walking to the authored test door. */
+export const debugUsePortal = spacetimedb.reducer((ctx) => {
+  requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  installDebugPortals(ctx);
+  const position = ctx.db.player_position.identity.find(ctx.sender);
+  if (position === null) throw new SenderError('player_not_ready');
+  const portalId = position.spaceId === DEBUG_SPACE_ID
+    ? DEBUG_PORTAL_INTERIOR_ID
+    : DEBUG_PORTAL_TOPSIDE_ID;
+  const portal = ctx.db.space_portal.id.find(portalId);
+  if (portal === null) throw new SenderError('portal_not_found');
+  usePortalRow(ctx, position, portal, false);
+});
+
 export const adminTeleport = spacetimedb.reducer(
   { destination: t.string() },
   (ctx, { destination }) => {
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    if (position === null) throw new SenderError('player_not_ready');
     const argument = destination.normalize('NFC').replace(/\s+/g, ' ').trim();
     if (argument.length === 0 || [...argument].length > 64) throw new SenderError('teleport_usage');
     const coordinates = /^(-?\d+) (-?\d+)$/.exec(argument);
     let nextX: number;
     let nextY: number;
+    let nextSpaceId = position.spaceId;
     let auditValue: string;
     if (coordinates !== null) {
       const tileX = Number(coordinates[1]);
       const tileY = Number(coordinates[2]);
+      const definition = spaceDefinitionFor(position.spaceId);
       if (!Number.isSafeInteger(tileX) || !Number.isSafeInteger(tileY)
-        || tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) {
+        || definition === undefined
+        || tileX < 0 || tileY < 0 || tileX >= definition.sizeTiles || tileY >= definition.sizeTiles) {
         throw new SenderError('teleport_coordinates_out_of_bounds');
       }
       nextX = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
       nextY = tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-      const collision = createAuthoritySurvivalCollisionMap([...ctx.db.world_resource.iter()], [...ctx.db.world_chest.iter()]);
+      const collision = collisionForSpace(ctx, position.spaceId);
       if (positionCollides({ x: nextX, y: nextY }, collision)) {
         throw new SenderError('teleport_destination_blocked');
       }
-      auditValue = `${tileX},${tileY}`;
+      auditValue = `${position.spaceId}:${tileX},${tileY}`;
     } else {
       const target = [...ctx.db.player_public.iter()].find((profile) => (
         profile.online && profile.displayName.toLocaleLowerCase('en-US') === argument.toLocaleLowerCase('en-US')
@@ -2998,40 +3207,13 @@ export const adminTeleport = spacetimedb.reducer(
       if (targetPosition === null) throw new SenderError('teleport_player_not_ready');
       nextX = targetPosition.x;
       nextY = targetPosition.y;
+      nextSpaceId = targetPosition.spaceId;
       auditValue = `player:${target.identity.toHexString()}:${target.displayName}`;
     }
 
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (position === null) throw new SenderError('player_not_ready');
     const clock = ctx.db.world_clock.id.find(0);
     const authorityTick = clock?.authorityTick ?? position.authorityTick;
-    ctx.db.player_position.identity.update({
-      ...position,
-      x: nextX,
-      y: nextY,
-      chunkX: chunkAt(nextX),
-      chunkY: chunkAt(nextY),
-      moving: false,
-      authorityTick,
-      actionKind: 'none',
-      actionStartedTick: authorityTick,
-      jumpFromX: undefined,
-      jumpFromY: undefined,
-      jumpUntilTick: undefined,
-    });
-    const input = ctx.db.player_input.identity.find(ctx.sender);
-    if (input !== null) {
-      ctx.db.player_input.identity.update({
-        ...input,
-        direction: 'idle',
-        settleDirection: 'idle',
-        settleSteps: 0,
-        settledSequence: input.sequence,
-        pendingSequence: 0n,
-        appliedSteps: 0n,
-        updatedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
-      });
-    }
+    teleportPlayer(ctx, position, nextSpaceId, nextX, nextY);
     for (const npc of ctx.db.world_npc.by_rider.filter(ctx.sender)) {
       updateWorldNpc(ctx, {
         ...npc,
@@ -3041,6 +3223,7 @@ export const adminTeleport = spacetimedb.reducer(
         homeY: nextY,
         chunkX: chunkAt(nextX),
         chunkY: chunkAt(nextY),
+        spaceId: nextSpaceId,
         moving: false,
         wanderDirection: 'idle',
         authorityTick,
@@ -3556,11 +3739,13 @@ export const closeCrafting = spacetimedb.reducer({}, (ctx) => {
 
 function tileOverlapsAnyPlayer(
   ctx: WorldReducerContext,
+  spaceId: number,
   tileX: number,
   tileY: number,
 ): boolean {
   const tileBounds = tileTargetBounds({ tileX, tileY });
   return [...ctx.db.player_position.iter()].some((player) => {
+    if (player.spaceId !== spaceId) return false;
     if (ctx.db.player_public.identity.find(player.identity)?.online !== true) return false;
     return boundsOverlap(tileBounds, playerHitboxBounds({ x: player.x, y: player.y }));
   });
@@ -3568,21 +3753,18 @@ function tileOverlapsAnyPlayer(
 
 function requireChestPlacementTile(
   ctx: WorldReducerContext,
-  position: { readonly x: number; readonly y: number },
+  position: { readonly x: number; readonly y: number; readonly spaceId: number },
   tileX: number,
   tileY: number,
 ): void {
-  const collision = createAuthoritySurvivalCollisionMap(
-    [...ctx.db.world_resource.iter()],
-    [...ctx.db.world_chest.iter()],
-  );
+  const collision = collisionForSpace(ctx, position.spaceId);
   const result = tilePlacementResult(
     position.x,
     position.y,
     tileX,
     tileY,
     collision,
-    tileOverlapsAnyPlayer(ctx, tileX, tileY),
+    tileOverlapsAnyPlayer(ctx, position.spaceId, tileX, tileY),
   );
   if (result === 'invalid_tile') throw new SenderError('invalid_chest_tile');
   if (result === 'out_of_range') throw new SenderError('chest_out_of_range');
@@ -3621,6 +3803,7 @@ export const useHands = spacetimedb.reducer(
       const chest = ctx.db.world_chest.insert({
         id: 0n, owner: ctx.sender, tileX, tileY,
         chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES), chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES), carriedBy: undefined,
+        spaceId: position.spaceId,
       });
       for (let slot = 0; slot < CHEST_CAPACITY; slot += 1) ctx.db.world_chest_slot.insert({
         id: `${chest.id}:${slot}`, chestId: chest.id, slot, itemKind: 'empty', quantity: 0, durability: 0,
@@ -3640,11 +3823,13 @@ export const useHands = spacetimedb.reducer(
     }
 
     const target = facingTile(position.x, position.y, position.facing);
-    if (target.tileX < 0 || target.tileY < 0 || target.tileX >= SURVIVAL_WORLD_SIZE || target.tileY >= SURVIVAL_WORLD_SIZE) {
+    const definition = spaceDefinitionFor(position.spaceId);
+    if (definition === undefined || target.tileX < 0 || target.tileY < 0
+      || target.tileX >= definition.sizeTiles || target.tileY >= definition.sizeTiles) {
       throw new SenderError('invalid_chest_tile');
     }
 
-    const targetChest = [...ctx.db.world_chest.iter()].find((chest) => chest.carriedBy === undefined
+    const targetChest = [...ctx.db.world_chest.by_chunk.filter(position.spaceId)].find((chest) => chest.carriedBy === undefined
       && chest.tileX === target.tileX && chest.tileY === target.tileY);
     if (targetChest !== undefined) {
       const slots = [...ctx.db.world_chest_slot.by_chest.filter(targetChest.id)];
@@ -3708,7 +3893,8 @@ export const interactChest = spacetimedb.reducer(
     const position = ctx.db.player_position.identity.find(ctx.sender); if (position === null) throw new SenderError('player_not_ready');
     if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
     const target = facingTile(position.x, position.y, position.facing);
-    const chest = [...ctx.db.world_chest.iter()].find((row) => row.carriedBy === undefined && row.tileX === target.tileX && row.tileY === target.tileY);
+    const chest = [...ctx.db.world_chest.by_chunk.filter(position.spaceId)]
+      .find((row) => row.carriedBy === undefined && row.tileX === target.tileX && row.tileY === target.tileY);
     if (chest === undefined) throw new SenderError('chest_not_found');
     const current = ctx.db.active_chest.identity.find(ctx.sender);
     if (current === null) ctx.db.active_chest.insert({ identity: ctx.sender, chestId: chest.id });
@@ -3734,7 +3920,7 @@ function activeMerchantSession(ctx: WorldReducerContext, requireShop: boolean) {
   if (requireShop && active.nodeId !== 'shop') throw new SenderError('merchant_shop_not_open');
   const merchant = ctx.db.world_merchant.npcId.find(active.npcId);
   const npc = ctx.db.world_npc.id.find(active.npcId);
-  if (merchant === null || npc === null || !npcWithinInteractionReach(position, npc)) {
+  if (merchant === null || npc === null || npc.spaceId !== position.spaceId || !npcWithinInteractionReach(position, npc)) {
     throw new SenderError('merchant_out_of_range');
   }
   return { active, merchant, npc, position };
@@ -3749,7 +3935,9 @@ export const interactNpc = spacetimedb.reducer(
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const npc = ctx.db.world_npc.id.find(npcId);
     const merchant = ctx.db.world_merchant.npcId.find(npcId);
-    if (position === null || npc === null || merchant === null) throw new SenderError('npc_not_interactable');
+    if (position === null || npc === null || merchant === null || npc.spaceId !== position.spaceId) {
+      throw new SenderError('npc_not_interactable');
+    }
     if (mountedNpcFor(ctx, ctx.sender) !== null) {
       throw new SenderError('mounted_action_forbidden');
     }
@@ -3914,7 +4102,8 @@ export const harvestChest = spacetimedb.reducer(
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     const clock = ctx.db.world_clock.id.find(0);
     const chest = ctx.db.world_chest.id.find(chestId);
-    if (position === null || survival === null || clock === null || chest === null || chest.carriedBy !== undefined) {
+    if (position === null || survival === null || clock === null || chest === null
+      || chest.spaceId !== position.spaceId || chest.carriedBy !== undefined) {
       throw new SenderError('target_not_ready');
     }
     if (mountedNpcFor(ctx, ctx.sender) !== null) {
@@ -3966,6 +4155,7 @@ export const harvestChest = spacetimedb.reducer(
         chunkY: chunkAt(y),
         droppedAtTick: clock.authorityTick,
         durability: stack.durability,
+        spaceId: chest.spaceId,
       });
     }
     for (const active of ctx.db.active_chest.iter()) {
@@ -4167,7 +4357,8 @@ export const interactHorse = spacetimedb.reducer(
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const clock = ctx.db.world_clock.id.find(0);
     if (position === null || clock === null) throw new SenderError('player_not_ready');
-    const collision = createAuthoritySurvivalCollisionMap([...ctx.db.world_resource.iter()], [...ctx.db.world_chest.iter()]);
+    if (position.spaceId !== TOPSIDE_SPACE_ID) throw new SenderError('topside_only');
+    const collision = collisionForSpace(ctx, position.spaceId);
     const currentMount = mountedNpcFor(ctx, ctx.sender);
 
     if (currentMount !== null) {
@@ -4205,6 +4396,7 @@ export const interactHorse = spacetimedb.reducer(
 
     const horse = ctx.db.world_npc.id.find(horseId);
     if (horse === null || horse.kind !== 'horse') throw new SenderError('horse_not_ready');
+    if (horse.spaceId !== TOPSIDE_SPACE_ID) throw new SenderError('topside_only');
     if (horse.rider !== undefined) throw new SenderError('horse_already_ridden');
     if (!isHorseWithinMountReach(
       { x: position.x, y: position.y },
@@ -4241,13 +4433,14 @@ export const jumpHorse = spacetimedb.reducer((ctx) => {
   const position = ctx.db.player_position.identity.find(ctx.sender);
   const clock = ctx.db.world_clock.id.find(0);
   if (position === null || clock === null) throw new SenderError('player_not_ready');
+  if (position.spaceId !== TOPSIDE_SPACE_ID) throw new SenderError('topside_only');
   const horse = mountedNpcFor(ctx, ctx.sender);
   if (horse === null) throw new SenderError('horse_jump_requires_mount');
   if (position.jumpUntilTick !== undefined && position.jumpUntilTick >= clock.authorityTick) {
     throw new SenderError('horse_jump_cooldown');
   }
   const facing = parseNpcFacing(horse.facing);
-  const collision = createAuthoritySurvivalCollisionMap([...ctx.db.world_resource.iter()], [...ctx.db.world_chest.iter()]);
+  const collision = collisionForSpace(ctx, position.spaceId);
   const landing = findHorseJumpLanding({ x: position.x, y: position.y }, facing, collision);
   if (landing === null) throw new SenderError('horse_jump_no_safe_landing');
   const jumpUntilTick = clock.authorityTick + BigInt(HORSE_JUMP_DURATION_TICKS);
@@ -4324,6 +4517,7 @@ export const dropSelected = spacetimedb.reducer((ctx) => {
     chunkY: chunkAt(drop.y),
     droppedAtTick: clock.authorityTick,
     durability: slot.durability,
+    spaceId: position.spaceId,
   });
   recordPlayerStatistic(
     ctx, ctx.sender, 'items_dropped', BigInt(slot.quantity), clock.authorityTick, slot.itemKind,
@@ -4338,6 +4532,7 @@ export const pickupWorldItem = spacetimedb.reducer(
     const item = ctx.db.world_item.id.find(itemId);
     const clock = ctx.db.world_clock.id.find(0);
     if (position === null || item === null || clock === null) throw new SenderError('item_not_ready');
+    if (item.spaceId !== position.spaceId) throw new SenderError('item_not_ready');
     if (!itemWithinPickupReach(position.x, position.y, item.x, item.y)) throw new SenderError('item_out_of_range');
     const slots = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)].sort((left, right) => left.slot - right.slot);
     const hasBackpack = slots.some((slot) => slot.itemKind === 'backpack' && slot.quantity > 0);
@@ -4397,6 +4592,7 @@ export const gatherWorldResource = spacetimedb.reducer(
     const resource = ctx.db.world_resource.id.find(resourceId);
     const clock = ctx.db.world_clock.id.find(0);
     if (position === null || resource === null || clock === null) throw new SenderError('target_not_ready');
+    if (resource.spaceId !== position.spaceId) throw new SenderError('target_not_ready');
     if (carriedChestFor(ctx, ctx.sender) !== null) {
       throw new SenderError('hands_occupied');
     }
@@ -4505,6 +4701,7 @@ export const harvestResource = spacetimedb.reducer(
 
     const resource = ctx.db.world_resource.id.find(resourceId);
     if (resource === null) throw new SenderError('target_not_ready');
+    if (resource.spaceId !== position.spaceId) throw new SenderError('target_not_ready');
     const result = resourceHarvestResult(position.x, position.y, slot?.itemKind ?? 'empty', resource);
     if (result === 'depleted') throw new SenderError('resource_depleted');
     if (result === 'wrong_tool') throw new SenderError('wrong_tool');
@@ -4553,6 +4750,7 @@ export const harvestResource = spacetimedb.reducer(
         chunkY: chunkAt(itemY),
         droppedAtTick: clock.authorityTick,
         durability: 0,
+        spaceId: resource.spaceId,
       });
     }
   },
@@ -4605,6 +4803,7 @@ export const fireBow = spacetimedb.reducer(
       state: 'flying',
       hitKind: '',
       hitId: '',
+      spaceId: position.spaceId,
     });
     ctx.db.player_position.identity.update({
       ...position,
@@ -4629,6 +4828,7 @@ export const useFarmTool = spacetimedb.reducer(
     if (position === null || survival === null || clock === null || seed === null) {
       throw new SenderError('player_not_ready');
     }
+    if (position.spaceId !== TOPSIDE_SPACE_ID) throw new SenderError('topside_only');
     if (mountedNpcFor(ctx, ctx.sender) !== null) {
       throw new SenderError('mounted_action_forbidden');
     }
@@ -4640,17 +4840,14 @@ export const useFarmTool = spacetimedb.reducer(
     if (!isVitalsToolKind(selectedItem)) throw new SenderError('wrong_tool');
     const id = `${tileX}:${tileY}`;
     const soil = ctx.db.world_soil.id.find(id);
-    const farmCollision = createAuthoritySurvivalCollisionMap(
-      [...ctx.db.world_resource.iter()],
-      [...ctx.db.world_chest.iter()],
-    );
+    const farmCollision = collisionForSpace(ctx, position.spaceId);
     const occupied = tilePlacementResult(
       position.x,
       position.y,
       tileX,
       tileY,
       farmCollision,
-      tileOverlapsAnyPlayer(ctx, tileX, tileY),
+      tileOverlapsAnyPlayer(ctx, position.spaceId, tileX, tileY),
     ) === 'tile_blocked';
     const result = farmToolUseResult(
       seed.seed,
@@ -4679,6 +4876,7 @@ export const useFarmTool = spacetimedb.reducer(
         watered: false,
         tilledAtTick: clock.authorityTick,
         wateredAtTick: 0n,
+        spaceId: position.spaceId,
       });
     } else if (soil !== null) {
       ctx.db.world_soil.id.update({ ...soil, watered: true, wateredAtTick: clock.authorityTick });
@@ -4709,6 +4907,7 @@ export const restoreFarmTile = spacetimedb.reducer(
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     const clock = ctx.db.world_clock.id.find(0);
     if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
+    if (position.spaceId !== TOPSIDE_SPACE_ID) throw new SenderError('topside_only');
     if (mountedNpcFor(ctx, ctx.sender) !== null) {
       throw new SenderError('mounted_action_forbidden');
     }
@@ -4793,6 +4992,7 @@ export const useFarmTile = spacetimedb.reducer(
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const clock = ctx.db.world_clock.id.find(0);
     if (position === null || clock === null) throw new SenderError('player_not_ready');
+    if (position.spaceId !== TOPSIDE_SPACE_ID) throw new SenderError('topside_only');
     if (mountedNpcFor(ctx, ctx.sender) !== null) {
       throw new SenderError('mounted_action_forbidden');
     }
@@ -4819,6 +5019,7 @@ export const useFarmTile = spacetimedb.reducer(
         plantedAtTick: clock.authorityTick,
         watered: false,
         wateredAtTick: 0n,
+        spaceId: position.spaceId,
       });
       ctx.db.farm_activity.identity.update({ ...actor, planted: actor.planted + 1 });
       recordPlayerStatistic(ctx, ctx.sender, 'crops_planted', 1n, clock.authorityTick, 'legacy_crop');
@@ -4858,7 +5059,12 @@ export const stepWorld = spacetimedb.reducer(
         ctx.db.farm_parcel.clear();
       }
       ctx.db.world_resource.clear();
-      const nextWorld = { id: 0, seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION };
+      const nextWorld = {
+        id: 0,
+        seed: SURVIVAL_WORLD_SEED,
+        version: SURVIVAL_WORLD_VERSION,
+        mineVersion: installedWorld?.mineVersion ?? 0,
+      };
       if (installedWorld === null) ctx.db.world_seed.insert(nextWorld);
       else ctx.db.world_seed.id.update(nextWorld);
       for (const resource of generateSurvivalResources()) {
@@ -4871,6 +5077,7 @@ export const stepWorld = spacetimedb.reducer(
           chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
           health: survivalResourceInitialHealth(resource.kind),
           depleted: false,
+          spaceId: TOPSIDE_SPACE_ID,
         });
       }
     }
@@ -5084,13 +5291,42 @@ export const stepWorld = spacetimedb.reducer(
       }
     }
     tickStageTiming(telemetryTimingSample, 'collision');
-    const collision = createAuthoritySurvivalCollisionMap([...ctx.db.world_resource.iter()], [...ctx.db.world_chest.iter()]);
-    const waterCollision = createAuthoritySurvivalCollisionMap([], [], 'water');
-    obstacleCount = collision.obstacles?.length ?? 0;
+    const onlinePlayerByIdentity = new Map<string, PlayerPositionRow>();
+    for (const presence of activePresences) {
+      const player = ctx.db.player_position.identity.find(presence.identity);
+      if (player !== null) onlinePlayerByIdentity.set(presence.identity.toHexString(), player);
+    }
+    const onlinePlayers = [...onlinePlayerByIdentity.values()];
+    const playersBySpace = new Map<number, PlayerPositionRow[]>();
+    for (const player of onlinePlayers) {
+      const players = playersBySpace.get(player.spaceId) ?? [];
+      players.push(player);
+      playersBySpace.set(player.spaceId, players);
+    }
+    const collisionBySpace = new Map<number, ReturnType<typeof createAuthoritySpaceCollisionMap>>();
+    const waterCollisionBySpace = new Map<number, ReturnType<typeof createAuthoritySpaceCollisionMap>>();
+    const resourcesBySpace = new Map<number, WorldResourceRow[]>();
+    const chestsBySpace = new Map<number, WorldChestRow[]>();
+    for (const spaceId of playersBySpace.keys()) {
+      // Prefix scans over the reshaped chunk indexes preserve complete collision
+      // for every stepped entity while avoiding scans of unoccupied spaces.
+      const resources = [...ctx.db.world_resource.by_chunk.filter(spaceId)];
+      const chests = [...ctx.db.world_chest.by_chunk.filter(spaceId)];
+      resourcesBySpace.set(spaceId, resources);
+      chestsBySpace.set(spaceId, chests);
+      const collision = createAuthoritySpaceCollisionMap(spaceId, resources, chests);
+      collisionBySpace.set(spaceId, collision);
+      waterCollisionBySpace.set(spaceId, createAuthoritySpaceCollisionMap(spaceId, [], [], 'water'));
+      obstacleCount += collision.obstacles?.length ?? 0;
+    }
     tickStageTiming(telemetryTimingSample, 'collision', true);
 
     tickStageTiming(telemetryTimingSample, 'projectiles');
-    for (const projectile of ctx.db.world_projectile.iter()) {
+    const occupiedProjectiles = [...playersBySpace.keys()]
+      .flatMap((spaceId) => [...ctx.db.world_projectile.by_chunk.filter(spaceId)]);
+    for (const projectile of occupiedProjectiles) {
+      const collision = collisionBySpace.get(projectile.spaceId);
+      if (collision === undefined) continue;
       if (projectile.expiresTick <= authorityTick) {
         ctx.db.world_projectile.id.delete(projectile.id);
         continue;
@@ -5099,7 +5335,7 @@ export const stepWorld = spacetimedb.reducer(
       const from = { x: projectile.x, y: projectile.y };
       const to = { x: projectile.x + projectile.velocityX, y: projectile.y + projectile.velocityY };
       const targets = [];
-      for (const player of ctx.db.player_position.iter()) {
+      for (const player of playersBySpace.get(projectile.spaceId) ?? []) {
         if (player.identity.isEqual(projectile.owner)) continue;
         const online = [
           ...ctx.db.connection_presence_v2.by_identity.filter(player.identity),
@@ -5108,7 +5344,7 @@ export const stepWorld = spacetimedb.reducer(
         const bounds = playerHitboxBounds({ x: player.x, y: player.y });
         targets.push({ kind: 'player', id: player.identity.toHexString(), ...bounds });
       }
-      for (const npc of ctx.db.world_npc.iter()) {
+      for (const npc of ctx.db.world_npc.by_chunk.filter(projectile.spaceId)) {
         if (npc.rider?.isEqual(projectile.owner) === true) continue;
         targets.push({
         kind: 'npc', id: npc.id.toString(),
@@ -5118,7 +5354,7 @@ export const stepWorld = spacetimedb.reducer(
         bottom: npc.y,
         });
       }
-      for (const resource of ctx.db.world_resource.iter()) {
+      for (const resource of resourcesBySpace.get(projectile.spaceId) ?? []) {
         if (resource.depleted) continue;
         if (!survivalResourceBlocksMovement(resource.kind)) continue;
         targets.push({ kind: 'resource', id: resource.id.toString(), ...survivalResourceObstacle(
@@ -5127,7 +5363,7 @@ export const stepWorld = spacetimedb.reducer(
           resource.tileY,
         ) });
       }
-      for (const chest of ctx.db.world_chest.iter()) {
+      for (const chest of chestsBySpace.get(projectile.spaceId) ?? []) {
         if (chest.carriedBy !== undefined) continue;
         targets.push({
           kind: 'chest', id: chest.id.toString(),
@@ -5170,11 +5406,9 @@ export const stepWorld = spacetimedb.reducer(
     tickStageTiming(telemetryTimingSample, 'projectiles', true);
 
     tickStageTiming(telemetryTimingSample, 'movement');
-    for (const row of ctx.db.player_position.iter()) {
-      const online = [
-        ...ctx.db.connection_presence_v2.by_identity.filter(row.identity),
-      ].length > 0;
-      if (!online) continue;
+    for (const row of onlinePlayers) {
+      const collision = collisionBySpace.get(row.spaceId);
+      if (collision === undefined) continue;
       const input = ctx.db.player_input.identity.find(row.identity);
       const mounted = mountedNpcFor(ctx, row.identity) !== null;
       const stale = input === null || inputIsStale(
@@ -5293,17 +5527,16 @@ export const stepWorld = spacetimedb.reducer(
     }
     tickStageTiming(telemetryTimingSample, 'movement', true);
 
-    const onlineIdentityHex = new Set(
-      [...ctx.db.connection_presence_v2.iter()].map((presence) => presence.identity.toHexString()),
-    );
-    const wildlifePlayerChunks = [...ctx.db.player_position.iter()]
-      .filter((player) => onlineIdentityHex.has(player.identity.toHexString()))
+    const wildlifePlayerChunks = onlinePlayers
+      .filter((player) => player.spaceId === TOPSIDE_SPACE_ID)
       .map((player) => [player.chunkX, player.chunkY] as const);
-    const wildlifeProfiles = new Map(
-      [...ctx.db.world_wildlife_profile.iter()].map((profile) => [profile.npcId, profile] as const),
-    );
     tickStageTiming(telemetryTimingSample, 'npc');
-    for (const npc of ctx.db.world_npc.iter()) {
+    const occupiedNpcs = [...playersBySpace.keys()]
+      .flatMap((spaceId) => [...ctx.db.world_npc.by_chunk.filter(spaceId)]);
+    for (const npc of occupiedNpcs) {
+      const collision = collisionBySpace.get(npc.spaceId);
+      const waterCollision = waterCollisionBySpace.get(npc.spaceId);
+      if (collision === undefined || waterCollision === undefined) continue;
       if (npc.rider !== undefined) {
         const rider = ctx.db.player_position.identity.find(npc.rider);
         if (rider === null) {
@@ -5329,6 +5562,7 @@ export const stepWorld = spacetimedb.reducer(
           y: rider.y,
           chunkX: rider.chunkX,
           chunkY: rider.chunkY,
+          spaceId: rider.spaceId,
           facing,
           moving: rider.moving,
           wanderDirection: 'idle',
@@ -5342,7 +5576,7 @@ export const stepWorld = spacetimedb.reducer(
         continue;
       }
 
-      const wildlifeProfile = wildlifeProfiles.get(npc.id);
+      const wildlifeProfile = ctx.db.world_wildlife_profile.npcId.find(npc.id) ?? undefined;
       const wildlifeNpc = wildlifeProfile !== undefined && isWildlifeSpecies(wildlifeProfile.species);
       if ([...ctx.db.active_dialogue.iter()].some((dialogue) => dialogue.npcId === npc.id)) {
         if (npc.moving || npc.wanderDirection !== 'idle') {

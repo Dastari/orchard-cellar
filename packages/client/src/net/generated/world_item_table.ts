@@ -20,4 +20,5 @@ export default __t.row({
   chunkY: __t.i16().name("chunk_y"),
   droppedAtTick: __t.u64().name("dropped_at_tick"),
   durability: __t.u16(),
+  spaceId: __t.u16().name("space_id"),
 });
