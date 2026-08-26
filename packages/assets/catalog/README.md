@@ -23,6 +23,13 @@ and extraction recipes. Those files are discovery inputs only. An asset becomes
 runtime-authoritative only after it has a reviewed semantic file under
 `packages/assets/` and is included by the atlas build.
 
+For human/source discovery, use
+`docs/reference-assets/cute-fantasy-index.md` and its compact JSON companion.
+Unlike the low-level pixel scanner, that committed index labels intended use,
+collision, animation families, search aliases, reviewed crops, and tileset
+composition rules. Regenerate it with
+`npm run document:cute-fantasy -w @orchard/tools`.
+
 ## Stable IDs and revisions
 
 - ID `0` is permanently reserved for `system_missing_asset`.

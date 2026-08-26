@@ -18,6 +18,7 @@
     "extract:cute-fantasy-wildlife": "tsx src/extract-cute-fantasy-wildlife.ts",
     "extract:cute-fantasy-nature": "tsx src/extract-cute-fantasy-nature.ts",
     "extract:keycloak-theme": "tsx src/build-keycloak-theme-assets.ts",
+    "document:cute-fantasy": "tsx src/document-cute-fantasy.ts",
     "preview": "tsx src/preview.ts",
     "import": "tsx src/import-image.ts",
     "restore-native": "tsx src/restore-native-palettes.ts"

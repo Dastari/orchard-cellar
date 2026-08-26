@@ -5,6 +5,25 @@ a JSON pixel grid referencing the palette by index; a build tool compiles them i
 PNG atlases the engine consumes. This makes art diffable, reviewable, lintable, and —
 critically — style-enforceable by CI.
 
+## Licensed Cute Fantasy source discovery
+
+Before searching the purchased source folders manually, search
+[`docs/reference-assets/cute-fantasy-index.md`](reference-assets/cute-fantasy-index.md)
+or its machine-readable companion
+[`cute-fantasy-index.json`](reference-assets/cute-fantasy-index.json). The index
+covers every `references/Cute_Fantasy*/**/*.png`, records search aliases, sheet
+geometry, known animation families, reviewed semantic crops, intended tile/entity
+usage, collision recommendations, duplicate sheets, and environment tileset
+contracts. Regenerate it after changing the reference corpus with:
+
+```sh
+npm run document:cute-fantasy -w @orchard/tools
+```
+
+The companion `references/Player_Aseprite_Files/Player_Main_All.aseprite` metadata
+is also captured there for modular-player layer order. It has no named frame tags;
+the 56-row table below remains the semantic animation authority.
+
 ## 1. Sprite source format (`*.sprite.json`)
 
 ```jsonc
