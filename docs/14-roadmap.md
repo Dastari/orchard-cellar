@@ -144,10 +144,21 @@ deterministic tests.
 
 ## M5.7 — Generated survival island `✅ complete (codex, 2026-08-24)`
 
-**Nested-elevation world revision — IN PROGRESS: codex, 2026-08-26.** Extend the
-live legacy island with deterministic stacked contours, generated semantic crossings,
-elevation-aware collision, and a controlled world-version/resource reconciliation;
-the semi-infinite doc-30 migration remains a later milestone.
+**Nested-elevation world revision — ✅ complete (codex, 2026-08-26).** The live
+legacy island now has deterministic level-1/2/3 stacked contours, one paired semantic
+slope per connected contour, elevation-aware collision and painter depth, and a
+controlled world-version/resource reconciliation. The semi-infinite doc-30 migration
+remains a later milestone.
+
+**Nested-elevation verification:** the default-seed golden contains 1,770 exact
+level-1 tiles, 918 level-2 tiles, 191 level-3 summit tiles, eleven two-lane slopes,
+and 22 semantic transitions. Golden movement fixtures climb and descend the highest
+level while an unconnected edge fails closed; renderer fixtures prove every generated
+crossing selects its four ramp frames. `npm run check` passed 107 files / 660 tests,
+all typechecks/lint, the SpaceTimeDB module build, coverage, and 528-asset validation.
+World version 26 published to the durable local authority without deleting data;
+post-migration 1 Hz telemetry sampled collision at 1.1–2.8 ms and complete ticks at
+2.4–6.0 ms while the idle player position guard continued reporting zero updates.
 
 Owner-directed M7a foundation pulled forward before deeper farming progression. Build
 the deterministic 192×192 island, biome terrain, 25 safe spawn clearings, generated
