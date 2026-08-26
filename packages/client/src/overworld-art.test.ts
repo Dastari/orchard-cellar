@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemArtKey, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
+import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemIconKey, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
 import { canonicalBlob47Index } from './render/tilemap.js';
 
 describe('overworld art topology', () => {
@@ -120,19 +120,10 @@ describe('overworld art topology', () => {
   });
 
   it('renders ground drops using their actual inventory item art', () => {
-    expect(overworldItemArtKey('axe')).toBe('iconAxe');
-    expect(overworldItemArtKey('pickaxe')).toBe('iconPickaxe');
-    expect(overworldItemArtKey('hoe')).toBe('iconHoe');
-    expect(overworldItemArtKey('watering_can')).toBe('iconWateringCan');
-    expect(overworldItemArtKey('bow')).toBe('iconBow');
-    expect(overworldItemArtKey('sword')).toBe('iconSword');
-    expect(overworldItemArtKey('arrow')).toBe('itemArrow');
-    expect(overworldItemArtKey('plank')).toBe('itemPlank');
-    expect(overworldItemArtKey('stick')).toBe('itemStick');
-    expect(overworldItemArtKey('wood')).toBe('itemWood');
-    expect(overworldItemArtKey('stone')).toBe('itemStone');
-    expect(overworldItemArtKey('orchard_tea')).toBe('itemOrchardTea');
-    expect(overworldItemArtKey('future_item')).toBe('missingItem');
+    expect(overworldItemIconKey('axe')).toBe('icon_cf_axe');
+    expect(overworldItemIconKey('workbench')).toBe('prop_cf_workbench');
+    expect(overworldItemIconKey('fiber')).toBe('icon_cf_fiber');
+    expect(overworldItemIconKey('future_item')).toBe('system_missing_asset');
   });
 
   it('rests vegetation in calm weather while fish and water continue moving', () => {

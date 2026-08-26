@@ -4,7 +4,7 @@ import {
   TILE_INTERACTION_REACH_FIXED,
   boundsOverlap,
   facedTileTarget,
-  itemEconomyDefinition,
+  itemDefinition,
   playerHitboxBounds,
   tileTargetAtFixedPoint,
   tileTargetBounds,
@@ -178,64 +178,12 @@ export function hotbarSlotAtPoint(
   return x < slotX + HOTBAR_HEIGHT ? slot : null;
 }
 
-const HOTBAR_LABELS: Readonly<Record<string, string>> = {
-  axe: 'AXE',
-  pickaxe: 'PICK',
-  hoe: 'HOE',
-  watering_can: 'WATER',
-  bow: 'BOW',
-  shovel: 'SHOVEL',
-  hammer: 'HAMMER',
-  torch: 'TORCH',
-  lantern: 'LANTERN',
-  arrow: 'ARROW',
-  wood: 'WOOD',
-  plank: 'PLANK',
-  stick: 'STICK',
-  chest: 'CHEST',
-  stone: 'STONE',
-  iron_ore: 'IRON',
-  copper_ore: 'COPPER',
-  gold_ore: 'GOLD',
-  emerald_ore: 'EMERALD',
-  sapphire_ore: 'SAPPHIRE',
-  topaz_ore: 'TOPAZ',
-  ruby_ore: 'RUBY',
-  amethyst_ore: 'AMETHYST',
-};
-
 export function hotbarItemLabel(itemKind: string): string {
-  return HOTBAR_LABELS[itemKind] ?? itemEconomyDefinition(itemKind)?.displayName.toUpperCase() ?? '--';
+  return itemDefinition(itemKind)?.displayName.toUpperCase() ?? '--';
 }
 
-const HOTBAR_NAMES: Readonly<Record<string, string>> = {
-  axe: 'AXE',
-  pickaxe: 'PICKAXE',
-  hoe: 'HOE',
-  watering_can: 'WATERING CAN',
-  bow: 'WOODEN BOW',
-  shovel: 'SHOVEL',
-  hammer: 'HAMMER',
-  torch: 'TORCH',
-  lantern: 'LANTERN',
-  arrow: 'ARROWS',
-  wood: 'WOOD',
-  plank: 'WOODEN PLANKS',
-  stick: 'STICKS',
-  chest: 'CHEST',
-  stone: 'STONE',
-  iron_ore: 'IRON ORE',
-  copper_ore: 'COPPER ORE',
-  gold_ore: 'GOLD ORE',
-  emerald_ore: 'EMERALD ORE',
-  sapphire_ore: 'SAPPHIRE ORE',
-  topaz_ore: 'TOPAZ ORE',
-  ruby_ore: 'RUBY ORE',
-  amethyst_ore: 'AMETHYST ORE',
-};
-
 export function hotbarItemName(itemKind: string): string | null {
-  return HOTBAR_NAMES[itemKind] ?? itemEconomyDefinition(itemKind)?.displayName.toUpperCase() ?? null;
+  return itemDefinition(itemKind)?.displayName.toUpperCase() ?? null;
 }
 
 /** Only ranged aiming continuously overrides locomotion facing. Other tools

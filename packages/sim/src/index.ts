@@ -15,6 +15,8 @@ export * from './weather.js';
 export * from './survival-world.js';
 export * from './character-name.js';
 export * from './item-containers.js';
+export * from './recipes.js';
+export * from './crafting.js';
 export * from './commerce.js';
 export * from './dialogue.js';
 export * from './npc.js';

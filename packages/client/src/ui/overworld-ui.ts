@@ -1,4 +1,4 @@
-import { craftingRecipeOutput, durabilityFraction, distributeItemStack, matchingRecipeId, maxStackFor, toolDurabilityDefinition, type ContainerSnapshot, type ItemStack, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
+import { craftingRecipeOutput, durabilityFraction, distributeItemStack, itemDefinition, matchingRecipeId, maxStackFor, toolDurabilityDefinition, type ContainerSnapshot, type ItemStack, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
 import type { LoadedAsset } from '../render/assets.js';
 import { drawOutlinedPixelText, drawPixelText, measurePixelText, type PixelUi } from '../render/pixel-ui.js';
 import { hotbarItemName } from '../survival-ui.js';
@@ -88,11 +88,7 @@ export interface OverworldUiCallbacks {
 export interface OverworldUiItemArt {
   readonly [itemKind: string]: LoadedAsset;
   readonly avatar: LoadedAsset;
-  readonly axe: LoadedAsset;
-  readonly pickaxe: LoadedAsset;
-  readonly hoe: LoadedAsset;
-  readonly watering_can: LoadedAsset;
-  readonly wood: LoadedAsset;
+  readonly missing: LoadedAsset;
 }
 
 export interface OverworldUiLayout {
@@ -182,7 +178,7 @@ export function slotDurabilityBarRect(rect: UiRect): UiRect {
 }
 
 export function itemIconAnimation(itemKind: string): string {
-  return itemKind === 'chest' ? 'chest' : 'base';
+  return itemDefinition(itemKind)?.iconAnimation ?? 'base';
 }
 
 export function overworldUiLayout(width: number, height: number): OverworldUiLayout {

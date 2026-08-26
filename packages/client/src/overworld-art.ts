@@ -1,4 +1,4 @@
-import { FIXED_UNITS_PER_PIXEL, HORSE_JUMP_DURATION_TICKS, SURVIVAL_ORE_KINDS, type Direction, type WildlifeSpecies } from '@orchard/sim';
+import { FIXED_UNITS_PER_PIXEL, HORSE_JUMP_DURATION_TICKS, ITEM_DEFINITIONS, SURVIVAL_ORE_KINDS, itemDefinition, type Direction, type WildlifeSpecies } from '@orchard/sim';
 import { loadGeneratedAsset, type LoadedAsset } from './render/assets.js';
 import { drawPixelText, loadPixelUi, measurePixelText, type PixelUi } from './render/pixel-ui.js';
 import { selectAtlasFrame, type AtlasFrame } from './render/sprite.js';
@@ -56,6 +56,7 @@ export interface OverworldArt {
   readonly actionAssets: Readonly<Record<string, LoadedAsset>>;
   readonly oreNodes: Readonly<Record<string, LoadedAsset>>;
   readonly oreItems: Readonly<Record<string, LoadedAsset>>;
+  readonly itemIcons: Readonly<Record<string, LoadedAsset>>;
   readonly poiDecorations: Readonly<Record<string, LoadedAsset>>;
   readonly natureDecorations: Readonly<Record<string, readonly LoadedAsset[]>>;
   readonly oceanSurfaceDecorations: readonly LoadedAsset[];
@@ -257,6 +258,13 @@ async function loadFruitItemArt(): Promise<Readonly<Record<string, LoadedAsset>>
   ])));
 }
 
+async function loadItemIconArt(): Promise<Readonly<Record<string, LoadedAsset>>> {
+  return Object.fromEntries(await Promise.all(Object.entries(ITEM_DEFINITIONS).map(async ([kind, definition]) => [
+    kind,
+    await loadGeneratedAsset(definition.iconKey, 'summer'),
+  ])));
+}
+
 export async function loadOverworldArt(): Promise<OverworldArt> {
   const [
     avatar, avatarAxe, axeActionTool, pickaxeActionTool, hoeActionTool, wateringCanActionTool, bowActionTool, horse, mountedHorse, wildlife, natureDecorations, oceanSurfaceDecorations, fruitTrees, fruitItems, mountedHorses, beeHive, beeNest, playerRig, merchantNpc, torchIdle, torchRunning, torchIdleHands, torchRunningHands, lanternIdle, lanternRunning, lanternIdleHands, lanternRunningHands, oreNodes, oreItems,
@@ -268,7 +276,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     cliff, cliff2, cliff3, coastalCliffOverlay, cliff4, desertCliff, iconAxe, iconHoe, iconPickaxe, iconWateringCan, iconBow, iconShovel, iconHammer, iconSword, itemArrow,
     itemWood, itemPlank, itemStick, itemTorch, itemLantern, itemOrchardTea, chest, missingItem, rainStreak, rainSplash, cloudShadow, windGust, oakLeaf, birchLeaf, spruceLeaf, waterRipples, treeFruiting, treeMature,
     treeOak, treeBirch, treeSpruce, treeAcacia, treePalm,
-    treeStump, treeAcaciaStump, treePalmStump, ui, uiSkin,
+    treeStump, treeAcaciaStump, treePalmStump, ui, uiSkin, itemIcons,
   ] = await Promise.all([
     loadGeneratedAsset('avatar_cf_farmer', 'summer'),
     loadGeneratedAsset('avatar_cf_farmer_axe', 'summer'),
@@ -388,6 +396,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('tree_cf_palm_stump', 'summer'),
     loadPixelUi(),
     loadUiSkin(),
+    loadItemIconArt(),
   ]);
   return {
     avatar, avatarAxe, horse, mountedHorse, wildlife, mountedHorses, beeHive, beeNest, playerRig, merchantNpc,
@@ -414,6 +423,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     },
     oreNodes,
     oreItems,
+    itemIcons,
     rockStone,
     poiDecorations: {
       poi_flowers_pink: poiFlowersPink,
@@ -707,7 +717,7 @@ export function drawOverworldItem(
   zoom: number,
 ): void {
   drawAnchored(context, art.oreItems[itemKind] ?? art.fruitItems[itemKind]
-    ?? art[overworldItemArtKey(itemKind)], 'base', 0, x, y - arcHeight, cameraX, cameraY, zoom);
+    ?? art.itemIcons[itemKind] ?? art.missingItem, 'base', 0, x, y - arcHeight, cameraX, cameraY, zoom);
 }
 
 /** A tiny palette-matched arrow is rotated around its shaft so aiming is not
@@ -764,30 +774,9 @@ export function drawOverworldChest(
   drawAnchored(context, art.chest, 'chest', frameIndex, x, y, cameraX, cameraY, zoom);
 }
 
-export type OverworldItemArtKey = 'iconAxe' | 'iconHoe' | 'iconPickaxe' | 'iconWateringCan' | 'iconBow' | 'iconShovel' | 'iconHammer' | 'iconSword' | 'itemArrow' | 'itemWood' | 'itemPlank' | 'itemStick' | 'itemStone' | 'itemTorch' | 'itemLantern' | 'itemOrchardTea' | 'chest' | 'missingItem';
-
-/** Ground drops use their item kind rather than the wood harvesting fallback. */
-export function overworldItemArtKey(itemKind: string): OverworldItemArtKey {
-  switch (itemKind) {
-    case 'axe': return 'iconAxe';
-    case 'hoe': return 'iconHoe';
-    case 'pickaxe': return 'iconPickaxe';
-    case 'watering_can': return 'iconWateringCan';
-    case 'bow': return 'iconBow';
-    case 'shovel': return 'iconShovel';
-    case 'hammer': return 'iconHammer';
-    case 'sword': return 'iconSword';
-    case 'torch': return 'itemTorch';
-    case 'lantern': return 'itemLantern';
-    case 'orchard_tea': return 'itemOrchardTea';
-    case 'arrow': return 'itemArrow';
-    case 'wood': return 'itemWood';
-    case 'plank': return 'itemPlank';
-    case 'stick': return 'itemStick';
-    case 'chest': return 'chest';
-    case 'stone': return 'itemStone';
-    default: return 'missingItem';
-  }
+/** Item UI and ground-drop art share the canonical item registry key. */
+export function overworldItemIconKey(itemKind: string): string {
+  return itemDefinition(itemKind)?.iconKey ?? 'system_missing_asset';
 }
 
 export function drawOverworldAvatar(

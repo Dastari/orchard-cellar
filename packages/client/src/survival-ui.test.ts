@@ -78,12 +78,12 @@ describe('survival controls', () => {
 
   it('gives occupied hotbar tools compact unambiguous labels', () => {
     expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemLabel))
-      .toEqual(['AXE', 'PICK', 'HOE', 'WATER', 'WOOD', '--']);
+      .toEqual(['IRON AXE', 'IRON PICKAXE', 'IRON HOE', 'WATERING CAN', 'WOOD', '--']);
   });
 
   it('gives occupied slots full hover names', () => {
     expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemName))
-      .toEqual(['AXE', 'PICKAXE', 'HOE', 'WATERING CAN', 'WOOD', null]);
+      .toEqual(['IRON AXE', 'IRON PICKAXE', 'IRON HOE', 'WATERING CAN', 'WOOD', null]);
   });
 
   it('continuously faces the cursor only while the bow is equipped', () => {

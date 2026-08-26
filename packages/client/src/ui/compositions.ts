@@ -12,7 +12,7 @@ export function craftingWindow(binding: ContainerBinding = 'dev:crafting'): Widg
       widget('inventory_grid', 'grid.crafting', { minSize: { width: 90, height: 90 }, props: { binding, columns: 3, rows: 3 } }),
       widget('icon', 'icon.crafting_arrow', { minSize: { width: 16, height: 16 }, props: { asset: 'ui_cf_cursor' } }),
       widget('slot', 'slot.crafting_result', { minSize: { width: 28, height: 31 }, props: { binding, index: 9, role: 'result' } }),
-    ), widget('button', 'button.craft', { minSize: { width: 64, height: 16 }, props: { label: 'Craft', recipeId: 'dev_planks' } }));
+    ), widget('button', 'button.craft', { minSize: { width: 64, height: 16 }, props: { label: 'Craft', recipeId: 'planks' } }));
 }
 
 export function packWindow(backpack: ContainerBinding = 'self:backpack', equipment = 'self:equipment'): WidgetNode {
