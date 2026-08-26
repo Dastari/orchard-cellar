@@ -169,11 +169,14 @@ workspace lint and typecheck, module build, 92.41% statement coverage, and all
 488 art assets / 3 songs / 10 SFX / 2 maps validated.
 
 **2026-08-26 — Stage 2, safety rails & subscription budget.** View radii are
-now rectangular and independently capped at `MAX_VIEW_RADIUS = 9`; settled
-1080p/1× subscriptions fell from the stage-1 **991 queries** (8 global + 15
-self + 121×8 regional) to **913** (7 global + 15 self + 99×9 regional).
-The maximum centred active set is 3,271 queries at any zoom or display (6,520
-during the deliberately overlapping handover), independent of world extent.
+now rectangular and independently capped at `MAX_VIEW_RADIUS = 9`. The
+original stage-2 implementation reduced settled 1080p/1× subscriptions from
+the stage-1 **991 queries** to a fragmented per-chunk set, but live 20 Hz NPC
+updates exposed an SDK cache-refcount failure (`Updating a row that was not
+present in the cache`). The corrected implementation uses one bounded
+rectangular query for each of the ten regional tables: the public browser now
+reports **36 settled queries** (8 global + 18 self + 10 regional) at every
+viewport/zoom, and 56 during the deliberately overlapping handover.
 An 8-tile centre deadband makes a chunk-boundary crossing and return produce
 zero handovers while both positions stay inside it; radius debounce remains
 180 ms.
@@ -209,6 +212,13 @@ regenerated, the additive module published over the populated local world,
 and `npm run check` passed: **80 test files / 487 tests**, workspace lint and
 typecheck, module build, 92.21% statement coverage, and all 488 art assets / 3
 songs / 10 SFX / 2 maps validated.
+
+**2026-08-26 — Stage 2 subscription correction.** A clean authenticated
+`orchard.dastari.net` session reported 10 active regional / 36 total queries,
+healthy connection state, and neighborhood-only NPC/profile caches after the
+rectangular-query change. This supersedes the fragmented-query figure above;
+spatial bounds, `MAX_VIEW_RADIUS`, per-axis radii, deadband, and overlapping
+handover behavior are unchanged.
 
 ## 8. Bookkeeping
 

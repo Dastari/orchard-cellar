@@ -24,8 +24,7 @@ const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILE
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
 const RTT_SAMPLE_CAPACITY = 256;
-const REGION_TABLES_PER_CHUNK = 9;
-const REGION_RANGE_QUERIES = 1;
+const REGION_RANGE_QUERIES = 10;
 export const MAX_VIEW_RADIUS = 9;
 export const REGION_CENTER_DEADBAND_TILES = 8;
 
@@ -74,11 +73,9 @@ export function regionSubscriptionQueryCount(
   bounds: ReturnType<typeof subscriptionChunkBounds>,
   spaceId = TOPSIDE_SPACE_ID,
 ): number {
+  void bounds;
   void spaceId;
-  return (bounds.maxX - bounds.minX + 1)
-    * (bounds.maxY - bounds.minY + 1)
-    * REGION_TABLES_PER_CHUNK
-    + REGION_RANGE_QUERIES;
+  return REGION_RANGE_QUERIES;
 }
 
 export interface ActiveDialogue {
@@ -611,27 +608,50 @@ export class OverworldConnection {
     if (!force && this.regionSubscription !== null
       && !outsideRegionCenterDeadband(this.subscribedCenterTiles, centerTiles[0], centerTiles[1])) return;
     this.pendingRegion = regionKey;
-    const positions = []; const resources = []; const soil = []; const worldItems = [];
-    const projectiles = []; const chests = []; const npcs = []; const wildlifeProfiles = []; const hives = [];
     const definition = spaceDefinitionFor(spaceId);
     const bounds = subscriptionChunkBounds(chunkX, chunkY, radius, definition?.sizeTiles ?? SURVIVAL_WORLD_SIZE);
-    for (let y = bounds.minY; y <= bounds.maxY; y += 1) for (let x = bounds.minX; x <= bounds.maxX; x += 1) {
-      positions.push(tables.playerPosition.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      resources.push(tables.worldResource.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      soil.push(tables.worldSoil.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      worldItems.push(tables.worldItem.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      projectiles.push(tables.worldProjectile.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      chests.push(tables.worldChest.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      npcs.push(tables.worldNpc.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      wildlifeProfiles.push(tables.worldWildlifeProfile.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      hives.push(tables.worldHive.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-    }
-    const placeables = [tables.worldPlaceable
+    const positions = tables.playerPosition
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const resources = tables.worldResource
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const soil = tables.worldSoil
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const worldItems = tables.worldItem
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const projectiles = tables.worldProjectile
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const chests = tables.worldChest
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const placeables = tables.worldPlaceable
       .where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minX))
       .where((row) => row.chunkX.lte(bounds.maxX))
       .where((row) => row.chunkY.gte(bounds.minY))
-      .where((row) => row.chunkY.lte(bounds.maxY))];
+      .where((row) => row.chunkY.lte(bounds.maxY));
+    const npcs = tables.worldNpc
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const wildlifeProfiles = tables.worldWildlifeProfile
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const hives = tables.worldHive
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
     const queryCount = regionSubscriptionQueryCount(bounds, spaceId);
     this.pendingRegionQueryCount = queryCount;
     const previous = this.regionSubscription;
@@ -646,7 +666,7 @@ export class OverworldConnection {
     })).onError(() => {
       this.pendingRegion = null; this.pendingRegionQueryCount = 0;
       this.error = 'region_subscription_failed'; this.onChanged();
-    }).subscribe([...positions, ...resources, ...soil, ...worldItems, ...projectiles, ...chests, ...placeables, ...npcs, ...wildlifeProfiles, ...hives]);
+    }).subscribe([positions, resources, soil, worldItems, projectiles, chests, placeables, npcs, wildlifeProfiles, hives]);
   }
 
   private bindTableEvents(connection: DbConnection): void {
