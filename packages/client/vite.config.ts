@@ -6,6 +6,13 @@ export function developmentCsp(html: string): string {
 
 export default defineConfig(({ command }) => ({
   envDir: '../..',
+  // The browser SDK is already distributed as ESM. Serving it directly also
+  // avoids invalidating the running game when Vite rotates its optimized-dep
+  // generation after bindings or workspace packages change.
+  optimizeDeps: {
+    exclude: ['spacetimedb'],
+    include: ['base64-js', 'safe-stable-stringify'],
+  },
   plugins: command === 'serve' ? [{
     name: 'orchard-development-csp',
     transformIndexHtml: developmentCsp,

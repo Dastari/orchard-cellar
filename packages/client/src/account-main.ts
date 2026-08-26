@@ -20,7 +20,6 @@ import { canvasViewport, centeredFixedSceneLayout, toggleFullscreen } from './di
 import { drawPixelText, loadPixelUi } from './render/pixel-ui.js';
 import { drawUiSkinAsset, drawUiSkinNatural, loadUiSkin } from './ui/skin.js';
 import { drawCanvasTextInput } from './ui/canvas-text-input.js';
-import './style.css';
 
 // Remove authorization codes and provider errors from the address bar before
 // loading assets or making the token request. NPM is separately configured to

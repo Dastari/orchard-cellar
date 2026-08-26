@@ -4,6 +4,7 @@ import {
   localProfilesEnabled,
   oidcConfigured,
 } from './auth/oidc.js';
+import './style.css';
 
 function isCanvasInput(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement && target.classList.contains('canvas-input');

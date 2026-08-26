@@ -169,7 +169,6 @@ import {
   formatDayTime,
   worldPlacementTileIsBlocked,
 } from './survival-ui.js';
-import './style.css';
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
 if (canvasElement === null) throw new Error('Missing overworld canvas');
