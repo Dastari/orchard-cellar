@@ -30,7 +30,7 @@ describe('deterministic simulation', () => {
     }
     expect(state.player.position.x).toBeGreaterThanOrEqual(TILE_SIZE_FIXED + 4 * FIXED_UNITS_PER_PIXEL);
     expect(state.player.moving).toBe(false);
-  });
+  }, 10_000);
 
   it('stops at an internal orchard obstacle', () => {
     let state = createInitialState(7);

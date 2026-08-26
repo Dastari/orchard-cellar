@@ -21,4 +21,5 @@ export default __t.row({
   honey: __t.u16(),
   beeCount: __t.u8().name("bee_count"),
   nextProductionTick: __t.u64().name("next_production_tick"),
+  spaceId: __t.u16().name("space_id"),
 });

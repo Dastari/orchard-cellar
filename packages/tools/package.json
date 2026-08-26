@@ -15,6 +15,7 @@
     "extract:cute-fantasy-farmland": "tsx src/extract-cute-fantasy-farmland.ts",
     "extract:cute-fantasy-player-actions": "tsx src/extract-cute-fantasy-player-actions.ts",
     "extract:cute-fantasy-mining-tools": "tsx src/extract-cute-fantasy-ores.ts",
+    "extract:cute-fantasy-crafting": "tsx src/extract-cute-fantasy-crafting.ts",
     "extract:cute-fantasy-wildlife": "tsx src/extract-cute-fantasy-wildlife.ts",
     "extract:cute-fantasy-nature": "tsx src/extract-cute-fantasy-nature.ts",
     "extract:keycloak-theme": "tsx src/build-keycloak-theme-assets.ts",

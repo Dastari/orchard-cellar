@@ -20,4 +20,5 @@ export default __t.row({
   care: __t.u16(),
   tendCount: __t.u32().name("tend_count"),
   lastTendedTick: __t.u64().name("last_tended_tick"),
+  spaceId: __t.u16().name("space_id"),
 });

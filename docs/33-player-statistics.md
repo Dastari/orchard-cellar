@@ -119,7 +119,7 @@ The registry initially covers:
 | Items/world | obtained, picked up, dropped, hand-gathered, resource hits/depletion by kind, trees, rocks, ore nodes |
 | Tools | successful uses and whiffs by kind, repairs, durability restored, arrows fired and impact kinds |
 | Farming | tilled/watered/restored tiles, crops planted/harvested, orchard tends, tea consumed |
-| Crafting | recipe executions, output units by item, largest request batch |
+| Crafting | recipe executions, output units by item, largest request batch, placeables placed by item kind |
 | Commerce | buys/sells, items by kind, lifetime bronze spent/earned |
 | Chests | placed, opened, picked up, broken |
 | Reserved | combat damage/defeats/knockouts, fish caught, quests completed |

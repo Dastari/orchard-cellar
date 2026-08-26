@@ -67,7 +67,10 @@ survival row and slots.
 
 The reviewed Cute Fantasy tool strip is semantically ordered Bow, Arrow, Pickaxe,
 Axe, Sword, Hoe, Watering Can, Fishing Rod, Lantern, Torch. Runtime crops use those
-declared meanings rather than visual filename inference.
+declared meanings rather than visual filename inference. Item registration, paid-pack
+art sourcing, and recipes now live in [28-crafting.md](28-crafting.md); its phases
+1–3 implement sticks, fiber, torch, and the workbench/placeable tier without pulling
+the later weapon or metal mechanics forward.
 
 `harvest_resource(resourceId)` is atomic and authoritative:
 

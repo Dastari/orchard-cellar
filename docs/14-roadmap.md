@@ -204,6 +204,24 @@ once per active identity; current reducers record successful outcomes but never
 rejections; statistic/milestone views are identity-isolated; and the registry and full
 repository acceptance suites pass.
 
+## M5.10 — Crafting foundations and placeables `✅ phases 1–3 complete (2026-08-26)`
+
+Implement [28-crafting.md](28-crafting.md) phases 1–3: shift-invariant recipe
+matching, the consolidated item/recipe registries, fiber and the hand tier, then
+space-aware placeables and the workbench-gated recipe tier. The shared placement
+authority is deliberately shaped for docs/35 build mode. Furnace, anvil, metals,
+weapons, fishing, and cooking remain later approvals.
+
+**Done when:** the authority accepts place/pickup round trips in the caller's space,
+rejects unavailable stations and cross-space interaction, records crafting and
+placement statistics transactionally, exposes real barrel storage, and replicates
+placed lights to both clients. The recipe list must filter by station, show missing
+ingredients, ghost-fill safely, and preserve server-side revalidation.
+
+**Verification:** docs/28 §16 records the focused sim, schema, client, asset, and
+deterministic two-client coverage. The repository-wide `npm run check` remains the
+final release gate; phase 4 code and recipes are absent.
+
 ## M6 — Accounts, farm authority & persistence `⏳ in progress (codex, 2026-08-24)`
 OIDC + owner-managed friends allowlist per [09-auth.md](09-auth.md); normalized owned
 farm/public/private tables per [08-database.md](08-database.md); caller-dependent

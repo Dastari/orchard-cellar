@@ -24,6 +24,12 @@ export const ActiveDialogue = __t.object("ActiveDialogue", {
 });
 export type ActiveDialogue = __Infer<typeof ActiveDialogue>;
 
+export const ActivePlaceable = __t.object("ActivePlaceable", {
+  identity: __t.identity(),
+  placeableId: __t.u64(),
+});
+export type ActivePlaceable = __Infer<typeof ActivePlaceable>;
+
 export const CharacterProfile = __t.object("CharacterProfile", {
   identity: __t.identity(),
   nameChosen: __t.bool(),
@@ -107,6 +113,7 @@ export const CropPatch = __t.object("CropPatch", {
   plantedAtTick: __t.u64(),
   watered: __t.bool(),
   wateredAtTick: __t.u64(),
+  spaceId: __t.u16(),
 });
 export type CropPatch = __Infer<typeof CropPatch>;
 
@@ -192,6 +199,9 @@ export type OwnActiveChest = __Infer<typeof OwnActiveChest>;
 export const OwnActiveDialogue = __t.object("OwnActiveDialogue", {});
 export type OwnActiveDialogue = __Infer<typeof OwnActiveDialogue>;
 
+export const OwnActivePlaceable = __t.object("OwnActivePlaceable", {});
+export type OwnActivePlaceable = __Infer<typeof OwnActivePlaceable>;
+
 export const OwnCharacterProfile = __t.object("OwnCharacterProfile", {});
 export type OwnCharacterProfile = __Infer<typeof OwnCharacterProfile>;
 
@@ -215,6 +225,9 @@ export type OwnMembership = __Infer<typeof OwnMembership>;
 
 export const OwnOpenChestSlots = __t.object("OwnOpenChestSlots", {});
 export type OwnOpenChestSlots = __Infer<typeof OwnOpenChestSlots>;
+
+export const OwnOpenPlaceableSlots = __t.object("OwnOpenPlaceableSlots", {});
+export type OwnOpenPlaceableSlots = __Infer<typeof OwnOpenPlaceableSlots>;
 
 export const OwnPlayerStatisticMilestones = __t.object("OwnPlayerStatisticMilestones", {});
 export type OwnPlayerStatisticMilestones = __Infer<typeof OwnPlayerStatisticMilestones>;
@@ -282,6 +295,7 @@ export const PlayerPosition = __t.object("PlayerPosition", {
   jumpFromX: __t.option(__t.i32()),
   jumpFromY: __t.option(__t.i32()),
   jumpUntilTick: __t.option(__t.u64()),
+  spaceId: __t.u16(),
 });
 export type PlayerPosition = __Infer<typeof PlayerPosition>;
 
@@ -362,6 +376,18 @@ export const PrivateInventory = __t.object("PrivateInventory", {
 });
 export type PrivateInventory = __Infer<typeof PrivateInventory>;
 
+export const SpacePortal = __t.object("SpacePortal", {
+  id: __t.u32(),
+  kind: __t.string(),
+  fromSpace: __t.u16(),
+  fromTileX: __t.u16(),
+  fromTileY: __t.u16(),
+  toSpace: __t.u16(),
+  toTileX: __t.u16(),
+  toTileY: __t.u16(),
+});
+export type SpacePortal = __Infer<typeof SpacePortal>;
+
 export const StatsMigration = __t.object("StatsMigration", {
   id: __t.u8(),
   creatureHealthVersion: __t.u8(),
@@ -391,6 +417,7 @@ export const WorldChest = __t.object("WorldChest", {
   chunkX: __t.i16(),
   chunkY: __t.i16(),
   carriedBy: __t.option(__t.identity()),
+  spaceId: __t.u16(),
 });
 export type WorldChest = __Infer<typeof WorldChest>;
 
@@ -434,6 +461,7 @@ export const WorldHive = __t.object("WorldHive", {
   honey: __t.u16(),
   beeCount: __t.u8(),
   nextProductionTick: __t.u64(),
+  spaceId: __t.u16(),
 });
 export type WorldHive = __Infer<typeof WorldHive>;
 
@@ -447,6 +475,7 @@ export const WorldItem = __t.object("WorldItem", {
   chunkY: __t.i16(),
   droppedAtTick: __t.u64(),
   durability: __t.u16(),
+  spaceId: __t.u16(),
 });
 export type WorldItem = __Infer<typeof WorldItem>;
 
@@ -482,8 +511,34 @@ export const WorldNpc = __t.object("WorldNpc", {
   nextDecisionTick: __t.u64(),
   authorityTick: __t.u64(),
   health: __t.u16(),
+  spaceId: __t.u16(),
 });
 export type WorldNpc = __Infer<typeof WorldNpc>;
+
+export const WorldPlaceable = __t.object("WorldPlaceable", {
+  id: __t.u64(),
+  kind: __t.string(),
+  tileX: __t.i16(),
+  tileY: __t.i16(),
+  chunkX: __t.i16(),
+  chunkY: __t.i16(),
+  spaceId: __t.u16(),
+  placedBy: __t.identity(),
+  facing: __t.string(),
+  open: __t.bool(),
+  smeltStartTick: __t.option(__t.u64()),
+});
+export type WorldPlaceable = __Infer<typeof WorldPlaceable>;
+
+export const WorldPlaceableSlot = __t.object("WorldPlaceableSlot", {
+  id: __t.string(),
+  placeableId: __t.u64(),
+  slot: __t.u8(),
+  itemKind: __t.string(),
+  quantity: __t.u16(),
+  durability: __t.u16(),
+});
+export type WorldPlaceableSlot = __Infer<typeof WorldPlaceableSlot>;
 
 export const WorldProjectile = __t.object("WorldProjectile", {
   id: __t.u64(),
@@ -499,6 +554,7 @@ export const WorldProjectile = __t.object("WorldProjectile", {
   state: __t.string(),
   hitKind: __t.string(),
   hitId: __t.string(),
+  spaceId: __t.u16(),
 });
 export type WorldProjectile = __Infer<typeof WorldProjectile>;
 
@@ -511,6 +567,7 @@ export const WorldResource = __t.object("WorldResource", {
   chunkY: __t.i16(),
   health: __t.u8(),
   depleted: __t.bool(),
+  spaceId: __t.u16(),
 });
 export type WorldResource = __Infer<typeof WorldResource>;
 
@@ -524,6 +581,7 @@ export const WorldSeed = __t.object("WorldSeed", {
   id: __t.u8(),
   seed: __t.u32(),
   version: __t.u16(),
+  mineVersion: __t.u16(),
 });
 export type WorldSeed = __Infer<typeof WorldSeed>;
 
@@ -536,6 +594,7 @@ export const WorldSoil = __t.object("WorldSoil", {
   watered: __t.bool(),
   tilledAtTick: __t.u64(),
   wateredAtTick: __t.u64(),
+  spaceId: __t.u16(),
 });
 export type WorldSoil = __Infer<typeof WorldSoil>;
 
@@ -549,6 +608,7 @@ export const WorldSpeech = __t.object("WorldSpeech", {
   y: __t.i32(),
   createdTick: __t.u64(),
   expiresTick: __t.u64(),
+  spaceId: __t.u16(),
 });
 export type WorldSpeech = __Infer<typeof WorldSpeech>;
 
@@ -562,6 +622,7 @@ export const WorldTree = __t.object("WorldTree", {
   care: __t.u16(),
   tendCount: __t.u32(),
   lastTendedTick: __t.u64(),
+  spaceId: __t.u16(),
 });
 export type WorldTree = __Infer<typeof WorldTree>;
 
@@ -579,6 +640,7 @@ export const WorldWildlifeProfile = __t.object("WorldWildlifeProfile", {
   habitat: __t.string(),
   chunkX: __t.i16(),
   chunkY: __t.i16(),
+  spaceId: __t.u16(),
 });
 export type WorldWildlifeProfile = __Infer<typeof WorldWildlifeProfile>;
 

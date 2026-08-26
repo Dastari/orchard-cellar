@@ -4,9 +4,11 @@ import {
   SURVIVAL_TREE_KINDS,
   SURVIVAL_ORE_KINDS,
   FIXED_UNITS_PER_PIXEL,
+  DEBUG_SPACE_ID,
   TILE_SIZE_FIXED,
   generateSurvivalResources,
   survivalBiomeAt,
+  survivalResourceObstacle,
 } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import {
@@ -17,6 +19,7 @@ import {
   cropStage,
   CROP_GROWTH_TICKS,
   createAuthoritySurvivalCollisionMap,
+  createAuthoritySpaceCollisionMap,
   createMmoFarmCollisionMap,
   decodeDirection,
   farmParcelLayout,
@@ -34,6 +37,7 @@ import {
   drainMovementRunQueue,
   nextActionStartedTick,
   presenceLeaseExpired,
+  portalUseResult,
   resourceHarvestResult,
   resourceGatherResult,
   settleMovementRun,
@@ -41,6 +45,18 @@ import {
 } from './world-rules.js';
 
 describe('overworld authority rules', () => {
+  it('26§13 accepts nearby portal use and rejects range, space, and mounted paths', () => {
+    const portal = { fromSpace: 0, fromTileX: 10, fromTileY: 12 };
+    const nearby = {
+      spaceId: 0,
+      x: 11 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: 12 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    };
+    expect(portalUseResult(nearby, portal, false)).toBe('ok');
+    expect(portalUseResult({ ...nearby, x: 13 * TILE_SIZE_FIXED }, portal, false)).toBe('portal_out_of_range');
+    expect(portalUseResult({ ...nearby, spaceId: 1 }, portal, false)).toBe('portal_out_of_range');
+    expect(portalUseResult(nearby, portal, true)).toBe('no_horses_underground');
+  });
   it('25§15 commits exact tool costs and leaves rejected spends unchanged', () => {
     expect(toolSpendResult(10_000, 0n, 100n, 1_500, 8, false)).toEqual({
       ok: true, costCenti: 1_500, vigourCenti: 8_500, lastSwingTick: 100n,
@@ -167,6 +183,19 @@ describe('overworld authority rules', () => {
     expect(collision.blocked[16 * collision.width + 24]).toBe(false);
   });
 
+  it('26§13 keeps collision dimensions and mutable obstacles local to each space', () => {
+    const debug = createAuthoritySpaceCollisionMap(DEBUG_SPACE_ID, [{
+      kind: 'rock_small', tileX: 5, tileY: 5, depleted: false,
+    }]);
+    const topside = createAuthoritySurvivalCollisionMap([]);
+    expect(debug.width).toBe(32);
+    expect(topside.width).toBe(SURVIVAL_WORLD_SIZE);
+    expect(debug.blocked[0]).toBe(true);
+    expect(debug.blocked[5 * debug.width + 5]).toBe(false);
+    expect(debug.obstacles).toHaveLength(1);
+    expect(topside.obstacles?.length).toBeGreaterThan(1);
+  }, 15_000);
+
   it('blocks generated water and ridge while using narrow mutable trunk obstacles', () => {
     const terrain = Array.from({ length: SURVIVAL_WORLD_SIZE ** 2 }, (_, index) => ({
       tileX: index % SURVIVAL_WORLD_SIZE,
@@ -185,6 +214,18 @@ describe('overworld authority rules', () => {
     expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(false);
     expect(depleted.obstacles?.length).toBeGreaterThan(0);
     expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(false);
+  });
+
+  it('28§14 blocks closed placeables but lets open gates and standing lights pass', () => {
+    const collision = createAuthoritySurvivalCollisionMap([], [], 'ground', [
+      { tileX: 20, tileY: 20, blocksMovement: true },
+      { tileX: 21, tileY: 20, blocksMovement: true, open: true },
+      { tileX: 22, tileY: 20, blocksMovement: false },
+    ]);
+    const dynamic = collision.obstacles?.filter((obstacle) => obstacle.top === 20 * TILE_SIZE_FIXED) ?? [];
+    expect(dynamic.some((obstacle) => obstacle.left === 20 * TILE_SIZE_FIXED)).toBe(true);
+    expect(dynamic.some((obstacle) => obstacle.left === 21 * TILE_SIZE_FIXED)).toBe(false);
+    expect(dynamic.some((obstacle) => obstacle.left === 22 * TILE_SIZE_FIXED)).toBe(false);
   });
 
   it('allows water traversal while blocking shorelines and water rocks', () => {
@@ -222,9 +263,11 @@ describe('overworld authority rules', () => {
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind: 'rock_large', depleted: false })).toBe('wrong_tool');
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, depleted: true })).toBe('depleted');
     expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');
-    expect(resourceHarvestResult(x + 3 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');
-    expect(resourceHarvestResult(x + 3 * TILE_SIZE_FIXED + 1, y, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
-    expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED + 1, y, 'pickaxe', {
+    const treeRight = survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY).right;
+    expect(resourceHarvestResult(treeRight + 3 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');
+    expect(resourceHarvestResult(treeRight + 3 * TILE_SIZE_FIXED + 1, y, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
+    const rockRight = survivalResourceObstacle('rock_large', resource.tileX, resource.tileY).right;
+    expect(resourceHarvestResult(rockRight + 2 * TILE_SIZE_FIXED + 1, y, 'pickaxe', {
       ...resource, kind: 'rock_large', depleted: false,
     })).toBe('out_of_range');
   });

@@ -21,4 +21,5 @@ export default __t.row({
   plantedAtTick: __t.u64().name("planted_at_tick"),
   watered: __t.bool(),
   wateredAtTick: __t.u64().name("watered_at_tick"),
+  spaceId: __t.u16().name("space_id"),
 });

@@ -11,9 +11,11 @@ import {
   CASK_BALANCE,
   CASK_COST_GROWTH,
   CELLAR_DIG_COSTS,
+  CRAFTING_STATION_REACH_TILES,
   FEATURED_SEASON_MULTIPLIER,
   FED_BONUS_CAP,
   FIRST_PRESS_REPAIR_FRUIT,
+  FIBER_TILL_DROP_PERCENT,
   ITEM_DESPAWN_TICKS,
   OFFLINE_CAP_SECONDS,
   OFFLINE_CHUNKS,
@@ -144,5 +146,10 @@ describe('06 golden balance tables', () => {
       shovel: { costCenti: 1_200, minimumSwingTicks: 7 },
       hammer: { costCenti: 1_800, minimumSwingTicks: 9 },
     });
+  });
+
+  it('06§12 crafting acquisition and station reach', () => {
+    expect(FIBER_TILL_DROP_PERCENT).toBe(30);
+    expect(CRAFTING_STATION_REACH_TILES).toBe(2);
   });
 });

@@ -53,6 +53,12 @@ future interior torches) declare a **facing**, biasing their flood seed one
 texel outward so the cone throws into the room, not the wall — the sconce look
 in both reference shots.
 
+**Implemented emitter subset (2026-08-26):** docs/28 phases 1–3 register placed
+`campfire` and `standing_torch` rows through `render/light-sources.ts`. Their
+deterministic flame flicker feeds the same client point-light list for every
+subscriber. This does not mark the quarter-tile occlusion/shadow design below
+implemented.
+
 ## 3. Occlusion — the sub-tile flood
 
 Revision 1's tile-BFS design, upgraded to quarter-tile resolution with two

@@ -14,4 +14,5 @@ export default __t.row({
   id: __t.u8().primaryKey(),
   seed: __t.u32(),
   version: __t.u16(),
+  mineVersion: __t.u16().name("mine_version"),
 });

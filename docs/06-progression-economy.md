@@ -80,7 +80,7 @@ Cost ×1.35 per same tier. Bottles = must aged × **bottleValue 0.1** (upgrades/
 to ~0.4). Milestones as presses. Cellar digs: level 2 = 500 bottles, level 3 =
 25,000 bottles (bottle sink — spend vs. score).
 
-### Workbench, capacity, and compost upgrades
+### Farmhouse upgrade counter, capacity, and compost upgrades
 
 The original draft referenced this table from 04 without including it. Costs keep
 each stage funded by its own capital and follow the documented ×6–8 tier spacing.
@@ -293,3 +293,46 @@ Shovel **220 / 1 Stone**, Hammer **300 / 1 Stone**, Fishing rod **160 / 1 Wood**
 and Sword **250 / 1 Stone**. At zero, a tool is broken
 but retained. `R` repairs the selected damaged tool. Slot bars are green above 50%,
 gold at 21–50%, and red at 20% or below.
+
+## 12. Crafting foundations, materials, and workbench tier
+
+Wild grass tilled with a hoe has a deterministic hash-gated **30%** chance to
+drop **1 Fiber** in addition to creating soil. A crafting station is in reach
+when it is in the player's current space and no more than **2 tiles** away.
+
+### Hand recipes
+
+| Recipe | Inputs | Output |
+|---|---|---|
+| Planks | 1 Wood | 4 Wooden Planks |
+| Sticks | 2 Wooden Planks, vertical | 4 Sticks |
+| Torch | 1 Wood + 1 Fiber | 2 Torches |
+| Campfire | 3 Wood + 3 Sticks | 1 Campfire |
+| Workbench | 4 Wooden Planks, 2×2 | 1 Workbench |
+
+### Workbench recipes
+
+| Recipe | Inputs | Output |
+|---|---|---|
+| Chest | 8 Wooden Planks, ring | 1 Chest |
+| Barrel | 7 Wooden Planks, lid + U | 1 Barrel |
+| Fence | 4 Wooden Planks + 2 Sticks | 3 Fences |
+| Fence Gate | 2 Wooden Planks + 4 Sticks | 1 Fence Gate |
+| Sign | 6 Wooden Planks + 1 Stick | 1 Sign |
+| Standing Torch | 1 Torch + 1 Stick | 1 Standing Torch |
+| Arrows | 1 Stick + 1 Stone | 4 Arrows |
+
+### New item commerce values
+
+Every listed value is bronze per item. A dash means the merchant buys the item
+from players but does not normally stock it.
+
+| Item | Buy | Sell |
+|---|---:|---:|
+| Fiber | — | 2 |
+| Workbench | 120 | 48 |
+| Campfire | — | 18 |
+| Fence | — | 4 |
+| Fence Gate | — | 12 |
+| Sign | — | 10 |
+| Standing Torch | — | 20 |

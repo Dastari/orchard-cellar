@@ -1,0 +1,69 @@
+{
+  "name": "item_cf_backpack",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "..66.....66.....",
+        ".6006...6006....",
+        "603506.604506...",
+        "603406.602406...",
+        "60235060432506..",
+        "60235103332406..",
+        "602341123332506.",
+        ".60235122333406.",
+        ".60234112333206.",
+        ".602335122332406",
+        "..60234122322306",
+        "..6023112320006.",
+        "...60212300666..",
+        "...60223066.....",
+        "....60006.......",
+        ".....666........"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#3f2832",
+    "2": "#743f39",
+    "3": "#b86f50",
+    "4": "#e4a672",
+    "5": "#ead4aa",
+    "6": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_Icons_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/Outline/Resources_Icons_Outline.png",
+  "sourceRegions": {
+    "base": [
+      [
+        64,
+        64,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.equipment",
+    "equipment.back"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

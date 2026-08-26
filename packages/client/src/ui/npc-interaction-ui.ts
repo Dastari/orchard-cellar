@@ -3,6 +3,7 @@ import {
   TOOL_MERCHANT_OFFERS,
   dialogueDefinition,
   dialogueNode,
+  itemDefinition,
   maxStackFor,
 } from '@orchard/sim';
 import type { LoadedAsset } from '../render/assets.js';
@@ -304,7 +305,7 @@ export class NpcInteractionUi {
       const economy = ITEM_ECONOMY[itemKind];
       return {
         itemKind,
-        name: economy.displayName,
+        name: itemDefinition(itemKind)?.displayName ?? itemKind,
         unitPrice: economy.buyPriceBronze ?? 0,
         maximumQuantity: maxStackFor(itemKind) ?? 1,
       };
@@ -316,7 +317,7 @@ export class NpcInteractionUi {
     }
     return [...quantityByKind].flatMap(([itemKind, quantity]) => {
       const economy = ITEM_ECONOMY[itemKind as keyof typeof ITEM_ECONOMY];
-      return economy ? [{ itemKind, name: economy.displayName, unitPrice: economy.sellPriceBronze, maximumQuantity: quantity }] : [];
+      return economy ? [{ itemKind, name: itemDefinition(itemKind)?.displayName ?? itemKind, unitPrice: economy.sellPriceBronze, maximumQuantity: quantity }] : [];
     }).sort((left, right) => left.name.localeCompare(right.name));
   }
 
@@ -407,7 +408,7 @@ export class NpcInteractionUi {
           height: 16,
         };
         drawUiLabelPlate(context, this.skin, tooltip);
-        drawPixelText(context, this.fonts, economy.displayName.toUpperCase(), tooltip.x + tooltip.width / 2, tooltip.y + 4, { align: 'center', color: '#51351f' });
+        drawPixelText(context, this.fonts, (itemDefinition(this.hoveredItemKind)?.displayName ?? this.hoveredItemKind).toUpperCase(), tooltip.x + tooltip.width / 2, tooltip.y + 4, { align: 'center', color: '#51351f' });
       }
     }
   }

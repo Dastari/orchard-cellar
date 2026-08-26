@@ -6,6 +6,7 @@ export interface ChatCommandSuggestion {
 export type ParsedChatSubmission =
   | { readonly kind: 'chat'; readonly body: string }
   | { readonly kind: 'teleport'; readonly destination: string }
+  | { readonly kind: 'debug_space' }
   | { readonly kind: 'whisper'; readonly playerName: string; readonly body: string }
   | { readonly kind: 'reply'; readonly body: string }
   | { readonly kind: 'speech'; readonly speechKind: 'say' | 'shout'; readonly body: string }
@@ -42,6 +43,13 @@ export function parseChatSubmission(
 ): ParsedChatSubmission {
   const body = value.trim();
   if (!body.startsWith('/')) return { kind: 'chat', body };
+  const debugSpace = commandBody(body, ['debug-space']);
+  if (debugSpace !== null) {
+    if (!canAdministerWorld) return { kind: 'error', message: 'ADMIN COMMAND REQUIRED' };
+    return debugSpace.length === 0
+      ? { kind: 'debug_space' }
+      : { kind: 'error', message: 'USAGE: /debug-space' };
+  }
   const teleport = commandBody(body, ['tp']);
   if (teleport !== null) {
     if (!canAdministerWorld) return { kind: 'error', message: 'ADMIN COMMAND REQUIRED' };
@@ -96,6 +104,7 @@ export function chatCommandSuggestions(
     { name: 'shout', usage: '/shout <message>' },
     { name: 'whisper', usage: '/whisper <player> <message>' },
     ...(canAdministerWorld ? [{ name: 'tp', usage: '/tp <x> <y> OR /tp <player>' }] : []),
+    ...(canAdministerWorld ? [{ name: 'debug-space', usage: '/debug-space  TOGGLE TEST SPACE' }] : []),
   ];
   const commands = [
     ...primaryCommands,

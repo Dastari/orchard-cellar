@@ -19,4 +19,5 @@ export default __t.row({
   chunkY: __t.i16().name("chunk_y"),
   health: __t.u8(),
   depleted: __t.bool(),
+  spaceId: __t.u16().name("space_id"),
 });

@@ -213,6 +213,23 @@ export function survivalResourceObstacle(kind: string, tileX: number, tileY: num
     : survivalTreeObstacle(tileX, tileY);
 }
 
+/** The point on a resource's physical footprint nearest to the player.
+ * Tool targeting uses this instead of the authored tile centre so a player
+ * pressed against a trunk cannot accidentally aim past it. */
+export function survivalResourceTargetPoint(
+  playerX: number,
+  playerY: number,
+  kind: string,
+  tileX: number,
+  tileY: number,
+): { readonly x: number; readonly y: number } {
+  const bounds = survivalResourceObstacle(kind, tileX, tileY);
+  return {
+    x: Math.max(bounds.left, Math.min(bounds.right, playerX)),
+    y: Math.max(bounds.top, Math.min(bounds.bottom, playerY)),
+  };
+}
+
 export function isGatherableResourceKind(kind: string): kind is SurvivalGatherableResourceKind {
   return (SURVIVAL_GATHERABLE_RESOURCE_KINDS as readonly string[]).includes(kind);
 }

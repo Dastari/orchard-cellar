@@ -1,5 +1,6 @@
 import {
   AUTHORITY_TICK_MS,
+  CRAFTING_STATION_REACH_TILES,
   BOW_AIM_SCALE,
   BOW_MAX_CHARGE_MS,
   FIXED_UNITS_PER_PIXEL,
@@ -8,17 +9,18 @@ import {
   SIM_TICKS_PER_SECOND,
   SURVIVAL_CHUNK_TILES,
   SURVIVAL_WORLD_SEED,
-  SURVIVAL_WORLD_SIZE,
   SURVIVAL_WORLD_VERSION,
   TILE_SIZE_FIXED,
   TICKS_PER_DAY,
   TOOL_VIGOUR_BALANCE,
   EFFECT_KINDS,
   EFFECT_DEFINITIONS,
+  TOPSIDE_SPACE_ID,
   authorityDayProgress,
   authorityTickAtDayProgress,
   avatarActionForEquippedKind,
   calendarAtTick,
+  craftingStationWithinReach,
   bowHeldAnimationFrame,
   bowOriginHeightPixels,
   directionFromAim,
@@ -35,6 +37,9 @@ import {
   isHorseWithinMountReach,
   itemModifiers,
   isWildlifeSpecies,
+  itemDefinition,
+  placeableDefinition,
+  fenceJoinMask,
   nextWeatherMode,
   nextWindDirectionMode,
   weatherVisualState,
@@ -46,13 +51,16 @@ import {
   playerHitboxBounds,
   resourceToolReachFixed,
   survivalBiomeAt,
+  spaceDefinitionFor,
   resolveStats,
   resolveModifierTarget,
   resolveCreatureStats,
   type CollisionMap,
+  type CraftingStation,
   type Direction,
   type EffectKind,
   type PlayerState,
+  type SpaceDefinition,
   type WeatherMode,
   type WindDirectionMode,
   type WildlifeSpecies,
@@ -70,7 +78,7 @@ import {
 import { FixedStepLoop } from './loop.js';
 import { AudioBus } from './audio/audio-bus.js';
 import { readOidcSession } from './auth/oidc.js';
-import type { ChatMessage, PlayerPosition, WorldChest, WorldItem, WorldNpc, WorldResource } from './net/generated/types.js';
+import type { ChatMessage, PlayerPosition, SpacePortal, WorldChest, WorldItem, WorldNpc, WorldPlaceable, WorldResource } from './net/generated/types.js';
 import {
   OverworldConnection,
   viewRadiusForViewport,
@@ -86,6 +94,7 @@ import {
   drawOverworldHorse,
   drawOverworldHive,
   drawOverworldItem,
+  drawOverworldPlaceable,
   drawOverworldMerchant,
   drawOverworldMountedAction,
   drawPlayerHeadPortrait,
@@ -120,6 +129,7 @@ import {
   TORCH_LIGHT_RADIUS_TILES,
   type PointLight,
 } from './render/lighting.js';
+import { placeablePointLight } from './render/light-sources.js';
 import { RenderMetrics } from './render/metrics.js';
 import { RainWeather } from './render/particles.js';
 import { treeSwayOffset, WeatherEffects, windDirectionLabel, type WindTreeSource } from './render/weather-effects.js';
@@ -130,10 +140,11 @@ import {
   drawWorldDepthQueue,
   type WorldDepthItem,
 } from './render/renderer.js';
-import { terrainForWorld, type TerrainArray } from './render/terrain.js';
+import { terrainForSpace, terrainForWorld, type TerrainArray } from './render/terrain.js';
 import { interpolateFixedPosition } from './overworld-prediction.js';
 import { isNameplateToggle, OverworldUi, type OverworldUiTargetVitals } from './ui/overworld-ui.js';
 import { entityTargetAtWorldPoint, sameEntityTarget, targetKey, type SelectedEntityTarget, type TargetableWorldEntity } from './entity-targeting.js';
+import { ghostFillRecipeMoves } from './ui/recipe-book.js';
 import { ChatOverlay } from './ui/chat-overlay.js';
 import { parseChatSubmission } from './ui/chat-command.js';
 import {
@@ -214,6 +225,13 @@ async function submitChatInput(body: string): Promise<void> {
     return await network.sendWhisper(recipient.sender, command.body);
   }
   if (command.kind === 'speech') return await network.sendWorldSpeech(command.speechKind, command.body);
+  if (command.kind === 'debug_space') {
+    portalTransitionStartedAtMs = performance.now();
+    await network.debugUsePortal();
+    toast = 'DEBUG SPACE TRANSIT';
+    toastTicks = 120;
+    return;
+  }
   await network.adminTeleport(command.destination);
   toast = `TELEPORTED TO ${command.destination}`;
   toastTicks = 120;
@@ -258,6 +276,9 @@ let collisionKey = '';
 let observedResourceRevision = -1;
 const initialTerrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
 let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
+let activeSpaceDefinition: SpaceDefinition = spaceDefinitionFor(TOPSIDE_SPACE_ID)!;
+let observedSpaceId = TOPSIDE_SPACE_ID;
+let portalTransitionStartedAtMs = -1;
 let lastNetworkStatus = '';
 let debugCollision = false;
 let debugMetrics = false;
@@ -297,25 +318,7 @@ let latestTargetableEntities: readonly TargetableWorldEntity[] = [];
 const itemArt = {
   missing: art.missingItem,
   avatar: art.avatar,
-  axe: art.iconAxe,
-  pickaxe: art.iconPickaxe,
-  hoe: art.iconHoe,
-  watering_can: art.iconWateringCan,
-  bow: art.iconBow,
-  shovel: art.iconShovel,
-  hammer: art.iconHammer,
-  sword: art.iconSword,
-  torch: art.itemTorch,
-  lantern: art.itemLantern,
-  orchard_tea: art.itemOrchardTea,
-  arrow: art.itemArrow,
-  wood: art.itemWood,
-  plank: art.itemPlank,
-  stick: art.itemStick,
-  chest: art.chest,
-  stone: art.itemStone,
-  ...art.fruitItems,
-  ...art.oreItems,
+  ...art.itemIcons,
 };
 const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   selectHotbar: (slot) => selectSlotOptimistically(slot),
@@ -345,8 +348,22 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     network.distributeInventoryItem(fromContainer, fromIndex, targets, quantity), 'STACK DISTRIBUTED',
   ),
   craftInventoryRecipe: (recipeId, craftAll) => showResult(network.craftInventoryRecipe(recipeId, craftAll), craftAll ? 'STACK CRAFTED' : 'ITEM CRAFTED'),
+  ghostFillCraftingRecipe: (recipeId) => {
+    const rows = [...latestSnapshot.inventorySlots];
+    const moves = ghostFillRecipeMoves(recipeId, rows, rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0));
+    if (moves === null) {
+      toast = 'RECIPE INGREDIENTS OR EMPTY GRID REQUIRED';
+      toastTicks = 120;
+      return;
+    }
+    showResult(moves.reduce(
+      (pending, move) => pending.then(async () => await network.moveInventoryItem(move)),
+      Promise.resolve(),
+    ), 'RECIPE GHOST-FILLED');
+  },
   closeCrafting: () => { void network.closeCrafting().catch(() => undefined); },
   closeChest: () => { void network.closeChest().catch(() => undefined); },
+  closePlaceable: () => { void network.closePlaceable().catch(() => undefined); },
 }, (context, playerId, rect) => {
   const appearance = latestSnapshot.appearances.get(playerId) ?? undefined;
   drawPlayerHeadPortrait(context, art, appearance ?? DEFAULT_PLAYER_APPEARANCE, rect);
@@ -405,7 +422,7 @@ function setNameplatesVisible(visible: boolean): void {
 
 function resize(): void {
   renderer.resize();
-  const minimum = renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16);
+  const minimum = renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16);
   worldZoomTarget = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoomTarget));
   worldZoom = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoom));
 }
@@ -439,10 +456,16 @@ function playerState(row: PlayerPosition): PlayerState {
 function refreshCollision(snapshot: OverworldView): void {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const nextKey = `${seed}:${version}:${network.resourceRevision}`;
+  const nextKey = `${activeSpaceDefinition.spaceId}:${seed}:${version}:${network.resourceRevision}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
-  worldCollision = createClientCollisionMap(terrainForWorld(seed, version), snapshot.resources, snapshot.chests);
+  worldCollision = createClientCollisionMap(
+    terrainForSpace(activeSpaceDefinition, seed, version),
+    snapshot.resources,
+    snapshot.chests,
+    'ground',
+    snapshot.placeables,
+  );
 }
 
 function update(): void {
@@ -452,15 +475,38 @@ function update(): void {
   network.setViewRadius(viewRadiusForViewport(renderer.cssWidth, renderer.cssHeight, worldZoom));
   latestSnapshot = network.view();
   const snapshot = latestSnapshot;
+  const authoritativePosition = network.ownPosition();
+  if (authoritativePosition !== null && authoritativePosition.spaceId !== observedSpaceId) {
+    observedSpaceId = authoritativePosition.spaceId;
+    activeSpaceDefinition = spaceDefinitionFor(observedSpaceId) ?? spaceDefinitionFor(TOPSIDE_SPACE_ID)!;
+    portalTransitionStartedAtMs = performance.now();
+    collisionKey = '';
+    groundCache.invalidateResource(0, 0);
+    remoteBuffers.clear(); remoteDisplay.clear(); previousRemoteDisplay.clear();
+    npcBuffers.clear(); npcDisplay.clear(); projectileBuffers.clear(); projectileDisplay.clear();
+    predicted = playerState(authoritativePosition);
+    previousPredicted = predicted;
+    presentationCorrection.clear();
+    const minimum = renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16);
+    worldZoomTarget = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoomTarget));
+    worldZoom = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoom));
+  }
   if (snapshot.activeChest !== null && overworldUi.openWindow !== 'chest') overworldUi.openWindow = 'chest';
   if (snapshot.activeChest === null && overworldUi.openWindow === 'chest') overworldUi.openWindow = null;
+  if (snapshot.activePlaceable?.kind === 'barrel' && overworldUi.openWindow !== 'barrel') overworldUi.openWindow = 'barrel';
+  if (snapshot.activePlaceable === null && overworldUi.openWindow === 'barrel') overworldUi.openWindow = null;
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
     optimisticSelectedSlot = null;
   }
   const weatherTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
   const calendar = calendarAtTick(Number(weatherTick) * SIM_STEPS_PER_AUTHORITY_TICK);
-  audio.setAmbienceContext(calendar.season, authorityDayProgress(weatherTick), 'estate');
-  const weather = weatherVisualState(worldWeatherMode(), weatherTick, worldWindDirection());
+  audio.setAmbienceContext(
+    calendar.season,
+    authorityDayProgress(weatherTick),
+    activeSpaceDefinition.audioBed === 'cave' || activeSpaceDefinition.audioBed === 'debug' ? 'cellar' : 'estate',
+  );
+  const activeWeather = weatherVisualState(worldWeatherMode(), weatherTick, worldWindDirection());
+  const weather = activeSpaceDefinition.weather ? activeWeather : { ...activeWeather, raining: false };
   rain.update(
     weather.raining,
     renderer.cssWidth,
@@ -780,7 +826,7 @@ function refreshHoveredInteractionTile(): void {
       predicted.position.y,
       latestCameraX + worldPointer.x / latestRenderedZoom,
       latestCameraY + worldPointer.y / latestRenderedZoom,
-      SURVIVAL_WORLD_SIZE,
+      activeSpaceDefinition.sizeTiles,
     );
 }
 
@@ -814,6 +860,29 @@ function targetChest(snapshot: OverworldView): WorldChest | null {
   if (predicted.facing.includes('up') || predicted.facing === 'up') tileY -= 1;
   if (predicted.facing.includes('down') || predicted.facing === 'down') tileY += 1;
   return snapshot.chests.find((chest) => chest.carriedBy === undefined && chest.tileX === tileX && chest.tileY === tileY) ?? null;
+}
+
+function targetPlaceable(snapshot: OverworldView): WorldPlaceable | null {
+  if (predicted === null) return null;
+  const target = facedInteractionTile(predicted.position.x, predicted.position.y, predicted.facing);
+  return snapshot.placeables.find((row) => row.tileX === target.tileX && row.tileY === target.tileY) ?? null;
+}
+
+function nearbyCraftingStations(snapshot: OverworldView): readonly CraftingStation[] {
+  const player = network.ownPosition();
+  if (player === null) return [];
+  const playerTile = {
+    spaceId: player.spaceId,
+    tileX: Math.floor(player.x / TILE_SIZE_FIXED),
+    tileY: Math.floor(player.y / TILE_SIZE_FIXED),
+  };
+  const stations = new Set<CraftingStation>();
+  for (const row of snapshot.placeables) {
+    const station = placeableDefinition(row.kind)?.station;
+    if (station !== null && station !== undefined
+      && craftingStationWithinReach(playerTile, row, CRAFTING_STATION_REACH_TILES)) stations.add(station);
+  }
+  return [...stations];
 }
 
 function localMount(snapshot: OverworldView): WorldNpc | null {
@@ -944,6 +1013,7 @@ function targetMerchant(snapshot: OverworldView): WorldNpc | null {
 }
 
 function targetCampfire(snapshot: OverworldView): { readonly tileX: number; readonly tileY: number } | null {
+  if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return null;
   if (predicted === null || localMount(snapshot) !== null) return null;
   const campfire = generateSurvivalDecorations(snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED)
     .find((decoration) => decoration.kind === 'camp_campfire');
@@ -955,6 +1025,16 @@ function targetCampfire(snapshot: OverworldView): { readonly tileX: number; read
   return dx * dx + dy * dy <= (2 * TILE_SIZE_FIXED) ** 2
     ? { tileX: campfire.tileX, tileY: campfire.tileY }
     : null;
+}
+
+function targetPortal(snapshot: OverworldView): SpacePortal | null {
+  const position = network.ownPosition();
+  if (position === null) return null;
+  const tileX = Math.floor(position.x / TILE_SIZE_FIXED);
+  const tileY = Math.floor(position.y / TILE_SIZE_FIXED);
+  return [...snapshot.portals].find((portal) => portal.fromSpace === position.spaceId
+    && Math.abs(portal.fromTileX - tileX) <= 1
+    && Math.abs(portal.fromTileY - tileY) <= 1) ?? null;
 }
 
 function drawPlayerCollisionOverlay(
@@ -1001,10 +1081,10 @@ function drawCollisionOverlay(
 ): void {
   const minX = Math.max(0, Math.floor(cameraX / 16));
   const minY = Math.max(0, Math.floor(cameraY / 16));
-  const maxX = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraX + viewportWidth / scale) / 16));
-  const maxY = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraY + viewportHeight / scale) / 16));
+  const maxX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16));
+  const maxY = Math.min(terrain.height - 1, Math.ceil((cameraY + viewportHeight / scale) / 16));
   for (let tileY = minY; tileY <= maxY; tileY += 1) for (let tileX = minX; tileX <= maxX; tileX += 1) {
-    const index = tileY * SURVIVAL_WORLD_SIZE + tileX;
+    const index = tileY * terrain.width + tileX;
     const blocked = worldCollision.blocked[index] ?? true;
     const terrainBlocked = terrain.blocked[index] ?? true;
     context.fillStyle = blocked ? terrainBlocked ? '#ff335577' : '#ff9d2377' : '#55ff8850';
@@ -1090,7 +1170,7 @@ function render(alpha = 1): void {
   const scale = frame.layout.integerScale;
   const viewportWidth = frame.layout.width / scale;
   const viewportHeight = frame.layout.height / scale;
-  const worldPixels = SURVIVAL_WORLD_SIZE * 16;
+  const worldPixels = activeSpaceDefinition.sizeTiles * 16;
   const cameraX = cameraAxisOffset(localX, viewportWidth, worldPixels);
   const cameraY = cameraAxisOffset(localY, viewportHeight, worldPixels);
   latestCameraX = cameraX;
@@ -1099,9 +1179,10 @@ function render(alpha = 1): void {
   refreshHoveredInteractionTile();
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const terrain = terrainForWorld(seed, version);
+  const terrain = terrainForSpace(activeSpaceDefinition, seed, version);
   const renderWeatherTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
-  const renderWeather = weatherVisualState(worldWeatherMode(), renderWeatherTick, worldWindDirection());
+  const activeWeather = weatherVisualState(worldWeatherMode(), renderWeatherTick, worldWindDirection());
+  const renderWeather = activeSpaceDefinition.weather ? activeWeather : { ...activeWeather, raining: false };
   const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
   drawCalls += groundCache.draw(context, art, terrain, cameraX, cameraY, scale, frame.layout.width, frame.layout.height);
   drawCalls += drawAnimatedTerrain(
@@ -1121,7 +1202,7 @@ function render(alpha = 1): void {
     context,
     art.dirtTerrace,
     art.farmlandGrassInset,
-    generateMarlowCampPathTiles(),
+    activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? generateMarlowCampPathTiles() : [],
     cameraX,
     cameraY,
     scale,
@@ -1163,7 +1244,12 @@ function render(alpha = 1): void {
   const targetableEntities: TargetableWorldEntity[] = [];
   const pointLights: PointLight[] = [];
   const windTrees: WindTreeSource[] = [];
-  if (!debugEntitiesHidden) for (const decoration of generateSurvivalDecorations(seed)) {
+  for (const placeable of snapshot.placeables) {
+    const light = placeablePointLight(placeable, snapshot.clock?.authorityTick ?? 0n);
+    if (light !== null && worldPointVisible(light.worldX, light.worldY, lightVisible)) pointLights.push(light);
+  }
+  if (!debugEntitiesHidden && activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
+    for (const decoration of generateSurvivalDecorations(seed)) {
     if (isInteractivePoiDecorationKind(decoration.kind)) continue;
     const decorationX = decoration.tileX * 16 + 8;
     const decorationY = (decoration.tileY + 1) * 16;
@@ -1199,6 +1285,7 @@ function render(alpha = 1): void {
         ),
       ),
     });
+    }
   }
   if (!debugEntitiesHidden) for (const resource of snapshot.resources) {
     const resourceX = resource.tileX * 16 + 8;
@@ -1324,6 +1411,25 @@ function render(alpha = 1): void {
           : chest.id === closingChestId ? 5 - elapsedFrame : 0;
         drawOverworldChest(context, art, x, y, cameraX, cameraY, scale, frameIndex);
       },
+    });
+  }
+  const fenceTiles = new Set([...snapshot.placeables]
+    .filter((row) => row.kind === 'fence' || row.kind === 'fence_gate')
+    .map((row) => `${row.tileX}:${row.tileY}`));
+  if (!debugEntitiesHidden) for (const placeable of snapshot.placeables) {
+    const x = placeable.tileX * 16 + 8;
+    const y = (placeable.tileY + 1) * 16;
+    if (!worldPointVisible(x, y, visible)) continue;
+    const fenceMask = placeable.kind === 'fence'
+      ? fenceJoinMask(placeable.tileX, placeable.tileY, (tileX, tileY) => fenceTiles.has(`${tileX}:${tileY}`))
+      : 0;
+    worldDepthItems.push({
+      footY: y,
+      tie: `placeable:${placeable.id}`,
+      draw: () => drawOverworldPlaceable(
+        context, art, placeable.kind, placeable.open, fenceMask,
+        Math.floor(performance.now() / 125), x, y, cameraX, cameraY, scale,
+      ),
     });
   }
   if (!debugEntitiesHidden) for (const hive of snapshot.hives) {
@@ -1550,7 +1656,9 @@ function render(alpha = 1): void {
     scale,
     frame.layout.width,
     frame.layout.height,
-    ambientAtTick(renderWeatherTick, renderWeather.raining ? 0.12 : 0),
+    activeSpaceDefinition.ambient === 'clock'
+      ? ambientAtTick(renderWeatherTick, renderWeather.raining ? 0.12 : 0)
+      : activeSpaceDefinition.ambient,
     pointLights,
   );
   drawCalls += 1;
@@ -1611,6 +1719,7 @@ function render(alpha = 1): void {
   const uiContext = renderer.beginUi(uiScale);
   const merchant = targetMerchant(snapshot);
   const campfire = targetCampfire(snapshot);
+  const portal = targetPortal(snapshot);
   const horse = targetHorse(snapshot);
   const riding = localMount(snapshot);
   const pickup = targetWorldItem(snapshot);
@@ -1622,7 +1731,9 @@ function render(alpha = 1): void {
     : farmItem === 'hoe' ? (farmSoil === undefined ? '[F] TILL SOIL' : '[RIGHT CLICK] RESTORE GRASS')
       : farmSoil === undefined ? 'TILL SOIL BEFORE WATERING'
         : farmSoil.watered ? 'SOIL ALREADY WATERED' : '[F] WATER SOIL';
-  const prompt = debugEntitiesHidden || npcInteractionUi.active ? null : handsChest !== null
+  const prompt = debugEntitiesHidden || npcInteractionUi.active ? null : portal !== null
+    ? '[E] USE PORTAL'
+    : handsChest !== null
     ? '[F] PLACE CHEST'
     : selectedItem(snapshot) === 'chest'
       ? '[F] PLACE CHEST'
@@ -1687,6 +1798,7 @@ function render(alpha = 1): void {
     vigourDenied: vigourDenyTicks > 0,
     effects: visibleEffects,
     openChestInventory: [...snapshot.openChestSlots],
+    openPlaceableInventory: [...snapshot.openPlaceableSlots],
     hasBackpack: [...snapshot.inventorySlots].some((slot) => slot.itemKind === 'backpack'),
     audioVolumes: audio.getSettings(),
     canAdministerWorld: snapshot.membership?.role === 'owner',
@@ -1699,6 +1811,7 @@ function render(alpha = 1): void {
     windDirectionLabel: windDirectionLabel(renderWeather.windDirectionX, renderWeather.windDirectionY),
     prompt,
     toast: toastTicks > 0 ? toast.slice(0, 42) : null,
+    nearbyCraftingStations: nearbyCraftingStations(snapshot),
   });
   npcInteractionUi.update(snapshot.activeDialogue === null ? null : {
     width: uiWidth,
@@ -1796,6 +1909,7 @@ function render(alpha = 1): void {
       `REPLAY ${net.replayDepth} ERROR ${net.reconciliationErrorFixed.toFixed(1)} FIXED`,
       `REMOTE BUFFER ${remoteMin}-${remoteMax} REFRESH ${net.inputRefreshAgeSteps}/${INPUT_REFRESH_STEPS}`,
       `HANDOVERS ${net.handoverCount}${net.persistentInputError === null ? '' : ` INPUT ${net.persistentInputError}`}`,
+      `SPACE ${net.spaceId} SUB/SPACE ${Object.entries(net.perSpaceSubscriptionCounts).map(([spaceId, count]) => `${spaceId}:${count}`).join(' ') || 'NONE'}`,
       `SUB QUERIES ${net.subscriptionQueryCount} CACHE POS ${net.cacheSizes['playerPosition']} RES ${net.cacheSizes['worldResource']} NPC ${net.cacheSizes['worldNpc']} HIVE ${net.cacheSizes['worldHive']}`,
       `CACHE ITEM ${net.cacheSizes['worldItem']} CHEST ${net.cacheSizes['worldChest']} PROJ ${net.cacheSizes['worldProjectile']} CHAT ${net.cacheSizes['chat']}`,
       `UNKNOWN ACTIONS ${[...unknownActionKinds].join(',') || 'NONE'}`,
@@ -1813,6 +1927,14 @@ function render(alpha = 1): void {
     for (let index = 0; index < lines.length; index += 1) {
       drawPixelText(uiContext, art.ui, lines[index] ?? '', 11, 32 + index * 9);
     }
+  }
+  const portalTransitionElapsed = performance.now() - portalTransitionStartedAtMs;
+  if (portalTransitionStartedAtMs >= 0 && portalTransitionElapsed < 250) {
+    uiContext.save();
+    uiContext.globalAlpha = Math.max(0, 1 - portalTransitionElapsed / 250);
+    uiContext.fillStyle = '#0b1020';
+    uiContext.fillRect(0, 0, renderer.cssWidth / uiScale, renderer.cssHeight / uiScale);
+    uiContext.restore();
   }
   renderer.endUi();
   renderMetrics.record(performance.now() - renderStarted, drawCalls);
@@ -1926,7 +2048,7 @@ window.addEventListener('keydown', (event) => {
     else worldZoomTarget = stepWorldZoom(
       worldZoomTarget,
       -1,
-      renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16),
+      renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16),
       MAX_WORLD_ZOOM,
     );
     event.preventDefault();
@@ -1937,7 +2059,7 @@ window.addEventListener('keydown', (event) => {
     else worldZoomTarget = stepWorldZoom(
       worldZoomTarget,
       1,
-      renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16),
+      renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16),
       MAX_WORLD_ZOOM,
     );
     event.preventDefault();
@@ -1994,6 +2116,30 @@ window.addEventListener('keydown', (event) => {
         toastTicks = 90;
       } else {
         showResult(network.useHands(tile.tileX, tile.tileY), placing ? 'CHEST PLACED' : 'CHEST PICKED UP');
+      }
+      event.preventDefault();
+      return;
+    }
+    const selectedDefinition = itemDefinition(selectedItem(snapshot));
+    const facedPlaceable = targetPlaceable(snapshot);
+    if (selectedDefinition?.tags.includes('item.placeable') === true || facedPlaceable !== null) {
+      const placing = selectedDefinition?.tags.includes('item.placeable') === true;
+      const tile = placing ? targetInteractionTile() : facedInteractionTile(
+        predicted?.position.x ?? 0,
+        predicted?.position.y ?? 0,
+        predicted?.facing ?? 'down',
+      );
+      if (tile === null) {
+        toast = 'NO PLACEMENT TILE TARGETED';
+        toastTicks = 90;
+      } else if (placing && placementTileBlocked(snapshot, tile)) {
+        toast = 'PLACEMENT BLOCKED';
+        toastTicks = 90;
+      } else {
+        showResult(
+          network.useHands(tile.tileX, tile.tileY),
+          placing ? `${selectedDefinition?.displayName.toUpperCase()} PLACED` : 'PLACEABLE PICKED UP',
+        );
       }
       event.preventDefault();
       return;
@@ -2064,6 +2210,24 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyE' && !event.repeat) {
+    const portal = targetPortal(latestSnapshot);
+    if (portal !== null) {
+      portalTransitionStartedAtMs = performance.now();
+      showResult(network.usePortal(portal.id), 'PORTAL TRANSIT');
+      event.preventDefault();
+      return;
+    }
+    const placeable = targetPlaceable(latestSnapshot);
+    if (placeable?.kind === 'fence_gate') {
+      showResult(network.interactPlaceable(), placeable.open ? 'GATE CLOSED' : 'GATE OPENED');
+      event.preventDefault();
+      return;
+    }
+    if (placeable?.kind === 'barrel') {
+      showResult(network.interactPlaceable(), 'BARREL OPENED');
+      event.preventDefault();
+      return;
+    }
     if (targetCampfire(latestSnapshot) !== null) {
       overworldUi.openWindow = 'cooking';
       event.preventDefault();
@@ -2297,7 +2461,7 @@ canvas.addEventListener('wheel', (event) => {
   worldZoomTarget = stepWorldZoom(
     worldZoomTarget,
     event.deltaY > 0 ? -1 : 1,
-    renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16),
+    renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16),
     MAX_WORLD_ZOOM,
   );
 }, { passive: false });
@@ -2331,7 +2495,7 @@ Object.assign(window, {
     predictedPosition: () => predicted === null ? null : { ...predicted.position },
     remoteBufferDepths: () => [...remoteBuffers.entries()].map(([identity, buffer]) => ({ identity, depth: buffer.depth })),
     setWorldZoom: (zoom: number) => {
-      worldZoom = Math.max(renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16), Math.min(MAX_WORLD_ZOOM, zoom));
+      worldZoom = Math.max(renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16), Math.min(MAX_WORLD_ZOOM, zoom));
       worldZoomTarget = worldZoom;
     },
     setUiScale: (scale: UiScale) => { desiredUiScale = scale; },

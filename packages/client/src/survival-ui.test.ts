@@ -78,6 +78,14 @@ describe('survival controls', () => {
     expect(facedResource(x, y, 'right', [distantTree], resourceToolReachFixed('pickaxe'))).toBeNull();
   });
 
+  it('targets the physical trunk when the player is pressed against a tree', () => {
+    const closeTree = { ...tree, tileX: 10, tileY: 10 };
+    const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const y = 11 * TILE_SIZE_FIXED + 3 * FIXED_UNITS_PER_PIXEL;
+    expect(facedResource(x, y, 'up', [closeTree], resourceToolReachFixed('axe'))).toEqual(closeTree);
+    expect(facedResource(x, y, 'down', [closeTree], resourceToolReachFixed('axe'))).toBeNull();
+  });
+
   it('maps both number rows to nine persisted hotbar slots', () => {
     expect(hotbarSlotForCode('Digit1')).toBe(0);
     expect(hotbarSlotForCode('Numpad9')).toBe(8);
@@ -86,12 +94,12 @@ describe('survival controls', () => {
 
   it('gives occupied hotbar tools compact unambiguous labels', () => {
     expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemLabel))
-      .toEqual(['AXE', 'PICK', 'HOE', 'WATER', 'WOOD', '--']);
+      .toEqual(['IRON AXE', 'IRON PICKAXE', 'IRON HOE', 'WATERING CAN', 'WOOD', '--']);
   });
 
   it('gives occupied slots full hover names', () => {
     expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemName))
-      .toEqual(['AXE', 'PICKAXE', 'HOE', 'WATERING CAN', 'WOOD', null]);
+      .toEqual(['IRON AXE', 'IRON PICKAXE', 'IRON HOE', 'WATERING CAN', 'WOOD', null]);
   });
 
   it('continuously faces the cursor only while the bow is equipped', () => {

@@ -1,6 +1,16 @@
 import type { Modifier } from './modifiers.js';
+import {
+  RECIPES,
+  recipeDefinition,
+  recipeMatches,
+  shapedRecipeIndexes,
+  type RecipeId,
+} from './recipes.js';
 
 export interface ItemDefinition {
+  readonly displayName: string;
+  readonly iconKey: string;
+  readonly iconAnimation?: string;
   readonly maxStack: number;
   readonly tags: readonly string[];
   /** Equipped-item contributions enter the same two-pass stat pipeline as
@@ -8,47 +18,72 @@ export interface ItemDefinition {
   readonly modifiers?: readonly Modifier[];
 }
 
+function defineItem(
+  kind: string,
+  displayName: string,
+  maxStack: number,
+  tags: readonly string[],
+  modifiers?: readonly Modifier[],
+  icon?: { readonly key: string; readonly animation?: string },
+): ItemDefinition {
+  return {
+    displayName,
+    iconKey: icon?.key ?? `icon_cf_${kind}`,
+    ...(icon?.animation ? { iconAnimation: icon.animation } : {}),
+    maxStack,
+    tags,
+    ...(modifiers ? { modifiers } : {}),
+  };
+}
+
 export const ITEM_DEFINITIONS = {
-  axe: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
-  hoe: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
-  pickaxe: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
-  watering_can: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
-  bow: { maxStack: 1, tags: ['item.weapon', 'item.ranged_weapon', 'gear.hand'] },
-  sword: { maxStack: 1, tags: ['item.weapon', 'item.melee_weapon', 'gear.hand'] },
-  shovel: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
-  hammer: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
-  torch: { maxStack: 32, tags: ['item.tool', 'item.placeable', 'item.light', 'gear.hand'] },
-  lantern: { maxStack: 1, tags: ['item.tool', 'item.placeable', 'item.light', 'gear.hand'] },
-  arrow: { maxStack: 99, tags: ['item.ammunition', 'ammo.arrow'] },
-  wood: { maxStack: 99, tags: ['item.resource', 'material.wood'] },
-  stone: { maxStack: 99, tags: ['item.resource', 'material.stone'] },
-  iron_ore: { maxStack: 99, tags: ['item.resource', 'material.ore', 'material.raw', 'ore.iron'] },
-  copper_ore: { maxStack: 99, tags: ['item.resource', 'material.ore', 'material.raw', 'ore.copper'] },
-  gold_ore: { maxStack: 99, tags: ['item.resource', 'material.ore', 'material.raw', 'ore.gold'] },
-  emerald_ore: { maxStack: 99, tags: ['item.resource', 'material.ore', 'material.raw', 'ore.emerald'] },
-  sapphire_ore: { maxStack: 99, tags: ['item.resource', 'material.ore', 'material.raw', 'ore.sapphire'] },
-  topaz_ore: { maxStack: 99, tags: ['item.resource', 'material.ore', 'material.raw', 'ore.topaz'] },
-  ruby_ore: { maxStack: 99, tags: ['item.resource', 'material.ore', 'material.raw', 'ore.ruby'] },
-  amethyst_ore: { maxStack: 99, tags: ['item.resource', 'material.ore', 'material.raw', 'ore.amethyst'] },
-  plank: { maxStack: 99, tags: ['item.resource', 'material.wood', 'item.crafted'] },
-  stick: { maxStack: 99, tags: ['item.resource', 'material.wood', 'item.crafted'] },
-  chest: { maxStack: 16, tags: ['item.placeable', 'item.crafted', 'container.chest'] },
-  apple: { maxStack: 32, tags: ['item.crop', 'item.food', 'crop.fruit'] },
-  pear: { maxStack: 32, tags: ['item.crop', 'item.food', 'crop.fruit'] },
-  peach: { maxStack: 32, tags: ['item.crop', 'item.food', 'crop.fruit'] },
-  cherry: { maxStack: 32, tags: ['item.crop', 'item.food', 'crop.fruit'] },
-  grape: { maxStack: 32, tags: ['item.crop', 'item.food', 'crop.fruit'] },
-  orchard_tea: { maxStack: 8, tags: ['item.consumable', 'item.food', 'effect.orchard_tea'] },
-  barrel: { maxStack: 16, tags: ['item.placeable', 'item.crafted', 'container.barrel'] },
-  backpack: { maxStack: 1, tags: ['item.equipment', 'container.backpack'] },
-  necklace: { maxStack: 1, tags: ['item.equipment', 'gear.neck'] },
-  helm: { maxStack: 1, tags: ['item.equipment', 'gear.head'] },
-  tunic: { maxStack: 1, tags: ['item.equipment', 'gear.body'] },
-  ring: { maxStack: 1, tags: ['item.equipment', 'gear.ring'] },
-  shield: { maxStack: 1, tags: ['item.equipment', 'gear.hand', 'gear.off_hand'] },
-  gloves: { maxStack: 1, tags: ['item.equipment', 'gear.hands'] },
-  pants: { maxStack: 1, tags: ['item.equipment', 'gear.legs'] },
-  boots: { maxStack: 1, tags: ['item.equipment', 'gear.feet'] },
+  axe: defineItem('axe', 'Iron Axe', 1, ['item.tool', 'gear.hand']),
+  hoe: defineItem('hoe', 'Iron Hoe', 1, ['item.tool', 'gear.hand']),
+  pickaxe: defineItem('pickaxe', 'Iron Pickaxe', 1, ['item.tool', 'gear.hand']),
+  watering_can: defineItem('watering_can', 'Watering Can', 1, ['item.tool', 'gear.hand']),
+  bow: defineItem('bow', 'Wooden Bow', 1, ['item.weapon', 'item.ranged_weapon', 'gear.hand']),
+  sword: defineItem('sword', 'Iron Sword', 1, ['item.weapon', 'item.melee_weapon', 'gear.hand']),
+  shovel: defineItem('shovel', 'Iron Shovel', 1, ['item.tool', 'gear.hand']),
+  hammer: defineItem('hammer', 'Iron Hammer', 1, ['item.tool', 'gear.hand']),
+  torch: defineItem('torch', 'Torch', 16, ['item.tool', 'gear.hand', 'emits.light'], undefined, { key: 'item_cf_torch' }),
+  lantern: defineItem('lantern', 'Lantern', 1, ['item.tool', 'gear.hand', 'emits.light'], undefined, { key: 'item_cf_lantern' }),
+  arrow: defineItem('arrow', 'Arrow', 99, ['item.ammo', 'ammo.arrow'], undefined, { key: 'item_cf_arrow' }),
+  wood: defineItem('wood', 'Wood', 99, ['item.resource', 'material.wood'], undefined, { key: 'item_cf_wood' }),
+  stone: defineItem('stone', 'Stone', 99, ['item.resource', 'material.stone'], undefined, { key: 'item_cf_stone' }),
+  fiber: defineItem('fiber', 'Fiber', 99, ['item.resource', 'material.fiber'], undefined, { key: 'item_cf_fiber' }),
+  iron_ore: defineItem('iron_ore', 'Iron Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.iron'], undefined, { key: 'item_cf_iron_ore' }),
+  copper_ore: defineItem('copper_ore', 'Copper Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.copper'], undefined, { key: 'item_cf_copper_ore' }),
+  gold_ore: defineItem('gold_ore', 'Gold Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.gold'], undefined, { key: 'item_cf_gold_ore' }),
+  emerald_ore: defineItem('emerald_ore', 'Emerald Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.emerald'], undefined, { key: 'item_cf_emerald_ore' }),
+  sapphire_ore: defineItem('sapphire_ore', 'Sapphire Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.sapphire'], undefined, { key: 'item_cf_sapphire_ore' }),
+  topaz_ore: defineItem('topaz_ore', 'Topaz Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.topaz'], undefined, { key: 'item_cf_topaz_ore' }),
+  ruby_ore: defineItem('ruby_ore', 'Ruby Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.ruby'], undefined, { key: 'item_cf_ruby_ore' }),
+  amethyst_ore: defineItem('amethyst_ore', 'Amethyst Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.amethyst'], undefined, { key: 'item_cf_amethyst_ore' }),
+  plank: defineItem('plank', 'Wooden Planks', 99, ['item.resource', 'material.wood', 'item.crafted'], undefined, { key: 'item_cf_plank' }),
+  stick: defineItem('stick', 'Stick', 99, ['item.resource', 'material.wood', 'item.crafted'], undefined, { key: 'item_cf_stick' }),
+  chest: defineItem('chest', 'Chest', 16, ['item.placeable', 'item.crafted', 'container.chest'], undefined, { key: 'prop_cf_chest', animation: 'chest' }),
+  workbench: defineItem('workbench', 'Workbench', 16, ['item.placeable', 'item.crafted', 'station.workbench'], undefined, { key: 'prop_cf_workbench' }),
+  campfire: defineItem('campfire', 'Campfire', 16, ['item.placeable', 'item.crafted', 'station.campfire', 'emits.light'], undefined, { key: 'prop_cf_campfire', animation: 'burn' }),
+  fence: defineItem('fence', 'Fence', 99, ['item.placeable', 'item.crafted', 'build.fence'], undefined, { key: 'prop_cf_fence_corner' }),
+  fence_gate: defineItem('fence_gate', 'Fence Gate', 16, ['item.placeable', 'item.crafted', 'build.fence'], undefined, { key: 'prop_cf_fence_gate' }),
+  sign: defineItem('sign', 'Sign', 16, ['item.placeable', 'item.crafted'], undefined, { key: 'prop_cf_sign' }),
+  standing_torch: defineItem('standing_torch', 'Standing Torch', 16, ['item.placeable', 'item.crafted', 'emits.light'], undefined, { key: 'prop_cf_standing_torch', animation: 'burn' }),
+  apple: defineItem('apple', 'Apple', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_apple' }),
+  pear: defineItem('pear', 'Pear', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_pear' }),
+  peach: defineItem('peach', 'Peach', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_peach' }),
+  cherry: defineItem('cherry', 'Cherries', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_cherry' }),
+  grape: defineItem('grape', 'Grapes', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_grape' }),
+  orchard_tea: defineItem('orchard_tea', 'Orchard Tea', 8, ['item.consumable', 'item.food', 'effect.orchard_tea'], undefined, { key: 'icon_cf_effect_orchard_tea' }),
+  barrel: defineItem('barrel', 'Barrel', 16, ['item.placeable', 'item.crafted', 'container.barrel'], undefined, { key: 'prop_cf_barrel' }),
+  backpack: defineItem('backpack', 'Backpack', 1, ['item.equipment', 'container.backpack'], undefined, { key: 'item_cf_backpack' }),
+  necklace: defineItem('necklace', 'Necklace', 1, ['item.equipment', 'gear.neck'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'neck' }),
+  helm: defineItem('helm', 'Helm', 1, ['item.equipment', 'gear.head'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'head' }),
+  tunic: defineItem('tunic', 'Tunic', 1, ['item.equipment', 'gear.body'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'body' }),
+  ring: defineItem('ring', 'Ring', 1, ['item.equipment', 'gear.ring'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'ring' }),
+  shield: defineItem('shield', 'Shield', 1, ['item.equipment', 'gear.hand', 'gear.off_hand'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'off_hand' }),
+  gloves: defineItem('gloves', 'Gloves', 1, ['item.equipment', 'gear.hands'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'hands' }),
+  pants: defineItem('pants', 'Pants', 1, ['item.equipment', 'gear.legs'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'legs' }),
+  boots: defineItem('boots', 'Boots', 1, ['item.equipment', 'gear.feet'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'feet' }),
 } as const satisfies Readonly<Record<string, ItemDefinition>>;
 
 export type KnownItemKind = keyof typeof ITEM_DEFINITIONS;
@@ -148,48 +183,6 @@ export interface InsertItemPartialSuccess extends InsertItemSuccess {
 
 export type InsertItemResult = ItemRuleFailure | InsertItemSuccess;
 export type InsertItemPartialResult = ItemRuleFailure | InsertItemPartialSuccess;
-
-export interface ShapelessRecipeDefinition {
-  readonly kind: 'shapeless';
-  readonly inputs: readonly ItemStack[];
-  readonly output: ItemStack;
-}
-
-export interface ShapedRecipeDefinition {
-  readonly kind: 'shaped';
-  readonly width: number;
-  readonly height: number;
-  /** Row-major item kinds. Null cells must remain empty. */
-  readonly pattern: readonly (string | null)[];
-  readonly output: ItemStack;
-}
-
-export type RecipeDefinition = ShapelessRecipeDefinition | ShapedRecipeDefinition;
-
-export const RECIPES = {
-  planks: {
-    kind: 'shapeless', inputs: [{ itemKind: 'wood', quantity: 1 }], output: { itemKind: 'plank', quantity: 4 },
-  },
-  sticks: {
-    kind: 'shaped', width: 1, height: 2,
-    pattern: ['plank', 'plank'],
-    output: { itemKind: 'stick', quantity: 4 },
-  },
-  arrows: {
-    kind: 'shapeless', inputs: [{ itemKind: 'stick', quantity: 1 }, { itemKind: 'stone', quantity: 1 }],
-    output: { itemKind: 'arrow', quantity: 4 },
-  },
-  chest: {
-    kind: 'shaped', width: 3, height: 3,
-    pattern: ['plank', 'plank', 'plank', 'plank', null, 'plank', 'plank', 'plank', 'plank'],
-    output: { itemKind: 'chest', quantity: 1 },
-  },
-  orchard_tea: {
-    kind: 'shapeless',
-    inputs: [{ itemKind: 'apple', quantity: 1 }, { itemKind: 'pear', quantity: 1 }],
-    output: { itemKind: 'orchard_tea', quantity: 1 },
-  },
-} as const satisfies Readonly<Record<string, RecipeDefinition>>;
 
 export interface CraftRequest {
   readonly recipeId: string;
@@ -554,66 +547,20 @@ function inputSlots(grid: ContainerSnapshot, resultIndex: number): readonly (Ite
   return grid.slots.filter((_stack, index) => index !== resultIndex);
 }
 
-function shapedRecipeIndexes(
-  recipe: ShapedRecipeDefinition,
-  slots: readonly (ItemStack | null)[],
-): readonly number[] | null {
-  const gridWidth = Math.sqrt(slots.length);
-  if (!Number.isInteger(gridWidth)) return null;
-  const width = Math.round(gridWidth);
-  const height = slots.length / width;
-  if (recipe.width > width || recipe.height > height) return null;
-  for (let offsetY = 0; offsetY <= height - recipe.height; offsetY += 1) {
-    for (let offsetX = 0; offsetX <= width - recipe.width; offsetX += 1) {
-      const consumed: number[] = [];
-      let matches = true;
-      for (let gridY = 0; gridY < height && matches; gridY += 1) {
-        for (let gridX = 0; gridX < width; gridX += 1) {
-          const patternX = gridX - offsetX;
-          const patternY = gridY - offsetY;
-          const expected = patternX >= 0 && patternX < recipe.width && patternY >= 0 && patternY < recipe.height
-            ? recipe.pattern[patternY * recipe.width + patternX] ?? null
-            : null;
-          const index = gridY * width + gridX;
-          const stack = slots[index] ?? null;
-          if (expected === null ? stack !== null : stack?.itemKind !== expected || stack.quantity <= 0) {
-            matches = false;
-            break;
-          }
-          if (expected !== null) consumed.push(index);
-        }
-      }
-      if (matches) return consumed;
-    }
-  }
-  return null;
-}
-
-function recipeMatches(recipe: RecipeDefinition, slots: readonly (ItemStack | null)[]): boolean {
-  if (recipe.kind === 'shaped') return shapedRecipeIndexes(recipe, slots) !== null;
-  const required = new Map<string, number>();
-  for (const input of recipe.inputs) required.set(input.itemKind, (required.get(input.itemKind) ?? 0) + input.quantity);
-  const available = new Map<string, number>();
-  for (const stack of slots) if (stack) available.set(stack.itemKind, (available.get(stack.itemKind) ?? 0) + stack.quantity);
-  return available.size === required.size
-    && [...required].every(([kind, quantity]) => (available.get(kind) ?? 0) >= quantity);
-}
-
 export function matchingRecipeId(
   grid: ContainerSnapshot,
   resultIndex = grid.capacity,
-): keyof typeof RECIPES | null {
+): RecipeId | null {
   const slots = inputSlots(normalizeContainer(grid), resultIndex);
   for (const [recipeId, recipe] of Object.entries(RECIPES)) {
-    if (recipeMatches(recipe, slots)) return recipeId as keyof typeof RECIPES;
+    if (recipeMatches(recipe, slots)) return recipeId as RecipeId;
   }
   return null;
 }
 
 export function craftingRecipeOutput(recipeId: string): ItemStack | null {
-  return Object.prototype.hasOwnProperty.call(RECIPES, recipeId)
-    ? { ...RECIPES[recipeId as keyof typeof RECIPES].output }
-    : null;
+  const recipe = recipeDefinition(recipeId);
+  return recipe ? { ...recipe.output } : null;
 }
 
 export function consumeCraftingRecipe(
@@ -621,9 +568,7 @@ export function consumeCraftingRecipe(
   recipeId: string,
   resultIndex = grid.capacity,
 ): ConsumeRecipeResult {
-  const recipe = Object.prototype.hasOwnProperty.call(RECIPES, recipeId)
-    ? RECIPES[recipeId as keyof typeof RECIPES]
-    : null;
+  const recipe = recipeDefinition(recipeId);
   if (!recipe) return failure('recipe_not_found');
   const normalized = normalizeContainer(grid);
   if (!recipeMatches(recipe, inputSlots(normalized, resultIndex))) return failure('recipe_inputs_missing');
@@ -636,10 +581,10 @@ export function consumeCraftingRecipe(
       slots[index] = stack.quantity === 1 ? null : { ...stack, quantity: stack.quantity - 1 };
     });
   } else {
-    for (const input of recipe.inputs) {
-      let remaining = input.quantity;
+    for (const [itemKind, quantity] of Object.entries(recipe.inputs)) {
+      let remaining = quantity;
       for (let index = 0; index < slots.length && remaining > 0; index += 1) {
-        if (index === resultIndex || slots[index]?.itemKind !== input.itemKind) continue;
+        if (index === resultIndex || slots[index]?.itemKind !== itemKind) continue;
         const stack = slots[index]!;
         const consumed = Math.min(stack.quantity, remaining);
         remaining -= consumed;
@@ -654,9 +599,7 @@ export function craftItem(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   request: CraftRequest,
 ): CraftResult {
-  const recipe = Object.prototype.hasOwnProperty.call(RECIPES, request.recipeId)
-    ? RECIPES[request.recipeId as keyof typeof RECIPES]
-    : null;
+  const recipe = recipeDefinition(request.recipeId);
   if (!recipe) return failure('recipe_not_found');
   const grid = containers[request.gridContainer];
   if (!grid) return failure('container_not_found');

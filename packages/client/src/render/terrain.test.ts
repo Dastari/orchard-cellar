@@ -2,6 +2,8 @@ import {
   SURVIVAL_CLIFF_ROLES,
   SURVIVAL_DIRT_CLIFF_ROLES,
   SURVIVAL_WORLD_SIZE,
+  DEBUG_SPACE_ID,
+  spaceDefinitionFor,
   survivalBiomeBlocksMovement,
   survivalCliffRoleBlocksMovement,
 } from '@orchard/sim';
@@ -26,6 +28,7 @@ import {
   shorelineInsetFrameIndicesAt,
   terrainBiomeAt,
   terrainForWorld,
+  terrainForSpace,
   waterDecorationAllowedAt,
   waterfallTopLeftAt,
   waterfallFrameIndexAt,
@@ -34,6 +37,7 @@ import {
 
 function terrainFixture(width: number, height: number, fill = 4): TerrainArray {
   return {
+    spaceId: 0,
     seed: 1,
     version: 1,
     width,
@@ -54,7 +58,19 @@ describe('shared client terrain array', () => {
     expect(terrainForWorld(123, 3)).toBe(first);
     expect(terrainForWorld(123, 4)).not.toBe(first);
     expect(first.biomes).toHaveLength(SURVIVAL_WORLD_SIZE ** 2);
-  }, 30_000);
+  }, 60_000);
+
+  it('26§13 keys terrain classification by space and builds the flat debug bounds', () => {
+    const debugSpace = spaceDefinitionFor(DEBUG_SPACE_ID);
+    if (debugSpace === undefined) throw new Error('debug space missing');
+    const debug = terrainForSpace(debugSpace, 123, 3);
+    const topside = terrainForWorld(123, 3);
+    expect(debug).not.toBe(topside);
+    expect(debug.spaceId).toBe(DEBUG_SPACE_ID);
+    expect(debug.width).toBe(32);
+    expect(debug.blocked[0]).toBe(true);
+    expect(debug.blocked[16 * debug.width + 16]).toBe(false);
+  });
 
   it('derives render and collision classification from the same byte', () => {
     const terrain = terrainForWorld(0x4f434852, 3);

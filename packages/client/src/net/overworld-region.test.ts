@@ -42,9 +42,15 @@ describe('overworld regional subscriptions', () => {
     expect(bounds.maxX).toBeGreaterThanOrEqual(8);
   });
 
-  it('34§5 counts all nine chunk-scoped table queries, including profiles and hives', () => {
-    expect(regionSubscriptionQueryCount({ minX: 2, minY: 3, maxX: 2, maxY: 3 })).toBe(9);
-    expect(regionSubscriptionQueryCount({ minX: 0, minY: 0, maxX: 2, maxY: 1 })).toBe(54);
+  it('34§5 counts nine per-chunk queries plus the crafting placeable range query', () => {
+    expect(regionSubscriptionQueryCount({ minX: 2, minY: 3, maxX: 2, maxY: 3 })).toBe(10);
+    expect(regionSubscriptionQueryCount({ minX: 0, minY: 0, maxX: 2, maxY: 1 })).toBe(55);
+  });
+
+  it('26§13 bounds an instance space and budgets all nine space-aware tables', () => {
+    const bounds = subscriptionChunkBounds(1, 1, { x: 9, y: 9 }, 32);
+    expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 1, maxY: 1 });
+    expect(regionSubscriptionQueryCount(bounds, 65_534)).toBe(37);
   });
 
   it('34§4 does not churn a boundary crossing and return inside the deadband', () => {
@@ -76,13 +82,15 @@ describe('overworld regional subscriptions', () => {
     expect(region).toContain('...hives');
     expect(region).toContain('...wildlifeProfiles');
     expect(region).not.toContain('hydrateRegion');
+    expect(region.match(/row\.spaceId\.eq\(spaceId\)/g)).toHaveLength(10);
+    expect(region.indexOf('previous?.isActive()')).toBeGreaterThan(region.indexOf('.onApplied('));
   });
 
   it('34§6 reduces settled 1080p query count from the stage-1 baseline', () => {
     const stage1Baseline = 8 + 15 + 11 * 11 * 8;
     const bounds = subscriptionChunkBounds(20, 20, viewRadiusForViewport(1920, 1080, 1));
-    const stage2Settled = 7 + 15 + regionSubscriptionQueryCount(bounds);
-    expect(stage2Settled).toBe(913);
+    const stage2Settled = 8 + 15 + regionSubscriptionQueryCount(bounds);
+    expect(stage2Settled).toBe(915);
     expect(stage2Settled).toBeLessThanOrEqual(stage1Baseline);
   });
 });
