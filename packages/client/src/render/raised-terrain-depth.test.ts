@@ -46,11 +46,11 @@ describe('30§5 raised-terrain depth entries', () => {
     const nestedSouth = entries.filter(({ tileX, tileY }) => tileX === 3 && tileY === 5);
     expect(nestedSouth.map(({ contourLevel }) => contourLevel)).toEqual([1, 2, 3]);
     expect(nestedSouth.map(({ footY, depthOffset }) => footY + depthOffset)).toEqual([
-      48 + 0.5 / 1_024,
-      0 + 1.5 / 1_024,
-      -48 + 2.5 / 1_024,
+      64 + 0.5 / 1_024,
+      32 + 1.5 / 1_024,
+      0 + 2.5 / 1_024,
     ]);
-    expect(nestedSouth.map(raisedTerrainVisualOffset)).toEqual([48, 96, 144]);
+    expect(nestedSouth.map(raisedTerrainVisualOffset)).toEqual([32, 64, 96]);
   });
 
   it('30§5 separates lower-plane wall faces from upper-plane rims and caps', () => {
@@ -81,7 +81,7 @@ describe('30§5 raised-terrain depth entries', () => {
       footY: run.footY,
       visualOffset: run.visualOffset,
     }))).toEqual([
-      { firstTileX: 1, lastTileX: 5, elevation: 1, footY: 16, visualOffset: 48 },
+      { firstTileX: 1, lastTileX: 5, elevation: 1, footY: 32, visualOffset: 32 },
     ]);
   });
 

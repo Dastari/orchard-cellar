@@ -47,13 +47,15 @@ remain M7a work; the M5.7 slice does not grant land permissions.
   remaining inside world bounds. Add future movement types through this semantic
   rule rather than bypassing collision in entity-specific code.
 - Terrain height is an integer rather than a raised/not-raised flag. Every level
-  resolves the same edge, inset, three-row face, and collision profile independently.
+  resolves the same edge, inset, two-row structural face plus non-height foot-shadow
+  row, and collision profile independently.
   Movement may cross adjacent heights only through the exact paired `slope`
   transitions generated for that contour; all other height boundaries fail closed.
   Every projected cliff row is a visual occluder rather than a lower-plane
   collision tile: actors can walk behind the complete face and are painter-sorted
   underneath it. Each raised surface and every occupant on it render north by
-  `elevation × 3 tiles` while retaining their logical collision coordinates. That
+  `elevation × 2 tiles`; the authored third foot/shadow row remains walkable and does
+  not contribute height. Logical collision coordinates remain unchanged. That
   projection creates the complete lower-plane walk-behind band behind the rear
   cliff cap; it is not extra occupancy or a second logical tile. Every internal
   raised-surface tile participates in the same elevation-aware queue, ordered

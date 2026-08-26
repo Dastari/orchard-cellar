@@ -233,8 +233,8 @@ describe('shared client terrain array', () => {
   it('30§5 projects painter depth by logical elevation, not blocking rows', () => {
     const terrain = terrainFixture(3, 3);
     terrain.elevations[4] = 2;
-    expect(terrainProjectedDepthAtFoot(terrain, 24, 24)).toBe(96);
-    expect(terrainProjectedWorldYAtFoot(terrain, 24, 24)).toBe(-72);
+    expect(terrainProjectedDepthAtFoot(terrain, 24, 24)).toBe(64);
+    expect(terrainProjectedWorldYAtFoot(terrain, 24, 24)).toBe(-40);
     expect(terrainProjectedDepthAtFoot(terrain, 8, 8)).toBe(0);
     expect(terrainProjectedWorldYAtFoot(terrain, 8, 8)).toBe(8);
   });
@@ -243,7 +243,7 @@ describe('shared client terrain array', () => {
     const terrain = terrainFixture(3, 3);
     terrain.elevations[2 * terrain.width + 1] = 1;
     const authorityAnchorY = 32.5;
-    expect(terrainProjectedDepthAtFoot(terrain, 24, authorityAnchorY)).toBe(48);
+    expect(terrainProjectedDepthAtFoot(terrain, 24, authorityAnchorY)).toBe(32);
     expect(terrainProjectedDepthAtFoot(
       terrain,
       24,
@@ -274,7 +274,7 @@ describe('shared client terrain array', () => {
     expect(terrainProjectedElevationAtFoot(terrainWithTransition, 24, 40)).toBe(0);
     expect(terrainProjectedElevationAtFoot(terrainWithTransition, 24, 32)).toBe(0.5);
     expect(terrainProjectedElevationAtFoot(terrainWithTransition, 24, 24)).toBe(1);
-    expect(terrainProjectedDepthAtFoot(terrainWithTransition, 24, 32)).toBe(24);
+    expect(terrainProjectedDepthAtFoot(terrainWithTransition, 24, 32)).toBe(16);
   });
 
   it('30§7 raising then lowering an editor cell restores identical contour plans', () => {

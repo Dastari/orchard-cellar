@@ -25,6 +25,9 @@ export interface RaisedTerrainFaceRow {
   readonly frames: readonly [left: number, middle: number, right: number];
   readonly blocksMovement: boolean;
   readonly blocksLight: boolean;
+  /** False for an authored ground-contact shadow/trim row which extends the
+   * sprite but does not increase the projected elevation of the surface. */
+  readonly contributesHeight?: boolean;
 }
 
 /** A tileset can expose multiple profiles (for example `short` and `tall`).

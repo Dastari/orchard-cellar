@@ -122,10 +122,12 @@ without changing topology code. Do not obtain a short cliff by sprinkling except
 through generation or rendering.
 
 Logical height, projected height, and collision thickness are separate values. The
-current tall profile raises terrain by one logical level, projects three visual rows,
-and blocks only its `wall` and `lower_wall` rows; its `foot` remains walkable. Render
-occlusion uses all three authored rows, while movement uses only rows whose
-`blocksMovement` flag is true.
+current tall profile raises terrain by one logical level and projects two
+height-bearing rows (`wall`, `lower_wall`). Its third authored `foot` row is
+nonblocking ground-contact shadow/trim (`contributesHeight: false`): it extends the
+sprite but neither raises the surface nor casts a structural light shadow. Movement
+blocks at the semantic elevation contour, using the actor's complete foot width; it
+does not turn the projected face or baked shadow pixels into occupancy.
 
 Crossings are semantic contour transitions, not frame overrides. A transition records
 its contour level, orientation, and kind (`slope`, `stairs`, `ladder`, or `rope`). A

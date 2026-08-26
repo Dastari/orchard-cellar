@@ -92,21 +92,55 @@ function movementCrossesBlockedElevation(
   // validation by supplying the transition channel; an empty list therefore
   // deliberately means that no height crossing is allowed.
   if (map.elevations === undefined || map.terrainTransitions === undefined) return false;
+  const elevations = map.elevations;
+  const transitions = map.terrainTransitions;
   const fromTileX = Math.floor(from.x / TILE_SIZE_FIXED);
   const fromTileY = Math.floor((from.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED);
   const toTileX = Math.floor(to.x / TILE_SIZE_FIXED);
   const toTileY = Math.floor((to.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED);
-  if (fromTileX === toTileX && fromTileY === toTileY) return false;
-  return !terrainWalkingStepAllowed(
-    map.elevations,
+  if ((fromTileX !== toTileX || fromTileY !== toTileY) && !terrainWalkingStepAllowed(
+    elevations,
     map.width,
     map.height,
-    map.terrainTransitions,
+    transitions,
     fromTileX,
     fromTileY,
     toTileX,
     toTileY,
-  );
+  )) return true;
+
+  const footprintViolations = (position: Vec2Fixed): number => {
+    const { left, right, bottom } = playerHitboxBounds(position);
+    const centerTileX = Math.floor(position.x / TILE_SIZE_FIXED);
+    const contactTileY = Math.floor(bottom / TILE_SIZE_FIXED);
+    let violations = 0;
+    for (const [bit, sampleX] of [[1, left], [2, right]] as const) {
+      const sampleTileX = Math.floor(sampleX / TILE_SIZE_FIXED);
+      if (sampleTileX === centerTileX) continue;
+      if (!terrainWalkingStepAllowed(
+        elevations,
+        map.width,
+        map.height,
+        transitions,
+        centerTileX,
+        contactTileY,
+        sampleTileX,
+        contactTileY,
+      )) violations |= bit;
+    }
+    return violations;
+  };
+
+  const toViolations = footprintViolations(to);
+  if (toViolations === 0) return false;
+  const fromViolations = footprintViolations(from);
+  if (fromViolations === 0) return true;
+  // A live player may already straddle a contour from the previous centre-only
+  // guard. Permit only the horizontal direction that removes that overlap;
+  // continued pressure into the boundary (including sprint) remains blocked.
+  const escapingLeftEdge = (fromViolations & 1) !== 0 && to.x > from.x;
+  const escapingRightEdge = (fromViolations & 2) !== 0 && to.x < from.x;
+  return !(escapingLeftEdge || escapingRightEdge);
 }
 
 /** Resolves an actor's terrain plane from its physical ground-contact point.

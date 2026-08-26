@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from './state.js';
+import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type PlayerState } from './state.js';
 import {
   movePlayer,
   movePlayerAtSpeed,
   movePlayerAtSpeedPermille,
   movementPositionAllowed,
+  PLAYER_HITBOX_FOOT_OFFSET,
   playerHitboxBounds,
   playerInteractionOrigin,
   positionCollides,
@@ -127,6 +128,41 @@ describe('player movement collision', () => {
       elevations: Uint8Array.from([0, 1]),
       terrainTransitions: [],
     })).toBe(false);
+  });
+
+  it('30§5 keeps the complete foot width on its plane at walking and sprint speeds', () => {
+    const map = {
+      width: 2,
+      height: 1,
+      blocked: [false, false],
+      elevations: Uint8Array.from([0, 1]),
+      terrainTransitions: [],
+    };
+    const start = {
+      position: {
+        x: TILE_SIZE_FIXED / 2,
+        y: TILE_SIZE_FIXED / 2 + PLAYER_HITBOX_FOOT_OFFSET + 1,
+      },
+      facing: 'right' as const,
+      moving: false,
+      location: 'estate' as const,
+    };
+    let walking: PlayerState = start;
+    let sprinting: PlayerState = start;
+    for (let step = 0; step < 32; step += 1) {
+      walking = movePlayer(walking, 'right', map);
+      sprinting = movePlayerAtSpeedPermille(sprinting, 'right', map, 1_250);
+    }
+    expect(playerHitboxBounds(walking.position).right).toBeLessThan(TILE_SIZE_FIXED);
+    expect(playerHitboxBounds(sprinting.position).right).toBeLessThan(TILE_SIZE_FIXED);
+    expect(terrainPlaneAtPosition(walking.position, map)).toBe(0);
+    expect(terrainPlaneAtPosition(sprinting.position, map)).toBe(0);
+
+    const escaped = movePlayerAtSpeedPermille({
+      ...sprinting,
+      position: { ...sprinting.position, x: TILE_SIZE_FIXED - 1 },
+    }, 'left', map, 1_250);
+    expect(escaped.position.x).toBeLessThan(TILE_SIZE_FIXED - 1);
   });
 
   it('30§5 derives the terrain plane from coordinates without traversal history', () => {

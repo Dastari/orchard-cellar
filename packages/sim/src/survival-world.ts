@@ -175,7 +175,10 @@ export const SURVIVAL_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
       rows: [
         { id: 'wall', frames: [43, 44, 45], blocksMovement: false, blocksLight: true },
         { id: 'lower_wall', frames: [57, 58, 59], blocksMovement: false, blocksLight: true },
-        { id: 'foot', frames: [71, 72, 73], blocksMovement: false, blocksLight: false },
+        {
+          id: 'foot', frames: [71, 72, 73], blocksMovement: false, blocksLight: false,
+          contributesHeight: false,
+        },
       ],
     },
   },

@@ -660,7 +660,8 @@ export function terrainContourBoundaryBetween(
 }
 
 export function terrainProjectedRowsPerLevel(): number {
-  return STONE_RAISED_CLIFF_TILE_SET.faceProfiles.tall?.rows.length ?? 0;
+  return STONE_RAISED_CLIFF_TILE_SET.faceProfiles.tall?.rows
+    .filter((row) => row.contributesHeight !== false).length ?? 0;
 }
 
 /** Editor preview mutates a working elevation buffer in place. Production
