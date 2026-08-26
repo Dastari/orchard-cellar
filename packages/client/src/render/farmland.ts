@@ -162,59 +162,34 @@ export function drawFarmSoil(
   return draws;
 }
 
-export function drawFarmTileTarget(
+/** Draws the authored neutral/deny selector around a tile. Tile tools and
+ * placeables deliberately share this renderer so their targeting language
+ * cannot drift apart. */
+export function drawInteractionTileReticle(
   context: CanvasRenderingContext2D,
-  crosshair: LoadedAsset,
+  selector: LoadedAsset,
   tileX: number,
   tileY: number,
   cameraX: number,
   cameraY: number,
   scale: number,
 ): void {
-  const frame = selectAtlasFrame(crosshair.metadata, 'idle', 0)
-    ?? selectAtlasFrame(crosshair.metadata, 'base', 0);
+  const frame = selectAtlasFrame(selector.metadata, 'idle', 0)
+    ?? selectAtlasFrame(selector.metadata, 'base', 0);
   if (frame === null) return;
+  // The selector sheet has authored transparent padding. A 28 px destination
+  // makes its visible corners hug a 16 px world tile without clipping them.
+  const destinationSize = 28 * scale;
+  const destinationInset = 6 * scale;
   context.drawImage(
-    crosshair.image,
+    selector.image,
     frame.x,
     frame.y,
     frame.width,
     frame.height,
-    Math.round((tileX * 16 - cameraX) * scale),
-    Math.round((tileY * 16 - cameraY) * scale),
-    16 * scale,
-    16 * scale,
+    Math.round((tileX * 16 - cameraX) * scale - destinationInset),
+    Math.round((tileY * 16 - cameraY) * scale - destinationInset),
+    destinationSize,
+    destinationSize,
   );
-}
-
-/** A palette-safe world-space cousin of the hotbar selection frame. The pack's
- * selector sheet has white, green, and red variants but no yellow state, so the
- * farming target uses the project's gold ramp with the same corner language. */
-export function drawFarmTileReticle(
-  context: CanvasRenderingContext2D,
-  tileX: number,
-  tileY: number,
-  cameraX: number,
-  cameraY: number,
-  scale: number,
-  valid = true,
-): void {
-  const unit = Math.max(1, Math.round(scale));
-  const x = Math.round((tileX * 16 - cameraX) * scale) - unit;
-  const y = Math.round((tileY * 16 - cameraY) * scale) - unit;
-  const size = 18 * unit;
-  const arm = 5 * unit;
-  const segments = [
-    [x, y, arm, unit], [x, y, unit, arm],
-    [x + size - arm, y, arm, unit], [x + size - unit, y, unit, arm],
-    [x, y + size - unit, arm, unit], [x, y + size - arm, unit, arm],
-    [x + size - arm, y + size - unit, arm, unit], [x + size - unit, y + size - arm, unit, arm],
-  ] as const;
-  context.fillStyle = '#3f2832';
-  for (const [left, top, width, height] of segments) context.fillRect(left + unit, top + unit, width, height);
-  context.fillStyle = valid ? '#f7c94b' : '#e33f55';
-  for (const [left, top, width, height] of segments) context.fillRect(left, top, width, height);
-  context.fillStyle = valid ? '#ffe98a' : '#ff93a0';
-  context.fillRect(x + unit, y, Math.max(unit, arm - unit * 2), unit);
-  context.fillRect(x, y + unit, unit, Math.max(unit, arm - unit * 2));
 }

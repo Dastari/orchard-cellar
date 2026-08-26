@@ -135,6 +135,7 @@ export interface OverworldUiLayout {
 
 const SLOT_WIDTH = 30;
 const SLOT_HEIGHT = 31;
+const HOTBAR_RETICLE_SIZE = 60;
 const HOTBAR_SLOTS = 9;
 const BACKPACK_SLOTS = 20;
 const DEFAULT_INVENTORY_SLOTS = 8;
@@ -179,6 +180,17 @@ export function slotStackLabelPosition(rect: UiRect): UiPoint {
 
 export function slotDurabilityBarRect(rect: UiRect): UiRect {
   return { x: rect.x + 5, y: rect.y + rect.height - 7, width: rect.width - 10, height: 3 };
+}
+
+/** Centres the selector's transparent 60 px canvas around a slot. Its opaque
+ * corners then sit a few pixels outside the bevel instead of covering labels. */
+export function hotbarReticleRect(rect: UiRect): UiRect {
+  return {
+    x: Math.round(rect.x + (rect.width - HOTBAR_RETICLE_SIZE) / 2),
+    y: Math.round(rect.y + (rect.height - HOTBAR_RETICLE_SIZE) / 2),
+    width: HOTBAR_RETICLE_SIZE,
+    height: HOTBAR_RETICLE_SIZE,
+  };
 }
 
 export function itemIconAnimation(itemKind: string): string {
@@ -949,6 +961,10 @@ export class OverworldUi {
       const item = itemBySlot.get(slot);
       const asset = item ? this.itemArt[item.itemKind as keyof OverworldUiItemArt] : undefined;
       if (asset && item) this.drawItemArtwork(context, rect, item.itemKind, asset);
+      if (slot === this.model.selectedSlot || slot === this.hoveredSlot) {
+        const selector = slot === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
+        drawUiSkinAsset(context, selector, hotbarReticleRect(rect), 'idle');
+      }
       drawLabel(context, this.fonts, String(slot + 1), rect.x + 3, rect.y + 3, { color: '#51351f' });
       if ((item?.quantity ?? 0) > 1) {
         const stackLabel = slotStackLabelPosition(rect);
@@ -957,10 +973,6 @@ export class OverworldUi {
         });
       }
       if (item) this.drawDurabilityBar(context, rect, item.itemKind, item.durability);
-      if (slot === this.model.selectedSlot || slot === this.hoveredSlot) {
-        const selector = slot === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
-        drawUiSkinNatural(context, selector, rect.x - 10, rect.y - 9, 'idle');
-      }
     }
   }
 
@@ -1121,12 +1133,12 @@ export class OverworldUi {
       const slotRect = slot.bounds;
       drawUiSkinAsset(context, this.skin.slot, slotRect, 'idle');
       const item = slot.item;
-      if (item) this.drawInventoryItem(context, slotRect, item.itemKind, item.quantity, item.durability);
-      drawLabel(context, this.fonts, String(index + 1), slotRect.x + 3, slotRect.y + 3, { color: '#51351f' });
       if (index === this.model.selectedSlot || index === this.hoveredSlot) {
         const selector = index === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
-        drawUiSkinNatural(context, selector, slotRect.x - 10, slotRect.y - 9, 'idle');
+        drawUiSkinAsset(context, selector, hotbarReticleRect(slotRect), 'idle');
       }
+      if (item) this.drawInventoryItem(context, slotRect, item.itemKind, item.quantity, item.durability);
+      drawLabel(context, this.fonts, String(index + 1), slotRect.x + 3, slotRect.y + 3, { color: '#51351f' });
     });
   }
 

@@ -5,6 +5,7 @@ import {
   OverworldUi,
   onlinePlayerListFrameHeight,
   overworldUiLayout,
+  hotbarReticleRect,
   itemIconAnimation,
   slotStackLabelPosition,
   slotDurabilityBarRect,
@@ -109,6 +110,11 @@ describe('overworld retained UI layout', () => {
   it('keeps stack counts above and inside the slot bevel', () => {
     expect(slotStackLabelPosition({ x: 40, y: 70, width: 28, height: 31 }))
       .toEqual({ x: 63, y: 87 });
+  });
+
+  it('places the selected and hovered hotbar reticle outside the slot labels', () => {
+    expect(hotbarReticleRect({ x: 40, y: 70, width: 28, height: 31 }))
+      .toEqual({ x: 24, y: 56, width: 60, height: 60 });
   });
 
   it('keeps durability bars inside the usable slot face above the bottom bevel', () => {
