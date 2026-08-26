@@ -101,8 +101,8 @@ export interface WorldDepthItem {
   readonly footY: number;
   /** Small logical-foot painter tie-break within one elevation/phase. */
   readonly depthOffset?: number;
-  /** Integer/fractional terrain plane used only to resolve items sharing a
-   * projected foot row. */
+  /** Integer terrain plane. Higher planes composite after every drawable on
+   * lower planes; projected foot-Y then resolves painter order within a plane. */
   readonly elevationLayer?: number;
   /** Within one plane: surface, cliff boundary, then world entities. */
   readonly depthPhase?: 'surface' | 'boundary' | 'entity';
@@ -122,8 +122,8 @@ export function sortWorldDepthItems<T extends Pick<
 >>(
   items: readonly T[],
 ): T[] {
-  return [...items].sort((left, right) => worldDepthY(left) - worldDepthY(right)
-    || (left.elevationLayer ?? 0) - (right.elevationLayer ?? 0)
+  return [...items].sort((left, right) => (left.elevationLayer ?? 0) - (right.elevationLayer ?? 0)
+    || worldDepthY(left) - worldDepthY(right)
     || depthPhaseOrder(left.depthPhase) - depthPhaseOrder(right.depthPhase)
     || left.tie.localeCompare(right.tie));
 }

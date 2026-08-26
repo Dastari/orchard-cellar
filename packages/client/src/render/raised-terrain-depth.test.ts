@@ -6,6 +6,7 @@ import {
 } from '@orchard/sim';
 import {
   raisedTerrainDepthEntries,
+  raisedTerrainDepthLayers,
   raisedTerrainSurfaceRuns,
   raisedTerrainVisualOffset,
 } from './raised-terrain-depth.js';
@@ -50,6 +51,20 @@ describe('30§5 raised-terrain depth entries', () => {
       -48 + 2.5 / 1_024,
     ]);
     expect(nestedSouth.map(raisedTerrainVisualOffset)).toEqual([48, 96, 144]);
+  });
+
+  it('30§5 separates lower-plane wall faces from upper-plane rims and caps', () => {
+    const entries = raisedTerrainDepthEntries(nestedTerrain(), 0, 0, 6, 6);
+    const face = entries.find(({ plan }) => plan.faceLayers.length > 0);
+    const cap = entries.find(({ plan }) => plan.edgeFrame !== null);
+    expect(face).toBeDefined();
+    expect(cap).toBeDefined();
+    expect(raisedTerrainDepthLayers(face!)).toContainEqual({
+      stratum: 'face', elevationLayer: face!.contourLevel - 1, depthPhase: 'boundary',
+    });
+    expect(raisedTerrainDepthLayers(cap!)).toContainEqual({
+      stratum: 'cap', elevationLayer: cap!.contourLevel, depthPhase: 'surface',
+    });
   });
 
   it('30§5 submits only interior caps, leaving edge transparency to the shaped boundary sheet', () => {

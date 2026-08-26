@@ -150,23 +150,61 @@ function drawTerrainAsset(
   );
 }
 
-function drawEntry(
+export type RaisedTerrainDepthStratum = 'face' | 'cap';
+
+export interface RaisedTerrainDepthLayer {
+  readonly stratum: RaisedTerrainDepthStratum;
+  readonly elevationLayer: number;
+  readonly depthPhase: NonNullable<WorldDepthItem['depthPhase']>;
+}
+
+/** A cliff tile contains two different painter-depth owners. Its projected
+ * vertical face belongs to the lower plane, so a lower actor can sort behind
+ * or in front of it by foot Y. The rim/cap belongs to the raised plane and
+ * must cover every lower-plane drawable in its projected walk-behind band. */
+export function raisedTerrainDepthLayers(
+  entry: Pick<RaisedTerrainDepthEntry, 'contourLevel' | 'plan'>,
+): readonly RaisedTerrainDepthLayer[] {
+  const layers: RaisedTerrainDepthLayer[] = [];
+  if (entry.plan.faceLayers.length > 0) {
+    layers.push({
+      stratum: 'face',
+      elevationLayer: Math.max(0, entry.contourLevel - 1),
+      depthPhase: 'boundary',
+    });
+  }
+  if (entry.plan.edgeFrame !== null
+    || entry.plan.insetFrames.length > 0
+    || entry.plan.rampFrame !== null) {
+    layers.push({
+      stratum: 'cap',
+      elevationLayer: entry.contourLevel,
+      depthPhase: 'surface',
+    });
+  }
+  return layers;
+}
+
+function drawEntryStratum(
   context: CanvasRenderingContext2D,
   art: OverworldArt,
   entry: RaisedTerrainDepthEntry,
+  stratum: RaisedTerrainDepthStratum,
   cameraX: number,
   cameraY: number,
   scale: number,
 ): void {
   context.save();
   context.translate(0, -raisedTerrainVisualOffset(entry) * scale);
-  for (const face of entry.plan.faceLayers) {
-    drawTerrainAsset(context, art.cliff, face.frame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
+  if (stratum === 'face') {
+    for (const face of entry.plan.faceLayers) {
+      drawTerrainAsset(context, art.cliff, face.frame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
+    }
   }
-  if (entry.plan.edgeFrame !== null) {
+  if (stratum === 'cap' && entry.plan.edgeFrame !== null) {
     drawTerrainAsset(context, art.cliff, entry.plan.edgeFrame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
   }
-  for (const insetFrame of entry.plan.insetFrames) {
+  for (const insetFrame of stratum === 'cap' ? entry.plan.insetFrames : []) {
     drawTerrainAsset(
       context,
       art.stoneCliffInverseOverlay,
@@ -178,7 +216,7 @@ function drawEntry(
       scale,
     );
   }
-  if (entry.plan.rampFrame !== null) {
+  if (stratum === 'cap' && entry.plan.rampFrame !== null) {
     drawTerrainAsset(
       context,
       art.grassCliffRamp,
@@ -244,14 +282,24 @@ export function enqueueRaisedTerrainDepth(
     });
   }
   for (const entry of entries) {
-    target.push({
-      footY: entry.footY,
-      depthOffset: entry.depthOffset,
-      elevationLayer: entry.contourLevel,
-      depthPhase: 'boundary',
-      tie: `0-terrain:${entry.contourLevel}:${entry.tileY}:${entry.tileX}`,
-      draw: () => drawEntry(context, art, entry, cameraX, cameraY, scale),
-    });
+    for (const layer of raisedTerrainDepthLayers(entry)) {
+      target.push({
+        footY: entry.footY,
+        depthOffset: entry.depthOffset,
+        elevationLayer: layer.elevationLayer,
+        depthPhase: layer.depthPhase,
+        tie: `0-terrain:${entry.contourLevel}:${layer.stratum}:${entry.tileY}:${entry.tileX}`,
+        draw: () => drawEntryStratum(
+          context,
+          art,
+          entry,
+          layer.stratum,
+          cameraX,
+          cameraY,
+          scale,
+        ),
+      });
+    }
   }
-  return entries.length + surfaceRuns.length;
+  return entries.reduce((count, entry) => count + raisedTerrainDepthLayers(entry).length, surfaceRuns.length);
 }
