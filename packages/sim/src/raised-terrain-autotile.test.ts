@@ -38,13 +38,13 @@ const TILE_SET: RaisedTerrainTileSet = {
   faceProfiles: {
     tall: {
       rows: [
-        { id: 'wall', frames: [10, 11, 12], blocksMovement: true },
-        { id: 'lower', frames: [20, 21, 22], blocksMovement: true },
-        { id: 'foot', frames: [30, 31, 32], blocksMovement: false },
+        { id: 'wall', frames: [10, 11, 12], blocksMovement: true, blocksLight: true },
+        { id: 'lower', frames: [20, 21, 22], blocksMovement: true, blocksLight: true },
+        { id: 'foot', frames: [30, 31, 32], blocksMovement: false, blocksLight: false },
       ],
     },
     short: {
-      rows: [{ id: 'short_wall', frames: [40, 41, 42], blocksMovement: true }],
+      rows: [{ id: 'short_wall', frames: [40, 41, 42], blocksMovement: true, blocksLight: true }],
     },
   },
 };
@@ -124,7 +124,15 @@ describe('shared raised terrain autotile utility', () => {
   it('changes wall height by selecting a face profile rather than changing topology code', () => {
     const ridge = gridFrom(['###']);
     expect(resolveRaisedTerrainTile(ridge, TILE_SET, 'tall', 1, 1).faceLayers).toEqual([
-      { depth: 1, rowId: 'wall', join: 'middle', frame: 11, blocksMovement: true, direct: true },
+      {
+        depth: 1,
+        rowId: 'wall',
+        join: 'middle',
+        frame: 11,
+        blocksMovement: true,
+        blocksLight: true,
+        direct: true,
+      },
     ]);
     expect(resolveRaisedTerrainTile(ridge, TILE_SET, 'tall', 1, 2).faceLayers[0]?.frame).toBe(21);
     const tallFoot = resolveRaisedTerrainTile(ridge, TILE_SET, 'tall', 1, 3);

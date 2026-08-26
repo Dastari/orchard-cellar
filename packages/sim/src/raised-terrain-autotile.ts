@@ -24,6 +24,7 @@ export interface RaisedTerrainFaceRow {
   readonly id: string;
   readonly frames: readonly [left: number, middle: number, right: number];
   readonly blocksMovement: boolean;
+  readonly blocksLight: boolean;
 }
 
 /** A tileset can expose multiple profiles (for example `short` and `tall`).
@@ -39,6 +40,7 @@ export interface RaisedTerrainTileSet {
   readonly rampFrames: Readonly<Partial<Record<RaisedTerrainRampRole, number>>>;
   readonly faceProfiles: Readonly<Record<string, RaisedTerrainFaceProfile>>;
   readonly edgeBlocksMovement?: boolean;
+  readonly edgeBlocksLight?: boolean;
 }
 
 /** An editor can implement this interface directly from an integer elevation
@@ -70,6 +72,7 @@ export interface RaisedTerrainFaceLayer {
   readonly join: RaisedTerrainFaceJoin;
   readonly frame: number;
   readonly blocksMovement: boolean;
+  readonly blocksLight: boolean;
   /** False for a rear wall drawn only to preserve a layered step overlap. */
   readonly direct: boolean;
 }
@@ -83,6 +86,7 @@ export interface RaisedTerrainTilePlan {
   readonly rampRole: RaisedTerrainRampRole | null;
   readonly rampFrame: number | null;
   readonly blocksMovement: boolean;
+  readonly blocksLight: boolean;
 }
 
 export interface RaisedTerrainContourPlan {
@@ -222,6 +226,7 @@ export function resolveRaisedTerrainTile(
       join,
       frame: frameForJoin(row, join),
       blocksMovement: row.blocksMovement,
+      blocksLight: row.blocksLight,
       direct: southFaceAt(grid, tileX, tileY - depth),
     });
   }
@@ -240,6 +245,10 @@ export function resolveRaisedTerrainTile(
     blocksMovement: rampRole === null && (
       (edgeRole !== null && (tileSet.edgeBlocksMovement ?? true))
       || faceLayers.some((layer) => layer.direct && layer.blocksMovement)
+    ),
+    blocksLight: rampRole === null && (
+      (edgeRole !== null && (tileSet.edgeBlocksLight ?? false))
+      || faceLayers.some((layer) => layer.direct && layer.blocksLight)
     ),
   };
 }

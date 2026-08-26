@@ -45,6 +45,7 @@ import {
   survivalPlateauRamps,
   survivalElevationBytes,
   survivalRaisedTerrainBlocksMovementAt,
+  survivalRaisedTerrainStructuralAt,
   survivalTerrainHeightAt,
   survivalTerrainTransitions,
   survivalSpawnPosition,
@@ -244,7 +245,7 @@ describe('deterministic survival island', () => {
     expect(roleCounts.get('wall')).toBeGreaterThan(20);
     expect(roleCounts.get('lower_wall')).toBeGreaterThan(20);
     expect(roleCounts.get('foot')).toBeGreaterThan(20);
-    const raisedBlockingTiles = Array.from(
+    const raisedMovementBlockingTiles = Array.from(
       { length: SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE },
       (_, index) => survivalRaisedTerrainBlocksMovementAt(
         SURVIVAL_WORLD_SEED,
@@ -252,7 +253,16 @@ describe('deterministic survival island', () => {
         Math.floor(index / SURVIVAL_WORLD_SIZE),
       ),
     ).filter(Boolean).length;
-    expect(ridgeTiles).toBe(raisedBlockingTiles);
+    expect(raisedMovementBlockingTiles).toBe(0);
+    const structuralTiles = Array.from(
+      { length: SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE },
+      (_, index) => survivalRaisedTerrainStructuralAt(
+        SURVIVAL_WORLD_SEED,
+        index % SURVIVAL_WORLD_SIZE,
+        Math.floor(index / SURVIVAL_WORLD_SIZE),
+      ),
+    ).filter(Boolean).length;
+    expect(ridgeTiles).toBe(structuralTiles);
 
     const visited = new Uint8Array(plateauMask.length);
     const componentShapeMetrics: Array<{ readonly fill: number; readonly rowWidths: Set<number>; readonly asymmetry: number }> = [];
@@ -334,7 +344,7 @@ describe('deterministic survival island', () => {
     for (const role of SURVIVAL_CLIFF_ROLES.filter((value) => value.startsWith('ramp_'))) {
       expect(roleCounts.get(role) ?? 0, role).toBe(4);
     }
-  });
+  }, 30_000);
 
   it('30§3 climbs and descends generated slopes while unconnected contours stay solid', () => {
     const ramp = survivalPlateauRamps(SURVIVAL_WORLD_SEED)
@@ -387,6 +397,52 @@ describe('deterministic survival island', () => {
     let blocked: PlayerState = solidStart;
     for (let step = 0; step < 24; step += 1) blocked = movePlayer(blocked, 'up', collision);
     expect(solidStart.position.y - blocked.position.y).toBeLessThan(24 * FIXED_UNITS_PER_PIXEL);
+  });
+
+  it('30§5 lets lower-plane actors walk behind projected cliff faces without crossing elevation', () => {
+    const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
+    let southFace: { readonly tileX: number; readonly tileY: number; readonly contourLevel: number } | null = null;
+    for (let tileY = 1; tileY < SURVIVAL_WORLD_SIZE - 4 && southFace === null; tileY += 1) {
+      for (let tileX = 1; tileX < SURVIVAL_WORLD_SIZE - 1; tileX += 1) {
+        const contourLevel = survivalTerrainHeightAt(SURVIVAL_WORLD_SEED, tileX, tileY);
+        if (contourLevel < 1
+          || survivalTerrainHeightAt(SURVIVAL_WORLD_SEED, tileX, tileY + 1) !== contourLevel - 1
+          || transitions.some((transition) => transition.upperTileX === tileX
+            && transition.upperTileY === tileY)) continue;
+        southFace = { tileX, tileY, contourLevel };
+        break;
+      }
+    }
+    expect(southFace).not.toBeNull();
+    if (southFace === null) return;
+    const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
+    for (let projectedRow = 1; projectedRow <= 3; projectedRow += 1) {
+      const index = (southFace.tileY + projectedRow) * collision.width + southFace.tileX;
+      expect(collision.blocked[index], `projected row ${projectedRow}`).toBe(false);
+      expect(survivalRaisedTerrainStructuralAt(
+        SURVIVAL_WORLD_SEED,
+        southFace.tileX,
+        southFace.tileY + projectedRow,
+      )).toBe(projectedRow <= 2);
+    }
+    const start = {
+      position: {
+        x: southFace.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+        y: (southFace.tileY + 3) * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      },
+      facing: 'up' as const,
+      moving: false,
+      location: 'estate' as const,
+    };
+    let behind: PlayerState = start;
+    for (let step = 0; step < 64; step += 1) behind = movePlayer(behind, 'up', collision);
+    const sampledTileY = Math.floor(
+      (behind.position.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED,
+    );
+    expect(sampledTileY).toBe(southFace.tileY + 1);
+    expect(start.position.y - behind.position.y).toBeGreaterThan(2 * TILE_SIZE_FIXED);
+    expect(survivalTerrainHeightAt(SURVIVAL_WORLD_SEED, southFace.tileX, sampledTileY))
+      .toBe(southFace.contourLevel - 1);
   });
 
   it('adds smaller organic lowered dirt terraces with walkable inset rims and no generated ramps', () => {

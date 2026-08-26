@@ -14,7 +14,7 @@ import {
   survivalTerrainTransitions,
   survivalCliffRoleBytes,
   survivalBiomeAllowsHorseJump,
-  survivalBiomeBlocksMovement,
+  survivalTerrainBlocksTraversalAt,
   survivalDirtCliffRoleBytes,
   survivalDirtTerraceBytes,
   survivalTerrainBytes,
@@ -107,8 +107,11 @@ export function terrainForSpace(space: SpaceDefinition, seed: number, version: n
         width: SURVIVAL_WORLD_SIZE,
         height: SURVIVAL_WORLD_SIZE,
         biomes,
-        blocked: Array.from(biomes, (biome) => (
-          survivalBiomeBlocksMovement(SURVIVAL_BIOMES[biome] ?? 'water')
+        blocked: Array.from(biomes, (_biome, index) => survivalTerrainBlocksTraversalAt(
+          seed,
+          index % SURVIVAL_WORLD_SIZE,
+          Math.floor(index / SURVIVAL_WORLD_SIZE),
+          'ground',
         )),
         horseJumpableTerrain: Array.from(biomes, (biome) => (
           survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biome] ?? 'water')

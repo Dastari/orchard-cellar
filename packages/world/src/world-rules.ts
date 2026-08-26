@@ -200,6 +200,12 @@ export function createAuthoritySpaceCollisionMap(
     width: terrain.width,
     height: terrain.height,
     blocked,
+    ...(medium === 'ground' && terrain.elevations !== undefined
+      ? { elevations: terrain.elevations }
+      : {}),
+    ...(medium === 'ground' && terrain.terrainTransitions !== undefined
+      ? { terrainTransitions: terrain.terrainTransitions }
+      : {}),
     horseJumpableTerrain,
     obstacles,
   };

@@ -2,7 +2,7 @@ import {
   FIXED_UNITS_PER_PIXEL,
   SURVIVAL_CLIFF_ROLES,
   TOPSIDE_SPACE_ID,
-  survivalCliffRoleBlocksMovement,
+  survivalCliffRoleBlocksLight,
   type CollisionObstacle,
 } from '@orchard/sim';
 import type { LoadedAsset } from './assets.js';
@@ -124,12 +124,12 @@ function surfaceTileBlocksLight(terrain: TerrainArray, index: number, nested: bo
   if (nested && terrain.raisedTerrainCollisionClassified === true) {
     return terrainBiomeAt(terrain, tileX, tileY) === 'ridge';
   }
-  if (nested && plateauLayerPlansAt(terrain, tileX, tileY).some(({ plan }) => plan.blocksMovement)) return true;
+  if (nested && plateauLayerPlansAt(terrain, tileX, tileY).some(({ plan }) => plan.blocksLight)) return true;
   const cliffRole = SURVIVAL_CLIFF_ROLES[terrain.cliffRoles[index] ?? 0] ?? 'none';
   // Biome/top-surface labels are not height. Only an authored vertical wall
   // role casts a surface-terrain shadow; ridge tops, insets, shores and water
   // remain light receivers.
-  return survivalCliffRoleBlocksMovement(cliffRole);
+  return survivalCliffRoleBlocksLight(cliffRole);
 }
 
 function surfaceTileIsFrontFace(terrain: TerrainArray, index: number, nested: boolean): boolean {
@@ -138,7 +138,7 @@ function surfaceTileIsFrontFace(terrain: TerrainArray, index: number, nested: bo
   if (nested && (terrain.raisedTerrainCollisionClassified !== true
     || terrainBiomeAt(terrain, tileX, tileY) === 'ridge')
     && plateauLayerPlansAt(terrain, tileX, tileY).some(({ plan }) => (
-    plan.faceLayers.some((face) => face.direct && face.blocksMovement)
+    plan.faceLayers.some((face) => face.direct && face.blocksLight)
   ))) return true;
   const cliffRole = SURVIVAL_CLIFF_ROLES[terrain.cliffRoles[index] ?? 0] ?? 'none';
   return cliffRole.startsWith('wall') || cliffRole.startsWith('lower_wall');

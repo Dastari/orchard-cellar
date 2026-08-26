@@ -11,6 +11,7 @@ import {
   generateSurvivalResources,
   survivalBiomeAt,
   survivalResourceObstacle,
+  survivalTerrainTransitions,
 } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import {
@@ -222,22 +223,33 @@ describe('overworld authority rules', () => {
     expect(debug.blocked[5 * debug.width + 5]).toBe(false);
     expect(debug.obstacles).toHaveLength(1);
     expect(topside.obstacles?.length).toBeGreaterThan(1);
+    expect(debug.elevations).toBeUndefined();
+    expect(debug.terrainTransitions).toBeUndefined();
+    expect(topside.elevations).toHaveLength(SURVIVAL_WORLD_SIZE ** 2);
+    expect(topside.terrainTransitions).toEqual(survivalTerrainTransitions(SURVIVAL_WORLD_SEED));
   }, 15_000);
 
-  it('blocks generated water and ridge while using narrow mutable trunk obstacles', () => {
+  it('blocks water and solid ridges while projected cliff rows remain lower-plane walkable', () => {
     const terrain = Array.from({ length: SURVIVAL_WORLD_SIZE ** 2 }, (_, index) => ({
       tileX: index % SURVIVAL_WORLD_SIZE,
       tileY: Math.floor(index / SURVIVAL_WORLD_SIZE),
     }));
     const water = terrain.find(({ tileX, tileY }) => survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY) === 'water');
-    const ridge = terrain.find(({ tileX, tileY }) => survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY) === 'ridge');
+    const projectedCliff = terrain.find(({ tileX, tileY }) => survivalBiomeAt(
+      SURVIVAL_WORLD_SEED, tileX, tileY,
+    ) === 'ridge');
+    const solidRidge = terrain.find(({ tileX, tileY }) => {
+      const biome = survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY);
+      return biome === 'desert_ridge' || biome === 'coastal_cliff';
+    });
     const resource = generateSurvivalResources().find((candidate) => candidate.kind.startsWith('tree_'));
-    if (!water || !ridge || !resource) throw new Error('missing generated-world fixture');
+    if (!water || !projectedCliff || !solidRidge || !resource) throw new Error('missing generated-world fixture');
 
     const live = createAuthoritySurvivalCollisionMap([{ ...resource, depleted: false }]);
     const depleted = createAuthoritySurvivalCollisionMap([{ ...resource, depleted: true }]);
     expect(live.blocked[water.tileY * live.width + water.tileX]).toBe(true);
-    expect(live.blocked[ridge.tileY * live.width + ridge.tileX]).toBe(true);
+    expect(live.blocked[solidRidge.tileY * live.width + solidRidge.tileX]).toBe(true);
+    expect(live.blocked[projectedCliff.tileY * live.width + projectedCliff.tileX]).toBe(false);
     expect(live.obstacles).toHaveLength((depleted.obstacles?.length ?? 0) + 1);
     expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(false);
     expect(depleted.obstacles?.length).toBeGreaterThan(0);

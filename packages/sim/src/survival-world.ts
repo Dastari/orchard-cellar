@@ -150,10 +150,8 @@ export const SURVIVAL_CLIFF_ROLES = [
 ] as const;
 export type SurvivalCliffRole = typeof SURVIVAL_CLIFF_ROLES[number];
 
-/** Projected cliff feet are visual overlap on the approach tile. Ramps and
- * feet remain walkable; caps, sides, and the actual wall rows stay solid. */
-export function survivalCliffRoleBlocksMovement(role: SurvivalCliffRole): boolean {
-  return role !== 'none' && !role.startsWith('ramp_') && !role.startsWith('foot');
+export function survivalCliffRoleBlocksLight(role: SurvivalCliffRole): boolean {
+  return role.startsWith('wall') || role.startsWith('lower_wall');
 }
 
 export interface SurvivalPlateauRamp {
@@ -175,12 +173,16 @@ export const SURVIVAL_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
   faceProfiles: {
     tall: {
       rows: [
-        { id: 'wall', frames: [43, 44, 45], blocksMovement: true },
-        { id: 'lower_wall', frames: [57, 58, 59], blocksMovement: true },
-        { id: 'foot', frames: [71, 72, 73], blocksMovement: false },
+        { id: 'wall', frames: [43, 44, 45], blocksMovement: false, blocksLight: true },
+        { id: 'lower_wall', frames: [57, 58, 59], blocksMovement: false, blocksLight: true },
+        { id: 'foot', frames: [71, 72, 73], blocksMovement: false, blocksLight: false },
       ],
     },
   },
+  // The contour transition, not its projected pixels, is the physical wall.
+  // Lower-plane actors can therefore walk behind all three visual face rows.
+  edgeBlocksMovement: false,
+  edgeBlocksLight: false,
   insetFrames: {
     inner_bottom_right: 0,
     inner_bottom_left: 1,
@@ -1039,6 +1041,7 @@ export function survivalRaisedTerrainPlansAt(
 }
 
 const raisedTerrainBlockingCache = new Map<number, Uint8Array>();
+const raisedTerrainStructuralCache = new Map<number, Uint8Array>();
 
 export function survivalRaisedTerrainBlocksMovementAt(
   seed: number,
@@ -1056,6 +1059,30 @@ export function survivalRaisedTerrainBlocksMovementAt(
   if (cache[index] === 255) {
     cache[index] = Number(survivalRaisedTerrainPlansAt(seed, tileX, tileY)
       .some(({ plan }) => plan.blocksMovement));
+  }
+  return cache[index] === 1;
+}
+
+/** True for visual cliff structure even when its projected pixels are
+ * walkable on the lower elevation plane. This keeps generation/resource
+ * exclusion and light classification independent from physical collision. */
+export function survivalRaisedTerrainStructuralAt(
+  seed: number,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return false;
+  let cache = raisedTerrainStructuralCache.get(seed);
+  if (!cache) {
+    cache = new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE);
+    cache.fill(255);
+    raisedTerrainStructuralCache.set(seed, cache);
+  }
+  const index = tileY * SURVIVAL_WORLD_SIZE + tileX;
+  if (cache[index] === 255) {
+    cache[index] = Number(survivalRaisedTerrainPlansAt(seed, tileX, tileY).some(({ plan }) => (
+      plan.edgeRole !== null || plan.faceLayers.some((layer) => layer.direct && layer.blocksLight)
+    )));
   }
   return cache[index] === 1;
 }
@@ -1281,7 +1308,7 @@ export function survivalBiomeAt(seed: number, tileX: number, tileY: number): Sur
 
   const cliffRole = survivalCliffRoleAt(seed, tileX, tileY);
   if (cliffRole.startsWith('ramp_')) return 'highland';
-  if (survivalRaisedTerrainBlocksMovementAt(seed, tileX, tileY)) return 'ridge';
+  if (survivalRaisedTerrainStructuralAt(seed, tileX, tileY)) return 'ridge';
   if (survivalTerrainHeightAt(seed, tileX, tileY) > 0) return 'highland';
 
   const dirtCliffRole = survivalDirtCliffRoleAt(seed, tileX, tileY);
@@ -1320,6 +1347,22 @@ export function survivalBiomeBlocksTraversal(biome: SurvivalBiome, medium: Movem
     return biome !== 'water' && biome !== 'freshwater' && biome !== 'oasis_water';
   }
   return survivalBiomeBlocksMovement(biome);
+}
+
+/** Coordinate-aware ground collision. Raised cliff pixels are visual
+ * occluders on the lower plane; strict elevation transitions block the actual
+ * contour crossing. Other ridge kinds retain their ordinary solid tiles. */
+export function survivalTerrainBlocksTraversalAt(
+  seed: number,
+  tileX: number,
+  tileY: number,
+  medium: MovementMedium,
+): boolean {
+  const biome = survivalBiomeAt(seed, tileX, tileY);
+  if (medium === 'ground' && biome === 'ridge' && survivalRaisedTerrainStructuralAt(seed, tileX, tileY)) {
+    return survivalRaisedTerrainBlocksMovementAt(seed, tileX, tileY);
+  }
+  return survivalBiomeBlocksTraversal(biome, medium);
 }
 
 export function survivalDecorationBlocksTraversal(kind: SurvivalDecorationKind, medium: MovementMedium): boolean {
@@ -2062,7 +2105,12 @@ export function createSurvivalCollisionMap(
     const tileY = Math.floor(index / SURVIVAL_WORLD_SIZE);
     return survivalBiomeAt(seed, tileX, tileY);
   });
-  const blocked = biomes.map((biome) => survivalBiomeBlocksTraversal(biome, medium));
+  const blocked = biomes.map((_biome, index) => survivalTerrainBlocksTraversalAt(
+    seed,
+    index % SURVIVAL_WORLD_SIZE,
+    Math.floor(index / SURVIVAL_WORLD_SIZE),
+    medium,
+  ));
   const horseJumpableTerrain = biomes.map(survivalBiomeAllowsHorseJump);
   const obstacles: CollisionObstacle[] = [];
   for (const resource of medium === 'ground' ? resources : []) {

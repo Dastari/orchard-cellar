@@ -4,8 +4,7 @@ import {
   SURVIVAL_WORLD_SIZE,
   DEBUG_SPACE_ID,
   spaceDefinitionFor,
-  survivalBiomeBlocksMovement,
-  survivalCliffRoleBlocksMovement,
+  survivalTerrainBlocksTraversalAt,
 } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import {
@@ -84,7 +83,12 @@ describe('shared client terrain array', () => {
     for (let index = 0; index < terrain.blocked.length; index += 1) {
       const tileX = index % terrain.width;
       const tileY = Math.floor(index / terrain.width);
-      expect(terrain.blocked[index]).toBe(survivalBiomeBlocksMovement(terrainBiomeAt(terrain, tileX, tileY)));
+      expect(terrain.blocked[index]).toBe(survivalTerrainBlocksTraversalAt(
+        terrain.seed,
+        tileX,
+        tileY,
+        'ground',
+      ));
     }
   }, 20_000);
 
@@ -359,16 +363,18 @@ describe('shared client terrain array', () => {
     }
   });
 
-  it('matches authoritative collision semantics for every generated raised-terrain role', () => {
+  it('keeps projected raised-terrain roles walkable while walls continue blocking light', () => {
     const terrain = terrainForWorld(0x4f434852, 16);
     for (let tileY = 0; tileY < terrain.height; tileY += 1) {
       for (let tileX = 0; tileX < terrain.width; tileX += 1) {
         const index = tileY * terrain.width + tileX;
         const role = SURVIVAL_CLIFF_ROLES[terrain.cliffRoles[index] ?? 0] ?? 'none';
         if (role === 'none') continue;
-        expect(plateauLayerPlanAt(terrain, tileX, tileY).blocksMovement).toBe(
-          survivalCliffRoleBlocksMovement(role),
-        );
+        const plan = plateauLayerPlanAt(terrain, tileX, tileY);
+        expect(plan.blocksMovement).toBe(false);
+        if (role.startsWith('wall') || role.startsWith('lower_wall')) {
+          expect(plan.blocksLight).toBe(true);
+        }
       }
     }
   });
