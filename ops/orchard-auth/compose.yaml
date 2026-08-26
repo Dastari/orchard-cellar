@@ -62,6 +62,7 @@ services:
       - "10.0.1.150:8443:8443"
     volumes:
       - ./realm:/opt/keycloak/data/import:ro
+      - ./themes/orchard:/opt/keycloak/themes/orchard:ro
       - ./tls:/run/orchard-tls:ro
     networks:
       - database

@@ -51,8 +51,15 @@ following this doc suite.
 | [29-wildlife.md](29-wildlife.md) | Habitat packs, animal lifecycle, hives, animation contract | Wildlife/NPC work |
 | [25-stats-and-vitals.md](25-stats-and-vitals.md) | Attributes, health/mana/vigour, modifier pipeline, effects, creature statlines | Any stats/vitals/combat-adjacent work |
 | [26-underground-mines.md](26-underground-mines.md) | Spaces/instancing model, cave generation, portals/zoning, darkness & torches | Mines, interiors, any multi-space work |
-| [27-lighting-design.md](27-lighting-design.md) | Blocky-light charter, tile-flood occlusion, colored/flickering lights, water glints, rain | Any lighting/atmosphere work (supersedes 21 §5) |
+| [27-lighting-design.md](27-lighting-design.md) | Sub-tile quantized light, flood occlusion + shadows, height contract, lightning/sun shafts | Any lighting/atmosphere work (supersedes 21 §5) |
 | [28-crafting.md](28-crafting.md) | Material chains, stations (workbench/furnace/anvil/campfire), recipe list, placeables | Any crafting/item/placement work |
+| [30-infinite-terrain.md](30-infinite-terrain.md) | Semi-infinite chunked worldgen, biomes, lazy materialization, wildlife spawning, curation layer | Any worldgen/biome/wildlife work (supersedes 20 island gen) |
+| [32-combat.md](32-combat.md) | Damage model, hostile roster/AI, danger zones, drops; resolves 22 §9 rate deferral | Any combat work (with 25/26/27) |
+| [34-backend-scalability.md](34-backend-scalability.md) | Scalability audit + staged hardening: index discipline, subscription budget, chunk-scoped tick | Any world-module/netcode/perf work; gates 30 phase 2 |
+| [31-npc-dialogue-and-commerce.md](31-npc-dialogue-and-commerce.md) | Authority-backed NPC dialogue, coin purse, merchants, buy/sell transactions | NPC conversations, shops, item pricing |
+| [33-player-statistics.md](33-player-statistics.md) | Private lifetime counters, milestone history, and mandatory feature registration contract | Any authority-owned gameplay feature |
+| [35-homesteads-and-farming.md](35-homesteads-and-farming.md) | Instanced player farms: crops/gold loop, build mode (B), guest access roles | Farming, building, estate/access work (realizes 07) |
+| [36-character-progression.md](36-character-progression.md) | Character screen/customization, XP tracks, incremental skill trees, quest system | Progression, customization, quest, QoL-gating work |
 
 Minimal startup ritual for an implementing agent: **00 → 01 → 02 → 15 → your
 milestone in 14 → the docs that milestone lists.** Docs are binding; deviations go

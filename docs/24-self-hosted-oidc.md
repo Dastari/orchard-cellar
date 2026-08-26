@@ -268,3 +268,67 @@ second production OIDC identity exercising live revoke/block and private-state
 isolation. Automatic friend admission and restart persistence now pass in production;
 the remaining corresponding unit and isolated-smoke paths pass, but they are not yet
 represented here as live production evidence.
+
+## 11. Orchard account-theme rollout (2026-08-26)
+
+The account flow now feels continuous with the canvas UI without moving credential
+entry into game code. The account screen has distinct Sign In, Create Account, and
+Recover Account actions. Each retains Authorization Code + S256 PKCE, state, nonce,
+the exact callback, and the canonical issuer. Registration uses the OIDC
+`prompt=create` standard; recovery uses Keycloak's documented
+`/forgot-credentials` authorization-flow path. The existing identity namespace and
+every existing account remain unchanged.
+
+The versioned `ops/orchard-auth/themes/orchard` theme extends Keycloak 26.7.2's
+`keycloak.v2` login theme and bundled email theme. It overrides presentation and
+messages only, contains no JavaScript, and is mounted read-only. Small derived button,
+panel, ribbon, and UI-font resources are built reproducibly from the ignored licensed
+Cute Fantasy pack for use by this project. The complete source sheets remain excluded. The realm selects
+`orchard` for `loginTheme` and
+`emailTheme`; the redacted disaster-recovery realm now records those settings and the
+already-live open-registration state.
+
+Rollout evidence:
+
+- Before the live change, `bin/backup.sh` produced database, restore-list, redacted
+  realm, and deployment-configuration artifacts. Every file was SHA-256 verified
+  locally, uploaded over encrypted SMB, downloaded again, and verified at
+  `20260825T224029Z`. Future backups include the deployment scripts and theme without
+  including `.env`, SMB credentials, or TLS private keys.
+- With all Keycloak nodes stopped, the supported `bootstrap-admin user` maintenance
+  command created one random in-memory administrator. It selected both realm themes,
+  confirmed registration, verified email, and recovery remained enabled, deleted that
+  administrator, verified its database row was absent, and restarted Keycloak to clear
+  its temporary CLI session. The named administrators were untouched.
+- Public discovery still reports the exact canonical issuer. Harmless PKCE probes
+  reached themed sign-in, direct registration, and recovery pages; the Orchard CSS,
+  panels, buttons, and banner all loaded. CSP retained `frame-ancestors 'self'`,
+  Keycloak remained healthy after restart, and the credential/token/log secret scan
+  passed.
+- Client and tools TypeScript checks passed, as did the focused OIDC suite (5 tests),
+  including all three supported entry paths. No live account was created, reset, or
+  signed in during automated visual acceptance, so the earlier owner-confirmed mail
+  and identity-migration evidence remains the applicable end-to-end credential proof.
+- The final repository gate passed: world build, every workspace typecheck, lint, 78
+  test files/471 tests with coverage, and validation of 488 art assets.
+- After all checks, the complete themed state was backed up again at
+  `20260825T225600Z`; database, realm, deployment configuration, and theme passed the
+  same encrypted SMB upload/download hash-verification gate. That database dump then
+  passed the isolated PostgreSQL restore, realm/client-row, Keycloak health, and
+  canonical-discovery test.
+- The first visual follow-up replaced vertically stretched frame backgrounds with
+  native-proportion ribbon art and true nine-slice wood/parchment borders, collapsed
+  Keycloak's nested footer into the shared panel, restored the licensed project UI
+  typeface, and tightened the sign-in, registration, and recovery layouts. All three
+  templates fit without horizontal overflow in the automated desktop layout check.
+  The refined deployment was backed up and NAS round-trip verified at
+  `20260825T232733Z`.
+- The next UI follow-up constrains the primary provider action to a 220-pixel
+  nine-slice button, removes the rectangular color showing behind its transparent
+  corners, and increases title, label, input, action, and helper typography. It also
+  fixes the authenticated account panel's missing Enter-the-Orchard pointer action and
+  forces a clean root reload after a callback. Pure hit-area tests cover Enter, Sign
+  Out, Sign In, Register, and Recover; a browser callback-state simulation moved from
+  the signed-in panel to the shared overworld without a manual refresh. Public edge,
+  secret-scan, and health checks passed, and the resulting deployment backup completed
+  the encrypted NAS round-trip at `20260826T001935Z`.

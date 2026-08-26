@@ -190,6 +190,10 @@ Replace the `/3` filter with a snapshot buffer per remote identity:
   On reducer error, the existing toast path stands.
 - `dropSelected` / `pickupWorldItem`: same rule — instant animation, world/item
   rows change only on commit.
+- Own-resource bars use the same split: a tool keypress may show a cosmetic
+  Vigour dip immediately, while `own_stats` remains authoritative and confirms or
+  corrects the display. Durability never predicts: its bar changes only after the
+  successful inventory-row commit, so rejected swings cannot appear to wear tools.
 - This split (cosmetics predicted, state authoritative) is the standing pattern for
   future combat feel; note it in DECISIONS.md.
 
@@ -348,3 +352,18 @@ step-accounted movement runs settled against server-clamped client ticks.
 - `npm run check` passes 217 tests, 99.31% sim line coverage, lint, all workspace
   typechecks, the module build, and validation of 100 art assets, 3 songs, 10 SFX, 2 maps,
   55 palette colors, and four seasonal remaps.
+
+## 12. Scalability addendum (2026-08-26)
+
+The vast-world audit ([34-backend-scalability.md](34-backend-scalability.md))
+binds three subscription rules on top of this doc: the chunk-subscription
+radius is capped by a hard client constant (`MAX_VIEW_RADIUS`), never by
+world size; view bounds become rectangular (viewport-derived per axis); and
+chunk-crossing resubscription gains a hysteresis deadband so boundary
+oscillation cannot churn query sets. Ring-delta subscriptions (subscribe only
+newly entered chunks) are the sanctioned future optimization if handover cost
+ever dominates.
+
+**Implemented 2026-08-26 (doc 34 stage 2):** the cap is 9 chunks per axis,
+viewport bounds are rectangular, and the subscribed centre has an 8-tile
+deadband. Radius changes retain the existing 180 ms debounce.

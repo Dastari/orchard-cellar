@@ -1,4 +1,8 @@
-export interface DragItemSnapshot { readonly itemKind: string; readonly quantity: number }
+export interface DragItemSnapshot {
+  readonly itemKind: string;
+  readonly quantity: number;
+  readonly durability?: number;
+}
 export interface DragSlotRef { readonly containerId: string; readonly index: number }
 export interface MoveItemIntent {
   readonly fromContainer: string;

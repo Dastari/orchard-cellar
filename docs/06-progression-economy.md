@@ -211,6 +211,9 @@ verbatim from the original). Simulate 60 coarse chunks through the real economy 
 so offline obeys the same bottlenecks as live play. Estate hands keep working
 offline; Care decays at half rate offline (kindness rule).
 
+Public ground-item drops persist for **20 real minutes / 24,000 authority ticks**
+before the authority removes them. Picking an item up removes it immediately.
+
 ## 9. Achievements (curated 40)
 
 Keep the original's structure — each grants a permanent global bonus; total ≈
@@ -239,3 +242,54 @@ Anti-frustration invariants: no fail states; nothing ever decreases below a floo
 except by prestige choice; every session ≥15 min must include at least one visible
 step forward (a milestone, unlock, or new almanac entry) through year 3 — verify in
 playtesting.
+
+## 11. Stats, vitals, and effects
+
+The live overworld character system is specified in
+[25-stats-and-vitals.md](25-stats-and-vitals.md). These are the binding balance
+numbers; §3 above remains the retired solo farm scene's tend-charge economy.
+
+- Six base attributes—STR, DEX, CON, INT, WIS, CHA—start at **10**, store in the
+  **1–30** range, and use `floor((attribute - 10) / 2)` for checks. Health derives
+  from STR, Mana from INT, and Vigour from CON.
+- Vitals use centi-units (**100 centi = 1 displayed unit**). Max Health is
+  `10 × STR`, max Mana `10 × INT`, and max Vigour `10 × CON`; all baseline at
+  **100 displayed / 10,000 centi**.
+- Health regenerates **0.2/s** flat. Mana regenerates **0.1 × WIS/s** (1.0/s at
+  baseline). Vigour regenerates **0.8 × CON/s** (8.0/s at baseline; empty to full
+  in about 12.5 seconds). Lazy online sweeps run every **10 authority ticks / 0.5
+  seconds**; offline catch-up is allowed.
+- Modifier percentages use basis points (**10,000 = 100%**) and resolve in the
+  sole order flat → summed additive percent → stable-id multiplicative percent →
+  highest override → bounds/softcap. Attributes hard-cap at 30; regen uses the
+  shared softcap path.
+
+| Tool | Vigour cost | Minimum interval at 20 Hz |
+|---|---:|---:|
+| Watering can | 8 | 6 ticks / 300 ms |
+| Hoe | 10 | 6 ticks / 300 ms |
+| Fishing rod | 6 | 6 ticks / 300 ms |
+| Bow | 10 | 6 ticks / 300 ms |
+| Sword | 12 | 7 ticks / 350 ms |
+| Axe | 15 | 8 ticks / 400 ms |
+| Pickaxe | 20 | 10 ticks / 500 ms |
+| Shovel | 12 | 7 ticks / 350 ms |
+| Hammer | 18 | 9 ticks / 450 ms |
+
+A whiff costs half Vigour, rounded up. Initial effects are **Well Rested** (+25%
+Vigour regen, 2 hours / 144,000 ticks), **Winded** (−50% Vigour regen, 90 seconds /
+1,800 ticks), and **Orchard Tea** (+2 CON, 5 minutes / 6,000 ticks). Skill-check
+DCs are trivial **5**, easy **10**, medium **15**, and hard **20**. At zero Health,
+the character is knocked out: respawn at their spawn slot with **25% Health** and
+Winded, with no item, currency, or durability loss.
+New-character allocation searches walkable tiles in rings across the established
+spawn area, up to **60 tiles** from its centre; this is a spatial safety bound, not
+a concurrent-player slot cap.
+
+Successful uses cost one tool durability; rejected actions and whiffs cost none.
+Maximums and full-repair costs are: Axe **200 / 1 Wood**, Pickaxe **250 / 1 Stone**,
+Hoe **180 / 1 Wood**, Watering can **160 / 1 Stone**, Bow **300 / 1 Wood**,
+Shovel **220 / 1 Stone**, Hammer **300 / 1 Stone**, Fishing rod **160 / 1 Wood**,
+and Sword **250 / 1 Stone**. At zero, a tool is broken
+but retained. `R` repairs the selected damaged tool. Slot bars are green above 50%,
+gold at 21–50%, and red at 20% or below.

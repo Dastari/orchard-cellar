@@ -1,6 +1,11 @@
+import type { Modifier } from './modifiers.js';
+
 export interface ItemDefinition {
   readonly maxStack: number;
   readonly tags: readonly string[];
+  /** Equipped-item contributions enter the same two-pass stat pipeline as
+   * effects and skills. Empty today is valid; adding data needs no reducer. */
+  readonly modifiers?: readonly Modifier[];
 }
 
 export const ITEM_DEFINITIONS = {
@@ -9,6 +14,11 @@ export const ITEM_DEFINITIONS = {
   pickaxe: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
   watering_can: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
   bow: { maxStack: 1, tags: ['item.weapon', 'item.ranged_weapon', 'gear.hand'] },
+  sword: { maxStack: 1, tags: ['item.weapon', 'item.melee_weapon', 'gear.hand'] },
+  shovel: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
+  hammer: { maxStack: 1, tags: ['item.tool', 'gear.hand'] },
+  torch: { maxStack: 32, tags: ['item.tool', 'item.placeable', 'item.light', 'gear.hand'] },
+  lantern: { maxStack: 1, tags: ['item.tool', 'item.placeable', 'item.light', 'gear.hand'] },
   arrow: { maxStack: 99, tags: ['item.ammunition', 'ammo.arrow'] },
   wood: { maxStack: 99, tags: ['item.resource', 'material.wood'] },
   stone: { maxStack: 99, tags: ['item.resource', 'material.stone'] },
@@ -28,6 +38,7 @@ export const ITEM_DEFINITIONS = {
   peach: { maxStack: 32, tags: ['item.crop', 'item.food', 'crop.fruit'] },
   cherry: { maxStack: 32, tags: ['item.crop', 'item.food', 'crop.fruit'] },
   grape: { maxStack: 32, tags: ['item.crop', 'item.food', 'crop.fruit'] },
+  orchard_tea: { maxStack: 8, tags: ['item.consumable', 'item.food', 'effect.orchard_tea'] },
   barrel: { maxStack: 16, tags: ['item.placeable', 'item.crafted', 'container.barrel'] },
   backpack: { maxStack: 1, tags: ['item.equipment', 'container.backpack'] },
   necklace: { maxStack: 1, tags: ['item.equipment', 'gear.neck'] },
@@ -45,6 +56,9 @@ export type KnownItemKind = keyof typeof ITEM_DEFINITIONS;
 export interface ItemStack {
   readonly itemKind: string;
   readonly quantity: number;
+  /** Present only for non-stackable durable tools. Storage authorities must
+   * preserve it when moving/swapping the stack. */
+  readonly durability?: number;
 }
 
 export interface SlotRestriction {
@@ -71,6 +85,12 @@ export interface MoveItemRequest {
 export interface QuickMoveItemRequest {
   readonly fromContainer: string;
   readonly fromIndex: number;
+  readonly toContainers: readonly string[];
+}
+
+export interface QuickMoveAllMatchingRequest {
+  readonly itemKind: string;
+  readonly fromContainers: readonly string[];
   readonly toContainers: readonly string[];
 }
 
@@ -122,7 +142,12 @@ export interface InsertItemSuccess {
   readonly container: ContainerSnapshot;
 }
 
+export interface InsertItemPartialSuccess extends InsertItemSuccess {
+  readonly remainderQuantity: number;
+}
+
 export type InsertItemResult = ItemRuleFailure | InsertItemSuccess;
+export type InsertItemPartialResult = ItemRuleFailure | InsertItemPartialSuccess;
 
 export interface ShapelessRecipeDefinition {
   readonly kind: 'shapeless';
@@ -159,6 +184,11 @@ export const RECIPES = {
     pattern: ['plank', 'plank', 'plank', 'plank', null, 'plank', 'plank', 'plank', 'plank'],
     output: { itemKind: 'chest', quantity: 1 },
   },
+  orchard_tea: {
+    kind: 'shapeless',
+    inputs: [{ itemKind: 'apple', quantity: 1 }, { itemKind: 'pear', quantity: 1 }],
+    output: { itemKind: 'orchard_tea', quantity: 1 },
+  },
 } as const satisfies Readonly<Record<string, RecipeDefinition>>;
 
 export interface CraftRequest {
@@ -188,6 +218,10 @@ export function itemDefinition(itemKind: string): ItemDefinition | null {
   return Object.prototype.hasOwnProperty.call(ITEM_DEFINITIONS, itemKind)
     ? ITEM_DEFINITIONS[itemKind as KnownItemKind]
     : null;
+}
+
+export function itemModifiers(itemKind: string): readonly Modifier[] {
+  return itemDefinition(itemKind)?.modifiers ?? [];
 }
 
 export function maxStackFor(itemKind: string): number | null {
@@ -235,10 +269,44 @@ export function insertItemStack(container: ContainerSnapshot, item: ItemStack): 
   for (let index = 0; index < slots.length && remaining > 0; index += 1) {
     if (slots[index] !== null || !slotAcceptsItem(normalized, index, item.itemKind)) continue;
     const inserted = Math.min(remaining, maxStack);
-    slots[index] = { itemKind: item.itemKind, quantity: inserted };
+    slots[index] = { ...item, quantity: inserted };
     remaining -= inserted;
   }
   return { ok: true, insertedQuantity: item.quantity, container: withSlots(normalized, slots) };
+}
+
+/** Inserts as much as possible without ever discarding the remainder. This is
+ * used by durable overflow recovery, where a partially-drained safety stack
+ * must stay recorded until more player inventory space becomes available. */
+export function insertItemStackPartial(container: ContainerSnapshot, item: ItemStack): InsertItemPartialResult {
+  const maxStack = maxStackFor(item.itemKind);
+  if (maxStack === null) return failure('unknown_item_kind');
+  if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) return failure('invalid_quantity');
+  const normalized = normalizeContainer(container);
+  const slots = [...normalized.slots];
+  let remaining = item.quantity;
+  for (let index = 0; index < slots.length && remaining > 0; index += 1) {
+    const stack = slots[index];
+    if (stack?.itemKind !== item.itemKind || !slotAcceptsItem(normalized, index, item.itemKind)) continue;
+    const inserted = Math.min(remaining, maxStack - stack.quantity);
+    if (inserted <= 0) continue;
+    slots[index] = { ...stack, quantity: stack.quantity + inserted };
+    remaining -= inserted;
+  }
+  for (let index = 0; index < slots.length && remaining > 0; index += 1) {
+    if (slots[index] !== null || !slotAcceptsItem(normalized, index, item.itemKind)) continue;
+    const inserted = Math.min(remaining, maxStack);
+    slots[index] = { ...item, quantity: inserted };
+    remaining -= inserted;
+  }
+  const insertedQuantity = item.quantity - remaining;
+  if (insertedQuantity === 0) return failure('container_full');
+  return {
+    ok: true,
+    insertedQuantity,
+    remainderQuantity: remaining,
+    container: withSlots(normalized, slots),
+  };
 }
 
 function validStack(stack: ItemStack | null): stack is ItemStack {
@@ -356,7 +424,7 @@ export function quickMoveItemStack(
         remaining -= moved;
       } else if (pass === 'empty' && stack === null) {
         const moved = Math.min(remaining, maximum);
-        slots[index] = { itemKind: source.itemKind, quantity: moved };
+        slots[index] = { ...source, quantity: moved };
         remaining -= moved;
       }
     }
@@ -368,6 +436,45 @@ export function quickMoveItemStack(
   sourceSlots[request.fromIndex] = remaining === 0 ? null : { ...source, quantity: remaining };
   next[request.fromContainer] = withSlots(next[request.fromContainer]!, sourceSlots);
   return { ok: true, outcome: 'quick_move', movedQuantity, containers: next };
+}
+
+/** Shift-double-click: transfer every matching stack from the selected
+ * inventory side in deterministic slot order. The entire gesture is computed
+ * from immutable snapshots so an authority can commit it as one transaction. */
+export function quickMoveAllMatchingStacks(
+  containers: Readonly<Record<string, ContainerSnapshot>>,
+  request: QuickMoveAllMatchingRequest,
+): MoveItemResult {
+  if (maxStackFor(request.itemKind) === null) return failure('unknown_item_kind');
+  const sourceIds = uniqueContainerIds(request.fromContainers);
+  if ([...sourceIds, ...request.toContainers].some((id) => containers[id] === undefined)) {
+    return failure('container_not_found');
+  }
+  let next = cloneContainers(containers);
+  let movedQuantity = 0;
+  for (const sourceId of sourceIds) {
+    const capacity = next[sourceId]!.capacity;
+    for (let index = 0; index < capacity; index += 1) {
+      const stack = next[sourceId]!.slots[index];
+      if (stack?.itemKind !== request.itemKind) continue;
+      const moved = quickMoveItemStack(next, {
+        fromContainer: sourceId,
+        fromIndex: index,
+        toContainers: request.toContainers,
+      });
+      if (!moved.ok) {
+        if (moved.code === 'container_full') return movedQuantity === 0
+          ? moved
+          : { ok: true, outcome: 'quick_move', movedQuantity, containers: next };
+        return moved;
+      }
+      movedQuantity += moved.movedQuantity;
+      next = { ...moved.containers };
+    }
+  }
+  return movedQuantity === 0
+    ? failure('source_empty')
+    : { ok: true, outcome: 'quick_move', movedQuantity, containers: next };
 }
 
 /** Evenly spreads a held stack over every compatible slot crossed during a
@@ -433,7 +540,7 @@ export function distributeItemStack(
     const stack = slots[target.index];
     slots[target.index] = stack
       ? { ...stack, quantity: stack.quantity + quantity }
-      : { itemKind: source.itemKind, quantity };
+      : { ...source, quantity };
     next[target.container] = withSlots(container, slots);
   });
   const sourceSlots = [...next[request.fromContainer]!.slots];

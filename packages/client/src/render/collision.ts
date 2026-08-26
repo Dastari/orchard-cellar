@@ -3,10 +3,9 @@ import {
   TILE_SIZE_FIXED,
   generateSurvivalDecorations,
   survivalBiomeBlocksTraversal,
-  survivalDecorationBlocksTraversal,
+  survivalDecorationObstacle,
   survivalResourceBlocksMovement,
   survivalResourceObstacle,
-  survivalWaterRockObstacle,
   type CollisionMap,
   type MovementMedium,
 } from '@orchard/sim';
@@ -29,15 +28,12 @@ export function createClientCollisionMap(
   for (const chest of medium === 'ground' ? chests : []) if (chest.carriedBy === undefined) obstacles.push({
     left: chest.tileX * TILE_SIZE_FIXED,
     top: chest.tileY * TILE_SIZE_FIXED,
-    right: (chest.tileX + 1) * TILE_SIZE_FIXED,
-    bottom: (chest.tileY + 1) * TILE_SIZE_FIXED,
+    right: (chest.tileX + 1) * TILE_SIZE_FIXED - 1,
+    bottom: (chest.tileY + 1) * TILE_SIZE_FIXED - 1,
   });
-  if (medium === 'water') {
-    for (const decoration of generateSurvivalDecorations(terrain.seed)) {
-      if (survivalDecorationBlocksTraversal(decoration.kind, medium)) {
-        obstacles.push(survivalWaterRockObstacle(decoration.tileX, decoration.tileY));
-      }
-    }
+  for (const decoration of generateSurvivalDecorations(terrain.seed)) {
+    const obstacle = survivalDecorationObstacle(decoration, medium);
+    if (obstacle !== null) obstacles.push(obstacle);
   }
   return {
     width: terrain.width,

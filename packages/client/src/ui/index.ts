@@ -9,6 +9,8 @@ export * from './compositions.js';
 export * from './skin.js';
 export * from './slider.js';
 export * from './ribbon.js';
+export * from './player-resource-frame.js';
+export * from './currency-display.js';
 export * from './item-slot.js';
 export * from './help-book.js';
 export * from './overworld-ui.js';

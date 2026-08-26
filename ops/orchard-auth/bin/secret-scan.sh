@@ -32,7 +32,8 @@ fi
 
 if git -C "$REPOSITORY_DIR" grep -En '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|refresh_token[[:space:]]*=[^=]|SMTP_PASSWORD=.+|POSTGRES_PASSWORD=.+|KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD=.+)' \
   -- . ':!ops/orchard-auth/bin/secret-scan.sh' \
-  | grep -vE '(GENERATE_AT_LEAST|SMTP_PASSWORD=$)' >/dev/null; then
+  | grep -vE '(GENERATE_AT_LEAST|SMTP_PASSWORD=$|PASSWORD=%s|PASSWORD=\$[A-Z_]+)' \
+  | grep -vF 'SMTP_PASSWORD=\n' >/dev/null; then
   echo 'Potential secret found in tracked repository content' >&2
   exit 1
 fi

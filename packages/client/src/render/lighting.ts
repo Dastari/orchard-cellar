@@ -14,6 +14,10 @@ export interface PointLight {
   readonly color: RgbColor;
 }
 
+/** Four samples per world tile keeps the light falloff smooth without turning
+ * the full-resolution world canvas into a second expensive render target. */
+export const LIGHTMAP_TEXELS_PER_TILE = 4;
+
 interface AmbientKeyframe {
   readonly progress: number;
   readonly color: RgbColor;
@@ -30,6 +34,10 @@ const AMBIENT_KEYFRAMES: readonly AmbientKeyframe[] = [
 
 export const LANTERN_LIGHT: RgbColor = { r: 255, g: 217, b: 160 };
 export const TORCH_LIGHT: RgbColor = { r: 255, g: 184, b: 104 };
+export const CAMPFIRE_LIGHT: RgbColor = { r: 255, g: 205, b: 132 };
+export const CAMPFIRE_LIGHT_RADIUS_TILES = 12;
+export const TORCH_LIGHT_RADIUS_TILES = CAMPFIRE_LIGHT_RADIUS_TILES * 0.3;
+export const LANTERN_LIGHT_RADIUS_TILES = CAMPFIRE_LIGHT_RADIUS_TILES * 0.75;
 
 export function playerLightPosition(worldX: number, footY: number): readonly [number, number] {
   return [worldX, footY - 12];
@@ -75,9 +83,14 @@ export function fillLightmap(buffer: Uint8ClampedArray, ambient: RgbColor): void
   }
 }
 
-/** Converts a world point to a texel index where texels sample tile centres. */
-export function lightmapCoordinate(worldPixels: number, firstTile: number): number {
-  return worldPixels / 16 - firstTile - 0.5;
+/** Converts a world point to a texel index where texels sample evenly within
+ * each tile. A value of one retains the original tile-centre coordinate rule. */
+export function lightmapCoordinate(
+  worldPixels: number,
+  firstTile: number,
+  texelsPerTile = 1,
+): number {
+  return (worldPixels / 16 - firstTile) * texelsPerTile - 0.5;
 }
 
 export function stampPointLight(
@@ -135,8 +148,10 @@ export class TileLightmap {
     const minTileY = Math.max(0, Math.floor(cameraY / 16) - margin);
     const maxTileX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16) + margin);
     const maxTileY = Math.min(terrain.height - 1, Math.ceil((cameraY + viewportHeight / scale) / 16) + margin);
-    const width = Math.max(1, maxTileX - minTileX + 1);
-    const height = Math.max(1, maxTileY - minTileY + 1);
+    const tileWidth = Math.max(1, maxTileX - minTileX + 1);
+    const tileHeight = Math.max(1, maxTileY - minTileY + 1);
+    const width = tileWidth * LIGHTMAP_TEXELS_PER_TILE;
+    const height = tileHeight * LIGHTMAP_TEXELS_PER_TILE;
     this.resize(width, height);
     fillLightmap(this.pixels, ambient);
     for (const light of lights) {
@@ -144,23 +159,26 @@ export class TileLightmap {
         this.pixels,
         width,
         height,
-        lightmapCoordinate(light.worldX, minTileX),
-        lightmapCoordinate(light.worldY, minTileY),
-        light.radiusTiles,
+        lightmapCoordinate(light.worldX, minTileX, LIGHTMAP_TEXELS_PER_TILE),
+        lightmapCoordinate(light.worldY, minTileY, LIGHTMAP_TEXELS_PER_TILE),
+        light.radiusTiles * LIGHTMAP_TEXELS_PER_TILE,
         light.color,
       );
     }
     if (this.image === null) return;
     this.context.putImageData(this.image, 0, 0);
     target.save();
+    // Preserve a restrained pixel-art texture in the light falloff. At four
+    // texels per tile these are subtle four-world-pixel steps, rather than the
+    // coarse full-tile blocks used by the original lightmap.
     target.imageSmoothingEnabled = false;
     target.globalCompositeOperation = 'multiply';
     target.drawImage(
       this.canvas,
       Math.round((minTileX * 16 - cameraX) * scale),
       Math.round((minTileY * 16 - cameraY) * scale),
-      width * 16 * scale,
-      height * 16 * scale,
+      tileWidth * 16 * scale,
+      tileHeight * 16 * scale,
     );
     target.restore();
     target.imageSmoothingEnabled = false;

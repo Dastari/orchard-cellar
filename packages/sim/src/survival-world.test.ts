@@ -15,10 +15,13 @@ import {
   ORE_NODE_RESERVE_HITS,
   LARGE_ROCK_INITIAL_HEALTH,
   LARGE_ROCK_STONE_RESERVE,
+  MARLOW_CAMP,
   createSurvivalCollisionMap,
   generateSurvivalResources,
   generateSurvivalDecorations,
+  generateMarlowCampPathTiles,
   generatedSurvivalResourceAt,
+  findSurvivalSpawnTile,
   isChoppableTreeKind,
   isBreakableRockKind,
   isGatherableResourceKind,
@@ -44,6 +47,8 @@ import {
   survivalGatherableDrop,
   survivalIslandAt,
   survivalResourceInitialHealth,
+  survivalDecorationObstacle,
+  survivalMarlowCampReservedAt,
   survivalStreamAt,
   survivalTreeObstacle,
   survivalWaterRockObstacle,
@@ -54,6 +59,32 @@ import {
 } from './survival-world.js';
 
 describe('deterministic survival island', () => {
+  it('authors Marlow\'s camp as a clear, collidable permanent landmark', () => {
+    const decorations = generateSurvivalDecorations();
+    const camp = decorations.filter((decoration) => decoration.kind.startsWith('camp_'));
+    expect(camp).toHaveLength(12);
+    expect(camp.some((decoration) => decoration.kind === 'camp_tent')).toBe(true);
+    expect(camp.some((decoration) => decoration.kind === 'camp_campfire')).toBe(true);
+    expect(camp.some((decoration) => decoration.kind === 'camp_pond')).toBe(true);
+    expect(camp.some((decoration) => decoration.kind === 'camp_fishing_rod')).toBe(true);
+    expect(generateSurvivalResources().some((resource) =>
+      survivalMarlowCampReservedAt(resource.tileX, resource.tileY))).toBe(false);
+    const tent = camp.find((decoration) => decoration.kind === 'camp_tent');
+    expect(tent).toBeDefined();
+    if (tent) expect(survivalDecorationObstacle(tent, 'ground')).toEqual({
+      left: (tent.tileX - 1) * TILE_SIZE_FIXED,
+      top: (tent.tileY - 2) * TILE_SIZE_FIXED,
+      right: (tent.tileX + 2) * TILE_SIZE_FIXED - 1,
+      bottom: tent.tileY * TILE_SIZE_FIXED - 1,
+    });
+    const path = generateMarlowCampPathTiles();
+    expect(new Set(path.map((tile) => `${tile.tileX}:${tile.tileY}`)).size).toBe(path.length);
+    expect(path.some((tile) => tile.tileX < MARLOW_CAMP.centerTileX - MARLOW_CAMP.reserveRadiusX)).toBe(true);
+    expect(path.some((tile) => tile.tileX > MARLOW_CAMP.centerTileX + MARLOW_CAMP.reserveRadiusX)).toBe(true);
+    expect(path.some((tile) => tile.tileY > MARLOW_CAMP.centerTileY + MARLOW_CAMP.reserveRadiusY)).toBe(true);
+    expect(survivalBiomeAt(SURVIVAL_WORLD_SEED, MARLOW_CAMP.homeTileX, MARLOW_CAMP.homeTileY)).toBe('plains');
+  }, 20_000);
+
   it('is byte-identical for one seed and differs for another', () => {
     expect(survivalTerrainBytes(SURVIVAL_WORLD_SEED)).toEqual(survivalTerrainBytes(SURVIVAL_WORLD_SEED));
     expect(survivalTerrainBytes(SURVIVAL_WORLD_SEED + 1)).not.toEqual(survivalTerrainBytes(SURVIVAL_WORLD_SEED));
@@ -280,7 +311,7 @@ describe('deterministic survival island', () => {
     expect(survivalDirtTerraceRamps(SURVIVAL_WORLD_SEED)).toEqual([]);
   });
 
-  it('places all 25 spawns on natural walkable terrain without generated plots or roads', () => {
+  it('places legacy spawns naturally and finds a 26th without a slot ceiling', () => {
     const spawns = survivalSpawnTiles();
     expect(spawns).toHaveLength(25);
     expect(new Set(spawns.map((spawn) => `${spawn.tileX},${spawn.tileY}`)).size).toBe(25);
@@ -292,7 +323,17 @@ describe('deterministic survival island', () => {
         expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, spawn.tileX + dx, spawn.tileY + dy)).toBeNull();
       }
     }
-    expect(survivalSpawnPosition(25)).toBeNull();
+    const occupied = new Set(spawns.map((spawn) => `${spawn.tileX},${spawn.tileY}`));
+    const twentySixth = findSurvivalSpawnTile(occupied);
+    expect(twentySixth).not.toBeNull();
+    expect(survivalSpawnPosition(25)).toEqual(twentySixth === null ? null : {
+      x: twentySixth.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: twentySixth.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    });
+    expect(occupied.has(`${twentySixth?.tileX},${twentySixth?.tileY}`)).toBe(false);
+    expect(twentySixth === null ? true : survivalBiomeBlocksMovement(
+      survivalBiomeAt(SURVIVAL_WORLD_SEED, twentySixth.tileX, twentySixth.tileY),
+    )).toBe(false);
   });
 
   it('adds narrow live trunk obstacles and removes depleted trunks', () => {
@@ -305,14 +346,15 @@ describe('deterministic survival island', () => {
     expect(live.blocked[index]).toBe(
       survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY)),
     );
-    expect(live.obstacles).toEqual([survivalTreeObstacle(resource.tileX, resource.tileY)]);
+    expect(live.obstacles).toContainEqual(survivalTreeObstacle(resource.tileX, resource.tileY));
+    expect(live.obstacles).toHaveLength((depleted.obstacles?.length ?? 0) + 1);
     expect(survivalTreeObstacle(2, 3)).toEqual({
       left: 2 * TILE_SIZE_FIXED + 4 * FIXED_UNITS_PER_PIXEL,
       right: 2 * TILE_SIZE_FIXED + 12 * FIXED_UNITS_PER_PIXEL - 1,
       top: 4 * TILE_SIZE_FIXED - 10 * FIXED_UNITS_PER_PIXEL,
       bottom: 4 * TILE_SIZE_FIXED - 4 * FIXED_UNITS_PER_PIXEL - 1,
     });
-    expect(depleted.obstacles).toEqual([]);
+    expect(depleted.obstacles?.length).toBeGreaterThan(0);
     expect(depleted.blocked[index]).toBe(
       survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, resource.tileX, resource.tileY)),
     );

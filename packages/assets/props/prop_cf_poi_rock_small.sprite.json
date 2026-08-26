@@ -58,13 +58,13 @@
     ]
   },
   "tags": [
-    "resource.mineable",
+    "world.poi",
     "decor.rock",
-    "resource.rock"
+    "decor.permanent"
   ],
   "placement": {
     "layer": "object",
-    "blocksMovement": true,
+    "blocksMovement": false,
     "builderAvailable": false
   }
 }

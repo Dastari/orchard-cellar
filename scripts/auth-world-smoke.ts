@@ -36,7 +36,15 @@ function subscribe(client: Client): Promise<void> {
     client.connection.subscriptionBuilder()
       .onApplied(() => resolve())
       .onError(() => reject(new Error('subscription_rejected')))
-      .subscribe([tables.playerPublic, tables.ownSurvival, tables.ownInventorySlots]);
+      .subscribe([
+        tables.playerPublic,
+        tables.ownSurvival,
+        tables.ownInventorySlots,
+        tables.ownStats,
+        tables.ownEffects,
+        tables.ownPlayerStatistics,
+        tables.ownPlayerStatisticMilestones,
+      ]);
   }));
 }
 
@@ -67,6 +75,23 @@ async function main(): Promise<void> {
     if (alice.identity.isEqual(bob.identity)) throw new Error('identities_not_distinct');
     await Promise.all([subscribe(alice), subscribe(bob)]);
     if (!await privateTableRejected(bob)) throw new Error('private_inventory_was_readable');
+
+    const aliceStats = [...alice.connection.db.ownStats.iter()];
+    const bobStats = [...bob.connection.db.ownStats.iter()];
+    if (aliceStats.length !== 1 || !aliceStats[0]!.identity.isEqual(alice.identity)
+      || bobStats.length !== 1 || !bobStats[0]!.identity.isEqual(bob.identity)) {
+      throw new Error('caller_stats_view_not_isolated');
+    }
+    if ([...alice.connection.db.ownEffects.iter()].some((row) => !row.identity.isEqual(alice.identity))
+      || [...bob.connection.db.ownEffects.iter()].some((row) => !row.identity.isEqual(bob.identity))) {
+      throw new Error('caller_effect_view_not_isolated');
+    }
+    if ([...alice.connection.db.ownPlayerStatistics.iter()].some((row) => !row.identity.isEqual(alice.identity))
+      || [...bob.connection.db.ownPlayerStatistics.iter()].some((row) => !row.identity.isEqual(bob.identity))
+      || [...alice.connection.db.ownPlayerStatisticMilestones.iter()].some((row) => !row.identity.isEqual(alice.identity))
+      || [...bob.connection.db.ownPlayerStatisticMilestones.iter()].some((row) => !row.identity.isEqual(bob.identity))) {
+      throw new Error('caller_statistic_views_not_isolated');
+    }
 
     const aliceSlotBefore = [...alice.connection.db.ownInventorySlots.iter()].find((row) => row.slot === 0);
     const bobSlotBefore = [...bob.connection.db.ownInventorySlots.iter()].find((row) => row.slot === 0);
@@ -109,6 +134,8 @@ async function main(): Promise<void> {
     process.stdout.write(`${JSON.stringify({
       distinctIdentities: true,
       privateInventoryRejected: true,
+      callerStatsAndEffectsIsolated: true,
+      callerStatisticViewsIsolated: true,
       crossIdentityMutationRejected: true,
       sameIdentityTwoTabs: true,
       presenceUntilLastTab: true,

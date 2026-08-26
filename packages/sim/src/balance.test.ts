@@ -5,6 +5,7 @@ import {
   AUTUMN_CHAIN_WINDOW_SECONDS,
   AUTUMN_VIGOUR_MULTIPLIER,
   BOTTLE_VALUE,
+  BASE_ATTRIBUTE,
   CARE_DECAY_DAYS,
   CARE_MULTIPLIERS,
   CASK_BALANCE,
@@ -13,10 +14,12 @@ import {
   FEATURED_SEASON_MULTIPLIER,
   FED_BONUS_CAP,
   FIRST_PRESS_REPAIR_FRUIT,
+  ITEM_DESPAWN_TICKS,
   OFFLINE_CAP_SECONDS,
   OFFLINE_CHUNKS,
   OFFLINE_EFFICIENCY,
   OFF_SEASON_MULTIPLIER,
+  REGEN_SWEEP_TICKS,
   POMACE_YIELD,
   MULCH_POMACE_COST,
   MULCH_HOLD_DAYS,
@@ -27,9 +30,11 @@ import {
   SPRING_GROWTH_MULTIPLIER,
   SEASON_TRAIT_MULTIPLIER,
   SUMMER_PRESS_MULTIPLIER,
+  SURVIVAL_SPAWN_SEARCH_RADIUS_TILES,
   TREE_BALANCE,
   TREE_BUFFER_SECONDS,
   TREE_COST_GROWTH,
+  TOOL_VIGOUR_BALANCE,
   VIGOUR_BURST_POWER,
   VIGOUR_CHARGE_PER_SECOND,
   VIGOUR_PARTIAL_SECONDS,
@@ -121,5 +126,23 @@ describe('06 golden balance tables', () => {
     expect(OFFLINE_CAP_SECONDS).toBe(28_800);
     expect(OFFLINE_EFFICIENCY).toBe(0.6);
     expect(OFFLINE_CHUNKS).toBe(60);
+    expect(ITEM_DESPAWN_TICKS).toBe(24_000);
+  });
+
+  it('06§11 character baseline and tool pacing', () => {
+    expect(BASE_ATTRIBUTE).toBe(10);
+    expect(REGEN_SWEEP_TICKS).toBe(10);
+    expect(SURVIVAL_SPAWN_SEARCH_RADIUS_TILES).toBe(60);
+    expect(TOOL_VIGOUR_BALANCE).toEqual({
+      watering_can: { costCenti: 800, minimumSwingTicks: 6 },
+      hoe: { costCenti: 1_000, minimumSwingTicks: 6 },
+      fishing_rod: { costCenti: 600, minimumSwingTicks: 6 },
+      bow: { costCenti: 1_000, minimumSwingTicks: 6 },
+      sword: { costCenti: 1_200, minimumSwingTicks: 7 },
+      axe: { costCenti: 1_500, minimumSwingTicks: 8 },
+      pickaxe: { costCenti: 2_000, minimumSwingTicks: 10 },
+      shovel: { costCenti: 1_200, minimumSwingTicks: 7 },
+      hammer: { costCenti: 1_800, minimumSwingTicks: 9 },
+    });
   });
 });

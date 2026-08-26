@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LoadedAsset } from './assets.js';
-import { drawFarmSoil, farmSoilFrameIndex, farmSoilKey } from './farmland.js';
+import { drawFarmSoil, drawFarmTileReticle, drawInsetGround, farmSoilFrameIndex, farmSoilKey } from './farmland.js';
 
 const frame = { x: 0, y: 0, width: 16, height: 16, durationTicks: 0 };
 
@@ -70,5 +70,43 @@ describe('dynamic farmland autotiling', () => {
       32,
     )).toBe(4);
     expect(drawnImages).toEqual([dryImage, wetImage, grassImage, grassImage]);
+  });
+
+  it('uses the same inset topology for authored paths without a wet layer', () => {
+    const pathImage = {} as CanvasImageSource;
+    const grassImage = {} as CanvasImageSource;
+    const drawnImages: CanvasImageSource[] = [];
+    const context = {
+      imageSmoothingEnabled: true,
+      drawImage: (image: CanvasImageSource) => drawnImages.push(image),
+    } as unknown as CanvasRenderingContext2D;
+
+    expect(drawInsetGround(
+      context,
+      soilAsset(pathImage),
+      soilAsset(grassImage),
+      [{ tileX: 0, tileY: 0 }],
+      0,
+      0,
+      1,
+      32,
+      32,
+    )).toBe(3);
+    expect(drawnImages).toEqual([pathImage, grassImage, grassImage]);
+  });
+
+  it('renders blocked tile targets with the red placement ramp', () => {
+    let fillStyle = '';
+    const fills: string[] = [];
+    const context = {
+      get fillStyle() { return fillStyle; },
+      set fillStyle(value: string | CanvasGradient | CanvasPattern) { fillStyle = String(value); },
+      fillRect: () => fills.push(fillStyle),
+    } as unknown as CanvasRenderingContext2D;
+
+    drawFarmTileReticle(context, 2, 3, 0, 0, 1, false);
+    expect(fills).toContain('#e33f55');
+    expect(fills).toContain('#ff93a0');
+    expect(fills).not.toContain('#f7c94b');
   });
 });

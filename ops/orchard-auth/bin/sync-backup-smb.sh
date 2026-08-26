@@ -22,7 +22,8 @@ esac
 
 credentials="$SERVICE_DIR/.smb-credentials"
 [[ -f "$credentials" && $(stat -c '%a' "$credentials") == 600 ]]
-for name in keycloak.pgdump keycloak.restore-list orchard-realm.redacted.json SHA256SUMS; do
+backup_files=(keycloak.pgdump keycloak.restore-list orchard-realm.redacted.json deployment-config.tgz SHA256SUMS)
+for name in "${backup_files[@]}"; do
   [[ -f "$source_dir/$name" ]]
 done
 (cd "$source_dir" && sha256sum -c SHA256SUMS >/dev/null)
@@ -32,7 +33,7 @@ share=${ORCHARD_BACKUP_PATH:?set ORCHARD_BACKUP_PATH}
 stamp=$(basename "$source_dir")
 remote_dir="orchard\\auth\\$stamp"
 commands="mkdir orchard; mkdir orchard\\auth; mkdir $remote_dir; cd $remote_dir"
-for name in keycloak.pgdump keycloak.restore-list orchard-realm.redacted.json SHA256SUMS; do
+for name in "${backup_files[@]}"; do
   commands+="; put $source_dir/$name $name"
 done
 smbclient "//$host/$share" -A "$credentials" -m SMB3 --client-protection=encrypt \
@@ -41,19 +42,19 @@ smbclient "//$host/$share" -A "$credentials" -m SMB3 --client-protection=encrypt
 verify_dir=$(mktemp -d /tmp/orchard-auth-smb-verify.XXXXXX)
 chmod 0700 "$verify_dir"
 cleanup() {
-  for name in keycloak.pgdump keycloak.restore-list orchard-realm.redacted.json SHA256SUMS; do
+  for name in "${backup_files[@]}"; do
     [[ -f "$verify_dir/$name" ]] && shred -u "$verify_dir/$name"
   done
   rmdir "$verify_dir" 2>/dev/null || true
 }
 trap cleanup EXIT
 get_commands="lcd $verify_dir"
-for name in keycloak.pgdump keycloak.restore-list orchard-realm.redacted.json SHA256SUMS; do
+for name in "${backup_files[@]}"; do
   get_commands+="; get $name"
 done
 smbclient "//$host/$share" -A "$credentials" -m SMB3 --client-protection=encrypt \
   -D "orchard/auth/$stamp" -c "$get_commands" >/dev/null
-for name in keycloak.pgdump keycloak.restore-list orchard-realm.redacted.json SHA256SUMS; do
+for name in "${backup_files[@]}"; do
   [[ $(sha256sum "$source_dir/$name" | cut -d' ' -f1) == $(sha256sum "$verify_dir/$name" | cut -d' ' -f1) ]]
 done
 

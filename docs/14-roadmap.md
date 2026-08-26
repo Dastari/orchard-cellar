@@ -168,6 +168,42 @@ exact position `(11340,22046)`, selected slot `0`, Wood `6`, world version `3`, 
 depleted resource at health `0`. `npm run check` passed 122 tests with 97.09% sim
 statement coverage; `npm run build` produced every package and the Vite client.
 
+## M5.8 — Stats and vitals `✅ phases 1–4 complete (2026-08-26)`
+
+Implement [25-stats-and-vitals.md](25-stats-and-vitals.md) in its five gated phases:
+pure sim foundations; authoritative player rows, Vigour spending, and HUD bars;
+effects and the first potion; creature health and first skill-check call sites; then
+a separately approved combat era.
+
+Owner amendment: Phase 2 also includes per-item tool durability, renewable field
+repair, and readable durability bars on every slot surface.
+
+**Handoff:** ✅ The sim owns the six attributes, two-pass effect/equipment modifier
+pipeline, derived Health/Mana/Vigour, exact lazy regeneration, deterministic checks,
+durability, and creature statlines. SpaceTimeDB owns private caller views, spend and
+interval gates, one-time legacy backfills, effect expiry, repair and tea reducers,
+and creature health. The client owns cosmetic Vigour prediction, licensed status
+icons, three responsive vital bars, F3 diagnostics, and authoritative durability
+bars on every inventory surface. Phase 5 combat remains unapproved and untouched.
+
+**Done when:** docs/25 §15 passes end to end: resolver/regen goldens, reducer
+authority and isolation tests, two-client Vigour pacing, and the bottom-right vitals
+cluster at UI scales 1/2/3. Combat remains a separate approval even after phases
+1–4 complete.
+
+## M5.9 — Lifetime player statistics `✅ backend complete (2026-08-26)`
+
+Implement [33-player-statistics.md](33-player-statistics.md): a typed registry,
+private per-player counters, immutable threshold-crossing history, caller-filtered
+views, and same-transaction instrumentation across the shipped authority verbs. There
+is intentionally no frontend yet. Combat, fishing, quests, and every later gameplay
+milestone inherit the mandatory registration contract.
+
+**Done when:** additive tables publish without deleting populated data; time is counted
+once per active identity; current reducers record successful outcomes but never
+rejections; statistic/milestone views are identity-isolated; and the registry and full
+repository acceptance suites pass.
+
 ## M6 — Accounts, farm authority & persistence `⏳ in progress (codex, 2026-08-24)`
 OIDC + owner-managed friends allowlist per [09-auth.md](09-auth.md); normalized owned
 farm/public/private tables per [08-database.md](08-database.md); caller-dependent
@@ -188,8 +224,12 @@ NPM edge hardening, SMTP verification/recovery, PKCE browser integration, issuer
 enforcement, the owner membership bootstrap, two named Keycloak administrators,
 encrypted off-machine backup/restore, and the local-profile production gate are live.
 The owner identity also has audited server-authoritative date/time/weather controls;
-other roles receive read-only environment state. See doc 24 for sanitized evidence and
-the remaining manual multi-account acceptance items before M6 as a whole is complete.
+other roles receive read-only environment state. The 2026-08-26 account-theme
+follow-up adds separate in-game entry actions for sign-in, registration, and recovery
+plus a read-only Orchard Keycloak login/email theme. It does not change the issuer,
+user identities, PKCE, or the server authorization plane. See doc 24 for sanitized
+evidence and the remaining manual multi-account acceptance items before M6 as a whole
+is complete.
 
 ## M7 — Overworld & co-op `☐`
 [07-multiplayer.md](07-multiplayer.md) steps M7a–M7d: authored overworld/estate parcels

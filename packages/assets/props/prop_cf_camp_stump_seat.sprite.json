@@ -1,0 +1,72 @@
+{
+  "name": "prop_cf_camp_stump_seat",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "......1111......",
+        ".....144441.....",
+        "....14444441....",
+        "....14444441....",
+        "....14444441....",
+        "....13444431....",
+        "....11333311....",
+        "....12111121....",
+        "....12211221....",
+        "....01100110....",
+        "....00000000....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#3f2832",
+    "2": "#743f39",
+    "3": "#91533b",
+    "4": "#b86f50"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Camp_Decor.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Camp_Decor.png",
+  "sourceRegions": {
+    "base": [
+      [
+        32,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.landmark",
+    "camp.seat",
+    "decor.permanent"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

@@ -16,4 +16,5 @@ export default __t.row({
   slot: __t.u8(),
   itemKind: __t.string().name("item_kind"),
   quantity: __t.u16(),
+  durability: __t.u16(),
 });

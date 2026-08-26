@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   ambientAtProgress,
+  CAMPFIRE_LIGHT_RADIUS_TILES,
   fillLightmap,
+  LANTERN_LIGHT_RADIUS_TILES,
+  LIGHTMAP_TEXELS_PER_TILE,
   lightmapCoordinate,
   playerLightPosition,
   stampPointLight,
+  TORCH_LIGHT_RADIUS_TILES,
 } from './lighting.js';
 
 describe('overworld lighting', () => {
@@ -36,6 +40,11 @@ describe('overworld lighting', () => {
   it('treats lightmap texels as tile centers', () => {
     expect(lightmapCoordinate(48 * 16 + 8, 40)).toBe(8);
     expect(lightmapCoordinate(49 * 16, 40)).toBe(8.5);
+    expect(lightmapCoordinate(48 * 16 + 8, 40, LIGHTMAP_TEXELS_PER_TILE)).toBe(33.5);
+    expect(lightmapCoordinate(49 * 16, 40, LIGHTMAP_TEXELS_PER_TILE)).toBe(35.5);
+    expect(CAMPFIRE_LIGHT_RADIUS_TILES).toBeGreaterThanOrEqual(10);
+    expect(TORCH_LIGHT_RADIUS_TILES).toBeCloseTo(CAMPFIRE_LIGHT_RADIUS_TILES * 0.3);
+    expect(LANTERN_LIGHT_RADIUS_TILES).toBeCloseTo(CAMPFIRE_LIGHT_RADIUS_TILES * 0.75);
   });
 
   it('centers a carried light on the avatar torso rather than the movement foot', () => {

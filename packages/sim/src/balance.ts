@@ -133,6 +133,57 @@ export const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
 export const OFFLINE_EFFICIENCY = 0.6;
 export const OFFLINE_CHUNKS = 60;
 
+/** Public ground drops persist for 20 real minutes at the 20 Hz authority rate. */
+export const ITEM_DESPAWN_TICKS = 24_000;
+
+/** New characters search this ring radius around the established island spawn area. */
+export const SURVIVAL_SPAWN_SEARCH_RADIUS_TILES = 60;
+
+/** Character stats/vitals (docs/25 and docs/06 §11). Vitals and tool costs use
+ * centi-units so every authority calculation remains integer-only. */
+export const BASE_ATTRIBUTE = 10;
+export const MIN_ATTRIBUTE = 1;
+export const MAX_ATTRIBUTE = 30;
+export const BASIS_POINTS = 10_000;
+export const CENTI_UNITS_PER_DISPLAY_UNIT = 100;
+export const HEALTH_CENTI_PER_STRENGTH = 10 * CENTI_UNITS_PER_DISPLAY_UNIT;
+export const MANA_CENTI_PER_INTELLIGENCE = 10 * CENTI_UNITS_PER_DISPLAY_UNIT;
+export const VIGOUR_CENTI_PER_CONSTITUTION = 10 * CENTI_UNITS_PER_DISPLAY_UNIT;
+export const HEALTH_REGEN_CENTI_PER_SECOND = 20;
+export const MANA_REGEN_CENTI_PER_WISDOM = 10;
+export const VIGOUR_REGEN_CENTI_PER_CONSTITUTION = 80;
+export const REGEN_SWEEP_TICKS = 10;
+
+export const TOOL_VIGOUR_BALANCE = {
+  watering_can: { costCenti: 800, minimumSwingTicks: 6 },
+  hoe: { costCenti: 1_000, minimumSwingTicks: 6 },
+  fishing_rod: { costCenti: 600, minimumSwingTicks: 6 },
+  bow: { costCenti: 1_000, minimumSwingTicks: 6 },
+  sword: { costCenti: 1_200, minimumSwingTicks: 7 },
+  axe: { costCenti: 1_500, minimumSwingTicks: 8 },
+  pickaxe: { costCenti: 2_000, minimumSwingTicks: 10 },
+  shovel: { costCenti: 1_200, minimumSwingTicks: 7 },
+  hammer: { costCenti: 1_800, minimumSwingTicks: 9 },
+} as const;
+
+export type VitalsToolKind = keyof typeof TOOL_VIGOUR_BALANCE;
+
+/** Durability is measured in successful authority-approved uses. A broken tool
+ * remains an item and can always be repaired from renewable surface resources. */
+export const TOOL_DURABILITY_BALANCE = {
+  axe: { maximum: 200, repairItemKind: 'wood' },
+  pickaxe: { maximum: 250, repairItemKind: 'stone' },
+  hoe: { maximum: 180, repairItemKind: 'wood' },
+  watering_can: { maximum: 160, repairItemKind: 'stone' },
+  bow: { maximum: 300, repairItemKind: 'wood' },
+  shovel: { maximum: 220, repairItemKind: 'stone' },
+  hammer: { maximum: 300, repairItemKind: 'stone' },
+  fishing_rod: { maximum: 160, repairItemKind: 'wood' },
+  sword: { maximum: 250, repairItemKind: 'stone' },
+} as const;
+
+export type DurableToolKind = keyof typeof TOOL_DURABILITY_BALANCE;
+
 export function repeatCost(base: number, owned: number, growth: number): number {
   return Math.ceil(base * growth ** owned);
 }

@@ -28,12 +28,54 @@ const arrowSource = 'references/Cute_Fantasy_Dungeons/Objects/Crossbow_Bolt.png'
 const resourceIconsSource = 'references/Cute_Fantasy/Icons/Outline/Resources_Icons_Outline.png';
 const outdoorDecorSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor.png';
 const rockAnimationSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations/Rock_1_Anim.png';
+const campDecorSource = 'references/Cute_Fantasy/Outdoor decoration/Camp_Decor.png';
+const campfireSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Campfire_Anim.png';
+const tentSource = 'references/Cute_Fantasy/Buildings/Buildings/Tent/Tent_Small.png';
+const portableLightSource = 'references/Cute_Fantasy/Other/Lantern_Torch.png';
 const oreTypes = ['iron', 'copper', 'gold', 'emerald', 'sapphire', 'topaz', 'ruby', 'amethyst'] as const;
 const toolFrames = (y: number): readonly Region[] => Array.from(
   { length: 6 }, (_, frame): Region => [frame * 64, y, 64, 64],
 );
 
 const extracts: readonly Extract[] = [
+  {
+    name: 'item_cf_torch', category: 'props', source: portableLightSource,
+    size: [16, 16], anchor: [8, 15], groups: { base: [[0, 0, 16, 16]] }, frameKinds: { base: 'state' },
+    tags: ['item.tool', 'item.light', 'light.torch'],
+    placement: { layer: 'object', blocksMovement: false, builderAvailable: false },
+  },
+  {
+    name: 'item_cf_lantern', category: 'props', source: portableLightSource,
+    size: [16, 16], anchor: [8, 15], groups: { base: [[0, 16, 16, 16]] }, frameKinds: { base: 'state' },
+    tags: ['item.tool', 'item.light', 'light.lantern'],
+    placement: { layer: 'object', blocksMovement: false, builderAvailable: false },
+  },
+  {
+    name: 'prop_cf_camp_tent', category: 'props', source: tentSource,
+    size: [48, 96], anchor: [24, 95], groups: { base: [[0, 0, 48, 96]] }, frameKinds: { base: 'state' },
+    tags: ['world.landmark', 'camp.tent', 'decor.permanent'],
+    placement: { layer: 'object', footprint: [3, 3], blocksMovement: true, builderAvailable: false },
+  },
+  {
+    name: 'prop_cf_campfire', category: 'props', source: campfireSource,
+    size: [16, 32], anchor: [8, 31],
+    groups: { burn: Array.from({ length: 8 }, (_, frame): Region => [frame * 16, 0, 16, 32]) },
+    frameKinds: { burn: 'animation' }, animationFps: { burn: 8 }, animationLoop: { burn: true },
+    tags: ['world.landmark', 'station.cooking', 'decor.animated', 'emits.light'],
+    placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
+  },
+  ...([
+    ['prop_cf_camp_round_stool', 0, 'camp.seat'],
+    ['prop_cf_camp_bench', 16, 'camp.seat'],
+    ['prop_cf_camp_stump_seat', 32, 'camp.seat'],
+    ['prop_cf_camp_chair', 48, 'camp.seat'],
+    ['prop_cf_camp_fishing_rod', 64, 'camp.fishing'],
+  ] as const).map(([name, x, tag]): Extract => ({
+    name, category: 'props', source: campDecorSource,
+    size: [16, 16], anchor: [8, 15], groups: { base: [[x, 0, 16, 16]] }, frameKinds: { base: 'state' },
+    tags: ['world.landmark', tag, 'decor.permanent'],
+    placement: { layer: 'object', footprint: [1, 1], blocksMovement: tag === 'camp.seat', builderAvailable: false },
+  })),
   {
     name: 'item_cf_arrow', category: 'props', source: arrowSource,
     size: [16, 16], anchor: [8, 8], groups: { base: [[0, 0, 16, 16]] }, frameKinds: { base: 'state' },

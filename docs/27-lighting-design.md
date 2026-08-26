@@ -1,257 +1,244 @@
-# 27 — Lighting Design Pass: Occlusion, Color, Flicker, Water, and Rain
+# 27 — Lighting Design: Sub-Tile Light, Shadows, Height, and Global Events
 
-Binding owner-directed spec (2026-08-25). Status: **design approved, not implemented**.
-A design pass over the lighting system of [21-unified-renderer.md](21-unified-renderer.md)
-§5 — this doc supersedes that section where they differ; everything else in doc 21
-(composite order, world-offscreen-only multiply, nameplates after lighting) stays
-binding. Feeds [26-underground-mines.md](26-underground-mines.md) §6 (per-space
-ambient, torches, static and crystal lights), which depends on the occlusion and
-emitter work here. Lighting is **pure presentation**: the authority never computes
-light; nothing here touches `packages/world` or the sim's determinism rules
-(client render code may use wall-clock time — the `Date.now` ban is sim-only).
+Binding owner-directed spec. **Revision 2 (2026-08-26)** — the owner raised the
+fidelity target with visual references (Core-Keeper-style dungeon shots: light
+pooling between obstacles, sconce cones on walls, soft-but-pixelated falloff)
+and added shadow casting, terrain height awareness, and global light events.
+Revision 1's strict one-texel-per-tile charter is **superseded** (DECISIONS
+updated); its occlusion, color, flicker, water, and rain designs carry forward
+at the new resolution. Status: **design approved, not implemented**.
 
-## 1. The aesthetic charter (binding)
+Supersedes [21-unified-renderer.md](21-unified-renderer.md) §5 where they
+differ; doc 21's composite order (multiply over the world offscreen only,
+nameplates after) stays binding. Feeds [26-underground-mines.md](26-underground-mines.md)
+§6 and [32-combat.md](32-combat.md) §6 (light-based detection reads the same
+emitter list). Requires the **height contract** from
+[30-infinite-terrain.md](30-infinite-terrain.md) §3 (below, §5). Lighting
+remains pure presentation: the authority never computes light (combat's
+detection rule re-derives emitter positions from the same pure data, not from
+render state).
 
-The owner's direction: the current **blocky, tile-quantized light** is the look.
-It is not a placeholder for soft lighting — it *is* the lighting art style.
-Rules every change below must obey:
+## 1. The aesthetic charter (revised, binding)
 
-1. **One texel per tile, forever.** The lightmap stays at 1 px per 16 px tile,
-   scaled up with `imageSmoothingEnabled = false`. No per-pixel light, no
-   half-tile texels, no shader-style gradients.
-2. **Falloff is stepped, deliberately.** Light strength is quantized to
-   `LIGHT_BANDS = 5` discrete levels before stamping
-   (`strength = ceil(raw * 5) / 5`), so every light renders as readable
-   concentric pixel rings rather than a smooth ramp. Today's continuous falloff
-   already reads stepped at tile resolution; banding makes it intentional and
-   consistent at every radius. Tunable in one constant; golden-tested.
-3. **Soft glow is banned.** Doc 21's optional post-multiply radial-gradient
-   `'lighter'` glow is **rejected** — a smooth gradient over pixel-stepped
-   light would break the charter. If additive glow is ever wanted (spells),
-   it must be tile-quantized through this same lightmap path (a second banded
-   buffer composited with `'lighter'` at low alpha), never a Canvas gradient.
-4. **Blend math is fixed:** ambient fill → per-channel `max` light merge →
-   one `multiply` composite over the world offscreen. Nothing may add a second
-   full-screen pass without a docs/21 §8 budget entry.
+The light must stay recognizably **pixelated — but finer-grained**. The
+reference shots are the calibration: falloff you can see stepping, but pools
+and cones that curve convincingly around walls and furniture.
 
-## 2. What stays (baseline)
+1. **Quarter-tile texels.** The lightmap resolves at `LIGHT_TEXELS_PER_TILE = 4`
+   → one texel per 4×4 world pixels (16× revision 1's density), upscaled with
+   `imageSmoothingEnabled = false`. This is the single constant the whole
+   system hangs off; 2 (8 px) is the sanctioned fallback if perf demands, 8 is
+   the ceiling nobody should reach.
+2. **Falloff still bands.** Strength quantizes to `LIGHT_BANDS = 10` levels
+   before stamping. At 4 px grain with 10 bands, rings read as texture rather
+   than terracing — the reference look — while staying deliberate and
+   golden-testable. No continuous gradients, ever.
+3. **Smooth glow stays banned; quantized halo is in.** Canvas radial gradients
+   remain forbidden. Flame emitters may draw an **ember halo**: 1–2 extra
+   bands of additive (`'lighter'`) light at low alpha through the same
+   quantized buffer — the warm sconce bloom in the references, chunky at 4 px.
+4. **Blend math unchanged:** ambient fill → per-channel max merge → one
+   multiply composite; plus the single optional additive halo pass. Nothing
+   else full-screen without a §10 budget entry.
 
-`render/lighting.ts` as shipped: `TileLightmap` sizing/blitting, the
-`AMBIENT_KEYFRAMES` day curve, `fillLightmap`, per-channel-max merging,
-`lightmapCoordinate` tile-center sampling, `playerLightPosition` chest-height
-anchor, and equipped-item emission for local + remote players. The design pass
-*extends* this file's model; it does not rewrite it.
+## 2. Light emitters
 
-## 3. Light emitters — one registry, five source kinds
+Unchanged from revision 1 (registry in `render/light-sources.ts`,
+`LIGHT_COLORS` table with readability caps — min channel 64, no full
+saturation; equipped items / generated props / resource rows / portals /
+transients). Flicker rules carry forward: `flame` jitters radius ±0.4 tiles
+and strength ±8% at 8 Hz from deterministic time-slot hashing, `pulse` breathes
+slowly, color and position never jitter. Wall-mounted emitters (mine sconces,
+future interior torches) declare a **facing**, biasing their flood seed one
+texel outward so the cone throws into the room, not the wall — the sconce look
+in both reference shots.
 
-Today lights are hand-pushed inline for equipped items only. That becomes a
-single collection pass per frame producing `PointLight[]`, driven by a data
-registry in `render/light-sources.ts`:
+## 3. Occlusion — the sub-tile flood
+
+Revision 1's tile-BFS design, upgraded to quarter-tile resolution with two
+occluder classes (this supersedes r1's "sub-tile objects never occlude"):
+
+- **Hard blockers** — walls, cliff faces, closed structural tiles, at tile
+  resolution expanded to their 4×4 texels: receive light (lit near faces),
+  never propagate. Doorways/portals/ramps stay transparent (owner rule:
+  light spills through doors).
+- **Soft attenuators** — solid *objects*: trees, boulders, ore nodes, placed
+  stations/chests/fences. Their collision footprints (already sub-tile AABBs)
+  rasterize into the flood grid at quarter-tile resolution; light crossing an
+  attenuator texel is multiplied by `ATTENUATION = 55%` per texel instead of
+  stopping. Result: readable soft shadows *behind* furniture and trunks, and
+  light squeezing between obstacles — the table-and-chair pooling in the
+  reference shots. Players and NPCs never attenuate (a moving flood shimmer
+  reads as a bug; they get §6 sprite shadows instead).
+- The flood itself: per light, BFS over the quarter-tile grid, 8-connected,
+  integer costs (2 orthogonal / 3 diagonal), radius in texels = tiles × 4 × 2
+  cost units; strength from **path** distance (dimmer around corners), banded
+  per §1.2, merged per-channel max. Blocked-tile lit-but-terminal rule and
+  the height gate (§5) apply per step. One reusable visit buffer, zero
+  per-frame allocation.
+
+## 4. What carries forward verbatim (r1 §§5–9)
+
+Colored light rules and the capped `LIGHT_COLORS` table; flicker profiles;
+water glints via `sampleLight` (now sampling the finer buffer — glints gain
+sub-tile placement for free); rain interaction (channel-weighted cool
+darkening, lit rain streaks/splashes sampling the buffer); the consolidated
+per-space ambient pipeline with the 89/channel surface comfort floor and
+below-floor fixed mine ambients. All numeric goldens re-baked at the new
+resolution.
+
+## 5. Height — the terrain contract
+
+2D top-down still has a Z story: cliffs, plateaus, terraces, mine walls. The
+terrain system (doc 30 §3's integer elevation field; the current
+plateau/terrace generator until it lands) must expose one pure function —
 
 ```ts
-export interface LightEmitterDefinition {
-  readonly radiusTiles: number;
-  readonly color: RgbColor;            // from the LIGHT_COLORS table only (§5)
-  readonly flicker: 'steady' | 'flame' | 'pulse';  // §6
-}
+terrainHeightAt(x: number, y: number): number   // integer level; 0 = base ground
 ```
 
-| Source kind | Position from | Examples |
-|---|---|---|
-| Equipped item | player rows (`equippedKind`), local + remote | torch r3 `#ffb868` flame; lantern r5 `#ffd9a0` steady |
-| Generated prop | deterministic space generation (no rows — doc 26 §4.5) | cave wall lantern r4 flame; brazier/campfire r4 flame |
-| Resource row | subscribed `world_resource` | crystal nodes r2 pulse, per-kind color; light dies when mined (row-driven) |
-| Portal | `space_portal` rows | soft exit glow r2 steady, cool `#a8c4ff` |
-| Transient | client events/particles (future spells, doc 25 §12) | cast flashes; must still band and quantize |
+— consumed identically by client and any future authority need. Lighting uses
+it three ways:
 
-Collection is culled to the lightmap bounds before stamping; the frame's final
-`PointLight[]` is also kept for §7/§8 sampling.
+1. **Light containment.** A light floods only texels whose height ≤ the
+   emitter's level: a torch at a cliff base leaves the plateau above dark; a
+   lantern on the rim lights the top and **spills over the edge** 2–3 texels
+   down the face (rim-glow on the cliff wall), then stops. Upward steps are
+   hard blockers from below.
+2. **Cliff drop-shadows.** Every downward height edge casts a banded ambient
+   shadow onto the lower ground on the away-from-sun side (§6's sun azimuth):
+   width `2 + 2 × Δheight` texels, two bands (darker at the base). This is
+   cheap (derived per visible tile from the height field, no flood) and
+   grounds every cliff visually.
+3. **Ambient depth cue (subtle).** Texels below level 0 (future
+   canyons/pits) darken ambient one band; levels above brighten nothing
+   (sunlit already). One lookup, no drama.
 
-## 4. Occlusion — tile-flood propagation (the headline feature)
+## 6. Primitive directional shadows (objects, entities, cliffs)
 
-Doc 21's deferral ends here, on its own sanctioned terms: **BFS flood over the
-terrain array — not a raycaster** (that instruction stands). New pure module
-`render/light-flood.ts`:
+A new **shadow pass**, drawn into the world offscreen at low-alpha multiply
+*before* the lightmap — daytime's answer to the flood's point-light shadows:
 
-- **The occluder grid.** Per space, derive `lightBlockedAt(x, y)` from the same
-  terrain classification the renderer and collision already share: cliff/plateau
-  wall faces, cave wall tiles, and (future) building wall tiles block light.
-  **Doorways, portals, ramps, and open floor never block** — light spills
-  through a door mouth at tile fidelity, per the owner's explicit call. Trees,
-  props, resources, and players do **not** block (sub-tile obstacles are
-  beneath the system's fidelity; a tree shadowing a lantern would read as a
-  glitch at 1 texel/tile). One rule of thumb: *if you can't walk through it
-  and it's tile-classified terrain, it blocks light; anything smaller doesn't.*
-- **The flood.** Per light: BFS from the source texel over the lightmap window,
-  8-connected, integer path costs (2 per orthogonal step, 3 per diagonal ≈ ×1.5),
-  capped at `radius × 2`. A blocked tile **receives** light (so the near face
-  of a wall is lit) but never **propagates** it (nothing comes out the far
-  side). Strength derives from *path* distance, not straight-line distance —
-  so light wrapping through a doorway around a corner arrives dimmer, which is
-  exactly the cave-mouth look the mines want. Then band per §1.2 and merge
-  per-channel max as today.
-- **Shape.** Integer-cost BFS falloff is octagonal rather than circular. At
-  tile fidelity with banding this reads as *more* deliberate, not less — it is
-  accepted as part of the charter look (verify in the §13 review shots before
-  tuning further).
-- **Cost.** Radii are ≤ 6 tiles → ≤ 169 texels visited per light, tens of
-  lights per frame: microseconds. The flood allocates nothing per frame
-  (reused visit buffer keyed by generation counter). Budget entry in §10.
-- **Fallback:** a space with a null occluder grid floods in the open — one
-  code path everywhere, no legacy radial stamp to maintain.
+- **Sun azimuth** is a pure function of the world clock: shadows stretch long
+  to the west at dawn, shrink toward noon (minimum length, straight south),
+  stretch east toward dusk; fixed dim short shadows on overcast/rain; a faint
+  static offset at night (moon), or none under heavy dark.
+- **Entities** (trees, props, placeables, resources, players, NPCs, horses):
+  one skewed, vertically-flattened blit of the sprite's silhouette — affine
+  skew only, "primitive" by design, no projection math. Alpha ~25%, quantized
+  to whole pixels, anchored at the sprite's ground line. Canopy-sized trees
+  cap shadow length so noon orchards don't stripe.
+- **Cliffs** join via §5.2's bands rather than silhouette blits.
+- **Interaction rule:** directional shadows are ambient-only dressing — the
+  point-light flood ignores them (no double-darkening: multiply floors at the
+  shadowed texel's band, it doesn't stack twice). In fixed-ambient spaces
+  (mines) the directional pass is off entirely; the flood is the only shadow
+  source underground — matching the references, which are interiors.
 
-## 5. Colored light (palette discipline)
+## 7. Global light events
 
-Per-channel max merging already supports color; what's missing is restraint.
+The ambient pipeline (r1 §9) grows an **events layer** — deterministic
+functions of `(authorityTick, weatherMode, space)` so every client renders the
+same sky with zero new netcode:
 
-- **`LIGHT_COLORS` is the only source of light colors** — an authored table in
-  `light-sources.ts` reviewed like palette work (docs/10 rules): warm flame
-  (`#ffb868`), lantern gold (`#ffd9a0`), the four crystal glows
-  (verdant `#7be07b`-family, azure `#6fc0ff`, violet `#c08cff`, amber `#ffd166`),
-  portal cool (`#a8c4ff`), moon-cold reserve. Ad-hoc hex literals at call
-  sites are banned.
-- **Readability caps:** every entry keeps `min(r,g,b) ≥ 64` and avoids full
-  saturation — a multiply pass with a deeply saturated light drives sprite
-  channels to zero and makes art unreadable. A unit test asserts the caps over
-  the whole table.
-- Overlapping colored lights blend by channel-max toward their union (a torch
-  meeting azure crystal light goes pale warm-cyan) — this is the desired
-  behavior and gets a two-light golden test.
+- **Lightning.** During storm weather, strikes schedule from a tick hash
+  (mean ~45 s apart, never < 8 s). Envelope: full-screen ambient lifts to
+  near-white blue-tint for ~120 ms, drops, re-flashes ~80 ms — the classic
+  double strobe — then thunder SFX after a hash-rolled 0.5–3 s (distance
+  illusion; `game-music` skill owns the sample). The flash **overrides** the
+  rain-cool darkening for its frames and pushes every point light visually
+  under ambient (correct: lightning outshines torches). Underground spaces
+  ignore it entirely. Accessibility: a `reduceFlashes` setting caps the lift
+  at two bands — required, not optional (docs/13).
+- **Sun shafts.** Quantized additive light columns at the §1.3 halo grain,
+  two placements: **canopy shafts** — at low sun (dawn/dusk hours), 1–3
+  slowly-drifting angled columns through hash-picked forest canopy gaps,
+  1–2 bands, barely-there; **portal rays** — a static angled column just
+  inside mine entrances from the surface-lit doorway (doc 26's "the way out
+  is always findable" made literal and pretty). Hard caps: ≤ 3 shafts
+  visible, combined additive alpha ≤ one band above ambient.
+- **Hooks, not scope:** aurora nights, festival lanterns, eclipse events —
+  the events layer is where they plug in later.
 
-## 6. Flicker and animation
+## 8. UI/feedback integration
 
-Flicker is jitter of **radius and strength only** — never color, never position
-— so it reads as flame breathing, not strobing:
+Unchanged: nameplates and UI escape lighting (doc 21); hit-flash and vitals
+feedback (docs 25/32) are sprite-space cosmetics, not lightmap features.
+`sampleLight` remains the one sanctioned read-back (CPU buffer, never canvas
+readback) — combat's light-based detection (doc 32 §6) does **not** read it;
+the authority re-derives light pools from pure emitter data.
 
-- `flame`: at `FLICKER_HZ = 8`, radius jitters ±0.4 tiles and strength ±8%,
-  from `hash(emitterId, floor(nowMs / 125))` (the sim's integer hash reused;
-  deterministic per time-slot so all clients see the *same* flicker pattern,
-  merely unsynchronized by their clocks). Values interpolate between slots so
-  band edges advance/retreat by whole texels — the visible effect is edge
-  texels popping in and out, which is precisely the chunky torch feel wanted.
-- `pulse`: slow triangle wave (~0.4 Hz) of ±15% strength, no radius change —
-  crystals breathe; portals stay `steady`.
-- Global cap: combined jitter can never move a light through more than one
-  band per slot (no full-ring flashes), and flicker disables below UI scale 1
-  viewport minimums where single texels get large.
+## 9. Phasing
 
-## 7. Water — glints and reflections
+1. **Resolution lift**: quarter-tile buffer, banding, halo pass, re-baked
+   goldens — the whole world immediately looks like the references at night.
+2. **Flood occlusion**: hard blockers + soft attenuators + facing-seeded
+   sconces (unblocks doc 26's cave feel at the new fidelity).
+3. **Height**: `terrainHeightAt` contract wired (current plateau generator
+   first, doc 30 sampler when it lands), light containment + cliff
+   drop-shadows + rim spill.
+4. **Directional shadows**: sun azimuth, entity silhouette blits, overcast/
+   night states.
+5. **Global events**: lightning + reduceFlashes, portal rays, canopy shafts.
+6. **Carried-forward content** (water glints, lit rain) lands with its r1
+   phase order inside the above.
 
-Goal: water reacts to light and sky convincingly at pixel-art fidelity, without
-a reflection renderer.
+## 10. Performance and instrumentation (revised budgets)
 
-- **Ambient does most of it for free.** The multiply pass already tints water
-  with dawn gold / dusk purple / night blue — sunset water looks right today.
-  Keep it; add nothing full-screen.
-- **Light glints (v1 deliverable).** `TileLightmap` gains
-  `sampleLight(worldX, worldY): RgbColor` reading the frame's CPU-side buffer
-  — a new shared primitive (§8 reuses it). Water tiles whose sampled light
-  exceeds ambient by a threshold draw a sparse **glint decal**: 1–3 bright
-  pixels from a small new `tile_cf_water_glint` animation (3 frames, hash-
-  phased per tile like the existing ripple decals), tinted with the sampled
-  light color, drawn in the animated-terrain pass at `'lighter'` low alpha.
-  Result: a torch at the cave pool's edge scatters small dancing sparks on the
-  water — chunky, cheap, and per-tile. Glints inherit the light's flicker
-  because they resample each frame.
-- **Sprite mirror reflections (explicit later hook, not v1).** The SNES trick —
-  flipped avatar drawn at ~25% alpha onto water tiles directly south of an
-  entity standing at a shoreline — is sketched here as the sanctioned approach
-  if the owner wants it after seeing glints: same world pass, pre-lighting,
-  clipped to water tiles, static (no wobble). Deferred because glints + ambient
-  may already deliver "looks nice" at a fraction of the edge cases.
+- Visible buffer at default zoom ≈ 280×160 texels (~45 k). Budgets: ambient
+  fill + flood + stamp ≤ **1.5 ms** at 40 lights; halo pass ≤ 0.3 ms;
+  directional shadow pass ≤ 0.5 ms at 200 visible entities; glint/lit-rain
+  sampling ≤ 0.2 ms. No per-frame allocations anywhere in the light path.
+- If profiling on low-end hardware breaks the budget, the sanctioned lever is
+  `LIGHT_TEXELS_PER_TILE = 2` — not disabling features.
+- F3: light count, flood texels visited, lightmap ms, shadow-pass ms, active
+  event (storm/shaft) state.
 
-## 8. Rain interaction
+## 11. Out of scope
 
-Rain and light currently ignore each other except for the flat ambient
-darkening. The pass makes weather read through the lighting:
+Per-pixel (16×/tile) light; smooth gradients; true projected/raycast shadows;
+colored shadow tints; player-visible time-of-day shadow puzzles; authority-side
+light state; dynamic weather beyond the existing modes (new weather kinds are
+doc 30/06 business).
 
-- **Rain ambient goes cool, not just dark.** `ambientAtProgress`'s uniform
-  `weather` multiplier becomes slightly channel-weighted (about
-  `r × 0.80, g × 0.84, b × 0.92` at full darkening) — storms feel blue-grey,
-  and warm torchlight pops against them. Same clamp floor, keyframes untouched.
-- **Lit rain.** Rain streak/splash particles sample `sampleLight()` at their
-  position; particles whose light exceeds ambient draw tinted toward the light
-  color at raised alpha. A torch in night rain gets a cone of catching-light
-  streaks — the single highest-value nice-looking-ness win in this doc. Cost
-  is one buffer read per particle (the pool is already capped); no per-light
-  loops.
-- **Splash glints:** splash frames on lit tiles tint the same way — free once
-  the sampling primitive exists.
-- **Underground:** `SpaceDefinition.weather: false` (doc 26) means no rain,
-  no rain darkening, no lit-rain path — already handled by the space model.
-- Deferred: wet-ground gloss under lights (listed, unbudgeted; likely
-  unnecessary once lit rain lands).
+## 12. Tests and acceptance
 
-## 9. The ambient pipeline, consolidated
+- **Unit:** banding/falloff goldens at 4-texel resolution (named `27§1`);
+  flood goldens on fixture grids — wall containment, door spill, corner
+  dimming, attenuator penumbra profiles, facing-seeded cone shape (named
+  `27§3`); height gates — containment, rim spill depth, drop-shadow widths vs
+  Δheight (named `27§5`); sun azimuth curve keyframes; lightning schedule
+  determinism (same tick window → same strikes on two simulated clients) and
+  minimum-gap invariant; shaft placement determinism + caps; `LIGHT_COLORS`
+  caps; `sampleLight` round-trips at sub-tile coordinates.
+- **Browser/review (pixel-art skill loop, before/after pairs):** the two
+  owner reference shots recreated in-engine — a mine gallery with facing
+  sconces and furniture (pooling + soft object shadows), and a lit interior
+  row of tables; cliff edge at dawn/noon/dusk (drop-shadow + rim spill);
+  orchard at dawn with canopy shafts; storm night with lightning (and with
+  `reduceFlashes` on); regression shot: midnight overworld outside light
+  radii unchanged from r1 targets.
+- **Two-client:** identical flicker patterns, identical lightning timing,
+  identical shaft placement (all hash-derived); remote torch floods/shadows
+  identically.
+- **Perf:** §10 budgets asserted via F3 under a 40-light + 200-entity + storm
+  fixture scene.
 
-One function decides the frame's ambient — today's logic plus doc 26, in one
-place: clock-driven spaces evaluate the keyframe curve with channel-weighted
-rain darkening and the **89/channel comfort floor**; fixed-ambient spaces
-(mines) return their literal, explicitly below the floor, ignoring weather.
-The floor is thereby formalized as a *surface* rule, not a lightmap rule.
-Night keyframes stay as shipped (they match docs/10 R12 tints); any retune is
-a `balance:`-style art decision with before/after review shots, not part of
-this pass.
+## 13. Bookkeeping
 
-## 10. Performance and instrumentation (extends docs/21 §8)
-
-- Budgets: lightmap fill + flood + stamp ≤ 0.5 ms at default zoom with 40
-  lights; glint/lit-rain sampling ≤ 0.2 ms at max rain density. No per-frame
-  allocations in the flood or sampling paths.
-- The F3 overlay gains a lighting line: light count, flood texels visited,
-  lightmap ms — alongside the existing renderer metrics.
-- `sampleLight` reads the existing CPU buffer; it must never force a canvas
-  readback (`getImageData` stays banned in the frame loop).
-
-## 11. Phasing
-
-1. **Emitter registry + banding:** `light-sources.ts`, `LIGHT_COLORS` + caps,
-   quantized falloff, flicker profiles. Pure client, ships alone — torches
-   (once doc 26 phase 3 adds the item) immediately get the flame feel.
-2. **Occlusion:** `light-flood.ts`, occluder grids per space, path-distance
-   falloff. Unblocks doc 26's cave feel (walls actually contain light).
-3. **Water glints + `sampleLight`.**
-4. **Rain pass:** cool rain ambient, lit rain, splash glints.
-5. **Later hooks:** sprite mirror reflections (§7), quantized additive glow
-   for spells (§1.3), light-aware nameplate dimming (nameplates currently
-   escape lighting entirely by design — revisit only if night screenshots
-   argue for it).
-
-## 12. Out of scope
-
-Per-pixel or shader lighting; soft gradients of any kind; sub-tile occlusion
-(trees/props/players casting shadows); directional shadows; day/night keyframe
-retuning; authority-side light (creature AI reacting to light is a combat-era
-question and would need sim-side determinism this doc deliberately avoids).
-
-## 13. Tests and acceptance
-
-- **Unit:** banding goldens (radius → exact per-texel strength rings, named
-  `27§1`); flood goldens on authored occluder fixtures — wall containment,
-  door spill-through, corner wrap dimming, blocked-tile-lit-but-terminal
-  (named `27§4`); `LIGHT_COLORS` cap assertions; flicker determinism (same
-  emitterId + slot → same jitter) and one-band cap; `sampleLight` coordinate
-  round-trips; channel-weighted rain ambient goldens with floor.
-- **Browser/review (pixel-art skill loop, before/after pairs):** torch against
-  a cave wall — light stops at the wall, spills through the doorway; two
-  overlapping colored lights; flame flicker capture (short recording); glints
-  on the cave pool and on overworld freshwater at night; night rain around a
-  torch vs. today's build; midnight overworld unchanged outside light radii
-  (charter regression shot).
-- **Two-client:** remote player's torch floods/occludes identically to local;
-  crystal light dies for both clients when the node depletes.
-- **Perf:** §10 budgets asserted via the F3 metrics under a 40-light fixture
-  scene and max-density rain.
-
-## 14. Bookkeeping
-
-- **docs/21 §5**: annotate as superseded by this doc (occlusion no longer
-  deferred; glow option replaced by the §1.3 ban).
-- **docs/00**: doc-map row for 27. **docs/26 §6**: point its occlusion
-  paragraph here.
-- **DECISIONS.md** on adoption: (1) blocky tile-quantized lighting is the
-  binding art direction — banded falloff, no soft gradients ever; (2) occlusion
-  is tile-fidelity BFS flood with path-distance falloff; walls block, doors
-  spill, sub-tile objects never occlude; (3) light colors come only from the
-  capped `LIGHT_COLORS` table.
-- New art tickets: `tile_cf_water_glint` (3-frame, few-pixel sparkle).
+- **DECISIONS.md** on adoption: (1) supersede the 2026-08-25 one-texel-per-tile
+  charter — quarter-tile texels with 10-band quantization is the revised
+  binding look (owner-directed, reference-calibrated); (2) supersede
+  "sub-tile objects never occlude" — objects are soft attenuators in the
+  flood; walls/cliffs stay hard blockers; players/NPCs still never occlude;
+  (3) terrain must export the integer `terrainHeightAt` contract (doc 30
+  elevation) — lighting and future systems consume height, never re-derive
+  it; (4) global light events (lightning, shafts) are deterministic functions
+  of the authority tick — zero netcode, identical on every client, with the
+  `reduceFlashes` accessibility cap mandatory.
+- **docs/30 §3**: annotate the elevation bullet as the `terrainHeightAt`
+  provider. **docs/26 §6**: mine sconces gain facing; portal rays noted.
+  **docs/21 §5**: still superseded, now by r2. **docs/13**: `reduceFlashes`
+  added to the a11y list.
+- Art tickets: none — shafts/halos/shadows are runtime effects; the water
+  glint decal from r1 remains the only sprite ask.

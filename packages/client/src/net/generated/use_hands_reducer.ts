@@ -10,4 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {};
+export default {
+  tileX: __t.i16(),
+  tileY: __t.i16(),
+};

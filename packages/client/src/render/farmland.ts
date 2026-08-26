@@ -8,6 +8,11 @@ export interface FarmSoilTile {
   readonly watered: boolean;
 }
 
+export interface InsetGroundTile {
+  readonly tileX: number;
+  readonly tileY: number;
+}
+
 export function farmSoilKey(tileX: number, tileY: number): string { return `${tileX}:${tileY}`; }
 
 export function farmSoilFrameIndex(
@@ -85,6 +90,40 @@ function drawGrassBlend(
   return 2;
 }
 
+/** Draws any authored ground mask with the same blob47 topology and inset
+ * grass fringe used by farmland. Paths and future editable ground patches can
+ * therefore share one deterministic edge rule without becoming farm state. */
+export function drawInsetGround(
+  context: CanvasRenderingContext2D,
+  fill: LoadedAsset,
+  grassBlend: LoadedAsset,
+  tiles: Iterable<InsetGroundTile>,
+  cameraX: number,
+  cameraY: number,
+  scale: number,
+  viewportWidth: number,
+  viewportHeight: number,
+): number {
+  const rows = [...tiles];
+  const occupied = new Set(rows.map((tile) => farmSoilKey(tile.tileX, tile.tileY)));
+  const minimumX = cameraX / 16 - 1;
+  const minimumY = cameraY / 16 - 1;
+  const maximumX = (cameraX + viewportWidth / scale) / 16 + 1;
+  const maximumY = (cameraY + viewportHeight / scale) / 16 + 1;
+  let draws = 0;
+  context.imageSmoothingEnabled = false;
+  for (const tile of rows) {
+    if (tile.tileX < minimumX || tile.tileY < minimumY || tile.tileX > maximumX || tile.tileY > maximumY) continue;
+    const frameIndex = farmSoilFrameIndex(tile, occupied);
+    const destinationX = Math.round((tile.tileX * 16 - cameraX) * scale);
+    const destinationY = Math.round((tile.tileY * 16 - cameraY) * scale);
+    if (!drawSoilFrame(context, fill, frameIndex, destinationX, destinationY, scale)) continue;
+    draws += 1;
+    draws += drawGrassBlend(context, grassBlend, frameIndex, destinationX, destinationY, scale);
+  }
+  return draws;
+}
+
 /** Dynamic soil stays outside the immutable terrain chunk cache. Dry soil is
  * the base, wet soil darkens its centre, and the authored transparent grass
  * fringe finishes the outside while retaining the lighter inner path edge. */
@@ -158,6 +197,7 @@ export function drawFarmTileReticle(
   cameraX: number,
   cameraY: number,
   scale: number,
+  valid = true,
 ): void {
   const unit = Math.max(1, Math.round(scale));
   const x = Math.round((tileX * 16 - cameraX) * scale) - unit;
@@ -172,9 +212,9 @@ export function drawFarmTileReticle(
   ] as const;
   context.fillStyle = '#3f2832';
   for (const [left, top, width, height] of segments) context.fillRect(left + unit, top + unit, width, height);
-  context.fillStyle = '#f7c94b';
+  context.fillStyle = valid ? '#f7c94b' : '#e33f55';
   for (const [left, top, width, height] of segments) context.fillRect(left, top, width, height);
-  context.fillStyle = '#ffe98a';
+  context.fillStyle = valid ? '#ffe98a' : '#ff93a0';
   context.fillRect(x + unit, y, Math.max(unit, arm - unit * 2), unit);
   context.fillRect(x, y + unit, unit, Math.max(unit, arm - unit * 2));
 }

@@ -22,6 +22,7 @@ import {
   farmParcelLayout,
   farmToolUseResult,
   farmSoilRestoreResult,
+  tilePlacementResult,
   isFarmBedTile,
   isTillableSurvivalTile,
   itemDropPosition,
@@ -36,9 +37,25 @@ import {
   resourceHarvestResult,
   resourceGatherResult,
   settleMovementRun,
+  toolSpendResult,
 } from './world-rules.js';
 
 describe('overworld authority rules', () => {
+  it('25§15 commits exact tool costs and leaves rejected spends unchanged', () => {
+    expect(toolSpendResult(10_000, 0n, 100n, 1_500, 8, false)).toEqual({
+      ok: true, costCenti: 1_500, vigourCenti: 8_500, lastSwingTick: 100n,
+    });
+    expect(toolSpendResult(10_000, 0n, 100n, 1_501, 8, true)).toEqual({
+      ok: true, costCenti: 751, vigourCenti: 9_249, lastSwingTick: 100n,
+    });
+    expect(toolSpendResult(8_500, 100n, 107n, 1_500, 8, false)).toEqual({
+      ok: false, code: 'swing_too_soon',
+    });
+    expect(toolSpendResult(1_499, 100n, 108n, 1_500, 8, false)).toEqual({
+      ok: false, code: 'insufficient_vigour',
+    });
+  });
+
   it('uses stable chunk boundaries and decodes only protocol directions', () => {
     expect(chunkAt(CHUNK_SIZE_FIXED - 1)).toBe(0);
     expect(chunkAt(CHUNK_SIZE_FIXED)).toBe(1);
@@ -164,9 +181,9 @@ describe('overworld authority rules', () => {
     const depleted = createAuthoritySurvivalCollisionMap([{ ...resource, depleted: true }]);
     expect(live.blocked[water.tileY * live.width + water.tileX]).toBe(true);
     expect(live.blocked[ridge.tileY * live.width + ridge.tileX]).toBe(true);
-    expect(live.obstacles).toHaveLength(1);
+    expect(live.obstacles).toHaveLength((depleted.obstacles?.length ?? 0) + 1);
     expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(false);
-    expect(depleted.obstacles).toHaveLength(0);
+    expect(depleted.obstacles?.length).toBeGreaterThan(0);
     expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(false);
   });
 
@@ -240,7 +257,8 @@ describe('overworld authority rules', () => {
     expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, { watered: false }, false)).toBe('ok');
     expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, { watered: true }, false)).toBe('already_watered');
     expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', water.tileX, water.tileY, null, false)).toBe('out_of_range');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX + 3, grass.tileY, null, false)).toBe('out_of_range');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX - 3 * TILE_SIZE_FIXED, playerY, 'hoe', grass.tileX, grass.tileY, null, false)).toBe('ok');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX - 3 * TILE_SIZE_FIXED - 1, playerY, 'hoe', grass.tileX, grass.tileY, null, false)).toBe('out_of_range');
     const waterX = water.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     const waterY = water.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     expect(farmToolUseResult(SURVIVAL_WORLD_SEED, waterX, waterY, 'hoe', water.tileX, water.tileY, null, false)).toBe('not_grass');
@@ -248,8 +266,34 @@ describe('overworld authority rules', () => {
     expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX, grass.tileY, { watered: true })).toBe('ok');
     expect(farmSoilRestoreResult(playerX, playerY, 'watering_can', grass.tileX, grass.tileY, {})).toBe('wrong_tool');
     expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX, grass.tileY, null)).toBe('not_tilled');
-    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX + 3, grass.tileY, {})).toBe('out_of_range');
+    expect(farmSoilRestoreResult(playerX - 3 * TILE_SIZE_FIXED, playerY, 'hoe', grass.tileX, grass.tileY, {})).toBe('ok');
+    expect(farmSoilRestoreResult(playerX - 3 * TILE_SIZE_FIXED - 1, playerY, 'hoe', grass.tileX, grass.tileY, {})).toBe('out_of_range');
     expect(farmSoilRestoreResult(playerX, playerY, 'hoe', -1, grass.tileY, {})).toBe('invalid_tile');
+  });
+
+  it('authorizes tile placement through shared reach, terrain, obstacles, and actor occupancy', () => {
+    const width = 20;
+    const blocked = Array.from({ length: width * width }, (_, index) => index === 10 * width + 12);
+    const collision = {
+      width,
+      height: width,
+      blocked,
+      obstacles: [{
+        left: 11 * TILE_SIZE_FIXED,
+        top: 10 * TILE_SIZE_FIXED,
+        right: 12 * TILE_SIZE_FIXED - 1,
+        bottom: 11 * TILE_SIZE_FIXED - 1,
+      }],
+    };
+    const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const y = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    expect(tilePlacementResult(x, y, 10, 10, collision, false)).toBe('ok');
+    expect(tilePlacementResult(x, y, 10, 10, collision, true)).toBe('tile_blocked');
+    expect(tilePlacementResult(x, y, 11, 10, collision, false)).toBe('tile_blocked');
+    expect(tilePlacementResult(x, y, 12, 10, collision, false)).toBe('tile_blocked');
+    expect(tilePlacementResult(x, y, 13, 10, collision, false)).toBe('ok');
+    expect(tilePlacementResult(x, y, 14, 10, collision, false)).toBe('out_of_range');
+    expect(tilePlacementResult(x, y, -1, 10, collision, false)).toBe('invalid_tile');
   });
 
   it('derives ground-item placement and pickup reach from authority state', () => {

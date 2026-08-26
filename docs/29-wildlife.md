@@ -107,3 +107,14 @@ backup and publication gate.
 The version-2 correction was preceded by another verified quiesced backup at
 `/home/toby/backups/orchard/20260825T120536Z-pre-wildlife-v2` and
 `orchard/world/20260825T120536Z-pre-wildlife-v2` on the NAS.
+
+## Scalability note (2026-08-26)
+
+Per [34-backend-scalability.md](34-backend-scalability.md) B7/stage 2:
+`world_wildlife_profile` must gain `chunkX/chunkY` columns (or fold into
+`world_npc`) so clients can subscribe to it chunk-scoped instead of globally
+— it is one row per animal in the world and cannot ride the infinite world
+([30-infinite-terrain.md](30-infinite-terrain.md)) unscoped. The per-tick
+full-profile Map build and full `world_npc` iteration move to chunk-Range
+scans in doc 34 stage 3; the existing 3-chunk activity gate then bounds
+iteration as well as compute.

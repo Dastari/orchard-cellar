@@ -12,4 +12,5 @@ import {
 
 export default {
   recipeId: __t.string(),
+  craftAll: __t.bool(),
 };

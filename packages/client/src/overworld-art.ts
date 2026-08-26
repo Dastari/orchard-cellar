@@ -20,6 +20,13 @@ interface PlayerRigArt {
   readonly shoes: Readonly<Record<string, CharacterPartArt>>;
 }
 
+interface HeldLightArt {
+  readonly idle: LoadedAsset;
+  readonly running: LoadedAsset;
+  readonly idleHands: LoadedAsset;
+  readonly runningHands: LoadedAsset;
+}
+
 export interface PlayerAppearanceVisual {
   readonly hairKind: string;
   readonly shirtKind: string;
@@ -44,6 +51,8 @@ export interface OverworldArt {
   readonly beeHive: LoadedAsset;
   readonly beeNest: LoadedAsset;
   readonly playerRig: PlayerRigArt;
+  readonly merchantNpc: LoadedAsset;
+  readonly heldLights: Readonly<Record<'torch' | 'lantern', HeldLightArt>>;
   readonly actionAssets: Readonly<Record<string, LoadedAsset>>;
   readonly oreNodes: Readonly<Record<string, LoadedAsset>>;
   readonly oreItems: Readonly<Record<string, LoadedAsset>>;
@@ -88,11 +97,17 @@ export interface OverworldArt {
   readonly iconPickaxe: LoadedAsset;
   readonly iconWateringCan: LoadedAsset;
   readonly iconBow: LoadedAsset;
+  readonly iconShovel: LoadedAsset;
+  readonly iconHammer: LoadedAsset;
+  readonly iconSword: LoadedAsset;
   readonly itemArrow: LoadedAsset;
   readonly itemWood: LoadedAsset;
   readonly itemPlank: LoadedAsset;
   readonly itemStick: LoadedAsset;
   readonly itemStone: LoadedAsset;
+  readonly itemTorch: LoadedAsset;
+  readonly itemLantern: LoadedAsset;
+  readonly itemOrchardTea: LoadedAsset;
   readonly chest: LoadedAsset;
   readonly missingItem: LoadedAsset;
   readonly rainStreak: LoadedAsset;
@@ -244,13 +259,14 @@ async function loadFruitItemArt(): Promise<Readonly<Record<string, LoadedAsset>>
 
 export async function loadOverworldArt(): Promise<OverworldArt> {
   const [
-    avatar, avatarAxe, axeActionTool, pickaxeActionTool, hoeActionTool, wateringCanActionTool, bowActionTool, horse, mountedHorse, wildlife, natureDecorations, oceanSurfaceDecorations, fruitTrees, fruitItems, mountedHorses, beeHive, beeNest, playerRig, oreNodes, oreItems,
+    avatar, avatarAxe, axeActionTool, pickaxeActionTool, hoeActionTool, wateringCanActionTool, bowActionTool, horse, mountedHorse, wildlife, natureDecorations, oceanSurfaceDecorations, fruitTrees, fruitItems, mountedHorses, beeHive, beeNest, playerRig, merchantNpc, torchIdle, torchRunning, torchIdleHands, torchRunningHands, lanternIdle, lanternRunning, lanternIdleHands, lanternRunningHands, oreNodes, oreItems,
     rockStone, itemStone, poiFlowersPink, poiFlowersGold, poiStump, poiFallenLog, poiRockSmall,
+    campTent, campfire, campRoundStool, campBench, campStumpSeat, campChair, campFishingRod, campPond,
     grass, grassCliffEdge, grassCliffRamp, stoneCliffInverseOverlay, dirtTerrace, dirtCliffEdge, dirtCliffRamp, farmland, farmlandWet, farmlandGrassInset, grassTuft,
     water, freshwater, waterfall, waterfallFlow, waterRockFlow,
     beach, beachInset, desert, desertShore, desertShoreInset, desertGrass, desertGrassEdge, desertGrassInset, savannaGrassInset,
-    cliff, cliff2, cliff3, coastalCliffOverlay, cliff4, desertCliff, iconAxe, iconHoe, iconPickaxe, iconWateringCan, iconBow, itemArrow,
-    itemWood, itemPlank, itemStick, chest, missingItem, rainStreak, rainSplash, cloudShadow, windGust, oakLeaf, birchLeaf, spruceLeaf, waterRipples, treeFruiting, treeMature,
+    cliff, cliff2, cliff3, coastalCliffOverlay, cliff4, desertCliff, iconAxe, iconHoe, iconPickaxe, iconWateringCan, iconBow, iconShovel, iconHammer, iconSword, itemArrow,
+    itemWood, itemPlank, itemStick, itemTorch, itemLantern, itemOrchardTea, chest, missingItem, rainStreak, rainSplash, cloudShadow, windGust, oakLeaf, birchLeaf, spruceLeaf, waterRipples, treeFruiting, treeMature,
     treeOak, treeBirch, treeSpruce, treeAcacia, treePalm,
     treeStump, treeAcaciaStump, treePalmStump, ui, uiSkin,
   ] = await Promise.all([
@@ -278,6 +294,15 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('prop_cf_bee_hive', 'summer'),
     loadGeneratedAsset('prop_cf_bee_nest', 'summer'),
     loadPlayerRig(),
+    loadGeneratedAsset('npc_cf_bartender_bruno', 'summer'),
+    loadGeneratedAsset('tool_cf_torch_idle', 'summer'),
+    loadGeneratedAsset('tool_cf_torch_running', 'summer'),
+    loadGeneratedAsset('hands_cf_torch_idle', 'summer'),
+    loadGeneratedAsset('hands_cf_torch_running', 'summer'),
+    loadGeneratedAsset('tool_cf_lantern_idle', 'summer'),
+    loadGeneratedAsset('tool_cf_lantern_running', 'summer'),
+    loadGeneratedAsset('hands_cf_lantern_idle', 'summer'),
+    loadGeneratedAsset('hands_cf_lantern_running', 'summer'),
     loadOreArt('resource_cf_ore_', ''),
     loadOreArt('item_cf_', '_ore'),
     loadGeneratedAsset('resource_cf_rock_stone', 'summer'),
@@ -287,6 +312,14 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('prop_cf_poi_stump', 'summer'),
     loadGeneratedAsset('prop_cf_poi_fallen_log', 'summer'),
     loadGeneratedAsset('prop_cf_poi_rock_small', 'summer'),
+    loadGeneratedAsset('prop_cf_camp_tent', 'summer'),
+    loadGeneratedAsset('prop_cf_campfire', 'summer'),
+    loadGeneratedAsset('prop_cf_camp_round_stool', 'summer'),
+    loadGeneratedAsset('prop_cf_camp_bench', 'summer'),
+    loadGeneratedAsset('prop_cf_camp_stump_seat', 'summer'),
+    loadGeneratedAsset('prop_cf_camp_chair', 'summer'),
+    loadGeneratedAsset('prop_cf_camp_fishing_rod', 'summer'),
+    loadGeneratedAsset('prop_cf_pond', 'summer'),
     loadGeneratedAsset('tile_cf_grass', 'summer'),
     loadGeneratedAsset('tile_cf_grass_cliff_edge', 'summer'),
     loadGeneratedAsset('tile_cf_grass_cliff_ramp', 'summer'),
@@ -323,10 +356,16 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset('icon_cf_pickaxe', 'summer'),
     loadGeneratedAsset('icon_cf_watering_can', 'summer'),
     loadGeneratedAsset('icon_cf_bow', 'summer'),
+    loadGeneratedAsset('icon_cf_shovel', 'summer'),
+    loadGeneratedAsset('icon_cf_hammer', 'summer'),
+    loadGeneratedAsset('icon_cf_sword', 'summer'),
     loadGeneratedAsset('item_cf_arrow', 'summer'),
     loadGeneratedAsset('item_cf_wood', 'summer'),
     loadGeneratedAsset('item_cf_plank', 'summer'),
     loadGeneratedAsset('item_cf_stick', 'summer'),
+    loadGeneratedAsset('item_cf_torch', 'summer'),
+    loadGeneratedAsset('item_cf_lantern', 'summer'),
+    loadGeneratedAsset('icon_cf_effect_orchard_tea', 'summer'),
     loadGeneratedAsset('prop_cf_chest', 'summer'),
     loadGeneratedAsset('system_missing_asset', 'summer'),
     loadGeneratedAsset('effect_cf_rain_streak', 'summer'),
@@ -351,7 +390,21 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadUiSkin(),
   ]);
   return {
-    avatar, avatarAxe, horse, mountedHorse, wildlife, mountedHorses, beeHive, beeNest, playerRig,
+    avatar, avatarAxe, horse, mountedHorse, wildlife, mountedHorses, beeHive, beeNest, playerRig, merchantNpc,
+    heldLights: {
+      torch: {
+        idle: torchIdle,
+        running: torchRunning,
+        idleHands: torchIdleHands,
+        runningHands: torchRunningHands,
+      },
+      lantern: {
+        idle: lanternIdle,
+        running: lanternRunning,
+        idleHands: lanternIdleHands,
+        runningHands: lanternRunningHands,
+      },
+    },
     actionAssets: {
       swing_axe: axeActionTool,
       swing_pickaxe: pickaxeActionTool,
@@ -368,6 +421,16 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
       poi_stump: poiStump,
       poi_fallen_log: poiFallenLog,
       poi_rock_small: poiRockSmall,
+      camp_tent: campTent,
+      camp_campfire: campfire,
+      camp_round_stool: campRoundStool,
+      camp_bench: campBench,
+      camp_stump_seat: campStumpSeat,
+      camp_chair: campChair,
+      camp_pond: campPond,
+      camp_fishing_rod: campFishingRod,
+      camp_rock: poiRockSmall,
+      camp_flowers: poiFlowersPink,
     },
     natureDecorations,
     oceanSurfaceDecorations,
@@ -377,7 +440,8 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     water, freshwater, waterfall, waterfallFlow, waterRockFlow,
     beach, beachInset, desert, desertShore, desertShoreInset, desertGrass, desertGrassEdge, desertGrassInset, savannaGrassInset,
     cliff, cliff2, cliff3, coastalCliffOverlay, cliff4, desertCliff,
-    iconAxe, iconHoe, iconPickaxe, iconWateringCan, iconBow, itemArrow, itemWood, itemPlank, itemStick, itemStone, chest, missingItem,
+    iconAxe, iconHoe, iconPickaxe, iconWateringCan, iconBow, iconShovel, iconHammer, iconSword,
+    itemArrow, itemWood, itemPlank, itemStick, itemStone, itemTorch, itemLantern, itemOrchardTea, chest, missingItem,
     rainStreak, rainSplash, cloudShadow, windGust, oakLeaf, birchLeaf, spruceLeaf, waterRipples,
     treeFruiting, treeMature, treeOak, treeBirch, treeSpruce, treeAcacia, treePalm,
     treeStump, treeAcaciaStump, treePalmStump, ui, uiSkin,
@@ -596,6 +660,7 @@ export function natureDecorationFrame(
   windStrength: number,
 ): number {
   const animatedFrame = Math.floor((renderTick + animationOffset) / 5);
+  if (kind === 'camp_campfire') return animatedFrame;
   if (kind === 'nature_fish_shadow' || kind === 'nature_water_rock') return animatedFrame;
   return kind.startsWith('nature_') && windStrength < 0.3 ? 0 : animatedFrame;
 }
@@ -617,7 +682,17 @@ export function drawOverworldPoiDecoration(
     drawAnchored(context, nature[variant % nature.length]!, 'sway', frameIndex, x, y, cameraX, cameraY, zoom);
     return;
   }
-  drawAnchored(context, art.poiDecorations[kind] ?? art.missingItem, 'base', 0, x, y, cameraX, cameraY, zoom);
+  drawAnchored(
+    context,
+    art.poiDecorations[kind] ?? art.missingItem,
+    kind === 'camp_campfire' ? 'burn' : 'base',
+    kind === 'camp_campfire' ? frameIndex : 0,
+    x,
+    y,
+    cameraX,
+    cameraY,
+    zoom,
+  );
 }
 
 export function drawOverworldItem(
@@ -684,11 +759,12 @@ export function drawOverworldChest(
   cameraX: number,
   cameraY: number,
   zoom: number,
+  frameIndex = 0,
 ): void {
-  drawAnchored(context, art.chest, 'chest', 0, x, y, cameraX, cameraY, zoom);
+  drawAnchored(context, art.chest, 'chest', frameIndex, x, y, cameraX, cameraY, zoom);
 }
 
-export type OverworldItemArtKey = 'iconAxe' | 'iconHoe' | 'iconPickaxe' | 'iconWateringCan' | 'iconBow' | 'itemArrow' | 'itemWood' | 'itemPlank' | 'itemStick' | 'itemStone' | 'chest' | 'missingItem';
+export type OverworldItemArtKey = 'iconAxe' | 'iconHoe' | 'iconPickaxe' | 'iconWateringCan' | 'iconBow' | 'iconShovel' | 'iconHammer' | 'iconSword' | 'itemArrow' | 'itemWood' | 'itemPlank' | 'itemStick' | 'itemStone' | 'itemTorch' | 'itemLantern' | 'itemOrchardTea' | 'chest' | 'missingItem';
 
 /** Ground drops use their item kind rather than the wood harvesting fallback. */
 export function overworldItemArtKey(itemKind: string): OverworldItemArtKey {
@@ -698,6 +774,12 @@ export function overworldItemArtKey(itemKind: string): OverworldItemArtKey {
     case 'pickaxe': return 'iconPickaxe';
     case 'watering_can': return 'iconWateringCan';
     case 'bow': return 'iconBow';
+    case 'shovel': return 'iconShovel';
+    case 'hammer': return 'iconHammer';
+    case 'sword': return 'iconSword';
+    case 'torch': return 'itemTorch';
+    case 'lantern': return 'itemLantern';
+    case 'orchard_tea': return 'itemOrchardTea';
     case 'arrow': return 'itemArrow';
     case 'wood': return 'itemWood';
     case 'plank': return 'itemPlank';
@@ -722,14 +804,48 @@ export function drawOverworldAvatar(
   actionFrame: number | null,
   actionVisual: ActionVisual | null = null,
   appearance: PlayerAppearanceVisual = DEFAULT_PLAYER_APPEARANCE,
+  heldItemKind = 'empty',
+  heldLightAnimationFrame = 0,
 ): void {
-  const animation = avatarAnimationForDirection(facing);
+  const heldLight = heldItemKind === 'torch' || heldItemKind === 'lantern'
+    ? art.heldLights[heldItemKind]
+    : null;
+  const animation = heldLight === null
+    ? avatarAnimationForDirection(facing)
+    : heldLightAnimationForDirection(facing, true);
   const frameIndex = moving ? locomotionFrame : 0;
   const flip = facing === 'left' || facing === 'upLeft' || facing === 'downLeft';
   if (actionFrame === null || actionVisual === null) {
-    const modularAnimation = moving ? animation : idleAvatarAnimationForDirection(facing);
-    for (const layer of playerLayersForAppearance(art, appearance, false)) {
-      drawAnchored(context, layer, modularAnimation, frameIndex, x, y, cameraX, cameraY, zoom, flip);
+    const modularAnimation = heldLight === null
+      ? moving ? animation : idleAvatarAnimationForDirection(facing)
+      : heldLightAnimationForDirection(facing, moving);
+    const lightAsset = heldLight === null ? null : moving ? heldLight.running : heldLight.idle;
+    const lightHands = heldLight === null ? null : moving ? heldLight.runningHands : heldLight.idleHands;
+    const lightFrame = moving ? frameIndex : heldLightAnimationFrame;
+    const drawHeldLight = (): void => {
+      if (lightAsset !== null) drawAnchored(
+        context, lightAsset, modularAnimation, lightFrame,
+        x, y, cameraX, cameraY, zoom, flip,
+      );
+    };
+    if (facing === 'up') drawHeldLight();
+    const layers = playerLayersForAppearance(art, appearance, false, heldLight !== null, lightHands);
+    for (const [index, layer] of layers.entries()) {
+      // For forward/side poses the prop sits above the body but below its
+      // dedicated gripping hands. Up-facing props remain behind the body.
+      if (index === 4 && facing !== 'up') drawHeldLight();
+      drawAnchored(
+        context,
+        layer,
+        modularAnimation,
+        layer === lightHands ? lightFrame : frameIndex,
+        x,
+        y,
+        cameraX,
+        cameraY,
+        zoom,
+        flip,
+      );
     }
     return;
   }
@@ -774,6 +890,23 @@ export function drawOverworldAvatar(
   if (facing !== 'up') drawTool();
 }
 
+export function drawOverworldMerchant(
+  context: CanvasRenderingContext2D,
+  art: OverworldArt,
+  x: number,
+  y: number,
+  facing: Direction,
+  moving: boolean,
+  animationFrame: number,
+  cameraX: number,
+  cameraY: number,
+  zoom: number,
+): void {
+  const animation = moving ? avatarAnimationForDirection(facing) : idleAvatarAnimationForDirection(facing);
+  const flip = facing === 'left' || facing === 'upLeft' || facing === 'downLeft';
+  drawAnchored(context, art.merchantNpc, animation, animationFrame, x, y, cameraX, cameraY, zoom, flip);
+}
+
 export const BOW_LOCOMOTION_SPLIT_ROW = 28;
 
 export function bowLocomotionBobOffset(frameIndex: number): number {
@@ -786,6 +919,7 @@ export function playerLayersForAppearance(
   appearance: PlayerAppearanceVisual,
   mounted: boolean,
   action = false,
+  handsOverride: LoadedAsset | null = null,
 ): readonly LoadedAsset[] {
   const pose = action ? 'action' : mounted ? 'mounted' : 'standing';
   const fallback = DEFAULT_PLAYER_APPEARANCE;
@@ -798,9 +932,46 @@ export function playerLayersForAppearance(
     pants![pose],
     shirt![pose],
     shoes![pose],
-    art.playerRig.hands[pose],
+    handsOverride ?? art.playerRig.hands[pose],
     hair![pose],
   ];
+}
+
+export function heldLightAnimationForDirection(
+  facing: Direction,
+  moving: boolean,
+): 'hold_idle_up' | 'hold_idle_right' | 'hold_idle_down'
+  | 'hold_walk_up' | 'hold_walk_right' | 'hold_walk_down' {
+  const motion = moving ? 'hold_walk' : 'hold_idle';
+  if (facing === 'up') return `${motion}_up`;
+  if (facing === 'down') return `${motion}_down`;
+  return `${motion}_right`;
+}
+
+/** Draws the same modular appearance used in-world into the authored HUD
+ * portrait well. Cropping the standing down pose preserves hair, skin and
+ * clothing without maintaining a second set of avatar thumbnails. */
+export function drawPlayerHeadPortrait(
+  context: CanvasRenderingContext2D,
+  art: OverworldArt,
+  appearance: PlayerAppearanceVisual,
+  destination: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+): void {
+  context.imageSmoothingEnabled = false;
+  const portraitScale = Math.max(1, Math.floor(Math.min(destination.width / 12, destination.height / 13)));
+  for (const layer of playerLayersForAppearance(art, appearance, false)) {
+    const frame = selectAtlasFrame(layer.metadata, 'idle_down', 0);
+    if (frame === null) continue;
+    const cropWidth = Math.min(16, frame.width);
+    const cropHeight = Math.min(16, frame.height);
+    const cropX = frame.x + Math.max(0, Math.floor((frame.width - cropWidth) / 2));
+    const cropY = frame.y + Math.min(Math.max(0, frame.height - cropHeight), 12);
+    context.drawImage(
+      layer.image, cropX, cropY, cropWidth, cropHeight,
+      destination.x - 2 * portraitScale, destination.y - portraitScale,
+      16 * portraitScale, 16 * portraitScale,
+    );
+  }
 }
 
 export function idleAvatarAnimationForDirection(facing: Direction): 'idle_up' | 'idle_right' | 'idle_down' {

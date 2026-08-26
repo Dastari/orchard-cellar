@@ -379,3 +379,12 @@ seasonal cave variants.
   burn out, and entry without light is permitted (comfort rules); (4) hold-to-
   light: your light occupies your active slot in v1 — mining and lighting are
   mutually exclusive by design.
+
+## Amendment (2026-08-26, docs/35)
+
+Two changes from the homestead design
+([35-homesteads-and-farming.md](35-homesteads-and-farming.md)):
+`spaceId` is **u16**, not u8 (widen before implementation — per-player
+homestead instances need the range), and per-player instancing is sanctioned
+**for homesteads specifically**. The §2 rule stands for mines: shared,
+never per-player.

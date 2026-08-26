@@ -1,0 +1,57 @@
+{
+  "name": "icon_cf_effect_well_rested",
+  "category": "ui",
+  "size": [
+    8,
+    8
+  ],
+  "anchor": [
+    4,
+    4
+  ],
+  "frames": {
+    "base": [
+      [
+        "........",
+        "..222...",
+        ".21112..",
+        "2100012.",
+        "1000002.",
+        "0000002.",
+        "0000002.",
+        "0000002."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#181425",
+    "1": "#221d35",
+    "2": "#3f2832"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Icons.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
+  "sourceRegions": {
+    "base": [
+      [
+        24,
+        0,
+        8,
+        8
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "tags": [
+    "ui.icon",
+    "effect.well_rested"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

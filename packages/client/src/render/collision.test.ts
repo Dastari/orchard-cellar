@@ -3,6 +3,7 @@ import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
   generateSurvivalDecorations,
+  survivalResourceObstacle,
   survivalWaterRockObstacle,
 } from '@orchard/sim';
 import { createClientCollisionMap } from './collision.js';
@@ -23,10 +24,10 @@ describe('client collision cache', () => {
     const collision = createClientCollisionMap(terrain, resources, chests);
     expect(collision.blocked).toBe(terrain.blocked);
     expect(collision.horseJumpableTerrain).toBe(terrain.horseJumpableTerrain);
-    expect(collision.obstacles).toHaveLength(2);
-    expect(collision.obstacles?.[1]).toEqual({
+    expect(collision.obstacles).toContainEqual(survivalResourceObstacle('tree_oak', 10, 10));
+    expect(collision.obstacles).toContainEqual({
       left: 12 * TILE_SIZE_FIXED, top: 10 * TILE_SIZE_FIXED,
-      right: 13 * TILE_SIZE_FIXED, bottom: 11 * TILE_SIZE_FIXED,
+      right: 13 * TILE_SIZE_FIXED - 1, bottom: 11 * TILE_SIZE_FIXED - 1,
     });
   });
 

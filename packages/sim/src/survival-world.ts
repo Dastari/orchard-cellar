@@ -10,6 +10,7 @@ import {
   type RaisedTerrainGrid,
   type RaisedTerrainRampRole,
 } from './raised-terrain-autotile.js';
+import { SURVIVAL_SPAWN_SEARCH_RADIUS_TILES } from './balance.js';
 
 /** The original generated island remains a 320x320 deterministic local space.
  * A wide ocean apron surrounds it so later islands can be added without moving
@@ -57,7 +58,24 @@ export const SURVIVAL_NATURE_DECORATION_KINDS = [
   'nature_fish_shadow',
 ] as const;
 export type SurvivalNatureDecorationKind = typeof SURVIVAL_NATURE_DECORATION_KINDS[number];
-export type SurvivalDecorationKind = SurvivalPoiDecorationKind | SurvivalNatureDecorationKind;
+export const SURVIVAL_CAMP_DECORATION_KINDS = [
+  'camp_tent', 'camp_campfire', 'camp_round_stool', 'camp_bench', 'camp_stump_seat',
+  'camp_chair', 'camp_pond', 'camp_fishing_rod', 'camp_rock', 'camp_flowers',
+] as const;
+export type SurvivalCampDecorationKind = typeof SURVIVAL_CAMP_DECORATION_KINDS[number];
+export type SurvivalDecorationKind = SurvivalPoiDecorationKind | SurvivalNatureDecorationKind | SurvivalCampDecorationKind;
+
+/** Marlow's authored landmark occupies a naturally clear plains pocket west
+ * of the starting area. These coordinates are stable world content, not a
+ * player-relative spawn, so later reconnects and editors see the same camp. */
+export const MARLOW_CAMP = {
+  centerTileX: 336,
+  centerTileY: 356,
+  homeTileX: 338,
+  homeTileY: 358,
+  reserveRadiusX: 7,
+  reserveRadiusY: 6,
+} as const;
 
 export const SURVIVAL_BIOMES = [
   'water',
@@ -151,6 +169,11 @@ export interface GeneratedSurvivalDecoration {
   readonly animationOffset: number;
 }
 
+export interface SurvivalCampPathTile {
+  readonly tileX: number;
+  readonly tileY: number;
+}
+
 export interface SurvivalResourceCollision {
   readonly kind: string;
   readonly tileX: number;
@@ -200,6 +223,79 @@ export function survivalResourceBlocksMovement(kind: string): boolean {
 
 export function isInteractivePoiDecorationKind(kind: string): boolean {
   return kind === 'poi_rock_small' || kind === 'poi_fallen_log';
+}
+
+export function survivalMarlowCampReservedAt(tileX: number, tileY: number): boolean {
+  return Math.abs(tileX - MARLOW_CAMP.centerTileX) <= MARLOW_CAMP.reserveRadiusX
+    && Math.abs(tileY - MARLOW_CAMP.centerTileY) <= MARLOW_CAMP.reserveRadiusY;
+}
+
+export function generateMarlowCampDecorations(): readonly GeneratedSurvivalDecoration[] {
+  const at = (
+    id: number,
+    kind: SurvivalDecorationKind,
+    offsetX: number,
+    offsetY: number,
+    variant = 0,
+    animationOffset = 0,
+  ): GeneratedSurvivalDecoration => ({
+    id: 3_000_000_000 + id,
+    kind,
+    tileX: MARLOW_CAMP.centerTileX + offsetX,
+    tileY: MARLOW_CAMP.centerTileY + offsetY,
+    variant,
+    animationOffset,
+  });
+  return [
+    at(1, 'camp_tent', -4, 1),
+    at(2, 'camp_pond', 5, -1),
+    at(3, 'camp_fishing_rod', 3, 0),
+    at(4, 'camp_campfire', 0, 0, 0, 3),
+    at(5, 'camp_bench', 0, -2),
+    at(6, 'camp_round_stool', -2, 1),
+    at(7, 'camp_stump_seat', 2, 1),
+    at(8, 'camp_bench', 0, 2),
+    at(9, 'camp_rock', -6, 0),
+    at(10, 'camp_rock', 6, 5),
+    at(11, 'camp_flowers', -5, 4),
+    at(12, 'camp_flowers', 4, 4, 1),
+    at(13, 'nature_grass', -6, -3),
+    at(14, 'nature_grass', -3, -4),
+    at(15, 'nature_grass', 2, -4),
+    at(16, 'nature_grass', 6, -3),
+    at(17, 'nature_flower_grass', -5, -4),
+    at(18, 'nature_flower_grass', 5, -4),
+    at(19, 'nature_flower', -6, 2),
+    at(20, 'nature_flower', 5, 2, 1),
+    at(21, 'nature_grass', -6, 5),
+    at(22, 'nature_grass', 5, 5),
+  ];
+}
+
+/** A two-tile-wide campsite track with a short southern spur. The authored
+ * mask deliberately extends beyond the reserved clearing so the path tapers
+ * back into the surrounding world rather than ending at an invisible radius. */
+const marlowCampPathTiles: readonly SurvivalCampPathTile[] = (() => {
+  const tiles: SurvivalCampPathTile[] = [];
+  const add = (offsetX: number, offsetY: number): void => {
+    tiles.push({
+      tileX: MARLOW_CAMP.centerTileX + offsetX,
+      tileY: MARLOW_CAMP.centerTileY + offsetY,
+    });
+  };
+  for (let offsetX = -10; offsetX <= 10; offsetX += 1) {
+    add(offsetX, 2);
+    add(offsetX, 3);
+  }
+  for (let offsetY = 4; offsetY <= 9; offsetY += 1) {
+    add(-2, offsetY);
+    add(-1, offsetY);
+  }
+  return Object.freeze(tiles);
+})();
+
+export function generateMarlowCampPathTiles(): readonly SurvivalCampPathTile[] {
+  return marlowCampPathTiles;
 }
 
 function hash(seed: number, x: number, y: number): number {
@@ -918,7 +1014,11 @@ export function survivalBiomeBlocksTraversal(biome: SurvivalBiome, medium: Movem
 }
 
 export function survivalDecorationBlocksTraversal(kind: SurvivalDecorationKind, medium: MovementMedium): boolean {
-  return medium === 'water' && kind === 'nature_water_rock';
+  if (medium === 'water') return kind === 'nature_water_rock';
+  if (medium !== 'ground') return false;
+  return kind === 'camp_tent' || kind === 'camp_campfire' || kind === 'camp_round_stool'
+    || kind === 'camp_bench' || kind === 'camp_stump_seat' || kind === 'camp_chair'
+    || kind === 'camp_pond' || kind === 'camp_rock';
 }
 
 /** Water rocks occupy their authored tile for swimmers and watercraft. */
@@ -928,6 +1028,27 @@ export function survivalWaterRockObstacle(tileX: number, tileY: number): Collisi
     top: tileY * TILE_SIZE_FIXED,
     right: (tileX + 1) * TILE_SIZE_FIXED - 1,
     bottom: (tileY + 1) * TILE_SIZE_FIXED - 1,
+  };
+}
+
+/** Campsite sprites use their ground-contact tile as the authored anchor.
+ * The tent reserves only its two upper rows, leaving its three entrance tiles
+ * walkable. The pond retains a complete 3x3 footprint; small props use one
+ * tile. This single rule is shared by server authority and prediction. */
+export function survivalDecorationObstacle(
+  decoration: Pick<GeneratedSurvivalDecoration, 'kind' | 'tileX' | 'tileY'>,
+  medium: MovementMedium,
+): CollisionObstacle | null {
+  if (!survivalDecorationBlocksTraversal(decoration.kind, medium)) return null;
+  if (decoration.kind === 'nature_water_rock') {
+    return survivalWaterRockObstacle(decoration.tileX, decoration.tileY);
+  }
+  const wide = decoration.kind === 'camp_tent' || decoration.kind === 'camp_pond';
+  return {
+    left: (decoration.tileX - (wide ? 1 : 0)) * TILE_SIZE_FIXED,
+    top: (decoration.tileY - (wide ? 2 : 0)) * TILE_SIZE_FIXED,
+    right: (decoration.tileX + (wide ? 2 : 1)) * TILE_SIZE_FIXED - 1,
+    bottom: (decoration.tileY + (decoration.kind === 'camp_tent' ? 0 : 1)) * TILE_SIZE_FIXED - 1,
   };
 }
 
@@ -1043,12 +1164,45 @@ export function survivalSpawnTiles(): readonly SurvivalSpawnTile[] {
 }
 
 export function survivalSpawnPosition(slot: number): { readonly x: number; readonly y: number } | null {
-  const spawn = survivalSpawnTiles().find((tile) => tile.slot === slot);
+  if (!Number.isInteger(slot) || slot < 0) return null;
+  const legacySpawns = survivalSpawnTiles();
+  let spawn = legacySpawns.find((tile) => tile.slot === slot) ?? null;
+  if (spawn === null) {
+    const occupied = new Set(legacySpawns.map((tile) => `${tile.tileX},${tile.tileY}`));
+    for (let index = legacySpawns.length; index <= slot; index += 1) {
+      spawn = findSurvivalSpawnTile(occupied);
+      if (spawn === null) return null;
+      occupied.add(`${spawn.tileX},${spawn.tileY}`);
+    }
+  }
   if (!spawn) return null;
   return {
     x: spawn.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
     y: spawn.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
   };
+}
+
+/** Finds the next free natural tile without imposing a player-slot ceiling. */
+export function findSurvivalSpawnTile(occupiedTiles: ReadonlySet<string>): SurvivalSpawnTile | null {
+  for (const legacy of survivalSpawnTiles()) {
+    if (!occupiedTiles.has(`${legacy.tileX},${legacy.tileY}`)) return legacy;
+  }
+  const centerX = worldTile(160);
+  const centerY = worldTile(160);
+  for (let radius = 0; radius <= SURVIVAL_SPAWN_SEARCH_RADIUS_TILES; radius += 1) {
+    for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
+      for (let offsetX = -radius; offsetX <= radius; offsetX += 1) {
+        if (Math.max(Math.abs(offsetX), Math.abs(offsetY)) !== radius) continue;
+        const tileX = centerX + offsetX;
+        const tileY = centerY + offsetY;
+        if (occupiedTiles.has(`${tileX},${tileY}`)) continue;
+        if (survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY))) continue;
+        if (generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, tileX, tileY) !== null) continue;
+        return { slot: occupiedTiles.size, tileX, tileY };
+      }
+    }
+  }
+  return null;
 }
 
 export function survivalSpawnProtectedAt(tileX: number, tileY: number): boolean {
@@ -1230,7 +1384,8 @@ function generateNatureDecorations(
     return true;
   };
   const validGround = (tileX: number, tileY: number): boolean => {
-    if (!natureGroundBiome(biomeAt(tileX, tileY)) || survivalSpawnProtectedAt(tileX, tileY)) return false;
+    if (!natureGroundBiome(biomeAt(tileX, tileY)) || survivalSpawnProtectedAt(tileX, tileY)
+      || survivalMarlowCampReservedAt(tileX, tileY)) return false;
     return survivalCliffRoleAt(seed, tileX, tileY) === 'none'
       && survivalDirtCliffRoleAt(seed, tileX, tileY) === 'none'
       && !survivalRampApproachAt(seed, tileX, tileY);
@@ -1363,6 +1518,7 @@ function buildRareOreLayout(seed: number): RareOreLayout {
         for (let tileX = minimumX; tileX < maximumX; tileX += 1) {
           const biome = biomeAt(tileX, tileY);
           if (survivalBiomeBlocksMovement(biome) || survivalSpawnProtectedAt(tileX, tileY)
+            || survivalMarlowCampReservedAt(tileX, tileY)
             || survivalCliffRoleAt(seed, tileX, tileY) !== 'none'
             || survivalDirtCliffRoleAt(seed, tileX, tileY) !== 'none'
             || survivalRampApproachAt(seed, tileX, tileY)) continue;
@@ -1424,6 +1580,9 @@ function buildRareOreLayout(seed: number): RareOreLayout {
       decorationTiles.add(tileId);
     }
   }
+  const campDecorations = generateMarlowCampDecorations();
+  decorations.push(...campDecorations);
+  for (const decoration of campDecorations) decorationTiles.add(resourceTileId(decoration.tileX, decoration.tileY));
   decorations.push(...generateNatureDecorations(seed, biomeAt, selectedTiles, decorations));
   return {
     biomes,
@@ -1466,6 +1625,7 @@ function generatedNaturalSurvivalResourceWith(
   decorationTiles: ReadonlySet<number>,
 ): GeneratedSurvivalResource | null {
   if (survivalSpawnProtectedAt(tileX, tileY)) return null;
+  if (survivalMarlowCampReservedAt(tileX, tileY)) return null;
   if (survivalRampApproachAt(seed, tileX, tileY)) return null;
   if (survivalCliffRoleAt(seed, tileX, tileY) !== 'none') return null;
   if (survivalDirtCliffRoleAt(seed, tileX, tileY) !== 'none') return null;
@@ -1545,12 +1705,9 @@ export function createSurvivalCollisionMap(
       obstacles.push(survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY));
     }
   }
-  if (medium === 'water') {
-    for (const decoration of generateSurvivalDecorations(seed)) {
-      if (survivalDecorationBlocksTraversal(decoration.kind, medium)) {
-        obstacles.push(survivalWaterRockObstacle(decoration.tileX, decoration.tileY));
-      }
-    }
+  for (const decoration of generateSurvivalDecorations(seed)) {
+    const obstacle = survivalDecorationObstacle(decoration, medium);
+    if (obstacle !== null) obstacles.push(obstacle);
   }
   return {
     width: SURVIVAL_WORLD_SIZE,

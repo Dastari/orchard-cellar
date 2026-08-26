@@ -79,3 +79,14 @@ path, then verify restoration automatically.
 - No authorization based on what a client happened to subscribe to.
 - No per-tick economy writes for absent farms.
 - No destructive production publish/reset as a migration shortcut.
+
+## Retention addendum (2026-08-26)
+
+Per [34-backend-scalability.md](34-backend-scalability.md) N4/B6: append-only
+operational tables need retention. Binding policy — `connection_audit` trims
+to 90 days, `membership_audit` and `world_admin_audit` are kept forever (small,
+security-relevant), `world_item` ground drops expire (doc 34 stage 1), and
+whisper history is bounded per conversation *and* by a total-conversation cap.
+Stage 1 checks the connection-audit trim every **2,000 authority ticks / 100
+seconds** via a tick modulo; the other 1,999 ticks do no audit scan. Doc 34
+stage 3 moves this maintenance to its own slow scheduled reducer.

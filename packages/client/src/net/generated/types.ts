@@ -16,6 +16,14 @@ export const ActiveChest = __t.object("ActiveChest", {
 });
 export type ActiveChest = __Infer<typeof ActiveChest>;
 
+export const ActiveDialogue = __t.object("ActiveDialogue", {
+  identity: __t.identity(),
+  npcId: __t.u64(),
+  dialogueId: __t.string(),
+  nodeId: __t.string(),
+});
+export type ActiveDialogue = __Infer<typeof ActiveDialogue>;
+
 export const CharacterProfile = __t.object("CharacterProfile", {
   identity: __t.identity(),
   nameChosen: __t.bool(),
@@ -81,12 +89,6 @@ export const ConnectionNotice = __t.object("ConnectionNotice", {
 });
 export type ConnectionNotice = __Infer<typeof ConnectionNotice>;
 
-export const ConnectionPresence = __t.object("ConnectionPresence", {
-  connectionId: __t.connectionId(),
-  identity: __t.identity(),
-});
-export type ConnectionPresence = __Infer<typeof ConnectionPresence>;
-
 export const ConnectionPresenceV2 = __t.object("ConnectionPresenceV2", {
   connectionId: __t.connectionId(),
   identity: __t.identity(),
@@ -127,12 +129,28 @@ export const FarmParcel = __t.object("FarmParcel", {
 });
 export type FarmParcel = __Infer<typeof FarmParcel>;
 
+export const InventoryMigration = __t.object("InventoryMigration", {
+  identity: __t.identity(),
+  durabilityVersion: __t.u8(),
+});
+export type InventoryMigration = __Infer<typeof InventoryMigration>;
+
+export const InventoryOverflow = __t.object("InventoryOverflow", {
+  id: __t.u64(),
+  identity: __t.identity(),
+  itemKind: __t.string(),
+  quantity: __t.u16(),
+  durability: __t.u16(),
+});
+export type InventoryOverflow = __Infer<typeof InventoryOverflow>;
+
 export const InventorySlot = __t.object("InventorySlot", {
   id: __t.string(),
   identity: __t.identity(),
   slot: __t.u8(),
   itemKind: __t.string(),
   quantity: __t.u16(),
+  durability: __t.u16(),
 });
 export type InventorySlot = __Infer<typeof InventorySlot>;
 
@@ -162,8 +180,17 @@ export const MovementTimer = __t.object("MovementTimer", {
 });
 export type MovementTimer = __Infer<typeof MovementTimer>;
 
+export const OnlinePlayerAppearances = __t.object("OnlinePlayerAppearances", {});
+export type OnlinePlayerAppearances = __Infer<typeof OnlinePlayerAppearances>;
+
+export const OnlinePlayerPublic = __t.object("OnlinePlayerPublic", {});
+export type OnlinePlayerPublic = __Infer<typeof OnlinePlayerPublic>;
+
 export const OwnActiveChest = __t.object("OwnActiveChest", {});
 export type OwnActiveChest = __Infer<typeof OwnActiveChest>;
+
+export const OwnActiveDialogue = __t.object("OwnActiveDialogue", {});
+export type OwnActiveDialogue = __Infer<typeof OwnActiveDialogue>;
 
 export const OwnCharacterProfile = __t.object("OwnCharacterProfile", {});
 export type OwnCharacterProfile = __Infer<typeof OwnCharacterProfile>;
@@ -174,6 +201,12 @@ export type OwnChatChannels = __Infer<typeof OwnChatChannels>;
 export const OwnConnectionNotices = __t.object("OwnConnectionNotices", {});
 export type OwnConnectionNotices = __Infer<typeof OwnConnectionNotices>;
 
+export const OwnEffects = __t.object("OwnEffects", {});
+export type OwnEffects = __Infer<typeof OwnEffects>;
+
+export const OwnInventoryOverflow = __t.object("OwnInventoryOverflow", {});
+export type OwnInventoryOverflow = __Infer<typeof OwnInventoryOverflow>;
+
 export const OwnInventorySlots = __t.object("OwnInventorySlots", {});
 export type OwnInventorySlots = __Infer<typeof OwnInventorySlots>;
 
@@ -183,8 +216,20 @@ export type OwnMembership = __Infer<typeof OwnMembership>;
 export const OwnOpenChestSlots = __t.object("OwnOpenChestSlots", {});
 export type OwnOpenChestSlots = __Infer<typeof OwnOpenChestSlots>;
 
+export const OwnPlayerStatisticMilestones = __t.object("OwnPlayerStatisticMilestones", {});
+export type OwnPlayerStatisticMilestones = __Infer<typeof OwnPlayerStatisticMilestones>;
+
+export const OwnPlayerStatistics = __t.object("OwnPlayerStatistics", {});
+export type OwnPlayerStatistics = __Infer<typeof OwnPlayerStatistics>;
+
+export const OwnStats = __t.object("OwnStats", {});
+export type OwnStats = __Infer<typeof OwnStats>;
+
 export const OwnSurvival = __t.object("OwnSurvival", {});
 export type OwnSurvival = __Infer<typeof OwnSurvival>;
+
+export const OwnWallet = __t.object("OwnWallet", {});
+export type OwnWallet = __Infer<typeof OwnWallet>;
 
 export const PlayerAppearance = __t.object("PlayerAppearance", {
   identity: __t.identity(),
@@ -195,11 +240,15 @@ export const PlayerAppearance = __t.object("PlayerAppearance", {
 });
 export type PlayerAppearance = __Infer<typeof PlayerAppearance>;
 
-export const PlayerEquipment = __t.object("PlayerEquipment", {
+export const PlayerEffect = __t.object("PlayerEffect", {
+  id: __t.u64(),
   identity: __t.identity(),
-  itemKind: __t.string(),
+  effectKind: __t.string(),
+  stacks: __t.u8(),
+  appliedTick: __t.u64(),
+  expiresTick: __t.u64(),
 });
-export type PlayerEquipment = __Infer<typeof PlayerEquipment>;
+export type PlayerEffect = __Infer<typeof PlayerEffect>;
 
 export const PlayerInput = __t.object("PlayerInput", {
   identity: __t.identity(),
@@ -243,6 +292,53 @@ export const PlayerPublic = __t.object("PlayerPublic", {
 });
 export type PlayerPublic = __Infer<typeof PlayerPublic>;
 
+export const PlayerSpawn = __t.object("PlayerSpawn", {
+  identity: __t.identity(),
+  tileX: __t.i16(),
+  tileY: __t.i16(),
+});
+export type PlayerSpawn = __Infer<typeof PlayerSpawn>;
+
+export const PlayerStatistic = __t.object("PlayerStatistic", {
+  id: __t.string(),
+  identity: __t.identity(),
+  statisticKind: __t.string(),
+  subjectKind: __t.string(),
+  value: __t.u64(),
+  createdTick: __t.u64(),
+  updatedTick: __t.u64(),
+});
+export type PlayerStatistic = __Infer<typeof PlayerStatistic>;
+
+export const PlayerStatisticMilestone = __t.object("PlayerStatisticMilestone", {
+  id: __t.string(),
+  identity: __t.identity(),
+  statisticKind: __t.string(),
+  subjectKind: __t.string(),
+  threshold: __t.u64(),
+  achievedTick: __t.u64(),
+});
+export type PlayerStatisticMilestone = __Infer<typeof PlayerStatisticMilestone>;
+
+export const PlayerStats = __t.object("PlayerStats", {
+  identity: __t.identity(),
+  str: __t.u8(),
+  dex: __t.u8(),
+  con: __t.u8(),
+  int: __t.u8(),
+  wis: __t.u8(),
+  cha: __t.u8(),
+  healthCenti: __t.u32(),
+  manaCenti: __t.u32(),
+  vigourCenti: __t.u32(),
+  healthRemainder: __t.u32(),
+  manaRemainder: __t.u32(),
+  vigourRemainder: __t.u32(),
+  regenTick: __t.u64(),
+  lastSwingTick: __t.u64(),
+});
+export type PlayerStats = __Infer<typeof PlayerStats>;
+
 export const PlayerSurvival = __t.object("PlayerSurvival", {
   identity: __t.identity(),
   spawnSlot: __t.u8(),
@@ -252,6 +348,12 @@ export const PlayerSurvival = __t.object("PlayerSurvival", {
 });
 export type PlayerSurvival = __Infer<typeof PlayerSurvival>;
 
+export const PlayerWallet = __t.object("PlayerWallet", {
+  identity: __t.identity(),
+  balanceBronze: __t.u64(),
+});
+export type PlayerWallet = __Infer<typeof PlayerWallet>;
+
 export const PrivateInventory = __t.object("PrivateInventory", {
   identity: __t.identity(),
   fruit: __t.u64(),
@@ -259,6 +361,12 @@ export const PrivateInventory = __t.object("PrivateInventory", {
   knowledge: __t.u32(),
 });
 export type PrivateInventory = __Infer<typeof PrivateInventory>;
+
+export const StatsMigration = __t.object("StatsMigration", {
+  id: __t.u8(),
+  creatureHealthVersion: __t.u8(),
+});
+export type StatsMigration = __Infer<typeof StatsMigration>;
 
 export const VisibleChatMessages = __t.object("VisibleChatMessages", {});
 export type VisibleChatMessages = __Infer<typeof VisibleChatMessages>;
@@ -286,12 +394,19 @@ export const WorldChest = __t.object("WorldChest", {
 });
 export type WorldChest = __Infer<typeof WorldChest>;
 
+export const WorldChestDamage = __t.object("WorldChestDamage", {
+  chestId: __t.u64(),
+  hits: __t.u8(),
+});
+export type WorldChestDamage = __Infer<typeof WorldChestDamage>;
+
 export const WorldChestSlot = __t.object("WorldChestSlot", {
   id: __t.string(),
   chestId: __t.u64(),
   slot: __t.u8(),
   itemKind: __t.string(),
   quantity: __t.u16(),
+  durability: __t.u16(),
 });
 export type WorldChestSlot = __Infer<typeof WorldChestSlot>;
 
@@ -331,8 +446,16 @@ export const WorldItem = __t.object("WorldItem", {
   chunkX: __t.i16(),
   chunkY: __t.i16(),
   droppedAtTick: __t.u64(),
+  durability: __t.u16(),
 });
 export type WorldItem = __Infer<typeof WorldItem>;
+
+export const WorldMerchant = __t.object("WorldMerchant", {
+  npcId: __t.u64(),
+  dialogueId: __t.string(),
+  shopId: __t.string(),
+});
+export type WorldMerchant = __Infer<typeof WorldMerchant>;
 
 export const WorldMotd = __t.object("WorldMotd", {
   id: __t.u8(),
@@ -358,6 +481,7 @@ export const WorldNpc = __t.object("WorldNpc", {
   wanderDirection: __t.string(),
   nextDecisionTick: __t.u64(),
   authorityTick: __t.u64(),
+  health: __t.u16(),
 });
 export type WorldNpc = __Infer<typeof WorldNpc>;
 
@@ -389,6 +513,12 @@ export const WorldResource = __t.object("WorldResource", {
   depleted: __t.bool(),
 });
 export type WorldResource = __Infer<typeof WorldResource>;
+
+export const WorldScalabilityMigration = __t.object("WorldScalabilityMigration", {
+  id: __t.u8(),
+  wildlifeProfileChunkVersion: __t.u8(),
+});
+export type WorldScalabilityMigration = __Infer<typeof WorldScalabilityMigration>;
 
 export const WorldSeed = __t.object("WorldSeed", {
   id: __t.u8(),
@@ -447,6 +577,8 @@ export const WorldWildlifeProfile = __t.object("WorldWildlifeProfile", {
   variant: __t.u8(),
   packId: __t.u64(),
   habitat: __t.string(),
+  chunkX: __t.i16(),
+  chunkY: __t.i16(),
 });
 export type WorldWildlifeProfile = __Infer<typeof WorldWildlifeProfile>;
 

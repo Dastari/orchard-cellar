@@ -26,29 +26,31 @@ import {
 
 export const GROUND_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 
-interface CacheEntry<T> {
-  readonly value: T;
-  lastUsed: number;
-}
-
 export class ChunkLruCache<T> {
-  private readonly entries = new Map<string, CacheEntry<T>>();
-  private useCounter = 0;
+  private readonly entries = new Map<string, T>();
 
-  constructor(readonly capacity = 64) {}
+  constructor(private capacityValue = 64) {}
 
   get size(): number { return this.entries.size; }
+  get capacity(): number { return this.capacityValue; }
   has(chunkX: number, chunkY: number): boolean { return this.entries.has(`${chunkX},${chunkY}`); }
+
+  setCapacity(capacity: number): void {
+    this.capacityValue = Math.max(1, Math.ceil(capacity));
+    this.evict();
+  }
 
   getOrCreate(chunkX: number, chunkY: number, create: () => T): T {
     const key = `${chunkX},${chunkY}`;
     const existing = this.entries.get(key);
     if (existing !== undefined) {
-      existing.lastUsed = ++this.useCounter;
-      return existing.value;
+      // Map iteration order is the LRU queue: refresh a hit at the tail in O(1).
+      this.entries.delete(key);
+      this.entries.set(key, existing);
+      return existing;
     }
     const value = create();
-    this.entries.set(key, { value, lastUsed: ++this.useCounter });
+    this.entries.set(key, value);
     this.evict();
     return value;
   }
@@ -66,18 +68,23 @@ export class ChunkLruCache<T> {
   keys(): readonly string[] { return [...this.entries.keys()]; }
 
   private evict(): void {
-    while (this.entries.size > this.capacity) {
-      let oldestKey: string | null = null;
-      let oldestUse = Number.POSITIVE_INFINITY;
-      for (const [key, entry] of this.entries) {
-        if (entry.lastUsed >= oldestUse) continue;
-        oldestUse = entry.lastUsed;
-        oldestKey = key;
-      }
-      if (oldestKey === null) return;
+    while (this.entries.size > this.capacityValue) {
+      const oldestKey = this.entries.keys().next().value as string | undefined;
+      if (oldestKey === undefined) return;
       this.entries.delete(oldestKey);
     }
   }
+}
+
+export function groundCacheCapacityForViewport(
+  viewportWidth: number,
+  viewportHeight: number,
+  scale: number,
+): number {
+  const safeScale = Math.max(0.01, scale);
+  const columns = Math.ceil(viewportWidth / safeScale / GROUND_CHUNK_PIXELS) + 1;
+  const rows = Math.ceil(viewportHeight / safeScale / GROUND_CHUNK_PIXELS) + 1;
+  return Math.max(64, Math.ceil(columns * rows * 1.5));
 }
 
 function drawGroundAsset(
@@ -175,6 +182,7 @@ export class GroundChunkCache {
     viewportWidth: number,
     viewportHeight: number,
   ): number {
+    this.chunks.setCapacity(groundCacheCapacityForViewport(viewportWidth, viewportHeight, scale));
     const key = `${terrain.seed}:${terrain.version}`;
     if (key !== this.terrainKey) {
       this.terrainKey = key;

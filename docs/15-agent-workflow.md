@@ -92,10 +92,23 @@ A task is done when **all** of these hold:
 - [ ] `npm run dev` boots and the feature is demonstrated live via the preview/run
       workflow (`/run`) — screenshot required for any visual work
 - [ ] Doc cross-references updated (if you changed behavior a doc describes)
+- [ ] New authority-owned gameplay outcomes are registered and recorded per
+      [33-player-statistics.md](33-player-statistics.md), or the feature doc explains
+      why no lifetime statistic applies
 - [ ] `DECISIONS.md` entry appended (if you deviated)
 - [ ] Roadmap checkbox ticked in [14-roadmap.md](14-roadmap.md)
 
-"It compiles" satisfies exactly one of seven boxes.
+"It compiles" satisfies exactly one of eight boxes.
+
+### 5.1 Lifetime-statistics audit
+
+Every new world reducer or persistent gameplay outcome must read
+[33-player-statistics.md](33-player-statistics.md). Reuse or extend the typed sim
+registry, write the statistic in the same successful authority transaction, and test
+that rejected actions add nothing. Raw statistic-name strings, client-reported totals,
+and undocumented subject encodings are release blockers. Reserved definitions such as
+combat and fishing are promises to instrument those systems when their gameplay lands,
+not permission to increment them early.
 
 ## 6. Asset work
 

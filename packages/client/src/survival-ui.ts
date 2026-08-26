@@ -1,4 +1,18 @@
-import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type Direction } from '@orchard/sim';
+import {
+  FIXED_UNITS_PER_PIXEL,
+  TILE_SIZE_FIXED,
+  TILE_INTERACTION_REACH_FIXED,
+  boundsOverlap,
+  facedTileTarget,
+  itemEconomyDefinition,
+  playerHitboxBounds,
+  tileTargetAtFixedPoint,
+  tileTargetBounds,
+  tileTargetInReach,
+  tileTargetIsBlocked,
+  type CollisionMap,
+  type Direction,
+} from '@orchard/sim';
 
 export interface TargetableResource {
   readonly id: bigint;
@@ -25,45 +39,53 @@ const FACING_VECTOR: Record<Direction, readonly [number, number]> = {
   downRight: [1, 1],
 };
 
-export interface TargetableFarmTile { readonly tileX: number; readonly tileY: number }
+export interface TargetableTile { readonly tileX: number; readonly tileY: number }
 
-export const FARM_TILE_REACH_FIXED = TILE_SIZE_FIXED * 2;
+export const TILE_TARGET_REACH_FIXED = TILE_INTERACTION_REACH_FIXED;
 
-/** The farming cursor follows the adjacent tile in the player's eight-way
- * facing, keeping keyboard tool use precise without requiring mouse aim. */
-export function facedFarmTile(playerX: number, playerY: number, facing: Direction): TargetableFarmTile {
-  const [offsetX, offsetY] = FACING_VECTOR[facing];
-  return {
-    tileX: Math.floor(playerX / TILE_SIZE_FIXED) + offsetX,
-    tileY: Math.floor(playerY / TILE_SIZE_FIXED) + offsetY,
-  };
+/** All tile tools and placeables share the same facing fallback. */
+export function facedInteractionTile(playerX: number, playerY: number, facing: Direction): TargetableTile {
+  return facedTileTarget(playerX, playerY, facing);
 }
 
-export function farmTileInReach(
+export function interactionTileInReach(
   playerX: number,
   playerY: number,
-  tile: TargetableFarmTile,
+  tile: TargetableTile,
 ): boolean {
-  const targetX = tile.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-  const targetY = tile.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-  const dx = targetX - playerX;
-  const dy = targetY - playerY;
-  return dx * dx + dy * dy <= FARM_TILE_REACH_FIXED * FARM_TILE_REACH_FIXED;
+  return tileTargetInReach(playerX, playerY, tile);
 }
 
-/** Converts a world-space pointer to a tile and applies the same reach circle
- * enforced by the server. Out-of-bounds pointers cannot become tool targets. */
-export function farmTileAtWorldPoint(
+/** Converts a pixel-space world pointer to the shared authority target. */
+export function interactionTileAtWorldPoint(
   playerX: number,
   playerY: number,
   worldX: number,
   worldY: number,
   worldSize: number,
-): TargetableFarmTile | null {
-  if (!Number.isFinite(worldX) || !Number.isFinite(worldY)) return null;
-  const tile = { tileX: Math.floor(worldX / 16), tileY: Math.floor(worldY / 16) };
-  if (tile.tileX < 0 || tile.tileY < 0 || tile.tileX >= worldSize || tile.tileY >= worldSize) return null;
-  return farmTileInReach(playerX, playerY, tile) ? tile : null;
+): TargetableTile | null {
+  return tileTargetAtFixedPoint(
+    playerX,
+    playerY,
+    worldX * FIXED_UNITS_PER_PIXEL,
+    worldY * FIXED_UNITS_PER_PIXEL,
+    worldSize,
+  );
+}
+
+/** Client placement preview for terrain/entity obstacles and live player foot
+ * hitboxes. Authority repeats this check against the complete world state. */
+export function worldPlacementTileIsBlocked(
+  collision: CollisionMap,
+  tile: TargetableTile,
+  players: Iterable<{ readonly x: number; readonly y: number }>,
+): boolean {
+  if (tileTargetIsBlocked(collision, tile)) return true;
+  const tileBounds = tileTargetBounds(tile);
+  for (const player of players) {
+    if (boundsOverlap(tileBounds, playerHitboxBounds(player))) return true;
+  }
+  return false;
 }
 
 export function facedResource<T extends TargetableResource>(
@@ -162,6 +184,10 @@ const HOTBAR_LABELS: Readonly<Record<string, string>> = {
   hoe: 'HOE',
   watering_can: 'WATER',
   bow: 'BOW',
+  shovel: 'SHOVEL',
+  hammer: 'HAMMER',
+  torch: 'TORCH',
+  lantern: 'LANTERN',
   arrow: 'ARROW',
   wood: 'WOOD',
   plank: 'PLANK',
@@ -179,7 +205,7 @@ const HOTBAR_LABELS: Readonly<Record<string, string>> = {
 };
 
 export function hotbarItemLabel(itemKind: string): string {
-  return HOTBAR_LABELS[itemKind] ?? '--';
+  return HOTBAR_LABELS[itemKind] ?? itemEconomyDefinition(itemKind)?.displayName.toUpperCase() ?? '--';
 }
 
 const HOTBAR_NAMES: Readonly<Record<string, string>> = {
@@ -188,6 +214,10 @@ const HOTBAR_NAMES: Readonly<Record<string, string>> = {
   hoe: 'HOE',
   watering_can: 'WATERING CAN',
   bow: 'WOODEN BOW',
+  shovel: 'SHOVEL',
+  hammer: 'HAMMER',
+  torch: 'TORCH',
+  lantern: 'LANTERN',
   arrow: 'ARROWS',
   wood: 'WOOD',
   plank: 'WOODEN PLANKS',
@@ -205,7 +235,7 @@ const HOTBAR_NAMES: Readonly<Record<string, string>> = {
 };
 
 export function hotbarItemName(itemKind: string): string | null {
-  return HOTBAR_NAMES[itemKind] ?? null;
+  return HOTBAR_NAMES[itemKind] ?? itemEconomyDefinition(itemKind)?.displayName.toUpperCase() ?? null;
 }
 
 /** Only ranged aiming continuously overrides locomotion facing. Other tools

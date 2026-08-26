@@ -6,6 +6,7 @@ import {
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
+  TILE_INTERACTION_REACH_FIXED,
   createSurvivalCollisionMap,
   isChoppableTreeKind,
   isBreakableRockKind,
@@ -15,6 +16,8 @@ import {
   survivalGatherableDrop,
   survivalResourceBlocksMovement,
   survivalResourceObstacle,
+  tileTargetInReach,
+  tileTargetIsBlocked,
   type CollisionMap,
   type Direction,
   type MovementMedium,
@@ -24,7 +27,7 @@ export { AUTHORITY_HZ, SIM_STEPS_PER_AUTHORITY_TICK };
 export const CHUNK_TILES = 16;
 export const CHUNK_SIZE_FIXED = CHUNK_TILES * TILE_SIZE_FIXED;
 export const TREE_REACH_FIXED = 2 * TILE_SIZE_FIXED;
-export const FARM_TOOL_REACH_FIXED = 2 * TILE_SIZE_FIXED;
+export const FARM_TOOL_REACH_FIXED = TILE_INTERACTION_REACH_FIXED;
 export const ITEM_PICKUP_REACH_FIXED = 24 * FIXED_UNITS_PER_PIXEL;
 export const TREE_TEND_COOLDOWN_TICKS = 20n;
 export const CROP_GROWTH_TICKS = 200n;
@@ -44,6 +47,34 @@ export const MAX_SETTLE_STEPS_PER_TICK = MAX_SETTLE_BACKLOG_STEPS;
 const SURVIVAL_TERRAIN_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
 const SURVIVAL_WATER_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], 'water');
 const SURVIVAL_AIR_COLLISION = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], 'air');
+
+export type ToolSpendResult =
+  | { readonly ok: false; readonly code: 'swing_too_soon' | 'insufficient_vigour' }
+  | { readonly ok: true; readonly costCenti: number; readonly vigourCenti: number; readonly lastSwingTick: bigint };
+
+/** Pure transaction decision used by every authoritative tool reducer. World
+ * state is written only for the `ok` branch, keeping rejections atomic. */
+export function toolSpendResult(
+  vigourCenti: number,
+  lastSwingTick: bigint,
+  authorityTick: bigint,
+  fullCostCenti: number,
+  minimumSwingTicks: number,
+  whiff: boolean,
+): ToolSpendResult {
+  const interval = Math.max(1, Math.trunc(minimumSwingTicks));
+  if (lastSwingTick !== 0n && authorityTick - lastSwingTick < BigInt(interval)) {
+    return { ok: false, code: 'swing_too_soon' };
+  }
+  const costCenti = whiff ? Math.ceil(fullCostCenti / 2) : fullCostCenti;
+  if (vigourCenti < costCenti) return { ok: false, code: 'insufficient_vigour' };
+  return {
+    ok: true,
+    costCenti,
+    vigourCenti: vigourCenti - costCenti,
+    lastSwingTick: authorityTick,
+  };
+}
 
 export interface AuthoritySurvivalResource {
   readonly kind: string;
@@ -83,8 +114,8 @@ export function createAuthoritySurvivalCollisionMap(
     obstacles.push({
       left: chest.tileX * TILE_SIZE_FIXED,
       top: chest.tileY * TILE_SIZE_FIXED,
-      right: (chest.tileX + 1) * TILE_SIZE_FIXED,
-      bottom: (chest.tileY + 1) * TILE_SIZE_FIXED,
+      right: (chest.tileX + 1) * TILE_SIZE_FIXED - 1,
+      bottom: (chest.tileY + 1) * TILE_SIZE_FIXED - 1,
     });
   }
   return {
@@ -94,6 +125,25 @@ export function createAuthoritySurvivalCollisionMap(
     horseJumpableTerrain,
     obstacles,
   };
+}
+
+export type TilePlacementResult = 'ok' | 'invalid_tile' | 'out_of_range' | 'tile_blocked';
+
+/** Shared authority gate for placeables. Dynamic actor occupancy is supplied
+ * separately because players are not movement-map obstacles. */
+export function tilePlacementResult(
+  playerX: number,
+  playerY: number,
+  tileX: number,
+  tileY: number,
+  collision: CollisionMap,
+  occupiedByActor: boolean,
+): TilePlacementResult {
+  if (!Number.isInteger(tileX) || !Number.isInteger(tileY)
+    || tileX < 0 || tileY < 0 || tileX >= collision.width || tileY >= collision.height) return 'invalid_tile';
+  const tile = { tileX, tileY };
+  if (!tileTargetInReach(playerX, playerY, tile)) return 'out_of_range';
+  return occupiedByActor || tileTargetIsBlocked(collision, tile) ? 'tile_blocked' : 'ok';
 }
 
 export function resourceHarvestResult(

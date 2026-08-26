@@ -3,9 +3,11 @@ import {
   craftItem,
   distributeItemStack,
   insertItemStack,
+  insertItemStackPartial,
   matchingRecipeId,
   moveItemStacks,
   quickMoveItemStack,
+  quickMoveAllMatchingStacks,
   slotAcceptsItem,
 } from './item-containers.js';
 import { MOVE_RULE_FIXTURES } from './item-containers.fixtures.js';
@@ -57,6 +59,17 @@ describe('shared container stacking rules', () => {
     const container = { id: 'hotbar', capacity: 2, slots: [{ itemKind: 'wood', quantity: 98 }, null] } as const;
     expect(insertItemStack(container, { itemKind: 'wood', quantity: 101 })).toEqual({ ok: false, code: 'container_full' });
     expect(container.slots).toEqual([{ itemKind: 'wood', quantity: 98 }, null]);
+  });
+
+  it('partially drains a safety stack while preserving its exact remainder', () => {
+    expect(insertItemStackPartial({
+      id: 'hotbar', capacity: 2, slots: [{ itemKind: 'wood', quantity: 98 }, null],
+    }, { itemKind: 'wood', quantity: 105 })).toMatchObject({
+      ok: true,
+      insertedQuantity: 100,
+      remainderQuantity: 5,
+      container: { slots: [{ itemKind: 'wood', quantity: 99 }, { itemKind: 'wood', quantity: 99 }] },
+    });
   });
 
   it('uses equipment tags as slot acceptance types', () => {
@@ -155,6 +168,31 @@ describe('Minecraft-style bulk slot gestures', () => {
           { itemKind: 'plank', quantity: 4 },
           { itemKind: 'plank', quantity: 3 },
           { itemKind: 'plank', quantity: 3 },
+        ] },
+      },
+    });
+  });
+
+  it('shift-double-click transfers all matching stacks without touching other items', () => {
+    const result = quickMoveAllMatchingStacks({
+      hotbar: { id: 'hotbar', capacity: 3, slots: [
+        { itemKind: 'wood', quantity: 60 }, { itemKind: 'stone', quantity: 7 }, { itemKind: 'wood', quantity: 50 },
+      ] },
+      backpack: { id: 'backpack', capacity: 2, slots: [{ itemKind: 'wood', quantity: 90 }, null] },
+      chest: { id: 'chest', capacity: 3, slots: [{ itemKind: 'wood', quantity: 95 }, null, null] },
+    }, {
+      itemKind: 'wood', fromContainers: ['hotbar', 'backpack'], toContainers: ['chest'],
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      movedQuantity: 200,
+      containers: {
+        hotbar: { slots: [null, { itemKind: 'stone', quantity: 7 }, null] },
+        backpack: { slots: [null, null] },
+        chest: { slots: [
+          { itemKind: 'wood', quantity: 99 },
+          { itemKind: 'wood', quantity: 99 },
+          { itemKind: 'wood', quantity: 97 },
         ] },
       },
     });

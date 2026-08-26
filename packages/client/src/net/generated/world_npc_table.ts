@@ -26,4 +26,5 @@ export default __t.row({
   wanderDirection: __t.string().name("wander_direction"),
   nextDecisionTick: __t.u64().name("next_decision_tick"),
   authorityTick: __t.u64().name("authority_tick"),
+  health: __t.u16(),
 });

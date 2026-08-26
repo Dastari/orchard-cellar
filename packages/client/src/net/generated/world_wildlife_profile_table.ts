@@ -16,4 +16,6 @@ export default __t.row({
   variant: __t.u8(),
   packId: __t.u64().name("pack_id"),
   habitat: __t.string(),
+  chunkX: __t.i16().name("chunk_x"),
+  chunkY: __t.i16().name("chunk_y"),
 });

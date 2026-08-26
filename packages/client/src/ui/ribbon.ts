@@ -7,6 +7,9 @@ const NATURAL_WIDTH = 78;
 const CAP_WIDTH = 30;
 const MIDDLE_WIDTH = NATURAL_WIDTH - CAP_WIDTH * 2;
 const TEXT_PADDING = 40;
+/** The banner sprite includes lower folds/shadow outside its writable face, so
+ * centring against the full 21px image puts every label visibly too low. */
+export const RIBBON_TEXT_TOP_OFFSET = 5;
 
 export function ribbonWidth(label: string, fonts: PixelUi): number {
   return Math.max(NATURAL_WIDTH, measurePixelText(label, 1, fonts.font) + TEXT_PADDING);
@@ -49,7 +52,9 @@ export class Ribbon {
       CAP_WIDTH,
       source.height,
     );
-    drawPixelText(context, this.fonts, label, centerX, y + 7, { align: 'center', color: '#4d2e22', font: 'body' });
+    drawPixelText(context, this.fonts, label, centerX, y + RIBBON_TEXT_TOP_OFFSET, {
+      align: 'center', color: '#4d2e22', font: 'body',
+    });
     return { x, y, width, height: source.height };
   }
 }

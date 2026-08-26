@@ -82,6 +82,15 @@ with missing OIDC configuration fails closed at the account screen and never reu
 local host token. The self-hosted production rollout is specified in
 [24-self-hosted-oidc.md](24-self-hosted-oidc.md).
 
+The account screen exposes separate Sign In, Create Account, and Recover Account
+actions. All three start the same state/nonce/S256-PKCE transaction: registration adds
+the standard `prompt=create`, while recovery uses Keycloak's supported
+`forgot-credentials` authorization-path variant. Credentials are always entered into
+real Keycloak forms. The versioned `orchard` Keycloak theme changes CSS, local art,
+and copy only; it adds no JavaScript and does not embed, proxy, or reimplement a
+password form inside the game. This preserves CSRF protection, password-manager and
+accessibility semantics, verification, recovery, OTP, and future provider flows.
+
 Before publishing an internet-facing module, copy the same public client ID into
 `OIDC_CLIENT_IDS` in `packages/world/src/auth-policy.ts` and republish. A non-empty list
 enforces a JWT from the pinned configured issuer and audience during connection;

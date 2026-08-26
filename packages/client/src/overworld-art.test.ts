@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemArtKey, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
+import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemArtKey, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
 import { canonicalBlob47Index } from './render/tilemap.js';
 
 describe('overworld art topology', () => {
@@ -25,6 +25,13 @@ describe('overworld art topology', () => {
     expect(idleAvatarAnimationForDirection('down')).toBe('idle_down');
     expect(idleAvatarAnimationForDirection('left')).toBe('idle_right');
     expect(idleAvatarAnimationForDirection('up')).toBe('idle_up');
+  });
+
+  it('uses the authored hold pose for portable lights', () => {
+    expect(heldLightAnimationForDirection('down', false)).toBe('hold_idle_down');
+    expect(heldLightAnimationForDirection('right', true)).toBe('hold_walk_right');
+    expect(heldLightAnimationForDirection('left', true)).toBe('hold_walk_right');
+    expect(heldLightAnimationForDirection('up', false)).toBe('hold_idle_up');
   });
 
   it('uses the licensed directional axe rows and mirrors side swings', () => {
@@ -118,11 +125,13 @@ describe('overworld art topology', () => {
     expect(overworldItemArtKey('hoe')).toBe('iconHoe');
     expect(overworldItemArtKey('watering_can')).toBe('iconWateringCan');
     expect(overworldItemArtKey('bow')).toBe('iconBow');
+    expect(overworldItemArtKey('sword')).toBe('iconSword');
     expect(overworldItemArtKey('arrow')).toBe('itemArrow');
     expect(overworldItemArtKey('plank')).toBe('itemPlank');
     expect(overworldItemArtKey('stick')).toBe('itemStick');
     expect(overworldItemArtKey('wood')).toBe('itemWood');
     expect(overworldItemArtKey('stone')).toBe('itemStone');
+    expect(overworldItemArtKey('orchard_tea')).toBe('itemOrchardTea');
     expect(overworldItemArtKey('future_item')).toBe('missingItem');
   });
 

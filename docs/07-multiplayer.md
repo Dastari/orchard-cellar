@@ -106,3 +106,10 @@ position before accepting input.
 - Block/revoke takes effect on active connections and private views remain isolated.
 - Offline advance is identical whether a farm is entered by owner or permitted friend.
 - Twenty-five simulated friends meet the M9 resource/latency budget.
+
+## Status note (2026-08-26)
+
+The permissioned-estates concept in this doc is realized by
+[35-homesteads-and-farming.md](35-homesteads-and-farming.md) (instanced
+homesteads, role-tiered guest access, owner-controlled requests). Where the
+two differ, doc 35 wins.

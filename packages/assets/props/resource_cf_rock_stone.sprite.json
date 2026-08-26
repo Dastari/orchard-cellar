@@ -58,7 +58,7 @@
     ]
   },
   "tags": [
-    "resource.gatherable",
+    "resource.mineable",
     "resource.rock",
     "material.stone"
   ],
@@ -68,7 +68,7 @@
       1,
       1
     ],
-    "blocksMovement": false,
+    "blocksMovement": true,
     "builderAvailable": false
   }
 }

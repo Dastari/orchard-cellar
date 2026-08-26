@@ -62,9 +62,9 @@
     ]
   },
   "tags": [
-    "resource.gatherable",
+    "world.poi",
     "decor.log",
-    "material.wood"
+    "decor.permanent"
   ],
   "placement": {
     "layer": "object",

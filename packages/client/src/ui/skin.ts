@@ -12,6 +12,9 @@ export interface UiSkin {
   readonly buttonSmall: LoadedAsset;
   readonly buttonConfirm: LoadedAsset;
   readonly buttonDeny: LoadedAsset;
+  readonly coinGold: LoadedAsset;
+  readonly coinSilver: LoadedAsset;
+  readonly coinBronze: LoadedAsset;
   readonly slot: LoadedAsset;
   readonly equipmentSlotIcons: LoadedAsset;
   readonly selectorNeutral: LoadedAsset;
@@ -40,12 +43,16 @@ export interface UiSkin {
   readonly cursor: LoadedAsset;
   readonly cursorClick: LoadedAsset;
   readonly crosshair: LoadedAsset;
+  readonly effectWellRested: LoadedAsset;
+  readonly effectWinded: LoadedAsset;
+  readonly effectOrchardTea: LoadedAsset;
 }
 
 const UI_ASSETS = {
   panelWood: 'ui_cf_panel_wood', panelParchment: 'ui_cf_panel_parchment', bookOpen: 'ui_cf_book_open', frameThin: 'ui_cf_frame_thin',
   button: 'ui_cf_button', buttonSmall: 'ui_cf_button_small', buttonConfirm: 'ui_cf_button_accent_green',
-  buttonDeny: 'ui_cf_button_accent_red', slot: 'ui_cf_slot', equipmentSlotIcons: 'ui_cf_equipment_slot_icons', selectorNeutral: 'ui_cf_selector_neutral',
+  buttonDeny: 'ui_cf_button_accent_red', coinGold: 'ui_cf_coin_gold', coinSilver: 'ui_cf_coin_silver',
+  coinBronze: 'ui_cf_coin_bronze', slot: 'ui_cf_slot', equipmentSlotIcons: 'ui_cf_equipment_slot_icons', selectorNeutral: 'ui_cf_selector_neutral',
   selectorConfirm: 'ui_cf_selector_confirm', selectorDeny: 'ui_cf_selector_deny', sliderTrack: 'ui_cf_slider_track',
   sliderHandle: 'ui_cf_slider_handle', barFrame: 'ui_cf_bar_frame', barRed: 'ui_cf_bar_fill_red',
   barGreen: 'ui_cf_bar_fill_green', barBlue: 'ui_cf_bar_fill_blue', barGold: 'ui_cf_bar_fill_gold',
@@ -56,6 +63,8 @@ const UI_ASSETS = {
   bubbleTailDownRed: 'ui_cf_bubble_tail_down_red', bubbleTailUpRed: 'ui_cf_bubble_tail_up_red',
   bubbleTailLeftRed: 'ui_cf_bubble_tail_left_red', bubbleTailRightRed: 'ui_cf_bubble_tail_right_red',
   cursor: 'ui_cf_cursor', cursorClick: 'ui_cf_cursor_click', crosshair: 'ui_cf_crosshair',
+  effectWellRested: 'icon_cf_effect_well_rested', effectWinded: 'icon_cf_effect_winded',
+  effectOrchardTea: 'icon_cf_effect_orchard_tea',
 } as const;
 
 export async function loadUiSkin(): Promise<UiSkin> {

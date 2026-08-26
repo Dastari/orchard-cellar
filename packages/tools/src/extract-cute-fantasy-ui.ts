@@ -76,6 +76,13 @@ const extracts: readonly UiExtract[] = [
     frameKinds: { idle: 'state', pressed: 'state', disabled: 'state' }, uiRequiredStates: ['idle', 'pressed', 'disabled'],
     uiSizing: 'fixed', tags: ['ui.button', 'ui.button.small'],
   },
+  ...([
+    ['bronze', 32], ['silver', 80], ['gold', 224],
+  ] as const).map(([metal, y]): UiExtract => ({
+    name: `ui_cf_coin_${metal}`, source: `${uiRoot}/UI_Buttons.png`, size: [16, 16],
+    groups: { base: [r(96, y, 16, 16)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.currency', 'ui.coin', `ui.material.${metal}`],
+  })),
   {
     name: 'ui_cf_button_accent_green', source: `${uiRoot}/UI_Buttons.png`, size: [32, 16],
     groups: { idle: [r(0, 96, 32, 16)], pressed: [r(32, 96, 32, 16)], disabled: [r(64, 96, 32, 16)] },
@@ -119,16 +126,16 @@ const extracts: readonly UiExtract[] = [
     uiSizing: 'fixed', tags: ['ui.slider', 'ui.slider.handle'],
   },
   {
-    name: 'ui_cf_bar_frame', source: `${uiRoot}/UI_Buttons.png`, size: [32, 16],
-    groups: { base: [r(0, 432, 32, 16)] }, frameKinds: { base: 'state' },
-    uiSizing: 'nine_slice', slice: [7, 4, 7, 5], tags: ['ui.bar', 'ui.bar.frame'],
+    name: 'ui_cf_bar_frame', source: `${uiRoot}/UI_Bars.png`, size: [48, 19],
+    groups: { base: [r(128, 6, 48, 19)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.bar', 'ui.bar.frame', 'ui.player_resource_frame'],
   },
   ...([
-    ['red', 2, 7], ['blue', 34, 7], ['green', 66, 7],
+    ['red', 1, 1], ['blue', 33, 1], ['green', 65, 1],
   ] as const).map(([color, x, y]): UiExtract => ({
-    name: `ui_cf_bar_fill_${color}`, source: `${uiRoot}/UI_Bars.png`, size: [28, 3],
-    groups: { base: [r(x, y, 28, 3)] }, frameKinds: { base: 'state' },
-    uiSizing: 'segmented', tags: ['ui.bar', 'ui.bar.fill', `ui.color.${color}`],
+    name: `ui_cf_bar_fill_${color}`, source: `${uiRoot}/UI_Bars.png`, size: [30, 5],
+    groups: { base: [r(x, y, 30, 5)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.bar', 'ui.bar.fill', `ui.color.${color}`],
   })),
   {
     name: 'ui_cf_bar_fill_gold', source: `${uiRoot}/UI_Sliders.png`, size: [30, 4],
@@ -197,6 +204,22 @@ const extracts: readonly UiExtract[] = [
     name: 'ui_cf_cursor', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
     groups: state(r(0, 224, 16, 16)), frameKinds: { idle: 'state' }, uiRequiredStates: ['idle'],
     uiSizing: 'fixed', tags: ['ui.cursor', 'ui.pointer'],
+  },
+  {
+    name: 'icon_cf_effect_well_rested', source: `${uiRoot}/UI_Icons.png`, size: [8, 8],
+    groups: { base: [r(24, 0, 8, 8)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'effect.well_rested'],
+  },
+  {
+    name: 'icon_cf_effect_winded', source: `${uiRoot}/UI_Icons.png`, size: [8, 8],
+    groups: { base: [r(64, 0, 8, 8)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'effect.winded'],
+  },
+  {
+    name: 'icon_cf_effect_orchard_tea',
+    source: 'references/Cute_Fantasy/Icons/Outline/Food_Icons_Outline.png', size: [16, 16],
+    groups: { base: [r(16, 128, 16, 16)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'item.food', 'effect.orchard_tea'],
   },
   {
     name: 'ui_cf_cursor_click', source: `${uiRoot}/Pointer_Click_Anim.png`, size: [16, 16],

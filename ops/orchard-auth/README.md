@@ -43,6 +43,9 @@ hard gates.
 5. Fill the SMTP fields in the mode-`0600` `.env`, run `bin/configure-smtp.sh`, then
    prove verification and password-reset delivery before leaving registration on.
    If either test fails, set `registrationAllowed=false` again immediately.
+   Mount `themes/orchard` read-only as declared by Compose and select `orchard` for
+   both the realm login and email themes. See `THEME.md`; theme changes never alter
+   the canonical issuer or replace Keycloak's credential and OIDC forms.
 6. Run `bin/create-named-admin.sh <username> <email>` for each of two named
    administrators. Sign in as each administrator, change its temporary password,
    verify both can reach the admin console, and delete the generated password file

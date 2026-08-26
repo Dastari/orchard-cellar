@@ -1,6 +1,7 @@
 # 25 — Stats, Vitals, and the Modifier Pipeline
 
-Binding owner-directed spec (2026-08-25). Status: **design approved, not implemented**.
+Binding owner-directed spec (2026-08-25). Status: **Phases 1–4 implemented
+(2026-08-26); Phase 5 remains a separate combat-approval gate**.
 Builds on [20-survival-world.md](20-survival-world.md) (resources, hotbar, reducers),
 [22-netcode.md](22-netcode.md) §6 (cosmetics predicted, state authoritative — the
 standing pattern this doc inherits verbatim), [23-ui-system.md](23-ui-system.md)
@@ -135,9 +136,12 @@ currently lacks. Costs live in `balance.ts` + docs/06 mirror:
 | `watering_can` | 8 | 6 (300 ms) |
 | `hoe` | 10 | 6 |
 | `fishing_rod` | 6 | 6 |
+| `bow` | 10 | 6 (300 ms) |
 | `sword` | 12 | 7 (350 ms) |
 | `axe` | 15 | 8 (400 ms) |
 | `pickaxe` | 20 | 10 (500 ms) |
+| `shovel` | 12 | 7 (350 ms) |
+| `hammer` | 18 | 9 (450 ms) |
 
 - Baseline feel: an axe gets ~6 swings from a full bar (two trees), then ~2 s per
   swing regen-limited; a pickaxe ~5 swings. Whiff swings (no target in the cone)
@@ -157,6 +161,33 @@ currently lacks. Costs live in `balance.ts` + docs/06 mirror:
   client already knows its displayed value, plays a deny flash on the bar
   (`ui_cf_selector_deny` corners) + soft SFX, and skips the call unless within a
   small grace margin (server remains the authority when they disagree).
+
+### 4.1 Tool durability (owner amendment, 2026-08-25)
+
+Durability is a second authoritative tool-pacing axis, stored on the individual
+non-stackable tool and preserved through inventory, chest, overflow, drop, and
+pickup moves. Only a successful world-changing use costs one durability; whiffs,
+rejected reducers, and purely cosmetic swings cost none. Firing a valid arrow is a
+successful Bow use. A zero-durability tool remains in its slot but rejects use with
+`tool_broken`—it is never deleted.
+
+| Tool | Maximum uses | Full repair material |
+|---|---:|---|
+| Axe | 200 | 1 Wood |
+| Pickaxe | 250 | 1 Stone |
+| Hoe | 180 | 1 Wood |
+| Watering can | 160 | 1 Stone |
+| Bow | 300 | 1 Wood |
+| Shovel | 220 | 1 Stone |
+| Hammer | 300 | 1 Stone |
+| Fishing rod | 160 | 1 Wood |
+| Sword | 250 | 1 Stone |
+
+Pressing `R` repairs the selected damaged tool to full when the inventory contains
+the listed renewable material. Loose branches and stones remain hand-gatherable, so
+a player can never be durability-softlocked. Durability bars appear along the usable
+bottom interior of every tool slot (hotbar, backpack/equipment, chest); green above
+50%, gold from 21–50%, red at 20% or below, and an empty red bracket when broken.
 
 ## 5. Regen — lazy, not per-tick
 
@@ -251,10 +282,17 @@ Per docs/08 schema evolution — no column renames, no repurposing:
   it; that table already carries migration-only columns).
 - **New table `player_effect`** (§6) + own view `ownEffects`, btree on `identity`.
 - **`world_npc` + `health: u16`**.
+- **Durable stack metadata:** trailing defaulted `durability: u16` on
+  `inventory_slot`, `inventory_overflow`, `world_chest_slot`, and `world_item`.
+  Legacy rows default to zero, then `inventory_migration` performs one per-player
+  full-durability backfill; its marker is what preserves a genuinely broken tool.
+- **`stats_migration`** marks the one-time legacy NPC-health backfill. Never infer
+  migrations forever from `health === 0`, because zero becomes valid combat state.
 - Reserved, not added now: public `player_vitals_public { identity, healthPct: u8 }`
   for remote health bars — a combat-era addition, one additive table away.
 - New `SenderError` codes: `insufficient_vigour`, `swing_too_soon` (toast strings
-  via the existing `showResult` map).
+  via the existing `showResult` map), plus `tool_broken`, `tool_not_damaged`, and
+  `repair_material_missing` for durability.
 
 ## 10. UI — the vitals cluster
 
@@ -306,17 +344,29 @@ floor all future combat tuning must respect.
 
 ## 13. Phasing
 
-1. **Sim foundations** (pure, no schema): `stats.ts`, `modifiers.ts`,
+1. **Sim foundations** ✅ (2026-08-25; pure, no schema): `stats.ts`, `modifiers.ts`,
    `effects.ts`, `checks.ts`, `creatures.ts`; constants in `balance.ts`; golden
    tests. Mergeable alone.
-2. **Authority + Vigour + bars**: §9 schema, `harvestResource` gating, lazy
-   regen, `ownStats` subscription, vitals cluster (health/mana render full).
+2. **Authority + Vigour + durability + bars** ✅ (2026-08-26): §9 schema, `harvestResource`
+   gating, lazy regen, per-tool durability persistence/repair, `ownStats`
+   subscription, vitals cluster and slot durability bars (health/mana render full).
    The user-visible payoff ships here.
-3. **Effects + first potion**: `player_effect`, sweep + views, `well_rested`,
+3. **Effects + first potion** ✅ (2026-08-26): `player_effect`, sweep + views, `well_rested`,
    `orchard_tea`, buff icon row.
-4. **Creatures + checks**: `world_npc.health`, statlines, first two skill-check
-   call sites.
-5. **Combat era**: separate doc, separate approval.
+4. **Creatures + checks** ✅ (2026-08-26): `world_npc.health`, statlines, live
+   Wisdom forage check, and the deterministic Dexterity fishing-quality hook.
+   Fishing rewards remain intentionally dormant until the already-deferred fishing
+   verb ships; fish-shadow decoration is not silently promoted into gameplay here.
+5. **Combat era** ☐: separate doc, separate approval.
+
+Phases 1–4 implementation note: the pure resolver now feeds authoritative private
+rows, lazy online/offline regeneration, effect and equipped-item modifiers, tool
+spend gates, and creature health. The client subscribes only to caller-owned rows,
+shows the three vitals plus licensed effect icons, predicts only its Vigour display,
+and renders authoritative durability in every slot surface. Orchard Tea proves the
+consume→effect→pipeline path. `well_rested` and `winded` definitions are live, while
+their sleeping/knockout grant verbs remain correctly gated with those out-of-scope
+systems (§11/§14).
 
 ## 14. Out of scope
 
@@ -332,18 +382,33 @@ changes; any base-attribute mutation.
   catch-up across large gaps with remainder carry equals step-by-step regen
   exactly; tool cost/interval goldens named `06§11`; `skillCheck` determinism
   (same seed parts → same roll) and distribution sanity; effect stack/refresh
-  rules; clamp-on-max-drop behavior.
+  rules; clamp-on-max-drop behavior; durability initialization, wear, break,
+  repair, and metadata-preserving inventory moves.
 - **Reducer (world):** `harvestResource` happy path deducts exactly the table
   cost; `insufficient_vigour`, `swing_too_soon`, and auth-failure paths each
   tested per docs/15; effect expiry swept and view-filtered; `player_stats` row
-  provisioned on first join.
+  provisioned on first join; successful uses wear exactly one durability while
+  whiffs/rejections do not; broken-tool and repair-material paths are atomic.
 - **Two-client:** client A cannot see B's `player_stats`/`player_effect` rows;
   A spamming `F` is rate-bound by Vigour + interval while B's view of the world
   stays consistent (no phantom resource damage).
 - **Browser:** vitals cluster renders bottom-right at UI scales 1/2/3 without
   overlapping the hotbar or weather panel; cosmetic dip then authoritative
   settle on tool use; deny flash on empty Vigour; bars survive `fittedUiScale`
-  downgrade on a short viewport.
+  downgrade on a short viewport; durability bars remain inside every beveled slot
+  and change green→gold→red without obscuring stack counts or selectors.
+
+Implementation verification (2026-08-26): `npm run check` passes the world build,
+all workspace typechecks, lint, 74 test files / 454 tests with coverage thresholds,
+and validation of 471 art assets. The populated local database accepted the schema
+additions and the later `stats_migration` marker in place; neither publish requested
+data deletion. A browser render using the production UI/art loaders exercised full,
+half, low, and broken tool durability alongside all three vitals and the three effect
+icons. Scale 1/2/3 geometry and bevel containment are covered by the UI acceptance
+tests. The existing isolated two-client OIDC harness now also asserts that `ownStats`
+contains exactly the caller and that `ownEffects` never contains another identity;
+its identity, reconnect, private-read, and mutation-isolation baseline is recorded in
+[24-self-hosted-oidc.md](24-self-hosted-oidc.md) §10.
 
 ## 16. Bookkeeping
 

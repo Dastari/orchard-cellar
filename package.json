@@ -23,6 +23,7 @@
     "world:smoke": "tsx scripts/world-smoke.ts",
     "world:auth-smoke": "tsx scripts/auth-world-smoke.ts",
     "world:load": "spacetime publish orchard-cellar-netcode-load --server local --module-path packages/world --yes --delete-data && tsx scripts/netcode-load.ts",
+    "world:scalability-stage2": "tsx scripts/scalability-stage2.ts",
     "world:crash-ghost": "spacetime publish orchard-cellar-netcode-crash --server local --module-path packages/world --yes --delete-data && SPACETIMEDB_DATABASE=orchard-cellar-netcode-crash tsx scripts/netcode-crash-ghost.ts",
     "world:action-check": "spacetime publish orchard-cellar-netcode-action --server local --module-path packages/world --yes --delete-data && SPACETIMEDB_DATABASE=orchard-cellar-netcode-action tsx scripts/netcode-action.ts",
     "world:tap-check": "spacetime publish orchard-cellar-netcode-tap --server local --module-path packages/world --yes --delete-data && SPACETIMEDB_DATABASE=orchard-cellar-netcode-tap tsx scripts/netcode-tap.ts"

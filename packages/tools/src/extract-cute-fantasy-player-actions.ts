@@ -40,6 +40,8 @@ const parts = [
 ] as const;
 
 const animationRows = [
+  ['hold_idle_down', 20, 1], ['hold_idle_right', 21, 1], ['hold_idle_up', 22, 1],
+  ['hold_walk_down', 23, 5], ['hold_walk_right', 24, 5], ['hold_walk_up', 25, 5],
   ['ranged_weapon_down', 29], ['ranged_weapon_right', 30], ['ranged_weapon_up', 31],
   ['swing_axe_down', 32], ['swing_axe_right', 33], ['swing_axe_up', 34],
   ['swing_pickaxe_down', 35], ['swing_pickaxe_right', 36], ['swing_pickaxe_up', 37],
@@ -66,9 +68,9 @@ for (const [name, relativeSource] of parts) {
   const source = resolve(sourceRoot, relativeSource);
   const image = decodePng(await readFile(source));
   if (image.width !== 576 || image.height !== 3584) throw new Error(`${relativeSource} is not a 9x56 player sheet`);
-  const sourceRegions = Object.fromEntries(animationRows.map(([animation, row]) => [
+  const sourceRegions = Object.fromEntries(animationRows.map(([animation, row, authoredFrameCount]) => [
     animation,
-    Array.from({ length: FRAME_COUNT }, (_, frame) => [
+    Array.from({ length: authoredFrameCount ?? FRAME_COUNT }, (_, frame) => [
       frame * CELL_SIZE + CROP_X,
       row * CELL_SIZE + CROP_Y,
       WIDTH,
@@ -113,4 +115,118 @@ for (const [name, relativeSource] of parts) {
   await writeFile(resolve(outputRoot, `${name}.sprite.json`), `${JSON.stringify(asset, null, 2)}\n`);
 }
 
-console.log(`Extracted ${parts.length} modular character action layers from canonical rows 29-43.`);
+console.log(`Extracted ${parts.length} modular character hold/action layers from canonical rows 20-43.`);
+
+const heldLightHandsSource = resolve(sourceRoot, 'Player/Hands/Hands_Bare_Lantern_Torch_Idle_Running.png');
+const heldLightHandsImage = decodePng(await readFile(heldLightHandsSource));
+if (heldLightHandsImage.width !== 384 || heldLightHandsImage.height !== 768) {
+  throw new Error('Hands_Bare_Lantern_Torch_Idle_Running.png is not a 6x12 held-light sheet');
+}
+
+const heldLightDefinitions = [
+  {
+    kind: 'torch',
+    idleTool: 'Player/Tools/Other/Torch_Idle.png',
+    runningTool: 'Player/Tools/Other/Torch_Running.png',
+    idleHandsRow: 0,
+    runningHandsRow: 3,
+  },
+  {
+    kind: 'lantern',
+    idleTool: 'Player/Tools/Other/Lantern_Idle.png',
+    runningTool: 'Player/Tools/Other/Lantern_Running.png',
+    idleHandsRow: 6,
+    runningHandsRow: 9,
+  },
+] as const;
+
+const heldAnimations = (motion: 'idle' | 'walk'): readonly string[] => [
+  `hold_${motion}_down`, `hold_${motion}_right`, `hold_${motion}_up`,
+];
+
+async function extractHeldLightLayer(
+  name: string,
+  source: string,
+  image: DecodedPng,
+  motion: 'idle' | 'walk',
+  firstRow: number,
+  frameCount: number,
+  tag: string,
+): Promise<void> {
+  const animations = heldAnimations(motion);
+  const sourceRegions = Object.fromEntries(animations.map((animation, direction) => [
+    animation,
+    Array.from({ length: frameCount }, (_, frame) => [
+      frame * CELL_SIZE + CROP_X,
+      (firstRow + direction) * CELL_SIZE + CROP_Y,
+      WIDTH,
+      HEIGHT,
+    ] as const),
+  ]));
+  const nativeFrames = Object.fromEntries(Object.entries(sourceRegions).map(([animation, regions]) => [
+    animation,
+    regions.map(([originX, originY]) => Array.from({ length: HEIGHT }, (_, y) => (
+      Array.from({ length: WIDTH }, (_, x) => nativeHex(image, originX + x, originY + y))
+    ))),
+  ]));
+  const colors = [...new Set(Object.values(nativeFrames).flat(2).flatMap((row) => (
+    row.filter((color): color is string => color !== null)
+  )))].sort();
+  if (colors.length > paletteCharacters.length) throw new Error(`${name} has too many native colors`);
+  const characterByColor = new Map(colors.map((color, index) => [color, paletteCharacters[index]!]));
+  const frames = Object.fromEntries(Object.entries(nativeFrames).map(([animation, animationFrames]) => [
+    animation,
+    animationFrames.map((pixels) => pixels.map((row) => row.map((color) => (
+      color === null ? '.' : characterByColor.get(color) ?? '.'
+    )).join(''))),
+  ]));
+  const asset: AssetSource = {
+    name,
+    category: 'characters',
+    size: [WIDTH, HEIGHT],
+    anchor: [16, 39],
+    frames,
+    frameKinds: Object.fromEntries(animations.map((animation) => [animation, 'animation'])),
+    animationFps: Object.fromEntries(animations.map((animation) => [animation, 8])),
+    animationLoop: Object.fromEntries(animations.map((animation) => [animation, true])),
+    sourcePalette: Object.fromEntries(colors.map((color) => [characterByColor.get(color)!, color])),
+    sourcePaletteMode: 'exact',
+    approved: true,
+    importedFrom: basename(source),
+    sourcePath: relative(rootPath, source).replaceAll('\\', '/'),
+    sourceRegions,
+    tags: ['character.modular', 'character.held-light', tag, `motion.${motion}`],
+  };
+  await writeFile(resolve(outputRoot, `${name}.sprite.json`), `${JSON.stringify(asset, null, 2)}\n`);
+}
+
+for (const definition of heldLightDefinitions) {
+  for (const motion of ['idle', 'walk'] as const) {
+    const relativeTool = motion === 'idle' ? definition.idleTool : definition.runningTool;
+    const toolSource = resolve(sourceRoot, relativeTool);
+    const toolImage = decodePng(await readFile(toolSource));
+    if (toolImage.width !== 384 || toolImage.height !== 192) {
+      throw new Error(`${relativeTool} is not a 6x3 held-light sheet`);
+    }
+    await extractHeldLightLayer(
+      `tool_cf_${definition.kind}_${motion === 'idle' ? 'idle' : 'running'}`,
+      toolSource,
+      toolImage,
+      motion,
+      0,
+      motion === 'idle' ? 6 : 5,
+      `tool.${definition.kind}`,
+    );
+    await extractHeldLightLayer(
+      `hands_cf_${definition.kind}_${motion === 'idle' ? 'idle' : 'running'}`,
+      heldLightHandsSource,
+      heldLightHandsImage,
+      motion,
+      motion === 'idle' ? definition.idleHandsRow : definition.runningHandsRow,
+      motion === 'idle' ? 6 : 5,
+      `hands.${definition.kind}`,
+    );
+  }
+}
+
+console.log('Extracted dedicated torch/lantern tool and hand-pose layers.');

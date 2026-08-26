@@ -1,6 +1,7 @@
 # 28 — Crafting Expansion: Materials, Stations, Recipes, and Placeables
 
-Binding owner-directed spec (2026-08-25). Status: **design approved, not implemented**.
+Binding owner-directed spec (2026-08-25). Status: **baseline crafting and chest
+storage implemented; the expanded station/content phases below remain planned**.
 Builds on [23-ui-system.md](23-ui-system.md) (grid/recipe/container machinery — the
 "recipes/content are a later milestone" it deferred is this doc),
 [20-survival-world.md](20-survival-world.md) (resource drops, tool-strip roster),
@@ -23,11 +24,27 @@ Shipped today: 26 item kinds; a 3×3 crafting grid always available in the
 inventory (`C`); shaped + shapeless recipe matching in `item-containers.ts`; the
 `craftInventoryRecipe` reducer re-validating server-side (inputs-not-values);
 chest containers end-to-end; `useHands` place/carry/pickup **hardcoded to
-chests**. Exactly two recipes exist (`1 wood → 4 plank`, `8 plank → chest`).
-There is **no ore sink at all** — eight ore kinds, 32 units per node, zero
-consumers. Barrel is a UI shell (item + window, no table/recipe/placement).
-Apples/grapes are defined but unobtainable. Fishing/bow/sword/lantern/torch from
-the docs/20 tool strip don't exist as items.
+chests**. Baseline recipes are `1 wood → 4 plank`, `2 plank → 4 stick`,
+`1 stick + 1 stone → 4 arrow`, and `8 plank → chest`. There is **no ore sink at
+all** — eight ore kinds, 32 units per node, zero consumers. Barrel is a UI shell
+(item + window, no table/recipe/placement). Fruit-tree pickups are obtainable;
+grapes remain unobtainable. Fishing/sword/lantern/torch from the docs/20 tool
+strip don't exist as items.
+
+### 1.1 Implemented inventory-safety baseline
+
+- Shift-drag uses a live client preview and one authoritative commit on release;
+  counts rebalance as each slot is crossed without stale-snapshot network races.
+- Shift-double-click atomically transfers every matching item on the selected
+  inventory side. Shift-taking a recipe crafts until one output maximum stack,
+  source exhaustion, or destination exhaustion.
+- Every reducer remains transaction-scoped. Transient crafting items that
+  cannot return to normal storage enter private `inventory_overflow` custody;
+  world ticks and reconnects drain those rows into hotbar/backpack as space opens.
+- Placed chests use licensed six-frame `Chest_Anim.png`, expose 27 storage cells,
+  block movement, and open through E. Three authoritative axe hits break a chest
+  and spill its item plus every stored stack as world pickups.
+- Fruit trees drop their matching fruit pickup as well as timber when felled.
 
 Required fixes folded into phase 1 (each is a landmine for content authoring):
 
@@ -280,15 +297,19 @@ art directly.
 6. **Later hooks:** tool tiers via palette-swap ramps; cooking (96 food
    icons ceiling) once farming yields exist; recipe book UI; furniture/
    interior placeables (Beds/Tables/Chairs sheets) with the interiors
-   milestone; destructible placeables; placement permissions.
+   milestone; destructible placeables; placement permissions. Tool durability
+   and renewable field repairs ship earlier with docs/25 §4.1; the anvil may
+   later improve repair efficiency but is not required to avoid a softlock.
 
 ## 13. Out of scope
 
 Cooking/food execution (recipes pre-authored, disabled); farming/crop yield
 fixes (separate milestone — but noted: crafting content assumes it lands);
 trade/vendors; building placement (houses); the docs/23 generic-container
-schema migration; combat mechanics for sword/bow; fishing mechanics; tool
-durability (nothing degrades — cozy rule); quality/INT rolls.
+schema migration; combat mechanics for sword/bow; fishing mechanics;
+quality/INT rolls. The former no-durability rule is superseded by docs/25 §4.1:
+tools wear but never disappear, and renewable field repair preserves the cozy
+no-softlock rule.
 
 ## 14. Tests and acceptance
 
@@ -325,3 +346,11 @@ durability (nothing degrades — cozy rule); quality/INT rolls.
   (3) wood is the fuel economy (no coal ore exists by choice); (4) fiber
   enters via hash-gated tilling drops; (5) shaped recipes become
   shift-invariant, unmirrored.
+
+## Amendment (2026-08-26, docs/35)
+
+The homestead build mode ([35-homesteads-and-farming.md](35-homesteads-and-farming.md)
+§7, the `B` key) is the second consumer of §7's `world_placeable` placement
+system: same table, same validation, plus `spaceId`, a data-driven build
+palette, and prefab building footprints. Barrels become load-bearing there
+(crop barreling) — the §6 barrel recipe is on its critical path.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   decodeJwtClaims,
+  oidcEntryEndpoint,
   readOidcSession,
   validateIdTokenClaims,
   type OidcSession,
@@ -19,6 +20,16 @@ function jwt(claims: object): string {
 }
 
 describe('OIDC browser session', () => {
+  it('uses only Keycloak-supported OIDC entry points for account flows', () => {
+    const authorization = 'https://auth.orchard.dastari.net/realms/orchard/protocol/openid-connect/auth';
+    expect(oidcEntryEndpoint(authorization, 'login').toString()).toBe(authorization);
+    expect(oidcEntryEndpoint(authorization, 'register').searchParams.get('prompt')).toBe('create');
+    expect(oidcEntryEndpoint(authorization, 'recover').pathname)
+      .toBe('/realms/orchard/protocol/openid-connect/forgot-credentials');
+    expect(() => oidcEntryEndpoint('https://auth.example/unsupported', 'recover'))
+      .toThrow('recovery endpoint is invalid');
+  });
+
   it('decodes identity claims without treating them as verified authorization', () => {
     expect(decodeJwtClaims(jwt({ sub: 'user_1', preferred_username: 'Farmer' }))).toMatchObject({
       sub: 'user_1', preferred_username: 'Farmer',

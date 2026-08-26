@@ -20,7 +20,12 @@ docker compose exec -T postgres pg_dump \
   --format=custom --compress=9 --no-owner --no-acl > "$destination/keycloak.pgdump"
 docker compose exec -T postgres pg_restore --list < "$destination/keycloak.pgdump" > "$destination/keycloak.restore-list"
 install -m 0600 realm/orchard-realm.json "$destination/orchard-realm.redacted.json"
-(cd "$destination" && sha256sum keycloak.pgdump keycloak.restore-list orchard-realm.redacted.json > SHA256SUMS)
+config_paths=(compose.yaml Containerfile.keycloak bin)
+[[ -d themes ]] && config_paths+=(themes)
+tar --create --gzip --file "$destination/deployment-config.tgz" \
+  --owner=0 --group=0 --numeric-owner "${config_paths[@]}"
+(cd "$destination" && sha256sum \
+  keycloak.pgdump keycloak.restore-list orchard-realm.redacted.json deployment-config.tgz > SHA256SUMS)
 chmod 0600 "$destination"/*
 
 "$SERVICE_DIR/bin/sync-backup-smb.sh" "$destination"

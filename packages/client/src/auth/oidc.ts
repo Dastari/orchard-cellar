@@ -52,6 +52,8 @@ interface StorageLike {
   removeItem(key: string): void;
 }
 
+export type OidcEntryIntent = 'login' | 'register' | 'recover';
+
 export const oidcIssuer = (import.meta.env['VITE_OIDC_ISSUER'] as string | undefined)?.replace(/\/$/, '') ?? DEFAULT_ISSUER;
 export const oidcClientId = (import.meta.env['VITE_OIDC_CLIENT_ID'] as string | undefined)?.trim() ?? '';
 export const oidcConfigured = oidcClientId.length > 0;
@@ -199,7 +201,22 @@ async function requestTokens(endpoint: string, parameters: URLSearchParams): Pro
   return result;
 }
 
-export async function beginOidcLogin(storage = browserSessionStorage()): Promise<void> {
+export function oidcEntryEndpoint(authorizationEndpoint: string, intent: OidcEntryIntent): URL {
+  const url = new URL(authorizationEndpoint);
+  if (intent === 'register') url.searchParams.set('prompt', 'create');
+  if (intent === 'recover') {
+    const path = url.pathname.split('/');
+    if (path.at(-1) !== 'auth') throw new Error('The account service recovery endpoint is invalid.');
+    path[path.length - 1] = 'forgot-credentials';
+    url.pathname = path.join('/');
+  }
+  return url;
+}
+
+export async function beginOidcLogin(
+  intent: OidcEntryIntent = 'login',
+  storage = browserSessionStorage(),
+): Promise<void> {
   if (!oidcConfigured) throw new Error('Account login is not configured.');
   if (!storage) throw new Error('Browser session storage is unavailable.');
   const pending: OidcPending = {
@@ -207,8 +224,8 @@ export async function beginOidcLogin(storage = browserSessionStorage()): Promise
   };
   storage.setItem(PENDING_KEY, JSON.stringify(pending));
   const discovery = await oidcDiscovery();
-  const url = new URL(discovery.authorization_endpoint);
-  url.search = new URLSearchParams({
+  const url = oidcEntryEndpoint(discovery.authorization_endpoint, intent);
+  const parameters = new URLSearchParams({
     client_id: oidcClientId,
     redirect_uri: pending.redirectUri,
     response_type: 'code',
@@ -217,7 +234,9 @@ export async function beginOidcLogin(storage = browserSessionStorage()): Promise
     nonce: pending.nonce,
     code_challenge: await challengeFor(pending.verifier),
     code_challenge_method: 'S256',
-  }).toString();
+  });
+  if (intent === 'register') parameters.set('prompt', 'create');
+  url.search = parameters.toString();
   location.assign(url.toString());
 }
 

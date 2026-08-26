@@ -4,6 +4,7 @@ import {
   rememberLocalProfile,
   validLocalProfileName,
 } from './account-profile.js';
+import { accountButtonRects, accountPointerAction } from './account-actions.js';
 import {
   beginOidcLogin,
   completeOidcCallback,
@@ -12,6 +13,7 @@ import {
   localProfilesEnabled,
   oidcConfigured,
   signOutOidc,
+  type OidcEntryIntent,
   type OidcSession,
 } from './auth/oidc.js';
 import { canvasViewport, centeredFixedSceneLayout, toggleFullscreen } from './display.js';
@@ -94,7 +96,9 @@ function launchLocal(name: string): void {
 }
 
 function launchAccount(): void {
-  if (authSession !== null) location.assign('/');
+  if (authSession === null) return;
+  if (location.pathname === '/' && location.search === '' && location.hash === '') location.reload();
+  else location.assign('/');
 }
 
 function drawText(text: string, x: number, y: number, color = '#f7e7b2', align: CanvasTextAlign = 'left'): void {
@@ -106,17 +110,21 @@ function drawAccountLogin(): void {
   if (authSession !== null) {
     drawText('SIGNED IN AS', 240, 111, '#91672e', 'center');
     drawText(authSession.displayName.toUpperCase(), 240, 129, '#6f451f', 'center');
-    drawUiSkinAsset(context, skin.buttonConfirm, { x: 151, y: 146, width: 178, height: 24 }, 'idle');
+    drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.enterWorld, 'idle');
     drawText('ENTER THE ORCHARD', 240, 162, '#fff2d0', 'center');
-    drawUiSkinAsset(context, skin.buttonDeny, { x: 190, y: 179, width: 100, height: 16 }, 'idle');
+    drawUiSkinAsset(context, skin.buttonDeny, accountButtonRects.signOut, 'idle');
     drawText('SIGN OUT', 240, 190, '#fff2d0', 'center');
     return;
   }
   drawText('ORCHARD ACCOUNTS', 240, 112, '#91672e', 'center');
   drawText('VERIFIED EMAIL AND ACCOUNT RECOVERY', 240, 128, '#6f451f', 'center');
-  drawUiSkinAsset(context, skin.buttonConfirm, { x: 136, y: 145, width: 208, height: 26 }, 'idle');
-  drawText(authBusy ? 'CONTACTING PROVIDER...' : 'CREATE ACCOUNT / SIGN IN', 240, 162, '#fff2d0', 'center');
-  drawText('TOKENS STAY IN THIS BROWSER SESSION', 240, 190, '#91672e', 'center');
+  drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.signIn, 'idle');
+  drawText(authBusy ? 'OPENING...' : 'SIGN IN', 167, 157, '#fff2d0', 'center');
+  drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.register, 'idle');
+  drawText(authBusy ? 'OPENING...' : 'CREATE ACCOUNT', 313, 157, '#fff2d0', 'center');
+  drawUiSkinAsset(context, skin.button, accountButtonRects.recover, 'idle');
+  drawText('RECOVER ACCOUNT', 240, 188, '#5b3d22', 'center');
+  drawText('SECURE LOGIN BY ORCHARD ACCOUNTS', 240, 204, '#91672e', 'center');
 }
 
 function drawLocalPreview(): void {
@@ -165,7 +173,7 @@ function render(): void {
   if (localPreview) drawLocalPreview();
   else drawAccountLogin();
 
-  drawText(localPreview ? 'ARROWS SELECT  ENTER CONTINUE  N NEW' : 'ENTER CONTINUE  L SIGN OUT', 240, 218, '#6f451f', 'center');
+  drawText(localPreview ? 'ARROWS SELECT  ENTER CONTINUE  N NEW' : authSession === null ? 'ENTER SIGN IN  C CREATE  R RECOVER' : 'ENTER CONTINUE  L SIGN OUT', 240, 218, '#6f451f', 'center');
   drawText(oidcConfigured && localProfilesEnabled ? 'D TOGGLE LOCAL DEV  F FULLSCREEN' : 'F FULLSCREEN', 240, 229, '#91672e', 'center');
   context.restore();
   requestAnimationFrame(render);
@@ -190,7 +198,8 @@ function submitLocal(): void {
   launchLocal(chosen);
 }
 
-async function submitAccount(): Promise<void> {
+async function submitAccount(intent: OidcEntryIntent = 'login'): Promise<void> {
+  if (authBusy) return;
   authError = null;
   if (authSession !== null) {
     launchAccount();
@@ -199,7 +208,7 @@ async function submitAccount(): Promise<void> {
   authBusy = true;
   message = 'OPENING SECURE LOGIN';
   try {
-    await beginOidcLogin();
+    await beginOidcLogin(intent);
   } catch (error: unknown) {
     authBusy = false;
     authError = error instanceof Error ? error.message : 'Unable to start login.';
@@ -222,6 +231,8 @@ window.addEventListener('keydown', (event) => {
   }
   if (!localPreview) {
     if (event.key === 'Enter' && !event.repeat) void submitAccount();
+    else if (authSession === null && event.key.toLowerCase() === 'c' && !event.repeat) void submitAccount('register');
+    else if (authSession === null && event.key.toLowerCase() === 'r' && !event.repeat) void submitAccount('recover');
     else if (event.key.toLowerCase() === 'l' && authSession !== null && !event.repeat) {
       authSession = null;
       authBusy = true;
@@ -255,14 +266,16 @@ canvas.addEventListener('pointerdown', (event) => {
   const x = (event.clientX - rect.left - scene.x) / scene.scale;
   const y = (event.clientY - rect.top - scene.y) / scene.scale;
   if (!localPreview) {
-    if (authSession !== null && x >= 190 && x <= 290 && y >= 179 && y <= 195) {
+    const action = accountPointerAction(authSession !== null, x, y);
+    if (action === 'enter-world') launchAccount();
+    else if (action === 'sign-out') {
       authSession = null;
       authBusy = true;
       message = 'SIGNING OUT';
       void signOutOidc();
-    } else if (x >= 136 && x <= 344 && y >= 145 && y <= 171) {
-      void submitAccount();
-    }
+    } else if (action === 'sign-in') void submitAccount();
+    else if (action === 'register') void submitAccount('register');
+    else if (action === 'recover') void submitAccount('recover');
     return;
   }
   if (x >= 102 && x <= 378 && y >= 187 && y <= 207) {
