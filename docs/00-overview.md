@@ -5,10 +5,12 @@
 > hand it on, generation after generation.
 
 A cozy, Stardew-Valley-style pixel-art farm game, adapted from the incremental web
-game *Orchard & Cellar* (in `references/`), implementing its redesign document's
-recommendations, rebuilt as an avatar-controlled, friends-only persistent overworld
-where players can walk between farms and play together. Built end-to-end by AI agents
-following this doc suite.
+game *Orchard & Cellar*, implementing its redesign document's recommendations,
+rebuilt as an avatar-controlled, friends-only persistent overworld where players can
+walk between farms and play together. The source captures are summarized in docs 16
+and 17; raw captures and licensed packs stay in the ignored local `references/`
+directory and are never published. Built end-to-end by AI agents following this doc
+suite.
 
 **Headline decisions** (rationale in the docs):
 - **TypeScript + HTML5 Canvas 2D**, custom micro-engine — *not* Rust/Bevy (01)
@@ -68,9 +70,7 @@ through DECISIONS.md (15 §2). Project skills installed in `.claude/skills/`:
 
 ## Source material
 
-- `references/orchard_and_cellar.html` — the original incremental (view-source capture)
-- `references/orchard_and_cellar_unminified.js` — recovered readable JS (3,038 lines)
-- `references/Orchard_and_Cellar_Progression_Redesign_Recommendations.pdf` — the
-  redesign target (9 pages)
+- The original incremental capture and redesign PDF are local-only material in the
+  ignored `references/` directory; they are not part of the published repository.
 
 Docs 16/17 summarize both faithfully; implementers should rarely need the raw files.
