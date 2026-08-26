@@ -30,3 +30,4 @@ export * from './checks.js';
 export * from './creatures.js';
 export * from './durability.js';
 export * from './tile-targeting.js';
+export * from './spaces.js';
