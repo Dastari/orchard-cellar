@@ -1,7 +1,7 @@
 # 28 — Crafting Expansion: Materials, Stations, Recipes, and Placeables
 
-Binding owner-directed spec (2026-08-25). Status: **baseline crafting and chest
-storage implemented; the expanded station/content phases below remain planned**.
+Binding owner-directed spec (2026-08-25). Status: **phases 1–3 implemented
+(2026-08-26); phase 4 metal/smelting and later phases remain planned**.
 Builds on [23-ui-system.md](23-ui-system.md) (grid/recipe/container machinery — the
 "recipes/content are a later milestone" it deferred is this doc),
 [20-survival-world.md](20-survival-world.md) (resource drops, tool-strip roster),
@@ -354,3 +354,30 @@ The homestead build mode ([35-homesteads-and-farming.md](35-homesteads-and-farmi
 system: same table, same validation, plus `spaceId`, a data-driven build
 palette, and prefab building footprints. Barrels become load-bearing there
 (crop barreling) — the §6 barrel recipe is on its critical path.
+
+## 16. Phases 1–3 implementation verification (2026-08-26)
+
+- Shaped recipes normalize to their occupied bounding box, match at every grid
+  offset without mirroring, and share one item/recipe registry with commerce,
+  labels, icon keys, and recipe-book presentation. The docs/06 §12 goldens
+  cover every recipe shipped in this slice.
+- `fiber` is awarded by the deterministic 30% tilling hash. The hand tier is
+  planks, sticks, torch, campfire, and workbench; all new and previously
+  icon-less phase assets are paid-pack, exact-palette extracts recorded as
+  assets-as-text. No reference-pack binaries are committed.
+- `world_placeable` is additive, space-aware from birth (`spaceId: u16`) and
+  indexed by `[spaceId, chunkX, chunkY]`. Workbench, campfire, barrel, fence,
+  fence gate, sign, and standing torch place/pick up through the generalized
+  hands path. Barrels expose eight authority-owned slots; gates toggle
+  collision; fences join by neighbours; campfires and standing torches use the
+  shared point-light registry.
+- Workbench recipes are validated at an inclusive two-tile boundary by the
+  authority before inventory mutation. Placement and crafting statistics are
+  recorded only on the successful transaction path. Deterministic two-client
+  coverage proves shared workbench gating/removal and shared standing-torch
+  light while rejecting cross-space visibility.
+- Client recipe-list tests cover station filtering, missing-ingredient state,
+  ghost-fill moves, and the locked-result tooltip. The additive module build,
+  generated TypeScript bindings, focused authority/client suites, full asset
+  validation, and repository `npm run check` are the release gates for this
+  entry. Furnace, anvil, metal recipes, smelting, and cooking remain untouched.

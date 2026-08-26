@@ -225,7 +225,7 @@ equipped item kind for both local and remote players. What changes:
   `torch` in `ITEM_DEFINITIONS`, hotbar icon `icon_cf_torch`, carried art from
   the pack's `Torch_Idle/Running` player sheets, radius 3 tiles at
   `TORCH_LIGHT #ffb868` — all constants already exist in `lighting.ts`.
-  Craftable cheap (wood + plant fiber) at the workbench; **does not burn out**
+  Craftable cheap (wood + plant fiber) by hand (docs/28 phases 1–3); **does not burn out**
   (cozy rule — darkness is atmosphere, not a fuel tax). The `lantern` item
   follows in a later phase: radius 5, crafted with iron, and — because lights
   follow `equippedKind` — the meaningful upgrade is that holding a torch
