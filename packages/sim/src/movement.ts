@@ -95,6 +95,17 @@ export function playerHitboxBounds(position: Vec2Fixed): {
   };
 }
 
+/** Stable origin for interactions aimed from the player's physical body.
+ * Authority positions are anchored below the visible feet, which makes that
+ * raw anchor unsuitable for deciding whether a target is north or south. */
+export function playerInteractionOrigin(position: Vec2Fixed): Vec2Fixed {
+  return {
+    x: position.x,
+    y: position.y - PLAYER_HITBOX_FOOT_OFFSET
+      - (PLAYER_HITBOX_TOP - PLAYER_HITBOX_BOTTOM) / 2,
+  };
+}
+
 function movePlayerStep(player: PlayerState, direction: Direction | null, map: CollisionMap): PlayerState {
   if (direction === null) return { ...player, moving: false };
   const vector = DIRECTION_VECTORS[direction];

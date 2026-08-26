@@ -1,4 +1,11 @@
-import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, resourceToolReachFixed } from '@orchard/sim';
+import {
+  FIXED_UNITS_PER_PIXEL,
+  PLAYER_HITBOX_FOOT_OFFSET,
+  PLAYER_HITBOX_TOP,
+  TILE_SIZE_FIXED,
+  resourceToolReachFixed,
+  survivalResourceObstacle,
+} from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import {
   facedResource,
@@ -78,12 +85,16 @@ describe('survival controls', () => {
     expect(facedResource(x, y, 'right', [distantTree], resourceToolReachFixed('pickaxe'))).toBeNull();
   });
 
-  it('targets the physical trunk when the player is pressed against a tree', () => {
+  it('targets the physical trunk from north and south contact positions', () => {
     const closeTree = { ...tree, tileX: 10, tileY: 10 };
+    const trunk = survivalResourceObstacle(closeTree.kind, closeTree.tileX, closeTree.tileY);
     const x = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-    const y = 11 * TILE_SIZE_FIXED + 3 * FIXED_UNITS_PER_PIXEL;
-    expect(facedResource(x, y, 'up', [closeTree], resourceToolReachFixed('axe'))).toEqual(closeTree);
-    expect(facedResource(x, y, 'down', [closeTree], resourceToolReachFixed('axe'))).toBeNull();
+    const southContactY = trunk.bottom + 1 + PLAYER_HITBOX_FOOT_OFFSET + PLAYER_HITBOX_TOP;
+    const northContactY = trunk.top + PLAYER_HITBOX_FOOT_OFFSET;
+    expect(facedResource(x, southContactY, 'up', [closeTree], resourceToolReachFixed('axe'))).toEqual(closeTree);
+    expect(facedResource(x, southContactY, 'down', [closeTree], resourceToolReachFixed('axe'))).toBeNull();
+    expect(facedResource(x, northContactY, 'down', [closeTree], resourceToolReachFixed('axe'))).toEqual(closeTree);
+    expect(facedResource(x, northContactY, 'up', [closeTree], resourceToolReachFixed('axe'))).toBeNull();
   });
 
   it('maps both number rows to nine persisted hotbar slots', () => {

@@ -18,7 +18,7 @@ import {
   survivalGatherableDrop,
   survivalResourceBlocksMovement,
   survivalResourceObstacle,
-  survivalResourceTargetPoint,
+  survivalResourceTargetVector,
   spaceDefinitionFor,
   tileTargetInReach,
   tileTargetIsBlocked,
@@ -238,15 +238,15 @@ export function resourceHarvestResult(
   const matchingTool = (isChoppableTreeKind(resource.kind) && selectedItem === 'axe')
     || ((isMineableOreKind(resource.kind) || isBreakableRockKind(resource.kind)) && selectedItem === 'pickaxe');
   if (!matchingTool) return 'wrong_tool';
-  const targetPoint = survivalResourceTargetPoint(
+  const targetVector = survivalResourceTargetVector(
     playerX,
     playerY,
     resource.kind,
     resource.tileX,
     resource.tileY,
   );
-  const dx = targetPoint.x - playerX;
-  const dy = targetPoint.y - playerY;
+  const dx = targetVector.x;
+  const dy = targetVector.y;
   const reachFixed = resourceToolReachFixed(selectedItem);
   if (dx * dx + dy * dy > reachFixed * reachFixed) return 'out_of_range';
   return 'ok';

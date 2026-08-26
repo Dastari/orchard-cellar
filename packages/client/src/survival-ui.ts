@@ -6,7 +6,7 @@ import {
   facedTileTarget,
   itemDefinition,
   playerHitboxBounds,
-  survivalResourceTargetPoint,
+  survivalResourceTargetVector,
   tileTargetAtFixedPoint,
   tileTargetBounds,
   tileTargetInReach,
@@ -102,15 +102,15 @@ export function facedResource<T extends TargetableResource>(
   let targetDistance = Number.POSITIVE_INFINITY;
   for (const resource of resources) {
     if (resource.depleted) continue;
-    const targetPoint = survivalResourceTargetPoint(
+    const targetVector = survivalResourceTargetVector(
       playerX,
       playerY,
       resource.kind,
       resource.tileX,
       resource.tileY,
     );
-    const dx = targetPoint.x - playerX;
-    const dy = targetPoint.y - playerY;
+    const dx = targetVector.x;
+    const dy = targetVector.y;
     const distance = dx * dx + dy * dy;
     if (distance > reachSquared || dx * facingX + dy * facingY <= 0) continue;
     if (distance < targetDistance || (distance === targetDistance && resource.id < (target?.id ?? resource.id + 1n))) {

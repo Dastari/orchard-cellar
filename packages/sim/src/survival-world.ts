@@ -11,6 +11,7 @@ import {
   type RaisedTerrainRampRole,
 } from './raised-terrain-autotile.js';
 import { SURVIVAL_SPAWN_SEARCH_RADIUS_TILES } from './balance.js';
+import { playerInteractionOrigin } from './movement.js';
 
 /** The original generated island remains a 320x320 deterministic local space.
  * A wide ocean apron surrounds it so later islands can be added without moving
@@ -228,6 +229,20 @@ export function survivalResourceTargetPoint(
     x: Math.max(bounds.left, Math.min(bounds.right, playerX)),
     y: Math.max(bounds.top, Math.min(bounds.bottom, playerY)),
   };
+}
+
+/** Direction and distance from the player's physical body to the nearest
+ * point on a resource footprint. Shared by prediction and authority. */
+export function survivalResourceTargetVector(
+  playerX: number,
+  playerY: number,
+  kind: string,
+  tileX: number,
+  tileY: number,
+): { readonly x: number; readonly y: number } {
+  const origin = playerInteractionOrigin({ x: playerX, y: playerY });
+  const target = survivalResourceTargetPoint(origin.x, origin.y, kind, tileX, tileY);
+  return { x: target.x - origin.x, y: target.y - origin.y };
 }
 
 export function isGatherableResourceKind(kind: string): kind is SurvivalGatherableResourceKind {
