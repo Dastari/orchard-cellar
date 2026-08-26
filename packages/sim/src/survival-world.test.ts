@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type PlayerState } from './state.js';
-import { movePlayer, PLAYER_HITBOX_FOOT_OFFSET, positionCollides } from './movement.js';
+import {
+  collisionTileIsBlockedAtPlane,
+  movePlayer,
+  PLAYER_HITBOX_FOOT_OFFSET,
+  positionCollides,
+} from './movement.js';
 import { NPC_INTERACTION_REACH_FIXED, stepNpcTowardPoint, stepWanderingNpc, type WanderingNpcState } from './npc.js';
 import {
   SURVIVAL_WORLD_SEED,
@@ -362,7 +367,12 @@ describe('deterministic survival island', () => {
       location: 'estate' as const,
     };
     let climbed: PlayerState = start;
-    for (let step = 0; step < 24; step += 1) climbed = movePlayer(climbed, 'up', collision);
+    let climbSteps = 0;
+    for (let step = 0; step < 24; step += 1) {
+      const next = movePlayer(climbed, 'up', collision);
+      if (next.position.y !== climbed.position.y) climbSteps += 1;
+      climbed = next;
+    }
     const climbedTileX = Math.floor(climbed.position.x / TILE_SIZE_FIXED);
     const climbedTileY = Math.floor(
       (climbed.position.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED,
@@ -370,7 +380,7 @@ describe('deterministic survival island', () => {
     expect(survivalTerrainHeightAt(SURVIVAL_WORLD_SEED, climbedTileX, climbedTileY))
       .toBe(ramp.contourLevel);
     let descended: PlayerState = climbed;
-    for (let step = 0; step < 24; step += 1) descended = movePlayer(descended, 'down', collision);
+    for (let step = 0; step < climbSteps; step += 1) descended = movePlayer(descended, 'down', collision);
     expect(descended.position).toEqual(start.position);
 
     const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
@@ -399,7 +409,7 @@ describe('deterministic survival island', () => {
     expect(solidStart.position.y - blocked.position.y).toBeLessThan(24 * FIXED_UNITS_PER_PIXEL);
   });
 
-  it('30§5 blocks the two stone face rows but leaves ground-contact trim walkable', () => {
+  it('30§5 projects two lower-plane wall blockers, leaves trim open, and guards the upper cap', () => {
     const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
     let southFace: { readonly tileX: number; readonly tileY: number; readonly contourLevel: number } | null = null;
     for (let tileY = 1; tileY < SURVIVAL_WORLD_SIZE - 4 && southFace === null; tileY += 1) {
@@ -416,14 +426,21 @@ describe('deterministic survival island', () => {
     expect(southFace).not.toBeNull();
     if (southFace === null) return;
     const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
-    for (let projectedRow = 1; projectedRow <= 3; projectedRow += 1) {
-      const index = (southFace.tileY + projectedRow) * collision.width + southFace.tileX;
-      expect(collision.blocked[index], `projected row ${projectedRow}`).toBe(projectedRow <= 2);
-      expect(survivalRaisedTerrainStructuralAt(
-        SURVIVAL_WORLD_SEED,
-        southFace.tileX,
-        southFace.tileY + projectedRow,
-      )).toBe(projectedRow <= 2);
+    const lowerPlane = southFace.contourLevel - 1;
+    expect(collisionTileIsBlockedAtPlane(
+      collision, southFace.tileX, southFace.tileY - 1, lowerPlane,
+    )).toBe(true);
+    expect(collisionTileIsBlockedAtPlane(
+      collision, southFace.tileX, southFace.tileY, lowerPlane,
+    )).toBe(true);
+    expect(collisionTileIsBlockedAtPlane(
+      collision, southFace.tileX, southFace.tileY + 1, lowerPlane,
+    )).toBe(false);
+    expect(collisionTileIsBlockedAtPlane(
+      collision, southFace.tileX, southFace.tileY, southFace.contourLevel,
+    )).toBe(true);
+    for (let tileY = southFace.tileY - 1; tileY <= southFace.tileY + 2; tileY += 1) {
+      expect(collision.blocked[tileY * collision.width + southFace.tileX]).toBe(false);
     }
     const start = {
       position: {
@@ -439,8 +456,8 @@ describe('deterministic survival island', () => {
     const sampledTileY = Math.floor(
       (behind.position.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED,
     );
-    expect(sampledTileY).toBeGreaterThanOrEqual(southFace.tileY + 3);
-    expect(start.position.y - behind.position.y).toBeLessThan(2 * TILE_SIZE_FIXED);
+    expect(sampledTileY).toBeGreaterThanOrEqual(southFace.tileY + 1);
+    expect(start.position.y - behind.position.y).toBeLessThan(4 * TILE_SIZE_FIXED);
     expect(survivalTerrainHeightAt(SURVIVAL_WORLD_SEED, southFace.tileX, sampledTileY))
       .toBe(southFace.contourLevel - 1);
   });

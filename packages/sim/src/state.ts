@@ -39,6 +39,11 @@ export interface CollisionMap {
   readonly width: number;
   readonly height: number;
   readonly blocked: readonly boolean[];
+  /** Optional blockers resolved independently for each terrain elevation.
+   * The flattened layout is `[elevation][tileY][tileX]`. This keeps projected
+   * cliff faces solid on the lower plane while their cap edges independently
+   * guard actors walking on the raised plane. */
+  readonly terrainPlaneBlocked?: Uint8Array;
   /** Optional integer height field and explicit contour crossings. Generated
    * terrain supplies both to client prediction and authority movement. */
   readonly elevations?: Uint8Array;

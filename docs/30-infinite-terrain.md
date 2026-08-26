@@ -181,8 +181,10 @@ becomes correctness.
   A higher surface therefore composites over every lower-plane drawable while
   its own occupants remain above it. This is
   2.5D projection, not freeform 3D: raised surfaces and their occupants render
-  north by `elevation × faceRows`, while their logical/collision coordinates stay
-  unchanged. The projected overlap lets lower actors walk behind the raised
+  north by `elevation × faceRows`. Collision keeps a plane-indexed companion
+  mask: physical face rows receive the same projection on the lower plane and
+  cap edges guard actors on the upper plane, with ramps cut through both. The
+  projected overlap lets lower actors walk behind the raised
   rear cap while the two visible front/side stone rows remain solid and actors
   standing on that cliff remain in front. The cosmetic foot/shadow row is an
   underlay and remains walkable.

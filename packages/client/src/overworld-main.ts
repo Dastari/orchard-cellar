@@ -54,6 +54,7 @@ import {
   nextWeatherMode,
   nextWindDirectionMode,
   weatherVisualState,
+  collisionTileIsBlockedAtPlane,
   shiftAuthorityDay,
   simTickOfDayAtAuthorityTick,
   movePlayer,
@@ -1667,9 +1668,9 @@ function drawCollisionOverlay(
     Math.ceil((cameraY + viewportHeight / scale + planeProjection) / 16),
   );
   for (let tileY = minY; tileY <= maxY; tileY += 1) for (let tileX = minX; tileX <= maxX; tileX += 1) {
-    const index = tileY * terrain.width + tileX;
     const cell = terrainPlaneCollisionCellAt(terrain, tileX, tileY, activeElevation);
-    const blocked = cell === 'blocked' || (worldCollision.blocked[index] ?? true);
+    const blocked = cell === 'blocked'
+      || collisionTileIsBlockedAtPlane(worldCollision, tileX, tileY, activeElevation);
     const screenX = Math.round((tileX * 16 - cameraX) * scale);
     const screenY = Math.round((tileY * 16 - planeProjection - cameraY) * scale);
     if (blocked || cell === 'transition') {

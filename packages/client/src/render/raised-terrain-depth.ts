@@ -150,7 +150,7 @@ function drawTerrainAsset(
   );
 }
 
-export type RaisedTerrainDepthStratum = 'face' | 'face_foot' | 'rear_face' | 'cap';
+export type RaisedTerrainDepthStratum = 'face' | 'face_foot' | 'cap';
 
 export interface RaisedTerrainDepthLayer {
   readonly stratum: RaisedTerrainDepthStratum;
@@ -166,33 +166,23 @@ export function raisedTerrainDepthLayers(
   entry: Pick<RaisedTerrainDepthEntry, 'contourLevel' | 'plan'>,
 ): readonly RaisedTerrainDepthLayer[] {
   const layers: RaisedTerrainDepthLayer[] = [];
-  const rearStack = entry.plan.faceLayers.some((face) => !face.direct);
-  if (!rearStack && entry.plan.faceLayers.some((face) => face.rowId !== 'foot')) {
+  if (entry.plan.faceLayers.some((face) => face.direct && face.rowId !== 'foot')) {
     layers.push({
       stratum: 'face',
       elevationLayer: Math.max(0, entry.contourLevel - 1),
       depthPhase: 'boundary',
     });
   }
-  if (!rearStack && entry.plan.faceLayers.some((face) => face.rowId === 'foot')) {
+  if (entry.plan.faceLayers.some((face) => face.direct && face.rowId === 'foot')) {
     layers.push({
       stratum: 'face_foot',
       elevationLayer: Math.max(0, entry.contourLevel - 1),
       depthPhase: 'surface',
     });
   }
-  // Indirect faces continue a raised rim around the rear/side of a stepped
-  // contour. Their pixels occupy the upper plane even though the atlas frame
-  // is wall-shaped. A stepped cell can contain indirect and direct rows in
-  // one authored deepest-to-nearest stack, so move the whole stack together;
-  // splitting it across planes reverses the visible side-wall overlap.
-  if (rearStack) {
-    layers.push({
-      stratum: 'rear_face',
-      elevationLayer: entry.contourLevel,
-      depthPhase: 'boundary',
-    });
-  }
+  // Indirect coverage is topology support for resolving corners, not another
+  // visible wall. Drawing it exposes the stone column underneath the thin
+  // left/right cap edge at stepped corners.
   if (entry.plan.edgeFrame !== null
     || entry.plan.insetFrames.length > 0
     || entry.plan.rampFrame !== null) {
@@ -216,11 +206,10 @@ function drawEntryStratum(
 ): void {
   context.save();
   context.translate(0, -raisedTerrainVisualOffset(entry) * scale);
-  if (stratum === 'face' || stratum === 'face_foot' || stratum === 'rear_face') {
+  if (stratum === 'face' || stratum === 'face_foot') {
     for (const face of entry.plan.faceLayers.filter(
-      (candidate) => stratum === 'rear_face'
-        ? true
-        : (candidate.rowId === 'foot') === (stratum === 'face_foot'),
+      (candidate) => candidate.direct
+        && (candidate.rowId === 'foot') === (stratum === 'face_foot'),
     )) {
       drawTerrainAsset(context, art.cliff, face.frame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
     }

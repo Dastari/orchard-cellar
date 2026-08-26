@@ -4,6 +4,7 @@ import {
   movePlayer,
   movePlayerAtSpeed,
   movePlayerAtSpeedPermille,
+  collisionTileIsBlockedAtPlane,
   movementPositionAllowed,
   PLAYER_HITBOX_FOOT_OFFSET,
   PLAYER_HITBOX_HALF_WIDTH,
@@ -129,6 +130,25 @@ describe('player movement collision', () => {
       elevations: Uint8Array.from([0, 1]),
       terrainTransitions: [],
     })).toBe(false);
+  });
+
+  it('30§5 resolves projected wall and cap blockers only on their owning plane', () => {
+    const stride = 4;
+    const terrainPlaneBlocked = new Uint8Array(stride * 2);
+    terrainPlaneBlocked[1] = 1;
+    terrainPlaneBlocked[stride + 2] = 1;
+    const map = {
+      width: 4,
+      height: 1,
+      blocked: [false, false, false, false],
+      elevations: Uint8Array.from([0, 0, 1, 1]),
+      terrainTransitions: [],
+      terrainPlaneBlocked,
+    };
+    expect(collisionTileIsBlockedAtPlane(map, 1, 0, 0)).toBe(true);
+    expect(collisionTileIsBlockedAtPlane(map, 1, 0, 1)).toBe(false);
+    expect(collisionTileIsBlockedAtPlane(map, 2, 0, 0)).toBe(false);
+    expect(collisionTileIsBlockedAtPlane(map, 2, 0, 1)).toBe(true);
   });
 
   it('lets a persisted actor escape newly-solid terrain without moving farther through it', () => {

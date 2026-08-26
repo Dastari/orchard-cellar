@@ -1046,6 +1046,53 @@ export function survivalRaisedTerrainPlansAt(
 
 const raisedTerrainBlockingCache = new Map<number, Uint8Array>();
 const raisedTerrainStructuralCache = new Map<number, Uint8Array>();
+const raisedTerrainPlaneBlockingCache = new Map<number, Uint8Array>();
+
+function raisedTerrainProjectedRows(): number {
+  return SURVIVAL_RAISED_CLIFF_TILE_SET.faceProfiles.tall?.rows
+    .filter((row) => row.contributesHeight !== false).length ?? 0;
+}
+
+/** Plane-specific physical cliff geometry. Face rows are authored south of
+ * their contour but rendered north by the elevation projection, so their
+ * lower-plane blockers must receive the same projection. Raised actors get a
+ * separate cap-edge guard. The cosmetic foot/shadow row and ramps stay open. */
+export function survivalTerrainPlaneCollisionBytes(seed: number): Uint8Array {
+  const cached = raisedTerrainPlaneBlockingCache.get(seed);
+  if (cached !== undefined) return cached;
+  const stride = SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE;
+  const blocked = new Uint8Array((SURVIVAL_MAX_TERRAIN_ELEVATION + 1) * stride);
+  const projectedRows = raisedTerrainProjectedRows();
+  for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE; tileY += 1) {
+    for (let tileX = 0; tileX < SURVIVAL_WORLD_SIZE; tileX += 1) {
+      for (const { contourLevel, plan } of survivalRaisedTerrainPlansAt(seed, tileX, tileY)) {
+        const tileIndex = tileY * SURVIVAL_WORLD_SIZE + tileX;
+        if (plan.rampFrame === null && (plan.edgeFrame !== null || plan.insetFrames.length > 0)) {
+          blocked[contourLevel * stride + tileIndex] = 1;
+        }
+        if (!plan.faceLayers.some((face) => face.direct && face.blocksMovement)) continue;
+        const projectedTileY = tileY - projectedRows;
+        if (projectedTileY < 0) continue;
+        blocked[(contourLevel - 1) * stride
+          + projectedTileY * SURVIVAL_WORLD_SIZE + tileX] = 1;
+      }
+    }
+  }
+  // A ramp is a two-wide doorway through both plane guards. Clear it after
+  // resolving neighbouring contour coverage so corner/inset plans cannot
+  // accidentally close one lane.
+  for (const ramp of survivalPlateauRamps(seed)) {
+    for (let lane = 0; lane < 2; lane += 1) {
+      for (const tileY of [ramp.tileY - 1, ramp.tileY]) {
+        const tileIndex = tileY * SURVIVAL_WORLD_SIZE + ramp.tileX + lane;
+        blocked[ramp.contourLevel * stride + tileIndex] = 0;
+        blocked[(ramp.contourLevel - 1) * stride + tileIndex] = 0;
+      }
+    }
+  }
+  raisedTerrainPlaneBlockingCache.set(seed, blocked);
+  return blocked;
+}
 
 export function survivalRaisedTerrainBlocksMovementAt(
   seed: number,
@@ -1353,10 +1400,9 @@ export function survivalBiomeBlocksTraversal(biome: SurvivalBiome, medium: Movem
   return survivalBiomeBlocksMovement(biome);
 }
 
-/** Coordinate-aware ground collision. The two stone face rows are solid on
- * the lower plane, the authored ground-contact trim remains walkable, and
- * strict elevation transitions block the contour crossing. Other ridge kinds
- * retain their ordinary solid tiles. */
+/** Coordinate-aware base collision. Raised-cliff structure is represented by
+ * the elevation-specific mask so projection never leaves a second blocker at
+ * the authored tile. Other ridge kinds retain their ordinary solid tiles. */
 export function survivalTerrainBlocksTraversalAt(
   seed: number,
   tileX: number,
@@ -1365,7 +1411,7 @@ export function survivalTerrainBlocksTraversalAt(
 ): boolean {
   const biome = survivalBiomeAt(seed, tileX, tileY);
   if (medium === 'ground' && biome === 'ridge' && survivalRaisedTerrainStructuralAt(seed, tileX, tileY)) {
-    return survivalRaisedTerrainBlocksMovementAt(seed, tileX, tileY);
+    return false;
   }
   return survivalBiomeBlocksTraversal(biome, medium);
 }
@@ -2136,6 +2182,7 @@ export function createSurvivalCollisionMap(
     ...(medium === 'ground' ? {
       elevations: survivalElevationBytes(seed),
       terrainTransitions: survivalTerrainTransitions(seed),
+      terrainPlaneBlocked: survivalTerrainPlaneCollisionBytes(seed),
     } : {}),
     ...(medium === 'ground' ? { horseJumpableTerrain } : {}),
     obstacles,

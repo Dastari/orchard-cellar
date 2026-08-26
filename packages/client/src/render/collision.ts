@@ -7,6 +7,7 @@ import {
   survivalDecorationObstacle,
   survivalResourceBlocksMovement,
   survivalResourceObstacle,
+  survivalTerrainPlaneCollisionBytes,
   placeableDefinition,
   type CollisionMap,
   type MovementMedium,
@@ -57,6 +58,9 @@ export function createClientCollisionMap(
       survivalBiomeBlocksTraversal(SURVIVAL_BIOMES[biome] ?? 'water', medium)
     )),
     ...(medium === 'ground' ? { elevations: terrain.elevations } : {}),
+    ...(medium === 'ground' && terrain.spaceId === TOPSIDE_SPACE_ID
+      ? { terrainPlaneBlocked: survivalTerrainPlaneCollisionBytes(terrain.seed) }
+      : {}),
     ...(medium === 'ground' && terrain.terrainTransitions !== undefined
       ? { terrainTransitions: terrain.terrainTransitions }
       : {}),

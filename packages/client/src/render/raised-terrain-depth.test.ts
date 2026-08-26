@@ -67,7 +67,7 @@ describe('30§5 raised-terrain depth entries', () => {
     });
   });
 
-  it('30§5 keeps indirect rear corner faces above lower-plane actors', () => {
+  it('30§5 keeps indirect corner coverage from overdrawing the thin side cap', () => {
     const base = nestedTerrain();
     const elevations = new Uint8Array(base.width * base.height);
     // The left column continues south while the right column ends. Resolving
@@ -82,14 +82,10 @@ describe('30§5 raised-terrain depth entries', () => {
     ));
     expect(rearFace).toBeDefined();
     expect(new Set(rearFace!.plan.faceLayers.map((face) => face.direct))).toEqual(new Set([false, true]));
-    expect(raisedTerrainDepthLayers(rearFace!)).toEqual(expect.arrayContaining([{
-      stratum: 'rear_face',
-      elevationLayer: rearFace!.contourLevel,
-      depthPhase: 'boundary',
-    }]));
-    expect(raisedTerrainDepthLayers(rearFace!).some(
-      ({ stratum }) => stratum === 'face' || stratum === 'face_foot',
-    )).toBe(false);
+    expect(raisedTerrainDepthLayers(rearFace!).some(({ stratum }) => stratum === 'face')).toBe(true);
+    expect(raisedTerrainDepthLayers(rearFace!).every(
+      ({ stratum }) => stratum === 'face' || stratum === 'face_foot' || stratum === 'cap',
+    )).toBe(true);
   });
 
   it('30§5 submits the cosmetic ground-contact row as a lower-plane underlay', () => {

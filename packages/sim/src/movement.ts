@@ -34,6 +34,22 @@ function tileIsBlocked(map: CollisionMap, tileX: number, tileY: number): boolean
   return map.blocked[tileY * map.width + tileX] ?? true;
 }
 
+/** Resolves both ordinary terrain and blockers belonging to one elevation.
+ * Callers must pass the actor's physical plane rather than infer it for each
+ * sampled corner: a hitbox may intentionally overlap projected art belonging
+ * to another logical terrain coordinate. */
+export function collisionTileIsBlockedAtPlane(
+  map: CollisionMap,
+  tileX: number,
+  tileY: number,
+  elevation: number,
+): boolean {
+  if (tileIsBlocked(map, tileX, tileY)) return true;
+  if (elevation < 0 || map.terrainPlaneBlocked === undefined) return false;
+  const stride = map.width * map.height;
+  return map.terrainPlaneBlocked[elevation * stride + tileY * map.width + tileX] === 1;
+}
+
 function tileIsHorseJumpableTerrain(map: CollisionMap, tileX: number, tileY: number): boolean {
   if (tileX < 0 || tileY < 0 || tileX >= map.width || tileY >= map.height) return false;
   return map.horseJumpableTerrain?.[tileY * map.width + tileX] ?? false;
@@ -46,11 +62,12 @@ export function positionCollidesTerrain(position: Vec2Fixed, map: CollisionMap):
   const tileTop = Math.floor(top / TILE_SIZE_FIXED);
   const tileBottom = Math.floor(bottom / TILE_SIZE_FIXED);
 
+  const elevation = terrainPlaneAtPosition(position, map);
   const tileCollision = (
-    tileIsBlocked(map, tileLeft, tileTop) ||
-    tileIsBlocked(map, tileRight, tileTop) ||
-    tileIsBlocked(map, tileLeft, tileBottom) ||
-    tileIsBlocked(map, tileRight, tileBottom)
+    collisionTileIsBlockedAtPlane(map, tileLeft, tileTop, elevation) ||
+    collisionTileIsBlockedAtPlane(map, tileRight, tileTop, elevation) ||
+    collisionTileIsBlockedAtPlane(map, tileLeft, tileBottom, elevation) ||
+    collisionTileIsBlockedAtPlane(map, tileRight, tileBottom, elevation)
   );
   return tileCollision;
 }
@@ -61,10 +78,11 @@ function terrainCollisionOverlapArea(position: Vec2Fixed, map: CollisionMap): nu
   const tileRight = Math.floor(right / TILE_SIZE_FIXED);
   const tileTop = Math.floor(top / TILE_SIZE_FIXED);
   const tileBottom = Math.floor(bottom / TILE_SIZE_FIXED);
+  const elevation = terrainPlaneAtPosition(position, map);
   let area = 0;
   for (let tileY = tileTop; tileY <= tileBottom; tileY += 1) {
     for (let tileX = tileLeft; tileX <= tileRight; tileX += 1) {
-      if (!tileIsBlocked(map, tileX, tileY)) continue;
+      if (!collisionTileIsBlockedAtPlane(map, tileX, tileY, elevation)) continue;
       const overlapWidth = Math.min(right, (tileX + 1) * TILE_SIZE_FIXED - 1)
         - Math.max(left, tileX * TILE_SIZE_FIXED) + 1;
       const overlapHeight = Math.min(bottom, (tileY + 1) * TILE_SIZE_FIXED - 1)
@@ -92,10 +110,13 @@ export function positionCollidesOnlyHorseJumpableTerrain(position: Vec2Fixed, ma
     [Math.floor(left / TILE_SIZE_FIXED), Math.floor(bottom / TILE_SIZE_FIXED)],
     [Math.floor(right / TILE_SIZE_FIXED), Math.floor(bottom / TILE_SIZE_FIXED)],
   ] as const;
+  const elevation = terrainPlaneAtPosition(position, map);
   let touchesBlockedTerrain = false;
   for (const [tileX, tileY] of corners) {
-    if (!tileIsBlocked(map, tileX, tileY)) continue;
+    if (!collisionTileIsBlockedAtPlane(map, tileX, tileY, elevation)) continue;
     touchesBlockedTerrain = true;
+    // Elevation-specific cliff geometry is never a horse-jump shortcut.
+    if (!tileIsBlocked(map, tileX, tileY)) return false;
     if (!tileIsHorseJumpableTerrain(map, tileX, tileY)) return false;
   }
   return touchesBlockedTerrain;

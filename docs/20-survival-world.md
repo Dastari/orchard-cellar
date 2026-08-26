@@ -51,12 +51,15 @@ remain M7a work; the M5.7 slice does not grant land permissions.
   row, and collision profile independently.
   Movement may cross adjacent heights only through the exact paired `slope`
   transitions generated for that contour; all other height boundaries fail closed.
-  The two authored stone face rows are solid lower-plane collision tiles; the
-  third foot/shadow row remains walkable, draws beneath actors, and does not
-  contribute height. Each raised surface and every occupant on it render north
-  by `elevation × 2 tiles`. Logical collision coordinates remain unchanged.
+  The two authored stone face rows have lower-plane blockers projected north
+  with their rendered pixels; the third foot/shadow row remains walkable, draws
+  beneath actors, and does not contribute height. A separate per-elevation mask
+  blocks cap-edge cells for actors already on the raised surface, while paired
+  ramp lanes explicitly remain open. Each raised surface and every occupant on
+  it render north by `elevation × 2 tiles`.
   That projection creates a lower-plane walk-behind band behind the rear cliff
-  cap, but never turns the visible front/side stone face into walkable space.
+  cap, but never turns the visible front/side stone face into walkable space or
+  leaves a duplicate blocker on the cosmetic shadow row.
   Every internal
   raised-surface tile participates in the same elevation-aware queue, ordered
   `surface → boundary → entity` within its plane, while planes composite from

@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
+  collisionTileIsBlockedAtPlane,
   generateSurvivalDecorations,
-  survivalRaisedTerrainBlocksMovementAt,
   survivalRaisedTerrainStructuralAt,
+  survivalTerrainPlaneCollisionBytes,
   survivalResourceObstacle,
   survivalWaterRockObstacle,
 } from '@orchard/sim';
@@ -33,25 +34,26 @@ describe('client collision cache', () => {
     });
   }, 20_000);
 
-  it('shares stone-face blocking and walkable trim with authority prediction', () => {
+  it('shares projected stone-face and upper-cap masks with authority prediction', () => {
     const terrain = terrainForWorld(0x4f434852, 16);
     const collision = createClientCollisionMap(terrain, []);
-    let projectedTiles = 0;
-    let blockedFaceTiles = 0;
-    let walkableStructuralTiles = 0;
+    expect(collision.terrainPlaneBlocked).toBe(survivalTerrainPlaneCollisionBytes(terrain.seed));
+    let lowerPlaneBlockers = 0;
+    let upperPlaneBlockers = 0;
+    let structuralTiles = 0;
     for (let tileY = 0; tileY < terrain.height; tileY += 1) {
       for (let tileX = 0; tileX < terrain.width; tileX += 1) {
-        if (!survivalRaisedTerrainStructuralAt(terrain.seed, tileX, tileY)) continue;
-        projectedTiles += 1;
-        const blocked = survivalRaisedTerrainBlocksMovementAt(terrain.seed, tileX, tileY);
-        expect(collision.blocked[tileY * terrain.width + tileX]).toBe(blocked);
-        if (blocked) blockedFaceTiles += 1;
-        else walkableStructuralTiles += 1;
+        if (survivalRaisedTerrainStructuralAt(terrain.seed, tileX, tileY)) {
+          structuralTiles += 1;
+          expect(collision.blocked[tileY * terrain.width + tileX]).toBe(false);
+        }
+        if (collisionTileIsBlockedAtPlane(collision, tileX, tileY, 0)) lowerPlaneBlockers += 1;
+        if (collisionTileIsBlockedAtPlane(collision, tileX, tileY, 1)) upperPlaneBlockers += 1;
       }
     }
-    expect(projectedTiles).toBeGreaterThan(0);
-    expect(blockedFaceTiles).toBeGreaterThan(0);
-    expect(walkableStructuralTiles).toBeGreaterThan(0);
+    expect(structuralTiles).toBeGreaterThan(0);
+    expect(lowerPlaneBlockers).toBeGreaterThan(0);
+    expect(upperPlaneBlockers).toBeGreaterThan(0);
   }, 20_000);
 
   it('builds the inverse shoreline layer and water-rock obstacles for watercraft', () => {
