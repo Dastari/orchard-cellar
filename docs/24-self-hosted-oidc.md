@@ -332,3 +332,13 @@ Rollout evidence:
   the signed-in panel to the shared overworld without a manual refresh. Public edge,
   secret-scan, and health checks passed, and the resulting deployment backup completed
   the encrypted NAS round-trip at `20260826T001935Z`.
+- The subsequent readability pass raises the live provider title to 34 pixels, form
+  labels to 25 pixels, and account-registration action to 22 pixels. The registration
+  link is now a full 220-pixel neutral nine-slice action instead of small inline text.
+  The password visibility control no longer stretches a generic button sprite: it is
+  a 50-pixel cream control joined to the password field, with matching inset borders
+  and a centered 21-pixel eye glyph. Browser inspection confirmed those computed
+  dimensions and no horizontal overflow. Private/public health, discovery, JWKS, TLS,
+  exact-origin, and secret-scan checks passed after restart; backup
+  `20260826T013253Z` completed the encrypted NAS upload/download hash-verification
+  round trip.

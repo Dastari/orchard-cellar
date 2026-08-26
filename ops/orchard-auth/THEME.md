@@ -17,3 +17,10 @@ JavaScript, credentials, signing material, or full source sheets to this directo
 The licensed UI font is included only as a runtime project resource alongside the
 small theme crops; neither the complete source sheets nor editable pack files are
 published.
+
+The email theme uses one email-safe HTML shell in `email/html/template.ftl`, so all
+Keycloak-generated HTML mail inherits the Orchard palette and framed parchment
+layout. Keep that shell table-based, self-contained, and free of JavaScript,
+tracking pixels, web fonts, or external images: many email clients block those
+features. Plain-text mail and the common account-flow wording live in
+`email/messages/messages_en.properties`.
