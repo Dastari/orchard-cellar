@@ -11,6 +11,7 @@ import {
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_VERSION,
   TILE_SIZE_FIXED,
+  TILE_INTERACTION_REACH_FIXED,
   TICKS_PER_DAY,
   TOOL_VIGOUR_BALANCE,
   EFFECT_KINDS,
@@ -49,6 +50,7 @@ import {
   movePlayerAtSpeed,
   modifiersForEffects,
   playerHitboxBounds,
+  playerInteractionOrigin,
   resourceToolReachFixed,
   survivalBiomeAt,
   spaceDefinitionFor,
@@ -1069,6 +1071,41 @@ function drawPlayerCollisionOverlay(
   }
 }
 
+function drawToolInteractionOverlay(
+  context: CanvasRenderingContext2D,
+  cameraX: number,
+  cameraY: number,
+  scale: number,
+  snapshot: OverworldView,
+): void {
+  if (predicted === null) return;
+  const itemKind = selectedItem(snapshot);
+  const reachFixed = itemKind === 'axe' || itemKind === 'pickaxe'
+    ? resourceToolReachFixed(itemKind)
+    : itemKind === 'hoe' || itemKind === 'watering_can'
+      ? TILE_INTERACTION_REACH_FIXED
+      : null;
+  if (reachFixed === null) return;
+  const origin = playerInteractionOrigin(predicted.position);
+  const x = (origin.x / FIXED_UNITS_PER_PIXEL - cameraX) * scale;
+  const y = (origin.y / FIXED_UNITS_PER_PIXEL - cameraY) * scale;
+  const radius = reachFixed / FIXED_UNITS_PER_PIXEL * scale;
+  context.save();
+  context.fillStyle = '#d77bff18';
+  context.strokeStyle = '#e6a3ffdd';
+  context.lineWidth = Math.max(1, scale);
+  context.setLineDash([Math.max(2, 3 * scale), Math.max(1, 2 * scale)]);
+  context.beginPath();
+  context.arc(Math.round(x), Math.round(y), radius, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+  context.setLineDash([]);
+  context.fillStyle = '#f3c5ff';
+  context.fillRect(Math.round(x) - 2, Math.round(y), 5, 1);
+  context.fillRect(Math.round(x), Math.round(y) - 2, 1, 5);
+  context.restore();
+}
+
 function drawCollisionOverlay(
   context: CanvasRenderingContext2D,
   cameraX: number,
@@ -1710,6 +1747,7 @@ function render(alpha = 1): void {
       !debugEntitiesHidden,
     );
     if (!debugEntitiesHidden) drawPlayerCollisionOverlay(context, cameraX, cameraY, scale, snapshot);
+    drawToolInteractionOverlay(context, cameraX, cameraY, scale, snapshot);
   }
   renderer.compositeWorld();
   drawCalls += 1;
@@ -2067,7 +2105,9 @@ window.addEventListener('keydown', (event) => {
   }
   if (event.code === 'KeyG' && !event.repeat) {
     debugCollision = !debugCollision;
-    toast = debugCollision ? 'COLLISION: CYAN PLAYER / RED TERRAIN / AMBER RESOURCE' : 'COLLISION OVERLAY OFF';
+    toast = debugCollision
+      ? 'COLLISION: CYAN PLAYER / RED TERRAIN / AMBER RESOURCE / PURPLE TOOL RANGE'
+      : 'COLLISION OVERLAY OFF';
     toastTicks = 180;
     event.preventDefault();
     return;

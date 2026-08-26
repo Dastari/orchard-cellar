@@ -58,7 +58,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       'Esc: menu, back, or close.',
       'C / V: crafting / barrel prototypes.',
       'F3: network and render metrics.',
-      'G: collision overlay.',
+      'G: collision and tool-range overlay.',
     ],
   },
   {
