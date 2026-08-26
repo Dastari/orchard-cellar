@@ -534,6 +534,51 @@ describe('overworld inventory and system menu', () => {
     expect(handlers.craftInventoryRecipe).toHaveBeenCalledWith('planks', true);
   });
 
+  it('locks a workbench result at range and unlocks it beside the station', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'crafting';
+    const inventory = Array.from({ length: 9 }, (_, index) => ({
+      slot: 38 + index,
+      itemKind: index === 4 ? 'empty' : 'plank',
+      quantity: index === 4 ? 0 : 1,
+    }));
+    const model = {
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory, hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto' as const, prompt: null, toast: null,
+    };
+    ui.update({ ...model, nearbyCraftingStations: [] });
+    const result = overworldUiLayout(480, 270).craftingResult;
+    ui.pointerMove({ x: result.x + 4, y: result.y + 4 });
+    expect(ui.tooltipText()).toBe('REQUIRES A WORKBENCH WITHIN 2 TILES');
+    ui.pointerDown({ x: result.x + 4, y: result.y + 4 }, 0, {});
+    expect(handlers.craftInventoryRecipe).not.toHaveBeenCalled();
+
+    ui.update({ ...model, nearbyCraftingStations: ['workbench'] });
+    ui.pointerDown({ x: result.x + 4, y: result.y + 4 }, 0, {});
+    expect(handlers.craftInventoryRecipe).toHaveBeenCalledWith('chest', false);
+  });
+
+  it('clicks a visible recipe-book row to request ghost fill', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'crafting';
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [{ slot: 0, itemKind: 'plank', quantity: 4 }], hasBackpack: false,
+      nearbyCraftingStations: [],
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const workbenchRow = overworldUiLayout(480, 270).craftingRecipeRows[4]!;
+    ui.pointerDown({ x: workbenchRow.x + 2, y: workbenchRow.y + 2 }, 0, {});
+    expect(handlers.ghostFillCraftingRecipe).toHaveBeenCalledWith('workbench');
+  });
+
   it('starts even distribution when Shift is pressed after picking the stack up', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
