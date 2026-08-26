@@ -8,6 +8,24 @@ export const DAYS_PER_SEASON = 7;
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
 export type Season = (typeof SEASONS)[number];
 
+export const LUNAR_CYCLE_DAYS_NUMERATOR = 59;
+export const LUNAR_CYCLE_DAYS_DENOMINATOR = 2;
+export const MOON_PHASES = [
+  'full_moon',
+  'waning_gibbous',
+  'last_quarter',
+  'waning_crescent',
+  'new_moon',
+  'waxing_crescent',
+  'first_quarter',
+  'waxing_gibbous',
+] as const;
+export type MoonPhase = (typeof MOON_PHASES)[number];
+
+/** Illumination at each phase center, in per mille. Intermediate ticks use
+ * fixed-point linear interpolation so two clients always agree exactly. */
+export const LUNAR_ILLUMINATION_ANCHORS = [1000, 854, 500, 146, 0, 146, 500, 854] as const;
+
 export interface CalendarTime {
   readonly totalDay: number;
   readonly year: number;
@@ -49,6 +67,43 @@ export function authorityDayIndex(authorityTick: bigint): bigint {
 export function authorityDayProgress(authorityTick: bigint): number {
   const tickOfDay = authorityTick % BigInt(AUTHORITY_TICKS_PER_DAY);
   return Number(tickOfDay) / AUTHORITY_TICKS_PER_DAY;
+}
+
+function positiveModulo(value: bigint, divisor: bigint): bigint {
+  const remainder = value % divisor;
+  return remainder < 0n ? remainder + divisor : remainder;
+}
+
+function lunarScaledTick(authorityTick: bigint): readonly [bigint, bigint] {
+  const cycle = BigInt(AUTHORITY_TICKS_PER_DAY * LUNAR_CYCLE_DAYS_NUMERATOR);
+  return [positiveModulo(authorityTick * BigInt(LUNAR_CYCLE_DAYS_DENOMINATOR), cycle), cycle];
+}
+
+export function lunarCycleProgressAtAuthorityTick(authorityTick: bigint): number {
+  const [tick, cycle] = lunarScaledTick(authorityTick);
+  return Number(tick) / Number(cycle);
+}
+
+export function lunarPhaseIndexAtAuthorityTick(authorityTick: bigint): number {
+  const [tick, cycle] = lunarScaledTick(authorityTick);
+  const nearestCenter = (tick * BigInt(MOON_PHASES.length) + cycle / 2n) / cycle;
+  return Number(nearestCenter % BigInt(MOON_PHASES.length));
+}
+
+export function lunarPhaseAtAuthorityTick(authorityTick: bigint): MoonPhase {
+  return MOON_PHASES[lunarPhaseIndexAtAuthorityTick(authorityTick)] ?? 'full_moon';
+}
+
+export function lunarIlluminationAtAuthorityTick(authorityTick: bigint): number {
+  const [tick, cycle] = lunarScaledTick(authorityTick);
+  const phasePosition = tick * BigInt(MOON_PHASES.length);
+  const leftIndex = Number(phasePosition / cycle);
+  const remainder = phasePosition % cycle;
+  const rightIndex = (leftIndex + 1) % MOON_PHASES.length;
+  const left = BigInt(LUNAR_ILLUMINATION_ANCHORS[leftIndex] ?? 1000);
+  const right = BigInt(LUNAR_ILLUMINATION_ANCHORS[rightIndex] ?? 1000);
+  const weighted = left * (cycle - remainder) + right * remainder;
+  return Number((weighted + cycle / 2n) / cycle);
 }
 
 export function authorityTickAtDayProgress(authorityTick: bigint, progress: number): bigint {

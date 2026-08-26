@@ -7,7 +7,7 @@ import {
   survivalWaterRockObstacle,
 } from '@orchard/sim';
 import { createClientCollisionMap } from './collision.js';
-import { terrainForWorld } from './terrain.js';
+import { terrainForSpace, terrainForWorld } from './terrain.js';
 
 describe('client collision cache', () => {
   it('reuses terrain blocking and rebuilds only live subscribed obstacles', () => {
@@ -44,4 +44,17 @@ describe('client collision cache', () => {
       survivalWaterRockObstacle(waterRock.tileX, waterRock.tileY),
     );
   }, 20_000);
+
+  it('does not project surface decorations into underground spaces', () => {
+    const terrain = terrainForSpace({
+      spaceId: 1,
+      name: 'mine_fixture',
+      sizeTiles: 32,
+      generator: 'mine',
+      ambient: { r: 32, g: 32, b: 48 },
+      weather: false,
+      audioBed: 'cave',
+    }, 0x4f434852, 3);
+    expect(createClientCollisionMap(terrain, []).obstacles).toEqual([]);
+  });
 });

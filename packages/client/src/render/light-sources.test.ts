@@ -5,8 +5,22 @@ describe('placed crafting light emitters', () => {
   it('27§2 registers campfires and standing torches in the shared point-light shape', () => {
     expect(Object.keys(PLACEABLE_LIGHT_EMITTERS).sort()).toEqual(['campfire', 'standing_torch']);
     const torch = placeablePointLight({ id: 4n, kind: 'standing_torch', tileX: 3, tileY: 5 }, 20n);
-    expect(torch).toMatchObject({ worldX: 56, worldY: 76 });
+    expect(torch).toMatchObject({ worldX: 56, worldY: 76, profile: 'flame' });
     expect(torch?.radiusTiles).toBeGreaterThan(0);
+    expect(torch?.strengthPerMille).toBeGreaterThanOrEqual(970);
+    expect(torch?.strengthPerMille).toBeLessThanOrEqual(1030);
+  });
+
+  it('keeps adjacent flame samples subtle instead of snapping between extremes', () => {
+    const samples = Array.from({ length: 20 }, (_, tick) => (
+      placeablePointLight({ id: 9n, kind: 'campfire', tileX: 1, tileY: 1 }, BigInt(tick))
+    ));
+    for (let index = 1; index < samples.length; index += 1) {
+      expect(Math.abs((samples[index]?.strengthPerMille ?? 1000) - (samples[index - 1]?.strengthPerMille ?? 1000)))
+        .toBeLessThanOrEqual(12);
+      expect(Math.abs((samples[index]?.radiusTiles ?? 12) - (samples[index - 1]?.radiusTiles ?? 12)))
+        .toBeLessThanOrEqual(0.08);
+    }
   });
 
   it('gives both clients the same deterministic flame flicker for one authority tick', () => {

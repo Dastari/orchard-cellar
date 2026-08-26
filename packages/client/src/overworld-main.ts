@@ -27,6 +27,8 @@ import {
   directionFromAim,
   isWindDirectionMode,
   isWeatherMode,
+  lunarIlluminationAtAuthorityTick,
+  lunarPhaseAtAuthorityTick,
   generateSurvivalDecorations,
   generateMarlowCampPathTiles,
   isBreakableRockKind,
@@ -119,6 +121,7 @@ import { createClientCollisionMap } from './render/collision.js';
 import { drawAnimatedTerrain } from './render/animated-terrain.js';
 import { drawFarmSoil, drawFarmTileReticle, drawInsetGround, farmSoilKey } from './render/farmland.js';
 import { GroundChunkCache } from './render/ground-cache.js';
+import { createLightOcclusionMap, type LightOcclusionMap } from './render/light-occlusion.js';
 import {
   ambientAtTick,
   CAMPFIRE_LIGHT,
@@ -131,7 +134,7 @@ import {
   TORCH_LIGHT_RADIUS_TILES,
   type PointLight,
 } from './render/lighting.js';
-import { placeablePointLight } from './render/light-sources.js';
+import { deterministicFlameFlicker, placeablePointLight } from './render/light-sources.js';
 import { RenderMetrics } from './render/metrics.js';
 import { RainWeather } from './render/particles.js';
 import { treeSwayOffset, WeatherEffects, windDirectionLabel, type WindTreeSource } from './render/weather-effects.js';
@@ -277,6 +280,7 @@ let collisionKey = '';
 let observedResourceRevision = -1;
 const initialTerrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
 let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
+let lightOcclusion: LightOcclusionMap = createLightOcclusionMap(initialTerrain, worldCollision.obstacles);
 let activeSpaceDefinition: SpaceDefinition = spaceDefinitionFor(TOPSIDE_SPACE_ID)!;
 let observedSpaceId = TOPSIDE_SPACE_ID;
 let portalTransitionStartedAtMs = -1;
@@ -460,13 +464,15 @@ function refreshCollision(snapshot: OverworldView): void {
   const nextKey = `${activeSpaceDefinition.spaceId}:${seed}:${version}:${network.resourceRevision}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
+  const terrain = terrainForSpace(activeSpaceDefinition, seed, version);
   worldCollision = createClientCollisionMap(
-    terrainForSpace(activeSpaceDefinition, seed, version),
+    terrain,
     snapshot.resources,
     snapshot.chests,
     'ground',
     snapshot.placeables,
   );
+  lightOcclusion = createLightOcclusionMap(terrain, worldCollision.obstacles);
 }
 
 function update(): void {
@@ -1291,11 +1297,17 @@ function render(alpha = 1): void {
     const decorationY = (decoration.tileY + 1) * 16;
     if (decoration.kind === 'camp_campfire') {
       if (worldPointVisible(decorationX, decorationY, lightVisible)) {
+        const flicker = deterministicFlameFlicker(
+          BigInt(decoration.id),
+          snapshot.clock?.authorityTick ?? 0n,
+        );
         pointLights.push({
           worldX: decorationX,
           worldY: decorationY - 12,
-          radiusTiles: CAMPFIRE_LIGHT_RADIUS_TILES,
+          radiusTiles: CAMPFIRE_LIGHT_RADIUS_TILES + flicker.radiusOffset,
           color: CAMPFIRE_LIGHT,
+          strengthPerMille: flicker.strengthPerMille,
+          profile: 'flame',
         });
       }
     }
@@ -1558,11 +1570,20 @@ function render(alpha = 1): void {
     const equipped = local ? lightPreviewKind ?? selectedItem(snapshot) : display?.equippedKind ?? player.equippedKind;
     if ((equipped === 'lantern' || equipped === 'torch') && worldPointVisible(x, y, lightVisible)) {
       const [lightX, lightY] = playerLightPosition(x, y);
+      const baseRadius = equipped === 'lantern' ? LANTERN_LIGHT_RADIUS_TILES : TORCH_LIGHT_RADIUS_TILES;
+      const flicker = equipped === 'torch'
+        ? deterministicFlameFlicker(
+            BigInt(`0x${id.slice(0, 16)}`),
+            snapshot.clock?.authorityTick ?? 0n,
+          )
+        : { radiusOffset: 0, strengthPerMille: 1000 };
       pointLights.push({
         worldX: lightX,
         worldY: lightY,
-        radiusTiles: equipped === 'lantern' ? LANTERN_LIGHT_RADIUS_TILES : TORCH_LIGHT_RADIUS_TILES,
+        radiusTiles: baseRadius + flicker.radiusOffset,
         color: equipped === 'lantern' ? LANTERN_LIGHT : TORCH_LIGHT,
+        strengthPerMille: flicker.strengthPerMille,
+        profile: equipped === 'torch' ? 'flame' : 'steady',
       });
     }
     if (!worldPointVisible(x, y, visible)) continue;
@@ -1696,6 +1717,7 @@ function render(alpha = 1): void {
       ? ambientAtTick(renderWeatherTick, renderWeather.raining ? 0.12 : 0)
       : activeSpaceDefinition.ambient,
     pointLights,
+    lightOcclusion,
   );
   drawCalls += 1;
   drawCalls += weatherEffects.drawWind(
@@ -1842,6 +1864,8 @@ function render(alpha = 1): void {
     dateLabel: `${calendar.season.toUpperCase()} ${calendar.dayOfSeason} Y${calendar.year}`,
     timeLabel: formatDayTime(simTickOfDayAtAuthorityTick(authorityTick), TICKS_PER_DAY),
     timeFraction: authorityDayProgress(authorityTick),
+    moonPhase: lunarPhaseAtAuthorityTick(authorityTick),
+    moonIlluminationPerMille: lunarIlluminationAtAuthorityTick(authorityTick),
     raining: rain.enabled,
     weatherMode,
     windDirectionMode: worldWindDirection(),
@@ -1941,6 +1965,9 @@ function render(alpha = 1): void {
     const lines = [
       `FRAME ${metrics.averageFrameMs.toFixed(2)} AVG ${metrics.worstFrameMs.toFixed(2)} WORST`,
       `DRAWS ${metrics.drawCalls} CHUNKS ${groundCache.residentCount} PARTICLES ${rain.activeCount}`,
+      `LIGHT ${lightmap.averageMs.toFixed(2)}ms AVG ${lightmap.floodMs.toFixed(2)}ms REBUILD #${lightmap.fieldRebuilds}`,
+      `LIGHTS ${pointLights.length} VISITED ${lightmap.floodTexelsVisited}`,
+      `MOON ${lunarPhaseAtAuthorityTick(authorityTick).replaceAll('_', ' ').toUpperCase()} ${lunarIlluminationAtAuthorityTick(authorityTick)}/1000`,
       `ZOOM ${worldZoom.toFixed(2)} K ${frame.layout.integerScale} DPR ${renderer.dpr.toFixed(2)}`,
       `NET RTT ${net.rttMs.toFixed(0)}ms LAG ${net.lagMs}+/-${net.jitterMs}`,
       `REPLAY ${net.replayDepth} ERROR ${net.reconciliationErrorFixed.toFixed(1)} FIXED`,
@@ -2529,6 +2556,12 @@ Object.assign(window, {
     setMetricsDebug: (enabled: boolean) => { debugMetrics = enabled; },
     setEntitiesHidden: (hidden: boolean) => { debugEntitiesHidden = hidden; },
     renderMetrics: () => renderMetrics.snapshot(),
+    lightmapMetrics: () => ({
+      averageMs: lightmap.averageMs,
+      floodMs: lightmap.floodMs,
+      fieldRebuilds: lightmap.fieldRebuilds,
+      floodTexelsVisited: lightmap.floodTexelsVisited,
+    }),
     netcodeMetrics: () => network.metrics(),
     audioStatus: () => audio.getStatus(),
     predictedPosition: () => predicted === null ? null : { ...predicted.position },

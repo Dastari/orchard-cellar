@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   ambientAtProgress,
   CAMPFIRE_LIGHT_RADIUS_TILES,
+  FULL_MOON_NIGHT_AMBIENT,
   fillLightmap,
   LANTERN_LIGHT_RADIUS_TILES,
   LIGHTMAP_TEXELS_PER_TILE,
   lightmapCoordinate,
+  NEW_MOON_NIGHT_AMBIENT,
   playerLightPosition,
   stampPointLight,
   TORCH_LIGHT_RADIUS_TILES,
@@ -18,12 +20,20 @@ describe('overworld lighting', () => {
     expect(ambientAtProgress(0.62)).toEqual({ r: 255, g: 255, b: 255 });
     expect(ambientAtProgress(0.72)).toEqual({ r: 166, g: 128, b: 157 });
     expect(ambientAtProgress(0.8)).toEqual({ r: 89, g: 89, b: 105 });
-    expect(Math.min(...Object.values(ambientAtProgress(1)))).toBeGreaterThanOrEqual(89);
+    expect(ambientAtProgress(1)).toEqual(FULL_MOON_NIGHT_AMBIENT);
   });
 
-  it('darkens rain without crossing the readable-night floor', () => {
+  it('composes weather after moonlight without crossing the new-moon floor', () => {
     expect(ambientAtProgress(0.1, 0.12)).toEqual({ r: 224, g: 224, b: 224 });
-    expect(ambientAtProgress(0.9, 0.12)).toEqual({ r: 89, g: 89, b: 92 });
+    expect(ambientAtProgress(0.9, 0.12)).toEqual({ r: 78, g: 78, b: 92 });
+    expect(ambientAtProgress(0.9, 0.18, 0)).toEqual(NEW_MOON_NIGHT_AMBIENT);
+  });
+
+  it('27§7 preserves Full Moon and makes New Moon deliberately dark only at night', () => {
+    expect(ambientAtProgress(0.9, 0, 1000)).toEqual(FULL_MOON_NIGHT_AMBIENT);
+    expect(ambientAtProgress(0.9, 0, 0)).toEqual(NEW_MOON_NIGHT_AMBIENT);
+    expect(ambientAtProgress(0.4, 0, 0)).toEqual({ r: 255, g: 255, b: 255 });
+    expect(ambientAtProgress(0.76, 0, 0)).toEqual({ r: 74, g: 64, b: 81 });
   });
 
   it('stamps radial point light with a bright center and ambient edge', () => {

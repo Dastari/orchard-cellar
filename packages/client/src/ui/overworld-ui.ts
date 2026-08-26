@@ -1,4 +1,4 @@
-import { craftingRecipeOutput, durabilityFraction, distributeItemStack, itemDefinition, matchingRecipeId, maxStackFor, recipeDefinition, toolDurabilityDefinition, type ContainerSnapshot, type CraftingStation, type ItemStack, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
+import { craftingRecipeOutput, durabilityFraction, distributeItemStack, itemDefinition, matchingRecipeId, maxStackFor, recipeDefinition, toolDurabilityDefinition, type ContainerSnapshot, type CraftingStation, type ItemStack, type MoonPhase, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
 import type { LoadedAsset } from '../render/assets.js';
 import { drawOutlinedPixelText, drawPixelText, measurePixelText, type PixelUi } from '../render/pixel-ui.js';
 import { hotbarItemName } from '../survival-ui.js';
@@ -53,6 +53,34 @@ export interface OnlinePlayerListEntry {
   readonly self: boolean;
 }
 
+export const MOON_PHASE_LABELS: Readonly<Record<MoonPhase, string>> = {
+  full_moon: 'Full Moon',
+  waning_gibbous: 'Waning Gibbous',
+  last_quarter: 'Last Quarter',
+  waning_crescent: 'Waning Crescent',
+  new_moon: 'New Moon',
+  waxing_crescent: 'Waxing Crescent',
+  first_quarter: 'First Quarter',
+  waxing_gibbous: 'Waxing Gibbous',
+};
+
+/** 0 outside, 1 shadow, 2 illuminated. Waxing grows on the right; waning
+ * recedes on the left, matching docs/27 §7. */
+export function moonPhasePixel(phase: MoonPhase, x: number, y: number): 0 | 1 | 2 {
+  const dx = x - 3;
+  const dy = y - 3;
+  if (dx * dx + dy * dy > 10) return 0;
+  let lit = false;
+  if (phase === 'full_moon') lit = true;
+  else if (phase === 'waxing_gibbous') lit = x >= 1;
+  else if (phase === 'first_quarter') lit = x >= 3;
+  else if (phase === 'waxing_crescent') lit = x >= 5 || (x === 4 && Math.abs(dy) <= 1);
+  else if (phase === 'waning_gibbous') lit = x <= 5;
+  else if (phase === 'last_quarter') lit = x <= 3;
+  else if (phase === 'waning_crescent') lit = x <= 1 || (x === 2 && Math.abs(dy) <= 1);
+  return lit ? 2 : 1;
+}
+
 export interface OverworldUiModel {
   readonly width: number;
   readonly height: number;
@@ -73,6 +101,8 @@ export interface OverworldUiModel {
   readonly dateLabel: string;
   readonly timeLabel: string;
   readonly timeFraction: number;
+  readonly moonPhase?: MoonPhase;
+  readonly moonIlluminationPerMille?: number;
   readonly raining: boolean;
   readonly weatherMode: WeatherMode;
   readonly windDirectionMode?: WindDirectionMode;
@@ -989,6 +1019,15 @@ export class OverworldUi {
     const { weather } = this.layout;
     drawUiSkinAsset(context, this.skin.frameThin, weather);
     drawLabel(context, this.fonts, `${this.model.dateLabel}  ${this.model.timeLabel}`, weather.x + 10, weather.y + 8, { color: '#4d2e22' });
+    const phase = this.model.moonPhase ?? 'full_moon';
+    for (let y = 0; y < 7; y += 1) {
+      for (let x = 0; x < 7; x += 1) {
+        const pixel = moonPhasePixel(phase, x, y);
+        if (pixel === 0) continue;
+        context.fillStyle = pixel === 2 ? '#fff2d0' : '#3f2832';
+        context.fillRect(weather.x + 132 + x, weather.y + 8 + y, 1, 1);
+      }
+    }
     this.currencyDisplay.draw(context, this.model.balanceBronze ?? 0n, weather.x + weather.width - 9, weather.y + 8, {
       size: 'small', align: 'right', color: '#5f3b24', includeZero: true,
     });
@@ -1130,6 +1169,10 @@ export class OverworldUi {
   }
 
   tooltipText(): string | null {
+    if (this.openWindowValue === null && containsPoint(this.layout.weather, this.pointer)) {
+      const phase = this.model.moonPhase ?? 'full_moon';
+      return `${this.model.dateLabel} — ${MOON_PHASE_LABELS[phase]} — ${this.model.moonIlluminationPerMille ?? 1000}/1000`;
+    }
     if (this.openWindowValue === 'crafting'
       && containsPoint(this.layout.craftingResult, this.pointer)
       && this.currentRecipeStationLocked()) return 'REQUIRES A WORKBENCH WITHIN 2 TILES';

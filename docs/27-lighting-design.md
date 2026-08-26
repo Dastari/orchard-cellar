@@ -9,7 +9,7 @@ pooling between obstacles, sconce cones on walls, soft-but-pixelated falloff)
 and added shadow casting, terrain height awareness, and global light events.
 Revision 1's strict one-texel-per-tile charter is **superseded** (DECISIONS
 updated); its occlusion, color, flicker, water, and rain designs carry forward
-at the new resolution. Status: **design approved, not implemented**.
+at the new resolution. Status: **phases 1–3 implemented; phases 4–7 planned**.
 
 Supersedes [21-unified-renderer.md](21-unified-renderer.md) §5 where they
 differ; doc 21's composite order (multiply over the world offscreen only,
@@ -32,8 +32,8 @@ and cones that curve convincingly around walls and furniture.
    `imageSmoothingEnabled = false`. This is the single constant the whole
    system hangs off; 2 (8 px) is the sanctioned fallback if perf demands, 8 is
    the ceiling nobody should reach.
-2. **Falloff still bands.** Strength quantizes to `LIGHT_BANDS = 10` levels
-   before stamping. At 4 px grain with 10 bands, rings read as texture rather
+2. **Falloff still bands.** Strength quantizes to `LIGHT_BANDS = 16` levels
+   before stamping. At 4 px grain with 16 bands, rings read as texture rather
    than terracing — the reference look — while staying deliberate and
    golden-testable. No continuous gradients, ever.
 3. **Smooth glow stays banned; quantized halo is in.** Canvas radial gradients
@@ -44,13 +44,20 @@ and cones that curve convincingly around walls and furniture.
    multiply composite; plus the single optional additive halo pass. Nothing
    else full-screen without a §10 budget entry.
 
+**Implemented resolution note (2026-08-26):** owner review of the live
+two-texel/ten-band result found the rings too terraced and a carried light
+snapped too visibly. The shipped constants are therefore the intended
+`LIGHT_TEXELS_PER_TILE = 4` and the revised 16 bands. Open flood centers track
+quarter-texel increments, so the pool reacts to each world pixel while the
+buffer itself remains deliberately crisp.
+
 ## 2. Light emitters
 
 Unchanged from revision 1 (registry in `render/light-sources.ts`,
 `LIGHT_COLORS` table with readability caps — min channel 64, no full
 saturation; equipped items / generated props / resource rows / portals /
-transients). Flicker rules carry forward: `flame` jitters radius ±0.4 tiles
-and strength ±8% at 8 Hz from deterministic time-slot hashing, `pulse` breathes
+transients). Flame flicker varies radius only ±0.18 tiles and strength ±3%
+through blended deterministic 3 Hz/7 Hz value noise; `pulse` breathes
 slowly, color and position never jitter. Wall-mounted emitters (mine sconces,
 future interior torches) declare a **facing**, biasing their flood seed one
 texel outward so the cone throws into the room, not the wall — the sconce look
@@ -236,9 +243,27 @@ the authority re-derives light pools from pure emitter data.
 7. **Carried-forward content** (water glints, lit rain) lands with its r1
    phase order inside the above.
 
+**2026-08-26 implementation verification (phases 1–3).** The client now uses
+a reusable 16-band sub-tile flood buffer, quantized flame halo, hard terrain
+occluders, 55% collision-footprint attenuators, door/ramp spill, and optional
+facing-seeded emitters. The shared calendar derives all eight moon phases and
+interpolated illumination from the authority tick; clear surface ambient
+reaches the exact Full/New Moon anchors, while the HUD supplies distinct 7×7
+phase silhouettes and phase/illumination tooltip text. Placed and held flame
+emitters use the same deterministic blended flame noise.
+
+The public browser's representative 40-light fixture (36 standing torches and
+4 campfires) measured **1.1–1.3 ms warmed** at four texels/tile, below the
+1.5 ms §10 gate. Forty simultaneous maximum-radius campfires remain a
+pathological **5.7–7.8 ms rebuild** and are intentionally reported separately.
+After composite caching, 120 steady daytime renders measured **0.002 ms
+average lightmap work** and **0.78 ms whole-frame average**. Height,
+directional shadows, global events, water glints, and lit rain remain phases
+4–7 and were not started.
+
 ## 10. Performance and instrumentation (revised budgets)
 
-- Visible buffer at default zoom ≈ 280×160 texels (~45 k). Budgets: ambient
+- The four-texel buffer at default zoom is ≈ 280×160 texels (~45 k). Budgets: ambient
   fill + flood + stamp ≤ **1.5 ms** at 40 lights; halo pass ≤ 0.3 ms;
   directional shadow pass ≤ 0.5 ms at 200 visible entities; glint/lit-rain
   sampling ≤ 0.2 ms. No per-frame allocations anywhere in the light path.
@@ -256,7 +281,7 @@ doc 30/06 business).
 
 ## 12. Tests and acceptance
 
-- **Unit:** banding/falloff goldens at 4-texel resolution (named `27§1`);
+- **Unit:** banding/falloff goldens at the active profiled resolution (named `27§1`);
   flood goldens on fixture grids — wall containment, door spill, corner
   dimming, attenuator penumbra profiles, facing-seeded cone shape (named
   `27§3`); height gates — containment, rim spill depth, drop-shadow widths vs
@@ -285,7 +310,7 @@ doc 30/06 business).
 ## 13. Bookkeeping
 
 - **DECISIONS.md** on adoption: (1) supersede the 2026-08-25 one-texel-per-tile
-  charter — quarter-tile texels with 10-band quantization is the revised
+  charter — quarter-tile texels with 16-band quantization is the revised
   binding look (owner-directed, reference-calibrated); (2) supersede
   "sub-tile objects never occlude" — objects are soft attenuators in the
   flood; walls/cliffs stay hard blockers; players/NPCs still never occlude;

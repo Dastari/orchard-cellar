@@ -1,6 +1,7 @@
 import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
+  TOPSIDE_SPACE_ID,
   generateSurvivalDecorations,
   survivalBiomeBlocksTraversal,
   survivalDecorationObstacle,
@@ -43,9 +44,11 @@ export function createClientCollisionMap(
       bottom: (placeable.tileY + 1) * TILE_SIZE_FIXED - 1,
     });
   }
-  for (const decoration of generateSurvivalDecorations(terrain.seed)) {
-    const obstacle = survivalDecorationObstacle(decoration, medium);
-    if (obstacle !== null) obstacles.push(obstacle);
+  if (terrain.spaceId === TOPSIDE_SPACE_ID) {
+    for (const decoration of generateSurvivalDecorations(terrain.seed)) {
+      const obstacle = survivalDecorationObstacle(decoration, medium);
+      if (obstacle !== null) obstacles.push(obstacle);
+    }
   }
   return {
     width: terrain.width,
