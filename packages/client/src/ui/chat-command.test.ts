@@ -12,6 +12,8 @@ describe('chat commands', () => {
     expect(parseChatSubmission('/tp 10   20', true)).toEqual({ kind: 'teleport', destination: '10 20' });
     expect(parseChatSubmission('/TP Nathan Lambert', true)).toEqual({ kind: 'teleport', destination: 'Nathan Lambert' });
     expect(parseChatSubmission('/tp', true).kind).toBe('error');
+    expect(parseChatSubmission('/debug-space', true)).toEqual({ kind: 'debug_space' });
+    expect(parseChatSubmission('/debug-space', false)).toEqual({ kind: 'error', message: 'ADMIN COMMAND REQUIRED' });
   });
 
   it('parses private and ranged speech aliases without sending them as channel chat', () => {
