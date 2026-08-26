@@ -41,9 +41,9 @@ describe('30§5 raised-terrain depth entries', () => {
     const nestedSouth = entries.filter(({ tileX, tileY }) => tileX === 3 && tileY === 5);
     expect(nestedSouth.map(({ contourLevel }) => contourLevel)).toEqual([1, 2, 3]);
     expect(nestedSouth.map(({ footY, depthOffset }) => footY + depthOffset)).toEqual([
-      48 + 0.5 / 1_024,
-      1.5 / 1_024,
-      -48 + 2.5 / 1_024,
+      96 + 0.5 / 1_024,
+      96 + 1.5 / 1_024,
+      96 + 2.5 / 1_024,
     ]);
     expect(nestedSouth.map(raisedTerrainVisualOffset)).toEqual([48, 96, 144]);
   });

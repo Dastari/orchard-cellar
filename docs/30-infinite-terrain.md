@@ -176,9 +176,10 @@ becomes correctness.
   chunk-keyed and needs only key plumbing.
 - The chunk cache separates flat base pixels from sparse raised-structure
   foreground rows. Foreground terrain interleaves with world entities using an
-  elevation-aware projected depth key: `footY - projectedHeight(elevation)`,
-  with a sub-pixel plane bias ordering lower occupant, boundary, then upper
-  occupant where they share a screen foot. This is
+  elevation-aware logical-foot depth key, with a sub-pixel plane bias ordering
+  lower occupant, boundary, then upper occupant where projected planes overlap.
+  The boundary stays anchored at the bottom of its complete face-height band;
+  visual projection never moves its painter anchor to the rear cap. This is
   2.5D projection, not freeform 3D: raised surfaces and their occupants render
   north by `elevation × faceRows`, while their logical/collision coordinates stay
   unchanged. The projected overlap lets lower actors walk behind the full rear

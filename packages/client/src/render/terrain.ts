@@ -598,8 +598,7 @@ export function terrainProjectedSortOffset(
   elevation: number,
   boundary = false,
 ): number {
-  return -elevation * terrainProjectedRowsPerLevel() * 16
-    + (elevation - (boundary ? 0.5 : 0)) * TERRAIN_PLANE_SORT_EPSILON;
+  return (elevation - (boundary ? 0.5 : 0)) * TERRAIN_PLANE_SORT_EPSILON;
 }
 
 /** Screen-space projection for 2.5D terrain. Logical coordinates and server
