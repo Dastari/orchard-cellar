@@ -68,7 +68,7 @@ describe('unified renderer zoom math', () => {
     ]);
   });
 
-  it('30§5 orders lower-behind, cliff, upper-on-top, and lower-in-front correctly', () => {
+  it('30§5 lets a lower-plane actor pass behind a cliff and then paint in front south of its foot line', () => {
     const items = [
       { footY: 80, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'lower-behind' },
       { footY: 96, elevationLayer: 1, depthPhase: 'surface' as const, tie: 'upper-surface' },
@@ -78,10 +78,10 @@ describe('unified renderer zoom math', () => {
     ];
     expect(sortWorldDepthItems(items).map(({ tie }) => tie)).toEqual([
       'lower-behind',
-      'lower-in-front',
       'upper-surface',
       'terrain-cliff',
       'upper-on-top',
+      'lower-in-front',
     ]);
   });
 });

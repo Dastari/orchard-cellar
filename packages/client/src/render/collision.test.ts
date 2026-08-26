@@ -3,6 +3,7 @@ import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
   generateSurvivalDecorations,
+  survivalRaisedTerrainStructuralAt,
   survivalResourceObstacle,
   survivalWaterRockObstacle,
 } from '@orchard/sim';
@@ -29,6 +30,20 @@ describe('client collision cache', () => {
       left: 12 * TILE_SIZE_FIXED, top: 10 * TILE_SIZE_FIXED,
       right: 13 * TILE_SIZE_FIXED - 1, bottom: 11 * TILE_SIZE_FIXED - 1,
     });
+  }, 20_000);
+
+  it('keeps every projected raised-wall art tile passable in client prediction', () => {
+    const terrain = terrainForWorld(0x4f434852, 16);
+    const collision = createClientCollisionMap(terrain, []);
+    let projectedTiles = 0;
+    for (let tileY = 0; tileY < terrain.height; tileY += 1) {
+      for (let tileX = 0; tileX < terrain.width; tileX += 1) {
+        if (!survivalRaisedTerrainStructuralAt(terrain.seed, tileX, tileY)) continue;
+        projectedTiles += 1;
+        expect(collision.blocked[tileY * terrain.width + tileX]).toBe(false);
+      }
+    }
+    expect(projectedTiles).toBeGreaterThan(0);
   }, 20_000);
 
   it('builds the inverse shoreline layer and water-rock obstacles for watercraft', () => {

@@ -98,7 +98,10 @@ export interface WorldDepthItem {
   readonly footY: number;
   /** Small logical-foot painter tie-break within one elevation/phase. */
   readonly depthOffset?: number;
-  /** Integer/fractional terrain plane. Higher planes always composite later. */
+  /** Integer/fractional terrain plane used only to resolve items sharing a
+   * logical foot row. World foot Y remains the primary painter key so an
+   * actor south of a tall cliff is not hidden merely because the cliff's cap
+   * belongs to a higher elevation. */
   readonly elevationLayer?: number;
   /** Within one plane: surface, cliff boundary, then world entities. */
   readonly depthPhase?: 'surface' | 'boundary' | 'entity';
@@ -118,9 +121,9 @@ export function sortWorldDepthItems<T extends Pick<
 >>(
   items: readonly T[],
 ): T[] {
-  return [...items].sort((left, right) => (left.elevationLayer ?? 0) - (right.elevationLayer ?? 0)
+  return [...items].sort((left, right) => worldDepthY(left) - worldDepthY(right)
+    || (left.elevationLayer ?? 0) - (right.elevationLayer ?? 0)
     || depthPhaseOrder(left.depthPhase) - depthPhaseOrder(right.depthPhase)
-    || worldDepthY(left) - worldDepthY(right)
     || left.tie.localeCompare(right.tie));
 }
 
