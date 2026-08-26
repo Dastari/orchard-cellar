@@ -33,6 +33,9 @@ import {
   SEASON_TRAIT_MULTIPLIER,
   SUMMER_PRESS_MULTIPLIER,
   SURVIVAL_SPAWN_SEARCH_RADIUS_TILES,
+  SURVIVAL_TERRAIN_CONTOUR_INSET_TILES,
+  SURVIVAL_TERRAIN_MAX_ELEVATION,
+  SURVIVAL_TERRAIN_MINIMUM_SUMMIT_TILES,
   TREE_BALANCE,
   TREE_BUFFER_SECONDS,
   TREE_COST_GROWTH,
@@ -151,5 +154,11 @@ describe('06 golden balance tables', () => {
   it('06§12 crafting acquisition and station reach', () => {
     expect(FIBER_TILL_DROP_PERCENT).toBe(30);
     expect(CRAFTING_STATION_REACH_TILES).toBe(2);
+  });
+
+  it('06§13 legacy-island stepped terrain', () => {
+    expect(SURVIVAL_TERRAIN_MAX_ELEVATION).toBe(3);
+    expect(SURVIVAL_TERRAIN_CONTOUR_INSET_TILES).toBe(4);
+    expect(SURVIVAL_TERRAIN_MINIMUM_SUMMIT_TILES).toBe(24);
   });
 });

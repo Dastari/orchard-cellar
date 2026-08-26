@@ -156,6 +156,12 @@ export const MANA_REGEN_CENTI_PER_WISDOM = 10;
 export const VIGOUR_REGEN_CENTI_PER_CONSTITUTION = 120;
 export const REGEN_SWEEP_TICKS = 10;
 
+/** Legacy-island stepped terrain. Higher contours are repeated insets of the
+ * same organic mask; tiny eroded islands are discarded before autotiling. */
+export const SURVIVAL_TERRAIN_MAX_ELEVATION = 3;
+export const SURVIVAL_TERRAIN_CONTOUR_INSET_TILES = 4;
+export const SURVIVAL_TERRAIN_MINIMUM_SUMMIT_TILES = 24;
+
 /** Sprint is expressed in integer per-mille/centi units so client prediction and
  * authority use identical math. Constitution is applied by abilities.ts before
  * the generic modifier pipeline resolves these two targets. */

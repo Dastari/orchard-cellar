@@ -342,3 +342,11 @@ from players but does not normally stock it.
 | Fence Gate | — | 12 |
 | Sign | — | 10 |
 | Standing Torch | — | 20 |
+
+## 13. Legacy-island stepped terrain
+
+The live island raises its four organic plateau masks into at most **3 logical
+elevation levels**. Each successive contour is inset **4 tiles** from the level
+below; an eroded connected summit smaller than **24 tiles** is discarded. These
+numbers change the mountain silhouette only. The autotiler, semantic crossing
+rules, projected face height, and collision thickness remain independent contracts.
