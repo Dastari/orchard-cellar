@@ -1063,9 +1063,34 @@ export function survivalTerrainPlaneCollisionBytes(seed: number): Uint8Array {
   const stride = SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE;
   const blocked = new Uint8Array((SURVIVAL_MAX_TERRAIN_ELEVATION + 1) * stride);
   const projectedRows = raisedTerrainProjectedRows();
+  const elevations = elevationMaskFor(seed);
+  const ramps = survivalPlateauRamps(seed);
+  const rampRoles = new Map<number, RaisedTerrainRampRole>();
+  for (const ramp of ramps) {
+    const offset = ramp.contourLevel * stride;
+    rampRoles.set(offset + (ramp.tileY - 1) * SURVIVAL_WORLD_SIZE + ramp.tileX, 'ramp_top_left');
+    rampRoles.set(offset + (ramp.tileY - 1) * SURVIVAL_WORLD_SIZE + ramp.tileX + 1, 'ramp_top_right');
+    rampRoles.set(offset + ramp.tileY * SURVIVAL_WORLD_SIZE + ramp.tileX, 'ramp_bottom_left');
+    rampRoles.set(offset + ramp.tileY * SURVIVAL_WORLD_SIZE + ramp.tileX + 1, 'ramp_bottom_right');
+  }
+  const elevationAt = (x: number, y: number): number => (
+    x < 0 || y < 0 || x >= SURVIVAL_WORLD_SIZE || y >= SURVIVAL_WORLD_SIZE
+      ? 0
+      : elevations[y * SURVIVAL_WORLD_SIZE + x] ?? 0
+  );
   for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE; tileY += 1) {
     for (let tileX = 0; tileX < SURVIVAL_WORLD_SIZE; tileX += 1) {
-      for (const { contourLevel, plan } of survivalRaisedTerrainPlansAt(seed, tileX, tileY)) {
+      for (const { contourLevel, plan } of resolveRaisedTerrainContoursAt(
+        elevationAt,
+        SURVIVAL_MAX_TERRAIN_ELEVATION,
+        SURVIVAL_RAISED_CLIFF_TILE_SET,
+        'tall',
+        tileX,
+        tileY,
+        (level, x, y) => rampRoles.get(
+          level * stride + y * SURVIVAL_WORLD_SIZE + x,
+        ) ?? null,
+      )) {
         const tileIndex = tileY * SURVIVAL_WORLD_SIZE + tileX;
         if (plan.rampFrame === null && (plan.edgeFrame !== null || plan.insetFrames.length > 0)) {
           blocked[contourLevel * stride + tileIndex] = 1;
@@ -1081,7 +1106,7 @@ export function survivalTerrainPlaneCollisionBytes(seed: number): Uint8Array {
   // A ramp is a two-wide doorway through both plane guards. Clear it after
   // resolving neighbouring contour coverage so corner/inset plans cannot
   // accidentally close one lane.
-  for (const ramp of survivalPlateauRamps(seed)) {
+  for (const ramp of ramps) {
     for (let lane = 0; lane < 2; lane += 1) {
       for (const tileY of [ramp.tileY - 1, ramp.tileY]) {
         const tileIndex = tileY * SURVIVAL_WORLD_SIZE + ramp.tileX + lane;
