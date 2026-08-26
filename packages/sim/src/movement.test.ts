@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED } from './state.js';
-import { movePlayer, movePlayerAtSpeed, playerHitboxBounds, positionCollides } from './movement.js';
+import {
+  movePlayer,
+  movePlayerAtSpeed,
+  playerHitboxBounds,
+  playerInteractionOrigin,
+  positionCollides,
+} from './movement.js';
 
 describe('player movement collision', () => {
   const open = { width: 4, height: 4, blocked: Array<boolean>(16).fill(false) };
@@ -14,6 +20,10 @@ describe('player movement collision', () => {
       bottom: position.y - 6 * FIXED_UNITS_PER_PIXEL - 1,
     });
     expect(positionCollides(position, open)).toBe(false);
+    expect(playerInteractionOrigin(position)).toEqual({
+      x: position.x,
+      y: position.y - 9 * FIXED_UNITS_PER_PIXEL,
+    });
   });
 
   it('slides one axis when diagonal travel meets a blocked base tile', () => {
