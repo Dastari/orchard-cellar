@@ -1,6 +1,7 @@
 # 26 — Underground Mines: Spaces, Cave Generation, Zoning, and Darkness
 
-Binding owner-directed spec (2026-08-25). Status: **design approved, not implemented**.
+Binding owner-directed spec (2026-08-25). Status: **phase 1 (spaces plumbing)
+implemented — shared with docs/35**.
 Builds on [20-survival-world.md](20-survival-world.md) (deterministic generation,
 resources, collision), [21-unified-renderer.md](21-unified-renderer.md) (lighting,
 chunk cache, the "farms return as instanced interiors" promise this doc finally
@@ -317,6 +318,8 @@ The codebase bakes "one island" into specific places; phase 2 owns this list
    subscription spaceId term, `usePortal` + generalized teleport helper. Done
    when: an owner-only debug portal moves a player to an empty flat test space
    and back, with two clients seeing correct presence/isolation.
+   **Implemented 2026-08-26:** `spaceId` is `u16`; the owner-only debug space
+   remains the verification vehicle and contains no mine or homestead content.
 2. **Mine generation + art:** `mine-world.ts` levels 1–3, cave tileset/props
    extraction, ground-cache cave rendering path, rails/carts/supports/water,
    portals placed by generation, surface entrances on the island (island
@@ -388,3 +391,7 @@ Two changes from the homestead design
 homestead instances need the range), and per-player instancing is sanctioned
 **for homesteads specifically**. The §2 rule stands for mines: shared,
 never per-player.
+
+The phase-1 populated migration rehearsal published the additive columns and
+reshaped all eleven affected `by_chunk` indexes in place on SpaceTimeDB 2.8.2.
+The fallback replacement-table migration was not required; see `DECISIONS.md`.
