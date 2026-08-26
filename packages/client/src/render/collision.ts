@@ -6,10 +6,11 @@ import {
   survivalDecorationObstacle,
   survivalResourceBlocksMovement,
   survivalResourceObstacle,
+  placeableDefinition,
   type CollisionMap,
   type MovementMedium,
 } from '@orchard/sim';
-import type { WorldChest, WorldResource } from '../net/generated/types.js';
+import type { WorldChest, WorldPlaceable, WorldResource } from '../net/generated/types.js';
 import type { TerrainArray } from './terrain.js';
 
 /** Reuses immutable terrain collision and rebuilds only subscribed live trunks. */
@@ -18,6 +19,7 @@ export function createClientCollisionMap(
   resources: Iterable<WorldResource>,
   chests: Iterable<WorldChest> = [],
   medium: MovementMedium = 'ground',
+  placeables: Iterable<WorldPlaceable> = [],
 ): CollisionMap {
   const obstacles = [];
   for (const resource of medium === 'ground' ? resources : []) {
@@ -31,6 +33,16 @@ export function createClientCollisionMap(
     right: (chest.tileX + 1) * TILE_SIZE_FIXED - 1,
     bottom: (chest.tileY + 1) * TILE_SIZE_FIXED - 1,
   });
+  for (const placeable of medium === 'ground' ? placeables : []) {
+    const definition = placeableDefinition(placeable.kind);
+    if (definition?.blocksMovement !== true || placeable.open) continue;
+    obstacles.push({
+      left: placeable.tileX * TILE_SIZE_FIXED,
+      top: placeable.tileY * TILE_SIZE_FIXED,
+      right: (placeable.tileX + 1) * TILE_SIZE_FIXED - 1,
+      bottom: (placeable.tileY + 1) * TILE_SIZE_FIXED - 1,
+    });
+  }
   for (const decoration of generateSurvivalDecorations(terrain.seed)) {
     const obstacle = survivalDecorationObstacle(decoration, medium);
     if (obstacle !== null) obstacles.push(obstacle);

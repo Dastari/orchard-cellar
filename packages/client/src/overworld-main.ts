@@ -1,5 +1,6 @@
 import {
   AUTHORITY_TICK_MS,
+  CRAFTING_STATION_REACH_TILES,
   BOW_AIM_SCALE,
   BOW_MAX_CHARGE_MS,
   FIXED_UNITS_PER_PIXEL,
@@ -19,6 +20,7 @@ import {
   authorityTickAtDayProgress,
   avatarActionForEquippedKind,
   calendarAtTick,
+  craftingStationWithinReach,
   bowHeldAnimationFrame,
   bowOriginHeightPixels,
   directionFromAim,
@@ -35,6 +37,9 @@ import {
   isHorseWithinMountReach,
   itemModifiers,
   isWildlifeSpecies,
+  itemDefinition,
+  placeableDefinition,
+  fenceJoinMask,
   nextWeatherMode,
   nextWindDirectionMode,
   weatherVisualState,
@@ -49,6 +54,7 @@ import {
   resolveStats,
   resolveModifierTarget,
   type CollisionMap,
+  type CraftingStation,
   type Direction,
   type EffectKind,
   type PlayerState,
@@ -70,7 +76,7 @@ import {
 import { FixedStepLoop } from './loop.js';
 import { AudioBus } from './audio/audio-bus.js';
 import { readOidcSession } from './auth/oidc.js';
-import type { ChatMessage, PlayerPosition, SpacePortal, WorldChest, WorldItem, WorldNpc, WorldResource } from './net/generated/types.js';
+import type { ChatMessage, PlayerPosition, SpacePortal, WorldChest, WorldItem, WorldNpc, WorldPlaceable, WorldResource } from './net/generated/types.js';
 import {
   OverworldConnection,
   viewRadiusForViewport,
@@ -86,6 +92,7 @@ import {
   drawOverworldHorse,
   drawOverworldHive,
   drawOverworldItem,
+  drawOverworldPlaceable,
   drawOverworldMerchant,
   drawOverworldMountedAction,
   drawPlayerHeadPortrait,
@@ -119,6 +126,7 @@ import {
   TORCH_LIGHT_RADIUS_TILES,
   type PointLight,
 } from './render/lighting.js';
+import { placeablePointLight } from './render/light-sources.js';
 import { RenderMetrics } from './render/metrics.js';
 import { RainWeather } from './render/particles.js';
 import { treeSwayOffset, WeatherEffects, windDirectionLabel, type WindTreeSource } from './render/weather-effects.js';
@@ -132,6 +140,7 @@ import {
 import { terrainForSpace, terrainForWorld, type TerrainArray } from './render/terrain.js';
 import { interpolateFixedPosition } from './overworld-prediction.js';
 import { isNameplateToggle, OverworldUi } from './ui/overworld-ui.js';
+import { ghostFillRecipeMoves } from './ui/recipe-book.js';
 import { ChatOverlay } from './ui/chat-overlay.js';
 import { parseChatSubmission } from './ui/chat-command.js';
 import {
@@ -332,8 +341,22 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     network.distributeInventoryItem(fromContainer, fromIndex, targets, quantity), 'STACK DISTRIBUTED',
   ),
   craftInventoryRecipe: (recipeId, craftAll) => showResult(network.craftInventoryRecipe(recipeId, craftAll), craftAll ? 'STACK CRAFTED' : 'ITEM CRAFTED'),
+  ghostFillCraftingRecipe: (recipeId) => {
+    const rows = [...latestSnapshot.inventorySlots];
+    const moves = ghostFillRecipeMoves(recipeId, rows, rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0));
+    if (moves === null) {
+      toast = 'RECIPE INGREDIENTS OR EMPTY GRID REQUIRED';
+      toastTicks = 120;
+      return;
+    }
+    showResult(moves.reduce(
+      (pending, move) => pending.then(async () => await network.moveInventoryItem(move)),
+      Promise.resolve(),
+    ), 'RECIPE GHOST-FILLED');
+  },
   closeCrafting: () => { void network.closeCrafting().catch(() => undefined); },
   closeChest: () => { void network.closeChest().catch(() => undefined); },
+  closePlaceable: () => { void network.closePlaceable().catch(() => undefined); },
 }, (context, playerId, rect) => {
   const appearance = latestSnapshot.appearances.get(playerId) ?? undefined;
   drawPlayerHeadPortrait(context, art, appearance ?? DEFAULT_PLAYER_APPEARANCE, rect);
@@ -426,6 +449,8 @@ function refreshCollision(snapshot: OverworldView): void {
     terrainForSpace(activeSpaceDefinition, seed, version),
     snapshot.resources,
     snapshot.chests,
+    'ground',
+    snapshot.placeables,
   );
 }
 
@@ -454,6 +479,8 @@ function update(): void {
   }
   if (snapshot.activeChest !== null && overworldUi.openWindow !== 'chest') overworldUi.openWindow = 'chest';
   if (snapshot.activeChest === null && overworldUi.openWindow === 'chest') overworldUi.openWindow = null;
+  if (snapshot.activePlaceable?.kind === 'barrel' && overworldUi.openWindow !== 'barrel') overworldUi.openWindow = 'barrel';
+  if (snapshot.activePlaceable === null && overworldUi.openWindow === 'barrel') overworldUi.openWindow = null;
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
     optimisticSelectedSlot = null;
   }
@@ -816,6 +843,29 @@ function targetChest(snapshot: OverworldView): WorldChest | null {
   return snapshot.chests.find((chest) => chest.carriedBy === undefined && chest.tileX === tileX && chest.tileY === tileY) ?? null;
 }
 
+function targetPlaceable(snapshot: OverworldView): WorldPlaceable | null {
+  if (predicted === null) return null;
+  const target = facedInteractionTile(predicted.position.x, predicted.position.y, predicted.facing);
+  return snapshot.placeables.find((row) => row.tileX === target.tileX && row.tileY === target.tileY) ?? null;
+}
+
+function nearbyCraftingStations(snapshot: OverworldView): readonly CraftingStation[] {
+  const player = network.ownPosition();
+  if (player === null) return [];
+  const playerTile = {
+    spaceId: player.spaceId,
+    tileX: Math.floor(player.x / TILE_SIZE_FIXED),
+    tileY: Math.floor(player.y / TILE_SIZE_FIXED),
+  };
+  const stations = new Set<CraftingStation>();
+  for (const row of snapshot.placeables) {
+    const station = placeableDefinition(row.kind)?.station;
+    if (station !== null && station !== undefined
+      && craftingStationWithinReach(playerTile, row, CRAFTING_STATION_REACH_TILES)) stations.add(station);
+  }
+  return [...stations];
+}
+
 function localMount(snapshot: OverworldView): WorldNpc | null {
   if (snapshot.identityHex === null) return null;
   return snapshot.npcs.find((npc) => npc.rider?.toHexString() === snapshot.identityHex) ?? null;
@@ -1099,6 +1149,10 @@ function render(alpha = 1): void {
   const renderedPlayerAnchors = new Map<string, { readonly x: number; readonly y: number }>();
   const pointLights: PointLight[] = [];
   const windTrees: WindTreeSource[] = [];
+  for (const placeable of snapshot.placeables) {
+    const light = placeablePointLight(placeable, snapshot.clock?.authorityTick ?? 0n);
+    if (light !== null && worldPointVisible(light.worldX, light.worldY, lightVisible)) pointLights.push(light);
+  }
   if (!debugEntitiesHidden && activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
     for (const decoration of generateSurvivalDecorations(seed)) {
     if (isInteractivePoiDecorationKind(decoration.kind)) continue;
@@ -1262,6 +1316,25 @@ function render(alpha = 1): void {
           : chest.id === closingChestId ? 5 - elapsedFrame : 0;
         drawOverworldChest(context, art, x, y, cameraX, cameraY, scale, frameIndex);
       },
+    });
+  }
+  const fenceTiles = new Set([...snapshot.placeables]
+    .filter((row) => row.kind === 'fence' || row.kind === 'fence_gate')
+    .map((row) => `${row.tileX}:${row.tileY}`));
+  if (!debugEntitiesHidden) for (const placeable of snapshot.placeables) {
+    const x = placeable.tileX * 16 + 8;
+    const y = (placeable.tileY + 1) * 16;
+    if (!worldPointVisible(x, y, visible)) continue;
+    const fenceMask = placeable.kind === 'fence'
+      ? fenceJoinMask(placeable.tileX, placeable.tileY, (tileX, tileY) => fenceTiles.has(`${tileX}:${tileY}`))
+      : 0;
+    worldDepthItems.push({
+      footY: y,
+      tie: `placeable:${placeable.id}`,
+      draw: () => drawOverworldPlaceable(
+        context, art, placeable.kind, placeable.open, fenceMask,
+        Math.floor(performance.now() / 125), x, y, cameraX, cameraY, scale,
+      ),
     });
   }
   if (!debugEntitiesHidden) for (const hive of snapshot.hives) {
@@ -1614,6 +1687,7 @@ function render(alpha = 1): void {
     vigourDenied: vigourDenyTicks > 0,
     effects: visibleEffects,
     openChestInventory: [...snapshot.openChestSlots],
+    openPlaceableInventory: [...snapshot.openPlaceableSlots],
     hasBackpack: [...snapshot.inventorySlots].some((slot) => slot.itemKind === 'backpack'),
     audioVolumes: audio.getSettings(),
     canAdministerWorld: snapshot.membership?.role === 'owner',
@@ -1626,6 +1700,7 @@ function render(alpha = 1): void {
     windDirectionLabel: windDirectionLabel(renderWeather.windDirectionX, renderWeather.windDirectionY),
     prompt,
     toast: toastTicks > 0 ? toast.slice(0, 42) : null,
+    nearbyCraftingStations: nearbyCraftingStations(snapshot),
   });
   npcInteractionUi.update(snapshot.activeDialogue === null ? null : {
     width: uiWidth,
@@ -1934,6 +2009,30 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
+    const selectedDefinition = itemDefinition(selectedItem(snapshot));
+    const facedPlaceable = targetPlaceable(snapshot);
+    if (selectedDefinition?.tags.includes('item.placeable') === true || facedPlaceable !== null) {
+      const placing = selectedDefinition?.tags.includes('item.placeable') === true;
+      const tile = placing ? targetInteractionTile() : facedInteractionTile(
+        predicted?.position.x ?? 0,
+        predicted?.position.y ?? 0,
+        predicted?.facing ?? 'down',
+      );
+      if (tile === null) {
+        toast = 'NO PLACEMENT TILE TARGETED';
+        toastTicks = 90;
+      } else if (placing && placementTileBlocked(snapshot, tile)) {
+        toast = 'PLACEMENT BLOCKED';
+        toastTicks = 90;
+      } else {
+        showResult(
+          network.useHands(tile.tileX, tile.tileY),
+          placing ? `${selectedDefinition?.displayName.toUpperCase()} PLACED` : 'PLACEABLE PICKED UP',
+        );
+      }
+      event.preventDefault();
+      return;
+    }
     const item = selectedItem(snapshot);
     if (item === 'orchard_tea') {
       showResult(network.consumeOrchardTea(), 'ORCHARD TEA DRUNK');
@@ -2004,6 +2103,17 @@ window.addEventListener('keydown', (event) => {
     if (portal !== null) {
       portalTransitionStartedAtMs = performance.now();
       showResult(network.usePortal(portal.id), 'PORTAL TRANSIT');
+      event.preventDefault();
+      return;
+    }
+    const placeable = targetPlaceable(latestSnapshot);
+    if (placeable?.kind === 'fence_gate') {
+      showResult(network.interactPlaceable(), placeable.open ? 'GATE CLOSED' : 'GATE OPENED');
+      event.preventDefault();
+      return;
+    }
+    if (placeable?.kind === 'barrel') {
+      showResult(network.interactPlaceable(), 'BARREL OPENED');
       event.preventDefault();
       return;
     }

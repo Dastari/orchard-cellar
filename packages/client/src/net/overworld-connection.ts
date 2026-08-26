@@ -9,7 +9,7 @@ import { DbConnection, tables, type SubscriptionHandle } from './generated/index
 import { localProfilesEnabled, oidcConfigured, readOidcSession } from '../auth/oidc.js';
 import type {
   CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerStats, PlayerSurvival,
-  SpacePortal, WorldChest, WorldChestSlot, WorldClock, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
+  SpacePortal, WorldChest, WorldChestSlot, WorldClock, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
 } from './generated/types.js';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
 import { BoundedKeyedQueue, KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
@@ -25,6 +25,7 @@ const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
 const RTT_SAMPLE_CAPACITY = 256;
 const REGION_TABLES_PER_CHUNK = 9;
+const REGION_RANGE_QUERIES = 1;
 export const MAX_VIEW_RADIUS = 9;
 export const REGION_CENTER_DEADBAND_TILES = 8;
 
@@ -76,7 +77,8 @@ export function regionSubscriptionQueryCount(
   void spaceId;
   return (bounds.maxX - bounds.minX + 1)
     * (bounds.maxY - bounds.minY + 1)
-    * REGION_TABLES_PER_CHUNK;
+    * REGION_TABLES_PER_CHUNK
+    + REGION_RANGE_QUERIES;
 }
 
 export interface ActiveDialogue {
@@ -102,6 +104,7 @@ export interface OverworldView {
   readonly worldItems: ReadonlyKeyedStore<bigint, WorldItem>;
   readonly projectiles: ReadonlyKeyedStore<bigint, WorldProjectile>;
   readonly chests: ReadonlyKeyedStore<bigint, WorldChest>;
+  readonly placeables: ReadonlyKeyedStore<bigint, WorldPlaceable>;
   readonly npcs: ReadonlyKeyedStore<bigint, WorldNpc>;
   readonly merchants: ReadonlyKeyedStore<bigint, WorldMerchant>;
   readonly wildlifeProfiles: ReadonlyKeyedStore<bigint, WorldWildlifeProfile>;
@@ -110,6 +113,7 @@ export interface OverworldView {
   readonly inventorySlots: ReadonlyKeyedStore<number, InventorySlot>;
   readonly effects: ReadonlyKeyedStore<bigint, PlayerEffect>;
   readonly openChestSlots: ReadonlyKeyedStore<number, WorldChestSlot>;
+  readonly openPlaceableSlots: ReadonlyKeyedStore<number, WorldPlaceableSlot>;
   readonly chatChannels: ReadonlyKeyedStore<bigint, ChatChannel>;
   readonly chatMessages: ReadonlyKeyedStore<bigint, ChatMessage>;
   readonly worldSpeech: ReadonlyKeyedStore<bigint, WorldSpeech>;
@@ -117,6 +121,7 @@ export interface OverworldView {
   readonly characterProfile: CharacterProfile | null; readonly membership: Membership | null; readonly survival: PlayerSurvival | null;
   readonly stats: PlayerStats | null;
   readonly activeChest: WorldChest | null;
+  readonly activePlaceable: WorldPlaceable | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
   readonly worldSeed: WorldSeed | null; readonly clock: WorldClock | null; readonly environment: WorldEnvironment | null; readonly wind: WorldWind | null;
 }
@@ -127,14 +132,14 @@ export interface OverworldSnapshot {
   readonly appearances: readonly PlayerAppearance[];
   readonly players: readonly PlayerPosition[];
   readonly resources: readonly WorldResource[]; readonly soil: readonly WorldSoil[];
-  readonly worldItems: readonly WorldItem[]; readonly projectiles: readonly WorldProjectile[]; readonly chests: readonly WorldChest[]; readonly npcs: readonly WorldNpc[]; readonly merchants: readonly WorldMerchant[];
+  readonly worldItems: readonly WorldItem[]; readonly projectiles: readonly WorldProjectile[]; readonly chests: readonly WorldChest[]; readonly placeables: readonly WorldPlaceable[]; readonly npcs: readonly WorldNpc[]; readonly merchants: readonly WorldMerchant[];
   readonly wildlifeProfiles: readonly WorldWildlifeProfile[]; readonly hives: readonly WorldHive[];
   readonly portals: readonly SpacePortal[];
-  readonly inventorySlots: readonly InventorySlot[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly chatChannels: readonly ChatChannel[];
+  readonly inventorySlots: readonly InventorySlot[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly openPlaceableSlots: readonly WorldPlaceableSlot[]; readonly chatChannels: readonly ChatChannel[];
   readonly effects: readonly PlayerEffect[];
   readonly chatMessages: readonly ChatMessage[]; readonly worldSpeech: readonly WorldSpeech[];
   readonly motd: string | null; readonly characterProfile: CharacterProfile | null;
-  readonly membership: Membership | null; readonly survival: PlayerSurvival | null; readonly stats: PlayerStats | null; readonly activeChest: WorldChest | null;
+  readonly membership: Membership | null; readonly survival: PlayerSurvival | null; readonly stats: PlayerStats | null; readonly activeChest: WorldChest | null; readonly activePlaceable: WorldPlaceable | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
   readonly worldSeed: WorldSeed | null; readonly clock: WorldClock | null; readonly environment: WorldEnvironment | null; readonly wind: WorldWind | null;
 }
@@ -210,6 +215,7 @@ export class OverworldConnection {
   private readonly worldItems = new KeyedStore<bigint, WorldItem>();
   private readonly projectiles = new KeyedStore<bigint, WorldProjectile>();
   private readonly chests = new KeyedStore<bigint, WorldChest>();
+  private readonly placeables = new KeyedStore<bigint, WorldPlaceable>();
   private readonly npcs = new KeyedStore<bigint, WorldNpc>();
   private readonly merchants = new KeyedStore<bigint, WorldMerchant>();
   private readonly wildlifeProfiles = new KeyedStore<bigint, WorldWildlifeProfile>();
@@ -218,6 +224,7 @@ export class OverworldConnection {
   private readonly inventorySlots = new KeyedStore<number, InventorySlot>();
   private readonly effects = new KeyedStore<bigint, PlayerEffect>();
   private readonly openChestSlots = new KeyedStore<number, WorldChestSlot>();
+  private readonly openPlaceableSlots = new KeyedStore<number, WorldPlaceableSlot>();
   private readonly chatChannels = new KeyedStore<bigint, ChatChannel>();
   private readonly chatMessages = new KeyedStore<bigint, ChatMessage>();
   private readonly worldSpeech = new KeyedStore<bigint, WorldSpeech>();
@@ -227,6 +234,7 @@ export class OverworldConnection {
   private survival: PlayerSurvival | null = null;
   private stats: PlayerStats | null = null;
   private activeChest: WorldChest | null = null;
+  private activePlaceable: WorldPlaceable | null = null;
   private activeDialogue: ActiveDialogue | null = null;
   private wallet: PlayerWallet | null = null;
   private worldSeed: WorldSeed | null = null;
@@ -273,11 +281,12 @@ export class OverworldConnection {
     return { connected: this.connected, error: this.error,
       identityHex: this.identity === null ? null : identityHex(this.identity), region: this.region,
       profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers,
-      resources: this.resources, soil: this.soil, worldItems: this.worldItems, projectiles: this.projectiles, chests: this.chests, npcs: this.npcs, merchants: this.merchants,
+      resources: this.resources, soil: this.soil, worldItems: this.worldItems, projectiles: this.projectiles, chests: this.chests, placeables: this.placeables, npcs: this.npcs, merchants: this.merchants,
       wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, inventorySlots: this.inventorySlots, effects: this.effects,
       openChestSlots: this.openChestSlots,
+      openPlaceableSlots: this.openPlaceableSlots,
       chatChannels: this.chatChannels, chatMessages: this.chatMessages, worldSpeech: this.worldSpeech, motd: this.motd,
-      characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest,
+      characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest, activePlaceable: this.activePlaceable,
       activeDialogue: this.activeDialogue, wallet: this.wallet, worldSeed: this.worldSeed,
       clock: this.clock, environment: this.environment, wind: this.wind };
   }
@@ -286,11 +295,12 @@ export class OverworldConnection {
   snapshot(): OverworldSnapshot {
     const view = this.view();
     return { ...view, profiles: this.profiles.toArray(), appearances: this.appearances.toArray(),
-      players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), chests: this.chests.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
+      players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
       wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(),
       inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot),
       effects: this.effects.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       openChestSlots: this.openChestSlots.toArray().sort((left, right) => left.slot - right.slot),
+      openPlaceableSlots: this.openPlaceableSlots.toArray().sort((left, right) => left.slot - right.slot),
       chatChannels: this.chatChannels.toArray(),
       chatMessages: this.chatMessages.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       worldSpeech: this.worldSpeech.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0) };
@@ -352,6 +362,7 @@ export class OverworldConnection {
         worldItem: this.worldItems.size,
         worldProjectile: this.projectiles.size,
         worldChest: this.chests.size,
+        worldPlaceable: this.placeables.size,
         worldNpc: this.npcs.size,
         worldHive: this.hives.size,
         wildlifeProfile: this.wildlifeProfiles.size,
@@ -397,7 +408,10 @@ export class OverworldConnection {
   selectHotbar(slot: number): Promise<void> { return this.reducer((c) => c.reducers.selectHotbar({ slot })); }
   moveInventoryItem(request: MoveItemRequest): Promise<void> {
     const involvesChest = request.fromContainer === 'chest' || request.toContainer === 'chest';
-    return this.reducer((connection) => involvesChest
+    const involvesPlaceable = request.fromContainer === 'placeable' || request.toContainer === 'placeable';
+    return this.reducer((connection) => involvesPlaceable
+      ? connection.reducers.movePlaceableItem(request)
+      : involvesChest
       ? connection.reducers.moveChestItem(request)
       : connection.reducers.moveInventoryItem(request));
   }
@@ -429,6 +443,8 @@ export class OverworldConnection {
   useHands(tileX: number, tileY: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.useHands({ tileX, tileY }));
   }
+  interactPlaceable(): Promise<void> { return this.reducer((connection) => connection.reducers.interactPlaceable({})); }
+  closePlaceable(): Promise<void> { return this.reducer((connection) => connection.reducers.closePlaceable({})); }
   interactChest(): Promise<void> { return this.reducer((c) => c.reducers.interactChest({})); }
   closeChest(): Promise<void> { return this.reducer((c) => c.reducers.closeChest({})); }
   harvestResource(resourceId: bigint): Promise<void> { return this.reducer((c) => c.reducers.harvestResource({ resourceId })); }
@@ -561,6 +577,8 @@ export class OverworldConnection {
       tables.ownInventorySlots,
       tables.ownActiveChest,
       tables.ownOpenChestSlots,
+      tables.ownActivePlaceable,
+      tables.ownOpenPlaceableSlots,
       tables.ownActiveDialogue,
       tables.ownCharacterProfile,
       tables.ownMembership,
@@ -608,6 +626,12 @@ export class OverworldConnection {
       wildlifeProfiles.push(tables.worldWildlifeProfile.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
       hives.push(tables.worldHive.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
     }
+    const placeables = [tables.worldPlaceable
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX))
+      .where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY))
+      .where((row) => row.chunkY.lte(bounds.maxY))];
     const queryCount = regionSubscriptionQueryCount(bounds, spaceId);
     this.pendingRegionQueryCount = queryCount;
     const previous = this.regionSubscription;
@@ -622,7 +646,7 @@ export class OverworldConnection {
     })).onError(() => {
       this.pendingRegion = null; this.pendingRegionQueryCount = 0;
       this.error = 'region_subscription_failed'; this.onChanged();
-    }).subscribe([...positions, ...resources, ...soil, ...worldItems, ...projectiles, ...chests, ...npcs, ...wildlifeProfiles, ...hives]);
+    }).subscribe([...positions, ...resources, ...soil, ...worldItems, ...projectiles, ...chests, ...placeables, ...npcs, ...wildlifeProfiles, ...hives]);
   }
 
   private bindTableEvents(connection: DbConnection): void {
@@ -675,6 +699,9 @@ export class OverworldConnection {
     connection.db.worldChest.onInsert((context, row) => resource(context.event.id, () => this.chests.set(row.id, row)));
     connection.db.worldChest.onUpdate((context, _old, row) => resource(context.event.id, () => this.chests.set(row.id, row)));
     connection.db.worldChest.onDelete((context, row) => resource(context.event.id, () => this.chests.delete(row.id)));
+    connection.db.worldPlaceable.onInsert((context, row) => resource(context.event.id, () => this.placeables.set(row.id, row)));
+    connection.db.worldPlaceable.onUpdate((context, _old, row) => resource(context.event.id, () => this.placeables.set(row.id, row)));
+    connection.db.worldPlaceable.onDelete((context, row) => resource(context.event.id, () => this.placeables.delete(row.id)));
     connection.db.worldNpc.onInsert((context, row) => incoming(context.event.id, () => this.setNpc(row)));
     connection.db.worldNpc.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setNpc(row)));
     connection.db.worldNpc.onDelete((context, row) => incoming(context.event.id, () => {
@@ -715,6 +742,12 @@ export class OverworldConnection {
     connection.db.ownOpenChestSlots.onInsert((context, row) => incoming(context.event.id, () => this.openChestSlots.set(row.slot, row)));
     connection.db.ownOpenChestSlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.openChestSlots.set(row.slot, row)));
     connection.db.ownOpenChestSlots.onDelete((context, row) => incoming(context.event.id, () => this.openChestSlots.delete(row.slot)));
+    connection.db.ownActivePlaceable.onInsert((context, row) => incoming(context.event.id, () => { this.activePlaceable = row; }));
+    connection.db.ownActivePlaceable.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.activePlaceable = row; }));
+    connection.db.ownActivePlaceable.onDelete((context) => incoming(context.event.id, () => { this.activePlaceable = null; this.openPlaceableSlots.clear(); }));
+    connection.db.ownOpenPlaceableSlots.onInsert((context, row) => incoming(context.event.id, () => this.openPlaceableSlots.set(row.slot, row)));
+    connection.db.ownOpenPlaceableSlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.openPlaceableSlots.set(row.slot, row)));
+    connection.db.ownOpenPlaceableSlots.onDelete((context, row) => incoming(context.event.id, () => this.openPlaceableSlots.delete(row.slot)));
     connection.db.ownChatChannels.onInsert((context, row) => incoming(context.event.id, () => this.chatChannels.set(row.id, row)));
     connection.db.ownChatChannels.onUpdate((context, _old, row) => incoming(context.event.id, () => this.chatChannels.set(row.id, row)));
     connection.db.ownChatChannels.onDelete((context, row) => incoming(context.event.id, () => this.chatChannels.delete(row.id)));
@@ -739,7 +772,7 @@ export class OverworldConnection {
   }
   private clearSpaceScopedCaches(): void {
     this.positions.clear(); this.visiblePlayers.clear(); this.resources.clear(); this.soil.clear();
-    this.worldItems.clear(); this.projectiles.clear(); this.chests.clear(); this.npcs.clear();
+    this.worldItems.clear(); this.projectiles.clear(); this.chests.clear(); this.placeables.clear(); this.npcs.clear();
     this.wildlifeProfiles.clear(); this.hives.clear(); this.worldSpeech.clear();
     this.resourceRevisionValue += 1;
   }
@@ -814,6 +847,8 @@ export class OverworldConnection {
     for (const row of connection.db.ownInventorySlots.iter()) this.inventorySlots.set(row.slot, row);
     this.activeChest = [...connection.db.ownActiveChest.iter()][0] ?? null;
     this.openChestSlots.clear(); for (const row of connection.db.ownOpenChestSlots.iter()) this.openChestSlots.set(row.slot, row);
+    this.activePlaceable = [...connection.db.ownActivePlaceable.iter()][0] ?? null;
+    this.openPlaceableSlots.clear(); for (const row of connection.db.ownOpenPlaceableSlots.iter()) this.openPlaceableSlots.set(row.slot, row);
     for (const row of connection.db.ownChatChannels.iter()) this.chatChannels.set(row.id, row);
     for (const row of connection.db.visibleChatMessages.iter()) this.chatMessages.set(row.id, row);
     for (const row of connection.db.visibleWorldSpeech.iter()) this.worldSpeech.set(row.id, row);

@@ -2,7 +2,7 @@ import { slotAcceptsItem, type ItemStack, type SlotRestriction } from '@orchard/
 import type { UiRect } from './geometry.js';
 import { widget, type WidgetNode } from './widget.js';
 
-export type InventoryContainerId = 'hotbar' | 'backpack' | 'equipment' | 'crafting' | 'chest';
+export type InventoryContainerId = 'hotbar' | 'backpack' | 'equipment' | 'crafting' | 'chest' | 'placeable';
 
 export const EQUIPMENT_SLOT_RESTRICTIONS: readonly SlotRestriction[] = [
   { requiredTags: ['gear.neck'] },

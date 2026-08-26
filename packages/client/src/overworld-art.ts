@@ -1,4 +1,4 @@
-import { FIXED_UNITS_PER_PIXEL, HORSE_JUMP_DURATION_TICKS, ITEM_DEFINITIONS, SURVIVAL_ORE_KINDS, itemDefinition, type Direction, type WildlifeSpecies } from '@orchard/sim';
+import { FENCE_JOIN_EAST, FENCE_JOIN_NORTH, FENCE_JOIN_SOUTH, FENCE_JOIN_WEST, FIXED_UNITS_PER_PIXEL, HORSE_JUMP_DURATION_TICKS, ITEM_DEFINITIONS, SURVIVAL_ORE_KINDS, itemDefinition, type Direction, type WildlifeSpecies } from '@orchard/sim';
 import { loadGeneratedAsset, type LoadedAsset } from './render/assets.js';
 import { drawPixelText, loadPixelUi, measurePixelText, type PixelUi } from './render/pixel-ui.js';
 import { selectAtlasFrame, type AtlasFrame } from './render/sprite.js';
@@ -259,10 +259,15 @@ async function loadFruitItemArt(): Promise<Readonly<Record<string, LoadedAsset>>
 }
 
 async function loadItemIconArt(): Promise<Readonly<Record<string, LoadedAsset>>> {
-  return Object.fromEntries(await Promise.all(Object.entries(ITEM_DEFINITIONS).map(async ([kind, definition]) => [
-    kind,
-    await loadGeneratedAsset(definition.iconKey, 'summer'),
-  ])));
+  const registry = await Promise.all(Object.entries(ITEM_DEFINITIONS).map(async ([kind, definition]) => [
+    kind, await loadGeneratedAsset(definition.iconKey, 'summer'),
+  ] as const));
+  const fenceVariants = await Promise.all([
+    ['fence_horizontal', 'prop_cf_fence_horizontal'],
+    ['fence_vertical', 'prop_cf_fence_vertical'],
+    ['fence_corner', 'prop_cf_fence_corner'],
+  ].map(async ([kind, asset]) => [kind!, await loadGeneratedAsset(asset!, 'summer')] as const));
+  return Object.fromEntries([...registry, ...fenceVariants]);
 }
 
 export async function loadOverworldArt(): Promise<OverworldArt> {
@@ -718,6 +723,30 @@ export function drawOverworldItem(
 ): void {
   drawAnchored(context, art.oreItems[itemKind] ?? art.fruitItems[itemKind]
     ?? art.itemIcons[itemKind] ?? art.missingItem, 'base', 0, x, y - arcHeight, cameraX, cameraY, zoom);
+}
+
+export function drawOverworldPlaceable(
+  context: CanvasRenderingContext2D,
+  art: OverworldArt,
+  kind: string,
+  open: boolean,
+  fenceMask: number,
+  frameIndex: number,
+  x: number,
+  y: number,
+  cameraX: number,
+  cameraY: number,
+  zoom: number,
+): void {
+  const northSouth = fenceMask & (FENCE_JOIN_NORTH | FENCE_JOIN_SOUTH);
+  const eastWest = fenceMask & (FENCE_JOIN_EAST | FENCE_JOIN_WEST);
+  const asset = kind === 'fence'
+    ? art.itemIcons[northSouth !== 0 && eastWest === 0 ? 'fence_vertical'
+      : eastWest !== 0 && northSouth === 0 ? 'fence_horizontal' : 'fence_corner']
+    : art.itemIcons[kind];
+  const animation = kind === 'fence_gate' ? (open ? 'open' : 'closed')
+    : itemDefinition(kind)?.iconAnimation ?? 'base';
+  drawAnchored(context, asset ?? art.missingItem, animation, frameIndex, x, y, cameraX, cameraY, zoom);
 }
 
 /** A tiny palette-matched arrow is rotated around its shaft so aiming is not

@@ -29,8 +29,10 @@ function callbacks(): OverworldUiCallbacks {
     quickMoveAllInventoryItems: vi.fn(),
     distributeInventoryItem: vi.fn(),
     craftInventoryRecipe: vi.fn(),
+    ghostFillCraftingRecipe: vi.fn(),
     closeCrafting: vi.fn(),
     closeChest: vi.fn(),
+    closePlaceable: vi.fn(),
   };
 }
 
