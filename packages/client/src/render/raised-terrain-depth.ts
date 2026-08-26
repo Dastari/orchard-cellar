@@ -166,14 +166,15 @@ export function raisedTerrainDepthLayers(
   entry: Pick<RaisedTerrainDepthEntry, 'contourLevel' | 'plan'>,
 ): readonly RaisedTerrainDepthLayer[] {
   const layers: RaisedTerrainDepthLayer[] = [];
-  if (entry.plan.faceLayers.some((face) => face.direct && face.rowId !== 'foot')) {
+  const rearStack = entry.plan.faceLayers.some((face) => !face.direct);
+  if (!rearStack && entry.plan.faceLayers.some((face) => face.rowId !== 'foot')) {
     layers.push({
       stratum: 'face',
       elevationLayer: Math.max(0, entry.contourLevel - 1),
       depthPhase: 'boundary',
     });
   }
-  if (entry.plan.faceLayers.some((face) => face.direct && face.rowId === 'foot')) {
+  if (!rearStack && entry.plan.faceLayers.some((face) => face.rowId === 'foot')) {
     layers.push({
       stratum: 'face_foot',
       elevationLayer: Math.max(0, entry.contourLevel - 1),
@@ -182,9 +183,10 @@ export function raisedTerrainDepthLayers(
   }
   // Indirect faces continue a raised rim around the rear/side of a stepped
   // contour. Their pixels occupy the upper plane even though the atlas frame
-  // is wall-shaped; batching them with direct, south-facing walls lets a
-  // lower-plane actor paint over the curved cliff corner.
-  if (entry.plan.faceLayers.some((face) => !face.direct)) {
+  // is wall-shaped. A stepped cell can contain indirect and direct rows in
+  // one authored deepest-to-nearest stack, so move the whole stack together;
+  // splitting it across planes reverses the visible side-wall overlap.
+  if (rearStack) {
     layers.push({
       stratum: 'rear_face',
       elevationLayer: entry.contourLevel,
@@ -217,8 +219,8 @@ function drawEntryStratum(
   if (stratum === 'face' || stratum === 'face_foot' || stratum === 'rear_face') {
     for (const face of entry.plan.faceLayers.filter(
       (candidate) => stratum === 'rear_face'
-        ? !candidate.direct
-        : candidate.direct && (candidate.rowId === 'foot') === (stratum === 'face_foot'),
+        ? true
+        : (candidate.rowId === 'foot') === (stratum === 'face_foot'),
     )) {
       drawTerrainAsset(context, art.cliff, face.frame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
     }

@@ -73,17 +73,23 @@ describe('30§5 raised-terrain depth entries', () => {
     // The left column continues south while the right column ends. Resolving
     // the next projected row on the left therefore emits indirect rear
     // coverage around the convex corner rather than a direct south face.
+    elevations[0 * base.width + 1] = 1;
     elevations[1 * base.width + 1] = 1;
-    elevations[2 * base.width + 1] = 1;
-    elevations[1 * base.width + 2] = 1;
+    elevations[0 * base.width + 2] = 1;
     const entries = raisedTerrainDepthEntries({ ...base, elevations }, 0, 0, 6, 6);
-    const rearFace = entries.find(({ plan }) => plan.faceLayers.some((face) => !face.direct));
+    const rearFace = entries.find(({ plan }) => (
+      new Set(plan.faceLayers.map((face) => face.direct)).size === 2
+    ));
     expect(rearFace).toBeDefined();
-    expect(raisedTerrainDepthLayers(rearFace!)).toContainEqual({
+    expect(new Set(rearFace!.plan.faceLayers.map((face) => face.direct))).toEqual(new Set([false, true]));
+    expect(raisedTerrainDepthLayers(rearFace!)).toEqual(expect.arrayContaining([{
       stratum: 'rear_face',
       elevationLayer: rearFace!.contourLevel,
       depthPhase: 'boundary',
-    });
+    }]));
+    expect(raisedTerrainDepthLayers(rearFace!).some(
+      ({ stratum }) => stratum === 'face' || stratum === 'face_foot',
+    )).toBe(false);
   });
 
   it('30§5 submits the cosmetic ground-contact row as a lower-plane underlay', () => {
