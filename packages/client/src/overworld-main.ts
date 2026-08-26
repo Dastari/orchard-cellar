@@ -240,6 +240,10 @@ function latestIncomingWhisper(snapshot: OverworldView): ChatMessage | null {
   return latest;
 }
 
+function chatTimelineId(issuedAtMicros: bigint, rowId: bigint, lane: 0n | 1n): bigint {
+  return (issuedAtMicros << 65n) + (rowId << 1n) + lane;
+}
+
 let predicted: PlayerState | null = null;
 let previousPredicted: PlayerState | null = null;
 let lastDirection: NetworkDirection = 'idle';
@@ -1615,8 +1619,16 @@ function render(alpha = 1): void {
         body: snapshot.motd,
         itemLinksJson: '[]',
       }]),
+      ...[...snapshot.sessionChatNotices].map((notice) => ({
+        id: chatTimelineId(notice.issuedAt.microsSinceUnixEpoch, notice.id, 1n),
+        channelName: 'World',
+        senderDisplayName: 'World',
+        kind: 'system',
+        body: notice.body,
+        itemLinksJson: '[]',
+      })),
       ...[...snapshot.chatMessages].map((message) => ({
-        id: message.id,
+        id: chatTimelineId(message.sentAt.microsSinceUnixEpoch, message.id, 0n),
         channelName: channelNames.get(message.channelId) ?? (message.kind === 'whisper' ? 'Whisper' : 'Channel'),
         senderDisplayName: message.kind === 'whisper'
           && message.sender.toHexString() === snapshot.identityHex

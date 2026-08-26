@@ -64,6 +64,12 @@ export const ChatMessage = __t.object("ChatMessage", {
 });
 export type ChatMessage = __Infer<typeof ChatMessage>;
 
+export const ChatMigration = __t.object("ChatMigration", {
+  id: __t.u8(),
+  sessionNoticesVersion: __t.u8(),
+});
+export type ChatMigration = __Infer<typeof ChatMigration>;
+
 export const ChatSenderState = __t.object("ChatSenderState", {
   identity: __t.identity(),
   lastSentAtMicros: __t.u64(),
@@ -222,6 +228,9 @@ export type OwnPlayerStatisticMilestones = __Infer<typeof OwnPlayerStatisticMile
 export const OwnPlayerStatistics = __t.object("OwnPlayerStatistics", {});
 export type OwnPlayerStatistics = __Infer<typeof OwnPlayerStatistics>;
 
+export const OwnSessionChatNotices = __t.object("OwnSessionChatNotices", {});
+export type OwnSessionChatNotices = __Infer<typeof OwnSessionChatNotices>;
+
 export const OwnStats = __t.object("OwnStats", {});
 export type OwnStats = __Infer<typeof OwnStats>;
 
@@ -361,6 +370,16 @@ export const PrivateInventory = __t.object("PrivateInventory", {
   knowledge: __t.u32(),
 });
 export type PrivateInventory = __Infer<typeof PrivateInventory>;
+
+export const SessionChatNotice = __t.object("SessionChatNotice", {
+  id: __t.u64(),
+  recipientIdentity: __t.identity(),
+  recipientConnectionId: __t.connectionId(),
+  kind: __t.string(),
+  body: __t.string(),
+  issuedAt: __t.timestamp(),
+});
+export type SessionChatNotice = __Infer<typeof SessionChatNotice>;
 
 export const StatsMigration = __t.object("StatsMigration", {
   id: __t.u8(),

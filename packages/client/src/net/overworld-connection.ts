@@ -7,7 +7,7 @@ import type { Identity } from 'spacetimedb';
 import { DbConnection, tables, type SubscriptionHandle } from './generated/index.js';
 import { localProfilesEnabled, oidcConfigured, readOidcSession } from '../auth/oidc.js';
 import type {
-  CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerStats, PlayerSurvival,
+  CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerStats, PlayerSurvival, SessionChatNotice,
   WorldChest, WorldChestSlot, WorldClock, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
 } from './generated/types.js';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
@@ -100,6 +100,7 @@ export interface OverworldView {
   readonly openChestSlots: ReadonlyKeyedStore<number, WorldChestSlot>;
   readonly chatChannels: ReadonlyKeyedStore<bigint, ChatChannel>;
   readonly chatMessages: ReadonlyKeyedStore<bigint, ChatMessage>;
+  readonly sessionChatNotices: ReadonlyKeyedStore<bigint, SessionChatNotice>;
   readonly worldSpeech: ReadonlyKeyedStore<bigint, WorldSpeech>;
   readonly motd: string | null;
   readonly characterProfile: CharacterProfile | null; readonly membership: Membership | null; readonly survival: PlayerSurvival | null;
@@ -119,7 +120,7 @@ export interface OverworldSnapshot {
   readonly wildlifeProfiles: readonly WorldWildlifeProfile[]; readonly hives: readonly WorldHive[];
   readonly inventorySlots: readonly InventorySlot[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly chatChannels: readonly ChatChannel[];
   readonly effects: readonly PlayerEffect[];
-  readonly chatMessages: readonly ChatMessage[]; readonly worldSpeech: readonly WorldSpeech[];
+  readonly chatMessages: readonly ChatMessage[]; readonly sessionChatNotices: readonly SessionChatNotice[]; readonly worldSpeech: readonly WorldSpeech[];
   readonly motd: string | null; readonly characterProfile: CharacterProfile | null;
   readonly membership: Membership | null; readonly survival: PlayerSurvival | null; readonly stats: PlayerStats | null; readonly activeChest: WorldChest | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
@@ -202,6 +203,7 @@ export class OverworldConnection {
   private readonly openChestSlots = new KeyedStore<number, WorldChestSlot>();
   private readonly chatChannels = new KeyedStore<bigint, ChatChannel>();
   private readonly chatMessages = new KeyedStore<bigint, ChatMessage>();
+  private readonly sessionChatNotices = new KeyedStore<bigint, SessionChatNotice>();
   private readonly worldSpeech = new KeyedStore<bigint, WorldSpeech>();
   private motd: string | null = null;
   private characterProfile: CharacterProfile | null = null;
@@ -246,6 +248,7 @@ export class OverworldConnection {
         if (this.heartbeatTimer !== null) window.clearInterval(this.heartbeatTimer);
         this.heartbeatTimer = null; this.inputReady = false; this.connected = false;
         this.error = error?.message ?? 'disconnected'; this.prediction.reset(); this.sentAt.clear();
+        this.sessionChatNotices.clear();
         this.globalSubscriptionQueryCount = 0; this.selfSubscriptionQueryCount = 0;
         this.activeRegionQueryCount = 0; this.pendingRegionQueryCount = 0; this.onChanged();
       }).build();
@@ -258,7 +261,7 @@ export class OverworldConnection {
       resources: this.resources, soil: this.soil, worldItems: this.worldItems, projectiles: this.projectiles, chests: this.chests, npcs: this.npcs, merchants: this.merchants,
       wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, inventorySlots: this.inventorySlots, effects: this.effects,
       openChestSlots: this.openChestSlots,
-      chatChannels: this.chatChannels, chatMessages: this.chatMessages, worldSpeech: this.worldSpeech, motd: this.motd,
+      chatChannels: this.chatChannels, chatMessages: this.chatMessages, sessionChatNotices: this.sessionChatNotices, worldSpeech: this.worldSpeech, motd: this.motd,
       characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest,
       activeDialogue: this.activeDialogue, wallet: this.wallet, worldSeed: this.worldSeed,
       clock: this.clock, environment: this.environment, wind: this.wind };
@@ -275,6 +278,7 @@ export class OverworldConnection {
       openChestSlots: this.openChestSlots.toArray().sort((left, right) => left.slot - right.slot),
       chatChannels: this.chatChannels.toArray(),
       chatMessages: this.chatMessages.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+      sessionChatNotices: this.sessionChatNotices.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       worldSpeech: this.worldSpeech.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0) };
   }
 
@@ -332,6 +336,7 @@ export class OverworldConnection {
         inventory: this.inventorySlots.size,
         effects: this.effects.size,
         chat: this.chatMessages.size,
+        chatNotices: this.sessionChatNotices.size,
         speech: this.worldSpeech.size,
       } };
   }
@@ -532,6 +537,7 @@ export class OverworldConnection {
       tables.ownCharacterProfile,
       tables.ownMembership,
       tables.ownConnectionNotices,
+      tables.ownSessionChatNotices,
       tables.ownChatChannels,
       tables.visibleChatMessages,
       tables.visibleWorldSpeech,
@@ -663,6 +669,15 @@ export class OverworldConnection {
     connection.db.ownConnectionNotices.onDelete((context, row) => incoming(context.event.id, () => {
       if (row.connectionId.isEqual(connection.connectionId)) this.motd = null;
     }));
+    connection.db.ownSessionChatNotices.onInsert((context, row) => incoming(context.event.id, () => {
+      if (row.recipientConnectionId.isEqual(connection.connectionId)) this.sessionChatNotices.set(row.id, row);
+    }));
+    connection.db.ownSessionChatNotices.onUpdate((context, _old, row) => incoming(context.event.id, () => {
+      if (row.recipientConnectionId.isEqual(connection.connectionId)) this.sessionChatNotices.set(row.id, row);
+    }));
+    connection.db.ownSessionChatNotices.onDelete((context, row) => incoming(context.event.id, () => {
+      if (row.recipientConnectionId.isEqual(connection.connectionId)) this.sessionChatNotices.delete(row.id);
+    }));
     connection.db.ownInventorySlots.onInsert((context, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
     connection.db.ownInventorySlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
     connection.db.ownInventorySlots.onDelete((context, row) => incoming(context.event.id, () => this.inventorySlots.delete(row.slot)));
@@ -752,6 +767,10 @@ export class OverworldConnection {
     this.openChestSlots.clear(); for (const row of connection.db.ownOpenChestSlots.iter()) this.openChestSlots.set(row.slot, row);
     for (const row of connection.db.ownChatChannels.iter()) this.chatChannels.set(row.id, row);
     for (const row of connection.db.visibleChatMessages.iter()) this.chatMessages.set(row.id, row);
+    this.sessionChatNotices.clear();
+    for (const row of connection.db.ownSessionChatNotices.iter()) {
+      if (row.recipientConnectionId.isEqual(connection.connectionId)) this.sessionChatNotices.set(row.id, row);
+    }
     for (const row of connection.db.visibleWorldSpeech.iter()) this.worldSpeech.set(row.id, row);
     this.motd = null;
     for (const row of connection.db.ownConnectionNotices.iter()) this.setConnectionNotice(connection, row);
