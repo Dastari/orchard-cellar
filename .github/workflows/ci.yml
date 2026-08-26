@@ -13,6 +13,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Install SpaceTimeDB 2.8.2
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://install.spacetimedb.com | sh
+          "$HOME/.local/bin/spacetime" version install 2.8.2 --use --yes
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: npm ci
       - run: npm run check
-
