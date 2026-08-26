@@ -1,0 +1,65 @@
+{
+  "name": "icon_cf_axe",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........77....",
+        ".........7007...",
+        "........706607..",
+        ".......70646607.",
+        "......7064644607",
+        ".....70536444107",
+        "....705321441107",
+        "...705320111107.",
+        "..705320701107..",
+        ".705320770007...",
+        "7053207..777....",
+        "703207..........",
+        ".7007...........",
+        "..77............",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#657392",
+    "2": "#743f39",
+    "3": "#91533b",
+    "4": "#92a1b9",
+    "5": "#b86f50",
+    "6": "#c7cfdd",
+    "7": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Tool_Icons_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/Outline/Tool_Icons_Outline.png",
+  "sourceRegion": [
+    48,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "item.tool"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

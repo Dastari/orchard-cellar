@@ -1,0 +1,77 @@
+{
+  "name": "resource_cf_ore_emerald",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........222.....",
+        ".111..228782.11.",
+        ".19912877778191.",
+        ".19531887777951.",
+        "..193166884431..",
+        "..239316644442..",
+        "...133166644111.",
+        ".112666666419910",
+        ".191666664459510",
+        ".159266664453100",
+        ".013666664444200",
+        "..00006644440000",
+        "...000000000000.",
+        ".....00000000...",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#0c2e44",
+    "2": "#262b44",
+    "3": "#33984b",
+    "4": "#3c4258",
+    "5": "#5ac54f",
+    "6": "#6c7c9d",
+    "7": "#8e9ab4",
+    "8": "#c7cfdd",
+    "9": "#d3fc7e"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        48,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "resource.mineable",
+    "resource.ore",
+    "ore.emerald"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

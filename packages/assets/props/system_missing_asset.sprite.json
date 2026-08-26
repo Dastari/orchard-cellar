@@ -1,0 +1,30 @@
+{
+  "name": "system_missing_asset",
+  "category": "props",
+  "size": [16, 16],
+  "anchor": [8, 15],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..SSSSSSSSSSSS..",
+        ".SFFFFFFFFFFFFS.",
+        ".SFHHFFHHFFHHFS.",
+        ".SFFFFJJJJFFFFS.",
+        ".SFFFJJJJJJFFFS.",
+        ".SFFFFFFJJFFFFS.",
+        ".SFFFFFJJFFFFFS.",
+        ".SFFFFJJFFFFFFS.",
+        ".SFFFFJJFFFFFFS.",
+        ".SFFFFFFFFFFFFS.",
+        ".SFFFFJJFFFFFFS.",
+        ".SFFFFJJFFFFFFS.",
+        ".SFFFFFFFFFFFFS.",
+        "..SSSSSSSSSSSS..",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "tags": ["system.placeholder"]
+}

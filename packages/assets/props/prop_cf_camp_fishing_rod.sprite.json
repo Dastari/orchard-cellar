@@ -1,0 +1,77 @@
+{
+  "name": "prop_cf_camp_fishing_rod",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "22...00.........",
+        "2520090.........",
+        ".20880..........",
+        ".08760..........",
+        ".07602..........",
+        "..00252.........",
+        ".....252........",
+        "......252.......",
+        "......2252......",
+        "......23252.....",
+        "......242252....",
+        ".....252.1252...",
+        ".....242.11252..",
+        "....252.1111252.",
+        "....24211..11252",
+        "....1111....1111"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#00000064",
+    "2": "#3f2832",
+    "3": "#743f39",
+    "4": "#91533b",
+    "5": "#b86f50",
+    "6": "#ea323c",
+    "7": "#f5555d",
+    "8": "#f68187",
+    "9": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Camp_Decor.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Camp_Decor.png",
+  "sourceRegions": {
+    "base": [
+      [
+        64,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.landmark",
+    "camp.fishing",
+    "decor.permanent"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

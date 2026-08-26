@@ -1,0 +1,47 @@
+{
+  "name": "item_cf_plank",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "....SSSSSSSS....",
+        "...SOOOOOOONS...",
+        "...SNNMMNNNNS...",
+        "...SLLLLLLLLS...",
+        "...SOOONNOONS...",
+        "...SNNNNMMNNS...",
+        "...SLLLLLLLLS...",
+        "...SOOOOOONNS...",
+        "...SMMMNNNNNS...",
+        "....SSSSSSSS....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "tags": [
+    "item.resource",
+    "material.wood",
+    "item.crafted"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

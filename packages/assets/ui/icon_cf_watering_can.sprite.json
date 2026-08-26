@@ -1,0 +1,63 @@
+{
+  "name": "icon_cf_watering_can",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...55...........",
+        "..5005.55.......",
+        ".504405005......",
+        ".5040204405.....",
+        ".50220422405....",
+        "..50034122405...",
+        "..50333412405...",
+        ".503322344055...",
+        ".5032222103005..",
+        "..5032210022305.",
+        "...50110550005..",
+        "....5005..555...",
+        ".....55.........",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "approved": true,
+  "importedFrom": "Tool_Icons_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/Outline/Tool_Icons_Outline.png",
+  "sourceRegion": [
+    96,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "item.tool"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#3a4466",
+    "2": "#5a6988",
+    "3": "#8b9bb4",
+    "4": "#c0cbdc",
+    "5": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact"
+}

@@ -1,0 +1,39 @@
+{
+  "name": "icon_resource_heirloom",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "....SSS..SSS....",
+        "....Sqq..ooS....",
+        "....Sqq..ooS....",
+        "....SqqSSooS....",
+        "....SrrrrrrS....",
+        "...SrsssrrrrS...",
+        "...SrssoorrrS...",
+        "...SrroooorrS...",
+        "...SrrrooqqqS...",
+        "....Srrooqqq....",
+        ".....SSrrSS.....",
+        ".......SS.......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "approved": true
+}
+

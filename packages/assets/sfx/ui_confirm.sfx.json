@@ -1,0 +1,38 @@
+{
+  "name": "ui_confirm",
+  "category": "ui",
+  "bus": "sfx",
+  "gainDb": -9,
+  "polyphony": 2,
+  "synth": {
+    "wave": "sine",
+    "frequencyHz": 523.25,
+    "attackMs": 4,
+    "decayMs": 92,
+    "sustain": 0,
+    "releaseMs": 55,
+    "slideHzPerSecond": 420,
+    "noiseMix": 0,
+    "filter": {
+      "type": "lowpass",
+      "frequencyHz": 3200,
+      "q": 0.6
+    },
+    "reverbSend": 0.14
+  },
+  "jitter": {
+    "pitch": [
+      -0.03,
+      0.03
+    ],
+    "decay": [
+      -0.1,
+      0.1
+    ],
+    "gainDb": [
+      -0.5,
+      0.4
+    ]
+  }
+}
+

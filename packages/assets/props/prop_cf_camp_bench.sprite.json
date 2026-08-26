@@ -1,0 +1,72 @@
+{
+  "name": "prop_cf_camp_bench",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "..111111111111..",
+        ".14444444444441.",
+        "1444444444444441",
+        "1444444444444441",
+        "1344444444444431",
+        "1133333333333311",
+        "1211111111111121",
+        "1221000000001221",
+        "0110000000000110",
+        "0000000000000000",
+        ".000.........00.",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#3f2832",
+    "2": "#743f39",
+    "3": "#91533b",
+    "4": "#b86f50"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Camp_Decor.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Camp_Decor.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.landmark",
+    "camp.seat",
+    "decor.permanent"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

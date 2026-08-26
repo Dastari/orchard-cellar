@@ -1,0 +1,65 @@
+{
+  "name": "icon_cf_sword",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "............777.",
+        "...........70007",
+        "..........706607",
+        ".........7064107",
+        "........7064107.",
+        "...7...7064107..",
+        "..707.7064107...",
+        ".70607064107....",
+        ".7046064107.....",
+        "..70404107......",
+        "...704007.......",
+        "..70201607......",
+        ".7030701607.....",
+        "70307.7007......",
+        "7007...77.......",
+        ".77............."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#657392",
+    "2": "#743f39",
+    "3": "#91533b",
+    "4": "#92a1b9",
+    "6": "#c7cfdd",
+    "7": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Tool_Icons_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/Outline/Tool_Icons_Outline.png",
+  "sourceRegion": [
+    64,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "item.tool",
+    "item.weapon"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

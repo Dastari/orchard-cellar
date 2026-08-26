@@ -1,0 +1,71 @@
+{
+  "name": "item_cf_lantern",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".......00.......",
+        "......0660......",
+        "......0660......",
+        ".......00.......",
+        "........0.......",
+        ".......030......",
+        "......03120.....",
+        ".....0313120....",
+        ".....0132210....",
+        ".....0411140....",
+        ".....0717170....",
+        ".....0715170....",
+        ".....0415140....",
+        "......01710.....",
+        ".......000......"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#1a1932",
+    "2": "#424c6e",
+    "3": "#657392",
+    "4": "#c64524",
+    "5": "#ed7614",
+    "6": "#f6ca9f",
+    "7": "#ff5000"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Lantern_Torch.png",
+  "sourcePath": "references/Cute_Fantasy/Other/Lantern_Torch.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        16,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.tool",
+    "item.light",
+    "light.lantern"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

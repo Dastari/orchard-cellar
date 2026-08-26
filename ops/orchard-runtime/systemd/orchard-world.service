@@ -1,0 +1,22 @@
+[Unit]
+Description=Orchard & Cellar SpaceTimeDB world host
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=toby
+Group=toby
+WorkingDirectory=/home/toby/projects/orchard-cellar
+Environment=HOME=/home/toby
+Environment=PATH=/home/toby/.local/bin:/home/toby/.nvm/versions/node/v24.19.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStart=/home/toby/.local/bin/spacetime start --listen-addr 127.0.0.1:3000 --data-dir /home/toby/projects/orchard-cellar/.spacetime-data --non-interactive
+Restart=always
+RestartSec=3
+TimeoutStopSec=120
+KillSignal=SIGINT
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

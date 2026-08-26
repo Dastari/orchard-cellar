@@ -1,0 +1,49 @@
+{
+  "name": "icon_cf_coin_gold",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......SSSS......",
+        "....SsssssrS....",
+        "...SsrrrrrrqS...",
+        "...SsrroorrqS...",
+        "..SsrrsooorrqS..",
+        "..SsrroooorrqS..",
+        "..SsrrroorrqqS..",
+        "..SrrrrrrqqqqS..",
+        "...SrrqqqqqqS...",
+        "...SqqqqqqppS...",
+        "....SqqqqppS....",
+        "......SSSS......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "tags": [
+    "ui.icon",
+    "currency.coin",
+    "currency.gold"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

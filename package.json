@@ -1,0 +1,40 @@
+{
+  "name": "orchard-cellar",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "npm run assets:build && concurrently -k -n world-host,world,client,assets -c magenta,blue,green,yellow \"npm run world:host\" \"npm run world:dev\" \"npm run dev -w @orchard/client\" \"npm run watch -w @orchard/tools\"",
+    "build": "npm run assets:build && npm run build -w @orchard/sim && npm run build -w @orchard/tools && npm run build -w @orchard/world && npm run build -w @orchard/client",
+    "check": "npm run build -w @orchard/world && npm run typecheck && npm run lint && npm test && npm run assets:validate",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "vitest run --coverage",
+    "assets:validate": "npm run validate -w @orchard/tools",
+    "assets:build": "npm run atlas -w @orchard/tools",
+    "assets:render": "npm run render -w @orchard/tools --",
+    "assets:preview": "npm run preview -w @orchard/tools",
+    "assets:import": "npm run import -w @orchard/tools --",
+    "assets:restore-native": "npm run restore-native -w @orchard/tools",
+    "sim:pace": "tsx packages/tools/src/pace-sim.ts",
+    "world:host": "spacetime start --listen-addr 127.0.0.1:3000 --data-dir .spacetime-data --non-interactive",
+    "world:dev": "sh -c 'until curl -fsS http://127.0.0.1:3000/v1/ping >/dev/null 2>&1; do sleep 0.2; done; exec spacetime dev orchard-cellar-world --no-config --server local --project-path . --module-path packages/world --module-bindings-path packages/client/src/net/generated --client-lang typescript --yes --server-only'",
+    "world:smoke": "tsx scripts/world-smoke.ts",
+    "world:auth-smoke": "tsx scripts/auth-world-smoke.ts",
+    "world:load": "spacetime publish orchard-cellar-netcode-load --server local --module-path packages/world --yes --delete-data && tsx scripts/netcode-load.ts",
+    "world:scalability-stage2": "tsx scripts/scalability-stage2.ts",
+    "world:crash-ghost": "spacetime publish orchard-cellar-netcode-crash --server local --module-path packages/world --yes --delete-data && SPACETIMEDB_DATABASE=orchard-cellar-netcode-crash tsx scripts/netcode-crash-ghost.ts",
+    "world:action-check": "spacetime publish orchard-cellar-netcode-action --server local --module-path packages/world --yes --delete-data && SPACETIMEDB_DATABASE=orchard-cellar-netcode-action tsx scripts/netcode-action.ts",
+    "world:tap-check": "spacetime publish orchard-cellar-netcode-tap --server local --module-path packages/world --yes --delete-data && SPACETIMEDB_DATABASE=orchard-cellar-netcode-tap tsx scripts/netcode-tap.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.0.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.11"
+  }
+}

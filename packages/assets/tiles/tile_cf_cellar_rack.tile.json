@@ -1,0 +1,56 @@
+{
+  "name": "tile_cf_cellar_rack",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".444444444444444",
+        ".4aaaaaaaaaaaaaa",
+        ".4aaaaaaaaaaaaaa",
+        ".4daaaaaaaaaaaaa",
+        ".4dddddddddddddd",
+        ".4aaa7a777777777",
+        ".4a4444444444444",
+        ".4a4885588558855",
+        ".4a46688ee886688",
+        ".4a4b622fe00b699",
+        ".4a4b632fe10b6c9",
+        ".4a4b632fe10b6c9",
+        ".4a45777aaaaaaaa",
+        ".474444444444444",
+        ".4a4885588558855"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "BookShelves.png",
+  "sourcePalette": {
+    "0": "#0069aa",
+    "1": "#0098dc",
+    "2": "#134c4c",
+    "3": "#1e6f50",
+    "4": "#3f2832",
+    "5": "#5d2c28",
+    "6": "#891e2b",
+    "7": "#8a4836",
+    "8": "#8c8c8c",
+    "9": "#93388f",
+    "a": "#bf6f4a",
+    "b": "#c42430",
+    "c": "#ca52c9",
+    "d": "#e69c69",
+    "e": "#ed7614",
+    "f": "#ffa214"
+  },
+  "sourcePath": "references/Cute_Fantasy/Buildings/House_Decor/BookShelves.png",
+  "sourcePaletteMode": "exact"
+}

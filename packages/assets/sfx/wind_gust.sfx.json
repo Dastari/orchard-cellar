@@ -1,0 +1,60 @@
+{
+  "name": "wind_gust",
+  "category": "ambience",
+  "bus": "ambience",
+  "gainDb": -20,
+  "polyphony": 4,
+  "synth": {
+    "wave": "sine",
+    "frequencyHz": 74,
+    "attackMs": 240,
+    "decayMs": 1250,
+    "sustain": 0.16,
+    "releaseMs": 680,
+    "slideHzPerSecond": -8,
+    "noiseMix": 0.96,
+    "filter": {
+      "type": "lowpass",
+      "frequencyHz": 880,
+      "q": 0.52
+    },
+    "reverbSend": 0.2
+  },
+  "jitter": {
+    "pitch": [
+      -0.05,
+      0.05
+    ],
+    "decay": [
+      -0.1,
+      0.1
+    ],
+    "gainDb": [
+      -1.6,
+      0.8
+    ],
+    "pan": [
+      -0.65,
+      0.65
+    ]
+  },
+  "schedule": {
+    "intervalSeconds": [
+      12,
+      28
+    ],
+    "probability": 0.42,
+    "time": [
+      "dawn",
+      "day",
+      "dusk"
+    ],
+    "season": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ]
+  }
+}
+

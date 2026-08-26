@@ -1,0 +1,45 @@
+{
+  "name": "ui_panel_9slice",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    8
+  ],
+  "slice": [
+    4,
+    4,
+    4,
+    4
+  ],
+  "frames": {
+    "base": [
+      [
+        "...2442222222...",
+        "..244422222222..",
+        ".22000000000022.",
+        "2200JJJJJJJJ0022",
+        "220JJJJJJJJJJ022",
+        "220JJJJJJJJJJ022",
+        "220JJJJJJJJJJ022",
+        "220JJJJJJJJJJ022",
+        "220JJJJJJJJJJ022",
+        "220JJJJJJJJJJ022",
+        "220JJJJJJJJJJ012",
+        "220JJJJJJJJJJ012",
+        "2200JJJJJJJJ0011",
+        ".22000000000011.",
+        "..222222222111..",
+        "...2222222211..."
+      ]
+    ]
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "approved": true
+}
+

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orchard &amp; Cellar Runtime Audio Review</title>
+    <style>
+      :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      body { margin: 0; padding: 18px; color: #fff6e0; background: #141420; }
+      h1 { margin-top: 0; font-size: 20px; }
+      section { margin: 14px 0; padding: 14px; background: #232338; }
+      button { margin: 4px; padding: 8px 12px; color: #fff6e0; background: #6b4423; border: 2px solid #d5b568; font: inherit; cursor: pointer; }
+      button:hover, button:focus { background: #8a613f; }
+      progress { width: min(420px, 70vw); height: 18px; vertical-align: middle; }
+      #error { color: #ff9b78; }
+    </style>
+  </head>
+  <body>
+    <h1>Runtime audio review</h1>
+    <p>This panel instantiates the same AudioBus, sequencer, patches, limiter, reverb, and SFX synthesizer used by the game.</p>
+    <p><progress id="meter" max="1" value="0"></progress> <span id="status">idle</span> <button id="stop">Stop</button></p>
+    <p id="error" role="alert"></p>
+    <section id="songs"><h2>Songs</h2></section>
+    <section id="sfx"><h2>Sound effects &amp; ambience</h2></section>
+    <script type="module" src="/src/audio-preview.ts"></script>
+  </body>
+</html>

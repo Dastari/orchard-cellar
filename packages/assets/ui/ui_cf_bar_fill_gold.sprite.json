@@ -1,0 +1,54 @@
+{
+  "name": "ui_cf_bar_fill_gold",
+  "category": "ui",
+  "size": [
+    30,
+    4
+  ],
+  "anchor": [
+    15,
+    2
+  ],
+  "frames": {
+    "base": [
+      [
+        ".0000000000000000000000000000.",
+        "011111111111111111111111111110",
+        "022222222222222222222222222220",
+        ".0000000000000000000000000000."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#f77622",
+    "2": "#feae34"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Sliders.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Sliders.png",
+  "sourceRegions": {
+    "base": [
+      [
+        105,
+        102,
+        30,
+        4
+      ]
+    ]
+  },
+  "uiSizing": "segmented",
+  "tags": [
+    "ui.bar",
+    "ui.bar.fill",
+    "ui.color.gold"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

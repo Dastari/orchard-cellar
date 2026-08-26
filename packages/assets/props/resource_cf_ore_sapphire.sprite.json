@@ -1,0 +1,77 @@
+{
+  "name": "resource_cf_ore_sapphire",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........444.....",
+        ".333..449794.33.",
+        ".38834977779383.",
+        ".38213997777823.",
+        "..381366995513..",
+        "..418136655554..",
+        "...311366655333.",
+        ".334666666538830",
+        ".383666665528230",
+        ".328466665521300",
+        ".031666665555400",
+        "..00006655550000",
+        "...000000000000.",
+        ".....00000000...",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#0098dc",
+    "2": "#00cdf9",
+    "3": "#0c2e44",
+    "4": "#262b44",
+    "5": "#3c4258",
+    "6": "#6c7c9d",
+    "7": "#8e9ab4",
+    "8": "#94fdff",
+    "9": "#c7cfdd"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        64,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "resource.mineable",
+    "resource.ore",
+    "ore.sapphire"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

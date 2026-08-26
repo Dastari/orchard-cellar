@@ -1,0 +1,72 @@
+{
+  "name": "item_cf_peach",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "......00.0......",
+        "......010.......",
+        ".......00.......",
+        "......0340......",
+        "......0420......",
+        ".......00.......",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#5ac54f",
+    "2": "#e77773",
+    "3": "#fedea5",
+    "4": "#ffb584"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Fruit_Trees_Fruit_Objects.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Fruit_Trees_Fruit_Objects.png",
+  "sourceRegions": {
+    "base": [
+      [
+        48,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

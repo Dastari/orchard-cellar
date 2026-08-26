@@ -1,0 +1,266 @@
+{
+  "name": "nature_cf_lily_pad_03",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "sway": [
+      [
+        "................",
+        "................",
+        "................",
+        ".....ll..ll.....",
+        "....loollool....",
+        "...dlnoloonl....",
+        "..0lllnoonlll0..",
+        ".0lnoooolooonl0.",
+        ".0llnnloolnnld0.",
+        ".0dmlllnnlllmd0.",
+        ".00jmmkllkkmj00.",
+        ".200hjmmmmjh002.",
+        "..200000000002..",
+        "...2200000022...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        "................",
+        ".....ll..ll.....",
+        "....loollool....",
+        "...dlnoloonl....",
+        "..0lllnoonlll0..",
+        ".0lnoooolooonl0.",
+        ".0llnnloolnnld0.",
+        ".0dmlllnnlllmd0.",
+        ".05jmmkllkkmj50.",
+        ".215hjmmmmjh512.",
+        "..215aaeeaa512..",
+        "...2210000122...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ll..ll.....",
+        "....loollool....",
+        "...dlnoloonl....",
+        "...lllnoonlll...",
+        "..lnoooolooonl..",
+        ".0llnnloolnnld0.",
+        ".0dmlllnnlllmd0.",
+        ".0bjmmkllkkmjb0.",
+        ".02bhjmmmmjhb20.",
+        "..02bffiiffb200.",
+        "...02200002200..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ll..ll.....",
+        "....loollool....",
+        "...dlnoloonl....",
+        "...lllnoonlll...",
+        "..lnoooolooonl..",
+        ".0llnnloolnnld0.",
+        ".0dmlllnnlllmd0.",
+        ".0djmmkllkkmjd0.",
+        ".026hjmmmmjh620.",
+        "..026hhjjhh6200.",
+        "...09210012900..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ll..ll.....",
+        "....loollool....",
+        "...dlnoloonl....",
+        "...lllnoonlll...",
+        "..lnoooolooonl..",
+        ".0llnnloolnnld0.",
+        ".0dmlllnnlllmd0.",
+        ".02jmmkllkkmj20.",
+        ".009hjmmmmjh900.",
+        "..0092hjjh29000.",
+        "...00000000000..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ll..ll.....",
+        "....loollool....",
+        "...dlnoloonl....",
+        "...lllnoonlll...",
+        "..lnoooolooonl..",
+        ".0llnnloolnnld0.",
+        ".0dmlllnnlllmd0.",
+        ".0djmmkllkkmjd0.",
+        ".026hjmmmmjh620.",
+        "..026hhjjhh6200.",
+        "...09210012900..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        ".....ll..ll.....",
+        "....loollool....",
+        "...dlnoloonl....",
+        "...lllnoonlll...",
+        "..lnoooolooonl..",
+        ".0llnnloolnnld0.",
+        ".0dmlllnnlllmd0.",
+        ".08jmmkllkkmj80.",
+        ".028hjmmmmjh820.",
+        "..028ccggcc8200.",
+        "...02200002200..",
+        "....000000000...",
+        "................",
+        "................"
+      ],
+      [
+        "................",
+        "................",
+        "................",
+        ".....ll..ll.....",
+        "....loollool....",
+        "...dlnoloonl....",
+        "..0lllnoonlll0..",
+        ".0lnoooolooonl0.",
+        ".0llnnloolnnld0.",
+        ".0dmlllnnlllmd0.",
+        ".03jmmkllkkmj30.",
+        ".213hjmmmmjh312.",
+        "..213447744312..",
+        "...2210000122...",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "sway": "animation"
+  },
+  "animationFps": {
+    "sway": 4
+  },
+  "animationLoop": {
+    "sway": true
+  },
+  "sourcePalette": {
+    "0": "#006da8",
+    "1": "#00a5d7",
+    "2": "#00cdf9",
+    "3": "#046798",
+    "4": "#066e98",
+    "5": "#085f82",
+    "6": "#0897b1",
+    "7": "#097597",
+    "8": "#0a5c7a",
+    "9": "#0cf1ff",
+    "a": "#0d6e83",
+    "b": "#0e5567",
+    "c": "#106f7b",
+    "d": "#134c4c",
+    "e": "#157f81",
+    "f": "#166f69",
+    "g": "#1a8379",
+    "h": "#1e6f50",
+    "i": "#248c66",
+    "j": "#33984b",
+    "k": "#5ac54f",
+    "l": "#8e251d",
+    "m": "#99e65f",
+    "n": "#ffa214",
+    "o": "#ffeb57"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Lillypad_Green_5_Anim.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Water_Decor_Animations/Water_Plants/Lillypad_Green_5_Anim.png",
+  "sourceRegions": {
+    "sway": [
+      [
+        0,
+        0,
+        16,
+        16
+      ],
+      [
+        16,
+        0,
+        16,
+        16
+      ],
+      [
+        32,
+        0,
+        16,
+        16
+      ],
+      [
+        48,
+        0,
+        16,
+        16
+      ],
+      [
+        64,
+        0,
+        16,
+        16
+      ],
+      [
+        80,
+        0,
+        16,
+        16
+      ],
+      [
+        96,
+        0,
+        16,
+        16
+      ],
+      [
+        112,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,22 @@
+[Unit]
+Description=Orchard & Cellar frontend
+Wants=network-online.target orchard-world.service
+After=network-online.target orchard-world.service
+
+[Service]
+Type=simple
+User=toby
+Group=toby
+WorkingDirectory=/home/toby/projects/orchard-cellar
+Environment=HOME=/home/toby
+Environment=PATH=/home/toby/.nvm/versions/node/v24.19.0/bin:/home/toby/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStart=/home/toby/.nvm/versions/node/v24.19.0/bin/npm run dev -w @orchard/client -- --host 10.0.1.150
+Restart=always
+RestartSec=3
+TimeoutStopSec=30
+KillSignal=SIGINT
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

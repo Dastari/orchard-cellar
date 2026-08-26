@@ -1,0 +1,28 @@
+node_modules/
+dist/
+coverage/
+build/
+packages/client/public/generated/
+packages/assets/review/
+# Raw source captures and licensed asset packs are local-only. Their terms do not
+# permit redistribution.
+references/
+
+# Local databases and runtime state.
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-*
+*.dump
+*.log
+*.pid
+.env
+.env.*
+!.env.example
+!**/.env.example
+.spacetime-data/
+spacetime-data/
+.world-smoke-tokens.json
+packages/world/dist/

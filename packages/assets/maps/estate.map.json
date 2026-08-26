@@ -1,0 +1,665 @@
+{
+  "name": "estate",
+  "size": [
+    64,
+    64
+  ],
+  "legend": {
+    "g": "grass_base",
+    "d": "grass_detail",
+    "p": "path",
+    "s": "soil",
+    "w": "water",
+    "h": "hillside",
+    ".": "empty",
+    "r": "water_detail"
+  },
+  "layers": {
+    "ground": [
+      "dggggggggggggdggggggggggggdggggggggggggdggggggggggggdggggggggggg",
+      "ggggdggggggggggggdggggggggggggdggggggggggggdggggggggggggdggggggg",
+      "ggggggggdggggggggggggdggggggggggggdggggggggggggdggggggggggggdggg",
+      "ggggggggggggdggggggggggggdggggggggggggdggggggggggggdgggggggggggg",
+      "gggdggggggggggggdggggggggggggdggggggggggggdggggggggggggdgggggggg",
+      "gggggggdggggggggggggdggggggggggggdggggggggggggdggggggggggggdgggg",
+      "gggggggggggdggggggggggggdggggggggggggdggggggggggggdggggggggggggd",
+      "ggdggggggggggggdggggggggggggdggggggggggggdggggggggggggdggggggggg",
+      "ggggggdggggggggggggdggggggggggggdggggggggggggdggggggggggggdggggg",
+      "ggggggggggdggggggggggggdggggggggggggdggggggggggggdggggggggggggdg",
+      "gdggggggggggggdggggggggggggpppggggggggggdggggggggggggdgggggggggg",
+      "gggggdggggggggggggdggggggggpppgdggggggggggggdggggggggggggdgggggg",
+      "gggggggggdggggggggggggdggggpppgggggdggggggggggggdggggggggggggdgg",
+      "dggggggggggggdggggggggggggdpppgggggggggdggggggggggggdggggggggggg",
+      "ggggdggggggggggggdgggggggggpppdggggggggggggdggggggggggggdggggggg",
+      "ggggggggsssgsssgsssgsssggggpppggggdggggggggggggdggggggggggggdggg",
+      "ggggggggsssgsssgsssgsssggdgpppggggggggdggggggggggggdgggggggggggg",
+      "gggdggggsssgsssgsssgsssggggpppggggggggggggdggggggggggggdgggggggg",
+      "gggggggdsssgsssgsssgsssggggpppgggdssssssgggggggggggggggggggdgggg",
+      "gggggggggggdggggggggggggdggpppggggssssssgggggggwwwwwgggggggggggd",
+      "ggdgggggsssgsssdsssgsssggggpppgpppssssssgdgggwwwwwwwwwgggggggggg",
+      "ggggggdgsssgsssgsssdsssggggpppggdgssssssgggggwwrwwwrwwggggdggggg",
+      "ggggggggsssgsssgsssgsssdgggpppggggssssssggggwwwwwwwwwwwgggggggdg",
+      "gdggggggsssgsssgsssgsssggggpppggggssssssdgggwwwwwwwwwwwggggggggg",
+      "gggggdggggggggggggdggggggggpppgdggggggggggggwrwwwrwwwwwggdgggggg",
+      "ggggggggsssgsssgsssgsssggggpppgggggdgggggggggwwwwwwwwrgggggggdgg",
+      "dgggggggsssgsssgsssgsssgggdpppgggggggggdgggggwwwwwwwwwgggggggggg",
+      "ggggdgggsssgsssgsssgsssggggpppdggggggggggggdgggrwwwwggggdggggggg",
+      "ggggggggsssgsssgsssgsssggggpppggggdgggggggggggggggggggggggggdggg",
+      "ggggggggggggdggggggggggggdgpppggggggggdggggggggggggdgggggggggggg",
+      "gggdggggsssgsssgsssgsssggggpppggggggggggggdggggggggggggdgggggggg",
+      "gggggggdsssgsssgsssgsssggggpppgggdggggggggggggdggggggggggggdgggg",
+      "ggggggggsssdsssgsssgsssgdggpppgggggggdggggggggggggdggggggggggggd",
+      "ggdgggggsssgsssdsssgsssggggpppggggggggggggggggggggggggdggggggggg",
+      "ggggggdggggggggggggdgggggggpppggdggggggggggggdggggggggggggdggggg",
+      "ggggggggsssgsssgsssgsssdgggpppggggggggggggggggggdgggggggggggggdg",
+      "gdggggggsssgsssgsssgsssggggpppggggggggggggggggggggdggggggggggggg",
+      "gggggdggsssgsssgsssgsssggggpppgdggggggggggggdggggggggggggdgggggg",
+      "ggggggggsssgsssgsssgsssggggpppgggggdggggggggggggdggggggggggggdgg",
+      "dggggggggggggdggggggggggggdpppgggggggggdggggggggggggdggggggggggg",
+      "ggggdggggggggggggdgggggggggpppdggggggggggggdggggggggggggdggggggg",
+      "ggggggggdggggggggggggdgggggpppggggdggggggggggggdggggggggggggdggg",
+      "ggggggggggggdggggggggggggdgpppggggggggdggggggggggggdgggggggggggg",
+      "gggdggggggggggggdggggggggggpppggggggggggggdggggggggggggdgggggggg",
+      "gggggggdggggggggggggdggggggppppppppppgggggggggdggggggggggggdgggg",
+      "gggggggggggdggggggggggggdggppppppppppdggggggggggdggggggggggggggd",
+      "ggdggggggggggggdgggggggggggppppppppppgggggggggggggdggggggggggggg",
+      "ggggggdggggggggggggdggggggggggggdggggggggggggdggggggggggggdggggg",
+      "hhhhhhhhhhhhhhhhhhhhgggdggggggggggggdggggggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhgggggggdggggggggggggdggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhgggggggggggdgggggggggggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhggdggggggggggggdgggggggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhggggggdggggggggggggdgggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhggggggggggdggggggggggggdhhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhgdggggggggggggdggggggggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhgggggdggggggggggggdggggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhgggggggggdggggggggggggdghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhdggggggggggggdgggggggggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhggggdggggggggggggdgggggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhggggggggdggggggggggggdgghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhggggggggggggdggggggggggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhgggdggggggggggggdggggggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhgggggggdggggggggggggdggghhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhgggggggggggdgggggggggggghhhhhhhhhhhhhhhhhhhh"
+    ],
+    "detail": [
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................"
+    ],
+    "canopy": [
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................",
+      "................................................................"
+    ]
+  },
+  "objects": [
+    {
+      "asset": "farmhouse",
+      "animation": "base",
+      "x": 28,
+      "y": 11
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 12,
+      "y": 17
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 16,
+      "y": 17
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 20,
+      "y": 17
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 12,
+      "y": 22
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 16,
+      "y": 22
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 20,
+      "y": 22
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 12,
+      "y": 27
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 16,
+      "y": 27
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 20,
+      "y": 27
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 12,
+      "y": 32
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 16,
+      "y": 32
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 20,
+      "y": 32
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 12,
+      "y": 37
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 16,
+      "y": 37
+    },
+    {
+      "asset": "tree_apple_fruiting",
+      "animation": "fruiting",
+      "x": 20,
+      "y": 37
+    },
+    {
+      "asset": "prop_basket_press",
+      "animation": "base",
+      "x": 10,
+      "y": 47
+    },
+    {
+      "asset": "cellar_door",
+      "animation": "base",
+      "x": 36,
+      "y": 46
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 9,
+      "y": 15
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 11,
+      "y": 15
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 13,
+      "y": 15
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 15,
+      "y": 15
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 17,
+      "y": 15
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 19,
+      "y": 15
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 21,
+      "y": 15
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 23,
+      "y": 15
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 17
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 19
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 21
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 23
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 25
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 27
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 29
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 31
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 33
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 35
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 37
+    },
+    {
+      "asset": "prop_cf_fence_vertical",
+      "animation": "base",
+      "x": 7,
+      "y": 39
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 9,
+      "y": 40
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 11,
+      "y": 40
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 13,
+      "y": 40
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 15,
+      "y": 40
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 17,
+      "y": 40
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 19,
+      "y": 40
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 21,
+      "y": 40
+    },
+    {
+      "asset": "prop_cf_fence_horizontal",
+      "animation": "base",
+      "x": 23,
+      "y": 40
+    },
+    {
+      "asset": "prop_cf_fence_white_horizontal",
+      "animation": "base",
+      "x": 35,
+      "y": 18
+    },
+    {
+      "asset": "prop_cf_fence_white_horizontal",
+      "animation": "base",
+      "x": 37,
+      "y": 18
+    },
+    {
+      "asset": "prop_cf_fence_white_horizontal",
+      "animation": "base",
+      "x": 39,
+      "y": 18
+    },
+    {
+      "asset": "prop_cf_fence_white_horizontal",
+      "animation": "base",
+      "x": 35,
+      "y": 24
+    },
+    {
+      "asset": "prop_cf_fence_white_horizontal",
+      "animation": "base",
+      "x": 37,
+      "y": 24
+    },
+    {
+      "asset": "prop_cf_fence_white_horizontal",
+      "animation": "base",
+      "x": 39,
+      "y": 24
+    },
+    {
+      "asset": "building_cf_greenhouse",
+      "animation": "base",
+      "x": 39,
+      "y": 17
+    },
+    {
+      "asset": "building_cf_barn",
+      "animation": "base",
+      "x": 50,
+      "y": 42
+    },
+    {
+      "asset": "building_cf_windmill",
+      "animation": "base",
+      "x": 58,
+      "y": 42
+    },
+    {
+      "asset": "prop_cf_pond",
+      "animation": "base",
+      "x": 40,
+      "y": 36
+    },
+    {
+      "asset": "crop_cf_wheat_mature",
+      "animation": "base",
+      "x": 34,
+      "y": 20
+    },
+    {
+      "asset": "crop_cf_tomato_mature",
+      "animation": "base",
+      "x": 36,
+      "y": 20
+    },
+    {
+      "asset": "crop_cf_carrot_mature",
+      "animation": "base",
+      "x": 38,
+      "y": 20
+    },
+    {
+      "asset": "crop_cf_corn_mature",
+      "animation": "base",
+      "x": 34,
+      "y": 22
+    },
+    {
+      "asset": "crop_cf_pumpkin_mature",
+      "animation": "base",
+      "x": 36,
+      "y": 22
+    },
+    {
+      "asset": "crop_cf_grapes_mature",
+      "animation": "base",
+      "x": 38,
+      "y": 22
+    },
+    {
+      "asset": "prop_cf_barrel",
+      "animation": "base",
+      "x": 44,
+      "y": 42
+    },
+    {
+      "asset": "prop_cf_barrel_apples",
+      "animation": "base",
+      "x": 43,
+      "y": 42
+    },
+    {
+      "asset": "prop_cf_flowers_pink",
+      "animation": "base",
+      "x": 25,
+      "y": 12
+    },
+    {
+      "asset": "prop_cf_flowers_gold",
+      "animation": "base",
+      "x": 32,
+      "y": 15
+    },
+    {
+      "asset": "prop_cf_flowers_pink",
+      "animation": "base",
+      "x": 35,
+      "y": 34
+    },
+    {
+      "asset": "prop_cf_flowers_gold",
+      "animation": "base",
+      "x": 44,
+      "y": 36
+    },
+    {
+      "asset": "tree_cf_fruit_mature",
+      "animation": "base",
+      "x": 5,
+      "y": 16
+    },
+    {
+      "asset": "tree_cf_fruit_fruiting",
+      "animation": "base",
+      "x": 59,
+      "y": 20
+    },
+    {
+      "asset": "tree_cf_fruit_mature",
+      "animation": "base",
+      "x": 34,
+      "y": 39
+    },
+    {
+      "asset": "tree_cf_fruit_fruiting",
+      "animation": "base",
+      "x": 58,
+      "y": 47
+    },
+    {
+      "asset": "prop_cf_pond",
+      "animation": "base",
+      "x": 41,
+      "y": 46
+    }
+  ],
+  "transitions": [
+    {
+      "x": 36,
+      "y": 45,
+      "radius": 2,
+      "target": "cellar"
+    }
+  ]
+}

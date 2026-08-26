@@ -1,0 +1,57 @@
+{
+  "name": "ui_cf_bar_fill_green",
+  "category": "ui",
+  "size": [
+    30,
+    5
+  ],
+  "anchor": [
+    15,
+    2
+  ],
+  "frames": {
+    "base": [
+      [
+        ".1111111111111111111111111111.",
+        "113133333333333333333333340001",
+        "131313333333333333333333340001",
+        "112122222222222222222222230001",
+        ".1111111111111111111111111111."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#181425",
+    "2": "#3e8948",
+    "3": "#63c74d",
+    "4": "#fee761"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Bars.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Bars.png",
+  "sourceRegions": {
+    "base": [
+      [
+        65,
+        1,
+        30,
+        5
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "tags": [
+    "ui.bar",
+    "ui.bar.fill",
+    "ui.color.green"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

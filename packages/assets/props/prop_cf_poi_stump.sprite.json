@@ -1,0 +1,70 @@
+{
+  "name": "prop_cf_poi_stump",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......1111......",
+        "....11666611....",
+        "...1565555651...",
+        "...1565555651...",
+        "...1116666111...",
+        "...1321111331...",
+        "..143312212341..",
+        "..144313212441..",
+        ".14431234112341.",
+        ".142112441012341",
+        "1421001341000000",
+        "000000113410000.",
+        "..0000000000....",
+        ".....000000....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#3f2832",
+    "2": "#743f39",
+    "3": "#91533b",
+    "4": "#b86f50",
+    "5": "#e4a672",
+    "6": "#ead4aa"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Outdoor_Decor.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        96,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.poi",
+    "decor.stump",
+    "decor.permanent"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

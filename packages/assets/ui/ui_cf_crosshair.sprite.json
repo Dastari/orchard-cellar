@@ -1,0 +1,67 @@
+{
+  "name": "ui_cf_crosshair",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    8
+  ],
+  "frames": {
+    "idle": [
+      [
+        "................",
+        ".......00.......",
+        "......0110......",
+        "......0110......",
+        "......0110......",
+        ".......00.......",
+        "..000......000..",
+        ".01110....01110.",
+        ".01110....01110.",
+        "..000......000..",
+        ".......00.......",
+        "......0110......",
+        "......0110......",
+        "......0110......",
+        ".......00.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "idle": "state"
+  },
+  "sourcePalette": {
+    "0": "#181425",
+    "1": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Crosshairs.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Crosshairs.png",
+  "sourceRegions": {
+    "idle": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "uiRequiredStates": [
+    "idle"
+  ],
+  "tags": [
+    "ui.cursor",
+    "ui.crosshair"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

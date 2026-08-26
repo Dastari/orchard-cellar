@@ -1,0 +1,16 @@
+[Unit]
+Description=Back up Orchard Keycloak PostgreSQL
+Requires=docker.service
+After=docker.service
+ConditionPathExists=/home/toby/services/orchard-auth/.smb-credentials
+
+[Service]
+Type=oneshot
+User=toby
+Group=toby
+WorkingDirectory=/home/toby/services/orchard-auth
+ExecStart=/home/toby/services/orchard-auth/bin/backup.sh
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

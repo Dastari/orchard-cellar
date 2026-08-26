@@ -1,0 +1,49 @@
+{
+  "name": "effect_cf_rain_streak",
+  "category": "effects",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "........0.......",
+        ".......0........",
+        "......0.........",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#0cf1ff7d"
+  },
+  "sourcePath": "references/Cute_Fantasy/Weather effects/Rain_Drop.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Rain_Drop.png",
+  "tags": [
+    "effect.weather",
+    "effect.rain"
+  ],
+  "placement": {
+    "layer": "effect",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "tool_swing",
+  "category": "world",
+  "bus": "sfx",
+  "gainDb": -11,
+  "polyphony": 2,
+  "synth": {
+    "wave": "triangle",
+    "frequencyHz": 210,
+    "attackMs": 5,
+    "decayMs": 105,
+    "sustain": 0,
+    "releaseMs": 48,
+    "slideHzPerSecond": -520,
+    "noiseMix": 0.62,
+    "filter": {
+      "type": "lowpass",
+      "frequencyHz": 1450,
+      "q": 0.58
+    },
+    "reverbSend": 0.08
+  },
+  "jitter": {
+    "pitch": [
+      -0.05,
+      0.05
+    ],
+    "decay": [
+      -0.1,
+      0.1
+    ],
+    "gainDb": [
+      -0.8,
+      0.5
+    ]
+  }
+}

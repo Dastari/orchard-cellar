@@ -1,0 +1,39 @@
+{
+  "name": "icon_resource_must",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".......SS.......",
+        "......SFFS......",
+        "......SFFS......",
+        ".....SHHFFS.....",
+        ".....SHHFFS.....",
+        "....SFHHFFFS....",
+        "...SFGGFFEEES...",
+        "...SFGGFFEEES...",
+        "...SFFFFFEEES...",
+        "....SFFDDDDS....",
+        ".....SSDDDD.....",
+        ".......SS.......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "approved": true
+}
+

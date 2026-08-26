@@ -1,0 +1,43 @@
+{
+  "name": "tile_grass",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".....2...221....",
+        ".....12.21100...",
+        "....012..000....",
+        "....011.........",
+        "....011..222....",
+        ".....01.22100...",
+        "........2100....",
+        "........100.....",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "Grass_3_Anim.png",
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#33713b",
+    "2": "#50af5d"
+  },
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Grass_Animations/Grass_3_Anim.png",
+  "sourcePaletteMode": "exact"
+}

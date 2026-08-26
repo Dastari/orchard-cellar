@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly Orchard authentication backup
+
+[Timer]
+OnCalendar=*-*-* 03:17:00 Australia/Hobart
+Persistent=true
+RandomizedDelaySec=20m
+Unit=orchard-auth-backup.service
+
+[Install]
+WantedBy=timers.target

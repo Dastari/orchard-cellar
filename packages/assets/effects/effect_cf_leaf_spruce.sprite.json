@@ -1,0 +1,47 @@
+{
+  "name": "effect_cf_leaf_spruce",
+  "category": "effects",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".......0........",
+        "...00.010.00....",
+        "...010023010....",
+        "....0102320.....",
+        ".....02300......",
+        "......30420.....",
+        ".....3..00......",
+        "....3...........",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#091b15",
+    "1": "#3f886c",
+    "2": "#37625b",
+    "3": "#3f2832",
+    "4": "#193c3e"
+  },
+  "sourcePath": "references/Cute_Fantasy/Trees/Spruce_Needle_Particle.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Spruce_Needle_Particle.png",
+  "tags": ["effect.weather", "effect.wind", "effect.leaf"],
+  "placement": { "layer": "effect", "builderAvailable": false }
+}

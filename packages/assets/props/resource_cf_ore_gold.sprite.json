@@ -1,0 +1,77 @@
+{
+  "name": "resource_cf_ore_gold",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "........222.....",
+        ".111..226562.11.",
+        ".19912655556191.",
+        ".19871665555981.",
+        "..197144663371..",
+        "..279714433332..",
+        "...177144433111.",
+        ".112444444319910",
+        ".191444443389810",
+        ".189244443387100",
+        ".017444443333200",
+        "..00004433330000",
+        "...000000000000.",
+        ".....00000000...",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#0c2e44",
+    "2": "#262b44",
+    "3": "#3c4258",
+    "4": "#6c7c9d",
+    "5": "#8e9ab4",
+    "6": "#c7cfdd",
+    "7": "#feae34",
+    "8": "#fee761",
+    "9": "#fff7d2"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        32,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "resource.mineable",
+    "resource.ore",
+    "ore.gold"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

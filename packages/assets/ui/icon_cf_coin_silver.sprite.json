@@ -1,0 +1,49 @@
+{
+  "name": "icon_cf_coin_silver",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......SSSS......",
+        "....SCCCCCBS....",
+        "...SCBBBBBBAS...",
+        "...SCBByyBBAS...",
+        "..SCBBCyyyBBAS..",
+        "..SCBByyyyBBAS..",
+        "..SCBBByyBBAAS..",
+        "..SBBBBBBAAAAS..",
+        "...SBBAAAAAAS...",
+        "...SAAAAAAzzS...",
+        "....SAAAAzzS....",
+        "......SSSS......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "tags": [
+    "ui.icon",
+    "currency.coin",
+    "currency.silver"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

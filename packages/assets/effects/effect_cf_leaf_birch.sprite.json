@@ -1,0 +1,48 @@
+{
+  "name": "effect_cf_leaf_birch",
+  "category": "effects",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".........000....",
+        ".......00120....",
+        "......013230....",
+        ".....013230.....",
+        ".....012340.....",
+        ".....05440......",
+        "....05400.......",
+        "....050.........",
+        ".....0..........",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#4f3f22",
+    "1": "#deae4f",
+    "2": "#826327",
+    "3": "#c6942f",
+    "4": "#ae8129",
+    "5": "#dfddce"
+  },
+  "sourcePath": "references/Cute_Fantasy/Trees/Birch_Leaf_Particle.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Birch_Leaf_Particle.png",
+  "tags": ["effect.weather", "effect.wind", "effect.leaf"],
+  "placement": { "layer": "effect", "builderAvailable": false }
+}

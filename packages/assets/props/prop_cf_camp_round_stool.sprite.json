@@ -1,0 +1,74 @@
+{
+  "name": "prop_cf_camp_round_stool",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....111111.....",
+        "....15666651....",
+        "...1565555651...",
+        "...1565555651...",
+        "...1456666521...",
+        "...1444332221...",
+        "...14433332210..",
+        "...14433332210..",
+        "...01433332100..",
+        "...00111111000..",
+        "....000000000...",
+        ".....0000000....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#3f2832",
+    "2": "#743f39",
+    "3": "#91533b",
+    "4": "#b86f50",
+    "5": "#e4a672",
+    "6": "#ead4aa"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Camp_Decor.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Camp_Decor.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.landmark",
+    "camp.seat",
+    "decor.permanent"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

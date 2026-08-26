@@ -1,0 +1,67 @@
+{
+  "name": "ui_cf_coin_silver",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    8
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        "....00333300....",
+        "...0332222330...",
+        "..032222222230..",
+        "..032222222230..",
+        ".03222222222230.",
+        ".03222222222230.",
+        ".01322222222310.",
+        ".01322222222310.",
+        "..013322223310..",
+        "..011133331110..",
+        "...0111111110...",
+        "....00111100....",
+        "......0000......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#181425",
+    "1": "#8b9bb4",
+    "2": "#c0cbdc",
+    "3": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Buttons.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Buttons.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        80,
+        16,
+        16
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "tags": [
+    "ui.currency",
+    "ui.coin",
+    "ui.material.silver"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

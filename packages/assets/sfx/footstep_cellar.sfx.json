@@ -1,0 +1,38 @@
+{
+  "name": "footstep_cellar",
+  "category": "footstep",
+  "bus": "sfx",
+  "gainDb": -18,
+  "polyphony": 3,
+  "synth": {
+    "wave": "sine",
+    "frequencyHz": 136,
+    "attackMs": 2,
+    "decayMs": 62,
+    "sustain": 0,
+    "releaseMs": 34,
+    "slideHzPerSecond": -50,
+    "noiseMix": 0.18,
+    "filter": {
+      "type": "lowpass",
+      "frequencyHz": 920,
+      "q": 0.8
+    },
+    "reverbSend": 0.24
+  },
+  "jitter": {
+    "pitch": [
+      -0.05,
+      0.05
+    ],
+    "decay": [
+      -0.1,
+      0.1
+    ],
+    "gainDb": [
+      -1,
+      0.8
+    ]
+  }
+}
+
