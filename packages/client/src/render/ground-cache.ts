@@ -183,7 +183,7 @@ export class GroundChunkCache {
     viewportHeight: number,
   ): number {
     this.chunks.setCapacity(groundCacheCapacityForViewport(viewportWidth, viewportHeight, scale));
-    const key = `${terrain.seed}:${terrain.version}`;
+    const key = `${terrain.spaceId}:${terrain.seed}:${terrain.version}`;
     if (key !== this.terrainKey) {
       this.terrainKey = key;
       this.chunks.clear();

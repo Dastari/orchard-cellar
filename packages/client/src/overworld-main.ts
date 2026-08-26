@@ -8,13 +8,13 @@ import {
   SIM_TICKS_PER_SECOND,
   SURVIVAL_CHUNK_TILES,
   SURVIVAL_WORLD_SEED,
-  SURVIVAL_WORLD_SIZE,
   SURVIVAL_WORLD_VERSION,
   TILE_SIZE_FIXED,
   TICKS_PER_DAY,
   TOOL_VIGOUR_BALANCE,
   EFFECT_KINDS,
   EFFECT_DEFINITIONS,
+  TOPSIDE_SPACE_ID,
   authorityDayProgress,
   authorityTickAtDayProgress,
   avatarActionForEquippedKind,
@@ -45,12 +45,14 @@ import {
   modifiersForEffects,
   playerHitboxBounds,
   survivalBiomeAt,
+  spaceDefinitionFor,
   resolveStats,
   resolveModifierTarget,
   type CollisionMap,
   type Direction,
   type EffectKind,
   type PlayerState,
+  type SpaceDefinition,
   type WeatherMode,
   type WindDirectionMode,
   type WildlifeSpecies,
@@ -68,7 +70,7 @@ import {
 import { FixedStepLoop } from './loop.js';
 import { AudioBus } from './audio/audio-bus.js';
 import { readOidcSession } from './auth/oidc.js';
-import type { ChatMessage, PlayerPosition, WorldChest, WorldItem, WorldNpc, WorldResource } from './net/generated/types.js';
+import type { ChatMessage, PlayerPosition, SpacePortal, WorldChest, WorldItem, WorldNpc, WorldResource } from './net/generated/types.js';
 import {
   OverworldConnection,
   viewRadiusForViewport,
@@ -127,7 +129,7 @@ import {
   drawWorldDepthQueue,
   type WorldDepthItem,
 } from './render/renderer.js';
-import { terrainForWorld, type TerrainArray } from './render/terrain.js';
+import { terrainForSpace, terrainForWorld, type TerrainArray } from './render/terrain.js';
 import { interpolateFixedPosition } from './overworld-prediction.js';
 import { isNameplateToggle, OverworldUi } from './ui/overworld-ui.js';
 import { ChatOverlay } from './ui/chat-overlay.js';
@@ -210,6 +212,13 @@ async function submitChatInput(body: string): Promise<void> {
     return await network.sendWhisper(recipient.sender, command.body);
   }
   if (command.kind === 'speech') return await network.sendWorldSpeech(command.speechKind, command.body);
+  if (command.kind === 'debug_space') {
+    portalTransitionStartedAtMs = performance.now();
+    await network.debugUsePortal();
+    toast = 'DEBUG SPACE TRANSIT';
+    toastTicks = 120;
+    return;
+  }
   await network.adminTeleport(command.destination);
   toast = `TELEPORTED TO ${command.destination}`;
   toastTicks = 120;
@@ -254,6 +263,9 @@ let collisionKey = '';
 let observedResourceRevision = -1;
 const initialTerrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
 let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
+let activeSpaceDefinition: SpaceDefinition = spaceDefinitionFor(TOPSIDE_SPACE_ID)!;
+let observedSpaceId = TOPSIDE_SPACE_ID;
+let portalTransitionStartedAtMs = -1;
 let lastNetworkStatus = '';
 let debugCollision = false;
 let debugMetrics = false;
@@ -391,7 +403,7 @@ function setNameplatesVisible(visible: boolean): void {
 
 function resize(): void {
   renderer.resize();
-  const minimum = renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16);
+  const minimum = renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16);
   worldZoomTarget = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoomTarget));
   worldZoom = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoom));
 }
@@ -425,10 +437,14 @@ function playerState(row: PlayerPosition): PlayerState {
 function refreshCollision(snapshot: OverworldView): void {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const nextKey = `${seed}:${version}:${network.resourceRevision}`;
+  const nextKey = `${activeSpaceDefinition.spaceId}:${seed}:${version}:${network.resourceRevision}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
-  worldCollision = createClientCollisionMap(terrainForWorld(seed, version), snapshot.resources, snapshot.chests);
+  worldCollision = createClientCollisionMap(
+    terrainForSpace(activeSpaceDefinition, seed, version),
+    snapshot.resources,
+    snapshot.chests,
+  );
 }
 
 function update(): void {
@@ -438,6 +454,22 @@ function update(): void {
   network.setViewRadius(viewRadiusForViewport(renderer.cssWidth, renderer.cssHeight, worldZoom));
   latestSnapshot = network.view();
   const snapshot = latestSnapshot;
+  const authoritativePosition = network.ownPosition();
+  if (authoritativePosition !== null && authoritativePosition.spaceId !== observedSpaceId) {
+    observedSpaceId = authoritativePosition.spaceId;
+    activeSpaceDefinition = spaceDefinitionFor(observedSpaceId) ?? spaceDefinitionFor(TOPSIDE_SPACE_ID)!;
+    portalTransitionStartedAtMs = performance.now();
+    collisionKey = '';
+    groundCache.invalidateResource(0, 0);
+    remoteBuffers.clear(); remoteDisplay.clear(); previousRemoteDisplay.clear();
+    npcBuffers.clear(); npcDisplay.clear(); projectileBuffers.clear(); projectileDisplay.clear();
+    predicted = playerState(authoritativePosition);
+    previousPredicted = predicted;
+    presentationCorrection.clear();
+    const minimum = renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16);
+    worldZoomTarget = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoomTarget));
+    worldZoom = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoom));
+  }
   if (snapshot.activeChest !== null && overworldUi.openWindow !== 'chest') overworldUi.openWindow = 'chest';
   if (snapshot.activeChest === null && overworldUi.openWindow === 'chest') overworldUi.openWindow = null;
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
@@ -445,8 +477,13 @@ function update(): void {
   }
   const weatherTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
   const calendar = calendarAtTick(Number(weatherTick) * SIM_STEPS_PER_AUTHORITY_TICK);
-  audio.setAmbienceContext(calendar.season, authorityDayProgress(weatherTick), 'estate');
-  const weather = weatherVisualState(worldWeatherMode(), weatherTick, worldWindDirection());
+  audio.setAmbienceContext(
+    calendar.season,
+    authorityDayProgress(weatherTick),
+    activeSpaceDefinition.audioBed === 'cave' || activeSpaceDefinition.audioBed === 'debug' ? 'cellar' : 'estate',
+  );
+  const activeWeather = weatherVisualState(worldWeatherMode(), weatherTick, worldWindDirection());
+  const weather = activeSpaceDefinition.weather ? activeWeather : { ...activeWeather, raining: false };
   rain.update(
     weather.raining,
     renderer.cssWidth,
@@ -761,7 +798,7 @@ function refreshHoveredInteractionTile(): void {
       predicted.position.y,
       latestCameraX + worldPointer.x / latestRenderedZoom,
       latestCameraY + worldPointer.y / latestRenderedZoom,
-      SURVIVAL_WORLD_SIZE,
+      activeSpaceDefinition.sizeTiles,
     );
 }
 
@@ -850,6 +887,7 @@ function targetMerchant(snapshot: OverworldView): WorldNpc | null {
 }
 
 function targetCampfire(snapshot: OverworldView): { readonly tileX: number; readonly tileY: number } | null {
+  if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return null;
   if (predicted === null || localMount(snapshot) !== null) return null;
   const campfire = generateSurvivalDecorations(snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED)
     .find((decoration) => decoration.kind === 'camp_campfire');
@@ -861,6 +899,16 @@ function targetCampfire(snapshot: OverworldView): { readonly tileX: number; read
   return dx * dx + dy * dy <= (2 * TILE_SIZE_FIXED) ** 2
     ? { tileX: campfire.tileX, tileY: campfire.tileY }
     : null;
+}
+
+function targetPortal(snapshot: OverworldView): SpacePortal | null {
+  const position = network.ownPosition();
+  if (position === null) return null;
+  const tileX = Math.floor(position.x / TILE_SIZE_FIXED);
+  const tileY = Math.floor(position.y / TILE_SIZE_FIXED);
+  return [...snapshot.portals].find((portal) => portal.fromSpace === position.spaceId
+    && Math.abs(portal.fromTileX - tileX) <= 1
+    && Math.abs(portal.fromTileY - tileY) <= 1) ?? null;
 }
 
 function drawPlayerCollisionOverlay(
@@ -907,10 +955,10 @@ function drawCollisionOverlay(
 ): void {
   const minX = Math.max(0, Math.floor(cameraX / 16));
   const minY = Math.max(0, Math.floor(cameraY / 16));
-  const maxX = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraX + viewportWidth / scale) / 16));
-  const maxY = Math.min(SURVIVAL_WORLD_SIZE - 1, Math.ceil((cameraY + viewportHeight / scale) / 16));
+  const maxX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16));
+  const maxY = Math.min(terrain.height - 1, Math.ceil((cameraY + viewportHeight / scale) / 16));
   for (let tileY = minY; tileY <= maxY; tileY += 1) for (let tileX = minX; tileX <= maxX; tileX += 1) {
-    const index = tileY * SURVIVAL_WORLD_SIZE + tileX;
+    const index = tileY * terrain.width + tileX;
     const blocked = worldCollision.blocked[index] ?? true;
     const terrainBlocked = terrain.blocked[index] ?? true;
     context.fillStyle = blocked ? terrainBlocked ? '#ff335577' : '#ff9d2377' : '#55ff8850';
@@ -996,7 +1044,7 @@ function render(alpha = 1): void {
   const scale = frame.layout.integerScale;
   const viewportWidth = frame.layout.width / scale;
   const viewportHeight = frame.layout.height / scale;
-  const worldPixels = SURVIVAL_WORLD_SIZE * 16;
+  const worldPixels = activeSpaceDefinition.sizeTiles * 16;
   const cameraX = cameraAxisOffset(localX, viewportWidth, worldPixels);
   const cameraY = cameraAxisOffset(localY, viewportHeight, worldPixels);
   latestCameraX = cameraX;
@@ -1005,9 +1053,10 @@ function render(alpha = 1): void {
   refreshHoveredInteractionTile();
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const terrain = terrainForWorld(seed, version);
+  const terrain = terrainForSpace(activeSpaceDefinition, seed, version);
   const renderWeatherTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
-  const renderWeather = weatherVisualState(worldWeatherMode(), renderWeatherTick, worldWindDirection());
+  const activeWeather = weatherVisualState(worldWeatherMode(), renderWeatherTick, worldWindDirection());
+  const renderWeather = activeSpaceDefinition.weather ? activeWeather : { ...activeWeather, raining: false };
   const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
   drawCalls += groundCache.draw(context, art, terrain, cameraX, cameraY, scale, frame.layout.width, frame.layout.height);
   drawCalls += drawAnimatedTerrain(
@@ -1027,7 +1076,7 @@ function render(alpha = 1): void {
     context,
     art.dirtTerrace,
     art.farmlandGrassInset,
-    generateMarlowCampPathTiles(),
+    activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? generateMarlowCampPathTiles() : [],
     cameraX,
     cameraY,
     scale,
@@ -1068,7 +1117,8 @@ function render(alpha = 1): void {
   const renderedPlayerAnchors = new Map<string, { readonly x: number; readonly y: number }>();
   const pointLights: PointLight[] = [];
   const windTrees: WindTreeSource[] = [];
-  if (!debugEntitiesHidden) for (const decoration of generateSurvivalDecorations(seed)) {
+  if (!debugEntitiesHidden && activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
+    for (const decoration of generateSurvivalDecorations(seed)) {
     if (isInteractivePoiDecorationKind(decoration.kind)) continue;
     const decorationX = decoration.tileX * 16 + 8;
     const decorationY = (decoration.tileY + 1) * 16;
@@ -1104,6 +1154,7 @@ function render(alpha = 1): void {
         ),
       ),
     });
+    }
   }
   if (!debugEntitiesHidden) for (const resource of snapshot.resources) {
     const resourceX = resource.tileX * 16 + 8;
@@ -1442,7 +1493,9 @@ function render(alpha = 1): void {
     scale,
     frame.layout.width,
     frame.layout.height,
-    ambientAtTick(renderWeatherTick, renderWeather.raining ? 0.12 : 0),
+    activeSpaceDefinition.ambient === 'clock'
+      ? ambientAtTick(renderWeatherTick, renderWeather.raining ? 0.12 : 0)
+      : activeSpaceDefinition.ambient,
     pointLights,
   );
   drawCalls += 1;
@@ -1503,6 +1556,7 @@ function render(alpha = 1): void {
   const uiContext = renderer.beginUi(uiScale);
   const merchant = targetMerchant(snapshot);
   const campfire = targetCampfire(snapshot);
+  const portal = targetPortal(snapshot);
   const horse = targetHorse(snapshot);
   const riding = localMount(snapshot);
   const pickup = targetWorldItem(snapshot);
@@ -1514,7 +1568,9 @@ function render(alpha = 1): void {
     : farmItem === 'hoe' ? (farmSoil === undefined ? '[F] TILL SOIL' : '[RIGHT CLICK] RESTORE GRASS')
       : farmSoil === undefined ? 'TILL SOIL BEFORE WATERING'
         : farmSoil.watered ? 'SOIL ALREADY WATERED' : '[F] WATER SOIL';
-  const prompt = debugEntitiesHidden || npcInteractionUi.active ? null : handsChest !== null
+  const prompt = debugEntitiesHidden || npcInteractionUi.active ? null : portal !== null
+    ? '[E] USE PORTAL'
+    : handsChest !== null
     ? '[F] PLACE CHEST'
     : selectedItem(snapshot) === 'chest'
       ? '[F] PLACE CHEST'
@@ -1685,6 +1741,7 @@ function render(alpha = 1): void {
       `REPLAY ${net.replayDepth} ERROR ${net.reconciliationErrorFixed.toFixed(1)} FIXED`,
       `REMOTE BUFFER ${remoteMin}-${remoteMax} REFRESH ${net.inputRefreshAgeSteps}/${INPUT_REFRESH_STEPS}`,
       `HANDOVERS ${net.handoverCount}${net.persistentInputError === null ? '' : ` INPUT ${net.persistentInputError}`}`,
+      `SPACE ${net.spaceId} SUB/SPACE ${Object.entries(net.perSpaceSubscriptionCounts).map(([spaceId, count]) => `${spaceId}:${count}`).join(' ') || 'NONE'}`,
       `SUB QUERIES ${net.subscriptionQueryCount} CACHE POS ${net.cacheSizes['playerPosition']} RES ${net.cacheSizes['worldResource']} NPC ${net.cacheSizes['worldNpc']} HIVE ${net.cacheSizes['worldHive']}`,
       `CACHE ITEM ${net.cacheSizes['worldItem']} CHEST ${net.cacheSizes['worldChest']} PROJ ${net.cacheSizes['worldProjectile']} CHAT ${net.cacheSizes['chat']}`,
       `UNKNOWN ACTIONS ${[...unknownActionKinds].join(',') || 'NONE'}`,
@@ -1702,6 +1759,14 @@ function render(alpha = 1): void {
     for (let index = 0; index < lines.length; index += 1) {
       drawPixelText(uiContext, art.ui, lines[index] ?? '', 11, 32 + index * 9);
     }
+  }
+  const portalTransitionElapsed = performance.now() - portalTransitionStartedAtMs;
+  if (portalTransitionStartedAtMs >= 0 && portalTransitionElapsed < 250) {
+    uiContext.save();
+    uiContext.globalAlpha = Math.max(0, 1 - portalTransitionElapsed / 250);
+    uiContext.fillStyle = '#0b1020';
+    uiContext.fillRect(0, 0, renderer.cssWidth / uiScale, renderer.cssHeight / uiScale);
+    uiContext.restore();
   }
   renderer.endUi();
   renderMetrics.record(performance.now() - renderStarted, drawCalls);
@@ -1815,7 +1880,7 @@ window.addEventListener('keydown', (event) => {
     else worldZoomTarget = stepWorldZoom(
       worldZoomTarget,
       -1,
-      renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16),
+      renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16),
       MAX_WORLD_ZOOM,
     );
     event.preventDefault();
@@ -1826,7 +1891,7 @@ window.addEventListener('keydown', (event) => {
     else worldZoomTarget = stepWorldZoom(
       worldZoomTarget,
       1,
-      renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16),
+      renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16),
       MAX_WORLD_ZOOM,
     );
     event.preventDefault();
@@ -1953,6 +2018,13 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyE' && !event.repeat) {
+    const portal = targetPortal(latestSnapshot);
+    if (portal !== null) {
+      portalTransitionStartedAtMs = performance.now();
+      showResult(network.usePortal(portal.id), 'PORTAL TRANSIT');
+      event.preventDefault();
+      return;
+    }
     if (targetCampfire(latestSnapshot) !== null) {
       overworldUi.openWindow = 'cooking';
       event.preventDefault();
@@ -2169,7 +2241,7 @@ canvas.addEventListener('wheel', (event) => {
   worldZoomTarget = stepWorldZoom(
     worldZoomTarget,
     event.deltaY > 0 ? -1 : 1,
-    renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16),
+    renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16),
     MAX_WORLD_ZOOM,
   );
 }, { passive: false });
@@ -2203,7 +2275,7 @@ Object.assign(window, {
     predictedPosition: () => predicted === null ? null : { ...predicted.position },
     remoteBufferDepths: () => [...remoteBuffers.entries()].map(([identity, buffer]) => ({ identity, depth: buffer.depth })),
     setWorldZoom: (zoom: number) => {
-      worldZoom = Math.max(renderer.minimumZoom(SURVIVAL_WORLD_SIZE * 16), Math.min(MAX_WORLD_ZOOM, zoom));
+      worldZoom = Math.max(renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16), Math.min(MAX_WORLD_ZOOM, zoom));
       worldZoomTarget = worldZoom;
     },
     setUiScale: (scale: UiScale) => { desiredUiScale = scale; },

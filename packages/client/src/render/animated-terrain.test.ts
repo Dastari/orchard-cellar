@@ -6,6 +6,7 @@ function waterTerrain(): TerrainArray {
   const width = 5;
   const height = 5;
   return {
+    spaceId: 0,
     seed: 1,
     version: 1,
     width,

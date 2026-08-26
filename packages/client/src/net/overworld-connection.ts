@@ -1,6 +1,7 @@
 import {
   INPUT_REFRESH_STEPS, REMOTE_SNAPSHOT_CAPACITY,
-  SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, TILE_SIZE_FIXED, TILE_SIZE_PIXELS,
+  SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, TILE_SIZE_FIXED, TILE_SIZE_PIXELS, TOPSIDE_SPACE_ID,
+  spaceDefinitionFor,
   type CollisionMap, type MoveItemRequest, type PlayerState,
 } from '@orchard/sim';
 import type { Identity } from 'spacetimedb';
@@ -8,7 +9,7 @@ import { DbConnection, tables, type SubscriptionHandle } from './generated/index
 import { localProfilesEnabled, oidcConfigured, readOidcSession } from '../auth/oidc.js';
 import type {
   CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerStats, PlayerSurvival,
-  WorldChest, WorldChestSlot, WorldClock, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
+  SpacePortal, WorldChest, WorldChestSlot, WorldClock, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
 } from './generated/types.js';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
 import { BoundedKeyedQueue, KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
@@ -44,12 +45,18 @@ export function viewRadiusForViewport(canvasWidth: number, canvasHeight: number,
   };
 }
 
-export function subscriptionChunkBounds(chunkX: number, chunkY: number, radius: ViewRadius): {
+export function subscriptionChunkBounds(
+  chunkX: number,
+  chunkY: number,
+  radius: ViewRadius,
+  sizeTiles = SURVIVAL_WORLD_SIZE,
+): {
   readonly minX: number; readonly minY: number; readonly maxX: number; readonly maxY: number;
 } {
+  const chunkCount = Math.max(1, Math.ceil(sizeTiles / SURVIVAL_CHUNK_TILES));
   return { minX: Math.max(0, chunkX - radius.x), minY: Math.max(0, chunkY - radius.y),
-    maxX: Math.min(SURVIVAL_CHUNK_COUNT - 1, chunkX + radius.x),
-    maxY: Math.min(SURVIVAL_CHUNK_COUNT - 1, chunkY + radius.y) };
+    maxX: Math.min(chunkCount - 1, chunkX + radius.x),
+    maxY: Math.min(chunkCount - 1, chunkY + radius.y) };
 }
 
 export function outsideRegionCenterDeadband(
@@ -62,7 +69,11 @@ export function outsideRegionCenterDeadband(
     || Math.abs(tileY - subscribedCenter[1]) > REGION_CENTER_DEADBAND_TILES;
 }
 
-export function regionSubscriptionQueryCount(bounds: ReturnType<typeof subscriptionChunkBounds>): number {
+export function regionSubscriptionQueryCount(
+  bounds: ReturnType<typeof subscriptionChunkBounds>,
+  spaceId = TOPSIDE_SPACE_ID,
+): number {
+  void spaceId;
   return (bounds.maxX - bounds.minX + 1)
     * (bounds.maxY - bounds.minY + 1)
     * REGION_TABLES_PER_CHUNK;
@@ -95,6 +106,7 @@ export interface OverworldView {
   readonly merchants: ReadonlyKeyedStore<bigint, WorldMerchant>;
   readonly wildlifeProfiles: ReadonlyKeyedStore<bigint, WorldWildlifeProfile>;
   readonly hives: ReadonlyKeyedStore<bigint, WorldHive>;
+  readonly portals: ReadonlyKeyedStore<number, SpacePortal>;
   readonly inventorySlots: ReadonlyKeyedStore<number, InventorySlot>;
   readonly effects: ReadonlyKeyedStore<bigint, PlayerEffect>;
   readonly openChestSlots: ReadonlyKeyedStore<number, WorldChestSlot>;
@@ -117,6 +129,7 @@ export interface OverworldSnapshot {
   readonly resources: readonly WorldResource[]; readonly soil: readonly WorldSoil[];
   readonly worldItems: readonly WorldItem[]; readonly projectiles: readonly WorldProjectile[]; readonly chests: readonly WorldChest[]; readonly npcs: readonly WorldNpc[]; readonly merchants: readonly WorldMerchant[];
   readonly wildlifeProfiles: readonly WorldWildlifeProfile[]; readonly hives: readonly WorldHive[];
+  readonly portals: readonly SpacePortal[];
   readonly inventorySlots: readonly InventorySlot[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly chatChannels: readonly ChatChannel[];
   readonly effects: readonly PlayerEffect[];
   readonly chatMessages: readonly ChatMessage[]; readonly worldSpeech: readonly WorldSpeech[];
@@ -131,6 +144,8 @@ export interface NetcodeMetrics {
   readonly inputRefreshAgeSteps: number; readonly handoverCount: number;
   readonly persistentInputError: string | null; readonly lagMs: number; readonly jitterMs: number;
   readonly subscriptionQueryCount: number;
+  readonly spaceId: number;
+  readonly perSpaceSubscriptionCounts: Readonly<Record<string, number>>;
   readonly cacheSizes: Readonly<Record<string, number>>;
 }
 
@@ -151,6 +166,8 @@ export class OverworldConnection {
   private viewRadius: ViewRadius = { x: 1, y: 1 };
   private requestedRadius: ViewRadius = { x: 1, y: 1 };
   private subscribedRadius: ViewRadius = { x: 0, y: 0 };
+  private subscribedSpaceId = TOPSIDE_SPACE_ID;
+  private ownSpaceId = TOPSIDE_SPACE_ID;
   private subscribedCenterTiles: readonly [number, number] | null = null;
   private radiusTimer: number | null = null;
   private pendingRegion: string | null = null;
@@ -197,6 +214,7 @@ export class OverworldConnection {
   private readonly merchants = new KeyedStore<bigint, WorldMerchant>();
   private readonly wildlifeProfiles = new KeyedStore<bigint, WorldWildlifeProfile>();
   private readonly hives = new KeyedStore<bigint, WorldHive>();
+  private readonly portals = new KeyedStore<number, SpacePortal>();
   private readonly inventorySlots = new KeyedStore<number, InventorySlot>();
   private readonly effects = new KeyedStore<bigint, PlayerEffect>();
   private readonly openChestSlots = new KeyedStore<number, WorldChestSlot>();
@@ -256,7 +274,7 @@ export class OverworldConnection {
       identityHex: this.identity === null ? null : identityHex(this.identity), region: this.region,
       profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers,
       resources: this.resources, soil: this.soil, worldItems: this.worldItems, projectiles: this.projectiles, chests: this.chests, npcs: this.npcs, merchants: this.merchants,
-      wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, inventorySlots: this.inventorySlots, effects: this.effects,
+      wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, inventorySlots: this.inventorySlots, effects: this.effects,
       openChestSlots: this.openChestSlots,
       chatChannels: this.chatChannels, chatMessages: this.chatMessages, worldSpeech: this.worldSpeech, motd: this.motd,
       characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest,
@@ -269,7 +287,7 @@ export class OverworldConnection {
     const view = this.view();
     return { ...view, profiles: this.profiles.toArray(), appearances: this.appearances.toArray(),
       players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), chests: this.chests.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
-      wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(),
+      wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(),
       inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot),
       effects: this.effects.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       openChestSlots: this.openChestSlots.toArray().sort((left, right) => left.slot - right.slot),
@@ -308,6 +326,13 @@ export class OverworldConnection {
     return result;
   }
   metrics(): NetcodeMetrics {
+    const perSpaceSubscriptionCounts: Record<string, number> = {
+      [String(this.subscribedSpaceId)]: this.activeRegionQueryCount,
+    };
+    if (this.pendingRegion !== null) {
+      const key = String(this.ownSpaceId);
+      perSpaceSubscriptionCounts[key] = (perSpaceSubscriptionCounts[key] ?? 0) + this.pendingRegionQueryCount;
+    }
     return { rttMs: this.rttEmaMs, replayDepth: this.replayDepth,
       reconciliationErrorFixed: this.reconciliationErrorFixed, inputRefreshAgeSteps: this.inputRefreshAge,
       handoverCount: this.handoverCount, persistentInputError: this.persistentInputError,
@@ -316,6 +341,8 @@ export class OverworldConnection {
         + this.selfSubscriptionQueryCount
         + this.activeRegionQueryCount
         + this.pendingRegionQueryCount,
+      spaceId: this.ownSpaceId,
+      perSpaceSubscriptionCounts,
       cacheSizes: {
         playerPublic: this.profiles.size,
         playerAppearance: this.appearances.size,
@@ -478,6 +505,12 @@ export class OverworldConnection {
   adminTeleport(destination: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.adminTeleport({ destination }));
   }
+  usePortal(portalId: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.usePortal({ portalId }));
+  }
+  debugUsePortal(): Promise<void> {
+    return this.reducer((connection) => connection.reducers.debugUsePortal({}));
+  }
   private reducer(call: (connection: DbConnection) => Promise<unknown>): Promise<void> {
     const connection = this.connection;
     if (!this.connected || connection === null) return Promise.reject(new Error('not_connected'));
@@ -512,7 +545,7 @@ export class OverworldConnection {
 
   private subscribeGlobals(connection: DbConnection): void {
     const queries = [tables.onlinePlayerPublic, tables.onlinePlayerAppearances, tables.worldClock,
-      tables.worldEnvironment, tables.worldWind, tables.worldSeed, tables.worldMerchant];
+      tables.worldEnvironment, tables.worldWind, tables.worldSeed, tables.worldMerchant, tables.spacePortal];
     this.globalSubscriptionQueryCount = queries.length;
     connection.subscriptionBuilder().onApplied(() => this.hydrateGlobals(connection)).onError(() => {
       this.error = 'global_subscription_failed'; this.onChanged();
@@ -549,39 +582,43 @@ export class OverworldConnection {
   }
   private subscribeRegion(connection: DbConnection, position: PlayerPosition, force = false): void {
     const chunkX = position.chunkX; const chunkY = position.chunkY;
+    const spaceId = position.spaceId;
     const centerTiles = [
       Math.floor(position.x / TILE_SIZE_FIXED),
       Math.floor(position.y / TILE_SIZE_FIXED),
     ] as const;
-    const radius = this.viewRadius; const regionKey = `${chunkX},${chunkY},${radius.x},${radius.y}`;
-    const activeRegionKey = `${this.region[0]},${this.region[1]},${this.subscribedRadius.x},${this.subscribedRadius.y}`;
+    const radius = this.viewRadius; const regionKey = `${spaceId}:${chunkX},${chunkY},${radius.x},${radius.y}`;
+    const activeRegionKey = `${this.subscribedSpaceId}:${this.region[0]},${this.region[1]},${this.subscribedRadius.x},${this.subscribedRadius.y}`;
     if (this.pendingRegion !== null || (activeRegionKey === regionKey && this.regionSubscription !== null)) return;
     if (!force && this.regionSubscription !== null
       && !outsideRegionCenterDeadband(this.subscribedCenterTiles, centerTiles[0], centerTiles[1])) return;
     this.pendingRegion = regionKey;
     const positions = []; const resources = []; const soil = []; const worldItems = [];
     const projectiles = []; const chests = []; const npcs = []; const wildlifeProfiles = []; const hives = [];
-    const bounds = subscriptionChunkBounds(chunkX, chunkY, radius);
+    const definition = spaceDefinitionFor(spaceId);
+    const bounds = subscriptionChunkBounds(chunkX, chunkY, radius, definition?.sizeTiles ?? SURVIVAL_WORLD_SIZE);
     for (let y = bounds.minY; y <= bounds.maxY; y += 1) for (let x = bounds.minX; x <= bounds.maxX; x += 1) {
-      positions.push(tables.playerPosition.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      resources.push(tables.worldResource.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      soil.push(tables.worldSoil.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      worldItems.push(tables.worldItem.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      projectiles.push(tables.worldProjectile.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      chests.push(tables.worldChest.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      npcs.push(tables.worldNpc.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      wildlifeProfiles.push(tables.worldWildlifeProfile.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
-      hives.push(tables.worldHive.where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      positions.push(tables.playerPosition.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      resources.push(tables.worldResource.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      soil.push(tables.worldSoil.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      worldItems.push(tables.worldItem.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      projectiles.push(tables.worldProjectile.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      chests.push(tables.worldChest.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      npcs.push(tables.worldNpc.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      wildlifeProfiles.push(tables.worldWildlifeProfile.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
+      hives.push(tables.worldHive.where((row) => row.spaceId.eq(spaceId)).where((row) => row.chunkX.eq(x)).where((row) => row.chunkY.eq(y)));
     }
-    const queryCount = regionSubscriptionQueryCount(bounds);
+    const queryCount = regionSubscriptionQueryCount(bounds, spaceId);
     this.pendingRegionQueryCount = queryCount;
     const previous = this.regionSubscription;
     this.regionSubscription = connection.subscriptionBuilder().onApplied(() => this.latency.incoming(() => {
-      this.region = [chunkX, chunkY]; this.subscribedRadius = radius;
+      this.region = [chunkX, chunkY]; this.subscribedRadius = radius; this.subscribedSpaceId = spaceId;
       this.subscribedCenterTiles = centerTiles; this.pendingRegion = null;
       if (previous?.isActive()) previous.unsubscribe();
       this.activeRegionQueryCount = queryCount; this.pendingRegionQueryCount = 0;
       this.handoverCount += 1; this.resourceRevisionValue += 1; this.onChanged();
+      const current = this.ownPosition();
+      if (current !== null && current.spaceId !== this.subscribedSpaceId) this.subscribeRegion(connection, current, true);
     })).onError(() => {
       this.pendingRegion = null; this.pendingRegionQueryCount = 0;
       this.error = 'region_subscription_failed'; this.onChanged();
@@ -604,6 +641,9 @@ export class OverworldConnection {
     connection.db.worldEnvironment.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.environment = row; }));
     connection.db.worldWind.onInsert((context, row) => incoming(context.event.id, () => { this.wind = row; }));
     connection.db.worldWind.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.wind = row; }));
+    connection.db.spacePortal.onInsert((context, row) => incoming(context.event.id, () => this.portals.set(row.id, row)));
+    connection.db.spacePortal.onUpdate((context, _old, row) => incoming(context.event.id, () => this.portals.set(row.id, row)));
+    connection.db.spacePortal.onDelete((context, row) => incoming(context.event.id, () => this.portals.delete(row.id)));
     connection.db.worldWildlifeProfile.onInsert((context, row) => incoming(context.event.id, () => this.wildlifeProfiles.set(row.npcId, row)));
     connection.db.worldWildlifeProfile.onUpdate((context, _old, row) => incoming(context.event.id, () => this.wildlifeProfiles.set(row.npcId, row)));
     connection.db.worldWildlifeProfile.onDelete((context, row) => incoming(context.event.id, () => this.wildlifeProfiles.delete(row.npcId)));
@@ -693,13 +733,35 @@ export class OverworldConnection {
 
   private setProfile(row: PlayerPublic): void {
     const id = identityHex(row.identity); this.profiles.set(id, row); const position = this.positions.get(id);
-    if (row.online && position !== undefined) this.visiblePlayers.set(id, position); else this.visiblePlayers.delete(id);
+    if (row.online && position !== undefined && position.spaceId === this.ownSpaceId) {
+      this.visiblePlayers.set(id, position);
+    } else this.visiblePlayers.delete(id);
+  }
+  private clearSpaceScopedCaches(): void {
+    this.positions.clear(); this.visiblePlayers.clear(); this.resources.clear(); this.soil.clear();
+    this.worldItems.clear(); this.projectiles.clear(); this.chests.clear(); this.npcs.clear();
+    this.wildlifeProfiles.clear(); this.hives.clear(); this.worldSpeech.clear();
+    this.resourceRevisionValue += 1;
   }
   private setPosition(row: PlayerPosition): void {
-    const id = identityHex(row.identity); this.positions.set(id, row);
+    const id = identityHex(row.identity);
+    const ownRow = this.identity !== null && row.identity.isEqual(this.identity);
+    if (ownRow && row.spaceId !== this.ownSpaceId) {
+      this.ownSpaceId = row.spaceId;
+      this.clearSpaceScopedCaches();
+    }
+    this.positions.set(id, row);
     this.positionCommits.push(id, row);
-    if (this.profiles.get(id)?.online ?? true) this.visiblePlayers.set(id, row); else this.visiblePlayers.delete(id);
-    if (this.identity !== null && row.identity.isEqual(this.identity)) {
+    if ((this.profiles.get(id)?.online ?? true) && row.spaceId === this.ownSpaceId) {
+      this.visiblePlayers.set(id, row);
+    } else this.visiblePlayers.delete(id);
+    if (ownRow) {
+      for (const player of this.positions) {
+        const playerId = identityHex(player.identity);
+        if (player.spaceId === this.ownSpaceId && (this.profiles.get(playerId)?.online ?? true)) {
+          this.visiblePlayers.set(playerId, player);
+        } else this.visiblePlayers.delete(playerId);
+      }
       if (row.lastProcessedSequence > this.sequence) this.sequence = row.lastProcessedSequence;
       if (this.idleRefreshPending && row.lastProcessedSequence >= this.lastIdleSequence) {
         this.idleRefreshPending = false;
@@ -743,6 +805,8 @@ export class OverworldConnection {
       this.wind = [...connection.db.worldWind.iter()][0] ?? null;
       this.merchants.clear();
       for (const row of connection.db.worldMerchant.iter()) this.merchants.set(row.npcId, row);
+      this.portals.clear();
+      for (const row of connection.db.spacePortal.iter()) this.portals.set(row.id, row);
       this.worldSeed = [...connection.db.worldSeed.iter()][0] ?? null; this.onChanged();
     });
   }

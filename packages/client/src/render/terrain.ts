@@ -3,6 +3,7 @@ import {
   SURVIVAL_CLIFF_ROLES,
   SURVIVAL_DIRT_CLIFF_ROLES,
   SURVIVAL_WORLD_SIZE,
+  TOPSIDE_SPACE_ID,
   resolveRaisedTerrainTile,
   survivalCliffRoleBytes,
   survivalBiomeAllowsHorseJump,
@@ -16,6 +17,7 @@ import {
   type RaisedTerrainTilePlan,
   type RaisedTerrainTileSet,
   type SurvivalBiome,
+  type SpaceDefinition,
 } from '@orchard/sim';
 import { blob47FrameIndexFor } from './tilemap.js';
 
@@ -45,6 +47,7 @@ export const BIOME_COLORS = [
 
 const WATER = 0;
 export interface TerrainArray {
+  readonly spaceId: number;
   readonly seed: number;
   readonly version: number;
   readonly width: number;
@@ -58,37 +61,77 @@ export interface TerrainArray {
   readonly dirtTerraces: Uint8Array;
 }
 
-let cachedTerrain: TerrainArray | null = null;
-const terrainClassificationCache = new Map<number, Omit<TerrainArray, 'seed' | 'version'>>();
+const terrainCache = new Map<string, TerrainArray>();
+const terrainClassificationCache = new Map<string, Omit<TerrainArray, 'seed' | 'version'>>();
 
 export function terrainForWorld(seed: number, version: number): TerrainArray {
-  if (cachedTerrain?.seed === seed && cachedTerrain.version === version) return cachedTerrain;
-  let classification = terrainClassificationCache.get(seed);
+  return terrainForSpace({
+    spaceId: TOPSIDE_SPACE_ID,
+    name: 'island',
+    sizeTiles: SURVIVAL_WORLD_SIZE,
+    generator: 'island',
+    ambient: 'clock',
+    weather: true,
+    audioBed: 'estate',
+  }, seed, version);
+}
+
+export function terrainForSpace(space: SpaceDefinition, seed: number, version: number): TerrainArray {
+  const terrainKey = `${space.spaceId}:${seed}:${version}`;
+  const cachedTerrain = terrainCache.get(terrainKey);
+  if (cachedTerrain !== undefined) return cachedTerrain;
+  const classificationKey = `${space.spaceId}:${seed}`;
+  let classification = terrainClassificationCache.get(classificationKey);
   if (!classification) {
-    const biomes = survivalTerrainBytes(seed);
-    classification = {
-      width: SURVIVAL_WORLD_SIZE,
-      height: SURVIVAL_WORLD_SIZE,
-      biomes,
-      blocked: Array.from(biomes, (biome) => (
-        survivalBiomeBlocksMovement(SURVIVAL_BIOMES[biome] ?? 'water')
-      )),
-      horseJumpableTerrain: Array.from(biomes, (biome) => (
-        survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biome] ?? 'water')
-      )),
-      cliffRoles: survivalCliffRoleBytes(seed),
-      plateaus: survivalPlateauBytes(seed),
-      dirtCliffRoles: survivalDirtCliffRoleBytes(seed),
-      dirtTerraces: survivalDirtTerraceBytes(seed),
-    };
-    terrainClassificationCache.set(seed, classification);
+    if (space.generator === 'island') {
+      const biomes = survivalTerrainBytes(seed);
+      classification = {
+        spaceId: space.spaceId,
+        width: SURVIVAL_WORLD_SIZE,
+        height: SURVIVAL_WORLD_SIZE,
+        biomes,
+        blocked: Array.from(biomes, (biome) => (
+          survivalBiomeBlocksMovement(SURVIVAL_BIOMES[biome] ?? 'water')
+        )),
+        horseJumpableTerrain: Array.from(biomes, (biome) => (
+          survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biome] ?? 'water')
+        )),
+        cliffRoles: survivalCliffRoleBytes(seed),
+        plateaus: survivalPlateauBytes(seed),
+        dirtCliffRoles: survivalDirtCliffRoleBytes(seed),
+        dirtTerraces: survivalDirtTerraceBytes(seed),
+      };
+    } else {
+      const length = space.sizeTiles * space.sizeTiles;
+      const plains = Math.max(0, SURVIVAL_BIOMES.indexOf('plains'));
+      const biomes = new Uint8Array(length).fill(plains);
+      const blocked = Array.from({ length }, (_, index) => {
+        const x = index % space.sizeTiles;
+        const y = Math.floor(index / space.sizeTiles);
+        return x === 0 || y === 0 || x === space.sizeTiles - 1 || y === space.sizeTiles - 1;
+      });
+      classification = {
+        spaceId: space.spaceId,
+        width: space.sizeTiles,
+        height: space.sizeTiles,
+        biomes,
+        blocked,
+        horseJumpableTerrain: Array<boolean>(length).fill(false),
+        cliffRoles: new Uint8Array(length),
+        plateaus: new Uint8Array(length),
+        dirtCliffRoles: new Uint8Array(length),
+        dirtTerraces: new Uint8Array(length),
+      };
+    }
+    terrainClassificationCache.set(classificationKey, classification);
   }
-  cachedTerrain = {
+  const terrain = {
     seed,
     version,
     ...classification,
   };
-  return cachedTerrain;
+  terrainCache.set(terrainKey, terrain);
+  return terrain;
 }
 
 export function terrainBiomeAt(terrain: TerrainArray, tileX: number, tileY: number): SurvivalBiome {
