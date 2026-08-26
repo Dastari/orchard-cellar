@@ -122,7 +122,7 @@ describe('overworld art topology', () => {
   it('renders ground drops using their actual inventory item art', () => {
     expect(overworldItemIconKey('axe')).toBe('icon_cf_axe');
     expect(overworldItemIconKey('workbench')).toBe('prop_cf_workbench');
-    expect(overworldItemIconKey('fiber')).toBe('icon_cf_fiber');
+    expect(overworldItemIconKey('fiber')).toBe('item_cf_fiber');
     expect(overworldItemIconKey('future_item')).toBe('system_missing_asset');
   });
 

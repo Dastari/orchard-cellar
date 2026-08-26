@@ -1,0 +1,66 @@
+{
+  "name": "item_cf_fiber",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".........22.....",
+        "........2002....",
+        ".......203302...",
+        ".......2033022..",
+        ".......20313002.",
+        "......2033313302",
+        ".....22031111302",
+        "..2220031310002.",
+        ".2000331100222..",
+        "20333313022.....",
+        "2031311102......",
+        ".20013102.......",
+        "..2201102.......",
+        "...201102.......",
+        "....2002........",
+        ".....22........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#f9e1e1",
+    "2": "#f9e6cf",
+    "3": "#fdf6f6"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Resources_Icons_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/Outline/Resources_Icons_Outline.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        64,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.resource",
+    "material.fiber"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}
