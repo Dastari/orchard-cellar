@@ -144,6 +144,11 @@ deterministic tests.
 
 ## M5.7 — Generated survival island `✅ complete (codex, 2026-08-24)`
 
+**Nested-elevation world revision — IN PROGRESS: codex, 2026-08-26.** Extend the
+live legacy island with deterministic stacked contours, generated semantic crossings,
+elevation-aware collision, and a controlled world-version/resource reconciliation;
+the semi-infinite doc-30 migration remains a later milestone.
+
 Owner-directed M7a foundation pulled forward before deeper farming progression. Build
 the deterministic 192×192 island, biome terrain, 25 safe spawn clearings, generated
 resource nodes, server/client collision parity, y-sorted world rendering, private
