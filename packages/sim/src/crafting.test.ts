@@ -5,6 +5,7 @@ import {
   FENCE_JOIN_SOUTH,
   FENCE_JOIN_WEST,
   PLACEABLE_DEFINITIONS,
+  craftingStationWithinReach,
   fenceJoinMask,
   fiberDropsFromTilling,
 } from './crafting.js';
@@ -36,5 +37,14 @@ describe('28§7 fence joins', () => {
   it('keeps gates in the fence connection family and standing torches passable', () => {
     expect(PLACEABLE_DEFINITIONS.fence_gate.connectsFence).toBe(true);
     expect(PLACEABLE_DEFINITIONS.standing_torch.blocksMovement).toBe(false);
+  });
+});
+
+describe('28§14 workbench proximity', () => {
+  it('accepts the inclusive two-tile boundary and rejects distance three or another space', () => {
+    const player = { spaceId: 0, tileX: 10, tileY: 10 };
+    expect(craftingStationWithinReach(player, { spaceId: 0, tileX: 12, tileY: 12 }, 2)).toBe(true);
+    expect(craftingStationWithinReach(player, { spaceId: 0, tileX: 13, tileY: 10 }, 2)).toBe(false);
+    expect(craftingStationWithinReach(player, { spaceId: 1, tileX: 10, tileY: 10 }, 2)).toBe(false);
   });
 });

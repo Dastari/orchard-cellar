@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { recipeMatches, RECIPES, normalizeShapedRecipe } from './recipes.js';
+import { consumeCraftingRecipe, matchingRecipeId } from './item-containers.js';
 import type { ItemStack } from './item-containers.js';
 
 function grid(entries: Readonly<Record<number, string>>): readonly (ItemStack | null)[] {
@@ -50,5 +51,25 @@ describe('06§12 phases 1–3 crafting recipe goldens', () => {
     expect(RECIPES.fence.output).toEqual({ itemKind: 'fence', quantity: 3 });
     expect(RECIPES.fence_gate.output).toEqual({ itemKind: 'fence_gate', quantity: 1 });
     expect(RECIPES.standing_torch.output).toEqual({ itemKind: 'standing_torch', quantity: 1 });
+  });
+
+  it('28§14 closes the wood + fiber → torch → workbench → fence chain', () => {
+    const craft = (recipeId: keyof typeof RECIPES, slots: readonly (ItemStack | null)[]) => {
+      const grid = { id: 'crafting', capacity: 9, slots };
+      expect(matchingRecipeId(grid)).toBe(recipeId);
+      const result = consumeCraftingRecipe(grid, recipeId);
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error(result.code);
+      return result.crafted;
+    };
+
+    expect(craft('planks', grid({ 4: 'wood' }))).toEqual({ itemKind: 'plank', quantity: 4 });
+    expect(craft('sticks', grid({ 1: 'plank', 4: 'plank' }))).toEqual({ itemKind: 'stick', quantity: 4 });
+    expect(craft('torch', grid({ 2: 'wood', 6: 'fiber' }))).toEqual({ itemKind: 'torch', quantity: 2 });
+    expect(craft('workbench', grid({ 1: 'plank', 2: 'plank', 4: 'plank', 5: 'plank' })))
+      .toEqual({ itemKind: 'workbench', quantity: 1 });
+    expect(RECIPES.fence.station).toBe('workbench');
+    expect(craft('fence', grid({ 0: 'plank', 1: 'stick', 2: 'plank', 3: 'plank', 4: 'stick', 5: 'plank' })))
+      .toEqual({ itemKind: 'fence', quantity: 3 });
   });
 });

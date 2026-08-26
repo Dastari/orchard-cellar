@@ -215,6 +215,18 @@ describe('overworld authority rules', () => {
     expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(false);
   });
 
+  it('28§14 blocks closed placeables but lets open gates and standing lights pass', () => {
+    const collision = createAuthoritySurvivalCollisionMap([], [], 'ground', [
+      { tileX: 20, tileY: 20, blocksMovement: true },
+      { tileX: 21, tileY: 20, blocksMovement: true, open: true },
+      { tileX: 22, tileY: 20, blocksMovement: false },
+    ]);
+    const dynamic = collision.obstacles?.filter((obstacle) => obstacle.top === 20 * TILE_SIZE_FIXED) ?? [];
+    expect(dynamic.some((obstacle) => obstacle.left === 20 * TILE_SIZE_FIXED)).toBe(true);
+    expect(dynamic.some((obstacle) => obstacle.left === 21 * TILE_SIZE_FIXED)).toBe(false);
+    expect(dynamic.some((obstacle) => obstacle.left === 22 * TILE_SIZE_FIXED)).toBe(false);
+  });
+
   it('allows water traversal while blocking shorelines and water rocks', () => {
     const collision = createAuthoritySurvivalCollisionMap([], [], 'water');
     let waterIndex = -1;

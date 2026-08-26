@@ -41,6 +41,7 @@ import ChooseDialogueOptionReducer from "./choose_dialogue_option_reducer";
 import CloseChestReducer from "./close_chest_reducer";
 import CloseCraftingReducer from "./close_crafting_reducer";
 import CloseNpcDialogueReducer from "./close_npc_dialogue_reducer";
+import ClosePlaceableReducer from "./close_placeable_reducer";
 import ConsumeOrchardTeaReducer from "./consume_orchard_tea_reducer";
 import CraftInventoryRecipeReducer from "./craft_inventory_recipe_reducer";
 import CreateChatChannelReducer from "./create_chat_channel_reducer";
@@ -56,12 +57,14 @@ import HeartbeatReducer from "./heartbeat_reducer";
 import InteractChestReducer from "./interact_chest_reducer";
 import InteractHorseReducer from "./interact_horse_reducer";
 import InteractNpcReducer from "./interact_npc_reducer";
+import InteractPlaceableReducer from "./interact_placeable_reducer";
 import InviteChatMemberReducer from "./invite_chat_member_reducer";
 import JoinChatChannelReducer from "./join_chat_channel_reducer";
 import JumpHorseReducer from "./jump_horse_reducer";
 import LeaveChatChannelReducer from "./leave_chat_channel_reducer";
 import MoveChestItemReducer from "./move_chest_item_reducer";
 import MoveInventoryItemReducer from "./move_inventory_item_reducer";
+import MovePlaceableItemReducer from "./move_placeable_item_reducer";
 import PickupWorldItemReducer from "./pickup_world_item_reducer";
 import QuickMoveAllChestItemsReducer from "./quick_move_all_chest_items_reducer";
 import QuickMoveAllInventoryItemsReducer from "./quick_move_all_inventory_items_reducer";
@@ -97,6 +100,7 @@ import OnlinePlayerAppearancesRow from "./online_player_appearances_table";
 import OnlinePlayerPublicRow from "./online_player_public_table";
 import OwnActiveChestRow from "./own_active_chest_table";
 import OwnActiveDialogueRow from "./own_active_dialogue_table";
+import OwnActivePlaceableRow from "./own_active_placeable_table";
 import OwnCharacterProfileRow from "./own_character_profile_table";
 import OwnChatChannelsRow from "./own_chat_channels_table";
 import OwnConnectionNoticesRow from "./own_connection_notices_table";
@@ -105,6 +109,7 @@ import OwnInventoryOverflowRow from "./own_inventory_overflow_table";
 import OwnInventorySlotsRow from "./own_inventory_slots_table";
 import OwnMembershipRow from "./own_membership_table";
 import OwnOpenChestSlotsRow from "./own_open_chest_slots_table";
+import OwnOpenPlaceableSlotsRow from "./own_open_placeable_slots_table";
 import OwnPlayerStatisticMilestonesRow from "./own_player_statistic_milestones_table";
 import OwnPlayerStatisticsRow from "./own_player_statistics_table";
 import OwnStatsRow from "./own_stats_table";
@@ -123,6 +128,7 @@ import WorldHiveRow from "./world_hive_table";
 import WorldItemRow from "./world_item_table";
 import WorldMerchantRow from "./world_merchant_table";
 import WorldNpcRow from "./world_npc_table";
+import WorldPlaceableRow from "./world_placeable_table";
 import WorldProjectileRow from "./world_projectile_table";
 import WorldResourceRow from "./world_resource_table";
 import WorldSeedRow from "./world_seed_table";
@@ -334,6 +340,22 @@ const tablesSchema = __schema({
       { name: 'world_npc_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldNpcRow),
+  worldPlaceable: __table({
+    name: 'world_placeable',
+    indexes: [
+      { accessor: 'id', name: 'world_placeable_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_placeable_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_placeable_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldPlaceableRow),
   worldProjectile: __table({
     name: 'world_projectile',
     indexes: [
@@ -464,6 +486,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnActiveDialogueRow),
+  ownActivePlaceable: __table({
+    name: 'own_active_placeable',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnActivePlaceableRow),
   ownCharacterProfile: __table({
     name: 'own_character_profile',
     indexes: [
@@ -520,6 +549,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnOpenChestSlotsRow),
+  ownOpenPlaceableSlots: __table({
+    name: 'own_open_placeable_slots',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnOpenPlaceableSlotsRow),
   ownPlayerStatisticMilestones: __table({
     name: 'own_player_statistic_milestones',
     indexes: [
@@ -580,6 +616,7 @@ const reducersSchema = __reducers(
   __reducerSchema("close_chest", CloseChestReducer),
   __reducerSchema("close_crafting", CloseCraftingReducer),
   __reducerSchema("close_npc_dialogue", CloseNpcDialogueReducer),
+  __reducerSchema("close_placeable", ClosePlaceableReducer),
   __reducerSchema("consume_orchard_tea", ConsumeOrchardTeaReducer),
   __reducerSchema("craft_inventory_recipe", CraftInventoryRecipeReducer),
   __reducerSchema("create_chat_channel", CreateChatChannelReducer),
@@ -595,12 +632,14 @@ const reducersSchema = __reducers(
   __reducerSchema("interact_chest", InteractChestReducer),
   __reducerSchema("interact_horse", InteractHorseReducer),
   __reducerSchema("interact_npc", InteractNpcReducer),
+  __reducerSchema("interact_placeable", InteractPlaceableReducer),
   __reducerSchema("invite_chat_member", InviteChatMemberReducer),
   __reducerSchema("join_chat_channel", JoinChatChannelReducer),
   __reducerSchema("jump_horse", JumpHorseReducer),
   __reducerSchema("leave_chat_channel", LeaveChatChannelReducer),
   __reducerSchema("move_chest_item", MoveChestItemReducer),
   __reducerSchema("move_inventory_item", MoveInventoryItemReducer),
+  __reducerSchema("move_placeable_item", MovePlaceableItemReducer),
   __reducerSchema("pickup_world_item", PickupWorldItemReducer),
   __reducerSchema("quick_move_all_chest_items", QuickMoveAllChestItemsReducer),
   __reducerSchema("quick_move_all_inventory_items", QuickMoveAllInventoryItemsReducer),
@@ -661,6 +700,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "world_merchant": Omit<typeof tablesSchema.schemaType.tables["worldMerchant"], "accessorName"> & { readonly accessorName: "world_merchant" };
     /** @deprecated Use `worldNpc` instead. This alias will be removed in the next major version. */
     readonly "world_npc": Omit<typeof tablesSchema.schemaType.tables["worldNpc"], "accessorName"> & { readonly accessorName: "world_npc" };
+    /** @deprecated Use `worldPlaceable` instead. This alias will be removed in the next major version. */
+    readonly "world_placeable": Omit<typeof tablesSchema.schemaType.tables["worldPlaceable"], "accessorName"> & { readonly accessorName: "world_placeable" };
     /** @deprecated Use `worldProjectile` instead. This alias will be removed in the next major version. */
     readonly "world_projectile": Omit<typeof tablesSchema.schemaType.tables["worldProjectile"], "accessorName"> & { readonly accessorName: "world_projectile" };
     /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
@@ -707,6 +748,7 @@ const tableAccessorAliases = {
   "world_item": "worldItem",
   "world_merchant": "worldMerchant",
   "world_npc": "worldNpc",
+  "world_placeable": "worldPlaceable",
   "world_projectile": "worldProjectile",
   "world_resource": "worldResource",
   "world_seed": "worldSeed",
@@ -762,6 +804,8 @@ export type DbView = __DbViewBase & {
   readonly "world_merchant": __DbViewBase["worldMerchant"];
   /** @deprecated Use `worldNpc` instead. This alias will be removed in the next major version. */
   readonly "world_npc": __DbViewBase["worldNpc"];
+  /** @deprecated Use `worldPlaceable` instead. This alias will be removed in the next major version. */
+  readonly "world_placeable": __DbViewBase["worldPlaceable"];
   /** @deprecated Use `worldProjectile` instead. This alias will be removed in the next major version. */
   readonly "world_projectile": __DbViewBase["worldProjectile"];
   /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */
@@ -808,6 +852,8 @@ export type Tables = __TablesBase & {
   readonly "world_merchant": __TablesBase["worldMerchant"];
   /** @deprecated Use `worldNpc` instead. This alias will be removed in the next major version. */
   readonly "world_npc": __TablesBase["worldNpc"];
+  /** @deprecated Use `worldPlaceable` instead. This alias will be removed in the next major version. */
+  readonly "world_placeable": __TablesBase["worldPlaceable"];
   /** @deprecated Use `worldProjectile` instead. This alias will be removed in the next major version. */
   readonly "world_projectile": __TablesBase["worldProjectile"];
   /** @deprecated Use `worldResource` instead. This alias will be removed in the next major version. */

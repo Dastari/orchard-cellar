@@ -125,12 +125,20 @@ export interface AuthorityPlacedChest {
   readonly carriedBy?: unknown;
 }
 
+export interface AuthorityPlaceableObstacle {
+  readonly tileX: number;
+  readonly tileY: number;
+  readonly blocksMovement: boolean;
+  readonly open?: boolean;
+}
+
 export function createAuthoritySurvivalCollisionMap(
   resources: readonly AuthoritySurvivalResource[],
   chests: readonly AuthorityPlacedChest[] = [],
   medium: MovementMedium = 'ground',
+  placeables: readonly AuthorityPlaceableObstacle[] = [],
 ): CollisionMap {
-  return createAuthoritySpaceCollisionMap(TOPSIDE_SPACE_ID, resources, chests, medium);
+  return createAuthoritySpaceCollisionMap(TOPSIDE_SPACE_ID, resources, chests, medium, placeables);
 }
 
 export function createAuthoritySpaceCollisionMap(
@@ -138,6 +146,7 @@ export function createAuthoritySpaceCollisionMap(
   resources: readonly AuthoritySurvivalResource[],
   chests: readonly AuthorityPlacedChest[] = [],
   medium: MovementMedium = 'ground',
+  placeables: readonly AuthorityPlaceableObstacle[] = [],
 ): CollisionMap {
   // Terrain is immutable for a space definition. Reusing the cached arrays
   // avoids rebuilding the large topside terrain for every authority tick.
@@ -160,6 +169,17 @@ export function createAuthoritySpaceCollisionMap(
       top: chest.tileY * TILE_SIZE_FIXED,
       right: (chest.tileX + 1) * TILE_SIZE_FIXED - 1,
       bottom: (chest.tileY + 1) * TILE_SIZE_FIXED - 1,
+    });
+  }
+  for (const placeable of medium === 'ground' ? placeables : []) {
+    if (!placeable.blocksMovement || placeable.open === true
+      || placeable.tileX < 0 || placeable.tileY < 0
+      || placeable.tileX >= terrain.width || placeable.tileY >= terrain.height) continue;
+    obstacles.push({
+      left: placeable.tileX * TILE_SIZE_FIXED,
+      top: placeable.tileY * TILE_SIZE_FIXED,
+      right: (placeable.tileX + 1) * TILE_SIZE_FIXED - 1,
+      bottom: (placeable.tileY + 1) * TILE_SIZE_FIXED - 1,
     });
   }
   return {

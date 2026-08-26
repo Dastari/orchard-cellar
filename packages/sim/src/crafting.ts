@@ -29,6 +29,15 @@ export function placeableDefinition(kind: string): PlaceableDefinition | null {
     : null;
 }
 
+export function craftingStationWithinReach(
+  player: { readonly spaceId: number; readonly tileX: number; readonly tileY: number },
+  station: { readonly spaceId: number; readonly tileX: number; readonly tileY: number },
+  reachTiles: number,
+): boolean {
+  return player.spaceId === station.spaceId
+    && Math.max(Math.abs(player.tileX - station.tileX), Math.abs(player.tileY - station.tileY)) <= reachTiles;
+}
+
 /** Stateless tile/tick roll. Replays with the same inputs always agree. */
 export function fiberDropsFromTilling(
   worldSeed: number,

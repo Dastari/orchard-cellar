@@ -6,6 +6,7 @@ import {
   EFFECT_KINDS,
   REGEN_SWEEP_TICKS,
   ITEM_DESPAWN_TICKS,
+  CRAFTING_STATION_REACH_TILES,
   DAYS_PER_SEASON,
   FIXED_UNITS_PER_PIXEL,
   MARLOW_CAMP,
@@ -26,6 +27,11 @@ import {
   generateSurvivalWildlifeHives,
   hiveProducesHoneyAtTick,
   insertItemStack,
+  fiberDropsFromTilling,
+  craftingStationWithinReach,
+  itemDefinition,
+  placeableDefinition,
+  recipeDefinition,
   itemEconomyDefinition,
   itemModifiers,
   commerceTotal,
@@ -911,11 +917,65 @@ const world_chest_damage = table(
   },
 );
 
+/** Generic authored placement shared by crafting today and build mode next.
+ * Chests retain their legacy carry-with-contents authority; every other
+ * craftable prop starts space-aware and region-indexed. */
+const world_placeable = table(
+  {
+    name: 'world_placeable',
+    public: true,
+    indexes: [
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+    ],
+  },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    kind: t.string(),
+    tileX: t.i16(),
+    tileY: t.i16(),
+    chunkX: t.i16(),
+    chunkY: t.i16(),
+    spaceId: t.u16().default(0),
+    placedBy: t.identity(),
+    facing: t.string(),
+    open: t.bool(),
+    smeltStartTick: t.option(t.u64()),
+  },
+);
+
+const world_placeable_slot = table(
+  {
+    name: 'world_placeable_slot',
+    indexes: [
+      { accessor: 'by_placeable', algorithm: 'btree', columns: ['placeableId'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    placeableId: t.u64(),
+    slot: t.u8(),
+    itemKind: t.string(),
+    quantity: t.u16(),
+    durability: t.u16().default(0),
+  },
+);
+
 const active_chest = table(
   { name: 'active_chest' },
   {
     identity: t.identity().primaryKey(),
     chestId: t.u64(),
+  },
+);
+
+const active_placeable = table(
+  {
+    name: 'active_placeable',
+    indexes: [{ accessor: 'by_placeable', algorithm: 'btree', columns: ['placeableId'] }],
+  },
+  {
+    identity: t.identity().primaryKey(),
+    placeableId: t.u64(),
   },
 );
 
@@ -1129,7 +1189,10 @@ const spacetimedb = schema({
   world_chest,
   world_chest_slot,
   world_chest_damage,
+  world_placeable,
+  world_placeable_slot,
   active_chest,
+  active_placeable,
   active_dialogue,
   world_npc,
   world_wildlife_profile,
@@ -1150,6 +1213,7 @@ type WorldNpcRow = NonNullable<ReturnType<WorldReducerContext['db']['world_npc']
 type PlayerPositionRow = NonNullable<ReturnType<WorldReducerContext['db']['player_position']['identity']['find']>>;
 type WorldResourceRow = NonNullable<ReturnType<WorldReducerContext['db']['world_resource']['id']['find']>>;
 type WorldChestRow = NonNullable<ReturnType<WorldReducerContext['db']['world_chest']['id']['find']>>;
+type WorldPlaceableRow = NonNullable<ReturnType<WorldReducerContext['db']['world_placeable']['id']['find']>>;
 
 function installDebugPortals(ctx: WorldReducerContext): void {
   if (ctx.db.space_portal.id.find(DEBUG_PORTAL_TOPSIDE_ID) === null) {
@@ -1227,6 +1291,7 @@ function teleportPlayer(
     });
   }
   ctx.db.active_chest.identity.delete(position.identity);
+  ctx.db.active_placeable.identity.delete(position.identity);
   ctx.db.active_dialogue.identity.delete(position.identity);
 }
 
@@ -1253,10 +1318,18 @@ function usePortalRow(
 }
 
 function collisionForSpace(ctx: WorldReducerContext, spaceId: number) {
+  const placeables = [...ctx.db.world_placeable.by_chunk.filter(spaceId)].map((row) => ({
+    tileX: row.tileX,
+    tileY: row.tileY,
+    blocksMovement: placeableDefinition(row.kind)?.blocksMovement ?? true,
+    open: row.open,
+  }));
   return createAuthoritySpaceCollisionMap(
     spaceId,
     [...ctx.db.world_resource.by_chunk.filter(spaceId)],
     [...ctx.db.world_chest.by_chunk.filter(spaceId)],
+    'ground',
+    placeables,
   );
 }
 
@@ -1936,6 +2009,24 @@ export const ownOpenChestSlots = spacetimedb.view(
   (ctx) => {
     const active = ctx.db.active_chest.identity.find(ctx.sender);
     return active === null ? [] : [...ctx.db.world_chest_slot.by_chest.filter(active.chestId)];
+  },
+);
+
+export const ownActivePlaceable = spacetimedb.view(
+  { name: 'own_active_placeable', public: true },
+  t.option(world_placeable.rowType),
+  (ctx) => {
+    const active = ctx.db.active_placeable.identity.find(ctx.sender);
+    return active === null ? undefined : ctx.db.world_placeable.id.find(active.placeableId) ?? undefined;
+  },
+);
+
+export const ownOpenPlaceableSlots = spacetimedb.view(
+  { name: 'own_open_placeable_slots', public: true },
+  t.array(world_placeable_slot.rowType),
+  (ctx) => {
+    const active = ctx.db.active_placeable.identity.find(ctx.sender);
+    return active === null ? [] : [...ctx.db.world_placeable_slot.by_placeable.filter(active.placeableId)];
   },
 );
 
@@ -3605,6 +3696,22 @@ export const craftInventoryRecipe = spacetimedb.reducer(
   { recipeId: t.string(), craftAll: t.bool() },
   (ctx, { recipeId, craftAll }) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const requestedRecipe = recipeDefinition(recipeId);
+    if (requestedRecipe?.station !== undefined) {
+      const position = ctx.db.player_position.identity.find(ctx.sender);
+      if (position === null) throw new SenderError('player_not_ready');
+      const playerTileX = Math.floor(position.x / TILE_SIZE_FIXED);
+      const playerTileY = Math.floor(position.y / TILE_SIZE_FIXED);
+      const stationInReach = [...ctx.db.world_placeable.by_chunk.filter(position.spaceId)].some((row) => (
+        placeableDefinition(row.kind)?.station === requestedRecipe.station
+        && craftingStationWithinReach(
+          { spaceId: position.spaceId, tileX: playerTileX, tileY: playerTileY },
+          row,
+          CRAFTING_STATION_REACH_TILES,
+        )
+      ));
+      if (!stationInReach) throw new SenderError('station_required');
+    }
     const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)];
     const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
     const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
@@ -3771,8 +3878,56 @@ function requireChestPlacementTile(
   if (result === 'tile_blocked') throw new SenderError('chest_tile_blocked');
 }
 
-/** F places a carried/new chest at the shared tile target, or picks up the
- * adjacent facing chest when the player is not currently placing one. */
+function requirePlaceablePlacementTile(
+  ctx: WorldReducerContext,
+  position: { readonly x: number; readonly y: number; readonly spaceId: number },
+  tileX: number,
+  tileY: number,
+): void {
+  const result = tilePlacementResult(
+    position.x,
+    position.y,
+    tileX,
+    tileY,
+    collisionForSpace(ctx, position.spaceId),
+    tileOverlapsAnyPlayer(ctx, position.spaceId, tileX, tileY),
+  );
+  if (result !== 'ok') throw new SenderError('placement_blocked');
+}
+
+function insertPlayerCarriedItem(
+  ctx: WorldReducerContext,
+  itemKind: string,
+  quantity: number,
+): boolean {
+  const inventory = loadPlayerInventory(ctx, ctx.sender);
+  const sourceId = 'placeable-pickup';
+  const moved = quickMoveItemStack({
+    ...inventory.containers,
+    [sourceId]: { id: sourceId, capacity: 1, slots: [{ itemKind, quantity }] },
+  }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] });
+  if (!moved.ok || moved.movedQuantity !== quantity) return false;
+  writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, {
+    ...inventory.containers,
+    hotbar: moved.containers.hotbar!,
+    backpack: moved.containers.backpack!,
+  });
+  return true;
+}
+
+function placeableAtFacingTile(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+): WorldPlaceableRow | null {
+  const target = facingTile(position.x, position.y, position.facing);
+  return [...ctx.db.world_placeable.by_chunk.filter(position.spaceId)].find((row) => (
+    row.tileX === target.tileX && row.tileY === target.tileY
+  )) ?? null;
+}
+
+/** F dispatches placement from the selected item's registry tags. Chests keep
+ * their carry-with-contents behavior; generic props always round-trip as an
+ * item and stateful containers must be empty before pickup. */
 export const useHands = spacetimedb.reducer(
   { tileX: t.i16(), tileY: t.i16() },
   (ctx, { tileX, tileY }) => {
@@ -3819,6 +3974,69 @@ export const useHands = spacetimedb.reducer(
         ctx, ctx.sender, 'chests_placed', 1n,
         ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
       );
+      return;
+    }
+
+    const selectedDefinition = selected === null ? null : itemDefinition(selected.itemKind);
+    const selectedPlaceable = selected === null ? null : placeableDefinition(selected.itemKind);
+    if (selected !== null && selected.quantity > 0
+      && selectedDefinition?.tags.includes('item.placeable') === true
+      && selectedPlaceable !== null) {
+      requirePlaceablePlacementTile(ctx, position, tileX, tileY);
+      const placed = ctx.db.world_placeable.insert({
+        id: 0n,
+        kind: selected.itemKind,
+        tileX,
+        tileY,
+        chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
+        chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
+        spaceId: position.spaceId,
+        placedBy: ctx.sender,
+        facing: position.facing,
+        open: false,
+        smeltStartTick: undefined,
+      });
+      for (let slot = 0; slot < selectedPlaceable.slotCapacity; slot += 1) {
+        ctx.db.world_placeable_slot.insert({
+          id: `${placed.id}:${slot}`,
+          placeableId: placed.id,
+          slot,
+          itemKind: 'empty',
+          quantity: 0,
+          durability: 0,
+        });
+      }
+      const remaining = selected.quantity - 1;
+      ctx.db.inventory_slot.id.update({
+        ...selected,
+        itemKind: remaining === 0 ? 'empty' : selected.itemKind,
+        quantity: remaining,
+        durability: remaining === 0 ? 0 : selected.durability,
+      });
+      ctx.db.player_position.identity.update({
+        ...position,
+        equippedKind: remaining === 0 ? 'empty' : selected.itemKind,
+      });
+      recordPlayerStatistic(
+        ctx, ctx.sender, 'placeables_placed', 1n,
+        ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
+        selected.itemKind,
+      );
+      return;
+    }
+
+    const targetPlaceable = placeableAtFacingTile(ctx, position);
+    if (targetPlaceable !== null) {
+      const slots = [...ctx.db.world_placeable_slot.by_placeable.filter(targetPlaceable.id)];
+      if (slots.some((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)) {
+        throw new SenderError('placeable_not_empty');
+      }
+      if (!insertPlayerCarriedItem(ctx, targetPlaceable.kind, 1)) throw new SenderError('inventory_full');
+      for (const active of ctx.db.active_placeable.by_placeable.filter(targetPlaceable.id)) {
+        ctx.db.active_placeable.identity.delete(active.identity);
+      }
+      for (const slot of slots) ctx.db.world_placeable_slot.id.delete(slot.id);
+      ctx.db.world_placeable.id.delete(targetPlaceable.id);
       return;
     }
 
@@ -3910,6 +4128,78 @@ export const closeChest = spacetimedb.reducer({}, (ctx) => {
   const active = ctx.db.active_chest.identity.find(ctx.sender);
   if (active !== null) ctx.db.active_chest.identity.delete(ctx.sender);
 });
+
+/** E toggles gates or opens the real eight-slot barrel authority. */
+export const interactPlaceable = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const position = ctx.db.player_position.identity.find(ctx.sender);
+  if (position === null) throw new SenderError('player_not_ready');
+  if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
+  const placeable = placeableAtFacingTile(ctx, position);
+  if (placeable === null) throw new SenderError('placeable_not_found');
+  if (placeable.kind === 'fence_gate') {
+    ctx.db.world_placeable.id.update({ ...placeable, open: !placeable.open });
+    return;
+  }
+  if (placeable.kind !== 'barrel') throw new SenderError('placeable_not_interactable');
+  const active = ctx.db.active_placeable.identity.find(ctx.sender);
+  if (active === null) ctx.db.active_placeable.insert({ identity: ctx.sender, placeableId: placeable.id });
+  else ctx.db.active_placeable.identity.update({ ...active, placeableId: placeable.id });
+});
+
+export const closePlaceable = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const active = ctx.db.active_placeable.identity.find(ctx.sender);
+  if (active !== null) ctx.db.active_placeable.identity.delete(ctx.sender);
+});
+
+export const movePlaceableItem = spacetimedb.reducer(
+  { fromContainer: t.string(), fromIndex: t.u8(), toContainer: t.string(), toIndex: t.u8(), quantity: t.u16() },
+  (ctx, request) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    if (![request.fromContainer, request.toContainer].every((id) => id === 'placeable' || isInventoryContainerId(id))) {
+      throw new SenderError('container_not_found');
+    }
+    const active = ctx.db.active_placeable.identity.find(ctx.sender);
+    if (active === null) throw new SenderError('placeable_not_open');
+    const placeable = ctx.db.world_placeable.id.find(active.placeableId);
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const definition = placeable === null ? null : placeableDefinition(placeable.kind);
+    if (placeable === null || position === null || placeable.spaceId !== position.spaceId
+      || !chestWithinReach(position.x, position.y, placeable)
+      || definition?.slotCapacity !== 8) throw new SenderError('placeable_not_open');
+    const inventory = loadPlayerInventory(ctx, ctx.sender);
+    const placeableRows = [...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)];
+    const placeableBySlot = new Map(placeableRows.map((row) => [row.slot, row]));
+    const containers: Record<string, ContainerSnapshot> = {
+      ...inventory.containers,
+      placeable: {
+        id: 'placeable',
+        capacity: definition.slotCapacity,
+        slots: Array.from({ length: definition.slotCapacity }, (_, index) => {
+          const row = placeableBySlot.get(index);
+          return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability);
+        }),
+      },
+    };
+    const moved = moveItemStacks(containers, request);
+    if (!moved.ok) throw new SenderError(moved.code);
+    writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, moved.containers);
+    const after = moved.containers.placeable!;
+    for (let index = 0; index < after.capacity; index += 1) {
+      const row = placeableBySlot.get(index);
+      const next = after.slots[index];
+      if (row !== undefined && !sameStoredStack(storedStack(row.itemKind, row.quantity, row.durability), next)) {
+        ctx.db.world_placeable_slot.id.update({
+          ...row,
+          itemKind: next?.itemKind ?? 'empty',
+          quantity: next?.quantity ?? 0,
+          durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+        });
+      }
+    }
+  },
+);
 
 function activeMerchantSession(ctx: WorldReducerContext, requireShop: boolean) {
   const active = ctx.db.active_dialogue.identity.find(ctx.sender);
@@ -4878,6 +5168,25 @@ export const useFarmTool = spacetimedb.reducer(
         wateredAtTick: 0n,
         spaceId: position.spaceId,
       });
+      if (fiberDropsFromTilling(seed.seed, position.spaceId, tileX, tileY, clock.authorityTick)) {
+        if (!insertPlayerCarriedItem(ctx, 'fiber', 1)) {
+          const x = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+          const y = tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+          ctx.db.world_item.insert({
+            id: 0n,
+            itemKind: 'fiber',
+            quantity: 1,
+            x,
+            y,
+            chunkX: chunkAt(x),
+            chunkY: chunkAt(y),
+            droppedAtTick: clock.authorityTick,
+            durability: 0,
+            spaceId: position.spaceId,
+          });
+        }
+        recordPlayerStatistic(ctx, ctx.sender, 'items_obtained', 1n, clock.authorityTick, 'fiber');
+      }
     } else if (soil !== null) {
       ctx.db.world_soil.id.update({ ...soil, watered: true, wateredAtTick: clock.authorityTick });
     }
@@ -5312,9 +5621,15 @@ export const stepWorld = spacetimedb.reducer(
       // for every stepped entity while avoiding scans of unoccupied spaces.
       const resources = [...ctx.db.world_resource.by_chunk.filter(spaceId)];
       const chests = [...ctx.db.world_chest.by_chunk.filter(spaceId)];
+      const placeables = [...ctx.db.world_placeable.by_chunk.filter(spaceId)].map((row) => ({
+        tileX: row.tileX,
+        tileY: row.tileY,
+        blocksMovement: placeableDefinition(row.kind)?.blocksMovement ?? true,
+        open: row.open,
+      }));
       resourcesBySpace.set(spaceId, resources);
       chestsBySpace.set(spaceId, chests);
-      const collision = createAuthoritySpaceCollisionMap(spaceId, resources, chests);
+      const collision = createAuthoritySpaceCollisionMap(spaceId, resources, chests, 'ground', placeables);
       collisionBySpace.set(spaceId, collision);
       waterCollisionBySpace.set(spaceId, createAuthoritySpaceCollisionMap(spaceId, [], [], 'water'));
       obstacleCount += collision.obstacles?.length ?? 0;

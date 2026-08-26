@@ -30,7 +30,9 @@ describe('26§3 additive spaces schema', () => {
       expect(definition).toContain("columns: ['spaceId', 'chunkX', 'chunkY']");
     }
     expect(tableSource('world_speech', 'world_tree')).toContain('spaceId: t.u16().default(0)');
-    expect(source).not.toContain("name: 'world_placeable'");
+    const placeable = tableSource('world_placeable', 'world_placeable_slot');
+    expect(placeable).toContain('spaceId: t.u16().default(0)');
+    expect(placeable).toContain("columns: ['spaceId', 'chunkX', 'chunkY']");
   });
 
   it('declares the public bidirectional portal shape and generalized reducers', () => {
