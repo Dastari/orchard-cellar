@@ -96,16 +96,31 @@ export interface RenderFrame {
 /** Every non-ground world object supplies this foot/door-line depth. */
 export interface WorldDepthItem {
   readonly footY: number;
-  /** Offset from logical foot Y to projected screen-foot painter depth. */
+  /** Small logical-foot painter tie-break within one elevation/phase. */
   readonly depthOffset?: number;
+  /** Integer/fractional terrain plane. Higher planes always composite later. */
+  readonly elevationLayer?: number;
+  /** Within one plane: surface, cliff boundary, then world entities. */
+  readonly depthPhase?: 'surface' | 'boundary' | 'entity';
   readonly tie: string;
   readonly draw: () => void;
 }
 
-export function sortWorldDepthItems<T extends Pick<WorldDepthItem, 'footY' | 'tie'>>(
+function depthPhaseOrder(phase: WorldDepthItem['depthPhase']): number {
+  if (phase === 'surface') return 0;
+  if (phase === 'boundary') return 1;
+  return 2;
+}
+
+export function sortWorldDepthItems<T extends Pick<
+  WorldDepthItem,
+  'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase'
+>>(
   items: readonly T[],
 ): T[] {
-  return [...items].sort((left, right) => worldDepthY(left) - worldDepthY(right)
+  return [...items].sort((left, right) => (left.elevationLayer ?? 0) - (right.elevationLayer ?? 0)
+    || depthPhaseOrder(left.depthPhase) - depthPhaseOrder(right.depthPhase)
+    || worldDepthY(left) - worldDepthY(right)
     || left.tie.localeCompare(right.tie));
 }
 
@@ -124,8 +139,10 @@ export function drawWorldDepthQueue(
   let previousDepth = Number.NEGATIVE_INFINITY;
   for (const item of sortWorldDepthItems(items)) {
     const depth = (worldDepthY(item) - cameraY) * scale;
-    draws += drawDepthRange(previousDepth, depth);
-    previousDepth = depth;
+    if (depth >= previousDepth) {
+      draws += drawDepthRange(previousDepth, depth);
+      previousDepth = depth;
+    }
     item.draw();
   }
   return draws + drawDepthRange(previousDepth, Number.POSITIVE_INFINITY);

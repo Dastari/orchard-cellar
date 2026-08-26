@@ -171,6 +171,13 @@ export class GroundChunkCache {
     this.chunks.invalidateResource(tileX, tileY);
   }
 
+  private prepareTerrain(terrain: TerrainArray): void {
+    const key = `${terrain.spaceId}:${terrain.seed}:${terrain.version}`;
+    if (key === this.terrainKey) return;
+    this.terrainKey = key;
+    this.chunks.clear();
+  }
+
   draw(
     context: CanvasRenderingContext2D,
     art: OverworldArt,
@@ -182,11 +189,7 @@ export class GroundChunkCache {
     viewportHeight: number,
   ): number {
     this.chunks.setCapacity(groundCacheCapacityForViewport(viewportWidth, viewportHeight, scale));
-    const key = `${terrain.spaceId}:${terrain.seed}:${terrain.version}`;
-    if (key !== this.terrainKey) {
-      this.terrainKey = key;
-      this.chunks.clear();
-    }
+    this.prepareTerrain(terrain);
     const minChunkX = Math.max(0, Math.floor(cameraX / GROUND_CHUNK_PIXELS));
     const minChunkY = Math.max(0, Math.floor(cameraY / GROUND_CHUNK_PIXELS));
     const maxChunkX = Math.min(
@@ -216,6 +219,47 @@ export class GroundChunkCache {
       }
     }
     return drawCalls;
+  }
+
+  /** Reuses an already-baked ground chunk as an elevation-aware cap run.
+   * Runs never cross a chunk boundary, keeping each surface span to one draw. */
+  drawProjectedRun(
+    context: CanvasRenderingContext2D,
+    art: OverworldArt,
+    terrain: TerrainArray,
+    firstTileX: number,
+    lastTileX: number,
+    tileY: number,
+    visualOffset: number,
+    cameraX: number,
+    cameraY: number,
+    scale: number,
+  ): void {
+    this.prepareTerrain(terrain);
+    const chunkX = Math.floor(firstTileX / SURVIVAL_CHUNK_TILES);
+    const chunkY = Math.floor(tileY / SURVIVAL_CHUNK_TILES);
+    if (Math.floor(lastTileX / SURVIVAL_CHUNK_TILES) !== chunkX) {
+      throw new Error('Projected ground run crossed a chunk boundary');
+    }
+    const canvas = this.chunks.getOrCreate(
+      chunkX,
+      chunkY,
+      () => this.renderChunk(art, terrain, chunkX, chunkY),
+    );
+    const sourceX = (firstTileX - chunkX * SURVIVAL_CHUNK_TILES) * TILE_SIZE_PIXELS;
+    const sourceY = (tileY - chunkY * SURVIVAL_CHUNK_TILES) * TILE_SIZE_PIXELS;
+    const width = (lastTileX - firstTileX + 1) * TILE_SIZE_PIXELS;
+    context.drawImage(
+      canvas,
+      sourceX,
+      sourceY,
+      width,
+      TILE_SIZE_PIXELS,
+      Math.round((firstTileX * TILE_SIZE_PIXELS - cameraX) * scale),
+      Math.round((tileY * TILE_SIZE_PIXELS - visualOffset - cameraY) * scale),
+      width * scale,
+      TILE_SIZE_PIXELS * scale,
+    );
   }
 
   private renderChunk(

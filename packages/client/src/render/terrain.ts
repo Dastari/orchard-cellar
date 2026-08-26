@@ -591,9 +591,8 @@ export function terrainProjectedElevationAtFoot(
 
 const TERRAIN_PLANE_SORT_EPSILON = 1 / 1_024;
 
-/** Converts a logical elevation into a projected screen-foot sort offset.
- * A boundary sits halfway between its lower and upper planes, so a lower
- * occupant is occluded while an occupant on top remains visible. */
+/** Stable sub-pixel tie-break within the explicit elevation/phase ordering.
+ * Projection affects drawing; it never replaces the logical foot-Y key. */
 export function terrainProjectedSortOffset(
   elevation: number,
   boundary = false,

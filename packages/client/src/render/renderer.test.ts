@@ -70,16 +70,18 @@ describe('unified renderer zoom math', () => {
 
   it('30§5 orders lower-behind, cliff, upper-on-top, and lower-in-front correctly', () => {
     const items = [
-      { footY: 80, tie: 'lower-behind' },
-      { footY: 96, depthOffset: 0.5 / 1_024, tie: 'terrain-cliff' },
-      { footY: 104, depthOffset: 1 / 1_024, tie: 'upper-on-top' },
-      { footY: 112, tie: 'lower-in-front' },
+      { footY: 80, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'lower-behind' },
+      { footY: 96, elevationLayer: 1, depthPhase: 'surface' as const, tie: 'upper-surface' },
+      { footY: 96, elevationLayer: 1, depthPhase: 'boundary' as const, tie: 'terrain-cliff' },
+      { footY: 104, elevationLayer: 1, depthPhase: 'entity' as const, tie: 'upper-on-top' },
+      { footY: 112, elevationLayer: 0, depthPhase: 'entity' as const, tie: 'lower-in-front' },
     ];
     expect(sortWorldDepthItems(items).map(({ tie }) => tie)).toEqual([
       'lower-behind',
+      'lower-in-front',
+      'upper-surface',
       'terrain-cliff',
       'upper-on-top',
-      'lower-in-front',
     ]);
   });
 });

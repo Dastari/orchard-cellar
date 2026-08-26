@@ -55,7 +55,10 @@ remain M7a work; the M5.7 slice does not grant land permissions.
   underneath it. Each raised surface and every occupant on it render north by
   `elevation × 3 tiles` while retaining their logical collision coordinates. That
   projection creates the complete lower-plane walk-behind band behind the rear
-  cliff cap; it is not extra occupancy or a second logical tile. The semantic
+  cliff cap; it is not extra occupancy or a second logical tile. Every internal
+  raised-surface tile participates in the same elevation-aware queue, ordered
+  `surface → boundary → entity` within its plane, while planes composite from
+  lowest to highest before applying normal foot-Y order to their entities. The semantic
   elevation boundary is the physical wall and may be
   crossed only at its paired transition, so upper actors cannot step through the
   same pixels. Light occlusion remains independent and treats the authored wall

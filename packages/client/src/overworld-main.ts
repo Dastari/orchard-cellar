@@ -1842,6 +1842,8 @@ function render(alpha = 1): void {
     worldDepthItems.push({
       ...item,
       depthOffset: terrainProjectedSortOffset(elevation),
+      elevationLayer: Math.ceil(Math.max(0, elevation - 0.001)),
+      depthPhase: 'entity',
       draw: () => {
         context.save();
         context.translate(0, -projection * scale);
@@ -1855,6 +1857,7 @@ function render(alpha = 1): void {
     context,
     art,
     terrain,
+    groundCache,
     cameraX,
     cameraY,
     scale,

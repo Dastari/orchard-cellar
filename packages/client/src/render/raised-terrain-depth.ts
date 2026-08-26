@@ -1,8 +1,14 @@
-import { TILE_SIZE_PIXELS, terrainProjectedDepthOffset } from '@orchard/sim';
+import {
+  SURVIVAL_CHUNK_TILES,
+  TILE_SIZE_PIXELS,
+  terrainProjectedDepthOffset,
+} from '@orchard/sim';
 import type { OverworldArt } from '../overworld-art.js';
+import type { GroundChunkCache } from './ground-cache.js';
 import { selectAtlasFrame } from './sprite.js';
 import {
   plateauLayerPlansAt,
+  terrainElevationAt,
   terrainMaximumElevation,
   terrainProjectedRowsPerLevel,
   terrainProjectedSortOffset,
@@ -18,6 +24,56 @@ export interface RaisedTerrainDepthEntry {
   readonly footY: number;
   readonly depthOffset: number;
   readonly plan: ReturnType<typeof plateauLayerPlansAt>[number]['plan'];
+}
+
+export interface RaisedTerrainSurfaceRun {
+  readonly firstTileX: number;
+  readonly lastTileX: number;
+  readonly tileY: number;
+  readonly elevation: number;
+  readonly footY: number;
+  readonly visualOffset: number;
+}
+
+export function raisedTerrainSurfaceRuns(
+  terrain: TerrainArray,
+  minimumTileX: number,
+  minimumTileY: number,
+  maximumTileX: number,
+  maximumTileY: number,
+): readonly RaisedTerrainSurfaceRun[] {
+  const runs: RaisedTerrainSurfaceRun[] = [];
+  const firstX = Math.max(0, minimumTileX);
+  const lastX = Math.min(terrain.width - 1, maximumTileX);
+  for (let tileY = Math.max(0, minimumTileY); tileY <= Math.min(terrain.height - 1, maximumTileY); tileY += 1) {
+    let tileX = firstX;
+    while (tileX <= lastX) {
+      const elevation = terrainElevationAt(terrain, tileX, tileY);
+      if (elevation <= 0) {
+        tileX += 1;
+        continue;
+      }
+      const runStart = tileX;
+      const chunkX = Math.floor(tileX / SURVIVAL_CHUNK_TILES);
+      while (tileX + 1 <= lastX
+        && Math.floor((tileX + 1) / SURVIVAL_CHUNK_TILES) === chunkX
+        && terrainElevationAt(terrain, tileX + 1, tileY) === elevation) tileX += 1;
+      runs.push({
+        firstTileX: runStart,
+        lastTileX: tileX,
+        tileY,
+        elevation,
+        footY: (tileY + 1) * TILE_SIZE_PIXELS,
+        visualOffset: terrainProjectedDepthOffset(
+          elevation,
+          terrainProjectedRowsPerLevel(),
+          TILE_SIZE_PIXELS,
+        ),
+      });
+      tileX += 1;
+    }
+  }
+  return runs;
 }
 
 export function raisedTerrainVisualOffset(entry: Pick<RaisedTerrainDepthEntry, 'contourLevel'>): number {
@@ -128,6 +184,7 @@ export function enqueueRaisedTerrainDepth(
   context: CanvasRenderingContext2D,
   art: OverworldArt,
   terrain: TerrainArray,
+  groundCache: GroundChunkCache,
   cameraX: number,
   cameraY: number,
   scale: number,
@@ -145,13 +202,42 @@ export function enqueueRaisedTerrainDepth(
     Math.ceil((cameraX + viewportWidth) / TILE_SIZE_PIXELS) + marginTiles,
     Math.ceil((cameraY + viewportHeight) / TILE_SIZE_PIXELS) + marginTiles,
   );
+  const surfaceRuns = raisedTerrainSurfaceRuns(
+    terrain,
+    Math.floor(cameraX / TILE_SIZE_PIXELS) - marginTiles,
+    Math.floor(cameraY / TILE_SIZE_PIXELS) - marginTiles,
+    Math.ceil((cameraX + viewportWidth) / TILE_SIZE_PIXELS) + marginTiles,
+    Math.ceil((cameraY + viewportHeight) / TILE_SIZE_PIXELS) + marginTiles,
+  );
+  for (const run of surfaceRuns) {
+    target.push({
+      footY: run.footY,
+      elevationLayer: run.elevation,
+      depthPhase: 'surface',
+      tie: `0-surface:${run.elevation}:${run.tileY}:${run.firstTileX}`,
+      draw: () => groundCache.drawProjectedRun(
+        context,
+        art,
+        terrain,
+        run.firstTileX,
+        run.lastTileX,
+        run.tileY,
+        run.visualOffset,
+        cameraX,
+        cameraY,
+        scale,
+      ),
+    });
+  }
   for (const entry of entries) {
     target.push({
       footY: entry.footY,
       depthOffset: entry.depthOffset,
+      elevationLayer: entry.contourLevel,
+      depthPhase: 'boundary',
       tie: `0-terrain:${entry.contourLevel}:${entry.tileY}:${entry.tileX}`,
       draw: () => drawEntry(context, art, entry, cameraX, cameraY, scale),
     });
   }
-  return entries.length;
+  return entries.length + surfaceRuns.length;
 }
