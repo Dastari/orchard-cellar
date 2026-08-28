@@ -1,0 +1,69 @@
+{
+  "name": "item_cf_onion_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....66666666....",
+        "...6000000006...",
+        "..605555544406..",
+        "..605444444306..",
+        "..600543333006..",
+        "..605000000306..",
+        "..605444414306..",
+        "..605444141306..",
+        "..605422114306..",
+        "..605254244306..",
+        "..605243244306..",
+        "..605422443306..",
+        "...6055433306...",
+        "....60000006....",
+        ".....666666....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#265c42",
+    "2": "#3f2832",
+    "3": "#bf6f4a",
+    "4": "#e69c69",
+    "5": "#f6ca9f",
+    "6": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops_2.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        176,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.onion"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

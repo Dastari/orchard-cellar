@@ -16,6 +16,24 @@ export interface PixelTextOptions {
   readonly font?: 'body' | 'header';
 }
 
+export type PixelTextOverflow = 'ellipsis' | 'clip';
+
+export interface PixelTextRectOptions extends PixelTextOptions {
+  readonly verticalAlign?: 'top' | 'center' | 'bottom';
+  readonly overflow?: PixelTextOverflow;
+  readonly paddingX?: number;
+  readonly paddingY?: number;
+}
+
+export interface PixelTextRectLayout {
+  readonly text: string;
+  readonly content: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly x: number;
+  readonly y: number;
+  readonly renderedWidth: number;
+  readonly overflowed: boolean;
+}
+
 interface FontMetrics {
   readonly charset: string;
   readonly glyphWidth: number;
@@ -56,6 +74,90 @@ export function panelSlice(asset?: Pick<LoadedAsset, 'slice'>): readonly [number
 export function measurePixelText(text: string, scale = 1, asset?: Pick<LoadedAsset, 'font'>): number {
   const metrics = fontMetrics(asset);
   return Math.max(0, text.length * metrics.cellWidth * scale - (metrics.cellWidth - metrics.glyphWidth) * scale);
+}
+
+/** Returns an ellipsized string whose bitmap glyphs fit the supplied width.
+ * If even `...` cannot fit, the suffix is reduced to two dots, one dot, then
+ * an empty label. The result therefore never exceeds its render contract. */
+export function fitPixelText(
+  text: string,
+  maximumWidth: number,
+  scale = 1,
+  asset?: Pick<LoadedAsset, 'font'>,
+  suffix = '...',
+): string {
+  const available = Math.max(0, Math.floor(maximumWidth));
+  if (measurePixelText(text, scale, asset) <= available) return text;
+  let fittedSuffix = suffix;
+  while (fittedSuffix.length > 0 && measurePixelText(fittedSuffix, scale, asset) > available) {
+    fittedSuffix = fittedSuffix.slice(0, -1);
+  }
+  if (fittedSuffix.length === 0) return '';
+  let prefix = text;
+  while (prefix.length > 0
+    && measurePixelText(`${prefix.trimEnd()}${fittedSuffix}`, scale, asset) > available) {
+    prefix = prefix.slice(0, -1);
+  }
+  return `${prefix.trimEnd()}${fittedSuffix}`;
+}
+
+/** Measures one line inside a bounded face. Drawing and hit geometry can share
+ * this result, and callers may add outlines without losing the same clipping. */
+export function layoutPixelTextInRect(
+  ui: PixelUi,
+  text: string,
+  bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  options: PixelTextRectOptions = {},
+): PixelTextRectLayout {
+  const paddingX = Math.max(0, options.paddingX ?? 0);
+  const paddingY = Math.max(0, options.paddingY ?? 0);
+  const content = {
+    x: bounds.x + paddingX,
+    y: bounds.y + paddingY,
+    width: Math.max(0, bounds.width - paddingX * 2),
+    height: Math.max(0, bounds.height - paddingY * 2),
+  };
+  const asset = options.font === 'header' ? ui.headerFont : ui.font;
+  const scale = options.scale ?? 1;
+  const measured = measurePixelText(text, scale, asset);
+  const overflowed = measured > content.width;
+  const fitted = overflowed && (options.overflow ?? 'ellipsis') === 'ellipsis'
+    ? fitPixelText(text, content.width, scale, asset)
+    : text;
+  const renderedWidth = measurePixelText(fitted, scale, asset);
+  const glyphHeight = fontMetrics(asset).glyphHeight * scale;
+  const align = options.align ?? 'left';
+  const x = align === 'center'
+    ? content.x + content.width / 2
+    : align === 'right' || align === 'end'
+      ? content.x + content.width
+      : content.x;
+  const verticalAlign = options.verticalAlign ?? 'top';
+  const y = verticalAlign === 'center'
+    ? content.y + Math.floor((content.height - glyphHeight) / 2)
+    : verticalAlign === 'bottom'
+      ? content.y + content.height - glyphHeight
+      : content.y;
+  return { text: fitted, content, x, y, renderedWidth, overflowed };
+}
+
+/** Draws one bitmap line and hard-clips it to the assigned content face. */
+export function drawPixelTextInRect(
+  context: CanvasRenderingContext2D,
+  ui: PixelUi,
+  text: string,
+  bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  options: PixelTextRectOptions = {},
+): PixelTextRectLayout {
+  const layout = layoutPixelTextInRect(ui, text, bounds, options);
+  if (layout.content.width <= 0 || layout.content.height <= 0) return layout;
+  context.save();
+  context.beginPath();
+  context.rect(layout.content.x, layout.content.y, layout.content.width, layout.content.height);
+  context.clip();
+  drawPixelText(context, ui, layout.text, layout.x, layout.y, options);
+  context.restore();
+  return layout;
 }
 
 const tintedFonts = new Map<string, HTMLCanvasElement>();

@@ -1,4 +1,5 @@
 import type { Modifier } from './modifiers.js';
+import { CROP_HARVEST_ITEM_DEFINITIONS, CROP_SEED_ITEM_DEFINITIONS } from './crops.js';
 import {
   RECIPES,
   recipeDefinition,
@@ -80,11 +81,13 @@ export const ITEM_DEFINITIONS = {
   fence_gate: defineItem('fence_gate', 'Fence Gate', 16, ['item.placeable', 'item.crafted', 'build.fence'], undefined, { key: 'prop_cf_fence_gate' }),
   sign: defineItem('sign', 'Sign', 16, ['item.placeable', 'item.crafted'], undefined, { key: 'prop_cf_sign' }),
   standing_torch: defineItem('standing_torch', 'Standing Torch', 16, ['item.placeable', 'item.crafted', 'emits.light'], undefined, { key: 'prop_cf_standing_torch', animation: 'burn' }),
+  ...CROP_SEED_ITEM_DEFINITIONS,
+  ...CROP_HARVEST_ITEM_DEFINITIONS,
   apple: defineItem('apple', 'Apple', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_apple' }),
   pear: defineItem('pear', 'Pear', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_pear' }),
   peach: defineItem('peach', 'Peach', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_peach' }),
   cherry: defineItem('cherry', 'Cherries', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_cherry' }),
-  grape: defineItem('grape', 'Grapes', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_grape' }),
+  grape: defineItem('grape', 'Grapes', 99, ['item.crop', 'item.food', 'crop.grape'], undefined, { key: 'item_cf_crop_grape' }),
   orchard_tea: defineItem('orchard_tea', 'Orchard Tea', 8, ['item.consumable', 'item.food', 'effect.orchard_tea'], undefined, { key: 'icon_cf_effect_orchard_tea' }),
   barrel: defineItem('barrel', 'Barrel', 16, ['item.placeable', 'item.crafted', 'container.barrel'], undefined, { key: 'prop_cf_barrel' }),
   backpack: defineItem('backpack', 'Backpack', 1, ['item.equipment', 'container.backpack'], undefined, { key: 'item_cf_backpack' }),

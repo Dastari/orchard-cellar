@@ -16,3 +16,4 @@ export * from './item-slot.js';
 export * from './help-book.js';
 export * from './quest-log.js';
 export * from './overworld-ui.js';
+export * from './design-system/index.js';

@@ -64,6 +64,11 @@ export const MAX_SETTLE_BACKLOG_STEPS = 24;
 /** Drain every accepted confirmed batch atomically once server-time credit permits. */
 export const MAX_SETTLE_STEPS_PER_TICK = MAX_SETTLE_BACKLOG_STEPS;
 const SPACE_TERRAIN_COLLISION = new Map<string, CollisionMap>();
+const DYNAMIC_EXCAVATION_COLLISION = new WeakMap<CollisionMap, {
+  readonly blocked: boolean[];
+  readonly elevations?: Uint8Array;
+  readonly keys: Set<string>;
+}>();
 
 function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator: 'flat' | 'homestead' | 'residence' | 'marlow_tent' | 'cellar' = 'flat'): CollisionMap {
   const blocked = Array.from({ length: sizeTiles * sizeTiles }, (_, index) => {
@@ -159,6 +164,11 @@ export interface AuthorityPlaceableObstacle {
   readonly open?: boolean;
 }
 
+export interface AuthorityExcavatedTile {
+  readonly tileX: number;
+  readonly tileY: number;
+}
+
 export function createAuthoritySurvivalCollisionMap(
   resources: readonly AuthoritySurvivalResource[],
   chests: readonly AuthorityPlacedChest[] = [],
@@ -175,11 +185,36 @@ export function createAuthoritySpaceCollisionMap(
   medium: MovementMedium = 'ground',
   placeables: readonly AuthorityPlaceableObstacle[] = [],
   instanceRow?: { readonly spaceId: number; readonly sizeTier: number; readonly residenceSpaceId?: number | undefined } | null,
+  excavatedTiles: readonly AuthorityExcavatedTile[] = [],
 ): CollisionMap {
   // Terrain is immutable for a space definition. Reusing the cached arrays
   // avoids rebuilding the large topside terrain for every authority tick.
   const terrain = terrainCollisionForSpace(spaceId, medium, instanceRow);
-  const blocked = terrain.blocked;
+  let blocked = terrain.blocked;
+  let elevations = terrain.elevations;
+  if (excavatedTiles.length > 0) {
+    const currentKeys = new Set(excavatedTiles.map((tile) => `${tile.tileX},${tile.tileY}`));
+    let dynamic = DYNAMIC_EXCAVATION_COLLISION.get(terrain);
+    if (dynamic === undefined || [...dynamic.keys].some((key) => !currentKeys.has(key))) {
+      dynamic = {
+        blocked: terrain.blocked.slice(),
+        ...(terrain.elevations === undefined ? {} : { elevations: terrain.elevations.slice() }),
+        keys: new Set<string>(),
+      };
+      DYNAMIC_EXCAVATION_COLLISION.set(terrain, dynamic);
+    }
+    for (const tile of excavatedTiles) {
+      if (tile.tileX < 0 || tile.tileY < 0 || tile.tileX >= terrain.width || tile.tileY >= terrain.height) continue;
+      const key = `${tile.tileX},${tile.tileY}`;
+      if (dynamic.keys.has(key)) continue;
+      const index = tile.tileY * terrain.width + tile.tileX;
+      dynamic.blocked[index] = false;
+      if (dynamic.elevations !== undefined) dynamic.elevations[index] = 0;
+      dynamic.keys.add(key);
+    }
+    blocked = dynamic.blocked;
+    elevations = dynamic.elevations;
+  }
   const horseJumpableTerrain = terrain.horseJumpableTerrain ?? [];
   const obstacles = [...(terrain.obstacles ?? [])];
   for (const resource of medium === 'ground' ? resources : []) {
@@ -214,8 +249,8 @@ export function createAuthoritySpaceCollisionMap(
     width: terrain.width,
     height: terrain.height,
     blocked,
-    ...(medium === 'ground' && terrain.elevations !== undefined
-      ? { elevations: terrain.elevations }
+    ...(medium === 'ground' && elevations !== undefined
+      ? { elevations }
       : {}),
     ...(medium === 'ground' && terrain.terrainTransitions !== undefined
       ? { terrainTransitions: terrain.terrainTransitions }

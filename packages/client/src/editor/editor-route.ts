@@ -12,9 +12,14 @@ export interface StandardClientRoute {
   readonly kind: 'standard';
 }
 
-export type ClientEntryRoute = OfflineEditorRoute | OfflineDesignEditorRoute | StandardClientRoute;
+export interface UiLabRoute {
+  readonly kind: 'ui_lab';
+}
+
+export type ClientEntryRoute = OfflineEditorRoute | OfflineDesignEditorRoute | UiLabRoute | StandardClientRoute;
 
 export const DEFAULT_OFFLINE_EDITOR_MAP_ID = 'procedural-world';
+export const UI_LAB_PATH = '/ui-lab';
 
 const EDITOR_MAP_ID = /^[a-z0-9][a-z0-9-]{0,63}$/u;
 
@@ -48,6 +53,7 @@ export function offlineDesignEditorPath(stampId = 'untitled-layout'): string {
  */
 export function clientEntryRoute(pathname: string, search = ''): ClientEntryRoute {
   const normalizedPath = pathname.length > 1 ? pathname.replace(/\/+$/u, '') : pathname;
+  if (normalizedPath === UI_LAB_PATH || normalizedPath === '/ui') return { kind: 'ui_lab' };
   if (normalizedPath === '/editor/design') {
     return { kind: 'offline_design_editor', stampId: 'untitled-layout' };
   }

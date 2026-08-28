@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { clientEntryRoute } from './editor-route.js';
 
 describe('offline editor route', () => {
+  it('opens the component lab from a public route without an account route', () => {
+    expect(clientEntryRoute('/ui-lab')).toEqual({ kind: 'ui_lab' });
+    expect(clientEntryRoute('/ui-lab/')).toEqual({ kind: 'ui_lab' });
+    expect(clientEntryRoute('/ui')).toEqual({ kind: 'ui_lab' });
+  });
+
   it('opens the procedural editor from its canonical pathname without an account route', () => {
     expect(clientEntryRoute('/editor')).toEqual({
       kind: 'offline_editor', mapId: 'procedural-world',

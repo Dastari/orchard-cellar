@@ -1,0 +1,72 @@
+{
+  "name": "item_cf_watermelon_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....99999999....",
+        "...9000000009...",
+        "..908888877709..",
+        "..908777777609..",
+        "..900876666009..",
+        "..908000000609..",
+        "..908775577609..",
+        "..908711557609..",
+        "..908144355609..",
+        "..908143215609..",
+        "..908132217609..",
+        "..908711176609..",
+        "...9088766609...",
+        "....90000009....",
+        ".....999999....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#0c2e44",
+    "2": "#104647",
+    "3": "#135253",
+    "4": "#1d7768",
+    "5": "#265c42",
+    "6": "#bf6f4a",
+    "7": "#e69c69",
+    "8": "#f6ca9f",
+    "9": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        432,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.watermelon"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

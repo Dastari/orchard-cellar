@@ -17,6 +17,8 @@ const CHAT_FRAME_CONTENT_PADDING = 2;
 const CHAT_INPUT_HEIGHT = 22;
 const CHAT_SCROLLBAR_GUTTER = 14;
 const CHAT_TOGGLE_SIZE = 22;
+const CHAT_DRAG_THRESHOLD = 4;
+const CHAT_POSITION_STORAGE_KEY = 'orchard:chat-anchor';
 
 export interface ChatOverlayMessage {
   readonly id: bigint;
@@ -148,6 +150,36 @@ export function chatOverlayLayout(
   return { history, input, toggle: chatToggleButtonRect(history), visibleLines };
 }
 
+function translatedRect(rect: UiRect, x: number, y: number): UiRect {
+  return { ...rect, x: rect.x + x, y: rect.y + y };
+}
+
+/** Moves the whole chat composition from its toggle-button anchor while
+ * keeping the expanded history/input inside the current safe viewport. */
+export function positionedChatOverlayLayout(
+  layout: ChatOverlayLayout,
+  viewport: Pick<ChatOverlayModel, 'width' | 'height'>,
+  anchor: UiPoint | null,
+): ChatOverlayLayout {
+  if (anchor === null) return layout;
+  const rects = [layout.history, layout.input, layout.toggle];
+  const left = Math.min(...rects.map((rect) => rect.x));
+  const top = Math.min(...rects.map((rect) => rect.y));
+  const right = Math.max(...rects.map((rect) => rect.x + rect.width));
+  const bottom = Math.max(...rects.map((rect) => rect.y + rect.height));
+  const safeBottom = Math.min(viewport.height - 4, layout.input.y + layout.input.height);
+  const requestedX = anchor.x - layout.toggle.x;
+  const requestedY = anchor.y - layout.toggle.y;
+  const offsetX = Math.max(4 - left, Math.min(viewport.width - 4 - right, requestedX));
+  const offsetY = Math.max(4 - top, Math.min(safeBottom - bottom, requestedY));
+  return {
+    history: translatedRect(layout.history, offsetX, offsetY),
+    input: translatedRect(layout.input, offsetX, offsetY),
+    toggle: translatedRect(layout.toggle, offsetX, offsetY),
+    visibleLines: layout.visibleLines,
+  };
+}
+
 export function hasUnseenChatMessage(
   knownIds: ReadonlySet<bigint>,
   messages: readonly Pick<ChatOverlayMessage, 'id'>[],
@@ -176,6 +208,13 @@ export class ChatOverlay {
   private scrollbarFocused = false;
   private visibleLineCount = CHAT_VISIBLE_LINES;
   private readonly scrollBar: ScrollBar;
+  private baseLayout: ChatOverlayLayout = chatOverlayLayout(this.model);
+  private anchor: UiPoint | null = this.loadAnchor();
+  private toggleDrag: {
+    readonly start: UiPoint;
+    readonly anchor: UiPoint;
+    moved: boolean;
+  } | null = null;
 
   constructor(
     private readonly skin: UiSkin,
@@ -253,7 +292,9 @@ export class ChatOverlay {
   update(model: ChatOverlayModel, now = performance.now()): void {
     const keepAtEnd = this.scrollBar.atEnd;
     this.model = model;
-    const layout = chatOverlayLayout(model, this.skin.panelParchment.slice);
+    this.baseLayout = chatOverlayLayout(model, this.skin.panelParchment.slice);
+    const layout = positionedChatOverlayLayout(this.baseLayout, model, this.anchor);
+    if (this.anchor !== null) this.anchor = { x: layout.toggle.x, y: layout.toggle.y };
     this.inputRect = layout.input;
     this.historyRect = layout.history;
     this.toggleRect = layout.toggle;
@@ -287,6 +328,23 @@ export class ChatOverlay {
   }
 
   pointerMove(point: UiPoint): void {
+    if (this.toggleDrag !== null) {
+      const deltaX = point.x - this.toggleDrag.start.x;
+      const deltaY = point.y - this.toggleDrag.start.y;
+      if (!this.toggleDrag.moved
+        && deltaX * deltaX + deltaY * deltaY >= CHAT_DRAG_THRESHOLD * CHAT_DRAG_THRESHOLD) {
+        this.toggleDrag.moved = true;
+      }
+      if (this.toggleDrag.moved) {
+        this.applyAnchor({
+          x: this.toggleDrag.anchor.x + deltaX,
+          y: this.toggleDrag.anchor.y + deltaY,
+        });
+      }
+      this.toggleHovered = true;
+      this.hovered = true;
+      return;
+    }
     this.toggleHovered = contains(this.toggleRect, point);
     if (this.collapsedValue) {
       this.hovered = this.toggleHovered;
@@ -302,7 +360,11 @@ export class ChatOverlay {
 
   pointerDown(point: UiPoint, button: number): boolean {
     if (button === 0 && contains(this.toggleRect, point)) {
-      this.setCollapsed(!this.collapsedValue);
+      this.toggleDrag = {
+        start: point,
+        anchor: { x: this.toggleRect.x, y: this.toggleRect.y },
+        moved: false,
+      };
       return true;
     }
     if (this.collapsedValue) return false;
@@ -317,7 +379,21 @@ export class ChatOverlay {
     return true;
   }
 
-  pointerUp(): boolean { return this.scrollBar.pointerUp(); }
+  pointerUp(): boolean {
+    if (this.toggleDrag !== null) {
+      const moved = this.toggleDrag.moved;
+      this.toggleDrag = null;
+      if (moved) this.saveAnchor();
+      else this.setCollapsed(!this.collapsedValue);
+      return true;
+    }
+    return this.scrollBar.pointerUp();
+  }
+
+  pointerCancel(): void {
+    this.toggleDrag = null;
+    this.scrollBar.pointerLeave();
+  }
 
   wheel(point: UiPoint, deltaY: number): boolean {
     if (this.collapsedValue) return false;
@@ -328,7 +404,10 @@ export class ChatOverlay {
 
   draw(context: CanvasRenderingContext2D, now = performance.now()): void {
     this.drawToggle(context);
-    const toggleTooltip = chatToggleTooltipText(this.toggleHovered, this.model.touchControls === true);
+    const toggleTooltip = chatToggleTooltipText(
+      this.toggleHovered && this.toggleDrag === null,
+      this.model.touchControls === true,
+    );
     if (toggleTooltip !== null) {
       const tooltip = { x: this.toggleRect.x + this.toggleRect.width + 3, y: this.toggleRect.y + 3, width: 52, height: 16 };
       drawUiLabelPlate(context, this.skin, tooltip);
@@ -444,6 +523,41 @@ export class ChatOverlay {
   private historyContentRect(): UiRect {
     const content = uiSkinContentRect(this.skin.panelParchment, this.historyRect, CHAT_FRAME_CONTENT_PADDING);
     return { ...content, width: Math.max(1, content.width - CHAT_SCROLLBAR_GUTTER) };
+  }
+
+  private applyAnchor(anchor: UiPoint): void {
+    const layout = positionedChatOverlayLayout(this.baseLayout, this.model, anchor);
+    this.anchor = { x: layout.toggle.x, y: layout.toggle.y };
+    this.inputRect = layout.input;
+    this.historyRect = layout.history;
+    this.toggleRect = layout.toggle;
+    const content = uiSkinContentRect(this.skin.panelParchment, this.historyRect, CHAT_FRAME_CONTENT_PADDING);
+    this.scrollBar.setBounds({
+      x: content.x + content.width - CHAT_SCROLLBAR_GUTTER,
+      y: content.y,
+      width: CHAT_SCROLLBAR_GUTTER,
+      height: content.height,
+    });
+  }
+
+  private loadAnchor(): UiPoint | null {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const stored = JSON.parse(localStorage.getItem(CHAT_POSITION_STORAGE_KEY) ?? 'null') as unknown;
+      if (typeof stored !== 'object' || stored === null) return null;
+      const point = stored as { readonly x?: unknown; readonly y?: unknown };
+      return typeof point.x === 'number' && Number.isFinite(point.x)
+        && typeof point.y === 'number' && Number.isFinite(point.y)
+        ? { x: point.x, y: point.y }
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private saveAnchor(): void {
+    if (this.anchor === null || typeof localStorage === 'undefined') return;
+    localStorage.setItem(CHAT_POSITION_STORAGE_KEY, JSON.stringify(this.anchor));
   }
 
   private drawToggle(context: CanvasRenderingContext2D): void {

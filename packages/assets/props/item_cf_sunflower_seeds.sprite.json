@@ -1,0 +1,71 @@
+{
+  "name": "item_cf_sunflower_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....55555555....",
+        "...5000000005...",
+        "..504444433305..",
+        "..504333333205..",
+        "..500432222005..",
+        "..504000000205..",
+        "..504331133205..",
+        "..504116611205..",
+        "..504161181205..",
+        "..501611117105..",
+        "..504161171205..",
+        "..504118711205..",
+        "...5044112205...",
+        "....50000005....",
+        ".....555555....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#3f2832",
+    "2": "#bf6f4a",
+    "3": "#e69c69",
+    "4": "#f6ca9f",
+    "5": "#f9e6cf",
+    "6": "#fee761",
+    "7": "#ffa214",
+    "8": "#ffc825"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops_2.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        16,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.sunflower"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

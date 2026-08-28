@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_crop_sunflower",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".......444......",
+        "....44400044....",
+        "...4000555004...",
+        "..405505770504..",
+        ".40557700057704.",
+        ".40070032107604.",
+        "405502323206004.",
+        "4057032321206704",
+        "4057023212106704",
+        ".400502121206604",
+        ".40570321006004.",
+        ".40776000666704.",
+        "..406066606704..",
+        "...4007760004...",
+        "....44000444....",
+        "......444......."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#743f39",
+    "2": "#91533b",
+    "3": "#b86f50",
+    "4": "#f9e6cf",
+    "5": "#fee761",
+    "6": "#ffa214",
+    "7": "#ffc825"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops_2.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        16,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.crop",
+    "crop.sunflower"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

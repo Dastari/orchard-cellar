@@ -1,0 +1,93 @@
+{
+  "name": "ui_cf_quest_tracker_chevron",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    8
+  ],
+  "frames": {
+    "expanded": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "....SSSSSSSS....",
+        "...SrrrrrrrrS...",
+        "...SrrrrrrrrS...",
+        "...SqrrrrrrqS...",
+        "....SqrrrrqS....",
+        ".....SqrrqS.....",
+        "......SqqS......",
+        ".......SS.......",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ],
+    "collapsed": [
+      [
+        "................",
+        "................",
+        "................",
+        "......SS........",
+        ".....SrrS.......",
+        ".....SrrrS......",
+        ".....SrrrrS.....",
+        ".....SrrrrrS....",
+        ".....SrrrrrS....",
+        ".....SrrrrqS....",
+        ".....SrrrqS.....",
+        ".....SrrqS......",
+        ".....SqqS.......",
+        ".....SSS........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "expanded": "state",
+    "collapsed": "state"
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "approved": true,
+  "importedFrom": "UI_Icons.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
+  "sourceRegions": {
+    "expanded": [
+      [
+        64,
+        176,
+        16,
+        16
+      ]
+    ],
+    "collapsed": [
+      [
+        160,
+        176,
+        16,
+        16
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "tags": [
+    "ui.icon",
+    "ui.quest_tracker",
+    "ui.chevron",
+    "derived.palette"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

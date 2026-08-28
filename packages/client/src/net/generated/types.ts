@@ -36,6 +36,27 @@ export const BowCharge = __t.object("BowCharge", {
 });
 export type BowCharge = __Infer<typeof BowCharge>;
 
+export const CellarDigProgress = __t.object("CellarDigProgress", {
+  id: __t.string(),
+  spaceId: __t.u16(),
+  tileX: __t.i16(),
+  tileY: __t.i16(),
+  hits: __t.u8(),
+  lastHitTick: __t.u64(),
+});
+export type CellarDigProgress = __Infer<typeof CellarDigProgress>;
+
+export const CellarExcavation = __t.object("CellarExcavation", {
+  id: __t.string(),
+  spaceId: __t.u16(),
+  tileX: __t.i16(),
+  tileY: __t.i16(),
+  chunkX: __t.i16(),
+  chunkY: __t.i16(),
+  dugAtTick: __t.u64(),
+});
+export type CellarExcavation = __Infer<typeof CellarExcavation>;
+
 export const CharacterProfile = __t.object("CharacterProfile", {
   identity: __t.identity(),
   nameChosen: __t.bool(),
@@ -643,6 +664,21 @@ export const WorldCombatTarget = __t.object("WorldCombatTarget", {
   lastHitCritical: __t.bool(),
 });
 export type WorldCombatTarget = __Infer<typeof WorldCombatTarget>;
+
+export const WorldCrop = __t.object("WorldCrop", {
+  id: __t.string(),
+  owner: __t.identity(),
+  cropKind: __t.string(),
+  tileX: __t.i16(),
+  tileY: __t.i16(),
+  chunkX: __t.i16(),
+  chunkY: __t.i16(),
+  plantedAtTick: __t.u64(),
+  growthTicks: __t.u64(),
+  growthUpdatedAtTick: __t.u64(),
+  spaceId: __t.u16(),
+});
+export type WorldCrop = __Infer<typeof WorldCrop>;
 
 export const WorldEnvironment = __t.object("WorldEnvironment", {
   id: __t.u8(),

@@ -85,6 +85,37 @@ export interface TerrainArray {
   readonly dirtTerraces: Uint8Array;
 }
 
+export interface CellarExcavationTile {
+  readonly tileX: number;
+  readonly tileY: number;
+}
+
+/** Applies the sparse server-owned excavation overlay without mutating the
+ * cached generator terrain. The revision participates in ground-cache keys so
+ * cave contour tiles rebuild immediately after a wall opens. */
+export function terrainWithCellarExcavations(
+  terrain: TerrainArray,
+  excavations: Iterable<CellarExcavationTile>,
+  revision: number,
+): TerrainArray {
+  if (terrain.generator !== 'cellar') return terrain;
+  const blocked = terrain.blocked.slice();
+  const elevations = terrain.elevations.slice();
+  for (const tile of excavations) {
+    if (tile.tileX < 0 || tile.tileY < 0 || tile.tileX >= terrain.width || tile.tileY >= terrain.height) continue;
+    const index = tile.tileY * terrain.width + tile.tileX;
+    blocked[index] = false;
+    elevations[index] = 0;
+  }
+  return {
+    ...terrain,
+    version: terrain.version * 1_000_003 + Math.max(0, Math.trunc(revision)),
+    blocked,
+    elevations,
+    plateaus: elevations,
+  };
+}
+
 const terrainCache = new Map<string, TerrainArray>();
 const terrainClassificationCache = new Map<
   string,

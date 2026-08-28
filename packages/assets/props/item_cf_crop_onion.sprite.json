@@ -1,0 +1,68 @@
+{
+  "name": "item_cf_crop_onion",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......5555..55..",
+        "....55000055005.",
+        "...5004311003205",
+        "..5044313343105.",
+        ".50444134331105.",
+        ".50441344321205.",
+        "5044134433122105",
+        "5034134332132105",
+        "5031333321331205",
+        "5021233213321305",
+        "550122213221205.",
+        "502201122212205.",
+        "50001211112305..",
+        ".501201122005...",
+        "..5005000055....",
+        "...5555555......"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#8a4836",
+    "2": "#bf6f4a",
+    "3": "#e69c69",
+    "4": "#f6ca9f",
+    "5": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops_2.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        176,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.crop",
+    "crop.onion"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

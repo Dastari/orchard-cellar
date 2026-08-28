@@ -1,0 +1,73 @@
+{
+  "name": "item_cf_crop_strawberry",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......aaaaa.....",
+        ".....a00a00aa...",
+        "....a03303200a..",
+        "...a0032110330a.",
+        "..a07700012320a.",
+        ".a0777033212030a",
+        ".a0797032021120a",
+        "a0777740033010aa",
+        "a07977540320220a",
+        "a07775854000230a",
+        "a0558555444400a.",
+        "a055555446440a..",
+        "a04854464440a...",
+        ".a044444400a....",
+        "..a000000aa.....",
+        "...aaaaaa......."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#1e6f50",
+    "2": "#33984b",
+    "3": "#5ac54f",
+    "4": "#9c212b",
+    "5": "#c62a37",
+    "6": "#cf7780",
+    "7": "#d84650",
+    "8": "#e09098",
+    "9": "#eba2a9",
+    "a": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops_2.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        112,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.crop",
+    "crop.strawberry"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "name": "sign_cf_crop_wheat",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".......11.......",
+        "......1551......",
+        "...1111441111...",
+        "..155555555551..",
+        "..144444444441..",
+        "..144444224441..",
+        "..144442724441..",
+        "..144426244441..",
+        "..144422444441..",
+        "..144244444441..",
+        "..144444444441..",
+        "...1111111111...",
+        "..000014310000..",
+        ".00000143100000.",
+        ".00000011000000.",
+        "..000000000000.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#3f2832",
+    "2": "#8c6a0d",
+    "3": "#bf6f4a",
+    "4": "#e69c69",
+    "5": "#f6ca9f",
+    "6": "#ffc825",
+    "7": "#ffeb57"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        16,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "prop.crop_sign",
+    "crop.wheat"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

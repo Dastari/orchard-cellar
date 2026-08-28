@@ -1,0 +1,72 @@
+{
+  "name": "item_cf_pumpkin_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....88888888....",
+        "...8000000008...",
+        "..806666655508..",
+        "..806555555308..",
+        "..800653333008..",
+        "..806000000308..",
+        "..806551155308..",
+        "..806522115308..",
+        "..806299711308..",
+        "..806297421308..",
+        "..806274425308..",
+        "..806522253308..",
+        "...8066533308...",
+        "....80000008....",
+        ".....888888....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#265c42",
+    "2": "#95420f",
+    "3": "#bf6f4a",
+    "4": "#d45608",
+    "5": "#e69c69",
+    "6": "#f6ca9f",
+    "7": "#f77622",
+    "8": "#f9e6cf",
+    "9": "#feae34"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        176,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.pumpkin"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

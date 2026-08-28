@@ -52,6 +52,7 @@ import ConsumeOrchardTeaReducer from "./consume_orchard_tea_reducer";
 import CraftInventoryRecipeReducer from "./craft_inventory_recipe_reducer";
 import CreateChatChannelReducer from "./create_chat_channel_reducer";
 import DebugUsePortalReducer from "./debug_use_portal_reducer";
+import DigCellarTileReducer from "./dig_cellar_tile_reducer";
 import DistributeChestItemReducer from "./distribute_chest_item_reducer";
 import DistributeInventoryItemReducer from "./distribute_inventory_item_reducer";
 import DropInventoryCursorReducer from "./drop_inventory_cursor_reducer";
@@ -115,6 +116,7 @@ import ToggleCampfireReducer from "./toggle_campfire_reducer";
 import ToggleHeldLanternReducer from "./toggle_held_lantern_reducer";
 import ToggleHomesteadGateReducer from "./toggle_homestead_gate_reducer";
 import ToggleWorldLanternReducer from "./toggle_world_lantern_reducer";
+import UseCropTileReducer from "./use_crop_tile_reducer";
 import UseFarmTileReducer from "./use_farm_tile_reducer";
 import UseFarmToolReducer from "./use_farm_tool_reducer";
 import UseHandsReducer from "./use_hands_reducer";
@@ -123,6 +125,7 @@ import UsePortalReducer from "./use_portal_reducer";
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import CellarExcavationRow from "./cellar_excavation_table";
 import CropPatchRow from "./crop_patch_table";
 import FarmActivityRow from "./farm_activity_table";
 import FarmParcelRow from "./farm_parcel_table";
@@ -164,6 +167,7 @@ import WorldCampfireStateRow from "./world_campfire_state_table";
 import WorldChestRow from "./world_chest_table";
 import WorldClockRow from "./world_clock_table";
 import WorldCombatTargetRow from "./world_combat_target_table";
+import WorldCropRow from "./world_crop_table";
 import WorldEnvironmentRow from "./world_environment_table";
 import WorldHiveRow from "./world_hive_table";
 import WorldItemRow from "./world_item_table";
@@ -183,6 +187,25 @@ import WorldWindRow from "./world_wind_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  cellarExcavation: __table({
+    name: 'cellar_excavation',
+    indexes: [
+      { accessor: 'id', name: 'cellar_excavation_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_chunk', name: 'cellar_excavation_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+      ] },
+      { accessor: 'by_space', name: 'cellar_excavation_space_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'cellar_excavation_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CellarExcavationRow),
   cropPatch: __table({
     name: 'crop_patch',
     indexes: [
@@ -353,6 +376,22 @@ const tablesSchema = __schema({
       { name: 'world_combat_target_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldCombatTargetRow),
+  worldCrop: __table({
+    name: 'world_crop',
+    indexes: [
+      { accessor: 'id', name: 'world_crop_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_crop_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_crop_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldCropRow),
   worldEnvironment: __table({
     name: 'world_environment',
     indexes: [
@@ -788,6 +827,7 @@ const reducersSchema = __reducers(
   __reducerSchema("craft_inventory_recipe", CraftInventoryRecipeReducer),
   __reducerSchema("create_chat_channel", CreateChatChannelReducer),
   __reducerSchema("debug_use_portal", DebugUsePortalReducer),
+  __reducerSchema("dig_cellar_tile", DigCellarTileReducer),
   __reducerSchema("distribute_chest_item", DistributeChestItemReducer),
   __reducerSchema("distribute_inventory_item", DistributeInventoryItemReducer),
   __reducerSchema("drop_inventory_cursor", DropInventoryCursorReducer),
@@ -851,6 +891,7 @@ const reducersSchema = __reducers(
   __reducerSchema("toggle_held_lantern", ToggleHeldLanternReducer),
   __reducerSchema("toggle_homestead_gate", ToggleHomesteadGateReducer),
   __reducerSchema("toggle_world_lantern", ToggleWorldLanternReducer),
+  __reducerSchema("use_crop_tile", UseCropTileReducer),
   __reducerSchema("use_farm_tile", UseFarmTileReducer),
   __reducerSchema("use_farm_tool", UseFarmToolReducer),
   __reducerSchema("use_hands", UseHandsReducer),
@@ -863,6 +904,8 @@ const proceduresSchema = __procedures(
 
 type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {
   tables: typeof tablesSchema.schemaType.tables & {
+    /** @deprecated Use `cellarExcavation` instead. This alias will be removed in the next major version. */
+    readonly "cellar_excavation": Omit<typeof tablesSchema.schemaType.tables["cellarExcavation"], "accessorName"> & { readonly accessorName: "cellar_excavation" };
     /** @deprecated Use `cropPatch` instead. This alias will be removed in the next major version. */
     readonly "crop_patch": Omit<typeof tablesSchema.schemaType.tables["cropPatch"], "accessorName"> & { readonly accessorName: "crop_patch" };
     /** @deprecated Use `farmActivity` instead. This alias will be removed in the next major version. */
@@ -885,6 +928,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "world_clock": Omit<typeof tablesSchema.schemaType.tables["worldClock"], "accessorName"> & { readonly accessorName: "world_clock" };
     /** @deprecated Use `worldCombatTarget` instead. This alias will be removed in the next major version. */
     readonly "world_combat_target": Omit<typeof tablesSchema.schemaType.tables["worldCombatTarget"], "accessorName"> & { readonly accessorName: "world_combat_target" };
+    /** @deprecated Use `worldCrop` instead. This alias will be removed in the next major version. */
+    readonly "world_crop": Omit<typeof tablesSchema.schemaType.tables["worldCrop"], "accessorName"> & { readonly accessorName: "world_crop" };
     /** @deprecated Use `worldEnvironment` instead. This alias will be removed in the next major version. */
     readonly "world_environment": Omit<typeof tablesSchema.schemaType.tables["worldEnvironment"], "accessorName"> & { readonly accessorName: "world_environment" };
     /** @deprecated Use `worldHive` instead. This alias will be removed in the next major version. */
@@ -931,6 +976,7 @@ const REMOTE_MODULE = {
 >;
 
 const tableAccessorAliases = {
+  "cellar_excavation": "cellarExcavation",
   "crop_patch": "cropPatch",
   "farm_activity": "farmActivity",
   "farm_parcel": "farmParcel",
@@ -942,6 +988,7 @@ const tableAccessorAliases = {
   "world_chest": "worldChest",
   "world_clock": "worldClock",
   "world_combat_target": "worldCombatTarget",
+  "world_crop": "worldCrop",
   "world_environment": "worldEnvironment",
   "world_hive": "worldHive",
   "world_item": "worldItem",
@@ -976,6 +1023,8 @@ function __withTableAccessorAliases<T extends object>(target: T, freeze = false)
 
 type __DbViewBase = __DbConnectionImpl<typeof REMOTE_MODULE>["db"];
 export type DbView = __DbViewBase & {
+  /** @deprecated Use `cellarExcavation` instead. This alias will be removed in the next major version. */
+  readonly "cellar_excavation": __DbViewBase["cellarExcavation"];
   /** @deprecated Use `cropPatch` instead. This alias will be removed in the next major version. */
   readonly "crop_patch": __DbViewBase["cropPatch"];
   /** @deprecated Use `farmActivity` instead. This alias will be removed in the next major version. */
@@ -998,6 +1047,8 @@ export type DbView = __DbViewBase & {
   readonly "world_clock": __DbViewBase["worldClock"];
   /** @deprecated Use `worldCombatTarget` instead. This alias will be removed in the next major version. */
   readonly "world_combat_target": __DbViewBase["worldCombatTarget"];
+  /** @deprecated Use `worldCrop` instead. This alias will be removed in the next major version. */
+  readonly "world_crop": __DbViewBase["worldCrop"];
   /** @deprecated Use `worldEnvironment` instead. This alias will be removed in the next major version. */
   readonly "world_environment": __DbViewBase["worldEnvironment"];
   /** @deprecated Use `worldHive` instead. This alias will be removed in the next major version. */
@@ -1030,6 +1081,8 @@ export type DbView = __DbViewBase & {
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
 export type Tables = __TablesBase & {
+  /** @deprecated Use `cellarExcavation` instead. This alias will be removed in the next major version. */
+  readonly "cellar_excavation": __TablesBase["cellarExcavation"];
   /** @deprecated Use `cropPatch` instead. This alias will be removed in the next major version. */
   readonly "crop_patch": __TablesBase["cropPatch"];
   /** @deprecated Use `farmActivity` instead. This alias will be removed in the next major version. */
@@ -1052,6 +1105,8 @@ export type Tables = __TablesBase & {
   readonly "world_clock": __TablesBase["worldClock"];
   /** @deprecated Use `worldCombatTarget` instead. This alias will be removed in the next major version. */
   readonly "world_combat_target": __TablesBase["worldCombatTarget"];
+  /** @deprecated Use `worldCrop` instead. This alias will be removed in the next major version. */
+  readonly "world_crop": __TablesBase["worldCrop"];
   /** @deprecated Use `worldEnvironment` instead. This alias will be removed in the next major version. */
   readonly "world_environment": __TablesBase["worldEnvironment"];
   /** @deprecated Use `worldHive` instead. This alias will be removed in the next major version. */

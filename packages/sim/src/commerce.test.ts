@@ -8,6 +8,7 @@ import {
   commerceTotal,
   economyCatalogIsExhaustive,
 } from './commerce.js';
+import { CROP_DEFINITIONS } from './crops.js';
 
 describe('coin currency and item economy', () => {
   it('normalizes a bronze balance into gold, silver, and bronze coins', () => {
@@ -36,6 +37,14 @@ describe('coin currency and item economy', () => {
     expect(ITEM_ECONOMY.anvil).toEqual({ buyPriceBronze: 500, sellPriceBronze: 200 });
     expect(commerceTotal(450, 3)).toBe(1_350n);
     expect(commerceTotal(450, 0)).toBeNull();
+  });
+
+  it('stocks every crop seed packet at Marlow', () => {
+    for (const crop of CROP_DEFINITIONS) {
+      expect(TOOL_MERCHANT_OFFERS).toContain(crop.seedItemKind);
+      expect(ITEM_ECONOMY[crop.seedItemKind].buyPriceBronze).toBe(crop.seedBuyPriceBronze);
+      expect(ITEM_ECONOMY[crop.harvestItemKind].sellPriceBronze).toBe(crop.harvestSellPriceBronze);
+    }
   });
 
   it('06§12 prices every phases 1–3 material and placeable', () => {

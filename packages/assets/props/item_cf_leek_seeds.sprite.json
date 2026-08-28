@@ -1,0 +1,71 @@
+{
+  "name": "item_cf_leek_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....88888888....",
+        "...8000000008...",
+        "..807777766608..",
+        "..807666666508..",
+        "..800765555008..",
+        "..807000000508..",
+        "..807666666508..",
+        "..807666262508..",
+        "..807661226508..",
+        "..807614312508..",
+        "..807143166508..",
+        "..807611665508..",
+        "...8077655508...",
+        "....80000008....",
+        ".....888888....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#0c2e44",
+    "2": "#265c42",
+    "3": "#91d189",
+    "4": "#bbdcb7",
+    "5": "#bf6f4a",
+    "6": "#e69c69",
+    "7": "#f6ca9f",
+    "8": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops_2.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        208,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.leek"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

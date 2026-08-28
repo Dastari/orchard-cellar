@@ -9,8 +9,8 @@ import type { Identity } from 'spacetimedb';
 import { DbConnection, tables, type SubscriptionHandle } from './generated/index.js';
 import { localProfilesEnabled, oidcConfigured, readOidcSession } from '../auth/oidc.js';
 import type {
-  CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, Homestead, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerQuest, PlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, SessionChatNotice,
-  SpacePortal, WorldCampfireState, WorldChest, WorldChestSlot, WorldClock, WorldCombatTarget, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
+  CellarExcavation, CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, Homestead, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerQuest, PlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, SessionChatNotice,
+  SpacePortal, WorldCampfireState, WorldChest, WorldChestSlot, WorldClock, WorldCombatTarget, WorldCrop, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
   WorldSurface,
 } from './generated/types.js';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
@@ -26,7 +26,7 @@ const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILE
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
 const RTT_SAMPLE_CAPACITY = 256;
-const REGION_RANGE_QUERIES = 12;
+const REGION_RANGE_QUERIES = 14;
 export const MAX_VIEW_RADIUS = 9;
 export const REGION_CENTER_DEADBAND_TILES = 8;
 
@@ -100,6 +100,7 @@ export interface OverworldView {
   readonly players: ReadonlyKeyedStore<string, PlayerPosition>;
   readonly resources: ReadonlyKeyedStore<bigint, WorldResource>;
   readonly soil: ReadonlyKeyedStore<string, WorldSoil>;
+  readonly crops: ReadonlyKeyedStore<string, WorldCrop>;
   readonly worldItems: ReadonlyKeyedStore<bigint, WorldItem>;
   readonly projectiles: ReadonlyKeyedStore<bigint, WorldProjectile>;
   readonly combatTargets: ReadonlyKeyedStore<bigint, WorldCombatTarget>;
@@ -112,6 +113,7 @@ export interface OverworldView {
   readonly hives: ReadonlyKeyedStore<bigint, WorldHive>;
   readonly portals: ReadonlyKeyedStore<number, SpacePortal>;
   readonly homesteads: ReadonlyKeyedStore<number, Homestead>;
+  readonly cellarExcavations: ReadonlyKeyedStore<string, CellarExcavation>;
   readonly surfaces: ReadonlyKeyedStore<bigint, WorldSurface>;
   readonly inventorySlots: ReadonlyKeyedStore<number, InventorySlot>;
   readonly inventoryCursor: ItemStack | null;
@@ -143,11 +145,12 @@ export interface OverworldSnapshot {
   readonly region: readonly [number, number]; readonly profiles: readonly PlayerPublic[];
   readonly appearances: readonly PlayerAppearance[];
   readonly players: readonly PlayerPosition[];
-  readonly resources: readonly WorldResource[]; readonly soil: readonly WorldSoil[];
+  readonly resources: readonly WorldResource[]; readonly soil: readonly WorldSoil[]; readonly crops: readonly WorldCrop[];
   readonly worldItems: readonly WorldItem[]; readonly projectiles: readonly WorldProjectile[]; readonly combatTargets: readonly WorldCombatTarget[]; readonly chests: readonly WorldChest[]; readonly placeables: readonly WorldPlaceable[]; readonly campfires?: readonly WorldCampfireState[]; readonly npcs: readonly WorldNpc[]; readonly merchants: readonly WorldMerchant[];
   readonly wildlifeProfiles: readonly WorldWildlifeProfile[]; readonly hives: readonly WorldHive[];
   readonly portals: readonly SpacePortal[];
   readonly homesteads: readonly Homestead[];
+  readonly cellarExcavations: readonly CellarExcavation[];
   readonly surfaces: readonly WorldSurface[];
   readonly inventorySlots: readonly InventorySlot[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly openPlaceableSlots: readonly WorldPlaceableSlot[]; readonly chatChannels: readonly ChatChannel[];
   readonly inventoryCursor: ItemStack | null;
@@ -240,6 +243,7 @@ export class OverworldConnection {
   private readonly visiblePlayers = new KeyedStore<string, PlayerPosition>();
   private readonly resources = new KeyedStore<bigint, WorldResource>();
   private readonly soil = new KeyedStore<string, WorldSoil>();
+  private readonly crops = new KeyedStore<string, WorldCrop>();
   private readonly worldItems = new KeyedStore<bigint, WorldItem>();
   private readonly projectiles = new KeyedStore<bigint, WorldProjectile>();
   private readonly combatTargets = new KeyedStore<bigint, WorldCombatTarget>();
@@ -253,6 +257,7 @@ export class OverworldConnection {
   private readonly hives = new KeyedStore<bigint, WorldHive>();
   private readonly portals = new KeyedStore<number, SpacePortal>();
   private readonly homesteads = new KeyedStore<number, Homestead>();
+  private readonly cellarExcavations = new KeyedStore<string, CellarExcavation>();
   private readonly surfaces = new KeyedStore<bigint, WorldSurface>();
   private readonly inventorySlots = new KeyedStore<number, InventorySlot>();
   private inventoryCursor: ItemStack | null = null;
@@ -283,6 +288,7 @@ export class OverworldConnection {
   private clock: WorldClock | null = null;
   private environment: WorldEnvironment | null = null;
   private wind: WorldWind | null = null;
+  private cellarExcavationRevisionValue = 0;
 
   constructor(
     private readonly slot: string,
@@ -324,8 +330,8 @@ export class OverworldConnection {
     return { connected: this.connected, error: this.error,
       identityHex: this.identity === null ? null : identityHex(this.identity), region: this.region,
       profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers,
-      resources: this.resources, soil: this.soil, worldItems: this.worldItems, projectiles: this.projectiles, combatTargets: this.combatTargets, chests: this.chests, placeables: this.placeables, campfires: this.campfires, npcs: this.npcs, merchants: this.merchants,
-      wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, homesteads: this.homesteads, surfaces: this.surfaces, inventorySlots: this.inventorySlots, inventoryCursor: this.inventoryCursor, effects: this.effects,
+      resources: this.resources, soil: this.soil, crops: this.crops, worldItems: this.worldItems, projectiles: this.projectiles, combatTargets: this.combatTargets, chests: this.chests, placeables: this.placeables, campfires: this.campfires, npcs: this.npcs, merchants: this.merchants,
+      wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, homesteads: this.homesteads, cellarExcavations: this.cellarExcavations, surfaces: this.surfaces, inventorySlots: this.inventorySlots, inventoryCursor: this.inventoryCursor, effects: this.effects,
       openChestSlots: this.openChestSlots,
       openPlaceableSlots: this.openPlaceableSlots,
       chatChannels: this.chatChannels, chatMessages: this.chatMessages, sessionChatNotices: this.sessionChatNotices, worldSpeech: this.worldSpeech, motd: this.motd,
@@ -341,8 +347,8 @@ export class OverworldConnection {
   snapshot(): OverworldSnapshot {
     const view = this.view();
     return { ...view, profiles: this.profiles.toArray(), appearances: this.appearances.toArray(),
-      players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), combatTargets: this.combatTargets.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
-      wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(), homesteads: this.homesteads.toArray(), surfaces: this.surfaces.toArray(),
+      players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), crops: this.crops.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), combatTargets: this.combatTargets.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
+      wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(), homesteads: this.homesteads.toArray(), cellarExcavations: this.cellarExcavations.toArray(), surfaces: this.surfaces.toArray(),
       inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot),
       effects: this.effects.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       openChestSlots: this.openChestSlots.toArray().sort((left, right) => left.slot - right.slot),
@@ -358,6 +364,7 @@ export class OverworldConnection {
 
   ownPosition(): PlayerPosition | null { return this.identity === null ? null : this.positions.get(identityHex(this.identity)) ?? null; }
   get resourceRevision(): number { return this.resourceRevisionValue; }
+  get cellarExcavationRevision(): number { return this.cellarExcavationRevisionValue; }
 
   setDirection(direction: NetworkDirection): void {
     this.setMovementIntent(direction, false);
@@ -414,6 +421,7 @@ export class OverworldConnection {
         playerPosition: this.positions.size,
         worldResource: this.resources.size,
         worldSoil: this.soil.size,
+        worldCrop: this.crops.size,
         worldItem: this.worldItems.size,
         worldProjectile: this.projectiles.size,
         worldCombatTarget: this.combatTargets.size,
@@ -575,6 +583,9 @@ export class OverworldConnection {
   restoreFarmTile(tileX: number, tileY: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.restoreFarmTile({ tileX, tileY }));
   }
+  useCropTile(tileX: number, tileY: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.useCropTile({ tileX, tileY }));
+  }
   repairSelectedTool(): Promise<void> {
     return this.reducer((connection) => connection.reducers.repairSelectedTool({}));
   }
@@ -663,6 +674,9 @@ export class OverworldConnection {
   }
   adjustDebugBackpackSlots(increase: boolean): Promise<void> {
     return this.reducer((connection) => connection.reducers.adjustDebugBackpackSlots({ increase }));
+  }
+  digCellarTile(tileX: number, tileY: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.digCellarTile({ tileX, tileY }));
   }
   usePortal(portalId: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.usePortal({ portalId }));
@@ -784,6 +798,10 @@ export class OverworldConnection {
       .where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
       .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const crops = tables.worldCrop
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
     const worldItems = tables.worldItem
       .where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
@@ -822,6 +840,10 @@ export class OverworldConnection {
       .where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
       .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const cellarExcavations = tables.cellarExcavation
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
     const queryCount = regionSubscriptionQueryCount(bounds, spaceId);
     this.pendingRegionQueryCount = queryCount;
     const previous = this.regionSubscription;
@@ -836,7 +858,7 @@ export class OverworldConnection {
     })).onError(() => {
       this.pendingRegion = null; this.pendingRegionQueryCount = 0;
       this.error = 'region_subscription_failed'; this.onChanged();
-    }).subscribe([positions, resources, soil, worldItems, projectiles, combatTargets, chests, placeables, npcs, wildlifeProfiles, hives, surfaces]);
+    }).subscribe([positions, resources, soil, crops, worldItems, projectiles, combatTargets, chests, placeables, npcs, wildlifeProfiles, hives, surfaces, cellarExcavations]);
   }
 
   private bindTableEvents(connection: DbConnection): void {
@@ -864,6 +886,15 @@ export class OverworldConnection {
     connection.db.homestead.onInsert((context, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
     connection.db.homestead.onUpdate((context, _old, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
     connection.db.homestead.onDelete((context, row) => resource(context.event.id, () => this.homesteads.delete(row.spaceId)));
+    connection.db.cellarExcavation.onInsert((context, row) => resource(context.event.id, () => {
+      this.cellarExcavations.set(row.id, row); this.cellarExcavationRevisionValue += 1;
+    }));
+    connection.db.cellarExcavation.onUpdate((context, _old, row) => resource(context.event.id, () => {
+      this.cellarExcavations.set(row.id, row); this.cellarExcavationRevisionValue += 1;
+    }));
+    connection.db.cellarExcavation.onDelete((context, row) => resource(context.event.id, () => {
+      this.cellarExcavations.delete(row.id); this.cellarExcavationRevisionValue += 1;
+    }));
     connection.db.worldSurface.onInsert((context, row) => resource(context.event.id, () => this.surfaces.set(row.id, row)));
     connection.db.worldSurface.onUpdate((context, _old, row) => resource(context.event.id, () => this.surfaces.set(row.id, row)));
     connection.db.worldSurface.onDelete((context, row) => resource(context.event.id, () => this.surfaces.delete(row.id)));
@@ -885,6 +916,9 @@ export class OverworldConnection {
     connection.db.worldSoil.onInsert((context, row) => incoming(context.event.id, () => this.soil.set(row.id, row)));
     connection.db.worldSoil.onUpdate((context, _old, row) => incoming(context.event.id, () => this.soil.set(row.id, row)));
     connection.db.worldSoil.onDelete((context, row) => incoming(context.event.id, () => this.soil.delete(row.id)));
+    connection.db.worldCrop.onInsert((context, row) => incoming(context.event.id, () => this.crops.set(row.id, row)));
+    connection.db.worldCrop.onUpdate((context, _old, row) => incoming(context.event.id, () => this.crops.set(row.id, row)));
+    connection.db.worldCrop.onDelete((context, row) => incoming(context.event.id, () => this.crops.delete(row.id)));
     connection.db.worldItem.onInsert((context, row) => incoming(context.event.id, () => this.worldItems.set(row.id, row)));
     connection.db.worldItem.onUpdate((context, _old, row) => incoming(context.event.id, () => this.worldItems.set(row.id, row)));
     connection.db.worldItem.onDelete((context, row) => incoming(context.event.id, () => this.worldItems.delete(row.id)));
@@ -1024,10 +1058,11 @@ export class OverworldConnection {
     } else this.visiblePlayers.delete(id);
   }
   private clearSpaceScopedCaches(): void {
-    this.positions.clear(); this.visiblePlayers.clear(); this.resources.clear(); this.soil.clear();
-    this.worldItems.clear(); this.projectiles.clear(); this.chests.clear(); this.placeables.clear(); this.surfaces.clear(); this.npcs.clear();
+    this.positions.clear(); this.visiblePlayers.clear(); this.resources.clear(); this.soil.clear(); this.crops.clear();
+    this.worldItems.clear(); this.projectiles.clear(); this.chests.clear(); this.placeables.clear(); this.surfaces.clear(); this.cellarExcavations.clear(); this.npcs.clear();
     this.wildlifeProfiles.clear(); this.hives.clear(); this.worldSpeech.clear();
     this.resourceRevisionValue += 1;
+    this.cellarExcavationRevisionValue += 1;
   }
   private setPosition(row: PlayerPosition): void {
     const id = identityHex(row.identity);

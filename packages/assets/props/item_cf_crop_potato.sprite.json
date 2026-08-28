@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_crop_potato",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "........7777....",
+        ".......700007...",
+        "......70244207..",
+        "....77024444207.",
+        "...700244663407.",
+        "..70244465644207",
+        ".702446666442207",
+        ".704466663442107",
+        "7024665644422207",
+        "7044666444222207",
+        "704434444221207.",
+        "70244442222207..",
+        ".702222212007...",
+        "..7022220077....",
+        "...7000077......",
+        "....7777........"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#66402e",
+    "2": "#8a4836",
+    "3": "#905a41",
+    "4": "#bf6f4a",
+    "5": "#c68458",
+    "6": "#e69c69",
+    "7": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops_2.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        80,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.crop",
+    "crop.potato"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

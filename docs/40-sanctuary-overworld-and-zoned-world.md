@@ -66,7 +66,9 @@ At the target migration state:
   interaction feedback must distinguish scenery from an actionable zone resource;
   never let a valid-looking hit silently do nothing.
 - Freeform construction, arbitrary placeables, persistent dropped-item clutter,
-  farming, and resource planting are prohibited on the overworld.
+  and resource planting are prohibited on the overworld. Player crops are the
+  narrow exception: they may occupy explicitly tilled, authority-owned soil and
+  do not mutate generated terrain or decorative ecology.
 - Social actions, dialogue, commerce, quests, discovery, navigation, mounts, harmless
   emotes, weather, time, and authored world events remain appropriate.
 - Seasonal and event presentation may replace scenery cosmetically without changing
@@ -148,7 +150,9 @@ spatial, with tier gates only where a station or room type needs them.
 
 Homestead farming, orchard/cellar production, building, storage, guest roles, and
 automation remain governed by docs 03–06, 28, 35, 37, and 38 as amended here. There
-is no later overworld planting or freeform overworld building hook.
+is no freeform overworld building or destructive resource-planting hook. The
+2026-08-28 crop amendment permits farming only through sparse `world_soil` and
+`world_crop` rows.
 
 ## 5. Resource, danger, and social zones
 

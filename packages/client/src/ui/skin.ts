@@ -63,6 +63,7 @@ export interface UiSkin {
   readonly craftingIcon: LoadedAsset;
   readonly backpackIcon: LoadedAsset;
   readonly onlinePlayersIcon: LoadedAsset;
+  readonly questTrackerChevron: LoadedAsset;
   readonly bookTab: LoadedAsset;
   readonly cursor: LoadedAsset;
   readonly cursorClick: LoadedAsset;
@@ -114,6 +115,7 @@ const UI_ASSETS = {
   craftingIcon: "ui_cf_icon_crafting",
   backpackIcon: "ui_cf_icon_backpack",
   onlinePlayersIcon: "ui_cf_icon_online_players",
+  questTrackerChevron: "ui_cf_quest_tracker_chevron",
   bookTab: "ui_cf_book_tab",
   cursor: "ui_cf_cursor",
   cursorClick: "ui_cf_cursor_click",
@@ -301,46 +303,48 @@ export function drawUiSkinAsset(
         );
     }
   } else {
+    const snapped = snapRectForContext(context, destination);
     context.drawImage(
       asset.image,
       source.x,
       source.y,
       source.width,
       source.height,
-      Math.round(destination.x),
-      Math.round(destination.y),
-      Math.round(destination.width),
-      Math.round(destination.height),
+      snapped.x,
+      snapped.y,
+      snapped.width,
+      snapped.height,
     );
   }
   // Not every licensed UI sprite supplies a disabled frame (slots notably do
   // not). Give every skinned control a consistent fallback rather than making
   // each composition invent its own treatment.
   if (state === "disabled" && requested === null) {
+    const snapped = snapRectForContext(context, destination);
     const inset = Math.max(
       2,
       Math.min(
         4,
-        Math.floor(Math.min(destination.width, destination.height) / 7),
+        Math.floor(Math.min(snapped.width, snapped.height) / 7),
       ),
     );
     context.save();
     context.fillStyle = "#332c2a99";
     context.fillRect(
-      Math.round(destination.x + inset),
-      Math.round(destination.y + inset),
-      Math.max(1, Math.round(destination.width - inset * 2)),
-      Math.max(1, Math.round(destination.height - inset * 2)),
+      snapped.x + inset,
+      snapped.y + inset,
+      Math.max(1, snapped.width - inset * 2),
+      Math.max(1, snapped.height - inset * 2),
     );
     context.fillStyle = "#d8b68b55";
     for (
-      let x = destination.x + inset + 2;
-      x < destination.x + destination.width - inset;
+      let x = snapped.x + inset + 2;
+      x < snapped.x + snapped.width - inset;
       x += 6
     ) {
       context.fillRect(
-        Math.round(x),
-        Math.round(destination.y + destination.height - inset - 2),
+        x,
+        snapped.y + snapped.height - inset - 2,
         2,
         1,
       );

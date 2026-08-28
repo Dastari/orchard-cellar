@@ -1,0 +1,73 @@
+{
+  "name": "item_cf_corn_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....88888888....",
+        "...8000000008...",
+        "..807777766608..",
+        "..807666666508..",
+        "..800765555008..",
+        "..807000000508..",
+        "..807666226508..",
+        "..807662a92508..",
+        "..80762a9a2508..",
+        "..807243a26508..",
+        "..807231266508..",
+        "..807622665508..",
+        "...8077655508...",
+        "....80000008....",
+        ".....888888....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#1e6f50",
+    "2": "#265c42",
+    "3": "#33984b",
+    "4": "#5ac54f",
+    "5": "#bf6f4a",
+    "6": "#e69c69",
+    "7": "#f6ca9f",
+    "8": "#f9e6cf",
+    "9": "#feae34",
+    "a": "#fee761"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        144,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.corn"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

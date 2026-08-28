@@ -1,8 +1,9 @@
 # 35 — Homesteads: Farming, the Gold Loop, Building, and Guest Access
 
-Binding owner-directed spec (2026-08-26). Status: **the Shared Spaces demo and
-the 2026-08-27 owner-farm/gate slice are implemented; the crop economy,
-upgrades, build mode, and role-tiered co-op phases remain future work**. This is
+Binding owner-directed spec (2026-08-26, crop amendment 2026-08-28). Status:
+**the Shared Spaces demo, owner-farm/gate slice, and complete first-pass crop
+loop are implemented; upgrades, build mode, and role-tiered co-op phases remain
+future work**. This is
 the farming update — a core pillar. It realizes the
 "permissioned estates" promise of [07-multiplayer.md](07-multiplayer.md) and
 doc 21's "farms return as instanced interiors" on the systems that now exist:
@@ -148,37 +149,40 @@ later phases extend the same row rather than adding a second instance mechanism.
   owner/open-gate contract is the secure guest-access baseline those phases will
   extend.
 
-## 4. Crops — zero-write growth
+## 4. Crops — implemented water-gated, zero-tick-write growth
 
-Six crops at launch, all with committed or sheet-verified stage art
-(`Crops.png` 112×704 stage strip + committed `crop_cf_*_mature`):
+The complete two-sheet catalogue is authoritative in `packages/sim/src/crops.ts`:
+wheat, tomato, carrot, turnip, corn, pumpkin, parsley, cabbage, cucumber, hot
+pepper, red/yellow/green peppers, watermelon, sunflower, garlic, potato,
+strawberry, beetroot, onion, leek, and grapes. Every definition has four growth
+stages, a sign, seed packet, produce icon, display name, duration, yield, and
+merchant values. `Crops_2.png` is pixel-identical to the final eight groups of
+`Crops.png`; the importer deliberately records it as the source for those groups.
 
-| Crop | Seasons | Stages / real time | Notes |
-|---|---|---|---|
-| wheat | spring/summer/autumn | 4 / 40 min | cheap starter, fiber by-product |
-| carrot | spring/autumn | 4 / 30 min | fastest, lowest margin |
-| tomato | summer | 5 / 60 min | **regrows** (3 pickings) |
-| corn | summer/autumn | 5 / 80 min | high yield |
-| pumpkin | autumn | 5 / 120 min | premium single |
-| grapes | summer/autumn | 5 / 90 min | bower prop art; regrows; the cellar-heritage crop |
-
-- **Growth is derived, never ticked** (doc 34 law): a planted crop row is
-  `{ spaceId, tileX/Y, kind, plantedTick, wateredUntilTick, pickingsLeft }`;
-  the current stage is a pure function of `(authorityTick, row, upgrades)`
-  computed identically by client (render) and authority (harvest validation).
-  **Zero writes while growing** — planting, watering, and harvesting are the
-  only mutations. Offline growth is therefore free and full-rate (cozy;
-  sprinklers exist to remove the watering chore, not to gate offline play).
-- **Watering** (can or sprinkler coverage) halves stage time while
-  `wateredUntilTick` holds (one real day per watering). Unwatered crops grow
-  at base rate — **nothing withers, nothing dies** (docs/06 §10 floor).
-  Out-of-season crops pause growth unless under greenhouse cover.
-- Planting requires a Homestead exterior plot (owner or `worker`+ role).
-  Sanctuary-overworld planting is permanently prohibited by doc 40. Existing dormant
-  shared-map `farm_parcel`/`crop_patch` tables are superseded;
-  their docs/08-compliant retirement is part of phase 2.
-- Vigour costs apply to hoe/water/harvest per doc 25 §4 — farming and the
-  vitals economy stay one system.
+- Marlow stocks all 22 seed packets through the exhaustive shared commerce
+  registry. Planting consumes one selected packet and requires an empty tilled
+  `world_soil` tile.
+- Planting is supported on mutable sanctuary-overworld soil and on the owner's
+  Homestead exterior. This explicit 2026-08-28 direction supersedes doc 40's
+  blanket overworld-farming prohibition; it does not permit arbitrary building,
+  resource destruction, or visitor mutation.
+- `world_crop` stores crop kind, owner, tile/space/chunk, planted tick, settled
+  watered-growth ticks, and its last boundary tick. Live progress is a shared
+  pure function. There is no scheduled crop loop and no per-tick crop write.
+- One watering lasts one game day (15 real minutes). Growth advances only during
+  a watering window, pauses when it expires, and resumes from settled progress
+  after watering again. Nothing withers, regresses, or dies. Current durations
+  run 45–150 real minutes of watered time, making repeated care intentional.
+- The client derives one of the four authored stages. Hovering any crop shows
+  its name, watered/needs-water state, remaining real time, and a 16-step timer
+  taken from `Cute_Fantasy_UI/UI/Loading_Icon.png`.
+- A mature owner-grown crop harvests atomically into carried inventory, records
+  crop/item statistics, and clears the crop while retaining tilled soil. Full
+  inventory rejects before crop deletion. The first slice is single-harvest;
+  regrowing varieties, seasons, fertilizer, sprinklers, and Farming XP rewards
+  remain registry-compatible follow-ups.
+- The dormant `farm_parcel`/`crop_patch` demonstration is superseded. Its
+  docs/08-compliant data retirement remains a separate migration.
 
 ## 5. Barreling and selling
 

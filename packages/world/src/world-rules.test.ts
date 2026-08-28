@@ -231,6 +231,18 @@ describe('overworld authority rules', () => {
     expect(topside.terrainPlaneBlocked).toBeDefined();
   }, 15_000);
 
+  it('opens persistent cellar excavation tiles without mutating cached starter collision', () => {
+    const instance = { spaceId: 10_000, sizeTier: 0, residenceSpaceId: 30_000 };
+    const base = createAuthoritySpaceCollisionMap(30_001, [], [], 'ground', [], instance);
+    const dynamic = createAuthoritySpaceCollisionMap(
+      30_001, [], [], 'ground', [], instance, [{ tileX: 500, tileY: 500 }],
+    );
+    const index = 500 * dynamic.width + 500;
+    expect(base.blocked[index]).toBe(true);
+    expect(dynamic.blocked[index]).toBe(false);
+    expect(base.blocked[index]).toBe(true);
+  });
+
   it('blocks water and solid ridges while projected cliff rows remain lower-plane walkable', () => {
     const terrain = Array.from({ length: SURVIVAL_WORLD_SIZE ** 2 }, (_, index) => ({
       tileX: index % SURVIVAL_WORLD_SIZE,

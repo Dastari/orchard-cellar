@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_carrot_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....66666666....",
+        "...6000000006...",
+        "..605555544406..",
+        "..605444444306..",
+        "..600543333006..",
+        "..605000000306..",
+        "..605444414306..",
+        "..605444114306..",
+        "..605442111306..",
+        "..605427244306..",
+        "..605272444306..",
+        "..605224443306..",
+        "...6055433306...",
+        "....60000006....",
+        ".....666666....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#265c42",
+    "2": "#95420f",
+    "3": "#bf6f4a",
+    "4": "#e69c69",
+    "5": "#f6ca9f",
+    "6": "#f9e6cf",
+    "7": "#feae34"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        80,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.carrot"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

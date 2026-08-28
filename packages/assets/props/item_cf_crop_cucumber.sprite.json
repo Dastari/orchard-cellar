@@ -1,0 +1,68 @@
+{
+  "name": "item_cf_crop_cucumber",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "...........555..",
+        "..........50005.",
+        ".........5044305",
+        ".........5043205",
+        "........50433205",
+        "........50412205",
+        ".......504332105",
+        "......504331205.",
+        "....55043122105.",
+        "..550043323105..",
+        ".500441223205...",
+        "503413232105....",
+        "50433221005.....",
+        "5044420055......",
+        ".5000055........",
+        "..5555.........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#104647",
+    "2": "#155a5b",
+    "3": "#1d7768",
+    "4": "#2a9370",
+    "5": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        272,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.crop",
+    "crop.cucumber"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

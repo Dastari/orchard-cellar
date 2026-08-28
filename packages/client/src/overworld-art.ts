@@ -1,4 +1,5 @@
 import {
+  CROP_KINDS,
   FENCE_JOIN_EAST,
   FENCE_JOIN_NORTH,
   FENCE_JOIN_SOUTH,
@@ -75,6 +76,8 @@ export interface OverworldArt {
   readonly oreNodes: Readonly<Record<string, LoadedAsset>>;
   readonly oreItems: Readonly<Record<string, LoadedAsset>>;
   readonly itemIcons: Readonly<Record<string, LoadedAsset>>;
+  readonly crops: Readonly<Record<string, LoadedAsset>>;
+  readonly cropTimer: LoadedAsset;
   readonly poiDecorations: Readonly<Record<string, LoadedAsset>>;
   readonly natureDecorations: Readonly<Record<string, readonly LoadedAsset[]>>;
   readonly oceanSurfaceDecorations: readonly LoadedAsset[];
@@ -526,6 +529,13 @@ async function loadItemIconArt(): Promise<
   return Object.fromEntries([...registry, ...fenceVariants, ...questIcons]);
 }
 
+async function loadCropArt(): Promise<Readonly<Record<string, LoadedAsset>>> {
+  return Object.fromEntries(await Promise.all(CROP_KINDS.map(async (kind) => [
+    kind,
+    await loadGeneratedAsset(`crop_cf_${kind}`, 'summer'),
+  ] as const)));
+}
+
 export async function loadOverworldArt(): Promise<OverworldArt> {
   const [
     avatar,
@@ -677,6 +687,8 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     ui,
     uiSkin,
     itemIcons,
+    crops,
+    cropTimer,
   ] = await Promise.all([
     loadGeneratedAsset("avatar_cf_farmer", "summer"),
     loadGeneratedAsset("avatar_cf_farmer_axe", "summer"),
@@ -837,6 +849,8 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadPixelUi(),
     loadUiSkin(),
     loadItemIconArt(),
+    loadCropArt(),
+    loadGeneratedAsset('ui_cf_crop_timer', 'summer'),
   ]);
   return {
     avatar,
@@ -873,6 +887,8 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     oreNodes,
     oreItems,
     itemIcons,
+    crops,
+    cropTimer,
     rockStone,
     woodFloor,
     interiorWall,
@@ -1232,6 +1248,53 @@ export function drawUiAsset(
     Math.round(y),
     source.width * scale,
     source.height * scale,
+  );
+}
+
+export function drawUiAssetFrame(
+  context: CanvasRenderingContext2D,
+  asset: LoadedAsset,
+  frameIndex: number,
+  x: number,
+  y: number,
+  scale = 1,
+): void {
+  const source = frame(asset, 'base', frameIndex);
+  if (source === null) return;
+  context.drawImage(
+    asset.image,
+    source.x,
+    source.y,
+    source.width,
+    source.height,
+    Math.round(x),
+    Math.round(y),
+    source.width * scale,
+    source.height * scale,
+  );
+}
+
+export function drawOverworldCrop(
+  context: CanvasRenderingContext2D,
+  art: OverworldArt,
+  cropKind: string,
+  stage: number,
+  x: number,
+  y: number,
+  cameraX: number,
+  cameraY: number,
+  zoom: number,
+): void {
+  drawAnchored(
+    context,
+    art.crops[cropKind] ?? art.missingItem,
+    'base',
+    Math.max(0, Math.min(3, Math.floor(stage))),
+    x,
+    y,
+    cameraX,
+    cameraY,
+    zoom,
   );
 }
 

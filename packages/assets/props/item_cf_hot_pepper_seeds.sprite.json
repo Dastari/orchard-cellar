@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_hot_pepper_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....77777777....",
+        "...7000000007...",
+        "..706666655507..",
+        "..706555555307..",
+        "..700653333007..",
+        "..706000000307..",
+        "..706555555307..",
+        "..706555155307..",
+        "..706551415307..",
+        "..706514215307..",
+        "..706142155307..",
+        "..706511553307..",
+        "...7066533307...",
+        "....70000007....",
+        ".....777777....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#0c2e44",
+    "2": "#891e2b",
+    "3": "#bf6f4a",
+    "4": "#c42430",
+    "5": "#e69c69",
+    "6": "#f6ca9f",
+    "7": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        304,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.hot_pepper"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

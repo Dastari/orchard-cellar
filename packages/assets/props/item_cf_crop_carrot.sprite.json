@@ -1,0 +1,71 @@
+{
+  "name": "item_cf_crop_carrot",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "........7.77.7..",
+        ".......70700707.",
+        "......7040430407",
+        "......7044304307",
+        "......770242207.",
+        ".....70001223007",
+        "....708880132407",
+        "...708886500307.",
+        "..708866650707..",
+        ".708866565077...",
+        ".7086566507.....",
+        "7088665507......",
+        "708665507.......",
+        "70655007........",
+        ".700077.........",
+        "..777..........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#134c4c",
+    "2": "#1e6f50",
+    "3": "#33984b",
+    "4": "#5ac54f",
+    "5": "#d45608",
+    "6": "#f77622",
+    "7": "#f9e6cf",
+    "8": "#feae34"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        80,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.crop",
+    "crop.carrot"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

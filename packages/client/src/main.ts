@@ -2,6 +2,7 @@ import {
   clientEntryRoute,
   offlineDesignEditorPath,
   offlineEditorPath,
+  UI_LAB_PATH,
 } from './editor/editor-route.js';
 import { initializeLoadingScreen, setLoadingScreenStage } from './loading-screen.js';
 import { pwaClient } from './pwa.js';
@@ -12,7 +13,9 @@ const popupCallbackRelayed = entryRoute.kind === 'standard'
   ? (await import('./auth/oidc.js')).relayOidcPopupCallback()
   : false;
 if (!popupCallbackRelayed) {
-  setLoadingScreenStage({
+  setLoadingScreenStage(entryRoute.kind === 'ui_lab' ? {
+    title: 'OPENING THE UI LAB', detail: 'LOADING COMPONENT SPECIMENS', progress: 12,
+  } : {
     title: 'OPENING THE ORCHARD', detail: 'CHECKING YOUR ACCOUNT', progress: 12,
   });
   await initializeLoadingScreen();
@@ -35,7 +38,11 @@ document.addEventListener('selectstart', (event) => {
   if (!isCanvasInput(event.target)) event.preventDefault();
 });
 
-if (entryRoute.kind === 'offline_design_editor') {
+if (entryRoute.kind === 'ui_lab') {
+  if (location.pathname !== UI_LAB_PATH) {
+    history.replaceState(null, '', `${UI_LAB_PATH}${location.search}${location.hash}`);
+  }
+} else if (entryRoute.kind === 'offline_design_editor') {
   const canonicalLocation = `${offlineDesignEditorPath(entryRoute.stampId)}${location.search}${location.hash}`;
   if (`${location.pathname}${location.search}${location.hash}` !== canonicalLocation) {
     history.replaceState(null, '', canonicalLocation);
@@ -58,6 +65,14 @@ const parameters = new URLSearchParams(location.search);
 
 async function launchClient(): Promise<void> {
   if (popupCallbackRelayed) return;
+  if (entryRoute.kind === 'ui_lab') {
+    document.title = 'Orchard & Cellar — UI Component Lab';
+    setLoadingScreenStage({
+      title: 'OPENING THE UI LAB', detail: 'ARRANGING THE COMPONENT CANVAS', progress: 24,
+    });
+    await import('./ui-lab.js');
+    return;
+  }
   if (entryRoute.kind === 'offline_design_editor') {
     document.title = 'Orchard & Cellar — Layout Studio';
     setLoadingScreenStage({

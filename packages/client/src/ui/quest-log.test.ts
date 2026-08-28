@@ -37,4 +37,11 @@ describe('quest log', () => {
     expect(log.pointerDown({ x: layout.dropButton.x + 3, y: layout.dropButton.y + 3 }, 0, frame)).toBe(true);
     expect(drop).toHaveBeenCalledWith('book');
   });
+
+  it('selects a quest requested by the overworld tracker', () => {
+    const log = new QuestLog({} as UiSkin, {} as PixelUi, { setPinned: vi.fn(), drop: vi.fn() });
+    log.update([quest, { ...quest, id: 'second', title: 'Second Quest' }]);
+    expect(log.select('second')).toBe(true);
+    expect(log.select('missing')).toBe(false);
+  });
 });

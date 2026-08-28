@@ -1,6 +1,17 @@
-import { drawPixelText, fontMetrics, type PixelUi } from '../render/pixel-ui.js';
+import {
+  drawOutlinedPixelText,
+  drawPixelText,
+  fitPixelText,
+  fontMetrics,
+  type PixelUi,
+} from '../render/pixel-ui.js';
 import type { UiRect } from './geometry.js';
-import { drawUiSkinAsset, type UiSkin } from './skin.js';
+import {
+  drawUiIconAsset,
+  drawUiSkinAsset,
+  type UiIconAsset,
+  type UiSkin,
+} from './skin.js';
 import { widget, type WidgetNode } from './widget.js';
 
 export type ButtonTone = 'neutral' | 'success' | 'danger';
@@ -19,10 +30,37 @@ export interface DrawButtonOptions {
   readonly state?: ButtonVisualState;
 }
 
-export function buttonLabelTop(rect: UiRect, fonts: PixelUi, size: ButtonSize = 'regular'): number {
+export function buttonTextFace(rect: UiRect, state: ButtonVisualState = 'idle'): UiRect {
+  const horizontalPadding = state === 'idle' ? 6 : 8;
+  const top = state === 'idle' ? 3 : state === 'pressed' ? 4 : 5;
+  const bottom = state === 'idle' ? 5 : 4;
+  return {
+    x: rect.x + horizontalPadding,
+    y: rect.y + top,
+    width: Math.max(0, rect.width - horizontalPadding * 2),
+    height: Math.max(0, rect.height - top - bottom),
+  };
+}
+
+export function buttonLabelTop(
+  rect: UiRect,
+  fonts: PixelUi,
+  size: ButtonSize = 'regular',
+  state: ButtonVisualState = 'idle',
+): number {
   const glyphHeight = fontMetrics(fonts.font).glyphHeight;
-  const authoredFaceBias = size === 'regular' ? -1 : 0;
-  return rect.y + Math.max(2, Math.floor((rect.height - glyphHeight) / 2) + authoredFaceBias);
+  const face = buttonTextFace(rect, state);
+  const compactBias = size === 'compact' && state === 'idle' ? -1 : 0;
+  return face.y + Math.max(0, Math.floor((face.height - glyphHeight) / 2) + compactBias);
+}
+
+export function fitButtonLabel(
+  label: string,
+  rect: UiRect,
+  fonts: PixelUi,
+  state: ButtonVisualState = 'idle',
+): string {
+  return fitPixelText(label, buttonTextFace(rect, state).width, 1, fonts.font);
 }
 
 export function drawButton(
@@ -37,11 +75,58 @@ export function drawButton(
   const asset = tone === 'success' ? skin.buttonConfirm
     : tone === 'danger' ? skin.buttonDeny : skin.button;
   drawUiSkinAsset(context, asset, rect, state);
-  drawPixelText(context, fonts, options.label, rect.x + rect.width / 2,
-    buttonLabelTop(rect, fonts, options.size), {
-      align: 'center',
-      color: state === 'disabled' ? '#8c6c54' : tone === 'neutral' ? '#5f3b24' : '#fff2d0',
+  const face = buttonTextFace(rect, state);
+  const label = fitButtonLabel(options.label, rect, fonts, state);
+  const labelX = rect.x + rect.width / 2;
+  const labelY = buttonLabelTop(rect, fonts, options.size, state);
+  if (face.width <= 0 || face.height <= 0 || label.length === 0) return;
+  context.save();
+  context.beginPath();
+  context.rect(face.x, face.y, face.width, face.height);
+  context.clip();
+  if (state === 'disabled') {
+    drawOutlinedPixelText(context, fonts, label, labelX, labelY, {
+      align: 'center', color: '#e0c49a', outlineColor: '#5f3b24',
     });
+  } else {
+    drawPixelText(context, fonts, label, labelX, labelY, {
+      align: 'center', color: tone === 'neutral' ? '#5f3b24' : '#fff2d0',
+    });
+  }
+  context.restore();
+}
+
+export interface DrawSmallIconButtonOptions {
+  readonly icon: UiIconAsset;
+  readonly tone?: 'neutral' | 'success';
+  readonly state?: ButtonVisualState;
+}
+
+/** The authored 16px round button has a narrow central face. Editor SVG icons
+ * are capped at 14px and centred there instead of filling the complete sprite. */
+export function smallButtonIconRect(
+  rect: UiRect,
+  state: ButtonVisualState = 'idle',
+): UiRect {
+  const size = Math.max(1, Math.min(14, rect.width - 12, rect.height - 12));
+  return {
+    x: Math.round(rect.x + (rect.width - size) / 2),
+    y: Math.round(rect.y + (rect.height - size) / 2 + (state === 'pressed' ? 1 : 0)),
+    width: size,
+    height: size,
+  };
+}
+
+export function drawSmallIconButton(
+  context: CanvasRenderingContext2D,
+  skin: Pick<UiSkin, 'buttonSmall' | 'buttonSmallConfirm'>,
+  rect: UiRect,
+  options: DrawSmallIconButtonOptions,
+): void {
+  const state = options.state ?? 'idle';
+  const asset = options.tone === 'success' ? skin.buttonSmallConfirm : skin.buttonSmall;
+  drawUiSkinAsset(context, asset, rect, state);
+  drawUiIconAsset(context, options.icon, smallButtonIconRect(rect, state), state === 'disabled' ? 0.45 : 0.9);
 }
 
 export interface CanvasButtonOptions {

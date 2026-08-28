@@ -1,7 +1,9 @@
 import {
   AUTHORITY_TICK_MS,
+  AUTHORITY_HZ,
   BACKPACK_SLOT_COUNT,
   BASE_BACKPACK_CAPACITY,
+  CROP_WATERING_TICKS,
   CRAFTING_STATION_REACH_TILES,
   BOW_MAX_CHARGE_MS,
   BOW_MAX_PROJECTILE_FLIGHT_TICKS,
@@ -27,6 +29,8 @@ import {
   avatarActionForEquippedKind,
   calendarAtTick,
   craftingStationWithinReach,
+  cropDefinition,
+  cropGrowthAt,
   bowHeldAnimationFrame,
   bowChargedRangePixels,
   bowChargeTracerFraction,
@@ -54,6 +58,7 @@ import {
   HOMESTEAD_PLOT_MIN_TILE,
   HOMESTEAD_PLOT_MAX_TILE,
   CELLAR_ENTRY_TILE,
+  cellarOreKindAt,
   RESIDENCE_BED_TILE,
   RESIDENCE_BOOKSHELF_TILE,
   MARLOW_TENT_BOOKSHELF_TILE,
@@ -142,7 +147,7 @@ import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen, worl
 import { pwaClient } from './pwa.js';
 import { AudioBus } from './audio/audio-bus.js';
 import { readOidcSession } from './auth/oidc.js';
-import type { ChatMessage, PlayerPosition, QuestWorldItem, SpacePortal, WorldChest, WorldCombatTarget, WorldItem, WorldNpc, WorldPlaceable, WorldProjectile, WorldResource } from './net/generated/types.js';
+import type { ChatMessage, PlayerPosition, QuestWorldItem, SpacePortal, WorldChest, WorldCombatTarget, WorldCrop, WorldItem, WorldNpc, WorldPlaceable, WorldProjectile, WorldResource } from './net/generated/types.js';
 import {
   OverworldConnection,
   viewRadiusForViewport,
@@ -156,6 +161,7 @@ import {
   drawOverworldAvatar,
   drawOverworldArrow,
   drawOverworldChest,
+  drawOverworldCrop,
   drawOverworldHorse,
   drawOverworldHive,
   drawOverworldItem,
@@ -166,6 +172,7 @@ import {
   drawPlayerPaperDoll,
   drawNpcPortrait,
   drawUiAsset,
+  drawUiAssetFrame,
   drawOverworldOreNode,
   drawOverworldPoiDecoration,
   drawOverworldRock,
@@ -232,6 +239,8 @@ import {
   terrainElevationAtWorldFoot,
   terrainForSpace,
   terrainForWorld,
+  terrainColorAt,
+  terrainWithCellarExcavations,
   terrainMaximumElevation,
   terrainPlaneCollisionCellAt,
   terrainProjectedDepthAtFoot,
@@ -435,6 +444,8 @@ let worldZoomTarget = DEFAULT_WORLD_ZOOM;
 let desiredUiScale: UiScale = DEFAULT_UI_SCALE;
 let wheelZoomLockedUntil = 0;
 let collisionKey = '';
+let cellarTerrainCacheKey = '';
+let cellarTerrainCache: TerrainArray | null = null;
 let observedResourceRevision = -1;
 const initialTerrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
 let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
@@ -450,6 +461,8 @@ let debugMetrics = false;
 let debugEntitiesHidden = false;
 const LIGHTING_EFFECTS_DISABLED_KEY = 'orchard.developer.lighting-effects-disabled';
 let lightingEffectsDisabled = localStorage.getItem(LIGHTING_EFFECTS_DISABLED_KEY) === 'true';
+const CELLAR_ORE_PREVIEW_KEY = 'orchard.developer.cellar-ore-preview';
+let cellarOrePreview = localStorage.getItem(CELLAR_ORE_PREVIEW_KEY) === 'true';
 let debugTerrainPoint: { readonly worldX: number; readonly worldY: number } | null = null;
 let interfaceHidden = false;
 let nameplatesVisible = readNameplatesVisible();
@@ -587,6 +600,11 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     localStorage.setItem(LIGHTING_EFFECTS_DISABLED_KEY, String(lightingEffectsDisabled));
     setToast(`LIGHTING EFFECTS ${lightingEffectsDisabled ? 'DISABLED' : 'ENABLED'}`);
   },
+  toggleCellarOrePreview: () => {
+    cellarOrePreview = !cellarOrePreview;
+    localStorage.setItem(CELLAR_ORE_PREVIEW_KEY, String(cellarOrePreview));
+    setToast(`CELLAR ORE VEINS ${cellarOrePreview ? 'SHOWN' : 'HIDDEN'}`);
+  },
   resetMyQuestProgress: () => showResult(network.resetMyQuestProgress(), 'QUEST PROGRESS RESET'),
   setQuestPinned: (questId, pinned) => showResult(
     network.setQuestPinned(questId, pinned), pinned ? 'QUEST TRACKED' : 'QUEST UNTRACKED',
@@ -680,6 +698,54 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   drawNpcPortrait(context, art, target.portrait, rect);
 }, (context, appearance, facing, rect) => {
   drawPlayerPaperDoll(context, art, appearance, facing, rect);
+}, (context, rect, pixelsPerTile, trackingEnabled) => {
+  const snapshot = latestSnapshot;
+  const identityHex = snapshot.identityHex;
+  const local = identityHex === null ? undefined : snapshot.players.get(identityHex);
+  const centerWorldX = (local?.x ?? 0) / FIXED_UNITS_PER_PIXEL;
+  const centerWorldY = (local?.y ?? 0) / FIXED_UNITS_PER_PIXEL;
+  const centerTileX = centerWorldX / 16;
+  const centerTileY = centerWorldY / 16;
+  const terrain = terrainForSpace(
+    activeSpaceDefinition,
+    snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED,
+    snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION,
+  );
+  const columns = Math.ceil(rect.width / pixelsPerTile) + 2;
+  const rows = Math.ceil(rect.height / pixelsPerTile) + 2;
+  const firstTileX = Math.floor(centerTileX - columns / 2);
+  const firstTileY = Math.floor(centerTileY - rows / 2);
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      context.fillStyle = terrainColorAt(terrain, firstTileX + column, firstTileY + row);
+      context.fillRect(
+        Math.floor(rect.x + column * pixelsPerTile),
+        Math.floor(rect.y + row * pixelsPerTile),
+        Math.ceil(pixelsPerTile),
+        Math.ceil(pixelsPerTile),
+      );
+    }
+  }
+  const marker = (worldX: number, worldY: number, color: string, size: number): void => {
+    const x = rect.x + rect.width / 2 + (worldX / 16 - centerTileX) * pixelsPerTile;
+    const y = rect.y + rect.height / 2 + (worldY / 16 - centerTileY) * pixelsPerTile;
+    if (x < rect.x || y < rect.y || x >= rect.x + rect.width || y >= rect.y + rect.height) return;
+    context.fillStyle = '#2b1914';
+    context.fillRect(Math.round(x - size / 2 - 1), Math.round(y - size / 2 - 1), size + 2, size + 2);
+    context.fillStyle = color;
+    context.fillRect(Math.round(x - size / 2), Math.round(y - size / 2), size, size);
+  };
+  if (trackingEnabled) {
+    for (const npc of snapshot.npcs) {
+      if (npc.spaceId !== activeSpaceDefinition.spaceId) continue;
+      marker(npc.x / FIXED_UNITS_PER_PIXEL, npc.y / FIXED_UNITS_PER_PIXEL, '#f1b34b', 3);
+    }
+    for (const player of snapshot.players) {
+      if (player.spaceId !== activeSpaceDefinition.spaceId || player.identity.toHexString() === identityHex) continue;
+      marker(player.x / FIXED_UNITS_PER_PIXEL, player.y / FIXED_UNITS_PER_PIXEL, '#64b7e8', 3);
+    }
+  }
+  marker(centerWorldX, centerWorldY, '#fff3be', 4);
 });
 const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
   chooseDialogueOption: (choiceId) => showResult(network.chooseDialogueOption(choiceId), 'DIALOGUE UPDATED'),
@@ -696,7 +762,11 @@ const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
     variant: profile?.variant ?? 0,
   }, rect);
 }, shopFilterInputElement);
-const questTracker = new QuestTracker(art.ui);
+const questTracker = new QuestTracker(
+  art.ui,
+  art.uiSkin.questTrackerChevron,
+  (questId) => { overworldUi.openQuest(questId); },
+);
 
 function questLogEntries(snapshot: OverworldView): QuestLogEntry[] {
   const statistics = new Map([...snapshot.playerStatistics].map((row) => [
@@ -1129,13 +1199,29 @@ function treeLightOccluders(snapshot: OverworldView, terrain: TerrainArray): Lig
   return result;
 }
 
+function terrainForSnapshot(snapshot: OverworldView): TerrainArray {
+  const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
+  const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
+  const base = terrainForSpace(activeSpaceDefinition, seed, version);
+  if (activeSpaceDefinition.generator !== 'cellar') return base;
+  const key = `${activeSpaceDefinition.spaceId}:${seed}:${version}:${network.cellarExcavationRevision}`;
+  if (cellarTerrainCache !== null && cellarTerrainCacheKey === key) return cellarTerrainCache;
+  cellarTerrainCacheKey = key;
+  cellarTerrainCache = terrainWithCellarExcavations(
+    base,
+    snapshot.cellarExcavations,
+    network.cellarExcavationRevision,
+  );
+  return cellarTerrainCache;
+}
+
 function refreshCollision(snapshot: OverworldView): void {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const nextKey = `${activeSpaceDefinition.spaceId}:${seed}:${version}:${network.resourceRevision}`;
+  const nextKey = `${activeSpaceDefinition.spaceId}:${seed}:${version}:${network.resourceRevision}:${network.cellarExcavationRevision}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
-  const terrain = terrainForSpace(activeSpaceDefinition, seed, version);
+  const terrain = terrainForSnapshot(snapshot);
   const baseCollision = createClientCollisionMap(
     terrain,
     snapshot.resources,
@@ -1747,6 +1833,28 @@ function targetResource(snapshot: OverworldView): WorldResource | null {
   );
 }
 
+function targetCellarWall(snapshot: OverworldView): { readonly tileX: number; readonly tileY: number } | null {
+  if (predicted === null || activeSpaceDefinition.generator !== 'cellar' || selectedItem(snapshot) !== 'pickaxe') {
+    return null;
+  }
+  const target = targetInteractionTile();
+  if (target === null) return null;
+  const targetX = target.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const targetY = target.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const reach = 2 * TILE_SIZE_FIXED;
+  const dx = targetX - predicted.position.x;
+  const dy = targetY - predicted.position.y;
+  if (dx * dx + dy * dy > reach * reach) return null;
+  const terrain = terrainForSnapshot(snapshot);
+  if (target.tileX <= 0 || target.tileY <= 0
+    || target.tileX >= terrain.width - 1 || target.tileY >= terrain.height - 1
+    || terrain.blocked[target.tileY * terrain.width + target.tileX] !== true) return null;
+  const neighbours = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
+  return neighbours.some(([offsetX, offsetY]) => (
+    terrain.blocked[(target.tileY + offsetY) * terrain.width + target.tileX + offsetX] === false
+  )) ? target : null;
+}
+
 function targetGatherableResource(snapshot: OverworldView): WorldResource | null {
   if (predicted === null) return null;
   return facedResource(
@@ -1772,6 +1880,23 @@ function targetFarmTile(): { readonly tileX: number; readonly tileY: number } | 
       || home.owner.toHexString() !== latestSnapshot.identityHex) return null;
   }
   return targetInteractionTile();
+}
+
+function targetCrop(snapshot: OverworldView): WorldCrop | null {
+  const tile = targetFarmTile();
+  if (tile === null) return null;
+  return snapshot.crops.get(farmSoilKey(
+    tile.tileX,
+    tile.tileY,
+    activeSpaceDefinition.spaceId,
+  )) ?? null;
+}
+
+function cropTimeLabel(remainingTicks: bigint): string {
+  const totalMinutes = Math.max(1, Math.ceil(Number(remainingTicks) / AUTHORITY_HZ / 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours}H ${String(minutes).padStart(2, '0')}M` : `${minutes}M`;
 }
 
 function refreshHoveredInteractionTile(): void {
@@ -2480,6 +2605,54 @@ function drawCollisionOverlay(
   context.restore();
 }
 
+const CELLAR_ORE_PREVIEW_COLORS: Readonly<Record<string, string>> = {
+  ore_iron: '#b9c1c8aa',
+  ore_copper: '#e58b55aa',
+  ore_gold: '#ffd35cbb',
+  ore_emerald: '#55d889bb',
+  ore_sapphire: '#5999f0bb',
+  ore_topaz: '#e8a94fbb',
+  ore_ruby: '#e4525fbb',
+  ore_amethyst: '#b576e8bb',
+};
+
+function drawCellarOreVeinPreview(
+  context: CanvasRenderingContext2D,
+  terrain: TerrainArray,
+  seed: number,
+  cameraX: number,
+  cameraY: number,
+  scale: number,
+  viewportWidth: number,
+  viewportHeight: number,
+): number {
+  if (!cellarOrePreview || latestSnapshot.membership?.role !== 'owner'
+    || activeSpaceDefinition.generator !== 'cellar') return 0;
+  const minimumX = Math.max(1, Math.floor(cameraX / 16) - 1);
+  const minimumY = Math.max(1, Math.floor(cameraY / 16) - 1);
+  const maximumX = Math.min(terrain.width - 2, Math.ceil((cameraX + viewportWidth / scale) / 16) + 1);
+  const maximumY = Math.min(terrain.height - 2, Math.ceil((cameraY + viewportHeight / scale) / 16) + 1);
+  let count = 0;
+  context.save();
+  for (let tileY = minimumY; tileY <= maximumY; tileY += 1) {
+    for (let tileX = minimumX; tileX <= maximumX; tileX += 1) {
+      if (terrain.blocked[tileY * terrain.width + tileX] !== true) continue;
+      const kind = cellarOreKindAt(seed, activeSpaceDefinition.spaceId, tileX, tileY);
+      if (kind === null) continue;
+      context.fillStyle = CELLAR_ORE_PREVIEW_COLORS[kind] ?? '#ffffff99';
+      context.fillRect(
+        Math.round((tileX * 16 - cameraX) * scale),
+        Math.round((tileY * 16 - cameraY) * scale),
+        Math.max(1, Math.round(16 * scale)),
+        Math.max(1, Math.round(16 * scale)),
+      );
+      count += 1;
+    }
+  }
+  context.restore();
+  return count > 0 ? 1 : 0;
+}
+
 function render(alpha = 1): void {
   const renderStarted = performance.now();
   let drawCalls = 0;
@@ -2512,8 +2685,7 @@ function render(alpha = 1): void {
   const localX = (cameraJump?.x ?? renderedLocal?.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const localY = (cameraJump?.footY ?? renderedLocal?.y ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
-  const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const terrain = terrainForSpace(activeSpaceDefinition, seed, version);
+  const terrain = terrainForSnapshot(snapshot);
   const localTerrainContactY = terrainContactWorldYForPlayer(localY);
   const projectedLocalY = terrainProjectedWorldYAtFoot(terrain, localX, localTerrainContactY)
     + (localY - localTerrainContactY);
@@ -2575,7 +2747,10 @@ function render(alpha = 1): void {
     art.farmland,
     art.farmlandWet,
     art.farmlandGrassInset,
-    snapshot.soil,
+    [...snapshot.soil].map((soil) => ({
+      ...soil,
+      watered: soil.watered && renderWeatherTick < soil.wateredAtTick + CROP_WATERING_TICKS,
+    })),
     cameraX,
     cameraY,
     scale,
@@ -2932,6 +3107,29 @@ function render(alpha = 1): void {
         if ((resource as RenderWorldResource).ambientOnly === true) drawTree();
         else drawSouthFacingReceiver(resourceX, resourceY, drawTree);
       },
+    });
+  }
+  if (!debugEntitiesHidden) for (const crop of snapshot.crops) {
+    const definition = cropDefinition(crop.cropKind);
+    const soil = snapshot.soil.get(crop.id);
+    if (definition === null || soil === undefined) continue;
+    const x = crop.tileX * 16 + 8;
+    const y = (crop.tileY + 1) * 16;
+    if (!worldPointVisible(x, y, visible)) continue;
+    const growth = cropGrowthAt(
+      definition,
+      crop.growthTicks,
+      crop.growthUpdatedAtTick,
+      soil.wateredAtTick,
+      renderWeatherTick,
+      soil.watered,
+    );
+    enqueueWorldDepth(x, y, {
+      footY: y,
+      tie: `crop:${crop.id}`,
+      draw: () => drawOverworldCrop(
+        context, art, crop.cropKind, growth.stage, x, y, cameraX, cameraY, scale,
+      ),
     });
   }
   if (!debugEntitiesHidden) for (const item of snapshot.worldItems) {
@@ -3478,6 +3676,16 @@ function render(alpha = 1): void {
     );
     drawCalls += 1;
   }
+  drawCalls += drawCellarOreVeinPreview(
+    context,
+    terrain,
+    seed,
+    cameraX,
+    cameraY,
+    scale,
+    frame.layout.width,
+    frame.layout.height,
+  );
   drawCalls += weatherEffects.drawWind(
     context,
     renderWeather,
@@ -3490,7 +3698,8 @@ function render(alpha = 1): void {
     windTrees,
   );
   const farmItem = selectedItem(snapshot);
-  const tileToolSelected = farmItem === 'hoe' || farmItem === 'watering_can';
+  const tileToolSelected = farmItem === 'hoe' || farmItem === 'watering_can'
+    || itemDefinition(farmItem)?.tags.includes('item.seed') === true;
   const placeableSelected = carriedChest(snapshot) !== null
     || carriedCombatTarget(snapshot) !== null
     || carriedPlaceable(snapshot) !== null
@@ -3519,6 +3728,20 @@ function render(alpha = 1): void {
       );
       drawCalls += 1;
     }
+  }
+  const cellarWallTarget = farmItem === 'pickaxe' ? targetCellarWall(snapshot) : null;
+  if (!interfaceHidden && !debugEntitiesHidden && cellarWallTarget !== null && localMount(snapshot) === null
+    && overworldUi.openWindow === null && !chatOverlay.isOpen) {
+    drawInteractionTileReticle(
+      context,
+      art.uiSkin.selectorNeutral,
+      cellarWallTarget.tileX,
+      cellarWallTarget.tileY,
+      cameraX,
+      cameraY,
+      scale,
+    );
+    drawCalls += 1;
   }
   if (!interfaceHidden && !debugEntitiesHidden && farmItem === 'bow'
     && overworldUi.openWindow === null && !chatOverlay.isOpen
@@ -3579,10 +3802,32 @@ function render(alpha = 1): void {
     : snapshot.soil.get(farmSoilKey(
       farmTarget.tileX, farmTarget.tileY, activeSpaceDefinition.spaceId,
     ));
+  const farmCrop = farmTarget === null ? undefined
+    : snapshot.crops.get(farmSoilKey(
+      farmTarget.tileX, farmTarget.tileY, activeSpaceDefinition.spaceId,
+    ));
+  const farmCropDefinition = cropDefinition(farmCrop?.cropKind ?? '');
+  const farmCropGrowth = farmCrop === undefined || farmSoil === undefined || farmCropDefinition === null
+    ? null
+    : cropGrowthAt(
+      farmCropDefinition,
+      farmCrop.growthTicks,
+      farmCrop.growthUpdatedAtTick,
+      farmSoil.wateredAtTick,
+      renderWeatherTick,
+      farmSoil.watered,
+    );
   const farmPrompt = farmTarget === null ? null
+    : farmCropDefinition !== null
+      ? farmCropGrowth?.mature === true
+        ? `[F] HARVEST ${farmCropDefinition.displayName.toUpperCase()}`
+        : `${farmCropDefinition.displayName.toUpperCase()} ${farmCropGrowth?.watered === true ? 'GROWING' : 'NEEDS WATER'}`
+    : itemDefinition(farmItem)?.tags.includes('item.seed') === true
+      ? farmSoil === undefined ? 'TILL SOIL BEFORE PLANTING' : '[F] PLANT SEEDS'
     : farmItem === 'hoe' ? (farmSoil === undefined ? '[F] TILL SOIL' : '[F] RESTORE GRASS')
       : farmSoil === undefined ? 'TILL SOIL BEFORE WATERING'
-        : farmSoil.watered ? 'SOIL ALREADY WATERED' : '[F] WATER SOIL';
+        : farmSoil.watered && renderWeatherTick < farmSoil.wateredAtTick + CROP_WATERING_TICKS
+          ? 'SOIL ALREADY WATERED' : '[F] WATER SOIL';
   const farmGate = targetOwnedHomesteadGate(snapshot);
   const basePrompt = debugEntitiesHidden || npcInteractionUi.active ? null
     : farmGate !== null ? `[F] ${farmGate.open ? 'CLOSE' : 'OPEN'} FARM GATE`
@@ -3695,12 +3940,14 @@ function render(alpha = 1): void {
     windDirectionMode: worldWindDirection(),
     windDirectionLabel: windDirectionLabel(renderWeather.windDirectionX, renderWeather.windDirectionY),
     lightingEffectsDisabled,
+    cellarOrePreview,
     fullscreen: documentIsFullscreen(),
     pwaUpdateStatus: pwaClient.status,
     prompt,
     toast: toastTicks > 0 ? toast.slice(0, 42) : null,
     toastKind,
     nearbyCraftingStations: nearbyCraftingStations(snapshot),
+    minimapTrackingEnabled: skillRanks.some((row) => row.nodeId === 'cartographer' && row.rank > 0),
     skills: {
       tracks: skillTracks,
       ranks: skillRanks,
@@ -3747,7 +3994,12 @@ function render(alpha = 1): void {
     quests: [...snapshot.quests],
     touchControls: touchControls.available,
   });
-  questTracker.update({ width: uiWidth, entries: questTrackerEntries(quests) });
+  questTracker.update({
+    width: uiWidth,
+    height: uiHeight,
+    anchorRect: overworldUi.minimapBounds,
+    entries: questTrackerEntries(quests),
+  });
   const channelNames = new Map([...snapshot.chatChannels].map((channel) => [channel.id, channel.displayName]));
   chatOverlay.update({
     width: uiWidth,
@@ -3812,6 +4064,47 @@ function render(alpha = 1): void {
       const x = (marker.x - cameraX) * worldZoom / uiScale - 8;
       const y = (marker.y - cameraY - 40) * worldZoom / uiScale - 8 + bob;
       drawUiAsset(uiContext, asset, x, y, 1);
+    }
+  }
+  if (!interfaceHidden && hoveredInteractionTile !== null && worldPointer !== null
+    && overworldUi.openWindow === null && !chatOverlay.isOpen) {
+    const hoveredCrop = snapshot.crops.get(farmSoilKey(
+      hoveredInteractionTile.tileX,
+      hoveredInteractionTile.tileY,
+      activeSpaceDefinition.spaceId,
+    ));
+    const hoveredSoil = hoveredCrop === undefined ? undefined : snapshot.soil.get(hoveredCrop.id);
+    const definition = cropDefinition(hoveredCrop?.cropKind ?? '');
+    if (hoveredCrop !== undefined && hoveredSoil !== undefined && definition !== null) {
+      const growth = cropGrowthAt(
+        definition,
+        hoveredCrop.growthTicks,
+        hoveredCrop.growthUpdatedAtTick,
+        hoveredSoil.wateredAtTick,
+        renderWeatherTick,
+        hoveredSoil.watered,
+      );
+      const timerFrame = Math.min(15, Math.floor(growth.progress * 15));
+      const status = growth.mature
+        ? 'READY TO HARVEST'
+        : `${growth.watered ? 'WATERED' : 'NEEDS WATER'} - ${cropTimeLabel(growth.remainingTicks)} LEFT`;
+      const width = Math.max(
+        104,
+        measurePixelText(definition.displayName.toUpperCase(), 1, art.ui.font) + 31,
+        measurePixelText(status, 1, art.ui.font) + 12,
+      );
+      const worldX = hoveredCrop.tileX * 16 + 8;
+      const worldY = (hoveredCrop.tileY + 1) * 16;
+      const anchorX = (worldX - cameraX) * worldZoom / uiScale;
+      const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
+      const panelX = Math.max(2, Math.min(uiWidth - width - 2, Math.round(anchorX - width / 2)));
+      const panelY = Math.max(2, Math.round(anchorY - 32));
+      drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
+      drawUiAssetFrame(uiContext, art.cropTimer, timerFrame, panelX + 7, panelY + 7, 1);
+      drawPixelText(uiContext, art.ui, definition.displayName.toUpperCase(), panelX + 28, panelY + 6);
+      drawPixelText(uiContext, art.ui, status, panelX + 7, panelY + 18, {
+        color: growth.watered || growth.mature ? '#f8ead0' : '#ffb05b',
+      });
     }
   }
   if (!interfaceHidden) {
@@ -3913,10 +4206,10 @@ function render(alpha = 1): void {
       const rect = speechBubbleRect(anchor, layout, uiWidth, uiHeight);
       drawSpeechBubble(uiContext, art.ui, art.uiSkin, rect, layout, 'thought', 'down');
     }
+    questTracker.draw(uiContext);
     chatOverlay.draw(uiContext);
     overworldUi.draw(uiContext);
     if (onlinePlayersVisible) overworldUi.drawOnlinePlayers(uiContext, onlinePlayers);
-    questTracker.draw(uiContext);
     npcInteractionUi.draw(uiContext);
     characterNamePrompt.draw(uiContext);
     touchControls.draw(uiContext, art.ui, art.uiSkin, uiWidth, uiHeight);
@@ -4394,6 +4687,20 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
+    const cropTile = targetFarmTile();
+    const selectedCropItem = selectedItem(snapshot);
+    const cropAtTarget = targetCrop(snapshot);
+    if (cropTile !== null && (
+      itemDefinition(selectedCropItem)?.tags.includes('item.seed') === true
+      || (cropAtTarget !== null && selectedCropItem !== 'hoe' && selectedCropItem !== 'watering_can')
+    )) {
+      showResult(
+        network.useCropTile(cropTile.tileX, cropTile.tileY),
+        cropAtTarget === null ? 'SEEDS PLANTED' : 'CROP HARVESTED',
+      );
+      event.preventDefault();
+      return;
+    }
     const actionKind = avatarActionForEquippedKind(item);
     if (actionKind === null) {
       setToast(`NO ${hotbarItemLabel(item)} USE ACTION YET`, 'failure');
@@ -4414,8 +4721,16 @@ window.addEventListener('keydown', (event) => {
         return;
       }
       const resource = targetResource(snapshot);
+      const cellarWall = resource === null ? targetCellarWall(snapshot) : null;
       if (!isVitalsTool(item)) {
         setToast('THIS TOOL IS NOT READY FOR WORLD USE', 'failure', 90);
+      } else if (cellarWall !== null && item === 'pickaxe') {
+        const performed = performToolAction(
+          () => network.digCellarTile(cellarWall.tileX, cellarWall.tileY),
+          'CELLAR WALL STRUCK',
+          item,
+        );
+        if (performed) facePredictedTowardTile(cellarWall);
       } else if (resource === null) {
         performToolAction(() => network.harvestResource(0n), 'SWING', item, true);
       } else {
@@ -4523,9 +4838,10 @@ canvas.addEventListener('pointermove', (event) => {
   characterNamePrompt.pointerMove({ x, y });
   if (characterNamePrompt.isActive) return;
   if (npcInteractionUi.pointerMove({ x, y })) return;
-  if (questTracker.pointerMove({ x, y })) return;
   chatOverlay.pointerMove({ x, y });
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
+  if (overworldUi.openWindow === null) questTracker.pointerMove({ x, y });
+  else questTracker.pointerLeave();
 });
 canvas.addEventListener('pointerleave', () => {
   worldPointer = null;
@@ -4581,10 +4897,6 @@ canvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       return;
     }
-    if (questTracker.pointerDown({ x, y }, event.button)) {
-      event.preventDefault();
-      return;
-    }
     // The retained window tree is visually above chat and therefore receives
     // the first opportunity to capture input as well. Previously chat could
     // activate through a modal that was correctly painted over it.
@@ -4594,6 +4906,11 @@ canvas.addEventListener('pointerdown', (event) => {
       return;
     }
     if (chatOverlay.pointerDown({ x, y }, event.button)) {
+      canvas.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      return;
+    }
+    if (overworldUi.openWindow === null && questTracker.pointerDown({ x, y }, event.button)) {
       canvas.setPointerCapture(event.pointerId);
       event.preventDefault();
       return;
@@ -4662,6 +4979,7 @@ canvas.addEventListener('pointerdown', (event) => {
   }
   const farmItem = selectedItem(latestSnapshot);
   const farmTarget = targetFarmTile();
+  const pointerCrop = targetCrop(latestSnapshot);
   const restoringFarmTile = event.button === 2 && farmItem === 'hoe' && farmTarget !== null
     && latestSnapshot.soil.get(farmSoilKey(
       farmTarget.tileX, farmTarget.tileY, activeSpaceDefinition.spaceId,
@@ -4676,6 +4994,18 @@ canvas.addEventListener('pointerdown', (event) => {
     && farmTarget !== null && localMount(latestSnapshot) === null
     && worldPointerAvailable) {
     performFarmToolAction(farmTarget, farmItem);
+    event.preventDefault();
+    return;
+  }
+  if (event.button === 0 && farmTarget !== null && localMount(latestSnapshot) === null
+    && worldPointerAvailable && (
+      itemDefinition(farmItem)?.tags.includes('item.seed') === true
+      || pointerCrop !== null
+    )) {
+    showResult(
+      network.useCropTile(farmTarget.tileX, farmTarget.tileY),
+      pointerCrop === null ? 'SEEDS PLANTED' : 'CROP HARVESTED',
+    );
     event.preventDefault();
   }
 });
@@ -4705,16 +5035,18 @@ canvas.addEventListener('pointerup', (event) => {
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     return;
   }
+  const questTrackerConsumed = questTracker.pointerUp({ x, y });
   const chatConsumed = chatOverlay.pointerUp();
   const consumed = overworldUi.pointerUp({ x, y }, event.button, { shift: event.shiftKey });
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  if (chatConsumed || consumed) event.preventDefault();
+  if (questTrackerConsumed || chatConsumed || consumed) event.preventDefault();
 });
 canvas.addEventListener('pointercancel', () => {
   cancelBowChargePresentation();
   worldPointer = null;
   hoveredInteractionTile = null;
-  chatOverlay.pointerLeave();
+  questTracker.pointerCancel();
+  chatOverlay.pointerCancel();
   npcInteractionUi.pointerLeave();
   overworldUi.pointerLeave();
 });
@@ -4760,6 +5092,7 @@ Object.assign(window, {
     setDirection: (direction: NetworkDirection) => network.setDirection(direction),
     harvestResource: (resourceId: bigint) => network.harvestResource(resourceId),
     useFarmTool: (tileX: number, tileY: number) => network.useFarmTool(tileX, tileY),
+    useCropTile: (tileX: number, tileY: number) => network.useCropTile(tileX, tileY),
     pickupWorldItem: (itemId: bigint) => network.pickupWorldItem(itemId),
     interactNpc: (npcId: bigint) => network.interactNpc(npcId),
     chooseDialogueOption: (choiceId: string) => network.chooseDialogueOption(choiceId),

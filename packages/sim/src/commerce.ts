@@ -1,4 +1,5 @@
 import { ITEM_DEFINITIONS, type KnownItemKind } from './item-containers.js';
+import { CROP_DEFINITIONS, CROP_HARVEST_ECONOMY, CROP_SEED_ECONOMY } from './crops.js';
 
 export const BRONZE_PER_SILVER = 100n;
 export const SILVER_PER_GOLD = 100n;
@@ -77,11 +78,13 @@ export const ITEM_ECONOMY = {
   fence_gate: { buyPriceBronze: null, sellPriceBronze: 12 },
   sign: { buyPriceBronze: null, sellPriceBronze: 10 },
   standing_torch: { buyPriceBronze: null, sellPriceBronze: 20 },
+  ...CROP_SEED_ECONOMY,
+  ...CROP_HARVEST_ECONOMY,
   apple: { buyPriceBronze: 12, sellPriceBronze: 5 },
   pear: { buyPriceBronze: 12, sellPriceBronze: 5 },
   peach: { buyPriceBronze: 14, sellPriceBronze: 6 },
   cherry: { buyPriceBronze: 14, sellPriceBronze: 6 },
-  grape: { buyPriceBronze: 12, sellPriceBronze: 5 },
+  grape: { buyPriceBronze: null, sellPriceBronze: 15 },
   orchard_tea: { buyPriceBronze: 120, sellPriceBronze: 48 },
   barrel: { buyPriceBronze: 180, sellPriceBronze: 72 },
   backpack: { buyPriceBronze: 1_500, sellPriceBronze: 600 },
@@ -99,6 +102,7 @@ export const TOOL_MERCHANT_OFFERS = [
   'homestead_deed',
   'axe', 'pickaxe', 'hoe', 'watering_can', 'bow', 'sword', 'arrow',
   'shovel', 'hammer', 'torch', 'lantern', 'workbench', 'anvil',
+  ...CROP_DEFINITIONS.map(({ seedItemKind }) => seedItemKind),
 ] as const satisfies readonly KnownItemKind[];
 
 export type ToolMerchantOfferKind = typeof TOOL_MERCHANT_OFFERS[number];

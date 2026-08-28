@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_wheat_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....55555555....",
+        "...5000000005...",
+        "..504444433305..",
+        "..504333333205..",
+        "..500432222005..",
+        "..504000000205..",
+        "..504333333205..",
+        "..504333113205..",
+        "..504331713205..",
+        "..504316133205..",
+        "..504311333205..",
+        "..504133332205..",
+        "...5044322205...",
+        "....50000005....",
+        ".....555555....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#8c6a0d",
+    "2": "#bf6f4a",
+    "3": "#e69c69",
+    "4": "#f6ca9f",
+    "5": "#f9e6cf",
+    "6": "#ffc825",
+    "7": "#ffeb57"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        16,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.wheat"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

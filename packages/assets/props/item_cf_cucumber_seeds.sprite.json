@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_cucumber_seeds",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....77777777....",
+        "...7000000007...",
+        "..706666655507..",
+        "..706555555407..",
+        "..700654444007..",
+        "..706000000407..",
+        "..706555555407..",
+        "..706555155407..",
+        "..706551315407..",
+        "..706513215407..",
+        "..706132155407..",
+        "..706511554407..",
+        "...7066544407...",
+        "....70000007....",
+        ".....777777....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#0c2e44",
+    "2": "#1b6458",
+    "3": "#1d7768",
+    "4": "#bf6f4a",
+    "5": "#e69c69",
+    "6": "#f6ca9f",
+    "7": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        272,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.seed_packet",
+    "seed.cucumber"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

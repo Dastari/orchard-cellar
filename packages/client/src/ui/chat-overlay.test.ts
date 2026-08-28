@@ -6,6 +6,7 @@ import {
   chatHistoryExpanded,
   chatToggleTooltipText,
   chatOverlayLayout,
+  positionedChatOverlayLayout,
   chatToggleButtonRect,
   chatLineAlpha,
   chatMessagePresentation,
@@ -76,5 +77,20 @@ describe('chat overlay helpers', () => {
     }, [8, 8, 8, 8]);
     expect(keyboardReserved.input.y + keyboardReserved.input.height).toBeLessThanOrEqual(509);
     expect(keyboardReserved.history.y).toBeGreaterThanOrEqual(4);
+  });
+
+  it('moves the complete chat composition from the toggle anchor and clamps it safely', () => {
+    const base = chatOverlayLayout({ width: 480, height: 270, touchControls: false });
+    const moved = positionedChatOverlayLayout(base, { width: 480, height: 270 }, { x: 160, y: 40 });
+    const deltaX = moved.toggle.x - base.toggle.x;
+    const deltaY = moved.toggle.y - base.toggle.y;
+    expect(moved.history.x - base.history.x).toBe(deltaX);
+    expect(moved.history.y - base.history.y).toBe(deltaY);
+    expect(moved.input.x - base.input.x).toBe(deltaX);
+    expect(moved.input.y - base.input.y).toBe(deltaY);
+
+    const clamped = positionedChatOverlayLayout(base, { width: 480, height: 270 }, { x: 999, y: 999 });
+    expect(clamped.history.x + clamped.history.width).toBeLessThanOrEqual(476);
+    expect(clamped.input.y + clamped.input.height).toBeLessThanOrEqual(base.input.y + base.input.height);
   });
 });

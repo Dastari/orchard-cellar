@@ -94,6 +94,7 @@ export function wrapQuestText(text: string, maximumCharacters: number): readonly
 export class QuestLog {
   private entries: readonly QuestLogEntry[] = [];
   private selectedId: string | null = null;
+  private revealSelected = false;
   private readonly scrollBar: ScrollBar;
 
   constructor(
@@ -109,6 +110,15 @@ export class QuestLog {
     if (this.selectedId === null || !entries.some((entry) => entry.id === this.selectedId)) {
       this.selectedId = entries[0]?.id ?? null;
     }
+  }
+
+  /** Selects an authoritative quest and asks the next layout pass to reveal
+   * it in the left pane. Used by the compact overworld tracker. */
+  select(questId: string): boolean {
+    if (!this.entries.some((entry) => entry.id === questId)) return false;
+    this.selectedId = questId;
+    this.revealSelected = true;
+    return true;
   }
 
   pointerMove(point: UiPoint, frame: UiRect): void {
@@ -253,6 +263,14 @@ export class QuestLog {
   private syncScroll(layout: QuestLogLayout): void {
     this.scrollBar.setMetrics(this.entries.length, layout.visibleRows);
     this.scrollBar.setBounds(layout.listScroll);
+    if (!this.revealSelected) return;
+    this.revealSelected = false;
+    const index = this.entries.findIndex((entry) => entry.id === this.selectedId);
+    if (index < 0) return;
+    if (index < this.scrollBar.position) this.scrollBar.scrollBy(index - this.scrollBar.position);
+    else if (index >= this.scrollBar.position + layout.visibleRows) {
+      this.scrollBar.scrollBy(index - (this.scrollBar.position + layout.visibleRows) + 1);
+    }
   }
 
   private visibleEntries(layout: QuestLogLayout): readonly QuestLogEntry[] {

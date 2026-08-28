@@ -15,7 +15,8 @@ describe('26§3 additive spaces schema', () => {
     for (const [name, next] of [
       ['player_position', 'player_input'],
       ['world_resource', 'world_soil'],
-      ['world_soil', 'world_item'],
+      ['world_soil', 'world_crop'],
+      ['world_crop', 'world_item'],
       ['world_item', 'world_projectile'],
       ['world_projectile', 'world_chest'],
       ['world_chest', 'world_chest_slot'],
@@ -76,7 +77,7 @@ describe('26§3 additive spaces schema', () => {
       expect(source.slice(start, end < 0 ? source.length : end), reducerName)
         .toContain('horseAllowedInSpace(ctx, position.spaceId)');
     }
-    for (const reducerName of ['useFarmTool', 'restoreFarmTile']) {
+    for (const reducerName of ['useFarmTool', 'restoreFarmTile', 'useCropTile']) {
       const start = source.indexOf(`export const ${reducerName} =`);
       const end = source.indexOf('\nexport const ', start + 1);
       expect(source.slice(start, end < 0 ? source.length : end), reducerName)

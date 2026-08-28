@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_crop_parsley",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "........7.77.7..",
+        ".......70700707.",
+        "......7040430407",
+        "......7044304307",
+        "......770242207.",
+        ".....70001223007",
+        "....707770132407",
+        "...707776500307.",
+        "..707766650707..",
+        ".707766565077...",
+        ".7076566507.....",
+        "7077665507......",
+        "707665507.......",
+        "70655007........",
+        ".700077.........",
+        "..777..........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#134c4c",
+    "2": "#1e6f50",
+    "3": "#33984b",
+    "4": "#5ac54f",
+    "5": "#e38d31",
+    "6": "#f0c08a",
+    "7": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        208,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.crop",
+    "crop.parsley"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

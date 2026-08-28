@@ -2,6 +2,7 @@ import {
   AUTHORITY_TICKS_PER_DAY,
   AUTHORITY_HZ,
   AUTHORITY_TICK_MICROS,
+  CROP_WATERING_TICKS,
   BRONZE_PER_GOLD,
   BACKPACK_SLOT_COUNT,
   BACKPACK_SLOT_OFFSET,
@@ -69,6 +70,9 @@ import {
   insertItemStackPartial,
   fiberDropsFromTilling,
   craftingStationWithinReach,
+  cropDefinition,
+  cropDefinitionForSeed,
+  cropGrowthAt,
   itemDefinition,
   inventoryContainerSlotCount,
   inventoryContainerSlotOffset,
@@ -145,6 +149,12 @@ import {
   survivalResourceObstacle,
   survivalResourceDropsAfterHit,
   survivalResourceInitialHealth,
+  cellarOreKindAt,
+  cellarOreResourceId,
+  cellarWallHitsRequired,
+  cellarWallStoneQuantity,
+  CELLAR_SIZE_TILES,
+  CELLAR_WALL_TOOL_WEAR,
   TREE_GROWTH_STAGE_BIG,
   TREE_REGROWTH_PROGRESS_MAX,
   TREE_REGROWTH_SWEEP_TICKS,
@@ -1069,6 +1079,42 @@ const homestead_deed_claim = table(
   { identity: t.identity().primaryKey(), purchasedAtTick: t.u64() },
 );
 
+/** Sparse authoritative overlay for the 1024-square cellar field. Starter
+ * rooms remain generator-owned; this table stores only player excavations. */
+const cellar_excavation = table(
+  {
+    name: 'cellar_excavation',
+    public: true,
+    indexes: [
+      { accessor: 'by_space', algorithm: 'btree', columns: ['spaceId'] },
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    spaceId: t.u16(),
+    tileX: t.i16(),
+    tileY: t.i16(),
+    chunkX: t.i16(),
+    chunkY: t.i16(),
+    dugAtTick: t.u64(),
+  },
+);
+
+/** Shared partial damage prevents two players from maintaining divergent wall
+ * counters. It is private because terrain changes only after the final hit. */
+const cellar_dig_progress = table(
+  { name: 'cellar_dig_progress' },
+  {
+    id: t.string().primaryKey(),
+    spaceId: t.u16(),
+    tileX: t.i16(),
+    tileY: t.i16(),
+    hits: t.u8(),
+    lastHitTick: t.u64(),
+  },
+);
+
 const world_resource = table(
   {
     name: 'world_resource',
@@ -1111,6 +1157,31 @@ const world_soil = table(
     watered: t.bool(),
     tilledAtTick: t.u64(),
     wateredAtTick: t.u64(),
+    spaceId: t.u16().default(0),
+  },
+);
+
+/** One authoritative crop per tilled tile. Progress is settled only at water
+ * boundaries and interactions; clients derive the live in-window remainder. */
+const world_crop = table(
+  {
+    name: 'world_crop',
+    public: true,
+    indexes: [
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    owner: t.identity(),
+    cropKind: t.string(),
+    tileX: t.i16(),
+    tileY: t.i16(),
+    chunkX: t.i16(),
+    chunkY: t.i16(),
+    plantedAtTick: t.u64(),
+    growthTicks: t.u64(),
+    growthUpdatedAtTick: t.u64(),
     spaceId: t.u16().default(0),
   },
 );
@@ -1549,6 +1620,8 @@ const spacetimedb = schema({
   world_surface,
   homestead_guest,
   homestead_deed_claim,
+  cellar_excavation,
+  cellar_dig_progress,
   player_quest,
   player_quest_baseline,
   player_skill_track,
@@ -1559,6 +1632,7 @@ const spacetimedb = schema({
   player_thought,
   world_resource,
   world_soil,
+  world_crop,
   world_item,
   world_projectile,
   projectile_charge,
@@ -2040,6 +2114,7 @@ function collisionForSpace(ctx: WorldReducerContext, spaceId: number) {
     'ground',
     placeables,
     homesteadForSpace(ctx, spaceId),
+    [...ctx.db.cellar_excavation.by_space.filter(spaceId)],
   );
   const homes = spaceId === TOPSIDE_SPACE_ID
     ? [...ctx.db.homestead.iter()]
@@ -2944,8 +3019,9 @@ function wearInventoryTool(
     readonly itemKind: string;
     readonly durability: number;
   },
+  wear = 1,
 ): void {
-  const worn = wearTool(slot.itemKind, slot.durability);
+  const worn = wearTool(slot.itemKind, slot.durability, wear);
   const row = ctx.db.inventory_slot.id.find(slot.id);
   if (row === null) throw new SenderError('inventory_slot_missing');
   ctx.db.inventory_slot.id.update({ ...row, durability: worn.durability });
@@ -4288,7 +4364,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       const tileY = Math.floor(connectedPosition.y / TILE_SIZE_FIXED);
       // Cellars grew from the early 32×32 technology demo into the centred
       // 1024×1024 dig field. Repair persisted demo coordinates on reconnect.
-      if (connectedSpace?.generator === 'cellar' && !cellarPlayableTile(tileX, tileY)) {
+      if (connectedSpace?.generator === 'cellar' && !cellarTileIsDug(ctx, connectedSpace.spaceId, tileX, tileY)) {
         teleportPlayer(
           ctx,
           connectedPosition,
@@ -7563,6 +7639,110 @@ export const gatherWorldResource = spacetimedb.reducer(
   },
 );
 
+function cellarExcavationId(spaceId: number, tileX: number, tileY: number): string {
+  return JSON.stringify([spaceId, tileX, tileY]);
+}
+
+function cellarTileIsDug(ctx: WorldReducerContext, spaceId: number, tileX: number, tileY: number): boolean {
+  return cellarPlayableTile(tileX, tileY)
+    || ctx.db.cellar_excavation.id.find(cellarExcavationId(spaceId, tileX, tileY)) !== null;
+}
+
+/** Pickaxe strikes turn solid cellar tiles into persistent walkable terrain.
+ * Damage is shared; an ore node is materialised only after its tile opens. */
+export const digCellarTile = spacetimedb.reducer(
+  { tileX: t.i16(), tileY: t.i16() },
+  (ctx, { tileX, tileY }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const survival = ctx.db.player_survival.identity.find(ctx.sender);
+    const clock = ctx.db.world_clock.id.find(0);
+    if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
+    if (handsOccupiedFor(ctx, ctx.sender)) throw new SenderError('hands_occupied');
+    if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
+    const definition = spaceDefinitionFor(position.spaceId, homesteadForSpace(ctx, position.spaceId));
+    if (definition?.generator !== 'cellar') throw new SenderError('cellar_only');
+    requireWorldModificationAuthorized(ctx, position);
+    if (tileX <= 0 || tileY <= 0 || tileX >= CELLAR_SIZE_TILES - 1 || tileY >= CELLAR_SIZE_TILES - 1) {
+      throw new SenderError('cellar_boundary_reached');
+    }
+    if (!tileTargetWithinFixedReach(position.x, position.y, { tileX, tileY }, 2 * TILE_SIZE_FIXED)) {
+      throw new SenderError('target_out_of_range');
+    }
+    if (cellarTileIsDug(ctx, position.spaceId, tileX, tileY)) throw new SenderError('cellar_tile_already_dug');
+    const neighbours = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
+    if (!neighbours.some(([offsetX, offsetY]) => (
+      cellarTileIsDug(ctx, position.spaceId, tileX + offsetX, tileY + offsetY)
+    ))) throw new SenderError('cellar_wall_not_exposed');
+
+    const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    requireUsableTool(slot);
+    if (slot.itemKind !== 'pickaxe') throw new SenderError('wrong_tool');
+    spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
+    wearInventoryTool(ctx, slot, CELLAR_WALL_TOOL_WEAR);
+    const wallFacing = directionFromAim(
+      tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.x,
+      tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.y,
+    );
+    ctx.db.player_position.identity.update({
+      ...position,
+      facing: wallFacing ?? position.facing,
+      actionKind: avatarActionForEquippedKind('pickaxe') ?? 'tool',
+      actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
+    });
+    recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, 'pickaxe');
+
+    const seed = ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED;
+    const id = cellarExcavationId(position.spaceId, tileX, tileY);
+    const progress = ctx.db.cellar_dig_progress.id.find(id);
+    const hits = (progress?.hits ?? 0) + 1;
+    if (hits < cellarWallHitsRequired(seed, position.spaceId, tileX, tileY)) {
+      const row = { id, spaceId: position.spaceId, tileX, tileY, hits, lastHitTick: clock.authorityTick };
+      if (progress === null) ctx.db.cellar_dig_progress.insert(row);
+      else ctx.db.cellar_dig_progress.id.update(row);
+      return;
+    }
+
+    if (progress !== null) ctx.db.cellar_dig_progress.id.delete(id);
+    ctx.db.cellar_excavation.insert({
+      id,
+      spaceId: position.spaceId,
+      tileX,
+      tileY,
+      chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
+      chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
+      dugAtTick: clock.authorityTick,
+    });
+    const oreKind = cellarOreKindAt(seed, position.spaceId, tileX, tileY);
+    if (oreKind !== null) {
+      const resourceId = cellarOreResourceId(position.spaceId, tileX, tileY);
+      if (ctx.db.world_resource.id.find(resourceId) === null) ctx.db.world_resource.insert({
+        id: resourceId,
+        kind: oreKind,
+        tileX,
+        tileY,
+        chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
+        chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
+        health: survivalResourceInitialHealth(oreKind),
+        depleted: false,
+        growthStage: TREE_GROWTH_STAGE_BIG,
+        regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
+        spaceId: position.spaceId,
+      });
+    }
+    dropWorldItemStack(ctx, {
+      itemKind: 'stone',
+      quantity: cellarWallStoneQuantity(seed, position.spaceId, tileX, tileY),
+      x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      droppedAtTick: clock.authorityTick,
+      durability: 0,
+      spaceId: position.spaceId,
+    });
+    recordPlayerStatistic(ctx, ctx.sender, 'rocks_broken', 1n, clock.authorityTick);
+  },
+);
+
 export const harvestResource = spacetimedb.reducer(
   { resourceId: t.u64() },
   (ctx, { resourceId }) => {
@@ -7872,7 +8052,9 @@ export const useFarmTool = spacetimedb.reducer(
       selectedItem,
       tileX,
       tileY,
-      soil,
+      soil === null ? null : {
+        watered: soil.watered && clock.authorityTick < soil.wateredAtTick + CROP_WATERING_TICKS,
+      },
       occupied,
       position.spaceId === TOPSIDE_SPACE_ID ? undefined : true,
     );
@@ -7912,6 +8094,23 @@ export const useFarmTool = spacetimedb.reducer(
         recordPlayerStatistic(ctx, ctx.sender, 'items_obtained', 1n, clock.authorityTick, 'fiber');
       }
     } else if (soil !== null) {
+      const cropRow = ctx.db.world_crop.id.find(id);
+      const definition = cropRow === null ? null : cropDefinition(cropRow.cropKind);
+      if (cropRow !== null && definition !== null) {
+        const settled = cropGrowthAt(
+          definition,
+          cropRow.growthTicks,
+          cropRow.growthUpdatedAtTick,
+          soil.wateredAtTick,
+          clock.authorityTick,
+          soil.watered,
+        );
+        ctx.db.world_crop.id.update({
+          ...cropRow,
+          growthTicks: settled.growthTicks,
+          growthUpdatedAtTick: clock.authorityTick,
+        });
+      }
       ctx.db.world_soil.id.update({ ...soil, watered: true, wateredAtTick: clock.authorityTick });
     }
     ctx.db.player_position.identity.update({
@@ -7950,6 +8149,7 @@ export const restoreFarmTile = spacetimedb.reducer(
     const selectedItem = slot?.itemKind ?? 'empty';
     const id = worldSoilId(position.spaceId, tileX, tileY);
     const soil = ctx.db.world_soil.id.find(id);
+    if (ctx.db.world_crop.id.find(id) !== null) throw new SenderError('crop_occupies_tile');
     const result = farmSoilRestoreResult(position.x, position.y, selectedItem, tileX, tileY, soil);
     if (result !== 'ok') throw new SenderError(result);
     requireUsableTool(slot);
@@ -7970,6 +8170,88 @@ export const restoreFarmTile = spacetimedb.reducer(
     wearInventoryTool(ctx, slot);
     recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selectedItem);
     recordPlayerStatistic(ctx, ctx.sender, 'farm_tiles_restored', 1n, clock.authorityTick);
+  },
+);
+
+export const useCropTile = spacetimedb.reducer(
+  { tileX: t.i16(), tileY: t.i16() },
+  (ctx, { tileX, tileY }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    if (handsOccupiedFor(ctx, ctx.sender)) throw new SenderError('hands_occupied');
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const survival = ctx.db.player_survival.identity.find(ctx.sender);
+    const clock = ctx.db.world_clock.id.find(0);
+    if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
+    if (!mutableFarmTileAuthorized(ctx, position, tileX, tileY)) {
+      throw new SenderError('homestead_owner_required');
+    }
+    if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
+    if (!tileTargetWithinFixedReach(position.x, position.y, { tileX, tileY }, 3 * TILE_SIZE_FIXED)) {
+      throw new SenderError('farm_tile_out_of_range');
+    }
+    const id = worldSoilId(position.spaceId, tileX, tileY);
+    const soil = ctx.db.world_soil.id.find(id);
+    if (soil === null) throw new SenderError('not_tilled');
+    const existing = ctx.db.world_crop.id.find(id);
+    const activity = ctx.db.farm_activity.identity.find(ctx.sender);
+    if (activity === null) throw new SenderError('farm_activity_not_ready');
+
+    if (existing === null) {
+      const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+      const definition = cropDefinitionForSeed(slot?.itemKind ?? 'empty');
+      if (definition === null || slot === null || slot.quantity <= 0) throw new SenderError('select_seed_packet');
+      const nextQuantity = slot.quantity - 1;
+      ctx.db.inventory_slot.id.update({
+        ...slot,
+        itemKind: nextQuantity === 0 ? 'empty' : slot.itemKind,
+        quantity: nextQuantity,
+        durability: nextQuantity === 0 ? 0 : slot.durability,
+        lit: nextQuantity === 0 ? true : slot.lit,
+      });
+      ctx.db.world_crop.insert({
+        id,
+        owner: ctx.sender,
+        cropKind: definition.kind,
+        tileX,
+        tileY,
+        chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
+        chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
+        plantedAtTick: clock.authorityTick,
+        growthTicks: 0n,
+        growthUpdatedAtTick: clock.authorityTick,
+        spaceId: position.spaceId,
+      });
+      ctx.db.farm_activity.identity.update({ ...activity, planted: activity.planted + 1 });
+      recordPlayerStatistic(ctx, ctx.sender, 'crops_planted', 1n, clock.authorityTick, definition.kind);
+      return;
+    }
+
+    if (!existing.owner.isEqual(ctx.sender)) throw new SenderError('owner_only_harvest');
+    const definition = cropDefinition(existing.cropKind);
+    if (definition === null) throw new SenderError('unknown_crop_kind');
+    const growth = cropGrowthAt(
+      definition,
+      existing.growthTicks,
+      existing.growthUpdatedAtTick,
+      soil.wateredAtTick,
+      clock.authorityTick,
+      soil.watered,
+    );
+    if (!growth.mature) throw new SenderError('crop_still_growing');
+    if (!insertPlayerCarriedItem(ctx, definition.harvestItemKind, definition.harvestQuantity)) {
+      throw new SenderError('inventory_full');
+    }
+    ctx.db.world_crop.id.delete(id);
+    ctx.db.farm_activity.identity.update({ ...activity, harvested: activity.harvested + 1 });
+    recordPlayerStatistic(ctx, ctx.sender, 'crops_harvested', 1n, clock.authorityTick, definition.kind);
+    recordPlayerStatistic(
+      ctx,
+      ctx.sender,
+      'items_obtained',
+      BigInt(definition.harvestQuantity),
+      clock.authorityTick,
+      definition.harvestItemKind,
+    );
   },
 );
 

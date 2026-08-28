@@ -1,0 +1,71 @@
+{
+  "name": "sign_cf_crop_tomato",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".......22.......",
+        "......2882......",
+        "...2222772222...",
+        "..288888888882..",
+        "..277777777772..",
+        "..277777717772..",
+        "..277773311772..",
+        "..277736537772..",
+        "..277735537772..",
+        "..277773377772..",
+        "..277777777772..",
+        "...2222222222...",
+        "..000027420000..",
+        ".00000274200000.",
+        ".00000022000000.",
+        "..000000000000.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#1e6f50",
+    "2": "#3f2832",
+    "3": "#9f1e1e",
+    "4": "#bf6f4a",
+    "5": "#c13725",
+    "6": "#e16060",
+    "7": "#e69c69",
+    "8": "#f6ca9f"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        48,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "prop.crop_sign",
+    "crop.tomato"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

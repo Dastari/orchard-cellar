@@ -3,11 +3,10 @@
 Status: implemented foundation; trees and cacti are live consumers. Crop and
 homestead definitions use the same pure stage math as their authored varieties land.
 
-Target placement is amended by [40](40-sanctuary-overworld-and-zoned-world.md):
-sanctuary-overworld vegetation is immutable scenery and does not run this mutable
-harvest/regrowth lifecycle. Growable rows belong in Homesteads or declared resource
-zones. Current mutable overworld consumers remain only until the versioned sanctuary
-migration after the Shared Spaces demo.
+Target placement is amended by [40](40-sanctuary-overworld-and-zoned-world.md) and
+the 2026-08-28 crop direction: sanctuary-overworld vegetation remains immutable
+scenery, but player-created crops are allowed on explicitly tilled `world_soil`.
+Growable resource rows otherwise belong in Homesteads or declared resource zones.
 
 ## 1. One growth model
 
@@ -34,10 +33,11 @@ including while no player is online. Developer calendar changes do not create gr
 time. Rain is a small +1,000 bps water modifier and each resource id staggers the
 fractional bonus deterministically.
 
-Dense homestead crops follow docs/34 and docs/35: persist the start tick, starting
-progress, and modifier inputs/snapshots, then derive current progress through
-`growthProgressForElapsedTicks`. Do not add a scheduled per-crop update loop. A row is
-written only for a player action or a modifier/state boundary that must be durable.
+Dense Homestead and overworld crops follow docs/34 and docs/35: persist settled
+watered-growth ticks and the last boundary tick, then derive the live overlap with
+the current watering window. Do not add a scheduled per-crop update loop. A row is
+written only for planting, watering settlement, harvesting, or a future durable
+modifier boundary.
 
 ## 3. Stage and harvest contract
 

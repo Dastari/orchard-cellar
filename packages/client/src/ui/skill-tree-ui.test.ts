@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BUTTON_HEIGHT } from './button.js';
 import {
   skillNodeRankLabelPosition,
   skillNodeReticleRect,
@@ -13,6 +14,8 @@ describe('skill-tree canvas layout', () => {
     expect(layout.viewport.x + layout.viewport.width).toBeLessThan(layout.detail.x);
     expect(layout.detail.x + layout.detail.width).toBeLessThanOrEqual(rect.x + rect.width);
     expect(layout.learnButton.y).toBeGreaterThan(layout.resetButton.y);
+    expect(layout.resetButton.height).toBe(BUTTON_HEIGHT.regular);
+    expect(layout.learnButton.height).toBe(BUTTON_HEIGHT.regular);
     for (const tab of Object.values(layout.tabs)) {
       expect(tab.y).toBeLessThan(layout.viewport.y);
       expect(tab.x).toBeGreaterThanOrEqual(rect.x);

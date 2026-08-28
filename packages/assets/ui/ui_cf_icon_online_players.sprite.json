@@ -2,24 +2,32 @@
   "name": "ui_cf_icon_online_players",
   "category": "ui",
   "size": [
-    8,
-    8
+    16,
+    16
   ],
   "anchor": [
-    4,
-    7
+    8,
+    8
   ],
   "frames": {
     "base": [
       [
-        "........",
-        "......00",
-        "....0012",
-        "...02121",
-        "..021213",
-        "..012133",
-        ".0121332",
-        ".0212331"
+        "................",
+        ".....00000000...",
+        ".....03222210...",
+        "....03222210....",
+        "....0322210.....",
+        "...03222200000..",
+        "...03222222220..",
+        "..032222222210..",
+        "..01111132210...",
+        "..0000003210....",
+        "......03210.....",
+        "......0310......",
+        ".....0310.......",
+        ".....010........",
+        ".....00.........",
+        "................"
       ]
     ]
   },
@@ -28,18 +36,32 @@
   },
   "sourcePalette": {
     "0": "#3f2832",
-    "1": "#fff4b8",
+    "1": "#feae34",
     "2": "#fee761",
-    "3": "#feae34"
+    "3": "#fff4b8"
   },
-  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "UI_Icons.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
   "sourceRegions": {
-    "base": [[112, 0, 8, 8]]
+    "base": [
+      [
+        144,
+        0,
+        16,
+        16
+      ]
+    ]
   },
   "uiSizing": "fixed",
-  "tags": ["ui.icon", "ui.online_players", "ui.lightning"],
-  "placement": { "layer": "ui", "builderAvailable": false }
+  "tags": [
+    "ui.icon",
+    "ui.online_players",
+    "ui.lightning"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
 }

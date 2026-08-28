@@ -1,0 +1,70 @@
+{
+  "name": "sign_cf_crop_strawberry",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".......22.......",
+        "......2772......",
+        "...2222552222...",
+        "..277777777772..",
+        "..255555555552..",
+        "..255551555552..",
+        "..255522155552..",
+        "..255264215552..",
+        "..255246255552..",
+        "..255522555552..",
+        "..255555555552..",
+        "...2222222222...",
+        "..000025320000..",
+        ".00000253200000.",
+        ".00000022000000.",
+        "..000000000000.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#265c42",
+    "2": "#3f2832",
+    "3": "#bf6f4a",
+    "4": "#c62a37",
+    "5": "#e69c69",
+    "6": "#eba2a9",
+    "7": "#f6ca9f"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops_2.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        112,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "prop.crop_sign",
+    "crop.strawberry"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

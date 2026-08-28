@@ -31,6 +31,7 @@ import {
   terrainBiomeAt,
   terrainForWorld,
   terrainForSpace,
+  terrainWithCellarExcavations,
   CAVE_RAISED_CLIFF_TILE_SET,
   invalidateTerrainElevationCaches,
   terrainContourBoundaryBetween,
@@ -104,6 +105,22 @@ describe("shared client terrain array", () => {
     expect(cellar.elevations.some((height) => height === 0)).toBe(true);
     expect(cellar.elevations.some((height) => height === 1)).toBe(true);
     expect(plateauLayerPlansAt(cellar, 0, 0)).toEqual([]);
+  });
+
+  it("applies sparse cellar excavation without mutating generator terrain", () => {
+    const base = terrainFixture(4, 4);
+    const solid = {
+      ...base,
+      generator: "cellar" as const,
+      blocked: Array<boolean>(16).fill(true),
+      elevations: new Uint8Array(16).fill(1),
+      plateaus: new Uint8Array(16).fill(1),
+    };
+    const dynamic = terrainWithCellarExcavations(solid, [{ tileX: 2, tileY: 1 }], 7);
+    expect(dynamic.blocked[6]).toBe(false);
+    expect(dynamic.elevations[6]).toBe(0);
+    expect(solid.blocked[6]).toBe(true);
+    expect(dynamic.version).not.toBe(solid.version);
   });
 
   it("classifies collision against the coordinate-derived active elevation plane", () => {

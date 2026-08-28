@@ -30,6 +30,7 @@ describe('per-player quest authority', () => {
   it('captures accept-time counters and re-derives completion before rewards', () => {
     const accept = sourceBetween('function acceptQuest(', 'function grantQuestRewards(');
     expect(accept).toContain('questAcceptBaselines(definition, source)');
+    expect(accept).toContain('pinned: true');
     expect(accept.indexOf('player_quest.insert')).toBeLessThan(accept.indexOf('player_quest_baseline.insert'));
     const turnIn = sourceBetween('function turnInQuest(', 'function refreshPlayerQuestLocations(');
     expect(turnIn).toContain('refreshPlayerQuests(ctx, ctx.sender, authorityTick)');
@@ -37,6 +38,13 @@ describe('per-player quest authority', () => {
     expect(turnIn.indexOf('questIsComplete(')).toBeLessThan(turnIn.indexOf('grantQuestRewards('));
     expect(turnIn).toContain('removePlayerCarriedItem(');
     expect(turnIn).toContain("state: 'turned_in'");
+  });
+
+  it('allows the quest owner to track and untrack an active quest', () => {
+    const reducer = sourceBetween('export const setQuestPinned =', 'export const abandonQuest =');
+    expect(reducer).toContain('requireAuthorizedSender(');
+    expect(reducer).toContain("row.state === 'turned_in'");
+    expect(reducer).toContain('player_quest.id.update({ ...row, pinned })');
   });
 
   it('authorizes and validates the private book against live quest, surface, and reach rows', () => {

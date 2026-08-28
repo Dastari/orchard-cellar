@@ -1,0 +1,68 @@
+{
+  "name": "item_cf_crop_garlic",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......555....55.",
+        "....550005..5005",
+        "...5004430550405",
+        "..50554222003205",
+        ".50554244043205.",
+        ".5054245443105..",
+        "505424554412105.",
+        "5042455443241205",
+        "5032454432431205",
+        "5023344324431305",
+        ".50333314431205.",
+        ".50232143312305.",
+        "..502133212305..",
+        "...5002112005...",
+        "....55000055....",
+        "......5555......"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#8a4836",
+    "2": "#bf6f4a",
+    "3": "#e69c69",
+    "4": "#f6ca9f",
+    "5": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops_2.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourceRegions": {
+    "base": [
+      [
+        96,
+        48,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.crop",
+    "crop.garlic"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

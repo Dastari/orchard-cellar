@@ -10,6 +10,7 @@ import {
   type SkillTrack,
 } from '@orchard/sim';
 import { drawOutlinedPixelText, drawPixelText, type PixelUi } from '../render/pixel-ui.js';
+import { BUTTON_HEIGHT, drawButton } from './button.js';
 import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
 import { drawUiSkinAsset, type UiSkin } from './skin.js';
 
@@ -94,15 +95,25 @@ export function skillTreeLayout(rect: UiRect): SkillTreeLayout {
   };
   const tabWidth = Math.min(96, Math.floor((rect.width - 62) / 3));
   const tabs = Object.fromEntries(SKILL_TRACKS.map((track, index) => [track, {
-    x: rect.x + 16 + index * (tabWidth + 4), y: rect.y + 31, width: tabWidth, height: 20,
+    x: rect.x + 16 + index * (tabWidth + 4), y: rect.y + 31,
+    width: tabWidth, height: BUTTON_HEIGHT.regular,
   }])) as unknown as Readonly<Record<SkillTrack, UiRect>>;
   return {
     tabs,
     viewport,
     detail,
-    centerButton: { x: viewport.x + 6, y: viewport.y + 6, width: 62, height: 18 },
-    resetButton: { x: detail.x + 8, y: detail.y + detail.height - 47, width: detail.width - 16, height: 18 },
-    learnButton: { x: detail.x + 8, y: detail.y + detail.height - 24, width: detail.width - 16, height: 18 },
+    centerButton: {
+      x: viewport.x + 6, y: viewport.y + 6,
+      width: 62, height: BUTTON_HEIGHT.compact,
+    },
+    resetButton: {
+      x: detail.x + 8, y: detail.y + detail.height - 54,
+      width: detail.width - 16, height: BUTTON_HEIGHT.regular,
+    },
+    learnButton: {
+      x: detail.x + 8, y: detail.y + detail.height - 27,
+      width: detail.width - 16, height: BUTTON_HEIGHT.regular,
+    },
   };
 }
 
@@ -237,8 +248,9 @@ export class SkillTreeUi {
 
     for (const track of SKILL_TRACKS) {
       const active = track === this.track;
-      drawUiSkinAsset(context, active ? this.skin.buttonConfirm : this.skin.button, layout.tabs[track], 'idle');
-      label(context, this.fonts, track.toUpperCase(), layout.tabs[track].x + layout.tabs[track].width / 2, layout.tabs[track].y + 6, { align: 'center', color: active ? '#fff2d0' : '#5f3b24' });
+      drawButton(context, this.skin, this.fonts, layout.tabs[track], {
+        label: track.toUpperCase(), tone: active ? 'success' : 'neutral',
+      });
     }
     label(context, this.fonts, `LEVEL ${level}   ${points} UNSPENT POINT${points === 1 ? '' : 'S'}`, rect.x + rect.width - 22, rect.y + 35, { align: 'right', color: '#4d2e22', header: true });
     const xpBar = { x: rect.x + 18, y: rect.y + 57, width: rect.width - 38, height: 7 };
@@ -289,8 +301,9 @@ export class SkillTreeUi {
     }
     context.restore();
 
-    drawUiSkinAsset(context, this.skin.button, layout.centerButton, 'idle');
-    label(context, this.fonts, 'CENTER', layout.centerButton.x + layout.centerButton.width / 2, layout.centerButton.y + 5, { align: 'center' });
+    drawButton(context, this.skin, this.fonts, layout.centerButton, {
+      label: 'CENTER', size: 'compact',
+    });
     context.fillStyle = '#b97755'; context.fillRect(layout.detail.x, layout.detail.y, 1, layout.detail.height);
     const selected = this.selectedNodeId === null ? null : skillNodesForTrack(this.track).find((node) => node.id === this.selectedNodeId) ?? null;
     const detailX = layout.detail.x + 10;
@@ -313,12 +326,16 @@ export class SkillTreeUi {
     }
     const resetCost = skillRespecCostBronze(progress.respecCount);
     const canReset = progress.spentPoints > 0 && this.model.balanceBronze >= resetCost;
-    drawUiSkinAsset(context, canReset ? this.skin.buttonDeny : this.skin.button, layout.resetButton, canReset ? 'idle' : 'disabled');
-    label(context, this.fonts, `RESET TREE  ${bronzeLabel(resetCost)}`, layout.resetButton.x + layout.resetButton.width / 2, layout.resetButton.y + 5, { align: 'center', color: canReset ? '#fff2d0' : '#8c6c54' });
+    drawButton(context, this.skin, this.fonts, layout.resetButton, {
+      label: `RESET TREE  ${bronzeLabel(resetCost)}`,
+      tone: 'danger', state: canReset ? 'idle' : 'disabled',
+    });
     const selectedRejection = selected === null ? 'skill_not_found' : skillPurchaseRejection(selected.id, { ...progress, ranks });
     const canLearn = selected !== null && selectedRejection === null;
-    drawUiSkinAsset(context, canLearn ? this.skin.buttonConfirm : this.skin.button, layout.learnButton, canLearn ? 'idle' : 'disabled');
-    label(context, this.fonts, selected?.root === true ? 'ROOT OWNED' : 'LEARN 1 RANK', layout.learnButton.x + layout.learnButton.width / 2, layout.learnButton.y + 5, { align: 'center', color: canLearn ? '#fff2d0' : '#8c6c54' });
+    drawButton(context, this.skin, this.fonts, layout.learnButton, {
+      label: selected?.root === true ? 'ROOT OWNED' : 'LEARN 1 RANK',
+      tone: 'success', state: canLearn ? 'idle' : 'disabled',
+    });
     label(context, this.fonts, 'PREVIEW SKILLS — EFFECTS ARE NOT ACTIVE YET', layout.viewport.x + layout.viewport.width / 2, layout.viewport.y + layout.viewport.height - 12, { align: 'center', color: '#8d3f38' });
   }
 }

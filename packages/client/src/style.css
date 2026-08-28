@@ -40,6 +40,20 @@ html, body, #game-shell {
 
 #game.custom-cursor { cursor: none; }
 
+#game.ui-lab-canvas {
+  width: 100%;
+  height: 100%;
+  box-shadow: none;
+  cursor: grab;
+}
+
+#game.ui-lab-canvas:active { cursor: grabbing; }
+
+#game-shell.ui-lab-shell {
+  display: block;
+  background: #202925;
+}
+
 .loading-status {
   position: fixed;
   width: 1px;

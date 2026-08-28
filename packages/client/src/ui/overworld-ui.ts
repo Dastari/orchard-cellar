@@ -137,6 +137,7 @@ export interface OverworldUiModel {
   readonly windDirectionMode?: WindDirectionMode;
   readonly windDirectionLabel?: string;
   readonly lightingEffectsDisabled?: boolean;
+  readonly cellarOrePreview?: boolean;
   readonly fullscreen?: boolean;
   readonly pwaUpdateStatus?: PwaUpdateStatus;
   readonly prompt: string | null;
@@ -146,7 +147,16 @@ export interface OverworldUiModel {
   readonly character?: CharacterScreenModel;
   readonly skills?: SkillTreeModel;
   readonly quests?: readonly QuestLogEntry[];
+  /** Explorer-gated overlay capability. The player marker remains visible. */
+  readonly minimapTrackingEnabled?: boolean;
 }
+
+export type MinimapDrawer = (
+  context: CanvasRenderingContext2D,
+  rect: UiRect,
+  pixelsPerTile: number,
+  trackingEnabled: boolean,
+) => void;
 
 export interface OverworldUiCallbacks {
   readonly selectHotbar: (slot: number) => void;
@@ -155,6 +165,7 @@ export interface OverworldUiCallbacks {
   readonly cycleWeather: () => void;
   readonly cycleWindDirection: () => void;
   readonly toggleLightingEffects: () => void;
+  readonly toggleCellarOrePreview?: () => void;
   readonly resetMyQuestProgress: () => void;
   readonly setQuestPinned: (questId: string, pinned: boolean) => void;
   readonly abandonQuest: (questId: string) => void;
@@ -205,6 +216,7 @@ export interface OverworldUiLayout {
   readonly weatherButton: UiRect;
   readonly windDirectionButton: UiRect;
   readonly lightingEffectsButton: UiRect;
+  readonly orePreviewButton: UiRect;
   readonly resetQuestsButton: UiRect;
   readonly skillPointButtons: Readonly<Record<SkillTrack, UiRect>>;
   readonly backpackCapacityDownButton: UiRect;
@@ -213,6 +225,11 @@ export interface OverworldUiLayout {
   readonly craftingButton: UiRect;
   readonly onlinePlayersButton: UiRect;
   readonly collapsedZoneTab: UiRect;
+  readonly minimap: UiRect;
+  readonly minimapViewport: UiRect;
+  readonly collapsedMinimapTab: UiRect;
+  readonly minimapZoomOutButton: UiRect;
+  readonly minimapZoomInButton: UiRect;
   readonly hotbar: UiRect;
   readonly vitals: UiRect;
   readonly targetVitals: UiRect;
@@ -405,6 +422,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
   const developerWidth = Math.min(400, Math.max(220, width - 24));
   const developerHeight = Math.min(275, Math.max(250, height - 24));
   const developerWindow = { x: Math.round((width - developerWidth) / 2), y: Math.round((height - developerHeight) / 2), width: developerWidth, height: developerHeight };
+  const developerToggleWidth = Math.floor((developerWindow.width - 64) / 2);
   const paperOrigin = { x: inventoryWindow.x + 22, y: inventoryWindow.y + 51 };
   const equipmentCells = [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2]] as const;
   const backpackOrigin = { x: inventoryWindow.x + inventoryWindow.width - 244, y: inventoryWindow.y + 51 };
@@ -431,7 +449,8 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     nextDayButton: { x: developerWindow.x + developerWindow.width - 94, y: developerWindow.y + 49, width: 64, height: 20 },
     weatherButton: { x: developerWindow.x + 30, y: developerWindow.y + 76, width: developerWindow.width - 60, height: 22 },
     windDirectionButton: { x: developerWindow.x + 30, y: developerWindow.y + 101, width: developerWindow.width - 60, height: 22 },
-    lightingEffectsButton: { x: developerWindow.x + 30, y: developerWindow.y + 126, width: developerWindow.width - 60, height: 20 },
+    lightingEffectsButton: { x: developerWindow.x + 30, y: developerWindow.y + 126, width: developerToggleWidth, height: 20 },
+    orePreviewButton: { x: developerWindow.x + 34 + developerToggleWidth, y: developerWindow.y + 126, width: developerToggleWidth, height: 20 },
     skillPointButtons: Object.fromEntries(SKILL_TRACKS.map((track, index) => [track, {
       x: developerWindow.x + 30 + index * Math.floor((developerWindow.width - 64) / 3),
       y: developerWindow.y + developerWindow.height - 103,
@@ -453,8 +472,15 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
       width: 24,
       height: 24,
     },
-    onlinePlayersButton: { x: status.x + status.width - 27, y: status.y + 9, width: 18, height: 16 },
+    // Keep this action inside the banner's writable face. The final 28 pixels
+    // are the folded tail, which clips an icon placed against the outer rect.
+    onlinePlayersButton: { x: status.x + status.width - 46, y: status.y + 6, width: 18, height: 18 },
     collapsedZoneTab: { x: 0, y: 4, width: 32, height: 16 },
+    minimap: { x: width - 120, y: 4, width: 116, height: 92 },
+    minimapViewport: { x: width - 114, y: 10, width: 104, height: 66 },
+    collapsedMinimapTab: { x: width - 32, y: 4, width: 32, height: 16 },
+    minimapZoomOutButton: { x: width - 112, y: 76, width: 24, height: 14 },
+    minimapZoomInButton: { x: width - 34, y: 76, width: 24, height: 14 },
     hotbar,
     vitals,
     targetVitals,
@@ -547,6 +573,9 @@ export class OverworldUi {
   private readonly router: UiInputRouter;
   private readonly hotbarNodes: WidgetNode[];
   private readonly zoneNode: WidgetNode;
+  private readonly minimapNode: WidgetNode;
+  private readonly minimapZoomOutNode: WidgetNode;
+  private readonly minimapZoomInNode: WidgetNode;
   private readonly onlinePlayersNode: WidgetNode;
   private readonly currencyNode: WidgetNode;
   private readonly timeSlider: Slider;
@@ -555,6 +584,7 @@ export class OverworldUi {
   private readonly weatherModeNode: WidgetNode;
   private readonly windDirectionNode: WidgetNode;
   private readonly lightingEffectsNode: WidgetNode;
+  private readonly orePreviewNode: WidgetNode;
   private readonly resetQuestsButton: CanvasButton;
   private readonly backpackCapacityDownNode: WidgetNode;
   private readonly backpackCapacityUpNode: WidgetNode;
@@ -643,6 +673,8 @@ export class OverworldUi {
   private onlinePlayerListCloseButton: UiRect = { x: 0, y: 0, width: 0, height: 0 };
   private craftingRecipeScroll = 0;
   private zoneCollapsed = false;
+  private minimapCollapsed = false;
+  private minimapZoomIndex = 1;
   private sortButtonPressed: 'backpack' | 'chest' | 'placeable' | null = null;
   private sortButtonPressedAt = Number.NEGATIVE_INFINITY;
 
@@ -654,6 +686,7 @@ export class OverworldUi {
     drawPlayerHead: (context: CanvasRenderingContext2D, playerId: string, rect: UiRect) => void = () => undefined,
     drawTargetPortrait: (context: CanvasRenderingContext2D, target: OverworldUiTargetVitals, rect: UiRect) => void = () => undefined,
     drawPlayerDoll: (context: CanvasRenderingContext2D, appearance: PlayerAppearanceSelection, facing: Direction, rect: UiRect) => void = () => undefined,
+    private readonly drawMinimap: MinimapDrawer = () => undefined,
   ) {
     this.root = widget('root', 'overworld.ui.root');
     this.windowRibbon = new Ribbon(skin.banner, fonts);
@@ -722,6 +755,36 @@ export class OverworldUi {
         return true;
       },
     });
+    this.minimapNode = widget('button', 'hud.minimap', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.minimapCollapsed = !this.minimapCollapsed;
+        this.syncMinimapChrome();
+        return true;
+      },
+      onWheel: (event) => {
+        if (this.minimapCollapsed || event.deltaY === 0) return false;
+        this.minimapZoomIndex = Math.max(0, Math.min(3, this.minimapZoomIndex + (event.deltaY < 0 ? 1 : -1)));
+        this.syncMinimapChrome();
+        return true;
+      },
+    });
+    this.minimapZoomOutNode = widget('button', 'hud.minimap.zoom-out', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.minimapZoomIndex = Math.max(0, this.minimapZoomIndex - 1);
+        this.syncMinimapChrome();
+        return true;
+      },
+    });
+    this.minimapZoomInNode = widget('button', 'hud.minimap.zoom-in', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.minimapZoomIndex = Math.min(3, this.minimapZoomIndex + 1);
+        this.syncMinimapChrome();
+        return true;
+      },
+    });
     this.onlinePlayersNode = widget('button', 'hud.online-players', {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down') return false;
@@ -773,6 +836,13 @@ export class OverworldUi {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down') return false;
         this.callbacks.toggleLightingEffects();
+        return true;
+      },
+    });
+    this.orePreviewNode = widget('button', 'window.developer.cellar-ore-preview', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.callbacks.toggleCellarOrePreview?.();
         return true;
       },
     });
@@ -967,6 +1037,7 @@ export class OverworldUi {
       this.lightingEffectsNode,
       this.backpackCapacityDownNode,
       this.backpackCapacityUpNode,
+      this.orePreviewNode,
       ...SKILL_TRACKS.map((track) => this.skillPointNodes[track]),
       this.resetQuestsButton.node,
       this.masterSlider.node,
@@ -978,6 +1049,9 @@ export class OverworldUi {
     this.root.add(
       this.zoneNode,
       this.onlinePlayersNode,
+      this.minimapNode,
+      this.minimapZoomOutNode,
+      this.minimapZoomInNode,
       this.currencyNode,
       hotbar,
       this.craftingNode,
@@ -988,6 +1062,14 @@ export class OverworldUi {
   }
 
   get openWindow(): OverworldWindow | null { return this.openWindowValue; }
+  get minimapBounds(): UiRect {
+    return this.minimapCollapsed ? this.layout.collapsedMinimapTab : this.layout.minimap;
+  }
+  openQuest(questId: string): boolean {
+    if (!this.questLog.select(questId)) return false;
+    this.openWindow = 'quests';
+    return true;
+  }
   set openWindow(window: OverworldWindow | null) {
     const requestedWindow = window === 'pack' ? 'inventory' : window;
     const nextWindow = requestedWindow === 'developer' && !this.model.canAdministerWorld ? 'system' : requestedWindow;
@@ -1021,6 +1103,7 @@ export class OverworldUi {
     if (this.chestFrameOverride !== null) this.chestFrameOverride = this.layout.chestWindow;
     this.root.setBounds({ x: 0, y: 0, width: model.width, height: model.height });
     this.syncZoneChrome();
+    this.syncMinimapChrome();
     this.currencyNode.setBounds(this.layout.currency);
     this.timeSlider.setBounds(this.layout.timeSlider);
     this.timeSlider.value = model.timeFraction;
@@ -1029,6 +1112,7 @@ export class OverworldUi {
     this.weatherModeNode.setBounds(this.layout.weatherButton);
     this.windDirectionNode.setBounds(this.layout.windDirectionButton);
     this.lightingEffectsNode.setBounds(this.layout.lightingEffectsButton);
+    this.orePreviewNode.setBounds(this.layout.orePreviewButton);
     this.backpackCapacityDownNode.setBounds(this.layout.backpackCapacityDownButton);
     this.backpackCapacityUpNode.setBounds(this.layout.backpackCapacityUpButton);
     for (const track of SKILL_TRACKS) this.skillPointNodes[track].setBounds(this.layout.skillPointButtons[track]);
@@ -1463,6 +1547,7 @@ export class OverworldUi {
 
   draw(context: CanvasRenderingContext2D): void {
     this.drawStatus(context);
+    this.drawMinimapHud(context);
     this.drawCurrency(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawHotbar(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawVitals(context);
@@ -1585,6 +1670,67 @@ export class OverworldUi {
     this.onlinePlayersNode.visible = !this.zoneCollapsed;
   }
 
+  private syncMinimapChrome(): void {
+    this.minimapNode.setBounds(this.minimapCollapsed ? this.layout.collapsedMinimapTab : this.layout.minimap);
+    this.minimapZoomOutNode.setBounds(this.layout.minimapZoomOutButton);
+    this.minimapZoomInNode.setBounds(this.layout.minimapZoomInButton);
+    this.minimapZoomOutNode.visible = !this.minimapCollapsed;
+    this.minimapZoomInNode.visible = !this.minimapCollapsed;
+    this.minimapZoomOutNode.enabled = this.minimapZoomIndex > 0;
+    this.minimapZoomInNode.enabled = this.minimapZoomIndex < 3;
+  }
+
+  private drawMinimapHud(context: CanvasRenderingContext2D): void {
+    if (this.minimapCollapsed) {
+      context.save();
+      context.translate(this.layout.collapsedMinimapTab.x + this.layout.collapsedMinimapTab.width, 0);
+      context.scale(-1, 1);
+      drawUiSkinAsset(context, this.skin.bookTab, {
+        x: 0,
+        y: this.layout.collapsedMinimapTab.y,
+        width: this.layout.collapsedMinimapTab.width,
+        height: this.layout.collapsedMinimapTab.height,
+      }, 'base');
+      context.restore();
+      return;
+    }
+    drawUiSkinAsset(context, this.skin.panelWood, this.layout.minimap);
+    drawUiSkinAsset(context, this.skin.panelParchment, {
+      x: this.layout.minimap.x + 4,
+      y: this.layout.minimap.y + 4,
+      width: this.layout.minimap.width - 8,
+      height: this.layout.minimap.height - 8,
+    });
+    context.save();
+    context.beginPath();
+    context.rect(
+      this.layout.minimapViewport.x,
+      this.layout.minimapViewport.y,
+      this.layout.minimapViewport.width,
+      this.layout.minimapViewport.height,
+    );
+    context.clip();
+    context.fillStyle = '#183c35';
+    context.fillRect(
+      this.layout.minimapViewport.x,
+      this.layout.minimapViewport.y,
+      this.layout.minimapViewport.width,
+      this.layout.minimapViewport.height,
+    );
+    this.drawMinimap(
+      context,
+      this.layout.minimapViewport,
+      [1, 2, 3, 4][this.minimapZoomIndex]!,
+      this.model.minimapTrackingEnabled === true,
+    );
+    context.restore();
+    drawUiSkinAsset(context, this.skin.button, this.layout.minimapZoomOutButton, this.minimapZoomIndex === 0 ? 'disabled' : 'idle');
+    drawLabel(context, this.fonts, '-', this.layout.minimapZoomOutButton.x + 12, this.layout.minimapZoomOutButton.y + 3, { align: 'center', color: '#5f3b24' });
+    drawUiSkinAsset(context, this.skin.button, this.layout.minimapZoomInButton, this.minimapZoomIndex === 3 ? 'disabled' : 'idle');
+    drawLabel(context, this.fonts, '+', this.layout.minimapZoomInButton.x + 12, this.layout.minimapZoomInButton.y + 3, { align: 'center', color: '#5f3b24' });
+    drawLabel(context, this.fonts, `MAP ${this.minimapZoomIndex + 1}X`, this.layout.minimap.x + this.layout.minimap.width / 2, this.layout.minimap.y + 76, { align: 'center', color: '#6b4428' });
+  }
+
   private activeWindowRect(): UiRect {
     if (this.openWindowValue === 'help') return { x: 0, y: 0, width: this.model.width, height: this.model.height };
     if (this.openWindowValue === 'chest') return this.layout.chestWindow;
@@ -1630,7 +1776,7 @@ export class OverworldUi {
     for (const node of [this.resumeNode, this.helpNode, this.settingsNode, this.fullscreenNode, this.updateNode, this.developerNode, this.signOutNode, this.quitNode]) node.visible = systemVisible;
     this.settingsBackNode.visible = settingsVisible;
     this.developerBackNode.visible = developerVisible;
-    for (const node of [this.previousDayNode, this.timeSlider.node, this.nextDayNode, this.weatherModeNode, this.windDirectionNode, this.lightingEffectsNode, this.resetQuestsButton.node]) {
+    for (const node of [this.previousDayNode, this.timeSlider.node, this.nextDayNode, this.weatherModeNode, this.windDirectionNode, this.lightingEffectsNode, this.orePreviewNode, this.resetQuestsButton.node]) {
       node.visible = developerVisible;
     }
     this.backpackCapacityDownNode.visible = developerVisible;
@@ -1662,7 +1808,7 @@ export class OverworldUi {
   }
 
   private drawDeveloper(context: CanvasRenderingContext2D): void {
-    const { developerWindow, previousDayButton, nextDayButton, weatherButton, windDirectionButton, lightingEffectsButton, backpackCapacityDownButton, backpackCapacityUpButton } = this.layout;
+    const { developerWindow, previousDayButton, nextDayButton, weatherButton, windDirectionButton, lightingEffectsButton, orePreviewButton, backpackCapacityDownButton, backpackCapacityUpButton } = this.layout;
     drawLabel(context, this.fonts, 'WORLD TIME', developerWindow.x + 30, developerWindow.y + 35, { color: '#6b4428' });
     drawButton(context, this.skin, this.fonts, previousDayButton, { label: '-DAY' });
     this.timeSlider.draw(context);
@@ -1678,8 +1824,12 @@ export class OverworldUi {
       label: `WIND DIR ${directionMode}${effectiveDirection}`,
     });
     drawButton(context, this.skin, this.fonts, lightingEffectsButton, {
-      label: `LIGHTING EFFECTS ${this.model.lightingEffectsDisabled ? 'OFF' : 'ON'}`,
+      label: `LIGHTING ${this.model.lightingEffectsDisabled ? 'OFF' : 'ON'}`,
       tone: this.model.lightingEffectsDisabled ? 'success' : 'neutral',
+    });
+    drawButton(context, this.skin, this.fonts, orePreviewButton, {
+      label: `ORE VEINS ${this.model.cellarOrePreview ? 'SHOWN' : 'HIDDEN'}`,
+      tone: this.model.cellarOrePreview ? 'success' : 'neutral',
     });
     for (const track of SKILL_TRACKS) {
       const rect = this.layout.skillPointButtons[track];

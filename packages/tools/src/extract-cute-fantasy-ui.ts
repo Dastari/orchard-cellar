@@ -24,6 +24,10 @@ interface UiExtract {
   readonly uiRequiredStates?: readonly string[];
   readonly animationFps?: Readonly<Record<string, number>>;
   readonly animationLoop?: Readonly<Record<string, boolean>>;
+  /** Optional project-palette remap for an authored silhouette whose UI state
+   * needs a different semantic color than the source atlas supplies. */
+  readonly paletteCharacters?: Readonly<Record<string, string>>;
+  readonly lintAllow?: readonly string[];
   readonly tags: readonly string[];
 }
 
@@ -239,6 +243,22 @@ const extracts: readonly UiExtract[] = [
     uiSizing: 'fixed', tags: ['ui.icon', 'ui.inventory', 'ui.backpack'],
   },
   {
+    name: 'ui_cf_icon_online_players', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: { base: [r(144, 0, 16, 16)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'ui.online_players', 'ui.lightning'],
+  },
+  {
+    name: 'ui_cf_quest_tracker_chevron', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: {
+      expanded: [r(64, 176, 16, 16)],
+      collapsed: [r(160, 176, 16, 16)],
+    },
+    frameKinds: { expanded: 'state', collapsed: 'state' },
+    paletteCharacters: { '#181425': 'S', '#8b9bb4': 'q', '#ffffff': 'r' },
+    lintAllow: ['sparkle'],
+    uiSizing: 'fixed', tags: ['ui.icon', 'ui.quest_tracker', 'ui.chevron', 'derived.palette'],
+  },
+  {
     name: 'icon_cf_marlow_book', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
     groups: { base: [r(160, 16, 16, 16)] }, frameKinds: { base: 'state' },
     uiSizing: 'fixed', tags: ['ui.icon', 'item.document', 'item.quest_reward'],
@@ -356,8 +376,18 @@ for (const extract of selectedExtracts) {
   ]));
   const colors = [...new Set(Object.values(pixelsByGroup).flat(2).flatMap((row) => row.filter((hex): hex is string => Boolean(hex))))].sort();
   if (colors.length > availableCharacters.length) throw new Error(`${extract.name} uses ${colors.length} colors; maximum is ${availableCharacters.length}`);
-  const characterByHex = new Map(colors.map((hex, index) => [hex, availableCharacters[index]!]));
-  const sourcePalette = Object.fromEntries(colors.map((hex) => [characterByHex.get(hex)!, hex]));
+  const characterByHex = extract.paletteCharacters === undefined
+    ? new Map(colors.map((hex, index) => [hex, availableCharacters[index]!]))
+    : new Map(colors.map((hex) => {
+      const character = extract.paletteCharacters?.[hex];
+      if (character === undefined || !availableCharacters.includes(character)) {
+        throw new Error(`${extract.name} paletteCharacters must map ${hex} to a project palette character`);
+      }
+      return [hex, character] as const;
+    }));
+  const sourcePalette = extract.paletteCharacters === undefined
+    ? Object.fromEntries(colors.map((hex) => [characterByHex.get(hex)!, hex]))
+    : undefined;
   const frames = Object.fromEntries(Object.entries(pixelsByGroup).map(([group, groupFrames]) => [
     group,
     groupFrames.map((pixels) => placePixels(pixels, extract.size, characterByHex)),
@@ -375,8 +405,8 @@ for (const extract of selectedExtracts) {
     frameKinds: extract.frameKinds,
     ...(extract.animationFps ? { animationFps: extract.animationFps } : {}),
     ...(extract.animationLoop ? { animationLoop: extract.animationLoop } : {}),
-    sourcePalette,
-    sourcePaletteMode: 'exact',
+    ...(extract.lintAllow ? { lintAllow: extract.lintAllow } : {}),
+    ...(sourcePalette === undefined ? {} : { sourcePalette, sourcePaletteMode: 'exact' as const }),
     approved: true,
     importedFrom: basename(extract.source),
     sourcePath: relative(rootPath, resolve(rootPath, extract.source)).replaceAll('\\', '/'),

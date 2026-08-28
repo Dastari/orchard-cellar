@@ -27,6 +27,7 @@ function callbacks(): OverworldUiCallbacks {
     cycleWeather: vi.fn(),
     cycleWindDirection: vi.fn(),
     toggleLightingEffects: vi.fn(),
+    toggleCellarOrePreview: vi.fn(),
     resetMyQuestProgress: vi.fn(),
     setQuestPinned: vi.fn(),
     abandonQuest: vi.fn(),
@@ -109,7 +110,7 @@ describe('overworld retained UI layout', () => {
     expect(layout.window.x).toBe(105);
     expect(layout.window.y).toBe(43);
     expect(layout.onlinePlayersButton.x + layout.onlinePlayersButton.width)
-      .toBeLessThanOrEqual(layout.status.x + layout.status.width);
+      .toBeLessThanOrEqual(layout.status.x + layout.status.width - 28);
     expect(layout.collapsedZoneTab).toEqual({ x: 0, y: 4, width: 32, height: 16 });
   });
 
@@ -133,6 +134,25 @@ describe('overworld retained UI layout', () => {
     expect((ui as unknown as { zoneCollapsed: boolean }).zoneCollapsed).toBe(true);
     ui.pointerDown({ x: layout.collapsedZoneTab.x + 5, y: layout.collapsedZoneTab.y + 5 }, 0);
     expect((ui as unknown as { zoneCollapsed: boolean }).zoneCollapsed).toBe(false);
+  });
+
+  it('collapses the minimap to a right-hand tab and supports independent zoom controls', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(480, 270);
+    expect(layout.collapsedMinimapTab).toEqual({ x: 448, y: 4, width: 32, height: 16 });
+    ui.pointerDown({ x: layout.minimapZoomInButton.x + 4, y: layout.minimapZoomInButton.y + 4 }, 0);
+    expect((ui as unknown as { minimapZoomIndex: number }).minimapZoomIndex).toBe(2);
+    ui.pointerDown({ x: layout.minimap.x + 4, y: layout.minimap.y + 4 }, 0);
+    expect((ui as unknown as { minimapCollapsed: boolean }).minimapCollapsed).toBe(true);
+    ui.pointerDown({ x: layout.collapsedMinimapTab.x + 4, y: layout.collapsedMinimapTab.y + 4 }, 0);
+    expect((ui as unknown as { minimapCollapsed: boolean }).minimapCollapsed).toBe(false);
   });
 
   it('provides tooltips for the global crafting, backpack, and online controls', () => {
@@ -225,6 +245,9 @@ describe('overworld retained UI layout', () => {
     const lightingButton = layout.lightingEffectsButton;
     expect(ui.pointerDown({ x: lightingButton.x + 4, y: lightingButton.y + 4 }, 0)).toBe(true);
     expect(handlers.toggleLightingEffects).toHaveBeenCalledOnce();
+    const orePreviewButton = layout.orePreviewButton;
+    expect(ui.pointerDown({ x: orePreviewButton.x + 4, y: orePreviewButton.y + 4 }, 0)).toBe(true);
+    expect(handlers.toggleCellarOrePreview).toHaveBeenCalledOnce();
     const resetButton = layout.resetQuestsButton;
     expect(ui.pointerDown({ x: resetButton.x + 4, y: resetButton.y + 4 }, 0)).toBe(true);
     expect(handlers.resetMyQuestProgress).toHaveBeenCalledOnce();

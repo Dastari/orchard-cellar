@@ -1,0 +1,72 @@
+{
+  "name": "sign_cf_crop_watermelon",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".......66.......",
+        "......6996......",
+        "...6666886666...",
+        "..699999999996..",
+        "..688885588886..",
+        "..688811558886..",
+        "..688144355886..",
+        "..688143215886..",
+        "..688132218886..",
+        "..688811188886..",
+        "..688888888886..",
+        "...6666666666...",
+        "..000068760000..",
+        ".00000687600000.",
+        ".00000066000000.",
+        "..000000000000.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#0c2e44",
+    "2": "#104647",
+    "3": "#135253",
+    "4": "#1d7768",
+    "5": "#265c42",
+    "6": "#3f2832",
+    "7": "#bf6f4a",
+    "8": "#e69c69",
+    "9": "#f6ca9f"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crops.png",
+  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        432,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "prop.crop_sign",
+    "crop.watermelon"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}
