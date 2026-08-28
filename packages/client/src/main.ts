@@ -6,7 +6,6 @@ import {
 } from './editor/editor-route.js';
 import { initializeLoadingScreen, setLoadingScreenStage } from './loading-screen.js';
 import { pwaClient } from './pwa.js';
-import './style.css';
 
 const entryRoute = clientEntryRoute(location.pathname, location.search);
 const popupCallbackRelayed = entryRoute.kind === 'standard'

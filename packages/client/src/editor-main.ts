@@ -1,6 +1,5 @@
 import { initializeLoadingScreen, setLoadingScreenStage } from './loading-screen.js';
 import { offlineEditorPath } from './editor/editor-route.js';
-import './style.css';
 
 const parameters = new URLSearchParams(location.search);
 const requestedMap = parameters.get('map') ?? 'procedural-world';

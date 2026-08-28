@@ -11,6 +11,9 @@
     <meta name="referrer" content="no-referrer" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; manifest-src 'self'; worker-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self'; connect-src 'self' https://auth.orchard.dastari.net wss://orchard.dastari.net; form-action 'self' https://auth.orchard.dastari.net" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Render-blocking on purpose: these first-paint rules hide the native
+         canvas inputs/status before the JavaScript module graph is ready. -->
+    <link rel="stylesheet" href="/src/style.css" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/pwa/icons/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="/pwa/icons/apple-touch-icon.png" sizes="180x180" />
@@ -61,6 +64,9 @@
       <input id="character-name" class="canvas-input" maxlength="20" autocomplete="off" aria-label="Character name" hidden />
       <input id="shop-filter" class="canvas-input" maxlength="32" autocomplete="off" aria-label="Filter Marlow's shop items" hidden />
       <input id="inventory-filter" class="canvas-input" maxlength="32" autocomplete="off" aria-label="Filter inventory items" hidden />
+      <input id="trade-money-gold" class="canvas-input" inputmode="numeric" pattern="[0-9]*" maxlength="16" autocomplete="off" aria-label="Gold to offer in trade" hidden />
+      <input id="trade-money-silver" class="canvas-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" aria-label="Silver to offer in trade" hidden />
+      <input id="trade-money-bronze" class="canvas-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" aria-label="Bronze to offer in trade" hidden />
       <section id="loading-screen" class="loading-status" role="status" aria-live="polite" aria-label="Opening the Orchard. 8%">
         <span id="loading-title">OPENING THE ORCHARD</span>
         <span id="loading-detail">CHECKING YOUR ACCOUNT</span>

@@ -4,6 +4,7 @@ export type InteractionTargetKind =
   | 'chest'
   | 'campfire'
   | 'merchant'
+  | 'player'
   | 'horse'
   | 'gatherable'
   | 'quest_item'
@@ -25,11 +26,12 @@ const TIE_PRIORITY: Readonly<Record<InteractionTargetKind, number>> = {
   chest: 2,
   campfire: 3,
   merchant: 4,
-  horse: 5,
-  gatherable: 6,
-  quest_item: 7,
-  embedded_arrow: 8,
-  world_item: 9,
+  player: 5,
+  horse: 6,
+  gatherable: 7,
+  quest_item: 8,
+  embedded_arrow: 9,
+  world_item: 10,
 };
 
 /** Resolves the one target represented by the interaction prompt and E key.
