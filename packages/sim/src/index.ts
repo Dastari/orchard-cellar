@@ -22,6 +22,7 @@ export * from './dialogue.js';
 export * from './npc.js';
 export * from './campfire.js';
 export * from './appearance.js';
+export * from './skill-trees.js';
 export * from './ranged.js';
 export * from './raised-terrain-autotile.js';
 export * from './wildlife.js';
