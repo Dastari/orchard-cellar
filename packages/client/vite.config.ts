@@ -3,7 +3,14 @@ import clientPackage from './package.json' with { type: 'json' };
 import { createPwaServiceWorker } from './pwa-service-worker.js';
 
 export function developmentCsp(html: string): string {
-  return html.replace("style-src 'self';", "style-src 'self' 'unsafe-inline';");
+  const withViteStyles = html.replace(
+    "style-src 'self';",
+    "style-src 'self' 'unsafe-inline';",
+  );
+  const withViteWorker = withViteStyles.includes("worker-src 'self';")
+    ? withViteStyles.replace("worker-src 'self';", "worker-src 'self' blob:;")
+    : withViteStyles.replace("script-src ", "worker-src 'self' blob:; script-src ");
+  return withViteWorker;
 }
 
 export default defineConfig(({ command }) => {
