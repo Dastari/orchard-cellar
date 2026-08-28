@@ -139,6 +139,15 @@ describe('overworld retained UI layout', () => {
     expect(internal.backpackItemSlots.some((slot) => slot.visible)).toBe(true);
   });
 
+  it('closes an authority-owned furnace when its window is dismissed', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'furnace';
+    ui.openWindow = null;
+    expect(handlers.closePlaceable).toHaveBeenCalledOnce();
+    expect(ui.openWindow).toBeNull();
+  });
+
   it('anchors the zone ribbon, currency, hotbar, and window at 480x270', () => {
     const layout = overworldUiLayout(480, 270);
     expect(layout.status).toEqual({ x: 4, y: 2, width: 220, height: 34 });

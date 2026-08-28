@@ -38,7 +38,7 @@ describe('26§13 two-client space isolation', () => {
   it('binds the runtime subscription and speech view to the same space predicate', () => {
     const client = readFileSync(new URL('./overworld-connection.ts', import.meta.url), 'utf8');
     const authority = readFileSync(new URL('../../../world/src/index.ts', import.meta.url), 'utf8');
-    expect(client.match(/row\.spaceId\.eq\(spaceId\)/g)).toHaveLength(16);
+    expect(client.match(/row\.spaceId\.eq\(spaceId\)/g)).toHaveLength(15);
     expect(client).toContain('clearSpaceScopedCaches');
     expect(authority).toContain('speech.spaceId !== caller.spaceId');
   });

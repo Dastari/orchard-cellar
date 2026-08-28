@@ -285,6 +285,9 @@ export type OwnChatChannels = __Infer<typeof OwnChatChannels>;
 export const OwnConnectionNotices = __t.object("OwnConnectionNotices", {});
 export type OwnConnectionNotices = __Infer<typeof OwnConnectionNotices>;
 
+export const OwnCurrentHomestead = __t.object("OwnCurrentHomestead", {});
+export type OwnCurrentHomestead = __Infer<typeof OwnCurrentHomestead>;
+
 export const OwnEffects = __t.object("OwnEffects", {});
 export type OwnEffects = __Infer<typeof OwnEffects>;
 

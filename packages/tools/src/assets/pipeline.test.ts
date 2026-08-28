@@ -49,4 +49,16 @@ describe('asset pipeline', () => {
       ))).toBe(true);
     }
   });
+
+  it('extracts one furnace state per 16x32 frame', async () => {
+    const assets = await loadAssets();
+    const furnace = assets.find((asset) => asset.name === 'prop_cf_furnace');
+    expect(furnace?.size).toEqual([16, 32]);
+    expect(furnace?.anchor).toEqual([8, 31]);
+    expect(furnace?.frames['off']).toHaveLength(1);
+    expect(furnace?.frames['burn']).toHaveLength(5);
+    expect(Object.values(furnace?.frames ?? {}).flat().every((frame) => (
+      frame.length === 32 && frame.every((row) => row.length === 16)
+    ))).toBe(true);
+  });
 });

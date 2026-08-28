@@ -37,10 +37,10 @@ const itemPlacement: NonNullable<AssetSource['placement']> = {
 
 const extracts: readonly Extract[] = [
   {
-    name: 'prop_cf_furnace', source: furnaces, sourceByGroup: { burn: furnaceAnimation }, size: [32, 32], anchor: [16, 31],
+    name: 'prop_cf_furnace', source: furnaces, sourceByGroup: { burn: furnaceAnimation }, size: [16, 32], anchor: [8, 31],
     groups: {
-      off: [[0, 0, 32, 32]],
-      burn: Array.from({ length: 6 }, (_, frame): Region => [frame * 32, 0, 32, 32]),
+      off: [[0, 0, 16, 32]],
+      burn: Array.from({ length: 5 }, (_, frame): Region => [frame * 16, 0, 16, 32]),
     },
     frameKinds: { off: 'state', burn: 'animation' },
     animationFps: { burn: 6 }, animationLoop: { burn: true },

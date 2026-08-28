@@ -76,7 +76,7 @@ export function regionSubscriptionQueryCount(
   spaceId = TOPSIDE_SPACE_ID,
 ): number {
   void bounds;
-  return REGION_RANGE_QUERIES + (spaceId === TOPSIDE_SPACE_ID ? 1 : 2);
+  return REGION_RANGE_QUERIES + (spaceId === TOPSIDE_SPACE_ID ? 1 : 0);
 }
 
 export interface ActiveDialogue {
@@ -892,6 +892,7 @@ export class OverworldConnection {
       tables.ownPlayerThought,
       tables.ownCharacterProfile,
       tables.ownMembership,
+      tables.ownCurrentHomestead,
       tables.ownConnectionNotices,
       tables.ownSessionChatNotices,
       tables.ownChatChannels,
@@ -1006,11 +1007,9 @@ export class OverworldConnection {
     const overworldHomesteads = tables.homestead
       .where((row) => row.overworldTileX.gte(minimumTileX)).where((row) => row.overworldTileX.lte(maximumTileX))
       .where((row) => row.overworldTileY.gte(minimumTileY)).where((row) => row.overworldTileY.lte(maximumTileY));
-    const activeHomestead = tables.homestead.where((row) => row.spaceId.eq(spaceId));
-    const activeResidence = tables.homestead.where((row) => row.residenceSpaceId.eq(spaceId));
     const homesteadQueries = spaceId === TOPSIDE_SPACE_ID
       ? [overworldHomesteads]
-      : [activeHomestead, activeResidence];
+      : [];
     const queryCount = regionSubscriptionQueryCount(bounds, spaceId);
     this.pendingRegionQueryCount = queryCount;
     const previous = this.regionSubscription;
@@ -1022,9 +1021,14 @@ export class OverworldConnection {
       this.handoverCount += 1; this.resourceRevisionValue += 1; this.onChanged();
       const current = this.ownPosition();
       if (current !== null && current.spaceId !== this.subscribedSpaceId) this.subscribeRegion(connection, current, true);
-    })).onError(() => {
+    })).onError((context) => {
       this.pendingRegion = null; this.pendingRegionQueryCount = 0;
-      this.error = 'region_subscription_failed'; this.onChanged();
+      const detail = context.event?.message?.trim();
+      this.error = detail === undefined || detail.length === 0
+        ? 'region_subscription_failed'
+        : `region_subscription_failed: ${detail}`;
+      console.error('[orchard] Regional world subscription failed', context.event);
+      this.onChanged();
     }).subscribe([
       positions, regionalProfiles, regionalAppearances,
       resources, soil, crops, worldItems, projectiles, combatTargets, chests, placeables,
@@ -1062,6 +1066,13 @@ export class OverworldConnection {
     connection.db.homestead.onInsert((context, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
     connection.db.homestead.onUpdate((context, _old, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
     connection.db.homestead.onDelete((context, row) => resource(context.event.id, () => this.homesteads.delete(row.spaceId)));
+    connection.db.ownCurrentHomestead.onInsert((context, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
+    connection.db.ownCurrentHomestead.onUpdate((context, _old, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
+    connection.db.ownCurrentHomestead.onDelete((context, row) => resource(context.event.id, () => {
+      const regional = connection.db.homestead.spaceId.find(row.spaceId);
+      if (regional === null) this.homesteads.delete(row.spaceId);
+      else this.homesteads.set(regional.spaceId, regional);
+    }));
     connection.db.cellarExcavation.onInsert((context, row) => resource(context.event.id, () => {
       this.cellarExcavations.set(row.id, row); this.cellarExcavationRevisionValue += 1;
     }));
@@ -1338,6 +1349,8 @@ export class OverworldConnection {
     this.tradeSession = [...connection.db.ownTradeSession.iter()][0] ?? null;
     this.tradeOffers.clear(); for (const row of connection.db.ownTradeOffers.iter()) this.tradeOffers.set(row.id, row);
     this.activeDialogue = [...connection.db.ownActiveDialogue.iter()][0] ?? null;
+    const currentHomestead = [...connection.db.ownCurrentHomestead.iter()][0];
+    if (currentHomestead !== undefined) this.homesteads.set(currentHomestead.spaceId, currentHomestead);
     this.quests.clear(); for (const row of connection.db.ownPlayerQuests.iter()) this.quests.set(row.id, row);
     this.questBaselines.clear(); for (const row of connection.db.ownPlayerQuestBaselines.iter()) this.questBaselines.set(row.id, row);
     this.playerStatistics.clear(); for (const row of connection.db.ownPlayerStatistics.iter()) this.playerStatistics.set(row.id, row);

@@ -149,6 +149,7 @@ import OwnActivePlaceableRow from "./own_active_placeable_table";
 import OwnCharacterProfileRow from "./own_character_profile_table";
 import OwnChatChannelsRow from "./own_chat_channels_table";
 import OwnConnectionNoticesRow from "./own_connection_notices_table";
+import OwnCurrentHomesteadRow from "./own_current_homestead_table";
 import OwnEffectsRow from "./own_effects_table";
 import OwnInventoryCursorRow from "./own_inventory_cursor_table";
 import OwnInventoryOverflowRow from "./own_inventory_overflow_table";
@@ -266,8 +267,15 @@ const tablesSchema = __schema({
   homestead: __table({
     name: 'homestead',
     indexes: [
+      { accessor: 'by_overworld_location', name: 'homestead_overworld_tile_x_overworld_tile_y_idx_btree', algorithm: 'btree', columns: [
+        'overworldTileX',
+        'overworldTileY',
+      ] },
       { accessor: 'by_owner', name: 'homestead_owner_idx_hash', algorithm: 'btree', columns: [
         'owner',
+      ] },
+      { accessor: 'by_residence_space', name: 'homestead_residence_space_id_idx_btree', algorithm: 'btree', columns: [
+        'residenceSpaceId',
       ] },
       { accessor: 'spaceId', name: 'homestead_space_id_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
@@ -310,6 +318,9 @@ const tablesSchema = __schema({
       { accessor: 'identity', name: 'player_public_identity_idx_btree', algorithm: 'btree', columns: [
         'identity',
       ] },
+      { accessor: 'by_online', name: 'player_public_online_idx_btree', algorithm: 'btree', columns: [
+        'online',
+      ] },
     ],
     constraints: [
       { name: 'player_public_identity_key', constraint: 'unique', columns: ['identity'] },
@@ -334,6 +345,11 @@ const tablesSchema = __schema({
     indexes: [
       { accessor: 'id', name: 'world_campfire_state_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'by_location', name: 'world_campfire_state_space_id_tile_x_tile_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'tileX',
+        'tileY',
       ] },
     ],
     constraints: [
@@ -671,6 +687,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnConnectionNoticesRow),
+  ownCurrentHomestead: __table({
+    name: 'own_current_homestead',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnCurrentHomesteadRow),
   ownEffects: __table({
     name: 'own_effects',
     indexes: [

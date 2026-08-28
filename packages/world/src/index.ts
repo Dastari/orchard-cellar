@@ -3677,6 +3677,32 @@ export const ownSurvival = spacetimedb.view(
   (ctx) => ctx.db.player_survival.identity.find(ctx.sender) ?? undefined,
 );
 
+/** Resolve the caller's current instanced space without asking subscription SQL
+ * to compare the optional residence_space_id column. The outgoing portal graph
+ * gives us indexed, concrete U16 keys for exteriors, residences, and cellars. */
+export const ownCurrentHomestead = spacetimedb.view(
+  { name: 'own_current_homestead', public: true },
+  t.option(homestead.rowType),
+  (ctx) => {
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    if (position === null) return undefined;
+    const exterior = ctx.db.homestead.spaceId.find(position.spaceId);
+    if (exterior !== null) return exterior;
+
+    const outgoing = [...ctx.db.space_portal.by_from_space.filter(position.spaceId)];
+    let residenceExit = outgoing.find((portal) => portal.kind.startsWith('residence_exit:'));
+    if (residenceExit === undefined) {
+      const cellarExit = outgoing.find((portal) => portal.kind.startsWith('cellar_exit:'));
+      if (cellarExit === undefined) return undefined;
+      residenceExit = [...ctx.db.space_portal.by_from_space.filter(cellarExit.toSpace)]
+        .find((portal) => portal.kind.startsWith('residence_exit:'));
+    }
+    return residenceExit === undefined
+      ? undefined
+      : ctx.db.homestead.spaceId.find(residenceExit.toSpace) ?? undefined;
+  },
+);
+
 // The 30-second presence lease is the recently-seen grace window. These views
 // are the Stage-2 fallback after 2.8.2 RLS accepted publish but rejected the
 // appearance join when an ordinary client subscribed.

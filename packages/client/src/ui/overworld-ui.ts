@@ -1121,7 +1121,8 @@ export class OverworldUi {
     const nextWindow = requestedWindow === 'developer' && !this.model.canAdministerWorld ? 'system' : requestedWindow;
     if (this.openWindowValue === 'chest' && nextWindow !== 'chest') this.callbacks.closeChest();
     if (nextWindow !== 'chest') this.chestFrameResize.cancel();
-    if (this.openWindowValue === 'barrel' && nextWindow !== 'barrel') this.callbacks.closePlaceable();
+    if ((this.openWindowValue === 'barrel' || this.openWindowValue === 'furnace')
+      && nextWindow !== this.openWindowValue) this.callbacks.closePlaceable();
     if (this.openWindowValue === 'crafting' && nextWindow !== 'crafting') this.callbacks.closeCrafting();
     if (this.isInventoryWindow(this.openWindowValue) && !this.isInventoryWindow(nextWindow)) {
       this.cancelQuickCraftPreview();
