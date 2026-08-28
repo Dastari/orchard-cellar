@@ -15,7 +15,6 @@ import type {
 } from './generated/types.js';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
 import { BoundedKeyedQueue, KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
-import { openSpacetimeV2Socket } from './spacetimedb-v2-transport.js';
 import {
   LatencyInjector, LocalPredictionBuffer, latencyFromSearch,
   inputRefreshDue,
@@ -343,12 +342,7 @@ export class OverworldConnection {
     if (!oidcConfigured && !localProfilesEnabled) throw new Error('account_login_not_configured');
     const localToken = localProfilesEnabled ? localStorage.getItem(tokenKey) ?? undefined : undefined;
     const savedToken = oidcSession?.idToken ?? localToken;
-    // SpacetimeDB 2.8.2's V3 batch decoder corrupts this module's hot singleton
-    // snapshot. V2 is still a supported protocol and keeps every row in its own
-    // complete frame; remove this adapter after the upstream V3 fix lands.
     this.connection = DbConnection.builder().withUri(host).withDatabaseName(database).withToken(savedToken)
-      .withCompression('none')
-      .withWSFn(openSpacetimeV2Socket)
       .onConnect((connection, identity, token) => {
         if (localProfilesEnabled && oidcSession === null && savedToken === undefined) localStorage.setItem(tokenKey, token);
         this.connected = true; this.error = null; this.identity = identity;
