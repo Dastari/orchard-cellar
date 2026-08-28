@@ -18,6 +18,9 @@ describe('chat commands', () => {
     expect(parseChatSubmission('/last', true)).toEqual({ kind: 'last_connections' });
     expect(parseChatSubmission('/last now', true)).toEqual({ kind: 'error', message: 'USAGE: /last' });
     expect(parseChatSubmission('/last', false)).toEqual({ kind: 'error', message: 'ADMIN COMMAND REQUIRED' });
+    expect(parseChatSubmission('/baltop', false)).toEqual({ kind: 'balance_top' });
+    expect(parseChatSubmission('/BALTOP', true)).toEqual({ kind: 'balance_top' });
+    expect(parseChatSubmission('/baltop now', false)).toEqual({ kind: 'error', message: 'USAGE: /baltop' });
   });
 
   it('parses private and ranged speech aliases without sending them as channel chat', () => {
@@ -49,6 +52,7 @@ describe('chat commands', () => {
     expect(chatCommandSuggestions('/', ['Nathan'], true).map((suggestion) => suggestion.completion)).toContain('/tp ');
     expect(chatCommandSuggestions('/', ['Nathan'], true).map((suggestion) => suggestion.completion)).toContain('/last ');
     expect(chatCommandSuggestions('/', ['Nathan'], false).map((suggestion) => suggestion.completion)).not.toContain('/last ');
+    expect(chatCommandSuggestions('/', ['Nathan'], false).map((suggestion) => suggestion.completion)).toContain('/baltop ');
     expect(chatCommandSuggestions('/w Na', ['Nathan'], false)[0]?.completion).toBe('/w Nathan ');
     expect(chatCommandSuggestions('/r ', ['Nathan'], false, 'Nathan')[0]?.label).toContain('TO Nathan');
   });

@@ -233,7 +233,15 @@ export class OverworldConnection {
   private subscribedCenterTiles: readonly [number, number] | null = null;
   private radiusTimer: number | null = null;
   private pendingRegion: string | null = null;
+  private timeSubscription: SubscriptionHandle | null = null;
+  private readonly timeRecoverySubscriptions: SubscriptionHandle[] = [];
+  private globalSubscription: SubscriptionHandle | null = null;
+  private selfSubscription: SubscriptionHandle | null = null;
   private regionSubscription: SubscriptionHandle | null = null;
+  private timeSubscriptionPending = false;
+  private globalBootstrapComplete = false;
+  private timeRecoveryTimer: number | null = null;
+  private timeCacheWatchdogTimer: number | null = null;
   private heartbeatTimer: number | null = null;
   private activitySinceHeartbeat = true;
   private sequence = 0n;
@@ -334,11 +342,17 @@ export class OverworldConnection {
     if (!oidcConfigured && !localProfilesEnabled) throw new Error('account_login_not_configured');
     const localToken = localProfilesEnabled ? localStorage.getItem(tokenKey) ?? undefined : undefined;
     const savedToken = oidcSession?.idToken ?? localToken;
+    // SpacetimeDB 2.8.x decompresses gzip websocket messages asynchronously.
+    // The world clock publishes often enough for those promises to complete out
+    // of order, which corrupts V3 batches before the table cache sees them.
+    // Uncompressed frames preserve websocket arrival order until the SDK queues
+    // decompression internally (or exposes an ordered adapter).
     this.connection = DbConnection.builder().withUri(host).withDatabaseName(database).withToken(savedToken)
+      .withCompression('none')
       .onConnect((connection, identity, token) => {
         if (localProfilesEnabled && oidcSession === null && savedToken === undefined) localStorage.setItem(tokenKey, token);
         this.connected = true; this.error = null; this.identity = identity;
-        this.bindTableEvents(connection); this.subscribeGlobals(connection); this.subscribeSelf(connection, identity);
+        this.bindTableEvents(connection); this.subscribeTimeState(connection, identity);
         if (localProfilesEnabled && oidcSession === null) {
           void this.call(() => connection.reducers.setDisplayName({ displayName: this.displayName() })).catch(() => undefined);
         }
@@ -349,14 +363,24 @@ export class OverworldConnection {
             if (active) this.activitySinceHeartbeat = true;
           });
         }, 10_000);
+        this.timeCacheWatchdogTimer = window.setInterval(() => {
+          if (!this.hasTimeState(connection)) this.scheduleTimeStateRecovery(connection, identity);
+        }, 500);
         this.onChanged();
       })
       .onConnectError((_context, error) => { this.error = error.message; this.onChanged(); })
       .onDisconnect((_context, error) => {
         if (this.heartbeatTimer !== null) window.clearInterval(this.heartbeatTimer);
-        this.heartbeatTimer = null; this.inputReady = false; this.connected = false;
+        if (this.timeCacheWatchdogTimer !== null) window.clearInterval(this.timeCacheWatchdogTimer);
+        if (this.timeRecoveryTimer !== null) window.clearTimeout(this.timeRecoveryTimer);
+        this.heartbeatTimer = null; this.timeCacheWatchdogTimer = null; this.timeRecoveryTimer = null;
+        this.inputReady = false; this.connected = false;
         this.error = error?.message ?? 'disconnected'; this.prediction.reset(); this.sentAt.clear();
         this.sessionChatNotices.clear(); this.inventoryCursor = null;
+        this.tradeSession = null; this.tradeOffers.clear();
+        this.timeSubscription = null; this.timeRecoverySubscriptions.length = 0;
+        this.globalSubscription = null; this.selfSubscription = null; this.regionSubscription = null;
+        this.timeSubscriptionPending = false; this.globalBootstrapComplete = false;
         this.globalSubscriptionQueryCount = 0; this.selfSubscriptionQueryCount = 0;
         this.activeRegionQueryCount = 0; this.pendingRegionQueryCount = 0; this.onChanged();
       }).build();
@@ -584,6 +608,9 @@ export class OverworldConnection {
   interactChest(): Promise<void> { return this.reducer((c) => c.reducers.interactChest({})); }
   closeChest(): Promise<void> { return this.reducer((c) => c.reducers.closeChest({})); }
   harvestResource(resourceId: bigint): Promise<void> { return this.reducer((c) => c.reducers.harvestResource({ resourceId })); }
+  attackCombatTarget(targetId: bigint): Promise<void> {
+    return this.reducer((connection) => connection.reducers.attackCombatTarget({ targetId }));
+  }
   harvestChest(chestId: bigint): Promise<void> { return this.reducer((connection) => connection.reducers.harvestChest({ chestId })); }
   interactNpc(npcId: bigint): Promise<void> { return this.reducer((connection) => connection.reducers.interactNpc({ npcId })); }
   requestTrade(target: Identity): Promise<void> {
@@ -688,6 +715,9 @@ export class OverworldConnection {
   requestLastConnections(): Promise<void> {
     return this.reducer((connection) => connection.reducers.requestLastConnections({}));
   }
+  requestBalanceTop(): Promise<void> {
+    return this.reducer((connection) => connection.reducers.requestBalanceTop({}));
+  }
   sendWhisper(recipient: Identity, body: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.sendWhisper({ recipient, body }));
   }
@@ -790,11 +820,51 @@ export class OverworldConnection {
     return cleaned.length >= 3 ? cleaned.slice(0, 20) : 'Farmer One';
   }
 
-  private subscribeGlobals(connection: DbConnection): void {
-    const queries = [tables.onlinePlayerPublic, tables.onlinePlayerAppearances, tables.worldClock,
-      tables.worldEnvironment, tables.worldWind, tables.worldSeed, tables.worldMerchant, tables.worldCampfireState, tables.spacePortal, tables.homestead];
-    this.globalSubscriptionQueryCount = queries.length;
-    connection.subscriptionBuilder().onApplied(() => this.hydrateGlobals(connection)).onError(() => {
+  private hasTimeState(connection: DbConnection): boolean {
+    return connection.db.worldClock.id.find(0) !== null
+      && connection.db.worldEnvironment.id.find(0) !== null;
+  }
+
+  private scheduleTimeStateRecovery(connection: DbConnection, identity: Identity): void {
+    if (!this.connected || this.timeSubscriptionPending || this.timeRecoveryTimer !== null) return;
+    this.timeRecoveryTimer = window.setTimeout(() => {
+      this.timeRecoveryTimer = null;
+      if (!this.hasTimeState(connection)) this.subscribeTimeState(connection, identity, true);
+    }, 50);
+  }
+
+  private subscribeTimeState(connection: DbConnection, identity: Identity, recovery = false): void {
+    if (this.timeSubscriptionPending) return;
+    this.timeSubscriptionPending = true;
+    const handle = connection.subscriptionBuilder().onApplied(() => {
+      this.timeSubscriptionPending = false;
+      this.clock = connection.db.worldClock.id.find(0);
+      this.environment = connection.db.worldEnvironment.id.find(0);
+      if (!this.hasTimeState(connection)) {
+        this.scheduleTimeStateRecovery(connection, identity);
+        return;
+      }
+      if (!this.globalBootstrapComplete) {
+        this.globalBootstrapComplete = true;
+        this.subscribeGlobals(connection, identity);
+      }
+      this.onChanged();
+    }).onError(() => {
+      this.timeSubscriptionPending = false;
+      this.scheduleTimeStateRecovery(connection, identity);
+    }).subscribe([tables.worldClock, tables.worldEnvironment]);
+    if (recovery) this.timeRecoverySubscriptions.push(handle);
+    else this.timeSubscription = handle;
+  }
+
+  private subscribeGlobals(connection: DbConnection, identity: Identity): void {
+    const queries = [tables.playerPublic, tables.playerAppearance, tables.worldWind,
+      tables.worldSeed, tables.worldMerchant, tables.worldCampfireState, tables.spacePortal, tables.homestead];
+    this.globalSubscriptionQueryCount = queries.length + 2;
+    this.globalSubscription = connection.subscriptionBuilder().onApplied(() => {
+      this.hydrateGlobals(connection);
+      this.subscribeSelf(connection, identity);
+    }).onError(() => {
       this.error = 'global_subscription_failed'; this.onChanged();
     }).subscribe(queries);
   }
@@ -830,7 +900,7 @@ export class OverworldConnection {
       tables.visibleWorldSpeech,
     ];
     this.selfSubscriptionQueryCount = queries.length;
-    connection.subscriptionBuilder().onApplied(() => this.latency.incoming(() => {
+    this.selfSubscription = connection.subscriptionBuilder().onApplied(() => this.latency.incoming(() => {
       this.hydrateSelf(connection);
       const row = connection.db.playerPosition.identity.find(identity);
       if (row === null) { this.error = 'self_position_missing'; this.onChanged(); return; }
@@ -934,12 +1004,12 @@ export class OverworldConnection {
     const incoming = (eventId: string, apply: () => void): void => {
       this.latency.incomingGrouped(eventId, () => { apply(); this.onChanged(); });
     };
-    connection.db.onlinePlayerPublic.onInsert((context, row) => incoming(context.event.id, () => this.setProfile(row)));
-    connection.db.onlinePlayerPublic.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setProfile(row)));
-    connection.db.onlinePlayerPublic.onDelete((context, row) => incoming(context.event.id, () => { const id = identityHex(row.identity); this.profiles.delete(id); this.visiblePlayers.delete(id); }));
-    connection.db.onlinePlayerAppearances.onInsert((context, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
-    connection.db.onlinePlayerAppearances.onUpdate((context, _old, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
-    connection.db.onlinePlayerAppearances.onDelete((context, row) => incoming(context.event.id, () => this.appearances.delete(identityHex(row.identity))));
+    connection.db.playerPublic.onInsert((context, row) => incoming(context.event.id, () => this.setProfile(row)));
+    connection.db.playerPublic.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setProfile(row)));
+    connection.db.playerPublic.onDelete((context, row) => incoming(context.event.id, () => { const id = identityHex(row.identity); this.profiles.delete(id); this.visiblePlayers.delete(id); }));
+    connection.db.playerAppearance.onInsert((context, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
+    connection.db.playerAppearance.onUpdate((context, _old, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
+    connection.db.playerAppearance.onDelete((context, row) => incoming(context.event.id, () => this.appearances.delete(identityHex(row.identity))));
     connection.db.worldClock.onInsert((context, row) => incoming(context.event.id, () => { this.clock = row; }));
     connection.db.worldClock.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.clock = row; }));
     connection.db.worldEnvironment.onInsert((context, row) => incoming(context.event.id, () => { this.environment = row; }));
@@ -1128,7 +1198,7 @@ export class OverworldConnection {
 
   private setProfile(row: PlayerPublic): void {
     const id = identityHex(row.identity); this.profiles.set(id, row); const position = this.positions.get(id);
-    if (row.online && position !== undefined && position.spaceId === this.ownSpaceId) {
+    if (position !== undefined && position.spaceId === this.ownSpaceId) {
       this.visiblePlayers.set(id, position);
     } else this.visiblePlayers.delete(id);
   }
@@ -1148,13 +1218,14 @@ export class OverworldConnection {
     }
     this.positions.set(id, row);
     this.positionCommits.push(id, row);
-    if ((this.profiles.get(id)?.online ?? true) && row.spaceId === this.ownSpaceId) {
+    if ((ownRow || this.profiles.get(id) !== undefined) && row.spaceId === this.ownSpaceId) {
       this.visiblePlayers.set(id, row);
     } else this.visiblePlayers.delete(id);
     if (ownRow) {
       for (const player of this.positions) {
         const playerId = identityHex(player.identity);
-        if (player.spaceId === this.ownSpaceId && (this.profiles.get(playerId)?.online ?? true)) {
+        const ownPlayer = this.identity !== null && player.identity.isEqual(this.identity);
+        if (player.spaceId === this.ownSpaceId && (ownPlayer || this.profiles.get(playerId) !== undefined)) {
           this.visiblePlayers.set(playerId, player);
         } else this.visiblePlayers.delete(playerId);
       }
@@ -1194,8 +1265,8 @@ export class OverworldConnection {
   }
   private hydrateGlobals(connection: DbConnection): void {
     this.latency.incoming(() => {
-      for (const row of connection.db.onlinePlayerPublic.iter()) this.setProfile(row);
-      for (const row of connection.db.onlinePlayerAppearances.iter()) this.appearances.set(identityHex(row.identity), row);
+      for (const row of connection.db.playerPublic.iter()) this.setProfile(row);
+      for (const row of connection.db.playerAppearance.iter()) this.appearances.set(identityHex(row.identity), row);
       this.clock = [...connection.db.worldClock.iter()][0] ?? null;
       this.environment = [...connection.db.worldEnvironment.iter()][0] ?? null;
       this.campfires.clear();

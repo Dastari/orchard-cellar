@@ -140,7 +140,7 @@ describe('06 golden balance tables', () => {
     expect(SURVIVAL_SPAWN_SEARCH_RADIUS_TILES).toBe(60);
     expect(TOOL_VIGOUR_BALANCE).toEqual({
       watering_can: { costCenti: 800, minimumSwingTicks: 6 },
-      hoe: { costCenti: 5_000, minimumSwingTicks: 6 },
+      hoe: { costCenti: 500, minimumSwingTicks: 6 },
       fishing_rod: { costCenti: 600, minimumSwingTicks: 6 },
       bow: { costCenti: 3_000, minimumSwingTicks: 6 },
       sword: { costCenti: 1_200, minimumSwingTicks: 7 },

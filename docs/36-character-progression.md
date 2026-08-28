@@ -202,9 +202,21 @@ Authority-backed, data-defined, sensed through statistics:
   carried items; ordinary objective materials are never inferred or removed.
   Deleting the quest row returns it to the offerable state and records the
   `quests_abandoned` statistic.
+- **Unique quest artifacts**: item definitions use the explicit
+  `item.quest_unique` tag for quest-owned artifacts such as Marlow's book. The
+  tag is deliberately absent from ordinary objective materials (for example,
+  50 wood). Authority rejects merchant sale, direct player trade, world drops,
+  and deposits into shared chest/placeable storage for these artifacts. Their
+  inventory slots use the authored white quest treatment, overriding ordinary
+  item quality. A future destroy-item flow must
+  identify the owning quest, warn that confirmation abandons it, and perform the
+  quest abandonment plus declared artifact removal atomically; the current
+  abandon reducer already performs that removal.
 - **Rewards**: track-tagged XP, gold, items, and **skill-node reveals**
   (§4.2) — quests are how the trees breathe. No client-submitted progress
-  anywhere; turn-in re-derives every objective server-side.
+  anywhere; turn-in re-derives every objective server-side. Dialogue turn-in
+  buttons keep a concise action label and expose their complete reward summary
+  in a hover tooltip rather than embedding reward text in the button.
 - **First shipped chain**: *A Very Important Book*. Marlow offers it through
   conditional dialogue; the accepted player alone sees and can recover the book
   from his tent table; turn-in re-derives completion and awards the returned book,

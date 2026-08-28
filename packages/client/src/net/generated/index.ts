@@ -40,6 +40,7 @@ import AdjustDebugBackpackSlotsReducer from "./adjust_debug_backpack_slots_reduc
 import AdminRelocateHorseReducer from "./admin_relocate_horse_reducer";
 import AdminTeleportReducer from "./admin_teleport_reducer";
 import ApproveMemberReducer from "./approve_member_reducer";
+import AttackCombatTargetReducer from "./attack_combat_target_reducer";
 import BeginBowChargeReducer from "./begin_bow_charge_reducer";
 import BuyMerchantCartReducer from "./buy_merchant_cart_reducer";
 import BuyMerchantItemReducer from "./buy_merchant_item_reducer";
@@ -63,6 +64,7 @@ import DropSelectedReducer from "./drop_selected_reducer";
 import FireBowReducer from "./fire_bow_reducer";
 import GatherWorldResourceReducer from "./gather_world_resource_reducer";
 import GrantDebugSkillPointsReducer from "./grant_debug_skill_points_reducer";
+import GrantPlayerGoldReducer from "./grant_player_gold_reducer";
 import HarvestChestReducer from "./harvest_chest_reducer";
 import HarvestResourceReducer from "./harvest_resource_reducer";
 import HeartbeatReducer from "./heartbeat_reducer";
@@ -93,6 +95,7 @@ import QuickMoveInventoryItemReducer from "./quick_move_inventory_item_reducer";
 import QuickMoveMenuItemReducer from "./quick_move_menu_item_reducer";
 import RemoveTradeOfferItemReducer from "./remove_trade_offer_item_reducer";
 import RepairSelectedToolReducer from "./repair_selected_tool_reducer";
+import RequestBalanceTopReducer from "./request_balance_top_reducer";
 import RequestLastConnectionsReducer from "./request_last_connections_reducer";
 import RequestTradeReducer from "./request_trade_reducer";
 import ResetMyQuestProgressReducer from "./reset_my_quest_progress_reducer";
@@ -839,6 +842,7 @@ const reducersSchema = __reducers(
   __reducerSchema("admin_relocate_horse", AdminRelocateHorseReducer),
   __reducerSchema("admin_teleport", AdminTeleportReducer),
   __reducerSchema("approve_member", ApproveMemberReducer),
+  __reducerSchema("attack_combat_target", AttackCombatTargetReducer),
   __reducerSchema("begin_bow_charge", BeginBowChargeReducer),
   __reducerSchema("buy_merchant_cart", BuyMerchantCartReducer),
   __reducerSchema("buy_merchant_item", BuyMerchantItemReducer),
@@ -862,6 +866,7 @@ const reducersSchema = __reducers(
   __reducerSchema("fire_bow", FireBowReducer),
   __reducerSchema("gather_world_resource", GatherWorldResourceReducer),
   __reducerSchema("grant_debug_skill_points", GrantDebugSkillPointsReducer),
+  __reducerSchema("grant_player_gold", GrantPlayerGoldReducer),
   __reducerSchema("harvest_chest", HarvestChestReducer),
   __reducerSchema("harvest_resource", HarvestResourceReducer),
   __reducerSchema("heartbeat", HeartbeatReducer),
@@ -892,6 +897,7 @@ const reducersSchema = __reducers(
   __reducerSchema("quick_move_menu_item", QuickMoveMenuItemReducer),
   __reducerSchema("remove_trade_offer_item", RemoveTradeOfferItemReducer),
   __reducerSchema("repair_selected_tool", RepairSelectedToolReducer),
+  __reducerSchema("request_balance_top", RequestBalanceTopReducer),
   __reducerSchema("request_last_connections", RequestLastConnectionsReducer),
   __reducerSchema("request_trade", RequestTradeReducer),
   __reducerSchema("reset_my_quest_progress", ResetMyQuestProgressReducer),

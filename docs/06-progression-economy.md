@@ -273,7 +273,7 @@ numbers; §3 above remains the retired solo farm scene's tend-charge economy.
 | Tool         |        Vigour cost | Minimum interval at 20 Hz |
 | ------------ | -----------------: | ------------------------: |
 | Watering can |                  8 |          6 ticks / 300 ms |
-| Hoe          |                 50 |          6 ticks / 300 ms |
+| Hoe          |                  5 |          6 ticks / 300 ms |
 | Fishing rod  |                  6 |          6 ticks / 300 ms |
 | Bow          | 1–30 (draw-scaled) |          6 ticks / 300 ms |
 | Sword        |                 12 |          7 ticks / 350 ms |

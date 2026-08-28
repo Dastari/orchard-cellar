@@ -8,6 +8,7 @@ export interface AvatarActionDefinition {
 
 export const AVATAR_ACTIONS = {
   swing_axe: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'axe' },
+  swing_sword: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'sword' },
   swing_pickaxe: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'pickaxe' },
   swing_hoe: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'hoe' },
   water: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'watering_can' },

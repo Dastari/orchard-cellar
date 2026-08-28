@@ -47,8 +47,8 @@ async function main(): Promise<void> {
     connect(process.env['STAGE2_BOB_TOKEN']),
   ]);
   const heartbeat = setInterval(() => {
-    void alice.connection.reducers.heartbeat({}).catch(() => undefined);
-    void bob.connection.reducers.heartbeat({}).catch(() => undefined);
+    void alice.connection.reducers.heartbeat({ active: false }).catch(() => undefined);
+    void bob.connection.reducers.heartbeat({ active: false }).catch(() => undefined);
   }, 10_000);
   try {
     await Promise.all([

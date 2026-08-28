@@ -19,7 +19,7 @@ describe('reusable NPC dialogue definitions', () => {
     });
     expect(dialogueChoice(TOOL_MERCHANT_DIALOGUE, 'quest_request', 'decline')?.tone).toBe('decline');
     expect(dialogueChoice(TOOL_MERCHANT_DIALOGUE, 'greeting', 'quest_complete')).toMatchObject({
-      questMarker: 'complete', quest: { action: 'turn_in' },
+      label: 'I found your book.', questMarker: 'complete', quest: { action: 'turn_in' },
     });
     expect(dialogueChoice(TOOL_MERCHANT_DIALOGUE, 'greeting', 'offer')?.nextNodeId).toBe('shop');
     expect(dialogueChoice(TOOL_MERCHANT_DIALOGUE, 'about_trade', 'deeds')?.nextNodeId).toBe('about_deeds');

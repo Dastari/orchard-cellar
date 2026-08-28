@@ -1,4 +1,7 @@
 import {
+  caveFloorAutotilePlan,
+  caveFloorDecorationFrameAt,
+  caveFloorPatchVariantAt,
   SURVIVAL_CHUNK_TILES,
   TILE_SIZE_PIXELS,
   type SurvivalBiome,
@@ -159,6 +162,88 @@ function drawUndugCaveTile(
     TILE_SIZE_PIXELS,
   );
   context.restore();
+}
+
+function cellarOpenAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
+  return groundTileInsideTerrain(terrain, tileX, tileY)
+    && terrain.blocked[tileY * terrain.width + tileX] === false;
+}
+
+function cellarFloorPatchAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): 0 | 1 | null {
+  // Keep full-tile transition art away from the wall atlas. Otherwise a newly
+  // exposed wall can inherit a rocky floor pixel behind its transparent edge.
+  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      if (!cellarOpenAt(terrain, tileX + offsetX, tileY + offsetY)) return null;
+    }
+  }
+  return caveFloorPatchVariantAt(
+    terrain.seed,
+    terrain.spaceId,
+    tileX,
+    tileY,
+  );
+}
+
+function drawCellarFloorDetails(
+  context: CanvasRenderingContext2D,
+  art: OverworldArt,
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+  localX: number,
+  localY: number,
+  patchAtTile: (tileX: number, tileY: number) => 0 | 1 | null,
+): void {
+  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      if (!cellarOpenAt(terrain, tileX + offsetX, tileY + offsetY)) return;
+    }
+  }
+  const patchAt = (offsetX: number, offsetY: number): 0 | 1 | null =>
+    patchAtTile(tileX + offsetX, tileY + offsetY);
+  const plan = caveFloorAutotilePlan(
+    (offsetX, offsetY) => patchAt(offsetX, offsetY) !== null,
+  );
+  const nearbyVariant = patchAt(0, 0)
+    ?? patchAt(0, -1)
+    ?? patchAt(1, 0)
+    ?? patchAt(0, 1)
+    ?? patchAt(-1, 0)
+    ?? patchAt(-1, -1)
+    ?? patchAt(1, -1)
+    ?? patchAt(-1, 1)
+    ?? patchAt(1, 1);
+  if (nearbyVariant !== null) {
+    const asset = nearbyVariant === 0 ? art.caveFloor : art.caveFloor2;
+    if (plan.transitionFrame !== null) {
+      drawGroundAsset(context, asset, localX, localY, plan.transitionFrame);
+    }
+    for (const insetFrame of plan.insetFrames) {
+      drawGroundAsset(context, asset, localX, localY, insetFrame);
+    }
+    return;
+  }
+
+  const decorationFrame = caveFloorDecorationFrameAt(
+    terrain.seed,
+    terrain.spaceId,
+    tileX,
+    tileY,
+  );
+  if (decorationFrame !== null) {
+    drawGroundAsset(
+      context,
+      art.caveFloorDecoration,
+      localX,
+      localY,
+      decorationFrame,
+    );
+  }
 }
 
 /** Frame zero in the grass-fringe blob sheet is intentionally solid grass.
@@ -423,6 +508,14 @@ export class GroundChunkCache {
     context.imageSmoothingEnabled = false;
     const firstTileX = chunkX * SURVIVAL_CHUNK_TILES;
     const firstTileY = chunkY * SURVIVAL_CHUNK_TILES;
+    const cellarPatchCache = new Map<string, 0 | 1 | null>();
+    const cachedCellarPatchAt = (tileX: number, tileY: number): 0 | 1 | null => {
+      const key = `${tileX},${tileY}`;
+      if (cellarPatchCache.has(key)) return cellarPatchCache.get(key) ?? null;
+      const patch = cellarFloorPatchAt(terrain, tileX, tileY);
+      cellarPatchCache.set(key, patch);
+      return patch;
+    };
     for (let localY = 0; localY < SURVIVAL_CHUNK_TILES; localY += 1) {
       for (let localX = 0; localX < SURVIVAL_CHUNK_TILES; localX += 1) {
         const tileX = firstTileX + localX;
@@ -445,6 +538,16 @@ export class GroundChunkCache {
           const index = tileY * terrain.width + tileX;
           if (!terrain.blocked[index]) {
             drawGroundAsset(context, art.caveFloorMiddle, localX, localY);
+            drawCellarFloorDetails(
+              context,
+              art,
+              terrain,
+              tileX,
+              tileY,
+              localX,
+              localY,
+              cachedCellarPatchAt,
+            );
           } else {
             // Uncut rock is only the continuous raised-plane substrate. The
             // shared raised-terrain resolver owns every cap, corner and face;

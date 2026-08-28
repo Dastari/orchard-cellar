@@ -128,4 +128,10 @@ existing bounded-history policy; the caller-private MOTD remains separate.
 The owner-only `/last` reducer may read the retained private `connection_audit` on
 demand and returns at most 12 events through the requesting connection's bounded
 `session_chat_notice` inbox. This rare explicit diagnostic does not create durable
-chat rows and never exposes the private audit table through a public view.
+chat rows and never exposes the private audit table through a public view. Its display
+projection collapses repeated login or logout events for the same identity within a
+rolling five-second window while retaining opposite actions separately.
+The public `/baltop` reducer reads authoritative private wallet rows only on demand,
+joins their public display names, and returns a bounded top-ten projection through the
+requesting connection's `session_chat_notice` inbox. It exposes neither raw wallet rows
+nor persistent chat messages.

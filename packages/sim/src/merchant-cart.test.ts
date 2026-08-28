@@ -77,7 +77,7 @@ describe('authoritative merchant cart plans', () => {
     expect(result.containers.backpack?.slots).toEqual([{ itemKind: 'stone', quantity: 1 }]);
   });
 
-  it('rejects duplicate lines, deed sales, and backpack removal with occupied expansion slots', () => {
+  it('rejects duplicate lines, protected item sales, and backpack removal with occupied expansion slots', () => {
     expect(planMerchantSale(inventory([{ itemKind: 'wood', quantity: 2 }]), [
       { itemKind: 'wood', quantity: 1 },
       { itemKind: 'wood', quantity: 1 },
@@ -85,6 +85,12 @@ describe('authoritative merchant cart plans', () => {
     expect(planMerchantSale(inventory([{ itemKind: 'homestead_deed', quantity: 1 }]), [
       { itemKind: 'homestead_deed', quantity: 1 },
     ])).toEqual({ ok: false, code: 'item_not_sellable' });
+    expect(planMerchantSale(inventory([{ itemKind: 'marlow_book', quantity: 1 }]), [
+      { itemKind: 'marlow_book', quantity: 1 },
+    ])).toEqual({ ok: false, code: 'item_not_sellable' });
+    expect(planMerchantSale(inventory([{ itemKind: 'wood', quantity: 1 }]), [
+      { itemKind: 'wood', quantity: 1 },
+    ])).toMatchObject({ ok: true });
     expect(planMerchantSale(inventory(
       [{ itemKind: 'backpack', quantity: 1 }],
       Array.from({ length: 9 }, (_, index) => index === 8 ? { itemKind: 'stone', quantity: 1 } : null),

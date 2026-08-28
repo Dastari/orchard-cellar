@@ -43,6 +43,29 @@ export function resourceToolReachFixed(itemKind: string): number {
   return tiles * TILE_SIZE_FIXED;
 }
 
+/** Authority and prediction share the same contact area: a one-tile circle
+ * centred one tile ahead of the actor. The forward half-plane check prevents
+ * a crafted target id from turning a sword swing into an attack behind the
+ * player. Callers supply the target's physical interaction point. */
+export function forwardSwingTargetInReach(
+  playerX: number,
+  playerY: number,
+  facing: Direction,
+  targetX: number,
+  targetY: number,
+  itemKind: string,
+): boolean {
+  const [facingX, facingY] = FACING_VECTOR[facing];
+  const [unitX, unitY] = directionUnitVector(facing);
+  const dx = targetX - playerX;
+  const dy = targetY - playerY;
+  if (dx * facingX + dy * facingY <= 0) return false;
+  const areaDx = dx - unitX * resourceToolForwardOffsetFixed(itemKind);
+  const areaDy = dy - unitY * resourceToolForwardOffsetFixed(itemKind);
+  const reach = resourceToolReachFixed(itemKind);
+  return areaDx * areaDx + areaDy * areaDy <= reach * reach;
+}
+
 const FACING_VECTOR: Record<Direction, readonly [number, number]> = {
   up: [0, -1],
   down: [0, 1],

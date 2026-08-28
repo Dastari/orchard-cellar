@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BALANCE_LEADERBOARD_LIMIT,
+  LAST_CONNECTION_DEDUPE_WINDOW_MICROS,
+  balanceLeaderboardMessage,
   canJoinChatChannel,
   channelConversationKey,
   chatMembershipId,
@@ -8,6 +11,8 @@ import {
   normalizeMessageOfDay,
   isLegacyPersistentLifecycleMessage,
   lastConnectionEventMessage,
+  recentConnectionEvents,
+  topBalanceLeaderboard,
   validCreatableChatChannelKind,
   whisperConversationKey,
   worldDisconnectMessage,
@@ -61,5 +66,44 @@ describe('chat policy', () => {
     expect(isLegacyPersistentLifecycleMessage('system')).toBe(true);
     expect(isLegacyPersistentLifecycleMessage('channel')).toBe(false);
     expect(isLegacyPersistentLifecycleMessage('whisper')).toBe(false);
+  });
+
+  it('deduplicates the same connection action within five seconds', () => {
+    const second = 1_000_000n;
+    const recent = recentConnectionEvents([
+      { id: 1n, identityHex: 'a', eventKind: 'connected', occurredAtMicros: 3n * second },
+      { id: 2n, identityHex: 'b', eventKind: 'connected', occurredAtMicros: 5n * second },
+      { id: 3n, identityHex: 'a', eventKind: 'connected', occurredAtMicros: 6n * second },
+      { id: 4n, identityHex: 'a', eventKind: 'connected', occurredAtMicros: 9n * second },
+      { id: 5n, identityHex: 'a', eventKind: 'lease_expired', occurredAtMicros: 10n * second },
+      { id: 6n, identityHex: 'a', eventKind: 'disconnected', occurredAtMicros: 12n * second },
+      { id: 7n, identityHex: 'a', eventKind: 'ignored', occurredAtMicros: 13n * second },
+    ]);
+    expect(LAST_CONNECTION_DEDUPE_WINDOW_MICROS).toBe(5n * second);
+    expect(recent.map(({ id }) => id)).toEqual([6n, 4n, 2n, 1n]);
+    expect(recentConnectionEvents(Array.from({ length: 20 }, (_, index) => ({
+      id: BigInt(index),
+      identityHex: `player-${index}`,
+      eventKind: 'connected',
+      occurredAtMicros: BigInt(index) * second,
+    })))).toHaveLength(12);
+  });
+
+  it('ranks only the ten richest wallets with stable ties and coin formatting', () => {
+    const ranked = topBalanceLeaderboard([
+      ...Array.from({ length: BALANCE_LEADERBOARD_LIMIT }, (_, index) => ({
+        identityHex: `player-${index}`,
+        displayName: `Player ${index}`,
+        balanceBronze: BigInt(index) * 10_000n,
+      })),
+      { identityHex: 'z-tie', displayName: 'Zed', balanceBronze: 200_000n },
+      { identityHex: 'a-tie', displayName: 'Ada', balanceBronze: 200_000n },
+    ]);
+    expect(ranked).toHaveLength(10);
+    expect(ranked.slice(0, 2).map(({ displayName }) => displayName)).toEqual(['Ada', 'Zed']);
+    expect(ranked.some(({ displayName }) => displayName === 'Player 0')).toBe(false);
+    expect(balanceLeaderboardMessage(1, {
+      identityHex: 'ada', displayName: 'Ada', balanceBronze: 50_403n,
+    })).toBe('1. Ada — 5G 4S 3C');
   });
 });

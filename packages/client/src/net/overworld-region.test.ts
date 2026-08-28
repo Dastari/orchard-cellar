@@ -87,6 +87,31 @@ describe('overworld regional subscriptions', () => {
     expect(region.indexOf('previous?.isActive()')).toBeGreaterThan(region.indexOf('.onApplied('));
   });
 
+  it('isolates and verifies hot singleton rows before other subscriptions', () => {
+    const source = readFileSync(new URL('./overworld-connection.ts', import.meta.url), 'utf8');
+    expect(source).toContain(".withCompression('none')");
+    const connect = source.slice(source.indexOf('.onConnect('), source.indexOf('.onConnectError('));
+    const time = source.slice(
+      source.indexOf('private subscribeTimeState'),
+      source.indexOf('private subscribeGlobals'),
+    );
+    const globals = source.slice(
+      source.indexOf('private subscribeGlobals'),
+      source.indexOf('private subscribeSelf'),
+    );
+    expect(connect).toContain('this.subscribeTimeState(connection, identity)');
+    expect(connect).not.toContain('this.subscribeGlobals(connection, identity)');
+    expect(connect).not.toContain('this.subscribeSelf(connection, identity)');
+    expect(time).toContain('.subscribe([tables.worldClock, tables.worldEnvironment])');
+    expect(time).toContain('if (!this.hasTimeState(connection))');
+    expect(time).toContain('this.scheduleTimeStateRecovery(connection, identity)');
+    expect(time).toContain('this.subscribeGlobals(connection, identity)');
+    expect(globals).not.toContain('tables.worldClock');
+    expect(globals).not.toContain('tables.worldEnvironment');
+    expect(globals.indexOf('this.hydrateGlobals(connection)'))
+      .toBeLessThan(globals.indexOf('this.subscribeSelf(connection, identity)'));
+  });
+
   it('34§6 reduces settled 1080p query count from the stage-1 baseline', () => {
     const stage1Baseline = 8 + 15 + 11 * 11 * 8;
     const bounds = subscriptionChunkBounds(20, 20, viewRadiusForViewport(1920, 1080, 1));

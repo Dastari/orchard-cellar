@@ -8,6 +8,7 @@ export type ParsedChatSubmission =
   | { readonly kind: 'teleport'; readonly destination: string }
   | { readonly kind: 'debug_space' }
   | { readonly kind: 'last_connections' }
+  | { readonly kind: 'balance_top' }
   | { readonly kind: 'whisper'; readonly playerName: string; readonly body: string }
   | { readonly kind: 'reply'; readonly body: string }
   | { readonly kind: 'speech'; readonly speechKind: 'say' | 'shout'; readonly body: string }
@@ -66,6 +67,12 @@ export function parseChatSubmission(
       ? { kind: 'last_connections' }
       : { kind: 'error', message: 'USAGE: /last' };
   }
+  const balanceTop = commandBody(body, ['baltop']);
+  if (balanceTop !== null) {
+    return balanceTop.length === 0
+      ? { kind: 'balance_top' }
+      : { kind: 'error', message: 'USAGE: /baltop' };
+  }
   const whisper = commandBody(body, ['whisper', 'tell', 'w']);
   if (whisper !== null) {
     const parts = whisperParts(whisper, onlinePlayerNames);
@@ -111,6 +118,7 @@ export function chatCommandSuggestions(
     { name: 'say', usage: '/say <message>' },
     { name: 'shout', usage: '/shout <message>' },
     { name: 'whisper', usage: '/whisper <player> <message>' },
+    { name: 'baltop', usage: '/baltop  TOP 10 PLAYER BALANCES' },
     ...(canAdministerWorld ? [{ name: 'tp', usage: '/tp <x> <y> OR /tp [player] <player|npc>' }] : []),
     ...(canAdministerWorld ? [{ name: 'debug-space', usage: '/debug-space  TOGGLE TEST SPACE' }] : []),
     ...(canAdministerWorld ? [{ name: 'last', usage: '/last  RECENT LOGINS AND LOGOUTS' }] : []),

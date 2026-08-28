@@ -35,7 +35,7 @@ export const TOOL_MERCHANT_DIALOGUE: DialogueDefinition = {
       body: 'Well met, traveller. Tools wear out, supplies wander off, and I make sure neither keeps you down for long.',
       mode: 'dialogue',
       choices: [
-        { id: 'quest_complete', label: 'I found your book. (Reward: 1 gold)', nextNodeId: 'quest_rewarded', questMarker: 'complete', quest: { questId: 'marlow_important_book', requires: 'complete', action: 'turn_in' } },
+        { id: 'quest_complete', label: 'I found your book.', nextNodeId: 'quest_rewarded', questMarker: 'complete', quest: { questId: 'marlow_important_book', requires: 'complete', action: 'turn_in' } },
         { id: 'quest_offer', label: 'Hey you, yes you, I need your help.', nextNodeId: 'quest_request', questMarker: 'offer', quest: { questId: 'marlow_important_book', requires: 'available' } },
         { id: 'quest_active', label: 'About that very important book...', nextNodeId: 'quest_reminder', quest: { questId: 'marlow_important_book', requires: 'active' } },
         { id: 'offer', label: 'Let me see what you have to offer.', nextNodeId: 'shop' },

@@ -40,6 +40,7 @@ const parts = [
 ] as const;
 
 const animationRows = [
+  ['swing_sword_down', 6, 4], ['swing_sword_right', 9, 4], ['swing_sword_up', 12, 4],
   ['hold_idle_down', 20, 1], ['hold_idle_right', 21, 1], ['hold_idle_up', 22, 1],
   ['hold_walk_down', 23, 5], ['hold_walk_right', 24, 5], ['hold_walk_up', 25, 5],
   ['ranged_weapon_down', 29], ['ranged_weapon_right', 30], ['ranged_weapon_up', 31],
@@ -115,7 +116,7 @@ for (const [name, relativeSource] of parts) {
   await writeFile(resolve(outputRoot, `${name}.sprite.json`), `${JSON.stringify(asset, null, 2)}\n`);
 }
 
-console.log(`Extracted ${parts.length} modular character hold/action layers from canonical rows 20-43.`);
+console.log(`Extracted ${parts.length} modular character sword/hold/action layers from canonical rows 6-43.`);
 
 const heldLightHandsSource = resolve(sourceRoot, 'Player/Hands/Hands_Bare_Lantern_Torch_Idle_Running.png');
 const heldLightHandsImage = decodePng(await readFile(heldLightHandsSource));

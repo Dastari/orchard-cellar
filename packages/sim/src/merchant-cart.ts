@@ -2,6 +2,7 @@ import { ITEM_ECONOMY, TOOL_MERCHANT_OFFERS, commerceTotal } from './commerce.js
 import { isDurableToolKind, normalizeToolDurability } from './durability.js';
 import {
   BASE_BACKPACK_CAPACITY,
+  isUniqueQuestItemKind,
   maxStackFor,
   quickMoveItemStack,
   type ContainerSnapshot,
@@ -122,7 +123,9 @@ export function planMerchantSale(
   const next: Record<string, ContainerSnapshot> = { ...before };
   let totalBronze = 0n;
   for (const line of lines) {
-    if (line.itemKind === 'homestead_deed') return failure('item_not_sellable');
+    if (line.itemKind === 'homestead_deed' || isUniqueQuestItemKind(line.itemKind)) {
+      return failure('item_not_sellable');
+    }
     const economy = ITEM_ECONOMY[line.itemKind as keyof typeof ITEM_ECONOMY];
     const lineTotal = economy === undefined
       ? null

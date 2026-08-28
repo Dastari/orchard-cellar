@@ -70,7 +70,7 @@ async function main(): Promise<void> {
   ]);
   let secondTab: Client | null = null;
   let reconnect: Client | null = null;
-  const bobHeartbeat = setInterval(() => { void bob.connection.reducers.heartbeat({}).catch(() => undefined); }, 10_000);
+  const bobHeartbeat = setInterval(() => { void bob.connection.reducers.heartbeat({ active: false }).catch(() => undefined); }, 10_000);
   try {
     if (alice.identity.isEqual(bob.identity)) throw new Error('identities_not_distinct');
     await Promise.all([subscribe(alice), subscribe(bob)]);
@@ -108,12 +108,12 @@ async function main(): Promise<void> {
     await subscribe(secondTab);
     if (!secondTab.identity.isEqual(alice.identity)) throw new Error('same_token_changed_identity');
     await Promise.all([
-      alice.connection.reducers.heartbeat({}),
-      secondTab.connection.reducers.heartbeat({}),
+      alice.connection.reducers.heartbeat({ active: false }),
+      secondTab.connection.reducers.heartbeat({ active: false }),
     ]);
     alice.connection.disconnect();
     await new Promise((resolve) => setTimeout(resolve, 31_000));
-    await secondTab.connection.reducers.heartbeat({});
+    await secondTab.connection.reducers.heartbeat({ active: false });
     const aliceProfile = bob.connection.db.playerPublic.identity.find(alice.identity);
     if (aliceProfile?.online !== true) throw new Error('first_tab_close_removed_presence');
 

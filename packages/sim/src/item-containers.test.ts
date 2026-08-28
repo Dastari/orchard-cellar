@@ -5,6 +5,8 @@ import {
   distributeItemStack,
   insertItemStack,
   insertItemStackPartial,
+  itemDefinition,
+  isUniqueQuestItemKind,
   matchingRecipeId,
   moveItemStacks,
   quickMoveItemStack,
@@ -17,6 +19,22 @@ import {
 import { MOVE_RULE_FIXTURES } from './item-containers.fixtures.js';
 
 describe('shared container stacking rules', () => {
+  it('distinguishes protected quest artifacts from ordinary objective materials', () => {
+    expect(isUniqueQuestItemKind('marlow_book')).toBe(true);
+    expect(isUniqueQuestItemKind('wood')).toBe(false);
+    expect(isUniqueQuestItemKind('missing')).toBe(false);
+  });
+
+  it('registers stable item quality independently of quest ownership', () => {
+    expect(itemDefinition('wood')?.quality).toBe('common');
+    expect(itemDefinition('axe')?.quality).toBe('uncommon');
+    expect(itemDefinition('sword')?.quality).toBe('rare');
+    expect(itemDefinition('ring')?.quality).toBe('epic');
+    expect(itemDefinition('homestead_deed')?.quality).toBe('legendary');
+    expect(itemDefinition('marlow_book')).toMatchObject({ quality: 'common' });
+    expect(isUniqueQuestItemKind('marlow_book')).toBe(true);
+  });
+
   for (const fixture of MOVE_RULE_FIXTURES) {
     it(fixture.name, () => {
       const result = moveItemStacks(fixture.containers, fixture.request);

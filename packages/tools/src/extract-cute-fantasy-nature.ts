@@ -70,6 +70,20 @@ extracts.push(
     animation: 'base', frameKind: 'variant',
   },
   {
+    name: 'tile_cf_cave_floor_2', category: 'tiles',
+    source: 'references/Cute_Fantasy/Tiles/Cave/Cave_Floor_2.png',
+    frames: Array.from({ length: 5 }, (_, row) => (
+      Array.from({ length: 3 }, (_unused, column) => [column * 16, row * 16, 16, 16] as const)
+    )).flat(), fps: 1,
+    animation: 'base', frameKind: 'variant',
+  },
+  {
+    name: 'tile_cf_cave_floor_decoration', category: 'tiles',
+    source: 'references/Cute_Fantasy/Tiles/Cave/Cave_Floor_Decoration.png',
+    frames: strip(3), fps: 1,
+    animation: 'base', frameKind: 'variant',
+  },
+  {
     name: 'tile_cf_cave_floor_middle', category: 'tiles',
     source: 'references/Cute_Fantasy/Tiles/Cave/Cave_Floor_Middle.png',
     frames: [[0, 0, 16, 16]], fps: 1, animation: 'base', frameKind: 'state',

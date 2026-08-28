@@ -20,6 +20,7 @@ import {
   ARCHERY_TARGET_REGEN_INTERVAL_TICKS,
   ANVIL_REPAIR_COST_BRONZE,
   BOW_BASE_DAMAGE_CENTI,
+  SWORD_BASE_DAMAGE_CENTI,
   ITEM_DESPAWN_TICKS,
   CRAFTING_STATION_REACH_TILES,
   DAYS_PER_SEASON,
@@ -76,6 +77,7 @@ import {
   emptySoilDecayAtTick,
   emptySoilDecayDue,
   itemDefinition,
+  isUniqueQuestItemKind,
   inventoryContainerSlotCount,
   inventoryContainerSlotOffset,
   isHotbarSlot,
@@ -139,6 +141,7 @@ import {
   boundsOverlap,
   directionFromAim,
   firstProjectileTerrainHit,
+  forwardSwingTargetInReach,
   isRecoverableArrow,
   normalizedBowAim,
   projectileTargetAtLanding,
@@ -279,13 +282,14 @@ import {
   productionAuthEnabled,
 } from './auth-policy.js';
 import {
+  BALANCE_LEADERBOARD_LIMIT,
   CHAT_CHANNEL_HISTORY_LIMIT,
   CHAT_SEND_COOLDOWN_MICROS,
   DEFAULT_MESSAGE_OF_DAY,
   GENERAL_CHAT_CHANNEL_ID,
   GENERAL_CHAT_CHANNEL_SLUG,
-  LAST_CONNECTION_EVENT_LIMIT,
   SESSION_CHAT_NOTICE_LIMIT,
+  balanceLeaderboardMessage,
   canJoinChatChannel,
   channelConversationKey,
   chatMembershipId,
@@ -294,6 +298,8 @@ import {
   normalizeChatChannelName,
   normalizeChatMessage,
   normalizeMessageOfDay,
+  recentConnectionEvents,
+  topBalanceLeaderboard,
   validCreatableChatChannelKind,
   whisperConversationKey,
   worldDisconnectMessage,
@@ -3358,6 +3364,24 @@ function writeOpenMenuInventory(
   menu: OpenMenuInventory,
   containers: Readonly<Record<string, ContainerSnapshot>>,
 ): void {
+  const sharedContainerIds = ['chest', 'placeable'] as const;
+  const uniqueCounts = (source: Readonly<Record<string, ContainerSnapshot>>): Map<string, number> => {
+    const counts = new Map<string, number>();
+    for (const containerId of sharedContainerIds) {
+      for (const stack of source[containerId]?.slots ?? []) {
+        if (stack !== null && isUniqueQuestItemKind(stack.itemKind)) {
+          counts.set(stack.itemKind, (counts.get(stack.itemKind) ?? 0) + stack.quantity);
+        }
+      }
+    }
+    return counts;
+  };
+  const previousUniqueCounts = uniqueCounts(menu.containers);
+  for (const [itemKind, quantity] of uniqueCounts(containers)) {
+    if (quantity > (previousUniqueCounts.get(itemKind) ?? 0)) {
+      throw new SenderError('item_not_tradeable');
+    }
+  }
   if (menu.placeable?.placeable.kind === 'furnace'
     && !furnaceMutationIsValid(menu.placeable.container.slots, containers.placeable?.slots ?? [])) {
     throw new SenderError('furnace_slot_restricted');
@@ -4681,16 +4705,14 @@ export const requestLastConnections = spacetimedb.reducer({}, (ctx) => {
     || ctx.db.connection_notice.connectionId.find(ctx.connectionId) === null) {
     throw new SenderError('connection_not_ready');
   }
-  const recent = [...ctx.db.connection_audit.iter()]
-    .filter((event) => event.eventKind === 'connected'
-      || event.eventKind === 'disconnected'
-      || event.eventKind === 'lease_expired')
-    .sort((left, right) => {
-      const time = right.occurredAt.microsSinceUnixEpoch - left.occurredAt.microsSinceUnixEpoch;
-      if (time !== 0n) return time > 0n ? 1 : -1;
-      return left.id < right.id ? 1 : left.id > right.id ? -1 : 0;
-    })
-    .slice(0, LAST_CONNECTION_EVENT_LIMIT);
+  const recent = recentConnectionEvents([...ctx.db.connection_audit.iter()].map((event) => ({
+    id: event.id,
+    identityHex: event.identity.toHexString(),
+    displayName: event.displayName,
+    eventKind: event.eventKind,
+    occurredAtMicros: event.occurredAt.microsSinceUnixEpoch,
+    occurredAtIso: event.occurredAt.toISOString(),
+  })));
   if (recent.length === 0) {
     insertSessionChatNotice(
       ctx, ctx.sender, ctx.connectionId, 'last', 'NO CONNECTION EVENTS RECORDED',
@@ -4710,7 +4732,47 @@ export const requestLastConnections = spacetimedb.reducer({}, (ctx) => {
       ctx.sender,
       ctx.connectionId,
       'last',
-      lastConnectionEventMessage(event.displayName, event.eventKind, event.occurredAt.toISOString()),
+      lastConnectionEventMessage(event.displayName, event.eventKind, event.occurredAtIso),
+    );
+  }
+});
+
+/** Public, read-only economy ranking. Raw wallets remain private and only the
+ * bounded, display-name projection is copied into the caller's session inbox. */
+export const requestBalanceTop = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  if (ctx.connectionId === null
+    || ctx.db.connection_notice.connectionId.find(ctx.connectionId) === null) {
+    throw new SenderError('connection_not_ready');
+  }
+  const ranked = topBalanceLeaderboard(
+    [...ctx.db.player_wallet.iter()].flatMap((wallet) => {
+      const profile = ctx.db.player_public.identity.find(wallet.identity);
+      return profile === null ? [] : [{
+        identityHex: wallet.identity.toHexString(),
+        displayName: profile.displayName,
+        balanceBronze: wallet.balanceBronze,
+      }];
+    }),
+  );
+  insertSessionChatNotice(
+    ctx,
+    ctx.sender,
+    ctx.connectionId,
+    'baltop',
+    `TOP ${BALANCE_LEADERBOARD_LIMIT} PLAYER BALANCES`,
+  );
+  if (ranked.length === 0) {
+    insertSessionChatNotice(ctx, ctx.sender, ctx.connectionId, 'baltop', 'NO PLAYER BALANCES FOUND');
+    return;
+  }
+  for (const [index, entry] of ranked.entries()) {
+    insertSessionChatNotice(
+      ctx,
+      ctx.sender,
+      ctx.connectionId,
+      'baltop',
+      balanceLeaderboardMessage(index + 1, entry),
     );
   }
 });
@@ -5113,6 +5175,31 @@ export const setMessageOfDay = spacetimedb.reducer(
       actor: ctx.sender,
       action: 'set_message_of_day',
       value: normalized,
+      occurredAt: ctx.timestamp,
+    });
+  },
+);
+
+/** Owner-only operational grant. Wallets remain private and every adjustment
+ * names an exact identity, uses whole gold pieces, and leaves an audit row. */
+export const grantPlayerGold = spacetimedb.reducer(
+  { identity: t.identity(), gold: t.u32() },
+  (ctx, { identity, gold }) => {
+    requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    if (gold < 1 || gold > 1_000_000) throw new SenderError('invalid_gold_grant');
+    const profile = ctx.db.player_public.identity.find(identity);
+    if (profile === null) throw new SenderError('player_not_found');
+    const wallet = ctx.db.player_wallet.identity.find(identity);
+    if (wallet === null) throw new SenderError('wallet_not_ready');
+    const grantedBronze = BigInt(gold) * BRONZE_PER_GOLD;
+    const nextBalance = wallet.balanceBronze + grantedBronze;
+    if (nextBalance > (1n << 64n) - 1n) throw new SenderError('wallet_full');
+    ctx.db.player_wallet.identity.update({ ...wallet, balanceBronze: nextBalance });
+    ctx.db.world_admin_audit.insert({
+      id: 0n,
+      actor: ctx.sender,
+      action: 'grant_player_gold',
+      value: `${identity.toHexString()}:${profile.displayName}:${gold}:${wallet.balanceBronze}->${nextBalance}`,
       occurredAt: ctx.timestamp,
     });
   },
@@ -5893,6 +5980,7 @@ export const throwMenuItem = spacetimedb.reducer(
     const menu = loadOpenMenuInventory(ctx);
     const stack = menu.containers[request.container]?.slots[request.index] ?? null;
     if (stack === null) throw new SenderError('source_empty');
+    if (isUniqueQuestItemKind(stack.itemKind)) throw new SenderError('item_not_droppable');
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const clock = ctx.db.world_clock.id.find(0);
     if (position === null || clock === null) throw new SenderError('player_not_ready');
@@ -5918,6 +6006,7 @@ export const throwMenuItem = spacetimedb.reducer(
 function dropCursorStack(ctx: WorldReducerContext, button: 'left' | 'right'): void {
   const cursor = playerInventoryCursor(ctx, ctx.sender);
   if (cursor === null) throw new SenderError('source_empty');
+  if (isUniqueQuestItemKind(cursor.itemKind)) throw new SenderError('item_not_droppable');
   const position = ctx.db.player_position.identity.find(ctx.sender);
   const clock = ctx.db.world_clock.id.find(0);
   if (position === null || clock === null) throw new SenderError('player_not_ready');
@@ -7195,7 +7284,7 @@ export const setTradeOfferItem = spacetimedb.reducer(
       throw new SenderError('trade_item_unavailable');
     }
     const definition = itemDefinition(source.itemKind);
-    if (definition === null || source.itemKind === 'marlow_book' || definition.tags.some((tag) => (
+    if (definition === null || isUniqueQuestItemKind(source.itemKind) || definition.tags.some((tag) => (
       tag === 'item.homestead_deed' || tag === 'container.backpack'
     ))) throw new SenderError('item_not_tradeable');
     const id = tradeOfferId(trade.id, ctx.sender.toHexString(), tradeSlot);
@@ -7384,6 +7473,7 @@ function sellMerchantCartTransaction(ctx: WorldReducerContext, lines: readonly M
   writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, planned.containers);
   ctx.db.player_wallet.identity.update({ ...wallet, balanceBronze: nextBalance });
   updateEquippedFromInventory(ctx, planned.containers);
+  refreshSenderQuestsFromInventory(ctx);
   const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
   recordPlayerStatistic(ctx, ctx.sender, 'merchant_transactions', 1n, authorityTick, 'sell');
   for (const line of lines) {
@@ -7850,7 +7940,9 @@ export const dropSelected = spacetimedb.reducer((ctx) => {
   }
   const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
   if (slot === null || slot.itemKind === 'empty' || slot.quantity === 0) throw new SenderError('selected_slot_empty');
-  if (slot.itemKind === 'homestead_deed') throw new SenderError('item_not_droppable');
+  if (slot.itemKind === 'homestead_deed' || isUniqueQuestItemKind(slot.itemKind)) {
+    throw new SenderError('item_not_droppable');
+  }
   const facing = parseDirection(position.facing) ?? 'down';
   const drop = itemDropPosition(position.x, position.y, facing);
   ctx.db.inventory_slot.id.update({ ...slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true });
@@ -8236,6 +8328,93 @@ export const digCellarTile = spacetimedb.reducer(
       spaceId: position.spaceId,
     });
     recordPlayerStatistic(ctx, ctx.sender, 'rocks_broken', 1n, clock.authorityTick);
+  },
+);
+
+/** The first melee slice deliberately targets only the reusable archery
+ * fixture. Authority owns tool, reach, Vigour, durability, stats, and damage;
+ * a zero id is an intentional whiff used for responsive free swings. */
+export const attackCombatTarget = spacetimedb.reducer(
+  { targetId: t.u64() },
+  (ctx, { targetId }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const survival = ctx.db.player_survival.identity.find(ctx.sender);
+    const clock = ctx.db.world_clock.id.find(0);
+    if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
+    if (handsOccupiedFor(ctx, ctx.sender)) throw new SenderError('hands_occupied');
+    if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
+    const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    if (slot?.itemKind !== 'sword') throw new SenderError('wrong_tool');
+    requireUsableTool(slot);
+
+    if (targetId === 0n) {
+      spendToolVigour(ctx, ctx.sender, 'sword', clock.authorityTick, true);
+      ctx.db.player_position.identity.update({
+        ...position,
+        actionKind: 'swing_sword',
+        actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
+      });
+      recordPlayerStatistic(ctx, ctx.sender, 'tool_whiffs', 1n, clock.authorityTick, 'sword');
+      return;
+    }
+
+    const storedTarget = ctx.db.world_combat_target.id.find(targetId);
+    if (storedTarget === null || storedTarget.kind !== ARCHERY_TARGET_KIND
+      || storedTarget.spaceId !== position.spaceId || storedTarget.carriedBy !== undefined) {
+      throw new SenderError('target_not_ready');
+    }
+    const tile = combatTargetTile(storedTarget);
+    const targetX = tile.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const targetY = tile.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const swingFacing = decodeDirection(position.facing);
+    if (swingFacing === undefined || swingFacing === null) throw new SenderError('invalid_facing');
+    if (!forwardSwingTargetInReach(
+      position.x, position.y, swingFacing, targetX, targetY, 'sword',
+    )) throw new SenderError('target_out_of_range');
+
+    spendToolVigour(ctx, ctx.sender, 'sword', clock.authorityTick, false);
+    const facing = directionFromAim(targetX - position.x, targetY - position.y);
+    ctx.db.player_position.identity.update({
+      ...position,
+      facing: facing ?? position.facing,
+      actionKind: 'swing_sword',
+      actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
+    });
+
+    const target = regenerateCombatTarget(ctx, storedTarget, clock.authorityTick);
+    const statsRow = advancePlayerStats(ctx, ctx.sender, clock.authorityTick);
+    const modifiers = activePlayerModifiers(ctx, ctx.sender, clock.authorityTick);
+    const resolved = resolveStats({
+      str: statsRow.str, dex: statsRow.dex, con: statsRow.con,
+      int: statsRow.int, wis: statsRow.wis, cha: statsRow.cha,
+    }, modifiers);
+    const seed = ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED;
+    const damage = resolveCombatDamage({
+      attackKind: 'melee',
+      weaponBaseCenti: SWORD_BASE_DAMAGE_CENTI,
+      scalingAttribute: resolved.attributes.str,
+      armorCenti: 0,
+      armorPctBasisPoints: 0,
+      seedParts: [seed, ctx.sender.toHexString(), clock.authorityTick, target.id, 'sword'],
+      attackerModifiers: modifiers,
+    });
+    const nextHealth = Math.max(1, target.healthCenti - damage.damageCenti);
+    const appliedDamage = target.healthCenti - nextHealth;
+    if (appliedDamage > 0) {
+      ctx.db.world_combat_target.id.update({
+        ...target,
+        healthCenti: nextHealth,
+        regenTick: clock.authorityTick,
+        lastDamagedTick: clock.authorityTick,
+        lastHitCritical: damage.critical,
+      });
+      recordPlayerStatistic(
+        ctx, ctx.sender, 'damage_dealt', BigInt(appliedDamage), clock.authorityTick, target.kind,
+      );
+    }
+    wearInventoryTool(ctx, slot);
+    recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, 'sword');
   },
 );
 

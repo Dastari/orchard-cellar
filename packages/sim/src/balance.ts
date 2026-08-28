@@ -166,6 +166,7 @@ export const REGEN_SWEEP_TICKS = 10;
 
 /** Combat foundation (docs/32 §3 and docs/06 §15). */
 export const BOW_BASE_DAMAGE_CENTI = 14 * CENTI_UNITS_PER_DISPLAY_UNIT;
+export const SWORD_BASE_DAMAGE_CENTI = 18 * CENTI_UNITS_PER_DISPLAY_UNIT;
 export const COMBAT_MINIMUM_DAMAGE_CENTI = 1 * CENTI_UNITS_PER_DISPLAY_UNIT;
 export const ARCHERY_TARGET_MAX_HEALTH_CENTI = 100 * CENTI_UNITS_PER_DISPLAY_UNIT;
 export const ARCHERY_TARGET_REGEN_CENTI_PER_SECOND = 1 * CENTI_UNITS_PER_DISPLAY_UNIT;
@@ -185,7 +186,7 @@ export const SPRINT_VIGOUR_DRAIN_CENTI_PER_SECOND = 1_000;
 
 export const TOOL_VIGOUR_BALANCE = {
   watering_can: { costCenti: 800, minimumSwingTicks: 6 },
-  hoe: { costCenti: 5_000, minimumSwingTicks: 6 },
+  hoe: { costCenti: 500, minimumSwingTicks: 6 },
   fishing_rod: { costCenti: 600, minimumSwingTicks: 6 },
   bow: { costCenti: 3_000, minimumSwingTicks: 6 },
   sword: { costCenti: 1_200, minimumSwingTicks: 7 },

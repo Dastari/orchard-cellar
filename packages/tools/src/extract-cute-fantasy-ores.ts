@@ -24,6 +24,7 @@ interface Extract {
 
 const oreSource = 'references/Cute_Fantasy/Outdoor decoration/Ores.png';
 const toolSource = 'references/Cute_Fantasy/Player/Tools/Iron/Iron_Tools.png';
+const swordSource = 'references/Cute_Fantasy/Player/Tools/Iron/Iron_Sword.png';
 const bowSource = 'references/Cute_Fantasy/Player/Tools/Bow/Wooden_Bow.png';
 const arrowSource = 'references/Cute_Fantasy_Dungeons/Objects/Crossbow_Bolt.png';
 const resourceIconsSource = 'references/Cute_Fantasy/Icons/Outline/Resources_Icons_Outline.png';
@@ -36,6 +37,9 @@ const portableLightSource = 'references/Cute_Fantasy/Other/Lantern_Torch.png';
 const oreTypes = ['iron', 'copper', 'gold', 'emerald', 'sapphire', 'topaz', 'ruby', 'amethyst'] as const;
 const toolFrames = (y: number): readonly Region[] => Array.from(
   { length: 6 }, (_, frame): Region => [frame * 64, y, 64, 64],
+);
+const swordFrames = (y: number): readonly Region[] => Array.from(
+  { length: 4 }, (_, frame): Region => [frame * 64, y, 64, 64],
 );
 
 const extracts: readonly Extract[] = [
@@ -207,6 +211,26 @@ const extracts: readonly Extract[] = [
     animationFps: { axe_down: 10, axe_right: 10, axe_up: 10 },
     animationLoop: { axe_down: false, axe_right: false, axe_up: false },
     tags: ['character.tool', 'tool.axe', 'action.swing'],
+  },
+  {
+    name: 'tool_cf_iron_sword_action',
+    category: 'characters',
+    source: swordSource,
+    size: [64, 64],
+    anchor: [32, 47],
+    groups: {
+      swing_sword_down: swordFrames(0),
+      swing_sword_right: swordFrames(3 * 64),
+      swing_sword_up: swordFrames(6 * 64),
+    },
+    frameKinds: {
+      swing_sword_down: 'animation',
+      swing_sword_right: 'animation',
+      swing_sword_up: 'animation',
+    },
+    animationFps: { swing_sword_down: 10, swing_sword_right: 10, swing_sword_up: 10 },
+    animationLoop: { swing_sword_down: false, swing_sword_right: false, swing_sword_up: false },
+    tags: ['character.tool', 'tool.sword', 'action.swing'],
   },
   {
     name: 'tool_cf_iron_pickaxe_action',

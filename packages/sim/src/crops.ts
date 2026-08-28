@@ -183,12 +183,14 @@ export const CROP_SEED_ITEM_DEFINITIONS = Object.fromEntries(CROP_DEFINITIONS.ma
   {
     displayName: `${definition.displayName} Seeds`,
     iconKey: `item_cf_${definition.seedItemKind}`,
+    quality: 'common',
     maxStack: 99,
     tags: ['item.seed', `seed.${definition.kind}`],
   },
 ])) as unknown as Readonly<Record<CropDefinition['seedItemKind'], {
   readonly displayName: string;
   readonly iconKey: string;
+  readonly quality: 'common';
   readonly maxStack: number;
   readonly tags: readonly string[];
 }>>;
@@ -199,6 +201,7 @@ export const CROP_HARVEST_ITEM_DEFINITIONS = Object.fromEntries(
     {
       displayName: definition.displayName,
       iconKey: `item_cf_crop_${definition.harvestItemKind}`,
+      quality: 'common',
       maxStack: 99,
       tags: ['item.crop', 'item.food', `crop.${definition.kind}`],
     },
@@ -206,6 +209,7 @@ export const CROP_HARVEST_ITEM_DEFINITIONS = Object.fromEntries(
 ) as unknown as Readonly<Record<Exclude<CropKind, 'grape'>, {
   readonly displayName: string;
   readonly iconKey: string;
+  readonly quality: 'common';
   readonly maxStack: number;
   readonly tags: readonly string[];
 }>>;

@@ -48,7 +48,7 @@ The first pass proves zoning, collision, camera matte, portal routing, persisten
 and source-art rendering. It intentionally defers furniture placement authority,
 rails, minecart motion, water chambers, resource depletion and hostile creatures.
 
-## Cave autotile grammar correction (2026-08-27)
+## Cave autotile grammar correction (2026-08-28)
 
 The first render incorrectly interpreted transparent decoration cells from
 `Cave_Floor_1.png` as interchangeable ground. The reviewed grammar is now:
@@ -57,17 +57,34 @@ The first render incorrectly interpreted transparent decoration cells from
 - `Cave_Floor_1.png` is an autotile grammar, not random floor variants: its lower
   3×3 cells transition plain floor into dense rocky floor, while its upper 2×2
   cells supply diagonal inset transitions;
-- `Cave_Walls.png` begins with an authored 3×3 excavation ring: transparent centre,
-  four cardinal wall faces, and four corner pieces;
+- `Cave_Walls.png` contains a dark-backed 3×3 excavation ring, two 2×2 corner
+  groups, and a 3×2 front-wall group. These are now mapped onto the same
+  `edgeFrames`, `insetFrames`, and `faceProfiles` contract as Stone Cliff 1;
 - multi-tile supports, tall mine faces and doorways elsewhere in the sheet are
   structures placed only by explicit topology rules, never random wall variants.
+
+The exact reviewed cave contour mapping is:
+
+| contour role | Cave_Walls frame |
+|---|---:|
+| top-left / top / top-right | 25 / 19 / 26 |
+| left / right | 13 / 11 |
+| bottom-left / bottom / bottom-right | 32 / 5 / 33 |
+| inner top-left / top-right | 20 / 18 |
+| inner bottom-left / bottom-right | 6 / 4 |
+| upper face left / middle / right | 42 / 43 / 44 |
+| lower face left / middle / right | 49 / 50 / 51 |
 
 The cellar generator now emits a 1024×1024 binary excavation grid. Collision treats
 `dug=1` as walkable and all other cells as solid. Presentation fills every dug cell
 with the plain middle tile, derives rocky edge/corner transitions from the same
 eight-neighbour mask used by path blending, and interprets solid rock as elevation
-one. The shared raised-terrain resolver derives the cap stones, corners, narrow side
-profiles, and two-course front-facing walls from that elevation boundary. Long back
+one. The ground cache now supplies only open-floor or solid-rock substrate; it no
+longer bakes a competing 3×3 wall ring. The shared raised-terrain resolver derives
+all cap stones, convex and concave corners, narrow side profiles, and two-course
+front-facing walls from that elevation boundary. The two projected face courses are
+the walk-behind depth of this one logical elevation change; they are not two cellar
+levels. Long back
 wall runs may receive the complete 5×2 `Cave_Wall_Support.png` overlay; partial
 support fragments are never scattered as terrain. Untouched rock and the viewport
 outside the finite generation array repeat the darkened underground rock tile. The

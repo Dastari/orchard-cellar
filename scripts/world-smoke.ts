@@ -156,8 +156,8 @@ async function main(): Promise<void> {
   const [alice, bob] = await Promise.all([connect(aliceToken), connect(bobToken)]);
   await saveTokens(tokenCache, { alice: alice.token, bob: bob.token });
   const heartbeatTimer = setInterval(() => {
-    void alice.connection.reducers.heartbeat({}).catch(() => undefined);
-    void bob.connection.reducers.heartbeat({}).catch(() => undefined);
+    void alice.connection.reducers.heartbeat({ active: false }).catch(() => undefined);
+    void bob.connection.reducers.heartbeat({ active: false }).catch(() => undefined);
   }, 10_000);
   try {
     if (alice.identityHex === bob.identityHex) throw new Error('identities_not_distinct');

@@ -5,6 +5,7 @@ import {
   AXE_SWING_REACH_TILES,
   FORWARD_SWING_OFFSET_TILES,
   facedTileTarget,
+  forwardSwingTargetInReach,
   isForwardSwingToolKind,
   resourceToolForwardOffsetFixed,
   resourceToolReachFixed,
@@ -28,6 +29,18 @@ describe('shared tile targeting', () => {
     expect(resourceToolForwardOffsetFixed('hoe')).toBe(0);
     expect(isForwardSwingToolKind('sword')).toBe(true);
     expect(isForwardSwingToolKind('watering_can')).toBe(false);
+  });
+
+  it('keeps sword contact inside the forward attack area', () => {
+    expect(forwardSwingTargetInReach(
+      playerX, playerY, 'right', playerX + TILE_SIZE_FIXED, playerY, 'sword',
+    )).toBe(true);
+    expect(forwardSwingTargetInReach(
+      playerX, playerY, 'right', playerX - 1, playerY, 'sword',
+    )).toBe(false);
+    expect(forwardSwingTargetInReach(
+      playerX, playerY, 'right', playerX + 2 * TILE_SIZE_FIXED + 1, playerY, 'sword',
+    )).toBe(false);
   });
 
   it('selects the nearest tile interaction inside a radial reach without requiring facing', () => {

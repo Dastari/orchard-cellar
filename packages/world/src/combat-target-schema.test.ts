@@ -85,6 +85,25 @@ describe('32 training-target combat foundation', () => {
     expect(step).not.toContain('player.health');
   });
 
+  it('lets swords damage only forward, authoritative archery-target rows', () => {
+    const attack = reducerSource('attackCombatTarget');
+    expect(attack.indexOf('requireAuthorizedSender(')).toBeLessThan(
+      attack.indexOf('world_combat_target.id.find(targetId)'),
+    );
+    expect(attack).toContain("slot?.itemKind !== 'sword'");
+    expect(attack).toContain('storedTarget.kind !== ARCHERY_TARGET_KIND');
+    expect(attack).toContain('storedTarget.spaceId !== position.spaceId');
+    expect(attack).toContain('storedTarget.carriedBy !== undefined');
+    expect(attack).toContain('forwardSwingTargetInReach(');
+    expect(attack).toContain("attackKind: 'melee'");
+    expect(attack).toContain('weaponBaseCenti: SWORD_BASE_DAMAGE_CENTI');
+    expect(attack).toContain('scalingAttribute: resolved.attributes.str');
+    expect(attack).toContain("actionKind: 'swing_sword'");
+    expect(attack).toContain("'damage_dealt', BigInt(appliedDamage)");
+    expect(attack).not.toContain('world_resource');
+    expect(attack).not.toContain('world_npc');
+  });
+
   it('server-times bow charge and binds its range and Vigour price to the same duration', () => {
     const begin = reducerSource('beginBowCharge');
     expect(begin.indexOf('requireAuthorizedSender(')).toBeLessThan(begin.indexOf('player_position.identity.find'));

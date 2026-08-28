@@ -12,6 +12,7 @@ import AdjustDebugBackpackSlotsReducer from "../adjust_debug_backpack_slots_redu
 import AdminRelocateHorseReducer from "../admin_relocate_horse_reducer";
 import AdminTeleportReducer from "../admin_teleport_reducer";
 import ApproveMemberReducer from "../approve_member_reducer";
+import AttackCombatTargetReducer from "../attack_combat_target_reducer";
 import BeginBowChargeReducer from "../begin_bow_charge_reducer";
 import BuyMerchantCartReducer from "../buy_merchant_cart_reducer";
 import BuyMerchantItemReducer from "../buy_merchant_item_reducer";
@@ -35,6 +36,7 @@ import DropSelectedReducer from "../drop_selected_reducer";
 import FireBowReducer from "../fire_bow_reducer";
 import GatherWorldResourceReducer from "../gather_world_resource_reducer";
 import GrantDebugSkillPointsReducer from "../grant_debug_skill_points_reducer";
+import GrantPlayerGoldReducer from "../grant_player_gold_reducer";
 import HarvestChestReducer from "../harvest_chest_reducer";
 import HarvestResourceReducer from "../harvest_resource_reducer";
 import HeartbeatReducer from "../heartbeat_reducer";
@@ -65,6 +67,7 @@ import QuickMoveInventoryItemReducer from "../quick_move_inventory_item_reducer"
 import QuickMoveMenuItemReducer from "../quick_move_menu_item_reducer";
 import RemoveTradeOfferItemReducer from "../remove_trade_offer_item_reducer";
 import RepairSelectedToolReducer from "../repair_selected_tool_reducer";
+import RequestBalanceTopReducer from "../request_balance_top_reducer";
 import RequestLastConnectionsReducer from "../request_last_connections_reducer";
 import RequestTradeReducer from "../request_trade_reducer";
 import ResetMyQuestProgressReducer from "../reset_my_quest_progress_reducer";
@@ -108,6 +111,7 @@ export type AdjustDebugBackpackSlotsParams = __Infer<typeof AdjustDebugBackpackS
 export type AdminRelocateHorseParams = __Infer<typeof AdminRelocateHorseReducer>;
 export type AdminTeleportParams = __Infer<typeof AdminTeleportReducer>;
 export type ApproveMemberParams = __Infer<typeof ApproveMemberReducer>;
+export type AttackCombatTargetParams = __Infer<typeof AttackCombatTargetReducer>;
 export type BeginBowChargeParams = __Infer<typeof BeginBowChargeReducer>;
 export type BuyMerchantCartParams = __Infer<typeof BuyMerchantCartReducer>;
 export type BuyMerchantItemParams = __Infer<typeof BuyMerchantItemReducer>;
@@ -131,6 +135,7 @@ export type DropSelectedParams = __Infer<typeof DropSelectedReducer>;
 export type FireBowParams = __Infer<typeof FireBowReducer>;
 export type GatherWorldResourceParams = __Infer<typeof GatherWorldResourceReducer>;
 export type GrantDebugSkillPointsParams = __Infer<typeof GrantDebugSkillPointsReducer>;
+export type GrantPlayerGoldParams = __Infer<typeof GrantPlayerGoldReducer>;
 export type HarvestChestParams = __Infer<typeof HarvestChestReducer>;
 export type HarvestResourceParams = __Infer<typeof HarvestResourceReducer>;
 export type HeartbeatParams = __Infer<typeof HeartbeatReducer>;
@@ -161,6 +166,7 @@ export type QuickMoveInventoryItemParams = __Infer<typeof QuickMoveInventoryItem
 export type QuickMoveMenuItemParams = __Infer<typeof QuickMoveMenuItemReducer>;
 export type RemoveTradeOfferItemParams = __Infer<typeof RemoveTradeOfferItemReducer>;
 export type RepairSelectedToolParams = __Infer<typeof RepairSelectedToolReducer>;
+export type RequestBalanceTopParams = __Infer<typeof RequestBalanceTopReducer>;
 export type RequestLastConnectionsParams = __Infer<typeof RequestLastConnectionsReducer>;
 export type RequestTradeParams = __Infer<typeof RequestTradeReducer>;
 export type ResetMyQuestProgressParams = __Infer<typeof ResetMyQuestProgressReducer>;

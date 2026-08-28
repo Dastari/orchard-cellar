@@ -86,6 +86,8 @@ export interface OverworldArt {
   readonly woodFloor: LoadedAsset;
   readonly interiorWall: LoadedAsset;
   readonly caveFloor: LoadedAsset;
+  readonly caveFloor2: LoadedAsset;
+  readonly caveFloorDecoration: LoadedAsset;
   readonly caveFloorMiddle: LoadedAsset;
   readonly caveWall: LoadedAsset;
   readonly caveSupport: LoadedAsset;
@@ -541,6 +543,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     avatar,
     avatarAxe,
     axeActionTool,
+    swordActionTool,
     pickaxeActionTool,
     hoeActionTool,
     wateringCanActionTool,
@@ -587,6 +590,8 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     woodFloor,
     interiorWall,
     caveFloor,
+    caveFloor2,
+    caveFloorDecoration,
     caveFloorMiddle,
     caveWall,
     trapdoor,
@@ -693,6 +698,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset("avatar_cf_farmer", "summer"),
     loadGeneratedAsset("avatar_cf_farmer_axe", "summer"),
     loadGeneratedAsset("tool_cf_iron_axe_action", "summer"),
+    loadGeneratedAsset("tool_cf_iron_sword_action", "summer"),
     loadGeneratedAsset("tool_cf_iron_pickaxe_action", "summer"),
     loadGeneratedAsset("tool_cf_iron_hoe_action", "summer"),
     loadGeneratedAsset("tool_cf_watering_can_action", "summer"),
@@ -749,6 +755,8 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset("tile_cf_wood_floor", "summer"),
     loadGeneratedAsset("tile_cf_interior_wall", "summer"),
     loadGeneratedAsset("tile_cf_cave_floor", "summer"),
+    loadGeneratedAsset("tile_cf_cave_floor_2", "summer"),
+    loadGeneratedAsset("tile_cf_cave_floor_decoration", "summer"),
     loadGeneratedAsset("tile_cf_cave_floor_middle", "summer"),
     loadGeneratedAsset("tile_cf_cave_wall", "summer"),
     loadGeneratedAsset("prop_cf_trapdoor", "summer"),
@@ -879,6 +887,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     },
     actionAssets: {
       swing_axe: axeActionTool,
+      swing_sword: swordActionTool,
       swing_pickaxe: pickaxeActionTool,
       swing_hoe: hoeActionTool,
       water: wateringCanActionTool,
@@ -893,6 +902,8 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     woodFloor,
     interiorWall,
     caveFloor,
+    caveFloor2,
+    caveFloorDecoration,
     caveFloorMiddle,
     caveWall,
     caveSupport,

@@ -25,6 +25,7 @@ describe('avatar action registry', () => {
 
   it('maps equipment to its shared action without client-side tool rules', () => {
     expect(avatarActionForEquippedKind('axe')).toBe('swing_axe');
+    expect(avatarActionForEquippedKind('sword')).toBe('swing_sword');
     expect(avatarActionForEquippedKind('pickaxe')).toBe('swing_pickaxe');
     expect(avatarActionForEquippedKind('hoe')).toBe('swing_hoe');
     expect(avatarActionForEquippedKind('watering_can')).toBe('water');

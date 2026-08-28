@@ -109,8 +109,14 @@ legible, but retain their exact authoritative collision coordinates rather than 
 to a target anchor. Carrying or placing a struck target translates each embedded arrow
 by the same target delta, preserving its original impact offset. Selection uses the shared
 entity-targeting path and existing target health frame.
-This slice deliberately adds no hostile AI, melee damage, player/NPC damage, death,
+The original ranged slice deliberately added no hostile AI, player/NPC damage, death,
 drops, Combat XP, or sanctuary danger.
+
+The follow-up training slice gives the iron sword its authored four-frame modular
+player/tool swing. `attackCombatTarget` repeats the inventory, durability, Vigour,
+minimum-swing, space, carry-state, and forward-contact-area checks on authority and
+accepts only `archery_target` rows. It resolves Strength-scaled melee damage through
+the shared combat formula and cannot damage resources, wildlife, NPCs, or players.
 
 ## 4. Melee and ranged verbs
 

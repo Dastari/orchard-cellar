@@ -4,6 +4,7 @@ import {
   questAcceptBaselines,
   questDefinition,
   questIsComplete,
+  questDefinitionForUniqueItem,
   questLocationAtTile,
   questLocationContains,
   questObjectiveProgress,
@@ -39,6 +40,8 @@ describe('quest definitions and progress', () => {
     const baselines = questAcceptBaselines(definition, before);
     expect(questIsComplete(definition, baselines, before)).toBe(false);
     expect(questIsComplete(definition, baselines, source({}, { marlow_book: 1 }))).toBe(true);
+    expect(questDefinitionForUniqueItem('marlow_book')?.id).toBe(MARLOW_BOOK_QUEST_ID);
+    expect(questDefinitionForUniqueItem('wood')).toBeNull();
   });
 
   it('supports multi-item collection objectives without accepting stale client counts', () => {

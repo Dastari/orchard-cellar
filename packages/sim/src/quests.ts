@@ -1,4 +1,5 @@
 import { BRONZE_PER_GOLD } from './commerce.js';
+import { isUniqueQuestItemKind } from './item-containers.js';
 import { TILE_SIZE_FIXED } from './state.js';
 
 export type QuestState = 'active' | 'complete' | 'turned_in';
@@ -182,6 +183,11 @@ export function validateQuestDefinition(definition: QuestDefinition): readonly s
   if (definition.rewards.bronze < 0n) errors.push('rewards.bronze must not be negative');
   if (definition.abandonRemovesItems !== undefined) {
     errors.push(...validateItemRequirements(definition.abandonRemovesItems, 'abandonRemovesItems'));
+    for (const item of definition.abandonRemovesItems) {
+      if (!isUniqueQuestItemKind(item.itemKind)) {
+        errors.push(`abandonRemovesItems item ${item.itemKind} must be tagged as a unique quest item`);
+      }
+    }
   }
   for (const [index, reward] of definition.rewards.experience.entries()) {
     if (reward.track.trim().length === 0) errors.push(`rewards.experience[${index}].track must not be empty`);
@@ -197,6 +203,16 @@ export function questDefinition(questId: string): QuestDefinition | null {
   return Object.prototype.hasOwnProperty.call(QUEST_DEFINITIONS, questId)
     ? QUEST_DEFINITIONS[questId as QuestId]
     : null;
+}
+
+/** Resolves the owning quest for a protected artifact. A future destroy flow
+ * must show a confirmation and abandon this quest in the same transaction;
+ * ordinary objective materials intentionally return null. */
+export function questDefinitionForUniqueItem(itemKind: string): QuestDefinition | null {
+  if (!isUniqueQuestItemKind(itemKind)) return null;
+  return Object.values(QUEST_DEFINITIONS).find((definition) => (
+    definition.abandonRemovesItems?.some((item) => item.itemKind === itemKind) === true
+  )) ?? null;
 }
 
 export function questCounterKey(questId: string, objective: QuestObjectiveDefinition): {

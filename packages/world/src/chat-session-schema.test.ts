@@ -30,12 +30,25 @@ describe('session-only lifecycle chat notices', () => {
   });
 
   it('returns owner-only connection history through only the caller session inbox', () => {
-    const reducer = sourceBetween('export const requestLastConnections =', 'export const createChatChannel =');
+    const reducer = sourceBetween('export const requestLastConnections =', 'export const requestBalanceTop =');
     expect(reducer.indexOf('requireWorldOwner(')).toBeLessThan(reducer.indexOf('connection_audit.iter()'));
-    expect(reducer).toContain('.slice(0, LAST_CONNECTION_EVENT_LIMIT)');
+    expect(reducer).toContain('recentConnectionEvents(');
     expect(reducer).toContain("'last'");
     expect(reducer).toContain('lastConnectionEventMessage(');
     expect(reducer).toContain('insertSessionChatNotice(');
+    expect(reducer).not.toContain('chat_message.insert');
+    expect(reducer).not.toContain('world_speech.insert');
+  });
+
+  it('returns a public top-ten balance projection only through the caller session inbox', () => {
+    const reducer = sourceBetween('export const requestBalanceTop =', 'export const createChatChannel =');
+    expect(reducer.indexOf('requireAuthorizedSender(')).toBeLessThan(reducer.indexOf('player_wallet.iter()'));
+    expect(reducer).toContain('topBalanceLeaderboard(');
+    expect(reducer).toContain('BALANCE_LEADERBOARD_LIMIT');
+    expect(reducer).toContain('balanceLeaderboardMessage(');
+    expect(reducer).toContain("'baltop'");
+    expect(reducer).toContain('insertSessionChatNotice(');
+    expect(reducer).not.toContain('requireWorldOwner(');
     expect(reducer).not.toContain('chat_message.insert');
     expect(reducer).not.toContain('world_speech.insert');
   });

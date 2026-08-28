@@ -16,10 +16,21 @@ export const CHEST_STORAGE_CAPACITY = CHEST_STORAGE_COLUMNS * CHEST_STORAGE_ROWS
 /** Inventory slots available without the backpack equipment upgrade. */
 export const BASE_BACKPACK_CAPACITY = 8;
 
+/** Explicitly marks a quest-owned artifact. These items are protected from
+ * player-to-player transfer, merchant sale, and world dropping. Objective
+ * materials such as wood deliberately do not receive this tag. */
+export const UNIQUE_QUEST_ITEM_TAG = 'item.quest_unique';
+
+/** Stable presentation tier for an item kind. This is deliberately distinct
+ * from a future per-crafted-instance quality roll: no row schema is needed to
+ * render the authored inventory-slot treatment for each registered kind. */
+export type ItemQuality = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
 export interface ItemDefinition {
   readonly displayName: string;
   readonly iconKey: string;
   readonly iconAnimation?: string;
+  readonly quality: ItemQuality;
   readonly maxStack: number;
   readonly tags: readonly string[];
   /** Equipped-item contributions enter the same two-pass stat pipeline as
@@ -34,11 +45,13 @@ function defineItem(
   tags: readonly string[],
   modifiers?: readonly Modifier[],
   icon?: { readonly key: string; readonly animation?: string },
+  quality: ItemQuality = 'common',
 ): ItemDefinition {
   return {
     displayName,
     iconKey: icon?.key ?? `icon_cf_${kind}`,
     ...(icon?.animation ? { iconAnimation: icon.animation } : {}),
+    quality,
     maxStack,
     tags,
     ...(modifiers ? { modifiers } : {}),
@@ -46,18 +59,18 @@ function defineItem(
 }
 
 export const ITEM_DEFINITIONS = {
-  homestead_deed: defineItem('homestead_deed', 'Homestead Deed', 1, ['item.document', 'item.homestead_deed']),
-  marlow_book: defineItem('marlow_book', 'Marlow\'s Book', 1, ['item.document', 'item.quest_reward'], undefined, { key: 'icon_cf_marlow_book' }),
-  axe: defineItem('axe', 'Iron Axe', 1, ['item.tool', 'gear.hand']),
-  hoe: defineItem('hoe', 'Iron Hoe', 1, ['item.tool', 'gear.hand']),
-  pickaxe: defineItem('pickaxe', 'Iron Pickaxe', 1, ['item.tool', 'gear.hand']),
-  watering_can: defineItem('watering_can', 'Watering Can', 1, ['item.tool', 'gear.hand']),
-  bow: defineItem('bow', 'Wooden Bow', 1, ['item.weapon', 'item.ranged_weapon', 'gear.hand']),
-  sword: defineItem('sword', 'Iron Sword', 1, ['item.weapon', 'item.melee_weapon', 'gear.hand']),
-  shovel: defineItem('shovel', 'Iron Shovel', 1, ['item.tool', 'gear.hand']),
-  hammer: defineItem('hammer', 'Iron Hammer', 1, ['item.tool', 'gear.hand']),
+  homestead_deed: defineItem('homestead_deed', 'Homestead Deed', 1, ['item.document', 'item.homestead_deed'], undefined, undefined, 'legendary'),
+  marlow_book: defineItem('marlow_book', 'Marlow\'s Book', 1, ['item.document', 'item.quest_reward', UNIQUE_QUEST_ITEM_TAG], undefined, { key: 'icon_cf_marlow_book' }),
+  axe: defineItem('axe', 'Iron Axe', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
+  hoe: defineItem('hoe', 'Iron Hoe', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
+  pickaxe: defineItem('pickaxe', 'Iron Pickaxe', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
+  watering_can: defineItem('watering_can', 'Watering Can', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
+  bow: defineItem('bow', 'Wooden Bow', 1, ['item.weapon', 'item.ranged_weapon', 'gear.hand'], undefined, undefined, 'rare'),
+  sword: defineItem('sword', 'Iron Sword', 1, ['item.weapon', 'item.melee_weapon', 'gear.hand'], undefined, undefined, 'rare'),
+  shovel: defineItem('shovel', 'Iron Shovel', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
+  hammer: defineItem('hammer', 'Iron Hammer', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
   torch: defineItem('torch', 'Torch', 16, ['item.tool', 'gear.hand', 'emits.light'], undefined, { key: 'item_cf_torch' }),
-  lantern: defineItem('lantern', 'Lantern', 1, ['item.tool', 'gear.hand', 'emits.light'], undefined, { key: 'item_cf_lantern' }),
+  lantern: defineItem('lantern', 'Lantern', 1, ['item.tool', 'gear.hand', 'emits.light'], undefined, { key: 'item_cf_lantern' }, 'rare'),
   arrow: defineItem('arrow', 'Arrow', 99, ['item.ammo', 'ammo.arrow'], undefined, { key: 'item_cf_arrow' }),
   wood: defineItem('wood', 'Wood', 99, ['item.resource', 'material.wood'], undefined, { key: 'item_cf_wood' }),
   pebble: defineItem('pebble', 'Pebble', 99, ['item.resource', 'material.stone', 'material.raw'], undefined, { key: 'item_cf_pebble' }),
@@ -69,9 +82,9 @@ export const ITEM_DEFINITIONS = {
   iron_ore: defineItem('iron_ore', 'Iron Ore Chunk', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.iron'], undefined, { key: 'item_cf_iron_ore' }),
   copper_ore: defineItem('copper_ore', 'Copper Ore Chunk', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.copper'], undefined, { key: 'item_cf_copper_ore' }),
   gold_ore: defineItem('gold_ore', 'Gold Ore Chunk', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.gold'], undefined, { key: 'item_cf_gold_ore' }),
-  iron_bar: defineItem('iron_bar', 'Iron Bar', 99, ['item.resource', 'material.metal', 'material.bar', 'metal.iron'], undefined, { key: 'item_cf_iron_bar' }),
-  copper_bar: defineItem('copper_bar', 'Copper Bar', 99, ['item.resource', 'material.metal', 'material.bar', 'metal.copper'], undefined, { key: 'item_cf_copper_bar' }),
-  gold_bar: defineItem('gold_bar', 'Gold Bar', 99, ['item.resource', 'material.metal', 'material.bar', 'metal.gold'], undefined, { key: 'item_cf_gold_bar' }),
+  iron_bar: defineItem('iron_bar', 'Iron Bar', 99, ['item.resource', 'material.metal', 'material.bar', 'metal.iron'], undefined, { key: 'item_cf_iron_bar' }, 'uncommon'),
+  copper_bar: defineItem('copper_bar', 'Copper Bar', 99, ['item.resource', 'material.metal', 'material.bar', 'metal.copper'], undefined, { key: 'item_cf_copper_bar' }, 'uncommon'),
+  gold_bar: defineItem('gold_bar', 'Gold Bar', 99, ['item.resource', 'material.metal', 'material.bar', 'metal.gold'], undefined, { key: 'item_cf_gold_bar' }, 'rare'),
   emerald_ore: defineItem('emerald_ore', 'Emerald Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.emerald'], undefined, { key: 'item_cf_emerald_ore' }),
   sapphire_ore: defineItem('sapphire_ore', 'Sapphire Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.sapphire'], undefined, { key: 'item_cf_sapphire_ore' }),
   topaz_ore: defineItem('topaz_ore', 'Topaz Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.topaz'], undefined, { key: 'item_cf_topaz_ore' }),
@@ -98,15 +111,15 @@ export const ITEM_DEFINITIONS = {
   grape: defineItem('grape', 'Grapes', 99, ['item.crop', 'item.food', 'crop.grape'], undefined, { key: 'item_cf_crop_grape' }),
   orchard_tea: defineItem('orchard_tea', 'Orchard Tea', 8, ['item.consumable', 'item.food', 'effect.orchard_tea'], undefined, { key: 'icon_cf_effect_orchard_tea' }),
   barrel: defineItem('barrel', 'Barrel', 16, ['item.placeable', 'item.crafted', 'container.barrel'], undefined, { key: 'prop_cf_barrel', animation: 'closed' }),
-  backpack: defineItem('backpack', 'Backpack', 1, ['item.equipment', 'container.backpack'], undefined, { key: 'item_cf_backpack' }),
-  necklace: defineItem('necklace', 'Necklace', 1, ['item.equipment', 'gear.neck'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'neck' }),
-  helm: defineItem('helm', 'Helm', 1, ['item.equipment', 'gear.head'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'head' }),
-  tunic: defineItem('tunic', 'Tunic', 1, ['item.equipment', 'gear.body'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'body' }),
-  ring: defineItem('ring', 'Ring', 1, ['item.equipment', 'gear.ring'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'ring' }),
-  shield: defineItem('shield', 'Shield', 1, ['item.equipment', 'gear.hand', 'gear.off_hand'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'off_hand' }),
-  gloves: defineItem('gloves', 'Gloves', 1, ['item.equipment', 'gear.hands'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'hands' }),
-  pants: defineItem('pants', 'Pants', 1, ['item.equipment', 'gear.legs'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'legs' }),
-  boots: defineItem('boots', 'Boots', 1, ['item.equipment', 'gear.feet'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'feet' }),
+  backpack: defineItem('backpack', 'Backpack', 1, ['item.equipment', 'container.backpack'], undefined, { key: 'item_cf_backpack' }, 'uncommon'),
+  necklace: defineItem('necklace', 'Necklace', 1, ['item.equipment', 'gear.neck'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'neck' }, 'epic'),
+  helm: defineItem('helm', 'Helm', 1, ['item.equipment', 'gear.head'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'head' }, 'uncommon'),
+  tunic: defineItem('tunic', 'Tunic', 1, ['item.equipment', 'gear.body'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'body' }, 'uncommon'),
+  ring: defineItem('ring', 'Ring', 1, ['item.equipment', 'gear.ring'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'ring' }, 'epic'),
+  shield: defineItem('shield', 'Shield', 1, ['item.equipment', 'gear.hand', 'gear.off_hand'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'off_hand' }, 'rare'),
+  gloves: defineItem('gloves', 'Gloves', 1, ['item.equipment', 'gear.hands'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'hands' }, 'uncommon'),
+  pants: defineItem('pants', 'Pants', 1, ['item.equipment', 'gear.legs'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'legs' }, 'uncommon'),
+  boots: defineItem('boots', 'Boots', 1, ['item.equipment', 'gear.feet'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'feet' }, 'uncommon'),
 } as const satisfies Readonly<Record<string, ItemDefinition>>;
 
 export type KnownItemKind = keyof typeof ITEM_DEFINITIONS;
@@ -124,6 +137,10 @@ export interface ItemStack {
 
 export function isSwitchableLightKind(itemKind: string): boolean {
   return itemKind === 'lantern';
+}
+
+export function isUniqueQuestItemKind(itemKind: string): boolean {
+  return itemDefinition(itemKind)?.tags.includes(UNIQUE_QUEST_ITEM_TAG) === true;
 }
 
 export function stackMetadataMatches(left: ItemStack, right: ItemStack): boolean {
