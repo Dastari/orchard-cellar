@@ -519,6 +519,10 @@ let latestCameraY = 0;
 let latestRenderedZoom = worldZoom;
 let selectedEntityTarget: SelectedEntityTarget | null = null;
 let latestTargetableEntities: readonly TargetableWorldEntity[] = [];
+let minimapTerrainCache: {
+  readonly key: string;
+  readonly canvas: HTMLCanvasElement;
+} | null = null;
 const itemArt = {
   missing: art.missingItem,
   avatar: art.avatar,
@@ -704,28 +708,51 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   const local = identityHex === null ? undefined : snapshot.players.get(identityHex);
   const centerWorldX = (local?.x ?? 0) / FIXED_UNITS_PER_PIXEL;
   const centerWorldY = (local?.y ?? 0) / FIXED_UNITS_PER_PIXEL;
-  const centerTileX = centerWorldX / 16;
-  const centerTileY = centerWorldY / 16;
+  const centerTileX = Math.floor(centerWorldX / 16);
+  const centerTileY = Math.floor(centerWorldY / 16);
+  const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
+  const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
   const terrain = terrainForSpace(
     activeSpaceDefinition,
-    snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED,
-    snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION,
+    seed,
+    version,
   );
   const columns = Math.ceil(rect.width / pixelsPerTile) + 2;
   const rows = Math.ceil(rect.height / pixelsPerTile) + 2;
   const firstTileX = Math.floor(centerTileX - columns / 2);
   const firstTileY = Math.floor(centerTileY - rows / 2);
-  for (let row = 0; row < rows; row += 1) {
-    for (let column = 0; column < columns; column += 1) {
-      context.fillStyle = terrainColorAt(terrain, firstTileX + column, firstTileY + row);
-      context.fillRect(
-        Math.floor(rect.x + column * pixelsPerTile),
-        Math.floor(rect.y + row * pixelsPerTile),
-        Math.ceil(pixelsPerTile),
-        Math.ceil(pixelsPerTile),
-      );
+  const cacheKey = [
+    activeSpaceDefinition.spaceId,
+    seed,
+    version,
+    centerTileX,
+    centerTileY,
+    pixelsPerTile,
+    Math.ceil(rect.width),
+    Math.ceil(rect.height),
+  ].join(':');
+  if (minimapTerrainCache?.key !== cacheKey) {
+    const cacheCanvas = document.createElement('canvas');
+    cacheCanvas.width = Math.ceil(rect.width);
+    cacheCanvas.height = Math.ceil(rect.height);
+    const cacheContext = cacheCanvas.getContext('2d');
+    if (cacheContext !== null) {
+      cacheContext.imageSmoothingEnabled = false;
+      for (let row = 0; row < rows; row += 1) {
+        for (let column = 0; column < columns; column += 1) {
+          cacheContext.fillStyle = terrainColorAt(terrain, firstTileX + column, firstTileY + row);
+          cacheContext.fillRect(
+            Math.floor(column * pixelsPerTile),
+            Math.floor(row * pixelsPerTile),
+            Math.ceil(pixelsPerTile),
+            Math.ceil(pixelsPerTile),
+          );
+        }
+      }
     }
+    minimapTerrainCache = { key: cacheKey, canvas: cacheCanvas };
   }
+  context.drawImage(minimapTerrainCache.canvas, Math.floor(rect.x), Math.floor(rect.y));
   const marker = (worldX: number, worldY: number, color: string, size: number): void => {
     const x = rect.x + rect.width / 2 + (worldX / 16 - centerTileX) * pixelsPerTile;
     const y = rect.y + rect.height / 2 + (worldY / 16 - centerTileY) * pixelsPerTile;
