@@ -724,7 +724,7 @@ export class OverworldConnection {
   }
 
   private subscribeGlobals(connection: DbConnection): void {
-    const queries = [tables.onlinePlayerPublic, tables.onlinePlayerAppearances, tables.worldClock,
+    const queries = [tables.playerPublic, tables.playerAppearance, tables.worldClock,
       tables.worldEnvironment, tables.worldWind, tables.worldSeed, tables.worldMerchant, tables.worldCampfireState, tables.spacePortal, tables.homestead];
     this.globalSubscriptionQueryCount = queries.length;
     connection.subscriptionBuilder().onApplied(() => this.hydrateGlobals(connection)).onError(() => {
@@ -865,12 +865,12 @@ export class OverworldConnection {
     const incoming = (eventId: string, apply: () => void): void => {
       this.latency.incomingGrouped(eventId, () => { apply(); this.onChanged(); });
     };
-    connection.db.onlinePlayerPublic.onInsert((context, row) => incoming(context.event.id, () => this.setProfile(row)));
-    connection.db.onlinePlayerPublic.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setProfile(row)));
-    connection.db.onlinePlayerPublic.onDelete((context, row) => incoming(context.event.id, () => { const id = identityHex(row.identity); this.profiles.delete(id); this.visiblePlayers.delete(id); }));
-    connection.db.onlinePlayerAppearances.onInsert((context, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
-    connection.db.onlinePlayerAppearances.onUpdate((context, _old, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
-    connection.db.onlinePlayerAppearances.onDelete((context, row) => incoming(context.event.id, () => this.appearances.delete(identityHex(row.identity))));
+    connection.db.playerPublic.onInsert((context, row) => incoming(context.event.id, () => this.setProfile(row)));
+    connection.db.playerPublic.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setProfile(row)));
+    connection.db.playerPublic.onDelete((context, row) => incoming(context.event.id, () => { const id = identityHex(row.identity); this.profiles.delete(id); this.visiblePlayers.delete(id); }));
+    connection.db.playerAppearance.onInsert((context, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
+    connection.db.playerAppearance.onUpdate((context, _old, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
+    connection.db.playerAppearance.onDelete((context, row) => incoming(context.event.id, () => this.appearances.delete(identityHex(row.identity))));
     connection.db.worldClock.onInsert((context, row) => incoming(context.event.id, () => { this.clock = row; }));
     connection.db.worldClock.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.clock = row; }));
     connection.db.worldEnvironment.onInsert((context, row) => incoming(context.event.id, () => { this.environment = row; }));
@@ -1053,7 +1053,7 @@ export class OverworldConnection {
 
   private setProfile(row: PlayerPublic): void {
     const id = identityHex(row.identity); this.profiles.set(id, row); const position = this.positions.get(id);
-    if (row.online && position !== undefined && position.spaceId === this.ownSpaceId) {
+    if (position !== undefined && position.spaceId === this.ownSpaceId) {
       this.visiblePlayers.set(id, position);
     } else this.visiblePlayers.delete(id);
   }
@@ -1073,13 +1073,14 @@ export class OverworldConnection {
     }
     this.positions.set(id, row);
     this.positionCommits.push(id, row);
-    if ((this.profiles.get(id)?.online ?? true) && row.spaceId === this.ownSpaceId) {
+    if ((ownRow || this.profiles.get(id) !== undefined) && row.spaceId === this.ownSpaceId) {
       this.visiblePlayers.set(id, row);
     } else this.visiblePlayers.delete(id);
     if (ownRow) {
       for (const player of this.positions) {
         const playerId = identityHex(player.identity);
-        if (player.spaceId === this.ownSpaceId && (this.profiles.get(playerId)?.online ?? true)) {
+        const ownPlayer = this.identity !== null && player.identity.isEqual(this.identity);
+        if (player.spaceId === this.ownSpaceId && (ownPlayer || this.profiles.get(playerId) !== undefined)) {
           this.visiblePlayers.set(playerId, player);
         } else this.visiblePlayers.delete(playerId);
       }
@@ -1119,8 +1120,8 @@ export class OverworldConnection {
   }
   private hydrateGlobals(connection: DbConnection): void {
     this.latency.incoming(() => {
-      for (const row of connection.db.onlinePlayerPublic.iter()) this.setProfile(row);
-      for (const row of connection.db.onlinePlayerAppearances.iter()) this.appearances.set(identityHex(row.identity), row);
+      for (const row of connection.db.playerPublic.iter()) this.setProfile(row);
+      for (const row of connection.db.playerAppearance.iter()) this.appearances.set(identityHex(row.identity), row);
       this.clock = [...connection.db.worldClock.iter()][0] ?? null;
       this.environment = [...connection.db.worldEnvironment.iter()][0] ?? null;
       this.campfires.clear();

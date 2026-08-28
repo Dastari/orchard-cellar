@@ -6,10 +6,12 @@ import {
   OverworldUi,
   onlinePlayerListCloseButtonRect,
   onlinePlayerListFrameHeight,
+  offlineNameplateFrameAt,
   overworldUiLayout,
   hotbarReticleRect,
   isInterfaceVisibilityToggle,
   itemIconAnimation,
+  nameplateRect,
   slotStackLabelPosition,
   slotDurabilityBarRect,
   type OverworldUiCallbacks,
@@ -403,6 +405,14 @@ describe('overworld retained UI layout', () => {
   it('reserves explicit bottom padding as the online roster grows', () => {
     expect(onlinePlayerListFrameHeight(1) - onlinePlayerListFrameHeight(0)).toBe(12);
     expect(onlinePlayerListFrameHeight(3) - (29 + 3 * 12)).toBe(ONLINE_PLAYER_LIST_BOTTOM_PADDING);
+  });
+
+  it('reserves an in-plate icon gutter and cycles the offline lightning frames', () => {
+    expect(nameplateRect(100, 20, 'Dastari', true).width
+      - nameplateRect(100, 20, 'Dastari').width).toBe(9);
+    expect([0, 170, 340, 510, 680].map((elapsed) => (
+      offlineNameplateFrameAt(elapsed, 4)
+    ))).toEqual([0, 1, 2, 3, 0]);
   });
 
   it('places a close button inside the online-player frame and closes through the shared toggle', () => {

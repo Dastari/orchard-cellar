@@ -65,6 +65,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       'Wheel up shows older framed content; drag its scrollbar to browse.',
       'Page Up / Down scroll by a page. Click a scrollbar for arrows and Home / End.',
       'N: toggle nameplates.',
+      'Stone-tinted players with a pulsing lightning nameplate are offline and non-interactive.',
       'Z: hide or restore the complete interface.',
       'Esc: menu, back, or close.',
       'The menu includes a full-screen toggle on supported browsers.',

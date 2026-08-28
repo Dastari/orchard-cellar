@@ -262,6 +262,11 @@ import {
   type InteractionCandidate,
 } from './interaction-targeting.js';
 import {
+  OFFLINE_AVATAR_FILTER,
+  worldPlayerIsOffline,
+  worldPlayerParticipatesInCollision,
+} from './player-presence.js';
+import {
   isInterfaceVisibilityToggle,
   isNameplateToggle,
   OverworldUi,
@@ -769,7 +774,9 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
       marker(npc.x / FIXED_UNITS_PER_PIXEL, npc.y / FIXED_UNITS_PER_PIXEL, '#f1b34b', 3);
     }
     for (const player of snapshot.players) {
-      if (player.spaceId !== activeSpaceDefinition.spaceId || player.identity.toHexString() === identityHex) continue;
+      const id = player.identity.toHexString();
+      if (player.spaceId !== activeSpaceDefinition.spaceId || id === identityHex
+        || snapshot.profiles.get(id)?.online !== true) continue;
       marker(player.x / FIXED_UNITS_PER_PIXEL, player.y / FIXED_UNITS_PER_PIXEL, '#64b7e8', 3);
     }
   }
@@ -1940,9 +1947,12 @@ function placementTileBlocked(
   tile: { readonly tileX: number; readonly tileY: number },
   excludeLocalPlayer = false,
 ): boolean {
-  const players = [...snapshot.players].filter((player) => (
-    !excludeLocalPlayer || player.identity.toHexString() !== snapshot.identityHex
-  )).map((player) => {
+  const players = [...snapshot.players].filter((player) => {
+    const id = player.identity.toHexString();
+    const local = id === snapshot.identityHex;
+    return (!excludeLocalPlayer || !local)
+      && worldPlayerParticipatesInCollision(local, snapshot.profiles.get(id)?.online);
+  }).map((player) => {
     const local = player.identity.toHexString() === snapshot.identityHex;
     return local && predicted !== null ? predicted.position : { x: player.x, y: player.y };
   });
@@ -2113,7 +2123,8 @@ function selectedTargetVitals(snapshot: OverworldView): OverworldUiTargetVitals 
   const target = selectedEntityTarget;
   if (target === null) return undefined;
   if (target.kind === 'player') {
-    if (target.id === snapshot.identityHex || snapshot.players.get(target.id) === undefined) return undefined;
+    if (target.id === snapshot.identityHex || snapshot.players.get(target.id) === undefined
+      || snapshot.profiles.get(target.id)?.online !== true) return undefined;
     const displayName = profileName(snapshot.profiles, target.id);
     return {
       targetId: targetKey(target), displayName,
@@ -2466,6 +2477,7 @@ function drawPlayerCollisionOverlay(
   for (const player of snapshot.players) {
     const id = player.identity.toHexString();
     const local = id === snapshot.identityHex;
+    if (!worldPlayerParticipatesInCollision(local, snapshot.profiles.get(id)?.online)) continue;
     const display = local ? null : remoteDisplay.get(id) ?? null;
     const position = {
       x: local ? predicted?.position.x ?? player.x : display?.x ?? player.x,
@@ -2855,7 +2867,7 @@ function render(alpha = 1): void {
     viewportWidth,
     viewportHeight,
   );
-  const nameplates: Array<{ x: number; y: number; name: string }> = [];
+  const nameplates: Array<{ x: number; y: number; name: string; offline?: boolean }> = [];
   const questMarkerAnchors: Array<{ x: number; y: number; kind: 'offer' | 'complete' }> = [];
   const renderedPlayerAnchors = new Map<string, { readonly x: number; readonly y: number }>();
   const targetableEntities: TargetableWorldEntity[] = [];
@@ -3490,12 +3502,13 @@ function render(alpha = 1): void {
   if (!debugEntitiesHidden) for (const player of snapshot.players) {
     const id = player.identity.toHexString();
     const local = id === snapshot.identityHex;
+    const offline = worldPlayerIsOffline(local, snapshot.profiles.get(id)?.online);
     const display = local ? null : remoteDisplay.get(id) ?? null;
     const previousDisplay = local || display === null ? null : previousRemoteDisplay.get(id) ?? display;
     const renderedRemote = display === null || previousDisplay === null
       ? null
       : interpolateFixedPosition(previousDisplay, display, alpha);
-    const mount = snapshot.npcs.find((npc) => npc.rider?.toHexString() === id) ?? null;
+    const mount = offline ? null : snapshot.npcs.find((npc) => npc.rider?.toHexString() === id) ?? null;
     const mountVariant = mount === null ? 0 : wildlifeProfile(snapshot, mount.id)?.variant ?? 0;
     const jumpPresentation = mount === null ? null : horseJumpPose(
       player.jumpFromX,
@@ -3520,7 +3533,7 @@ function render(alpha = 1): void {
     const equippedLit = equipped !== 'lantern' || (local
       ? lightPreviewKind === 'lantern' || (selectedItemRow(snapshot)?.lit ?? true)
       : display?.equippedLit ?? player.equippedLit);
-    if ((equipped === 'lantern' || equipped === 'torch') && equippedLit
+    if (!offline && (equipped === 'lantern' || equipped === 'torch') && equippedLit
       && worldPointVisible(x, y, lightVisible)) {
       const [lightX, lightY] = playerLightPosition(x, y);
       const baseRadius = equipped === 'lantern' ? LANTERN_LIGHT_RADIUS_TILES : TORCH_LIGHT_RADIUS_TILES;
@@ -3541,7 +3554,7 @@ function render(alpha = 1): void {
       }, terrainContactY));
     }
     if (!worldPointVisible(x, y, visible)) continue;
-    if (!local) targetableEntities.push({
+    if (!local && !offline) targetableEntities.push({
       target: { kind: 'player', id }, x, y: y - playerProjection,
       halfWidth: mount === null ? 8 : 16, height: mount === null ? 24 : 32,
     });
@@ -3557,7 +3570,7 @@ function render(alpha = 1): void {
     const displayedDy = local
       ? (renderedLocal?.y ?? player.y) - (previousPredicted?.position.y ?? renderedLocal?.y ?? player.y)
       : (display?.y ?? player.y) - (previousDisplay?.y ?? display?.y ?? player.y);
-    const moving = presentationMoving(
+    const moving = !offline && presentationMoving(
       local,
       predicted?.moving,
       displayedDx,
@@ -3569,6 +3582,7 @@ function render(alpha = 1): void {
       x,
       y: y - playerProjection,
       name: profileName(snapshot.profiles, id),
+      ...(offline ? { offline: true } : {}),
     });
     enqueueWorldDepth(x, footY, {
       footY,
@@ -3580,9 +3594,11 @@ function render(alpha = 1): void {
         const localBowCharging = local && bowChargeStartedAtMs !== null;
         const localPreviewActive = local && (localBowCharging
           || (localActionStartedAtMs !== null && performance.now() - localActionStartedAtMs < 650));
-        const actionKind = localBowCharging
-          ? 'ranged_weapon'
-          : localPreviewActive ? localPredictedActionKind : display?.actionKind ?? player.actionKind;
+        const actionKind = offline
+          ? 'none'
+          : localBowCharging
+            ? 'ranged_weapon'
+            : localPreviewActive ? localPredictedActionKind : display?.actionKind ?? player.actionKind;
         const actionStartedTick = localPreviewActive
           ? BigInt(Math.floor(renderTick - (performance.now() - (localActionStartedAtMs ?? performance.now())) / AUTHORITY_TICK_MS))
           : display?.actionStartedTick ?? player.actionStartedTick;
@@ -3615,41 +3631,52 @@ function render(alpha = 1): void {
           : null;
         const actionFrame = chargedBowFrame
           ?? (animation.channel === 'action' && !animation.fallback ? animation.frame : null);
-        if (mount !== null) {
-          if (actionKind === 'ranged_weapon' && actionFrame !== null && actionVisual !== null) {
-            drawOverworldMountedAction(
-              context, art, x, y, horseFacing, facing, moving, horseAnimationFrame,
-              cameraX, cameraY, scale, actionFrame, actionVisual, appearance, mountVariant,
-            );
-          } else {
-            drawOverworldHorse(
-              context, art, x, y, horseFacing, moving, horseAnimationFrame,
-              cameraX, cameraY, scale, true, appearance, mountVariant,
+        const drawPlayer = (): void => {
+          if (mount !== null) {
+            if (actionKind === 'ranged_weapon' && actionFrame !== null && actionVisual !== null) {
+              drawOverworldMountedAction(
+                context, art, x, y, horseFacing, facing, moving, horseAnimationFrame,
+                cameraX, cameraY, scale, actionFrame, actionVisual, appearance, mountVariant,
+              );
+            } else {
+              drawOverworldHorse(
+                context, art, x, y, horseFacing, moving, horseAnimationFrame,
+                cameraX, cameraY, scale, true, appearance, mountVariant,
+              );
+            }
+            return;
+          }
+          drawOverworldAvatar(
+            context, art, x, y, facing, moving, animation.locomotionFrame,
+            cameraX, cameraY, scale, actionFrame, actionVisual, appearance, equipped, horseAnimationFrame,
+            equippedLit,
+          );
+          if (snapshot.chests.find((chest) => chest.carriedBy?.toHexString() === id)) {
+            drawOverworldChest(context, art, x, y - 17, cameraX, cameraY, scale);
+          }
+          if (snapshot.combatTargets.find((target) => target.carriedBy?.toHexString() === id)) {
+            drawOverworldArcheryTarget(context, art, x, y - 25, cameraX, cameraY, scale);
+          }
+          const handsPlaceable = snapshot.placeables.find(
+            (placeable) => placeable.carriedBy?.toHexString() === id,
+          );
+          if (handsPlaceable !== undefined) {
+            drawOverworldPlaceable(
+              context, art, handsPlaceable.kind, false, 0,
+              Math.floor(performance.now() / 125), x, y - 17,
+              cameraX, cameraY, scale, handsPlaceable.lit,
             );
           }
+        };
+        if (!offline) {
+          drawPlayer();
           return;
         }
-        drawOverworldAvatar(
-          context, art, x, y, facing, moving, animation.locomotionFrame,
-          cameraX, cameraY, scale, actionFrame, actionVisual, appearance, equipped, horseAnimationFrame,
-          equippedLit,
-        );
-        if (snapshot.chests.find((chest) => chest.carriedBy?.toHexString() === id)) {
-          drawOverworldChest(context, art, x, y - 17, cameraX, cameraY, scale);
-        }
-        if (snapshot.combatTargets.find((target) => target.carriedBy?.toHexString() === id)) {
-          drawOverworldArcheryTarget(context, art, x, y - 25, cameraX, cameraY, scale);
-        }
-        const handsPlaceable = snapshot.placeables.find(
-          (placeable) => placeable.carriedBy?.toHexString() === id,
-        );
-        if (handsPlaceable !== undefined) {
-          drawOverworldPlaceable(
-            context, art, handsPlaceable.kind, false, 0,
-            Math.floor(performance.now() / 125), x, y - 17,
-            cameraX, cameraY, scale, handsPlaceable.lit,
-          );
-        }
+        context.save();
+        context.filter = OFFLINE_AVATAR_FILTER;
+        context.globalAlpha *= 0.92;
+        drawPlayer();
+        context.restore();
       },
     }, terrainContactY);
   }
@@ -4078,6 +4105,7 @@ function render(alpha = 1): void {
       x: (nameplate.x - cameraX) * worldZoom / uiScale,
       y: (nameplate.y - cameraY - 42) * worldZoom / uiScale,
       text: nameplate.name,
+      ...(nameplate.offline === true ? { offline: true } : {}),
     })));
   }
   if (!interfaceHidden) {

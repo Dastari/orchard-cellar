@@ -81,6 +81,11 @@ Positions persist across disconnects, but only identities with at least one live
 connection are rendered online. Multiple tabs for one identity remain online until
 the last connection closes. Reconnect restores the identity and authoritative
 position before accepting input.
+After the presence lease expires, a nearby persisted position remains visible as a
+non-interactive stone-tinted avatar with its real appearance and name. An animated
+lightning glyph inside the nameplate marks that player as offline. These statues emit
+no held light, cannot be selected or traded with, do not appear as live minimap
+markers, and do not participate in placement or movement collision.
 
 World-entry and final-disconnect notices are session UI, not authored chat. They are
 delivered through each connection's private bounded notice inbox and are discarded

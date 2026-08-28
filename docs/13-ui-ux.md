@@ -250,7 +250,9 @@ are the only modals that suppress all HUD.
   leaving. A toast announces `Visiting <Farm Name>`.
 - **Visitor nameplates**: `font-5x7` name on a 1 px R12-backed strip, centered 2 px
   above each remote player's sprite; owner's plate gets a small R6 crest. Plates
-  hide during ceremonies and screenshots (F2).
+  hide during ceremonies and screenshots (F2). An offline persisted avatar uses a
+  stone tint and an authored pulsing lightning icon inside the plate before its name;
+  it is a presence marker, never an interaction or collision target.
 - **Guestbook**: a lectern near the gate; `[E] Sign guestbook` opens a parchment
   spread of recent entries (name, date, 80-char message via hidden input). Owner
   gets a toast + mailbox flag on next login.

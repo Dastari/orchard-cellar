@@ -61,7 +61,7 @@ describe('overworld regional subscriptions', () => {
     expect(outsideRegionCenterDeadband(null, 15, 8)).toBe(true);
   });
 
-  it('34§6 keeps profiles and hives out of globals and inside regional handover', () => {
+  it('34§6 keeps bounded player registries global and hives inside regional handover', () => {
     const source = readFileSync(new URL('./overworld-connection.ts', import.meta.url), 'utf8');
     const globals = source.slice(
       source.indexOf('private subscribeGlobals'),
@@ -73,10 +73,12 @@ describe('overworld regional subscriptions', () => {
     );
     expect(globals).not.toContain('tables.worldHive');
     expect(globals).not.toContain('tables.worldWildlifeProfile');
-    expect(globals).toContain('tables.onlinePlayerPublic');
-    expect(globals).toContain('tables.onlinePlayerAppearances');
-    expect(globals).not.toMatch(/tables\.playerPublic[,\]]/);
-    expect(globals).not.toMatch(/tables\.playerAppearance[,\]]/);
+    expect(globals).toMatch(/tables\.playerPublic[,\]]/);
+    expect(globals).toMatch(/tables\.playerAppearance[,\]]/);
+    expect(globals).not.toContain('tables.onlinePlayerPublic');
+    expect(globals).not.toContain('tables.onlinePlayerAppearances');
+    expect(source).toContain('ownRow || this.profiles.get(id) !== undefined');
+    expect(source).not.toContain("this.profiles.get(id)?.online ?? true");
     expect(region).toContain('tables.worldHive');
     expect(region).toContain('tables.worldWildlifeProfile');
     expect(region).toContain('hives, surfaces, cellarExcavations]);');

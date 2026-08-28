@@ -315,14 +315,21 @@ export interface OverworldUiLayoutOptions {
   readonly touchControls?: boolean;
 }
 
-export function nameplateRect(centerX: number, y: number, text: string): UiRect {
-  const width = measurePixelText(fitLabel(text, 20)) + NAMEPLATE_HORIZONTAL_PADDING * 2;
+export function nameplateRect(centerX: number, y: number, text: string, leadingIcon = false): UiRect {
+  const width = measurePixelText(fitLabel(text, 20))
+    + NAMEPLATE_HORIZONTAL_PADDING * 2
+    + (leadingIcon ? 9 : 0);
   return {
     x: Math.round(centerX - width / 2),
     y: Math.round(y),
     width,
     height: NAMEPLATE_HEIGHT,
   };
+}
+
+export function offlineNameplateFrameAt(elapsedMs: number, frameCount: number, fps = 6): number {
+  if (!Number.isFinite(elapsedMs) || frameCount <= 0 || fps <= 0) return 0;
+  return Math.floor(Math.max(0, elapsedMs) * fps / 1_000) % Math.max(1, Math.floor(frameCount));
 }
 
 export function isNameplateToggle(code: string, repeat: boolean): boolean {
@@ -1576,15 +1583,39 @@ export class OverworldUi {
     this.drawCursor(context);
   }
 
-  drawNameplates(context: CanvasRenderingContext2D, labels: readonly { readonly x: number; readonly y: number; readonly text: string }[]): void {
+  drawNameplates(context: CanvasRenderingContext2D, labels: readonly {
+    readonly x: number;
+    readonly y: number;
+    readonly text: string;
+    readonly offline?: boolean;
+  }[]): void {
     for (const label of labels) {
       const text = fitLabel(label.text, 20);
-      const rect = nameplateRect(label.x, label.y, text);
+      const offline = label.offline === true;
+      const rect = nameplateRect(label.x, label.y, text, offline);
       context.save();
-      context.fillStyle = 'rgba(0, 0, 0, 0.58)';
+      context.fillStyle = offline ? 'rgba(29, 34, 36, 0.76)' : 'rgba(0, 0, 0, 0.58)';
       context.fillRect(rect.x, rect.y, rect.width, rect.height);
       context.restore();
-      drawLabel(context, this.fonts, text, label.x, rect.y + 2, { align: 'center', color: '#fff1cf' });
+      if (!offline) {
+        drawLabel(context, this.fonts, text, label.x, rect.y + 2, { align: 'center', color: '#fff1cf' });
+        continue;
+      }
+      const frames = this.skin.onlinePlayersIcon.metadata.animations['offline'] ?? [];
+      const frame = uiAssetFrame(
+        this.skin.onlinePlayersIcon,
+        'offline',
+        offlineNameplateFrameAt(performance.now(), frames.length),
+      );
+      const contentX = rect.x + NAMEPLATE_HORIZONTAL_PADDING;
+      if (frame !== null) context.drawImage(
+        this.skin.onlinePlayersIcon.image,
+        frame.x, frame.y, frame.width, frame.height,
+        contentX, rect.y + 1, 8, 8,
+      );
+      drawLabel(context, this.fonts, text, contentX + 9, rect.y + 2, {
+        align: 'left', color: '#d8d9d2',
+      });
     }
   }
 
