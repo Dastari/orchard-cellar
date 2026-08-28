@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   UiFrameResizeController,
+  UI_BOOK_PAGE_REPEAT_SLICE,
   UI_FRAME_METRICS,
   layoutUiFrameSlots,
   uiBookPageRects,
@@ -51,6 +52,7 @@ describe('design-system frames', () => {
   it('allows the authored book proportions to reflow above their natural minimum', () => {
     expect(UI_FRAME_METRICS.book.minimumSize).toEqual({ width: 224, height: 133 });
     expect(UI_FRAME_METRICS.book.resizable).toBe(true);
+    expect(UI_BOOK_PAGE_REPEAT_SLICE).toEqual([24, 24, 24, 24]);
   });
 
   it('keeps book paging actions on the lower outer corners', () => {

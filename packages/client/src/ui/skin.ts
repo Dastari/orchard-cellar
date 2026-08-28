@@ -34,6 +34,14 @@ export interface UiSkin {
   readonly buttonSmallConfirm: LoadedAsset;
   readonly buttonConfirm: LoadedAsset;
   readonly buttonDeny: LoadedAsset;
+  readonly buttonWideChamfered: LoadedAsset;
+  readonly buttonWideSquare: LoadedAsset;
+  readonly buttonWidePill: LoadedAsset;
+  readonly buttonSmallChamfered: LoadedAsset;
+  readonly buttonSmallSquare: LoadedAsset;
+  readonly buttonSmallPill: LoadedAsset;
+  readonly buttonGlyphs: LoadedAsset;
+  readonly iconCatalog: LoadedAsset;
   readonly coinGold: LoadedAsset;
   readonly coinSilver: LoadedAsset;
   readonly coinBronze: LoadedAsset;
@@ -86,6 +94,14 @@ const UI_ASSETS = {
   buttonSmallConfirm: "ui_cf_button_small_accent_green",
   buttonConfirm: "ui_cf_button_accent_green",
   buttonDeny: "ui_cf_button_accent_red",
+  buttonWideChamfered: "ui_cf_button_wide_chamfered",
+  buttonWideSquare: "ui_cf_button_wide_square",
+  buttonWidePill: "ui_cf_button_wide_pill",
+  buttonSmallChamfered: "ui_cf_button_small_chamfered",
+  buttonSmallSquare: "ui_cf_button_small_square",
+  buttonSmallPill: "ui_cf_button_small_pill",
+  buttonGlyphs: "ui_cf_button_glyphs",
+  iconCatalog: "ui_cf_icon_catalog",
   coinGold: "ui_cf_coin_gold",
   coinSilver: "ui_cf_coin_silver",
   coinBronze: "ui_cf_coin_bronze",

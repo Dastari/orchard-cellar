@@ -1,5 +1,6 @@
 import { loadGeneratedAsset, type LoadedAsset } from './assets.js';
 import { selectAtlasFrame, type AtlasFrame } from './sprite.js';
+import { drawNineSlice } from '../ui/nine-slice.js';
 
 const FALLBACK_CHARSET = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~×→♪♥☀❄';
 
@@ -253,26 +254,5 @@ export function drawPixelPanel(
 ): void {
   const frame = baseFrame(ui.panel);
   if (frame === null) return;
-  const [left, top, right, bottom] = panelSlice(ui.panel);
-  const sourceMiddleWidth = frame.width - left - right;
-  const sourceMiddleHeight = frame.height - top - bottom;
-  const targetMiddleWidth = Math.max(1, width - left - right);
-  const targetMiddleHeight = Math.max(1, height - top - bottom);
-  const columns = [0, left, frame.width - right];
-  const rows = [0, top, frame.height - bottom];
-  const sourceWidths = [left, sourceMiddleWidth, right];
-  const sourceHeights = [top, sourceMiddleHeight, bottom];
-  const targetX = [x, x + left, x + width - right];
-  const targetY = [y, y + top, y + height - bottom];
-  const targetWidths = [left, targetMiddleWidth, right];
-  const targetHeights = [top, targetMiddleHeight, bottom];
-  for (let row = 0; row < 3; row += 1) for (let column = 0; column < 3; column += 1) {
-    context.drawImage(
-      ui.panel.image,
-      frame.x + (columns[column] ?? 0), frame.y + (rows[row] ?? 0),
-      sourceWidths[column] ?? 1, sourceHeights[row] ?? 1,
-      Math.round(targetX[column] ?? x), Math.round(targetY[row] ?? y),
-      targetWidths[column] ?? 1, targetHeights[row] ?? 1,
-    );
-  }
+  drawNineSlice(context, ui.panel.image, frame, { x, y, width, height }, panelSlice(ui.panel));
 }

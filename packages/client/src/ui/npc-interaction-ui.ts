@@ -4,10 +4,13 @@ import {
   BASE_BACKPACK_CAPACITY,
   ITEM_ECONOMY,
   TOOL_MERCHANT_OFFERS,
+  coinPurseFromBronze,
   dialogueDefinition,
   dialogueNode,
   itemDefinition,
+  isUniqueQuestItemKind,
   maxStackFor,
+  questDefinition,
   type DialogueChoice,
   type MerchantCartLine,
 } from '@orchard/sim';
@@ -205,6 +208,25 @@ export function dialogueChoiceIsAvailable(
   return choice.quest.requires === 'available' ? row === undefined : row?.state === choice.quest.requires;
 }
 
+export function dialogueChoiceRewardTooltip(choice: DialogueChoice | null | undefined): string | null {
+  if (choice?.quest?.action !== 'turn_in') return null;
+  const definition = questDefinition(choice.quest.questId);
+  if (definition === null) return null;
+  const rewards: string[] = [];
+  const purse = coinPurseFromBronze(definition.rewards.bronze);
+  if (purse.gold > 0n) rewards.push(`${purse.gold} GOLD`);
+  if (purse.silver > 0) rewards.push(`${purse.silver} SILVER`);
+  if (purse.bronze > 0) rewards.push(`${purse.bronze} BRONZE`);
+  for (const reward of definition.rewards.experience) {
+    rewards.push(`${reward.amount} ${reward.track.toUpperCase()} XP`);
+  }
+  for (const reward of definition.rewards.items) {
+    const name = itemDefinition(reward.itemKind)?.displayName ?? reward.itemKind.replaceAll('_', ' ');
+    rewards.push(`${name.toUpperCase()} ×${reward.count}`);
+  }
+  return `REWARDS: ${rewards.length > 0 ? rewards.join(' / ') : 'NONE'}`;
+}
+
 function drawItemIcon(
   context: CanvasRenderingContext2D,
   asset: LoadedAsset | undefined,
@@ -281,6 +303,9 @@ export class NpcInteractionUi {
     return definition !== null && dialogueNode(definition, this.model.nodeId)?.mode === 'shop';
   }
   get filterValue(): string { return this.filterText; }
+  get tooltipText(): string | null {
+    return this.shopOpen ? null : dialogueChoiceRewardTooltip(this.hoveredDialogueChoice());
+  }
 
   setFilterText(value: string): void {
     const next = value.replace(/[\r\n]/g, '').slice(0, 32);
@@ -503,7 +528,7 @@ export class NpcInteractionUi {
     }
     return [...quantityByKind].flatMap(([itemKind, quantity]) => {
       const economy = ITEM_ECONOMY[itemKind as keyof typeof ITEM_ECONOMY];
-      return economy && itemKind !== 'homestead_deed' ? [{
+      return economy && itemKind !== 'homestead_deed' && !isUniqueQuestItemKind(itemKind) ? [{
         itemKind,
         name: itemDefinition(itemKind)?.displayName ?? itemKind,
         unitPrice: economy.sellPriceBronze,
@@ -604,6 +629,15 @@ export class NpcInteractionUi {
     }));
   }
 
+  private hoveredDialogueChoice(): DialogueChoice | null {
+    if (this.model === null || this.shopOpen) return null;
+    const layout = npcInteractionLayout(this.model.width, this.model.height, false);
+    const choices = this.visibleDialogueChoices();
+    const index = this.dialogueChoiceRects(layout, choices.length)
+      .findIndex((rect) => containsPoint(rect, this.pointer));
+    return choices[index] ?? null;
+  }
+
   private drawDialogue(context: CanvasRenderingContext2D, layout: InteractionLayout, body: string, choices: readonly DialogueChoice[]): void {
     drawUiSkinAsset(context, this.skin.panelParchment, layout.dialoguePortrait);
     drawUiSkinAsset(context, this.skin.frameThin, layout.dialoguePortrait);
@@ -633,6 +667,26 @@ export class NpcInteractionUi {
     });
     this.dialogueScrollBar.setBounds(layout.dialogueScroll);
     this.dialogueScrollBar.draw(context);
+    const tooltipText = this.tooltipText;
+    if (tooltipText !== null) {
+      const tooltipWidth = layout.frame.width - MODAL_HORIZONTAL_PADDING * 2;
+      const lines = wrapText(tooltipText, tooltipWidth - 12, this.fonts).slice(0, 3);
+      const tooltip = {
+        x: layout.frame.x + MODAL_HORIZONTAL_PADDING,
+        y: layout.frame.y + layout.frame.height - lines.length * 10 - 12,
+        width: tooltipWidth,
+        height: lines.length * 10 + 8,
+      };
+      drawUiLabelPlate(context, this.skin, tooltip);
+      lines.forEach((line, index) => drawPixelText(
+        context,
+        this.fonts,
+        line,
+        tooltip.x + tooltip.width / 2,
+        tooltip.y + 4 + index * 10,
+        { align: 'center', color: '#51351f' },
+      ));
+    }
   }
 
   private drawShop(context: CanvasRenderingContext2D, layout: InteractionLayout): void {

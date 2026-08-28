@@ -1,7 +1,9 @@
 import type { PixelUi } from '../../render/pixel-ui.js';
 import { drawButton } from '../button.js';
 import { containsPoint, insetRect, type UiInsets, type UiPoint, type UiRect, type UiSize } from '../geometry.js';
-import { drawUiSkinAsset, type UiSkin } from '../skin.js';
+import { drawNineSlice } from '../nine-slice.js';
+import { drawUiSkinAsset, uiAssetFrame, type UiSkin } from '../skin.js';
+import { drawFantasyButton } from './fantasy-controls.js';
 import { layoutUiFlex, type UiFlexDirection, type UiFlexItem, type UiItemAlignment } from './layout.js';
 
 export type UiFrameStyle = 'wood' | 'parchment' | 'wood_parchment' | 'thin' | 'book' | 'unframed';
@@ -14,8 +16,9 @@ export interface UiFrameMetrics {
   readonly resizable: boolean;
 }
 
-/** Insets mirror the generated sprite metadata. Composite frames consume the
- * wood 10px slice and parchment 8px slice before adding content breathing room. */
+/** Insets describe writable visual chrome, which can differ from an asset's
+ * repeat boundary. Composite frames consume the wood 10px visual post and the
+ * parchment 8px border before adding content breathing room. */
 export const UI_FRAME_METRICS: Readonly<Record<UiFrameStyle, UiFrameMetrics>> = {
   wood: {
     chromeInsets: { left: 10, top: 10, right: 10, bottom: 10 },
@@ -45,8 +48,8 @@ export const UI_FRAME_METRICS: Readonly<Record<UiFrameStyle, UiFrameMetrics>> = 
     chromeInsets: { left: 14, top: 14, right: 14, bottom: 14 },
     defaultPadding: 2,
     minimumSize: { width: 224, height: 133 },
-    // The original artwork is 224×133, but the lab and Markdown paginator can
-    // scale it while preserving proportional page/gutter geometry.
+    // The original artwork is 224×133. Resizable spreads split it into two
+    // independently tiled leaves, preserving native page and gutter pixels.
     resizable: true,
   },
   unframed: {
@@ -82,6 +85,11 @@ export interface DrawUiFrameControlsOptions {
 }
 
 const CLOSE_BUTTON_SIZE = { width: 24, height: 16 } as const;
+
+/** Each leaf's ornamental corner work reaches beyond the writable 14px inset.
+ * Keeping a 24px authored corner means only undecorated edge and page-face
+ * pixels enter the repeat bands when a book is resized. */
+export const UI_BOOK_PAGE_REPEAT_SLICE = [24, 24, 24, 24] as const;
 
 /** One close action is reused everywhere for recognition and accessibility.
  * Each frame style only changes its mount point so the control sits on chrome,
@@ -131,7 +139,9 @@ export function drawUiFrameControls(
   options: DrawUiFrameControlsOptions = {},
 ): UiFrameControlLayout {
   const layout = uiFrameControlLayout(frame, style, options.bookNavigation);
-  drawButton(context, skin, fonts, layout.close, { label: 'X', tone: 'danger', size: 'compact' });
+  drawFantasyButton(context, skin, fonts, layout.close, {
+    tone: 'red', shape: 'chamfered', size: 'wide', glyph: 'cross',
+  });
   if (layout.firstPage === undefined || layout.previousPage === undefined
     || layout.nextPage === undefined || layout.lastPage === undefined) return layout;
   const spreadIndex = Math.max(0, options.spreadIndex ?? 0);
@@ -208,7 +218,35 @@ export function drawUiFrame(
   }
   if (style === 'parchment') drawUiSkinAsset(context, skin.panelParchment, frame);
   if (style === 'thin') drawUiSkinAsset(context, skin.frameThin, frame);
-  if (style === 'book') drawUiSkinAsset(context, skin.bookOpen, frame);
+  if (style === 'book') {
+    const source = uiAssetFrame(skin.bookOpen);
+    if (source !== null) {
+      const sourceLeftWidth = Math.floor(source.width / 2);
+      const destinationLeftWidth = Math.floor(frame.width / 2);
+      drawNineSlice(context, skin.bookOpen.image, {
+        x: source.x,
+        y: source.y,
+        width: sourceLeftWidth,
+        height: source.height,
+      }, {
+        x: frame.x,
+        y: frame.y,
+        width: destinationLeftWidth,
+        height: frame.height,
+      }, UI_BOOK_PAGE_REPEAT_SLICE);
+      drawNineSlice(context, skin.bookOpen.image, {
+        x: source.x + sourceLeftWidth,
+        y: source.y,
+        width: source.width - sourceLeftWidth,
+        height: source.height,
+      }, {
+        x: frame.x + destinationLeftWidth,
+        y: frame.y,
+        width: frame.width - destinationLeftWidth,
+        height: frame.height,
+      }, UI_BOOK_PAGE_REPEAT_SLICE);
+    }
+  }
   if (style === 'wood_parchment') {
     drawUiSkinAsset(context, skin.panelParchment, insetRect(frame, {
       left: 10, top: 10, right: 10, bottom: 10,

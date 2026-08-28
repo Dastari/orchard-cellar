@@ -30,6 +30,19 @@ describe('canvas design-system layout', () => {
     ]);
   });
 
+  it('shrinks preferred button widths to their visual minimum without escaping the container', () => {
+    const bounds = { x: 10, y: 20, width: 240, height: 22 };
+    const rects = layoutUiFlex(bounds, [
+      { minSize: { width: 32, height: 22 }, basis: 76, grow: 1 },
+      { minSize: { width: 32, height: 22 }, basis: 106, grow: 1 },
+      { minSize: { width: 32, height: 22 }, basis: 132, grow: 1 },
+    ], { gap: 6, align: 'center' });
+    expect(rects[0]?.width).toBeLessThan(76);
+    expect(rects.at(-1)!.x + rects.at(-1)!.width).toBe(bounds.x + bounds.width);
+    expect(rects.every((rect) => rect.x >= bounds.x
+      && rect.x + rect.width <= bounds.x + bounds.width)).toBe(true);
+  });
+
   it('creates automatic grid tracks and aligns fixed-size children inside them', () => {
     const layout = layoutUiGrid({ x: 0, y: 0, width: 100, height: 80 }, [
       { width: 12, height: 8 }, { width: 12, height: 8 }, { width: 12, height: 8 },

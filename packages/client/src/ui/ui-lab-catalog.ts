@@ -5,8 +5,7 @@ export type UiLabCoverageGroup =
   | 'inventory'
   | 'feedback'
   | 'pattern'
-  | 'book'
-  | 'asset';
+  | 'book';
 
 export interface UiLabCoverageEntry {
   readonly id: string;
@@ -42,6 +41,13 @@ export const UI_LAB_COVERAGE: readonly UiLabCoverageEntry[] = [
   { id: 'button-sizes', label: 'Compact/regular buttons', group: 'control' },
   { id: 'button-fitting', label: 'Responsive label fitting', group: 'control' },
   { id: 'icon-buttons', label: 'Small and icon buttons', group: 'control', interactive: true },
+  { id: 'fantasy-button-shapes', label: 'Chamfered/square/pill authored button shapes', group: 'control', interactive: true },
+  { id: 'fantasy-button-tones', label: 'Nine authored button tone variants', group: 'control', interactive: true },
+  { id: 'fantasy-button-states', label: 'Authored idle/pressed/disabled states', group: 'control', interactive: true },
+  { id: 'fantasy-button-hover-outlines', label: 'Gold/white hover outline states', group: 'control', interactive: true },
+  { id: 'fantasy-button-glyphs', label: 'Thirty-one composable authored button glyphs', group: 'control', interactive: true },
+  { id: 'fantasy-icon-animation', label: 'Semantic multi-level animated icon families', group: 'control', interactive: true },
+  { id: 'fantasy-icon-outlines', label: 'Matched authored icon outline states', group: 'control' },
   { id: 'slider', label: 'Slider', group: 'control', interactive: true },
   { id: 'toggle', label: 'Toggle', group: 'control', interactive: true },
   { id: 'scrollbar', label: 'Scrollbar', group: 'control', interactive: true },
@@ -62,6 +68,7 @@ export const UI_LAB_COVERAGE: readonly UiLabCoverageEntry[] = [
   { id: 'ribbons', label: 'Ribbon and banner titles', group: 'feedback' },
   { id: 'cursor-reticles', label: 'Cursors, crosshair, selectors', group: 'feedback' },
   { id: 'hud-readouts', label: 'HUD plates and readouts', group: 'feedback' },
+  { id: 'effect-semantics', label: 'Well Rested and Winded effect icons', group: 'feedback' },
   { id: 'dialog-pattern', label: 'NPC dialogue pattern', group: 'pattern' },
   { id: 'shop-pattern', label: 'Shop/list pattern', group: 'pattern' },
   { id: 'quest-pattern', label: 'Quest master/detail pattern', group: 'pattern' },
@@ -76,6 +83,6 @@ export const UI_LAB_COVERAGE: readonly UiLabCoverageEntry[] = [
   { id: 'book-numbering', label: 'Outer-edge page numbering', group: 'book' },
   { id: 'book-typed-links', label: 'Typed item/player/coordinate/page/URL links', group: 'book', interactive: true },
   { id: 'book-embeds', label: 'Allowlisted item/chart/custom embed hooks', group: 'book' },
-  { id: 'skin-assets', label: 'Complete authored skin asset sheet', group: 'asset' },
-  { id: 'ui-icons', label: 'Editor/game icon sheet', group: 'asset' },
+  { id: 'ui-icons', label: 'Editor/game chrome icons', group: 'control', interactive: true },
+  { id: 'fantasy-icon-catalog', label: 'Complete 39×16 authored UI icon catalog', group: 'control', interactive: true },
 ] as const;

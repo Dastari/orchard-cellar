@@ -3,6 +3,7 @@ import {
   durabilityFraction,
   itemDefinition,
   itemStacksCompatible,
+  isUniqueQuestItemKind,
   maxStackFor,
   pickupAllToCursor,
   quickCraftCursorStack,
@@ -236,6 +237,29 @@ export interface DrawUiInventorySlotOptions {
   readonly reticleOutset?: number;
 }
 
+export type UiInventorySlotTone = 'common' | 'quest' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+/** Quest ownership is a gameplay classification, not a rarity. Its authored
+ * white slot therefore overrides the item's ordinary quality treatment. */
+export function uiInventorySlotTone(itemKind: string | null | undefined): UiInventorySlotTone {
+  if (itemKind !== null && itemKind !== undefined && isUniqueQuestItemKind(itemKind)) return 'quest';
+  return itemKind === null || itemKind === undefined
+    ? 'common'
+    : itemDefinition(itemKind)?.quality ?? 'common';
+}
+
+/** Draws the authored slot state shared by every inventory surface. */
+export function drawUiInventorySlotBacking(
+  context: CanvasRenderingContext2D,
+  skin: UiSkin,
+  rect: UiRect,
+  itemKind: string | null | undefined,
+  disabled = false,
+): void {
+  const tone = uiInventorySlotTone(itemKind);
+  drawUiSkinAsset(context, skin.slot, rect, disabled ? 'disabled' : tone === 'common' ? 'idle' : tone);
+}
+
 const SELECTOR_SOURCE_SIZE = 48;
 const SELECTOR_VISIBLE_WIDTH = 27;
 const SELECTOR_VISIBLE_HEIGHT = 28;
@@ -299,7 +323,7 @@ export function drawUiInventorySlot(
   item: ItemStack | null,
   options: DrawUiInventorySlotOptions = {},
 ): void {
-  drawUiSkinAsset(context, skin.slot, rect, options.disabled === true ? 'disabled' : 'idle');
+  drawUiInventorySlotBacking(context, skin, rect, item?.itemKind, options.disabled === true);
   if (item === null && options.equipmentPlaceholder !== undefined) {
     const placeholder = uiAssetFrame(skin.equipmentSlotIcons, options.equipmentPlaceholder);
     if (placeholder !== null) {

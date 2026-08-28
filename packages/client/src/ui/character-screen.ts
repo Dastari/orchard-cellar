@@ -16,6 +16,7 @@ import { drawPixelText } from '../render/pixel-ui.js';
 import type { UiSkin } from './skin.js';
 import { drawUiSkinAsset } from './skin.js';
 import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
+import { drawUiInventorySlotBacking } from './design-system/inventory.js';
 
 export interface CharacterTrackProgress {
   readonly track: SkillTrack;
@@ -229,8 +230,8 @@ export class CharacterScreen {
     label(context, this.fonts, model.displayName.toUpperCase(), rect.x + 20, rect.y + 29, { header: true, color: '#4d2e22' });
     label(context, this.fonts, 'EQUIPMENT', rect.x + 18, rect.y + 41, { color: '#7a4b31' });
     layout.equipment.forEach((slot, index) => {
-      drawUiSkinAsset(context, this.skin.slot, slot, 'idle');
       const item = model.equipment.find((entry) => entry.slot === index);
+      drawUiInventorySlotBacking(context, this.skin, slot, item?.itemKind);
       if (item) this.drawItem(context, slot, item);
       else label(context, this.fonts, EQUIPMENT_LABELS[index]!.slice(0, 2), slot.x + slot.width / 2, slot.y + 11, { align: 'center', color: '#a77a58' });
     });

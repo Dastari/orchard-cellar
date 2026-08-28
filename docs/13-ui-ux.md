@@ -8,6 +8,14 @@ icon rules, palette ramps R1–R12 — is defined in [10-art-style-guide.md](10-
 and is not restated here; this doc says *what* appears *where* and *how it behaves*.
 UI sound names come from [12-audio-design.md](12-audio-design.md).
 
+Inventory slot backing is driven by the item's definition-level `quality`:
+common/default uses beige, uncommon green, rare blue, epic purple, and legendary
+gold. These are authored states from the Cute Fantasy UI slot sheet, not painted
+canvas tints. The explicit `item.quest_unique` gameplay tag is orthogonal to
+quality and always overrides it with the authored white slot, so quest-owned
+artifacts cannot be confused with legendary equipment. This presentation quality
+does not imply a per-instance crafting-quality roll or add item-row schema.
+
 ## 1. Philosophy
 
 1. **Diegetic where possible.** Menus live in the world: the main menu is a wooden

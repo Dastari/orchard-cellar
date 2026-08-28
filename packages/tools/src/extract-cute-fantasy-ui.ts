@@ -38,6 +38,119 @@ const r = (x: number, y: number, width: number, height: number, rotate: Rotation
 });
 const state = (region: Crop): Readonly<Record<string, readonly Crop[]>> => ({ idle: [region] });
 
+const fantasyButtonTones = [
+  ['peach', 0],
+  ['silver', 3],
+  ['green', 6],
+  ['blue', 9],
+  ['gold', 12],
+  ['red', 15],
+  ['purple', 18],
+  ['cream', 21],
+  ['white', 24],
+] as const;
+
+const fantasyButtonShapes = [
+  ['chamfered', 0, [7, 7, 7, 8]],
+  ['square', 1, [5, 7, 5, 8]],
+  ['pill', 2, [8, 7, 8, 8]],
+] as const satisfies readonly (readonly [string, number, readonly [number, number, number, number]])[];
+
+const fantasyButtonStates = [
+  ['idle', 0],
+  ['pressed', 32],
+  ['disabled', 64],
+] as const;
+
+/** Six reusable chrome assets replace hundreds of one-off colored buttons.
+ * Each state group is a nine-frame tone variant in the stable order above. */
+function fantasyButtonExtracts(): UiExtract[] {
+  return fantasyButtonShapes.flatMap(([shape, shapeRow, slice]) => {
+    const hoverGroups = Object.fromEntries([
+      ['hover_gold_idle', [r(0, (27 + shapeRow) * 16, 32, 16)]],
+      ['hover_gold_pressed', [r(32, (27 + shapeRow) * 16, 32, 16)]],
+      ['hover_gold_disabled', [r(64, (27 + shapeRow) * 16, 32, 16)]],
+      ['hover_white_idle', [r(0, (30 + shapeRow) * 16, 32, 16)]],
+      ['hover_white_pressed', [r(32, (30 + shapeRow) * 16, 32, 16)]],
+      ['hover_white_disabled', [r(64, (30 + shapeRow) * 16, 32, 16)]],
+    ] as const);
+    const hoverKinds = Object.fromEntries(Object.keys(hoverGroups).map((name) => [name, 'state' as const]));
+    const wide: UiExtract = {
+      name: `ui_cf_button_wide_${shape}`,
+      source: `${uiRoot}/UI_Buttons.png`,
+      size: [32, 16],
+      groups: {
+        ...Object.fromEntries(fantasyButtonStates.map(([visualState, x]) => [
+          visualState,
+          fantasyButtonTones.map(([, toneRow]) => r(x, (toneRow + shapeRow) * 16, 32, 16)),
+        ])),
+        ...hoverGroups,
+      },
+      frameKinds: {
+        idle: 'variant', pressed: 'variant', disabled: 'variant', ...hoverKinds,
+      },
+      // The one-pixel centre row is the only vertical band shared cleanly by
+      // every tone and state. Repeating it grows the face without duplicating
+      // bevel shading or changing either corner radius.
+      uiSizing: 'nine_slice',
+      slice,
+      tags: ['ui.button', 'ui.button.family', 'ui.button.wide', `ui.button.shape.${shape}`],
+    };
+    const smallHoverGroups = Object.fromEntries([
+      ['hover_gold_idle', [r(96, (27 + shapeRow) * 16, 16, 16)]],
+      ['hover_gold_pressed', [r(112, (27 + shapeRow) * 16, 16, 16)]],
+      ['hover_gold_disabled', [r(128, (27 + shapeRow) * 16, 16, 16)]],
+      ['hover_white_idle', [r(96, (30 + shapeRow) * 16, 16, 16)]],
+      ['hover_white_pressed', [r(112, (30 + shapeRow) * 16, 16, 16)]],
+      ['hover_white_disabled', [r(128, (30 + shapeRow) * 16, 16, 16)]],
+    ] as const);
+    const smallHoverKinds = Object.fromEntries(Object.keys(smallHoverGroups).map((name) => [name, 'state' as const]));
+    const small: UiExtract = {
+      name: `ui_cf_button_small_${shape}`,
+      source: `${uiRoot}/UI_Buttons.png`,
+      size: [16, 16],
+      groups: {
+        ...Object.fromEntries(fantasyButtonStates.map(([visualState], stateIndex) => [
+          visualState,
+          fantasyButtonTones.map(([, toneRow]) => r(96 + stateIndex * 16, (toneRow + shapeRow) * 16, 16, 16)),
+        ])),
+        ...smallHoverGroups,
+      },
+      frameKinds: {
+        idle: 'variant', pressed: 'variant', disabled: 'variant', ...smallHoverKinds,
+      },
+      uiSizing: 'fixed',
+      tags: ['ui.button', 'ui.button.family', 'ui.button.small', `ui.button.shape.${shape}`],
+    };
+    return [wide, small];
+  });
+}
+
+const fantasyButtonGlyphExtract: UiExtract = {
+  name: 'ui_cf_button_glyphs',
+  source: `${uiRoot}/UI_Button_Icons.png`,
+  size: [16, 16],
+  groups: Object.fromEntries(Array.from({ length: 14 }, (_, paletteRow) => [
+    `palette_${paletteRow}`,
+    Array.from({ length: 31 }, (_, column) => r(column * 16, paletteRow * 16, 16, 16)),
+  ])),
+  frameKinds: Object.fromEntries(Array.from({ length: 14 }, (_, row) => [`palette_${row}`, 'variant' as const])),
+  uiSizing: 'fixed',
+  tags: ['ui.button', 'ui.button.glyph', 'ui.icon.catalog'],
+};
+
+const fantasyIconCatalogExtract: UiExtract = {
+  name: 'ui_cf_icon_catalog',
+  source: `${uiRoot}/UI_Icons.png`,
+  size: [16, 16],
+  groups: {
+    catalog: Array.from({ length: 16 * 39 }, (_, index) => r((index % 39) * 16, Math.floor(index / 39) * 16, 16, 16)),
+  },
+  frameKinds: { catalog: 'variant' },
+  uiSizing: 'fixed',
+  tags: ['ui.icon', 'ui.icon.catalog', 'ui.icon.animated', 'ui.icon.outline'],
+};
+
 /**
  * Audited source coordinates from the native Cute Fantasy UI sheets.
  * Keep semantic IDs stable even if a later audit chooses a neighboring visual.
@@ -46,7 +159,10 @@ const extracts: readonly UiExtract[] = [
   {
     name: 'ui_cf_panel_wood', source: `${uiRoot}/UI_Frames.png`, size: [42, 41],
     groups: { base: [r(915, 4, 42, 41)] }, frameKinds: { base: 'state' },
-    uiSizing: 'nine_slice', slice: [10, 10, 10, 10], tags: ['ui.panel', 'ui.material.wood'],
+    // The visible posts are 10px wide, but the first/last columns and rows of
+    // the old centre patch contain one-off join shading. Keep those joins in
+    // the fixed corners so only the clean plank/face pixels repeat.
+    uiSizing: 'nine_slice', slice: [13, 12, 11, 13], tags: ['ui.panel', 'ui.material.wood'],
   },
   {
     name: 'ui_cf_panel_parchment', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
@@ -65,14 +181,26 @@ const extracts: readonly UiExtract[] = [
   },
   {
     name: 'ui_cf_slot', source: `${uiRoot}/UI_Frames.png`, size: [28, 31],
-    groups: state(r(10, 10, 28, 31)), frameKinds: { idle: 'state' }, uiRequiredStates: ['idle'],
+    groups: {
+      idle: [r(10, 10, 28, 31)],
+      quest: [r(10, 58, 28, 31)],
+      uncommon: [r(10, 106, 28, 31)],
+      rare: [r(10, 154, 28, 31)],
+      legendary: [r(10, 202, 28, 31)],
+      epic: [r(10, 298, 28, 31)],
+    },
+    frameKinds: {
+      idle: 'state', quest: 'state', uncommon: 'state', rare: 'state',
+      legendary: 'state', epic: 'state',
+    },
+    uiRequiredStates: ['idle', 'quest', 'uncommon', 'rare', 'epic', 'legendary'],
     uiSizing: 'fixed', tags: ['ui.slot', 'ui.inventory'],
   },
   {
     name: 'ui_cf_button', source: `${uiRoot}/UI_Buttons.png`, size: [32, 16],
     groups: { idle: [r(0, 0, 32, 16)], pressed: [r(32, 0, 32, 16)], disabled: [r(64, 0, 32, 16)] },
     frameKinds: { idle: 'state', pressed: 'state', disabled: 'state' }, uiRequiredStates: ['idle', 'pressed', 'disabled'],
-    uiSizing: 'nine_slice', slice: [7, 4, 7, 5], tags: ['ui.button', 'ui.button.neutral'],
+    uiSizing: 'nine_slice', slice: [7, 7, 7, 8], tags: ['ui.button', 'ui.button.neutral'],
   },
   {
     name: 'ui_cf_button_small', source: `${uiRoot}/UI_Buttons.png`, size: [16, 16],
@@ -91,7 +219,7 @@ const extracts: readonly UiExtract[] = [
     name: 'ui_cf_button_accent_green', source: `${uiRoot}/UI_Buttons.png`, size: [32, 16],
     groups: { idle: [r(0, 96, 32, 16)], pressed: [r(32, 96, 32, 16)], disabled: [r(64, 96, 32, 16)] },
     frameKinds: { idle: 'state', pressed: 'state', disabled: 'state' }, uiRequiredStates: ['idle', 'pressed', 'disabled'],
-    uiSizing: 'nine_slice', slice: [7, 4, 7, 5], tags: ['ui.button', 'ui.intent.confirm'],
+    uiSizing: 'nine_slice', slice: [7, 7, 7, 8], tags: ['ui.button', 'ui.intent.confirm'],
   },
   {
     name: 'ui_cf_button_small_accent_green', source: `${uiRoot}/UI_Buttons.png`, size: [16, 16],
@@ -103,8 +231,11 @@ const extracts: readonly UiExtract[] = [
     name: 'ui_cf_button_accent_red', source: `${uiRoot}/UI_Buttons.png`, size: [32, 16],
     groups: { idle: [r(0, 240, 32, 16)], pressed: [r(32, 240, 32, 16)], disabled: [r(64, 240, 32, 16)] },
     frameKinds: { idle: 'state', pressed: 'state', disabled: 'state' }, uiRequiredStates: ['idle', 'pressed', 'disabled'],
-    uiSizing: 'nine_slice', slice: [7, 4, 7, 5], tags: ['ui.button', 'ui.intent.deny'],
+    uiSizing: 'nine_slice', slice: [7, 7, 7, 8], tags: ['ui.button', 'ui.intent.deny'],
   },
+  ...fantasyButtonExtracts(),
+  fantasyButtonGlyphExtract,
+  fantasyIconCatalogExtract,
   {
     name: 'ui_cf_selector_neutral', source: `${uiRoot}/UI_Selectors.png`, size: [48, 48],
     groups: state(r(0, 0, 48, 48)), frameKinds: { idle: 'state' }, uiRequiredStates: ['idle'],
@@ -289,13 +420,15 @@ const extracts: readonly UiExtract[] = [
     uiSizing: 'fixed', tags: ['ui.cursor', 'ui.pointer'],
   },
   {
-    name: 'icon_cf_effect_well_rested', source: `${uiRoot}/UI_Icons.png`, size: [8, 8],
-    groups: { base: [r(24, 0, 8, 8)] }, frameKinds: { base: 'state' },
+    // Both effects modify Vigour regeneration, so use the authored lightning
+    // family's full/depleted endpoints instead of unrelated 8px sub-crops.
+    name: 'icon_cf_effect_well_rested', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: { base: [r(144, 0, 16, 16)] }, frameKinds: { base: 'state' },
     uiSizing: 'fixed', tags: ['ui.icon', 'effect.well_rested'],
   },
   {
-    name: 'icon_cf_effect_winded', source: `${uiRoot}/UI_Icons.png`, size: [8, 8],
-    groups: { base: [r(64, 0, 8, 8)] }, frameKinds: { base: 'state' },
+    name: 'icon_cf_effect_winded', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: { base: [r(176, 0, 16, 16)] }, frameKinds: { base: 'state' },
     uiSizing: 'fixed', tags: ['ui.icon', 'effect.winded'],
   },
   {

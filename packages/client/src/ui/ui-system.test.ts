@@ -34,11 +34,30 @@ describe('retained UI layout', () => {
       .toEqual({ x: 80, y: 80, width: 30, height: 20 });
   });
 
-  it('compresses nine-slice corners when the target is smaller than its insets', () => {
+  it('crops nine-slice corners instead of scaling them when the target is smaller than its insets', () => {
     const patches = nineSlicePatches({ x: 0, y: 0, width: 16, height: 16 }, { x: 4, y: 5, width: 5, height: 3 }, [4, 4, 4, 4]);
     expect(Math.max(...patches.map((patch) => patch.destination.x + patch.destination.width))).toBe(9);
     expect(Math.max(...patches.map((patch) => patch.destination.y + patch.destination.height))).toBe(8);
     expect(patches.every((patch) => patch.destination.width > 0 && patch.destination.height > 0)).toBe(true);
+    expect(patches.every((patch) => patch.source.width === patch.destination.width
+      && patch.source.height === patch.destination.height)).toBe(true);
+    expect(Math.max(...patches.map((patch) => patch.source.x + patch.source.width))).toBe(16);
+    expect(Math.max(...patches.map((patch) => patch.source.y + patch.source.height))).toBe(16);
+  });
+
+  it('repeats edge and face tiles at their authored size and source-crops the final repeat', () => {
+    const patches = nineSlicePatches(
+      { x: 100, y: 200, width: 12, height: 10 },
+      { x: 4, y: 5, width: 27, height: 19 },
+      [2, 3, 2, 2],
+    );
+    expect(patches).toHaveLength(25);
+    expect(patches.every((patch) => patch.source.width === patch.destination.width
+      && patch.source.height === patch.destination.height)).toBe(true);
+    expect(Math.max(...patches.map((patch) => patch.destination.x + patch.destination.width))).toBe(31);
+    expect(Math.max(...patches.map((patch) => patch.destination.y + patch.destination.height))).toBe(24);
+    expect(patches.some((patch) => patch.source.width === 7 && patch.destination.width === 7)).toBe(true);
+    expect(patches.some((patch) => patch.source.height === 4 && patch.destination.height === 4)).toBe(true);
   });
 
   it('snaps shared slice edges to the same physical pixel at fractional DPR', () => {

@@ -1,5 +1,6 @@
 export * from './book.js';
 export * from './frame.js';
+export * from './fantasy-controls.js';
 export * from './game-markdown.js';
 export * from './inventory.js';
 export * from './layout.js';

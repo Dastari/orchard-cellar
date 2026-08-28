@@ -13,7 +13,6 @@ import {
 } from './render/pixel-ui.js';
 import {
   BUTTON_HEIGHT,
-  CanvasButton,
   drawButton,
   drawSmallIconButton,
 } from './ui/button.js';
@@ -49,6 +48,16 @@ import {
   type UiTextLinkTarget,
   type UiItemArtwork,
   type UiRichTextLayout,
+  FANTASY_BUTTON_GLYPHS,
+  FANTASY_BUTTON_SHAPES,
+  FANTASY_BUTTON_TONES,
+  FANTASY_ICON_CATALOG_COLUMNS,
+  FANTASY_ICON_CATALOG_ROWS,
+  FANTASY_ICON_FAMILIES,
+  FantasyCanvasButton,
+  drawFantasyButton,
+  drawFantasyIcon,
+  drawFantasyIconCell,
 } from './ui/design-system/index.js';
 import { containsPoint, insetRect, type UiPoint, type UiRect } from './ui/geometry.js';
 import { drawProgressBar, GREEN_PROGRESS_PALETTE, RED_PROGRESS_PALETTE } from './ui/progress-bar.js';
@@ -56,12 +65,10 @@ import { PlayerResourceFrame } from './ui/player-resource-frame.js';
 import { Ribbon } from './ui/ribbon.js';
 import { ScrollBar } from './ui/scrollbar.js';
 import {
-  drawUiIconAsset,
   drawUiLabelPlate,
   drawUiSkinAsset,
   drawUiSkinNatural,
   loadUiSkin,
-  uiAssetFrame,
   type UiIconName,
 } from './ui/skin.js';
 import { Slider } from './ui/slider.js';
@@ -72,7 +79,6 @@ import {
   type SpeechBubbleKind,
 } from './ui/speech-bubble.js';
 import { Toggle } from './ui/toggle.js';
-import { UI_LAB_COVERAGE } from './ui/ui-lab-catalog.js';
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
 const shellElement = document.querySelector<HTMLElement>('#game-shell');
@@ -131,16 +137,16 @@ liveStatus.setAttribute('aria-live', 'polite');
 liveStatus.setAttribute('aria-label', 'UI lab interaction status');
 shell.append(liveStatus);
 
-const WORLD_BOUNDS: UiRect = { x: 0, y: 0, width: 2520, height: 2580 };
+const WORLD_BOUNDS: UiRect = { x: 0, y: 0, width: 2520, height: 3070 };
 const SECTIONS = {
   foundations: { x: 60, y: 100, width: 720, height: 430 },
   frames: { x: 820, y: 100, width: 880, height: 650 },
-  controls: { x: 1740, y: 100, width: 720, height: 650 },
+  controls: { x: 1740, y: 100, width: 720, height: 520 },
   inventory: { x: 60, y: 570, width: 720, height: 650 },
   feedback: { x: 820, y: 790, width: 880, height: 570 },
   patterns: { x: 1740, y: 790, width: 720, height: 570 },
   books: { x: 60, y: 1400, width: 2400, height: 650 },
-  assets: { x: 60, y: 2090, width: 2400, height: 430 },
+  fantasyControls: { x: 60, y: 2090, width: 2400, height: 920 },
 } as const;
 
 let cssWidth = 1;
@@ -332,20 +338,31 @@ const gameBookDocument = parseGameMarkdown(GAME_BOOK_MARKDOWN);
 const gameBookFrame: UiRect = { x: 198, y: 1482, width: 840, height: 499 };
 const gameBookLayout: GameBookLayout = layoutGameBook(fonts, gameBookDocument, gameBookFrame, { textScale: 2 });
 
-const liveButtons = [
-  new CanvasButton({
-    id: 'lab-button-neutral', skin, fonts, label: 'INSPECT',
-    onPress: () => notify('NEUTRAL BUTTON PRESSED'),
-  }),
-  new CanvasButton({
-    id: 'lab-button-success', skin, fonts, label: 'CONFIRM', tone: 'success',
-    onPress: () => notify('SUCCESS BUTTON PRESSED'),
-  }),
-  new CanvasButton({
-    id: 'lab-button-danger', skin, fonts, label: 'DELETE', tone: 'danger',
-    onPress: () => notify('DANGER BUTTON PRESSED'),
-  }),
-];
+const fantasyToneButtons = FANTASY_BUTTON_TONES.flatMap((tone) =>
+  FANTASY_BUTTON_SHAPES.map((shape) => new FantasyCanvasButton({
+    id: `lab-fantasy-${tone}-${shape}`,
+    skin,
+    fonts,
+    tone,
+    shape,
+    size: 'wide',
+    label: shape.toUpperCase(),
+    glyph: shape === 'pill' ? 'cross' : undefined,
+    onPress: () => notify(`${tone.toUpperCase()} ${shape.toUpperCase()} BUTTON PRESSED`),
+  })),
+);
+
+const fantasyGlyphButtons = FANTASY_BUTTON_GLYPHS.map((glyph, index) => new FantasyCanvasButton({
+  id: `lab-fantasy-glyph-${glyph}`,
+  skin,
+  fonts,
+  tone: FANTASY_BUTTON_TONES[index % FANTASY_BUTTON_TONES.length],
+  shape: FANTASY_BUTTON_SHAPES[index % FANTASY_BUTTON_SHAPES.length],
+  size: 'small',
+  glyph,
+  hoverOutline: index % 2 === 0 ? 'gold' : 'white',
+  onPress: () => notify(`AUTHORED GLYPH BUTTON ${glyph.toUpperCase()} PRESSED`),
+}));
 
 interface InventorySlotRegion {
   readonly ref: UiInventorySlotRef;
@@ -371,6 +388,15 @@ let activeInteraction: ActiveInteraction | null = null;
 
 function addHit(rect: UiRect, onDown: WorldHit['onDown']): void {
   worldHits.push({ rect, onDown });
+}
+
+function worldRectVisible(rect: UiRect): boolean {
+  const halfWidth = cssWidth / Math.max(zoom, 0.001) / 2;
+  const halfHeight = cssHeight / Math.max(zoom, 0.001) / 2;
+  return rect.x + rect.width >= camera.x - halfWidth
+    && rect.x <= camera.x + halfWidth
+    && rect.y + rect.height >= camera.y - halfHeight
+    && rect.y <= camera.y + halfHeight;
 }
 
 function activateBookTarget(
@@ -743,11 +769,20 @@ function drawFrames(): void {
     width: responsiveContent.width,
     height: Math.max(28, responsiveContent.height - headerOffset - resizeHintHeight),
   };
-  const responseItems = [
-    { minSize: { width: 76, height: BUTTON_HEIGHT.regular }, grow: 1 },
-    { minSize: { width: 106, height: BUTTON_HEIGHT.regular }, grow: 1 },
-    { minSize: { width: 132, height: BUTTON_HEIGHT.regular }, grow: 1 },
-  ];
+  const responseItems = variant === 'compact'
+    ? [
+      { minSize: { width: 32, height: BUTTON_HEIGHT.regular }, grow: 1 },
+      { minSize: { width: 32, height: BUTTON_HEIGHT.regular }, grow: 1 },
+      { minSize: { width: 32, height: BUTTON_HEIGHT.regular }, grow: 1 },
+    ]
+    : [
+      // `basis` is the preferred label width; the small visual minimum is the
+      // canvas equivalent of CSS `min-width: 0`, allowing all three controls
+      // to shrink and ellipsize before any one can leave the frame content.
+      { minSize: { width: 32, height: BUTTON_HEIGHT.regular }, basis: 76, grow: 1 },
+      { minSize: { width: 32, height: BUTTON_HEIGHT.regular }, basis: 106, grow: 1 },
+      { minSize: { width: 32, height: BUTTON_HEIGHT.regular }, basis: 132, grow: 1 },
+    ];
   const responseRects = layoutUiFlex(responseBounds, responseItems, {
     direction: variant === 'compact' ? 'column' : 'row',
     gap: 6,
@@ -781,45 +816,11 @@ function drawControls(): void {
   const content = drawSection(
     SECTIONS.controls,
     'CONTROLS & INDICATORS',
-    'BUTTON MATRIX / TABS / ICONS / SLIDER / TOGGLE / SCROLL / PROGRESS / CURRENCY',
+    'TABS / EDITOR ICONS / SLIDER / TOGGLE / SCROLL / PROGRESS / CURRENCY / RESOURCES',
   );
-  const tones = ['neutral', 'success', 'danger'] as const;
-  const states = ['idle', 'pressed', 'disabled'] as const;
-  tones.forEach((tone, column) => {
-    label(tone.toUpperCase(), content.x + 82 + column * 170, content.y, { align: 'center', color: '#6b4428' });
-    states.forEach((state, row) => drawButton(context, skin, fonts, {
-      x: content.x + column * 170,
-      y: content.y + 18 + row * 30,
-      width: 164,
-      height: BUTTON_HEIGHT.regular,
-    }, { label: state.toUpperCase(), tone, state }));
-  });
-  label('COMPACT', content.x + 530, content.y, { color: '#6b4428' });
-  drawButton(context, skin, fonts, {
-    x: content.x + 530, y: content.y + 18, width: 116, height: BUTTON_HEIGHT.compact,
-  }, { label: 'SMALL', size: 'compact' });
-  drawButton(context, skin, fonts, {
-    x: content.x + 530, y: content.y + 44, width: 116, height: BUTTON_HEIGHT.regular,
-  }, { label: 'A LABEL THAT FITS' });
-  drawButton(context, skin, fonts, {
-    x: content.x + 530, y: content.y + 74, width: 68, height: BUTTON_HEIGHT.regular,
-  }, { label: 'TRUNCATION EXAMPLE' });
-
-  liveButtons.forEach((button, index) => {
-    button.setBounds({
-      x: content.x + index * 150,
-      y: content.y + 120,
-      width: 142,
-      height: BUTTON_HEIGHT.regular,
-    });
-    button.draw(context);
-    addHit(button.node.bounds, (point, event) => {
-      button.node.onPointer?.({ kind: 'pointer_down', point, button: event.button }, button.node);
-    });
-  });
-  label('LIVE PRESS FEEDBACK', content.x + 462, content.y + 126, { color: '#8b5a3c' });
-
-  const tabY = content.y + 162;
+  // Shape/tone/state/size matrices live once in the complete authored family
+  // below. This section now concentrates on distinct input and indicator APIs.
+  const tabY = content.y + 4;
   ['PACK', 'SKILLS', 'QUESTS'].forEach((tab, index) => {
     const rect = { x: content.x + index * 126, y: tabY, width: 120, height: BUTTON_HEIGHT.regular };
     drawButton(context, skin, fonts, rect, { label: tab, tone: selectedTab === index ? 'success' : 'neutral' });
@@ -828,11 +829,9 @@ function drawControls(): void {
   iconButton('save', { x: content.x + 408, y: tabY - 5, width: 32, height: 32 }, 'save');
   iconButton('undo', { x: content.x + 448, y: tabY - 5, width: 32, height: 32 }, 'undo');
   iconButton('redo', { x: content.x + 488, y: tabY - 5, width: 32, height: 32 }, 'redo');
-  drawUiSkinAsset(context, skin.buttonSmallConfirm, { x: content.x + 540, y: tabY - 5, width: 32, height: 32 }, 'idle');
-  label('✓', content.x + 556, tabY + 5, { align: 'center', color: '#fff2d0' });
-  drawUiSkinAsset(context, skin.buttonSmall, { x: content.x + 580, y: tabY - 5, width: 32, height: 32 }, 'disabled');
+  label('EDITOR CHROME', content.x + 536, tabY + 7, { color: '#8b5a3c' });
 
-  sliderRect = { x: content.x, y: content.y + 218, width: 280, height: 16 };
+  sliderRect = { x: content.x, y: content.y + 60, width: 280, height: 16 };
   slider.setBounds(sliderRect);
   slider.draw(context);
   label(`SLIDER ${(slider.value * 100).toFixed(0)}%`, sliderRect.x + sliderRect.width + 12, sliderRect.y + 3, { color: '#6b4428' });
@@ -842,16 +841,16 @@ function drawControls(): void {
     }
   });
 
-  const toggleOnRect = { x: content.x, y: content.y + 252, width: 72, height: BUTTON_HEIGHT.regular };
-  const toggleOffRect = { x: content.x + 82, y: content.y + 252, width: 72, height: BUTTON_HEIGHT.regular };
-  const toggleDisabledRect = { x: content.x + 164, y: content.y + 252, width: 88, height: BUTTON_HEIGHT.regular };
+  const toggleOnRect = { x: content.x, y: content.y + 94, width: 72, height: BUTTON_HEIGHT.regular };
+  const toggleOffRect = { x: content.x + 82, y: content.y + 94, width: 72, height: BUTTON_HEIGHT.regular };
+  const toggleDisabledRect = { x: content.x + 164, y: content.y + 94, width: 88, height: BUTTON_HEIGHT.regular };
   toggleOn.setBounds(toggleOnRect); toggleOn.draw(context);
   toggleOff.setBounds(toggleOffRect); toggleOff.draw(context);
   drawButton(context, skin, fonts, toggleDisabledRect, { label: 'DISABLED', state: 'disabled' });
   addHit(toggleOnRect, (point, event) => toggleOn.node.onPointer?.({ kind: 'pointer_down', point, button: event.button }, toggleOn.node));
   addHit(toggleOffRect, (point, event) => toggleOff.node.onPointer?.({ kind: 'pointer_down', point, button: event.button }, toggleOff.node));
 
-  scrollRect = { x: content.x + 310, y: content.y + 218, width: 18, height: 88 };
+  scrollRect = { x: content.x + 310, y: content.y + 60, width: 18, height: 88 };
   scrollBar.setBounds(scrollRect);
   scrollBar.draw(context);
   addHit(scrollRect, (point) => {
@@ -860,7 +859,7 @@ function drawControls(): void {
   label(`SCROLL ${scrollBar.position}/${scrollBar.maximum}`, scrollRect.x + 28, scrollRect.y + 38, { color: '#6b4428' });
 
   const meterX = content.x;
-  const meterY = content.y + 326;
+  const meterY = content.y + 168;
   [0, 0.25, 0.62, 1].forEach((value, index) => drawProgressBar(context, {
     x: meterX, y: meterY + index * 22, width: 230, height: 12,
   }, value, index === 1 ? RED_PROGRESS_PALETTE : GREEN_PROGRESS_PALETTE));
@@ -874,7 +873,7 @@ function drawControls(): void {
   currency.draw(context, 12_345n, content.x + 390, meterY + 42, { size: 'medium' });
   currency.draw(context, 12_345n, content.x + 390, meterY + 72, { size: 'large', includeZero: false });
 
-  const authoredY = content.y + 432;
+  const authoredY = content.y + 280;
   label('AUTHORED RESOURCE FILLS', content.x, authoredY, { color: '#6b4428' });
   const resourceX = content.x;
   const resourceY = authoredY + 18;
@@ -1069,6 +1068,16 @@ function drawFeedback(): void {
   const resourceX = content.x + 290;
   label('PLAYER RESOURCES', resourceX, hudY, { color: '#6b4428' });
   fixtureResourceFrame.draw(context, 'ui-lab-hud-player', resourceX, hudY + 18, false, 4);
+  const effectY = hudY + 132;
+  label('VIGOUR EFFECT SEMANTICS', resourceX, effectY, { color: '#6b4428' });
+  drawUiSkinAsset(context, skin.effectWellRested, {
+    x: resourceX, y: effectY + 16, width: 32, height: 32,
+  });
+  label('WELL RESTED  +25% REGEN', resourceX + 42, effectY + 27, { color: '#6b4428' });
+  drawUiSkinAsset(context, skin.effectWinded, {
+    x: resourceX + 236, y: effectY + 16, width: 32, height: 32,
+  });
+  label('WINDED  -50% REGEN', resourceX + 278, effectY + 27, { color: '#6b4428' });
   drawProgressBar(context, { x: content.x, y: hudY + 76, width: 260, height: 11 }, 0.34, RED_PROGRESS_PALETTE);
   label('COMPACT FALLBACK METER', content.x, hudY + 94, { color: '#8b5a3c' });
 
@@ -1278,102 +1287,163 @@ function drawBooks(): void {
   '[item:324234] shorthand\n\n[Apple](item:apple)\n\n[Mira](player:farmer-mira)\n\n[Place](coord:orchard,42,18)\n\n[Chapter](page:anchor)\n\n<!-- page: 5 --> exact placement\n\n<!-- bookmark: ... --> colored tabs\n\n<!-- embed: item | apple | Apple -->\n\nTyped chart/custom renderer hooks');
 }
 
-interface AssetSpecimen {
-  readonly name: string;
-  readonly asset: LoadedAsset;
-  readonly state?: string;
+function drawRetainedFantasyButton(button: FantasyCanvasButton, rect: UiRect): void {
+  button.setBounds(rect);
+  button.setHovered(containsPoint(rect, pointerWorld));
+  button.draw(context);
+  addHit(rect, (_point, event) => {
+    if (event.button === 0) button.press();
+  });
 }
 
-function drawAssetPreview(specimen: AssetSpecimen, rect: UiRect): void {
-  drawUiFrame(context, skin, rect, 'thin');
-  const frame = uiAssetFrame(specimen.asset, specimen.state ?? 'base');
-  if (frame !== null) {
-    const maximumWidth = rect.width - 18;
-    const maximumHeight = rect.height - 30;
-    const scale = Math.min(3, maximumWidth / frame.width, maximumHeight / frame.height);
-    const width = Math.max(1, Math.round(frame.width * scale));
-    const height = Math.max(1, Math.round(frame.height * scale));
-    context.drawImage(specimen.asset.image, frame.x, frame.y, frame.width, frame.height,
-      Math.round(rect.x + (rect.width - width) / 2), rect.y + 7, width, height);
-  }
-  const fitted = specimen.name.length > 22 ? `${specimen.name.slice(0, 19)}...` : specimen.name;
-  label(fitted, rect.x + rect.width / 2, rect.y + rect.height - 13, { align: 'center', color: '#6b4428' });
-}
-
-function drawAssets(): void {
+function drawFantasyControlFamilies(): void {
   const content = drawSection(
-    SECTIONS.assets,
-    'AUTHORED SKIN & ICON COVERAGE',
-    `${UI_LAB_COVERAGE.length} REGISTERED SPECIMENS — EVERY REUSABLE FAMILY HAS A VISIBLE CONTRACT`,
+    SECTIONS.fantasyControls,
+    'COMPLETE CUTE FANTASY BUTTON & ICON FAMILIES',
+    '9 TONES / 3 SHAPES / 3 STATES / AUTHORED HOVER OUTLINES / 31 GLYPHS / ALL 624 ICON CELLS',
   );
-  const assets: AssetSpecimen[] = [
-    { name: 'panel wood', asset: skin.panelWood },
-    { name: 'panel parchment', asset: skin.panelParchment },
-    { name: 'frame thin', asset: skin.frameThin },
-    { name: 'book open', asset: skin.bookOpen },
-    { name: 'button idle', asset: skin.button, state: 'idle' },
-    { name: 'button pressed', asset: skin.button, state: 'pressed' },
-    { name: 'button disabled', asset: skin.button, state: 'disabled' },
-    { name: 'button confirm', asset: skin.buttonConfirm, state: 'idle' },
-    { name: 'button deny', asset: skin.buttonDeny, state: 'idle' },
-    { name: 'button small', asset: skin.buttonSmall, state: 'idle' },
-    { name: 'small confirm', asset: skin.buttonSmallConfirm, state: 'idle' },
-    { name: 'slot', asset: skin.slot, state: 'idle' },
-    { name: 'selector neutral', asset: skin.selectorNeutral, state: 'idle' },
-    { name: 'selector confirm', asset: skin.selectorConfirm, state: 'idle' },
-    { name: 'selector deny', asset: skin.selectorDeny, state: 'idle' },
-    { name: 'slider track', asset: skin.sliderTrack },
-    { name: 'slider handle', asset: skin.sliderHandle, state: 'idle' },
-    { name: 'bar frame', asset: skin.barFrame },
-    { name: 'bar red', asset: skin.barRed },
-    { name: 'bar green', asset: skin.barGreen },
-    { name: 'bar blue', asset: skin.barBlue },
-    { name: 'bar gold', asset: skin.barGold },
-    { name: 'ribbon', asset: skin.ribbon },
-    { name: 'banner', asset: skin.banner },
-    { name: 'bubble', asset: skin.bubble },
-    { name: 'speech beige', asset: skin.speechBubbleBeige },
-    { name: 'speech white', asset: skin.speechBubbleWhite },
-    { name: 'speech green', asset: skin.speechBubbleGreen },
-    { name: 'speech blue', asset: skin.speechBubbleBlue },
-    { name: 'speech yellow', asset: skin.speechBubbleYellow },
-    { name: 'speech red', asset: skin.speechBubbleRed },
-    { name: 'speech purple', asset: skin.speechBubblePurple },
-    { name: 'coin gold', asset: skin.coinGold },
-    { name: 'coin silver', asset: skin.coinSilver },
-    { name: 'coin bronze', asset: skin.coinBronze },
-    { name: 'chat icon', asset: skin.chatIcon },
-    { name: 'crafting icon', asset: skin.craftingIcon },
-    { name: 'backpack icon', asset: skin.backpackIcon },
-    { name: 'players icon', asset: skin.onlinePlayersIcon },
-    { name: 'book tab', asset: skin.bookTab },
-    { name: 'cursor', asset: skin.cursor },
-    { name: 'cursor click', asset: skin.cursorClick },
-    { name: 'crosshair', asset: skin.crosshair },
-    { name: 'well rested', asset: skin.effectWellRested },
-    { name: 'winded', asset: skin.effectWinded },
-    { name: 'orchard tea', asset: skin.effectOrchardTea },
-  ];
-  const columns = 12;
-  const cardWidth = 184;
-  const cardHeight = 78;
-  assets.forEach((asset, index) => drawAssetPreview(asset, {
-    x: content.x + index % columns * (cardWidth + 8),
-    y: content.y + Math.floor(index / columns) * (cardHeight + 8),
-    width: cardWidth,
-    height: cardHeight,
-  }));
+  if (!worldRectVisible(SECTIONS.fantasyControls)) return;
 
-  const iconNames = Object.keys(skin.icons) as UiIconName[];
-  const iconY = content.y + 4 * (cardHeight + 8);
-  iconNames.forEach((name, index) => {
-    const x = content.x + index * 78;
-    drawUiIconAsset(context, skin.icons[name], { x: x + 22, y: iconY, width: 24, height: 24 });
-    label(name.toUpperCase(), x + 34, iconY + 30, { align: 'center', color: '#8b5a3c' });
+  const leftX = content.x;
+  const rightX = content.x + 1_040;
+  const top = content.y;
+
+  label('REUSABLE BUTTON CHROME', leftX, top, { header: true, color: '#4d2e22' });
+  label('TONE', leftX, top + 22, { color: '#8b5a3c' });
+  FANTASY_BUTTON_SHAPES.forEach((shape, index) => label(
+    shape.toUpperCase(),
+    leftX + 92 + index * 230 + 105,
+    top + 22,
+    { align: 'center', color: '#8b5a3c' },
+  ));
+
+  FANTASY_BUTTON_TONES.forEach((tone, toneIndex) => {
+    const y = top + 40 + toneIndex * 31;
+    label(tone.toUpperCase(), leftX, y + 7, { color: '#6b4428' });
+    FANTASY_BUTTON_SHAPES.forEach((_shape, shapeIndex) => {
+      const button = fantasyToneButtons[toneIndex * FANTASY_BUTTON_SHAPES.length + shapeIndex]!;
+      drawRetainedFantasyButton(button, {
+        x: leftX + 92 + shapeIndex * 230,
+        y,
+        width: 210,
+        height: 22,
+      });
+    });
   });
-  label('LUCIDE EDITOR/GAME CHROME — KEPT AS CRISP SVG SOURCES', content.x + 900, iconY + 8, {
-    color: '#6b4428',
+
+  const stateY = top + 334;
+  label('SOURCE STATES', leftX, stateY, { color: '#8b5a3c' });
+  (['idle', 'pressed', 'disabled'] as const).forEach((state, index) => drawFantasyButton(
+    context,
+    skin,
+    fonts,
+    { x: leftX + index * 205, y: stateY + 18, width: 194, height: 22 },
+    { tone: 'green', shape: 'pill', state, label: state.toUpperCase(), glyph: state === 'idle' ? 'play' : undefined },
+  ));
+  label('AUTHORED HOVER', leftX + 626, stateY, { color: '#8b5a3c' });
+  drawFantasyButton(context, skin, fonts, {
+    x: leftX + 626, y: stateY + 18, width: 176, height: 22,
+  }, { tone: 'red', shape: 'chamfered', hovered: true, hoverOutline: 'gold', label: 'GOLD OUTLINE' });
+  drawFantasyButton(context, skin, fonts, {
+    x: leftX + 812, y: stateY + 18, width: 176, height: 22,
+  }, { tone: 'purple', shape: 'square', hovered: true, hoverOutline: 'white', label: 'WHITE OUTLINE' });
+
+  const resizeY = stateY + 58;
+  label('REPEATED CENTRES — FIXED CAPS, VARIABLE FACE', leftX, resizeY, { color: '#8b5a3c' });
+  [
+    { width: 96, height: 16, label: '96×16' },
+    { width: 172, height: 22, label: '172×22' },
+    { width: 286, height: 30, label: '286×30 ELLIPSIS CONTRACT' },
+  ].forEach((size, index) => drawFantasyButton(context, skin, fonts, {
+    x: leftX + [0, 110, 296][index]!,
+    y: resizeY + 18,
+    width: size.width,
+    height: size.height,
+  }, { tone: 'gold', shape: FANTASY_BUTTON_SHAPES[index]!, label: size.label }));
+
+  const glyphY = resizeY + 70;
+  label('31 COMPOSABLE GLYPHS — CROSS IS A NORMAL BUTTON VARIANT', leftX, glyphY, {
+    color: '#8b5a3c',
   });
+  fantasyGlyphButtons.forEach((button, index) => {
+    const column = index % 16;
+    const row = Math.floor(index / 16);
+    drawRetainedFantasyButton(button, {
+      x: leftX + column * 39,
+      y: glyphY + 18 + row * 39,
+      width: 32,
+      height: 32,
+    });
+  });
+  label('HOVER FOR GOLD/WHITE OUTLINES — PRESS FOR THE AUTHORED DOWN STATE',
+    leftX, glyphY + 102, { color: '#6b4428' });
+
+  label('SEMANTIC ICON COMPONENTS', rightX, top, { header: true, color: '#4d2e22' });
+  label('MULTI-FRAME LEVELS + MATCHED OUTLINE STATE', rightX, top + 22, { color: '#8b5a3c' });
+  const now = performance.now();
+  FANTASY_ICON_FAMILIES.forEach((definition, index) => {
+    const column = index % 8;
+    const row = Math.floor(index / 8);
+    const cell = { x: rightX + column * 78, y: top + 42 + row * 64, width: 68, height: 56 };
+    const iconRect = { x: cell.x + 18, y: cell.y, width: 32, height: 32 };
+    const hovered = containsPoint(cell, pointerWorld);
+    drawFantasyIcon(context, skin, iconRect, definition, { now, hovered });
+    drawPixelTextInRect(context, fonts, definition.label.toUpperCase(), {
+      x: cell.x,
+      y: cell.y + 39,
+      width: cell.width,
+      height: 9,
+    }, { align: 'center', color: '#6b4428', overflow: 'ellipsis' });
+    addHit(cell, () => notify(
+      `${definition.label.toUpperCase()} ICON — ${definition.frames.length} LEVEL${definition.frames.length === 1 ? '' : 'S'}${definition.outline === undefined ? '' : ' + OUTLINE'}`,
+    ));
+  });
+
+  const catalogY = top + 184;
+  label('COMPLETE UI_ICONS.PNG CELL CATALOG', rightX, catalogY, { color: '#8b5a3c' });
+  label(`${FANTASY_ICON_CATALOG_COLUMNS} COLUMNS × ${FANTASY_ICON_CATALOG_ROWS} ROWS`,
+    rightX + 1_000, catalogY, { align: 'right', color: '#8b5a3c' });
+  const cellSize = 24;
+  const catalogRect: UiRect = {
+    x: rightX,
+    y: catalogY + 18,
+    width: FANTASY_ICON_CATALOG_COLUMNS * cellSize,
+    height: FANTASY_ICON_CATALOG_ROWS * cellSize,
+  };
+  context.fillStyle = '#ead0aa66';
+  context.fillRect(catalogRect.x, catalogRect.y, catalogRect.width, catalogRect.height);
+  for (let row = 0; row < FANTASY_ICON_CATALOG_ROWS; row += 1) {
+    for (let column = 0; column < FANTASY_ICON_CATALOG_COLUMNS; column += 1) {
+      const cell = {
+        x: catalogRect.x + column * cellSize,
+        y: catalogRect.y + row * cellSize,
+        width: cellSize,
+        height: cellSize,
+      };
+      const hovered = containsPoint(cell, pointerWorld);
+      if (hovered) {
+        context.fillStyle = '#63c74d66';
+        context.fillRect(cell.x, cell.y, cell.width, cell.height);
+      }
+      context.strokeStyle = '#9d684326';
+      context.strokeRect(cell.x + 0.5, cell.y + 0.5, cell.width - 1, cell.height - 1);
+      drawFantasyIconCell(context, skin.iconCatalog, {
+        x: cell.x + 4,
+        y: cell.y + 4,
+        width: 16,
+        height: 16,
+      }, row * FANTASY_ICON_CATALOG_COLUMNS + column);
+    }
+  }
+  addHit(catalogRect, (point) => {
+    const column = Math.max(0, Math.min(FANTASY_ICON_CATALOG_COLUMNS - 1,
+      Math.floor((point.x - catalogRect.x) / cellSize)));
+    const row = Math.max(0, Math.min(FANTASY_ICON_CATALOG_ROWS - 1,
+      Math.floor((point.y - catalogRect.y) / cellSize)));
+    notify(`ICON CATALOG CELL R${row} C${column} — FRAME ${row * FANTASY_ICON_CATALOG_COLUMNS + column}`);
+  });
+  label('THE RAW CATALOG STAYS AVAILABLE WHILE SEMANTIC DEFINITIONS GROUP ANIMATION LEVELS AND OUTLINES.',
+    rightX, catalogRect.y + catalogRect.height + 14, { color: '#6b4428' });
 }
 
 function drawToolbar(): void {
@@ -1439,7 +1509,7 @@ function render(): void {
   drawFeedback();
   drawPatterns();
   drawBooks();
-  drawAssets();
+  drawFantasyControlFamilies();
   drawHeldCursorStack();
   context.restore();
   drawToolbar();
@@ -1635,5 +1705,7 @@ setLoadingScreenStage({
 dismissLoadingScreen();
 requestUiLabRender();
 window.setInterval(() => {
-  if (document.activeElement === nativeInput) requestUiLabRender();
-}, 530);
+  if (document.activeElement === nativeInput || worldRectVisible(SECTIONS.fantasyControls)) {
+    requestUiLabRender();
+  }
+}, 160);

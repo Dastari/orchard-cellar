@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ContainerSnapshot } from '@orchard/sim';
-import { UiInventoryInteractionModel, uiInventorySelectorRect } from './inventory.js';
+import {
+  UiInventoryInteractionModel,
+  uiInventorySelectorRect,
+  uiInventorySlotTone,
+} from './inventory.js';
 
 function fixtures(): Readonly<Record<string, ContainerSnapshot>> {
   return {
@@ -22,6 +26,16 @@ function fixtures(): Readonly<Record<string, ContainerSnapshot>> {
 }
 
 describe('design-system inventory interaction model', () => {
+  it('maps quality to authored slot tones and lets quest ownership override it', () => {
+    expect(uiInventorySlotTone('wood')).toBe('common');
+    expect(uiInventorySlotTone('axe')).toBe('uncommon');
+    expect(uiInventorySlotTone('sword')).toBe('rare');
+    expect(uiInventorySlotTone('ring')).toBe('epic');
+    expect(uiInventorySlotTone('homestead_deed')).toBe('legendary');
+    expect(uiInventorySlotTone('marlow_book')).toBe('quest');
+    expect(uiInventorySlotTone(null)).toBe('common');
+  });
+
   it('places the visible selector corners outside a standard inventory slot', () => {
     expect(uiInventorySelectorRect({ x: 40, y: 50, width: 28, height: 31 }))
       .toEqual({ x: 22, y: 34, width: 63, height: 63 });

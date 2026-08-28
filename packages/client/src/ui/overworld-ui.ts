@@ -35,6 +35,7 @@ import { widget, type WidgetNode } from './widget.js';
 import { CharacterScreen, progressionWindowRect, type CharacterScreenModel } from './character-screen.js';
 import { SkillTreeUi, type SkillTreeModel } from './skill-tree-ui.js';
 import { QuestLog, type QuestLogEntry } from './quest-log.js';
+import { drawUiInventorySlotBacking } from './design-system/inventory.js';
 import { SKILL_TRACKS, type Direction, type PlayerAppearanceSelection, type SkillTrack } from '@orchard/sim';
 
 export type OverworldWindow = 'inventory' | 'pack' | 'crafting' | 'chest' | 'barrel' | 'furnace' | 'cooking' | 'character' | 'skills' | 'quests' | 'system' | 'settings' | 'developer' | 'help';
@@ -338,14 +339,21 @@ export interface OverworldUiLayoutOptions {
   readonly touchControls?: boolean;
 }
 
-export function nameplateRect(centerX: number, y: number, text: string): UiRect {
-  const width = measurePixelText(fitLabel(text, 20)) + NAMEPLATE_HORIZONTAL_PADDING * 2;
+export function nameplateRect(centerX: number, y: number, text: string, leadingIcon = false): UiRect {
+  const width = measurePixelText(fitLabel(text, 20))
+    + NAMEPLATE_HORIZONTAL_PADDING * 2
+    + (leadingIcon ? 9 : 0);
   return {
     x: Math.round(centerX - width / 2),
     y: Math.round(y),
     width,
     height: NAMEPLATE_HEIGHT,
   };
+}
+
+export function offlineNameplateFrameAt(elapsedMs: number, frameCount: number, fps = 6): number {
+  if (!Number.isFinite(elapsedMs) || frameCount <= 0 || fps <= 0) return 0;
+  return Math.floor(Math.max(0, elapsedMs) * fps / 1_000) % Math.max(1, Math.floor(frameCount));
 }
 
 export function isNameplateToggle(code: string, repeat: boolean): boolean {
@@ -1616,15 +1624,39 @@ export class OverworldUi {
     this.drawNotification(context);
   }
 
-  drawNameplates(context: CanvasRenderingContext2D, labels: readonly { readonly x: number; readonly y: number; readonly text: string }[]): void {
+  drawNameplates(context: CanvasRenderingContext2D, labels: readonly {
+    readonly x: number;
+    readonly y: number;
+    readonly text: string;
+    readonly offline?: boolean;
+  }[]): void {
     for (const label of labels) {
       const text = fitLabel(label.text, 20);
-      const rect = nameplateRect(label.x, label.y, text);
+      const offline = label.offline === true;
+      const rect = nameplateRect(label.x, label.y, text, offline);
       context.save();
-      context.fillStyle = 'rgba(0, 0, 0, 0.58)';
+      context.fillStyle = offline ? 'rgba(29, 34, 36, 0.76)' : 'rgba(0, 0, 0, 0.58)';
       context.fillRect(rect.x, rect.y, rect.width, rect.height);
       context.restore();
-      drawLabel(context, this.fonts, text, label.x, rect.y + 2, { align: 'center', color: '#fff1cf' });
+      if (!offline) {
+        drawLabel(context, this.fonts, text, label.x, rect.y + 2, { align: 'center', color: '#fff1cf' });
+        continue;
+      }
+      const frames = this.skin.onlinePlayersIcon.metadata.animations['offline'] ?? [];
+      const frame = uiAssetFrame(
+        this.skin.onlinePlayersIcon,
+        'offline',
+        offlineNameplateFrameAt(performance.now(), frames.length),
+      );
+      const contentX = rect.x + NAMEPLATE_HORIZONTAL_PADDING;
+      if (frame !== null) context.drawImage(
+        this.skin.onlinePlayersIcon.image,
+        frame.x, frame.y, frame.width, frame.height,
+        contentX, rect.y + 1, 8, 8,
+      );
+      drawLabel(context, this.fonts, text, contentX + 9, rect.y + 2, {
+        align: 'left', color: '#d8d9d2',
+      });
     }
   }
 
@@ -1896,8 +1928,8 @@ export class OverworldUi {
     const itemBySlot = new Map(this.model.inventory.map((item) => [item.slot, item]));
     for (let slot = 0; slot < HOTBAR_SLOT_COUNT; slot += 1) {
       const rect = this.layout.slots[slot]!;
-      drawUiSkinAsset(context, this.skin.slot, rect, 'idle');
       const item = itemBySlot.get(slot);
+      drawUiInventorySlotBacking(context, this.skin, rect, item?.itemKind);
       const asset = item ? this.itemArt[item.itemKind as keyof OverworldUiItemArt] : undefined;
       if (asset && item) this.drawItemArtwork(context, rect, item.itemKind, asset);
       if (slot === this.model.selectedSlot || slot === this.hoveredSlot) {
@@ -2156,7 +2188,7 @@ export class OverworldUi {
     this.drawStorageSortButton(context, this.backpackSortNode, 'backpack');
     this.equipmentItemSlots.forEach((slot, index) => {
       const equipmentSlot = slot.bounds;
-      drawUiSkinAsset(context, this.skin.slot, equipmentSlot, 'idle');
+      drawUiInventorySlotBacking(context, this.skin, equipmentSlot, slot.item?.itemKind);
       if (slot.item === null) drawUiSkinNatural(
           context,
           this.skin.equipmentSlotIcons,
@@ -2168,7 +2200,7 @@ export class OverworldUi {
     });
     for (const slot of this.backpackItemSlots) {
       if (!slot.visible) continue;
-      drawUiSkinAsset(context, this.skin.slot, slot.bounds, slot.enabled ? 'idle' : 'disabled');
+      drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind, !slot.enabled);
       if (slot.enabled && slot.item !== null) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     this.inventoryScrollBar.draw(context);
@@ -2177,8 +2209,8 @@ export class OverworldUi {
     drawLabel(context, this.fonts, 'HOTBAR', rect.x + 21, rect.y + rect.height - 59, { color: '#6b4428' });
     this.inventoryHotbarSlots.forEach((slot, index) => {
       const slotRect = slot.bounds;
-      drawUiSkinAsset(context, this.skin.slot, slotRect, 'idle');
       const item = slot.item;
+      drawUiInventorySlotBacking(context, this.skin, slotRect, item?.itemKind);
       if (index === this.model.selectedSlot || index === this.hoveredSlot) {
         const selector = index === this.model.selectedSlot ? this.skin.selectorConfirm : this.skin.selectorNeutral;
         drawUiSkinAsset(context, selector, hotbarReticleRect(slotRect), 'idle');
@@ -2248,7 +2280,7 @@ export class OverworldUi {
       : this.heldCursorStack();
     if (cursor == null) return;
     const destination = { x: this.pointer.x - 14, y: this.pointer.y - 15, width: 28, height: 31 };
-    drawUiSkinAsset(context, this.skin.slot, destination, 'idle');
+    drawUiInventorySlotBacking(context, this.skin, destination, cursor.itemKind);
     this.drawInventoryItem(context, destination, cursor.itemKind, cursor.quantity, cursor.durability, cursor.lit);
   }
 
@@ -2311,13 +2343,19 @@ export class OverworldUi {
   private drawCrafting(context: CanvasRenderingContext2D, rect: UiRect): void {
     drawLabel(context, this.fonts, 'CRAFTING GRID', rect.x + 20, rect.y + 35, { color: '#6b4428' });
     for (const slot of this.craftingItemSlots) {
-      drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
+      drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind);
       if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     drawLabel(context, this.fonts, '>', rect.x + 128, rect.y + 88, { align: 'center', color: '#6b4428', font: 'header' });
     const stationLocked = this.currentRecipeStationLocked();
-    drawUiSkinAsset(context, this.skin.slot, this.layout.craftingResult, this.currentRecipeId() === null || stationLocked ? 'disabled' : 'idle');
     const output = craftingRecipeOutput(this.currentRecipeId() ?? '');
+    drawUiInventorySlotBacking(
+      context,
+      this.skin,
+      this.layout.craftingResult,
+      output?.itemKind,
+      this.currentRecipeId() === null || stationLocked,
+    );
     if (output) this.drawInventoryItem(context, this.layout.craftingResult, output.itemKind, output.quantity);
     if (stationLocked) {
       context.fillStyle = 'rgba(47, 34, 39, 0.72)';
@@ -2341,7 +2379,7 @@ export class OverworldUi {
     drawLabel(context, this.fonts, this.model.hasBackpack ? 'BACKPACK' : 'INVENTORY', inventoryLabelX, rect.y + 35, { color: '#6b4428' });
     this.drawStorageSortButton(context, this.backpackSortNode, 'backpack');
     for (const slot of this.backpackItemSlots) {
-      drawUiSkinAsset(context, this.skin.slot, slot.bounds, slot.enabled ? 'idle' : 'disabled');
+      drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind, !slot.enabled);
       if (slot.enabled && slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     this.drawWindowHotbar(context, rect);
@@ -2353,14 +2391,14 @@ export class OverworldUi {
     drawLabel(context, this.fonts, chestPane.label, chestPane.labelPosition.x, chestPane.labelPosition.y, { color: '#6b4428' });
     this.drawStorageSortButton(context, this.chestSortNode, 'chest');
     for (const slot of this.chestItemSlots) {
-      drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
+      drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind);
       if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     drawLabel(context, this.fonts, this.model.hasBackpack ? 'BACKPACK' : backpackPane.label,
       backpackPane.labelPosition.x, backpackPane.labelPosition.y, { color: '#6b4428' });
     this.drawStorageSortButton(context, this.backpackSortNode, 'backpack');
     for (const slot of this.backpackItemSlots) {
-      drawUiSkinAsset(context, this.skin.slot, slot.bounds, slot.enabled ? 'idle' : 'disabled');
+      drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind, !slot.enabled);
       if (slot.enabled && slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     this.drawWindowHotbar(context, rect, this.layout.chestStorageFrame);
@@ -2374,7 +2412,7 @@ export class OverworldUi {
     context.fillStyle = '#9d6843'; context.fillRect(divider.x, divider.y, divider.width, divider.height);
     drawLabel(context, this.fonts, label, labelPosition.x, labelPosition.y, { color: '#6b4428' });
     this.inventoryHotbarSlots.forEach((slot, index) => {
-      drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
+      drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind);
       if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
       drawLabel(context, this.fonts, hotbarSlotLabel(index) ?? '', slot.bounds.x + 3, slot.bounds.y + 3, { color: '#51351f' });
     });
@@ -2627,7 +2665,7 @@ export class OverworldUi {
     drawLabel(context, this.fonts, '8-SLOT STORAGE', firstSlot.x, rect.y + 35, { color: '#6b4428' });
     this.drawStorageSortButton(context, this.barrelSortNode, 'placeable');
     for (const slot of this.barrelItemSlots) {
-      drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
+      drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind);
       if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     this.drawWindowHotbar(context, rect);
@@ -2639,7 +2677,7 @@ export class OverworldUi {
     drawLabel(context, this.fonts, 'FUEL', fuel!.bounds.x, fuel!.bounds.y - 12, { color: '#6b4428' });
     drawLabel(context, this.fonts, 'BAR', output!.bounds.x, output!.bounds.y - 12, { color: '#6b4428' });
     for (const slot of this.furnaceItemSlots) {
-      drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
+      drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind);
       if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     const progress = Math.max(0, Math.min(1, this.model.furnaceProgress ?? 0));
@@ -2664,7 +2702,7 @@ export class OverworldUi {
     drawLabel(context, this.fonts, 'BACKPACK', this.layout.backpackSlots[0]!.x, rect.y + 35, { color: '#6b4428' });
     for (const slot of this.backpackItemSlots) {
       if (!slot.visible) continue;
-      drawUiSkinAsset(context, this.skin.slot, slot.bounds, 'idle');
+      drawUiInventorySlotBacking(context, this.skin, slot.bounds, slot.item?.itemKind);
       if (slot.item) this.drawInventoryItem(context, slot.bounds, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit);
     }
     this.drawWindowHotbar(context, rect);

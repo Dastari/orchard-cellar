@@ -5,6 +5,7 @@ import type { UiSkin } from './skin.js';
 import {
   NpcInteractionUi,
   dialogueChoiceIsAvailable,
+  dialogueChoiceRewardTooltip,
   npcInteractionLayout,
 } from './npc-interaction-ui.js';
 
@@ -65,6 +66,10 @@ describe('NPC interaction layout', () => {
     expect(dialogueChoiceIsAvailable(offer, [])).toBe(true);
     expect(dialogueChoiceIsAvailable(offer, [{ questId: 'marlow_important_book', state: 'active' }])).toBe(false);
     expect(dialogueChoiceIsAvailable(completion, [{ questId: 'marlow_important_book', state: 'complete' }])).toBe(true);
+    expect(dialogueChoiceRewardTooltip(completion)).toBe(
+      'REWARDS: 1 GOLD / 100 EXPLORER XP / MARLOW\'S BOOK ×1',
+    );
+    expect(dialogueChoiceRewardTooltip(offer)).toBeNull();
 
     const chooseDialogueOption = vi.fn();
     const ui = new NpcInteractionUi({} as UiSkin, {} as PixelUi, {} as never, {
@@ -80,6 +85,21 @@ describe('NPC interaction layout', () => {
     expect(ui.handleKeyDown('ArrowDown', false)).toBe(true);
     expect(ui.handleKeyDown('Digit2', false)).toBe(true);
     expect(chooseDialogueOption).toHaveBeenCalledWith('offer');
+  });
+
+  it('shows turn-in rewards on hover without writing them into the choice button', () => {
+    const ui = new NpcInteractionUi({} as UiSkin, {} as PixelUi, {} as never, {
+      chooseDialogueOption: vi.fn(), closeDialogue: vi.fn(),
+      buy: vi.fn().mockResolvedValue(undefined), sell: vi.fn().mockResolvedValue(undefined),
+    });
+    ui.update({
+      width: 480, height: 270, npcId: 2n, dialogueId: 'tool_merchant', nodeId: 'greeting',
+      balanceBronze: 0n, inventory: [],
+      quests: [{ questId: 'marlow_important_book', state: 'complete' }],
+    });
+    const layout = npcInteractionLayout(480, 270, false);
+    ui.pointerMove({ x: layout.dialogueList.x + 4, y: layout.dialogueList.y + 4 });
+    expect(ui.tooltipText).toBe('REWARDS: 1 GOLD / 100 EXPLORER XP / MARLOW\'S BOOK ×1');
   });
 
   it('starts every row at zero and submits multiple item kinds as one cart', async () => {
@@ -179,6 +199,29 @@ describe('NPC interaction layout', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(ui.shopState.lines).toEqual([]);
+  });
+
+  it('keeps unique quest artifacts out of the merchant sell list', () => {
+    const ui = new NpcInteractionUi({} as UiSkin, {} as PixelUi, {} as never, {
+      chooseDialogueOption: vi.fn(), closeDialogue: vi.fn(),
+      buy: vi.fn().mockResolvedValue(undefined), sell: vi.fn().mockResolvedValue(undefined),
+    });
+    ui.update({
+      width: 480, height: 270, npcId: 2n, dialogueId: 'tool_merchant', nodeId: 'shop',
+      balanceBronze: 0n,
+      inventory: [
+        { slot: 0, itemKind: 'marlow_book', quantity: 1 },
+        { slot: 1, itemKind: 'wood', quantity: 1 },
+      ],
+    });
+    const layout = npcInteractionLayout(480, 270, true);
+    ui.pointerDown({ x: layout.sellTab.x + 2, y: layout.sellTab.y + 2 }, 0);
+    ui.setFilterText('book');
+    ui.pointerDown({ x: layout.list.x + layout.list.width - 20, y: layout.list.y + 10 }, 0);
+    expect(ui.shopState.lines).toEqual([]);
+    ui.setFilterText('wood');
+    ui.pointerDown({ x: layout.list.x + layout.list.width - 20, y: layout.list.y + 10 }, 0);
+    expect(ui.shopState.lines).toEqual([{ itemKind: 'wood', quantity: 1 }]);
   });
 
   it('includes the final dynamically-offset backpack slot in the sell inventory', () => {

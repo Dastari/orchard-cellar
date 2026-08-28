@@ -8,15 +8,25 @@ approved.
 
 - A frame owns its chrome. Children only receive `uiFrameContentRect` or named
   rectangles from `layoutUiFrameSlots`.
-- Insets are derived from authored sprite slices: wood `10`, parchment `8`,
-  thin `6/6/6/7`, and wood + parchment `18`. Default component padding is
-  added after the chrome inset. The heavy wood frame adds `8px` breathing room
-  because its posts visually intrude farther than its 9-slice boundary.
-- `book` starts from the authored `224×133` frame and exposes two proportional
-  page rectangles. Scaled books preserve the original page faces and centre
-  gutter; text content then adds asymmetric spine padding (more right padding
-  on the left page and more left padding on the right page).
-- Every closable frame uses the same compact danger `X` action for recognition
+- Content insets follow the authored visual chrome: wood posts `10`, parchment
+  `8`, thin `6/6/6/7`, and wood + parchment `18`. Rendering boundaries may be
+  slightly wider where one-off join shading must stay attached to a corner;
+  the wood repeat slice is `13/12/11/13`. Default component padding is added
+  after the chrome inset. The heavy wood frame adds `8px` breathing room
+  because its posts visually intrude farther than its content boundary.
+- Nine-slice artwork is tiled, never stretched. Corners retain their authored
+  size, edge centres repeat along one axis, and the face repeats along both.
+  An incomplete final repeat is cropped from its source tile rather than
+  squeezed to fill the remainder. Targets below the chrome minimum crop the
+  outer corner art; component minimum sizes normally prevent that case.
+- `book` starts from the authored `224×133` frame and exposes two page
+  rectangles. A resizable spread is split into independently tiled left and
+  right leaves. Each leaf fixes a `24px` ornamental corner region, so flourishes
+  appear once at the four corners of each page while only undecorated edges and
+  page face repeat. This also preserves the original centre gutter. Text content
+  then adds asymmetric spine padding (more right padding on the left page and
+  more left padding on the right page).
+- Every closable frame uses the same authored red `cross` action for recognition
   and accessibility. `uiFrameControlLayout` changes only its chrome mount for
   wood, parchment, composite, thin, book, or unframed surfaces. A close control
   never consumes writable content.
@@ -38,6 +48,30 @@ approved.
   tested side by side.
 - Controls retain their authored minimum height. Labels truncate inside the
   control rather than overflowing into neighbours.
+
+## Authored control families
+
+- `drawFantasyButton` is the reusable boundary for the complete Cute Fantasy
+  button sheet. Geometry is `chamfered`, `square`, or `pill`; the nine authored
+  color ramps are variants of those shapes rather than separate components.
+- Wide buttons keep fixed left/right and top/bottom chrome. Their clean
+  one-pixel centre band repeats on either axis, so taller controls gain face
+  area without stretching or changing their authored corner radius.
+  `idle`, `pressed`, and `disabled` select authored source states. Gold and
+  white hover outlines are transparent overlays and therefore work with every
+  tone without duplicating button logic.
+- The 31 cells from `UI_Button_Icons.png` are composable glyphs. Their palette
+  follows the selected button tone, stays at most `16px`, and is laid out inside
+  the button face before label fitting. The authored `cross` is the standard
+  close glyph available to future frame migrations.
+- `FantasyCanvasButton` owns hover, a timed pressed state, disabled behavior,
+  clipping, and press dispatch. Screens should instantiate that retained
+  wrapper instead of reimplementing pointer-state timing.
+- `ui_cf_icon_catalog` preserves every one of the `39×16` cells in
+  `UI_Icons.png`. Semantic `FANTASY_ICON_FAMILIES` group related level/animation
+  frames with their matching authored outline while the raw catalog remains
+  available during the audit. Icon animation changes the selected source cell;
+  it never scales or interpolates between bitmap frames.
 
 ## Text rules
 
@@ -122,6 +156,9 @@ geometry and accepts an allowlisted application embed renderer.
   the active canvas transform to physical device pixels. Adjacent patches share
   the exact snapped edge, preventing hairlines and detached corner fragments at
   fractional DPR or canvas zoom.
+- Repeated frame tiles stay at one logical destination pixel per authored source
+  pixel before the canvas-level zoom is applied. Resizing changes the number of
+  repeats; it never changes an individual tile's logical dimensions.
 - Bitmap art still uses nearest-neighbour sampling. A fit-all view may discard
   source pixels when zoomed below one physical pixel per authored pixel; use
   the lab's `1:1` control for final pixel inspection.
