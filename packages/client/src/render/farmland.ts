@@ -50,9 +50,9 @@ function drawSoilFrame(
   return true;
 }
 
-/** The grass blend sheet contains an empty-grass frame rather than a dedicated
- * isolated-soil frame. Join the authored north and south boundary halves for a
- * lone tile; all connected topologies can use their matching full frame. */
+/** The grass blend sheet's topology zero is an empty-grass cell, not an
+ * isolated inset. The farmland/path fill already owns its complete isolated
+ * block, so drawing that overlay would hide it behind a small cross. */
 function drawGrassBlend(
   context: CanvasRenderingContext2D,
   asset: LoadedAsset,
@@ -61,35 +61,8 @@ function drawGrassBlend(
   destinationY: number,
   scale: number,
 ): number {
-  if (frameIndex !== 0) {
-    return Number(drawSoilFrame(context, asset, frameIndex, destinationX, destinationY, scale));
-  }
-  const northEdge = selectAtlasFrame(asset.metadata, 'base', 5);
-  const southEdge = selectAtlasFrame(asset.metadata, 'base', 1);
-  if (northEdge === null || southEdge === null) return 0;
-  context.drawImage(
-    asset.image,
-    northEdge.x,
-    northEdge.y,
-    northEdge.width,
-    8,
-    destinationX,
-    destinationY,
-    16 * scale,
-    8 * scale,
-  );
-  context.drawImage(
-    asset.image,
-    southEdge.x,
-    southEdge.y + 8,
-    southEdge.width,
-    8,
-    destinationX,
-    destinationY + 8 * scale,
-    16 * scale,
-    8 * scale,
-  );
-  return 2;
+  if (frameIndex === 0) return 0;
+  return Number(drawSoilFrame(context, asset, frameIndex, destinationX, destinationY, scale));
 }
 
 /** Draws any authored ground mask with the same blob47 topology and inset
@@ -143,6 +116,8 @@ export function drawFarmSoil(
 ): number {
   const rows = [...tiles];
   const occupied = new Set(rows.map((tile) => farmSoilKey(tile.tileX, tile.tileY)));
+  const watered = new Set(rows.filter((tile) => tile.watered)
+    .map((tile) => farmSoilKey(tile.tileX, tile.tileY)));
   const minimumX = cameraX / 16 - 1;
   const minimumY = cameraY / 16 - 1;
   const maximumX = (cameraX + viewportWidth / scale) / 16 + 1;
@@ -157,7 +132,8 @@ export function drawFarmSoil(
     if (!drawSoilFrame(context, dry, frameIndex, destinationX, destinationY, scale)) continue;
     draws += 1;
     if (tile.watered) {
-      draws += Number(drawSoilFrame(context, wet, frameIndex, destinationX, destinationY, scale));
+      const wetFrameIndex = farmSoilFrameIndex(tile, watered);
+      draws += Number(drawSoilFrame(context, wet, wetFrameIndex, destinationX, destinationY, scale));
     }
     draws += drawGrassBlend(context, grassBlend, frameIndex, destinationX, destinationY, scale);
   }

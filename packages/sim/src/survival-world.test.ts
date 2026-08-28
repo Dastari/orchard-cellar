@@ -731,11 +731,11 @@ describe('deterministic survival island', () => {
     expect(looseStones.length).toBeLessThan(175);
     expect(branches.length).toBeGreaterThan(0);
     expect(looseStones.every((resource) => isGatherableResourceKind(resource.kind))).toBe(true);
-    expect(survivalGatherableDrop('loose_stone')).toEqual({ itemKind: 'stone', quantity: 1 });
+    expect(survivalGatherableDrop('loose_stone')).toEqual({ itemKind: 'pebble', quantity: 1 });
     expect(survivalGatherableDrop('fallen_branch')).toEqual({ itemKind: 'wood', quantity: 1 });
   });
 
-  it('gives large decorative rocks a 100-stone reserve paid every two or three hits', () => {
+  it('gives large decorative rocks a 100-pebble reserve paid every two or three hits', () => {
     const rocks = generateSurvivalResources().filter((resource) => isBreakableRockKind(resource.kind));
     expect(rocks.length).toBeGreaterThan(0);
     expect(survivalResourceInitialHealth('rock_large')).toBe(LARGE_ROCK_INITIAL_HEALTH);
@@ -747,9 +747,9 @@ describe('deterministic survival island', () => {
     expect(hitNumbers.slice(0, 6)).toEqual([2, 5, 7, 10, 12, 15]);
   });
 
-  it('pays out matching raw ore every third hit across a large finite reserve', () => {
+  it('pays out matching metal pieces or raw gems every third hit across a large finite reserve', () => {
     expect(survivalResourceDropAfterHit('ore_iron', 95)).toBeNull();
-    expect(survivalResourceDropAfterHit('ore_iron', 93)).toEqual({ itemKind: 'iron_ore', quantity: 1 });
+    expect(survivalResourceDropAfterHit('ore_iron', 93)).toEqual({ itemKind: 'iron_piece', quantity: 1 });
     expect(survivalResourceDropAfterHit('ore_amethyst', 0)).toEqual({ itemKind: 'amethyst_ore', quantity: 1 });
     expect(survivalResourceDropAfterHit('tree_oak', 0)).toEqual({ itemKind: 'wood', quantity: 3 });
     expect(survivalResourceDropAfterHit('tree_oak', 0, 2)).toEqual({ itemKind: 'wood', quantity: 1 });

@@ -1514,7 +1514,10 @@ export function isBreakableRockKind(kind: string): kind is SurvivalRockKind {
 }
 
 export function rawOreItemKindForResource(kind: SurvivalOreKind): string {
-  return `${kind.slice('ore_'.length)}_ore`;
+  const material = kind.slice('ore_'.length);
+  return material === 'iron' || material === 'copper' || material === 'gold'
+    ? `${material}_piece`
+    : `${material}_ore`;
 }
 
 export function survivalResourceInitialHealth(kind: string, treeGrowthStage = TREE_GROWTH_STAGE_BIG): number {
@@ -1552,7 +1555,7 @@ export function survivalResourceDropAfterHit(
   if (isBreakableRockKind(kind)) {
     const hitsTaken = LARGE_ROCK_INITIAL_HEALTH - remainingHealth;
     return hitsTaken > 0 && (hitsTaken % 5 === 2 || hitsTaken % 5 === 0)
-      ? { itemKind: 'stone', quantity: 1 }
+      ? { itemKind: 'pebble', quantity: 1 }
       : null;
   }
   if (!isRegrowingPlantKind(kind) || remainingHealth !== 0) return null;
@@ -1580,7 +1583,7 @@ export function survivalResourceDropsAfterHit(
 }
 
 export function survivalGatherableDrop(kind: string): SurvivalResourceDrop | null {
-  if (kind === 'loose_stone') return { itemKind: 'stone', quantity: 1 };
+  if (kind === 'loose_stone') return { itemKind: 'pebble', quantity: 1 };
   if (kind === 'fallen_branch') return { itemKind: 'wood', quantity: 1 };
   return null;
 }

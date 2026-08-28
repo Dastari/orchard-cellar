@@ -72,15 +72,19 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(reducerSource('useFarmTool')).toContain("itemKind: 'fiber'");
   });
 
-  it('keeps barrel open, close, and item moves authority-owned', () => {
+  it('keeps barrel and furnace open, close, and item moves authority-owned', () => {
     const interact = reducerSource('interactPlaceable');
     expect(interact).toContain("placeable.kind !== 'barrel'");
+    expect(interact).toContain("placeable.kind !== 'furnace'");
+    expect(source).toContain('settleFurnacePlaceable(ctx, placeable)');
+    expect(source).toContain('furnaceMutationIsValid(');
     expect(interact).toContain('active_placeable.insert');
-    expect(reducerSource('closePlaceable')).toContain('active_placeable.identity.delete');
+    expect(reducerSource('closePlaceable')).toContain('clearActivePlaceable(ctx, ctx.sender)');
+    expect(source).toContain('ctx.db.active_placeable.identity.delete(identity)');
     const move = reducerSource('movePlaceableItem');
     expect(move).toContain("id === 'placeable'");
-    expect(move).toContain('moveItemStacks(containers, request)');
-    expect(move).toContain('world_placeable_slot.id.update');
+    expect(move).toContain('moveItemStacks(menu.containers, request)');
+    expect(move).toContain('writeOpenMenuInventory(ctx, menu, moved.containers)');
   });
 
   it('salvages chest recipe inputs rather than duplicating the intact crafted object', () => {
@@ -97,9 +101,10 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(interact).not.toContain('facingTile(');
   });
 
-  it('keeps placed anvils out of inventory and repairs atomically for copper', () => {
+  it('keeps placed anvils and furnaces out of inventory and repairs anvils atomically for copper', () => {
     const hands = reducerSource('useHands');
-    expect(hands).toContain("targetPlaceable.kind === 'anvil'");
+    expect(hands).toContain("targetPlaceable.kind === 'anvil' || targetPlaceable.kind === 'furnace'");
+    expect(hands).toContain("targetPlaceable.kind !== 'furnace'");
     expect(hands).toContain('carriedPlaceableFor(ctx, ctx.sender)');
     expect(hands).toContain('carriedBy: ctx.sender');
     expect(hands).toContain('carriedBy: undefined');

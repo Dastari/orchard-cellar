@@ -3,7 +3,10 @@ import { BACKPACK_SLOT_COUNT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CHE
 import type { PixelUi } from '../render/pixel-ui.js';
 import {
   ONLINE_PLAYER_LIST_BOTTOM_PADDING,
+  ONLINE_PLAYER_IDLE_THRESHOLD_MINUTES,
   OverworldUi,
+  onlinePlayerIdleMinutes,
+  onlinePlayerListLabel,
   onlinePlayerListCloseButtonRect,
   onlinePlayerListFrameHeight,
   overworldUiLayout,
@@ -64,6 +67,20 @@ function callbacks(): OverworldUiCallbacks {
 }
 
 describe('overworld retained UI layout', () => {
+  it('marks players idle only after ten complete minutes and formats the roster suffix', () => {
+    const nowMillis = 1_000_000;
+    const nowMicros = BigInt(nowMillis) * 1_000n;
+    const thresholdMicros = BigInt(ONLINE_PLAYER_IDLE_THRESHOLD_MINUTES) * 60_000_000n;
+    expect(onlinePlayerIdleMinutes(nowMicros - thresholdMicros, nowMillis)).toBeNull();
+    expect(onlinePlayerIdleMinutes(nowMicros - thresholdMicros - 1n, nowMillis)).toBe(10);
+    expect(onlinePlayerIdleMinutes(nowMicros - 12n * 60_000_000n, nowMillis)).toBe(12);
+    expect(onlinePlayerIdleMinutes(0n, nowMillis)).toBeNull();
+    expect(onlinePlayerListLabel({ displayName: 'Toby', self: false, idleMinutes: 12 }))
+      .toBe('Toby  (idle 12 min)');
+    expect(onlinePlayerListLabel({ displayName: 'Toby', self: true, idleMinutes: 12 }))
+      .toBe('Toby  (YOU)  (idle 12 min)');
+  });
+
   it('uses Z as a non-repeating full-interface toggle', () => {
     expect(isInterfaceVisibilityToggle('KeyZ', false)).toBe(true);
     expect(isInterfaceVisibilityToggle('KeyZ', true)).toBe(false);
@@ -87,7 +104,37 @@ describe('overworld retained UI layout', () => {
 
   it('uses the authored closed chest animation for chest slot icons', () => {
     expect(itemIconAnimation('chest')).toBe('chest');
+    expect(itemIconAnimation('barrel')).toBe('closed');
+    expect(itemIconAnimation('furnace')).toBe('off');
     expect(itemIconAnimation('wood')).toBe('base');
+  });
+
+  it('lays out a three-role furnace with a progress bar and inventory access', () => {
+    const layout = overworldUiLayout(480, 270);
+    expect(layout.furnaceSlots).toHaveLength(3);
+    expect(layout.furnaceProgress.width).toBeGreaterThan(40);
+    expect(layout.furnaceSlots[0]!.y).toBeLessThan(layout.furnaceSlots[1]!.y);
+    expect(layout.furnaceSlots[2]!.x).toBeGreaterThan(layout.furnaceSlots[0]!.x);
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.openWindow = 'furnace';
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], openPlaceableInventory: [
+        { slot: 0, itemKind: 'iron_ore', quantity: 1 },
+        { slot: 1, itemKind: 'wood', quantity: 1 },
+      ], furnaceProgress: 0.5, hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const internal = ui as unknown as {
+      furnaceItemSlots: readonly { readonly item: { readonly itemKind: string } | null; readonly visible: boolean }[];
+      backpackItemSlots: readonly { readonly visible: boolean }[];
+    };
+    expect(internal.furnaceItemSlots.map((slot) => slot.item?.itemKind ?? null))
+      .toEqual(['iron_ore', 'wood', null]);
+    expect(internal.furnaceItemSlots.every((slot) => slot.visible)).toBe(true);
+    expect(internal.backpackItemSlots.some((slot) => slot.visible)).toBe(true);
   });
 
   it('anchors the zone ribbon, currency, hotbar, and window at 480x270', () => {

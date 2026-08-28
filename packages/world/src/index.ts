@@ -73,6 +73,8 @@ import {
   cropDefinition,
   cropDefinitionForSeed,
   cropGrowthAt,
+  emptySoilDecayAtTick,
+  emptySoilDecayDue,
   itemDefinition,
   inventoryContainerSlotCount,
   inventoryContainerSlotOffset,
@@ -89,6 +91,12 @@ import {
   isDurableToolKind,
   isSwitchableLightKind,
   maxStackFor,
+  FURNACE_INPUT_SLOT,
+  FURNACE_FUEL_SLOT,
+  FURNACE_OUTPUT_SLOT,
+  SMELTING_RECIPES,
+  settleFurnace,
+  furnaceMutationIsValid,
   modifiersForEffects,
   nearestTileTarget,
   normalizeToolDurability,
@@ -391,6 +399,8 @@ const player_public = table(
     identity: t.identity().primaryKey(),
     displayName: t.string(),
     online: t.bool(),
+    /** Display-only activity time reported on the authenticated heartbeat. */
+    lastActiveAtMicros: t.u64().default(0n),
   },
 );
 
@@ -1556,6 +1566,8 @@ const world_scalability_migration = table(
     /** One-time repair for the two white horses snapped back to their generated
      * homes by the pre-fix dismount habitat recovery. */
     horseDismountRecoveryVersion: t.u8().default(0),
+    /** One-time scheduling pass for empty overworld soil that predates decay. */
+    soilDecayTimerVersion: t.u8().default(0),
   },
 );
 
@@ -1617,6 +1629,18 @@ const movement_timer = table(
   {
     scheduledId: t.u64().primaryKey().autoInc(),
     scheduledAt: t.scheduleAt(),
+  },
+);
+
+/** One-shot, private wake-ups avoid scanning every farm on the movement tick.
+ * Old rows are intentionally left in place and rejected by expectedDecayAtTick. */
+const soil_decay_timer = table(
+  { name: 'soil_decay_timer' },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    soilId: t.string(),
+    expectedDecayAtTick: t.u64(),
   },
 );
 
@@ -1702,6 +1726,7 @@ const spacetimedb = schema({
   crop_patch,
   farm_activity,
   movement_timer,
+  soil_decay_timer,
 });
 
 export default spacetimedb;
@@ -1716,6 +1741,7 @@ type WorldChestSlotRow = NonNullable<ReturnType<WorldReducerContext['db']['world
 type WorldPlaceableRow = NonNullable<ReturnType<WorldReducerContext['db']['world_placeable']['id']['find']>>;
 type WorldItemRow = NonNullable<ReturnType<WorldReducerContext['db']['world_item']['id']['find']>>;
 type WorldCombatTargetRow = NonNullable<ReturnType<WorldReducerContext['db']['world_combat_target']['id']['find']>>;
+type WorldSoilRow = NonNullable<ReturnType<WorldReducerContext['db']['world_soil']['id']['find']>>;
 
 function combatTargetPositionAtTile(tileX: number, tileY: number): { readonly x: number; readonly y: number } {
   return {
@@ -2077,7 +2103,7 @@ function teleportPlayer(
     });
   }
   ctx.db.active_chest.identity.delete(position.identity);
-  ctx.db.active_placeable.identity.delete(position.identity);
+  clearActivePlaceable(ctx, position.identity);
   ctx.db.active_dialogue.identity.delete(position.identity);
   refreshPlayerQuestLocations(ctx, nextPosition, authorityTick);
 }
@@ -2231,6 +2257,45 @@ function homesteadForSpace(ctx: WorldReducerContext, spaceId: number) {
 
 function worldSoilId(spaceId: number, tileX: number, tileY: number): string {
   return spaceId === TOPSIDE_SPACE_ID ? `${tileX}:${tileY}` : `${spaceId}:${tileX}:${tileY}`;
+}
+
+const SOIL_DECAY_TIMER_MIGRATION_VERSION = 1;
+
+function scheduleEmptyTopsideSoilDecay(
+  ctx: WorldReducerContext,
+  soil: WorldSoilRow,
+  currentTick: bigint,
+): void {
+  if (soil.spaceId !== TOPSIDE_SPACE_ID) return;
+  const expectedDecayAtTick = emptySoilDecayAtTick(soil.tilledAtTick, soil.wateredAtTick);
+  const remainingTicks = expectedDecayAtTick > currentTick ? expectedDecayAtTick - currentTick : 1n;
+  ctx.db.soil_decay_timer.insert({
+    scheduledId: 0n,
+    scheduledAt: ScheduleAt.time(
+      ctx.timestamp.microsSinceUnixEpoch + remainingTicks * AUTHORITY_TICK_MICROS,
+    ),
+    soilId: soil.id,
+    expectedDecayAtTick,
+  });
+}
+
+/** Additive publishes do not rerun init. This bounded migration is the only
+ * full soil scan; normal farming schedules exact one-shot wake-ups instead. */
+function ensureSoilDecayTimers(ctx: WorldReducerContext, currentTick: bigint): void {
+  const migration = ctx.db.world_scalability_migration.id.find(0);
+  if ((migration?.soilDecayTimerVersion ?? 0) >= SOIL_DECAY_TIMER_MIGRATION_VERSION) return;
+  for (const soil of ctx.db.world_soil.iter()) {
+    if (soil.spaceId !== TOPSIDE_SPACE_ID || ctx.db.world_crop.id.find(soil.id) !== null) continue;
+    scheduleEmptyTopsideSoilDecay(ctx, soil, currentTick);
+  }
+  const nextMigration = {
+    id: 0,
+    wildlifeProfileChunkVersion: migration?.wildlifeProfileChunkVersion ?? 1,
+    horseDismountRecoveryVersion: migration?.horseDismountRecoveryVersion ?? 0,
+    soilDecayTimerVersion: SOIL_DECAY_TIMER_MIGRATION_VERSION,
+  };
+  if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
+  else ctx.db.world_scalability_migration.id.update(nextMigration);
 }
 
 function mutableFarmTileAuthorized(
@@ -2409,6 +2474,7 @@ function recoverLegacyDismountHorses(ctx: WorldReducerContext, authorityTick: bi
     id: 0,
     wildlifeProfileChunkVersion: migration?.wildlifeProfileChunkVersion ?? 1,
     horseDismountRecoveryVersion: 1,
+    soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -3178,6 +3244,7 @@ interface OpenMenuInventory {
     readonly rowsBySlot: ReadonlyMap<number, ReturnType<typeof ensureChestStorageRows>[number]>;
   };
   readonly placeable?: {
+    readonly placeable: WorldPlaceableRow;
     readonly container: ContainerSnapshot;
     readonly rowsBySlot: ReadonlyMap<number, ReturnType<typeof loadOpenPlaceableRows>[number]>;
   };
@@ -3185,6 +3252,46 @@ interface OpenMenuInventory {
 
 function loadOpenPlaceableRows(ctx: WorldReducerContext, placeableId: bigint) {
   return [...ctx.db.world_placeable_slot.by_placeable.filter(placeableId)];
+}
+
+function settleFurnacePlaceable(ctx: WorldReducerContext, placeable: WorldPlaceableRow): WorldPlaceableRow {
+  if (placeable.kind !== 'furnace') return placeable;
+  const clock = ctx.db.world_clock.id.find(0);
+  if (clock === null) return placeable;
+  const rows = loadOpenPlaceableRows(ctx, placeable.id);
+  const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
+  const beforeSlots = Array.from({ length: 3 }, (_, slot) => {
+    const row = rowsBySlot.get(slot);
+    return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
+  });
+  const settled = settleFurnace({ slots: beforeSlots, smeltStartTick: placeable.smeltStartTick }, clock.authorityTick);
+  for (let slot = 0; slot < settled.slots.length; slot += 1) {
+    const row = rowsBySlot.get(slot);
+    const next = settled.slots[slot] ?? null;
+    if (row === undefined || sameStoredStack(beforeSlots[slot] ?? null, next)) continue;
+    ctx.db.world_placeable_slot.id.update({
+      ...row,
+      itemKind: next?.itemKind ?? 'empty',
+      quantity: next?.quantity ?? 0,
+      durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+      lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+    });
+  }
+  if (settled.smeltStartTick !== placeable.smeltStartTick) {
+    ctx.db.world_placeable.id.update({ ...placeable, smeltStartTick: settled.smeltStartTick });
+  }
+  return ctx.db.world_placeable.id.find(placeable.id) ?? placeable;
+}
+
+function clearActivePlaceable(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): void {
+  const active = ctx.db.active_placeable.identity.find(identity);
+  if (active === null) return;
+  ctx.db.active_placeable.identity.delete(identity);
+  const placeable = ctx.db.world_placeable.id.find(active.placeableId);
+  if (placeable?.kind === 'barrel'
+    && [...ctx.db.active_placeable.by_placeable.filter(placeable.id)].length === 0) {
+    ctx.db.world_placeable.id.update({ ...placeable, open: false });
+  }
 }
 
 /** Resolves the complete menu visible to this sender. Private active-menu rows
@@ -3215,7 +3322,8 @@ function loadOpenMenuInventory(ctx: WorldReducerContext): OpenMenuInventory {
   let placeableResult: OpenMenuInventory['placeable'];
   const activePlaceable = ctx.db.active_placeable.identity.find(ctx.sender);
   if (activePlaceable !== null) {
-    const placeable = ctx.db.world_placeable.id.find(activePlaceable.placeableId);
+    let placeable = ctx.db.world_placeable.id.find(activePlaceable.placeableId);
+    if (placeable?.kind === 'furnace') placeable = settleFurnacePlaceable(ctx, placeable);
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const definition = placeable === null ? null : placeableDefinition(placeable.kind);
     if (placeable !== null && position !== null && placeable.spaceId === position.spaceId
@@ -3224,13 +3332,18 @@ function loadOpenMenuInventory(ctx: WorldReducerContext): OpenMenuInventory {
       const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
       const container: ContainerSnapshot = {
         id: 'placeable', capacity: definition.slotCapacity,
+        ...(placeable.kind === 'furnace' ? { restrictions: {
+          [FURNACE_INPUT_SLOT]: { acceptedKinds: Object.keys(SMELTING_RECIPES) },
+          [FURNACE_FUEL_SLOT]: { acceptedKinds: ['wood', 'plank'] },
+          [FURNACE_OUTPUT_SLOT]: { acceptedKinds: Object.values(SMELTING_RECIPES) },
+        } } : {}),
         slots: Array.from({ length: definition.slotCapacity }, (_, index) => {
           const row = rowsBySlot.get(index);
           return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
         }),
       };
       containers.placeable = container;
-      placeableResult = { container, rowsBySlot };
+      placeableResult = { placeable, container, rowsBySlot };
     }
   }
   return {
@@ -3245,6 +3358,10 @@ function writeOpenMenuInventory(
   menu: OpenMenuInventory,
   containers: Readonly<Record<string, ContainerSnapshot>>,
 ): void {
+  if (menu.placeable?.placeable.kind === 'furnace'
+    && !furnaceMutationIsValid(menu.placeable.container.slots, containers.placeable?.slots ?? [])) {
+    throw new SenderError('furnace_slot_restricted');
+  }
   writePlayerInventory(ctx, menu.inventory.rowBySlot, menu.inventory.containers, containers);
   if (menu.chest !== undefined) {
     const after = containers.chest!;
@@ -3281,6 +3398,7 @@ function writeOpenMenuInventory(
         lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
       });
     }
+    settleFurnacePlaceable(ctx, ctx.db.world_placeable.id.find(menu.placeable.placeable.id) ?? menu.placeable.placeable);
   }
   const survival = ctx.db.player_survival.identity.find(ctx.sender);
   const position = ctx.db.player_position.identity.find(ctx.sender);
@@ -4148,6 +4266,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       id: 0,
       wildlifeProfileChunkVersion: 1,
       horseDismountRecoveryVersion: scalabilityMigration?.horseDismountRecoveryVersion ?? 0,
+      soilDecayTimerVersion: scalabilityMigration?.soilDecayTimerVersion ?? 0,
     };
     if (scalabilityMigration === null) ctx.db.world_scalability_migration.insert(nextScalabilityMigration);
     else ctx.db.world_scalability_migration.id.update(nextScalabilityMigration);
@@ -4347,6 +4466,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       identity: ctx.sender,
       displayName: 'New Farmer',
       online: true,
+      lastActiveAtMicros: ctx.timestamp.microsSinceUnixEpoch,
     });
     ctx.db.player_position.insert({
       identity: ctx.sender,
@@ -4384,7 +4504,11 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     });
     ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
   } else {
-    ctx.db.player_public.identity.update({ ...profile, online: true });
+    ctx.db.player_public.identity.update({
+      ...profile,
+      online: true,
+      lastActiveAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+    });
     const position = ctx.db.player_position.identity.find(ctx.sender);
     if (position === null) {
       ctx.db.player_position.insert({
@@ -5483,9 +5607,14 @@ export const grantDebugSkillPoints = spacetimedb.reducer(
   },
 );
 
-export const heartbeat = spacetimedb.reducer((ctx) => {
+export const heartbeat = spacetimedb.reducer({ active: t.bool() }, (ctx, { active }) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   if (ctx.connectionId === null) throw new SenderError('missing_connection_id');
+  const openPlaceable = ctx.db.active_placeable.identity.find(ctx.sender);
+  if (openPlaceable !== null) {
+    const placeable = ctx.db.world_placeable.id.find(openPlaceable.placeableId);
+    if (placeable?.kind === 'furnace') settleFurnacePlaceable(ctx, placeable);
+  }
   const presence = ctx.db.connection_presence_v2.connectionId.find(ctx.connectionId);
   if (presence === null) {
     ctx.db.connection_presence_v2.insert({
@@ -5494,8 +5623,14 @@ export const heartbeat = spacetimedb.reducer((ctx) => {
       lastSeenAt: ctx.timestamp,
     });
     const profile = ctx.db.player_public.identity.find(ctx.sender);
-    if (profile !== null && !profile.online) {
-      ctx.db.player_public.identity.update({ ...profile, online: true });
+    if (profile !== null && (!profile.online || active)) {
+      ctx.db.player_public.identity.update({
+        ...profile,
+        online: true,
+        lastActiveAtMicros: active
+          ? ctx.timestamp.microsSinceUnixEpoch
+          : profile.lastActiveAtMicros,
+      });
     }
     return;
   }
@@ -5504,6 +5639,14 @@ export const heartbeat = spacetimedb.reducer((ctx) => {
     ...presence,
     lastSeenAt: ctx.timestamp,
   });
+  if (active) {
+    const profile = ctx.db.player_public.identity.find(ctx.sender);
+    if (profile !== null) ctx.db.player_public.identity.update({
+      ...profile,
+      online: true,
+      lastActiveAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+    });
+  }
   const input = ctx.db.player_input.identity.find(ctx.sender);
   if (input !== null) {
     ctx.db.player_input.identity.update({
@@ -6525,13 +6668,14 @@ export const useHands = spacetimedb.reducer(
     const targetPlaceable = placeableAtFacingTile(ctx, position);
     if (targetPlaceable !== null) {
       const slots = [...ctx.db.world_placeable_slot.by_placeable.filter(targetPlaceable.id)];
-      if (slots.some((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)) {
+      if (targetPlaceable.kind !== 'furnace'
+        && slots.some((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)) {
         throw new SenderError('placeable_not_empty');
       }
       for (const active of ctx.db.active_placeable.by_placeable.filter(targetPlaceable.id)) {
         ctx.db.active_placeable.identity.delete(active.identity);
       }
-      if (targetPlaceable.kind === 'anvil') {
+      if (targetPlaceable.kind === 'anvil' || targetPlaceable.kind === 'furnace') {
         ctx.db.world_placeable.id.update({
           ...targetPlaceable,
           tileX: Math.floor(position.x / TILE_SIZE_FIXED),
@@ -6634,9 +6778,7 @@ export const interactChest = spacetimedb.reducer(
     );
     if (chest === null) throw new SenderError('chest_not_found');
     ensureChestStorageRows(ctx, chest.id);
-    if (ctx.db.active_placeable.identity.find(ctx.sender) !== null) {
-      ctx.db.active_placeable.identity.delete(ctx.sender);
-    }
+    clearActivePlaceable(ctx, ctx.sender);
     const current = ctx.db.active_chest.identity.find(ctx.sender);
     if (current === null) ctx.db.active_chest.insert({ identity: ctx.sender, chestId: chest.id });
     else ctx.db.active_chest.identity.update({ ...current, chestId: chest.id });
@@ -6652,7 +6794,7 @@ export const closeChest = spacetimedb.reducer({}, (ctx) => {
   if (active !== null) ctx.db.active_chest.identity.delete(ctx.sender);
 });
 
-/** E toggles gates, opens barrels, or repairs the selected tool at an anvil. */
+/** E toggles gates, opens storage/processors, or repairs at an anvil. */
 export const interactPlaceable = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const position = ctx.db.player_position.identity.find(ctx.sender);
@@ -6669,9 +6811,15 @@ export const interactPlaceable = spacetimedb.reducer({}, (ctx) => {
     repairSelectedToolAtAnvil(ctx);
     return;
   }
-  if (placeable.kind !== 'barrel') throw new SenderError('placeable_not_interactable');
+  if (placeable.kind !== 'barrel' && placeable.kind !== 'furnace') throw new SenderError('placeable_not_interactable');
+  if (placeable.kind === 'furnace') settleFurnacePlaceable(ctx, placeable);
+  if (placeable.kind === 'barrel' && !placeable.open) ctx.db.world_placeable.id.update({ ...placeable, open: true });
   if (ctx.db.active_chest.identity.find(ctx.sender) !== null) ctx.db.active_chest.identity.delete(ctx.sender);
-  const active = ctx.db.active_placeable.identity.find(ctx.sender);
+  let active = ctx.db.active_placeable.identity.find(ctx.sender);
+  if (active !== null && active.placeableId !== placeable.id) {
+    clearActivePlaceable(ctx, ctx.sender);
+    active = null;
+  }
   if (active === null) ctx.db.active_placeable.insert({ identity: ctx.sender, placeableId: placeable.id });
   else ctx.db.active_placeable.identity.update({ ...active, placeableId: placeable.id });
 });
@@ -6709,8 +6857,7 @@ export const toggleCampfire = spacetimedb.reducer(
 
 export const closePlaceable = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  const active = ctx.db.active_placeable.identity.find(ctx.sender);
-  if (active !== null) ctx.db.active_placeable.identity.delete(ctx.sender);
+  clearActivePlaceable(ctx, ctx.sender);
 });
 
 export const movePlaceableItem = spacetimedb.reducer(
@@ -6720,46 +6867,12 @@ export const movePlaceableItem = spacetimedb.reducer(
     if (![request.fromContainer, request.toContainer].every((id) => id === 'placeable' || isInventoryContainerId(id))) {
       throw new SenderError('container_not_found');
     }
-    const active = ctx.db.active_placeable.identity.find(ctx.sender);
-    if (active === null) throw new SenderError('placeable_not_open');
-    const placeable = ctx.db.world_placeable.id.find(active.placeableId);
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    const definition = placeable === null ? null : placeableDefinition(placeable.kind);
-    if (placeable === null || position === null || placeable.spaceId !== position.spaceId
-      || !chestWithinReach(position.x, position.y, placeable)
-      || definition?.slotCapacity !== 8) throw new SenderError('placeable_not_open');
-    requireWorldModificationAuthorized(ctx, position);
-    const inventory = loadPlayerInventory(ctx, ctx.sender);
-    const placeableRows = [...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)];
-    const placeableBySlot = new Map(placeableRows.map((row) => [row.slot, row]));
-    const containers: Record<string, ContainerSnapshot> = {
-      ...inventory.containers,
-      placeable: {
-        id: 'placeable',
-        capacity: definition.slotCapacity,
-        slots: Array.from({ length: definition.slotCapacity }, (_, index) => {
-          const row = placeableBySlot.get(index);
-          return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
-        }),
-      },
-    };
-    const moved = moveItemStacks(containers, request);
+    const menu = loadOpenMenuInventory(ctx);
+    if (menu.placeable === undefined) throw new SenderError('placeable_not_open');
+    const moved = moveItemStacks(menu.containers, request);
     if (!moved.ok) throw new SenderError(moved.code);
-    writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, moved.containers);
-    const after = moved.containers.placeable!;
-    for (let index = 0; index < after.capacity; index += 1) {
-      const row = placeableBySlot.get(index);
-      const next = after.slots[index];
-      if (row !== undefined && !sameStoredStack(storedStack(row.itemKind, row.quantity, row.durability, row.lit), next)) {
-        ctx.db.world_placeable_slot.id.update({
-          ...row,
-          itemKind: next?.itemKind ?? 'empty',
-          quantity: next?.quantity ?? 0,
-        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-      }
-    }
+    writeOpenMenuInventory(ctx, menu, moved.containers);
+    refreshSenderQuestsFromInventory(ctx);
   },
 );
 
@@ -8114,7 +8227,7 @@ export const digCellarTile = spacetimedb.reducer(
       });
     }
     dropWorldItemStack(ctx, {
-      itemKind: 'stone',
+      itemKind: 'pebble',
       quantity: cellarWallStoneQuantity(seed, position.spaceId, tileX, tileY),
       x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
       y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
@@ -8394,6 +8507,28 @@ export const fireBow = spacetimedb.reducer(
   },
 );
 
+export const decayEmptyTopsideSoil = spacetimedb.reducer(
+  { onSchedule: soil_decay_timer },
+  { scheduledMessage: soil_decay_timer.rowType },
+  (ctx, { scheduledMessage }) => {
+    const soil = ctx.db.world_soil.id.find(scheduledMessage.soilId);
+    const clock = ctx.db.world_clock.id.find(0);
+    if (soil === null || clock === null || soil.spaceId !== TOPSIDE_SPACE_ID) return;
+    const expectedDecayAtTick = emptySoilDecayAtTick(soil.tilledAtTick, soil.wateredAtTick);
+    if (expectedDecayAtTick !== scheduledMessage.expectedDecayAtTick) return;
+    const cropOccupiesTile = ctx.db.world_crop.id.find(soil.id) !== null;
+    if (!emptySoilDecayDue(clock.authorityTick, expectedDecayAtTick, cropOccupiesTile)) {
+      // Wall-clock scheduling can wake just ahead of the authority tick after
+      // stalls. Planted tiles wait for harvest, which creates a fresh timer.
+      if (!cropOccupiesTile && clock.authorityTick < expectedDecayAtTick) {
+        scheduleEmptyTopsideSoilDecay(ctx, soil, clock.authorityTick);
+      }
+      return;
+    }
+    ctx.db.world_soil.id.delete(soil.id);
+  },
+);
+
 export const useFarmTool = spacetimedb.reducer(
   { tileX: t.i16(), tileY: t.i16() },
   (ctx, { tileX, tileY }) => {
@@ -8449,7 +8584,7 @@ export const useFarmTool = spacetimedb.reducer(
     );
 
     if (selectedItem === 'hoe') {
-      ctx.db.world_soil.insert({
+      const insertedSoil = ctx.db.world_soil.insert({
         id,
         tileX,
         tileY,
@@ -8460,6 +8595,7 @@ export const useFarmTool = spacetimedb.reducer(
         wateredAtTick: 0n,
         spaceId: position.spaceId,
       });
+      scheduleEmptyTopsideSoilDecay(ctx, insertedSoil, clock.authorityTick);
       if (fiberDropsFromTilling(seed.seed, position.spaceId, tileX, tileY, clock.authorityTick)) {
         if (!insertPlayerCarriedItem(ctx, 'fiber', 1)) {
           const x = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
@@ -8494,7 +8630,12 @@ export const useFarmTool = spacetimedb.reducer(
           growthUpdatedAtTick: clock.authorityTick,
         });
       }
-      ctx.db.world_soil.id.update({ ...soil, watered: true, wateredAtTick: clock.authorityTick });
+      const wateredSoil = ctx.db.world_soil.id.update({
+        ...soil,
+        watered: true,
+        wateredAtTick: clock.authorityTick,
+      });
+      scheduleEmptyTopsideSoilDecay(ctx, wateredSoil, clock.authorityTick);
     }
     ctx.db.player_position.identity.update({
       ...position,
@@ -8625,6 +8766,13 @@ export const useCropTile = spacetimedb.reducer(
       throw new SenderError('inventory_full');
     }
     ctx.db.world_crop.id.delete(id);
+    const refreshedSoil = ctx.db.world_soil.id.update({
+      ...soil,
+      // A harvest begins a fresh empty-soil grace period without pretending
+      // the tile was watered and without changing its rendered wetness.
+      tilledAtTick: clock.authorityTick,
+    });
+    scheduleEmptyTopsideSoilDecay(ctx, refreshedSoil, clock.authorityTick);
     ctx.db.farm_activity.identity.update({ ...activity, harvested: activity.harvested + 1 });
     recordPlayerStatistic(ctx, ctx.sender, 'crops_harvested', 1n, clock.authorityTick, definition.kind);
     recordPlayerStatistic(
@@ -8768,6 +8916,7 @@ export const stepWorld = spacetimedb.reducer(
       if (installedWorld === null) ctx.db.world_seed.insert(nextWorld);
       else ctx.db.world_seed.id.update(nextWorld);
     }
+    ensureSoilDecayTimers(ctx, clock.authorityTick);
     let environment = ctx.db.world_environment.id.find(0);
     if (environment === null) {
       environment = ctx.db.world_environment.insert({

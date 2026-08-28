@@ -166,6 +166,14 @@ merchant values. `Crops_2.png` is pixel-identical to the final eight groups of
   Homestead exterior. This explicit 2026-08-28 direction supersedes doc 40's
   blanket overworld-farming prohibition; it does not permit arbitrary building,
   resource destruction, or visitor mutation.
+- Tilled and watered ground are sparse authoritative overlays. Clients derive
+  their complete blob47 edge/corner topology from neighbouring rows, including
+  a separate topology for the currently watered subset; no edge frame is stored
+  in the database. Removing an overlay reveals the unchanged generated terrain.
+- Empty overworld soil decays after seven game days from its most recent till,
+  watering, or harvest. Planted soil never decays, and Homestead soil is
+  permanent. Private one-shot timers enforce the deadline without scanning all
+  farms on the movement tick; stale timers no-op after later care.
 - `world_crop` stores crop kind, owner, tile/space/chunk, planted tick, settled
   watered-growth ticks, and its last boundary tick. Live progress is a shared
   pure function. There is no scheduled crop loop and no per-tick crop write.

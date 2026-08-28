@@ -235,6 +235,7 @@ export class OverworldConnection {
   private pendingRegion: string | null = null;
   private regionSubscription: SubscriptionHandle | null = null;
   private heartbeatTimer: number | null = null;
+  private activitySinceHeartbeat = true;
   private sequence = 0n;
   private inputReady = false;
   private desiredDirection: NetworkDirection = 'idle';
@@ -341,7 +342,13 @@ export class OverworldConnection {
         if (localProfilesEnabled && oidcSession === null) {
           void this.call(() => connection.reducers.setDisplayName({ displayName: this.displayName() })).catch(() => undefined);
         }
-        this.heartbeatTimer = window.setInterval(() => { void this.call(() => connection.reducers.heartbeat({})).catch(() => undefined); }, 10_000);
+        this.heartbeatTimer = window.setInterval(() => {
+          const active = this.activitySinceHeartbeat;
+          this.activitySinceHeartbeat = false;
+          void this.call(() => connection.reducers.heartbeat({ active })).catch(() => {
+            if (active) this.activitySinceHeartbeat = true;
+          });
+        }, 10_000);
         this.onChanged();
       })
       .onConnectError((_context, error) => { this.error = error.message; this.onChanged(); })
@@ -397,6 +404,10 @@ export class OverworldConnection {
   get resourceRevision(): number { return this.resourceRevisionValue; }
   get cellarExcavationRevision(): number { return this.cellarExcavationRevisionValue; }
 
+  noteUserActivity(): void {
+    this.activitySinceHeartbeat = true;
+  }
+
   setDirection(direction: NetworkDirection): void {
     this.setMovementIntent(direction, false);
   }
@@ -409,6 +420,7 @@ export class OverworldConnection {
     this.retryArmed = true; this.sendDesiredDirection();
   }
   recordPredictedStep(direction: NetworkDirection, state: PlayerState, speedPermille = 1_000): void {
+    if (direction !== 'idle') this.activitySinceHeartbeat = true;
     this.prediction.recordStep(direction, state, speedPermille);
     if (direction === 'idle' && !this.idleRefreshPending) {
       this.inputRefreshAge = 0;

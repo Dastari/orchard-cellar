@@ -100,8 +100,9 @@ const extracts: readonly Extract[] = [
     tags: ['item.resource', 'material.wood', 'item.crafted'],
     placement: { layer: 'object', blocksMovement: false, builderAvailable: false },
   },
-  ...oreTypes.flatMap((kind, row): readonly Extract[] => [
-    {
+  ...oreTypes.flatMap((kind, row): readonly Extract[] => {
+    const metal = row < 3;
+    return [{
       name: `resource_cf_ore_${kind}`,
       category: 'props',
       source: oreSource,
@@ -111,19 +112,30 @@ const extracts: readonly Extract[] = [
       frameKinds: { base: 'state' },
       tags: ['resource.mineable', 'resource.ore', `ore.${kind}`],
       placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
-    },
-    {
+    }, {
       name: `item_cf_${kind}_ore`,
       category: 'props',
-      source: oreSource,
+      source: metal ? resourceIconsSource : oreSource,
       size: [16, 16],
       anchor: [8, 15],
-      groups: { base: [[80, row * 16, 16, 16]] },
+      groups: { base: [[metal ? 16 : 80, row * 16, 16, 16]] },
       frameKinds: { base: 'state' },
       tags: ['item.resource', 'material.ore', 'material.raw', `ore.${kind}`],
       placement: { layer: 'object', blocksMovement: false, builderAvailable: false },
-    },
-  ]),
+    }, ...(metal ? [{
+      name: `item_cf_${kind}_piece`, category: 'props' as const, source: resourceIconsSource,
+      size: [16, 16] as const, anchor: [8, 15] as const,
+      groups: { base: [[0, row * 16, 16, 16] as Region] }, frameKinds: { base: 'state' as const },
+      tags: ['item.resource', 'material.ore_piece', 'material.raw', `ore.${kind}`],
+      placement: { layer: 'object' as const, blocksMovement: false, builderAvailable: false },
+    }, {
+      name: `item_cf_${kind}_bar`, category: 'props' as const, source: resourceIconsSource,
+      size: [16, 16] as const, anchor: [8, 15] as const,
+      groups: { base: [[32, row * 16, 16, 16] as Region] }, frameKinds: { base: 'state' as const },
+      tags: ['item.resource', 'material.metal', 'material.bar', `metal.${kind}`],
+      placement: { layer: 'object' as const, blocksMovement: false, builderAvailable: false },
+    }] : [])];
+  }),
   {
     name: 'resource_cf_rock_stone', category: 'props', source: rockAnimationSource,
     size: [16, 16], anchor: [8, 15], groups: { base: [[0, 0, 16, 16]] }, frameKinds: { base: 'state' },
@@ -131,9 +143,15 @@ const extracts: readonly Extract[] = [
     placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
   },
   {
-    name: 'item_cf_stone', category: 'props', source: outdoorDecorSource,
+    name: 'item_cf_pebble', category: 'props', source: outdoorDecorSource,
     size: [16, 16], anchor: [8, 15], groups: { base: [[0, 80, 16, 16]] }, frameKinds: { base: 'state' },
-    tags: ['item.resource', 'material.stone'],
+    tags: ['item.resource', 'material.stone', 'material.raw'],
+    placement: { layer: 'object', blocksMovement: false, builderAvailable: false },
+  },
+  {
+    name: 'item_cf_stone', category: 'props', source: resourceIconsSource,
+    size: [16, 16], anchor: [8, 15], groups: { base: [[0, 80, 16, 16]] }, frameKinds: { base: 'state' },
+    tags: ['item.resource', 'material.stone', 'item.crafted'],
     placement: { layer: 'object', blocksMovement: false, builderAvailable: false },
   },
   {

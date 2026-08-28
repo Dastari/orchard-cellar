@@ -1,7 +1,8 @@
 # 28 — Crafting Expansion: Materials, Stations, Recipes, and Placeables
 
 Binding owner-directed spec (2026-08-25). Status: **phases 1–3 implemented
-(2026-08-26); phase 4 metal/smelting and later phases remain planned**.
+(2026-08-26); the phase-4 furnace, metal refinement, and barrel gate implemented
+(2026-08-28); anvil gear, gem cutting, and later phases remain planned**.
 Per [40](40-sanctuary-overworld-and-zoned-world.md), freeform placement is confined
 to authorized Homestead/interior/resource destination spaces. The target sanctuary
 overworld accepts no general placement or dropped-item clutter; its dedicated deed
@@ -83,8 +84,8 @@ Three chains, Minecraft's spine adapted to our verbs:
 gather                refine                      make
 ──────                ──────                      ────
 wood  ──────────────▶ plank ──▶ stick ──────────▶ tools, fences, signs, stations
-stone ───────────────────────────────────────────▶ furnace, arrows
-iron/copper/gold ore ─▶ (furnace + fuel) ─▶ bars ─▶ metal tools, plate gear, lantern
+pebbles ─▶ (3×3) ─▶ stone ───────────────────────▶ furnace, arrows
+metal pieces ─▶ (3×3) ─▶ ore ─▶ (furnace + fuel) ─▶ bars ─▶ barrels, later metal gear
 gem ores ────────────▶ (anvil) ─▶ cut gems ──────▶ jewelry (with gold bars)
 fiber (tilling) ─────────────────────────────────▶ torch, bow, fishing rod
 ```
@@ -110,6 +111,7 @@ Existing 26 kinds keep their ids. New kinds, with art source:
 |---|---:|---|---|
 | `stick` | 99 | item.resource, material.wood | `Icons/Resources_Icons` sheet |
 | `fiber` | 99 | item.resource, **material.fiber** | `Icons/Resources_Icons` sheet |
+| `pebble`; `iron/copper/gold_piece` | 99 | item.resource, **material.raw** | world stone art; `Icons/Resources_Icons` small stages |
 | `iron_bar`, `copper_bar`, `gold_bar` | 99 | item.resource, **material.bar**, metal.\<x\> | `Icons/Resources_Icons` (bar icons) |
 | `gem_emerald/sapphire/topaz/ruby/amethyst` | 99 | item.resource, **material.gem** | `Icons/Resources_Icons`; mines doc's gem items |
 | `torch`, `lantern` | 16 / 1 | item.tool, gear.hand, **emits.light** | `Player/Tools/Other/*`, `Lantern_Torch.png` (doc 26 §6) |
@@ -170,7 +172,7 @@ Minecraft's furnace, on our lazy-tick pattern (no per-tick work):
   `world_chest_slot`).
 - Row state: `smeltStartTick: u64 | null`. A smelt starts when input+fuel are
   valid; progress is derived from `authorityTick − smeltStartTick` at read
-  time (`SMELT_TICKS = 200` = 10 s per unit, `advanceEconomy`-style catch-up
+  time (`SMELT_TICKS = 6000` = 5 real minutes per unit, catch-up
   for multiple units on reopen — walk whole units, consume fuel per unit,
   stop when input/fuel/output-space runs out).
 - Fuel values: `wood = 1 smelt`, `plank = 1`, `stick = 0` (not fuel — keeps
@@ -190,13 +192,15 @@ Minecraft's furnace, on our lazy-tick pattern (no per-tick work):
 | Torch | 1 wood + 1 fiber | 2 torch *(honors doc 26's wood+fiber recipe)* |
 | Campfire | 3 wood + 3 stick | 1 campfire |
 | Workbench | 4 plank (2×2) | 1 workbench |
+| Stone | 9 pebble (3×3) | 1 stone |
+| Metal ore chunk | 9 matching metal pieces (3×3) | 1 ore chunk |
 
 **Workbench:**
 
 | Recipe | Inputs | Output |
 |---|---|---|
 | Chest | 8 plank ring | 1 chest *(exists; moves behind workbench)* |
-| Barrel | 7 plank (U + lid) | 1 barrel *(finally real — 8-slot container)* |
+| Barrel | 6 plank + 2 iron_bar | 1 barrel *(8-slot container; crop-curing gate)* |
 | Fence | 4 plank + 2 stick | 3 fence |
 | Fence gate | 2 plank + 4 stick | 1 fence_gate |
 | Sign | 6 plank + 1 stick | 1 sign |
@@ -210,8 +214,10 @@ Minecraft's furnace, on our lazy-tick pattern (no per-tick work):
 | Watering can | 3 copper_bar | 1 watering_can |
 | Lantern | 4 iron_bar + 1 torch | 1 lantern *(doc 26 "crafted with iron")* |
 
-**Furnace (smelting):** `2 iron_ore → 1 iron_bar` · `2 copper_ore → 1 copper_bar`
-· `2 gold_ore → 1 gold_bar` (each + fuel).
+**Furnace (smelting):** `1 iron_ore → 1 iron_bar` · `1 copper_ore → 1 copper_bar`
+· `1 gold_ore → 1 gold_bar` (each consumes one wood or plank). Gem ores are
+not smeltable. Each bar sells for exactly twice its ore plus one wood fuel's
+sell opportunity cost.
 
 **Anvil:** gem cutting `2 <gem>_ore → 1 gem_<x>` · Anvil itself: 6 iron_bar
 (workbench) · Plate gear: helm 5 / tunic 8 / pants 7 / boots 4 / gloves 2
@@ -234,7 +240,8 @@ sequencing). Listed so the docs/06 mirror shows the full intended tree.
   goes here.
 - Place: selected item has `item.placeable` → consume 1, insert row at the
   faced tile (walkable, unoccupied, in-bounds, same space). Pick up: `useHands`
-  on a placeable you can reach returns the item (furnace/barrel must be empty;
+  on a placeable you can reach returns the item (barrels must be empty and return
+  to inventory; furnaces retain their slots and are carried over the player's head like anvils;
   the chest carry-with-contents behavior stays chest-only).
 - Collision: blocking per item definition (stations, fences block; standing
   torch doesn't). Client + authority collision maps add placeable AABBs
@@ -301,7 +308,7 @@ art directly.
    standing torch + campfire (doc 27 emitters).
 4. **Metal + anvil:** furnace + smelting model, bars, anvil, metal tools,
    plate gear with doc 25 modifiers, gem cutting + jewelry. *The ore sink —
-   the single biggest economy gap — closes here.*
+   the single biggest economy gap — closes here.* **Furnace/refinement slice shipped 2026-08-28.**
 5. **Weapons + rod:** sword/bow/arrow/fishing_rod items (usable swing for
    sword via the actions registry; shooting and fishing mechanics remain
    with their own milestones).
@@ -391,4 +398,20 @@ palette, and prefab building footprints. Barrels become load-bearing there
   ghost-fill moves, and the locked-result tooltip. The additive module build,
   generated TypeScript bindings, focused authority/client suites, full asset
   validation, and repository `npm run check` are the release gates for this
-  entry. Furnace, anvil, metal recipes, smelting, and cooking remain untouched.
+  entry. Anvil metal gear, gem cutting, and cooking remain untouched.
+
+## 17. Furnace/refinement implementation verification (2026-08-28)
+
+- Loose stones and rock/cellar drops are `pebble`; nine make one `stone`.
+  Iron, copper, and gold veins drop matching pieces; nine make an ore chunk.
+  Gem nodes retain their direct raw-gem drops and cannot enter a furnace.
+- Furnaces craft from an eight-stone ring at a workbench. The authority owns
+  input, fuel, and output roles, catches up elapsed bars lazily, and refreshes an
+  open furnace on the existing ten-second heartbeat. Output cannot be inserted
+  manually. Wood and planks each smelt one bar; sticks do not.
+- One bar takes five real minutes. Furnace fire animation and the gold-fill UI
+  progress bar derive from `smeltStartTick`; reopening after offline time applies
+  all affordable whole-bar completions atomically.
+- Furnaces (including their contents) and anvils remain world entities when picked
+  up and render over the carrier's head. The barrel now requires six planks and two iron bars and
+  uses the licensed closed/open pair while its container is active.

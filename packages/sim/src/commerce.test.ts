@@ -56,4 +56,13 @@ describe('coin currency and item economy', () => {
     expect(ITEM_ECONOMY.sign.sellPriceBronze).toBe(10);
     expect(ITEM_ECONOMY.standing_torch.sellPriceBronze).toBe(20);
   });
+
+  it('pays exactly twice the ore plus one wood fuel opportunity cost for bars', () => {
+    expect(ITEM_ECONOMY.iron_bar.sellPriceBronze)
+      .toBe(2 * (ITEM_ECONOMY.iron_ore.sellPriceBronze + ITEM_ECONOMY.wood.sellPriceBronze));
+    expect(ITEM_ECONOMY.copper_bar.sellPriceBronze)
+      .toBe(2 * (ITEM_ECONOMY.copper_ore.sellPriceBronze + ITEM_ECONOMY.wood.sellPriceBronze));
+    expect(ITEM_ECONOMY.gold_bar.sellPriceBronze)
+      .toBe(2 * (ITEM_ECONOMY.gold_ore.sellPriceBronze + ITEM_ECONOMY.wood.sellPriceBronze));
+  });
 });

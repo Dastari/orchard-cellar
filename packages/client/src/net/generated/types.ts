@@ -409,6 +409,7 @@ export const PlayerPublic = __t.object("PlayerPublic", {
   identity: __t.identity(),
   displayName: __t.string(),
   online: __t.bool(),
+  lastActiveAtMicros: __t.u64(),
 });
 export type PlayerPublic = __Infer<typeof PlayerPublic>;
 
@@ -600,6 +601,14 @@ export const SessionChatNotice = __t.object("SessionChatNotice", {
   issuedAt: __t.timestamp(),
 });
 export type SessionChatNotice = __Infer<typeof SessionChatNotice>;
+
+export const SoilDecayTimer = __t.object("SoilDecayTimer", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  soilId: __t.string(),
+  expectedDecayAtTick: __t.u64(),
+});
+export type SoilDecayTimer = __Infer<typeof SoilDecayTimer>;
 
 export const SpacePortal = __t.object("SpacePortal", {
   id: __t.u32(),
@@ -850,6 +859,7 @@ export const WorldScalabilityMigration = __t.object("WorldScalabilityMigration",
   id: __t.u8(),
   wildlifeProfileChunkVersion: __t.u8(),
   horseDismountRecoveryVersion: __t.u8(),
+  soilDecayTimerVersion: __t.u8(),
 });
 export type WorldScalabilityMigration = __Infer<typeof WorldScalabilityMigration>;
 

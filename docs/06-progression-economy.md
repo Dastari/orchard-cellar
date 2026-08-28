@@ -424,3 +424,24 @@ Per-track reset costs in bronze are **0, 100, 500, 2,500, then 10,000** for all
 later resets. Resetting refunds the spent points by removing that character's ranks;
 XP and developer bonus points remain. In the 2026-08-28 review slice, purchases and
 resets persist but every advertised skill effect remains deliberately inactive.
+
+## 16. Early metal refinement
+
+Loose stones and breakable rocks yield pebbles; a full 3×3 crafting grid of nine
+pebbles produces one stone. Iron, copper, and gold veins yield small metal pieces;
+nine matching pieces produce one ore chunk. Gem ores remain raw gems and are not
+smelted.
+
+A workbench crafts one furnace from an eight-stone ring. Its three authority-owned
+slots are ore, fuel, and output. One wood or one plank fuels one bar, sticks are not
+fuel, and one bar takes **5 real minutes** with offline catch-up. Sale values are:
+
+| Material | Piece | Ore chunk | Bar |
+| --- | ---: | ---: | ---: |
+| Copper | 7 | 63 | 130 |
+| Iron | 10 | 90 | 184 |
+| Gold | 36 | 324 | 652 |
+
+Each bar is exactly twice the ore-chunk value plus one wood fuel's 2-bronze sell
+opportunity cost. The crop barrel is a workbench recipe of **6 planks + 2 iron
+bars**, making crop processing a deliberate post-smelting progression step.

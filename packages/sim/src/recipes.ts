@@ -45,8 +45,33 @@ export const RECIPES = {
   },
   barrel: {
     id: 'barrel', kind: 'shaped', station: 'workbench',
-    pattern: [['plank', 'plank', 'plank'], ['plank', null, 'plank'], ['plank', null, 'plank']],
+    pattern: [['iron_bar', 'plank', 'iron_bar'], ['plank', null, 'plank'], ['plank', 'plank', 'plank']],
     output: { itemKind: 'barrel', quantity: 1 },
+  },
+  stone: {
+    id: 'stone', kind: 'shaped',
+    pattern: [['pebble', 'pebble', 'pebble'], ['pebble', 'pebble', 'pebble'], ['pebble', 'pebble', 'pebble']],
+    output: { itemKind: 'stone', quantity: 1 },
+  },
+  iron_ore: {
+    id: 'iron_ore', kind: 'shaped',
+    pattern: Array.from({ length: 3 }, () => ['iron_piece', 'iron_piece', 'iron_piece']),
+    output: { itemKind: 'iron_ore', quantity: 1 },
+  },
+  copper_ore: {
+    id: 'copper_ore', kind: 'shaped',
+    pattern: Array.from({ length: 3 }, () => ['copper_piece', 'copper_piece', 'copper_piece']),
+    output: { itemKind: 'copper_ore', quantity: 1 },
+  },
+  gold_ore: {
+    id: 'gold_ore', kind: 'shaped',
+    pattern: Array.from({ length: 3 }, () => ['gold_piece', 'gold_piece', 'gold_piece']),
+    output: { itemKind: 'gold_ore', quantity: 1 },
+  },
+  furnace: {
+    id: 'furnace', kind: 'shaped', station: 'workbench',
+    pattern: [['stone', 'stone', 'stone'], ['stone', null, 'stone'], ['stone', 'stone', 'stone']],
+    output: { itemKind: 'furnace', quantity: 1 },
   },
   fence: {
     id: 'fence', kind: 'shaped', station: 'workbench',

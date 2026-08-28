@@ -35,7 +35,7 @@ describe('28§1 shift-invariant shaped recipes', () => {
   });
 });
 
-describe('06§12 phases 1–3 crafting recipe goldens', () => {
+describe('06§12 crafting recipe goldens', () => {
   it('derives break salvage from the exact recipe inputs', () => {
     expect(recipeIngredientStacks(RECIPES.chest)).toEqual([{ itemKind: 'plank', quantity: 8 }]);
     expect(recipeIngredientStacks(RECIPES.campfire)).toEqual([
@@ -53,12 +53,24 @@ describe('06§12 phases 1–3 crafting recipe goldens', () => {
   });
 
   it('pins workbench recipe outputs and station gates', () => {
-    for (const recipe of [RECIPES.chest, RECIPES.barrel, RECIPES.fence, RECIPES.fence_gate, RECIPES.sign, RECIPES.standing_torch, RECIPES.arrows]) {
+    for (const recipe of [RECIPES.chest, RECIPES.barrel, RECIPES.furnace, RECIPES.fence, RECIPES.fence_gate, RECIPES.sign, RECIPES.standing_torch, RECIPES.arrows]) {
       expect(recipe.station).toBe('workbench');
     }
     expect(RECIPES.fence.output).toEqual({ itemKind: 'fence', quantity: 3 });
     expect(RECIPES.fence_gate.output).toEqual({ itemKind: 'fence_gate', quantity: 1 });
     expect(RECIPES.standing_torch.output).toEqual({ itemKind: 'standing_torch', quantity: 1 });
+  });
+
+  it('compacts nine small resources and gates barrels behind smelted iron', () => {
+    expect(recipeIngredientStacks(RECIPES.stone)).toEqual([{ itemKind: 'pebble', quantity: 9 }]);
+    expect(recipeIngredientStacks(RECIPES.iron_ore)).toEqual([{ itemKind: 'iron_piece', quantity: 9 }]);
+    expect(recipeIngredientStacks(RECIPES.copper_ore)).toEqual([{ itemKind: 'copper_piece', quantity: 9 }]);
+    expect(recipeIngredientStacks(RECIPES.gold_ore)).toEqual([{ itemKind: 'gold_piece', quantity: 9 }]);
+    expect(recipeIngredientStacks(RECIPES.furnace)).toEqual([{ itemKind: 'stone', quantity: 8 }]);
+    expect(recipeIngredientStacks(RECIPES.barrel)).toEqual([
+      { itemKind: 'iron_bar', quantity: 2 },
+      { itemKind: 'plank', quantity: 6 },
+    ]);
   });
 
   it('28§14 closes the wood + fiber → torch → workbench → fence chain', () => {

@@ -96,6 +96,7 @@ import {
   questObjectiveProgress,
   QUEST_DEFINITIONS,
   fenceJoinMask,
+  furnaceProgress,
   nextWeatherMode,
   nextWindDirectionMode,
   weatherVisualState,
@@ -264,6 +265,7 @@ import {
 import {
   isInterfaceVisibilityToggle,
   isNameplateToggle,
+  onlinePlayerIdleMinutes,
   OverworldUi,
   type OverworldUiTargetVitals,
 } from './ui/overworld-ui.js';
@@ -440,6 +442,7 @@ function failureToastText(error: unknown): string {
     ['swing_too_soon', 'TOOL IS NOT READY'],
     ['anvil_copper_missing', 'ANVIL REPAIR NEEDS 5 COPPER'],
     ['anvil_not_in_reach', 'FACE A NEARBY ANVIL'],
+    ['furnace_slot_restricted', 'ORE GOES ABOVE, WOOD OR PLANKS BELOW'],
     ['tool_not_damaged', 'TOOL IS ALREADY FULLY REPAIRED'],
     ['wrong_tool', 'SELECT A DAMAGED TOOL'],
   ] as const;
@@ -1387,7 +1390,8 @@ function update(): void {
   if (snapshot.activeChest !== null && overworldUi.openWindow !== 'chest') overworldUi.openWindow = 'chest';
   if (snapshot.activeChest === null && overworldUi.openWindow === 'chest') overworldUi.openWindow = null;
   if (snapshot.activePlaceable?.kind === 'barrel' && overworldUi.openWindow !== 'barrel') overworldUi.openWindow = 'barrel';
-  if (snapshot.activePlaceable === null && overworldUi.openWindow === 'barrel') overworldUi.openWindow = null;
+  if (snapshot.activePlaceable?.kind === 'furnace' && overworldUi.openWindow !== 'furnace') overworldUi.openWindow = 'furnace';
+  if (snapshot.activePlaceable === null && (overworldUi.openWindow === 'barrel' || overworldUi.openWindow === 'furnace')) overworldUi.openWindow = null;
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
     optimisticSelectedSlot = null;
   }
@@ -2337,7 +2341,7 @@ function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
     stableId: `portal:${portal.id}`, portal,
   });
   const placeable = targetPlaceable(snapshot);
-  if (placeable?.kind === 'fence_gate' || placeable?.kind === 'barrel' || placeable?.kind === 'anvil') candidates.push({
+  if (placeable?.kind === 'fence_gate' || placeable?.kind === 'barrel' || placeable?.kind === 'furnace' || placeable?.kind === 'anvil') candidates.push({
     kind: 'placeable', ...tileInteractionPoint(placeable.tileX, placeable.tileY),
     stableId: `placeable:${placeable.id}`, placeable,
   });
@@ -2417,6 +2421,8 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
     }
     case 'placeable': return target.placeable.kind === 'barrel'
       ? '[E] OPEN BARREL'
+      : target.placeable.kind === 'furnace'
+        ? '[E] USE FURNACE'
       : target.placeable.kind === 'anvil'
         ? '[E] REPAIR SELECTED TOOL (5 COPPER)'
         : target.placeable.open ? '[E] CLOSE GATE' : '[E] OPEN GATE';
@@ -2431,7 +2437,7 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
     case 'horse': return localMount(snapshot) !== null
       ? `[E] DISMOUNT ${horseLabel(target.npc).toUpperCase()}`
       : `[E] RIDE ${horseLabel(target.npc).toUpperCase()}`;
-    case 'gatherable': return `[E] PICK UP ${target.resource.kind === 'loose_stone' ? 'STONE' : 'FALLEN BRANCH'}`;
+    case 'gatherable': return `[E] PICK UP ${target.resource.kind === 'loose_stone' ? 'PEBBLE' : 'FALLEN BRANCH'}`;
     case 'quest_item': return `[E] PICK UP ${hotbarItemLabel(target.item.itemKind)}`;
     case 'embedded_arrow': return '[E] RECOVER ARROW';
     case 'world_item': return target.item.itemKind === 'lantern'
@@ -2451,6 +2457,8 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
         network.interactPlaceable(),
         target.placeable.kind === 'barrel'
           ? 'BARREL OPENED'
+          : target.placeable.kind === 'furnace'
+            ? 'FURNACE OPENED'
           : target.placeable.kind === 'anvil'
             ? 'TOOL REPAIRED'
           : target.placeable.open ? 'GATE CLOSED' : 'GATE OPENED',
@@ -3420,7 +3428,7 @@ function render(alpha = 1): void {
         const drawPlaceable = (): void => drawOverworldPlaceable(
           context, art, placeable.kind, placeable.open, fenceMask,
           Math.floor(performance.now() / 125), x, y, cameraX, cameraY, scale,
-          placeable.lit,
+          placeable.kind === 'furnace' ? placeable.smeltStartTick !== undefined : placeable.lit,
         );
         if (definition?.blocksMovement === true && !isLightEmitterKind(placeable.kind)) {
           drawSouthFacingReceiver(x, y, drawPlaceable);
@@ -3695,7 +3703,8 @@ function render(alpha = 1): void {
           drawOverworldPlaceable(
             context, art, handsPlaceable.kind, false, 0,
             Math.floor(performance.now() / 125), x, y - 17,
-            cameraX, cameraY, scale, handsPlaceable.lit,
+            cameraX, cameraY, scale, handsPlaceable.kind === 'furnace'
+              ? handsPlaceable.smeltStartTick !== undefined : handsPlaceable.lit,
           );
         }
       },
@@ -3926,6 +3935,7 @@ function render(alpha = 1): void {
     .map((profile) => ({
       displayName: profile.displayName,
       self: profile.identity.toHexString() === snapshot.identityHex,
+      idleMinutes: onlinePlayerIdleMinutes(profile.lastActiveAtMicros),
     }))
     .sort((left, right) => Number(right.self) - Number(left.self)
       || left.displayName.localeCompare(right.displayName));
@@ -3991,6 +4001,9 @@ function render(alpha = 1): void {
     effects: visibleEffects,
     openChestInventory: [...snapshot.openChestSlots],
     openPlaceableInventory: [...snapshot.openPlaceableSlots],
+    furnaceProgress: snapshot.activePlaceable?.kind === 'furnace'
+      ? furnaceProgress(snapshot.activePlaceable.smeltStartTick, authorityTick)
+      : 0,
     hasBackpack: [...snapshot.inventorySlots].some((slot) => slot.itemKind === 'backpack'),
     backpackSlotCapacity: Math.max(
       [...snapshot.inventorySlots].some((slot) => slot.itemKind === 'backpack') ? BACKPACK_SLOT_COUNT : BASE_BACKPACK_CAPACITY,
@@ -4173,7 +4186,7 @@ function render(alpha = 1): void {
       const width = Math.max(
         104,
         measurePixelText(definition.displayName.toUpperCase(), 1, art.ui.font) + 31,
-        measurePixelText(status, 1, art.ui.font) + 12,
+        measurePixelText(status, 1, art.ui.font) + 38,
       );
       const worldX = hoveredCrop.tileX * 16 + 8;
       const worldY = (hoveredCrop.tileY + 1) * 16;
@@ -4184,8 +4197,8 @@ function render(alpha = 1): void {
       drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
       drawUiAssetFrame(uiContext, art.cropTimer, timerFrame, panelX + 7, panelY + 7, 1);
       drawPixelText(uiContext, art.ui, definition.displayName.toUpperCase(), panelX + 28, panelY + 6);
-      drawPixelText(uiContext, art.ui, status, panelX + 7, panelY + 18, {
-        color: growth.watered || growth.mature ? '#f8ead0' : '#ffb05b',
+      drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, {
+        color: growth.mature ? '#8a5a2b' : growth.watered ? '#315c35' : '#9c3b2e',
       });
     }
   }
@@ -4549,6 +4562,10 @@ function setInterfaceHidden(hidden: boolean): void {
 }
 
 window.addEventListener('resize', resize);
+for (const activityEvent of ['keydown', 'pointerdown', 'pointermove', 'wheel'] as const) {
+  window.addEventListener(activityEvent, () => network.noteUserActivity(), { capture: true, passive: true });
+}
+window.addEventListener('focus', () => network.noteUserActivity());
 window.addEventListener('keydown', (event) => {
   const activeElement = document.activeElement;
   const textEntryActive = activeElement instanceof HTMLInputElement
@@ -5251,7 +5268,7 @@ Object.assign(window, {
     setInterfaceHidden,
     interfaceHidden: () => interfaceHidden,
     openChat: () => chatOverlay.handleGlobalKeyDown(new KeyboardEvent('keydown', { key: 'Enter' })),
-    openWindow: (window: 'inventory' | 'pack' | 'crafting' | 'barrel' | 'system' | 'settings' | null) => { overworldUi.openWindow = window; },
+    openWindow: (window: 'inventory' | 'pack' | 'crafting' | 'barrel' | 'furnace' | 'system' | 'settings' | null) => { overworldUi.openWindow = window; },
     uiWindow: () => overworldUi.openWindow,
   },
 });

@@ -10,6 +10,7 @@ type Region = readonly [number, number, number, number];
 interface Extract {
   readonly name: string;
   readonly source: string;
+  readonly sourceByGroup?: Readonly<Record<string, string>>;
   readonly size: readonly [number, number];
   readonly anchor: readonly [number, number];
   readonly groups: Readonly<Record<string, readonly Region[]>>;
@@ -26,12 +27,33 @@ const tables = 'references/Cute_Fantasy/Buildings/House_Decor/Tables.png';
 const signs = 'references/Cute_Fantasy/Outdoor decoration/Signs.png';
 const gate = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fence_Big_Gate.png';
 const torch = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Torch_Anim.png';
+const furnaces = 'references/Cute_Fantasy/Buildings/House_Decor/Furnaces.png';
+const furnaceAnimation = 'references/Cute_Fantasy/Buildings/House_Decor/Furnace_Anim.png';
+const barrels = 'references/Cute_Fantasy/Outdoor decoration/barrels.png';
 
 const itemPlacement: NonNullable<AssetSource['placement']> = {
   layer: 'object', blocksMovement: false, builderAvailable: false,
 };
 
 const extracts: readonly Extract[] = [
+  {
+    name: 'prop_cf_furnace', source: furnaces, sourceByGroup: { burn: furnaceAnimation }, size: [32, 32], anchor: [16, 31],
+    groups: {
+      off: [[0, 0, 32, 32]],
+      burn: Array.from({ length: 6 }, (_, frame): Region => [frame * 32, 0, 32, 32]),
+    },
+    frameKinds: { off: 'state', burn: 'animation' },
+    animationFps: { burn: 6 }, animationLoop: { burn: true },
+    tags: ['world.placeable', 'station.furnace', 'container.furnace'],
+    placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
+  },
+  {
+    name: 'prop_cf_barrel', source: barrels, size: [16, 16], anchor: [8, 15],
+    groups: { closed: [[64, 0, 16, 16]], open: [[80, 0, 16, 16]] },
+    frameKinds: { closed: 'state', open: 'state' },
+    tags: ['world.placeable', 'container.barrel', 'interaction.openable'],
+    placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
+  },
   {
     name: 'item_cf_fiber', source: resources, size: [16, 16], anchor: [8, 15],
     groups: { base: [[16, 64, 16, 16]] }, frameKinds: { base: 'state' },
@@ -88,16 +110,21 @@ const rootPath = fileURLToPath(workspaceRoot);
 const palette = await loadPalette();
 const paletteCharacters = Object.keys(palette.colors);
 const images = new Map<string, DecodedPng>();
-for (const source of new Set(extracts.map((extract) => extract.source))) {
+for (const source of new Set(extracts.flatMap((extract) => [
+  extract.source,
+  ...Object.values(extract.sourceByGroup ?? {}),
+]))) {
   images.set(source, decodePng(await readFile(resolve(rootPath, source))));
 }
 
 for (const extract of extracts) {
-  const image = images.get(extract.source)!;
   const nativeFrames = Object.fromEntries(Object.entries(extract.groups).map(([group, regions]) => [
     group,
-    regions.map(([x, y, width, height]) => Array.from({ length: height }, (_, py) =>
-      Array.from({ length: width }, (_, px) => nativeHex(image, x + px, y + py)))),
+    regions.map(([x, y, width, height]) => {
+      const image = images.get(extract.sourceByGroup?.[group] ?? extract.source)!;
+      return Array.from({ length: height }, (_, py) =>
+        Array.from({ length: width }, (_, px) => nativeHex(image, x + px, y + py)));
+    }),
   ]));
   const colors = [...new Set(Object.values(nativeFrames).flat(2).flatMap((row) =>
     row.filter((color): color is string => color !== null)))].sort();
@@ -122,6 +149,12 @@ for (const extract of extracts) {
     approved: true,
     importedFrom: basename(extract.source),
     sourcePath: relative(rootPath, resolve(rootPath, extract.source)).replaceAll('\\', '/'),
+    ...(extract.sourceByGroup ? { sourcePathsByGroup: Object.fromEntries(
+      Object.entries(extract.sourceByGroup).map(([group, source]) => [
+        group,
+        relative(rootPath, resolve(rootPath, source)).replaceAll('\\', '/'),
+      ]),
+    ) } : {}),
     sourceRegions: Object.fromEntries(Object.entries(extract.groups)),
     tags: extract.tags,
     placement: extract.placement,

@@ -3,6 +3,10 @@ import { AUTHORITY_TICKS_PER_DAY } from './time.js';
 
 export const CROP_STAGE_COUNT = 4;
 export const CROP_WATERING_TICKS = BigInt(AUTHORITY_TICKS_PER_DAY);
+export const EMPTY_TOPSIDE_SOIL_DECAY_DAYS = 7;
+export const EMPTY_TOPSIDE_SOIL_DECAY_TICKS = BigInt(
+  AUTHORITY_TICKS_PER_DAY * EMPTY_TOPSIDE_SOIL_DECAY_DAYS,
+);
 
 export const CROP_KINDS = [
   'wheat', 'tomato', 'carrot', 'turnip', 'corn', 'pumpkin', 'parsley', 'cabbage',
@@ -153,6 +157,25 @@ export function cropGrowthAt(
       && currentTick >= wateredAtTick && currentTick < wateredAtTick + CROP_WATERING_TICKS,
     wateredUntilTick: wateredAtTick + CROP_WATERING_TICKS,
   };
+}
+
+/** Empty overworld soil gets a fresh grace period whenever it is tilled,
+ * watered, or returned to an empty cultivated state after harvest. */
+export function emptySoilDecayAtTick(
+  tilledAtTick: bigint,
+  wateredAtTick: bigint,
+  decayTicks = EMPTY_TOPSIDE_SOIL_DECAY_TICKS,
+): bigint {
+  const lastTendedTick = tilledAtTick > wateredAtTick ? tilledAtTick : wateredAtTick;
+  return lastTendedTick + decayTicks;
+}
+
+export function emptySoilDecayDue(
+  currentTick: bigint,
+  decayAtTick: bigint,
+  cropOccupiesTile: boolean,
+): boolean {
+  return !cropOccupiesTile && currentTick >= decayAtTick;
 }
 
 export const CROP_SEED_ITEM_DEFINITIONS = Object.fromEntries(CROP_DEFINITIONS.map((definition) => [

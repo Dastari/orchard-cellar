@@ -18,6 +18,7 @@ export * from './item-containers.js';
 export * from './inventory-layout.js';
 export * from './recipes.js';
 export * from './crafting.js';
+export * from './smelting.js';
 export * from './commerce.js';
 export * from './merchant-cart.js';
 export * from './dialogue.js';

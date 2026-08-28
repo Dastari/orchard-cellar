@@ -35,7 +35,7 @@ describe('cellar excavation authority', () => {
     expect(reducer).toContain('ctx.db.cellar_excavation.insert');
     expect(reducer).toContain('cellarWallHitsRequired');
     expect(reducer).toContain('cellarWallStoneQuantity');
-    expect(reducer).toContain("itemKind: 'stone'");
+    expect(reducer).toContain("itemKind: 'pebble'");
     expect(reducer).toContain('cellarOreKindAt(seed, position.spaceId, tileX, tileY)');
     expect(reducer).toContain('ctx.db.world_resource.insert');
   });

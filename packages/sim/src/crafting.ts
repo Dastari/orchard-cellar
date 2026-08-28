@@ -1,14 +1,14 @@
 import { FIBER_TILL_DROP_PERCENT } from './balance.js';
 
 export const PLACEABLE_KINDS = [
-  'workbench', 'anvil', 'campfire', 'barrel', 'fence', 'fence_gate', 'sign', 'standing_torch',
+  'workbench', 'anvil', 'campfire', 'furnace', 'barrel', 'fence', 'fence_gate', 'sign', 'standing_torch',
 ] as const;
 export type PlaceableKind = typeof PLACEABLE_KINDS[number];
 
 export interface PlaceableDefinition {
   readonly blocksMovement: boolean;
   readonly slotCapacity: number;
-  readonly station: 'workbench' | 'campfire' | null;
+  readonly station: 'workbench' | 'furnace' | 'campfire' | null;
   readonly light: 'flame' | null;
   readonly connectsFence: boolean;
 }
@@ -17,6 +17,7 @@ export const PLACEABLE_DEFINITIONS = {
   workbench: { blocksMovement: true, slotCapacity: 0, station: 'workbench', light: null, connectsFence: false },
   anvil: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
   campfire: { blocksMovement: true, slotCapacity: 0, station: 'campfire', light: 'flame', connectsFence: false },
+  furnace: { blocksMovement: true, slotCapacity: 3, station: 'furnace', light: null, connectsFence: false },
   barrel: { blocksMovement: true, slotCapacity: 8, station: null, light: null, connectsFence: false },
   fence: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: true },
   fence_gate: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: true },

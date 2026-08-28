@@ -4,7 +4,7 @@ import { drawFarmSoil, drawInteractionTileReticle, drawInsetGround, farmSoilFram
 
 const frame = { x: 0, y: 0, width: 16, height: 16, durationTicks: 0 };
 
-function soilAsset(image: CanvasImageSource): LoadedAsset {
+function soilAsset(image: CanvasImageSource, distinctFrames = false): LoadedAsset {
   return {
     assetId: 1,
     name: 'soil',
@@ -14,7 +14,10 @@ function soilAsset(image: CanvasImageSource): LoadedAsset {
     tags: [],
     placement: { layer: 'ground', footprint: [1, 1], blocksMovement: false, builderAvailable: false },
     atlasRevision: 1,
-    metadata: { image: 'soil.png', animations: {}, variants: { base: Array.from({ length: 47 }, () => frame) } },
+    metadata: { image: 'soil.png', animations: {}, variants: { base: Array.from(
+      { length: 47 },
+      (_, index) => distinctFrames ? { ...frame, x: index * 16 } : frame,
+    ) } },
   };
 }
 
@@ -68,8 +71,42 @@ describe('dynamic farmland autotiling', () => {
       1,
       32,
       32,
-    )).toBe(4);
-    expect(drawnImages).toEqual([dryImage, wetImage, grassImage, grassImage]);
+    )).toBe(2);
+    expect(drawnImages).toEqual([dryImage, wetImage]);
+  });
+
+  it('autotiles moisture against watered neighbours rather than every tilled tile', () => {
+    const dryImage = {} as CanvasImageSource;
+    const wetImage = {} as CanvasImageSource;
+    const grassImage = {} as CanvasImageSource;
+    const draws: unknown[][] = [];
+    const context = {
+      imageSmoothingEnabled: true,
+      drawImage: (...args: unknown[]) => draws.push(args),
+    } as unknown as CanvasRenderingContext2D;
+    const tiles = Array.from({ length: 9 }, (_, index) => ({
+      tileX: index % 3,
+      tileY: Math.floor(index / 3),
+      watered: index === 4,
+    }));
+
+    drawFarmSoil(
+      context,
+      soilAsset(dryImage, true),
+      soilAsset(wetImage, true),
+      soilAsset(grassImage, true),
+      tiles,
+      0,
+      0,
+      1,
+      48,
+      48,
+    );
+
+    const dryCentre = draws.find((call) => call[0] === dryImage && call[5] === 16 && call[6] === 16);
+    const wetCentre = draws.find((call) => call[0] === wetImage);
+    expect(dryCentre?.[1]).toBe(46 * 16);
+    expect(wetCentre?.[1]).toBe(0);
   });
 
   it('uses the same inset topology for authored paths without a wet layer', () => {
@@ -91,8 +128,8 @@ describe('dynamic farmland autotiling', () => {
       1,
       32,
       32,
-    )).toBe(3);
-    expect(drawnImages).toEqual([pathImage, grassImage, grassImage]);
+    )).toBe(1);
+    expect(drawnImages).toEqual([pathImage]);
   });
 
   it('fits the authored selector around the shared tool and placement tile', () => {

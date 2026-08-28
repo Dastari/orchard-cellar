@@ -1677,6 +1677,14 @@ export function drawOverworldPlaceable(
         ? open
           ? "open"
           : "closed"
+        : kind === "barrel"
+          ? open
+            ? "open"
+            : "closed"
+        : kind === "furnace"
+          ? lit
+            ? "burn"
+            : "off"
         : (itemDefinition(kind)?.iconAnimation ?? "base");
   const resolvedAsset = asset ?? art.missingItem;
   const visualScale = overworldPlaceableVisualScale(kind);

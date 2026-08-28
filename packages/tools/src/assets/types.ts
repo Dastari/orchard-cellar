@@ -30,6 +30,8 @@ export interface AssetSource {
   readonly approved?: boolean;
   readonly importedFrom?: string;
   readonly sourcePath?: string;
+  /** Optional provenance for assets whose state groups come from companion sheets. */
+  readonly sourcePathsByGroup?: Readonly<Record<string, string>>;
   readonly sourceRegion?: readonly [number, number, number, number];
   readonly sourceRegions?: Readonly<Record<string, readonly (readonly [number, number, number, number])[]>>;
   readonly sourcePaletteMode?: 'exact';

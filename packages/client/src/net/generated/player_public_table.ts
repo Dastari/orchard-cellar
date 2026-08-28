@@ -14,4 +14,5 @@ export default __t.row({
   identity: __t.identity().primaryKey(),
   displayName: __t.string().name("display_name"),
   online: __t.bool(),
+  lastActiveAtMicros: __t.u64().name("last_active_at_micros"),
 });
