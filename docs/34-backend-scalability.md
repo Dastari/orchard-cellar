@@ -217,6 +217,13 @@ existing 30-second presence lease supplies the recently-seen grace: the
 two-client registry cache measured **2 rows while both were online, 2 during
 grace, then 1** after the peer expired, with its appearance row absent too.
 
+The later offline-statue presentation intentionally keeps the small friends-only
+player profile and appearance registries subscribed after presence expiry so a
+regional persisted position can retain its real name and appearance. Positions and
+all high-frequency world entities remain space/chunk bounded; only these two compact,
+one-row-per-character registries use their public base tables. Offline rows are
+non-interactive and do not participate in client or authority collision checks.
+
 Spawn ownership now lives in the additive private `player_spawn` table. A
 config-driven 60-tile ring search first preserves the established 25 natural
 spawns, then chooses any free walkable tile without treating the legacy u8

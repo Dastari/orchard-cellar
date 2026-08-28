@@ -244,7 +244,17 @@ const extracts: readonly UiExtract[] = [
   },
   {
     name: 'ui_cf_icon_online_players', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
-    groups: { base: [r(144, 0, 16, 16)] }, frameKinds: { base: 'state' },
+    groups: {
+      base: [r(144, 0, 16, 16)],
+      offline: [
+        r(144, 0, 16, 16),
+        r(160, 0, 16, 16),
+        r(176, 0, 16, 16),
+        r(160, 0, 16, 16),
+      ],
+    },
+    frameKinds: { base: 'state', offline: 'animation' },
+    animationFps: { offline: 6 }, animationLoop: { offline: true },
     uiSizing: 'fixed', tags: ['ui.icon', 'ui.online_players', 'ui.lightning'],
   },
   {

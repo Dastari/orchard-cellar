@@ -81,6 +81,11 @@ Positions persist across disconnects, but only identities with at least one live
 connection are rendered online. Multiple tabs for one identity remain online until
 the last connection closes. Reconnect restores the identity and authoritative
 position before accepting input.
+After the presence lease expires, a nearby persisted position remains visible as a
+non-interactive stone-tinted avatar with its real appearance and name. An animated
+lightning glyph inside the nameplate marks that player as offline. These statues emit
+no held light, cannot be selected or traded with, do not appear as live minimap
+markers, and do not participate in placement or movement collision.
 
 World-entry and final-disconnect notices are session UI, not authored chat. They are
 delivered through each connection's private bounded notice inbox and are discarded
@@ -88,7 +93,13 @@ when that recipient logs out, so reconnecting never restores them as chat histor
 The owner-only `/last` diagnostic reads the retained private connection audit and copies
 at most the 12 newest login/logout events, with explicit UTC times, into only the
 requesting connection's same ephemeral chat-console inbox. It never writes General,
-whispers, world speech, or persistent chat history.
+whispers, world speech, or persistent chat history. Repeated events for the same player
+and action are collapsed into the newest event within each rolling five-second window;
+a login followed by a logout remains two distinct events.
+The public `/baltop` command similarly projects only the ten highest authoritative
+wallet balances, with public display names, into the requesting connection's ephemeral
+chat-console inbox. Raw wallet rows remain private, and the result never enters General
+or durable chat history.
 
 ## 6. Implementation order
 
