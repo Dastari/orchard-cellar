@@ -1,4 +1,5 @@
 import {
+  AUTHORITY_HZ,
   INPUT_REFRESH_STEPS,
   SIM_TICKS_PER_SECOND,
   createPlaceholderCollisionMap,
@@ -17,7 +18,9 @@ import {
   ProjectileSnapshotBuffer,
   RenderTickClock,
   VisualTickClock,
+  FrameVisualTickClock,
   inputRefreshDue,
+  presentationAuthorityTick,
 } from './netcode.js';
 
 const collision = createPlaceholderCollisionMap(20, 20);
@@ -184,6 +187,25 @@ describe('remote interpolation', () => {
     expect(buffer.sample(20)).toMatchObject({ x: 150, y: 183, state: 'hit', extrapolated: false });
   });
 
+  it('keeps projectile presentation on world time while an idle player row is unchanged', () => {
+    const stalePositionTick = 100n;
+    expect(presentationAuthorityTick(145n, stalePositionTick)).toBe(145n);
+    expect(presentationAuthorityTick(null, stalePositionTick)).toBe(stalePositionTick);
+
+    const clock = new RenderTickClock();
+    const buffer = new ProjectileSnapshotBuffer();
+    buffer.push({
+      authorityTick: 145n, spawnedTick: 145n, x: 1_000, y: 2_000,
+      velocityX: 40, velocityY: 0, state: 'flying',
+    });
+    clock.advance(0, presentationAuthorityTick(145n, stalePositionTick));
+    const moving = buffer.sample(clock.advance(
+      3 / AUTHORITY_HZ,
+      presentationAuthorityTick(148n, stalePositionTick),
+    ));
+    expect(moving?.x).toBeGreaterThan(1_000);
+  });
+
   it('softly advances and resynchronizes render time without jumping', () => {
     const clock = new RenderTickClock();
     expect(clock.advance(0, 100n)).toBe(98.5);
@@ -212,6 +234,15 @@ describe('remote interpolation', () => {
     const clock = new VisualTickClock();
     clock.advance(0, 100n);
     expect(clock.advance(1 / SIM_TICKS_PER_SECOND, 10_000n)).toBe(10_000);
+  });
+
+  it('advances frame cosmetics once per render and discards background gaps', () => {
+    const clock = new FrameVisualTickClock();
+    expect(clock.advance(1_000, 100n)).toBe(100);
+    expect(clock.advance(1_050, 101n)).toBe(101);
+    expect(clock.advance(5_000, 180n)).toBe(180);
+    clock.reset();
+    expect(clock.advance(5_010, 220n)).toBe(220);
   });
 });
 

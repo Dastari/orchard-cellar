@@ -65,6 +65,12 @@ export interface GeneratedAssetRegistry {
   readonly assetsById: Readonly<Record<string, string>>;
 }
 
+/** Read-only authoring catalog. Frame rectangles are rendering metadata only;
+ * editor documents continue to persist semantic asset/group/index references. */
+export interface GeneratedAssetCatalog extends GeneratedAssetRegistry {
+  readonly assets: Readonly<Record<string, BuiltAssetRecord>>;
+}
+
 let manifestPromise: Promise<BuiltAtlasManifest> | null = null;
 const imagePromises = new Map<string, Promise<HTMLImageElement>>();
 const warnedMissingAssets = new Set<string>();
@@ -214,5 +220,17 @@ export async function loadGeneratedAssetRegistry(): Promise<GeneratedAssetRegist
     revisionId: manifest.revisionId,
     placeholderAssetId: manifest.placeholderAssetId,
     assetsById: manifest.assetsById,
+  };
+}
+
+export async function loadGeneratedAssetCatalog(): Promise<GeneratedAssetCatalog> {
+  const manifest = await loadManifest();
+  return {
+    schemaVersion: manifest.schemaVersion,
+    revision: manifest.revision,
+    revisionId: manifest.revisionId,
+    placeholderAssetId: manifest.placeholderAssetId,
+    assetsById: manifest.assetsById,
+    assets: manifest.assets,
   };
 }

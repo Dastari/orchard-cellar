@@ -13,11 +13,16 @@ export function scrollThumbRect(
   totalRows: number,
   visibleRows: number,
   position: number,
+  maximumHeight = Number.POSITIVE_INFINITY,
 ): UiRect {
   const maximum = scrollMaximum(totalRows, visibleRows);
   const height = maximum === 0
     ? bounds.height
-    : Math.min(bounds.height, Math.max(MINIMUM_THUMB_HEIGHT, Math.round(bounds.height * visibleRows / totalRows)));
+    : Math.min(
+      bounds.height,
+      maximumHeight,
+      Math.max(MINIMUM_THUMB_HEIGHT, Math.round(bounds.height * visibleRows / totalRows)),
+    );
   const travel = Math.max(0, bounds.height - height);
   return {
     x: bounds.x,
@@ -42,6 +47,34 @@ function rotatedAsset(
     height: destination.width,
   });
   context.restore();
+}
+
+/** Shared chat/shop scrollbar renderer. Continuous-content callers may cap
+ * the grip height while retaining the same green track and parchment art. */
+export function drawScrollBarChrome(
+  context: CanvasRenderingContext2D,
+  skin: UiSkin,
+  bounds: UiRect,
+  totalRows: number,
+  visibleRows: number,
+  position: number,
+  maximumThumbHeight = Number.POSITIVE_INFINITY,
+): void {
+  if (scrollMaximum(totalRows, visibleRows) === 0 || bounds.height <= 0) return;
+  const track = {
+    x: bounds.x + Math.floor((bounds.width - 6) / 2),
+    y: bounds.y,
+    width: 6,
+    height: bounds.height,
+  };
+  rotatedAsset(context, skin.sliderTrack, track);
+  rotatedAsset(context, skin.sliderHandle, scrollThumbRect(
+    bounds,
+    totalRows,
+    visibleRows,
+    position,
+    maximumThumbHeight,
+  ));
 }
 
 /** Shared top-origin scrollbar for framed, row-based content. */
@@ -133,17 +166,13 @@ export class ScrollBar {
   pointerLeave(): void { this.dragging = false; }
 
   draw(context: CanvasRenderingContext2D): void {
-    if (!this.visible) return;
-    const track = {
-      x: this.boundsValue.x + Math.floor((this.boundsValue.width - 6) / 2),
-      y: this.boundsValue.y,
-      width: 6,
-      height: this.boundsValue.height,
-    };
-    rotatedAsset(context, this.skin.sliderTrack, track);
-    const thumb = scrollThumbRect(
-      this.boundsValue, this.totalRowsValue, this.visibleRowsValue, this.positionValue,
+    drawScrollBarChrome(
+      context,
+      this.skin,
+      this.boundsValue,
+      this.totalRowsValue,
+      this.visibleRowsValue,
+      this.positionValue,
     );
-    rotatedAsset(context, this.skin.sliderHandle, thumb);
   }
 }

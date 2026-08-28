@@ -2,6 +2,11 @@
 
 Binding owner-directed spec (2026-08-25). Status: **phases 1–3 implemented
 (2026-08-26); phase 4 metal/smelting and later phases remain planned**.
+Per [40](40-sanctuary-overworld-and-zoned-world.md), freeform placement is confined
+to authorized Homestead/interior/resource destination spaces. The target sanctuary
+overworld accepts no general placement or dropped-item clutter; its dedicated deed
+transaction creates only a compact POI. Existing space-aware crafting authority is
+retained and reused inside destinations.
 Builds on [23-ui-system.md](23-ui-system.md) (grid/recipe/container machinery — the
 "recipes/content are a later milestone" it deferred is this doc),
 [20-survival-world.md](20-survival-world.md) (resource drops, tool-strip roster),
@@ -33,11 +38,15 @@ strip don't exist as items.
 
 ### 1.1 Implemented inventory-safety baseline
 
-- Shift-drag uses a live client preview and one authoritative commit on release;
-  counts rebalance as each slot is crossed without stale-snapshot network races.
+- A private authoritative cursor stack now owns picked-up items independently of
+  their source slot. Mouse release does not place or return that stack.
+- Left quick-craft evenly deposits `floor(cursor count / eligible slots)` in every
+  visited compatible slot and leaves the remainder on the cursor; right
+  quick-craft deposits one per visited slot. Neither gesture requires Shift.
 - Shift-double-click atomically transfers every matching item on the selected
-  inventory side. Shift-taking a recipe crafts until one output maximum stack,
-  source exhaustion, or destination exhaustion.
+  inventory side. Double-click fills the compatible cursor stack. Shift-taking a
+  recipe repeats until source or full inventory capacity is exhausted, including
+  across more than one output stack.
 - Every reducer remains transaction-scoped. Transient crafting items that
   cannot return to normal storage enter private `inventory_overflow` custody;
   world ticks and reconnects drain those rows into hotbar/backpack as space opens.

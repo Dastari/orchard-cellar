@@ -8,6 +8,9 @@ import {
   SURVIVAL_WORLD_SIZE,
   TOPSIDE_SPACE_ID,
   homesteadBiomeAt,
+  homesteadPlayableTile,
+  residencePlayableTile,
+  cellarPlayableTile,
   resolveRaisedTerrainTile,
   resolveRaisedTerrainContoursAt,
   maximumTerrainElevation,
@@ -22,37 +25,38 @@ import {
   survivalDirtTerraceBytes,
   survivalTerrainBytes,
   type RaisedTerrainGrid,
+  type RaisedTerrainTileSet,
   type RaisedTerrainRampRole,
   type RaisedTerrainTilePlan,
   type RaisedTerrainContourPlan,
   type SurvivalBiome,
   type SpaceDefinition,
   type TerrainTransition,
-} from '@orchard/sim';
-import { blob47FrameIndexFor } from './tilemap.js';
+} from "@orchard/sim";
+import { blob47FrameIndexFor } from "./tilemap.js";
 
 export { SURVIVAL_BIOMES };
 
 export const BIOME_COLORS = [
-  '#0095e9',
-  '#e4a672',
-  '#0789d1',
-  '#00b9f2',
-  '#3e8948',
-  '#3e8948',
-  '#3e8948',
-  '#3e8948',
-  '#3e8948',
-  '#3e8948',
-  '#e8a261',
-  '#e4a672',
-  '#8f583c',
-  '#7f8b42',
-  '#16bed0',
-  '#a8a34f',
-  '#3e8948',
-  '#e4a672',
-  '#9c6754',
+  "#0095e9",
+  "#e4a672",
+  "#0789d1",
+  "#00b9f2",
+  "#3e8948",
+  "#3e8948",
+  "#3e8948",
+  "#3e8948",
+  "#3e8948",
+  "#3e8948",
+  "#e8a261",
+  "#e4a672",
+  "#8f583c",
+  "#7f8b42",
+  "#16bed0",
+  "#a8a34f",
+  "#3e8948",
+  "#e4a672",
+  "#9c6754",
 ] as const;
 
 const WATER = 0;
@@ -62,6 +66,7 @@ export interface TerrainArray {
   readonly version: number;
   readonly width: number;
   readonly height: number;
+  readonly generator?: SpaceDefinition["generator"];
   readonly biomes: Uint8Array;
   readonly blocked: readonly boolean[];
   readonly horseJumpableTerrain: readonly boolean[];
@@ -81,44 +86,71 @@ export interface TerrainArray {
 }
 
 const terrainCache = new Map<string, TerrainArray>();
-const terrainClassificationCache = new Map<string, Omit<TerrainArray, 'seed' | 'version'>>();
+const terrainClassificationCache = new Map<
+  string,
+  Omit<TerrainArray, "seed" | "version">
+>();
+const SPACE_GENERATOR_REVISION: Readonly<
+  Record<NonNullable<TerrainArray["generator"]>, number>
+> = {
+  island: 1,
+  mine: 1,
+  homestead: 1,
+  residence: 1,
+  marlow_tent: 1,
+  cellar: 4,
+  debug_flat: 1,
+};
 
 export function terrainForWorld(seed: number, version: number): TerrainArray {
-  return terrainForSpace({
-    spaceId: TOPSIDE_SPACE_ID,
-    name: 'island',
-    sizeTiles: SURVIVAL_WORLD_SIZE,
-    generator: 'island',
-    ambient: 'clock',
-    weather: true,
-    audioBed: 'estate',
-  }, seed, version);
+  return terrainForSpace(
+    {
+      spaceId: TOPSIDE_SPACE_ID,
+      name: "island",
+      sizeTiles: SURVIVAL_WORLD_SIZE,
+      generator: "island",
+      environment: "outdoor",
+      ambient: "clock",
+      weather: true,
+      audioBed: "estate",
+    },
+    seed,
+    version,
+  );
 }
 
-export function terrainForSpace(space: SpaceDefinition, seed: number, version: number): TerrainArray {
-  const terrainKey = `${space.spaceId}:${seed}:${version}`;
+export function terrainForSpace(
+  space: SpaceDefinition,
+  seed: number,
+  version: number,
+): TerrainArray {
+  const generatorRevision = SPACE_GENERATOR_REVISION[space.generator];
+  const terrainKey = `${space.spaceId}:${space.generator}:${space.sizeTiles}:${generatorRevision}:${seed}:${version}`;
   const cachedTerrain = terrainCache.get(terrainKey);
   if (cachedTerrain !== undefined) return cachedTerrain;
-  const classificationKey = `${space.spaceId}:${seed}`;
+  const classificationKey = `${space.spaceId}:${space.generator}:${space.sizeTiles}:${generatorRevision}:${seed}`;
   let classification = terrainClassificationCache.get(classificationKey);
   if (!classification) {
-    if (space.generator === 'island') {
+    if (space.generator === "island") {
       const biomes = survivalTerrainBytes(seed);
       const elevations = survivalElevationBytes(seed);
       classification = {
         spaceId: space.spaceId,
+        generator: space.generator,
         width: SURVIVAL_WORLD_SIZE,
         height: SURVIVAL_WORLD_SIZE,
         biomes,
-        blocked: Array.from(biomes, (_biome, index) => survivalTerrainBlocksTraversalAt(
-          seed,
-          index % SURVIVAL_WORLD_SIZE,
-          Math.floor(index / SURVIVAL_WORLD_SIZE),
-          'ground',
-        )),
-        horseJumpableTerrain: Array.from(biomes, (biome) => (
-          survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biome] ?? 'water')
-        )),
+        blocked: Array.from(biomes, (_biome, index) =>
+          survivalTerrainBlocksTraversalAt(
+            seed,
+            index % SURVIVAL_WORLD_SIZE,
+            Math.floor(index / SURVIVAL_WORLD_SIZE),
+            "ground",
+          ),
+        ),
+        horseJumpableTerrain: Array.from(biomes, (biome) =>
+          survivalBiomeAllowsHorseJump(SURVIVAL_BIOMES[biome] ?? "water"),
+        ),
         cliffRoles: survivalCliffRoleBytes(seed),
         elevations,
         terrainTransitions: survivalTerrainTransitions(seed),
@@ -130,12 +162,19 @@ export function terrainForSpace(space: SpaceDefinition, seed: number, version: n
     } else {
       const length = space.sizeTiles * space.sizeTiles;
       const elevations = new Uint8Array(length);
-      const plains = Math.max(0, SURVIVAL_BIOMES.indexOf('plains'));
+      const plains = Math.max(0, SURVIVAL_BIOMES.indexOf("plains"));
       const biomes = new Uint8Array(length).fill(plains);
-      if (space.generator === 'homestead' && space.homesteadSite !== undefined) {
+      if (
+        space.generator === "homestead" &&
+        space.homesteadSite !== undefined
+      ) {
         for (let index = 0; index < length; index += 1) {
           const biome = homesteadBiomeAt(
-            seed, space.homesteadSite, index % space.sizeTiles, Math.floor(index / space.sizeTiles), space.sizeTiles,
+            seed,
+            space.homesteadSite,
+            index % space.sizeTiles,
+            Math.floor(index / space.sizeTiles),
+            space.sizeTiles,
           );
           biomes[index] = Math.max(0, SURVIVAL_BIOMES.indexOf(biome));
         }
@@ -143,10 +182,24 @@ export function terrainForSpace(space: SpaceDefinition, seed: number, version: n
       const blocked = Array.from({ length }, (_, index) => {
         const x = index % space.sizeTiles;
         const y = Math.floor(index / space.sizeTiles);
-        return x === 0 || y === 0 || x === space.sizeTiles - 1 || y === space.sizeTiles - 1;
+        return space.generator === "homestead"
+          ? !homesteadPlayableTile(x, y)
+          : space.generator === "residence" || space.generator === "marlow_tent"
+            ? !residencePlayableTile(x, y)
+            : space.generator === "cellar"
+              ? !cellarPlayableTile(x, y)
+              : x === 0 ||
+                y === 0 ||
+                x === space.sizeTiles - 1 ||
+                y === space.sizeTiles - 1;
       });
+      if (space.generator === "cellar") {
+        for (let index = 0; index < length; index += 1)
+          elevations[index] = blocked[index] ? 1 : 0;
+      }
       classification = {
         spaceId: space.spaceId,
+        generator: space.generator,
         width: space.sizeTiles,
         height: space.sizeTiles,
         biomes,
@@ -170,19 +223,42 @@ export function terrainForSpace(space: SpaceDefinition, seed: number, version: n
   return terrain;
 }
 
-export function terrainBiomeAt(terrain: TerrainArray, tileX: number, tileY: number): SurvivalBiome {
-  if (tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height) return 'water';
-  return SURVIVAL_BIOMES[terrain.biomes[tileY * terrain.width + tileX] ?? WATER] ?? 'water';
+export function terrainBiomeAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): SurvivalBiome {
+  if (
+    tileX < 0 ||
+    tileY < 0 ||
+    tileX >= terrain.width ||
+    tileY >= terrain.height
+  )
+    return "water";
+  return (
+    SURVIVAL_BIOMES[terrain.biomes[tileY * terrain.width + tileX] ?? WATER] ??
+    "water"
+  );
 }
 
-export function terrainColorAt(terrain: TerrainArray, tileX: number, tileY: number): string {
-  const biome = tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height
-    ? WATER
-    : terrain.biomes[tileY * terrain.width + tileX] ?? WATER;
+export function terrainColorAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): string {
+  const biome =
+    tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height
+      ? WATER
+      : (terrain.biomes[tileY * terrain.width + tileX] ?? WATER);
   return BIOME_COLORS[biome] ?? BIOME_COLORS[WATER];
 }
 
-function edgeFrameIndex(north: boolean, east: boolean, south: boolean, west: boolean): number {
+function edgeFrameIndex(
+  north: boolean,
+  east: boolean,
+  south: boolean,
+  west: boolean,
+): number {
   if (north && west) return 0;
   if (north && east) return 2;
   if (south && west) return 6;
@@ -195,15 +271,20 @@ function edgeFrameIndex(north: boolean, east: boolean, south: boolean, west: boo
 }
 
 function oceanWaterBiome(biome: SurvivalBiome): boolean {
-  return biome === 'water';
+  return biome === "water";
 }
 
 function freshwaterBiome(biome: SurvivalBiome): boolean {
-  return biome === 'freshwater' || biome === 'waterfall';
+  return biome === "freshwater" || biome === "waterfall";
 }
 
-export function beachFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number {
-  const water = (offsetX: number, offsetY: number): boolean => oceanWaterBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY));
+export function beachFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number {
+  const water = (offsetX: number, offsetY: number): boolean =>
+    oceanWaterBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY));
   const north = water(0, -1);
   const east = water(1, 0);
   const south = water(0, 1);
@@ -212,18 +293,31 @@ export function beachFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: n
 }
 
 function vegetatedBiome(biome: SurvivalBiome): boolean {
-  return biome === 'plains' || biome === 'meadow' || biome === 'forest'
-    || biome === 'valley' || biome === 'highland' || biome === 'oasis'
-    || biome === 'savanna';
+  return (
+    biome === "plains" ||
+    biome === "meadow" ||
+    biome === "forest" ||
+    biome === "valley" ||
+    biome === "highland" ||
+    biome === "oasis" ||
+    biome === "savanna"
+  );
 }
 
 function darkGrassBiome(biome: SurvivalBiome): boolean {
-  return biome === 'plains' || biome === 'meadow' || biome === 'forest'
-    || biome === 'valley' || biome === 'highland';
+  return (
+    biome === "plains" ||
+    biome === "meadow" ||
+    biome === "forest" ||
+    biome === "valley" ||
+    biome === "highland"
+  );
 }
 
 function desertGroundBiome(biome: SurvivalBiome): boolean {
-  return biome === 'desert' || biome === 'desert_shore' || biome === 'desert_ridge';
+  return (
+    biome === "desert" || biome === "desert_shore" || biome === "desert_ridge"
+  );
 }
 
 /** The authored 47-frame fringe is drawn on sandy cells, but ocean counts as
@@ -233,10 +327,13 @@ export function grassSandTransitionFrameIndexAt(
   tileX: number,
   tileY: number,
 ): number | null {
-  if (terrainBiomeAt(terrain, tileX, tileY) !== 'beach') return null;
-  const frame = blob47FrameIndexFor((offsetX, offsetY) => (
-    !vegetatedBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY))
-  ));
+  if (terrainBiomeAt(terrain, tileX, tileY) !== "beach") return null;
+  const frame = blob47FrameIndexFor(
+    (offsetX, offsetY) =>
+      !vegetatedBiome(
+        terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY),
+      ),
+  );
   return frame === 46 ? null : frame;
 }
 
@@ -247,10 +344,13 @@ export function savannaGrassTransitionFrameIndexAt(
   tileX: number,
   tileY: number,
 ): number | null {
-  if (terrainBiomeAt(terrain, tileX, tileY) !== 'savanna') return null;
-  const frame = blob47FrameIndexFor((offsetX, offsetY) => (
-    !darkGrassBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY))
-  ));
+  if (terrainBiomeAt(terrain, tileX, tileY) !== "savanna") return null;
+  const frame = blob47FrameIndexFor(
+    (offsetX, offsetY) =>
+      !darkGrassBiome(
+        terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY),
+      ),
+  );
   return frame === 46 ? null : frame;
 }
 
@@ -261,9 +361,8 @@ export function desertGrassEdgeFrameIndexAt(
   tileY: number,
 ): number | null {
   if (!desertGroundBiome(terrainBiomeAt(terrain, tileX, tileY))) return null;
-  const grass = (offsetX: number, offsetY: number): boolean => (
-    vegetatedBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY))
-  );
+  const grass = (offsetX: number, offsetY: number): boolean =>
+    vegetatedBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY));
   return edgeFrameIndex(grass(0, -1), grass(1, 0), grass(0, 1), grass(-1, 0));
 }
 
@@ -273,9 +372,8 @@ export function desertGrassInsetFrameIndicesAt(
   tileY: number,
 ): readonly number[] {
   if (!desertGroundBiome(terrainBiomeAt(terrain, tileX, tileY))) return [];
-  const grass = (offsetX: number, offsetY: number): boolean => (
-    vegetatedBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY))
-  );
+  const grass = (offsetX: number, offsetY: number): boolean =>
+    vegetatedBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY));
   const north = grass(0, -1);
   const east = grass(1, 0);
   const south = grass(0, 1);
@@ -297,10 +395,12 @@ export function shorelineInsetFrameIndicesAt(
   tileY: number,
 ): readonly number[] {
   const biome = terrainBiomeAt(terrain, tileX, tileY);
-  if (biome !== 'beach' && biome !== 'desert_shore') return [];
+  if (biome !== "beach" && biome !== "desert_shore") return [];
   const water = (offsetX: number, offsetY: number): boolean => {
     const neighbor = terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY);
-    return biome === 'beach' ? neighbor === 'water' : neighbor === 'water' || neighbor === 'oasis_water';
+    return biome === "beach"
+      ? neighbor === "water"
+      : neighbor === "water" || neighbor === "oasis_water";
   };
   const north = water(0, -1);
   const east = water(1, 0);
@@ -316,32 +416,66 @@ export function shorelineInsetFrameIndicesAt(
 
 /** Grass-edged freshwater frames are selected from the water tile itself, so
  * exposed sides are the neighboring non-water sides rather than adjacent water. */
-export function freshwaterFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number {
-  const land = (offsetX: number, offsetY: number): boolean => !freshwaterBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY));
-  const frame = edgeFrameIndex(land(0, -1), land(1, 0), land(0, 1), land(-1, 0));
-  if (frame !== 4) return frame;
-  if (land(-1, -1)) return 13;
-  if (land(1, -1)) return 12;
-  if (land(-1, 1)) return 10;
-  if (land(1, 1)) return 9;
-  return frame;
+export function freshwaterFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number {
+  const land = (offsetX: number, offsetY: number): boolean =>
+    !freshwaterBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY));
+  return edgeFrameIndex(land(0, -1), land(1, 0), land(0, 1), land(-1, 0));
+}
+
+/** Water Tile 1 supplies four inverse banks as full frames. Rendering only
+ * one loses the opposite corner of a two-tile diagonal river, producing the
+ * square blue protrusions visible at every bend. The runtime uses water-keyed
+ * transparent extracts of those frames, so every valid diagonal can compose
+ * over the cardinal base. Frame order is SE, SW, NE, NW. */
+export function freshwaterInsetFrameIndicesAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): readonly number[] {
+  if (terrainBiomeAt(terrain, tileX, tileY) !== "freshwater") return [];
+  const land = (offsetX: number, offsetY: number): boolean =>
+    !freshwaterBiome(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY));
+  const north = land(0, -1);
+  const east = land(1, 0);
+  const south = land(0, 1);
+  const west = land(-1, 0);
+  const frames: number[] = [];
+  if (!south && !east && land(1, 1)) frames.push(0);
+  if (!south && !west && land(-1, 1)) frames.push(1);
+  if (!north && !east && land(1, -1)) frames.push(2);
+  if (!north && !west && land(-1, -1)) frames.push(3);
+  return frames;
 }
 
 function waterDecorationGroup(biome: SurvivalBiome): number {
-  if (biome === 'water') return 1;
-  if (biome === 'freshwater' || biome === 'waterfall') return 2;
-  if (biome === 'oasis_water') return 3;
+  if (biome === "water") return 1;
+  if (biome === "freshwater" || biome === "waterfall") return 2;
+  if (biome === "oasis_water") return 3;
   return 0;
 }
 
 /** Water details only occupy uninterrupted interior water, never a bank frame. */
-export function waterDecorationAllowedAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
+export function waterDecorationAllowedAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): boolean {
   const group = waterDecorationGroup(terrainBiomeAt(terrain, tileX, tileY));
-  if (group === 0 || terrainBiomeAt(terrain, tileX, tileY) === 'waterfall') return false;
+  if (group === 0 || terrainBiomeAt(terrain, tileX, tileY) === "waterfall")
+    return false;
   for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
     for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
       if (offsetX === 0 && offsetY === 0) continue;
-      if (waterDecorationGroup(terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY)) !== group) return false;
+      if (
+        waterDecorationGroup(
+          terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY),
+        ) !== group
+      )
+        return false;
     }
   }
   return true;
@@ -351,53 +485,137 @@ export function terrainDecorationHash(tileX: number, tileY: number): number {
   return (Math.imul(tileX, 73_856_093) ^ Math.imul(tileY, 19_349_663)) >>> 0;
 }
 
-export function grassTuftAllowedAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
+export function grassTuftAllowedAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): boolean {
   const biome = terrainBiomeAt(terrain, tileX, tileY);
-  if (biome !== 'plains' && biome !== 'meadow' && biome !== 'forest') return false;
-  return terrainDecorationHash(tileX, tileY) % (biome === 'meadow' ? 9 : 23) === 0;
+  if (biome !== "plains" && biome !== "meadow" && biome !== "forest")
+    return false;
+  return (
+    terrainDecorationHash(tileX, tileY) % (biome === "meadow" ? 9 : 23) === 0
+  );
 }
 
-export function animatedWaterRockAllowedAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
+export function animatedWaterRockAllowedAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): boolean {
   const biome = terrainBiomeAt(terrain, tileX, tileY);
   const hash = terrainDecorationHash(tileX, tileY);
-  return (biome === 'freshwater' || biome === 'oasis_water')
-    && waterDecorationAllowedAt(terrain, tileX, tileY)
-    && hash % 113 === 0
-    && hash % 13 !== 0;
+  return (
+    (biome === "freshwater" || biome === "oasis_water") &&
+    waterDecorationAllowedAt(terrain, tileX, tileY) &&
+    hash % 113 === 0 &&
+    hash % 13 !== 0
+  );
 }
 
-export function waterfallTopLeftAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
-  return terrainBiomeAt(terrain, tileX, tileY) === 'waterfall'
-    && terrainBiomeAt(terrain, tileX - 1, tileY) !== 'waterfall'
-    && terrainBiomeAt(terrain, tileX, tileY - 1) !== 'waterfall';
+export function waterfallTopLeftAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): boolean {
+  return (
+    terrainBiomeAt(terrain, tileX, tileY) === "waterfall" &&
+    terrainBiomeAt(terrain, tileX - 1, tileY) !== "waterfall" &&
+    terrainBiomeAt(terrain, tileX, tileY - 1) !== "waterfall"
+  );
 }
 
-export function desertShoreFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number {
+/** Raised waterfalls are composed in the depth queue rather than baked into
+ * the ground cache. Test a complete local fall neighbourhood so every member
+ * cell makes the same decision, not only its north-west anchor. */
+export function waterfallUsesRaisedCompositionAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (terrainBiomeAt(terrain, tileX, tileY) !== "waterfall") return false;
+  let minimumElevation = Number.POSITIVE_INFINITY;
+  let maximumElevation = Number.NEGATIVE_INFINITY;
+  for (let offsetY = -4; offsetY <= 4; offsetY += 1) {
+    for (let offsetX = -4; offsetX <= 4; offsetX += 1) {
+      if (terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY) !== "waterfall")
+        continue;
+      const elevation = terrainElevationAt(
+        terrain,
+        tileX + offsetX,
+        tileY + offsetY,
+      );
+      minimumElevation = Math.min(minimumElevation, elevation);
+      maximumElevation = Math.max(maximumElevation, elevation);
+    }
+  }
+  return maximumElevation > minimumElevation;
+}
+
+export function desertShoreFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number {
   const water = (offsetX: number, offsetY: number): boolean => {
     const biome = terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY);
-    return biome === 'water' || biome === 'oasis_water';
+    return biome === "water" || biome === "oasis_water";
   };
   return edgeFrameIndex(water(0, -1), water(1, 0), water(0, 1), water(-1, 0));
 }
 
-export function waterfallFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number | null {
-  if (terrainBiomeAt(terrain, tileX, tileY) !== 'waterfall') return null;
-  const waterfall = (offsetX: number, offsetY: number): boolean => terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY) === 'waterfall';
+export function waterfallFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number | null {
+  if (terrainBiomeAt(terrain, tileX, tileY) !== "waterfall") return null;
+  const waterfall = (offsetX: number, offsetY: number): boolean =>
+    terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY) === "waterfall";
   const column = !waterfall(-1, 0) ? 0 : !waterfall(1, 0) ? 2 : 1;
-  const row = !waterfall(0, -1) ? 0
-    : !waterfall(0, 1) ? 4
-      : !waterfall(0, -2) ? 1
-        : !waterfall(0, 2) ? 3
+  const row = !waterfall(0, -1)
+    ? 0
+    : !waterfall(0, 1)
+      ? 4
+      : !waterfall(0, -2)
+        ? 1
+        : !waterfall(0, 2)
+          ? 3
           : 2;
   return row * 3 + column;
 }
 
-function plateauAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
+function plateauAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): boolean {
   return terrainElevationAt(terrain, tileX, tileY) >= 1;
 }
 
-export function terrainElevationAt(terrain: TerrainArray, tileX: number, tileY: number): number {
-  return sampleTerrainElevation(terrain.elevations, terrain.width, terrain.height, tileX, tileY);
+export function terrainElevationAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number {
+  // A cellar map is a window cut into a continuous solid rock mass. Treating
+  // its array boundary as sea-level creates a false rectangular cliff around
+  // the entire space.
+  if (
+    terrain.generator === "cellar" &&
+    (tileX < 0 ||
+      tileY < 0 ||
+      tileX >= terrain.width ||
+      tileY >= terrain.height)
+  )
+    return 1;
+  return sampleTerrainElevation(
+    terrain.elevations,
+    terrain.width,
+    terrain.height,
+    tileX,
+    tileY,
+  );
 }
 
 export function terrainElevationAtWorldFoot(
@@ -418,26 +636,105 @@ export function terrainContactWorldYForPlayer(worldAnchorY: number): number {
   return worldAnchorY - (PLAYER_HITBOX_FOOT_OFFSET + 1) / FIXED_UNITS_PER_PIXEL;
 }
 
-function cliffRoleAt(terrain: TerrainArray, tileX: number, tileY: number): typeof SURVIVAL_CLIFF_ROLES[number] {
-  if (tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height) return 'none';
-  return SURVIVAL_CLIFF_ROLES[terrain.cliffRoles[tileY * terrain.width + tileX] ?? 0] ?? 'none';
+function cliffRoleAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): (typeof SURVIVAL_CLIFF_ROLES)[number] {
+  if (
+    tileX < 0 ||
+    tileY < 0 ||
+    tileX >= terrain.width ||
+    tileY >= terrain.height
+  )
+    return "none";
+  return (
+    SURVIVAL_CLIFF_ROLES[
+      terrain.cliffRoles[tileY * terrain.width + tileX] ?? 0
+    ] ?? "none"
+  );
 }
 
-function dirtCliffRoleAt(terrain: TerrainArray, tileX: number, tileY: number): typeof SURVIVAL_DIRT_CLIFF_ROLES[number] {
-  if (tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height) return 'none';
-  return SURVIVAL_DIRT_CLIFF_ROLES[terrain.dirtCliffRoles[tileY * terrain.width + tileX] ?? 0] ?? 'none';
+function dirtCliffRoleAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): (typeof SURVIVAL_DIRT_CLIFF_ROLES)[number] {
+  if (
+    tileX < 0 ||
+    tileY < 0 ||
+    tileX >= terrain.width ||
+    tileY >= terrain.height
+  )
+    return "none";
+  return (
+    SURVIVAL_DIRT_CLIFF_ROLES[
+      terrain.dirtCliffRoles[tileY * terrain.width + tileX] ?? 0
+    ] ?? "none"
+  );
 }
 
-function dirtTerraceAt(terrain: TerrainArray, tileX: number, tileY: number): boolean {
-  if (tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height) return false;
+function dirtTerraceAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (
+    tileX < 0 ||
+    tileY < 0 ||
+    tileX >= terrain.width ||
+    tileY >= terrain.height
+  )
+    return false;
   const biome = terrainBiomeAt(terrain, tileX, tileY);
-  return terrain.dirtTerraces[tileY * terrain.width + tileX] === 1
-    && (biome === 'dirt_terrace' || biome === 'dirt_ridge');
+  return (
+    terrain.dirtTerraces[tileY * terrain.width + tileX] === 1 &&
+    (biome === "dirt_terrace" || biome === "dirt_ridge")
+  );
 }
 
 /** Stone Cliff 1 plugs into the generic raised-terrain topology. Other natural
  * wall sheets provide another data object rather than another resolver. */
 export const STONE_RAISED_CLIFF_TILE_SET = SURVIVAL_RAISED_CLIFF_TILE_SET;
+
+/** Cave_Walls uses the same occupancy grammar as outdoor elevations, but its
+ * south edge continues into two authored, front-facing rock rows. */
+export const CAVE_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
+  // Cave rim/corner cells belong beside the hollow at logical ground level,
+  // not on the projected solid-rock plane. Ground-cache resolves those from
+  // Cave_Walls' authored 3×3 ring; this profile supplies only tall back faces.
+  edgeFrames: {},
+  insetFrames: {},
+  rampFrames: {},
+  faceProfiles: {
+    tall: {
+      rows: [
+        {
+          id: "wall",
+          frames: [42, 43, 44],
+          blocksMovement: true,
+          blocksLight: true,
+        },
+        {
+          id: "lower_wall",
+          frames: [49, 50, 51],
+          blocksMovement: true,
+          blocksLight: true,
+        },
+      ],
+    },
+  },
+  edgeBlocksMovement: false,
+  edgeBlocksLight: false,
+};
+
+export function raisedCliffTileSetFor(
+  terrain: TerrainArray,
+): RaisedTerrainTileSet {
+  return terrain.generator === "cellar"
+    ? CAVE_RAISED_CLIFF_TILE_SET
+    : STONE_RAISED_CLIFF_TILE_SET;
+}
 
 function plateauRampRoleAt(
   terrain: TerrainArray,
@@ -446,31 +743,49 @@ function plateauRampRoleAt(
   tileY: number,
 ): RaisedTerrainRampRole | null {
   for (const transition of terrain.terrainTransitions ?? []) {
-    if (transition.contourLevel !== contourLevel || transition.direction !== 'up') continue;
-    const peerOnRight = terrain.terrainTransitions?.some((candidate) => (
-      candidate.contourLevel === contourLevel && candidate.direction === 'up'
-      && candidate.lowerTileX === transition.lowerTileX + 1
-      && candidate.lowerTileY === transition.lowerTileY
-    )) ?? false;
-    const side = peerOnRight ? 'left' : 'right';
+    if (
+      transition.contourLevel !== contourLevel ||
+      transition.direction !== "up"
+    )
+      continue;
+    const peerOnRight =
+      terrain.terrainTransitions?.some(
+        (candidate) =>
+          candidate.contourLevel === contourLevel &&
+          candidate.direction === "up" &&
+          candidate.lowerTileX === transition.lowerTileX + 1 &&
+          candidate.lowerTileY === transition.lowerTileY,
+      ) ?? false;
+    const side = peerOnRight ? "left" : "right";
     if (tileX === transition.upperTileX && tileY === transition.upperTileY) {
-      return side === 'left' ? 'ramp_top_left' : 'ramp_top_right';
+      return side === "left" ? "ramp_top_left" : "ramp_top_right";
     }
     if (tileX === transition.lowerTileX && tileY === transition.lowerTileY) {
-      return side === 'left' ? 'ramp_bottom_left' : 'ramp_bottom_right';
+      return side === "left" ? "ramp_bottom_left" : "ramp_bottom_right";
     }
   }
   if (contourLevel !== 1) return null;
   const legacyRole = cliffRoleAt(terrain, tileX, tileY);
-  if (legacyRole === 'ramp_top_left' || legacyRole === 'ramp_top_right'
-    || legacyRole === 'ramp_bottom_left' || legacyRole === 'ramp_bottom_right') return legacyRole;
+  if (
+    legacyRole === "ramp_top_left" ||
+    legacyRole === "ramp_top_right" ||
+    legacyRole === "ramp_bottom_left" ||
+    legacyRole === "ramp_bottom_right"
+  )
+    return legacyRole;
   return null;
 }
 
 const plateauGridCache = new WeakMap<TerrainArray, RaisedTerrainGrid>();
 const maximumElevationCache = new WeakMap<TerrainArray, number>();
-const contourPlanCache = new WeakMap<TerrainArray, Map<number, readonly RaisedTerrainContourPlan[]>>();
-const transitionsByTileCache = new WeakMap<TerrainArray, Map<number, readonly TerrainTransition[]>>();
+const contourPlanCache = new WeakMap<
+  TerrainArray,
+  Map<number, readonly RaisedTerrainContourPlan[]>
+>();
+const transitionsByTileCache = new WeakMap<
+  TerrainArray,
+  Map<number, readonly TerrainTransition[]>
+>();
 
 function plateauGridFor(terrain: TerrainArray): RaisedTerrainGrid {
   let grid = plateauGridCache.get(terrain);
@@ -484,11 +799,15 @@ function plateauGridFor(terrain: TerrainArray): RaisedTerrainGrid {
   return grid;
 }
 
-export function plateauLayerPlanAt(terrain: TerrainArray, tileX: number, tileY: number): RaisedTerrainTilePlan {
+export function plateauLayerPlanAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): RaisedTerrainTilePlan {
   return resolveRaisedTerrainTile(
     plateauGridFor(terrain),
-    STONE_RAISED_CLIFF_TILE_SET,
-    'tall',
+    raisedCliffTileSetFor(terrain),
+    "tall",
     tileX,
     tileY,
   );
@@ -511,8 +830,8 @@ export function plateauLayerPlansAt(
   const plans = resolveRaisedTerrainContoursAt(
     (x, y) => terrainElevationAt(terrain, x, y),
     maximumElevation,
-    STONE_RAISED_CLIFF_TILE_SET,
-    'tall',
+    raisedCliffTileSetFor(terrain),
+    "tall",
     tileX,
     tileY,
     (contourLevel, x, y) => plateauRampRoleAt(terrain, contourLevel, x, y),
@@ -535,11 +854,16 @@ export function terrainProjectedDepthAtFoot(
   worldX: number,
   worldFootY: number,
 ): number {
-  return terrainProjectedElevationAtFoot(terrain, worldX, worldFootY)
-    * terrainProjectedRowsPerLevel() * 16;
+  return (
+    terrainProjectedElevationAtFoot(terrain, worldX, worldFootY) *
+    terrainProjectedRowsPerLevel() *
+    16
+  );
 }
 
-function terrainTransitionsByTile(terrain: TerrainArray): Map<number, readonly TerrainTransition[]> {
+function terrainTransitionsByTile(
+  terrain: TerrainArray,
+): Map<number, readonly TerrainTransition[]> {
   let byTile = transitionsByTileCache.get(terrain);
   if (byTile !== undefined) return byTile;
   const mutable = new Map<number, TerrainTransition[]>();
@@ -570,19 +894,22 @@ export function terrainProjectedElevationAtFoot(
   const tileX = Math.floor(worldX / 16);
   const tileY = Math.floor((worldFootY - 0.001) / 16);
   const baseElevation = terrainElevationAt(terrain, tileX, tileY);
-  const transitions = terrainTransitionsByTile(terrain).get(tileY * terrain.width + tileX) ?? [];
+  const transitions =
+    terrainTransitionsByTile(terrain).get(tileY * terrain.width + tileX) ?? [];
   for (const transition of transitions) {
-    if (transition.kind !== 'slope' && transition.kind !== 'stairs') continue;
+    if (transition.kind !== "slope" && transition.kind !== "stairs") continue;
     const lowerX = (transition.lowerTileX + 0.5) * 16;
     const lowerY = (transition.lowerTileY + 0.5) * 16;
     const deltaX = (transition.upperTileX - transition.lowerTileX) * 16;
     const deltaY = (transition.upperTileY - transition.lowerTileY) * 16;
     const distanceSquared = deltaX * deltaX + deltaY * deltaY;
-    const progress = ((worldX - lowerX) * deltaX + (worldFootY - lowerY) * deltaY)
-      / distanceSquared;
+    const progress =
+      ((worldX - lowerX) * deltaX + (worldFootY - lowerY) * deltaY) /
+      distanceSquared;
     if (progress < 0 || progress > 1) continue;
-    const perpendicular = Math.abs((worldX - lowerX) * deltaY - (worldFootY - lowerY) * deltaX)
-      / Math.sqrt(distanceSquared);
+    const perpendicular =
+      Math.abs((worldX - lowerX) * deltaY - (worldFootY - lowerY) * deltaX) /
+      Math.sqrt(distanceSquared);
     if (perpendicular > 8) continue;
     return transition.contourLevel - 1 + progress;
   }
@@ -611,8 +938,8 @@ export function terrainProjectedWorldYAtFoot(
   return worldFootY - terrainProjectedDepthAtFoot(terrain, worldX, worldFootY);
 }
 
-export type TerrainContourBoundary = 'none' | 'blocked' | 'transition';
-export type TerrainPlaneCollisionCell = 'open' | 'blocked' | 'transition';
+export type TerrainContourBoundary = "none" | "blocked" | "transition";
+export type TerrainPlaneCollisionCell = "open" | "blocked" | "transition";
 
 /** Classifies one logical tile for the actor's current elevation plane. This
  * is the debug/editor counterpart of the movement guard: other elevations are
@@ -623,18 +950,33 @@ export function terrainPlaneCollisionCellAt(
   tileY: number,
   activeElevation: number,
 ): TerrainPlaneCollisionCell {
-  if (tileX < 0 || tileY < 0 || tileX >= terrain.width || tileY >= terrain.height) return 'blocked';
+  if (
+    tileX < 0 ||
+    tileY < 0 ||
+    tileX >= terrain.width ||
+    tileY >= terrain.height
+  )
+    return "blocked";
   const index = tileY * terrain.width + tileX;
-  if (terrain.blocked[index] ?? true) return 'blocked';
-  const transition = (terrainTransitionsByTile(terrain).get(index) ?? []).some((candidate) => {
-    if (candidate.kind !== 'slope' && candidate.kind !== 'stairs') return false;
-    const endpoint = (candidate.lowerTileX === tileX && candidate.lowerTileY === tileY)
-      || (candidate.upperTileX === tileX && candidate.upperTileY === tileY);
-    return endpoint && (candidate.contourLevel === activeElevation
-      || candidate.contourLevel - 1 === activeElevation);
-  });
-  if (transition) return 'transition';
-  return terrainElevationAt(terrain, tileX, tileY) === activeElevation ? 'open' : 'blocked';
+  if (terrain.blocked[index] ?? true) return "blocked";
+  const transition = (terrainTransitionsByTile(terrain).get(index) ?? []).some(
+    (candidate) => {
+      if (candidate.kind !== "slope" && candidate.kind !== "stairs")
+        return false;
+      const endpoint =
+        (candidate.lowerTileX === tileX && candidate.lowerTileY === tileY) ||
+        (candidate.upperTileX === tileX && candidate.upperTileY === tileY);
+      return (
+        endpoint &&
+        (candidate.contourLevel === activeElevation ||
+          candidate.contourLevel - 1 === activeElevation)
+      );
+    },
+  );
+  if (transition) return "transition";
+  return terrainElevationAt(terrain, tileX, tileY) === activeElevation
+    ? "open"
+    : "blocked";
 }
 
 export function terrainContourBoundaryBetween(
@@ -646,7 +988,7 @@ export function terrainContourBoundaryBetween(
 ): TerrainContourBoundary {
   const fromElevation = terrainElevationAt(terrain, fromTileX, fromTileY);
   const toElevation = terrainElevationAt(terrain, toTileX, toTileY);
-  if (fromElevation === toElevation) return 'none';
+  if (fromElevation === toElevation) return "none";
   return terrainWalkingStepAllowed(
     terrain.elevations,
     terrain.width,
@@ -656,12 +998,17 @@ export function terrainContourBoundaryBetween(
     fromTileY,
     toTileX,
     toTileY,
-  ) ? 'transition' : 'blocked';
+  )
+    ? "transition"
+    : "blocked";
 }
 
 export function terrainProjectedRowsPerLevel(): number {
-  return STONE_RAISED_CLIFF_TILE_SET.faceProfiles.tall?.rows
-    .filter((row) => row.contributesHeight !== false).length ?? 0;
+  return (
+    STONE_RAISED_CLIFF_TILE_SET.faceProfiles.tall?.rows.filter(
+      (row) => row.contributesHeight !== false,
+    ).length ?? 0
+  );
 }
 
 /** Editor preview mutates a working elevation buffer in place. Production
@@ -674,13 +1021,23 @@ export function invalidateTerrainElevationCaches(terrain: TerrainArray): void {
 }
 
 /** Background faces are returned deepest-to-nearest for correct compositing. */
-export function plateauBackgroundFrameIndicesAt(terrain: TerrainArray, tileX: number, tileY: number): readonly number[] {
-  return plateauLayerPlanAt(terrain, tileX, tileY).faceLayers.map((layer) => layer.frame);
+export function plateauBackgroundFrameIndicesAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): readonly number[] {
+  return plateauLayerPlanAt(terrain, tileX, tileY).faceLayers.map(
+    (layer) => layer.frame,
+  );
 }
 
 /** Organic raised areas use the matching cap and side frames from Stone Cliff
  * 1. Unlike the blob edge sheet, these read as the top of a raised landform. */
-export function plateauEdgeFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number | null {
+export function plateauEdgeFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number | null {
   return plateauLayerPlanAt(terrain, tileX, tileY).edgeFrame;
 }
 
@@ -694,30 +1051,52 @@ export function plateauForegroundFrameIndicesAt(
   return plateauLayerPlanAt(terrain, tileX, tileY).insetFrames;
 }
 
-export function plateauRampFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number | null {
+export function plateauRampFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number | null {
   return plateauLayerPlanAt(terrain, tileX, tileY).rampFrame;
 }
 
-export function dirtTerraceFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number | null {
-  if (!dirtTerraceAt(terrain, tileX, tileY) || dirtCliffRoleAt(terrain, tileX, tileY).startsWith('ramp_top')) return null;
-  return blob47FrameIndexFor((offsetX, offsetY) => dirtTerraceAt(terrain, tileX + offsetX, tileY + offsetY));
+export function dirtTerraceFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number | null {
+  if (
+    !dirtTerraceAt(terrain, tileX, tileY) ||
+    dirtCliffRoleAt(terrain, tileX, tileY).startsWith("ramp_top")
+  )
+    return null;
+  return blob47FrameIndexFor((offsetX, offsetY) =>
+    dirtTerraceAt(terrain, tileX + offsetX, tileY + offsetY),
+  );
 }
 
-export function dirtTerraceRampFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number | null {
+export function dirtTerraceRampFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number | null {
   const role = dirtCliffRoleAt(terrain, tileX, tileY);
-  if (role === 'ramp_top_left') return 0;
-  if (role === 'ramp_top_right') return 1;
-  if (role === 'ramp_bottom_left') return 2;
-  if (role === 'ramp_bottom_right') return 3;
+  if (role === "ramp_top_left") return 0;
+  if (role === "ramp_top_right") return 1;
+  if (role === "ramp_bottom_left") return 2;
+  if (role === "ramp_bottom_right") return 3;
   return null;
 }
 
 /** Frame coordinates address the separate ocean-facing Stone Cliff 1 bands.
  * Raised plateau projections are selected independently above. */
-export function cliffFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number | null {
+export function cliffFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number | null {
   const cliff = (offsetX: number, offsetY: number): boolean => {
     const biome = terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY);
-    return biome === 'coastal_cliff';
+    return biome === "coastal_cliff";
   };
   if (!cliff(0, 0)) return null;
   const column = !cliff(-1, 0) ? 1 : !cliff(1, 0) ? 3 : 2;
@@ -730,9 +1109,15 @@ export function cliffFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: n
 }
 
 /** Frame coordinates address the authored 13x11 desert cliff sheet. */
-export function desertCliffFrameIndexAt(terrain: TerrainArray, tileX: number, tileY: number): number | null {
-  if (terrainBiomeAt(terrain, tileX, tileY) !== 'desert_ridge') return null;
-  const ridge = (offsetX: number, offsetY: number): boolean => terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY) === 'desert_ridge';
+export function desertCliffFrameIndexAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number | null {
+  if (terrainBiomeAt(terrain, tileX, tileY) !== "desert_ridge") return null;
+  const ridge = (offsetX: number, offsetY: number): boolean =>
+    terrainBiomeAt(terrain, tileX + offsetX, tileY + offsetY) ===
+    "desert_ridge";
   const column = !ridge(-1, 0) ? 1 : !ridge(1, 0) ? 3 : 2;
   if (!ridge(0, 1)) return 5 * 13 + column;
   if (!ridge(0, 2)) return 4 * 13 + column;

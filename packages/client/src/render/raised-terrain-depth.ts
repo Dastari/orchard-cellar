@@ -8,6 +8,7 @@ import type { GroundChunkCache } from './ground-cache.js';
 import { selectAtlasFrame } from './sprite.js';
 import {
   plateauLayerPlansAt,
+  terrainBiomeAt,
   terrainElevationAt,
   terrainMaximumElevation,
   terrainProjectedRowsPerLevel,
@@ -42,6 +43,7 @@ export function raisedTerrainSurfaceRuns(
   maximumTileX: number,
   maximumTileY: number,
 ): readonly RaisedTerrainSurfaceRun[] {
+  if (terrain.generator === 'cellar') return [];
   const projectsAsOpaqueSurface = (tileX: number, tileY: number, elevation: number): boolean => {
     const boundary = plateauLayerPlansAt(terrain, tileX, tileY)
       .find((entry) => entry.contourLevel === elevation)?.plan;
@@ -158,6 +160,45 @@ export interface RaisedTerrainDepthLayer {
   readonly depthPhase: NonNullable<WorldDepthItem['depthPhase']>;
 }
 
+function raisedWaterfallColumnAt(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): number {
+  const waterfall = (offsetX: number): boolean =>
+    terrainBiomeAt(terrain, tileX + offsetX, tileY) === 'waterfall';
+  return !waterfall(-1) ? 0 : !waterfall(1) ? 2 : 1;
+}
+
+/** Selects the static waterfall atlas row that replaces a projected cliff
+ * stratum. The source sheet is five rows tall; a one-level raised cliff owns
+ * four visible rows, so its two wall courses use the authored upper/lower
+ * flow rows and deliberately skip the repeatable centre row. */
+export function raisedTerrainWaterfallFrameIndex(
+  terrain: TerrainArray,
+  entry: Pick<RaisedTerrainDepthEntry, 'tileX' | 'tileY' | 'contourLevel' | 'plan'>,
+  stratum: RaisedTerrainDepthStratum,
+): number | null {
+  if (terrain.generator === 'cellar'
+    || terrainBiomeAt(terrain, entry.tileX, entry.tileY) !== 'waterfall') return null;
+  const column = raisedWaterfallColumnAt(terrain, entry.tileX, entry.tileY);
+  if (stratum === 'cap') {
+    const southFace = plateauLayerPlansAt(terrain, entry.tileX, entry.tileY + 1)
+      .find(({ contourLevel }) => contourLevel === entry.contourLevel)?.plan.faceLayers
+      .some((face) => face.direct && face.rowId === 'wall');
+    return southFace ? column : null;
+  }
+  const direct = entry.plan.faceLayers.find((face) => face.direct);
+  const row = direct?.rowId === 'wall'
+    ? 1
+    : direct?.rowId === 'lower_wall'
+      ? 3
+      : direct?.rowId === 'foot'
+        ? 4
+        : null;
+  return row === null ? null : row * 3 + column;
+}
+
 /** A cliff tile contains two different painter-depth owners. Its projected
  * vertical face belongs to the lower plane, so a lower actor can sort behind
  * or in front of it by foot Y. The rim/cap belongs to the raised plane and
@@ -166,14 +207,20 @@ export function raisedTerrainDepthLayers(
   entry: Pick<RaisedTerrainDepthEntry, 'contourLevel' | 'plan'>,
 ): readonly RaisedTerrainDepthLayer[] {
   const layers: RaisedTerrainDepthLayer[] = [];
-  if (entry.plan.faceLayers.some((face) => face.direct && face.rowId !== 'foot')) {
+  const hasDirectWall = entry.plan.faceLayers.some((face) => face.direct && face.rowId !== 'foot');
+  const hasDirectFoot = entry.plan.faceLayers.some((face) => face.direct && face.rowId === 'foot');
+  // A projected destination can contain an authored rear row followed by a
+  // direct row. Keep that stack in one painter item: the rear frame fills the
+  // translucent side gutter of the direct frame, while the direct frame keeps
+  // the correct exposed silhouette. Indirect-only destinations remain absent
+  // so they cannot recreate the solid stone columns at stepped corners.
+  if (hasDirectWall) {
     layers.push({
       stratum: 'face',
       elevationLayer: Math.max(0, entry.contourLevel - 1),
       depthPhase: 'boundary',
     });
-  }
-  if (entry.plan.faceLayers.some((face) => face.direct && face.rowId === 'foot')) {
+  } else if (hasDirectFoot) {
     layers.push({
       stratum: 'face_foot',
       elevationLayer: Math.max(0, entry.contourLevel - 1),
@@ -198,29 +245,79 @@ export function raisedTerrainDepthLayers(
 function drawEntryStratum(
   context: CanvasRenderingContext2D,
   art: OverworldArt,
+  terrain: TerrainArray,
   entry: RaisedTerrainDepthEntry,
   stratum: RaisedTerrainDepthStratum,
   cameraX: number,
   cameraY: number,
   scale: number,
 ): void {
+  const cliffAsset = terrain.generator === 'cellar' ? art.caveWall : art.cliff;
+  const waterfallFrame = raisedTerrainWaterfallFrameIndex(terrain, entry, stratum);
   context.save();
   context.translate(0, -raisedTerrainVisualOffset(entry) * scale);
+  if (waterfallFrame !== null) {
+    drawTerrainAsset(
+      context,
+      art.waterfall,
+      waterfallFrame,
+      entry.tileX,
+      entry.tileY,
+      cameraX,
+      cameraY,
+      scale,
+    );
+    context.restore();
+    return;
+  }
   if (stratum === 'face' || stratum === 'face_foot') {
-    for (const face of entry.plan.faceLayers.filter(
-      (candidate) => candidate.direct
-        && (candidate.rowId === 'foot') === (stratum === 'face_foot'),
-    )) {
-      drawTerrainAsset(context, art.cliff, face.frame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
+    // The resolver returns these deepest-to-nearest. Drawing the complete
+    // mixed stack restores the source tileset's intended edge compositing;
+    // raisedTerrainDepthLayers has already rejected indirect-only stacks.
+    for (const face of entry.plan.faceLayers) {
+      if (face.seamUnderlayFrame !== undefined) {
+        drawTerrainAsset(
+          context,
+          cliffAsset,
+          face.seamUnderlayFrame,
+          entry.tileX,
+          entry.tileY,
+          cameraX,
+          cameraY,
+          scale,
+        );
+      }
+      drawTerrainAsset(context, cliffAsset, face.frame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
+    }
+    const directWall = entry.plan.faceLayers.find((face) => face.direct && face.rowId === 'wall');
+    if (terrain.generator === 'cellar'
+      && stratum === 'face'
+      && directWall?.join === 'middle'
+      && ((entry.tileX + terrain.seed) % 9 + 9) % 9 === 4) {
+      drawTerrainAsset(context, art.caveSupport, 0, entry.tileX, entry.tileY, cameraX, cameraY, scale);
     }
   }
+  if (stratum === 'cap'
+    && entry.plan.edgeSeamUnderlayFrame !== undefined
+    && entry.plan.insetFrames.length === 0) {
+    drawTerrainAsset(
+      context,
+      cliffAsset,
+      entry.plan.edgeSeamUnderlayFrame,
+      entry.tileX,
+      entry.tileY,
+      cameraX,
+      cameraY,
+      scale,
+    );
+  }
   if (stratum === 'cap' && entry.plan.edgeFrame !== null) {
-    drawTerrainAsset(context, art.cliff, entry.plan.edgeFrame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
+    drawTerrainAsset(context, cliffAsset, entry.plan.edgeFrame, entry.tileX, entry.tileY, cameraX, cameraY, scale);
   }
   for (const insetFrame of stratum === 'cap' ? entry.plan.insetFrames : []) {
     drawTerrainAsset(
       context,
-      art.stoneCliffInverseOverlay,
+      terrain.generator === 'cellar' ? art.caveWall : art.stoneCliffInverseOverlay,
       insetFrame,
       entry.tileX,
       entry.tileY,
@@ -305,6 +402,7 @@ export function enqueueRaisedTerrainDepth(
         draw: () => drawEntryStratum(
           context,
           art,
+          terrain,
           entry,
           layer.stratum,
           cameraX,

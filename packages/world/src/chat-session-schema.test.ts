@@ -25,8 +25,19 @@ describe('session-only lifecycle chat notices', () => {
   it('never inserts lifecycle notices into durable chat history', () => {
     expect(source).not.toContain("kind: 'system',");
     const broadcast = sourceBetween('function broadcastSessionChatNotice(', 'function installDebugPortals(');
-    expect(broadcast).toContain('ctx.db.session_chat_notice.insert({');
+    expect(broadcast).toContain('insertSessionChatNotice(');
     expect(broadcast).not.toContain('ctx.db.chat_message.insert({');
+  });
+
+  it('returns owner-only connection history through only the caller session inbox', () => {
+    const reducer = sourceBetween('export const requestLastConnections =', 'export const createChatChannel =');
+    expect(reducer.indexOf('requireWorldOwner(')).toBeLessThan(reducer.indexOf('connection_audit.iter()'));
+    expect(reducer).toContain('.slice(0, LAST_CONNECTION_EVENT_LIMIT)');
+    expect(reducer).toContain("'last'");
+    expect(reducer).toContain('lastConnectionEventMessage(');
+    expect(reducer).toContain('insertSessionChatNotice(');
+    expect(reducer).not.toContain('chat_message.insert');
+    expect(reducer).not.toContain('world_speech.insert');
   });
 
   it('purges legacy rows once, hides them defensively, and clears recipient inboxes', () => {

@@ -90,6 +90,12 @@ const extracts: readonly UiExtract[] = [
     uiSizing: 'nine_slice', slice: [7, 4, 7, 5], tags: ['ui.button', 'ui.intent.confirm'],
   },
   {
+    name: 'ui_cf_button_small_accent_green', source: `${uiRoot}/UI_Buttons.png`, size: [16, 16],
+    groups: { idle: [r(96, 96, 16, 16)], pressed: [r(112, 96, 16, 16)], disabled: [r(128, 96, 16, 16)] },
+    frameKinds: { idle: 'state', pressed: 'state', disabled: 'state' }, uiRequiredStates: ['idle', 'pressed', 'disabled'],
+    uiSizing: 'fixed', tags: ['ui.button', 'ui.button.small', 'ui.intent.confirm'],
+  },
+  {
     name: 'ui_cf_button_accent_red', source: `${uiRoot}/UI_Buttons.png`, size: [32, 16],
     groups: { idle: [r(0, 240, 32, 16)], pressed: [r(32, 240, 32, 16)], disabled: [r(64, 240, 32, 16)] },
     frameKinds: { idle: 'state', pressed: 'state', disabled: 'state' }, uiRequiredStates: ['idle', 'pressed', 'disabled'],
@@ -168,6 +174,23 @@ const extracts: readonly UiExtract[] = [
     groups: { base: [r(202, 250, 28, 31)] }, frameKinds: { base: 'state' },
     uiSizing: 'nine_slice', slice: [6, 6, 6, 7], tags: ['ui.speech_bubble', 'ui.color.red'],
   },
+  ...([
+    ['beige', 12],
+    ['white', 60],
+    ['green', 108],
+    ['blue', 156],
+    ['yellow', 204],
+    ['red', 252],
+    ['purple', 300],
+  ] as const).map(([color, y]): UiExtract => ({
+    name: `ui_cf_speech_bubble_tail_${color}`,
+    source: `${uiRoot}/UI_Frames.png`,
+    size: [32, 32],
+    groups: { base: [r(828, y, 24, 31)] },
+    frameKinds: { base: 'state' },
+    uiSizing: 'fixed',
+    tags: ['ui.speech_bubble', 'ui.tail.down', `ui.color.${color}`],
+  })),
   {
     name: 'ui_cf_bubble_tail_down', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
     groups: { base: [r(780, 12, 24, 31)] }, frameKinds: { base: 'state' }, uiSizing: 'fixed', tags: ['ui.speech_bubble', 'ui.tail.down'],
@@ -199,6 +222,36 @@ const extracts: readonly UiExtract[] = [
   {
     name: 'ui_cf_bubble_tail_right_red', source: `${uiRoot}/UI_Frames.png`, size: [32, 32],
     groups: { base: [r(726, 252, 30, 26, 2)] }, frameKinds: { base: 'state' }, uiSizing: 'fixed', tags: ['ui.speech_bubble', 'ui.tail.right', 'ui.color.red', 'derived.rotation'],
+  },
+  {
+    name: 'ui_cf_icon_chat', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: { base: [r(0, 16, 16, 16)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'ui.chat', 'ui.speech_bubble'],
+  },
+  {
+    name: 'ui_cf_icon_crafting', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: { base: [r(48, 16, 16, 16)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'ui.crafting', 'ui.tool.wrench'],
+  },
+  {
+    name: 'ui_cf_icon_backpack', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: { base: [r(144, 32, 16, 16)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'ui.inventory', 'ui.backpack'],
+  },
+  {
+    name: 'icon_cf_marlow_book', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: { base: [r(160, 16, 16, 16)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'item.document', 'item.quest_reward'],
+  },
+  {
+    name: 'icon_cf_quest_offer', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: { base: [r(192, 32, 16, 16)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'quest.offer'],
+  },
+  {
+    name: 'icon_cf_quest_complete', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
+    groups: { base: [r(192, 48, 16, 16)] }, frameKinds: { base: 'state' },
+    uiSizing: 'fixed', tags: ['ui.icon', 'quest.complete'],
   },
   {
     name: 'ui_cf_cursor', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
@@ -279,14 +332,23 @@ function placePixels(
 const rootPath = fileURLToPath(workspaceRoot);
 const palette = await loadPalette();
 const availableCharacters = Object.keys(palette.colors);
+const requestedNames = new Set(process.argv.slice(2));
+const selectedExtracts = requestedNames.size === 0
+  ? extracts
+  : extracts.filter((extract) => requestedNames.has(extract.name));
+if (requestedNames.size > 0 && selectedExtracts.length !== requestedNames.size) {
+  const knownNames = new Set(extracts.map((extract) => extract.name));
+  const unknown = [...requestedNames].filter((name) => !knownNames.has(name));
+  throw new Error(`Unknown UI extract(s): ${unknown.join(', ')}`);
+}
 const decoded = new Map<string, DecodedPng>();
-for (const source of new Set(extracts.map((entry) => entry.source))) {
+for (const source of new Set(selectedExtracts.map((entry) => entry.source))) {
   decoded.set(source, decodePng(await readFile(resolve(rootPath, source))));
 }
 
 const outputRoot = resolve(rootPath, 'packages/assets/ui');
 await mkdir(outputRoot, { recursive: true });
-for (const extract of extracts) {
+for (const extract of selectedExtracts) {
   const image = decoded.get(extract.source)!;
   const pixelsByGroup = Object.fromEntries(Object.entries(extract.groups).map(([group, crops]) => [
     group,
@@ -330,4 +392,4 @@ for (const extract of extracts) {
   console.log(`${extract.name}: ${Object.values(frames).reduce((sum, group) => sum + group.length, 0)} frame(s), ${colors.length} native colors`);
 }
 
-console.log(`Extracted ${extracts.length} reviewed Cute Fantasy UI assets.`);
+console.log(`Extracted ${selectedExtracts.length} reviewed Cute Fantasy UI assets.`);

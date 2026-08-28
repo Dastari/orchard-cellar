@@ -15,12 +15,13 @@ html, body, #game-shell {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  overscroll-behavior: none;
 }
 
 #game-shell {
   display: grid;
   place-items: center;
-  background: #101813;
+  background: linear-gradient(#83bbcf 0 43%, #65954f 43% 100%);
 }
 
 #game {
@@ -38,6 +39,15 @@ html, body, #game-shell {
 }
 
 #game.custom-cursor { cursor: none; }
+
+.loading-status {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 .loading-screen {
   position: fixed;
@@ -294,4 +304,15 @@ html, body, #game-shell {
   color: transparent;
   caret-color: transparent;
   font-size: 16px;
+}
+
+/* Keep focused inputs inside iOS' visual viewport. They remain visually
+ * transparent—the canvas supplies the field—but Safari no longer dismisses
+ * the software keyboard because the native edit control is 200vw off-screen. */
+.canvas-input.keyboard-active {
+  left: 50%;
+  top: 50%;
+  clip-path: none;
+  transform: none;
+  opacity: 0.01;
 }

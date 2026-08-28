@@ -12,6 +12,8 @@ import {
 export const CHEST_STORAGE_COLUMNS = 4;
 export const CHEST_STORAGE_ROWS = 4;
 export const CHEST_STORAGE_CAPACITY = CHEST_STORAGE_COLUMNS * CHEST_STORAGE_ROWS;
+/** Inventory slots available without the backpack equipment upgrade. */
+export const BASE_BACKPACK_CAPACITY = 8;
 
 export interface ItemDefinition {
   readonly displayName: string;
@@ -43,6 +45,8 @@ function defineItem(
 }
 
 export const ITEM_DEFINITIONS = {
+  homestead_deed: defineItem('homestead_deed', 'Homestead Deed', 1, ['item.document', 'item.homestead_deed']),
+  marlow_book: defineItem('marlow_book', 'Marlow\'s Book', 1, ['item.document', 'item.quest_reward'], undefined, { key: 'icon_cf_marlow_book' }),
   axe: defineItem('axe', 'Iron Axe', 1, ['item.tool', 'gear.hand']),
   hoe: defineItem('hoe', 'Iron Hoe', 1, ['item.tool', 'gear.hand']),
   pickaxe: defineItem('pickaxe', 'Iron Pickaxe', 1, ['item.tool', 'gear.hand']),
@@ -70,6 +74,7 @@ export const ITEM_DEFINITIONS = {
   cactus: defineItem('cactus', 'Cactus', 99, ['item.resource', 'material.plant', 'biome.desert'], undefined, { key: 'resource_cf_cactus' }),
   chest: defineItem('chest', 'Chest', 16, ['item.placeable', 'item.crafted', 'container.chest'], undefined, { key: 'prop_cf_chest', animation: 'chest' }),
   workbench: defineItem('workbench', 'Workbench', 16, ['item.placeable', 'item.crafted', 'station.workbench'], undefined, { key: 'prop_cf_workbench' }),
+  anvil: defineItem('anvil', 'Anvil', 1, ['item.placeable', 'item.crafted', 'station.anvil'], undefined, { key: 'prop_cf_anvil', animation: 'animate' }),
   campfire: defineItem('campfire', 'Campfire', 16, ['item.placeable', 'item.crafted', 'station.campfire', 'emits.light'], undefined, { key: 'prop_cf_campfire', animation: 'burn' }),
   fence: defineItem('fence', 'Fence', 99, ['item.placeable', 'item.crafted', 'build.fence'], undefined, { key: 'prop_cf_fence_corner' }),
   fence_gate: defineItem('fence_gate', 'Fence Gate', 16, ['item.placeable', 'item.crafted', 'build.fence'], undefined, { key: 'prop_cf_fence_gate' }),
@@ -110,8 +115,12 @@ export function isSwitchableLightKind(itemKind: string): boolean {
   return itemKind === 'lantern';
 }
 
-function stackMetadataMatches(left: ItemStack, right: ItemStack): boolean {
+export function stackMetadataMatches(left: ItemStack, right: ItemStack): boolean {
   return left.durability === right.durability && left.lit === right.lit;
+}
+
+export function itemStacksCompatible(left: ItemStack, right: ItemStack): boolean {
+  return left.itemKind === right.itemKind && stackMetadataMatches(left, right);
 }
 
 export interface SlotRestriction {
@@ -159,6 +168,30 @@ export interface DragDistributionTarget {
   readonly index: number;
 }
 
+export type CursorClickButton = 'left' | 'right';
+export type QuickCraftMode = 'even' | 'one_each';
+
+export interface CursorSlotRequest {
+  readonly container: string;
+  readonly index: number;
+  readonly button: CursorClickButton;
+}
+
+export interface CursorQuickCraftRequest {
+  readonly targets: readonly DragDistributionTarget[];
+  readonly mode: QuickCraftMode;
+}
+
+export interface CursorInteractionSuccess {
+  readonly ok: true;
+  readonly outcome: 'pickup' | 'place' | 'merge' | 'swap' | 'quick_craft' | 'pickup_all';
+  readonly movedQuantity: number;
+  readonly cursor: ItemStack | null;
+  readonly containers: Readonly<Record<string, ContainerSnapshot>>;
+}
+
+export type CursorInteractionResult = ItemRuleFailure | CursorInteractionSuccess;
+
 export type ItemRuleErrorCode =
   | 'container_not_found'
   | 'index_out_of_capacity'
@@ -201,6 +234,14 @@ export interface InsertItemPartialSuccess extends InsertItemSuccess {
 
 export type InsertItemResult = ItemRuleFailure | InsertItemSuccess;
 export type InsertItemPartialResult = ItemRuleFailure | InsertItemPartialSuccess;
+
+export interface SortContainerSuccess {
+  readonly ok: true;
+  readonly outcome: 'sort';
+  readonly container: ContainerSnapshot;
+}
+
+export type SortContainerResult = ItemRuleFailure | SortContainerSuccess;
 
 export interface CraftRequest {
   readonly recipeId: string;
@@ -349,6 +390,57 @@ function withSlots(container: ContainerSnapshot, slots: readonly (ItemStack | nu
   return { ...container, slots };
 }
 
+/** Compacts compatible stacks and orders them deterministically. This is the
+ * shared rule behind every storage-pane sort button; callers persist the
+ * returned snapshot as one authoritative transaction. Item metadata is part
+ * of stack identity, so tools and differently powered lanterns never merge. */
+export function sortAndStackContainer(container: ContainerSnapshot): SortContainerResult {
+  const normalized = normalizeContainer(container);
+  const groups: { exemplar: ItemStack; quantity: number }[] = [];
+  for (const stack of normalized.slots) {
+    if (stack === null) continue;
+    if (!validStack(stack)) return failure('unknown_item_kind');
+    const group = groups.find((candidate) => itemStacksCompatible(candidate.exemplar, stack));
+    if (group === undefined) groups.push({ exemplar: { ...stack }, quantity: stack.quantity });
+    else group.quantity += stack.quantity;
+  }
+  groups.sort((left, right) => {
+    const leftDefinition = itemDefinition(left.exemplar.itemKind)!;
+    const rightDefinition = itemDefinition(right.exemplar.itemKind)!;
+    if (leftDefinition.displayName !== rightDefinition.displayName) {
+      return leftDefinition.displayName < rightDefinition.displayName ? -1 : 1;
+    }
+    if (left.exemplar.itemKind !== right.exemplar.itemKind) {
+      return left.exemplar.itemKind < right.exemplar.itemKind ? -1 : 1;
+    }
+    const leftDurability = left.exemplar.durability ?? -1;
+    const rightDurability = right.exemplar.durability ?? -1;
+    if (leftDurability !== rightDurability) return rightDurability - leftDurability;
+    return Number(right.exemplar.lit ?? false) - Number(left.exemplar.lit ?? false);
+  });
+
+  const stacks: ItemStack[] = [];
+  for (const group of groups) {
+    const maximum = maxStackFor(group.exemplar.itemKind)!;
+    let remaining = group.quantity;
+    while (remaining > 0) {
+      const quantity = Math.min(maximum, remaining);
+      stacks.push({ ...group.exemplar, quantity });
+      remaining -= quantity;
+    }
+  }
+
+  const slots = Array.from({ length: normalized.capacity }, () => null as ItemStack | null);
+  for (const stack of stacks) {
+    const destination = slots.findIndex((candidate, index) => (
+      candidate === null && slotAcceptsItem(normalized, index, stack.itemKind)
+    ));
+    if (destination < 0) return failure('slot_rejects_item');
+    slots[destination] = stack;
+  }
+  return { ok: true, outcome: 'sort', container: withSlots(normalized, slots) };
+}
+
 export function moveItemStacks(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   request: MoveItemRequest,
@@ -400,6 +492,158 @@ export function moveItemStacks(
   next[request.fromContainer] = withSlots(next[request.fromContainer]!, fromSlots);
   next[request.toContainer] = withSlots(next[request.toContainer]!, toSlots);
   return { ok: true, outcome, movedQuantity, containers: next };
+}
+
+/** Minecraft PICKUP authority. The cursor is a real stack, separate from every
+ * container slot; mouse-up never implicitly returns it to its source. */
+export function clickContainerSlot(
+  containers: Readonly<Record<string, ContainerSnapshot>>,
+  cursor: ItemStack | null,
+  request: CursorSlotRequest,
+): CursorInteractionResult {
+  const container = containers[request.container];
+  if (!container) return failure('container_not_found');
+  if (!Number.isSafeInteger(request.index) || request.index < 0 || request.index >= container.capacity) {
+    return failure('index_out_of_capacity');
+  }
+  const normalized = normalizeContainer(container);
+  const slot = normalized.slots[request.index] ?? null;
+  if (slot !== null && !validStack(slot)) return failure('unknown_item_kind');
+  if (cursor !== null && !validStack(cursor)) return failure('unknown_item_kind');
+  if (cursor === null && slot === null) return failure('source_empty');
+
+  const next = cloneContainers(containers);
+  const slots = [...next[request.container]!.slots];
+  if (cursor === null) {
+    const pickedUp = request.button === 'right' ? Math.ceil(slot!.quantity / 2) : slot!.quantity;
+    const remainder = slot!.quantity - pickedUp;
+    slots[request.index] = remainder === 0 ? null : { ...slot!, quantity: remainder };
+    next[request.container] = withSlots(next[request.container]!, slots);
+    return {
+      ok: true, outcome: 'pickup', movedQuantity: pickedUp,
+      cursor: { ...slot!, quantity: pickedUp }, containers: next,
+    };
+  }
+
+  if (slot === null) {
+    if (!slotAcceptsItem(normalized, request.index, cursor.itemKind)) return failure('slot_rejects_item');
+    const capacity = maxStackFor(cursor.itemKind)!;
+    const placed = request.button === 'right' ? 1 : Math.min(cursor.quantity, capacity);
+    slots[request.index] = { ...cursor, quantity: placed };
+    next[request.container] = withSlots(next[request.container]!, slots);
+    return {
+      ok: true, outcome: 'place', movedQuantity: placed,
+      cursor: cursor.quantity === placed ? null : { ...cursor, quantity: cursor.quantity - placed },
+      containers: next,
+    };
+  }
+
+  if (itemStacksCompatible(slot, cursor)) {
+    if (!slotAcceptsItem(normalized, request.index, cursor.itemKind)) return failure('slot_rejects_item');
+    const free = maxStackFor(cursor.itemKind)! - slot.quantity;
+    const moved = Math.min(cursor.quantity, request.button === 'right' ? Math.min(1, free) : free);
+    if (moved <= 0) return failure('target_stack_full');
+    slots[request.index] = { ...slot, quantity: slot.quantity + moved };
+    next[request.container] = withSlots(next[request.container]!, slots);
+    return {
+      ok: true, outcome: 'merge', movedQuantity: moved,
+      cursor: cursor.quantity === moved ? null : { ...cursor, quantity: cursor.quantity - moved },
+      containers: next,
+    };
+  }
+
+  // Both mouse buttons swap incompatible stacks in vanilla PICKUP handling.
+  if (!slotAcceptsItem(normalized, request.index, cursor.itemKind)) return failure('slot_rejects_item');
+  slots[request.index] = cursor;
+  next[request.container] = withSlots(next[request.container]!, slots);
+  return { ok: true, outcome: 'swap', movedQuantity: cursor.quantity, cursor: slot, containers: next };
+}
+
+/** Minecraft QUICK_CRAFT. Targets are unique and only compatible cells take
+ * part. Even mode assigns floor(starting cursor / eligible cells) to each;
+ * unlike the old source-slot drag, its remainder stays on the cursor. */
+export function quickCraftCursorStack(
+  containers: Readonly<Record<string, ContainerSnapshot>>,
+  cursor: ItemStack | null,
+  request: CursorQuickCraftRequest,
+): CursorInteractionResult {
+  if (cursor === null) return failure('source_empty');
+  if (!validStack(cursor)) return failure('unknown_item_kind');
+  const seen = new Set<string>();
+  const targets = request.targets.flatMap((target) => {
+    const key = `${target.container}:${target.index}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    const container = containers[target.container];
+    if (!container) return [];
+    if (!Number.isSafeInteger(target.index) || target.index < 0 || target.index >= container.capacity) return [];
+    if (!slotAcceptsItem(container, target.index, cursor.itemKind)) return [];
+    const stack = container.slots[target.index] ?? null;
+    if (stack !== null && (!validStack(stack) || !itemStacksCompatible(stack, cursor))) return [];
+    const available = maxStackFor(cursor.itemKind)! - (stack?.quantity ?? 0);
+    return available > 0 ? [{ ...target, available }] : [];
+  });
+  if (targets.length === 0) return failure('container_full');
+  const perTarget = request.mode === 'one_each' ? 1 : Math.floor(cursor.quantity / targets.length);
+  if (perTarget <= 0) return failure('invalid_quantity');
+
+  const next = cloneContainers(containers);
+  let remaining = cursor.quantity;
+  let movedQuantity = 0;
+  for (const target of targets) {
+    if (remaining === 0) break;
+    const moved = Math.min(perTarget, target.available, remaining);
+    if (moved <= 0) continue;
+    const container = next[target.container]!;
+    const slots = [...container.slots];
+    const stack = slots[target.index];
+    slots[target.index] = stack
+      ? { ...stack, quantity: stack.quantity + moved }
+      : { ...cursor, quantity: moved };
+    next[target.container] = withSlots(container, slots);
+    remaining -= moved;
+    movedQuantity += moved;
+  }
+  if (movedQuantity === 0) return failure('container_full');
+  return {
+    ok: true, outcome: 'quick_craft', movedQuantity,
+    cursor: remaining === 0 ? null : { ...cursor, quantity: remaining }, containers: next,
+  };
+}
+
+/** Minecraft PICKUP_ALL traversal, including item metadata in stack identity. */
+export function pickupAllToCursor(
+  containers: Readonly<Record<string, ContainerSnapshot>>,
+  cursor: ItemStack | null,
+  containerOrder: readonly string[],
+): CursorInteractionResult {
+  if (cursor === null) return failure('source_empty');
+  if (!validStack(cursor)) return failure('unknown_item_kind');
+  const maximum = maxStackFor(cursor.itemKind)!;
+  let needed = maximum - cursor.quantity;
+  if (needed <= 0) return failure('target_stack_full');
+  const next = cloneContainers(containers);
+  let movedQuantity = 0;
+  for (const id of uniqueContainerIds(containerOrder)) {
+    const container = next[id];
+    if (!container) return failure('container_not_found');
+    const slots = [...container.slots];
+    for (let index = 0; index < container.capacity && needed > 0; index += 1) {
+      const stack = slots[index];
+      if (stack == null || !validStack(stack) || !itemStacksCompatible(stack, cursor)) continue;
+      const moved = Math.min(stack.quantity, needed);
+      slots[index] = stack.quantity === moved ? null : { ...stack, quantity: stack.quantity - moved };
+      movedQuantity += moved;
+      needed -= moved;
+    }
+    next[id] = withSlots(container, slots);
+    if (needed === 0) break;
+  }
+  if (movedQuantity === 0) return failure('source_empty');
+  return {
+    ok: true, outcome: 'pickup_all', movedQuantity,
+    cursor: { ...cursor, quantity: cursor.quantity + movedQuantity }, containers: next,
+  };
 }
 
 function uniqueContainerIds(ids: readonly string[]): string[] {

@@ -13,7 +13,7 @@ interface Extract {
   readonly frames: readonly Region[];
   readonly fps: number;
   readonly transparentTopLeft?: boolean;
-  readonly category?: 'props' | 'trees';
+  readonly category?: 'props' | 'trees' | 'tiles';
   readonly size?: readonly [number, number];
   readonly anchor?: readonly [number, number];
   readonly animation?: string;
@@ -27,6 +27,109 @@ const strip = (count: number, y = 0): readonly Region[] => Array.from(
 );
 
 const extracts: Extract[] = [];
+extracts.push(
+  {
+    name: 'prop_cf_fence_horizontal', category: 'props',
+    source: 'references/Cute_Fantasy/Outdoor decoration/Fence_Big.png',
+    frames: [[32, 0, 16, 16]], fps: 1, size: [16, 16], anchor: [8, 15],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_fence_vertical', category: 'props',
+    source: 'references/Cute_Fantasy/Outdoor decoration/Fence_Big.png',
+    frames: [[0, 0, 16, 16]], fps: 1, size: [16, 16], anchor: [8, 15],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_fence_corner', category: 'props',
+    source: 'references/Cute_Fantasy/Outdoor decoration/Fence_Big.png',
+    frames: [[16, 0, 16, 16]], fps: 1, size: [16, 16], anchor: [8, 15],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_fence_left_end', category: 'props',
+    source: 'references/Cute_Fantasy/Outdoor decoration/Fence_Big.png',
+    frames: [[48, 0, 16, 16]], fps: 1, size: [16, 16], anchor: [8, 15],
+    animation: 'base', frameKind: 'state',
+  },
+);
+extracts.push(
+  {
+    name: 'tile_cf_interior_wall', category: 'tiles',
+    source: 'references/Cute_Fantasy/Buildings/Houses_Interiors/Interior_Walls.png',
+    frames: [[48, 0, 16, 16]], fps: 1, animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'tile_cf_cave_floor', category: 'tiles',
+    source: 'references/Cute_Fantasy/Tiles/Cave/Cave_Floor_1.png',
+    // Full 3×5 floor-transition grammar: a 2×2 diagonal set followed by the
+    // 3×3 plain-to-rock ring (whose centre is the dense rock tile).
+    frames: Array.from({ length: 5 }, (_, row) => (
+      Array.from({ length: 3 }, (_unused, column) => [column * 16, row * 16, 16, 16] as const)
+    )).flat(), fps: 1,
+    animation: 'base', frameKind: 'variant',
+  },
+  {
+    name: 'tile_cf_cave_floor_middle', category: 'tiles',
+    source: 'references/Cute_Fantasy/Tiles/Cave/Cave_Floor_Middle.png',
+    frames: [[0, 0, 16, 16]], fps: 1, animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'tile_cf_cave_wall', category: 'tiles',
+    source: 'references/Cute_Fantasy/Tiles/Cave/Cave_Walls.png',
+    // Preserve the complete authored 7x8 topology. The upper rows contain
+    // cap/inside corners; rows 6-7 are the projected front wall faces.
+    frames: Array.from({ length: 8 }, (_, row) => (
+      Array.from({ length: 7 }, (_unused, column) => [column * 16, row * 16, 16, 16] as const)
+    )).flat(),
+    fps: 1, animation: 'base', frameKind: 'variant',
+  },
+  {
+    name: 'prop_cf_trapdoor', category: 'props',
+    source: 'references/Cute_Fantasy/Tiles/Cave/Cave_Floor_Ladder.png',
+    frames: [[0, 0, 16, 16]], fps: 1, animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_cellar_ladder', category: 'props',
+    source: 'references/Cute_Fantasy/Other/Ladder.png',
+    frames: [[0, 0, 16, 48]], fps: 1, size: [16, 48], anchor: [8, 47],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_interior_door', category: 'props',
+    source: 'references/Cute_Fantasy/Buildings/House_Decor/Doors.png',
+    frames: [[0, 0, 16, 32]], fps: 1, size: [16, 32], anchor: [8, 31],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_interior_bed', category: 'props',
+    source: 'references/Cute_Fantasy/Buildings/House_Decor/Beds.png',
+    frames: [[0, 0, 32, 32]], fps: 1, size: [32, 32], anchor: [16, 31],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_interior_bookshelf', category: 'props',
+    source: 'references/Cute_Fantasy/Buildings/House_Decor/BookShelves.png',
+    // The sheet alternates 16px narrow shelves with 48px full bookcases.
+    // Start after the first narrow shelf instead of combining two unrelated props.
+    frames: [[16, 0, 48, 32]], fps: 1, size: [48, 32], anchor: [24, 31],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_interior_table', category: 'props',
+    source: 'references/Cute_Fantasy/Buildings/House_Decor/Tables.png',
+    // Tables are packed into 64x64 cells with an 8px horizontal and 24px
+    // vertical inset. Cropping from the sheet origin captures only the legs.
+    frames: [[8, 24, 48, 32]], fps: 1, size: [48, 32], anchor: [24, 31],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_cave_support', category: 'props',
+    source: 'references/Cute_Fantasy/Tiles/Cave/Cave_Wall_Support.png',
+    frames: [[0, 0, 80, 32]], fps: 1, size: [80, 32], anchor: [40, 31],
+    animation: 'base', frameKind: 'state',
+  },
+);
 for (let variant = 1; variant <= 3; variant += 1) {
   extracts.push({
     name: `nature_cf_grass_${String(variant).padStart(2, '0')}`,
@@ -57,6 +160,15 @@ for (let variant = 1; variant <= 8; variant += 1) {
     name: `nature_cf_mushroom_${String(variant).padStart(2, '0')}`,
     source: `${decorRoot}/Muschroom_Animations/muschroom_${variant}_Anim.png`,
     frames: strip(count), fps: 3,
+  });
+}
+for (let variant = 1; variant <= 14; variant += 1) {
+  extracts.push({
+    name: `nature_cf_rock_${String(variant).padStart(2, '0')}`,
+    source: `${decorRoot}/Rock_Animations/Rock_${variant}_Anim.png`,
+    // These strips are destructive/break progress, not ambient motion. The
+    // blocked Homestead backdrop uses only the intact authored state.
+    frames: [[0, 0, 16, 16]], fps: 1, animation: 'base', frameKind: 'state',
   });
 }
 for (const [colour, sourceColour] of [['green', 'Green'], ['red', 'Red'], ['purple', 'Purple'], ['brown', 'Brown']] as const) {
@@ -198,7 +310,8 @@ for (const extract of extracts) {
   };
   const outputRoot = resolve(rootPath, `packages/assets/${extract.category ?? 'props'}`);
   await mkdir(outputRoot, { recursive: true });
-  await writeFile(resolve(outputRoot, `${extract.name}.sprite.json`), `${JSON.stringify(asset, null, 2)}\n`);
+  const extension = extract.category === 'tiles' ? 'tile' : 'sprite';
+  await writeFile(resolve(outputRoot, `${extract.name}.${extension}.json`), `${JSON.stringify(asset, null, 2)}\n`);
 }
 
 console.log(`Extracted ${extracts.length} reviewed nature assets.`);

@@ -26,11 +26,14 @@ describe('coin currency and item economy', () => {
   });
 
   it('stocks all current tools and computes exact integer totals', () => {
+    expect(ITEM_ECONOMY.homestead_deed.buyPriceBronze).toBe(5 * Number(BRONZE_PER_GOLD));
     expect(TOOL_MERCHANT_OFFERS).toContain('shovel');
     expect(TOOL_MERCHANT_OFFERS).toContain('hammer');
     expect(TOOL_MERCHANT_OFFERS).toContain('torch');
     expect(TOOL_MERCHANT_OFFERS).toContain('lantern');
     expect(TOOL_MERCHANT_OFFERS).toContain('workbench');
+    expect(TOOL_MERCHANT_OFFERS).toContain('anvil');
+    expect(ITEM_ECONOMY.anvil).toEqual({ buyPriceBronze: 500, sellPriceBronze: 200 });
     expect(commerceTotal(450, 3)).toBe(1_350n);
     expect(commerceTotal(450, 0)).toBeNull();
   });

@@ -10,6 +10,9 @@ different models produce one coherent codebase, not an archaeology site.
 Every session, in order, before writing any code:
 
 1. Read [00-overview.md](00-overview.md) — the doc map. Know what documents exist.
+   For any world, space, resource, combat, Homestead, town, event, or POI task, the
+   dated [40-sanctuary-overworld-and-zoned-world.md](40-sanctuary-overworld-and-zoned-world.md)
+   direction is mandatory and wins over older conflicting gameplay assumptions.
 2. Read your assigned milestone in [14-roadmap.md](14-roadmap.md), including its
    "depends on" and "docs" fields.
 3. Read **only** the docs that milestone references, plus 01 and 02 if you haven't this

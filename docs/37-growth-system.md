@@ -3,6 +3,12 @@
 Status: implemented foundation; trees and cacti are live consumers. Crop and
 homestead definitions use the same pure stage math as their authored varieties land.
 
+Target placement is amended by [40](40-sanctuary-overworld-and-zoned-world.md):
+sanctuary-overworld vegetation is immutable scenery and does not run this mutable
+harvest/regrowth lifecycle. Growable rows belong in Homesteads or declared resource
+zones. Current mutable overworld consumers remain only until the versioned sanctuary
+migration after the Shared Spaces demo.
+
 ## 1. One growth model
 
 All growable entities use `GrowthProfile` from `packages/sim/src/growth.ts`:

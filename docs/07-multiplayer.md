@@ -1,9 +1,14 @@
 # 07 — Persistent Overworld, Co-op & Social
 
+> **Superseded world shape (2026-08-26):** [40](40-sanctuary-overworld-and-zoned-world.md)
+> replaces continuous literal-scale estates and a generally destructible wilderness
+> with a safe sanctuary overworld, symbolic POIs, and `spaceId` Homestead/resource/
+> danger/social destinations. Permission, presence, chat, transaction, and 25-friend
+> requirements below remain binding where compatible.
+
 Binding multiplayer design after the owner expanded Orchard & Cellar into a private,
-friends-only cozy MMO and the M5.5 SpaceTimeDB gate passed. Farms are estates in one
-continuous overworld; walking through a gate crosses an ownership boundary without a
-disconnected visit room.
+friends-only cozy MMO and the M5.5 SpaceTimeDB gate passed. The adopted target now
+connects estates and other full-scale destinations through sanctuary-overworld POIs.
 
 ## 1. World model
 
@@ -80,6 +85,10 @@ position before accepting input.
 World-entry and final-disconnect notices are session UI, not authored chat. They are
 delivered through each connection's private bounded notice inbox and are discarded
 when that recipient logs out, so reconnecting never restores them as chat history.
+The owner-only `/last` diagnostic reads the retained private connection audit and copies
+at most the 12 newest login/logout events, with explicit UTC times, into only the
+requesting connection's same ephemeral chat-console inbox. It never writes General,
+whispers, world speech, or persistent chat history.
 
 ## 6. Implementation order
 
@@ -91,15 +100,19 @@ when that recipient logs out, so reconnecting never restores them as chat histor
    before the complete permission matrix and economy move server-side.
 3. **M6:** OIDC + friends allowlist, owned farm/public/private tables, local-save
    import, farm timestamp adapter, self-host deploy and backup/restore.
-4. **M5.7 owner-directed vertical slice:** generated island terrain, biomes, resource
+4. **M5.7 complete historical vertical slice:** generated island terrain, biomes, resource
    collision, distinct spawn clearings, private inventory views, starter hotbar, and
    transactional tree harvesting.
-5. **M7a:** production chunk streaming and homestead claiming/building over the
-   generated island; approved Cute Fantasy-derived biome tile sets; 25-client load
-   harness and latency/reconciliation controls.
-6. **M7b:** estate access modes and visitor/helper/steward reducer matrix.
-7. **M7c:** friends UI, guestbook, gifts, tasting, proximity chat, blocks/moderation.
-8. **M7d:** co-op festivals, reconnect/rollback soak, owner host tools.
+5. **M5.11 next (doc 40 §8):** test forest/cave/deeper-underground destinations plus
+   a Marlow-sold deed and compact tent POI leading to a durable owner Homestead;
+   dynamic definitions, transition isolation, cache bounds, and occupied-space work.
+6. **Sanctuary migration:** author/validate static scenery and symbolic POIs, move
+   destructive resources into zones, then authority-disable overworld destruction and
+   combat through a versioned reconciliation.
+7. **Homesteads:** production farming/building/residence spaces and estate access
+   modes with the guest/worker/builder reducer matrix from docs 35/40.
+8. **Social/content:** friends UI, guestbook, gifts, tasting, proximity chat,
+   blocks/moderation, towns, festivals, reconnect/rollback soak, and owner host tools.
 
 ## 7. Required tests
 
@@ -116,4 +129,5 @@ when that recipient logs out, so reconnecting never restores them as chat histor
 The permissioned-estates concept in this doc is realized by
 [35-homesteads-and-farming.md](35-homesteads-and-farming.md) (instanced
 homesteads, role-tiered guest access, owner-controlled requests). Where the
-two differ, doc 35 wins.
+two differ, doc 35 wins; [40](40-sanctuary-overworld-and-zoned-world.md) is newer
+than both and governs the sanctuary/POI/zoned-world shape.

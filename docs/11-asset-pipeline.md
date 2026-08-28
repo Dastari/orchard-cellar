@@ -279,6 +279,24 @@ an `attack_*` row for a tool row or truncate the six-frame tool sequences.
   playing. **Agents must screenshot this (see `/run` workflow) and eyeball every new
   asset before committing.**
 
+### 2.1 Authoring catalogue and reusable stamps
+
+The committed `packages/assets/**/*.sprite.json` and `*.tile.json` definitions are
+the canonical asset sources. `packages/client/public/generated/atlas_*.png`,
+`atlas.meta.json`, and `asset-registry.json` are disposable build output; atlas frame
+coordinates may change whenever packing changes. The ignored licensed `references/`
+directory is source discovery input only and must never enter the runtime catalogue,
+map files, exports, or public repository.
+
+Editor palettes enumerate the generated registry so preview and runtime resolve the
+same reviewed assets. Reusable layouts serialize as `MapStampDocumentV1`: placements
+carry stable numeric asset id, asset name, named state/variant/animation plus frame
+index, logical tile/elevation/layer, transform, and pivot. They do **not** persist
+atlas rectangles or generated filenames. Renaming or retiring a shipped asset will
+therefore require an explicit alias/proxy migration rather than silently reusing its
+id. Stamps remain offline assets until the world editor's validation and authenticated
+publication phases land.
+
 ## 3. Authoring workflow for an agent
 
 1. Read 10-art-style-guide.md §for the asset's category. Open 2–3 approved

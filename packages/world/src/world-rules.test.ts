@@ -59,6 +59,7 @@ describe('overworld authority rules', () => {
     expect(portalUseResult({ ...nearby, x: 13 * TILE_SIZE_FIXED }, portal, false)).toBe('portal_out_of_range');
     expect(portalUseResult({ ...nearby, spaceId: 1 }, portal, false)).toBe('portal_out_of_range');
     expect(portalUseResult(nearby, portal, true)).toBe('no_horses_underground');
+    expect(portalUseResult(nearby, portal, true, true)).toBe('ok');
   });
   it('25§15 commits exact tool costs and leaves rejected spends unchanged', () => {
     expect(toolSpendResult(10_000, 0n, 100n, 1_500, 8, false)).toEqual({
@@ -227,6 +228,7 @@ describe('overworld authority rules', () => {
     expect(debug.terrainTransitions).toBeUndefined();
     expect(topside.elevations).toHaveLength(SURVIVAL_WORLD_SIZE ** 2);
     expect(topside.terrainTransitions).toEqual(survivalTerrainTransitions(SURVIVAL_WORLD_SEED));
+    expect(topside.terrainPlaneBlocked).toBeDefined();
   }, 15_000);
 
   it('blocks water and solid ridges while projected cliff rows remain lower-plane walkable', () => {
@@ -263,7 +265,12 @@ describe('overworld authority rules', () => {
       { tileX: 22, tileY: 20, blocksMovement: false },
     ]);
     const dynamic = collision.obstacles?.filter((obstacle) => obstacle.top === 20 * TILE_SIZE_FIXED) ?? [];
-    expect(dynamic.some((obstacle) => obstacle.left === 20 * TILE_SIZE_FIXED)).toBe(true);
+    expect(dynamic).toContainEqual({
+      left: 20 * TILE_SIZE_FIXED,
+      top: 20 * TILE_SIZE_FIXED,
+      right: 21 * TILE_SIZE_FIXED - 1,
+      bottom: 21 * TILE_SIZE_FIXED - 1,
+    });
     expect(dynamic.some((obstacle) => obstacle.left === 21 * TILE_SIZE_FIXED)).toBe(false);
     expect(dynamic.some((obstacle) => obstacle.left === 22 * TILE_SIZE_FIXED)).toBe(false);
   });
@@ -353,6 +360,9 @@ describe('overworld authority rules', () => {
     const waterX = water.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     const waterY = water.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     expect(farmToolUseResult(SURVIVAL_WORLD_SEED, waterX, waterY, 'hoe', water.tileX, water.tileY, null, false)).toBe('not_grass');
+    expect(farmToolUseResult(
+      SURVIVAL_WORLD_SEED, waterX, waterY, 'hoe', water.tileX, water.tileY, null, false, true,
+    )).toBe('ok');
     expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', -1, grass.tileY, null, false)).toBe('invalid_tile');
     expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX, grass.tileY, { watered: true })).toBe('ok');
     expect(farmSoilRestoreResult(playerX, playerY, 'watering_can', grass.tileX, grass.tileY, {})).toBe('wrong_tool');

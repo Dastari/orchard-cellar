@@ -1,4 +1,4 @@
-import { drawPixelText, measurePixelText, type PixelUi } from '../render/pixel-ui.js';
+import { drawPixelText, fontMetrics, measurePixelText, type PixelUi } from '../render/pixel-ui.js';
 import type { LoadedAsset } from '../render/assets.js';
 import type { UiRect } from './geometry.js';
 import { uiAssetFrame } from './skin.js';
@@ -7,6 +7,7 @@ const NATURAL_WIDTH = 78;
 const CAP_WIDTH = 30;
 const MIDDLE_WIDTH = NATURAL_WIDTH - CAP_WIDTH * 2;
 const TEXT_PADDING = 40;
+const BOTTOM_FOLD_HEIGHT = 8;
 export const STACKED_RIBBON_HEIGHT = 34;
 /** The banner sprite includes lower folds/shadow outside its writable face, so
  * centring against the full 21px image puts every label visibly too low. */
@@ -71,6 +72,18 @@ export class Ribbon {
       align: 'center', color: '#4d2e22', font: 'body',
     });
     return { x, y, width, height: source.height };
+  }
+
+  /** A fixed-width single-line HUD ribbon. */
+  drawSingle(context: CanvasRenderingContext2D, label: string, rect: UiRect): UiRect | null {
+    if (!this.drawChrome(context, rect.x, rect.y, rect.width, rect.height)) return null;
+    const writableHeight = rect.height - BOTTOM_FOLD_HEIGHT;
+    const glyphHeight = fontMetrics(this.fonts.headerFont).glyphHeight;
+    const textY = rect.y + Math.round((writableHeight - glyphHeight) / 2);
+    drawPixelText(context, this.fonts, label, rect.x + rect.width / 2, textY, {
+      align: 'center', color: '#4d2e22', font: 'header',
+    });
+    return rect;
   }
 
   /** A taller location banner with a header-font zone name and compact calendar

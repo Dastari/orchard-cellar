@@ -1,6 +1,7 @@
 export type SelectedEntityTarget =
   | { readonly kind: 'player'; readonly id: string }
-  | { readonly kind: 'npc'; readonly id: bigint };
+  | { readonly kind: 'npc'; readonly id: bigint }
+  | { readonly kind: 'combat_target'; readonly id: bigint };
 
 export interface TargetableWorldEntity {
   readonly target: SelectedEntityTarget;

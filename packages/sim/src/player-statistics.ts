@@ -10,6 +10,7 @@ export type PlayerStatisticCategory =
   | 'tools'
   | 'creatures'
   | 'combat'
+  | 'progression'
   | 'future';
 
 export type PlayerStatisticUnit =
@@ -35,8 +36,13 @@ export type PlayerStatisticSubject =
   | 'crop_kind'
   | 'fish_kind'
   | 'creature_kind'
+  | 'combat_target_kind'
   | 'damage_kind'
-  | 'quest_kind';
+  | 'quest_kind'
+  | 'npc_id'
+  | 'quest_objective'
+  | 'quest_action'
+  | 'skill_track';
 
 export interface PlayerStatisticDefinition {
   readonly name: string;
@@ -75,7 +81,9 @@ export const PLAYER_STATISTIC_DEFINITIONS = {
   chat_channels_joined: { name: 'Chat Channels Joined', description: 'Existing non-default chat channels joined.', category: 'social', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
   chat_invitations_sent: { name: 'Chat Invitations Sent', description: 'Players successfully invited to private channels.', category: 'social', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
   character_names_chosen: { name: 'Character Names Chosen', description: 'Permanent character names successfully chosen.', category: 'account', unit: 'count', aggregation: 'counter', subject: 'none', milestones: [1n] },
+  appearance_changes: { name: 'Appearance Changes', description: 'Server-validated character appearance updates.', category: 'account', unit: 'count', aggregation: 'counter', subject: 'none', milestones: RARE_COUNT_MILESTONES },
   npc_interactions: { name: 'NPC Conversations Started', description: 'Authority-approved conversations started, split by NPC kind.', category: 'social', unit: 'count', aggregation: 'counter', subject: 'npc_kind', milestones: COUNT_MILESTONES },
+  quest_npc_talks: { name: 'Quest NPC Conversations', description: 'Authority-approved conversations used by accept-time quest objectives.', category: 'social', unit: 'count', aggregation: 'counter', subject: 'npc_id', milestones: COUNT_MILESTONES },
   dialogue_choices: { name: 'Dialogue Choices', description: 'Dialogue choices accepted by the authority.', category: 'social', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
 
   distance_travelled: { name: 'Distance Travelled', description: 'Authoritative fixed-point distance travelled, split between foot and horse.', category: 'exploration', unit: 'fixed_distance', aggregation: 'counter', subject: 'movement_mode', milestones: DISTANCE_MILESTONES },
@@ -84,6 +92,7 @@ export const PLAYER_STATISTIC_DEFINITIONS = {
   horse_jumps: { name: 'Horse Jumps', description: 'Successful horse jumps over terrain blockers.', category: 'exploration', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
   longest_horse_jump: { name: 'Longest Horse Jump', description: 'Longest authoritative horse jump distance.', category: 'exploration', unit: 'fixed_distance', aggregation: 'maximum', subject: 'none', milestones: JUMP_DISTANCE_MILESTONES },
   admin_teleports: { name: 'Admin Teleports', description: 'Successful owner teleport commands.', category: 'exploration', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
+  quest_locations_reached: { name: 'Quest Locations Reached', description: 'One-shot entries into active quest location sensors.', category: 'exploration', unit: 'count', aggregation: 'counter', subject: 'quest_objective', milestones: COUNT_MILESTONES },
 
   items_obtained: { name: 'Items Obtained', description: 'Item units added through pickup, gathering, crafting, trade, or harvest.', category: 'items', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
   items_picked_up: { name: 'Ground Items Picked Up', description: 'Item units recovered from world drops.', category: 'items', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
@@ -128,12 +137,17 @@ export const PLAYER_STATISTIC_DEFINITIONS = {
   chests_picked_up: { name: 'Chests Picked Up', description: 'Placed chests lifted or returned to inventory.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'none', milestones: RARE_COUNT_MILESTONES },
   chests_broken: { name: 'Chests Broken', description: 'Placed chests destroyed with an axe.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'none', milestones: RARE_COUNT_MILESTONES },
 
-  damage_dealt: { name: 'Damage Dealt', description: 'Future authoritative outgoing damage, split by creature kind.', category: 'combat', unit: 'damage', aggregation: 'counter', subject: 'creature_kind', milestones: COUNT_MILESTONES, reserved: true },
+  damage_dealt: { name: 'Damage Dealt', description: 'Authoritative outgoing damage after mitigation, split by damageable target kind.', category: 'combat', unit: 'damage', aggregation: 'counter', subject: 'combat_target_kind', milestones: COUNT_MILESTONES },
   damage_taken: { name: 'Damage Taken', description: 'Future authoritative incoming damage, split by damage kind.', category: 'combat', unit: 'damage', aggregation: 'counter', subject: 'damage_kind', milestones: COUNT_MILESTONES, reserved: true },
   enemies_defeated: { name: 'Enemies Defeated', description: 'Future hostile creatures defeated, split by creature kind.', category: 'combat', unit: 'count', aggregation: 'counter', subject: 'creature_kind', milestones: COUNT_MILESTONES, reserved: true },
   times_knocked_out: { name: 'Times Knocked Out', description: 'Future cozy knockouts at zero Health.', category: 'combat', unit: 'count', aggregation: 'counter', subject: 'none', milestones: RARE_COUNT_MILESTONES, reserved: true },
   fish_caught: { name: 'Fish Caught', description: 'Future caught fish, split by fish kind.', category: 'future', unit: 'count', aggregation: 'counter', subject: 'fish_kind', milestones: COUNT_MILESTONES, reserved: true },
-  quests_completed: { name: 'Quests Completed', description: 'Future completed quests, split by quest kind.', category: 'future', unit: 'count', aggregation: 'counter', subject: 'quest_kind', milestones: RARE_COUNT_MILESTONES, reserved: true },
+  quest_actions: { name: 'Quest Actions', description: 'Server-authorized action hooks used by active quest objectives.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'quest_action', milestones: COUNT_MILESTONES },
+  quests_accepted: { name: 'Quests Accepted', description: 'Quests accepted through authority-backed dialogue.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'quest_kind', milestones: RARE_COUNT_MILESTONES },
+  quests_abandoned: { name: 'Quests Abandoned', description: 'Active quests deliberately dropped from the quest log.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'quest_kind', milestones: RARE_COUNT_MILESTONES },
+  quests_completed: { name: 'Quests Completed', description: 'Completed and rewarded quests, split by quest kind.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'quest_kind', milestones: RARE_COUNT_MILESTONES },
+  skill_points_spent: { name: 'Skill Points Spent', description: 'Points committed to persistent skill ranks, split by track.', category: 'progression', unit: 'count', aggregation: 'counter', subject: 'skill_track', milestones: COUNT_MILESTONES },
+  skill_respecs: { name: 'Skill Trees Reset', description: 'Completed skill-tree resets, split by track.', category: 'progression', unit: 'count', aggregation: 'counter', subject: 'skill_track', milestones: RARE_COUNT_MILESTONES },
 } as const satisfies Readonly<Record<string, PlayerStatisticDefinition>>;
 
 export type PlayerStatisticKind = keyof typeof PLAYER_STATISTIC_DEFINITIONS;
@@ -155,6 +169,7 @@ export function statisticSubjectIsValid(kind: PlayerStatisticKind, subjectKind: 
   }
   if (definition.subject === 'movement_mode') return subjectKind === 'foot' || subjectKind === 'horse';
   if (definition.subject === 'transaction_kind') return subjectKind === 'buy' || subjectKind === 'sell';
+  if (definition.subject === 'skill_track') return ['combat', 'explorer', 'farming'].includes(subjectKind);
   return true;
 }
 

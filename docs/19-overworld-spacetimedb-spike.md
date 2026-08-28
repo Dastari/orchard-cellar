@@ -1,5 +1,10 @@
 # 19 — Persistent Overworld & SpaceTimeDB Architecture Gate
 
+> **Product-direction amendment (2026-08-26):** The backend result remains adopted,
+> but [40](40-sanctuary-overworld-and-zoned-world.md) supersedes this spike's literal
+> contiguous-farm target. SpaceTimeDB now hosts a sanctuary overworld plus logical
+> Homestead, resource, danger, town, event, and interior spaces in one database.
+
 Status: **passed and adopted**, authorized and verified on 2026-08-24. SpaceTimeDB 2.8
 is now the binding backend in docs 01, 02, 07, 08, and 09. This did not change the
 Canvas engine, art/audio pipeline, economy, or prestige design.
@@ -8,9 +13,9 @@ Canvas engine, art/audio pipeline, economy, or prestige design.
 
 Orchard & Cellar is now intended to become a private, friends-only cozy MMO:
 
-- One persistent overworld contains roads, shared spaces, and player-owned estates.
-- Farms occupy authored plots in that world; walking through a gate crosses ownership
-  and authority boundaries without a disconnected loading-room model.
+- One persistent authority contains the overworld and logical destination spaces.
+- The gate originally proposed literal authored farm plots; doc 40 now places compact
+  symbolic Homestead POIs that portal to full-scale owner destination spaces.
 - Multiple players can farm together. Every mutation remains server-authoritative and
   permission-checked; cooperative access never implies unrestricted spending or
   destruction on another player's estate.

@@ -1,5 +1,11 @@
 # 08 — Database & Persistence
 
+> **Zoned-world amendment (2026-08-26):** [40](40-sanctuary-overworld-and-zoned-world.md)
+> retains one SpaceTimeDB database but relocates mutable resources, construction,
+> farming, and danger into typed `spaceId` destinations. The target overworld stores
+> immutable generated/authored scenery plus sparse POI/social state; existing mutable
+> overworld rows require a versioned reconciliation only after the spaces demo passes.
+
 Binding storage design after the successful M5.5 architecture gate. SpaceTimeDB 2.8
 is both the authoritative TypeScript runtime and durable relational store. There is no
 SQLite/Drizzle shadow database and no JSON snapshot authority.
@@ -20,6 +26,11 @@ Public means safe for every connected friend to read. Subscription predicates ar
 interest management, not authorization. Anything secret or owner-only belongs in a
 private table and is exposed through a caller-dependent view that derives the owner
 from the authenticated sender.
+
+Character progression follows that rule: `player_skill_track` and
+`player_skill_node` are private, identity-indexed tables exposed only through
+`ownPlayerSkillTracks` and `ownPlayerSkillNodes`. Level is derived from authoritative
+XP; clients submit only node ids or reset intents, never XP, ranks, or point totals.
 
 Every mutation is a reducer transaction. Reducers use `ctx.sender`; a client-supplied
 owner identity is never trusted. Durable positions remain after disconnect while
@@ -114,3 +125,7 @@ deleted on transport logout or presence-lease expiry. A one-time additive migrat
 deletes legacy `kind = system` rows from persistent chat storage, and the durable chat
 view excludes them defensively. Authored channel messages and whispers keep their
 existing bounded-history policy; the caller-private MOTD remains separate.
+The owner-only `/last` reducer may read the retained private `connection_audit` on
+demand and returns at most 12 events through the requesting connection's bounded
+`session_chat_notice` inbox. This rare explicit diagnostic does not create durable
+chat rows and never exposes the private audit table through a public view.

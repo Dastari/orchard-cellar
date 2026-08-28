@@ -4,6 +4,7 @@ import {
   avatarActionAfterMovement,
   avatarActionDefinition,
   avatarActionForEquippedKind,
+  itemActionRejection,
   isAvatarActionKind,
 } from './actions.js';
 
@@ -40,5 +41,24 @@ describe('avatar action registry', () => {
     expect(isAvatarActionKind('pickup')).toBe(true);
     expect(isAvatarActionKind('future_spell')).toBe(false);
     expect(avatarActionDefinition('future_spell')).toBeNull();
+  });
+
+  it('blocks presentation for broken tools and ranged weapons without ammunition', () => {
+    expect(itemActionRejection(
+      { itemKind: 'axe', quantity: 1, durability: 0 },
+      [],
+    )).toBe('tool_broken');
+    expect(itemActionRejection(
+      { itemKind: 'axe', quantity: 1, durability: 1 },
+      [],
+    )).toBeNull();
+    expect(itemActionRejection(
+      { itemKind: 'bow', quantity: 1, durability: 20 },
+      [{ itemKind: 'stone', quantity: 10 }],
+    )).toBe('out_of_arrows');
+    expect(itemActionRejection(
+      { itemKind: 'bow', quantity: 1, durability: 20 },
+      [{ itemKind: 'arrow', quantity: 1 }],
+    )).toBeNull();
   });
 });

@@ -76,6 +76,10 @@ export class CloudDriftIntegrator {
     this.y += elapsedSeconds * speed * directionY;
     return [this.x, this.y];
   }
+
+  reset(): void {
+    this.lastAuthorityTick = null;
+  }
 }
 
 export function windLeafOpacity(progress: number): number {
@@ -159,6 +163,10 @@ export class WeatherEffects {
     private readonly birchLeaf: LoadedAsset,
     private readonly spruceLeaf: LoadedAsset,
   ) {}
+
+  resetTimeline(): void {
+    this.cloudDrift.reset();
+  }
 
   drawCloudShadows(
     context: CanvasRenderingContext2D,

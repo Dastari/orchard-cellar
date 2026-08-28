@@ -34,9 +34,15 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AbandonQuestReducer from "./abandon_quest_reducer";
+import AdjustDebugBackpackSlotsReducer from "./adjust_debug_backpack_slots_reducer";
+import AdminRelocateHorseReducer from "./admin_relocate_horse_reducer";
 import AdminTeleportReducer from "./admin_teleport_reducer";
 import ApproveMemberReducer from "./approve_member_reducer";
+import BeginBowChargeReducer from "./begin_bow_charge_reducer";
+import BuyMerchantCartReducer from "./buy_merchant_cart_reducer";
 import BuyMerchantItemReducer from "./buy_merchant_item_reducer";
+import CancelBowChargeReducer from "./cancel_bow_charge_reducer";
 import ChooseDialogueOptionReducer from "./choose_dialogue_option_reducer";
 import CloseChestReducer from "./close_chest_reducer";
 import CloseCraftingReducer from "./close_crafting_reducer";
@@ -48,9 +54,11 @@ import CreateChatChannelReducer from "./create_chat_channel_reducer";
 import DebugUsePortalReducer from "./debug_use_portal_reducer";
 import DistributeChestItemReducer from "./distribute_chest_item_reducer";
 import DistributeInventoryItemReducer from "./distribute_inventory_item_reducer";
+import DropInventoryCursorReducer from "./drop_inventory_cursor_reducer";
 import DropSelectedReducer from "./drop_selected_reducer";
 import FireBowReducer from "./fire_bow_reducer";
 import GatherWorldResourceReducer from "./gather_world_resource_reducer";
+import GrantDebugSkillPointsReducer from "./grant_debug_skill_points_reducer";
 import HarvestChestReducer from "./harvest_chest_reducer";
 import HarvestResourceReducer from "./harvest_resource_reducer";
 import HeartbeatReducer from "./heartbeat_reducer";
@@ -58,6 +66,10 @@ import InteractChestReducer from "./interact_chest_reducer";
 import InteractHorseReducer from "./interact_horse_reducer";
 import InteractNpcReducer from "./interact_npc_reducer";
 import InteractPlaceableReducer from "./interact_placeable_reducer";
+import InventoryCursorClickReducer from "./inventory_cursor_click_reducer";
+import InventoryCursorPickupAllReducer from "./inventory_cursor_pickup_all_reducer";
+import InventoryCursorQuickCraftReducer from "./inventory_cursor_quick_craft_reducer";
+import InventoryCursorSwapHotbarReducer from "./inventory_cursor_swap_hotbar_reducer";
 import InviteChatMemberReducer from "./invite_chat_member_reducer";
 import JoinChatChannelReducer from "./join_chat_channel_reducer";
 import JumpHorseReducer from "./jump_horse_reducer";
@@ -65,28 +77,43 @@ import LeaveChatChannelReducer from "./leave_chat_channel_reducer";
 import MoveChestItemReducer from "./move_chest_item_reducer";
 import MoveInventoryItemReducer from "./move_inventory_item_reducer";
 import MovePlaceableItemReducer from "./move_placeable_item_reducer";
+import PickupEmbeddedArrowReducer from "./pickup_embedded_arrow_reducer";
+import PickupQuestWorldItemReducer from "./pickup_quest_world_item_reducer";
 import PickupWorldItemReducer from "./pickup_world_item_reducer";
+import PurchaseSkillNodeReducer from "./purchase_skill_node_reducer";
 import QuickMoveAllChestItemsReducer from "./quick_move_all_chest_items_reducer";
 import QuickMoveAllInventoryItemsReducer from "./quick_move_all_inventory_items_reducer";
+import QuickMoveAllMenuItemsReducer from "./quick_move_all_menu_items_reducer";
 import QuickMoveChestItemReducer from "./quick_move_chest_item_reducer";
 import QuickMoveInventoryItemReducer from "./quick_move_inventory_item_reducer";
+import QuickMoveMenuItemReducer from "./quick_move_menu_item_reducer";
 import RepairSelectedToolReducer from "./repair_selected_tool_reducer";
+import RequestLastConnectionsReducer from "./request_last_connections_reducer";
+import ResetMyQuestProgressReducer from "./reset_my_quest_progress_reducer";
+import ResetSkillTreeReducer from "./reset_skill_tree_reducer";
 import RestoreFarmTileReducer from "./restore_farm_tile_reducer";
+import ReturnInventoryCursorReducer from "./return_inventory_cursor_reducer";
 import RevokeMemberReducer from "./revoke_member_reducer";
 import SelectHotbarReducer from "./select_hotbar_reducer";
+import SellMerchantCartReducer from "./sell_merchant_cart_reducer";
 import SellMerchantItemReducer from "./sell_merchant_item_reducer";
 import SendChatMessageReducer from "./send_chat_message_reducer";
 import SendWhisperReducer from "./send_whisper_reducer";
 import SendWorldSpeechReducer from "./send_world_speech_reducer";
+import SetAppearanceReducer from "./set_appearance_reducer";
 import SetDisplayNameReducer from "./set_display_name_reducer";
 import SetInputReducer from "./set_input_reducer";
 import SetMessageOfDayReducer from "./set_message_of_day_reducer";
+import SetQuestPinnedReducer from "./set_quest_pinned_reducer";
 import SetWorldTimeReducer from "./set_world_time_reducer";
 import SetWorldWeatherReducer from "./set_world_weather_reducer";
 import SetWorldWindDirectionReducer from "./set_world_wind_direction_reducer";
+import SortMenuContainerReducer from "./sort_menu_container_reducer";
 import TendTreeReducer from "./tend_tree_reducer";
+import ThrowMenuItemReducer from "./throw_menu_item_reducer";
 import ToggleCampfireReducer from "./toggle_campfire_reducer";
 import ToggleHeldLanternReducer from "./toggle_held_lantern_reducer";
+import ToggleHomesteadGateReducer from "./toggle_homestead_gate_reducer";
 import ToggleWorldLanternReducer from "./toggle_world_lantern_reducer";
 import UseFarmTileReducer from "./use_farm_tile_reducer";
 import UseFarmToolReducer from "./use_farm_tool_reducer";
@@ -99,6 +126,7 @@ import UsePortalReducer from "./use_portal_reducer";
 import CropPatchRow from "./crop_patch_table";
 import FarmActivityRow from "./farm_activity_table";
 import FarmParcelRow from "./farm_parcel_table";
+import HomesteadRow from "./homestead_table";
 import OnlinePlayerAppearancesRow from "./online_player_appearances_table";
 import OnlinePlayerPublicRow from "./online_player_public_table";
 import OwnActiveChestRow from "./own_active_chest_table";
@@ -108,13 +136,20 @@ import OwnCharacterProfileRow from "./own_character_profile_table";
 import OwnChatChannelsRow from "./own_chat_channels_table";
 import OwnConnectionNoticesRow from "./own_connection_notices_table";
 import OwnEffectsRow from "./own_effects_table";
+import OwnInventoryCursorRow from "./own_inventory_cursor_table";
 import OwnInventoryOverflowRow from "./own_inventory_overflow_table";
 import OwnInventorySlotsRow from "./own_inventory_slots_table";
 import OwnMembershipRow from "./own_membership_table";
 import OwnOpenChestSlotsRow from "./own_open_chest_slots_table";
 import OwnOpenPlaceableSlotsRow from "./own_open_placeable_slots_table";
+import OwnPlayerQuestBaselinesRow from "./own_player_quest_baselines_table";
+import OwnPlayerQuestsRow from "./own_player_quests_table";
+import OwnPlayerSkillNodesRow from "./own_player_skill_nodes_table";
+import OwnPlayerSkillTracksRow from "./own_player_skill_tracks_table";
 import OwnPlayerStatisticMilestonesRow from "./own_player_statistic_milestones_table";
 import OwnPlayerStatisticsRow from "./own_player_statistics_table";
+import OwnPlayerThoughtRow from "./own_player_thought_table";
+import OwnQuestWorldItemsRow from "./own_quest_world_items_table";
 import OwnSessionChatNoticesRow from "./own_session_chat_notices_table";
 import OwnStatsRow from "./own_stats_table";
 import OwnSurvivalRow from "./own_survival_table";
@@ -128,6 +163,7 @@ import VisibleWorldSpeechRow from "./visible_world_speech_table";
 import WorldCampfireStateRow from "./world_campfire_state_table";
 import WorldChestRow from "./world_chest_table";
 import WorldClockRow from "./world_clock_table";
+import WorldCombatTargetRow from "./world_combat_target_table";
 import WorldEnvironmentRow from "./world_environment_table";
 import WorldHiveRow from "./world_hive_table";
 import WorldItemRow from "./world_item_table";
@@ -138,6 +174,7 @@ import WorldProjectileRow from "./world_projectile_table";
 import WorldResourceRow from "./world_resource_table";
 import WorldSeedRow from "./world_seed_table";
 import WorldSoilRow from "./world_soil_table";
+import WorldSurfaceRow from "./world_surface_table";
 import WorldTreeRow from "./world_tree_table";
 import WorldWildlifeProfileRow from "./world_wildlife_profile_table";
 import WorldWindRow from "./world_wind_table";
@@ -190,6 +227,20 @@ const tablesSchema = __schema({
       { name: 'farm_parcel_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FarmParcelRow),
+  homestead: __table({
+    name: 'homestead',
+    indexes: [
+      { accessor: 'by_owner', name: 'homestead_owner_idx_hash', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'spaceId', name: 'homestead_space_id_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'homestead_space_id_key', constraint: 'unique', columns: ['spaceId'] },
+    ],
+  }, HomesteadRow),
   playerAppearance: __table({
     name: 'player_appearance',
     indexes: [
@@ -283,6 +334,25 @@ const tablesSchema = __schema({
       { name: 'world_clock_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldClockRow),
+  worldCombatTarget: __table({
+    name: 'world_combat_target',
+    indexes: [
+      { accessor: 'by_carrier', name: 'world_combat_target_carried_by_idx_btree', algorithm: 'btree', columns: [
+        'carriedBy',
+      ] },
+      { accessor: 'id', name: 'world_combat_target_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_combat_target_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_combat_target_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldCombatTargetRow),
   worldEnvironment: __table({
     name: 'world_environment',
     indexes: [
@@ -359,6 +429,9 @@ const tablesSchema = __schema({
   worldPlaceable: __table({
     name: 'world_placeable',
     indexes: [
+      { accessor: 'by_carrier', name: 'world_placeable_carried_by_idx_btree', algorithm: 'btree', columns: [
+        'carriedBy',
+      ] },
       { accessor: 'id', name: 'world_placeable_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
@@ -431,6 +504,22 @@ const tablesSchema = __schema({
       { name: 'world_soil_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldSoilRow),
+  worldSurface: __table({
+    name: 'world_surface',
+    indexes: [
+      { accessor: 'id', name: 'world_surface_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'by_chunk', name: 'world_surface_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+      ] },
+    ],
+    constraints: [
+      { name: 'world_surface_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WorldSurfaceRow),
   worldTree: __table({
     name: 'world_tree',
     indexes: [
@@ -537,6 +626,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnEffectsRow),
+  ownInventoryCursor: __table({
+    name: 'own_inventory_cursor',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnInventoryCursorRow),
   ownInventoryOverflow: __table({
     name: 'own_inventory_overflow',
     indexes: [
@@ -572,6 +668,34 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnOpenPlaceableSlotsRow),
+  ownPlayerQuestBaselines: __table({
+    name: 'own_player_quest_baselines',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnPlayerQuestBaselinesRow),
+  ownPlayerQuests: __table({
+    name: 'own_player_quests',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnPlayerQuestsRow),
+  ownPlayerSkillNodes: __table({
+    name: 'own_player_skill_nodes',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnPlayerSkillNodesRow),
+  ownPlayerSkillTracks: __table({
+    name: 'own_player_skill_tracks',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnPlayerSkillTracksRow),
   ownPlayerStatisticMilestones: __table({
     name: 'own_player_statistic_milestones',
     indexes: [
@@ -586,6 +710,20 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnPlayerStatisticsRow),
+  ownPlayerThought: __table({
+    name: 'own_player_thought',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnPlayerThoughtRow),
+  ownQuestWorldItems: __table({
+    name: 'own_quest_world_items',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnQuestWorldItemsRow),
   ownSessionChatNotices: __table({
     name: 'own_session_chat_notices',
     indexes: [
@@ -632,9 +770,15 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("abandon_quest", AbandonQuestReducer),
+  __reducerSchema("adjust_debug_backpack_slots", AdjustDebugBackpackSlotsReducer),
+  __reducerSchema("admin_relocate_horse", AdminRelocateHorseReducer),
   __reducerSchema("admin_teleport", AdminTeleportReducer),
   __reducerSchema("approve_member", ApproveMemberReducer),
+  __reducerSchema("begin_bow_charge", BeginBowChargeReducer),
+  __reducerSchema("buy_merchant_cart", BuyMerchantCartReducer),
   __reducerSchema("buy_merchant_item", BuyMerchantItemReducer),
+  __reducerSchema("cancel_bow_charge", CancelBowChargeReducer),
   __reducerSchema("choose_dialogue_option", ChooseDialogueOptionReducer),
   __reducerSchema("close_chest", CloseChestReducer),
   __reducerSchema("close_crafting", CloseCraftingReducer),
@@ -646,9 +790,11 @@ const reducersSchema = __reducers(
   __reducerSchema("debug_use_portal", DebugUsePortalReducer),
   __reducerSchema("distribute_chest_item", DistributeChestItemReducer),
   __reducerSchema("distribute_inventory_item", DistributeInventoryItemReducer),
+  __reducerSchema("drop_inventory_cursor", DropInventoryCursorReducer),
   __reducerSchema("drop_selected", DropSelectedReducer),
   __reducerSchema("fire_bow", FireBowReducer),
   __reducerSchema("gather_world_resource", GatherWorldResourceReducer),
+  __reducerSchema("grant_debug_skill_points", GrantDebugSkillPointsReducer),
   __reducerSchema("harvest_chest", HarvestChestReducer),
   __reducerSchema("harvest_resource", HarvestResourceReducer),
   __reducerSchema("heartbeat", HeartbeatReducer),
@@ -656,6 +802,10 @@ const reducersSchema = __reducers(
   __reducerSchema("interact_horse", InteractHorseReducer),
   __reducerSchema("interact_npc", InteractNpcReducer),
   __reducerSchema("interact_placeable", InteractPlaceableReducer),
+  __reducerSchema("inventory_cursor_click", InventoryCursorClickReducer),
+  __reducerSchema("inventory_cursor_pickup_all", InventoryCursorPickupAllReducer),
+  __reducerSchema("inventory_cursor_quick_craft", InventoryCursorQuickCraftReducer),
+  __reducerSchema("inventory_cursor_swap_hotbar", InventoryCursorSwapHotbarReducer),
   __reducerSchema("invite_chat_member", InviteChatMemberReducer),
   __reducerSchema("join_chat_channel", JoinChatChannelReducer),
   __reducerSchema("jump_horse", JumpHorseReducer),
@@ -663,28 +813,43 @@ const reducersSchema = __reducers(
   __reducerSchema("move_chest_item", MoveChestItemReducer),
   __reducerSchema("move_inventory_item", MoveInventoryItemReducer),
   __reducerSchema("move_placeable_item", MovePlaceableItemReducer),
+  __reducerSchema("pickup_embedded_arrow", PickupEmbeddedArrowReducer),
+  __reducerSchema("pickup_quest_world_item", PickupQuestWorldItemReducer),
   __reducerSchema("pickup_world_item", PickupWorldItemReducer),
+  __reducerSchema("purchase_skill_node", PurchaseSkillNodeReducer),
   __reducerSchema("quick_move_all_chest_items", QuickMoveAllChestItemsReducer),
   __reducerSchema("quick_move_all_inventory_items", QuickMoveAllInventoryItemsReducer),
+  __reducerSchema("quick_move_all_menu_items", QuickMoveAllMenuItemsReducer),
   __reducerSchema("quick_move_chest_item", QuickMoveChestItemReducer),
   __reducerSchema("quick_move_inventory_item", QuickMoveInventoryItemReducer),
+  __reducerSchema("quick_move_menu_item", QuickMoveMenuItemReducer),
   __reducerSchema("repair_selected_tool", RepairSelectedToolReducer),
+  __reducerSchema("request_last_connections", RequestLastConnectionsReducer),
+  __reducerSchema("reset_my_quest_progress", ResetMyQuestProgressReducer),
+  __reducerSchema("reset_skill_tree", ResetSkillTreeReducer),
   __reducerSchema("restore_farm_tile", RestoreFarmTileReducer),
+  __reducerSchema("return_inventory_cursor", ReturnInventoryCursorReducer),
   __reducerSchema("revoke_member", RevokeMemberReducer),
   __reducerSchema("select_hotbar", SelectHotbarReducer),
+  __reducerSchema("sell_merchant_cart", SellMerchantCartReducer),
   __reducerSchema("sell_merchant_item", SellMerchantItemReducer),
   __reducerSchema("send_chat_message", SendChatMessageReducer),
   __reducerSchema("send_whisper", SendWhisperReducer),
   __reducerSchema("send_world_speech", SendWorldSpeechReducer),
+  __reducerSchema("set_appearance", SetAppearanceReducer),
   __reducerSchema("set_display_name", SetDisplayNameReducer),
   __reducerSchema("set_input", SetInputReducer),
   __reducerSchema("set_message_of_day", SetMessageOfDayReducer),
+  __reducerSchema("set_quest_pinned", SetQuestPinnedReducer),
   __reducerSchema("set_world_time", SetWorldTimeReducer),
   __reducerSchema("set_world_weather", SetWorldWeatherReducer),
   __reducerSchema("set_world_wind_direction", SetWorldWindDirectionReducer),
+  __reducerSchema("sort_menu_container", SortMenuContainerReducer),
   __reducerSchema("tend_tree", TendTreeReducer),
+  __reducerSchema("throw_menu_item", ThrowMenuItemReducer),
   __reducerSchema("toggle_campfire", ToggleCampfireReducer),
   __reducerSchema("toggle_held_lantern", ToggleHeldLanternReducer),
+  __reducerSchema("toggle_homestead_gate", ToggleHomesteadGateReducer),
   __reducerSchema("toggle_world_lantern", ToggleWorldLanternReducer),
   __reducerSchema("use_farm_tile", UseFarmTileReducer),
   __reducerSchema("use_farm_tool", UseFarmToolReducer),
@@ -718,6 +883,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "world_chest": Omit<typeof tablesSchema.schemaType.tables["worldChest"], "accessorName"> & { readonly accessorName: "world_chest" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
     readonly "world_clock": Omit<typeof tablesSchema.schemaType.tables["worldClock"], "accessorName"> & { readonly accessorName: "world_clock" };
+    /** @deprecated Use `worldCombatTarget` instead. This alias will be removed in the next major version. */
+    readonly "world_combat_target": Omit<typeof tablesSchema.schemaType.tables["worldCombatTarget"], "accessorName"> & { readonly accessorName: "world_combat_target" };
     /** @deprecated Use `worldEnvironment` instead. This alias will be removed in the next major version. */
     readonly "world_environment": Omit<typeof tablesSchema.schemaType.tables["worldEnvironment"], "accessorName"> & { readonly accessorName: "world_environment" };
     /** @deprecated Use `worldHive` instead. This alias will be removed in the next major version. */
@@ -738,6 +905,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "world_seed": Omit<typeof tablesSchema.schemaType.tables["worldSeed"], "accessorName"> & { readonly accessorName: "world_seed" };
     /** @deprecated Use `worldSoil` instead. This alias will be removed in the next major version. */
     readonly "world_soil": Omit<typeof tablesSchema.schemaType.tables["worldSoil"], "accessorName"> & { readonly accessorName: "world_soil" };
+    /** @deprecated Use `worldSurface` instead. This alias will be removed in the next major version. */
+    readonly "world_surface": Omit<typeof tablesSchema.schemaType.tables["worldSurface"], "accessorName"> & { readonly accessorName: "world_surface" };
     /** @deprecated Use `worldTree` instead. This alias will be removed in the next major version. */
     readonly "world_tree": Omit<typeof tablesSchema.schemaType.tables["worldTree"], "accessorName"> & { readonly accessorName: "world_tree" };
     /** @deprecated Use `worldWildlifeProfile` instead. This alias will be removed in the next major version. */
@@ -772,6 +941,7 @@ const tableAccessorAliases = {
   "world_campfire_state": "worldCampfireState",
   "world_chest": "worldChest",
   "world_clock": "worldClock",
+  "world_combat_target": "worldCombatTarget",
   "world_environment": "worldEnvironment",
   "world_hive": "worldHive",
   "world_item": "worldItem",
@@ -782,6 +952,7 @@ const tableAccessorAliases = {
   "world_resource": "worldResource",
   "world_seed": "worldSeed",
   "world_soil": "worldSoil",
+  "world_surface": "worldSurface",
   "world_tree": "worldTree",
   "world_wildlife_profile": "worldWildlifeProfile",
   "world_wind": "worldWind",
@@ -825,6 +996,8 @@ export type DbView = __DbViewBase & {
   readonly "world_chest": __DbViewBase["worldChest"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __DbViewBase["worldClock"];
+  /** @deprecated Use `worldCombatTarget` instead. This alias will be removed in the next major version. */
+  readonly "world_combat_target": __DbViewBase["worldCombatTarget"];
   /** @deprecated Use `worldEnvironment` instead. This alias will be removed in the next major version. */
   readonly "world_environment": __DbViewBase["worldEnvironment"];
   /** @deprecated Use `worldHive` instead. This alias will be removed in the next major version. */
@@ -845,6 +1018,8 @@ export type DbView = __DbViewBase & {
   readonly "world_seed": __DbViewBase["worldSeed"];
   /** @deprecated Use `worldSoil` instead. This alias will be removed in the next major version. */
   readonly "world_soil": __DbViewBase["worldSoil"];
+  /** @deprecated Use `worldSurface` instead. This alias will be removed in the next major version. */
+  readonly "world_surface": __DbViewBase["worldSurface"];
   /** @deprecated Use `worldTree` instead. This alias will be removed in the next major version. */
   readonly "world_tree": __DbViewBase["worldTree"];
   /** @deprecated Use `worldWildlifeProfile` instead. This alias will be removed in the next major version. */
@@ -875,6 +1050,8 @@ export type Tables = __TablesBase & {
   readonly "world_chest": __TablesBase["worldChest"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __TablesBase["worldClock"];
+  /** @deprecated Use `worldCombatTarget` instead. This alias will be removed in the next major version. */
+  readonly "world_combat_target": __TablesBase["worldCombatTarget"];
   /** @deprecated Use `worldEnvironment` instead. This alias will be removed in the next major version. */
   readonly "world_environment": __TablesBase["worldEnvironment"];
   /** @deprecated Use `worldHive` instead. This alias will be removed in the next major version. */
@@ -895,6 +1072,8 @@ export type Tables = __TablesBase & {
   readonly "world_seed": __TablesBase["worldSeed"];
   /** @deprecated Use `worldSoil` instead. This alias will be removed in the next major version. */
   readonly "world_soil": __TablesBase["worldSoil"];
+  /** @deprecated Use `worldSurface` instead. This alias will be removed in the next major version. */
+  readonly "world_surface": __TablesBase["worldSurface"];
   /** @deprecated Use `worldTree` instead. This alias will be removed in the next major version. */
   readonly "world_tree": __TablesBase["worldTree"];
   /** @deprecated Use `worldWildlifeProfile` instead. This alias will be removed in the next major version. */

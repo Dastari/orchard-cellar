@@ -1,7 +1,8 @@
 # 32 — Combat: Damage, Hostiles, and Danger Zones
 
-Binding owner-directed spec (2026-08-26). Status: **design approved, not
-implemented**. This is the combat-era doc that [25-stats-and-vitals.md](25-stats-and-vitals.md)
+Binding owner-directed spec (2026-08-26). Status: **training-target combat
+foundation implemented 2026-08-27; hostile-combat phases not implemented**.
+This is the combat-era doc that [25-stats-and-vitals.md](25-stats-and-vitals.md)
 Phase 5 gated behind separate approval, and the "combat-era decision" that
 [22-netcode.md](22-netcode.md) deferred. Builds on doc 25 (stats, vitals,
 modifiers, knockout — all implemented), [26-underground-mines.md](26-underground-mines.md)
@@ -12,6 +13,13 @@ arrows), [29-wildlife.md](29-wildlife.md) (peaceful fauna, untouched here),
 stamps as the spawning machinery), and [31-npc-dialogue-and-commerce.md](31-npc-dialogue-and-commerce.md)
 (talking NPCs are never combat targets). Enemy art is bounded by the licensed
 paid packs (docs/18 §7).
+
+[40](40-sanctuary-overworld-and-zoned-world.md) strengthens the danger-zone rule:
+the target shared overworld is an authority-enforced sanctuary with no hostile
+spawns, damaging combat, projectile hazards, or knockout from ordinary play. Combat
+is valid only in a space profile explicitly declaring danger. The one sanctioned
+surface exception is the non-hostile archery practice fixture in §3.1: it can receive
+damage but cannot attack, die, drop rewards, damage scenery, or cause knockout.
 
 ## 1. Principles (binding)
 
@@ -45,7 +53,7 @@ Implementing agents start from: `resolveStats`/modifier pipeline and vitals in
 centi-units; knockout + `winded`; `creatures.ts` statlines with
 `resolveCreatureStats` and `world_npc.health` initialization; Vigour costs +
 minimum swing intervals for `sword`/`bow` (doc 25 §4 table); `fireBow` +
-`world_projectile` with swept entity/terrain hit detection and hit-state rows;
+`world_projectile` with cursor-landing entity hits, swept terrain collision, and hit-state rows;
 player hitbox bounds; the deterministic `checks.ts` d20; `player_effect`
 machinery. Combat v1 is mostly **wiring these together plus AI and content**.
 
@@ -75,6 +83,35 @@ damage              = max(100, floor(attackPower × variance × crit) − armor)
   both directions — the doc 25 promise ("combat adds verbs, not state shape")
   kept literally.
 
+### 3.1 Implemented training-target slice (2026-08-27)
+
+`world_combat_target` is the first reusable damageable-entity projection. It is a
+public, `spaceId` + chunk-indexed row with centi-health, maximum health, lazy
+regeneration time, last-damaged time, and optional carrier identity. Three fixed
+`archery_target` rows are reconciled at the north edge of the starter sand clearing.
+They never reset after being moved and never enter an inventory: `useHands` lifts one
+into the existing above-head carry state and places that same authoritative row.
+
+Bow projectile landing tests the cursor-selected endpoint against the target's authored
+bounds, re-fetches and revalidates the row at impact, resolves Dex-scaled and
+authoritative-charge-scaled bow damage through `combat.ts`, writes only the
+applied post-mitigation amount, and records `damage_dealt / archery_target`. Health is
+clamped to one rather than destroying the fixture and regenerates at **1 displayed
+health per second** with exact lazy catch-up. Embedded arrows remain attached for 30
+seconds and may be recovered with E through a reducer that rechecks projectile state,
+lifetime, space, reach, and inventory capacity. On timeout they use the existing
+server-authorized recoverable-arrow ground path.
+
+Clients derive floating damage text only from descending authoritative health rows;
+the authority-confirmed last-hit critical bit makes crit text bold yellow. Embedded
+projectiles sort immediately above their target so the recoverable arrow remains
+legible, but retain their exact authoritative collision coordinates rather than snapping
+to a target anchor. Carrying or placing a struck target translates each embedded arrow
+by the same target delta, preserving its original impact offset. Selection uses the shared
+entity-targeting path and existing target health frame.
+This slice deliberately adds no hostile AI, melee damage, player/NPC damage, death,
+drops, Combat XP, or sanctuary danger.
+
 ## 4. Melee and ranged verbs
 
 - **Melee**: new reducer `attackMelee()` mirroring `harvestResource`'s shape —
@@ -86,11 +123,28 @@ damage              = max(100, floor(attackPower × variance × crit) − armor)
   modifier expands that area; the unskilled base range stays at one tile.
 - **Ranged**: `fireBow` gains consequences — consume 1 `arrow`, and on a
   `hit` row whose `hitKind` is a hostile NPC, apply §3 damage in the same
-  tick. Arrows that land in terrain persist briefly as recoverable
-  `world_item` arrows (~50% hash chance) — the Minecraft retrieval loop,
-  feeding the existing arrow recipe. Bow draw-stages art (`Bow_Stages.png`)
-  and charge-for-power are a later hook; v1 fires at fixed power on the
-  standing action channel.
+  tick. Every fired arrow becomes a recoverable `world_item` at its selected
+  landing point or first collision. It remains planted for 30 seconds and uses
+  the normal server-authorized nearby E pickup path; manually dropped arrows
+  retain the ordinary ground-item lifetime. Bow draw-stages art
+  (`Bow_Stages.png`) runs on the standing action channel.
+  **Ranged charge amendment (2026-08-27, superseding the earlier fixed-range
+  amendment):** draw time grows the resolved range budget from 16 px to 240 px
+  over one second and its cost from 1 to 30 Vigour. The cursor selects any nearer
+  destination inside that current budget. One shared parabola drives the client tracer, immediate
+  prediction, confirmed projectile height, and tangent rotation; collision
+  remains authoritative: terrain is swept along the ground-plane path, while an
+  entity is hit only if the selected landing point lies inside its bounds. This
+  keeps the cursor point as the embedded arrow's exact resting point. `beginBowCharge` records the
+  server tick; release range and atomic Vigour spend use the lesser of elapsed
+  authority time and client-requested time. The same verified duration scales
+  final resolved bow damage from the one-Vigour tap fraction to 100% at full draw.
+  The cursor-directed tracer always shows
+  the full resolved aim path; its dots turn red from the bow outward to show the
+  currently charged travel distance without moving the remaining guide. The client
+  bar previews the same drain continuously but cannot fabricate charge. Future Combat
+  skills/stats modify that shared maximum, and the tracer must display the resolved
+  range rather than a separate client estimate.
 - Hitting a hostile writes its `lastDamagedTick` (new column) — the status
   field that drives client hit-flash, exactly as docs/22 §6.1 reserved.
 
@@ -180,7 +234,11 @@ curated peaceful chunks, or in any non-danger zone, structurally.
 
 ## 10. Phasing
 
-1. **Damage core**: `combat.ts` + new stat targets, arrows damage hostiles,
+0. **Training foundation (implemented 2026-08-27)**: deterministic `combat.ts`,
+   combat modifier targets, indexed damageable target rows, authoritative bow damage,
+   selection/health frame, floating damage text, lazy regeneration, carried practice
+   targets, and embedded arrows.
+1. **Damage core (hostile remainder)**: arrows damage hostiles,
    `attackMelee`, NPC death/drops/`lastDamagedTick`, hit feedback — proven
    against a spawned test slime behind an owner debug reducer.
 2. **Mines go live**: slime + skeleton rosters, AI FSM with light-based
@@ -190,7 +248,7 @@ curated peaceful chunks, or in any non-danger zone, structurally.
    verification.
 4. **Ranged + exotic**: skeleton bowman (NPC projectiles), bombschroom AoE,
    volcano + desert rosters with their stamps.
-5. **Later hooks**: bow charge stages; hunting decision; spellcasting +
+5. **Later hooks**: skill/stat modifiers for bow range; hunting decision; spellcasting +
    mages (mana's first spender); boss stamps; goblin/orc camps; duels;
    "spooky nights" surface toggle; combat skill-tree branch.
 
@@ -220,6 +278,12 @@ riding gates); difficulty settings.
 - **Browser**: full mine fight at UI scales 1–3 — readable in near-darkness
   with one torch; damage numbers legible, no overdraw regressions; danger
   zones honored (walk the surface at night untouched).
+
+The implemented foundation subset additionally requires three spaced targets at the
+starter sand clearing; server-owned lift/place without inventory rows; click selection
+with a shared health frame; deterministic damage + visible row-derived floating text;
+slow regeneration; and arrows visibly embedded for 30 seconds. Focused sim, authority
+source-contract, regional-subscription, and entity-selection tests cover that slice.
 
 ## 13. Bookkeeping
 

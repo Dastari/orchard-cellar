@@ -1,0 +1,103 @@
+{
+  "name": "prop_cf_interior_bookshelf",
+  "category": "props",
+  "size": [
+    48,
+    32
+  ],
+  "anchor": [
+    24,
+    31
+  ],
+  "frames": {
+    "base": [
+      [
+        "................................................",
+        ".777777777777777777777777777777..77777777777777.",
+        ".7eeeeeeeeeeeeeeeeeeeeeeeeeeee7..7eeeeeeeeeeee7.",
+        ".7eeeeeeeeeeeeeeeeeeeeeeeeeeee7..7eeeeeeeeeeee7.",
+        ".7heeeeeeeeeeeeeeeeeeeeeeeeeee7..7heeeeeeeeeee7.",
+        ".7hhhhhhhhhhhhhhhhhhhhhhhhhhhh7..7hhhhhhhhhhhh7.",
+        ".7eeebebbbbbbbbbbbbbbbbbbbbbbb7..7eeebebbbbbbb7.",
+        ".7e77777777777777777777777777b7..7e7777777777b7.",
+        ".7e7cc88cc88cc88cc88cc88cc887b7..7e788cc88cc7b7.",
+        ".7e7aacciiccaacc33ccaacc33cc7b7..7e7cc33cc337b7.",
+        ".7e7fa33ji11fadd4311fa6643aa7b7..7e71143aa437b7.",
+        ".7e7fa43ji21fagd4321fa9643fa7b7..7e72143fa437b7.",
+        ".7e7fa43ji21fagd4321fa9643fa7b7..7e72143fa437b7.",
+        ".7e78bbbeeeeeeeeeeeeeeeeeeee7b7..7e78bbbeeee7b7.",
+        ".7b77777777777777777777777777b7..7b7777777777b7.",
+        ".7e7cc88cc88cc88cc88cc88cc887b7..7e7cc88cc887b7.",
+        ".7b7aacc33ccaacciiccaacc33cc7b7..7b7aacc33cc7b7.",
+        ".7b7fa1143ddfa33ji66fa1143aa7b7..7b7fa1143aa7b7.",
+        ".7b7fa2143gdfa43ji96fa2143fa7b7..7b7fa2143fa7b7.",
+        ".7b7fa2143gdfa43ji96fa2143fa7b7..7b7fa2143fa7b7.",
+        ".7b78bbbeeeeeeeeeeeeeeeeeeee7b7..7b78bbbeeee7b7.",
+        ".7b77777777777777777777777777b7..7b7777777777b7.",
+        ".7b7hhheheeeeee77hhheheeeeee7b7..7b7555888887b7.",
+        ".7b7bbbbbbbbbbb77bbbbbbbbbbb7b7..7b7558888887b7.",
+        ".7b7b7bbbbbbb7b77b7bbbbbbb7b7b7..7b7558888887b7.",
+        ".7b7b7bbbbbbb7b77b7bbbbbbb7b7b7..7b788bbeeee7b7.",
+        ".7b7bbbbbbbbbbb77bbbbbbbbbbb7b7..7b78bbeeeee7b7.",
+        ".7b77bbbbbbbbb7777bbbbbbbbb77b7..7b78bbeeeee7b7.",
+        ".077777777777777777777777777770..07777777777770.",
+        ".000000000000000000000000000000..00000000000000.",
+        "..0000000000000000000000000000....000000000000..",
+        "................................................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#0069aa",
+    "2": "#0098dc",
+    "3": "#134c4c",
+    "4": "#1e6f50",
+    "5": "#391f21",
+    "6": "#3d3d3d",
+    "7": "#3f2832",
+    "8": "#5d2c28",
+    "9": "#5d5d5d",
+    "a": "#891e2b",
+    "b": "#8a4836",
+    "c": "#8c8c8c",
+    "d": "#93388f",
+    "e": "#bf6f4a",
+    "f": "#c42430",
+    "g": "#ca52c9",
+    "h": "#e69c69",
+    "i": "#ed7614",
+    "j": "#ffa214"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "BookShelves.png",
+  "sourcePath": "references/Cute_Fantasy/Buildings/House_Decor/BookShelves.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        0,
+        48,
+        32
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

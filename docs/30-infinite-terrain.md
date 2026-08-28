@@ -1,6 +1,16 @@
 # 30 — Terrain Generation Revamp: Semi-Infinite Chunked World, Biomes, and Curation
 
-Binding owner-directed spec (2026-08-25). Status: **design approved, not implemented**.
+Binding owner-directed spec (2026-08-25). Status: **reactivated and refined by
+[43](43-procedural-sanctuary-and-signed-coordinates.md); not implemented**.
+
+**2026-08-27 amendment:** the useful seed-deterministic, signed-coordinate, lazy-chunk,
+and curation architecture in this document is active again. Doc 40's newer sanctuary
+fantasy remains binding: the generated topside is safe and non-destructive, while
+resource and hostile populations belong in explicit destination spaces. Doc 43 now
+governs coordinate algebra, editor bounds, generation order, seed overview, phasing,
+and migration. In particular, the new generator starts fresh and the complete legacy
+island is an optional curated stamp/fixture rather than a mandatory production
+override.
 Supersedes the fixed-island generation model of [20-survival-world.md](20-survival-world.md)
 (its resource/transaction rules stay binding; its 320×320 island becomes the legacy
 v1 world). Builds on [21-unified-renderer.md](21-unified-renderer.md) (chunk ground
@@ -257,7 +267,10 @@ The owner requirement that shapes the whole design: procedural first,
    asset-pipeline ethos applied to level design) and applied to the live world.
    Stamping a chunk sets `curated = true`, freezing it against regeneration.
 
-## 8. Migration — from the 320×320 island (world v2)
+## 8. Historical migration proposal — from the 320×320 island (world v2)
+
+**Superseded by doc 43 §7.** The following records the original preservation plan;
+do not treat its pixel-perfect whole-island replay as a current migration requirement.
 
 The legacy island is worldgen v1's output plus real player state. Migration
 re-anchors rather than preserves terrain:
@@ -306,6 +319,10 @@ re-anchors rather than preserves terrain:
   chunk count, generation queue depth.
 
 ## 11. Phasing
+
+**Superseded/refined by doc 43 §8.** The list below remains useful history and task
+inventory, but implementation follows the signed-kernel, editor, sampler, client,
+authority, rehearsal, and live-curation gates in doc 43.
 
 **Prerequisite (2026-08-26):** the scalability audit of
 [34-backend-scalability.md](34-backend-scalability.md) gates this plan —

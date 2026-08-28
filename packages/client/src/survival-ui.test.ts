@@ -120,10 +120,10 @@ describe('survival controls', () => {
     expect(facedResource(x, southPlayerY, 'down', [southTree], reach, offset)).toEqual(southTree);
   });
 
-  it('maps both number rows to nine persisted hotbar slots', () => {
+  it('maps both number rows to ten persisted hotbar slots', () => {
     expect(hotbarSlotForCode('Digit1')).toBe(0);
     expect(hotbarSlotForCode('Numpad9')).toBe(8);
-    expect(hotbarSlotForCode('Digit0')).toBeNull();
+    expect(hotbarSlotForCode('Digit0')).toBe(9);
   });
 
   it('gives occupied hotbar tools compact unambiguous labels', () => {
@@ -146,14 +146,14 @@ describe('survival controls', () => {
     expect(equippedItemFacing('pickaxe', 'right', 'up')).toBe('right');
   });
 
-  it('centers nine pointer-selectable slots and excludes their one-pixel gaps', () => {
-    expect(hotbarLayout(480, 270)).toEqual({ startX: 83, y: 231, width: 315, height: 34 });
-    expect(hotbarSlotAtPoint(83, 231, 480, 270)).toBe(0);
-    expect(hotbarSlotAtPoint(116, 264, 480, 270)).toBe(0);
-    expect(hotbarSlotAtPoint(117, 240, 480, 270)).toBeNull();
-    expect(hotbarSlotAtPoint(118, 240, 480, 270)).toBe(1);
-    expect(hotbarSlotAtPoint(396, 264, 480, 270)).toBe(8);
-    expect(hotbarSlotAtPoint(397, 264, 480, 270)).toBeNull();
+  it('centers ten pointer-selectable slots and wraps to two rows on phones', () => {
+    expect(hotbarLayout(480, 270)).toEqual({ startX: 65, y: 231, width: 350, height: 34 });
+    expect(hotbarSlotAtPoint(65, 231, 480, 270)).toBe(0);
+    expect(hotbarSlotAtPoint(99, 240, 480, 270)).toBeNull();
+    expect(hotbarSlotAtPoint(100, 240, 480, 270)).toBe(1);
+    expect(hotbarSlotAtPoint(413, 264, 480, 270)).toBe(9);
+    expect(hotbarLayout(360, 180)).toEqual({ startX: 93, y: 107, width: 175, height: 68 });
+    expect(hotbarSlotAtPoint(93, 141, 360, 180)).toBe(5);
   });
 
   it('selects the nearest ground item anywhere inside the circular pickup reach', () => {

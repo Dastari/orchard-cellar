@@ -1,8 +1,9 @@
 export const VIRTUAL_WIDTH = 480;
 export const VIRTUAL_HEIGHT = 270;
 export const WORLD_ZOOM_STEP = 0.25;
-/** Never shrink world pixels below their authored native scale. */
-export const MIN_WORLD_ZOOM = 1.5;
+/** Keep the widest view at the normal authored scale. The former 1.5 floor
+ * exposed too much of finite zones at once and made them read like map views. */
+export const MIN_WORLD_ZOOM = 2;
 export const DEFAULT_WORLD_ZOOM = 2;
 export const UI_SCALE_LEVELS = [1, 2, 3] as const;
 export type UiScale = typeof UI_SCALE_LEVELS[number];

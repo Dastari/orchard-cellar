@@ -238,6 +238,73 @@ ingredients, ghost-fill safely, and preserve server-side revalidation.
 deterministic two-client coverage. The repository-wide `npm run check` remains the
 final release gate; phase 4 code and recipes are absent.
 
+## M5.11 — Shared Spaces zoning technology demo `☐ next`
+
+Implement [40-sanctuary-overworld-and-zoned-world.md](40-sanctuary-overworld-and-zoned-world.md)
+§8 before migrating the overworld to its final sanctuary role. Add deterministic test
+forest, cave, and deeper-underground spaces with physical entrance/return portals;
+complete dynamic definition lookup, make-before-break handover, per-space authority
+isolation, occupied-space hot work, and bounded generated caches. Marlow sells one
+non-transferable Homestead Deed using the licensed plain-envelope icon; valid
+placement atomically creates a compact normal-tent POI and an owner-only generated
+tier-zero Homestead exterior. The current island/resource loop is only a transitional
+launch surface during this milestone.
+
+**Done when:** two clients traverse all static test zones together without cross-space
+row/collision leakage; one client buys and places a deed, enters/re-enters the same
+durable Homestead through reconnect and host restart, and another identity is denied;
+invalid placement spends nothing; cave/underground ambient, terrain, collision,
+lighting, audio, and nested return routing select correctly; 1,000 synthetic space IDs
+stay within configured cache bounds; and unoccupied spaces add zero hot-tick work.
+
+**Not in this milestone:** sanctuary-overworld conversion, final world-authoring tools,
+production resource resets/economy, combat, crops, Homestead environmental
+magnification/upgrades/furnishing/guest roles, towns, events, or quests.
+
+## M5.12 — Offline world editor and terrain laboratory `⏳ in progress (codex, 2026-08-27)`
+
+Implement [42-world-editor.md](42-world-editor.md) without adding an anonymous live
+mutation path. Begin with the pure semantic map/compiler contract, deterministic
+commands and history, the unauthenticated offline Canvas creator route, headless map
+commands, and a permanent mountain/quarry terrain laboratory. Live revision schema,
+authorization, and publication remain later gates.
+
+**Done when:** browser and CLI edits use one canonical document/hash and terrain
+compiler; the editor exposes free camera, height/current-plane collision overlays,
+save/load/import/export, and composed/per-frame WHY inspection; an offline editor load
+does not fetch SpaceTimeDB client code or open a WebSocket; and the terrain laboratory
+replaces overworld regeneration as the normal cliff-debug loop.
+
+## M5.13 — Procedurally assisted sanctuary foundation `⏳ in progress (codex, 2026-08-27)`
+
+Implement [43-procedural-sanctuary-and-signed-coordinates.md](43-procedural-sanctuary-and-signed-coordinates.md)
+phases A–C without switching or republishing the current world. Begin with shared
+signed chunk algebra, a pure seed/version multi-noise sampler, semantic biome/terrain
+families, elevation, oceans/coasts, lakes/ponds/rivers, topology halos, and a headless
+seed-map preview. The licensed `references/` sheets remain local-only; generation
+selects semantic terrain families rather than atlas frames.
+
+**Done when:** client/server/tool imports produce byte-identical signed chunks;
+neighbouring chunks generated in either order have identical shoreline, hydrology,
+biome-family, elevation, collision-role, light-role, and depth-role boundaries; the
+spawn candidate can be reviewed through biome/family/elevation/noise maps; and all
+authority experiments use the separate `orchard-cellar-procedural-dev` database while
+the current world remains active and untouched.
+
+## M5.14 — Combat training-target foundation `⏳ in progress (codex, 2026-08-27)`
+
+Implement the first reusable slice of [32-combat.md](32-combat.md): deterministic
+server-authoritative ranged damage, combat-event feedback, and regenerating/selectable
+training targets. Three permanent practice targets occupy the north edge of the
+current sand clearing. They are harmless sanctuary training fixtures—not hostiles—and
+may be carried above the head and repositioned without entering inventory.
+
+**Done when:** arrows collide with targets, stick visibly, apply authoritative damage,
+emit readable floating combat text, and record final damage once; target health is
+selectable/public, regenerates slowly without reaching a destructive death state, and
+carrying/repositioning follows the established full-chest authorization and portal
+settling rules. Sanctuary players, wildlife, NPCs, and scenery remain undamageable.
+
 ## M6 — Accounts, farm authority & persistence `⏳ in progress (codex, 2026-08-24)`
 OIDC + owner-managed friends allowlist per [09-auth.md](09-auth.md); normalized owned
 farm/public/private tables per [08-database.md](08-database.md); caller-dependent
@@ -266,28 +333,30 @@ evidence and the remaining manual multi-account acceptance items before M6 as a 
 is complete.
 
 ## M7 — Overworld & co-op `☐`
-[07-multiplayer.md](07-multiplayer.md) steps M7a–M7d: authored overworld/estate parcels
-→ estate permission roles → guestbook/gifts/tasting/chat/blocking → co-op festivals
-and host tools. Add the 25-friend load and artificial-latency harnesses.
-**Done when:** players walk between two owned farms, every permission-table cell is
-enforced by reducer tests, shared harvest/machine/gift races commit once, social verbs
-round-trip, and 25 simulated friends stay within the M9 resource/latency budget.
+After M5.11, implement [40](40-sanctuary-overworld-and-zoned-world.md)'s authored
+sanctuary migration and [07-multiplayer.md](07-multiplayer.md)'s co-op/social layers:
+static overworld scenery + symbolic POIs → typed resource/danger/town destinations →
+estate permission roles → guestbook/gifts/tasting/chat/blocking → co-op festivals and
+host tools. Add the 25-friend load and artificial-latency harnesses.
+**Done when:** the overworld cannot be depleted, built over, or used for combat;
+players navigate POIs between two owned Homesteads and shared destinations; every
+permission-table cell is enforced; shared harvest/machine/gift races commit once;
+social verbs round-trip; and 25 simulated friends stay within the M9 budget.
 
 ## M7.1 — Instanced homesteads and farming `☐`
 
-Implement [35-homesteads-and-farming.md](35-homesteads-and-farming.md) on the
+Continue beyond M5.11's tier-zero sample with
+[35-homesteads-and-farming.md](35-homesteads-and-farming.md) and doc 40 §4 on the
 shared SpaceTimeDB world database. Homesteads are logical `spaceId` coordinate
-worlds—not separate database deployments—with generated base terrain and sparse
-persistent mutation rows. Complete dynamic `homestead` definition lookup, atomic
-portal transitions, make-before-break regional subscriptions, private roster/request
-views, occupancy-scoped simulation, timestamp-derived crop/curing progress, and the
-bounded per-space terrain/collision cache gate from docs/34 before opening deeds.
+worlds—not separate deployments—with a site-derived exterior and separate furnishable
+residence interior. Implement the five Tent→Inn land/residence tiers, crops, curing,
+building, private roster/request views, guest roles, and timestamp-derived progress.
 
-**Done when:** two accounts own distinct homesteads and can visit according to role;
+**Done when:** two accounts own distinct Homesteads and can visit according to role;
 restart/backup preserves both; leaving evicts client rows and generated cache entries
 without deleting durable state; offline farms receive zero 20 Hz work; re-entry
-reconstructs identical terrain plus mutations; and the 1,000-space cache soak remains
-within its configured bound.
+reconstructs identical founding terrain plus mutations; all five residence/land tiers
+preserve crops/builds/furniture; and the cache soak remains within its bound.
 
 ## M8 — Texture & delight `☐`
 Festivals (4, with mini-games), daily micro-events, the dog, forageables + bees,

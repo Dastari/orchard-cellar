@@ -11,9 +11,13 @@ describe('chat commands', () => {
   it('parses coordinate and multi-word player teleport destinations', () => {
     expect(parseChatSubmission('/tp 10   20', true)).toEqual({ kind: 'teleport', destination: '10 20' });
     expect(parseChatSubmission('/TP Nathan Lambert', true)).toEqual({ kind: 'teleport', destination: 'Nathan Lambert' });
+    expect(parseChatSubmission('/tp Dastari   Marlow', true)).toEqual({ kind: 'teleport', destination: 'Dastari Marlow' });
     expect(parseChatSubmission('/tp', true).kind).toBe('error');
     expect(parseChatSubmission('/debug-space', true)).toEqual({ kind: 'debug_space' });
     expect(parseChatSubmission('/debug-space', false)).toEqual({ kind: 'error', message: 'ADMIN COMMAND REQUIRED' });
+    expect(parseChatSubmission('/last', true)).toEqual({ kind: 'last_connections' });
+    expect(parseChatSubmission('/last now', true)).toEqual({ kind: 'error', message: 'USAGE: /last' });
+    expect(parseChatSubmission('/last', false)).toEqual({ kind: 'error', message: 'ADMIN COMMAND REQUIRED' });
   });
 
   it('parses private and ranged speech aliases without sending them as channel chat', () => {
@@ -38,11 +42,13 @@ describe('chat commands', () => {
       completion: '/tp Nathan ', label: 'Nathan  PLAYER',
     });
     expect(chatCommandSuggestions('/tp 12 ', ['Nathan'], true)).toEqual([
-      { completion: '/tp 12 ', label: '/tp <x> <y>  TELEPORT TO TILE' },
+      { completion: '/tp 12 ', label: '/tp [player] <player|npc> OR <x> <y>' },
     ]);
     expect(chatCommandSuggestions('/', ['Nathan'], false).some((suggestion) => suggestion.completion === '/say ')).toBe(true);
     expect(chatCommandSuggestions('/', ['Nathan'], false).some((suggestion) => suggestion.completion === '/tp ')).toBe(false);
     expect(chatCommandSuggestions('/', ['Nathan'], true).map((suggestion) => suggestion.completion)).toContain('/tp ');
+    expect(chatCommandSuggestions('/', ['Nathan'], true).map((suggestion) => suggestion.completion)).toContain('/last ');
+    expect(chatCommandSuggestions('/', ['Nathan'], false).map((suggestion) => suggestion.completion)).not.toContain('/last ');
     expect(chatCommandSuggestions('/w Na', ['Nathan'], false)[0]?.completion).toBe('/w Nathan ');
     expect(chatCommandSuggestions('/r ', ['Nathan'], false, 'Nathan')[0]?.label).toContain('TO Nathan');
   });

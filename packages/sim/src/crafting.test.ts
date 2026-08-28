@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ANVIL_REPAIR_COST_BRONZE,
   FENCE_JOIN_EAST,
   FENCE_JOIN_NORTH,
   FENCE_JOIN_SOUTH,
@@ -9,6 +10,7 @@ import {
   fenceJoinMask,
   fiberDropsFromTilling,
 } from './crafting.js';
+import { itemDefinition } from './item-containers.js';
 
 describe('28§8 deterministic fiber drops', () => {
   it('returns the same result for the same authority inputs', () => {
@@ -37,6 +39,12 @@ describe('28§7 fence joins', () => {
   it('keeps gates in the fence connection family and standing torches passable', () => {
     expect(PLACEABLE_DEFINITIONS.fence_gate.connectsFence).toBe(true);
     expect(PLACEABLE_DEFINITIONS.standing_torch.blocksMovement).toBe(false);
+  });
+
+  it('registers the one-tile blocking anvil and its copper repair cost', () => {
+    expect(PLACEABLE_DEFINITIONS.anvil).toMatchObject({ blocksMovement: true, slotCapacity: 0 });
+    expect(itemDefinition('anvil')).toMatchObject({ maxStack: 1, iconKey: 'prop_cf_anvil', iconAnimation: 'animate' });
+    expect(ANVIL_REPAIR_COST_BRONZE).toBe(5);
   });
 });
 

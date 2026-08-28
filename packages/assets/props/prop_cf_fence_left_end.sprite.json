@@ -1,0 +1,73 @@
+{
+  "name": "prop_cf_fence_left_end",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".....111111.....",
+        "....15455451....",
+        "....15455451....",
+        "....14444441....",
+        "111113333331....",
+        "44443111111.....",
+        "33333143221.....",
+        "11111143221.....",
+        ".....143321.....",
+        "11111143321.....",
+        "44443143321.....",
+        "33333143321.....",
+        "11111143321.....",
+        "000001333210....",
+        "000000111100....",
+        "......00000....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#3f2832",
+    "2": "#743f39",
+    "3": "#91533b",
+    "4": "#b86f50",
+    "5": "#e4a672"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Fence_Big.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Fence_Big.png",
+  "sourceRegions": {
+    "base": [
+      [
+        48,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

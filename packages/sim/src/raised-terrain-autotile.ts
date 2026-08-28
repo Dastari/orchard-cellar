@@ -74,6 +74,10 @@ export interface RaisedTerrainFaceLayer {
   readonly rowId: string;
   readonly join: RaisedTerrainFaceJoin;
   readonly frame: number;
+  /** Opaque middle-row frame drawn below an exposed side frame when the wall
+   * continues diagonally. This hides the source atlas's translucent shadow
+   * gutter without replacing the authored outer silhouette. */
+  readonly seamUnderlayFrame?: number;
   readonly blocksMovement: boolean;
   readonly blocksLight: boolean;
   /** False for a rear wall drawn only to preserve a layered step overlap. */
@@ -83,6 +87,9 @@ export interface RaisedTerrainFaceLayer {
 export interface RaisedTerrainTilePlan {
   readonly edgeRole: RaisedTerrainEdgeRole | null;
   readonly edgeFrame: number | null;
+  /** Opaque wall frame drawn beneath a left/right cap edge when that edge is
+   * only an internal staircase join, rather than the outside silhouette. */
+  readonly edgeSeamUnderlayFrame?: number;
   readonly faceLayers: readonly RaisedTerrainFaceLayer[];
   readonly insetRoles: readonly RaisedTerrainInsetRole[];
   readonly insetFrames: readonly number[];
@@ -201,6 +208,37 @@ function frameForJoin(row: RaisedTerrainFaceRow, join: RaisedTerrainFaceJoin): n
   return row.frames[1];
 }
 
+function faceContinuesDiagonally(
+  grid: RaisedTerrainGrid,
+  tileX: number,
+  tileY: number,
+  depth: number,
+  join: RaisedTerrainFaceJoin,
+): boolean {
+  if (join === 'middle') return false;
+  const sourceY = tileY - depth;
+  return southFaceAt(grid, tileX - 1, sourceY - 1)
+    || southFaceAt(grid, tileX - 1, sourceY + 1)
+    || southFaceAt(grid, tileX + 1, sourceY - 1)
+    || southFaceAt(grid, tileX + 1, sourceY + 1);
+}
+
+function sideEdgeContinuesDiagonally(
+  grid: RaisedTerrainGrid,
+  tileX: number,
+  tileY: number,
+  edgeRole: RaisedTerrainEdgeRole | null,
+): boolean {
+  const side = edgeRole === 'left' || edgeRole === 'top_left' || edgeRole === 'bottom_left'
+    ? -1
+    : edgeRole === 'right' || edgeRole === 'top_right' || edgeRole === 'bottom_right'
+      ? 1
+      : 0;
+  if (side === 0) return false;
+  return grid.raisedAt(tileX + side, tileY - 1)
+    || grid.raisedAt(tileX + side, tileY + 1);
+}
+
 /** Resolves every layer and collision semantic for one contour cell. Face
  * layers are returned deepest-to-nearest and must be drawn in that order. */
 export function resolveRaisedTerrainTile(
@@ -228,15 +266,45 @@ export function resolveRaisedTerrainTile(
       rowId: row.id,
       join,
       frame: frameForJoin(row, join),
+      ...(row.contributesHeight !== false
+        && southFaceAt(grid, tileX, tileY - depth)
+        && faceContinuesDiagonally(grid, tileX, tileY, depth, join)
+        ? { seamUnderlayFrame: row.frames[1] }
+        : {}),
       blocksMovement: row.blocksMovement,
       blocksLight: row.blocksLight,
       direct: southFaceAt(grid, tileX, tileY - depth),
     });
   }
 
+  // A translucent side cap can land over a projected wall row supplied by a
+  // neighbouring contour cell. Fill that internal seam with the matching
+  // opaque middle wall frame. Rear-facing top corners are the plateau's outer
+  // silhouette, however: putting a wall frame beneath them produces a pale
+  // stone square on staircase-shaped back edges. Ground must remain visible
+  // through those caps. The cosmetic non-height foot row likewise never
+  // becomes an underlay.
+  const sideEdge = edgeRole === 'left' || edgeRole === 'right'
+    || edgeRole === 'top_left' || edgeRole === 'top_right'
+    || edgeRole === 'bottom_left' || edgeRole === 'bottom_right';
+  const rearCorner = edgeRole === 'top_left' || edgeRole === 'top_right';
+  const supportingFace = sideEdge
+    ? [...faceLayers].reverse().find((face) => (
+      profile.rows[face.depth - 1]?.contributesHeight !== false
+    ))
+    : undefined;
+  const edgeSeamUnderlayFrame = rearCorner
+    ? undefined
+    : supportingFace === undefined
+      ? sideEdgeContinuesDiagonally(grid, tileX, tileY, edgeRole)
+        ? profile.rows[0]?.frames[1]
+        : undefined
+      : profile.rows[supportingFace.depth - 1]?.frames[1];
+
   return {
     edgeRole,
     edgeFrame: edgeRole === null ? null : tileSet.edgeFrames[edgeRole] ?? null,
+    ...(edgeSeamUnderlayFrame === undefined ? {} : { edgeSeamUnderlayFrame }),
     faceLayers,
     insetRoles,
     insetFrames: insetRoles.flatMap((role) => {

@@ -36,6 +36,7 @@ export function createClientCollisionMap(
     bottom: (chest.tileY + 1) * TILE_SIZE_FIXED - 1,
   });
   for (const placeable of medium === 'ground' ? placeables : []) {
+    if (placeable.carriedBy !== undefined) continue;
     const definition = placeableDefinition(placeable.kind);
     if (definition?.blocksMovement !== true || placeable.open) continue;
     obstacles.push({

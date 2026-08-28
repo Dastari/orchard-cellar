@@ -69,4 +69,11 @@ describe('deterministic weather effects', () => {
     expect(windDirectionLabel(-0.8, -0.4)).toBe('NW');
     expect(windDirectionLabel(0.8, 0.4)).toBe('SE');
   });
+
+  it('can reset cloud integration without replaying hidden-tab drift', () => {
+    const drift = new CloudDriftIntegrator();
+    expect(drift.advance(100, 10, 1, 0)[0]).toBeGreaterThan(0);
+    drift.reset();
+    expect(drift.advance(200, 10, -1, 0)[0]).toBeLessThan(0);
+  });
 });

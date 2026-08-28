@@ -20,6 +20,17 @@ describe('crafting recipe list', () => {
       { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 3, quantity: 1 },
       { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 4, quantity: 1 },
     ]);
-    expect(ghostFillRecipeMoves('workbench', [...rows, { slot: 38, itemKind: 'stone', quantity: 1 }], false)).toBeNull();
+    expect(ghostFillRecipeMoves('workbench', [...rows, { slot: 39, itemKind: 'stone', quantity: 1 }], false)).toBeNull();
+  });
+
+  it('treats global slot 9 as hotbar key 0 and starts the backpack at slot 10', () => {
+    expect(ghostFillRecipeMoves('workbench', [{ slot: 9, itemKind: 'plank', quantity: 4 }], false))
+      .toEqual([0, 1, 3, 4].map((toIndex) => ({
+        fromContainer: 'hotbar', fromIndex: 9, toContainer: 'crafting', toIndex, quantity: 1,
+      })));
+    expect(ghostFillRecipeMoves('workbench', [{ slot: 10, itemKind: 'plank', quantity: 4 }], false))
+      .toEqual([0, 1, 3, 4].map((toIndex) => ({
+        fromContainer: 'backpack', fromIndex: 0, toContainer: 'crafting', toIndex, quantity: 1,
+      })));
   });
 });

@@ -1,8 +1,8 @@
 {
   "version": 1,
   "sourcePattern": "references/Cute_Fantasy*/**/*.png",
-  "sourceRevision": "17bd73320201eb10",
-  "entryCount": 1005,
+  "sourceRevision": "74adf80f27477c99",
+  "entryCount": 1014,
   "companionSources": [
     {
       "source": "references/Player_Aseprite_Files/Player_Main_All.aseprite",
@@ -12426,7 +12426,9 @@
       "section": "Buildings/House_Decor",
       "name": "Beds",
       "description": "Beds — Buildings / House Decor",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_interior_bed [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         112,
         192
@@ -12449,16 +12451,24 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "ambient",
+        "animated",
+        "bed",
         "beds",
         "building-entity",
         "buildings",
+        "cf",
         "cute",
         "decor",
         "entity-solid",
         "fantasy",
         "house",
+        "interior",
+        "nature",
         "png",
-        "references"
+        "prop",
+        "references",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "55a4d8c8ed52234d39bf4237e890a7a04f2d2f0dc1199f8edcdb2b3d4d8953c5"
@@ -12471,6 +12481,7 @@
       "name": "Book Shelves",
       "description": "Book Shelves — Buildings / House Decor",
       "reviewedAssets": [
+        "prop_cf_interior_bookshelf [world.nature, decor.ambient, decor.animated]",
         "tile_cf_cellar_rack"
       ],
       "dimensions": [
@@ -12495,7 +12506,10 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "ambient",
+        "animated",
         "book",
+        "bookshelf",
         "bookshelves",
         "building-entity",
         "buildings",
@@ -12506,11 +12520,15 @@
         "entity-solid",
         "fantasy",
         "house",
+        "interior",
+        "nature",
         "png",
+        "prop",
         "rack",
         "references",
         "shelves",
-        "tile"
+        "tile",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "ce81449ba1bd9ed5f71d349b6a87d25acf2bd47ea8cc9957c23a9d3fa5dce518"
@@ -12753,7 +12771,9 @@
       "section": "Buildings/House_Decor",
       "name": "Doors",
       "description": "Doors — Buildings / House Decor",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_interior_door [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         176,
         384
@@ -12776,16 +12796,24 @@
       "collisionNotes": "Stateful interaction/transition; collision depends on state or destination rules.",
       "tileSet": null,
       "searchTerms": [
+        "ambient",
+        "animated",
         "building-entity",
         "buildings",
+        "cf",
         "cute",
         "decor",
+        "door",
         "doors",
         "entity-trigger",
         "fantasy",
         "house",
+        "interior",
+        "nature",
         "png",
-        "references"
+        "prop",
+        "references",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "4e1c7decd3e558e271e7d1bee110de6aef2203cdcd31d1c6e90546c836c33222"
@@ -13622,7 +13650,9 @@
       "section": "Buildings/Houses_Interiors",
       "name": "Interior Walls",
       "description": "Interior Walls — Buildings / Houses Interiors",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tile_cf_interior_wall [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         224,
         96
@@ -13645,17 +13675,25 @@
       "collisionNotes": "Blocking by semantic terrain role; overlays, inverse corners, shadows, and cliff feet remain nonblocking.",
       "tileSet": null,
       "searchTerms": [
+        "ambient",
+        "animated",
         "building-entity",
         "buildings",
+        "cf",
         "cute",
+        "decor",
         "fantasy",
         "houses",
         "interior",
         "interiors",
+        "nature",
         "png",
         "references",
         "terrain-blocking",
-        "walls"
+        "tile",
+        "wall",
+        "walls",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "99d094bbb48f220fcd0bdebdff6109f6a1e319e10e63108f1b801cfe8a22921c"
@@ -16869,7 +16907,9 @@
       "section": "Other",
       "name": "Ladder",
       "description": "Ladder — Other",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_cellar_ladder [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         16,
         48
@@ -16892,14 +16932,22 @@
       "collisionNotes": "Stateful interaction/transition; collision depends on state or destination rules.",
       "tileSet": null,
       "searchTerms": [
+        "ambient",
+        "animated",
+        "cellar",
+        "cf",
         "component-sheet",
         "cute",
+        "decor",
         "entity-trigger",
         "fantasy",
         "ladder",
+        "nature",
         "other",
         "png",
-        "references"
+        "prop",
+        "references",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "5bd5e3d0782d1950f7044a256b906b54d93340ec4d8c8cbdf88bc5e4f5f50745"
@@ -17248,6 +17296,67 @@
       "section": "Outdoor decoration",
       "name": "Fence Big",
       "description": "Fence Big — Outdoor decoration",
+      "reviewedAssets": [
+        "prop_cf_fence_corner [world.nature, decor.ambient, decor.animated]",
+        "prop_cf_fence_horizontal [world.nature, decor.ambient, decor.animated]",
+        "prop_cf_fence_left_end [world.nature, decor.ambient, decor.animated]",
+        "prop_cf_fence_vertical [world.nature, decor.ambient, decor.animated]"
+      ],
+      "dimensions": [
+        64,
+        64
+      ],
+      "layout": {
+        "kind": "variant-grid",
+        "cell": [
+          16,
+          16
+        ],
+        "columns": 4,
+        "rows": 4,
+        "cells": 16,
+        "confidence": "inferred",
+        "notes": "Sprites align to a 16px inspection grid; individual objects may span several cells."
+      },
+      "animationSets": [],
+      "use": "world-prop",
+      "collision": "entity-solid",
+      "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
+      "tileSet": null,
+      "searchTerms": [
+        "ambient",
+        "animated",
+        "big",
+        "cf",
+        "corner",
+        "cute",
+        "decor",
+        "decoration",
+        "end",
+        "entity-solid",
+        "fantasy",
+        "fence",
+        "horizontal",
+        "left",
+        "nature",
+        "outdoor",
+        "png",
+        "prop",
+        "references",
+        "vertical",
+        "world",
+        "world-prop"
+      ],
+      "duplicateOf": null,
+      "sha256": "3574640149809bf432a00daea912d6f675e3fbeb622883588e74a104aa2153d2"
+    },
+    {
+      "id": "cute-fantasy-outdoor-decoration-fences",
+      "source": "references/Cute_Fantasy/Outdoor decoration/Fences.png",
+      "pack": "Cute_Fantasy",
+      "section": "Outdoor decoration",
+      "name": "Fences",
+      "description": "Fences — Outdoor decoration",
       "reviewedAssets": [],
       "dimensions": [
         64,
@@ -17271,68 +17380,14 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
-        "big",
         "cute",
         "decoration",
         "entity-solid",
         "fantasy",
-        "fence",
-        "outdoor",
-        "png",
-        "references",
-        "world-prop"
-      ],
-      "duplicateOf": null,
-      "sha256": "3574640149809bf432a00daea912d6f675e3fbeb622883588e74a104aa2153d2"
-    },
-    {
-      "id": "cute-fantasy-outdoor-decoration-fences",
-      "source": "references/Cute_Fantasy/Outdoor decoration/Fences.png",
-      "pack": "Cute_Fantasy",
-      "section": "Outdoor decoration",
-      "name": "Fences",
-      "description": "Fences — Outdoor decoration",
-      "reviewedAssets": [
-        "prop_cf_fence_corner",
-        "prop_cf_fence_horizontal",
-        "prop_cf_fence_vertical"
-      ],
-      "dimensions": [
-        64,
-        64
-      ],
-      "layout": {
-        "kind": "variant-grid",
-        "cell": [
-          16,
-          16
-        ],
-        "columns": 4,
-        "rows": 4,
-        "cells": 16,
-        "confidence": "inferred",
-        "notes": "Sprites align to a 16px inspection grid; individual objects may span several cells."
-      },
-      "animationSets": [],
-      "use": "world-prop",
-      "collision": "entity-solid",
-      "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
-      "tileSet": null,
-      "searchTerms": [
-        "cf",
-        "corner",
-        "cute",
-        "decoration",
-        "entity-solid",
-        "fantasy",
-        "fence",
         "fences",
-        "horizontal",
         "outdoor",
         "png",
-        "prop",
         "references",
-        "vertical",
         "world-prop"
       ],
       "duplicateOf": null,
@@ -20771,7 +20826,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 10 Anim",
       "description": "Rock 10 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_10 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         128,
         16
@@ -20797,18 +20854,23 @@
       "tileSet": null,
       "searchTerms": [
         "10",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "bb03d6c85ee35bec18d50559b2c97f980386821c3d119ef256141f5918f75c2f"
@@ -20820,7 +20882,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 11 Anim",
       "description": "Rock 11 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_11 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         256,
         32
@@ -20846,18 +20910,23 @@
       "tileSet": null,
       "searchTerms": [
         "11",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "9e2b636a97d8663a2c64a8943f29786bbdd53320c88d0933b5e5cca27e1917c4"
@@ -20869,7 +20938,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 12 Anim",
       "description": "Rock 12 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_12 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         256,
         32
@@ -20895,18 +20966,23 @@
       "tileSet": null,
       "searchTerms": [
         "12",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "e79506ba8c534f9e6e6c300ff854935f0e64f246b2a804fd819d69627e43b3c0"
@@ -20918,7 +20994,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 13 Anim",
       "description": "Rock 13 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_13 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         256,
         32
@@ -20944,18 +21022,23 @@
       "tileSet": null,
       "searchTerms": [
         "13",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "fb284c0ad69d5448fbbd161c729747c193889a6e34decfadfb080b3f42fe7ac7"
@@ -20967,7 +21050,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 14 Anim",
       "description": "Rock 14 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_14 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         256,
         32
@@ -20993,18 +21078,23 @@
       "tileSet": null,
       "searchTerms": [
         "14",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "b6215ebc969e35fc3ceb9da5783b8cb7feee8e7e643526d028fc0a3c5425cfe0"
@@ -21017,6 +21107,7 @@
       "name": "Rock 1 Anim",
       "description": "Rock 1 Anim — Outdoor Decor Animations / Rock Animations",
       "reviewedAssets": [
+        "nature_cf_rock_01 [world.nature, decor.ambient, decor.animated]",
         "resource_cf_rock_stone [resource.mineable, resource.rock, material.stone]"
       ],
       "dimensions": [
@@ -21043,7 +21134,10 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "01",
+        "ambient",
         "anim",
+        "animated",
         "animations",
         "cf",
         "cute",
@@ -21054,12 +21148,14 @@
         "fantasy",
         "material",
         "mineable",
+        "nature",
         "outdoor",
         "png",
         "references",
         "resource",
         "rock",
-        "stone"
+        "stone",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "fd6af738427b2eb21dce2921952aaae5700459bcb32104526400d0358627afda"
@@ -21071,7 +21167,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 2 Anim",
       "description": "Rock 2 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_02 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         128,
         16
@@ -21096,18 +21194,24 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "02",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "cd31d1ded8bbeb68d8defa92136fd5a9f91d7ac443680eb69d04faf11fd63718"
@@ -21119,7 +21223,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 3 Anim",
       "description": "Rock 3 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_03 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         128,
         16
@@ -21144,18 +21250,24 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "03",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "5ebb6a33c5b53259048bb195ef7c7fbfdc1d03bb0c963697a46514abf6fd9cc9"
@@ -21167,7 +21279,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 4 Anim",
       "description": "Rock 4 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_04 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         128,
         16
@@ -21192,18 +21306,24 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "04",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "954c25e1ded3db9452caf0d7ca1bff6fe7f9728282ec8d51e139b2c3620c9c62"
@@ -21215,7 +21335,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 5 Anim",
       "description": "Rock 5 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_05 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         128,
         16
@@ -21240,18 +21362,24 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "05",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "953908d1c6237eef4941b08c0f4cddd1b93cccc6c662bc56e765524facda7c14"
@@ -21263,7 +21391,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 6 Anim",
       "description": "Rock 6 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_06 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         128,
         16
@@ -21288,18 +21418,24 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "06",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "5f06ebe43715113ac03bee1e99fdebcd33039e336f24f4a1867b0e3260cfa5a2"
@@ -21311,7 +21447,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 7 Anim",
       "description": "Rock 7 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_07 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         128,
         16
@@ -21336,18 +21474,24 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "07",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "6fa19c50848a09f6b9903009ce8c5c8ac167f3391ca945fe6e94f812b664d5f2"
@@ -21359,7 +21503,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 8 Anim",
       "description": "Rock 8 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_08 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         128,
         16
@@ -21384,18 +21530,24 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "08",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "592ab7dab35ae48bedb92ba353df151e57c592279e2ef18c23fbf1eb690bb213"
@@ -21407,7 +21559,9 @@
       "section": "Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations",
       "name": "Rock 9 Anim",
       "description": "Rock 9 Anim — Outdoor Decor Animations / Rock Animations",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "nature_cf_rock_09 [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         128,
         16
@@ -21432,18 +21586,24 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "09",
+        "ambient",
         "anim",
+        "animated",
         "animations",
+        "cf",
         "cute",
         "decor",
         "decoration",
         "entity-animation",
         "entity-solid",
         "fantasy",
+        "nature",
         "outdoor",
         "png",
         "references",
-        "rock"
+        "rock",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "8b55cb098695573b43243799a68cb963fe3f5c5f345fd6d553fb65e23e1e2035"
@@ -31800,7 +31960,9 @@
       "section": "Tiles/Cave",
       "name": "Cave Floor 1",
       "description": "Cave Floor 1 — Tiles",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tile_cf_cave_floor [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         48,
         80
@@ -31823,16 +31985,23 @@
       "collisionNotes": "Ground/detail cells are passable unless the selected semantic role is a wall, cliff, water, lava, or structure.",
       "tileSet": "passable-ground-set | paint on the ground layer; edge/variant selection is visual and does not block movement.",
       "searchTerms": [
+        "ambient",
+        "animated",
         "cave",
+        "cf",
         "cute",
+        "decor",
         "fantasy",
         "floor",
+        "nature",
         "png",
         "references",
         "terrain-passable",
+        "tile",
         "tile set",
         "tile-set",
-        "tiles"
+        "tiles",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "ee52668ef7b24c54b65287d7f0bf79a315868b20bf5652feba759e7ed98f68a8"
@@ -31933,7 +32102,9 @@
       "section": "Tiles/Cave",
       "name": "Cave Floor Ladder",
       "description": "Cave Floor Ladder — Tiles",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_trapdoor [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         16,
         16
@@ -31956,17 +32127,25 @@
       "collisionNotes": "Stateful interaction/transition; collision depends on state or destination rules.",
       "tileSet": "passable-ground-set | paint on the ground layer; edge/variant selection is visual and does not block movement.",
       "searchTerms": [
+        "ambient",
+        "animated",
         "cave",
+        "cf",
         "cute",
+        "decor",
         "entity-trigger",
         "fantasy",
         "floor",
         "ladder",
+        "nature",
         "png",
+        "prop",
         "references",
         "tile set",
         "tile-set",
-        "tiles"
+        "tiles",
+        "trapdoor",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "86609e2fa24e1952075807270c84cb7832e61659a6c30b4e72e451f6ffdfd93f"
@@ -31978,7 +32157,9 @@
       "section": "Tiles/Cave",
       "name": "Cave Floor Middle",
       "description": "Cave Floor Middle — Tiles",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tile_cf_cave_floor_middle [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         16,
         16
@@ -32001,17 +32182,24 @@
       "collisionNotes": "Ground/detail cells are passable unless the selected semantic role is a wall, cliff, water, lava, or structure.",
       "tileSet": "passable-ground-set | paint on the ground layer; edge/variant selection is visual and does not block movement.",
       "searchTerms": [
+        "ambient",
+        "animated",
         "cave",
+        "cf",
         "cute",
+        "decor",
         "fantasy",
         "floor",
         "middle",
+        "nature",
         "png",
         "references",
         "terrain-passable",
+        "tile",
         "tile set",
         "tile-set",
-        "tiles"
+        "tiles",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "21c9c564fc757e8c2bd68b4b2160f4a909beb8de95a0e13cb16e4546442ff28a"
@@ -32111,7 +32299,9 @@
       "section": "Tiles/Cave",
       "name": "Cave Wall Support",
       "description": "Cave Wall Support — Tiles",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_cave_support [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         80,
         32
@@ -32134,17 +32324,24 @@
       "collisionNotes": "Blocking by semantic terrain role; overlays, inverse corners, shadows, and cliff feet remain nonblocking.",
       "tileSet": "blocking-structure-set | compose on the object/structure layer and derive collision from the semantic wall role.",
       "searchTerms": [
+        "ambient",
+        "animated",
         "cave",
+        "cf",
         "cute",
+        "decor",
         "fantasy",
+        "nature",
         "png",
+        "prop",
         "references",
         "support",
         "terrain-blocking",
         "tile set",
         "tile-set",
         "tiles",
-        "wall"
+        "wall",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "b19f57b41eb738deba0f86e32bb322db61541b39de8220497c378c8143b41bdb"
@@ -32156,7 +32353,9 @@
       "section": "Tiles/Cave",
       "name": "Cave Walls",
       "description": "Cave Walls — Tiles",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "tile_cf_cave_wall [world.nature, decor.ambient, decor.animated]"
+      ],
       "dimensions": [
         112,
         128
@@ -32179,16 +32378,24 @@
       "collisionNotes": "Blocking by semantic terrain role; overlays, inverse corners, shadows, and cliff feet remain nonblocking.",
       "tileSet": "blocking-structure-set | compose on the object/structure layer and derive collision from the semantic wall role.",
       "searchTerms": [
+        "ambient",
+        "animated",
         "cave",
+        "cf",
         "cute",
+        "decor",
         "fantasy",
+        "nature",
         "png",
         "references",
         "terrain-blocking",
+        "tile",
         "tile set",
         "tile-set",
         "tiles",
-        "walls"
+        "wall",
+        "walls",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "5c91b09c3266f7b24e7a82c9a6334ceef51cbbf8b50c8211c221bb9215f81ea9"
@@ -36767,6 +36974,405 @@
       ],
       "duplicateOf": null,
       "sha256": "81089124f7ca584b65fdf2172b5ae939db935716a29e8318a690b1aad9e7a325"
+    },
+    {
+      "id": "cute-fantasy-christmass-characters-reindeer",
+      "source": "references/Cute_Fantasy_Christmass/Characters/Reindeer.png",
+      "pack": "Cute_Fantasy_Christmass",
+      "section": "Characters",
+      "name": "Reindeer",
+      "description": "Reindeer — Characters",
+      "reviewedAssets": [],
+      "dimensions": [
+        384,
+        192
+      ],
+      "layout": {
+        "kind": "variant-grid",
+        "cell": [
+          16,
+          16
+        ],
+        "columns": 24,
+        "rows": 12,
+        "cells": 288,
+        "confidence": "inferred",
+        "notes": "Sprites align to a 16px inspection grid; individual objects may span several cells."
+      },
+      "animationSets": [],
+      "use": "component-sheet",
+      "collision": "review-per-component",
+      "collisionNotes": "Composite sheet; decide collision per extracted semantic sprite.",
+      "tileSet": null,
+      "searchTerms": [
+        "characters",
+        "christmass",
+        "component-sheet",
+        "cute",
+        "fantasy",
+        "png",
+        "references",
+        "reindeer",
+        "review-per-component"
+      ],
+      "duplicateOf": null,
+      "sha256": "94cd4efed0c98f2177fd38773b4e91bc80f3b502a034ff18e4398a4ed6bd3afa"
+    },
+    {
+      "id": "cute-fantasy-christmass-characters-santa-claus",
+      "source": "references/Cute_Fantasy_Christmass/Characters/Santa_Claus.png",
+      "pack": "Cute_Fantasy_Christmass",
+      "section": "Characters",
+      "name": "Santa Claus",
+      "description": "Santa Claus — Characters",
+      "reviewedAssets": [],
+      "dimensions": [
+        192,
+        320
+      ],
+      "layout": {
+        "kind": "variant-grid",
+        "cell": [
+          16,
+          16
+        ],
+        "columns": 12,
+        "rows": 20,
+        "cells": 240,
+        "confidence": "inferred",
+        "notes": "Sprites align to a 16px inspection grid; individual objects may span several cells."
+      },
+      "animationSets": [],
+      "use": "component-sheet",
+      "collision": "review-per-component",
+      "collisionNotes": "Composite sheet; decide collision per extracted semantic sprite.",
+      "tileSet": null,
+      "searchTerms": [
+        "characters",
+        "christmass",
+        "claus",
+        "component-sheet",
+        "cute",
+        "fantasy",
+        "png",
+        "references",
+        "review-per-component",
+        "santa"
+      ],
+      "duplicateOf": null,
+      "sha256": "1ece096f3a073fb58fb1eaad2cbdbdefd808ba1d99c4fec97657209b5af1a0c4"
+    },
+    {
+      "id": "cute-fantasy-christmass-characters-santa-claus-helper",
+      "source": "references/Cute_Fantasy_Christmass/Characters/Santa_Claus_Helper.png",
+      "pack": "Cute_Fantasy_Christmass",
+      "section": "Characters",
+      "name": "Santa Claus Helper",
+      "description": "Santa Claus Helper — Characters",
+      "reviewedAssets": [],
+      "dimensions": [
+        256,
+        320
+      ],
+      "layout": {
+        "kind": "variant-grid",
+        "cell": [
+          16,
+          16
+        ],
+        "columns": 16,
+        "rows": 20,
+        "cells": 320,
+        "confidence": "inferred",
+        "notes": "Sprites align to a 16px inspection grid; individual objects may span several cells."
+      },
+      "animationSets": [],
+      "use": "component-sheet",
+      "collision": "review-per-component",
+      "collisionNotes": "Composite sheet; decide collision per extracted semantic sprite.",
+      "tileSet": null,
+      "searchTerms": [
+        "characters",
+        "christmass",
+        "claus",
+        "component-sheet",
+        "cute",
+        "fantasy",
+        "helper",
+        "png",
+        "references",
+        "review-per-component",
+        "santa"
+      ],
+      "duplicateOf": null,
+      "sha256": "fbeac2821e2126885cd54cda361fe0db5019842c56ac7b887300d25365673573"
+    },
+    {
+      "id": "cute-fantasy-christmass-decorations-chocolate-chimney",
+      "source": "references/Cute_Fantasy_Christmass/Decorations/Chocolate_Chimney.png",
+      "pack": "Cute_Fantasy_Christmass",
+      "section": "Decorations",
+      "name": "Chocolate Chimney",
+      "description": "Chocolate Chimney — Decorations",
+      "reviewedAssets": [],
+      "dimensions": [
+        160,
+        32
+      ],
+      "layout": {
+        "kind": "variant-grid",
+        "cell": [
+          16,
+          16
+        ],
+        "columns": 10,
+        "rows": 2,
+        "cells": 20,
+        "confidence": "inferred",
+        "notes": "Sprites align to a 16px inspection grid; individual objects may span several cells."
+      },
+      "animationSets": [],
+      "use": "world-prop",
+      "collision": "entity-nonsolid",
+      "collisionNotes": "Decoration/harvestable overlay; reserve placement as needed but do not block movement by default.",
+      "tileSet": null,
+      "searchTerms": [
+        "chimney",
+        "chocolate",
+        "christmass",
+        "cute",
+        "decorations",
+        "entity-nonsolid",
+        "fantasy",
+        "png",
+        "references",
+        "world-prop"
+      ],
+      "duplicateOf": null,
+      "sha256": "a4a53849ac7c5812e138b7afa3210528bac792df7f803774cb5a7ea4e2b7df64"
+    },
+    {
+      "id": "cute-fantasy-christmass-decorations-christmass-grass",
+      "source": "references/Cute_Fantasy_Christmass/Decorations/Christmass_Grass.png",
+      "pack": "Cute_Fantasy_Christmass",
+      "section": "Decorations",
+      "name": "Christmass Grass",
+      "description": "Christmass Grass — Decorations",
+      "reviewedAssets": [],
+      "dimensions": [
+        128,
+        80
+      ],
+      "layout": {
+        "kind": "tile-grid",
+        "cell": [
+          16,
+          16
+        ],
+        "columns": 8,
+        "rows": 5,
+        "cells": 40,
+        "confidence": "verified",
+        "notes": "8×5 snow-cover and winter-decoration cells. Review semantic overlay roles individually; this is not a complete standalone terrain family."
+      },
+      "animationSets": [],
+      "use": "tile-set",
+      "collision": "terrain-passable",
+      "collisionNotes": "Ground/detail cells are passable unless the selected semantic role is a wall, cliff, water, lava, or structure.",
+      "tileSet": "snow-overlay-set | 8×5 cells for snow cover and winter decoration over a Grass 4/stone substrate; not a complete shore, river, cliff, crossing, or snowy-tree family.",
+      "searchTerms": [
+        "christmass",
+        "cute",
+        "decorations",
+        "fantasy",
+        "grass",
+        "png",
+        "references",
+        "terrain-passable",
+        "tile set",
+        "tile-set"
+      ],
+      "duplicateOf": null,
+      "sha256": "f11f9d43b04ddb0daf6c5fd18d5ecf5d5016c743b148c226db086d3dbad2e292"
+    },
+    {
+      "id": "cute-fantasy-christmass-decorations-decor",
+      "source": "references/Cute_Fantasy_Christmass/Decorations/Decor.png",
+      "pack": "Cute_Fantasy_Christmass",
+      "section": "Decorations",
+      "name": "Decor",
+      "description": "Decor — Decorations",
+      "reviewedAssets": [],
+      "dimensions": [
+        192,
+        144
+      ],
+      "layout": {
+        "kind": "variant-grid",
+        "cell": [
+          16,
+          16
+        ],
+        "columns": 12,
+        "rows": 9,
+        "cells": 108,
+        "confidence": "inferred",
+        "notes": "Sprites align to a 16px inspection grid; individual objects may span several cells."
+      },
+      "animationSets": [],
+      "use": "world-prop",
+      "collision": "entity-nonsolid",
+      "collisionNotes": "Decoration/harvestable overlay; reserve placement as needed but do not block movement by default.",
+      "tileSet": null,
+      "searchTerms": [
+        "christmass",
+        "cute",
+        "decor",
+        "decorations",
+        "entity-nonsolid",
+        "fantasy",
+        "png",
+        "references",
+        "world-prop"
+      ],
+      "duplicateOf": null,
+      "sha256": "618cbb9a532537fd59a75343b4f436847102e764bd25b43c58c719216f88eebc"
+    },
+    {
+      "id": "cute-fantasy-christmass-decorations-gingerbread-house",
+      "source": "references/Cute_Fantasy_Christmass/Decorations/Gingerbread_House.png",
+      "pack": "Cute_Fantasy_Christmass",
+      "section": "Decorations",
+      "name": "Gingerbread House",
+      "description": "Gingerbread House — Decorations",
+      "reviewedAssets": [],
+      "dimensions": [
+        80,
+        112
+      ],
+      "layout": {
+        "kind": "variant-grid",
+        "cell": [
+          16,
+          16
+        ],
+        "columns": 5,
+        "rows": 7,
+        "cells": 35,
+        "confidence": "inferred",
+        "notes": "Sprites align to a 16px inspection grid; individual objects may span several cells."
+      },
+      "animationSets": [],
+      "use": "building-entity",
+      "collision": "entity-solid",
+      "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
+      "tileSet": null,
+      "searchTerms": [
+        "building-entity",
+        "christmass",
+        "cute",
+        "decorations",
+        "entity-solid",
+        "fantasy",
+        "gingerbread",
+        "house",
+        "png",
+        "references"
+      ],
+      "duplicateOf": null,
+      "sha256": "b5547e91b412fb8ce7ca24eab68593025375a42b6dfff65626af4e6339cce526"
+    },
+    {
+      "id": "cute-fantasy-christmass-decorations-snowman-1-anim",
+      "source": "references/Cute_Fantasy_Christmass/Decorations/Snowman_1_Anim.png",
+      "pack": "Cute_Fantasy_Christmass",
+      "section": "Decorations",
+      "name": "Snowman 1 Anim",
+      "description": "Snowman 1 Anim — Decorations",
+      "reviewedAssets": [],
+      "dimensions": [
+        576,
+        64
+      ],
+      "layout": {
+        "kind": "animation-strip",
+        "cell": [
+          64,
+          64
+        ],
+        "columns": 9,
+        "rows": 1,
+        "cells": 9,
+        "confidence": "inferred",
+        "notes": "Likely horizontal 64×64 frame strip; confirm bounds when importing."
+      },
+      "animationSets": [
+        "snowman 1"
+      ],
+      "use": "entity-animation",
+      "collision": "entity-nonsolid",
+      "collisionNotes": "Decoration/harvestable overlay; reserve placement as needed but do not block movement by default.",
+      "tileSet": null,
+      "searchTerms": [
+        "anim",
+        "christmass",
+        "cute",
+        "decorations",
+        "entity-animation",
+        "entity-nonsolid",
+        "fantasy",
+        "png",
+        "references",
+        "snowman"
+      ],
+      "duplicateOf": null,
+      "sha256": "cfa1b81eea5705fd932e1af587bd9e540f7bc2807507e782a40587ebb2d52ffe"
+    },
+    {
+      "id": "cute-fantasy-christmass-decorations-snowman-2-anim",
+      "source": "references/Cute_Fantasy_Christmass/Decorations/Snowman_2_Anim.png",
+      "pack": "Cute_Fantasy_Christmass",
+      "section": "Decorations",
+      "name": "Snowman 2 Anim",
+      "description": "Snowman 2 Anim — Decorations",
+      "reviewedAssets": [],
+      "dimensions": [
+        576,
+        64
+      ],
+      "layout": {
+        "kind": "animation-strip",
+        "cell": [
+          64,
+          64
+        ],
+        "columns": 9,
+        "rows": 1,
+        "cells": 9,
+        "confidence": "inferred",
+        "notes": "Likely horizontal 64×64 frame strip; confirm bounds when importing."
+      },
+      "animationSets": [
+        "snowman 2"
+      ],
+      "use": "entity-animation",
+      "collision": "entity-nonsolid",
+      "collisionNotes": "Decoration/harvestable overlay; reserve placement as needed but do not block movement by default.",
+      "tileSet": null,
+      "searchTerms": [
+        "anim",
+        "christmass",
+        "cute",
+        "decorations",
+        "entity-animation",
+        "entity-nonsolid",
+        "fantasy",
+        "png",
+        "references",
+        "snowman"
+      ],
+      "duplicateOf": null,
+      "sha256": "fe5b912ed8e64e9393021ce73e52de7263b0ddfdfad8b5907a2bdd01787b0d4c"
     },
     {
       "id": "cute-fantasy-desert-animals-camel-camel-1",
@@ -45046,7 +45652,9 @@
       "section": "",
       "name": "Archery Target",
       "description": "Archery Target",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_archery_target [world.combat_target, combat.training, decor.archery]"
+      ],
       "dimensions": [
         32,
         32
@@ -45070,13 +45678,19 @@
       "tileSet": null,
       "searchTerms": [
         "archery",
+        "cf",
+        "combat",
         "cute",
+        "decor",
         "entity-solid",
         "fantasy",
         "militarycamp",
         "png",
+        "prop",
         "references",
         "target",
+        "training",
+        "world",
         "world-prop"
       ],
       "duplicateOf": null,
@@ -45396,7 +46010,10 @@
       "section": "",
       "name": "Military Tents",
       "description": "Military Tents",
-      "reviewedAssets": [],
+      "reviewedAssets": [
+        "prop_cf_homestead_tent_large [world.building, homestead.residence, tent.military.large]",
+        "prop_cf_homestead_tent_marker [world.poi, homestead.entrance, tent.military.small]"
+      ],
       "dimensions": [
         304,
         480
@@ -45419,15 +46036,27 @@
       "collisionNotes": "Y-sorted world object with a foot/footprint collider; transparent canopy/roof pixels do not expand collision.",
       "tileSet": null,
       "searchTerms": [
+        "building",
         "building-entity",
+        "cf",
         "cute",
         "entity-solid",
+        "entrance",
         "fantasy",
+        "homestead",
+        "large",
+        "marker",
         "military",
         "militarycamp",
         "png",
+        "poi",
+        "prop",
         "references",
-        "tents"
+        "residence",
+        "small",
+        "tent",
+        "tents",
+        "world"
       ],
       "duplicateOf": null,
       "sha256": "9327ad9b60c8da99801cc89512f7380cb0b246ab89611758e537ec9551bcbc82"
@@ -47856,6 +48485,7 @@
       "reviewedAssets": [
         "icon_cf_effect_well_rested [ui.icon, effect.well_rested]",
         "icon_cf_effect_winded [ui.icon, effect.winded]",
+        "icon_cf_homestead_deed [ui.icon, item.document, item.homestead_deed]",
         "ui_cf_cursor [ui.cursor, ui.pointer]"
       ],
       "dimensions": [
@@ -47883,10 +48513,14 @@
         "cf",
         "cursor",
         "cute",
+        "deed",
+        "document",
         "effect",
         "fantasy",
+        "homestead",
         "icon",
         "icons",
+        "item",
         "png",
         "pointer",
         "references",

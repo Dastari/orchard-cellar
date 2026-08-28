@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, heldLightFrameIndices, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemIconKey, overworldPoiDecorationDepthY, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
+import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, heldLightFrameIndices, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemIconKey, overworldPlaceableVisualScale, overworldPoiDecorationDepthY, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
 import { canonicalBlob47Index } from './render/tilemap.js';
 
 describe('overworld art topology', () => {
+  it('renders the workbench at its one-tile world footprint', () => {
+    expect(overworldPlaceableVisualScale('workbench')).toBe(0.5);
+    expect(overworldPlaceableVisualScale('barrel')).toBe(1);
+  });
+
   it('sorts a tent at its walkable entrance boundary', () => {
     expect(overworldPoiDecorationDepthY('camp_tent', 160)).toBe(144);
+    expect(overworldPoiDecorationDepthY('homestead_tent_marker', 160)).toBe(144);
+    expect(overworldPoiDecorationDepthY('homestead_tent_large', 160)).toBe(144);
     expect(overworldPoiDecorationDepthY('camp_pond', 160)).toBe(112);
     expect(overworldPoiDecorationDepthY('camp_bench', 160)).toBe(160);
   });

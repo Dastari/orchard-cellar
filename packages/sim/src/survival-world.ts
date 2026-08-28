@@ -71,7 +71,7 @@ export const SURVIVAL_POI_DECORATION_KINDS = [
 ] as const;
 export type SurvivalPoiDecorationKind = typeof SURVIVAL_POI_DECORATION_KINDS[number];
 export const SURVIVAL_NATURE_DECORATION_KINDS = [
-  'nature_grass', 'nature_flower_grass', 'nature_flower', 'nature_mushroom',
+  'nature_grass', 'nature_flower_grass', 'nature_flower', 'nature_mushroom', 'nature_rock',
   'nature_lily_pad', 'nature_water_flower', 'nature_cattail', 'nature_water_grass', 'nature_water_rock',
   'nature_fish_shadow', 'nature_desert_grass', 'nature_desert_fern', 'nature_desert_bush',
   'nature_desert_plant', 'nature_desert_rock',
@@ -91,7 +91,10 @@ export const MARLOW_CAMP = {
   centerTileX: 336,
   centerTileY: 356,
   homeTileX: 338,
-  homeTileY: 358,
+  // Keep the NPC anchor south of the stump seat. The character foot box
+  // extends into the tile above its anchor, so row 358 traps Marlow inside
+  // that prop even though the anchor tile itself appears visually clear.
+  homeTileY: 359,
   reserveRadiusX: 7,
   reserveRadiusY: 6,
 } as const;
@@ -1772,6 +1775,7 @@ const NATURE_VARIANT_COUNTS: Readonly<Record<SurvivalNatureDecorationKind, numbe
   nature_flower_grass: 15,
   nature_flower: 5,
   nature_mushroom: 8,
+  nature_rock: 14,
   nature_lily_pad: 12,
   nature_water_flower: 12,
   nature_cattail: 5,

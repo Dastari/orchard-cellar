@@ -23,4 +23,5 @@ export default __t.row({
   open: __t.bool(),
   smeltStartTick: __t.option(__t.u64()).name("smelt_start_tick"),
   lit: __t.bool(),
+  carriedBy: __t.option(__t.identity()).name("carried_by"),
 });

@@ -24,13 +24,25 @@ describe('client collision cache', () => {
       { tileX: 12, tileY: 10, carriedBy: undefined },
       { tileX: 13, tileY: 10, carriedBy: {} },
     ] as never;
-    const collision = createClientCollisionMap(terrain, resources, chests);
+    const placeables = [
+      { kind: 'workbench', tileX: 15, tileY: 10, open: false, carriedBy: undefined },
+      { kind: 'anvil', tileX: 16, tileY: 10, open: false, carriedBy: {} },
+    ] as never;
+    const collision = createClientCollisionMap(terrain, resources, chests, 'ground', placeables);
     expect(collision.blocked).toBe(terrain.blocked);
     expect(collision.horseJumpableTerrain).toBe(terrain.horseJumpableTerrain);
     expect(collision.obstacles).toContainEqual(survivalResourceObstacle('tree_oak', 10, 10));
     expect(collision.obstacles).toContainEqual({
       left: 12 * TILE_SIZE_FIXED, top: 10 * TILE_SIZE_FIXED,
       right: 13 * TILE_SIZE_FIXED - 1, bottom: 11 * TILE_SIZE_FIXED - 1,
+    });
+    expect(collision.obstacles).toContainEqual({
+      left: 15 * TILE_SIZE_FIXED, top: 10 * TILE_SIZE_FIXED,
+      right: 16 * TILE_SIZE_FIXED - 1, bottom: 11 * TILE_SIZE_FIXED - 1,
+    });
+    expect(collision.obstacles).not.toContainEqual({
+      left: 16 * TILE_SIZE_FIXED, top: 10 * TILE_SIZE_FIXED,
+      right: 17 * TILE_SIZE_FIXED - 1, bottom: 11 * TILE_SIZE_FIXED - 1,
     });
   }, 20_000);
 
@@ -76,6 +88,7 @@ describe('client collision cache', () => {
       name: 'mine_fixture',
       sizeTiles: 32,
       generator: 'mine',
+      environment: 'underground',
       ambient: { r: 32, g: 32, b: 48 },
       weather: false,
       audioBed: 'cave',

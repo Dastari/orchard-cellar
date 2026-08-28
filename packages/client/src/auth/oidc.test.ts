@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   decodeJwtClaims,
+  isOidcPopupCallback,
   oidcEntryEndpoint,
   readOidcSession,
   validateIdTokenClaims,
@@ -28,6 +29,13 @@ describe('OIDC browser session', () => {
       .toBe('/realms/orchard/protocol/openid-connect/forgot-credentials');
     expect(() => oidcEntryEndpoint('https://auth.example/unsupported', 'recover'))
       .toThrow('recovery endpoint is invalid');
+  });
+
+  it('distinguishes popup callbacks from the full-page redirect fallback', () => {
+    expect(isOidcPopupCallback('?code=abc&state=popup.random-state')).toBe(true);
+    expect(isOidcPopupCallback('?error=access_denied&state=popup.random-state')).toBe(true);
+    expect(isOidcPopupCallback('?code=abc&state=random-state')).toBe(false);
+    expect(isOidcPopupCallback('?code=abc')).toBe(false);
   });
 
   it('decodes identity claims without treating them as verified authorization', () => {

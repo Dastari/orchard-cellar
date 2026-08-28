@@ -1,0 +1,50 @@
+{
+  "name": "icon_cf_homestead_deed",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "..000000000000..",
+        ".01111111111110.",
+        ".00111111111100.",
+        ".01011111111020.",
+        ".01101111110210.",
+        ".01110111102110.",
+        ".01111011021110.",
+        ".01111100211110.",
+        ".01111111111110.",
+        ".02222222222220.",
+        ".00000000000000.",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#ffffff",
+    "2": "#8b9bb4"
+  },
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Icons.png",
+  "sourceRegions": {
+    "base": [[224, 16, 16, 16]]
+  },
+  "frameKinds": { "base": "state" },
+  "uiSizing": "fixed",
+  "tags": ["ui.icon", "item.document", "item.homestead_deed"],
+  "placement": { "layer": "ui", "builderAvailable": false }
+}

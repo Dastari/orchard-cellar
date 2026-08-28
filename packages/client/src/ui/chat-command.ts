@@ -7,6 +7,7 @@ export type ParsedChatSubmission =
   | { readonly kind: 'chat'; readonly body: string }
   | { readonly kind: 'teleport'; readonly destination: string }
   | { readonly kind: 'debug_space' }
+  | { readonly kind: 'last_connections' }
   | { readonly kind: 'whisper'; readonly playerName: string; readonly body: string }
   | { readonly kind: 'reply'; readonly body: string }
   | { readonly kind: 'speech'; readonly speechKind: 'say' | 'shout'; readonly body: string }
@@ -56,7 +57,14 @@ export function parseChatSubmission(
     const destination = teleport.replace(/\s+/g, ' ').trim();
     return destination.length > 0
       ? { kind: 'teleport', destination }
-      : { kind: 'error', message: 'USAGE: /tp <x> <y> OR /tp <player>' };
+      : { kind: 'error', message: 'USAGE: /tp <x> <y>, /tp <PLAYER|NPC>, OR /tp <PLAYER> <PLAYER|NPC>' };
+  }
+  const lastConnections = commandBody(body, ['last']);
+  if (lastConnections !== null) {
+    if (!canAdministerWorld) return { kind: 'error', message: 'ADMIN COMMAND REQUIRED' };
+    return lastConnections.length === 0
+      ? { kind: 'last_connections' }
+      : { kind: 'error', message: 'USAGE: /last' };
   }
   const whisper = commandBody(body, ['whisper', 'tell', 'w']);
   if (whisper !== null) {
@@ -103,8 +111,9 @@ export function chatCommandSuggestions(
     { name: 'say', usage: '/say <message>' },
     { name: 'shout', usage: '/shout <message>' },
     { name: 'whisper', usage: '/whisper <player> <message>' },
-    ...(canAdministerWorld ? [{ name: 'tp', usage: '/tp <x> <y> OR /tp <player>' }] : []),
+    ...(canAdministerWorld ? [{ name: 'tp', usage: '/tp <x> <y> OR /tp [player] <player|npc>' }] : []),
     ...(canAdministerWorld ? [{ name: 'debug-space', usage: '/debug-space  TOGGLE TEST SPACE' }] : []),
+    ...(canAdministerWorld ? [{ name: 'last', usage: '/last  RECENT LOGINS AND LOGOUTS' }] : []),
   ];
   const commands = [
     ...primaryCommands,
@@ -143,7 +152,7 @@ export function chatCommandSuggestions(
     const argument = value.slice(4).trimStart();
     const coordinateLike = /^-?\d+(?:\s+-?\d*)?$/.test(argument);
     const matches = coordinateLike ? [] : playerSuggestions('tp', argument, onlinePlayerNames);
-    return [...matches, { completion: value, label: '/tp <x> <y>  TELEPORT TO TILE' }].slice(0, 4);
+    return [...matches, { completion: value, label: '/tp [player] <player|npc> OR <x> <y>' }].slice(0, 4);
   }
   const command = commands.find((candidate) => lower.startsWith(`/${candidate.name} `));
   return command === undefined ? [] : [{ completion: value, label: command.usage }];

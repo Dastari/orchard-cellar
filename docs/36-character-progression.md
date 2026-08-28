@@ -1,7 +1,12 @@
 # 36 — Character Screen, Skill Trees, XP, and Quests
 
-Binding owner-directed spec (2026-08-26). Status: **design approved, not
-implemented**. Builds on [25-stats-and-vitals.md](25-stats-and-vitals.md)
+Binding owner-directed spec (2026-08-26). Status: **the reusable authoritative
+quest substrate, HUD tracker, dialogue integration, and Marlow book vertical
+slice are implemented (2026-08-27). The 2026-08-28 progression first slice adds
+the P Character screen, server-validated modular customization, the K Combat /
+Explorer / Farming tree browser, persistent rank purchases/resets, and owner debug
+point grants. Skill effects and verb gates remain deliberately inactive while the
+trees are reviewed.** Builds on [25-stats-and-vitals.md](25-stats-and-vitals.md)
 (the modifier pipeline's reserved `'skill'` source finally gets its producer;
 the "attributes hidden" rule is superseded — the character screen is where
 they become visible), [31-npc-dialogue-and-commerce.md](31-npc-dialogue-and-commerce.md)
@@ -15,6 +20,11 @@ Combat XP), [35-homesteads-and-farming.md](35-homesteads-and-farming.md)
 canvas widget). docs/06 §§5–6's knowledge/terroir tree remains the *retired
 solo scene's* design; the live game's progression is this doc. All numbers
 mirror into docs/06.
+
+Per [40](40-sanctuary-overworld-and-zoned-world.md), Explorer discovery keys off
+authored sanctuary regions and first entry into POI destination spaces; Combat XP can
+only originate in explicit danger spaces, and gathering/farming XP originates in
+resource zones or Homesteads rather than destructive overworld actions.
 
 ## 1. The progression philosophy (binding)
 
@@ -35,7 +45,7 @@ guard-rails keep it cozy rather than hostile:
 ## 2. The character screen
 
 One window, three tabs, deep-linked keys: **`P`** Character, **`K`** Skills,
-**`J`** Quests (`C` stays crafting). docs/23 widget composition; full-screen
+**`L`** Quests (`C` stays crafting). docs/23 widget composition; full-screen
 parchment window at every UI scale.
 
 ### 2.1 Character tab — paper doll + customization + stats
@@ -72,10 +82,11 @@ with the selector-bracket states; edges as pixel lines lit when owned.
 
 ### 2.3 Quests tab
 
-Active and completed quest list; selected quest shows steps with live
-progress (`3/10 copper mined`), giver, and rewards. A small optional HUD
-tracker (top-right under the weather panel) shows the pinned quest's
-current step.
+The dedicated two-pane quest log lists active quests on the left; the selected
+quest shows its state, live objective progress, description, and rewards on the
+right. Players may track/untrack the selected quest or drop it. The optional HUD
+tracker is a compact, frameless small-font list showing every pinned quest and
+its current objectives.
 
 ## 3. XP — three tracks
 
@@ -173,32 +184,43 @@ Authority-backed, data-defined, sensed through statistics:
 
 - **Definitions** in `packages/sim/src/quests.ts`: id, giver (an NPC
   dialogue id — offers/turn-ins are dialogue nodes per doc 31, no new
-  conversation UI), ordered steps, rewards. **Objective types**:
+  conversation UI), ordered objectives, rewards. **Objective types**:
   `statistic` (kind + subject + count — progress is the delta between the
   live doc 33 counter and a baseline snapshotted at accept; the statistics
   registry becomes the quest engine's sensor array, zero new
-  instrumentation per quest), `talk_to`, `reach` (region/portal),
-  `deliver` (items consumed at turn-in).
+  instrumentation per quest), `talk` (NPC ids), `location` (space, position,
+  and radius), `collect` (one or several item/count requirements, optionally
+  consumed at turn-in), and `action` (a named server-recorded world action).
 - **Schema**: `player_quest { identity, questId, state:
-  offered|active|complete|turned_in, acceptedTick, baselines: per-objective
-  u64 }` — private, own-view. Repeatables carry a cooldown tick.
+  active|complete|turned_in, acceptedTick, completedTick?, turnedInTick?,
+  pinned }` plus private `player_quest_baseline` rows, caller-only views,
+  private reach-presence/one-shot flag rows, and private per-player quest props.
+  An absent quest row is the offerable state. Repeatables remain a later hook.
+- **Abandonment**: `abandon_quest` accepts only the authenticated caller's
+  active/complete quest. It deletes that quest's baselines, reach-presence rows,
+  spawned private quest props, and only the explicitly declared quest-owned
+  carried items; ordinary objective materials are never inferred or removed.
+  Deleting the quest row returns it to the offerable state and records the
+  `quests_abandoned` statistic.
 - **Rewards**: track-tagged XP, gold, items, and **skill-node reveals**
   (§4.2) — quests are how the trees breathe. No client-submitted progress
   anywhere; turn-in re-derives every objective server-side.
-- **v1 chains**: *Letters from the Estate* (tutorial arc teaching chop →
-  craft → plant → sell → first skill point, gated to appear one step at a
-  time), *Marlow's Ledger* (commerce intro + first Explorer reveals), and
-  *The Old Shaft* (leads to the doc 26 mine entrance when mines land —
-  authored now, activated then). Dailies/board quests are a later hook.
+- **First shipped chain**: *A Very Important Book*. Marlow offers it through
+  conditional dialogue; the accepted player alone sees and can recover the book
+  from his tent table; turn-in re-derives completion and awards the returned book,
+  1 gold, and 100 Explorer XP. Tutorial chains, dailies, and board quests remain
+  later hooks.
 - Completing quests is itself a doc 33 statistic (`quest_kind` subject —
   already reserved).
 
 ## 6. Scalability & netcode conformance
 
-All progression tables are per-identity, own-view private, and touched only
-inside the transactions of the actions that change them — **zero tick-loop
-work** (doc 34 law). Quest progress is derived from existing statistic rows
-(no per-quest counters to maintain). The tree canvas is pure client render;
+All progression tables are per-identity and own-view private. Action transactions
+refresh affected quests immediately, and a one-hertz pass over **online identities
+only** re-derives active quests through identity indexes to close legacy inventory
+paths; it never scans all quests, inventories, or offline players. Quest progress is
+derived from existing statistic and inventory rows (no client-submitted progress or
+per-quest event counters to trust). The tree canvas is pure client render;
 node purchase/respec/accept/turn-in are inputs-not-values reducers with the
 usual happy + auth-failure test pairs.
 
@@ -219,6 +241,16 @@ usual happy + auth-failure test pairs.
 6. **Later hooks**: dailies/quest board; capstone abilities; body-shape
    variants; Cartographer-activates-minimap; prestige interplay with the
    docs/04–06 Vintage heritage.
+
+Implementation note (2026-08-28): the owner requested that the initial node roster
+be selectable and persistent without changing live gameplay. Phase 3 is therefore
+split: the data registry, graph validation, private node rows, purchase/reset
+authority, pan/zoom browser, and developer point grants are implemented; modifier
+compilation and reducer verb gates remain the next explicitly approved slice.
+The populated local `orchard-cellar-world` accepted the additive track columns and
+new private node table without deleting data. Because the caller-private track and
+survival views gained trailing fields, SpaceTimeDB recreated those views and
+disconnected clients once during publish; generated bindings match the new shapes.
 
 ## 8. Out of scope
 

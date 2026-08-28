@@ -2,14 +2,16 @@ import {
   INPUT_REFRESH_STEPS, REMOTE_SNAPSHOT_CAPACITY,
   SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, TILE_SIZE_FIXED, TILE_SIZE_PIXELS, TOPSIDE_SPACE_ID,
   spaceDefinitionFor,
-  type CollisionMap, type MoveItemRequest, type PlayerState,
+  instanceSpaceRowFor,
+  type CollisionMap, type ItemStack, type MerchantCartLine, type MoveItemRequest, type PlayerState,
 } from '@orchard/sim';
 import type { Identity } from 'spacetimedb';
 import { DbConnection, tables, type SubscriptionHandle } from './generated/index.js';
 import { localProfilesEnabled, oidcConfigured, readOidcSession } from '../auth/oidc.js';
 import type {
-  CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerStats, PlayerSurvival, SessionChatNotice,
-  SpacePortal, WorldCampfireState, WorldChest, WorldChestSlot, WorldClock, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
+  CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, Homestead, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerQuest, PlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, SessionChatNotice,
+  SpacePortal, WorldCampfireState, WorldChest, WorldChestSlot, WorldClock, WorldCombatTarget, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
+  WorldSurface,
 } from './generated/types.js';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
 import { BoundedKeyedQueue, KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
@@ -24,7 +26,7 @@ const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILE
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
 const RTT_SAMPLE_CAPACITY = 256;
-const REGION_RANGE_QUERIES = 10;
+const REGION_RANGE_QUERIES = 12;
 export const MAX_VIEW_RADIUS = 9;
 export const REGION_CENTER_DEADBAND_TILES = 8;
 
@@ -100,6 +102,7 @@ export interface OverworldView {
   readonly soil: ReadonlyKeyedStore<string, WorldSoil>;
   readonly worldItems: ReadonlyKeyedStore<bigint, WorldItem>;
   readonly projectiles: ReadonlyKeyedStore<bigint, WorldProjectile>;
+  readonly combatTargets: ReadonlyKeyedStore<bigint, WorldCombatTarget>;
   readonly chests: ReadonlyKeyedStore<bigint, WorldChest>;
   readonly placeables: ReadonlyKeyedStore<bigint, WorldPlaceable>;
   readonly campfires?: ReadonlyKeyedStore<bigint, WorldCampfireState>;
@@ -108,7 +111,10 @@ export interface OverworldView {
   readonly wildlifeProfiles: ReadonlyKeyedStore<bigint, WorldWildlifeProfile>;
   readonly hives: ReadonlyKeyedStore<bigint, WorldHive>;
   readonly portals: ReadonlyKeyedStore<number, SpacePortal>;
+  readonly homesteads: ReadonlyKeyedStore<number, Homestead>;
+  readonly surfaces: ReadonlyKeyedStore<bigint, WorldSurface>;
   readonly inventorySlots: ReadonlyKeyedStore<number, InventorySlot>;
+  readonly inventoryCursor: ItemStack | null;
   readonly effects: ReadonlyKeyedStore<bigint, PlayerEffect>;
   readonly openChestSlots: ReadonlyKeyedStore<number, WorldChestSlot>;
   readonly openPlaceableSlots: ReadonlyKeyedStore<number, WorldPlaceableSlot>;
@@ -122,6 +128,13 @@ export interface OverworldView {
   readonly activeChest: WorldChest | null;
   readonly activePlaceable: WorldPlaceable | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
+  readonly quests: ReadonlyKeyedStore<string, PlayerQuest>;
+  readonly questBaselines: ReadonlyKeyedStore<string, PlayerQuestBaseline>;
+  readonly playerStatistics: ReadonlyKeyedStore<string, PlayerStatistic>;
+  readonly skillTracks: ReadonlyKeyedStore<string, PlayerSkillTrack>;
+  readonly skillNodes: ReadonlyKeyedStore<string, PlayerSkillNode>;
+  readonly questWorldItems: ReadonlyKeyedStore<string, QuestWorldItem>;
+  readonly thought: PlayerThought | null;
   readonly worldSeed: WorldSeed | null; readonly clock: WorldClock | null; readonly environment: WorldEnvironment | null; readonly wind: WorldWind | null;
 }
 
@@ -131,15 +144,22 @@ export interface OverworldSnapshot {
   readonly appearances: readonly PlayerAppearance[];
   readonly players: readonly PlayerPosition[];
   readonly resources: readonly WorldResource[]; readonly soil: readonly WorldSoil[];
-  readonly worldItems: readonly WorldItem[]; readonly projectiles: readonly WorldProjectile[]; readonly chests: readonly WorldChest[]; readonly placeables: readonly WorldPlaceable[]; readonly campfires?: readonly WorldCampfireState[]; readonly npcs: readonly WorldNpc[]; readonly merchants: readonly WorldMerchant[];
+  readonly worldItems: readonly WorldItem[]; readonly projectiles: readonly WorldProjectile[]; readonly combatTargets: readonly WorldCombatTarget[]; readonly chests: readonly WorldChest[]; readonly placeables: readonly WorldPlaceable[]; readonly campfires?: readonly WorldCampfireState[]; readonly npcs: readonly WorldNpc[]; readonly merchants: readonly WorldMerchant[];
   readonly wildlifeProfiles: readonly WorldWildlifeProfile[]; readonly hives: readonly WorldHive[];
   readonly portals: readonly SpacePortal[];
+  readonly homesteads: readonly Homestead[];
+  readonly surfaces: readonly WorldSurface[];
   readonly inventorySlots: readonly InventorySlot[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly openPlaceableSlots: readonly WorldPlaceableSlot[]; readonly chatChannels: readonly ChatChannel[];
+  readonly inventoryCursor: ItemStack | null;
   readonly effects: readonly PlayerEffect[];
   readonly chatMessages: readonly ChatMessage[]; readonly sessionChatNotices: readonly SessionChatNotice[]; readonly worldSpeech: readonly WorldSpeech[];
   readonly motd: string | null; readonly characterProfile: CharacterProfile | null;
   readonly membership: Membership | null; readonly survival: PlayerSurvival | null; readonly stats: PlayerStats | null; readonly activeChest: WorldChest | null; readonly activePlaceable: WorldPlaceable | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
+  readonly quests: readonly PlayerQuest[]; readonly questBaselines: readonly PlayerQuestBaseline[];
+  readonly playerStatistics: readonly PlayerStatistic[]; readonly skillTracks: readonly PlayerSkillTrack[];
+  readonly skillNodes: readonly PlayerSkillNode[];
+  readonly questWorldItems: readonly QuestWorldItem[]; readonly thought: PlayerThought | null;
   readonly worldSeed: WorldSeed | null; readonly clock: WorldClock | null; readonly environment: WorldEnvironment | null; readonly wind: WorldWind | null;
 }
 
@@ -156,6 +176,14 @@ export interface NetcodeMetrics {
 export interface TimedProjectileCommit {
   readonly row: WorldProjectile;
   readonly authorityTick: bigint;
+}
+
+export interface CombatTextCommit {
+  readonly targetId: bigint;
+  readonly amountCenti: number;
+  readonly critical: boolean;
+  readonly x: number;
+  readonly y: number;
 }
 
 export type NetworkDirection = InputDirection;
@@ -214,6 +242,8 @@ export class OverworldConnection {
   private readonly soil = new KeyedStore<string, WorldSoil>();
   private readonly worldItems = new KeyedStore<bigint, WorldItem>();
   private readonly projectiles = new KeyedStore<bigint, WorldProjectile>();
+  private readonly combatTargets = new KeyedStore<bigint, WorldCombatTarget>();
+  private readonly combatTextCommits: CombatTextCommit[] = [];
   private readonly chests = new KeyedStore<bigint, WorldChest>();
   private readonly placeables = new KeyedStore<bigint, WorldPlaceable>();
   private readonly campfires = new KeyedStore<bigint, WorldCampfireState>();
@@ -222,7 +252,10 @@ export class OverworldConnection {
   private readonly wildlifeProfiles = new KeyedStore<bigint, WorldWildlifeProfile>();
   private readonly hives = new KeyedStore<bigint, WorldHive>();
   private readonly portals = new KeyedStore<number, SpacePortal>();
+  private readonly homesteads = new KeyedStore<number, Homestead>();
+  private readonly surfaces = new KeyedStore<bigint, WorldSurface>();
   private readonly inventorySlots = new KeyedStore<number, InventorySlot>();
+  private inventoryCursor: ItemStack | null = null;
   private readonly effects = new KeyedStore<bigint, PlayerEffect>();
   private readonly openChestSlots = new KeyedStore<number, WorldChestSlot>();
   private readonly openPlaceableSlots = new KeyedStore<number, WorldPlaceableSlot>();
@@ -238,6 +271,13 @@ export class OverworldConnection {
   private activeChest: WorldChest | null = null;
   private activePlaceable: WorldPlaceable | null = null;
   private activeDialogue: ActiveDialogue | null = null;
+  private readonly quests = new KeyedStore<string, PlayerQuest>();
+  private readonly questBaselines = new KeyedStore<string, PlayerQuestBaseline>();
+  private readonly playerStatistics = new KeyedStore<string, PlayerStatistic>();
+  private readonly skillTracks = new KeyedStore<string, PlayerSkillTrack>();
+  private readonly skillNodes = new KeyedStore<string, PlayerSkillNode>();
+  private readonly questWorldItems = new KeyedStore<string, QuestWorldItem>();
+  private thought: PlayerThought | null = null;
   private wallet: PlayerWallet | null = null;
   private worldSeed: WorldSeed | null = null;
   private clock: WorldClock | null = null;
@@ -274,7 +314,7 @@ export class OverworldConnection {
         if (this.heartbeatTimer !== null) window.clearInterval(this.heartbeatTimer);
         this.heartbeatTimer = null; this.inputReady = false; this.connected = false;
         this.error = error?.message ?? 'disconnected'; this.prediction.reset(); this.sentAt.clear();
-        this.sessionChatNotices.clear();
+        this.sessionChatNotices.clear(); this.inventoryCursor = null;
         this.globalSubscriptionQueryCount = 0; this.selfSubscriptionQueryCount = 0;
         this.activeRegionQueryCount = 0; this.pendingRegionQueryCount = 0; this.onChanged();
       }).build();
@@ -284,13 +324,16 @@ export class OverworldConnection {
     return { connected: this.connected, error: this.error,
       identityHex: this.identity === null ? null : identityHex(this.identity), region: this.region,
       profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers,
-      resources: this.resources, soil: this.soil, worldItems: this.worldItems, projectiles: this.projectiles, chests: this.chests, placeables: this.placeables, campfires: this.campfires, npcs: this.npcs, merchants: this.merchants,
-      wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, inventorySlots: this.inventorySlots, effects: this.effects,
+      resources: this.resources, soil: this.soil, worldItems: this.worldItems, projectiles: this.projectiles, combatTargets: this.combatTargets, chests: this.chests, placeables: this.placeables, campfires: this.campfires, npcs: this.npcs, merchants: this.merchants,
+      wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, homesteads: this.homesteads, surfaces: this.surfaces, inventorySlots: this.inventorySlots, inventoryCursor: this.inventoryCursor, effects: this.effects,
       openChestSlots: this.openChestSlots,
       openPlaceableSlots: this.openPlaceableSlots,
       chatChannels: this.chatChannels, chatMessages: this.chatMessages, sessionChatNotices: this.sessionChatNotices, worldSpeech: this.worldSpeech, motd: this.motd,
       characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest, activePlaceable: this.activePlaceable,
-      activeDialogue: this.activeDialogue, wallet: this.wallet, worldSeed: this.worldSeed,
+      activeDialogue: this.activeDialogue, wallet: this.wallet,
+      quests: this.quests, questBaselines: this.questBaselines, playerStatistics: this.playerStatistics,
+      skillTracks: this.skillTracks, skillNodes: this.skillNodes, questWorldItems: this.questWorldItems, thought: this.thought,
+      worldSeed: this.worldSeed,
       clock: this.clock, environment: this.environment, wind: this.wind };
   }
 
@@ -298,8 +341,8 @@ export class OverworldConnection {
   snapshot(): OverworldSnapshot {
     const view = this.view();
     return { ...view, profiles: this.profiles.toArray(), appearances: this.appearances.toArray(),
-      players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
-      wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(),
+      players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), combatTargets: this.combatTargets.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
+      wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(), homesteads: this.homesteads.toArray(), surfaces: this.surfaces.toArray(),
       inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot),
       effects: this.effects.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       openChestSlots: this.openChestSlots.toArray().sort((left, right) => left.slot - right.slot),
@@ -307,7 +350,10 @@ export class OverworldConnection {
       chatChannels: this.chatChannels.toArray(),
       chatMessages: this.chatMessages.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       sessionChatNotices: this.sessionChatNotices.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
-      worldSpeech: this.worldSpeech.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0) };
+      worldSpeech: this.worldSpeech.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+      quests: this.quests.toArray(), questBaselines: this.questBaselines.toArray(),
+      playerStatistics: this.playerStatistics.toArray(), skillTracks: this.skillTracks.toArray(), skillNodes: this.skillNodes.toArray(),
+      questWorldItems: this.questWorldItems.toArray(), thought: this.thought };
   }
 
   ownPosition(): PlayerPosition | null { return this.identity === null ? null : this.positions.get(identityHex(this.identity)) ?? null; }
@@ -370,6 +416,7 @@ export class OverworldConnection {
         worldSoil: this.soil.size,
         worldItem: this.worldItems.size,
         worldProjectile: this.projectiles.size,
+        worldCombatTarget: this.combatTargets.size,
         worldChest: this.chests.size,
         worldPlaceable: this.placeables.size,
         worldNpc: this.npcs.size,
@@ -397,6 +444,10 @@ export class OverworldConnection {
   }
   drainProjectileCommits(visit: (commit: TimedProjectileCommit) => void): void {
     this.projectileCommits.drain(visit);
+  }
+  drainCombatTextCommits(visit: (commit: CombatTextCommit) => void): void {
+    for (const commit of this.combatTextCommits) visit(commit);
+    this.combatTextCommits.length = 0;
   }
   drainDeletedProjectileIds(visit: (id: bigint) => void): void {
     for (const id of this.deletedProjectileIds) visit(id);
@@ -426,17 +477,13 @@ export class OverworldConnection {
       : connection.reducers.moveInventoryItem(request));
   }
   quickMoveInventoryItem(fromContainer: string, fromIndex: number, toContainers: readonly string[]): Promise<void> {
-    const involvesChest = fromContainer === 'chest' || toContainers.includes('chest');
-    return this.reducer((connection) => involvesChest
-      ? connection.reducers.quickMoveChestItem({ fromContainer, fromIndex, toContainers: [...toContainers] })
-      : connection.reducers.quickMoveInventoryItem({ fromContainer, fromIndex, toContainers: [...toContainers] }));
+    return this.reducer((connection) => connection.reducers.quickMoveMenuItem({
+      fromContainer, fromIndex, toContainers: [...toContainers],
+    }));
   }
   quickMoveAllInventoryItems(itemKind: string, fromContainers: readonly string[], toContainers: readonly string[]): Promise<void> {
     const request = { itemKind, fromContainers: [...fromContainers], toContainers: [...toContainers] };
-    const involvesChest = fromContainers.includes('chest') || toContainers.includes('chest');
-    return this.reducer((connection) => involvesChest
-      ? connection.reducers.quickMoveAllChestItems(request)
-      : connection.reducers.quickMoveAllInventoryItems(request));
+    return this.reducer((connection) => connection.reducers.quickMoveAllMenuItems(request));
   }
   distributeInventoryItem(fromContainer: string, fromIndex: number, targets: readonly { container: string; index: number }[], quantity: number): Promise<void> {
     const request = { fromContainer, fromIndex, targetContainers: targets.map((target) => target.container),
@@ -446,6 +493,31 @@ export class OverworldConnection {
       ? connection.reducers.distributeChestItem(request)
       : connection.reducers.distributeInventoryItem(request));
   }
+  inventoryCursorClick(container: string, index: number, button: 'left' | 'right'): Promise<void> {
+    return this.reducer((connection) => connection.reducers.inventoryCursorClick({ container, index, button }));
+  }
+  sortMenuContainer(container: 'backpack' | 'chest' | 'placeable'): Promise<void> {
+    return this.reducer((connection) => connection.reducers.sortMenuContainer({ container }));
+  }
+  inventoryCursorQuickCraft(targets: readonly { container: string; index: number }[], mode: 'even' | 'one_each'): Promise<void> {
+    return this.reducer((connection) => connection.reducers.inventoryCursorQuickCraft({
+      targetContainers: targets.map((target) => target.container),
+      targetIndexes: Uint8Array.from(targets.map((target) => target.index)), mode,
+    }));
+  }
+  inventoryCursorPickupAll(containerOrder: readonly string[]): Promise<void> {
+    return this.reducer((connection) => connection.reducers.inventoryCursorPickupAll({ containerOrder: [...containerOrder] }));
+  }
+  inventoryCursorSwapHotbar(container: string, index: number, hotbarIndex: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.inventoryCursorSwapHotbar({ container, index, hotbarIndex }));
+  }
+  dropInventoryCursor(button: 'left' | 'right'): Promise<void> {
+    return this.reducer((connection) => connection.reducers.dropInventoryCursor({ button }));
+  }
+  throwMenuItem(container: string, index: number, wholeStack: boolean): Promise<void> {
+    return this.reducer((connection) => connection.reducers.throwMenuItem({ container, index, wholeStack }));
+  }
+  returnInventoryCursor(): Promise<void> { return this.reducer((connection) => connection.reducers.returnInventoryCursor({})); }
   craftInventoryRecipe(recipeId: string, craftAll = false): Promise<void> {
     return this.reducer((connection) => connection.reducers.craftInventoryRecipe({ recipeId, craftAll }));
   }
@@ -466,12 +538,36 @@ export class OverworldConnection {
   chooseDialogueOption(choiceId: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.chooseDialogueOption({ choiceId }));
   }
+  toggleHomesteadGate(): Promise<void> {
+    return this.reducer((connection) => connection.reducers.toggleHomesteadGate({}));
+  }
+  pickupQuestWorldItem(itemId: string): Promise<void> {
+    return this.reducer((connection) => connection.reducers.pickupQuestWorldItem({ itemId }));
+  }
+  setQuestPinned(questId: string, pinned: boolean): Promise<void> {
+    return this.reducer((connection) => connection.reducers.setQuestPinned({ questId, pinned }));
+  }
+  abandonQuest(questId: string): Promise<void> {
+    return this.reducer((connection) => connection.reducers.abandonQuest({ questId }));
+  }
   closeNpcDialogue(): Promise<void> { return this.reducer((connection) => connection.reducers.closeNpcDialogue({})); }
   buyMerchantItem(itemKind: string, quantity: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.buyMerchantItem({ itemKind, quantity }));
   }
+  buyMerchantCart(lines: readonly MerchantCartLine[]): Promise<void> {
+    return this.reducer((connection) => connection.reducers.buyMerchantCart({
+      itemKinds: lines.map((line) => line.itemKind),
+      quantities: lines.map((line) => line.quantity),
+    }));
+  }
   sellMerchantItem(itemKind: string, quantity: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.sellMerchantItem({ itemKind, quantity }));
+  }
+  sellMerchantCart(lines: readonly MerchantCartLine[]): Promise<void> {
+    return this.reducer((connection) => connection.reducers.sellMerchantCart({
+      itemKinds: lines.map((line) => line.itemKind),
+      quantities: lines.map((line) => line.quantity),
+    }));
   }
   useFarmTool(tileX: number, tileY: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.useFarmTool({ tileX, tileY }));
@@ -488,8 +584,17 @@ export class OverworldConnection {
   fireBow(aimX: number, aimY: number, chargeMs: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.fireBow({ aimX, aimY, chargeMs }));
   }
+  beginBowCharge(): Promise<void> {
+    return this.reducer((connection) => connection.reducers.beginBowCharge({}));
+  }
+  cancelBowCharge(chargeMs: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.cancelBowCharge({ chargeMs }));
+  }
   dropSelected(): Promise<void> { return this.reducer((c) => c.reducers.dropSelected({})); }
   pickupWorldItem(itemId: bigint): Promise<void> { return this.reducer((c) => c.reducers.pickupWorldItem({ itemId })); }
+  pickupEmbeddedArrow(projectileId: bigint): Promise<void> {
+    return this.reducer((connection) => connection.reducers.pickupEmbeddedArrow({ projectileId }));
+  }
   toggleHeldLantern(): Promise<void> { return this.reducer((c) => c.reducers.toggleHeldLantern({})); }
   toggleWorldLantern(itemId: bigint): Promise<void> {
     return this.reducer((connection) => connection.reducers.toggleWorldLantern({ itemId }));
@@ -501,6 +606,9 @@ export class OverworldConnection {
   jumpHorse(): Promise<void> { return this.reducer((c) => c.reducers.jumpHorse({})); }
   sendChatMessage(channelId: bigint, body: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.sendChatMessage({ channelId, body }));
+  }
+  requestLastConnections(): Promise<void> {
+    return this.reducer((connection) => connection.reducers.requestLastConnections({}));
   }
   sendWhisper(recipient: Identity, body: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.sendWhisper({ recipient, body }));
@@ -523,6 +631,18 @@ export class OverworldConnection {
   setCharacterName(displayName: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.setDisplayName({ displayName }));
   }
+  setAppearance(appearance: { readonly hairKind: string; readonly shirtKind: string; readonly pantsKind: string; readonly shoesKind: string }): Promise<void> {
+    return this.reducer((connection) => connection.reducers.setAppearance(appearance));
+  }
+  purchaseSkillNode(nodeId: string): Promise<void> {
+    return this.reducer((connection) => connection.reducers.purchaseSkillNode({ nodeId }));
+  }
+  resetSkillTree(track: string): Promise<void> {
+    return this.reducer((connection) => connection.reducers.resetSkillTree({ track }));
+  }
+  grantDebugSkillPoints(track: string, points: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.grantDebugSkillPoints({ track, points }));
+  }
   setWorldTime(calendarTick: bigint): Promise<void> {
     return this.reducer((connection) => connection.reducers.setWorldTime({ calendarTick }));
   }
@@ -537,6 +657,12 @@ export class OverworldConnection {
   }
   adminTeleport(destination: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.adminTeleport({ destination }));
+  }
+  resetMyQuestProgress(): Promise<void> {
+    return this.reducer((connection) => connection.reducers.resetMyQuestProgress({}));
+  }
+  adjustDebugBackpackSlots(increase: boolean): Promise<void> {
+    return this.reducer((connection) => connection.reducers.adjustDebugBackpackSlots({ increase }));
   }
   usePortal(portalId: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.usePortal({ portalId }));
@@ -585,7 +711,7 @@ export class OverworldConnection {
 
   private subscribeGlobals(connection: DbConnection): void {
     const queries = [tables.onlinePlayerPublic, tables.onlinePlayerAppearances, tables.worldClock,
-      tables.worldEnvironment, tables.worldWind, tables.worldSeed, tables.worldMerchant, tables.worldCampfireState, tables.spacePortal];
+      tables.worldEnvironment, tables.worldWind, tables.worldSeed, tables.worldMerchant, tables.worldCampfireState, tables.spacePortal, tables.homestead];
     this.globalSubscriptionQueryCount = queries.length;
     connection.subscriptionBuilder().onApplied(() => this.hydrateGlobals(connection)).onError(() => {
       this.error = 'global_subscription_failed'; this.onChanged();
@@ -599,11 +725,19 @@ export class OverworldConnection {
       tables.ownWallet,
       tables.ownEffects,
       tables.ownInventorySlots,
+      tables.ownInventoryCursor,
       tables.ownActiveChest,
       tables.ownOpenChestSlots,
       tables.ownActivePlaceable,
       tables.ownOpenPlaceableSlots,
       tables.ownActiveDialogue,
+      tables.ownPlayerQuests,
+      tables.ownPlayerQuestBaselines,
+      tables.ownPlayerStatistics,
+      tables.ownPlayerSkillTracks,
+      tables.ownPlayerSkillNodes,
+      tables.ownQuestWorldItems,
+      tables.ownPlayerThought,
       tables.ownCharacterProfile,
       tables.ownMembership,
       tables.ownConnectionNotices,
@@ -636,7 +770,7 @@ export class OverworldConnection {
     if (!force && this.regionSubscription !== null
       && !outsideRegionCenterDeadband(this.subscribedCenterTiles, centerTiles[0], centerTiles[1])) return;
     this.pendingRegion = regionKey;
-    const definition = spaceDefinitionFor(spaceId);
+    const definition = spaceDefinitionFor(spaceId, instanceSpaceRowFor(spaceId, this.homesteads));
     const bounds = subscriptionChunkBounds(chunkX, chunkY, radius, definition?.sizeTiles ?? SURVIVAL_WORLD_SIZE);
     const positions = tables.playerPosition
       .where((row) => row.spaceId.eq(spaceId))
@@ -655,6 +789,10 @@ export class OverworldConnection {
       .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
       .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
     const projectiles = tables.worldProjectile
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const combatTargets = tables.worldCombatTarget
       .where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
       .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
@@ -680,6 +818,10 @@ export class OverworldConnection {
       .where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
       .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const surfaces = tables.worldSurface
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
     const queryCount = regionSubscriptionQueryCount(bounds, spaceId);
     this.pendingRegionQueryCount = queryCount;
     const previous = this.regionSubscription;
@@ -694,7 +836,7 @@ export class OverworldConnection {
     })).onError(() => {
       this.pendingRegion = null; this.pendingRegionQueryCount = 0;
       this.error = 'region_subscription_failed'; this.onChanged();
-    }).subscribe([positions, resources, soil, worldItems, projectiles, chests, placeables, npcs, wildlifeProfiles, hives]);
+    }).subscribe([positions, resources, soil, worldItems, projectiles, combatTargets, chests, placeables, npcs, wildlifeProfiles, hives, surfaces]);
   }
 
   private bindTableEvents(connection: DbConnection): void {
@@ -719,6 +861,12 @@ export class OverworldConnection {
     connection.db.spacePortal.onInsert((context, row) => incoming(context.event.id, () => this.portals.set(row.id, row)));
     connection.db.spacePortal.onUpdate((context, _old, row) => incoming(context.event.id, () => this.portals.set(row.id, row)));
     connection.db.spacePortal.onDelete((context, row) => incoming(context.event.id, () => this.portals.delete(row.id)));
+    connection.db.homestead.onInsert((context, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
+    connection.db.homestead.onUpdate((context, _old, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
+    connection.db.homestead.onDelete((context, row) => resource(context.event.id, () => this.homesteads.delete(row.spaceId)));
+    connection.db.worldSurface.onInsert((context, row) => resource(context.event.id, () => this.surfaces.set(row.id, row)));
+    connection.db.worldSurface.onUpdate((context, _old, row) => resource(context.event.id, () => this.surfaces.set(row.id, row)));
+    connection.db.worldSurface.onDelete((context, row) => resource(context.event.id, () => this.surfaces.delete(row.id)));
     connection.db.worldWildlifeProfile.onInsert((context, row) => incoming(context.event.id, () => this.wildlifeProfiles.set(row.npcId, row)));
     connection.db.worldWildlifeProfile.onUpdate((context, _old, row) => incoming(context.event.id, () => this.wildlifeProfiles.set(row.npcId, row)));
     connection.db.worldWildlifeProfile.onDelete((context, row) => incoming(context.event.id, () => this.wildlifeProfiles.delete(row.npcId)));
@@ -747,6 +895,23 @@ export class OverworldConnection {
       this.lastProjectileAuthorityTicks.delete(row.id);
       this.deletedProjectileIds.add(row.id);
     }));
+    connection.db.worldCombatTarget.onInsert((context, row) => resource(context.event.id, () => this.combatTargets.set(row.id, row)));
+    connection.db.worldCombatTarget.onUpdate((context, old, row) => incoming(context.event.id, () => {
+      this.combatTargets.set(row.id, row);
+      if (row.healthCenti < old.healthCenti) {
+        this.combatTextCommits.push({
+          targetId: row.id,
+          amountCenti: old.healthCenti - row.healthCenti,
+          critical: row.lastHitCritical,
+          x: row.x,
+          y: row.y,
+        });
+        if (this.combatTextCommits.length > 64) this.combatTextCommits.shift();
+      }
+      if (row.x !== old.x || row.y !== old.y || row.spaceId !== old.spaceId
+        || row.carriedBy?.toHexString() !== old.carriedBy?.toHexString()) this.resourceRevisionValue += 1;
+    }));
+    connection.db.worldCombatTarget.onDelete((context, row) => resource(context.event.id, () => this.combatTargets.delete(row.id)));
     connection.db.worldChest.onInsert((context, row) => resource(context.event.id, () => this.chests.set(row.id, row)));
     connection.db.worldChest.onUpdate((context, _old, row) => resource(context.event.id, () => this.chests.set(row.id, row)));
     connection.db.worldChest.onDelete((context, row) => resource(context.event.id, () => this.chests.delete(row.id)));
@@ -793,12 +958,40 @@ export class OverworldConnection {
     connection.db.ownInventorySlots.onInsert((context, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
     connection.db.ownInventorySlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
     connection.db.ownInventorySlots.onDelete((context, row) => incoming(context.event.id, () => this.inventorySlots.delete(row.slot)));
+    connection.db.ownInventoryCursor.onInsert((context, row) => incoming(context.event.id, () => {
+      this.inventoryCursor = { itemKind: row.itemKind, quantity: row.quantity, durability: row.durability, lit: row.lit };
+    }));
+    connection.db.ownInventoryCursor.onUpdate((context, _old, row) => incoming(context.event.id, () => {
+      this.inventoryCursor = { itemKind: row.itemKind, quantity: row.quantity, durability: row.durability, lit: row.lit };
+    }));
+    connection.db.ownInventoryCursor.onDelete((context) => incoming(context.event.id, () => { this.inventoryCursor = null; }));
     connection.db.ownActiveChest.onInsert((context, row) => incoming(context.event.id, () => { this.activeChest = row; }));
     connection.db.ownActiveChest.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.activeChest = row; }));
     connection.db.ownActiveChest.onDelete((context) => incoming(context.event.id, () => { this.activeChest = null; this.openChestSlots.clear(); }));
     connection.db.ownActiveDialogue.onInsert((context, row) => incoming(context.event.id, () => { this.activeDialogue = row; }));
     connection.db.ownActiveDialogue.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.activeDialogue = row; }));
     connection.db.ownActiveDialogue.onDelete((context) => incoming(context.event.id, () => { this.activeDialogue = null; }));
+    connection.db.ownPlayerQuests.onInsert((context, row) => incoming(context.event.id, () => this.quests.set(row.id, row)));
+    connection.db.ownPlayerQuests.onUpdate((context, _old, row) => incoming(context.event.id, () => this.quests.set(row.id, row)));
+    connection.db.ownPlayerQuests.onDelete((context, row) => incoming(context.event.id, () => this.quests.delete(row.id)));
+    connection.db.ownPlayerQuestBaselines.onInsert((context, row) => incoming(context.event.id, () => this.questBaselines.set(row.id, row)));
+    connection.db.ownPlayerQuestBaselines.onUpdate((context, _old, row) => incoming(context.event.id, () => this.questBaselines.set(row.id, row)));
+    connection.db.ownPlayerQuestBaselines.onDelete((context, row) => incoming(context.event.id, () => this.questBaselines.delete(row.id)));
+    connection.db.ownPlayerStatistics.onInsert((context, row) => incoming(context.event.id, () => this.playerStatistics.set(row.id, row)));
+    connection.db.ownPlayerStatistics.onUpdate((context, _old, row) => incoming(context.event.id, () => this.playerStatistics.set(row.id, row)));
+    connection.db.ownPlayerStatistics.onDelete((context, row) => incoming(context.event.id, () => this.playerStatistics.delete(row.id)));
+    connection.db.ownPlayerSkillTracks.onInsert((context, row) => incoming(context.event.id, () => this.skillTracks.set(row.id, row)));
+    connection.db.ownPlayerSkillTracks.onUpdate((context, _old, row) => incoming(context.event.id, () => this.skillTracks.set(row.id, row)));
+    connection.db.ownPlayerSkillTracks.onDelete((context, row) => incoming(context.event.id, () => this.skillTracks.delete(row.id)));
+    connection.db.ownPlayerSkillNodes.onInsert((context, row) => incoming(context.event.id, () => this.skillNodes.set(row.id, row)));
+    connection.db.ownPlayerSkillNodes.onUpdate((context, _old, row) => incoming(context.event.id, () => this.skillNodes.set(row.id, row)));
+    connection.db.ownPlayerSkillNodes.onDelete((context, row) => incoming(context.event.id, () => this.skillNodes.delete(row.id)));
+    connection.db.ownQuestWorldItems.onInsert((context, row) => incoming(context.event.id, () => this.questWorldItems.set(row.id, row)));
+    connection.db.ownQuestWorldItems.onUpdate((context, _old, row) => incoming(context.event.id, () => this.questWorldItems.set(row.id, row)));
+    connection.db.ownQuestWorldItems.onDelete((context, row) => incoming(context.event.id, () => this.questWorldItems.delete(row.id)));
+    connection.db.ownPlayerThought.onInsert((context, row) => incoming(context.event.id, () => { this.thought = row; }));
+    connection.db.ownPlayerThought.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.thought = row; }));
+    connection.db.ownPlayerThought.onDelete((context) => incoming(context.event.id, () => { this.thought = null; }));
     connection.db.ownOpenChestSlots.onInsert((context, row) => incoming(context.event.id, () => this.openChestSlots.set(row.slot, row)));
     connection.db.ownOpenChestSlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.openChestSlots.set(row.slot, row)));
     connection.db.ownOpenChestSlots.onDelete((context, row) => incoming(context.event.id, () => this.openChestSlots.delete(row.slot)));
@@ -832,7 +1025,7 @@ export class OverworldConnection {
   }
   private clearSpaceScopedCaches(): void {
     this.positions.clear(); this.visiblePlayers.clear(); this.resources.clear(); this.soil.clear();
-    this.worldItems.clear(); this.projectiles.clear(); this.chests.clear(); this.placeables.clear(); this.npcs.clear();
+    this.worldItems.clear(); this.projectiles.clear(); this.chests.clear(); this.placeables.clear(); this.surfaces.clear(); this.npcs.clear();
     this.wildlifeProfiles.clear(); this.hives.clear(); this.worldSpeech.clear();
     this.resourceRevisionValue += 1;
   }
@@ -902,11 +1095,16 @@ export class OverworldConnection {
       for (const row of connection.db.worldMerchant.iter()) this.merchants.set(row.npcId, row);
       this.portals.clear();
       for (const row of connection.db.spacePortal.iter()) this.portals.set(row.id, row);
+      for (const row of connection.db.homestead.iter()) this.homesteads.set(row.spaceId, row);
       this.worldSeed = [...connection.db.worldSeed.iter()][0] ?? null; this.onChanged();
     });
   }
   private hydrateSelf(connection: DbConnection): void {
     for (const row of connection.db.ownInventorySlots.iter()) this.inventorySlots.set(row.slot, row);
+    const cursor = [...connection.db.ownInventoryCursor.iter()][0];
+    this.inventoryCursor = cursor === undefined ? null : {
+      itemKind: cursor.itemKind, quantity: cursor.quantity, durability: cursor.durability, lit: cursor.lit,
+    };
     this.activeChest = [...connection.db.ownActiveChest.iter()][0] ?? null;
     this.openChestSlots.clear(); for (const row of connection.db.ownOpenChestSlots.iter()) this.openChestSlots.set(row.slot, row);
     this.activePlaceable = [...connection.db.ownActivePlaceable.iter()][0] ?? null;
@@ -924,6 +1122,13 @@ export class OverworldConnection {
     this.stats = [...connection.db.ownStats.iter()][0] ?? null;
     this.wallet = [...connection.db.ownWallet.iter()][0] ?? null;
     this.activeDialogue = [...connection.db.ownActiveDialogue.iter()][0] ?? null;
+    this.quests.clear(); for (const row of connection.db.ownPlayerQuests.iter()) this.quests.set(row.id, row);
+    this.questBaselines.clear(); for (const row of connection.db.ownPlayerQuestBaselines.iter()) this.questBaselines.set(row.id, row);
+    this.playerStatistics.clear(); for (const row of connection.db.ownPlayerStatistics.iter()) this.playerStatistics.set(row.id, row);
+    this.skillTracks.clear(); for (const row of connection.db.ownPlayerSkillTracks.iter()) this.skillTracks.set(row.id, row);
+    this.skillNodes.clear(); for (const row of connection.db.ownPlayerSkillNodes.iter()) this.skillNodes.set(row.id, row);
+    this.questWorldItems.clear(); for (const row of connection.db.ownQuestWorldItems.iter()) this.questWorldItems.set(row.id, row);
+    this.thought = [...connection.db.ownPlayerThought.iter()][0] ?? null;
     this.effects.clear(); for (const row of connection.db.ownEffects.iter()) this.effects.set(row.id, row);
     this.characterProfile = [...connection.db.ownCharacterProfile.iter()][0] ?? null;
     this.membership = [...connection.db.ownMembership.iter()][0] ?? null;

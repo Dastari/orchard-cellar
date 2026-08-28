@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim';
 import { bindContainerSlots } from './container-binding.js';
 import { UI_FIXTURE_ROWS, barrelWindow, craftingWindow, packWindow } from './compositions.js';
 import { DragContext } from './drag-context.js';
@@ -133,6 +134,6 @@ describe('bindings and routing', () => {
     expect(pack.children[0]?.children[0]?.children).toHaveLength(8);
     expect(pack.children[0]?.children[1]?.props).toMatchObject({ columns: 5, rows: 4, disabled: true });
     expect(pack.children[0]?.children[1]?.enabled).toBe(false);
-    expect(pack.children[1]?.props).toMatchObject({ columns: 9, rows: 1, binding: 'self:hotbar' });
+    expect(pack.children[1]?.props).toMatchObject({ columns: HOTBAR_SLOT_COUNT, rows: 1, binding: 'self:hotbar' });
   });
 });

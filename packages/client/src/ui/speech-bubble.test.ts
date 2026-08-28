@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  edgeSpeechAnchor, speechBubbleLayout, speechBubbleRect, speechTailClipRect, wrapSpeechText,
+  edgeSpeechAnchor, speechBubbleHeadOffset, speechBubbleIsRecent, speechBubbleLayout, speechBubbleRect, speechBubbleTone,
+  wrapSpeechText,
 } from './speech-bubble.js';
 
 describe('speech bubbles', () => {
@@ -24,11 +25,31 @@ describe('speech bubbles', () => {
     expect(rect.x + rect.width).toBeLessThanOrEqual(476);
   });
 
-  it('exposes a directional tail only on its pointer-facing edge', () => {
-    const bubble = { x: 40, y: 50, width: 120, height: 23 };
-    expect(speechTailClipRect(bubble, 'down')).toEqual({ x: 40, y: 50, width: 120, height: 35 });
-    expect(speechTailClipRect(bubble, 'up')).toEqual({ x: 40, y: 38, width: 120, height: 35 });
-    expect(speechTailClipRect(bubble, 'left')).toEqual({ x: 28, y: 50, width: 132, height: 23 });
-    expect(speechTailClipRect(bubble, 'right')).toEqual({ x: 40, y: 50, width: 132, height: 23 });
+  it('assigns authored speech colors by channel and keeps reserve tones distinct', () => {
+    expect(speechBubbleTone('say')).toBe('white');
+    expect(speechBubbleTone('shout')).toBe('red');
+    expect(speechBubbleTone('tell')).toBe('purple');
+    expect(speechBubbleTone('guild')).toBe('green');
+    expect(speechBubbleTone('thought')).toBe('blue');
+    expect(speechBubbleTone('reserved')).toBe('yellow');
+    expect(speechBubbleTone('other')).toBe('beige');
+  });
+
+  it('keeps transient private bubbles inside their bounded display lifetime', () => {
+    expect(speechBubbleIsRecent(10_000_000n, 15_999_999n)).toBe(true);
+    expect(speechBubbleIsRecent(10_000_000n, 16_000_000n)).toBe(false);
+    expect(speechBubbleIsRecent(10_000_001n, 10_000_000n)).toBe(false);
+  });
+
+  it('anchors bubbles one tile lower at the top of the player sprite', () => {
+    expect(speechBubbleHeadOffset(1, 1)).toBe(32);
+    expect(speechBubbleHeadOffset(2, 1)).toBe(64);
+    expect(speechBubbleHeadOffset(0.5, 1)).toBe(18);
+  });
+
+  it('raises mounted speech by exactly one rendered world tile', () => {
+    expect(speechBubbleHeadOffset(1, 1, true)).toBe(48);
+    expect(speechBubbleHeadOffset(2, 1, true)).toBe(96);
+    expect(speechBubbleHeadOffset(0.5, 1, true)).toBe(26);
   });
 });

@@ -69,14 +69,23 @@ describe('26§3 additive spaces schema', () => {
     expect(helper).toContain('pendingSequence: 0n');
   });
 
-  it('keeps horse and farm-tool reducers topside-only', () => {
-    for (const reducerName of [
-      'interactHorse', 'jumpHorse', 'useFarmTool', 'restoreFarmTile', 'useFarmTile',
-    ]) {
+  it('allows horses and farm tools only in their sanctioned outdoor instances', () => {
+    for (const reducerName of ['interactHorse', 'jumpHorse']) {
       const start = source.indexOf(`export const ${reducerName} =`);
       const end = source.indexOf('\nexport const ', start + 1);
       expect(source.slice(start, end < 0 ? source.length : end), reducerName)
-        .toContain("position.spaceId !== TOPSIDE_SPACE_ID");
+        .toContain('horseAllowedInSpace(ctx, position.spaceId)');
     }
+    for (const reducerName of ['useFarmTool', 'restoreFarmTile']) {
+      const start = source.indexOf(`export const ${reducerName} =`);
+      const end = source.indexOf('\nexport const ', start + 1);
+      expect(source.slice(start, end < 0 ? source.length : end), reducerName)
+        .toContain('mutableFarmTileAuthorized(ctx, position, tileX, tileY)');
+    }
+    const legacyFarm = source.slice(
+      source.indexOf('export const useFarmTile ='),
+      source.indexOf('\nexport const ', source.indexOf('export const useFarmTile =') + 1),
+    );
+    expect(legacyFarm).toContain('position.spaceId !== TOPSIDE_SPACE_ID');
   });
 });

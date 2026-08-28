@@ -6,7 +6,7 @@ import {
 } from './account-profile.js';
 import { accountButtonRects, accountPointerAction } from './account-actions.js';
 import {
-  beginOidcLogin,
+  beginOidcPopupLogin,
   completeOidcCallback,
   ensureOidcSession,
   hasOidcCallback,
@@ -19,10 +19,10 @@ import {
 import { canvasViewport, centeredFixedSceneLayout } from './display.js';
 import { loadGeneratedAsset } from './render/assets.js';
 import { drawPixelText, loadPixelUi } from './render/pixel-ui.js';
-import { drawUiSkinAsset, loadUiSkin, uiAssetFrame } from './ui/skin.js';
+import { drawUiSkinAsset, loadUiSkin } from './ui/skin.js';
 import { drawCanvasTextInput } from './ui/canvas-text-input.js';
+import { drawGatewayFrame } from './ui/gateway-frame.js';
 import { drawOrchardBackdrop } from './ui/orchard-backdrop.js';
-import { Ribbon } from './ui/ribbon.js';
 import { AudioBus } from './audio/audio-bus.js';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen } from './loading-screen.js';
 
@@ -54,8 +54,6 @@ const [ui, skin, orchardEmblem] = await Promise.all([
   loadPixelUi(), loadUiSkin(), loadGeneratedAsset('icon_resource_fruit', 'summer'),
 ]);
 upgradeLoadingScreen(ui, skin, orchardEmblem);
-const accountRibbon = new Ribbon(skin.banner, ui);
-const orchardEmblemFrame = uiAssetFrame(orchardEmblem);
 const clientVersion = import.meta.env.VITE_CLIENT_VERSION;
 
 let authSession: OidcSession | null = null;
@@ -139,11 +137,10 @@ function drawAccountLogin(): void {
     drawText('SIGN OUT', 240, 190, '#fff2d0', 'center');
     return;
   }
-  drawText('VERIFIED EMAIL AND ACCOUNT RECOVERY', 240, 119, '#6f451f', 'center');
   drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.signIn, 'idle');
-  drawText(authBusy ? 'OPENING...' : 'SIGN IN', 167, 157, '#fff2d0', 'center');
+  drawText('SIGN IN', 167, 157, '#fff2d0', 'center');
   drawUiSkinAsset(context, skin.buttonConfirm, accountButtonRects.register, 'idle');
-  drawText(authBusy ? 'OPENING...' : 'CREATE ACCOUNT', 313, 157, '#fff2d0', 'center');
+  drawText('CREATE ACCOUNT', 313, 157, '#fff2d0', 'center');
   drawUiSkinAsset(context, skin.button, accountButtonRects.recover, 'idle');
   drawText('RECOVER ACCOUNT', 240, 188, '#5b3d22', 'center');
 }
@@ -177,15 +174,7 @@ function render(timeMs = performance.now()): void {
   context.translate(scene.x, scene.y);
   context.scale(scene.scale, scene.scale);
   const accountHeight = localPreview ? 222 : 200;
-  drawUiSkinAsset(context, skin.panelWood, { x: 58, y: 25, width: 364, height: accountHeight });
-  drawUiSkinAsset(context, skin.panelParchment, { x: 68, y: 35, width: 344, height: accountHeight - 20 });
-  accountRibbon.draw(context, 'ORCHARD & CELLAR', 240, 21);
-  drawPixelText(context, ui, `V${clientVersion}`, 402, 41, { align: 'right', color: '#91672e' });
-  if (orchardEmblemFrame !== null) context.drawImage(
-    orchardEmblem.image,
-    orchardEmblemFrame.x, orchardEmblemFrame.y, orchardEmblemFrame.width, orchardEmblemFrame.height,
-    232, 49, 16, 16,
-  );
+  drawGatewayFrame(context, { ui, skin, apple: orchardEmblem }, clientVersion, accountHeight);
   if (localPreview) drawText('LOCAL DEVELOPMENT PREVIEW', 240, 73, '#91672e', 'center');
   drawText((authError ?? message).slice(0, 58).toUpperCase(), 240, 83, authError ? '#a43b2f' : '#6f451f', 'center');
 
@@ -224,10 +213,11 @@ async function submitAccount(intent: OidcEntryIntent = 'login'): Promise<void> {
     return;
   }
   authBusy = true;
-  message = 'OPENING SECURE LOGIN';
+  message = intent === 'login' ? 'SIGN-IN WINDOW OPEN' : 'ACCOUNT WINDOW OPEN';
   try {
-    await audio.fadeOutForNavigation();
-    await beginOidcLogin(intent);
+    authSession = await beginOidcPopupLogin(intent);
+    message = `WELCOME BACK, ${authSession.displayName.toUpperCase()}`;
+    authBusy = false;
   } catch (error: unknown) {
     authBusy = false;
     authError = error instanceof Error ? error.message : 'Unable to start login.';
@@ -311,5 +301,5 @@ input.addEventListener('input', () => {
 });
 
 resize();
+dismissLoadingScreen();
 render();
-requestAnimationFrame(() => dismissLoadingScreen());

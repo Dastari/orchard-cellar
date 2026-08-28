@@ -11,6 +11,9 @@ export { decodeJwtClaims, validateIdTokenClaims } from './oidc-token.js';
 const DEFAULT_ISSUER = 'https://auth.orchard.dastari.net/realms/orchard';
 const SESSION_KEY = 'orchard:oidc:session:v1';
 const PENDING_KEY = 'orchard:oidc:pending:v1';
+const POPUP_STATE_PREFIX = 'popup.';
+const POPUP_CHANNEL = 'orchard:oidc:popup:v1';
+const POPUP_MESSAGE_TYPE = 'orchard:oidc:callback';
 const EXPIRY_SKEW_MS = 30_000;
 
 export interface OidcSession {
@@ -28,6 +31,11 @@ interface OidcPending {
   readonly nonce: string;
   readonly verifier: string;
   readonly redirectUri: string;
+}
+
+interface OidcPopupCallbackMessage {
+  readonly type: typeof POPUP_MESSAGE_TYPE;
+  readonly search: string;
 }
 
 interface OidcDiscovery {
@@ -82,6 +90,17 @@ function randomValue(bytes = 32): string {
   const value = new Uint8Array(bytes);
   crypto.getRandomValues(value);
   return encodeBase64Url(value);
+}
+
+function createPending(storage: StorageLike, popup: boolean): OidcPending {
+  const pending: OidcPending = {
+    state: `${popup ? POPUP_STATE_PREFIX : ''}${randomValue()}`,
+    nonce: randomValue(),
+    verifier: randomValue(48),
+    redirectUri: redirectUri(),
+  };
+  storage.setItem(PENDING_KEY, JSON.stringify(pending));
+  return pending;
 }
 
 async function challengeFor(verifier: string): Promise<string> {
@@ -213,16 +232,7 @@ export function oidcEntryEndpoint(authorizationEndpoint: string, intent: OidcEnt
   return url;
 }
 
-export async function beginOidcLogin(
-  intent: OidcEntryIntent = 'login',
-  storage = browserSessionStorage(),
-): Promise<void> {
-  if (!oidcConfigured) throw new Error('Account login is not configured.');
-  if (!storage) throw new Error('Browser session storage is unavailable.');
-  const pending: OidcPending = {
-    state: randomValue(), nonce: randomValue(), verifier: randomValue(48), redirectUri: redirectUri(),
-  };
-  storage.setItem(PENDING_KEY, JSON.stringify(pending));
+async function authorizationUrl(pending: OidcPending, intent: OidcEntryIntent): Promise<URL> {
   const discovery = await oidcDiscovery();
   const url = oidcEntryEndpoint(discovery.authorization_endpoint, intent);
   const parameters = new URLSearchParams({
@@ -237,7 +247,139 @@ export async function beginOidcLogin(
   });
   if (intent === 'register') parameters.set('prompt', 'create');
   url.search = parameters.toString();
+  return url;
+}
+
+export async function beginOidcLogin(
+  intent: OidcEntryIntent = 'login',
+  storage = browserSessionStorage(),
+): Promise<void> {
+  if (!oidcConfigured) throw new Error('Account login is not configured.');
+  if (!storage) throw new Error('Browser session storage is unavailable.');
+  const pending = createPending(storage, false);
+  const url = await authorizationUrl(pending, intent);
   location.assign(url.toString());
+}
+
+export function isOidcPopupCallback(search = location.search): boolean {
+  const parameters = new URLSearchParams(search);
+  return parameters.get('state')?.startsWith(POPUP_STATE_PREFIX) === true;
+}
+
+function popupCallbackMessage(value: unknown): OidcPopupCallbackMessage | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const candidate = value as Partial<OidcPopupCallbackMessage>;
+  return candidate.type === POPUP_MESSAGE_TYPE && typeof candidate.search === 'string'
+    ? { type: POPUP_MESSAGE_TYPE, search: candidate.search }
+    : null;
+}
+
+function popupCallbackMatchesPending(search: string, storage: StorageLike): boolean {
+  const state = new URLSearchParams(search).get('state');
+  if (state === null) return false;
+  try {
+    const pending = JSON.parse(storage.getItem(PENDING_KEY) ?? 'null') as Partial<OidcPending> | null;
+    return pending?.state === state && state.startsWith(POPUP_STATE_PREFIX);
+  } catch {
+    return false;
+  }
+}
+
+/** Relay only the authorization response. The opener retains the verifier and
+ * exchanges the code itself, so tokens never have to cross a window boundary. */
+export function relayOidcPopupCallback(search = location.search): boolean {
+  if (!isOidcPopupCallback(search)) return false;
+  const message: OidcPopupCallbackMessage = { type: POPUP_MESSAGE_TYPE, search };
+  if (window.opener !== null) window.opener.postMessage(message, location.origin);
+  if (typeof BroadcastChannel !== 'undefined') {
+    const channel = new BroadcastChannel(POPUP_CHANNEL);
+    channel.postMessage(message);
+    channel.close();
+  }
+  window.setTimeout(() => window.close(), 0);
+  return true;
+}
+
+export async function beginOidcPopupLogin(
+  intent: OidcEntryIntent = 'login',
+  storage = browserSessionStorage(),
+): Promise<OidcSession> {
+  if (!oidcConfigured) throw new Error('Account login is not configured.');
+  if (!storage) throw new Error('Browser session storage is unavailable.');
+
+  // Store pending state before opening so the new top-level context receives
+  // the browser's initial sessionStorage copy as an additional recovery path.
+  const pending = createPending(storage, true);
+  const popup = window.open('', `orchard-oidc-${pending.state.slice(-12)}`, 'popup=yes,width=720,height=820');
+  if (popup === null) {
+    const redirectPending = createPending(storage, false);
+    location.assign((await authorizationUrl(redirectPending, intent)).toString());
+    return await new Promise<OidcSession>(() => undefined);
+  }
+
+  let callbackReceived = false;
+  let settled = false;
+  let channel: BroadcastChannel | null = null;
+  let closePoll = 0;
+  let timeout = 0;
+  let popupClosedAt = 0;
+
+  return await new Promise<OidcSession>((resolve, reject) => {
+    const cleanup = (): void => {
+      window.removeEventListener('message', onWindowMessage);
+      if (closePoll !== 0) window.clearInterval(closePoll);
+      if (timeout !== 0) window.clearTimeout(timeout);
+      channel?.close();
+      channel = null;
+    };
+    const fail = (error: Error): void => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    const complete = (search: string): void => {
+      if (settled || callbackReceived) return;
+      if (!popupCallbackMatchesPending(search, storage)) return;
+      callbackReceived = true;
+      void completeOidcCallback(search, storage).then((session) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        try { popup.close(); } catch { /* already closed */ }
+        resolve(session);
+      }).catch((error: unknown) => {
+        fail(error instanceof Error ? error : new Error('Login failed. Please try again.'));
+      });
+    };
+    const onWindowMessage = (event: MessageEvent<unknown>): void => {
+      if (event.origin !== location.origin || event.source !== popup) return;
+      const message = popupCallbackMessage(event.data);
+      if (message !== null) complete(message.search);
+    };
+
+    window.addEventListener('message', onWindowMessage);
+    if (typeof BroadcastChannel !== 'undefined') {
+      channel = new BroadcastChannel(POPUP_CHANNEL);
+      channel.addEventListener('message', (event: MessageEvent<unknown>) => {
+        const message = popupCallbackMessage(event.data);
+        if (message !== null) complete(message.search);
+      });
+    }
+    closePoll = window.setInterval(() => {
+      if (callbackReceived || !popup.closed) return;
+      if (popupClosedAt === 0) popupClosedAt = Date.now();
+      else if (Date.now() - popupClosedAt >= 1_000) fail(new Error('The sign-in window was closed.'));
+    }, 250);
+    timeout = window.setTimeout(() => fail(new Error('The sign-in window timed out. Please try again.')), 5 * 60_000);
+
+    void authorizationUrl(pending, intent).then((url) => {
+      if (!settled) popup.location.replace(url.toString());
+    }).catch((error: unknown) => {
+      try { popup.close(); } catch { /* already closed */ }
+      fail(error instanceof Error ? error : new Error('Unable to start login.'));
+    });
+  });
 }
 
 export function hasOidcCallback(search = location.search): boolean {

@@ -1,4 +1,23 @@
-import type { Vec2Fixed } from '@orchard/sim';
+import { AUTHORITY_TICK_MS, type Vec2Fixed } from '@orchard/sim';
+
+export interface LocalProjectilePrediction {
+  readonly origin: Vec2Fixed;
+  readonly velocity: Vec2Fixed;
+  readonly lifetimeTicks: number;
+  readonly startedAtMs: number;
+}
+
+export function sampleLocalProjectilePrediction(
+  prediction: LocalProjectilePrediction,
+  nowMs: number,
+): Vec2Fixed | null {
+  const elapsedTicks = Math.max(0, nowMs - prediction.startedAtMs) / AUTHORITY_TICK_MS;
+  if (elapsedTicks > prediction.lifetimeTicks) return null;
+  return {
+    x: prediction.origin.x + prediction.velocity.x * elapsedTicks,
+    y: prediction.origin.y + prediction.velocity.y * elapsedTicks,
+  };
+}
 
 export function interpolateFixedPosition(
   previous: Vec2Fixed,

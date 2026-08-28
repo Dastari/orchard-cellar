@@ -16,7 +16,7 @@ export interface SkillCheckResult {
   readonly success: boolean;
 }
 
-function hashSeedParts(parts: readonly SkillCheckSeedPart[]): number {
+export function hashSeedParts(parts: readonly SkillCheckSeedPart[]): number {
   let hash = 0x811c9dc5;
   for (const part of parts) {
     const encoded = `${typeof part}:${part.toString()}\u0000`;
@@ -29,6 +29,12 @@ function hashSeedParts(parts: readonly SkillCheckSeedPart[]): number {
   return (hash ^ (hash >>> 13)) >>> 0;
 }
 
+/** Shared stateless roll for deterministic combat, loot, and checks. */
+export function statelessRoll(seedParts: readonly SkillCheckSeedPart[], faces: number): number {
+  if (!Number.isSafeInteger(faces) || faces <= 0) throw new Error('faces must be a positive safe integer');
+  return hashSeedParts(seedParts) % faces;
+}
+
 /** Stateless, replayable d20 check. Seed parts should include world seed,
  * identity, authority tick, and a stable context tag at call sites. */
 export function skillCheck(
@@ -37,7 +43,7 @@ export function skillCheck(
   dc: number,
   modifiers: readonly Modifier[] = [],
 ): SkillCheckResult {
-  const roll = 1 + hashSeedParts(seedParts) % 20;
+  const roll = 1 + statelessRoll(seedParts, 20);
   const total = roll + checkModifier(attributeValue)
     + resolveModifierTarget('checkBonus', 0, modifiers);
   return { roll, total, success: total >= dc };

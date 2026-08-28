@@ -1,0 +1,65 @@
+{
+  "name": "icon_cf_quest_offer",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    8
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".......00.......",
+        "......0220......",
+        "......0220......",
+        "......0220......",
+        "......0220......",
+        "......0220......",
+        "......0220......",
+        "......0220......",
+        "......0220......",
+        "......0110......",
+        ".......00.......",
+        "......0220......",
+        "......0110......",
+        ".......00.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#feae34",
+    "2": "#fee761"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Icons.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
+  "sourceRegions": {
+    "base": [
+      [
+        192,
+        32,
+        16,
+        16
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "tags": [
+    "ui.icon",
+    "quest.offer"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

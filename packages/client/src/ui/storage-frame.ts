@@ -1,3 +1,4 @@
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim';
 import { containsPoint, type UiPoint, type UiRect, type UiSize } from './geometry.js';
 import { drawUiSkinAsset, type UiSkin } from './skin.js';
 
@@ -159,7 +160,7 @@ export function layoutStorageFrame(
   const paneMinimumInnerWidth = paneMinimumWidth + minimumGutter * (panes.length + 1);
   const paneHeight = Math.max(...panes.map((pane) => pane.gridSize.height));
 
-  const hotbarColumns = safeCount(spec.hotbar?.columns ?? 9);
+  const hotbarColumns = safeCount(spec.hotbar?.columns ?? HOTBAR_SLOT_COUNT);
   const hotbarSlotSize = spec.hotbar?.slotSize ?? DEFAULT_SLOT_SIZE;
   const hotbarColumnGap = Math.max(0, spec.hotbar?.columnGap ?? DEFAULT_COLUMN_GAP);
   const hotbarGridSize = spec.hotbar === undefined

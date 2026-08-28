@@ -9,16 +9,16 @@ Knowledge gates, charged Vigour, rule-changing Cultivars + Lineage baseline.
 
 ## 1. Currencies
 
-| Currency | Kind | Earned | Spent |
-|---|---|---|---|
-| Fruit | run | trees, tends, forage | saplings, plot clearing, grove upgrades |
-| Pomace | run | 15% of fruit pressed | presses, press upgrades; OR compost mulch |
-| Must | run | pressing (yield 0.5/fruit base) | casks, cellar upgrades; aged into bottles |
-| Bottles | run | aging × bottleValue (base 0.1) | cellar digs; scored at Vintage |
-| Terroir | persistent (resets at Succession) | Vintage ceremony | skill tree ranks |
-| Knowledge | persistent score, never spent | play milestones (§5) | gates skill tiers |
-| Heirlooms | persistent (resets at Lineage) | Succession | not spent; +25% each (+40% w/ cultivar) |
-| Seeds | permanent | Lineage | Cultivars |
+| Currency  | Kind                              | Earned                          | Spent                                     |
+| --------- | --------------------------------- | ------------------------------- | ----------------------------------------- |
+| Fruit     | run                               | trees, tends, forage            | saplings, plot clearing, grove upgrades   |
+| Pomace    | run                               | 15% of fruit pressed            | presses, press upgrades; OR compost mulch |
+| Must      | run                               | pressing (yield 0.5/fruit base) | casks, cellar upgrades; aged into bottles |
+| Bottles   | run                               | aging × bottleValue (base 0.1)  | cellar digs; scored at Vintage            |
+| Terroir   | persistent (resets at Succession) | Vintage ceremony                | skill tree ranks                          |
+| Knowledge | persistent score, never spent     | play milestones (§5)            | gates skill tiers                         |
+| Heirlooms | persistent (resets at Lineage)    | Succession                      | not spent; +25% each (+40% w/ cultivar)   |
+| Seeds     | permanent                         | Lineage                         | Cultivars                                 |
 
 All currency values are integers in sim state (fruit in whole units; rates accrue in
 a fixed-point fractional accumulator). Nothing exceeds 2^53.
@@ -27,22 +27,22 @@ a fixed-point fractional accumulator). Nothing exceeds 2^53.
 
 ### Trees (per mature tree, Care ×1.0, no modifiers)
 
-| # | Species | Sapling cost (fruit) | Fruit/s | Trait value |
-|---|---|---|---|---|
-| 1 | Seedling Apple | 15 | 0.10 | — |
-| 2 | Orchard Apple | 120 | 0.60 | lifts 1.5%/5 |
-| 3 | Pear | 900 | 3.2 | Autumn ×1.8 |
-| 4 | Quince | 6,500 | 15 | feeds press +2%/5 |
-| 5 | Plum | 48,000 | 70 | lifts 1.2%/5 |
-| 6 | Fig | 360,000 | 330 | Summer ×1.8 |
-| 7 | Cherry | 2.8M | 1,600 | Summer ×1.8 |
-| 8 | Heritage Grafts | 22M | 7,500 | lifts 2%/5 |
-| 9 | Frost Medlar | 170M | 36,000 | Winter ×1.8 |
-| 10 | Vale Medlar | 1.3B | 170,000 | feeds cellar +2.5%/5 |
+| #   | Species         | Sapling cost (fruit) | Fruit/s | Trait value          |
+| --- | --------------- | -------------------- | ------- | -------------------- |
+| 1   | Seedling Apple  | 15                   | 0.10    | —                    |
+| 2   | Orchard Apple   | 120                  | 0.60    | lifts 1.5%/5         |
+| 3   | Pear            | 900                  | 3.2     | Autumn ×1.8          |
+| 4   | Quince          | 6,500                | 15      | feeds press +2%/5    |
+| 5   | Plum            | 48,000               | 70      | lifts 1.2%/5         |
+| 6   | Fig             | 360,000              | 330     | Summer ×1.8          |
+| 7   | Cherry          | 2.8M                 | 1,600   | Summer ×1.8          |
+| 8   | Heritage Grafts | 22M                  | 7,500   | lifts 2%/5           |
+| 9   | Frost Medlar    | 170M                 | 36,000  | Winter ×1.8          |
+| 10  | Vale Medlar     | 1.3B                 | 170,000 | feeds cellar +2.5%/5 |
 
 - Sapling cost grows **×1.18 per tree of that species already planted**.
-- `lifts`: adds its % to every *other* species per 5 planted; monocultures gain nothing.
-- `feeds`: adds % to press/cellar *capacity* per 5 planted; total fed bonus per stage
+- `lifts`: adds its % to every _other_ species per 5 planted; monocultures gain nothing.
+- `feeds`: adds % to press/cellar _capacity_ per 5 planted; total fed bonus per stage
   capped at **+50%**.
 - Global synergy (skill-gated): +0.15%–0.4% all fruit per tree planted.
 - Per-species milestones at 5/10/15 planted: that species ×2 each; at **25**: ×3
@@ -54,13 +54,13 @@ a fixed-point fractional accumulator). Nothing exceeds 2^53.
 
 ### Presses (first Basket Press: repaired for 50 fruit, one time; all others cost Pomace)
 
-| Tier | Name | Cost (pomace) | Processes fruit/s | Pads |
-|---|---|---|---|---|
-| 1 | Basket Press | 25 | 0.5 | 1 |
-| 2 | Screw Press | 180 | 3 | 1 |
-| 3 | Hydraulic Press | 1,400 | 18 | 1 |
-| 4 | Belt Line | 12,000 | 120 | 1 |
-| 5 | Pressing Works | 100,000 | 900 | 2 |
+| Tier | Name            | Cost (pomace) | Processes fruit/s | Pads |
+| ---- | --------------- | ------------- | ----------------- | ---- |
+| 1    | Basket Press    | 25            | 0.5               | 1    |
+| 2    | Screw Press     | 180           | 3                 | 1    |
+| 3    | Hydraulic Press | 1,400         | 18                | 1    |
+| 4    | Belt Line       | 12,000        | 120               | 1    |
+| 5    | Pressing Works  | 100,000       | 900               | 2    |
 
 Cost ×1.35 per press of same tier owned. Yield: 1 fruit → **0.5 must** (upgrades +
 skills to ~1.0). Pomace: **15%** of fruit pressed. Per-tier milestones at 3/6/10
@@ -68,13 +68,13 @@ owned: ×2/×2/×3 that tier.
 
 ### Casks (cost Must)
 
-| Tier | Name | Cost (must) | Ages must/s |
-|---|---|---|---|
-| 1 | Demijohn shelf | 80 | 0.2 |
-| 2 | Oak Barrels | 300 | 1.2 |
-| 3 | Foudre | 2,400 | 7 |
-| 4 | Stone Vault | 20,000 | 40 |
-| 5 | Cellar Cathedral | 170,000 | 240 |
+| Tier | Name             | Cost (must) | Ages must/s |
+| ---- | ---------------- | ----------- | ----------- |
+| 1    | Demijohn shelf   | 80          | 0.2         |
+| 2    | Oak Barrels      | 300         | 1.2         |
+| 3    | Foudre           | 2,400       | 7           |
+| 4    | Stone Vault      | 20,000      | 40          |
+| 5    | Cellar Cathedral | 170,000     | 240         |
 
 Cost ×1.35 per same tier. Bottles = must aged × **bottleValue 0.1** (upgrades/skills
 to ~0.4). Milestones as presses. Cellar digs: level 2 = 500 bottles, level 3 =
@@ -85,18 +85,18 @@ to ~0.4). Milestones as presses. Cellar digs: level 2 = 500 bottles, level 3 =
 The original draft referenced this table from 04 without including it. Costs keep
 each stage funded by its own capital and follow the documented ×6–8 tier spacing.
 
-| Upgrade | Currency | Cost | Rule |
-|---|---:|---:|---|
-| Pruning Shears | Fruit | 75 | Care decay interval 2 → 3 days |
-| Tall Ladders | Fruit | 450 | Harvest interaction radius 2 → 4 tiles |
-| Irrigation | Fruit | 3,000 | Halves the off-season penalty |
-| Bee Boost | Fruit | 20,000 | Blossom-adjacent trees +10% fruit |
-| Cart & Mule | Fruit | 140,000 | Automatically hauls harvested Fruit to the hopper |
-| Copper Pipe | Pomace | 75 | Routes yard Must directly to the cellar bank |
-| Yard Expansion I / II | Pomace | 500 / 4,000 | Press pads 5 → 8 → 12 |
-| Cork Bench | Must | 250 | bottleValue 0.10 → 0.15 |
-| Blending Bench | Must | 1,800 | bottleValue → 0.25 |
-| Cellar Book | Must | 13,000 | bottleValue → 0.40 |
+| Upgrade               | Currency |        Cost | Rule                                              |
+| --------------------- | -------: | ----------: | ------------------------------------------------- |
+| Pruning Shears        |    Fruit |          75 | Care decay interval 2 → 3 days                    |
+| Tall Ladders          |    Fruit |         450 | Harvest interaction radius 2 → 4 tiles            |
+| Irrigation            |    Fruit |       3,000 | Halves the off-season penalty                     |
+| Bee Boost             |    Fruit |      20,000 | Blossom-adjacent trees +10% fruit                 |
+| Cart & Mule           |    Fruit |     140,000 | Automatically hauls harvested Fruit to the hopper |
+| Copper Pipe           |   Pomace |          75 | Routes yard Must directly to the cellar bank      |
+| Yard Expansion I / II |   Pomace | 500 / 4,000 | Press pads 5 → 8 → 12                             |
+| Cork Bench            |     Must |         250 | bottleValue 0.10 → 0.15                           |
+| Blending Bench        |     Must |       1,800 | bottleValue → 0.25                                |
+| Cellar Book           |     Must |      13,000 | bottleValue → 0.40                                |
 
 The press-yard jug rack has a base capacity of **100 Must**. Without Copper Pipe,
 presses stop at that cap until the player hauls jugs away; the pipe bypasses it.
@@ -112,16 +112,16 @@ Plot clearing is permanent spatial progress: 15 plots initially, then 30 / 60 /
   `burstPower = 2 + 0.6/rank (Burst skill, max 5.6)`. Partial payouts per the
   curve in [04](04-orchard-design.md) §4. Post-burst the meter retains
   `vigourKeep` (0 base, softened cap 0.8 via Momentum skill).
-- `tendFromRate` skills add +2–3% of grove rate to *every* tend (keeps tending
+- `tendFromRate` skills add +2–3% of grove rate to _every_ tend (keeps tending
   relevant at scale). Autumn chain: ×1.1/link, cap ×2.
 
 ## 4. Prestige formulas
 
-| Layer | Formula | First trigger pace |
-|---|---|---|
-| **Vintage** | `terroir = floor((bottles/100)^0.45 × 6 × (1+terroirGain))`, minimum 100 bottles | Year 1 ≈ 250 bottles → 9 Terroir |
-| **Succession** | `heirlooms = floor((terroirEver/500)^0.5) − heirloomsHeld` | ~vintage 4–6 |
-| **Lineage** | `seeds = floor((heirloomsEver/20)^0.5) − seedsClaimed` | after ~3–4 successions |
+| Layer          | Formula                                                                          | First trigger pace               |
+| -------------- | -------------------------------------------------------------------------------- | -------------------------------- |
+| **Vintage**    | `terroir = floor((bottles/100)^0.45 × 6 × (1+terroirGain))`, minimum 100 bottles | Year 1 ≈ 250 bottles → 9 Terroir |
+| **Succession** | `heirlooms = floor((terroirEver/500)^0.5) − heirloomsHeld`                       | ~vintage 4–6                     |
+| **Lineage**    | `seeds = floor((heirloomsEver/20)^0.5) − seedsClaimed`                           | after ~3–4 successions           |
 
 - Doubling a Vintage's Terroir needs ~4.7× the bottles (0.45 exponent, kept from the
   original — it worked).
@@ -136,23 +136,23 @@ Plot clearing is permanent spatial progress: 15 plots initially, then 30 / 60 /
 
 Knowledge is per-branch (Grove/Press/Cellar/Estate), earned only by playing:
 
-| Source | Knowledge |
-|---|---|
+| Source                                                                                          | Knowledge                 |
+| ----------------------------------------------------------------------------------------------- | ------------------------- |
 | First-time events (first press run, first bottle, first festival, each species' first harvest…) | +1 to the matching branch |
-| Almanac entries (species mastered, forageables found) | +1 |
-| Per-species/tier milestones (5/10/15/25) | +1 branch |
-| Each Vintage completed | +1 to every branch |
-| Festival participation | +1 seasonal branch |
+| Almanac entries (species mastered, forageables found)                                           | +1                        |
+| Per-species/tier milestones (5/10/15/25)                                                        | +1 branch                 |
+| Each Vintage completed                                                                          | +1 to every branch        |
+| Festival participation                                                                          | +1 seasonal branch        |
 
 **Tier gates** (both conditions required):
 
-| Skill tier | Needs |
-|---|---|
-| 1 | open immediately |
-| 2 | branch Knowledge ≥ 3 |
-| 3 | branch Knowledge ≥ 7 AND Vintages ≥ 3 |
-| 4 | branch Knowledge ≥ 12 AND Vintages ≥ 7 |
-| Capstones | ≥ 1 Succession |
+| Skill tier | Needs                                  |
+| ---------- | -------------------------------------- |
+| 1          | open immediately                       |
+| 2          | branch Knowledge ≥ 3                   |
+| 3          | branch Knowledge ≥ 7 AND Vintages ≥ 3  |
+| 4          | branch Knowledge ≥ 12 AND Vintages ≥ 7 |
+| Capstones  | ≥ 1 Succession                         |
 
 Buy All exists but only within unlocked tiers (PDF). A rich early Vintage can never
 skip experiential progression — this is the fix for the 472-ranks-in-one-burst
@@ -189,18 +189,18 @@ original's vocabulary; per-node bases in `balance.ts` follow the cost ladder
 
 ## 7. Cultivars (Seeds; PDF-proposed effects; total 31 Seeds)
 
-| Cost | Cultivar | Rule change |
-|---|---|---|
-| 1 | Windfall Stock | Pressed fruit also credits 25% of its value as spendable Fruit |
-| 1 | Cold Cellar | Entire estate runs at 100% efficiency offline; cellar ignores the offline cap |
-| 2 | Perennial Roots | Keep 40% of trees AND one grove milestone tier through Vintage |
-| 2 | Deep Taproot | Unlimited offline duration; efficiency fades to 40% after 24 h |
-| 3 | Even Year | No off-season penalty; non-featured stages get +15% |
-| 3 | Grafted Stock | Saplings cost 30% less |
-| 4 | Terroir Memory | Keep 25% Terroir + one chosen skill branch through Succession |
-| 4 | Cellar Overflow | Overflow must self-ages at 30% of total cask rate |
-| 5 | Hands Free | Apprentice NPC auto-cashes full-charge Vigour tends |
-| 6 | Long Lineage | Heirlooms worth +40% instead of +25% |
+| Cost | Cultivar        | Rule change                                                                   |
+| ---- | --------------- | ----------------------------------------------------------------------------- |
+| 1    | Windfall Stock  | Pressed fruit also credits 25% of its value as spendable Fruit                |
+| 1    | Cold Cellar     | Entire estate runs at 100% efficiency offline; cellar ignores the offline cap |
+| 2    | Perennial Roots | Keep 40% of trees AND one grove milestone tier through Vintage                |
+| 2    | Deep Taproot    | Unlimited offline duration; efficiency fades to 40% after 24 h                |
+| 3    | Even Year       | No off-season penalty; non-featured stages get +15%                           |
+| 3    | Grafted Stock   | Saplings cost 30% less                                                        |
+| 4    | Terroir Memory  | Keep 25% Terroir + one chosen skill branch through Succession                 |
+| 4    | Cellar Overflow | Overflow must self-ages at 30% of total cask rate                             |
+| 5    | Hands Free      | Apprentice NPC auto-cashes full-charge Vigour tends                           |
+| 6    | Long Lineage    | Heirlooms worth +40% instead of +25%                                          |
 
 ## 8. Offline progress
 
@@ -227,16 +227,16 @@ each) with a golden test asserting the +150% total.
 
 ## 10. Pacing targets (tune to these, not vice versa)
 
-| Milestone | Target play time |
-|---|---|
-| First press running | 15–25 min |
-| First must → first bottle | 45–70 min |
-| First Vintage | 5–7 h (late in game-year 1) |
-| Second Vintage | ~4 h (faster: skills + startTrees) |
-| First Succession | 25–35 h |
-| First Lineage | 80–120 h |
-| All cultivars (31 Seeds) | aspirational, 500 h+ |
-| "Every upgrade at once" achievement | final-run project |
+| Milestone                           | Target play time                   |
+| ----------------------------------- | ---------------------------------- |
+| First press running                 | 15–25 min                          |
+| First must → first bottle           | 45–70 min                          |
+| First Vintage                       | 5–7 h (late in game-year 1)        |
+| Second Vintage                      | ~4 h (faster: skills + startTrees) |
+| First Succession                    | 25–35 h                            |
+| First Lineage                       | 80–120 h                           |
+| All cultivars (31 Seeds)            | aspirational, 500 h+               |
+| "Every upgrade at once" achievement | final-run project                  |
 
 Anti-frustration invariants: no fail states; nothing ever decreases below a floor
 except by prestige choice; every session ≥15 min must include at least one visible
@@ -270,17 +270,17 @@ numbers; §3 above remains the retired solo farm scene's tend-charge economy.
   `sprintVigourCost` accept equipment, effect/buff/debuff, skill, and environment
   modifiers. Insufficient Vigour degrades the next step to ordinary walking.
 
-| Tool | Vigour cost | Minimum interval at 20 Hz |
-|---|---:|---:|
-| Watering can | 8 | 6 ticks / 300 ms |
-| Hoe | 50 | 6 ticks / 300 ms |
-| Fishing rod | 6 | 6 ticks / 300 ms |
-| Bow | 10 | 6 ticks / 300 ms |
-| Sword | 12 | 7 ticks / 350 ms |
-| Axe | 50 | 8 ticks / 400 ms |
-| Pickaxe | 50 | 10 ticks / 500 ms |
-| Shovel | 12 | 7 ticks / 350 ms |
-| Hammer | 18 | 9 ticks / 450 ms |
+| Tool         |        Vigour cost | Minimum interval at 20 Hz |
+| ------------ | -----------------: | ------------------------: |
+| Watering can |                  8 |          6 ticks / 300 ms |
+| Hoe          |                 50 |          6 ticks / 300 ms |
+| Fishing rod  |                  6 |          6 ticks / 300 ms |
+| Bow          | 1–30 (draw-scaled) |          6 ticks / 300 ms |
+| Sword        |                 12 |          7 ticks / 350 ms |
+| Axe          |                 50 |          8 ticks / 400 ms |
+| Pickaxe      |                 50 |         10 ticks / 500 ms |
+| Shovel       |                 12 |          7 ticks / 350 ms |
+| Hammer       |                 18 |          9 ticks / 450 ms |
 
 A whiff costs half Vigour, rounded up. Initial effects are **Well Rested** (+25%
 Vigour regen, 2 hours / 144,000 ticks), **Winded** (−50% Vigour regen, 90 seconds /
@@ -291,6 +291,25 @@ Winded, with no item, currency, or durability loss.
 New-character allocation searches walkable tiles in rings across the established
 spawn area, up to **60 tiles** from its centre; this is a spatial safety bound, not
 a concurrent-player slot cap.
+
+### Combat training constants
+
+The implemented doc 32 training slice uses a **14 displayed damage** bow base,
+Dexterity scaling (`base × DEX / 10`), deterministic **90–110%** variance, a d20
+critical on **19–20** for **150%**, flat armor before percentage armor, and a minimum
+of **1 displayed damage**. Archery targets have **100 displayed Health**, never fall
+below 1, and regenerate **1 Health per second** with lazy offline/unoccupied catch-up.
+Critical floating damage is bold yellow; ordinary damage retains the light neutral
+combat-text color.
+Bow draw time simultaneously sets its tracer/range budget and Vigour cost: a tap has
+a **1 Vigour** floor, and a **1,000 ms** full draw reaches **240 px** and costs **30
+Vigour**. The local bar drains continuously while drawing, capped by available Vigour;
+the authority timestamps draw start and atomically charges the same duration at
+release, treating the client duration only as a range-reducing upper bound. The full
+cursor-directed tracer remains visible up to the bow's resolved maximum while its
+reachable dots fill red to communicate the current charge distance.
+Arrows remain embedded in a target for **30 seconds**, can be recovered with E during
+that interval, then become an ordinary server-authorized recoverable arrow.
 
 Successful uses cost one tool durability; rejected actions and whiffs cost none.
 Maximums and full-repair costs are: Axe **200 / 1 Wood**, Pickaxe **250 / 1 Stone**,
@@ -308,40 +327,40 @@ when it is in the player's current space and no more than **2 tiles** away.
 
 ### Hand recipes
 
-| Recipe | Inputs | Output |
-|---|---|---|
-| Planks | 1 Wood | 4 Wooden Planks |
-| Sticks | 2 Wooden Planks, vertical | 4 Sticks |
-| Torch | 1 Wood + 1 Fiber | 2 Torches |
-| Campfire | 3 Wood + 3 Sticks | 1 Campfire |
-| Workbench | 4 Wooden Planks, 2×2 | 1 Workbench |
+| Recipe    | Inputs                    | Output          |
+| --------- | ------------------------- | --------------- |
+| Planks    | 1 Wood                    | 4 Wooden Planks |
+| Sticks    | 2 Wooden Planks, vertical | 4 Sticks        |
+| Torch     | 1 Wood + 1 Fiber          | 2 Torches       |
+| Campfire  | 3 Wood + 3 Sticks         | 1 Campfire      |
+| Workbench | 4 Wooden Planks, 2×2      | 1 Workbench     |
 
 ### Workbench recipes
 
-| Recipe | Inputs | Output |
-|---|---|---|
-| Chest | 8 Wooden Planks, ring | 1 Chest |
-| Barrel | 7 Wooden Planks, lid + U | 1 Barrel |
-| Fence | 4 Wooden Planks + 2 Sticks | 3 Fences |
-| Fence Gate | 2 Wooden Planks + 4 Sticks | 1 Fence Gate |
-| Sign | 6 Wooden Planks + 1 Stick | 1 Sign |
-| Standing Torch | 1 Torch + 1 Stick | 1 Standing Torch |
-| Arrows | 1 Stick + 1 Stone | 4 Arrows |
+| Recipe         | Inputs                     | Output           |
+| -------------- | -------------------------- | ---------------- |
+| Chest          | 8 Wooden Planks, ring      | 1 Chest          |
+| Barrel         | 7 Wooden Planks, lid + U   | 1 Barrel         |
+| Fence          | 4 Wooden Planks + 2 Sticks | 3 Fences         |
+| Fence Gate     | 2 Wooden Planks + 4 Sticks | 1 Fence Gate     |
+| Sign           | 6 Wooden Planks + 1 Stick  | 1 Sign           |
+| Standing Torch | 1 Torch + 1 Stick          | 1 Standing Torch |
+| Arrows         | 1 Stick + 1 Stone          | 4 Arrows         |
 
 ### New item commerce values
 
 Every listed value is bronze per item. A dash means the merchant buys the item
 from players but does not normally stock it.
 
-| Item | Buy | Sell |
-|---|---:|---:|
-| Fiber | — | 2 |
-| Workbench | 120 | 48 |
-| Campfire | — | 18 |
-| Fence | — | 4 |
-| Fence Gate | — | 12 |
-| Sign | — | 10 |
-| Standing Torch | — | 20 |
+| Item           | Buy | Sell |
+| -------------- | --: | ---: |
+| Fiber          |   — |    2 |
+| Workbench      | 120 |   48 |
+| Campfire       |   — |   18 |
+| Fence          |   — |    4 |
+| Fence Gate     |   — |   12 |
+| Sign           |   — |   10 |
+| Standing Torch |   — |   20 |
 
 ## 13. Legacy-island stepped terrain
 
@@ -350,3 +369,58 @@ elevation levels**. Each successive contour is inset **4 tiles** from the level
 below; an eroded connected summit smaller than **24 tiles** is discarded. These
 numbers change the mountain silhouette only. The autotiler, semantic crossing
 rules, projected face height, and collision thickness remain independent contracts.
+
+## 14. Procedural sanctuary generation
+
+The doc 43 sanctuary initially materializes a **12-chunk radius** around its selected
+spawn origin: **25×25 chunks / 400×400 tiles**. This covers the client maximum
+nine-chunk view radius plus a three-chunk preparation buffer. The generator does not
+force that region to be an island; seed preview selects a suitable central land area.
+
+Chunks outside that initial square materialize only when player-interest look-ahead
+approaches them. The playable signed extent is initially **−32,000 through +32,000
+tiles per axis**. These are operational generation limits, not authored map edges.
+
+Generator v4 minor rivers retain a **3–4-tile semantic water width** through diagonal
+bends. This leaves a readable water core after bank art is composed and prevents
+single-cell or bank-only pinch points; major rivers, lakes, and oceans remain separate
+hydrology scales.
+
+Generator v5 converts a river crossing a **south-facing elevation drop** into a
+**4-row waterfall strip**: rim, upper face, lower face, and ground-contact/pool row.
+V5 preserves V4's terrain fields and river width. Side- and north-facing crossings
+remain subject to the contour-validity/rerouting pass because the current waterfall
+family is authored for the visible south face only.
+
+Generator v6 repairs a representable south-facing crossing into a **3-tile-wide,
+4-row vertical waterfall**. The upstream and downstream river each receive a
+minimum **3-row approach**, extended deterministically up to **16 rows** when the
+seeded centreline moves too far laterally for cardinally connected water. The crest
+is flattened across the three water tiles plus a **2-tile land shoulder per bank**;
+its first row retains the upper elevation and the remaining three rows use the lower
+elevation. V6 preserves V5's macro terrain fields, river centrelines, and ordinary
+river width.
+
+## 15. Live character progression
+
+The live overworld supersedes §§5–6's retired solo-scene Knowledge/Terroir tree with
+the three-track system in [36](36-character-progression.md). Combat, Explorer, and
+Farming each use independent server-owned XP and points. Total XP required for level
+`n` is `floor(100 × n^1.7)`, level is derived rather than stored, the v1 cap is
+**50**, and every level grants one point spendable only in that track. Owner debug
+grants are bonus points, never XP.
+
+The initial review roster has **14 nodes per tree including its always-owned root**.
+Explorer covers running speed/efficiency, path travel, small-gap and mounted jumping,
+night vision, cave discovery, exploration XP, mapping, and carried space. Combat
+covers arrow/sword damage, draw speed, criticals, recovery, Vigour efficiency,
+shields, Health, piercing, multishot, and weapon capstones. Farming covers yield,
+watering, seed recovery, crop bundles, soil information, grafting, preserving,
+beekeeping, sprinklers, greenhouses, seasonal resilience, and a harvest capstone.
+Names, graph positions, rank caps, level gates, and descriptions are canonical in
+`packages/sim/src/skill-trees.ts`.
+
+Per-track reset costs in bronze are **0, 100, 500, 2,500, then 10,000** for all
+later resets. Resetting refunds the spent points by removing that character's ranks;
+XP and developer bonus points remain. In the 2026-08-28 review slice, purchases and
+resets persist but every advertised skill effect remains deliberately inactive.

@@ -1,0 +1,69 @@
+{
+  "name": "ui_cf_icon_backpack",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    8
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        ".....033310.....",
+        ".....000000.....",
+        "....03333310....",
+        "...0333331110...",
+        "...0333001110...",
+        "...0010440100...",
+        "..001004200100..",
+        ".03031100111030.",
+        ".01033533311010.",
+        ".01035111131010.",
+        ".01051111113010.",
+        "..005111111300..",
+        "....00000000....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#8a4836",
+    "2": "#92a1b9",
+    "3": "#bf6f4a",
+    "4": "#c7cfdd",
+    "5": "#e69c69"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Icons.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
+  "sourceRegions": {
+    "base": [
+      [
+        144,
+        32,
+        16,
+        16
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "tags": [
+    "ui.icon",
+    "ui.inventory",
+    "ui.backpack"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

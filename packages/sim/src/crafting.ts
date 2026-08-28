@@ -1,7 +1,7 @@
 import { FIBER_TILL_DROP_PERCENT } from './balance.js';
 
 export const PLACEABLE_KINDS = [
-  'workbench', 'campfire', 'barrel', 'fence', 'fence_gate', 'sign', 'standing_torch',
+  'workbench', 'anvil', 'campfire', 'barrel', 'fence', 'fence_gate', 'sign', 'standing_torch',
 ] as const;
 export type PlaceableKind = typeof PLACEABLE_KINDS[number];
 
@@ -15,6 +15,7 @@ export interface PlaceableDefinition {
 
 export const PLACEABLE_DEFINITIONS = {
   workbench: { blocksMovement: true, slotCapacity: 0, station: 'workbench', light: null, connectsFence: false },
+  anvil: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
   campfire: { blocksMovement: true, slotCapacity: 0, station: 'campfire', light: 'flame', connectsFence: false },
   barrel: { blocksMovement: true, slotCapacity: 8, station: null, light: null, connectsFence: false },
   fence: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: true },
@@ -22,6 +23,11 @@ export const PLACEABLE_DEFINITIONS = {
   sign: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
   standing_torch: { blocksMovement: false, slotCapacity: 0, station: null, light: 'flame', connectsFence: false },
 } as const satisfies Readonly<Record<PlaceableKind, PlaceableDefinition>>;
+
+/** Temporary simple anvil economy: one raw copper repairs the selected durable
+ * item completely. Keeping this shared prevents prompts and authority drifting. */
+/** Canonical purse units; the UI presents the smallest bronze unit as copper. */
+export const ANVIL_REPAIR_COST_BRONZE = 5;
 
 export function placeableDefinition(kind: string): PlaceableDefinition | null {
   return Object.prototype.hasOwnProperty.call(PLACEABLE_DEFINITIONS, kind)

@@ -1,5 +1,10 @@
 # 21 — Unified Overworld Renderer
 
+> **Zoned-world amendment (2026-08-26):** Under [40](40-sanctuary-overworld-and-zoned-world.md),
+> this is the unified renderer for every active `spaceId`, not only the overworld.
+> Homestead exteriors, residence interiors, forests, caves, mines, towns, and events
+> reuse its pipeline with space-specific terrain, bounds, ambient, weather, and audio.
+
 Binding owner-directed spec (2026-08-24). The solo farm scene is **retired for now**;
 the root Vite application loads the overworld as its only game client. Farms return
 later as instanced per-player interiors rendered by this same renderer (M7+). The engine

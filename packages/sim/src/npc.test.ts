@@ -11,6 +11,7 @@ import {
   isHorseWithinMountReach,
   mountedHorseFacing,
   npcFacingForDirection,
+  npcFacingTowardPoint,
   stepWanderingNpc,
   stepNpcTowardPoint,
   type WanderingNpcState,
@@ -29,6 +30,12 @@ const initial: WanderingNpcState = {
 };
 
 describe('server-authoritative wandering NPCs', () => {
+  it('faces the last interaction point without turning arbitrarily at the same point', () => {
+    expect(npcFacingTowardPoint(home, { x: home.x + TILE_SIZE_FIXED, y: home.y }, 'down')).toBe('right');
+    expect(npcFacingTowardPoint(home, { x: home.x, y: home.y - TILE_SIZE_FIXED }, 'right')).toBe('up');
+    expect(npcFacingTowardPoint(home, home, 'left')).toBe('left');
+  });
+
   it('walks deterministically while inside its leash', () => {
     const first = stepWanderingNpc(initial, 1, open);
     const repeated = stepWanderingNpc(initial, 1, open);

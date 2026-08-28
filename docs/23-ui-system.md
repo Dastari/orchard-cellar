@@ -38,12 +38,31 @@ red=danger) for buttons/selectors, not all eight recolors:
 | Speech popups | `ui_cf_bubble` + `tail_{up,down,left,right}` state frames | 9-slice body, tail composited at anchor edge |
 | Crosshair/cursor | `ui_cf_cursor`, `ui_cf_cursor_click` (animation), `ui_cf_crosshair` | `Pointer_Click_Anim.png`; OS cursor hidden over canvas, cursor drawn in UI pass |
 | Icons | extend the existing `icon_cf_*` set as needed | `UI_Icons.png`, `UI_Button_Icons.png` (arrows, check/cross, coin, heart, gear, bag) |
-| Book/pages | deferred | `Book_UI.png` — later journal/skill content, same widget system |
+| Book/pages | `ui_cf_book_open`, `ui_cf_book_tab` | `Book_UI.png` — help book plus compact/collapsed HUD tabs; later journal/skill content uses the same widget system |
+
+### Persistent HUD controls
+
+The zone ribbon owns two independent targets: its lightning ghost button
+toggles the online-player list, while the remaining ribbon body collapses into
+the authored parchment tab extracted from `Book_UI.png`. Clicking that tab
+restores the full zone ribbon. The global crafting wrench, backpack/currency
+button, online-player lightning, chat toggle, and storage sort wrenches all
+provide hover tooltips; touch operation never depends on hover.
+
+Canvas z-order and input order are the same order. Chat paints beneath modal
+windows, and the retained window tree gets first input capture, so an obscured
+chat region cannot activate through the window above it.
 
 Every extract carries `slice` and/or `state` frame groups in its sprite JSON so
 sizing and states are data, not code. `validate-assets.ts` gains a lint: a `ui`
 category asset must declare `slice` or fixed `size` intent, and state groups must
 be complete (`idle` at minimum).
+
+Buttons use the shared semantic canvas button renderer/component. Callers choose
+`neutral`, `success`, or `danger` rather than selecting colored artwork and
+hand-positioning text. Regular buttons reserve 22 UI pixels of height and the
+component centers the bitmap-font label within the usable face above the lower
+bevel; compact icon controls explicitly opt into the 16-pixel variant.
 
 ## 2. Widget system
 
@@ -84,25 +103,21 @@ size from one or more declared panes, guarantees hotbar width, distributes fixed
 panes with equal gutters, allocates surplus width to explicit flex panes, and
 provides the shared corner-resize interaction used for layout testing.
 
-## 3. Drag and drop
+## 3. Cursor-stack inventory interaction
 
-A single `DragContext` state machine, pure and unit-tested, owned by the UI root:
+The private `inventory_cursor` row is real server-owned item custody. Missing
+means empty. A left click takes a whole stack; right click takes its larger half.
+Further clicks place, merge, or swap from that cursor, and mouse release alone
+does nothing. Closing a menu returns it to hotbar/backpack, then durable overflow;
+disconnect runs the same recovery.
 
-`idle → grabbing(source slot, item snapshot) → hovering(target)` → drop or cancel.
-
-- On grab: source slot dims; a **ghost icon** follows the cursor. Grabbing is
-  purely cosmetic — the source row is untouched.
-- On hover: any `Slot` whose binding accepts the item shows the confirm bracket;
-  invalid targets show the deny bracket. Acceptance is evaluated client-side
-  from the same shared rules module the server uses (see §4) so the highlight
-  rarely lies, but it is advisory only.
-- On drop: emit **one intent reducer** (§4) and return the ghost to the source
-  until the row commit moves the item. On reducer error: brief shake + toast,
-  nothing to roll back because nothing moved locally. On cancel (Esc/click-away):
-  ghost flies back. This is doc 22 §6's cosmetics-predicted/state-authoritative
-  split applied to inventory.
-- Right-click (or modifier-drag) grabs half a stack — expressed as `quantity` on
-  the same intent, not a different code path.
+While a cursor stack is held, left-drag visits unique compatible slots and commits
+one even `QUICK_CRAFT` transaction on release; right-drag places one per visited
+slot. Shift is not involved. Double-click collects compatible stacks to the item
+maximum, Shift-click uses the menu's merge-then-empty route, number keys swap the
+hovered cell with a hotbar cell, and Q/Control-Q throw one/the full hovered stack.
+All client highlights are advisory; the reducer re-resolves ownership, open-menu
+reach, restrictions, metadata compatibility, capacity, and exact quantities.
 
 ## 4. Generic containers (the data model that makes it composable)
 

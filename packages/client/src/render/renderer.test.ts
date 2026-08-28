@@ -20,13 +20,13 @@ describe('unified renderer zoom math', () => {
     expect([fractional.width, fractional.height]).toEqual([2134, 1200]);
   });
 
-  it('clamps zoom-out to the island and offscreen budgets', () => {
-    expect(minimumWorldZoom(960, 540, 1, 192 * 16)).toBe(1.5);
+  it('allows finite maps to sit inside a larger black viewport while respecting offscreen budgets', () => {
+    expect(minimumWorldZoom(960, 540, 1, 192 * 16)).toBe(2);
+    expect(minimumWorldZoom(1920, 1080, 1, 32 * 16)).toBe(2);
     const minimum = minimumWorldZoom(1920, 1080, 2, 192 * 16);
     const layout = worldPassLayout(1920, 1080, 2, minimum);
     expect(layout.width).toBeLessThanOrEqual(4096);
     expect(layout.height).toBeLessThanOrEqual(2304);
-    expect(1920 / minimum).toBeLessThanOrEqual(192 * 16);
   });
 
   it('keeps a stable backing allocation through nearby eased zoom frames', () => {

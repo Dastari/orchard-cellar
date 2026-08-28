@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-src 'none'; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self' 'unsafe-eval'; style-src 'self'; connect-src 'self'; form-action 'none'" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Orchard &amp; Cellar — Seed World Editor</title>
+  </head>
+  <body>
+    <main id="game-shell" aria-busy="true">
+      <canvas id="game" width="480" height="270" aria-label="Orchard and Cellar seed world editor"></canvas>
+      <section id="loading-screen" class="loading-status" role="status" aria-live="polite" aria-label="Opening the seed world. 8%">
+        <span id="loading-title">OPENING THE SEED WORLD</span>
+        <span id="loading-detail">PREPARING THE OFFLINE EDITOR</span>
+        <span id="loading-progress">8%</span>
+      </section>
+    </main>
+    <script type="module" src="/src/editor-main.ts"></script>
+  </body>
+</html>

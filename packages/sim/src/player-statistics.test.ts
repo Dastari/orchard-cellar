@@ -16,7 +16,7 @@ describe('player statistics registry', () => {
       expect([...definition.milestones].sort((a, b) => a < b ? -1 : 1)).toEqual(definition.milestones);
       expect(new Set(definition.milestones).size).toBe(definition.milestones.length);
     }
-    expect(PLAYER_STATISTIC_DEFINITIONS.damage_dealt.reserved).toBe(true);
+    expect('reserved' in PLAYER_STATISTIC_DEFINITIONS.damage_dealt).toBe(false);
     expect(PLAYER_STATISTIC_DEFINITIONS.fish_caught.reserved).toBe(true);
   });
 
@@ -31,6 +31,7 @@ describe('player statistics registry', () => {
     expect(statisticSubjectIsValid('messages_sent', 'email')).toBe(false);
     expect(statisticSubjectIsValid('distance_travelled', 'horse')).toBe(true);
     expect(statisticSubjectIsValid('distance_travelled', 'boat')).toBe(false);
+    expect(statisticSubjectIsValid('damage_dealt', 'archery_target')).toBe(true);
   });
 
   it('applies counter saturation and maximum aggregation deterministically', () => {

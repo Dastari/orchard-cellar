@@ -10,3 +10,6 @@
   license; source packs are not redistributed.
 - Current farmer avatar: **Cute Fantasy Free** by **Kenmi Art**. Used under its
   non-commercial license for this non-commercial project.
+- Editor command and overlay symbols: selected **[Lucide](https://lucide.dev/)**
+  icons by the Lucide contributors, used and locally vendored under the ISC
+  license.

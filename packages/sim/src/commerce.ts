@@ -40,6 +40,10 @@ export interface ItemEconomyDefinition {
  * exhaustive prevents newly collectible items from silently becoming
  * unsellable or defaulting to an exploitable price. */
 export const ITEM_ECONOMY = {
+  // The reducer rejects deed sales; the nominal value keeps the exhaustive
+  // economy contract positive without making deeds a currency exploit.
+  homestead_deed: { buyPriceBronze: 50_000, sellPriceBronze: 1 },
+  marlow_book: { buyPriceBronze: null, sellPriceBronze: 1 },
   axe: { buyPriceBronze: 450, sellPriceBronze: 180 },
   hoe: { buyPriceBronze: 350, sellPriceBronze: 140 },
   pickaxe: { buyPriceBronze: 600, sellPriceBronze: 240 },
@@ -67,6 +71,7 @@ export const ITEM_ECONOMY = {
   cactus: { buyPriceBronze: null, sellPriceBronze: 3 },
   chest: { buyPriceBronze: 160, sellPriceBronze: 64 },
   workbench: { buyPriceBronze: 120, sellPriceBronze: 48 },
+  anvil: { buyPriceBronze: 500, sellPriceBronze: 200 },
   campfire: { buyPriceBronze: null, sellPriceBronze: 18 },
   fence: { buyPriceBronze: null, sellPriceBronze: 4 },
   fence_gate: { buyPriceBronze: null, sellPriceBronze: 12 },
@@ -91,8 +96,9 @@ export const ITEM_ECONOMY = {
 } as const satisfies Readonly<Record<KnownItemKind, ItemEconomyDefinition>>;
 
 export const TOOL_MERCHANT_OFFERS = [
+  'homestead_deed',
   'axe', 'pickaxe', 'hoe', 'watering_can', 'bow', 'sword', 'arrow',
-  'shovel', 'hammer', 'torch', 'lantern', 'workbench',
+  'shovel', 'hammer', 'torch', 'lantern', 'workbench', 'anvil',
 ] as const satisfies readonly KnownItemKind[];
 
 export type ToolMerchantOfferKind = typeof TOOL_MERCHANT_OFFERS[number];

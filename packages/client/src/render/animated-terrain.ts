@@ -1,5 +1,7 @@
 import type { LoadedAsset } from './assets.js';
-import { animatedWaterRockAllowedAt, grassTuftAllowedAt, terrainBiomeAt, terrainDecorationHash, waterfallTopLeftAt, type TerrainArray } from './terrain.js';
+import { animatedWaterRockAllowedAt, grassTuftAllowedAt, terrainBiomeAt, terrainDecorationHash, waterfallTopLeftAt, waterfallUsesRaisedCompositionAt, type TerrainArray } from './terrain.js';
+
+export { waterfallUsesRaisedCompositionAt } from './terrain.js';
 
 const TILE_SIZE_PIXELS = 16;
 
@@ -96,7 +98,8 @@ export function drawAnimatedTerrain(
 
   for (let tileY = minimumTileY; tileY <= maximumTileY; tileY += 1) {
     for (let tileX = minimumTileX; tileX <= maximumTileX; tileX += 1) {
-      if (waterfallTopLeftAt(terrain, tileX, tileY)) {
+      if (waterfallTopLeftAt(terrain, tileX, tileY)
+        && !waterfallUsesRaisedCompositionAt(terrain, tileX, tileY)) {
         if (drawAnimationFrame(
           context, art.waterfallFlow, 'flow', waterfallFrame,
           tileX, tileY, cameraX, cameraY, scale,

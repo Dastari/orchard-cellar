@@ -6,8 +6,9 @@
 
 A cozy, Stardew-Valley-style pixel-art farm game, adapted from the incremental web
 game *Orchard & Cellar*, implementing its redesign document's recommendations,
-rebuilt as an avatar-controlled, friends-only persistent overworld where players can
-walk between farms and play together. The source captures are summarized in docs 16
+rebuilt as an avatar-controlled, friends-only persistent sanctuary overworld where
+players discover symbolic POIs and zone into farms, resource areas, towns, and events
+together. The source captures are summarized in docs 16
 and 17; raw captures and licensed packs stay in the ignored local `references/`
 directory and are never published. Built end-to-end by AI agents following this doc
 suite.
@@ -17,7 +18,8 @@ suite.
 - One deterministic simulation package shared by client & world authority (02)
 - SpaceTimeDB 2.8 is the binding realtime authority and durable store after passing
   the M5.5 architecture gate; generated subscriptions stream the shared world (19)
-- Friends-only contiguous overworld with cooperative farming and permissioned estates (07, 19)
+- Friends-only sanctuary overworld connecting cooperative Homesteads, resource/danger
+  zones, towns, and authored destinations (40; amends 07, 19, 20, 30, and 35)
 - All art & audio authored as text (pixel-grid JSON, tracker JSON) and compiled —
   enforceable style consistency for agent-made assets (10–12)
 - Prestige is diegetic: **Vintage = build, Succession = power, Lineage = rules** (05, 06)
@@ -55,13 +57,17 @@ suite.
 | [26-underground-mines.md](26-underground-mines.md) | Spaces/instancing model, cave generation, portals/zoning, darkness & torches | Mines, interiors, any multi-space work |
 | [27-lighting-design.md](27-lighting-design.md) | Sub-tile quantized light, flood occlusion + shadows, height contract, lightning/sun shafts | Any lighting/atmosphere work (supersedes 21 §5) |
 | [28-crafting.md](28-crafting.md) | Material chains, stations (workbench/furnace/anvil/campfire), recipe list, placeables | Any crafting/item/placement work |
-| [30-infinite-terrain.md](30-infinite-terrain.md) | Semi-infinite chunked worldgen, biomes, lazy materialization, wildlife spawning, curation layer | Any worldgen/biome/wildlife work (supersedes 20 island gen) |
+| [30-infinite-terrain.md](30-infinite-terrain.md) | Original semi-infinite seed-world design, reactivated and refined by doc 43 | Historical basis for generated-world work; read doc 43 for the binding coordinate, curation, and migration plan |
 | [32-combat.md](32-combat.md) | Damage model, hostile roster/AI, danger zones, drops; resolves 22 §9 rate deferral | Any combat work (with 25/26/27) |
 | [34-backend-scalability.md](34-backend-scalability.md) | Scalability audit + staged hardening: index discipline, subscription budget, chunk-scoped tick | Any world-module/netcode/perf work; gates 30 phase 2 |
 | [31-npc-dialogue-and-commerce.md](31-npc-dialogue-and-commerce.md) | Authority-backed NPC dialogue, coin purse, merchants, buy/sell transactions | NPC conversations, shops, item pricing |
 | [33-player-statistics.md](33-player-statistics.md) | Private lifetime counters, milestone history, and mandatory feature registration contract | Any authority-owned gameplay feature |
 | [35-homesteads-and-farming.md](35-homesteads-and-farming.md) | Instanced player farms: crops/gold loop, build mode (B), guest access roles | Farming, building, estate/access work (realizes 07) |
 | [36-character-progression.md](36-character-progression.md) | Character screen/customization, XP tracks, incremental skill trees, quest system | Progression, customization, quest, QoL-gating work |
+| [40-sanctuary-overworld-and-zoned-world.md](40-sanctuary-overworld-and-zoned-world.md) | Safe non-destructive sanctuary, symbolic POIs, instanced resource/danger/social zones, Homestead destination model | Read before any world, space, resource, combat, Homestead, town, event, or POI work; doc 43 governs sanctuary extent/generation |
+| [42-world-editor.md](42-world-editor.md) | Semantic map documents, no-auth offline creator sandbox, terrain laboratory, admin live-publish boundary | Any map editor, terrain theme, authored space, or agent map-debug work |
+| [43-procedural-sanctuary-and-signed-coordinates.md](43-procedural-sanctuary-and-signed-coordinates.md) | **Newest binding world-generation direction:** signed spawn-centred coordinates, seed-generated safe sanctuary, sparse permanent curation, seed overview, and legacy migration | Any world extent, coordinate, chunk generation, editor-bounds, or sanctuary terrain work |
+| [44-progressive-web-app.md](44-progressive-web-app.md) | Install manifest, Apple/Android artwork generation, offline shell boundary, and explicit client-update lifecycle | Any deployment, loading, install, mobile-shell, or cache work |
 
 Minimal startup ritual for an implementing agent: **00 → 01 → 02 → 15 → your
 milestone in 14 → the docs that milestone lists.** Docs are binding; deviations go

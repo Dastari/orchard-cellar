@@ -1,13 +1,17 @@
 import { drawPixelText, type PixelUi } from '../render/pixel-ui.js';
+import type { LoadedAsset } from '../render/assets.js';
 import type { UiRect } from './geometry.js';
-import { drawUiSkinAsset, type UiSkin } from './skin.js';
+import { uiAssetFrame, type UiSkin } from './skin.js';
 
 const CELL_WIDTH = 6;
 const LINE_HEIGHT = 9;
 const HORIZONTAL_PADDING = 8;
 const VERTICAL_PADDING = 7;
+export const SPEECH_BUBBLE_LIFETIME_MICROS = 6_000_000n;
 
 export type SpeechBubbleDirection = 'down' | 'up' | 'left' | 'right';
+export type SpeechBubbleKind = 'say' | 'shout' | 'tell' | 'guild' | 'thought' | 'reserved' | 'other';
+export type SpeechBubbleTone = 'white' | 'red' | 'purple' | 'green' | 'blue' | 'yellow' | 'beige';
 
 export interface SpeechBubbleLayout {
   readonly lines: readonly string[];
@@ -21,15 +25,21 @@ export interface EdgeSpeechAnchor {
   readonly direction: SpeechBubbleDirection;
 }
 
-/** Directional sprites include a complete 32px sample bubble. Clip away the
- * sample body on the three non-pointer sides before layering the scalable
- * frame, otherwise short messages expose a second outline. */
-export function speechTailClipRect(rect: UiRect, direction: SpeechBubbleDirection): UiRect {
-  const reach = 12;
-  if (direction === 'down') return { ...rect, height: rect.height + reach };
-  if (direction === 'up') return { ...rect, y: rect.y - reach, height: rect.height + reach };
-  if (direction === 'left') return { ...rect, x: rect.x - reach, width: rect.width + reach };
-  return { ...rect, width: rect.width + reach };
+export function speechBubbleIsRecent(
+  sentAtMicros: bigint,
+  nowMicros: bigint,
+  lifetimeMicros = SPEECH_BUBBLE_LIFETIME_MICROS,
+): boolean {
+  const age = nowMicros - sentAtMicros;
+  return age >= 0n && age < lifetimeMicros;
+}
+
+/** Positions the pointer at the top of a 32-world-pixel player sprite. The
+ * small-screen floor keeps the bubble clear without restoring the old extra
+ * tile of vertical separation. */
+export function speechBubbleHeadOffset(worldZoom: number, uiScale: number, mounted = false): number {
+  const worldPixelScale = worldZoom / uiScale;
+  return Math.max(18, 32 * worldPixelScale) + (mounted ? 16 * worldPixelScale : 0);
 }
 
 export function wrapSpeechText(text: string, maximumCharacters: number): readonly string[] {
@@ -102,34 +112,117 @@ export function speechBubbleRect(
   };
 }
 
-function drawAuthoredTail(
+/** Stable channel-to-palette contract. Yellow remains reserved for future
+ * attention speech, while beige is the fallback for system/other bubbles. */
+export function speechBubbleTone(kind: SpeechBubbleKind): SpeechBubbleTone {
+  if (kind === 'say') return 'white';
+  if (kind === 'shout') return 'red';
+  if (kind === 'tell') return 'purple';
+  if (kind === 'guild') return 'green';
+  if (kind === 'thought') return 'blue';
+  if (kind === 'reserved') return 'yellow';
+  return 'beige';
+}
+
+function bubbleAsset(skin: UiSkin, kind: SpeechBubbleKind): LoadedAsset {
+  const tone = speechBubbleTone(kind);
+  if (tone === 'white') return skin.speechBubbleWhite;
+  if (tone === 'red') return skin.speechBubbleRed;
+  if (tone === 'purple') return skin.speechBubblePurple;
+  if (tone === 'green') return skin.speechBubbleGreen;
+  if (tone === 'blue') return skin.speechBubbleBlue;
+  if (tone === 'yellow') return skin.speechBubbleYellow;
+  return skin.speechBubbleBeige;
+}
+
+/** Draws the complete highlighted downward-tail frame as one continuous
+ * shape. The tail section replaces (rather than overlays) the lower edge, so
+ * its outline remains joined to the bubble exactly as authored. */
+function drawAuthoredDownFrame(
   context: CanvasRenderingContext2D,
-  skin: UiSkin,
+  asset: LoadedAsset,
+  rect: UiRect,
+): void {
+  const frame = uiAssetFrame(asset);
+  if (frame === null) return;
+  // The reviewed 24x31 source is centred in its 32x32 generated frame.
+  const sourceX = frame.x + 4;
+  const sourceY = frame.y;
+  const top = 4;
+  const lowerBodyHeight = 5;
+  const middleHeight = Math.max(0, rect.height - top - lowerBodyHeight);
+  const tailLeft = Math.round(rect.x + rect.width / 2) - 4;
+  const tailWidth = 10;
+  const drawBand = (
+    sourceBandY: number,
+    sourceBandHeight: number,
+    targetY: number,
+    targetHeight: number,
+  ): void => {
+    if (targetHeight <= 0) return;
+    const leftFillX = rect.x + 4;
+    const leftFillWidth = Math.max(0, tailLeft - leftFillX);
+    const rightFillX = tailLeft + tailWidth;
+    const rightFillWidth = Math.max(0, rect.x + rect.width - 4 - rightFillX);
+    context.drawImage(asset.image, sourceX, sourceY + sourceBandY, 4, sourceBandHeight,
+      rect.x, targetY, 4, targetHeight);
+    if (leftFillWidth > 0) context.drawImage(
+      asset.image,
+      sourceX + 4,
+      sourceY + sourceBandY,
+      1,
+      sourceBandHeight,
+      leftFillX,
+      targetY,
+      leftFillWidth,
+      targetHeight,
+    );
+    context.drawImage(asset.image, sourceX + 5, sourceY + sourceBandY, tailWidth, sourceBandHeight,
+      tailLeft, targetY, tailWidth, targetHeight);
+    if (rightFillWidth > 0) context.drawImage(
+      asset.image,
+      sourceX + 15,
+      sourceY + sourceBandY,
+      1,
+      sourceBandHeight,
+      rightFillX,
+      targetY,
+      rightFillWidth,
+      targetHeight,
+    );
+    context.drawImage(asset.image, sourceX + 20, sourceY + sourceBandY, 4, sourceBandHeight,
+      rect.x + rect.width - 4, targetY, 4, targetHeight);
+  };
+  context.imageSmoothingEnabled = false;
+  drawBand(0, top, rect.y, top);
+  drawBand(4, 17, rect.y + top, middleHeight);
+  drawBand(21, 10, rect.y + rect.height - lowerBodyHeight, 10);
+}
+
+function drawAuthoredFrame(
+  context: CanvasRenderingContext2D,
+  asset: LoadedAsset,
   rect: UiRect,
   direction: SpeechBubbleDirection,
-  kind: 'say' | 'shout',
 ): void {
-  const red = kind === 'shout';
-  const asset = direction === 'down'
-    ? red ? skin.bubbleTailDownRed : skin.bubbleTailDown
-    : direction === 'up'
-      ? red ? skin.bubbleTailUpRed : skin.bubbleTailUp
-      : direction === 'left'
-        ? red ? skin.bubbleTailLeftRed : skin.bubbleTailLeft
-        : red ? skin.bubbleTailRightRed : skin.bubbleTailRight;
-  const destination = direction === 'down'
-    ? { x: rect.x + rect.width / 2 - 16, y: rect.y + rect.height - 26, width: 32, height: 32 }
-    : direction === 'up'
-      ? { x: rect.x + rect.width / 2 - 16, y: rect.y - 8, width: 32, height: 32 }
-      : direction === 'left'
-        ? { x: rect.x - 10, y: rect.y + rect.height / 2 - 16, width: 32, height: 32 }
-        : { x: rect.x + rect.width - 23, y: rect.y + rect.height / 2 - 16, width: 32, height: 32 };
-  const clip = speechTailClipRect(rect, direction);
+  if (direction === 'down') {
+    drawAuthoredDownFrame(context, asset, rect);
+    return;
+  }
   context.save();
-  context.beginPath();
-  context.rect(clip.x, clip.y, clip.width, clip.height);
-  context.clip();
-  drawUiSkinAsset(context, asset, destination);
+  if (direction === 'up') {
+    context.translate(0, rect.y * 2 + rect.height);
+    context.scale(1, -1);
+    drawAuthoredDownFrame(context, asset, rect);
+  } else if (direction === 'right') {
+    context.translate(rect.x, rect.y + rect.height);
+    context.rotate(-Math.PI / 2);
+    drawAuthoredDownFrame(context, asset, { x: 0, y: 0, width: rect.height, height: rect.width });
+  } else {
+    context.translate(rect.x + rect.width, rect.y);
+    context.rotate(Math.PI / 2);
+    drawAuthoredDownFrame(context, asset, { x: 0, y: 0, width: rect.height, height: rect.width });
+  }
   context.restore();
 }
 
@@ -139,17 +232,18 @@ export function drawSpeechBubble(
   skin: UiSkin,
   rect: UiRect,
   layout: SpeechBubbleLayout,
-  kind: 'say' | 'shout',
+  kind: SpeechBubbleKind,
   direction: SpeechBubbleDirection,
 ): void {
-  drawAuthoredTail(context, skin, rect, direction, kind);
-  drawUiSkinAsset(context, kind === 'shout' ? skin.speechBubbleRed : skin.speechBubble, rect);
+  const asset = bubbleAsset(skin, kind);
+  drawAuthoredFrame(context, asset, rect, direction);
+  const lightText = kind === 'shout' || kind === 'tell' || kind === 'guild' || kind === 'thought';
   layout.lines.forEach((line, index) => drawPixelText(
     context,
     fonts,
     line,
     rect.x + rect.width / 2,
     rect.y + VERTICAL_PADDING + index * LINE_HEIGHT,
-    { align: 'center', color: kind === 'shout' ? '#fff1cf' : '#3f2d25' },
+    { align: 'center', color: lightText ? '#fff1cf' : '#3f2d25' },
   ));
 }

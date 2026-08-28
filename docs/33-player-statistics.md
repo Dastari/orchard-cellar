@@ -59,8 +59,10 @@ client-provided subject and never encode two dimensions into one undocumented st
 If a feature needs a new dimension, extend the subject type and this document.
 
 `reserved: true` means the key is intentionally allocated but no reducer may increment
-it until that gameplay exists. Combat already reserves damage dealt/taken, enemies
-defeated, and knockouts; fishing and quests reserve their corresponding counters.
+it until that gameplay exists. `damage_dealt` is active for authoritative
+post-mitigation hits against registered combat-target kinds (currently
+`archery_target`). Damage taken, enemies defeated, and knockouts remain reserved;
+fishing and quests reserve their corresponding counters.
 
 ## 3. Storage
 
@@ -122,7 +124,9 @@ The registry initially covers:
 | Crafting | recipe executions, output units by item, largest request batch, placeables placed by item kind |
 | Commerce | buys/sells, items by kind, lifetime bronze spent/earned |
 | Chests | placed, opened, picked up, broken |
-| Reserved | combat damage/defeats/knockouts, fish caught, quests completed |
+| Combat | post-mitigation damage dealt by combat-target kind |
+| Progression | appearance changes, skill points spent, skill-tree resets by track |
+| Reserved | damage taken, defeats, knockouts, fish caught, quests completed |
 
 The complete names, descriptions, units, and milestone numbers live in the registry,
 not this summary table.

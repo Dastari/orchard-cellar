@@ -79,6 +79,7 @@ describe('34§6 stage-1 scalability rules', () => {
     expect(step).toContain('world_resource.by_chunk.filter(spaceId)');
     expect(step).toContain('world_chest.by_chunk.filter(spaceId)');
     expect(step).toContain('world_projectile.by_chunk.filter(spaceId)');
+    expect(step).toContain('world_combat_target.by_chunk.filter(spaceId)');
     expect(step).toContain('world_npc.by_chunk.filter(spaceId)');
     expect(step).toContain('player_position.identity.find(presence.identity)');
   });
@@ -108,6 +109,26 @@ describe('34§6 stage-1 scalability rules', () => {
     expect(worldItemExpired(100n, 24_099n, 24_000)).toBe(false);
     expect(worldItemExpired(100n, 24_100n, 24_000)).toBe(true);
     expect(worldItemExpired(200n, 100n, 24_000)).toBe(false);
+  });
+
+  it('keeps projectile-landed arrows as server-authorized pickups for 30 seconds', () => {
+    expect(worldItemExpired(100n, 699n, 600)).toBe(false);
+    expect(worldItemExpired(100n, 700n, 600)).toBe(true);
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const projectileStep = source.slice(
+      source.indexOf("tickStageTiming(telemetryTimingSample, 'projectiles')"),
+      source.indexOf("tickStageTiming(telemetryTimingSample, 'movement')"),
+    );
+    expect(projectileStep).toContain("itemKind: 'arrow'");
+    expect(projectileStep).toContain('RECOVERABLE_ARROW_LIFETIME_TICKS');
+    expect(projectileStep).toContain('recoverableArrowAngle(');
+    const pickup = source.slice(
+      source.indexOf('export const pickupWorldItem ='),
+      source.indexOf('\nexport const ', source.indexOf('export const pickupWorldItem =') + 1),
+    );
+    expect(pickup).toContain('requireAuthorizedSender(');
+    expect(pickup).toContain('itemWithinPickupReach(');
+    expect(pickup).toContain('worldItemExpiredForRow(');
   });
 
   it('trims only connection audit rows older than 90 days', () => {

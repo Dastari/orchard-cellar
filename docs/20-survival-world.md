@@ -1,5 +1,11 @@
 # 20 — Generated Survival World
 
+> **Transitional implementation (2026-08-26):** [40](40-sanctuary-overworld-and-zoned-world.md)
+> supersedes the generated island as a permanently destructible survival field. The
+> shipped island remains the launch surface for the Shared Spaces technology demo;
+> afterward its terrain/elevation becomes sanctuary scenery and its harvest/resource
+> mechanics move to typed forest/cave/mine zones through a versioned migration.
+
 Binding owner-directed foundation for the friends MMO. This replaces the authored
 road-grid overworld target; orchard estates and the existing press/progression loops
 become later homestead content inside this world.

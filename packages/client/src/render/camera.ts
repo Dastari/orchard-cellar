@@ -3,6 +3,17 @@ export function cameraAxisOffset(target: number, viewportSize: number, worldSize
   return Math.max(0, Math.min(target - viewportSize / 2, worldSize - viewportSize));
 }
 
+/** Adds visual room after one map edge while retaining ordinary finite-world
+ * clamping everywhere else. The padding contains no playable coordinates. */
+export function cameraAxisOffsetWithEndPadding(
+  target: number,
+  viewportSize: number,
+  worldSize: number,
+  endPadding: number,
+): number {
+  return cameraAxisOffset(target, viewportSize, worldSize + Math.max(0, endPadding));
+}
+
 export interface VisibleWorldBounds {
   readonly left: number;
   readonly top: number;

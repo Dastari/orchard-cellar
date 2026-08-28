@@ -24,6 +24,9 @@ import {
   survivalResourceObstacle,
   survivalResourceTargetVector,
   spaceDefinitionFor,
+  homesteadPlayableTile,
+  residencePlayableTile,
+  cellarPlayableTile,
   tileTargetInReach,
   tileTargetIsBlocked,
   type CollisionMap,
@@ -62,12 +65,15 @@ export const MAX_SETTLE_BACKLOG_STEPS = 24;
 export const MAX_SETTLE_STEPS_PER_TICK = MAX_SETTLE_BACKLOG_STEPS;
 const SPACE_TERRAIN_COLLISION = new Map<string, CollisionMap>();
 
-function flatSpaceCollision(sizeTiles: number, medium: MovementMedium): CollisionMap {
+function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator: 'flat' | 'homestead' | 'residence' | 'marlow_tent' | 'cellar' = 'flat'): CollisionMap {
   const blocked = Array.from({ length: sizeTiles * sizeTiles }, (_, index) => {
     if (medium !== 'ground') return true;
     const x = index % sizeTiles;
     const y = Math.floor(index / sizeTiles);
-    return x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1;
+    return generator === 'homestead' ? !homesteadPlayableTile(x, y)
+      : generator === 'residence' || generator === 'marlow_tent' ? !residencePlayableTile(x, y)
+      : generator === 'cellar' ? !cellarPlayableTile(x, y)
+      : x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1;
   });
   return {
     width: sizeTiles,
@@ -81,16 +87,23 @@ function flatSpaceCollision(sizeTiles: number, medium: MovementMedium): Collisio
 export function terrainCollisionForSpace(
   spaceId: number,
   medium: MovementMedium = 'ground',
+  instanceRow?: { readonly spaceId: number; readonly sizeTier: number; readonly residenceSpaceId?: number | undefined } | null,
 ): CollisionMap {
   const key = `${spaceId}:${medium}`;
   const cached = SPACE_TERRAIN_COLLISION.get(key);
   if (cached !== undefined) return cached;
-  const definition = spaceDefinitionFor(spaceId);
+  const definition = spaceDefinitionFor(spaceId, instanceRow);
   let collision: CollisionMap;
   if (definition?.generator === 'island') {
     collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], medium);
-  } else if (definition?.generator === 'debug_flat' || definition?.generator === 'homestead') {
-    collision = flatSpaceCollision(definition.sizeTiles, medium);
+  } else if (definition?.generator === 'debug_flat' || definition?.generator === 'homestead'
+    || definition?.generator === 'residence' || definition?.generator === 'marlow_tent'
+    || definition?.generator === 'cellar') {
+    collision = flatSpaceCollision(
+      definition.sizeTiles,
+      medium,
+      definition.generator === 'debug_flat' ? 'flat' : definition.generator,
+    );
   } else {
     collision = flatSpaceCollision(1, medium);
   }
@@ -161,10 +174,11 @@ export function createAuthoritySpaceCollisionMap(
   chests: readonly AuthorityPlacedChest[] = [],
   medium: MovementMedium = 'ground',
   placeables: readonly AuthorityPlaceableObstacle[] = [],
+  instanceRow?: { readonly spaceId: number; readonly sizeTier: number; readonly residenceSpaceId?: number | undefined } | null,
 ): CollisionMap {
   // Terrain is immutable for a space definition. Reusing the cached arrays
   // avoids rebuilding the large topside terrain for every authority tick.
-  const terrain = terrainCollisionForSpace(spaceId, medium);
+  const terrain = terrainCollisionForSpace(spaceId, medium, instanceRow);
   const blocked = terrain.blocked;
   const horseJumpableTerrain = terrain.horseJumpableTerrain ?? [];
   const obstacles = [...(terrain.obstacles ?? [])];
@@ -206,6 +220,9 @@ export function createAuthoritySpaceCollisionMap(
     ...(medium === 'ground' && terrain.terrainTransitions !== undefined
       ? { terrainTransitions: terrain.terrainTransitions }
       : {}),
+    ...(medium === 'ground' && terrain.terrainPlaneBlocked !== undefined
+      ? { terrainPlaneBlocked: terrain.terrainPlaneBlocked }
+      : {}),
     horseJumpableTerrain,
     obstacles,
   };
@@ -219,8 +236,9 @@ export function portalUseResult(
   player: { readonly spaceId: number; readonly x: number; readonly y: number },
   portal: { readonly fromSpace: number; readonly fromTileX: number; readonly fromTileY: number },
   mounted: boolean,
+  allowMounted = false,
 ): PortalUseResult {
-  if (mounted) return 'no_horses_underground';
+  if (mounted && !allowMounted) return 'no_horses_underground';
   if (player.spaceId !== portal.fromSpace) return 'portal_out_of_range';
   const tileX = Math.floor(player.x / TILE_SIZE_FIXED);
   const tileY = Math.floor(player.y / TILE_SIZE_FIXED);
@@ -317,6 +335,7 @@ export function farmToolUseResult(
   tileY: number,
   soil: { readonly watered: boolean } | null,
   occupied: boolean,
+  tillableOverride?: boolean,
 ): FarmToolUseResult {
   if (!Number.isInteger(tileX) || !Number.isInteger(tileY)
     || tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return 'invalid_tile';
@@ -327,7 +346,7 @@ export function farmToolUseResult(
   const dy = targetY - playerY;
   if (dx * dx + dy * dy > FARM_TOOL_REACH_FIXED * FARM_TOOL_REACH_FIXED) return 'out_of_range';
   if (selectedItem === 'hoe') {
-    if (!isTillableSurvivalTile(seed, tileX, tileY)) return 'not_grass';
+    if (!(tillableOverride ?? isTillableSurvivalTile(seed, tileX, tileY))) return 'not_grass';
     if (occupied) return 'tile_occupied';
     return soil === null ? 'ok' : 'already_tilled';
   }

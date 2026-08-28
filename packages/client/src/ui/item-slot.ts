@@ -35,6 +35,7 @@ export class ItemSlot {
 
   get bounds(): UiRect { return this.node.bounds; }
   get enabled(): boolean { return this.node.enabled; }
+  get visible(): boolean { return this.node.visible; }
   set enabled(enabled: boolean) { this.node.enabled = enabled; }
   set visible(visible: boolean) { this.node.visible = visible; }
   setBounds(bounds: UiRect): void { this.node.setBounds(bounds); }

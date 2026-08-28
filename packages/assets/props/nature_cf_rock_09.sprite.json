@@ -1,0 +1,75 @@
+{
+  "name": "nature_cf_rock_09",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....11111.......",
+        "..11776661......",
+        ".1766666661.....",
+        ".1666666661.....",
+        ".57666666330....",
+        ".24476633300....",
+        ".0245533442.....",
+        ".005533422111...",
+        "..000000017671..",
+        "...000001766661.",
+        "...111.24477663.",
+        "..17661.24553330",
+        ".244633000533442",
+        "..243300.0004220",
+        "...0000...00000."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#262b44",
+    "2": "#33713b",
+    "3": "#3c4258",
+    "4": "#50af5d",
+    "5": "#6c7c9d",
+    "6": "#8e9ab4",
+    "7": "#c7cfdd"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Rock_9_Anim.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations/Rock_9_Anim.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

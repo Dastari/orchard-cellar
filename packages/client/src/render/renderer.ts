@@ -78,7 +78,11 @@ export function minimumWorldZoom(
   dpr: number,
   worldPixels: number,
 ): number {
-  const viewMinimum = Math.max(cssWidth / worldPixels, cssHeight / worldPixels, MIN_WORLD_ZOOM);
+  // A finite zone may occupy less than the viewport. The renderer's memory
+  // budget—not the map dimensions—sets the zoom-out floor; camera centering
+  // exposes the remaining viewport as the out-of-world matte.
+  void worldPixels;
+  const viewMinimum = MIN_WORLD_ZOOM;
   let zoom = Math.ceil(viewMinimum * 1000) / 1000;
   while (zoom < MAX_WORLD_ZOOM) {
     const layout = worldPassLayout(cssWidth, cssHeight, dpr, zoom);
@@ -219,6 +223,8 @@ export class UnifiedRenderer {
     this.worldContextValue.globalCompositeOperation = 'source-over';
     this.worldContextValue.globalAlpha = 1;
     this.worldContextValue.clearRect(0, 0, layout.width, layout.height);
+    this.worldContextValue.fillStyle = '#000000';
+    this.worldContextValue.fillRect(0, 0, layout.width, layout.height);
     this.frameLayout = layout;
     return { world: this.worldContextValue, layout };
   }

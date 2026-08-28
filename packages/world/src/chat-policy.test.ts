@@ -7,6 +7,7 @@ import {
   normalizeChatMessage,
   normalizeMessageOfDay,
   isLegacyPersistentLifecycleMessage,
+  lastConnectionEventMessage,
   validCreatableChatChannelKind,
   whisperConversationKey,
   worldDisconnectMessage,
@@ -51,6 +52,12 @@ describe('chat policy', () => {
     expect(normalizeMessageOfDay('x'.repeat(241))).toBeNull();
     expect(worldEntryMessage('Toby')).toBe('Toby entered the world.');
     expect(worldDisconnectMessage('Toby')).toBe('Toby disconnected.');
+    expect(lastConnectionEventMessage(
+      'Toby', 'connected', '2026-08-27T06:15:30.123456Z',
+    )).toBe('Toby logged in — 2026-08-27 06:15:30 UTC');
+    expect(lastConnectionEventMessage(
+      'Nathan', 'lease_expired', '2026-08-27T07:00:00.000000Z',
+    )).toBe('Nathan logged out — 2026-08-27 07:00:00 UTC');
     expect(isLegacyPersistentLifecycleMessage('system')).toBe(true);
     expect(isLegacyPersistentLifecycleMessage('channel')).toBe(false);
     expect(isLegacyPersistentLifecycleMessage('whisper')).toBe(false);

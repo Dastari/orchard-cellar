@@ -2,10 +2,11 @@ import type { PixelUi } from '../render/pixel-ui.js';
 import { drawPixelText } from '../render/pixel-ui.js';
 import type { UiPoint, UiRect } from './geometry.js';
 import type { UiSkin } from './skin.js';
-import { drawUiSkinAsset, uiSkinContentRect } from './skin.js';
+import { drawUiLabelPlate, drawUiSkinAsset, drawUiSkinNatural, uiSkinContentRect } from './skin.js';
 import { chatCommandSuggestions } from './chat-command.js';
 import { drawCanvasTextInput } from './canvas-text-input.js';
 import { ScrollBar } from './scrollbar.js';
+import { touchControlLayout } from './touch-controls.js';
 
 export const CHAT_FADE_DELAY_MS = 8_000;
 export const CHAT_FADE_DURATION_MS = 4_000;
@@ -15,6 +16,7 @@ const CHAT_VISIBLE_LINES = 7;
 const CHAT_FRAME_CONTENT_PADDING = 2;
 const CHAT_INPUT_HEIGHT = 22;
 const CHAT_SCROLLBAR_GUTTER = 14;
+const CHAT_TOGGLE_SIZE = 22;
 
 export interface ChatOverlayMessage {
   readonly id: bigint;
@@ -34,11 +36,29 @@ export interface ChatOverlayModel {
   readonly onlinePlayerNames: readonly string[];
   readonly replyPlayerName: string | null;
   readonly messages: readonly ChatOverlayMessage[];
+  readonly touchControls?: boolean;
+  /** Logical UI pixels covered by a software keyboard at the viewport bottom. */
+  readonly keyboardInset?: number;
+}
+
+export interface ChatOverlayLayout {
+  readonly history: UiRect;
+  readonly input: UiRect;
+  readonly toggle: UiRect;
+  readonly visibleLines: number;
 }
 
 export function chatLineAlpha(ageMs: number, expanded: boolean): number {
   if (expanded || ageMs <= CHAT_FADE_DELAY_MS) return 1;
   return Math.max(0, 1 - (ageMs - CHAT_FADE_DELAY_MS) / CHAT_FADE_DURATION_MS);
+}
+
+export function chatHistoryExpanded(touchControls: boolean, open: boolean, hovered: boolean): boolean {
+  return touchControls || open || hovered;
+}
+
+export function chatToggleTooltipText(hovered: boolean, touchControls: boolean): string | null {
+  return hovered && !touchControls ? 'CHAT' : null;
 }
 
 export function wrapChatText(text: string, maximumCharacters: number): readonly string[] {
@@ -84,6 +104,57 @@ function contains(rect: UiRect, point: UiPoint): boolean {
     && point.y >= rect.y && point.y < rect.y + rect.height;
 }
 
+export function chatToggleButtonRect(historyRect: UiRect): UiRect {
+  return {
+    x: historyRect.x,
+    y: Math.max(4, historyRect.y - CHAT_TOGGLE_SIZE - 3),
+    width: CHAT_TOGGLE_SIZE,
+    height: CHAT_TOGGLE_SIZE,
+  };
+}
+
+export function chatOverlayLayout(
+  model: Pick<ChatOverlayModel, 'width' | 'height' | 'touchControls' | 'keyboardInset'>,
+  frameInsets: readonly [number, number, number, number] = [0, 0, 0, 0],
+): ChatOverlayLayout {
+  const width = Math.min(330, Math.max(210, Math.floor(model.width * 0.43)));
+  const touch = model.touchControls === true;
+  const keyboardInset = Math.max(0, model.keyboardInset ?? 0);
+  const controls = touch ? touchControlLayout(model.width, model.height) : null;
+  const controlsTop = controls === null ? Number.POSITIVE_INFINITY : Math.min(
+    controls.joystickCenter.y - controls.joystickRadius,
+    controls.interactButton.y,
+    controls.secondaryButton.y,
+  ) - 5;
+  const keyboardTop = keyboardInset > 0 ? model.height - keyboardInset - 5 : Number.POSITIVE_INFINITY;
+  const ordinaryBottom = model.height - 38;
+  const inputBottom = Math.min(ordinaryBottom, controlsTop, keyboardTop);
+  const inputY = Math.max(8, Math.floor(inputBottom - CHAT_INPUT_HEIGHT));
+  const input = { x: 5, y: inputY, width, height: CHAT_INPUT_HEIGHT };
+  const [, topInset, , bottomInset] = frameInsets;
+  const frameOverhead = topInset + bottomInset + CHAT_FRAME_CONTENT_PADDING * 2;
+  const availableHistoryHeight = Math.max(CHAT_LINE_HEIGHT + frameOverhead, inputY - 9);
+  const visibleLines = Math.max(1, Math.min(
+    CHAT_VISIBLE_LINES,
+    Math.floor((availableHistoryHeight - frameOverhead) / CHAT_LINE_HEIGHT),
+  ));
+  const historyHeight = visibleLines * CHAT_LINE_HEIGHT + frameOverhead;
+  const history = {
+    x: 5,
+    y: Math.max(4, inputY - historyHeight - 4),
+    width,
+    height: historyHeight,
+  };
+  return { history, input, toggle: chatToggleButtonRect(history), visibleLines };
+}
+
+export function hasUnseenChatMessage(
+  knownIds: ReadonlySet<bigint>,
+  messages: readonly Pick<ChatOverlayMessage, 'id'>[],
+): boolean {
+  return messages.some((message) => !knownIds.has(message.id));
+}
+
 export class ChatOverlay {
   private model: ChatOverlayModel = {
     width: 480, height: 270, connected: false, canAdministerWorld: false,
@@ -91,13 +162,19 @@ export class ChatOverlay {
   };
   private historyRect: UiRect = { x: 5, y: 133, width: 276, height: 67 };
   private inputRect: UiRect = { x: 5, y: 203, width: 276, height: CHAT_INPUT_HEIGHT };
+  private toggleRect: UiRect = chatToggleButtonRect(this.historyRect);
   private readonly arrivals = new Map<bigint, number>();
+  private messagesInitialized = false;
   private hovered = false;
+  private toggleHovered = false;
   private openValue = false;
+  private collapsedValue = false;
+  private unreadValue = false;
   private errorText: string | null = null;
   private errorAt = 0;
   private suggestionIndex = 0;
   private scrollbarFocused = false;
+  private visibleLineCount = CHAT_VISIBLE_LINES;
   private readonly scrollBar: ScrollBar;
 
   constructor(
@@ -161,28 +238,26 @@ export class ChatOverlay {
     });
     input.addEventListener('keyup', (event) => event.stopPropagation());
     input.addEventListener('blur', () => {
-      if (this.openValue) this.close();
+      // iOS can emit a transient blur while resizing its visual viewport for
+      // the software keyboard. Keep the canvas chat session alive on touch;
+      // explicit send, Escape, or the chat toggle still closes it.
+      if (this.openValue && this.model.touchControls !== true) this.close();
     });
   }
 
   get isOpen(): boolean { return this.openValue; }
+  get isCollapsed(): boolean { return this.collapsedValue; }
+  get hasUnread(): boolean { return this.unreadValue; }
   dismiss(): void { this.close(); }
 
   update(model: ChatOverlayModel, now = performance.now()): void {
     const keepAtEnd = this.scrollBar.atEnd;
     this.model = model;
-    const width = Math.min(330, Math.max(210, Math.floor(model.width * 0.43)));
-    const inputY = Math.max(92, model.height - 60);
-    this.inputRect = { x: 5, y: inputY, width, height: CHAT_INPUT_HEIGHT };
-    const [, topInset, , bottomInset] = this.skin.panelParchment.slice ?? [0, 0, 0, 0];
-    this.historyRect = {
-      x: 5,
-      y: inputY - CHAT_VISIBLE_LINES * CHAT_LINE_HEIGHT
-        - topInset - bottomInset - CHAT_FRAME_CONTENT_PADDING * 2 - 4,
-      width,
-      height: CHAT_VISIBLE_LINES * CHAT_LINE_HEIGHT
-        + topInset + bottomInset + CHAT_FRAME_CONTENT_PADDING * 2,
-    };
+    const layout = chatOverlayLayout(model, this.skin.panelParchment.slice);
+    this.inputRect = layout.input;
+    this.historyRect = layout.history;
+    this.toggleRect = layout.toggle;
+    this.visibleLineCount = layout.visibleLines;
     const content = uiSkinContentRect(this.skin.panelParchment, this.historyRect, CHAT_FRAME_CONTENT_PADDING);
     this.scrollBar.setBounds({
       x: content.x + content.width - CHAT_SCROLLBAR_GUTTER,
@@ -191,13 +266,18 @@ export class ChatOverlay {
       height: content.height,
     });
     const current = new Set(model.messages.map((message) => message.id));
+    if (this.messagesInitialized && this.collapsedValue
+      && hasUnseenChatMessage(new Set(this.arrivals.keys()), model.messages)) {
+      this.unreadValue = true;
+    }
     for (const message of model.messages) {
       if (!this.arrivals.has(message.id)) {
         this.arrivals.set(message.id, now);
       }
     }
     for (const id of this.arrivals.keys()) if (!current.has(id)) this.arrivals.delete(id);
-    this.scrollBar.setMetrics(this.lines().length, CHAT_VISIBLE_LINES, keepAtEnd);
+    this.messagesInitialized = true;
+    this.scrollBar.setMetrics(this.lines().length, this.visibleLineCount, keepAtEnd);
   }
 
   handleGlobalKeyDown(event: KeyboardEvent): boolean {
@@ -207,13 +287,25 @@ export class ChatOverlay {
   }
 
   pointerMove(point: UiPoint): void {
+    this.toggleHovered = contains(this.toggleRect, point);
+    if (this.collapsedValue) {
+      this.hovered = this.toggleHovered;
+      return;
+    }
     this.scrollBar.pointerMove(point);
-    this.hovered = contains(this.historyRect, point) || (this.openValue && contains(this.inputRect, point));
+    this.hovered = this.toggleHovered
+      || contains(this.historyRect, point)
+      || (this.openValue && contains(this.inputRect, point));
   }
 
-  pointerLeave(): void { this.hovered = false; this.scrollBar.pointerLeave(); }
+  pointerLeave(): void { this.hovered = false; this.toggleHovered = false; this.scrollBar.pointerLeave(); }
 
   pointerDown(point: UiPoint, button: number): boolean {
+    if (button === 0 && contains(this.toggleRect, point)) {
+      this.setCollapsed(!this.collapsedValue);
+      return true;
+    }
+    if (this.collapsedValue) return false;
     if (button !== 0 || (!contains(this.historyRect, point) && !contains(this.inputRect, point))) return false;
     this.open();
     if (contains(this.historyRect, point)) {
@@ -228,15 +320,30 @@ export class ChatOverlay {
   pointerUp(): boolean { return this.scrollBar.pointerUp(); }
 
   wheel(point: UiPoint, deltaY: number): boolean {
+    if (this.collapsedValue) return false;
     if (!contains(this.historyRect, point) || deltaY === 0) return false;
     this.scrollBar.wheel(deltaY);
     return true;
   }
 
   draw(context: CanvasRenderingContext2D, now = performance.now()): void {
-    const expanded = this.openValue || this.hovered;
+    this.drawToggle(context);
+    const toggleTooltip = chatToggleTooltipText(this.toggleHovered, this.model.touchControls === true);
+    if (toggleTooltip !== null) {
+      const tooltip = { x: this.toggleRect.x + this.toggleRect.width + 3, y: this.toggleRect.y + 3, width: 52, height: 16 };
+      drawUiLabelPlate(context, this.skin, tooltip);
+      drawPixelText(context, this.fonts, toggleTooltip, tooltip.x + tooltip.width / 2, tooltip.y + 4, {
+        align: 'center', color: '#5f3b24',
+      });
+    }
+    if (this.collapsedValue) return;
+    const expanded = chatHistoryExpanded(
+      this.model.touchControls === true,
+      this.openValue,
+      this.hovered,
+    );
     const lines = this.lines();
-    const visible = lines.slice(this.scrollBar.position, this.scrollBar.position + CHAT_VISIBLE_LINES);
+    const visible = lines.slice(this.scrollBar.position, this.scrollBar.position + this.visibleLineCount);
     if (expanded) {
       context.save();
       context.globalAlpha = 0.9;
@@ -339,8 +446,33 @@ export class ChatOverlay {
     return { ...content, width: Math.max(1, content.width - CHAT_SCROLLBAR_GUTTER) };
   }
 
+  private drawToggle(context: CanvasRenderingContext2D): void {
+    drawUiSkinAsset(
+      context,
+      this.unreadValue ? this.skin.buttonSmallConfirm : this.skin.buttonSmall,
+      this.toggleRect,
+      'idle',
+    );
+    drawUiSkinNatural(
+      context,
+      this.skin.chatIcon,
+      this.toggleRect.x + Math.round((this.toggleRect.width - 16) / 2),
+      this.toggleRect.y + Math.round((this.toggleRect.height - 16) / 2),
+    );
+  }
+
+  private setCollapsed(collapsed: boolean): void {
+    if (collapsed === this.collapsedValue) return;
+    if (collapsed) this.close();
+    this.collapsedValue = collapsed;
+    if (!collapsed) this.unreadValue = false;
+    this.hovered = false;
+  }
+
   private open(initialValue = ''): void {
     if (!this.model.connected) return;
+    this.collapsedValue = false;
+    this.unreadValue = false;
     if (!this.openValue) {
       this.openValue = true;
       this.scrollBar.scrollToEnd();
@@ -348,6 +480,7 @@ export class ChatOverlay {
       this.input.value = initialValue;
       this.onOpenChanged(true);
     }
+    this.input.classList.add('keyboard-active');
     this.input.focus({ preventScroll: true });
   }
 
@@ -355,6 +488,7 @@ export class ChatOverlay {
     if (!this.openValue) return;
     this.openValue = false;
     this.scrollbarFocused = false;
+    this.input.classList.remove('keyboard-active');
     this.input.blur();
     this.onOpenChanged(false);
   }

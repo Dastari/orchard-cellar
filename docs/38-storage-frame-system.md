@@ -26,6 +26,9 @@ backpack, crafting grid, recipe list, equipment grid, or hotbar with bespoke
    the bottom of the composed frame, allowing diagnostic vertical resizing
    without moving the inventories.
 8. Geometry is integer UI-pixel geometry. World zoom never affects it.
+9. Every general-purpose storage pane (backpack, chest, barrel, and future
+   equivalents) exposes the shared sort/stack action at the right edge of its
+   header. Crafting grids, equipment/paper-doll slots, and hotbars never do.
 
 ## 2. Public composition model
 
@@ -41,9 +44,12 @@ const chestFrame: StorageFrameSpec = {
     { id: 'chest', label: 'CHEST', columns: 4, rows: 4 },
     { id: 'backpack', label: 'INVENTORY', columns: 5, rows: 4, columnGap: 3 },
   ],
-  hotbar: { label: 'HOT BAR', columns: 9 },
+  hotbar: { label: 'HOT BAR', columns: HOTBAR_SLOT_COUNT },
 };
 ```
+
+`HOTBAR_SLOT_COUNT` comes from the shared sim inventory-layout contract; storage
+screens must never restate the current capacity as a numeric literal.
 
 `layoutStorageFrame(viewport, spec, requestedFrame?)` returns the complete outer
 frame, minimum size, pane regions, labels, slot rectangles, divider, hotbar, and
@@ -111,7 +117,21 @@ Do not change authoritative capacity merely to make a grid look better. Capacity
 belongs in shared simulation constants and must have an explicit data-preserving
 migration when reduced.
 
-## 6. Current acceptance evidence
+## 6. Sort and stack contract
+
+The header control uses the authored small push button plus wrench icon. Its
+right edge aligns with the last slot, so the label and control together occupy
+the same width as the inventory grid.
+
+Sorting is not a client-only rearrangement. `sortAndStackContainer` in the
+shared sim orders items deterministically, merges only metadata-compatible
+stacks, and splits quantities at the item maximum. One server reducer loads the
+caller's currently reachable menu, permits only `backpack`, `chest`, or
+`placeable`, and persists the complete result in one transaction. The action is
+disabled and server-rejected while the cursor holds a stack. This prevents
+duplication, loss, or stale writes during concurrent chest access.
+
+## 7. Current acceptance evidence
 
 - One-, two-, and three-pane compositions are covered by pure layout tests.
 - All three frame skins are accepted by the central renderer contract.
@@ -121,3 +141,6 @@ migration when reduced.
   minimum-size clamping are unit tested.
 - The live chest integration tests backpack-to-last-chest-slot movement and
   resizing through `OverworldUi` input routing.
+- Shared rule tests cover compaction, deterministic ordering, stack limits,
+  metadata preservation, and input immutability. UI tests cover each sortable
+  pane and header/right-edge alignment.

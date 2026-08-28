@@ -9,6 +9,10 @@ before stages 1–2 here land** — they are its safety rails, and most benefit 
 current island immediately. Line references were accurate at audit time
 (2026-08-26, `index.ts` at 5,178 lines); re-verify against the tree.
 
+[40](40-sanctuary-overworld-and-zoned-world.md) defers vast-world expansion but makes
+stage 3, occupied-space working sets, bounded per-space caches, and the 1,000-space
+churn fixture immediate gates for its Shared Spaces technology demo.
+
 Measured baseline (built sim, current 832² world): 6,043 `world_resource`
 rows; `generateSurvivalResources()` 78 ms; `createSurvivalCollisionMap()`
 ~290 ms + two 692k-element arrays; first wildlife generation ~3.1 s;
@@ -235,6 +239,13 @@ healthy connection state, and neighborhood-only NPC/profile caches after the
 rectangular-query change. This supersedes the fragmented-query figure above;
 spatial bounds, `MAX_VIEW_RADIUS`, per-axis radii, deadband, and overlapping
 handover behavior are unchanged.
+
+**2026-08-27 — Combat-target regional extension.** The additive
+`world_combat_target` projection is the eleventh bounded rectangular regional table.
+The settled budget is now **11 regional / 37 total queries** and a make-before-break
+handover peaks at **48** until the previous eleven-query region unsubscribes. Target
+collision, damage, and regeneration use the `[spaceId, chunkX, chunkY]` index; the
+scheduled authority never iterates the full target table.
 
 ## 8. Bookkeeping
 

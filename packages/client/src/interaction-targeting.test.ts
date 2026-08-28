@@ -17,4 +17,10 @@ describe('E-key interaction targeting', () => {
     ];
     expect(nearestInteractionCandidate(0, 0, candidates)).toEqual(candidates[2]);
   });
+
+  it('includes embedded target arrows in the shared nearest-E path', () => {
+    const arrow = { kind: 'embedded_arrow', x: 4, y: 0, stableId: 'arrow:8' } as const;
+    const item = { kind: 'world_item', x: 9, y: 0, stableId: 'item:2' } as const;
+    expect(nearestInteractionCandidate(0, 0, [item, arrow])).toBe(arrow);
+  });
 });

@@ -40,7 +40,10 @@ const TILE_SET: RaisedTerrainTileSet = {
       rows: [
         { id: 'wall', frames: [10, 11, 12], blocksMovement: true, blocksLight: true },
         { id: 'lower', frames: [20, 21, 22], blocksMovement: true, blocksLight: true },
-        { id: 'foot', frames: [30, 31, 32], blocksMovement: false, blocksLight: false },
+        {
+          id: 'foot', frames: [30, 31, 32], blocksMovement: false, blocksLight: false,
+          contributesHeight: false,
+        },
       ],
     },
     short: {
@@ -141,6 +144,88 @@ describe('shared raised terrain autotile utility', () => {
 
     expect(resolveRaisedTerrainTile(ridge, TILE_SET, 'short', 1, 1).faceLayers[0]?.frame).toBe(41);
     expect(resolveRaisedTerrainTile(ridge, TILE_SET, 'short', 1, 2).faceLayers).toEqual([]);
+  });
+
+  it('fills only a diagonally continuing face gutter with its authored middle frame', () => {
+    const step = gridFrom([
+      '.##.',
+      '.#..',
+    ]);
+    const mixed = resolveRaisedTerrainTile(step, TILE_SET, 'tall', 1, 2).faceLayers;
+    expect(mixed.find((face) => face.direct)).toMatchObject({
+      join: 'left', frame: 10, seamUnderlayFrame: 11,
+    });
+    const projectedFoot = resolveRaisedTerrainTile(step, TILE_SET, 'tall', 1, 4).faceLayers
+      .find((face) => face.direct && face.rowId === 'foot');
+    expect(projectedFoot).toBeDefined();
+    expect(projectedFoot?.seamUnderlayFrame).toBeUndefined();
+    const terminal = resolveRaisedTerrainTile(gridFrom(['.#.']), TILE_SET, 'tall', 1, 1).faceLayers;
+    expect(terminal.find((face) => face.direct)).toMatchObject({ join: 'left', frame: 10 });
+    expect(terminal.find((face) => face.direct)?.seamUnderlayFrame).toBeUndefined();
+  });
+
+  it('fills a side-cap gutter only at an internal staircase join', () => {
+    const internal = gridFrom([
+      '.##',
+      '##.',
+      '.#.',
+    ]);
+    expect(resolveRaisedTerrainTile(internal, TILE_SET, 'tall', 1, 1)).toMatchObject({
+      edgeRole: 'right',
+      edgeSeamUnderlayFrame: 11,
+    });
+
+    const outside = gridFrom([
+      '##.',
+      '##.',
+      '##.',
+    ]);
+    expect(resolveRaisedTerrainTile(outside, TILE_SET, 'tall', 1, 1)).toMatchObject({
+      edgeRole: 'right',
+    });
+    expect(resolveRaisedTerrainTile(outside, TILE_SET, 'tall', 1, 1).edgeSeamUnderlayFrame)
+      .toBeUndefined();
+
+    // Rear-facing top corners remain transparent even when a staircase
+    // continues diagonally. An opaque wall underlay here becomes a visible
+    // stone square in the legacy overworld's back cliff rim.
+    const cornerStep = gridFrom([
+      '.##',
+      '##.',
+    ]);
+    expect(resolveRaisedTerrainTile(cornerStep, TILE_SET, 'tall', 1, 0)).toMatchObject({
+      edgeRole: 'top_left',
+    });
+    expect(resolveRaisedTerrainTile(cornerStep, TILE_SET, 'tall', 1, 0).edgeSeamUnderlayFrame)
+      .toBeUndefined();
+
+    const outsideCorner = gridFrom([
+      '.#.',
+      '.#.',
+    ]);
+    expect(resolveRaisedTerrainTile(outsideCorner, TILE_SET, 'tall', 1, 0)).toMatchObject({
+      edgeRole: 'top_left',
+    });
+    expect(resolveRaisedTerrainTile(outsideCorner, TILE_SET, 'tall', 1, 0).edgeSeamUnderlayFrame)
+      .toBeUndefined();
+  });
+
+  it('uses the matching rocky face beneath a translucent side cap', () => {
+    const staggeredWall = gridFrom([
+      '#####..',
+      '#####..',
+      '####...',
+      '####...',
+      '####...',
+      '###....',
+      '.......',
+    ]);
+    const plan = resolveRaisedTerrainTile(staggeredWall, TILE_SET, 'tall', 3, 3);
+    expect(plan.edgeRole).toBe('right');
+    expect(plan.faceLayers).toContainEqual(expect.objectContaining({
+      rowId: 'lower', direct: false,
+    }));
+    expect(plan.edgeSeamUnderlayFrame).toBe(21);
   });
 
   it('makes ramps replace structural edges and remain walkable', () => {

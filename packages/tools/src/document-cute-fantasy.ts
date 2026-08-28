@@ -200,6 +200,9 @@ function layoutFor(source: string, width: number, height: number): Layout {
   const file = basename(source);
   const animal = animalLayout(source, width, height);
   if (animal) return animal;
+  if (/Cute_Fantasy_Christmass\/Decorations\/Christmass_Grass\.png$/.test(source)) {
+    return grid('tile-grid', width, height, 16, 16, 'verified', '8×5 snow-cover and winter-decoration cells. Review semantic overlay roles individually; this is not a complete standalone terrain family.');
+  }
   if (width === 576 && height === 3584) {
     return grid('modular-animation-grid', width, height, 64, 64, 'verified', 'Canonical modular player layer: 9 columns × 56 semantic rows; use the row map in docs/11.');
   }
@@ -266,6 +269,9 @@ function animationSetsFor(source: string, width: number, height: number): string
 function tileSetFor(source: string, width: number, height: number): string | null {
   const lower = source.toLowerCase();
   const file = basename(source).toLowerCase();
+  if (/cute_fantasy_christmass\/decorations\/christmass_grass\.png$/.test(lower)) {
+    return 'snow-overlay-set | 8×5 cells for snow cover and winter decoration over a Grass 4/stone substrate; not a complete shore, river, cliff, crossing, or snowy-tree family.';
+  }
   if (!lower.includes('/tiles/') && !/tileset|_tiles|_tile\./.test(file) && !/\/dungeon_[12]\/dungeon_[12]\.png$/.test(lower)) return null;
   if (/grass_tiles_1_blob_test/.test(file)) return 'blob47 | 7×7 authored preview; catalog maps 47 canonical neighbour-mask roles; passable foreground over base ground.';
   if (/farmland_(wet_)?tile/.test(file)) return 'blob47 | 7×8 source; use the reviewed 47-frame sourceRegions recipe, not row-major frame numbers; passable soil.';

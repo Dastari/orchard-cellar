@@ -1,3 +1,4 @@
+import { HOTBAR_SLOT_COUNT } from '@orchard/sim';
 import type { ContainerBinding } from './container-binding.js';
 import { widget, type WidgetNode } from './widget.js';
 
@@ -25,7 +26,8 @@ export function packWindow(backpack: ContainerBinding = 'self:backpack', equipme
     props: { binding: backpack, columns: 5, rows: 4, disabled: true, unlockRequirement: 'backpack' },
   });
   const hotbar = widget('inventory_grid', 'grid.hotbar', {
-    minSize: { width: 270, height: 31 }, props: { binding: 'self:hotbar', columns: 9, rows: 1 },
+    minSize: { width: HOTBAR_SLOT_COUNT * 30, height: 31 },
+    props: { binding: 'self:hotbar', columns: HOTBAR_SLOT_COUNT, rows: 1 },
   });
   return widget('window', 'window.pack', { minSize: { width: 320, height: 220 }, props: { title: 'Inventory' }, capturePointer: true })
     .add(widget('row', 'row.pack').add(

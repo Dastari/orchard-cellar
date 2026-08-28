@@ -1,5 +1,10 @@
 # 03 — Core Gameplay: From Incremental to Avatar
 
+> **World-structure amendment (2026-08-26):** [40](40-sanctuary-overworld-and-zoned-world.md)
+> makes the shared overworld a safe, non-destructive travel/social layer. The estate,
+> orchard, production chain, farming, and construction described here live in the
+> player's Homestead destination spaces; gathering and danger live in typed zones.
+
 This doc translates the incremental game (see [16-reference-original.md](16-reference-original.md)
 for the full extraction) into an avatar-controlled farm game, keeping what made it
 good — the three-stage production chain, bottleneck decisions, layered prestige —
@@ -43,7 +48,7 @@ Offline: the estate keeps working at reduced efficiency (base 60%, skill-improva
 capped hours — formulas in [06-progression-economy.md](06-progression-economy.md)),
 presented on return as the "While you were away" letter.
 
-## 3. The estate (spaces)
+## 3. The estate (Homestead destination spaces)
 
 One exterior map + one interior, both authored in `packages/assets/maps/`:
 

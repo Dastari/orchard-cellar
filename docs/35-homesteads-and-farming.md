@@ -1,7 +1,9 @@
 # 35 — Homesteads: Farming, the Gold Loop, Building, and Guest Access
 
-Binding owner-directed spec (2026-08-26). Status: **design approved, not
-implemented**. This is the farming update — a core pillar. It realizes the
+Binding owner-directed spec (2026-08-26). Status: **the Shared Spaces demo and
+the 2026-08-27 owner-farm/gate slice are implemented; the crop economy,
+upgrades, build mode, and role-tiered co-op phases remain future work**. This is
+the farming update — a core pillar. It realizes the
 "permissioned estates" promise of [07-multiplayer.md](07-multiplayer.md) and
 doc 21's "farms return as instanced interiors" on the systems that now exist:
 the spaces/portal model of [26-underground-mines.md](26-underground-mines.md)
@@ -14,6 +16,14 @@ and the scalability law of [34-backend-scalability.md](34-backend-scalability.md
 All tuning numbers mirror into [06-progression-economy.md](06-progression-economy.md).
 Art is bounded by the licensed packs (docs/18 §7) — every asset named here is
 sheet-verified (§11).
+
+**Newer world-direction amendment (2026-08-26):**
+[40](40-sanctuary-overworld-and-zoned-world.md) supersedes literal-scale overworld
+farmhouses, generic flat Homestead generation, and the later overworld planting/build
+hooks. A compact symbolic tent/estate POI leads to a generated Homestead exterior
+whose surrounding landscape reflects its founding site; the full residence sits at
+the exterior's north and has a separate furnishable interior space. The immediate
+delivery scope is doc 40 §8's spaces technology demo, not all phases below.
 
 The shape in one sentence: **an incremental-game loop wearing a cozy farm** —
 plant → grow → harvest → barrel → sell for gold → reinvest in land, speed,
@@ -43,21 +53,23 @@ one session; sprinklers are the first "the game plays while I sleep" beat).
 
 ## 2. Establishing a homestead
 
-- **The deed** is bought with gold through merchant dialogue (Marlow v1; an
-  estate-agent NPC is a later hook). One homestead per character.
-- **Siting**: the player places their farmstead on the overworld with the
-  build-mode ghost (§7): footprint must be on flat, buildable, unclaimed land
-  (no cliffs/water/resources/curated-protected chunks; minimum distances from
-  spawn, other homesteads, and Marlow's camp). Site rules are pure sim
-  functions shared client/authority — prediction shows a valid/invalid ghost,
-  the reducer re-validates.
-- **What appears on the map**: a farmhouse (pack `Houses/` sheets — owner
-  picks a style/color variant at purchase) with a door portal and a name sign.
-  The footprint occupies real overworld tiles (rows in the placeable/building
-  tables, collision like any structure) so friends walk past your house on
-  the shared map — presence is the point.
-- **The door** is a doc 26 portal into the owner's homestead space, gated by
-  §8 access control. Knock/request happens here.
+- **The deed** is bought with gold through Marlow's merchant dialogue. It uses
+  the plain-envelope cell from licensed `Cute_Fantasy_UI/UI/UI_Icons.png`, is
+  stack-one/non-transferable, and is offered only while the character owns no
+  Homestead. A failed placement never consumes gold or deed.
+- **Siting**: the player places a compact Homestead POI on the overworld with a
+  dedicated ghost. It must occupy reachable, unclaimed sanctuary ground without
+  intersecting water/cliffs/protected scenery, another POI, spawn, or Marlow's camp.
+  It reserves only its symbolic footprint—never the literal Inn dimensions. Site
+  rules are pure sim functions shared client/authority; the reducer re-validates.
+- **What appears on the map**: tier zero is a normal compact tent POI, later replaced
+  by reviewed symbolic compositions for Shed → Fisherman's House → Blacksmith House
+  → Inn. These represent the destination at world-map scale; they are not literal
+  buildings and are the only player-created POI exception to the static overworld.
+- **The POI entrance** is a doc 26 portal into the owner's Homestead exterior, gated
+  by §8 access control. Knock/request happens there. The exterior's southern path
+  returns to the overworld POI; its northern residence door enters a separate indoor
+  child space.
 
 ## 3. The homestead space
 
@@ -66,17 +78,22 @@ one session; sprinklers are the first "the game plays while I sleep" beat).
   `u8` to `u16` *before* spaces implementation (cheap now, painful later), and
   per-player instances are explicitly in-model for homesteads (doc 26's
   "no per-player instancing" applied to *mines*, and still does).
-- **New table `homestead`**: `{ spaceId: u16 pk, owner: identity (unique),
-  sizeTier: u8, houseStyle, establishedTick, doorTileX/Y (overworld),
-  namePlate }` plus a `homestead_upgrade` table `{ spaceId, upgradeKind,
-  rank }`.
-- **Size tiers**: 32² → 48² → 64² → 80², bought with gold at steepening
-  `repeatCost`. Expansion extends the space's generated flat farmland (the
-  space generator is a trivial doc 26-style generator: tilled-ready soil,
-  border hedge, the farmhouse interior anchor). Existing builds/crops are
-  never moved by expansion — the space grows outward.
-- Interior terrain is generated + curatable by the owner through build mode,
-  not hand-authored — homesteads never touch the overworld curation tables.
+- **New table `homestead`**: `{ exteriorSpaceId: u16 pk, residenceSpaceId: u16,
+  owner: identity (unique), sizeTier: u8, establishedTick, poiTileX/Y,
+  foundingWorldVersion, generatorVersion, siteSeed, siteProfile, namePlate,
+  gateOpen: bool }`
+  plus `homestead_upgrade { exteriorSpaceId, upgradeKind, rank }`. A normalized
+  relation may replace the two explicit IDs before multi-floor residences, but both
+  destinations must be durable and server-allocated.
+- **Size/residence tiers**: 32² Big Tent → 48² Shed → 64² Fisherman's House →
+  80² Blacksmith House → 96² Inn, bought with gold at steepening `repeatCost`.
+  Expansion grows outward around stable paths/anchors and increases the residence
+  interior's spatial furnishing capacity. Existing builds, crops, and furniture are
+  never moved or invalidated.
+- Exterior terrain is generated from a frozen magnification of the founding site's
+  surrounding biome, water, forest, and elevation signals while guaranteeing a usable
+  central farm/build clearing. The residence is generated/curatable through indoor
+  build mode. Homesteads never mutate sanctuary-overworld terrain/curation rows.
 
 ### 3.1 SpaceTimeDB deployment and residency contract
 
@@ -111,9 +128,25 @@ rows from server memory. The bounded lifecycle is instead:
 The `homestead` row is the dynamic definition source for
 `spaceDefinitionFor(spaceId, homesteadRow)`. Every authority and client path
 that resolves a non-static space must first obtain that row; calling
-`spaceDefinitionFor(spaceId)` alone is valid only for static spaces. The current
-`spaces.ts` dynamic-definition shape is scaffolding: the table, lookup path, and
-subscription ordering remain phase-2 work.
+`spaceDefinitionFor(spaceId)` alone is valid only for static spaces. The dynamic
+definition table/lookup and make-before-break subscription ordering are implemented;
+later phases extend the same row rather than adding a second instance mechanism.
+
+### 3.2 Implemented owner-farm and gate slice (2026-08-27)
+
+- The owner may till and otherwise mutate the playable exterior plot. Every
+  destructive reducer re-checks the caller against the authoritative Homestead
+  row; visitors cannot farm, harvest, place, remove, open storage, or mutate
+  furniture merely because their client can see the space.
+- Homestead gates are closed by default. Only the owner, while in that exterior
+  and within interaction range, can toggle the gate with `F`. An open gate admits
+  visitors; a closed gate rejects entry. Exit portals never trap a visitor.
+- A mounted player may travel between the sanctuary and a Homestead exterior and
+  the authority moves the ridden horse in the same transaction. Indoor residence,
+  tent, cellar, cave, and underground destinations keep the `no_horses` rule.
+- This deliberately does not implement §8's member roles or requests yet. The
+  owner/open-gate contract is the secure guest-access baseline those phases will
+  extend.
 
 ## 4. Crops — zero-write growth
 
@@ -140,9 +173,9 @@ Six crops at launch, all with committed or sheet-verified stage art
   `wateredUntilTick` holds (one real day per watering). Unwatered crops grow
   at base rate — **nothing withers, nothing dies** (docs/06 §10 floor).
   Out-of-season crops pause growth unless under greenhouse cover.
-- Planting requires a homestead plot in v1 (owner or `worker`+ role).
-  Overworld planting stays a later hook — the shared-map soil verbs remain as
-  today. Existing dormant `farm_parcel`/`crop_patch` tables are superseded;
+- Planting requires a Homestead exterior plot (owner or `worker`+ role).
+  Sanctuary-overworld planting is permanently prohibited by doc 40. Existing dormant
+  shared-map `farm_parcel`/`crop_patch` tables are superseded;
   their docs/08-compliant retirement is part of phase 2.
 - Vigour costs apply to hoe/water/harvest per doc 25 §4 — farming and the
   vitals economy stay one system.
@@ -287,13 +320,16 @@ one art gap); scarecrows (`Scarecrows.png`). Extraction follows docs/11/18 +
 
 ## 12. Phasing
 
-1. **Spaces prerequisite** (shared with doc 26 phase 1, whichever lands
-   first): `spaceId: u16` plumbing, portals, per-space collision/subscription.
-   The static/debug-space plumbing is implemented; before phase 2, finish the
-   dynamic-definition lookup/subscription path and bounded generated-data cache
-   required by §3.1/§10.
-2. **Homestead core**: deed, siting, farmhouse on overworld, instanced space,
-   door lock (owner-only), expansion tiers. Retire legacy farm tables.
+1. **Shared Spaces technology demo (doc 40 §8; implemented):** dynamic-definition
+   lookup/subscription, bounded caches and occupied-space hot work; add test forest,
+   cave and deeper-underground destinations; have Marlow sell a deed that atomically
+   places a compact tent POI leading to an owner-only tier-zero exterior. Add the
+   authored tent-interior child space. The 2026-08-27 owner-farm, outdoor mounted
+   travel, and owner-controlled gate slice is also implemented (§3.2).
+2. **Homestead core after the demo:** freeze the founding environmental profile,
+   generate the site-reflective exterior/path/northern residence, add the explicit
+   residence-interior space, implement the five residence/land tiers, and retire
+   legacy farm tables.
 3. **Crops + gold loop**: seeds in commerce, plant/water/harvest, derived
    growth, loose selling, first upgrades (soil/seeds ranks). *The
    incremental loop closes here.*
@@ -302,9 +338,9 @@ one art gap); scarecrows (`Scarecrows.png`). Extraction follows docs/11/18 +
 6. **Access control**: roles, requests/notifications, shared output chest,
    revoke/kick, moderation entry.
 7. **Later hooks**: ranching (coops/barns functional — the wildlife
-   variants are ready), helpers, farm-gate sales, overworld planting,
-   bird-raid events + scarecrow, prestige/Vintage interplay, homestead
-   visiting showcases.
+   variants are ready), helpers, farm-gate sales, bird-raid events + scarecrow,
+   prestige/Vintage interplay, and Homestead visiting showcases. Overworld planting
+   and general overworld building are permanently excluded by doc 40.
 
 ## 13. Out of scope
 
@@ -351,7 +387,7 @@ seasonal crop festivals; prestige integration.
 - **DECISIONS.md** on adoption: (1) homesteads are per-player instanced
   spaces on the doc 26 model with `spaceId` widened to u16; (2) crop growth
   and curing are derived from rows, never ticked — zero-write growth is
-  binding; (3) farming v1 is homestead-only; overworld planting deferred;
+  binding; (3) farming is Homestead-only; sanctuary-overworld planting prohibited;
   (4) access is role-tiered (guest/worker/builder) with owner-controlled
   requests, and worker harvests route to the homestead's shared chest;
   (5) nothing withers — unwatered and out-of-season crops slow or pause,

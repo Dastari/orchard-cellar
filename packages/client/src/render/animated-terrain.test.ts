@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { loopingAnimationFrame, oceanSurfaceAllowedAt, windGrassFrame } from './animated-terrain.js';
+import { SURVIVAL_BIOMES } from '@orchard/sim';
+import {
+  loopingAnimationFrame,
+  oceanSurfaceAllowedAt,
+  waterfallUsesRaisedCompositionAt,
+  windGrassFrame,
+} from './animated-terrain.js';
 import type { TerrainArray } from './terrain.js';
 
 function waterTerrain(): TerrainArray {
@@ -46,5 +52,16 @@ describe('animated terrain', () => {
     expect(oceanSurfaceAllowedAt(terrain, 2, 2)).toBe(true);
     terrain.biomes[2 * terrain.width + 3] = 4;
     expect(oceanSurfaceAllowedAt(terrain, 2, 2)).toBe(false);
+  });
+
+  it('leaves elevation-crossing waterfalls to the raised-terrain compositor', () => {
+    const terrain = waterTerrain();
+    const waterfall = SURVIVAL_BIOMES.indexOf('waterfall');
+    for (let tileY = 0; tileY < 4; tileY += 1)
+      terrain.biomes[tileY * terrain.width + 1] = waterfall;
+    expect(waterfallUsesRaisedCompositionAt(terrain, 1, 0)).toBe(false);
+    terrain.elevations[1] = 1;
+    expect(waterfallUsesRaisedCompositionAt(terrain, 1, 0)).toBe(true);
+    expect(waterfallUsesRaisedCompositionAt(terrain, 1, 3)).toBe(true);
   });
 });

@@ -16,4 +16,5 @@ export default __t.row({
   wood: __t.u32(),
   stone: __t.u32(),
   selectedSlot: __t.u8().name("selected_slot"),
+  debugBackpackSlots: __t.u16().name("debug_backpack_slots"),
 });

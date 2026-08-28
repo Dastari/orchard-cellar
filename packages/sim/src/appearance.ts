@@ -44,6 +44,34 @@ export interface PlayerAppearanceSelection {
   readonly shoesKind: PlayerShoesKind;
 }
 
+export function isPlayerHairKind(value: string): value is PlayerHairKind {
+  return (PLAYER_HAIR_KINDS as readonly string[]).includes(value);
+}
+
+export function isPlayerShirtKind(value: string): value is PlayerShirtKind {
+  return (PLAYER_SHIRT_KINDS as readonly string[]).includes(value);
+}
+
+export function isPlayerPantsKind(value: string): value is PlayerPantsKind {
+  return (PLAYER_PANTS_KINDS as readonly string[]).includes(value);
+}
+
+export function isPlayerShoesKind(value: string): value is PlayerShoesKind {
+  return (PLAYER_SHOES_KINDS as readonly string[]).includes(value);
+}
+
+export function isPlayerAppearanceSelection(value: {
+  readonly hairKind: string;
+  readonly shirtKind: string;
+  readonly pantsKind: string;
+  readonly shoesKind: string;
+}): value is PlayerAppearanceSelection {
+  return isPlayerHairKind(value.hairKind)
+    && isPlayerShirtKind(value.shirtKind)
+    && isPlayerPantsKind(value.pantsKind)
+    && isPlayerShoesKind(value.shoesKind);
+}
+
 function saltedHash(value: string, salt: number): number {
   let hash = (0x811c9dc5 ^ salt) >>> 0;
   for (let index = 0; index < value.length; index += 1) {

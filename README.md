@@ -32,6 +32,9 @@ are ignored. Licensed source sheets and design captures live in a local
 - **Sprout Lands Basic** is by **Cup Nooble**. It was used as a style reference
   under its non-commercial terms; its source pack and pixels are not distributed
   here.
+- Compact editor utility symbols use a reviewed subset of **[Lucide](https://lucide.dev/)**
+  by the Lucide contributors under the ISC license. The vendored originals and
+  license notice live together under `packages/client/public/ui/lucide/`.
 - Game design, code, bespoke art, and synthesized audio are original to the
   Orchard & Cellar project.
 

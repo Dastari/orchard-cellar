@@ -5,6 +5,7 @@ import {
   PLAYER_SHIRT_KINDS,
   PLAYER_SHOES_KINDS,
   generatePlayerAppearance,
+  isPlayerAppearanceSelection,
 } from './appearance.js';
 
 describe('generatePlayerAppearance', () => {
@@ -26,5 +27,16 @@ describe('generatePlayerAppearance', () => {
       generatePlayerAppearance(index.toString(16).padStart(64, '0')),
     )));
     expect(looks.size).toBeGreaterThan(20);
+  });
+
+  it('validates only authored modular appearance combinations', () => {
+    expect(isPlayerAppearanceSelection({
+      hairKind: 'hair_1_brown', shirtKind: 'farmer_green',
+      pantsKind: 'farmer_blue', shoesKind: 'red',
+    })).toBe(true);
+    expect(isPlayerAppearanceSelection({
+      hairKind: 'admin_hair', shirtKind: 'farmer_green',
+      pantsKind: 'farmer_blue', shoesKind: 'red',
+    })).toBe(false);
   });
 });

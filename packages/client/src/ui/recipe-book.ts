@@ -1,4 +1,10 @@
 import {
+  BACKPACK_SLOT_COUNT,
+  BACKPACK_SLOT_OFFSET,
+  BASE_BACKPACK_CAPACITY,
+  CRAFTING_SLOT_COUNT,
+  CRAFTING_SLOT_OFFSET,
+  HOTBAR_SLOT_COUNT,
   RECIPES,
   normalizeShapedRecipe,
   type CraftingStation,
@@ -19,17 +25,11 @@ export interface RecipeBookEntry {
   readonly missingIngredients: boolean;
 }
 
-const HOTBAR_CAPACITY = 9;
-const BACKPACK_OFFSET = 9;
-const BACKPACK_CAPACITY = 20;
-const DEFAULT_BACKPACK_CAPACITY = 8;
-const CRAFTING_OFFSET = 38;
-
 function requiredKinds(recipe: RecipeDefinition): readonly (string | null)[] {
   if (recipe.kind === 'shaped') {
     const normalized = normalizeShapedRecipe(recipe);
     if (normalized === null) return [];
-    return Array.from({ length: 9 }, (_, index) => {
+    return Array.from({ length: CRAFTING_SLOT_COUNT }, (_, index) => {
       const x = index % 3;
       const y = Math.floor(index / 3);
       return x < normalized.width && y < normalized.height
@@ -38,7 +38,7 @@ function requiredKinds(recipe: RecipeDefinition): readonly (string | null)[] {
     });
   }
   const kinds = Object.entries(recipe.inputs).flatMap(([kind, quantity]) => Array.from({ length: quantity }, () => kind));
-  return Array.from({ length: 9 }, (_, index) => kinds[index] ?? null);
+  return Array.from({ length: CRAFTING_SLOT_COUNT }, (_, index) => kinds[index] ?? null);
 }
 
 function ingredientCounts(recipe: RecipeDefinition): Readonly<Record<string, number>> {
@@ -80,11 +80,11 @@ export function ghostFillRecipeMoves(
   if (recipe === undefined) return null;
   const desired = requiredKinds(recipe);
   const bySlot = new Map(inventory.map((row) => [row.slot, { ...row }]));
-  const sourceEnd = BACKPACK_OFFSET + (hasBackpack ? BACKPACK_CAPACITY : DEFAULT_BACKPACK_CAPACITY);
+  const sourceEnd = BACKPACK_SLOT_OFFSET + (hasBackpack ? BACKPACK_SLOT_COUNT : BASE_BACKPACK_CAPACITY);
   const moves: MoveItemRequest[] = [];
-  for (let targetIndex = 0; targetIndex < 9; targetIndex += 1) {
+  for (let targetIndex = 0; targetIndex < CRAFTING_SLOT_COUNT; targetIndex += 1) {
     const kind = desired[targetIndex] ?? null;
-    const current = bySlot.get(CRAFTING_OFFSET + targetIndex);
+    const current = bySlot.get(CRAFTING_SLOT_OFFSET + targetIndex);
     if (kind === null) {
       if (current !== undefined && current.itemKind !== 'empty' && current.quantity > 0) return null;
       continue;
@@ -100,8 +100,8 @@ export function ghostFillRecipeMoves(
     const source = bySlot.get(sourceSlot)!;
     bySlot.set(sourceSlot, { ...source, quantity: source.quantity - 1 });
     moves.push({
-      fromContainer: sourceSlot < HOTBAR_CAPACITY ? 'hotbar' : 'backpack',
-      fromIndex: sourceSlot < HOTBAR_CAPACITY ? sourceSlot : sourceSlot - BACKPACK_OFFSET,
+      fromContainer: sourceSlot < HOTBAR_SLOT_COUNT ? 'hotbar' : 'backpack',
+      fromIndex: sourceSlot < HOTBAR_SLOT_COUNT ? sourceSlot : sourceSlot - BACKPACK_SLOT_OFFSET,
       toContainer: 'crafting',
       toIndex: targetIndex,
       quantity: 1,

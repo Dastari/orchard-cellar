@@ -357,6 +357,19 @@ export class RenderTickClock {
   reset(): void { this.value = null; }
 }
 
+/**
+ * Presentation follows the world clock because unchanged player rows are
+ * intentionally not republished every authority tick. Falling back to the
+ * latest position tick keeps startup/reconnect rendering usable until the
+ * global clock subscription has hydrated.
+ */
+export function presentationAuthorityTick(
+  worldAuthorityTick: bigint | null | undefined,
+  latestPositionAuthorityTick: bigint,
+): bigint {
+  return worldAuthorityTick ?? latestPositionAuthorityTick;
+}
+
 /** A cosmetic timeline that continues between authority observations. Unlike
  * RenderTickClock it is not capped at the most recent row: sparse/unchanged
  * position traffic must never stop clouds, water, fire, or foliage. */
@@ -377,6 +390,37 @@ export class VisualTickClock {
   }
 
   reset(): void { this.value = null; }
+}
+
+/** Cosmetic clock advanced exactly once per rendered frame. Long frame gaps are
+ * discarded instead of replayed, preventing background-tab weather catch-up. */
+export class FrameVisualTickClock {
+  private value: number | null = null;
+  private previousFrameMs: number | null = null;
+
+  get renderTick(): number { return this.value ?? 0; }
+
+  advance(nowMs: number, latestAuthorityTick: bigint): number {
+    const authority = Number(latestAuthorityTick);
+    if (this.value === null || this.previousFrameMs === null) {
+      this.value = authority;
+      this.previousFrameMs = nowMs;
+      return this.value;
+    }
+    const elapsedMs = nowMs - this.previousFrameMs;
+    this.previousFrameMs = nowMs;
+    if (elapsedMs < 0 || elapsedMs > 250 || Math.abs(authority - this.value) > AUTHORITY_HZ * 4) {
+      this.value = authority;
+      return this.value;
+    }
+    this.value += elapsedMs / 1_000 * AUTHORITY_HZ;
+    return this.value;
+  }
+
+  reset(): void {
+    this.value = null;
+    this.previousFrameMs = null;
+  }
 }
 
 export interface AvatarAnimationFrame {

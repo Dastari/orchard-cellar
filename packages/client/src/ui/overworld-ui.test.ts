@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CHEST_STORAGE_ROWS } from '@orchard/sim';
+import { BACKPACK_SLOT_COUNT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CHEST_STORAGE_ROWS, EQUIPMENT_SLOT_COUNT, HOTBAR_SLOT_COUNT } from '@orchard/sim';
 import type { PixelUi } from '../render/pixel-ui.js';
 import {
   ONLINE_PLAYER_LIST_BOTTOM_PADDING,
   OverworldUi,
+  onlinePlayerListCloseButtonRect,
   onlinePlayerListFrameHeight,
   overworldUiLayout,
   hotbarReticleRect,
+  isInterfaceVisibilityToggle,
   itemIconAnimation,
   slotStackLabelPosition,
   slotDurabilityBarRect,
@@ -24,14 +26,34 @@ function callbacks(): OverworldUiCallbacks {
     shiftDay: vi.fn(),
     cycleWeather: vi.fn(),
     cycleWindDirection: vi.fn(),
+    toggleLightingEffects: vi.fn(),
+    resetMyQuestProgress: vi.fn(),
+    setQuestPinned: vi.fn(),
+    abandonQuest: vi.fn(),
+    setAppearance: vi.fn(),
+    purchaseSkillNode: vi.fn(),
+    resetSkillTree: vi.fn(),
+    grantDebugSkillPoints: vi.fn(),
     setAudioVolume: vi.fn(),
     setAudioBackground: vi.fn(),
     signOut: vi.fn(),
     quitToTitle: vi.fn(),
+    toggleFullscreen: vi.fn(),
+    checkForClientUpdate: vi.fn(),
+    applyClientUpdate: vi.fn(),
+    toggleOnlinePlayers: vi.fn(),
     moveInventoryItem: vi.fn(),
     quickMoveInventoryItem: vi.fn(),
     quickMoveAllInventoryItems: vi.fn(),
     distributeInventoryItem: vi.fn(),
+    inventoryCursorClick: vi.fn(),
+    sortInventoryContainer: vi.fn(),
+    inventoryCursorQuickCraft: vi.fn(),
+    inventoryCursorPickupAll: vi.fn(),
+    inventoryCursorSwapHotbar: vi.fn(),
+    dropInventoryCursor: vi.fn(),
+    throwMenuItem: vi.fn(),
+    returnInventoryCursor: vi.fn(),
     craftInventoryRecipe: vi.fn(),
     ghostFillCraftingRecipe: vi.fn(),
     closeCrafting: vi.fn(),
@@ -41,6 +63,26 @@ function callbacks(): OverworldUiCallbacks {
 }
 
 describe('overworld retained UI layout', () => {
+  it('uses Z as a non-repeating full-interface toggle', () => {
+    expect(isInterfaceVisibilityToggle('KeyZ', false)).toBe(true);
+    expect(isInterfaceVisibilityToggle('KeyZ', true)).toBe(false);
+    expect(isInterfaceVisibilityToggle('KeyX', false)).toBe(false);
+  });
+
+  it('deep-links P to Character, K to Skills, and L to the Quest Log', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    expect(ui.handleKeyDown('KeyP', false)).toBe(true);
+    expect(ui.openWindow).toBe('character');
+    expect(ui.handleKeyDown('KeyP', false)).toBe(true);
+    expect(ui.openWindow).toBeNull();
+    expect(ui.handleKeyDown('KeyK', false)).toBe(true);
+    expect(ui.openWindow).toBe('skills');
+    expect(ui.handleKeyDown('KeyL', false)).toBe(true);
+    expect(ui.openWindow).toBe('quests');
+    expect(ui.handleKeyDown('Escape', false)).toBe(true);
+    expect(ui.openWindow).toBeNull();
+  });
+
   it('uses the authored closed chest animation for chest slot icons', () => {
     expect(itemIconAnimation('chest')).toBe('chest');
     expect(itemIconAnimation('wood')).toBe('base');
@@ -49,19 +91,16 @@ describe('overworld retained UI layout', () => {
   it('anchors the zone ribbon, currency, hotbar, and window at 480x270', () => {
     const layout = overworldUiLayout(480, 270);
     expect(layout.status).toEqual({ x: 4, y: 2, width: 220, height: 34 });
-    expect(layout.moon).toEqual({ x: 173, y: 11, width: 16, height: 16 });
-    expect(layout.moon.x).toBeGreaterThanOrEqual(layout.status.x);
-    expect(layout.moon.x + layout.moon.width).toBeLessThanOrEqual(layout.status.x + layout.status.width);
-    expect(layout.currency).toEqual({ x: 376, y: 4, width: 100, height: 24 });
+    expect(layout.currency).toEqual({ x: 380, y: 238, width: 94, height: 26 });
     expect(layout.previousDayButton).toMatchObject({ width: 64, height: 20 });
     expect(layout.nextDayButton).toMatchObject({ width: 64, height: 20 });
     expect(layout.weatherButton.height).toBe(22);
     expect(layout.windDirectionButton).toMatchObject({ height: 22 });
     expect(layout.windDirectionButton.y + layout.windDirectionButton.height).toBeLessThan(layout.developerWindow.y + layout.developerWindow.height);
-    expect(layout.hotbar.x).toBe(105);
+    expect(layout.hotbar.x).toBe(90);
     expect(layout.hotbar.y + layout.hotbar.height).toBe(264);
-    expect(layout.vitals).toEqual({ x: 105, y: 200, width: 72, height: 29 });
-    expect(layout.targetVitals).toEqual({ x: 303, y: 200, width: 72, height: 29 });
+    expect(layout.vitals).toEqual({ x: 90, y: 200, width: 72, height: 29 });
+    expect(layout.targetVitals).toEqual({ x: 318, y: 200, width: 72, height: 29 });
     expect(layout.vitals.x).toBe(layout.hotbar.x);
     expect(layout.targetVitals.x + layout.targetVitals.width).toBe(layout.hotbar.x + layout.hotbar.width);
     expect(layout.vitals.y + layout.vitals.height).toBe(layout.hotbar.y - 4);
@@ -69,6 +108,49 @@ describe('overworld retained UI layout', () => {
     expect(layout.notification.y + layout.notification.height).toBeLessThan(layout.tooltip.y);
     expect(layout.window.x).toBe(105);
     expect(layout.window.y).toBe(43);
+    expect(layout.onlinePlayersButton.x + layout.onlinePlayersButton.width)
+      .toBeLessThanOrEqual(layout.status.x + layout.status.width);
+    expect(layout.collapsedZoneTab).toEqual({ x: 0, y: 4, width: 32, height: 16 });
+  });
+
+  it('keeps online-list and ribbon-collapse actions separate', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: true,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(480, 270);
+    const online = layout.onlinePlayersButton;
+    ui.pointerDown({ x: online.x + 4, y: online.y + 4 }, 0);
+    expect(handlers.toggleOnlinePlayers).toHaveBeenCalledOnce();
+    expect((ui as unknown as { zoneCollapsed: boolean }).zoneCollapsed).toBe(false);
+
+    ui.pointerDown({ x: layout.status.x + 45, y: layout.status.y + 12 }, 0);
+    expect((ui as unknown as { zoneCollapsed: boolean }).zoneCollapsed).toBe(true);
+    ui.pointerDown({ x: layout.collapsedZoneTab.x + 5, y: layout.collapsedZoneTab.y + 5 }, 0);
+    expect((ui as unknown as { zoneCollapsed: boolean }).zoneCollapsed).toBe(false);
+  });
+
+  it('provides tooltips for the global crafting, backpack, and online controls', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: true,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(480, 270);
+    ui.pointerMove({ x: layout.craftingButton.x + 5, y: layout.craftingButton.y + 5 });
+    expect(ui.tooltipText()).toBe('CRAFTING');
+    ui.pointerMove({ x: layout.currency.x + 5, y: layout.currency.y + 5 });
+    expect(ui.tooltipText()).toBe('BACKPACK');
+    ui.pointerMove({ x: layout.onlinePlayersButton.x + 5, y: layout.onlinePlayersButton.y + 5 });
+    expect(ui.tooltipText()).toBe('ONLINE PLAYERS');
   });
 
   it('keeps action failures visible independently of prompts and item tooltips', () => {
@@ -91,7 +173,22 @@ describe('overworld retained UI layout', () => {
     expect(ui.notificationText()).toBe('NOT ENOUGH INVENTORY SPACE');
   });
 
-  it('shows lunar details only while hovering the moon, not the ribbon', () => {
+  it('routes a click on the 0-labelled final slot to hotbar index 9', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const slot = overworldUiLayout(480, 270).slots[HOTBAR_SLOT_COUNT - 1]!;
+    expect(ui.pointerDown({ x: slot.x + 4, y: slot.y + 4 }, 0)).toBe(true);
+    expect(handlers.selectHotbar).toHaveBeenCalledWith(HOTBAR_SLOT_COUNT - 1);
+  });
+
+  it('does not expose removed calendar or lunar details from the top ribbon', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
@@ -104,8 +201,6 @@ describe('overworld retained UI layout', () => {
     const layout = overworldUiLayout(480, 270);
     ui.pointerMove({ x: layout.status.x + 20, y: layout.status.y + 10 });
     expect(ui.tooltipText()).toBeNull();
-    ui.pointerMove({ x: layout.moon.x + 5, y: layout.moon.y + 5 });
-    expect(ui.tooltipText()).toBe('Waxing Crescent — 250/1000');
   });
 
   it('only exposes owner world controls through the framed developer window', () => {
@@ -127,16 +222,124 @@ describe('overworld retained UI layout', () => {
     const button = layout.windDirectionButton;
     expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
     expect(handlers.cycleWindDirection).toHaveBeenCalledOnce();
+    const lightingButton = layout.lightingEffectsButton;
+    expect(ui.pointerDown({ x: lightingButton.x + 4, y: lightingButton.y + 4 }, 0)).toBe(true);
+    expect(handlers.toggleLightingEffects).toHaveBeenCalledOnce();
+    const resetButton = layout.resetQuestsButton;
+    expect(ui.pointerDown({ x: resetButton.x + 4, y: resetButton.y + 4 }, 0)).toBe(true);
+    expect(handlers.resetMyQuestProgress).toHaveBeenCalledOnce();
+    const explorerPoints = layout.skillPointButtons.explorer;
+    expect(ui.pointerDown({ x: explorerPoints.x + 4, y: explorerPoints.y + 4 }, 0)).toBe(true);
+    expect(handlers.grantDebugSkillPoints).toHaveBeenCalledWith('explorer', 1);
   });
 
   it('keeps all anchored UI inside a narrow viewport', () => {
     const layout = overworldUiLayout(360, 180);
-    for (const rect of [layout.status, layout.currency, layout.hotbar, layout.window, layout.closeButton]) {
+    for (const rect of [layout.status, layout.currency, layout.hotbar, layout.mobileMenuButton, layout.window, layout.closeButton]) {
       expect(rect.x).toBeGreaterThanOrEqual(0);
       expect(rect.y).toBeGreaterThanOrEqual(0);
       expect(rect.x + rect.width).toBeLessThanOrEqual(360);
       expect(rect.y + rect.height).toBeLessThanOrEqual(180);
     }
+    expect(layout.slots).toHaveLength(10);
+    expect(new Set(layout.slots.map((slot) => slot.y)).size).toBe(2);
+    expect(layout.slots.filter((slot) => slot.y === layout.slots[0]!.y)).toHaveLength(5);
+  });
+
+  it('opens the Escape menu from the phone menu button', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({
+      width: 360, height: 180, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const button = overworldUiLayout(360, 180).mobileMenuButton;
+    expect(button.y).toBe(4);
+    expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
+    expect(ui.openWindow).toBe('system');
+  });
+
+  it('shows the mobile Menu button on touch tablets above the phone breakpoint', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({
+      width: 600, height: 900, connected: true, touchControls: true,
+      playerCount: 1, selectedSlot: 0, inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const button = overworldUiLayout(600, 900).mobileMenuButton;
+    expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
+    expect(ui.openWindow).toBe('system');
+  });
+
+  it('places inventory currency at bottom-right and crafting beside the hotbar on every device', () => {
+    const layout = overworldUiLayout(600, 900);
+    expect(layout.currency).toEqual({ x: 482, y: 868, width: 112, height: 26 });
+    expect(layout.craftingButton.x + layout.craftingButton.width)
+      .toBeLessThanOrEqual(layout.hotbar.x);
+    const touchLayout = overworldUiLayout(600, 900, { touchControls: true });
+    expect(touchLayout.currency).toEqual(layout.currency);
+    expect(touchLayout.craftingButton).toEqual(layout.craftingButton);
+  });
+
+  it('opens inventory from the purse and crafting from the shared desktop ghost tool button', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({
+      width: 600, height: 900, connected: true,
+      playerCount: 1, selectedSlot: 0, inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(600, 900);
+    expect(ui.pointerDown({ x: layout.currency.x + 4, y: layout.currency.y + 4 }, 0)).toBe(true);
+    expect(ui.openWindow).toBe('inventory');
+    ui.openWindow = null;
+    expect(ui.pointerDown({
+      x: layout.craftingButton.x + 4,
+      y: layout.craftingButton.y + 4,
+    }, 0)).toBe(true);
+    expect(ui.openWindow).toBe('crafting');
+  });
+
+  it('offers a fullscreen toggle from the Escape menu', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false, fullscreen: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    ui.openWindow = 'system';
+    const button = overworldUiLayout(480, 270).fullscreenButton;
+    expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
+    expect(handlers.toggleFullscreen).toHaveBeenCalledOnce();
+  });
+
+  it('checks for a client update and explicitly applies a waiting build', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const base = {
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto' as const, prompt: null, toast: null,
+    };
+    ui.update({ ...base, pwaUpdateStatus: 'current' });
+    ui.openWindow = 'system';
+    const button = overworldUiLayout(480, 270).updateButton;
+    expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
+    expect(handlers.checkForClientUpdate).toHaveBeenCalledOnce();
+
+    ui.update({ ...base, pwaUpdateStatus: 'available' });
+    expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
+    expect(handlers.applyClientUpdate).toHaveBeenCalledOnce();
   });
 
   it('aligns smaller self and mirrored target frames to the hotbar edges at UI scales 1/2/3', () => {
@@ -152,7 +355,7 @@ describe('overworld retained UI layout', () => {
     }
   });
 
-  it('captures HUD portrait clicks instead of targeting the world behind them', () => {
+  it('opens Character from the player resource frame while only capturing target-frame clicks', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 2, selectedSlot: 0,
@@ -168,12 +371,30 @@ describe('overworld retained UI layout', () => {
     });
     const layout = overworldUiLayout(480, 270);
     expect(ui.pointerDown({ x: layout.vitals.x + 2, y: layout.vitals.y + 2 }, 0)).toBe(true);
+    expect(ui.openWindow).toBe('character');
+    ui.openWindow = null;
     expect(ui.pointerDown({ x: layout.targetVitals.x + 2, y: layout.targetVitals.y + 2 }, 0)).toBe(true);
+    expect(ui.openWindow).toBeNull();
   });
 
   it('reserves explicit bottom padding as the online roster grows', () => {
     expect(onlinePlayerListFrameHeight(1) - onlinePlayerListFrameHeight(0)).toBe(12);
     expect(onlinePlayerListFrameHeight(3) - (29 + 3 * 12)).toBe(ONLINE_PLAYER_LIST_BOTTOM_PADDING);
+  });
+
+  it('places a close button inside the online-player frame and closes through the shared toggle', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const frame = { x: 125, y: 12, width: 230, height: 65 };
+    const close = onlinePlayerListCloseButtonRect(frame);
+    expect(close).toEqual({ x: 330, y: 20, width: 16, height: 16 });
+    Object.assign(ui as unknown as Record<string, unknown>, {
+      onlinePlayerListActive: true,
+      onlinePlayerListRect: frame,
+      onlinePlayerListCloseButton: close,
+    });
+    expect(ui.pointerDown({ x: close.x + 8, y: close.y + 8 }, 0)).toBe(true);
+    expect(handlers.toggleOnlinePlayers).toHaveBeenCalledOnce();
   });
 
   it('keeps stack counts above and inside the slot bevel', () => {
@@ -206,9 +427,9 @@ describe('overworld inventory and system menu', () => {
 
   it('lays out a paper doll, expandable inventory grid, and separate hotbar', () => {
     const layout = overworldUiLayout(480, 270);
-    expect(layout.equipmentSlots).toHaveLength(9);
-    expect(layout.backpackSlots).toHaveLength(20);
-    expect(layout.inventoryHotbarSlots).toHaveLength(9);
+    expect(layout.equipmentSlots).toHaveLength(EQUIPMENT_SLOT_COUNT);
+    expect(layout.backpackSlots).toHaveLength(BACKPACK_SLOT_COUNT);
+    expect(layout.inventoryHotbarSlots).toHaveLength(HOTBAR_SLOT_COUNT);
     for (const slot of [...layout.equipmentSlots, ...layout.backpackSlots, ...layout.inventoryHotbarSlots]) {
       expect(slot.x).toBeGreaterThanOrEqual(layout.inventoryWindow.x);
       expect(slot.x + slot.width).toBeLessThanOrEqual(layout.inventoryWindow.x + layout.inventoryWindow.width);
@@ -235,13 +456,65 @@ describe('overworld inventory and system menu', () => {
     }
   });
 
-  it('moves items directly between the visible backpack and an open chest', () => {
+  it('right-aligns sort controls to each sortable storage header', () => {
+    const layout = overworldUiLayout(480, 270);
+    expect(layout.inventorySortButton.x + layout.inventorySortButton.width)
+      .toBe(Math.max(...layout.backpackSlots.map((slot) => slot.x + slot.width)));
+    expect(layout.chestSortButton.x + layout.chestSortButton.width)
+      .toBe(Math.max(...layout.chestSlots.map((slot) => slot.x + slot.width)));
+    expect(layout.chestBackpackSortButton.x + layout.chestBackpackSortButton.width)
+      .toBe(Math.max(...layout.chestBackpackSlots.map((slot) => slot.x + slot.width)));
+    expect(layout.barrelSortButton.x + layout.barrelSortButton.width)
+      .toBe(Math.max(...layout.barrelSlots.map((slot) => slot.x + slot.width)));
+  });
+
+  it('sorts only the real storage pane selected by its header control', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const update = (window: 'inventory' | 'chest' | 'barrel') => {
+      ui.openWindow = window;
+      ui.update({
+        width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+        inventory: [], openChestInventory: [], openPlaceableInventory: [], hasBackpack: true,
+        audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+        dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+        raining: false, weatherMode: 'auto', prompt: null, toast: null,
+      });
+    };
+    const layout = overworldUiLayout(480, 270);
+    update('inventory');
+    ui.pointerDown({ x: layout.inventorySortButton.x + 8, y: layout.inventorySortButton.y + 8 }, 0);
+    update('chest');
+    ui.pointerDown({ x: layout.chestSortButton.x + 8, y: layout.chestSortButton.y + 8 }, 0);
+    update('barrel');
+    ui.pointerDown({ x: layout.barrelSortButton.x + 8, y: layout.barrelSortButton.y + 8 }, 0);
+    expect(handlers.sortInventoryContainer).toHaveBeenNthCalledWith(1, 'backpack');
+    expect(handlers.sortInventoryContainer).toHaveBeenNthCalledWith(2, 'chest');
+    expect(handlers.sortInventoryContainer).toHaveBeenNthCalledWith(3, 'placeable');
+  });
+
+  it('places touch inventory tooltips below the window hotbar', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.openWindow = 'inventory';
+    ui.update({
+      width: 480, height: 270, connected: true, touchControls: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: true,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(480, 270);
+    const tooltip = (ui as unknown as { touchInventoryTooltipRect(): { y: number } }).touchInventoryTooltipRect();
+    expect(tooltip.y).toBeGreaterThan(Math.max(...layout.inventoryHotbarSlots.map((slot) => slot.y + slot.height)));
+  });
+
+  it('picks up from the visible backpack without placing on mouse release over a chest', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'chest';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 9, itemKind: 'wood', quantity: 3 }],
+      inventory: [{ slot: 10, itemKind: 'wood', quantity: 3 }],
       openChestInventory: [], hasBackpack: true,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -253,9 +526,8 @@ describe('overworld inventory and system menu', () => {
     ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0);
     ui.pointerMove({ x: target.x + 4, y: target.y + 4 });
     ui.pointerUp({ x: target.x + 4, y: target.y + 4 }, 0);
-    expect(handlers.moveInventoryItem).toHaveBeenCalledWith({
-      fromContainer: 'backpack', fromIndex: 0, toContainer: 'chest', toIndex: CHEST_STORAGE_CAPACITY - 1, quantity: 3,
-    });
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('backpack', 0, 'left');
+    expect(handlers.moveInventoryItem).not.toHaveBeenCalled();
   });
 
   it('resizes the composed chest frame from a corner without moving the opposite corner', () => {
@@ -391,7 +663,7 @@ describe('overworld inventory and system menu', () => {
       .toBeLessThan(layout.settingsBackButton.y);
   });
 
-  it('drags a compatible hotbar item into its typed equipment slot', () => {
+  it('does not place a picked-up item merely by releasing over equipment', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'inventory';
@@ -408,9 +680,8 @@ describe('overworld inventory and system menu', () => {
     expect(ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0)).toBe(true);
     ui.pointerMove({ x: hand.x + 4, y: hand.y + 4 });
     expect(ui.pointerUp({ x: hand.x + 4, y: hand.y + 4 }, 0)).toBe(true);
-    expect(handlers.moveInventoryItem).toHaveBeenCalledWith({
-      fromContainer: 'hotbar', fromIndex: 0, toContainer: 'equipment', toIndex: 3, quantity: 1,
-    });
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('hotbar', 0, 'left');
+    expect(handlers.moveInventoryItem).not.toHaveBeenCalled();
   });
 
   it('does not drop a hand item into a head-only equipment slot', () => {
@@ -430,7 +701,7 @@ describe('overworld inventory and system menu', () => {
     ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0);
     ui.pointerMove({ x: head.x + 4, y: head.y + 4 });
     ui.pointerUp({ x: head.x + 4, y: head.y + 4 }, 0);
-    expect(handlers.moveInventoryItem).not.toHaveBeenCalled();
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('hotbar', 0, 'left');
   });
 
   it('supports click-to-hold then click-to-place and right-click half splitting', () => {
@@ -449,9 +720,8 @@ describe('overworld inventory and system menu', () => {
     ui.pointerUp({ x: source.x + 4, y: source.y + 4 }, 2);
     ui.pointerDown({ x: target.x + 4, y: target.y + 4 }, 0);
     ui.pointerUp({ x: target.x + 4, y: target.y + 4 }, 0);
-    expect(handlers.moveInventoryItem).toHaveBeenCalledWith({
-      fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 0, quantity: 5,
-    });
+    expect(handlers.inventoryCursorClick).toHaveBeenNthCalledWith(1, 'hotbar', 0, 'right');
+    expect(handlers.inventoryCursorClick).toHaveBeenNthCalledWith(2, 'crafting', 0, 'left');
   });
 
   it('treats persisted empty rows as vacant drag targets', () => {
@@ -462,7 +732,7 @@ describe('overworld inventory and system menu', () => {
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
       inventory: [
         { slot: 0, itemKind: 'wood', quantity: 36 },
-        { slot: 41, itemKind: 'empty', quantity: 0 },
+        { slot: 42, itemKind: 'empty', quantity: 0 },
       ],
       hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
@@ -475,9 +745,7 @@ describe('overworld inventory and system menu', () => {
     ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0);
     ui.pointerMove({ x: target.x + 4, y: target.y + 4 });
     ui.pointerUp({ x: target.x + 4, y: target.y + 4 }, 0);
-    expect(handlers.moveInventoryItem).toHaveBeenCalledWith({
-      fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 0, quantity: 36,
-    });
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('hotbar', 0, 'left');
   });
 
   it('shows item-name tooltips for inventory slots and the crafting result', () => {
@@ -485,7 +753,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }, { slot: 41, itemKind: 'wood', quantity: 1 }],
+      inventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }, { slot: 42, itemKind: 'wood', quantity: 1 }],
       hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
@@ -499,23 +767,41 @@ describe('overworld inventory and system menu', () => {
     expect(ui.tooltipText()).toBe('WOODEN PLANKS');
   });
 
-  it('cancels an active drag when the player right-clicks outside a compatible slot', () => {
+  it('uses number keys to swap hovered slots and Q / Control-Q to throw stacks', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'inventory';
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [{ slot: 10, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const slot = overworldUiLayout(480, 270).backpackSlots[0]!;
+    ui.pointerMove({ x: slot.x + 4, y: slot.y + 4 });
+    expect(ui.handleKeyDown('Digit3', false)).toBe(true);
+    expect(handlers.inventoryCursorSwapHotbar).toHaveBeenCalledWith('backpack', 0, 2);
+    expect(ui.handleKeyDown('KeyQ', false)).toBe(true);
+    expect(handlers.throwMenuItem).toHaveBeenCalledWith('backpack', 0, false);
+    ui.handleKeyDown('KeyQ', false, { ctrl: true });
+    expect(handlers.throwMenuItem).toHaveBeenCalledWith('backpack', 0, true);
+  });
+
+  it('right-clicks outside to drop one item from the persistent cursor', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      inventory: [], cursorStack: { itemKind: 'wood', quantity: 8 }, hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
-    const layout = overworldUiLayout(480, 270);
-    const source = layout.inventoryHotbarSlots[0]!;
-    ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0);
     expect(ui.pointerDown({ x: 2, y: 2 }, 2)).toBe(true);
-    ui.pointerUp({ x: 2, y: 2 }, 0);
-    expect(handlers.moveInventoryItem).not.toHaveBeenCalled();
+    ui.pointerUp({ x: 2, y: 2 }, 2);
+    expect(handlers.dropInventoryCursor).toHaveBeenCalledWith('right');
   });
 
   it('right-clicks one carried item into a compatible slot and keeps carrying the remainder', () => {
@@ -544,15 +830,12 @@ describe('overworld inventory and system menu', () => {
     ui.pointerDown(secondPoint, 0);
     ui.pointerUp(secondPoint, 0);
 
-    expect(handlers.moveInventoryItem).toHaveBeenNthCalledWith(1, {
-      fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 0, quantity: 1,
-    });
-    expect(handlers.moveInventoryItem).toHaveBeenNthCalledWith(2, {
-      fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 1, quantity: 2,
-    });
+    expect(handlers.inventoryCursorClick).toHaveBeenNthCalledWith(1, 'hotbar', 0, 'left');
+    expect(handlers.inventoryCursorClick).toHaveBeenNthCalledWith(2, 'crafting', 0, 'right');
+    expect(handlers.inventoryCursorClick).toHaveBeenNthCalledWith(3, 'crafting', 1, 'left');
   });
 
-  it('does not cancel a held stack on an immediate source re-click', () => {
+  it('uses another click, rather than mouse release, to place a held stack', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'crafting';
@@ -576,9 +859,43 @@ describe('overworld inventory and system menu', () => {
 
     ui.pointerDown(targetPoint, 0);
     ui.pointerUp(targetPoint, 0);
-    expect(handlers.moveInventoryItem).toHaveBeenCalledWith({
-      fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 0, quantity: 8,
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('crafting', 0, 'left');
+  });
+
+  it('picks a slotted stack up as soon as a drag starts and keeps it held on release', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'crafting';
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
+    const layout = overworldUiLayout(480, 270);
+    const source = layout.inventoryHotbarSlots[0]!;
+    const target = layout.craftingSlots[0]!;
+    const sourcePoint = { x: source.x + 4, y: source.y + 4 };
+    const targetPoint = { x: target.x + 4, y: target.y + 4 };
+
+    ui.pointerDown(sourcePoint, 0);
+    ui.pointerMove({ x: sourcePoint.x + 4, y: sourcePoint.y });
+    const internal = ui as unknown as {
+      optimisticMenuCursor: { readonly itemKind: string; readonly quantity: number } | null | undefined;
+      inventoryHotbarSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+      craftingItemSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+    };
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(1);
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('hotbar', 0, 'left');
+    expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
+    expect(internal.inventoryHotbarSlots[0]?.item).toBeNull();
+
+    ui.pointerMove(targetPoint);
+    ui.pointerUp(targetPoint, 0);
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(1);
+    expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
+    expect(internal.craftingItemSlots[0]?.item).toBeNull();
   });
 
   it('cancels when a dragged stack is held before returning to its source slot', () => {
@@ -611,7 +928,7 @@ describe('overworld inventory and system menu', () => {
     now.mockRestore();
   });
 
-  it('shift-clicks and shift-drags through the reusable bulk gesture callbacks', () => {
+  it('shift-clicks and quick-crafts a held cursor stack without Shift', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'crafting';
@@ -627,37 +944,98 @@ describe('overworld inventory and system menu', () => {
     ui.pointerUp({ x: source.x + 4, y: source.y + 4 }, 0, { shift: true });
     expect(handlers.quickMoveInventoryItem).toHaveBeenCalledWith('hotbar', 0, ['crafting']);
 
-    ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0, { shift: true });
-    for (const slot of layout.craftingSlots.slice(0, 3)) ui.pointerMove({ x: slot.x + 4, y: slot.y + 4 }, { shift: true });
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], cursorStack: { itemKind: 'wood', quantity: 8 }, hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const first = layout.craftingSlots[0]!;
+    ui.pointerDown({ x: first.x + 4, y: first.y + 4 }, 0);
+    for (const slot of layout.craftingSlots.slice(1, 3)) ui.pointerMove({ x: slot.x + 4, y: slot.y + 4 });
     const last = layout.craftingSlots[2]!;
-    ui.pointerUp({ x: last.x + 4, y: last.y + 4 }, 0, { shift: true });
-    expect(handlers.distributeInventoryItem).toHaveBeenCalledWith('hotbar', 0, [
+    ui.pointerUp({ x: last.x + 4, y: last.y + 4 }, 0);
+    expect(handlers.inventoryCursorQuickCraft).toHaveBeenCalledWith([
       { container: 'crafting', index: 0 }, { container: 'crafting', index: 1 }, { container: 'crafting', index: 2 },
-    ], 8);
+    ], 'even');
   });
 
-  it('previews even distribution live as each shifted-over slot is added', () => {
+  it('tracks every unique slot visited by a cursor quick-craft gesture', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'plank', quantity: 10 }], hasBackpack: false,
+      inventory: [], cursorStack: { itemKind: 'plank', quantity: 10 }, hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
     const layout = overworldUiLayout(480, 270);
-    const source = layout.inventoryHotbarSlots[0]!;
-    ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0);
-    for (const slot of layout.craftingSlots.slice(0, 3)) {
-      ui.pointerMove({ x: slot.x + 4, y: slot.y + 4 }, { shift: true });
-    }
-    const internal = ui as unknown as {
-      shiftDragRemaining: number;
+    const targets = layout.craftingSlots.slice(0, 3);
+    const first = targets[0]!;
+    ui.pointerDown({ x: first.x + 4, y: first.y + 4 }, 0);
+    const initial = ui as unknown as {
+      quickCraftOriginalCursor: { readonly quantity: number } | null;
+      quickCraftPreviewCursor: { readonly quantity: number } | null | undefined;
       craftingItemSlots: readonly { readonly item: { readonly quantity: number } | null }[];
     };
-    expect(internal.shiftDragRemaining).toBe(0);
-    expect(internal.craftingItemSlots.slice(0, 3).map((slot) => slot.item?.quantity)).toEqual([4, 3, 3]);
+    expect(initial.craftingItemSlots[0]?.item?.quantity).toBe(10);
+    expect(initial.quickCraftOriginalCursor?.quantity).toBe(10);
+    expect(initial.quickCraftPreviewCursor).toBeNull();
+    for (const slot of targets.slice(1)) {
+      ui.pointerMove({ x: slot.x + 4, y: slot.y + 4 });
+    }
+    const internal = ui as unknown as {
+      cursorPress: { readonly targets: readonly { readonly containerId: string; readonly index: number }[] } | null;
+      quickCraftPreviewCursor: { readonly quantity: number } | null | undefined;
+      craftingItemSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+    };
+    expect(internal.cursorPress?.targets.map((slot) => [slot.containerId, slot.index])).toEqual([
+      ['crafting', 0], ['crafting', 1], ['crafting', 2],
+    ]);
+    expect(internal.craftingItemSlots.slice(0, 3).map((slot) => slot.item?.quantity)).toEqual([3, 3, 3]);
+    expect(internal.quickCraftPreviewCursor?.quantity).toBe(1);
+  });
+
+  it('predicts cursor pickup immediately, ignores empty-to-empty clicks, and rolls back a rejected authority call', async () => {
+    const rejectedClick = vi.fn(() => Promise.reject(new Error('authority_rejected')));
+    const handlers = { ...callbacks(), inventoryCursorClick: rejectedClick };
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'inventory';
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const slot = overworldUiLayout(480, 270).inventoryHotbarSlots[0]!;
+    const point = { x: slot.x + 4, y: slot.y + 4 };
+    ui.pointerDown(point, 0);
+    ui.pointerUp(point, 0);
+    const internal = ui as unknown as {
+      optimisticMenuCursor: { readonly itemKind: string; readonly quantity: number } | null | undefined;
+      inventoryHotbarSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+    };
+    expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
+    expect(internal.inventoryHotbarSlots[0]?.item).toBeNull();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(internal.optimisticMenuCursor).toBeUndefined();
+    expect(internal.inventoryHotbarSlots[0]?.item?.quantity).toBe(8);
+
+    rejectedClick.mockClear();
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], cursorStack: null, hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    ui.pointerDown(point, 0);
+    ui.pointerUp(point, 0);
+    expect(rejectedClick).not.toHaveBeenCalled();
   });
 
   it('shift-double-clicks all matching stacks toward the normal destination inventory', () => {
@@ -673,14 +1051,90 @@ describe('overworld inventory and system menu', () => {
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
-    const source = overworldUiLayout(480, 270).chestHotbarSlots[0]!;
-    const point = { x: source.x + 4, y: source.y + 4 };
-    ui.pointerDown(point, 0, { shift: true });
-    ui.pointerUp(point, 0, { shift: true });
+    const hotbar = overworldUiLayout(480, 270).chestHotbarSlots;
+    const firstPoint = { x: hotbar[0]!.x + 4, y: hotbar[0]!.y + 4 };
+    ui.pointerDown(firstPoint, 0, { shift: true });
+    ui.pointerUp(firstPoint, 0, { shift: true });
     now.mockReturnValue(300);
+    const secondPoint = { x: hotbar[1]!.x + 4, y: hotbar[1]!.y + 4 };
+    ui.pointerDown(secondPoint, 0, { shift: true });
+    ui.pointerUp(secondPoint, 0, { shift: true });
+    expect(handlers.quickMoveAllInventoryItems).toHaveBeenCalledWith('wood', ['hotbar', 'backpack'], ['chest']);
+    now.mockRestore();
+  });
+
+  it('finishes a held-stack shift-double-click after the first click empties the underlying slot', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(100);
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'chest';
+    const common = {
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      cursorStack: { itemKind: 'stone', quantity: 5 }, hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto' as const, prompt: null, toast: null,
+    };
+    ui.update({
+      ...common,
+      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }, { slot: 1, itemKind: 'wood', quantity: 9 }],
+      openChestInventory: [],
+    });
+    const slot = overworldUiLayout(480, 270).chestHotbarSlots[0]!;
+    const point = { x: slot.x + 4, y: slot.y + 4 };
+
     ui.pointerDown(point, 0, { shift: true });
     ui.pointerUp(point, 0, { shift: true });
-    expect(handlers.quickMoveAllInventoryItems).toHaveBeenCalledWith('wood', ['hotbar', 'backpack'], ['chest']);
+    expect(handlers.quickMoveInventoryItem).toHaveBeenCalledWith('hotbar', 0, ['chest']);
+
+    // Reproduce the authority update that made this intermittent: the first
+    // clicked stack has already moved before the second click arrives.
+    ui.update({
+      ...common,
+      inventory: [{ slot: 1, itemKind: 'wood', quantity: 9 }],
+      openChestInventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }],
+    });
+    now.mockReturnValue(450);
+    ui.pointerDown(point, 0, { shift: true });
+    ui.pointerUp(point, 0, { shift: true });
+
+    expect(handlers.quickMoveAllInventoryItems).toHaveBeenCalledWith(
+      'wood', ['hotbar', 'backpack'], ['chest'],
+    );
+    now.mockRestore();
+  });
+
+  it('double-clicks a similar stack while carrying an item to transfer all matches to the other inventory', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(100);
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'chest';
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [{ slot: 0, itemKind: 'wood', quantity: 8 }, { slot: 1, itemKind: 'wood', quantity: 9 }],
+      cursorStack: { itemKind: 'wood', quantity: 5 }, openChestInventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const hotbar = overworldUiLayout(480, 270).chestHotbarSlots;
+    const firstPoint = { x: hotbar[0]!.x + 4, y: hotbar[0]!.y + 4 };
+    const secondPoint = { x: hotbar[1]!.x + 4, y: hotbar[1]!.y + 4 };
+
+    ui.pointerDown(firstPoint, 0);
+    ui.pointerUp(firstPoint, 0);
+    now.mockReturnValue(550);
+    ui.pointerDown(secondPoint, 0);
+    ui.pointerUp(secondPoint, 0);
+
+    expect(handlers.quickMoveAllInventoryItems).toHaveBeenCalledWith(
+      'wood', ['hotbar', 'backpack'], ['chest'],
+    );
+    expect(handlers.inventoryCursorPickupAll).not.toHaveBeenCalled();
+    const internal = ui as unknown as {
+      chestItemSlots: readonly { readonly item: { readonly itemKind: string; readonly quantity: number } | null }[];
+    };
+    expect(internal.chestItemSlots[0]?.item).toMatchObject({ itemKind: 'wood', quantity: 22 });
     now.mockRestore();
   });
 
@@ -690,7 +1144,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 38, itemKind: 'wood', quantity: 25 }], hasBackpack: false,
+      inventory: [{ slot: 39, itemKind: 'wood', quantity: 25 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -705,7 +1159,7 @@ describe('overworld inventory and system menu', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'crafting';
     const inventory = Array.from({ length: 9 }, (_, index) => ({
-      slot: 38 + index,
+      slot: 39 + index,
       itemKind: index === 4 ? 'empty' : 'plank',
       quantity: index === 4 ? 0 : 1,
     }));
@@ -745,57 +1199,54 @@ describe('overworld inventory and system menu', () => {
     expect(handlers.ghostFillCraftingRecipe).toHaveBeenCalledWith('workbench');
   });
 
-  it('starts even distribution when Shift is pressed after picking the stack up', () => {
+  it('starts even distribution from an already-held cursor stack without Shift', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'plank', quantity: 10 }], hasBackpack: false,
+      inventory: [], cursorStack: { itemKind: 'plank', quantity: 10 }, hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
     const layout = overworldUiLayout(480, 270);
-    const source = layout.inventoryHotbarSlots[0]!;
     const targets = layout.craftingSlots.slice(0, 3);
-    ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0);
-    for (const slot of targets) ui.pointerMove({ x: slot.x + 4, y: slot.y + 4 }, { shift: true });
+    const first = targets[0]!;
+    ui.pointerDown({ x: first.x + 4, y: first.y + 4 }, 0);
+    for (const slot of targets.slice(1)) ui.pointerMove({ x: slot.x + 4, y: slot.y + 4 });
     const last = targets[2]!;
-    ui.pointerUp({ x: last.x + 4, y: last.y + 4 }, 0, { shift: true });
-    expect(handlers.distributeInventoryItem).toHaveBeenCalledWith('hotbar', 0, [
+    ui.pointerUp({ x: last.x + 4, y: last.y + 4 }, 0);
+    expect(handlers.inventoryCursorQuickCraft).toHaveBeenCalledWith([
       { container: 'crafting', index: 0 },
       { container: 'crafting', index: 1 },
       { container: 'crafting', index: 2 },
-    ], 10);
+    ], 'even');
   });
 
-  it('keeps the original source when a held stack is shift-swept before the finishing click', () => {
+  it('uses right-drag to place one cursor item in each visited slot', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 0, itemKind: 'plank', quantity: 9 }], hasBackpack: false,
+      inventory: [], cursorStack: { itemKind: 'plank', quantity: 9 }, hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
     const layout = overworldUiLayout(480, 270);
-    const source = layout.inventoryHotbarSlots[0]!;
     const targets = layout.craftingSlots.slice(0, 3);
-    const sourcePoint = { x: source.x + 4, y: source.y + 4 };
-    ui.pointerDown(sourcePoint, 0);
-    ui.pointerUp(sourcePoint, 0);
-    for (const slot of targets) ui.pointerMove({ x: slot.x + 4, y: slot.y + 4 }, { shift: true });
+    const first = targets[0]!;
+    ui.pointerDown({ x: first.x + 4, y: first.y + 4 }, 2);
+    for (const slot of targets.slice(1)) ui.pointerMove({ x: slot.x + 4, y: slot.y + 4 });
     const lastPoint = { x: targets[2]!.x + 4, y: targets[2]!.y + 4 };
-    ui.pointerDown(lastPoint, 0, { shift: true });
-    ui.pointerUp(lastPoint, 0, { shift: true });
-    expect(handlers.distributeInventoryItem).toHaveBeenCalledWith('hotbar', 0, [
+    ui.pointerUp(lastPoint, 2);
+    expect(handlers.inventoryCursorQuickCraft).toHaveBeenCalledWith([
       { container: 'crafting', index: 0 },
       { container: 'crafting', index: 1 },
       { container: 'crafting', index: 2 },
-    ], 9);
+    ], 'one_each');
   });
 
   it('shows and permits dragging from the eight default inventory cells while crafting', () => {
@@ -804,7 +1255,7 @@ describe('overworld inventory and system menu', () => {
     ui.openWindow = 'crafting';
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [{ slot: 9, itemKind: 'wood', quantity: 3 }], hasBackpack: false,
+      inventory: [{ slot: 10, itemKind: 'wood', quantity: 3 }], hasBackpack: false,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
@@ -815,9 +1266,7 @@ describe('overworld inventory and system menu', () => {
     ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0);
     ui.pointerMove({ x: target.x + 4, y: target.y + 4 });
     ui.pointerUp({ x: target.x + 4, y: target.y + 4 }, 0);
-    expect(handlers.moveInventoryItem).toHaveBeenCalledWith({
-      fromContainer: 'backpack', fromIndex: 0, toContainer: 'crafting', toIndex: 8, quantity: 3,
-    });
+    expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('backpack', 0, 'left');
   });
 
   it('shift-clicks inventory items into crafting even after a backpack is equipped', () => {

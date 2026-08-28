@@ -13,7 +13,9 @@ export interface InsetGroundTile {
   readonly tileY: number;
 }
 
-export function farmSoilKey(tileX: number, tileY: number): string { return `${tileX}:${tileY}`; }
+export function farmSoilKey(tileX: number, tileY: number, spaceId = 0): string {
+  return spaceId === 0 ? `${tileX}:${tileY}` : `${spaceId}:${tileX}:${tileY}`;
+}
 
 export function farmSoilFrameIndex(
   tile: Pick<FarmSoilTile, 'tileX' | 'tileY'>,

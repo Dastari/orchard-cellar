@@ -52,6 +52,20 @@ export function npcFacingForDirection(direction: Direction): NpcFacing {
   }
 }
 
+/** Chooses the cardinal direction an NPC should use to face a world point.
+ * Keeping the current facing for coincident points prevents arbitrary turns. */
+export function npcFacingTowardPoint(
+  origin: Vec2Fixed,
+  target: Vec2Fixed,
+  current: NpcFacing,
+): NpcFacing {
+  const dx = target.x - origin.x;
+  const dy = target.y - origin.y;
+  if (dx === 0 && dy === 0) return current;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? 'left' : 'right';
+  return dy < 0 ? 'up' : 'down';
+}
+
 /** A mounted rider may aim independently while stopped. The horse adopts the
  * rider's facing only when movement gives it a new travel direction. */
 export function mountedHorseFacing(
@@ -149,9 +163,7 @@ export function stepNpcTowardPoint(
   const dx = target.x - state.position.x;
   const dy = target.y - state.position.y;
   if (dx * dx + dy * dy <= reach * reach) {
-    const facing: NpcFacing = Math.abs(dx) >= Math.abs(dy)
-      ? (dx < 0 ? 'left' : 'right')
-      : (dy < 0 ? 'up' : 'down');
+    const facing = npcFacingTowardPoint(state.position, target, state.facing);
     return { ...state, facing, moving: false, wanderDirection: null, nextDecisionTick: authorityTick + 20 };
   }
   const horizontal: NpcFacing = dx < 0 ? 'left' : 'right';

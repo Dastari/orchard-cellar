@@ -6,6 +6,8 @@ export type InteractionTargetKind =
   | 'merchant'
   | 'horse'
   | 'gatherable'
+  | 'quest_item'
+  | 'embedded_arrow'
   | 'world_item';
 
 export interface InteractionCandidate {
@@ -25,7 +27,9 @@ const TIE_PRIORITY: Readonly<Record<InteractionTargetKind, number>> = {
   merchant: 4,
   horse: 5,
   gatherable: 6,
-  world_item: 7,
+  quest_item: 7,
+  embedded_arrow: 8,
+  world_item: 9,
 };
 
 /** Resolves the one target represented by the interaction prompt and E key.

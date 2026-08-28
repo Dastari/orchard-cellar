@@ -16,6 +16,12 @@ describe('scrollbar geometry', () => {
     expect(scrollThumbRect({ x: 0, y: 0, width: 14, height: 40 }, 3, 5, 0).height).toBe(40);
   });
 
+  it('supports a compact grip without changing its end positions', () => {
+    const bounds = { x: 10, y: 20, width: 14, height: 100 };
+    expect(scrollThumbRect(bounds, 20, 15, 0, 18)).toEqual({ x: 10, y: 20, width: 14, height: 18 });
+    expect(scrollThumbRect(bounds, 20, 15, 5, 18)).toEqual({ x: 10, y: 102, width: 14, height: 18 });
+  });
+
   it('scrolls upward toward older rows and supports standard navigation keys', () => {
     const bar = new ScrollBar({} as UiSkin);
     bar.setBounds({ x: 0, y: 0, width: 14, height: 100 });

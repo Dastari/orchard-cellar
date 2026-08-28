@@ -1,0 +1,71 @@
+{
+  "name": "icon_cf_marlow_book",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    8
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..4444444444444.",
+        ".41122222222214.",
+        ".41222222222224.",
+        ".41223353552224.",
+        ".41221111112224.",
+        ".41222222222224.",
+        ".41222222222224.",
+        ".41222222222224.",
+        ".41122222222214.",
+        ".41001001001004.",
+        ".40666666666664.",
+        ".40677777777774.",
+        ".40000010010114.",
+        "..444444444444..",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00396d",
+    "1": "#0069aa",
+    "2": "#0098dc",
+    "3": "#3d3d3d",
+    "4": "#3f2832",
+    "5": "#5d5d5d",
+    "6": "#e69c69",
+    "7": "#f6ca9f"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Icons.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
+  "sourceRegions": {
+    "base": [
+      [
+        160,
+        16,
+        16,
+        16
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "tags": [
+    "ui.icon",
+    "item.document",
+    "item.quest_reward"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

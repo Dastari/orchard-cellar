@@ -4,6 +4,7 @@ export const CHAT_MESSAGE_MAX_CODE_POINTS = 240;
 export const CHAT_CHANNEL_NAME_MAX_CODE_POINTS = 24;
 export const CHAT_CHANNEL_HISTORY_LIMIT = 200;
 export const SESSION_CHAT_NOTICE_LIMIT = 50;
+export const LAST_CONNECTION_EVENT_LIMIT = 12;
 export const CHAT_SEND_COOLDOWN_MICROS = 350_000n;
 export const DEFAULT_MESSAGE_OF_DAY = 'Welcome to Orchard & Cellar! Be kind, share the island, and have fun.';
 export const MESSAGE_OF_DAY_MAX_CODE_POINTS = 240;
@@ -36,6 +37,18 @@ export function worldEntryMessage(displayName: string): string {
 
 export function worldDisconnectMessage(displayName: string): string {
   return `${displayName} disconnected.`;
+}
+
+export function lastConnectionEventMessage(
+  displayName: string,
+  eventKind: string,
+  occurredAtIso: string,
+): string {
+  const action = eventKind === 'connected' ? 'logged in' : 'logged out';
+  const time = occurredAtIso
+    .replace('T', ' ')
+    .replace(/\.\d{3,6}Z$/, ' UTC');
+  return `${displayName} ${action} — ${time}`;
 }
 
 /** Lifecycle notices belong to the current connection, never durable chat history. */

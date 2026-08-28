@@ -141,6 +141,14 @@ export const ITEM_DESPAWN_TICKS = 24_000;
 /** New characters search this ring radius around the established island spawn area. */
 export const SURVIVAL_SPAWN_SEARCH_RADIUS_TILES = 60;
 
+/** Procedurally assisted sanctuary generation (docs/43 and docs/06 §14).
+ * The initial square covers the largest regional view plus an approach buffer;
+ * every other chunk is materialized lazily as exploration approaches it. */
+export const PROCEDURAL_WORLD_CHUNK_TILES = 16;
+export const PROCEDURAL_WORLD_EXTENT_TILES = 32_000;
+export const PROCEDURAL_SPAWN_PREGEN_RADIUS_CHUNKS = 12;
+export const PROCEDURAL_GENERATION_LOOKAHEAD_CHUNKS = 3;
+
 /** Character stats/vitals (docs/25 and docs/06 §11). Vitals and tool costs use
  * centi-units so every authority calculation remains integer-only. */
 export const BASE_ATTRIBUTE = 10;
@@ -155,6 +163,13 @@ export const HEALTH_REGEN_CENTI_PER_SECOND = 20;
 export const MANA_REGEN_CENTI_PER_WISDOM = 10;
 export const VIGOUR_REGEN_CENTI_PER_CONSTITUTION = 120;
 export const REGEN_SWEEP_TICKS = 10;
+
+/** Combat foundation (docs/32 §3 and docs/06 §15). */
+export const BOW_BASE_DAMAGE_CENTI = 14 * CENTI_UNITS_PER_DISPLAY_UNIT;
+export const COMBAT_MINIMUM_DAMAGE_CENTI = 1 * CENTI_UNITS_PER_DISPLAY_UNIT;
+export const ARCHERY_TARGET_MAX_HEALTH_CENTI = 100 * CENTI_UNITS_PER_DISPLAY_UNIT;
+export const ARCHERY_TARGET_REGEN_CENTI_PER_SECOND = 1 * CENTI_UNITS_PER_DISPLAY_UNIT;
+export const ARCHERY_TARGET_REGEN_INTERVAL_TICKS = 20;
 
 /** Legacy-island stepped terrain. Higher contours are repeated insets of the
  * same organic mask; tiny eroded islands are discarded before autotiling. */
@@ -172,7 +187,7 @@ export const TOOL_VIGOUR_BALANCE = {
   watering_can: { costCenti: 800, minimumSwingTicks: 6 },
   hoe: { costCenti: 5_000, minimumSwingTicks: 6 },
   fishing_rod: { costCenti: 600, minimumSwingTicks: 6 },
-  bow: { costCenti: 1_000, minimumSwingTicks: 6 },
+  bow: { costCenti: 3_000, minimumSwingTicks: 6 },
   sword: { costCenti: 1_200, minimumSwingTicks: 7 },
   axe: { costCenti: 5_000, minimumSwingTicks: 8 },
   pickaxe: { costCenti: 5_000, minimumSwingTicks: 10 },

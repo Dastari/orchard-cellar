@@ -1,5 +1,11 @@
 # Wildlife, habitat packs, and hives
 
+> **Sanctuary amendment (2026-08-26):** [40](40-sanctuary-overworld-and-zoned-world.md)
+> makes overworld wildlife immutable, peaceful scenery: it cannot be damaged,
+> harvested, removed, or depleted. Mutable husbandry, hive harvesting, drops, and
+> danger belong in Homestead or explicit resource/danger spaces. The current durable
+> population remains a transitional implementation until sanctuary migration.
+
 Wildlife is a deterministic layer over survival terrain. It does not alter the
 terrain/resource version and can therefore be regenerated without touching player
 identity, inventory, farms, soil, chests, or the authored starter horse.

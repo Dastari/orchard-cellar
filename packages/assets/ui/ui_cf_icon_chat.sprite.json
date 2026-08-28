@@ -1,0 +1,67 @@
+{
+  "name": "ui_cf_icon_chat",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    8
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "...0033333300...",
+        "..033333333330..",
+        ".03311311311330.",
+        ".03312322321330.",
+        ".03333333333330.",
+        ".01333333333310.",
+        "..011333333110..",
+        "...0011133330...",
+        ".....000111330..",
+        "........000110..",
+        "...........000..",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#181425",
+    "1": "#8b9bb4",
+    "2": "#c0cbdc",
+    "3": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Icons.png",
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        16,
+        16,
+        16
+      ]
+    ]
+  },
+  "uiSizing": "fixed",
+  "tags": [
+    "ui.icon",
+    "ui.chat",
+    "ui.speech_bubble"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

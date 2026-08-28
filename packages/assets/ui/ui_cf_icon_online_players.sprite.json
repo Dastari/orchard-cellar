@@ -1,0 +1,45 @@
+{
+  "name": "ui_cf_icon_online_players",
+  "category": "ui",
+  "size": [
+    8,
+    8
+  ],
+  "anchor": [
+    4,
+    7
+  ],
+  "frames": {
+    "base": [
+      [
+        "........",
+        "......00",
+        "....0012",
+        "...02121",
+        "..021213",
+        "..012133",
+        ".0121332",
+        ".0212331"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#fff4b8",
+    "2": "#fee761",
+    "3": "#feae34"
+  },
+  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Icons.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Icons.png",
+  "sourceRegions": {
+    "base": [[112, 0, 8, 8]]
+  },
+  "uiSizing": "fixed",
+  "tags": ["ui.icon", "ui.online_players", "ui.lightning"],
+  "placement": { "layer": "ui", "builderAvailable": false }
+}

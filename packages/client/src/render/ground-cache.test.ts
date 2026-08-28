@@ -1,7 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ChunkLruCache, groundCacheCapacityForViewport } from './ground-cache.js';
+import {
+  ChunkLruCache,
+  groundCacheCapacityForViewport,
+  groundTileInsideTerrain,
+} from './ground-cache.js';
 
 describe('chunked ground cache', () => {
+  it('leaves unused cells in a partial boundary chunk transparent', () => {
+    const terrain = { width: 80, height: 56 };
+    expect(groundTileInsideTerrain(terrain, 79, 55)).toBe(true);
+    expect(groundTileInsideTerrain(terrain, 80, 55)).toBe(false);
+    expect(groundTileInsideTerrain(terrain, 79, 56)).toBe(false);
+  });
+
   it('invalidates only the resource chunk', () => {
     const cache = new ChunkLruCache<number>(64);
     const build = vi.fn(() => 1);

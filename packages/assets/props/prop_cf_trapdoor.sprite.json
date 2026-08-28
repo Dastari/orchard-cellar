@@ -1,0 +1,76 @@
+{
+  "name": "prop_cf_trapdoor",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "6666666666666666",
+        "6666166666616666",
+        "6661816666181666",
+        "6661511111151666",
+        "6661518888151666",
+        "6601515555151066",
+        "6021511111151206",
+        "0221514444151220",
+        "0241514444151420",
+        "0441311111131440",
+        "0441517777151440",
+        "6041315555131406",
+        "6601311111131066",
+        "6660014444100666",
+        "6666600000066666",
+        "6666666666666666"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#391f21",
+    "1": "#3f2832",
+    "2": "#5d2c28",
+    "3": "#5e2c26",
+    "4": "#704033",
+    "5": "#743f39",
+    "6": "#8a4836",
+    "7": "#91533b",
+    "8": "#b86f50"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Cave_Floor_Ladder.png",
+  "sourcePath": "references/Cute_Fantasy/Tiles/Cave/Cave_Floor_Ladder.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

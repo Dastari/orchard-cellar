@@ -17,7 +17,11 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(placeable).toContain("name: 'world_placeable'");
     expect(placeable).toContain('public: true');
     expect(placeable).toContain("columns: ['spaceId', 'chunkX', 'chunkY']");
+    expect(placeable).toContain("columns: ['carriedBy']");
     expect(placeable).toContain('spaceId: t.u16().default(0)');
+    expect(placeable).toContain('carriedBy: t.option(t.identity()).default(undefined)');
+    expect(placeable.indexOf('lit: t.bool().default(true)'))
+      .toBeLessThan(placeable.indexOf('carriedBy: t.option(t.identity()).default(undefined)'));
     expect(placeable).toContain('smeltStartTick: t.option(t.u64())');
     expect(source).toContain("{ accessor: 'by_placeable', algorithm: 'btree', columns: ['placeableId'] }");
   });
@@ -57,12 +61,12 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(craft.indexOf("throw new SenderError('station_required')"))
       .toBeLessThan(craft.indexOf('inventory_slot.id.update'));
     const hands = reducerSource('useHands');
-    expect(hands.indexOf('world_placeable.insert')).toBeLessThan(hands.indexOf("'placeables_placed'"));
-    expect(hands.indexOf("'placeables_placed'")).toBeLessThan(hands.lastIndexOf('return;'));
+    expect(hands.indexOf('world_placeable.insert')).toBeLessThan(hands.lastIndexOf("'placeables_placed'"));
+    expect(hands.lastIndexOf("'placeables_placed'")).toBeLessThan(hands.lastIndexOf('return;'));
   });
 
   it('maintains collision, gate state, fiber acquisition, and regional subscriptions', () => {
-    expect(source).toContain("createAuthoritySpaceCollisionMap(spaceId, resources, chests, 'ground', placeables)");
+    expect(source).toContain('const collision = collisionForSpace(ctx, spaceId)');
     expect(reducerSource('interactPlaceable')).toContain('open: !placeable.open');
     expect(reducerSource('useFarmTool')).toContain('fiberDropsFromTilling(');
     expect(reducerSource('useFarmTool')).toContain("itemKind: 'fiber'");
@@ -91,5 +95,27 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(interact).toContain('nearestTileTarget(');
     expect(interact).toContain('CHEST_INTERACTION_REACH_FIXED');
     expect(interact).not.toContain('facingTile(');
+  });
+
+  it('keeps placed anvils out of inventory and repairs atomically for copper', () => {
+    const hands = reducerSource('useHands');
+    expect(hands).toContain("targetPlaceable.kind === 'anvil'");
+    expect(hands).toContain('carriedPlaceableFor(ctx, ctx.sender)');
+    expect(hands).toContain('carriedBy: ctx.sender');
+    expect(hands).toContain('carriedBy: undefined');
+    expect(source).toContain('world_placeable.by_carrier.filter(row.identity)');
+    const interact = reducerSource('interactPlaceable');
+    expect(interact).toContain("placeable.kind === 'anvil'");
+    expect(interact).toContain('repairSelectedToolAtAnvil(ctx)');
+    const repair = source.slice(
+      source.indexOf('function repairSelectedToolAtAnvil'),
+      source.indexOf('export const consumeOrchardTea'),
+    );
+    expect(repair).toContain('ctx.db.player_wallet.identity.find(ctx.sender)');
+    expect(repair).toContain('ANVIL_REPAIR_COST_BRONZE');
+    expect(repair).toContain('wallet.balanceBronze - repairCost');
+    expect(repair).toContain("throw new SenderError('anvil_copper_missing')");
+    expect(repair).toContain("recordPlayerStatistic(ctx, ctx.sender, 'bronze_spent', repairCost, authorityTick)");
+    expect(repair).not.toContain("'anvil_repair'");
   });
 });

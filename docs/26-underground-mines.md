@@ -2,6 +2,11 @@
 
 Binding owner-directed spec (2026-08-25). Status: **phase 1 (spaces plumbing)
 implemented — shared with docs/35**.
+The immediate next use of this plumbing is [40](40-sanctuary-overworld-and-zoned-world.md)
+§8's Shared Spaces technology demo: a test forest, cave, deeper underground sample,
+and dynamic deed-created Homestead. Full mine progression remains deferred. Doc 40
+also broadens the space model to safe/resource/danger/social zone profiles while
+keeping this document's one-database, `spaceId`, portal, and subscription contracts.
 Builds on [20-survival-world.md](20-survival-world.md) (deterministic generation,
 resources, collision), [21-unified-renderer.md](21-unified-renderer.md) (lighting,
 chunk cache, the "farms return as instanced interiors" promise this doc finally

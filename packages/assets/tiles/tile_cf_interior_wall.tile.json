@@ -1,0 +1,66 @@
+{
+  "name": "tile_cf_interior_wall",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {},
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Interior_Walls.png",
+  "sourcePath": "references/Cute_Fantasy/Buildings/Houses_Interiors/Interior_Walls.png",
+  "sourceRegions": {
+    "base": [
+      [
+        48,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

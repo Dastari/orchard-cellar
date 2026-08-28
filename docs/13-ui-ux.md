@@ -34,6 +34,9 @@ be open; opening another closes the first (with its close animation skipped).
 | Move | WASD / arrows | Left stick / d-pad | Virtual stick (bottom-left, appears on touch) |
 | Interact / Tend (hold to charge) | E / Space — **key auto-repeat must be ignored** (track keydown/keyup edges, not repeats) | A | Context button (bottom-right, shows current verb icon) |
 | Inventory | Tab | Y | Toolbelt tap |
+| Character | P | — | Character ribbon button |
+| Skills | K | — | Skills ribbon button |
+| Quests | J | — | Quest tracker / ribbon button |
 | Map | M | Back/Select | Map icon tap (top-right of dial) |
 | Estate Book | B | X | Book icon tap |
 | Menu / back / close overlay | Esc | B / Start | On-screen ✕ in overlay corner |
@@ -196,6 +199,16 @@ Four leather tab markers along the top edge (Q/E or bumpers cycle):
 keys/stick, hover shows a `font-5x7` tooltip chip (name + one-line use). Bottom row
 is the toolbelt mirror: press 1–4 on a hovered tool to assign it. Open/close is a
 2-frame unfold (satchel flap), 80 ms.
+
+**Character** (P) — a parchment character sheet showing the shared equipment paper
+doll, Health/Mana/Vigour, base-to-resolved attributes, active effects, and Combat /
+Explorer / Farming levels. The appearance controls cycle only authored variants and
+commit through server validation.
+
+**Skills** (K) — a one-track-at-a-time Combat / Explorer / Farming tree. Drag the
+canvas to pan, wheel to zoom, inspect nodes in the side panel, and spend or reset
+points through authoritative reducers. Owner developer tools may grant test points;
+ordinary clients can never submit XP or point totals.
 
 **Map** (M) — full-screen hand-drawn parchment map of the estate (drawn asset, not a
 live minimap) with inked icons for farmhouse, cellar, gate, and the player's position

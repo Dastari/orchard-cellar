@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   craftItem,
+  clickContainerSlot,
   distributeItemStack,
   insertItemStack,
   insertItemStackPartial,
@@ -8,6 +9,9 @@ import {
   moveItemStacks,
   quickMoveItemStack,
   quickMoveAllMatchingStacks,
+  quickCraftCursorStack,
+  pickupAllToCursor,
+  sortAndStackContainer,
   slotAcceptsItem,
 } from './item-containers.js';
 import { MOVE_RULE_FIXTURES } from './item-containers.fixtures.js';
@@ -42,6 +46,36 @@ describe('shared container stacking rules', () => {
     const containers = { bag: { id: 'bag', capacity: 2, slots: [{ itemKind: 'wood', quantity: 4 }, null] } } as const;
     moveItemStacks(containers, { fromContainer: 'bag', fromIndex: 0, toContainer: 'bag', toIndex: 1, quantity: 2 });
     expect(containers.bag.slots).toEqual([{ itemKind: 'wood', quantity: 4 }, null]);
+  });
+
+  it('sorts and compacts compatible stacks without losing metadata', () => {
+    const container = {
+      id: 'backpack', capacity: 7,
+      slots: [
+        { itemKind: 'wood', quantity: 60 },
+        { itemKind: 'lantern', quantity: 1, lit: false },
+        { itemKind: 'stone', quantity: 4 },
+        null,
+        { itemKind: 'wood', quantity: 50 },
+        { itemKind: 'lantern', quantity: 1, lit: true },
+        null,
+      ],
+    } as const;
+    const result = sortAndStackContainer(container);
+    expect(result).toMatchObject({
+      ok: true,
+      outcome: 'sort',
+      container: { slots: [
+        { itemKind: 'lantern', quantity: 1, lit: true },
+        { itemKind: 'lantern', quantity: 1, lit: false },
+        { itemKind: 'stone', quantity: 4 },
+        { itemKind: 'wood', quantity: 99 },
+        { itemKind: 'wood', quantity: 11 },
+        null,
+        null,
+      ] },
+    });
+    expect(container.slots[0]).toEqual({ itemKind: 'wood', quantity: 60 });
   });
 
   it('preserves switchable-light state through moves, swaps, and quick moves', () => {
@@ -214,5 +248,63 @@ describe('Minecraft-style bulk slot gestures', () => {
         ] },
       },
     });
+  });
+});
+
+describe('Minecraft cursor stack authority', () => {
+  const menu = {
+    hotbar: { id: 'hotbar', capacity: 3, slots: [{ itemKind: 'wood', quantity: 15 }, null, null] },
+    backpack: { id: 'backpack', capacity: 2, slots: [{ itemKind: 'wood', quantity: 90 }, { itemKind: 'stone', quantity: 7 }] },
+  } as const;
+
+  it('picks up a whole stack on left click and the larger half on right click', () => {
+    expect(clickContainerSlot(menu, null, { container: 'hotbar', index: 0, button: 'left' }))
+      .toMatchObject({ ok: true, cursor: { itemKind: 'wood', quantity: 15 }, containers: { hotbar: { slots: [null, null, null] } } });
+    expect(clickContainerSlot(menu, null, { container: 'hotbar', index: 0, button: 'right' }))
+      .toMatchObject({ ok: true, cursor: { itemKind: 'wood', quantity: 8 }, containers: { hotbar: { slots: [{ itemKind: 'wood', quantity: 7 }, null, null] } } });
+  });
+
+  it('places all with left click, one with right click, and swaps incompatible stacks with either button', () => {
+    expect(clickContainerSlot(menu, { itemKind: 'wood', quantity: 4 }, { container: 'hotbar', index: 1, button: 'left' }))
+      .toMatchObject({ ok: true, cursor: null, containers: { hotbar: { slots: [{ itemKind: 'wood', quantity: 15 }, { itemKind: 'wood', quantity: 4 }, null] } } });
+    expect(clickContainerSlot(menu, { itemKind: 'wood', quantity: 4 }, { container: 'hotbar', index: 1, button: 'right' }))
+      .toMatchObject({ ok: true, cursor: { quantity: 3 }, containers: { hotbar: { slots: [{ itemKind: 'wood', quantity: 15 }, { itemKind: 'wood', quantity: 1 }, null] } } });
+    expect(clickContainerSlot(menu, { itemKind: 'wood', quantity: 4 }, { container: 'backpack', index: 1, button: 'right' }))
+      .toMatchObject({ ok: true, outcome: 'swap', cursor: { itemKind: 'stone', quantity: 7 }, containers: { backpack: { slots: [{ itemKind: 'wood', quantity: 90 }, { itemKind: 'wood', quantity: 4 }] } } });
+  });
+
+  it('left quick-craft uses a fixed even share and leaves the remainder on the cursor', () => {
+    const result = quickCraftCursorStack({
+      crafting: { id: 'crafting', capacity: 3, slots: [null, null, null] },
+    }, { itemKind: 'plank', quantity: 10 }, {
+      mode: 'even', targets: [0, 1, 2].map((index) => ({ container: 'crafting', index })),
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      cursor: { itemKind: 'plank', quantity: 1 },
+      containers: { crafting: { slots: [{ quantity: 3 }, { quantity: 3 }, { quantity: 3 }] } },
+    });
+  });
+
+  it('right quick-craft deposits one in each unique eligible slot', () => {
+    expect(quickCraftCursorStack({
+      hotbar: { id: 'hotbar', capacity: 3, slots: [null, null, null] },
+    }, { itemKind: 'wood', quantity: 2 }, {
+      mode: 'one_each', targets: [0, 1, 1, 2].map((index) => ({ container: 'hotbar', index })),
+    })).toMatchObject({
+      ok: true, cursor: null,
+      containers: { hotbar: { slots: [{ quantity: 1 }, { quantity: 1 }, null] } },
+    });
+  });
+
+  it('double-click collects compatible stacks up to the item maximum', () => {
+    expect(pickupAllToCursor(menu, { itemKind: 'wood', quantity: 5 }, ['hotbar', 'backpack']))
+      .toMatchObject({
+        ok: true, cursor: { itemKind: 'wood', quantity: 99 },
+        containers: {
+          hotbar: { slots: [null, null, null] },
+          backpack: { slots: [{ itemKind: 'wood', quantity: 11 }, { itemKind: 'stone', quantity: 7 }] },
+        },
+      });
   });
 });

@@ -44,9 +44,9 @@ describe('pixel display controls', () => {
 
   it('steps and clamps world zoom', () => {
     expect(DEFAULT_WORLD_ZOOM).toBe(2);
-    expect(MIN_WORLD_ZOOM).toBe(1.5);
-    expect(stepWorldZoom(2, -1)).toBe(1.75);
-    expect(stepWorldZoom(1.5, -1)).toBe(1.5);
+    expect(MIN_WORLD_ZOOM).toBe(2);
+    expect(stepWorldZoom(2, -1)).toBe(2);
+    expect(stepWorldZoom(1.5, -1)).toBe(2);
     expect(stepWorldZoom(2, 1)).toBe(2.25);
     expect(stepWorldZoom(8, 1)).toBe(8);
     expect(worldZoomLabel(1)).toBe('0.5X');

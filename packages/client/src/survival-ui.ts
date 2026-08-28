@@ -1,6 +1,7 @@
 import {
   FIXED_UNITS_PER_PIXEL,
   ITEM_PICKUP_REACH_FIXED,
+  HOTBAR_SLOT_COUNT,
   TILE_SIZE_FIXED,
   TILE_INTERACTION_REACH_FIXED,
   boundsOverlap,
@@ -8,6 +9,7 @@ import {
   directionUnitVector,
   facedTileTarget,
   itemDefinition,
+  hotbarSlotForInputCode,
   playerHitboxBounds,
   survivalResourceTargetVector,
   tileTargetAtFixedPoint,
@@ -153,11 +155,10 @@ export function nearbyWorldItem<T extends TargetableWorldItem>(
 }
 
 export function hotbarSlotForCode(code: string): number | null {
-  if (/^Digit[1-9]$/.test(code) || /^Numpad[1-9]$/.test(code)) return Number(code.at(-1)) - 1;
-  return null;
+  return hotbarSlotForInputCode(code);
 }
 
-export const HOTBAR_SLOT_COUNT = 9;
+export { HOTBAR_SLOT_COUNT };
 export const HOTBAR_SLOT_WIDTH = 35;
 export const HOTBAR_HEIGHT = 34;
 export const HOTBAR_BOTTOM_MARGIN = 5;
@@ -170,12 +171,14 @@ export interface HotbarLayout {
 }
 
 export function hotbarLayout(viewportWidth: number, viewportHeight: number): HotbarLayout {
-  const width = HOTBAR_SLOT_WIDTH * HOTBAR_SLOT_COUNT;
+  const columns = viewportWidth < 420 ? Math.min(5, HOTBAR_SLOT_COUNT) : HOTBAR_SLOT_COUNT;
+  const rows = Math.ceil(HOTBAR_SLOT_COUNT / columns);
+  const width = HOTBAR_SLOT_WIDTH * columns;
   return {
     startX: Math.round((viewportWidth - width) / 2),
-    y: viewportHeight - HOTBAR_HEIGHT - HOTBAR_BOTTOM_MARGIN,
+    y: viewportHeight - HOTBAR_HEIGHT * rows - HOTBAR_BOTTOM_MARGIN,
     width,
-    height: HOTBAR_HEIGHT,
+    height: HOTBAR_HEIGHT * rows,
   };
 }
 
@@ -189,9 +192,12 @@ export function hotbarSlotAtPoint(
   if (x < layout.startX || x >= layout.startX + layout.width || y < layout.y || y >= layout.y + layout.height) {
     return null;
   }
-  const slot = Math.floor((x - layout.startX) / HOTBAR_SLOT_WIDTH);
-  const slotX = layout.startX + slot * HOTBAR_SLOT_WIDTH;
-  return x < slotX + HOTBAR_HEIGHT ? slot : null;
+  const columns = viewportWidth < 420 ? Math.min(5, HOTBAR_SLOT_COUNT) : HOTBAR_SLOT_COUNT;
+  const column = Math.floor((x - layout.startX) / HOTBAR_SLOT_WIDTH);
+  const row = Math.floor((y - layout.y) / HOTBAR_HEIGHT);
+  const slot = row * columns + column;
+  const slotX = layout.startX + column * HOTBAR_SLOT_WIDTH;
+  return slot < HOTBAR_SLOT_COUNT && x < slotX + HOTBAR_HEIGHT ? slot : null;
 }
 
 export function hotbarItemLabel(itemKind: string): string {
