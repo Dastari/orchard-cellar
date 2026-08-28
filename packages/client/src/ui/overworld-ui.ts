@@ -333,8 +333,9 @@ export function isNameplateToggle(code: string, repeat: boolean): boolean {
 export function isInterfaceVisibilityToggle(
   code: string,
   repeat: boolean,
+  textEntryActive = false,
 ): boolean {
-  return code === 'KeyZ' && !repeat;
+  return code === 'KeyZ' && !repeat && !textEntryActive;
 }
 
 export function onlinePlayerListFrameHeight(contentRows: number): number {
@@ -1636,6 +1637,12 @@ export class OverworldUi {
       });
     });
     this.onlinePlayersScrollBar.draw(context);
+  }
+
+  /** Drawn by the scene after every window and overlay. The system cursor is
+   * intentionally the final UI composite and therefore cannot be occluded. */
+  drawCursorOverlay(context: CanvasRenderingContext2D): void {
+    this.drawCursor(context);
   }
 
   private drawStatus(context: CanvasRenderingContext2D): void {

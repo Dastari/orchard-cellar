@@ -282,6 +282,7 @@ import {
 } from './ui/speech-bubble.js';
 import { CharacterNamePrompt } from './ui/character-name-prompt.js';
 import { NpcInteractionUi } from './ui/npc-interaction-ui.js';
+import { TradeUi } from './ui/trade-ui.js';
 import { QuestTracker, type QuestTrackerEntry } from './ui/quest-tracker.js';
 import type { QuestLogEntry } from './ui/quest-log.js';
 import { TouchControls, type TouchControlAction } from './ui/touch-controls.js';
@@ -309,6 +310,16 @@ const shopFilterInputElement = document.querySelector<HTMLInputElement>('#shop-f
 if (shopFilterInputElement === null) throw new Error('Missing shop filter input');
 const inventoryFilterInputElement = document.querySelector<HTMLInputElement>('#inventory-filter');
 if (inventoryFilterInputElement === null) throw new Error('Missing inventory filter input');
+const tradeMoneyGoldInputElement = document.querySelector<HTMLInputElement>('#trade-money-gold');
+const tradeMoneySilverInputElement = document.querySelector<HTMLInputElement>('#trade-money-silver');
+const tradeMoneyBronzeInputElement = document.querySelector<HTMLInputElement>('#trade-money-bronze');
+if (tradeMoneyGoldInputElement === null || tradeMoneySilverInputElement === null
+  || tradeMoneyBronzeInputElement === null) throw new Error('Missing trade money inputs');
+const tradeMoneyInputElements = [
+  tradeMoneyGoldInputElement,
+  tradeMoneySilverInputElement,
+  tradeMoneyBronzeInputElement,
+] as const;
 setLoadingScreenStage({
   title: 'PACKING YOUR WAGON', detail: 'LOADING ART, TILESETS, AND UI', progress: 38,
 });
@@ -790,6 +801,27 @@ const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
     variant: profile?.variant ?? 0,
   }, rect);
 }, shopFilterInputElement);
+const tradeUi = new TradeUi(art.uiSkin, art.ui, itemArt, {
+  gold: tradeMoneyGoldInputElement,
+  silver: tradeMoneySilverInputElement,
+  bronze: tradeMoneyBronzeInputElement,
+}, {
+  acceptRequest: (tradeId) => showResult(network.acceptTradeRequest(tradeId), 'TRADE OPENED'),
+  declineRequest: (tradeId) => showResult(network.declineTrade(tradeId), 'TRADE DECLINED'),
+  cancel: (tradeId) => showResult(network.cancelTrade(tradeId), 'TRADE CANCELLED'),
+  offerItem: (tradeId, inventorySlot, tradeSlot, quantity) => showResult(
+    network.setTradeOfferItem(tradeId, inventorySlot, tradeSlot, quantity), 'OFFER UPDATED',
+  ),
+  removeItem: (tradeId, tradeSlot) => showResult(
+    network.removeTradeOfferItem(tradeId, tradeSlot), 'ITEM REMOVED FROM OFFER',
+  ),
+  offerBronze: (tradeId, amount) => showResult(
+    network.setTradeOfferBronze(tradeId, amount), 'MONEY OFFER UPDATED',
+  ),
+  setAccepted: (tradeId, accepted, revision) => showResult(
+    network.setTradeAccepted(tradeId, accepted, revision), accepted ? 'TRADE ACCEPTED' : 'ACCEPTANCE CLEARED',
+  ),
+});
 const questTracker = new QuestTracker(
   art.ui,
   art.uiSkin.questTrackerChevron,
@@ -1329,6 +1361,7 @@ function update(): void {
   network.setViewRadius(viewRadiusForViewport(renderer.cssWidth, renderer.cssHeight, worldZoom));
   latestSnapshot = network.view();
   const snapshot = latestSnapshot;
+  if (snapshot.tradeSession !== null) overworldUi.openWindow = null;
   const authoritativePosition = network.ownPosition();
   if (authoritativePosition !== null && authoritativePosition.spaceId !== observedSpaceId) {
     observedSpaceId = authoritativePosition.spaceId;
@@ -1406,6 +1439,7 @@ function update(): void {
     || overworldUi.openWindow !== null
     || characterNamePrompt.isActive
     || npcInteractionUi.active
+    || snapshot.tradeSession !== null
     || chatOverlay.isOpen,
   );
   const direction = directionFromKeys();
@@ -2280,6 +2314,7 @@ type EInteractionTarget =
   | (InteractionCandidate & { readonly kind: 'chest'; readonly chest: WorldChest })
   | (InteractionCandidate & { readonly kind: 'campfire'; readonly campfire: TargetCampfire })
   | (InteractionCandidate & { readonly kind: 'merchant'; readonly npc: WorldNpc })
+  | (InteractionCandidate & { readonly kind: 'player'; readonly player: PlayerPosition })
   | (InteractionCandidate & { readonly kind: 'horse'; readonly npc: WorldNpc })
   | (InteractionCandidate & { readonly kind: 'gatherable'; readonly resource: WorldResource })
   | (InteractionCandidate & { readonly kind: 'quest_item'; readonly item: QuestWorldItem })
@@ -2322,6 +2357,15 @@ function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
     kind: 'merchant', x: merchant.x, y: merchant.y,
     stableId: `merchant:${merchant.id}`, npc: merchant,
   });
+  for (const player of snapshot.players) {
+    const id = player.identity.toHexString();
+    if (id === snapshot.identityHex || player.spaceId !== activeSpaceDefinition.spaceId
+      || snapshot.profiles.get(id)?.online !== true) continue;
+    const dx = player.x - predicted.position.x;
+    const dy = player.y - predicted.position.y;
+    if (dx * dx + dy * dy > (3 * TILE_SIZE_FIXED) ** 2) continue;
+    candidates.push({ kind: 'player', x: player.x, y: player.y, stableId: `player:${id}`, player });
+  }
   const horse = targetHorse(snapshot);
   if (horse !== null) candidates.push({
     kind: 'horse', x: horse.x, y: horse.y,
@@ -2383,6 +2427,7 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
         : '[E] OPEN CHEST';
     case 'campfire': return `[E] COOK  [F] ${target.campfire.lit ? 'EXTINGUISH' : 'LIGHT'} CAMPFIRE`;
     case 'merchant': return `[E] TALK TO ${target.npc.displayName.toUpperCase()}`;
+    case 'player': return `[E] TRADE WITH ${(snapshot.profiles.get(target.player.identity.toHexString())?.displayName ?? 'PLAYER').toUpperCase()}`;
     case 'horse': return localMount(snapshot) !== null
       ? `[E] DISMOUNT ${horseLabel(target.npc).toUpperCase()}`
       : `[E] RIDE ${horseLabel(target.npc).toUpperCase()}`;
@@ -2420,6 +2465,9 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
     case 'merchant':
       overworldUi.openWindow = null;
       showResult(network.interactNpc(target.npc.id), `TALKING TO ${target.npc.displayName.toUpperCase()}`);
+      return;
+    case 'player':
+      showResult(network.requestTrade(target.player.identity), 'TRADE REQUEST SENT');
       return;
     case 'horse': {
       const dismounting = localMount(snapshot) !== null;
@@ -4007,6 +4055,16 @@ function render(alpha = 1): void {
         })),
     } }),
   });
+  const tradeSession = snapshot.tradeSession;
+  tradeUi.update(tradeSession === null || snapshot.identityHex === null ? null : {
+    identityHex: snapshot.identityHex,
+    session: tradeSession,
+    offers: [...snapshot.tradeOffers],
+    inventorySlots: [...snapshot.inventorySlots],
+    walletBronze: snapshot.wallet?.balanceBronze ?? 0n,
+    requesterName: snapshot.profiles.get(tradeSession.requester.toHexString())?.displayName ?? 'Player',
+    recipientName: snapshot.profiles.get(tradeSession.recipient.toHexString())?.displayName ?? 'Player',
+  });
   npcInteractionUi.update(snapshot.activeDialogue === null ? null : {
     width: uiWidth,
     height: uiHeight,
@@ -4235,8 +4293,10 @@ function render(alpha = 1): void {
     overworldUi.draw(uiContext);
     if (onlinePlayersVisible) overworldUi.drawOnlinePlayers(uiContext, onlinePlayers);
     npcInteractionUi.draw(uiContext);
+    tradeUi.draw(uiContext, uiWidth, uiHeight);
     characterNamePrompt.draw(uiContext);
     touchControls.draw(uiContext, art.ui, art.uiSkin, uiWidth, uiHeight);
+    overworldUi.drawCursorOverlay(uiContext);
   }
   if (!interfaceHidden && debugCollision && debugTerrainPoint !== null) {
     const activeElevation = terrainElevationAtWorldFoot(terrain, localX, localTerrainContactY);
@@ -4490,9 +4550,14 @@ function setInterfaceHidden(hidden: boolean): void {
 
 window.addEventListener('resize', resize);
 window.addEventListener('keydown', (event) => {
+  const activeElement = document.activeElement;
+  const textEntryActive = activeElement instanceof HTMLInputElement
+    || activeElement instanceof HTMLTextAreaElement
+    || (activeElement instanceof HTMLElement && activeElement.isContentEditable);
   if (!isInterfaceVisibilityToggle(
     event.code,
     event.repeat,
+    textEntryActive || event.isComposing,
   )) return;
   setInterfaceHidden(!interfaceHidden);
   event.preventDefault();
@@ -4501,7 +4566,18 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('keydown', (event) => {
   void audio.unlock().catch(() => undefined);
   if (!interfaceHidden) {
+    if (tradeMoneyInputElements.includes(document.activeElement as HTMLInputElement)) {
+      if (event.code === 'Escape') {
+        (document.activeElement as HTMLInputElement).blur();
+        event.preventDefault();
+      }
+      return;
+    }
     if (characterNamePrompt.handleGlobalKeyDown()) {
+      event.preventDefault();
+      return;
+    }
+    if (tradeUi.handleKeyDown(event.code, event.repeat)) {
       event.preventDefault();
       return;
     }
@@ -4861,6 +4937,7 @@ canvas.addEventListener('pointermove', (event) => {
   if (interfaceHidden) return;
   characterNamePrompt.pointerMove({ x, y });
   if (characterNamePrompt.isActive) return;
+  if (tradeUi.pointerMove({ x, y })) return;
   if (npcInteractionUi.pointerMove({ x, y })) return;
   chatOverlay.pointerMove({ x, y });
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
@@ -4871,6 +4948,7 @@ canvas.addEventListener('pointerleave', () => {
   worldPointer = null;
   hoveredInteractionTile = null;
   characterNamePrompt.pointerLeave();
+  tradeUi.pointerLeave();
   npcInteractionUi.pointerLeave();
   questTracker.pointerLeave();
   chatOverlay.pointerLeave();
@@ -4879,6 +4957,11 @@ canvas.addEventListener('pointerleave', () => {
 canvas.addEventListener('pointerdown', (event) => {
   void audio.unlock().catch(() => undefined);
   const [x, y] = pointerUiPosition(event);
+  if (!interfaceHidden && tradeUi.pointerDown({ x, y }, event.button)) {
+    canvas.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    return;
+  }
   const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
   const touchAction = touchControls.pointerDown(
     { x, y },
@@ -5042,6 +5125,12 @@ canvas.addEventListener('pointerup', (event) => {
       event.preventDefault();
       return;
     }
+    if (tradeUi.active) {
+      tradeUi.pointerUp();
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      event.preventDefault();
+      return;
+    }
     if (npcInteractionUi.active) {
       npcInteractionUi.pointerUp();
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
@@ -5072,12 +5161,17 @@ canvas.addEventListener('pointercancel', () => {
   questTracker.pointerCancel();
   chatOverlay.pointerCancel();
   npcInteractionUi.pointerLeave();
+  tradeUi.pointerLeave();
   overworldUi.pointerLeave();
 });
 canvas.addEventListener('wheel', (event) => {
   const [x, y] = pointerUiPosition(event);
   if (!interfaceHidden) {
     if (characterNamePrompt.isActive) {
+      event.preventDefault();
+      return;
+    }
+    if (tradeUi.wheel({ x, y }, event.deltaY)) {
       event.preventDefault();
       return;
     }

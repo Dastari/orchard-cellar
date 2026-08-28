@@ -339,6 +339,12 @@ export type OwnStats = __Infer<typeof OwnStats>;
 export const OwnSurvival = __t.object("OwnSurvival", {});
 export type OwnSurvival = __Infer<typeof OwnSurvival>;
 
+export const OwnTradeOffers = __t.object("OwnTradeOffers", {});
+export type OwnTradeOffers = __Infer<typeof OwnTradeOffers>;
+
+export const OwnTradeSession = __t.object("OwnTradeSession", {});
+export type OwnTradeSession = __Infer<typeof OwnTradeSession>;
+
 export const OwnWallet = __t.object("OwnWallet", {});
 export type OwnWallet = __Infer<typeof OwnWallet>;
 
@@ -527,6 +533,32 @@ export const PlayerThought = __t.object("PlayerThought", {
   expiresTick: __t.u64(),
 });
 export type PlayerThought = __Infer<typeof PlayerThought>;
+
+export const PlayerTradeOffer = __t.object("PlayerTradeOffer", {
+  id: __t.string(),
+  tradeId: __t.string(),
+  owner: __t.identity(),
+  slot: __t.u8(),
+  itemKind: __t.string(),
+  quantity: __t.u16(),
+  durability: __t.u16(),
+  lit: __t.bool(),
+});
+export type PlayerTradeOffer = __Infer<typeof PlayerTradeOffer>;
+
+export const PlayerTradeSession = __t.object("PlayerTradeSession", {
+  id: __t.string(),
+  requester: __t.identity(),
+  recipient: __t.identity(),
+  state: __t.string(),
+  requesterAccepted: __t.bool(),
+  recipientAccepted: __t.bool(),
+  requesterBronze: __t.u64(),
+  recipientBronze: __t.u64(),
+  revision: __t.u64(),
+  createdTick: __t.u64(),
+});
+export type PlayerTradeSession = __Infer<typeof PlayerTradeSession>;
 
 export const PlayerWallet = __t.object("PlayerWallet", {
   identity: __t.identity(),

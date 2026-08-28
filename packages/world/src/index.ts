@@ -596,6 +596,51 @@ const player_wallet = table(
   },
 );
 
+/** Private, participant-scoped trade state. Offered items live in the
+ * companion escrow table so disconnects and concurrent inventory actions can
+ * never duplicate or lose them. */
+const player_trade_session = table(
+  {
+    name: 'player_trade_session',
+    indexes: [
+      { accessor: 'by_requester', algorithm: 'btree', columns: ['requester'] },
+      { accessor: 'by_recipient', algorithm: 'btree', columns: ['recipient'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    requester: t.identity(),
+    recipient: t.identity(),
+    state: t.string(),
+    requesterAccepted: t.bool(),
+    recipientAccepted: t.bool(),
+    requesterBronze: t.u64(),
+    recipientBronze: t.u64(),
+    revision: t.u64(),
+    createdTick: t.u64(),
+  },
+);
+
+const player_trade_offer = table(
+  {
+    name: 'player_trade_offer',
+    indexes: [
+      { accessor: 'by_trade', algorithm: 'btree', columns: ['tradeId'] },
+      { accessor: 'by_owner', algorithm: 'btree', columns: ['owner'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    tradeId: t.string(),
+    owner: t.identity(),
+    slot: t.u8(),
+    itemKind: t.string(),
+    quantity: t.u16(),
+    durability: t.u16().default(0),
+    lit: t.bool().default(true),
+  },
+);
+
 const player_effect = table(
   {
     name: 'player_effect',
@@ -1587,6 +1632,8 @@ const spacetimedb = schema({
   player_spawn,
   player_stats,
   player_wallet,
+  player_trade_session,
+  player_trade_offer,
   player_effect,
   stats_migration,
   player_statistic,
@@ -3505,6 +3552,25 @@ export const ownWallet = spacetimedb.view(
   (ctx) => ctx.db.player_wallet.identity.find(ctx.sender) ?? undefined,
 );
 
+export const ownTradeSession = spacetimedb.view(
+  { name: 'own_trade_session', public: true },
+  t.option(player_trade_session.rowType),
+  (ctx) => [...ctx.db.player_trade_session.iter()].find((trade) => (
+    trade.requester.isEqual(ctx.sender) || trade.recipient.isEqual(ctx.sender)
+  )),
+);
+
+export const ownTradeOffers = spacetimedb.view(
+  { name: 'own_trade_offers', public: true },
+  t.array(player_trade_offer.rowType),
+  (ctx) => {
+    const trade = [...ctx.db.player_trade_session.iter()].find((candidate) => (
+      candidate.requester.isEqual(ctx.sender) || candidate.recipient.isEqual(ctx.sender)
+    ));
+    return trade === undefined ? [] : [...ctx.db.player_trade_offer.by_trade.filter(trade.id)];
+  },
+);
+
 export const ownEffects = spacetimedb.view(
   { name: 'own_effects', public: true },
   t.array(player_effect.rowType),
@@ -4464,6 +4530,8 @@ export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
   if (ctx.connectionId === null) return;
   deleteSessionChatNoticesForConnection(ctx, ctx.connectionId);
   if (ctx.db.bow_charge.identity.find(ctx.sender) !== null) ctx.db.bow_charge.identity.delete(ctx.sender);
+  const disconnectedTrade = tradeForPlayer(ctx, ctx.sender);
+  if (disconnectedTrade !== null) cancelPlayerTrade(ctx, disconnectedTrade);
   returnInventoryCursorToStorage(ctx, ctx.sender);
   const notice = ctx.db.connection_notice.connectionId.find(ctx.connectionId);
   if (notice === null || !notice.identity.isEqual(ctx.sender)) return;
@@ -6813,18 +6881,326 @@ export const closeNpcDialogue = spacetimedb.reducer({}, (ctx) => {
   if (active !== null) ctx.db.active_dialogue.identity.delete(ctx.sender);
 });
 
+const PLAYER_TRADE_REACH_FIXED = 3 * TILE_SIZE_FIXED;
+const PLAYER_TRADE_OFFER_SLOTS = 6;
+const PLAYER_TRADE_REQUEST_TTL_TICKS = BigInt(AUTHORITY_HZ * 30);
+const U64_MAX = (1n << 64n) - 1n;
+
+type PlayerTradeSessionRow = NonNullable<ReturnType<WorldReducerContext['db']['player_trade_session']['id']['find']>>;
+
+function tradeForPlayer(
+  ctx: WorldReducerContext,
+  identity: WorldReducerContext['sender'],
+): PlayerTradeSessionRow | null {
+  return [...ctx.db.player_trade_session.iter()].find((trade) => (
+    trade.requester.isEqual(identity) || trade.recipient.isEqual(identity)
+  )) ?? null;
+}
+
+function requireTradeParticipant(
+  ctx: WorldReducerContext,
+  tradeId: string,
+): PlayerTradeSessionRow {
+  const trade = ctx.db.player_trade_session.id.find(tradeId);
+  if (trade === null) throw new SenderError('trade_not_found');
+  if (!trade.requester.isEqual(ctx.sender) && !trade.recipient.isEqual(ctx.sender)) {
+    throw new SenderError('trade_not_participant');
+  }
+  return trade;
+}
+
+function tradePlayersWithinReach(ctx: WorldReducerContext, trade: PlayerTradeSessionRow): boolean {
+  const requester = ctx.db.player_position.identity.find(trade.requester);
+  const recipient = ctx.db.player_position.identity.find(trade.recipient);
+  if (requester === null || recipient === null || requester.spaceId !== recipient.spaceId) return false;
+  if (ctx.db.player_public.identity.find(trade.requester)?.online !== true
+    || ctx.db.player_public.identity.find(trade.recipient)?.online !== true) return false;
+  const dx = requester.x - recipient.x;
+  const dy = requester.y - recipient.y;
+  return dx * dx + dy * dy <= PLAYER_TRADE_REACH_FIXED ** 2;
+}
+
+function resetTradeAcceptance(
+  ctx: WorldReducerContext,
+  trade: PlayerTradeSessionRow,
+): PlayerTradeSessionRow {
+  const next = {
+    ...trade,
+    requesterAccepted: false,
+    recipientAccepted: false,
+    revision: trade.revision + 1n,
+  };
+  ctx.db.player_trade_session.id.update(next);
+  return next;
+}
+
+function tradeOfferId(tradeId: string, identityHex: string, slot: number): string {
+  return JSON.stringify([tradeId, identityHex, slot]);
+}
+
+function tradeStack(row: { readonly itemKind: string; readonly quantity: number; readonly durability: number; readonly lit: boolean }): ItemStack {
+  const stack = storedStack(row.itemKind, row.quantity, row.durability, row.lit);
+  if (stack === null) throw new SenderError('invalid_trade_offer');
+  return stack;
+}
+
+function insertEscrowStacksIntoInventory(
+  ctx: WorldReducerContext,
+  identity: WorldReducerContext['sender'],
+  offers: readonly { readonly id: string; readonly itemKind: string; readonly quantity: number; readonly durability: number; readonly lit: boolean }[],
+  overflowAllowed: boolean,
+): void {
+  if (offers.length === 0) return;
+  const inventory = loadPlayerInventory(ctx, identity);
+  let containers: Readonly<Record<string, ContainerSnapshot>> = inventory.containers;
+  const overflow: ItemStack[] = [];
+  for (const offer of offers) {
+    const sourceId = `trade:${offer.id}`;
+    const stack = tradeStack(offer);
+    const moved = quickMoveItemStack({
+      ...containers,
+      [sourceId]: { id: sourceId, capacity: 1, slots: [stack] },
+    }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] });
+    if (!moved.ok) {
+      if (!overflowAllowed || moved.code !== 'container_full') throw new SenderError('trade_inventory_full');
+      overflow.push(stack);
+      continue;
+    }
+    containers = {
+      hotbar: moved.containers.hotbar!, backpack: moved.containers.backpack!,
+      equipment: moved.containers.equipment!, crafting: moved.containers.crafting!,
+    };
+    const remainder = moved.containers[sourceId]!.slots[0];
+    if (remainder != null) {
+      if (!overflowAllowed) throw new SenderError('trade_inventory_full');
+      overflow.push(remainder);
+    }
+  }
+  writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, containers);
+  updateEquippedForIdentity(ctx, identity, containers);
+  for (const stack of overflow) stashOverflow(ctx, identity, stack);
+}
+
+function cancelPlayerTrade(ctx: WorldReducerContext, trade: PlayerTradeSessionRow): void {
+  const offers = [...ctx.db.player_trade_offer.by_trade.filter(trade.id)];
+  insertEscrowStacksIntoInventory(
+    ctx, trade.requester, offers.filter((offer) => offer.owner.isEqual(trade.requester)), true,
+  );
+  insertEscrowStacksIntoInventory(
+    ctx, trade.recipient, offers.filter((offer) => offer.owner.isEqual(trade.recipient)), true,
+  );
+  for (const offer of offers) ctx.db.player_trade_offer.id.delete(offer.id);
+  ctx.db.player_trade_session.id.delete(trade.id);
+  const tick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+  refreshPlayerQuests(ctx, trade.requester, tick);
+  refreshPlayerQuests(ctx, trade.recipient, tick);
+}
+
+function requireActiveTrade(ctx: WorldReducerContext, tradeId: string): PlayerTradeSessionRow {
+  const trade = requireTradeParticipant(ctx, tradeId);
+  if (trade.state !== 'active') throw new SenderError('trade_not_active');
+  if (!tradePlayersWithinReach(ctx, trade)) throw new SenderError('trade_out_of_range');
+  return trade;
+}
+
+export const requestTrade = spacetimedb.reducer(
+  { target: t.identity() },
+  (ctx, { target }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    if (target.isEqual(ctx.sender)) throw new SenderError('cannot_trade_self');
+    if (tradeForPlayer(ctx, ctx.sender) !== null || tradeForPlayer(ctx, target) !== null) {
+      throw new SenderError('player_already_trading');
+    }
+    const requester = ctx.db.player_position.identity.find(ctx.sender);
+    const recipient = ctx.db.player_position.identity.find(target);
+    if (requester === null || recipient === null
+      || ctx.db.player_public.identity.find(target)?.online !== true) {
+      throw new SenderError('trade_player_unavailable');
+    }
+    const dx = requester.x - recipient.x;
+    const dy = requester.y - recipient.y;
+    if (requester.spaceId !== recipient.spaceId
+      || dx * dx + dy * dy > PLAYER_TRADE_REACH_FIXED ** 2) {
+      throw new SenderError('trade_out_of_range');
+    }
+    if (ctx.db.inventory_cursor.identity.find(ctx.sender) !== null) {
+      throw new SenderError('finish_inventory_action_first');
+    }
+    const tick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+    const id = JSON.stringify([ctx.sender.toHexString(), target.toHexString(), tick.toString()]);
+    ctx.db.player_trade_session.insert({
+      id, requester: ctx.sender, recipient: target, state: 'requested',
+      requesterAccepted: false, recipientAccepted: false,
+      requesterBronze: 0n, recipientBronze: 0n, revision: 0n, createdTick: tick,
+    });
+  },
+);
+
+export const acceptTradeRequest = spacetimedb.reducer(
+  { tradeId: t.string() },
+  (ctx, { tradeId }) => {
+    const trade = requireTradeParticipant(ctx, tradeId);
+    if (!trade.recipient.isEqual(ctx.sender) || trade.state !== 'requested') {
+      throw new SenderError('trade_request_not_pending');
+    }
+    if (!tradePlayersWithinReach(ctx, trade)) throw new SenderError('trade_out_of_range');
+    returnInventoryCursorToStorage(ctx, ctx.sender);
+    ctx.db.player_trade_session.id.update({ ...trade, state: 'active', revision: trade.revision + 1n });
+  },
+);
+
+export const cancelTrade = spacetimedb.reducer(
+  { tradeId: t.string() },
+  (ctx, { tradeId }) => cancelPlayerTrade(ctx, requireTradeParticipant(ctx, tradeId)),
+);
+
+export const declineTrade = spacetimedb.reducer(
+  { tradeId: t.string() },
+  (ctx, { tradeId }) => {
+    const trade = requireTradeParticipant(ctx, tradeId);
+    if (!trade.recipient.isEqual(ctx.sender) || trade.state !== 'requested') {
+      throw new SenderError('trade_request_not_pending');
+    }
+    cancelPlayerTrade(ctx, trade);
+  },
+);
+
+export const setTradeOfferItem = spacetimedb.reducer(
+  { tradeId: t.string(), inventorySlot: t.u8(), tradeSlot: t.u8(), quantity: t.u16() },
+  (ctx, { tradeId, inventorySlot, tradeSlot, quantity }) => {
+    const trade = requireActiveTrade(ctx, tradeId);
+    if (tradeSlot >= PLAYER_TRADE_OFFER_SLOTS || quantity <= 0) throw new SenderError('invalid_trade_offer');
+    const inventory = loadPlayerInventory(ctx, ctx.sender);
+    const hotbarEnd = HOTBAR_SLOT_COUNT;
+    const backpackEnd = BACKPACK_SLOT_OFFSET + inventory.containers.backpack!.capacity;
+    if (!(inventorySlot < hotbarEnd
+      || (inventorySlot >= BACKPACK_SLOT_OFFSET && inventorySlot < backpackEnd))) {
+      throw new SenderError('trade_slot_inaccessible');
+    }
+    const source = inventory.rowBySlot.get(inventorySlot);
+    if (source === undefined || source.itemKind === 'empty' || source.quantity < quantity) {
+      throw new SenderError('trade_item_unavailable');
+    }
+    const definition = itemDefinition(source.itemKind);
+    if (definition === null || source.itemKind === 'marlow_book' || definition.tags.some((tag) => (
+      tag === 'item.homestead_deed' || tag === 'container.backpack'
+    ))) throw new SenderError('item_not_tradeable');
+    const id = tradeOfferId(trade.id, ctx.sender.toHexString(), tradeSlot);
+    if (ctx.db.player_trade_offer.id.find(id) !== null) throw new SenderError('trade_offer_slot_occupied');
+    ctx.db.inventory_slot.id.update({
+      ...source,
+      itemKind: source.quantity === quantity ? 'empty' : source.itemKind,
+      quantity: source.quantity - quantity,
+      durability: source.quantity === quantity ? 0 : source.durability,
+      lit: source.quantity === quantity ? true : source.lit,
+    });
+    ctx.db.player_trade_offer.insert({
+      id, tradeId: trade.id, owner: ctx.sender, slot: tradeSlot,
+      itemKind: source.itemKind, quantity,
+      durability: source.durability, lit: source.lit,
+    });
+    resetTradeAcceptance(ctx, trade);
+    const refreshed = loadPlayerInventory(ctx, ctx.sender);
+    updateEquippedForIdentity(ctx, ctx.sender, refreshed.containers);
+    refreshPlayerQuests(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
+  },
+);
+
+export const removeTradeOfferItem = spacetimedb.reducer(
+  { tradeId: t.string(), tradeSlot: t.u8() },
+  (ctx, { tradeId, tradeSlot }) => {
+    const trade = requireActiveTrade(ctx, tradeId);
+    const id = tradeOfferId(trade.id, ctx.sender.toHexString(), tradeSlot);
+    const offer = ctx.db.player_trade_offer.id.find(id);
+    if (offer === null) throw new SenderError('trade_offer_not_found');
+    insertEscrowStacksIntoInventory(ctx, ctx.sender, [offer], true);
+    ctx.db.player_trade_offer.id.delete(id);
+    resetTradeAcceptance(ctx, trade);
+    refreshPlayerQuests(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
+  },
+);
+
+export const setTradeOfferBronze = spacetimedb.reducer(
+  { tradeId: t.string(), amount: t.u64() },
+  (ctx, { tradeId, amount }) => {
+    const trade = requireActiveTrade(ctx, tradeId);
+    const wallet = ctx.db.player_wallet.identity.find(ctx.sender);
+    if (wallet === null || amount > wallet.balanceBronze) throw new SenderError('insufficient_funds');
+    const current = trade.requester.isEqual(ctx.sender) ? trade.requesterBronze : trade.recipientBronze;
+    if (current === amount) return;
+    const reset = resetTradeAcceptance(ctx, trade);
+    ctx.db.player_trade_session.id.update(trade.requester.isEqual(ctx.sender)
+      ? { ...reset, requesterBronze: amount }
+      : { ...reset, recipientBronze: amount });
+  },
+);
+
+function completePlayerTrade(ctx: WorldReducerContext, trade: PlayerTradeSessionRow): void {
+  const requesterWallet = ctx.db.player_wallet.identity.find(trade.requester);
+  const recipientWallet = ctx.db.player_wallet.identity.find(trade.recipient);
+  if (requesterWallet === null || requesterWallet.balanceBronze < trade.requesterBronze
+    || recipientWallet === null || recipientWallet.balanceBronze < trade.recipientBronze) {
+    throw new SenderError('insufficient_funds');
+  }
+  const requesterNext = requesterWallet.balanceBronze - trade.requesterBronze + trade.recipientBronze;
+  const recipientNext = recipientWallet.balanceBronze - trade.recipientBronze + trade.requesterBronze;
+  if (requesterNext > U64_MAX || recipientNext > U64_MAX) throw new SenderError('wallet_overflow');
+  const offers = [...ctx.db.player_trade_offer.by_trade.filter(trade.id)];
+  const requesterOffers = offers.filter((offer) => offer.owner.isEqual(trade.requester));
+  const recipientOffers = offers.filter((offer) => offer.owner.isEqual(trade.recipient));
+  insertEscrowStacksIntoInventory(ctx, trade.requester, recipientOffers, false);
+  insertEscrowStacksIntoInventory(ctx, trade.recipient, requesterOffers, false);
+  ctx.db.player_wallet.identity.update({ ...requesterWallet, balanceBronze: requesterNext });
+  ctx.db.player_wallet.identity.update({ ...recipientWallet, balanceBronze: recipientNext });
+  const tick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+  for (const [identity, sent, bronze] of [
+    [trade.requester, requesterOffers, trade.requesterBronze],
+    [trade.recipient, recipientOffers, trade.recipientBronze],
+  ] as const) {
+    recordPlayerStatistic(ctx, identity, 'player_trades_completed', 1n, tick);
+    if (bronze > 0n) recordPlayerStatistic(ctx, identity, 'player_trade_bronze_sent', bronze, tick);
+    for (const offer of sent) {
+      recordPlayerStatistic(ctx, identity, 'player_trade_items_sent', BigInt(offer.quantity), tick, offer.itemKind);
+    }
+  }
+  for (const offer of offers) ctx.db.player_trade_offer.id.delete(offer.id);
+  ctx.db.player_trade_session.id.delete(trade.id);
+  refreshPlayerQuests(ctx, trade.requester, tick);
+  refreshPlayerQuests(ctx, trade.recipient, tick);
+}
+
+export const setTradeAccepted = spacetimedb.reducer(
+  { tradeId: t.string(), accepted: t.bool(), revision: t.u64() },
+  (ctx, { tradeId, accepted, revision }) => {
+    const trade = requireActiveTrade(ctx, tradeId);
+    if (trade.revision !== revision) throw new SenderError('trade_offer_changed');
+    const requesterSide = trade.requester.isEqual(ctx.sender);
+    if (accepted) {
+      const wallet = ctx.db.player_wallet.identity.find(ctx.sender);
+      const offer = requesterSide ? trade.requesterBronze : trade.recipientBronze;
+      if (wallet === null || wallet.balanceBronze < offer) throw new SenderError('insufficient_funds');
+    }
+    const next = requesterSide
+      ? { ...trade, requesterAccepted: accepted }
+      : { ...trade, recipientAccepted: accepted };
+    if (next.requesterAccepted && next.recipientAccepted) completePlayerTrade(ctx, next);
+    else ctx.db.player_trade_session.id.update(next);
+  },
+);
+
 function merchantCartLines(itemKinds: readonly string[], quantities: readonly number[]): MerchantCartLine[] {
   if (itemKinds.length !== quantities.length) throw new SenderError('merchant_cart_malformed');
   if (itemKinds.length > MAX_MERCHANT_CART_LINES) throw new SenderError('merchant_cart_too_large');
   return itemKinds.map((itemKind, index) => ({ itemKind, quantity: quantities[index] ?? 0 }));
 }
 
-function updateEquippedFromInventory(
+function updateEquippedForIdentity(
   ctx: WorldReducerContext,
+  identity: WorldReducerContext['sender'],
   containers: Readonly<Record<string, ContainerSnapshot>>,
 ): void {
-  const survival = ctx.db.player_survival.identity.find(ctx.sender);
-  const position = ctx.db.player_position.identity.find(ctx.sender);
+  const survival = ctx.db.player_survival.identity.find(identity);
+  const position = ctx.db.player_position.identity.find(identity);
   if (survival === null || position === null) return;
   const selected = containers.hotbar?.slots[survival.selectedSlot];
   ctx.db.player_position.identity.update({
@@ -6832,6 +7208,13 @@ function updateEquippedFromInventory(
     equippedKind: selected?.itemKind ?? 'empty',
     equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit),
   });
+}
+
+function updateEquippedFromInventory(
+  ctx: WorldReducerContext,
+  containers: Readonly<Record<string, ContainerSnapshot>>,
+): void {
+  updateEquippedForIdentity(ctx, ctx.sender, containers);
 }
 
 /** Purchases re-read wallet and inventory, preflight the complete mixed cart,
@@ -8395,6 +8778,11 @@ export const stepWorld = spacetimedb.reducer(
     }
     if (ctx.db.world_wind.id.find(0) === null) {
       ctx.db.world_wind.insert({ id: 0, direction: 'auto' });
+    }
+    for (const trade of [...ctx.db.player_trade_session.iter()]) {
+      const requestExpired = trade.state === 'requested'
+        && clock.authorityTick > trade.createdTick + PLAYER_TRADE_REQUEST_TTL_TICKS;
+      if (requestExpired || !tradePlayersWithinReach(ctx, trade)) cancelPlayerTrade(ctx, trade);
     }
     const overflowOwners = new Map<string, WorldReducerContext['sender']>();
     for (const row of ctx.db.inventory_overflow.iter()) {

@@ -68,6 +68,7 @@ describe('overworld retained UI layout', () => {
     expect(isInterfaceVisibilityToggle('KeyZ', false)).toBe(true);
     expect(isInterfaceVisibilityToggle('KeyZ', true)).toBe(false);
     expect(isInterfaceVisibilityToggle('KeyX', false)).toBe(false);
+    expect(isInterfaceVisibilityToggle('KeyZ', false, true)).toBe(false);
   });
 
   it('deep-links P to Character, K to Skills, and L to the Quest Log', () => {

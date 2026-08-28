@@ -35,6 +35,7 @@ import {
 
 // Import all reducer arg schemas
 import AbandonQuestReducer from "./abandon_quest_reducer";
+import AcceptTradeRequestReducer from "./accept_trade_request_reducer";
 import AdjustDebugBackpackSlotsReducer from "./adjust_debug_backpack_slots_reducer";
 import AdminRelocateHorseReducer from "./admin_relocate_horse_reducer";
 import AdminTeleportReducer from "./admin_teleport_reducer";
@@ -43,6 +44,7 @@ import BeginBowChargeReducer from "./begin_bow_charge_reducer";
 import BuyMerchantCartReducer from "./buy_merchant_cart_reducer";
 import BuyMerchantItemReducer from "./buy_merchant_item_reducer";
 import CancelBowChargeReducer from "./cancel_bow_charge_reducer";
+import CancelTradeReducer from "./cancel_trade_reducer";
 import ChooseDialogueOptionReducer from "./choose_dialogue_option_reducer";
 import CloseChestReducer from "./close_chest_reducer";
 import CloseCraftingReducer from "./close_crafting_reducer";
@@ -52,6 +54,7 @@ import ConsumeOrchardTeaReducer from "./consume_orchard_tea_reducer";
 import CraftInventoryRecipeReducer from "./craft_inventory_recipe_reducer";
 import CreateChatChannelReducer from "./create_chat_channel_reducer";
 import DebugUsePortalReducer from "./debug_use_portal_reducer";
+import DeclineTradeReducer from "./decline_trade_reducer";
 import DigCellarTileReducer from "./dig_cellar_tile_reducer";
 import DistributeChestItemReducer from "./distribute_chest_item_reducer";
 import DistributeInventoryItemReducer from "./distribute_inventory_item_reducer";
@@ -88,8 +91,10 @@ import QuickMoveAllMenuItemsReducer from "./quick_move_all_menu_items_reducer";
 import QuickMoveChestItemReducer from "./quick_move_chest_item_reducer";
 import QuickMoveInventoryItemReducer from "./quick_move_inventory_item_reducer";
 import QuickMoveMenuItemReducer from "./quick_move_menu_item_reducer";
+import RemoveTradeOfferItemReducer from "./remove_trade_offer_item_reducer";
 import RepairSelectedToolReducer from "./repair_selected_tool_reducer";
 import RequestLastConnectionsReducer from "./request_last_connections_reducer";
+import RequestTradeReducer from "./request_trade_reducer";
 import ResetMyQuestProgressReducer from "./reset_my_quest_progress_reducer";
 import ResetSkillTreeReducer from "./reset_skill_tree_reducer";
 import RestoreFarmTileReducer from "./restore_farm_tile_reducer";
@@ -106,6 +111,9 @@ import SetDisplayNameReducer from "./set_display_name_reducer";
 import SetInputReducer from "./set_input_reducer";
 import SetMessageOfDayReducer from "./set_message_of_day_reducer";
 import SetQuestPinnedReducer from "./set_quest_pinned_reducer";
+import SetTradeAcceptedReducer from "./set_trade_accepted_reducer";
+import SetTradeOfferBronzeReducer from "./set_trade_offer_bronze_reducer";
+import SetTradeOfferItemReducer from "./set_trade_offer_item_reducer";
 import SetWorldTimeReducer from "./set_world_time_reducer";
 import SetWorldWeatherReducer from "./set_world_weather_reducer";
 import SetWorldWindDirectionReducer from "./set_world_wind_direction_reducer";
@@ -156,6 +164,8 @@ import OwnQuestWorldItemsRow from "./own_quest_world_items_table";
 import OwnSessionChatNoticesRow from "./own_session_chat_notices_table";
 import OwnStatsRow from "./own_stats_table";
 import OwnSurvivalRow from "./own_survival_table";
+import OwnTradeOffersRow from "./own_trade_offers_table";
+import OwnTradeSessionRow from "./own_trade_session_table";
 import OwnWalletRow from "./own_wallet_table";
 import PlayerAppearanceRow from "./player_appearance_table";
 import PlayerPositionRow from "./player_position_table";
@@ -784,6 +794,20 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnSurvivalRow),
+  ownTradeOffers: __table({
+    name: 'own_trade_offers',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnTradeOffersRow),
+  ownTradeSession: __table({
+    name: 'own_trade_session',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnTradeSessionRow),
   ownWallet: __table({
     name: 'own_wallet',
     indexes: [
@@ -810,6 +834,7 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("abandon_quest", AbandonQuestReducer),
+  __reducerSchema("accept_trade_request", AcceptTradeRequestReducer),
   __reducerSchema("adjust_debug_backpack_slots", AdjustDebugBackpackSlotsReducer),
   __reducerSchema("admin_relocate_horse", AdminRelocateHorseReducer),
   __reducerSchema("admin_teleport", AdminTeleportReducer),
@@ -818,6 +843,7 @@ const reducersSchema = __reducers(
   __reducerSchema("buy_merchant_cart", BuyMerchantCartReducer),
   __reducerSchema("buy_merchant_item", BuyMerchantItemReducer),
   __reducerSchema("cancel_bow_charge", CancelBowChargeReducer),
+  __reducerSchema("cancel_trade", CancelTradeReducer),
   __reducerSchema("choose_dialogue_option", ChooseDialogueOptionReducer),
   __reducerSchema("close_chest", CloseChestReducer),
   __reducerSchema("close_crafting", CloseCraftingReducer),
@@ -827,6 +853,7 @@ const reducersSchema = __reducers(
   __reducerSchema("craft_inventory_recipe", CraftInventoryRecipeReducer),
   __reducerSchema("create_chat_channel", CreateChatChannelReducer),
   __reducerSchema("debug_use_portal", DebugUsePortalReducer),
+  __reducerSchema("decline_trade", DeclineTradeReducer),
   __reducerSchema("dig_cellar_tile", DigCellarTileReducer),
   __reducerSchema("distribute_chest_item", DistributeChestItemReducer),
   __reducerSchema("distribute_inventory_item", DistributeInventoryItemReducer),
@@ -863,8 +890,10 @@ const reducersSchema = __reducers(
   __reducerSchema("quick_move_chest_item", QuickMoveChestItemReducer),
   __reducerSchema("quick_move_inventory_item", QuickMoveInventoryItemReducer),
   __reducerSchema("quick_move_menu_item", QuickMoveMenuItemReducer),
+  __reducerSchema("remove_trade_offer_item", RemoveTradeOfferItemReducer),
   __reducerSchema("repair_selected_tool", RepairSelectedToolReducer),
   __reducerSchema("request_last_connections", RequestLastConnectionsReducer),
+  __reducerSchema("request_trade", RequestTradeReducer),
   __reducerSchema("reset_my_quest_progress", ResetMyQuestProgressReducer),
   __reducerSchema("reset_skill_tree", ResetSkillTreeReducer),
   __reducerSchema("restore_farm_tile", RestoreFarmTileReducer),
@@ -881,6 +910,9 @@ const reducersSchema = __reducers(
   __reducerSchema("set_input", SetInputReducer),
   __reducerSchema("set_message_of_day", SetMessageOfDayReducer),
   __reducerSchema("set_quest_pinned", SetQuestPinnedReducer),
+  __reducerSchema("set_trade_accepted", SetTradeAcceptedReducer),
+  __reducerSchema("set_trade_offer_bronze", SetTradeOfferBronzeReducer),
+  __reducerSchema("set_trade_offer_item", SetTradeOfferItemReducer),
   __reducerSchema("set_world_time", SetWorldTimeReducer),
   __reducerSchema("set_world_weather", SetWorldWeatherReducer),
   __reducerSchema("set_world_wind_direction", SetWorldWindDirectionReducer),

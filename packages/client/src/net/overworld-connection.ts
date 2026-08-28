@@ -92,6 +92,30 @@ export interface PlayerWallet {
   readonly balanceBronze: bigint;
 }
 
+export interface PlayerTradeSession {
+  readonly id: string;
+  readonly requester: Identity;
+  readonly recipient: Identity;
+  readonly state: string;
+  readonly requesterAccepted: boolean;
+  readonly recipientAccepted: boolean;
+  readonly requesterBronze: bigint;
+  readonly recipientBronze: bigint;
+  readonly revision: bigint;
+  readonly createdTick: bigint;
+}
+
+export interface PlayerTradeOffer {
+  readonly id: string;
+  readonly tradeId: string;
+  readonly owner: Identity;
+  readonly slot: number;
+  readonly itemKind: string;
+  readonly quantity: number;
+  readonly durability: number;
+  readonly lit: boolean;
+}
+
 export interface OverworldView {
   readonly connected: boolean; readonly error: string | null; readonly identityHex: string | null;
   readonly region: readonly [number, number];
@@ -130,6 +154,8 @@ export interface OverworldView {
   readonly activeChest: WorldChest | null;
   readonly activePlaceable: WorldPlaceable | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
+  readonly tradeSession: PlayerTradeSession | null;
+  readonly tradeOffers: ReadonlyKeyedStore<string, PlayerTradeOffer>;
   readonly quests: ReadonlyKeyedStore<string, PlayerQuest>;
   readonly questBaselines: ReadonlyKeyedStore<string, PlayerQuestBaseline>;
   readonly playerStatistics: ReadonlyKeyedStore<string, PlayerStatistic>;
@@ -159,6 +185,7 @@ export interface OverworldSnapshot {
   readonly motd: string | null; readonly characterProfile: CharacterProfile | null;
   readonly membership: Membership | null; readonly survival: PlayerSurvival | null; readonly stats: PlayerStats | null; readonly activeChest: WorldChest | null; readonly activePlaceable: WorldPlaceable | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
+  readonly tradeSession: PlayerTradeSession | null; readonly tradeOffers: readonly PlayerTradeOffer[];
   readonly quests: readonly PlayerQuest[]; readonly questBaselines: readonly PlayerQuestBaseline[];
   readonly playerStatistics: readonly PlayerStatistic[]; readonly skillTracks: readonly PlayerSkillTrack[];
   readonly skillNodes: readonly PlayerSkillNode[];
@@ -284,6 +311,8 @@ export class OverworldConnection {
   private readonly questWorldItems = new KeyedStore<string, QuestWorldItem>();
   private thought: PlayerThought | null = null;
   private wallet: PlayerWallet | null = null;
+  private tradeSession: PlayerTradeSession | null = null;
+  private readonly tradeOffers = new KeyedStore<string, PlayerTradeOffer>();
   private worldSeed: WorldSeed | null = null;
   private clock: WorldClock | null = null;
   private environment: WorldEnvironment | null = null;
@@ -337,6 +366,7 @@ export class OverworldConnection {
       chatChannels: this.chatChannels, chatMessages: this.chatMessages, sessionChatNotices: this.sessionChatNotices, worldSpeech: this.worldSpeech, motd: this.motd,
       characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest, activePlaceable: this.activePlaceable,
       activeDialogue: this.activeDialogue, wallet: this.wallet,
+      tradeSession: this.tradeSession, tradeOffers: this.tradeOffers,
       quests: this.quests, questBaselines: this.questBaselines, playerStatistics: this.playerStatistics,
       skillTracks: this.skillTracks, skillNodes: this.skillNodes, questWorldItems: this.questWorldItems, thought: this.thought,
       worldSeed: this.worldSeed,
@@ -359,7 +389,8 @@ export class OverworldConnection {
       worldSpeech: this.worldSpeech.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       quests: this.quests.toArray(), questBaselines: this.questBaselines.toArray(),
       playerStatistics: this.playerStatistics.toArray(), skillTracks: this.skillTracks.toArray(), skillNodes: this.skillNodes.toArray(),
-      questWorldItems: this.questWorldItems.toArray(), thought: this.thought };
+      questWorldItems: this.questWorldItems.toArray(), thought: this.thought,
+      tradeOffers: this.tradeOffers.toArray().sort((left, right) => left.slot - right.slot) };
   }
 
   ownPosition(): PlayerPosition | null { return this.identity === null ? null : this.positions.get(identityHex(this.identity)) ?? null; }
@@ -543,6 +574,30 @@ export class OverworldConnection {
   harvestResource(resourceId: bigint): Promise<void> { return this.reducer((c) => c.reducers.harvestResource({ resourceId })); }
   harvestChest(chestId: bigint): Promise<void> { return this.reducer((connection) => connection.reducers.harvestChest({ chestId })); }
   interactNpc(npcId: bigint): Promise<void> { return this.reducer((connection) => connection.reducers.interactNpc({ npcId })); }
+  requestTrade(target: Identity): Promise<void> {
+    return this.reducer((connection) => connection.reducers.requestTrade({ target }));
+  }
+  acceptTradeRequest(tradeId: string): Promise<void> {
+    return this.reducer((connection) => connection.reducers.acceptTradeRequest({ tradeId }));
+  }
+  declineTrade(tradeId: string): Promise<void> {
+    return this.reducer((connection) => connection.reducers.declineTrade({ tradeId }));
+  }
+  cancelTrade(tradeId: string): Promise<void> {
+    return this.reducer((connection) => connection.reducers.cancelTrade({ tradeId }));
+  }
+  setTradeOfferItem(tradeId: string, inventorySlot: number, tradeSlot: number, quantity: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.setTradeOfferItem({ tradeId, inventorySlot, tradeSlot, quantity }));
+  }
+  removeTradeOfferItem(tradeId: string, tradeSlot: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.removeTradeOfferItem({ tradeId, tradeSlot }));
+  }
+  setTradeOfferBronze(tradeId: string, amount: bigint): Promise<void> {
+    return this.reducer((connection) => connection.reducers.setTradeOfferBronze({ tradeId, amount }));
+  }
+  setTradeAccepted(tradeId: string, accepted: boolean, revision: bigint): Promise<void> {
+    return this.reducer((connection) => connection.reducers.setTradeAccepted({ tradeId, accepted, revision }));
+  }
   chooseDialogueOption(choiceId: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.chooseDialogueOption({ choiceId }));
   }
@@ -737,6 +792,8 @@ export class OverworldConnection {
       tables.ownSurvival,
       tables.ownStats,
       tables.ownWallet,
+      tables.ownTradeSession,
+      tables.ownTradeOffers,
       tables.ownEffects,
       tables.ownInventorySlots,
       tables.ownInventoryCursor,
@@ -966,6 +1023,12 @@ export class OverworldConnection {
     connection.db.ownWallet.onInsert((context, row) => incoming(context.event.id, () => { this.wallet = row; }));
     connection.db.ownWallet.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.wallet = row; }));
     connection.db.ownWallet.onDelete((context) => incoming(context.event.id, () => { this.wallet = null; }));
+    connection.db.ownTradeSession.onInsert((context, row) => incoming(context.event.id, () => { this.tradeSession = row; }));
+    connection.db.ownTradeSession.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.tradeSession = row; }));
+    connection.db.ownTradeSession.onDelete((context) => incoming(context.event.id, () => { this.tradeSession = null; this.tradeOffers.clear(); }));
+    connection.db.ownTradeOffers.onInsert((context, row) => incoming(context.event.id, () => this.tradeOffers.set(row.id, row)));
+    connection.db.ownTradeOffers.onUpdate((context, _old, row) => incoming(context.event.id, () => this.tradeOffers.set(row.id, row)));
+    connection.db.ownTradeOffers.onDelete((context, row) => incoming(context.event.id, () => this.tradeOffers.delete(row.id)));
     connection.db.ownEffects.onInsert((context, row) => incoming(context.event.id, () => this.effects.set(row.id, row)));
     connection.db.ownEffects.onUpdate((context, _old, row) => incoming(context.event.id, () => this.effects.set(row.id, row)));
     connection.db.ownEffects.onDelete((context, row) => incoming(context.event.id, () => this.effects.delete(row.id)));
@@ -1156,6 +1219,8 @@ export class OverworldConnection {
     this.survival = [...connection.db.ownSurvival.iter()][0] ?? null;
     this.stats = [...connection.db.ownStats.iter()][0] ?? null;
     this.wallet = [...connection.db.ownWallet.iter()][0] ?? null;
+    this.tradeSession = [...connection.db.ownTradeSession.iter()][0] ?? null;
+    this.tradeOffers.clear(); for (const row of connection.db.ownTradeOffers.iter()) this.tradeOffers.set(row.id, row);
     this.activeDialogue = [...connection.db.ownActiveDialogue.iter()][0] ?? null;
     this.quests.clear(); for (const row of connection.db.ownPlayerQuests.iter()) this.quests.set(row.id, row);
     this.questBaselines.clear(); for (const row of connection.db.ownPlayerQuestBaselines.iter()) this.questBaselines.set(row.id, row);
