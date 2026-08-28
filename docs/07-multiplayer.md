@@ -93,7 +93,13 @@ when that recipient logs out, so reconnecting never restores them as chat histor
 The owner-only `/last` diagnostic reads the retained private connection audit and copies
 at most the 12 newest login/logout events, with explicit UTC times, into only the
 requesting connection's same ephemeral chat-console inbox. It never writes General,
-whispers, world speech, or persistent chat history.
+whispers, world speech, or persistent chat history. Repeated events for the same player
+and action are collapsed into the newest event within each rolling five-second window;
+a login followed by a logout remains two distinct events.
+The public `/baltop` command similarly projects only the ten highest authoritative
+wallet balances, with public display names, into the requesting connection's ephemeral
+chat-console inbox. Raw wallet rows remain private, and the result never enters General
+or durable chat history.
 
 ## 6. Implementation order
 

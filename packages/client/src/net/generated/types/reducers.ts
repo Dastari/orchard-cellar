@@ -61,6 +61,7 @@ import QuickMoveChestItemReducer from "../quick_move_chest_item_reducer";
 import QuickMoveInventoryItemReducer from "../quick_move_inventory_item_reducer";
 import QuickMoveMenuItemReducer from "../quick_move_menu_item_reducer";
 import RepairSelectedToolReducer from "../repair_selected_tool_reducer";
+import RequestBalanceTopReducer from "../request_balance_top_reducer";
 import RequestLastConnectionsReducer from "../request_last_connections_reducer";
 import ResetMyQuestProgressReducer from "../reset_my_quest_progress_reducer";
 import ResetSkillTreeReducer from "../reset_skill_tree_reducer";
@@ -149,6 +150,7 @@ export type QuickMoveChestItemParams = __Infer<typeof QuickMoveChestItemReducer>
 export type QuickMoveInventoryItemParams = __Infer<typeof QuickMoveInventoryItemReducer>;
 export type QuickMoveMenuItemParams = __Infer<typeof QuickMoveMenuItemReducer>;
 export type RepairSelectedToolParams = __Infer<typeof RepairSelectedToolReducer>;
+export type RequestBalanceTopParams = __Infer<typeof RequestBalanceTopReducer>;
 export type RequestLastConnectionsParams = __Infer<typeof RequestLastConnectionsReducer>;
 export type ResetMyQuestProgressParams = __Infer<typeof ResetMyQuestProgressReducer>;
 export type ResetSkillTreeParams = __Infer<typeof ResetSkillTreeReducer>;

@@ -271,13 +271,14 @@ import {
   productionAuthEnabled,
 } from './auth-policy.js';
 import {
+  BALANCE_LEADERBOARD_LIMIT,
   CHAT_CHANNEL_HISTORY_LIMIT,
   CHAT_SEND_COOLDOWN_MICROS,
   DEFAULT_MESSAGE_OF_DAY,
   GENERAL_CHAT_CHANNEL_ID,
   GENERAL_CHAT_CHANNEL_SLUG,
-  LAST_CONNECTION_EVENT_LIMIT,
   SESSION_CHAT_NOTICE_LIMIT,
+  balanceLeaderboardMessage,
   canJoinChatChannel,
   channelConversationKey,
   chatMembershipId,
@@ -286,6 +287,8 @@ import {
   normalizeChatChannelName,
   normalizeChatMessage,
   normalizeMessageOfDay,
+  recentConnectionEvents,
+  topBalanceLeaderboard,
   validCreatableChatChannelKind,
   whisperConversationKey,
   worldDisconnectMessage,
@@ -4489,16 +4492,14 @@ export const requestLastConnections = spacetimedb.reducer({}, (ctx) => {
     || ctx.db.connection_notice.connectionId.find(ctx.connectionId) === null) {
     throw new SenderError('connection_not_ready');
   }
-  const recent = [...ctx.db.connection_audit.iter()]
-    .filter((event) => event.eventKind === 'connected'
-      || event.eventKind === 'disconnected'
-      || event.eventKind === 'lease_expired')
-    .sort((left, right) => {
-      const time = right.occurredAt.microsSinceUnixEpoch - left.occurredAt.microsSinceUnixEpoch;
-      if (time !== 0n) return time > 0n ? 1 : -1;
-      return left.id < right.id ? 1 : left.id > right.id ? -1 : 0;
-    })
-    .slice(0, LAST_CONNECTION_EVENT_LIMIT);
+  const recent = recentConnectionEvents([...ctx.db.connection_audit.iter()].map((event) => ({
+    id: event.id,
+    identityHex: event.identity.toHexString(),
+    displayName: event.displayName,
+    eventKind: event.eventKind,
+    occurredAtMicros: event.occurredAt.microsSinceUnixEpoch,
+    occurredAtIso: event.occurredAt.toISOString(),
+  })));
   if (recent.length === 0) {
     insertSessionChatNotice(
       ctx, ctx.sender, ctx.connectionId, 'last', 'NO CONNECTION EVENTS RECORDED',
@@ -4518,7 +4519,47 @@ export const requestLastConnections = spacetimedb.reducer({}, (ctx) => {
       ctx.sender,
       ctx.connectionId,
       'last',
-      lastConnectionEventMessage(event.displayName, event.eventKind, event.occurredAt.toISOString()),
+      lastConnectionEventMessage(event.displayName, event.eventKind, event.occurredAtIso),
+    );
+  }
+});
+
+/** Public, read-only economy ranking. Raw wallets remain private and only the
+ * bounded, display-name projection is copied into the caller's session inbox. */
+export const requestBalanceTop = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  if (ctx.connectionId === null
+    || ctx.db.connection_notice.connectionId.find(ctx.connectionId) === null) {
+    throw new SenderError('connection_not_ready');
+  }
+  const ranked = topBalanceLeaderboard(
+    [...ctx.db.player_wallet.iter()].flatMap((wallet) => {
+      const profile = ctx.db.player_public.identity.find(wallet.identity);
+      return profile === null ? [] : [{
+        identityHex: wallet.identity.toHexString(),
+        displayName: profile.displayName,
+        balanceBronze: wallet.balanceBronze,
+      }];
+    }),
+  );
+  insertSessionChatNotice(
+    ctx,
+    ctx.sender,
+    ctx.connectionId,
+    'baltop',
+    `TOP ${BALANCE_LEADERBOARD_LIMIT} PLAYER BALANCES`,
+  );
+  if (ranked.length === 0) {
+    insertSessionChatNotice(ctx, ctx.sender, ctx.connectionId, 'baltop', 'NO PLAYER BALANCES FOUND');
+    return;
+  }
+  for (const [index, entry] of ranked.entries()) {
+    insertSessionChatNotice(
+      ctx,
+      ctx.sender,
+      ctx.connectionId,
+      'baltop',
+      balanceLeaderboardMessage(index + 1, entry),
     );
   }
 });

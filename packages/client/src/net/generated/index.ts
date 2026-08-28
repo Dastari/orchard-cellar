@@ -89,6 +89,7 @@ import QuickMoveChestItemReducer from "./quick_move_chest_item_reducer";
 import QuickMoveInventoryItemReducer from "./quick_move_inventory_item_reducer";
 import QuickMoveMenuItemReducer from "./quick_move_menu_item_reducer";
 import RepairSelectedToolReducer from "./repair_selected_tool_reducer";
+import RequestBalanceTopReducer from "./request_balance_top_reducer";
 import RequestLastConnectionsReducer from "./request_last_connections_reducer";
 import ResetMyQuestProgressReducer from "./reset_my_quest_progress_reducer";
 import ResetSkillTreeReducer from "./reset_skill_tree_reducer";
@@ -864,6 +865,7 @@ const reducersSchema = __reducers(
   __reducerSchema("quick_move_inventory_item", QuickMoveInventoryItemReducer),
   __reducerSchema("quick_move_menu_item", QuickMoveMenuItemReducer),
   __reducerSchema("repair_selected_tool", RepairSelectedToolReducer),
+  __reducerSchema("request_balance_top", RequestBalanceTopReducer),
   __reducerSchema("request_last_connections", RequestLastConnectionsReducer),
   __reducerSchema("reset_my_quest_progress", ResetMyQuestProgressReducer),
   __reducerSchema("reset_skill_tree", ResetSkillTreeReducer),

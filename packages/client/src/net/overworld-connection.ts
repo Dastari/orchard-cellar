@@ -621,6 +621,9 @@ export class OverworldConnection {
   requestLastConnections(): Promise<void> {
     return this.reducer((connection) => connection.reducers.requestLastConnections({}));
   }
+  requestBalanceTop(): Promise<void> {
+    return this.reducer((connection) => connection.reducers.requestBalanceTop({}));
+  }
   sendWhisper(recipient: Identity, body: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.sendWhisper({ recipient, body }));
   }

@@ -82,6 +82,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       '/shout or /yell: a bubble with a finite long range and edge direction marker.',
       '/whisper, /tell, or /w <player> <message>: private chat.',
       '/reply or /r <message>: answer your latest incoming whisper.',
+      '/baltop: show the top 10 player balances privately in your chat console.',
       'Tab completes predictions; Up and Down select them.',
       'Owners can use /tp <x> <y>, /tp <player|NPC>, or /tp <player> <player|NPC>. Coordinates are tiles.',
       'Owners can use /last to show recent login and logout times privately in their chat console.',

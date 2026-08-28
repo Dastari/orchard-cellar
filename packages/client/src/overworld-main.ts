@@ -372,6 +372,7 @@ async function submitChatInput(body: string): Promise<void> {
   }
   if (command.kind === 'speech') return await network.sendWorldSpeech(command.speechKind, command.body);
   if (command.kind === 'last_connections') return await network.requestLastConnections();
+  if (command.kind === 'balance_top') return await network.requestBalanceTop();
   if (command.kind === 'debug_space') {
     portalTransitionStartedAtMs = performance.now();
     await network.debugUsePortal();
@@ -4072,7 +4073,7 @@ function render(alpha = 1): void {
       }]),
       ...[...snapshot.sessionChatNotices].map((notice) => ({
         id: chatTimelineId(notice.issuedAt.microsSinceUnixEpoch, notice.id, 1n),
-        channelName: notice.kind === 'last' ? 'Last' : 'World',
+        channelName: notice.kind === 'last' ? 'Last' : notice.kind === 'baltop' ? 'Balance' : 'World',
         senderDisplayName: 'World',
         kind: 'system',
         body: notice.body,
