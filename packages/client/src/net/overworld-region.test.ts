@@ -90,6 +90,7 @@ describe('overworld regional subscriptions', () => {
   it('isolates and verifies hot singleton rows before other subscriptions', () => {
     const source = readFileSync(new URL('./overworld-connection.ts', import.meta.url), 'utf8');
     expect(source).toContain(".withCompression('none')");
+    expect(source).toContain('.withWSFn(openSpacetimeV2Socket)');
     const connect = source.slice(source.indexOf('.onConnect('), source.indexOf('.onConnectError('));
     const time = source.slice(
       source.indexOf('private subscribeTimeState'),
