@@ -27,6 +27,7 @@ import {
   homesteadPlayableTile,
   residencePlayableTile,
   cellarPlayableTile,
+  caveTerrainPlaneCollisionBytes,
   tileTargetInReach,
   tileTargetIsBlocked,
   type CollisionMap,
@@ -67,6 +68,7 @@ const SPACE_TERRAIN_COLLISION = new Map<string, CollisionMap>();
 const DYNAMIC_EXCAVATION_COLLISION = new WeakMap<CollisionMap, {
   readonly blocked: boolean[];
   readonly elevations?: Uint8Array;
+  terrainPlaneBlocked?: Uint8Array;
   readonly keys: Set<string>;
 }>();
 
@@ -77,13 +79,24 @@ function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator
     const y = Math.floor(index / sizeTiles);
     return generator === 'homestead' ? !homesteadPlayableTile(x, y)
       : generator === 'residence' || generator === 'marlow_tent' ? !residencePlayableTile(x, y)
-      : generator === 'cellar' ? !cellarPlayableTile(x, y)
+      : generator === 'cellar' ? x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1
       : x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1;
   });
+  const elevations = generator === 'cellar' && medium === 'ground'
+    ? Uint8Array.from({ length: sizeTiles * sizeTiles }, (_, index) => (
+      cellarPlayableTile(index % sizeTiles, Math.floor(index / sizeTiles)) ? 0 : 1
+    ))
+    : undefined;
   return {
     width: sizeTiles,
     height: sizeTiles,
     blocked,
+    ...(elevations === undefined ? {} : {
+      elevations,
+      fixedTerrainPlane: 0,
+      terrainTransitions: [],
+      terrainPlaneBlocked: caveTerrainPlaneCollisionBytes(elevations, sizeTiles, sizeTiles),
+    }),
     horseJumpableTerrain: Array<boolean>(blocked.length).fill(false),
     obstacles: [],
   };
@@ -192,6 +205,7 @@ export function createAuthoritySpaceCollisionMap(
   const terrain = terrainCollisionForSpace(spaceId, medium, instanceRow);
   let blocked = terrain.blocked;
   let elevations = terrain.elevations;
+  let terrainPlaneBlocked = terrain.terrainPlaneBlocked;
   if (excavatedTiles.length > 0) {
     const currentKeys = new Set(excavatedTiles.map((tile) => `${tile.tileX},${tile.tileY}`));
     let dynamic = DYNAMIC_EXCAVATION_COLLISION.get(terrain);
@@ -199,21 +213,36 @@ export function createAuthoritySpaceCollisionMap(
       dynamic = {
         blocked: terrain.blocked.slice(),
         ...(terrain.elevations === undefined ? {} : { elevations: terrain.elevations.slice() }),
+        ...(terrain.terrainPlaneBlocked === undefined
+          ? {}
+          : { terrainPlaneBlocked: terrain.terrainPlaneBlocked.slice() }),
         keys: new Set<string>(),
       };
       DYNAMIC_EXCAVATION_COLLISION.set(terrain, dynamic);
     }
+    let terrainHeightChanged = false;
     for (const tile of excavatedTiles) {
       if (tile.tileX < 0 || tile.tileY < 0 || tile.tileX >= terrain.width || tile.tileY >= terrain.height) continue;
       const key = `${tile.tileX},${tile.tileY}`;
       if (dynamic.keys.has(key)) continue;
       const index = tile.tileY * terrain.width + tile.tileX;
       dynamic.blocked[index] = false;
-      if (dynamic.elevations !== undefined) dynamic.elevations[index] = 0;
+      if (dynamic.elevations !== undefined && dynamic.elevations[index] !== 0) {
+        dynamic.elevations[index] = 0;
+        terrainHeightChanged = true;
+      }
       dynamic.keys.add(key);
+    }
+    if (terrainHeightChanged && dynamic.elevations !== undefined) {
+      dynamic.terrainPlaneBlocked = caveTerrainPlaneCollisionBytes(
+        dynamic.elevations,
+        terrain.width,
+        terrain.height,
+      );
     }
     blocked = dynamic.blocked;
     elevations = dynamic.elevations;
+    terrainPlaneBlocked = dynamic.terrainPlaneBlocked;
   }
   const horseJumpableTerrain = terrain.horseJumpableTerrain ?? [];
   const obstacles = [...(terrain.obstacles ?? [])];
@@ -252,11 +281,14 @@ export function createAuthoritySpaceCollisionMap(
     ...(medium === 'ground' && elevations !== undefined
       ? { elevations }
       : {}),
+    ...(medium === 'ground' && terrain.fixedTerrainPlane !== undefined
+      ? { fixedTerrainPlane: terrain.fixedTerrainPlane }
+      : {}),
     ...(medium === 'ground' && terrain.terrainTransitions !== undefined
       ? { terrainTransitions: terrain.terrainTransitions }
       : {}),
-    ...(medium === 'ground' && terrain.terrainPlaneBlocked !== undefined
-      ? { terrainPlaneBlocked: terrain.terrainPlaneBlocked }
+    ...(medium === 'ground' && terrainPlaneBlocked !== undefined
+      ? { terrainPlaneBlocked }
       : {}),
     horseJumpableTerrain,
     obstacles,

@@ -44,6 +44,11 @@ export interface CollisionMap {
    * cliff faces solid on the lower plane while their cap edges independently
    * guard actors walking on the raised plane. */
   readonly terrainPlaneBlocked?: Uint8Array;
+  /** Some spaces use logical elevation only to project enclosing geometry.
+   * Actors in those spaces remain on one physical plane even while their
+   * hitbox occupies a coordinate whose source terrain belongs to another
+   * visual elevation. Cellars currently pin grounded actors to L0. */
+  readonly fixedTerrainPlane?: number;
   /** Optional integer height field and explicit contour crossings. Generated
    * terrain supplies both to client prediction and authority movement. */
   readonly elevations?: Uint8Array;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type PlayerState } from './state.js';
+import { caveTerrainPlaneCollisionBytes } from './cave-autotile.js';
 import {
   movePlayer,
   movePlayerAtSpeed,
@@ -149,6 +150,52 @@ describe('player movement collision', () => {
     expect(collisionTileIsBlockedAtPlane(map, 1, 0, 1)).toBe(false);
     expect(collisionTileIsBlockedAtPlane(map, 2, 0, 0)).toBe(false);
     expect(collisionTileIsBlockedAtPlane(map, 2, 0, 1)).toBe(true);
+  });
+
+  it('keeps an underground actor on L0 beneath projected L1 geometry', () => {
+    const map = {
+      width: 2,
+      height: 1,
+      blocked: [false, false],
+      elevations: Uint8Array.from([0, 1]),
+      terrainTransitions: [],
+      fixedTerrainPlane: 0,
+    };
+    const from = {
+      x: TILE_SIZE_FIXED / 2,
+      y: TILE_SIZE_FIXED / 2 + PLAYER_HITBOX_FOOT_OFFSET + 1,
+    };
+    expect(terrainPlaneAtPosition({ ...from, x: TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 }, map)).toBe(0);
+    expect(movementPositionAllowed(from, { ...from, x: from.x + FIXED_UNITS_PER_PIXEL }, map)).toBe(true);
+  });
+
+  it('stops a cellar actor at an ordinary solid side wall', () => {
+    const width = 7;
+    const height = 7;
+    const elevations = new Uint8Array(width * height).fill(1);
+    for (let tileY = 1; tileY < height - 1; tileY += 1) {
+      for (let tileX = 1; tileX <= 2; tileX += 1) elevations[tileY * width + tileX] = 0;
+    }
+    const map = {
+      width,
+      height,
+      blocked: Array<boolean>(width * height).fill(false),
+      elevations,
+      terrainTransitions: [],
+      fixedTerrainPlane: 0,
+      terrainPlaneBlocked: caveTerrainPlaneCollisionBytes(elevations, width, height),
+    };
+    let player: PlayerState = {
+      position: {
+        x: 2 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+        y: 3 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 + PLAYER_HITBOX_FOOT_OFFSET + 1,
+      },
+      facing: 'right',
+      moving: false,
+      location: 'cellar',
+    };
+    for (let step = 0; step < 100; step += 1) player = movePlayer(player, 'right', map);
+    expect(player.position.x).toBeLessThan(3 * TILE_SIZE_FIXED);
   });
 
   it('lets a persisted actor escape newly-solid terrain without moving farther through it', () => {

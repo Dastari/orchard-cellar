@@ -15,11 +15,12 @@ import {
   terrainMaximumElevation,
   terrainPlaneCollisionCellAt,
   terrainProjectedRowsPerLevel,
+  terrainVisualProjectionRowsPerLevel,
   type TerrainArray,
 } from './terrain.js';
 
 export interface TerrainInspectorLayer {
-  readonly asset: 'ground_cache' | 'stone_cliff' | 'stone_cliff_inverse' | 'grass_cliff_ramp' | 'waterfall';
+  readonly asset: 'ground_cache' | 'stone_cliff' | 'stone_cliff_inverse' | 'cave_wall' | 'grass_cliff_ramp' | 'waterfall';
   readonly frame: number | null;
   readonly role: string;
   readonly contourLevel: number;
@@ -91,6 +92,7 @@ function drawTransparencyGrid(
 }
 
 function assetForLayer(art: OverworldArt, layer: TerrainInspectorLayer): LoadedAsset | null {
+  if (layer.asset === 'cave_wall') return art.caveWall;
   if (layer.asset === 'stone_cliff') return art.cliff;
   if (layer.asset === 'stone_cliff_inverse') return art.stoneCliffInverseOverlay;
   if (layer.asset === 'grass_cliff_ramp') return art.grassCliffRamp;
@@ -219,19 +221,21 @@ function stratumLayers(
     }];
   }
   const layers: TerrainInspectorLayer[] = [];
+  const cliffAsset = terrain.generator === 'cellar' ? 'cave_wall' : 'stone_cliff';
+  const insetAsset = terrain.generator === 'cellar' ? 'cave_wall' : 'stone_cliff_inverse';
   if (stratum === 'face' || stratum === 'face_foot') {
     for (const face of entry.plan.faceLayers) {
       if (face.seamUnderlayFrame !== undefined) {
         layers.push({
           ...common,
-          asset: 'stone_cliff',
+          asset: cliffAsset,
           frame: face.seamUnderlayFrame,
           role: `${face.rowId}_${face.join}_underlay`,
         });
       }
       layers.push({
         ...common,
-        asset: 'stone_cliff',
+        asset: cliffAsset,
         frame: face.frame,
         role: `${face.rowId}_${face.join}${face.direct ? '' : '_indirect'}`,
       });
@@ -242,7 +246,7 @@ function stratumLayers(
       && entry.plan.insetFrames.length === 0) {
       layers.push({
         ...common,
-        asset: 'stone_cliff',
+        asset: cliffAsset,
         frame: entry.plan.edgeSeamUnderlayFrame,
         role: `${entry.plan.edgeRole ?? 'edge'}_underlay`,
       });
@@ -250,7 +254,7 @@ function stratumLayers(
     if (entry.plan.edgeFrame !== null) {
       layers.push({
         ...common,
-        asset: 'stone_cliff',
+        asset: cliffAsset,
         frame: entry.plan.edgeFrame,
         role: entry.plan.edgeRole ?? 'edge',
       });
@@ -258,7 +262,7 @@ function stratumLayers(
     for (let index = 0; index < entry.plan.insetFrames.length; index += 1) {
       layers.push({
         ...common,
-        asset: 'stone_cliff_inverse',
+        asset: insetAsset,
         frame: entry.plan.insetFrames[index] ?? null,
         role: entry.plan.insetRoles[index] ?? `inset_${index}`,
       });
@@ -283,9 +287,10 @@ export function inspectTerrainAtProjectedPoint(
   blocked: boolean,
 ): TerrainInspection {
   const tileX = Math.floor(projectedWorldX / TILE_SIZE_PIXELS);
-  const projectionRows = terrainProjectedRowsPerLevel();
+  const projectionRows = terrainProjectedRowsPerLevel(terrain);
+  const visualProjectionRows = terrainVisualProjectionRowsPerLevel(terrain);
   const tileY = Math.floor(
-    (projectedWorldY + activeElevation * projectionRows * TILE_SIZE_PIXELS) / TILE_SIZE_PIXELS,
+    (projectedWorldY + activeElevation * visualProjectionRows * TILE_SIZE_PIXELS) / TILE_SIZE_PIXELS,
   );
   const queued: TerrainInspectorLayer[] = [];
 
@@ -309,7 +314,8 @@ export function inspectTerrainAtProjectedPoint(
   // Reversing that projection lets a click on the visible wall inspect the
   // logical tile which supplied each overlapping contour layer.
   for (let contourLevel = 1; contourLevel <= terrainMaximumElevation(terrain); contourLevel += 1) {
-    const sourceTileY = Math.floor(projectedWorldY / TILE_SIZE_PIXELS) + contourLevel * projectionRows;
+    const sourceTileY = Math.floor(projectedWorldY / TILE_SIZE_PIXELS)
+      + contourLevel * visualProjectionRows;
     const entry = raisedTerrainDepthEntries(
       terrain,
       tileX,

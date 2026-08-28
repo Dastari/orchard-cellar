@@ -13,6 +13,7 @@ import {
   terrainMaximumElevation,
   terrainProjectedRowsPerLevel,
   terrainProjectedSortOffset,
+  terrainVisualProjectionRowsPerLevel,
   type TerrainArray,
 } from './terrain.js';
 import type { WorldDepthItem } from './renderer.js';
@@ -22,6 +23,10 @@ export interface RaisedTerrainDepthEntry {
   readonly tileX: number;
   readonly tileY: number;
   readonly contourLevel: number;
+  /** Height-bearing rows in the active wall profile. */
+  readonly projectionRows: number;
+  /** Rows by which the logical source plane is displaced on screen. */
+  readonly visualProjectionRows: number;
   readonly footY: number;
   readonly depthOffset: number;
   readonly plan: ReturnType<typeof plateauLayerPlansAt>[number]['plan'];
@@ -44,6 +49,7 @@ export function raisedTerrainSurfaceRuns(
   maximumTileY: number,
 ): readonly RaisedTerrainSurfaceRun[] {
   if (terrain.generator === 'cellar') return [];
+  const projectionRows = terrainProjectedRowsPerLevel(terrain);
   const projectsAsOpaqueSurface = (tileX: number, tileY: number, elevation: number): boolean => {
     const boundary = plateauLayerPlansAt(terrain, tileX, tileY)
       .find((entry) => entry.contourLevel === elevation)?.plan;
@@ -77,12 +83,12 @@ export function raisedTerrainSurfaceRuns(
         elevation,
         footY: (tileY + 1) * TILE_SIZE_PIXELS - terrainProjectedDepthOffset(
           elevation,
-          terrainProjectedRowsPerLevel(),
+          projectionRows,
           TILE_SIZE_PIXELS,
         ),
         visualOffset: terrainProjectedDepthOffset(
           elevation,
-          terrainProjectedRowsPerLevel(),
+          projectionRows,
           TILE_SIZE_PIXELS,
         ),
       });
@@ -92,10 +98,12 @@ export function raisedTerrainSurfaceRuns(
   return runs;
 }
 
-export function raisedTerrainVisualOffset(entry: Pick<RaisedTerrainDepthEntry, 'contourLevel'>): number {
+export function raisedTerrainVisualOffset(
+  entry: Pick<RaisedTerrainDepthEntry, 'contourLevel' | 'visualProjectionRows'>,
+): number {
   return terrainProjectedDepthOffset(
     entry.contourLevel,
-    terrainProjectedRowsPerLevel(),
+    entry.visualProjectionRows,
     TILE_SIZE_PIXELS,
   );
 }
@@ -108,6 +116,8 @@ export function raisedTerrainDepthEntries(
   maximumTileY: number,
 ): readonly RaisedTerrainDepthEntry[] {
   const entries: RaisedTerrainDepthEntry[] = [];
+  const projectionRows = terrainProjectedRowsPerLevel(terrain);
+  const visualProjectionRows = terrainVisualProjectionRowsPerLevel(terrain);
   for (let tileY = Math.max(0, minimumTileY); tileY <= Math.min(terrain.height - 1, maximumTileY); tileY += 1) {
     for (let tileX = Math.max(0, minimumTileX); tileX <= Math.min(terrain.width - 1, maximumTileX); tileX += 1) {
       for (const { contourLevel, plan } of plateauLayerPlansAt(terrain, tileX, tileY)) {
@@ -115,7 +125,12 @@ export function raisedTerrainDepthEntries(
           tileX,
           tileY,
           contourLevel,
-          footY: (tileY + 1) * TILE_SIZE_PIXELS - raisedTerrainVisualOffset({ contourLevel }),
+          projectionRows,
+          visualProjectionRows,
+          footY: (tileY + 1) * TILE_SIZE_PIXELS - raisedTerrainVisualOffset({
+            contourLevel,
+            visualProjectionRows,
+          }),
           depthOffset: terrainProjectedSortOffset(contourLevel, true),
           plan,
         });
@@ -355,7 +370,7 @@ export function enqueueRaisedTerrainDepth(
 ): number {
   const marginTiles = Math.max(
     4,
-    terrainMaximumElevation(terrain) * terrainProjectedRowsPerLevel() + 1,
+    terrainMaximumElevation(terrain) * terrainProjectedRowsPerLevel(terrain) + 1,
   );
   const entries = raisedTerrainDepthEntries(
     terrain,

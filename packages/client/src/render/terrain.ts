@@ -5,12 +5,14 @@ import {
   SURVIVAL_CLIFF_ROLES,
   SURVIVAL_DIRT_CLIFF_ROLES,
   SURVIVAL_RAISED_CLIFF_TILE_SET,
+  CAVE_RAISED_CLIFF_TILE_SET,
   SURVIVAL_WORLD_SIZE,
   TOPSIDE_SPACE_ID,
   homesteadBiomeAt,
   homesteadPlayableTile,
   residencePlayableTile,
   cellarPlayableTile,
+  caveTerrainPlaneCollisionBytes,
   resolveRaisedTerrainTile,
   resolveRaisedTerrainContoursAt,
   maximumTerrainElevation,
@@ -77,6 +79,9 @@ export interface TerrainArray {
   /** Present on v2/generated/editor terrain. Omission preserves the legacy
    * island's collision-authored ramps; an empty list means no crossings. */
   readonly terrainTransitions?: readonly TerrainTransition[];
+  /** Elevation-owned wall geometry. Cellars rebuild this sparse mask whenever
+   * excavation changes so prediction and the terrain inspector agree. */
+  readonly terrainPlaneBlocked?: Uint8Array;
   /** True when `blocked`/biomes already include every nested contour plan. */
   readonly raisedTerrainCollisionClassified?: true;
   /** @deprecated Compatibility alias while the v1 island generator is retired. */
@@ -112,6 +117,11 @@ export function terrainWithCellarExcavations(
     version: terrain.version * 1_000_003 + Math.max(0, Math.trunc(revision)),
     blocked,
     elevations,
+    terrainPlaneBlocked: caveTerrainPlaneCollisionBytes(
+      elevations,
+      terrain.width,
+      terrain.height,
+    ),
     plateaus: elevations,
   };
 }
@@ -238,6 +248,16 @@ export function terrainForSpace(
         horseJumpableTerrain: Array<boolean>(length).fill(false),
         cliffRoles: new Uint8Array(length),
         elevations,
+        ...(space.generator === "cellar"
+          ? {
+              terrainTransitions: [],
+              terrainPlaneBlocked: caveTerrainPlaneCollisionBytes(
+                elevations,
+                space.sizeTiles,
+                space.sizeTiles,
+              ),
+            }
+          : {}),
         plateaus: elevations,
         dirtCliffRoles: new Uint8Array(length),
         dirtTerraces: new Uint8Array(length),
@@ -521,6 +541,15 @@ export function grassTuftAllowedAt(
   tileX: number,
   tileY: number,
 ): boolean {
+  // Biomes are deliberately reused as inexpensive substrate data by indoor
+  // generators. They must not inherit outdoor ambient decoration merely
+  // because their backing tile happens to be classified as plains.
+  if (
+    terrain.generator !== "island" &&
+    terrain.generator !== "homestead" &&
+    terrain.generator !== "debug_flat"
+  )
+    return false;
   const biome = terrainBiomeAt(terrain, tileX, tileY);
   if (biome !== "plains" && biome !== "meadow" && biome !== "forest")
     return false;
@@ -654,6 +683,10 @@ export function terrainElevationAtWorldFoot(
   worldX: number,
   worldFootY: number,
 ): number {
+  // Cellar elevations describe enclosing rock geometry, not a surface actors
+  // can climb onto. Every live cellar entity remains on the excavated L0
+  // plane even while wall art from L1 overlaps its logical coordinate.
+  if (terrain.generator === "cellar") return 0;
   return terrainElevationAt(
     terrain,
     Math.floor(worldX / 16),
@@ -728,36 +761,9 @@ function dirtTerraceAt(
  * wall sheets provide another data object rather than another resolver. */
 export const STONE_RAISED_CLIFF_TILE_SET = SURVIVAL_RAISED_CLIFF_TILE_SET;
 
-/** Cave_Walls uses the same occupancy grammar as outdoor elevations, but its
- * south edge continues into two authored, front-facing rock rows. */
-export const CAVE_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
-  // Cave rim/corner cells belong beside the hollow at logical ground level,
-  // not on the projected solid-rock plane. Ground-cache resolves those from
-  // Cave_Walls' authored 3×3 ring; this profile supplies only tall back faces.
-  edgeFrames: {},
-  insetFrames: {},
-  rampFrames: {},
-  faceProfiles: {
-    tall: {
-      rows: [
-        {
-          id: "wall",
-          frames: [42, 43, 44],
-          blocksMovement: true,
-          blocksLight: true,
-        },
-        {
-          id: "lower_wall",
-          frames: [49, 50, 51],
-          blocksMovement: true,
-          blocksLight: true,
-        },
-      ],
-    },
-  },
-  edgeBlocksMovement: false,
-  edgeBlocksLight: false,
-};
+// Keep the cave tileset visible to renderer consumers while its frame-role
+// contract lives beside the shared mountain contract in @orchard/sim.
+export { CAVE_RAISED_CLIFF_TILE_SET };
 
 export function raisedCliffTileSetFor(
   terrain: TerrainArray,
@@ -880,6 +886,57 @@ export function terrainMaximumElevation(terrain: TerrainArray): number {
   return maximumElevation;
 }
 
+function cellarWallTileIsExposed(
+  terrain: TerrainArray,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (
+    tileX <= 0 ||
+    tileY <= 0 ||
+    tileX >= terrain.width - 1 ||
+    tileY >= terrain.height - 1 ||
+    terrain.blocked[tileY * terrain.width + tileX] !== true
+  )
+    return false;
+  return (
+    terrain.blocked[(tileY - 1) * terrain.width + tileX] === false ||
+    terrain.blocked[tileY * terrain.width + tileX + 1] === false ||
+    terrain.blocked[(tileY + 1) * terrain.width + tileX] === false ||
+    terrain.blocked[tileY * terrain.width + tileX - 1] === false
+  );
+}
+
+/** Maps the tile under a projected cave-wall pixel back to the solid source
+ * tile that owns that face. This keeps excavation targeting in the same
+ * logical coordinate system as server collision, even though a two-row wall
+ * is drawn into the open cells south of its source. */
+export function cellarWallSourceAtProjectedTile(
+  terrain: TerrainArray,
+  projectedTileX: number,
+  projectedTileY: number,
+): { readonly tileX: number; readonly tileY: number } | null {
+  if (terrain.generator !== "cellar") return null;
+  const sourceProjectionRows = terrainVisualProjectionRowsPerLevel(terrain);
+  const logicalTileY = projectedTileY + sourceProjectionRows;
+  if (cellarWallTileIsExposed(terrain, projectedTileX, logicalTileY)) {
+    return { tileX: projectedTileX, tileY: logicalTileY };
+  }
+  for (const { plan } of plateauLayerPlansAt(
+    terrain,
+    projectedTileX,
+    logicalTileY,
+  )) {
+    const face = plan.faceLayers.find((layer) => layer.direct);
+    if (face === undefined) continue;
+    const sourceTileY = logicalTileY - face.depth;
+    if (cellarWallTileIsExposed(terrain, projectedTileX, sourceTileY)) {
+      return { tileX: projectedTileX, tileY: sourceTileY };
+    }
+  }
+  return null;
+}
+
 export function terrainProjectedDepthAtFoot(
   terrain: TerrainArray,
   worldX: number,
@@ -887,7 +944,7 @@ export function terrainProjectedDepthAtFoot(
 ): number {
   return (
     terrainProjectedElevationAtFoot(terrain, worldX, worldFootY) *
-    terrainProjectedRowsPerLevel() *
+    terrainProjectedRowsPerLevel(terrain) *
     16
   );
 }
@@ -922,6 +979,7 @@ export function terrainProjectedElevationAtFoot(
   worldX: number,
   worldFootY: number,
 ): number {
+  if (terrain.generator === "cellar") return 0;
   const tileX = Math.floor(worldX / 16);
   const tileY = Math.floor((worldFootY - 0.001) / 16);
   const baseElevation = terrainElevationAt(terrain, tileX, tileY);
@@ -989,6 +1047,16 @@ export function terrainPlaneCollisionCellAt(
   )
     return "blocked";
   const index = tileY * terrain.width + tileX;
+  if (terrain.generator === "cellar") {
+    if (tileX === 0 || tileY === 0 || tileX === terrain.width - 1 || tileY === terrain.height - 1) {
+      return "blocked";
+    }
+    if (activeElevation < 0 || terrain.terrainPlaneBlocked === undefined) return "open";
+    const stride = terrain.width * terrain.height;
+    return terrain.terrainPlaneBlocked[activeElevation * stride + index] === 1
+      ? "blocked"
+      : "open";
+  }
   if (terrain.blocked[index] ?? true) return "blocked";
   const transition = (terrainTransitionsByTile(terrain).get(index) ?? []).some(
     (candidate) => {
@@ -1034,12 +1102,31 @@ export function terrainContourBoundaryBetween(
     : "blocked";
 }
 
-export function terrainProjectedRowsPerLevel(): number {
+/** Number of authored wall rows which displace one logical terrain level.
+ * This is the visible walk-behind depth, not the underground stratum number.
+ * Omitting terrain retains the mountain profile for editor-only callers. */
+export function terrainProjectedRowsPerLevel(
+  terrain?: Pick<TerrainArray, "generator">,
+): number {
+  const tileSet = terrain?.generator === "cellar"
+    ? CAVE_RAISED_CLIFF_TILE_SET
+    : STONE_RAISED_CLIFF_TILE_SET;
   return (
-    STONE_RAISED_CLIFF_TILE_SET.faceProfiles.tall?.rows.filter(
+    tileSet.faceProfiles.tall?.rows.filter(
       (row) => row.contributesHeight !== false,
     ).length ?? 0
   );
+}
+
+/** Rows by which the logical source plane is moved on screen. Outdoor raised
+ * surfaces move north by their wall height. A cellar is the inverse: its
+ * surrounding solid datum stays fixed while face rows extend south into the
+ * lower excavation, so its source plane has no visual translation. */
+export function terrainVisualProjectionRowsPerLevel(
+  terrain?: Pick<TerrainArray, "generator">,
+): number {
+  if (terrain?.generator === "cellar") return 0;
+  return terrainProjectedRowsPerLevel(terrain);
 }
 
 /** Editor preview mutates a working elevation buffer in place. Production

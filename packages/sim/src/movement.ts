@@ -132,6 +132,7 @@ function movementCrossesBlockedElevation(
   to: Vec2Fixed,
   map: CollisionMap,
 ): boolean {
+  if (map.fixedTerrainPlane !== undefined) return false;
   // Legacy maps expose height for rendering but still encode their authored
   // ramps in `blocked`. New/generated/editor maps opt into strict contour
   // validation by supplying the transition channel; an empty list therefore
@@ -192,6 +193,7 @@ function movementCrossesBlockedElevation(
  * This is deliberately position-derived: teleports, respawns, and ordinary
  * walking all land on the same height without relying on transition history. */
 export function terrainPlaneAtPosition(position: Vec2Fixed, map: CollisionMap): number {
+  if (map.fixedTerrainPlane !== undefined) return map.fixedTerrainPlane;
   if (map.elevations === undefined) return 0;
   return terrainElevationAt(
     map.elevations,

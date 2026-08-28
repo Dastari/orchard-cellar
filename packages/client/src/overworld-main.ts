@@ -235,6 +235,7 @@ import {
   type WorldDepthItem,
 } from './render/renderer.js';
 import {
+  cellarWallSourceAtProjectedTile,
   terrainContactWorldYForPlayer,
   terrainElevationAtWorldFoot,
   terrainForSpace,
@@ -245,9 +246,9 @@ import {
   terrainPlaneCollisionCellAt,
   terrainProjectedDepthAtFoot,
   terrainProjectedElevationAtFoot,
-  terrainProjectedRowsPerLevel,
   terrainProjectedSortOffset,
   terrainProjectedWorldYAtFoot,
+  terrainVisualProjectionRowsPerLevel,
   type TerrainArray,
 } from './render/terrain.js';
 import {
@@ -1866,20 +1867,16 @@ function targetCellarWall(snapshot: OverworldView): { readonly tileX: number; re
   }
   const target = targetInteractionTile();
   if (target === null) return null;
-  const targetX = target.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-  const targetY = target.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const terrain = terrainForSnapshot(snapshot);
+  const wall = cellarWallSourceAtProjectedTile(terrain, target.tileX, target.tileY);
+  if (wall === null) return null;
+  const targetX = wall.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+  const targetY = wall.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const reach = 2 * TILE_SIZE_FIXED;
   const dx = targetX - predicted.position.x;
   const dy = targetY - predicted.position.y;
   if (dx * dx + dy * dy > reach * reach) return null;
-  const terrain = terrainForSnapshot(snapshot);
-  if (target.tileX <= 0 || target.tileY <= 0
-    || target.tileX >= terrain.width - 1 || target.tileY >= terrain.height - 1
-    || terrain.blocked[target.tileY * terrain.width + target.tileX] !== true) return null;
-  const neighbours = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
-  return neighbours.some(([offsetX, offsetY]) => (
-    terrain.blocked[(target.tileY + offsetY) * terrain.width + target.tileX + offsetX] === false
-  )) ? target : null;
+  return wall;
 }
 
 function targetGatherableResource(snapshot: OverworldView): WorldResource | null {
@@ -2572,7 +2569,7 @@ function drawCollisionOverlay(
   activeElevation: number,
   showEntityObstacles: boolean,
 ): void {
-  const planeProjection = activeElevation * terrainProjectedRowsPerLevel() * 16;
+  const planeProjection = activeElevation * terrainVisualProjectionRowsPerLevel(terrain) * 16;
   const minX = Math.max(0, Math.floor(cameraX / 16));
   const minY = Math.max(0, Math.floor((cameraY + planeProjection) / 16));
   const maxX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16));
@@ -3804,7 +3801,7 @@ function render(alpha = 1): void {
       );
       const selectedScreenX = Math.round((draft.tileX * 16 - cameraX) * scale);
       const selectedScreenY = Math.round((draft.tileY * 16
-        - activeElevation * terrainProjectedRowsPerLevel() * 16 - cameraY) * scale);
+        - activeElevation * terrainVisualProjectionRowsPerLevel(terrain) * 16 - cameraY) * scale);
       context.save();
       context.strokeStyle = '#fff36a';
       context.lineWidth = Math.max(1, scale);

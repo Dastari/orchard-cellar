@@ -10,6 +10,7 @@ import {
 import { describe, expect, it } from "vitest";
 import {
   beachFrameIndexAt,
+  cellarWallSourceAtProjectedTile,
   animatedWaterRockAllowedAt,
   cliffFrameIndexAt,
   desertCliffFrameIndexAt,
@@ -36,9 +37,13 @@ import {
   invalidateTerrainElevationCaches,
   terrainContourBoundaryBetween,
   terrainContactWorldYForPlayer,
+  terrainElevationAtWorldFoot,
   terrainPlaneCollisionCellAt,
   terrainProjectedDepthAtFoot,
   terrainProjectedElevationAtFoot,
+  terrainProjectedRowsPerLevel,
+  terrainVisualProjectionRowsPerLevel,
+  grassTuftAllowedAt,
   terrainProjectedWorldYAtFoot,
   waterDecorationAllowedAt,
   waterfallTopLeftAt,
@@ -81,8 +86,22 @@ describe("shared client terrain array", () => {
         blocksLight: true,
       },
     ]);
-    expect(CAVE_RAISED_CLIFF_TILE_SET.edgeFrames).toEqual({});
-    expect(CAVE_RAISED_CLIFF_TILE_SET.insetFrames).toEqual({});
+    expect(CAVE_RAISED_CLIFF_TILE_SET.edgeFrames).toEqual({
+      top_left: 25,
+      top: 19,
+      top_right: 26,
+      left: 13,
+      right: 11,
+      bottom_left: 32,
+      bottom: 5,
+      bottom_right: 33,
+    });
+    expect(CAVE_RAISED_CLIFF_TILE_SET.insetFrames).toEqual({
+      inner_top_left: 20,
+      inner_top_right: 18,
+      inner_bottom_left: 6,
+      inner_bottom_right: 4,
+    });
     const cellar = terrainForSpace(
       {
         spaceId: 98_765,
@@ -104,7 +123,43 @@ describe("shared client terrain array", () => {
     ).toBe(true);
     expect(cellar.elevations.some((height) => height === 0)).toBe(true);
     expect(cellar.elevations.some((height) => height === 1)).toBe(true);
+    expect(terrainProjectedRowsPerLevel(cellar)).toBe(2);
+    expect(terrainVisualProjectionRowsPerLevel(cellar)).toBe(0);
+    expect(terrainElevationAtWorldFoot(cellar, 8, 8)).toBe(0);
+    expect(terrainProjectedElevationAtFoot(cellar, 8, 8)).toBe(0);
+    expect(terrainProjectedDepthAtFoot(cellar, 8, 8)).toBe(0);
+    expect(terrainProjectedRowsPerLevel()).toBe(2);
     expect(plateauLayerPlansAt(cellar, 0, 0)).toEqual([]);
+  });
+
+  it("maps both courses of a projected cave face back to its solid source", () => {
+    const width = 7;
+    const height = 7;
+    const blocked = Array<boolean>(width * height).fill(true);
+    const elevations = new Uint8Array(width * height).fill(1);
+    for (let y = 3; y < height; y += 1) for (let x = 1; x < width - 1; x += 1) {
+      blocked[y * width + x] = false;
+      elevations[y * width + x] = 0;
+    }
+    const cellar: TerrainArray = {
+      ...terrainFixture(width, height),
+      generator: "cellar",
+      blocked,
+      elevations,
+      plateaus: elevations,
+    };
+    expect(cellarWallSourceAtProjectedTile(cellar, 3, 2)).toEqual({ tileX: 3, tileY: 2 });
+    expect(cellarWallSourceAtProjectedTile(cellar, 3, 3)).toEqual({ tileX: 3, tileY: 2 });
+    expect(cellarWallSourceAtProjectedTile(cellar, 3, 4)).toEqual({ tileX: 3, tileY: 2 });
+    expect(cellarWallSourceAtProjectedTile(cellar, 3, 5)).toBeNull();
+  });
+
+  it("does not inherit outdoor grass tufts in indoor or underground spaces", () => {
+    const base = terrainFixture(8, 8);
+    for (let y = 0; y < base.height; y += 1) for (let x = 0; x < base.width; x += 1) {
+      expect(grassTuftAllowedAt({ ...base, generator: "residence" }, x, y)).toBe(false);
+      expect(grassTuftAllowedAt({ ...base, generator: "cellar" }, x, y)).toBe(false);
+    }
   });
 
   it("applies sparse cellar excavation without mutating generator terrain", () => {

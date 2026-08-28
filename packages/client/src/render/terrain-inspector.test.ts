@@ -48,4 +48,13 @@ describe('terrain composition inspector', () => {
     expect(inspection.blocked).toBe(false);
     expect(terrainInspectionLines(inspection)[3]).toContain('OPEN');
   });
+
+  it('reports cave contour frames from the cave wall atlas', () => {
+    const terrain = { ...terrainFixture(), generator: 'cellar' as const };
+    const inspection = inspectTerrainAtProjectedPoint(terrain, 24, 8, 0, true);
+    expect(inspection.layers.some(({ asset }) => asset === 'cave_wall')).toBe(true);
+    expect(inspection.layers.every(({ asset }) => (
+      asset !== 'stone_cliff' && asset !== 'stone_cliff_inverse'
+    ))).toBe(true);
+  });
 });

@@ -70,4 +70,18 @@ describe('shared tile targeting', () => {
       [playerHitboxBounds({ x: playerX, y: playerY })],
     )).toBe(true);
   });
+
+  it('rejects blockers owned by a space-fixed terrain plane', () => {
+    const terrainPlaneBlocked = new Uint8Array(4);
+    terrainPlaneBlocked[1] = 1;
+    const map: CollisionMap = {
+      width: 2,
+      height: 2,
+      blocked: [false, false, false, false],
+      fixedTerrainPlane: 0,
+      terrainPlaneBlocked,
+    };
+    expect(tileTargetIsBlocked(map, { tileX: 0, tileY: 0 })).toBe(false);
+    expect(tileTargetIsBlocked(map, { tileX: 1, tileY: 0 })).toBe(true);
+  });
 });

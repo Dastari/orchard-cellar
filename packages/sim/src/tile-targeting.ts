@@ -153,7 +153,12 @@ export function tileTargetIsBlocked(
 ): boolean {
   if (!Number.isInteger(tile.tileX) || !Number.isInteger(tile.tileY)
     || tile.tileX < 0 || tile.tileY < 0 || tile.tileX >= map.width || tile.tileY >= map.height) return true;
-  if (map.blocked[tile.tileY * map.width + tile.tileX] ?? true) return true;
+  const tileIndex = tile.tileY * map.width + tile.tileX;
+  if (map.blocked[tileIndex] ?? true) return true;
+  if (map.fixedTerrainPlane !== undefined && map.terrainPlaneBlocked !== undefined) {
+    const stride = map.width * map.height;
+    if (map.terrainPlaneBlocked[map.fixedTerrainPlane * stride + tileIndex] === 1) return true;
+  }
   const bounds = tileTargetBounds(tile);
   if (map.obstacles?.some((obstacle) => boundsOverlap(bounds, obstacle)) ?? false) return true;
   for (const occupied of occupiedBounds) if (boundsOverlap(bounds, occupied)) return true;

@@ -175,7 +175,7 @@ export function createLightOcclusionMap(
   const terrainOccluders: LightSpriteOccluder[] | undefined =
     terrain.spaceId === TOPSIDE_SPACE_ID && nested ? [] : undefined;
   if (terrainOccluders !== undefined) {
-    const projectionRows = terrainProjectedRowsPerLevel();
+    const projectionRows = terrainProjectedRowsPerLevel(terrain);
     for (let index = 0; index < hardBlocked.length; index += 1) {
       if (hardBlocked[index] !== 1) continue;
       const tileX = index % terrain.width;

@@ -238,9 +238,14 @@ describe('overworld authority rules', () => {
       30_001, [], [], 'ground', [], instance, [{ tileX: 500, tileY: 500 }],
     );
     const index = 500 * dynamic.width + 500;
-    expect(base.blocked[index]).toBe(true);
+    expect(base.blocked[index]).toBe(false);
+    expect(base.elevations?.[index]).toBe(1);
+    expect(base.fixedTerrainPlane).toBe(0);
+    expect(base.terrainPlaneBlocked).toBeDefined();
     expect(dynamic.blocked[index]).toBe(false);
-    expect(base.blocked[index]).toBe(true);
+    expect(dynamic.elevations?.[index]).toBe(0);
+    expect(dynamic.terrainPlaneBlocked).toBeDefined();
+    expect(base.elevations?.[index]).toBe(1);
   });
 
   it('blocks water and solid ridges while projected cliff rows remain lower-plane walkable', () => {

@@ -1,5 +1,4 @@
 import {
-  caveWallAtlasFrameFor,
   SURVIVAL_CHUNK_TILES,
   TILE_SIZE_PIXELS,
   type SurvivalBiome,
@@ -444,28 +443,13 @@ export class GroundChunkCache {
         }
         if (terrain.generator === "cellar") {
           const index = tileY * terrain.width + tileX;
-          const dugAt = (offsetX: number, offsetY: number): boolean => {
-            const neighborX = tileX + offsetX;
-            const neighborY = tileY + offsetY;
-            return (
-              neighborX >= 0 &&
-              neighborY >= 0 &&
-              neighborX < terrain.width &&
-              neighborY < terrain.height &&
-              !terrain.blocked[neighborY * terrain.width + neighborX]
-            );
-          };
           if (!terrain.blocked[index]) {
             drawGroundAsset(context, art.caveFloorMiddle, localX, localY);
           } else {
-            // Uncut rock uses the ordinary underground ground texture. The
-            // wall contour communicates excavation; black/flat gaps do not.
+            // Uncut rock is only the continuous raised-plane substrate. The
+            // shared raised-terrain resolver owns every cap, corner and face;
+            // duplicating a 3x3 ring here makes those layers disagree.
             drawUndugCaveTile(context, art.caveFloorMiddle, localX, localY, 0);
-            const ringFrame = caveWallAtlasFrameFor(dugAt);
-            // Cave_Walls columns 4-6 repeat the authored 3×3 ring with the
-            // dark solid-rock backing required on the undug side.
-            if (ringFrame !== null)
-              drawGroundAsset(context, art.caveWall, localX, localY, ringFrame);
           }
           continue;
         }

@@ -3,6 +3,7 @@ import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
   collisionTileIsBlockedAtPlane,
+  caveTerrainPlaneCollisionBytes,
   generateSurvivalDecorations,
   survivalRaisedTerrainStructuralAt,
   survivalTerrainPlaneCollisionBytes,
@@ -10,7 +11,7 @@ import {
   survivalWaterRockObstacle,
 } from '@orchard/sim';
 import { createClientCollisionMap } from './collision.js';
-import { terrainForSpace, terrainForWorld } from './terrain.js';
+import { terrainForSpace, terrainForWorld, type TerrainArray } from './terrain.js';
 
 describe('client collision cache', () => {
   it('reuses terrain blocking and rebuilds only live subscribed obstacles', () => {
@@ -67,6 +68,45 @@ describe('client collision cache', () => {
     expect(lowerPlaneBlockers).toBeGreaterThan(0);
     expect(upperPlaneBlockers).toBeGreaterThan(0);
   }, 20_000);
+
+  it('uses the shared cellar plane mask for ordinary solid side walls', () => {
+    const width = 7;
+    const height = 7;
+    const length = width * height;
+    const material = Array<boolean>(length).fill(true);
+    const elevations = new Uint8Array(length).fill(1);
+    for (let tileY = 1; tileY < height - 1; tileY += 1) {
+      for (let tileX = 1; tileX <= 2; tileX += 1) {
+        material[tileY * width + tileX] = false;
+        elevations[tileY * width + tileX] = 0;
+      }
+    }
+    const terrain: TerrainArray = {
+      spaceId: 30_001,
+      seed: 1,
+      version: 1,
+      width,
+      height,
+      generator: 'cellar',
+      biomes: new Uint8Array(length),
+      blocked: material,
+      horseJumpableTerrain: Array<boolean>(length).fill(false),
+      cliffRoles: new Uint8Array(length),
+      elevations,
+      terrainTransitions: [],
+      terrainPlaneBlocked: caveTerrainPlaneCollisionBytes(elevations, width, height),
+      plateaus: elevations,
+      dirtCliffRoles: new Uint8Array(length),
+      dirtTerraces: new Uint8Array(length),
+    };
+    const collision = createClientCollisionMap(terrain, []);
+    const exposedSide = 3 * width + 3;
+    expect(collision.blocked[exposedSide]).toBe(false);
+    expect(collisionTileIsBlockedAtPlane(collision, 3, 3, 0)).toBe(true);
+    expect(collisionTileIsBlockedAtPlane(collision, 3, 3, 1)).toBe(true);
+    expect(collisionTileIsBlockedAtPlane(collision, 4, 3, 0)).toBe(true);
+    expect(collision.fixedTerrainPlane).toBe(0);
+  });
 
   it('builds the inverse shoreline layer and water-rock obstacles for watercraft', () => {
     const terrain = terrainForWorld(0x4f434852, 3);
