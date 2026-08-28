@@ -222,12 +222,6 @@ import { deterministicFlameFlicker, isLightEmitterKind, placeablePointLight } fr
 import { RenderMetrics } from './render/metrics.js';
 import { RainWeather } from './render/particles.js';
 import { enqueueRaisedTerrainDepth } from './render/raised-terrain-depth.js';
-import {
-  drawTerrainInspectionVisuals,
-  inspectTerrainAtProjectedPoint,
-  terrainInspectionLines,
-  terrainInspectionVisualLayout,
-} from './render/terrain-inspector.js';
 import { treeSwayOffset, WeatherEffects, windDirectionLabel, type WindTreeSource } from './render/weather-effects.js';
 import { drawPixelPanel, drawPixelText, measurePixelText } from './render/pixel-ui.js';
 import {
@@ -481,11 +475,28 @@ let lastNetworkStatus = '';
 let debugCollision = false;
 let debugMetrics = false;
 let debugEntitiesHidden = false;
+type TerrainInspectorModule = typeof import('./render/terrain-inspector.js');
+let terrainInspector: TerrainInspectorModule | null = null;
+let terrainInspectorPromise: Promise<TerrainInspectorModule> | null = null;
+
+function loadTerrainInspector(): Promise<TerrainInspectorModule> {
+  terrainInspectorPromise ??= import('./render/terrain-inspector.js').then((module) => {
+    terrainInspector = module;
+    return module;
+  });
+  return terrainInspectorPromise;
+}
 const LIGHTING_EFFECTS_DISABLED_KEY = 'orchard.developer.lighting-effects-disabled';
 let lightingEffectsDisabled = localStorage.getItem(LIGHTING_EFFECTS_DISABLED_KEY) === 'true';
 const CELLAR_ORE_PREVIEW_KEY = 'orchard.developer.cellar-ore-preview';
 let cellarOrePreview = localStorage.getItem(CELLAR_ORE_PREVIEW_KEY) === 'true';
 let debugTerrainPoint: { readonly worldX: number; readonly worldY: number } | null = null;
+
+function setCollisionDebug(enabled: boolean): void {
+  debugCollision = enabled;
+  if (enabled) void loadTerrainInspector();
+  else debugTerrainPoint = null;
+}
 let interfaceHidden = false;
 let nameplatesVisible = readNameplatesVisible();
 let onlinePlayersVisible = false;
@@ -1626,7 +1637,38 @@ function update(): void {
 }
 
 function profileName(profiles: OverworldView['profiles'], identity: string): string {
-  return profiles.find((profile) => profile.identity.toHexString() === identity)?.displayName ?? 'FARMER';
+  return profiles.get(identity)?.displayName ?? 'FARMER';
+}
+
+interface OnlinePlayerListEntry {
+  readonly displayName: string;
+  readonly self: boolean;
+  readonly idleMinutes: number | null;
+}
+
+let onlinePlayerCacheRevision = -1;
+let onlinePlayerCacheMinute = -1;
+let onlinePlayerCacheIdentity: string | null = null;
+let onlinePlayerCache: readonly OnlinePlayerListEntry[] = [];
+
+function onlinePlayerEntries(snapshot: OverworldView): readonly OnlinePlayerListEntry[] {
+  const minute = Math.floor(Date.now() / 60_000);
+  if (onlinePlayerCacheRevision === network.presenceRevision
+    && onlinePlayerCacheMinute === minute
+    && onlinePlayerCacheIdentity === snapshot.identityHex) return onlinePlayerCache;
+  onlinePlayerCacheRevision = network.presenceRevision;
+  onlinePlayerCacheMinute = minute;
+  onlinePlayerCacheIdentity = snapshot.identityHex;
+  onlinePlayerCache = [...snapshot.profiles]
+    .filter((profile) => profile.online)
+    .map((profile) => ({
+      displayName: profile.displayName,
+      self: profile.identity.toHexString() === snapshot.identityHex,
+      idleMinutes: onlinePlayerIdleMinutes(profile.lastActiveAtMicros),
+    }))
+    .sort((left, right) => Number(right.self) - Number(left.self)
+      || left.displayName.localeCompare(right.displayName));
+  return onlinePlayerCache;
 }
 
 let optimisticSelectedSlot: number | null = null;
@@ -1641,7 +1683,7 @@ function selectedItem(snapshot: OverworldView): string {
 
 function selectedItemRow(snapshot: OverworldView) {
   const selected = optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0;
-  return snapshot.inventorySlots.find((inventory) => inventory.slot === selected);
+  return snapshot.inventorySlots.get(selected);
 }
 
 function snapshotEffectModifiers(snapshot: OverworldView) {
@@ -3906,8 +3948,8 @@ function render(alpha = 1): void {
     );
     if (!debugEntitiesHidden) drawPlayerCollisionOverlay(context, cameraX, cameraY, scale, snapshot, terrain);
     drawToolInteractionOverlay(context, cameraX, cameraY, scale, snapshot, terrain);
-    if (debugTerrainPoint !== null) {
-      const draft = inspectTerrainAtProjectedPoint(
+    if (debugTerrainPoint !== null && terrainInspector !== null) {
+      const draft = terrainInspector.inspectTerrainAtProjectedPoint(
         terrain,
         debugTerrainPoint.worldX,
         debugTerrainPoint.worldY,
@@ -3988,20 +4030,13 @@ function render(alpha = 1): void {
   const authorityTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
   const calendar = calendarAtTick(Number(authorityTick) * SIM_STEPS_PER_AUTHORITY_TICK);
   const weatherMode = worldWeatherMode();
-  const onlinePlayers = [...snapshot.profiles]
-    .filter((profile) => profile.online)
-    .map((profile) => ({
-      displayName: profile.displayName,
-      self: profile.identity.toHexString() === snapshot.identityHex,
-      idleMinutes: onlinePlayerIdleMinutes(profile.lastActiveAtMicros),
-    }))
-    .sort((left, right) => Number(right.self) - Number(left.self)
-      || left.displayName.localeCompare(right.displayName));
+  const onlinePlayers = onlinePlayerEntries(snapshot);
   const playerVitals = resolvedPlayerVitals(snapshot);
-  const ownProfile = [...snapshot.profiles].find((profile) => profile.identity.toHexString() === snapshot.identityHex);
+  const ownProfile = snapshot.identityHex === null ? undefined : snapshot.profiles.get(snapshot.identityHex);
   const appearance = ownAppearanceSelection(snapshot);
+  const skillTracksByKind = new Map([...snapshot.skillTracks].map((row) => [row.track, row]));
   const skillTracks = SKILL_TRACKS.map((track) => {
-    const row = [...snapshot.skillTracks].find((candidate) => candidate.track === track);
+    const row = skillTracksByKind.get(track);
     return {
       track,
       experience: row?.experience ?? 0n,
@@ -4370,7 +4405,13 @@ function render(alpha = 1): void {
     touchControls.draw(uiContext, art.ui, art.uiSkin, uiWidth, uiHeight);
     overworldUi.drawCursorOverlay(uiContext);
   }
-  if (!interfaceHidden && debugCollision && debugTerrainPoint !== null) {
+  if (!interfaceHidden && debugCollision && debugTerrainPoint !== null && terrainInspector !== null) {
+    const {
+      drawTerrainInspectionVisuals,
+      inspectTerrainAtProjectedPoint,
+      terrainInspectionLines,
+      terrainInspectionVisualLayout,
+    } = terrainInspector;
     const activeElevation = terrainElevationAtWorldFoot(terrain, localX, localTerrainContactY);
     const draft = inspectTerrainAtProjectedPoint(
       terrain,
@@ -4714,8 +4755,7 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyG' && !event.repeat) {
-    debugCollision = !debugCollision;
-    if (!debugCollision) debugTerrainPoint = null;
+    setCollisionDebug(!debugCollision);
     setToast(debugCollision
       ? 'COLLISION: RED BLOCKED / CYAN TRANSITION / CLICK TO INSPECT TERRAIN'
       : 'COLLISION OVERLAY OFF', 'info', 180);
@@ -5294,6 +5334,17 @@ canvas.addEventListener('wheel', (event) => {
 
 resize();
 const loop = new FixedStepLoop({ update, render });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    keys.clear();
+    touchControls.reset();
+    network.setMovementIntent('idle', false);
+    loop.stop();
+    return;
+  }
+  networkDirty = true;
+  loop.start();
+});
 Object.assign(window, {
   __orchardOverworld: {
     snapshot: () => network.snapshot(),
@@ -5315,7 +5366,7 @@ Object.assign(window, {
     jumpHorse: () => network.jumpHorse(),
     dropSelected: () => network.dropSelected(),
     selectHotbar: (selectedSlot: number) => network.selectHotbar(selectedSlot),
-    setCollisionDebug: (enabled: boolean) => { debugCollision = enabled; },
+    setCollisionDebug,
     setMetricsDebug: (enabled: boolean) => { debugMetrics = enabled; },
     setEntitiesHidden: (hidden: boolean) => { debugEntitiesHidden = hidden; },
     renderMetrics: () => renderMetrics.snapshot(),

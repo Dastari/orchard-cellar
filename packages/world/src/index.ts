@@ -400,7 +400,11 @@ function npcWithinInteractionReach(
 }
 
 const player_public = table(
-  { name: 'player_public', public: true },
+  {
+    name: 'player_public',
+    public: true,
+    indexes: [{ accessor: 'by_online', algorithm: 'btree', columns: ['online'] }],
+  },
   {
     identity: t.identity().primaryKey(),
     displayName: t.string(),
@@ -979,7 +983,11 @@ const world_environment = table(
  * This keeps the seeded landmark stable while allowing server-authoritative
  * lighting and a permanent player override of NPC automation. */
 const world_campfire_state = table(
-  { name: 'world_campfire_state', public: true },
+  {
+    name: 'world_campfire_state',
+    public: true,
+    indexes: [{ accessor: 'by_location', algorithm: 'btree', columns: ['spaceId', 'tileX', 'tileY'] }],
+  },
   {
     id: t.u64().primaryKey(),
     tileX: t.i16(),
@@ -1036,7 +1044,11 @@ const homestead = table(
   {
     name: 'homestead',
     public: true,
-    indexes: [{ accessor: 'by_owner', algorithm: 'hash', columns: ['owner'] }],
+    indexes: [
+      { accessor: 'by_owner', algorithm: 'hash', columns: ['owner'] },
+      { accessor: 'by_overworld_location', algorithm: 'btree', columns: ['overworldTileX', 'overworldTileY'] },
+      { accessor: 'by_residence_space', algorithm: 'btree', columns: ['residenceSpaceId'] },
+    ],
   },
   {
     spaceId: t.u16().primaryKey(), owner: t.identity(), ownerName: t.string(),

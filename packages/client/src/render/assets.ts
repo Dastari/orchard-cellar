@@ -31,14 +31,29 @@ export interface BuiltAssetRecord {
 
 interface MarkerPixel { readonly x: number; readonly y: number; readonly marker: string; readonly shade: number }
 
+interface AtlasMarkerManifest {
+  readonly schemaVersion: number;
+  readonly revision: string;
+  readonly assets: Readonly<Record<string, Readonly<Record<string, readonly (readonly MarkerPixel[])[]>>>>;
+}
+
 export interface BuiltAtlasManifest {
   readonly schemaVersion: number;
   readonly revision: string;
   readonly revisionId: number;
   readonly placeholderAssetId: number;
   readonly atlases: Readonly<Record<string, string>>;
-  readonly assets: Readonly<Record<string, BuiltAssetRecord>>;
+  /** Present on legacy monolithic manifests and in test fixtures. */
+  readonly assets?: Readonly<Record<string, BuiltAssetRecord>>;
+  readonly assetCategories?: Readonly<Record<string, string>>;
   readonly assetsById: Readonly<Record<string, string>>;
+}
+
+interface BuiltAtlasCategoryManifest {
+  readonly schemaVersion: number;
+  readonly revision: string;
+  readonly category: string;
+  readonly assets: Readonly<Record<string, BuiltAssetRecord>>;
 }
 
 export interface LoadedAsset {
@@ -72,6 +87,8 @@ export interface GeneratedAssetCatalog extends GeneratedAssetRegistry {
 }
 
 let manifestPromise: Promise<BuiltAtlasManifest> | null = null;
+let markerManifestPromise: Promise<AtlasMarkerManifest> | null = null;
+const categoryManifestPromises = new Map<string, Promise<BuiltAtlasCategoryManifest>>();
 const imagePromises = new Map<string, Promise<HTMLImageElement>>();
 const warnedMissingAssets = new Set<string>();
 
@@ -81,6 +98,49 @@ async function loadManifest(): Promise<BuiltAtlasManifest> {
     return await response.json() as BuiltAtlasManifest;
   });
   return await manifestPromise;
+}
+
+async function loadMarkerManifest(revision: string): Promise<AtlasMarkerManifest> {
+  markerManifestPromise ??= fetch(`/generated/atlas.markers.json?rev=${encodeURIComponent(revision)}`)
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`Unable to load generated atlas markers: ${response.status}`);
+      return await response.json() as AtlasMarkerManifest;
+    });
+  const manifest = await markerManifestPromise;
+  if (manifest.revision !== revision) throw new Error('Generated atlas marker revision does not match metadata');
+  return manifest;
+}
+
+async function loadCategoryManifest(
+  category: string,
+  revision: string,
+): Promise<BuiltAtlasCategoryManifest> {
+  const key = `${revision}:${category}`;
+  const existing = categoryManifestPromises.get(key);
+  if (existing !== undefined) return await existing;
+  const promise = fetch(
+    `/generated/atlas_${encodeURIComponent(category)}.meta.json?rev=${encodeURIComponent(revision)}`,
+  ).then(async (response) => {
+    if (!response.ok) throw new Error(`Unable to load ${category} atlas metadata: ${response.status}`);
+    const manifest = await response.json() as BuiltAtlasCategoryManifest;
+    if (manifest.revision !== revision || manifest.category !== category) {
+      throw new Error(`Generated ${category} atlas metadata revision does not match index`);
+    }
+    return manifest;
+  });
+  categoryManifestPromises.set(key, promise);
+  return await promise;
+}
+
+async function loadAssetRecord(
+  manifest: BuiltAtlasManifest,
+  name: string,
+): Promise<BuiltAssetRecord | undefined> {
+  const legacyRecord = manifest.assets?.[name];
+  if (legacyRecord !== undefined) return legacyRecord;
+  const category = manifest.assetCategories?.[name];
+  if (category === undefined) return undefined;
+  return (await loadCategoryManifest(category, manifest.revision)).assets[name];
 }
 
 export function atlasImageUrl(filename: string, revision: string): string {
@@ -109,13 +169,14 @@ export function resolveGeneratedAssetName(manifest: BuiltAtlasManifest, assetId:
 }
 
 export function resolveGeneratedAssetRequestName(manifest: BuiltAtlasManifest, requestedName: string): string {
-  if (manifest.assets[requestedName] !== undefined) return requestedName;
+  if (manifest.assets?.[requestedName] !== undefined
+    || manifest.assetCategories?.[requestedName] !== undefined) return requestedName;
   return resolveGeneratedAssetName(manifest, manifest.placeholderAssetId);
 }
 
 function applyMarkerOverrides(
   image: HTMLImageElement,
-  record: BuiltAssetRecord,
+  markerLayers: Readonly<Record<string, readonly (readonly MarkerPixel[])[]>>,
   overrides: Readonly<Record<string, readonly string[]>>,
 ): CanvasImageSource {
   const canvas = document.createElement('canvas');
@@ -124,7 +185,7 @@ function applyMarkerOverrides(
   const context = canvas.getContext('2d');
   if (!context) return image;
   context.drawImage(image, 0, 0);
-  for (const animationLayers of Object.values(record.markerLayers ?? {})) {
+  for (const animationLayers of Object.values(markerLayers)) {
     for (const framePixels of animationLayers) {
       for (const pixel of framePixels) {
         const ramp = overrides[pixel.marker];
@@ -145,7 +206,7 @@ export async function loadGeneratedAsset(
 ): Promise<LoadedAsset> {
   const manifest = await loadManifest();
   const resolvedName = resolveGeneratedAssetRequestName(manifest, name);
-  const record = manifest.assets[resolvedName];
+  const record = await loadAssetRecord(manifest, resolvedName);
   if (!record) throw new Error(`Generated asset placeholder is missing: ${resolvedName}`);
   if (resolvedName !== name && !warnedMissingAssets.has(name)) {
     warnedMissingAssets.add(name);
@@ -155,7 +216,7 @@ export async function loadGeneratedAsset(
     return await loadRecord(manifest, name, record, season, markerOverrides);
   } catch (error: unknown) {
     const placeholderName = resolveGeneratedAssetName(manifest, manifest.placeholderAssetId);
-    const placeholder = manifest.assets[placeholderName];
+    const placeholder = await loadAssetRecord(manifest, placeholderName);
     if (resolvedName === placeholderName || placeholder === undefined) throw error;
     if (!warnedMissingAssets.has(name)) {
       warnedMissingAssets.add(name);
@@ -175,10 +236,14 @@ async function loadRecord(
   const filename = manifest.atlases[`${record.category}:${season}`];
   if (!filename) throw new Error(`Atlas not found for ${record.category}:${season}`);
   const image = await loadImage(filename, manifest.revision);
+  const resolvedName = resolveGeneratedAssetName(manifest, record.assetId);
+  const markerLayers = Object.keys(markerOverrides).length === 0
+    ? undefined
+    : record.markerLayers ?? (await loadMarkerManifest(manifest.revision)).assets[resolvedName] ?? {};
   return {
     assetId: record.assetId,
     name,
-    image: Object.keys(markerOverrides).length > 0 ? applyMarkerOverrides(image, record, markerOverrides) : image,
+    image: markerLayers === undefined ? image : applyMarkerOverrides(image, markerLayers, markerOverrides),
     anchor: record.anchor,
     collision: record.collision,
     tags: record.tags,
@@ -207,7 +272,7 @@ export async function loadGeneratedAssetById(
 ): Promise<LoadedAsset> {
   const manifest = await loadManifest();
   const name = resolveGeneratedAssetName(manifest, assetId);
-  const record = manifest.assets[name];
+  const record = await loadAssetRecord(manifest, name);
   if (!record) throw new Error(`Generated asset manifest is missing record: ${name}`);
   return await loadRecord(manifest, name, record, season, markerOverrides);
 }
@@ -225,12 +290,19 @@ export async function loadGeneratedAssetRegistry(): Promise<GeneratedAssetRegist
 
 export async function loadGeneratedAssetCatalog(): Promise<GeneratedAssetCatalog> {
   const manifest = await loadManifest();
+  const assets = manifest.assets ?? Object.assign(
+    {},
+    ...await Promise.all(
+      [...new Set(Object.values(manifest.assetCategories ?? {}))]
+        .map(async (category) => (await loadCategoryManifest(category, manifest.revision)).assets),
+    ),
+  ) as Readonly<Record<string, BuiltAssetRecord>>;
   return {
     schemaVersion: manifest.schemaVersion,
     revision: manifest.revision,
     revisionId: manifest.revisionId,
     placeholderAssetId: manifest.placeholderAssetId,
     assetsById: manifest.assetsById,
-    assets: manifest.assets,
+    assets,
   };
 }

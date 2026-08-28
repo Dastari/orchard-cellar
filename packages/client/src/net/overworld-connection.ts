@@ -26,7 +26,7 @@ const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILE
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
 const RTT_SAMPLE_CAPACITY = 256;
-const REGION_RANGE_QUERIES = 14;
+const REGION_RANGE_QUERIES = 19;
 export const MAX_VIEW_RADIUS = 9;
 export const REGION_CENTER_DEADBAND_TILES = 8;
 
@@ -76,8 +76,7 @@ export function regionSubscriptionQueryCount(
   spaceId = TOPSIDE_SPACE_ID,
 ): number {
   void bounds;
-  void spaceId;
-  return REGION_RANGE_QUERIES;
+  return REGION_RANGE_QUERIES + (spaceId === TOPSIDE_SPACE_ID ? 1 : 2);
 }
 
 export interface ActiveDialogue {
@@ -254,6 +253,7 @@ export class OverworldConnection {
   private retryArmed = true;
   private persistentInputError: string | null = null;
   private resourceRevisionValue = 0;
+  private presenceRevisionValue = 0;
   private handoverCount = 0;
   private globalSubscriptionQueryCount = 0;
   private selfSubscriptionQueryCount = 0;
@@ -420,6 +420,7 @@ export class OverworldConnection {
 
   ownPosition(): PlayerPosition | null { return this.identity === null ? null : this.positions.get(identityHex(this.identity)) ?? null; }
   get resourceRevision(): number { return this.resourceRevisionValue; }
+  get presenceRevision(): number { return this.presenceRevisionValue; }
   get cellarExcavationRevision(): number { return this.cellarExcavationRevisionValue; }
 
   noteUserActivity(): void {
@@ -852,8 +853,12 @@ export class OverworldConnection {
   }
 
   private subscribeGlobals(connection: DbConnection, identity: Identity): void {
-    const queries = [tables.playerPublic, tables.playerAppearance, tables.worldWind,
-      tables.worldSeed, tables.worldMerchant, tables.worldCampfireState, tables.spacePortal, tables.homestead];
+    const onlineProfiles = tables.playerPublic.where((row) => row.online.eq(true));
+    const onlineAppearances = onlineProfiles.rightSemijoin(
+      tables.playerAppearance,
+      (profile, appearance) => profile.identity.eq(appearance.identity),
+    );
+    const queries = [onlineProfiles, onlineAppearances, tables.worldWind, tables.worldSeed];
     this.globalSubscriptionQueryCount = queries.length + 2;
     this.globalSubscription = connection.subscriptionBuilder().onApplied(() => {
       this.hydrateGlobals(connection);
@@ -977,6 +982,35 @@ export class OverworldConnection {
       .where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
       .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const regionalProfiles = positions.rightSemijoin(
+      tables.playerPublic,
+      (regionalPosition, profile) => regionalPosition.identity.eq(profile.identity),
+    );
+    const regionalAppearances = positions.rightSemijoin(
+      tables.playerAppearance,
+      (regionalPosition, appearance) => regionalPosition.identity.eq(appearance.identity),
+    );
+    const merchants = npcs.rightSemijoin(
+      tables.worldMerchant,
+      (regionalNpc, merchant) => regionalNpc.id.eq(merchant.npcId),
+    );
+    const portals = tables.spacePortal.where((row) => row.fromSpace.eq(spaceId));
+    const minimumTileX = bounds.minX * SURVIVAL_CHUNK_TILES;
+    const minimumTileY = bounds.minY * SURVIVAL_CHUNK_TILES;
+    const maximumTileX = (bounds.maxX + 1) * SURVIVAL_CHUNK_TILES - 1;
+    const maximumTileY = (bounds.maxY + 1) * SURVIVAL_CHUNK_TILES - 1;
+    const campfires = tables.worldCampfireState
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.tileX.gte(minimumTileX)).where((row) => row.tileX.lte(maximumTileX))
+      .where((row) => row.tileY.gte(minimumTileY)).where((row) => row.tileY.lte(maximumTileY));
+    const overworldHomesteads = tables.homestead
+      .where((row) => row.overworldTileX.gte(minimumTileX)).where((row) => row.overworldTileX.lte(maximumTileX))
+      .where((row) => row.overworldTileY.gte(minimumTileY)).where((row) => row.overworldTileY.lte(maximumTileY));
+    const activeHomestead = tables.homestead.where((row) => row.spaceId.eq(spaceId));
+    const activeResidence = tables.homestead.where((row) => row.residenceSpaceId.eq(spaceId));
+    const homesteadQueries = spaceId === TOPSIDE_SPACE_ID
+      ? [overworldHomesteads]
+      : [activeHomestead, activeResidence];
     const queryCount = regionSubscriptionQueryCount(bounds, spaceId);
     this.pendingRegionQueryCount = queryCount;
     const previous = this.regionSubscription;
@@ -991,7 +1025,12 @@ export class OverworldConnection {
     })).onError(() => {
       this.pendingRegion = null; this.pendingRegionQueryCount = 0;
       this.error = 'region_subscription_failed'; this.onChanged();
-    }).subscribe([positions, resources, soil, crops, worldItems, projectiles, combatTargets, chests, placeables, npcs, wildlifeProfiles, hives, surfaces, cellarExcavations]);
+    }).subscribe([
+      positions, regionalProfiles, regionalAppearances,
+      resources, soil, crops, worldItems, projectiles, combatTargets, chests, placeables,
+      npcs, merchants, wildlifeProfiles, hives, surfaces, cellarExcavations,
+      portals, campfires, ...homesteadQueries,
+    ]);
   }
 
   private bindTableEvents(connection: DbConnection): void {
@@ -1000,7 +1039,11 @@ export class OverworldConnection {
     };
     connection.db.playerPublic.onInsert((context, row) => incoming(context.event.id, () => this.setProfile(row)));
     connection.db.playerPublic.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setProfile(row)));
-    connection.db.playerPublic.onDelete((context, row) => incoming(context.event.id, () => { const id = identityHex(row.identity); this.profiles.delete(id); this.visiblePlayers.delete(id); }));
+    connection.db.playerPublic.onDelete((context, row) => incoming(context.event.id, () => {
+      const id = identityHex(row.identity);
+      if (this.profiles.delete(id)) this.presenceRevisionValue += 1;
+      this.visiblePlayers.delete(id);
+    }));
     connection.db.playerAppearance.onInsert((context, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
     connection.db.playerAppearance.onUpdate((context, _old, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
     connection.db.playerAppearance.onDelete((context, row) => incoming(context.event.id, () => this.appearances.delete(identityHex(row.identity))));
@@ -1191,7 +1234,10 @@ export class OverworldConnection {
   }
 
   private setProfile(row: PlayerPublic): void {
-    const id = identityHex(row.identity); this.profiles.set(id, row); const position = this.positions.get(id);
+    const id = identityHex(row.identity);
+    this.profiles.set(id, row);
+    this.presenceRevisionValue += 1;
+    const position = this.positions.get(id);
     if (position !== undefined && position.spaceId === this.ownSpaceId) {
       this.visiblePlayers.set(id, position);
     } else this.visiblePlayers.delete(id);
@@ -1263,14 +1309,7 @@ export class OverworldConnection {
       for (const row of connection.db.playerAppearance.iter()) this.appearances.set(identityHex(row.identity), row);
       this.clock = [...connection.db.worldClock.iter()][0] ?? null;
       this.environment = [...connection.db.worldEnvironment.iter()][0] ?? null;
-      this.campfires.clear();
-      for (const row of connection.db.worldCampfireState.iter()) this.campfires.set(row.id, row);
       this.wind = [...connection.db.worldWind.iter()][0] ?? null;
-      this.merchants.clear();
-      for (const row of connection.db.worldMerchant.iter()) this.merchants.set(row.npcId, row);
-      this.portals.clear();
-      for (const row of connection.db.spacePortal.iter()) this.portals.set(row.id, row);
-      for (const row of connection.db.homestead.iter()) this.homesteads.set(row.spaceId, row);
       this.worldSeed = [...connection.db.worldSeed.iter()][0] ?? null; this.onChanged();
     });
   }

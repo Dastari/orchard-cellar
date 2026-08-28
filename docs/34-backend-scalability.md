@@ -254,6 +254,35 @@ handover peaks at **48** until the previous eleven-query region unsubscribes. Ta
 collision, damage, and regeneration use the `[spaceId, chunkX, chunkY]` index; the
 scheduled authority never iterates the full target table.
 
+**2026-08-28 — bounded registries and startup optimization.** Online profiles now use
+an indexed `online = true` subscription. Online appearances are an identity-indexed
+semijoin from that set; the current rectangular `player_position` query semijoins the
+profile and appearance tables a second time. The SDK's overlapping-query cache keeps
+online rows resident globally while regional offline statues retain their real name
+and appearance. Historical offline accounts elsewhere are no longer replicated.
+
+Portals filter by `fromSpace`; merchant metadata semijoins the regional NPC query;
+campfire state filters by indexed space/tile bounds; and homesteads are the union of
+overworld marker bounds, active homestead `spaceId`, and indexed residence `spaceId`.
+All are part of the existing subscribe-new, wait-for-`onApplied`, then unsubscribe-old
+handover. Topside uses **20 regional / 53 settled / 73 during handover**; instances
+use one extra query to resolve either a homestead exterior or residence, for
+**21 regional / 54 settled / 75 during a same-kind handover**. The small query-count
+increase over the immediately preceding implementation deliberately
+replaces unbounded one-row-per-account and one-row-per-instance payloads with bounded
+queries; query count is no longer used as a proxy for transferred row count.
+
+Client startup now emits stable domain chunks capped at a 250 kB warning budget. The
+largest production chunk fell from **483.23 kB** to **233.49 kB**, and collision terrain
+diagnostics load only when enabled. The mandatory atlas index fell from **4,218,973 B**
+to **49,056 B**; frame metadata is split into nine category manifests fetched only on
+demand. The account/loading route currently requests 343,837 B across its index, UI,
+props, and fonts categories rather than parsing the complete catalogue. A further
+**278,011 B** of recolouring pixels lives in a revision-checked, on-demand marker
+manifest. Background tabs stop their
+visual fixed-step loop and explicitly settle movement to idle; authoritative time and
+SpacetimeDB subscriptions continue normally.
+
 ## 8. Bookkeeping
 
 - **docs/30**: phasing gains the stage 1–3 prerequisite (its §11 note);

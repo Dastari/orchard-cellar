@@ -44,7 +44,29 @@ export default defineConfig(({ command }) => {
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: { input: ['index.html', 'editor.html', 'audio-preview.html'] },
+    chunkSizeWarningLimit: 250,
+    rolldownOptions: {
+      input: ['index.html', 'editor.html', 'audio-preview.html'],
+      output: {
+        codeSplitting: {
+          minSize: 10_000,
+          groups: [
+            {
+              name: 'spacetime-runtime',
+              test: /node_modules\/(?:spacetimedb|safe-stable-stringify|base64-js)\//,
+            },
+            { name: 'world-bindings', test: /packages\/client\/src\/net\/generated\// },
+            { name: 'simulation', test: /packages\/sim\/src\// },
+            { name: 'client-network', test: /packages\/client\/src\/net\// },
+            { name: 'game-ui', test: /packages\/client\/src\/ui\// },
+            {
+              name: 'canvas-rendering',
+              test: /packages\/client\/src\/(?:render\/(?!terrain-inspector\.ts$)|overworld-art\.ts$)/,
+            },
+          ],
+        },
+      },
+    },
   },
   });
 });

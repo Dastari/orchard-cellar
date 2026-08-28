@@ -215,11 +215,14 @@ export async function buildAtlases(): Promise<void> {
     placeholderAssetId: MISSING_ASSET_ID,
     atlases: {},
     assets: {},
+    assetCategories: {},
     assetsById: {},
   };
   const atlasRecords = metadata['atlases'] as Record<string, string>;
   const assetRecords = metadata['assets'] as Record<string, unknown>;
+  const assetCategories = metadata['assetCategories'] as Record<string, string>;
   const assetsById = metadata['assetsById'] as Record<string, string>;
+  const markerRecords: Record<string, Record<string, { x: number; y: number; marker: string; shade: number }[][]>> = {};
   const idOwners = new Map<number, string>([[MISSING_ASSET_ID, MISSING_ASSET_NAME]]);
 
   for (const category of categories) {
@@ -303,7 +306,6 @@ export async function buildAtlases(): Promise<void> {
         variants,
         variantMeta,
         states,
-        markerLayers,
         ...(asset.charset && asset.glyphSize && asset.cellSize && asset.columns ? {
           font: {
             charset: asset.charset,
@@ -323,6 +325,10 @@ export async function buildAtlases(): Promise<void> {
           builderAvailable: asset.approved === true && asset.placement?.builderAvailable === true,
         },
       };
+      assetCategories[asset.name] = category;
+      if (Object.values(markerLayers).some((frames) => frames.some((pixels) => pixels.length > 0))) {
+        markerRecords[asset.name] = markerLayers;
+      }
     }
     const height = Math.max(1, y + rowHeight);
     for (const season of seasons) {
@@ -346,11 +352,28 @@ export async function buildAtlases(): Promise<void> {
       await writeFile(new URL(filename, outputRoot), encodePng(ATLAS_WIDTH, height, rgba));
       atlasRecords[`${category}:${season}`] = filename;
     }
+    await writeFile(new URL(`atlas_${category}.meta.json`, outputRoot), JSON.stringify({
+      schemaVersion: 1,
+      revision,
+      category,
+      assets: Object.fromEntries(categoryAssets.map((asset) => [asset.name, assetRecords[asset.name]])),
+    }));
   }
   if (assetsById[String(MISSING_ASSET_ID)] !== MISSING_ASSET_NAME) {
     throw new Error(`Required placeholder asset ${MISSING_ASSET_NAME} is missing`);
   }
-  await writeFile(new URL('atlas.meta.json', outputRoot), `${JSON.stringify(metadata, null, 2)}\n`);
+  // Runtime metadata is fetched before the first frame, so keep it compact and
+  // move recolouring pixels behind the only feature that consumes them. The
+  // editor still receives the complete asset catalogue from atlas.meta.json;
+  // marker overrides lazily fetch atlas.markers.json when requested.
+  const runtimeMetadata = { ...metadata };
+  delete runtimeMetadata['assets'];
+  await writeFile(new URL('atlas.meta.json', outputRoot), JSON.stringify(runtimeMetadata));
+  await writeFile(new URL('atlas.markers.json', outputRoot), JSON.stringify({
+    schemaVersion: 1,
+    revision,
+    assets: markerRecords,
+  }));
   const registry = {
     schemaVersion: ASSET_REGISTRY_SCHEMA_VERSION,
     revision,

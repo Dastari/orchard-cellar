@@ -29,6 +29,16 @@ describe('resolveGeneratedAssetName', () => {
     expect(resolveGeneratedAssetRequestName(namedManifest, 'tile_from_newer_client')).toBe('system_missing_asset');
   });
 
+  it('resolves names from the split runtime category index', () => {
+    const splitManifest = {
+      ...manifest,
+      assets: undefined,
+      assetCategories: { system_missing_asset: 'ui', tile_cf_grass: 'tiles' },
+    } satisfies BuiltAtlasManifest;
+    expect(resolveGeneratedAssetRequestName(splitManifest, 'tile_cf_grass')).toBe('tile_cf_grass');
+    expect(resolveGeneratedAssetRequestName(splitManifest, 'unknown_asset')).toBe('system_missing_asset');
+  });
+
   it('cache-busts stable atlas filenames with the content revision', () => {
     expect(atlasImageUrl('atlas_ui_summer.png', 'a/b c')).toBe('/generated/atlas_ui_summer.png?rev=a%2Fb%20c');
   });

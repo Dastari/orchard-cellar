@@ -5,6 +5,15 @@ a JSON pixel grid referencing the palette by index; a build tool compiles them i
 PNG atlases the engine consumes. This makes art diffable, reviewable, lintable, and —
 critically — style-enforceable by CI.
 
+The build emits a compact `atlas.meta.json` index, one
+`atlas_<category>.meta.json` frame/placement manifest per category, and a separate
+`atlas.markers.json` for optional palette recolouring pixels. Routes fetch only the
+categories whose assets they request; the design studio explicitly loads the complete
+catalogue. A call that supplies marker overrides lazily fetches the marker manifest and
+verifies that its revision matches the runtime atlas before recolouring. Do not merge
+category records or marker pixels back into the bootstrap index: they are intentionally
+off the first-frame path.
+
 ## Licensed Cute Fantasy source discovery
 
 Before searching the purchased source folders manually, search
