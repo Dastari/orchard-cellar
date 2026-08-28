@@ -185,7 +185,7 @@ export const SPRINT_VIGOUR_DRAIN_CENTI_PER_SECOND = 1_000;
 
 export const TOOL_VIGOUR_BALANCE = {
   watering_can: { costCenti: 800, minimumSwingTicks: 6 },
-  hoe: { costCenti: 5_000, minimumSwingTicks: 6 },
+  hoe: { costCenti: 500, minimumSwingTicks: 6 },
   fishing_rod: { costCenti: 600, minimumSwingTicks: 6 },
   bow: { costCenti: 3_000, minimumSwingTicks: 6 },
   sword: { costCenti: 1_200, minimumSwingTicks: 7 },

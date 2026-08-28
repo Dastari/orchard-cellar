@@ -135,7 +135,7 @@ currently lacks. Costs live in `balance.ts` + docs/06 mirror:
 | Tool (`itemKind`) | Vigour cost (display units) | Min swing interval (authority ticks @ 20 Hz) |
 |---|---|---|
 | `watering_can` | 8 | 6 (300 ms) |
-| `hoe` | 50 | 6 |
+| `hoe` | 5 | 6 |
 | `fishing_rod` | 6 | 6 |
 | `bow` | 10 | 6 (300 ms) |
 | `sword` | 12 | 7 (350 ms) |
@@ -144,8 +144,9 @@ currently lacks. Costs live in `balance.ts` + docs/06 mirror:
 | `shovel` | 12 | 7 (350 ms) |
 | `hammer` | 18 | 9 (450 ms) |
 
-- Baseline feel: an axe, hoe, or pickaxe gets two full-cost uses from a full
-  unmodified bar. Whiff swings (no target in the cone)
+- Baseline feel: an axe or pickaxe gets two full-cost uses from a full
+  unmodified bar, while a hoe gets twenty so preparing a field is inexpensive.
+  Whiff swings (no target in the cone)
   cost **half, rounded up** — mashing at nothing is cheap but not free.
 - Reducer flow in `harvestResource` (and every future tool reducer), after the
   existing auth/mount/tool checks: apply lazy regen (§5) → reject
