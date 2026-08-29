@@ -358,12 +358,33 @@ without deleting durable state; offline farms receive zero 20 Hz work; re-entry
 reconstructs identical founding terrain plus mutations; all five residence/land tiers
 preserve crops/builds/furniture; and the cache soak remains within its bound.
 
+## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
+
+Execute [47-rendering-lighting-performance-plan.md](47-rendering-lighting-performance-plan.md)
+from its measured M0 foundation through the post-release M13 retirement gate. Preserve
+Canvas 2D, the fixed authoritative simulation, deterministic painter ordering, and the
+pixel-art presentation contract. Every changed lighting behavior remains selectable as
+`Unified V2` in Graphics while `Classic` preserves the comparison baseline.
+
+**Coordination:** M7.3 owns renderer, lighting, render metrics, loop lifecycle,
+graphics-setting migration, and later asset-delivery/PWA surfaces named by doc 47.
+Existing active M5/M6/M7.1 claims are paused on those overlapping client surfaces while
+M7.3 is active; their non-overlapping sim, world-authority, content, and documentation
+work retains its existing ownership. A later handoff must be recorded here before two
+agents edit an overlapping surface concurrently.
+
+**Current checkpoint:** M0 baseline and instrumentation. M2 onward remains gated on
+formal adoption or amendment of doc 39; the presence of an experimental Unified mode
+does not itself adopt that proposal.
+
 ## M8 — Texture & delight `☐`
 Festivals (4, with mini-games), daily micro-events, the dog, forageables + bees,
 traveling merchant, estate-hand NPCs with visible work loops, full soundtrack
 (all songs from 12 §2 table), remaining SFX, title-screen final art + wordmark,
-emotes, decor prizes. Complete [27-lighting-design.md](27-lighting-design.md),
-including its 29.5-day eight-phase lunar cycle: Full Moon retains the current
+emotes, decor prizes. M7.3 owns the mechanical completion of
+[27-lighting-design.md](27-lighting-design.md); M8 retains authored atmosphere content,
+final aesthetic review, and delight tuning after M7.3's accepted Unified reference.
+The 29.5-day eight-phase lunar cycle remains binding: Full Moon retains the current
 clear-night brightness while New Moon reaches the R12 near-black ambient.
 **Done when:** the 12 soundtrack table and the asset appendix below are fully ✅.
 
