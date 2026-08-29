@@ -28,6 +28,8 @@ describe('engine logic', () => {
     const update = vi.fn();
     accumulator.advance(2, update);
     expect(update).toHaveBeenCalledTimes(15);
+    expect(accumulator.lastUpdateSteps).toBe(15);
+    expect(accumulator.lastDiscardedSeconds).toBe(1.75);
   });
 
   it('clamps a following camera to world bounds', () => {

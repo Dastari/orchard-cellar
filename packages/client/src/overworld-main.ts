@@ -335,6 +335,10 @@ const lightmap = new TileLightmap();
 const rain = new RainWeather(art.rainStreak, art.rainSplash);
 const weatherEffects = new WeatherEffects(art.cloudShadow, art.windGust, art.oakLeaf, art.birchLeaf, art.spruceLeaf);
 const renderMetrics = new RenderMetrics();
+const stopLongTaskObserver = import.meta.env.DEV ? renderMetrics.observeLongTasks() : null;
+if (import.meta.hot !== undefined && stopLongTaskObserver !== null) {
+  import.meta.hot.dispose(stopLongTaskObserver);
+}
 const audio = new AudioBus(false);
 void audio.unlock().catch(() => undefined);
 
@@ -4461,7 +4465,7 @@ function render(alpha = 1): void {
     const activeModifiers = snapshotPlayerModifiers(snapshot);
     const lines = [
       `FRAME ${metrics.averageFrameMs.toFixed(2)} AVG ${metrics.worstFrameMs.toFixed(2)} WORST`,
-      `DRAWS ${metrics.drawCalls} CHUNKS ${groundCache.residentCount} PARTICLES ${rain.activeCount}`,
+      `ITEMS ${metrics.renderItems} CHUNKS ${groundCache.residentCount} PARTICLES ${rain.activeCount}`,
       `LIGHT ${lightmap.averageMs.toFixed(2)}ms AVG ${lightmap.floodMs.toFixed(2)}ms REBUILD #${lightmap.fieldRebuilds}`,
       `LIGHTS ${pointLights.length} VISITED ${lightmap.floodTexelsVisited}`,
       `MOON ${lunarPhaseAtAuthorityTick(authorityTick).replaceAll('_', ' ').toUpperCase()} ${lunarIlluminationAtAuthorityTick(authorityTick)}/1000`,
@@ -5333,7 +5337,7 @@ canvas.addEventListener('wheel', (event) => {
 }, { passive: false });
 
 resize();
-const loop = new FixedStepLoop({ update, render });
+const loop = new FixedStepLoop({ update, render }, renderMetrics);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     keys.clear();

@@ -42,6 +42,39 @@ simulation state depends on the selection.
 - Exact primary/low-end physical devices, minimum-browser rows, energy/thermal
   instruments, and the 30-run/cycle benchmark evidence remain M0 exit gates.
 
+### 2026-08-29 — M0 instrumentation foundation checkpoint
+
+- Added allocation-free typed-ring render telemetry with on-demand p50, p95,
+  p99, maximum, rolling mean, observed-refresh pacing, trusted-input to render-
+  submit latency, fixed-update/catch-up accounting, and development-only Long
+  Tasks observation when the browser supports it.
+- Split the current light measurement into exclusive bounds/resize, occlusion
+  raster, solve, merge, upload, receiver, and composite stages. Reserved M5's
+  future static/animated-static/dynamic solve IDs remain explicitly unsupported.
+- Split painter build/sort/draw and added world, weather, final-composite, and
+  UI stage sampling. `drawCalls` was corrected to `renderItems` because the
+  count describes painter records rather than Canvas API calls.
+- Added the nested `LifecycleRegistry` primitive and deterministic, JSON-safe
+  descriptors for all ten required benchmark scenarios plus the exact 5 s
+  warm-up / 30 s measurement protocol. This is protocol scaffolding, not the
+  standalone-session benchmark runner or reference-device evidence.
+- Added versioned JSON-safe overworld diagnostics and a development-only dynamic
+  benchmark-descriptor hook. No account token or private authority state is
+  included.
+- Preserved the existing `Classic` / `Unified V2` graphics choice. An absent or
+  unknown stored value resolves to Classic; an explicit Unified choice survives
+  reload. Browser inspection confirmed both results. A trustworthy scene image
+  comparison was not recorded because the local preview world connection stayed
+  disconnected; visual equivalence remains an open M0 gate.
+- Verification passed workspace typecheck and lint, the production build, all
+  701 asset validations, 118 directly affected tests, and the final full suite
+  (186 files, 1,194 tests). An earlier concurrent run hit one wildlife timeout;
+  that test passed immediately in isolation and in the clean full-suite rerun.
+- Still open before M0 exit: cache/rebuild-cause counters, exclusive-accounting
+  fake-clock gates, deterministic standalone fixture execution, cold/transition
+  run orchestration, the complete DPR/zoom report matrix, physical reference-
+  device adoption, energy/thermal methodology, and reviewed screenshots.
+
 ## 1. Mandatory preconditions
 
 ### 1.1 Establish an owner-approved baseline
