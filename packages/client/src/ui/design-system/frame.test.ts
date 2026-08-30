@@ -5,6 +5,7 @@ import {
   UI_FRAME_METRICS,
   layoutUiFrameSlots,
   uiBookPageRects,
+  uiFrameBodyRect,
   uiFrameControlLayout,
   uiFrameContentRect,
   uiFrameResizeHandles,
@@ -39,14 +40,25 @@ describe('design-system frames', () => {
     expect(right).toEqual({ x: 128, y: 16, width: 80, height: 101 });
   });
 
-  it('mounts one consistent close control outside each writable face', () => {
+  it('mounts one consistent close control at each writable face top-left', () => {
     const frame = { x: 100, y: 80, width: 224, height: 133 };
     for (const style of ['wood', 'parchment', 'wood_parchment', 'thin', 'book', 'unframed'] as const) {
       const controls = uiFrameControlLayout(frame, style);
       const content = uiFrameContentRect(frame, style);
-      expect(controls.close.x + controls.close.width).toBeLessThanOrEqual(frame.x + frame.width);
-      expect(controls.close.y + controls.close.height).toBeLessThanOrEqual(content.y);
+      expect(controls.close).toEqual({ x: content.x, y: content.y, width: 22, height: 22 });
+      expect(controls.close.x + controls.close.width).toBeLessThanOrEqual(content.x + content.width);
+      expect(controls.close.y + controls.close.height).toBeLessThanOrEqual(content.y + content.height);
     }
+  });
+
+  it('starts closable window flow below the shared control lane', () => {
+    const frame = { x: 100, y: 80, width: 224, height: 160 };
+    const close = uiFrameControlLayout(frame, 'wood_parchment').close;
+    const body = uiFrameBodyRect(frame, 'wood_parchment', 6);
+    expect(body.y).toBe(close.y + close.height + 4);
+    expect(body.x).toBe(uiFrameContentRect(frame, 'wood_parchment', 6).x);
+    expect(body.y + body.height).toBe(uiFrameContentRect(frame, 'wood_parchment', 6).y
+      + uiFrameContentRect(frame, 'wood_parchment', 6).height);
   });
 
   it('allows the authored book proportions to reflow above their natural minimum', () => {

@@ -5,12 +5,18 @@ import {
   UI_LAB_PATH,
 } from './editor/editor-route.js';
 import { initializeLoadingScreen, setLoadingScreenStage } from './loading-screen.js';
-import { pwaClient } from './pwa.js';
+import {
+  installGameShellGestureGuards,
+  installStandaloneHistoryGuard,
+  isStandaloneWebApp,
+  pwaClient,
+} from './pwa.js';
 
 const entryRoute = clientEntryRoute(location.pathname, location.search);
 const popupCallbackRelayed = entryRoute.kind === 'standard'
   ? (await import('./auth/oidc.js')).relayOidcPopupCallback()
   : false;
+if (isStandaloneWebApp()) document.documentElement.classList.add('installed-web-app');
 if (!popupCallbackRelayed) {
   setLoadingScreenStage(entryRoute.kind === 'ui_lab' ? {
     title: 'OPENING THE UI LAB', detail: 'LOADING COMPONENT SPECIMENS', progress: 12,
@@ -18,6 +24,9 @@ if (!popupCallbackRelayed) {
     title: 'OPENING THE ORCHARD', detail: 'CHECKING YOUR ACCOUNT', progress: 12,
   });
   await initializeLoadingScreen();
+  const gameShell = document.querySelector<HTMLElement>('#game-shell');
+  if (gameShell !== null) installGameShellGestureGuards(gameShell);
+  installStandaloneHistoryGuard();
   void pwaClient.start();
 }
 

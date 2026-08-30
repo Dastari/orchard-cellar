@@ -16,6 +16,13 @@ export const EQUIPMENT_SLOT_RESTRICTIONS: readonly SlotRestriction[] = [
   { requiredTags: ['gear.feet'] },
 ];
 
+/** Empty destinations that cannot accept the carried item use the shared deny
+ * treatment. Occupied slots stay visually stable because clicking them may
+ * still pick up or swap their existing stack. */
+export function itemSlotRejectsCursor(slot: ItemSlot, cursor: ItemStack | null | undefined): boolean {
+  return cursor != null && slot.enabled && slot.item === null && !slot.accepts(cursor.itemKind);
+}
+
 /** Retained inventory cell shared by hotbars, bags, equipment, and containers. */
 export class ItemSlot {
   readonly node: WidgetNode;

@@ -7,15 +7,32 @@ import {
   fillLightmap,
   LANTERN_LIGHT_RADIUS_TILES,
   LIGHTMAP_TEXELS_PER_TILE,
+  lightingModelFromStoredValue,
   lightmapCoordinate,
   NEW_MOON_NIGHT_AMBIENT,
   playerLightPosition,
   southFacingReceiverBrightness,
   stampPointLight,
   TORCH_LIGHT_RADIUS_TILES,
+  unifiedDecorationLightReceiver,
 } from './lighting.js';
 
 describe('overworld lighting', () => {
+  it('keeps Classic as the migration default while preserving an explicit Unified choice', () => {
+    expect(lightingModelFromStoredValue(null)).toBe('classic');
+    expect(lightingModelFromStoredValue('classic')).toBe('classic');
+    expect(lightingModelFromStoredValue('unified')).toBe('unified');
+    expect(lightingModelFromStoredValue('future-value')).toBe('classic');
+  });
+
+  it('keeps water-surface artwork flat while correcting upright decorations', () => {
+    expect(unifiedDecorationLightReceiver('camp_pond')).toBe('flat');
+    expect(unifiedDecorationLightReceiver('nature_fish_shadow')).toBe('flat');
+    expect(unifiedDecorationLightReceiver('nature_lily_pad')).toBe('flat');
+    expect(unifiedDecorationLightReceiver('nature_water_rock')).toBe('south');
+    expect(unifiedDecorationLightReceiver('camp_tent')).toBe('south');
+  });
+
   it('pins dawn, day, dusk, and readable-night keyframes', () => {
     expect(ambientAtProgress(0)).toEqual({ r: 222, g: 174, b: 126 });
     expect(ambientAtProgress(dayProgressAtClockTime(8))).toEqual({ r: 255, g: 255, b: 255 });

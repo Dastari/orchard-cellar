@@ -11,6 +11,8 @@ import {
   homesteadTentFootprint,
   homesteadMarkerPlacementTiles,
   homesteadBoundaryTiles,
+  homesteadPlayableTile,
+  homesteadPlotBounds,
   spaceDefinitionFor,
   generateStarterCellarExcavation,
   cellarPlayableTile,
@@ -61,6 +63,16 @@ describe('homestead spaces', () => {
       { tileX: HOMESTEAD_GATE_TILE.tileX, tileY: HOMESTEAD_GATE_TILE.tileY, kind: 'gate' },
     ]);
     expect(boundary).toHaveLength(124);
+  });
+
+  it('expands north and sideways while preserving the southern gate and existing coordinates', () => {
+    expect(homesteadPlotBounds(128)).toEqual({ minimumX: 48, maximumX: 79, minimumY: 48, maximumY: 79 });
+    expect(homesteadPlotBounds(144)).toEqual({ minimumX: 40, maximumX: 87, minimumY: 32, maximumY: 79 });
+    expect(homesteadPlayableTile(41, 33, 144)).toBe(true);
+    expect(homesteadPlayableTile(41, 33, 128)).toBe(false);
+    expect(homesteadBoundaryTiles(144).filter(({ kind }) => kind === 'gate')).toEqual([
+      { tileX: HOMESTEAD_GATE_TILE.tileX, tileY: HOMESTEAD_GATE_TILE.tileY, kind: 'gate' },
+    ]);
   });
 
   it('keeps the central route clear while magnifying nearby overworld terrain', () => {

@@ -7,13 +7,18 @@ import {
 } from './survival-world.js';
 import { TILE_SIZE_FIXED } from './state.js';
 import {
+  WILDLIFE_KNOCKBACK_FIXED,
+  WILDLIFE_PANIC_DURATION_TICKS,
   WILDLIFE_DEFINITIONS,
   WILDLIFE_FIRST_NPC_ID,
+  WILDLIFE_PANIC_RADIUS_FIXED,
   WILDLIFE_SPECIES,
   generateSurvivalWildlife,
   generateSurvivalWildlifeHives,
   hiveProducesHoneyAtTick,
+  knockbackWildlife,
   stepAmbientWildlife,
+  stepPanickedWildlife,
   wildlifeActivityNearPlayers,
   wildlifeHabitatAllowsTile,
   wildlifeMovementMedium,
@@ -139,6 +144,64 @@ describe('activated wildlife lifecycle', () => {
     expect(decisions.filter((decision) => !decision.moving).length).toBeGreaterThan(
       decisions.filter((decision) => decision.moving).length,
     );
+  });
+
+  it('runs away from a threat beyond its home leash and uses collision-safe alternatives', () => {
+    const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
+    const fleeing = stepPanickedWildlife(initial, {
+      species: 'horse',
+      authorityTick: 1,
+      collision,
+      threat: { x: initial.position.x - TILE_SIZE_FIXED, y: initial.position.y },
+    });
+    expect(fleeing.position.x).toBeGreaterThan(initial.position.x);
+    expect(fleeing).toMatchObject({ moving: true, activity: 'panic', facing: 'right' });
+
+    const farFromHome = {
+      ...initial,
+      position: { x: initial.home.x + TILE_SIZE_FIXED * 8, y: initial.home.y },
+    };
+    const farther = stepPanickedWildlife(farFromHome, {
+      species: 'horse',
+      authorityTick: 2,
+      collision,
+      threat: initial.home,
+    });
+    expect(farther.position.x).toBeGreaterThan(farFromHome.position.x);
+
+    const open = {
+      width: SURVIVAL_WORLD_SIZE,
+      height: SURVIVAL_WORLD_SIZE,
+      blocked: Array<boolean>(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(false),
+      obstacles: [{
+        left: initial.position.x + 4 * 16,
+        right: initial.position.x + TILE_SIZE_FIXED,
+        top: initial.position.y - TILE_SIZE_FIXED,
+        bottom: initial.position.y + TILE_SIZE_FIXED,
+      }],
+    };
+    const diverted = stepPanickedWildlife(initial, {
+      species: 'horse',
+      authorityTick: 3,
+      collision: open,
+      threat: { x: initial.position.x - TILE_SIZE_FIXED, y: initial.position.y },
+      seed: SURVIVAL_WORLD_SEED,
+    });
+    expect(diverted.position).not.toEqual(initial.position);
+    expect(diverted.position.x).toBeLessThanOrEqual(initial.position.x);
+  });
+
+  it('applies a bounded collision-safe hit knockback and exports readable panic tuning', () => {
+    const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
+    const knocked = knockbackWildlife(initial.position, {
+      species: 'horse',
+      collision,
+      threat: { x: initial.position.x - TILE_SIZE_FIXED, y: initial.position.y },
+    });
+    expect(knocked.x).toBe(initial.position.x + WILDLIFE_KNOCKBACK_FIXED);
+    expect(knocked.y).toBe(initial.position.y);
+    expect(WILDLIFE_PANIC_DURATION_TICKS).toBeGreaterThan(0);
+    expect(WILDLIFE_PANIC_RADIUS_FIXED).toBeGreaterThan(TILE_SIZE_FIXED);
   });
 
   it('keeps grounded wildlife on its current elevation plane', () => {

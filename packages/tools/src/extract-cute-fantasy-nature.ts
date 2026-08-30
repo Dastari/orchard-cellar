@@ -29,6 +29,30 @@ const strip = (count: number, y = 0): readonly Region[] => Array.from(
 const extracts: Extract[] = [];
 extracts.push(
   {
+    name: 'prop_cf_farm_hay_bale', category: 'props',
+    source: 'references/Cute_Fantasy/Outdoor decoration/Hay_Bales.png',
+    frames: [[0, 0, 16, 16]], fps: 1, size: [16, 16], anchor: [8, 15],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_farm_hay_stack', category: 'props',
+    source: 'references/Cute_Fantasy/Outdoor decoration/Hay_Bales.png',
+    frames: [[16, 0, 32, 16]], fps: 1, size: [32, 16], anchor: [16, 15],
+    animation: 'base', frameKind: 'state',
+  },
+  {
+    name: 'prop_cf_farm_potted_flowers', category: 'props',
+    source: `${decorRoot}/Flower_Animations/Potted/Flowers_4_Potted_Anim.png`,
+    frames: strip(6, 6 * 16), fps: 4, size: [16, 16], anchor: [8, 15],
+    animation: 'sway', frameKind: 'animation',
+  },
+  {
+    name: 'prop_cf_farm_grave', category: 'props',
+    source: 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor.png',
+    frames: [[64, 160, 16, 16]], fps: 1, size: [16, 16], anchor: [8, 15],
+    animation: 'base', frameKind: 'state',
+  },
+  {
     name: 'prop_cf_fence_horizontal', category: 'props',
     source: 'references/Cute_Fantasy/Outdoor decoration/Fence_Big.png',
     frames: [[32, 0, 16, 16]], fps: 1, size: [16, 16], anchor: [8, 15],

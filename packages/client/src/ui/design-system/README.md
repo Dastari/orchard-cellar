@@ -1,8 +1,21 @@
 # Orchard canvas UI system
 
 This directory is the migration target for in-game canvas UI. The component
-lab uses it now; existing screens remain unchanged until the lab coverage is
+lab is the complete visual contract, and the system, settings, and developer
+menus are the first live screens using the authored control families. Other
+screens remain on their existing components until their lab coverage is
 approved.
+
+The lab's east-side **Live UI Migration Gallery** mirrors every current
+game-facing surface as a candidate composition built from these contracts. Its
+27-entry catalog is deliberately separate from the live renderers: visual
+approval can happen there before a screen is swapped over, while aliases that
+share one composition (such as Pack/Inventory) remain a single specimen. The
+gallery has no enclosing panel: content-sized specimens are masonry-packed with
+clear gutters directly over the transparency grid. Each catalog entry owns a
+preferred footprint based on its actual controls, so compact overlays stay
+compact while inventory, processor, character, and skill interfaces receive
+the rows, grids, and split panes they need without artificial empty face area.
 
 ## Frame rules
 
@@ -26,10 +39,12 @@ approved.
   page face repeat. This also preserves the original centre gutter. Text content
   then adds asymmetric spine padding (more right padding on the left page and
   more left padding on the right page).
-- Every closable frame uses the same authored red `cross` action for recognition
-  and accessibility. `uiFrameControlLayout` changes only its chrome mount for
-  wood, parchment, composite, thin, book, or unframed surfaces. A close control
-  never consumes writable content.
+- Every closable frame uses the same authored peach square `cross` glyph for
+  recognition and accessibility. It sits at the top-left corner of the safe
+  content area for wood, parchment, composite, thin, book, and unframed
+  surfaces. Window compositions reserve that header lane before flowing text or
+  controls through `uiFrameBodyRect`, so neither chrome nor content can overlap
+  it.
 - Controls belong only to top-level dismissible surfaces. Nested portrait,
   slot, master/detail, and decorative frames keep their hierarchy clear by
   omitting window controls.
@@ -43,11 +58,29 @@ approved.
 
 - `layoutUiFlex` and `layoutUiGrid` are the only general-purpose flow layouts.
   Both return the same pixel-snapped rectangles used for drawing and hit tests.
+- Flex children may declare explicit `fit`, `grow`, `fixed`, or `percent`
+  main/cross-axis sizing with minimum and maximum bounds. Percentages consume
+  the usable parent axis after asymmetric padding and gaps; capped growth is
+  redistributed to uncapped siblings. The old row/column helpers are only
+  compatibility adapters over this engine, not a second layout implementation.
+- `layoutUiAnchoredRect` attaches authored floating pixels by a target and self
+  anchor, then optionally shifts them inside a safe viewport. Frame controls,
+  ribbons, bookmarks, tooltips, and popovers use this contract instead of
+  position formulas tied to one frame size.
 - Responsive composition uses `uiContainerVariant(frame.content.width)`, not
   the browser viewport. Compact, regular, and wide frames can therefore be
   tested side by side.
 - Controls retain their authored minimum height. Labels truncate inside the
   control rather than overflowing into neighbours.
+- Retained widget IDs are unique and inspectable through `inspectWidgetLayout`.
+  Overlapping layers explicitly choose `capture` or `passthrough`; routing walks
+  reverse paint order so a decorative overlay can pass through while a modal
+  blocks every pointer and wheel target beneath it.
+
+These are the useful ideas adopted from Clay's layout model: bounded sizing,
+declarative hierarchy, stable queryable IDs, attach points, and explicit input
+capture. Orchard keeps its TypeScript retained controls and Canvas renderer;
+it does not add Clay's C arena, macro syntax, or render-command dependency.
 
 ## Authored control families
 
@@ -72,6 +105,42 @@ approved.
   frames with their matching authored outline while the raw catalog remains
   available during the audit. Icon animation changes the selected source cell;
   it never scales or interpolates between bitmap frames.
+- `ui_cf_selector_catalog` preserves all `4×20` cells from `UI_Selectors.png`.
+  `drawAuthoredSelectorCell` exposes the raw audit grid while
+  `drawSemanticSelector` is the reusable neutral/accept/deny slot boundary.
+- `ui_cf_slider_catalog` preserves all `38×10` cells from `UI_Sliders.png`.
+  The retained `Slider` supports horizontal and vertical tracks, six authored
+  tones, fixed-size handles, dragging, and wheel input. Tracks and fills repeat
+  their centre pixels; handles and end caps never stretch.
+- `Toggle` uses the authored four-frame switch transition in colored or neutral
+  form. Boolean state, disabled opacity, hit geometry, and animation direction
+  are shared by the lab and live settings instead of being redrawn per screen.
+
+## System and settings menus
+
+- Escape opens a non-pausing `GAME MENU`; the MMO simulation remains live.
+  Settings owns a full-width action row, while Help/Developer and session exits
+  form paired secondary rows. Settings and developer tools are separate tabbed
+  child surfaces with a persistent Back action and the common close control.
+- Settings tabs are Gameplay, Controls, Video, Audio, Interface, and
+  Accessibility. Only audio/background playback and player nameplate visibility
+  are live preferences; future controls render disabled so they cannot imply a
+  working setting.
+- Audio rows combine a semantic authored music/sound icon, a retained slider,
+  a percentage, and a mute/restore hit target. A muted bus remembers its last
+  non-zero value.
+- The Gameplay nameplate switch is the pointer/touch equivalent of the `N`
+  shortcut. Arrow keys move through settings and developer tabs, and Escape
+  always returns to the parent game menu.
+- Native browser fullscreen is offered only when Keyboard Lock can reserve a
+  normal Escape press for the game menu. Installed PWAs already own their
+  display surface and render this action disabled. Browsers without that
+  guarantee also disable it instead of offering a mode Escape immediately
+  tears down.
+- Pointer ownership follows draw order. A modal window, update prompt, roster,
+  dialogue, trade, or character-name surface clears and blocks chat hover,
+  dragging, wheel input, and global open shortcuts until that higher layer is
+  dismissed.
 
 ## Text rules
 
@@ -138,6 +207,16 @@ geometry and accepts an allowlisted application embed renderer.
 
 ## Inventory rules
 
+- `layoutUiInventoryGroup` is the single flow contract for logical slot groups.
+  It packs fixed-size slots left-to-right and then top-to-bottom with explicit
+  `gap`, `columnGap`, and `rowGap` values; spare group area is never distributed
+  between slots. `columns` is a maximum row length, so a narrower group wraps
+  without stretching or shrinking its slot artwork. The returned tight content
+  bounds can also drive a content-sized parent frame.
+- Each gameplay container is composed from independent groups. A furnace, for
+  example, owns input, fuel, output, player-inventory, and hotbar groups; each
+  group chooses its own bounds, column count, gap, and start/center/end
+  alignment without affecting the others.
 - UI slots render state; `@orchard/sim` remains the authority for acceptance,
   maximum stacks, metadata compatibility, pickup, split, merge, swap,
   shift-move, double-click collection, and quick-craft distribution.

@@ -5,8 +5,10 @@ quest substrate, HUD tracker, dialogue integration, and Marlow book vertical
 slice are implemented (2026-08-27). The 2026-08-28 progression first slice adds
 the P Character screen, server-validated modular customization, the K Combat /
 Explorer / Farming tree browser, persistent rank purchases/resets, and owner debug
-point grants. Skill effects and verb gates remain deliberately inactive while the
-trees are reviewed.** Builds on [25-stats-and-vitals.md](25-stats-and-vitals.md)
+point grants. The first reviewed effects are now active: Archery Basics, Blade
+Training, Battle Conditioning, and Barreling/cooking Farming XP. Most remaining
+effects and verb gates remain deliberately inactive while their loops are reviewed.**
+Builds on [25-stats-and-vitals.md](25-stats-and-vitals.md)
 (the modifier pipeline's reserved `'skill'` source finally gets its producer;
 the "attributes hidden" rule is superseded — the character screen is where
 they become visible), [31-npc-dialogue-and-commerce.md](31-npc-dialogue-and-commerce.md)
@@ -147,6 +149,8 @@ interface SkillNodeDefinition {
   backpack container check reads granted rows), Magnet Hands ranks
   (auto-pickup radius), Night Eyes (+1 personal light band, doc 27),
   Cartographer (reserved: unlocks the future minimap the day one exists).
+  The implemented mining branch (doc 48) continues from Cave Whisperer:
+  Prospector, Efficient Strikes, Ore Dressing, Rockhound, and Mother Lode.
 - **Combat**: STR/DEX/CON minors; Vigour Economy ranks (−tool/weapon
   Vigour cost %); keystones: Shield Discipline (unlocks off-hand shield
   use — the dormant `gear.off_hand` tag finally gets its consumer),

@@ -1,8 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { UiSkin } from './skin.js';
-import { clampSliderValue, Slider, sliderValueAtPoint } from './slider.js';
+import {
+  AUTHORED_SLIDER_CATALOG_COUNT,
+  authoredSliderCellIndex,
+  clampSliderValue,
+  Slider,
+  sliderValueAtPoint,
+  sliderValueAtPosition,
+} from './slider.js';
 
 describe('Slider', () => {
+  it('keeps every 38×10 authored source cell addressable', () => {
+    expect(AUTHORED_SLIDER_CATALOG_COUNT).toBe(380);
+    expect(authoredSliderCellIndex(0, 0)).toBe(0);
+    expect(authoredSliderCellIndex(37, 9)).toBe(379);
+    expect(authoredSliderCellIndex(99, 99)).toBe(379);
+  });
+
   it('clamps values and maps pointer positions across its bounds', () => {
     const bounds = { x: 10, y: 4, width: 100, height: 14 };
     expect(clampSliderValue(-0.1)).toBe(0);
@@ -10,6 +24,13 @@ describe('Slider', () => {
     expect(sliderValueAtPoint(bounds, 10)).toBe(0);
     expect(sliderValueAtPoint(bounds, 60)).toBe(0.5);
     expect(sliderValueAtPoint(bounds, 110)).toBe(1);
+  });
+
+  it('maps vertical authored sliders from bottom zero to top one', () => {
+    const bounds = { x: 4, y: 10, width: 16, height: 100 };
+    expect(sliderValueAtPosition(bounds, { x: 12, y: 110 }, 'vertical')).toBe(0);
+    expect(sliderValueAtPosition(bounds, { x: 12, y: 60 }, 'vertical')).toBe(0.5);
+    expect(sliderValueAtPosition(bounds, { x: 12, y: 10 }, 'vertical')).toBe(1);
   });
 
   it('shares pointer drag and wheel behavior through its widget node', () => {

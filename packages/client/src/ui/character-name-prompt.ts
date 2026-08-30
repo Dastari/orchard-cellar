@@ -3,7 +3,7 @@ import type { PixelUi } from '../render/pixel-ui.js';
 import { drawPixelText } from '../render/pixel-ui.js';
 import type { UiPoint, UiRect } from './geometry.js';
 import type { UiSkin } from './skin.js';
-import { drawUiSkinAsset, drawUiSkinNatural } from './skin.js';
+import { drawUiSkinAsset } from './skin.js';
 import { drawCanvasTextInput } from './canvas-text-input.js';
 
 export function characterNameErrorText(error: unknown): string {
@@ -29,7 +29,6 @@ export class CharacterNamePrompt {
   private inputRect: UiRect = { x: 126, y: 126, width: 228, height: 23 };
   private confirmRect: UiRect = { x: 182, y: 154, width: 116, height: 20 };
   private pointer: UiPoint = { x: -100, y: -100 };
-  private touchControls = false;
 
   constructor(
     private readonly skin: UiSkin,
@@ -59,10 +58,9 @@ export class CharacterNamePrompt {
 
   get isActive(): boolean { return this.activeValue; }
 
-  update(width: number, height: number, required: boolean, touchControls = false): void {
+  update(width: number, height: number, required: boolean): void {
     this.width = width;
     this.height = height;
-    this.touchControls = touchControls;
     const panelWidth = Math.min(280, width - 20);
     this.panel = {
       x: Math.round((width - panelWidth) / 2),
@@ -142,9 +140,6 @@ export class CharacterNamePrompt {
       drawPixelText(context, this.fonts, this.error, this.panel.x + this.panel.width / 2, this.panel.y + 108, {
         align: 'center', color: '#a43b2f',
       });
-    }
-    if (!this.touchControls && this.pointer.x >= 0) {
-      drawUiSkinNatural(context, this.skin.cursor, this.pointer.x, this.pointer.y, 'idle');
     }
   }
 

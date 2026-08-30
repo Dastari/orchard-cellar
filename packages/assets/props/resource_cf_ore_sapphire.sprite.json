@@ -63,7 +63,8 @@
   "tags": [
     "resource.mineable",
     "resource.ore",
-    "ore.sapphire"
+    "ore.sapphire",
+    "ore.node.mixed"
   ],
   "placement": {
     "layer": "object",

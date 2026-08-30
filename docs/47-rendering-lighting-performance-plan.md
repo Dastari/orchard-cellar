@@ -63,9 +63,7 @@ simulation state depends on the selection.
   included.
 - Preserved the existing `Classic` / `Unified V2` graphics choice. An absent or
   unknown stored value resolves to Classic; an explicit Unified choice survives
-  reload. Browser inspection confirmed both results. A trustworthy scene image
-  comparison was not recorded because the local preview world connection stayed
-  disconnected; visual equivalence remains an open M0 gate.
+  reload. Browser inspection confirmed both results.
 - Verification passed workspace typecheck and lint, the production build, all
   701 asset validations, 118 directly affected tests, and the final full suite
   (186 files, 1,194 tests). An earlier concurrent run hit one wildlife timeout;
@@ -74,6 +72,45 @@ simulation state depends on the selection.
   fake-clock gates, deterministic standalone fixture execution, cold/transition
   run orchestration, the complete DPR/zoom report matrix, physical reference-
   device adoption, energy/thermal methodology, and reviewed screenshots.
+
+### 2026-08-29 — connected lighting A/B follow-up
+
+- Repeated the lighting check against the connected canonical shared world. The
+  Graphics/Video panel exposed `LIGHTING MODEL` as `CLASSIC` / `UNIFIED V2`, and
+  diagnostics, persistence, and the shared setter agreed after each switch.
+  Added `setLightingModel(model)` to the browser diagnostics hook so automated
+  captures can select a mode without brittle Canvas coordinates; it calls the
+  same setter as the player-facing control.
+- With animation time frozen, the zero-emitter control produced identical
+  Classic and Unified display output across all 2,765,445 backing pixels. Each
+  mode transition caused exactly one affected light-field rebuild.
+- The non-authoritative local lantern preview exercised one emitter without
+  changing shared simulation state. In the same frozen scene, Unified changed
+  43,836 display pixels within the light/receiver region relative to Classic.
+  A 60-redraw synthetic comparison measured 9.38 ms mean / 15.0 ms p95 for
+  Classic and 12.00 ms mean / 18.30 ms p95 for Unified; Unified's receiver pass
+  measured 0.61 ms mean / 1.30 ms p95. These tightly-looped hidden-tab values
+  are diagnostic only, not M0 reference-device evidence.
+- The original browser state was restored after capture: Classic in memory,
+  no stored override, no preview emitter, visible HUD, and no open modal.
+  Connected active-tab Classic telemetry before the capture was approximately
+  2.93 ms mean / 3.20 ms p95 with zero emitters. Formal reviewed screenshot
+  artifacts, an active-rAF Unified sample, the light-dense fixtures, and the
+  reference-device runs remain open M0 gates.
+
+### 2026-08-29 — Unified flat-water receiver correction
+
+- Unified painter insertion now distinguishes flat water-surface artwork from
+  south-facing sprites. The opaque `camp_pond` sprite, its fish shadow, and its
+  lily pad no longer receive the vertical-face correction; blocking rocks,
+  vegetation, buildings, actors, and other upright art retain it. Classic's
+  receiver path is unchanged.
+- Unified adds an eight-frame pond shimmer derived once from the generated
+  sprite's two blue palette ranges. The cached 48 px overlays are drawn before
+  the shared multiply pass, so local/ambient lighting still governs their
+  output and unlit water cannot become self-emissive. Pixel verification found
+  32 changed water pixels in the sampled phase and zero changed grass/bank
+  pixels.
 
 ## 1. Mandatory preconditions
 

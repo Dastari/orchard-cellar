@@ -4,6 +4,7 @@ import type { AssetSource } from './types.js';
 const LICENSED_PACK_ROOTS = [
   'references/Cute_Fantasy',
   'references/Cute_Fantasy_Characters',
+  'references/Cute_Fantasy_Christmass',
   'references/Cute_Fantasy_Desert',
   'references/Cute_Fantasy_Dungeons',
   'references/Cute_Fantasy_Free',

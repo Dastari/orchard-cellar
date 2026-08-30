@@ -3,6 +3,7 @@ import { containsPoint } from './geometry.js';
 import { drawUiSkinAsset, type UiSkin } from './skin.js';
 
 const MINIMUM_THUMB_HEIGHT = 8;
+const TOUCH_SWIPE_START_DISTANCE = 4;
 
 export function scrollMaximum(totalRows: number, visibleRows: number): number {
   return Math.max(0, Math.floor(totalRows) - Math.max(1, Math.floor(visibleRows)));
@@ -85,6 +86,10 @@ export class ScrollBar {
   private positionValue = 0;
   private dragging = false;
   private dragOffset = 0;
+  private swipeStartY: number | null = null;
+  private swipeLastY = 0;
+  private swipeRemainder = 0;
+  private swiping = false;
 
   constructor(private readonly skin: UiSkin) {}
 
@@ -163,7 +168,47 @@ export class ScrollBar {
     return true;
   }
 
-  pointerLeave(): void { this.dragging = false; }
+  /** Arms natural touch scrolling over the content viewport rather than only
+   * over the narrow scrollbar. It deliberately does not consume a tap; the
+   * owning list can retain ordinary tap behavior until movement crosses the
+   * gesture threshold. */
+  beginSwipe(point: UiPoint, contentBounds: UiRect, pointerType?: string): boolean {
+    if (pointerType !== 'touch' || this.maximum === 0 || !containsPoint(contentBounds, point)) return false;
+    this.swipeStartY = point.y;
+    this.swipeLastY = point.y;
+    this.swipeRemainder = 0;
+    this.swiping = false;
+    return true;
+  }
+
+  swipeMove(point: UiPoint, pixelsPerRow = 12): boolean {
+    if (this.swipeStartY === null) return false;
+    if (!this.swiping && Math.abs(point.y - this.swipeStartY) < TOUCH_SWIPE_START_DISTANCE) return false;
+    this.swiping = true;
+    this.swipeRemainder += this.swipeLastY - point.y;
+    this.swipeLastY = point.y;
+    const step = Math.max(1, pixelsPerRow);
+    const rows = Math.trunc(this.swipeRemainder / step);
+    if (rows !== 0) {
+      this.scrollBy(rows);
+      this.swipeRemainder -= rows * step;
+    }
+    return true;
+  }
+
+  endSwipe(): boolean {
+    const consumed = this.swiping;
+    this.cancelSwipe();
+    return consumed;
+  }
+
+  cancelSwipe(): void {
+    this.swipeStartY = null;
+    this.swipeRemainder = 0;
+    this.swiping = false;
+  }
+
+  pointerLeave(): void { this.dragging = false; this.cancelSwipe(); }
 
   draw(context: CanvasRenderingContext2D): void {
     drawScrollBarChrome(

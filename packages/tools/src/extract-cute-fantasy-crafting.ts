@@ -23,6 +23,7 @@ interface Extract {
 
 const resources = 'references/Cute_Fantasy/Icons/Outline/Resources_Icons_Outline.png';
 const food = 'references/Cute_Fantasy/Icons/Outline/Food_Icons_Outline.png';
+const foodNoOutline = 'references/Cute_Fantasy/Icons/No Outline/Food_Icons_NO_Outline.png';
 const tables = 'references/Cute_Fantasy/Buildings/House_Decor/Tables.png';
 const signs = 'references/Cute_Fantasy/Outdoor decoration/Signs.png';
 const gate = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fence_Big_Gate.png';
@@ -69,6 +70,22 @@ const extracts: readonly Extract[] = [
     groups: { base: [[0, 80, 16, 16]] }, frameKinds: { base: 'state' },
     tags: ['item.fruit', 'fruit.grape'], placement: itemPlacement,
   },
+  ...([
+    ['item_cf_raw_chicken', 0, 'food.raw.chicken'],
+    ['item_cf_cooked_chicken', 16, 'food.cooked.chicken'],
+    ['item_cf_raw_beef', 32, 'food.raw.beef'],
+    ['item_cf_cooked_beef', 48, 'food.cooked.beef'],
+    ['item_cf_raw_pork', 64, 'food.raw.pork'],
+    ['item_cf_cooked_pork', 80, 'food.cooked.pork'],
+    // The sheet has one red-meat pair; mutton intentionally shares it until
+    // a distinct reviewed Cute Fantasy source is found.
+    ['item_cf_raw_mutton', 32, 'food.raw.mutton'],
+    ['item_cf_cooked_mutton', 48, 'food.cooked.mutton'],
+  ] as const).map(([name, x, tag]): Extract => ({
+    name, source: foodNoOutline, size: [16, 16], anchor: [8, 15],
+    groups: { base: [[x, 0, 16, 16]] }, frameKinds: { base: 'state' },
+    tags: ['item.food', tag], placement: itemPlacement,
+  })),
   {
     name: 'prop_cf_workbench', source: tables, size: [32, 48], anchor: [16, 47],
     groups: { base: [[72, 16, 32, 48]] }, frameKinds: { base: 'state' },

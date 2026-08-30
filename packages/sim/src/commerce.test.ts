@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   BRONZE_PER_GOLD,
   ITEM_ECONOMY,
+  FARMER_MERCHANT_OFFERS,
+  merchantOffers,
   TOOL_MERCHANT_OFFERS,
   bronzeFromCoinPurse,
   coinPurseFromBronze,
@@ -39,12 +41,15 @@ describe('coin currency and item economy', () => {
     expect(commerceTotal(450, 0)).toBeNull();
   });
 
-  it('stocks every crop seed packet at Marlow', () => {
+  it('moves every crop seed packet from Marlow to Farmer Bob', () => {
     for (const crop of CROP_DEFINITIONS) {
-      expect(TOOL_MERCHANT_OFFERS).toContain(crop.seedItemKind);
+      expect(TOOL_MERCHANT_OFFERS).not.toContain(crop.seedItemKind);
+      expect(FARMER_MERCHANT_OFFERS).toContain(crop.seedItemKind);
       expect(ITEM_ECONOMY[crop.seedItemKind].buyPriceBronze).toBe(crop.seedBuyPriceBronze);
       expect(ITEM_ECONOMY[crop.harvestItemKind].sellPriceBronze).toBe(crop.harvestSellPriceBronze);
     }
+    expect(merchantOffers('farmer_supplies')).toBe(FARMER_MERCHANT_OFFERS);
+    expect(FARMER_MERCHANT_OFFERS).toEqual(expect.arrayContaining(['hoe', 'shovel', 'watering_can']));
   });
 
   it('06§12 prices every phases 1–3 material and placeable', () => {
@@ -64,5 +69,11 @@ describe('coin currency and item economy', () => {
       .toBe(2 * (ITEM_ECONOMY.copper_ore.sellPriceBronze + ITEM_ECONOMY.wood.sellPriceBronze));
     expect(ITEM_ECONOMY.gold_bar.sellPriceBronze)
       .toBe(2 * (ITEM_ECONOMY.gold_ore.sellPriceBronze + ITEM_ECONOMY.wood.sellPriceBronze));
+  });
+
+  it('makes the first-bottle chain a meaningful premium over raw fruit', () => {
+    expect(ITEM_ECONOMY.bottles.sellPriceBronze)
+      .toBeGreaterThan(3 * ITEM_ECONOMY.apple.sellPriceBronze);
+    expect(ITEM_ECONOMY.must.sellPriceBronze).toBeLessThan(ITEM_ECONOMY.bottles.sellPriceBronze);
   });
 });

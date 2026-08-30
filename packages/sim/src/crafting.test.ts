@@ -6,11 +6,12 @@ import {
   FENCE_JOIN_SOUTH,
   FENCE_JOIN_WEST,
   PLACEABLE_DEFINITIONS,
+  placeableSlotCapacity,
   craftingStationWithinReach,
   fenceJoinMask,
   fiberDropsFromTilling,
 } from './crafting.js';
-import { itemDefinition } from './item-containers.js';
+import { itemDefinition, placeableHasInterface, placeableInterface } from './item-containers.js';
 
 describe('28§8 deterministic fiber drops', () => {
   it('returns the same result for the same authority inputs', () => {
@@ -45,6 +46,22 @@ describe('28§7 fence joins', () => {
     expect(PLACEABLE_DEFINITIONS.anvil).toMatchObject({ blocksMovement: true, slotCapacity: 0 });
     expect(itemDefinition('anvil')).toMatchObject({ maxStack: 1, iconKey: 'prop_cf_anvil', iconAnimation: 'animate' });
     expect(ANVIL_REPAIR_COST_BRONZE).toBe(5);
+  });
+
+  it('derives processor UI contracts and capacities from item tags', () => {
+    expect(placeableInterface('cooking_fire')).toBe('cooking');
+    expect(placeableInterface('camp_cooking_fire')).toBe('cooking');
+    expect(placeableHasInterface('furnace', 'furnace')).toBe(true);
+    expect(placeableHasInterface('barrel', 'barrel')).toBe(true);
+    expect(placeableHasInterface('fruit_press', 'press')).toBe(true);
+    expect(placeableHasInterface('fermentation_cask', 'fermentation')).toBe(true);
+    expect(placeableInterface('campfire')).toBeNull();
+    expect(placeableSlotCapacity('cooking_fire')).toBe(2);
+    expect(placeableSlotCapacity('camp_cooking_fire')).toBe(2);
+    expect(placeableSlotCapacity('furnace')).toBe(3);
+    expect(placeableSlotCapacity('barrel')).toBe(8);
+    expect(placeableSlotCapacity('fruit_press')).toBe(3);
+    expect(placeableSlotCapacity('fermentation_cask')).toBe(2);
   });
 });
 

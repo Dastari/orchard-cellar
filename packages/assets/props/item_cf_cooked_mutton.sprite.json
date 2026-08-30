@@ -1,0 +1,68 @@
+{
+  "name": "item_cf_cooked_mutton",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".........000....",
+        "........05550...",
+        ".......0511250..",
+        "......051223240.",
+        ".....0545233350.",
+        "...005424443340.",
+        "..0554222423240.",
+        ".05234233223510.",
+        ".05522423332410.",
+        ".0452352232410..",
+        ".024553325410...",
+        ".03244444110....",
+        "..032211100.....",
+        "...000000.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c57634",
+    "2": "#d89055",
+    "3": "#e4a672",
+    "4": "#ead4aa",
+    "5": "#f0e0c2"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_Icons_NO_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/No Outline/Food_Icons_NO_Outline.png",
+  "sourceRegions": {
+    "base": [
+      [
+        48,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.food",
+    "food.cooked.mutton"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

@@ -61,4 +61,41 @@ describe('asset pipeline', () => {
       frame.length === 32 && frame.every((row) => row.length === 16)
     ))).toBe(true);
   });
+
+  it('keeps the full 16x32 authored height for every crop growth stage', async () => {
+    const assets = await loadAssets();
+    const crops = assets.filter((asset) => asset.tags?.includes('crop.growing') === true);
+    expect(crops).toHaveLength(22);
+    for (const crop of crops) {
+      expect(crop.size).toEqual([16, 32]);
+      expect(crop.anchor).toEqual([8, 31]);
+      expect(crop.frames['base']).toHaveLength(4);
+      expect(crop.frames['base']?.every((frame) => (
+        frame.length === 32 && frame.every((row) => row.length === 16)
+      ))).toBe(true);
+    }
+  });
+
+  it('imports the complete NPC, faction, enemy, profession, and companion sheet library', async () => {
+    const assets = await loadAssets();
+    const actors = assets.filter((asset) => asset.tags?.some((tag) => (
+      tag === 'actor.npc' || tag === 'actor.faction' || tag === 'actor.enemy'
+    )) === true);
+    const effects = assets.filter((asset) => asset.tags?.includes('actor.effect') === true);
+    expect(actors.length).toBeGreaterThanOrEqual(74);
+    expect(effects).toHaveLength(9);
+    expect(actors.every((asset) => Object.values(asset.frames).every((frames) => frames.length > 0))).toBe(true);
+    expect(assets.find((asset) => asset.name === 'npc_cf_farmer_bob')?.frames).toMatchObject({
+      walk_down: expect.any(Array),
+      chop_down: expect.any(Array),
+      water_down: expect.any(Array),
+    });
+    expect(assets.find((asset) => asset.name === 'enemy_cf_skeleton_swordman')?.frames).toMatchObject({
+      attack_down: expect.any(Array),
+      special_down: expect.any(Array),
+      hurt_down: expect.any(Array),
+      defeat: expect.any(Array),
+    });
+    expect(assets.find((asset) => asset.name === 'enemy_cf_shroomling_blue')?.frames).toHaveProperty('state_26');
+  });
 });

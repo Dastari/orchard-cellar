@@ -125,12 +125,14 @@ export class QuestLog {
     const layout = questLogLayout(frame);
     this.syncScroll(layout);
     this.scrollBar.pointerMove(point);
+    this.scrollBar.swipeMove(point, QUEST_ROW_HEIGHT);
   }
 
-  pointerDown(point: UiPoint, button: number, frame: UiRect): boolean {
+  pointerDown(point: UiPoint, button: number, frame: UiRect, pointerType?: string): boolean {
     if (button !== 0) return containsPoint(frame, point);
     const layout = questLogLayout(frame);
     this.syncScroll(layout);
+    this.scrollBar.beginSwipe(point, layout.list, pointerType);
     if (this.scrollBar.pointerDown(point)) return true;
     const visible = this.visibleEntries(layout);
     if (containsPoint(layout.list, point)) {
@@ -151,7 +153,10 @@ export class QuestLog {
     return containsPoint(frame, point);
   }
 
-  pointerUp(): boolean { return this.scrollBar.pointerUp(); }
+  pointerUp(): boolean {
+    const swiped = this.scrollBar.endSwipe();
+    return this.scrollBar.pointerUp() || swiped;
+  }
   pointerLeave(): void { this.scrollBar.pointerLeave(); }
 
   wheel(point: UiPoint, deltaY: number, frame: UiRect): boolean {

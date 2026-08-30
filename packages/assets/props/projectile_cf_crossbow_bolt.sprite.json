@@ -1,0 +1,79 @@
+{
+  "name": "projectile_cf_crossbow_bolt",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        ".........00.....",
+        "....00000530....",
+        "...042121150....",
+        "....00000530....",
+        ".........00.....",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "animation"
+  },
+  "animationFps": {
+    "base": 8
+  },
+  "animationLoop": {
+    "base": true
+  },
+  "sourcePalette": {
+    "0": "#1c121c",
+    "1": "#743f39",
+    "2": "#91533b",
+    "3": "#92a1b9",
+    "4": "#b86f50",
+    "5": "#c7cfdd"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Crossbow_Bolt.png",
+  "sourcePath": "references/Cute_Fantasy_Dungeons/Objects/Crossbow_Bolt.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "actor.effect",
+    "family.projectiles",
+    "source.cute_fantasy"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

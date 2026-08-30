@@ -100,6 +100,15 @@ export function furnaceProgress(smeltStartTick: bigint | undefined, authorityTic
   return Math.max(0, Math.min(1, Number(elapsed) / Number(FURNACE_SMELT_TICKS)));
 }
 
+export function furnaceRemainingTicks(
+  smeltStartTick: bigint | undefined,
+  authorityTick: bigint,
+): bigint | null {
+  if (smeltStartTick === undefined) return null;
+  const elapsed = authorityTick > smeltStartTick ? authorityTick - smeltStartTick : 0n;
+  return elapsed >= FURNACE_SMELT_TICKS ? 0n : FURNACE_SMELT_TICKS - elapsed;
+}
+
 /** Players may extract output but cannot insert or replace it manually. */
 export function furnaceMutationIsValid(
   before: readonly (ItemStack | null)[],

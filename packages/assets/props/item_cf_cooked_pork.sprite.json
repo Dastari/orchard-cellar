@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_cooked_pork",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".....0000.......",
+        "...00227700.....",
+        "..0722765620....",
+        ".062222562220...",
+        ".0211122227220..",
+        ".0167612265220..",
+        ".01766612222770.",
+        "..0143761227650.",
+        "...04336612250..",
+        "..04337671220...",
+        ".04430176120....",
+        ".0430.01120.....",
+        ".0330..000......",
+        "..00............",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#622461",
+    "2": "#93388f",
+    "3": "#c28569",
+    "4": "#e8b796",
+    "5": "#f389f5",
+    "6": "#fba7dc",
+    "7": "#fdd2ed"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_Icons_NO_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/No Outline/Food_Icons_NO_Outline.png",
+  "sourceRegions": {
+    "base": [
+      [
+        80,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.food",
+    "food.cooked.pork"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

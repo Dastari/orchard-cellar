@@ -17,7 +17,7 @@ import { drawUiInventorySlotBacking } from './design-system/inventory.js';
 import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
 import { itemIconAnimation, type OverworldUiInventorySlot, type OverworldUiItemArt } from './overworld-ui.js';
 import { ScrollBar } from './scrollbar.js';
-import { drawUiSkinAsset, drawUiSkinNatural, uiAssetFrame, type UiSkin } from './skin.js';
+import { drawUiSkinAsset, uiAssetFrame, type UiSkin } from './skin.js';
 
 export interface TradeUiModel {
   readonly identityHex: string;
@@ -89,10 +89,10 @@ export class TradeUi {
   private pointer: UiPoint = { x: -100, y: -100 };
   private viewport = { width: 480, height: 270 };
   private syncedRevision = -1n;
-  private clickStartedAt = Number.NEGATIVE_INFINITY;
   private readonly currency: CurrencyDisplay;
   private readonly inventoryScroll: ScrollBar;
   private readonly moneyInputList: readonly HTMLInputElement[];
+  private pendingTouchInventoryAction: (() => void) | null = null;
 
   constructor(
     private readonly skin: UiSkin,
@@ -122,6 +122,7 @@ export class TradeUi {
   update(model: TradeUiModel | null): void {
     this.model = model;
     if (model === null) {
+      this.pendingTouchInventoryAction = null;
       for (const input of this.moneyInputList) {
         input.blur();
         input.hidden = true;
@@ -163,7 +164,6 @@ export class TradeUi {
       layout.frame.x + layout.frame.width / 2, layout.frame.y + 6, { align: 'center', color: '#56351f' });
     if (model.session.state === 'requested') this.drawRequest(context, model, layout);
     else this.drawActive(context, model, layout);
-    this.drawCursor(context);
     context.restore();
   }
 
@@ -197,7 +197,7 @@ export class TradeUi {
     const otherBronze = requesterSide ? model.session.recipientBronze : model.session.requesterBronze;
     const leftCenter = layout.ownOffers[1]!.x + OFFER_SLOT / 2;
     const rightCenter = layout.otherOffers[1]!.x + OFFER_SLOT / 2;
-    drawPixelText(context, this.fonts, 'YOUR OFFER', leftCenter, layout.frame.y + 29,
+    drawPixelText(context, this.fonts, ownAccepted ? 'YOUR OFFER - ACCEPTED' : 'YOUR OFFER', leftCenter, layout.frame.y + 29,
       { align: 'center', color: ownAccepted ? '#28713b' : '#56351f' });
     drawPixelText(context, this.fonts, `${otherName.toUpperCase()} OFFER`, rightCenter, layout.frame.y + 29,
       { align: 'center', color: otherAccepted ? '#28713b' : '#56351f' });
@@ -208,11 +208,18 @@ export class TradeUi {
     this.drawMoneyInput(context, this.skin.coinGold, layout.moneyGold, this.moneyInputs.gold);
     this.drawMoneyInput(context, this.skin.coinSilver, layout.moneySilver, this.moneyInputs.silver);
     this.drawMoneyInput(context, this.skin.coinBronze, layout.moneyBronze, this.moneyInputs.bronze);
+    const walletLabel = 'YOU HAVE';
+    const walletLabelWidth = measurePixelText(walletLabel, 1, this.fonts.font);
+    const walletMoney = this.currency.measure(model.walletBronze, { size: 'small', includeZero: true });
+    const walletLineWidth = walletLabelWidth + 5 + walletMoney.width;
+    const walletLineX = Math.round(leftCenter - walletLineWidth / 2);
+    const walletLineY = layout.moneyGold.y + 24;
+    drawPixelText(context, this.fonts, walletLabel, walletLineX, walletLineY + 1, { color: '#7b5030' });
+    this.currency.draw(context, model.walletBronze, walletLineX + walletLabelWidth + 5, walletLineY,
+      { size: 'small', includeZero: true });
     const otherMoney = this.currency.measure(otherBronze, { size: 'small', includeZero: true });
     this.currency.draw(context, otherBronze, rightCenter - otherMoney.width / 2, layout.moneyGold.y + 4,
       { size: 'small', includeZero: true });
-    if (ownAccepted) drawPixelText(context, this.fonts, 'ACCEPTED', leftCenter, layout.moneyGold.y + 23,
-      { align: 'center', color: '#28713b' });
     if (otherAccepted) drawPixelText(context, this.fonts, 'ACCEPTED', rightCenter, layout.moneyGold.y + 23,
       { align: 'center', color: '#28713b' });
     drawPixelText(context, this.fonts, 'YOUR INVENTORY - CLICK TO OFFER', layout.inventoryViewport.x,
@@ -265,16 +272,25 @@ export class TradeUi {
   pointerMove(point: UiPoint): boolean {
     this.pointer = point;
     this.inventoryScroll.pointerMove(point);
+    this.inventoryScroll.swipeMove(point, INVENTORY_SLOT);
     return this.active;
   }
 
   pointerLeave(): void {
     this.pointer = { x: -100, y: -100 };
     this.inventoryScroll.pointerLeave();
+    this.pendingTouchInventoryAction = null;
   }
 
   pointerUp(): boolean {
     if (!this.active) return false;
+    if (this.inventoryScroll.endSwipe()) {
+      this.pendingTouchInventoryAction = null;
+      return true;
+    }
+    const pending = this.pendingTouchInventoryAction;
+    this.pendingTouchInventoryAction = null;
+    pending?.();
     this.inventoryScroll.pointerUp();
     return true;
   }
@@ -289,11 +305,10 @@ export class TradeUi {
     return true;
   }
 
-  pointerDown(point: UiPoint, button: number): boolean {
+  pointerDown(point: UiPoint, button: number, pointerType?: string): boolean {
     const model = this.model;
     if (model === null) return false;
     this.pointer = point;
-    this.clickStartedAt = performance.now();
     const layout = this.layout(model);
     if (model.session.state === 'requested') {
       const incoming = model.session.recipient.toHexString() === model.identityHex;
@@ -302,6 +317,7 @@ export class TradeUi {
       else if (!incoming && containsPoint(layout.cancel, point)) this.callbacks.cancel(model.session.id);
       return true;
     }
+    this.inventoryScroll.beginSwipe(point, layout.inventoryViewport, pointerType);
     if (this.inventoryScroll.pointerDown(point)) return true;
     if (containsPoint(layout.cancel, point)) this.callbacks.cancel(model.session.id);
     else if (containsPoint(layout.accept, point)) {
@@ -324,9 +340,13 @@ export class TradeUi {
           && !isUniqueQuestItemKind(inventory.row.itemKind)) {
           const free = Array.from({ length: OFFER_SLOTS }, (_, slot) => slot)
             .find((slot) => offerForSlot(model.offers, model.identityHex, slot) === undefined);
-          if (free !== undefined) this.callbacks.offerItem(
-            model.session.id, inventory.row.slot, free, button === 2 ? 1 : inventory.row.quantity,
-          );
+          if (free !== undefined) {
+            const offer = () => this.callbacks.offerItem(
+              model.session.id, inventory.row.slot, free, button === 2 ? 1 : inventory.row.quantity,
+            );
+            if (pointerType === 'touch') this.pendingTouchInventoryAction = offer;
+            else offer();
+          }
         }
       }
     }
@@ -360,22 +380,6 @@ export class TradeUi {
     input.classList.add('keyboard-active');
     input.focus({ preventScroll: true });
     input.select();
-  }
-
-  private drawCursor(context: CanvasRenderingContext2D): void {
-    if (this.pointer.x < 0 || this.pointer.y < 0) return;
-    drawUiSkinNatural(context, this.skin.cursor, this.pointer.x, this.pointer.y, 'idle');
-    const elapsed = performance.now() - this.clickStartedAt;
-    if (elapsed < 280) {
-      drawUiSkinNatural(
-        context,
-        this.skin.cursorClick,
-        this.pointer.x - 8,
-        this.pointer.y - 8,
-        'click',
-        Math.min(3, Math.floor(elapsed / 70)),
-      );
-    }
   }
 
   private layout(model: TradeUiModel): TradeLayout {

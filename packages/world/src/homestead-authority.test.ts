@@ -41,10 +41,11 @@ describe('homestead gate, mount, and mutation authority', () => {
     expect(reducer).toContain('gateOpen: !home.gateOpen');
   });
 
-  it('allows only the owner to till or structurally mutate an instanced farm', () => {
+  it('allows workers to farm while keeping build authority role-tiered', () => {
     const helper = sourceBetween('function mutableFarmTileAuthorized(', 'function nextResidenceSpacePair(');
-    expect(helper).toContain('home.owner.toHexString() === position.identity.toHexString()');
-    expect(helper).toContain('homesteadPlayableTile(tileX, tileY)');
+    expect(helper).toContain("homesteadRoleAtLeast(homesteadRoleFor(ctx, home, position.identity), 'worker')");
+    expect(helper).toContain('homesteadPlayableTile(');
+    expect(helper).toContain('spaceDefinitionFor(position.spaceId, home)?.sizeTiles');
     expect(helper).toContain("throw new SenderError('homestead_owner_required')");
     expect(sourceBetween('export const useFarmTool =', 'export const restoreFarmTile ='))
       .toContain('mutableFarmTileAuthorized(ctx, position, tileX, tileY)');

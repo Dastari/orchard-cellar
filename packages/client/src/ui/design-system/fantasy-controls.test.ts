@@ -14,6 +14,7 @@ import {
   fantasyButtonGlyphFrame,
   fantasyButtonGlyphRect,
   fantasyButtonHoverGroup,
+  fantasyAudioIconFrame,
   fantasyIconCellIndex,
   fantasyIconFrameIndex,
 } from './fantasy-controls.js';
@@ -61,6 +62,9 @@ describe('Cute Fantasy control families', () => {
     const mail = FANTASY_ICON_FAMILIES.find((entry) => entry.id === 'mail')!;
     expect(mail.frames).toEqual([fantasyIconCellIndex({ column: 14, row: 1 })]);
     expect(mail.outline).toBe(fantasyIconCellIndex({ column: 26, row: 1 }));
+    expect(fantasyAudioIconFrame('music')).toBe(fantasyIconCellIndex({ column: 9, row: 4 }));
+    expect(fantasyAudioIconFrame('music', 'muted')).toBe(fantasyIconCellIndex({ column: 11, row: 4 }));
+    expect(fantasyAudioIconFrame('sound', 'enabled')).toBe(fantasyIconCellIndex({ column: 14, row: 4 }));
   });
 
   it('retains press feedback without changing the legacy button component', () => {

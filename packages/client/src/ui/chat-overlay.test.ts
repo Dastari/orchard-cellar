@@ -1,8 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { PixelUi } from '../render/pixel-ui.js';
+import type { UiSkin } from './skin.js';
 import {
   CHAT_FADE_DELAY_MS,
   CHAT_FADE_DURATION_MS,
   CHAT_HOVER_SHADE_ALPHA,
+  ChatOverlay,
   chatHistoryExpanded,
   chatToggleTooltipText,
   chatOverlayLayout,
@@ -11,8 +14,21 @@ import {
   chatLineAlpha,
   chatMessagePresentation,
   hasUnseenChatMessage,
+  storedChatCollapsed,
   wrapChatText,
 } from './chat-overlay.js';
+
+function chatInput(): HTMLInputElement & { focus: ReturnType<typeof vi.fn> } {
+  return {
+    value: '',
+    addEventListener: vi.fn(),
+    setAttribute: vi.fn(),
+    setSelectionRange: vi.fn(),
+    focus: vi.fn(),
+    blur: vi.fn(),
+    classList: { add: vi.fn(), remove: vi.fn() },
+  } as unknown as HTMLInputElement & { focus: ReturnType<typeof vi.fn> };
+}
 
 describe('chat overlay helpers', () => {
   it('uses a subtle dark hover wash without changing message colors', () => {
@@ -25,8 +41,11 @@ describe('chat overlay helpers', () => {
     expect(chatLineAlpha(CHAT_FADE_DELAY_MS + CHAT_FADE_DURATION_MS / 2, false)).toBe(0.5);
     expect(chatLineAlpha(CHAT_FADE_DELAY_MS + CHAT_FADE_DURATION_MS, false)).toBe(0);
     expect(chatLineAlpha(60_000, true)).toBe(1);
-    expect(chatHistoryExpanded(true, false, false)).toBe(true);
+    expect(chatHistoryExpanded(true, false, false)).toBe(false);
+    expect(chatHistoryExpanded(true, false, true)).toBe(false);
+    expect(chatHistoryExpanded(true, true, false)).toBe(true);
     expect(chatHistoryExpanded(false, false, false)).toBe(false);
+    expect(chatHistoryExpanded(false, false, true)).toBe(true);
   });
 
   it('wraps on words and hard-wraps words wider than the chat panel', () => {
@@ -58,6 +77,72 @@ describe('chat overlay helpers', () => {
     expect(chatToggleTooltipText(true, false)).toBe('CHAT');
     expect(chatToggleTooltipText(false, false)).toBeNull();
     expect(chatToggleTooltipText(true, true)).toBeNull();
+  });
+
+  it('restores only an explicitly collapsed chat preference', () => {
+    expect(storedChatCollapsed('true')).toBe(true);
+    expect(storedChatCollapsed('false')).toBe(false);
+    expect(storedChatCollapsed(null)).toBe(false);
+    expect(storedChatCollapsed('invalid')).toBe(false);
+  });
+
+  it('defers native input focus until pointer release for iOS keyboards', () => {
+    const input = chatInput();
+    const overlay = new ChatOverlay(
+      { panelParchment: { slice: [0, 0, 0, 0] } } as unknown as UiSkin,
+      {} as PixelUi,
+      input,
+      async () => undefined,
+      () => undefined,
+    );
+    const model = {
+      width: 480,
+      height: 270,
+      connected: true,
+      canAdministerWorld: false,
+      onlinePlayerNames: [],
+      replyPlayerName: null,
+      messages: [],
+      touchControls: true,
+    } as const;
+    overlay.update(model);
+    const target = chatOverlayLayout(model).input;
+    expect(overlay.pointerDown({ x: target.x + 2, y: target.y + 2 }, 0)).toBe(true);
+    expect(input.focus).not.toHaveBeenCalled();
+    expect(overlay.pointerUp()).toBe(true);
+    expect(input.focus).toHaveBeenCalledOnce();
+  });
+
+  it('clears and suppresses hover while a higher modal owns the canvas', () => {
+    const overlay = new ChatOverlay(
+      { panelParchment: { slice: [0, 0, 0, 0] } } as unknown as UiSkin,
+      {} as PixelUi,
+      chatInput(),
+      async () => undefined,
+      () => undefined,
+    );
+    const model = {
+      width: 480,
+      height: 270,
+      connected: true,
+      canAdministerWorld: false,
+      onlinePlayerNames: [],
+      replyPlayerName: null,
+      messages: [],
+      touchControls: false,
+    } as const;
+    overlay.update(model);
+    const history = chatOverlayLayout(model).history;
+    overlay.pointerMove({ x: history.x + 4, y: history.y + 4 });
+    expect(overlay.isHovered).toBe(true);
+
+    overlay.update({ ...model, interactionBlocked: true });
+    expect(overlay.isHovered).toBe(false);
+    overlay.pointerMove({ x: history.x + 4, y: history.y + 4 });
+    expect(overlay.isHovered).toBe(false);
+    expect(overlay.pointerDown({ x: history.x + 4, y: history.y + 4 }, 0)).toBe(false);
+    expect(overlay.wheel({ x: history.x + 4, y: history.y + 4 }, 1)).toBe(false);
+    expect(overlay.handleGlobalKeyDown({ key: 'Enter', repeat: false } as KeyboardEvent)).toBe(false);
   });
 
   it('marks only newly arrived chat ids as unseen', () => {

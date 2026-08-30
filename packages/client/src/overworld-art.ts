@@ -9,11 +9,14 @@ import {
   ITEM_DEFINITIONS,
   SURVIVAL_ORE_KINDS,
   itemDefinition,
+  miningNodeArtVariant,
   type Direction,
+  type MiningNodeClass,
   type TreeGrowthStage,
   type WildlifeSpecies,
 } from "@orchard/sim";
 import { loadGeneratedAsset, type LoadedAsset } from "./render/assets.js";
+import { applyStonePalette } from "./render/stone-palette.js";
 import {
   drawPixelText,
   loadPixelUi,
@@ -71,6 +74,7 @@ export interface OverworldArt {
   readonly beeNest: LoadedAsset;
   readonly playerRig: PlayerRigArt;
   readonly merchantNpc: LoadedAsset;
+  readonly farmerBobNpc: LoadedAsset;
   readonly heldLights: Readonly<Record<"torch" | "lantern", HeldLightArt>>;
   readonly actionAssets: Readonly<Record<string, LoadedAsset>>;
   readonly oreNodes: Readonly<Record<string, LoadedAsset>>;
@@ -358,19 +362,22 @@ async function loadOreArt(
   prefix: "resource_cf_ore_" | "item_cf_",
   suffix: "" | "_ore",
 ): Promise<Readonly<Record<string, LoadedAsset>>> {
-  return Object.fromEntries(
-    await Promise.all(
-      SURVIVAL_ORE_KINDS.map(async (resourceKind) => {
-        const oreKind = resourceKind.slice("ore_".length);
-        const key =
-          prefix === "resource_cf_ore_" ? resourceKind : `${oreKind}_ore`;
-        return [
-          key,
-          await loadGeneratedAsset(`${prefix}${oreKind}${suffix}`, "summer"),
-        ];
-      }),
-    ),
-  ) as Readonly<Record<string, LoadedAsset>>;
+  const entries: Array<Promise<readonly [string, LoadedAsset]>> = [];
+  for (const resourceKind of SURVIVAL_ORE_KINDS) {
+    const oreKind = resourceKind.slice("ore_".length);
+    if (prefix !== "resource_cf_ore_") {
+      entries.push(loadGeneratedAsset(`${prefix}${oreKind}${suffix}`, "summer")
+        .then((asset) => [`${oreKind}_ore`, asset] as const));
+      continue;
+    }
+    for (const variant of ["mixed", "pure_large", "pure_medium", "pure_small", "pristine"] as const) {
+      entries.push(loadGeneratedAsset(
+        `${prefix}${oreKind}${variant === "mixed" ? "" : `_${variant}`}`,
+        "summer",
+      ).then((asset) => [`${resourceKind}:${variant}`, asset] as const));
+    }
+  }
+  return Object.fromEntries(await Promise.all(entries));
 }
 
 async function loadNumberedWildlife(
@@ -560,6 +567,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     beeNest,
     playerRig,
     merchantNpc,
+    farmerBobNpc,
     torchIdle,
     torchRunning,
     torchIdleHands,
@@ -587,6 +595,11 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     campChair,
     campFishingRod,
     campPond,
+    farmHouse,
+    farmHayBale,
+    farmHayStack,
+    farmPottedFlowers,
+    farmGrave,
     woodFloor,
     interiorWall,
     caveFloor,
@@ -725,6 +738,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset("prop_cf_bee_nest", "summer"),
     loadPlayerRig(),
     loadGeneratedAsset("npc_cf_bartender_bruno", "summer"),
+    loadGeneratedAsset("npc_cf_farmer_bob", "summer"),
     loadGeneratedAsset("tool_cf_torch_idle", "summer"),
     loadGeneratedAsset("tool_cf_torch_running", "summer"),
     loadGeneratedAsset("hands_cf_torch_idle", "summer"),
@@ -752,6 +766,11 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     loadGeneratedAsset("prop_cf_camp_chair", "summer"),
     loadGeneratedAsset("prop_cf_camp_fishing_rod", "summer"),
     loadGeneratedAsset("prop_cf_pond", "summer"),
+    loadGeneratedAsset("building_cf_farmhouse", "summer"),
+    loadGeneratedAsset("prop_cf_farm_hay_bale", "summer"),
+    loadGeneratedAsset("prop_cf_farm_hay_stack", "summer"),
+    loadGeneratedAsset("prop_cf_farm_potted_flowers", "summer"),
+    loadGeneratedAsset("prop_cf_farm_grave", "summer"),
     loadGeneratedAsset("tile_cf_wood_floor", "summer"),
     loadGeneratedAsset("tile_cf_interior_wall", "summer"),
     loadGeneratedAsset("tile_cf_cave_floor", "summer"),
@@ -871,6 +890,7 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
     beeNest,
     playerRig,
     merchantNpc,
+    farmerBobNpc,
     heldLights: {
       torch: {
         idle: torchIdle,
@@ -925,6 +945,13 @@ export async function loadOverworldArt(): Promise<OverworldArt> {
       camp_fishing_rod: campFishingRod,
       camp_rock: poiRockSmall,
       camp_flowers: poiFlowersPink,
+      farm_house: farmHouse,
+      farm_hay_bale: farmHayBale,
+      farm_hay_stack: farmHayStack,
+      farm_potted_flowers: farmPottedFlowers,
+      farm_grave: farmGrave,
+      farm_stump: poiStump,
+      farm_fallen_log: poiFallenLog,
       residence_trapdoor: trapdoor,
       residence_door: interiorDoor,
       residence_bed: interiorBed,
@@ -1047,6 +1074,59 @@ function frame(
   return selectAtlasFrame(asset.metadata, animation, index);
 }
 
+export type AvatarPalette = "normal" | "stone";
+
+const stoneFrameCache = new WeakMap<object, Map<string, HTMLCanvasElement>>();
+
+/**
+ * Builds a small native-resolution stone sprite once, rather than relying on
+ * CanvasRenderingContext2D.filter support in the per-frame render loop.
+ */
+function stoneFrame(asset: LoadedAsset, source: AtlasFrame): HTMLCanvasElement {
+  const imageKey = asset.image as object;
+  let imageFrames = stoneFrameCache.get(imageKey);
+  if (imageFrames === undefined) {
+    imageFrames = new Map();
+    stoneFrameCache.set(imageKey, imageFrames);
+  }
+  const key = `${source.x}:${source.y}:${source.width}:${source.height}`;
+  const cached = imageFrames.get(key);
+  if (cached !== undefined) return cached;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = source.width;
+  canvas.height = source.height;
+  const stoneContext = canvas.getContext("2d", { willReadFrequently: true });
+  if (stoneContext !== null) {
+    stoneContext.imageSmoothingEnabled = false;
+    stoneContext.drawImage(
+      asset.image,
+      source.x,
+      source.y,
+      source.width,
+      source.height,
+      0,
+      0,
+      source.width,
+      source.height,
+    );
+    try {
+      const pixels = stoneContext.getImageData(0, 0, source.width, source.height);
+      applyStonePalette(pixels.data, source.width, source.height);
+      stoneContext.putImageData(pixels, 0, 0);
+    } catch {
+      // Same-origin generated atlases are readable. Keep a visible stone
+      // fallback if a browser nevertheless protects the canvas pixel buffer.
+      stoneContext.globalCompositeOperation = "source-atop";
+      stoneContext.fillStyle = "rgba(116, 125, 130, 0.82)";
+      stoneContext.fillRect(0, 0, source.width, source.height);
+      stoneContext.globalCompositeOperation = "source-over";
+    }
+  }
+  imageFrames.set(key, canvas);
+  return canvas;
+}
+
 function drawAnchored(
   context: CanvasRenderingContext2D,
   asset: LoadedAsset,
@@ -1059,9 +1139,13 @@ function drawAnchored(
   zoom: number,
   flipX = false,
   dimmed = false,
+  palette: AvatarPalette = "normal",
 ): void {
   const source = frame(asset, animation, frameIndex);
   if (source === null) return;
+  const sourceImage = palette === "stone" ? stoneFrame(asset, source) : asset.image;
+  const sourceX = palette === "stone" ? 0 : source.x;
+  const sourceY = palette === "stone" ? 0 : source.y;
   const anchorX = flipX ? source.width - 1 - asset.anchor[0] : asset.anchor[0];
   const x = Math.round((worldX - cameraX - anchorX) * zoom);
   const y = Math.round((worldY - cameraY - asset.anchor[1]) * zoom);
@@ -1074,9 +1158,9 @@ function drawAnchored(
     context.translate(x + source.width * zoom, 0);
     context.scale(-1, 1);
     context.drawImage(
-      asset.image,
-      source.x,
-      source.y,
+      sourceImage,
+      sourceX,
+      sourceY,
       source.width,
       source.height,
       0,
@@ -1086,9 +1170,9 @@ function drawAnchored(
     );
   } else {
     context.drawImage(
-      asset.image,
-      source.x,
-      source.y,
+      sourceImage,
+      sourceX,
+      sourceY,
       source.width,
       source.height,
       x,
@@ -1098,6 +1182,108 @@ function drawAnchored(
     );
   }
   context.restore();
+}
+
+export const POND_SHIMMER_FRAME_COUNT = 8;
+const POND_SHIMMER_TICKS_PER_FRAME = 8;
+const pondShimmerFrameCache = new WeakMap<LoadedAsset, readonly HTMLCanvasElement[]>();
+
+/** The authored pond is opaque grass plus two blue water colours. This colour
+ * test prevents a reflection overlay from brightening the surrounding grass,
+ * bank, rocks, or transparent atlas padding. */
+export function isPondWaterPixel(red: number, green: number, blue: number, alpha = 255): boolean {
+  return alpha >= 128 && blue >= 120 && green >= 70 && blue - green >= 35 && green - red >= 45;
+}
+
+export function pondShimmerFrameAtTick(renderTick: number): number {
+  const frame = Math.floor(Math.max(0, renderTick) / POND_SHIMMER_TICKS_PER_FRAME);
+  return frame % POND_SHIMMER_FRAME_COUNT;
+}
+
+function pondShimmerFrames(asset: LoadedAsset): readonly HTMLCanvasElement[] {
+  const cached = pondShimmerFrameCache.get(asset);
+  if (cached !== undefined) return cached;
+  const source = frame(asset, "base", 0);
+  if (source === null) {
+    pondShimmerFrameCache.set(asset, []);
+    return [];
+  }
+  try {
+    const sourceCanvas = document.createElement("canvas");
+    sourceCanvas.width = source.width;
+    sourceCanvas.height = source.height;
+    const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    if (sourceContext === null) return [];
+    sourceContext.drawImage(
+      asset.image,
+      source.x,
+      source.y,
+      source.width,
+      source.height,
+      0,
+      0,
+      source.width,
+      source.height,
+    );
+    const sourcePixels = sourceContext.getImageData(0, 0, source.width, source.height).data;
+    const shimmerFrames: HTMLCanvasElement[] = [];
+    for (let phase = 0; phase < POND_SHIMMER_FRAME_COUNT; phase += 1) {
+      const shimmerCanvas = document.createElement("canvas");
+      shimmerCanvas.width = source.width;
+      shimmerCanvas.height = source.height;
+      const shimmerContext = shimmerCanvas.getContext("2d");
+      if (shimmerContext === null) continue;
+      const shimmer = shimmerContext.createImageData(source.width, source.height);
+      for (let y = 0; y < source.height; y += 1) {
+        for (let x = 0; x < source.width; x += 1) {
+          const pixel = (y * source.width + x) * 4;
+          if (!isPondWaterPixel(
+            sourcePixels[pixel] ?? 0,
+            sourcePixels[pixel + 1] ?? 0,
+            sourcePixels[pixel + 2] ?? 0,
+            sourcePixels[pixel + 3] ?? 0,
+          )) continue;
+          // Short horizontal dashes drift slowly across alternating rows. The
+          // source-over alpha is intentionally restrained; the shared lightmap
+          // multiplies this overlay later, so it cannot glow in unlit water.
+          const rippleRow = (y + phase) % POND_SHIMMER_FRAME_COUNT;
+          const rippleSegment = (x + Math.floor(y / 2) * 3 + phase * 2) % 13;
+          if (rippleRow !== 0 || rippleSegment >= 5) continue;
+          shimmer.data[pixel] = 174;
+          shimmer.data[pixel + 1] = 229;
+          shimmer.data[pixel + 2] = 255;
+          shimmer.data[pixel + 3] = rippleSegment === 2 ? 76 : 52;
+        }
+      }
+      shimmerContext.putImageData(shimmer, 0, 0);
+      shimmerFrames.push(shimmerCanvas);
+    }
+    pondShimmerFrameCache.set(asset, shimmerFrames);
+    return shimmerFrames;
+  } catch {
+    // Generated atlases are same-origin. If a host protects canvas reads,
+    // retain the normal pond rather than falling back to an unmasked glow.
+    pondShimmerFrameCache.set(asset, []);
+    return [];
+  }
+}
+
+function drawAnchoredPondShimmer(
+  context: CanvasRenderingContext2D,
+  asset: LoadedAsset,
+  shimmerFrame: number,
+  worldX: number,
+  worldY: number,
+  cameraX: number,
+  cameraY: number,
+  zoom: number,
+): void {
+  const frames = pondShimmerFrames(asset);
+  const shimmer = frames[shimmerFrame % Math.max(1, frames.length)];
+  if (shimmer === undefined) return;
+  const x = Math.round((worldX - cameraX - asset.anchor[0]) * zoom);
+  const y = Math.round((worldY - cameraY - asset.anchor[1]) * zoom);
+  context.drawImage(shimmer, x, y, shimmer.width * zoom, shimmer.height * zoom);
 }
 
 function drawAnchoredBand(
@@ -1113,9 +1299,13 @@ function drawAnchoredBand(
   cameraY: number,
   zoom: number,
   flipX = false,
+  palette: AvatarPalette = "normal",
 ): void {
   const source = frame(asset, animation, frameIndex);
   if (source === null) return;
+  const sourceImage = palette === "stone" ? stoneFrame(asset, source) : asset.image;
+  const sourceX = palette === "stone" ? 0 : source.x;
+  const sourceY = palette === "stone" ? 0 : source.y;
   const start = Math.max(0, Math.min(source.height, Math.floor(startRow)));
   const end = Math.max(start, Math.min(source.height, Math.floor(endRow)));
   if (start === end) return;
@@ -1128,9 +1318,9 @@ function drawAnchoredBand(
     context.translate(x + source.width * zoom, 0);
     context.scale(-1, 1);
     context.drawImage(
-      asset.image,
-      source.x,
-      source.y + start,
+      sourceImage,
+      sourceX,
+      sourceY + start,
       source.width,
       height,
       0,
@@ -1140,9 +1330,9 @@ function drawAnchoredBand(
     );
   } else {
     context.drawImage(
-      asset.image,
-      source.x,
-      source.y + start,
+      sourceImage,
+      sourceX,
+      sourceY + start,
       source.width,
       height,
       x,
@@ -1499,10 +1689,13 @@ export function drawOverworldOreNode(
   cameraX: number,
   cameraY: number,
   zoom: number,
+  nodeClass: MiningNodeClass = "mixed",
+  richness = 1,
 ): void {
+  const variant = miningNodeArtVariant(nodeClass, richness);
   drawAnchored(
     context,
-    art.oreNodes[kind] ?? art.missingItem,
+    art.oreNodes[`${kind}:${variant}`] ?? art.oreNodes[`${kind}:mixed`] ?? art.missingItem,
     "base",
     0,
     x,
@@ -1570,7 +1763,66 @@ export function drawOverworldPoiDecoration(
   variant = 0,
   frameIndex = 0,
   lit = true,
+  waterShimmerFrame: number | null = null,
 ): void {
+  if (kind === 'farm_fence' || kind === 'farm_gate') {
+    drawOverworldPlaceable(
+      context,
+      art,
+      kind === 'farm_gate' ? 'fence_gate' : 'fence',
+      kind === 'farm_gate',
+      variant,
+      frameIndex,
+      x,
+      y,
+      cameraX,
+      cameraY,
+      zoom,
+      lit,
+    );
+    return;
+  }
+  if (kind.startsWith('farm_crop_')) {
+    drawOverworldCrop(context, art, kind.slice('farm_crop_'.length), 3, x, y, cameraX, cameraY, zoom);
+    return;
+  }
+  if (kind === 'farm_tree_oak') {
+    drawOverworldTree(context, art, x, y, false, cameraX, cameraY, zoom, 'tree_oak');
+    return;
+  }
+  if (kind === 'farm_cow') {
+    drawOverworldWildlife(
+      context,
+      art,
+      'cow',
+      variant,
+      Math.floor(frameIndex / 40) % 2 === 0 ? 'graze' : 'rest',
+      x,
+      y,
+      variant % 2 === 0 ? 'left' : 'right',
+      false,
+      frameIndex,
+      cameraX,
+      cameraY,
+      zoom,
+    );
+    return;
+  }
+  if (kind === 'farm_flowers') {
+    const variants = art.natureDecorations.nature_flower;
+    if (variants !== undefined && variants.length > 0) {
+      const asset = variants[variant % variants.length]!;
+      drawAnchored(context, asset, 'sway', frameIndex, x, y, cameraX, cameraY, zoom);
+      return;
+    }
+  }
+  if (kind === 'farm_potted_flowers') {
+    const asset = art.poiDecorations[kind];
+    if (asset !== undefined) {
+      drawAnchored(context, asset, 'sway', frameIndex, x, y, cameraX, cameraY, zoom);
+      return;
+    }
+  }
   const nature = art.natureDecorations[kind];
   if (nature !== undefined && nature.length > 0) {
     const asset = nature[variant % nature.length]!;
@@ -1588,9 +1840,10 @@ export function drawOverworldPoiDecoration(
     );
     return;
   }
+  const asset = art.poiDecorations[kind] ?? art.missingItem;
   drawAnchored(
     context,
-    art.poiDecorations[kind] ?? art.missingItem,
+    asset,
     kind === "camp_campfire" ? (lit ? "burn" : "off") : "base",
     kind === "camp_campfire" && lit ? frameIndex : 0,
     x,
@@ -1599,6 +1852,18 @@ export function drawOverworldPoiDecoration(
     cameraY,
     zoom,
   );
+  if (kind === "camp_pond" && waterShimmerFrame !== null) {
+    drawAnchoredPondShimmer(
+      context,
+      asset,
+      waterShimmerFrame,
+      x,
+      y,
+      cameraX,
+      cameraY,
+      zoom,
+    );
+  }
 }
 
 export function drawOverworldItem(
@@ -1680,7 +1945,7 @@ export function drawOverworldPlaceable(
         ]
       : art.itemIcons[kind];
   const animation =
-    kind === "campfire"
+    kind === "campfire" || kind === "cooking_fire" || kind === "camp_cooking_fire"
       ? lit
         ? "burn"
         : "off"
@@ -1840,6 +2105,7 @@ export function drawOverworldAvatar(
   heldItemKind = "empty",
   heldLightAnimationFrame = 0,
   heldLightLit = true,
+  palette: AvatarPalette = "normal",
 ): void {
   const heldLight =
     heldItemKind === "torch" || heldItemKind === "lantern"
@@ -1889,6 +2155,7 @@ export function drawOverworldAvatar(
           zoom,
           flip,
           heldItemKind === "lantern" && !heldLightLit,
+          palette,
         );
     };
     if (facing === "up") drawHeldLight();
@@ -1914,6 +2181,8 @@ export function drawOverworldAvatar(
         cameraY,
         zoom,
         flip,
+        false,
+        palette,
       );
     }
     return;
@@ -1934,6 +2203,8 @@ export function drawOverworldAvatar(
       cameraY,
       zoom,
       actionToolFlipsForDirection(facing),
+      false,
+      palette,
     );
   if (facing === "up") drawTool();
   if (walkingBow) {
@@ -1957,6 +2228,7 @@ export function drawOverworldAvatar(
       cameraY,
       zoom,
       flip,
+      palette,
     );
     drawAnchoredBand(
       context,
@@ -1971,6 +2243,7 @@ export function drawOverworldAvatar(
       cameraY,
       zoom,
       flip,
+      palette,
     );
     drawAnchored(
       context,
@@ -1983,6 +2256,8 @@ export function drawOverworldAvatar(
       cameraY,
       zoom,
       flip,
+      false,
+      palette,
     );
     drawAnchored(
       context,
@@ -1995,6 +2270,8 @@ export function drawOverworldAvatar(
       cameraY,
       zoom,
       flip,
+      false,
+      palette,
     );
     drawAnchored(
       context,
@@ -2007,6 +2284,8 @@ export function drawOverworldAvatar(
       cameraY,
       zoom,
       flip,
+      false,
+      palette,
     );
     for (const layer of actionLayers.slice(4)) {
       drawAnchored(
@@ -2020,6 +2299,8 @@ export function drawOverworldAvatar(
         cameraY,
         zoom,
         flip,
+        false,
+        palette,
       );
     }
   } else {
@@ -2040,6 +2321,8 @@ export function drawOverworldAvatar(
         cameraY,
         zoom,
         flip,
+        false,
+        palette,
       );
     }
   }
@@ -2057,15 +2340,28 @@ export function drawOverworldMerchant(
   cameraX: number,
   cameraY: number,
   zoom: number,
+  npcKind = 'merchant',
 ): void {
-  const animation = moving
-    ? avatarAnimationForDirection(facing)
-    : idleAvatarAnimationForDirection(facing);
+  const farmerWorkPhase = npcKind === 'farmer_bob' && !moving
+    ? Math.floor(animationFrame / 48) % 5
+    : -1;
+  const vertical = facing === 'up' || facing === 'upLeft' || facing === 'upRight'
+    ? 'up'
+    : facing === 'down' || facing === 'downLeft' || facing === 'downRight'
+      ? 'down'
+      : 'right';
+  const animation = farmerWorkPhase === 2
+    ? `chop_${vertical}`
+    : farmerWorkPhase === 4
+      ? `water_${vertical}`
+      : moving
+        ? avatarAnimationForDirection(facing)
+        : idleAvatarAnimationForDirection(facing);
   const flip =
     facing === "left" || facing === "upLeft" || facing === "downLeft";
   drawAnchored(
     context,
-    art.merchantNpc,
+    npcKind === 'farmer_bob' ? art.farmerBobNpc : art.merchantNpc,
     animation,
     animationFrame,
     x,
@@ -2084,6 +2380,7 @@ export function merchantWorldBounds(
   facing: Direction,
   moving: boolean,
   animationFrame: number,
+  npcKind = 'merchant',
 ): WorldVisualBounds | null {
   const animation = moving
     ? avatarAnimationForDirection(facing)
@@ -2091,7 +2388,7 @@ export function merchantWorldBounds(
   const flip =
     facing === "left" || facing === "upLeft" || facing === "downLeft";
   return anchoredVisualBounds(
-    art.merchantNpc,
+    npcKind === 'farmer_bob' ? art.farmerBobNpc : art.merchantNpc,
     animation,
     animationFrame,
     x,
@@ -2374,11 +2671,11 @@ export function drawNpcPortrait(
   const variants =
     speciesKey === undefined ? undefined : art.wildlife[speciesKey];
   const asset =
-    npc.npcKind === "merchant"
-      ? art.merchantNpc
+    npc.npcKind === "merchant" || npc.npcKind === 'farmer_bob'
+      ? npc.npcKind === 'farmer_bob' ? art.farmerBobNpc : art.merchantNpc
       : (variants?.[npc.variant % Math.max(1, variants.length)] ??
         art.missingItem);
-  const preferred = npc.npcKind === "merchant" ? "idle_down" : "idle_side";
+  const preferred = npc.npcKind === "merchant" || npc.npcKind === 'farmer_bob' ? "idle_down" : "idle_side";
   const animation = availableAnimation(asset, preferred);
   const selectedFrame = selectAtlasFrame(asset.metadata, animation, 0);
   if (selectedFrame === null) return;

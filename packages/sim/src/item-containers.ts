@@ -1,5 +1,7 @@
 import type { Modifier } from './modifiers.js';
+import { PRESERVED_CROP_ITEM_DEFINITIONS } from './barreling.js';
 import { CROP_HARVEST_ITEM_DEFINITIONS, CROP_SEED_ITEM_DEFINITIONS } from './crops.js';
+import { FOOD_ITEM_DEFINITIONS } from './food.js';
 import {
   RECIPES,
   recipeDefinition,
@@ -20,6 +22,18 @@ export const BASE_BACKPACK_CAPACITY = 8;
  * player-to-player transfer, merchant sale, and world dropping. Objective
  * materials such as wood deliberately do not receive this tag. */
 export const UNIQUE_QUEST_ITEM_TAG = 'item.quest_unique';
+
+/** A placeable's interaction UI is a data capability, not a hard-coded item
+ * kind. Adding one of these tags to any registered placeable gives it the
+ * corresponding processor/container contract on both client and authority. */
+export const PLACEABLE_INTERFACE_TAGS = {
+  cooking: 'interface.cooking',
+  furnace: 'interface.furnace',
+  barrel: 'interface.barrel',
+  press: 'interface.press',
+  fermentation: 'interface.fermentation',
+} as const;
+export type PlaceableInterface = keyof typeof PLACEABLE_INTERFACE_TAGS;
 
 /** Stable presentation tier for an item kind. This is deliberately distinct
  * from a future per-crafted-instance quality roll: no row schema is needed to
@@ -61,6 +75,8 @@ function defineItem(
 export const ITEM_DEFINITIONS = {
   homestead_deed: defineItem('homestead_deed', 'Homestead Deed', 1, ['item.document', 'item.homestead_deed'], undefined, undefined, 'legendary'),
   marlow_book: defineItem('marlow_book', 'Marlow\'s Book', 1, ['item.document', 'item.quest_reward', UNIQUE_QUEST_ITEM_TAG], undefined, { key: 'icon_cf_marlow_book' }),
+  janes_gardening_book: defineItem('janes_gardening_book', 'Jane\'s Gardening Journal', 1, ['item.document', 'item.quest_reward', UNIQUE_QUEST_ITEM_TAG], undefined, { key: 'icon_cf_marlow_book' }, 'rare'),
+  bob_fast_strawberry_seeds: defineItem('bob_fast_strawberry_seeds', 'Bob\'s Fast Strawberry Seeds', 99, ['item.seed', 'seed.strawberry', 'item.quest', UNIQUE_QUEST_ITEM_TAG], undefined, { key: 'item_cf_strawberry_seeds' }, 'rare'),
   axe: defineItem('axe', 'Iron Axe', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
   hoe: defineItem('hoe', 'Iron Hoe', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
   pickaxe: defineItem('pickaxe', 'Iron Pickaxe', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
@@ -79,6 +95,11 @@ export const ITEM_DEFINITIONS = {
   iron_piece: defineItem('iron_piece', 'Iron Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.iron'], undefined, { key: 'item_cf_iron_piece' }),
   copper_piece: defineItem('copper_piece', 'Copper Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.copper'], undefined, { key: 'item_cf_copper_piece' }),
   gold_piece: defineItem('gold_piece', 'Gold Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.gold'], undefined, { key: 'item_cf_gold_piece' }),
+  emerald_piece: defineItem('emerald_piece', 'Emerald Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.emerald'], undefined, { key: 'item_cf_emerald_piece' }),
+  sapphire_piece: defineItem('sapphire_piece', 'Sapphire Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.sapphire'], undefined, { key: 'item_cf_sapphire_piece' }),
+  topaz_piece: defineItem('topaz_piece', 'Topaz Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.topaz'], undefined, { key: 'item_cf_topaz_piece' }),
+  ruby_piece: defineItem('ruby_piece', 'Ruby Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.ruby'], undefined, { key: 'item_cf_ruby_piece' }),
+  amethyst_piece: defineItem('amethyst_piece', 'Amethyst Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.amethyst'], undefined, { key: 'item_cf_amethyst_piece' }),
   iron_ore: defineItem('iron_ore', 'Iron Ore Chunk', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.iron'], undefined, { key: 'item_cf_iron_ore' }),
   copper_ore: defineItem('copper_ore', 'Copper Ore Chunk', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.copper'], undefined, { key: 'item_cf_copper_ore' }),
   gold_ore: defineItem('gold_ore', 'Gold Ore Chunk', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.gold'], undefined, { key: 'item_cf_gold_ore' }),
@@ -97,20 +118,35 @@ export const ITEM_DEFINITIONS = {
   workbench: defineItem('workbench', 'Workbench', 16, ['item.placeable', 'item.crafted', 'station.workbench'], undefined, { key: 'prop_cf_workbench' }),
   anvil: defineItem('anvil', 'Anvil', 1, ['item.placeable', 'item.crafted', 'station.anvil'], undefined, { key: 'prop_cf_anvil', animation: 'animate' }),
   campfire: defineItem('campfire', 'Campfire', 16, ['item.placeable', 'item.crafted', 'station.campfire', 'emits.light'], undefined, { key: 'prop_cf_campfire', animation: 'burn' }),
-  furnace: defineItem('furnace', 'Furnace', 1, ['item.placeable', 'item.crafted', 'station.furnace', 'container.furnace'], undefined, { key: 'prop_cf_furnace', animation: 'off' }),
+  cooking_fire: defineItem('cooking_fire', 'Cooking Fire', 1, ['item.placeable', 'station.campfire', 'container.cooking_fire', PLACEABLE_INTERFACE_TAGS.cooking, 'emits.light'], undefined, { key: 'prop_cf_cooking_fire', animation: 'burn' }),
+  camp_cooking_fire: defineItem('camp_cooking_fire', 'Camp Cooking Fire', 1, ['item.placeable', 'station.campfire', 'container.cooking_fire', PLACEABLE_INTERFACE_TAGS.cooking, 'emits.light'], undefined, { key: 'prop_cf_camp_cooking_fire', animation: 'burn' }),
+  furnace: defineItem('furnace', 'Furnace', 1, ['item.placeable', 'item.crafted', 'station.furnace', 'container.furnace', PLACEABLE_INTERFACE_TAGS.furnace], undefined, { key: 'prop_cf_furnace', animation: 'off' }),
   fence: defineItem('fence', 'Fence', 99, ['item.placeable', 'item.crafted', 'build.fence'], undefined, { key: 'prop_cf_fence_corner' }),
   fence_gate: defineItem('fence_gate', 'Fence Gate', 16, ['item.placeable', 'item.crafted', 'build.fence'], undefined, { key: 'prop_cf_fence_gate' }),
   sign: defineItem('sign', 'Sign', 16, ['item.placeable', 'item.crafted'], undefined, { key: 'prop_cf_sign' }),
   standing_torch: defineItem('standing_torch', 'Standing Torch', 16, ['item.placeable', 'item.crafted', 'emits.light'], undefined, { key: 'prop_cf_standing_torch', animation: 'burn' }),
+  fruit_press: defineItem('fruit_press', 'Fruit Press', 1, ['item.placeable', 'item.crafted', 'station.press', 'container.press', PLACEABLE_INTERFACE_TAGS.press], undefined, { key: 'prop_basket_press' }, 'uncommon'),
+  fermentation_cask: defineItem('fermentation_cask', 'Fermentation Cask', 1, ['item.placeable', 'item.crafted', 'station.cellar', 'container.fermentation', PLACEABLE_INTERFACE_TAGS.fermentation], undefined, { key: 'prop_oak_barrel' }, 'uncommon'),
+  sprinkler: defineItem('sprinkler', 'Sprinkler', 1, ['item.placeable', 'build.automation', 'build.sprinkler'], undefined, { key: 'prop_cf_sprinkler' }, 'uncommon'),
+  shed: defineItem('shed', 'Estate Shed', 1, ['item.placeable', 'item.crafted', 'build.prefab'], undefined, { key: 'building_cf_shed' }, 'uncommon'),
+  greenhouse: defineItem('greenhouse', 'Greenhouse', 1, ['item.placeable', 'item.crafted', 'build.prefab', 'build.greenhouse'], undefined, { key: 'building_cf_greenhouse' }, 'rare'),
+  barn: defineItem('barn', 'Barn', 1, ['item.placeable', 'item.crafted', 'build.prefab'], undefined, { key: 'building_cf_barn' }, 'rare'),
+  coop: defineItem('coop', 'Coop', 1, ['item.placeable', 'item.crafted', 'build.prefab'], undefined, { key: 'building_cf_coop' }, 'uncommon'),
+  silo: defineItem('silo', 'Silo', 1, ['item.placeable', 'item.crafted', 'build.prefab'], undefined, { key: 'building_cf_silo' }, 'rare'),
+  ...FOOD_ITEM_DEFINITIONS,
   ...CROP_SEED_ITEM_DEFINITIONS,
   ...CROP_HARVEST_ITEM_DEFINITIONS,
+  ...PRESERVED_CROP_ITEM_DEFINITIONS,
   apple: defineItem('apple', 'Apple', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_apple' }),
   pear: defineItem('pear', 'Pear', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_pear' }),
   peach: defineItem('peach', 'Peach', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_peach' }),
   cherry: defineItem('cherry', 'Cherries', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_cherry' }),
-  grape: defineItem('grape', 'Grapes', 99, ['item.crop', 'item.food', 'crop.grape'], undefined, { key: 'item_cf_crop_grape' }),
+  grape: defineItem('grape', 'Grapes', 99, ['item.crop', 'item.food', 'crop.grape', 'crop.fruit'], undefined, { key: 'item_cf_crop_grape' }),
+  must: defineItem('must', 'Fresh Must', 99, ['item.resource', 'item.cellar', 'cellar.must'], undefined, { key: 'icon_resource_must' }, 'uncommon'),
+  pomace: defineItem('pomace', 'Pomace', 99, ['item.resource', 'item.cellar', 'cellar.pomace'], undefined, { key: 'icon_resource_pomace' }),
+  bottles: defineItem('bottles', 'Estate Bottles', 99, ['item.product', 'item.cellar', 'cellar.bottles'], undefined, { key: 'icon_resource_bottles' }, 'rare'),
   orchard_tea: defineItem('orchard_tea', 'Orchard Tea', 8, ['item.consumable', 'item.food', 'effect.orchard_tea'], undefined, { key: 'icon_cf_effect_orchard_tea' }),
-  barrel: defineItem('barrel', 'Barrel', 16, ['item.placeable', 'item.crafted', 'container.barrel'], undefined, { key: 'prop_cf_barrel', animation: 'closed' }),
+  barrel: defineItem('barrel', 'Barrel', 16, ['item.placeable', 'item.crafted', 'container.barrel', PLACEABLE_INTERFACE_TAGS.barrel], undefined, { key: 'prop_cf_barrel', animation: 'closed' }),
   backpack: defineItem('backpack', 'Backpack', 1, ['item.equipment', 'container.backpack'], undefined, { key: 'item_cf_backpack' }, 'uncommon'),
   necklace: defineItem('necklace', 'Necklace', 1, ['item.equipment', 'gear.neck'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'neck' }, 'epic'),
   helm: defineItem('helm', 'Helm', 1, ['item.equipment', 'gear.head'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'head' }, 'uncommon'),
@@ -154,6 +190,8 @@ export function itemStacksCompatible(left: ItemStack, right: ItemStack): boolean
 export interface SlotRestriction {
   readonly acceptedKinds?: readonly string[];
   readonly requiredTags?: readonly string[];
+  /** Output/result cells may be extracted from but never used as a move target. */
+  readonly readOnly?: boolean;
 }
 
 export interface ContainerSnapshot {
@@ -300,6 +338,21 @@ export function itemDefinition(itemKind: string): ItemDefinition | null {
     : null;
 }
 
+export function itemHasTag(itemKind: string, tag: string): boolean {
+  return itemDefinition(itemKind)?.tags.includes(tag) === true;
+}
+
+export function placeableInterface(itemKind: string): PlaceableInterface | null {
+  for (const [capability, tag] of Object.entries(PLACEABLE_INTERFACE_TAGS) as readonly [PlaceableInterface, string][]) {
+    if (itemHasTag(itemKind, tag)) return capability;
+  }
+  return null;
+}
+
+export function placeableHasInterface(itemKind: string, capability: PlaceableInterface): boolean {
+  return itemHasTag(itemKind, PLACEABLE_INTERFACE_TAGS[capability]);
+}
+
 export function itemModifiers(itemKind: string): readonly Modifier[] {
   return itemDefinition(itemKind)?.modifiers ?? [];
 }
@@ -312,6 +365,7 @@ export function slotAcceptsItem(container: ContainerSnapshot, index: number, ite
   const definition = itemDefinition(itemKind);
   if (!definition || !Number.isSafeInteger(index) || index < 0 || index >= container.capacity) return false;
   const restriction = container.restrictions?.[index];
+  if (restriction?.readOnly === true) return false;
   if (!restriction) return true;
   if (restriction.acceptedKinds && !restriction.acceptedKinds.includes(itemKind)) return false;
   return (restriction.requiredTags ?? []).every((tag) => definition.tags.includes(tag));

@@ -11,6 +11,7 @@ import {
   type SurvivalBiome,
 } from './survival-world.js';
 import { authorityDayProgress, dayProgressAtClockTime } from './time.js';
+import { AUTHORITY_HZ } from './net-timing.js';
 import {
   FIXED_UNITS_PER_PIXEL,
   TILE_SIZE_FIXED,
@@ -25,6 +26,11 @@ import type { NpcFacing } from './npc.js';
 export const WILDLIFE_GENERATION_VERSION = 5;
 export const WILDLIFE_FIRST_NPC_ID = 10_000;
 export const WILDLIFE_ACTIVE_RADIUS_CHUNKS = 3;
+/** Nearby animals of the same kind share danger for eight seconds. */
+export const WILDLIFE_PANIC_DURATION_TICKS = 8 * AUTHORITY_HZ;
+export const WILDLIFE_PANIC_RADIUS_FIXED = 7 * TILE_SIZE_FIXED;
+/** A hit moves an animal four pixels before its sustained flee begins. */
+export const WILDLIFE_KNOCKBACK_FIXED = 4 * FIXED_UNITS_PER_PIXEL;
 
 export const WILDLIFE_SPECIES = [
   'horse', 'cow', 'sheep', 'pig', 'chicken', 'rooster',
@@ -388,6 +394,12 @@ export function isWildlifeSpecies(value: string): value is WildlifeSpecies {
   return (WILDLIFE_SPECIES as readonly string[]).includes(value);
 }
 
+/** Roosters and chickens share alarm calls; other authored species currently
+ * panic with their exact species only. */
+export function wildlifePanicGroup(species: WildlifeSpecies): string {
+  return species === 'chicken' || species === 'rooster' ? 'chicken' : species;
+}
+
 export function wildlifeMovementMedium(species: WildlifeSpecies): MovementMedium {
   const locomotion = WILDLIFE_DEFINITIONS[species].locomotion;
   if (locomotion === 'swim') return 'water';
@@ -437,6 +449,129 @@ function facingForMovement(direction: WildlifeMovementDirection): NpcFacing {
   if (direction.endsWith('left')) return 'left';
   if (direction.endsWith('right')) return 'right';
   return direction as NpcFacing;
+}
+
+function panicDirections(
+  state: Pick<AmbientWildlifeState, 'id' | 'position'>,
+  threat: Vec2Fixed,
+  authorityTick: number,
+): readonly WildlifeMovementDirection[] {
+  let awayX = state.position.x - threat.x;
+  let awayY = state.position.y - threat.y;
+  if (awayX === 0 && awayY === 0) {
+    const fallback = wildlifeHash(Number(state.id & 0xffff_ffffn), authorityTick, 0x50414e49);
+    const direction = MOVEMENT_DIRECTIONS[fallback % MOVEMENT_DIRECTIONS.length] ?? 'right';
+    const vector = DIRECTION_VECTORS[direction];
+    awayX = vector[0];
+    awayY = vector[1];
+  }
+  const tieSalt = wildlifeHash(Number(state.id & 0xffff_ffffn), authorityTick, 0x464c4545);
+  return [...MOVEMENT_DIRECTIONS].sort((left, right) => {
+    const leftVector = DIRECTION_VECTORS[left];
+    const rightVector = DIRECTION_VECTORS[right];
+    const leftLength = leftVector[0] !== 0 && leftVector[1] !== 0 ? Math.SQRT2 : 1;
+    const rightLength = rightVector[0] !== 0 && rightVector[1] !== 0 ? Math.SQRT2 : 1;
+    const leftScore = (leftVector[0] * awayX + leftVector[1] * awayY) / leftLength;
+    const rightScore = (rightVector[0] * awayX + rightVector[1] * awayY) / rightLength;
+    if (rightScore !== leftScore) return rightScore - leftScore;
+    return wildlifeHash(tieSalt, MOVEMENT_DIRECTIONS.indexOf(left), 0)
+      - wildlifeHash(tieSalt, MOVEMENT_DIRECTIONS.indexOf(right), 0);
+  });
+}
+
+function wildlifeStepCandidate(
+  position: Vec2Fixed,
+  direction: WildlifeMovementDirection,
+  speedFixed: number,
+): Vec2Fixed {
+  const vector = DIRECTION_VECTORS[direction];
+  const diagonal = vector[0] !== 0 && vector[1] !== 0;
+  const step = diagonal ? Math.max(1, Math.floor(speedFixed * Math.SQRT1_2)) : speedFixed;
+  return { x: position.x + vector[0] * step, y: position.y + vector[1] * step };
+}
+
+function wildlifeCandidateAllowed(
+  position: Vec2Fixed,
+  candidate: Vec2Fixed,
+  species: WildlifeSpecies,
+  collision: CollisionMap,
+  seed: number,
+): boolean {
+  const definition = WILDLIFE_DEFINITIONS[species];
+  const tileX = Math.floor(candidate.x / TILE_SIZE_FIXED);
+  const tileY = Math.floor(candidate.y / TILE_SIZE_FIXED);
+  const airborneTraversalAllowed = definition.locomotion === 'flutter'
+    && tileX >= 0 && tileY >= 0 && tileX < SURVIVAL_WORLD_SIZE && tileY < SURVIVAL_WORLD_SIZE;
+  if (!wildlifeHabitatAllowsTile(definition.habitat, seed, tileX, tileY)
+    && !airborneTraversalAllowed) return false;
+  return definition.ignoresObstacles || movementPositionAllowed(position, candidate, collision);
+}
+
+export interface StepPanickedWildlifeOptions {
+  readonly species: WildlifeSpecies;
+  readonly authorityTick: number;
+  readonly collision: CollisionMap;
+  readonly threat: Vec2Fixed;
+  readonly seed?: number;
+}
+
+/** Panic deliberately ignores the home leash. Once it expires, the ambient
+ * walker sees the animal outside its leash and guides it home naturally. */
+export function stepPanickedWildlife(
+  state: AmbientWildlifeState,
+  options: StepPanickedWildlifeOptions,
+): AmbientWildlifeState {
+  const seed = options.seed ?? SURVIVAL_WORLD_SEED;
+  const speed = WILDLIFE_DEFINITIONS[options.species].speedFixed * 2;
+  const directions = panicDirections(state, options.threat, options.authorityTick);
+  for (const direction of directions) {
+    const candidate = wildlifeStepCandidate(state.position, direction, speed);
+    if (!wildlifeCandidateAllowed(state.position, candidate, options.species, options.collision, seed)) continue;
+    return {
+      ...state,
+      position: candidate,
+      facing: facingForMovement(direction),
+      moving: true,
+      activity: 'panic',
+    };
+  }
+  return {
+    ...state,
+    facing: facingForMovement(directions[0] ?? 'right'),
+    moving: false,
+    activity: 'panic',
+  };
+}
+
+export interface KnockbackWildlifeOptions {
+  readonly species: WildlifeSpecies;
+  readonly collision: CollisionMap;
+  readonly threat: Vec2Fixed;
+  readonly seed?: number;
+}
+
+/** Resolves hit displacement in one-pixel collision-safe substeps so melee and
+ * arrows cannot push animals through terrain or authored obstacles. */
+export function knockbackWildlife(
+  position: Vec2Fixed,
+  options: KnockbackWildlifeOptions,
+): Vec2Fixed {
+  const seed = options.seed ?? SURVIVAL_WORLD_SEED;
+  let moved = position;
+  const state = { id: 0n, position };
+  const directions = panicDirections(state, options.threat, 0);
+  for (let distance = 0; distance < WILDLIFE_KNOCKBACK_FIXED; distance += FIXED_UNITS_PER_PIXEL) {
+    let next = moved;
+    for (const direction of directions) {
+      const candidate = wildlifeStepCandidate(moved, direction, FIXED_UNITS_PER_PIXEL);
+      if (!wildlifeCandidateAllowed(moved, candidate, options.species, options.collision, seed)) continue;
+      next = candidate;
+      break;
+    }
+    if (next === moved) break;
+    moved = next;
+  }
+  return moved;
 }
 
 function insideLeash(position: Vec2Fixed, home: Vec2Fixed, radius: number): boolean {

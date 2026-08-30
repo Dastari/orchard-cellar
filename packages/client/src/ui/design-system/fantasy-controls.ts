@@ -258,6 +258,32 @@ function catalogIndex(column: number, row: number): number {
   return fantasyIconCellIndex({ column, row });
 }
 
+export type FantasyAudioIcon = 'music' | 'sound';
+export type FantasyAudioIconState = 'normal' | 'muted' | 'enabled';
+
+const FANTASY_AUDIO_ICON_CELLS: Readonly<Record<
+  FantasyAudioIcon,
+  Readonly<Record<FantasyAudioIconState, number>>
+>> = {
+  music: {
+    normal: catalogIndex(9, 4),
+    muted: catalogIndex(11, 4),
+    enabled: catalogIndex(13, 4),
+  },
+  sound: {
+    normal: catalogIndex(10, 4),
+    muted: catalogIndex(12, 4),
+    enabled: catalogIndex(14, 4),
+  },
+};
+
+export function fantasyAudioIconFrame(
+  icon: FantasyAudioIcon,
+  state: FantasyAudioIconState = 'normal',
+): number {
+  return FANTASY_AUDIO_ICON_CELLS[icon][state];
+}
+
 export interface FantasyIconDefinition {
   readonly id: string;
   readonly label: string;
@@ -286,6 +312,12 @@ export const FANTASY_ICON_FAMILIES: readonly FantasyIconDefinition[] = [
   // simple +15 offset used by the earlier one-to-one icons.
   { id: 'mail', label: 'Mail', frames: [catalogIndex(14, 1)], outline: catalogIndex(26, 1) },
   { id: 'backpack', label: 'Backpack', frames: [catalogIndex(9, 2), catalogIndex(10, 2)], outline: catalogIndex(24, 2), fps: 4 },
+  { id: 'music', label: 'Music', frames: [
+    fantasyAudioIconFrame('music'), fantasyAudioIconFrame('music', 'muted'), fantasyAudioIconFrame('music', 'enabled'),
+  ] },
+  { id: 'sound', label: 'Sound', frames: [
+    fantasyAudioIconFrame('sound'), fantasyAudioIconFrame('sound', 'muted'), fantasyAudioIconFrame('sound', 'enabled'),
+  ] },
 ] as const;
 
 export function fantasyIconFrameIndex(

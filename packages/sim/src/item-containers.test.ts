@@ -52,6 +52,13 @@ describe('shared container stacking rules', () => {
     expect(slotAcceptsItem(hand, 0, 'wood')).toBe(false);
   });
 
+  it('treats authority-owned output slots as read-only destinations', () => {
+    const output = {
+      id: 'processor', capacity: 1, slots: [null], restrictions: { 0: { readOnly: true } },
+    } as const;
+    expect(slotAcceptsItem(output, 0, 'iron_bar')).toBe(false);
+  });
+
   it('stacks every raw ore and rejects ore from tool-only slots', () => {
     const hand = { id: 'hand', capacity: 1, slots: [null], restrictions: { 0: { requiredTags: ['item.tool'] } } } as const;
     for (const itemKind of ['iron_ore', 'copper_ore', 'gold_ore', 'emerald_ore', 'sapphire_ore', 'topaz_ore', 'ruby_ore', 'amethyst_ore']) {

@@ -9,7 +9,7 @@ import type { Identity } from 'spacetimedb';
 import { DbConnection, tables, type SubscriptionHandle } from './generated/index.js';
 import { localProfilesEnabled, oidcConfigured, readOidcSession } from '../auth/oidc.js';
 import type {
-  CellarExcavation, CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, Homestead, InventorySlot, Membership, PlayerAppearance, PlayerEffect, PlayerPosition, PlayerPublic, PlayerQuest, PlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, SessionChatNotice,
+  CellarExcavation, CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, Homestead, HomesteadGuest, HomesteadUpgrade, InventorySlot, Membership, PlayerAppearance, PlayerCookingJob, PlayerEffect, PlayerKnownRecipe, PlayerPosition, PlayerPublic, PlayerQuest, PlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, SessionChatNotice,
   SpacePortal, WorldCampfireState, WorldChest, WorldChestSlot, WorldClock, WorldCombatTarget, WorldCrop, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
   WorldSurface,
 } from './generated/types.js';
@@ -26,7 +26,7 @@ const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILE
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
 const RTT_SAMPLE_CAPACITY = 256;
-const REGION_RANGE_QUERIES = 19;
+const REGION_RANGE_QUERIES = 16;
 export const MAX_VIEW_RADIUS = 9;
 export const REGION_CENTER_DEADBAND_TILES = 8;
 
@@ -136,9 +136,12 @@ export interface OverworldView {
   readonly hives: ReadonlyKeyedStore<bigint, WorldHive>;
   readonly portals: ReadonlyKeyedStore<number, SpacePortal>;
   readonly homesteads: ReadonlyKeyedStore<number, Homestead>;
+  readonly homesteadUpgrades: ReadonlyKeyedStore<string, HomesteadUpgrade>;
+  readonly homesteadMembers: ReadonlyKeyedStore<string, HomesteadGuest>;
   readonly cellarExcavations: ReadonlyKeyedStore<string, CellarExcavation>;
   readonly surfaces: ReadonlyKeyedStore<bigint, WorldSurface>;
   readonly inventorySlots: ReadonlyKeyedStore<number, InventorySlot>;
+  readonly knownRecipes: ReadonlyKeyedStore<string, PlayerKnownRecipe>;
   readonly inventoryCursor: ItemStack | null;
   readonly effects: ReadonlyKeyedStore<bigint, PlayerEffect>;
   readonly openChestSlots: ReadonlyKeyedStore<number, WorldChestSlot>;
@@ -152,6 +155,7 @@ export interface OverworldView {
   readonly stats: PlayerStats | null;
   readonly activeChest: WorldChest | null;
   readonly activePlaceable: WorldPlaceable | null;
+  readonly cookingJob: PlayerCookingJob | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
   readonly tradeSession: PlayerTradeSession | null;
   readonly tradeOffers: ReadonlyKeyedStore<string, PlayerTradeOffer>;
@@ -175,14 +179,16 @@ export interface OverworldSnapshot {
   readonly wildlifeProfiles: readonly WorldWildlifeProfile[]; readonly hives: readonly WorldHive[];
   readonly portals: readonly SpacePortal[];
   readonly homesteads: readonly Homestead[];
+  readonly homesteadUpgrades: readonly HomesteadUpgrade[];
+  readonly homesteadMembers: readonly HomesteadGuest[];
   readonly cellarExcavations: readonly CellarExcavation[];
   readonly surfaces: readonly WorldSurface[];
-  readonly inventorySlots: readonly InventorySlot[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly openPlaceableSlots: readonly WorldPlaceableSlot[]; readonly chatChannels: readonly ChatChannel[];
+  readonly inventorySlots: readonly InventorySlot[]; readonly knownRecipes: readonly PlayerKnownRecipe[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly openPlaceableSlots: readonly WorldPlaceableSlot[]; readonly chatChannels: readonly ChatChannel[];
   readonly inventoryCursor: ItemStack | null;
   readonly effects: readonly PlayerEffect[];
   readonly chatMessages: readonly ChatMessage[]; readonly sessionChatNotices: readonly SessionChatNotice[]; readonly worldSpeech: readonly WorldSpeech[];
   readonly motd: string | null; readonly characterProfile: CharacterProfile | null;
-  readonly membership: Membership | null; readonly survival: PlayerSurvival | null; readonly stats: PlayerStats | null; readonly activeChest: WorldChest | null; readonly activePlaceable: WorldPlaceable | null;
+  readonly membership: Membership | null; readonly survival: PlayerSurvival | null; readonly stats: PlayerStats | null; readonly activeChest: WorldChest | null; readonly activePlaceable: WorldPlaceable | null; readonly cookingJob: PlayerCookingJob | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
   readonly tradeSession: PlayerTradeSession | null; readonly tradeOffers: readonly PlayerTradeOffer[];
   readonly quests: readonly PlayerQuest[]; readonly questBaselines: readonly PlayerQuestBaseline[];
@@ -208,6 +214,7 @@ export interface TimedProjectileCommit {
 }
 
 export interface CombatTextCommit {
+  readonly targetKind: 'combat_target' | 'npc';
   readonly targetId: bigint;
   readonly amountCenti: number;
   readonly critical: boolean;
@@ -237,6 +244,7 @@ export class OverworldConnection {
   private globalSubscription: SubscriptionHandle | null = null;
   private selfSubscription: SubscriptionHandle | null = null;
   private regionSubscription: SubscriptionHandle | null = null;
+  private regionAuxiliarySubscription: SubscriptionHandle | null = null;
   private timeSubscriptionPending = false;
   private globalBootstrapComplete = false;
   private timeRecoveryTimer: number | null = null;
@@ -293,9 +301,12 @@ export class OverworldConnection {
   private readonly hives = new KeyedStore<bigint, WorldHive>();
   private readonly portals = new KeyedStore<number, SpacePortal>();
   private readonly homesteads = new KeyedStore<number, Homestead>();
+  private readonly homesteadUpgrades = new KeyedStore<string, HomesteadUpgrade>();
+  private readonly homesteadMembers = new KeyedStore<string, HomesteadGuest>();
   private readonly cellarExcavations = new KeyedStore<string, CellarExcavation>();
   private readonly surfaces = new KeyedStore<bigint, WorldSurface>();
   private readonly inventorySlots = new KeyedStore<number, InventorySlot>();
+  private readonly knownRecipes = new KeyedStore<string, PlayerKnownRecipe>();
   private inventoryCursor: ItemStack | null = null;
   private readonly effects = new KeyedStore<bigint, PlayerEffect>();
   private readonly openChestSlots = new KeyedStore<number, WorldChestSlot>();
@@ -311,6 +322,7 @@ export class OverworldConnection {
   private stats: PlayerStats | null = null;
   private activeChest: WorldChest | null = null;
   private activePlaceable: WorldPlaceable | null = null;
+  private cookingJob: PlayerCookingJob | null = null;
   private activeDialogue: ActiveDialogue | null = null;
   private readonly quests = new KeyedStore<string, PlayerQuest>();
   private readonly questBaselines = new KeyedStore<string, PlayerQuestBaseline>();
@@ -369,11 +381,17 @@ export class OverworldConnection {
         if (this.timeRecoveryTimer !== null) window.clearTimeout(this.timeRecoveryTimer);
         this.heartbeatTimer = null; this.timeCacheWatchdogTimer = null; this.timeRecoveryTimer = null;
         this.inputReady = false; this.connected = false;
-        this.error = error?.message ?? 'disconnected'; this.prediction.reset(); this.sentAt.clear();
-        this.sessionChatNotices.clear(); this.inventoryCursor = null;
+        // A close without a reason commonly follows a more useful connect
+        // error; retain that diagnostic instead of replacing it with the
+        // content-free word "disconnected".
+        this.error = error?.message ?? this.error ?? 'disconnected'; this.prediction.reset(); this.sentAt.clear();
+        this.sessionChatNotices.clear(); this.inventoryCursor = null; this.knownRecipes.clear();
+        this.homesteadUpgrades.clear();
+        this.homesteadMembers.clear();
         this.tradeSession = null; this.tradeOffers.clear();
         this.timeSubscription = null; this.timeRecoverySubscriptions.length = 0;
         this.globalSubscription = null; this.selfSubscription = null; this.regionSubscription = null;
+        this.regionAuxiliarySubscription = null;
         this.timeSubscriptionPending = false; this.globalBootstrapComplete = false;
         this.globalSubscriptionQueryCount = 0; this.selfSubscriptionQueryCount = 0;
         this.activeRegionQueryCount = 0; this.pendingRegionQueryCount = 0; this.onChanged();
@@ -385,11 +403,11 @@ export class OverworldConnection {
       identityHex: this.identity === null ? null : identityHex(this.identity), region: this.region,
       profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers,
       resources: this.resources, soil: this.soil, crops: this.crops, worldItems: this.worldItems, projectiles: this.projectiles, combatTargets: this.combatTargets, chests: this.chests, placeables: this.placeables, campfires: this.campfires, npcs: this.npcs, merchants: this.merchants,
-      wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, homesteads: this.homesteads, cellarExcavations: this.cellarExcavations, surfaces: this.surfaces, inventorySlots: this.inventorySlots, inventoryCursor: this.inventoryCursor, effects: this.effects,
+      wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, homesteads: this.homesteads, homesteadUpgrades: this.homesteadUpgrades, homesteadMembers: this.homesteadMembers, cellarExcavations: this.cellarExcavations, surfaces: this.surfaces, inventorySlots: this.inventorySlots, knownRecipes: this.knownRecipes, inventoryCursor: this.inventoryCursor, effects: this.effects,
       openChestSlots: this.openChestSlots,
       openPlaceableSlots: this.openPlaceableSlots,
       chatChannels: this.chatChannels, chatMessages: this.chatMessages, sessionChatNotices: this.sessionChatNotices, worldSpeech: this.worldSpeech, motd: this.motd,
-      characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest, activePlaceable: this.activePlaceable,
+      characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest, activePlaceable: this.activePlaceable, cookingJob: this.cookingJob,
       activeDialogue: this.activeDialogue, wallet: this.wallet,
       tradeSession: this.tradeSession, tradeOffers: this.tradeOffers,
       quests: this.quests, questBaselines: this.questBaselines, playerStatistics: this.playerStatistics,
@@ -403,8 +421,9 @@ export class OverworldConnection {
     const view = this.view();
     return { ...view, profiles: this.profiles.toArray(), appearances: this.appearances.toArray(),
       players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), crops: this.crops.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), combatTargets: this.combatTargets.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
-      wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(), homesteads: this.homesteads.toArray(), cellarExcavations: this.cellarExcavations.toArray(), surfaces: this.surfaces.toArray(),
+      wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(), homesteads: this.homesteads.toArray(), homesteadUpgrades: this.homesteadUpgrades.toArray(), homesteadMembers: this.homesteadMembers.toArray(), cellarExcavations: this.cellarExcavations.toArray(), surfaces: this.surfaces.toArray(),
       inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot),
+      knownRecipes: this.knownRecipes.toArray().sort((left, right) => left.recipeId.localeCompare(right.recipeId)),
       effects: this.effects.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       openChestSlots: this.openChestSlots.toArray().sort((left, right) => left.slot - right.slot),
       openPlaceableSlots: this.openPlaceableSlots.toArray().sort((left, right) => left.slot - right.slot),
@@ -600,6 +619,13 @@ export class OverworldConnection {
     return this.reducer((connection) => connection.reducers.toggleCampfire({ targetKind, targetId }));
   }
   closePlaceable(): Promise<void> { return this.reducer((connection) => connection.reducers.closePlaceable({})); }
+  sealBarrel(): Promise<void> { return this.reducer((connection) => connection.reducers.sealBarrel({})); }
+  startCooking(targetKind: 'landmark' | 'placeable', targetId: bigint, recipeId: string, quantity: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.startCooking({ targetKind, targetId, recipeId, quantity }));
+  }
+  collectCooking(): Promise<void> { return this.reducer((connection) => connection.reducers.collectCooking({})); }
+  cancelCooking(): Promise<void> { return this.reducer((connection) => connection.reducers.cancelCooking({})); }
+  eatSelectedFood(): Promise<void> { return this.reducer((connection) => connection.reducers.eatSelectedFood({})); }
   interactChest(): Promise<void> { return this.reducer((c) => c.reducers.interactChest({})); }
   closeChest(): Promise<void> { return this.reducer((c) => c.reducers.closeChest({})); }
   harvestResource(resourceId: bigint): Promise<void> { return this.reducer((c) => c.reducers.harvestResource({ resourceId })); }
@@ -680,6 +706,24 @@ export class OverworldConnection {
   }
   consumeOrchardTea(): Promise<void> {
     return this.reducer((connection) => connection.reducers.consumeOrchardTea({}));
+  }
+  readRecipeBook(): Promise<void> {
+    return this.reducer((connection) => connection.reducers.readRecipeBook({}));
+  }
+  placeHomesteadBuildable(itemKind: string, tileX: number, tileY: number): Promise<void> {
+    return this.reducer((connection) => connection.reducers.placeHomesteadBuildable({ itemKind, tileX, tileY }));
+  }
+  removeHomesteadBuildable(placeableId: bigint): Promise<void> {
+    return this.reducer((connection) => connection.reducers.removeHomesteadBuildable({ placeableId }));
+  }
+  purchaseHomesteadUpgrade(upgradeKind: string): Promise<void> {
+    return this.reducer((connection) => connection.reducers.purchaseHomesteadUpgrade({ upgradeKind }));
+  }
+  setHomesteadMemberRole(identity: Identity, role: string): Promise<void> {
+    return this.reducer((connection) => connection.reducers.setHomesteadMemberRole({ identity, role }));
+  }
+  removeHomesteadMember(identity: Identity, kick: boolean): Promise<void> {
+    return this.reducer((connection) => connection.reducers.removeHomesteadMember({ identity, kick }));
   }
   fireBow(aimX: number, aimY: number, chargeMs: number): Promise<void> {
     return this.reducer((connection) => connection.reducers.fireBow({ aimX, aimY, chargeMs }));
@@ -858,7 +902,13 @@ export class OverworldConnection {
       tables.playerAppearance,
       (profile, appearance) => profile.identity.eq(appearance.identity),
     );
-    const queries = [onlineProfiles, onlineAppearances, tables.worldWind, tables.worldSeed];
+    const queries = [
+      onlineProfiles,
+      onlineAppearances,
+      tables.worldWind,
+      tables.worldSeed,
+      tables.worldMerchant,
+    ];
     this.globalSubscriptionQueryCount = queries.length + 2;
     this.globalSubscription = connection.subscriptionBuilder().onApplied(() => {
       this.hydrateGlobals(connection);
@@ -871,12 +921,14 @@ export class OverworldConnection {
     const queries = [
       tables.playerPosition.where((row) => row.identity.eq(identity)),
       tables.ownSurvival,
+      tables.ownCookingJob,
       tables.ownStats,
       tables.ownWallet,
       tables.ownTradeSession,
       tables.ownTradeOffers,
       tables.ownEffects,
       tables.ownInventorySlots,
+      tables.ownKnownRecipes,
       tables.ownInventoryCursor,
       tables.ownActiveChest,
       tables.ownOpenChestSlots,
@@ -893,6 +945,8 @@ export class OverworldConnection {
       tables.ownCharacterProfile,
       tables.ownMembership,
       tables.ownCurrentHomestead,
+      tables.ownHomesteadUpgrades,
+      tables.ownHomesteadMembers,
       tables.ownConnectionNotices,
       tables.ownSessionChatNotices,
       tables.ownChatChannels,
@@ -983,18 +1037,6 @@ export class OverworldConnection {
       .where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
       .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
-    const regionalProfiles = positions.rightSemijoin(
-      tables.playerPublic,
-      (regionalPosition, profile) => regionalPosition.identity.eq(profile.identity),
-    );
-    const regionalAppearances = positions.rightSemijoin(
-      tables.playerAppearance,
-      (regionalPosition, appearance) => regionalPosition.identity.eq(appearance.identity),
-    );
-    const merchants = npcs.rightSemijoin(
-      tables.worldMerchant,
-      (regionalNpc, merchant) => regionalNpc.id.eq(merchant.npcId),
-    );
     const portals = tables.spacePortal.where((row) => row.fromSpace.eq(spaceId));
     const minimumTileX = bounds.minX * SURVIVAL_CHUNK_TILES;
     const minimumTileY = bounds.minY * SURVIVAL_CHUNK_TILES;
@@ -1013,10 +1055,15 @@ export class OverworldConnection {
     const queryCount = regionSubscriptionQueryCount(bounds, spaceId);
     this.pendingRegionQueryCount = queryCount;
     const previous = this.regionSubscription;
+    const previousAuxiliary = this.regionAuxiliarySubscription;
+    this.regionAuxiliarySubscription = connection.subscriptionBuilder().onError((context) => {
+      console.warn('[orchard] Regional metadata subscription failed; core world streaming remains active', context.event);
+    }).subscribe([portals, campfires, ...homesteadQueries]);
     this.regionSubscription = connection.subscriptionBuilder().onApplied(() => this.latency.incoming(() => {
       this.region = [chunkX, chunkY]; this.subscribedRadius = radius; this.subscribedSpaceId = spaceId;
       this.subscribedCenterTiles = centerTiles; this.pendingRegion = null;
       if (previous?.isActive()) previous.unsubscribe();
+      if (previousAuxiliary?.isActive()) previousAuxiliary.unsubscribe();
       this.activeRegionQueryCount = queryCount; this.pendingRegionQueryCount = 0;
       this.handoverCount += 1; this.resourceRevisionValue += 1; this.onChanged();
       const current = this.ownPosition();
@@ -1030,10 +1077,8 @@ export class OverworldConnection {
       console.error('[orchard] Regional world subscription failed', context.event);
       this.onChanged();
     }).subscribe([
-      positions, regionalProfiles, regionalAppearances,
-      resources, soil, crops, worldItems, projectiles, combatTargets, chests, placeables,
-      npcs, merchants, wildlifeProfiles, hives, surfaces, cellarExcavations,
-      portals, campfires, ...homesteadQueries,
+      positions, resources, soil, crops, worldItems, projectiles, combatTargets, chests, placeables,
+      npcs, wildlifeProfiles, hives, surfaces, cellarExcavations,
     ]);
   }
 
@@ -1065,7 +1110,11 @@ export class OverworldConnection {
     connection.db.spacePortal.onDelete((context, row) => incoming(context.event.id, () => this.portals.delete(row.id)));
     connection.db.homestead.onInsert((context, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
     connection.db.homestead.onUpdate((context, _old, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
-    connection.db.homestead.onDelete((context, row) => resource(context.event.id, () => this.homesteads.delete(row.spaceId)));
+    connection.db.homestead.onDelete((context, row) => resource(context.event.id, () => {
+      const current = connection.db.ownCurrentHomestead.spaceId.find(row.spaceId);
+      if (current === null) this.homesteads.delete(row.spaceId);
+      else this.homesteads.set(current.spaceId, current);
+    }));
     connection.db.ownCurrentHomestead.onInsert((context, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
     connection.db.ownCurrentHomestead.onUpdate((context, _old, row) => resource(context.event.id, () => this.homesteads.set(row.spaceId, row)));
     connection.db.ownCurrentHomestead.onDelete((context, row) => resource(context.event.id, () => {
@@ -1121,6 +1170,7 @@ export class OverworldConnection {
       this.combatTargets.set(row.id, row);
       if (row.healthCenti < old.healthCenti) {
         this.combatTextCommits.push({
+          targetKind: 'combat_target',
           targetId: row.id,
           amountCenti: old.healthCenti - row.healthCenti,
           critical: row.lastHitCritical,
@@ -1140,19 +1190,41 @@ export class OverworldConnection {
     connection.db.worldPlaceable.onUpdate((context, _old, row) => resource(context.event.id, () => this.placeables.set(row.id, row)));
     connection.db.worldPlaceable.onDelete((context, row) => resource(context.event.id, () => this.placeables.delete(row.id)));
     connection.db.worldNpc.onInsert((context, row) => incoming(context.event.id, () => this.setNpc(row)));
-    connection.db.worldNpc.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setNpc(row)));
+    connection.db.worldNpc.onUpdate((context, old, row) => incoming(context.event.id, () => {
+      this.setNpc(row);
+      if (row.health < old.health) {
+        this.combatTextCommits.push({
+          targetKind: 'npc',
+          targetId: row.id,
+          amountCenti: (old.health - row.health) * 100,
+          critical: row.lastHitCritical,
+          x: row.x,
+          y: row.y,
+        });
+        if (this.combatTextCommits.length > 64) this.combatTextCommits.shift();
+      }
+    }));
     connection.db.worldNpc.onDelete((context, row) => incoming(context.event.id, () => {
       this.npcs.delete(row.id); this.deletedNpcIds.add(row.id);
     }));
     connection.db.ownSurvival.onInsert((context, row) => incoming(context.event.id, () => { this.survival = row; }));
     connection.db.ownSurvival.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.survival = row; }));
     connection.db.ownSurvival.onDelete((context) => incoming(context.event.id, () => { this.survival = null; }));
+    connection.db.ownCookingJob.onInsert((context, row) => incoming(context.event.id, () => { this.cookingJob = row; }));
+    connection.db.ownCookingJob.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.cookingJob = row; }));
+    connection.db.ownCookingJob.onDelete((context) => incoming(context.event.id, () => { this.cookingJob = null; }));
     connection.db.ownStats.onInsert((context, row) => incoming(context.event.id, () => { this.stats = row; }));
     connection.db.ownStats.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.stats = row; }));
     connection.db.ownStats.onDelete((context) => incoming(context.event.id, () => { this.stats = null; }));
     connection.db.ownWallet.onInsert((context, row) => incoming(context.event.id, () => { this.wallet = row; }));
     connection.db.ownWallet.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.wallet = row; }));
     connection.db.ownWallet.onDelete((context) => incoming(context.event.id, () => { this.wallet = null; }));
+    connection.db.ownHomesteadUpgrades.onInsert((context, row) => incoming(context.event.id, () => this.homesteadUpgrades.set(row.id, row)));
+    connection.db.ownHomesteadUpgrades.onUpdate((context, _old, row) => incoming(context.event.id, () => this.homesteadUpgrades.set(row.id, row)));
+    connection.db.ownHomesteadUpgrades.onDelete((context, row) => incoming(context.event.id, () => this.homesteadUpgrades.delete(row.id)));
+    connection.db.ownHomesteadMembers.onInsert((context, row) => incoming(context.event.id, () => this.homesteadMembers.set(row.id, row)));
+    connection.db.ownHomesteadMembers.onUpdate((context, _old, row) => incoming(context.event.id, () => this.homesteadMembers.set(row.id, row)));
+    connection.db.ownHomesteadMembers.onDelete((context, row) => incoming(context.event.id, () => this.homesteadMembers.delete(row.id)));
     connection.db.ownTradeSession.onInsert((context, row) => incoming(context.event.id, () => { this.tradeSession = row; }));
     connection.db.ownTradeSession.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.tradeSession = row; }));
     connection.db.ownTradeSession.onDelete((context) => incoming(context.event.id, () => { this.tradeSession = null; this.tradeOffers.clear(); }));
@@ -1185,6 +1257,9 @@ export class OverworldConnection {
     connection.db.ownInventorySlots.onInsert((context, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
     connection.db.ownInventorySlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.inventorySlots.set(row.slot, row)));
     connection.db.ownInventorySlots.onDelete((context, row) => incoming(context.event.id, () => this.inventorySlots.delete(row.slot)));
+    connection.db.ownKnownRecipes.onInsert((context, row) => incoming(context.event.id, () => this.knownRecipes.set(row.recipeId, row)));
+    connection.db.ownKnownRecipes.onUpdate((context, _old, row) => incoming(context.event.id, () => this.knownRecipes.set(row.recipeId, row)));
+    connection.db.ownKnownRecipes.onDelete((context, row) => incoming(context.event.id, () => this.knownRecipes.delete(row.recipeId)));
     connection.db.ownInventoryCursor.onInsert((context, row) => incoming(context.event.id, () => {
       this.inventoryCursor = { itemKind: row.itemKind, quantity: row.quantity, durability: row.durability, lit: row.lit };
     }));
@@ -1326,6 +1401,7 @@ export class OverworldConnection {
   }
   private hydrateSelf(connection: DbConnection): void {
     for (const row of connection.db.ownInventorySlots.iter()) this.inventorySlots.set(row.slot, row);
+    this.knownRecipes.clear(); for (const row of connection.db.ownKnownRecipes.iter()) this.knownRecipes.set(row.recipeId, row);
     const cursor = [...connection.db.ownInventoryCursor.iter()][0];
     this.inventoryCursor = cursor === undefined ? null : {
       itemKind: cursor.itemKind, quantity: cursor.quantity, durability: cursor.durability, lit: cursor.lit,
@@ -1344,6 +1420,7 @@ export class OverworldConnection {
     this.motd = null;
     for (const row of connection.db.ownConnectionNotices.iter()) this.setConnectionNotice(connection, row);
     this.survival = [...connection.db.ownSurvival.iter()][0] ?? null;
+    this.cookingJob = [...connection.db.ownCookingJob.iter()][0] ?? null;
     this.stats = [...connection.db.ownStats.iter()][0] ?? null;
     this.wallet = [...connection.db.ownWallet.iter()][0] ?? null;
     this.tradeSession = [...connection.db.ownTradeSession.iter()][0] ?? null;
@@ -1351,6 +1428,10 @@ export class OverworldConnection {
     this.activeDialogue = [...connection.db.ownActiveDialogue.iter()][0] ?? null;
     const currentHomestead = [...connection.db.ownCurrentHomestead.iter()][0];
     if (currentHomestead !== undefined) this.homesteads.set(currentHomestead.spaceId, currentHomestead);
+    this.homesteadUpgrades.clear();
+    for (const row of connection.db.ownHomesteadUpgrades.iter()) this.homesteadUpgrades.set(row.id, row);
+    this.homesteadMembers.clear();
+    for (const row of connection.db.ownHomesteadMembers.iter()) this.homesteadMembers.set(row.id, row);
     this.quests.clear(); for (const row of connection.db.ownPlayerQuests.iter()) this.quests.set(row.id, row);
     this.questBaselines.clear(); for (const row of connection.db.ownPlayerQuestBaselines.iter()) this.questBaselines.set(row.id, row);
     this.playerStatistics.clear(); for (const row of connection.db.ownPlayerStatistics.iter()) this.playerStatistics.set(row.id, row);

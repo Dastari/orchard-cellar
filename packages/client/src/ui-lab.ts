@@ -6,6 +6,12 @@ import {
 import { dismissLoadingScreen, setLoadingScreenStage } from './loading-screen.js';
 import { loadGeneratedAsset, type LoadedAsset } from './render/assets.js';
 import {
+  CUTE_FANTASY_ACTOR_CATALOG,
+  cuteFantasyActor,
+  type CuteFantasyActorCatalogEntry,
+  type CuteFantasyActorKind,
+} from './render/cute-fantasy-actor-library.js';
+import {
   drawOutlinedPixelText,
   drawPixelText,
   drawPixelTextInRect,
@@ -30,11 +36,15 @@ import {
   UiFrameResizeController,
   uiBookPageRects,
   uiContainerVariant,
+  uiFrameBodyRect,
+  uiFrameControlLayout,
   uiFrameContentRect,
   type UiFrameStyle,
+  type UiInventoryGroupOptions,
   type UiInventorySlotRef,
   UiInventoryInteractionModel,
   drawUiInventorySlot,
+  layoutUiInventoryGroup,
   layoutUiFlex,
   layoutUiGrid,
   layoutUiRichText,
@@ -66,19 +76,34 @@ import { Ribbon } from './ui/ribbon.js';
 import { ScrollBar } from './ui/scrollbar.js';
 import {
   drawUiLabelPlate,
+  uiAssetFrame,
   drawUiSkinAsset,
   drawUiSkinNatural,
   loadUiSkin,
   type UiIconName,
 } from './ui/skin.js';
-import { Slider } from './ui/slider.js';
+import {
+  AUTHORED_SLIDER_CATALOG_COLUMNS,
+  AUTHORED_SLIDER_CATALOG_ROWS,
+  Slider,
+  drawAuthoredSliderCell,
+} from './ui/slider.js';
+import {
+  AUTHORED_SELECTOR_COLUMNS,
+  AUTHORED_SELECTOR_ROWS,
+  drawAuthoredSelectorCell,
+} from './ui/selector.js';
 import {
   drawSpeechBubble,
   speechBubbleLayout,
   type SpeechBubbleDirection,
   type SpeechBubbleKind,
 } from './ui/speech-bubble.js';
-import { Toggle } from './ui/toggle.js';
+import { Toggle, drawToggleSwitch } from './ui/toggle.js';
+import {
+  UI_LAB_MIGRATION_SURFACES,
+  type UiLabMigrationSurfaceId,
+} from './ui/ui-lab-catalog.js';
 
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
 const shellElement = document.querySelector<HTMLElement>('#game-shell');
@@ -90,7 +115,7 @@ if (canvasContext === null) throw new Error('Canvas 2D unavailable');
 const context: CanvasRenderingContext2D = canvasContext;
 
 canvas.classList.add('ui-lab-canvas');
-canvas.setAttribute('aria-label', 'Orchard and Cellar public UI component lab. Pan and zoom an infinite specimen canvas.');
+canvas.setAttribute('aria-label', `Orchard and Cellar public UI component lab with 27 live UI migration candidates and ${CUTE_FANTASY_ACTOR_CATALOG.length} imported actor and effect specimens. Pan and zoom the specimen canvas; press M to jump to the live UI gallery.`);
 shell.classList.add('ui-lab-shell');
 
 setLoadingScreenStage({
@@ -98,8 +123,9 @@ setLoadingScreenStage({
 });
 
 const ITEM_ART_KINDS = [
-  'wood', 'stone', 'apple', 'grape', 'axe', 'pickaxe', 'torch', 'lantern',
-  'ring', 'helm', 'tunic', 'backpack', 'chest', 'orchard_tea',
+  'wood', 'plank', 'stone', 'iron_ore', 'iron_bar', 'apple', 'grape', 'axe', 'pickaxe', 'torch', 'lantern',
+  'ring', 'helm', 'tunic', 'backpack', 'chest', 'barrel', 'workbench', 'furnace',
+  'cooking_fire', 'orchard_tea',
 ] as const;
 
 const [fonts, skin, itemArtEntries] = await Promise.all([
@@ -137,7 +163,7 @@ liveStatus.setAttribute('aria-live', 'polite');
 liveStatus.setAttribute('aria-label', 'UI lab interaction status');
 shell.append(liveStatus);
 
-const WORLD_BOUNDS: UiRect = { x: 0, y: 0, width: 2520, height: 3070 };
+const WORLD_BOUNDS: UiRect = { x: 0, y: 0, width: 5900, height: 4750 };
 const SECTIONS = {
   foundations: { x: 60, y: 100, width: 720, height: 430 },
   frames: { x: 820, y: 100, width: 880, height: 650 },
@@ -146,7 +172,9 @@ const SECTIONS = {
   feedback: { x: 820, y: 790, width: 880, height: 570 },
   patterns: { x: 1740, y: 790, width: 720, height: 570 },
   books: { x: 60, y: 1400, width: 2400, height: 650 },
-  fantasyControls: { x: 60, y: 2090, width: 2400, height: 920 },
+  fantasyControls: { x: 60, y: 2090, width: 2400, height: 1000 },
+  actors: { x: 60, y: 3130, width: 2400, height: 1000 },
+  migration: { x: 2540, y: 70, width: 3300, height: 4440 },
 } as const;
 
 let cssWidth = 1;
@@ -167,15 +195,51 @@ let markdownBookSpread = 0;
 let richTextLayout: UiRichTextLayout | null = null;
 let inputRect: UiRect = { x: 0, y: 0, width: 0, height: 0 };
 let sliderRect: UiRect = { x: 0, y: 0, width: 0, height: 0 };
+let verticalSliderRect: UiRect = { x: 0, y: 0, width: 0, height: 0 };
 let scrollRect: UiRect = { x: 0, y: 0, width: 0, height: 0 };
 let renderRequest: number | null = null;
+let actorAnimationTimer: number | null = null;
+let uiLabDisposed = false;
+const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+let selectedActorKind: CuteFantasyActorKind | 'all' = 'all';
+let selectedActorId = 'npc_cf_farmer_bob';
+let actorCatalogPage = 0;
+const actorAssetCache = new Map<string, LoadedAsset>();
+const actorAssetLoads = new Map<string, Promise<void>>();
+const actorAssetErrors = new Set<string>();
 
 function requestUiLabRender(): void {
-  if (renderRequest !== null) return;
+  if (uiLabDisposed || renderRequest !== null) return;
   renderRequest = requestAnimationFrame(() => {
     renderRequest = null;
     render();
   });
+}
+
+function scheduleActorAnimationRender(): void {
+  if (uiLabDisposed || reducedMotionQuery.matches || actorAnimationTimer !== null) return;
+  actorAnimationTimer = window.setTimeout(() => {
+    actorAnimationTimer = null;
+    requestUiLabRender();
+  }, 80);
+}
+
+function requestActorAsset(name: string): LoadedAsset | null {
+  const loaded = actorAssetCache.get(name);
+  if (loaded !== undefined) return loaded;
+  if (!actorAssetLoads.has(name) && !actorAssetErrors.has(name)) {
+    const load = loadGeneratedAsset(name, 'summer')
+      .then((asset) => {
+        actorAssetCache.set(name, asset);
+        requestUiLabRender();
+      })
+      .catch(() => {
+        actorAssetErrors.add(name);
+        requestUiLabRender();
+      });
+    actorAssetLoads.set(name, load);
+  }
+  return null;
 }
 
 function notify(message: string): void {
@@ -236,6 +300,22 @@ const slider = new Slider({
   id: 'ui-lab-slider', skin, value: 0.62,
   onChange: (value) => notify(`SLIDER ${(value * 100).toFixed(0)}%`),
 });
+const verticalSlider = new Slider({
+  id: 'ui-lab-slider-vertical', skin, value: 0.35, orientation: 'vertical', tone: 'green',
+  onChange: (value) => notify(`VERTICAL SLIDER ${(value * 100).toFixed(0)}%`),
+});
+const migrationMasterSlider = new Slider({
+  id: 'ui-lab-migration-master-volume', skin, value: 0.82, tone: 'gold',
+  onChange: (value) => notify(`MIGRATION SETTINGS MASTER VOLUME ${Math.round(value * 100)}%`),
+});
+const migrationMusicSlider = new Slider({
+  id: 'ui-lab-migration-music-volume', skin, value: 0.64, tone: 'green',
+  onChange: (value) => notify(`MIGRATION SETTINGS MUSIC VOLUME ${Math.round(value * 100)}%`),
+});
+const migrationSoundSlider = new Slider({
+  id: 'ui-lab-migration-sound-volume', skin, value: 0.76, tone: 'silver',
+  onChange: (value) => notify(`MIGRATION SETTINGS SOUND VOLUME ${Math.round(value * 100)}%`),
+});
 const toggleOn = new Toggle({
   id: 'ui-lab-toggle-on', skin, fonts, value: true,
   onChange: (value) => notify(`TOGGLE ${value ? 'ON' : 'OFF'}`),
@@ -243,6 +323,15 @@ const toggleOn = new Toggle({
 const toggleOff = new Toggle({
   id: 'ui-lab-toggle-off', skin, fonts, value: false,
   onChange: (value) => notify(`SECONDARY TOGGLE ${value ? 'ON' : 'OFF'}`),
+});
+const toggleDisabled = new Toggle({
+  id: 'ui-lab-toggle-disabled', skin, fonts, value: false, style: 'neutral',
+  onChange: () => undefined,
+});
+toggleDisabled.enabled = false;
+const migrationNameplatesToggle = new Toggle({
+  id: 'ui-lab-migration-nameplates', skin, fonts, value: true,
+  onChange: (value) => notify(`MIGRATION SETTINGS NAMEPLATES ${value ? 'ON' : 'OFF'}`),
 });
 const scrollBar = new ScrollBar(skin);
 scrollBar.setMetrics(24, 6);
@@ -284,7 +373,7 @@ const RESPONSIVE_BOOK_MARKDOWN = [
   '<!-- page -->',
   '# Second Page {#second-page}',
   '',
-  'Navigation and page numbers remain mounted outside writable content.',
+  'The close action reserves a safe header lane; navigation and page numbers keep their own mounts.',
 ].join('\n');
 const responsiveBookDocument = parseGameMarkdown(RESPONSIVE_BOOK_MARKDOWN);
 
@@ -380,7 +469,7 @@ let inventorySlotRegions: InventorySlotRegion[] = [];
 type ActiveInteraction =
   | { readonly kind: 'pan'; readonly pointer: UiPoint; readonly camera: UiPoint }
   | { readonly kind: 'resize' }
-  | { readonly kind: 'slider' }
+  | { readonly kind: 'slider'; readonly control: Slider }
   | { readonly kind: 'scrollbar' }
   | { readonly kind: 'inventory' };
 
@@ -424,7 +513,7 @@ function registerBookInteractions(
   setSpread: (spreadIndex: number) => void,
   name: string,
 ): void {
-  addHit(result.controls.close, () => notify(`${name} CLOSE CONTROL — SAME ACTION, STYLE-AWARE MOUNT`));
+  addHit(result.controls.close, () => notify(`${name} CLOSE CONTROL — SHARED SAFE-AREA MOUNT`));
   if (result.spreadIndex > 0) {
     if (result.controls.firstPage !== undefined) addHit(result.controls.firstPage, () => {
       setSpread(0);
@@ -531,7 +620,7 @@ function drawSection(rect: UiRect, title: string, subtitle: string): UiRect {
   return { ...content, y: content.y + 18, height: Math.max(0, content.height - 18) };
 }
 
-function debugContent(rect: UiRect, caption: string): void {
+function debugContent(rect: UiRect, caption: string, leadingInset = 0): void {
   context.save();
   context.setLineDash([4, 3]);
   context.strokeStyle = '#2d6f98';
@@ -540,9 +629,9 @@ function debugContent(rect: UiRect, caption: string): void {
   context.strokeRect(rect.x + 0.5, rect.y + 0.5, Math.max(0, rect.width - 1), Math.max(0, rect.height - 1));
   context.restore();
   drawPixelTextInRect(context, fonts, caption, {
-    x: rect.x + 4,
+    x: rect.x + 4 + leadingInset,
     y: rect.y + 4,
-    width: Math.max(0, rect.width - 8),
+    width: Math.max(0, rect.width - 8 - leadingInset),
     height: 9,
   }, { color: '#2d6f98', overflow: 'ellipsis' });
 }
@@ -631,9 +720,9 @@ function frameSpecimen(frame: UiRect, style: UiFrameStyle, name: string): void {
   drawUiFrame(context, skin, frame, style);
   if (style === 'book') {
     const [left, right] = uiBookPageRects(frame);
-    debugContent(left, 'LEFT PAGE');
+    debugContent(left, 'LEFT PAGE', 26);
     debugContent(right, 'RIGHT PAGE');
-  } else debugContent(uiFrameContentRect(frame, style), 'SAFE');
+  } else debugContent(uiFrameContentRect(frame, style), 'SAFE', 26);
   addHit(frame, () => selectResponsiveFrameStyle(style));
   const controls = drawUiFrameControls(context, skin, fonts, frame, style, {
     bookNavigation: style === 'book', spreadIndex: 0, spreadCount: style === 'book' ? 3 : 1,
@@ -665,7 +754,7 @@ function drawFrames(): void {
   const content = drawSection(
     SECTIONS.frames,
     'FRAMES, SLOTS & RESPONSIVE FLOW',
-    'AUTHORED SAFE AREAS / NAMED SLOTS / FLEX + GRID / CONTAINER VARIANTS / LIVE RESIZE',
+    'SAFE AREAS / NAMED SLOTS / FIT + GROW + PERCENT / ATTACH POINTS / LIVE RESIZE',
   );
   const top = content.y;
   frameSpecimen({ x: content.x, y: top, width: 176, height: 102 }, 'wood', 'WOOD 10PX');
@@ -711,13 +800,16 @@ function drawFrames(): void {
   drawUiFrame(context, skin, flowFrame, 'thin');
   const flowContent = uiFrameContentRect(flowFrame, 'thin', 5);
   const flexRects = layoutUiFlex({ ...flowContent, height: 40 }, [
-    { minSize: { width: 30, height: 22 }, grow: 1 },
-    { minSize: { width: 42, height: 30 }, grow: 2 },
-    { minSize: { width: 24, height: 16 }, grow: 1 },
+    { minSize: { width: 24, height: 22 }, main: { mode: 'fit', preferred: 46 } },
+    { minSize: { width: 34, height: 30 }, main: { mode: 'grow', weight: 1 } },
+    { minSize: { width: 24, height: 16 }, main: { mode: 'percent', fraction: 0.28 } },
   ], { gap: 5, align: 'center' });
   flexRects.forEach((rect, index) => {
     context.fillStyle = ['#4aa4cc', '#63c74d', '#e3a84b'][index]!;
     context.fillRect(rect.x, rect.y, rect.width, rect.height);
+    drawPixelTextInRect(context, fonts, ['FIT', 'GROW', '28%'][index]!, rect, {
+      align: 'center', verticalAlign: 'center', color: '#fff4dc', overflow: 'ellipsis',
+    });
   });
   const grid = layoutUiGrid({ ...flowContent, y: flowContent.y + 52, height: 65 }, Array.from({ length: 7 }, () => ({
     width: 22, height: 16,
@@ -726,7 +818,7 @@ function drawFrames(): void {
     context.fillStyle = index % 2 === 0 ? '#9d6843' : '#8d5aa7';
     context.fillRect(rect.x, rect.y, rect.width, rect.height);
   });
-  drawPixelTextInRect(context, fonts, `FLEX + AUTO GRID (${grid.columns} COL)`, {
+  drawPixelTextInRect(context, fonts, `BOUNDED FLOW + AUTO GRID (${grid.columns} COL)`, {
     x: flowFrame.x,
     y: flowFrame.y + flowFrame.height + 3,
     width: flowFrame.width,
@@ -752,12 +844,20 @@ function drawFrames(): void {
 
   drawUiFrame(context, skin, responsiveFrame, selectedResponsiveStyle);
   const responsiveContent = uiFrameContentRect(responsiveFrame, selectedResponsiveStyle, 5);
+  const responsiveBody = uiFrameBodyRect(responsiveFrame, selectedResponsiveStyle, 5, 5);
+  const controlLayout = uiFrameControlLayout(responsiveFrame, selectedResponsiveStyle, false);
   const variant = uiContainerVariant(responsiveContent.width);
   drawPixelTextInRect(
     context,
     fonts,
     `LIVE ${selectedResponsiveStyle.toUpperCase()}: ${variant.toUpperCase()}  ${Math.round(responsiveFrame.width)}×${Math.round(responsiveFrame.height)}`,
-    { x: responsiveContent.x, y: responsiveContent.y, width: responsiveContent.width, height: 14 },
+    {
+      x: controlLayout.close.x + controlLayout.close.width + 5,
+      y: responsiveContent.y,
+      width: Math.max(0, responsiveContent.x + responsiveContent.width
+        - controlLayout.close.x - controlLayout.close.width - 5),
+      height: 14,
+    },
     { font: 'header', color: '#4d2e22', overflow: 'ellipsis' },
   );
   const headerOffset = variant === 'compact' ? 18 : 24;
@@ -765,9 +865,10 @@ function drawFrames(): void {
   const resizeHintHeight = showResizeHint ? 16 : 0;
   const responseBounds = {
     x: responsiveContent.x,
-    y: responsiveContent.y + headerOffset,
+    y: Math.max(responsiveBody.y, responsiveContent.y + headerOffset),
     width: responsiveContent.width,
-    height: Math.max(28, responsiveContent.height - headerOffset - resizeHintHeight),
+    height: Math.max(28, responsiveContent.y + responsiveContent.height
+      - Math.max(responsiveBody.y, responsiveContent.y + headerOffset) - resizeHintHeight),
   };
   const responseItems = variant === 'compact'
     ? [
@@ -837,7 +938,7 @@ function drawControls(): void {
   label(`SLIDER ${(slider.value * 100).toFixed(0)}%`, sliderRect.x + sliderRect.width + 12, sliderRect.y + 3, { color: '#6b4428' });
   addHit(sliderRect, (point, event) => {
     if (slider.node.onPointer?.({ kind: 'pointer_down', point, button: event.button }, slider.node)) {
-      activeInteraction = { kind: 'slider' };
+      activeInteraction = { kind: 'slider', control: slider };
     }
   });
 
@@ -846,7 +947,11 @@ function drawControls(): void {
   const toggleDisabledRect = { x: content.x + 164, y: content.y + 94, width: 88, height: BUTTON_HEIGHT.regular };
   toggleOn.setBounds(toggleOnRect); toggleOn.draw(context);
   toggleOff.setBounds(toggleOffRect); toggleOff.draw(context);
-  drawButton(context, skin, fonts, toggleDisabledRect, { label: 'DISABLED', state: 'disabled' });
+  toggleDisabled.setBounds(toggleDisabledRect); toggleDisabled.draw(context);
+  label('ON', toggleOnRect.x + toggleOnRect.width / 2, toggleOnRect.y + 25, { align: 'center', color: '#6b4428' });
+  label('OFF', toggleOffRect.x + toggleOffRect.width / 2, toggleOffRect.y + 25, { align: 'center', color: '#6b4428' });
+  label('DISABLED', toggleDisabledRect.x + toggleDisabledRect.width / 2, toggleDisabledRect.y + 25,
+    { align: 'center', color: '#8c6c54' });
   addHit(toggleOnRect, (point, event) => toggleOn.node.onPointer?.({ kind: 'pointer_down', point, button: event.button }, toggleOn.node));
   addHit(toggleOffRect, (point, event) => toggleOff.node.onPointer?.({ kind: 'pointer_down', point, button: event.button }, toggleOff.node));
 
@@ -857,6 +962,17 @@ function drawControls(): void {
     if (scrollBar.pointerDown(point)) activeInteraction = { kind: 'scrollbar' };
   });
   label(`SCROLL ${scrollBar.position}/${scrollBar.maximum}`, scrollRect.x + 28, scrollRect.y + 38, { color: '#6b4428' });
+
+  verticalSliderRect = { x: content.x + 590, y: content.y + 60, width: 16, height: 88 };
+  verticalSlider.setBounds(verticalSliderRect);
+  verticalSlider.draw(context);
+  label(`VERT ${(verticalSlider.value * 100).toFixed(0)}%`, verticalSliderRect.x - 10,
+    verticalSliderRect.y + verticalSliderRect.height + 9, { align: 'center', color: '#6b4428' });
+  addHit(verticalSliderRect, (point, event) => {
+    if (verticalSlider.node.onPointer?.({ kind: 'pointer_down', point, button: event.button }, verticalSlider.node)) {
+      activeInteraction = { kind: 'slider', control: verticalSlider };
+    }
+  });
 
   const meterX = content.x;
   const meterY = content.y + 168;
@@ -1095,6 +1211,301 @@ function mockSlot(rect: UiRect, item?: ItemStack): void {
   drawUiInventorySlot(context, fonts, skin, itemArtwork, rect, item ?? null);
 }
 
+type MigrationButtonTone = (typeof FANTASY_BUTTON_TONES)[number];
+type MigrationButtonGlyph = (typeof FANTASY_BUTTON_GLYPHS)[number];
+
+const fantasyIconsById = new Map(FANTASY_ICON_FAMILIES.map((definition) => [definition.id, definition]));
+const MIGRATION_CATEGORY_COLORS = {
+  gateway: '#d9a441',
+  world: '#4aa4cc',
+  storage: '#9d6843',
+  progression: '#8d5aa7',
+  social: '#63c74d',
+  menu: '#e43b44',
+} as const;
+
+const MIGRATION_LANE_COUNT = 3;
+const MIGRATION_LANE_WIDTH = 1020;
+const MIGRATION_LANE_GAP = 70;
+const MIGRATION_LABEL_HEIGHT = 42;
+const MIGRATION_FRAME_GAP = 64;
+
+const MIGRATION_SPECIMEN_LAYOUT = (() => {
+  const laneTops = Array.from(
+    { length: MIGRATION_LANE_COUNT },
+    () => SECTIONS.migration.y + 105,
+  );
+  return UI_LAB_MIGRATION_SURFACES.map((surface, index) => {
+    const shortestTop = Math.min(...laneTops);
+    const lane = laneTops.indexOf(shortestTop);
+    const laneX = SECTIONS.migration.x + 30 + lane * (MIGRATION_LANE_WIDTH + MIGRATION_LANE_GAP);
+    const frame = {
+      x: laneX + Math.round((MIGRATION_LANE_WIDTH - surface.specimenSize.width) / 2),
+      y: shortestTop + MIGRATION_LABEL_HEIGHT,
+      width: surface.specimenSize.width,
+      height: surface.specimenSize.height,
+    };
+    laneTops[lane] = frame.y + frame.height + MIGRATION_FRAME_GAP;
+    return { surface, index, frame };
+  });
+})();
+
+function drawMigrationWindow(
+  frame: UiRect,
+  title: string,
+  closable = true,
+  style: UiFrameStyle = 'wood_parchment',
+): UiRect {
+  drawUiFrame(context, skin, frame, style);
+  windowRibbon.draw(context, title, frame.x + frame.width / 2, frame.y - 5, {
+    maxWidth: Math.max(64, frame.width - 28), overflow: 'ellipsis',
+  });
+  const safe = uiFrameContentRect(frame, style, 6);
+  if (!closable) return safe;
+  const controls = drawUiFrameControls(context, skin, fonts, frame, style, {
+    closeHovered: containsPoint(uiFrameControlLayout(frame, style).close, pointerWorld),
+  });
+  addHit(controls.close, () => notify(`${title.toUpperCase()} — CLOSE PREVIEW CONTROL`));
+  return uiFrameBodyRect(frame, style, 6, 5);
+}
+
+function drawMigrationButtonRow(
+  bounds: UiRect,
+  actions: readonly {
+    readonly label: string;
+    readonly tone?: MigrationButtonTone;
+    readonly glyph?: MigrationButtonGlyph;
+    readonly disabled?: boolean;
+  }[],
+  gap = 5,
+): readonly UiRect[] {
+  const rects = layoutUiFlex(bounds, actions.map(() => ({
+    minSize: { width: 30, height: bounds.height }, grow: 1,
+  })), { gap, align: 'stretch' });
+  actions.forEach((action, index) => drawFantasyButton(context, skin, fonts, rects[index]!, {
+    tone: action.tone ?? 'peach',
+    shape: 'chamfered',
+    size: 'wide',
+    state: action.disabled === true ? 'disabled' : 'idle',
+    ...(action.glyph === undefined ? {} : { glyph: action.glyph }),
+    label: action.label,
+  }));
+  return rects;
+}
+
+function drawMigrationSlotGrid(
+  bounds: UiRect,
+  columns: number,
+  stacks: readonly (ItemStack | null)[],
+  slotWidth = 38,
+  options: Omit<UiInventoryGroupOptions, 'columns' | 'slotSize'> = {},
+): readonly UiRect[] {
+  const authoredSlotWidth = Math.max(18, Math.round(slotWidth));
+  const layout = layoutUiInventoryGroup(bounds, stacks.length, {
+    ...options,
+    columns,
+    slotSize: { width: authoredSlotWidth, height: authoredSlotWidth + 3 },
+    gap: options.gap ?? 2,
+  });
+  layout.slots.forEach((rect, index) => {
+    drawUiInventorySlot(context, fonts, skin, itemArtwork, rect, stacks[index] ?? null);
+  });
+  return layout.slots;
+}
+
+function drawMigrationInset(rect: UiRect, title?: string): UiRect {
+  drawUiFrame(context, skin, rect, 'thin');
+  const content = uiFrameContentRect(rect, 'thin', 5);
+  if (title === undefined) return content;
+  drawPixelTextInRect(context, fonts, title, {
+    x: content.x,
+    y: content.y,
+    width: content.width,
+    height: 12,
+  }, { color: '#6b4428', overflow: 'ellipsis' });
+  return {
+    x: content.x,
+    y: content.y + 15,
+    width: content.width,
+    height: Math.max(0, content.height - 15),
+  };
+}
+
+function drawMigrationIcon(
+  id: string,
+  rect: UiRect,
+  level = 0,
+  hovered = false,
+): void {
+  const definition = fantasyIconsById.get(id);
+  if (definition === undefined) return;
+  drawFantasyIcon(context, skin, rect, definition, { level, hovered });
+}
+
+function drawMigrationSlider(sliderControl: Slider, rect: UiRect): void {
+  sliderControl.setBounds(rect);
+  sliderControl.draw(context);
+  addHit(rect, (point, event) => {
+    if (event.button !== 0) return;
+    const captured = sliderControl.node.onPointer?.({
+      kind: 'pointer_down', point, button: event.button,
+    }, sliderControl.node) ?? false;
+    if (captured) activeInteraction = { kind: 'slider', control: sliderControl };
+  });
+}
+
+function drawMigrationToggle(toggleControl: Toggle, rect: UiRect): void {
+  toggleControl.setBounds(rect);
+  toggleControl.draw(context);
+  addHit(rect, (point, event) => {
+    toggleControl.node.onPointer?.({ kind: 'pointer_down', point, button: event.button }, toggleControl.node);
+  });
+}
+
+function drawMigrationTabs(bounds: UiRect, labels: readonly string[], selected: number): void {
+  const rects = layoutUiFlex(bounds, labels.map(() => ({
+    minSize: { width: 24, height: bounds.height }, grow: 1,
+  })), { gap: 3, align: 'stretch' });
+  labels.forEach((value, index) => drawFantasyButton(context, skin, fonts, rects[index]!, {
+    tone: index === selected ? 'green' : 'peach',
+    shape: 'square',
+    size: 'wide',
+    label: value,
+    state: index === selected ? 'pressed' : 'idle',
+  }));
+}
+
+function drawMigrationListRows(
+  bounds: UiRect,
+  rows: readonly string[],
+  selected = -1,
+): void {
+  const rowHeight = Math.max(13, Math.floor(bounds.height / Math.max(1, rows.length)));
+  rows.forEach((value, index) => {
+    const rect = {
+      x: bounds.x,
+      y: bounds.y + index * rowHeight,
+      width: bounds.width,
+      height: rowHeight - 2,
+    };
+    if (index === selected) {
+      context.fillStyle = '#63c74d2e';
+      context.fillRect(rect.x, rect.y, rect.width, rect.height);
+    }
+    drawPixelTextInRect(context, fonts, value, insetRect(rect, { left: 4, right: 4 }), {
+      color: index === selected ? '#2d6f3b' : '#51351f',
+      verticalAlign: 'center',
+      overflow: 'ellipsis',
+    });
+  });
+}
+
+function drawMigrationSlotSection(
+  bounds: UiRect,
+  title: string,
+  columns: number,
+  stacks: readonly (ItemStack | null)[],
+  slotWidth = 42,
+  options: Omit<UiInventoryGroupOptions, 'columns' | 'slotSize'> = {},
+): readonly UiRect[] {
+  drawPixelTextInRect(context, fonts, title, {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: 13,
+  }, { font: 'header', color: '#4d2e22', overflow: 'ellipsis' });
+  return drawMigrationSlotGrid({
+    x: bounds.x,
+    y: bounds.y + 18,
+    width: bounds.width,
+    height: Math.max(0, bounds.height - 18),
+  }, columns, stacks, slotWidth, options);
+}
+
+function drawMigrationDivider(x: number, y: number, width: number): void {
+  context.fillStyle = '#9d6843';
+  context.fillRect(Math.round(x), Math.round(y), Math.max(0, Math.round(width)), 2);
+  context.fillStyle = '#f6ca9f';
+  context.fillRect(Math.round(x), Math.round(y), Math.max(0, Math.round(width)), 1);
+}
+
+function drawMigrationVerticalDivider(x: number, y: number, height: number): void {
+  context.fillStyle = '#9d6843';
+  context.fillRect(Math.round(x), Math.round(y), 2, Math.max(0, Math.round(height)));
+  context.fillStyle = '#f6ca9f';
+  context.fillRect(Math.round(x), Math.round(y), 1, Math.max(0, Math.round(height)));
+}
+
+function drawMigrationHotbar(
+  bounds: UiRect,
+  stacks: readonly (ItemStack | null)[],
+  columns = 10,
+): readonly UiRect[] {
+  drawMigrationDivider(bounds.x, bounds.y, bounds.width);
+  return drawMigrationSlotSection({
+    x: bounds.x + 8,
+    y: bounds.y + 7,
+    width: Math.max(0, bounds.width - 16),
+    height: Math.max(0, bounds.height - 7),
+  }, 'HOT BAR', columns, stacks, 46, { horizontalAlign: 'center' });
+}
+
+function drawMigrationObjectPortrait(
+  rect: UiRect,
+  itemKind: ItemStack['itemKind'],
+  title: string,
+  state = 'base',
+  frameIndex = 0,
+): void {
+  const content = drawMigrationInset(rect, title);
+  context.fillStyle = '#293630';
+  context.fillRect(content.x, content.y, content.width, content.height);
+  context.fillStyle = '#34483c';
+  for (let y = content.y; y < content.y + content.height; y += 12) {
+    for (let x = content.x; x < content.x + content.width; x += 12) {
+      if ((Math.floor(x / 12) + Math.floor(y / 12)) % 2 !== 0) continue;
+      context.fillRect(x, y, Math.min(12, content.x + content.width - x), Math.min(12, content.y + content.height - y));
+    }
+  }
+  const asset = itemArtwork[itemKind];
+  if (asset === undefined) return;
+  const source = uiAssetFrame(asset, state, frameIndex);
+  if (source === null) return;
+  const availableWidth = Math.max(1, content.width - 16);
+  const availableHeight = Math.max(1, content.height - 16);
+  const scale = Math.max(1, Math.floor(Math.min(availableWidth / source.width, availableHeight / source.height)));
+  const width = Math.min(availableWidth, source.width * scale);
+  const height = Math.min(availableHeight, source.height * scale);
+  const x = Math.round(content.x + (content.width - width) / 2);
+  const y = Math.round(content.y + (content.height - height) / 2);
+  context.save();
+  context.imageSmoothingEnabled = false;
+  context.drawImage(asset.image, source.x, source.y, source.width, source.height, x, y, width, height);
+  context.restore();
+}
+
+function drawMigrationFarmerPortrait(rect: UiRect): void {
+  const scale = Math.max(2, Math.floor(Math.min(rect.width / 13, rect.height / 20)));
+  const width = 9 * scale;
+  const height = 16 * scale;
+  const x = Math.round(rect.x + (rect.width - width) / 2);
+  const y = Math.round(rect.y + (rect.height - height) / 2);
+  const pixel = (px: number, py: number, pw: number, ph: number, color: string): void => {
+    context.fillStyle = color;
+    context.fillRect(x + px * scale, y + py * scale, pw * scale, ph * scale);
+  };
+  pixel(2, 0, 5, 2, '#f2c15b');
+  pixel(1, 2, 7, 5, '#f6ca9f');
+  pixel(2, 3, 1, 2, '#3f2832');
+  pixel(6, 3, 1, 2, '#3f2832');
+  pixel(0, 7, 9, 2, '#2d6f3b');
+  pixel(1, 9, 7, 4, '#3d8b47');
+  pixel(1, 13, 3, 3, '#2d5f98');
+  pixel(5, 13, 3, 3, '#2d5f98');
+  pixel(0, 15, 4, 1, '#3f2832');
+  pixel(5, 15, 4, 1, '#3f2832');
+}
+
 function drawPatterns(): void {
   const content = drawSection(
     SECTIONS.patterns,
@@ -1174,6 +1585,856 @@ function drawPatterns(): void {
     const rect = { x: settings.x + 82 + index * 70, y: touchY, width: 58, height: 28 };
     drawUiSkinAsset(context, asset as LoadedAsset, rect, 'idle');
     label(value as string, rect.x + rect.width / 2, rect.y + 8, { align: 'center', color: index === 1 ? '#5f3b24' : '#fff2d0' });
+  });
+}
+
+function drawMigrationSurface(id: UiLabMigrationSurfaceId, bounds: UiRect, closable: boolean): void {
+  const frame = bounds;
+  const slot = (itemKind: ItemStack['itemKind'], quantity = 1): ItemStack => ({ itemKind, quantity });
+
+  switch (id) {
+    case 'gateway': {
+      const body = drawMigrationWindow(frame, 'ORCHARD & CELLAR', false);
+      mockSlot({ x: body.x + Math.round((body.width - 34) / 2), y: body.y + 2, width: 32, height: 35 }, slot('apple'));
+      drawPixelTextInRect(context, fonts, 'CHOOSE YOUR FARMER', {
+        x: body.x, y: body.y + 42, width: body.width, height: 15,
+      }, { font: 'header', align: 'center', color: '#4d2e22', overflow: 'ellipsis' });
+      const list = drawMigrationInset({ x: body.x + 28, y: body.y + 64, width: body.width - 56, height: 126 });
+      drawMigrationListRows(list, ['TOBY · ORCHARD HOMESTEAD', 'MIRA · NEW CHARACTER', '+ CREATE ANOTHER FARMER'], 0);
+      drawMigrationButtonRow({ x: body.x + 80, y: body.y + body.height - 30, width: body.width - 160, height: 24 }, [
+        { label: 'ENTER WORLD', tone: 'green', glyph: 'play' },
+      ]);
+      break;
+    }
+    case 'character-name': {
+      const body = drawMigrationWindow(frame, 'WELCOME, FARMER', false);
+      drawPixelTextInRect(context, fonts, 'WHAT SHOULD THE VALLEY CALL YOU?', {
+        x: body.x + 20, y: body.y + 18, width: body.width - 40, height: 16,
+      }, { font: 'header', align: 'center', color: '#4d2e22', overflow: 'ellipsis' });
+      const input = { x: body.x + 74, y: body.y + 64, width: body.width - 148, height: 36 };
+      drawUiFrame(context, skin, input, 'thin');
+      drawPixelTextInRect(context, fonts, 'TOBY|', uiFrameContentRect(input, 'thin', 4), {
+        color: '#51351f', verticalAlign: 'center', overflow: 'clip',
+      });
+      drawPixelTextInRect(context, fonts, '2–20 LETTERS · DISPLAY NAME CAN CHANGE LATER', {
+        x: body.x + 30, y: body.y + 114, width: body.width - 60, height: 12,
+      }, { align: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      drawMigrationButtonRow({ x: body.x + 72, y: body.y + body.height - 38, width: body.width - 144, height: 26 }, [
+        { label: 'BACK' }, { label: 'CREATE', tone: 'green' },
+      ]);
+      break;
+    }
+    case 'update-ready': {
+      const body = drawMigrationWindow(frame, 'UPDATE READY', false);
+      drawPixelTextInRect(context, fonts, 'A NEW ORCHARD VERSION IS READY.', {
+        x: body.x + 30, y: body.y + 30, width: body.width - 60, height: 16,
+      }, { font: 'header', align: 'center', color: '#4d2e22', overflow: 'ellipsis' });
+      drawPixelTextInRect(context, fonts, 'REFRESH NOW, OR CONTINUE SAFELY IN THIS LIVE MMO SESSION.', {
+        x: body.x + 52, y: body.y + 62, width: body.width - 104, height: 30,
+      }, { align: 'center', verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
+      drawProgressBar(context, { x: body.x + 86, y: body.y + 112, width: body.width - 172, height: 10 }, 1, GREEN_PROGRESS_PALETTE);
+      drawMigrationButtonRow({ x: body.x + 54, y: body.y + body.height - 42, width: body.width - 108, height: 28 }, [
+        { label: 'CONTINUE', tone: 'peach' }, { label: 'REFRESH NOW', tone: 'green', glyph: 'return' },
+      ]);
+      break;
+    }
+    case 'zone-minimap': {
+      const body = drawMigrationWindow(frame, 'APPLE ORCHARD · SUMMER 12', false, 'parchment');
+      const map = drawMigrationInset({ x: body.x, y: body.y + 8, width: Math.floor(body.width * 0.58), height: body.height - 16 }, 'MINIMAP · 2X');
+      context.fillStyle = '#8fcf69';
+      context.fillRect(map.x, map.y, map.width, map.height);
+      const tile = 14;
+      for (let y = map.y; y < map.y + map.height; y += tile) {
+        for (let x = map.x; x < map.x + map.width; x += tile) {
+          if ((Math.floor(x / tile) + Math.floor(y / tile)) % 5 !== 0) continue;
+          context.fillStyle = '#5c9b45';
+          context.fillRect(x, y, Math.min(tile, map.x + map.width - x), Math.min(tile, map.y + map.height - y));
+        }
+      }
+      context.fillStyle = '#fff2d0';
+      context.fillRect(map.x + Math.round(map.width * 0.58), map.y + Math.round(map.height * 0.48), 5, 5);
+      const infoX = body.x + Math.floor(body.width * 0.62);
+      drawPixelTextInRect(context, fonts, '09:40', { x: infoX, y: body.y + 22, width: body.x + body.width - infoX, height: 16 }, {
+        font: 'header', align: 'center', color: '#4d2e22', overflow: 'ellipsis',
+      });
+      drawPixelTextInRect(context, fonts, 'CLEAR · LIGHT BREEZE\nWAXING CRESCENT\nORCHARD 42, 18', {
+        x: infoX, y: body.y + 56, width: body.x + body.width - infoX, height: 70,
+      }, { align: 'center', verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
+      drawMigrationButtonRow({ x: infoX + 12, y: body.y + body.height - 42, width: body.x + body.width - infoX - 24, height: 26 }, [
+        { label: '−', tone: 'silver' }, { label: '+', tone: 'silver' },
+      ]);
+      break;
+    }
+    case 'hotbar-vitals': {
+      const body = drawMigrationWindow(frame, 'PLAYER HUD', false, 'parchment');
+      const bars = [
+        ['HEALTH', 0.78, RED_PROGRESS_PALETTE],
+        ['VIGOUR', 0.91, GREEN_PROGRESS_PALETTE],
+        ['MANA', 0.46, undefined],
+      ] as const;
+      bars.forEach(([name, value, palette], index) => {
+        const y = body.y + 12 + index * 28;
+        drawPixelTextInRect(context, fonts, name, { x: body.x + 8, y, width: 72, height: 10 }, { color: '#6b4428', overflow: 'ellipsis' });
+        drawProgressBar(context, { x: body.x + 82, y: y + 1, width: body.width - 170, height: 9 }, value, palette);
+        drawPixelTextInRect(context, fonts, `${Math.round(value * 100)}%`, { x: body.x + body.width - 78, y, width: 68, height: 10 }, { align: 'right', color: '#51351f' });
+      });
+      const hotbar = [slot('axe'), slot('pickaxe'), slot('torch', 8), slot('apple', 12), null, slot('wood', 40), null, slot('lantern'), slot('stone', 99)];
+      drawMigrationSlotGrid(
+        { x: body.x + 12, y: body.y + 110, width: body.width - 24, height: 52 },
+        9,
+        hotbar,
+        42,
+        { horizontalAlign: 'center' },
+      );
+      drawPixelTextInRect(context, fonts, 'HUNGER 82                 1G 24S 08C', {
+        x: body.x + 14, y: body.y + 178, width: body.width - 28, height: 12,
+      }, { color: '#6b4428', overflow: 'ellipsis' });
+      break;
+    }
+    case 'target-effects': {
+      const body = drawMigrationWindow(frame, 'TARGET & EFFECTS', false, 'parchment');
+      const target = drawMigrationInset({ x: body.x + 8, y: body.y + 12, width: body.width - 16, height: 92 }, 'MARLOW · FRIENDLY');
+      drawMigrationIcon('heart', { x: target.x + 6, y: target.y + 4, width: 28, height: 28 }, 2);
+      drawProgressBar(context, { x: target.x + 42, y: target.y + 11, width: target.width - 54, height: 10 }, 0.64, RED_PROGRESS_PALETTE);
+      drawPixelTextInRect(context, fonts, '64 / 100', { x: target.x + 42, y: target.y + 29, width: target.width - 54, height: 10 }, { align: 'center', color: '#6b4428' });
+      const cards = layoutUiFlex({ x: body.x + 8, y: body.y + 122, width: body.width - 16, height: 96 }, [
+        { minSize: { width: 60, height: 96 }, grow: 1 }, { minSize: { width: 60, height: 96 }, grow: 1 },
+      ], { gap: 10 });
+      cards.forEach((card, index) => {
+        const inner = drawMigrationInset(card);
+        drawMigrationIcon(index === 0 ? 'star' : 'lightning', { x: inner.x + Math.round((inner.width - 30) / 2), y: inner.y + 7, width: 30, height: 30 }, index + 1);
+        drawPixelTextInRect(context, fonts, index === 0 ? 'WELL RESTED · 08:42' : 'WINDED · 00:06', {
+          x: inner.x + 4, y: inner.y + 48, width: inner.width - 8, height: 12,
+        }, { align: 'center', color: '#6b4428', overflow: 'ellipsis' });
+      });
+      break;
+    }
+    case 'chat': {
+      const body = drawMigrationWindow(frame, 'CHAT · LOCAL', false, 'parchment');
+      drawMigrationTabs({ x: body.x, y: body.y + 5, width: body.width, height: 24 }, ['LOCAL', 'GLOBAL', 'PARTY', 'WHISPER'], 0);
+      const history = drawMigrationInset({ x: body.x, y: body.y + 36, width: body.width, height: body.height - 84 });
+      drawUiRichText(context, fonts, layoutUiRichText(fonts, parseUiRichText(
+        '[[player:farmer-mira|Mira]]: The orchard gate is open.\nYou: Meet at [[coord:orchard,42,18|42, 18]]?\nSystem: [[item:apple|Apple]] was added to your pack.',
+      ), history, { lineHeight: 13, maxLines: 6, linkColor: '#216b91' }));
+      const input = { x: body.x, y: body.y + body.height - 39, width: body.width, height: 34 };
+      drawUiFrame(context, skin, input, 'thin');
+      drawPixelTextInRect(context, fonts, 'MESSAGE LOCAL…', uiFrameContentRect(input, 'thin', 4), { color: '#986846', verticalAlign: 'center', overflow: 'ellipsis' });
+      break;
+    }
+    case 'quest-tracker': {
+      const body = drawMigrationWindow(frame, 'TRACKED QUESTS', false, 'parchment');
+      const quests = [
+        ['FIRST HARVEST', 'APPLES 7 / 12', 7 / 12],
+        ['A LIGHT BELOW', 'PLACE A LANTERN', 0.5],
+        ['NEIGHBOURLY TRADE', 'SPEAK WITH MIRA', 0.15],
+      ] as const;
+      quests.forEach(([title, objective, progress], index) => {
+        const y = body.y + 12 + index * 66;
+        drawPixelTextInRect(context, fonts, title, { x: body.x + 8, y, width: body.width - 16, height: 12 }, { font: 'header', color: '#4d2e22', overflow: 'ellipsis' });
+        drawPixelTextInRect(context, fonts, objective, { x: body.x + 14, y: y + 21, width: body.width - 28, height: 10 }, { color: '#6b4428', overflow: 'ellipsis' });
+        drawProgressBar(context, { x: body.x + 14, y: y + 39, width: body.width - 28, height: 8 }, progress);
+      });
+      break;
+    }
+    case 'online-players': {
+      const body = drawMigrationWindow(frame, 'ONLINE PLAYERS · 5', closable);
+      const list = drawMigrationInset({ x: body.x, y: body.y + 4, width: body.width, height: body.height - 42 });
+      ['● TOBY · ORCHARD', '● MIRA · MARKET', '● ROWAN · CELLAR', '● WREN · HOMESTEAD', '○ ELI · AWAY'].forEach((name, index) => {
+        drawPixelTextInRect(context, fonts, name, {
+          x: list.x + 8, y: list.y + index * 32, width: list.width - 16, height: 24,
+        }, { color: index === 4 ? '#986846' : '#2d6f3b', verticalAlign: 'center', overflow: 'ellipsis' });
+      });
+      drawPixelTextInRect(context, fonts, 'CLICK A PLAYER TO WHISPER OR INSPECT', {
+        x: body.x, y: body.y + body.height - 25, width: body.width, height: 10,
+      }, { align: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      break;
+    }
+    case 'feedback-overlays': {
+      drawPixelTextInRect(context, fonts, 'WORLD NAMEPLATES', { x: frame.x, y: frame.y + 4, width: frame.width, height: 12 }, { font: 'header', align: 'center', color: '#4d2e22' });
+      ['TOBY', 'MIRA · SHOP', 'MARLOW !'].forEach((name, index) => {
+        const rect = { x: frame.x + 54 + index * Math.floor((frame.width - 108) / 3), y: frame.y + 35, width: Math.floor((frame.width - 132) / 3), height: 24 };
+        drawUiLabelPlate(context, skin, rect);
+        drawPixelTextInRect(context, fonts, name, insetRect(rect, { left: 5, right: 5 }), { align: 'center', verticalAlign: 'center', color: '#51351f', overflow: 'ellipsis' });
+      });
+      const tooltip = { x: frame.x + 66, y: frame.y + 92, width: frame.width - 132, height: 42 };
+      drawUiLabelPlate(context, skin, tooltip);
+      drawPixelTextInRect(context, fonts, 'APPLE · FOOD · CLICK TO INSPECT', insetRect(tooltip, { left: 8, right: 8 }), { align: 'center', verticalAlign: 'center', color: '#51351f', overflow: 'ellipsis' });
+      const toasts: readonly (readonly [string, MigrationButtonTone])[] = [
+        ['QUEST UPDATED · FIRST HARVEST', 'green'],
+        ['INVENTORY FULL · ITEM LEFT ON GROUND', 'red'],
+        ['WELCOME TO APPLE ORCHARD', 'blue'],
+      ];
+      toasts.forEach(([message, tone], index) => {
+        const rect = { x: frame.x + 38, y: frame.y + 150 + index * 37, width: frame.width - 76, height: 29 };
+        drawFantasyButton(context, skin, fonts, rect, { tone, shape: 'pill', label: message });
+      });
+      break;
+    }
+    case 'touch-controls': {
+      const body = drawMigrationWindow(frame, 'TOUCH CONTROLS', false, 'parchment');
+      const pad = { x: body.x + 38, y: body.y + 62, width: 116, height: 116 };
+      context.fillStyle = '#51351f24';
+      context.beginPath();
+      context.arc(pad.x + 58, pad.y + 58, 54, 0, Math.PI * 2);
+      context.fill();
+      drawFantasyButton(context, skin, fonts, { x: pad.x + 38, y: pad.y + 38, width: 40, height: 40 }, { tone: 'silver', shape: 'pill', size: 'small', glyph: 'up' });
+      const actions = [
+        { glyph: 'key_e' as const, tone: 'green' as const, x: body.x + body.width - 166, y: body.y + 54 },
+        { glyph: 'wrench' as const, tone: 'peach' as const, x: body.x + body.width - 100, y: body.y + 112 },
+        { glyph: 'up_1' as const, tone: 'blue' as const, x: body.x + body.width - 212, y: body.y + 132 },
+        { glyph: 'pause' as const, tone: 'red' as const, x: body.x + body.width - 88, y: body.y + 28 },
+      ];
+      actions.forEach((action) => drawFantasyButton(context, skin, fonts, { x: action.x, y: action.y, width: 50, height: 50 }, {
+        tone: action.tone, shape: 'square', size: 'small', glyph: action.glyph,
+      }));
+      drawPixelTextInRect(context, fonts, 'MOVE', { x: pad.x, y: pad.y + 122, width: pad.width, height: 10 }, { align: 'center', color: '#6b4428' });
+      drawPixelTextInRect(context, fonts, 'INTERACT · TOOL · SPRINT · MENU', { x: body.x + body.width - 276, y: body.y + 214, width: 250, height: 10 }, { align: 'center', color: '#6b4428', overflow: 'ellipsis' });
+      break;
+    }
+    case 'inventory': {
+      const body = drawMigrationWindow(frame, 'INVENTORY', closable);
+      const hotbarHeight = 78;
+      const mainHeight = body.height - hotbarHeight - 8;
+      const equipmentWidth = 226;
+      drawMigrationSlotSection({
+        x: body.x + 8,
+        y: body.y + 4,
+        width: equipmentWidth,
+        height: mainHeight,
+      }, 'EQUIPMENT', 3, [
+        slot('helm'), null, slot('ring'),
+        slot('axe'), slot('tunic'), null,
+        null, null, null,
+      ], 52);
+      drawMigrationVerticalDivider(body.x + equipmentWidth + 24, body.y + 4, mainHeight - 4);
+      const packX = body.x + equipmentWidth + 42;
+      const filter = { x: packX, y: body.y + 2, width: body.x + body.width - packX - 8, height: 34 };
+      drawUiFrame(context, skin, filter, 'thin');
+      drawPixelTextInRect(context, fonts, 'FILTER ITEMS…', uiFrameContentRect(filter, 'thin', 4), {
+        color: '#986846', verticalAlign: 'center', overflow: 'ellipsis',
+      });
+      drawMigrationIcon('backpack', { x: filter.x + filter.width - 27, y: filter.y + 4, width: 23, height: 23 }, 1);
+      drawMigrationSlotSection({
+        x: packX,
+        y: body.y + 45,
+        width: body.x + body.width - packX - 8,
+        height: mainHeight - 45,
+      }, 'BACKPACK · 7×3', 7, [
+        slot('wood', 40), slot('apple', 12), slot('torch', 8), slot('lantern'), slot('stone', 99), slot('grape', 23), slot('backpack'),
+        slot('orchard_tea', 2), null, null, null, null, null, null,
+        null, slot('stone', 18), null, null, null, null, null,
+      ], 48);
+      drawMigrationHotbar({
+        x: body.x,
+        y: body.y + body.height - hotbarHeight,
+        width: body.width,
+        height: hotbarHeight,
+      }, [slot('apple', 60), slot('axe'), slot('pickaxe'), slot('wood', 12), slot('torch', 8), slot('lantern'), null, null, slot('grape', 9), slot('stone', 44)]);
+      break;
+    }
+    case 'crafting': {
+      const body = drawMigrationWindow(frame, 'CRAFTING', closable);
+      const hotbarHeight = 78;
+      const mainY = body.y + 4;
+      const mainHeight = body.height - hotbarHeight - 10;
+      drawMigrationObjectPortrait({ x: body.x + 4, y: mainY, width: 112, height: 112 }, 'workbench', 'WORKBENCH');
+      drawPixelTextInRect(context, fonts, '3×3 SHAPED RECIPES\n23 RECIPES KNOWN', {
+        x: body.x + 4, y: mainY + 124, width: 112, height: 42,
+      }, { align: 'center', verticalAlign: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      drawMigrationSlotSection({
+        x: body.x + 132,
+        y: mainY,
+        width: 198,
+        height: mainHeight,
+      }, 'CRAFTING GRID', 3, [
+        slot('wood'), slot('wood'), null,
+        null, slot('wood'), null,
+        null, null, null,
+      ], 50);
+      drawPixelTextInRect(context, fonts, '→', {
+        x: body.x + 334, y: mainY + 88, width: 34, height: 30,
+      }, { font: 'header', align: 'center', verticalAlign: 'center', color: '#6b4428' });
+      drawMigrationSlotSection({
+        x: body.x + 370,
+        y: mainY + 52,
+        width: 74,
+        height: 104,
+      }, 'RESULT', 1, [slot('plank', 4)], 56, {
+        horizontalAlign: 'center',
+        verticalAlign: 'center',
+      });
+      drawMigrationButtonRow({ x: body.x + 354, y: mainY + 170, width: 108, height: 28 }, [
+        { label: 'CRAFT', tone: 'green', glyph: 'wrench' },
+      ]);
+      const recipes = drawMigrationInset({
+        x: body.x + 474,
+        y: mainY,
+        width: 178,
+        height: mainHeight,
+      }, 'RECIPES');
+      drawMigrationListRows(recipes, ['4 WOODEN PLANK', '4 STICK', '2 TORCH', '1 CAMPFIRE', '1 WORKBENCH', '1 CHEST', '1 BARREL'], 0);
+      drawMigrationSlotSection({
+        x: body.x + 670,
+        y: mainY,
+        width: body.width - 674,
+        height: mainHeight,
+      }, 'INVENTORY · 5×3', 5, [
+        slot('apple', 9), slot('grape', 6), slot('wood', 18), slot('torch', 5), slot('stone', 8),
+        slot('axe'), slot('pickaxe'), slot('backpack'), null, null,
+        null, null, slot('orchard_tea', 2), null, null,
+      ], 46);
+      drawMigrationHotbar({
+        x: body.x,
+        y: body.y + body.height - hotbarHeight,
+        width: body.width,
+        height: hotbarHeight,
+      }, [slot('apple', 60), slot('axe'), slot('pickaxe'), slot('wood', 12), slot('torch', 8), slot('lantern'), null, null, slot('grape', 9), slot('stone', 44)]);
+      break;
+    }
+    case 'chest': {
+      const body = drawMigrationWindow(frame, 'CHEST', closable);
+      const hotbarHeight = 76;
+      const mainHeight = body.height - hotbarHeight - 8;
+      drawMigrationObjectPortrait({ x: body.x + 4, y: body.y + 4, width: 132, height: 120 }, 'chest', 'OAK CHEST', 'chest');
+      drawPixelTextInRect(context, fonts, '8 SLOTS\nSHARED ACCESS', {
+        x: body.x + 4, y: body.y + 133, width: 132, height: 35,
+      }, { align: 'center', verticalAlign: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      drawMigrationSlotSection({
+        x: body.x + 154,
+        y: body.y + 4,
+        width: body.width - 158,
+        height: 124,
+      }, 'CHEST · 4×2', 4, [slot('wood', 90), slot('apple', 30), null, null, slot('stone', 20), null, slot('grape', 8), null], 48);
+      drawMigrationSlotSection({
+        x: body.x + 154,
+        y: body.y + 138,
+        width: body.width - 158,
+        height: mainHeight - 138,
+      }, 'BACKPACK · 7×2', 7, [
+        slot('axe'), slot('torch', 8), slot('apple', 12), slot('lantern'), slot('wood', 40), slot('stone', 12), slot('backpack'),
+        null, null, null, slot('orchard_tea', 2), null, null, null,
+      ], 42);
+      drawMigrationHotbar({ x: body.x, y: body.y + body.height - hotbarHeight, width: body.width, height: hotbarHeight }, [
+        slot('apple', 60), slot('axe'), slot('pickaxe'), slot('wood', 12), slot('torch', 8), slot('lantern'), null, null, slot('grape', 9), slot('stone', 44),
+      ]);
+      break;
+    }
+    case 'barrel': {
+      const body = drawMigrationWindow(frame, 'BARREL', closable);
+      drawMigrationObjectPortrait({ x: body.x + 4, y: body.y + 6, width: 124, height: 132 }, 'barrel', 'OAK BARREL', 'closed');
+      drawMigrationSlotSection({
+        x: body.x + 146,
+        y: body.y + 6,
+        width: body.width - 150,
+        height: 132,
+      }, 'STORAGE · 4×2', 4, [slot('apple', 32), slot('grape', 18), null, null, slot('wood', 10), null, null, null], 44);
+      drawPixelTextInRect(context, fonts, 'CURING BEGINS WHEN THE LID IS SEALED.', {
+        x: body.x + 24, y: body.y + 154, width: body.width - 48, height: 14,
+      }, { align: 'center', color: '#6b4428', overflow: 'ellipsis' });
+      drawMigrationButtonRow({ x: body.x + 92, y: body.y + body.height - 34, width: body.width - 184, height: 28 }, [{ label: 'SEAL BARREL', tone: 'gold', glyph: 'key_e' }]);
+      break;
+    }
+    case 'furnace': {
+      const body = drawMigrationWindow(frame, 'FURNACE', closable);
+      const hotbarHeight = 76;
+      const mainHeight = body.height - hotbarHeight - 8;
+      drawMigrationObjectPortrait({ x: body.x + 4, y: body.y + 4, width: 138, height: 138 }, 'furnace', 'STONE FURNACE', 'off');
+      drawPixelTextInRect(context, fonts, 'ACTIVE · 6.2S\n2 FUEL REMAINS', {
+        x: body.x + 4, y: body.y + 150, width: 138, height: 34,
+      }, { align: 'center', verticalAlign: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      const processX = body.x + 164;
+      // Furnace inventory is five independent dense groups: input, fuel,
+      // output, player inventory, and the bottom hotbar.
+      drawMigrationSlotSection({ x: processX, y: body.y + 4, width: 82, height: 104 }, 'ORE', 1, [slot('iron_ore', 8)], 54, {
+        horizontalAlign: 'center',
+        verticalAlign: 'center',
+      });
+      drawMigrationSlotSection({ x: processX, y: body.y + 116, width: 82, height: 104 }, 'FUEL', 1, [slot('wood', 12)], 54, {
+        horizontalAlign: 'center',
+        verticalAlign: 'center',
+      });
+      drawPixelTextInRect(context, fonts, '→', {
+        x: processX + 90, y: body.y + 80, width: 42, height: 44,
+      }, { font: 'header', align: 'center', verticalAlign: 'center', color: '#6b4428' });
+      drawMigrationSlotSection({ x: processX + 138, y: body.y + 64, width: 86, height: 112 }, 'OUTPUT', 1, [slot('iron_bar', 2)], 58, {
+        horizontalAlign: 'center',
+        verticalAlign: 'center',
+      });
+      drawProgressBar(context, { x: processX, y: body.y + 232, width: 224, height: 12 }, 0.62, GREEN_PROGRESS_PALETTE);
+      drawPixelTextInRect(context, fonts, 'SMELTING · 62%', {
+        x: processX, y: body.y + 250, width: 224, height: 11,
+      }, { align: 'center', color: '#6b4428', overflow: 'ellipsis' });
+      const packX = processX + 250;
+      drawMigrationSlotSection({
+        x: packX,
+        y: body.y + 4,
+        width: body.x + body.width - packX - 6,
+        height: mainHeight,
+      }, 'BACKPACK · 6×3', 6, [
+        slot('apple', 9), slot('grape', 6), slot('wood', 18), slot('torch', 5), slot('stone', 8), slot('iron_ore', 12),
+        slot('axe'), slot('pickaxe'), slot('backpack'), null, null, null,
+        null, null, slot('orchard_tea', 2), null, null, null,
+      ], 46);
+      drawMigrationHotbar({ x: body.x, y: body.y + body.height - hotbarHeight, width: body.width, height: hotbarHeight }, [
+        slot('apple', 60), slot('axe'), slot('pickaxe'), slot('wood', 12), slot('torch', 8), slot('lantern'), null, null, slot('grape', 9), slot('stone', 44),
+      ]);
+      break;
+    }
+    case 'cooking': {
+      const body = drawMigrationWindow(frame, 'COOKING FIRE', closable);
+      const hotbarHeight = 76;
+      const mainHeight = body.height - hotbarHeight - 8;
+      drawMigrationObjectPortrait({ x: body.x + 4, y: body.y + 4, width: 138, height: 138 }, 'cooking_fire', 'COOKING FIRE', 'burn', 1);
+      drawPixelTextInRect(context, fonts, 'LIT · OAK FUEL\n4.4S REMAINING', {
+        x: body.x + 4, y: body.y + 150, width: 138, height: 34,
+      }, { align: 'center', verticalAlign: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      const processX = body.x + 166;
+      drawMigrationSlotSection({ x: processX, y: body.y + 10, width: 86, height: 108 }, 'RAW', 1, [slot('apple', 3)], 56, {
+        horizontalAlign: 'center',
+        verticalAlign: 'center',
+      });
+      drawPixelTextInRect(context, fonts, '↓', {
+        x: processX + 20, y: body.y + 119, width: 46, height: 28,
+      }, { font: 'header', align: 'center', color: '#6b4428' });
+      drawMigrationSlotSection({ x: processX, y: body.y + 146, width: 86, height: 108 }, 'COOKED', 1, [slot('orchard_tea')], 56, {
+        horizontalAlign: 'center',
+        verticalAlign: 'center',
+      });
+      const meter = { x: processX + 104, y: body.y + 32, width: 18, height: 190 };
+      drawUiFrame(context, skin, meter, 'thin');
+      const meterContent = uiFrameContentRect(meter, 'thin', 2);
+      context.fillStyle = '#3f2832';
+      context.fillRect(meterContent.x, meterContent.y, meterContent.width, meterContent.height);
+      const fillHeight = Math.round(meterContent.height * 0.44);
+      context.fillStyle = '#e3a84b';
+      context.fillRect(meterContent.x, meterContent.y + meterContent.height - fillHeight, meterContent.width, fillHeight);
+      drawPixelTextInRect(context, fonts, '44%', {
+        x: processX + 88, y: body.y + 232, width: 50, height: 11,
+      }, { align: 'center', color: '#6b4428' });
+      const packX = processX + 154;
+      drawMigrationSlotSection({
+        x: packX,
+        y: body.y + 4,
+        width: body.x + body.width - packX - 6,
+        height: mainHeight,
+      }, 'BACKPACK · FOOD & FUEL', 6, [
+        slot('apple', 9), slot('grape', 6), slot('wood', 18), slot('torch', 5), slot('stone', 8), slot('orchard_tea', 2),
+        slot('axe'), slot('pickaxe'), slot('backpack'), null, null, null,
+        null, null, null, null, null, null,
+      ], 46);
+      drawMigrationHotbar({ x: body.x, y: body.y + body.height - hotbarHeight, width: body.width, height: hotbarHeight }, [
+        slot('apple', 60), slot('axe'), slot('pickaxe'), slot('wood', 12), slot('torch', 8), slot('lantern'), null, null, slot('grape', 9), slot('stone', 44),
+      ]);
+      break;
+    }
+    case 'character': {
+      const body = drawMigrationWindow(frame, 'CHARACTER', closable);
+      const splitX = body.x + 442;
+      drawPixelTextInRect(context, fonts, 'DASTARI', {
+        x: body.x + 8, y: body.y + 6, width: 418, height: 18,
+      }, { font: 'header', color: '#4d2e22', overflow: 'ellipsis' });
+      drawMigrationSlotSection({
+        x: body.x + 8,
+        y: body.y + 32,
+        width: 190,
+        height: 210,
+      }, 'EQUIPMENT · 3×3', 3, [
+        slot('helm'), null, slot('ring'),
+        slot('axe'), slot('tunic'), null,
+        null, null, null,
+      ], 52);
+      const portrait = { x: body.x + 222, y: body.y + 38, width: 182, height: 202 };
+      const portraitContent = drawMigrationInset(portrait, 'FARMER');
+      context.fillStyle = '#d9a44126';
+      context.fillRect(portraitContent.x, portraitContent.y, portraitContent.width, portraitContent.height);
+      drawMigrationFarmerPortrait(portraitContent);
+      const appearanceRows = [
+        ['HAIR', 'BLONDE'], ['CHEST', 'GREEN'], ['LEGS', 'BLACK'], ['BOOTS', 'BLUE'],
+      ] as const;
+      appearanceRows.forEach(([labelText, value], index) => {
+        const y = body.y + 260 + index * 31;
+        drawFantasyButton(context, skin, fonts, { x: body.x + 22, y, width: 34, height: 24 }, { tone: 'peach', shape: 'square', size: 'small', glyph: 'left_1' });
+        drawPixelTextInRect(context, fonts, `${labelText}  ${value}`, {
+          x: body.x + 68, y, width: 274, height: 24,
+        }, { align: 'center', verticalAlign: 'center', color: '#51351f', overflow: 'ellipsis' });
+        drawFantasyButton(context, skin, fonts, { x: body.x + 354, y, width: 34, height: 24 }, { tone: 'peach', shape: 'square', size: 'small', label: '>' });
+      });
+      drawMigrationVerticalDivider(splitX, body.y + 4, body.height - 8);
+      const rightX = splitX + 24;
+      const rightWidth = body.x + body.width - rightX - 8;
+      drawPixelTextInRect(context, fonts, 'RESOURCES', {
+        x: rightX, y: body.y + 6, width: rightWidth, height: 18,
+      }, { font: 'header', color: '#4d2e22', overflow: 'ellipsis' });
+      const resources = [
+        ['HEALTH', 1, RED_PROGRESS_PALETTE],
+        ['MANA', 1, undefined],
+        ['VIGOUR', 1, GREEN_PROGRESS_PALETTE],
+      ] as const;
+      resources.forEach(([name, value, palette], index) => {
+        const y = body.y + 38 + index * 31;
+        drawPixelTextInRect(context, fonts, name, { x: rightX, y, width: 84, height: 12 }, { color: '#6b4428' });
+        drawProgressBar(context, { x: rightX + 92, y: y + 1, width: rightWidth - 180, height: 10 }, value, palette);
+        drawPixelTextInRect(context, fonts, '100 / 100', { x: rightX + rightWidth - 80, y, width: 80, height: 12 }, { align: 'right', color: '#51351f' });
+      });
+      drawPixelTextInRect(context, fonts, 'ATTRIBUTES', {
+        x: rightX, y: body.y + 142, width: rightWidth, height: 18,
+      }, { font: 'header', color: '#4d2e22' });
+      drawMigrationListRows({ x: rightX, y: body.y + 172, width: rightWidth, height: 142 }, [
+        'STRENGTH                         10',
+        'DEXTERITY                        10',
+        'CONSTITUTION                     10',
+        'INTELLIGENCE                     10',
+        'WISDOM                           10',
+        'CHARISMA                         10',
+      ]);
+      drawPixelTextInRect(context, fonts, 'EXPERIENCE', {
+        x: rightX, y: body.y + 326, width: rightWidth, height: 18,
+      }, { font: 'header', color: '#4d2e22' });
+      drawPixelTextInRect(context, fonts, 'EXPLORER · LEVEL 3', {
+        x: rightX, y: body.y + 352, width: 150, height: 12,
+      }, { color: '#51351f' });
+      drawProgressBar(context, { x: rightX + 166, y: body.y + 352, width: rightWidth - 246, height: 10 }, 0.66, GREEN_PROGRESS_PALETTE);
+      drawPixelTextInRect(context, fonts, '700 / 1055 XP', {
+        x: rightX + rightWidth - 76, y: body.y + 352, width: 76, height: 12,
+      }, { align: 'right', color: '#6b4428' });
+      break;
+    }
+    case 'skills': {
+      const body = drawMigrationWindow(frame, 'SKILLS · 3 POINTS', closable);
+      drawMigrationTabs({ x: body.x, y: body.y + 4, width: body.width - 280, height: 28 }, ['COMBAT', 'EXPLORER', 'FARMING'], 1);
+      drawPixelTextInRect(context, fonts, 'LEVEL 3 · 3 UNSPENT POINTS', {
+        x: body.x + body.width - 266, y: body.y + 4, width: 258, height: 28,
+      }, { font: 'header', align: 'right', verticalAlign: 'center', color: '#4d2e22', overflow: 'ellipsis' });
+      drawProgressBar(context, { x: body.x, y: body.y + 39, width: body.width, height: 10 }, 53 / 408, GREEN_PROGRESS_PALETTE);
+      const detailWidth = 280;
+      const tree = drawMigrationInset({
+        x: body.x,
+        y: body.y + 58,
+        width: body.width - detailWidth - 16,
+        height: body.height - 62,
+      }, 'EXPLORER TREE · DRAG TO PAN');
+      context.strokeStyle = '#8b5a3c';
+      context.lineWidth = 3;
+      [[0.15, 0.22, 0.38, 0.45], [0.78, 0.2, 0.58, 0.45], [0.38, 0.45, 0.58, 0.45], [0.38, 0.45, 0.25, 0.76], [0.58, 0.45, 0.72, 0.76]].forEach(([x1, y1, x2, y2]) => {
+        context.beginPath(); context.moveTo(tree.x + tree.width * x1!, tree.y + tree.height * y1!); context.lineTo(tree.x + tree.width * x2!, tree.y + tree.height * y2!); context.stroke();
+      });
+      const nodes = [[0.15, 0.15], [0.78, 0.13], [0.38, 0.38], [0.58, 0.38], [0.25, 0.69], [0.72, 0.69]] as const;
+      nodes.forEach(([px, py], index) => drawFantasyButton(context, skin, fonts, {
+        x: tree.x + tree.width * px - 25, y: tree.y + tree.height * py - 25, width: 50, height: 50,
+      }, { tone: index < 4 ? 'green' : 'silver', shape: 'square', size: 'small', glyph: index === 3 ? 'star' : 'up' }));
+      const detail = drawMigrationInset({
+        x: body.x + body.width - detailWidth,
+        y: body.y + 58,
+        width: detailWidth,
+        height: body.height - 62,
+      }, 'ORCHARD WAYFINDER');
+      drawMigrationIcon('star', { x: detail.x + Math.round((detail.width - 50) / 2), y: detail.y + 10, width: 50, height: 50 }, 2);
+      drawUiRichText(context, fonts, layoutUiRichText(fonts, parseUiRichText(
+        'Reveal nearby [[coord:orchard,42,18|orchard landmarks]] and gain +10% movement speed on known paths.',
+      ), { x: detail.x + 10, y: detail.y + 74, width: detail.width - 20, height: 82 }, {
+        lineHeight: 13, maxLines: 6, linkColor: '#216b91',
+      }));
+      drawPixelTextInRect(context, fonts, 'REQUIRES · PATHFINDER 1/3\nCOST · 1 SKILL POINT', {
+        x: detail.x + 10, y: detail.y + 170, width: detail.width - 20, height: 38,
+      }, { align: 'center', verticalAlign: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      drawMigrationButtonRow({ x: detail.x + 18, y: detail.y + detail.height - 68, width: detail.width - 36, height: 27 }, [
+        { label: 'RESET TREE', tone: 'red', glyph: 'return' },
+      ]);
+      drawMigrationButtonRow({ x: detail.x + 18, y: detail.y + detail.height - 34, width: detail.width - 36, height: 27 }, [
+        { label: 'LEARN 1 RANK', tone: 'green', glyph: 'star' },
+      ]);
+      break;
+    }
+    case 'quest-log': {
+      const body = drawMigrationWindow(frame, 'QUEST LOG', closable);
+      const master = drawMigrationInset({ x: body.x, y: body.y + 4, width: Math.floor(body.width * 0.35), height: body.height - 8 }, 'QUESTS');
+      drawMigrationListRows(master, ['FIRST HARVEST', 'A LIGHT BELOW', 'CELLAR TOUR', 'LOST LETTER', 'NEIGHBOURLY TRADE'], 0);
+      const detail = drawMigrationInset({ x: body.x + Math.floor(body.width * 0.37), y: body.y + 4, width: Math.floor(body.width * 0.63), height: body.height - 8 }, 'FIRST HARVEST');
+      drawUiRichText(context, fonts, layoutUiRichText(fonts, parseUiRichText('Collect [[item:apple|12 apples]] and return to [[player:marlow|Marlow]] near [[coord:orchard,42,18|the old gate]].'), {
+        x: detail.x + 6, y: detail.y + 7, width: detail.width - 12, height: 70,
+      }, { lineHeight: 12, maxLines: 5, linkColor: '#216b91' }));
+      drawProgressBar(context, { x: detail.x + 8, y: detail.y + 88, width: detail.width - 16, height: 9 }, 7 / 12);
+      drawPixelTextInRect(context, fonts, 'OBJECTIVES', {
+        x: detail.x + 8, y: detail.y + 112, width: detail.width - 16, height: 14,
+      }, { font: 'header', color: '#4d2e22' });
+      drawMigrationListRows({ x: detail.x + 8, y: detail.y + 136, width: detail.width - 16, height: 72 }, [
+        '✓ SPEAK WITH MARLOW',
+        '• HARVEST APPLES          7 / 12',
+        '○ RETURN TO THE OLD GATE',
+      ]);
+      drawPixelTextInRect(context, fonts, 'REWARDS · 120 XP · 35C · ORCHARD TEA', {
+        x: detail.x + 8, y: detail.y + 220, width: detail.width - 16, height: 13,
+      }, { align: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      drawMigrationButtonRow({ x: detail.x + 8, y: detail.y + detail.height - 34, width: detail.width - 16, height: 26 }, [
+        { label: 'TRACK', tone: 'green' }, { label: 'DROP', tone: 'red' },
+      ]);
+      break;
+    }
+    case 'help-book': {
+      const book = { x: frame.x + 12, y: frame.y + 10, width: frame.width - 24, height: frame.height - 40 };
+      drawMigrationWindow(book, 'FIELD GUIDE', closable, 'book');
+      const [leftPage, rightPage] = uiBookPageRects(book, 2, 8);
+      const left = insetRect(leftPage, { left: 4, top: 31, right: 8, bottom: 14 });
+      const right = insetRect(rightPage, { left: 8, top: 31, right: 4, bottom: 14 });
+      drawPixelTextInRect(context, fonts, 'GETTING STARTED', { x: left.x, y: left.y, width: left.width, height: 15 }, { font: 'header', color: '#4d2e22', overflow: 'ellipsis' });
+      drawUiRichText(context, fonts, layoutUiRichText(fonts, parseUiRichText(
+        'Use WASD to move. Open [[item:backpack|your pack]] and meet [[player:marlow|Marlow]].\n\nTODAY’S ROUTE\n1. Gather fallen [[item:apple|apples]].\n2. Craft wooden planks.\n3. Visit the old cellar gate.\n\nBlue text is inspectable and shareable in chat.',
+      ), {
+        x: left.x, y: left.y + 24, width: left.width, height: left.height - 24,
+      }, { lineHeight: 13, maxLines: 18, linkColor: '#216b91' }));
+      drawPixelTextInRect(context, fonts, 'ORCHARD LINKS', { x: right.x, y: right.y, width: right.width, height: 15 }, { font: 'header', color: '#4d2e22', overflow: 'ellipsis' });
+      drawUiRichText(context, fonts, layoutUiRichText(fonts, parseUiRichText(
+        'Jump to [[coord:orchard,42,18|42, 18]], inspect [[item:apple|an apple]], or open the next chapter.\n\nQUICK REFERENCE\n• I opens inventory\n• C opens crafting\n• N toggles nameplates\n• Enter focuses chat\n\nBookmarks jump directly to authored chapters without changing automatic page flow.',
+      ), {
+        x: right.x, y: right.y + 24, width: right.width, height: right.height - 24,
+      }, { lineHeight: 13, maxLines: 18, linkColor: '#216b91' }));
+      const kitY = left.y + left.height - 78;
+      drawMigrationSlotSection({ x: left.x, y: kitY, width: left.width, height: 62 }, 'FIRST-DAY KIT', 3, [
+        slot('apple', 3), slot('wood', 6), slot('torch', 2),
+      ], 38, { horizontalAlign: 'center' });
+      const nextChapter = drawMigrationInset({
+        x: right.x,
+        y: right.y + right.height - 78,
+        width: right.width,
+        height: 62,
+      }, 'NEXT CHAPTER');
+      drawPixelTextInRect(context, fonts, 'CRAFTING & PROCESSORS  →', nextChapter, {
+        align: 'center', verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis',
+      });
+      drawPixelTextInRect(context, fonts, '1', { x: left.x, y: leftPage.y + leftPage.height - 12, width: 20, height: 9 }, { color: '#8b5a3c' });
+      drawPixelTextInRect(context, fonts, '2', { x: right.x + right.width - 20, y: rightPage.y + rightPage.height - 12, width: 20, height: 9 }, { align: 'right', color: '#8b5a3c' });
+      drawFantasyButton(context, skin, fonts, { x: book.x - 9, y: book.y + 78, width: 26, height: 54 }, { tone: 'green', shape: 'square', size: 'small', glyph: 'help' });
+      break;
+    }
+    case 'npc-dialogue': {
+      const body = drawMigrationWindow(frame, 'MARLOW', closable);
+      const portrait = drawMigrationInset({ x: body.x, y: body.y + 4, width: 142, height: 164 }, 'ORCHARD KEEPER');
+      context.fillStyle = '#d9a44155';
+      context.fillRect(portrait.x + 18, portrait.y + 16, portrait.width - 36, portrait.height - 34);
+      drawMigrationFarmerPortrait(insetRect(portrait, { left: 20, top: 14, right: 20, bottom: 18 }));
+      const dialogue = drawMigrationInset({ x: body.x + 156, y: body.y + 4, width: body.width - 156, height: 164 });
+      drawUiRichText(context, fonts, layoutUiRichText(fonts, parseUiRichText('The first apples are ready. Bring me [[item:apple|twelve apples]] and I will show you the old [[coord:orchard,42,18|cellar gate]].'), {
+        x: dialogue.x + 8, y: dialogue.y + 8, width: dialogue.width - 16, height: dialogue.height - 16,
+      }, { lineHeight: 13, maxLines: 9, linkColor: '#216b91' }));
+      drawMigrationButtonRow({ x: body.x + 156, y: body.y + 182, width: body.width - 156, height: 28 }, [
+        { label: 'I WILL HELP', tone: 'green' }, { label: 'MAYBE LATER' },
+      ]);
+      break;
+    }
+    case 'merchant-shop': {
+      const body = drawMigrationWindow(frame, 'MARLOW’S SHOP', closable);
+      const filter = { x: body.x, y: body.y + 4, width: Math.floor(body.width * 0.58), height: 30 };
+      drawUiFrame(context, skin, filter, 'thin');
+      drawPixelTextInRect(context, fonts, 'FILTER STOCK…', uiFrameContentRect(filter, 'thin', 3), { color: '#986846', verticalAlign: 'center', overflow: 'ellipsis' });
+      drawPixelTextInRect(context, fonts, 'BALANCE  1G 24S 08C', { x: body.x + Math.floor(body.width * 0.61), y: body.y + 10, width: Math.floor(body.width * 0.39), height: 12 }, { align: 'right', color: '#6b4428', overflow: 'ellipsis' });
+      const stock = drawMigrationInset({ x: body.x, y: body.y + 44, width: Math.floor(body.width * 0.62), height: body.height - 48 }, 'STOCK');
+      const goods = [slot('apple'), slot('axe'), slot('torch', 4), slot('backpack'), slot('grape', 6), slot('orchard_tea')];
+      const goodLabels = ['APPLE · 12C', 'IRON AXE · 8S 50C', 'TORCH ×4 · 45C', 'BACKPACK · 25S', 'GRAPES ×6 · 30C', 'ORCHARD TEA · 1S 20C'];
+      const stockRowHeight = Math.max(30, Math.floor(stock.height / goods.length));
+      goods.forEach((stack, index) => {
+        const y = stock.y + index * stockRowHeight;
+        const slotHeight = Math.max(25, Math.min(33, stockRowHeight - 2));
+        mockSlot({ x: stock.x + 4, y, width: slotHeight - 3, height: slotHeight }, stack);
+        drawPixelTextInRect(context, fonts, goodLabels[index]!, { x: stock.x + 44, y, width: stock.width - 48, height: slotHeight }, { verticalAlign: 'center', color: '#51351f', overflow: 'ellipsis' });
+      });
+      const basket = drawMigrationInset({ x: body.x + Math.floor(body.width * 0.65), y: body.y + 44, width: Math.floor(body.width * 0.35), height: body.height - 91 }, 'BASKET');
+      drawMigrationSlotGrid(
+        { x: basket.x, y: basket.y + 4, width: basket.width, height: 92 },
+        3,
+        [slot('apple', 4), slot('torch', 4), null],
+        38,
+        { horizontalAlign: 'center' },
+      );
+      drawPixelTextInRect(context, fonts, '2 LINES · 8 ITEMS\nTOTAL · 93C', {
+        x: basket.x + 8, y: basket.y + 100, width: basket.width - 16, height: 34,
+      }, { align: 'center', verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
+      drawMigrationButtonRow({ x: basket.x, y: body.y + body.height - 40, width: basket.width, height: 28 }, [{ label: 'BUY · 93C', tone: 'green', glyph: 'coin' }]);
+      break;
+    }
+    case 'player-trade': {
+      const body = drawMigrationWindow(frame, 'TRADE WITH MIRA', closable);
+      const panes = layoutUiFlex({ x: body.x, y: body.y + 4, width: body.width, height: body.height - 54 }, [
+        { minSize: { width: 160, height: 180 }, grow: 1 }, { minSize: { width: 160, height: 180 }, grow: 1 },
+      ], { gap: 12 });
+      panes.forEach((pane, index) => {
+        const inner = drawMigrationInset(pane, index === 0 ? 'YOUR OFFER' : 'MIRA’S OFFER');
+        drawMigrationSlotGrid({ x: inner.x, y: inner.y + 2, width: inner.width, height: 100 }, 4, index === 0
+          ? [slot('apple', 8), slot('wood', 20), null, null, null, null, null, null]
+          : [slot('orchard_tea', 2), slot('grape', 12), null, null, null, null, null, null], 40);
+        drawPixelTextInRect(context, fonts, index === 0 ? 'COINS  2S 00C' : 'COINS  1S 25C', { x: inner.x + 4, y: inner.y + 114, width: inner.width - 8, height: 12 }, { align: 'center', color: '#6b4428', overflow: 'ellipsis' });
+        drawFantasyButton(context, skin, fonts, { x: inner.x + 24, y: inner.y + inner.height - 33, width: inner.width - 48, height: 26 }, { tone: index === 0 ? 'green' : 'silver', label: index === 0 ? 'READY' : 'WAITING…', state: index === 0 ? 'pressed' : 'disabled' });
+      });
+      drawPixelTextInRect(context, fonts, 'OFFERS LOCK AND COMPLETE ATOMICALLY', { x: body.x, y: body.y + body.height - 28, width: body.width, height: 11 }, { align: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      break;
+    }
+    case 'game-menu': {
+      const body = drawMigrationWindow(frame, 'GAME MENU · WORLD CONTINUES LIVE', closable);
+      drawPixelTextInRect(context, fonts, 'THIS MMO DOES NOT PAUSE WHILE THE MENU IS OPEN.', { x: body.x + 24, y: body.y + 6, width: body.width - 48, height: 12 }, { align: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+      const rows = [
+        [{ label: 'RETURN TO GAME', tone: 'green' as const, glyph: 'return' as const }],
+        [{ label: 'SETTINGS', tone: 'peach' as const, glyph: 'wrench' as const }],
+        [{ label: 'HELP', tone: 'silver' as const, glyph: 'help' as const }, { label: 'DEVELOPER', tone: 'silver' as const, glyph: 'key_r' as const }],
+        [{ label: 'FULLSCREEN', tone: 'peach' as const, disabled: true }, { label: 'SIGN OUT', tone: 'red' as const, glyph: 'power' as const }],
+      ];
+      rows.forEach((actions, index) => drawMigrationButtonRow({ x: body.x + 88, y: body.y + 35 + index * 48, width: body.width - 176, height: 31 }, actions));
+      drawPixelTextInRect(context, fonts, 'FULLSCREEN UNAVAILABLE ON THIS DEVICE', { x: body.x + 120, y: body.y + body.height - 18, width: body.width - 240, height: 10 }, { align: 'center', color: '#986846', overflow: 'ellipsis' });
+      break;
+    }
+    case 'settings': {
+      const body = drawMigrationWindow(frame, 'SETTINGS', closable);
+      drawMigrationTabs({ x: body.x, y: body.y + 4, width: body.width, height: 28 }, ['PLAY', 'CTRL', 'VIDEO', 'AUDIO', 'UI', 'A11Y'], 3);
+      const panelY = body.y + 42;
+      const audioWidth = Math.floor(body.width * 0.61);
+      const audio = drawMigrationInset({ x: body.x, y: panelY, width: audioWidth, height: body.height - 46 }, 'AUDIO MIXER');
+      const rows = [
+        ['MASTER', migrationMasterSlider, 'sound', 2],
+        ['MUSIC', migrationMusicSlider, 'music', 2],
+        ['SOUNDS', migrationSoundSlider, 'sound', 0],
+      ] as const;
+      rows.forEach(([name, control, icon, level], index) => {
+        const y = audio.y + 10 + index * 51;
+        drawMigrationIcon(icon, { x: audio.x + 5, y: y - 4, width: 32, height: 32 }, level);
+        drawPixelTextInRect(context, fonts, name, { x: audio.x + 42, y, width: 72, height: 20 }, { verticalAlign: 'center', color: '#51351f', overflow: 'ellipsis' });
+        drawMigrationSlider(control, { x: audio.x + 116, y, width: audio.width - 198, height: 22 });
+        drawPixelTextInRect(context, fonts, `${Math.round(control.value * 100)}%`, { x: audio.x + audio.width - 74, y, width: 68, height: 20 }, { align: 'right', verticalAlign: 'center', color: '#6b4428' });
+      });
+      const muteY = audio.y + 170;
+      drawPixelTextInRect(context, fonts, 'MUTE WHEN WINDOW LOSES FOCUS', {
+        x: audio.x + 10, y: muteY, width: audio.width - 98, height: 24,
+      }, { verticalAlign: 'center', color: '#51351f', overflow: 'ellipsis' });
+      drawToggleSwitch(context, skin, { x: audio.x + audio.width - 82, y: muteY, width: 72, height: 24 }, { value: false, style: 'neutral' });
+      const gameplay = drawMigrationInset({
+        x: body.x + audioWidth + 14,
+        y: panelY,
+        width: body.width - audioWidth - 14,
+        height: body.height - 46,
+      }, 'GAMEPLAY QUICK SETTINGS');
+      const toggles = [
+        ['PLAYER NAMEPLATES', true],
+        ['QUEST MARKERS', true],
+        ['CHAT TIMESTAMPS', false],
+        ['REDUCED MOTION', false],
+      ] as const;
+      toggles.forEach(([name, value], index) => {
+        const y = gameplay.y + 9 + index * 43;
+        drawPixelTextInRect(context, fonts, name, {
+          x: gameplay.x + 8, y, width: gameplay.width - 96, height: 24,
+        }, { verticalAlign: 'center', color: '#51351f', overflow: 'ellipsis' });
+        if (index === 0) {
+          drawMigrationToggle(migrationNameplatesToggle, { x: gameplay.x + gameplay.width - 82, y, width: 72, height: 24 });
+        } else {
+          drawToggleSwitch(context, skin, { x: gameplay.x + gameplay.width - 82, y, width: 72, height: 24 }, { value, style: 'neutral' });
+        }
+      });
+      drawPixelTextInRect(context, fonts, 'AUDIO IS LIVE · OTHER PANELS ARE VISUAL SPECIMENS', {
+        x: gameplay.x + 8, y: gameplay.y + gameplay.height - 18, width: gameplay.width - 16, height: 10,
+      }, { align: 'center', color: '#986846', overflow: 'ellipsis' });
+      break;
+    }
+    case 'developer': {
+      const body = drawMigrationWindow(frame, 'DEVELOPER TOOLS', closable);
+      const railWidth = 184;
+      const sections = [
+        ['WORLD', 'star'], ['PLAYER', 'key_r'], ['QUESTS', 'help'], ['RENDER', 'wrench'],
+      ] as const;
+      sections.forEach(([name, glyph], index) => {
+        drawFantasyButton(context, skin, fonts, {
+          x: body.x + 4,
+          y: body.y + 8 + index * 48,
+          width: railWidth - 8,
+          height: 34,
+        }, {
+          tone: index === 0 ? 'green' : 'peach',
+          shape: 'square',
+          size: 'wide',
+          glyph,
+          label: name,
+          state: index === 0 ? 'pressed' : 'idle',
+        });
+      });
+      drawMigrationButtonRow({
+        x: body.x + 8,
+        y: body.y + body.height - 36,
+        width: railWidth - 16,
+        height: 28,
+      }, [{ label: 'BACK', glyph: 'back' }]);
+      const panel = drawMigrationInset({
+        x: body.x + railWidth + 10,
+        y: body.y + 4,
+        width: body.width - railWidth - 14,
+        height: body.height - 8,
+      }, 'WORLD & TIME');
+      const controlRow = layoutUiFlex({ x: panel.x + 8, y: panel.y + 8, width: panel.width - 16, height: 32 }, [
+        { minSize: { width: 96, height: 32 } },
+        { minSize: { width: 210, height: 32 }, grow: 1 },
+        { minSize: { width: 96, height: 32 } },
+      ], { gap: 12, align: 'stretch' });
+      drawFantasyButton(context, skin, fonts, controlRow[0]!, { tone: 'peach', shape: 'chamfered', label: '− 1 HOUR' });
+      drawProgressBar(context, { x: controlRow[1]!.x, y: controlRow[1]!.y + 10, width: controlRow[1]!.width, height: 12 }, 0.4);
+      drawFantasyButton(context, skin, fonts, controlRow[2]!, { tone: 'peach', shape: 'chamfered', label: '+ 1 HOUR' });
+      drawPixelTextInRect(context, fonts, 'SUMMER 12 · 09:40 · CLEAR · EAST WIND', {
+        x: panel.x + 8, y: panel.y + 54, width: panel.width - 16, height: 16,
+      }, { font: 'header', align: 'center', color: '#4d2e22', overflow: 'ellipsis' });
+      const weatherRows = [
+        ['WEATHER', 'AUTO'], ['WIND', 'EAST'], ['SEASON', 'SUMMER'],
+      ] as const;
+      weatherRows.forEach(([name, value], index) => {
+        const y = panel.y + 86 + index * 43;
+        drawPixelTextInRect(context, fonts, name, { x: panel.x + 12, y, width: 108, height: 26 }, { verticalAlign: 'center', color: '#51351f' });
+        drawMigrationButtonRow({ x: panel.x + 126, y, width: panel.width - 138, height: 27 }, [
+          { label: value, tone: index === 0 ? 'green' : index === 1 ? 'blue' : 'gold' },
+        ]);
+      });
+      ['LIGHTING EFFECTS', 'CELLAR ORE VEINS', 'COLLISION OVERLAY'].forEach((name, index) => {
+        const y = panel.y + 226 + index * 35;
+        drawPixelTextInRect(context, fonts, name, { x: panel.x + 12, y, width: panel.width - 104, height: 24 }, { verticalAlign: 'center', color: index === 2 ? '#986846' : '#51351f', overflow: 'ellipsis' });
+        drawToggleSwitch(context, skin, { x: panel.x + panel.width - 82, y, width: 72, height: 24 }, { value: index === 0, style: 'neutral', enabled: index < 2 });
+      });
+      break;
+    }
+    default: {
+      const exhaustive: never = id;
+      throw new Error(`Unhandled migration surface: ${exhaustive}`);
+    }
+  }
+}
+
+function drawMigrationGallery(): void {
+  if (!worldRectVisible(SECTIONS.migration)) return;
+  sectionRibbon.draw(
+    context,
+    'LIVE UI MIGRATION GALLERY',
+    SECTIONS.migration.x + 30 + MIGRATION_LANE_WIDTH / 2,
+    SECTIONS.migration.y,
+    { maxWidth: 680, overflow: 'ellipsis' },
+  );
+  drawPixelTextInRect(context, fonts, 'CONTENT-SIZED LIVE SURFACES · SHARED COMPONENTS · APPROVAL BEFORE LIVE SWAP', {
+    x: SECTIONS.migration.x + 30,
+    y: SECTIONS.migration.y + 38,
+    width: MIGRATION_LANE_WIDTH,
+    height: 12,
+  }, { align: 'center', color: '#c9d8c7', overflow: 'ellipsis' });
+
+  MIGRATION_SPECIMEN_LAYOUT.forEach(({ surface, index, frame }) => {
+    const specimenBounds = {
+      x: frame.x - 8,
+      y: frame.y - MIGRATION_LABEL_HEIGHT,
+      width: frame.width + 16,
+      height: frame.height + MIGRATION_LABEL_HEIGHT + 8,
+    };
+    if (!worldRectVisible(specimenBounds)) return;
+    drawPixelTextInRect(context, fonts, `${String(index + 1).padStart(2, '0')} · ${surface.title.toUpperCase()}`, {
+      x: frame.x, y: frame.y - 38, width: Math.max(0, frame.width - 118), height: 14,
+    }, { font: 'header', color: '#f8ead0', overflow: 'ellipsis' });
+    const category = { x: frame.x + frame.width - 106, y: frame.y - 40, width: 106, height: 18 };
+    drawUiLabelPlate(context, skin, category);
+    drawPixelTextInRect(context, fonts, surface.category.toUpperCase(), insetRect(category, { left: 4, right: 4 }), {
+      align: 'center', verticalAlign: 'center', color: MIGRATION_CATEGORY_COLORS[surface.category], overflow: 'ellipsis',
+    });
+    drawPixelTextInRect(context, fonts, surface.description.toUpperCase(), {
+      x: frame.x, y: frame.y - 18, width: frame.width, height: 11,
+    }, { color: '#b7cab9', overflow: 'ellipsis' });
+    drawMigrationSurface(surface.id, frame, surface.closable);
   });
 }
 
@@ -1300,7 +2561,7 @@ function drawFantasyControlFamilies(): void {
   const content = drawSection(
     SECTIONS.fantasyControls,
     'COMPLETE CUTE FANTASY BUTTON & ICON FAMILIES',
-    '9 TONES / 3 SHAPES / 3 STATES / AUTHORED HOVER OUTLINES / 31 GLYPHS / ALL 624 ICON CELLS',
+    'BUTTON STATES / 31 GLYPHS / 624 ICONS / 80 SELECTORS / 380 SLIDER + SWITCH CELLS',
   );
   if (!worldRectVisible(SECTIONS.fantasyControls)) return;
 
@@ -1381,10 +2642,12 @@ function drawFantasyControlFamilies(): void {
   label('SEMANTIC ICON COMPONENTS', rightX, top, { header: true, color: '#4d2e22' });
   label('MULTI-FRAME LEVELS + MATCHED OUTLINE STATE', rightX, top + 22, { color: '#8b5a3c' });
   const now = performance.now();
+  const semanticIconColumns = 8;
+  const semanticIconGridY = top + 42;
   FANTASY_ICON_FAMILIES.forEach((definition, index) => {
-    const column = index % 8;
-    const row = Math.floor(index / 8);
-    const cell = { x: rightX + column * 78, y: top + 42 + row * 64, width: 68, height: 56 };
+    const column = index % semanticIconColumns;
+    const row = Math.floor(index / semanticIconColumns);
+    const cell = { x: rightX + column * 78, y: semanticIconGridY + row * 64, width: 68, height: 56 };
     const iconRect = { x: cell.x + 18, y: cell.y, width: 32, height: 32 };
     const hovered = containsPoint(cell, pointerWorld);
     drawFantasyIcon(context, skin, iconRect, definition, { now, hovered });
@@ -1399,7 +2662,8 @@ function drawFantasyControlFamilies(): void {
     ));
   });
 
-  const catalogY = top + 184;
+  const semanticIconRows = Math.ceil(FANTASY_ICON_FAMILIES.length / semanticIconColumns);
+  const catalogY = semanticIconGridY + semanticIconRows * 64 + 12;
   label('COMPLETE UI_ICONS.PNG CELL CATALOG', rightX, catalogY, { color: '#8b5a3c' });
   label(`${FANTASY_ICON_CATALOG_COLUMNS} COLUMNS × ${FANTASY_ICON_CATALOG_ROWS} ROWS`,
     rightX + 1_000, catalogY, { align: 'right', color: '#8b5a3c' });
@@ -1444,12 +2708,369 @@ function drawFantasyControlFamilies(): void {
   });
   label('THE RAW CATALOG STAYS AVAILABLE WHILE SEMANTIC DEFINITIONS GROUP ANIMATION LEVELS AND OUTLINES.',
     rightX, catalogRect.y + catalogRect.height + 14, { color: '#6b4428' });
+
+  const controlCatalogY = catalogRect.y + catalogRect.height + 48;
+  label('COMPLETE UI_SLIDERS.PNG CELL CATALOG', rightX, controlCatalogY, { color: '#8b5a3c' });
+  const sliderCellSize = 14;
+  const sliderCatalogRect = {
+    x: rightX,
+    y: controlCatalogY + 18,
+    width: AUTHORED_SLIDER_CATALOG_COLUMNS * sliderCellSize,
+    height: AUTHORED_SLIDER_CATALOG_ROWS * sliderCellSize,
+  };
+  context.fillStyle = '#ead0aa66';
+  context.fillRect(sliderCatalogRect.x, sliderCatalogRect.y, sliderCatalogRect.width, sliderCatalogRect.height);
+  for (let row = 0; row < AUTHORED_SLIDER_CATALOG_ROWS; row += 1) {
+    for (let column = 0; column < AUTHORED_SLIDER_CATALOG_COLUMNS; column += 1) {
+      drawAuthoredSliderCell(context, skin.sliderCatalog, {
+        x: sliderCatalogRect.x + column * sliderCellSize,
+        y: sliderCatalogRect.y + row * sliderCellSize,
+        width: sliderCellSize,
+        height: sliderCellSize,
+      }, column, row);
+    }
+  }
+  addHit(sliderCatalogRect, (point) => notify(
+    `SLIDER SOURCE CELL R${Math.floor((point.y - sliderCatalogRect.y) / sliderCellSize)} C${Math.floor((point.x - sliderCatalogRect.x) / sliderCellSize)}`,
+  ));
+
+  const selectorCatalogX = sliderCatalogRect.x + sliderCatalogRect.width + 42;
+  label('ALL 80 SELECTORS', selectorCatalogX, controlCatalogY, { color: '#8b5a3c' });
+  const selectorCellSize = 10;
+  const selectorCatalogRect = {
+    x: selectorCatalogX,
+    y: controlCatalogY + 18,
+    width: AUTHORED_SELECTOR_COLUMNS * selectorCellSize,
+    height: AUTHORED_SELECTOR_ROWS * selectorCellSize,
+  };
+  context.fillStyle = '#ead0aa66';
+  context.fillRect(selectorCatalogRect.x, selectorCatalogRect.y,
+    selectorCatalogRect.width, selectorCatalogRect.height);
+  for (let row = 0; row < AUTHORED_SELECTOR_ROWS; row += 1) {
+    for (let column = 0; column < AUTHORED_SELECTOR_COLUMNS; column += 1) {
+      drawAuthoredSelectorCell(context, skin.selectorCatalog, {
+        x: selectorCatalogRect.x + column * selectorCellSize,
+        y: selectorCatalogRect.y + row * selectorCellSize,
+        width: selectorCellSize,
+        height: selectorCellSize,
+      }, { column, row });
+    }
+  }
+  addHit(selectorCatalogRect, (point) => notify(
+    `SELECTOR SOURCE CELL R${Math.floor((point.y - selectorCatalogRect.y) / selectorCellSize)} C${Math.floor((point.x - selectorCatalogRect.x) / selectorCellSize)}`,
+  ));
+}
+
+const ACTOR_KIND_TABS = ['all', 'npc', 'faction', 'enemy', 'effect'] as const;
+const ACTOR_CATALOG_PAGE_SIZE = 30;
+
+function actorEntriesForKind(kind: CuteFantasyActorKind | 'all'): readonly CuteFantasyActorCatalogEntry[] {
+  return kind === 'all'
+    ? CUTE_FANTASY_ACTOR_CATALOG
+    : CUTE_FANTASY_ACTOR_CATALOG.filter((entry) => entry.kind === kind);
+}
+
+function actorAnimationFrame(asset: LoadedAsset, animation: string, now: number): number {
+  if (reducedMotionQuery.matches) return 0;
+  const frames = asset.metadata.animations[animation] ?? [];
+  const fps = asset.metadata.animationMeta?.[animation]?.fps ?? 8;
+  return frames.length === 0 ? 0 : Math.floor(now * fps / 1_000) % frames.length;
+}
+
+function drawActorSprite(
+  asset: LoadedAsset | null,
+  animation: string,
+  bounds: UiRect,
+  now: number,
+): void {
+  context.save();
+  context.beginPath();
+  context.rect(bounds.x, bounds.y, bounds.width, bounds.height);
+  context.clip();
+  if (asset === null) {
+    context.fillStyle = '#e8bd8b55';
+    context.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    drawPixelTextInRect(context, fonts, 'LOADING', bounds, {
+      align: 'center', verticalAlign: 'center', color: '#9d6843', overflow: 'ellipsis',
+    });
+    context.restore();
+    return;
+  }
+  const frame = uiAssetFrame(asset, animation, actorAnimationFrame(asset, animation, now));
+  if (frame !== null) {
+    const scale = Math.max(1, Math.min(4, Math.floor(Math.min(
+      bounds.width / frame.width,
+      bounds.height / frame.height,
+    ))));
+    const width = frame.width * scale;
+    const height = frame.height * scale;
+    const x = Math.round(bounds.x + (bounds.width - width) / 2);
+    const y = Math.round(bounds.y + (bounds.height - height) / 2);
+    context.imageSmoothingEnabled = false;
+    context.drawImage(asset.image, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
+  }
+  context.restore();
+}
+
+function drawActorCatalogCard(
+  entry: CuteFantasyActorCatalogEntry,
+  rect: UiRect,
+  now: number,
+): void {
+  drawUiFrame(context, skin, rect, 'thin');
+  const selected = entry.id === selectedActorId;
+  const hovered = containsPoint(rect, pointerWorld);
+  if (selected || hovered) {
+    context.fillStyle = selected ? '#63c74d38' : '#f6ca9f44';
+    context.fillRect(rect.x + 4, rect.y + 4, rect.width - 8, rect.height - 8);
+  }
+  const asset = requestActorAsset(entry.asset);
+  const previewAnimation = entry.animations.find((name) => name.startsWith('idle')) ?? entry.animations[0] ?? 'base';
+  drawActorSprite(asset, previewAnimation, {
+    x: rect.x + 5, y: rect.y + 5, width: 64, height: 64,
+  }, now);
+  drawPixelTextInRect(context, fonts, entry.label.toUpperCase(), {
+    x: rect.x + 73, y: rect.y + 10, width: rect.width - 79, height: 10,
+  }, { color: '#4d2e22', overflow: 'ellipsis' });
+  drawPixelTextInRect(context, fonts, entry.family.toUpperCase(), {
+    x: rect.x + 73, y: rect.y + 29, width: rect.width - 79, height: 9,
+  }, { color: '#8b5a3c', overflow: 'ellipsis' });
+  drawPixelTextInRect(context, fonts, `${entry.animations.length} ANIMATION${entry.animations.length === 1 ? '' : 'S'}`, {
+    x: rect.x + 73, y: rect.y + 47, width: rect.width - 79, height: 9,
+  }, { color: '#6b4428', overflow: 'ellipsis' });
+  addHit(rect, () => {
+    selectedActorId = entry.id;
+    notify(`${entry.label.toUpperCase()} — ${entry.animations.length} ANIMATION GROUPS`);
+  });
+}
+
+function drawActorAnimationCard(
+  entry: CuteFantasyActorCatalogEntry,
+  asset: LoadedAsset | null,
+  animation: string,
+  rect: UiRect,
+  now: number,
+): void {
+  drawUiFrame(context, skin, rect, 'thin');
+  drawPixelTextInRect(context, fonts, animation.replaceAll('_', ' ').toUpperCase(), {
+    x: rect.x + 6, y: rect.y + 7, width: rect.width - 12, height: 10,
+  }, { align: 'center', color: '#4d2e22', overflow: 'ellipsis' });
+  drawActorSprite(asset, animation, {
+    x: rect.x + 6, y: rect.y + 21, width: rect.width - 12, height: 78,
+  }, now);
+  const frameCount = asset?.metadata.animations[animation]?.length ?? 0;
+  const fps = asset?.metadata.animationMeta?.[animation]?.fps ?? 8;
+  const loop = asset?.metadata.animationMeta?.[animation]?.loop ?? true;
+  drawPixelTextInRect(context, fonts, frameCount > 0
+    ? `${frameCount}F · ${fps}FPS · ${loop ? 'LOOP' : 'ONE-SHOT'}`
+    : 'ATLAS LOADING', {
+    x: rect.x + 6, y: rect.y + rect.height - 16, width: rect.width - 12, height: 9,
+  }, { align: 'center', color: '#8b5a3c', overflow: 'ellipsis' });
+  addHit(rect, () => notify(
+    `${entry.label.toUpperCase()} · ${animation.toUpperCase()} · ${frameCount || entry.animations.length} FRAME CONTRACT`,
+  ));
+}
+
+function selectActorCatalogPage(entries: readonly CuteFantasyActorCatalogEntry[], page: number): void {
+  const pageCount = Math.max(1, Math.ceil(entries.length / ACTOR_CATALOG_PAGE_SIZE));
+  actorCatalogPage = Math.max(0, Math.min(pageCount - 1, page));
+  const first = entries[actorCatalogPage * ACTOR_CATALOG_PAGE_SIZE];
+  if (first !== undefined) selectedActorId = first.id;
+}
+
+function stepActorSelection(delta: number): void {
+  const entries = actorEntriesForKind(selectedActorKind);
+  if (entries.length === 0) return;
+  const current = Math.max(0, entries.findIndex((entry) => entry.id === selectedActorId));
+  const next = (current + delta + entries.length) % entries.length;
+  const selected = entries[next]!;
+  selectedActorId = selected.id;
+  actorCatalogPage = Math.floor(next / ACTOR_CATALOG_PAGE_SIZE);
+  notify(`${selected.label.toUpperCase()} — ${next + 1}/${entries.length} · ${selected.animations.length} ANIMATION GROUPS`);
+}
+
+function drawActorAnimationLibrary(): void {
+  if (!worldRectVisible(SECTIONS.actors)) return;
+  label('NPC, ENEMY & PROJECTILE ANIMATION LIBRARY', SECTIONS.actors.x, SECTIONS.actors.y, {
+    header: true, scale: 2, color: '#181425', outline: true, outlineColor: '#ffffff',
+  });
+  label(`${CUTE_FANTASY_ACTOR_CATALOG.length} GAME-LOADABLE ASSETS · EVERY AUTHORED ROW · VISIBLE-ONLY AUTHORED-FPS PREVIEWS · [ ] SELECT`,
+    SECTIONS.actors.x + 2, SECTIONS.actors.y + 30, {
+      color: '#b9d3c2', outline: true, outlineColor: '#181425',
+    });
+  const content: UiRect = {
+    x: SECTIONS.actors.x,
+    y: SECTIONS.actors.y + 52,
+    width: SECTIONS.actors.width,
+    height: SECTIONS.actors.height - 52,
+  };
+
+  const now = performance.now();
+  const leftWidth = 650;
+  const tabGap = 6;
+  const tabWidth = Math.floor((leftWidth - tabGap * (ACTOR_KIND_TABS.length - 1)) / ACTOR_KIND_TABS.length);
+  ACTOR_KIND_TABS.forEach((kind, index) => {
+    const rect = {
+      x: content.x + index * (tabWidth + tabGap), y: content.y, width: tabWidth, height: 24,
+    };
+    const count = actorEntriesForKind(kind).length;
+    drawFantasyButton(context, skin, fonts, rect, {
+      tone: selectedActorKind === kind ? 'green' : 'peach',
+      shape: 'chamfered',
+      hovered: containsPoint(rect, pointerWorld),
+      label: `${kind.toUpperCase()} ${count}`,
+    });
+    addHit(rect, () => {
+      selectedActorKind = kind;
+      actorCatalogPage = 0;
+      const first = actorEntriesForKind(kind)[0];
+      if (first !== undefined) selectedActorId = first.id;
+      notify(`${kind.toUpperCase()} ACTOR FILTER — ${count} ASSETS`);
+    });
+  });
+
+  const entries = actorEntriesForKind(selectedActorKind);
+  const pageCount = Math.max(1, Math.ceil(entries.length / ACTOR_CATALOG_PAGE_SIZE));
+  actorCatalogPage = Math.min(actorCatalogPage, pageCount - 1);
+  const pageEntries = entries.slice(
+    actorCatalogPage * ACTOR_CATALOG_PAGE_SIZE,
+    (actorCatalogPage + 1) * ACTOR_CATALOG_PAGE_SIZE,
+  );
+  let selected: CuteFantasyActorCatalogEntry | undefined = CUTE_FANTASY_ACTOR_CATALOG
+    .find((entry) => entry.id === selectedActorId);
+  if (selected === undefined) {
+    selected = pageEntries[0] ?? CUTE_FANTASY_ACTOR_CATALOG[0];
+    if (selected !== undefined) selectedActorId = selected.id;
+  }
+  if (selected === undefined) return;
+
+  const bodyY = content.y + 34;
+  const listRows = Math.max(1, Math.ceil(pageEntries.length / 3));
+  const leftPanel: UiRect = {
+    x: content.x,
+    y: bodyY,
+    width: leftWidth,
+    height: Math.min(content.height - 34, 48 + listRows * 74 + Math.max(0, listRows - 1) * 6 + 42),
+  };
+  drawUiFrame(context, skin, leftPanel, 'thin');
+  const leftContent = uiFrameContentRect(leftPanel, 'thin', 6);
+  label(`ASSET CATALOG · PAGE ${actorCatalogPage + 1}/${pageCount}`, leftContent.x, leftContent.y, {
+    color: '#8b5a3c',
+  });
+  const listGrid = layoutUiGrid({
+    x: leftContent.x,
+    y: leftContent.y + 24,
+    width: leftContent.width,
+    height: Math.max(0, leftContent.height - 64),
+  }, pageEntries.map(() => ({ width: 1, height: 74 })), {
+    columns: 3, rowHeight: 74, columnGap: 6, rowGap: 6,
+  });
+  pageEntries.forEach((entry, index) => {
+    const rect = listGrid.items[index];
+    if (rect !== undefined) drawActorCatalogCard(entry, rect, now);
+  });
+  if (pageCount > 1) {
+    const pagerY = leftPanel.y + leftPanel.height - 34;
+    const previous = { x: leftPanel.x + 8, y: pagerY, width: 90, height: 22 };
+    const next = { x: leftPanel.x + leftPanel.width - 98, y: pagerY, width: 90, height: 22 };
+    drawFantasyButton(context, skin, fonts, previous, {
+      tone: 'peach', shape: 'pill', state: actorCatalogPage === 0 ? 'disabled' : 'idle', label: '< PREV',
+    });
+    drawFantasyButton(context, skin, fonts, next, {
+      tone: 'peach', shape: 'pill', state: actorCatalogPage >= pageCount - 1 ? 'disabled' : 'idle', label: 'NEXT >',
+    });
+    if (actorCatalogPage > 0) addHit(previous, () => {
+      selectActorCatalogPage(entries, actorCatalogPage - 1);
+      notify(`ACTOR CATALOG PAGE ${actorCatalogPage + 1}/${pageCount}`);
+    });
+    if (actorCatalogPage < pageCount - 1) addHit(next, () => {
+      selectActorCatalogPage(entries, actorCatalogPage + 1);
+      notify(`ACTOR CATALOG PAGE ${actorCatalogPage + 1}/${pageCount}`);
+    });
+  }
+
+  const animationColumns = 6;
+  const animationRows = Math.max(1, Math.ceil(selected.animations.length / animationColumns));
+  const companionHeight = selected.companions.length > 0 ? 140 : 0;
+  const rightPanel: UiRect = {
+    x: content.x + leftWidth + 14,
+    y: bodyY,
+    width: content.width - leftWidth - 14,
+    height: Math.min(content.height - 34, 82 + animationRows * 124 + Math.max(0, animationRows - 1) * 6 + companionHeight),
+  };
+  drawUiFrame(context, skin, rightPanel, 'thin');
+  const detail = uiFrameContentRect(rightPanel, 'thin', 8);
+  drawPixelTextInRect(context, fonts, selected.label.toUpperCase(), {
+    x: detail.x, y: detail.y, width: detail.width * 0.55, height: 18,
+  }, { font: 'header', color: '#4d2e22', overflow: 'ellipsis' });
+  drawPixelTextInRect(context, fonts, `${selected.kind.toUpperCase()} · ${selected.family.toUpperCase()} · ${selected.size[0]}×${selected.size[1]}`, {
+    x: detail.x + detail.width * 0.55, y: detail.y + 2, width: detail.width * 0.45, height: 12,
+  }, { align: 'right', color: '#8b5a3c', overflow: 'ellipsis' });
+  drawPixelTextInRect(context, fonts, selected.id.toUpperCase(), {
+    x: detail.x, y: detail.y + 25, width: detail.width * 0.44, height: 9,
+  }, { color: '#6b4428', overflow: 'ellipsis' });
+  drawPixelTextInRect(context, fonts, selected.sourcePath, {
+    x: detail.x + detail.width * 0.44, y: detail.y + 25, width: detail.width * 0.56, height: 9,
+  }, { align: 'right', color: '#9d6843', overflow: 'ellipsis' });
+
+  const selectedAsset = requestActorAsset(selected.asset);
+  const animationGrid = layoutUiGrid({
+    x: detail.x,
+    y: detail.y + 44,
+    width: detail.width,
+    height: animationRows * 124 + Math.max(0, animationRows - 1) * 6,
+  }, selected.animations.map(() => ({ width: 1, height: 124 })), {
+    columns: animationColumns, rowHeight: 124, columnGap: 6, rowGap: 6,
+  });
+  selected.animations.forEach((animation, index) => {
+    const rect = animationGrid.items[index];
+    if (rect !== undefined) drawActorAnimationCard(selected, selectedAsset, animation, rect, now);
+  });
+
+  if (selected.companions.length > 0) {
+    const gridBottom = animationGrid.cells.at(-1)?.y ?? detail.y + 44;
+    const companionsY = gridBottom + 124 + 18;
+    label('COMPANION SHEETS · PROJECTILES / WEAPONS / VFX', detail.x, companionsY, { color: '#8b5a3c' });
+    const companionEntries = selected.companions
+      .map((id) => cuteFantasyActor(id))
+      .filter((entry): entry is CuteFantasyActorCatalogEntry => entry !== undefined);
+    const companionGrid = layoutUiGrid({
+      x: detail.x, y: companionsY + 18, width: detail.width, height: 102,
+    }, companionEntries.map(() => ({ width: 1, height: 96 })), {
+      columns: Math.min(4, Math.max(1, companionEntries.length)), rowHeight: 96, columnGap: 6,
+    });
+    companionEntries.forEach((entry, index) => {
+      const rect = companionGrid.items[index];
+      if (rect === undefined) return;
+      drawUiFrame(context, skin, rect, 'thin');
+      const asset = requestActorAsset(entry.asset);
+      drawActorSprite(asset, entry.animations[0] ?? 'base', {
+        x: rect.x + 5, y: rect.y + 5, width: 74, height: rect.height - 10,
+      }, now);
+      drawPixelTextInRect(context, fonts, entry.label.toUpperCase(), {
+        x: rect.x + 84, y: rect.y + 14, width: rect.width - 90, height: 10,
+      }, { color: '#4d2e22', overflow: 'ellipsis' });
+      drawPixelTextInRect(context, fonts, entry.animations.join(' / ').toUpperCase(), {
+        x: rect.x + 84, y: rect.y + 38, width: rect.width - 90, height: 28,
+      }, { color: '#8b5a3c', overflow: 'ellipsis' });
+      addHit(rect, () => {
+        selectedActorKind = 'effect';
+        actorCatalogPage = Math.max(0, Math.floor(actorEntriesForKind('effect').findIndex((candidate) => candidate.id === entry.id) / ACTOR_CATALOG_PAGE_SIZE));
+        selectedActorId = entry.id;
+        notify(`${entry.label.toUpperCase()} COMPANION SHEET`);
+      });
+    });
+  }
+
+  // Animation work is scheduled only while this section intersects the viewport.
+  scheduleActorAnimationRender();
 }
 
 function drawToolbar(): void {
   const height = 42;
   drawUiSkinAsset(context, skin.panelWood, { x: 0, y: 0, width: cssWidth, height });
-  const buttonStripX = cssWidth - 202;
+  const showMigrationJump = cssWidth >= 760;
+  const buttonStripX = cssWidth - (showMigrationJump ? 284 : 202);
   const showZoom = cssWidth >= 520;
   const titleRight = buttonStripX - (showZoom ? 62 : 8);
   drawPixelTextInRect(context, fonts, 'ORCHARD UI COMPONENT LAB', {
@@ -1472,6 +3093,9 @@ function drawToolbar(): void {
     width: 46,
     height: 24,
   }, { align: 'right', color: '#fff2d0', verticalAlign: 'center', overflow: 'ellipsis' });
+  if (showMigrationJump) drawButton(context, skin, fonts, { x: cssWidth - 284, y: 9, width: 76, height: 24 }, {
+    label: 'LIVE UI', tone: 'neutral',
+  });
   drawButton(context, skin, fonts, { x: cssWidth - 202, y: 9, width: 58, height: 24 }, { label: 'FIT' });
   drawButton(context, skin, fonts, { x: cssWidth - 138, y: 9, width: 58, height: 24 }, { label: '1:1' });
   drawButton(context, skin, fonts, { x: cssWidth - 74, y: 9, width: 58, height: 24 }, { label: 'HOME', tone: 'success' });
@@ -1502,6 +3126,12 @@ function render(): void {
     header: true, scale: 2, color: '#181425', outline: true, outlineColor: '#ffffff',
   });
   label('PUBLIC / AUTH-FREE / PAN + ZOOM / INTERACTIVE CONTRACT TESTS', 62, 76, { color: '#b9d3c2', outline: true });
+  label('LIVE UI MIGRATION CANDIDATES', 2540, 45, {
+    header: true, scale: 2, color: '#181425', outline: true, outlineColor: '#ffffff',
+  });
+  label('PAN EAST OR USE LIVE UI · APPROVAL GALLERY ONLY · GAME SCREENS REMAIN UNSWAPPED', 2542, 76, {
+    color: '#b9d3c2', outline: true,
+  });
   drawFoundations();
   drawFrames();
   drawControls();
@@ -1510,6 +3140,8 @@ function render(): void {
   drawPatterns();
   drawBooks();
   drawFantasyControlFamilies();
+  drawActorAnimationLibrary();
+  drawMigrationGallery();
   drawHeldCursorStack();
   context.restore();
   drawToolbar();
@@ -1518,7 +3150,7 @@ function render(): void {
 function resize(): void {
   cssWidth = Math.max(1, Math.floor(innerWidth));
   cssHeight = Math.max(1, Math.floor(innerHeight));
-  dpr = Math.max(1, devicePixelRatio);
+  dpr = Math.max(1, Math.min(2, devicePixelRatio));
   canvas.width = Math.round(cssWidth * dpr);
   canvas.height = Math.round(cssHeight * dpr);
   canvas.style.width = `${cssWidth}px`;
@@ -1568,11 +3200,36 @@ function homeView(): void {
   notify('HOME — FOUNDATIONS, FRAMES, AND CONTROLS');
 }
 
+function migrationView(): void {
+  camera = { x: SECTIONS.migration.x + 930, y: SECTIONS.migration.y + 470 };
+  zoom = Math.max(0.42, Math.min(0.82, cssWidth / 1840, cssHeight / 940));
+  notify('LIVE UI — 27 CURRENT SURFACES RE-COMPOSED FOR MIGRATION REVIEW');
+}
+
+function actorLibraryView(): void {
+  camera = {
+    x: SECTIONS.actors.x + SECTIONS.actors.width / 2,
+    y: SECTIONS.actors.y + SECTIONS.actors.height / 2,
+  };
+  zoom = Math.max(0.38, Math.min(0.72, cssWidth / 2480, cssHeight / 1220));
+  notify(`ACTOR LIBRARY — ${CUTE_FANTASY_ACTOR_CATALOG.length} GAME-LOADABLE NPC, ENEMY, AND EFFECT ASSETS`);
+}
+
+function authoredControlsView(): void {
+  camera = {
+    x: SECTIONS.fantasyControls.x + SECTIONS.fantasyControls.width / 2,
+    y: SECTIONS.fantasyControls.y + SECTIONS.fantasyControls.height / 2,
+  };
+  zoom = Math.max(0.42, Math.min(0.78, cssWidth / 2480, cssHeight / 1080));
+  notify('AUTHORED CONTROLS — BUTTON, GLYPH, ICON, SELECTOR, SLIDER, AND SWITCH FAMILIES');
+}
+
 canvas.addEventListener('pointerdown', (event) => {
   pointerScreen = screenPoint(event);
   pointerWorld = screenToWorld(pointerScreen);
   if (pointerScreen.y < 42 && event.button === 0) {
-    if (pointerScreen.x >= cssWidth - 202 && pointerScreen.x < cssWidth - 144) fitWorld();
+    if (cssWidth >= 760 && pointerScreen.x >= cssWidth - 284 && pointerScreen.x < cssWidth - 208) migrationView();
+    else if (pointerScreen.x >= cssWidth - 202 && pointerScreen.x < cssWidth - 144) fitWorld();
     else if (pointerScreen.x >= cssWidth - 138 && pointerScreen.x < cssWidth - 80) {
       zoom = 1;
       notify('ZOOM 1:1');
@@ -1623,7 +3280,7 @@ canvas.addEventListener('pointermove', (event) => {
   } else if (activeInteraction?.kind === 'resize') {
     const next = resizeController.pointerMove(pointerWorld, responsiveResizeBounds);
     if (next !== null) responsiveFrame = next;
-  } else if (activeInteraction?.kind === 'slider') slider.pointerMove(pointerWorld);
+  } else if (activeInteraction?.kind === 'slider') activeInteraction.control.pointerMove(pointerWorld);
   else if (activeInteraction?.kind === 'scrollbar') scrollBar.pointerMove(pointerWorld);
   else if (activeInteraction?.kind === 'inventory' && hovered !== null) inventory.pointerEnter(hovered.ref);
   requestUiLabRender();
@@ -1633,7 +3290,7 @@ function finishPointer(event: PointerEvent): void {
   pointerScreen = screenPoint(event);
   pointerWorld = screenToWorld(pointerScreen);
   if (activeInteraction?.kind === 'resize') resizeController.pointerUp();
-  else if (activeInteraction?.kind === 'slider') slider.pointerUp(pointerWorld);
+  else if (activeInteraction?.kind === 'slider') activeInteraction.control.pointerUp(pointerWorld);
   else if (activeInteraction?.kind === 'scrollbar') scrollBar.pointerUp();
   else if (activeInteraction?.kind === 'inventory') {
     const action = inventory.pointerUp(slotAt(pointerWorld)?.ref);
@@ -1649,6 +3306,7 @@ canvas.addEventListener('pointercancel', (event) => {
   inventory.cancel();
   resizeController.cancel();
   slider.pointerLeave();
+  verticalSlider.pointerLeave();
   scrollBar.pointerLeave();
   finishPointer(event);
 });
@@ -1659,6 +3317,10 @@ canvas.addEventListener('wheel', (event) => {
   pointerWorld = screenToWorld(pointerScreen);
   if (containsPoint(sliderRect, pointerWorld)) {
     slider.node.onWheel?.({ point: pointerWorld, deltaX: event.deltaX, deltaY: event.deltaY }, slider.node);
+    return;
+  }
+  if (containsPoint(verticalSliderRect, pointerWorld)) {
+    verticalSlider.node.onWheel?.({ point: pointerWorld, deltaX: event.deltaX, deltaY: event.deltaY }, verticalSlider.node);
     return;
   }
   if (containsPoint(scrollRect, pointerWorld)) {
@@ -1684,7 +3346,16 @@ window.addEventListener('keydown', (event) => {
     pressedSpace = true;
     event.preventDefault();
   } else if (event.key.toLowerCase() === 'f') fitWorld();
-  else if (event.key === '1') { zoom = 1; notify('ZOOM 1:1'); }
+  else if (event.key.toLowerCase() === 'm') migrationView();
+  else if (event.key.toLowerCase() === 'a') actorLibraryView();
+  else if (event.key.toLowerCase() === 'c') authoredControlsView();
+  else if (event.key === '[' && worldRectVisible(SECTIONS.actors)) {
+    event.preventDefault();
+    stepActorSelection(-1);
+  } else if (event.key === ']' && worldRectVisible(SECTIONS.actors)) {
+    event.preventDefault();
+    stepActorSelection(1);
+  } else if (event.key === '1') { zoom = 1; notify('ZOOM 1:1'); }
   else if (event.key === '0') homeView();
   else if (event.key === 'Escape') {
     inventory.cancel();
@@ -1704,8 +3375,17 @@ setLoadingScreenStage({
 });
 dismissLoadingScreen();
 requestUiLabRender();
-window.setInterval(() => {
+const uiLabHeartbeat = window.setInterval(() => {
   if (document.activeElement === nativeInput || worldRectVisible(SECTIONS.fantasyControls)) {
     requestUiLabRender();
   }
 }, 160);
+const handleReducedMotionChange = (): void => requestUiLabRender();
+reducedMotionQuery.addEventListener('change', handleReducedMotionChange);
+window.addEventListener('pagehide', () => {
+  uiLabDisposed = true;
+  if (renderRequest !== null) cancelAnimationFrame(renderRequest);
+  if (actorAnimationTimer !== null) window.clearTimeout(actorAnimationTimer);
+  window.clearInterval(uiLabHeartbeat);
+  reducedMotionQuery.removeEventListener('change', handleReducedMotionChange);
+}, { once: true });

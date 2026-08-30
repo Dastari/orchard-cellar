@@ -1,0 +1,74 @@
+{
+  "name": "resource_cf_ore_sapphire_pristine",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "........44......",
+        ".......4554.....",
+        ".444..453354.44.",
+        ".45544533514454.",
+        ".45324255114534.",
+        ".4522422511424..",
+        "..4524225114444.",
+        "...454323114554.",
+        "..4444235142354.",
+        "..4554223142540.",
+        "..4353425425240.",
+        "..0423423422400.",
+        "..0000000000000.",
+        "...00000000000.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#0069aa",
+    "2": "#0098dc",
+    "3": "#00cdf9",
+    "4": "#0c2e44",
+    "5": "#94fdff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        64,
+        64,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "resource.mineable",
+    "resource.ore",
+    "ore.sapphire",
+    "ore.node.pristine"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

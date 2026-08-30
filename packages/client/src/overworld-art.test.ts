@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, heldLightFrameIndices, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, natureDecorationFrame, overworldItemIconKey, overworldPlaceableVisualScale, overworldPoiDecorationDepthY, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
+import { BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, axeAnimationForDirection, avatarAnimationForDirection, bowLocomotionBobOffset, capybaraVisualAtFrame, heldLightAnimationForDirection, heldLightFrameIndices, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, isPondWaterPixel, natureDecorationFrame, overworldItemIconKey, overworldPlaceableVisualScale, overworldPoiDecorationDepthY, pondShimmerFrameAtTick, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
 import { canonicalBlob47Index } from './render/tilemap.js';
 
 describe('overworld art topology', () => {
@@ -147,5 +147,16 @@ describe('overworld art topology', () => {
     expect(natureDecorationFrame('nature_lily_pad', 25, 10, 1)).toBe(7);
     expect(natureDecorationFrame('nature_fish_shadow', 25, 10, 0)).toBe(7);
     expect(natureDecorationFrame('nature_water_rock', 25, 10, 0)).toBe(7);
+  });
+
+  it('animates pond shimmer slowly and masks it to the authored blue palette', () => {
+    expect(pondShimmerFrameAtTick(0)).toBe(0);
+    expect(pondShimmerFrameAtTick(7)).toBe(0);
+    expect(pondShimmerFrameAtTick(8)).toBe(1);
+    expect(pondShimmerFrameAtTick(64)).toBe(0);
+    expect(isPondWaterPixel(0x00, 0x6d, 0xa8)).toBe(true);
+    expect(isPondWaterPixel(0x00, 0x95, 0xe9)).toBe(true);
+    expect(isPondWaterPixel(0x3e, 0x89, 0x48)).toBe(false);
+    expect(isPondWaterPixel(0x9c, 0x67, 0x54)).toBe(false);
   });
 });

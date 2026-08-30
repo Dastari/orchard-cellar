@@ -232,29 +232,55 @@ export function homesteadPathTiles(sizeTiles = HOMESTEAD_SIZE_TILES): readonly {
   return tiles;
 }
 
+export interface HomesteadPlotBounds {
+  readonly minimumX: number;
+  readonly maximumX: number;
+  readonly minimumY: number;
+  readonly maximumY: number;
+}
+
+/** Land tiers grow north and equally east/west while keeping the established
+ * southern gate, entry path, residence and every player-authored coordinate
+ * fixed. The coordinate world's extra margin is scenery, not buildable land. */
+export function homesteadPlotBounds(
+  sizeTiles = HOMESTEAD_TERRAIN_SIZE_TILES,
+): HomesteadPlotBounds {
+  const expansion = Math.max(0, sizeTiles - HOMESTEAD_TERRAIN_SIZE_TILES);
+  const halfSideExpansion = Math.floor(expansion / 2);
+  return {
+    minimumX: HOMESTEAD_PLOT_MIN_TILE - halfSideExpansion,
+    maximumX: HOMESTEAD_PLOT_MAX_TILE + halfSideExpansion,
+    minimumY: HOMESTEAD_PLOT_MIN_TILE - expansion,
+    maximumY: HOMESTEAD_PLOT_MAX_TILE,
+  };
+}
+
 /** Generated one tile inside the immutable terrain edge so the complete
  * wooden boundary remains visible. The open southern gate is the portal. */
 export function homesteadBoundaryTiles(
   sizeTiles = HOMESTEAD_TERRAIN_SIZE_TILES,
 ): readonly { readonly tileX: number; readonly tileY: number; readonly kind: HomesteadBoundaryKind }[] {
-  void sizeTiles;
-  const minimum = HOMESTEAD_PLOT_MIN_TILE;
-  const maximum = HOMESTEAD_PLOT_MAX_TILE;
+  const bounds = homesteadPlotBounds(sizeTiles);
   const rows: { tileX: number; tileY: number; kind: HomesteadBoundaryKind }[] = [];
-  for (let tileX = minimum; tileX <= maximum; tileX += 1) {
-    rows.push({ tileX, tileY: minimum, kind: 'fence' });
-    rows.push({ tileX, tileY: maximum, kind: tileX === HOMESTEAD_GATE_TILE.tileX ? 'gate' : 'fence' });
+  for (let tileX = bounds.minimumX; tileX <= bounds.maximumX; tileX += 1) {
+    rows.push({ tileX, tileY: bounds.minimumY, kind: 'fence' });
+    rows.push({ tileX, tileY: bounds.maximumY, kind: tileX === HOMESTEAD_GATE_TILE.tileX ? 'gate' : 'fence' });
   }
-  for (let tileY = minimum + 1; tileY < maximum; tileY += 1) {
-    rows.push({ tileX: minimum, tileY, kind: 'fence' });
-    rows.push({ tileX: maximum, tileY, kind: 'fence' });
+  for (let tileY = bounds.minimumY + 1; tileY < bounds.maximumY; tileY += 1) {
+    rows.push({ tileX: bounds.minimumX, tileY, kind: 'fence' });
+    rows.push({ tileX: bounds.maximumX, tileY, kind: 'fence' });
   }
   return rows;
 }
 
-export function homesteadPlayableTile(tileX: number, tileY: number): boolean {
-  return tileX > HOMESTEAD_PLOT_MIN_TILE && tileX < HOMESTEAD_PLOT_MAX_TILE
-    && tileY > HOMESTEAD_PLOT_MIN_TILE && tileY < HOMESTEAD_PLOT_MAX_TILE;
+export function homesteadPlayableTile(
+  tileX: number,
+  tileY: number,
+  sizeTiles = HOMESTEAD_TERRAIN_SIZE_TILES,
+): boolean {
+  const bounds = homesteadPlotBounds(sizeTiles);
+  return tileX > bounds.minimumX && tileX < bounds.maximumX
+    && tileY > bounds.minimumY && tileY < bounds.maximumY;
 }
 
 export function homesteadPortalName(kind: string): string | null {

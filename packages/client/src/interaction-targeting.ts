@@ -7,8 +7,10 @@ export type InteractionTargetKind =
   | 'player'
   | 'horse'
   | 'gatherable'
+  | 'crop'
   | 'quest_item'
   | 'embedded_arrow'
+  | 'grave'
   | 'world_item';
 
 export interface InteractionCandidate {
@@ -29,9 +31,11 @@ const TIE_PRIORITY: Readonly<Record<InteractionTargetKind, number>> = {
   player: 5,
   horse: 6,
   gatherable: 7,
-  quest_item: 8,
-  embedded_arrow: 9,
-  world_item: 10,
+  crop: 8,
+  quest_item: 9,
+  embedded_arrow: 10,
+  grave: 11,
+  world_item: 12,
 };
 
 /** Resolves the one target represented by the interaction prompt and E key.

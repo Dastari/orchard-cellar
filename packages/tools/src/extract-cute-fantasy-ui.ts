@@ -151,6 +151,37 @@ const fantasyIconCatalogExtract: UiExtract = {
   tags: ['ui.icon', 'ui.icon.catalog', 'ui.icon.animated', 'ui.icon.outline'],
 };
 
+const selectorCatalogExtract: UiExtract = {
+  name: 'ui_cf_selector_catalog',
+  source: `${uiRoot}/UI_Selectors.png`,
+  size: [48, 48],
+  groups: {
+    catalog: Array.from({ length: 4 * 20 }, (_, index) => (
+      r((index % 4) * 48, Math.floor(index / 4) * 48, 48, 48)
+    )),
+  },
+  frameKinds: { catalog: 'variant' },
+  uiSizing: 'corners',
+  tags: ['ui.selector', 'ui.selector.catalog'],
+};
+
+const sliderCatalogExtract: UiExtract = {
+  name: 'ui_cf_slider_catalog',
+  source: `${uiRoot}/UI_Sliders.png`,
+  size: [16, 16],
+  groups: {
+    catalog: Array.from({ length: 38 * 10 }, (_, index) => (
+      r((index % 38) * 16, Math.floor(index / 38) * 16, 16, 16)
+    )),
+  },
+  frameKinds: { catalog: 'variant' },
+  uiSizing: 'fixed',
+  tags: ['ui.slider', 'ui.toggle', 'ui.control.catalog'],
+};
+
+const sliderTones = Array.from({ length: 6 }, (_, index) => index);
+const sliderHandleVariants = Array.from({ length: 16 }, (_, index) => index);
+
 /**
  * Audited source coordinates from the native Cute Fantasy UI sheets.
  * Keep semantic IDs stable even if a later audit chooses a neighboring visual.
@@ -236,6 +267,8 @@ const extracts: readonly UiExtract[] = [
   ...fantasyButtonExtracts(),
   fantasyButtonGlyphExtract,
   fantasyIconCatalogExtract,
+  selectorCatalogExtract,
+  sliderCatalogExtract,
   {
     name: 'ui_cf_selector_neutral', source: `${uiRoot}/UI_Selectors.png`, size: [48, 48],
     groups: state(r(0, 0, 48, 48)), frameKinds: { idle: 'state' }, uiRequiredStates: ['idle'],
@@ -258,13 +291,50 @@ const extracts: readonly UiExtract[] = [
   },
   {
     name: 'ui_cf_slider_track', source: `${uiRoot}/UI_Sliders.png`, size: [32, 6],
-    groups: { base: [r(8, 85, 32, 6)] }, frameKinds: { base: 'state' },
+    groups: { base: sliderTones.map((index) => r(8 + index * 48, 85, 32, 6)) },
+    frameKinds: { base: 'variant' },
     uiSizing: 'segmented', tags: ['ui.slider', 'ui.slider.track'],
   },
   {
-    name: 'ui_cf_slider_handle', source: `${uiRoot}/UI_Sliders.png`, size: [6, 14],
-    groups: state(r(293, 81, 6, 14)), frameKinds: { idle: 'state' }, uiRequiredStates: ['idle'],
+    name: 'ui_cf_slider_fill', source: `${uiRoot}/UI_Sliders.png`, size: [30, 4],
+    groups: { base: sliderTones.map((index) => r(9 + index * 48, 102, 30, 4)) },
+    frameKinds: { base: 'variant' },
+    uiSizing: 'segmented', tags: ['ui.slider', 'ui.slider.fill'],
+  },
+  {
+    name: 'ui_cf_slider_track_vertical', source: `${uiRoot}/UI_Sliders.png`, size: [16, 32],
+    groups: { base: sliderTones.map((index) => r(index * 48, 120, 16, 32)) },
+    frameKinds: { base: 'variant' },
+    uiSizing: 'nine_slice', slice: [0, 2, 0, 2], tags: ['ui.slider', 'ui.slider.track', 'ui.orientation.vertical'],
+  },
+  {
+    name: 'ui_cf_slider_fill_vertical', source: `${uiRoot}/UI_Sliders.png`, size: [16, 32],
+    groups: { base: sliderTones.map((index) => r(16 + index * 48, 120, 16, 32)) },
+    frameKinds: { base: 'variant' },
+    uiSizing: 'nine_slice', slice: [0, 2, 0, 2], tags: ['ui.slider', 'ui.slider.fill', 'ui.orientation.vertical'],
+  },
+  {
+    name: 'ui_cf_slider_handle', source: `${uiRoot}/UI_Sliders.png`, size: [16, 16],
+    groups: {
+      horizontal: sliderHandleVariants.map((index) => r(288 + index * 16, 80, 16, 16)),
+      vertical: sliderHandleVariants.map((index) => r(288 + index * 16, 96, 16, 16)),
+      compact: sliderHandleVariants.map((index) => r(288 + index * 16, 112, 16, 16)),
+    },
+    frameKinds: { horizontal: 'variant', vertical: 'variant', compact: 'variant' },
     uiSizing: 'fixed', tags: ['ui.slider', 'ui.slider.handle'],
+  },
+  {
+    name: 'ui_cf_toggle_switch', source: `${uiRoot}/UI_Sliders.png`, size: [30, 14],
+    // Source order travels from ON to OFF. Runtime addresses the reverse order
+    // so increasing frame indices always mean increasing boolean progress.
+    groups: {
+      colored: [r(289, 1, 30, 14), r(257, 1, 30, 14), r(225, 1, 30, 14), r(193, 1, 30, 14)],
+      neutral: [r(417, 1, 30, 14), r(385, 1, 30, 14), r(353, 1, 30, 14), r(321, 1, 30, 14)],
+    },
+    frameKinds: { colored: 'animation', neutral: 'animation' },
+    animationFps: { colored: 18, neutral: 18 },
+    animationLoop: { colored: false, neutral: false },
+    uiSizing: 'fixed', tags: ['ui.toggle', 'ui.switch', 'ui.control.animated'],
   },
   {
     name: 'ui_cf_bar_frame', source: `${uiRoot}/UI_Bars.png`, size: [48, 19],

@@ -31,6 +31,59 @@ export function canvasViewport(viewportWidth: number, viewportHeight: number): C
   };
 }
 
+export interface CanvasViewportInsets {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
+export function insetCanvasViewport(
+  viewportWidth: number,
+  viewportHeight: number,
+  insets: CanvasViewportInsets,
+): CanvasViewport {
+  return canvasViewport(
+    viewportWidth - insets.left - insets.right,
+    viewportHeight - insets.top - insets.bottom,
+  );
+}
+
+const SAFE_AREA_CUSTOM_PROPERTIES = {
+  top: '--game-safe-area-top',
+  right: '--game-safe-area-right',
+  bottom: '--game-safe-area-bottom',
+  left: '--game-safe-area-left',
+} as const;
+
+/** Reads the device cutout/home-indicator insets without shrinking the Canvas. */
+export function canvasSafeAreaInsets(canvas: HTMLCanvasElement): CanvasViewportInsets {
+  const host = canvas.parentElement;
+  if (host === null) return { top: 0, right: 0, bottom: 0, left: 0 };
+  const style = getComputedStyle(host);
+  const pixelValue = (property: string): number => Math.max(
+    0,
+    Number.parseFloat(style.getPropertyValue(property)) || 0,
+  );
+  return {
+    top: pixelValue(SAFE_AREA_CUSTOM_PROPERTIES.top),
+    right: pixelValue(SAFE_AREA_CUSTOM_PROPERTIES.right),
+    bottom: pixelValue(SAFE_AREA_CUSTOM_PROPERTIES.bottom),
+    left: pixelValue(SAFE_AREA_CUSTOM_PROPERTIES.left),
+  };
+}
+
+/** Returns the full-bleed box occupied by the Canvas inside its host. */
+export function canvasHostViewport(
+  canvas: HTMLCanvasElement,
+  fallbackWidth = innerWidth,
+  fallbackHeight = innerHeight,
+): CanvasViewport {
+  const host = canvas.parentElement;
+  if (host === null) return canvasViewport(fallbackWidth, fallbackHeight);
+  return canvasViewport(host.clientWidth, host.clientHeight);
+}
+
 export function fittedCanvasScale(viewportWidth: number, viewportHeight: number): number {
   return Math.max(0.01, Math.min(viewportWidth / VIRTUAL_WIDTH, viewportHeight / VIRTUAL_HEIGHT));
 }

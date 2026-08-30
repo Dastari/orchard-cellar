@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_raw_pork",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......00000.....",
+        "....003333300...",
+        "...03323232330..",
+        "..033232223230..",
+        "..0311132222230.",
+        "..0167612232230.",
+        "..0176771222220.",
+        "...017476122230.",
+        "....05447612220.",
+        "...05447671220..",
+        "..055401761220..",
+        "..0540.011220...",
+        "..0440..0000....",
+        "...00...........",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#5d2c28",
+    "2": "#8a4836",
+    "3": "#bf6f4a",
+    "4": "#c28569",
+    "5": "#e8b796",
+    "6": "#f6ca9f",
+    "7": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_Icons_NO_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/No Outline/Food_Icons_NO_Outline.png",
+  "sourceRegions": {
+    "base": [
+      [
+        64,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.food",
+    "food.raw.pork"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

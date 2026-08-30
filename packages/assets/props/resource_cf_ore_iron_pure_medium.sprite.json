@@ -1,0 +1,74 @@
+{
+  "name": "resource_cf_ore_iron_pure_medium",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......111.......",
+        ".....14441......",
+        "....1444521.....",
+        "....1445221.....",
+        "....13332111....",
+        "....133214441...",
+        "....1331444451..",
+        "....13314445210.",
+        "....11113452210.",
+        "....14441333210.",
+        "...144531333210.",
+        "...143321332200.",
+        "...133221222000.",
+        "...02222000000..",
+        "...0000000000...",
+        "....00000......."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#262b44",
+    "2": "#3c4258",
+    "3": "#6c7c9d",
+    "4": "#8e9ab4",
+    "5": "#c0cbdc"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        32,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "resource.mineable",
+    "resource.ore",
+    "ore.iron",
+    "ore.node.pure.medium"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

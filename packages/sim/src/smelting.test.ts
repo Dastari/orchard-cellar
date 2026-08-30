@@ -4,6 +4,7 @@ import {
   furnaceFuelSmelts,
   furnaceMutationIsValid,
   furnaceProgress,
+  furnaceRemainingTicks,
   settleFurnace,
   smeltingOutputFor,
 } from './smelting.js';
@@ -36,6 +37,9 @@ describe('slow furnace smelting loop', () => {
       { itemKind: 'iron_bar', quantity: 2 },
     ]);
     expect(furnaceProgress(settled.smeltStartTick, 100n + FURNACE_SMELT_TICKS * 2n + FURNACE_SMELT_TICKS / 2n)).toBeCloseTo(0.5);
+    expect(furnaceRemainingTicks(100n, 100n + FURNACE_SMELT_TICKS / 2n))
+      .toBe(FURNACE_SMELT_TICKS / 2n);
+    expect(furnaceRemainingTicks(undefined, 100n)).toBeNull();
   });
 
   it('pauses when output is full and protects output from manual insertion', () => {

@@ -266,9 +266,13 @@ farming. Mushroom/berry foraging stays with the farming/food milestone.
 ## 9. UI
 
 - **Crafting window gains a recipe list** (lite recipe book): right of the
-  grid, a scrollable list of all recipes whose station requirement is met,
+  grid, a scrollable list of learned recipes whose station requirement is met,
   greyed when ingredients are missing; clicking one ghost-fills the grid
-  pattern from inventory. Client-side only, from the sim recipe table. The
+  pattern from inventory. Recipe discovery is private authority state streamed
+  through `own_known_recipes`; it affects guide visibility and ghost-fill only.
+  A manually arranged valid pattern remains craftable even when undiscovered.
+  New characters know no recipes. Reading the consumable book rewarded by
+  Marlow reveals the starter production and building set. The
   pack's `Book_UI.png` full recipe book is a later polish item.
 - Result-slot lock state + station tooltip (§2). Furnace window per §5.2.
 - Icon debt paid via the §1.2 registry + `Icons/Outline` sheets: every item in

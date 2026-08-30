@@ -15,7 +15,7 @@ describe('placed crafting light emitters', () => {
   });
 
   it('27§2 registers campfires and standing torches in the shared point-light shape', () => {
-    expect(Object.keys(PLACEABLE_LIGHT_EMITTERS).sort()).toEqual(['campfire', 'standing_torch']);
+    expect(Object.keys(PLACEABLE_LIGHT_EMITTERS).sort()).toEqual(['camp_cooking_fire', 'campfire', 'cooking_fire', 'standing_torch']);
     const torch = placeablePointLight({ id: 4n, kind: 'standing_torch', tileX: 3, tileY: 5 }, 20n);
     expect(torch).toMatchObject({ worldX: 56, worldY: 76, profile: 'flame' });
     expect(torch?.radiusTiles).toBeGreaterThan(0);

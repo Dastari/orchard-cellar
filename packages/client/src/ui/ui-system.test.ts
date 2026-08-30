@@ -7,7 +7,7 @@ import { UiInputRouter } from './input-router.js';
 import { anchoredRect, layoutColumn, layoutRow } from './layout.js';
 import { nineSlicePatches, snapRectToDevicePixels } from './nine-slice.js';
 import { uiSkinContentRect } from './skin.js';
-import { widget } from './widget.js';
+import { inspectWidgetLayout, widget } from './widget.js';
 import { EQUIPMENT_SLOT_RESTRICTIONS, ItemSlot } from './item-slot.js';
 
 describe('retained UI layout', () => {
@@ -144,6 +144,52 @@ describe('bindings and routing', () => {
     const disabled = widget('button', 'disabled', { enabled: false, onPointer: click }).setBounds({ x: 165, y: 10, width: 20, height: 20 });
     root.add(disabled);
     expect(router.routePointer({ kind: 'click', point: { x: 170, y: 15 }, button: 0 })).toBe(false);
+  });
+
+  it('routes through explicit passthrough overlays but stops at capture layers', () => {
+    const lowerClick = vi.fn(() => true);
+    const root = widget('root', 'root').setBounds({ x: 0, y: 0, width: 100, height: 100 });
+    const lower = widget('button', 'lower', { onPointer: lowerClick })
+      .setBounds({ x: 10, y: 10, width: 60, height: 40 });
+    const overlay = widget('tooltip', 'overlay', { pointerMode: 'passthrough' })
+      .setBounds({ x: 10, y: 10, width: 60, height: 40 });
+    root.add(lower, overlay);
+    const router = new UiInputRouter(root);
+
+    expect(router.hitTest({ x: 20, y: 20 }).map((node) => node.id)).toEqual(['overlay', 'lower', 'root']);
+    expect(router.routePointer({ kind: 'pointer_down', point: { x: 20, y: 20 }, button: 0 })).toBe(true);
+    expect(lowerClick).toHaveBeenCalledOnce();
+
+    const modal = widget('window', 'modal', { pointerMode: 'capture' })
+      .setBounds({ x: 10, y: 10, width: 60, height: 40 });
+    root.add(modal);
+    expect(router.routePointer({ kind: 'pointer_down', point: { x: 20, y: 20 }, button: 0 })).toBe(true);
+    expect(router.routeWheel({ point: { x: 20, y: 20 }, deltaX: 0, deltaY: 1 })).toBe(true);
+    expect(lowerClick).toHaveBeenCalledOnce();
+  });
+
+  it('exposes stable widget geometry and rejects ambiguous duplicate ids', () => {
+    const root = widget('root', 'root').setBounds({ x: 0, y: 0, width: 100, height: 80 });
+    root.add(widget('panel', 'panel', { pointerMode: 'capture' })
+      .setBounds({ x: 4, y: 5, width: 60, height: 40 })
+      .add(widget('button', 'action').setBounds({ x: 10, y: 12, width: 20, height: 10 })));
+    expect(inspectWidgetLayout(root)).toEqual([
+      {
+        id: 'root', parentId: null, kind: 'root', bounds: { x: 0, y: 0, width: 100, height: 80 },
+        depth: 0, paintOrder: 0, visible: true, enabled: true, pointerMode: 'passthrough',
+      },
+      {
+        id: 'panel', parentId: 'root', kind: 'panel', bounds: { x: 4, y: 5, width: 60, height: 40 },
+        depth: 1, paintOrder: 1, visible: true, enabled: true, pointerMode: 'capture',
+      },
+      {
+        id: 'action', parentId: 'panel', kind: 'button', bounds: { x: 10, y: 12, width: 20, height: 10 },
+        depth: 2, paintOrder: 2, visible: true, enabled: true, pointerMode: 'passthrough',
+      },
+    ]);
+
+    root.add(widget('label', 'action'));
+    expect(() => inspectWidgetLayout(root)).toThrow('Duplicate widget id: action');
   });
 
   it('builds the three fixture-driven window compositions', () => {

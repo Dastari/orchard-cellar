@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recipeIngredientStacks, recipeMatches, RECIPES, normalizeShapedRecipe } from './recipes.js';
+import { recipeBookDefinition, recipeIngredientStacks, recipeMatches, RECIPES, normalizeShapedRecipe } from './recipes.js';
 import { consumeCraftingRecipe, matchingRecipeId } from './item-containers.js';
 import type { ItemStack } from './item-containers.js';
 
@@ -36,6 +36,19 @@ describe('28§1 shift-invariant shaped recipes', () => {
 });
 
 describe('06§12 crafting recipe goldens', () => {
+  it('keeps Marlow\'s consumable starter book useful without revealing specialty recipes', () => {
+    const book = recipeBookDefinition('marlow_book');
+    expect(book?.recipeIds).toContain('workbench');
+    expect(book?.recipeIds).not.toContain('fruit_press');
+    expect(book?.recipeIds).not.toContain('fermentation_cask');
+    expect(book?.recipeIds).not.toContain('orchard_tea');
+    const journal = recipeBookDefinition('janes_gardening_book');
+    expect(journal?.recipeIds).toEqual(expect.arrayContaining([
+      'planks', 'workbench', 'barrel', 'fruit_press', 'fermentation_cask', 'orchard_tea',
+    ]));
+    expect(recipeBookDefinition('wood')).toBeNull();
+  });
+
   it('derives break salvage from the exact recipe inputs', () => {
     expect(recipeIngredientStacks(RECIPES.chest)).toEqual([{ itemKind: 'plank', quantity: 8 }]);
     expect(recipeIngredientStacks(RECIPES.campfire)).toEqual([
@@ -53,7 +66,7 @@ describe('06§12 crafting recipe goldens', () => {
   });
 
   it('pins workbench recipe outputs and station gates', () => {
-    for (const recipe of [RECIPES.chest, RECIPES.barrel, RECIPES.furnace, RECIPES.fence, RECIPES.fence_gate, RECIPES.sign, RECIPES.standing_torch, RECIPES.arrows]) {
+    for (const recipe of [RECIPES.chest, RECIPES.barrel, RECIPES.fruit_press, RECIPES.fermentation_cask, RECIPES.cooking_fire, RECIPES.camp_cooking_fire, RECIPES.furnace, RECIPES.fence, RECIPES.fence_gate, RECIPES.sign, RECIPES.standing_torch, RECIPES.arrows]) {
       expect(recipe.station).toBe('workbench');
     }
     expect(RECIPES.fence.output).toEqual({ itemKind: 'fence', quantity: 3 });
@@ -70,6 +83,23 @@ describe('06§12 crafting recipe goldens', () => {
     expect(recipeIngredientStacks(RECIPES.barrel)).toEqual([
       { itemKind: 'iron_bar', quantity: 2 },
       { itemKind: 'plank', quantity: 6 },
+    ]);
+    expect(recipeIngredientStacks(RECIPES.fruit_press)).toEqual([
+      { itemKind: 'iron_bar', quantity: 1 },
+      { itemKind: 'plank', quantity: 6 },
+    ]);
+    expect(recipeIngredientStacks(RECIPES.fermentation_cask)).toEqual([
+      { itemKind: 'barrel', quantity: 1 },
+      { itemKind: 'copper_bar', quantity: 1 },
+    ]);
+    expect(recipeIngredientStacks(RECIPES.cooking_fire)).toEqual([
+      { itemKind: 'campfire', quantity: 1 },
+      { itemKind: 'iron_bar', quantity: 1 },
+      { itemKind: 'stone', quantity: 7 },
+    ]);
+    expect(recipeIngredientStacks(RECIPES.camp_cooking_fire)).toEqual([
+      { itemKind: 'campfire', quantity: 1 },
+      { itemKind: 'iron_bar', quantity: 3 },
     ]);
   });
 

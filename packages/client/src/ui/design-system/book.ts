@@ -6,7 +6,12 @@ import {
   type PixelUi,
 } from '../../render/pixel-ui.js';
 import { insetRect, type UiRect } from '../geometry.js';
-import { drawUiFrame, drawUiFrameControls, type UiFrameControlLayout } from './frame.js';
+import {
+  drawUiFrame,
+  drawUiFrameControls,
+  uiFrameControlLayout,
+  type UiFrameControlLayout,
+} from './frame.js';
 import type {
   GameMarkdownBlock,
   GameMarkdownBookmark,
@@ -361,11 +366,18 @@ export function layoutGameBook(
   const footerHeight = Math.max(10, 10 * textScale);
   const inner = Math.max(1, textScale * 2);
   const spineProtection = Math.max(3, textScale * 5);
+  // The shared close glyph lives inside the upper-left safe area. Reserve only
+  // the portion that actually intersects a scaled page face, then give both
+  // pages the same top inset so their first baselines remain aligned.
+  const close = uiFrameControlLayout(frame, 'book', false).close;
+  const pageTop = Math.min(pageRects[0].y, pageRects[1].y);
+  const pageContentTop = Math.max(pageTop + inner, close.y + close.height + 4);
+  const topInset = Math.max(inner, pageContentTop - pageTop);
   const leftContent = insetRect(pageRects[0], {
-    left: inner, top: inner, right: spineProtection, bottom: footerHeight,
+    left: inner, top: topInset, right: spineProtection, bottom: footerHeight,
   });
   const rightContent = insetRect(pageRects[1], {
-    left: spineProtection, top: inner, right: inner, bottom: footerHeight,
+    left: spineProtection, top: topInset, right: inner, bottom: footerHeight,
   });
   const contentWidth = Math.max(1, Math.min(leftContent.width, rightContent.width));
   const contentHeight = Math.max(1, Math.min(leftContent.height, rightContent.height));

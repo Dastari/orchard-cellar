@@ -22,6 +22,11 @@ import {
 } from './balance.js';
 import { playerInteractionOrigin } from './movement.js';
 import {
+  MINING_MAX_RICHNESS,
+  type MiningNodeClass,
+  type MiningOreResourceKind,
+} from './mining.js';
+import {
   TREE_GROWTH_STAGE_BIG,
   TREE_GROWTH_STAGE_MEDIUM,
   normalizeTreeGrowthStage,
@@ -36,7 +41,7 @@ export const SURVIVAL_OCEAN_PADDING_TILES = 256;
 export const SURVIVAL_ISLAND_OFFSET_TILES = SURVIVAL_OCEAN_PADDING_TILES;
 export const SURVIVAL_WORLD_SIZE = SURVIVAL_ISLAND_SIZE + SURVIVAL_OCEAN_PADDING_TILES * 2;
 export const SURVIVAL_WORLD_SEED = 0x4f434852;
-export const SURVIVAL_WORLD_VERSION = 26;
+export const SURVIVAL_WORLD_VERSION = 28;
 export const SURVIVAL_CHUNK_TILES = 16;
 
 export const SURVIVAL_TREE_KINDS = [
@@ -59,12 +64,19 @@ export type SurvivalRockKind = typeof SURVIVAL_ROCK_KINDS[number];
 export const SURVIVAL_GATHERABLE_RESOURCE_KINDS = ['loose_stone', 'fallen_branch'] as const;
 export type SurvivalGatherableResourceKind = typeof SURVIVAL_GATHERABLE_RESOURCE_KINDS[number];
 export type SurvivalResourceKind = SurvivalTreeKind | SurvivalRegrowingPlantKind | SurvivalOreKind | SurvivalRockKind | SurvivalGatherableResourceKind;
-export const ORE_NODE_RESERVE_HITS = 96;
-export const ORE_HITS_PER_DROP = 3;
+/** Active surface population. Spawn-site generation deliberately produces
+ * many more candidates, of which this WoW-style regional pool activates a
+ * spaced subset. */
+export const SURFACE_ACTIVE_ORE_NODES = 48;
+/** Retained alias for old callers while the fixed per-kind interpretation is gone. */
 export const ORE_NODES_PER_KIND = 6;
+export const ORE_NODE_RESERVE_HITS = MINING_MAX_RICHNESS;
+export const ORE_HITS_PER_DROP = 1;
 export const ORE_MIN_SPACING_TILES = 12;
-export const LARGE_ROCK_STONE_RESERVE = 100;
-export const LARGE_ROCK_INITIAL_HEALTH = 250;
+export const ORE_SPAWN_SITE_CELL_TILES = 16;
+export const ORE_RESOURCE_ID_BASE = 2_000_000_000;
+export const LARGE_ROCK_STONE_RESERVE = MINING_MAX_RICHNESS;
+export const LARGE_ROCK_INITIAL_HEALTH = MINING_MAX_RICHNESS;
 
 export const SURVIVAL_POI_DECORATION_KINDS = [
   'poi_flowers_pink', 'poi_flowers_gold', 'poi_stump', 'poi_fallen_log', 'poi_rock_small',
@@ -82,7 +94,15 @@ export const SURVIVAL_CAMP_DECORATION_KINDS = [
   'camp_chair', 'camp_pond', 'camp_fishing_rod', 'camp_rock', 'camp_flowers',
 ] as const;
 export type SurvivalCampDecorationKind = typeof SURVIVAL_CAMP_DECORATION_KINDS[number];
-export type SurvivalDecorationKind = SurvivalPoiDecorationKind | SurvivalNatureDecorationKind | SurvivalCampDecorationKind;
+export const SURVIVAL_FARM_DECORATION_KINDS = [
+  'farm_fence', 'farm_gate', 'farm_house', 'farm_hay_bale', 'farm_hay_stack',
+  'farm_grave', 'farm_cow', 'farm_tree_oak', 'farm_crop_wheat',
+  'farm_crop_strawberry', 'farm_crop_corn', 'farm_crop_sunflower',
+  'farm_crop_pumpkin', 'farm_flowers', 'farm_potted_flowers', 'farm_stump', 'farm_fallen_log',
+] as const;
+export type SurvivalFarmDecorationKind = typeof SURVIVAL_FARM_DECORATION_KINDS[number];
+export type SurvivalDecorationKind = SurvivalPoiDecorationKind | SurvivalNatureDecorationKind
+  | SurvivalCampDecorationKind | SurvivalFarmDecorationKind;
 
 /** Marlow's authored landmark occupies a naturally clear plains pocket west
  * of the starting area. These coordinates are stable world content, not a
@@ -102,6 +122,27 @@ export const MARLOW_CAMP = {
 export const MARLOW_CAMPFIRE_TILE = {
   tileX: MARLOW_CAMP.centerTileX,
   tileY: MARLOW_CAMP.centerTileY,
+} as const;
+
+/** Farmer Bob's holding is an immutable overworld landmark. Players can walk
+ * through its southern gate, but every authored tile inside the fence is
+ * protected from farming, gathering, construction, and deed placement. */
+export const FARMER_BOB_FARM = {
+  centerTileX: 382,
+  centerTileY: 378,
+  minimumTileX: 371,
+  maximumTileX: 393,
+  minimumTileY: 368,
+  maximumTileY: 389,
+  gateTileX: 382,
+  gateTileY: 389,
+  homeTileX: 382,
+  homeTileY: 378,
+} as const;
+
+export const FARMER_JANE_GRAVE_TILE = {
+  tileX: 390,
+  tileY: 371,
 } as const;
 
 export const SURVIVAL_BIOMES = [
@@ -225,6 +266,10 @@ export interface GeneratedSurvivalResource {
   readonly kind: SurvivalResourceKind;
   readonly tileX: number;
   readonly tileY: number;
+  readonly nodeClass?: MiningNodeClass;
+  readonly richness?: number;
+  readonly spawnSiteId?: number;
+  readonly activationOrdinal?: number;
 }
 
 export interface GeneratedSurvivalDecoration {
@@ -328,6 +373,16 @@ export function survivalMarlowCampReservedAt(tileX: number, tileY: number): bool
     && Math.abs(tileY - MARLOW_CAMP.centerTileY) <= MARLOW_CAMP.reserveRadiusY;
 }
 
+export function survivalFarmerBobFarmReservedAt(tileX: number, tileY: number): boolean {
+  return tileX >= FARMER_BOB_FARM.minimumTileX && tileX <= FARMER_BOB_FARM.maximumTileX
+    && tileY >= FARMER_BOB_FARM.minimumTileY && tileY <= FARMER_BOB_FARM.maximumTileY;
+}
+
+export function survivalAuthoredLandmarkReservedAt(tileX: number, tileY: number): boolean {
+  return survivalMarlowCampReservedAt(tileX, tileY)
+    || survivalFarmerBobFarmReservedAt(tileX, tileY);
+}
+
 export function generateMarlowCampDecorations(): readonly GeneratedSurvivalDecoration[] {
   const at = (
     id: number,
@@ -368,6 +423,101 @@ export function generateMarlowCampDecorations(): readonly GeneratedSurvivalDecor
     at(21, 'nature_grass', -6, 5),
     at(22, 'nature_grass', 5, 5),
   ];
+}
+
+/** A compact, readable farm rather than a field-sized simulation. The crop
+ * plots are mature authored decoration: Bob wanders among them and appears to
+ * tend them, but they never compete with the player's mutable farming rows. */
+export function generateFarmerBobFarmDecorations(): readonly GeneratedSurvivalDecoration[] {
+  const decorations: GeneratedSurvivalDecoration[] = [];
+  let nextId = 0;
+  const add = (
+    kind: SurvivalDecorationKind,
+    tileX: number,
+    tileY: number,
+    variant = 0,
+    animationOffset = 0,
+  ): void => {
+    decorations.push({
+      id: 3_100_000_000 + nextId,
+      kind,
+      tileX,
+      tileY,
+      variant,
+      animationOffset,
+    });
+    nextId += 1;
+  };
+
+  const fenceTiles = new Set<string>();
+  const fenceAt = (tileX: number, tileY: number): void => {
+    fenceTiles.add(`${tileX},${tileY}`);
+  };
+  for (let tileX: number = FARMER_BOB_FARM.minimumTileX; tileX <= FARMER_BOB_FARM.maximumTileX; tileX += 1) {
+    fenceAt(tileX, FARMER_BOB_FARM.minimumTileY);
+    if (tileX !== FARMER_BOB_FARM.gateTileX) fenceAt(tileX, FARMER_BOB_FARM.maximumTileY);
+  }
+  for (let tileY: number = FARMER_BOB_FARM.minimumTileY + 1; tileY < FARMER_BOB_FARM.maximumTileY; tileY += 1) {
+    fenceAt(FARMER_BOB_FARM.minimumTileX, tileY);
+    fenceAt(FARMER_BOB_FARM.maximumTileX, tileY);
+  }
+  for (const key of fenceTiles) {
+    const [tileXText, tileYText] = key.split(',');
+    const tileX = Number(tileXText);
+    const tileY = Number(tileYText);
+    const connects = (x: number, y: number): boolean => fenceTiles.has(`${x},${y}`)
+      || (x === FARMER_BOB_FARM.gateTileX && y === FARMER_BOB_FARM.gateTileY);
+    const joinMask = (connects(tileX, tileY - 1) ? 1 : 0)
+      | (connects(tileX + 1, tileY) ? 2 : 0)
+      | (connects(tileX, tileY + 1) ? 4 : 0)
+      | (connects(tileX - 1, tileY) ? 8 : 0);
+    add('farm_fence', tileX, tileY, joinMask);
+  }
+  add('farm_gate', FARMER_BOB_FARM.gateTileX, FARMER_BOB_FARM.gateTileY, 8 | 2);
+
+  add('farm_house', 382, 372);
+  add('farm_hay_stack', 374, 371);
+  add('farm_hay_bale', 376, 371);
+  add('farm_hay_bale', 374, 373);
+  add('farm_cow', 375, 376, 0, 9);
+  add('farm_cow', 378, 379, 1, 37);
+  add('farm_cow', 374, 382, 2, 71);
+
+  const cropPatch = (
+    kind: Extract<SurvivalFarmDecorationKind,
+      'farm_crop_wheat' | 'farm_crop_strawberry' | 'farm_crop_corn'
+      | 'farm_crop_sunflower' | 'farm_crop_pumpkin'>,
+    startX: number,
+    startY: number,
+    width: number,
+    height: number,
+  ): void => {
+    for (let offsetY = 0; offsetY < height; offsetY += 1) {
+      for (let offsetX = 0; offsetX < width; offsetX += 1) {
+        add(kind, startX + offsetX, startY + offsetY, 3, offsetX * 7 + offsetY * 13);
+      }
+    }
+  };
+  cropPatch('farm_crop_wheat', 386, 375, 4, 3);
+  cropPatch('farm_crop_strawberry', 386, 380, 4, 3);
+  cropPatch('farm_crop_corn', 382, 384, 3, 3);
+  cropPatch('farm_crop_sunflower', 387, 385, 3, 2);
+  cropPatch('farm_crop_pumpkin', 374, 385, 3, 2);
+
+  add('farm_tree_oak', 389, 370, 0, 11);
+  add('farm_tree_oak', 392, 371, 0, 43);
+  add('farm_tree_oak', 391, 374, 0, 76);
+  add('farm_grave', FARMER_JANE_GRAVE_TILE.tileX, FARMER_JANE_GRAVE_TILE.tileY);
+  add('farm_flowers', 389, 372, 0, 19);
+  add('farm_flowers', 391, 372, 1, 51);
+  add('farm_flowers', 390, 373, 2, 81);
+  add('farm_flowers', 380, 371, 1, 23);
+  add('farm_flowers', 384, 371, 0, 57);
+  add('farm_potted_flowers', 379, 372, 0, 31);
+  add('farm_potted_flowers', 385, 372, 1, 67);
+  add('farm_stump', 372, 386);
+  add('farm_fallen_log', 378, 387);
+  return decorations;
 }
 
 /** A two-tile-wide campsite track with a short southern spur. The authored
@@ -1449,7 +1599,10 @@ export function survivalDecorationBlocksTraversal(kind: SurvivalDecorationKind, 
   if (medium !== 'ground') return false;
   return kind === 'camp_tent' || kind === 'camp_campfire' || kind === 'camp_round_stool'
     || kind === 'camp_bench' || kind === 'camp_stump_seat' || kind === 'camp_chair'
-    || kind === 'camp_pond' || kind === 'camp_rock';
+    || kind === 'camp_pond' || kind === 'camp_rock' || kind === 'farm_fence'
+    || kind === 'farm_house' || kind === 'farm_hay_bale' || kind === 'farm_hay_stack'
+    || kind === 'farm_grave' || kind === 'farm_cow' || kind === 'farm_tree_oak'
+    || kind === 'farm_stump' || kind === 'farm_fallen_log';
 }
 
 /** Water rocks occupy their authored tile for swimmers and watercraft. */
@@ -1473,6 +1626,22 @@ export function survivalDecorationObstacle(
   if (!survivalDecorationBlocksTraversal(decoration.kind, medium)) return null;
   if (decoration.kind === 'nature_water_rock') {
     return survivalWaterRockObstacle(decoration.tileX, decoration.tileY);
+  }
+  if (decoration.kind === 'farm_house') {
+    return {
+      left: (decoration.tileX - 3) * TILE_SIZE_FIXED,
+      top: (decoration.tileY - 2) * TILE_SIZE_FIXED,
+      right: (decoration.tileX + 3) * TILE_SIZE_FIXED - 1,
+      bottom: (decoration.tileY + 1) * TILE_SIZE_FIXED - 1,
+    };
+  }
+  if (decoration.kind === 'farm_hay_stack' || decoration.kind === 'farm_fallen_log') {
+    return {
+      left: (decoration.tileX - 1) * TILE_SIZE_FIXED,
+      top: decoration.tileY * TILE_SIZE_FIXED,
+      right: (decoration.tileX + 1) * TILE_SIZE_FIXED - 1,
+      bottom: (decoration.tileY + 1) * TILE_SIZE_FIXED - 1,
+    };
   }
   const wide = decoration.kind === 'camp_tent' || decoration.kind === 'camp_pond';
   return {
@@ -1515,9 +1684,7 @@ export function isBreakableRockKind(kind: string): kind is SurvivalRockKind {
 
 export function rawOreItemKindForResource(kind: SurvivalOreKind): string {
   const material = kind.slice('ore_'.length);
-  return material === 'iron' || material === 'copper' || material === 'gold'
-    ? `${material}_piece`
-    : `${material}_ore`;
+  return `${material}_piece`;
 }
 
 export function survivalResourceInitialHealth(kind: string, treeGrowthStage = TREE_GROWTH_STAGE_BIG): number {
@@ -1539,22 +1706,21 @@ const FRUIT_ITEM_BY_TREE: Readonly<Record<SurvivalFruitTreeKind, string>> = {
   tree_cherry: 'cherry',
 };
 
-/** Returns the authoritative drop produced by this completed hit. Ore veins
- * pay out steadily while retaining a large finite reserve for shared mining. */
+/** Returns the legacy health-based drop used by trees and compatibility
+ * previews. Live ore and rock payouts use the richness/work model in
+ * `mining.ts` and are resolved by authority. */
 export function survivalResourceDropAfterHit(
   kind: string,
   remainingHealth: number,
   treeGrowthStage = TREE_GROWTH_STAGE_BIG,
 ): SurvivalResourceDrop | null {
   if (isMineableOreKind(kind)) {
-    const hitsTaken = ORE_NODE_RESERVE_HITS - remainingHealth;
-    return hitsTaken > 0 && hitsTaken % ORE_HITS_PER_DROP === 0
+    return remainingHealth < ORE_NODE_RESERVE_HITS
       ? { itemKind: rawOreItemKindForResource(kind), quantity: 1 }
       : null;
   }
   if (isBreakableRockKind(kind)) {
-    const hitsTaken = LARGE_ROCK_INITIAL_HEALTH - remainingHealth;
-    return hitsTaken > 0 && (hitsTaken % 5 === 2 || hitsTaken % 5 === 0)
+    return remainingHealth < LARGE_ROCK_INITIAL_HEALTH
       ? { itemKind: 'pebble', quantity: 1 }
       : null;
   }
@@ -1729,6 +1895,16 @@ export function survivalOreKindAt(seed: number, tileX: number, tileY: number): S
   ]!;
 }
 
+export interface SurfaceOreSpawnSite {
+  readonly id: number;
+  readonly tileX: number;
+  readonly tileY: number;
+  readonly biome: SurvivalBiome;
+  readonly kind: MiningOreResourceKind;
+  readonly nodeClass: 'mixed' | 'pristine';
+  readonly richness: number;
+}
+
 /** Keep a broad, readable path through and around every authored ramp. The
  * player hitbox is wider than one tile and resource trunks otherwise turn a
  * visually open two-tile entrance into an invisible collision pinch point. */
@@ -1743,6 +1919,7 @@ function survivalRampApproachAt(seed: number, tileX: number, tileY: number): boo
 interface RareOreLayout {
   readonly biomes: readonly SurvivalBiome[];
   readonly biomeAt: SurvivalBiomeLookup;
+  readonly spawnSites: readonly SurfaceOreSpawnSite[];
   readonly ores: readonly GeneratedSurvivalResource[];
   readonly oreById: ReadonlyMap<number, GeneratedSurvivalResource>;
   readonly decorations: readonly GeneratedSurvivalDecoration[];
@@ -1847,7 +2024,7 @@ function generateNatureDecorations(
   };
   const validGround = (tileX: number, tileY: number): boolean => {
     if (!natureGroundBiome(biomeAt(tileX, tileY)) || survivalSpawnProtectedAt(tileX, tileY)
-      || survivalMarlowCampReservedAt(tileX, tileY)) return false;
+      || survivalAuthoredLandmarkReservedAt(tileX, tileY)) return false;
     return survivalCliffRoleAt(seed, tileX, tileY) === 'none'
       && survivalDirtCliffRoleAt(seed, tileX, tileY) === 'none'
       && !survivalRampApproachAt(seed, tileX, tileY);
@@ -1855,7 +2032,7 @@ function generateNatureDecorations(
   const validDesertGround = (tileX: number, tileY: number): boolean => {
     const biome = biomeAt(tileX, tileY);
     if (biome !== 'desert' && biome !== 'desert_shore') return false;
-    if (survivalSpawnProtectedAt(tileX, tileY) || survivalMarlowCampReservedAt(tileX, tileY)) return false;
+    if (survivalSpawnProtectedAt(tileX, tileY) || survivalAuthoredLandmarkReservedAt(tileX, tileY)) return false;
     return survivalCliffRoleAt(seed, tileX, tileY) === 'none'
       && survivalDirtCliffRoleAt(seed, tileX, tileY) === 'none'
       && !survivalRampApproachAt(seed, tileX, tileY);
@@ -1975,67 +2152,131 @@ function generateNatureDecorations(
   return decorations;
 }
 
-function buildRareOreLayout(seed: number): RareOreLayout {
-  const biomes = biomeGridFor(seed);
-  const biomeAt = biomeLookupFor(biomes);
-  const ores: GeneratedSurvivalResource[] = [];
-  const selectedTiles = new Set<number>();
-  const zonesAcross = 3;
-  const zonesDown = 2;
-  for (let zone = 0; zone < ORE_NODES_PER_KIND; zone += 1) {
-    const zoneX = zone % zonesAcross;
-    const zoneY = Math.floor(zone / zonesAcross);
-    const minimumX = SURVIVAL_ISLAND_OFFSET_TILES
-      + Math.floor(zoneX * SURVIVAL_ISLAND_SIZE / zonesAcross);
-    const maximumX = SURVIVAL_ISLAND_OFFSET_TILES
-      + Math.floor((zoneX + 1) * SURVIVAL_ISLAND_SIZE / zonesAcross);
-    const minimumY = SURVIVAL_ISLAND_OFFSET_TILES
-      + Math.floor(zoneY * SURVIVAL_ISLAND_SIZE / zonesDown);
-    const maximumY = SURVIVAL_ISLAND_OFFSET_TILES
-      + Math.floor((zoneY + 1) * SURVIVAL_ISLAND_SIZE / zonesDown);
-    for (let order = 0; order < SURVIVAL_ORE_KINDS.length; order += 1) {
-      const kindIndex = (order + zone * 3) % SURVIVAL_ORE_KINDS.length;
-      const kind = SURVIVAL_ORE_KINDS[kindIndex]!;
+const SURFACE_GEM_KINDS = [
+  'ore_emerald', 'ore_sapphire', 'ore_topaz', 'ore_ruby', 'ore_amethyst',
+] as const satisfies readonly MiningOreResourceKind[];
+
+function surfaceMetalKindAt(
+  seed: number,
+  tileX: number,
+  tileY: number,
+  biome: SurvivalBiome,
+): MiningOreResourceKind {
+  const weights: readonly MiningOreResourceKind[] = biome === 'highland'
+    ? ['ore_iron', 'ore_iron', 'ore_iron', 'ore_copper', 'ore_copper', 'ore_gold']
+    : biome === 'desert' || biome === 'savanna' || biome === 'dirt_terrace'
+      ? ['ore_copper', 'ore_copper', 'ore_gold', 'ore_gold', 'ore_iron']
+      : ['ore_iron', 'ore_iron', 'ore_copper', 'ore_copper', 'ore_gold'];
+  return weights[hash(seed ^ 0x4f524557, islandTile(tileX), islandTile(tileY)) % weights.length]!;
+}
+
+function surfaceOreSiteProfile(
+  seed: number,
+  tileX: number,
+  tileY: number,
+  biome: SurvivalBiome,
+): Pick<SurfaceOreSpawnSite, 'kind' | 'nodeClass' | 'richness'> {
+  const roll = hash(seed ^ 0x50555245, islandTile(tileX), islandTile(tileY)) % 10_000;
+  if (roll < 100) {
+    const kind = SURFACE_GEM_KINDS[
+      hash(seed ^ 0x47454d53, islandTile(tileX), islandTile(tileY)) % SURFACE_GEM_KINDS.length
+    ]!;
+    return { kind, nodeClass: 'pristine', richness: roll < 15 ? 2 : 1 };
+  }
+  const kind = surfaceMetalKindAt(seed, tileX, tileY, biome);
+  if (roll < 500) return { kind, nodeClass: 'pristine', richness: roll < 180 ? 2 : 1 };
+  return {
+    kind,
+    nodeClass: 'mixed',
+    richness: 1 + hash(seed ^ 0x52494348, islandTile(tileX), islandTile(tileY)) % 2,
+  };
+}
+
+function buildSurfaceOreSpawnSites(
+  seed: number,
+  biomeAt: SurvivalBiomeLookup,
+): readonly SurfaceOreSpawnSite[] {
+  const sites: SurfaceOreSpawnSite[] = [];
+  const islandMinimum = SURVIVAL_ISLAND_OFFSET_TILES;
+  const islandMaximum = SURVIVAL_ISLAND_OFFSET_TILES + SURVIVAL_ISLAND_SIZE;
+  for (let cellY = islandMinimum; cellY < islandMaximum; cellY += ORE_SPAWN_SITE_CELL_TILES) {
+    for (let cellX = islandMinimum; cellX < islandMaximum; cellX += ORE_SPAWN_SITE_CELL_TILES) {
       let best: { readonly tileX: number; readonly tileY: number; readonly score: number } | null = null;
-      for (let tileY = minimumY; tileY < maximumY; tileY += 1) {
-        for (let tileX = minimumX; tileX < maximumX; tileX += 1) {
+      for (let tileY = cellY; tileY < Math.min(islandMaximum, cellY + ORE_SPAWN_SITE_CELL_TILES); tileY += 1) {
+        for (let tileX = cellX; tileX < Math.min(islandMaximum, cellX + ORE_SPAWN_SITE_CELL_TILES); tileX += 1) {
           const biome = biomeAt(tileX, tileY);
           if (survivalBiomeBlocksMovement(biome) || survivalSpawnProtectedAt(tileX, tileY)
-            || survivalMarlowCampReservedAt(tileX, tileY)
+            || survivalAuthoredLandmarkReservedAt(tileX, tileY)
             || survivalCliffRoleAt(seed, tileX, tileY) !== 'none'
             || survivalDirtCliffRoleAt(seed, tileX, tileY) !== 'none'
             || survivalRampApproachAt(seed, tileX, tileY)) continue;
-          const id = resourceTileId(tileX, tileY);
-          if (selectedTiles.has(id) || ores.some((ore) => {
-            const dx = ore.tileX - tileX;
-            const dy = ore.tileY - tileY;
-            return dx * dx + dy * dy < ORE_MIN_SPACING_TILES * ORE_MIN_SPACING_TILES;
-          })) continue;
-          const score = hash(
-            seed ^ Math.imul(kindIndex + 1, 0x1b873593) ^ Math.imul(zone + 1, 0x45d9f3b),
-            islandTile(tileX),
-            islandTile(tileY),
-          );
+          const score = hash(seed ^ 0x53504157, islandTile(tileX), islandTile(tileY));
           if (best === null || score < best.score) best = { tileX, tileY, score };
         }
       }
-      if (best === null) throw new Error(`Unable to place ${kind} in ore zone ${zone}`);
-      const resource = {
-        id: resourceTileId(best.tileX, best.tileY), kind, tileX: best.tileX, tileY: best.tileY,
-      } as const;
-      ores.push(resource);
-      selectedTiles.add(resource.id);
+      if (best === null) continue;
+      const biome = biomeAt(best.tileX, best.tileY);
+      const profile = surfaceOreSiteProfile(seed, best.tileX, best.tileY, biome);
+      sites.push({
+        id: resourceTileId(best.tileX, best.tileY),
+        tileX: best.tileX,
+        tileY: best.tileY,
+        biome,
+        ...profile,
+      });
     }
   }
+  return sites;
+}
+
+function generatedSurfaceOreResource(
+  site: SurfaceOreSpawnSite,
+  slot: number,
+  activationOrdinal = 0,
+): GeneratedSurvivalResource {
+  return {
+    id: ORE_RESOURCE_ID_BASE + slot,
+    kind: site.kind,
+    tileX: site.tileX,
+    tileY: site.tileY,
+    nodeClass: site.nodeClass,
+    richness: site.richness,
+    spawnSiteId: site.id,
+    activationOrdinal,
+  };
+}
+
+function buildRareOreLayout(seed: number): RareOreLayout {
+  const biomes = biomeGridFor(seed);
+  const biomeAt = biomeLookupFor(biomes);
+  const spawnSites = buildSurfaceOreSpawnSites(seed, biomeAt);
+  const ores: GeneratedSurvivalResource[] = [];
+  const orderedSites = [...spawnSites].sort((left, right) => (
+    hash(seed ^ 0x41435449, islandTile(left.tileX), islandTile(left.tileY))
+      - hash(seed ^ 0x41435449, islandTile(right.tileX), islandTile(right.tileY))
+  ));
+  for (const site of orderedSites) {
+    if (ores.length >= SURFACE_ACTIVE_ORE_NODES) break;
+    if (ores.some((ore) => {
+      const dx = ore.tileX - site.tileX;
+      const dy = ore.tileY - site.tileY;
+      return dx * dx + dy * dy < ORE_MIN_SPACING_TILES * ORE_MIN_SPACING_TILES;
+    })) continue;
+    ores.push(generatedSurfaceOreResource(site, ores.length));
+  }
+  if (ores.length < SURFACE_ACTIVE_ORE_NODES) {
+    throw new Error(`Unable to activate ${SURFACE_ACTIVE_ORE_NODES} spaced surface ore nodes`);
+  }
+  // Every potential geology site stays clear of deterministic dressing, not
+  // only the subset active at world creation.
+  const selectedTiles = new Set<number>(spawnSites.map((site) => resourceTileId(site.tileX, site.tileY)));
 
   const decorations: GeneratedSurvivalDecoration[] = [];
   const decorationTiles = new Set<number>();
+  // Small permanent geology landmarks make spawn routes readable even while
+  // the active ore has rotated to another pre-generated site.
   for (const ore of ores) {
-    const start = hash(
-      seed ^ 0x504f4921,
-      islandTile(ore.tileX),
-      islandTile(ore.tileY),
-    ) % POI_OFFSETS.length;
+    const start = hash(seed ^ 0x504f4921, islandTile(ore.tileX), islandTile(ore.tileY)) % POI_OFFSETS.length;
     for (let attempt = 0; attempt < POI_OFFSETS.length && decorations.filter((decor) =>
       Math.floor(decor.id / 10) === ore.id).length < 3; attempt += 1) {
       const offset = POI_OFFSETS[(start + attempt * 5) % POI_OFFSETS.length]!;
@@ -2044,6 +2285,7 @@ function buildRareOreLayout(seed: number): RareOreLayout {
       const tileId = resourceTileId(tileX, tileY);
       if (survivalBiomeBlocksMovement(biomeAt(tileX, tileY))
         || survivalSpawnProtectedAt(tileX, tileY)
+        || survivalAuthoredLandmarkReservedAt(tileX, tileY)
         || survivalRampApproachAt(seed, tileX, tileY)
         || survivalCliffRoleAt(seed, tileX, tileY) !== 'none'
         || survivalDirtCliffRoleAt(seed, tileX, tileY) !== 'none'
@@ -2066,12 +2308,16 @@ function buildRareOreLayout(seed: number): RareOreLayout {
   const campDecorations = generateMarlowCampDecorations();
   decorations.push(...campDecorations);
   for (const decoration of campDecorations) decorationTiles.add(resourceTileId(decoration.tileX, decoration.tileY));
+  const farmDecorations = generateFarmerBobFarmDecorations();
+  decorations.push(...farmDecorations);
+  for (const decoration of farmDecorations) decorationTiles.add(resourceTileId(decoration.tileX, decoration.tileY));
   decorations.push(...generateNatureDecorations(seed, biomeAt, selectedTiles, decorations));
   return {
     biomes,
     biomeAt,
+    spawnSites,
     ores,
-    oreById: new Map(ores.map((ore) => [ore.id, ore])),
+    oreById: new Map(ores.map((ore) => [resourceTileId(ore.tileX, ore.tileY), ore])),
     decorations,
     decorationTiles,
   };
@@ -2083,6 +2329,41 @@ function rareOreLayout(seed: number): RareOreLayout {
   const generated = buildRareOreLayout(seed);
   rareOreLayoutCache.set(seed, generated);
   return generated;
+}
+
+export function generateSurfaceOreSpawnSites(
+  seed = SURVIVAL_WORLD_SEED,
+): readonly SurfaceOreSpawnSite[] {
+  return rareOreLayout(seed).spawnSites;
+}
+
+/** Returns every pre-generated site in the deterministic order a depleted
+ * population slot should try. Authority applies live-node and player-built
+ * occupancy checks before choosing the first candidate. */
+export function surfaceOreRespawnCandidates(
+  slot: number,
+  activationOrdinal: number,
+  seed = SURVIVAL_WORLD_SEED,
+): readonly SurfaceOreSpawnSite[] {
+  return [...generateSurfaceOreSpawnSites(seed)].sort((left, right) => {
+    const leftScore = hash(
+      seed ^ Math.imul(slot + 1, 0x1b873593) ^ Math.imul(activationOrdinal + 1, 0x45d9f3b),
+      islandTile(left.tileX), islandTile(left.tileY),
+    );
+    const rightScore = hash(
+      seed ^ Math.imul(slot + 1, 0x1b873593) ^ Math.imul(activationOrdinal + 1, 0x45d9f3b),
+      islandTile(right.tileX), islandTile(right.tileY),
+    );
+    return leftScore - rightScore || left.id - right.id;
+  });
+}
+
+export function surfaceOreResourceAtSite(
+  site: SurfaceOreSpawnSite,
+  slot: number,
+  activationOrdinal: number,
+): GeneratedSurvivalResource {
+  return generatedSurfaceOreResource(site, slot, activationOrdinal);
 }
 
 export function generateSurvivalDecorations(seed = SURVIVAL_WORLD_SEED): readonly GeneratedSurvivalDecoration[] {
@@ -2108,7 +2389,7 @@ function generatedNaturalSurvivalResourceWith(
   decorationTiles: ReadonlySet<number>,
 ): GeneratedSurvivalResource | null {
   if (survivalSpawnProtectedAt(tileX, tileY)) return null;
-  if (survivalMarlowCampReservedAt(tileX, tileY)) return null;
+  if (survivalAuthoredLandmarkReservedAt(tileX, tileY)) return null;
   if (survivalRampApproachAt(seed, tileX, tileY)) return null;
   if (survivalCliffRoleAt(seed, tileX, tileY) !== 'none') return null;
   if (survivalDirtCliffRoleAt(seed, tileX, tileY) !== 'none') return null;

@@ -14,13 +14,14 @@ export type TouchDirection =
   | 'downLeft'
   | 'downRight';
 
-export type TouchControlAction = 'movement' | 'interact' | 'secondary';
+export type TouchControlAction = 'movement' | 'interact' | 'secondary' | 'jump';
 
 export interface TouchControlLayout {
   readonly joystickCenter: UiPoint;
   readonly joystickRadius: number;
   readonly interactButton: UiRect;
   readonly secondaryButton: UiRect;
+  readonly jumpButton: UiRect;
 }
 
 const JOYSTICK_RADIUS = 30;
@@ -59,6 +60,12 @@ export function touchControlLayout(width: number, height: number): TouchControlL
       width: BUTTON_WIDTH,
       height: BUTTON_HEIGHT,
     },
+    jumpButton: {
+      x: right - BUTTON_WIDTH,
+      y: buttonCenterY - BUTTON_HEIGHT - 18,
+      width: BUTTON_WIDTH,
+      height: BUTTON_HEIGHT,
+    },
   };
 }
 
@@ -85,9 +92,23 @@ export function touchDirectionFromDelta(
   }
 }
 
+export function prefersTouchControls(
+  maximumTouchPoints: number,
+  coarsePrimaryPointer: boolean,
+  finePrimaryPointer: boolean,
+): boolean {
+  if (coarsePrimaryPointer) return true;
+  if (finePrimaryPointer) return false;
+  return maximumTouchPoints > 0;
+}
+
 export function browserPrefersTouchControls(): boolean {
-  if (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) return true;
-  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const maximumTouchPoints = typeof navigator === 'undefined' ? 0 : navigator.maxTouchPoints;
+  const coarsePrimaryPointer = typeof matchMedia === 'function'
+    && matchMedia('(pointer: coarse)').matches;
+  const finePrimaryPointer = typeof matchMedia === 'function'
+    && matchMedia('(pointer: fine)').matches;
+  return prefersTouchControls(maximumTouchPoints, coarsePrimaryPointer, finePrimaryPointer);
 }
 
 function pointInJoystick(point: UiPoint, layout: TouchControlLayout): boolean {
@@ -146,7 +167,14 @@ export class TouchControls {
   }
 
   notePointerType(pointerType: string): void {
-    if (pointerType === 'touch') this.enabled = true;
+    if (pointerType === 'touch') {
+      this.enabled = true;
+      return;
+    }
+    if (pointerType !== 'mouse' && pointerType !== 'pen') return;
+    if (!this.enabled) return;
+    this.enabled = false;
+    this.reset();
   }
 
   setBlocked(blocked: boolean): void {
@@ -191,6 +219,11 @@ export class TouchControls {
       this.pressedActions.set(pointerId, 'secondary');
       this.capturedPointers.add(pointerId);
       return 'secondary';
+    }
+    if (containsPoint(layout.jumpButton, point)) {
+      this.pressedActions.set(pointerId, 'jump');
+      this.capturedPointers.add(pointerId);
+      return 'jump';
     }
     return null;
   }
@@ -252,6 +285,7 @@ export class TouchControls {
 
     const interactPressed = [...this.pressedActions.values()].includes('interact');
     const secondaryPressed = [...this.pressedActions.values()].includes('secondary');
+    const jumpPressed = [...this.pressedActions.values()].includes('jump');
     drawUiSkinAsset(
       context,
       skin.buttonConfirm,
@@ -263,6 +297,12 @@ export class TouchControls {
       skin.button,
       layout.secondaryButton,
       secondaryPressed ? 'pressed' : 'idle',
+    );
+    drawUiSkinAsset(
+      context,
+      skin.button,
+      layout.jumpButton,
+      jumpPressed ? 'pressed' : 'idle',
     );
     context.globalAlpha = 1;
     drawPixelText(
@@ -280,6 +320,14 @@ export class TouchControls {
       layout.secondaryButton.x + layout.secondaryButton.width / 2,
       layout.secondaryButton.y + 7,
       { align: 'center', scale: 2, color: '#5c3427' },
+    );
+    drawPixelText(
+      context,
+      ui,
+      'SPACE',
+      layout.jumpButton.x + layout.jumpButton.width / 2,
+      layout.jumpButton.y + 11,
+      { align: 'center', color: '#5c3427' },
     );
     context.restore();
   }

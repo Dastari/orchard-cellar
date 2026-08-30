@@ -198,6 +198,37 @@ describe('player movement collision', () => {
     expect(player.position.x).toBeLessThan(3 * TILE_SIZE_FIXED);
   });
 
+  it('lets a cellar actor pass through a one-tile lateral excavation', () => {
+    const width = 7;
+    const height = 7;
+    const elevations = new Uint8Array(width * height).fill(1);
+    for (let tileY = 1; tileY < height - 1; tileY += 1) {
+      for (let tileX = 2; tileX < width - 1; tileX += 1) elevations[tileY * width + tileX] = 0;
+    }
+    elevations[3 * width + 1] = 0;
+    const map = {
+      width,
+      height,
+      blocked: Array<boolean>(width * height).fill(false),
+      elevations,
+      terrainTransitions: [],
+      fixedTerrainPlane: 0,
+      terrainPlaneBlocked: caveTerrainPlaneCollisionBytes(elevations, width, height),
+    };
+    let player: PlayerState = {
+      position: {
+        x: 2 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+        y: 3 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 + PLAYER_HITBOX_FOOT_OFFSET + 1,
+      },
+      facing: 'left',
+      moving: false,
+      location: 'cellar',
+    };
+    for (let step = 0; step < 100; step += 1) player = movePlayer(player, 'left', map);
+    expect(player.position.x).toBeLessThan(2 * TILE_SIZE_FIXED);
+    expect(player.position.x).toBeGreaterThanOrEqual(TILE_SIZE_FIXED);
+  });
+
   it('lets a persisted actor escape newly-solid terrain without moving farther through it', () => {
     const map = { width: 2, height: 1, blocked: [true, false] };
     const embedded = {

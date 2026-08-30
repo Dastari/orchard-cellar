@@ -1,7 +1,4 @@
-import {
-  resolveRaisedTerrainContoursAt,
-  type RaisedTerrainTileSet,
-} from './raised-terrain-autotile.js';
+import type { RaisedTerrainTileSet } from './raised-terrain-autotile.js';
 
 /** Frame order extracted from Cave_Walls.png's authored 3x3 excavation ring. */
 export const CAVE_WALL_NORTH = 0;
@@ -58,24 +55,24 @@ export const CAVE_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
   },
   edgeBlocksMovement: false,
   edgeBlocksLight: false,
+  faceClearanceRows: 2,
 };
 
-/** Number of physical wall courses used to project one cellar contour. */
+/** Number of authored visual wall courses used to project one cellar contour. */
 export function caveProjectedRowsPerLevel(): number {
   return CAVE_RAISED_CLIFF_TILE_SET.faceProfiles.tall?.rows
     .filter((row) => row.contributesHeight !== false).length ?? 0;
 }
 
 /** Builds the inverse of the outdoor elevation collision mask from a mutable
- * cellar excavation height field. Uncut rock is the fixed surrounding datum
- * (L1); excavation is the lower floor (L0). Unlike an outdoor plateau, the
- * datum is not translated north. Direct wall rows project south into the dug
- * floor and remain physical blockers there.
+ * cellar excavation height field. Uncut rock is solid on both represented
+ * planes; an excavated tile is open on the fixed cellar floor plane.
  *
- * The 1024x1024 cellar is almost entirely solid, so resolving every rock tile
- * after every pickaxe strike would be wasteful. We first find the sparse ring
- * of solid cells touching excavation, then resolve only those caps and their
- * projected face destinations. */
+ * The two authored south-wall courses overlap lower floor cells visually in
+ * the same way that a cliff face can overlap an actor walking behind it. They
+ * are not two additional floor blockers. Keeping collision owned by the
+ * source rock cell means a one-tile lateral breach is immediately traversable
+ * and gives the client and authority one unambiguous excavation rule. */
 export function caveTerrainPlaneCollisionBytes(
   elevations: Uint8Array,
   width: number,
@@ -86,68 +83,10 @@ export function caveTerrainPlaneCollisionBytes(
     throw new Error(`Cave elevation field has ${elevations.length} cells; expected ${stride}`);
   }
   const blocked = new Uint8Array(stride * 2);
-  const projectedRows = caveProjectedRowsPerLevel();
-  // Cave wall rows are already authored south of their solid source and are
-  // drawn at those logical destinations. Unlike an outdoor walkable plateau,
-  // the cellar's solid-rock plane itself is not translated north.
-  const visualProjectionRows = 0;
-  const candidates = new Set<number>();
-  const elevationAt = (tileX: number, tileY: number): number => (
-    tileX < 0 || tileY < 0 || tileX >= width || tileY >= height
-      ? 1
-      : elevations[tileY * width + tileX] ?? 1
-  );
-  const addCandidate = (tileX: number, tileY: number): void => {
-    if (tileX < 0 || tileY < 0 || tileX >= width || tileY >= height) return;
-    candidates.add(tileY * width + tileX);
-  };
-
-  // The cellar actor stays on L0. Every unexcavated rock tile is therefore
-  // solid on that plane. This is the authoritative rule for side walls and
-  // corners; visual face overlap never turns solid earth into walkable floor.
   for (let index = 0; index < stride; index += 1) {
-    if ((elevations[index] ?? 1) >= 1) blocked[index] = 1;
-  }
-
-  for (let tileY = 0; tileY < height; tileY += 1) {
-    for (let tileX = 0; tileX < width; tileX += 1) {
-      if (elevationAt(tileX, tileY) !== 0) continue;
-      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
-        for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
-          const sourceX = tileX + offsetX;
-          const sourceY = tileY + offsetY;
-          if (elevationAt(sourceX, sourceY) < 1) continue;
-          addCandidate(sourceX, sourceY);
-          for (let depth = 1; depth <= projectedRows; depth += 1) {
-            addCandidate(sourceX, sourceY + depth);
-          }
-        }
-      }
-    }
-  }
-
-  for (const candidate of candidates) {
-    const tileX = candidate % width;
-    const tileY = Math.floor(candidate / width);
-    for (const { contourLevel, plan } of resolveRaisedTerrainContoursAt(
-      elevationAt,
-      1,
-      CAVE_RAISED_CLIFF_TILE_SET,
-      'tall',
-      tileX,
-      tileY,
-    )) {
-      const ownsCap = plan.rampFrame === null
-        && (plan.edgeFrame !== null || plan.insetFrames.length > 0);
-      if (ownsCap) {
-        blocked[contourLevel * stride + candidate] = 1;
-      }
-      if (!plan.faceLayers.some((face) => face.direct && face.blocksMovement)) continue;
-      const projectedTileY = tileY - visualProjectionRows;
-      if (projectedTileY < 0) continue;
-      if (elevationAt(tileX, tileY) >= contourLevel) continue;
-      blocked[(contourLevel - 1) * stride + projectedTileY * width + tileX] = 1;
-    }
+    if ((elevations[index] ?? 1) < 1) continue;
+    blocked[index] = 1;
+    blocked[stride + index] = 1;
   }
   return blocked;
 }

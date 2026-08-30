@@ -31,7 +31,9 @@ answers them today:
    docs/22) rests on client and authority generating identical terrain from
    `world_seed` — tiles are never streamed. Caves are therefore **procedurally
    generated but seed-deterministic and shared-persistent**: every player sees the
-   same mine, mined-out nodes stay mined for everyone (co-op mining is a pillar),
+   same mine and node state. Partial mining work may be combined only by members
+   of the same party; another solo miner or party must wait for the short work
+   lease to expire. Depleted nodes replenish on deterministic timers (doc 48),
    and "new caves" come from explicit regeneration events, not per-visit rerolls.
 
 ## 1. Vision

@@ -1,9 +1,13 @@
 # 35 — Homesteads: Farming, the Gold Loop, Building, and Guest Access
 
 Binding owner-directed spec (2026-08-26, crop amendment 2026-08-28). Status:
-**the Shared Spaces demo, owner-farm/gate slice, and complete first-pass crop
-loop are implemented; upgrades, build mode, and role-tiered co-op phases remain
-future work**. This is
+**the Shared Spaces demo, owner-farm/gate slice, complete first-pass crop loop,
+quest-awarded Tier-1 land expansion, data-driven build palette, five prefab footprints,
+refund-safe removal, Rich Soil/Selective Seeds/Barrel Cellar/Estate Vintage ladders,
+offline-derived sprinklers, Homestead-wide greenhouse winter growth, direct online-roster
+role management, and authoritative guest/worker/builder roles are implemented.
+The access-request workflow, dedicated roster, shared output chest, and additional
+land tiers remain future work**. This is
 the farming update — a core pillar. It realizes the
 "permissioned estates" promise of [07-multiplayer.md](07-multiplayer.md) and
 doc 21's "farms return as instanced interiors" on the systems that now exist:
@@ -180,15 +184,24 @@ merchant values. `Crops_2.png` is pixel-identical to the final eight groups of
 - One watering lasts one game day (15 real minutes). Growth advances only during
   a watering window, pauses when it expires, and resumes from settled progress
   after watering again. Nothing withers, regresses, or dies. Current durations
-  run 45–150 real minutes of watered time, making repeated care intentional.
+  run 8–30 real minutes of watered time: quick crops complete in one care window,
+  while premium crops require one return visit without blocking an entire session.
+- Outdoor crops grow from spring through autumn and pause harmlessly in winter.
+  A placed greenhouse removes that seasonal pause for its entire Homestead. This
+  estate-wide rule is intentional: the authored greenhouse is a solid prefab whose
+  occupied footprint cannot also contain reachable farmland.
 - The client derives one of the four authored stages. Hovering any crop shows
   its name, watered/needs-water state, remaining real time, and a 16-step timer
   taken from `Cute_Fantasy_UI/UI/Loading_Icon.png`.
 - A mature owner-grown crop harvests atomically into carried inventory, records
   crop/item statistics, and clears the crop while retaining tilled soil. Full
-  inventory rejects before crop deletion. The first slice is single-harvest;
-  regrowing varieties, seasons, fertilizer, sprinklers, and Farming XP rewards
-  remain registry-compatible follow-ups.
+  inventory rejects before crop deletion. At any growth stage, the owner can use
+  a hoe to dig up the crop without produce or harvest XP; this spends normal tool
+  Vigour/durability and leaves the tile tilled. The first slice is single-harvest;
+  regrowing varieties and fertilizer remain registry-compatible follow-ups.
+  Tilling, watering, planting, harvesting,
+  sealing/curing barrels, and cooking now award Farming XP at their authoritative
+  completion points.
 - The dormant `farm_parcel`/`crop_patch` demonstration is superseded. Its
   docs/08-compliant data retirement remains a separate migration.
 
@@ -197,14 +210,13 @@ merchant values. `Crops_2.png` is pixel-identical to the final eight groups of
 - **Loose sale**: crops sell to any merchant at registry price
   (`commerce.ts` gains every crop + seed; doc 31's drift test keeps it
   exhaustive).
-- **Barreling**: place a barrel (doc 28 placeable — finally load-bearing),
-  fill with up to 64 of **one** crop kind; a full barrel **cures** — derived,
-  zero-write, from `sealedTick` — reaching +50% unit value at 24 real hours
-  (soften-curved, no further gain). Selling a barrel's contents needs a
-  merchant visit with the barrel carried (chest-carry mechanics reused) or
-  farm-gate pickup as a later hook. Cured bulk beats loose by enough to make
-  logistics an *optimization decision* — the incremental player's first
-  routing puzzle.
+- **Barreling**: place a barrel, load 4–24 units of exactly one crop kind, and
+  seal it. The immutable batch cures after 30 real minutes from `sealedTick`;
+  settlement is timestamp-derived and works offline without per-tick writes.
+  It becomes a stack of preserved produce worth +50% per unit. The preserved
+  stack may then be removed and sold through ordinary merchant commerce.
+  Sealing and completion award Farming XP; an incomplete or mixed batch is
+  rejected atomically.
 - Wallet math is doc 31's bronze/silver/gold; the coin icons already exist
   (`icon_cf_coin_*`).
 
@@ -218,8 +230,9 @@ Per-homestead upgrades, each `repeatCost`-laddered, all in the docs/06 mirror:
 | Rich soil (ranks) | +growth rate % (modifier-pipeline `pctAdd`) | — |
 | Selective seeds (ranks) | +yield % / bonus-crop chance | — |
 | **Sprinkler** (placeable, tiered radius) | auto-waters coverage daily | ✓ works offline |
-| **Greenhouse** (prefab building) | out-of-season growth inside footprint | ✓ |
+| **Greenhouse** (prefab building) | out-of-season growth across its Homestead | ✓ works offline |
 | Barrel cellar (ranks) | +barrel capacity, faster curing | ✓ |
+| Estate vintage (ranks) | longer aging for 2× / 4× / 8× Bottle value | ✓ |
 | Scarecrow (placeable) | reserved for the doc 30 wildlife/bird-event hook | — |
 
 Upgrade effects flow through the doc 25 modifier pipeline (`source: 'skill'`
@@ -228,6 +241,13 @@ Helpers/hired-hands automation and prestige interplay (docs/04–06 Vintage
 heritage) are named later hooks, not v1.
 
 ## 7. Build mode — the `B` key
+
+Implemented: `B` enters a non-modal data-driven build palette for owners and builders.
+It keeps the hotbar visible, draws full-footprint valid/invalid ghosts, and shares
+authoritative placement/collision rules with `F`. Five licensed prefabs use multi-tile
+bottom-centre footprints. Removal returns the intact object inside five minutes and
+deterministic 50% recipe materials afterwards; active or stocked processors cannot be
+removed. Rotation and freeform terrain/furniture layers remain future extensions.
 
 - `B` toggles build mode **inside a homestead where the player has `builder`+
   rights** (and on the overworld solely for the one-time deed placement).
@@ -332,12 +352,14 @@ one art gap); scarecrows (`Scarecrows.png`). Extraction follows docs/11/18 +
 
 ## 12. Phasing
 
-1. **Shared Spaces technology demo (doc 40 §8; implemented):** dynamic-definition
+1. **Shared Spaces technology demo (doc 40 §8; phase 1 implemented):** dynamic-definition
    lookup/subscription, bounded caches and occupied-space hot work; add test forest,
    cave and deeper-underground destinations; have Marlow sell a deed that atomically
    places a compact tent POI leading to an owner-only tier-zero exterior. Add the
    authored tent-interior child space. The 2026-08-27 owner-farm, outdoor mounted
-   travel, and owner-controlled gate slice is also implemented (§3.2).
+   travel, and owner-controlled gate slice is also implemented (§3.2). Doc 40 §8.0
+   remains authoritative that the tent-interior/cellar child-space phase and the full
+   demo acceptance are unfinished.
 2. **Homestead core after the demo:** freeze the founding environmental profile,
    generate the site-reflective exterior/path/northern residence, add the explicit
    residence-interior space, implement the five residence/land tiers, and retire
@@ -345,10 +367,15 @@ one art gap); scarecrows (`Scarecrows.png`). Extraction follows docs/11/18 +
 3. **Crops + gold loop**: seeds in commerce, plant/water/harvest, derived
    growth, loose selling, first upgrades (soil/seeds ranks). *The
    incremental loop closes here.*
-4. **Barreling + automation**: barrels, curing, sprinklers, greenhouse.
-5. **Build mode**: palette, freeform layer, prefabs, refunds.
-6. **Access control**: roles, requests/notifications, shared output chest,
-   revoke/kick, moderation entry.
+4. **Barreling + automation**: crop-preservation barrels, curing, timestamp-derived
+   sprinklers, greenhouse winter override, and the Barrel Cellar ladder are
+   implemented. The fruit→Must→Bottle production chain is doc 46.
+5. **Build mode**: palette, prefab footprints and refunds are implemented; rotation
+   and the authored terrain/furniture catalogue remain.
+6. **Access control**: role enforcement, direct grant/change/revoke/kick authority and
+   caller-filtered streaming are implemented. The Online Players roster provides
+   direct role cycling and revocation; requests/notifications, a dedicated estate
+   roster, shared output chest, and moderation entry remain.
 7. **Later hooks**: ranching (coops/barns functional — the wildlife
    variants are ready), helpers, farm-gate sales, bird-raid events + scarecrow,
    prestige/Vintage interplay, and Homestead visiting showcases. Overworld planting

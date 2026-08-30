@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
   TouchControls,
+  prefersTouchControls,
   touchControlLayout,
   touchDirectionFromDelta,
 } from './touch-controls.js';
 
 describe('touch controls', () => {
+  it('uses the local primary pointer instead of treating every hybrid device as touch-only', () => {
+    expect(prefersTouchControls(5, true, false)).toBe(true);
+    expect(prefersTouchControls(5, false, true)).toBe(false);
+    expect(prefersTouchControls(5, false, false)).toBe(true);
+    expect(prefersTouchControls(0, false, false)).toBe(false);
+  });
+
   it('maps a thumb vector onto all eight movement directions', () => {
     expect(touchDirectionFromDelta(0, 0)).toBe('idle');
     expect(touchDirectionFromDelta(20, 0)).toBe('right');
@@ -26,6 +34,7 @@ describe('touch controls', () => {
       expect(layout.joystickCenter.y + layout.joystickRadius).toBeLessThanOrEqual(height);
       expect(layout.interactButton.x + layout.interactButton.width).toBeLessThanOrEqual(width);
       expect(layout.secondaryButton.y).toBeGreaterThanOrEqual(0);
+      expect(layout.jumpButton.y).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -65,6 +74,47 @@ describe('touch controls', () => {
     expect(controls.pointerUp(1)).toBe(true);
     expect(controls.ownsPointer(1)).toBe(false);
     expect(controls.direction).toBe('idle');
+  });
+
+  it('exposes a dedicated Space jump action beside E and F', () => {
+    const width = 844;
+    const height = 390;
+    const layout = touchControlLayout(width, height);
+    const controls = new TouchControls(true);
+    expect(controls.pointerDown({
+      x: layout.jumpButton.x + 2,
+      y: layout.jumpButton.y + 2,
+    }, 3, 'touch', width, height)).toBe('jump');
+    expect(controls.ownsPointer(3)).toBe(true);
+  });
+
+  it('keeps input modality local and restores pointer UI after mouse input', () => {
+    const controls = new TouchControls(false);
+    expect(controls.available).toBe(false);
+
+    controls.notePointerType('touch');
+    expect(controls.available).toBe(true);
+
+    const layout = touchControlLayout(390, 844);
+    controls.pointerDown(layout.joystickCenter, 1, 'touch', 390, 844);
+    controls.pointerMove({
+      x: layout.joystickCenter.x + 30,
+      y: layout.joystickCenter.y,
+    }, 1, 390, 844);
+    expect(controls.direction).toBe('right');
+
+    controls.notePointerType('mouse');
+    expect(controls.available).toBe(false);
+    expect(controls.direction).toBe('idle');
+    expect(controls.ownsPointer(1)).toBe(false);
+  });
+
+  it('does not let unknown pointer types change the current local modality', () => {
+    const controls = new TouchControls(true);
+    controls.notePointerType('');
+    expect(controls.available).toBe(true);
+    controls.notePointerType('pen');
+    expect(controls.available).toBe(false);
   });
 
   it('keeps a captured thumb moving below the canvas boundary', () => {

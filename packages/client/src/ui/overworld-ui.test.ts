@@ -2,15 +2,21 @@ import { describe, expect, it, vi } from 'vitest';
 import { BACKPACK_SLOT_COUNT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CHEST_STORAGE_ROWS, EQUIPMENT_SLOT_COUNT, HOTBAR_SLOT_COUNT } from '@orchard/sim';
 import type { PixelUi } from '../render/pixel-ui.js';
 import {
+  DEVELOPER_TABS,
   ONLINE_PLAYER_LIST_BOTTOM_PADDING,
   ONLINE_PLAYER_IDLE_THRESHOLD_MINUTES,
   OverworldUi,
+  SETTINGS_TABS,
+  SYSTEM_MENU_TITLE,
   onlinePlayerIdleMinutes,
   onlinePlayerListLabel,
+  nextHomesteadMemberRole,
   onlinePlayerListCloseButtonRect,
   onlinePlayerListFrameHeight,
   offlineNameplateFrameAt,
   overworldUiLayout,
+  pwaUpdatePromptLayout,
+  processorCountdownLabel,
   hotbarReticleRect,
   isInterfaceVisibilityToggle,
   itemIconAnimation,
@@ -23,6 +29,14 @@ import {
 } from './overworld-ui.js';
 import type { UiSkin } from './skin.js';
 import { RIBBON_TEXT_TOP_OFFSET, ribbonWidth } from './ribbon.js';
+
+describe('homestead member role controls', () => {
+  it('cycles invite roles before returning to revoked', () => {
+    expect([null, 'guest', 'worker', 'builder'].map((role) => nextHomesteadMemberRole(
+      role as null | 'guest' | 'worker' | 'builder',
+    ))).toEqual(['guest', 'worker', 'builder', null]);
+  });
+});
 
 function callbacks(): OverworldUiCallbacks {
   return {
@@ -42,6 +56,8 @@ function callbacks(): OverworldUiCallbacks {
     grantDebugSkillPoints: vi.fn(),
     setAudioVolume: vi.fn(),
     setAudioBackground: vi.fn(),
+    setNameplatesVisible: vi.fn(),
+    setLightingModel: vi.fn(),
     signOut: vi.fn(),
     quitToTitle: vi.fn(),
     toggleFullscreen: vi.fn(),
@@ -111,12 +127,35 @@ describe('overworld retained UI layout', () => {
     expect(itemIconAnimation('wood')).toBe('base');
   });
 
-  it('lays out a three-role furnace with a progress bar and inventory access', () => {
-    const layout = overworldUiLayout(480, 270);
-    expect(layout.furnaceSlots).toHaveLength(3);
-    expect(layout.furnaceProgress.width).toBeGreaterThan(40);
-    expect(layout.furnaceSlots[0]!.y).toBeLessThan(layout.furnaceSlots[1]!.y);
-    expect(layout.furnaceSlots[2]!.x).toBeGreaterThan(layout.furnaceSlots[0]!.x);
+  it('separates stacked furnace inputs from a centred output and vertical meter', () => {
+    for (const width of [360, 480]) {
+      const layout = overworldUiLayout(width, 270);
+      expect(layout.furnaceSlots).toHaveLength(3);
+      expect(layout.furnaceSlots[0]!.x).toBe(layout.furnaceSlots[1]!.x);
+      expect(layout.furnaceSlots[0]!.y).toBeLessThan(layout.furnaceSlots[1]!.y);
+      expect(layout.furnaceSlots[2]!.x).toBeGreaterThan(
+        layout.furnaceSlots[0]!.x + layout.furnaceSlots[0]!.width,
+      );
+      expect(layout.furnaceSlots[2]!.y + layout.furnaceSlots[2]!.height / 2).toBe(
+        (layout.furnaceSlots[0]!.y + layout.furnaceSlots[0]!.height / 2
+          + layout.furnaceSlots[1]!.y + layout.furnaceSlots[1]!.height / 2) / 2,
+      );
+      expect(layout.furnaceProgress.x).toBeGreaterThan(
+        layout.furnaceSlots[2]!.x + layout.furnaceSlots[2]!.width,
+      );
+      expect(layout.furnaceProgress.height).toBe(
+        layout.furnaceSlots[1]!.y + layout.furnaceSlots[1]!.height - layout.furnaceSlots[0]!.y,
+      );
+      expect(layout.furnaceTimer.y).toBeGreaterThanOrEqual(
+        layout.furnaceProgress.y + layout.furnaceProgress.height,
+      );
+      expect(layout.furnaceProgress.x + layout.furnaceProgress.width)
+        .toBeLessThanOrEqual(layout.backpackSlots[0]!.x);
+      expect(layout.furnaceStatus.x + layout.furnaceStatus.width)
+        .toBeLessThanOrEqual(layout.backpackSlots[0]!.x);
+      expect(layout.furnaceStatus.y + layout.furnaceStatus.height)
+        .toBeLessThan(layout.inventoryHotbarSlots[0]!.y);
+    }
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
     ui.openWindow = 'furnace';
     ui.update({
@@ -139,6 +178,36 @@ describe('overworld retained UI layout', () => {
     expect(internal.backpackItemSlots.some((slot) => slot.visible)).toBe(true);
   });
 
+  it('stacks cooking slots beside a three-slot vertical meter without entering the backpack pane', () => {
+    for (const width of [360, 480]) {
+      const layout = overworldUiLayout(width, 270);
+      expect(layout.cookingSlots).toHaveLength(2);
+      expect(layout.cookingSlots[0]!.x).toBe(layout.cookingSlots[1]!.x);
+      expect(layout.cookingSlots[1]!.y - (layout.cookingSlots[0]!.y + layout.cookingSlots[0]!.height))
+        .toBe(layout.cookingSlots[0]!.height);
+      expect(layout.cookingProgress.x).toBeGreaterThan(
+        layout.cookingSlots[0]!.x + layout.cookingSlots[0]!.width,
+      );
+      expect(layout.cookingProgress.height).toBe(layout.cookingSlots[0]!.height * 3);
+      const processorLeft = layout.inventoryWindow.x + 18;
+      const processorRight = layout.backpackSlots[0]!.x - 10;
+      expect(Math.abs(
+        (layout.cookingSlots[0]!.x - processorLeft)
+        - (processorRight - (layout.cookingProgress.x + layout.cookingProgress.width)),
+      )).toBeLessThanOrEqual(1);
+      expect(layout.cookingTimer.y).toBeGreaterThanOrEqual(
+        layout.cookingProgress.y + layout.cookingProgress.height,
+      );
+      expect(layout.cookingProgress.x + layout.cookingProgress.width)
+        .toBeLessThanOrEqual(layout.backpackSlots[0]!.x);
+      expect(layout.processorStatus.x + layout.processorStatus.width)
+        .toBeLessThanOrEqual(layout.backpackSlots[0]!.x);
+    }
+    expect(processorCountdownLabel(0)).toBe('0:00');
+    expect(processorCountdownLabel(65.1)).toBe('1:06');
+    expect(processorCountdownLabel(3_661)).toBe('1:01:01');
+  });
+
   it('closes an authority-owned furnace when its window is dismissed', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
@@ -152,8 +221,8 @@ describe('overworld retained UI layout', () => {
     const layout = overworldUiLayout(480, 270);
     expect(layout.status).toEqual({ x: 4, y: 2, width: 220, height: 34 });
     expect(layout.currency).toEqual({ x: 380, y: 238, width: 94, height: 26 });
-    expect(layout.previousDayButton).toMatchObject({ width: 64, height: 20 });
-    expect(layout.nextDayButton).toMatchObject({ width: 64, height: 20 });
+    expect(layout.previousDayButton).toMatchObject({ width: 58, height: 20 });
+    expect(layout.nextDayButton).toMatchObject({ width: 58, height: 20 });
     expect(layout.weatherButton.height).toBe(22);
     expect(layout.windDirectionButton).toMatchObject({ height: 22 });
     expect(layout.windDirectionButton.y + layout.windDirectionButton.height).toBeLessThan(layout.developerWindow.y + layout.developerWindow.height);
@@ -171,7 +240,74 @@ describe('overworld retained UI layout', () => {
     expect(layout.onlinePlayersButton.x + layout.onlinePlayersButton.width)
       .toBeLessThanOrEqual(layout.status.x + layout.status.width - 28);
     expect(layout.collapsedZoneTab).toEqual({ x: 0, y: 4, width: 32, height: 16 });
+    expect(layout.systemWindow.width).toBe(190);
+    expect(layout.systemWindow.height).toBe(195);
+    expect(layout.settingsButton.width).toBe(layout.resumeButton.width);
+    const systemButtons = [
+      layout.resumeButton, layout.settingsButton, layout.helpButton,
+      layout.fullscreenButton, layout.signOutButton, layout.quitButton,
+    ];
+    expect(systemButtons.every((button) => button.x === systemButtons[0]!.x)).toBe(true);
+    expect(systemButtons.every((button, index) => index === 0
+      || button.y > systemButtons[index - 1]!.y + systemButtons[index - 1]!.height)).toBe(true);
+    expect(systemButtons.every((button) => (
+      button.y >= layout.systemWindow.y
+      && button.y + button.height <= layout.systemWindow.y + layout.systemWindow.height
+    ))).toBe(true);
+    expect(layout.systemWindow.y + layout.systemWindow.height
+      - (layout.quitButton.y + layout.quitButton.height)).toBe(18);
+    expect(layout.developerButton.width).toBe(0);
+    expect(layout.updateButton.width).toBe(0);
+    expect(SYSTEM_MENU_TITLE).toBe('GAME MENU');
   });
+
+  it('keeps the system menu content-sized on wide viewports', () => {
+    expect(overworldUiLayout(960, 540).systemWindow.width).toBe(190);
+    expect(overworldUiLayout(1_920, 1_080).systemWindow.width).toBe(190);
+  });
+
+  it('fits every privileged system action into the same vertical column', () => {
+    const layout = overworldUiLayout(480, 270, {
+      canAdministerWorld: true,
+      pwaUpdateVisible: true,
+    });
+    const systemButtons = [
+      layout.resumeButton, layout.settingsButton, layout.helpButton,
+      layout.developerButton, layout.fullscreenButton, layout.updateButton,
+      layout.signOutButton, layout.quitButton,
+    ];
+    expect(systemButtons.every((button) => button.width > 0)).toBe(true);
+    expect(systemButtons.every((button) => button.x === systemButtons[0]!.x)).toBe(true);
+    expect(systemButtons.every((button, index) => index === 0
+      || button.y > systemButtons[index - 1]!.y + systemButtons[index - 1]!.height)).toBe(true);
+    expect(systemButtons.at(-1)!.y + systemButtons.at(-1)!.height)
+      .toBeLessThanOrEqual(layout.systemWindow.y + layout.systemWindow.height);
+  });
+
+  it.each([[480, 270], [360, 180]] as const)(
+    'keeps tabbed settings and developer controls inside a %ix%i canvas',
+    (width, height) => {
+      const layout = overworldUiLayout(width, height);
+      const inside = (outer: { x: number; y: number; width: number; height: number },
+        inner: { x: number; y: number; width: number; height: number }): boolean => (
+        inner.x >= outer.x && inner.y >= outer.y
+        && inner.x + inner.width <= outer.x + outer.width
+        && inner.y + inner.height <= outer.y + outer.height
+      );
+      expect(inside(layout.settingsWindow, layout.settingsContent)).toBe(true);
+      expect(inside(layout.settingsWindow, layout.settingsBackButton)).toBe(true);
+      expect(SETTINGS_TABS.every((tab) => inside(layout.settingsWindow, layout.settingsTabs[tab]))).toBe(true);
+      expect(inside(layout.settingsContent, layout.masterSlider)).toBe(true);
+      expect(inside(layout.settingsContent, layout.musicSlider)).toBe(true);
+      expect(inside(layout.settingsContent, layout.sfxSlider)).toBe(true);
+      expect(inside(layout.settingsContent, layout.nameplatesToggle)).toBe(true);
+      expect(inside(layout.developerWindow, layout.developerContent)).toBe(true);
+      expect(inside(layout.developerWindow, layout.developerBackButton)).toBe(true);
+      expect(DEVELOPER_TABS.every((tab) => inside(layout.developerWindow, layout.developerTabs[tab]))).toBe(true);
+      expect(inside(layout.developerContent, layout.weatherButton)).toBe(true);
+      expect(inside(layout.developerContent, layout.windDirectionButton)).toBe(true);
+    },
+  );
 
   it('keeps online-list and ribbon-collapse actions separate', () => {
     const handlers = callbacks();
@@ -293,7 +429,7 @@ describe('overworld retained UI layout', () => {
       raining: false, weatherMode: 'auto', windDirectionMode: 'auto', windDirectionLabel: 'SE',
       prompt: null, toast: null,
     });
-    const layout = overworldUiLayout(480, 270);
+    const layout = overworldUiLayout(480, 270, { canAdministerWorld: true });
     expect(ui.pointerDown({ x: layout.windDirectionButton.x + 4, y: layout.windDirectionButton.y + 4 }, 0)).toBe(false);
     ui.openWindow = 'system';
     expect(ui.pointerDown({ x: layout.developerButton.x + 4, y: layout.developerButton.y + 4 }, 0)).toBe(true);
@@ -301,18 +437,45 @@ describe('overworld retained UI layout', () => {
     const button = layout.windDirectionButton;
     expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
     expect(handlers.cycleWindDirection).toHaveBeenCalledOnce();
+    const renderTab = layout.developerTabs.render;
+    expect(ui.pointerDown({ x: renderTab.x + 4, y: renderTab.y + 4 }, 0)).toBe(true);
     const lightingButton = layout.lightingEffectsButton;
     expect(ui.pointerDown({ x: lightingButton.x + 4, y: lightingButton.y + 4 }, 0)).toBe(true);
     expect(handlers.toggleLightingEffects).toHaveBeenCalledOnce();
     const orePreviewButton = layout.orePreviewButton;
     expect(ui.pointerDown({ x: orePreviewButton.x + 4, y: orePreviewButton.y + 4 }, 0)).toBe(true);
     expect(handlers.toggleCellarOrePreview).toHaveBeenCalledOnce();
+    const questsTab = layout.developerTabs.quests;
+    expect(ui.pointerDown({ x: questsTab.x + 4, y: questsTab.y + 4 }, 0)).toBe(true);
     const resetButton = layout.resetQuestsButton;
     expect(ui.pointerDown({ x: resetButton.x + 4, y: resetButton.y + 4 }, 0)).toBe(true);
     expect(handlers.resetMyQuestProgress).toHaveBeenCalledOnce();
+    const playerTab = layout.developerTabs.player;
+    expect(ui.pointerDown({ x: playerTab.x + 4, y: playerTab.y + 4 }, 0)).toBe(true);
     const explorerPoints = layout.skillPointButtons.explorer;
     expect(ui.pointerDown({ x: explorerPoints.x + 4, y: explorerPoints.y + 4 }, 0)).toBe(true);
     expect(handlers.grantDebugSkillPoints).toHaveBeenCalledWith('explorer', 1);
+  });
+
+  it('removes the developer action from the system menu without world authority', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 3, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    ui.openWindow = 'system';
+    const layout = overworldUiLayout(480, 270);
+    const internal = ui as unknown as { developerNode: { readonly visible: boolean } };
+    expect(layout.developerButton.width).toBe(0);
+    expect(internal.developerNode.visible).toBe(false);
+    ui.pointerMove({
+      x: layout.settingsButton.x + layout.settingsButton.width / 2,
+      y: layout.settingsButton.y + layout.settingsButton.height / 2,
+    });
+    expect(ui.tooltipText()).toBe('SETTINGS');
   });
 
   it('keeps all anchored UI inside a narrow viewport', () => {
@@ -392,15 +555,39 @@ describe('overworld retained UI layout', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.update({
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
-      inventory: [], hasBackpack: false, fullscreen: false,
+      inventory: [], hasBackpack: false, fullscreen: false, fullscreenAvailable: true,
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
     ui.openWindow = 'system';
-    const button = overworldUiLayout(480, 270).fullscreenButton;
+    const layout = overworldUiLayout(480, 270);
+    const button = layout.fullscreenButton;
+    const internal = ui as unknown as {
+      fullscreenNode: { readonly bounds: { readonly x: number; readonly width: number } };
+      updateNode: { readonly visible: boolean };
+    };
+    expect(internal.updateNode.visible).toBe(false);
+    expect(internal.fullscreenNode.bounds.x).toBe(layout.fullscreenButton.x);
+    expect(internal.fullscreenNode.bounds.width).toBe(layout.fullscreenButton.width);
     expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
     expect(handlers.toggleFullscreen).toHaveBeenCalledOnce();
+  });
+
+  it('disables fullscreen when the browser cannot preserve Escape as the menu key', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false, fullscreen: true, fullscreenAvailable: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', pwaUpdateStatus: 'current', prompt: null, toast: null,
+    });
+    ui.openWindow = 'system';
+    const button = overworldUiLayout(480, 270, { pwaUpdateVisible: true }).fullscreenButton;
+    expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
+    expect(handlers.toggleFullscreen).not.toHaveBeenCalled();
   });
 
   it('checks for a client update and explicitly applies a waiting build', () => {
@@ -415,13 +602,45 @@ describe('overworld retained UI layout', () => {
     };
     ui.update({ ...base, pwaUpdateStatus: 'current' });
     ui.openWindow = 'system';
-    const button = overworldUiLayout(480, 270).updateButton;
+    const button = overworldUiLayout(480, 270, { pwaUpdateVisible: true }).updateButton;
     expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
     expect(handlers.checkForClientUpdate).toHaveBeenCalledOnce();
 
     ui.update({ ...base, pwaUpdateStatus: 'available' });
+    expect(ui.handleKeyDown('Escape', false)).toBe(true);
+    expect(ui.blockingUpdatePromptVisible).toBe(false);
     expect(ui.pointerDown({ x: button.x + 4, y: button.y + 4 }, 0)).toBe(true);
     expect(handlers.applyClientUpdate).toHaveBeenCalledOnce();
+  });
+
+  it('opens a blocking in-game prompt when a new client build is ready', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const model = {
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto' as const, prompt: null, toast: null,
+      pwaUpdateStatus: 'available' as const,
+    };
+    ui.update(model);
+    expect(ui.blockingUpdatePromptVisible).toBe(true);
+
+    const prompt = pwaUpdatePromptLayout(480, 270);
+    expect(ui.pointerDown({
+      x: prompt.refreshButton.x + 4,
+      y: prompt.refreshButton.y + 4,
+    }, 0)).toBe(true);
+    expect(handlers.applyClientUpdate).toHaveBeenCalledOnce();
+
+    const laterUi = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    laterUi.update(model);
+    expect(laterUi.pointerDown({
+      x: prompt.laterButton.x + 4,
+      y: prompt.laterButton.y + 4,
+    }, 0)).toBe(true);
+    expect(laterUi.blockingUpdatePromptVisible).toBe(false);
   });
 
   it('aligns smaller self and mirrored target frames to the hotbar edges at UI scales 1/2/3', () => {
@@ -529,6 +748,68 @@ describe('overworld inventory and system menu', () => {
     expect(Math.max(...layout.inventoryHotbarSlots.map((slot) => slot.y + slot.height))).toBeLessThanOrEqual(inventoryBottom - 17);
   });
 
+  it('keeps every modal hotbar centred when the compact HUD wraps to two rows', () => {
+    for (const width of [360, 390, 419, 480]) {
+      const layout = overworldUiLayout(width, 270);
+      const inventoryLeft = Math.min(...layout.inventoryHotbarSlots.map((slot) => slot.x));
+      const inventoryRight = Math.max(...layout.inventoryHotbarSlots.map((slot) => slot.x + slot.width));
+      const chestLeft = Math.min(...layout.chestHotbarSlots.map((slot) => slot.x));
+      const chestRight = Math.max(...layout.chestHotbarSlots.map((slot) => slot.x + slot.width));
+      expect(Math.abs((inventoryLeft + inventoryRight) / 2 - width / 2)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs((chestLeft + chestRight) / 2 - width / 2)).toBeLessThanOrEqual(0.5);
+      expect(inventoryLeft).toBeGreaterThanOrEqual(layout.inventoryWindow.x);
+      expect(inventoryRight).toBeLessThanOrEqual(layout.inventoryWindow.x + layout.inventoryWindow.width);
+    }
+  });
+
+  it('places a wider scrollable recipe pane left of the crafting grid and searchable backpack', () => {
+    for (const width of [360, 480, 600]) {
+      const layout = overworldUiLayout(width, 300);
+      const recipeRight = Math.max(...layout.craftingRecipeRows.map((row) => row.x + row.width));
+      const gridLeft = Math.min(...layout.craftingSlots.map((slot) => slot.x));
+      const resultRight = layout.craftingResult.x + layout.craftingResult.width;
+      const backpackLeft = Math.min(...layout.craftingInventorySlots.map((slot) => slot.x));
+      if (width >= 480) {
+        expect(layout.craftingWindow.width).toBeGreaterThan(layout.inventoryWindow.width);
+        expect(layout.craftingRecipeRows[0]!.width).toBeGreaterThanOrEqual(100);
+      }
+      expect(recipeRight).toBeLessThan(gridLeft);
+      expect(resultRight).toBeLessThanOrEqual(backpackLeft);
+      expect(layout.craftingRecipeScroll.x).toBeGreaterThan(recipeRight);
+      expect(layout.craftingInventoryFilter.x).toBe(backpackLeft);
+      expect(layout.craftingInventoryFilter.x + layout.craftingInventoryFilter.width)
+        .toBeLessThanOrEqual(layout.craftingBackpackSortButton.x);
+    }
+  });
+
+  it('swipe-scrolls compact backpack inventories without picking up a slot', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'inventory';
+    ui.update({
+      width: 360, height: 270, connected: true, touchControls: true,
+      playerCount: 1, selectedSlot: 0,
+      inventory: Array.from({ length: 20 }, (_, index) => ({
+        slot: 10 + index, itemKind: 'wood', quantity: 1,
+      })),
+      hasBackpack: true, backpackSlotCapacity: 20,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(360, 270);
+    const start = {
+      x: layout.inventoryBackpackViewport.x + 10,
+      y: layout.inventoryBackpackViewport.y + layout.inventoryBackpackViewport.height - 8,
+    };
+    ui.pointerDown(start, 0, { pointerType: 'touch' });
+    ui.pointerMove({ x: start.x, y: start.y - 45 });
+    expect(ui.pointerUp({ x: start.x, y: start.y - 45 }, 0)).toBe(true);
+    const internal = ui as unknown as { inventoryScrollBar: { position: number } };
+    expect(internal.inventoryScrollBar.position).toBe(1);
+    expect(handlers.inventoryCursorClick).not.toHaveBeenCalled();
+  });
+
   it('fits chest storage beside the player backpack without overlapping', () => {
     const layout = overworldUiLayout(480, 270);
     const chestRight = Math.max(...layout.chestSlots.map((slot) => slot.x + slot.width));
@@ -598,6 +879,23 @@ describe('overworld inventory and system menu', () => {
     expect(tooltip.y).toBeGreaterThan(Math.max(...layout.inventoryHotbarSlots.map((slot) => slot.y + slot.height)));
   });
 
+  it('keeps a held stack anchored after Mobile Safari ends its touch pointer', () => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.openWindow = 'inventory';
+    ui.update({
+      width: 480, height: 270, connected: true, touchControls: true,
+      playerCount: 1, selectedSlot: 0, inventory: [],
+      cursorStack: { itemKind: 'wood', quantity: 3 }, hasBackpack: true,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    ui.pointerMove({ x: 120, y: 90 });
+    ui.pointerLeave();
+    expect((ui as unknown as { pointer: { x: number; y: number } }).pointer)
+      .toEqual({ x: 120, y: 90 });
+  });
+
   it('picks up from the visible backpack without placing on mouse release over a chest', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
@@ -661,7 +959,7 @@ describe('overworld inventory and system menu', () => {
     expect(ui.openWindow).toBeNull();
   });
 
-  it('reserves Escape for the system menu while inventory has its own key', () => {
+  it('closes gameplay popups before Escape can open the system menu', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
     expect(ui.handleKeyDown('Escape', false)).toBe(true);
     expect(ui.openWindow).toBe('system');
@@ -679,7 +977,18 @@ describe('overworld inventory and system menu', () => {
     ui.handleKeyDown('KeyI', false);
     expect(ui.handleKeyDown('KeyW', false)).toBe(true);
     ui.handleKeyDown('Escape', false);
+    expect(ui.openWindow).toBeNull();
+    ui.handleKeyDown('Escape', false);
     expect(ui.openWindow).toBe('system');
+  });
+
+  it('closes an open chest on Escape without opening the system menu', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'chest';
+    expect(ui.handleKeyDown('Escape', false)).toBe(true);
+    expect(ui.openWindow).toBeNull();
+    expect(handlers.closeChest).toHaveBeenCalledOnce();
   });
 
   it('opens Help from the Escape menu and returns to the menu on Escape', () => {
@@ -700,7 +1009,7 @@ describe('overworld inventory and system menu', () => {
     expect(ui.openWindow).toBe('system');
   });
 
-  it('gives the system menu immediate pointer priority over an open inventory', () => {
+  it('gives the system menu pointer priority after inventory is dismissed', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
     ui.openWindow = 'inventory';
@@ -715,6 +1024,8 @@ describe('overworld inventory and system menu', () => {
     const source = layout.inventoryHotbarSlots[0]!;
     expect(ui.pointerDown({ x: source.x + 4, y: source.y + 4 }, 0)).toBe(true);
 
+    ui.handleKeyDown('Escape', false);
+    expect(ui.openWindow).toBeNull();
     ui.handleKeyDown('Escape', false);
     expect(ui.openWindow).toBe('system');
     expect(ui.pointerDown({
@@ -739,6 +1050,8 @@ describe('overworld inventory and system menu', () => {
     });
     ui.openWindow = 'settings';
     const layout = overworldUiLayout(480, 270);
+    const audioTab = layout.settingsTabs.audio;
+    expect(ui.pointerDown({ x: audioTab.x + 4, y: audioTab.y + 4 }, 0)).toBe(true);
     expect(ui.pointerDown({
       x: layout.musicBackgroundToggle.x + 4, y: layout.musicBackgroundToggle.y + 4,
     }, 0)).toBe(true);
@@ -751,6 +1064,78 @@ describe('overworld inventory and system menu', () => {
       .toBeLessThan(layout.soundsBackgroundToggle.y);
     expect(layout.soundsBackgroundToggle.y + layout.soundsBackgroundToggle.height)
       .toBeLessThan(layout.settingsBackButton.y);
+  });
+
+  it('uses the gameplay tab to control persisted nameplate visibility on touch devices', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 0.8, music: 0.7, sfx: 0.35 },
+      nameplatesVisible: false,
+      canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    ui.openWindow = 'settings';
+    expect(ui.selectedSettingsTab).toBe('gameplay');
+    const toggle = overworldUiLayout(480, 270).nameplatesToggle;
+    expect(ui.pointerDown({ x: toggle.x + 4, y: toggle.y + 4 }, 0)).toBe(true);
+    expect(handlers.setNameplatesVisible).toHaveBeenCalledWith(true);
+    expect(ui.handleKeyDown('KeyN', false)).toBe(true);
+    expect(handlers.setNameplatesVisible).toHaveBeenLastCalledWith(false);
+    expect(ui.handleKeyDown('ArrowDown', false)).toBe(true);
+    expect(ui.selectedSettingsTab).toBe('controls');
+  });
+
+  it('switches between the classic and unified lighting models from Video settings', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, lightingModel: 'unified',
+      canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    ui.openWindow = 'settings';
+    const layout = overworldUiLayout(480, 270);
+    expect(ui.pointerDown({
+      x: layout.settingsTabs.video.x + 4,
+      y: layout.settingsTabs.video.y + 4,
+    }, 0)).toBe(true);
+    expect(ui.pointerDown({
+      x: layout.lightingModelButton.x + 4,
+      y: layout.lightingModelButton.y + 4,
+    }, 0)).toBe(true);
+    expect(handlers.setLightingModel).toHaveBeenCalledWith('classic');
+    expect(layout.lightingModelButton.y).toBeGreaterThanOrEqual(layout.settingsContent.y);
+    expect(layout.lightingModelButton.y + layout.lightingModelButton.height)
+      .toBeLessThanOrEqual(layout.settingsContent.y + layout.settingsContent.height);
+  });
+
+  it('mutes and restores each audio bus from its authored icon button', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const model = {
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], hasBackpack: false,
+      audioVolumes: { master: 0.8, music: 0.7, sfx: 0.35 },
+      canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto' as const, prompt: null, toast: null,
+    };
+    ui.update(model);
+    ui.openWindow = 'settings';
+    const layout = overworldUiLayout(480, 270);
+    ui.pointerDown({ x: layout.settingsTabs.audio.x + 4, y: layout.settingsTabs.audio.y + 4 }, 0);
+    ui.pointerDown({ x: layout.audioMuteButtons.master.x + 4, y: layout.audioMuteButtons.master.y + 4 }, 0);
+    expect(handlers.setAudioVolume).toHaveBeenLastCalledWith('master', 0);
+    ui.update({ ...model, audioVolumes: { ...model.audioVolumes, master: 0 } });
+    ui.pointerDown({ x: layout.audioMuteButtons.master.x + 4, y: layout.audioMuteButtons.master.y + 4 }, 0);
+    expect(handlers.setAudioVolume).toHaveBeenLastCalledWith('master', 0.8);
   });
 
   it('does not place a picked-up item merely by releasing over equipment', () => {
@@ -892,6 +1277,25 @@ describe('overworld inventory and system menu', () => {
     expect(ui.pointerDown({ x: 2, y: 2 }, 2)).toBe(true);
     ui.pointerUp({ x: 2, y: 2 }, 2);
     expect(handlers.dropInventoryCursor).toHaveBeenCalledWith('right');
+  });
+
+  it('returns a carried item when released over blank space inside an inventory frame', () => {
+    const handlers = callbacks();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    ui.openWindow = 'crafting';
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [], cursorStack: { itemKind: 'wood', quantity: 8 }, hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const frame = overworldUiLayout(480, 270).inventoryWindow;
+    const blank = { x: frame.x + 8, y: frame.y + 30 };
+    expect(ui.pointerDown(blank, 0)).toBe(true);
+    ui.pointerUp(blank, 0);
+    expect(handlers.returnInventoryCursor).toHaveBeenCalledOnce();
+    expect(handlers.dropInventoryCursor).not.toHaveBeenCalled();
   });
 
   it('right-clicks one carried item into a compatible slot and keeps carrying the remainder', () => {
@@ -1280,6 +1684,7 @@ describe('overworld inventory and system menu', () => {
       width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
       inventory: [{ slot: 0, itemKind: 'plank', quantity: 4 }], hasBackpack: false,
       nearbyCraftingStations: [],
+      knownRecipeIds: ['planks', 'sticks', 'torch', 'campfire', 'workbench'],
       audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,

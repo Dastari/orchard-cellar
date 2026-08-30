@@ -85,7 +85,7 @@ describe('32 training-target combat foundation', () => {
     expect(step).not.toContain('player.health');
   });
 
-  it('lets swords damage only forward, authoritative archery-target rows', () => {
+  it('lets swords damage only forward authoritative targets and food wildlife', () => {
     const attack = reducerSource('attackCombatTarget');
     expect(attack.indexOf('requireAuthorizedSender(')).toBeLessThan(
       attack.indexOf('world_combat_target.id.find(targetId)'),
@@ -101,7 +101,36 @@ describe('32 training-target combat foundation', () => {
     expect(attack).toContain("actionKind: 'swing_sword'");
     expect(attack).toContain("'damage_dealt', BigInt(appliedDamage)");
     expect(attack).not.toContain('world_resource');
-    expect(attack).not.toContain('world_npc');
+    expect(attack).toContain('world_npc.id.find(targetId)');
+    expect(attack).toContain('wildlifeIsHuntable(profile.species)');
+    expect(attack).toContain('damageHuntableWildlife(');
+  });
+
+  it('keeps wildlife hit feedback and herd panic authoritative', () => {
+    const npcSchema = source.slice(
+      source.indexOf('const world_npc ='),
+      source.indexOf('const world_wildlife_profile ='),
+    );
+    for (const field of [
+      'lastHitCritical', 'panicUntilTick', 'panicSource', 'panicSourceX', 'panicSourceY',
+    ]) expect(npcSchema).toContain(`${field}: t.`);
+    expect(npcSchema).toContain('lastHitCritical: t.bool().default(false)');
+    expect(npcSchema).toContain('panicUntilTick: t.option(t.u64()).default(undefined)');
+
+    const damage = source.slice(
+      source.indexOf('function panicNearbyWildlife'),
+      source.indexOf('/** Authority owns tool'),
+    );
+    expect(damage).toContain('world_npc.by_chunk.filter(attackedNpc.spaceId)');
+    expect(damage).toContain('wildlifePanicGroup(profile.species) !== group');
+    expect(damage).toContain('knockbackWildlife(');
+    expect(damage).toContain('lastHitCritical: critical');
+    expect(damage).toContain('panicUntilTick');
+
+    const step = source.slice(source.indexOf('export const stepWorld ='));
+    expect(step).toContain('stepPanickedWildlife({');
+    expect(step).toContain('ctx.db.player_position.identity.find(npc.panicSource)');
+    expect(step).toContain('panicUntilTick: undefined');
   });
 
   it('server-times bow charge and binds its range and Vigour price to the same duration', () => {

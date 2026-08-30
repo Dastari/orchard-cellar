@@ -42,6 +42,7 @@ export type PlayerStatisticSubject =
   | 'npc_id'
   | 'quest_objective'
   | 'quest_action'
+  | 'upgrade_kind'
   | 'skill_track';
 
 export interface PlayerStatisticDefinition {
@@ -119,13 +120,24 @@ export const PLAYER_STATISTIC_DEFINITIONS = {
   farm_tiles_restored: { name: 'Farm Tiles Restored', description: 'Tilled soil returned to grass.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
   crops_planted: { name: 'Crops Planted', description: 'Crop patches planted, split by crop kind when crops gain varieties.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'crop_kind', milestones: COUNT_MILESTONES },
   crops_harvested: { name: 'Crops Harvested', description: 'Crop patches harvested, split by crop kind when crops gain varieties.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'crop_kind', milestones: COUNT_MILESTONES },
+  crops_uprooted: { name: 'Crops Uprooted', description: 'Crop patches deliberately dug up with a hoe without harvesting produce.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'crop_kind', milestones: COUNT_MILESTONES },
   orchard_trees_tended: { name: 'Orchard Trees Tended', description: 'Successful care actions on orchard trees.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
   orchard_tea_consumed: { name: 'Orchard Tea Consumed', description: 'Jars of Orchard Tea consumed.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
+  barrels_sealed: { name: 'Barrels Sealed', description: 'Crop batches sealed for curing, split by crop kind.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'crop_kind', milestones: COUNT_MILESTONES },
+  barrels_cured: { name: 'Barrels Cured', description: 'Crop batches that completed curing, split by crop kind.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'crop_kind', milestones: COUNT_MILESTONES },
+  food_cooked: { name: 'Food Cooked', description: 'Food portions cooked at a campfire, split by item kind.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
+  food_eaten: { name: 'Food Eaten', description: 'Food portions eaten to restore hunger, split by item kind.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
+  fruit_pressed: { name: 'Fruit Pressed', description: 'Fruit units pressed into Must and Pomace, split by fruit kind.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
+  press_cycles_completed: { name: 'Press Cycles Completed', description: 'Fruit Press cycles completed across every pressable fruit.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
+  bottles_produced: { name: 'Bottles Produced', description: 'Finished estate Bottles aged in fermentation vessels.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
 
   crafting_actions: { name: 'Crafting Actions', description: 'Successful recipe executions.', category: 'crafting', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
+  recipe_books_read: { name: 'Recipe Books Read', description: 'Recipe books consumed to reveal crafting patterns, split by book item.', category: 'crafting', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: RARE_COUNT_MILESTONES },
+  recipes_learned: { name: 'Recipes Learned', description: 'Crafting patterns permanently revealed in the recipe guide.', category: 'crafting', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
   items_crafted: { name: 'Items Crafted', description: 'Output item units crafted, split by item kind.', category: 'crafting', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
   largest_craft_batch: { name: 'Largest Craft Batch', description: 'Largest quantity produced by one crafting request.', category: 'crafting', unit: 'count', aggregation: 'maximum', subject: 'item_kind', milestones: COUNT_MILESTONES },
   placeables_placed: { name: 'Placeables Placed', description: 'Crafted placeable items committed to the world, split by item kind.', category: 'crafting', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
+  placeables_removed: { name: 'Placeables Removed', description: 'Homestead build objects dismantled through the refund-safe build authority, split by item kind.', category: 'crafting', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
   merchant_transactions: { name: 'Merchant Transactions', description: 'Completed purchases and sales, split by transaction kind.', category: 'commerce', unit: 'count', aggregation: 'counter', subject: 'transaction_kind', milestones: COUNT_MILESTONES },
   player_trades_completed: { name: 'Player Trades Completed', description: 'Secure two-player trades completed after both participants accepted.', category: 'social', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
   player_trade_items_sent: { name: 'Trade Items Sent', description: 'Item units delivered to another player through a completed trade.', category: 'commerce', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
@@ -134,6 +146,8 @@ export const PLAYER_STATISTIC_DEFINITIONS = {
   items_sold: { name: 'Items Sold', description: 'Item units sold, split by item kind.', category: 'commerce', unit: 'count', aggregation: 'counter', subject: 'item_kind', milestones: COUNT_MILESTONES },
   bronze_spent: { name: 'Bronze Spent', description: 'Lifetime merchant spending in bronze-equivalent units.', category: 'commerce', unit: 'bronze', aggregation: 'counter', subject: 'none', milestones: MONEY_MILESTONES },
   bronze_earned: { name: 'Bronze Earned', description: 'Lifetime merchant revenue in bronze-equivalent units.', category: 'commerce', unit: 'bronze', aggregation: 'counter', subject: 'none', milestones: MONEY_MILESTONES },
+  homestead_upgrades_purchased: { name: 'Homestead Upgrades Purchased', description: 'Permanent estate upgrade ranks purchased with gold, split by upgrade.', category: 'farming', unit: 'count', aggregation: 'counter', subject: 'upgrade_kind', milestones: RARE_COUNT_MILESTONES },
+  bronze_spent_on_upgrades: { name: 'Bronze Spent on Homestead Upgrades', description: 'Bronze-equivalent gold reinvested into the estate, split by upgrade.', category: 'commerce', unit: 'bronze', aggregation: 'counter', subject: 'upgrade_kind', milestones: MONEY_MILESTONES },
 
   chests_placed: { name: 'Chests Placed', description: 'Chests placed into the world.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'none', milestones: RARE_COUNT_MILESTONES },
   chests_opened: { name: 'Chests Opened', description: 'Placed chests opened.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'none', milestones: COUNT_MILESTONES },
@@ -141,6 +155,7 @@ export const PLAYER_STATISTIC_DEFINITIONS = {
   chests_broken: { name: 'Chests Broken', description: 'Placed chests destroyed with an axe.', category: 'world', unit: 'count', aggregation: 'counter', subject: 'none', milestones: RARE_COUNT_MILESTONES },
 
   damage_dealt: { name: 'Damage Dealt', description: 'Authoritative outgoing damage after mitigation, split by damageable target kind.', category: 'combat', unit: 'damage', aggregation: 'counter', subject: 'combat_target_kind', milestones: COUNT_MILESTONES },
+  animals_hunted: { name: 'Animals Hunted', description: 'Food animals defeated in the overworld, split by species.', category: 'combat', unit: 'count', aggregation: 'counter', subject: 'creature_kind', milestones: COUNT_MILESTONES },
   damage_taken: { name: 'Damage Taken', description: 'Future authoritative incoming damage, split by damage kind.', category: 'combat', unit: 'damage', aggregation: 'counter', subject: 'damage_kind', milestones: COUNT_MILESTONES, reserved: true },
   enemies_defeated: { name: 'Enemies Defeated', description: 'Future hostile creatures defeated, split by creature kind.', category: 'combat', unit: 'count', aggregation: 'counter', subject: 'creature_kind', milestones: COUNT_MILESTONES, reserved: true },
   times_knocked_out: { name: 'Times Knocked Out', description: 'Future cozy knockouts at zero Health.', category: 'combat', unit: 'count', aggregation: 'counter', subject: 'none', milestones: RARE_COUNT_MILESTONES, reserved: true },

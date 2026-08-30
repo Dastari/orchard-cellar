@@ -1,0 +1,74 @@
+{
+  "name": "resource_cf_ore_copper_pure_medium",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......111.......",
+        ".....14441......",
+        "....1444521.....",
+        "....1445221.....",
+        "....13332111....",
+        "....133214441...",
+        "....1331444451..",
+        "....13314445210.",
+        "....11113452210.",
+        "....14441333210.",
+        "...144531333210.",
+        "...143321332200.",
+        "...133221222000.",
+        "...02222000000..",
+        "...0000000000...",
+        "....00000......."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#3f2832",
+    "2": "#743f39",
+    "3": "#b86f50",
+    "4": "#e4a672",
+    "5": "#ead4aa"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        32,
+        16,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "resource.mineable",
+    "resource.ore",
+    "ore.copper",
+    "ore.node.pure.medium"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

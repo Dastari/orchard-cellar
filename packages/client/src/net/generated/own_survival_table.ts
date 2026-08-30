@@ -17,4 +17,6 @@ export default __t.row({
   stone: __t.u32(),
   selectedSlot: __t.u8().name("selected_slot"),
   debugBackpackSlots: __t.u16().name("debug_backpack_slots"),
+  hungerCenti: __t.u16().name("hunger_centi"),
+  hungerUpdatedTick: __t.u64().name("hunger_updated_tick"),
 });

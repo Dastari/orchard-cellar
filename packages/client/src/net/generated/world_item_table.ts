@@ -22,4 +22,6 @@ export default __t.row({
   durability: __t.u16(),
   spaceId: __t.u16().name("space_id"),
   lit: __t.bool(),
+  reservedFor: __t.option(__t.identity()).name("reserved_for"),
+  reservedUntilTick: __t.u64().name("reserved_until_tick"),
 });

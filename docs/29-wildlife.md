@@ -6,6 +6,11 @@
 > danger belong in Homestead or explicit resource/danger spaces. The current durable
 > population remains a transitional implementation until sanctuary migration.
 
+> **Food-loop amendment (2026-08-29):** [45](45-repeatable-loop-hunger-hunting-cooking.md)
+> permits authority-controlled hunting of the seven listed food-animal species.
+> All other wildlife remains protected; this narrow exception supersedes the
+> blanket no-hunting wording below.
+
 Wildlife is a deterministic layer over survival terrain. It does not alter the
 terrain/resource version and can therefore be regenerated without touching player
 identity, inventory, farms, soil, chests, or the authored starter horse.

@@ -1,0 +1,74 @@
+{
+  "name": "resource_cf_ore_topaz_pure_small",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".........111....",
+        "........14441...",
+        ".......144451...",
+        ".......144521...",
+        "....111133221...",
+        "...1445133321...",
+        "..144531133210..",
+        "..143314413210..",
+        "..133145312210..",
+        "..132133212200..",
+        "..022132210000..",
+        "..00002220000...",
+        "...00000000.....",
+        "......0000......"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#3f2832",
+    "2": "#c64524",
+    "3": "#ed7614",
+    "4": "#ffa214",
+    "5": "#ffeb57"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        48,
+        80,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "resource.mineable",
+    "resource.ore",
+    "ore.topaz",
+    "ore.node.pure.small"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

@@ -31,8 +31,13 @@ The Escape menu exposes the lifecycle:
 - **UPDATE** appears when a new worker is waiting.
 - Pressing **UPDATE** sends `SKIP_WAITING`; the client reloads only after the new
   worker becomes the controller.
-- A visibility check and a 30-minute check keep long-running installed sessions
-  informed without forcing an update.
+- A blocking in-game **UPDATE READY** prompt offers **REFRESH NOW** or **LATER**
+  as soon as a waiting worker is observed. Dismissing it leaves **UPDATE** in the
+  Escape menu for the remainder of the session.
+- Visibility, reconnect, page-restore, and five-minute checks keep long-running
+  installed sessions informed without forcing an update.
+- If another open window activates the worker, the current live session still
+  asks before reloading rather than silently replacing its client code.
 
 The cache is intentionally limited to the same-origin application shell and
 static art/audio. Navigation is network-first. Cross-origin OIDC traffic,
@@ -72,8 +77,36 @@ the PNG files.
 4. Add to Home Screen on iPhone and iPad; verify the apple icon and the matching
    native startup image before the in-canvas loading gateway appears.
 5. Deploy a second build while the first remains open. The game must continue
-   untouched until the Escape menu reports **UPDATE**. Pressing it must activate
-   the waiting worker and reload once into the second build.
+   untouched until the **UPDATE READY** prompt appears and the Escape menu reports
+   **UPDATE**. Pressing **REFRESH NOW** must activate the waiting worker and reload
+   once into the second build.
 6. Disable the network after one successful load. The app shell may open, but
    account/world connectivity must fail normally rather than presenting stale
    authenticated or authoritative data.
+
+## Full-screen game shell
+
+- The non-pausing **GAME MENU** offers native **FULLSCREEN** only in a browser
+  tab that supports both the Fullscreen and Keyboard Lock APIs. Escape is locked
+  synchronously with fullscreen entry so an ordinary press opens/closes the game
+  menu instead of immediately leaving fullscreen; the browser's long-hold Escape
+  safety exit remains intact. Installed standalone PWAs already own their display
+  surface and render this action disabled. Unsupported web sessions do not show a
+  misleading **WEB VERSION** substitute.
+- Root overscroll containment plus non-passive gesture guards prevent document
+  scrolling, pull-to-refresh, pinch/trackpad page zoom, and browser edge-history
+  gestures from stealing Canvas input. Native hidden text fields are exempt so
+  chat, filters, clipboard, software keyboards, and IME composition still work.
+- Installed mode adds a same-URL history sentinel so Back/Forward edge gestures
+  remain in the game; ordinary browser tabs keep normal navigation semantics.
+- `viewport-fit=cover` lets the world Canvas render full-bleed behind notches,
+  rounded corners, and home indicators. A separate safe HUD rectangle protects
+  the top and side cutouts without creating blank strips around the world; the
+  bottom-anchored HUD remains flush with the Canvas edge and pointer coordinates
+  use the same layout.
+- Dynamic viewport height prevents mobile browser chrome changes from producing
+  a scrollable strip around the full-screen game. Installed standalone/fullscreen
+  mode deliberately uses `100vh` because WebKit currently reports `100dvh`
+  shorter by a safe-area inset for `viewport-fit=cover` PWAs.
+- Canvas animation pauses while the installed app is hidden and resumes with a
+  fresh safe-area/viewport measurement, avoiding needless background battery use.

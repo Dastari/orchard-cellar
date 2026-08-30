@@ -1,5 +1,5 @@
 import { AUTHORITY_HZ } from './net-timing.js';
-import { AUTHORITY_TICKS_PER_DAY } from './time.js';
+import { AUTHORITY_TICKS_PER_DAY, DAYS_PER_SEASON } from './time.js';
 
 export const CROP_STAGE_COUNT = 4;
 export const CROP_WATERING_TICKS = BigInt(AUTHORITY_TICKS_PER_DAY);
@@ -16,6 +16,10 @@ export const CROP_KINDS = [
 ] as const;
 
 export type CropKind = (typeof CROP_KINDS)[number];
+
+export const FARMER_BOB_FAST_STRAWBERRY_SEEDS = 'bob_fast_strawberry_seeds';
+export const FARMER_BOB_FAST_STRAWBERRY_CROP = 'bob_fast_strawberry';
+export const FARMER_BOB_FAST_STRAWBERRY_GROWTH_TICKS = BigInt(30 * AUTHORITY_HZ);
 
 export interface CropDefinition {
   readonly kind: CropKind;
@@ -59,28 +63,28 @@ function crop(
 /** The source-sheet order is deliberately preserved. It is the common key
  * between gameplay data and the licensed Crops/Crops_2 artwork. */
 export const CROP_DEFINITIONS = [
-  crop('wheat', 'Wheat', 60, 3, 18, 7),
-  crop('tomato', 'Tomato', 105, 3, 28, 11),
-  crop('carrot', 'Carrot', 75, 2, 20, 9),
-  crop('turnip', 'Turnip', 60, 2, 18, 8),
-  crop('corn', 'Corn', 120, 3, 32, 12),
-  crop('pumpkin', 'Pumpkin', 150, 1, 42, 38),
-  crop('parsley', 'Parsley', 45, 3, 14, 5),
-  crop('cabbage', 'Cabbage', 90, 1, 24, 22),
-  crop('cucumber', 'Cucumber', 90, 3, 24, 9),
-  crop('hot_pepper', 'Hot Pepper', 105, 3, 28, 11),
-  crop('red_pepper', 'Red Pepper', 105, 3, 30, 12),
-  crop('yellow_pepper', 'Yellow Pepper', 105, 3, 30, 12),
-  crop('green_pepper', 'Green Pepper', 105, 3, 30, 12),
-  crop('watermelon', 'Watermelon', 150, 1, 44, 40),
-  crop('sunflower', 'Sunflower', 90, 2, 24, 11),
-  crop('garlic', 'Garlic', 75, 2, 20, 9),
-  crop('potato', 'Potato', 75, 3, 22, 8),
-  crop('strawberry', 'Strawberry', 120, 3, 34, 13),
-  crop('beetroot', 'Beetroot', 75, 2, 20, 9),
-  crop('onion', 'Onion', 75, 2, 20, 9),
-  crop('leek', 'Leek', 90, 2, 24, 11),
-  crop('grape', 'Grapes', 150, 3, 40, 15),
+  crop('wheat', 'Wheat', 12, 3, 18, 7),
+  crop('tomato', 'Tomato', 20, 3, 28, 11),
+  crop('carrot', 'Carrot', 15, 2, 20, 9),
+  crop('turnip', 'Turnip', 12, 2, 18, 8),
+  crop('corn', 'Corn', 25, 3, 32, 12),
+  crop('pumpkin', 'Pumpkin', 30, 1, 42, 38),
+  crop('parsley', 'Parsley', 8, 3, 14, 5),
+  crop('cabbage', 'Cabbage', 18, 1, 24, 22),
+  crop('cucumber', 'Cucumber', 18, 3, 24, 9),
+  crop('hot_pepper', 'Hot Pepper', 20, 3, 28, 11),
+  crop('red_pepper', 'Red Pepper', 20, 3, 30, 12),
+  crop('yellow_pepper', 'Yellow Pepper', 20, 3, 30, 12),
+  crop('green_pepper', 'Green Pepper', 20, 3, 30, 12),
+  crop('watermelon', 'Watermelon', 30, 1, 44, 40),
+  crop('sunflower', 'Sunflower', 18, 2, 24, 11),
+  crop('garlic', 'Garlic', 15, 2, 20, 9),
+  crop('potato', 'Potato', 15, 3, 22, 8),
+  crop('strawberry', 'Strawberry', 25, 3, 34, 13),
+  crop('beetroot', 'Beetroot', 15, 2, 20, 9),
+  crop('onion', 'Onion', 15, 2, 20, 9),
+  crop('leek', 'Leek', 18, 2, 24, 11),
+  crop('grape', 'Grapes', 30, 3, 40, 15),
 ] as const satisfies readonly CropDefinition[];
 
 const CROP_BY_KIND = new Map<string, CropDefinition>(
@@ -91,11 +95,27 @@ const CROP_BY_SEED = new Map<string, CropDefinition>(
 );
 
 export function cropDefinition(kind: string): CropDefinition | null {
+  if (kind === FARMER_BOB_FAST_STRAWBERRY_CROP) {
+    const strawberry = CROP_BY_KIND.get('strawberry');
+    return strawberry === undefined ? null : {
+      ...strawberry,
+      growthTicks: FARMER_BOB_FAST_STRAWBERRY_GROWTH_TICKS,
+    };
+  }
   return CROP_BY_KIND.get(kind) ?? null;
 }
 
 export function cropDefinitionForSeed(itemKind: string): CropDefinition | null {
+  if (itemKind === FARMER_BOB_FAST_STRAWBERRY_SEEDS) {
+    return cropDefinition(FARMER_BOB_FAST_STRAWBERRY_CROP);
+  }
   return CROP_BY_SEED.get(itemKind) ?? null;
+}
+
+export function cropStoredKindForSeed(itemKind: string, definition: CropDefinition): string {
+  return itemKind === FARMER_BOB_FAST_STRAWBERRY_SEEDS
+    ? FARMER_BOB_FAST_STRAWBERRY_CROP
+    : definition.kind;
 }
 
 export function isCropKind(kind: string): kind is CropKind {
@@ -114,6 +134,30 @@ export interface CropGrowthSnapshot {
   readonly mature: boolean;
   readonly watered: boolean;
   readonly wateredUntilTick: bigint;
+  readonly inSeason: boolean;
+}
+
+const CROP_ACTIVE_SEASON_TICKS = BigInt(AUTHORITY_TICKS_PER_DAY * DAYS_PER_SEASON * 3);
+const CROP_YEAR_TICKS = BigInt(AUTHORITY_TICKS_PER_DAY * DAYS_PER_SEASON * 4);
+
+function activeSeasonTicksBefore(tick: bigint): bigint {
+  const safe = tick > 0n ? tick : 0n;
+  const years = safe / CROP_YEAR_TICKS;
+  const withinYear = safe % CROP_YEAR_TICKS;
+  return years * CROP_ACTIVE_SEASON_TICKS
+    + (withinYear < CROP_ACTIVE_SEASON_TICKS ? withinYear : CROP_ACTIVE_SEASON_TICKS);
+}
+
+/** Spring through autumn are the broad outdoor growing window. This prefix
+ * calculation remains O(1) even when a reconnect spans many game years. */
+export function cropSeasonalGrowthBetween(
+  fromCalendarTick: bigint,
+  toCalendarTick: bigint,
+  greenhouseProtected = false,
+): bigint {
+  if (toCalendarTick <= fromCalendarTick) return 0n;
+  if (greenhouseProtected) return toCalendarTick - fromCalendarTick;
+  return activeSeasonTicksBefore(toCalendarTick) - activeSeasonTicksBefore(fromCalendarTick);
 }
 
 /** Adds only the overlap between an observation interval and the current
@@ -138,10 +182,25 @@ export function cropGrowthAt(
   wateredAtTick: bigint,
   currentTick: bigint,
   hasBeenWatered = true,
+  automaticallyWatered = false,
+  calendarOffsetTicks = 0n,
+  greenhouseProtected = false,
 ): CropGrowthSnapshot {
-  const accumulated = storedGrowthTicks + (hasBeenWatered ? wateredGrowthBetween(
-    growthUpdatedAtTick, currentTick, wateredAtTick,
-  ) : 0n);
+  const growthStart = automaticallyWatered
+    ? growthUpdatedAtTick
+    : growthUpdatedAtTick > wateredAtTick ? growthUpdatedAtTick : wateredAtTick;
+  const wateredUntil = wateredAtTick + CROP_WATERING_TICKS;
+  const growthEnd = automaticallyWatered
+    ? currentTick
+    : currentTick < wateredUntil ? currentTick : wateredUntil;
+  const intervalGrowth = (automaticallyWatered || hasBeenWatered) && growthEnd > growthStart
+    ? cropSeasonalGrowthBetween(
+      growthStart + calendarOffsetTicks,
+      growthEnd + calendarOffsetTicks,
+      greenhouseProtected,
+    )
+    : 0n;
+  const accumulated = storedGrowthTicks + intervalGrowth;
   const growthTicks = accumulated < definition.growthTicks ? accumulated : definition.growthTicks;
   const remainingTicks = definition.growthTicks - growthTicks;
   const progress = definition.growthTicks === 0n
@@ -153,9 +212,14 @@ export function cropGrowthAt(
     progress,
     stage: Math.min(CROP_STAGE_COUNT - 1, Math.floor(progress * CROP_STAGE_COUNT)),
     mature: remainingTicks === 0n,
-    watered: hasBeenWatered
-      && currentTick >= wateredAtTick && currentTick < wateredAtTick + CROP_WATERING_TICKS,
-    wateredUntilTick: wateredAtTick + CROP_WATERING_TICKS,
+    watered: automaticallyWatered || (hasBeenWatered
+      && currentTick >= wateredAtTick && currentTick < wateredAtTick + CROP_WATERING_TICKS),
+    wateredUntilTick: automaticallyWatered
+      ? currentTick + CROP_WATERING_TICKS
+      : wateredAtTick + CROP_WATERING_TICKS,
+    inSeason: greenhouseProtected
+      || (((currentTick + calendarOffsetTicks) > 0n ? currentTick + calendarOffsetTicks : 0n)
+        % CROP_YEAR_TICKS) < CROP_ACTIVE_SEASON_TICKS,
   };
 }
 

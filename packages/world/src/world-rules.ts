@@ -77,7 +77,7 @@ function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator
     if (medium !== 'ground') return true;
     const x = index % sizeTiles;
     const y = Math.floor(index / sizeTiles);
-    return generator === 'homestead' ? !homesteadPlayableTile(x, y)
+    return generator === 'homestead' ? !homesteadPlayableTile(x, y, sizeTiles)
       : generator === 'residence' || generator === 'marlow_tent' ? !residencePlayableTile(x, y)
       : generator === 'cellar' ? x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1
       : x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1;
@@ -107,7 +107,7 @@ export function terrainCollisionForSpace(
   medium: MovementMedium = 'ground',
   instanceRow?: { readonly spaceId: number; readonly sizeTier: number; readonly residenceSpaceId?: number | undefined } | null,
 ): CollisionMap {
-  const key = `${spaceId}:${medium}`;
+  const key = `${spaceId}:${medium}:${instanceRow?.sizeTier ?? 0}`;
   const cached = SPACE_TERRAIN_COLLISION.get(key);
   if (cached !== undefined) return cached;
   const definition = spaceDefinitionFor(spaceId, instanceRow);

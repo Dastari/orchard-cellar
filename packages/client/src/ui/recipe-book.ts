@@ -51,13 +51,16 @@ function ingredientCounts(recipe: RecipeDefinition): Readonly<Record<string, num
 export function craftingRecipeBookEntries(
   stations: readonly CraftingStation[],
   inventory: readonly RecipeBookInventoryRow[],
+  knownRecipeIds: readonly string[],
 ): readonly RecipeBookEntry[] {
   const available = new Set(stations);
+  const known = new Set(knownRecipeIds);
   const carried: Record<string, number> = {};
   for (const row of inventory) if (row.itemKind !== 'empty' && row.quantity > 0) {
     carried[row.itemKind] = (carried[row.itemKind] ?? 0) + row.quantity;
   }
   return (Object.values(RECIPES) as readonly RecipeDefinition[])
+    .filter((recipe) => known.has(recipe.id))
     .filter((recipe) => recipe.station === undefined || available.has(recipe.station))
     .map((recipe) => ({
       recipeId: recipe.id,
@@ -74,7 +77,9 @@ export function ghostFillRecipeMoves(
   recipeId: string,
   inventory: readonly RecipeBookInventoryRow[],
   hasBackpack: boolean,
+  knownRecipeIds: readonly string[],
 ): readonly MoveItemRequest[] | null {
+  if (!knownRecipeIds.includes(recipeId)) return null;
   const recipe = (Object.values(RECIPES) as readonly RecipeDefinition[])
     .find((candidate) => candidate.id === recipeId);
   if (recipe === undefined) return null;

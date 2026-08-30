@@ -29,6 +29,7 @@
     "extract:cute-fantasy-crafting": "tsx src/extract-cute-fantasy-crafting.ts",
     "extract:cute-fantasy-wildlife": "tsx src/extract-cute-fantasy-wildlife.ts",
     "extract:cute-fantasy-nature": "tsx src/extract-cute-fantasy-nature.ts",
+    "extract:cute-fantasy-npcs": "tsx src/extract-cute-fantasy-npcs.ts",
     "extract:keycloak-theme": "tsx src/build-keycloak-theme-assets.ts",
     "pwa:assets": "tsx src/build-pwa-assets.ts",
     "document:cute-fantasy": "tsx src/document-cute-fantasy.ts",

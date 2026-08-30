@@ -102,11 +102,16 @@ function validateCanonicalSize(asset: AssetSource, errors: string[]): void {
   if (asset.category === 'tiles' && (width !== 16 || height !== 16)) errors.push(`${asset.name}: tiles must be 16x16`);
   if (asset.category === 'characters') {
     const bodyCanvas = width === 16 && height === 32;
-    const licensedActionCanvas = width === 32 && (height === 32 || height === 40) && asset.sourcePaletteMode === 'exact';
+    const licensedActionCanvas = asset.sourcePaletteMode === 'exact' && (
+      (width === 16 && height === 16)
+      || (width === 32 && (height === 32 || height === 40))
+      || (width === 48 && height === 48)
+      || (width === 64 && height === 64)
+    );
     const licensedToolActionCanvas = width === 64 && height === 64
       && asset.name.startsWith('tool_cf_') && asset.sourcePaletteMode === 'exact';
     if (!bodyCanvas && !licensedActionCanvas && !licensedToolActionCanvas) {
-      errors.push(`${asset.name}: characters must be 16x32, exact licensed bodies 32x32/32x40, or exact licensed tool actions 64x64`);
+      errors.push(`${asset.name}: characters must be 16x32 or an exact licensed 16/32/48/64px action canvas`);
     }
   }
   if (asset.category === 'trees') {

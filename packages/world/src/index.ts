@@ -5,9 +5,17 @@ import {
   CROP_WATERING_TICKS,
   BRONZE_PER_GOLD,
   BACKPACK_SLOT_COUNT,
+  BARREL_SLOT_CAPACITY,
+  BARREL_CURE_TICKS,
+  BARREL_MAX_BATCH,
   BACKPACK_SLOT_OFFSET,
   BASE_BACKPACK_CAPACITY,
   CRAFTING_SLOT_COUNT,
+  HUNGER_MAX_CENTI,
+  HUNGER_TOOL_USE_CENTI,
+  HUNGER_WEAPON_USE_CENTI,
+  hungerCostForSprintVigour,
+  modifiersForHunger,
   EQUIPMENT_SLOT_COUNT,
   EQUIPMENT_SLOT_OFFSET,
   CHEST_INTERACTION_REACH_FIXED,
@@ -28,6 +36,8 @@ import {
   HOTBAR_SLOT_COUNT,
   INVENTORY_SLOT_COUNT,
   MARLOW_CAMP,
+  FARMER_BOB_FARM,
+  survivalFarmerBobFarmReservedAt,
   MARLOW_CAMPFIRE_ID,
   MARLOW_CAMPFIRE_TILE,
   NPC_INTERACTION_REACH_FIXED,
@@ -46,8 +56,6 @@ import {
   HOMESTEAD_EXIT_TILE,
   HOMESTEAD_TENT_TILE,
   HOMESTEAD_GATE_TILE,
-  HOMESTEAD_PLOT_MIN_TILE,
-  HOMESTEAD_PLOT_MAX_TILE,
   RESIDENCE_ENTRY_TILE,
   RESIDENCE_EXIT_TILE,
   RESIDENCE_TRAPDOOR_TILE,
@@ -58,6 +66,7 @@ import {
   homesteadTentFootprint,
   homesteadMarkerPlacementTiles,
   homesteadBoundaryTiles,
+  homesteadPlotBounds,
   homesteadPlayableTile,
   cellarPlayableTile,
   avatarActionAfterMovement,
@@ -73,21 +82,45 @@ import {
   craftingStationWithinReach,
   cropDefinition,
   cropDefinitionForSeed,
+  cropStoredKindForSeed,
+  FARMER_BOB_FAST_STRAWBERRY_CROP,
+  FARMER_BOB_FAST_STRAWBERRY_SEEDS,
   cropGrowthAt,
   emptySoilDecayAtTick,
   emptySoilDecayDue,
   itemDefinition,
+  itemHasTag,
+  placeableHasInterface,
+  placeableInterface,
   isUniqueQuestItemKind,
   inventoryContainerSlotCount,
   inventoryContainerSlotOffset,
   isHotbarSlot,
   itemStacksCompatible,
   placeableDefinition,
+  placeableSlotCapacity,
   recipeDefinition,
+  recipeBookDefinition,
   recipeIngredientStacks,
+  homesteadBuildDefinition,
+  homesteadBuildFootprintTiles,
+  homesteadBuildRemovalRefund,
+  barrelCellarBatchCapacity,
+  barrelCellarCureTicks,
+  homesteadUpgradeCostBronze,
+  HOMESTEAD_UPGRADE_DEFINITIONS,
+  isHomesteadUpgradeKind,
+  richSoilGrowthTicks,
+  selectiveSeedHarvestQuantity,
+  sprinklerCoversTile,
+  homesteadRoleAtLeast,
+  isHomesteadMemberRole,
+  type HomesteadEffectiveRole,
+  estateVintageTier,
   itemModifiers,
   planMerchantPurchase,
   planMerchantSale,
+  merchantOffers,
   MAX_MERCHANT_CART_LINES,
   type MerchantCartLine,
   isDurableToolKind,
@@ -99,6 +132,36 @@ import {
   SMELTING_RECIPES,
   settleFurnace,
   furnaceMutationIsValid,
+  spendHunger,
+  restoreHunger,
+  foodHungerRestoreCenti,
+  cookingRecipe,
+  cookingDurationTicks,
+  COOKING_FIRE_INPUT_SLOT,
+  COOKING_FIRE_OUTPUT_SLOT,
+  COOKING_FIRE_SLOT_CAPACITY,
+  CAMPFIRE_COOKING_RECIPES,
+  cookingFireMutationIsValid,
+  cookingFireRecipeForInput,
+  settleCookingFire,
+  barrelCanSeal,
+  barrelMutationIsValid,
+  settleBarrel,
+  PRESSABLE_FRUIT_KINDS,
+  PRESS_INPUT_SLOT,
+  PRESS_MUST_OUTPUT_SLOT,
+  PRESS_POMACE_OUTPUT_SLOT,
+  FERMENTATION_INPUT_SLOT,
+  FERMENTATION_OUTPUT_SLOT,
+  FERMENTATION_CYCLE_TICKS,
+  cellarProcessorMutationIsValid,
+  cellarProcessorSlotCapacity,
+  settleCellarProcessor,
+  type CellarProcessorInterface,
+  modifiersForSkillRanks,
+  wildlifeIsHuntable,
+  wildlifeFoodDrops,
+  wildlifeCombatExperience,
   modifiersForEffects,
   nearestTileTarget,
   normalizeToolDurability,
@@ -149,6 +212,7 @@ import {
   playerHitboxBounds,
   positionCollides,
   tileTargetBounds,
+  tileTargetIsBlocked,
   tileTargetWithinFixedReach,
   isGatherableResourceKind,
   isBreakableRockKind,
@@ -160,6 +224,19 @@ import {
   survivalResourceObstacle,
   survivalResourceDropsAfterHit,
   survivalResourceInitialHealth,
+  MINING_MAX_RICHNESS,
+  MINING_YIELD_WORK,
+  ORE_MIN_SPACING_TILES,
+  ORE_RESOURCE_ID_BASE,
+  miningWorkPerHit,
+  miningPickaxeTierForItem,
+  miningRequiredPickaxeTier,
+  resolveMiningYield,
+  statelessRoll,
+  surfaceOreRespawnCandidates,
+  surfaceOreResourceAtSite,
+  type MiningNodeClass,
+  type MiningOreResourceKind,
   cellarOreKindAt,
   cellarOreResourceId,
   cellarWallHitsRequired,
@@ -194,9 +271,11 @@ import {
   wearTool,
   normalizeCharacterName,
   TOOL_MERCHANT_DIALOGUE,
+  FARMER_BOB_DIALOGUE,
   dialogueChoice,
   dialogueDefinition,
   MARLOW_BOOK_QUEST_ID,
+  FARMER_BOB_STRAWBERRY_QUEST_ID,
   questAcceptBaselines,
   questDefinition,
   questIsComplete,
@@ -206,10 +285,15 @@ import {
   stepNpcTowardPoint,
   marlowCampfireShouldBeLit,
   stepAmbientWildlife,
+  stepPanickedWildlife,
+  knockbackWildlife,
   survivalSpawnPosition,
   wildlifeActivityNearPlayers,
   wildlifeMovementMedium,
+  wildlifePanicGroup,
   wildlifePosition,
+  WILDLIFE_PANIC_DURATION_TICKS,
+  WILDLIFE_PANIC_RADIUS_FIXED,
   spaceDefinitionFor,
   WILDLIFE_FIRST_NPC_ID,
   WILDLIFE_GENERATION_VERSION,
@@ -319,6 +403,7 @@ function hotbarSlotCountForLayoutVersion(version: number): number {
   return HOTBAR_LAYOUT_SLOT_COUNTS[bounded] ?? HOTBAR_SLOT_COUNT;
 }
 const TOOL_MERCHANT_ID = 2n;
+const FARMER_BOB_ID = 3n;
 const STARTING_CURRENCY_BRONZE = BRONZE_PER_GOLD;
 const EQUIPMENT_RESTRICTIONS = {
   0: { requiredTags: ['gear.neck'] },
@@ -519,6 +604,37 @@ const player_survival = table(
     stone: t.u32(),
     selectedSlot: t.u8(),
     debugBackpackSlots: t.u16().default(0),
+    /** Compatibility clock retained from the former passive-drain model. Hunger
+     * now changes only when an authority-approved action spends Vigour. */
+    hungerCenti: t.u16().default(HUNGER_MAX_CENTI),
+    hungerUpdatedTick: t.u64().default(0n),
+  },
+);
+
+/** Additive version marker prevents legacy rows from settling hunger from tick
+ * zero while preserving real hunger on every later reconnect. */
+const player_survival_migration = table(
+  { name: 'player_survival_migration' },
+  {
+    identity: t.identity().primaryKey(),
+    hungerVersion: t.u8(),
+  },
+);
+
+/** One private, timestamp-settled campfire batch per player. */
+const player_cooking_job = table(
+  { name: 'player_cooking_job' },
+  {
+    identity: t.identity().primaryKey(),
+    targetKind: t.string(),
+    targetId: t.u64(),
+    spaceId: t.u16(),
+    recipeId: t.string(),
+    inputKind: t.string(),
+    outputKind: t.string(),
+    quantity: t.u8(),
+    startedTick: t.u64(),
+    readyTick: t.u64(),
   },
 );
 
@@ -547,6 +663,24 @@ const inventory_slot = table(
     quantity: t.u16(),
     durability: t.u16().default(0),
     lit: t.bool().default(true),
+  },
+);
+
+/** Private discovery state for the recipe guide. A learned row reveals a
+ * pattern and enables ghost-fill, but never gates manual authority crafting. */
+const player_known_recipe = table(
+  {
+    name: 'player_known_recipe',
+    indexes: [
+      { accessor: 'by_identity', algorithm: 'btree', columns: ['identity'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    identity: t.identity(),
+    recipeId: t.string(),
+    learnedAtTick: t.u64(),
+    sourceKind: t.string(),
   },
 );
 
@@ -672,6 +806,47 @@ const player_effect = table(
     effectKind: t.string(),
     stacks: t.u8(),
     appliedTick: t.u64(),
+    expiresTick: t.u64(),
+  },
+);
+
+/** Parties are intentionally small, durable authority records. Mining is the
+ * first consumer; later combat/quest systems can reuse the same membership. */
+const player_party = table(
+  { name: 'player_party', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    leader: t.identity(),
+    createdTick: t.u64(),
+  },
+);
+
+const player_party_member = table(
+  {
+    name: 'player_party_member',
+    public: true,
+    indexes: [{ accessor: 'by_party', algorithm: 'btree', columns: ['partyId'] }],
+  },
+  {
+    identity: t.identity().primaryKey(),
+    partyId: t.u64(),
+    joinedTick: t.u64(),
+  },
+);
+
+const player_party_invite = table(
+  {
+    name: 'player_party_invite',
+    indexes: [
+      { accessor: 'by_party', algorithm: 'btree', columns: ['partyId'] },
+      { accessor: 'by_invitee', algorithm: 'btree', columns: ['invitee'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    partyId: t.u64(),
+    inviter: t.identity(),
+    invitee: t.identity(),
     expiresTick: t.u64(),
   },
 );
@@ -1059,6 +1234,19 @@ const homestead = table(
   },
 );
 
+/** Sparse permanent estate progression. Private storage is exposed through a
+ * caller-filtered view so clients never subscribe to every offline estate. */
+const homestead_upgrade = table(
+  {
+    name: 'homestead_upgrade',
+    indexes: [{ accessor: 'by_space', algorithm: 'btree', columns: ['spaceId'] }],
+  },
+  {
+    id: t.string().primaryKey(), spaceId: t.u16(), upgradeKind: t.string(), rank: t.u8(),
+    purchasedBy: t.identity(), purchasedAtTick: t.u64(),
+  },
+);
+
 /** Public, static furniture surfaces. Their contents may still be private;
  * quest_world_item is exposed only through the owning player's view. */
 const world_surface = table(
@@ -1144,7 +1332,10 @@ const homestead_guest = table(
       { accessor: 'by_guest', algorithm: 'btree', columns: ['guest'] },
     ],
   },
-  { id: t.string().primaryKey(), spaceId: t.u16(), guest: t.identity(), invitedBy: t.identity() },
+  {
+    id: t.string().primaryKey(), spaceId: t.u16(), guest: t.identity(), invitedBy: t.identity(),
+    role: t.string().default('guest'), grantedTick: t.u64().default(0n),
+  },
 );
 
 const homestead_deed_claim = table(
@@ -1194,6 +1385,7 @@ const world_resource = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_depleted', algorithm: 'btree', columns: ['depleted'] },
     ],
   },
   {
@@ -1208,6 +1400,22 @@ const world_resource = table(
     spaceId: t.u16().default(0),
     growthStage: t.u8().default(3),
     regrowthProgress: t.u8().default(24),
+    /** Mining fields are additive so existing worlds migrate without replacing
+     * player-owned state. Zero maximumRichness identifies a legacy row. */
+    miningClass: t.string().default(''),
+    richness: t.u8().default(0),
+    maximumRichness: t.u8().default(0),
+    yieldProgress: t.u8().default(0),
+    yieldsProduced: t.u8().default(0),
+    producedOre: t.bool().default(false),
+    spawnSiteId: t.u64().default(0n),
+    activationOrdinal: t.u32().default(0),
+    respawnAtTick: t.u64().default(0n),
+    /** Active partial work is private to one solo miner or party. Claims are
+     * short leases so abandoned nodes promptly return to public use. */
+    miningClaimedBy: t.option(t.identity()).default(undefined),
+    miningPartyId: t.option(t.u64()).default(undefined),
+    miningClaimUntilTick: t.u64().default(0n),
   },
 );
 
@@ -1280,6 +1488,10 @@ const world_item = table(
     spaceId: t.u16().default(0),
     /** Additive migration: switchable dropped lights default to on. */
     lit: t.bool().default(true),
+    /** Newly mined loot belongs to the triggering miner briefly, then becomes
+     * ordinary shared world loot. */
+    reservedFor: t.option(t.identity()).default(undefined),
+    reservedUntilTick: t.u64().default(0n),
   },
 );
 
@@ -1432,6 +1644,20 @@ const world_placeable = table(
     lit: t.bool().default(true),
     /** Additive migration: existing placeables begin on the ground. */
     carriedBy: t.option(t.identity()).default(undefined),
+    /** A sealed barrel is immutable until lazy settlement completes. */
+    barrelSealedTick: t.option(t.u64()).default(undefined),
+    barrelSealedBy: t.option(t.identity()).default(undefined),
+    /** Cooking Fire state is lazy-settled like furnace processing. */
+    cookStartTick: t.option(t.u64()).default(undefined),
+    cookStartedBy: t.option(t.identity()).default(undefined),
+    /** Regional clients can render exact cooking progress without subscribing
+     * to private processor slots. */
+    cookInputKind: t.option(t.string()).default(undefined),
+    /** Generic cellar-production boundary. Appended for migration safety; the
+     * current press/cask cycle derives progress without scheduled timer rows. */
+    processStartTick: t.option(t.u64()).default(undefined),
+    processStartedBy: t.option(t.identity()).default(undefined),
+    processInputKind: t.option(t.string()).default(undefined),
   },
 );
 
@@ -1450,6 +1676,24 @@ const world_placeable_slot = table(
     quantity: t.u16(),
     durability: t.u16().default(0),
     lit: t.bool().default(true),
+  },
+);
+
+/** Private construction provenance. Spatial clients only need the public
+ * placeable row; the authority uses this row for undo-grace and salvage. */
+const world_placeable_build = table(
+  {
+    name: 'world_placeable_build',
+    indexes: [
+      { accessor: 'by_space', algorithm: 'btree', columns: ['spaceId'] },
+      { accessor: 'by_placer', algorithm: 'btree', columns: ['placedBy'] },
+    ],
+  },
+  {
+    placeableId: t.u64().primaryKey(),
+    spaceId: t.u16(),
+    placedBy: t.identity(),
+    placedAtTick: t.u64(),
   },
 );
 
@@ -1512,6 +1756,12 @@ const world_npc = table(
     authorityTick: t.u64(),
     health: t.u16().default(0),
     spaceId: t.u16().default(0),
+    /** Additive combat presentation and authority-owned herd alarm state. */
+    lastHitCritical: t.bool().default(false),
+    panicUntilTick: t.option(t.u64()).default(undefined),
+    panicSource: t.option(t.identity()).default(undefined),
+    panicSourceX: t.i32().default(0),
+    panicSourceY: t.i32().default(0),
   },
 );
 
@@ -1586,6 +1836,9 @@ const world_scalability_migration = table(
     horseDismountRecoveryVersion: t.u8().default(0),
     /** One-time scheduling pass for empty overworld soil that predates decay. */
     soilDecayTimerVersion: t.u8().default(0),
+    /** One-time additive backfill for rocks and underground ore that predate
+     * richness-based mining. */
+    miningVersion: t.u8().default(0),
   },
 );
 
@@ -1671,16 +1924,22 @@ const spacetimedb = schema({
   bow_charge,
   private_inventory,
   player_survival,
+  player_survival_migration,
+  player_cooking_job,
   player_spawn,
   player_stats,
   player_wallet,
   player_trade_session,
   player_trade_offer,
+  player_party,
+  player_party_member,
+  player_party_invite,
   player_effect,
   stats_migration,
   player_statistic,
   player_statistic_milestone,
   inventory_slot,
+  player_known_recipe,
   inventory_overflow,
   inventory_cursor,
   inventory_migration,
@@ -1706,6 +1965,7 @@ const spacetimedb = schema({
   world_seed,
   space_portal,
   homestead,
+  homestead_upgrade,
   world_surface,
   homestead_guest,
   homestead_deed_claim,
@@ -1731,6 +1991,7 @@ const spacetimedb = schema({
   world_chest_damage,
   world_placeable,
   world_placeable_slot,
+  world_placeable_build,
   active_chest,
   active_placeable,
   active_dialogue,
@@ -1760,6 +2021,7 @@ type WorldPlaceableRow = NonNullable<ReturnType<WorldReducerContext['db']['world
 type WorldItemRow = NonNullable<ReturnType<WorldReducerContext['db']['world_item']['id']['find']>>;
 type WorldCombatTargetRow = NonNullable<ReturnType<WorldReducerContext['db']['world_combat_target']['id']['find']>>;
 type WorldSoilRow = NonNullable<ReturnType<WorldReducerContext['db']['world_soil']['id']['find']>>;
+type HomesteadRow = NonNullable<ReturnType<WorldReducerContext['db']['homestead']['spaceId']['find']>>;
 
 function combatTargetPositionAtTile(tileX: number, tileY: number): { readonly x: number; readonly y: number } {
   return {
@@ -2148,7 +2410,7 @@ function usePortalRow(
     throw new SenderError('no_horses_underground');
   }
   if (destinationHomestead !== null && portal.toSpace === destinationHomestead.spaceId
-    && destinationHomestead.owner.toHexString() !== position.identity.toHexString()
+    && homesteadRoleFor(ctx, destinationHomestead, position.identity) === null
     && !destinationHomestead.gateOpen) {
     throw new SenderError('homestead_private');
   }
@@ -2192,12 +2454,15 @@ function usePortalRow(
 function collisionForSpace(ctx: WorldReducerContext, spaceId: number) {
   const placeables = [...ctx.db.world_placeable.by_chunk.filter(spaceId)]
     .filter((row) => row.carriedBy === undefined)
-    .map((row) => ({
-    tileX: row.tileX,
-    tileY: row.tileY,
-    blocksMovement: placeableDefinition(row.kind)?.blocksMovement ?? true,
-    open: row.open,
-  }));
+    .flatMap((row) => homesteadBuildFootprintTiles(
+      homesteadBuildDefinition(row.kind) ?? { footprint: { width: 1, height: 1 } },
+      row.tileX,
+      row.tileY,
+    ).map((tile) => ({
+      ...tile,
+      blocksMovement: placeableDefinition(row.kind)?.blocksMovement ?? true,
+      open: row.open,
+    })));
   const collision = createAuthoritySpaceCollisionMap(
     spaceId,
     [...ctx.db.world_resource.by_chunk.filter(spaceId)],
@@ -2253,7 +2518,8 @@ function collisionForSpace(ctx: WorldReducerContext, spaceId: number) {
     });
   }
   if (spaceId !== TOPSIDE_SPACE_ID && homes.length > 0) {
-    for (const tile of homesteadBoundaryTiles()) {
+    const definition = spaceDefinitionFor(spaceId, homes[0]);
+    for (const tile of homesteadBoundaryTiles(definition?.sizeTiles)) {
       if (tile.kind === 'gate' && homes[0]?.gateOpen) continue;
       obstacles.push({
         left: tile.tileX * TILE_SIZE_FIXED, top: tile.tileY * TILE_SIZE_FIXED,
@@ -2271,6 +2537,74 @@ function homesteadForOwner(ctx: WorldReducerContext, owner: WorldReducerContext[
 
 function homesteadForSpace(ctx: WorldReducerContext, spaceId: number) {
   return instanceSpaceRowFor(spaceId, ctx.db.homestead.iter()) ?? null;
+}
+
+function homesteadMemberId(spaceId: number, identityHex: string): string {
+  return `${spaceId}:${identityHex}`;
+}
+
+function homesteadRoleFor(
+  ctx: WorldReducerContext,
+  home: HomesteadRow,
+  identity: WorldReducerContext['sender'],
+): HomesteadEffectiveRole | null {
+  if (home.owner.isEqual(identity)) return 'owner';
+  const member = ctx.db.homestead_guest.id.find(homesteadMemberId(home.spaceId, identity.toHexString()));
+  return member !== null && isHomesteadMemberRole(member.role) ? member.role : null;
+}
+
+function homesteadUpgradeId(spaceId: number, upgradeKind: string): string {
+  return `${spaceId}:${upgradeKind}`;
+}
+
+function homesteadUpgradeRank(
+  ctx: WorldReducerContext,
+  spaceId: number,
+  upgradeKind: string,
+): number {
+  return ctx.db.homestead_upgrade.id.find(homesteadUpgradeId(spaceId, upgradeKind))?.rank ?? 0;
+}
+
+function cropDefinitionForHomestead(
+  ctx: WorldReducerContext,
+  spaceId: number,
+  cropKind: string,
+) {
+  const definition = cropDefinition(cropKind);
+  if (definition === null) return null;
+  const rank = homesteadUpgradeRank(ctx, spaceId, 'rich_soil');
+  return rank === 0 ? definition : {
+    ...definition,
+    growthTicks: richSoilGrowthTicks(definition.growthTicks, rank),
+  };
+}
+
+function cropAutomaticallyWatered(
+  ctx: WorldReducerContext,
+  spaceId: number,
+  tileX: number,
+  tileY: number,
+): boolean {
+  return [...ctx.db.world_placeable.by_chunk.filter(spaceId)].some((placeable) => (
+    placeable.kind === 'sprinkler'
+    && placeable.carriedBy === undefined
+    && sprinklerCoversTile(placeable.tileX, placeable.tileY, tileX, tileY)
+  ));
+}
+
+/** A greenhouse is an estate-scale seasonal upgrade. Its authored building
+ * footprint is solid and cannot contain farm tiles, so protecting the owning
+ * Homestead avoids an unreachable "inside the footprint" planting rule. */
+function cropGreenhouseProtected(ctx: WorldReducerContext, spaceId: number): boolean {
+  return homesteadForSpace(ctx, spaceId) !== null
+    && [...ctx.db.world_placeable.by_chunk.filter(spaceId)].some((placeable) => (
+      placeable.kind === 'greenhouse' && placeable.carriedBy === undefined
+    ));
+}
+
+function cropCalendarOffset(ctx: WorldReducerContext): bigint {
+  const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+  return (ctx.db.world_environment.id.find(0)?.calendarTick ?? authorityTick) - authorityTick;
 }
 
 function worldSoilId(spaceId: number, tileX: number, tileY: number): string {
@@ -2311,6 +2645,7 @@ function ensureSoilDecayTimers(ctx: WorldReducerContext, currentTick: bigint): v
     wildlifeProfileChunkVersion: migration?.wildlifeProfileChunkVersion ?? 1,
     horseDismountRecoveryVersion: migration?.horseDismountRecoveryVersion ?? 0,
     soilDecayTimerVersion: SOIL_DECAY_TIMER_MIGRATION_VERSION,
+    miningVersion: migration?.miningVersion ?? 0,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -2322,12 +2657,18 @@ function mutableFarmTileAuthorized(
   tileX: number,
   tileY: number,
 ): boolean {
-  if (position.spaceId === TOPSIDE_SPACE_ID) return true;
+  if (position.spaceId === TOPSIDE_SPACE_ID) {
+    return !survivalFarmerBobFarmReservedAt(tileX, tileY);
+  }
   const home = homesteadForSpace(ctx, position.spaceId);
   return home !== null
     && home.spaceId === position.spaceId
-    && home.owner.toHexString() === position.identity.toHexString()
-    && homesteadPlayableTile(tileX, tileY);
+    && homesteadRoleAtLeast(homesteadRoleFor(ctx, home, position.identity), 'worker')
+    && homesteadPlayableTile(
+      tileX,
+      tileY,
+      spaceDefinitionFor(position.spaceId, home)?.sizeTiles,
+    );
 }
 
 /** Homesteads are private build authorities even while their entrance gate is
@@ -2339,7 +2680,7 @@ function requireWorldModificationAuthorized(
 ): void {
   if (position.spaceId === TOPSIDE_SPACE_ID) return;
   const home = homesteadForSpace(ctx, position.spaceId);
-  if (home !== null && home.owner.toHexString() === position.identity.toHexString()) return;
+  if (home !== null && homesteadRoleAtLeast(homesteadRoleFor(ctx, home, position.identity), 'worker')) return;
   throw new SenderError('homestead_owner_required');
 }
 
@@ -2493,6 +2834,7 @@ function recoverLegacyDismountHorses(ctx: WorldReducerContext, authorityTick: bi
     wildlifeProfileChunkVersion: migration?.wildlifeProfileChunkVersion ?? 1,
     horseDismountRecoveryVersion: 1,
     soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
+    miningVersion: migration?.miningVersion ?? 0,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -2656,6 +2998,21 @@ function ensurePlayerSkillTrack(
   });
 }
 
+function grantSkillExperience(
+  ctx: WorldReducerContext,
+  identity: WorldReducerContext['sender'],
+  track: SkillTrack,
+  amount: bigint,
+): void {
+  if (amount <= 0n) return;
+  const progress = ensurePlayerSkillTrack(ctx, identity, track);
+  const maximum = (1n << 64n) - 1n;
+  ctx.db.player_skill_track.id.update({
+    ...progress,
+    experience: progress.experience >= maximum - amount ? maximum : progress.experience + amount,
+  });
+}
+
 function playerSkillRanks(
   ctx: WorldReducerContext,
   identity: WorldReducerContext['sender'],
@@ -2745,6 +3102,9 @@ function acceptQuest(
   const identityHex = ctx.sender.toHexString();
   const id = playerQuestId(identityHex, definition.id);
   if (ctx.db.player_quest.id.find(id) !== null) throw new SenderError('quest_not_available');
+  if (definition.prerequisiteQuestIds?.some((questId) => (
+    ctx.db.player_quest.id.find(playerQuestId(identityHex, questId))?.state !== 'turned_in'
+  )) === true) throw new SenderError('quest_prerequisite_incomplete');
   const source = questProgressSourceFor(ctx, ctx.sender);
   const baselines = questAcceptBaselines(definition, source);
   ctx.db.player_quest.insert({
@@ -2759,6 +3119,12 @@ function acceptQuest(
       objectiveId: objective.id,
       value: baselines[objective.id] ?? 0n,
     });
+  }
+  for (const item of definition.acceptItems ?? []) {
+    if (!insertPlayerCarriedItem(ctx, item.itemKind, item.count)) {
+      throw new SenderError('quest_accept_inventory_full');
+    }
+    recordPlayerStatistic(ctx, ctx.sender, 'items_obtained', BigInt(item.count), authorityTick, item.itemKind);
   }
   if (definition.id === MARLOW_BOOK_QUEST_ID) {
     ctx.db.quest_world_item.insert({
@@ -2795,6 +3161,16 @@ function grantQuestRewards(
       });
     } else {
       ctx.db.player_skill_track.id.update({ ...existing, experience: existing.experience + reward.amount });
+    }
+  }
+  if (definition.rewards.homesteadSizeTier !== undefined) {
+    const home = [...ctx.db.homestead.by_owner.filter(ctx.sender)][0];
+    if (home === undefined) throw new SenderError('homestead_required');
+    if (home.sizeTier < definition.rewards.homesteadSizeTier) {
+      ctx.db.homestead.spaceId.update({
+        ...home,
+        sizeTier: definition.rewards.homesteadSizeTier,
+      });
     }
   }
 }
@@ -2939,6 +3315,8 @@ interface WorldItemDrop {
   readonly durability: number;
   readonly lit?: boolean;
   readonly spaceId: number;
+  readonly reservedFor?: WorldReducerContext['sender'];
+  readonly reservedUntilTick?: bigint;
 }
 
 function worldItemExpiredForRow(item: WorldItemRow, authorityTick: bigint): boolean {
@@ -2967,6 +3345,10 @@ function dropWorldItemStack(ctx: WorldReducerContext, drop: WorldItemDrop): void
       .filter((item) => {
         if (item.spaceId !== drop.spaceId || item.itemKind !== drop.itemKind
           || item.durability !== drop.durability || item.lit !== lit
+          || (item.reservedFor === undefined) !== (drop.reservedFor === undefined)
+          || (item.reservedFor !== undefined
+            && drop.reservedFor !== undefined
+            && !item.reservedFor.isEqual(drop.reservedFor))
           || isRecoverableArrow(item.itemKind, item.durability)
           || item.quantity >= maximum) return false;
         const dx = item.x - drop.x;
@@ -3005,6 +3387,8 @@ function dropWorldItemStack(ctx: WorldReducerContext, drop: WorldItemDrop): void
       durability: drop.durability,
       lit,
       spaceId: drop.spaceId,
+      reservedFor: drop.reservedFor,
+      reservedUntilTick: drop.reservedUntilTick ?? 0n,
     });
     remaining -= quantity;
   }
@@ -3041,7 +3425,25 @@ function activePlayerModifiers(
       id: `equipment.${slot.slot}.${modifier.id}`,
       source: 'equipment' as const,
     })));
-  return [...equipment, ...modifiersForEffects(effects, authorityTick)];
+  const hunger = ctx.db.player_survival.identity.find(identity)?.hungerCenti ?? HUNGER_MAX_CENTI;
+  const hungerModifiers = modifiersForHunger(hunger);
+  return [
+    ...equipment,
+    ...modifiersForSkillRanks(playerSkillRanks(ctx, identity)),
+    ...hungerModifiers,
+    ...modifiersForEffects(effects, authorityTick),
+  ];
+}
+
+function spendPlayerHunger(
+  ctx: WorldReducerContext,
+  identity: WorldReducerContext['sender'],
+  amountCenti: number,
+): void {
+  const row = ctx.db.player_survival.identity.find(identity);
+  if (row === null) throw new SenderError('player_not_ready');
+  const next = spendHunger(row, amountCenti);
+  if (next.hungerCenti !== row.hungerCenti) ctx.db.player_survival.identity.update({ ...row, ...next });
 }
 
 function vitalStateFromRow(row: {
@@ -3133,6 +3535,11 @@ function spendToolVigour(
     vigourCenti: result.vigourCenti,
     lastSwingTick: result.lastSwingTick,
   });
+  spendPlayerHunger(
+    ctx,
+    identity,
+    itemKind === 'sword' || itemKind === 'bow' ? HUNGER_WEAPON_USE_CENTI : HUNGER_TOOL_USE_CENTI,
+  );
 }
 
 function requireUsableTool<T extends { readonly itemKind: string; readonly durability: number }>(
@@ -3268,15 +3675,32 @@ interface OpenMenuInventory {
   };
 }
 
-function loadOpenPlaceableRows(ctx: WorldReducerContext, placeableId: bigint) {
-  return [...ctx.db.world_placeable_slot.by_placeable.filter(placeableId)];
+/** Lazily materializes interface slots so tagging an already-placed prop is a
+ * complete migration: its next settlement/interaction gains the UI without a
+ * bespoke data backfill. */
+function loadOpenPlaceableRows(ctx: WorldReducerContext, placeable: WorldPlaceableRow) {
+  const rows = [...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)];
+  const occupied = new Set(rows.map((row) => row.slot));
+  for (let slot = 0; slot < placeableSlotCapacity(placeable.kind); slot += 1) {
+    if (occupied.has(slot)) continue;
+    rows.push(ctx.db.world_placeable_slot.insert({
+      id: `${placeable.id}:${slot}`,
+      placeableId: placeable.id,
+      slot,
+      itemKind: 'empty',
+      quantity: 0,
+      durability: 0,
+      lit: true,
+    }));
+  }
+  return rows.sort((left, right) => left.slot - right.slot);
 }
 
 function settleFurnacePlaceable(ctx: WorldReducerContext, placeable: WorldPlaceableRow): WorldPlaceableRow {
-  if (placeable.kind !== 'furnace') return placeable;
+  if (!placeableHasInterface(placeable.kind, 'furnace')) return placeable;
   const clock = ctx.db.world_clock.id.find(0);
   if (clock === null) return placeable;
-  const rows = loadOpenPlaceableRows(ctx, placeable.id);
+  const rows = loadOpenPlaceableRows(ctx, placeable);
   const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
   const beforeSlots = Array.from({ length: 3 }, (_, slot) => {
     const row = rowsBySlot.get(slot);
@@ -3301,12 +3725,185 @@ function settleFurnacePlaceable(ctx: WorldReducerContext, placeable: WorldPlacea
   return ctx.db.world_placeable.id.find(placeable.id) ?? placeable;
 }
 
+function settleCookingFirePlaceable(ctx: WorldReducerContext, placeable: WorldPlaceableRow): WorldPlaceableRow {
+  if (!placeableHasInterface(placeable.kind, 'cooking')) return placeable;
+  const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick;
+  if (authorityTick === undefined) return placeable;
+  const rows = loadOpenPlaceableRows(ctx, placeable);
+  const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
+  const beforeSlots = Array.from({ length: COOKING_FIRE_SLOT_CAPACITY }, (_, slot) => {
+    const row = rowsBySlot.get(slot);
+    return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
+  });
+  const settled = settleCookingFire({
+    slots: beforeSlots,
+    cookStartTick: placeable.cookStartTick,
+    lit: placeable.lit,
+  }, authorityTick);
+  for (let slot = 0; slot < settled.slots.length; slot += 1) {
+    const row = rowsBySlot.get(slot);
+    const next = settled.slots[slot] ?? null;
+    if (row === undefined || sameStoredStack(beforeSlots[slot] ?? null, next)) continue;
+    ctx.db.world_placeable_slot.id.update({
+      ...row,
+      itemKind: next?.itemKind ?? 'empty',
+      quantity: next?.quantity ?? 0,
+      durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+      lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+    });
+  }
+  if (settled.completed > 0 && settled.completedInputKind !== null && placeable.cookStartedBy !== undefined) {
+    const recipe = cookingFireRecipeForInput(settled.completedInputKind);
+    const experience = BigInt((recipe?.farmingExperiencePerItem ?? 5) * settled.completed);
+    grantSkillExperience(ctx, placeable.cookStartedBy, 'farming', experience);
+    recordPlayerStatistic(
+      ctx, placeable.cookStartedBy, 'food_cooked', BigInt(settled.completed),
+      authorityTick, recipe?.outputKind ?? '',
+    );
+  }
+  const cookStartedBy = settled.cookStartTick === undefined ? undefined : placeable.cookStartedBy;
+  const cookInputKind = settled.cookStartTick === undefined
+    ? undefined
+    : beforeSlots[COOKING_FIRE_INPUT_SLOT]?.itemKind;
+  if (settled.cookStartTick !== placeable.cookStartTick
+    || cookStartedBy !== placeable.cookStartedBy
+    || cookInputKind !== placeable.cookInputKind) {
+    ctx.db.world_placeable.id.update({
+      ...placeable,
+      cookStartTick: settled.cookStartTick,
+      cookStartedBy,
+      cookInputKind,
+    });
+  }
+  return ctx.db.world_placeable.id.find(placeable.id) ?? placeable;
+}
+
+function settleBarrelPlaceable(ctx: WorldReducerContext, placeable: WorldPlaceableRow): WorldPlaceableRow {
+  if (!placeableHasInterface(placeable.kind, 'barrel') || placeable.barrelSealedTick === undefined) return placeable;
+  const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick;
+  if (authorityTick === undefined) return placeable;
+  const rows = loadOpenPlaceableRows(ctx, placeable);
+  const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
+  const before = Array.from({ length: BARREL_SLOT_CAPACITY }, (_, slot) => {
+    const row = rowsBySlot.get(slot);
+    return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
+  });
+  const barrelRank = homesteadUpgradeRank(ctx, placeable.spaceId, 'barrel_cellar');
+  const settled = settleBarrel(
+    before,
+    placeable.barrelSealedTick,
+    authorityTick,
+    barrelCellarCureTicks(BARREL_CURE_TICKS, barrelRank),
+    barrelCellarBatchCapacity(BARREL_MAX_BATCH, barrelRank),
+  );
+  if (settled.completedCropKind === null) return placeable;
+  for (let slot = 0; slot < BARREL_SLOT_CAPACITY; slot += 1) {
+    const row = rowsBySlot.get(slot);
+    const next = settled.slots[slot] ?? null;
+    if (row === undefined || sameStoredStack(before[slot] ?? null, next)) continue;
+    ctx.db.world_placeable_slot.id.update({
+      ...row,
+      itemKind: next?.itemKind ?? 'empty',
+      quantity: next?.quantity ?? 0,
+      durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+      lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+    });
+  }
+  const producer = placeable.barrelSealedBy ?? placeable.placedBy;
+  grantSkillExperience(ctx, producer, 'farming', BigInt(15 + settled.completedQuantity));
+  recordPlayerStatistic(ctx, producer, 'barrels_cured', 1n, authorityTick, settled.completedCropKind);
+  ctx.db.world_placeable.id.update({
+    ...placeable,
+    barrelSealedTick: undefined,
+    barrelSealedBy: undefined,
+  });
+  return ctx.db.world_placeable.id.find(placeable.id) ?? placeable;
+}
+
+function cellarInterfaceForPlaceable(placeable: WorldPlaceableRow): CellarProcessorInterface | null {
+  const capability = placeableInterface(placeable.kind);
+  return capability === 'press' || capability === 'fermentation' ? capability : null;
+}
+
+/** Settles press/fermentation work only at observation boundaries. Public rows
+ * carry the minimal timer boundary; private slot contents remain caller-scoped. */
+function settleCellarProductionPlaceable(
+  ctx: WorldReducerContext,
+  placeable: WorldPlaceableRow,
+): WorldPlaceableRow {
+  const capability = cellarInterfaceForPlaceable(placeable);
+  if (capability === null) return placeable;
+  const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick;
+  if (authorityTick === undefined) return placeable;
+  const capacity = cellarProcessorSlotCapacity(capability);
+  const rows = loadOpenPlaceableRows(ctx, placeable);
+  const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
+  const before = Array.from({ length: capacity }, (_, slot) => {
+    const row = rowsBySlot.get(slot);
+    return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
+  });
+  const settled = settleCellarProcessor(capability, {
+    slots: before,
+    processStartTick: placeable.processStartTick,
+  }, authorityTick, estateVintageTier(
+    homesteadUpgradeRank(ctx, placeable.spaceId, 'estate_vintage'),
+    FERMENTATION_CYCLE_TICKS,
+    120,
+  ).agingTicks);
+  for (let slot = 0; slot < capacity; slot += 1) {
+    const row = rowsBySlot.get(slot);
+    const next = settled.slots[slot] ?? null;
+    if (row === undefined || sameStoredStack(before[slot] ?? null, next)) continue;
+    ctx.db.world_placeable_slot.id.update({
+      ...row,
+      itemKind: next?.itemKind ?? 'empty',
+      quantity: next?.quantity ?? 0,
+      durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
+      lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
+    });
+  }
+  const producer = placeable.processStartedBy ?? placeable.placedBy;
+  if (settled.completed > 0) {
+    if (capability === 'press') {
+      grantSkillExperience(ctx, producer, 'farming', BigInt(settled.completed * 4));
+      recordPlayerStatistic(
+        ctx, producer, 'fruit_pressed', BigInt(settled.completed), authorityTick,
+        settled.completedInputKind ?? '',
+      );
+      recordPlayerStatistic(ctx, producer, 'press_cycles_completed', BigInt(settled.completed), authorityTick);
+      recordPlayerStatistic(ctx, producer, 'items_obtained', BigInt(settled.completed), authorityTick, 'must');
+      recordPlayerStatistic(ctx, producer, 'items_obtained', BigInt(settled.completed), authorityTick, 'pomace');
+    } else {
+      grantSkillExperience(ctx, producer, 'farming', BigInt(settled.completed * 25));
+      recordPlayerStatistic(ctx, producer, 'bottles_produced', BigInt(settled.completed), authorityTick);
+      recordPlayerStatistic(ctx, producer, 'items_obtained', BigInt(settled.completed), authorityTick, 'bottles');
+    }
+  }
+  const processStartedBy = settled.processStartTick === undefined
+    ? undefined
+    : placeable.processStartedBy ?? placeable.placedBy;
+  const processInputKind = settled.processStartTick === undefined
+    ? undefined
+    : settled.slots[0]?.itemKind;
+  if (settled.processStartTick !== placeable.processStartTick
+    || processStartedBy !== placeable.processStartedBy
+    || processInputKind !== placeable.processInputKind) {
+    ctx.db.world_placeable.id.update({
+      ...placeable,
+      processStartTick: settled.processStartTick,
+      processStartedBy,
+      processInputKind,
+    });
+  }
+  return ctx.db.world_placeable.id.find(placeable.id) ?? placeable;
+}
+
 function clearActivePlaceable(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): void {
   const active = ctx.db.active_placeable.identity.find(identity);
   if (active === null) return;
   ctx.db.active_placeable.identity.delete(identity);
   const placeable = ctx.db.world_placeable.id.find(active.placeableId);
-  if (placeable?.kind === 'barrel'
+  if (placeable !== null && placeableHasInterface(placeable.kind, 'barrel')
     && [...ctx.db.active_placeable.by_placeable.filter(placeable.id)].length === 0) {
     ctx.db.world_placeable.id.update({ ...placeable, open: false });
   }
@@ -3341,21 +3938,37 @@ function loadOpenMenuInventory(ctx: WorldReducerContext): OpenMenuInventory {
   const activePlaceable = ctx.db.active_placeable.identity.find(ctx.sender);
   if (activePlaceable !== null) {
     let placeable = ctx.db.world_placeable.id.find(activePlaceable.placeableId);
-    if (placeable?.kind === 'furnace') placeable = settleFurnacePlaceable(ctx, placeable);
+    if (placeable !== null && placeableHasInterface(placeable.kind, 'furnace')) placeable = settleFurnacePlaceable(ctx, placeable);
+    if (placeable !== null && placeableHasInterface(placeable.kind, 'cooking')) placeable = settleCookingFirePlaceable(ctx, placeable);
+    if (placeable !== null && placeableHasInterface(placeable.kind, 'barrel')) placeable = settleBarrelPlaceable(ctx, placeable);
+    if (placeable !== null && cellarInterfaceForPlaceable(placeable) !== null) placeable = settleCellarProductionPlaceable(ctx, placeable);
     const position = ctx.db.player_position.identity.find(ctx.sender);
-    const definition = placeable === null ? null : placeableDefinition(placeable.kind);
+    const capacity = placeable === null ? 0 : placeableSlotCapacity(placeable.kind);
     if (placeable !== null && position !== null && placeable.spaceId === position.spaceId
-      && chestWithinReach(position.x, position.y, placeable) && definition?.slotCapacity !== undefined) {
-      const rows = loadOpenPlaceableRows(ctx, placeable.id);
+      && chestWithinReach(position.x, position.y, placeable) && capacity > 0) {
+      const rows = loadOpenPlaceableRows(ctx, placeable);
       const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
       const container: ContainerSnapshot = {
-        id: 'placeable', capacity: definition.slotCapacity,
-        ...(placeable.kind === 'furnace' ? { restrictions: {
+        id: 'placeable', capacity,
+        ...(placeableHasInterface(placeable.kind, 'furnace') ? { restrictions: {
           [FURNACE_INPUT_SLOT]: { acceptedKinds: Object.keys(SMELTING_RECIPES) },
           [FURNACE_FUEL_SLOT]: { acceptedKinds: ['wood', 'plank'] },
-          [FURNACE_OUTPUT_SLOT]: { acceptedKinds: Object.values(SMELTING_RECIPES) },
+          [FURNACE_OUTPUT_SLOT]: { acceptedKinds: Object.values(SMELTING_RECIPES), readOnly: true },
+        } } : placeableHasInterface(placeable.kind, 'cooking') ? { restrictions: {
+          [COOKING_FIRE_INPUT_SLOT]: { acceptedKinds: Object.values(CAMPFIRE_COOKING_RECIPES).map((recipe) => recipe.inputKind) },
+          [COOKING_FIRE_OUTPUT_SLOT]: {
+            acceptedKinds: Object.values(CAMPFIRE_COOKING_RECIPES).map((recipe) => recipe.outputKind),
+            readOnly: true,
+          },
+        } } : placeableHasInterface(placeable.kind, 'press') ? { restrictions: {
+          [PRESS_INPUT_SLOT]: { acceptedKinds: PRESSABLE_FRUIT_KINDS },
+          [PRESS_MUST_OUTPUT_SLOT]: { acceptedKinds: ['must'], readOnly: true },
+          [PRESS_POMACE_OUTPUT_SLOT]: { acceptedKinds: ['pomace'], readOnly: true },
+        } } : placeableHasInterface(placeable.kind, 'fermentation') ? { restrictions: {
+          [FERMENTATION_INPUT_SLOT]: { acceptedKinds: ['must'] },
+          [FERMENTATION_OUTPUT_SLOT]: { acceptedKinds: ['bottles'], readOnly: true },
         } } : {}),
-        slots: Array.from({ length: definition.slotCapacity }, (_, index) => {
+        slots: Array.from({ length: capacity }, (_, index) => {
           const row = rowsBySlot.get(index);
           return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
         }),
@@ -3394,9 +4007,31 @@ function writeOpenMenuInventory(
       throw new SenderError('item_not_tradeable');
     }
   }
-  if (menu.placeable?.placeable.kind === 'furnace'
+  if (menu.placeable !== undefined && placeableHasInterface(menu.placeable.placeable.kind, 'furnace')
     && !furnaceMutationIsValid(menu.placeable.container.slots, containers.placeable?.slots ?? [])) {
     throw new SenderError('furnace_slot_restricted');
+  }
+  if (menu.placeable !== undefined && placeableHasInterface(menu.placeable.placeable.kind, 'cooking')
+    && !cookingFireMutationIsValid(menu.placeable.container.slots, containers.placeable?.slots ?? [])) {
+    throw new SenderError('cooking_fire_slot_restricted');
+  }
+  if (menu.placeable !== undefined && placeableHasInterface(menu.placeable.placeable.kind, 'barrel')
+    && !barrelMutationIsValid(
+      menu.placeable.container.slots,
+      containers.placeable?.slots ?? [],
+      menu.placeable.placeable.barrelSealedTick,
+      barrelCellarBatchCapacity(
+        BARREL_MAX_BATCH,
+        homesteadUpgradeRank(ctx, menu.placeable.placeable.spaceId, 'barrel_cellar'),
+      ),
+    )) throw new SenderError('barrel_contents_restricted');
+  if (menu.placeable !== undefined) {
+    const capability = cellarInterfaceForPlaceable(menu.placeable.placeable);
+    if (capability !== null && !cellarProcessorMutationIsValid(
+      capability,
+      menu.placeable.container.slots,
+      containers.placeable?.slots ?? [],
+    )) throw new SenderError('cellar_processor_slot_restricted');
   }
   writePlayerInventory(ctx, menu.inventory.rowBySlot, menu.inventory.containers, containers);
   if (menu.chest !== undefined) {
@@ -3419,6 +4054,15 @@ function writeOpenMenuInventory(
   }
   if (menu.placeable !== undefined) {
     const after = containers.placeable!;
+    const previousCookingInput = menu.placeable.container.slots[COOKING_FIRE_INPUT_SLOT] ?? null;
+    const nextCookingInput = after.slots[COOKING_FIRE_INPUT_SLOT] ?? null;
+    const cookingInputChanged = placeableHasInterface(menu.placeable.placeable.kind, 'cooking')
+      && previousCookingInput?.itemKind !== nextCookingInput?.itemKind;
+    const cellarCapability = cellarInterfaceForPlaceable(menu.placeable.placeable);
+    const previousCellarInput = menu.placeable.container.slots[0] ?? null;
+    const nextCellarInput = after.slots[0] ?? null;
+    const cellarInputChanged = cellarCapability !== null
+      && previousCellarInput?.itemKind !== nextCellarInput?.itemKind;
     for (let index = 0; index < after.capacity; index += 1) {
       const previous = menu.placeable.container.slots[index];
       const next = after.slots[index];
@@ -3434,7 +4078,32 @@ function writeOpenMenuInventory(
         lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
       });
     }
+    if (cookingInputChanged) {
+      const current = ctx.db.world_placeable.id.find(menu.placeable.placeable.id);
+      if (current !== null) ctx.db.world_placeable.id.update({
+        ...current,
+        cookStartTick: undefined,
+        cookStartedBy: nextCookingInput === null ? undefined : ctx.sender,
+        cookInputKind: undefined,
+      });
+    }
+    if (cellarCapability !== null) {
+      const current = ctx.db.world_placeable.id.find(menu.placeable.placeable.id);
+      if (current !== null && (cellarInputChanged
+        || (nextCellarInput !== null && current.processStartTick === undefined
+          && current.processStartedBy === undefined))) {
+        ctx.db.world_placeable.id.update({
+          ...current,
+          processStartTick: cellarInputChanged ? undefined : current.processStartTick,
+          processStartedBy: nextCellarInput === null ? undefined : ctx.sender,
+          processInputKind: undefined,
+        });
+      }
+    }
     settleFurnacePlaceable(ctx, ctx.db.world_placeable.id.find(menu.placeable.placeable.id) ?? menu.placeable.placeable);
+    settleCookingFirePlaceable(ctx, ctx.db.world_placeable.id.find(menu.placeable.placeable.id) ?? menu.placeable.placeable);
+    settleBarrelPlaceable(ctx, ctx.db.world_placeable.id.find(menu.placeable.placeable.id) ?? menu.placeable.placeable);
+    settleCellarProductionPlaceable(ctx, ctx.db.world_placeable.id.find(menu.placeable.placeable.id) ?? menu.placeable.placeable);
   }
   const survival = ctx.db.player_survival.identity.find(ctx.sender);
   const position = ctx.db.player_position.identity.find(ctx.sender);
@@ -3624,6 +4293,15 @@ function migrateWorldForOceanExpansion(ctx: WorldReducerContext, installedVersio
 type GeneratedSurvivalResource = ReturnType<typeof generateSurvivalResources>[number];
 
 function generatedWorldResourceRow(resource: GeneratedSurvivalResource) {
+  const mining = isMineableOreKind(resource.kind) || isBreakableRockKind(resource.kind);
+  const nodeClass: MiningNodeClass | '' = isBreakableRockKind(resource.kind)
+    ? 'rock'
+    : resource.nodeClass ?? (isMineableOreKind(resource.kind) ? 'mixed' : '');
+  const maximumRichness = mining
+    ? resource.richness ?? 1 + statelessRoll(
+      [SURVIVAL_WORLD_SEED, resource.id, 'mining.generated_richness'], MINING_MAX_RICHNESS,
+    )
+    : 0;
   return {
     id: BigInt(resource.id),
     kind: resource.kind,
@@ -3631,11 +4309,23 @@ function generatedWorldResourceRow(resource: GeneratedSurvivalResource) {
     tileY: resource.tileY,
     chunkX: Math.floor(resource.tileX / SURVIVAL_CHUNK_TILES),
     chunkY: Math.floor(resource.tileY / SURVIVAL_CHUNK_TILES),
-    health: survivalResourceInitialHealth(resource.kind),
+    health: mining ? maximumRichness : survivalResourceInitialHealth(resource.kind),
     depleted: false,
     growthStage: TREE_GROWTH_STAGE_BIG,
     regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
     spaceId: TOPSIDE_SPACE_ID,
+    miningClass: nodeClass,
+    richness: maximumRichness,
+    maximumRichness,
+    yieldProgress: 0,
+    yieldsProduced: 0,
+    producedOre: false,
+    spawnSiteId: BigInt(resource.spawnSiteId ?? 0),
+    activationOrdinal: resource.activationOrdinal ?? 0,
+    respawnAtTick: 0n,
+    miningClaimedBy: undefined,
+    miningPartyId: undefined,
+    miningClaimUntilTick: 0n,
   };
 }
 
@@ -3657,6 +4347,17 @@ function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
       ctx.db.world_resource.id.update(nextBase);
       continue;
     }
+    if ((isMineableOreKind(existing.kind) || isBreakableRockKind(existing.kind))
+      && existing.maximumRichness === 0) {
+      ctx.db.world_resource.id.update({
+        ...existing,
+        ...nextBase,
+        depleted: existing.depleted,
+        richness: existing.depleted ? 0 : nextBase.richness,
+        health: existing.depleted ? 0 : nextBase.health,
+      });
+      continue;
+    }
     if (existing.tileX !== generated.tileX || existing.tileY !== generated.tileY
       || existing.chunkX !== nextBase.chunkX || existing.chunkY !== nextBase.chunkY) {
       ctx.db.world_resource.id.update({
@@ -3671,10 +4372,159 @@ function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
   for (const resource of desired.values()) ctx.db.world_resource.insert(generatedWorldResourceRow(resource));
 }
 
+const MINING_MIGRATION_VERSION = 1;
+const MINING_DROP_RESERVATION_TICKS = BigInt(10 * AUTHORITY_HZ);
+const MINING_RESPAWN_SWEEP_TICKS = BigInt(5 * AUTHORITY_HZ);
+const MINING_CLAIM_TICKS = BigInt(30 * AUTHORITY_HZ);
+
+function playerPartyId(
+  ctx: WorldReducerContext,
+  identity: WorldReducerContext['sender'],
+): bigint | undefined {
+  return ctx.db.player_party_member.identity.find(identity)?.partyId;
+}
+
+function miningClassForResource(resource: WorldResourceRow): MiningNodeClass {
+  if (isBreakableRockKind(resource.kind)) return 'rock';
+  if (resource.miningClass === 'pure' || resource.miningClass === 'pristine'
+    || resource.miningClass === 'mixed') return resource.miningClass;
+  return resource.spaceId === TOPSIDE_SPACE_ID ? 'mixed' : 'pure';
+}
+
+function miningRespawnDelayTicks(
+  nodeClass: MiningNodeClass,
+  seedParts: readonly (string | number | bigint)[],
+): bigint {
+  const [minimumMinutes, maximumMinutes] = nodeClass === 'rock' ? [5, 10]
+    : nodeClass === 'pure' ? [15, 30] : [10, 20];
+  const minimum = minimumMinutes * 60 * AUTHORITY_HZ;
+  const spread = (maximumMinutes - minimumMinutes) * 60 * AUTHORITY_HZ;
+  return BigInt(minimum + statelessRoll([...seedParts, 'mining.respawn'], spread + 1));
+}
+
+/** Existing underground veins and rocks gain deterministic richness once.
+ * The generated surface population is replaced separately by world version 27. */
+function ensureMiningMigration(ctx: WorldReducerContext): void {
+  const migration = ctx.db.world_scalability_migration.id.find(0);
+  if ((migration?.miningVersion ?? 0) >= MINING_MIGRATION_VERSION) return;
+  const seed = ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED;
+  for (const resource of ctx.db.world_resource.iter()) {
+    if ((!isMineableOreKind(resource.kind) && !isBreakableRockKind(resource.kind))
+      || resource.maximumRichness > 0) continue;
+    const nodeClass = miningClassForResource(resource);
+    const maximumRichness = nodeClass === 'mixed'
+      ? 1 + statelessRoll([seed, resource.id, 'mining.legacy_surface'], 2)
+      : 1 + statelessRoll([seed, resource.id, 'mining.legacy_richness'], MINING_MAX_RICHNESS);
+    ctx.db.world_resource.id.update({
+      ...resource,
+      miningClass: nodeClass,
+      richness: resource.depleted ? 0 : maximumRichness,
+      maximumRichness,
+      health: resource.depleted ? 0 : maximumRichness,
+      yieldProgress: 0,
+      yieldsProduced: 0,
+      producedOre: false,
+      respawnAtTick: 0n,
+      miningClaimedBy: undefined,
+      miningPartyId: undefined,
+      miningClaimUntilTick: 0n,
+    });
+  }
+  const nextMigration = {
+    id: 0,
+    wildlifeProfileChunkVersion: migration?.wildlifeProfileChunkVersion ?? 1,
+    horseDismountRecoveryVersion: migration?.horseDismountRecoveryVersion ?? 0,
+    soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
+    miningVersion: MINING_MIGRATION_VERSION,
+  };
+  if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
+  else ctx.db.world_scalability_migration.id.update(nextMigration);
+}
+
+function surfaceOreRespawnTileBlocked(
+  tileX: number,
+  tileY: number,
+  activeOres: readonly WorldResourceRow[],
+  occupiedTiles: ReadonlySet<string>,
+): boolean {
+  if (activeOres.some((ore) => Math.hypot(ore.tileX - tileX, ore.tileY - tileY) < ORE_MIN_SPACING_TILES)) {
+    return true;
+  }
+  return occupiedTiles.has(`${tileX}:${tileY}`);
+}
+
+function respawnMiningResources(ctx: WorldReducerContext, authorityTick: bigint): void {
+  if (authorityTick % MINING_RESPAWN_SWEEP_TICKS !== 0n) return;
+  const seed = ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED;
+  const activeSurfaceOres = [...ctx.db.world_resource.by_chunk.filter(TOPSIDE_SPACE_ID)]
+    .filter((resource) => isMineableOreKind(resource.kind) && !resource.depleted);
+  const occupiedSurfaceTiles = new Set<string>();
+  for (const player of ctx.db.player_position.iter()) {
+    if (player.spaceId !== TOPSIDE_SPACE_ID) continue;
+    occupiedSurfaceTiles.add(
+      `${Math.floor(player.x / TILE_SIZE_FIXED)}:${Math.floor(player.y / TILE_SIZE_FIXED)}`,
+    );
+  }
+  for (const soil of ctx.db.world_soil.by_chunk.filter(TOPSIDE_SPACE_ID)) {
+    occupiedSurfaceTiles.add(`${soil.tileX}:${soil.tileY}`);
+  }
+  for (const placeable of ctx.db.world_placeable.by_chunk.filter(TOPSIDE_SPACE_ID)) {
+    if (placeable.carriedBy === undefined) occupiedSurfaceTiles.add(`${placeable.tileX}:${placeable.tileY}`);
+  }
+  for (const chest of ctx.db.world_chest.by_chunk.filter(TOPSIDE_SPACE_ID)) {
+    if (chest.carriedBy === undefined) occupiedSurfaceTiles.add(`${chest.tileX}:${chest.tileY}`);
+  }
+  for (const resource of [...ctx.db.world_resource.by_depleted.filter(true)]) {
+    if ((!isMineableOreKind(resource.kind) && !isBreakableRockKind(resource.kind))
+      || resource.respawnAtTick === 0n || resource.respawnAtTick > authorityTick) continue;
+    const nodeClass = miningClassForResource(resource);
+    if (isMineableOreKind(resource.kind) && resource.spaceId === TOPSIDE_SPACE_ID
+      && resource.id >= BigInt(ORE_RESOURCE_ID_BASE)) {
+      const slot = Number(resource.id - BigInt(ORE_RESOURCE_ID_BASE));
+      const activationOrdinal = resource.activationOrdinal + 1;
+      const activeSiteIds = new Set(activeSurfaceOres.map((ore) => ore.spawnSiteId.toString()));
+      const site = surfaceOreRespawnCandidates(slot, activationOrdinal, seed).find((candidate) => (
+        !activeSiteIds.has(BigInt(candidate.id).toString())
+        && !surfaceOreRespawnTileBlocked(
+          candidate.tileX, candidate.tileY, activeSurfaceOres, occupiedSurfaceTiles,
+        )
+      ));
+      if (site === undefined) continue;
+      const generated = surfaceOreResourceAtSite(site, slot, activationOrdinal);
+      const replacement = generatedWorldResourceRow(generated);
+      ctx.db.world_resource.id.update(replacement);
+      activeSurfaceOres.push(replacement);
+      continue;
+    }
+    const maximumRichness = 1 + statelessRoll(
+      [seed, resource.id, resource.activationOrdinal + 1, 'mining.respawn_richness'], MINING_MAX_RICHNESS,
+    );
+    ctx.db.world_resource.id.update({
+      ...resource,
+      miningClass: nodeClass,
+      health: maximumRichness,
+      depleted: false,
+      richness: maximumRichness,
+      maximumRichness,
+      yieldProgress: 0,
+      yieldsProduced: 0,
+      producedOre: false,
+      activationOrdinal: resource.activationOrdinal + 1,
+      respawnAtTick: 0n,
+    });
+  }
+}
+
 export const ownSurvival = spacetimedb.view(
   { name: 'own_survival', public: true },
   t.option(player_survival.rowType),
   (ctx) => ctx.db.player_survival.identity.find(ctx.sender) ?? undefined,
+);
+
+export const ownCookingJob = spacetimedb.view(
+  { name: 'own_cooking_job', public: true },
+  t.option(player_cooking_job.rowType),
+  (ctx) => ctx.db.player_cooking_job.identity.find(ctx.sender) ?? undefined,
 );
 
 /** Resolve the caller's current instanced space without asking subscription SQL
@@ -3779,6 +4629,12 @@ export const ownInventorySlots = spacetimedb.view(
   (ctx) => [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)],
 );
 
+export const ownKnownRecipes = spacetimedb.view(
+  { name: 'own_known_recipes', public: true },
+  t.array(player_known_recipe.rowType),
+  (ctx) => [...ctx.db.player_known_recipe.by_identity.filter(ctx.sender)],
+);
+
 export const ownInventoryCursor = spacetimedb.view(
   { name: 'own_inventory_cursor', public: true },
   t.option(inventory_cursor.rowType),
@@ -3867,6 +4723,25 @@ export const ownPlayerThought = spacetimedb.view(
   { name: 'own_player_thought', public: true },
   t.option(player_thought.rowType),
   (ctx) => ctx.db.player_thought.identity.find(ctx.sender) ?? undefined,
+);
+
+export const ownHomesteadUpgrades = spacetimedb.view(
+  { name: 'own_homestead_upgrades', public: true },
+  t.array(homestead_upgrade.rowType),
+  (ctx) => {
+    const home = [...ctx.db.homestead.iter()].find((row) => row.owner.isEqual(ctx.sender));
+    return home === undefined ? [] : [...ctx.db.homestead_upgrade.by_space.filter(home.spaceId)];
+  },
+);
+
+export const ownHomesteadMembers = spacetimedb.view(
+  { name: 'own_homestead_members', public: true },
+  t.array(homestead_guest.rowType),
+  (ctx) => {
+    const owned = [...ctx.db.homestead.iter()].find((row) => row.owner.isEqual(ctx.sender));
+    if (owned !== undefined) return [...ctx.db.homestead_guest.by_space.filter(owned.spaceId)];
+    return [...ctx.db.homestead_guest.by_guest.filter(ctx.sender)];
+  },
 );
 
 export const ownMembership = spacetimedb.view(
@@ -3972,6 +4847,11 @@ const TOOL_MERCHANT_HOME = (() => {
   };
 })();
 
+const FARMER_BOB_HOME = {
+  x: FARMER_BOB_FARM.homeTileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+  y: FARMER_BOB_FARM.homeTileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+} as const;
+
 function toolMerchantRow(authorityTick = 0n) {
   return {
     id: TOOL_MERCHANT_ID,
@@ -3991,11 +4871,47 @@ function toolMerchantRow(authorityTick = 0n) {
     authorityTick,
     health: 100,
     spaceId: TOPSIDE_SPACE_ID,
+    lastHitCritical: false,
+    panicUntilTick: undefined,
+    panicSource: undefined,
+    panicSourceX: 0,
+    panicSourceY: 0,
   };
 }
 
 function toolMerchantProfileRow() {
   return { npcId: TOOL_MERCHANT_ID, dialogueId: TOOL_MERCHANT_DIALOGUE.id, shopId: 'general_tools' };
+}
+
+function farmerBobRow(authorityTick = 0n) {
+  return {
+    id: FARMER_BOB_ID,
+    kind: 'farmer_bob',
+    displayName: 'Farmer Bob',
+    x: FARMER_BOB_HOME.x,
+    y: FARMER_BOB_HOME.y,
+    homeX: FARMER_BOB_HOME.x,
+    homeY: FARMER_BOB_HOME.y,
+    chunkX: chunkAt(FARMER_BOB_HOME.x),
+    chunkY: chunkAt(FARMER_BOB_HOME.y),
+    facing: 'down',
+    moving: false,
+    rider: undefined,
+    wanderDirection: 'idle',
+    nextDecisionTick: authorityTick + 45n,
+    authorityTick,
+    health: 100,
+    spaceId: TOPSIDE_SPACE_ID,
+    lastHitCritical: false,
+    panicUntilTick: undefined,
+    panicSource: undefined,
+    panicSourceX: 0,
+    panicSourceY: 0,
+  };
+}
+
+function farmerBobProfileRow() {
+  return { npcId: FARMER_BOB_ID, dialogueId: FARMER_BOB_DIALOGUE.id, shopId: 'farmer_supplies' };
 }
 
 function starterHorseRow() {
@@ -4018,6 +4934,11 @@ function starterHorseRow() {
     authorityTick: 0n,
     health,
     spaceId: TOPSIDE_SPACE_ID,
+    lastHitCritical: false,
+    panicUntilTick: undefined,
+    panicSource: undefined,
+    panicSourceX: 0,
+    panicSourceY: 0,
   };
 }
 
@@ -4059,6 +4980,11 @@ function generatedWildlifeNpcRow(animal: GeneratedWildlife, authorityTick = 0n) 
     authorityTick,
     health: Math.ceil(resolveCreatureStats(animal.species).maxHealthCenti / 100),
     spaceId: TOPSIDE_SPACE_ID,
+    lastHitCritical: false,
+    panicUntilTick: undefined,
+    panicSource: undefined,
+    panicSourceX: 0,
+    panicSourceY: 0,
   };
 }
 
@@ -4128,6 +5054,62 @@ function requireWorldOwner(
   if (!canAdministerWorld(actor.role)) throw new SenderError('owner_required');
 }
 
+function ensureMarlowCookingFire(ctx: WorldReducerContext): void {
+  const fireState = ctx.db.world_campfire_state.id.find(MARLOW_CAMPFIRE_ID);
+  const existing = ctx.db.world_placeable.id.find(MARLOW_CAMPFIRE_ID);
+  if (existing === null) {
+    ctx.db.world_placeable.insert({
+      id: MARLOW_CAMPFIRE_ID,
+      kind: 'camp_cooking_fire',
+      tileX: MARLOW_CAMPFIRE_TILE.tileX,
+      tileY: MARLOW_CAMPFIRE_TILE.tileY,
+      chunkX: Math.floor(MARLOW_CAMPFIRE_TILE.tileX / SURVIVAL_CHUNK_TILES),
+      chunkY: Math.floor(MARLOW_CAMPFIRE_TILE.tileY / SURVIVAL_CHUNK_TILES),
+      spaceId: TOPSIDE_SPACE_ID,
+      placedBy: ctx.databaseIdentity,
+      facing: 'down',
+      open: false,
+      smeltStartTick: undefined,
+      lit: fireState?.lit ?? true,
+      carriedBy: undefined,
+      barrelSealedTick: undefined,
+      barrelSealedBy: undefined,
+      cookStartTick: undefined,
+      cookStartedBy: undefined,
+      cookInputKind: undefined,
+      processStartTick: undefined,
+      processStartedBy: undefined,
+      processInputKind: undefined,
+    });
+  } else if (existing.kind !== 'camp_cooking_fire'
+    || existing.tileX !== MARLOW_CAMPFIRE_TILE.tileX
+    || existing.tileY !== MARLOW_CAMPFIRE_TILE.tileY
+    || existing.spaceId !== TOPSIDE_SPACE_ID) {
+    ctx.db.world_placeable.id.update({
+      ...existing,
+      kind: 'camp_cooking_fire',
+      tileX: MARLOW_CAMPFIRE_TILE.tileX,
+      tileY: MARLOW_CAMPFIRE_TILE.tileY,
+      chunkX: Math.floor(MARLOW_CAMPFIRE_TILE.tileX / SURVIVAL_CHUNK_TILES),
+      chunkY: Math.floor(MARLOW_CAMPFIRE_TILE.tileY / SURVIVAL_CHUNK_TILES),
+      spaceId: TOPSIDE_SPACE_ID,
+      carriedBy: undefined,
+    });
+  }
+  for (let slot = 0; slot < COOKING_FIRE_SLOT_CAPACITY; slot += 1) {
+    const id = `${MARLOW_CAMPFIRE_ID}:${slot}`;
+    if (ctx.db.world_placeable_slot.id.find(id) === null) ctx.db.world_placeable_slot.insert({
+      id,
+      placeableId: MARLOW_CAMPFIRE_ID,
+      slot,
+      itemKind: 'empty',
+      quantity: 0,
+      durability: 0,
+      lit: true,
+    });
+  }
+}
+
 export const init = spacetimedb.init((ctx) => {
   ctx.db.world_clock.insert({ id: 0, authorityTick: 0n });
   ctx.db.world_environment.insert({ id: 0, calendarTick: 0n, weatherMode: 'auto' });
@@ -4140,6 +5122,7 @@ export const init = spacetimedb.init((ctx) => {
     manualOverride: false,
     automatedByNpc: TOOL_MERCHANT_ID,
   });
+  ensureMarlowCookingFire(ctx);
   ctx.db.world_wind.insert({ id: 0, direction: 'auto' });
   ctx.db.world_seed.insert({ id: 0, seed: SURVIVAL_WORLD_SEED, version: SURVIVAL_WORLD_VERSION, mineVersion: 0 });
   installDebugPortals(ctx);
@@ -4177,6 +5160,8 @@ export const init = spacetimedb.init((ctx) => {
   ctx.db.world_npc.insert(starterHorseRow());
   ctx.db.world_npc.insert(toolMerchantRow());
   ctx.db.world_merchant.insert(toolMerchantProfileRow());
+  ctx.db.world_npc.insert(farmerBobRow());
+  ctx.db.world_merchant.insert(farmerBobProfileRow());
   ctx.db.world_wildlife_profile.insert(starterHorseWildlifeProfileRow());
   for (const animal of generateSurvivalWildlife()) {
     ctx.db.world_npc.insert(generatedWildlifeNpcRow(animal));
@@ -4302,6 +5287,17 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   if (ctx.db.world_merchant.npcId.find(TOOL_MERCHANT_ID) === null) {
     ctx.db.world_merchant.insert(toolMerchantProfileRow());
   }
+  const farmerBob = ctx.db.world_npc.id.find(FARMER_BOB_ID);
+  if (farmerBob === null) {
+    ctx.db.world_npc.insert(farmerBobRow(ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n));
+  } else if (farmerBob.homeX !== FARMER_BOB_HOME.x || farmerBob.homeY !== FARMER_BOB_HOME.y
+    || farmerBob.kind !== 'farmer_bob' || farmerBob.displayName !== 'Farmer Bob') {
+    const farmed = farmerBobRow(ctx.db.world_clock.id.find(0)?.authorityTick ?? farmerBob.authorityTick);
+    updateWorldNpc(ctx, { ...farmerBob, ...farmed });
+  }
+  if (ctx.db.world_merchant.npcId.find(FARMER_BOB_ID) === null) {
+    ctx.db.world_merchant.insert(farmerBobProfileRow());
+  }
   if (ctx.db.world_campfire_state.id.find(MARLOW_CAMPFIRE_ID) === null) {
     ctx.db.world_campfire_state.insert({
       id: MARLOW_CAMPFIRE_ID,
@@ -4313,6 +5309,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       automatedByNpc: TOOL_MERCHANT_ID,
     });
   }
+  ensureMarlowCookingFire(ctx);
   const scalabilityMigration = ctx.db.world_scalability_migration.id.find(0);
   if (scalabilityMigration === null || scalabilityMigration.wildlifeProfileChunkVersion < 1) {
     for (const wildlifeProfile of ctx.db.world_wildlife_profile.iter()) {
@@ -4329,6 +5326,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       wildlifeProfileChunkVersion: 1,
       horseDismountRecoveryVersion: scalabilityMigration?.horseDismountRecoveryVersion ?? 0,
       soilDecayTimerVersion: scalabilityMigration?.soilDecayTimerVersion ?? 0,
+      miningVersion: scalabilityMigration?.miningVersion ?? 0,
     };
     if (scalabilityMigration === null) ctx.db.world_scalability_migration.insert(nextScalabilityMigration);
     else ctx.db.world_scalability_migration.id.update(nextScalabilityMigration);
@@ -4420,6 +5418,8 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       stone: 0,
       selectedSlot: 0,
       debugBackpackSlots: 0,
+      hungerCenti: HUNGER_MAX_CENTI,
+      hungerUpdatedTick: ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
     });
     playerSpawn = ctx.db.player_spawn.insert({
       identity: ctx.sender,
@@ -4438,6 +5438,17 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         lit: storedLit(itemKind),
       });
     }
+  }
+  const survivalMigration = ctx.db.player_survival_migration.identity.find(ctx.sender);
+  if (survivalMigration === null || survivalMigration.hungerVersion < 1) {
+    const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+    survival = ctx.db.player_survival.identity.update({
+      ...survival,
+      hungerCenti: HUNGER_MAX_CENTI,
+      hungerUpdatedTick: authorityTick,
+    });
+    if (survivalMigration === null) ctx.db.player_survival_migration.insert({ identity: ctx.sender, hungerVersion: 1 });
+    else ctx.db.player_survival_migration.identity.update({ ...survivalMigration, hungerVersion: 1 });
   }
   if (playerSpawn === null) {
     const legacySpawn = survivalSpawnPosition(survival.spawnSlot);
@@ -4731,7 +5742,9 @@ export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
     occurredAt: ctx.timestamp,
   });
   const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick;
-  if (authorityTick !== undefined) flushPlayerStatisticTime(ctx, ctx.sender, authorityTick, true);
+  if (authorityTick !== undefined) {
+    flushPlayerStatisticTime(ctx, ctx.sender, authorityTick, true);
+  }
   ctx.db.connection_notice.connectionId.delete(ctx.connectionId);
 });
 
@@ -5277,6 +6290,62 @@ export const toggleHomesteadGate = spacetimedb.reducer({}, (ctx) => {
   ctx.db.homestead.spaceId.update({ ...home, gateOpen: !home.gateOpen });
 });
 
+/** Owners assign durable capability roles by exact player identity. Re-grants
+ * update the existing row, so role changes are atomic and duplicate-free. */
+export const setHomesteadMemberRole = spacetimedb.reducer(
+  { identity: t.identity(), role: t.string() },
+  (ctx, { identity, role }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    if (!isHomesteadMemberRole(role)) throw new SenderError('invalid_homestead_role');
+    const home = homesteadForOwner(ctx, ctx.sender);
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const clock = ctx.db.world_clock.id.find(0);
+    if (home === null || position === null || clock === null || position.spaceId !== home.spaceId) {
+      throw new SenderError('homestead_owner_required');
+    }
+    if (identity.isEqual(ctx.sender)) throw new SenderError('homestead_owner_role_implicit');
+    if (ctx.db.player_public.identity.find(identity) === null) throw new SenderError('player_not_found');
+    const id = homesteadMemberId(home.spaceId, identity.toHexString());
+    const existing = ctx.db.homestead_guest.id.find(id);
+    const row = {
+      id, spaceId: home.spaceId, guest: identity, invitedBy: ctx.sender,
+      role, grantedTick: clock.authorityTick,
+    };
+    if (existing === null) ctx.db.homestead_guest.insert(row);
+    else ctx.db.homestead_guest.id.update(row);
+  },
+);
+
+export const removeHomesteadMember = spacetimedb.reducer(
+  { identity: t.identity(), kick: t.bool() },
+  (ctx, { identity, kick }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const home = homesteadForOwner(ctx, ctx.sender);
+    const ownerPosition = ctx.db.player_position.identity.find(ctx.sender);
+    if (home === null || ownerPosition === null || ownerPosition.spaceId !== home.spaceId) {
+      throw new SenderError('homestead_owner_required');
+    }
+    const id = homesteadMemberId(home.spaceId, identity.toHexString());
+    if (ctx.db.homestead_guest.id.find(id) === null) throw new SenderError('homestead_member_not_found');
+    ctx.db.homestead_guest.id.delete(id);
+    if (!kick) return;
+    const target = ctx.db.player_position.identity.find(identity);
+    if (target === null) return;
+    const residenceSpaceId = home.residenceSpaceId;
+    const inEstate = target.spaceId === home.spaceId
+      || (residenceSpaceId !== undefined
+        && (target.spaceId === residenceSpaceId || target.spaceId === residenceSpaceId + 1));
+    if (!inEstate) return;
+    teleportPlayer(
+      ctx,
+      target,
+      TOPSIDE_SPACE_ID,
+      home.overworldTileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      (home.overworldTileY + 2) * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    );
+  },
+);
+
 export const pickupQuestWorldItem = spacetimedb.reducer(
   { itemId: t.string() },
   (ctx, { itemId }) => {
@@ -5378,6 +6447,10 @@ export const resetMyQuestProgress = spacetimedb.reducer((ctx) => {
   if (ctx.db.player_thought.identity.find(ctx.sender) !== null) ctx.db.player_thought.identity.delete(ctx.sender);
   const carried = questProgressSourceFor(ctx, ctx.sender).itemCount('marlow_book');
   if (carried > 0) removePlayerCarriedItem(ctx, 'marlow_book', carried);
+  for (const itemKind of ['janes_gardening_book', FARMER_BOB_FAST_STRAWBERRY_SEEDS]) {
+    const carried = questProgressSourceFor(ctx, ctx.sender).itemCount(itemKind);
+    if (carried > 0) removePlayerCarriedItem(ctx, itemKind, carried);
+  }
   ctx.db.world_admin_audit.insert({
     id: 0n, actor: ctx.sender, action: 'reset_my_quest_progress',
     value: ctx.sender.toHexString(), occurredAt: ctx.timestamp,
@@ -5738,7 +6811,9 @@ export const heartbeat = spacetimedb.reducer({ active: t.bool() }, (ctx, { activ
   const openPlaceable = ctx.db.active_placeable.identity.find(ctx.sender);
   if (openPlaceable !== null) {
     const placeable = ctx.db.world_placeable.id.find(openPlaceable.placeableId);
-    if (placeable?.kind === 'furnace') settleFurnacePlaceable(ctx, placeable);
+    if (placeable !== null && placeableHasInterface(placeable.kind, 'furnace')) settleFurnacePlaceable(ctx, placeable);
+    if (placeable !== null && placeableHasInterface(placeable.kind, 'cooking')) settleCookingFirePlaceable(ctx, placeable);
+    if (placeable !== null && cellarInterfaceForPlaceable(placeable) !== null) settleCellarProductionPlaceable(ctx, placeable);
   }
   const presence = ctx.db.connection_presence_v2.connectionId.find(ctx.connectionId);
   if (presence === null) {
@@ -5857,8 +6932,8 @@ function repairSelectedToolAtAnvil(ctx: WorldReducerContext): void {
   );
 }
 
-/** Kept for binding compatibility, but the authority still requires the same
- * faced anvil as E interaction so older clients cannot field-repair remotely. */
+/** F repair remains a dedicated reducer for current clients. The authority
+ * requires the same faced anvil so no client can field-repair remotely. */
 export const repairSelectedTool = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const position = ctx.db.player_position.identity.find(ctx.sender);
@@ -5895,6 +6970,49 @@ export const consumeOrchardTea = spacetimedb.reducer({}, (ctx) => {
   // the effect row observed in the same transaction.
   advancePlayerStats(ctx, ctx.sender, clock.authorityTick);
   recordPlayerStatistic(ctx, ctx.sender, 'orchard_tea_consumed', 1n, clock.authorityTick);
+});
+
+/** Consumes the selected recipe book and permanently reveals every new
+ * pattern it contains. Reading is one-shot even when a replay/debug reward
+ * duplicates an already-completed book. */
+export const readRecipeBook = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const survival = ctx.db.player_survival.identity.find(ctx.sender);
+  const clock = ctx.db.world_clock.id.find(0);
+  const position = ctx.db.player_position.identity.find(ctx.sender);
+  if (survival === null || clock === null || position === null) throw new SenderError('player_not_ready');
+  const identityHex = ctx.sender.toHexString();
+  const selected = ctx.db.inventory_slot.id.find(`${identityHex}:${survival.selectedSlot}`);
+  if (selected === null || selected.quantity === 0) throw new SenderError('wrong_item');
+  const book = recipeBookDefinition(selected.itemKind);
+  if (book === null) throw new SenderError('not_recipe_book');
+  const newRecipeIds = book.recipeIds.filter((recipeId) => (
+    ctx.db.player_known_recipe.id.find(`${identityHex}:${recipeId}`) === null
+  ));
+  for (const recipeId of newRecipeIds) {
+    ctx.db.player_known_recipe.insert({
+      id: `${identityHex}:${recipeId}`,
+      identity: ctx.sender,
+      recipeId,
+      learnedAtTick: clock.authorityTick,
+      sourceKind: selected.itemKind,
+    });
+  }
+  const nextQuantity = selected.quantity - 1;
+  ctx.db.inventory_slot.id.update({
+    ...selected,
+    itemKind: nextQuantity === 0 ? 'empty' : selected.itemKind,
+    quantity: nextQuantity,
+    durability: nextQuantity === 0 ? 0 : selected.durability,
+    lit: nextQuantity === 0 ? true : selected.lit,
+  });
+  ctx.db.player_position.identity.update({
+    ...position,
+    equippedKind: nextQuantity === 0 ? 'empty' : selected.itemKind,
+    equippedLit: nextQuantity === 0 ? true : selected.lit,
+  });
+  recordPlayerStatistic(ctx, ctx.sender, 'recipe_books_read', 1n, clock.authorityTick, selected.itemKind);
+  recordPlayerStatistic(ctx, ctx.sender, 'recipes_learned', BigInt(newRecipeIds.length), clock.authorityTick);
 });
 
 export const inventoryCursorClick = spacetimedb.reducer(
@@ -6272,6 +7390,10 @@ export const craftInventoryRecipe = spacetimedb.reducer(
   (ctx, { recipeId, craftAll }) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const requestedRecipe = recipeDefinition(recipeId);
+    if (requestedRecipe?.output.itemKind === 'greenhouse'
+      && (playerSkillRanks(ctx, ctx.sender)['greenhouse_charter'] ?? 0) < 1) {
+      throw new SenderError('greenhouse_charter_required');
+    }
     if (requestedRecipe?.station !== undefined) {
       const position = ctx.db.player_position.identity.find(ctx.sender);
       if (position === null) throw new SenderError('player_not_ready');
@@ -6470,6 +7592,9 @@ function requireChestPlacementTile(
   tileX: number,
   tileY: number,
 ): void {
+  if (position.spaceId === TOPSIDE_SPACE_ID && survivalFarmerBobFarmReservedAt(tileX, tileY)) {
+    throw new SenderError('chest_tile_blocked');
+  }
   const collision = collisionForSpace(ctx, position.spaceId);
   const result = tilePlacementResult(
     position.x,
@@ -6490,6 +7615,9 @@ function requirePlaceablePlacementTile(
   tileX: number,
   tileY: number,
 ): void {
+  if (position.spaceId === TOPSIDE_SPACE_ID && survivalFarmerBobFarmReservedAt(tileX, tileY)) {
+    throw new SenderError('placement_blocked');
+  }
   const result = tilePlacementResult(
     position.x,
     position.y,
@@ -6519,6 +7647,85 @@ function insertPlayerCarriedItem(
     backpack: moved.containers.backpack!,
   });
   return true;
+}
+
+function removePlayerBuildItem(
+  ctx: WorldReducerContext,
+  itemKind: string,
+): void {
+  const row = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]
+    .filter((candidate) => candidate.slot < EQUIPMENT_SLOT_OFFSET
+      && candidate.itemKind === itemKind && candidate.quantity > 0)
+    .sort((left, right) => left.slot - right.slot)[0];
+  if (row === undefined) throw new SenderError('build_item_missing');
+  const quantity = row.quantity - 1;
+  ctx.db.inventory_slot.id.update({
+    ...row,
+    itemKind: quantity === 0 ? 'empty' : row.itemKind,
+    quantity,
+    durability: quantity === 0 ? 0 : row.durability,
+    lit: quantity === 0 ? true : row.lit,
+  });
+  const survival = ctx.db.player_survival.identity.find(ctx.sender);
+  const position = ctx.db.player_position.identity.find(ctx.sender);
+  if (survival !== null && position !== null && row.slot === survival.selectedSlot) {
+    ctx.db.player_position.identity.update({
+      ...position,
+      equippedKind: quantity === 0 ? 'empty' : row.itemKind,
+      equippedLit: storedLit(quantity === 0 ? 'empty' : row.itemKind, row.lit),
+    });
+  }
+}
+
+function insertWorldPlaceable(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+  itemKind: string,
+  tileX: number,
+  tileY: number,
+): WorldPlaceableRow {
+  const placed = ctx.db.world_placeable.insert({
+    id: 0n,
+    kind: itemKind,
+    tileX,
+    tileY,
+    chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
+    chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
+    spaceId: position.spaceId,
+    carriedBy: undefined,
+    placedBy: ctx.sender,
+    facing: position.facing,
+    open: false,
+    lit: true,
+    smeltStartTick: undefined,
+    barrelSealedTick: undefined,
+    barrelSealedBy: undefined,
+    cookStartTick: undefined,
+    cookStartedBy: undefined,
+    cookInputKind: undefined,
+    processStartTick: undefined,
+    processStartedBy: undefined,
+    processInputKind: undefined,
+  });
+  for (let slot = 0; slot < placeableSlotCapacity(itemKind); slot += 1) {
+    ctx.db.world_placeable_slot.insert({
+      id: `${placed.id}:${slot}`,
+      placeableId: placed.id,
+      slot,
+      itemKind: 'empty',
+      quantity: 0,
+      durability: 0,
+      lit: true,
+    });
+  }
+  const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+  ctx.db.world_placeable_build.insert({
+    placeableId: placed.id,
+    spaceId: position.spaceId,
+    placedBy: ctx.sender,
+    placedAtTick: authorityTick,
+  });
+  return placed;
 }
 
 function removePlayerCarriedItem(
@@ -6588,6 +7795,11 @@ export const useHands = spacetimedb.reducer(
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     if (position === null || survival === null) throw new SenderError('player_not_ready');
     requireWorldModificationAuthorized(ctx, position);
+    const buildHome = homesteadForSpace(ctx, position.spaceId);
+    if (buildHome !== null
+      && !homesteadRoleAtLeast(homesteadRoleFor(ctx, buildHome, ctx.sender), 'builder')) {
+      throw new SenderError('homestead_builder_required');
+    }
     if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
     const carried = carriedChestFor(ctx, ctx.sender);
     const carriedTarget = carriedCombatTargetFor(ctx, ctx.sender);
@@ -6646,6 +7858,7 @@ export const useHands = spacetimedb.reducer(
       const footprint = homesteadMarkerPlacementTiles(tileX, tileY);
       if (footprint.some((tile) => tile.tileX < 1 || tile.tileY < 1 || tile.tileX >= collision.width - 1
         || tile.tileY >= collision.height - 1 || collision.blocked[tile.tileY * collision.width + tile.tileX]
+        || survivalFarmerBobFarmReservedAt(tile.tileX, tile.tileY)
         || collision.obstacles?.some((obstacle) => boundsOverlap(tileTargetBounds(tile), obstacle))
         || tileOverlapsAnyOtherPlayer(ctx, ctx.sender, TOPSIDE_SPACE_ID, tile.tileX, tile.tileY))) {
         throw new SenderError('homestead_site_blocked');
@@ -6745,33 +7958,13 @@ export const useHands = spacetimedb.reducer(
     if (selected !== null && selected.quantity > 0
       && selectedDefinition?.tags.includes('item.placeable') === true
       && selectedPlaceable !== null) {
-      requirePlaceablePlacementTile(ctx, position, tileX, tileY);
-      const placed = ctx.db.world_placeable.insert({
-        id: 0n,
-        kind: selected.itemKind,
-        tileX,
-        tileY,
-        chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
-        chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
-        spaceId: position.spaceId,
-        carriedBy: undefined,
-        placedBy: ctx.sender,
-        facing: position.facing,
-        open: false,
-        lit: true,
-        smeltStartTick: undefined,
-      });
-      for (let slot = 0; slot < selectedPlaceable.slotCapacity; slot += 1) {
-        ctx.db.world_placeable_slot.insert({
-          id: `${placed.id}:${slot}`,
-          placeableId: placed.id,
-          slot,
-          itemKind: 'empty',
-          quantity: 0,
-          durability: 0,
-          lit: true,
-        });
+      const build = homesteadBuildDefinition(selected.itemKind);
+      if (build?.layer === 'prefab') {
+        requireHomesteadBuildPlacement(ctx, position, selected.itemKind, tileX, tileY);
+      } else {
+        requirePlaceablePlacementTile(ctx, position, tileX, tileY);
       }
+      insertWorldPlaceable(ctx, position, selected.itemKind, tileX, tileY);
       const remaining = selected.quantity - 1;
       ctx.db.inventory_slot.id.update({
         ...selected,
@@ -6794,15 +7987,16 @@ export const useHands = spacetimedb.reducer(
 
     const targetPlaceable = placeableAtFacingTile(ctx, position);
     if (targetPlaceable !== null) {
+      if (targetPlaceable.id === MARLOW_CAMPFIRE_ID) throw new SenderError('landmark_not_movable');
       const slots = [...ctx.db.world_placeable_slot.by_placeable.filter(targetPlaceable.id)];
-      if (targetPlaceable.kind !== 'furnace'
+      if (!placeableHasInterface(targetPlaceable.kind, 'furnace')
         && slots.some((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)) {
         throw new SenderError('placeable_not_empty');
       }
       for (const active of ctx.db.active_placeable.by_placeable.filter(targetPlaceable.id)) {
         ctx.db.active_placeable.identity.delete(active.identity);
       }
-      if (targetPlaceable.kind === 'anvil' || targetPlaceable.kind === 'furnace') {
+      if (targetPlaceable.kind === 'anvil' || placeableHasInterface(targetPlaceable.kind, 'furnace')) {
         ctx.db.world_placeable.id.update({
           ...targetPlaceable,
           tileX: Math.floor(position.x / TILE_SIZE_FIXED),
@@ -6821,6 +8015,9 @@ export const useHands = spacetimedb.reducer(
       }
       if (!insertPlayerCarriedItem(ctx, targetPlaceable.kind, 1)) throw new SenderError('inventory_full');
       for (const slot of slots) ctx.db.world_placeable_slot.id.delete(slot.id);
+      if (ctx.db.world_placeable_build.placeableId.find(targetPlaceable.id) !== null) {
+        ctx.db.world_placeable_build.placeableId.delete(targetPlaceable.id);
+      }
       ctx.db.world_placeable.id.delete(targetPlaceable.id);
       return;
     }
@@ -6889,6 +8086,169 @@ export const useHands = spacetimedb.reducer(
   },
 );
 
+function requireHomesteadBuildPlacement(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+  itemKind: string,
+  tileX: number,
+  tileY: number,
+): void {
+  const home = homesteadForSpace(ctx, position.spaceId);
+  if (home === null || !homesteadRoleAtLeast(homesteadRoleFor(ctx, home, ctx.sender), 'builder')) {
+    throw new SenderError('homestead_builder_required');
+  }
+  const build = homesteadBuildDefinition(itemKind);
+  if (build === null) throw new SenderError('item_not_buildable');
+  if (home.sizeTier < build.minimumSizeTier) throw new SenderError('homestead_tier_required');
+  const definition = spaceDefinitionFor(position.spaceId, home);
+  if (definition === undefined) throw new SenderError('homestead_not_ready');
+  requirePlaceablePlacementTile(ctx, position, tileX, tileY);
+  const collision = collisionForSpace(ctx, position.spaceId);
+  const tent = homesteadTentFootprint(HOMESTEAD_TENT_TILE.tileX, HOMESTEAD_TENT_TILE.tileY, true);
+  for (const tile of homesteadBuildFootprintTiles(build, tileX, tileY)) {
+    if (!homesteadPlayableTile(tile.tileX, tile.tileY, definition.sizeTiles)) {
+      throw new SenderError('placement_outside_homestead');
+    }
+    if (tile.tileX >= tent.minX && tile.tileX <= tent.maxX
+      && tile.tileY >= tent.minY && tile.tileY <= tent.maxY) {
+      throw new SenderError('homestead_residence_blocked');
+    }
+    if (ctx.db.world_soil.id.find(worldSoilId(position.spaceId, tile.tileX, tile.tileY)) !== null) {
+      throw new SenderError('build_tile_has_farmland');
+    }
+    if ((tile.tileX !== tileX || tile.tileY !== tileY)
+      && (tileOverlapsAnyPlayer(ctx, position.spaceId, tile.tileX, tile.tileY)
+        || tileTargetIsBlocked(collision, tile))) {
+      throw new SenderError('placement_blocked');
+    }
+  }
+}
+
+/** Build-mode placement consumes one matching object from carried storage,
+ * independent of hotbar selection. The registry, footprint and Homestead
+ * authority are all recomputed server-side. */
+export const placeHomesteadBuildable = spacetimedb.reducer(
+  { itemKind: t.string(), tileX: t.i16(), tileY: t.i16() },
+  (ctx, { itemKind, tileX, tileY }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    if (position === null) throw new SenderError('player_not_ready');
+    if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
+    requireHomesteadBuildPlacement(ctx, position, itemKind, tileX, tileY);
+    removePlayerBuildItem(ctx, itemKind);
+    insertWorldPlaceable(ctx, position, itemKind, tileX, tileY);
+    recordPlayerStatistic(
+      ctx,
+      ctx.sender,
+      'placeables_placed',
+      1n,
+      ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
+      itemKind,
+    );
+  },
+);
+
+/** Permanent estate upgrades are paid from the owner's wallet. Effects remain
+ * timestamp-derived, so buying a rank causes no crop/barrel catch-up scan. */
+export const purchaseHomesteadUpgrade = spacetimedb.reducer(
+  { upgradeKind: t.string() },
+  (ctx, { upgradeKind }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    if (!isHomesteadUpgradeKind(upgradeKind)) throw new SenderError('unknown_homestead_upgrade');
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const home = homesteadForOwner(ctx, ctx.sender);
+    const clock = ctx.db.world_clock.id.find(0);
+    const wallet = ctx.db.player_wallet.identity.find(ctx.sender);
+    if (position === null || home === null || clock === null || wallet === null) {
+      throw new SenderError('homestead_upgrade_not_ready');
+    }
+    if (position.spaceId !== home.spaceId && position.spaceId !== home.residenceSpaceId) {
+      throw new SenderError('homestead_upgrade_requires_home');
+    }
+    const id = homesteadUpgradeId(home.spaceId, upgradeKind);
+    const existing = ctx.db.homestead_upgrade.id.find(id);
+    const rank = existing?.rank ?? 0;
+    const definition = HOMESTEAD_UPGRADE_DEFINITIONS[upgradeKind];
+    if (rank >= definition.maximumRank) throw new SenderError('homestead_upgrade_maximum');
+    const cost = homesteadUpgradeCostBronze(upgradeKind, rank);
+    if (wallet.balanceBronze < cost) throw new SenderError('insufficient_funds');
+    ctx.db.player_wallet.identity.update({ ...wallet, balanceBronze: wallet.balanceBronze - cost });
+    const next = {
+      id, spaceId: home.spaceId, upgradeKind, rank: rank + 1,
+      purchasedBy: ctx.sender, purchasedAtTick: clock.authorityTick,
+    };
+    if (existing === null) ctx.db.homestead_upgrade.insert(next);
+    else ctx.db.homestead_upgrade.id.update(next);
+    recordPlayerStatistic(ctx, ctx.sender, 'bronze_spent', cost, clock.authorityTick);
+    recordPlayerStatistic(
+      ctx, ctx.sender, 'bronze_spent_on_upgrades', cost, clock.authorityTick, upgradeKind,
+    );
+    recordPlayerStatistic(
+      ctx, ctx.sender, 'homestead_upgrades_purchased', 1n, clock.authorityTick, upgradeKind,
+    );
+    grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(20 * (rank + 1)));
+  },
+);
+
+/** Build-mode demolition is intentionally distinct from F-to-carry. Empty
+ * stations can be dismantled; active or stocked processors retain custody. */
+export const removeHomesteadBuildable = spacetimedb.reducer(
+  { placeableId: t.u64() },
+  (ctx, { placeableId }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const placeable = ctx.db.world_placeable.id.find(placeableId);
+    if (position === null || placeable === null) throw new SenderError('placeable_not_found');
+    if (placeable.spaceId !== position.spaceId || placeable.carriedBy !== undefined) {
+      throw new SenderError('placeable_not_found');
+    }
+    requireWorldModificationAuthorized(ctx, position);
+    const home = homesteadForSpace(ctx, position.spaceId);
+    if (home === null || !homesteadRoleAtLeast(homesteadRoleFor(ctx, home, ctx.sender), 'builder')) {
+      throw new SenderError('homestead_builder_required');
+    }
+    if (placeable.id === MARLOW_CAMPFIRE_ID || homesteadBuildDefinition(placeable.kind) === null) {
+      throw new SenderError('placeable_not_removable');
+    }
+    const reach = tilePlacementResult(
+      position.x,
+      position.y,
+      placeable.tileX,
+      placeable.tileY,
+      collisionForSpace(ctx, position.spaceId),
+      false,
+    );
+    if (reach === 'out_of_range') throw new SenderError('placeable_out_of_range');
+    const slots = [...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)];
+    if (slots.some((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)
+      || placeable.smeltStartTick !== undefined
+      || placeable.barrelSealedTick !== undefined
+      || placeable.cookStartTick !== undefined
+      || placeable.processStartTick !== undefined) {
+      throw new SenderError('placeable_not_empty');
+    }
+    const record = ctx.db.world_placeable_build.placeableId.find(placeable.id);
+    const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+    const refund = homesteadBuildRemovalRefund(
+      placeable.kind,
+      record?.placedAtTick ?? 0n,
+      authorityTick,
+    );
+    for (const active of ctx.db.active_placeable.by_placeable.filter(placeable.id)) {
+      ctx.db.active_placeable.identity.delete(active.identity);
+    }
+    for (const slot of slots) ctx.db.world_placeable_slot.id.delete(slot.id);
+    if (record !== null) ctx.db.world_placeable_build.placeableId.delete(placeable.id);
+    ctx.db.world_placeable.id.delete(placeable.id);
+    for (const stack of refund) {
+      if (!insertPlayerCarriedItem(ctx, stack.itemKind, stack.quantity)) {
+        stashOverflow(ctx, ctx.sender, stack);
+      }
+    }
+    recordPlayerStatistic(ctx, ctx.sender, 'placeables_removed', 1n, authorityTick, placeable.kind);
+  },
+);
+
 /** E: open the nearest chest inside the shared radial interaction reach. */
 export const interactChest = spacetimedb.reducer(
   {},
@@ -6921,13 +8281,14 @@ export const closeChest = spacetimedb.reducer({}, (ctx) => {
   if (active !== null) ctx.db.active_chest.identity.delete(ctx.sender);
 });
 
-/** E toggles gates, opens storage/processors, or repairs at an anvil. */
+/** Context interaction toggles gates and opens storage/processors. The same
+ * faced-placeable authority also serves F repair-at-anvil for current clients. */
 export const interactPlaceable = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const position = ctx.db.player_position.identity.find(ctx.sender);
   if (position === null) throw new SenderError('player_not_ready');
   if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
-  const placeable = placeableAtFacingTile(ctx, position);
+  let placeable = placeableAtFacingTile(ctx, position);
   if (placeable === null) throw new SenderError('placeable_not_found');
   if (placeable.kind === 'fence_gate') {
     requireWorldModificationAuthorized(ctx, position);
@@ -6938,9 +8299,15 @@ export const interactPlaceable = spacetimedb.reducer({}, (ctx) => {
     repairSelectedToolAtAnvil(ctx);
     return;
   }
-  if (placeable.kind !== 'barrel' && placeable.kind !== 'furnace') throw new SenderError('placeable_not_interactable');
-  if (placeable.kind === 'furnace') settleFurnacePlaceable(ctx, placeable);
-  if (placeable.kind === 'barrel' && !placeable.open) ctx.db.world_placeable.id.update({ ...placeable, open: true });
+  const interfaceKind = placeableInterface(placeable.kind);
+  if (interfaceKind === null) throw new SenderError('placeable_not_interactable');
+  if (interfaceKind === 'furnace') placeable = settleFurnacePlaceable(ctx, placeable);
+  if (interfaceKind === 'cooking') placeable = settleCookingFirePlaceable(ctx, placeable);
+  if (interfaceKind === 'barrel') placeable = settleBarrelPlaceable(ctx, placeable);
+  if (interfaceKind === 'press' || interfaceKind === 'fermentation') {
+    placeable = settleCellarProductionPlaceable(ctx, placeable);
+  }
+  if (interfaceKind === 'barrel' && !placeable.open) ctx.db.world_placeable.id.update({ ...placeable, open: true });
   if (ctx.db.active_chest.identity.find(ctx.sender) !== null) ctx.db.active_chest.identity.delete(ctx.sender);
   let active = ctx.db.active_placeable.identity.find(ctx.sender);
   if (active !== null && active.placeableId !== placeable.id) {
@@ -6976,11 +8343,144 @@ export const toggleCampfire = spacetimedb.reducer(
     if (targetKind !== 'placeable') throw new SenderError('campfire_target_invalid');
     const fire = ctx.db.world_placeable.id.find(targetId);
     const faced = placeableAtFacingTile(ctx, position);
-    if (fire === null || fire.kind !== 'campfire' || faced?.id !== fire.id) throw new SenderError('campfire_not_found');
+    if (fire === null || (!itemHasTag(fire.kind, 'station.campfire') && !placeableHasInterface(fire.kind, 'cooking'))
+      || faced?.id !== fire.id) throw new SenderError('campfire_not_found');
     requireWorldModificationAuthorized(ctx, position);
-    ctx.db.world_placeable.id.update({ ...fire, lit: !fire.lit });
+    const lit = !fire.lit;
+    ctx.db.world_placeable.id.update({ ...fire, lit });
+    if (placeableHasInterface(fire.kind, 'cooking')) {
+      settleCookingFirePlaceable(ctx, { ...fire, lit });
+      if (fire.id === MARLOW_CAMPFIRE_ID) {
+        const landmark = ctx.db.world_campfire_state.id.find(MARLOW_CAMPFIRE_ID);
+        if (landmark !== null) ctx.db.world_campfire_state.id.update({
+          ...landmark,
+          lit,
+          manualOverride: true,
+        });
+      }
+    }
   },
 );
+
+function requireLitCampfire(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+  targetKind: string,
+  targetId: bigint,
+): void {
+  if (targetKind === 'landmark') {
+    const fire = ctx.db.world_campfire_state.id.find(targetId);
+    if (fire === null || !fire.lit || fire.spaceId !== position.spaceId) throw new SenderError('campfire_not_lit');
+    const x = fire.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const y = fire.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    if ((x - position.x) ** 2 + (y - position.y) ** 2 > (2 * TILE_SIZE_FIXED) ** 2) {
+      throw new SenderError('campfire_out_of_range');
+    }
+    return;
+  }
+  if (targetKind !== 'placeable') throw new SenderError('campfire_target_invalid');
+  const fire = ctx.db.world_placeable.id.find(targetId);
+  if (fire === null || fire.kind !== 'campfire' || !fire.lit || fire.spaceId !== position.spaceId
+    || !chestWithinReach(position.x, position.y, fire)) throw new SenderError('campfire_not_lit');
+}
+
+export const startCooking = spacetimedb.reducer(
+  { targetKind: t.string(), targetId: t.u64(), recipeId: t.string(), quantity: t.u8() },
+  (ctx, request) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const clock = ctx.db.world_clock.id.find(0);
+    if (position === null || clock === null) throw new SenderError('player_not_ready');
+    if (request.quantity < 1 || request.quantity > 8) throw new SenderError('invalid_cooking_quantity');
+    if (ctx.db.player_cooking_job.identity.find(ctx.sender) !== null) throw new SenderError('cooking_already_started');
+    const recipe = cookingRecipe(request.recipeId);
+    if (recipe === null) throw new SenderError('cooking_recipe_invalid');
+    requireLitCampfire(ctx, position, request.targetKind, request.targetId);
+    removePlayerCarriedItem(ctx, recipe.inputKind, request.quantity);
+    ctx.db.player_cooking_job.insert({
+      identity: ctx.sender,
+      targetKind: request.targetKind,
+      targetId: request.targetId,
+      spaceId: position.spaceId,
+      recipeId: recipe.id,
+      inputKind: recipe.inputKind,
+      outputKind: recipe.outputKind,
+      quantity: request.quantity,
+      startedTick: clock.authorityTick,
+      readyTick: clock.authorityTick + cookingDurationTicks(recipe, request.quantity),
+    });
+  },
+);
+
+export const collectCooking = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const job = ctx.db.player_cooking_job.identity.find(ctx.sender);
+  const position = ctx.db.player_position.identity.find(ctx.sender);
+  const clock = ctx.db.world_clock.id.find(0);
+  if (job === null || position === null || clock === null) throw new SenderError('cooking_not_ready');
+  if (clock.authorityTick < job.readyTick) throw new SenderError('cooking_not_ready');
+  requireLitCampfire(ctx, position, job.targetKind, job.targetId);
+  if (!insertPlayerCarriedItem(ctx, job.outputKind, job.quantity)) throw new SenderError('inventory_full');
+  ctx.db.player_cooking_job.identity.delete(ctx.sender);
+  const recipe = cookingRecipe(job.recipeId);
+  grantSkillExperience(ctx, ctx.sender, 'farming', BigInt((recipe?.farmingExperiencePerItem ?? 5) * job.quantity));
+  recordPlayerStatistic(ctx, ctx.sender, 'food_cooked', BigInt(job.quantity), clock.authorityTick, job.outputKind);
+  recordPlayerStatistic(ctx, ctx.sender, 'items_obtained', BigInt(job.quantity), clock.authorityTick, job.outputKind);
+});
+
+export const cancelCooking = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const job = ctx.db.player_cooking_job.identity.find(ctx.sender);
+  if (job === null) return;
+  if (!insertPlayerCarriedItem(ctx, job.inputKind, job.quantity)) throw new SenderError('inventory_full');
+  ctx.db.player_cooking_job.identity.delete(ctx.sender);
+});
+
+export const eatSelectedFood = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const clock = ctx.db.world_clock.id.find(0);
+  const survival = ctx.db.player_survival.identity.find(ctx.sender);
+  if (clock === null || survival === null) throw new SenderError('player_not_ready');
+  const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  const restored = foodHungerRestoreCenti(slot?.itemKind ?? '');
+  if (slot === null || slot.quantity < 1 || restored === null) throw new SenderError('food_not_edible');
+  const current = survival;
+  if (current.hungerCenti >= HUNGER_MAX_CENTI) throw new SenderError('hunger_full');
+  const nextQuantity = slot.quantity - 1;
+  ctx.db.inventory_slot.id.update({
+    ...slot,
+    itemKind: nextQuantity === 0 ? 'empty' : slot.itemKind,
+    quantity: nextQuantity,
+    durability: nextQuantity === 0 ? 0 : slot.durability,
+    lit: nextQuantity === 0 ? true : slot.lit,
+  });
+  ctx.db.player_survival.identity.update({ ...current, ...restoreHunger(current, restored) });
+  recordPlayerStatistic(ctx, ctx.sender, 'food_eaten', 1n, clock.authorityTick, slot.itemKind);
+});
+
+export const sealBarrel = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const menu = loadOpenMenuInventory(ctx);
+  const placeable = menu.placeable?.placeable;
+  const clock = ctx.db.world_clock.id.find(0);
+  if (placeable === undefined || !placeableHasInterface(placeable.kind, 'barrel') || clock === null) throw new SenderError('barrel_not_open');
+  if (placeable.barrelSealedTick !== undefined) throw new SenderError('barrel_already_sealed');
+  const barrelRank = homesteadUpgradeRank(ctx, placeable.spaceId, 'barrel_cellar');
+  if (!barrelCanSeal(
+    menu.placeable!.container.slots,
+    barrelCellarBatchCapacity(BARREL_MAX_BATCH, barrelRank),
+  )) throw new SenderError('barrel_batch_invalid');
+  const cropKind = menu.placeable!.container.slots.find((stack) => stack !== null)?.itemKind ?? '';
+  ctx.db.world_placeable.id.update({
+    ...placeable,
+    open: false,
+    barrelSealedTick: clock.authorityTick,
+    barrelSealedBy: ctx.sender,
+  });
+  clearActivePlaceable(ctx, ctx.sender);
+  grantSkillExperience(ctx, ctx.sender, 'farming', 5n);
+  recordPlayerStatistic(ctx, ctx.sender, 'barrels_sealed', 1n, clock.authorityTick, cropKind);
+});
 
 export const closePlaceable = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
@@ -7006,13 +8506,16 @@ export const movePlaceableItem = spacetimedb.reducer(
 function activeMerchantSession(ctx: WorldReducerContext, requireShop: boolean) {
   const active = ctx.db.active_dialogue.identity.find(ctx.sender);
   const position = ctx.db.player_position.identity.find(ctx.sender);
-  if (active === null || position === null || active.dialogueId !== TOOL_MERCHANT_DIALOGUE.id) {
+  if (active === null || position === null) {
+    throw new SenderError('merchant_dialogue_not_open');
+  }
+  const merchant = ctx.db.world_merchant.npcId.find(active.npcId);
+  const npc = ctx.db.world_npc.id.find(active.npcId);
+  if (merchant === null || merchant.dialogueId !== active.dialogueId) {
     throw new SenderError('merchant_dialogue_not_open');
   }
   if (requireShop && active.nodeId !== 'shop') throw new SenderError('merchant_shop_not_open');
-  const merchant = ctx.db.world_merchant.npcId.find(active.npcId);
-  const npc = ctx.db.world_npc.id.find(active.npcId);
-  if (merchant === null || npc === null || npc.spaceId !== position.spaceId || !npcWithinInteractionReach(position, npc)) {
+  if (npc === null || npc.spaceId !== position.spaceId || !npcWithinInteractionReach(position, npc)) {
     throw new SenderError('merchant_out_of_range');
   }
   return { active, merchant, npc, position };
@@ -7024,7 +8527,12 @@ function questRequirementMatches(
   requires: 'available' | 'active' | 'complete' | 'turned_in',
 ): boolean {
   const row = ctx.db.player_quest.id.find(playerQuestId(ctx.sender.toHexString(), questId));
-  return requires === 'available' ? row === null : row?.state === requires;
+  if (requires !== 'available') return row?.state === requires;
+  if (row !== null) return false;
+  const definition = questDefinition(questId);
+  return definition !== null && definition.prerequisiteQuestIds?.every((prerequisiteId) => (
+    ctx.db.player_quest.id.find(playerQuestId(ctx.sender.toHexString(), prerequisiteId))?.state === 'turned_in'
+  )) !== false;
 }
 
 /** E starts an authority-backed conversation. The active row is private to the
@@ -7235,6 +8743,111 @@ function cancelPlayerTrade(ctx: WorldReducerContext, trade: PlayerTradeSessionRo
   refreshPlayerQuests(ctx, trade.requester, tick);
   refreshPlayerQuests(ctx, trade.recipient, tick);
 }
+
+const PARTY_MAX_MEMBERS = 5;
+const PARTY_INVITE_TTL_TICKS = BigInt(2 * 60 * AUTHORITY_HZ);
+
+function partyInviteId(partyId: bigint, inviteeHex: string): string {
+  return JSON.stringify([partyId.toString(), inviteeHex]);
+}
+
+export const createParty = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const clock = ctx.db.world_clock.id.find(0);
+  if (clock === null) throw new SenderError('player_not_ready');
+  if (ctx.db.player_party_member.identity.find(ctx.sender) !== null) throw new SenderError('already_in_party');
+  const party = ctx.db.player_party.insert({ id: 0n, leader: ctx.sender, createdTick: clock.authorityTick });
+  ctx.db.player_party_member.insert({
+    identity: ctx.sender, partyId: party.id, joinedTick: clock.authorityTick,
+  });
+});
+
+export const inviteToParty = spacetimedb.reducer(
+  { invitee: t.identity() },
+  (ctx, { invitee }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const clock = ctx.db.world_clock.id.find(0);
+    const member = ctx.db.player_party_member.identity.find(ctx.sender);
+    const party = member === null ? null : ctx.db.player_party.id.find(member.partyId);
+    if (clock === null || party === null) throw new SenderError('party_not_ready');
+    if (!party.leader.isEqual(ctx.sender)) throw new SenderError('party_leader_required');
+    if (invitee.isEqual(ctx.sender)) throw new SenderError('party_invite_invalid');
+    if (ctx.db.player_public.identity.find(invitee) === null) throw new SenderError('player_not_found');
+    if (ctx.db.player_party_member.identity.find(invitee) !== null) throw new SenderError('already_in_party');
+    if ([...ctx.db.player_party_member.by_party.filter(party.id)].length >= PARTY_MAX_MEMBERS) {
+      throw new SenderError('party_full');
+    }
+    const id = partyInviteId(party.id, invitee.toHexString());
+    const existing = ctx.db.player_party_invite.id.find(id);
+    const invite = {
+      id, partyId: party.id, inviter: ctx.sender, invitee,
+      expiresTick: clock.authorityTick + PARTY_INVITE_TTL_TICKS,
+    };
+    if (existing === null) ctx.db.player_party_invite.insert(invite);
+    else ctx.db.player_party_invite.id.update(invite);
+  },
+);
+
+export const acceptPartyInvite = spacetimedb.reducer(
+  { partyId: t.u64() },
+  (ctx, { partyId }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const clock = ctx.db.world_clock.id.find(0);
+    if (clock === null) throw new SenderError('player_not_ready');
+    if (ctx.db.player_party_member.identity.find(ctx.sender) !== null) throw new SenderError('already_in_party');
+    const invite = ctx.db.player_party_invite.id.find(partyInviteId(partyId, ctx.sender.toHexString()));
+    const party = ctx.db.player_party.id.find(partyId);
+    if (invite === null || party === null || invite.expiresTick <= clock.authorityTick) {
+      if (invite !== null) ctx.db.player_party_invite.id.delete(invite.id);
+      throw new SenderError('party_invite_expired');
+    }
+    if ([...ctx.db.player_party_member.by_party.filter(partyId)].length >= PARTY_MAX_MEMBERS) {
+      throw new SenderError('party_full');
+    }
+    ctx.db.player_party_member.insert({ identity: ctx.sender, partyId, joinedTick: clock.authorityTick });
+    for (const pending of [...ctx.db.player_party_invite.by_invitee.filter(ctx.sender)]) {
+      ctx.db.player_party_invite.id.delete(pending.id);
+    }
+  },
+);
+
+function leavePlayerParty(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): void {
+  const member = ctx.db.player_party_member.identity.find(identity);
+  if (member === null) throw new SenderError('not_in_party');
+  const party = ctx.db.player_party.id.find(member.partyId);
+  ctx.db.player_party_member.identity.delete(identity);
+  if (party === null) return;
+  const remaining = [...ctx.db.player_party_member.by_party.filter(party.id)]
+    .sort((left, right) => left.joinedTick < right.joinedTick ? -1 : left.joinedTick > right.joinedTick ? 1 : 0);
+  if (remaining.length === 0) {
+    for (const invite of [...ctx.db.player_party_invite.by_party.filter(party.id)]) {
+      ctx.db.player_party_invite.id.delete(invite.id);
+    }
+    ctx.db.player_party.id.delete(party.id);
+  } else if (party.leader.isEqual(identity)) {
+    ctx.db.player_party.id.update({ ...party, leader: remaining[0]!.identity });
+  }
+}
+
+export const leaveParty = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  leavePlayerParty(ctx, ctx.sender);
+});
+
+export const removePartyMember = spacetimedb.reducer(
+  { memberIdentity: t.identity() },
+  (ctx, { memberIdentity }) => {
+    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const leaderMember = ctx.db.player_party_member.identity.find(ctx.sender);
+    const party = leaderMember === null ? null : ctx.db.player_party.id.find(leaderMember.partyId);
+    const target = ctx.db.player_party_member.identity.find(memberIdentity);
+    if (party === null || !party.leader.isEqual(ctx.sender)) throw new SenderError('party_leader_required');
+    if (target === null || target.partyId !== party.id || memberIdentity.isEqual(ctx.sender)) {
+      throw new SenderError('party_member_invalid');
+    }
+    leavePlayerParty(ctx, memberIdentity);
+  },
+);
 
 function requireActiveTrade(ctx: WorldReducerContext, tradeId: string): PlayerTradeSessionRow {
   const trade = requireTradeParticipant(ctx, tradeId);
@@ -7461,7 +9074,15 @@ function updateEquippedFromInventory(
  * and commit inventory, deed claim, currency, and statistics in one reducer
  * transaction. Any rejection rolls the entire cart back. */
 function purchaseMerchantCart(ctx: WorldReducerContext, lines: readonly MerchantCartLine[]): void {
-  activeMerchantSession(ctx, true);
+  const { merchant } = activeMerchantSession(ctx, true);
+  const stockedItems = new Set<string>(merchantOffers(merchant.shopId));
+  if (lines.some((line) => !stockedItems.has(line.itemKind))) {
+    throw new SenderError('merchant_item_not_stocked');
+  }
+  if (lines.some((line) => line.itemKind === 'sprinkler')
+    && (playerSkillRanks(ctx, ctx.sender)['sprinkler_engineering'] ?? 0) < 1) {
+    throw new SenderError('sprinkler_engineering_required');
+  }
   const inventory = loadPlayerInventory(ctx, ctx.sender);
   const planned = planMerchantPurchase(inventory.containers, lines);
   if (!planned.ok) throw new SenderError(planned.code);
@@ -7506,7 +9127,18 @@ function sellMerchantCartTransaction(ctx: WorldReducerContext, lines: readonly M
   if (!planned.ok) throw new SenderError(planned.code);
   const wallet = ctx.db.player_wallet.identity.find(ctx.sender);
   if (wallet === null) throw new SenderError('wallet_not_ready');
-  const nextBalance = wallet.balanceBronze + planned.totalBronze;
+  const home = homesteadForOwner(ctx, ctx.sender);
+  const vintage = estateVintageTier(
+    home === null ? 0 : homesteadUpgradeRank(ctx, home.spaceId, 'estate_vintage'),
+    FERMENTATION_CYCLE_TICKS,
+    120,
+  );
+  const bottleQuantity = lines
+    .filter((line) => line.itemKind === 'bottles')
+    .reduce((total, line) => total + line.quantity, 0);
+  const vintagePremium = BigInt(bottleQuantity * (vintage.sellPriceBronze - 120));
+  const saleTotal = planned.totalBronze + vintagePremium;
+  const nextBalance = wallet.balanceBronze + saleTotal;
   if (nextBalance > (1n << 64n) - 1n) throw new SenderError('wallet_full');
   writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, planned.containers);
   ctx.db.player_wallet.identity.update({ ...wallet, balanceBronze: nextBalance });
@@ -7517,7 +9149,7 @@ function sellMerchantCartTransaction(ctx: WorldReducerContext, lines: readonly M
   for (const line of lines) {
     recordPlayerStatistic(ctx, ctx.sender, 'items_sold', BigInt(line.quantity), authorityTick, line.itemKind);
   }
-  recordPlayerStatistic(ctx, ctx.sender, 'bronze_earned', planned.totalBronze, authorityTick);
+  recordPlayerStatistic(ctx, ctx.sender, 'bronze_earned', saleTotal, authorityTick);
 }
 
 export const buyMerchantItem = spacetimedb.reducer(
@@ -8015,6 +9647,8 @@ export const pickupWorldItem = spacetimedb.reducer(
     const clock = ctx.db.world_clock.id.find(0);
     if (position === null || item === null || clock === null) throw new SenderError('item_not_ready');
     if (worldItemExpiredForRow(item, clock.authorityTick)) throw new SenderError('item_not_ready');
+    if (item.reservedFor !== undefined && item.reservedUntilTick > clock.authorityTick
+      && !item.reservedFor.isEqual(ctx.sender)) throw new SenderError('item_reserved');
     if (item.spaceId !== position.spaceId) throw new SenderError('item_not_ready');
     if (!itemWithinPickupReach(position.x, position.y, item.x, item.y)) throw new SenderError('item_out_of_range');
     const maximum = maxStackFor(item.itemKind);
@@ -8041,6 +9675,9 @@ export const pickupWorldItem = spacetimedb.reducer(
           && candidate.itemKind === item.itemKind
           && candidate.durability === item.durability
           && candidate.lit === item.lit
+          && (candidate.reservedFor === undefined
+            || candidate.reservedUntilTick <= clock.authorityTick
+            || candidate.reservedFor.isEqual(ctx.sender))
           && !worldItemExpiredForRow(candidate, clock.authorityTick)
           && itemWithinPickupReach(position.x, position.y, candidate.x, candidate.y))
         .sort((left, right) => {
@@ -8342,6 +9979,9 @@ export const digCellarTile = spacetimedb.reducer(
     const oreKind = cellarOreKindAt(seed, position.spaceId, tileX, tileY);
     if (oreKind !== null) {
       const resourceId = cellarOreResourceId(position.spaceId, tileX, tileY);
+      const maximumRichness = 1 + statelessRoll(
+        [seed, position.spaceId, tileX, tileY, 'mining.cellar_richness'], MINING_MAX_RICHNESS,
+      );
       if (ctx.db.world_resource.id.find(resourceId) === null) ctx.db.world_resource.insert({
         id: resourceId,
         kind: oreKind,
@@ -8349,11 +9989,23 @@ export const digCellarTile = spacetimedb.reducer(
         tileY,
         chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
         chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
-        health: survivalResourceInitialHealth(oreKind),
+        health: maximumRichness,
         depleted: false,
         growthStage: TREE_GROWTH_STAGE_BIG,
         regrowthProgress: TREE_REGROWTH_PROGRESS_MAX,
         spaceId: position.spaceId,
+        miningClass: 'pure',
+        richness: maximumRichness,
+        maximumRichness,
+        yieldProgress: 0,
+        yieldsProduced: 0,
+        producedOre: false,
+        spawnSiteId: 0n,
+        activationOrdinal: 0,
+        respawnAtTick: 0n,
+        miningClaimedBy: undefined,
+        miningPartyId: undefined,
+        miningClaimUntilTick: 0n,
       });
     }
     dropWorldItemStack(ctx, {
@@ -8369,9 +10021,122 @@ export const digCellarTile = spacetimedb.reducer(
   },
 );
 
-/** The first melee slice deliberately targets only the reusable archery
- * fixture. Authority owns tool, reach, Vigour, durability, stats, and damage;
- * a zero id is an intentional whiff used for responsive free swings. */
+const WILDLIFE_RESPAWN_TICKS = BigInt(10 * 60 * AUTHORITY_HZ);
+
+function collisionForWildlife(
+  ctx: WorldReducerContext,
+  npc: Pick<WorldNpcRow, 'spaceId'>,
+  species: Parameters<typeof wildlifeMovementMedium>[0],
+) {
+  const medium = wildlifeMovementMedium(species);
+  return medium === 'ground'
+    ? collisionForSpace(ctx, npc.spaceId)
+    : createAuthoritySpaceCollisionMap(
+      npc.spaceId,
+      [],
+      [],
+      medium,
+      [],
+      homesteadForSpace(ctx, npc.spaceId),
+    );
+}
+
+function panicNearbyWildlife(
+  ctx: WorldReducerContext,
+  attackedNpc: WorldNpcRow,
+  attackedSpecies: Parameters<typeof wildlifePanicGroup>[0],
+  attacker: WorldReducerContext['sender'],
+  threat: { readonly x: number; readonly y: number },
+  authorityTick: bigint,
+): void {
+  const panicUntilTick = authorityTick + BigInt(WILDLIFE_PANIC_DURATION_TICKS);
+  const panicRadiusSquared = WILDLIFE_PANIC_RADIUS_FIXED * WILDLIFE_PANIC_RADIUS_FIXED;
+  const group = wildlifePanicGroup(attackedSpecies);
+  for (const nearby of ctx.db.world_npc.by_chunk.filter(attackedNpc.spaceId)) {
+    if (nearby.id === attackedNpc.id || nearby.health === 0 || nearby.rider !== undefined) continue;
+    const dx = nearby.x - attackedNpc.x;
+    const dy = nearby.y - attackedNpc.y;
+    if (dx * dx + dy * dy > panicRadiusSquared) continue;
+    const profile = ctx.db.world_wildlife_profile.npcId.find(nearby.id);
+    if (profile === null || !isWildlifeSpecies(profile.species)
+      || wildlifePanicGroup(profile.species) !== group) continue;
+    updateWorldNpc(ctx, {
+      ...nearby,
+      moving: true,
+      wanderDirection: 'panic',
+      nextDecisionTick: panicUntilTick,
+      authorityTick,
+      panicUntilTick: nearby.panicUntilTick !== undefined && nearby.panicUntilTick > panicUntilTick
+        ? nearby.panicUntilTick
+        : panicUntilTick,
+      panicSource: attacker,
+      panicSourceX: threat.x,
+      panicSourceY: threat.y,
+    });
+  }
+}
+
+function damageHuntableWildlife(
+  ctx: WorldReducerContext,
+  npc: WorldNpcRow,
+  attacker: WorldReducerContext['sender'],
+  damageCenti: number,
+  critical: boolean,
+  authorityTick: bigint,
+): number {
+  const profile = ctx.db.world_wildlife_profile.npcId.find(npc.id);
+  if (profile === null || !isWildlifeSpecies(profile.species) || !wildlifeIsHuntable(profile.species)
+    || npc.health === 0) return 0;
+  const damage = Math.max(1, Math.ceil(damageCenti / 100));
+  const nextHealth = Math.max(0, npc.health - damage);
+  const applied = npc.health - nextHealth;
+  const attackerPosition = ctx.db.player_position.identity.find(attacker);
+  const threat = attackerPosition !== null && attackerPosition.spaceId === npc.spaceId
+    ? { x: attackerPosition.x, y: attackerPosition.y }
+    : { x: npc.x - FIXED_UNITS_PER_PIXEL, y: npc.y };
+  const knocked = knockbackWildlife({ x: npc.x, y: npc.y }, {
+    species: profile.species,
+    collision: collisionForWildlife(ctx, npc, profile.species),
+    threat,
+    seed: ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED,
+  });
+  const panicUntilTick = authorityTick + BigInt(WILDLIFE_PANIC_DURATION_TICKS);
+  updateWorldNpc(ctx, {
+    ...npc,
+    x: knocked.x,
+    y: knocked.y,
+    chunkX: chunkAt(knocked.x),
+    chunkY: chunkAt(knocked.y),
+    health: nextHealth,
+    moving: nextHealth !== 0,
+    wanderDirection: nextHealth === 0 ? 'defeated' : 'panic',
+    nextDecisionTick: nextHealth === 0 ? authorityTick + WILDLIFE_RESPAWN_TICKS : panicUntilTick,
+    authorityTick,
+    lastHitCritical: critical,
+    panicUntilTick: nextHealth === 0 ? undefined : panicUntilTick,
+    panicSource: nextHealth === 0 ? undefined : attacker,
+    panicSourceX: threat.x,
+    panicSourceY: threat.y,
+  });
+  panicNearbyWildlife(ctx, npc, profile.species, attacker, threat, authorityTick);
+  recordPlayerStatistic(ctx, attacker, 'damage_dealt', BigInt(applied * 100), authorityTick, profile.species);
+  if (nextHealth === 0) {
+    for (const drop of wildlifeFoodDrops(profile.species)) dropWorldItemStack(ctx, {
+      ...drop,
+      x: knocked.x,
+      y: knocked.y,
+      droppedAtTick: authorityTick,
+      durability: 0,
+      spaceId: npc.spaceId,
+    });
+    grantSkillExperience(ctx, attacker, 'combat', wildlifeCombatExperience(profile.species));
+    recordPlayerStatistic(ctx, attacker, 'animals_hunted', 1n, authorityTick, profile.species);
+  }
+  return applied;
+}
+
+/** Authority owns tool, reach, Vigour, durability, stats, and damage; a zero
+ * id remains an intentional whiff used for responsive free swings. */
 export const attackCombatTarget = spacetimedb.reducer(
   { targetId: t.u64() },
   (ctx, { targetId }) => {
@@ -8398,13 +10163,17 @@ export const attackCombatTarget = spacetimedb.reducer(
     }
 
     const storedTarget = ctx.db.world_combat_target.id.find(targetId);
-    if (storedTarget === null || storedTarget.kind !== ARCHERY_TARGET_KIND
-      || storedTarget.spaceId !== position.spaceId || storedTarget.carriedBy !== undefined) {
+    const wildlife = storedTarget === null ? ctx.db.world_npc.id.find(targetId) : null;
+    const profile = wildlife === null ? null : ctx.db.world_wildlife_profile.npcId.find(wildlife.id);
+    const validWildlife = wildlife !== null && wildlife.spaceId === position.spaceId && wildlife.health > 0
+      && profile !== null && isWildlifeSpecies(profile.species) && wildlifeIsHuntable(profile.species);
+    if ((storedTarget === null || storedTarget.kind !== ARCHERY_TARGET_KIND
+      || storedTarget.spaceId !== position.spaceId || storedTarget.carriedBy !== undefined) && !validWildlife) {
       throw new SenderError('target_not_ready');
     }
-    const tile = combatTargetTile(storedTarget);
-    const targetX = tile.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-    const targetY = tile.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const tile = storedTarget === null ? null : combatTargetTile(storedTarget);
+    const targetX = wildlife?.x ?? (tile!.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2);
+    const targetY = wildlife?.y ?? (tile!.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2);
     const swingFacing = decodeDirection(position.facing);
     if (swingFacing === undefined || swingFacing === null) throw new SenderError('invalid_facing');
     if (!forwardSwingTargetInReach(
@@ -8420,7 +10189,6 @@ export const attackCombatTarget = spacetimedb.reducer(
       actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
     });
 
-    const target = regenerateCombatTarget(ctx, storedTarget, clock.authorityTick);
     const statsRow = advancePlayerStats(ctx, ctx.sender, clock.authorityTick);
     const modifiers = activePlayerModifiers(ctx, ctx.sender, clock.authorityTick);
     const resolved = resolveStats({
@@ -8434,9 +10202,18 @@ export const attackCombatTarget = spacetimedb.reducer(
       scalingAttribute: resolved.attributes.str,
       armorCenti: 0,
       armorPctBasisPoints: 0,
-      seedParts: [seed, ctx.sender.toHexString(), clock.authorityTick, target.id, 'sword'],
+      seedParts: [seed, ctx.sender.toHexString(), clock.authorityTick, targetId, 'sword'],
       attackerModifiers: modifiers,
     });
+    if (validWildlife && wildlife !== null) {
+      damageHuntableWildlife(
+        ctx, wildlife, ctx.sender, damage.damageCenti, damage.critical, clock.authorityTick,
+      );
+      wearInventoryTool(ctx, slot, 1);
+      recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, 'sword');
+      return;
+    }
+    const target = regenerateCombatTarget(ctx, storedTarget!, clock.authorityTick);
     const nextHealth = Math.max(1, target.healthCenti - damage.damageCenti);
     const appliedDamage = target.healthCenti - nextHealth;
     if (appliedDamage > 0) {
@@ -8506,6 +10283,116 @@ export const harvestResource = spacetimedb.reducer(
       actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
     });
 
+    if (isMineableOreKind(resource.kind) || isBreakableRockKind(resource.kind)) {
+      const nodeClass = miningClassForResource(resource);
+      const miningKind = isMineableOreKind(resource.kind)
+        ? resource.kind as MiningOreResourceKind
+        : 'rock_large';
+      if (miningPickaxeTierForItem(slot.itemKind) < miningRequiredPickaxeTier(miningKind, nodeClass)) {
+        throw new SenderError('pickaxe_tier_too_low');
+      }
+      const ranks = playerSkillRanks(ctx, ctx.sender);
+      const partyId = playerPartyId(ctx, ctx.sender);
+      const activeClaim = resource.miningClaimedBy !== undefined
+        && resource.miningClaimUntilTick > clock.authorityTick;
+      const ownsSoloClaim = activeClaim && resource.miningClaimedBy?.isEqual(ctx.sender) === true;
+      const sharesPartyClaim = activeClaim && resource.miningPartyId !== undefined
+        && partyId !== undefined && resource.miningPartyId === partyId;
+      if (activeClaim && !ownsSoloClaim && !sharesPartyClaim) {
+        throw new SenderError('mining_claimed_by_other_party');
+      }
+      const continuingClaim = activeClaim && (ownsSoloClaim || sharesPartyClaim);
+      const work = miningWorkPerHit(ranks.efficient_strikes ?? 0);
+      const accumulatedWork = (continuingClaim ? resource.yieldProgress : 0) + work;
+      const claim = {
+        miningClaimedBy: continuingClaim ? resource.miningClaimedBy : ctx.sender,
+        miningPartyId: continuingClaim ? resource.miningPartyId : partyId,
+        miningClaimUntilTick: clock.authorityTick + MINING_CLAIM_TICKS,
+      };
+      wearInventoryTool(ctx, slot);
+      recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
+      recordPlayerStatistic(ctx, ctx.sender, 'resource_hits', 1n, clock.authorityTick, resource.kind);
+      if (accumulatedWork < MINING_YIELD_WORK) {
+        ctx.db.world_resource.id.update({ ...resource, ...claim, yieldProgress: accumulatedWork });
+        return;
+      }
+
+      const maximumRichness = resource.maximumRichness > 0
+        ? resource.maximumRichness
+        : Math.max(1, Math.min(MINING_MAX_RICHNESS, resource.health));
+      const richness = resource.richness > 0 ? resource.richness : Math.max(1, resource.health);
+      const resolved = resolveMiningYield({
+        kind: miningKind,
+        nodeClass,
+        richnessRemaining: richness,
+        maximumRichness,
+        yieldsProduced: resource.yieldsProduced,
+        producedOre: resource.producedOre,
+      }, [
+        ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED,
+        resource.id,
+        resource.activationOrdinal,
+        resource.yieldsProduced,
+        ctx.sender.toHexString(),
+      ], ranks.ore_dressing ?? 0, ranks.rockhound ?? 0, ranks.mother_lode ?? 0);
+      const nextRichness = Math.max(0, richness - 1);
+      const depleted = nextRichness === 0;
+      ctx.db.world_resource.id.update({
+        ...resource,
+        miningClass: nodeClass,
+        health: nextRichness,
+        depleted,
+        richness: nextRichness,
+        maximumRichness,
+        yieldProgress: Math.max(0, accumulatedWork - MINING_YIELD_WORK),
+        yieldsProduced: resource.yieldsProduced + 1,
+        producedOre: resource.producedOre || resolved.producedOre,
+        respawnAtTick: depleted
+          ? clock.authorityTick + miningRespawnDelayTicks(nodeClass, [
+            resource.id, resource.activationOrdinal, resource.yieldsProduced,
+          ])
+          : 0n,
+        miningClaimedBy: depleted ? undefined : claim.miningClaimedBy,
+        miningPartyId: depleted ? undefined : claim.miningPartyId,
+        miningClaimUntilTick: depleted ? 0n : claim.miningClaimUntilTick,
+      });
+      if (depleted) {
+        recordPlayerStatistic(ctx, ctx.sender, 'resources_depleted', 1n, clock.authorityTick, resource.kind);
+        if (isBreakableRockKind(resource.kind)) {
+          recordPlayerStatistic(ctx, ctx.sender, 'rocks_broken', 1n, clock.authorityTick);
+        } else {
+          recordPlayerStatistic(ctx, ctx.sender, 'ore_nodes_depleted', 1n, clock.authorityTick, resource.kind);
+        }
+      }
+      const itemX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 + 10 * FIXED_UNITS_PER_PIXEL;
+      const itemY = (resource.tileY + 1) * TILE_SIZE_FIXED + 3 * FIXED_UNITS_PER_PIXEL;
+      for (const [index, drop] of resolved.drops.entries()) {
+        dropWorldItemStack(ctx, {
+          itemKind: drop.itemKind,
+          quantity: drop.quantity,
+          x: itemX + index * 4 * FIXED_UNITS_PER_PIXEL,
+          y: itemY,
+          droppedAtTick: clock.authorityTick,
+          durability: 0,
+          spaceId: resource.spaceId,
+          reservedFor: ctx.sender,
+          reservedUntilTick: clock.authorityTick + MINING_DROP_RESERVATION_TICKS,
+        });
+        recordPlayerStatistic(
+          ctx, ctx.sender, 'items_obtained', BigInt(drop.quantity), clock.authorityTick, drop.itemKind,
+        );
+      }
+      const payoutExperience = nodeClass === 'rock' ? 2n
+        : nodeClass === 'mixed' ? (resolved.producedOre ? 6n : 3n) : 10n;
+      grantSkillExperience(
+        ctx,
+        ctx.sender,
+        'explorer',
+        payoutExperience + (depleted ? BigInt(maximumRichness) : 0n),
+      );
+      return;
+    }
+
     const nextHealth = Math.max(0, resource.health - 1);
     const treeGrowthStage = normalizeTreeGrowthStage(resource.growthStage);
     ctx.db.world_resource.id.update({
@@ -8546,6 +10433,9 @@ export const harvestResource = spacetimedb.reducer(
         durability: 0,
         spaceId: resource.spaceId,
       });
+      if (itemHasTag(drop.itemKind, 'crop.fruit')) {
+        grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(drop.quantity * 2));
+      }
     }
   },
 );
@@ -8771,6 +10661,8 @@ export const useFarmTool = spacetimedb.reducer(
     if (!isVitalsToolKind(selectedItem)) throw new SenderError('wrong_tool');
     const id = worldSoilId(position.spaceId, tileX, tileY);
     const soil = ctx.db.world_soil.id.find(id);
+    const cropRow = ctx.db.world_crop.id.find(id);
+    const uprootingCrop = selectedItem === 'hoe' && soil !== null && cropRow !== null;
     const farmCollision = collisionForSpace(ctx, position.spaceId);
     const occupied = tilePlacementResult(
       position.x,
@@ -8780,20 +10672,25 @@ export const useFarmTool = spacetimedb.reducer(
       farmCollision,
       tileOverlapsAnyPlayer(ctx, position.spaceId, tileX, tileY),
     ) === 'tile_blocked';
-    const result = farmToolUseResult(
-      seed.seed,
-      position.x,
-      position.y,
-      selectedItem,
-      tileX,
-      tileY,
-      soil === null ? null : {
-        watered: soil.watered && clock.authorityTick < soil.wateredAtTick + CROP_WATERING_TICKS,
-      },
-      occupied,
-      position.spaceId === TOPSIDE_SPACE_ID ? undefined : true,
-    );
+    const result = uprootingCrop
+      ? farmSoilRestoreResult(position.x, position.y, selectedItem, tileX, tileY, soil)
+      : farmToolUseResult(
+        seed.seed,
+        position.x,
+        position.y,
+        selectedItem,
+        tileX,
+        tileY,
+        soil === null ? null : {
+          watered: soil.watered && clock.authorityTick < soil.wateredAtTick + CROP_WATERING_TICKS,
+        },
+        occupied,
+        position.spaceId === TOPSIDE_SPACE_ID ? undefined : true,
+      );
     if (result !== 'ok') throw new SenderError(result);
+    if (uprootingCrop && cropRow !== null && !cropRow.owner.isEqual(ctx.sender)) {
+      throw new SenderError('owner_only_crop_uproot');
+    }
     spendToolVigour(ctx, ctx.sender, selectedItem, clock.authorityTick, false);
     const toolFacing = directionFromAim(
       tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.x,
@@ -8801,37 +10698,47 @@ export const useFarmTool = spacetimedb.reducer(
     );
 
     if (selectedItem === 'hoe') {
-      const insertedSoil = ctx.db.world_soil.insert({
-        id,
-        tileX,
-        tileY,
-        chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
-        chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
-        watered: false,
-        tilledAtTick: clock.authorityTick,
-        wateredAtTick: 0n,
-        spaceId: position.spaceId,
-      });
-      scheduleEmptyTopsideSoilDecay(ctx, insertedSoil, clock.authorityTick);
-      if (fiberDropsFromTilling(seed.seed, position.spaceId, tileX, tileY, clock.authorityTick)) {
-        if (!insertPlayerCarriedItem(ctx, 'fiber', 1)) {
-          const x = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-          const y = tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-          dropWorldItemStack(ctx, {
-            itemKind: 'fiber',
-            quantity: 1,
-            x,
-            y,
-            droppedAtTick: clock.authorityTick,
-            durability: 0,
-            spaceId: position.spaceId,
-          });
+      if (uprootingCrop && cropRow !== null && soil !== null) {
+        ctx.db.world_crop.id.delete(cropRow.id);
+        const refreshedSoil = ctx.db.world_soil.id.update({
+          ...soil,
+          tilledAtTick: clock.authorityTick,
+        });
+        scheduleEmptyTopsideSoilDecay(ctx, refreshedSoil, clock.authorityTick);
+      } else {
+        const insertedSoil = ctx.db.world_soil.insert({
+          id,
+          tileX,
+          tileY,
+          chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
+          chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
+          watered: false,
+          tilledAtTick: clock.authorityTick,
+          wateredAtTick: 0n,
+          spaceId: position.spaceId,
+        });
+        scheduleEmptyTopsideSoilDecay(ctx, insertedSoil, clock.authorityTick);
+        if (fiberDropsFromTilling(seed.seed, position.spaceId, tileX, tileY, clock.authorityTick)) {
+          if (!insertPlayerCarriedItem(ctx, 'fiber', 1)) {
+            const x = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+            const y = tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+            dropWorldItemStack(ctx, {
+              itemKind: 'fiber',
+              quantity: 1,
+              x,
+              y,
+              droppedAtTick: clock.authorityTick,
+              durability: 0,
+              spaceId: position.spaceId,
+            });
+          }
+          recordPlayerStatistic(ctx, ctx.sender, 'items_obtained', 1n, clock.authorityTick, 'fiber');
         }
-        recordPlayerStatistic(ctx, ctx.sender, 'items_obtained', 1n, clock.authorityTick, 'fiber');
       }
     } else if (soil !== null) {
-      const cropRow = ctx.db.world_crop.id.find(id);
-      const definition = cropRow === null ? null : cropDefinition(cropRow.cropKind);
+      const definition = cropRow === null
+        ? null
+        : cropDefinitionForHomestead(ctx, position.spaceId, cropRow.cropKind);
       if (cropRow !== null && definition !== null) {
         const settled = cropGrowthAt(
           definition,
@@ -8840,6 +10747,9 @@ export const useFarmTool = spacetimedb.reducer(
           soil.wateredAtTick,
           clock.authorityTick,
           soil.watered,
+          cropAutomaticallyWatered(ctx, position.spaceId, cropRow.tileX, cropRow.tileY),
+          cropCalendarOffset(ctx),
+          cropGreenhouseProtected(ctx, position.spaceId),
         );
         ctx.db.world_crop.id.update({
           ...cropRow,
@@ -8853,6 +10763,26 @@ export const useFarmTool = spacetimedb.reducer(
         wateredAtTick: clock.authorityTick,
       });
       scheduleEmptyTopsideSoilDecay(ctx, wateredSoil, clock.authorityTick);
+      if (cropRow?.cropKind === FARMER_BOB_FAST_STRAWBERRY_CROP) {
+        const quest = ctx.db.player_quest.id.find(playerQuestId(
+          ctx.sender.toHexString(),
+          FARMER_BOB_STRAWBERRY_QUEST_ID,
+        ));
+        const flag = 'farmer_bob_fast_strawberries_watered';
+        const flagId = JSON.stringify([ctx.sender.toHexString(), flag]);
+        if (quest?.state === 'active' && ctx.db.player_quest_flag.id.find(flagId) === null) {
+          ctx.db.player_quest_flag.insert({ id: flagId, identity: ctx.sender, flag });
+          const thought = {
+            identity: ctx.sender,
+            body: 'Whoa! These really do grow fast.',
+            tone: 'thought',
+            issuedTick: clock.authorityTick,
+            expiresTick: clock.authorityTick + BigInt(AUTHORITY_HZ * 6),
+          };
+          if (ctx.db.player_thought.identity.find(ctx.sender) === null) ctx.db.player_thought.insert(thought);
+          else ctx.db.player_thought.identity.update(thought);
+        }
+      }
     }
     ctx.db.player_position.identity.update({
       ...position,
@@ -8862,13 +10792,18 @@ export const useFarmTool = spacetimedb.reducer(
     });
     wearInventoryTool(ctx, slot);
     recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selectedItem);
-    recordPlayerStatistic(
-      ctx,
-      ctx.sender,
-      selectedItem === 'hoe' ? 'farm_tiles_tilled' : 'farm_tiles_watered',
-      1n,
-      clock.authorityTick,
-    );
+    if (uprootingCrop && cropRow !== null) {
+      recordPlayerStatistic(ctx, ctx.sender, 'crops_uprooted', 1n, clock.authorityTick, cropRow.cropKind);
+    } else {
+      recordPlayerStatistic(
+        ctx,
+        ctx.sender,
+        selectedItem === 'hoe' ? 'farm_tiles_tilled' : 'farm_tiles_watered',
+        1n,
+        clock.authorityTick,
+      );
+      grantSkillExperience(ctx, ctx.sender, 'farming', selectedItem === 'hoe' ? 2n : 1n);
+    }
   },
 );
 
@@ -8939,7 +10874,8 @@ export const useCropTile = spacetimedb.reducer(
 
     if (existing === null) {
       const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      const definition = cropDefinitionForSeed(slot?.itemKind ?? 'empty');
+      const seedItemKind = slot?.itemKind ?? 'empty';
+      const definition = cropDefinitionForSeed(seedItemKind);
       if (definition === null || slot === null || slot.quantity <= 0) throw new SenderError('select_seed_packet');
       const nextQuantity = slot.quantity - 1;
       ctx.db.inventory_slot.id.update({
@@ -8951,8 +10887,8 @@ export const useCropTile = spacetimedb.reducer(
       });
       ctx.db.world_crop.insert({
         id,
-        owner: ctx.sender,
-        cropKind: definition.kind,
+        owner: homesteadForSpace(ctx, position.spaceId)?.owner ?? ctx.sender,
+        cropKind: cropStoredKindForSeed(seedItemKind, definition),
         tileX,
         tileY,
         chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
@@ -8964,11 +10900,13 @@ export const useCropTile = spacetimedb.reducer(
       });
       ctx.db.farm_activity.identity.update({ ...activity, planted: activity.planted + 1 });
       recordPlayerStatistic(ctx, ctx.sender, 'crops_planted', 1n, clock.authorityTick, definition.kind);
+      grantSkillExperience(ctx, ctx.sender, 'farming', 2n);
       return;
     }
 
-    if (!existing.owner.isEqual(ctx.sender)) throw new SenderError('owner_only_harvest');
-    const definition = cropDefinition(existing.cropKind);
+    const cropHome = homesteadForSpace(ctx, position.spaceId);
+    if (cropHome === null && !existing.owner.isEqual(ctx.sender)) throw new SenderError('owner_only_harvest');
+    const definition = cropDefinitionForHomestead(ctx, position.spaceId, existing.cropKind);
     if (definition === null) throw new SenderError('unknown_crop_kind');
     const growth = cropGrowthAt(
       definition,
@@ -8977,10 +10915,31 @@ export const useCropTile = spacetimedb.reducer(
       soil.wateredAtTick,
       clock.authorityTick,
       soil.watered,
+      cropAutomaticallyWatered(ctx, position.spaceId, existing.tileX, existing.tileY),
+      cropCalendarOffset(ctx),
+      cropGreenhouseProtected(ctx, position.spaceId),
     );
     if (!growth.mature) throw new SenderError('crop_still_growing');
-    if (!insertPlayerCarriedItem(ctx, definition.harvestItemKind, definition.harvestQuantity)) {
-      throw new SenderError('inventory_full');
+    const selectiveSeedsRank = homesteadUpgradeRank(ctx, position.spaceId, 'selective_seeds');
+    const harvestQuantity = selectiveSeedHarvestQuantity(
+      definition.harvestQuantity,
+      selectiveSeedsRank,
+      Number((existing.plantedAtTick
+        + BigInt(Math.abs(existing.tileX * 73_856_093 ^ existing.tileY * 19_349_663))) % 10n),
+    );
+    const harvestRecipient = cropHome?.owner ?? ctx.sender;
+    if (harvestRecipient.isEqual(ctx.sender)) {
+      if (!insertPlayerCarriedItem(ctx, definition.harvestItemKind, harvestQuantity)) {
+        throw new SenderError('inventory_full');
+      }
+    } else {
+      insertEscrowStacksIntoInventory(ctx, harvestRecipient, [{
+        id: `homestead-harvest:${existing.id}:${clock.authorityTick}`,
+        itemKind: definition.harvestItemKind,
+        quantity: harvestQuantity,
+        durability: 0,
+        lit: true,
+      }], true);
     }
     ctx.db.world_crop.id.delete(id);
     const refreshedSoil = ctx.db.world_soil.id.update({
@@ -8994,12 +10953,13 @@ export const useCropTile = spacetimedb.reducer(
     recordPlayerStatistic(ctx, ctx.sender, 'crops_harvested', 1n, clock.authorityTick, definition.kind);
     recordPlayerStatistic(
       ctx,
-      ctx.sender,
+      harvestRecipient,
       'items_obtained',
-      BigInt(definition.harvestQuantity),
+      BigInt(harvestQuantity),
       clock.authorityTick,
       definition.harvestItemKind,
     );
+    grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(8 + harvestQuantity));
   },
 );
 
@@ -9134,6 +11094,7 @@ export const stepWorld = spacetimedb.reducer(
       else ctx.db.world_seed.id.update(nextWorld);
     }
     ensureSoilDecayTimers(ctx, clock.authorityTick);
+    ensureMiningMigration(ctx);
     let environment = ctx.db.world_environment.id.find(0);
     if (environment === null) {
       environment = ctx.db.world_environment.insert({
@@ -9264,6 +11225,7 @@ export const stepWorld = spacetimedb.reducer(
     const calendarTick = environment.calendarTick + 1n;
     ctx.db.world_environment.id.update({ ...environment, calendarTick });
     recordTickRowTouch(updateCounters, undefined, 2);
+    respawnMiningResources(ctx, authorityTick);
     if (authorityTick % BigInt(TREE_REGROWTH_SWEEP_TICKS) === 0n) {
       const weatherMode = isWeatherMode(environment.weatherMode) ? environment.weatherMode : 'auto';
       const raining = rainForWeatherMode(weatherMode, calendarTick);
@@ -9308,6 +11270,13 @@ export const stepWorld = spacetimedb.reducer(
       if (effect.expiresTick > authorityTick) continue;
       ctx.db.player_effect.id.delete(effect.id);
       recordTickRowTouch(updateCounters);
+    }
+    if (authorityTick % BigInt(AUTHORITY_HZ) === 0n) {
+      for (const invite of ctx.db.player_party_invite.iter()) {
+        if (invite.expiresTick > authorityTick) continue;
+        ctx.db.player_party_invite.id.delete(invite.id);
+        recordTickRowTouch(updateCounters);
+      }
     }
     for (const item of ctx.db.world_item.iter()) {
       if (!worldItemExpiredForRow(item, authorityTick)) continue;
@@ -9403,15 +11372,18 @@ export const stepWorld = spacetimedb.reducer(
     const onlinePlayerByIdentity = new Map<string, PlayerPositionRow>();
     for (const presence of activePresences) {
       let player = ctx.db.player_position.identity.find(presence.identity);
-      if (player !== null && ctx.db.homestead.spaceId.find(player.spaceId) !== null) {
+      const playerHome = player === null ? null : ctx.db.homestead.spaceId.find(player.spaceId);
+      if (player !== null && playerHome !== null) {
         const tileX = Math.floor(player.x / TILE_SIZE_FIXED);
         const tileY = Math.floor(player.y / TILE_SIZE_FIXED);
+        const homesteadSize = spaceDefinitionFor(player.spaceId, playerHome)?.sizeTiles;
+        const plotBounds = homesteadPlotBounds(homesteadSize);
         // Recover only genuinely stranded legacy positions. Fence contact is
         // resolved by ordinary movement collision; teleporting on contact made
         // the closed gate feel like a rubber band.
-        if (!homesteadPlayableTile(tileX, tileY)
-          && (tileX < HOMESTEAD_PLOT_MIN_TILE - 1 || tileX > HOMESTEAD_PLOT_MAX_TILE + 1
-            || tileY < HOMESTEAD_PLOT_MIN_TILE - 1 || tileY > HOMESTEAD_PLOT_MAX_TILE + 1)) {
+        if (!homesteadPlayableTile(tileX, tileY, homesteadSize)
+          && (tileX < plotBounds.minimumX - 1 || tileX > plotBounds.maximumX + 1
+            || tileY < plotBounds.minimumY - 1 || tileY > plotBounds.maximumY + 1)) {
           teleportPlayer(
             ctx,
             player,
@@ -9511,6 +11483,9 @@ export const stepWorld = spacetimedb.reducer(
       }
       for (const npc of ctx.db.world_npc.by_chunk.filter(projectile.spaceId)) {
         if (npc.rider?.isEqual(projectile.owner) === true) continue;
+        const profile = ctx.db.world_wildlife_profile.npcId.find(npc.id);
+        if (npc.health === 0 || profile === null || !isWildlifeSpecies(profile.species)
+          || !wildlifeIsHuntable(profile.species)) continue;
         targets.push({
         kind: 'npc', id: npc.id.toString(),
         left: npc.x - 7 * FIXED_UNITS_PER_PIXEL,
@@ -9594,6 +11569,37 @@ export const stepWorld = spacetimedb.reducer(
                 ctx, projectile.owner, 'damage_dealt', BigInt(appliedDamage), authorityTick, target.kind,
               );
             }
+          }
+        } else if (hit.kind === 'npc') {
+          const npc = ctx.db.world_npc.id.find(BigInt(hit.id));
+          if (npc !== null && npc.spaceId === projectile.spaceId && npc.health > 0) {
+            const statsRow = advancePlayerStats(ctx, projectile.owner, authorityTick);
+            const modifiers = activePlayerModifiers(ctx, projectile.owner, authorityTick);
+            const resolved = resolveStats({
+              str: statsRow.str, dex: statsRow.dex, con: statsRow.con,
+              int: statsRow.int, wis: statsRow.wis, cha: statsRow.cha,
+            }, modifiers);
+            const seed = ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED;
+            const damage = resolveCombatDamage({
+              attackKind: 'ranged',
+              weaponBaseCenti: BOW_BASE_DAMAGE_CENTI,
+              scalingAttribute: resolved.attributes.dex,
+              armorCenti: 0,
+              armorPctBasisPoints: 0,
+              seedParts: [seed, projectile.owner.toHexString(), authorityTick, projectile.id, 'bow-wildlife'],
+              attackerModifiers: modifiers,
+            });
+            damageHuntableWildlife(
+              ctx,
+              npc,
+              projectile.owner,
+              bowChargeScaledDamageCenti(
+                damage.damageCenti,
+                ctx.db.projectile_charge.projectileId.find(projectile.id)?.chargeMs ?? 0,
+              ),
+              damage.critical,
+              authorityTick,
+            );
           }
         }
         ctx.db.world_projectile.id.update({
@@ -9715,6 +11721,11 @@ export const stepWorld = spacetimedb.reducer(
             vigourRemainder: 0,
             regenTick: authorityTick,
           });
+          spendPlayerHunger(
+            ctx,
+            row.identity,
+            hungerCostForSprintVigour(sprintCostCenti),
+          );
         }
         const creditedThisTick = settledThisTick;
         const remainingSettleSteps = drained.pendingSteps;
@@ -9906,6 +11917,67 @@ export const stepWorld = spacetimedb.reducer(
       }
 
       if (wildlifeProfile !== undefined && isWildlifeSpecies(wildlifeProfile.species)) {
+        if (npc.health === 0) {
+          if (authorityTick < npc.nextDecisionTick) continue;
+          const health = Math.ceil(resolveCreatureStats(wildlifeProfile.species).maxHealthCenti / 100);
+          updateWorldNpc(ctx, {
+            ...npc,
+            x: npc.homeX,
+            y: npc.homeY,
+            chunkX: chunkAt(npc.homeX),
+            chunkY: chunkAt(npc.homeY),
+            health,
+            moving: false,
+            wanderDirection: 'rest',
+            nextDecisionTick: authorityTick + 60n,
+            authorityTick,
+            panicUntilTick: undefined,
+            panicSource: undefined,
+          });
+          recordTickRowTouch(updateCounters, 'npcUpdates');
+          continue;
+        }
+        if (npc.panicUntilTick !== undefined && authorityTick < npc.panicUntilTick) {
+          const liveThreat = npc.panicSource === undefined
+            ? null
+            : ctx.db.player_position.identity.find(npc.panicSource);
+          const threat = liveThreat !== null && liveThreat.spaceId === npc.spaceId
+            ? { x: liveThreat.x, y: liveThreat.y }
+            : { x: npc.panicSourceX, y: npc.panicSourceY };
+          const stepped = stepPanickedWildlife({
+            id: npc.id,
+            position: { x: npc.x, y: npc.y },
+            home: { x: npc.homeX, y: npc.homeY },
+            facing: parseNpcFacing(npc.facing),
+            moving: npc.moving,
+            activity: npc.wanderDirection,
+            nextDecisionTick: Number(npc.nextDecisionTick),
+          }, {
+            species: wildlifeProfile.species,
+            seed: wildlifeSeed,
+            authorityTick: Number(authorityTick),
+            collision: wildlifeMovementMedium(wildlifeProfile.species) === 'water'
+              ? waterCollision
+              : collision,
+            threat,
+          });
+          if (stepped.position.x === npc.x && stepped.position.y === npc.y
+            && stepped.facing === npc.facing && stepped.moving === npc.moving
+            && stepped.activity === npc.wanderDirection) continue;
+          updateWorldNpc(ctx, {
+            ...npc,
+            x: stepped.position.x,
+            y: stepped.position.y,
+            chunkX: chunkAt(stepped.position.x),
+            chunkY: chunkAt(stepped.position.y),
+            facing: stepped.facing,
+            moving: stepped.moving,
+            wanderDirection: stepped.activity,
+            authorityTick,
+          });
+          recordTickRowTouch(updateCounters, 'npcUpdates');
+          continue;
+        }
         if (!wildlifeActivityNearPlayers(npc.chunkX, npc.chunkY, wildlifePlayerChunks)) continue;
         const stepped = stepAmbientWildlife({
           id: npc.id,
@@ -9927,7 +11999,8 @@ export const stepWorld = spacetimedb.reducer(
         if (stepped.position.x === npc.x && stepped.position.y === npc.y
           && stepped.facing === npc.facing && stepped.moving === npc.moving
           && stepped.activity === npc.wanderDirection
-          && BigInt(stepped.nextDecisionTick) === npc.nextDecisionTick) continue;
+          && BigInt(stepped.nextDecisionTick) === npc.nextDecisionTick
+          && npc.panicUntilTick === undefined) continue;
         updateWorldNpc(ctx, {
           ...npc,
           x: stepped.position.x,
@@ -9939,6 +12012,8 @@ export const stepWorld = spacetimedb.reducer(
           wanderDirection: stepped.activity,
           nextDecisionTick: BigInt(stepped.nextDecisionTick),
           authorityTick,
+          panicUntilTick: undefined,
+          panicSource: undefined,
         });
         recordTickRowTouch(updateCounters, 'npcUpdates');
         continue;
@@ -9947,9 +12022,14 @@ export const stepWorld = spacetimedb.reducer(
       const marlowFire = npc.id === TOOL_MERCHANT_ID
         ? ctx.db.world_campfire_state.id.find(MARLOW_CAMPFIRE_ID)
         : null;
+      const marlowCookingFire = npc.id === TOOL_MERCHANT_ID
+        ? ctx.db.world_placeable.id.find(MARLOW_CAMPFIRE_ID)
+        : null;
+      const marlowDesiredFireLit = marlowCampfireShouldBeLit(calendarTick);
       const marlowReturningToFire = marlowFire !== null
         && !marlowFire.manualOverride
-        && marlowFire.lit !== marlowCampfireShouldBeLit(calendarTick);
+        && (marlowFire.lit !== marlowDesiredFireLit
+          || marlowCookingFire?.lit !== marlowDesiredFireLit);
       const marlowTarget = {
         x: MARLOW_CAMPFIRE_TILE.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
         y: MARLOW_CAMPFIRE_TILE.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
@@ -9958,10 +12038,14 @@ export const stepWorld = spacetimedb.reducer(
         const dx = marlowTarget.x - npc.x;
         const dy = marlowTarget.y - npc.y;
         if (dx * dx + dy * dy <= NPC_INTERACTION_REACH_FIXED * NPC_INTERACTION_REACH_FIXED) {
-          ctx.db.world_campfire_state.id.update({
+          if (marlowFire.lit !== marlowDesiredFireLit) ctx.db.world_campfire_state.id.update({
             ...marlowFire,
-            lit: marlowCampfireShouldBeLit(calendarTick),
+            lit: marlowDesiredFireLit,
           });
+          if (marlowCookingFire !== null && marlowCookingFire.lit !== marlowDesiredFireLit) {
+            ctx.db.world_placeable.id.update({ ...marlowCookingFire, lit: marlowDesiredFireLit });
+            settleCookingFirePlaceable(ctx, { ...marlowCookingFire, lit: marlowDesiredFireLit });
+          }
         }
       }
       const wanderingState = {

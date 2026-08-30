@@ -415,6 +415,12 @@ export function rasterizeLightOcclusion(
     for (let y = minY; y <= maxY; y += 1) for (let x = minX; x <= maxX; x += 1) {
       const index = y * width + x;
       if (target[index] === LIGHT_HARD_BLOCKER) continue;
+      // Column casters still use the ordinary opaque visibility blocker: the
+      // obstacle above is only the collision-width trunk base, and symmetric
+      // shadowcasting fills the complete umbra between its boundary rays.
+      // LIGHT_TRUNK_BLOCKER is the legacy ray-stamped fallback for callers
+      // without an explicit shadow mode; routing columns through it produces
+      // visibly hollow, parallel shadow lines at oblique light angles.
       const blocker = trunk.shadowMode === 'column' ? LIGHT_SPRITE_BLOCKER : LIGHT_TRUNK_BLOCKER;
       if (target[index] === LIGHT_SPRITE_BLOCKER && blocker !== LIGHT_SPRITE_BLOCKER) continue;
       if (target[index] !== blocker && trunkCellIndices !== null

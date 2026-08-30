@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  OFFLINE_AVATAR_FILTER,
   worldPlayerIsOffline,
   worldPlayerParticipatesInCollision,
 } from './player-presence.js';
@@ -17,6 +16,5 @@ describe('world player presence presentation', () => {
   it('keeps the local player visible while profile state hydrates', () => {
     expect(worldPlayerIsOffline(true, undefined)).toBe(false);
     expect(worldPlayerParticipatesInCollision(true, undefined)).toBe(true);
-    expect(OFFLINE_AVATAR_FILTER).toContain('grayscale(100%)');
   });
 });

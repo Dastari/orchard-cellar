@@ -7,6 +7,7 @@ import {
   layoutGameBook,
   uiScaledBookPageRects,
 } from './book.js';
+import { uiFrameControlLayout } from './frame.js';
 
 const fonts = {} as PixelUi;
 const naturalBook = { x: 10, y: 20, width: 224, height: 133 };
@@ -21,6 +22,9 @@ describe('Markdown book layout', () => {
     expect(layout.pageContentRects[0].x + layout.pageContentRects[0].width)
       .toBeLessThan(layout.pageRects[0].x + layout.pageRects[0].width);
     expect(layout.pageContentRects[1].x).toBeGreaterThan(layout.pageRects[1].x);
+    const close = uiFrameControlLayout(naturalBook, 'book', false).close;
+    expect(layout.pageContentRects[0].y).toBeGreaterThanOrEqual(close.y + close.height + 4);
+    expect(layout.pageContentRects[1].y).toBe(layout.pageContentRects[0].y);
   });
 
   it('automatically overflows long Markdown across numbered pages', () => {

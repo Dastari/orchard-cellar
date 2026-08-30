@@ -12,6 +12,10 @@ function redAt(pixels: Uint8ClampedArray, width: number, x: number, y: number): 
   return pixels[(y * width + x) * 4] ?? 0;
 }
 
+function faceAt(pixels: Uint8Array, width: number, x: number, y: number): number {
+  return pixels[y * width + x] ?? 0;
+}
+
 function fixture(width = 9, height = 7): {
   readonly pixels: Uint8ClampedArray;
   readonly halo: Uint8ClampedArray;
@@ -151,6 +155,32 @@ describe('27§1/§3 quantized light flood', () => {
     expect(redAt(setup.pixels, width, 8, 0)).toBeGreaterThan(0);
   });
 
+  it('fills the umbra between an oblique trunk footprint’s boundary rays', () => {
+    const width = 24;
+    const height = 24;
+    const open = fixture(width, height);
+    const shadowed = fixture(width, height);
+    const trunkOwners = new Uint16Array(width * height);
+    const trunkCells = new Uint32Array(4);
+    let trunkCellCount = 0;
+    for (let y = 7; y <= 8; y += 1) for (let x = 7; x <= 8; x += 1) {
+      const index = y * width + x;
+      shadowed.mask[index] = LIGHT_SPRITE_BLOCKER;
+      trunkOwners[index] = 1;
+      trunkCells[trunkCellCount] = index;
+      trunkCellCount += 1;
+    }
+    const light = { centerX: 2, centerY: 2, radius: 30, color: { r: 250, g: 200, b: 150 } };
+    open.flood.apply(open.pixels, null, width, height, light, open.mask);
+    shadowed.flood.apply(
+      shadowed.pixels, null, width, height, light, shadowed.mask, null,
+      trunkOwners, null, trunkCells, trunkCellCount,
+    );
+    expect(redAt(open.pixels, width, 14, 15)).toBeGreaterThan(0);
+    expect(redAt(shadowed.pixels, width, 14, 15)).toBe(0);
+    expect(redAt(shadowed.pixels, width, 15, 15)).toBe(0);
+  });
+
   it('27§3 casts a long collision-width trunk column without shadowing its canopy', () => {
     const width = 24;
     const height = 7;
@@ -238,6 +268,74 @@ describe('27§1/§3 quantized light flood', () => {
     );
     expect(redAt(partial.pixels, width, casterX, 6)).toBe(0);
     expect(redAt(solid.pixels, width, casterX, 6)).toBeGreaterThan(0);
+  });
+
+  it('keeps a foreign elevated receiver inside another object shadow', () => {
+    const width = 15;
+    const height = 7;
+    const own = fixture(width, height);
+    const foreign = fixture(width, height);
+    const casterOwners = new Uint16Array(width * height);
+    const casterCells = new Uint32Array(2);
+    const shadowCaster = 3 * width + 6;
+    const visibleForeignCaster = 1 * width + 6;
+    casterCells[0] = shadowCaster;
+    casterCells[1] = visibleForeignCaster;
+    casterOwners[shadowCaster] = 1;
+    casterOwners[visibleForeignCaster] = 2;
+    own.mask[shadowCaster] = LIGHT_SPRITE_BLOCKER;
+    own.mask[visibleForeignCaster] = LIGHT_SPRITE_BLOCKER;
+    foreign.mask.set(own.mask);
+    const ownReceivers = new Uint16Array(width * height);
+    const foreignReceivers = new Uint16Array(width * height);
+    const receiver = 3 * width + 10;
+    ownReceivers[receiver] = 1;
+    foreignReceivers[receiver] = 2;
+    const light = { centerX: 2, centerY: 3, radius: 14, color: { r: 250, g: 200, b: 150 } };
+    own.flood.apply(
+      own.pixels, null, width, height, light, own.mask, null,
+      casterOwners, ownReceivers, casterCells, 2,
+    );
+    foreign.flood.apply(
+      foreign.pixels, null, width, height, light, foreign.mask, null,
+      casterOwners, foreignReceivers, casterCells, 2,
+    );
+    expect(redAt(own.pixels, width, 10, 3)).toBeGreaterThan(0);
+    expect(redAt(foreign.pixels, width, 10, 3)).toBe(0);
+  });
+
+  it('builds a shared south-facing receiver field without additive overlap', () => {
+    const width = 9;
+    const height = 7;
+    const fromSouth = fixture(width, height);
+    const fromNorth = fixture(width, height);
+    const overlapped = fixture(width, height);
+    const southFaces = new Uint8Array(width * height);
+    const northFaces = new Uint8Array(width * height);
+    const overlapFaces = new Uint8Array(width * height);
+    const color = { r: 250, g: 200, b: 150 };
+    const southLight = { centerX: 4, centerY: 6, radius: 8, color };
+    const northLight = { centerX: 4, centerY: 0, radius: 8, color };
+    fromSouth.flood.apply(
+      fromSouth.pixels, null, width, height, southLight, fromSouth.mask,
+      null, null, null, null, 0, null, southFaces,
+    );
+    fromNorth.flood.apply(
+      fromNorth.pixels, null, width, height, northLight, fromNorth.mask,
+      null, null, null, null, 0, null, northFaces,
+    );
+    overlapped.flood.apply(
+      overlapped.pixels, null, width, height, southLight, overlapped.mask,
+      null, null, null, null, 0, null, overlapFaces,
+    );
+    overlapped.flood.apply(
+      overlapped.pixels, null, width, height, southLight, overlapped.mask,
+      null, null, null, null, 0, null, overlapFaces,
+    );
+    expect(redAt(fromNorth.pixels, width, 4, 3)).toBeGreaterThan(0);
+    expect(faceAt(northFaces, width, 4, 3)).toBe(0);
+    expect(faceAt(southFaces, width, 4, 3)).toBeGreaterThan(0);
+    expect(faceAt(overlapFaces, width, 4, 3)).toBe(faceAt(southFaces, width, 4, 3));
   });
 
   it('biases a facing seed out of its wall and emits a quantized flame halo', () => {

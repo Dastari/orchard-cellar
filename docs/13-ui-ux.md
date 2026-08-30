@@ -182,6 +182,21 @@ All HUD chrome sits inside a 4 px safe margin. Wireframe of the 480×270 buffer:
   context button morphs to the verb's icon instead. Exactly one prompt at a time
   (nearest facing target).
 
+### World input verb contract
+
+- **E — interact / enter / collect into inventory:** open an object's interface,
+  speak or trade, mount or dismount, enter or leave a farm, doorway, or portal, pick
+  up a loose item into inventory, and harvest a mature crop into inventory.
+- **F — act / use hands or equipped item:** swing or use a tool, plant or water,
+  eat, light or extinguish, open or close the Farm Gate, repair at an anvil, and pick
+  up, carry, place, or operate an object physically in the world.
+- **Primary pointer — contextual direct action:** clicking may perform the matching
+  E or F action when the target and equipped item make that action unambiguous.
+
+New controls must be assigned by this semantic contract rather than by whichever key
+is locally convenient. An object may expose both verbs when they are meaningfully
+different, such as E opening a Chest while F lifts it for carrying.
+
 ## 6. Overlays
 
 Every overlay opens over a R12 40%-dither scrim, animates in, and closes on Esc/B/✕.

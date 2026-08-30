@@ -24,4 +24,12 @@ export default __t.row({
   smeltStartTick: __t.option(__t.u64()).name("smelt_start_tick"),
   lit: __t.bool(),
   carriedBy: __t.option(__t.identity()).name("carried_by"),
+  barrelSealedTick: __t.option(__t.u64()).name("barrel_sealed_tick"),
+  barrelSealedBy: __t.option(__t.identity()).name("barrel_sealed_by"),
+  cookStartTick: __t.option(__t.u64()).name("cook_start_tick"),
+  cookStartedBy: __t.option(__t.identity()).name("cook_started_by"),
+  cookInputKind: __t.option(__t.string()).name("cook_input_kind"),
+  processStartTick: __t.option(__t.u64()).name("process_start_tick"),
+  processStartedBy: __t.option(__t.identity()).name("process_started_by"),
+  processInputKind: __t.option(__t.string()).name("process_input_kind"),
 });

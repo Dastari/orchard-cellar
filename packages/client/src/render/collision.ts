@@ -9,6 +9,8 @@ import {
   survivalResourceObstacle,
   survivalTerrainPlaneCollisionBytes,
   placeableDefinition,
+  homesteadBuildDefinition,
+  homesteadBuildFootprintTiles,
   type CollisionMap,
   type MovementMedium,
 } from '@orchard/sim';
@@ -55,11 +57,15 @@ export function createClientCollisionMap(
     if (placeable.carriedBy !== undefined) continue;
     const definition = placeableDefinition(placeable.kind);
     if (definition?.blocksMovement !== true || placeable.open) continue;
-    obstacles.push({
-      left: placeable.tileX * TILE_SIZE_FIXED,
-      top: placeable.tileY * TILE_SIZE_FIXED,
-      right: (placeable.tileX + 1) * TILE_SIZE_FIXED - 1,
-      bottom: (placeable.tileY + 1) * TILE_SIZE_FIXED - 1,
+    for (const tile of homesteadBuildFootprintTiles(
+      homesteadBuildDefinition(placeable.kind) ?? { footprint: { width: 1, height: 1 } },
+      placeable.tileX,
+      placeable.tileY,
+    )) obstacles.push({
+      left: tile.tileX * TILE_SIZE_FIXED,
+      top: tile.tileY * TILE_SIZE_FIXED,
+      right: (tile.tileX + 1) * TILE_SIZE_FIXED - 1,
+      bottom: (tile.tileY + 1) * TILE_SIZE_FIXED - 1,
     });
   }
   if (terrain.spaceId === TOPSIDE_SPACE_ID) {

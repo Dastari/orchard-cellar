@@ -19,6 +19,7 @@ const CHAT_SCROLLBAR_GUTTER = 14;
 const CHAT_TOGGLE_SIZE = 22;
 const CHAT_DRAG_THRESHOLD = 4;
 const CHAT_POSITION_STORAGE_KEY = 'orchard:chat-anchor';
+const CHAT_COLLAPSED_STORAGE_KEY = 'orchard:chat-collapsed';
 
 export interface ChatOverlayMessage {
   readonly id: bigint;
@@ -41,6 +42,8 @@ export interface ChatOverlayModel {
   readonly touchControls?: boolean;
   /** Logical UI pixels covered by a software keyboard at the viewport bottom. */
   readonly keyboardInset?: number;
+  /** A visually higher modal owns pointer interaction for this frame. */
+  readonly interactionBlocked?: boolean;
 }
 
 export interface ChatOverlayLayout {
@@ -56,11 +59,17 @@ export function chatLineAlpha(ageMs: number, expanded: boolean): number {
 }
 
 export function chatHistoryExpanded(touchControls: boolean, open: boolean, hovered: boolean): boolean {
-  return touchControls || open || hovered;
+  // Touch browsers can retain a synthetic hover after a tap. Touch capability
+  // must not pin chat history forever: only active text entry does that.
+  return open || (!touchControls && hovered);
 }
 
 export function chatToggleTooltipText(hovered: boolean, touchControls: boolean): string | null {
   return hovered && !touchControls ? 'CHAT' : null;
+}
+
+export function storedChatCollapsed(value: string | null): boolean {
+  return value === 'true';
 }
 
 export function wrapChatText(text: string, maximumCharacters: number): readonly string[] {
@@ -200,7 +209,7 @@ export class ChatOverlay {
   private hovered = false;
   private toggleHovered = false;
   private openValue = false;
-  private collapsedValue = false;
+  private collapsedValue = this.loadCollapsed();
   private unreadValue = false;
   private errorText: string | null = null;
   private errorAt = 0;
@@ -215,6 +224,7 @@ export class ChatOverlay {
     readonly anchor: UiPoint;
     moved: boolean;
   } | null = null;
+  private focusOnPointerUp = false;
 
   constructor(
     private readonly skin: UiSkin,
@@ -287,11 +297,16 @@ export class ChatOverlay {
   get isOpen(): boolean { return this.openValue; }
   get isCollapsed(): boolean { return this.collapsedValue; }
   get hasUnread(): boolean { return this.unreadValue; }
+  get isHovered(): boolean { return this.hovered || this.toggleHovered; }
   dismiss(): void { this.close(); }
 
   update(model: ChatOverlayModel, now = performance.now()): void {
     const keepAtEnd = this.scrollBar.atEnd;
     this.model = model;
+    if (model.interactionBlocked === true) {
+      this.pointerCancel();
+      this.pointerLeave();
+    }
     this.baseLayout = chatOverlayLayout(model, this.skin.panelParchment.slice);
     const layout = positionedChatOverlayLayout(this.baseLayout, model, this.anchor);
     if (this.anchor !== null) this.anchor = { x: layout.toggle.x, y: layout.toggle.y };
@@ -322,12 +337,17 @@ export class ChatOverlay {
   }
 
   handleGlobalKeyDown(event: KeyboardEvent): boolean {
-    if (this.openValue || event.repeat || (event.key !== 'Enter' && event.key !== '/')) return false;
+    if (this.model.interactionBlocked === true
+      || this.openValue || event.repeat || (event.key !== 'Enter' && event.key !== '/')) return false;
     this.open(event.key === '/' ? '/' : '');
     return true;
   }
 
   pointerMove(point: UiPoint): void {
+    if (this.model.interactionBlocked === true) {
+      this.pointerLeave();
+      return;
+    }
     if (this.toggleDrag !== null) {
       const deltaX = point.x - this.toggleDrag.start.x;
       const deltaY = point.y - this.toggleDrag.start.y;
@@ -351,6 +371,10 @@ export class ChatOverlay {
       return;
     }
     this.scrollBar.pointerMove(point);
+    if (this.scrollBar.swipeMove(point, 12)) {
+      this.hovered = true;
+      return;
+    }
     this.hovered = this.toggleHovered
       || contains(this.historyRect, point)
       || (this.openValue && contains(this.inputRect, point));
@@ -358,7 +382,8 @@ export class ChatOverlay {
 
   pointerLeave(): void { this.hovered = false; this.toggleHovered = false; this.scrollBar.pointerLeave(); }
 
-  pointerDown(point: UiPoint, button: number): boolean {
+  pointerDown(point: UiPoint, button: number, pointerType?: string): boolean {
+    if (this.model.interactionBlocked === true) return false;
     if (button === 0 && contains(this.toggleRect, point)) {
       this.toggleDrag = {
         start: point,
@@ -369,9 +394,14 @@ export class ChatOverlay {
     }
     if (this.collapsedValue) return false;
     if (button !== 0 || (!contains(this.historyRect, point) && !contains(this.inputRect, point))) return false;
-    this.open();
+    // On iOS, focusing during pointerdown and then retaining pointer capture
+    // can make the keyboard open and immediately close. Keep this interaction
+    // synchronous with the completing user gesture instead.
+    this.open('', false);
+    this.focusOnPointerUp = true;
     if (contains(this.historyRect, point)) {
       this.scrollbarFocused = true;
+      this.scrollBar.beginSwipe(point, this.historyRect, pointerType);
       this.scrollBar.pointerDown(point);
     } else {
       this.scrollbarFocused = false;
@@ -380,6 +410,10 @@ export class ChatOverlay {
   }
 
   pointerUp(): boolean {
+    if (this.model.interactionBlocked === true) {
+      this.pointerCancel();
+      return false;
+    }
     if (this.toggleDrag !== null) {
       const moved = this.toggleDrag.moved;
       this.toggleDrag = null;
@@ -387,15 +421,28 @@ export class ChatOverlay {
       else this.setCollapsed(!this.collapsedValue);
       return true;
     }
+    if (this.scrollBar.endSwipe()) {
+      this.focusOnPointerUp = false;
+      return true;
+    }
+    if (this.focusOnPointerUp) {
+      this.focusOnPointerUp = false;
+      this.focusInput();
+      return true;
+    }
     return this.scrollBar.pointerUp();
   }
 
   pointerCancel(): void {
     this.toggleDrag = null;
+    this.focusOnPointerUp = false;
+    this.hovered = false;
+    this.toggleHovered = false;
     this.scrollBar.pointerLeave();
   }
 
   wheel(point: UiPoint, deltaY: number): boolean {
+    if (this.model.interactionBlocked === true) return false;
     if (this.collapsedValue) return false;
     if (!contains(this.historyRect, point) || deltaY === 0) return false;
     this.scrollBar.wheel(deltaY);
@@ -560,6 +607,24 @@ export class ChatOverlay {
     localStorage.setItem(CHAT_POSITION_STORAGE_KEY, JSON.stringify(this.anchor));
   }
 
+  private loadCollapsed(): boolean {
+    if (typeof localStorage === 'undefined') return false;
+    try {
+      return storedChatCollapsed(localStorage.getItem(CHAT_COLLAPSED_STORAGE_KEY));
+    } catch {
+      return false;
+    }
+  }
+
+  private saveCollapsed(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(CHAT_COLLAPSED_STORAGE_KEY, String(this.collapsedValue));
+    } catch {
+      // Storage can be unavailable in privacy modes; retain the in-memory state.
+    }
+  }
+
   private drawToggle(context: CanvasRenderingContext2D): void {
     drawUiSkinAsset(
       context,
@@ -581,11 +646,12 @@ export class ChatOverlay {
     this.collapsedValue = collapsed;
     if (!collapsed) this.unreadValue = false;
     this.hovered = false;
+    this.saveCollapsed();
   }
 
-  private open(initialValue = ''): void {
+  private open(initialValue = '', focusInput = true): void {
     if (!this.model.connected) return;
-    this.collapsedValue = false;
+    this.setCollapsed(false);
     this.unreadValue = false;
     if (!this.openValue) {
       this.openValue = true;
@@ -594,6 +660,11 @@ export class ChatOverlay {
       this.input.value = initialValue;
       this.onOpenChanged(true);
     }
+    if (focusInput) this.focusInput();
+  }
+
+  private focusInput(): void {
+    if (!this.openValue) return;
     this.input.classList.add('keyboard-active');
     this.input.focus({ preventScroll: true });
   }
@@ -601,6 +672,7 @@ export class ChatOverlay {
   private close(): void {
     if (!this.openValue) return;
     this.openValue = false;
+    this.focusOnPointerUp = false;
     this.scrollbarFocused = false;
     this.input.classList.remove('keyboard-active');
     this.input.blur();

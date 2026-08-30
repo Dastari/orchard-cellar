@@ -224,7 +224,7 @@ export function terrainForSpace(
         const x = index % space.sizeTiles;
         const y = Math.floor(index / space.sizeTiles);
         return space.generator === "homestead"
-          ? !homesteadPlayableTile(x, y)
+          ? !homesteadPlayableTile(x, y, space.sizeTiles)
           : space.generator === "residence" || space.generator === "marlow_tent"
             ? !residencePlayableTile(x, y)
             : space.generator === "cellar"

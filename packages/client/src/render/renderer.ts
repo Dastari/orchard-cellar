@@ -1,4 +1,4 @@
-import { MIN_WORLD_ZOOM } from '../display.js';
+import { MIN_WORLD_ZOOM, canvasHostViewport } from '../display.js';
 
 export const MAX_WORLD_PASS_WIDTH = 4096;
 export const MAX_WORLD_PASS_HEIGHT = 2304;
@@ -151,9 +151,20 @@ export function drawWorldDepthQueue(
   scale: number,
   drawDepthRange: (minimumDepth: number, maximumDepth: number) => number,
 ): number {
+  return drawSortedWorldDepthQueue(sortWorldDepthItems(items), cameraY, scale, drawDepthRange);
+}
+
+/** Draws an already sorted queue so instrumentation can own sort and draw as
+ * disjoint stages without adding a second ordering implementation. */
+export function drawSortedWorldDepthQueue(
+  sortedItems: readonly WorldDepthItem[],
+  cameraY: number,
+  scale: number,
+  drawDepthRange: (minimumDepth: number, maximumDepth: number) => number,
+): number {
   let draws = 0;
   let previousDepth = Number.NEGATIVE_INFINITY;
-  for (const item of sortWorldDepthItems(items)) {
+  for (const item of sortedItems) {
     const depth = (worldDepthY(item) - cameraY) * scale;
     if (depth >= previousDepth) {
       draws += drawDepthRange(previousDepth, depth);
@@ -191,9 +202,10 @@ export class UnifiedRenderer {
   get worldWidth(): number { return this.worldCanvas.width; }
   get worldHeight(): number { return this.worldCanvas.height; }
 
-  resize(cssWidth = innerWidth, cssHeight = innerHeight, dpr = devicePixelRatio): void {
-    this.cssWidthValue = Math.max(1, Math.floor(cssWidth));
-    this.cssHeightValue = Math.max(1, Math.floor(cssHeight));
+  resize(cssWidth?: number, cssHeight?: number, dpr = devicePixelRatio): void {
+    const hostViewport = canvasHostViewport(this.canvas);
+    this.cssWidthValue = Math.max(1, Math.floor(cssWidth ?? hostViewport.width));
+    this.cssHeightValue = Math.max(1, Math.floor(cssHeight ?? hostViewport.height));
     this.dprValue = Math.max(1, dpr);
     const backingWidth = Math.max(1, Math.round(this.cssWidthValue * this.dprValue));
     const backingHeight = Math.max(1, Math.round(this.cssHeightValue * this.dprValue));

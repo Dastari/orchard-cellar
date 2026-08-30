@@ -1,0 +1,81 @@
+{
+  "name": "enemy_cf_snail_small_01",
+  "category": "characters",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "idle": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".....1111.......",
+        "....176761......",
+        "...17533561.1...",
+        "...153434511..1.",
+        "...14344421611..",
+        "....143221541...",
+        "...1555555410...",
+        "...0000000000...",
+        "....00000000....",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "idle": "animation"
+  },
+  "animationFps": {
+    "idle": 8
+  },
+  "animationLoop": {
+    "idle": true
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#0e071b",
+    "2": "#5d2c28",
+    "3": "#8a4836",
+    "4": "#bf6f4a",
+    "5": "#e69c69",
+    "6": "#f6ca9f",
+    "7": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Snail_Small_1.png",
+  "sourcePath": "references/Cute_Fantasy_ShroomLands/Snails/Snail_Small_1.png",
+  "sourceRegions": {
+    "idle": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "actor.enemy",
+    "family.shroomlands",
+    "source.cute_fantasy"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

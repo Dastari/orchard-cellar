@@ -4,6 +4,7 @@ import {
   DEFAULT_WORLD_ZOOM,
   MIN_WORLD_ZOOM,
   canvasViewport,
+  insetCanvasViewport,
   centeredFixedSceneLayout,
   easeWorldZoom,
   fittedCanvasScale,
@@ -25,6 +26,13 @@ describe('pixel display controls', () => {
     expect(canvasViewport(1920, 1080)).toEqual({ width: 1920, height: 1080 });
     expect(canvasViewport(1000.8, 700.9)).toEqual({ width: 1000, height: 700 });
     expect(canvasViewport(0, 0)).toEqual({ width: 1, height: 1 });
+  });
+
+  it('derives a safe HUD viewport without reducing the full-bleed canvas', () => {
+    expect(insetCanvasViewport(430, 932, { top: 47, right: 0, bottom: 34, left: 0 }))
+      .toEqual({ width: 430, height: 851 });
+    expect(insetCanvasViewport(932, 430, { top: 0, right: 47, bottom: 21, left: 47 }))
+      .toEqual({ width: 838, height: 409 });
   });
 
   it('still fits fixed-layout account screens without distortion', () => {

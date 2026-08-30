@@ -220,13 +220,15 @@ once per active identity; current reducers record successful outcomes but never
 rejections; statistic/milestone views are identity-isolated; and the registry and full
 repository acceptance suites pass.
 
-## M5.10 — Crafting foundations and placeables `✅ phases 1–3 complete (2026-08-26)`
+## M5.10 — Crafting foundations and placeables `⏳ phases 1–4 substantially implemented (2026-08-29)`
 
 Implement [28-crafting.md](28-crafting.md) phases 1–3: shift-invariant recipe
 matching, the consolidated item/recipe registries, fiber and the hand tier, then
 space-aware placeables and the workbench-gated recipe tier. The shared placement
-authority is deliberately shaped for docs/35 build mode. Furnace, anvil, metals,
-weapons, fishing, and cooking remain later approvals.
+authority is deliberately shaped for docs/35 build mode. The later furnace, metal
+refinement, anvil repair, barrel curing, hunting-food, and cooking-fire slices are now
+implemented; equipment crafting, gem cutting, fishing, and the remaining phase-4+
+content stay planned.
 
 **Done when:** the authority accepts place/pickup round trips in the caller's space,
 rejects unavailable stations and cross-space interaction, records crafting and
@@ -234,11 +236,11 @@ placement statistics transactionally, exposes real barrel storage, and replicate
 placed lights to both clients. The recipe list must filter by station, show missing
 ingredients, ghost-fill safely, and preserve server-side revalidation.
 
-**Verification:** docs/28 §16 records the focused sim, schema, client, asset, and
-deterministic two-client coverage. The repository-wide `npm run check` remains the
-final release gate; phase 4 code and recipes are absent.
+**Verification:** docs/28 §16 and docs/45 record the focused sim, schema, client,
+asset, and deterministic authority coverage. The repository-wide `npm run check`
+remains the final release gate for every extension.
 
-## M5.11 — Shared Spaces zoning technology demo `☐ next`
+## M5.11 — Shared Spaces zoning technology demo `⏳ phase 1 implemented (2026-08-27)`
 
 Implement [40-sanctuary-overworld-and-zoned-world.md](40-sanctuary-overworld-and-zoned-world.md)
 §8 before migrating the overworld to its final sanctuary role. Add deterministic test
@@ -260,6 +262,11 @@ stay within configured cache bounds; and unoccupied spaces add zero hot-tick wor
 **Not in this milestone:** sanctuary-overworld conversion, final world-authoring tools,
 production resource resets/economy, combat, crops, Homestead environmental
 magnification/upgrades/furnishing/guest roles, towns, events, or quests.
+
+**Status note:** the durable deed, Homestead exterior, portal, dynamic-space,
+owner-farm, and gate slices are live. Doc 40 §8.0 remains authoritative about the
+unfinished tent-interior/cellar child spaces and full multi-client/restart/cache
+acceptance, so this milestone is no longer the sole "next" task but is not complete.
 
 ## M5.12 — Offline world editor and terrain laboratory `⏳ in progress (codex, 2026-08-27)`
 
@@ -305,6 +312,16 @@ selectable/public, regenerates slowly without reaching a destructive death state
 carrying/repositioning follows the established full-chest authorization and portal
 settling rules. Sanctuary players, wildlife, NPCs, and scenery remain undamageable.
 
+## M5.8 — Repeatable mining loop `✅ phase 1 implemented (2026-08-30)`
+
+Implemented [48-repeatable-mining-loop.md](48-repeatable-mining-loop.md): a bounded
+active population over deterministic biome spawn sites, spacing and occupancy rules,
+richness-based multi-hit yields, mixed/pristine/pure nodes, shrinking authored art,
+rock surprises, luck protection, Explorer XP and mining skills, 3×3 gem consolidation,
+ten-second personal loot reservation, deterministic replenishment, and party-scoped
+cooperative work leases. Party authority and future pickaxe-tier metadata are present;
+party UI and lower-tier pickaxe items/art remain follow-up presentation/content work.
+
 ## M6 — Accounts, farm authority & persistence `⏳ in progress (codex, 2026-08-24)`
 OIDC + owner-managed friends allowlist per [09-auth.md](09-auth.md); normalized owned
 farm/public/private tables per [08-database.md](08-database.md); caller-dependent
@@ -343,7 +360,7 @@ players navigate POIs between two owned Homesteads and shared destinations; ever
 permission-table cell is enforced; shared harvest/machine/gift races commit once;
 social verbs round-trip; and 25 simulated friends stay within the M9 budget.
 
-## M7.1 — Instanced homesteads and farming `☐`
+## M7.1 — Instanced homesteads and farming `⏳ core crop/gold/barrel slice implemented (2026-08-29)`
 
 Continue beyond M5.11's tier-zero sample with
 [35-homesteads-and-farming.md](35-homesteads-and-farming.md) and doc 40 §4 on the
@@ -357,6 +374,30 @@ restart/backup preserves both; leaving evicts client rows and generated cache en
 without deleting durable state; offline farms receive zero 20 Hz work; re-entry
 reconstructs identical founding terrain plus mutations; all five residence/land tiers
 preserve crops/builds/furniture; and the cache soak remains within its bound.
+
+**Status note:** the owner-farm gate, complete crop roster, watering/growth/harvest,
+loose selling, barrel crafting/sealing/curing, Farming XP, and lazy timestamp
+settlement are implemented. Land/residence tiers, build mode, automation, private
+guest-role co-op, and the full acceptance walk remain.
+
+## M7.2 — Live first-bottle production chain `✅ phase 1 implemented (2026-08-29)`
+
+Adapt the retired solo economy's defining chain to the authoritative multiplayer
+world per [46-live-first-bottle-loop.md](46-live-first-bottle-loop.md): harvest fruit,
+press it into Must plus Pomace, ferment/age Must into Bottles, sell the finished
+product, and reinvest the premium return. This extends rather than replaces the
+implemented crop-curing barrel.
+
+**Done when:** fruit presses and fermentation vessels are capability-tagged
+placeables with protected slots, timestamp-derived offline progress, world/UI timers,
+Farming XP and statistics; Bottles sell through existing commerce; and an unwarped
+three-fruit first batch reaches a bottle inside docs/06's 45–70 minute target without
+per-tick processor writes.
+
+**Status note:** the full phase-one chain above is live in code. Estate expansion,
+quality/vintage grades, named recipes, bottling consumables, and dedicated first-bottle
+quest presentation remain follow-up progression layers rather than blockers for the
+repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 

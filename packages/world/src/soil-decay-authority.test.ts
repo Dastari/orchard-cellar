@@ -45,14 +45,17 @@ describe('authoritative empty-soil decay', () => {
     expect(reducer).toContain('ctx.db.world_soil.id.delete(soil.id)');
   });
 
-  it('refreshes the timer on tilling, watering, and harvest', () => {
+  it('refreshes the timer on tilling, watering, uprooting, and harvest', () => {
     const farming = sourceBetween(
       'export const useFarmTool =',
       'export const tendTree =',
     );
-    expect(farming.match(/scheduleEmptyTopsideSoilDecay\(/g)).toHaveLength(3);
+    expect(farming.match(/scheduleEmptyTopsideSoilDecay\(/g)).toHaveLength(4);
     expect(farming).toContain('wateredAtTick: clock.authorityTick');
     expect(farming).toContain('tilledAtTick: clock.authorityTick');
+    expect(farming).toContain("const uprootingCrop = selectedItem === 'hoe'");
+    expect(farming).toContain('ctx.db.world_crop.id.delete(cropRow.id)');
+    expect(farming).toContain("'crops_uprooted'");
   });
 
   it('backfills pre-existing empty overworld plots exactly once', () => {

@@ -50,8 +50,14 @@ export interface UiSkin {
   readonly selectorNeutral: LoadedAsset;
   readonly selectorConfirm: LoadedAsset;
   readonly selectorDeny: LoadedAsset;
+  readonly selectorCatalog: LoadedAsset;
+  readonly sliderCatalog: LoadedAsset;
   readonly sliderTrack: LoadedAsset;
+  readonly sliderFill: LoadedAsset;
+  readonly sliderTrackVertical: LoadedAsset;
+  readonly sliderFillVertical: LoadedAsset;
   readonly sliderHandle: LoadedAsset;
+  readonly toggleSwitch: LoadedAsset;
   readonly barFrame: LoadedAsset;
   readonly barRed: LoadedAsset;
   readonly barGreen: LoadedAsset;
@@ -110,8 +116,14 @@ const UI_ASSETS = {
   selectorNeutral: "ui_cf_selector_neutral",
   selectorConfirm: "ui_cf_selector_confirm",
   selectorDeny: "ui_cf_selector_deny",
+  selectorCatalog: "ui_cf_selector_catalog",
+  sliderCatalog: "ui_cf_slider_catalog",
   sliderTrack: "ui_cf_slider_track",
+  sliderFill: "ui_cf_slider_fill",
+  sliderTrackVertical: "ui_cf_slider_track_vertical",
+  sliderFillVertical: "ui_cf_slider_fill_vertical",
   sliderHandle: "ui_cf_slider_handle",
+  toggleSwitch: "ui_cf_toggle_switch",
   barFrame: "ui_cf_bar_frame",
   barRed: "ui_cf_bar_fill_red",
   barGreen: "ui_cf_bar_fill_green",

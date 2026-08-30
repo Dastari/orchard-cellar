@@ -1,0 +1,67 @@
+{
+  "name": "item_cf_cooked_chicken",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".........0000...",
+        "........033330..",
+        ".......03322330.",
+        "......032223230.",
+        ".....0322222210.",
+        ".....0322121110.",
+        "....0322221210..",
+        "....031211210...",
+        "....04112110....",
+        "..003431100.....",
+        ".04343000.......",
+        ".04430..........",
+        "..0330..........",
+        "...00...........",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c57634",
+    "2": "#d89055",
+    "3": "#e4a672",
+    "4": "#ead4aa"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_Icons_NO_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/No Outline/Food_Icons_NO_Outline.png",
+  "sourceRegions": {
+    "base": [
+      [
+        16,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.food",
+    "food.cooked.chicken"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

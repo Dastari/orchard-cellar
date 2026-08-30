@@ -14,9 +14,8 @@ import {
   SURVIVAL_ISLAND_OFFSET_TILES,
   SURVIVAL_BIOMES,
   SURVIVAL_CLIFF_ROLES,
-  SURVIVAL_ORE_KINDS,
   ORE_MIN_SPACING_TILES,
-  ORE_NODES_PER_KIND,
+  SURFACE_ACTIVE_ORE_NODES,
   SURVIVAL_TREE_KINDS,
   SURVIVAL_FRUIT_TREE_KINDS,
   ORE_NODE_RESERVE_HITS,
@@ -24,10 +23,13 @@ import {
   LARGE_ROCK_STONE_RESERVE,
   MARLOW_CAMP,
   MARLOW_CAMPFIRE_TILE,
+  FARMER_BOB_FARM,
+  FARMER_JANE_GRAVE_TILE,
   SURVIVAL_MAX_TERRAIN_ELEVATION,
   createSurvivalCollisionMap,
   generateSurvivalResources,
   generateSurvivalDecorations,
+  generateSurfaceOreSpawnSites,
   generateMarlowCampPathTiles,
   generatedSurvivalResourceAt,
   findSurvivalSpawnTile,
@@ -63,6 +65,7 @@ import {
   survivalResourceInitialHealth,
   survivalDecorationObstacle,
   survivalMarlowCampReservedAt,
+  survivalFarmerBobFarmReservedAt,
   survivalStreamAt,
   survivalTreeObstacle,
   survivalWaterRockObstacle,
@@ -73,6 +76,30 @@ import {
 } from './survival-world.js';
 
 describe('deterministic survival island', () => {
+  it('authors Farmer Bob\'s protected farm with a walkable gate and no generated resources', () => {
+    const decorations = generateSurvivalDecorations();
+    const farm = decorations.filter((decoration) => decoration.kind.startsWith('farm_'));
+    expect(farm.some((decoration) => decoration.kind === 'farm_house')).toBe(true);
+    expect(farm.some((decoration) => decoration.kind === 'farm_cow')).toBe(true);
+    expect(farm.some((decoration) => decoration.kind === 'farm_crop_strawberry')).toBe(true);
+    expect(farm).toContainEqual(expect.objectContaining({
+      kind: 'farm_grave',
+      tileX: FARMER_JANE_GRAVE_TILE.tileX,
+      tileY: FARMER_JANE_GRAVE_TILE.tileY,
+    }));
+    expect(survivalFarmerBobFarmReservedAt(FARMER_BOB_FARM.centerTileX, FARMER_BOB_FARM.centerTileY)).toBe(true);
+    expect(survivalFarmerBobFarmReservedAt(FARMER_BOB_FARM.minimumTileX - 1, FARMER_BOB_FARM.centerTileY)).toBe(false);
+    expect(generateSurvivalResources().some((resource) =>
+      survivalFarmerBobFarmReservedAt(resource.tileX, resource.tileY))).toBe(false);
+
+    const gate = farm.find((decoration) => decoration.kind === 'farm_gate');
+    const fence = farm.find((decoration) => decoration.kind === 'farm_fence');
+    expect(gate).toBeDefined();
+    expect(fence).toBeDefined();
+    if (gate) expect(survivalDecorationObstacle(gate, 'ground')).toBeNull();
+    if (fence) expect(survivalDecorationObstacle(fence, 'ground')).not.toBeNull();
+  }, 20_000);
+
   it('authors Marlow\'s camp as a clear, collidable permanent landmark', () => {
     const decorations = generateSurvivalDecorations();
     const camp = decorations.filter((decoration) => decoration.kind.startsWith('camp_'));
@@ -619,16 +646,19 @@ describe('deterministic survival island', () => {
     }
   });
 
-  it('places exactly six isolated nodes of every authored ore across the island', () => {
+  it('activates a spaced subset of many deterministic biome-generated ore sites', () => {
     const ores = generateSurvivalResources().filter((resource) => isMineableOreKind(resource.kind));
-    expect(ores).toHaveLength(SURVIVAL_ORE_KINDS.length * ORE_NODES_PER_KIND);
-    for (const kind of SURVIVAL_ORE_KINDS) {
-      expect(ores.filter((ore) => ore.kind === kind), kind).toHaveLength(ORE_NODES_PER_KIND);
-    }
+    const sites = generateSurfaceOreSpawnSites();
+    expect(sites.length).toBeGreaterThan(SURFACE_ACTIVE_ORE_NODES * 4);
+    expect(ores).toHaveLength(SURFACE_ACTIVE_ORE_NODES);
+    expect(new Set(sites.map((site) => site.id)).size).toBe(sites.length);
     for (const [index, ore] of ores.entries()) {
       expect(survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, ore.tileX, ore.tileY))).toBe(false);
       expect(survivalResourceInitialHealth(ore.kind)).toBe(ORE_NODE_RESERVE_HITS);
       expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, ore.tileX, ore.tileY)).toEqual(ore);
+      expect(['mixed', 'pristine']).toContain(ore.nodeClass);
+      expect(ore.richness).toBeGreaterThanOrEqual(1);
+      expect(ore.richness).toBeLessThanOrEqual(2);
       for (const other of ores.slice(index + 1)) {
         const dx = ore.tileX - other.tileX;
         const dy = ore.tileY - other.tileY;
@@ -637,12 +667,12 @@ describe('deterministic survival island', () => {
     }
   });
 
-  it('gives every rare ore a permanent three-decal point of interest', () => {
+  it('keeps three permanent route landmarks around each initial active ore', () => {
     const resources = generateSurvivalResources();
     const resourceTiles = new Set(resources.map((resource) => `${resource.tileX},${resource.tileY}`));
     const decorations = generateSurvivalDecorations();
     const poiDecorations = decorations.filter((decoration) => decoration.kind.startsWith('poi_'));
-    expect(poiDecorations).toHaveLength(SURVIVAL_ORE_KINDS.length * ORE_NODES_PER_KIND * 3);
+    expect(poiDecorations).toHaveLength(SURFACE_ACTIVE_ORE_NODES * 3);
     expect(new Set(decorations.map((decor) => `${decor.tileX},${decor.tileY}`)).size).toBe(decorations.length);
     for (const decoration of poiDecorations) {
       expect(resourceTiles.has(`${decoration.tileX},${decoration.tileY}`)).toBe(
@@ -735,7 +765,7 @@ describe('deterministic survival island', () => {
     expect(survivalGatherableDrop('fallen_branch')).toEqual({ itemKind: 'wood', quantity: 1 });
   });
 
-  it('gives large decorative rocks a 100-pebble reserve paid every two or three hits', () => {
+  it('gives large decorative rocks a bounded six-payout richness reserve', () => {
     const rocks = generateSurvivalResources().filter((resource) => isBreakableRockKind(resource.kind));
     expect(rocks.length).toBeGreaterThan(0);
     expect(survivalResourceInitialHealth('rock_large')).toBe(LARGE_ROCK_INITIAL_HEALTH);
@@ -743,14 +773,13 @@ describe('deterministic survival island', () => {
       LARGE_ROCK_INITIAL_HEALTH - hit - 1).filter((health) =>
       survivalResourceDropAfterHit('rock_large', health) !== null);
     expect(payoutHealth).toHaveLength(LARGE_ROCK_STONE_RESERVE);
-    const hitNumbers = payoutHealth.map((health) => LARGE_ROCK_INITIAL_HEALTH - health);
-    expect(hitNumbers.slice(0, 6)).toEqual([2, 5, 7, 10, 12, 15]);
+    expect(payoutHealth).toEqual([5, 4, 3, 2, 1, 0]);
   });
 
-  it('pays out matching metal pieces or raw gems every third hit across a large finite reserve', () => {
-    expect(survivalResourceDropAfterHit('ore_iron', 95)).toBeNull();
-    expect(survivalResourceDropAfterHit('ore_iron', 93)).toEqual({ itemKind: 'iron_piece', quantity: 1 });
-    expect(survivalResourceDropAfterHit('ore_amethyst', 0)).toEqual({ itemKind: 'amethyst_ore', quantity: 1 });
+  it('keeps health-based mining drops as compatibility fragments while authority owns live payouts', () => {
+    expect(survivalResourceDropAfterHit('ore_iron', ORE_NODE_RESERVE_HITS)).toBeNull();
+    expect(survivalResourceDropAfterHit('ore_iron', ORE_NODE_RESERVE_HITS - 1)).toEqual({ itemKind: 'iron_piece', quantity: 1 });
+    expect(survivalResourceDropAfterHit('ore_amethyst', 0)).toEqual({ itemKind: 'amethyst_piece', quantity: 1 });
     expect(survivalResourceDropAfterHit('tree_oak', 0)).toEqual({ itemKind: 'wood', quantity: 3 });
     expect(survivalResourceDropAfterHit('tree_oak', 0, 2)).toEqual({ itemKind: 'wood', quantity: 1 });
     expect(survivalResourceDropAfterHit('tree_oak', 0, 1)).toEqual({ itemKind: 'stick', quantity: 1 });

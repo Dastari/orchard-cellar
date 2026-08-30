@@ -13,20 +13,20 @@
     "base": [
       [
         "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "....SSSSSSSS....",
-        "...SOOOOOOONS...",
-        "...SNNMMNNNNS...",
-        "...SLLLLLLLLS...",
-        "...SOOONNOONS...",
-        "...SNNNNMMNNS...",
-        "...SLLLLLLLLS...",
-        "...SOOOOOONNS...",
-        "...SMMMNNNNNS...",
-        "....SSSSSSSS....",
+        "...........4....",
+        ".........8845...",
+        "........5544555.",
+        ".......66665555.",
+        "......5555M5555.",
+        "....666655MMMMM.",
+        "..JJ555MM555555.",
+        ".S55555555ooooo.",
+        ".SSSS555LLoooo..",
+        ".SSSSSSSLLLL....",
+        ".6666ooooo......",
+        "..666oooo.......",
+        "...55555........",
+        ".....5..........",
         "................"
       ]
     ]
@@ -43,5 +43,8 @@
     "layer": "object",
     "blocksMovement": false,
     "builderAvailable": false
-  }
+  },
+  "approved": true,
+  "importedFrom": "Plank_Icon_Generated.png",
+  "sourcePath": "references/generated/Plank_Icon_Generated.png"
 }

@@ -32,6 +32,8 @@ const outdoorDecorSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_D
 const rockAnimationSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations/Rock_1_Anim.png';
 const campDecorSource = 'references/Cute_Fantasy/Outdoor decoration/Camp_Decor.png';
 const campfireSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Campfire_Anim.png';
+const cookingFireSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fireplace_Anim.png';
+const campCookingFireSource = 'references/Cute_Fantasy_MilitaryCamp/Campfire_Pot_Anim.png';
 const tentSource = 'references/Cute_Fantasy/Buildings/Buildings/Tent/Tent_Small.png';
 const portableLightSource = 'references/Cute_Fantasy/Other/Lantern_Torch.png';
 const oreTypes = ['iron', 'copper', 'gold', 'emerald', 'sapphire', 'topaz', 'ruby', 'amethyst'] as const;
@@ -80,6 +82,42 @@ const extracts: readonly Extract[] = [
     tags: ['world.landmark', 'station.cooking', 'decor.animated', 'emits.light'],
     placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
   },
+  {
+    name: 'prop_cf_cooking_fire', category: 'props', source: cookingFireSource,
+    size: [32, 32], anchor: [16, 31],
+    groups: {
+      burn: Array.from({ length: 8 }, (_, frame): Region => [frame * 32, 0, 32, 32]),
+      off: [[0, 0, 32, 32]],
+    },
+    frameKinds: { burn: 'animation', off: 'state' }, animationFps: { burn: 8 }, animationLoop: { burn: true },
+    transformPixel: (color, _x, _y, group) => {
+      if (group !== 'off') return color;
+      if (!['#ed7614', '#ffa214', '#ffc825'].includes(color ?? '')) return color;
+      return color === '#ed7614' ? '#391f21'
+        : color === '#ffa214' ? '#743f39'
+          : '#91533b';
+    },
+    tags: ['world.landmark', 'station.cooking', 'container.cooking_fire', 'decor.animated', 'emits.light'],
+    placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
+  },
+  {
+    name: 'prop_cf_camp_cooking_fire', category: 'props', source: campCookingFireSource,
+    size: [48, 32], anchor: [24, 31],
+    groups: {
+      burn: Array.from({ length: 5 }, (_, frame): Region => [frame * 48, 0, 48, 32]),
+      off: [[0, 0, 48, 32]],
+    },
+    frameKinds: { burn: 'animation', off: 'state' }, animationFps: { burn: 8 }, animationLoop: { burn: true },
+    transformPixel: (color, _x, _y, group) => {
+      if (group !== 'off') return color;
+      if (!['#ed7614', '#ffa214', '#ffc825'].includes(color ?? '')) return color;
+      return color === '#ed7614' ? '#391f21'
+        : color === '#ffa214' ? '#743f39'
+          : '#91533b';
+    },
+    tags: ['world.landmark', 'station.cooking', 'container.cooking_fire', 'camp.military', 'decor.animated', 'emits.light'],
+    placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
+  },
   ...([
     ['prop_cf_camp_round_stool', 0, 'camp.seat'],
     ['prop_cf_camp_bench', 16, 'camp.seat'],
@@ -106,39 +144,49 @@ const extracts: readonly Extract[] = [
   },
   ...oreTypes.flatMap((kind, row): readonly Extract[] => {
     const metal = row < 3;
-    return [{
-      name: `resource_cf_ore_${kind}`,
-      category: 'props',
-      source: oreSource,
-      size: [16, 16],
-      anchor: [8, 15],
-      groups: { base: [[0, row * 16, 16, 16]] },
+    const nodeVariants = [
+      ['', 0, 'mixed'],
+      ['_pure_large', 16, 'pure.large'],
+      ['_pure_medium', 32, 'pure.medium'],
+      ['_pure_small', 48, 'pure.small'],
+      ['_pristine', 64, 'pristine'],
+    ] as const;
+    const nodes: readonly Extract[] = nodeVariants.map(([suffix, x, quality]) => ({
+      name: `resource_cf_ore_${kind}${suffix}`, category: 'props', source: oreSource,
+      size: [16, 16], anchor: [8, 15], groups: { base: [[x, row * 16, 16, 16]] },
       frameKinds: { base: 'state' },
-      tags: ['resource.mineable', 'resource.ore', `ore.${kind}`],
+      tags: ['resource.mineable', 'resource.ore', `ore.${kind}`, `ore.node.${quality}`],
       placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
-    }, {
+    }));
+    const oreChunk: Extract = {
       name: `item_cf_${kind}_ore`,
       category: 'props',
       source: metal ? resourceIconsSource : oreSource,
       size: [16, 16],
       anchor: [8, 15],
-      groups: { base: [[metal ? 16 : 80, row * 16, 16, 16]] },
+      groups: { base: [[metal ? 16 : 96, row * 16, 16, 16]] },
       frameKinds: { base: 'state' },
       tags: ['item.resource', 'material.ore', 'material.raw', `ore.${kind}`],
       placement: { layer: 'object', blocksMovement: false, builderAvailable: false },
-    }, ...(metal ? [{
-      name: `item_cf_${kind}_piece`, category: 'props' as const, source: resourceIconsSource,
-      size: [16, 16] as const, anchor: [8, 15] as const,
-      groups: { base: [[0, row * 16, 16, 16] as Region] }, frameKinds: { base: 'state' as const },
+    };
+    const piece: Extract = {
+      name: `item_cf_${kind}_piece`, category: 'props', source: metal ? resourceIconsSource : oreSource,
+      size: [16, 16], anchor: [8, 15],
+      groups: { base: [[metal ? 0 : 80, row * 16, 16, 16]] }, frameKinds: { base: 'state' },
       tags: ['item.resource', 'material.ore_piece', 'material.raw', `ore.${kind}`],
-      placement: { layer: 'object' as const, blocksMovement: false, builderAvailable: false },
-    }, {
-      name: `item_cf_${kind}_bar`, category: 'props' as const, source: resourceIconsSource,
-      size: [16, 16] as const, anchor: [8, 15] as const,
-      groups: { base: [[32, row * 16, 16, 16] as Region] }, frameKinds: { base: 'state' as const },
-      tags: ['item.resource', 'material.metal', 'material.bar', `metal.${kind}`],
-      placement: { layer: 'object' as const, blocksMovement: false, builderAvailable: false },
-    }] : [])];
+      placement: { layer: 'object', blocksMovement: false, builderAvailable: false },
+    };
+    const finished: Extract = {
+      name: `item_cf_${kind}_${metal ? 'bar' : 'gem'}`, category: 'props',
+      source: metal ? resourceIconsSource : oreSource,
+      size: [16, 16], anchor: [8, 15],
+      groups: { base: [[metal ? 32 : 112, row * 16, 16, 16]] }, frameKinds: { base: 'state' },
+      tags: metal
+        ? ['item.resource', 'material.metal', 'material.bar', `metal.${kind}`]
+        : ['item.resource', 'material.gem', 'item.refined', `gem.${kind}`],
+      placement: { layer: 'object', blocksMovement: false, builderAvailable: false },
+    };
+    return [...nodes, oreChunk, piece, finished];
   }),
   {
     name: 'resource_cf_rock_stone', category: 'props', source: rockAnimationSource,

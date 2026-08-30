@@ -23,4 +23,10 @@ describe('E-key interaction targeting', () => {
     const item = { kind: 'world_item', x: 9, y: 0, stableId: 'item:2' } as const;
     expect(nearestInteractionCandidate(0, 0, [item, arrow])).toBe(arrow);
   });
+
+  it('includes mature crops in the shared nearest-E path', () => {
+    const crop = { kind: 'crop', x: 4, y: 0, stableId: 'crop:8' } as const;
+    const item = { kind: 'world_item', x: 9, y: 0, stableId: 'item:2' } as const;
+    expect(nearestInteractionCandidate(0, 0, [item, crop])).toBe(crop);
+  });
 });

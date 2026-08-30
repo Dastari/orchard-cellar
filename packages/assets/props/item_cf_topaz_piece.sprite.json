@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_topaz_piece",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......33........",
+        ".....3003.......",
+        "....304403......",
+        "...3045203.333..",
+        "...302210330003.",
+        "....300033044403",
+        "....333330445103",
+        "...3000330451103",
+        "..30445030222103",
+        ".304451030222103",
+        ".30422103022103.",
+        ".3022110330003..",
+        "..300003..333...",
+        "...3333.........",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c64524",
+    "2": "#ed7614",
+    "3": "#f9e6cf",
+    "4": "#ffa214",
+    "5": "#ffeb57"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        80,
+        80,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.resource",
+    "material.ore_piece",
+    "material.raw",
+    "ore.topaz"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

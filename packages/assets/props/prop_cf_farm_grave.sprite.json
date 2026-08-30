@@ -1,0 +1,77 @@
+{
+  "name": "prop_cf_farm_grave",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "..............33",
+        "............3377",
+        "..........337777",
+        "........33777766",
+        ".......333337662",
+        "......3999993521",
+        ".....39988899352",
+        ".....39899989355",
+        ".....39898989355",
+        ".....39899989344",
+        ".....39988899344",
+        ".....03999993400",
+        ".....00000000000",
+        "......000000000."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#006da8",
+    "2": "#0e3c67",
+    "3": "#3f2832",
+    "4": "#5d2c28",
+    "5": "#743f39",
+    "6": "#91533b",
+    "7": "#b86f50",
+    "8": "#e4a672",
+    "9": "#ead4aa"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Outdoor_Decor.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor.png",
+  "sourceRegions": {
+    "base": [
+      [
+        64,
+        160,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_amethyst_gem",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".........44.....",
+        ".......44004....",
+        ".....44005504...",
+        "...44005533504..",
+        ".44005533223504.",
+        "4005533233223504",
+        "4055332222223504",
+        "4015533222355104",
+        "4011553335521104",
+        "4012155552111004",
+        ".40223522110044.",
+        "..40335210044...",
+        "...40350044.....",
+        "....40044.......",
+        ".....44........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#93388f",
+    "2": "#db3ffd",
+    "3": "#f389f5",
+    "4": "#f9e6cf",
+    "5": "#fdd2ed"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        112,
+        112,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.resource",
+    "material.gem",
+    "item.refined",
+    "gem.amethyst"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

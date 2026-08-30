@@ -34,6 +34,16 @@ export const RECIPES = {
   campfire: {
     id: 'campfire', kind: 'shapeless', inputs: { wood: 3, stick: 3 }, output: { itemKind: 'campfire', quantity: 1 },
   },
+  cooking_fire: {
+    id: 'cooking_fire', kind: 'shaped', station: 'workbench',
+    pattern: [['stone', 'iron_bar', 'stone'], ['stone', 'campfire', 'stone'], ['stone', 'stone', 'stone']],
+    output: { itemKind: 'cooking_fire', quantity: 1 },
+  },
+  camp_cooking_fire: {
+    id: 'camp_cooking_fire', kind: 'shaped', station: 'workbench',
+    pattern: [['iron_bar', null, 'iron_bar'], [null, 'iron_bar', null], [null, 'campfire', null]],
+    output: { itemKind: 'camp_cooking_fire', quantity: 1 },
+  },
   workbench: {
     id: 'workbench', kind: 'shaped', pattern: [['plank', 'plank'], ['plank', 'plank']],
     output: { itemKind: 'workbench', quantity: 1 },
@@ -47,6 +57,16 @@ export const RECIPES = {
     id: 'barrel', kind: 'shaped', station: 'workbench',
     pattern: [['iron_bar', 'plank', 'iron_bar'], ['plank', null, 'plank'], ['plank', 'plank', 'plank']],
     output: { itemKind: 'barrel', quantity: 1 },
+  },
+  fruit_press: {
+    id: 'fruit_press', kind: 'shaped', station: 'workbench',
+    pattern: [['plank', 'iron_bar', 'plank'], ['plank', null, 'plank'], ['plank', null, 'plank']],
+    output: { itemKind: 'fruit_press', quantity: 1 },
+  },
+  fermentation_cask: {
+    id: 'fermentation_cask', kind: 'shaped', station: 'workbench',
+    pattern: [['copper_bar'], ['barrel']],
+    output: { itemKind: 'fermentation_cask', quantity: 1 },
   },
   stone: {
     id: 'stone', kind: 'shaped',
@@ -67,6 +87,31 @@ export const RECIPES = {
     id: 'gold_ore', kind: 'shaped',
     pattern: Array.from({ length: 3 }, () => ['gold_piece', 'gold_piece', 'gold_piece']),
     output: { itemKind: 'gold_ore', quantity: 1 },
+  },
+  emerald_ore: {
+    id: 'emerald_ore', kind: 'shaped',
+    pattern: Array.from({ length: 3 }, () => ['emerald_piece', 'emerald_piece', 'emerald_piece']),
+    output: { itemKind: 'emerald_ore', quantity: 1 },
+  },
+  sapphire_ore: {
+    id: 'sapphire_ore', kind: 'shaped',
+    pattern: Array.from({ length: 3 }, () => ['sapphire_piece', 'sapphire_piece', 'sapphire_piece']),
+    output: { itemKind: 'sapphire_ore', quantity: 1 },
+  },
+  topaz_ore: {
+    id: 'topaz_ore', kind: 'shaped',
+    pattern: Array.from({ length: 3 }, () => ['topaz_piece', 'topaz_piece', 'topaz_piece']),
+    output: { itemKind: 'topaz_ore', quantity: 1 },
+  },
+  ruby_ore: {
+    id: 'ruby_ore', kind: 'shaped',
+    pattern: Array.from({ length: 3 }, () => ['ruby_piece', 'ruby_piece', 'ruby_piece']),
+    output: { itemKind: 'ruby_ore', quantity: 1 },
+  },
+  amethyst_ore: {
+    id: 'amethyst_ore', kind: 'shaped',
+    pattern: Array.from({ length: 3 }, () => ['amethyst_piece', 'amethyst_piece', 'amethyst_piece']),
+    output: { itemKind: 'amethyst_ore', quantity: 1 },
   },
   furnace: {
     id: 'furnace', kind: 'shaped', station: 'workbench',
@@ -92,6 +137,26 @@ export const RECIPES = {
     id: 'standing_torch', kind: 'shaped', station: 'workbench',
     pattern: [['torch'], ['stick']], output: { itemKind: 'standing_torch', quantity: 1 },
   },
+  shed: {
+    id: 'shed', kind: 'shapeless', station: 'workbench', inputs: { plank: 24, iron_bar: 4 },
+    output: { itemKind: 'shed', quantity: 1 },
+  },
+  greenhouse: {
+    id: 'greenhouse', kind: 'shapeless', station: 'workbench', inputs: { plank: 20, iron_bar: 8, stone: 12 },
+    output: { itemKind: 'greenhouse', quantity: 1 },
+  },
+  barn: {
+    id: 'barn', kind: 'shapeless', station: 'workbench', inputs: { plank: 40, iron_bar: 12, stone: 16 },
+    output: { itemKind: 'barn', quantity: 1 },
+  },
+  coop: {
+    id: 'coop', kind: 'shapeless', station: 'workbench', inputs: { plank: 24, iron_bar: 6, stone: 8 },
+    output: { itemKind: 'coop', quantity: 1 },
+  },
+  silo: {
+    id: 'silo', kind: 'shapeless', station: 'workbench', inputs: { stone: 30, iron_bar: 10 },
+    output: { itemKind: 'silo', quantity: 1 },
+  },
   arrows: {
     id: 'arrows', kind: 'shapeless', station: 'workbench', inputs: { stick: 1, stone: 1 },
     output: { itemKind: 'arrow', quantity: 4 },
@@ -103,6 +168,65 @@ export const RECIPES = {
 } as const satisfies Readonly<Record<string, RecipeDefinition>>;
 
 export type RecipeId = keyof typeof RECIPES;
+
+export interface RecipeBookDefinition {
+  readonly itemKind: string;
+  readonly displayName: string;
+  readonly recipeIds: readonly RecipeId[];
+}
+
+/** Recipe books reveal patterns in the crafting guide; they are deliberately
+ * not crafting permission. The authority continues to accept any correctly
+ * arranged recipe, whether or not its pattern has been learned. */
+export const RECIPE_BOOK_DEFINITIONS = {
+  marlow_book: {
+    itemKind: 'marlow_book',
+    displayName: "Marlow's Practical Patterns",
+    recipeIds: [
+      'planks',
+      'sticks',
+      'torch',
+      'campfire',
+      'workbench',
+      'stone',
+      'iron_ore',
+      'copper_ore',
+      'gold_ore',
+      'emerald_ore',
+      'sapphire_ore',
+      'topaz_ore',
+      'ruby_ore',
+      'amethyst_ore',
+      'chest',
+      'furnace',
+      'cooking_fire',
+      'camp_cooking_fire',
+      'fence',
+      'fence_gate',
+      'sign',
+      'standing_torch',
+      'arrows',
+    ],
+  },
+  janes_gardening_book: {
+    itemKind: 'janes_gardening_book',
+    displayName: "Jane's Garden & Cellar Journal",
+    recipeIds: [
+      'planks',
+      'workbench',
+      'barrel',
+      'fruit_press',
+      'fermentation_cask',
+      'orchard_tea',
+    ],
+  },
+} as const satisfies Readonly<Record<string, RecipeBookDefinition>>;
+
+export function recipeBookDefinition(itemKind: string): RecipeBookDefinition | null {
+  return Object.prototype.hasOwnProperty.call(RECIPE_BOOK_DEFINITIONS, itemKind)
+    ? RECIPE_BOOK_DEFINITIONS[itemKind as keyof typeof RECIPE_BOOK_DEFINITIONS]
+    : null;
+}
 
 export function recipeDefinition(recipeId: string): RecipeDefinition | null {
   return Object.prototype.hasOwnProperty.call(RECIPES, recipeId)

@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_sapphire_piece",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......55........",
+        ".....5005.......",
+        "....503305......",
+        "...5034205.555..",
+        "...502210550005.",
+        "....500055033305",
+        "....555550334105",
+        "...5000550341105",
+        "..50334050222105",
+        ".503341050222105",
+        ".50322105022105.",
+        ".5022110550005..",
+        "..500005..555...",
+        "...5555.........",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#0069aa",
+    "2": "#0098dc",
+    "3": "#00cdf9",
+    "4": "#94fdff",
+    "5": "#f9e6cf"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        80,
+        64,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.resource",
+    "material.ore_piece",
+    "material.raw",
+    "ore.sapphire"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

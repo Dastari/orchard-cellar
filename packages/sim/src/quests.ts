@@ -53,6 +53,9 @@ export interface QuestRewardDefinition {
   readonly bronze: bigint;
   readonly experience: readonly { readonly track: string; readonly amount: bigint }[];
   readonly items: readonly QuestItemRequirement[];
+  /** Raises the owner's homestead to at least this tier without moving any
+   * existing crops or placeables. */
+  readonly homesteadSizeTier?: number;
 }
 
 export interface QuestDefinition {
@@ -60,7 +63,10 @@ export interface QuestDefinition {
   readonly title: string;
   readonly summary: string;
   readonly giverNpcId: bigint;
+  readonly prerequisiteQuestIds?: readonly string[];
   readonly objectives: readonly QuestObjectiveDefinition[];
+  /** Physical starter items granted atomically when the quest is accepted. */
+  readonly acceptItems?: readonly QuestItemRequirement[];
   readonly rewards: QuestRewardDefinition;
   /** Quest-owned carried items removed when the player abandons the quest.
    * Ordinary collected materials must not be listed here. */
@@ -85,6 +91,8 @@ export interface QuestObjectiveProgress {
 
 export const MARLOW_BOOK_QUEST_ID = 'marlow_important_book';
 export const MARLOW_BOOK_ACTION = 'recover_marlow_important_book';
+export const FIRST_BOTTLE_QUEST_ID = 'marlow_first_bottle';
+export const FARMER_BOB_STRAWBERRY_QUEST_ID = 'farmer_bob_fast_strawberries';
 
 export const QUEST_DEFINITIONS = {
   [MARLOW_BOOK_QUEST_ID]: {
@@ -109,6 +117,56 @@ export const QUEST_DEFINITIONS = {
       items: [{ itemKind: 'marlow_book', count: 1 }],
     },
     abandonRemovesItems: [{ itemKind: 'marlow_book', count: 1 }],
+  },
+  [FARMER_BOB_STRAWBERRY_QUEST_ID]: {
+    id: FARMER_BOB_STRAWBERRY_QUEST_ID,
+    title: "Strawberries for Jane",
+    summary: "Plant Bob's unusually vigorous strawberry seeds, water them once, harvest the crop, and bring three strawberries back for Jane.",
+    giverNpcId: 3n,
+    acceptItems: [{ itemKind: 'bob_fast_strawberry_seeds', count: 1 }],
+    objectives: [
+      {
+        id: 'grow_strawberries', kind: 'statistic', label: 'Harvest Bob\'s fast strawberries',
+        statisticKind: 'crops_harvested', subjectKind: 'strawberry', count: 1n,
+      },
+      {
+        id: 'bring_strawberries', kind: 'collect', label: 'Bring 3 Strawberries to Farmer Bob',
+        items: [{ itemKind: 'strawberry', count: 3 }], consumeOnTurnIn: true,
+      },
+    ],
+    rewards: {
+      bronze: 75n,
+      experience: [{ track: 'farming', amount: 100n }],
+      items: [{ itemKind: 'janes_gardening_book', count: 1 }],
+    },
+    abandonRemovesItems: [{ itemKind: 'bob_fast_strawberry_seeds', count: 1 }],
+  },
+  [FIRST_BOTTLE_QUEST_ID]: {
+    id: FIRST_BOTTLE_QUEST_ID,
+    title: 'From Orchard to Cellar',
+    summary: 'Press fruit, age the Must into your first Bottle, then sell it to prove the estate can sustain itself.',
+    giverNpcId: 3n,
+    prerequisiteQuestIds: [FARMER_BOB_STRAWBERRY_QUEST_ID],
+    objectives: [
+      {
+        id: 'press_fruit', kind: 'statistic', label: 'Press 3 Fruit into Must',
+        statisticKind: 'press_cycles_completed', subjectKind: '', count: 3n,
+      },
+      {
+        id: 'age_bottle', kind: 'statistic', label: 'Age 1 Bottle in a Fermentation Cask',
+        statisticKind: 'bottles_produced', subjectKind: '', count: 1n,
+      },
+      {
+        id: 'sell_bottle', kind: 'statistic', label: 'Sell 1 Bottle to Marlow',
+        statisticKind: 'items_sold', subjectKind: 'bottles', count: 1n,
+      },
+    ],
+    rewards: {
+      bronze: 5n * BRONZE_PER_GOLD,
+      experience: [{ track: 'farming', amount: 250n }],
+      items: [],
+      homesteadSizeTier: 1,
+    },
   },
 } as const satisfies Readonly<Record<string, QuestDefinition>>;
 
@@ -140,7 +198,17 @@ export function validateQuestDefinition(definition: QuestDefinition): readonly s
   if (definition.id.trim().length === 0) errors.push('id must not be empty');
   if (definition.title.trim().length === 0) errors.push('title must not be empty');
   if (definition.giverNpcId <= 0n) errors.push('giverNpcId must be positive');
+  if (definition.prerequisiteQuestIds?.some((questId) => questId.trim().length === 0)) {
+    errors.push('prerequisiteQuestIds must not contain empty ids');
+  }
+  if (definition.prerequisiteQuestIds !== undefined
+    && new Set(definition.prerequisiteQuestIds).size !== definition.prerequisiteQuestIds.length) {
+    errors.push('prerequisiteQuestIds must not contain duplicates');
+  }
   if (definition.objectives.length === 0) errors.push('objectives must not be empty');
+  if (definition.acceptItems !== undefined) {
+    errors.push(...validateItemRequirements(definition.acceptItems, 'acceptItems'));
+  }
   const objectiveIds = new Set<string>();
   for (const objective of definition.objectives) {
     const path = `objective ${objective.id || '<empty>'}`;
@@ -181,6 +249,12 @@ export function validateQuestDefinition(definition: QuestDefinition): readonly s
     }
   }
   if (definition.rewards.bronze < 0n) errors.push('rewards.bronze must not be negative');
+  if (definition.rewards.homesteadSizeTier !== undefined
+    && (!Number.isInteger(definition.rewards.homesteadSizeTier)
+      || definition.rewards.homesteadSizeTier < 0
+      || definition.rewards.homesteadSizeTier > 3)) {
+    errors.push('rewards.homesteadSizeTier must be an integer from 0 to 3');
+  }
   if (definition.abandonRemovesItems !== undefined) {
     errors.push(...validateItemRequirements(definition.abandonRemovesItems, 'abandonRemovesItems'));
     for (const item of definition.abandonRemovesItems) {
@@ -210,7 +284,7 @@ export function questDefinition(questId: string): QuestDefinition | null {
  * ordinary objective materials intentionally return null. */
 export function questDefinitionForUniqueItem(itemKind: string): QuestDefinition | null {
   if (!isUniqueQuestItemKind(itemKind)) return null;
-  return Object.values(QUEST_DEFINITIONS).find((definition) => (
+  return (Object.values(QUEST_DEFINITIONS) as readonly QuestDefinition[]).find((definition) => (
     definition.abandonRemovesItems?.some((item) => item.itemKind === itemKind) === true
   )) ?? null;
 }

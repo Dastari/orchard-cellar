@@ -63,7 +63,8 @@
   "tags": [
     "resource.mineable",
     "resource.ore",
-    "ore.amethyst"
+    "ore.amethyst",
+    "ore.node.mixed"
   ],
   "placement": {
     "layer": "object",

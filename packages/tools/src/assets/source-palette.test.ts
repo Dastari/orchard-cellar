@@ -23,6 +23,11 @@ describe('licensed source palette provenance', () => {
 
   it('allows exact native colors, including source white, with matching provenance', () => {
     expect(sourcePaletteErrors(valid, new Set(['a']))).toEqual([]);
+    expect(sourcePaletteErrors({
+      ...valid,
+      sourcePath: 'references/Cute_Fantasy_Christmass/Characters/Santa_Claus.png',
+      importedFrom: 'Santa_Claus.png',
+    }, new Set(['a']))).toEqual([]);
   });
 
   it('allows nonzero native alpha for licensed shadows', () => {

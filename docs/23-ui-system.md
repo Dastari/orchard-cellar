@@ -40,6 +40,25 @@ red=danger) for buttons/selectors, not all eight recolors:
 | Icons | extend the existing `icon_cf_*` set as needed | `UI_Icons.png`, `UI_Button_Icons.png` (arrows, check/cross, coin, heart, gear, bag) |
 | Book/pages | `ui_cf_book_open`, `ui_cf_book_tab` | `Book_UI.png` — help book plus compact/collapsed HUD tabs; later journal/skill content uses the same widget system |
 
+### Actor asset library and animation lab
+
+The public `/ui-lab` route also exposes the owner-licensed NPC and enemy sheets
+through the normal generated-atlas pipeline. `cute-fantasy-actor-library.ts` is
+the gameplay-facing catalog: entries have stable asset IDs, role/family metadata,
+authored animation-group names, and links to companion projectile, weapon, or VFX
+sheets. The import includes profession work (mining, chopping, watering, fishing),
+locomotion, combat/casting/hurt/defeat rows, factions, holiday NPCs, skeletons,
+slimes, shroomlings, desert enemies, volcano enemies, and authored companions.
+Irregular sheets retain neutral `state_XX` labels rather than guessed semantics.
+
+The UI Lab's left catalog reuses existing canonical assets where pixels already
+exist (notably full-size snails) and lazily loads only the visible catalog page
+and selected actor. The right frame displays every animation for that selection
+at once and links its companion sheets. These previews run only while their
+district intersects the viewport. Press `A` to jump to the actor library and `C`
+to jump to the authored-control catalog. Importing makes the sprites immediately
+loadable by game code; it does not spawn or place them in the live world.
+
 ### Persistent HUD controls
 
 The zone ribbon owns two independent targets: its lightning ghost button
@@ -72,9 +91,14 @@ docs/02 always reserved), rendered by the doc 21 UI pass. No DOM, no framework.
 - **Core interface:** `Widget { layout(constraints): Size; draw(ctx, origin); onPointer?(e); onKey?(e) }`
   with container widgets owning children. All geometry is integer UI pixels;
   the UI pass applies the whole-pixel UI scale (Shift `-`/`+` ladder) globally.
-- **Layout:** rows and columns with padding/gap/alignment, plus screen anchors
-  (top-left, bottom-center, …) for roots. Minimum sizes derive from 9-slice
-  insets and content. No constraint solver — flex-lite is enough for this game.
+- **Layout:** the shared pixel-snapped flex/grid engine supports asymmetric
+  padding, gaps, alignment, wrapping, and explicit `fit`, `grow`, `fixed`, and
+  parent-percentage sizing with minimum/maximum bounds. Attach points position
+  close controls, ribbons, bookmarks, tooltips, and popovers without resizing
+  their authored pixels. Minimum sizes derive from 9-slice insets and content;
+  component-width variants provide container-query-style reflow. The legacy
+  row/column helpers delegate to this engine rather than maintaining a second
+  implementation.
 - **Widget set (v1):** `Panel`, `Window` (frame + ribbon title + close button;
   draggable by title; position remembered per window kind in local settings),
   `Button` (state frames + icon and/or label, keyboard/gamepad activatable),
@@ -83,12 +107,19 @@ docs/02 always reserved), rendered by the doc 21 UI pass. No DOM, no framework.
   label + selector bracket states), `Tooltip` (hover, delayed), `SpeechBubble`
   (world-anchored: follows an entity's screen position from the world transform,
   drawn in the UI pass), `Cursor`.
-- **Input routing:** pointer events hit-test the UI tree front-to-back *before*
-  the world receives them (a click on a window never chops a tree); wheel over a
-  `Slider`/scrollable adjusts it, otherwise falls through to world zoom; `Esc`
-  closes the top window; open windows capture movement keys only when a text
-  field has focus (none in v1). One shared focus/z-order manager; the existing
-  `InputController` stays the single entry point.
+- **Input routing:** stable unique widget IDs expose final layout rectangles for
+  inspection and tests. Pointer events hit-test the tree in reverse paint order
+  *before* the world receives them. Layers explicitly declare `capture` or
+  `passthrough`; modal capture includes wheel input, while decorative overlays
+  can reveal the next eligible control beneath them. `Esc` closes the top window;
+  open windows capture movement keys only when a text field has focus (none in
+  v1). One shared focus/z-order manager; the existing `InputController` stays
+  the single entry point.
+- **Input modality is client-local:** touch shows the joystick/action controls
+  only in the browser tab that observed that touch; mouse or pen input in that
+  same tab restores pointer UI and the in-game cursor. Modality never belongs in
+  an identity/player row, so simultaneous clients for one character may present
+  different controls while intentionally sharing authoritative movement state.
 - **Migration:** the hand-drawn hotbar becomes `Window`-less anchored
   `InventoryGrid` bound to the hotbar container; toasts become a `Label` queue
   widget; player name tags move to `SpeechBubble`'s positioning helper. The F3

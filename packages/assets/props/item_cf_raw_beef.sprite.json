@@ -1,0 +1,68 @@
+{
+  "name": "item_cf_raw_beef",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".........000....",
+        "........04440...",
+        ".......0411340..",
+        "......041335320.",
+        ".....0424355540.",
+        "...004232225520.",
+        "..0442333235320.",
+        ".04352355335410.",
+        ".04433235553210.",
+        ".0243543353210..",
+        ".032445534210...",
+        ".05322222110....",
+        "..053311100.....",
+        "...000000.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#e63d43",
+    "2": "#efa9a9",
+    "3": "#f1555a",
+    "4": "#f4c3c3",
+    "5": "#f6757a"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Food_Icons_NO_Outline.png",
+  "sourcePath": "references/Cute_Fantasy/Icons/No Outline/Food_Icons_NO_Outline.png",
+  "sourceRegions": {
+    "base": [
+      [
+        32,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.food",
+    "food.raw.beef"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

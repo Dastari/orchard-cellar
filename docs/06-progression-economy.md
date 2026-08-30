@@ -104,6 +104,19 @@ Compost mulch costs **5 Pomace per tree** and holds Care decay for three days.
 Plot clearing is permanent spatial progress: 15 plots initially, then 30 / 60 /
 90 / 120 plots for 2,000 / 16,000 / 130,000 / 1,000,000 Fruit.
 
+### Live Homestead gold upgrades
+
+The shared-world Homestead loop uses permanent gold ladders separate from the retired
+fruit/pomace counters above. Costs are whole gold (10,000 bronze each).
+
+| Upgrade | Rank costs | Effect per rank |
+|---|---:|---|
+| Rich Soil | 2 / 6 / 18 gold | +10% watered crop growth speed |
+| Selective Seeds | 3 / 9 / 27 gold | +10% deterministic average harvest yield |
+| Barrel Cellar | 4 / 12 / 36 gold | +8 batch capacity; +10% curing speed |
+| Estate Vintage | 6 / 18 / 54 gold | 45 / 60 / 90 min aging; 2× / 4× / 8× Bottle value |
+| Sprinkler | 5 gold each | radius-2 continuous watering; requires Sprinkler Engineering |
+
 ## 3. Vigour & tending
 
 - Charge rate: `0.04/s × (1 + vigourRate skills)`; ×4 in Autumn; +25% for 2 h after

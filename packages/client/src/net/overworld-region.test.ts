@@ -43,14 +43,14 @@ describe('overworld regional subscriptions', () => {
   });
 
   it('34§5 uses one bounded rectangular query per regional table', () => {
-    expect(regionSubscriptionQueryCount({ minX: 2, minY: 3, maxX: 2, maxY: 3 })).toBe(20);
-    expect(regionSubscriptionQueryCount({ minX: 0, minY: 0, maxX: 2, maxY: 1 })).toBe(20);
+    expect(regionSubscriptionQueryCount({ minX: 2, minY: 3, maxX: 2, maxY: 3 })).toBe(17);
+    expect(regionSubscriptionQueryCount({ minX: 0, minY: 0, maxX: 2, maxY: 1 })).toBe(17);
   });
 
   it('26§13 bounds an instance space and budgets every space-aware table', () => {
     const bounds = subscriptionChunkBounds(1, 1, { x: 9, y: 9 }, 32);
     expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 1, maxY: 1 });
-    expect(regionSubscriptionQueryCount(bounds, 65_534)).toBe(19);
+    expect(regionSubscriptionQueryCount(bounds, 65_534)).toBe(16);
   });
 
   it('34§4 does not churn a boundary crossing and return inside the deadband', () => {
@@ -75,7 +75,7 @@ describe('overworld regional subscriptions', () => {
     expect(globals).not.toContain('tables.worldWildlifeProfile');
     expect(globals).toContain('row.online.eq(true)');
     expect(globals).toContain('onlineProfiles.rightSemijoin');
-    expect(globals).not.toContain('tables.worldMerchant');
+    expect(globals).toContain('tables.worldMerchant');
     expect(globals).not.toContain('tables.worldCampfireState');
     expect(globals).not.toContain('tables.spacePortal');
     expect(globals).not.toContain('tables.homestead');
@@ -85,15 +85,20 @@ describe('overworld regional subscriptions', () => {
     expect(source).not.toContain("this.profiles.get(id)?.online ?? true");
     expect(region).toContain('tables.worldHive');
     expect(region).toContain('tables.worldWildlifeProfile');
-    expect(region).toContain('positions.rightSemijoin');
-    expect(region).toContain('npcs.rightSemijoin');
+    expect(region).not.toContain('positions.rightSemijoin');
+    expect(region).not.toContain('npcs.rightSemijoin');
     expect(region).toContain('tables.spacePortal.where');
     expect(region).toContain('tables.worldCampfireState');
     expect(region).toContain('? [overworldHomesteads]');
     expect(region).toContain(': []');
     expect(source).toContain('tables.ownCurrentHomestead');
+    expect(source).toContain('connection.db.ownCurrentHomestead.spaceId.find(row.spaceId)');
+    expect(source).toContain('connection.db.homestead.spaceId.find(row.spaceId)');
     expect(region).not.toContain('row.residenceSpaceId.eq(spaceId)');
     expect(region).toContain('portals, campfires, ...homesteadQueries');
+    expect(region).toContain('core world streaming remains active');
+    expect(region.indexOf('.subscribe([portals, campfires, ...homesteadQueries])'))
+      .toBeLessThan(region.indexOf('positions, resources, soil, crops'));
     expect(region).not.toContain('hydrateRegion');
     expect(region.match(/row\.spaceId\.eq\(spaceId\)/g)).toHaveLength(15);
     expect(region.indexOf('previous?.isActive()')).toBeGreaterThan(region.indexOf('.onApplied('));
@@ -126,8 +131,8 @@ describe('overworld regional subscriptions', () => {
   it('34§6 reduces settled 1080p query count from the stage-1 baseline', () => {
     const stage1Baseline = 8 + 15 + 11 * 11 * 8;
     const bounds = subscriptionChunkBounds(20, 20, viewRadiusForViewport(1920, 1080, 1));
-    const stage2Settled = 2 + 4 + 28 + regionSubscriptionQueryCount(bounds);
-    expect(stage2Settled).toBe(54);
+    const stage2Settled = 2 + 5 + 28 + regionSubscriptionQueryCount(bounds);
+    expect(stage2Settled).toBe(52);
     expect(stage2Settled).toBeLessThanOrEqual(stage1Baseline);
   });
 });

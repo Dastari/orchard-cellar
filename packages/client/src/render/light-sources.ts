@@ -24,6 +24,12 @@ export const PLACEABLE_LIGHT_EMITTERS: Readonly<Record<string, LightEmitterDefin
   campfire: {
     color: CAMPFIRE_LIGHT, radiusTiles: CAMPFIRE_LIGHT_RADIUS_TILES, offsetY: -12, profile: 'flame', facingSeed: false,
   },
+  cooking_fire: {
+    color: CAMPFIRE_LIGHT, radiusTiles: CAMPFIRE_LIGHT_RADIUS_TILES, offsetY: -12, profile: 'flame', facingSeed: false,
+  },
+  camp_cooking_fire: {
+    color: CAMPFIRE_LIGHT, radiusTiles: CAMPFIRE_LIGHT_RADIUS_TILES, offsetY: -12, profile: 'flame', facingSeed: false,
+  },
   standing_torch: {
     color: TORCH_LIGHT, radiusTiles: TORCH_LIGHT_RADIUS_TILES, offsetY: -20, profile: 'flame', facingSeed: false,
   },

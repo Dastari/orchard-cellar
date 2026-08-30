@@ -16,7 +16,12 @@ import {
   type OidcEntryIntent,
   type OidcSession,
 } from './auth/oidc.js';
-import { canvasViewport, centeredFixedSceneLayout } from './display.js';
+import {
+  canvasHostViewport,
+  canvasSafeAreaInsets,
+  centeredFixedSceneLayout,
+  insetCanvasViewport,
+} from './display.js';
 import { loadGeneratedAsset } from './render/assets.js';
 import { drawPixelText, loadPixelUi } from './render/pixel-ui.js';
 import { drawUiSkinAsset, loadUiSkin } from './ui/skin.js';
@@ -81,10 +86,11 @@ let localPreview = localProfilesEnabled && !oidcConfigured;
 let message = oidcConfigured
   ? authSession === null ? 'CREATE AN ACCOUNT OR SIGN IN TO CONTINUE' : `WELCOME BACK, ${authSession.displayName.toUpperCase()}`
   : localProfilesEnabled ? 'ACCOUNT LOGIN OFF - LOCAL DEV PREVIEW' : 'ACCOUNT LOGIN IS NOT CONFIGURED';
-let viewport = canvasViewport(innerWidth, innerHeight);
+let viewport = canvasHostViewport(canvas);
 let scene = centeredFixedSceneLayout(viewport.width, viewport.height);
 let displayPixelRatio = Math.max(1, devicePixelRatio);
 let navigationPending = false;
+let animationFrameId: number | null = null;
 
 function navigateWithMusic(action: () => void): void {
   if (navigationPending) return;
@@ -93,8 +99,15 @@ function navigateWithMusic(action: () => void): void {
 }
 
 function resize(): void {
-  viewport = canvasViewport(innerWidth, innerHeight);
-  scene = centeredFixedSceneLayout(viewport.width, viewport.height);
+  viewport = canvasHostViewport(canvas);
+  const safeArea = canvasSafeAreaInsets(canvas);
+  const safeViewport = insetCanvasViewport(viewport.width, viewport.height, safeArea);
+  const safeScene = centeredFixedSceneLayout(safeViewport.width, safeViewport.height);
+  scene = {
+    ...safeScene,
+    x: safeScene.x + safeArea.left,
+    y: safeScene.y + safeArea.top,
+  };
   displayPixelRatio = Math.max(1, devicePixelRatio);
   canvas.width = Math.round(viewport.width * displayPixelRatio);
   canvas.height = Math.round(viewport.height * displayPixelRatio);
@@ -167,6 +180,7 @@ function drawLocalPreview(): void {
 }
 
 function render(timeMs = performance.now()): void {
+  animationFrameId = null;
   context.setTransform(displayPixelRatio, 0, 0, displayPixelRatio, 0, 0);
   context.imageSmoothingEnabled = false;
   drawOrchardBackdrop(context, viewport.width, viewport.height, timeMs);
@@ -183,7 +197,17 @@ function render(timeMs = performance.now()): void {
 
   if (localPreview) drawText('ARROWS SELECT  ENTER CONTINUE  N NEW', 240, 218, '#6f451f', 'center');
   context.restore();
-  requestAnimationFrame(render);
+  animationFrameId = requestAnimationFrame(render);
+}
+
+function startRendering(): void {
+  if (animationFrameId === null) animationFrameId = requestAnimationFrame(render);
+}
+
+function stopRendering(): void {
+  if (animationFrameId === null) return;
+  cancelAnimationFrame(animationFrameId);
+  animationFrameId = null;
 }
 
 function submitLocal(): void {
@@ -225,6 +249,14 @@ async function submitAccount(intent: OidcEntryIntent = 'login'): Promise<void> {
 }
 
 window.addEventListener('resize', resize);
+window.visualViewport?.addEventListener('resize', resize);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopRendering();
+  else {
+    resize();
+    startRendering();
+  }
+});
 window.addEventListener('keydown', (event) => {
   void audio.unlock().catch(() => undefined);
   if (oidcConfigured && localProfilesEnabled && event.key.toLowerCase() === 'd' && document.activeElement !== input && !event.repeat) {
@@ -302,4 +334,4 @@ input.addEventListener('input', () => {
 
 resize();
 dismissLoadingScreen();
-render();
+startRendering();

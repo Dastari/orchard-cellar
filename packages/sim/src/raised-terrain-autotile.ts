@@ -44,6 +44,12 @@ export interface RaisedTerrainTileSet {
   readonly faceProfiles: Readonly<Record<string, RaisedTerrainFaceProfile>>;
   readonly edgeBlocksMovement?: boolean;
   readonly edgeBlocksLight?: boolean;
+  /** Optional number of open rows required in front of a south-facing source
+   * before its vertical face may project. Raised outdoor cliffs leave this at
+   * zero. Inverse cave walls use their authored face height so a one-cell
+   * lateral tunnel remains a real opening instead of being filled by a wall
+   * projected from the solid cell immediately north of it. */
+  readonly faceClearanceRows?: number;
 }
 
 /** An editor can implement this interface directly from an integer elevation
@@ -155,11 +161,20 @@ export function raisedTerrainInsetRolesAt(
   return roles;
 }
 
-function southFaceAt(grid: RaisedTerrainGrid, tileX: number, tileY: number): boolean {
-  return grid.raisedAt(tileX, tileY)
+function southFaceAt(
+  grid: RaisedTerrainGrid,
+  tileX: number,
+  tileY: number,
+  clearanceRows = 0,
+): boolean {
+  if (!(grid.raisedAt(tileX, tileY)
     && !grid.raisedAt(tileX, tileY + 1)
     && !grid.rampRoleAt?.(tileX, tileY)
-    && raisedTerrainInsetRolesAt(grid, tileX, tileY).length === 0;
+    && raisedTerrainInsetRolesAt(grid, tileX, tileY).length === 0)) return false;
+  for (let depth = 1; depth <= clearanceRows; depth += 1) {
+    if (grid.raisedAt(tileX, tileY + depth)) return false;
+  }
+  return true;
 }
 
 /** Includes indirect rear coverage beside a continuing plateau. That coverage
@@ -169,13 +184,14 @@ function faceCoverageAt(
   tileX: number,
   tileY: number,
   depth: number,
+  clearanceRows: number,
 ): boolean {
   const sourceY = tileY - depth;
-  if (southFaceAt(grid, tileX, sourceY)) return true;
+  if (southFaceAt(grid, tileX, sourceY, clearanceRows)) return true;
   const continuingRaised = grid.raisedAt(tileX, sourceY) && grid.raisedAt(tileX, sourceY + 1);
   return continuingRaised && (
-    southFaceAt(grid, tileX - 1, sourceY)
-    || southFaceAt(grid, tileX + 1, sourceY)
+    southFaceAt(grid, tileX - 1, sourceY, clearanceRows)
+    || southFaceAt(grid, tileX + 1, sourceY, clearanceRows)
   );
 }
 
@@ -196,9 +212,10 @@ function faceJoinAt(
   tileX: number,
   tileY: number,
   depth: number,
+  clearanceRows: number,
 ): RaisedTerrainFaceJoin {
-  if (!faceCoverageAt(grid, tileX - 1, tileY, depth)) return 'left';
-  if (!faceCoverageAt(grid, tileX + 1, tileY, depth)) return 'right';
+  if (!faceCoverageAt(grid, tileX - 1, tileY, depth, clearanceRows)) return 'left';
+  if (!faceCoverageAt(grid, tileX + 1, tileY, depth, clearanceRows)) return 'right';
   return 'middle';
 }
 
@@ -214,13 +231,14 @@ function faceContinuesDiagonally(
   tileY: number,
   depth: number,
   join: RaisedTerrainFaceJoin,
+  clearanceRows: number,
 ): boolean {
   if (join === 'middle') return false;
   const sourceY = tileY - depth;
-  return southFaceAt(grid, tileX - 1, sourceY - 1)
-    || southFaceAt(grid, tileX - 1, sourceY + 1)
-    || southFaceAt(grid, tileX + 1, sourceY - 1)
-    || southFaceAt(grid, tileX + 1, sourceY + 1);
+  return southFaceAt(grid, tileX - 1, sourceY - 1, clearanceRows)
+    || southFaceAt(grid, tileX - 1, sourceY + 1, clearanceRows)
+    || southFaceAt(grid, tileX + 1, sourceY - 1, clearanceRows)
+    || southFaceAt(grid, tileX + 1, sourceY + 1, clearanceRows);
 }
 
 function sideEdgeContinuesDiagonally(
@@ -254,26 +272,27 @@ export function resolveRaisedTerrainTile(
   const edgeRole = raisedTerrainEdgeRoleAt(grid, tileX, tileY);
   const insetRoles = raisedTerrainInsetRolesAt(grid, tileX, tileY);
   const faceLayers: RaisedTerrainFaceLayer[] = [];
+  const faceClearanceRows = Math.max(0, Math.trunc(tileSet.faceClearanceRows ?? 0));
 
   for (let depth = profile.rows.length; depth >= 1; depth -= 1) {
     if (projectionInterruptedByInset(grid, tileX, tileY, depth)) continue;
-    if (!faceCoverageAt(grid, tileX, tileY, depth)) continue;
+    if (!faceCoverageAt(grid, tileX, tileY, depth, faceClearanceRows)) continue;
     const row = profile.rows[depth - 1];
     if (!row) continue;
-    const join = faceJoinAt(grid, tileX, tileY, depth);
+    const join = faceJoinAt(grid, tileX, tileY, depth, faceClearanceRows);
     faceLayers.push({
       depth,
       rowId: row.id,
       join,
       frame: frameForJoin(row, join),
       ...(row.contributesHeight !== false
-        && southFaceAt(grid, tileX, tileY - depth)
-        && faceContinuesDiagonally(grid, tileX, tileY, depth, join)
+        && southFaceAt(grid, tileX, tileY - depth, faceClearanceRows)
+        && faceContinuesDiagonally(grid, tileX, tileY, depth, join, faceClearanceRows)
         ? { seamUnderlayFrame: row.frames[1] }
         : {}),
       blocksMovement: row.blocksMovement,
       blocksLight: row.blocksLight,
-      direct: southFaceAt(grid, tileX, tileY - depth),
+      direct: southFaceAt(grid, tileX, tileY - depth, faceClearanceRows),
     });
   }
 

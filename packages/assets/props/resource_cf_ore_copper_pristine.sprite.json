@@ -1,0 +1,74 @@
+{
+  "name": "resource_cf_ore_copper_pristine",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "........11......",
+        ".......1551.....",
+        ".111..154451.11.",
+        ".15511544521151.",
+        ".15431355221541.",
+        ".1533133522131..",
+        "..1531335221111.",
+        "...151434221551.",
+        "..1111345213451.",
+        "..1551334213510.",
+        "..1454135135310.",
+        "..0134134133100.",
+        "..0000000000000.",
+        "...00000000000.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000064",
+    "1": "#3f2832",
+    "2": "#743f39",
+    "3": "#b86f50",
+    "4": "#e4a672",
+    "5": "#ead4aa"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        64,
+        16,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "resource.mineable",
+    "resource.ore",
+    "ore.copper",
+    "ore.node.pristine"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

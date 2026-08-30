@@ -22,6 +22,9 @@ export type LightProfile = 'steady' | 'flame' | 'pulse';
 export interface FloodLight {
   readonly centerX: number;
   readonly centerY: number;
+  /** Ground-contact Y used for directional receiver lighting. This can differ
+   * from the luminous sprite position of a carried torch or lantern. */
+  readonly receiverDirectionCenterY?: number;
   readonly radius: number;
   readonly color: { readonly r: number; readonly g: number; readonly b: number };
   readonly strengthPerMille?: number;
@@ -71,6 +74,11 @@ export class QuantizedLightFlood {
   private readonly bandRed = new Uint8Array(LIGHT_BANDS + 1);
   private readonly bandGreen = new Uint8Array(LIGHT_BANDS + 1);
   private readonly bandBlue = new Uint8Array(LIGHT_BANDS + 1);
+  private readonly bandLuma = new Uint8Array(LIGHT_BANDS + 1);
+  private southFacePixels: Uint8Array | null = null;
+  private southFaceWidth = 0;
+  private southFaceSourceX = 0;
+  private southFaceSourceY = 0;
   private epoch = 0;
   private strongestBucket = 0;
   private visitedTexels = 0;
@@ -92,17 +100,26 @@ export class QuantizedLightFlood {
     trunkCellIndices: Uint32Array | null = null,
     trunkCellCount = 0,
     relitReceiverOwners: Uint16Array | null = null,
+    southFacePixels: Uint8Array | null = null,
   ): void {
     const cellCount = width * height;
     if (cellCount <= 0 || pixels.length < cellCount * 4 || occlusion.length < cellCount) return;
     this.resize(cellCount);
     this.begin();
     this.prepareColorBands(light);
+    this.southFacePixels = southFacePixels !== null && southFacePixels.length >= cellCount
+      ? southFacePixels : null;
+    this.southFaceWidth = width;
     this.visitedTexels = 0;
 
     const [offsetX, offsetY] = facingOffset(light.facing);
     const centerX = Math.max(0, Math.min(width - 1, light.centerX + offsetX));
     const centerY = Math.max(0, Math.min(height - 1, light.centerY + offsetY));
+    this.southFaceSourceX = centerX;
+    this.southFaceSourceY = Math.max(
+      0,
+      Math.min(height - 1, (light.receiverDirectionCenterY ?? light.centerY) + offsetY),
+    );
     const initialStrength = Math.max(0, Math.min(MAX_LIGHT_STRENGTH, Math.round(light.strengthPerMille ?? 1000)));
     if (initialStrength === 0) return;
     this.stampFlameHalo(haloPixels, width, height, centerX, centerY, light, initialStrength);
@@ -144,7 +161,7 @@ export class QuantizedLightFlood {
       this.applyOpen(
         pixels, haloPixels, width, centerX, centerY,
         minX, minY, maxX, maxY, radiusCost, initialStrength, light,
-        hasDirectionalBlockers, receiverOwners, occlusion, relitReceiverOwners,
+        hasDirectionalBlockers, receiverOwners, occlusion, relitReceiverOwners, trunkOwners,
       );
       return;
     }
@@ -433,6 +450,7 @@ export class QuantizedLightFlood {
     receiverOwners: Uint16Array | null = null,
     occlusion: Uint8Array | null = null,
     relitReceiverOwners: Uint16Array | null = null,
+    casterOwners: Uint16Array | null = null,
   ): void {
     const centerSubtexelX = Math.round(centerX * 16);
     const centerSubtexelY = Math.round(centerY * 16);
@@ -450,7 +468,11 @@ export class QuantizedLightFlood {
         if (visibilityRequired && this.visibleEpoch[index] !== this.epoch) {
           const receiverOwner = (relitReceiverOwners ?? receiverOwners)?.[index] ?? 0;
           const elevatedReceiverIsVisible = receiverOwner !== 0
-            && this.visibleReceiverOwnerEpoch[receiverOwner] === this.epoch;
+            && this.visibleReceiverOwnerEpoch[receiverOwner] === this.epoch
+            && this.receiverHasClearLine(
+              occlusion, casterOwners, width,
+              Math.round(centerX), Math.round(centerY), x, y, receiverOwner,
+            );
           const frontFaceReceivesLight = occlusion?.[index] === LIGHT_CLIFF_FACE_BLOCKER
             && centerY > y
             && this.frontFaceHasClearLine(
@@ -510,11 +532,55 @@ export class QuantizedLightFlood {
     return true;
   }
 
+  /** Elevated artwork may ignore its own opaque base, but never another
+   * owner's silhouette. This keeps the caster lit without promoting every
+   * pixel of that owner through a neighbouring object's shadow. */
+  private receiverHasClearLine(
+    occlusion: Uint8Array | null,
+    casterOwners: Uint16Array | null,
+    width: number,
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number,
+    receiverOwner: number,
+  ): boolean {
+    if (occlusion === null) return true;
+    let x = sourceX;
+    let y = sourceY;
+    const dx = Math.abs(targetX - sourceX);
+    const dy = Math.abs(targetY - sourceY);
+    const stepX = sourceX < targetX ? 1 : -1;
+    const stepY = sourceY < targetY ? 1 : -1;
+    let error = dx - dy;
+    while (x !== targetX || y !== targetY) {
+      const doubledError = error * 2;
+      if (doubledError > -dy) {
+        error -= dy;
+        x += stepX;
+      }
+      if (doubledError < dx) {
+        error += dx;
+        y += stepY;
+      }
+      if (x === targetX && y === targetY) return true;
+      const index = y * width + x;
+      const kind = occlusion[index];
+      if (kind === LIGHT_SPRITE_BLOCKER && (casterOwners?.[index] ?? 0) === receiverOwner) continue;
+      if (this.isOpaqueBlocker(kind)) return false;
+    }
+    return true;
+  }
+
   private prepareColorBands(light: FloodLight): void {
     for (let band = 1; band <= LIGHT_BANDS; band += 1) {
       this.bandRed[band] = Math.round(light.color.r * band / LIGHT_BANDS);
       this.bandGreen[band] = Math.round(light.color.g * band / LIGHT_BANDS);
       this.bandBlue[band] = Math.round(light.color.b * band / LIGHT_BANDS);
+      this.bandLuma[band] = Math.round(
+        (light.color.r * 0.2126 + light.color.g * 0.7152 + light.color.b * 0.0722)
+        * band / LIGHT_BANDS,
+      );
     }
   }
 
@@ -673,6 +739,16 @@ export class QuantizedLightFlood {
     if (red > pixels[offset]!) pixels[offset] = red;
     if (green > pixels[offset + 1]!) pixels[offset + 1] = green;
     if (blue > pixels[offset + 2]!) pixels[offset + 2] = blue;
+    if (this.southFacePixels !== null) {
+      const x = index % this.southFaceWidth;
+      const y = Math.floor(index / this.southFaceWidth);
+      const dx = this.southFaceSourceX - x;
+      const dy = this.southFaceSourceY - y;
+      const distance = Math.hypot(dx, dy);
+      const gate = distance < 0.25 ? 1 : Math.max(0, Math.min(1, (dy / distance + 0.35) / 0.7));
+      const luma = Math.round((this.bandLuma[band] ?? 0) * gate);
+      if (luma > (this.southFacePixels[index] ?? 0)) this.southFacePixels[index] = luma;
+    }
   }
 
 }

@@ -141,6 +141,24 @@ describe('NPC interaction layout', () => {
     expect(ui.shopState.lines).toEqual([]);
   });
 
+  it('swipe-scrolls Marlow\'s shop rows on touch screens', () => {
+    const ui = new NpcInteractionUi({} as UiSkin, {} as PixelUi, {} as never, {
+      chooseDialogueOption: vi.fn(), closeDialogue: vi.fn(),
+      buy: vi.fn().mockResolvedValue(undefined), sell: vi.fn().mockResolvedValue(undefined),
+    });
+    ui.update({
+      width: 320, height: 160, npcId: 2n, dialogueId: 'tool_merchant', nodeId: 'shop',
+      balanceBronze: 100_000n, inventory: [], touchControls: true,
+    });
+    const layout = npcInteractionLayout(320, 160, true);
+    const start = { x: layout.list.x + 20, y: layout.list.y + layout.list.height - 8 };
+    ui.pointerDown(start, 0, { pointerType: 'touch' });
+    ui.pointerMove({ x: start.x, y: start.y - 60 });
+    expect(ui.pointerUp()).toBe(true);
+    const internal = ui as unknown as { scrollBar: { position: number } };
+    expect(internal.scrollBar.position).toBeGreaterThan(0);
+  });
+
   it('disables an unaffordable buy cart without sending it', () => {
     const buy = vi.fn().mockResolvedValue(undefined);
     const ui = new NpcInteractionUi({} as UiSkin, {} as PixelUi, {} as never, {

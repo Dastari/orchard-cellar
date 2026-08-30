@@ -3,7 +3,7 @@ import {
   BACKPACK_SLOT_OFFSET,
   BASE_BACKPACK_CAPACITY,
   ITEM_ECONOMY,
-  TOOL_MERCHANT_OFFERS,
+  merchantOffers,
   coinPurseFromBronze,
   dialogueDefinition,
   dialogueNode,
@@ -27,7 +27,7 @@ import {
   type BoundedStepperModifiers,
   type StepperDirection,
 } from './bounded-stepper.js';
-import { drawUiLabelPlate, drawUiSkinAsset, drawUiSkinNatural, uiAssetFrame, type UiSkin } from './skin.js';
+import { drawUiLabelPlate, drawUiSkinAsset, uiAssetFrame, type UiSkin } from './skin.js';
 
 const PLAYER_SELLABLE_SLOT_LIMIT = BACKPACK_SLOT_OFFSET + BACKPACK_SLOT_COUNT;
 const PLAYER_DEFAULT_SELLABLE_SLOT_LIMIT = BACKPACK_SLOT_OFFSET + BASE_BACKPACK_CAPACITY;
@@ -48,9 +48,11 @@ export interface NpcInteractionModel {
   readonly height: number;
   readonly npcId: bigint;
   readonly dialogueId: string;
+  readonly shopId?: string;
   readonly nodeId: string;
   readonly balanceBronze: bigint;
   readonly inventory: readonly OverworldUiInventorySlot[];
+  readonly sellPriceOverrides?: Readonly<Record<string, number>>;
   readonly quests?: readonly { readonly questId: string; readonly state: string }[];
   readonly touchControls?: boolean;
 }
@@ -205,7 +207,12 @@ export function dialogueChoiceIsAvailable(
 ): boolean {
   if (choice.quest === undefined) return true;
   const row = quests.find((quest) => quest.questId === choice.quest?.questId);
-  return choice.quest.requires === 'available' ? row === undefined : row?.state === choice.quest.requires;
+  if (choice.quest.requires !== 'available') return row?.state === choice.quest.requires;
+  if (row !== undefined) return false;
+  const definition = questDefinition(choice.quest.questId);
+  return definition !== null && definition.prerequisiteQuestIds?.every((questId) => (
+    quests.some((quest) => quest.questId === questId && quest.state === 'turned_in')
+  )) !== false;
 }
 
 export function dialogueChoiceRewardTooltip(choice: DialogueChoice | null | undefined): string | null {
@@ -223,6 +230,9 @@ export function dialogueChoiceRewardTooltip(choice: DialogueChoice | null | unde
   for (const reward of definition.rewards.items) {
     const name = itemDefinition(reward.itemKind)?.displayName ?? reward.itemKind.replaceAll('_', ' ');
     rewards.push(`${name.toUpperCase()} ×${reward.count}`);
+  }
+  if (definition.rewards.homesteadSizeTier !== undefined) {
+    rewards.push(`HOMESTEAD TIER ${definition.rewards.homesteadSizeTier}`);
   }
   return `REWARDS: ${rewards.length > 0 ? rewards.join(' / ') : 'NONE'}`;
 }
@@ -259,6 +269,7 @@ export class NpcInteractionUi {
   private transactionPending = false;
   private pointer: UiPoint = { x: -100, y: -100 };
   private hoveredItemKind: string | null = null;
+  private pendingTouchDialogueChoice: string | null = null;
   private filterText = '';
   private readonly ribbon: Ribbon;
   private readonly scrollBar: ScrollBar;
@@ -350,6 +361,7 @@ export class NpcInteractionUi {
     const previousNode = this.model?.nodeId ?? null;
     this.model = model;
     if (model === null) {
+      this.pendingTouchDialogueChoice = null;
       this.selectedItemKind = null;
       this.hoveredItemKind = null;
       this.buyQuantities.clear();
@@ -413,6 +425,8 @@ export class NpcInteractionUi {
     this.pointer = point;
     this.scrollBar.pointerMove(point);
     this.dialogueScrollBar.pointerMove(point);
+    if (this.shopOpen) this.scrollBar.swipeMove(point, SHOP_ROW_HEIGHT);
+    else this.dialogueScrollBar.swipeMove(point, 22);
     this.hoveredItemKind = null;
     if (this.shopOpen) {
       for (const entry of this.visibleShopRows()) {
@@ -422,7 +436,9 @@ export class NpcInteractionUi {
     return true;
   }
 
-  pointerDown(point: UiPoint, button: number, modifiers: BoundedStepperModifiers = {}): boolean {
+  pointerDown(point: UiPoint, button: number, modifiers: BoundedStepperModifiers & {
+    readonly pointerType?: string;
+  } = {}): boolean {
     if (this.model === null) return false;
     this.pointer = point;
     if (button !== 0) return true;
@@ -431,12 +447,16 @@ export class NpcInteractionUi {
     const definition = dialogueDefinition(this.model.dialogueId);
     const node = definition === null ? null : dialogueNode(definition, this.model.nodeId);
     if (node?.mode !== 'shop') {
+      this.dialogueScrollBar.beginSwipe(point, layout.dialogueList, modifiers.pointerType);
       if (this.dialogueScrollBar.pointerDown(point)) return true;
       const choices = this.visibleDialogueChoices();
       const choiceRects = this.dialogueChoiceRects(layout, choices.length);
       const index = choiceRects.findIndex((rect) => containsPoint(rect, point));
       const choice = choices[index];
-      if (choice) this.callbacks.chooseDialogueOption(choice.id);
+      if (choice) {
+        if (modifiers.pointerType === 'touch') this.pendingTouchDialogueChoice = choice.id;
+        else this.callbacks.chooseDialogueOption(choice.id);
+      }
       return true;
     }
     if (containsPoint(layout.buyTab, point)) { this.setTab('buy'); return true; }
@@ -445,6 +465,7 @@ export class NpcInteractionUi {
       this.filterInput?.focus({ preventScroll: true });
       return true;
     }
+    this.scrollBar.beginSwipe(point, layout.list, modifiers.pointerType);
     if (this.scrollBar.pointerDown(point)) return true;
     if (containsPoint(layout.back, point)) { this.callbacks.chooseDialogueOption('back'); return true; }
     for (const entry of this.visibleShopRows()) {
@@ -462,6 +483,17 @@ export class NpcInteractionUi {
 
   pointerUp(): boolean {
     if (this.model === null) return false;
+    const shopSwiped = this.scrollBar.endSwipe();
+    const dialogueSwiped = this.dialogueScrollBar.endSwipe();
+    if (shopSwiped || dialogueSwiped) {
+      this.pendingTouchDialogueChoice = null;
+      return true;
+    }
+    if (this.pendingTouchDialogueChoice !== null) {
+      const choiceId = this.pendingTouchDialogueChoice;
+      this.pendingTouchDialogueChoice = null;
+      this.callbacks.chooseDialogueOption(choiceId);
+    }
     this.scrollBar.pointerUp();
     this.dialogueScrollBar.pointerUp();
     return true;
@@ -472,6 +504,7 @@ export class NpcInteractionUi {
     this.hoveredItemKind = null;
     this.scrollBar.pointerLeave();
     this.dialogueScrollBar.pointerLeave();
+    this.pendingTouchDialogueChoice = null;
   }
 
   wheel(point: UiPoint, deltaY: number): boolean {
@@ -493,9 +526,6 @@ export class NpcInteractionUi {
     drawPixelText(context, this.fonts, 'X', layout.close.x + layout.close.width / 2, layout.close.y + 4, { align: 'center', color: '#fff1d2' });
     if (node.mode === 'shop') this.drawShop(context, layout);
     else this.drawDialogue(context, layout, node.body, this.visibleDialogueChoices());
-    if (this.model.touchControls !== true && this.pointer.x >= 0 && this.pointer.y >= 0) {
-      drawUiSkinNatural(context, this.skin.cursor, this.pointer.x, this.pointer.y, 'idle');
-    }
   }
 
   private setTab(tab: 'buy' | 'sell'): void {
@@ -510,7 +540,7 @@ export class NpcInteractionUi {
 
   private allShopRows(tab: 'buy' | 'sell' = this.tab): ShopRow[] {
     if (this.model === null) return [];
-    if (tab === 'buy') return TOOL_MERCHANT_OFFERS.map((itemKind) => {
+    if (tab === 'buy') return merchantOffers(this.model.shopId ?? 'general_tools').map((itemKind) => {
       const economy = ITEM_ECONOMY[itemKind];
       return {
         itemKind,
@@ -531,7 +561,7 @@ export class NpcInteractionUi {
       return economy && itemKind !== 'homestead_deed' && !isUniqueQuestItemKind(itemKind) ? [{
         itemKind,
         name: itemDefinition(itemKind)?.displayName ?? itemKind,
-        unitPrice: economy.sellPriceBronze,
+        unitPrice: this.model?.sellPriceOverrides?.[itemKind] ?? economy.sellPriceBronze,
         maximumQuantity: quantity,
         ownedQuantity: quantity,
       }] : [];

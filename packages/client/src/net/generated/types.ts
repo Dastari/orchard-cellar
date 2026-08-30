@@ -195,8 +195,20 @@ export const HomesteadGuest = __t.object("HomesteadGuest", {
   spaceId: __t.u16(),
   guest: __t.identity(),
   invitedBy: __t.identity(),
+  role: __t.string(),
+  grantedTick: __t.u64(),
 });
 export type HomesteadGuest = __Infer<typeof HomesteadGuest>;
+
+export const HomesteadUpgrade = __t.object("HomesteadUpgrade", {
+  id: __t.string(),
+  spaceId: __t.u16(),
+  upgradeKind: __t.string(),
+  rank: __t.u8(),
+  purchasedBy: __t.identity(),
+  purchasedAtTick: __t.u64(),
+});
+export type HomesteadUpgrade = __Infer<typeof HomesteadUpgrade>;
 
 export const InventoryCursor = __t.object("InventoryCursor", {
   identity: __t.identity(),
@@ -285,11 +297,20 @@ export type OwnChatChannels = __Infer<typeof OwnChatChannels>;
 export const OwnConnectionNotices = __t.object("OwnConnectionNotices", {});
 export type OwnConnectionNotices = __Infer<typeof OwnConnectionNotices>;
 
+export const OwnCookingJob = __t.object("OwnCookingJob", {});
+export type OwnCookingJob = __Infer<typeof OwnCookingJob>;
+
 export const OwnCurrentHomestead = __t.object("OwnCurrentHomestead", {});
 export type OwnCurrentHomestead = __Infer<typeof OwnCurrentHomestead>;
 
 export const OwnEffects = __t.object("OwnEffects", {});
 export type OwnEffects = __Infer<typeof OwnEffects>;
+
+export const OwnHomesteadMembers = __t.object("OwnHomesteadMembers", {});
+export type OwnHomesteadMembers = __Infer<typeof OwnHomesteadMembers>;
+
+export const OwnHomesteadUpgrades = __t.object("OwnHomesteadUpgrades", {});
+export type OwnHomesteadUpgrades = __Infer<typeof OwnHomesteadUpgrades>;
 
 export const OwnInventoryCursor = __t.object("OwnInventoryCursor", {});
 export type OwnInventoryCursor = __Infer<typeof OwnInventoryCursor>;
@@ -299,6 +320,9 @@ export type OwnInventoryOverflow = __Infer<typeof OwnInventoryOverflow>;
 
 export const OwnInventorySlots = __t.object("OwnInventorySlots", {});
 export type OwnInventorySlots = __Infer<typeof OwnInventorySlots>;
+
+export const OwnKnownRecipes = __t.object("OwnKnownRecipes", {});
+export type OwnKnownRecipes = __Infer<typeof OwnKnownRecipes>;
 
 export const OwnMembership = __t.object("OwnMembership", {});
 export type OwnMembership = __Infer<typeof OwnMembership>;
@@ -360,6 +384,20 @@ export const PlayerAppearance = __t.object("PlayerAppearance", {
 });
 export type PlayerAppearance = __Infer<typeof PlayerAppearance>;
 
+export const PlayerCookingJob = __t.object("PlayerCookingJob", {
+  identity: __t.identity(),
+  targetKind: __t.string(),
+  targetId: __t.u64(),
+  spaceId: __t.u16(),
+  recipeId: __t.string(),
+  inputKind: __t.string(),
+  outputKind: __t.string(),
+  quantity: __t.u8(),
+  startedTick: __t.u64(),
+  readyTick: __t.u64(),
+});
+export type PlayerCookingJob = __Infer<typeof PlayerCookingJob>;
+
 export const PlayerEffect = __t.object("PlayerEffect", {
   id: __t.u64(),
   identity: __t.identity(),
@@ -386,6 +424,38 @@ export const PlayerInput = __t.object("PlayerInput", {
   sprinting: __t.bool(),
 });
 export type PlayerInput = __Infer<typeof PlayerInput>;
+
+export const PlayerKnownRecipe = __t.object("PlayerKnownRecipe", {
+  id: __t.string(),
+  identity: __t.identity(),
+  recipeId: __t.string(),
+  learnedAtTick: __t.u64(),
+  sourceKind: __t.string(),
+});
+export type PlayerKnownRecipe = __Infer<typeof PlayerKnownRecipe>;
+
+export const PlayerParty = __t.object("PlayerParty", {
+  id: __t.u64(),
+  leader: __t.identity(),
+  createdTick: __t.u64(),
+});
+export type PlayerParty = __Infer<typeof PlayerParty>;
+
+export const PlayerPartyInvite = __t.object("PlayerPartyInvite", {
+  id: __t.string(),
+  partyId: __t.u64(),
+  inviter: __t.identity(),
+  invitee: __t.identity(),
+  expiresTick: __t.u64(),
+});
+export type PlayerPartyInvite = __Infer<typeof PlayerPartyInvite>;
+
+export const PlayerPartyMember = __t.object("PlayerPartyMember", {
+  identity: __t.identity(),
+  partyId: __t.u64(),
+  joinedTick: __t.u64(),
+});
+export type PlayerPartyMember = __Infer<typeof PlayerPartyMember>;
 
 export const PlayerPosition = __t.object("PlayerPosition", {
   identity: __t.identity(),
@@ -526,8 +596,16 @@ export const PlayerSurvival = __t.object("PlayerSurvival", {
   stone: __t.u32(),
   selectedSlot: __t.u8(),
   debugBackpackSlots: __t.u16(),
+  hungerCenti: __t.u16(),
+  hungerUpdatedTick: __t.u64(),
 });
 export type PlayerSurvival = __Infer<typeof PlayerSurvival>;
+
+export const PlayerSurvivalMigration = __t.object("PlayerSurvivalMigration", {
+  identity: __t.identity(),
+  hungerVersion: __t.u8(),
+});
+export type PlayerSurvivalMigration = __Infer<typeof PlayerSurvivalMigration>;
 
 export const PlayerThought = __t.object("PlayerThought", {
   identity: __t.identity(),
@@ -758,6 +836,8 @@ export const WorldItem = __t.object("WorldItem", {
   durability: __t.u16(),
   spaceId: __t.u16(),
   lit: __t.bool(),
+  reservedFor: __t.option(__t.identity()),
+  reservedUntilTick: __t.u64(),
 });
 export type WorldItem = __Infer<typeof WorldItem>;
 
@@ -794,6 +874,11 @@ export const WorldNpc = __t.object("WorldNpc", {
   authorityTick: __t.u64(),
   health: __t.u16(),
   spaceId: __t.u16(),
+  lastHitCritical: __t.bool(),
+  panicUntilTick: __t.option(__t.u64()),
+  panicSource: __t.option(__t.identity()),
+  panicSourceX: __t.i32(),
+  panicSourceY: __t.i32(),
 });
 export type WorldNpc = __Infer<typeof WorldNpc>;
 
@@ -811,8 +896,24 @@ export const WorldPlaceable = __t.object("WorldPlaceable", {
   smeltStartTick: __t.option(__t.u64()),
   lit: __t.bool(),
   carriedBy: __t.option(__t.identity()),
+  barrelSealedTick: __t.option(__t.u64()),
+  barrelSealedBy: __t.option(__t.identity()),
+  cookStartTick: __t.option(__t.u64()),
+  cookStartedBy: __t.option(__t.identity()),
+  cookInputKind: __t.option(__t.string()),
+  processStartTick: __t.option(__t.u64()),
+  processStartedBy: __t.option(__t.identity()),
+  processInputKind: __t.option(__t.string()),
 });
 export type WorldPlaceable = __Infer<typeof WorldPlaceable>;
+
+export const WorldPlaceableBuild = __t.object("WorldPlaceableBuild", {
+  placeableId: __t.u64(),
+  spaceId: __t.u16(),
+  placedBy: __t.identity(),
+  placedAtTick: __t.u64(),
+});
+export type WorldPlaceableBuild = __Infer<typeof WorldPlaceableBuild>;
 
 export const WorldPlaceableSlot = __t.object("WorldPlaceableSlot", {
   id: __t.string(),
@@ -855,6 +956,18 @@ export const WorldResource = __t.object("WorldResource", {
   spaceId: __t.u16(),
   growthStage: __t.u8(),
   regrowthProgress: __t.u8(),
+  miningClass: __t.string(),
+  richness: __t.u8(),
+  maximumRichness: __t.u8(),
+  yieldProgress: __t.u8(),
+  yieldsProduced: __t.u8(),
+  producedOre: __t.bool(),
+  spawnSiteId: __t.u64(),
+  activationOrdinal: __t.u32(),
+  respawnAtTick: __t.u64(),
+  miningClaimedBy: __t.option(__t.identity()),
+  miningPartyId: __t.option(__t.u64()),
+  miningClaimUntilTick: __t.u64(),
 });
 export type WorldResource = __Infer<typeof WorldResource>;
 
@@ -863,6 +976,7 @@ export const WorldScalabilityMigration = __t.object("WorldScalabilityMigration",
   wildlifeProfileChunkVersion: __t.u8(),
   horseDismountRecoveryVersion: __t.u8(),
   soilDecayTimerVersion: __t.u8(),
+  miningVersion: __t.u8(),
 });
 export type WorldScalabilityMigration = __Infer<typeof WorldScalabilityMigration>;
 

@@ -30,6 +30,37 @@ export interface PointLight {
   readonly elevationLayer?: number;
 }
 
+export const LIGHTING_MODELS = ['classic', 'unified'] as const;
+export type LightingModel = (typeof LIGHTING_MODELS)[number];
+
+/** Unified's directional correction belongs to upright artwork, not to
+ * ground-plane decals. Keeping this semantic beside the lighting model makes
+ * receiver intent explicit at painter-queue insertion sites. */
+export type UnifiedLightReceiver = 'flat' | 'south';
+
+export function unifiedDecorationLightReceiver(kind: string): UnifiedLightReceiver {
+  if (kind === 'camp_pond' || kind === 'nature_fish_shadow' || kind === 'nature_lily_pad') {
+    return 'flat';
+  }
+  return 'south';
+}
+
+/** New installs stay on the comparison baseline; an explicitly stored
+ * Unified choice survives reload throughout the migration. */
+export function lightingModelFromStoredValue(value: string | null): LightingModel {
+  return value === 'unified' ? 'unified' : 'classic';
+}
+
+interface RasterizedOcclusionLayer {
+  readonly occlusion: Uint8Array;
+  readonly trunkOwners: Uint16Array;
+  readonly receiverOwners: Uint16Array;
+  readonly relitReceiverOwners: Uint16Array;
+  readonly trunkCellIndices: Uint32Array;
+  readonly occlusionPrefix: Uint32Array;
+  readonly trunkCellCount: number;
+}
+
 /** Quarter-tile spatial sampling keeps flood work bounded; 8-bit falloff,
  * fractional seeds and bilinear composition provide smooth visual movement. */
 export const LIGHT_TEXELS_PER_TILE = 4;
@@ -246,22 +277,30 @@ export class TileLightmap {
   private pixels = new Uint8ClampedArray(0);
   private lightPixels = new Uint8ClampedArray(0);
   private haloPixels = new Uint8ClampedArray(0);
-  private occlusion = new Uint8Array(0);
-  private trunkOwners = new Uint16Array(0);
-  private receiverOwners = new Uint16Array(0);
-  private relitReceiverOwners = new Uint16Array(0);
-  private trunkCellIndices = new Uint32Array(0);
-  private trunkCellCount = 0;
-  private occlusionPrefix = new Uint32Array(0);
+  private readonly southFacePixelsByElevation = new Map<number, Uint8Array>();
+  private readonly occlusionLayers = new Map<number, RasterizedOcclusionLayer>();
   private floodTexelsVisitedValue = 0;
   private floodMsValue = 0;
   private fieldRebuildsValue = 0;
+  private occlusionRebuildsValue = 0;
+  private occlusionCacheHitsValue = 0;
+  private boundsResizeMsValue = 0;
+  private rasterizeMsValue = 0;
+  private mergeMsValue = 0;
+  private uploadMsValue = 0;
+  private receiverMsValue = 0;
+  private compositeMsValue = 0;
   private lastMinTileX = Number.NaN;
   private lastMinTileY = Number.NaN;
   private lastLightSignature = Number.NaN;
   private lastAmbientSignature = Number.NaN;
   private lastOcclusionMap: LightOcclusionMap | null = null;
+  private lastLightingModel: LightingModel = 'classic';
   private haloVisible = false;
+  private preparedMinTileX = 0;
+  private preparedMinTileY = 0;
+  private preparedTileWidth = 1;
+  private preparedTileHeight = 1;
   private readonly lightmapFrameTimes = new Float32Array(60);
   private lightmapFrameCursor = 0;
   private lightmapFrameCount = 0;
@@ -278,6 +317,14 @@ export class TileLightmap {
   get floodTexelsVisited(): number { return this.floodTexelsVisitedValue; }
   get floodMs(): number { return this.floodMsValue; }
   get fieldRebuilds(): number { return this.fieldRebuildsValue; }
+  get occlusionRebuilds(): number { return this.occlusionRebuildsValue; }
+  get occlusionCacheHits(): number { return this.occlusionCacheHitsValue; }
+  get boundsResizeMs(): number { return this.boundsResizeMsValue; }
+  get rasterizeMs(): number { return this.rasterizeMsValue; }
+  get mergeMs(): number { return this.mergeMsValue; }
+  get uploadMs(): number { return this.uploadMsValue; }
+  get receiverMs(): number { return this.receiverMsValue; }
+  get compositeMs(): number { return this.compositeMsValue; }
   get averageMs(): number {
     let total = 0;
     for (let index = 0; index < this.lightmapFrameCount; index += 1) total += this.lightmapFrameTimes[index] ?? 0;
@@ -292,6 +339,9 @@ export class TileLightmap {
       // light follows the rendered avatar rather than the 20 Hz authority step.
       hash = mixLightHash(hash, Math.round(light.worldX * LIGHT_POSITION_SUBPIXELS_PER_WORLD_PIXEL));
       hash = mixLightHash(hash, Math.round(light.worldY * LIGHT_POSITION_SUBPIXELS_PER_WORLD_PIXEL));
+      hash = mixLightHash(hash, Math.round(
+        (light.receiverDirectionWorldY ?? light.worldY) * LIGHT_POSITION_SUBPIXELS_PER_WORLD_PIXEL,
+      ));
       hash = mixLightHash(hash, Math.round(light.radiusTiles * 100));
       hash = mixLightHash(hash, light.strengthPerMille ?? 1000);
       hash = mixLightHash(hash, light.color.r);
@@ -302,6 +352,182 @@ export class TileLightmap {
       hash = mixLightHash(hash, light.elevationLayer ?? 0);
     }
     return hash;
+  }
+
+  prepare(
+    terrain: TerrainArray,
+    cameraX: number,
+    cameraY: number,
+    scale: number,
+    viewportWidth: number,
+    viewportHeight: number,
+    ambient: RgbColor,
+    lights: readonly PointLight[],
+    occlusionMap: LightOcclusionMap | null = null,
+    lightingModel: LightingModel = 'classic',
+  ): void {
+    const boundsStartedAt = performance.now();
+    this.floodMsValue = 0;
+    this.boundsResizeMsValue = 0;
+    this.rasterizeMsValue = 0;
+    this.mergeMsValue = 0;
+    this.uploadMsValue = 0;
+    this.receiverMsValue = 0;
+    this.compositeMsValue = 0;
+    const margin = 2;
+    const minTileX = Math.max(0, Math.floor(cameraX / 16) - margin);
+    const minTileY = Math.max(0, Math.floor(cameraY / 16) - margin);
+    const maxTileX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16) + margin);
+    const maxTileY = Math.min(terrain.height - 1, Math.ceil((cameraY + viewportHeight / scale) / 16) + margin);
+    const tileWidth = Math.max(1, maxTileX - minTileX + 1);
+    const tileHeight = Math.max(1, maxTileY - minTileY + 1);
+    const width = tileWidth * LIGHTMAP_TEXELS_PER_TILE;
+    const height = tileHeight * LIGHTMAP_TEXELS_PER_TILE;
+    this.resize(width, height);
+    const signature = this.lightSignature(lights);
+    const occlusionWindowChanged = minTileX !== this.lastMinTileX || minTileY !== this.lastMinTileY
+      || occlusionMap !== this.lastOcclusionMap;
+    if (occlusionWindowChanged) this.occlusionLayers.clear();
+    const rebuild = minTileX !== this.lastMinTileX || minTileY !== this.lastMinTileY
+      || signature !== this.lastLightSignature || occlusionMap !== this.lastOcclusionMap
+      || lightingModel !== this.lastLightingModel;
+    this.boundsResizeMsValue = performance.now() - boundsStartedAt;
+    if (rebuild) {
+      this.fieldRebuildsValue += 1;
+      this.lightPixels.fill(0);
+      this.haloPixels.fill(0);
+      for (const facePixels of this.southFacePixelsByElevation.values()) facePixels.fill(0);
+      this.floodTexelsVisitedValue = 0;
+      const groupingStartedAt = performance.now();
+      const lightsByElevation = new Map<number, PointLight[]>();
+      for (const light of lights) {
+        const elevation = light.elevationLayer ?? 0;
+        const group = lightsByElevation.get(elevation) ?? [];
+        group.push(light);
+        lightsByElevation.set(elevation, group);
+      }
+      let floodMilliseconds = performance.now() - groupingStartedAt;
+      let rasterizeMilliseconds = 0;
+      for (const [elevation, elevationLights] of lightsByElevation) {
+        const rasterStartedAt = performance.now();
+        const layer = this.occlusionLayer(
+          width, height, minTileX, minTileY, occlusionMap, elevation,
+        );
+        rasterizeMilliseconds += performance.now() - rasterStartedAt;
+        const southFacePixels = lightingModel === 'unified'
+          ? this.southFaceLayer(elevation, width * height)
+          : null;
+        const floodStartedAt = performance.now();
+        for (const light of elevationLights) {
+          this.flood.apply(
+            this.lightPixels,
+            this.haloPixels,
+            width,
+            height,
+            {
+              centerX: lightmapCoordinate(light.worldX, minTileX, LIGHT_TEXELS_PER_TILE),
+              centerY: lightmapCoordinate(light.worldY, minTileY, LIGHT_TEXELS_PER_TILE),
+              ...(light.receiverDirectionWorldY === undefined ? {} : {
+                receiverDirectionCenterY: lightmapCoordinate(
+                  light.receiverDirectionWorldY, minTileY, LIGHT_TEXELS_PER_TILE,
+                ),
+              }),
+              radius: light.radiusTiles * LIGHT_TEXELS_PER_TILE,
+              color: light.color,
+              ...(light.strengthPerMille === undefined ? {} : { strengthPerMille: light.strengthPerMille }),
+              ...(light.facing === undefined ? {} : { facing: light.facing }),
+              ...(light.profile === undefined ? {} : { profile: light.profile }),
+            },
+            layer.occlusion,
+            layer.occlusionPrefix,
+            layer.trunkOwners,
+            layer.receiverOwners,
+            layer.trunkCellIndices,
+            layer.trunkCellCount,
+            layer.relitReceiverOwners,
+            southFacePixels,
+          );
+          this.floodTexelsVisitedValue += this.flood.lastVisitedTexels;
+        }
+        floodMilliseconds += performance.now() - floodStartedAt;
+      }
+      this.floodMsValue = floodMilliseconds;
+      this.rasterizeMsValue = rasterizeMilliseconds;
+      this.lastMinTileX = minTileX;
+      this.lastMinTileY = minTileY;
+      this.lastLightSignature = signature;
+      this.lastOcclusionMap = occlusionMap;
+      this.lastLightingModel = lightingModel;
+      this.haloVisible = lights.some((light) => light.profile === 'flame' || light.profile === 'pulse');
+      const uploadStartedAt = performance.now();
+      if (this.haloVisible && this.haloImage !== null) this.haloContext.putImageData(this.haloImage, 0, 0);
+      this.uploadMsValue = performance.now() - uploadStartedAt;
+    }
+    if (this.image === null || this.haloImage === null) {
+      return;
+    }
+    const ambientSignature = ambient.r << 16 | ambient.g << 8 | ambient.b;
+    if (rebuild || ambientSignature !== this.lastAmbientSignature) {
+      const mergeStartedAt = performance.now();
+      fillLightmap(this.pixels, ambient);
+      for (let offset = 0; offset < this.pixels.length; offset += 4) {
+        this.pixels[offset] = Math.max(this.pixels[offset] ?? 0, this.lightPixels[offset] ?? 0);
+        this.pixels[offset + 1] = Math.max(this.pixels[offset + 1] ?? 0, this.lightPixels[offset + 1] ?? 0);
+        this.pixels[offset + 2] = Math.max(this.pixels[offset + 2] ?? 0, this.lightPixels[offset + 2] ?? 0);
+      }
+      this.mergeMsValue = performance.now() - mergeStartedAt;
+      const uploadStartedAt = performance.now();
+      this.context.putImageData(this.image, 0, 0);
+      this.uploadMsValue += performance.now() - uploadStartedAt;
+      this.lastAmbientSignature = ambientSignature;
+    }
+    this.preparedMinTileX = minTileX;
+    this.preparedMinTileY = minTileY;
+    this.preparedTileWidth = tileWidth;
+    this.preparedTileHeight = tileHeight;
+  }
+
+  composite(
+    target: CanvasRenderingContext2D,
+    cameraX: number,
+    cameraY: number,
+    scale: number,
+  ): void {
+    if (this.image === null || this.haloImage === null) {
+      this.recordLightmapFrame();
+      return;
+    }
+    const compositeStartedAt = performance.now();
+    target.save();
+    // Filter only the low-resolution light overlay. Terrain and sprites are
+    // still drawn nearest-neighbour elsewhere, while bilinear sampling here
+    // blends adjacent flood bands and prevents visible concentric stair steps.
+    target.imageSmoothingEnabled = true;
+    target.globalCompositeOperation = 'multiply';
+    target.drawImage(
+      this.canvas,
+      Math.round((this.preparedMinTileX * 16 - cameraX) * scale),
+      Math.round((this.preparedMinTileY * 16 - cameraY) * scale),
+      this.preparedTileWidth * 16 * scale,
+      this.preparedTileHeight * 16 * scale,
+    );
+    target.restore();
+    if (this.haloVisible) {
+      target.save();
+      target.imageSmoothingEnabled = true;
+      target.globalCompositeOperation = 'lighter';
+      target.drawImage(
+        this.haloCanvas,
+        Math.round((this.preparedMinTileX * 16 - cameraX) * scale),
+        Math.round((this.preparedMinTileY * 16 - cameraY) * scale),
+        this.preparedTileWidth * 16 * scale,
+        this.preparedTileHeight * 16 * scale,
+      );
+      target.restore();
+    }
+    target.imageSmoothingEnabled = false;
+    this.compositeMsValue = performance.now() - compositeStartedAt;
+    this.recordLightmapFrame();
   }
 
   draw(
@@ -315,136 +541,141 @@ export class TileLightmap {
     ambient: RgbColor,
     lights: readonly PointLight[],
     occlusionMap: LightOcclusionMap | null = null,
+    lightingModel: LightingModel = 'classic',
   ): void {
-    const lightmapStartedAt = performance.now();
-    const margin = 2;
-    const minTileX = Math.max(0, Math.floor(cameraX / 16) - margin);
-    const minTileY = Math.max(0, Math.floor(cameraY / 16) - margin);
-    const maxTileX = Math.min(terrain.width - 1, Math.ceil((cameraX + viewportWidth / scale) / 16) + margin);
-    const maxTileY = Math.min(terrain.height - 1, Math.ceil((cameraY + viewportHeight / scale) / 16) + margin);
-    const tileWidth = Math.max(1, maxTileX - minTileX + 1);
-    const tileHeight = Math.max(1, maxTileY - minTileY + 1);
-    const width = tileWidth * LIGHTMAP_TEXELS_PER_TILE;
-    const height = tileHeight * LIGHTMAP_TEXELS_PER_TILE;
-    this.resize(width, height);
-    const signature = this.lightSignature(lights);
-    const rebuild = minTileX !== this.lastMinTileX || minTileY !== this.lastMinTileY
-      || signature !== this.lastLightSignature || occlusionMap !== this.lastOcclusionMap;
-    if (rebuild) {
-      this.fieldRebuildsValue += 1;
-      const startedAt = performance.now();
-      this.lightPixels.fill(0);
-      this.haloPixels.fill(0);
-      this.floodTexelsVisitedValue = 0;
-      this.trunkCellCount = 0;
-      const lightsByElevation = new Map<number, PointLight[]>();
-      for (const light of lights) {
-        const elevation = light.elevationLayer ?? 0;
-        const group = lightsByElevation.get(elevation) ?? [];
-        group.push(light);
-        lightsByElevation.set(elevation, group);
-      }
-      for (const [elevation, elevationLights] of lightsByElevation) {
-        const trunkCellCount = rasterizeLightOcclusion(
-          this.occlusion,
-          width,
-          height,
-          minTileX,
-          minTileY,
-          LIGHT_TEXELS_PER_TILE,
-          occlusionMap,
-          this.trunkOwners,
-          this.receiverOwners,
-          this.trunkCellIndices,
-          this.relitReceiverOwners,
-          elevation,
-        );
-        this.trunkCellCount += trunkCellCount;
-        buildLightOcclusionPrefix(this.occlusionPrefix, width, height, this.occlusion);
-        for (const light of elevationLights) {
-          this.flood.apply(
-            this.lightPixels,
-            this.haloPixels,
-            width,
-            height,
-            {
-              centerX: lightmapCoordinate(light.worldX, minTileX, LIGHT_TEXELS_PER_TILE),
-              centerY: lightmapCoordinate(light.worldY, minTileY, LIGHT_TEXELS_PER_TILE),
-              radius: light.radiusTiles * LIGHT_TEXELS_PER_TILE,
-              color: light.color,
-              ...(light.strengthPerMille === undefined ? {} : { strengthPerMille: light.strengthPerMille }),
-              ...(light.facing === undefined ? {} : { facing: light.facing }),
-              ...(light.profile === undefined ? {} : { profile: light.profile }),
-            },
-            this.occlusion,
-            this.occlusionPrefix,
-            this.trunkOwners,
-            this.receiverOwners,
-            this.trunkCellIndices,
-            trunkCellCount,
-            this.relitReceiverOwners,
-          );
-          this.floodTexelsVisitedValue += this.flood.lastVisitedTexels;
-        }
-      }
-      this.floodMsValue = performance.now() - startedAt;
-      this.lastMinTileX = minTileX;
-      this.lastMinTileY = minTileY;
-      this.lastLightSignature = signature;
-      this.lastOcclusionMap = occlusionMap;
-      this.haloVisible = lights.some((light) => light.profile === 'flame' || light.profile === 'pulse');
-      if (this.haloVisible && this.haloImage !== null) this.haloContext.putImageData(this.haloImage, 0, 0);
-    }
-    if (this.image === null || this.haloImage === null) {
-      this.recordLightmapFrame(performance.now() - lightmapStartedAt);
-      return;
-    }
-    const ambientSignature = ambient.r << 16 | ambient.g << 8 | ambient.b;
-    if (rebuild || ambientSignature !== this.lastAmbientSignature) {
-      fillLightmap(this.pixels, ambient);
-      for (let offset = 0; offset < this.pixels.length; offset += 4) {
-        this.pixels[offset] = Math.max(this.pixels[offset] ?? 0, this.lightPixels[offset] ?? 0);
-        this.pixels[offset + 1] = Math.max(this.pixels[offset + 1] ?? 0, this.lightPixels[offset + 1] ?? 0);
-        this.pixels[offset + 2] = Math.max(this.pixels[offset + 2] ?? 0, this.lightPixels[offset + 2] ?? 0);
-      }
-      this.context.putImageData(this.image, 0, 0);
-      this.lastAmbientSignature = ambientSignature;
-    }
-    target.save();
-    // Filter only the low-resolution light overlay. Terrain and sprites are
-    // still drawn nearest-neighbour elsewhere, while bilinear sampling here
-    // blends adjacent flood bands and prevents visible concentric stair steps.
-    target.imageSmoothingEnabled = true;
-    target.globalCompositeOperation = 'multiply';
-    target.drawImage(
-      this.canvas,
-      Math.round((minTileX * 16 - cameraX) * scale),
-      Math.round((minTileY * 16 - cameraY) * scale),
-      tileWidth * 16 * scale,
-      tileHeight * 16 * scale,
+    this.prepare(
+      terrain, cameraX, cameraY, scale, viewportWidth, viewportHeight,
+      ambient, lights, occlusionMap, lightingModel,
     );
-    target.restore();
-    if (this.haloVisible) {
-      target.save();
-      target.imageSmoothingEnabled = true;
-      target.globalCompositeOperation = 'lighter';
-      target.drawImage(
-        this.haloCanvas,
-        Math.round((minTileX * 16 - cameraX) * scale),
-        Math.round((minTileY * 16 - cameraY) * scale),
-        tileWidth * 16 * scale,
-        tileHeight * 16 * scale,
-      );
-      target.restore();
-    }
-    target.imageSmoothingEnabled = false;
-    this.recordLightmapFrame(performance.now() - lightmapStartedAt);
+    this.composite(target, cameraX, cameraY, scale);
   }
 
-  private recordLightmapFrame(milliseconds: number): void {
+  /** Returns the occlusion-aware correction for a south-facing elevated
+   * receiver. The shared multiply pass supplies unrestricted illumination;
+   * this ratio removes only light arriving through the receiver's back face. */
+  southFaceBrightness(
+    worldX: number,
+    projectedWorldY: number,
+    ambient: RgbColor,
+    elevationLayer = 0,
+  ): number {
+    const startedAt = performance.now();
+    const unrestricted = this.samplePreparedLuma(this.pixels, worldX, projectedWorldY, true);
+    const facePixels = this.southFacePixelsByElevation.get(elevationLayer);
+    const ambientLevel = perceivedLight(ambient);
+    const restricted = Math.max(
+      ambientLevel,
+      facePixels === undefined ? 0 : this.samplePreparedLuma(facePixels, worldX, projectedWorldY, false),
+    );
+    const brightness = unrestricted <= 0 ? 1 : Math.max(0, Math.min(1, restricted / unrestricted));
+    this.receiverMsValue += performance.now() - startedAt;
+    return brightness;
+  }
+
+  private recordLightmapFrame(): void {
+    const milliseconds = this.boundsResizeMsValue
+      + this.rasterizeMsValue
+      + this.floodMsValue
+      + this.mergeMsValue
+      + this.uploadMsValue
+      + this.receiverMsValue
+      + this.compositeMsValue;
     this.lightmapFrameTimes[this.lightmapFrameCursor] = milliseconds;
     this.lightmapFrameCursor = (this.lightmapFrameCursor + 1) % this.lightmapFrameTimes.length;
     this.lightmapFrameCount = Math.min(this.lightmapFrameTimes.length, this.lightmapFrameCount + 1);
+  }
+
+  private southFaceLayer(elevation: number, cellCount: number): Uint8Array {
+    const current = this.southFacePixelsByElevation.get(elevation);
+    if (current !== undefined && current.length === cellCount) return current;
+    const next = new Uint8Array(cellCount);
+    this.southFacePixelsByElevation.set(elevation, next);
+    return next;
+  }
+
+  private occlusionLayer(
+    width: number,
+    height: number,
+    minTileX: number,
+    minTileY: number,
+    occlusionMap: LightOcclusionMap | null,
+    elevation: number,
+  ): RasterizedOcclusionLayer {
+    const cached = this.occlusionLayers.get(elevation);
+    if (cached !== undefined) {
+      this.occlusionCacheHitsValue += 1;
+      return cached;
+    }
+    const cellCount = width * height;
+    const occlusion = new Uint8Array(cellCount);
+    const trunkOwners = new Uint16Array(cellCount);
+    const receiverOwners = new Uint16Array(cellCount);
+    const relitReceiverOwners = new Uint16Array(cellCount);
+    const trunkCellIndices = new Uint32Array(cellCount);
+    const occlusionPrefix = new Uint32Array((width + 1) * (height + 1));
+    const trunkCellCount = rasterizeLightOcclusion(
+      occlusion,
+      width,
+      height,
+      minTileX,
+      minTileY,
+      LIGHT_TEXELS_PER_TILE,
+      occlusionMap,
+      trunkOwners,
+      receiverOwners,
+      trunkCellIndices,
+      relitReceiverOwners,
+      elevation,
+    );
+    buildLightOcclusionPrefix(occlusionPrefix, width, height, occlusion);
+    const layer = {
+      occlusion,
+      trunkOwners,
+      receiverOwners,
+      relitReceiverOwners,
+      trunkCellIndices,
+      occlusionPrefix,
+      trunkCellCount,
+    } satisfies RasterizedOcclusionLayer;
+    this.occlusionLayers.set(elevation, layer);
+    this.occlusionRebuildsValue += 1;
+    return layer;
+  }
+
+  private samplePreparedLuma(
+    buffer: Uint8ClampedArray | Uint8Array,
+    worldX: number,
+    projectedWorldY: number,
+    rgba: boolean,
+  ): number {
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+    if (width <= 0 || height <= 0 || buffer.length === 0) return 0;
+    const sampleX = Math.max(0, Math.min(
+      width - 1,
+      lightmapCoordinate(worldX, this.preparedMinTileX, LIGHT_TEXELS_PER_TILE),
+    ));
+    const sampleY = Math.max(0, Math.min(
+      height - 1,
+      lightmapCoordinate(projectedWorldY, this.preparedMinTileY, LIGHT_TEXELS_PER_TILE),
+    ));
+    const left = Math.floor(sampleX);
+    const top = Math.floor(sampleY);
+    const right = Math.min(width - 1, left + 1);
+    const bottom = Math.min(height - 1, top + 1);
+    const amountX = sampleX - left;
+    const amountY = sampleY - top;
+    const at = (x: number, y: number): number => {
+      const index = y * width + x;
+      if (!rgba) return buffer[index] ?? 0;
+      const offset = index * 4;
+      return (buffer[offset] ?? 0) * 0.2126
+        + (buffer[offset + 1] ?? 0) * 0.7152
+        + (buffer[offset + 2] ?? 0) * 0.0722;
+    };
+    const upper = at(left, top) + (at(right, top) - at(left, top)) * amountX;
+    const lower = at(left, bottom) + (at(right, bottom) - at(left, bottom)) * amountX;
+    return upper + (lower - upper) * amountY;
   }
 
   private resize(width: number, height: number): void {
@@ -456,13 +687,8 @@ export class TileLightmap {
     this.pixels = new Uint8ClampedArray(width * height * 4);
     this.lightPixels = new Uint8ClampedArray(width * height * 4);
     this.haloPixels = new Uint8ClampedArray(width * height * 4);
-    this.occlusion = new Uint8Array(width * height);
-    this.trunkOwners = new Uint16Array(width * height);
-    this.receiverOwners = new Uint16Array(width * height);
-    this.relitReceiverOwners = new Uint16Array(width * height);
-    this.trunkCellIndices = new Uint32Array(width * height);
-    this.trunkCellCount = 0;
-    this.occlusionPrefix = new Uint32Array((width + 1) * (height + 1));
+    this.occlusionLayers.clear();
+    this.southFacePixelsByElevation.clear();
     this.image = new ImageData(this.pixels, width, height);
     this.haloImage = new ImageData(this.haloPixels, width, height);
     this.lastMinTileX = Number.NaN;
@@ -470,6 +696,7 @@ export class TileLightmap {
     this.lastLightSignature = Number.NaN;
     this.lastAmbientSignature = Number.NaN;
     this.lastOcclusionMap = null;
+    this.lastLightingModel = 'classic';
     this.haloVisible = false;
   }
 }

@@ -68,6 +68,10 @@ suite.
 | [42-world-editor.md](42-world-editor.md) | Semantic map documents, no-auth offline creator sandbox, terrain laboratory, admin live-publish boundary | Any map editor, terrain theme, authored space, or agent map-debug work |
 | [43-procedural-sanctuary-and-signed-coordinates.md](43-procedural-sanctuary-and-signed-coordinates.md) | **Newest binding world-generation direction:** signed spawn-centred coordinates, seed-generated safe sanctuary, sparse permanent curation, seed overview, and legacy migration | Any world extent, coordinate, chunk generation, editor-bounds, or sanctuary terrain work |
 | [44-progressive-web-app.md](44-progressive-web-app.md) | Install manifest, Apple/Android artwork generation, offline shell boundary, and explicit client-update lifecycle | Any deployment, loading, install, mobile-shell, or cache work |
+| [45-repeatable-loop-hunger-hunting-cooking.md](45-repeatable-loop-hunger-hunting-cooking.md) | Repeatable survival loop, hunger, hunting, and cooking | Survival-loop work |
+| [46-live-first-bottle-loop.md](46-live-first-bottle-loop.md) | Fruit-to-bottle production chain | Cellar production work |
+| [47-rendering-lighting-performance-plan.md](47-rendering-lighting-performance-plan.md) | Renderer, lighting, and client performance program | Rendering/performance work |
+| [48-repeatable-mining-loop.md](48-repeatable-mining-loop.md) | Active node populations, richness, yields, parties, skills, respawn, and mining art | Any mining work |
 
 Minimal startup ritual for an implementing agent: **00 → 01 → 02 → 15 → your
 milestone in 14 → the docs that milestone lists.** Docs are binding; deviations go

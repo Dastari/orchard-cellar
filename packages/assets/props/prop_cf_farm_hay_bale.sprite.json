@@ -1,0 +1,75 @@
+{
+  "name": "prop_cf_farm_hay_bale",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".....00.........",
+        "..00050000000...",
+        ".0550553350550..",
+        "..055773377500..",
+        ".05775733777550.",
+        ".0055553355550..",
+        "..046662266660..",
+        ".05076622466550.",
+        ".05577422475050.",
+        "..022222222220..",
+        ".05567422677550.",
+        ".0057772277500..",
+        "..047662264550..",
+        "..100000000001..",
+        "...11111111111.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#00000064",
+    "2": "#891e2b",
+    "3": "#ea323c",
+    "4": "#ed7614",
+    "5": "#fee761",
+    "6": "#ffa214",
+    "7": "#ffc825"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Hay_Bales.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Hay_Bales.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "world.nature",
+    "decor.ambient",
+    "decor.animated"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

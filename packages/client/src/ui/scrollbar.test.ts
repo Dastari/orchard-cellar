@@ -36,4 +36,22 @@ describe('scrollbar geometry', () => {
     expect(bar.handleKey('End')).toBe(true);
     expect(bar.position).toBe(15);
   });
+
+  it('supports thresholded touch swipes over a content viewport', () => {
+    const bar = new ScrollBar({} as UiSkin);
+    bar.setMetrics(20, 4);
+    expect(bar.beginSwipe({ x: 20, y: 40 }, { x: 10, y: 10, width: 100, height: 100 }, 'touch')).toBe(true);
+    expect(bar.swipeMove({ x: 20, y: 38 }, 10)).toBe(false);
+    expect(bar.swipeMove({ x: 20, y: 18 }, 10)).toBe(true);
+    expect(bar.position).toBe(2);
+    expect(bar.endSwipe()).toBe(true);
+  });
+
+  it('does not arm swipe scrolling for mouse pointers or non-scrollable content', () => {
+    const bar = new ScrollBar({} as UiSkin);
+    bar.setMetrics(4, 4);
+    expect(bar.beginSwipe({ x: 20, y: 20 }, { x: 0, y: 0, width: 100, height: 100 }, 'touch')).toBe(false);
+    bar.setMetrics(10, 4);
+    expect(bar.beginSwipe({ x: 20, y: 20 }, { x: 0, y: 0, width: 100, height: 100 }, 'mouse')).toBe(false);
+  });
 });

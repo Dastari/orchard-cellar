@@ -45,7 +45,10 @@ function assetFromRegions(
     name,
     category,
     size: [regions[0]?.[2] ?? TILE_SIZE, regions[0]?.[3] ?? TILE_SIZE],
-    anchor: [8, 15],
+    anchor: [
+      Math.floor((regions[0]?.[2] ?? TILE_SIZE) / 2),
+      (regions[0]?.[3] ?? TILE_SIZE) - 1,
+    ],
     frames: { base: frames },
     frameKinds: { base: frameKind },
     sourcePalette: Object.fromEntries(colors.map((color) => [characterByColor.get(color)!, color])),
@@ -84,13 +87,14 @@ for (const [index, kind] of cropKinds.entries()) {
   const image = useCompanion ? companion : primary;
   const source = useCompanion ? companionSource : primarySource;
   const group = useCompanion ? index - 14 : index;
-  const y = group * 32 + 16;
+  const groupY = group * 32;
+  const itemY = groupY + 16;
   await writeAsset('crops', assetFromRegions(
     image,
     `crop_cf_${kind}`,
     'crops',
     source,
-    [2, 3, 4, 5].map((column) => [column * TILE_SIZE, y, TILE_SIZE, TILE_SIZE] as const),
+    [2, 3, 4, 5].map((column) => [column * TILE_SIZE, groupY, TILE_SIZE, TILE_SIZE * 2] as const),
     'variant',
     ['crop.growing', `crop.${kind}`, 'growth.four_stage'],
   ));
@@ -99,7 +103,7 @@ for (const [index, kind] of cropKinds.entries()) {
     `sign_cf_crop_${kind}`,
     'props',
     source,
-    [[0, y, TILE_SIZE, TILE_SIZE]],
+    [[0, itemY, TILE_SIZE, TILE_SIZE]],
     'state',
     ['prop.crop_sign', `crop.${kind}`],
   ));
@@ -108,7 +112,7 @@ for (const [index, kind] of cropKinds.entries()) {
     `item_cf_${kind}_seeds`,
     'props',
     source,
-    [[TILE_SIZE, y, TILE_SIZE, TILE_SIZE]],
+    [[TILE_SIZE, itemY, TILE_SIZE, TILE_SIZE]],
     'state',
     ['item.seed_packet', `seed.${kind}`],
   ));
@@ -117,7 +121,7 @@ for (const [index, kind] of cropKinds.entries()) {
     `item_cf_crop_${kind}`,
     'props',
     source,
-    [[6 * TILE_SIZE, y, TILE_SIZE, TILE_SIZE]],
+    [[6 * TILE_SIZE, itemY, TILE_SIZE, TILE_SIZE]],
     'state',
     ['item.crop', `crop.${kind}`],
   ));

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FIRST_BOTTLE_QUEST_ID,
+  FARMER_BOB_STRAWBERRY_QUEST_ID,
   MARLOW_BOOK_QUEST_ID,
   questAcceptBaselines,
   questDefinition,
@@ -42,6 +44,36 @@ describe('quest definitions and progress', () => {
     expect(questIsComplete(definition, baselines, source({}, { marlow_book: 1 }))).toBe(true);
     expect(questDefinitionForUniqueItem('marlow_book')?.id).toBe(MARLOW_BOOK_QUEST_ID);
     expect(questDefinitionForUniqueItem('wood')).toBeNull();
+  });
+
+  it('tracks the first Bottle loop from post-accept production and sale counters', () => {
+    const definition = questDefinition(FIRST_BOTTLE_QUEST_ID)!;
+    expect(definition.prerequisiteQuestIds).toEqual([FARMER_BOB_STRAWBERRY_QUEST_ID]);
+    expect(definition.rewards.homesteadSizeTier).toBe(1);
+    const accepted = source({
+      'press_cycles_completed:': 9n,
+      'bottles_produced:': 2n,
+      'items_sold:bottles': 4n,
+    });
+    const baselines = questAcceptBaselines(definition, accepted);
+    expect(questIsComplete(definition, baselines, accepted)).toBe(false);
+    expect(questIsComplete(definition, baselines, source({
+      'press_cycles_completed:': 12n,
+      'bottles_produced:': 3n,
+      'items_sold:bottles': 5n,
+    }))).toBe(true);
+  });
+
+  it('starts Bob\'s farming line with a fast seed and Jane\'s journal reward', () => {
+    const definition = questDefinition(FARMER_BOB_STRAWBERRY_QUEST_ID)!;
+    expect(definition.giverNpcId).toBe(3n);
+    expect(definition.acceptItems).toEqual([
+      { itemKind: 'bob_fast_strawberry_seeds', count: 1 },
+    ]);
+    expect(definition.objectives).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'collect', items: [{ itemKind: 'strawberry', count: 3 }] }),
+    ]));
+    expect(definition.rewards.items).toContainEqual({ itemKind: 'janes_gardening_book', count: 1 });
   });
 
   it('supports multi-item collection objectives without accepting stale client counts', () => {

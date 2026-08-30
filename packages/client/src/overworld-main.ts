@@ -2,6 +2,8 @@ import {
   AUTHORITY_TICK_MS,
   AUTHORITY_HZ,
   BACKPACK_SLOT_COUNT,
+  EQUIPMENT_SLOT_OFFSET,
+  HUNGER_MAX_CENTI,
   BASE_BACKPACK_CAPACITY,
   CROP_WATERING_TICKS,
   CRAFTING_STATION_REACH_TILES,
@@ -24,6 +26,7 @@ import {
   EFFECT_DEFINITIONS,
   SKILL_TRACKS,
   TOPSIDE_SPACE_ID,
+  FARMER_JANE_GRAVE_TILE,
   authorityDayProgress,
   authorityTickAtDayProgress,
   avatarActionForEquippedKind,
@@ -53,10 +56,8 @@ import {
   generateMarlowCampPathTiles,
   homesteadPathTiles,
   homesteadPortalName,
-  HOMESTEAD_TENT_TILE,
   HOMESTEAD_GATE_TILE,
-  HOMESTEAD_PLOT_MIN_TILE,
-  HOMESTEAD_PLOT_MAX_TILE,
+  HOMESTEAD_TENT_TILE,
   CELLAR_ENTRY_TILE,
   cellarOreKindAt,
   RESIDENCE_BED_TILE,
@@ -66,6 +67,11 @@ import {
   homesteadTentFootprint,
   homesteadMarkerPlacementTiles,
   homesteadBoundaryTiles,
+  homesteadPlotBounds,
+  homesteadPlayableTile,
+  survivalFarmerBobFarmReservedAt,
+  homesteadBuildDefinition,
+  homesteadBuildFootprintTiles,
   instanceSpaceRowFor,
   isBreakableRockKind,
   isChoppableTreeKind,
@@ -73,12 +79,17 @@ import {
   isGatherableResourceKind,
   isInteractivePoiDecorationKind,
   isMineableOreKind,
+  miningHitsUntilYield,
+  miningNodeArtVariant,
+  miningNodeRichnessLabel,
+  mixedNodeStoneChancePercent,
+  miningWorkPerHit,
+  MINING_YIELD_WORK,
   isRecoverableArrow,
   recoverableArrowDirection,
   isForwardSwingToolKind,
   firstProjectileTerrainHit,
   forwardSwingTargetInReach,
-  survivalResourceDropAfterHit,
   survivalResourceInitialHealth,
   survivalResourceObstacle,
   survivalDecorationBlocksTraversal,
@@ -87,7 +98,9 @@ import {
   isHorseWithinMountReach,
   itemModifiers,
   isWildlifeSpecies,
+  isDurableToolKind,
   itemDefinition,
+  recipeBookDefinition,
   coinPurseFromBronze,
   itemActionRejection,
   isPlayerAppearanceSelection,
@@ -98,6 +111,24 @@ import {
   QUEST_DEFINITIONS,
   fenceJoinMask,
   furnaceProgress,
+  furnaceRemainingTicks,
+  cookingFireProgress,
+  cookingFireRemainingTicks,
+  cellarProcessorProgress,
+  cellarProcessorRemainingTicks,
+  placeableHasInterface,
+  placeableInterface,
+  barrelProgress,
+  BARREL_CURE_TICKS,
+  barrelCellarCureTicks,
+  richSoilGrowthTicks,
+  sprinklerCoversTile,
+  homesteadRoleAtLeast,
+  isHomesteadMemberRole,
+  estateVintageTier,
+  FERMENTATION_CYCLE_TICKS,
+  foodHungerRestoreCenti,
+  wildlifeIsHuntable,
   nextWeatherMode,
   nextWindDirectionMode,
   weatherVisualState,
@@ -129,26 +160,37 @@ import {
   type MerchantCartLine,
   type PlayerState,
   type PlayerAppearanceSelection,
+  type QuestDefinition,
   type SpaceDefinition,
   type WeatherMode,
   type WindDirectionMode,
   type WildlifeSpecies,
   type VitalsToolKind,
+  type HomesteadUpgradeKind,
+  type MiningNodeClass,
 } from '@orchard/sim';
 import {
   DEFAULT_UI_SCALE,
   DEFAULT_WORLD_ZOOM,
+  canvasSafeAreaInsets,
   easeWorldZoom,
   fittedUiScale,
+  insetCanvasViewport,
   stepUiScale,
   stepWorldZoom,
+  type CanvasViewportInsets,
   type UiScale,
 } from './display.js';
 import { FixedStepLoop } from './loop.js';
 import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen, worldLoadingStage } from './loading-screen.js';
-import { pwaClient } from './pwa.js';
+import { isStandaloneWebApp, pwaClient } from './pwa.js';
+import {
+  fullscreenControlAvailable,
+  toggleFullscreenWithEscapeLock,
+  type FullscreenControl,
+} from './fullscreen.js';
 import { AudioBus } from './audio/audio-bus.js';
-import { readOidcSession } from './auth/oidc.js';
+import { localProfilesEnabled, readOidcSession } from './auth/oidc.js';
 import type { ChatMessage, PlayerPosition, QuestWorldItem, SpacePortal, WorldChest, WorldCombatTarget, WorldCrop, WorldItem, WorldNpc, WorldPlaceable, WorldProjectile, WorldResource } from './net/generated/types.js';
 import {
   OverworldConnection,
@@ -191,6 +233,7 @@ import {
   merchantWorldBounds,
   natureDecorationFrame,
   overworldPoiDecorationDepthY,
+  pondShimmerFrameAtTick,
   wildlifeWorldBounds,
   type WorldVisualBounds,
 } from './overworld-art.js';
@@ -211,23 +254,29 @@ import {
   CAMPFIRE_LIGHT_RADIUS_TILES,
   LANTERN_LIGHT,
   LANTERN_LIGHT_RADIUS_TILES,
+  lightingModelFromStoredValue,
   playerLightPosition,
   southFacingReceiverBrightness,
   TileLightmap,
   TORCH_LIGHT,
   TORCH_LIGHT_RADIUS_TILES,
+  type LightingModel,
   type PointLight,
+  type UnifiedLightReceiver,
+  unifiedDecorationLightReceiver,
 } from './render/lighting.js';
 import { deterministicFlameFlicker, isLightEmitterKind, placeablePointLight } from './render/light-sources.js';
 import { RenderMetrics } from './render/metrics.js';
 import { RainWeather } from './render/particles.js';
 import { enqueueRaisedTerrainDepth } from './render/raised-terrain-depth.js';
+import type { RenderBenchmarkScenarioId } from './render/render-benchmark-scenarios.js';
 import { treeSwayOffset, WeatherEffects, windDirectionLabel, type WindTreeSource } from './render/weather-effects.js';
 import { drawPixelPanel, drawPixelText, measurePixelText } from './render/pixel-ui.js';
 import {
   MAX_WORLD_ZOOM,
   UnifiedRenderer,
-  drawWorldDepthQueue,
+  drawSortedWorldDepthQueue,
+  sortWorldDepthItems,
   type WorldDepthItem,
 } from './render/renderer.js';
 import {
@@ -258,10 +307,11 @@ import {
   type InteractionCandidate,
 } from './interaction-targeting.js';
 import {
-  OFFLINE_AVATAR_FILTER,
   worldPlayerIsOffline,
   worldPlayerParticipatesInCollision,
 } from './player-presence.js';
+import { farmActionPrompt } from './farm-action-prompt.js';
+import { homesteadTentPresentationTargets } from './homestead-presentation.js';
 import {
   isInterfaceVisibilityToggle,
   isNameplateToggle,
@@ -286,6 +336,7 @@ import { CharacterNamePrompt } from './ui/character-name-prompt.js';
 import { NpcInteractionUi } from './ui/npc-interaction-ui.js';
 import { TradeUi } from './ui/trade-ui.js';
 import { QuestTracker, type QuestTrackerEntry } from './ui/quest-tracker.js';
+import { HomesteadBuildPalette } from './ui/homestead-build-palette.js';
 import type { QuestLogEntry } from './ui/quest-log.js';
 import { TouchControls, type TouchControlAction } from './ui/touch-controls.js';
 import {
@@ -339,6 +390,7 @@ const stopLongTaskObserver = import.meta.env.DEV ? renderMetrics.observeLongTask
 if (import.meta.hot !== undefined && stopLongTaskObserver !== null) {
   import.meta.hot.dispose(stopLongTaskObserver);
 }
+let latestLightCount = 0;
 const audio = new AudioBus(false);
 void audio.unlock().catch(() => undefined);
 
@@ -448,6 +500,9 @@ function failureToastText(error: unknown): string {
     ['anvil_copper_missing', 'ANVIL REPAIR NEEDS 5 COPPER'],
     ['anvil_not_in_reach', 'FACE A NEARBY ANVIL'],
     ['furnace_slot_restricted', 'ORE GOES ABOVE, WOOD OR PLANKS BELOW'],
+    ['item_reserved', 'THAT DROP IS RESERVED FOR ITS MINER'],
+    ['mining_claimed_by_other_party', 'ANOTHER MINER OR PARTY IS WORKING THIS NODE'],
+    ['pickaxe_tier_too_low', 'THIS VEIN NEEDS A STRONGER PICKAXE'],
     ['tool_not_damaged', 'TOOL IS ALREADY FULLY REPAIRED'],
     ['wrong_tool', 'SELECT A DAMAGED TOOL'],
   ] as const;
@@ -462,6 +517,7 @@ let effectPhase = 0;
 let worldZoom = DEFAULT_WORLD_ZOOM;
 let worldZoomTarget = DEFAULT_WORLD_ZOOM;
 let desiredUiScale: UiScale = DEFAULT_UI_SCALE;
+let safeAreaInsets: CanvasViewportInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 let wheelZoomLockedUntil = 0;
 let collisionKey = '';
 let cellarTerrainCacheKey = '';
@@ -492,6 +548,16 @@ function loadTerrainInspector(): Promise<TerrainInspectorModule> {
 }
 const LIGHTING_EFFECTS_DISABLED_KEY = 'orchard.developer.lighting-effects-disabled';
 let lightingEffectsDisabled = localStorage.getItem(LIGHTING_EFFECTS_DISABLED_KEY) === 'true';
+const LIGHTING_MODEL_KEY = 'orchard.video.lighting-model';
+const storedLightingModel = localStorage.getItem(LIGHTING_MODEL_KEY);
+let lightingModel: LightingModel = lightingModelFromStoredValue(storedLightingModel);
+
+function setLightingModel(model: LightingModel): void {
+  lightingModel = model;
+  localStorage.setItem(LIGHTING_MODEL_KEY, model);
+  setToast(`LIGHTING MODEL ${model === 'unified' ? 'UNIFIED V2' : 'CLASSIC'}`);
+}
+
 const CELLAR_ORE_PREVIEW_KEY = 'orchard.developer.cellar-ore-preview';
 let cellarOrePreview = localStorage.getItem(CELLAR_ORE_PREVIEW_KEY) === 'true';
 let debugTerrainPoint: { readonly worldX: number; readonly worldY: number } | null = null;
@@ -504,6 +570,7 @@ function setCollisionDebug(enabled: boolean): void {
 let interfaceHidden = false;
 let nameplatesVisible = readNameplatesVisible();
 let onlinePlayersVisible = false;
+let homesteadBuildMode = false;
 const unknownActionKinds = new Set<string>();
 const remoteBuffers = new Map<string, RemoteSnapshotBuffer>();
 const remoteDisplay = new Map<string, SampledRemote>();
@@ -515,6 +582,7 @@ const projectileDisplay = new Map<bigint, SampledProjectile>();
 const projectileFlightTicks = new Map<bigint, number>();
 const projectileHitProgress = new Map<bigint, number>();
 interface FloatingCombatText {
+  readonly targetKind: 'combat_target' | 'npc';
   readonly targetId: bigint;
   readonly amountCenti: number;
   readonly critical: boolean;
@@ -523,6 +591,10 @@ interface FloatingCombatText {
   readonly startedAtMs: number;
 }
 const floatingCombatTexts: FloatingCombatText[] = [];
+const npcHitFeedback = new Map<bigint, number>();
+const reducedMotionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+const NPC_HIT_FLASH_MS = 140;
+const NPC_HIT_HOP_MS = 240;
 interface PendingBowProjectile extends LocalProjectilePrediction {
   readonly token: number;
   readonly mounted: boolean;
@@ -586,41 +658,61 @@ interface WebkitFullscreenElement extends HTMLElement {
   webkitRequestFullscreen?: () => void | Promise<void>;
 }
 
+interface KeyboardLockNavigator extends Navigator {
+  readonly keyboard?: {
+    lock(keyCodes?: string[]): Promise<void>;
+    unlock(): void;
+  };
+}
+
+const standaloneWebApp = isStandaloneWebApp();
+
 function documentIsFullscreen(): boolean {
   const fullscreenDocument = document as WebkitFullscreenDocument;
   return document.fullscreenElement !== null || fullscreenDocument.webkitFullscreenElement != null;
 }
 
-function toggleFullscreen(): void {
+function browserFullscreenControl(): FullscreenControl {
   const fullscreenDocument = document as WebkitFullscreenDocument;
   const root = document.documentElement as WebkitFullscreenElement;
+  const keyboard = (navigator as KeyboardLockNavigator).keyboard;
+  const request = document.fullscreenEnabled !== false && root.requestFullscreen !== undefined
+    ? () => root.requestFullscreen()
+    : root.webkitRequestFullscreen === undefined ? undefined : () => root.webkitRequestFullscreen!();
+  const exit = document.exitFullscreen !== undefined
+    ? () => document.exitFullscreen()
+    : fullscreenDocument.webkitExitFullscreen === undefined
+      ? undefined : () => fullscreenDocument.webkitExitFullscreen!();
+  return {
+    active: documentIsFullscreen(),
+    standalone: standaloneWebApp,
+    request,
+    exit,
+    lockEscape: keyboard?.lock === undefined ? undefined : () => keyboard.lock(['Escape']),
+    unlock: keyboard?.unlock === undefined ? undefined : () => keyboard.unlock(),
+  };
+}
+
+const webFullscreenAvailable = fullscreenControlAvailable(browserFullscreenControl());
+
+function toggleFullscreen(): void {
   try {
-    let invoked = false;
-    let result: void | Promise<void>;
-    if (documentIsFullscreen()) {
-      if (document.exitFullscreen !== undefined) {
-        invoked = true;
-        result = document.exitFullscreen();
-      } else if (fullscreenDocument.webkitExitFullscreen !== undefined) {
-        invoked = true;
-        result = fullscreenDocument.webkitExitFullscreen();
+    const toggle = toggleFullscreenWithEscapeLock(browserFullscreenControl());
+    void toggle.then((result) => {
+      if (result === 'unavailable') {
+        setToast('FULL SCREEN IS NOT AVAILABLE ON THIS DEVICE', 'failure', 120);
       }
-    } else if (root.requestFullscreen !== undefined) {
-      invoked = true;
-      result = root.requestFullscreen();
-    } else if (root.webkitRequestFullscreen !== undefined) {
-      invoked = true;
-      result = root.webkitRequestFullscreen();
-    }
-    if (!invoked) {
-      setToast('FULL SCREEN IS NOT AVAILABLE ON THIS DEVICE', 'failure', 120);
-      return;
-    }
-    void Promise.resolve(result!).catch(setFailureToast);
+    }).catch(setFailureToast);
   } catch (error) {
     setFailureToast(error);
   }
 }
+
+const unlockKeyboardAfterFullscreen = (): void => {
+  if (!documentIsFullscreen()) (navigator as KeyboardLockNavigator).keyboard?.unlock();
+};
+document.addEventListener('fullscreenchange', unlockKeyboardAfterFullscreen);
+document.addEventListener('webkitfullscreenchange', unlockKeyboardAfterFullscreen);
 
 const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   selectHotbar: (slot) => selectSlotOptimistically(slot),
@@ -641,6 +733,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     localStorage.setItem(LIGHTING_EFFECTS_DISABLED_KEY, String(lightingEffectsDisabled));
     setToast(`LIGHTING EFFECTS ${lightingEffectsDisabled ? 'DISABLED' : 'ENABLED'}`);
   },
+  setLightingModel,
   toggleCellarOrePreview: () => {
     cellarOrePreview = !cellarOrePreview;
     localStorage.setItem(CELLAR_ORE_PREVIEW_KEY, String(cellarOrePreview));
@@ -664,12 +757,31 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   ),
   setAudioVolume: (bus, value) => audio.setVolume(bus, value),
   setAudioBackground: (bus, enabled) => audio.setBackgroundPlayback(bus, enabled),
+  setNameplatesVisible: (visible) => {
+    setNameplatesVisible(visible);
+    setToast(visible ? 'NAMEPLATES ON' : 'NAMEPLATES OFF', 'info', 90);
+  },
   signOut: () => { location.assign('/?logout=1'); },
   quitToTitle: () => { location.assign('/?menu=1'); },
   toggleFullscreen,
   checkForClientUpdate: () => { void pwaClient.checkForUpdate(); },
   applyClientUpdate: () => pwaClient.applyUpdate(),
   toggleOnlinePlayers: () => { onlinePlayersVisible = !onlinePlayersVisible; },
+  manageHomesteadMember: (identityHex, role, kick) => {
+    const profile = latestSnapshot.profiles.get(identityHex);
+    if (profile === undefined) {
+      setToast('PLAYER IS NO LONGER ONLINE', 'failure', 90);
+      return;
+    }
+    if (role === null) showResult(
+      network.removeHomesteadMember(profile.identity, kick),
+      kick ? 'HOMESTEAD MEMBER REMOVED AND KICKED' : 'HOMESTEAD MEMBER REMOVED',
+    );
+    else showResult(
+      network.setHomesteadMemberRole(profile.identity, role),
+      `HOMESTEAD ROLE: ${role.toUpperCase()}`,
+    );
+  },
   moveInventoryItem: (request) => showResult(network.moveInventoryItem(request), 'ITEM MOVED'),
   quickMoveInventoryItem: (fromContainer, fromIndex, toContainers) => showResult(
     network.quickMoveInventoryItem(fromContainer, fromIndex, toContainers), 'ITEMS MOVED',
@@ -703,7 +815,12 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   craftInventoryRecipe: (recipeId, craftAll) => showResult(network.craftInventoryRecipe(recipeId, craftAll), craftAll ? 'STACK CRAFTED' : 'ITEM CRAFTED'),
   ghostFillCraftingRecipe: (recipeId) => {
     const rows = [...latestSnapshot.inventorySlots];
-    const moves = ghostFillRecipeMoves(recipeId, rows, rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0));
+    const moves = ghostFillRecipeMoves(
+      recipeId,
+      rows,
+      rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0),
+      [...latestSnapshot.knownRecipes].map((row) => row.recipeId),
+    );
     if (moves === null) {
       setToast('RECIPE INGREDIENTS OR EMPTY GRID REQUIRED', 'failure');
       return;
@@ -716,6 +833,7 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   closeCrafting: () => { void network.closeCrafting().catch(() => undefined); },
   closeChest: () => { void network.closeChest().catch(() => undefined); },
   closePlaceable: () => { void network.closePlaceable().catch(() => undefined); },
+  sealBarrel: () => showResult(network.sealBarrel(), 'BARREL SEALED — READY IN 30 MINUTES'),
 }, (context, playerId, rect) => {
   const appearance = latestSnapshot.appearances.get(playerId) ?? undefined;
   drawPlayerHeadPortrait(context, art, appearance ?? DEFAULT_PLAYER_APPEARANCE, rect);
@@ -813,6 +931,56 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   }
   marker(centerWorldX, centerWorldY, '#fff3be', 4);
 });
+const homesteadBuildPalette = new HomesteadBuildPalette(art.uiSkin, art.ui, itemArt);
+
+function homesteadUpgradeRank(
+  snapshot: Pick<OverworldView, 'homesteadUpgrades'>,
+  kind: HomesteadUpgradeKind,
+): number {
+  return [...snapshot.homesteadUpgrades].find((row) => row.upgradeKind === kind)?.rank ?? 0;
+}
+
+function cropDefinitionForSnapshot(
+  snapshot: Pick<OverworldView, 'homesteadUpgrades'>,
+  cropKind: string,
+) {
+  const definition = cropDefinition(cropKind);
+  if (definition === null) return null;
+  const rank = homesteadUpgradeRank(snapshot, 'rich_soil');
+  return rank === 0 ? definition : {
+    ...definition,
+    growthTicks: richSoilGrowthTicks(definition.growthTicks, rank),
+  };
+}
+
+function cropAutomaticallyWateredForSnapshot(
+  snapshot: Pick<OverworldView, 'placeables'>,
+  spaceId: number,
+  tileX: number,
+  tileY: number,
+): boolean {
+  return [...snapshot.placeables].some((placeable) => placeable.spaceId === spaceId
+    && placeable.kind === 'sprinkler'
+    && placeable.carriedBy === undefined
+    && sprinklerCoversTile(placeable.tileX, placeable.tileY, tileX, tileY));
+}
+
+function cropGreenhouseProtectedForSnapshot(
+  snapshot: Pick<OverworldView, 'homesteads' | 'placeables'>,
+  spaceId: number,
+): boolean {
+  return snapshot.homesteads.get(spaceId) !== undefined
+    && [...snapshot.placeables].some((placeable) => placeable.spaceId === spaceId
+      && placeable.kind === 'greenhouse'
+      && placeable.carriedBy === undefined);
+}
+
+function cropCalendarOffsetForSnapshot(
+  snapshot: Pick<OverworldView, 'clock' | 'environment'>,
+): bigint {
+  const authorityTick = snapshot.clock?.authorityTick ?? 0n;
+  return (snapshot.environment?.calendarTick ?? authorityTick) - authorityTick;
+}
 const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
   chooseDialogueOption: (choiceId) => showResult(network.chooseDialogueOption(choiceId), 'DIALOGUE UPDATED'),
   closeDialogue: () => { void network.closeNpcDialogue().catch(() => undefined); },
@@ -823,7 +991,7 @@ const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
   if (npc === undefined) return;
   const profile = latestSnapshot.wildlifeProfiles.get(npcId);
   drawNpcPortrait(context, art, {
-    npcKind: latestSnapshot.merchants.get(npcId) === undefined ? npc.kind : 'merchant',
+    npcKind: npc.kind,
     ...(profile === undefined ? {} : { species: profile.species }),
     variant: profile?.variant ?? 0,
   }, rect);
@@ -931,12 +1099,17 @@ function questTrackerEntries(entries: readonly QuestLogEntry[]): QuestTrackerEnt
 }
 
 function questMarkerForNpc(snapshot: OverworldView, npcId: bigint): 'offer' | 'complete' | null {
-  const definitions = Object.values(QUEST_DEFINITIONS).filter((definition) => definition.giverNpcId === npcId);
+  const definitions = (Object.values(QUEST_DEFINITIONS) as readonly QuestDefinition[])
+    .filter((definition) => definition.giverNpcId === npcId);
   for (const definition of definitions) {
     if ([...snapshot.quests].some((row) => row.questId === definition.id && row.state === 'complete')) return 'complete';
   }
   for (const definition of definitions) {
-    if (![...snapshot.quests].some((row) => row.questId === definition.id)) return 'offer';
+    const missing = ![...snapshot.quests].some((row) => row.questId === definition.id);
+    const prerequisitesMet = definition.prerequisiteQuestIds?.every((questId) => (
+      [...snapshot.quests].some((row) => row.questId === questId && row.state === 'turned_in')
+    )) !== false;
+    if (missing && prerequisitesMet) return 'offer';
   }
   return null;
 }
@@ -980,9 +1153,24 @@ function setNameplatesVisible(visible: boolean): void {
 
 function resize(): void {
   renderer.resize();
+  safeAreaInsets = canvasSafeAreaInsets(canvas);
   const minimum = renderer.minimumZoom(activeSpaceDefinition.sizeTiles * 16);
   worldZoomTarget = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoomTarget));
   worldZoom = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoom));
+}
+
+function hudViewportCss(): { readonly width: number; readonly height: number } {
+  return insetCanvasViewport(renderer.cssWidth, renderer.cssHeight, {
+    ...safeAreaInsets,
+    // Bottom-anchored game HUD belongs on the Canvas edge. The home indicator
+    // remains an OS overlay instead of introducing a visible hotbar gutter.
+    bottom: 0,
+  });
+}
+
+function currentUiScale(): number {
+  const viewport = hudViewportCss();
+  return fittedUiScale(desiredUiScale, viewport.width, viewport.height);
 }
 
 function softwareKeyboardInset(uiScale: number): number {
@@ -994,7 +1182,8 @@ function softwareKeyboardInset(uiScale: number): number {
 }
 
 function directionFromKeys(): NetworkDirection {
-  if (overworldUi.openWindow !== null || characterNamePrompt.isActive || npcInteractionUi.active) return 'idle';
+  if (overworldUi.openWindow !== null || overworldUi.blockingUpdatePromptVisible
+    || characterNamePrompt.isActive || npcInteractionUi.active) return 'idle';
   if (touchControls.direction !== 'idle') return touchControls.direction;
   const up = keys.has('ArrowUp') || keys.has('KeyW');
   const down = keys.has('ArrowDown') || keys.has('KeyS');
@@ -1082,7 +1271,9 @@ function elevatedLightOccluders(
     if (isChoppableTreeKind(resource.kind)) continue;
     const asset = isBreakableRockKind(resource.kind)
       ? art.poiDecorations.poi_rock_small
-      : isMineableOreKind(resource.kind) ? art.oreNodes[resource.kind] : undefined;
+      : isMineableOreKind(resource.kind) ? art.oreNodes[`${resource.kind}:${miningNodeArtVariant(
+        miningClassFromWire(resource.miningClass, resource.spaceId), resource.richness,
+      )}`] : undefined;
     add(
       asset, 'base', resource.tileX * 16 + 8, (resource.tileY + 1) * 16,
       survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY),
@@ -1135,6 +1326,12 @@ function matureTreeLightAsset(kind: string): (typeof art)['treeMature'] {
 // mature by definition. Stage 3 is the shared mature-tree wire value.
 const MATURE_TREE_GROWTH_STAGE = 3;
 type RenderWorldResource = WorldResource & { readonly ambientOnly?: boolean };
+
+function miningClassFromWire(value: string, spaceId: number): MiningNodeClass {
+  return value === 'pure' || value === 'pristine' || value === 'rock' || value === 'mixed'
+    ? value
+    : spaceId === TOPSIDE_SPACE_ID ? 'mixed' : 'pure';
+}
 let homesteadSurroundingsKey = '';
 let cachedHomesteadResources: readonly RenderWorldResource[] = [];
 let cachedHomesteadDecorations: ReturnType<typeof generateSurvivalDecorations> = [];
@@ -1155,15 +1352,16 @@ function buildHomesteadSurroundingResources(seed: number): readonly RenderWorldR
   const result: RenderWorldResource[] = [];
   const occupied = new Set<string>();
   const terrainCenter = Math.floor(activeSpaceDefinition.sizeTiles / 2);
+  const plotBounds = homesteadPlotBounds(activeSpaceDefinition.sizeTiles);
   for (let tileY = 1; tileY < activeSpaceDefinition.sizeTiles - 1; tileY += 1) {
     for (let tileX = 1; tileX < activeSpaceDefinition.sizeTiles - 1; tileX += 1) {
-      if (tileX >= HOMESTEAD_PLOT_MIN_TILE - 2 && tileX <= HOMESTEAD_PLOT_MAX_TILE + 2
-        && tileY >= HOMESTEAD_PLOT_MIN_TILE - 2 && tileY <= HOMESTEAD_PLOT_MAX_TILE + 2) continue;
+      if (tileX >= plotBounds.minimumX - 2 && tileX <= plotBounds.maximumX + 2
+        && tileY >= plotBounds.minimumY - 2 && tileY <= plotBounds.maximumY + 2) continue;
       const biome = homesteadBiomeAt(seed, site, tileX, tileY, activeSpaceDefinition.sizeTiles);
-      const distanceWest = HOMESTEAD_PLOT_MIN_TILE - tileX;
-      const distanceEast = tileX - HOMESTEAD_PLOT_MAX_TILE;
-      const distanceNorth = HOMESTEAD_PLOT_MIN_TILE - tileY;
-      const distanceSouth = tileY - HOMESTEAD_PLOT_MAX_TILE;
+      const distanceWest = plotBounds.minimumX - tileX;
+      const distanceEast = tileX - plotBounds.maximumX;
+      const distanceNorth = plotBounds.minimumY - tileY;
+      const distanceSouth = tileY - plotBounds.maximumY;
       const outsideSide = Math.max(distanceWest, distanceEast);
       const inSouthernApproach = distanceSouth > 0;
       const approachCorridor = inSouthernApproach && Math.abs(tileX - terrainCenter) < 18;
@@ -1190,7 +1388,12 @@ function buildHomesteadSurroundingResources(seed: number): readonly RenderWorldR
         chunkX: Math.floor(tileX / 16), chunkY: Math.floor(tileY / 16),
         health: survivalResourceInitialHealth(kind), depleted: false,
         spaceId: activeSpaceDefinition.spaceId, growthStage: MATURE_TREE_GROWTH_STAGE,
-        regrowthProgress: 24, ambientOnly: true,
+        regrowthProgress: 24,
+        miningClass: '', richness: 0, maximumRichness: 0, yieldProgress: 0,
+        yieldsProduced: 0, producedOre: false, spawnSiteId: 0n,
+        activationOrdinal: 0, respawnAtTick: 0n,
+        miningClaimedBy: undefined, miningPartyId: undefined, miningClaimUntilTick: 0n,
+        ambientOnly: true,
       });
     }
   }
@@ -1211,10 +1414,11 @@ function buildHomesteadSurroundingDecorations(seed: number): ReturnType<typeof g
   const site = activeSpaceDefinition.homesteadSite;
   if (activeSpaceDefinition.generator !== 'homestead' || site === undefined) return [];
   const result: Array<ReturnType<typeof generateSurvivalDecorations>[number]> = [];
+  const plotBounds = homesteadPlotBounds(activeSpaceDefinition.sizeTiles);
   let id = 6_000_000_000;
   const add = (kind: typeof result[number]['kind'], tileX: number, tileY: number, variant: number): void => {
-    if (tileX >= HOMESTEAD_PLOT_MIN_TILE - 2 && tileX <= HOMESTEAD_PLOT_MAX_TILE + 2
-      && tileY >= HOMESTEAD_PLOT_MIN_TILE - 2 && tileY <= HOMESTEAD_PLOT_MAX_TILE + 2) return;
+    if (tileX >= plotBounds.minimumX - 2 && tileX <= plotBounds.maximumX + 2
+      && tileY >= plotBounds.minimumY - 2 && tileY <= plotBounds.maximumY + 2) return;
     result.push({ id: id++, kind, tileX, tileY, variant, animationOffset: id % 96 });
   };
   // Forest-floor details follow tree silhouettes, so mushrooms and deadwood
@@ -1305,7 +1509,7 @@ function terrainForSnapshot(snapshot: OverworldView): TerrainArray {
 function refreshCollision(snapshot: OverworldView): void {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const nextKey = `${activeSpaceDefinition.spaceId}:${seed}:${version}:${network.resourceRevision}:${network.cellarExcavationRevision}`;
+  const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${network.resourceRevision}:${network.cellarExcavationRevision}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
   const terrain = terrainForSnapshot(snapshot);
@@ -1345,15 +1549,11 @@ function refreshCollision(snapshot: OverworldView): void {
       bottom: (tile.tileY + 1) * TILE_SIZE_FIXED - 1,
     });
   }
-  const homes = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    ? [...snapshot.homesteads]
-    : [...snapshot.homesteads].filter((home) => home.spaceId === activeSpaceDefinition.spaceId);
-  for (const home of homes) {
-    const interior = activeSpaceDefinition.generator === 'homestead';
+  for (const target of homesteadTentPresentationTargets(activeSpaceDefinition, snapshot.homesteads)) {
     const footprint = homesteadTentFootprint(
-      interior ? HOMESTEAD_TENT_TILE.tileX : home.overworldTileX,
-      interior ? HOMESTEAD_TENT_TILE.tileY : home.overworldTileY,
-      interior,
+      target.tileX,
+      target.tileY,
+      target.interior,
     );
     obstacles.push({
       left: footprint.minX * TILE_SIZE_FIXED, top: footprint.minY * TILE_SIZE_FIXED,
@@ -1361,9 +1561,10 @@ function refreshCollision(snapshot: OverworldView): void {
       bottom: (footprint.maxY + 1) * TILE_SIZE_FIXED - 1,
     });
   }
-  if (activeSpaceDefinition.generator === 'homestead' && homes.length > 0) {
+  if (activeSpaceDefinition.generator === 'homestead') {
+    const activeHome = snapshot.homesteads.get(activeSpaceDefinition.spaceId);
     for (const tile of homesteadBoundaryTiles(activeSpaceDefinition.sizeTiles)) {
-      if (tile.kind === 'gate' && homes[0]?.gateOpen) continue;
+      if (tile.kind === 'gate' && activeHome?.gateOpen === true) continue;
       obstacles.push({
         left: tile.tileX * TILE_SIZE_FIXED, top: tile.tileY * TILE_SIZE_FIXED,
         right: (tile.tileX + 1) * TILE_SIZE_FIXED - 1,
@@ -1388,14 +1589,18 @@ function update(): void {
   network.setViewRadius(viewRadiusForViewport(renderer.cssWidth, renderer.cssHeight, worldZoom));
   latestSnapshot = network.view();
   const snapshot = latestSnapshot;
+  if (homesteadBuildMode && !canUseHomesteadBuildMode(snapshot)) homesteadBuildMode = false;
   if (snapshot.tradeSession !== null) overworldUi.openWindow = null;
   const authoritativePosition = network.ownPosition();
-  if (authoritativePosition !== null && authoritativePosition.spaceId !== observedSpaceId) {
+  const nextSpaceDefinition = authoritativePosition === null ? null : spaceDefinitionFor(
+    authoritativePosition.spaceId,
+    instanceSpaceRowFor(authoritativePosition.spaceId, snapshot.homesteads),
+  );
+  if (authoritativePosition !== null
+    && (predicted === null || authoritativePosition.spaceId !== observedSpaceId
+      || nextSpaceDefinition?.sizeTiles !== activeSpaceDefinition.sizeTiles)) {
     observedSpaceId = authoritativePosition.spaceId;
-    activeSpaceDefinition = spaceDefinitionFor(
-      observedSpaceId,
-      instanceSpaceRowFor(observedSpaceId, snapshot.homesteads),
-    )
+    activeSpaceDefinition = nextSpaceDefinition
       ?? spaceDefinitionFor(TOPSIDE_SPACE_ID)!;
     portalTransitionStartedAtMs = performance.now();
     collisionKey = '';
@@ -1413,9 +1618,15 @@ function update(): void {
   }
   if (snapshot.activeChest !== null && overworldUi.openWindow !== 'chest') overworldUi.openWindow = 'chest';
   if (snapshot.activeChest === null && overworldUi.openWindow === 'chest') overworldUi.openWindow = null;
-  if (snapshot.activePlaceable?.kind === 'barrel' && overworldUi.openWindow !== 'barrel') overworldUi.openWindow = 'barrel';
-  if (snapshot.activePlaceable?.kind === 'furnace' && overworldUi.openWindow !== 'furnace') overworldUi.openWindow = 'furnace';
-  if (snapshot.activePlaceable === null && (overworldUi.openWindow === 'barrel' || overworldUi.openWindow === 'furnace')) overworldUi.openWindow = null;
+  const activePlaceableInterface = placeableInterface(snapshot.activePlaceable?.kind ?? '');
+  if (activePlaceableInterface === 'barrel' && overworldUi.openWindow !== 'barrel') overworldUi.openWindow = 'barrel';
+  if (activePlaceableInterface === 'furnace' && overworldUi.openWindow !== 'furnace') overworldUi.openWindow = 'furnace';
+  if (activePlaceableInterface === 'cooking' && overworldUi.openWindow !== 'cooking') overworldUi.openWindow = 'cooking';
+  if (activePlaceableInterface === 'press' && overworldUi.openWindow !== 'press') overworldUi.openWindow = 'press';
+  if (activePlaceableInterface === 'fermentation' && overworldUi.openWindow !== 'fermentation') overworldUi.openWindow = 'fermentation';
+  if (snapshot.activePlaceable === null && (overworldUi.openWindow === 'barrel' || overworldUi.openWindow === 'furnace'
+    || overworldUi.openWindow === 'cooking' || overworldUi.openWindow === 'press'
+    || overworldUi.openWindow === 'fermentation')) overworldUi.openWindow = null;
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
     optimisticSelectedSlot = null;
   }
@@ -1546,6 +1757,7 @@ function update(): void {
   network.drainDeletedNpcIds((id) => {
     npcBuffers.delete(id);
     npcDisplay.delete(id);
+    npcHitFeedback.delete(id);
   });
   network.drainProjectileCommits(({ row, authorityTick }) => {
     const buffer = projectileBuffers.get(row.id) ?? new ProjectileSnapshotBuffer();
@@ -1580,12 +1792,16 @@ function update(): void {
   const combatTextNow = performance.now();
   network.drainCombatTextCommits((commit) => {
     floatingCombatTexts.push({ ...commit, startedAtMs: combatTextNow });
+    if (commit.targetKind === 'npc') npcHitFeedback.set(commit.targetId, combatTextNow);
     if (floatingCombatTexts.length > 32) floatingCombatTexts.shift();
   });
   for (let index = floatingCombatTexts.length - 1; index >= 0; index -= 1) {
     if (combatTextNow - floatingCombatTexts[index]!.startedAtMs >= 1_100) {
       floatingCombatTexts.splice(index, 1);
     }
+  }
+  for (const [npcId, startedAtMs] of npcHitFeedback) {
+    if (combatTextNow - startedAtMs >= NPC_HIT_HOP_MS) npcHitFeedback.delete(npcId);
   }
   const authorityTick = presentationAuthorityTick(
     snapshot.clock?.authorityTick,
@@ -1645,30 +1861,45 @@ function profileName(profiles: OverworldView['profiles'], identity: string): str
 }
 
 interface OnlinePlayerListEntry {
+  readonly identityHex: string;
   readonly displayName: string;
   readonly self: boolean;
   readonly idleMinutes: number | null;
+  readonly homesteadRole: 'guest' | 'worker' | 'builder' | null;
 }
 
 let onlinePlayerCacheRevision = -1;
 let onlinePlayerCacheMinute = -1;
 let onlinePlayerCacheIdentity: string | null = null;
+let onlinePlayerCacheMembers = '';
 let onlinePlayerCache: readonly OnlinePlayerListEntry[] = [];
 
 function onlinePlayerEntries(snapshot: OverworldView): readonly OnlinePlayerListEntry[] {
   const minute = Math.floor(Date.now() / 60_000);
+  const memberSignature = [...snapshot.homesteadMembers]
+    .map((row) => `${row.guest.toHexString()}:${row.role}`)
+    .sort()
+    .join('|');
   if (onlinePlayerCacheRevision === network.presenceRevision
     && onlinePlayerCacheMinute === minute
-    && onlinePlayerCacheIdentity === snapshot.identityHex) return onlinePlayerCache;
+    && onlinePlayerCacheIdentity === snapshot.identityHex
+    && onlinePlayerCacheMembers === memberSignature) return onlinePlayerCache;
   onlinePlayerCacheRevision = network.presenceRevision;
   onlinePlayerCacheMinute = minute;
   onlinePlayerCacheIdentity = snapshot.identityHex;
+  onlinePlayerCacheMembers = memberSignature;
+  const roles = new Map([...snapshot.homesteadMembers].map((row) => [
+    row.guest.toHexString(),
+    isHomesteadMemberRole(row.role) ? row.role : null,
+  ]));
   onlinePlayerCache = [...snapshot.profiles]
     .filter((profile) => profile.online)
     .map((profile) => ({
+      identityHex: profile.identity.toHexString(),
       displayName: profile.displayName,
       self: profile.identity.toHexString() === snapshot.identityHex,
       idleMinutes: onlinePlayerIdleMinutes(profile.lastActiveAtMicros),
+      homesteadRole: roles.get(profile.identity.toHexString()) ?? null,
     }))
     .sort((left, right) => Number(right.self) - Number(left.self)
       || left.displayName.localeCompare(right.displayName));
@@ -1780,6 +2011,11 @@ function performFarmToolAction(
   itemKind: 'hoe' | 'watering_can',
   restoring = false,
 ): boolean {
+  const uprooting = !restoring && itemKind === 'hoe' && latestSnapshot.crops.get(farmSoilKey(
+    target.tileX,
+    target.tileY,
+    activeSpaceDefinition.spaceId,
+  )) !== undefined;
   const performed = performToolAction(
     () => (restoring
       ? network.restoreFarmTile(target.tileX, target.tileY)
@@ -1791,7 +2027,9 @@ function performFarmToolAction(
         target.tileY * 16 + 12,
       );
     }),
-    restoring ? 'GRASS RESTORED' : itemKind === 'hoe' ? 'SOIL TILLED' : 'SOIL WATERED',
+    restoring ? 'GRASS RESTORED'
+      : uprooting ? 'CROP DUG UP'
+        : itemKind === 'hoe' ? 'SOIL TILLED' : 'SOIL WATERED',
     itemKind,
   );
   if (performed) facePredictedTowardTile(target);
@@ -2016,6 +2254,16 @@ function cropTimeLabel(remainingTicks: bigint): string {
   return hours > 0 ? `${hours}H ${String(minutes).padStart(2, '0')}M` : `${minutes}M`;
 }
 
+function processorTimeLabel(remainingTicks: bigint): string {
+  const totalSeconds = Math.max(0, Math.ceil(Number(remainingTicks) / AUTHORITY_HZ));
+  const hours = Math.floor(totalSeconds / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    : `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
 function refreshHoveredInteractionTile(): void {
   hoveredInteractionTile = predicted === null || worldPointer === null
     ? null
@@ -2033,6 +2281,8 @@ function placementTileBlocked(
   tile: { readonly tileX: number; readonly tileY: number },
   excludeLocalPlayer = false,
 ): boolean {
+  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
+    && survivalFarmerBobFarmReservedAt(tile.tileX, tile.tileY)) return true;
   const players = [...snapshot.players].filter((player) => {
     const id = player.identity.toHexString();
     const local = id === snapshot.identityHex;
@@ -2118,9 +2368,9 @@ function targetFacedCombatTarget(snapshot: OverworldView): WorldCombatTarget | n
   }) ?? null;
 }
 
-function targetSwordCombatTarget(snapshot: OverworldView): WorldCombatTarget | null {
+function targetSwordCombatTarget(snapshot: OverworldView): WorldCombatTarget | WorldNpc | null {
   if (predicted === null) return null;
-  let nearest: WorldCombatTarget | null = null;
+  let nearest: WorldCombatTarget | WorldNpc | null = null;
   let nearestDistanceSquared = Number.POSITIVE_INFINITY;
   for (const target of snapshot.combatTargets) {
     if (target.kind !== 'archery_target' || target.carriedBy !== undefined) continue;
@@ -2141,6 +2391,21 @@ function targetSwordCombatTarget(snapshot: OverworldView): WorldCombatTarget | n
     if (distanceSquared < nearestDistanceSquared
       || (distanceSquared === nearestDistanceSquared && target.id < (nearest?.id ?? target.id + 1n))) {
       nearest = target;
+      nearestDistanceSquared = distanceSquared;
+    }
+  }
+  for (const npc of snapshot.npcs) {
+    const profile = wildlifeProfile(snapshot, npc.id);
+    if (npc.health <= 0 || profile === null || !wildlifeIsHuntable(profile.species)) continue;
+    if (!forwardSwingTargetInReach(
+      predicted.position.x, predicted.position.y, predicted.facing, npc.x, npc.y, 'sword',
+    )) continue;
+    const dx = npc.x - predicted.position.x;
+    const dy = npc.y - predicted.position.y;
+    const distanceSquared = dx * dx + dy * dy;
+    if (distanceSquared < nearestDistanceSquared
+      || (distanceSquared === nearestDistanceSquared && npc.id < (nearest?.id ?? npc.id + 1n))) {
+      nearest = npc;
       nearestDistanceSquared = distanceSquared;
     }
   }
@@ -2261,9 +2526,8 @@ function selectedTargetVitals(snapshot: OverworldView): OverworldUiTargetVitals 
     };
   }
   const npc = snapshot.npcs.get(target.id);
-  if (npc === undefined || npc.rider !== undefined || npc.wanderDirection === 'inside_hive') return undefined;
+  if (npc === undefined || npc.health === 0 || npc.rider !== undefined || npc.wanderDirection === 'inside_hive') return undefined;
   const profile = wildlifeProfile(snapshot, npc.id);
-  const merchant = snapshot.merchants.get(npc.id) !== undefined;
   const maximumHealth = profile === null
     ? Math.max(1, npc.health, 100)
     : Math.ceil(resolveCreatureStats(profile.species).maxHealthCenti / 100);
@@ -2273,7 +2537,7 @@ function selectedTargetVitals(snapshot: OverworldView): OverworldUiTargetVitals 
     health: npc.health,
     maxHealth: maximumHealth,
     portrait: {
-      kind: 'npc', npcKind: merchant ? 'merchant' : npc.kind,
+      kind: 'npc', npcKind: npc.kind,
       ...(profile === null ? {} : { species: profile.species }),
       variant: profile?.variant ?? 0,
     },
@@ -2369,6 +2633,8 @@ function targetCampfire(snapshot: OverworldView): TargetCampfire | null {
   const campfire = generateSurvivalDecorations(snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED)
     .find((decoration) => decoration.kind === 'camp_campfire');
   if (campfire === undefined) return null;
+  const replacement = snapshot.placeables.get(BigInt(campfire.id));
+  if (replacement !== undefined && placeableHasInterface(replacement.kind, 'cooking')) return null;
   const x = campfire.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const y = campfire.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const dx = x - predicted.position.x;
@@ -2400,17 +2666,29 @@ function targetOwnedHomesteadGate(snapshot: OverworldView): { readonly open: boo
   return dx * dx + dy * dy <= (2 * TILE_SIZE_FIXED) ** 2 ? { open: home.gateOpen } : null;
 }
 
+function canUseHomesteadBuildMode(snapshot: OverworldView): boolean {
+  if (snapshot.identityHex === null || activeSpaceDefinition.generator !== 'homestead') return false;
+  const home = snapshot.homesteads.get(activeSpaceDefinition.spaceId);
+  if (home === undefined) return false;
+  if (home.owner.toHexString() === snapshot.identityHex) return true;
+  const member = [...snapshot.homesteadMembers].find((row) => row.spaceId === home.spaceId
+    && row.guest.toHexString() === snapshot.identityHex);
+  return member !== undefined && isHomesteadMemberRole(member.role)
+    && homesteadRoleAtLeast(member.role, 'builder');
+}
+
 type EInteractionTarget =
   | (InteractionCandidate & { readonly kind: 'portal'; readonly portal: SpacePortal })
   | (InteractionCandidate & { readonly kind: 'placeable'; readonly placeable: WorldPlaceable })
   | (InteractionCandidate & { readonly kind: 'chest'; readonly chest: WorldChest })
-  | (InteractionCandidate & { readonly kind: 'campfire'; readonly campfire: TargetCampfire })
   | (InteractionCandidate & { readonly kind: 'merchant'; readonly npc: WorldNpc })
   | (InteractionCandidate & { readonly kind: 'player'; readonly player: PlayerPosition })
   | (InteractionCandidate & { readonly kind: 'horse'; readonly npc: WorldNpc })
   | (InteractionCandidate & { readonly kind: 'gatherable'; readonly resource: WorldResource })
   | (InteractionCandidate & { readonly kind: 'quest_item'; readonly item: QuestWorldItem })
   | (InteractionCandidate & { readonly kind: 'embedded_arrow'; readonly projectile: WorldProjectile })
+  | (InteractionCandidate & { readonly kind: 'crop'; readonly crop: WorldCrop })
+  | (InteractionCandidate & { readonly kind: 'grave' })
   | (InteractionCandidate & { readonly kind: 'world_item'; readonly item: WorldItem });
 
 function tileInteractionPoint(tileX: number, tileY: number): { readonly x: number; readonly y: number } {
@@ -2423,13 +2701,21 @@ function tileInteractionPoint(tileX: number, tileY: number): { readonly x: numbe
 function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
   if (predicted === null) return null;
   const candidates: EInteractionTarget[] = [];
+  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
+    const gravePoint = tileInteractionPoint(FARMER_JANE_GRAVE_TILE.tileX, FARMER_JANE_GRAVE_TILE.tileY);
+    const graveDx = gravePoint.x - predicted.position.x;
+    const graveDy = gravePoint.y - predicted.position.y;
+    if (graveDx * graveDx + graveDy * graveDy <= (2.5 * TILE_SIZE_FIXED) ** 2) {
+      candidates.push({ kind: 'grave', ...gravePoint, stableId: 'farmer-jane-grave' });
+    }
+  }
   const portal = targetPortal(snapshot);
   if (portal !== null) candidates.push({
     kind: 'portal', ...tileInteractionPoint(portal.fromTileX, portal.fromTileY),
     stableId: `portal:${portal.id}`, portal,
   });
   const placeable = targetPlaceable(snapshot);
-  if (placeable?.kind === 'fence_gate' || placeable?.kind === 'barrel' || placeable?.kind === 'furnace' || placeable?.kind === 'anvil') candidates.push({
+  if (placeable !== null && (placeable.kind === 'fence_gate' || placeableInterface(placeable.kind) !== null)) candidates.push({
     kind: 'placeable', ...tileInteractionPoint(placeable.tileX, placeable.tileY),
     stableId: `placeable:${placeable.id}`, placeable,
   });
@@ -2437,12 +2723,6 @@ function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
   if (chest !== null) candidates.push({
     kind: 'chest', ...tileInteractionPoint(chest.tileX, chest.tileY),
     stableId: `chest:${chest.id}`, chest,
-  });
-  const campfire = targetCampfire(snapshot);
-  if (campfire !== null) candidates.push({
-    kind: 'campfire', ...tileInteractionPoint(campfire.tileX, campfire.tileY),
-    stableId: `campfire:${campfire.targetKind}:${campfire.id}`,
-    campfire,
   });
   const merchant = targetMerchant(snapshot);
   if (merchant !== null) candidates.push({
@@ -2486,6 +2766,25 @@ function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
     kind: 'embedded_arrow', x: embeddedArrow.x, y: embeddedArrow.y,
     stableId: `embedded-arrow:${embeddedArrow.id}`, projectile: embeddedArrow,
   });
+  const crop = targetCrop(snapshot);
+  const cropSoil = crop === null ? undefined : snapshot.soil.get(crop.id);
+  const cropDefinitionValue = cropDefinitionForSnapshot(snapshot, crop?.cropKind ?? '');
+  if (crop !== null && cropSoil !== undefined && cropDefinitionValue !== null
+    && snapshot.identityHex !== null && crop.owner.toHexString() === snapshot.identityHex
+    && cropGrowthAt(
+      cropDefinitionValue,
+      crop.growthTicks,
+      crop.growthUpdatedAtTick,
+      cropSoil.wateredAtTick,
+      snapshot.clock?.authorityTick ?? 0n,
+      cropSoil.watered,
+      cropAutomaticallyWateredForSnapshot(snapshot, crop.spaceId, crop.tileX, crop.tileY),
+      cropCalendarOffsetForSnapshot(snapshot),
+      cropGreenhouseProtectedForSnapshot(snapshot, crop.spaceId),
+    ).mature) candidates.push({
+    kind: 'crop', ...tileInteractionPoint(crop.tileX, crop.tileY),
+    stableId: `crop:${crop.id}`, crop,
+  });
   const item = targetWorldItem(snapshot);
   if (item !== null) candidates.push({
     kind: 'world_item', x: item.x, y: item.y,
@@ -2507,19 +2806,22 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
       if (target.portal.kind === 'marlow_tent_exit') return '[E] LEAVE MARLOW\'S TENT';
       return target.portal.kind.startsWith('homestead_exit:') ? '[E] LEAVE FARM' : '[E] USE PORTAL';
     }
-    case 'placeable': return target.placeable.kind === 'barrel'
+    case 'placeable': return placeableHasInterface(target.placeable.kind, 'barrel')
       ? '[E] OPEN BARREL'
-      : target.placeable.kind === 'furnace'
+      : placeableHasInterface(target.placeable.kind, 'furnace')
         ? '[E] USE FURNACE'
-      : target.placeable.kind === 'anvil'
-        ? '[E] REPAIR SELECTED TOOL (5 COPPER)'
-        : target.placeable.open ? '[E] CLOSE GATE' : '[E] OPEN GATE';
+      : placeableHasInterface(target.placeable.kind, 'cooking')
+        ? `[E] USE COOKING FIRE  [F] ${target.placeable.lit ? 'EXTINGUISH' : 'LIGHT'}`
+      : placeableHasInterface(target.placeable.kind, 'press')
+        ? '[E] USE FRUIT PRESS'
+      : placeableHasInterface(target.placeable.kind, 'fermentation')
+        ? '[E] USE FERMENTATION CASK'
+      : target.placeable.open ? '[E] CLOSE GATE' : '[E] OPEN GATE';
     case 'chest': return selectedItem(snapshot) === 'axe'
       ? '[E] OPEN CHEST  [F] BREAK WITH AXE'
       : targetFacedChest(snapshot)?.id === target.chest.id
         ? '[E] OPEN CHEST  [F] PICK UP'
         : '[E] OPEN CHEST';
-    case 'campfire': return `[E] COOK  [F] ${target.campfire.lit ? 'EXTINGUISH' : 'LIGHT'} CAMPFIRE`;
     case 'merchant': return `[E] TALK TO ${target.npc.displayName.toUpperCase()}`;
     case 'player': return `[E] TRADE WITH ${(snapshot.profiles.get(target.player.identity.toHexString())?.displayName ?? 'PLAYER').toUpperCase()}`;
     case 'horse': return localMount(snapshot) !== null
@@ -2528,6 +2830,8 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
     case 'gatherable': return `[E] PICK UP ${target.resource.kind === 'loose_stone' ? 'PEBBLE' : 'FALLEN BRANCH'}`;
     case 'quest_item': return `[E] PICK UP ${hotbarItemLabel(target.item.itemKind)}`;
     case 'embedded_arrow': return '[E] RECOVER ARROW';
+    case 'grave': return "[E] READ FARMER JANE'S GRAVE";
+    case 'crop': return `[E] HARVEST ${(cropDefinition(target.crop.cropKind)?.displayName ?? 'CROP').toUpperCase()}`;
     case 'world_item': return target.item.itemKind === 'lantern'
       ? `[E] PICK UP LANTERN  [F] TURN ${target.item.lit ? 'OFF' : 'ON'}`
       : `[E] PICK UP ${hotbarItemLabel(target.item.itemKind)} x${target.item.quantity}`;
@@ -2538,25 +2842,26 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
   switch (target.kind) {
     case 'portal':
       portalTransitionStartedAtMs = performance.now();
-      showResult(network.usePortal(target.portal.id), 'PORTAL TRANSIT');
+      showResult(network.usePortal(target.portal.id), null);
       return;
     case 'placeable':
       showResult(
         network.interactPlaceable(),
-        target.placeable.kind === 'barrel'
+        placeableHasInterface(target.placeable.kind, 'barrel')
           ? 'BARREL OPENED'
-          : target.placeable.kind === 'furnace'
+          : placeableHasInterface(target.placeable.kind, 'furnace')
             ? 'FURNACE OPENED'
-          : target.placeable.kind === 'anvil'
-            ? 'TOOL REPAIRED'
+          : placeableHasInterface(target.placeable.kind, 'cooking')
+            ? 'COOKING FIRE OPENED'
+          : placeableHasInterface(target.placeable.kind, 'press')
+            ? 'FRUIT PRESS OPENED'
+          : placeableHasInterface(target.placeable.kind, 'fermentation')
+            ? 'FERMENTATION CASK OPENED'
           : target.placeable.open ? 'GATE CLOSED' : 'GATE OPENED',
       );
       return;
     case 'chest':
       showResult(network.interactChest(), 'CHEST OPENED');
-      return;
-    case 'campfire':
-      overworldUi.openWindow = 'cooking';
       return;
     case 'merchant':
       overworldUi.openWindow = null;
@@ -2589,6 +2894,13 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
     case 'embedded_arrow':
       startPredictedAction('pickup');
       showResult(network.pickupEmbeddedArrow(target.projectile.id), 'RECOVERED ARROW');
+      return;
+    case 'grave':
+      setToast('FARMER JANE — BELOVED WIFE AND GARDENER', 'success');
+      return;
+    case 'crop':
+      startPredictedAction('pickup');
+      showResult(network.useCropTile(target.crop.tileX, target.crop.tileY), 'CROP HARVESTED');
       return;
     case 'world_item':
       startPredictedAction('pickup');
@@ -2774,6 +3086,103 @@ function drawCollisionOverlay(
   context.restore();
 }
 
+function drawHomesteadBuildGrid(
+  context: CanvasRenderingContext2D,
+  cameraX: number,
+  cameraY: number,
+  scale: number,
+): void {
+  const bounds = homesteadPlotBounds(activeSpaceDefinition.sizeTiles);
+  const left = (bounds.minimumX * 16 - cameraX) * scale;
+  const top = (bounds.minimumY * 16 - cameraY) * scale;
+  const right = ((bounds.maximumX + 1) * 16 - cameraX) * scale;
+  const bottom = ((bounds.maximumY + 1) * 16 - cameraY) * scale;
+  context.save();
+  context.fillStyle = 'rgba(255, 225, 137, 0.055)';
+  context.fillRect(left, top, right - left, bottom - top);
+  context.strokeStyle = 'rgba(255, 241, 184, 0.22)';
+  context.lineWidth = 1;
+  context.beginPath();
+  for (let tileX = bounds.minimumX; tileX <= bounds.maximumX + 1; tileX += 1) {
+    const x = Math.round((tileX * 16 - cameraX) * scale) + 0.5;
+    context.moveTo(x, top);
+    context.lineTo(x, bottom);
+  }
+  for (let tileY = bounds.minimumY; tileY <= bounds.maximumY + 1; tileY += 1) {
+    const y = Math.round((tileY * 16 - cameraY) * scale) + 0.5;
+    context.moveTo(left, y);
+    context.lineTo(right, y);
+  }
+  context.stroke();
+  context.strokeStyle = 'rgba(255, 211, 105, 0.9)';
+  context.lineWidth = Math.max(1, scale);
+  context.strokeRect(left, top, right - left, bottom - top);
+  const tile = hoveredInteractionTile;
+  if (tile !== null) {
+    const selection = homesteadBuildPalette.selection;
+    const tent = homesteadTentFootprint(HOMESTEAD_TENT_TILE.tileX, HOMESTEAD_TENT_TILE.tileY, true);
+    const selectedBuild = selection.kind === 'place'
+      ? homesteadBuildDefinition(selection.itemKind)
+      : null;
+    const previewTiles = selectedBuild === null
+      ? [tile]
+      : homesteadBuildFootprintTiles(selectedBuild, tile.tileX, tile.tileY);
+    const existing = latestSnapshot.placeables.find((placeable) => {
+      if (placeable.carriedBy !== undefined) return false;
+      const build = homesteadBuildDefinition(placeable.kind);
+      return homesteadBuildFootprintTiles(
+        build ?? { footprint: { width: 1, height: 1 } },
+        placeable.tileX,
+        placeable.tileY,
+      ).some((footprintTile) => footprintTile.tileX === tile.tileX && footprintTile.tileY === tile.tileY);
+    });
+    const valid = selection.kind === 'remove'
+      ? existing !== undefined
+      : previewTiles.every((previewTile) => {
+        const residenceBlocked = previewTile.tileX >= tent.minX && previewTile.tileX <= tent.maxX
+          && previewTile.tileY >= tent.minY && previewTile.tileY <= tent.maxY;
+        return homesteadPlayableTile(previewTile.tileX, previewTile.tileY, activeSpaceDefinition.sizeTiles)
+          && !residenceBlocked
+          && latestSnapshot.soil.get(farmSoilKey(
+            previewTile.tileX,
+            previewTile.tileY,
+            activeSpaceDefinition.spaceId,
+          )) === undefined
+          && !placementTileBlocked(latestSnapshot, previewTile);
+      });
+    for (const previewTile of previewTiles) {
+      const tileLeft = Math.round((previewTile.tileX * 16 - cameraX) * scale);
+      const tileTop = Math.round((previewTile.tileY * 16 - cameraY) * scale);
+      context.fillStyle = valid ? 'rgba(92, 199, 102, 0.38)' : 'rgba(190, 48, 61, 0.44)';
+      context.fillRect(tileLeft, tileTop, 16 * scale, 16 * scale);
+      context.strokeStyle = valid ? '#9df38c' : '#ff6671';
+      context.lineWidth = Math.max(1, scale);
+      context.strokeRect(tileLeft, tileTop, 16 * scale, 16 * scale);
+    }
+    if (selection.kind === 'place') {
+      context.save();
+      context.globalAlpha = valid ? 0.62 : 0.42;
+      context.filter = valid ? 'brightness(1.15)' : 'grayscale(0.7) sepia(1) hue-rotate(315deg) saturate(3)';
+      drawOverworldPlaceable(
+        context,
+        art,
+        selection.itemKind,
+        false,
+        0,
+        0,
+        tile.tileX * 16 + 8,
+        (tile.tileY + 1) * 16,
+        cameraX,
+        cameraY,
+        scale,
+        true,
+      );
+      context.restore();
+    }
+  }
+  context.restore();
+}
+
 const CELLAR_ORE_PREVIEW_COLORS: Readonly<Record<string, string>> = {
   ore_iron: '#b9c1c8aa',
   ore_copper: '#e58b55aa',
@@ -2824,7 +3233,7 @@ function drawCellarOreVeinPreview(
 
 function render(alpha = 1): void {
   const renderStarted = performance.now();
-  let drawCalls = 0;
+  let renderItems = 0;
   const snapshot = latestSnapshot;
   const predictedPosition = predicted?.position;
   const renderedLocalBase = predictedPosition === undefined
@@ -2838,7 +3247,9 @@ function render(alpha = 1): void {
     identityReady: snapshot.identityHex !== null,
     worldReady: snapshot.worldSeed !== null && snapshot.clock !== null && snapshot.environment !== null,
     playerReady: localAuthority !== undefined,
-    profileReady: snapshot.characterProfile !== null && snapshot.membership !== null && snapshot.survival !== null,
+    profileReady: snapshot.characterProfile !== null
+      && (localProfilesEnabled || snapshot.membership !== null)
+      && snapshot.survival !== null,
   });
   setLoadingScreenStage(loadingStage);
   if (loadingStage.ready !== true) return;
@@ -2878,14 +3289,18 @@ function render(alpha = 1): void {
   latestRenderedZoom = worldZoom;
   refreshHoveredInteractionTile();
   const renderWeatherTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
+  const renderAuthorityTick = snapshot.clock?.authorityTick ?? 0n;
   const weatherVisualTick = weatherTickClock.advance(renderStarted, renderWeatherTick);
   const activeWeather = weatherVisualState(worldWeatherMode(), renderWeatherTick, worldWindDirection());
   const renderWeather = activeSpaceDefinition.environment === 'outdoor' && activeSpaceDefinition.weather
     ? activeWeather
     : { ...activeWeather, raining: false, cloudShadow: 0, wind: 0 };
-  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
-  drawCalls += groundCache.draw(context, art, terrain, cameraX, cameraY, scale, frame.layout.width, frame.layout.height);
-  drawCalls += drawAnimatedTerrain(
+  const hudViewport = hudViewportCss();
+  const uiScale = fittedUiScale(desiredUiScale, hudViewport.width, hudViewport.height);
+  renderMetrics.recordStage('snapshotPrepare', performance.now() - renderStarted);
+  const groundStartedAt = performance.now();
+  renderItems += groundCache.draw(context, art, terrain, cameraX, cameraY, scale, frame.layout.width, frame.layout.height);
+  renderItems += drawAnimatedTerrain(
     context,
     art,
     terrain,
@@ -2898,7 +3313,7 @@ function render(alpha = 1): void {
     renderWeather.wind,
     renderWeather.windDirectionX,
   );
-  drawCalls += drawInsetGround(
+  renderItems += drawInsetGround(
     context,
     art.dirtTerrace,
     art.farmlandGrassInset,
@@ -2911,27 +3326,49 @@ function render(alpha = 1): void {
     frame.layout.width,
     frame.layout.height,
   );
-  drawCalls += drawFarmSoil(
+  const authoredFarmerSoil = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
+    ? generateSurvivalDecorations(seed)
+      .filter((decoration) => decoration.kind.startsWith('farm_crop_'))
+      .map((decoration) => ({
+        tileX: decoration.tileX,
+        tileY: decoration.tileY,
+        watered: decoration.kind === 'farm_crop_strawberry'
+          || decoration.kind === 'farm_crop_sunflower',
+      }))
+    : [];
+  renderItems += drawFarmSoil(
     context,
     art.farmland,
     art.farmlandWet,
     art.farmlandGrassInset,
-    [...snapshot.soil].map((soil) => ({
-      ...soil,
-      watered: soil.watered && renderWeatherTick < soil.wateredAtTick + CROP_WATERING_TICKS,
-    })),
+    [
+      ...authoredFarmerSoil,
+      ...[...snapshot.soil].map((soil) => ({
+        ...soil,
+        watered: soil.watered && renderAuthorityTick < soil.wateredAtTick + CROP_WATERING_TICKS,
+      })),
+    ],
     cameraX,
     cameraY,
     scale,
     frame.layout.width,
     frame.layout.height,
   );
+  if (homesteadBuildMode) {
+    drawHomesteadBuildGrid(context, cameraX, cameraY, scale);
+    renderItems += 1;
+  }
+  renderMetrics.recordStage('ground', performance.now() - groundStartedAt);
+  let weatherStageMs = 0;
+  const weatherFollowStartedAt = performance.now();
   rain.followViewport(
     cameraX + viewportWidth / 2,
     cameraY + viewportHeight / 2,
     worldZoom,
   );
+  weatherStageMs += performance.now() - weatherFollowStartedAt;
 
+  const painterBuildStartedAt = performance.now();
   const terrainProjectionMargin = terrainMaximumElevation(terrain) * 3 * 16;
   const visible = visibleWorldBounds(
     cameraX,
@@ -2958,6 +3395,7 @@ function render(alpha = 1): void {
   const projectedWorldY = (worldX: number, worldFootY: number): number => (
     worldFootY - projectionAt(worldX, worldFootY)
   );
+  let drawWorldReceiver = (_footX: number, _footY: number, draw: () => void): void => draw();
   const projectTargetable = (
     entity: TargetableWorldEntity,
     worldX: number,
@@ -2971,6 +3409,7 @@ function render(alpha = 1): void {
     worldFootY: number,
     item: WorldDepthItem,
     terrainSampleY = worldFootY,
+    unifiedReceiver: UnifiedLightReceiver = 'south',
   ): void => {
     const elevation = terrainProjectedElevationAtFoot(terrain, worldX, terrainSampleY);
     const projection = projectionAt(worldX, terrainSampleY);
@@ -2983,7 +3422,10 @@ function render(alpha = 1): void {
       draw: () => {
         context.save();
         context.translate(0, -projection * scale);
-        item.draw();
+        if (lightingModel === 'unified' && unifiedReceiver === 'south') {
+          drawWorldReceiver(worldX, terrainSampleY, item.draw);
+        }
+        else item.draw();
         context.restore();
       },
     });
@@ -3023,25 +3465,38 @@ function render(alpha = 1): void {
     : activeSpaceDefinition.environment === 'outdoor' && activeSpaceDefinition.ambient === 'clock'
       ? ambientAtTick(renderWeatherTick, renderWeather.raining ? 0.12 : 0)
       : activeSpaceDefinition.ambient === 'clock' ? { r: 255, g: 255, b: 255 } : activeSpaceDefinition.ambient;
+  let receiverLightingDepth = 0;
   const drawSouthFacingReceiver = (
     footX: number,
     footY: number,
     draw: () => void,
   ): void => {
+    if (receiverLightingDepth > 0) {
+      draw();
+      return;
+    }
     const projection = projectionAt(footX, footY);
     const elevationLayer = terrainElevationAtWorldFoot(terrain, footX, footY);
-    const brightness = southFacingReceiverBrightness(
-      footX,
-      footY - projection,
-      frameAmbient,
-      pointLights,
-      elevationLayer,
-    );
+    const brightness = lightingEffectsDisabled ? 1 : lightingModel === 'unified'
+      ? lightmap.southFaceBrightness(footX, footY - projection, frameAmbient, elevationLayer)
+      : southFacingReceiverBrightness(
+        footX,
+        footY - projection,
+        frameAmbient,
+        pointLights,
+        elevationLayer,
+      );
+    receiverLightingDepth += 1;
     context.save();
-    if (brightness < 0.995) context.filter = `brightness(${Math.round(brightness * 1000) / 10}%)`;
-    draw();
-    context.restore();
+    try {
+      if (brightness < 0.995) context.filter = `brightness(${Math.round(brightness * 1000) / 10}%)`;
+      draw();
+    } finally {
+      context.restore();
+      receiverLightingDepth -= 1;
+    }
   };
+  drawWorldReceiver = drawSouthFacingReceiver;
   const windTrees: WindTreeSource[] = [];
   for (const placeable of snapshot.placeables) {
     if (placeable.carriedBy !== undefined) continue;
@@ -3055,6 +3510,8 @@ function render(alpha = 1): void {
     const decorations = activeSpaceDefinition.generator === 'homestead'
       ? homesteadSurroundingDecorations(seed) : generateSurvivalDecorations(seed);
     for (const decoration of decorations) {
+    if (decoration.kind === 'camp_campfire'
+      && placeableHasInterface(snapshot.placeables.get(BigInt(decoration.id))?.kind ?? '', 'cooking')) continue;
     if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
       && isInteractivePoiDecorationKind(decoration.kind)) continue;
     const decorationX = decoration.tileX * 16 + 8;
@@ -3100,25 +3557,23 @@ function render(alpha = 1): void {
             renderWeather.wind,
           ),
           campfireLit,
+          lightingModel === 'unified' && decoration.kind === 'camp_pond'
+            ? pondShimmerFrameAtTick(visualTickClock.renderTick)
+            : null,
         );
-        if (survivalDecorationBlocksTraversal(decoration.kind, 'ground')
-          && decoration.kind !== 'camp_pond' && !isLightEmitterKind(decoration.kind)) {
+        if (lightingModel !== 'unified' && (survivalDecorationBlocksTraversal(decoration.kind, 'ground')
+          && decoration.kind !== 'camp_pond' && !isLightEmitterKind(decoration.kind))) {
           drawSouthFacingReceiver(decorationX, decorationY, drawDecoration);
         } else {
           drawDecoration();
         }
       },
-    });
+    }, decorationY, unifiedDecorationLightReceiver(decoration.kind));
     }
   }
   if (!debugEntitiesHidden) {
-    const homes = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-      ? [...snapshot.homesteads]
-      : [...snapshot.homesteads].filter((home) => home.spaceId === activeSpaceDefinition.spaceId);
-    for (const home of homes) {
-      const interior = activeSpaceDefinition.generator === 'homestead';
-      const tileX = interior ? HOMESTEAD_TENT_TILE.tileX : home.overworldTileX;
-      const tileY = interior ? HOMESTEAD_TENT_TILE.tileY : home.overworldTileY;
+    for (const target of homesteadTentPresentationTargets(activeSpaceDefinition, snapshot.homesteads)) {
+      const { tileX, tileY, interior } = target;
       const x = tileX * 16 + 8;
       const y = (tileY + 1) * 16;
       if (!worldPointVisible(x, y, visible)) continue;
@@ -3127,7 +3582,7 @@ function render(alpha = 1): void {
           interior ? 'homestead_tent_large' : 'homestead_tent_marker',
           y,
         ),
-        tie: `homestead:${home.spaceId}`,
+        tie: `homestead:${target.spaceId}`,
         draw: () => drawOverworldPoiDecoration(
           context, art, interior ? 'homestead_tent_large' : 'homestead_tent_marker',
           x, y, cameraX, cameraY, scale,
@@ -3241,6 +3696,7 @@ function render(alpha = 1): void {
           const shakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
           drawSouthFacingReceiver(resourceX, resourceY, () => drawOverworldOreNode(
             context, art, resource.kind, resourceX + shakeX, resourceY, cameraX, cameraY, scale,
+            miningClassFromWire(resource.miningClass, resource.spaceId), resource.richness,
           ));
           return;
         }
@@ -3273,13 +3729,12 @@ function render(alpha = 1): void {
           sway[0],
           sway[1],
         );
-        if ((resource as RenderWorldResource).ambientOnly === true) drawTree();
-        else drawSouthFacingReceiver(resourceX, resourceY, drawTree);
+        drawTree();
       },
     });
   }
   if (!debugEntitiesHidden) for (const crop of snapshot.crops) {
-    const definition = cropDefinition(crop.cropKind);
+    const definition = cropDefinitionForSnapshot(snapshot, crop.cropKind);
     const soil = snapshot.soil.get(crop.id);
     if (definition === null || soil === undefined) continue;
     const x = crop.tileX * 16 + 8;
@@ -3290,14 +3745,17 @@ function render(alpha = 1): void {
       crop.growthTicks,
       crop.growthUpdatedAtTick,
       soil.wateredAtTick,
-      renderWeatherTick,
+      renderAuthorityTick,
       soil.watered,
+      cropAutomaticallyWateredForSnapshot(snapshot, crop.spaceId, crop.tileX, crop.tileY),
+      cropCalendarOffsetForSnapshot(snapshot),
+      cropGreenhouseProtectedForSnapshot(snapshot, crop.spaceId),
     );
     enqueueWorldDepth(x, y, {
       footY: y,
       tie: `crop:${crop.id}`,
       draw: () => drawOverworldCrop(
-        context, art, crop.cropKind, growth.stage, x, y, cameraX, cameraY, scale,
+        context, art, definition.kind, growth.stage, x, y, cameraX, cameraY, scale,
       ),
     });
   }
@@ -3517,9 +3975,10 @@ function render(alpha = 1): void {
         const drawPlaceable = (): void => drawOverworldPlaceable(
           context, art, placeable.kind, placeable.open, fenceMask,
           Math.floor(performance.now() / 125), x, y, cameraX, cameraY, scale,
-          placeable.kind === 'furnace' ? placeable.smeltStartTick !== undefined : placeable.lit,
+          placeableHasInterface(placeable.kind, 'furnace') ? placeable.smeltStartTick !== undefined : placeable.lit,
         );
-        if (definition?.blocksMovement === true && !isLightEmitterKind(placeable.kind)) {
+        if (lightingModel === 'unified'
+          || (definition?.blocksMovement === true && !isLightEmitterKind(placeable.kind))) {
           drawSouthFacingReceiver(x, y, drawPlaceable);
         } else {
           drawPlaceable();
@@ -3534,9 +3993,11 @@ function render(alpha = 1): void {
     enqueueWorldDepth(x, y, {
       footY: y,
       tie: `surface:${surface.id}`,
-      draw: () => drawOverworldPoiDecoration(
-        context, art, 'marlow_tent_table', x, y, cameraX, cameraY, scale,
-      ),
+      draw: () => lightingModel === 'unified'
+        ? drawSouthFacingReceiver(x, y, () => drawOverworldPoiDecoration(
+          context, art, 'marlow_tent_table', x, y, cameraX, cameraY, scale,
+        ))
+        : drawOverworldPoiDecoration(context, art, 'marlow_tent_table', x, y, cameraX, cameraY, scale),
     });
     for (const item of snapshot.questWorldItems) {
       if (item.surfaceId !== surface.id) continue;
@@ -3556,18 +4017,29 @@ function render(alpha = 1): void {
     enqueueWorldDepth(x, y, {
       footY: y,
       tie: `hive:${hive.id}`,
-      draw: () => drawOverworldHive(context, art, hive.kind, hive.variant, x, y, cameraX, cameraY, scale),
+      draw: () => lightingModel === 'unified'
+        ? drawSouthFacingReceiver(x, y, () => drawOverworldHive(
+          context, art, hive.kind, hive.variant, x, y, cameraX, cameraY, scale,
+        ))
+        : drawOverworldHive(context, art, hive.kind, hive.variant, x, y, cameraX, cameraY, scale),
     });
   }
   const horseAnimationFrame = Math.floor(performance.now() / 125);
   // Dynamic actors are intentionally absent from both collision maps and the
   // light-occluder set: NPCs can overlap players and never cast world shadows.
   if (!debugEntitiesHidden) for (const npc of snapshot.npcs) {
-    if (npc.rider !== undefined) continue;
+    if (npc.rider !== undefined || npc.health === 0) continue;
     const display = npcDisplay.get(npc.id);
     const sleeping = npc.wanderDirection === 'sleep';
     const x = (sleeping ? npc.x : display?.x ?? npc.x) / FIXED_UNITS_PER_PIXEL;
-    const y = (sleeping ? npc.y : display?.y ?? npc.y) / FIXED_UNITS_PER_PIXEL;
+    const baseY = (sleeping ? npc.y : display?.y ?? npc.y) / FIXED_UNITS_PER_PIXEL;
+    const hitAge = renderStarted - (npcHitFeedback.get(npc.id) ?? Number.NEGATIVE_INFINITY);
+    const hitProgress = Math.max(0, Math.min(1, hitAge / NPC_HIT_HOP_MS));
+    const hitActive = hitAge >= 0 && hitAge < NPC_HIT_HOP_MS;
+    const hitHop = hitActive && !reducedMotionPreference.matches
+      ? Math.sin(hitProgress * Math.PI) * 3
+      : 0;
+    const y = baseY - hitHop;
     if (!worldPointVisible(x, y, visible)) continue;
     const facing = (display?.facing ?? npc.facing) as Direction;
     const questMarker = questMarkerForNpc(snapshot, npc.id);
@@ -3580,6 +4052,7 @@ function render(alpha = 1): void {
         { kind: 'npc', id: npc.id },
         merchantWorldBounds(
           art, x, y, facing, moving, horseAnimationFrame + Number(npc.id % 19n),
+          npc.kind,
         ),
         x, y, { halfWidth: 9, height: 24 },
       ), x, y));
@@ -3587,10 +4060,17 @@ function render(alpha = 1): void {
       enqueueWorldDepth(x, y, {
         footY: y,
         tie: `merchant:${npc.id}`,
-        draw: () => drawOverworldMerchant(
-          context, art, x, y, facing, moving,
-          horseAnimationFrame + Number(npc.id % 19n), cameraX, cameraY, scale,
-        ),
+        draw: () => lightingModel === 'unified'
+          ? drawSouthFacingReceiver(x, baseY, () => drawOverworldMerchant(
+            context, art, x, y, facing, moving,
+            horseAnimationFrame + Number(npc.id % 19n), cameraX, cameraY, scale,
+            npc.kind,
+          ))
+          : drawOverworldMerchant(
+            context, art, x, y, facing, moving,
+            horseAnimationFrame + Number(npc.id % 19n), cameraX, cameraY, scale,
+            npc.kind,
+          ),
       });
       continue;
     }
@@ -3618,18 +4098,27 @@ function render(alpha = 1): void {
     targetableEntities.push(projectTargetable(targetableFromVisualBounds(
       { kind: 'npc', id: npc.id }, visualBounds, x, y, npcTargetDimensions(species),
     ), x, y));
+    const drawWildlifeActor = (): void => {
+      if (hitAge < NPC_HIT_FLASH_MS && !reducedMotionPreference.matches) {
+        context.save();
+        context.filter = 'brightness(2.15) saturate(0.25)';
+      }
+      if (species === 'horse') drawOverworldHorse(
+        context, art, x, y, facing, moving, animationFrame,
+        cameraX, cameraY, scale, false, undefined, profile?.variant ?? 0, npc.wanderDirection,
+      );
+      else drawOverworldWildlife(
+        context, art, species, profile?.variant ?? 0, npc.wanderDirection,
+        x, y, facing, moving, animationFrame, cameraX, cameraY, scale, inWater,
+      );
+      if (hitAge < NPC_HIT_FLASH_MS && !reducedMotionPreference.matches) context.restore();
+    };
     enqueueWorldDepth(x, y, {
       footY: y,
       tie: `npc:${npc.id}`,
-      draw: () => species === 'horse'
-        ? drawOverworldHorse(
-          context, art, x, y, facing, moving, animationFrame,
-          cameraX, cameraY, scale, false, undefined, profile?.variant ?? 0, npc.wanderDirection,
-        )
-        : drawOverworldWildlife(
-          context, art, species, profile?.variant ?? 0, npc.wanderDirection,
-          x, y, facing, moving, animationFrame, cameraX, cameraY, scale, inWater,
-        ),
+      draw: () => lightingModel === 'unified'
+        ? drawSouthFacingReceiver(x, baseY, drawWildlifeActor)
+        : drawWildlifeActor(),
     });
   }
   if (!debugEntitiesHidden) for (const player of snapshot.players) {
@@ -3783,6 +4272,7 @@ function render(alpha = 1): void {
             context, art, x, y, facing, moving, animation.locomotionFrame,
             cameraX, cameraY, scale, actionFrame, actionVisual, appearance, equipped, horseAnimationFrame,
             equippedLit,
+            offline ? 'stone' : 'normal',
           );
           if (snapshot.chests.find((chest) => chest.carriedBy?.toHexString() === id)) {
             drawOverworldChest(context, art, x, y - 17, cameraX, cameraY, scale);
@@ -3797,58 +4287,21 @@ function render(alpha = 1): void {
             drawOverworldPlaceable(
               context, art, handsPlaceable.kind, false, 0,
               Math.floor(performance.now() / 125), x, y - 17,
-              cameraX, cameraY, scale, handsPlaceable.kind === 'furnace'
+              cameraX, cameraY, scale, placeableHasInterface(handsPlaceable.kind, 'furnace')
                 ? handsPlaceable.smeltStartTick !== undefined : handsPlaceable.lit,
             );
           }
         };
-        if (!offline) {
-          drawPlayer();
-          return;
-        }
-        context.save();
-        context.filter = OFFLINE_AVATAR_FILTER;
-        context.globalAlpha *= 0.92;
-        drawPlayer();
-        context.restore();
+        if (lightingModel === 'unified') drawSouthFacingReceiver(x, terrainContactY, drawPlayer);
+        else drawPlayer();
       },
     }, terrainContactY);
   }
   latestTargetableEntities = targetableEntities;
-  drawCalls += drawWorldDepthQueue(
-    worldDepthItems,
-    cameraY,
-    scale,
-    (minimumDepth, maximumDepth) => rain.drawDepthRange(
-      context,
-      cameraX,
-      cameraY,
-      scale,
-      worldZoom,
-      minimumDepth,
-      maximumDepth,
-    ),
-  );
-  const markerTarget = selectedEntityTarget;
-  const markedTarget = markerTarget === null ? undefined
-    : targetableEntities.find((entity) => sameEntityTarget(entity.target, markerTarget));
-  if (!interfaceHidden && markedTarget !== undefined) {
-    drawSelectedEntityMarker(context, markedTarget, cameraX, cameraY, scale);
-  }
-  drawCalls += worldDepthItems.length;
-  drawCalls += weatherEffects.drawCloudShadows(
-    context,
-    renderWeather,
-    weatherVisualTick,
-    cameraX,
-    cameraY,
-    scale,
-    viewportWidth,
-    viewportHeight,
-  );
+  latestLightCount = pointLights.length;
+  renderMetrics.recordStage('painterBuild', performance.now() - painterBuildStartedAt);
   if (!lightingEffectsDisabled) {
-    lightmap.draw(
-      context,
+    lightmap.prepare(
       terrain,
       cameraX,
       cameraY,
@@ -3858,10 +4311,70 @@ function render(alpha = 1): void {
       frameAmbient,
       pointLights,
       lightOcclusion,
+      lightingModel,
     );
-    drawCalls += 1;
   }
-  drawCalls += drawCellarOreVeinPreview(
+  const painterSortStartedAt = performance.now();
+  const sortedWorldDepthItems = sortWorldDepthItems(worldDepthItems);
+  renderMetrics.recordStage('painterSort', performance.now() - painterSortStartedAt);
+  const painterDrawStartedAt = performance.now();
+  let painterWeatherMs = 0;
+  renderItems += drawSortedWorldDepthQueue(
+    sortedWorldDepthItems,
+    cameraY,
+    scale,
+    (minimumDepth, maximumDepth) => {
+      const weatherStartedAt = performance.now();
+      const draws = rain.drawDepthRange(
+        context,
+        cameraX,
+        cameraY,
+        scale,
+        worldZoom,
+        minimumDepth,
+        maximumDepth,
+      );
+      const elapsed = performance.now() - weatherStartedAt;
+      painterWeatherMs += elapsed;
+      weatherStageMs += elapsed;
+      return draws;
+    },
+  );
+  renderMetrics.recordStage(
+    'painterDraw',
+    Math.max(0, performance.now() - painterDrawStartedAt - painterWeatherMs),
+  );
+  const markerTarget = selectedEntityTarget;
+  const markedTarget = markerTarget === null ? undefined
+    : targetableEntities.find((entity) => sameEntityTarget(entity.target, markerTarget));
+  if (!interfaceHidden && markedTarget !== undefined) {
+    drawSelectedEntityMarker(context, markedTarget, cameraX, cameraY, scale);
+  }
+  renderItems += worldDepthItems.length;
+  const cloudWeatherStartedAt = performance.now();
+  renderItems += weatherEffects.drawCloudShadows(
+    context,
+    renderWeather,
+    weatherVisualTick,
+    cameraX,
+    cameraY,
+    scale,
+    viewportWidth,
+    viewportHeight,
+  );
+  weatherStageMs += performance.now() - cloudWeatherStartedAt;
+  if (!lightingEffectsDisabled) {
+    lightmap.composite(context, cameraX, cameraY, scale);
+    renderMetrics.recordStage('lightingBoundsResize', lightmap.boundsResizeMs);
+    renderMetrics.recordStage('lightingOcclusionRaster', lightmap.rasterizeMs);
+    renderMetrics.recordStage('lightingSolve', lightmap.floodMs);
+    renderMetrics.recordStage('lightingMerge', lightmap.mergeMs);
+    renderMetrics.recordStage('lightingUpload', lightmap.uploadMs);
+    renderMetrics.recordStage('lightingReceiver', lightmap.receiverMs);
+    renderMetrics.recordStage('lightingComposite', lightmap.compositeMs);
+    renderItems += 1;
+  }
+  renderItems += drawCellarOreVeinPreview(
     context,
     terrain,
     seed,
@@ -3871,7 +4384,8 @@ function render(alpha = 1): void {
     frame.layout.width,
     frame.layout.height,
   );
-  drawCalls += weatherEffects.drawWind(
+  const windWeatherStartedAt = performance.now();
+  renderItems += weatherEffects.drawWind(
     context,
     renderWeather,
     weatherVisualTick,
@@ -3882,6 +4396,8 @@ function render(alpha = 1): void {
     viewportHeight,
     windTrees,
   );
+  weatherStageMs += performance.now() - windWeatherStartedAt;
+  renderMetrics.recordStage('weather', weatherStageMs);
   const farmItem = selectedItem(snapshot);
   const tileToolSelected = farmItem === 'hoe' || farmItem === 'watering_can'
     || itemDefinition(farmItem)?.tags.includes('item.seed') === true;
@@ -3911,7 +4427,7 @@ function render(alpha = 1): void {
         cameraY,
         scale,
       );
-      drawCalls += 1;
+      renderItems += 1;
     }
   }
   const cellarWallTarget = farmItem === 'pickaxe' ? targetCellarWall(snapshot) : null;
@@ -3926,7 +4442,7 @@ function render(alpha = 1): void {
       cameraY,
       scale,
     );
-    drawCalls += 1;
+    renderItems += 1;
   }
   if (!interfaceHidden && !debugEntitiesHidden && farmItem === 'bow'
     && overworldUi.openWindow === null && !chatOverlay.isOpen
@@ -3936,7 +4452,7 @@ function render(alpha = 1): void {
       cameraY,
       scale,
       projectionAt,
-    )) drawCalls += 1;
+    )) renderItems += 1;
   if (!interfaceHidden && debugCollision) {
     const activeElevation = terrainElevationAtWorldFoot(terrain, localX, localTerrainContactY);
     drawCollisionOverlay(
@@ -3970,11 +4486,21 @@ function render(alpha = 1): void {
       context.restore();
     }
   }
+  const finalWorldCompositeStartedAt = performance.now();
   renderer.compositeWorld();
-  drawCalls += 1;
+  renderMetrics.recordStage(
+    'finalWorldComposite',
+    performance.now() - finalWorldCompositeStartedAt,
+  );
+  renderItems += 1;
 
-  const uiWidth = renderer.cssWidth / uiScale;
-  const uiHeight = renderer.cssHeight / uiScale;
+  const uiModelStartedAt = performance.now();
+  const canvasUiWidth = renderer.cssWidth / uiScale;
+  const canvasUiHeight = renderer.cssHeight / uiScale;
+  const uiWidth = hudViewport.width / uiScale;
+  const uiHeight = hudViewport.height / uiScale;
+  const uiOriginX = safeAreaInsets.left / uiScale;
+  const uiOriginY = safeAreaInsets.top / uiScale;
   const uiContext = renderer.beginUi(uiScale);
   const interaction = targetInteraction(snapshot);
   const handsChest = carriedChest(snapshot);
@@ -3991,7 +4517,7 @@ function render(alpha = 1): void {
     : snapshot.crops.get(farmSoilKey(
       farmTarget.tileX, farmTarget.tileY, activeSpaceDefinition.spaceId,
     ));
-  const farmCropDefinition = cropDefinition(farmCrop?.cropKind ?? '');
+  const farmCropDefinition = cropDefinitionForSnapshot(snapshot, farmCrop?.cropKind ?? '');
   const farmCropGrowth = farmCrop === undefined || farmSoil === undefined || farmCropDefinition === null
     ? null
     : cropGrowthAt(
@@ -3999,21 +4525,26 @@ function render(alpha = 1): void {
       farmCrop.growthTicks,
       farmCrop.growthUpdatedAtTick,
       farmSoil.wateredAtTick,
-      renderWeatherTick,
+      renderAuthorityTick,
       farmSoil.watered,
+      cropAutomaticallyWateredForSnapshot(snapshot, farmCrop.spaceId, farmCrop.tileX, farmCrop.tileY),
+      cropCalendarOffsetForSnapshot(snapshot),
+      cropGreenhouseProtectedForSnapshot(snapshot, farmCrop.spaceId),
     );
-  const farmPrompt = farmTarget === null ? null
-    : farmCropDefinition !== null
-      ? farmCropGrowth?.mature === true
-        ? `[F] HARVEST ${farmCropDefinition.displayName.toUpperCase()}`
-        : `${farmCropDefinition.displayName.toUpperCase()} ${farmCropGrowth?.watered === true ? 'GROWING' : 'NEEDS WATER'}`
-    : itemDefinition(farmItem)?.tags.includes('item.seed') === true
-      ? farmSoil === undefined ? 'TILL SOIL BEFORE PLANTING' : '[F] PLANT SEEDS'
-    : farmItem === 'hoe' ? (farmSoil === undefined ? '[F] TILL SOIL' : '[F] RESTORE GRASS')
-      : farmSoil === undefined ? 'TILL SOIL BEFORE WATERING'
-        : farmSoil.watered && renderWeatherTick < farmSoil.wateredAtTick + CROP_WATERING_TICKS
-          ? 'SOIL ALREADY WATERED' : '[F] WATER SOIL';
+  const farmPrompt = farmActionPrompt({
+    targeted: farmTarget !== null,
+    selectedItem: farmItem,
+    seedSelected: itemDefinition(farmItem)?.tags.includes('item.seed') === true,
+    soilExists: farmSoil !== undefined,
+    soilWatered: farmSoil !== undefined && farmSoil.watered
+      && renderAuthorityTick < farmSoil.wateredAtTick + CROP_WATERING_TICKS,
+    cropName: farmCropDefinition?.displayName ?? null,
+    cropMature: farmCropGrowth?.mature === true,
+    cropWatered: farmCropGrowth?.watered === true,
+  });
   const farmGate = targetOwnedHomesteadGate(snapshot);
+  const nearbyCampfire = targetCampfire(snapshot);
+  const actionPlaceable = targetPlaceable(snapshot);
   const basePrompt = debugEntitiesHidden || npcInteractionUi.active ? null
     : farmGate !== null ? `[F] ${farmGate.open ? 'CLOSE' : 'OPEN'} FARM GATE`
     : handsCombatTarget !== null ? '[F] PLACE ARCHERY TARGET'
@@ -4021,17 +4552,79 @@ function render(alpha = 1): void {
         : handsPlaceable !== null ? `[F] PLACE ${hotbarItemLabel(handsPlaceable.kind)}`
         : handsChest !== null ? '[F] PLACE CHEST'
           : selectedItem(snapshot) === 'chest' ? '[F] PLACE CHEST'
-            : interaction === null ? farmPrompt : interactionPrompt(interaction, snapshot);
+            : actionPlaceable?.kind === 'anvil'
+              ? isDurableToolKind(selectedItem(snapshot))
+                ? '[F] REPAIR SELECTED TOOL (5 COPPER)'
+                : '[F] PICK UP ANVIL'
+              : (farmItem === 'hoe' || farmItem === 'watering_can') && farmPrompt !== null
+                ? farmPrompt
+              : interaction === null ? farmPrompt : interactionPrompt(interaction, snapshot);
   const lanternPrompt = groundLantern !== null
     ? `[F] TURN ${groundLantern.lit ? 'OFF' : 'ON'} LANTERN`
     : selectedLantern?.itemKind === 'lantern'
       ? `[F] TURN ${selectedLantern.lit ? 'OFF' : 'ON'} LANTERN`
       : null;
-  const prompt = lanternPrompt === null
+  const selectedFoodPrompt = foodHungerRestoreCenti(selectedItem(snapshot)) === null
+    ? null : `[F] EAT ${hotbarItemLabel(selectedItem(snapshot))}`;
+  const selectedBook = recipeBookDefinition(selectedItem(snapshot));
+  const selectedBookPrompt = selectedBook === null
+    ? null
+    : `[F] READ ${selectedBook.displayName.toUpperCase()}`;
+  const selectedUsePrompt = selectedFoodPrompt ?? selectedBookPrompt;
+  const promptBase = basePrompt === null ? selectedUsePrompt
+    : selectedUsePrompt === null ? basePrompt : `${basePrompt}  ${selectedUsePrompt}`;
+  const campfirePrompt = nearbyCampfire === null
+    ? null
+    : `[F] ${nearbyCampfire.lit ? 'EXTINGUISH' : 'LIGHT'} CAMPFIRE`;
+  const actionPrompt = promptBase === null ? campfirePrompt
+    : campfirePrompt === null ? promptBase : `${promptBase}  ${campfirePrompt}`;
+  const contextualPrompt = lanternPrompt === null
     || (interaction?.kind === 'world_item' && interaction.item.itemKind === 'lantern')
-    ? basePrompt
-    : basePrompt === null ? lanternPrompt : `${basePrompt}  ${lanternPrompt}`;
+    ? actionPrompt
+    : actionPrompt === null ? lanternPrompt : `${actionPrompt}  ${lanternPrompt}`;
+  const prompt = homesteadBuildMode
+    ? contextualPrompt === null
+      ? '[B] EXIT BUILD MODE  [CLICK] BUILD  [F] CARRY / PLACE'
+      : `[B] EXIT BUILD MODE  ${contextualPrompt}`
+    : contextualPrompt;
   const authorityTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
+  const processorAuthorityTick = BigInt(Math.max(
+    Number(authorityTick),
+    Math.floor(visualTickClock.renderTick),
+  ));
+  const activeFurnaceRemaining = snapshot.activePlaceable !== null
+    && placeableHasInterface(snapshot.activePlaceable.kind, 'furnace')
+    ? furnaceRemainingTicks(snapshot.activePlaceable.smeltStartTick, processorAuthorityTick)
+    : null;
+  const activeCookingInputKind = snapshot.activePlaceable !== null
+    && placeableHasInterface(snapshot.activePlaceable.kind, 'cooking')
+    ? snapshot.openPlaceableSlots.get(0)?.itemKind ?? snapshot.activePlaceable.cookInputKind
+    : undefined;
+  const activeCookingRemaining = snapshot.activePlaceable !== null
+    && placeableHasInterface(snapshot.activePlaceable.kind, 'cooking')
+    ? cookingFireRemainingTicks(
+      snapshot.activePlaceable.cookStartTick,
+      activeCookingInputKind,
+      processorAuthorityTick,
+    )
+    : null;
+  const activeProcessorInterface = placeableInterface(snapshot.activePlaceable?.kind ?? '');
+  const activeCellarInterface = activeProcessorInterface === 'press' || activeProcessorInterface === 'fermentation'
+    ? activeProcessorInterface
+    : null;
+  const vintage = estateVintageTier(
+    homesteadUpgradeRank(snapshot, 'estate_vintage'),
+    FERMENTATION_CYCLE_TICKS,
+    120,
+  );
+  const activeCellarRemaining = snapshot.activePlaceable !== null && activeCellarInterface !== null
+    ? cellarProcessorRemainingTicks(
+      activeCellarInterface,
+      snapshot.activePlaceable.processStartTick,
+      processorAuthorityTick,
+      vintage.agingTicks,
+    )
+    : null;
   const calendar = calendarAtTick(Number(authorityTick) * SIM_STEPS_PER_AUTHORITY_TICK);
   const weatherMode = worldWeatherMode();
   const onlinePlayers = onlinePlayerEntries(snapshot);
@@ -4071,6 +4664,11 @@ function render(alpha = 1): void {
       };
     });
   const quests = questLogEntries(snapshot);
+  const hunger = snapshot.survival === null
+    ? HUNGER_MAX_CENTI
+    : Math.max(0, Math.min(HUNGER_MAX_CENTI, snapshot.survival.hungerCenti));
+  renderMetrics.recordStage('uiModel', performance.now() - uiModelStartedAt);
+  const uiLayoutStartedAt = performance.now();
   overworldUi.update({
     width: uiWidth,
     height: uiHeight,
@@ -4078,6 +4676,8 @@ function render(alpha = 1): void {
     touchControls: touchControls.available,
     playerCount: onlinePlayers.length,
     onlinePlayersVisible,
+    canManageHomestead: snapshot.identityHex !== null
+      && snapshot.homesteads.get(activeSpaceDefinition.spaceId)?.owner.toHexString() === snapshot.identityHex,
     zoneName: activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
       ? 'Overworld'
       : activeSpaceDefinition.name
@@ -4098,9 +4698,49 @@ function render(alpha = 1): void {
     effects: visibleEffects,
     openChestInventory: [...snapshot.openChestSlots],
     openPlaceableInventory: [...snapshot.openPlaceableSlots],
-    furnaceProgress: snapshot.activePlaceable?.kind === 'furnace'
-      ? furnaceProgress(snapshot.activePlaceable.smeltStartTick, authorityTick)
+    furnaceProgress: snapshot.activePlaceable !== null && placeableHasInterface(snapshot.activePlaceable.kind, 'furnace')
+      ? furnaceProgress(snapshot.activePlaceable.smeltStartTick, processorAuthorityTick)
       : 0,
+    furnaceRemainingSeconds: activeFurnaceRemaining === null
+      ? null : Number(activeFurnaceRemaining) / AUTHORITY_HZ,
+    cookingFireProgress: snapshot.activePlaceable !== null && placeableHasInterface(snapshot.activePlaceable.kind, 'cooking')
+      ? cookingFireProgress(
+        snapshot.activePlaceable.cookStartTick,
+        activeCookingInputKind,
+        processorAuthorityTick,
+      )
+      : 0,
+    cookingFireRemainingSeconds: activeCookingRemaining === null
+      ? null : Number(activeCookingRemaining) / AUTHORITY_HZ,
+    cookingFireLit: snapshot.activePlaceable !== null && placeableHasInterface(snapshot.activePlaceable.kind, 'cooking')
+      ? snapshot.activePlaceable.lit
+      : true,
+    cellarProcessorProgress: snapshot.activePlaceable !== null && activeCellarInterface !== null
+      ? cellarProcessorProgress(
+        activeCellarInterface,
+        snapshot.activePlaceable.processStartTick,
+        processorAuthorityTick,
+        vintage.agingTicks,
+      )
+      : 0,
+    cellarProcessorRemainingSeconds: activeCellarRemaining === null
+      ? null : Number(activeCellarRemaining) / AUTHORITY_HZ,
+    cellarProductLabel: activeCellarInterface === 'fermentation'
+      ? `${vintage.label} Bottles`
+      : undefined,
+    hunger: { current: hunger, maximum: HUNGER_MAX_CENTI },
+    barrelProgress: snapshot.activePlaceable !== null && placeableHasInterface(snapshot.activePlaceable.kind, 'barrel')
+      ? barrelProgress(
+        snapshot.activePlaceable.barrelSealedTick,
+        snapshot.clock?.authorityTick ?? 0n,
+        barrelCellarCureTicks(
+          BARREL_CURE_TICKS,
+          homesteadUpgradeRank(snapshot, 'barrel_cellar'),
+        ),
+      )
+      : 0,
+    barrelSealed: snapshot.activePlaceable !== null && placeableHasInterface(snapshot.activePlaceable.kind, 'barrel')
+      && snapshot.activePlaceable.barrelSealedTick !== undefined,
     hasBackpack: [...snapshot.inventorySlots].some((slot) => slot.itemKind === 'backpack'),
     backpackSlotCapacity: Math.max(
       [...snapshot.inventorySlots].some((slot) => slot.itemKind === 'backpack') ? BACKPACK_SLOT_COUNT : BASE_BACKPACK_CAPACITY,
@@ -4111,6 +4751,7 @@ function render(alpha = 1): void {
       music: audio.getSettings().musicInBackground,
       sounds: audio.getSettings().soundsInBackground,
     },
+    nameplatesVisible,
     canAdministerWorld: snapshot.membership?.role === 'owner',
     dateLabel: `${calendar.season.toUpperCase()} ${calendar.dayOfSeason}`,
     timeLabel: formatDayTime(simTickOfDayAtAuthorityTick(authorityTick), TICKS_PER_DAY),
@@ -4122,13 +4763,16 @@ function render(alpha = 1): void {
     windDirectionMode: worldWindDirection(),
     windDirectionLabel: windDirectionLabel(renderWeather.windDirectionX, renderWeather.windDirectionY),
     lightingEffectsDisabled,
+    lightingModel,
     cellarOrePreview,
-    fullscreen: documentIsFullscreen(),
+    fullscreen: standaloneWebApp || documentIsFullscreen(),
+    fullscreenAvailable: webFullscreenAvailable,
     pwaUpdateStatus: pwaClient.status,
     prompt,
     toast: toastTicks > 0 ? toast.slice(0, 42) : null,
     toastKind,
     nearbyCraftingStations: nearbyCraftingStations(snapshot),
+    knownRecipeIds: [...snapshot.knownRecipes].map((row) => row.recipeId),
     minimapTrackingEnabled: skillRanks.some((row) => row.nodeId === 'cartographer' && row.rank > 0),
     skills: {
       tracks: skillTracks,
@@ -4165,6 +4809,20 @@ function render(alpha = 1): void {
         })),
     } }),
   });
+  homesteadBuildPalette.setModel({
+    width: uiWidth,
+    height: uiHeight,
+    counts: [...snapshot.inventorySlots]
+      .filter((row) => row.slot < EQUIPMENT_SLOT_OFFSET && row.itemKind !== 'empty' && row.quantity > 0)
+      .reduce<Record<string, number>>((counts, row) => {
+        counts[row.itemKind] = (counts[row.itemKind] ?? 0) + row.quantity;
+        return counts;
+      }, {}),
+    upgradeRanks: Object.fromEntries(
+      [...snapshot.homesteadUpgrades].map((row) => [row.upgradeKind, row.rank]),
+    ),
+    balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
+  });
   const tradeSession = snapshot.tradeSession;
   tradeUi.update(tradeSession === null || snapshot.identityHex === null ? null : {
     identityHex: snapshot.identityHex,
@@ -4180,9 +4838,11 @@ function render(alpha = 1): void {
     height: uiHeight,
     npcId: snapshot.activeDialogue.npcId,
     dialogueId: snapshot.activeDialogue.dialogueId,
+    shopId: snapshot.merchants.get(snapshot.activeDialogue.npcId)?.shopId ?? 'general_tools',
     nodeId: snapshot.activeDialogue.nodeId,
     balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
     inventory: [...snapshot.inventorySlots],
+    sellPriceOverrides: { bottles: vintage.sellPriceBronze },
     quests: [...snapshot.quests],
     touchControls: touchControls.available,
   });
@@ -4202,6 +4862,7 @@ function render(alpha = 1): void {
     replyPlayerName: latestIncomingWhisper(snapshot)?.senderDisplayName ?? null,
     touchControls: touchControls.available,
     keyboardInset: softwareKeyboardInset(uiScale),
+    interactionBlocked: chatInteractionBlocked(),
     messages: [
       ...(snapshot.motd === null ? [] : [{
         id: -2n,
@@ -4239,8 +4900,9 @@ function render(alpha = 1): void {
     uiWidth,
     uiHeight,
     snapshot.connected && snapshot.characterProfile?.nameChosen === false,
-    touchControls.available,
   );
+  renderMetrics.recordStage('uiLayout', performance.now() - uiLayoutStartedAt);
+  const uiDrawStartedAt = performance.now();
   if (!interfaceHidden && nameplatesVisible) {
     overworldUi.drawNameplates(uiContext, nameplates.map((nameplate) => ({
       x: (nameplate.x - cameraX) * worldZoom / uiScale,
@@ -4267,20 +4929,27 @@ function render(alpha = 1): void {
       activeSpaceDefinition.spaceId,
     ));
     const hoveredSoil = hoveredCrop === undefined ? undefined : snapshot.soil.get(hoveredCrop.id);
-    const definition = cropDefinition(hoveredCrop?.cropKind ?? '');
+    const definition = cropDefinitionForSnapshot(snapshot, hoveredCrop?.cropKind ?? '');
     if (hoveredCrop !== undefined && hoveredSoil !== undefined && definition !== null) {
       const growth = cropGrowthAt(
         definition,
         hoveredCrop.growthTicks,
         hoveredCrop.growthUpdatedAtTick,
         hoveredSoil.wateredAtTick,
-        renderWeatherTick,
+        renderAuthorityTick,
         hoveredSoil.watered,
+        cropAutomaticallyWateredForSnapshot(
+          snapshot, hoveredCrop.spaceId, hoveredCrop.tileX, hoveredCrop.tileY,
+        ),
+        cropCalendarOffsetForSnapshot(snapshot),
+        cropGreenhouseProtectedForSnapshot(snapshot, hoveredCrop.spaceId),
       );
       const timerFrame = Math.min(15, Math.floor(growth.progress * 15));
       const status = growth.mature
         ? 'READY TO HARVEST'
-        : `${growth.watered ? 'WATERED' : 'NEEDS WATER'} - ${cropTimeLabel(growth.remainingTicks)} LEFT`;
+        : !growth.inSeason
+          ? 'DORMANT UNTIL SPRING'
+          : `${growth.watered ? 'WATERED' : 'NEEDS WATER'} - ${cropTimeLabel(growth.remainingTicks)} LEFT`;
       const width = Math.max(
         104,
         measurePixelText(definition.displayName.toUpperCase(), 1, art.ui.font) + 31,
@@ -4290,7 +4959,7 @@ function render(alpha = 1): void {
       const worldY = (hoveredCrop.tileY + 1) * 16;
       const anchorX = (worldX - cameraX) * worldZoom / uiScale;
       const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
-      const panelX = Math.max(2, Math.min(uiWidth - width - 2, Math.round(anchorX - width / 2)));
+      const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
       const panelY = Math.max(2, Math.round(anchorY - 32));
       drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
       drawUiAssetFrame(uiContext, art.cropTimer, timerFrame, panelX + 7, panelY + 7, 1);
@@ -4298,6 +4967,133 @@ function render(alpha = 1): void {
       drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, {
         color: growth.mature ? '#8a5a2b' : growth.watered ? '#315c35' : '#9c3b2e',
       });
+    } else {
+      const hoveredMiningResource = [...snapshot.resources].find((resource) => (
+        !resource.depleted
+        && resource.spaceId === activeSpaceDefinition.spaceId
+        && resource.tileX === hoveredInteractionTile!.tileX
+        && resource.tileY === hoveredInteractionTile!.tileY
+        && (isMineableOreKind(resource.kind) || isBreakableRockKind(resource.kind))
+      ));
+      if (hoveredMiningResource !== undefined) {
+        const nodeClass = miningClassFromWire(
+          hoveredMiningResource.miningClass, hoveredMiningResource.spaceId,
+        );
+        const richness = hoveredMiningResource.richness || hoveredMiningResource.health;
+        const maximumRichness = hoveredMiningResource.maximumRichness || richness;
+        const efficientRank = skillRanks.find((rank) => rank.nodeId === 'efficient_strikes')?.rank ?? 0;
+        const prospectorRank = skillRanks.find((rank) => rank.nodeId === 'prospector')?.rank ?? 0;
+        const oreDressingRank = skillRanks.find((rank) => rank.nodeId === 'ore_dressing')?.rank ?? 0;
+        const rockhoundRank = skillRanks.find((rank) => rank.nodeId === 'rockhound')?.rank ?? 0;
+        const material = hoveredMiningResource.kind.replace(/^ore_/, '').replaceAll('_', ' ').toUpperCase();
+        const title = isBreakableRockKind(hoveredMiningResource.kind) ? 'ROCK' : `${material} VEIN`;
+        const classLabel = nodeClass === 'pristine' ? 'PRISTINE SURFACE NODE'
+          : nodeClass === 'pure' ? 'PURE CAVE VEIN'
+            : nodeClass === 'rock' ? 'COMMON ROCK' : 'MIXED SURFACE NODE';
+        const hits = miningHitsUntilYield(hoveredMiningResource.yieldProgress, efficientRank);
+        const status = `${miningNodeRichnessLabel(richness)} ${richness}/${maximumRichness} - ${hits} HIT${hits === 1 ? '' : 'S'} TO YIELD`;
+        const odds = prospectorRank <= 0 ? 'PROSPECTOR REVEALS YIELD ODDS'
+          : nodeClass === 'rock' ? `PEBBLE + ${1 + Math.min(2, rockhoundRank)}% ORE CHANCE`
+            : nodeClass === 'mixed' ? `${mixedNodeStoneChancePercent(oreDressingRank)}% STONE / ${100 - mixedNodeStoneChancePercent(oreDressingRank)}% ORE`
+              : 'GUARANTEED FULL ORE CHUNK';
+        const width = Math.max(
+          144,
+          measurePixelText(title, 1, art.ui.font) + 31,
+          measurePixelText(classLabel, 1, art.ui.font) + 38,
+          measurePixelText(status, 1, art.ui.font) + 38,
+          measurePixelText(odds, 1, art.ui.font) + 38,
+        );
+        const worldX = hoveredMiningResource.tileX * 16 + 8;
+        const worldY = (hoveredMiningResource.tileY + 1) * 16;
+        const anchorX = (worldX - cameraX) * worldZoom / uiScale;
+        const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
+        const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
+        const panelY = Math.max(2, Math.round(anchorY - 44));
+        drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 42);
+        drawUiAssetFrame(
+          uiContext,
+          art.cropTimer,
+          Math.min(15, Math.floor(hoveredMiningResource.yieldProgress / 12 * 15)),
+          panelX + 7,
+          panelY + 13,
+          1,
+        );
+        drawPixelText(uiContext, art.ui, title, panelX + 28, panelY + 4);
+        drawPixelText(uiContext, art.ui, classLabel, panelX + 29, panelY + 14, { color: '#8a5a2b' });
+        drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 24, { color: '#315c35' });
+        drawPixelText(uiContext, art.ui, odds, panelX + 29, panelY + 34, {
+          color: prospectorRank > 0 ? '#71532e' : '#836f58',
+        });
+      } else {
+        const hoveredProcessor = [...snapshot.placeables].find((placeable) => (
+        placeable.carriedBy === undefined
+        && placeable.spaceId === activeSpaceDefinition.spaceId
+        && placeable.tileX === hoveredInteractionTile!.tileX
+        && placeable.tileY === hoveredInteractionTile!.tileY
+        && (placeableHasInterface(placeable.kind, 'furnace')
+          || placeableHasInterface(placeable.kind, 'cooking')
+          || placeableHasInterface(placeable.kind, 'press')
+          || placeableHasInterface(placeable.kind, 'fermentation'))
+      ));
+        if (hoveredProcessor !== undefined) {
+        const processorInterface = placeableInterface(hoveredProcessor.kind);
+        const remaining = processorInterface === 'furnace'
+          ? furnaceRemainingTicks(hoveredProcessor.smeltStartTick, processorAuthorityTick)
+          : processorInterface === 'cooking' ? cookingFireRemainingTicks(
+            hoveredProcessor.cookStartTick,
+            hoveredProcessor.cookInputKind,
+            processorAuthorityTick,
+          ) : processorInterface === 'press' || processorInterface === 'fermentation'
+            ? cellarProcessorRemainingTicks(
+              processorInterface,
+              hoveredProcessor.processStartTick,
+              processorAuthorityTick,
+              vintage.agingTicks,
+            ) : null;
+        const progress = processorInterface === 'furnace'
+          ? furnaceProgress(hoveredProcessor.smeltStartTick, processorAuthorityTick)
+          : processorInterface === 'cooking' ? cookingFireProgress(
+            hoveredProcessor.cookStartTick,
+            hoveredProcessor.cookInputKind,
+            processorAuthorityTick,
+          ) : processorInterface === 'press' || processorInterface === 'fermentation'
+            ? cellarProcessorProgress(
+              processorInterface,
+              hoveredProcessor.processStartTick,
+              processorAuthorityTick,
+              vintage.agingTicks,
+            ) : 0;
+        const title = processorInterface === 'furnace' ? 'FURNACE'
+          : processorInterface === 'cooking' ? 'COOKING FIRE'
+            : processorInterface === 'press' ? 'FRUIT PRESS' : 'FERMENTATION CASK';
+        const status = remaining !== null
+          ? `${processorInterface === 'furnace' ? 'SMELTING'
+            : processorInterface === 'cooking' ? 'COOKING'
+              : processorInterface === 'press' ? 'PRESSING' : 'FERMENTING'} - ${processorTimeLabel(remaining)} LEFT`
+          : processorInterface === 'cooking' && !hoveredProcessor.lit
+            ? 'FIRE OUT - PRESS F TO LIGHT'
+            : processorInterface === 'furnace' ? 'ADD ORE + FUEL'
+              : processorInterface === 'cooking' ? 'ADD RAW FOOD'
+                : processorInterface === 'press' ? 'ADD FRUIT' : 'ADD 3 MUST';
+        const width = Math.max(
+          104,
+          measurePixelText(title, 1, art.ui.font) + 31,
+          measurePixelText(status, 1, art.ui.font) + 38,
+        );
+        const worldX = hoveredProcessor.tileX * 16 + 8;
+        const worldY = (hoveredProcessor.tileY + 1) * 16;
+        const anchorX = (worldX - cameraX) * worldZoom / uiScale;
+        const anchorY = (worldY - projectionAt(worldX, worldY) - cameraY - 22) * worldZoom / uiScale;
+        const panelX = Math.max(2, Math.min(canvasUiWidth - width - 2, Math.round(anchorX - width / 2)));
+        const panelY = Math.max(2, Math.round(anchorY - 32));
+        drawPixelPanel(uiContext, art.ui, panelX, panelY, width, 30);
+        drawUiAssetFrame(uiContext, art.cropTimer, Math.min(15, Math.floor(progress * 15)), panelX + 7, panelY + 7, 1);
+        drawPixelText(uiContext, art.ui, title, panelX + 28, panelY + 6);
+        drawPixelText(uiContext, art.ui, status, panelX + 29, panelY + 18, {
+          color: remaining !== null ? '#315c35' : '#8a5a2b',
+        });
+        }
+      }
     }
   }
   if (!interfaceHidden) {
@@ -4305,7 +5101,9 @@ function render(alpha = 1): void {
     for (const combatText of floatingCombatTexts) {
       const age = combatTextNow - combatText.startedAtMs;
       const progress = Math.max(0, Math.min(1, age / 1_100));
-      const target = snapshot.combatTargets.get(combatText.targetId);
+      const target = combatText.targetKind === 'npc'
+        ? snapshot.npcs.get(combatText.targetId)
+        : snapshot.combatTargets.get(combatText.targetId);
       const worldX = (target?.x ?? combatText.x) / FIXED_UNITS_PER_PIXEL;
       const worldY = (target?.y ?? combatText.y) / FIXED_UNITS_PER_PIXEL;
       const projection = projectionAt(worldX, worldY);
@@ -4340,7 +5138,8 @@ function render(alpha = 1): void {
       const worldY = renderedPosition?.y ?? (livePosition?.y ?? speech.y) / FIXED_UNITS_PER_PIXEL;
       const screenX = (worldX - cameraX) * worldZoom / uiScale;
       const screenY = (worldY - cameraY) * worldZoom / uiScale;
-      const onScreen = screenX >= 0 && screenX <= uiWidth && screenY >= 0 && screenY <= uiHeight;
+      const onScreen = screenX >= 0 && screenX <= canvasUiWidth
+        && screenY >= 0 && screenY <= canvasUiHeight;
       if (!onScreen && speech.kind !== 'shout') continue;
       const kind = speech.kind === 'shout' ? 'shout' : 'say';
       const layout = speechBubbleLayout(speech.body);
@@ -4350,8 +5149,8 @@ function render(alpha = 1): void {
             y: screenY - speechBubbleHeadOffset(worldZoom, uiScale, mountedRiderIds.has(speakerId)),
             direction: 'down',
           }
-        : edgeSpeechAnchor(screenX, screenY, uiWidth, uiHeight);
-      const rect = speechBubbleRect(anchor, layout, uiWidth, uiHeight);
+        : edgeSpeechAnchor(screenX, screenY, canvasUiWidth, canvasUiHeight);
+      const rect = speechBubbleRect(anchor, layout, canvasUiWidth, canvasUiHeight);
       drawSpeechBubble(uiContext, art.ui, art.uiSkin, rect, layout, kind, anchor.direction);
     }
     // Whispers never enter public world-speech storage. Render the latest
@@ -4374,14 +5173,14 @@ function render(alpha = 1): void {
       const worldY = renderedPosition?.y ?? livePosition!.y / FIXED_UNITS_PER_PIXEL;
       const screenX = (worldX - cameraX) * worldZoom / uiScale;
       const screenY = (worldY - cameraY) * worldZoom / uiScale;
-      if (screenX < 0 || screenX > uiWidth || screenY < 0 || screenY > uiHeight) continue;
+      if (screenX < 0 || screenX > canvasUiWidth || screenY < 0 || screenY > canvasUiHeight) continue;
       const layout = speechBubbleLayout(message.body);
       const anchor: EdgeSpeechAnchor = {
         x: screenX,
         y: screenY - speechBubbleHeadOffset(worldZoom, uiScale, mountedRiderIds.has(speakerId)),
         direction: 'down',
       };
-      const rect = speechBubbleRect(anchor, layout, uiWidth, uiHeight);
+      const rect = speechBubbleRect(anchor, layout, canvasUiWidth, canvasUiHeight);
       drawSpeechBubble(uiContext, art.ui, art.uiSkin, rect, layout, 'tell', 'down');
     }
     const thought = snapshot.thought;
@@ -4396,20 +5195,27 @@ function render(alpha = 1): void {
         y: screenY - speechBubbleHeadOffset(worldZoom, uiScale, localMount(snapshot) !== null),
         direction: 'down',
       };
-      const rect = speechBubbleRect(anchor, layout, uiWidth, uiHeight);
+      const rect = speechBubbleRect(anchor, layout, canvasUiWidth, canvasUiHeight);
       drawSpeechBubble(uiContext, art.ui, art.uiSkin, rect, layout, 'thought', 'down');
     }
+    uiContext.save();
+    uiContext.translate(uiOriginX, uiOriginY);
     questTracker.draw(uiContext);
     chatOverlay.draw(uiContext);
     overworldUi.draw(uiContext);
+    if (homesteadBuildMode && overworldUi.openWindow === null) homesteadBuildPalette.draw(uiContext);
     if (onlinePlayersVisible) overworldUi.drawOnlinePlayers(uiContext, onlinePlayers);
     npcInteractionUi.draw(uiContext);
     tradeUi.draw(uiContext, uiWidth, uiHeight);
     characterNamePrompt.draw(uiContext);
     touchControls.draw(uiContext, art.ui, art.uiSkin, uiWidth, uiHeight);
+    overworldUi.drawBlockingOverlay(uiContext);
     overworldUi.drawCursorOverlay(uiContext);
+    uiContext.restore();
   }
   if (!interfaceHidden && debugCollision && debugTerrainPoint !== null && terrainInspector !== null) {
+    uiContext.save();
+    uiContext.translate(uiOriginX, uiOriginY);
     const {
       drawTerrainInspectionVisuals,
       inspectTerrainAtProjectedPoint,
@@ -4454,8 +5260,11 @@ function render(alpha = 1): void {
     );
     drawPixelText(uiContext, art.ui, 'COMPOSED / NUMBERED LAYERS', visualX + 6, 9);
     drawTerrainInspectionVisuals(uiContext, art, terrain, groundCache, inspection, visualX, 17);
+    uiContext.restore();
   }
   if (!interfaceHidden && debugMetrics) {
+    uiContext.save();
+    uiContext.translate(uiOriginX, uiOriginY);
     const metrics = renderMetrics.snapshot();
     const net = network.metrics();
     const ownPosition = network.ownPosition();
@@ -4466,7 +5275,9 @@ function render(alpha = 1): void {
     const lines = [
       `FRAME ${metrics.averageFrameMs.toFixed(2)} AVG ${metrics.worstFrameMs.toFixed(2)} WORST`,
       `ITEMS ${metrics.renderItems} CHUNKS ${groundCache.residentCount} PARTICLES ${rain.activeCount}`,
-      `LIGHT ${lightmap.averageMs.toFixed(2)}ms AVG ${lightmap.floodMs.toFixed(2)}ms REBUILD #${lightmap.fieldRebuilds}`,
+      `LIGHT ${lightingModel.toUpperCase()} ${lightmap.averageMs.toFixed(2)}ms AVG ${lightmap.floodMs.toFixed(2)}ms FLOOD #${lightmap.fieldRebuilds}`,
+      `BND ${lightmap.boundsResizeMs.toFixed(2)} OCC ${lightmap.rasterizeMs.toFixed(2)} SOLVE ${lightmap.floodMs.toFixed(2)} MERGE ${lightmap.mergeMs.toFixed(2)}`,
+      `UP ${lightmap.uploadMs.toFixed(2)} REC ${lightmap.receiverMs.toFixed(2)} CMP ${lightmap.compositeMs.toFixed(2)} CACHE ${lightmap.occlusionCacheHits}/${lightmap.occlusionRebuilds}`,
       `LIGHTS ${pointLights.length} VISITED ${lightmap.floodTexelsVisited}`,
       `MOON ${lunarPhaseAtAuthorityTick(authorityTick).replaceAll('_', ' ').toUpperCase()} ${lunarIlluminationAtAuthorityTick(authorityTick)}/1000`,
       `ZOOM ${worldZoom.toFixed(2)} K ${frame.layout.integerScale} DPR ${renderer.dpr.toFixed(2)}`,
@@ -4495,6 +5306,7 @@ function render(alpha = 1): void {
     for (let index = 0; index < lines.length; index += 1) {
       drawPixelText(uiContext, art.ui, lines[index] ?? '', 11, 32 + index * 9);
     }
+    uiContext.restore();
   }
   const portalTransitionElapsed = performance.now() - portalTransitionStartedAtMs;
   if (portalTransitionStartedAtMs >= 0 && portalTransitionElapsed < 250) {
@@ -4505,13 +5317,19 @@ function render(alpha = 1): void {
     uiContext.restore();
   }
   renderer.endUi();
-  renderMetrics.record(performance.now() - renderStarted, drawCalls);
+  renderMetrics.recordStage('uiDraw', performance.now() - uiDrawStartedAt);
+  const renderSubmittedAt = performance.now();
+  renderMetrics.record(renderSubmittedAt - renderStarted, renderItems);
+  renderMetrics.recordRenderSubmit(renderSubmittedAt);
 }
 
 function pointerUiPosition(event: MouseEvent): readonly [number, number] {
   const [canvasX, canvasY] = pointerCanvasPosition(event);
-  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
-  return [canvasX / uiScale, canvasY / uiScale];
+  const uiScale = currentUiScale();
+  return [
+    (canvasX - safeAreaInsets.left) / uiScale,
+    (canvasY - safeAreaInsets.top) / uiScale,
+  ];
 }
 
 function pointerCanvasPosition(event: MouseEvent): readonly [number, number] {
@@ -4521,9 +5339,9 @@ function pointerCanvasPosition(event: MouseEvent): readonly [number, number] {
   return [canvasX, canvasY];
 }
 
-function showResult(promise: Promise<void>, success: string): void {
+function showResult(promise: Promise<void>, success: string | null): void {
   void promise.then(() => {
-    setToast(success, 'success');
+    if (success !== null) setToast(success, 'success');
   }).catch((error: unknown) => {
     setFailureToast(error);
   });
@@ -4658,6 +5476,7 @@ function setInterfaceHidden(hidden: boolean): void {
   npcInteractionUi.pointerLeave();
   chatOverlay.pointerLeave();
   overworldUi.pointerLeave();
+  homesteadBuildPalette.pointerLeave();
   touchControls.setBlocked(hidden);
   if (!hidden) return;
   chatOverlay.dismiss();
@@ -4665,9 +5484,42 @@ function setInterfaceHidden(hidden: boolean): void {
   shopFilterInputElement?.blur();
 }
 
-window.addEventListener('resize', resize);
+function chatInteractionBlocked(): boolean {
+  return overworldUi.openWindow !== null
+    || overworldUi.blockingUpdatePromptVisible
+    || onlinePlayersVisible
+    || characterNamePrompt.isActive
+    || tradeUi.active
+    || npcInteractionUi.active;
+}
+
+pwaClient.subscribe((status) => {
+  if (status !== 'available') return;
+  setInterfaceHidden(false);
+  keys.clear();
+  touchControls.reset();
+  network.setMovementIntent('idle', false);
+});
+
+function resizeForViewportChange(): void {
+  // iOS emits visual-viewport resize events while presenting its keyboard.
+  // Reallocating the Canvas during that focus transaction can dismiss the
+  // transparent native input. The full-bleed layout viewport has not changed;
+  // softwareKeyboardInset() already handles the reduced visible area.
+  if (document.activeElement instanceof HTMLInputElement
+    || document.activeElement instanceof HTMLTextAreaElement) return;
+  resize();
+}
+
+window.addEventListener('resize', resizeForViewportChange);
+window.visualViewport?.addEventListener('resize', resizeForViewportChange);
 for (const activityEvent of ['keydown', 'pointerdown', 'pointermove', 'wheel'] as const) {
-  window.addEventListener(activityEvent, () => network.noteUserActivity(), { capture: true, passive: true });
+  window.addEventListener(activityEvent, (event) => {
+    network.noteUserActivity();
+    if (activityEvent !== 'pointermove' && event.isTrusted) {
+      renderMetrics.recordInputTimestamp(event.timeStamp);
+    }
+  }, { capture: true, passive: true });
 }
 window.addEventListener('focus', () => network.noteUserActivity());
 window.addEventListener('keydown', (event) => {
@@ -4685,8 +5537,16 @@ window.addEventListener('keydown', (event) => {
   event.stopPropagation();
 }, { capture: true });
 window.addEventListener('keydown', (event) => {
+  if (event.code === 'Escape' && documentIsFullscreen()) event.preventDefault();
+}, { capture: true });
+window.addEventListener('keydown', (event) => {
   void audio.unlock().catch(() => undefined);
   if (!interfaceHidden) {
+    if (overworldUi.blockingUpdatePromptVisible
+      && overworldUi.handleKeyDown(event.code, event.repeat, { ctrl: event.ctrlKey })) {
+      event.preventDefault();
+      return;
+    }
     if (tradeMoneyInputElements.includes(document.activeElement as HTMLInputElement)) {
       if (event.code === 'Escape') {
         (document.activeElement as HTMLInputElement).blur();
@@ -4702,7 +5562,7 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
-    if (chatOverlay.handleGlobalKeyDown(event)) {
+    if (!chatInteractionBlocked() && chatOverlay.handleGlobalKeyDown(event)) {
       event.preventDefault();
       return;
     }
@@ -4758,6 +5618,21 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
     return;
   }
+  if (event.code === 'KeyB' && !event.repeat) {
+    if (homesteadBuildMode) {
+      homesteadBuildMode = false;
+      setToast('BUILD MODE CLOSED', 'info', 90);
+    } else if (!canUseHomesteadBuildMode(latestSnapshot)) {
+      setToast('BUILD MODE REQUIRES YOUR HOMESTEAD', 'failure', 120);
+    } else if (localMount(latestSnapshot) !== null) {
+      setToast('DISMOUNT BEFORE BUILDING', 'failure', 120);
+    } else {
+      homesteadBuildMode = true;
+      setToast('BUILD MODE — PICK FROM THE PALETTE, THEN CLICK A TILE', 'info', 150);
+    }
+    event.preventDefault();
+    return;
+  }
   if (event.code === 'KeyG' && !event.repeat) {
     setCollisionDebug(!debugCollision);
     setToast(debugCollision
@@ -4796,12 +5671,32 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
+    const cookingFire = targetPlaceable(snapshot);
+    if (cookingFire !== null && placeableHasInterface(cookingFire.kind, 'cooking')) {
+      showResult(
+        network.toggleCampfire('placeable', cookingFire.id),
+        cookingFire.lit ? 'COOKING FIRE EXTINGUISHED' : 'COOKING FIRE LIT',
+      );
+      event.preventDefault();
+      return;
+    }
     const campfire = targetCampfire(snapshot);
     if (campfire !== null) {
       showResult(
         network.toggleCampfire(campfire.targetKind, campfire.id),
         campfire.lit ? 'CAMPFIRE EXTINGUISHED' : 'CAMPFIRE LIT',
       );
+      event.preventDefault();
+      return;
+    }
+    const actionPlaceable = targetPlaceable(snapshot);
+    if (actionPlaceable?.kind === 'anvil' && isDurableToolKind(selectedItem(snapshot))) {
+      showResult(network.repairSelectedTool(), 'TOOL REPAIRED');
+      event.preventDefault();
+      return;
+    }
+    if (foodHungerRestoreCenti(selectedItem(snapshot)) !== null) {
+      showResult(network.eatSelectedFood(), 'HUNGER RESTORED');
       event.preventDefault();
       return;
     }
@@ -4832,7 +5727,12 @@ window.addEventListener('keydown', (event) => {
         'sword',
         target === null,
       );
-      if (performed && target !== null) facePredictedTowardTile(combatTargetTile(target));
+      if (performed && target !== null) {
+        const tile = 'homeX' in target
+          ? { tileX: Math.floor(target.x / TILE_SIZE_FIXED), tileY: Math.floor(target.y / TILE_SIZE_FIXED) }
+          : combatTargetTile(target);
+        facePredictedTowardTile(tile);
+      }
       event.preventDefault();
       return;
     }
@@ -4908,6 +5808,11 @@ window.addEventListener('keydown', (event) => {
       return;
     }
     const item = selectedItem(snapshot);
+    if (recipeBookDefinition(item) !== null) {
+      showResult(network.readRecipeBook(), 'RECIPES LEARNED');
+      event.preventDefault();
+      return;
+    }
     if (item === 'orchard_tea') {
       showResult(network.consumeOrchardTea(), 'ORCHARD TEA DRUNK');
       event.preventDefault();
@@ -4926,14 +5831,9 @@ window.addEventListener('keydown', (event) => {
     const cropTile = targetFarmTile();
     const selectedCropItem = selectedItem(snapshot);
     const cropAtTarget = targetCrop(snapshot);
-    if (cropTile !== null && (
-      itemDefinition(selectedCropItem)?.tags.includes('item.seed') === true
-      || (cropAtTarget !== null && selectedCropItem !== 'hoe' && selectedCropItem !== 'watering_can')
-    )) {
-      showResult(
-        network.useCropTile(cropTile.tileX, cropTile.tileY),
-        cropAtTarget === null ? 'SEEDS PLANTED' : 'CROP HARVESTED',
-      );
+    if (cropTile !== null && cropAtTarget === null
+      && itemDefinition(selectedCropItem)?.tags.includes('item.seed') === true) {
+      showResult(network.useCropTile(cropTile.tileX, cropTile.tileY), 'SEEDS PLANTED');
       event.preventDefault();
       return;
     }
@@ -4946,11 +5846,12 @@ window.addEventListener('keydown', (event) => {
         if (tile === null) {
           setToast('NO FARM TILE TARGETED', 'failure', 90);
         } else {
-          const restoring = item === 'hoe' && latestSnapshot.soil.get(farmSoilKey(
-            tile.tileX,
-            tile.tileY,
-            activeSpaceDefinition.spaceId,
-          )) !== undefined;
+          const restoring = item === 'hoe' && cropAtTarget === null
+            && latestSnapshot.soil.get(farmSoilKey(
+              tile.tileX,
+              tile.tileY,
+              activeSpaceDefinition.spaceId,
+            )) !== undefined;
           performFarmToolAction(tile, item, restoring);
         }
         event.preventDefault();
@@ -4970,12 +5871,15 @@ window.addEventListener('keydown', (event) => {
       } else if (resource === null) {
         performToolAction(() => network.harvestResource(0n), 'SWING', item, true);
       } else {
+        const efficientRank = [...snapshot.skillNodes]
+          .find((rank) => rank.nodeId === 'efficient_strikes')?.rank ?? 0;
+        const miningPayout = resource.yieldProgress + miningWorkPerHit(efficientRank) >= MINING_YIELD_WORK;
         const result = isBreakableRockKind(resource.kind)
-          ? resource.health <= 1 ? 'ROCK DEPLETED'
-            : survivalResourceDropAfterHit(resource.kind, resource.health - 1) === null
-              ? 'ROCK STRUCK' : 'STONE CHIPPED'
+          ? miningPayout && resource.richness <= 1 ? 'ROCK DEPLETED'
+            : miningPayout ? 'PEBBLE CHIPPED' : 'ROCK STRUCK'
           : isMineableOreKind(resource.kind)
-          ? resource.health > 1 ? 'ORE STRUCK' : 'VEIN DEPLETED'
+          ? miningPayout && resource.richness <= 1 ? 'VEIN DEPLETED'
+            : miningPayout ? 'YIELD PRODUCED' : 'ORE STRUCK'
           : resource.health > 1 ? 'CHOP!' : 'TREE FELLED';
         performToolAction(() => network.harvestResource(resource.id), result, item);
       }
@@ -5013,33 +5917,48 @@ window.addEventListener('keyup', (event) => {
   onlinePlayersVisible = false;
   event.preventDefault();
 });
-window.addEventListener('blur', () => { onlinePlayersVisible = false; });
 document.addEventListener('visibilitychange', () => {
   weatherTickClock.reset();
   weatherEffects.resetTimeline();
+  if (document.hidden) clearPointerPresentation();
 });
 window.addEventListener('keyup', (event) => keys.delete(event.code));
+
+function clearPointerPresentation(): void {
+  worldPointer = null;
+  hoveredInteractionTile = null;
+  characterNamePrompt.pointerLeave();
+  tradeUi.pointerLeave();
+  npcInteractionUi.pointerLeave();
+  questTracker.pointerLeave();
+  chatOverlay.pointerLeave();
+  overworldUi.pointerLeave();
+}
+
 window.addEventListener('blur', () => {
+  onlinePlayersVisible = false;
   keys.clear();
   touchControls.reset();
   cancelBowChargePresentation();
+  clearPointerPresentation();
 });
 function dispatchTouchControlAction(action: TouchControlAction): void {
   if (action === 'movement') return;
   // Control touches are intercepted before world-pointer handling, preserving
   // the last deliberately selected tile without replacing it with this button.
-  const code = action === 'interact' ? 'KeyE' : 'KeyF';
+  const code = action === 'interact' ? 'KeyE' : action === 'secondary' ? 'KeyF' : 'Space';
   window.dispatchEvent(new KeyboardEvent('keydown', {
     bubbles: true,
     cancelable: true,
     code,
-    key: action === 'interact' ? 'e' : 'f',
+    key: action === 'interact' ? 'e' : action === 'secondary' ? 'f' : ' ',
   }));
 }
 
 function touchControlViewport(): readonly [number, number] {
-  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
-  return [renderer.cssWidth / uiScale, renderer.cssHeight / uiScale];
+  const viewport = hudViewportCss();
+  const uiScale = fittedUiScale(desiredUiScale, viewport.width, viewport.height);
+  return [viewport.width / uiScale, viewport.height / uiScale];
 }
 
 // Keep tracking an active thumb at the window capture phase. In particular,
@@ -5066,45 +5985,50 @@ window.addEventListener('pointercancel', (event) => {
   event.stopPropagation();
 }, { capture: true });
 canvas.addEventListener('pointermove', (event) => {
+  touchControls.notePointerType(event.pointerType);
   const [x, y] = pointerUiPosition(event);
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   worldPointer = { x: canvasX, y: canvasY };
   refreshHoveredInteractionTile();
   if (interfaceHidden) return;
+  overworldUi.systemCursorMove({ x, y });
   characterNamePrompt.pointerMove({ x, y });
   if (characterNamePrompt.isActive) return;
   if (tradeUi.pointerMove({ x, y })) return;
   if (npcInteractionUi.pointerMove({ x, y })) return;
-  chatOverlay.pointerMove({ x, y });
+  if (chatInteractionBlocked()) chatOverlay.pointerLeave();
+  else chatOverlay.pointerMove({ x, y });
   overworldUi.pointerMove({ x, y }, { shift: event.shiftKey });
+  if (homesteadBuildMode && overworldUi.openWindow === null) homesteadBuildPalette.pointerMove({ x, y });
   if (overworldUi.openWindow === null) questTracker.pointerMove({ x, y });
   else questTracker.pointerLeave();
 });
 canvas.addEventListener('pointerleave', () => {
-  worldPointer = null;
-  hoveredInteractionTile = null;
-  characterNamePrompt.pointerLeave();
-  tradeUi.pointerLeave();
-  npcInteractionUi.pointerLeave();
-  questTracker.pointerLeave();
-  chatOverlay.pointerLeave();
-  overworldUi.pointerLeave();
+  clearPointerPresentation();
 });
 canvas.addEventListener('pointerdown', (event) => {
   void audio.unlock().catch(() => undefined);
+  touchControls.notePointerType(event.pointerType);
   const [x, y] = pointerUiPosition(event);
-  if (!interfaceHidden && tradeUi.pointerDown({ x, y }, event.button)) {
+  if (!interfaceHidden) overworldUi.systemCursorDown({ x, y });
+  if (!interfaceHidden && overworldUi.blockingUpdatePromptVisible) {
+    overworldUi.pointerDown({ x, y }, event.button, { shift: event.shiftKey });
     canvas.setPointerCapture(event.pointerId);
     event.preventDefault();
     return;
   }
-  const uiScale = fittedUiScale(desiredUiScale, renderer.cssWidth, renderer.cssHeight);
+  if (!interfaceHidden && tradeUi.pointerDown({ x, y }, event.button, event.pointerType)) {
+    canvas.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    return;
+  }
+  const [uiWidth, uiHeight] = touchControlViewport();
   const touchAction = touchControls.pointerDown(
     { x, y },
     event.pointerId,
     event.pointerType,
-    renderer.cssWidth / uiScale,
-    renderer.cssHeight / uiScale,
+    uiWidth,
+    uiHeight,
   );
   if (touchAction !== null) {
     canvas.setPointerCapture(event.pointerId);
@@ -5135,7 +6059,19 @@ canvas.addEventListener('pointerdown', (event) => {
     if (npcInteractionUi.pointerDown({ x, y }, event.button, {
       shift: event.shiftKey,
       control: event.ctrlKey,
+      pointerType: event.pointerType,
     })) {
+      canvas.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      return;
+    }
+    if (homesteadBuildMode && overworldUi.openWindow === null
+      && homesteadBuildPalette.pointerDown({ x, y }, event.button)) {
+      const upgrade = homesteadBuildPalette.takePurchaseRequest();
+      if (upgrade !== null) showResult(
+        network.purchaseHomesteadUpgrade(upgrade),
+        `${upgrade.replaceAll('_', ' ').toUpperCase()} UPGRADED`,
+      );
       canvas.setPointerCapture(event.pointerId);
       event.preventDefault();
       return;
@@ -5143,12 +6079,15 @@ canvas.addEventListener('pointerdown', (event) => {
     // The retained window tree is visually above chat and therefore receives
     // the first opportunity to capture input as well. Previously chat could
     // activate through a modal that was correctly painted over it.
-    if (overworldUi.pointerDown({ x, y }, event.button, { shift: event.shiftKey })) {
+    if (overworldUi.pointerDown({ x, y }, event.button, {
+      shift: event.shiftKey,
+      pointerType: event.pointerType,
+    })) {
       canvas.setPointerCapture(event.pointerId);
       event.preventDefault();
       return;
     }
-    if (chatOverlay.pointerDown({ x, y }, event.button)) {
+    if (!chatInteractionBlocked() && chatOverlay.pointerDown({ x, y }, event.button, event.pointerType)) {
       canvas.setPointerCapture(event.pointerId);
       event.preventDefault();
       return;
@@ -5161,6 +6100,34 @@ canvas.addEventListener('pointerdown', (event) => {
   }
   const worldPointerAvailable = interfaceHidden
     || (overworldUi.openWindow === null && !chatOverlay.isOpen);
+  if (homesteadBuildMode && event.button === 0 && worldPointerAvailable
+    && hoveredInteractionTile !== null) {
+    const selection = homesteadBuildPalette.selection;
+    if (selection.kind === 'remove') {
+      const target = latestSnapshot.placeables.find((placeable) => {
+        if (placeable.carriedBy !== undefined) return false;
+        return homesteadBuildFootprintTiles(
+          homesteadBuildDefinition(placeable.kind) ?? { footprint: { width: 1, height: 1 } },
+          placeable.tileX,
+          placeable.tileY,
+        ).some((tile) => tile.tileX === hoveredInteractionTile!.tileX
+          && tile.tileY === hoveredInteractionTile!.tileY);
+      });
+      if (target === undefined) setToast('SELECT A BUILT OBJECT TO REMOVE', 'failure', 90);
+      else showResult(network.removeHomesteadBuildable(target.id), 'BUILD REMOVED — REFUND DELIVERED');
+    } else {
+      showResult(
+        network.placeHomesteadBuildable(
+          selection.itemKind,
+          hoveredInteractionTile.tileX,
+          hoveredInteractionTile.tileY,
+        ),
+        `${(itemDefinition(selection.itemKind)?.displayName ?? selection.itemKind).toUpperCase()} BUILT`,
+      );
+    }
+    event.preventDefault();
+    return;
+  }
   if ((event.button === 0 || event.button === 2) && worldPointerAvailable) {
     const nextTarget = entityTargetAtWorldPoint(
       latestCameraX + canvasX / latestRenderedZoom,
@@ -5224,6 +6191,7 @@ canvas.addEventListener('pointerdown', (event) => {
   const farmTarget = targetFarmTile();
   const pointerCrop = targetCrop(latestSnapshot);
   const restoringFarmTile = event.button === 2 && farmItem === 'hoe' && farmTarget !== null
+    && pointerCrop === null
     && latestSnapshot.soil.get(farmSoilKey(
       farmTarget.tileX, farmTarget.tileY, activeSpaceDefinition.spaceId,
     )) !== undefined;
@@ -5256,6 +6224,12 @@ canvas.addEventListener('pointerup', (event) => {
   const [canvasX, canvasY] = pointerCanvasPosition(event);
   worldPointer = { x: canvasX, y: canvasY };
   const [x, y] = pointerUiPosition(event);
+  if (!interfaceHidden && overworldUi.blockingUpdatePromptVisible) {
+    overworldUi.pointerUp({ x, y }, event.button, { shift: event.shiftKey });
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    event.preventDefault();
+    return;
+  }
   if (!interfaceHidden) {
     if (characterNamePrompt.isActive) {
       event.preventDefault();
@@ -5284,10 +6258,15 @@ canvas.addEventListener('pointerup', (event) => {
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     return;
   }
-  const questTrackerConsumed = questTracker.pointerUp({ x, y });
-  const chatConsumed = chatOverlay.pointerUp();
-  const consumed = overworldUi.pointerUp({ x, y }, event.button, { shift: event.shiftKey });
+  // Release Canvas ownership before a Canvas UI control focuses its native
+  // text input. Mobile Safari otherwise may discard the just-opened keyboard
+  // when it completes this captured pointer gesture.
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  const questTrackerConsumed = questTracker.pointerUp({ x, y });
+  let chatConsumed = false;
+  if (chatInteractionBlocked()) chatOverlay.pointerCancel();
+  else chatConsumed = chatOverlay.pointerUp();
+  const consumed = overworldUi.pointerUp({ x, y }, event.button, { shift: event.shiftKey });
   if (questTrackerConsumed || chatConsumed || consumed) event.preventDefault();
 });
 canvas.addEventListener('pointercancel', () => {
@@ -5303,6 +6282,10 @@ canvas.addEventListener('pointercancel', () => {
 canvas.addEventListener('wheel', (event) => {
   const [x, y] = pointerUiPosition(event);
   if (!interfaceHidden) {
+    if (overworldUi.blockingUpdatePromptVisible) {
+      event.preventDefault();
+      return;
+    }
     if (characterNamePrompt.isActive) {
       event.preventDefault();
       return;
@@ -5319,7 +6302,7 @@ canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
       return;
     }
-    if (chatOverlay.wheel({ x, y }, event.deltaY)) {
+    if (!chatInteractionBlocked() && chatOverlay.wheel({ x, y }, event.deltaY)) {
       event.preventDefault();
       return;
     }
@@ -5371,14 +6354,61 @@ Object.assign(window, {
     dropSelected: () => network.dropSelected(),
     selectHotbar: (selectedSlot: number) => network.selectHotbar(selectedSlot),
     setCollisionDebug,
+    setLightingModel,
     setMetricsDebug: (enabled: boolean) => { debugMetrics = enabled; },
     setEntitiesHidden: (hidden: boolean) => { debugEntitiesHidden = hidden; },
+    benchmarkScenario: async (id: RenderBenchmarkScenarioId) => {
+      const { renderBenchmarkScenario } = await import('./render/render-benchmark-scenarios.js');
+      return renderBenchmarkScenario(id);
+    },
     renderMetrics: () => renderMetrics.snapshot(),
+    diagnostics: () => ({
+      schemaVersion: 1,
+      rendering: renderMetrics.snapshot(),
+      lighting: {
+        model: lightingModel,
+        effectsDisabled: lightingEffectsDisabled,
+        averageMs: lightmap.averageMs,
+        floodMs: lightmap.floodMs,
+        fieldRebuilds: lightmap.fieldRebuilds,
+        floodTexelsVisited: lightmap.floodTexelsVisited,
+        occlusionRebuilds: lightmap.occlusionRebuilds,
+        occlusionCacheHits: lightmap.occlusionCacheHits,
+        boundsResizeMs: lightmap.boundsResizeMs,
+        rasterizeMs: lightmap.rasterizeMs,
+        mergeMs: lightmap.mergeMs,
+        uploadMs: lightmap.uploadMs,
+        receiverMs: lightmap.receiverMs,
+        compositeMs: lightmap.compositeMs,
+      },
+      display: {
+        dpr: renderer.dpr,
+        cssWidth: renderer.cssWidth,
+        cssHeight: renderer.cssHeight,
+        worldZoom,
+        uiScale: currentUiScale(),
+      },
+      world: {
+        spaceId: activeSpaceDefinition.spaceId,
+        lightCount: latestLightCount,
+        particleCount: rain.activeCount,
+        residentGroundChunks: groundCache.residentCount,
+      },
+    }),
     lightmapMetrics: () => ({
       averageMs: lightmap.averageMs,
       floodMs: lightmap.floodMs,
       fieldRebuilds: lightmap.fieldRebuilds,
       floodTexelsVisited: lightmap.floodTexelsVisited,
+      occlusionRebuilds: lightmap.occlusionRebuilds,
+      occlusionCacheHits: lightmap.occlusionCacheHits,
+      boundsResizeMs: lightmap.boundsResizeMs,
+      rasterizeMs: lightmap.rasterizeMs,
+      mergeMs: lightmap.mergeMs,
+      uploadMs: lightmap.uploadMs,
+      receiverMs: lightmap.receiverMs,
+      compositeMs: lightmap.compositeMs,
+      model: lightingModel,
     }),
     netcodeMetrics: () => network.metrics(),
     audioStatus: () => audio.getStatus(),
@@ -5398,7 +6428,7 @@ Object.assign(window, {
     setInterfaceHidden,
     interfaceHidden: () => interfaceHidden,
     openChat: () => chatOverlay.handleGlobalKeyDown(new KeyboardEvent('keydown', { key: 'Enter' })),
-    openWindow: (window: 'inventory' | 'pack' | 'crafting' | 'barrel' | 'furnace' | 'system' | 'settings' | null) => { overworldUi.openWindow = window; },
+    openWindow: (window: 'inventory' | 'pack' | 'crafting' | 'barrel' | 'furnace' | 'cooking' | 'system' | 'settings' | null) => { overworldUi.openWindow = window; },
     uiWindow: () => overworldUi.openWindow,
   },
 });

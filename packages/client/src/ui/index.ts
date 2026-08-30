@@ -8,6 +8,7 @@ export * from './container-binding.js';
 export * from './compositions.js';
 export * from './skin.js';
 export * from './slider.js';
+export * from './selector.js';
 export * from './button.js';
 export * from './ribbon.js';
 export * from './player-resource-frame.js';

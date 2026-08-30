@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ContainerSnapshot } from '@orchard/sim';
 import {
+  layoutUiInventoryGroup,
   UiInventoryInteractionModel,
   uiInventorySelectorRect,
   uiInventorySlotTone,
@@ -26,6 +27,64 @@ function fixtures(): Readonly<Record<string, ContainerSnapshot>> {
 }
 
 describe('design-system inventory interaction model', () => {
+  it('packs fixed-size inventory slots densely instead of distributing spare space', () => {
+    const layout = layoutUiInventoryGroup(
+      { x: 10, y: 20, width: 200, height: 100 },
+      8,
+      { columns: 4, slotSize: { width: 28, height: 31 }, gap: 2 },
+    );
+
+    expect(layout.content).toEqual({ x: 10, y: 20, width: 118, height: 64 });
+    expect(layout.slots).toEqual([
+      { x: 10, y: 20, width: 28, height: 31 },
+      { x: 40, y: 20, width: 28, height: 31 },
+      { x: 70, y: 20, width: 28, height: 31 },
+      { x: 100, y: 20, width: 28, height: 31 },
+      { x: 10, y: 53, width: 28, height: 31 },
+      { x: 40, y: 53, width: 28, height: 31 },
+      { x: 70, y: 53, width: 28, height: 31 },
+      { x: 100, y: 53, width: 28, height: 31 },
+    ]);
+  });
+
+  it('wraps a group responsively without shrinking slots and supports axis gaps', () => {
+    const layout = layoutUiInventoryGroup(
+      { x: 0, y: 0, width: 91, height: 200 },
+      5,
+      {
+        columns: 4,
+        slotSize: { width: 28, height: 31 },
+        columnGap: 3,
+        rowGap: 5,
+      },
+    );
+
+    expect(layout.columns).toBe(3);
+    expect(layout.rows).toBe(2);
+    expect(layout.content).toEqual({ x: 0, y: 0, width: 90, height: 67 });
+    expect(new Set(layout.slots.map((slot) => `${slot.width}x${slot.height}`)))
+      .toEqual(new Set(['28x31']));
+    expect(layout.slots[3]).toEqual({ x: 0, y: 36, width: 28, height: 31 });
+  });
+
+  it('aligns the packed cluster inside its group without changing slot gaps', () => {
+    const layout = layoutUiInventoryGroup(
+      { x: 10, y: 20, width: 200, height: 100 },
+      8,
+      {
+        columns: 4,
+        slotSize: { width: 28, height: 31 },
+        gap: 2,
+        horizontalAlign: 'center',
+        verticalAlign: 'end',
+      },
+    );
+
+    expect(layout.content).toEqual({ x: 51, y: 56, width: 118, height: 64 });
+    expect(layout.slots[1]!.x - layout.slots[0]!.x).toBe(30);
+    expect(layout.slots[4]!.y - layout.slots[0]!.y).toBe(33);
+  });
+
   it('maps quality to authored slot tones and lets quest ownership override it', () => {
     expect(uiInventorySlotTone('wood')).toBe('common');
     expect(uiInventorySlotTone('axe')).toBe('uncommon');

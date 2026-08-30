@@ -21,6 +21,11 @@ is valid only in a space profile explicitly declaring danger. The one sanctioned
 surface exception is the non-hostile archery practice fixture in §3.1: it can receive
 damage but cannot attack, die, drop rewards, damage scenery, or cause knockout.
 
+[45](45-repeatable-loop-hunger-hunting-cooking.md) adds a later, narrow surface
+exception: designated food animals may receive sword/bow damage, drop raw food,
+and award Combat XP. It does not add hostile spawns, PvP, player damage, or
+damage to protected wildlife and talking NPCs.
+
 ## 1. Principles (binding)
 
 1. **Combat is opt-in danger, never ambient dread.** Hostiles exist only in
@@ -34,9 +39,9 @@ damage but cannot attack, die, drop rewards, damage scenery, or cause knockout.
    owner's target-of-one-species: hostiles. (The projectile sweep already
    detects players — that stays for knockback-free "thunk" feedback only.
    Consensual duels are a later hook.)
-4. **Wildlife is not targetable in v1.** Attacks pass through doc 29 fauna;
-   hunting is a real design question (drops, ranching interplay) deferred to
-   its own decision rather than half-shipped here.
+4. **Only food wildlife is targetable.** Cow, sheep, pig, chicken, rooster,
+   duck, and goose are huntable under doc 45. Attacks pass through every other
+   doc 29 species.
 5. **The netcode split holds**: swing/draw animations and SFX predict
    client-side; every hit, health change, and death is an authoritative row
    change. Damage numbers are client particles derived from row deltas;

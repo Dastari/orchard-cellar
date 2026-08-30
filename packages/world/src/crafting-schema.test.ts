@@ -49,7 +49,7 @@ describe('28§14 phase 3 authority contracts', () => {
     const hands = reducerSource('useHands');
     for (const kind of PLACEABLE_KINDS) expect(placeableDefinition(kind), kind).not.toBeNull();
     expect(hands).toContain("selectedDefinition?.tags.includes('item.placeable')");
-    expect(hands).toContain('world_placeable.insert');
+    expect(hands).toContain('insertWorldPlaceable(ctx, position, selected.itemKind, tileX, tileY)');
     expect(hands).toContain('world_placeable.id.delete');
     expect(hands).toContain("throw new SenderError('placeable_not_empty')");
     expect(source).toContain('world_placeable.by_chunk.filter(position.spaceId)');
@@ -72,12 +72,20 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(reducerSource('useFarmTool')).toContain("itemKind: 'fiber'");
   });
 
-  it('keeps barrel and furnace open, close, and item moves authority-owned', () => {
+  it('keeps tagged processor interfaces, close, and item moves authority-owned', () => {
     const interact = reducerSource('interactPlaceable');
-    expect(interact).toContain("placeable.kind !== 'barrel'");
-    expect(interact).toContain("placeable.kind !== 'furnace'");
+    expect(interact).toContain('placeableInterface(placeable.kind)');
+    expect(interact).toContain("interfaceKind === 'barrel'");
+    expect(interact).toContain("interfaceKind === 'furnace'");
+    expect(interact).toContain("interfaceKind === 'cooking'");
+    expect(interact).toContain("interfaceKind === 'press'");
+    expect(interact).toContain("interfaceKind === 'fermentation'");
     expect(source).toContain('settleFurnacePlaceable(ctx, placeable)');
     expect(source).toContain('furnaceMutationIsValid(');
+    expect(source).toContain('cellarProcessorMutationIsValid(');
+    expect(source).toContain('settleCellarProductionPlaceable(ctx, placeable)');
+    expect(source).toContain('placeableSlotCapacity(placeable.kind)');
+    expect(source).toContain('ctx.db.world_placeable_slot.insert({');
     expect(interact).toContain('active_placeable.insert');
     expect(reducerSource('closePlaceable')).toContain('clearActivePlaceable(ctx, ctx.sender)');
     expect(source).toContain('ctx.db.active_placeable.identity.delete(identity)');
@@ -85,6 +93,18 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(move).toContain("id === 'placeable'");
     expect(move).toContain('moveItemStacks(menu.containers, request)');
     expect(move).toContain('writeOpenMenuInventory(ctx, menu, moved.containers)');
+  });
+
+  it('keeps first-bottle processors additive, lazy-settled, and capability-driven', () => {
+    const placeable = source.slice(source.indexOf('const world_placeable = table('), source.indexOf('const world_placeable_slot = table('));
+    expect(placeable).toContain('processStartTick: t.option(t.u64()).default(undefined)');
+    expect(placeable).toContain('processStartedBy: t.option(t.identity()).default(undefined)');
+    expect(placeable).toContain('processInputKind: t.option(t.string()).default(undefined)');
+    expect(source).toContain("placeableHasInterface(placeable.kind, 'press')");
+    expect(source).toContain("placeableHasInterface(placeable.kind, 'fermentation')");
+    expect(source).toContain("'fruit_pressed'");
+    expect(source).toContain("'bottles_produced'");
+    expect(source).not.toContain('scheduled_cellar_processor');
   });
 
   it('salvages chest recipe inputs rather than duplicating the intact crafted object', () => {
@@ -101,10 +121,10 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(interact).not.toContain('facingTile(');
   });
 
-  it('keeps placed anvils and furnaces out of inventory and repairs anvils atomically for copper', () => {
+  it('keeps placed anvils and tagged furnaces out of inventory and repairs anvils atomically for copper', () => {
     const hands = reducerSource('useHands');
-    expect(hands).toContain("targetPlaceable.kind === 'anvil' || targetPlaceable.kind === 'furnace'");
-    expect(hands).toContain("targetPlaceable.kind !== 'furnace'");
+    expect(hands).toContain("targetPlaceable.kind === 'anvil' || placeableHasInterface(targetPlaceable.kind, 'furnace')");
+    expect(hands).toContain("!placeableHasInterface(targetPlaceable.kind, 'furnace')");
     expect(hands).toContain('carriedPlaceableFor(ctx, ctx.sender)');
     expect(hands).toContain('carriedBy: ctx.sender');
     expect(hands).toContain('carriedBy: undefined');

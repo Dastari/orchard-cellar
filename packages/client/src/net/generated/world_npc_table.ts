@@ -28,4 +28,9 @@ export default __t.row({
   authorityTick: __t.u64().name("authority_tick"),
   health: __t.u16(),
   spaceId: __t.u16().name("space_id"),
+  lastHitCritical: __t.bool().name("last_hit_critical"),
+  panicUntilTick: __t.option(__t.u64()).name("panic_until_tick"),
+  panicSource: __t.option(__t.identity()).name("panic_source"),
+  panicSourceX: __t.i32().name("panic_source_x"),
+  panicSourceY: __t.i32().name("panic_source_y"),
 });

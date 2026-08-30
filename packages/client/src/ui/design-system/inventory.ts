@@ -17,7 +17,7 @@ import {
 } from '@orchard/sim';
 import type { LoadedAsset } from '../../render/assets.js';
 import { drawOutlinedPixelText, type PixelUi } from '../../render/pixel-ui.js';
-import type { UiRect } from '../geometry.js';
+import type { UiRect, UiSize } from '../geometry.js';
 import { snapRectForContext } from '../nine-slice.js';
 import {
   drawUiSkinAsset,
@@ -33,6 +33,126 @@ export interface UiInventorySlotRef {
 export interface UiInventoryGestureOptions {
   readonly shift?: boolean;
   readonly double?: boolean;
+}
+
+export type UiInventoryGroupAlignment = 'start' | 'center' | 'end';
+
+/**
+ * Dense, CSS-flex-like flow rules for one logical inventory group. Slots keep
+ * their authored size; the group's bounds only control wrapping and alignment.
+ */
+export interface UiInventoryGroupOptions {
+  readonly slotSize: UiSize;
+  /** Maximum slots per row. Omit to derive the count from the available width. */
+  readonly columns?: number;
+  /** Reflow below `columns` when the group becomes narrow. Defaults to true. */
+  readonly wrap?: boolean;
+  /** Shorthand used by both axes unless an axis-specific gap overrides it. */
+  readonly gap?: number;
+  readonly columnGap?: number;
+  readonly rowGap?: number;
+  readonly horizontalAlign?: UiInventoryGroupAlignment;
+  readonly verticalAlign?: UiInventoryGroupAlignment;
+}
+
+export interface UiInventoryGroupLayout {
+  readonly bounds: UiRect;
+  /** Tight bounds around the packed slots, useful when sizing a parent frame. */
+  readonly content: UiRect;
+  readonly columns: number;
+  readonly rows: number;
+  readonly slots: readonly UiRect[];
+}
+
+function finiteWhole(value: number, minimum: number): number {
+  if (!Number.isFinite(value)) return minimum;
+  return Math.max(minimum, Math.round(value));
+}
+
+function inventoryGroupOffset(
+  available: number,
+  occupied: number,
+  alignment: UiInventoryGroupAlignment,
+): number {
+  const remainder = Math.max(0, available - occupied);
+  if (alignment === 'end') return remainder;
+  if (alignment === 'center') return Math.round(remainder / 2);
+  return 0;
+}
+
+/**
+ * Packs fixed-size slots left-to-right and then top-to-bottom. Extra space
+ * remains around the group instead of being distributed between its slots.
+ */
+export function layoutUiInventoryGroup(
+  bounds: UiRect,
+  slotCount: number,
+  options: UiInventoryGroupOptions,
+): UiInventoryGroupLayout {
+  const count = finiteWhole(slotCount, 0);
+  const safeBounds = {
+    x: Math.round(bounds.x),
+    y: Math.round(bounds.y),
+    width: finiteWhole(bounds.width, 0),
+    height: finiteWhole(bounds.height, 0),
+  };
+  const slotSize = {
+    width: finiteWhole(options.slotSize.width, 1),
+    height: finiteWhole(options.slotSize.height, 1),
+  };
+  const gap = finiteWhole(options.gap ?? 0, 0);
+  const columnGap = finiteWhole(options.columnGap ?? gap, 0);
+  const rowGap = finiteWhole(options.rowGap ?? gap, 0);
+
+  if (count === 0) {
+    return {
+      bounds: safeBounds,
+      content: { x: safeBounds.x, y: safeBounds.y, width: 0, height: 0 },
+      columns: 0,
+      rows: 0,
+      slots: [],
+    };
+  }
+
+  const fittingColumns = Math.max(
+    1,
+    Math.floor((safeBounds.width + columnGap) / (slotSize.width + columnGap)),
+  );
+  const requestedColumns = options.columns === undefined
+    ? fittingColumns
+    : finiteWhole(options.columns, 1);
+  const columns = Math.min(
+    count,
+    options.wrap === false ? requestedColumns : Math.min(requestedColumns, fittingColumns),
+  );
+  const rows = Math.ceil(count / columns);
+  const occupiedColumns = Math.min(columns, count);
+  const contentWidth = occupiedColumns * slotSize.width + Math.max(0, occupiedColumns - 1) * columnGap;
+  const contentHeight = rows * slotSize.height + Math.max(0, rows - 1) * rowGap;
+  const content = {
+    x: safeBounds.x + inventoryGroupOffset(
+      safeBounds.width,
+      contentWidth,
+      options.horizontalAlign ?? 'start',
+    ),
+    y: safeBounds.y + inventoryGroupOffset(
+      safeBounds.height,
+      contentHeight,
+      options.verticalAlign ?? 'start',
+    ),
+    width: contentWidth,
+    height: contentHeight,
+  };
+  const slots = Array.from({ length: count }, (_, index): UiRect => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    return {
+      x: content.x + column * (slotSize.width + columnGap),
+      y: content.y + row * (slotSize.height + rowGap),
+      ...slotSize,
+    };
+  });
+  return { bounds: safeBounds, content, columns, rows, slots };
 }
 
 export interface UiInventoryAction {

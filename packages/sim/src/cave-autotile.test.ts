@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CAVE_RAISED_CLIFF_TILE_SET,
   caveProjectedRowsPerLevel,
   caveTerrainPlaneCollisionBytes,
 } from './cave-autotile.js';
+import { resolveRaisedTerrainContoursAt } from './raised-terrain-autotile.js';
 
 describe('cave elevation-plane collision', () => {
   it('never turns unexcavated rock into an open lower-plane cell', () => {
@@ -36,7 +38,7 @@ describe('cave elevation-plane collision', () => {
     expect(blocked[3 * width + 4]).toBe(1);
   });
 
-  it('projects both physical south-wall courses into the lower excavation', () => {
+  it('leaves projected south-wall artwork open on the cellar floor plane', () => {
     const width = 7;
     const height = 7;
     const stride = width * height;
@@ -47,8 +49,59 @@ describe('cave elevation-plane collision', () => {
     const blocked = caveTerrainPlaneCollisionBytes(elevations, width, height);
     expect(caveProjectedRowsPerLevel()).toBe(2);
     expect(blocked[2 * width + 3]).toBe(1);
-    expect(blocked[3 * width + 3]).toBe(1);
-    expect(blocked[4 * width + 3]).toBe(1);
+    expect(blocked[3 * width + 3]).toBe(0);
+    expect(blocked[4 * width + 3]).toBe(0);
     expect(blocked[5 * width + 3]).toBe(0);
+  });
+
+  it('keeps a one-tile lateral excavation open instead of projecting a north wall into it', () => {
+    const width = 7;
+    const height = 7;
+    const elevations = new Uint8Array(width * height).fill(1);
+    for (let tileY = 1; tileY < height - 1; tileY += 1) {
+      for (let tileX = 2; tileX < width - 1; tileX += 1) elevations[tileY * width + tileX] = 0;
+    }
+    const breachX = 1;
+    const breachY = 3;
+    elevations[breachY * width + breachX] = 0;
+    const elevationAt = (tileX: number, tileY: number): number => (
+      tileX < 0 || tileY < 0 || tileX >= width || tileY >= height
+        ? 1
+        : elevations[tileY * width + tileX] ?? 1
+    );
+    const breachPlan = resolveRaisedTerrainContoursAt(
+      elevationAt,
+      1,
+      CAVE_RAISED_CLIFF_TILE_SET,
+      'tall',
+      breachX,
+      breachY,
+    )[0]?.plan;
+    const blocked = caveTerrainPlaneCollisionBytes(elevations, width, height);
+    expect(breachPlan?.faceLayers.some((face) => face.direct)).not.toBe(true);
+    expect(blocked[breachY * width + breachX]).toBe(0);
+    expect(blocked[breachY * width]).toBe(1);
+  });
+
+  it('rebuilds both wall courses behind a two-row northward excavation', () => {
+    const width = 7;
+    const height = 8;
+    const elevations = new Uint8Array(width * height).fill(1);
+    for (let tileY = 3; tileY < height - 1; tileY += 1) {
+      for (let tileX = 1; tileX < width - 1; tileX += 1) elevations[tileY * width + tileX] = 0;
+    }
+    const elevationAt = (tileX: number, tileY: number): number => (
+      tileX < 0 || tileY < 0 || tileX >= width || tileY >= height
+        ? 1
+        : elevations[tileY * width + tileX] ?? 1
+    );
+    const wallRow = resolveRaisedTerrainContoursAt(
+      elevationAt, 1, CAVE_RAISED_CLIFF_TILE_SET, 'tall', 3, 3,
+    )[0]?.plan.faceLayers.find((face) => face.direct);
+    const lowerRow = resolveRaisedTerrainContoursAt(
+      elevationAt, 1, CAVE_RAISED_CLIFF_TILE_SET, 'tall', 3, 4,
+    )[0]?.plan.faceLayers.find((face) => face.direct);
+    expect(wallRow?.rowId).toBe('wall');
+    expect(lowerRow?.rowId).toBe('lower_wall');
   });
 });

@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_topaz_gem",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".........33.....",
+        ".......33003....",
+        ".....33005503...",
+        "...33005544503..",
+        ".33005544224503.",
+        "3005544244224503",
+        "3055442222224503",
+        "3015544222455103",
+        "3011554445521103",
+        "3012155552111003",
+        ".30224522110033.",
+        "..30445210033...",
+        "...30450033.....",
+        "....30033.......",
+        ".....33........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#c64524",
+    "2": "#ed7614",
+    "3": "#f9e6cf",
+    "4": "#ffa214",
+    "5": "#ffeb57"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Ores.png",
+  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourceRegions": {
+    "base": [
+      [
+        112,
+        80,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.resource",
+    "material.gem",
+    "item.refined",
+    "gem.topaz"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

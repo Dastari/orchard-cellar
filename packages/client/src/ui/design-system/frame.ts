@@ -4,7 +4,13 @@ import { containsPoint, insetRect, type UiInsets, type UiPoint, type UiRect, typ
 import { drawNineSlice } from '../nine-slice.js';
 import { drawUiSkinAsset, uiAssetFrame, type UiSkin } from '../skin.js';
 import { drawFantasyButton } from './fantasy-controls.js';
-import { layoutUiFlex, type UiFlexDirection, type UiFlexItem, type UiItemAlignment } from './layout.js';
+import {
+  layoutUiAnchoredRect,
+  layoutUiFlex,
+  type UiFlexDirection,
+  type UiFlexItem,
+  type UiItemAlignment,
+} from './layout.js';
 
 export type UiFrameStyle = 'wood' | 'parchment' | 'wood_parchment' | 'thin' | 'book' | 'unframed';
 export type UiResizeCorner = 'north_west' | 'north_east' | 'south_west' | 'south_east';
@@ -82,9 +88,12 @@ export interface DrawUiFrameControlsOptions {
   readonly bookNavigation?: boolean;
   readonly spreadIndex?: number;
   readonly spreadCount?: number;
+  readonly closeHovered?: boolean;
 }
 
-const CLOSE_BUTTON_SIZE = { width: 24, height: 16 } as const;
+/** Natural square face used by the composable `cross` glyph. Keeping this
+ * public lets content layouts reserve the same header lane as the renderer. */
+export const UI_FRAME_CLOSE_SIZE = { width: 22, height: 22 } as const;
 
 /** Each leaf's ornamental corner work reaches beyond the writable 14px inset.
  * Keeping a 24px authored corner means only undecorated edge and page-face
@@ -92,29 +101,20 @@ const CLOSE_BUTTON_SIZE = { width: 24, height: 16 } as const;
 export const UI_BOOK_PAGE_REPEAT_SLICE = [24, 24, 24, 24] as const;
 
 /** One close action is reused everywhere for recognition and accessibility.
- * Each frame style only changes its mount point so the control sits on chrome,
- * never in the writable content rectangle. */
+ * It always begins at the top-left of the frame's writable safe area. This is
+ * stable across frame skins and resizing, and leaves the decorative chrome
+ * untouched. Window compositions reserve the remainder of this header lane. */
 export function uiFrameControlLayout(
   frame: UiRect,
   style: UiFrameStyle,
   bookNavigation = style === 'book',
 ): UiFrameControlLayout {
-  const mount = style === 'wood'
-    ? { right: 5, top: 2 }
-    : style === 'parchment'
-      ? { right: 3, top: -6 }
-      : style === 'wood_parchment'
-        ? { right: 6, top: 4 }
-        : style === 'thin'
-          ? { right: 1, top: -8 }
-          : style === 'book'
-            ? { right: 4, top: -5 }
-            : { right: 0, top: -20 };
-  const close = {
-    x: frame.x + frame.width - CLOSE_BUTTON_SIZE.width - mount.right,
-    y: frame.y + mount.top,
-    ...CLOSE_BUTTON_SIZE,
-  };
+  const safeArea = uiFrameContentRect(frame, style);
+  const close = layoutUiAnchoredRect(safeArea, UI_FRAME_CLOSE_SIZE, {
+    targetAnchor: 'top_left',
+    selfAnchor: 'top_left',
+    constrainTo: safeArea,
+  });
   if (!bookNavigation || style !== 'book') return { close };
   const buttonWidth = 24;
   const buttonHeight = 16;
@@ -140,7 +140,9 @@ export function drawUiFrameControls(
 ): UiFrameControlLayout {
   const layout = uiFrameControlLayout(frame, style, options.bookNavigation);
   drawFantasyButton(context, skin, fonts, layout.close, {
-    tone: 'red', shape: 'chamfered', size: 'wide', glyph: 'cross',
+    tone: 'peach', shape: 'square', size: 'small', glyph: 'cross',
+    hovered: options.closeHovered,
+    hoverOutline: 'gold',
   });
   if (layout.firstPage === undefined || layout.previousPage === undefined
     || layout.nextPage === undefined || layout.lastPage === undefined) return layout;
@@ -189,6 +191,26 @@ export function uiFrameContentRect(
     right: metrics.chromeInsets.right + extra.right,
     bottom: metrics.chromeInsets.bottom + extra.bottom,
   });
+}
+
+/** Writable body below the shared top-left close-control lane. Use this for a
+ * closable window's normal flow; use `uiFrameContentRect` for decorative or
+ * non-dismissible frames that do not own window controls. */
+export function uiFrameBodyRect(
+  frame: UiRect,
+  style: UiFrameStyle,
+  padding: number | Partial<UiInsets> = UI_FRAME_METRICS[style].defaultPadding,
+  controlGap = 4,
+): UiRect {
+  const content = uiFrameContentRect(frame, style, padding);
+  const close = uiFrameControlLayout(frame, style, false).close;
+  const bodyY = Math.max(content.y, close.y + close.height + Math.max(0, controlGap));
+  return {
+    x: content.x,
+    y: bodyY,
+    width: content.width,
+    height: Math.max(0, content.y + content.height - bodyY),
+  };
 }
 
 /** The open-book sprite has a non-writable gutter; callers receive two page slots. */
