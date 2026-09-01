@@ -14,4 +14,5 @@ export default __t.row({
   id: __t.u8().primaryKey(),
   calendarTick: __t.u64().name("calendar_tick"),
   weatherMode: __t.string().name("weather_mode"),
+  cropCalendarOffset: __t.option(__t.i64()).name("crop_calendar_offset"),
 });

@@ -806,6 +806,7 @@ export const WorldEnvironment = __t.object("WorldEnvironment", {
   id: __t.u8(),
   calendarTick: __t.u64(),
   weatherMode: __t.string(),
+  cropCalendarOffset: __t.option(__t.i64()),
 });
 export type WorldEnvironment = __Infer<typeof WorldEnvironment>;
 
@@ -1064,4 +1065,3 @@ export const WorldWind = __t.object("WorldWind", {
   direction: __t.string(),
 });
 export type WorldWind = __Infer<typeof WorldWind>;
-

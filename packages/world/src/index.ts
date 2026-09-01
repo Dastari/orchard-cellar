@@ -1171,6 +1171,9 @@ const world_environment = table(
     id: t.u8().primaryKey(),
     calendarTick: t.u64(),
     weatherMode: t.string(),
+    /** Additive T6 migration. Undefined rows derive this once from the legacy
+     * calendarTick; signed offsets preserve owner-selected earlier dates. */
+    cropCalendarOffset: t.option(t.i64()).default(undefined),
   },
 );
 
@@ -2649,7 +2652,13 @@ function cropGreenhouseProtected(ctx: WorldReducerContext, spaceId: number): boo
 
 function cropCalendarOffset(ctx: WorldReducerContext): bigint {
   const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
-  return (ctx.db.world_environment.id.find(0)?.calendarTick ?? authorityTick) - authorityTick;
+  const environment = ctx.db.world_environment.id.find(0);
+  return environment?.cropCalendarOffset
+    ?? (environment?.calendarTick ?? authorityTick) - authorityTick;
+}
+
+function cropCalendarTick(ctx: WorldReducerContext): bigint {
+  return (ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n) + cropCalendarOffset(ctx);
 }
 
 function worldSoilId(spaceId: number, tileX: number, tileY: number): string {
@@ -4219,15 +4228,7 @@ function writeOpenMenuInventory(
     settleBarrelPlaceable(ctx, ctx.db.world_placeable.id.find(menu.placeable.placeable.id) ?? menu.placeable.placeable);
     settleCellarProductionPlaceable(ctx, ctx.db.world_placeable.id.find(menu.placeable.placeable.id) ?? menu.placeable.placeable);
   }
-  const survival = ctx.db.player_survival.identity.find(ctx.sender);
-  const position = ctx.db.player_position.identity.find(ctx.sender);
-  if (survival !== null && position !== null) {
-    const selected = containers.hotbar!.slots[survival.selectedSlot];
-    ctx.db.player_position.identity.update({
-      ...position, equippedKind: selected?.itemKind ?? 'empty',
-      equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit),
-    });
-  }
+  updateEquippedForIdentity(ctx, ctx.sender, containers);
 }
 
 function stashOverflow(
@@ -4294,15 +4295,7 @@ function drainPlayerOverflow(ctx: WorldReducerContext, identity: WorldReducerCon
     });
   }
   writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, containers);
-  const survival = ctx.db.player_survival.identity.find(identity);
-  const position = ctx.db.player_position.identity.find(identity);
-  if (survival !== null && position !== null) {
-    const selected = containers.hotbar?.slots[survival.selectedSlot];
-    if (position.equippedKind !== (selected?.itemKind ?? 'empty')
-      || position.equippedLit !== storedLit(selected?.itemKind ?? 'empty', selected?.lit)) {
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
-  }
+  updateEquippedForIdentity(ctx, identity, containers);
   const remainsBlocked = firstIndexRow(ctx.db.inventory_overflow.by_identity.filter(identity)) !== null;
   const retry = ctx.db.inventory_overflow_retry.identity.find(identity);
   if (remainsBlocked && retry === null) ctx.db.inventory_overflow_retry.insert({ identity });
@@ -5237,7 +5230,9 @@ function ensureMarlowCookingFire(ctx: WorldReducerContext): void {
 
 export const init = spacetimedb.init((ctx) => {
   ctx.db.world_clock.insert({ id: 0, authorityTick: 0n });
-  ctx.db.world_environment.insert({ id: 0, calendarTick: 0n, weatherMode: 'auto' });
+  ctx.db.world_environment.insert({
+    id: 0, calendarTick: 0n, weatherMode: 'auto', cropCalendarOffset: 0n,
+  });
   ctx.db.world_campfire_state.insert({
     id: MARLOW_CAMPFIRE_ID,
     tileX: MARLOW_CAMPFIRE_TILE.tileX,
@@ -5429,7 +5424,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       tileX: MARLOW_CAMPFIRE_TILE.tileX,
       tileY: MARLOW_CAMPFIRE_TILE.tileY,
       spaceId: TOPSIDE_SPACE_ID,
-      lit: marlowCampfireShouldBeLit(ctx.db.world_environment.id.find(0)?.calendarTick ?? 0n),
+      lit: marlowCampfireShouldBeLit(cropCalendarTick(ctx)),
       manualOverride: false,
       automatedByNpc: TOOL_MERCHANT_ID,
     });
@@ -5813,13 +5808,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     ctx.db.farm_activity.insert({ identity: ctx.sender, planted: 0, watered: 0, harvested: 0 });
   }
   drainPlayerOverflow(ctx, ctx.sender);
-  const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-  const equippedItem = selected?.itemKind ?? 'empty';
-  const position = ctx.db.player_position.identity.find(ctx.sender);
-  if (position !== null && (position.equippedKind !== equippedItem
-    || position.equippedLit !== storedLit(equippedItem, selected?.lit))) {
-      ctx.db.player_position.identity.update({ ...position, equippedKind: equippedItem, equippedLit: storedLit(equippedItem, selected?.lit) });
-  }
+  updateEquippedForIdentity(ctx, ctx.sender);
   const connectedProfile = ctx.db.player_public.identity.find(ctx.sender);
   ctx.db.connection_audit.insert({
     id: 0n,
@@ -6283,7 +6272,13 @@ export const setWorldTime = spacetimedb.reducer(
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (calendarTick > MAX_WORLD_CALENDAR_TICK) throw new SenderError('world_time_out_of_range');
     const environment = ctx.db.world_environment.id.find(0);
-    const next = { id: 0, calendarTick, weatherMode: environment?.weatherMode ?? 'auto' };
+    const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+    const next = {
+      id: 0,
+      calendarTick,
+      weatherMode: environment?.weatherMode ?? 'auto',
+      cropCalendarOffset: calendarTick - authorityTick,
+    };
     if (environment === null) ctx.db.world_environment.insert(next);
     else ctx.db.world_environment.id.update(next);
     ctx.db.world_admin_audit.insert({
@@ -6302,11 +6297,10 @@ export const setWorldWeather = spacetimedb.reducer(
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (!isWeatherMode(weatherMode)) throw new SenderError('invalid_weather_mode');
     const environment = ctx.db.world_environment.id.find(0);
-    const next = {
-      id: 0,
-      calendarTick: environment?.calendarTick ?? ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
-      weatherMode,
-    };
+    const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+    const next = environment === null
+      ? { id: 0, calendarTick: authorityTick, weatherMode, cropCalendarOffset: 0n }
+      : { ...environment, weatherMode };
     if (environment === null) ctx.db.world_environment.insert(next);
     else ctx.db.world_environment.id.update(next);
     ctx.db.world_admin_audit.insert({
@@ -7026,10 +7020,7 @@ export const selectHotbar = spacetimedb.reducer(
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     if (survival === null) throw new SenderError('player_not_ready');
     ctx.db.player_survival.identity.update({ ...survival, selectedSlot: slot });
-    const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${slot}`);
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    const equippedKind = selected?.itemKind ?? 'empty';
-    if (position !== null) ctx.db.player_position.identity.update({ ...position, equippedKind });
+    updateEquippedForIdentity(ctx, ctx.sender);
   },
 );
 
@@ -7093,6 +7084,7 @@ export const consumeOrchardTea = spacetimedb.reducer({}, (ctx) => {
     quantity: selected.quantity - 1,
     durability: 0,
   });
+  updateEquippedForIdentity(ctx, ctx.sender);
   // Re-resolve immediately so the +CON maximum clamps/rises consistently with
   // the effect row observed in the same transaction.
   advancePlayerStats(ctx, ctx.sender, clock.authorityTick);
@@ -7106,8 +7098,8 @@ export const readRecipeBook = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const survival = ctx.db.player_survival.identity.find(ctx.sender);
   const clock = ctx.db.world_clock.id.find(0);
-  const position = ctx.db.player_position.identity.find(ctx.sender);
-  if (survival === null || clock === null || position === null) throw new SenderError('player_not_ready');
+  if (survival === null || clock === null
+    || ctx.db.player_position.identity.find(ctx.sender) === null) throw new SenderError('player_not_ready');
   const identityHex = ctx.sender.toHexString();
   const selected = ctx.db.inventory_slot.id.find(`${identityHex}:${survival.selectedSlot}`);
   if (selected === null || selected.quantity === 0) throw new SenderError('wrong_item');
@@ -7133,11 +7125,7 @@ export const readRecipeBook = spacetimedb.reducer({}, (ctx) => {
     durability: nextQuantity === 0 ? 0 : selected.durability,
     lit: nextQuantity === 0 ? true : selected.lit,
   });
-  ctx.db.player_position.identity.update({
-    ...position,
-    equippedKind: nextQuantity === 0 ? 'empty' : selected.itemKind,
-    equippedLit: nextQuantity === 0 ? true : selected.lit,
-  });
+  updateEquippedForIdentity(ctx, ctx.sender);
   recordPlayerStatistic(ctx, ctx.sender, 'recipe_books_read', 1n, clock.authorityTick, selected.itemKind);
   recordPlayerStatistic(ctx, ctx.sender, 'recipes_learned', BigInt(newRecipeIds.length), clock.authorityTick);
 });
@@ -7396,12 +7384,7 @@ export const moveInventoryItem = spacetimedb.reducer(
       });
       }
     }
-    const survival = ctx.db.player_survival.identity.find(ctx.sender);
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (survival !== null && position !== null) {
-      const selected = result.containers.hotbar!.slots[survival.selectedSlot];
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
+    updateEquippedForIdentity(ctx, ctx.sender, result.containers);
   },
 );
 
@@ -7437,11 +7420,7 @@ export const quickMoveInventoryItem = spacetimedb.reducer(
       });
       }
     }
-    const survival = ctx.db.player_survival.identity.find(ctx.sender); const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (survival !== null && position !== null) {
-      const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
+    updateEquippedForIdentity(ctx, ctx.sender);
   },
 );
 
@@ -7456,12 +7435,7 @@ export const quickMoveAllInventoryItems = spacetimedb.reducer(
     const result = quickMoveAllMatchingStacks(inventory.containers, request);
     if (!result.ok) throw new SenderError(result.code);
     writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, result.containers);
-    const survival = ctx.db.player_survival.identity.find(ctx.sender);
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (survival !== null && position !== null) {
-      const selected = result.containers.hotbar!.slots[survival.selectedSlot];
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
+    updateEquippedForIdentity(ctx, ctx.sender, result.containers);
   },
 );
 
@@ -7504,11 +7478,7 @@ export const distributeInventoryItem = spacetimedb.reducer(
       });
       }
     }
-    const survival = ctx.db.player_survival.identity.find(ctx.sender); const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (survival !== null && position !== null) {
-      const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
+    updateEquippedForIdentity(ctx, ctx.sender);
   },
 );
 
@@ -7605,11 +7575,7 @@ export const craftInventoryRecipe = spacetimedb.reducer(
       });
       }
     }
-    const survival = ctx.db.player_survival.identity.find(ctx.sender); const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (survival !== null && position !== null) {
-      const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
+    updateEquippedForIdentity(ctx, ctx.sender);
     if (craftedItemKind !== null) {
       const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
       recordPlayerStatistic(ctx, ctx.sender, 'crafting_actions', BigInt(craftingActions), authorityTick);
@@ -7675,11 +7641,7 @@ export const closeCrafting = spacetimedb.reducer({}, (ctx) => {
     }
   }
   overflow.forEach((stack) => stashOverflow(ctx, ctx.sender, stack));
-  const survival = ctx.db.player_survival.identity.find(ctx.sender);
-  if (survival !== null) {
-    const selected = containers.hotbar?.slots[survival.selectedSlot];
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-  }
+  updateEquippedForIdentity(ctx, ctx.sender, containers);
 });
 
 function tileOverlapsAnyPlayer(
@@ -7806,15 +7768,7 @@ function removePlayerBuildItem(
     durability: quantity === 0 ? 0 : row.durability,
     lit: quantity === 0 ? true : row.lit,
   });
-  const survival = ctx.db.player_survival.identity.find(ctx.sender);
-  const position = ctx.db.player_position.identity.find(ctx.sender);
-  if (survival !== null && position !== null && row.slot === survival.selectedSlot) {
-    ctx.db.player_position.identity.update({
-      ...position,
-      equippedKind: quantity === 0 ? 'empty' : row.itemKind,
-      equippedLit: storedLit(quantity === 0 ? 'empty' : row.itemKind, row.lit),
-    });
-  }
+  updateEquippedForIdentity(ctx, ctx.sender);
 }
 
 function insertWorldPlaceable(
@@ -7900,6 +7854,7 @@ function removePlayerCarriedItem(
     if (nextQuantity === 0) ctx.db.inventory_cursor.identity.delete(ctx.sender);
     else ctx.db.inventory_cursor.identity.update({ ...cursor, quantity: nextQuantity });
   }
+  updateEquippedForIdentity(ctx, ctx.sender);
 }
 
 function placeableAtFacingTile(
@@ -7959,11 +7914,7 @@ export const useHands = spacetimedb.reducer(
         carriedBy: undefined,
         regenTick: ctx.db.world_clock.id.find(0)?.authorityTick ?? carriedTarget.regenTick,
       });
-      ctx.db.player_position.identity.update({
-        ...position,
-        equippedKind: selected?.itemKind ?? 'empty',
-        equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit),
-      });
+      updateEquippedForIdentity(ctx, ctx.sender);
       return;
     }
     if (carriedPlaceable !== null) {
@@ -7978,11 +7929,7 @@ export const useHands = spacetimedb.reducer(
         facing: position.facing,
         carriedBy: undefined,
       });
-      ctx.db.player_position.identity.update({
-        ...position,
-        equippedKind: selected?.itemKind ?? 'empty',
-        equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit),
-      });
+      updateEquippedForIdentity(ctx, ctx.sender);
       recordPlayerStatistic(
         ctx, ctx.sender, 'placeables_placed', 1n,
         ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
@@ -8029,7 +7976,7 @@ export const useHands = spacetimedb.reducer(
         toSpace: TOPSIDE_SPACE_ID, toTileX: tileX, toTileY: tileY + 2,
       });
       ctx.db.inventory_slot.id.update({ ...selected, itemKind: 'empty', quantity: 0, durability: 0 });
-      ctx.db.player_position.identity.update({ ...position, equippedKind: 'empty', equippedLit: true });
+      updateEquippedForIdentity(ctx, ctx.sender);
       return;
     }
     if (carried !== null) {
@@ -8039,7 +7986,7 @@ export const useHands = spacetimedb.reducer(
         chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES), chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
         carriedBy: undefined,
       });
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
+      updateEquippedForIdentity(ctx, ctx.sender);
       recordPlayerStatistic(
         ctx, ctx.sender, 'chests_placed', 1n,
         ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
@@ -8085,7 +8032,7 @@ export const useHands = spacetimedb.reducer(
         quantity: selected.quantity - 1,
         durability: selected.quantity === 1 ? 0 : selected.durability,
       });
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected.quantity === 1 ? 'empty' : 'chest', equippedLit: true });
+      updateEquippedForIdentity(ctx, ctx.sender);
       recordPlayerStatistic(
         ctx, ctx.sender, 'chests_placed', 1n,
         ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
@@ -8112,11 +8059,7 @@ export const useHands = spacetimedb.reducer(
         quantity: remaining,
         durability: remaining === 0 ? 0 : selected.durability,
       });
-      ctx.db.player_position.identity.update({
-        ...position,
-        equippedKind: remaining === 0 ? 'empty' : selected.itemKind,
-        equippedLit: storedLit(remaining === 0 ? 'empty' : selected.itemKind, selected.lit),
-      });
+      updateEquippedForIdentity(ctx, ctx.sender);
       recordPlayerStatistic(
         ctx, ctx.sender, 'placeables_placed', 1n,
         ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
@@ -8154,6 +8097,7 @@ export const useHands = spacetimedb.reducer(
         return;
       }
       if (!insertPlayerCarriedItem(ctx, targetPlaceable.kind, 1)) throw new SenderError('inventory_full');
+      updateEquippedForIdentity(ctx, ctx.sender);
       for (const slot of slots) ctx.db.world_placeable_slot.id.delete(slot.id);
       if (ctx.db.world_placeable_build.placeableId.find(targetPlaceable.id) !== null) {
         ctx.db.world_placeable_build.placeableId.delete(targetPlaceable.id);
@@ -8216,6 +8160,7 @@ export const useHands = spacetimedb.reducer(
       }
       for (const slot of slots) ctx.db.world_chest_slot.id.delete(slot.id);
       ctx.db.world_chest.id.delete(targetChest.id);
+      updateEquippedForIdentity(ctx, ctx.sender, inserted.containers);
       recordPlayerStatistic(
         ctx, ctx.sender, 'chests_picked_up', 1n,
         ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
@@ -9193,16 +9138,21 @@ function merchantCartLines(itemKinds: readonly string[], quantities: readonly nu
 function updateEquippedForIdentity(
   ctx: WorldReducerContext,
   identity: WorldReducerContext['sender'],
-  containers: Readonly<Record<string, ContainerSnapshot>>,
+  containers?: Readonly<Record<string, ContainerSnapshot>>,
 ): void {
   const survival = ctx.db.player_survival.identity.find(identity);
   const position = ctx.db.player_position.identity.find(identity);
   if (survival === null || position === null) return;
-  const selected = containers.hotbar?.slots[survival.selectedSlot];
+  const inventory = containers ?? loadPlayerInventory(ctx, identity).containers;
+  const selected = inventory.hotbar?.slots[survival.selectedSlot];
+  if (selected?.itemKind !== 'fishing_rod') cancelFishingCastFor(ctx, identity);
+  const equippedKind = selected?.itemKind ?? 'empty';
+  const equippedLit = storedLit(equippedKind, selected?.lit);
+  if (position.equippedKind === equippedKind && position.equippedLit === equippedLit) return;
   ctx.db.player_position.identity.update({
     ...position,
-    equippedKind: selected?.itemKind ?? 'empty',
-    equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit),
+    equippedKind,
+    equippedLit,
   });
 }
 
@@ -9460,11 +9410,7 @@ export const moveChestItem = spacetimedb.reducer(
         }
       }
     }
-    const survival = ctx.db.player_survival.identity.find(ctx.sender);
-    if (survival !== null) {
-      const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
+    updateEquippedForIdentity(ctx, ctx.sender);
   },
 );
 
@@ -9496,11 +9442,7 @@ export const quickMoveChestItem = spacetimedb.reducer(
         else { const row = rowBySlot.get(inventorySlotOffset(id) + index); if (row !== undefined) ctx.db.inventory_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
       }
     }
-    const survival = ctx.db.player_survival.identity.find(ctx.sender);
-    if (survival !== null) {
-      const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
+    updateEquippedForIdentity(ctx, ctx.sender);
   },
 );
 
@@ -9549,11 +9491,7 @@ export const quickMoveAllChestItems = spacetimedb.reducer(
         lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
       });
     }
-    const survival = ctx.db.player_survival.identity.find(ctx.sender);
-    if (survival !== null) {
-      const selected = result.containers.hotbar!.slots[survival.selectedSlot];
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
+    updateEquippedForIdentity(ctx, ctx.sender, result.containers);
   },
 );
 
@@ -9588,11 +9526,7 @@ export const distributeChestItem = spacetimedb.reducer(
         else { const row = rowBySlot.get(inventorySlotOffset(id) + index); if (row !== undefined) ctx.db.inventory_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
       }
     }
-    const survival = ctx.db.player_survival.identity.find(ctx.sender);
-    if (survival !== null) {
-      const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-      ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
-    }
+    updateEquippedForIdentity(ctx, ctx.sender);
   },
 );
 
@@ -11246,7 +11180,19 @@ export const stepWorld = spacetimedb.reducer(
         id: 0,
         calendarTick: clock.authorityTick,
         weatherMode: 'auto',
+        cropCalendarOffset: 0n,
       });
+    }
+    // T6 additive cutover: migrate the legacy derived calendar value exactly
+    // once, then leave calendarTick as a compatibility snapshot.
+    const calendarOffset = environment.cropCalendarOffset
+      ?? environment.calendarTick - clock.authorityTick;
+    if (environment.cropCalendarOffset === undefined) {
+      environment = ctx.db.world_environment.id.update({
+        ...environment,
+        cropCalendarOffset: calendarOffset,
+      });
+      recordTickRowTouch(updateCounters);
     }
     if (ctx.db.world_wind.id.find(0) === null) {
       ctx.db.world_wind.insert({ id: 0, direction: 'auto' });
@@ -11379,9 +11325,8 @@ export const stepWorld = spacetimedb.reducer(
       : [...ctx.db.connection_presence_v2.iter()];
     const authorityTick = clock.authorityTick + 1n;
     ctx.db.world_clock.id.update({ ...clock, authorityTick });
-    const calendarTick = environment.calendarTick + 1n;
-    ctx.db.world_environment.id.update({ ...environment, calendarTick });
-    recordTickRowTouch(updateCounters, undefined, 2);
+    const calendarTick = authorityTick + calendarOffset;
+    recordTickRowTouch(updateCounters);
     respawnMiningResources(ctx, authorityTick);
     if (authorityTick % BigInt(TREE_REGROWTH_SWEEP_TICKS) === 0n) {
       const weatherMode = isWeatherMode(environment.weatherMode) ? environment.weatherMode : 'auto';

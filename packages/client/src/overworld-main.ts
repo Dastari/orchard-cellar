@@ -979,7 +979,14 @@ function cropCalendarOffsetForSnapshot(
   snapshot: Pick<OverworldView, 'clock' | 'environment'>,
 ): bigint {
   const authorityTick = snapshot.clock?.authorityTick ?? 0n;
-  return (snapshot.environment?.calendarTick ?? authorityTick) - authorityTick;
+  return snapshot.environment?.cropCalendarOffset
+    ?? (snapshot.environment?.calendarTick ?? authorityTick) - authorityTick;
+}
+
+function calendarTickForSnapshot(
+  snapshot: Pick<OverworldView, 'clock' | 'environment'>,
+): bigint {
+  return (snapshot.clock?.authorityTick ?? 0n) + cropCalendarOffsetForSnapshot(snapshot);
 }
 const npcInteractionUi = new NpcInteractionUi(art.uiSkin, art.ui, itemArt, {
   chooseDialogueOption: (choiceId) => showResult(network.chooseDialogueOption(choiceId), 'DIALOGUE UPDATED'),
@@ -1115,7 +1122,7 @@ function questMarkerForNpc(snapshot: OverworldView, npcId: bigint): 'offer' | 'c
 }
 
 function worldCalendarTick(): bigint {
-  return latestSnapshot.environment?.calendarTick ?? latestSnapshot.clock?.authorityTick ?? 0n;
+  return calendarTickForSnapshot(latestSnapshot);
 }
 
 function worldWeatherMode(): WeatherMode {
@@ -1630,7 +1637,7 @@ function update(): void {
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
     optimisticSelectedSlot = null;
   }
-  const weatherTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
+  const weatherTick = calendarTickForSnapshot(snapshot);
   const calendar = calendarAtTick(Number(weatherTick) * SIM_STEPS_PER_AUTHORITY_TICK);
   audio.setAmbienceContext(
     calendar.season,
@@ -3288,7 +3295,7 @@ function render(alpha = 1): void {
   latestCameraY = cameraY;
   latestRenderedZoom = worldZoom;
   refreshHoveredInteractionTile();
-  const renderWeatherTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
+  const renderWeatherTick = calendarTickForSnapshot(snapshot);
   const renderAuthorityTick = snapshot.clock?.authorityTick ?? 0n;
   const weatherVisualTick = weatherTickClock.advance(renderStarted, renderWeatherTick);
   const activeWeather = weatherVisualState(worldWeatherMode(), renderWeatherTick, worldWindDirection());
@@ -4587,7 +4594,7 @@ function render(alpha = 1): void {
       ? '[B] EXIT BUILD MODE  [CLICK] BUILD  [F] CARRY / PLACE'
       : `[B] EXIT BUILD MODE  ${contextualPrompt}`
     : contextualPrompt;
-  const authorityTick = snapshot.environment?.calendarTick ?? snapshot.clock?.authorityTick ?? 0n;
+  const authorityTick = calendarTickForSnapshot(snapshot);
   const processorAuthorityTick = BigInt(Math.max(
     Number(authorityTick),
     Math.floor(visualTickClock.renderTick),
