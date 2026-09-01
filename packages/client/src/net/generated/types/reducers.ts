@@ -76,8 +76,6 @@ import RemoveHomesteadMemberReducer from "../remove_homestead_member_reducer";
 import RemovePartyMemberReducer from "../remove_party_member_reducer";
 import RemoveTradeOfferItemReducer from "../remove_trade_offer_item_reducer";
 import RepairSelectedToolReducer from "../repair_selected_tool_reducer";
-import RequestBalanceTopReducer from "../request_balance_top_reducer";
-import RequestLastConnectionsReducer from "../request_last_connections_reducer";
 import RequestTradeReducer from "../request_trade_reducer";
 import ResetMyQuestProgressReducer from "../reset_my_quest_progress_reducer";
 import ResetSkillTreeReducer from "../reset_skill_tree_reducer";
@@ -187,8 +185,6 @@ export type RemoveHomesteadMemberParams = __Infer<typeof RemoveHomesteadMemberRe
 export type RemovePartyMemberParams = __Infer<typeof RemovePartyMemberReducer>;
 export type RemoveTradeOfferItemParams = __Infer<typeof RemoveTradeOfferItemReducer>;
 export type RepairSelectedToolParams = __Infer<typeof RepairSelectedToolReducer>;
-export type RequestBalanceTopParams = __Infer<typeof RequestBalanceTopReducer>;
-export type RequestLastConnectionsParams = __Infer<typeof RequestLastConnectionsReducer>;
 export type RequestTradeParams = __Infer<typeof RequestTradeReducer>;
 export type ResetMyQuestProgressParams = __Infer<typeof ResetMyQuestProgressReducer>;
 export type ResetSkillTreeParams = __Infer<typeof ResetSkillTreeReducer>;

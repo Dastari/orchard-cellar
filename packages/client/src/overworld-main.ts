@@ -4887,6 +4887,14 @@ function render(alpha = 1): void {
         body: notice.body,
         itemLinksJson: '[]',
       })),
+      ...[...snapshot.operationalChatNotices].map((notice) => ({
+        id: chatTimelineId(notice.issuedAtMicros, notice.id, 1n),
+        channelName: notice.kind === 'last' ? 'Last' : 'Balance',
+        senderDisplayName: 'World',
+        kind: 'system',
+        body: notice.body,
+        itemLinksJson: '[]',
+      })),
       ...[...snapshot.chatMessages].map((message) => ({
         id: chatTimelineId(message.sentAt.microsSinceUnixEpoch, message.id, 0n),
         channelName: channelNames.get(message.channelId) ?? (message.kind === 'whisper' ? 'Whisper' : 'Channel'),

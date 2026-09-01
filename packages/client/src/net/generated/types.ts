@@ -116,6 +116,7 @@ export const ConnectionAudit = __t.object("ConnectionAudit", {
   eventKind: __t.string(),
   displayName: __t.string(),
   occurredAt: __t.timestamp(),
+  occurredAtMicros: __t.u64(),
 });
 export type ConnectionAudit = __Infer<typeof ConnectionAudit>;
 
@@ -236,6 +237,11 @@ export const InventoryOverflow = __t.object("InventoryOverflow", {
 });
 export type InventoryOverflow = __Infer<typeof InventoryOverflow>;
 
+export const InventoryOverflowRetry = __t.object("InventoryOverflowRetry", {
+  identity: __t.identity(),
+});
+export type InventoryOverflowRetry = __Infer<typeof InventoryOverflowRetry>;
+
 export const InventorySlot = __t.object("InventorySlot", {
   id: __t.string(),
   identity: __t.identity(),
@@ -278,6 +284,12 @@ export type OnlinePlayerAppearances = __Infer<typeof OnlinePlayerAppearances>;
 
 export const OnlinePlayerPublic = __t.object("OnlinePlayerPublic", {});
 export type OnlinePlayerPublic = __Infer<typeof OnlinePlayerPublic>;
+
+export const OperationalChatNotice = __t.object("OperationalChatNotice", {
+  id: __t.u8(),
+  body: __t.string(),
+});
+export type OperationalChatNotice = __Infer<typeof OperationalChatNotice>;
 
 export const OwnActiveChest = __t.object("OwnActiveChest", {});
 export type OwnActiveChest = __Infer<typeof OwnActiveChest>;
@@ -673,6 +685,12 @@ export const QuestWorldItem = __t.object("QuestWorldItem", {
 });
 export type QuestWorldItem = __Infer<typeof QuestWorldItem>;
 
+export const RequestBalanceTop = __t.object("RequestBalanceTop", {});
+export type RequestBalanceTop = __Infer<typeof RequestBalanceTop>;
+
+export const RequestLastConnections = __t.object("RequestLastConnections", {});
+export type RequestLastConnections = __Infer<typeof RequestLastConnections>;
+
 export const SessionChatNotice = __t.object("SessionChatNotice", {
   id: __t.u64(),
   recipientIdentity: __t.identity(),
@@ -839,6 +857,7 @@ export const WorldItem = __t.object("WorldItem", {
   lit: __t.bool(),
   reservedFor: __t.option(__t.identity()),
   reservedUntilTick: __t.u64(),
+  expiresTick: __t.u64(),
 });
 export type WorldItem = __Infer<typeof WorldItem>;
 
@@ -1065,3 +1084,4 @@ export const WorldWind = __t.object("WorldWind", {
   direction: __t.string(),
 });
 export type WorldWind = __Infer<typeof WorldWind>;
+

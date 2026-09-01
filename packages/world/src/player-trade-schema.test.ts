@@ -64,7 +64,7 @@ describe('secure direct player trading', () => {
     const cancel = between('function cancelPlayerTrade', 'function requireActiveTrade');
     expect(cancel).toContain('insertEscrowStacksIntoInventory');
     expect(cancel).toContain('true');
-    expect(between('export const onDisconnect =', 'export const requestLastConnections ='))
+    expect(between('export const onDisconnect =', 'export const createChatChannel ='))
       .toContain('cancelPlayerTrade(ctx, disconnectedTrade)');
     const step = source.slice(source.indexOf('export const stepWorld ='));
     expect(step).toContain('PLAYER_TRADE_REQUEST_TTL_TICKS');

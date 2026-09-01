@@ -104,8 +104,6 @@ import RemoveHomesteadMemberReducer from "./remove_homestead_member_reducer";
 import RemovePartyMemberReducer from "./remove_party_member_reducer";
 import RemoveTradeOfferItemReducer from "./remove_trade_offer_item_reducer";
 import RepairSelectedToolReducer from "./repair_selected_tool_reducer";
-import RequestBalanceTopReducer from "./request_balance_top_reducer";
-import RequestLastConnectionsReducer from "./request_last_connections_reducer";
 import RequestTradeReducer from "./request_trade_reducer";
 import ResetMyQuestProgressReducer from "./reset_my_quest_progress_reducer";
 import ResetSkillTreeReducer from "./reset_skill_tree_reducer";
@@ -192,6 +190,8 @@ import PlayerPartyRow from "./player_party_table";
 import PlayerPartyMemberRow from "./player_party_member_table";
 import PlayerPositionRow from "./player_position_table";
 import PlayerPublicRow from "./player_public_table";
+import RequestBalanceTopRow from "./request_balance_top_table";
+import RequestLastConnectionsRow from "./request_last_connections_table";
 import SpacePortalRow from "./space_portal_table";
 import VisibleChatMessagesRow from "./visible_chat_messages_table";
 import VisibleWorldSpeechRow from "./visible_world_speech_table";
@@ -494,6 +494,9 @@ const tablesSchema = __schema({
   worldItem: __table({
     name: 'world_item',
     indexes: [
+      { accessor: 'by_expires_tick', name: 'world_item_expires_tick_idx_btree', algorithm: 'btree', columns: [
+        'expiresTick',
+      ] },
       { accessor: 'id', name: 'world_item_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
@@ -580,6 +583,9 @@ const tablesSchema = __schema({
       ] },
       { accessor: 'id', name: 'world_resource_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'by_regrowth_progress', name: 'world_resource_regrowth_progress_idx_btree', algorithm: 'btree', columns: [
+        'regrowthProgress',
       ] },
       { accessor: 'by_chunk', name: 'world_resource_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
         'spaceId',
@@ -915,6 +921,20 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnWalletRow),
+  requestBalanceTop: __table({
+    name: 'request_balance_top',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, RequestBalanceTopRow),
+  requestLastConnections: __table({
+    name: 'request_last_connections',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, RequestLastConnectionsRow),
   visibleChatMessages: __table({
     name: 'visible_chat_messages',
     indexes: [
@@ -1003,8 +1023,6 @@ const reducersSchema = __reducers(
   __reducerSchema("remove_party_member", RemovePartyMemberReducer),
   __reducerSchema("remove_trade_offer_item", RemoveTradeOfferItemReducer),
   __reducerSchema("repair_selected_tool", RepairSelectedToolReducer),
-  __reducerSchema("request_balance_top", RequestBalanceTopReducer),
-  __reducerSchema("request_last_connections", RequestLastConnectionsReducer),
   __reducerSchema("request_trade", RequestTradeReducer),
   __reducerSchema("reset_my_quest_progress", ResetMyQuestProgressReducer),
   __reducerSchema("reset_skill_tree", ResetSkillTreeReducer),
@@ -1344,3 +1362,4 @@ export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
     return new SubscriptionBuilder(this);
   };
 }
+

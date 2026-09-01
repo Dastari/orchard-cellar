@@ -115,6 +115,13 @@ export interface PlayerTradeOffer {
   readonly lit: boolean;
 }
 
+export interface OperationalChatNotice {
+  readonly id: bigint;
+  readonly kind: 'last' | 'baltop';
+  readonly body: string;
+  readonly issuedAtMicros: bigint;
+}
+
 export interface OverworldView {
   readonly connected: boolean; readonly error: string | null; readonly identityHex: string | null;
   readonly region: readonly [number, number];
@@ -149,6 +156,7 @@ export interface OverworldView {
   readonly chatChannels: ReadonlyKeyedStore<bigint, ChatChannel>;
   readonly chatMessages: ReadonlyKeyedStore<bigint, ChatMessage>;
   readonly sessionChatNotices: ReadonlyKeyedStore<bigint, SessionChatNotice>;
+  readonly operationalChatNotices: ReadonlyKeyedStore<bigint, OperationalChatNotice>;
   readonly worldSpeech: ReadonlyKeyedStore<bigint, WorldSpeech>;
   readonly motd: string | null;
   readonly characterProfile: CharacterProfile | null; readonly membership: Membership | null; readonly survival: PlayerSurvival | null;
@@ -186,7 +194,7 @@ export interface OverworldSnapshot {
   readonly inventorySlots: readonly InventorySlot[]; readonly knownRecipes: readonly PlayerKnownRecipe[]; readonly openChestSlots: readonly WorldChestSlot[]; readonly openPlaceableSlots: readonly WorldPlaceableSlot[]; readonly chatChannels: readonly ChatChannel[];
   readonly inventoryCursor: ItemStack | null;
   readonly effects: readonly PlayerEffect[];
-  readonly chatMessages: readonly ChatMessage[]; readonly sessionChatNotices: readonly SessionChatNotice[]; readonly worldSpeech: readonly WorldSpeech[];
+  readonly chatMessages: readonly ChatMessage[]; readonly sessionChatNotices: readonly SessionChatNotice[]; readonly operationalChatNotices: readonly OperationalChatNotice[]; readonly worldSpeech: readonly WorldSpeech[];
   readonly motd: string | null; readonly characterProfile: CharacterProfile | null;
   readonly membership: Membership | null; readonly survival: PlayerSurvival | null; readonly stats: PlayerStats | null; readonly activeChest: WorldChest | null; readonly activePlaceable: WorldPlaceable | null; readonly cookingJob: PlayerCookingJob | null;
   readonly activeDialogue: ActiveDialogue | null; readonly wallet: PlayerWallet | null;
@@ -314,6 +322,8 @@ export class OverworldConnection {
   private readonly chatChannels = new KeyedStore<bigint, ChatChannel>();
   private readonly chatMessages = new KeyedStore<bigint, ChatMessage>();
   private readonly sessionChatNotices = new KeyedStore<bigint, SessionChatNotice>();
+  private readonly operationalChatNotices = new KeyedStore<bigint, OperationalChatNotice>();
+  private nextOperationalChatNoticeId = 1n;
   private readonly worldSpeech = new KeyedStore<bigint, WorldSpeech>();
   private motd: string | null = null;
   private characterProfile: CharacterProfile | null = null;
@@ -385,7 +395,7 @@ export class OverworldConnection {
         // error; retain that diagnostic instead of replacing it with the
         // content-free word "disconnected".
         this.error = error?.message ?? this.error ?? 'disconnected'; this.prediction.reset(); this.sentAt.clear();
-        this.sessionChatNotices.clear(); this.inventoryCursor = null; this.knownRecipes.clear();
+        this.sessionChatNotices.clear(); this.operationalChatNotices.clear(); this.inventoryCursor = null; this.knownRecipes.clear();
         this.homesteadUpgrades.clear();
         this.homesteadMembers.clear();
         this.tradeSession = null; this.tradeOffers.clear();
@@ -406,7 +416,7 @@ export class OverworldConnection {
       wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, homesteads: this.homesteads, homesteadUpgrades: this.homesteadUpgrades, homesteadMembers: this.homesteadMembers, cellarExcavations: this.cellarExcavations, surfaces: this.surfaces, inventorySlots: this.inventorySlots, knownRecipes: this.knownRecipes, inventoryCursor: this.inventoryCursor, effects: this.effects,
       openChestSlots: this.openChestSlots,
       openPlaceableSlots: this.openPlaceableSlots,
-      chatChannels: this.chatChannels, chatMessages: this.chatMessages, sessionChatNotices: this.sessionChatNotices, worldSpeech: this.worldSpeech, motd: this.motd,
+      chatChannels: this.chatChannels, chatMessages: this.chatMessages, sessionChatNotices: this.sessionChatNotices, operationalChatNotices: this.operationalChatNotices, worldSpeech: this.worldSpeech, motd: this.motd,
       characterProfile: this.characterProfile, membership: this.membership, survival: this.survival, stats: this.stats, activeChest: this.activeChest, activePlaceable: this.activePlaceable, cookingJob: this.cookingJob,
       activeDialogue: this.activeDialogue, wallet: this.wallet,
       tradeSession: this.tradeSession, tradeOffers: this.tradeOffers,
@@ -430,6 +440,7 @@ export class OverworldConnection {
       chatChannels: this.chatChannels.toArray(),
       chatMessages: this.chatMessages.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       sessionChatNotices: this.sessionChatNotices.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+      operationalChatNotices: this.operationalChatNotices.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       worldSpeech: this.worldSpeech.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       quests: this.quests.toArray(), questBaselines: this.questBaselines.toArray(),
       playerStatistics: this.playerStatistics.toArray(), skillTracks: this.skillTracks.toArray(), skillNodes: this.skillNodes.toArray(),
@@ -752,10 +763,36 @@ export class OverworldConnection {
     return this.reducer((connection) => connection.reducers.sendChatMessage({ channelId, body }));
   }
   requestLastConnections(): Promise<void> {
-    return this.reducer((connection) => connection.reducers.requestLastConnections({}));
+    const connection = this.connection;
+    if (!this.connected || connection === null) return Promise.reject(new Error('not_connected'));
+    return new Promise((resolve, reject) => {
+      let handle: SubscriptionHandle | null = null;
+      handle = connection.subscriptionBuilder().onApplied(() => {
+        this.appendOperationalChatNotices(
+          'last',
+          [...connection.db.requestLastConnections.iter()].map((row) => row.body),
+        );
+        handle?.unsubscribe();
+        resolve();
+      }).onError(() => reject(new Error('last_connections_query_failed')))
+        .subscribe(tables.requestLastConnections);
+    });
   }
   requestBalanceTop(): Promise<void> {
-    return this.reducer((connection) => connection.reducers.requestBalanceTop({}));
+    const connection = this.connection;
+    if (!this.connected || connection === null) return Promise.reject(new Error('not_connected'));
+    return new Promise((resolve, reject) => {
+      let handle: SubscriptionHandle | null = null;
+      handle = connection.subscriptionBuilder().onApplied(() => {
+        this.appendOperationalChatNotices(
+          'baltop',
+          [...connection.db.requestBalanceTop.iter()].map((row) => row.body),
+        );
+        handle?.unsubscribe();
+        resolve();
+      }).onError(() => reject(new Error('balance_top_query_failed')))
+        .subscribe(tables.requestBalanceTop);
+    });
   }
   sendWhisper(recipient: Identity, body: string): Promise<void> {
     return this.reducer((connection) => connection.reducers.sendWhisper({ recipient, body }));
@@ -824,6 +861,19 @@ export class OverworldConnection {
     const connection = this.connection;
     if (!this.connected || connection === null) return Promise.reject(new Error('not_connected'));
     return this.call(() => call(connection)).then(() => undefined);
+  }
+  private appendOperationalChatNotices(kind: 'last' | 'baltop', bodies: readonly string[]): void {
+    const issuedAtMicros = BigInt(Date.now()) * 1_000n;
+    for (const [index, body] of bodies.entries()) {
+      const id = this.nextOperationalChatNoticeId++;
+      this.operationalChatNotices.set(id, { id, kind, body, issuedAtMicros: issuedAtMicros + BigInt(index) });
+    }
+    while (this.operationalChatNotices.size > 50) {
+      const oldest = this.operationalChatNotices.toArray()[0]?.id;
+      if (oldest === undefined) break;
+      this.operationalChatNotices.delete(oldest);
+    }
+    this.onChanged();
   }
   private call<T>(call: () => Promise<T>): Promise<T> { return this.latency.outgoing(call); }
   private sendDesiredDirection(): void {

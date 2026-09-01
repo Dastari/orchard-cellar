@@ -46,7 +46,7 @@ describe('Minecraft-style inventory cursor authority', () => {
     expect(recovery).toContain("toContainers: ['hotbar', 'backpack']");
     expect(recovery).toContain('stashOverflow(ctx, identity');
     expect(recovery).toContain('writePlayerInventoryCursor(ctx, identity, null)');
-    expect(source.slice(source.indexOf('export const onDisconnect ='), source.indexOf('export const requestLastConnections =')))
+    expect(source.slice(source.indexOf('export const onDisconnect ='), source.indexOf('export const createChatChannel =')))
       .toContain('returnInventoryCursorToStorage(ctx, ctx.sender)');
   });
 

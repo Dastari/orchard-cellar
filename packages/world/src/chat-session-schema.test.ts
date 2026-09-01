@@ -29,28 +29,27 @@ describe('session-only lifecycle chat notices', () => {
     expect(broadcast).not.toContain('ctx.db.chat_message.insert({');
   });
 
-  it('returns owner-only connection history through only the caller session inbox', () => {
-    const reducer = sourceBetween('export const requestLastConnections =', 'export const requestBalanceTop =');
-    expect(reducer.indexOf('requireWorldOwner(')).toBeLessThan(reducer.indexOf('connection_audit.iter()'));
-    expect(reducer).toContain('recentConnectionEvents(');
-    expect(reducer).toContain("'last'");
-    expect(reducer).toContain('lastConnectionEventMessage(');
-    expect(reducer).toContain('insertSessionChatNotice(');
-    expect(reducer).not.toContain('chat_message.insert');
-    expect(reducer).not.toContain('world_speech.insert');
+  it('returns owner-only connection history through a transient read-only view', () => {
+    const view = sourceBetween('export const requestLastConnections =', 'export const requestBalanceTop =');
+    expect(view.indexOf("membership?.role !== 'owner'")).toBeLessThan(view.indexOf('connection_audit.iter()'));
+    expect(view).toContain('recentConnectionEvents(');
+    expect(view).toContain('lastConnectionEventMessage(');
+    expect(view).toContain('docs/53 T9: deliberate owner-triggered transient scan');
+    expect(view).not.toContain('insertSessionChatNotice(');
+    expect(view).not.toContain('ctx.db.chat_message.insert');
+    expect(view).not.toContain('ctx.db.world_speech.insert');
   });
 
-  it('returns a public top-ten balance projection only through the caller session inbox', () => {
-    const reducer = sourceBetween('export const requestBalanceTop =', 'export const createChatChannel =');
-    expect(reducer.indexOf('requireAuthorizedSender(')).toBeLessThan(reducer.indexOf('player_wallet.iter()'));
-    expect(reducer).toContain('topBalanceLeaderboard(');
-    expect(reducer).toContain('BALANCE_LEADERBOARD_LIMIT');
-    expect(reducer).toContain('balanceLeaderboardMessage(');
-    expect(reducer).toContain("'baltop'");
-    expect(reducer).toContain('insertSessionChatNotice(');
-    expect(reducer).not.toContain('requireWorldOwner(');
-    expect(reducer).not.toContain('chat_message.insert');
-    expect(reducer).not.toContain('world_speech.insert');
+  it('returns a bounded top-ten balance projection through a transient member view', () => {
+    const view = sourceBetween('export const requestBalanceTop =', 'export const ownChatChannels =');
+    expect(view.indexOf('membership === null')).toBeLessThan(view.indexOf('player_wallet.iter()'));
+    expect(view).toContain('topBalanceLeaderboard(');
+    expect(view).toContain('BALANCE_LEADERBOARD_LIMIT');
+    expect(view).toContain('balanceLeaderboardMessage(');
+    expect(view).toContain('docs/53 T9: deliberate member-triggered transient scan');
+    expect(view).not.toContain('insertSessionChatNotice(');
+    expect(view).not.toContain('ctx.db.chat_message.insert');
+    expect(view).not.toContain('ctx.db.world_speech.insert');
   });
 
   it('purges legacy rows once, hides them defensively, and clears recipient inboxes', () => {

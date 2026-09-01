@@ -4879,6 +4879,72 @@ export const ownSessionChatNotices = spacetimedb.view(
   (ctx) => [...ctx.db.session_chat_notice.by_recipient_identity.filter(ctx.sender)],
 );
 
+const operationalChatNoticeRow = t.row('OperationalChatNotice', {
+  id: t.u8().primaryKey(),
+  body: t.string(),
+});
+
+/** Owner-only operational history, evaluated only while the client holds the
+ * short-lived subscription created for the /last command. */
+export const requestLastConnections = spacetimedb.view(
+  { name: 'request_last_connections', public: true },
+  t.array(operationalChatNoticeRow),
+  (ctx) => {
+    const membership = ctx.db.membership.identity.find(ctx.sender);
+    if (membership?.role !== 'owner' || membership.blocked || membership.revokedAt !== undefined) return [];
+    // docs/53 T9: deliberate owner-triggered transient scan; the client
+    // unsubscribes immediately after the bounded projection is received.
+    const recent = recentConnectionEvents([...ctx.db.connection_audit.iter()].map((event) => ({
+      id: event.id,
+      identityHex: event.identity.toHexString(),
+      displayName: event.displayName,
+      eventKind: event.eventKind,
+      occurredAtMicros: event.occurredAt.microsSinceUnixEpoch,
+      occurredAtIso: event.occurredAt.toISOString(),
+    })));
+    if (recent.length === 0) return [{ id: 0, body: 'NO CONNECTION EVENTS RECORDED' }];
+    return [
+      { id: 0, body: `RECENT CONNECTIONS — NEWEST FIRST (${recent.length}, UTC)` },
+      ...recent.map((event, index) => ({
+        id: index + 1,
+        body: lastConnectionEventMessage(event.displayName, event.eventKind, event.occurredAtIso),
+      })),
+    ];
+  },
+);
+
+/** Authenticated, read-only top-ten projection, evaluated only for the
+ * short-lived subscription created for the /baltop command. */
+export const requestBalanceTop = spacetimedb.view(
+  { name: 'request_balance_top', public: true },
+  t.array(operationalChatNoticeRow),
+  (ctx) => {
+    const membership = ctx.db.membership.identity.find(ctx.sender);
+    if (membership === null || membership.blocked || membership.revokedAt !== undefined) return [];
+    // docs/53 T9: deliberate member-triggered transient scan; the client
+    // unsubscribes immediately after the bounded top-ten projection is received.
+    const ranked = topBalanceLeaderboard(
+      [...ctx.db.player_wallet.iter()].flatMap((wallet) => {
+        const profile = ctx.db.player_public.identity.find(wallet.identity);
+        return profile === null ? [] : [{
+          identityHex: wallet.identity.toHexString(),
+          displayName: profile.displayName,
+          balanceBronze: wallet.balanceBronze,
+        }];
+      }),
+    );
+    return [
+      { id: 0, body: `TOP ${BALANCE_LEADERBOARD_LIMIT} PLAYER BALANCES` },
+      ...(ranked.length === 0
+        ? [{ id: 1, body: 'NO PLAYER BALANCES FOUND' }]
+        : ranked.map((entry, index) => ({
+          id: index + 1,
+          body: balanceLeaderboardMessage(index + 1, entry),
+        }))),
+    ];
+  },
+);
+
 export const ownChatChannels = spacetimedb.view(
   { name: 'own_chat_channels', public: true },
   t.array(chat_channel.rowType),
@@ -5858,86 +5924,6 @@ export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
     flushPlayerStatisticTime(ctx, ctx.sender, authorityTick, true);
   }
   ctx.db.connection_notice.connectionId.delete(ctx.connectionId);
-});
-
-/** Owner-only operational history. Results are copied only into the caller's
- * ephemeral session inbox and never become channel messages or world speech. */
-export const requestLastConnections = spacetimedb.reducer({}, (ctx) => {
-  requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  if (ctx.connectionId === null
-    || ctx.db.connection_notice.connectionId.find(ctx.connectionId) === null) {
-    throw new SenderError('connection_not_ready');
-  }
-  const recent = recentConnectionEvents([...ctx.db.connection_audit.iter()].map((event) => ({
-    id: event.id,
-    identityHex: event.identity.toHexString(),
-    displayName: event.displayName,
-    eventKind: event.eventKind,
-    occurredAtMicros: event.occurredAt.microsSinceUnixEpoch,
-    occurredAtIso: event.occurredAt.toISOString(),
-  })));
-  if (recent.length === 0) {
-    insertSessionChatNotice(
-      ctx, ctx.sender, ctx.connectionId, 'last', 'NO CONNECTION EVENTS RECORDED',
-    );
-    return;
-  }
-  insertSessionChatNotice(
-    ctx,
-    ctx.sender,
-    ctx.connectionId,
-    'last',
-    `RECENT CONNECTIONS — NEWEST FIRST (${recent.length}, UTC)`,
-  );
-  for (const event of recent) {
-    insertSessionChatNotice(
-      ctx,
-      ctx.sender,
-      ctx.connectionId,
-      'last',
-      lastConnectionEventMessage(event.displayName, event.eventKind, event.occurredAtIso),
-    );
-  }
-});
-
-/** Public, read-only economy ranking. Raw wallets remain private and only the
- * bounded, display-name projection is copied into the caller's session inbox. */
-export const requestBalanceTop = spacetimedb.reducer({}, (ctx) => {
-  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-  if (ctx.connectionId === null
-    || ctx.db.connection_notice.connectionId.find(ctx.connectionId) === null) {
-    throw new SenderError('connection_not_ready');
-  }
-  const ranked = topBalanceLeaderboard(
-    [...ctx.db.player_wallet.iter()].flatMap((wallet) => {
-      const profile = ctx.db.player_public.identity.find(wallet.identity);
-      return profile === null ? [] : [{
-        identityHex: wallet.identity.toHexString(),
-        displayName: profile.displayName,
-        balanceBronze: wallet.balanceBronze,
-      }];
-    }),
-  );
-  insertSessionChatNotice(
-    ctx,
-    ctx.sender,
-    ctx.connectionId,
-    'baltop',
-    `TOP ${BALANCE_LEADERBOARD_LIMIT} PLAYER BALANCES`,
-  );
-  if (ranked.length === 0) {
-    insertSessionChatNotice(ctx, ctx.sender, ctx.connectionId, 'baltop', 'NO PLAYER BALANCES FOUND');
-    return;
-  }
-  for (const [index, entry] of ranked.entries()) {
-    insertSessionChatNotice(
-      ctx,
-      ctx.sender,
-      ctx.connectionId,
-      'baltop',
-      balanceLeaderboardMessage(index + 1, entry),
-    );
-  }
 });
 
 export const createChatChannel = spacetimedb.reducer(
