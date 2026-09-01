@@ -66,7 +66,7 @@ describe('secure direct player trading', () => {
     expect(cancel).toContain('true');
     expect(between('export const onDisconnect =', 'export const createChatChannel ='))
       .toContain('cancelPlayerTrade(ctx, disconnectedTrade)');
-    const step = source.slice(source.indexOf('export const stepWorld ='));
+    const step = source.slice(source.indexOf('function runOneHertzTickMaintenance('));
     expect(step).toContain('PLAYER_TRADE_REQUEST_TTL_TICKS');
     expect(step).toContain('!tradePlayersWithinReach(ctx, trade)');
   });

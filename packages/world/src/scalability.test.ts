@@ -75,7 +75,7 @@ describe('34§6 stage-1 scalability rules', () => {
 
   it('26§3 keeps scheduled collision and entity work scoped through space/chunk indexes', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
-    const step = source.slice(source.indexOf('export const stepWorld ='));
+    const step = source.slice(source.indexOf('function runOneHertzTickMaintenance('));
     expect(step).toContain('playersBySpace');
     expect(step).toContain('world_resource.by_chunk.filter(spaceId)');
     expect(step).toContain('world_chest.by_chunk.filter(spaceId)');
@@ -180,7 +180,7 @@ describe('34§6 stage-1 scalability rules', () => {
     });
 
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
-    const step = source.slice(source.indexOf('export const stepWorld ='));
+    const step = source.slice(source.indexOf('function runOneHertzTickMaintenance('));
     for (const counter of [
       'tradeRowsScanned', 'overflowRowsScanned', 'regrowthRowsScanned',
       'effectRowsScanned', 'inviteRowsScanned', 'itemRowsScanned',
@@ -192,12 +192,11 @@ describe('34§6 stage-1 scalability rules', () => {
 
   it('cadences trade and overflow maintenance at one hertz', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
-    const start = source.indexOf('const maintenanceAuthorityTick =');
-    const end = source.indexOf('const wildlifeGeneration =', start);
+    const start = source.indexOf('function runOneHertzTickMaintenance(');
+    const end = source.indexOf('function expirePresenceLeases(', start);
     const maintenance = source.slice(start, end);
     expect(start).toBeGreaterThanOrEqual(0);
-    expect(maintenance).toContain('maintenanceAuthorityTick % BigInt(AUTHORITY_HZ) === 0n');
-    expect(maintenance).toContain('if (oneHertzMaintenanceTick)');
+    expect(maintenance).toContain('maintenanceAuthorityTick % BigInt(AUTHORITY_HZ) !== 0n');
     expect(maintenance).toContain('player_trade_session.iter()');
     expect(maintenance).toContain('inventory_overflow.iter()');
     expect(maintenance).toContain('inventory_overflow_retry.identity.find(row.identity)');
@@ -294,11 +293,17 @@ describe('34§6 stage-2 scalability rules', () => {
     expect(onlineViews).toContain('player_appearance.identity.find(profile.identity)');
     expect(onlineViews).not.toContain('player_public.iter()');
     expect(onlineViews).not.toContain('player_appearance.iter()');
-    const connectStart = source.indexOf('export const onConnect =');
-    const connectEnd = source.indexOf('\nexport const onDisconnect', connectStart);
-    const connect = source.slice(connectStart, connectEnd);
-    expect(connect.indexOf('requireAuthorizedSender(')).toBeGreaterThanOrEqual(0);
-    expect(connect.indexOf('findSurvivalSpawnTile(')).toBeGreaterThan(connect.indexOf('requireAuthorizedSender('));
+    const bootstrap = source.slice(
+      source.indexOf('function prepareConnection('),
+      source.indexOf('export const onConnect ='),
+    );
+    const connect = source.slice(
+      source.indexOf('export const onConnect ='),
+      source.indexOf('\nexport const onDisconnect'),
+    );
+    expect(bootstrap.indexOf('requireAuthorizedSender(')).toBeGreaterThanOrEqual(0);
+    expect(connect).toContain('prepareConnection(ctx)');
+    expect(connect).toContain('findSurvivalSpawnTile(');
     expect(connect).not.toContain('Array.from({ length: 25 }');
   });
 });

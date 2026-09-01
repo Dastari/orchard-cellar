@@ -11,6 +11,13 @@ function reducerSource(name: string): string {
   return source.slice(start, end < 0 ? source.length : end);
 }
 
+function handsAuthoritySource(): string {
+  return source.slice(
+    source.indexOf('function insertWorldPlaceable('),
+    source.indexOf('/** F dispatches placement'),
+  ) + reducerSource('useHands');
+}
+
 describe('28§14 phase 3 authority contracts', () => {
   it('declares additive, space-born placeable and private slot authorities', () => {
     const placeable = source.slice(source.indexOf('const world_placeable = table('), source.indexOf('const world_placeable_slot = table('));
@@ -46,7 +53,7 @@ describe('28§14 phase 3 authority contracts', () => {
   });
 
   it('round-trips every phase-3 kind and rejects non-empty or cross-space pickup', () => {
-    const hands = reducerSource('useHands');
+    const hands = handsAuthoritySource();
     for (const kind of PLACEABLE_KINDS) expect(placeableDefinition(kind), kind).not.toBeNull();
     expect(hands).toContain("selectedDefinition?.tags.includes('item.placeable')");
     expect(hands).toContain('insertWorldPlaceable(ctx, position, selected.itemKind, tileX, tileY)');
@@ -60,7 +67,7 @@ describe('28§14 phase 3 authority contracts', () => {
     const craft = reducerSource('craftInventoryRecipe');
     expect(craft.indexOf("throw new SenderError('station_required')"))
       .toBeLessThan(craft.indexOf('inventory_slot.id.update'));
-    const hands = reducerSource('useHands');
+    const hands = handsAuthoritySource();
     expect(hands.indexOf('world_placeable.insert')).toBeLessThan(hands.lastIndexOf("'placeables_placed'"));
     expect(hands.lastIndexOf("'placeables_placed'")).toBeLessThan(hands.lastIndexOf('return;'));
   });
@@ -122,7 +129,7 @@ describe('28§14 phase 3 authority contracts', () => {
   });
 
   it('keeps placed anvils and tagged furnaces out of inventory and repairs anvils atomically for copper', () => {
-    const hands = reducerSource('useHands');
+    const hands = handsAuthoritySource();
     expect(hands).toContain("targetPlaceable.kind === 'anvil' || placeableHasInterface(targetPlaceable.kind, 'furnace')");
     expect(hands).toContain("!placeableHasInterface(targetPlaceable.kind, 'furnace')");
     expect(hands).toContain('carriedPlaceableFor(ctx, ctx.sender)');

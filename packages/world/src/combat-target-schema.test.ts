@@ -57,14 +57,15 @@ describe('32 training-target combat foundation', () => {
 
   it('keeps lift/place server-authorized, index-backed, and outside inventory', () => {
     const hands = reducerSource('useHands');
+    const carried = source.slice(
+      source.indexOf('function placeCarriedHandsObject('),
+      source.indexOf('function placeCarriedChest('),
+    );
     expect(hands.indexOf('requireAuthorizedSender(')).toBeLessThan(hands.indexOf('carriedCombatTargetFor('));
     expect(hands).toContain('combatTargetAtFacingTile(ctx, position)');
     expect(hands).toContain('carriedBy: ctx.sender');
-    expect(hands).toContain('carriedBy: undefined');
-    const targetBranches = hands.slice(
-      hands.indexOf('if (carriedTarget !== null)'),
-      hands.indexOf("if (selected?.itemKind === 'chest'"),
-    );
+    expect(carried).toContain('carriedBy: undefined');
+    const targetBranches = carried;
     expect(targetBranches).not.toContain('inventory_slot.id.insert');
     expect(targetBranches).not.toContain("itemKind: 'archery_target'");
   });

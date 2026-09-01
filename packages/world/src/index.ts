@@ -2090,6 +2090,8 @@ type WorldPlaceableRow = NonNullable<ReturnType<WorldReducerContext['db']['world
 type WorldItemRow = NonNullable<ReturnType<WorldReducerContext['db']['world_item']['id']['find']>>;
 type WorldCombatTargetRow = NonNullable<ReturnType<WorldReducerContext['db']['world_combat_target']['id']['find']>>;
 type WorldSoilRow = NonNullable<ReturnType<WorldReducerContext['db']['world_soil']['id']['find']>>;
+type InventorySlotRow = NonNullable<ReturnType<WorldReducerContext['db']['inventory_slot']['id']['find']>>;
+type WorldClockRow = NonNullable<ReturnType<WorldReducerContext['db']['world_clock']['id']['find']>>;
 type HomesteadRow = NonNullable<ReturnType<WorldReducerContext['db']['homestead']['spaceId']['find']>>;
 type IndexedLookupContext = Readonly<{
   db: Readonly<{
@@ -5478,7 +5480,13 @@ export const init = spacetimedb.init((ctx) => {
   });
 });
 
-export const onConnect = spacetimedb.clientConnected((ctx) => {
+/** Connection bootstrap owns authentication, global additive migrations and
+ * presence leasing. Character spawn/inventory setup stays in onConnect. */
+function prepareConnection(ctx: WorldReducerContext): {
+  readonly connectionId: WorldConnectionId;
+  readonly firstLiveConnection: boolean;
+  readonly firstStatisticSession: boolean;
+} {
   if (ctx.connectionId === null) throw new SenderError('missing_connection_id');
   const authRejection = authenticationRejection(ctx.senderAuth.jwt);
   if (authRejection !== null) throw new SenderError(authRejection);
@@ -5686,6 +5694,15 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     identity: ctx.sender,
     lastSeenAt: ctx.timestamp,
   });
+  return {
+    connectionId: ctx.connectionId,
+    firstLiveConnection,
+    firstStatisticSession,
+  };
+}
+
+export const onConnect = spacetimedb.clientConnected((ctx) => {
+  const { connectionId, firstLiveConnection, firstStatisticSession } = prepareConnection(ctx);
   let survival = ctx.db.player_survival.identity.find(ctx.sender);
   let playerSpawn = ctx.db.player_spawn.identity.find(ctx.sender);
   const enteringSurvivalWorld = survival === null;
@@ -5988,7 +6005,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   const connectedProfile = ctx.db.player_public.identity.find(ctx.sender);
   ctx.db.connection_audit.insert({
     id: 0n,
-    connectionId: ctx.connectionId,
+    connectionId,
     identity: ctx.sender,
     eventKind: 'connected',
     displayName: connectedProfile?.displayName ?? 'Unknown',
@@ -6284,6 +6301,7 @@ export const sendWorldSpeech = spacetimedb.reducer(
   },
 );
 
+// docs/53 T8: pending decision
 export const approveMember = spacetimedb.reducer(
   { identity: t.identity(), role: t.string() },
   (ctx, { identity, role }) => {
@@ -6317,6 +6335,7 @@ export const approveMember = spacetimedb.reducer(
   },
 );
 
+// docs/53 T8: pending decision
 export const revokeMember = spacetimedb.reducer(
   { identity: t.identity(), blocked: t.bool() },
   (ctx, { identity, blocked }) => {
@@ -6450,6 +6469,7 @@ export const setMessageOfDay = spacetimedb.reducer(
 
 /** Owner-only operational grant. Wallets remain private and every adjustment
  * names an exact identity, uses whole gold pieces, and leaves an audit row. */
+// docs/53 T8: retained for authenticated CLI administration.
 export const grantPlayerGold = spacetimedb.reducer(
   { identity: t.identity(), gold: t.u32() },
   (ctx, { identity, gold }) => {
@@ -6839,6 +6859,7 @@ export const adminTeleport = spacetimedb.reducer(
 /** Owner recovery tool for durable horses that have been left somewhere
  * inaccessible. This deliberately relocates only an explicit, unridden horse
  * and re-homes its wildlife leash at the destination. */
+// docs/53 T8: retained for authenticated CLI administration.
 export const adminRelocateHorse = spacetimedb.reducer(
   { horseId: t.u64(), tileX: t.u16(), tileY: t.u16() },
   (ctx, { horseId, tileX, tileY }) => {
@@ -7887,6 +7908,131 @@ function combatTargetAtFacingTile(
   return null;
 }
 
+function placeCarriedHandsObject(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+  carriedTarget: WorldCombatTargetRow | null,
+  carriedPlaceable: WorldPlaceableRow | null,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (carriedTarget !== null) {
+    requireChestPlacementTile(ctx, position, tileX, tileY);
+    const placed = combatTargetPositionAtTile(tileX, tileY);
+    moveEmbeddedArrowsWithTarget(ctx, carriedTarget, placed.x, placed.y, carriedTarget.spaceId);
+    ctx.db.world_combat_target.id.update({
+      ...carriedTarget,
+      ...placed,
+      chunkX: chunkAt(placed.x),
+      chunkY: chunkAt(placed.y),
+      carriedBy: undefined,
+      regenTick: ctx.db.world_clock.id.find(0)?.authorityTick ?? carriedTarget.regenTick,
+    });
+    updateEquippedForIdentity(ctx, ctx.sender);
+    return true;
+  }
+  if (carriedPlaceable === null) return false;
+  requirePlaceablePlacementTile(ctx, position, tileX, tileY);
+  ctx.db.world_placeable.id.update({
+    ...carriedPlaceable,
+    tileX,
+    tileY,
+    chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
+    chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
+    spaceId: position.spaceId,
+    facing: position.facing,
+    carriedBy: undefined,
+  });
+  updateEquippedForIdentity(ctx, ctx.sender);
+  recordPlayerStatistic(
+    ctx, ctx.sender, 'placeables_placed', 1n,
+    ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
+    carriedPlaceable.kind,
+  );
+  return true;
+}
+
+function placeCarriedChest(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+  carried: WorldChestRow | null,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (carried === null) return false;
+  requireChestPlacementTile(ctx, position, tileX, tileY);
+  ctx.db.world_chest.id.update({
+    ...carried, tileX, tileY,
+    chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES), chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
+    carriedBy: undefined,
+  });
+  updateEquippedForIdentity(ctx, ctx.sender);
+  recordPlayerStatistic(
+    ctx, ctx.sender, 'chests_placed', 1n,
+    ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
+  );
+  return true;
+}
+
+function placeSelectedHandsObject(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+  selected: InventorySlotRow | null,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (selected?.itemKind === 'chest' && selected.quantity > 0) {
+    requireChestPlacementTile(ctx, position, tileX, tileY);
+    const chest = ctx.db.world_chest.insert({
+      id: 0n, owner: ctx.sender, tileX, tileY,
+      chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES), chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES), carriedBy: undefined,
+      spaceId: position.spaceId,
+    });
+    for (let slot = 0; slot < CHEST_STORAGE_CAPACITY; slot += 1) ctx.db.world_chest_slot.insert({
+      id: `${chest.id}:${slot}`, chestId: chest.id, slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true,
+    });
+    ctx.db.inventory_slot.id.update({
+      ...selected,
+      itemKind: selected.quantity === 1 ? 'empty' : selected.itemKind,
+      quantity: selected.quantity - 1,
+      durability: selected.quantity === 1 ? 0 : selected.durability,
+    });
+    updateEquippedForIdentity(ctx, ctx.sender);
+    recordPlayerStatistic(
+      ctx, ctx.sender, 'chests_placed', 1n,
+      ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
+    );
+    return true;
+  }
+
+  const selectedDefinition = selected === null ? null : itemDefinition(selected.itemKind);
+  const selectedPlaceable = selected === null ? null : placeableDefinition(selected.itemKind);
+  if (selected === null || selected.quantity <= 0
+    || selectedDefinition?.tags.includes('item.placeable') !== true
+    || selectedPlaceable === null) return false;
+  const build = homesteadBuildDefinition(selected.itemKind);
+  if (build?.layer === 'prefab') {
+    requireHomesteadBuildPlacement(ctx, position, selected.itemKind, tileX, tileY);
+  } else {
+    requirePlaceablePlacementTile(ctx, position, tileX, tileY);
+  }
+  insertWorldPlaceable(ctx, position, selected.itemKind, tileX, tileY);
+  const remaining = selected.quantity - 1;
+  ctx.db.inventory_slot.id.update({
+    ...selected,
+    itemKind: remaining === 0 ? 'empty' : selected.itemKind,
+    quantity: remaining,
+    durability: remaining === 0 ? 0 : selected.durability,
+  });
+  updateEquippedForIdentity(ctx, ctx.sender);
+  recordPlayerStatistic(
+    ctx, ctx.sender, 'placeables_placed', 1n,
+    ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
+    selected.itemKind,
+  );
+  return true;
+}
+
 /** F dispatches placement from the selected item's registry tags. Chests keep
  * their carry-with-contents behavior; anvils remain world entities after first
  * placement and are subsequently relocated in the player's hands. */
@@ -7908,43 +8054,7 @@ export const useHands = spacetimedb.reducer(
     const carriedTarget = carriedCombatTargetFor(ctx, ctx.sender);
     const carriedPlaceable = carriedPlaceableFor(ctx, ctx.sender);
     const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
-    if (carriedTarget !== null) {
-      requireChestPlacementTile(ctx, position, tileX, tileY);
-      const placed = combatTargetPositionAtTile(tileX, tileY);
-      moveEmbeddedArrowsWithTarget(
-        ctx, carriedTarget, placed.x, placed.y, carriedTarget.spaceId,
-      );
-      ctx.db.world_combat_target.id.update({
-        ...carriedTarget,
-        ...placed,
-        chunkX: chunkAt(placed.x),
-        chunkY: chunkAt(placed.y),
-        carriedBy: undefined,
-        regenTick: ctx.db.world_clock.id.find(0)?.authorityTick ?? carriedTarget.regenTick,
-      });
-      updateEquippedForIdentity(ctx, ctx.sender);
-      return;
-    }
-    if (carriedPlaceable !== null) {
-      requirePlaceablePlacementTile(ctx, position, tileX, tileY);
-      ctx.db.world_placeable.id.update({
-        ...carriedPlaceable,
-        tileX,
-        tileY,
-        chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
-        chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
-        spaceId: position.spaceId,
-        facing: position.facing,
-        carriedBy: undefined,
-      });
-      updateEquippedForIdentity(ctx, ctx.sender);
-      recordPlayerStatistic(
-        ctx, ctx.sender, 'placeables_placed', 1n,
-        ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
-        carriedPlaceable.kind,
-      );
-      return;
-    }
+    if (placeCarriedHandsObject(ctx, position, carriedTarget, carriedPlaceable, tileX, tileY)) return;
     if (selected?.itemKind === 'homestead_deed' && selected.quantity > 0) {
       if (position.spaceId !== TOPSIDE_SPACE_ID) throw new SenderError('homestead_topside_only');
       if (homesteadForOwner(ctx, ctx.sender) !== null) throw new SenderError('homestead_already_established');
@@ -7987,20 +8097,7 @@ export const useHands = spacetimedb.reducer(
       updateEquippedForIdentity(ctx, ctx.sender);
       return;
     }
-    if (carried !== null) {
-      requireChestPlacementTile(ctx, position, tileX, tileY);
-      ctx.db.world_chest.id.update({
-        ...carried, tileX, tileY,
-        chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES), chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
-        carriedBy: undefined,
-      });
-      updateEquippedForIdentity(ctx, ctx.sender);
-      recordPlayerStatistic(
-        ctx, ctx.sender, 'chests_placed', 1n,
-        ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
-      );
-      return;
-    }
+    if (placeCarriedChest(ctx, position, carried, tileX, tileY)) return;
 
     const facedCombatTarget = combatTargetAtFacingTile(ctx, position);
     if (facedCombatTarget !== null) {
@@ -8024,57 +8121,7 @@ export const useHands = spacetimedb.reducer(
       return;
     }
 
-    if (selected?.itemKind === 'chest' && selected.quantity > 0) {
-      requireChestPlacementTile(ctx, position, tileX, tileY);
-      const chest = ctx.db.world_chest.insert({
-        id: 0n, owner: ctx.sender, tileX, tileY,
-        chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES), chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES), carriedBy: undefined,
-        spaceId: position.spaceId,
-      });
-      for (let slot = 0; slot < CHEST_STORAGE_CAPACITY; slot += 1) ctx.db.world_chest_slot.insert({
-        id: `${chest.id}:${slot}`, chestId: chest.id, slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true,
-      });
-      ctx.db.inventory_slot.id.update({
-        ...selected,
-        itemKind: selected.quantity === 1 ? 'empty' : selected.itemKind,
-        quantity: selected.quantity - 1,
-        durability: selected.quantity === 1 ? 0 : selected.durability,
-      });
-      updateEquippedForIdentity(ctx, ctx.sender);
-      recordPlayerStatistic(
-        ctx, ctx.sender, 'chests_placed', 1n,
-        ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
-      );
-      return;
-    }
-
-    const selectedDefinition = selected === null ? null : itemDefinition(selected.itemKind);
-    const selectedPlaceable = selected === null ? null : placeableDefinition(selected.itemKind);
-    if (selected !== null && selected.quantity > 0
-      && selectedDefinition?.tags.includes('item.placeable') === true
-      && selectedPlaceable !== null) {
-      const build = homesteadBuildDefinition(selected.itemKind);
-      if (build?.layer === 'prefab') {
-        requireHomesteadBuildPlacement(ctx, position, selected.itemKind, tileX, tileY);
-      } else {
-        requirePlaceablePlacementTile(ctx, position, tileX, tileY);
-      }
-      insertWorldPlaceable(ctx, position, selected.itemKind, tileX, tileY);
-      const remaining = selected.quantity - 1;
-      ctx.db.inventory_slot.id.update({
-        ...selected,
-        itemKind: remaining === 0 ? 'empty' : selected.itemKind,
-        quantity: remaining,
-        durability: remaining === 0 ? 0 : selected.durability,
-      });
-      updateEquippedForIdentity(ctx, ctx.sender);
-      recordPlayerStatistic(
-        ctx, ctx.sender, 'placeables_placed', 1n,
-        ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
-        selected.itemKind,
-      );
-      return;
-    }
+    if (placeSelectedHandsObject(ctx, position, selected, tileX, tileY)) return;
 
     const targetPlaceable = placeableAtFacingTile(ctx, position);
     if (targetPlaceable !== null) {
@@ -8370,6 +8417,7 @@ export const interactChest = spacetimedb.reducer(
 );
 
 export const closeChest = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const active = ctx.db.active_chest.identity.find(ctx.sender);
   if (active !== null) ctx.db.active_chest.identity.delete(ctx.sender);
 });
@@ -8710,6 +8758,7 @@ export const chooseDialogueOption = spacetimedb.reducer(
 );
 
 export const closeNpcDialogue = spacetimedb.reducer({}, (ctx) => {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const active = ctx.db.active_dialogue.identity.find(ctx.sender);
   if (active !== null) ctx.db.active_dialogue.identity.delete(ctx.sender);
 });
@@ -8982,6 +9031,7 @@ function partyInviteId(partyId: bigint, inviteeHex: string): string {
   return JSON.stringify([partyId.toString(), inviteeHex]);
 }
 
+// docs/53 T8: pending decision
 export const createParty = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const clock = ctx.db.world_clock.id.find(0);
@@ -8993,6 +9043,7 @@ export const createParty = spacetimedb.reducer({}, (ctx) => {
   });
 });
 
+// docs/53 T8: pending decision
 export const inviteToParty = spacetimedb.reducer(
   { invitee: t.identity() },
   (ctx, { invitee }) => {
@@ -9019,6 +9070,7 @@ export const inviteToParty = spacetimedb.reducer(
   },
 );
 
+// docs/53 T8: pending decision
 export const acceptPartyInvite = spacetimedb.reducer(
   { partyId: t.u64() },
   (ctx, { partyId }) => {
@@ -9060,11 +9112,13 @@ function leavePlayerParty(ctx: WorldReducerContext, identity: WorldReducerContex
   }
 }
 
+// docs/53 T8: pending decision
 export const leaveParty = spacetimedb.reducer({}, (ctx) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   leavePlayerParty(ctx, ctx.sender);
 });
 
+// docs/53 T8: pending decision
 export const removePartyMember = spacetimedb.reducer(
   { memberIdentity: t.identity() },
   (ctx, { memberIdentity }) => {
@@ -11072,6 +11126,97 @@ export const tendTree = spacetimedb.reducer(
   },
 );
 
+function runOneHertzTickMaintenance(
+  ctx: WorldReducerContext,
+  maintenanceAuthorityTick: bigint,
+  updateCounters: ReturnType<typeof emptyTickUpdateCounters>,
+): void {
+  if (maintenanceAuthorityTick % BigInt(AUTHORITY_HZ) !== 0n) return;
+  // Trade actions revalidate range synchronously; this cadence only expires
+  // idle sessions and closes the UI after players move apart.
+  for (const trade of ctx.db.player_trade_session.iter()) {
+    recordTickRowScan(updateCounters, 'tradeRowsScanned');
+    const requestExpired = trade.state === 'requested'
+      && maintenanceAuthorityTick > trade.createdTick + PLAYER_TRADE_REQUEST_TTL_TICKS;
+    if (requestExpired || !tradePlayersWithinReach(ctx, trade)) cancelPlayerTrade(ctx, trade);
+  }
+  // Connect-time recovery remains immediate. Owners whose last attempt
+  // found no capacity sleep until writePlayerInventory clears the marker.
+  const overflowOwners = new Map<string, WorldReducerContext['sender']>();
+  for (const row of ctx.db.inventory_overflow.iter()) {
+    recordTickRowScan(updateCounters, 'overflowRowsScanned');
+    if (ctx.db.inventory_overflow_retry.identity.find(row.identity) !== null) continue;
+    overflowOwners.set(row.identity.toHexString(), row.identity);
+  }
+  for (const identity of overflowOwners.values()) drainPlayerOverflow(ctx, identity);
+}
+
+function expirePresenceLeases(ctx: WorldReducerContext, clock: WorldClockRow): void {
+  for (const presence of ctx.db.connection_presence_v2.iter()) {
+    if (!presenceLeaseExpired(
+      presence.lastSeenAt.microsSinceUnixEpoch,
+      ctx.timestamp.microsSinceUnixEpoch,
+    )) continue;
+    ctx.db.connection_presence_v2.connectionId.delete(presence.connectionId);
+    deleteSessionChatNoticesForConnection(ctx, presence.connectionId);
+    const abandonedNotice = ctx.db.connection_notice.connectionId.find(presence.connectionId);
+    if (abandonedNotice !== null) {
+      const abandonedProfile = ctx.db.player_public.identity.find(presence.identity);
+      ctx.db.connection_audit.insert({
+        id: 0n,
+        connectionId: presence.connectionId,
+        identity: presence.identity,
+        eventKind: 'lease_expired',
+        displayName: abandonedProfile?.displayName ?? 'Unknown',
+        occurredAt: ctx.timestamp,
+        occurredAtMicros: ctx.timestamp.microsSinceUnixEpoch,
+      });
+      flushPlayerStatisticTime(ctx, presence.identity, clock.authorityTick, true);
+      ctx.db.connection_notice.connectionId.delete(presence.connectionId);
+    }
+    const stillOnline = [
+      ...ctx.db.connection_presence_v2.by_identity.filter(presence.identity),
+    ].length > 0;
+    if (stillOnline) continue;
+    const profile = ctx.db.player_public.identity.find(presence.identity);
+    if (profile !== null) {
+      if (ctx.db.character_profile.identity.find(presence.identity)?.nameChosen === true) {
+        broadcastSessionChatNotice(ctx, 'disconnect', worldDisconnectMessage(profile.displayName));
+      }
+      ctx.db.player_public.identity.update({ ...profile, online: false });
+    }
+    const input = ctx.db.player_input.identity.find(presence.identity);
+    if (input !== null) ctx.db.player_input.identity.update({
+      ...input,
+      direction: 'idle',
+      sprinting: false,
+      settleDirection: 'idle',
+      settleSteps: 0,
+      settledSequence: input.sequence,
+      pendingSequence: 0n,
+      lastProcessedSequence: input.sequence,
+    });
+    ctx.db.player_jump_state.identity.delete(presence.identity);
+    const position = ctx.db.player_position.identity.find(presence.identity);
+    if (position !== null) {
+      ctx.db.player_position.identity.update({
+        ...position,
+        moving: false,
+        actionKind: 'none',
+      });
+    }
+    for (const npc of ctx.db.world_npc.by_rider.filter(presence.identity)) {
+      updateWorldNpc(ctx, {
+        ...npc,
+        rider: undefined,
+        moving: false,
+        wanderDirection: 'idle',
+        nextDecisionTick: clock.authorityTick + 20n,
+      });
+    }
+  }
+}
+
 export const stepWorld = spacetimedb.reducer(
   { onSchedule: movement_timer },
   { scheduledMessage: movement_timer.rowType },
@@ -11131,25 +11276,7 @@ export const stepWorld = spacetimedb.reducer(
     }
     const maintenanceAuthorityTick = clock.authorityTick + 1n;
     const oneHertzMaintenanceTick = maintenanceAuthorityTick % BigInt(AUTHORITY_HZ) === 0n;
-    if (oneHertzMaintenanceTick) {
-      // Trade actions revalidate range synchronously; this cadence only expires
-      // idle sessions and closes the UI after players move apart.
-      for (const trade of ctx.db.player_trade_session.iter()) {
-        recordTickRowScan(updateCounters, 'tradeRowsScanned');
-        const requestExpired = trade.state === 'requested'
-          && maintenanceAuthorityTick > trade.createdTick + PLAYER_TRADE_REQUEST_TTL_TICKS;
-        if (requestExpired || !tradePlayersWithinReach(ctx, trade)) cancelPlayerTrade(ctx, trade);
-      }
-      // Connect-time recovery remains immediate. Owners whose last attempt
-      // found no capacity sleep until writePlayerInventory clears the marker.
-      const overflowOwners = new Map<string, WorldReducerContext['sender']>();
-      for (const row of ctx.db.inventory_overflow.iter()) {
-        recordTickRowScan(updateCounters, 'overflowRowsScanned');
-        if (ctx.db.inventory_overflow_retry.identity.find(row.identity) !== null) continue;
-        overflowOwners.set(row.identity.toHexString(), row.identity);
-      }
-      for (const identity of overflowOwners.values()) drainPlayerOverflow(ctx, identity);
-    }
+    runOneHertzTickMaintenance(ctx, maintenanceAuthorityTick, updateCounters);
     const wildlifeGeneration = ctx.db.world_wildlife_generation.id.find(0);
     if (wildlifeGeneration === null || wildlifeGeneration.version < WILDLIFE_GENERATION_VERSION) {
       // Only this deterministic layer is replaced. Player identities, farms,
@@ -11185,69 +11312,7 @@ export const stepWorld = spacetimedb.reducer(
       ctx.db.stats_migration.insert({ id: 0, creatureHealthVersion: 1 });
     }
 
-    for (const presence of ctx.db.connection_presence_v2.iter()) {
-      if (!presenceLeaseExpired(
-        presence.lastSeenAt.microsSinceUnixEpoch,
-        ctx.timestamp.microsSinceUnixEpoch,
-      )) continue;
-      ctx.db.connection_presence_v2.connectionId.delete(presence.connectionId);
-      deleteSessionChatNoticesForConnection(ctx, presence.connectionId);
-      const abandonedNotice = ctx.db.connection_notice.connectionId.find(presence.connectionId);
-      if (abandonedNotice !== null) {
-        const abandonedProfile = ctx.db.player_public.identity.find(presence.identity);
-        ctx.db.connection_audit.insert({
-          id: 0n,
-          connectionId: presence.connectionId,
-          identity: presence.identity,
-          eventKind: 'lease_expired',
-          displayName: abandonedProfile?.displayName ?? 'Unknown',
-          occurredAt: ctx.timestamp,
-          occurredAtMicros: ctx.timestamp.microsSinceUnixEpoch,
-        });
-        flushPlayerStatisticTime(ctx, presence.identity, clock.authorityTick, true);
-        ctx.db.connection_notice.connectionId.delete(presence.connectionId);
-      }
-      const stillOnline = [
-        ...ctx.db.connection_presence_v2.by_identity.filter(presence.identity),
-      ].length > 0;
-      if (stillOnline) continue;
-      const profile = ctx.db.player_public.identity.find(presence.identity);
-      if (profile !== null) {
-        if (ctx.db.character_profile.identity.find(presence.identity)?.nameChosen === true) {
-          broadcastSessionChatNotice(ctx, 'disconnect', worldDisconnectMessage(profile.displayName));
-        }
-        ctx.db.player_public.identity.update({ ...profile, online: false });
-      }
-      const input = ctx.db.player_input.identity.find(presence.identity);
-      if (input !== null) ctx.db.player_input.identity.update({
-        ...input,
-        direction: 'idle',
-        sprinting: false,
-        settleDirection: 'idle',
-        settleSteps: 0,
-        settledSequence: input.sequence,
-        pendingSequence: 0n,
-        lastProcessedSequence: input.sequence,
-      });
-      ctx.db.player_jump_state.identity.delete(presence.identity);
-      const position = ctx.db.player_position.identity.find(presence.identity);
-      if (position !== null) {
-        ctx.db.player_position.identity.update({
-          ...position,
-          moving: false,
-          actionKind: 'none',
-        });
-      }
-      for (const npc of ctx.db.world_npc.by_rider.filter(presence.identity)) {
-        updateWorldNpc(ctx, {
-          ...npc,
-          rider: undefined,
-          moving: false,
-          wanderDirection: 'idle',
-          nextDecisionTick: clock.authorityTick + 20n,
-        });
-      }
-    }
+    expirePresenceLeases(ctx, clock);
 
     const activePresenceCount = ctx.db.connection_presence_v2.count();
     const activePresences = activePresenceCount === 0n
