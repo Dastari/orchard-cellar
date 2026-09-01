@@ -138,7 +138,6 @@ import ToggleHeldLanternReducer from "./toggle_held_lantern_reducer";
 import ToggleHomesteadGateReducer from "./toggle_homestead_gate_reducer";
 import ToggleWorldLanternReducer from "./toggle_world_lantern_reducer";
 import UseCropTileReducer from "./use_crop_tile_reducer";
-import UseFarmTileReducer from "./use_farm_tile_reducer";
 import UseFarmToolReducer from "./use_farm_tool_reducer";
 import UseHandsReducer from "./use_hands_reducer";
 import UsePortalReducer from "./use_portal_reducer";
@@ -147,9 +146,6 @@ import UsePortalReducer from "./use_portal_reducer";
 
 // Import all table schema definitions
 import CellarExcavationRow from "./cellar_excavation_table";
-import CropPatchRow from "./crop_patch_table";
-import FarmActivityRow from "./farm_activity_table";
-import FarmParcelRow from "./farm_parcel_table";
 import HomesteadRow from "./homestead_table";
 import OnlinePlayerAppearancesRow from "./online_player_appearances_table";
 import OnlinePlayerPublicRow from "./online_player_public_table";
@@ -240,50 +236,6 @@ const tablesSchema = __schema({
       { name: 'cellar_excavation_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CellarExcavationRow),
-  cropPatch: __table({
-    name: 'crop_patch',
-    indexes: [
-      { accessor: 'id', name: 'crop_patch_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-      { accessor: 'by_parcel', name: 'crop_patch_parcel_id_idx_btree', algorithm: 'btree', columns: [
-        'parcelId',
-      ] },
-      { accessor: 'by_chunk', name: 'crop_patch_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
-        'spaceId',
-        'chunkX',
-        'chunkY',
-      ] },
-    ],
-    constraints: [
-      { name: 'crop_patch_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, CropPatchRow),
-  farmActivity: __table({
-    name: 'farm_activity',
-    indexes: [
-      { accessor: 'identity', name: 'farm_activity_identity_idx_btree', algorithm: 'btree', columns: [
-        'identity',
-      ] },
-    ],
-    constraints: [
-      { name: 'farm_activity_identity_key', constraint: 'unique', columns: ['identity'] },
-    ],
-  }, FarmActivityRow),
-  farmParcel: __table({
-    name: 'farm_parcel',
-    indexes: [
-      { accessor: 'id', name: 'farm_parcel_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-      { accessor: 'by_owner', name: 'farm_parcel_owner_idx_btree', algorithm: 'btree', columns: [
-        'owner',
-      ] },
-    ],
-    constraints: [
-      { name: 'farm_parcel_id_key', constraint: 'unique', columns: ['id'] },
-    ],
-  }, FarmParcelRow),
   homestead: __table({
     name: 'homestead',
     indexes: [
@@ -1082,7 +1034,6 @@ const reducersSchema = __reducers(
   __reducerSchema("toggle_homestead_gate", ToggleHomesteadGateReducer),
   __reducerSchema("toggle_world_lantern", ToggleWorldLanternReducer),
   __reducerSchema("use_crop_tile", UseCropTileReducer),
-  __reducerSchema("use_farm_tile", UseFarmTileReducer),
   __reducerSchema("use_farm_tool", UseFarmToolReducer),
   __reducerSchema("use_hands", UseHandsReducer),
   __reducerSchema("use_portal", UsePortalReducer),
@@ -1096,12 +1047,6 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
   tables: typeof tablesSchema.schemaType.tables & {
     /** @deprecated Use `cellarExcavation` instead. This alias will be removed in the next major version. */
     readonly "cellar_excavation": Omit<typeof tablesSchema.schemaType.tables["cellarExcavation"], "accessorName"> & { readonly accessorName: "cellar_excavation" };
-    /** @deprecated Use `cropPatch` instead. This alias will be removed in the next major version. */
-    readonly "crop_patch": Omit<typeof tablesSchema.schemaType.tables["cropPatch"], "accessorName"> & { readonly accessorName: "crop_patch" };
-    /** @deprecated Use `farmActivity` instead. This alias will be removed in the next major version. */
-    readonly "farm_activity": Omit<typeof tablesSchema.schemaType.tables["farmActivity"], "accessorName"> & { readonly accessorName: "farm_activity" };
-    /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
-    readonly "farm_parcel": Omit<typeof tablesSchema.schemaType.tables["farmParcel"], "accessorName"> & { readonly accessorName: "farm_parcel" };
     /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
     readonly "player_appearance": Omit<typeof tablesSchema.schemaType.tables["playerAppearance"], "accessorName"> & { readonly accessorName: "player_appearance" };
     /** @deprecated Use `playerJumpState` instead. This alias will be removed in the next major version. */
@@ -1173,9 +1118,6 @@ const REMOTE_MODULE = {
 
 const tableAccessorAliases = {
   "cellar_excavation": "cellarExcavation",
-  "crop_patch": "cropPatch",
-  "farm_activity": "farmActivity",
-  "farm_parcel": "farmParcel",
   "player_appearance": "playerAppearance",
   "player_jump_state": "playerJumpState",
   "player_party": "playerParty",
@@ -1224,12 +1166,6 @@ type __DbViewBase = __DbConnectionImpl<typeof REMOTE_MODULE>["db"];
 export type DbView = __DbViewBase & {
   /** @deprecated Use `cellarExcavation` instead. This alias will be removed in the next major version. */
   readonly "cellar_excavation": __DbViewBase["cellarExcavation"];
-  /** @deprecated Use `cropPatch` instead. This alias will be removed in the next major version. */
-  readonly "crop_patch": __DbViewBase["cropPatch"];
-  /** @deprecated Use `farmActivity` instead. This alias will be removed in the next major version. */
-  readonly "farm_activity": __DbViewBase["farmActivity"];
-  /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
-  readonly "farm_parcel": __DbViewBase["farmParcel"];
   /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
   readonly "player_appearance": __DbViewBase["playerAppearance"];
   /** @deprecated Use `playerJumpState` instead. This alias will be removed in the next major version. */
@@ -1288,12 +1224,6 @@ type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
 export type Tables = __TablesBase & {
   /** @deprecated Use `cellarExcavation` instead. This alias will be removed in the next major version. */
   readonly "cellar_excavation": __TablesBase["cellarExcavation"];
-  /** @deprecated Use `cropPatch` instead. This alias will be removed in the next major version. */
-  readonly "crop_patch": __TablesBase["cropPatch"];
-  /** @deprecated Use `farmActivity` instead. This alias will be removed in the next major version. */
-  readonly "farm_activity": __TablesBase["farmActivity"];
-  /** @deprecated Use `farmParcel` instead. This alias will be removed in the next major version. */
-  readonly "farm_parcel": __TablesBase["farmParcel"];
   /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
   readonly "player_appearance": __TablesBase["playerAppearance"];
   /** @deprecated Use `playerJumpState` instead. This alias will be removed in the next major version. */

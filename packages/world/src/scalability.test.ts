@@ -46,7 +46,7 @@ describe('34§6 stage-1 scalability rules', () => {
     const reducerNames = [
       'useHands', 'interactChest', 'interactNpc', 'harvestChest', 'interactHorse',
       'jumpHorse', 'dropSelected', 'gatherWorldResource', 'harvestResource',
-      'attackCombatTarget', 'fireBow', 'useFarmTool', 'restoreFarmTile', 'tendTree', 'useFarmTile',
+      'attackCombatTarget', 'fireBow', 'useFarmTool', 'restoreFarmTile', 'tendTree',
     ];
     for (const reducerName of reducerNames) {
       const start = source.indexOf(`export const ${reducerName} =`);

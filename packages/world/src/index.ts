@@ -323,7 +323,6 @@ import {
 } from 'spacetimedb/server';
 import {
   canTendTree,
-  canUseFarmTile,
   chunkAt,
   CROP_GROWTH_TICKS,
   createAuthoritySpaceCollisionMap,
@@ -608,6 +607,8 @@ const bow_charge = table(
   },
 );
 
+/** T11 retired compatibility storage. Automatic migration cannot drop the
+ * table; the one-shot legacy-farm migration is its only remaining reader. */
 const private_inventory = table(
   { name: 'private_inventory' },
   {
@@ -623,6 +624,7 @@ const player_survival = table(
   {
     identity: t.identity().primaryKey(),
     spawnSlot: t.u8(),
+    /** T11 retired compatibility columns; migrated once into inventory_slot. */
     wood: t.u32(),
     stone: t.u32(),
     selectedSlot: t.u8(),
@@ -1901,13 +1903,16 @@ const world_scalability_migration = table(
     /** T10 one-shot cutover from public compatibility columns to narrow
      * mining-claim, jump-presentation, and private acknowledgement state. */
     privateStateVersion: t.u8().default(0),
+    /** T11 one-shot cutover from the parallel farm/inventory prototype. */
+    legacyFarmVersion: t.u8().default(0),
   },
 );
 
+/** T11 retired compatibility table. It is private so regenerated clients no
+ * longer expose the obsolete farm surface; removal awaits an incremental migration. */
 const farm_parcel = table(
   {
     name: 'farm_parcel',
-    public: true,
     indexes: [
       { accessor: 'by_owner', algorithm: 'btree', columns: ['owner'] },
     ],
@@ -1926,7 +1931,6 @@ const farm_parcel = table(
 const crop_patch = table(
   {
     name: 'crop_patch',
-    public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
       { accessor: 'by_parcel', algorithm: 'btree', columns: ['parcelId'] },
@@ -1948,7 +1952,7 @@ const crop_patch = table(
 );
 
 const farm_activity = table(
-  { name: 'farm_activity', public: true },
+  { name: 'farm_activity' },
   {
     identity: t.identity().primaryKey(),
     planted: t.u32(),
@@ -2736,6 +2740,7 @@ function ensureSoilDecayTimers(ctx: WorldReducerContext, currentTick: bigint): v
     soilDecayTimerVersion: SOIL_DECAY_TIMER_MIGRATION_VERSION,
     miningVersion: migration?.miningVersion ?? 0,
     privateStateVersion: migration?.privateStateVersion ?? 0,
+    legacyFarmVersion: migration?.legacyFarmVersion ?? 0,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -2926,6 +2931,7 @@ function recoverLegacyDismountHorses(ctx: WorldReducerContext, authorityTick: bi
     soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
     miningVersion: migration?.miningVersion ?? 0,
     privateStateVersion: migration?.privateStateVersion ?? 0,
+    legacyFarmVersion: migration?.legacyFarmVersion ?? 0,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -4592,6 +4598,7 @@ function ensureMiningMigration(ctx: WorldReducerContext): void {
     soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
     miningVersion: MINING_MIGRATION_VERSION,
     privateStateVersion: migration?.privateStateVersion ?? 0,
+    legacyFarmVersion: migration?.legacyFarmVersion ?? 0,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -4643,6 +4650,7 @@ function ensurePrivateStateMigration(ctx: WorldReducerContext): void {
     soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
     miningVersion: migration?.miningVersion ?? 0,
     privateStateVersion: PRIVATE_STATE_MIGRATION_VERSION,
+    legacyFarmVersion: migration?.legacyFarmVersion ?? 0,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -5621,6 +5629,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       soilDecayTimerVersion: scalabilityMigration?.soilDecayTimerVersion ?? 0,
       miningVersion: scalabilityMigration?.miningVersion ?? 0,
       privateStateVersion: scalabilityMigration?.privateStateVersion ?? 0,
+      legacyFarmVersion: scalabilityMigration?.legacyFarmVersion ?? 0,
     };
     if (scalabilityMigration === null) ctx.db.world_scalability_migration.insert(nextScalabilityMigration);
     else ctx.db.world_scalability_migration.id.update(nextScalabilityMigration);
@@ -5871,7 +5880,6 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       sprinting: false,
       lastProcessedSequence: 0n,
     });
-    ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
   } else {
     ctx.db.player_public.identity.update({
       ...profile,
@@ -5973,13 +5981,8 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         });
       }
     }
-    if (ctx.db.private_inventory.identity.find(ctx.sender) === null) {
-      ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
-    }
   }
-  if (ctx.db.farm_activity.identity.find(ctx.sender) === null) {
-    ctx.db.farm_activity.insert({ identity: ctx.sender, planted: 0, watered: 0, harvested: 0 });
-  }
+  ensureLegacyFarmMigration(ctx);
   drainPlayerOverflow(ctx, ctx.sender);
   updateEquippedForIdentity(ctx, ctx.sender);
   const connectedProfile = ctx.db.player_public.identity.find(ctx.sender);
@@ -6911,10 +6914,6 @@ export const setDisplayName = spacetimedb.reducer(
       ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n,
     );
     broadcastSessionChatNotice(ctx, 'entry', worldEntryMessage(validName));
-    const parcel = [...ctx.db.farm_parcel.by_owner.filter(ctx.sender)][0];
-    if (parcel !== undefined) {
-      ctx.db.farm_parcel.id.update({ ...parcel, name: `${validName}'s Farm` });
-    }
   },
 );
 
@@ -8812,6 +8811,153 @@ function insertEscrowStacksIntoInventory(
   writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, containers);
   updateEquippedForIdentity(ctx, identity, containers);
   for (const stack of overflow) stashOverflow(ctx, identity, stack);
+}
+
+const LEGACY_FARM_MIGRATION_VERSION = 1;
+const LEGACY_CROP_KIND = 'wheat';
+
+function migrateLegacyInventoryQuantity(
+  ctx: WorldReducerContext,
+  identity: WorldReducerContext['sender'],
+  itemKind: string,
+  quantity: bigint,
+): void {
+  const maximum = itemDefinition(itemKind)?.maxStack;
+  if (maximum === undefined) throw new Error(`legacy_farm_unknown_item:${itemKind}`);
+  let remaining = quantity;
+  while (remaining > 0n) {
+    const migrated = remaining > BigInt(maximum) ? maximum : Number(remaining);
+    stashOverflow(ctx, identity, { itemKind, quantity: migrated });
+    remaining -= BigInt(migrated);
+  }
+}
+
+function migrateLegacyStatisticFloor(
+  ctx: WorldReducerContext,
+  identity: WorldReducerContext['sender'],
+  kind: PlayerStatisticKind,
+  target: bigint,
+  authorityTick: bigint,
+  subjectKind = '',
+): void {
+  const current = [...ctx.db.player_statistic.by_identity.filter(identity)]
+    .filter((row) => row.statisticKind === kind)
+    .reduce((total, row) => total + row.value, 0n);
+  if (target > current) recordPlayerStatistic(
+    ctx, identity, kind, target - current, authorityTick, subjectKind,
+  );
+}
+
+/** T11 additive cutover. The marker makes these compatibility-table scans
+ * one-shot; schemas remain private and inert until an incremental migration
+ * can physically drop them. Inventory overflow preserves every excess stack. */
+function ensureLegacyFarmMigration(ctx: WorldReducerContext): void {
+  const migration = ctx.db.world_scalability_migration.id.find(0);
+  if ((migration?.legacyFarmVersion ?? 0) >= LEGACY_FARM_MIGRATION_VERSION) return;
+  const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+  const inventoryRecipients = new Map<string, WorldReducerContext['sender']>();
+  const migrateItem = (
+    identity: WorldReducerContext['sender'], itemKind: string, quantity: bigint,
+  ): void => {
+    if (quantity === 0n) return;
+    migrateLegacyInventoryQuantity(ctx, identity, itemKind, quantity);
+    inventoryRecipients.set(identity.toHexString(), identity);
+  };
+
+  for (const inventory of ctx.db.private_inventory.iter()) {
+    // The prototype's undifferentiated fruit balance predates fruit varieties;
+    // apples are its canonical inventory representation.
+    migrateItem(inventory.identity, 'apple', inventory.fruit);
+    migrateItem(inventory.identity, 'bottles', inventory.bottles);
+    migrateLegacyStatisticFloor(
+      ctx, inventory.identity, 'orchard_trees_tended', BigInt(inventory.knowledge), authorityTick,
+    );
+  }
+  for (const survival of ctx.db.player_survival.iter()) {
+    migrateItem(survival.identity, 'wood', BigInt(survival.wood));
+    migrateItem(survival.identity, 'stone', BigInt(survival.stone));
+  }
+  for (const identity of inventoryRecipients.values()) drainPlayerOverflow(ctx, identity);
+
+  for (const parcel of ctx.db.farm_parcel.iter()) {
+    for (let tileY = parcel.originY; tileY < parcel.originY + parcel.height; tileY += 1) {
+      for (let tileX = parcel.originX; tileX < parcel.originX + parcel.width; tileX += 1) {
+        if (!isFarmBedTile(parcel, tileX, tileY)) continue;
+        const id = worldSoilId(TOPSIDE_SPACE_ID, tileX, tileY);
+        if (ctx.db.world_soil.id.find(id) !== null) continue;
+        const soil = ctx.db.world_soil.insert({
+          id, tileX, tileY,
+          chunkX: Math.floor(tileX / SURVIVAL_CHUNK_TILES),
+          chunkY: Math.floor(tileY / SURVIVAL_CHUNK_TILES),
+          watered: false,
+          tilledAtTick: authorityTick,
+          wateredAtTick: 0n,
+          spaceId: TOPSIDE_SPACE_ID,
+        });
+        scheduleEmptyTopsideSoilDecay(ctx, soil, authorityTick);
+      }
+    }
+  }
+  const legacyDefinition = cropDefinition(LEGACY_CROP_KIND);
+  if (legacyDefinition === null) throw new Error('legacy_farm_crop_definition_missing');
+  for (const crop of ctx.db.crop_patch.iter()) {
+    const id = worldSoilId(crop.spaceId, crop.tileX, crop.tileY);
+    let soil = ctx.db.world_soil.id.find(id);
+    if (soil === null) {
+      soil = ctx.db.world_soil.insert({
+        id, tileX: crop.tileX, tileY: crop.tileY,
+        chunkX: Math.floor(crop.tileX / SURVIVAL_CHUNK_TILES),
+        chunkY: Math.floor(crop.tileY / SURVIVAL_CHUNK_TILES),
+        watered: crop.watered,
+        tilledAtTick: crop.plantedAtTick,
+        wateredAtTick: crop.wateredAtTick,
+        spaceId: crop.spaceId,
+      });
+      scheduleEmptyTopsideSoilDecay(ctx, soil, authorityTick);
+    }
+    if (ctx.db.world_crop.id.find(id) !== null) continue;
+    const wateredTicks = crop.watered && authorityTick > crop.wateredAtTick
+      ? authorityTick - crop.wateredAtTick
+      : 0n;
+    const growthTicks = wateredTicks >= CROP_GROWTH_TICKS
+      ? legacyDefinition.growthTicks
+      : wateredTicks * legacyDefinition.growthTicks / CROP_GROWTH_TICKS;
+    ctx.db.world_crop.insert({
+      id,
+      owner: crop.owner,
+      cropKind: LEGACY_CROP_KIND,
+      tileX: crop.tileX,
+      tileY: crop.tileY,
+      chunkX: Math.floor(crop.tileX / SURVIVAL_CHUNK_TILES),
+      chunkY: Math.floor(crop.tileY / SURVIVAL_CHUNK_TILES),
+      plantedAtTick: crop.plantedAtTick,
+      growthTicks,
+      growthUpdatedAtTick: authorityTick,
+      spaceId: crop.spaceId,
+    });
+  }
+  for (const activity of ctx.db.farm_activity.iter()) {
+    migrateLegacyStatisticFloor(
+      ctx, activity.identity, 'crops_planted', BigInt(activity.planted), authorityTick, 'legacy_crop',
+    );
+    migrateLegacyStatisticFloor(
+      ctx, activity.identity, 'farm_tiles_watered', BigInt(activity.watered), authorityTick,
+    );
+    migrateLegacyStatisticFloor(
+      ctx, activity.identity, 'crops_harvested', BigInt(activity.harvested), authorityTick, 'legacy_crop',
+    );
+  }
+  const nextMigration = {
+    id: 0,
+    wildlifeProfileChunkVersion: migration?.wildlifeProfileChunkVersion ?? 1,
+    horseDismountRecoveryVersion: migration?.horseDismountRecoveryVersion ?? 0,
+    soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
+    miningVersion: migration?.miningVersion ?? 0,
+    privateStateVersion: migration?.privateStateVersion ?? 0,
+    legacyFarmVersion: LEGACY_FARM_MIGRATION_VERSION,
+  };
+  if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
+  else ctx.db.world_scalability_migration.id.update(nextMigration);
 }
 
 function cancelPlayerTrade(ctx: WorldReducerContext, trade: PlayerTradeSessionRow): void {
@@ -10797,8 +10943,6 @@ export const useCropTile = spacetimedb.reducer(
     const soil = ctx.db.world_soil.id.find(id);
     if (soil === null) throw new SenderError('not_tilled');
     const existing = ctx.db.world_crop.id.find(id);
-    const activity = ctx.db.farm_activity.identity.find(ctx.sender);
-    if (activity === null) throw new SenderError('farm_activity_not_ready');
 
     if (existing === null) {
       const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
@@ -10826,7 +10970,6 @@ export const useCropTile = spacetimedb.reducer(
         growthUpdatedAtTick: clock.authorityTick,
         spaceId: position.spaceId,
       });
-      ctx.db.farm_activity.identity.update({ ...activity, planted: activity.planted + 1 });
       recordPlayerStatistic(ctx, ctx.sender, 'crops_planted', 1n, clock.authorityTick, definition.kind);
       grantSkillExperience(ctx, ctx.sender, 'farming', 2n);
       return;
@@ -10877,7 +11020,6 @@ export const useCropTile = spacetimedb.reducer(
       tilledAtTick: clock.authorityTick,
     });
     scheduleEmptyTopsideSoilDecay(ctx, refreshedSoil, clock.authorityTick);
-    ctx.db.farm_activity.identity.update({ ...activity, harvested: activity.harvested + 1 });
     recordPlayerStatistic(ctx, ctx.sender, 'crops_harvested', 1n, clock.authorityTick, definition.kind);
     recordPlayerStatistic(
       ctx,
@@ -10926,71 +11068,7 @@ export const tendTree = spacetimedb.reducer(
       tendCount: tree.tendCount + 1,
       lastTendedTick: clock.authorityTick,
     });
-    const inventory = ctx.db.private_inventory.identity.find(ctx.sender);
-    if (inventory !== null) {
-      ctx.db.private_inventory.identity.update({
-        ...inventory,
-        knowledge: inventory.knowledge + 1,
-      });
-    }
     recordPlayerStatistic(ctx, ctx.sender, 'orchard_trees_tended', 1n, clock.authorityTick);
-  },
-);
-
-export const useFarmTile = spacetimedb.reducer(
-  { tileX: t.i16(), tileY: t.i16() },
-  (ctx, { tileX, tileY }) => {
-    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if (handsOccupiedFor(ctx, ctx.sender)) throw new SenderError('hands_occupied');
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    const clock = ctx.db.world_clock.id.find(0);
-    if (position === null || clock === null) throw new SenderError('player_not_ready');
-    if (position.spaceId !== TOPSIDE_SPACE_ID) throw new SenderError('topside_only');
-    if (mountedNpcFor(ctx, ctx.sender) !== null) {
-      throw new SenderError('mounted_action_forbidden');
-    }
-    if (!canUseFarmTile(position.x, position.y, tileX, tileY)) {
-      throw new SenderError('farm_tile_out_of_range');
-    }
-    const parcel = [...ctx.db.farm_parcel.iter()].find((candidate) => isFarmBedTile(candidate, tileX, tileY));
-    if (parcel === undefined) throw new SenderError('not_a_farm_bed');
-    const crop = [...ctx.db.crop_patch.by_parcel.filter(parcel.id)]
-      .find((candidate) => candidate.tileX === tileX && candidate.tileY === tileY);
-    const actor = ctx.db.farm_activity.identity.find(ctx.sender);
-    if (actor === null) throw new SenderError('farm_activity_not_ready');
-
-    if (crop === undefined) {
-      if (!parcel.owner.isEqual(ctx.sender)) throw new SenderError('owner_only_planting');
-      ctx.db.crop_patch.insert({
-        id: 0n,
-        parcelId: parcel.id,
-        owner: parcel.owner,
-        tileX,
-        tileY,
-        chunkX: chunkAt(tileX * TILE_SIZE_FIXED),
-        chunkY: chunkAt(tileY * TILE_SIZE_FIXED),
-        plantedAtTick: clock.authorityTick,
-        watered: false,
-        wateredAtTick: 0n,
-        spaceId: position.spaceId,
-      });
-      ctx.db.farm_activity.identity.update({ ...actor, planted: actor.planted + 1 });
-      recordPlayerStatistic(ctx, ctx.sender, 'crops_planted', 1n, clock.authorityTick, 'legacy_crop');
-      return;
-    }
-    if (!crop.watered) {
-      ctx.db.crop_patch.id.update({ ...crop, watered: true, wateredAtTick: clock.authorityTick });
-      ctx.db.farm_activity.identity.update({ ...actor, watered: actor.watered + 1 });
-      recordPlayerStatistic(ctx, ctx.sender, 'farm_tiles_watered', 1n, clock.authorityTick);
-      return;
-    }
-    if (clock.authorityTick - crop.wateredAtTick < CROP_GROWTH_TICKS) {
-      throw new SenderError('crop_still_growing');
-    }
-    if (!crop.owner.isEqual(ctx.sender)) throw new SenderError('owner_only_harvest');
-    ctx.db.crop_patch.id.delete(crop.id);
-    ctx.db.farm_activity.identity.update({ ...actor, harvested: actor.harvested + 1 });
-    recordPlayerStatistic(ctx, ctx.sender, 'crops_harvested', 1n, clock.authorityTick, 'legacy_crop');
   },
 );
 
@@ -11026,6 +11104,8 @@ export const stepWorld = spacetimedb.reducer(
     ensureMiningMigration(ctx);
     // T10 one-shot migration; its marker makes the full scans unreachable after cutover.
     ensurePrivateStateMigration(ctx);
+    // T11 one-shot migration; its marker removes compatibility scans after cutover.
+    ensureLegacyFarmMigration(ctx);
     let environment = ctx.db.world_environment.id.find(0);
     if (environment === null) {
       environment = ctx.db.world_environment.insert({

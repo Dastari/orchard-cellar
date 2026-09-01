@@ -83,10 +83,6 @@ describe('26§3 additive spaces schema', () => {
       expect(source.slice(start, end < 0 ? source.length : end), reducerName)
         .toContain('mutableFarmTileAuthorized(ctx, position, tileX, tileY)');
     }
-    const legacyFarm = source.slice(
-      source.indexOf('export const useFarmTile ='),
-      source.indexOf('\nexport const ', source.indexOf('export const useFarmTile =') + 1),
-    );
-    expect(legacyFarm).toContain('position.spaceId !== TOPSIDE_SPACE_ID');
+    expect(source).not.toContain('export const useFarmTile =');
   });
 });

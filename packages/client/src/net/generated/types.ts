@@ -1027,6 +1027,7 @@ export const WorldScalabilityMigration = __t.object("WorldScalabilityMigration",
   soilDecayTimerVersion: __t.u8(),
   miningVersion: __t.u8(),
   privateStateVersion: __t.u8(),
+  legacyFarmVersion: __t.u8(),
 });
 export type WorldScalabilityMigration = __Infer<typeof WorldScalabilityMigration>;
 
