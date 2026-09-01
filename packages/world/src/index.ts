@@ -2092,6 +2092,7 @@ type WorldCombatTargetRow = NonNullable<ReturnType<WorldReducerContext['db']['wo
 type WorldSoilRow = NonNullable<ReturnType<WorldReducerContext['db']['world_soil']['id']['find']>>;
 type InventorySlotRow = NonNullable<ReturnType<WorldReducerContext['db']['inventory_slot']['id']['find']>>;
 type WorldClockRow = NonNullable<ReturnType<WorldReducerContext['db']['world_clock']['id']['find']>>;
+type ConnectionPresenceRow = NonNullable<ReturnType<WorldReducerContext['db']['connection_presence_v2']['connectionId']['find']>>;
 type HomesteadRow = NonNullable<ReturnType<WorldReducerContext['db']['homestead']['spaceId']['find']>>;
 type IndexedLookupContext = Readonly<{
   db: Readonly<{
@@ -11151,12 +11152,30 @@ function runOneHertzTickMaintenance(
   for (const identity of overflowOwners.values()) drainPlayerOverflow(ctx, identity);
 }
 
-function expirePresenceLeases(ctx: WorldReducerContext, clock: WorldClockRow): void {
-  for (const presence of ctx.db.connection_presence_v2.iter()) {
+function activePresenceLeases(ctx: WorldReducerContext): ConnectionPresenceRow[] {
+  const presences: ConnectionPresenceRow[] = [];
+  // The online index bounds the per-tick simulation root to connected players;
+  // the identity index then resolves only those players' live transport leases.
+  for (const profile of ctx.db.player_public.by_online.filter(true)) {
+    presences.push(...ctx.db.connection_presence_v2.by_identity.filter(profile.identity));
+  }
+  return presences;
+}
+
+function expirePresenceLeases(
+  ctx: WorldReducerContext,
+  clock: WorldClockRow,
+  presences: readonly ConnectionPresenceRow[],
+): ConnectionPresenceRow[] {
+  const active: ConnectionPresenceRow[] = [];
+  for (const presence of presences) {
     if (!presenceLeaseExpired(
       presence.lastSeenAt.microsSinceUnixEpoch,
       ctx.timestamp.microsSinceUnixEpoch,
-    )) continue;
+    )) {
+      active.push(presence);
+      continue;
+    }
     ctx.db.connection_presence_v2.connectionId.delete(presence.connectionId);
     deleteSessionChatNoticesForConnection(ctx, presence.connectionId);
     const abandonedNotice = ctx.db.connection_notice.connectionId.find(presence.connectionId);
@@ -11215,6 +11234,7 @@ function expirePresenceLeases(ctx: WorldReducerContext, clock: WorldClockRow): v
       });
     }
   }
+  return active;
 }
 
 export const stepWorld = spacetimedb.reducer(
@@ -11312,12 +11332,8 @@ export const stepWorld = spacetimedb.reducer(
       ctx.db.stats_migration.insert({ id: 0, creatureHealthVersion: 1 });
     }
 
-    expirePresenceLeases(ctx, clock);
-
-    const activePresenceCount = ctx.db.connection_presence_v2.count();
-    const activePresences = activePresenceCount === 0n
-      ? []
-      : [...ctx.db.connection_presence_v2.iter()];
+    const activePresences = expirePresenceLeases(ctx, clock, activePresenceLeases(ctx));
+    const activePresenceCount = BigInt(activePresences.length);
     const authorityTick = clock.authorityTick + 1n;
     ctx.db.world_clock.id.update({ ...clock, authorityTick });
     const calendarTick = authorityTick + calendarOffset;
@@ -11475,6 +11491,8 @@ export const stepWorld = spacetimedb.reducer(
       }
     }
     const wildlifeSeed = ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED;
+    // Cadence: HIVE_PRODUCTION_INTERVAL_TICKS via hiveProducesHoneyAtTick; the
+    // deterministic generated hive roster bounds this scan independently of players.
     if (hiveProducesHoneyAtTick(calendarTick)) {
       for (const hive of ctx.db.world_hive.iter()) {
         if (hive.nextProductionTick > authorityTick || hive.honey >= HIVE_HONEY_CAPACITY) continue;

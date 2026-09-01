@@ -22,7 +22,10 @@ describe('34§6 stage-1 scalability rules', () => {
     expect(source).not.toContain('world_admin_audit.id.delete');
     expect(source).not.toMatch(/name: 'connection_presence'/);
     expect(source).not.toMatch(/name: 'player_equipment'/);
-    expect(source).toContain('ctx.db.connection_presence_v2.count()');
+    expect(source).toContain('ctx.db.player_public.by_online.filter(true)');
+    expect(source).toContain('ctx.db.connection_presence_v2.by_identity.filter(profile.identity)');
+    const tickPresencePath = source.slice(source.indexOf('function activePresenceLeases('));
+    expect(tickPresencePath).not.toContain('ctx.db.connection_presence_v2.iter()');
     expect(source).not.toContain('ctx.db.world_resource.clear()');
     expect(source.match(/reconcileGeneratedSurvivalResources\(ctx\)/g)?.length ?? 0)
       .toBeGreaterThanOrEqual(2);

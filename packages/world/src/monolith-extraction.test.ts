@@ -38,8 +38,11 @@ describe('T12 monolith extraction', () => {
   it('routes scheduled maintenance and presence expiry through named helpers', () => {
     const step = source.slice(source.indexOf('export const stepWorld ='));
     expect(step).toContain('runOneHertzTickMaintenance(ctx, maintenanceAuthorityTick, updateCounters)');
-    expect(step).toContain('expirePresenceLeases(ctx, clock)');
+    expect(step).toContain('expirePresenceLeases(ctx, clock, activePresenceLeases(ctx))');
     expect(source).toContain('maintenanceAuthorityTick % BigInt(AUTHORITY_HZ) !== 0n');
+    expect(source).toContain('player_public.by_online.filter(true)');
+    expect(source).toContain('connection_presence_v2.by_identity.filter(profile.identity)');
+    expect(step).not.toContain('connection_presence_v2.iter()');
   });
 
   it('keeps close reducers authenticated and records deferred T8 decisions', () => {
