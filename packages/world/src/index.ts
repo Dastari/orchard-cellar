@@ -314,6 +314,7 @@ import {
   type VitalsToolKind,
 } from '@orchard/sim';
 import {
+  Range,
   ScheduleAt,
   SenderError,
   schema,
@@ -349,8 +350,10 @@ import {
 } from './world-rules.js';
 import {
   AUDIT_TRIM_CADENCE_TICKS,
+  CONNECTION_AUDIT_RETENTION_MICROS,
   connectionAuditExpired,
   emptyTickUpdateCounters,
+  recordTickRowScan,
   recordTickRowTouch,
   updateRowWhenChanged,
   worldItemExpired,
@@ -704,6 +707,13 @@ const inventory_overflow = table(
   },
 );
 
+/** Suppresses futile overflow drains until a real inventory mutation opens
+ * capacity. The marker is private because it is scheduler bookkeeping. */
+const inventory_overflow_retry = table(
+  { name: 'inventory_overflow_retry' },
+  { identity: t.identity().primaryKey() },
+);
+
 /** The carried menu stack is server-owned inventory custody, not client drag
  * state. A missing row means an empty Minecraft-style cursor. */
 const inventory_cursor = table(
@@ -798,7 +808,10 @@ const player_trade_offer = table(
 const player_effect = table(
   {
     name: 'player_effect',
-    indexes: [{ accessor: 'by_identity', algorithm: 'btree', columns: ['identity'] }],
+    indexes: [
+      { accessor: 'by_identity', algorithm: 'btree', columns: ['identity'] },
+      { accessor: 'by_expires_tick', algorithm: 'btree', columns: ['expiresTick'] },
+    ],
   },
   {
     id: t.u64().primaryKey().autoInc(),
@@ -840,6 +853,7 @@ const player_party_invite = table(
     indexes: [
       { accessor: 'by_party', algorithm: 'btree', columns: ['partyId'] },
       { accessor: 'by_invitee', algorithm: 'btree', columns: ['invitee'] },
+      { accessor: 'by_expires_tick', algorithm: 'btree', columns: ['expiresTick'] },
     ],
   },
   {
@@ -919,6 +933,7 @@ const connection_audit = table(
     name: 'connection_audit',
     indexes: [
       { accessor: 'by_identity', algorithm: 'btree', columns: ['identity'] },
+      { accessor: 'by_occurred_at_micros', algorithm: 'btree', columns: ['occurredAtMicros'] },
     ],
   },
   {
@@ -928,6 +943,7 @@ const connection_audit = table(
     eventKind: t.string(),
     displayName: t.string(),
     occurredAt: t.timestamp(),
+    occurredAtMicros: t.u64().default(0n),
   },
 );
 
@@ -1099,6 +1115,7 @@ const world_speech = table(
     name: 'world_speech',
     indexes: [
       { accessor: 'by_speaker', algorithm: 'btree', columns: ['speaker'] },
+      { accessor: 'by_expires_tick', algorithm: 'btree', columns: ['expiresTick'] },
     ],
   },
   {
@@ -1386,6 +1403,7 @@ const world_resource = table(
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
       { accessor: 'by_depleted', algorithm: 'btree', columns: ['depleted'] },
+      { accessor: 'by_regrowth_progress', algorithm: 'btree', columns: ['regrowthProgress'] },
     ],
   },
   {
@@ -1473,6 +1491,7 @@ const world_item = table(
     public: true,
     indexes: [
       { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+      { accessor: 'by_expires_tick', algorithm: 'btree', columns: ['expiresTick'] },
     ],
   },
   {
@@ -1492,6 +1511,8 @@ const world_item = table(
      * ordinary shared world loot. */
     reservedFor: t.option(t.identity()).default(undefined),
     reservedUntilTick: t.u64().default(0n),
+    /** Additive expiry key. Zero marks a legacy row for one-time backfill. */
+    expiresTick: t.u64().default(0n),
   },
 );
 
@@ -1941,6 +1962,7 @@ const spacetimedb = schema({
   inventory_slot,
   player_known_recipe,
   inventory_overflow,
+  inventory_overflow_retry,
   inventory_cursor,
   inventory_migration,
   connection_presence_v2,
@@ -2860,6 +2882,15 @@ let tickTelemetryNonWildlifeNpcNoopSkips = 0;
 let tickTelemetryChestUpdates = 0;
 let tickTelemetryItemDeletes = 0;
 let tickTelemetryAuditDeletes = 0;
+let tickTelemetryRowsScanned = 0;
+let tickTelemetryTradeRowsScanned = 0;
+let tickTelemetryOverflowRowsScanned = 0;
+let tickTelemetryRegrowthRowsScanned = 0;
+let tickTelemetryEffectRowsScanned = 0;
+let tickTelemetryInviteRowsScanned = 0;
+let tickTelemetryItemRowsScanned = 0;
+let tickTelemetryAuditRowsScanned = 0;
+let tickTelemetrySpeechRowsScanned = 0;
 let tickTelemetryObstacleTotal = 0;
 
 function finishTickTelemetry(
@@ -2877,6 +2908,15 @@ function finishTickTelemetry(
   tickTelemetryChestUpdates += counters.chestUpdates;
   tickTelemetryItemDeletes += counters.itemDeletes;
   tickTelemetryAuditDeletes += counters.auditDeletes;
+  tickTelemetryRowsScanned += counters.rowsScanned;
+  tickTelemetryTradeRowsScanned += counters.tradeRowsScanned;
+  tickTelemetryOverflowRowsScanned += counters.overflowRowsScanned;
+  tickTelemetryRegrowthRowsScanned += counters.regrowthRowsScanned;
+  tickTelemetryEffectRowsScanned += counters.effectRowsScanned;
+  tickTelemetryInviteRowsScanned += counters.inviteRowsScanned;
+  tickTelemetryItemRowsScanned += counters.itemRowsScanned;
+  tickTelemetryAuditRowsScanned += counters.auditRowsScanned;
+  tickTelemetrySpeechRowsScanned += counters.speechRowsScanned;
   tickTelemetryObstacleTotal += obstacleCount;
   if (authorityTick % TICK_TELEMETRY_LOG_TICKS === 0n) {
     console.info(JSON.stringify({
@@ -2891,6 +2931,15 @@ function finishTickTelemetry(
       chestUpdates: tickTelemetryChestUpdates,
       itemDeletes: tickTelemetryItemDeletes,
       auditDeletes: tickTelemetryAuditDeletes,
+      rowsScanned: tickTelemetryRowsScanned,
+      tradeRowsScanned: tickTelemetryTradeRowsScanned,
+      overflowRowsScanned: tickTelemetryOverflowRowsScanned,
+      regrowthRowsScanned: tickTelemetryRegrowthRowsScanned,
+      effectRowsScanned: tickTelemetryEffectRowsScanned,
+      inviteRowsScanned: tickTelemetryInviteRowsScanned,
+      itemRowsScanned: tickTelemetryItemRowsScanned,
+      auditRowsScanned: tickTelemetryAuditRowsScanned,
+      speechRowsScanned: tickTelemetrySpeechRowsScanned,
       averageObstacleCount: tickTelemetryTicks === 0
         ? 0
         : Math.round(tickTelemetryObstacleTotal / tickTelemetryTicks),
@@ -2907,6 +2956,15 @@ function finishTickTelemetry(
     tickTelemetryChestUpdates = 0;
     tickTelemetryItemDeletes = 0;
     tickTelemetryAuditDeletes = 0;
+    tickTelemetryRowsScanned = 0;
+    tickTelemetryTradeRowsScanned = 0;
+    tickTelemetryOverflowRowsScanned = 0;
+    tickTelemetryRegrowthRowsScanned = 0;
+    tickTelemetryEffectRowsScanned = 0;
+    tickTelemetryInviteRowsScanned = 0;
+    tickTelemetryItemRowsScanned = 0;
+    tickTelemetryAuditRowsScanned = 0;
+    tickTelemetrySpeechRowsScanned = 0;
     tickTelemetryObstacleTotal = 0;
   }
   if (authorityTick % TICK_TELEMETRY_LOG_TICKS === 0n) {
@@ -3335,6 +3393,17 @@ function worldItemExpiredForRow(item: WorldItemRow, authorityTick: bigint): bool
   return worldItemExpired(item.droppedAtTick, authorityTick, lifetimeTicks);
 }
 
+function worldItemExpiryTick(
+  itemKind: string,
+  durability: number,
+  droppedAtTick: bigint,
+): bigint {
+  const lifetimeTicks = isRecoverableArrow(itemKind, durability)
+    ? RECOVERABLE_ARROW_LIFETIME_TICKS
+    : ITEM_DESPAWN_TICKS;
+  return droppedAtTick + BigInt(lifetimeTicks);
+}
+
 /** Adds a recoverable world stack without proliferating rows at one drop
  * point. Compatible nearby rows fill first, then capped remainder rows are
  * inserted. Durable/non-stackable items intentionally remain distinct. */
@@ -3377,6 +3446,7 @@ function dropWorldItemStack(ctx: WorldReducerContext, drop: WorldItemDrop): void
         ...item,
         quantity: item.quantity + inserted,
         droppedAtTick: drop.droppedAtTick,
+        expiresTick: worldItemExpiryTick(drop.itemKind, drop.durability, drop.droppedAtTick),
       });
       remaining -= inserted;
       if (remaining === 0) return;
@@ -3398,6 +3468,7 @@ function dropWorldItemStack(ctx: WorldReducerContext, drop: WorldItemDrop): void
       spaceId: drop.spaceId,
       reservedFor: drop.reservedFor,
       reservedUntilTick: drop.reservedUntilTick ?? 0n,
+      expiresTick: worldItemExpiryTick(drop.itemKind, drop.durability, drop.droppedAtTick),
     });
     remaining -= quantity;
   }
@@ -3637,6 +3708,9 @@ function writePlayerInventory(
         durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
         lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
       });
+      if (ctx.db.inventory_overflow_retry.identity.find(row.identity) !== null) {
+        ctx.db.inventory_overflow_retry.identity.delete(row.identity);
+      }
     }
   }
 }
@@ -4132,6 +4206,9 @@ function stashOverflow(
 ): void {
   const maximum = maxStackFor(stack.itemKind);
   if (maximum === null || stack.quantity <= 0) throw new SenderError('invalid_overflow_item');
+  if (ctx.db.inventory_overflow_retry.identity.find(identity) !== null) {
+    ctx.db.inventory_overflow_retry.identity.delete(identity);
+  }
   let remaining = stack.quantity;
   while (remaining > 0) {
     const quantity = Math.min(remaining, maximum);
@@ -4149,7 +4226,12 @@ function stashOverflow(
 function drainPlayerOverflow(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): void {
   const overflowRows = [...ctx.db.inventory_overflow.by_identity.filter(identity)]
     .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-  if (overflowRows.length === 0) return;
+  if (overflowRows.length === 0) {
+    if (ctx.db.inventory_overflow_retry.identity.find(identity) !== null) {
+      ctx.db.inventory_overflow_retry.identity.delete(identity);
+    }
+    return;
+  }
   const inventory = loadPlayerInventory(ctx, identity);
   let containers: Readonly<Record<string, ContainerSnapshot>> = inventory.containers;
   for (const row of overflowRows) {
@@ -4190,6 +4272,10 @@ function drainPlayerOverflow(ctx: WorldReducerContext, identity: WorldReducerCon
       ctx.db.player_position.identity.update({ ...position, equippedKind: selected?.itemKind ?? 'empty', equippedLit: storedLit(selected?.itemKind ?? 'empty', selected?.lit) });
     }
   }
+  const remainsBlocked = firstIndexRow(ctx.db.inventory_overflow.by_identity.filter(identity)) !== null;
+  const retry = ctx.db.inventory_overflow_retry.identity.find(identity);
+  if (remainsBlocked && retry === null) ctx.db.inventory_overflow_retry.insert({ identity });
+  else if (!remainsBlocked && retry !== null) ctx.db.inventory_overflow_retry.identity.delete(identity);
 }
 
 /** Version 22 centered the unchanged legacy island inside a much larger ocean.
@@ -5712,6 +5798,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     eventKind: 'connected',
     displayName: connectedProfile?.displayName ?? 'Unknown',
     occurredAt: ctx.timestamp,
+    occurredAtMicros: ctx.timestamp.microsSinceUnixEpoch,
   });
   const statisticsTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
   recordPlayerStatistic(ctx, ctx.sender, 'connections_opened', 1n, statisticsTick);
@@ -5749,6 +5836,7 @@ export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
     eventKind: 'disconnected',
     displayName: profile?.displayName ?? 'Unknown',
     occurredAt: ctx.timestamp,
+    occurredAtMicros: ctx.timestamp.microsSinceUnixEpoch,
   });
   const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick;
   if (authorityTick !== undefined) {
@@ -8905,6 +8993,10 @@ export const acceptTradeRequest = spacetimedb.reducer(
     if (!trade.recipient.isEqual(ctx.sender) || trade.state !== 'requested') {
       throw new SenderError('trade_request_not_pending');
     }
+    const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? trade.createdTick;
+    if (authorityTick > trade.createdTick + PLAYER_TRADE_REQUEST_TTL_TICKS) {
+      throw new SenderError('trade_request_expired');
+    }
     if (!tradePlayersWithinReach(ctx, trade)) throw new SenderError('trade_out_of_range');
     returnInventoryCursorToStorage(ctx, ctx.sender);
     ctx.db.player_trade_session.id.update({ ...trade, state: 'active', revision: trade.revision + 1n });
@@ -11117,16 +11209,27 @@ export const stepWorld = spacetimedb.reducer(
     if (ctx.db.world_wind.id.find(0) === null) {
       ctx.db.world_wind.insert({ id: 0, direction: 'auto' });
     }
-    for (const trade of [...ctx.db.player_trade_session.iter()]) {
-      const requestExpired = trade.state === 'requested'
-        && clock.authorityTick > trade.createdTick + PLAYER_TRADE_REQUEST_TTL_TICKS;
-      if (requestExpired || !tradePlayersWithinReach(ctx, trade)) cancelPlayerTrade(ctx, trade);
+    const maintenanceAuthorityTick = clock.authorityTick + 1n;
+    const oneHertzMaintenanceTick = maintenanceAuthorityTick % BigInt(AUTHORITY_HZ) === 0n;
+    if (oneHertzMaintenanceTick) {
+      // Trade actions revalidate range synchronously; this cadence only expires
+      // idle sessions and closes the UI after players move apart.
+      for (const trade of ctx.db.player_trade_session.iter()) {
+        recordTickRowScan(updateCounters, 'tradeRowsScanned');
+        const requestExpired = trade.state === 'requested'
+          && maintenanceAuthorityTick > trade.createdTick + PLAYER_TRADE_REQUEST_TTL_TICKS;
+        if (requestExpired || !tradePlayersWithinReach(ctx, trade)) cancelPlayerTrade(ctx, trade);
+      }
+      // Connect-time recovery remains immediate. Owners whose last attempt
+      // found no capacity sleep until writePlayerInventory clears the marker.
+      const overflowOwners = new Map<string, WorldReducerContext['sender']>();
+      for (const row of ctx.db.inventory_overflow.iter()) {
+        recordTickRowScan(updateCounters, 'overflowRowsScanned');
+        if (ctx.db.inventory_overflow_retry.identity.find(row.identity) !== null) continue;
+        overflowOwners.set(row.identity.toHexString(), row.identity);
+      }
+      for (const identity of overflowOwners.values()) drainPlayerOverflow(ctx, identity);
     }
-    const overflowOwners = new Map<string, WorldReducerContext['sender']>();
-    for (const row of ctx.db.inventory_overflow.iter()) {
-      overflowOwners.set(row.identity.toHexString(), row.identity);
-    }
-    for (const identity of overflowOwners.values()) drainPlayerOverflow(ctx, identity);
     const wildlifeGeneration = ctx.db.world_wildlife_generation.id.find(0);
     if (wildlifeGeneration === null || wildlifeGeneration.version < WILDLIFE_GENERATION_VERSION) {
       // Only this deterministic layer is replaced. Player identities, farms,
@@ -11179,6 +11282,7 @@ export const stepWorld = spacetimedb.reducer(
           eventKind: 'lease_expired',
           displayName: abandonedProfile?.displayName ?? 'Unknown',
           occurredAt: ctx.timestamp,
+          occurredAtMicros: ctx.timestamp.microsSinceUnixEpoch,
         });
         flushPlayerStatisticTime(ctx, presence.identity, clock.authorityTick, true);
         ctx.db.connection_notice.connectionId.delete(presence.connectionId);
@@ -11240,8 +11344,23 @@ export const stepWorld = spacetimedb.reducer(
     if (authorityTick % BigInt(TREE_REGROWTH_SWEEP_TICKS) === 0n) {
       const weatherMode = isWeatherMode(environment.weatherMode) ? environment.weatherMode : 'auto';
       const raining = rainForWeatherMode(weatherMode, calendarTick);
-      for (const resource of ctx.db.world_resource.iter()) {
-        if (!isAxeHarvestableResourceKind(resource.kind)) continue;
+      // Cadence: TREE_REGROWTH_SWEEP_TICKS. The index union bounds work to
+      // active regrowth plus legacy depleted trees requiring a one-time reset.
+      const regrowing = new Map<bigint, WorldResourceRow>();
+      for (const resource of ctx.db.world_resource.by_depleted.filter(true)) {
+        recordTickRowScan(updateCounters, 'regrowthRowsScanned');
+        if (isAxeHarvestableResourceKind(resource.kind)
+          && resource.regrowthProgress >= TREE_REGROWTH_PROGRESS_MAX) {
+          regrowing.set(resource.id, resource);
+        }
+      }
+      for (let progress = 0; progress < TREE_REGROWTH_PROGRESS_MAX; progress += 1) {
+        for (const resource of ctx.db.world_resource.by_regrowth_progress.filter(progress)) {
+          recordTickRowScan(updateCounters, 'regrowthRowsScanned');
+          if (isAxeHarvestableResourceKind(resource.kind)) regrowing.set(resource.id, resource);
+        }
+      }
+      for (const resource of regrowing.values()) {
         const storedProgress = resource.depleted && resource.health === 0
           && resource.regrowthProgress >= TREE_REGROWTH_PROGRESS_MAX
           ? 0
@@ -11277,37 +11396,72 @@ export const stepWorld = spacetimedb.reducer(
       }
     }
     tickStageTiming(telemetryTimingSample, 'expiry');
-    for (const effect of ctx.db.player_effect.iter()) {
-      if (effect.expiresTick > authorityTick) continue;
-      ctx.db.player_effect.id.delete(effect.id);
-      recordTickRowTouch(updateCounters);
-    }
-    if (authorityTick % BigInt(AUTHORITY_HZ) === 0n) {
-      for (const invite of ctx.db.player_party_invite.iter()) {
-        if (invite.expiresTick > authorityTick) continue;
+    if (oneHertzMaintenanceTick) {
+      // Gameplay reads check expiry against authorityTick, so storage cleanup
+      // can be coarse without extending an effect, invite, item, or speech.
+      const expiredThrough = new Range<bigint>(
+        undefined,
+        { tag: 'included', value: authorityTick },
+      );
+      for (const effect of ctx.db.player_effect.by_expires_tick.filter(expiredThrough)) {
+        recordTickRowScan(updateCounters, 'effectRowsScanned');
+        ctx.db.player_effect.id.delete(effect.id);
+        recordTickRowTouch(updateCounters);
+      }
+      for (const invite of ctx.db.player_party_invite.by_expires_tick.filter(expiredThrough)) {
+        recordTickRowScan(updateCounters, 'inviteRowsScanned');
         ctx.db.player_party_invite.id.delete(invite.id);
         recordTickRowTouch(updateCounters);
       }
-    }
-    for (const item of ctx.db.world_item.iter()) {
-      if (!worldItemExpiredForRow(item, authorityTick)) continue;
-      ctx.db.world_item.id.delete(item.id);
-      recordTickRowTouch(updateCounters, 'itemDeletes');
+      for (const item of ctx.db.world_item.by_expires_tick.filter(expiredThrough)) {
+        recordTickRowScan(updateCounters, 'itemRowsScanned');
+        if (item.expiresTick === 0n && !worldItemExpiredForRow(item, authorityTick)) {
+          ctx.db.world_item.id.update({
+            ...item,
+            expiresTick: worldItemExpiryTick(item.itemKind, item.durability, item.droppedAtTick),
+          });
+          recordTickRowTouch(updateCounters);
+          continue;
+        }
+        if (!worldItemExpiredForRow(item, authorityTick)) continue;
+        ctx.db.world_item.id.delete(item.id);
+        recordTickRowTouch(updateCounters, 'itemDeletes');
+      }
+      for (const speech of ctx.db.world_speech.by_expires_tick.filter(expiredThrough)) {
+        recordTickRowScan(updateCounters, 'speechRowsScanned');
+        ctx.db.world_speech.id.delete(speech.id);
+        recordTickRowTouch(updateCounters);
+      }
     }
     if (authorityTick % AUDIT_TRIM_CADENCE_TICKS === 0n) {
-      for (const audit of ctx.db.connection_audit.iter()) {
+      // Cadence: AUDIT_TRIM_CADENCE_TICKS. The integer range index bounds the
+      // scan to expired rows and legacy zero-key rows requiring one backfill.
+      const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+      const retentionCutoff = nowMicros >= CONNECTION_AUDIT_RETENTION_MICROS
+        ? nowMicros - CONNECTION_AUDIT_RETENTION_MICROS
+        : 0n;
+      const expiredAuditRange = new Range<bigint>(
+        undefined,
+        { tag: 'included', value: retentionCutoff },
+      );
+      for (const audit of ctx.db.connection_audit.by_occurred_at_micros.filter(expiredAuditRange)) {
+        recordTickRowScan(updateCounters, 'auditRowsScanned');
+        const occurredAtMicros = audit.occurredAtMicros === 0n
+          ? audit.occurredAt.microsSinceUnixEpoch
+          : audit.occurredAtMicros;
         if (!connectionAuditExpired(
-          audit.occurredAt.microsSinceUnixEpoch,
-          ctx.timestamp.microsSinceUnixEpoch,
-        )) continue;
+          occurredAtMicros,
+          nowMicros,
+        )) {
+          if (audit.occurredAtMicros === 0n) {
+            ctx.db.connection_audit.id.update({ ...audit, occurredAtMicros });
+            recordTickRowTouch(updateCounters);
+          }
+          continue;
+        }
         ctx.db.connection_audit.id.delete(audit.id);
         recordTickRowTouch(updateCounters, 'auditDeletes');
       }
-    }
-    for (const speech of ctx.db.world_speech.iter()) {
-      if (speech.expiresTick > authorityTick) continue;
-      ctx.db.world_speech.id.delete(speech.id);
-      recordTickRowTouch(updateCounters);
     }
     tickStageTiming(telemetryTimingSample, 'expiry', true);
     // The coarse world/NPC simulation may sleep with no connected players, but

@@ -24,4 +24,5 @@ export default __t.row({
   lit: __t.bool(),
   reservedFor: __t.option(__t.identity()).name("reserved_for"),
   reservedUntilTick: __t.u64().name("reserved_until_tick"),
+  expiresTick: __t.u64().name("expires_tick"),
 });

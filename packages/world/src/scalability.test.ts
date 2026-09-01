@@ -5,6 +5,7 @@ import {
   anyFieldChanged,
   connectionAuditExpired,
   emptyTickUpdateCounters,
+  recordTickRowScan,
   updateRowWhenChanged,
   worldItemExpired,
 } from './scalability.js';
@@ -165,6 +166,82 @@ describe('34§6 stage-1 scalability rules', () => {
     )).toBe(true);
     expect(counters).toMatchObject({ playerPositionUpdates: 1, rowsTouched: 1 });
     expect(persisted).toBe(1);
+  });
+
+  it('records scanned candidates separately from mutated rows', () => {
+    const counters = emptyTickUpdateCounters();
+    recordTickRowScan(counters, 'itemRowsScanned', 7);
+    recordTickRowScan(counters, 'speechRowsScanned', 2);
+    expect(counters).toMatchObject({
+      itemRowsScanned: 7,
+      speechRowsScanned: 2,
+      rowsScanned: 9,
+      rowsTouched: 0,
+    });
+
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const step = source.slice(source.indexOf('export const stepWorld ='));
+    for (const counter of [
+      'tradeRowsScanned', 'overflowRowsScanned', 'regrowthRowsScanned',
+      'effectRowsScanned', 'inviteRowsScanned', 'itemRowsScanned',
+      'auditRowsScanned', 'speechRowsScanned',
+    ]) {
+      expect(step, counter).toContain(`recordTickRowScan(updateCounters, '${counter}')`);
+    }
+  });
+
+  it('cadences trade and overflow maintenance at one hertz', () => {
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const start = source.indexOf('const maintenanceAuthorityTick =');
+    const end = source.indexOf('const wildlifeGeneration =', start);
+    const maintenance = source.slice(start, end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(maintenance).toContain('maintenanceAuthorityTick % BigInt(AUTHORITY_HZ) === 0n');
+    expect(maintenance).toContain('if (oneHertzMaintenanceTick)');
+    expect(maintenance).toContain('player_trade_session.iter()');
+    expect(maintenance).toContain('inventory_overflow.iter()');
+    expect(maintenance).toContain('inventory_overflow_retry.identity.find(row.identity)');
+    expect(maintenance).toContain("recordTickRowScan(updateCounters, 'tradeRowsScanned')");
+    expect(maintenance).toContain("recordTickRowScan(updateCounters, 'overflowRowsScanned')");
+    const acceptStart = source.indexOf('export const acceptTradeRequest =');
+    const acceptEnd = source.indexOf('\nexport const cancelTrade =', acceptStart);
+    const accept = source.slice(acceptStart, acceptEnd);
+    expect(accept).toContain('PLAYER_TRADE_REQUEST_TTL_TICKS');
+    expect(accept).toContain("throw new SenderError('trade_request_expired')");
+  });
+
+  it('cadences expiry storage cleanup without extending authoritative validity', () => {
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const start = source.indexOf("tickStageTiming(telemetryTimingSample, 'expiry')");
+    const end = source.indexOf("tickStageTiming(telemetryTimingSample, 'expiry', true)", start);
+    const expiry = source.slice(start, end);
+    expect(expiry).toContain('if (oneHertzMaintenanceTick)');
+    expect(expiry).toContain('player_effect.by_expires_tick.filter(expiredThrough)');
+    expect(expiry).toContain('player_party_invite.by_expires_tick.filter(expiredThrough)');
+    expect(expiry).toContain('world_item.by_expires_tick.filter(expiredThrough)');
+    expect(expiry).toContain('world_speech.by_expires_tick.filter(expiredThrough)');
+    expect(expiry).not.toMatch(/(?:player_effect|player_party_invite|world_item|world_speech)\.iter\(\)/);
+    expect(source).toContain('worldItemExpiredForRow(item, clock.authorityTick)');
+    expect(source).toContain('effect.expiresTick > authorityTick');
+    expect(source).toContain('speech.expiresTick <= clock');
+  });
+
+  it('bounds cadenced regrowth and audit work through integer indexes', () => {
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const step = source.slice(source.indexOf('export const stepWorld ='));
+    expect(step).toContain('world_resource.by_regrowth_progress.filter(progress)');
+    expect(step).toContain('connection_audit.by_occurred_at_micros.filter(expiredAuditRange)');
+    expect(step).not.toContain('ctx.db.world_resource.iter()');
+    expect(step).not.toContain('ctx.db.connection_audit.iter()');
+  });
+
+  it('reduces 1,000 expiry candidates from 20,000 scans/s to expired rows only', () => {
+    const before = emptyTickUpdateCounters();
+    recordTickRowScan(before, 'itemRowsScanned', 1_000 * 20);
+    const after = emptyTickUpdateCounters();
+    recordTickRowScan(after, 'itemRowsScanned', 25);
+    expect(before.itemRowsScanned).toBe(20_000);
+    expect(after.itemRowsScanned).toBe(25);
   });
 });
 

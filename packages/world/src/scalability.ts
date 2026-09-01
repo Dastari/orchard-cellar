@@ -37,7 +37,26 @@ export interface TickUpdateCounters {
   itemDeletes: number;
   auditDeletes: number;
   rowsTouched: number;
+  tradeRowsScanned: number;
+  overflowRowsScanned: number;
+  regrowthRowsScanned: number;
+  effectRowsScanned: number;
+  inviteRowsScanned: number;
+  itemRowsScanned: number;
+  auditRowsScanned: number;
+  speechRowsScanned: number;
+  rowsScanned: number;
 }
+
+export type TickRowScanKind =
+  | 'tradeRowsScanned'
+  | 'overflowRowsScanned'
+  | 'regrowthRowsScanned'
+  | 'effectRowsScanned'
+  | 'inviteRowsScanned'
+  | 'itemRowsScanned'
+  | 'auditRowsScanned'
+  | 'speechRowsScanned';
 
 export function emptyTickUpdateCounters(): TickUpdateCounters {
   return {
@@ -50,16 +69,36 @@ export function emptyTickUpdateCounters(): TickUpdateCounters {
     itemDeletes: 0,
     auditDeletes: 0,
     rowsTouched: 0,
+    tradeRowsScanned: 0,
+    overflowRowsScanned: 0,
+    regrowthRowsScanned: 0,
+    effectRowsScanned: 0,
+    inviteRowsScanned: 0,
+    itemRowsScanned: 0,
+    auditRowsScanned: 0,
+    speechRowsScanned: 0,
+    rowsScanned: 0,
   };
 }
 
 export function recordTickRowTouch(
   counters: TickUpdateCounters,
-  kind?: keyof Omit<TickUpdateCounters, 'rowsTouched'>,
+  kind?: 'playerPositionUpdates' | 'playerPositionNoopSkips' | 'npcUpdates'
+    | 'nonWildlifeNpcUpdates' | 'nonWildlifeNpcNoopSkips' | 'chestUpdates'
+    | 'itemDeletes' | 'auditDeletes',
   count = 1,
 ): void {
   if (kind !== undefined) counters[kind] += count;
   counters.rowsTouched += count;
+}
+
+export function recordTickRowScan(
+  counters: TickUpdateCounters,
+  kind: TickRowScanKind,
+  count = 1,
+): void {
+  counters[kind] += count;
+  counters.rowsScanned += count;
 }
 
 export function updateRowWhenChanged<T, K extends keyof T>(
