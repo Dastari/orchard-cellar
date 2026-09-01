@@ -64,7 +64,7 @@ cost; view and per-action changes need focused tests or a repeatable load scenar
   `onSchedule` and are omitted from generated client reducer bindings, as required by
   SpacetimeDB 2.x.
 - Both reducers guard `ctx.sender.isEqual(ctx.databaseIdentity)` before database access;
-  `scheduled-reducer-schema.test.ts` pins the guard ordering and binding omission.
+  `scheduled-reducer-authority-schema.test.ts` pins the guard ordering and binding omission.
 
 ### P1 — hot-path index fixes (behavior-preserving; additive indexes only)
 
