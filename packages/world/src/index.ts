@@ -3418,6 +3418,23 @@ function worldItemExpiryTick(
   return droppedAtTick + BigInt(lifetimeTicks);
 }
 
+function worldItemsInChunkNeighborhood(
+  ctx: WorldReducerContext,
+  spaceId: number,
+  x: number,
+  y: number,
+): WorldItemRow[] {
+  const centerChunkX = chunkAt(x);
+  const centerChunkY = chunkAt(y);
+  const rows: WorldItemRow[] = [];
+  for (let chunkY = centerChunkY - 1; chunkY <= centerChunkY + 1; chunkY += 1) {
+    for (let chunkX = centerChunkX - 1; chunkX <= centerChunkX + 1; chunkX += 1) {
+      rows.push(...ctx.db.world_item.by_chunk.filter([spaceId, chunkX, chunkY]));
+    }
+  }
+  return rows;
+}
+
 /** Adds a recoverable world stack without proliferating rows at one drop
  * point. Compatible nearby rows fill first, then capped remainder rows are
  * inserted. Durable/non-stackable items intentionally remain distinct. */
@@ -3433,7 +3450,7 @@ function dropWorldItemStack(ctx: WorldReducerContext, drop: WorldItemDrop): void
   // merging them into an ordinary manually dropped arrow stack.
   if (maximum > 1 && !isRecoverableArrow(drop.itemKind, drop.durability)) {
     const mergeRadiusSquared = WORLD_ITEM_MERGE_RADIUS_FIXED ** 2;
-    const compatible = [...ctx.db.world_item.iter()]
+    const compatible = worldItemsInChunkNeighborhood(ctx, drop.spaceId, drop.x, drop.y)
       .filter((item) => {
         if (item.spaceId !== drop.spaceId || item.itemKind !== drop.itemKind
           || item.durability !== drop.durability || item.lit !== lit
@@ -6390,7 +6407,7 @@ export const toggleHomesteadGate = spacetimedb.reducer({}, (ctx) => {
   if (position === null) throw new SenderError('player_not_ready');
   const home = homesteadForSpace(ctx, position.spaceId);
   if (home === null || position.spaceId !== home.spaceId) throw new SenderError('homestead_gate_unavailable');
-  if (home.owner.toHexString() !== ctx.sender.toHexString()) throw new SenderError('homestead_gate_owner_only');
+  if (!home.owner.isEqual(ctx.sender)) throw new SenderError('homestead_gate_owner_only');
   if (!tileTargetWithinFixedReach(
     position.x,
     position.y,
@@ -7672,11 +7689,18 @@ function tileOverlapsAnyPlayer(
   tileY: number,
 ): boolean {
   const tileBounds = tileTargetBounds({ tileX, tileY });
-  return [...ctx.db.player_position.iter()].some((player) => {
-    if (player.spaceId !== spaceId) return false;
-    if (ctx.db.player_public.identity.find(player.identity)?.online !== true) return false;
-    return boundsOverlap(tileBounds, playerHitboxBounds({ x: player.x, y: player.y }));
-  });
+  const centerChunkX = Math.floor(tileX / SURVIVAL_CHUNK_TILES);
+  const centerChunkY = Math.floor(tileY / SURVIVAL_CHUNK_TILES);
+  for (let chunkY = centerChunkY - 1; chunkY <= centerChunkY + 1; chunkY += 1) {
+    for (let chunkX = centerChunkX - 1; chunkX <= centerChunkX + 1; chunkX += 1) {
+      const overlaps = [...ctx.db.player_position.by_chunk.filter([spaceId, chunkX, chunkY])].some((player) => {
+        if (ctx.db.player_public.identity.find(player.identity)?.online !== true) return false;
+        return boundsOverlap(tileBounds, playerHitboxBounds({ x: player.x, y: player.y }));
+      });
+      if (overlaps) return true;
+    }
+  }
+  return false;
 }
 
 function tileOverlapsAnyOtherPlayer(
@@ -7686,14 +7710,20 @@ function tileOverlapsAnyOtherPlayer(
   tileX: number,
   tileY: number,
 ): boolean {
-  const identityHex = identity.toHexString();
   const tileBounds = tileTargetBounds({ tileX, tileY });
-  return [...ctx.db.player_position.iter()].some((player) => (
-    player.identity.toHexString() !== identityHex
-    && player.spaceId === spaceId
-    && ctx.db.player_public.identity.find(player.identity)?.online === true
-    && boundsOverlap(tileBounds, playerHitboxBounds({ x: player.x, y: player.y }))
-  ));
+  const centerChunkX = Math.floor(tileX / SURVIVAL_CHUNK_TILES);
+  const centerChunkY = Math.floor(tileY / SURVIVAL_CHUNK_TILES);
+  for (let chunkY = centerChunkY - 1; chunkY <= centerChunkY + 1; chunkY += 1) {
+    for (let chunkX = centerChunkX - 1; chunkX <= centerChunkX + 1; chunkX += 1) {
+      const overlaps = [...ctx.db.player_position.by_chunk.filter([spaceId, chunkX, chunkY])].some((player) => (
+        !player.identity.isEqual(identity)
+        && ctx.db.player_public.identity.find(player.identity)?.online === true
+        && boundsOverlap(tileBounds, playerHitboxBounds({ x: player.x, y: player.y }))
+      ));
+      if (overlaps) return true;
+    }
+  }
+  return false;
 }
 
 function requireChestPlacementTile(
@@ -9783,7 +9813,7 @@ export const pickupWorldItem = spacetimedb.reducer(
     };
     const candidates: WorldItemRow[] = maximum === 1
       ? [item]
-      : [...ctx.db.world_item.iter()]
+      : worldItemsInChunkNeighborhood(ctx, position.spaceId, position.x, position.y)
         .filter((candidate) => candidate.spaceId === position.spaceId
           && candidate.itemKind === item.itemKind
           && candidate.durability === item.durability
