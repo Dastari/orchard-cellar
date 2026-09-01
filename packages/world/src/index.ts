@@ -571,6 +571,30 @@ const player_input = table(
     creditedSteps: t.u64(),
     /** Append-only migration: whether the current movement run requests Sprint. */
     sprinting: t.bool().default(false),
+    /** T10 private acknowledgement cutover. The legacy player_position column
+     * remains in schema but is no longer written after migration. */
+    lastProcessedSequence: t.u64().default(0n),
+  },
+);
+
+/** Narrow public presentation state for active horse jumps. Remote observers
+ * render the same arc without subscribing to private prediction bookkeeping. */
+const player_jump_state = table(
+  {
+    name: 'player_jump_state',
+    public: true,
+    indexes: [
+      { accessor: 'by_chunk', algorithm: 'btree', columns: ['spaceId', 'chunkX', 'chunkY'] },
+    ],
+  },
+  {
+    identity: t.identity().primaryKey(),
+    fromX: t.i32(),
+    fromY: t.i32(),
+    untilTick: t.u64(),
+    spaceId: t.u16(),
+    chunkX: t.i16(),
+    chunkY: t.i16(),
   },
 );
 
@@ -1439,6 +1463,18 @@ const world_resource = table(
   },
 );
 
+/** Active mining leases are private authority state. A missing row means that
+ * the node is unclaimed; expiry is validated synchronously on every hit. */
+const world_resource_mining_claim = table(
+  { name: 'world_resource_mining_claim' },
+  {
+    resourceId: t.u64().primaryKey(),
+    claimedBy: t.identity(),
+    partyId: t.option(t.u64()),
+    claimUntilTick: t.u64(),
+  },
+);
+
 /** Player-authored ground state. Visual edge/corner frames are deliberately
  * not stored: every client derives the blob47 frame from neighbouring rows. */
 const world_soil = table(
@@ -1862,6 +1898,9 @@ const world_scalability_migration = table(
     /** One-time additive backfill for rocks and underground ore that predate
      * richness-based mining. */
     miningVersion: t.u8().default(0),
+    /** T10 one-shot cutover from public compatibility columns to narrow
+     * mining-claim, jump-presentation, and private acknowledgement state. */
+    privateStateVersion: t.u8().default(0),
   },
 );
 
@@ -1944,6 +1983,7 @@ const spacetimedb = schema({
   player_appearance,
   player_position,
   player_input,
+  player_jump_state,
   bow_charge,
   private_inventory,
   player_survival,
@@ -2004,6 +2044,7 @@ const spacetimedb = schema({
   player_quest_flag,
   player_thought,
   world_resource,
+  world_resource_mining_claim,
   world_soil,
   world_crop,
   world_item,
@@ -2341,6 +2382,7 @@ function teleportPlayer(
   nextY: number,
 ): void {
   const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? position.authorityTick;
+  ctx.db.player_jump_state.identity.delete(position.identity);
   const nextPosition = {
     ...position,
     x: nextX,
@@ -2352,9 +2394,6 @@ function teleportPlayer(
     authorityTick,
     actionKind: 'none',
     actionStartedTick: authorityTick,
-    jumpFromX: undefined,
-    jumpFromY: undefined,
-    jumpUntilTick: undefined,
   };
   ctx.db.player_position.identity.update(nextPosition);
   const input = ctx.db.player_input.identity.find(position.identity);
@@ -2696,6 +2735,7 @@ function ensureSoilDecayTimers(ctx: WorldReducerContext, currentTick: bigint): v
     horseDismountRecoveryVersion: migration?.horseDismountRecoveryVersion ?? 0,
     soilDecayTimerVersion: SOIL_DECAY_TIMER_MIGRATION_VERSION,
     miningVersion: migration?.miningVersion ?? 0,
+    privateStateVersion: migration?.privateStateVersion ?? 0,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -2885,6 +2925,7 @@ function recoverLegacyDismountHorses(ctx: WorldReducerContext, authorityTick: bi
     horseDismountRecoveryVersion: 1,
     soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
     miningVersion: migration?.miningVersion ?? 0,
+    privateStateVersion: migration?.privateStateVersion ?? 0,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -4453,12 +4494,14 @@ function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
     if (existing.spaceId !== TOPSIDE_SPACE_ID) continue;
     const generated = desired.get(existing.id);
     if (generated === undefined) {
+      ctx.db.world_resource_mining_claim.resourceId.delete(existing.id);
       ctx.db.world_resource.id.delete(existing.id);
       continue;
     }
     desired.delete(existing.id);
     const nextBase = generatedWorldResourceRow(generated);
     if (existing.kind !== generated.kind) {
+      ctx.db.world_resource_mining_claim.resourceId.delete(existing.id);
       ctx.db.world_resource.id.update(nextBase);
       continue;
     }
@@ -4540,9 +4583,6 @@ function ensureMiningMigration(ctx: WorldReducerContext): void {
       yieldsProduced: 0,
       producedOre: false,
       respawnAtTick: 0n,
-      miningClaimedBy: undefined,
-      miningPartyId: undefined,
-      miningClaimUntilTick: 0n,
     });
   }
   const nextMigration = {
@@ -4551,6 +4591,58 @@ function ensureMiningMigration(ctx: WorldReducerContext): void {
     horseDismountRecoveryVersion: migration?.horseDismountRecoveryVersion ?? 0,
     soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
     miningVersion: MINING_MIGRATION_VERSION,
+    privateStateVersion: migration?.privateStateVersion ?? 0,
+  };
+  if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
+  else ctx.db.world_scalability_migration.id.update(nextMigration);
+}
+
+const PRIVATE_STATE_MIGRATION_VERSION = 1;
+
+/** T10 additive cutover. Legacy public columns are read exactly once, then all
+ * authority reads and writes use the narrow companion state below. */
+function ensurePrivateStateMigration(ctx: WorldReducerContext): void {
+  const migration = ctx.db.world_scalability_migration.id.find(0);
+  if ((migration?.privateStateVersion ?? 0) >= PRIVATE_STATE_MIGRATION_VERSION) return;
+  const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+  for (const position of ctx.db.player_position.iter()) {
+    const input = ctx.db.player_input.identity.find(position.identity);
+    if (input !== null && input.lastProcessedSequence !== position.lastProcessedSequence) {
+      ctx.db.player_input.identity.update({
+        ...input,
+        lastProcessedSequence: position.lastProcessedSequence,
+      });
+    }
+    if (position.jumpFromX === undefined || position.jumpFromY === undefined
+      || position.jumpUntilTick === undefined || position.jumpUntilTick < authorityTick
+      || ctx.db.player_jump_state.identity.find(position.identity) !== null) continue;
+    ctx.db.player_jump_state.insert({
+      identity: position.identity,
+      fromX: position.jumpFromX,
+      fromY: position.jumpFromY,
+      untilTick: position.jumpUntilTick,
+      spaceId: position.spaceId,
+      chunkX: position.chunkX,
+      chunkY: position.chunkY,
+    });
+  }
+  for (const resource of ctx.db.world_resource.iter()) {
+    if (resource.miningClaimedBy === undefined || resource.miningClaimUntilTick <= authorityTick
+      || ctx.db.world_resource_mining_claim.resourceId.find(resource.id) !== null) continue;
+    ctx.db.world_resource_mining_claim.insert({
+      resourceId: resource.id,
+      claimedBy: resource.miningClaimedBy,
+      partyId: resource.miningPartyId,
+      claimUntilTick: resource.miningClaimUntilTick,
+    });
+  }
+  const nextMigration = {
+    id: 0,
+    wildlifeProfileChunkVersion: migration?.wildlifeProfileChunkVersion ?? 1,
+    horseDismountRecoveryVersion: migration?.horseDismountRecoveryVersion ?? 0,
+    soilDecayTimerVersion: migration?.soilDecayTimerVersion ?? 0,
+    miningVersion: migration?.miningVersion ?? 0,
+    privateStateVersion: PRIVATE_STATE_MIGRATION_VERSION,
   };
   if (migration === null) ctx.db.world_scalability_migration.insert(nextMigration);
   else ctx.db.world_scalability_migration.id.update(nextMigration);
@@ -4592,6 +4684,7 @@ function respawnMiningResources(ctx: WorldReducerContext, authorityTick: bigint)
   for (const resource of [...ctx.db.world_resource.by_depleted.filter(true)]) {
     if ((!isMineableOreKind(resource.kind) && !isBreakableRockKind(resource.kind))
       || resource.respawnAtTick === 0n || resource.respawnAtTick > authorityTick) continue;
+    ctx.db.world_resource_mining_claim.resourceId.delete(resource.id);
     const nodeClass = miningClassForResource(resource);
     if (isMineableOreKind(resource.kind) && resource.spaceId === TOPSIDE_SPACE_ID
       && resource.id >= BigInt(ORE_RESOURCE_ID_BASE)) {
@@ -4683,6 +4776,24 @@ export const onlinePlayerAppearances = spacetimedb.view(
   (ctx) => [...ctx.db.player_public.by_online.filter(true)]
     .map((profile) => ctx.db.player_appearance.identity.find(profile.identity))
     .filter((appearance) => appearance !== null),
+);
+
+const playerPredictionStateRow = t.row('PlayerPredictionState', {
+  identity: t.identity().primaryKey(),
+  lastProcessedSequence: t.u64(),
+});
+
+/** Only the owning client receives movement acknowledgement state. */
+export const ownPlayerPrediction = spacetimedb.view(
+  { name: 'own_player_prediction', public: true },
+  t.option(playerPredictionStateRow),
+  (ctx) => {
+    const input = ctx.db.player_input.identity.find(ctx.sender);
+    return input === null ? undefined : {
+      identity: input.identity,
+      lastProcessedSequence: input.lastProcessedSequence,
+    };
+  },
 );
 
 export const ownStats = spacetimedb.view(
@@ -5509,6 +5620,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       horseDismountRecoveryVersion: scalabilityMigration?.horseDismountRecoveryVersion ?? 0,
       soilDecayTimerVersion: scalabilityMigration?.soilDecayTimerVersion ?? 0,
       miningVersion: scalabilityMigration?.miningVersion ?? 0,
+      privateStateVersion: scalabilityMigration?.privateStateVersion ?? 0,
     };
     if (scalabilityMigration === null) ctx.db.world_scalability_migration.insert(nextScalabilityMigration);
     else ctx.db.world_scalability_migration.id.update(nextScalabilityMigration);
@@ -5547,6 +5659,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     if (installedWorld === null) ctx.db.world_seed.insert(nextWorld);
     else ctx.db.world_seed.id.update(nextWorld);
   }
+  ensurePrivateStateMigration(ctx);
   const existingPresences = [...ctx.db.connection_presence_v2.by_identity.filter(ctx.sender)];
   const firstLiveConnection = existingPresences
     .every((presence) => presenceLeaseExpired(
@@ -5756,6 +5869,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       creditStartedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
       creditedSteps: 0n,
       sprinting: false,
+      lastProcessedSequence: 0n,
     });
     ctx.db.private_inventory.insert({ identity: ctx.sender, fruit: 0n, bottles: 0n, knowledge: 0 });
   } else {
@@ -5786,6 +5900,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         spaceId: TOPSIDE_SPACE_ID,
       });
     } else if (enteringSurvivalWorld) {
+      ctx.db.player_jump_state.identity.delete(ctx.sender);
       ctx.db.player_position.identity.update({
         ...position,
         x: spawn.x,
@@ -5795,9 +5910,6 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         moving: false,
         actionKind: 'none',
         actionStartedTick: 0n,
-        jumpFromX: undefined,
-        jumpFromY: undefined,
-        jumpUntilTick: undefined,
         spaceId: TOPSIDE_SPACE_ID,
       });
     }
@@ -5834,6 +5946,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
         creditStartedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
         creditedSteps: 0n,
         sprinting: false,
+        lastProcessedSequence: connectedPosition?.lastProcessedSequence ?? 0n,
       });
     } else {
       const input = ctx.db.player_input.identity.find(ctx.sender);
@@ -5851,15 +5964,13 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
           pendingSequence: 0n,
           creditStartedAtMicros: ctx.timestamp.microsSinceUnixEpoch,
           creditedSteps: 0n,
+          lastProcessedSequence: input.sequence,
         });
         const reconnectPosition = ctx.db.player_position.identity.find(ctx.sender);
-        if (reconnectPosition !== null && reconnectPosition.lastProcessedSequence !== input.sequence) {
-          ctx.db.player_position.identity.update({
-            ...reconnectPosition,
-            moving: false,
-            lastProcessedSequence: input.sequence,
-          });
-        }
+        if (reconnectPosition !== null && reconnectPosition.moving) ctx.db.player_position.identity.update({
+          ...reconnectPosition,
+          moving: false,
+        });
       }
     }
     if (ctx.db.private_inventory.identity.find(ctx.sender) === null) {
@@ -9275,6 +9386,7 @@ export const interactHorse = spacetimedb.reducer(
     if (!horseAllowedInSpace(ctx, position.spaceId)) throw new SenderError('horses_outdoors_only');
     const collision = collisionForSpace(ctx, position.spaceId);
     const currentMount = mountedNpcFor(ctx, ctx.sender);
+    ctx.db.player_jump_state.identity.delete(ctx.sender);
 
     if (currentMount !== null) {
       const landing = findHorseDismountPosition(
@@ -9306,9 +9418,6 @@ export const interactHorse = spacetimedb.reducer(
         actionKind: 'none',
         actionStartedTick: clock.authorityTick,
         authorityTick: clock.authorityTick,
-        jumpFromX: undefined,
-        jumpFromY: undefined,
-        jumpUntilTick: undefined,
       });
       recordPlayerStatistic(ctx, ctx.sender, 'horse_dismounts', 1n, clock.authorityTick);
       return;
@@ -9342,9 +9451,6 @@ export const interactHorse = spacetimedb.reducer(
       actionKind: 'none',
       actionStartedTick: clock.authorityTick,
       authorityTick: clock.authorityTick,
-      jumpFromX: undefined,
-      jumpFromY: undefined,
-      jumpUntilTick: undefined,
     });
     recordPlayerStatistic(ctx, ctx.sender, 'horse_mounts', 1n, clock.authorityTick);
   },
@@ -9358,7 +9464,8 @@ export const jumpHorse = spacetimedb.reducer((ctx) => {
   if (!horseAllowedInSpace(ctx, position.spaceId)) throw new SenderError('horses_outdoors_only');
   const horse = mountedNpcFor(ctx, ctx.sender);
   if (horse === null) throw new SenderError('horse_jump_requires_mount');
-  if (position.jumpUntilTick !== undefined && position.jumpUntilTick >= clock.authorityTick) {
+  const activeJump = ctx.db.player_jump_state.identity.find(ctx.sender);
+  if (activeJump !== null && activeJump.untilTick >= clock.authorityTick) {
     throw new SenderError('horse_jump_cooldown');
   }
   const facing = parseNpcFacing(horse.facing);
@@ -9366,6 +9473,17 @@ export const jumpHorse = spacetimedb.reducer((ctx) => {
   const landing = findHorseJumpLanding({ x: position.x, y: position.y }, facing, collision);
   if (landing === null) throw new SenderError('horse_jump_no_safe_landing');
   const jumpUntilTick = clock.authorityTick + BigInt(HORSE_JUMP_DURATION_TICKS);
+  const jumpState = {
+    identity: ctx.sender,
+    fromX: position.x,
+    fromY: position.y,
+    untilTick: jumpUntilTick,
+    spaceId: position.spaceId,
+    chunkX: chunkAt(landing.x),
+    chunkY: chunkAt(landing.y),
+  };
+  if (activeJump === null) ctx.db.player_jump_state.insert(jumpState);
+  else ctx.db.player_jump_state.identity.update(jumpState);
   ctx.db.player_position.identity.update({
     ...position,
     x: landing.x,
@@ -9377,9 +9495,6 @@ export const jumpHorse = spacetimedb.reducer((ctx) => {
     authorityTick: clock.authorityTick,
     actionKind: 'horse_jump',
     actionStartedTick: clock.authorityTick,
-    jumpFromX: position.x,
-    jumpFromY: position.y,
-    jumpUntilTick,
   });
   updateWorldNpc(ctx, {
     ...horse,
@@ -10104,11 +10219,11 @@ export const harvestResource = spacetimedb.reducer(
       }
       const ranks = playerSkillRanks(ctx, ctx.sender);
       const partyId = playerPartyId(ctx, ctx.sender);
-      const activeClaim = resource.miningClaimedBy !== undefined
-        && resource.miningClaimUntilTick > clock.authorityTick;
-      const ownsSoloClaim = activeClaim && resource.miningClaimedBy?.isEqual(ctx.sender) === true;
-      const sharesPartyClaim = activeClaim && resource.miningPartyId !== undefined
-        && partyId !== undefined && resource.miningPartyId === partyId;
+      const storedClaim = ctx.db.world_resource_mining_claim.resourceId.find(resource.id);
+      const activeClaim = storedClaim !== null && storedClaim.claimUntilTick > clock.authorityTick;
+      const ownsSoloClaim = activeClaim && storedClaim?.claimedBy.isEqual(ctx.sender) === true;
+      const sharesPartyClaim = activeClaim && storedClaim?.partyId !== undefined
+        && partyId !== undefined && storedClaim.partyId === partyId;
       if (activeClaim && !ownsSoloClaim && !sharesPartyClaim) {
         throw new SenderError('mining_claimed_by_other_party');
       }
@@ -10116,15 +10231,18 @@ export const harvestResource = spacetimedb.reducer(
       const work = miningWorkPerHit(ranks.efficient_strikes ?? 0);
       const accumulatedWork = (continuingClaim ? resource.yieldProgress : 0) + work;
       const claim = {
-        miningClaimedBy: continuingClaim ? resource.miningClaimedBy : ctx.sender,
-        miningPartyId: continuingClaim ? resource.miningPartyId : partyId,
-        miningClaimUntilTick: clock.authorityTick + MINING_CLAIM_TICKS,
+        resourceId: resource.id,
+        claimedBy: continuingClaim && storedClaim !== null ? storedClaim.claimedBy : ctx.sender,
+        partyId: continuingClaim && storedClaim !== null ? storedClaim.partyId : partyId,
+        claimUntilTick: clock.authorityTick + MINING_CLAIM_TICKS,
       };
+      if (storedClaim === null) ctx.db.world_resource_mining_claim.insert(claim);
+      else ctx.db.world_resource_mining_claim.resourceId.update(claim);
       wearInventoryTool(ctx, slot);
       recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
       recordPlayerStatistic(ctx, ctx.sender, 'resource_hits', 1n, clock.authorityTick, resource.kind);
       if (accumulatedWork < MINING_YIELD_WORK) {
-        ctx.db.world_resource.id.update({ ...resource, ...claim, yieldProgress: accumulatedWork });
+        ctx.db.world_resource.id.update({ ...resource, yieldProgress: accumulatedWork });
         return;
       }
 
@@ -10163,10 +10281,8 @@ export const harvestResource = spacetimedb.reducer(
             resource.id, resource.activationOrdinal, resource.yieldsProduced,
           ])
           : 0n,
-        miningClaimedBy: depleted ? undefined : claim.miningClaimedBy,
-        miningPartyId: depleted ? undefined : claim.miningPartyId,
-        miningClaimUntilTick: depleted ? 0n : claim.miningClaimUntilTick,
       });
+      if (depleted) ctx.db.world_resource_mining_claim.resourceId.delete(resource.id);
       if (depleted) {
         recordPlayerStatistic(ctx, ctx.sender, 'resources_depleted', 1n, clock.authorityTick, resource.kind);
         if (isBreakableRockKind(resource.kind)) {
@@ -10908,6 +11024,8 @@ export const stepWorld = spacetimedb.reducer(
     }
     ensureSoilDecayTimers(ctx, clock.authorityTick);
     ensureMiningMigration(ctx);
+    // T10 one-shot migration; its marker makes the full scans unreachable after cutover.
+    ensurePrivateStateMigration(ctx);
     let environment = ctx.db.world_environment.id.find(0);
     if (environment === null) {
       environment = ctx.db.world_environment.insert({
@@ -11029,17 +11147,15 @@ export const stepWorld = spacetimedb.reducer(
         settleSteps: 0,
         settledSequence: input.sequence,
         pendingSequence: 0n,
+        lastProcessedSequence: input.sequence,
       });
+      ctx.db.player_jump_state.identity.delete(presence.identity);
       const position = ctx.db.player_position.identity.find(presence.identity);
       if (position !== null) {
         ctx.db.player_position.identity.update({
           ...position,
           moving: false,
           actionKind: 'none',
-          jumpFromX: undefined,
-          jumpFromY: undefined,
-          jumpUntilTick: undefined,
-          lastProcessedSequence: input?.sequence ?? position.lastProcessedSequence,
         });
       }
       for (const npc of ctx.db.world_npc.by_rider.filter(presence.identity)) {
@@ -11528,9 +11644,11 @@ export const stepWorld = spacetimedb.reducer(
         input.updatedAtMicros,
         ctx.timestamp.microsSinceUnixEpoch,
       );
+      const jumpState = ctx.db.player_jump_state.identity.find(row.identity);
       const jumpActive = mounted
-        && row.jumpUntilTick !== undefined
-        && authorityTick <= row.jumpUntilTick;
+        && jumpState !== null
+        && authorityTick <= jumpState.untilTick;
+      if (jumpState !== null && !jumpActive) ctx.db.player_jump_state.identity.delete(row.identity);
       let player: PlayerState = {
         position: { x: row.x, y: row.y },
         facing: parseDirection(row.facing) ?? 'down',
@@ -11539,7 +11657,6 @@ export const stepWorld = spacetimedb.reducer(
       };
       const startedX = player.position.x;
       const startedY = player.position.y;
-      let lastProcessedSequence = row.lastProcessedSequence;
       if (input !== null && !stale && !jumpActive) {
         const available = movementCreditAvailable(
           input.creditStartedAtMicros,
@@ -11627,8 +11744,8 @@ export const stepWorld = spacetimedb.reducer(
           settleSteps: remainingSettleSteps,
           ...acknowledgement,
           creditedSteps: input.creditedSteps + BigInt(creditedThisTick),
+          lastProcessedSequence: acknowledgement.settledSequence,
         });
-        lastProcessedSequence = acknowledgement.settledSequence;
       }
       if (input !== null && jumpActive) {
         ctx.db.player_input.identity.update({
@@ -11638,8 +11755,8 @@ export const stepWorld = spacetimedb.reducer(
           settleSteps: 0,
           settledSequence: input.sequence,
           pendingSequence: 0n,
+          lastProcessedSequence: input.sequence,
         });
-        lastProcessedSequence = input.sequence;
       }
       const moved = player.position.x !== startedX || player.position.y !== startedY;
       if (moved) {
@@ -11667,18 +11784,13 @@ export const stepWorld = spacetimedb.reducer(
         chunkY: chunkAt(player.position.y),
         facing: player.facing,
         moving: jumpActive ? false : moved,
-        lastProcessedSequence,
         authorityTick,
         actionKind: nextActionKind,
         actionStartedTick: clearAction ? authorityTick : row.actionStartedTick,
-        jumpFromX: jumpActive ? row.jumpFromX : undefined,
-        jumpFromY: jumpActive ? row.jumpFromY : undefined,
-        jumpUntilTick: jumpActive ? row.jumpUntilTick : undefined,
       };
       const positionUpdated = updateRowWhenChanged(row, nextPosition, [
         'x', 'y', 'chunkX', 'chunkY', 'facing', 'moving',
-        'lastProcessedSequence', 'actionKind', 'actionStartedTick',
-        'jumpFromX', 'jumpFromY', 'jumpUntilTick',
+        'actionKind', 'actionStartedTick',
       ], updateCounters, 'playerPositionUpdates', (next) => {
         ctx.db.player_position.identity.update(next);
       });

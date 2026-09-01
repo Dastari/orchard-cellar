@@ -3261,12 +3261,13 @@ function render(alpha = 1): void {
   setLoadingScreenStage(loadingStage);
   if (loadingStage.ready !== true) return;
   dismissLoadingScreen();
+  const localJumpState = snapshot.identityHex === null ? undefined : snapshot.playerJumps.get(snapshot.identityHex);
   const cameraJump = localAuthority === undefined ? null : horseJumpPose(
-    localAuthority.jumpFromX,
-    localAuthority.jumpFromY,
+    localJumpState?.fromX,
+    localJumpState?.fromY,
     localAuthority.x,
     localAuthority.y,
-    localAuthority.jumpUntilTick,
+    localJumpState?.untilTick,
     renderTickClock.renderTick,
   );
   const localX = (cameraJump?.x ?? renderedLocal?.x ?? 96 * TILE_SIZE_FIXED) / FIXED_UNITS_PER_PIXEL;
@@ -4139,12 +4140,13 @@ function render(alpha = 1): void {
       : interpolateFixedPosition(previousDisplay, display, alpha);
     const mount = offline ? null : snapshot.npcs.find((npc) => npc.rider?.toHexString() === id) ?? null;
     const mountVariant = mount === null ? 0 : wildlifeProfile(snapshot, mount.id)?.variant ?? 0;
+    const jumpState = snapshot.playerJumps.get(id);
     const jumpPresentation = mount === null ? null : horseJumpPose(
-      player.jumpFromX,
-      player.jumpFromY,
+      jumpState?.fromX,
+      jumpState?.fromY,
       player.x,
       player.y,
-      player.jumpUntilTick,
+      jumpState?.untilTick,
       renderTickClock.renderTick,
     );
     const xFixed = jumpPresentation?.x

@@ -12,14 +12,18 @@ function sourceBetween(startNeedle: string, endNeedle: string): string {
 }
 
 describe('authoritative repeatable mining', () => {
-  it('stores append-only richness, work, respawn, and party-claim state', () => {
+  it('stores append-only richness and respawn state with private party claims', () => {
     const table = sourceBetween('const world_resource = table(', 'const world_soil = table(');
     expect(table).toContain("accessor: 'by_depleted'");
     for (const field of [
       'miningClass', 'richness', 'maximumRichness', 'yieldProgress', 'yieldsProduced',
       'producedOre', 'spawnSiteId', 'activationOrdinal', 'respawnAtTick',
-      'miningClaimedBy', 'miningPartyId', 'miningClaimUntilTick',
     ]) expect(table).toContain(`${field}:`);
+    const claims = sourceBetween('const world_resource_mining_claim = table(', 'const world_soil = table(');
+    expect(claims).not.toContain('public: true');
+    expect(claims).toContain('claimedBy: t.identity()');
+    expect(claims).toContain('partyId: t.option(t.u64())');
+    expect(claims).toContain('claimUntilTick: t.u64()');
   });
 
   it('resolves payouts through shared simulation rules and grants Explorer XP', () => {
@@ -29,6 +33,7 @@ describe('authoritative repeatable mining', () => {
     expect(reducer).toContain("'explorer'");
     expect(reducer).toContain('MINING_DROP_RESERVATION_TICKS');
     expect(reducer).toContain("throw new SenderError('mining_claimed_by_other_party')");
+    expect(reducer).toContain('world_resource_mining_claim.resourceId.find(resource.id)');
     expect(reducer).toContain('miningRequiredPickaxeTier(');
   });
 

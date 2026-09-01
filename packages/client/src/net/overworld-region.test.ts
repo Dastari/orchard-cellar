@@ -43,14 +43,14 @@ describe('overworld regional subscriptions', () => {
   });
 
   it('34§5 uses one bounded rectangular query per regional table', () => {
-    expect(regionSubscriptionQueryCount({ minX: 2, minY: 3, maxX: 2, maxY: 3 })).toBe(17);
-    expect(regionSubscriptionQueryCount({ minX: 0, minY: 0, maxX: 2, maxY: 1 })).toBe(17);
+    expect(regionSubscriptionQueryCount({ minX: 2, minY: 3, maxX: 2, maxY: 3 })).toBe(18);
+    expect(regionSubscriptionQueryCount({ minX: 0, minY: 0, maxX: 2, maxY: 1 })).toBe(18);
   });
 
   it('26§13 bounds an instance space and budgets every space-aware table', () => {
     const bounds = subscriptionChunkBounds(1, 1, { x: 9, y: 9 }, 32);
     expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 1, maxY: 1 });
-    expect(regionSubscriptionQueryCount(bounds, 65_534)).toBe(16);
+    expect(regionSubscriptionQueryCount(bounds, 65_534)).toBe(17);
   });
 
   it('34§4 does not churn a boundary crossing and return inside the deadband', () => {
@@ -98,9 +98,9 @@ describe('overworld regional subscriptions', () => {
     expect(region).toContain('portals, campfires, ...homesteadQueries');
     expect(region).toContain('core world streaming remains active');
     expect(region.indexOf('.subscribe([portals, campfires, ...homesteadQueries])'))
-      .toBeLessThan(region.indexOf('positions, resources, soil, crops'));
+      .toBeLessThan(region.indexOf('positions, playerJumps, resources, soil, crops'));
     expect(region).not.toContain('hydrateRegion');
-    expect(region.match(/row\.spaceId\.eq\(spaceId\)/g)).toHaveLength(15);
+    expect(region.match(/row\.spaceId\.eq\(spaceId\)/g)).toHaveLength(16);
     expect(region.indexOf('previous?.isActive()')).toBeGreaterThan(region.indexOf('.onApplied('));
   });
 
@@ -132,7 +132,7 @@ describe('overworld regional subscriptions', () => {
     const stage1Baseline = 8 + 15 + 11 * 11 * 8;
     const bounds = subscriptionChunkBounds(20, 20, viewRadiusForViewport(1920, 1080, 1));
     const stage2Settled = 2 + 5 + 28 + regionSubscriptionQueryCount(bounds);
-    expect(stage2Settled).toBe(52);
+    expect(stage2Settled).toBe(53);
     expect(stage2Settled).toBeLessThanOrEqual(stage1Baseline);
   });
 });

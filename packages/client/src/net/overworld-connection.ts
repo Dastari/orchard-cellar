@@ -9,7 +9,7 @@ import type { Identity } from 'spacetimedb';
 import { DbConnection, tables, type SubscriptionHandle } from './generated/index.js';
 import { localProfilesEnabled, oidcConfigured, readOidcSession } from '../auth/oidc.js';
 import type {
-  CellarExcavation, CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, Homestead, HomesteadGuest, HomesteadUpgrade, InventorySlot, Membership, PlayerAppearance, PlayerCookingJob, PlayerEffect, PlayerKnownRecipe, PlayerPosition, PlayerPublic, PlayerQuest, PlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, SessionChatNotice,
+  CellarExcavation, CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, Homestead, HomesteadGuest, HomesteadUpgrade, InventorySlot, Membership, PlayerAppearance, PlayerCookingJob, PlayerEffect, PlayerJumpState, PlayerKnownRecipe, PlayerPosition, PlayerPredictionState, PlayerPublic, PlayerQuest, PlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, SessionChatNotice,
   SpacePortal, WorldCampfireState, WorldChest, WorldChestSlot, WorldClock, WorldCombatTarget, WorldCrop, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, WorldPlaceable, WorldPlaceableSlot, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
   WorldSurface,
 } from './generated/types.js';
@@ -26,7 +26,7 @@ const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILE
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
 const RTT_SAMPLE_CAPACITY = 256;
-const REGION_RANGE_QUERIES = 16;
+const REGION_RANGE_QUERIES = 17;
 export const MAX_VIEW_RADIUS = 9;
 export const REGION_CENTER_DEADBAND_TILES = 8;
 
@@ -128,6 +128,7 @@ export interface OverworldView {
   readonly profiles: ReadonlyKeyedStore<string, PlayerPublic>;
   readonly appearances: ReadonlyKeyedStore<string, PlayerAppearance>;
   readonly players: ReadonlyKeyedStore<string, PlayerPosition>;
+  readonly playerJumps: ReadonlyKeyedStore<string, PlayerJumpState>;
   readonly resources: ReadonlyKeyedStore<bigint, WorldResource>;
   readonly soil: ReadonlyKeyedStore<string, WorldSoil>;
   readonly crops: ReadonlyKeyedStore<string, WorldCrop>;
@@ -182,6 +183,7 @@ export interface OverworldSnapshot {
   readonly region: readonly [number, number]; readonly profiles: readonly PlayerPublic[];
   readonly appearances: readonly PlayerAppearance[];
   readonly players: readonly PlayerPosition[];
+  readonly playerJumps: readonly PlayerJumpState[];
   readonly resources: readonly WorldResource[]; readonly soil: readonly WorldSoil[]; readonly crops: readonly WorldCrop[];
   readonly worldItems: readonly WorldItem[]; readonly projectiles: readonly WorldProjectile[]; readonly combatTargets: readonly WorldCombatTarget[]; readonly chests: readonly WorldChest[]; readonly placeables: readonly WorldPlaceable[]; readonly campfires?: readonly WorldCampfireState[]; readonly npcs: readonly WorldNpc[]; readonly merchants: readonly WorldMerchant[];
   readonly wildlifeProfiles: readonly WorldWildlifeProfile[]; readonly hives: readonly WorldHive[];
@@ -293,6 +295,8 @@ export class OverworldConnection {
   private readonly appearances = new KeyedStore<string, PlayerAppearance>();
   private readonly positions = new KeyedStore<string, PlayerPosition>();
   private readonly visiblePlayers = new KeyedStore<string, PlayerPosition>();
+  private readonly playerJumps = new KeyedStore<string, PlayerJumpState>();
+  private predictionState: PlayerPredictionState | null = null;
   private readonly resources = new KeyedStore<bigint, WorldResource>();
   private readonly soil = new KeyedStore<string, WorldSoil>();
   private readonly crops = new KeyedStore<string, WorldCrop>();
@@ -395,6 +399,7 @@ export class OverworldConnection {
         // error; retain that diagnostic instead of replacing it with the
         // content-free word "disconnected".
         this.error = error?.message ?? this.error ?? 'disconnected'; this.prediction.reset(); this.sentAt.clear();
+        this.predictionState = null; this.playerJumps.clear();
         this.sessionChatNotices.clear(); this.operationalChatNotices.clear(); this.inventoryCursor = null; this.knownRecipes.clear();
         this.homesteadUpgrades.clear();
         this.homesteadMembers.clear();
@@ -411,7 +416,7 @@ export class OverworldConnection {
   view(): OverworldView {
     return { connected: this.connected, error: this.error,
       identityHex: this.identity === null ? null : identityHex(this.identity), region: this.region,
-      profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers,
+      profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers, playerJumps: this.playerJumps,
       resources: this.resources, soil: this.soil, crops: this.crops, worldItems: this.worldItems, projectiles: this.projectiles, combatTargets: this.combatTargets, chests: this.chests, placeables: this.placeables, campfires: this.campfires, npcs: this.npcs, merchants: this.merchants,
       wildlifeProfiles: this.wildlifeProfiles, hives: this.hives, portals: this.portals, homesteads: this.homesteads, homesteadUpgrades: this.homesteadUpgrades, homesteadMembers: this.homesteadMembers, cellarExcavations: this.cellarExcavations, surfaces: this.surfaces, inventorySlots: this.inventorySlots, knownRecipes: this.knownRecipes, inventoryCursor: this.inventoryCursor, effects: this.effects,
       openChestSlots: this.openChestSlots,
@@ -430,7 +435,7 @@ export class OverworldConnection {
   snapshot(): OverworldSnapshot {
     const view = this.view();
     return { ...view, profiles: this.profiles.toArray(), appearances: this.appearances.toArray(),
-      players: this.visiblePlayers.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), crops: this.crops.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), combatTargets: this.combatTargets.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
+      players: this.visiblePlayers.toArray(), playerJumps: this.playerJumps.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), crops: this.crops.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), combatTargets: this.combatTargets.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
       wildlifeProfiles: this.wildlifeProfiles.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(), homesteads: this.homesteads.toArray(), homesteadUpgrades: this.homesteadUpgrades.toArray(), homesteadMembers: this.homesteadMembers.toArray(), cellarExcavations: this.cellarExcavations.toArray(), surfaces: this.surfaces.toArray(),
       inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot),
       knownRecipes: this.knownRecipes.toArray().sort((left, right) => left.recipeId.localeCompare(right.recipeId)),
@@ -482,10 +487,11 @@ export class OverworldConnection {
   }
   reconcile(predicted: PlayerState | null, authoritative: PlayerState, collision: CollisionMap): ReconciliationResult | null {
     const row = this.ownPosition(); if (row === null) return null;
-    const key = `${row.authorityTick}:${row.lastProcessedSequence}:${row.x}:${row.y}`;
+    const lastProcessedSequence = this.predictionState?.lastProcessedSequence ?? 0n;
+    const key = `${row.authorityTick}:${lastProcessedSequence}:${row.x}:${row.y}`;
     if (key === this.lastReconciledRowKey) return null;
     this.lastReconciledRowKey = key;
-    const result = this.prediction.reconcile(predicted, authoritative, row.lastProcessedSequence, collision);
+    const result = this.prediction.reconcile(predicted, authoritative, lastProcessedSequence, collision);
     this.replayDepth = result.replayDepth; this.reconciliationErrorFixed = result.errorFixed;
     return result;
   }
@@ -970,6 +976,7 @@ export class OverworldConnection {
   private subscribeSelf(connection: DbConnection, identity: Identity): void {
     const queries = [
       tables.playerPosition.where((row) => row.identity.eq(identity)),
+      tables.ownPlayerPrediction,
       tables.ownSurvival,
       tables.ownCookingJob,
       tables.ownStats,
@@ -1008,8 +1015,9 @@ export class OverworldConnection {
       this.hydrateSelf(connection);
       const row = connection.db.playerPosition.identity.find(identity);
       if (row === null) { this.error = 'self_position_missing'; this.onChanged(); return; }
-      this.sequence = row.lastProcessedSequence > this.sequence ? row.lastProcessedSequence : this.sequence;
-      this.prediction.reset(row.lastProcessedSequence); this.inputReady = true;
+      const lastProcessedSequence = this.predictionState?.lastProcessedSequence ?? 0n;
+      this.sequence = lastProcessedSequence > this.sequence ? lastProcessedSequence : this.sequence;
+      this.prediction.reset(lastProcessedSequence); this.inputReady = true;
       this.subscribeRegion(connection, row); this.sendDesiredDirection(); this.onChanged();
     })).onError(() => { this.error = 'self_subscription_failed'; this.onChanged(); })
       .subscribe(queries);
@@ -1030,6 +1038,10 @@ export class OverworldConnection {
     const definition = spaceDefinitionFor(spaceId, instanceSpaceRowFor(spaceId, this.homesteads));
     const bounds = subscriptionChunkBounds(chunkX, chunkY, radius, definition?.sizeTiles ?? SURVIVAL_WORLD_SIZE);
     const positions = tables.playerPosition
+      .where((row) => row.spaceId.eq(spaceId))
+      .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
+      .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
+    const playerJumps = tables.playerJumpState
       .where((row) => row.spaceId.eq(spaceId))
       .where((row) => row.chunkX.gte(bounds.minX)).where((row) => row.chunkX.lte(bounds.maxX))
       .where((row) => row.chunkY.gte(bounds.minY)).where((row) => row.chunkY.lte(bounds.maxY));
@@ -1127,7 +1139,7 @@ export class OverworldConnection {
       console.error('[orchard] Regional world subscription failed', context.event);
       this.onChanged();
     }).subscribe([
-      positions, resources, soil, crops, worldItems, projectiles, combatTargets, chests, placeables,
+      positions, playerJumps, resources, soil, crops, worldItems, projectiles, combatTargets, chests, placeables,
       npcs, wildlifeProfiles, hives, surfaces, cellarExcavations,
     ]);
   }
@@ -1362,6 +1374,12 @@ export class OverworldConnection {
     connection.db.visibleWorldSpeech.onInsert((context, row) => incoming(context.event.id, () => this.worldSpeech.set(row.id, row)));
     connection.db.visibleWorldSpeech.onUpdate((context, _old, row) => incoming(context.event.id, () => this.worldSpeech.set(row.id, row)));
     connection.db.visibleWorldSpeech.onDelete((context, row) => incoming(context.event.id, () => this.worldSpeech.delete(row.id)));
+    connection.db.ownPlayerPrediction.onInsert((context, row) => incoming(context.event.id, () => this.setPredictionState(row)));
+    connection.db.ownPlayerPrediction.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setPredictionState(row)));
+    connection.db.ownPlayerPrediction.onDelete((context) => incoming(context.event.id, () => { this.predictionState = null; }));
+    connection.db.playerJumpState.onInsert((context, row) => incoming(context.event.id, () => this.playerJumps.set(identityHex(row.identity), row)));
+    connection.db.playerJumpState.onUpdate((context, _old, row) => incoming(context.event.id, () => this.playerJumps.set(identityHex(row.identity), row)));
+    connection.db.playerJumpState.onDelete((context, row) => incoming(context.event.id, () => this.playerJumps.delete(identityHex(row.identity))));
     connection.db.playerPosition.onInsert((context, row) => incoming(context.event.id, () => this.setPosition(row)));
     connection.db.playerPosition.onUpdate((context, _old, row) => incoming(context.event.id, () => this.setPosition(row)));
     connection.db.playerPosition.onDelete((context, row) => incoming(context.event.id, () => {
@@ -1379,7 +1397,7 @@ export class OverworldConnection {
     } else this.visiblePlayers.delete(id);
   }
   private clearSpaceScopedCaches(): void {
-    this.positions.clear(); this.visiblePlayers.clear(); this.resources.clear(); this.soil.clear(); this.crops.clear();
+    this.positions.clear(); this.visiblePlayers.clear(); this.playerJumps.clear(); this.resources.clear(); this.soil.clear(); this.crops.clear();
     this.worldItems.clear(); this.projectiles.clear(); this.chests.clear(); this.placeables.clear(); this.surfaces.clear(); this.cellarExcavations.clear(); this.npcs.clear();
     this.wildlifeProfiles.clear(); this.hives.clear(); this.worldSpeech.clear();
     this.resourceRevisionValue += 1;
@@ -1405,16 +1423,20 @@ export class OverworldConnection {
           this.visiblePlayers.set(playerId, player);
         } else this.visiblePlayers.delete(playerId);
       }
-      if (row.lastProcessedSequence > this.sequence) this.sequence = row.lastProcessedSequence;
-      if (this.idleRefreshPending && row.lastProcessedSequence >= this.lastIdleSequence) {
-        this.idleRefreshPending = false;
-        this.inputRefreshAge = 0;
-      }
-      for (const [sequence, started] of this.sentAt) if (sequence <= row.lastProcessedSequence) {
-        const sample = performance.now() - started; this.rttEmaMs = this.rttEmaMs === 0 ? sample : this.rttEmaMs * 0.8 + sample * 0.2;
-        this.sentAt.delete(sequence);
-      }
       if (this.connection !== null) this.subscribeRegion(this.connection, row);
+    }
+  }
+  private setPredictionState(row: PlayerPredictionState): void {
+    this.predictionState = row;
+    if (row.lastProcessedSequence > this.sequence) this.sequence = row.lastProcessedSequence;
+    if (this.idleRefreshPending && row.lastProcessedSequence >= this.lastIdleSequence) {
+      this.idleRefreshPending = false;
+      this.inputRefreshAge = 0;
+    }
+    for (const [sequence, started] of this.sentAt) if (sequence <= row.lastProcessedSequence) {
+      const sample = performance.now() - started;
+      this.rttEmaMs = this.rttEmaMs === 0 ? sample : this.rttEmaMs * 0.8 + sample * 0.2;
+      this.sentAt.delete(sequence);
     }
   }
   private setNpc(row: WorldNpc): void {
@@ -1450,6 +1472,7 @@ export class OverworldConnection {
     });
   }
   private hydrateSelf(connection: DbConnection): void {
+    this.predictionState = [...connection.db.ownPlayerPrediction.iter()][0] ?? null;
     for (const row of connection.db.ownInventorySlots.iter()) this.inventorySlots.set(row.slot, row);
     this.knownRecipes.clear(); for (const row of connection.db.ownKnownRecipes.iter()) this.knownRecipes.set(row.recipeId, row);
     const cursor = [...connection.db.ownInventoryCursor.iter()][0];

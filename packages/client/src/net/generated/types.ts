@@ -345,6 +345,9 @@ export type OwnOpenChestSlots = __Infer<typeof OwnOpenChestSlots>;
 export const OwnOpenPlaceableSlots = __t.object("OwnOpenPlaceableSlots", {});
 export type OwnOpenPlaceableSlots = __Infer<typeof OwnOpenPlaceableSlots>;
 
+export const OwnPlayerPrediction = __t.object("OwnPlayerPrediction", {});
+export type OwnPlayerPrediction = __Infer<typeof OwnPlayerPrediction>;
+
 export const OwnPlayerQuestBaselines = __t.object("OwnPlayerQuestBaselines", {});
 export type OwnPlayerQuestBaselines = __Infer<typeof OwnPlayerQuestBaselines>;
 
@@ -434,8 +437,20 @@ export const PlayerInput = __t.object("PlayerInput", {
   creditStartedAtMicros: __t.u64(),
   creditedSteps: __t.u64(),
   sprinting: __t.bool(),
+  lastProcessedSequence: __t.u64(),
 });
 export type PlayerInput = __Infer<typeof PlayerInput>;
+
+export const PlayerJumpState = __t.object("PlayerJumpState", {
+  identity: __t.identity(),
+  fromX: __t.i32(),
+  fromY: __t.i32(),
+  untilTick: __t.u64(),
+  spaceId: __t.u16(),
+  chunkX: __t.i16(),
+  chunkY: __t.i16(),
+});
+export type PlayerJumpState = __Infer<typeof PlayerJumpState>;
 
 export const PlayerKnownRecipe = __t.object("PlayerKnownRecipe", {
   id: __t.string(),
@@ -489,6 +504,12 @@ export const PlayerPosition = __t.object("PlayerPosition", {
   equippedLit: __t.bool(),
 });
 export type PlayerPosition = __Infer<typeof PlayerPosition>;
+
+export const PlayerPredictionState = __t.object("PlayerPredictionState", {
+  identity: __t.identity(),
+  lastProcessedSequence: __t.u64(),
+});
+export type PlayerPredictionState = __Infer<typeof PlayerPredictionState>;
 
 export const PlayerPublic = __t.object("PlayerPublic", {
   identity: __t.identity(),
@@ -991,12 +1012,21 @@ export const WorldResource = __t.object("WorldResource", {
 });
 export type WorldResource = __Infer<typeof WorldResource>;
 
+export const WorldResourceMiningClaim = __t.object("WorldResourceMiningClaim", {
+  resourceId: __t.u64(),
+  claimedBy: __t.identity(),
+  partyId: __t.option(__t.u64()),
+  claimUntilTick: __t.u64(),
+});
+export type WorldResourceMiningClaim = __Infer<typeof WorldResourceMiningClaim>;
+
 export const WorldScalabilityMigration = __t.object("WorldScalabilityMigration", {
   id: __t.u8(),
   wildlifeProfileChunkVersion: __t.u8(),
   horseDismountRecoveryVersion: __t.u8(),
   soilDecayTimerVersion: __t.u8(),
   miningVersion: __t.u8(),
+  privateStateVersion: __t.u8(),
 });
 export type WorldScalabilityMigration = __Infer<typeof WorldScalabilityMigration>;
 

@@ -171,6 +171,7 @@ import OwnKnownRecipesRow from "./own_known_recipes_table";
 import OwnMembershipRow from "./own_membership_table";
 import OwnOpenChestSlotsRow from "./own_open_chest_slots_table";
 import OwnOpenPlaceableSlotsRow from "./own_open_placeable_slots_table";
+import OwnPlayerPredictionRow from "./own_player_prediction_table";
 import OwnPlayerQuestBaselinesRow from "./own_player_quest_baselines_table";
 import OwnPlayerQuestsRow from "./own_player_quests_table";
 import OwnPlayerSkillNodesRow from "./own_player_skill_nodes_table";
@@ -186,6 +187,7 @@ import OwnTradeOffersRow from "./own_trade_offers_table";
 import OwnTradeSessionRow from "./own_trade_session_table";
 import OwnWalletRow from "./own_wallet_table";
 import PlayerAppearanceRow from "./player_appearance_table";
+import PlayerJumpStateRow from "./player_jump_state_table";
 import PlayerPartyRow from "./player_party_table";
 import PlayerPartyMemberRow from "./player_party_member_table";
 import PlayerPositionRow from "./player_position_table";
@@ -314,6 +316,22 @@ const tablesSchema = __schema({
       { name: 'player_appearance_identity_key', constraint: 'unique', columns: ['identity'] },
     ],
   }, PlayerAppearanceRow),
+  playerJumpState: __table({
+    name: 'player_jump_state',
+    indexes: [
+      { accessor: 'identity', name: 'player_jump_state_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
+      { accessor: 'by_chunk', name: 'player_jump_state_space_id_chunk_x_chunk_y_idx_btree', algorithm: 'btree', columns: [
+        'spaceId',
+        'chunkX',
+        'chunkY',
+      ] },
+    ],
+    constraints: [
+      { name: 'player_jump_state_identity_key', constraint: 'unique', columns: ['identity'] },
+    ],
+  }, PlayerJumpStateRow),
   playerParty: __table({
     name: 'player_party',
     indexes: [
@@ -823,6 +841,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, OwnOpenPlaceableSlotsRow),
+  ownPlayerPrediction: __table({
+    name: 'own_player_prediction',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, OwnPlayerPredictionRow),
   ownPlayerQuestBaselines: __table({
     name: 'own_player_quest_baselines',
     indexes: [
@@ -1079,6 +1104,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "farm_parcel": Omit<typeof tablesSchema.schemaType.tables["farmParcel"], "accessorName"> & { readonly accessorName: "farm_parcel" };
     /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
     readonly "player_appearance": Omit<typeof tablesSchema.schemaType.tables["playerAppearance"], "accessorName"> & { readonly accessorName: "player_appearance" };
+    /** @deprecated Use `playerJumpState` instead. This alias will be removed in the next major version. */
+    readonly "player_jump_state": Omit<typeof tablesSchema.schemaType.tables["playerJumpState"], "accessorName"> & { readonly accessorName: "player_jump_state" };
     /** @deprecated Use `playerParty` instead. This alias will be removed in the next major version. */
     readonly "player_party": Omit<typeof tablesSchema.schemaType.tables["playerParty"], "accessorName"> & { readonly accessorName: "player_party" };
     /** @deprecated Use `playerPartyMember` instead. This alias will be removed in the next major version. */
@@ -1150,6 +1177,7 @@ const tableAccessorAliases = {
   "farm_activity": "farmActivity",
   "farm_parcel": "farmParcel",
   "player_appearance": "playerAppearance",
+  "player_jump_state": "playerJumpState",
   "player_party": "playerParty",
   "player_party_member": "playerPartyMember",
   "player_position": "playerPosition",
@@ -1204,6 +1232,8 @@ export type DbView = __DbViewBase & {
   readonly "farm_parcel": __DbViewBase["farmParcel"];
   /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
   readonly "player_appearance": __DbViewBase["playerAppearance"];
+  /** @deprecated Use `playerJumpState` instead. This alias will be removed in the next major version. */
+  readonly "player_jump_state": __DbViewBase["playerJumpState"];
   /** @deprecated Use `playerParty` instead. This alias will be removed in the next major version. */
   readonly "player_party": __DbViewBase["playerParty"];
   /** @deprecated Use `playerPartyMember` instead. This alias will be removed in the next major version. */
@@ -1266,6 +1296,8 @@ export type Tables = __TablesBase & {
   readonly "farm_parcel": __TablesBase["farmParcel"];
   /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
   readonly "player_appearance": __TablesBase["playerAppearance"];
+  /** @deprecated Use `playerJumpState` instead. This alias will be removed in the next major version. */
+  readonly "player_jump_state": __TablesBase["playerJumpState"];
   /** @deprecated Use `playerParty` instead. This alias will be removed in the next major version. */
   readonly "player_party": __TablesBase["playerParty"];
   /** @deprecated Use `playerPartyMember` instead. This alias will be removed in the next major version. */
