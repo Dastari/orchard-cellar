@@ -2472,9 +2472,14 @@ function collisionForSpace(ctx: WorldReducerContext, spaceId: number) {
     homesteadForSpace(ctx, spaceId),
     [...ctx.db.cellar_excavation.by_space.filter(spaceId)],
   );
+  // Topside collision includes every homestead tent. Instanced homestead
+  // exteriors have a unique space id, so their equivalent lookup is indexed.
+  const indexedHome = spaceId === TOPSIDE_SPACE_ID
+    ? null
+    : ctx.db.homestead.spaceId.find(spaceId);
   const homes = spaceId === TOPSIDE_SPACE_ID
     ? [...ctx.db.homestead.iter()]
-    : [...ctx.db.homestead.iter()].filter((home) => home.spaceId === spaceId);
+    : indexedHome === null ? [] : [indexedHome];
   const obstacles = [...(collision.obstacles ?? [])];
   for (const target of ctx.db.world_combat_target.by_chunk.filter(spaceId)) {
     if (target.carriedBy !== undefined) continue;
@@ -2536,7 +2541,11 @@ function homesteadForOwner(ctx: WorldReducerContext, owner: WorldReducerContext[
 }
 
 function homesteadForSpace(ctx: WorldReducerContext, spaceId: number) {
-  return instanceSpaceRowFor(spaceId, ctx.db.homestead.iter()) ?? null;
+  const exterior = ctx.db.homestead.spaceId.find(spaceId);
+  if (exterior !== null) return exterior;
+  const residence = firstIndexRow(ctx.db.homestead.by_residence_space.filter(spaceId));
+  if (residence !== null || spaceId === 0) return residence;
+  return firstIndexRow(ctx.db.homestead.by_residence_space.filter(spaceId - 1));
 }
 
 function homesteadMemberId(spaceId: number, identityHex: string): string {
