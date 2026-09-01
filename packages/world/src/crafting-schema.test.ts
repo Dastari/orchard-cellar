@@ -90,9 +90,9 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(reducerSource('closePlaceable')).toContain('clearActivePlaceable(ctx, ctx.sender)');
     expect(source).toContain('ctx.db.active_placeable.identity.delete(identity)');
     const move = reducerSource('movePlaceableItem');
-    expect(move).toContain("id === 'placeable'");
-    expect(move).toContain('moveItemStacks(menu.containers, request)');
-    expect(move).toContain('writeOpenMenuInventory(ctx, menu, moved.containers)');
+    expect(move).toContain('moveOpenMenuItem(ctx, request)');
+    expect(source).toContain('const result = moveItemStacks(menu.containers, request)');
+    expect(source).toContain('writeOpenMenuInventory(ctx, menu, result.containers)');
   });
 
   it('keeps first-bottle processors additive, lazy-settled, and capability-driven', () => {

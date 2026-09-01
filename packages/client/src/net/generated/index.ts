@@ -96,11 +96,7 @@ import PickupWorldItemReducer from "./pickup_world_item_reducer";
 import PlaceHomesteadBuildableReducer from "./place_homestead_buildable_reducer";
 import PurchaseHomesteadUpgradeReducer from "./purchase_homestead_upgrade_reducer";
 import PurchaseSkillNodeReducer from "./purchase_skill_node_reducer";
-import QuickMoveAllChestItemsReducer from "./quick_move_all_chest_items_reducer";
-import QuickMoveAllInventoryItemsReducer from "./quick_move_all_inventory_items_reducer";
 import QuickMoveAllMenuItemsReducer from "./quick_move_all_menu_items_reducer";
-import QuickMoveChestItemReducer from "./quick_move_chest_item_reducer";
-import QuickMoveInventoryItemReducer from "./quick_move_inventory_item_reducer";
 import QuickMoveMenuItemReducer from "./quick_move_menu_item_reducer";
 import ReadRecipeBookReducer from "./read_recipe_book_reducer";
 import RemoveHomesteadBuildableReducer from "./remove_homestead_buildable_reducer";
@@ -999,11 +995,7 @@ const reducersSchema = __reducers(
   __reducerSchema("place_homestead_buildable", PlaceHomesteadBuildableReducer),
   __reducerSchema("purchase_homestead_upgrade", PurchaseHomesteadUpgradeReducer),
   __reducerSchema("purchase_skill_node", PurchaseSkillNodeReducer),
-  __reducerSchema("quick_move_all_chest_items", QuickMoveAllChestItemsReducer),
-  __reducerSchema("quick_move_all_inventory_items", QuickMoveAllInventoryItemsReducer),
   __reducerSchema("quick_move_all_menu_items", QuickMoveAllMenuItemsReducer),
-  __reducerSchema("quick_move_chest_item", QuickMoveChestItemReducer),
-  __reducerSchema("quick_move_inventory_item", QuickMoveInventoryItemReducer),
   __reducerSchema("quick_move_menu_item", QuickMoveMenuItemReducer),
   __reducerSchema("read_recipe_book", ReadRecipeBookReducer),
   __reducerSchema("remove_homestead_buildable", RemoveHomesteadBuildableReducer),
@@ -1352,4 +1344,3 @@ export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
     return new SubscriptionBuilder(this);
   };
 }
-

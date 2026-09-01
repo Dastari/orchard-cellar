@@ -461,10 +461,6 @@ function playerDebugBackpackSlots(ctx: WorldReducerContext, identity: WorldReduc
   return ctx.db.player_survival.identity.find(identity)?.debugBackpackSlots ?? 0;
 }
 
-function isInventoryContainerId(value: string): value is InventoryContainerId {
-  return value === 'hotbar' || value === 'backpack' || value === 'equipment' || value === 'crafting';
-}
-
 function facingTile(x: number, y: number, facing: string): { readonly tileX: number; readonly tileY: number } {
   let tileX = Math.floor(x / TILE_SIZE_FIXED); let tileY = Math.floor(y / TILE_SIZE_FIXED);
   if (facing.includes('Left') || facing === 'left') tileX -= 1;
@@ -7220,6 +7216,8 @@ export const inventoryCursorSwapHotbar = spacetimedb.reducer(
   },
 );
 
+// docs/53 T7: the four uncalled inventory/chest quick-move reducers had no
+// compatibility window; this menu-aware pair is their sole supported surface.
 export const quickMoveMenuItem = spacetimedb.reducer(
   { fromContainer: t.string(), fromIndex: t.u8(), toContainers: t.array(t.string()) },
   (ctx, request) => {
@@ -7243,6 +7241,49 @@ export const quickMoveAllMenuItems = spacetimedb.reducer(
     refreshSenderQuestsFromInventory(ctx);
   },
 );
+
+type MenuMoveRequest = Readonly<{
+  fromContainer: string;
+  fromIndex: number;
+  toContainer: string;
+  toIndex: number;
+  quantity: number;
+}>;
+
+type MenuDistributeRequest = Readonly<{
+  fromContainer: string;
+  fromIndex: number;
+  targetContainers: readonly string[];
+  targetIndexes: readonly number[];
+  quantity: number;
+}>;
+
+function moveOpenMenuItem(ctx: WorldReducerContext, request: MenuMoveRequest): void {
+  const menu = loadOpenMenuInventory(ctx);
+  const result = moveItemStacks(menu.containers, request);
+  if (!result.ok) throw new SenderError(result.code);
+  writeOpenMenuInventory(ctx, menu, result.containers);
+  refreshSenderQuestsFromInventory(ctx);
+}
+
+function distributeOpenMenuItem(ctx: WorldReducerContext, request: MenuDistributeRequest): void {
+  if (request.targetContainers.length !== request.targetIndexes.length) {
+    throw new SenderError('container_not_found');
+  }
+  const menu = loadOpenMenuInventory(ctx);
+  const result = distributeItemStack(menu.containers, {
+    fromContainer: request.fromContainer,
+    fromIndex: request.fromIndex,
+    quantity: request.quantity,
+    targets: request.targetContainers.map((container, index) => ({
+      container,
+      index: request.targetIndexes[index]!,
+    })),
+  });
+  if (!result.ok) throw new SenderError(result.code);
+  writeOpenMenuInventory(ctx, menu, result.containers);
+  refreshSenderQuestsFromInventory(ctx);
+}
 
 export const throwMenuItem = spacetimedb.reducer(
   { container: t.string(), index: t.u8(), wholeStack: t.bool() },
@@ -7338,104 +7379,7 @@ export const moveInventoryItem = spacetimedb.reducer(
   },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if (!isInventoryContainerId(request.fromContainer) || !isInventoryContainerId(request.toContainer)) {
-      throw new SenderError('container_not_found');
-    }
-    const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)];
-    const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
-    const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
-    const container = (id: InventoryContainerId): ContainerSnapshot => {
-      const capacity = accessibleInventoryContainerCapacity(id, hasBackpack, playerDebugBackpackSlots(ctx, ctx.sender));
-      const offset = inventorySlotOffset(id);
-      return {
-        id,
-        capacity,
-        slots: Array.from({ length: capacity }, (_, index) => {
-          const row = rowBySlot.get(offset + index);
-          return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
-        }),
-        ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}),
-      };
-    };
-    const containers = {
-      hotbar: container('hotbar'),
-      backpack: container('backpack'),
-      equipment: container('equipment'),
-      crafting: container('crafting'),
-    };
-    const result = moveItemStacks(containers, request);
-    if (!result.ok) throw new SenderError(result.code);
-    for (const containerId of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) {
-      const before = containers[containerId];
-      const after = result.containers[containerId]!;
-      const offset = inventorySlotOffset(containerId);
-      for (let index = 0; index < after.capacity; index += 1) {
-        const previous = before.slots[index];
-        const next = after.slots[index];
-        if (sameStoredStack(previous, next)) continue;
-        const row = rowBySlot.get(offset + index);
-        if (row === undefined) throw new SenderError('inventory_slot_missing');
-        ctx.db.inventory_slot.id.update({
-          ...row,
-          itemKind: next?.itemKind ?? 'empty',
-          quantity: next?.quantity ?? 0,
-        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-      }
-    }
-    updateEquippedForIdentity(ctx, ctx.sender, result.containers);
-  },
-);
-
-export const quickMoveInventoryItem = spacetimedb.reducer(
-  { fromContainer: t.string(), fromIndex: t.u8(), toContainers: t.array(t.string()) },
-  (ctx, request) => {
-    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if (!isInventoryContainerId(request.fromContainer)
-      || request.toContainers.some((id) => !isInventoryContainerId(id))) throw new SenderError('container_not_found');
-    const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)];
-    const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
-    const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
-    const container = (id: InventoryContainerId): ContainerSnapshot => {
-      const capacity = accessibleInventoryContainerCapacity(id, hasBackpack, playerDebugBackpackSlots(ctx, ctx.sender)); const offset = inventorySlotOffset(id);
-      return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
-        const row = rowBySlot.get(offset + index);
-        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
-      }), ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}) };
-    };
-    const containers = { hotbar: container('hotbar'), backpack: container('backpack'), equipment: container('equipment'), crafting: container('crafting') };
-    const result = quickMoveItemStack(containers, request);
-    if (!result.ok) throw new SenderError(result.code);
-    for (const containerId of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) {
-      const before = containers[containerId]; const after = result.containers[containerId]!; const offset = inventorySlotOffset(containerId);
-      for (let index = 0; index < after.capacity; index += 1) {
-        const previous = before.slots[index]; const next = after.slots[index];
-        if (sameStoredStack(previous, next)) continue;
-        const row = rowBySlot.get(offset + index); if (row === undefined) throw new SenderError('inventory_slot_missing');
-        ctx.db.inventory_slot.id.update({
-          ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-      }
-    }
-    updateEquippedForIdentity(ctx, ctx.sender);
-  },
-);
-
-export const quickMoveAllInventoryItems = spacetimedb.reducer(
-  { itemKind: t.string(), fromContainers: t.array(t.string()), toContainers: t.array(t.string()) },
-  (ctx, request) => {
-    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if ([...request.fromContainers, ...request.toContainers].some((id) => !isInventoryContainerId(id))) {
-      throw new SenderError('container_not_found');
-    }
-    const inventory = loadPlayerInventory(ctx, ctx.sender);
-    const result = quickMoveAllMatchingStacks(inventory.containers, request);
-    if (!result.ok) throw new SenderError(result.code);
-    writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, result.containers);
-    updateEquippedForIdentity(ctx, ctx.sender, result.containers);
+    moveOpenMenuItem(ctx, request);
   },
 );
 
@@ -7446,39 +7390,7 @@ export const distributeInventoryItem = spacetimedb.reducer(
   },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if (request.targetContainers.length !== request.targetIndexes.length
-      || !isInventoryContainerId(request.fromContainer)
-      || request.targetContainers.some((id) => !isInventoryContainerId(id))) throw new SenderError('container_not_found');
-    const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)];
-    const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
-    const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
-    const container = (id: InventoryContainerId): ContainerSnapshot => {
-      const capacity = accessibleInventoryContainerCapacity(id, hasBackpack, playerDebugBackpackSlots(ctx, ctx.sender)); const offset = inventorySlotOffset(id);
-      return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
-        const row = rowBySlot.get(offset + index);
-        return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
-      }), ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}) };
-    };
-    const containers = { hotbar: container('hotbar'), backpack: container('backpack'), equipment: container('equipment'), crafting: container('crafting') };
-    const result = distributeItemStack(containers, {
-      fromContainer: request.fromContainer, fromIndex: request.fromIndex, quantity: request.quantity,
-      targets: request.targetContainers.map((containerId, index) => ({ container: containerId, index: request.targetIndexes[index]! })),
-    });
-    if (!result.ok) throw new SenderError(result.code);
-    for (const containerId of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) {
-      const before = containers[containerId]; const after = result.containers[containerId]!; const offset = inventorySlotOffset(containerId);
-      for (let index = 0; index < after.capacity; index += 1) {
-        const previous = before.slots[index]; const next = after.slots[index];
-        if (sameStoredStack(previous, next)) continue;
-        const row = rowBySlot.get(offset + index); if (row === undefined) throw new SenderError('inventory_slot_missing');
-        ctx.db.inventory_slot.id.update({
-          ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-      }
-    }
-    updateEquippedForIdentity(ctx, ctx.sender);
+    distributeOpenMenuItem(ctx, request);
   },
 );
 
@@ -8576,15 +8488,7 @@ export const movePlaceableItem = spacetimedb.reducer(
   { fromContainer: t.string(), fromIndex: t.u8(), toContainer: t.string(), toIndex: t.u8(), quantity: t.u16() },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if (![request.fromContainer, request.toContainer].every((id) => id === 'placeable' || isInventoryContainerId(id))) {
-      throw new SenderError('container_not_found');
-    }
-    const menu = loadOpenMenuInventory(ctx);
-    if (menu.placeable === undefined) throw new SenderError('placeable_not_open');
-    const moved = moveItemStacks(menu.containers, request);
-    if (!moved.ok) throw new SenderError(moved.code);
-    writeOpenMenuInventory(ctx, menu, moved.containers);
-    refreshSenderQuestsFromInventory(ctx);
+    moveOpenMenuItem(ctx, request);
   },
 );
 
@@ -9362,136 +9266,7 @@ export const moveChestItem = spacetimedb.reducer(
   { fromContainer: t.string(), fromIndex: t.u8(), toContainer: t.string(), toIndex: t.u8(), quantity: t.u16() },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if (![request.fromContainer, request.toContainer].every((id) => id === 'chest' || isInventoryContainerId(id))) {
-      throw new SenderError('container_not_found');
-    }
-    const active = ctx.db.active_chest.identity.find(ctx.sender); if (active === null) throw new SenderError('chest_not_open');
-    const chest = ctx.db.world_chest.id.find(active.chestId); if (chest === null || chest.carriedBy !== undefined) throw new SenderError('chest_not_open');
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (position === null || !chestWithinReach(position.x, position.y, chest)) throw new SenderError('chest_out_of_range');
-    requireWorldModificationAuthorized(ctx, position);
-    const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]; const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
-    const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
-    const chestRows = ensureChestStorageRows(ctx, chest.id); const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
-    const makeInventory = (id: InventoryContainerId): ContainerSnapshot => {
-      const capacity = accessibleInventoryContainerCapacity(id, hasBackpack, playerDebugBackpackSlots(ctx, ctx.sender)); const offset = inventorySlotOffset(id);
-      return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
-        const row = rowBySlot.get(offset + index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
-      }), ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}) };
-    };
-    const containers: Record<string, ContainerSnapshot> = { chest: { id: 'chest', capacity: CHEST_STORAGE_CAPACITY, slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, index) => {
-      const row = chestBySlot.get(index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
-    }) } };
-    for (const id of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) containers[id] = makeInventory(id);
-    const result = moveItemStacks(containers, request); if (!result.ok) throw new SenderError(result.code);
-    for (const id of new Set([request.fromContainer, request.toContainer])) {
-      const after = result.containers[id]!;
-      for (let index = 0; index < after.capacity; index += 1) {
-        const next = after.slots[index];
-        if (id === 'chest') {
-          const row = chestBySlot.get(index); if (row !== undefined
-            && !sameStoredStack(storedStack(row.itemKind, row.quantity, row.durability, row.lit), next)) {
-            ctx.db.world_chest_slot.id.update({
-              ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-          }
-        } else {
-          const inventoryId = id as InventoryContainerId; const row = rowBySlot.get(inventorySlotOffset(inventoryId) + index);
-          if (row !== undefined
-            && !sameStoredStack(storedStack(row.itemKind, row.quantity, row.durability, row.lit), next)) {
-            ctx.db.inventory_slot.id.update({
-              ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-          }
-        }
-      }
-    }
-    updateEquippedForIdentity(ctx, ctx.sender);
-  },
-);
-
-export const quickMoveChestItem = spacetimedb.reducer(
-  { fromContainer: t.string(), fromIndex: t.u8(), toContainers: t.array(t.string()) },
-  (ctx, request) => {
-    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if (![request.fromContainer, ...request.toContainers].every((id) => id === 'chest' || isInventoryContainerId(id))) throw new SenderError('container_not_found');
-    const active = ctx.db.active_chest.identity.find(ctx.sender); if (active === null) throw new SenderError('chest_not_open');
-    const chest = ctx.db.world_chest.id.find(active.chestId); if (chest === null || chest.carriedBy !== undefined) throw new SenderError('chest_not_open');
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (position === null || !chestWithinReach(position.x, position.y, chest)) throw new SenderError('chest_out_of_range');
-    requireWorldModificationAuthorized(ctx, position);
-    const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]; const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
-    const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
-    const chestRows = ensureChestStorageRows(ctx, chest.id); const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
-    const make = (id: InventoryContainerId): ContainerSnapshot => { const capacity = accessibleInventoryContainerCapacity(id, hasBackpack, playerDebugBackpackSlots(ctx, ctx.sender)); const offset = inventorySlotOffset(id); return {
-      id, capacity, slots: Array.from({ length: capacity }, (_, index) => { const row = rowBySlot.get(offset + index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit); }),
-      ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}),
-    }; };
-    const containers: Record<string, ContainerSnapshot> = { chest: { id: 'chest', capacity: CHEST_STORAGE_CAPACITY, slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, index) => { const row = chestBySlot.get(index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit); }) } };
-    for (const id of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) containers[id] = make(id);
-    const result = quickMoveItemStack(containers, request); if (!result.ok) throw new SenderError(result.code);
-    for (const id of ['chest', 'hotbar', 'backpack', 'equipment', 'crafting'] as const) {
-      const before = containers[id]!; const after = result.containers[id]!;
-      for (let index = 0; index < after.capacity; index += 1) {
-        const previous = before.slots[index]; const next = after.slots[index]; if (sameStoredStack(previous, next)) continue;
-        if (id === 'chest') { const row = chestBySlot.get(index); if (row !== undefined) ctx.db.world_chest_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
-        else { const row = rowBySlot.get(inventorySlotOffset(id) + index); if (row !== undefined) ctx.db.inventory_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
-      }
-    }
-    updateEquippedForIdentity(ctx, ctx.sender);
-  },
-);
-
-export const quickMoveAllChestItems = spacetimedb.reducer(
-  { itemKind: t.string(), fromContainers: t.array(t.string()), toContainers: t.array(t.string()) },
-  (ctx, request) => {
-    requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if ([...request.fromContainers, ...request.toContainers]
-      .some((id) => id !== 'chest' && !isInventoryContainerId(id))) throw new SenderError('container_not_found');
-    const active = ctx.db.active_chest.identity.find(ctx.sender);
-    if (active === null) throw new SenderError('chest_not_open');
-    const chest = ctx.db.world_chest.id.find(active.chestId);
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (chest === null || chest.carriedBy !== undefined || position === null
-      || !chestWithinReach(position.x, position.y, chest)) throw new SenderError('chest_out_of_range');
-    requireWorldModificationAuthorized(ctx, position);
-    const inventory = loadPlayerInventory(ctx, ctx.sender);
-    const chestRows = ensureChestStorageRows(ctx, chest.id);
-    const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
-    const chestContainer: ContainerSnapshot = {
-      id: 'chest',
-      capacity: CHEST_STORAGE_CAPACITY,
-      slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, index) => {
-        const row = chestBySlot.get(index);
-        return row === undefined || row.itemKind === 'empty' || row.quantity === 0
-          ? null
-          : storedStack(row.itemKind, row.quantity, row.durability, row.lit);
-      }),
-    };
-    const containers = { ...inventory.containers, chest: chestContainer };
-    const result = quickMoveAllMatchingStacks(containers, request);
-    if (!result.ok) throw new SenderError(result.code);
-    writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, result.containers);
-    const afterChest = result.containers.chest!;
-    for (let index = 0; index < afterChest.capacity; index += 1) {
-      const previous = chestContainer.slots[index];
-      const next = afterChest.slots[index];
-      if (sameStoredStack(previous, next)) continue;
-      const row = chestBySlot.get(index);
-      if (row === undefined) throw new SenderError('chest_slot_missing');
-      ctx.db.world_chest_slot.id.update({
-        ...row,
-        itemKind: next?.itemKind ?? 'empty',
-        quantity: next?.quantity ?? 0,
-        durability: storedDurability(next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-    }
-    updateEquippedForIdentity(ctx, ctx.sender, result.containers);
+    moveOpenMenuItem(ctx, request);
   },
 );
 
@@ -9499,34 +9274,7 @@ export const distributeChestItem = spacetimedb.reducer(
   { fromContainer: t.string(), fromIndex: t.u8(), targetContainers: t.array(t.string()), targetIndexes: t.array(t.u8()), quantity: t.u16() },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if (request.targetContainers.length !== request.targetIndexes.length
-      || ![request.fromContainer, ...request.targetContainers].every((id) => id === 'chest' || isInventoryContainerId(id))) throw new SenderError('container_not_found');
-    const active = ctx.db.active_chest.identity.find(ctx.sender); if (active === null) throw new SenderError('chest_not_open');
-    const chest = ctx.db.world_chest.id.find(active.chestId); if (chest === null || chest.carriedBy !== undefined) throw new SenderError('chest_not_open');
-    const position = ctx.db.player_position.identity.find(ctx.sender);
-    if (position === null || !chestWithinReach(position.x, position.y, chest)) throw new SenderError('chest_out_of_range');
-    requireWorldModificationAuthorized(ctx, position);
-    const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]; const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
-    const hasBackpack = rows.some((row) => row.itemKind === 'backpack' && row.quantity > 0);
-    const chestRows = ensureChestStorageRows(ctx, chest.id); const chestBySlot = new Map(chestRows.map((row) => [row.slot, row]));
-    const make = (id: InventoryContainerId): ContainerSnapshot => { const capacity = accessibleInventoryContainerCapacity(id, hasBackpack, playerDebugBackpackSlots(ctx, ctx.sender)); const offset = inventorySlotOffset(id); return {
-      id, capacity, slots: Array.from({ length: capacity }, (_, index) => { const row = rowBySlot.get(offset + index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit); }),
-      ...(id === 'equipment' ? { restrictions: EQUIPMENT_RESTRICTIONS } : {}),
-    }; };
-    const containers: Record<string, ContainerSnapshot> = { chest: { id: 'chest', capacity: CHEST_STORAGE_CAPACITY, slots: Array.from({ length: CHEST_STORAGE_CAPACITY }, (_, index) => { const row = chestBySlot.get(index); return row === undefined ? null : storedStack(row.itemKind, row.quantity, row.durability, row.lit); }) } };
-    for (const id of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) containers[id] = make(id);
-    const result = distributeItemStack(containers, { fromContainer: request.fromContainer, fromIndex: request.fromIndex, quantity: request.quantity,
-      targets: request.targetContainers.map((containerId, index) => ({ container: containerId, index: request.targetIndexes[index]! })) });
-    if (!result.ok) throw new SenderError(result.code);
-    for (const id of ['chest', 'hotbar', 'backpack', 'equipment', 'crafting'] as const) {
-      const before = containers[id]!; const after = result.containers[id]!;
-      for (let index = 0; index < after.capacity; index += 1) {
-        const previous = before.slots[index]; const next = after.slots[index]; if (sameStoredStack(previous, next)) continue;
-        if (id === 'chest') { const row = chestBySlot.get(index); if (row !== undefined) ctx.db.world_chest_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
-        else { const row = rowBySlot.get(inventorySlotOffset(id) + index); if (row !== undefined) ctx.db.inventory_slot.id.update({ ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0, durability: storedDurability(next?.itemKind ?? 'empty', next?.durability), lit: storedLit(next?.itemKind ?? 'empty', next?.lit) }); }
-      }
-    }
-    updateEquippedForIdentity(ctx, ctx.sender);
+    distributeOpenMenuItem(ctx, request);
   },
 );
 
