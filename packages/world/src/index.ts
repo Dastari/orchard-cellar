@@ -10618,6 +10618,7 @@ export const decayEmptyTopsideSoil = spacetimedb.reducer(
   { onSchedule: soil_decay_timer },
   { scheduledMessage: soil_decay_timer.rowType },
   (ctx, { scheduledMessage }) => {
+    if (!ctx.sender.isEqual(ctx.databaseIdentity)) throw new SenderError('scheduled_reducer_only');
     const soil = ctx.db.world_soil.id.find(scheduledMessage.soilId);
     const clock = ctx.db.world_clock.id.find(0);
     if (soil === null || clock === null || soil.spaceId !== TOPSIDE_SPACE_ID) return;
@@ -11070,6 +11071,7 @@ export const stepWorld = spacetimedb.reducer(
   { onSchedule: movement_timer },
   { scheduledMessage: movement_timer.rowType },
   (ctx) => {
+    if (!ctx.sender.isEqual(ctx.databaseIdentity)) throw new SenderError('scheduled_reducer_only');
     const clock = ctx.db.world_clock.id.find(0);
     if (clock === null) return;
     const telemetryTimingSample = (clock.authorityTick + 1n) % TICK_TELEMETRY_LOG_TICKS === 0n;
