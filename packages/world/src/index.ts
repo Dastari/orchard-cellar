@@ -1073,6 +1073,8 @@ const chat_message = table(
     name: 'chat_message',
     indexes: [
       { accessor: 'by_conversation', algorithm: 'btree', columns: ['conversationKey'] },
+      { accessor: 'by_sender', algorithm: 'btree', columns: ['sender'] },
+      { accessor: 'by_recipient', algorithm: 'btree', columns: ['recipient'] },
     ],
   },
   {
@@ -1115,6 +1117,7 @@ const world_speech = table(
     name: 'world_speech',
     indexes: [
       { accessor: 'by_speaker', algorithm: 'btree', columns: ['speaker'] },
+      { accessor: 'by_space', algorithm: 'btree', columns: ['spaceId'] },
       { accessor: 'by_expires_tick', algorithm: 'btree', columns: ['expiresTick'] },
     ],
   },
@@ -2044,6 +2047,17 @@ type WorldItemRow = NonNullable<ReturnType<WorldReducerContext['db']['world_item
 type WorldCombatTargetRow = NonNullable<ReturnType<WorldReducerContext['db']['world_combat_target']['id']['find']>>;
 type WorldSoilRow = NonNullable<ReturnType<WorldReducerContext['db']['world_soil']['id']['find']>>;
 type HomesteadRow = NonNullable<ReturnType<WorldReducerContext['db']['homestead']['spaceId']['find']>>;
+type IndexedLookupContext = Readonly<{
+  db: Readonly<{
+    homestead: Readonly<{
+      by_owner: Pick<WorldReducerContext['db']['homestead']['by_owner'], 'filter'>;
+    }>;
+    player_trade_session: Readonly<{
+      by_requester: Pick<WorldReducerContext['db']['player_trade_session']['by_requester'], 'filter'>;
+      by_recipient: Pick<WorldReducerContext['db']['player_trade_session']['by_recipient'], 'filter'>;
+    }>;
+  }>;
+}>;
 
 function combatTargetPositionAtTile(tileX: number, tileY: number): { readonly x: number; readonly y: number } {
   return {
@@ -2558,7 +2572,7 @@ function collisionForSpace(ctx: WorldReducerContext, spaceId: number) {
   return { ...collision, obstacles };
 }
 
-function homesteadForOwner(ctx: WorldReducerContext, owner: WorldReducerContext['sender']) {
+function homesteadForOwner(ctx: IndexedLookupContext, owner: WorldReducerContext['sender']) {
   return firstIndexRow(ctx.db.homestead.by_owner.filter(owner));
 }
 
@@ -4654,15 +4668,15 @@ export const ownCurrentHomestead = spacetimedb.view(
 export const onlinePlayerPublic = spacetimedb.view(
   { name: 'online_player_public', public: true },
   t.array(player_public.rowType),
-  (ctx) => [...ctx.db.player_public.iter()].filter((profile) => profile.online),
+  (ctx) => [...ctx.db.player_public.by_online.filter(true)],
 );
 
 export const onlinePlayerAppearances = spacetimedb.view(
   { name: 'online_player_appearances', public: true },
   t.array(player_appearance.rowType),
-  (ctx) => [...ctx.db.player_appearance.iter()].filter((appearance) => (
-    ctx.db.player_public.identity.find(appearance.identity)?.online === true
-  )),
+  (ctx) => [...ctx.db.player_public.by_online.filter(true)]
+    .map((profile) => ctx.db.player_appearance.identity.find(profile.identity))
+    .filter((appearance) => appearance !== null),
 );
 
 export const ownStats = spacetimedb.view(
@@ -4680,19 +4694,15 @@ export const ownWallet = spacetimedb.view(
 export const ownTradeSession = spacetimedb.view(
   { name: 'own_trade_session', public: true },
   t.option(player_trade_session.rowType),
-  (ctx) => [...ctx.db.player_trade_session.iter()].find((trade) => (
-    trade.requester.isEqual(ctx.sender) || trade.recipient.isEqual(ctx.sender)
-  )),
+  (ctx) => tradeForPlayer(ctx, ctx.sender) ?? undefined,
 );
 
 export const ownTradeOffers = spacetimedb.view(
   { name: 'own_trade_offers', public: true },
   t.array(player_trade_offer.rowType),
   (ctx) => {
-    const trade = [...ctx.db.player_trade_session.iter()].find((candidate) => (
-      candidate.requester.isEqual(ctx.sender) || candidate.recipient.isEqual(ctx.sender)
-    ));
-    return trade === undefined ? [] : [...ctx.db.player_trade_offer.by_trade.filter(trade.id)];
+    const trade = tradeForPlayer(ctx, ctx.sender);
+    return trade === null ? [] : [...ctx.db.player_trade_offer.by_trade.filter(trade.id)];
   },
 );
 
@@ -4824,8 +4834,8 @@ export const ownHomesteadUpgrades = spacetimedb.view(
   { name: 'own_homestead_upgrades', public: true },
   t.array(homestead_upgrade.rowType),
   (ctx) => {
-    const home = [...ctx.db.homestead.iter()].find((row) => row.owner.isEqual(ctx.sender));
-    return home === undefined ? [] : [...ctx.db.homestead_upgrade.by_space.filter(home.spaceId)];
+    const home = homesteadForOwner(ctx, ctx.sender);
+    return home === null ? [] : [...ctx.db.homestead_upgrade.by_space.filter(home.spaceId)];
   },
 );
 
@@ -4833,8 +4843,8 @@ export const ownHomesteadMembers = spacetimedb.view(
   { name: 'own_homestead_members', public: true },
   t.array(homestead_guest.rowType),
   (ctx) => {
-    const owned = [...ctx.db.homestead.iter()].find((row) => row.owner.isEqual(ctx.sender));
-    if (owned !== undefined) return [...ctx.db.homestead_guest.by_space.filter(owned.spaceId)];
+    const owned = homesteadForOwner(ctx, ctx.sender);
+    if (owned !== null) return [...ctx.db.homestead_guest.by_space.filter(owned.spaceId)];
     return [...ctx.db.homestead_guest.by_guest.filter(ctx.sender)];
   },
 );
@@ -4875,17 +4885,21 @@ export const visibleChatMessages = spacetimedb.view(
   { name: 'visible_chat_messages', public: true },
   t.array(chat_message.rowType),
   (ctx) => {
-    const joined = new Set(
+    const visible = new Map(
       [...ctx.db.chat_channel_member.by_identity.filter(ctx.sender)]
-        .map((member) => member.channelId.toString()),
+        .flatMap((member) => [
+          ...ctx.db.chat_message.by_conversation.filter(channelConversationKey(member.channelId)),
+        ])
+        .filter((message) => !isLegacyPersistentLifecycleMessage(message.kind))
+        .map((message) => [message.id, message] as const),
     );
-    return [...ctx.db.chat_message.iter()].filter((message) => {
-      if (isLegacyPersistentLifecycleMessage(message.kind)) return false;
-      if (message.kind === 'whisper') {
-        return message.sender.isEqual(ctx.sender) || message.recipient?.isEqual(ctx.sender) === true;
-      }
-      return joined.has(message.channelId.toString());
-    });
+    for (const message of ctx.db.chat_message.by_sender.filter(ctx.sender)) {
+      if (message.kind === 'whisper') visible.set(message.id, message);
+    }
+    for (const message of ctx.db.chat_message.by_recipient.filter(ctx.sender)) {
+      if (message.kind === 'whisper') visible.set(message.id, message);
+    }
+    return [...visible.values()];
   },
 );
 
@@ -4896,9 +4910,8 @@ export const visibleWorldSpeech = spacetimedb.view(
     const caller = ctx.db.player_position.identity.find(ctx.sender);
     if (caller === null) return [];
     const clock = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
-    return [...ctx.db.world_speech.iter()].filter((speech) => {
+    return [...ctx.db.world_speech.by_space.filter(caller.spaceId)].filter((speech) => {
       if (speech.expiresTick <= clock) return false;
-      if (speech.spaceId !== caller.spaceId) return false;
       const rangeTiles = speech.kind === 'shout' ? 80 : 18;
       const range = rangeTiles * TILE_SIZE_FIXED;
       const dx = speech.x - caller.x;
@@ -8734,12 +8747,11 @@ const U64_MAX = (1n << 64n) - 1n;
 type PlayerTradeSessionRow = NonNullable<ReturnType<WorldReducerContext['db']['player_trade_session']['id']['find']>>;
 
 function tradeForPlayer(
-  ctx: WorldReducerContext,
+  ctx: IndexedLookupContext,
   identity: WorldReducerContext['sender'],
 ): PlayerTradeSessionRow | null {
-  return [...ctx.db.player_trade_session.iter()].find((trade) => (
-    trade.requester.isEqual(identity) || trade.recipient.isEqual(identity)
-  )) ?? null;
+  return firstIndexRow(ctx.db.player_trade_session.by_requester.filter(identity))
+    ?? firstIndexRow(ctx.db.player_trade_session.by_recipient.filter(identity));
 }
 
 function requireTradeParticipant(

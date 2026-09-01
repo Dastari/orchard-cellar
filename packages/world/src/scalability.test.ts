@@ -286,7 +286,14 @@ describe('34§6 stage-2 scalability rules', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     expect(source).toContain("name: 'online_player_public'");
     expect(source).toContain("name: 'online_player_appearances'");
-    expect(source).toContain('.filter((profile) => profile.online)');
+    const onlineViews = source.slice(
+      source.indexOf('export const onlinePlayerPublic ='),
+      source.indexOf('export const ownStats ='),
+    );
+    expect(onlineViews.match(/player_public\.by_online\.filter\(true\)/g)).toHaveLength(2);
+    expect(onlineViews).toContain('player_appearance.identity.find(profile.identity)');
+    expect(onlineViews).not.toContain('player_public.iter()');
+    expect(onlineViews).not.toContain('player_appearance.iter()');
     const connectStart = source.indexOf('export const onConnect =');
     const connectEnd = source.indexOf('\nexport const onDisconnect', connectStart);
     const connect = source.slice(connectStart, connectEnd);

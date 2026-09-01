@@ -14,11 +14,17 @@ function between(startAnchor: string, endAnchor: string): string {
 describe('secure direct player trading', () => {
   it('keeps sessions and escrow private and exposes only participant-owned views', () => {
     const tables = between('const player_trade_session = table(', 'const player_effect = table(');
+    const lookup = between('function tradeForPlayer(', 'function requireTradeParticipant(');
     expect(tables).not.toContain('public: true');
     expect(tables).toContain("name: 'player_trade_offer'");
     expect(source).toContain("name: 'own_trade_session', public: true");
     expect(source).toContain("name: 'own_trade_offers', public: true");
-    expect(source).toContain('trade.requester.isEqual(ctx.sender) || trade.recipient.isEqual(ctx.sender)');
+    expect(lookup).toContain('player_trade_session.by_requester.filter(identity)');
+    expect(lookup).toContain('player_trade_session.by_recipient.filter(identity)');
+    expect(lookup).not.toContain('player_trade_session.iter()');
+    const views = between('export const ownTradeSession =', 'export const ownEffects =');
+    expect(views.match(/tradeForPlayer\(ctx, ctx\.sender\)/g)).toHaveLength(2);
+    expect(views).not.toContain('player_trade_session.iter()');
   });
 
   it('validates identity, availability, exclusivity, space, and proximity before requesting', () => {

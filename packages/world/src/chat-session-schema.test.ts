@@ -57,7 +57,7 @@ describe('session-only lifecycle chat notices', () => {
     const migration = sourceBetween('function migrateSessionChatNotices(', 'function deleteSessionChatNoticesForConnection(');
     expect(migration).toContain('isLegacyPersistentLifecycleMessage(message.kind)');
     expect(migration).toContain('ctx.db.chat_message.id.delete(message.id)');
-    expect(source).toContain('if (isLegacyPersistentLifecycleMessage(message.kind)) return false;');
+    expect(source).toContain('.filter((message) => !isLegacyPersistentLifecycleMessage(message.kind))');
     expect(sourceBetween('export const onDisconnect =', 'export const createChatChannel ='))
       .toContain('deleteSessionChatNoticesForConnection(ctx, ctx.connectionId)');
     expect(source).toContain("broadcastSessionChatNotice(ctx, 'disconnect'");
