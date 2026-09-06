@@ -1,3 +1,4 @@
+import { createGameplayRenderer, gameplayDisplaySnapshot } from './gameplay-renderer.js';
 import { selectedLightEquipRequest } from './selected-item-use.js';
 import { WorldShadowAssets, WorldLightingRenderer, celestialCastersFromOcclusion, lightingOwner } from '@orchard/engine/world-lighting-renderer';
 import { setWorldAssetPresentation } from '@orchard/engine/world-asset-presentation';
@@ -329,7 +330,6 @@ import { treeSwayOffset, WeatherEffects, windDirectionLabel, type WindTreeSource
 import { drawPixelPanel, drawPixelText, measurePixelText } from '@orchard/ui';
 import {
   MAX_WORLD_ZOOM,
-  UnifiedRenderer,
   drawSortedWorldDepthQueue,
   sortWorldDepthItems,
   type WorldDepthItem,
@@ -445,7 +445,7 @@ import { WorldStaticProjectionCache } from './world-static-projection.js';
 const canvasElement = document.querySelector<HTMLCanvasElement>('#game');
 if (canvasElement === null) throw new Error('Missing overworld canvas');
 const canvas: HTMLCanvasElement = canvasElement;
-const renderer = new UnifiedRenderer(canvas);
+const renderer = createGameplayRenderer(canvas);
 const chatInputElement = document.querySelector<HTMLInputElement>('#account-name');
 if (chatInputElement === null) throw new Error('Missing overworld text input');
 const characterNameInputElement = document.querySelector<HTMLInputElement>('#character-name');
@@ -8130,13 +8130,7 @@ Object.assign(window, {
         receiverMs: lightmap.receiverMs,
         compositeMs: lightmap.compositeMs,
       },
-      display: {
-        dpr: renderer.dpr,
-        cssWidth: renderer.cssWidth,
-        cssHeight: renderer.cssHeight,
-        worldZoom,
-        uiScale: currentUiScale(),
-      },
+      display: gameplayDisplaySnapshot(renderer, worldZoom, currentUiScale),
       world: {
         spaceId: activeSpaceDefinition.spaceId,
         lightCount: latestLightCount,
