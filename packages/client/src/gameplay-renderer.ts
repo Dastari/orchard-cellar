@@ -7,7 +7,10 @@ export function createGameplayRenderer(canvas: HTMLCanvasElement): UnifiedRender
   const apply = () => renderer.setWorldScale(readWorldScale());
   apply();
   window.addEventListener(WORLD_SCALE_EVENT, apply);
-  import.meta.hot?.dispose(() => window.removeEventListener(WORLD_SCALE_EVENT, apply));
+  import.meta.hot?.dispose(() => {
+    window.removeEventListener(WORLD_SCALE_EVENT, apply);
+    renderer.dispose();
+  });
   return renderer;
 }
 
@@ -25,5 +28,6 @@ export function gameplayDisplaySnapshot(renderer: UnifiedRenderer, worldZoom: nu
     worldBackingWidth: renderer.worldWidth,
     worldBackingHeight: renderer.worldHeight,
     presentBytes: renderer.presentBytes,
+    hudCache: renderer.hudCacheDiagnostics,
   };
 }

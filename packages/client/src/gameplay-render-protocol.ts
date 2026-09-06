@@ -1,4 +1,4 @@
-import { atlasPageDiagnostics } from '@orchard/ui';
+import { atlasPageDiagnostics, type HudDisplayCacheDiagnostics } from '@orchard/ui';
 import type { RenderMetrics } from '@orchard/engine/metrics';
 import { RenderProtocolBuffer, protocolDistribution } from '@orchard/engine/render-protocol-buffer';
 import { startRenderProtocolWalk } from './render-protocol-walk.js';
@@ -9,7 +9,7 @@ export interface GameplayDiagnosticState {
   readonly display: { readonly dpr: number; readonly cssWidth: number;
     readonly cssHeight: number; readonly worldZoom: number; readonly uiScale: number;
     readonly worldScale: '1x' | '2x' | 'native'; readonly backend: 'canvas2d';
-    readonly presentationCap: 'off' | '30hz' };
+    readonly presentationCap: 'off' | '30hz'; readonly hudCache?: HudDisplayCacheDiagnostics };
   readonly lighting: { readonly requestedQuality: 'basic' | 'dynamic';
     readonly effectiveQuality: 'basic' | 'dynamic'; readonly model: 'classic' | 'unified';
     readonly fallbackReason: string | null; readonly retainedSurfaceBytes: number };
@@ -35,6 +35,12 @@ function ready(game: ProtocolGameplay, mode: ProtocolMode): boolean {
     && state.world.residentGroundChunks > 0 && state.lighting.fallbackReason === null
     && state.lighting.effectiveQuality === (mode === 'basic' ? 'basic' : 'dynamic')
     && (mode === 'basic' || state.lighting.model === (mode === 'classic' ? 'classic' : 'unified'));
+}
+
+/** HUD reuse counters are evidence, not a viewport/policy change. */
+export function sameProtocolDisplay(before: GameplayDiagnosticState['display'] | undefined,
+  after: GameplayDiagnosticState['display']): boolean {
+  return before !== undefined && JSON.stringify({ ...before, hudCache: undefined }) === JSON.stringify({ ...after, hudCache: undefined });
 }
 
 /** Active rAF protocol. Hidden tabs, loading frames, changes of viewport/mode,
@@ -98,7 +104,7 @@ export async function captureGameplayProtocol(metrics: RenderMetrics, game: Prot
     unsubscribe(); cancel();
     consume(observer?.takeRecords() ?? []);
     const final = game.diagnostics();
-    if (!ready(game, options.mode) || JSON.stringify(final.display) !== JSON.stringify(matched.state?.display)
+    if (!ready(game, options.mode) || !sameProtocolDisplay(matched.state?.display, final.display)
       || final.world.spaceId !== matched.state?.world.spaceId) throw new Error('render_protocol_scene_changed');
     if (buffer.count < 2) throw new Error('render_protocol_insufficient_frames');
     return {

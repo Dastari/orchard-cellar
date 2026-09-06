@@ -461,6 +461,10 @@ async work remains excluded as in P0. Compact Video windows omit informational
 placeholder rows so the three actionable controls stay clear of the footer.
 The structural UI seam digest is recaptured for that reviewed control addition.
 The physical iPad baseline is pending, so the default remains off on all devices.
+The HUD cache retains three ordered static sections (status/watch, currency,
+hotbar) while live callbacks stay direct. Native display coordinates require
+three display-sized backings; renderer disposal releases their weakly registered
+ownership. HUD diagnostics are recorded but excluded from configuration matching.
 
 ### P8 — Experimental WebGL2 world pass (decision C, Video toggle)
 
@@ -2206,3 +2210,76 @@ Commands: `npm run check`; focused Vitest loop/policy/Video/metrics/UI/seam test
 client typecheck and scoped ESLint; `node .perf59-pacing-review/review-video.mjs`;
 `tsx .perf59-pacing-review/cadence-review.mjs`. Private replay workspace and exact
 UI fixture input copies are documented in `pacing-fixture/README.md`.
+
+
+### 2026-09-06 — P7 ordered HUD cache integration checkpoint
+
+Status: **IN PROGRESS**. Full HUD `npm run check` passes: **600 suites / 3,509 tests**, **815.24 s** Vitest duration; types, lint and asset validation pass (`P7/check-hud.log`). The P7 stage table above
+also applies to this checkpoint: every real-client after stage/counter and the
+physical iPad battery/thermal result remain **unmeasured — authentication required**
+or **owner to run**, respectively. No isolated HUD count is a gameplay p95.
+
+`hud-integrated-source-hashes.json` records 11 files against `e0a92b1d`:
+OverworldUi, new HUD section/cache-key and weak display-ownership modules/tests,
+renderer disposal/diagnostics and a failing-disposable test, gameplay display and
+protocol diagnostics, a configuration-matching test and structural seam digest.
+`hud-integrated-tests.log`: **7 suites / 139 tests pass**, client typecheck and
+scoped lint pass. The protocol excludes changing HUD build/reuse telemetry from
+its viewport/policy equality check, while retaining that telemetry in before/after
+JSON; otherwise every successful reuse would invalidate a capture.
+
+Status/watch/moon, currency and hotbar composite at their existing positions in
+the UI draw order. Minimap, portraits, vitals, blinking effects, menu/crafting
+buttons, windows, notifications, tooltips, cursor and scene overlays stay direct.
+Keys retain and compare semantic scalar values, exact transforms/geometry and
+asset/image/revision identities; no model JSON is allocated. Explicit artwork
+invalidation covers in-place authored metadata changes. The direct reference
+path disposes caches when disabled; unsupported transforms/alpha/filter remain
+direct. Obsolete direct section calls are replaced in their original positions.
+
+The initial tight-crop prototype changed nearest-neighbour edge decisions:
+maximum **165** over **204 channels** at1×, **235** over **492 channels** at1.25×.
+The accepted version keeps the original display backing dimensions/transform and
+copies only the section rectangle. This retains three RGBA surfaces, **12 bytes
+per display pixel**, or **11,059,200 bytes at1280×720**. This is HUD memory, not
+lighting memory. At644×364 the stationary fixture retains **2,812,992 bytes**.
+
+`hud-integrated/capture.json`, `comparison.json`, bundled source and45 PNGs
+repeat the actual-art browser matrix after integrating the pacing control and
+ownership bridge: **45/45 exact comparisons, zero changed channels**, actual
+browser DPR1/1.25/2 and effective UI scales through2.625. Watch/moon, real apple
+and pickaxe art, independent durability changes, hover, live translucent minimap
+and portrait callbacks, vitals/effect blink, inventory open/close and disposal
+are included. Root viewed the fractional-scale side-by-side capture. Source-root,
+base commit, dirty source hashes, requested asset hashes, OS/browser, viewport,
+DPR, transforms and backend are recorded; these are isolated UI fixtures.
+
+| 600 stationary draws | Direct | Cached |
+|---|---:|---:|
+| drawImage calls total | 148,200 | 48,000 |
+| drawImage calls per draw | 247 | 80 |
+| New cache builds | n/a | 0 |
+| Cache reuses | n/a | 1,800 |
+| New cache Canvas allocations | 0 | 0 |
+| Live minimap calls per UI | 600 | 600 |
+| Live portrait calls per UI | 600 | 600 |
+
+The registered display owner releases every cache. `hud/ownership.json` proves
+**3 caches / 4,395,300 bytes → 0 / 0** on an805×455 backing at browser DPR1.25;
+UI-own retained bytes also reach0, repeated disposal is safe, and later drawing
+constructs three fresh caches. Registry entries are weak and pruned. Renderer
+disposal uses finally so a failed generic HUD disposable cannot strand the
+world/present surfaces; the owning client now invokes renderer disposal on HMR.
+
+`golden-comparison.json`: all four integrated lighting boards are exact against
+the preceding Canvas seam. `paged-terrain-comparison.json`: all six terrain/pond
+policy views are exact at1×/2×/Native, including the HUD witness. These do not
+replace the missing minute-per-mode/scale authenticated gameplay review.
+
+Commands: full `npm run check` in canonical workspace; focused HUD/UI/renderer/
+protocol/seam Vitest suites; client typecheck/scoped ESLint; HUD `measure-hud.mjs`
+and `compare-hud.ts`; P7 `build-goldens.mjs`, `run-goldens.mjs`,
+`run-scale-goldens.mjs` (also with `PERF59_POND=1`), `compare-goldens.ts` and
+`compare-paged-terrain.ts`. Agent fixture evidence is preserved under `hud/`;
+the integrated replay is under `hud-integrated/`. iPad remains **owner to run**
+using the preceding P7 cap-OFF/cap-ON protocol steps and physical battery trace.
