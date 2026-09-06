@@ -301,6 +301,7 @@ export class TileLightmap {
   private floodTexelsVisitedValue = 0;
   private floodMsValue = 0;
   private fieldRebuildsValue = 0;
+  private receiverRevisionValue = 0;
   private occlusionRebuildsValue = 0;
   private occlusionCacheHitsValue = 0;
   private boundsResizeMsValue = 0;
@@ -326,6 +327,7 @@ export class TileLightmap {
 
   /** Drop all lighting-only backing stores without allocating replacements. */
   reset(): void {
+    this.receiverRevisionValue++;
     if (this.surfaces !== null) {
       this.surfaces.canvas.width = this.surfaces.canvas.height = 0;
       this.surfaces.haloCanvas.width = this.surfaces.haloCanvas.height = 0;
@@ -349,6 +351,8 @@ export class TileLightmap {
   get floodTexelsVisited(): number { return this.floodTexelsVisitedValue; }
   get floodMs(): number { return this.floodMsValue; }
   get fieldRebuilds(): number { return this.fieldRebuildsValue; }
+  /** Monotonic identity of local receiver bytes, including reset and resizing. */
+  get receiverRevision(): number { return this.receiverRevisionValue; }
   get occlusionRebuilds(): number { return this.occlusionRebuildsValue; }
   get occlusionCacheHits(): number { return this.occlusionCacheHitsValue; }
   get boundsResizeMs(): number { return this.boundsResizeMsValue; }
@@ -427,6 +431,7 @@ export class TileLightmap {
     this.boundsResizeMsValue = performance.now() - boundsStartedAt;
     if (rebuild) {
       this.fieldRebuildsValue += 1;
+      this.receiverRevisionValue++;
       this.lightPixels.fill(0);
       this.haloPixels.fill(0);
       for (const facePixels of this.southFacePixelsByElevation.values()) facePixels.fill(0);

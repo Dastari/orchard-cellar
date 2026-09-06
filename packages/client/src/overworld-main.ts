@@ -5452,9 +5452,9 @@ function renderFrame(alpha = 1): void {
     renderMetrics.recordStage('lightingBoundsResize', lightmap.boundsResizeMs);
     renderMetrics.recordStage('lightingOcclusionRaster', lightmap.rasterizeMs);
     renderMetrics.recordStage('lightingSolve', lightmap.floodMs);
-    renderMetrics.recordStage('lightingMerge', lightmap.mergeMs);
-    renderMetrics.recordStage('lightingUpload', lightmap.uploadMs);
-    renderMetrics.recordStage('lightingReceiver', lightmap.receiverMs);
+    renderMetrics.recordStage('lightingMerge', lightmap.mergeMs + (seasonalDynamic ? celestialPass.renderer!.mergeMs : 0));
+    renderMetrics.recordStage('lightingUpload', lightmap.uploadMs + (seasonalDynamic ? celestialPass.renderer!.uploadMs : 0));
+    renderMetrics.recordStage('lightingReceiver', lightmap.receiverMs + (seasonalDynamic ? celestialPass.renderer!.receiverMs : 0));
   }
   renderItems += drawCellarOreVeinPreview(
     context,
@@ -8039,6 +8039,7 @@ Object.assign(window, {
         tintCanvasAllocations: celestialPass.renderer?.frames.allocations ?? 0,
         tintSurfaceReuses: celestialPass.renderer?.frames.reuses ?? 0,
         tintedBytes: celestialPass.renderer?.frames.bytes ?? 0,
+        receiverCoverage: celestialPass.renderer?.scene.diagnostics ?? null,
         renderer: lightingQuality.effective === 'basic' ? 'basic-filter'
           : atlasPresentation.model === 'classic' ? 'classic-lightmap' : 'seasonal-receivers-v1',
         averageMs: lightmap.averageMs,

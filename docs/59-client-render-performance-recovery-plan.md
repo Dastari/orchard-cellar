@@ -351,6 +351,14 @@ requires retaining the accurate per-caster sample loop. Independent static/movin
 coverage reuse and numeric-key work proceeds; constant-time ground sampling
 and complete P4 acceptance remain open.
 
+P4 implementation scope extension (2026-09-06): `lighting-types.ts` admits
+numeric owner identities; `lighting.ts` exposes a monotonic local-receiver
+revision that advances on rebuild and reset; the existing renderer lifecycle
+test adopts the split begin API. The new upload test checks stationary and
+moving 600-frame reuse and window changes. Seasonal receiver sampling, raster
+merge (including coverage) and upload timings are added to the corresponding
+existing stage values, so the remaining accurate caster loop is attributed.
+
 ### P5 — Tint pool and cap-layer consolidation
 
 **Files:** `receiver-frame-source.ts`, `ground-light-source.ts`,
@@ -386,6 +394,12 @@ bit replication and multiples of eight produced maximum channel errors
 See the P5 OPEN decision and `output/perf-59-20260906/P5/quantization-comparison.json`.
 Retain exact RGB for tint-page pooling; quantization is not accepted and P5
 is not complete. The four-colour / 40-call fixture is accuracy evidence only.
+
+P5 filter-removal OPEN (2026-09-06): three CPU brightness/saturation
+representations still exceed the one-step dimming golden (maximum two, with
+72 / 72 / 1,124 channels above one). Two formulas match the tested hit flashes
+within one step. See `P5/filter-feasibility/filter-comparison.json` and the
+DECISIONS entry; no runtime replacement or complete filter-removal claim is made.
 
 ### P6 — Painter and context hot path
 
@@ -1634,3 +1648,109 @@ suites; `npm run assets:build`; `npm run assets:validate`;
 `run-goldens.mjs`, `run-scale-goldens.mjs`, `run-omit-walking.mjs`;
 `tsx .../P3/compare-goldens.ts`, `compare-paged-terrain.ts`;
 SHA-256 verification of the original and bounded normal page manifest.
+
+### 2026-09-06 — P4 implementation checkpoint; sampling and desktop acceptance open
+
+Status: **IN PROGRESS**. Static/moving coverage reuse, numeric identities and
+retained uploads are integrated; constant-time receiver sampling remains OPEN
+under the three-attempt rule above. Full canonical gate: **PASS**, `check-runtime.log`, 587 suites / 3,466 tests,
+854.58 seconds; typechecks, lint, lifecycle checks and asset validation green.
+All paths below are under `output/perf-59-20260906/P4/`; exact changed source
+paths/hashes are in `integrated-source-hashes.json`. The gameplay celestial
+orchestration was mechanically extracted in `cfce3e6f` before changing its logic.
+
+The renderer now separates static and moving caster arrays, retains the static
+field for each cached camera window, and reuses working/RGB buffers. The local
+lightmap exposes a monotonic receiver revision, including reset. Upload validity
+includes lightmap identity, raster identity and raster generation. An upload
+holds only a weak reference to its source raster so it cannot retain an evicted
+coverage field outside the scene budget. Reset releases the complete lighting
+state; upload byte accounting includes both Canvas and ImageData backings.
+
+`receiver-lane-counters.json` is a 600-frame **unit workload**, with fixed sky
+and a retained 256×256 window at step four, not a desktop timing sample:
+
+| Counter | After warm-up, 600 moving frames |
+|---|---:|
+| Static coverage builds | 0 |
+| Moving coverage blits / moving casters blitted | 600 / 600 |
+| RGB merges | 600 |
+| Static field changed bytes | 0 |
+| Static / working / RGB arrays retained | all three |
+| String / numeric cache-key lookups | 0 / 1803 |
+| Retained mask / coverage / RGB bytes | 7744 / 24576 / 16384 |
+| Retained bytes after reset | 0 |
+
+`integrated-tests.log` passes five suites / 25 tests. Its upload test performs
+600 stationary frames with one Canvas, one ImageData and one upload total,
+then 600 moving frames with no additional Canvas/ImageData allocation or static
+coverage rebuild and 600 uploads. Window changes, local-light reset and replacing
+a lightmap with an equal numeric revision all refresh the correct image.
+A new, uncached 4-px camera window still requires static rasterization; these
+counts do not claim zero coverage work while travelling through arbitrary terrain.
+
+`golden-comparison.json` records **zero changed channels** on all four lighting
+boards after integration with P3 omit pages. `paged-terrain-comparison.json`
+records exact terrain and pond output at 1×/2×/Native, including the HUD witness.
+The world-lighting board was visually inspected. Earlier pre-P3 captures remain
+under `pre-p3-integration/`; they are not substituted for the integrated goldens.
+
+Seasonal receiver sampling, raster merge (including coverage preparation) and
+pixel upload are now attributed to the existing lightingReceiver/Merge/Upload
+stages. Split-scene preparation and Canvas/ImageData allocation remain in their
+parent stages, not these three sub-timers. The accurate O(casters) sample loop
+remains: the three field approximations had maximum RGB errors 85, 87 and 50
+on 76,800 samples each (`raster-accuracy-experiment.json`). No tolerance was
+relaxed, and no constant-time sampling or completed P4 exit is claimed.
+
+The following table retains the last measured real-client P2 baseline in
+milliseconds p50/p95/p99. P3 and P4 real-client after samples remain unmeasured
+because the canonical browser session expired; see P3's authenticated capture
+block. No offline fixture timing substitutes for an active-rAF sample.
+
+| Stage | Basic P2 before | Classic P2 before | Dynamic P2 before | P4 after |
+|---|---:|---:|---:|---|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 | unmeasured — authentication required |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 | unmeasured — authentication required |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 | unmeasured — authentication required |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 | unmeasured — authentication required |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 | unmeasured — authentication required |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 | unmeasured — authentication required |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 | unmeasured — authentication required |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 | unmeasured — authentication required |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingDynamicSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 | unmeasured — authentication required |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 | unmeasured — authentication required |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 | unmeasured — authentication required |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 | unmeasured — authentication required |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 | unmeasured — authentication required |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 | unmeasured — authentication required |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+Real-client per-frame counters, long tasks and lightingReceiver/painterDraw p95
+after P4 are **unmeasured — authentication required**. All 14 original counters
+remain in the protocol export. Basic zero retained lighting bytes is covered by
+renderer reset tests, but a fresh real-client mode-switch counter proof is still
+required. The shared minute-per-mode/policy gameplay review also remains open.
+
+Physical iPad: **owner to run**. In the approved candidate preview, choose Video
+→ World scale 1×, world zoom 2, browser zoom 100%; open System → Developer →
+Render → **Run protocol + copy JSON**. Keep Safari foreground for the full
+105-second Basic/Classic/Dynamic run; tap **Copy capture JSON** if clipboard
+completion is refused. Repeat at 2× and Native. Attach model/iPadOS/Safari
+versions; the export includes commit/backend/policy/DPR/resolution/stages and
+counters. No desktop throttling substitutes for the physical device.
+
+Commands: `npm run check`; focused engine/client Vitest suites and typechecks;
+scoped ESLint; `node .../P4/build-goldens.mjs`, `run-goldens.mjs`,
+`run-scale-goldens.mjs`; `tsx .../P4/compare-goldens.ts`,
+`compare-paged-terrain.ts`; `tsx .../P4/receiver-lane-counters.ts`;
+`tsx .../P4/raster-accuracy-experiment.ts` (the earlier three failed approaches).

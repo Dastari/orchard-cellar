@@ -8,7 +8,7 @@ export interface LightingReceiver {
   readonly worldY: number;
   readonly heightSubunits: number;
   readonly receiver: LightingReceiverClass;
-  readonly owner?: string;
+  readonly owner?: string | number;
 }
 export interface ReceiverLightContributions {
   readonly diffuse: RgbColor;

@@ -64,7 +64,7 @@ export async function runWorldLightingReview() {
     const lights=panel.lantern?[{worldX:100,worldY:148,radiusTiles:6,color:LANTERN_LIGHT,elevationLayer:0}]:[];
     if(!panel.basic) {
       lightmap.prepare(terrain,0,0,2,640,384,sky.combined,lights,occlusion,'unified',true);
-      lighting.begin(sky,celestialCastersFromOcclusion(occlusion,lighting.mapper,0,0,320,384),String(index),lightmap,0,0,320,192);
+      lighting.begin(sky,celestialCastersFromOcclusion(occlusion,lighting.mapper,0,0,320,384),[],lightmap,0,0,320,192);
     }
     const start=performance.now();
     ctx.clearRect(0,0,640,384);ctx.imageSmoothingEnabled=false;

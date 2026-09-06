@@ -1,7 +1,8 @@
 import type { CelestialSource } from './celestial-lighting.js';
+import { LightingNumericKey } from './lighting-numeric-key.js';
 
 export interface DirectionalCaster {
-  readonly owner: string;
+  readonly owner: string | number;
   readonly worldX: number;
   readonly worldY: number;
   readonly baseHeightSubunits: number;
@@ -25,7 +26,7 @@ type Point = readonly [number, number];
 /** Baked-shadow padding may extend below the visible trunk/feet. Ground the
  * caster on clean body coverage while leaving the artwork's draw anchor intact. */
 export function groundedSpriteCaster(input: {
-  readonly owner: string; readonly worldX: number; readonly worldY: number;
+  readonly owner: string | number; readonly worldX: number; readonly worldY: number;
   readonly baseHeightSubunits: number; readonly pixelsPerHeightSubunit: number;
   readonly anchor: readonly [number, number];
   readonly mask: { readonly width: number; readonly height: number; readonly opaque: Uint8Array };
@@ -41,12 +42,18 @@ export function groundedSpriteCaster(input: {
 }
 
 /** Quantize geometry, not just its cache key, so identical keys are identical. */
-export function directionalGeometry(source: CelestialSource) {
+export function directionalGeometryKey(source: CelestialSource): number | null {
   if (source.intensity <= 0 || source.altitude <= 0) return null;
   const heading = Math.round(Math.atan2(source.direction[1], source.direction[0]) * 180 / Math.PI);
   const altitude = Math.max(1, Math.round(source.altitude * 180 / Math.PI));
+  return (heading + 180) * 181 + altitude;
+}
+export function directionalGeometry(source: CelestialSource) {
+  const key = directionalGeometryKey(source);
+  if (key === null) return null;
+  const heading = Math.floor(key / 181) - 180, altitude = key % 181;
   const angle = heading * Math.PI / 180;
-  return { key: `${heading}:${altitude}`, x: -Math.cos(angle), y: -Math.sin(angle), tangent: Math.tan(altitude * Math.PI / 180) };
+  return { key, x: -Math.cos(angle), y: -Math.sin(angle), tangent: Math.tan(altitude * Math.PI / 180) };
 }
 
 function fillPolygon(mask: DirectionalShadowMask, polygon: readonly Point[]): void {
@@ -159,7 +166,9 @@ export function projectDirectionalCaster(caster: DirectionalCaster, source: Cele
 /** Geometry cache is independent of camera, source intensity, and world foot.
  * Moving instances reuse the same local mask and translate it at sampling. */
 export class DirectionalShadowCache {
-  private readonly entries = new Map<string, DirectionalShadowMask | null>();
+  private readonly entries = new Map<number, { readonly signature: readonly number[]; readonly mask: DirectionalShadowMask | null }[]>();
+  private readonly signature = new LightingNumericKey();
+  private entryCount = 0;
   private identities = new WeakMap<object, number>();
   private identitySequence = 0;
   private bytesValue = 0;
@@ -167,7 +176,7 @@ export class DirectionalShadowCache {
   constructor(readonly budgetBytes = 8 * 1024 * 1024) {}
   get bytes(): number { return this.bytesValue; }
   get(caster: DirectionalCaster, source: CelestialSource, height: number, pixelsPerHeightSubunit: number): DirectionalShadowMask | null {
-    const geometry = directionalGeometry(source);
+    const geometry = directionalGeometryKey(source);
     if (geometry === null) return null;
     const body = caster.silhouette;
     let id = 0;
@@ -176,23 +185,30 @@ export class DirectionalShadowCache {
       this.identities.set(body.opaque, id);
     }
     const f = caster.footprint;
-    const key = `${id}:${body?.width}:${body?.height}:${body?.anchorX}:${body?.anchorY}:${caster.heightSubunits}:${height - caster.baseHeightSubunits}:${pixelsPerHeightSubunit}:${geometry.key}:${f.left}:${f.top}:${f.right}:${f.bottom}`;
-    if (this.entries.has(key)) {
-      const mask = this.entries.get(key)!; this.entries.delete(key); this.entries.set(key, mask); return mask;
+    const key = this.signature.reset().add(id).add(body?.width ?? 0).add(body?.height ?? 0)
+      .add(body?.anchorX ?? 0).add(body?.anchorY ?? 0).add(caster.heightSubunits)
+      .add(height - caster.baseHeightSubunits).add(pixelsPerHeightSubunit).add(geometry)
+      .add(f.left).add(f.top).add(f.right).add(f.bottom);
+    const bucket = this.entries.get(key.hash);
+    if (bucket !== undefined) for (const entry of bucket) if (key.matches(entry.signature)) {
+      this.entries.delete(key.hash); this.entries.set(key.hash, bucket); return entry.mask;
     }
     const mask = projectDirectionalCaster(caster, source, height, pixelsPerHeightSubunit);
     const bytes = directionalMaskBytes(mask);
     if (bytes > this.budgetBytes) throw new Error('directional_shadow_budget_exceeded');
-    while (this.bytesValue + bytes > this.budgetBytes || this.entries.size >= 4096) {
+    while (this.bytesValue + bytes > this.budgetBytes || this.entryCount >= 4096) {
       const key = this.entries.keys().next().value;
       if (key === undefined) break;
-      this.bytesValue -= directionalMaskBytes(this.entries.get(key) ?? null);
+      for (const entry of this.entries.get(key)!) { this.bytesValue -= directionalMaskBytes(entry.mask); this.entryCount--; }
       this.entries.delete(key);
     }
-    this.entries.set(key, mask); this.bytesValue += bytes; this.builds++;
+    const entry = { signature: key.copy(), mask };
+    const current = this.entries.get(key.hash);
+    if (current === undefined) this.entries.set(key.hash, [entry]); else current.push(entry);
+    this.entryCount++; this.bytesValue += bytes; this.builds++;
     return mask;
   }
-  reset(): void { this.entries.clear(); this.identities = new WeakMap(); this.identitySequence = 0; this.bytesValue = 0; this.builds = 0; }
+  reset(): void { this.entries.clear(); this.entryCount = 0; this.identities = new WeakMap(); this.identitySequence = 0; this.bytesValue = 0; this.builds = 0; }
 }
 
 export function sampleDirectionalMask(mask: DirectionalShadowMask | null, caster: DirectionalCaster, x: number, y: number, sampleSize = 1): number {
