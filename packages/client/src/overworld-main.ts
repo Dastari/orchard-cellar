@@ -1,6 +1,6 @@
 import { drawLandmarkTransform, drawWildlifeHitFlash } from './gameplay-painter-effects.js';
 import { GameplayCelestialPass } from './gameplay-celestial-pass.js';
-import { createGameplayShadowAssets, prepareGameplayLightingFrame, renderWithGameplayLightingFallback } from './gameplay-lighting-presentation.js';
+import { GameplayLightingPresentation, renderWithGameplayLightingFallback } from './gameplay-lighting-presentation.js';
 import { createGameplayPainter, sortGameplayWorldDepthItems } from './gameplay-painter.js';
 import { createGameplayRenderer, gameplayDisplaySnapshot } from './gameplay-renderer.js';
 import { selectedLightEquipRequest } from './selected-item-use.js';
@@ -474,7 +474,7 @@ setLoadingScreenStage({
 });
 const groundCache = new GroundChunkCache();
 const lightmap = new TileLightmap();
-const shadowAssets = createGameplayShadowAssets();
+const atlasPresentation = new GameplayLightingPresentation();
 const celestialPass = new GameplayCelestialPass();
 let lightingFailure: string | null = null;
 let lightingPreview: { clockHours: number; continuousDay: number; lunarProgress: number; lunarIllumination: number; cloudCover?: number; cameraX?: number; cameraY?: number } | null = null;
@@ -731,7 +731,7 @@ if (lightingQuality.requested === 'dynamic') lightingQuality.fallback(lightingQu
 let lightingEffectsDisabled = lightingQuality.effective === 'basic';
 function setLightingQuality(quality: LightingQuality): void {
   lightingFailure = null;
-  if (shadowAssets.failure !== null) shadowAssets.reset();
+  if (atlasPresentation.failure !== null) atlasPresentation.reset();
   lightingQuality.request(quality);
   localStorage.setItem(LIGHTING_QUALITY_KEY, quality);
   setToast(`LIGHTING ${quality === 'basic' ? 'BASIC' : lightingModel === 'classic' ? 'CLASSIC' : 'DYNAMIC'}`);
@@ -742,7 +742,7 @@ let lightingModel: LightingModel = lightingModelFromStoredValue(storedLightingMo
 
 function setLightingModel(model: LightingModel): void {
   if (lightingModel !== model) {
-    releaseDynamicLighting(); shadowAssets.reset(); lightingFailure = null; collisionKey = '';
+    releaseDynamicLighting(); atlasPresentation.reset(); lightingFailure = null; collisionKey = '';
   }
   lightingModel = model;
   localStorage.setItem(LIGHTING_MODEL_KEY, model);
@@ -4065,9 +4065,10 @@ function renderFrame(alpha = 1): void {
   let renderItems = 0;
   const snapshot = latestSnapshot;
   const previousQuality = lightingQuality.effective;
-  prepareGameplayLightingFrame(lightingQuality, lightingModel, lightingFailure, shadowAssets);
+  atlasPresentation.prepare(lightingQuality, lightingModel, lightingFailure);
+  const frameLightingModel = atlasPresentation.model;
   lightingEffectsDisabled = lightingQuality.effective === 'basic';
-  if (previousQuality !== lightingQuality.effective) {
+  if (previousQuality !== lightingQuality.effective || atlasPresentation.modelChanged) {
     if (lightingEffectsDisabled) {
       releaseDynamicLighting();
       for (const stage of ['lightingBoundsResize', 'lightingOcclusionRaster', 'lightingSolve', 'lightingMerge', 'lightingUpload', 'lightingReceiver', 'lightingComposite'] as const) renderMetrics.resetStage(stage);
@@ -4076,7 +4077,7 @@ function renderFrame(alpha = 1): void {
     refreshCollision(snapshot);
   }
   const dynamicLighting = !lightingEffectsDisabled;
-  const seasonalDynamic = dynamicLighting && lightingModel === 'unified';
+  const seasonalDynamic = dynamicLighting && frameLightingModel === 'unified';
   const predictedPosition = predicted?.position;
   const renderedLocalBase = predictedPosition === undefined
     ? null
@@ -4128,7 +4129,7 @@ function renderFrame(alpha = 1): void {
     + (localY - localTerrainContactY);
   const frame = renderer.beginWorld(worldZoom);
   const context = frame.world;
-  setWorldAssetPresentation(context, seasonalDynamic ? shadowAssets.cache : undefined,
+  setWorldAssetPresentation(context, seasonalDynamic ? atlasPresentation.pages : undefined,
     seasonalDynamic ? 'omit-baked-shadow' : 'original');
   setGroundLightSource(context);
   if (terrainProjectionStyle(terrain) === 'interior') {
@@ -4442,7 +4443,7 @@ function renderFrame(alpha = 1): void {
             renderWeather.wind,
           ),
           campfireLit,
-          lightingModel === 'unified' && decoration.kind === 'camp_pond'
+          frameLightingModel === 'unified' && decoration.kind === 'camp_pond'
             ? pondShimmerFrameAtTick(visualTickClock.renderTick)
             : null,
         );
@@ -4456,7 +4457,7 @@ function renderFrame(alpha = 1): void {
           const screenY = Math.round((decorationY - cameraY) * scale);
           drawLandmarkTransform(context, landmark, screenX, screenY, drawRawDecoration);
         };
-        if (lightingModel !== 'unified' && (survivalDecorationBlocksTraversal(decoration.kind, 'ground')
+        if (frameLightingModel !== 'unified' && (survivalDecorationBlocksTraversal(decoration.kind, 'ground')
           && decoration.kind !== 'camp_pond' && !isLightEmitterKind(decoration.kind))) {
           drawSouthFacingReceiver(decorationX, decorationY, drawDecoration);
         } else {
@@ -4947,7 +4948,7 @@ function renderFrame(alpha = 1): void {
             pressContents,
           );
         };
-        if (lightingModel === 'unified'
+        if (frameLightingModel === 'unified'
           || ((presentation.collision?.blocksMovement ?? (definition?.blocksMovement === true))
             && presentation.light === null
             && (presentation.authored || !isLightEmitterKind(placeable.kind)))) {
@@ -4965,7 +4966,7 @@ function renderFrame(alpha = 1): void {
     enqueueWorldDepth(x, y, {
       footY: y,
       tie: `surface:${surface.id}`,
-      draw: () => lightingModel === 'unified'
+      draw: () => frameLightingModel === 'unified'
         ? drawSouthFacingReceiver(x, y, () => drawOverworldPoiDecoration(
           context, art, 'marlow_tent_table', x, y, cameraX, cameraY, scale,
         ))
@@ -4989,7 +4990,7 @@ function renderFrame(alpha = 1): void {
     enqueueWorldDepth(x, y, {
       footY: y,
       tie: `hive:${hive.id}`,
-      draw: () => lightingModel === 'unified'
+      draw: () => frameLightingModel === 'unified'
         ? drawSouthFacingReceiver(x, y, () => drawOverworldHive(
           context, art, hive.kind, hive.variant, x, y, cameraX, cameraY, scale,
         ))
@@ -5053,7 +5054,7 @@ function renderFrame(alpha = 1): void {
       enqueueWorldDepth(x, y, {
         footY: y,
         tie: `merchant:${npc.id}`,
-        draw: () => lightingModel === 'unified'
+        draw: () => frameLightingModel === 'unified'
           ? drawSouthFacingReceiver(x, baseY, () => drawOverworldMerchant(
             context, art, x, y, facing, moving,
             fishermanActionFrame, cameraX, cameraY, scale,
@@ -5127,7 +5128,7 @@ function renderFrame(alpha = 1): void {
     enqueueWorldDepth(x, y, {
       footY: y,
       tie: `npc:${npc.id}`,
-      draw: () => lightingModel === 'unified'
+      draw: () => frameLightingModel === 'unified'
         ? drawSouthFacingReceiver(x, baseY, drawWildlifeActor)
         : drawWildlifeActor(),
     }, baseY, 'south', baseY, species === 'horse'
@@ -5372,7 +5373,7 @@ function renderFrame(alpha = 1): void {
             );
           }
         };
-        if (lightingModel === 'unified') drawSouthFacingReceiver(x, terrainContactY, drawPlayer);
+        if (frameLightingModel === 'unified') drawSouthFacingReceiver(x, terrainContactY, drawPlayer);
         else drawPlayer();
       },
     }, terrainContactY, 'south', mount === null ? humanoidShadowContactY(footY) : footY,
@@ -5393,7 +5394,7 @@ function renderFrame(alpha = 1): void {
       frameAmbient,
       pointLights,
       lightOcclusion,
-      lightingModel,
+      frameLightingModel,
       seasonalDynamic,
     );
   }
@@ -6566,7 +6567,7 @@ function renderFrame(alpha = 1): void {
     const lines = [
       `FRAME ${metrics.averageFrameMs.toFixed(2)} AVG ${metrics.worstFrameMs.toFixed(2)} WORST`,
       `ITEMS ${metrics.renderItems} CHUNKS ${groundCache.residentCount} PARTICLES ${rain.activeCount}`,
-      `LIGHT ${dynamicLighting ? lightingModel.toUpperCase() : 'BASIC'} ${lightmap.averageMs.toFixed(2)}ms AVG ${lightmap.floodMs.toFixed(2)}ms FLOOD #${lightmap.fieldRebuilds}`,
+      `LIGHT ${dynamicLighting ? frameLightingModel.toUpperCase() : 'BASIC'} ${lightmap.averageMs.toFixed(2)}ms AVG ${lightmap.floodMs.toFixed(2)}ms FLOOD #${lightmap.fieldRebuilds}`,
       `BND ${lightmap.boundsResizeMs.toFixed(2)} OCC ${lightmap.rasterizeMs.toFixed(2)} SOLVE ${lightmap.floodMs.toFixed(2)} MERGE ${lightmap.mergeMs.toFixed(2)}`,
       `UP ${lightmap.uploadMs.toFixed(2)} REC ${lightmap.receiverMs.toFixed(2)} CMP ${lightmap.compositeMs.toFixed(2)} CACHE ${lightmap.occlusionCacheHits}/${lightmap.occlusionRebuilds}`,
       `LIGHTS ${pointLights.length} VISITED ${lightmap.floodTexelsVisited}`,
@@ -8026,19 +8027,20 @@ Object.assign(window, {
       schemaVersion: 1,
       rendering: renderMetricsSnapshot(),
       lighting: {
-        model: lightingModel,
+        model: atlasPresentation.model,
+        requestedModel: lightingModel,
         effectsDisabled: lightingEffectsDisabled,
         requestedQuality: lightingQuality.requested,
         effectiveQuality: lightingQuality.effective,
-        retainedSurfaceBytes: lightmap.retainedSurfaceBytes + shadowAssets.cache.bytes + (celestialPass.renderer?.bytes ?? 0),
+        retainedSurfaceBytes: lightmap.retainedSurfaceBytes + atlasPresentation.retainedBytes + (celestialPass.renderer?.bytes ?? 0),
         fallbackReason: lightingQuality.reason,
-        filteredFrames: shadowAssets.cache.surfaces,
+        omitPages: atlasPresentation.pages.diagnostics(),
         tintedSurfaces: celestialPass.renderer?.frames.surfaces ?? 0,
         tintCanvasAllocations: celestialPass.renderer?.frames.allocations ?? 0,
         tintSurfaceReuses: celestialPass.renderer?.frames.reuses ?? 0,
         tintedBytes: celestialPass.renderer?.frames.bytes ?? 0,
         renderer: lightingQuality.effective === 'basic' ? 'basic-filter'
-          : lightingModel === 'classic' ? 'classic-lightmap' : 'seasonal-receivers-v1',
+          : atlasPresentation.model === 'classic' ? 'classic-lightmap' : 'seasonal-receivers-v1',
         averageMs: lightmap.averageMs,
         floodMs: lightmap.floodMs,
         fieldRebuilds: lightmap.fieldRebuilds,

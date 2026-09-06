@@ -1,4 +1,5 @@
-import { AssetFrameSourceCache, type LoadedAsset, type BuiltAssetRecord, selectAtlasFrame } from '@orchard/ui';
+import { ReviewAtlasPages } from './review-atlas-pages.js';
+import { type LoadedAsset, type BuiltAssetRecord, selectAtlasFrame } from '@orchard/ui';
 import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import { drawAuthoredOverworldObject } from './overworld-art.js';
 import { ambientAtProgress, LANTERN_LIGHT, TileLightmap } from './lighting.js';
@@ -9,7 +10,7 @@ import { setWorldAssetPresentation } from './world-asset-presentation.js';
 import type { TerrainArray } from './terrain.js';
 
 export interface LightingReviewAsset {
-  readonly name: string; readonly record: BuiltAssetRecord; readonly png: string;
+  readonly name: string; readonly record: BuiltAssetRecord; readonly png: string; readonly omitPng?: string;
 }
 
 /** Ambient-only art study. The direction vectors are recorded for the next
@@ -77,9 +78,8 @@ export async function runLightingReview(inputs: readonly LightingReviewAsset[], 
     ['prop_basket_press', 208, 154], ['avatar_cf_farmer', 110, 154], ['tool_cf_lantern_idle', 110, 154],
   ] as const;
   const tree = assets.get('tree_cf_oak_mature')!;
-  const cache = new AssetFrameSourceCache();
-  const requests = [...assets.values()].map((asset) => ({ asset, frame: selectAtlasFrame(asset.metadata, 'base')! }));
-  await cache.prepareVisible(requests);
+  const pages = new ReviewAtlasPages(inputs);
+  await pages.prepare();
   const modes = ['legacy-disabled', 'legacy-classic', 'legacy-unified', 'basic-new-moon', 'dynamic-full-moon', 'omission-review'] as const;
   const board = document.createElement('canvas'); board.width = canvas.width * 2; board.height = (canvas.height + 24) * 3;
   const boardContext = board.getContext('2d')!;
@@ -111,7 +111,7 @@ export async function runLightingReview(inputs: readonly LightingReviewAsset[], 
       for (let y = 0; y < 12; y++) for (let x = 0; x < 20; x++) if ((x + y) % 2 === 0) context.fillRect(x * 32, y * 32, 32, 32);
       const start = performance.now();
       if (dynamic) map.prepare(terrain, 0, 0, zoom, canvas.width, canvas.height, ambient, lights, occlusion, mode === 'legacy-classic' ? 'classic' : 'unified');
-      setWorldAssetPresentation(context, cache, mode === 'omission-review' ? 'omit-baked-shadow' : 'original');
+      setWorldAssetPresentation(context, pages, mode === 'omission-review' ? 'omit-baked-shadow' : 'original');
       for (const [name, x, y] of placements) {
         const asset = assets.get(name)!;
         context.save();
@@ -141,21 +141,21 @@ export async function runLightingReview(inputs: readonly LightingReviewAsset[], 
     if (map.retainedSurfaceBytes !== 0) throw new Error('Lightmap reset retained surfaces');
   }
   // Verify exact omission in the browser independently of the lighting multiply.
-  const original = cache.source(tree, requests.find((r) => r.asset === tree)!.frame, 'original')!;
-  const filtered = cache.source(tree, requests.find((r) => r.asset === tree)!.frame, 'omit-baked-shadow')!;
+  const original = { ...selectAtlasFrame(tree.metadata, 'base')!, image: tree.image };
+  const omitted = { ...original, image: pages.source(tree) };
   const probe = document.createElement('canvas'); probe.width = original.width; probe.height = original.height;
   const probeContext = probe.getContext('2d', { willReadFrequently: true })!;
   probeContext.drawImage(original.image, original.x, original.y, original.width, original.height, 0, 0, original.width, original.height);
   const before = probeContext.getImageData(0, 0, probe.width, probe.height).data;
-  probeContext.clearRect(0, 0, probe.width, probe.height); probeContext.drawImage(filtered.image, 0, 0);
+  probeContext.clearRect(0, 0, probe.width, probe.height); probeContext.drawImage(omitted.image, omitted.x, omitted.y, omitted.width, omitted.height, 0, 0, omitted.width, omitted.height);
   const after = probeContext.getImageData(0, 0, probe.width, probe.height).data;
   let removed = 0, changedBody = 0;
   for (let i = 0; i < before.length; i += 4) {
     if (before[i + 3] !== 0 && after[i + 3] === 0) removed++;
     else if ([0, 1, 2, 3].some((c) => before[i + c] !== after[i + c])) changedBody++;
   }
-  const cacheEvidence = { bytes: cache.bytes, builds: cache.builds, removed, changedBody };
-  cache.reset(); setWorldAssetPresentation(context);
-  return { image: board.toDataURL(), measurements, cache: cacheEvidence, cacheBytesAfterReset: cache.bytes,
+  const pageEvidence = { bytes: pages.bytes, removed, changedBody };
+  pages.reset(); setWorldAssetPresentation(context);
+  return { image: board.toDataURL(), measurements, omitPages: pageEvidence, omitBytesAfterReset: pages.bytes,
     fixture: 'local deterministic world-draw/lightmap fixture; no authenticated gameplay or live deployment', userAgent: navigator.userAgent };
 }

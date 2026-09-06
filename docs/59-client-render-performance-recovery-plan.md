@@ -1,6 +1,6 @@
 # 59 — Client Render Performance Recovery Plan
 
-Implementation plan, **2026-09-06**. Status: **adopted — owner confirmed decisions A1, B2 and C (experimental WebGL2 toggle) on 2026-09-06; implementation not started**.
+Implementation plan, **2026-09-06**. Status: **adopted — owner confirmed decisions A1, B2 and C (experimental WebGL2 toggle) on 2026-09-06; implementation in progress; P0–P2 desktop checkpoints recorded below**.
 Companion to [21](21-unified-renderer.md) (Canvas composition),
 [47](47-rendering-lighting-performance-plan.md) (performance program, M9 atlas
 pages, M11 backend gates), and
@@ -300,6 +300,17 @@ surfaces allocated during 600 frames of walking; quality switch shows no
 mixed frame.
 **Exit:** distinct-source counter for artwork equals loaded page count, not
 sprite count; `painterDraw` p95 delta recorded.
+
+**2026-09-06 P3 implementation scope amendment:** deletion also updates the
+UI index exports and structural-seam digest, removes/replaces old engine cache
+tests, and migrates `lighting-review.ts`, `celestial-shadow-review.ts` and
+`world-lighting-review.ts` to builder-produced omit inputs/page cohorts. These
+are required consumers of the deleted classes. Review-only historical inputs
+retain their original PNGs/frame tables; the same builder span assertion emits
+their tiny omit PNGs offline. No runtime filtering compatibility implementation
+is retained. Existing PWA generated-prefix discovery already accepts `.omit.png`
+and preserves revision query keys; a new executable test proves this, so no
+service-worker retention or content-addressing work is added.
 
 ### P4 — Directional coverage: static/moving split and O(1) receivers
 
@@ -1509,3 +1520,117 @@ and four seasonal remaps). Captured source hashes still match the gated sources.
 its measurement qualifications are incorporated above. P2 desktop page-size,
 pixel and memory requirements are met; physical-device/shared-preview and
 startup-latency qualifications remain open.
+
+### 2026-09-06 — P3 implementation checkpoint; desktop acceptance pending
+
+Status: **IN PROGRESS**, not a completed milestone. The filtered-frame machinery
+is deleted and the page controller is integrated. The P3 full gate **passes** (`P3/check-runtime.log`: 584 suites / 3456 tests,
+838.65 seconds, all typechecks/lint/lifecycle/asset gates green);
+authenticated before/after stage measurement and gameplay review are blocked by
+the expired session recorded in `P3/authenticated-capture-block.json`. No local
+fixture timings are substituted for the mandatory real-client active-rAF sample.
+
+All artifacts below are under `output/perf-59-20260906/P3/`. Exact changed
+source paths and hashes (including deletions) are in `integrated-source-hashes.json`.
+They cover the atlas builder, UI page cohort/loader and marker overrides, shared
+frame metadata/export, engine world presentation and deleted cache consumers,
+review fixtures, gameplay transition controller, PWA discovery test and structural
+seam test. The mechanical main extraction is `cfce3e6f` (577 suites / 3,440 tests,
+837.52 seconds). The earlier artifact-lint failure is retained as
+`check-orchestration-artifact-lint-failed.log`; the corrected gate is green.
+
+Builder revision `229a1a14e0bb036547be` emits 100 omit PNGs: 25 affected pages
+in each of four seasons. `omit-pixel-comparison.json` verifies 441 declared
+assets / 12,221 frames per season: 1,619,888 declared pixels cleared across
+four seasons and 330,113,344 outside-span bytes unchanged. The historical
+344 loaded instances (341 unique names) remove exactly 16,100 pixels per season,
+with zero unexpected changes. `integrated-original-pages.json` verifies all
+36 legacy PNGs and all 156 bounded normal pages remain byte-identical.
+
+The controller requests the complete affected cohort once, retains the current
+complete Classic presentation while Dynamic loads, and commits pages plus model
+at a frame boundary. Basic/Classic cancel outstanding page requests and release
+omit images/marker backings. Original `LoadedAsset.image` remains available for
+UI; normal images and active omit pages therefore have separate ownership and
+can coexist in memory. The frame selector retains rectangle metadata only.
+The old filtered-frame cache, budgets, pins, streaming preparation, fallback
+states and `filteredFrames` diagnostic are removed together with their tests.
+`filteredFrameBuilds` remains only as the requested zero-valued protocol counter.
+
+`transition-tests.log`: five page-transition tests plus six structural tests pass.
+`runtime-focused-tests.log`: 24 tests across five suites pass.
+`loader-cancellation-tests.log`: 25 tests across five suites pass. The resolved
+recolour/reset/publication interleaving formerly retained 131,072 bytes; now its
+backing is explicitly zeroed, while a newer cohort sharing that backing survives.
+`pwa-omit-discovery-tests.log` proves existing generated-prefix service-worker
+coverage with distinct normal/omit/revision keys, so no retention or content
+addressing change is added.
+
+`omit-walking.json` runs 600 real engine sprite-pose draws, with **zero Canvas
+surface allocations**, three distinct artwork sources matching three used page
+identities, and omit decoded bytes **0 → 72,515,584 → 0** for Basic → Dynamic →
+Basic. These are resource counts, not real-client stage timings. The fixture
+uses no marker overrides; those retain separately counted immutable page
+backings, so source-count equality is not asserted for arbitrary recoloured
+assets. `omit-walking-restored-basic.png` was visually reviewed. The loader's
+600-read unit case is also retained and is not described as walking evidence.
+
+`golden-comparison.json`: all four lighting boards have **zero changed channels**.
+`paged-terrain-comparison.json`: nested terrain and ponds at 1×/2×/Native match
+P2 exactly, including the HUD witness. The immutable-source readback guard remains
+in the full gate. No world readback path was introduced.
+
+The table below preserves the measured P2 1× comparison baseline in original
+milliseconds p50/p95/p99. Every P3 after cell is explicitly unmeasured pending
+fresh authentication; source compilation and fixture speed do not satisfy the
+P3 painterDraw exit. P2 scene/content qualifications still apply.
+
+| Stage | Basic P2 before | Classic P2 before | Dynamic P2 before | P3 after |
+|---|---:|---:|---:|---|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 | unmeasured — authentication required |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 | unmeasured — authentication required |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 | unmeasured — authentication required |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 | unmeasured — authentication required |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 | unmeasured — authentication required |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 | unmeasured — authentication required |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 | unmeasured — authentication required |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 | unmeasured — authentication required |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingDynamicSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 | unmeasured — authentication required |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 | unmeasured — authentication required |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 | unmeasured — authentication required |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 | unmeasured — authentication required |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 | unmeasured — authentication required |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 | unmeasured — authentication required |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+Per-frame real-client counters after P3: **unmeasured**, for the same reason.
+The preceding P2 table retains all measured baseline counters; the fixture
+counts above prove their stated paths only. No P3 long-task result is claimed.
+Basic/Dynamic desktop budget acceptance and shared minute-per-mode/policy visual
+acceptance remain open. `capture-matched.mjs` and `review-video.mjs` are ready
+to resume against the integrated local client after authentication returns.
+
+Physical iPad: **owner to run**. In an approved candidate preview, set Video →
+World scale 1×, world zoom 2 and browser zoom 100%, then System → Developer →
+Render → **Run protocol + copy JSON**. Keep Safari foreground for 105 seconds
+through Basic/Classic/Dynamic; if clipboard completion is refused, tap **Copy
+capture JSON** afterwards. Repeat at 2× and Native. Record model/iPadOS/Safari
+versions alongside JSON; commit/backend/policy/DPR/resolution/stages/counters
+are embedded. No desktop throttle result substitutes for this row.
+
+Commands: `npm run check`; UI/engine/client/tools typechecks and scoped ESLint;
+focused Vitest builder/page/cohort/marker/transition/presentation/structural/PWA
+suites; `npm run assets:build`; `npm run assets:validate`;
+`tsx .../P3/compare-omit-pages.ts`; `node .../P3/build-goldens.mjs`,
+`run-goldens.mjs`, `run-scale-goldens.mjs`, `run-omit-walking.mjs`;
+`tsx .../P3/compare-goldens.ts`, `compare-paged-terrain.ts`;
+SHA-256 verification of the original and bounded normal page manifest.

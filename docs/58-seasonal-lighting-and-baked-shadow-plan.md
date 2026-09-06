@@ -105,24 +105,26 @@ from that review; implementation must capture it when the preview is available.
 
 ## 3. Decisions and invariants
 
-1. **One authored asset and one asset ID.** Add `bakedShadowColor`; retain the
-   original pixels. No `*_no_shadow` assets, alternate content IDs, or extra
-   dynamic/basic PNG exports. Existing seasonal atlas images remain supported.
+1. **One authored asset and one asset ID.** `bakedShadowColor` identifies the
+   declared pixels; original artwork remains unchanged. Doc 59 A1 emits
+   disposable per-page `.omit.png` variants without alternate authored assets
+   or content IDs. Existing seasonal images remain supported.
 2. **Exact per-asset RGBA selection.** No global alpha threshold, RGB-only
    match, tolerance range, or automatic black-pixel rule. A missing declaration
    means there is no suppression. Never infer the runtime rule from a filename.
-3. **Compile the selection, not another image.** The atlas builder derives
-   compact frame-local spans from the declared exact colour. Canvas draws omit
-   those spans through a cached frame surface. Spans are disposable build
-   metadata derived from the sole colour declaration, not authored masks.
+3. **Compile spans and shadowless page variants.** The atlas builder derives
+   compact frame-local spans from the exact declared colour, then emits an
+   `.omit.png` for each affected bounded page. Every byte outside the declared
+   spans must equal the original. Runtime selects the committed page cohort;
+   the filtered-frame cache, preparation budget and streaming fallback are deleted.
 4. **Original artwork remains immutable.** Never erase pixels from a shared
    atlas or replace `LoadedAsset.image` globally. UI thumbnails, Basic mode,
    another scene, and Studio may consume the same loaded asset concurrently.
-5. **Quality is independent of solver comparison.** Add Basic/Dynamic quality
-   selection; Classic/Unified remains an implementation comparison during
-   migration. Both dynamic solvers consume the same declared-pixel policy.
-   A diagnostic legacy capture path may preserve the old rendering for review,
-   but is not a third player-facing lighting quality.
+5. **Preserve the three settled Video modes.** Basic and Classic use original
+   pages and never request `.omit` images. Dynamic uses unified seasonal
+   lighting and the shadowless cohort. Internally the persisted Basic/Dynamic
+   quality and Classic/Unified solver keys remain independent; the 2026-09-06
+   Video amendment exposes Basic / Classic / Dynamic as already shipped.
 6. **Basic does no spatial lighting work.** It has one uniform tint operation
    over the active world viewport and no lighting-specific full-screen scratch
    surfaces. Ambient evaluation is constant work, independent of light count.
@@ -138,7 +140,7 @@ from that review; implementation must capture it when the preview is available.
    receiver level, coverage, owner, and painter depth.
 10. **Atomic transitions.** A frame uses one effective quality and one atlas
     revision throughout preparation, drawing, and composition. Never show a
-    partially prepared mixture of original and filtered artwork.
+    partially prepared mixture of original and shadowless artwork.
 
 These requirements amend doc 47's pixel-identical Classic requirement for the
 new owner-directed shadow suppression, its native contact policy for declared
@@ -150,8 +152,8 @@ accessibility, terrain, and gameplay contracts remain binding.
 atlas builder now also emits a per-page `.omit.png` variant with the declared
 spans cleared. One authored asset, one asset ID and one source PNG still hold;
 the variant is disposable build output derived from `bakedShadowColor`, like
-the spans. The runtime filtered-frame cache described in §5.1 is retired when
-[doc 59](59-client-render-performance-recovery-plan.md) P3 lands. D4 (original
+the spans. [Doc 59](59-client-render-performance-recovery-plan.md) P3 deletes
+the runtime filtered-frame cache and replaces §5.1 with committed page selection. D4 (original
 artwork immutable at runtime) and D10 (atomic transitions) are unchanged.
 
 ## 4. Asset and build contract
@@ -225,7 +227,8 @@ through premultiplication. It also makes the runtime selector independent of
 whether an image is an HTML image, a recoloured canvas, or an ImageBitmap.
 
 Keep spans in lazy category metadata, not `atlas.meta.json` or the compact
-global registry. Do not ship a second raster mask or a second PNG per quality.
+global registry. No second raster mask is shipped. Doc 59 A1 additionally
+emits one shadowless variant per affected bounded page, listed in `omitAtlases`.
 Metadata changes participate in the revision hash even when PNG bytes are
 unchanged. An unchanged original atlas should remain byte-identical after
 adding only the shadow declaration.
@@ -240,55 +243,36 @@ category, and index revisions. Follow the existing PWA update lifecycle.
 
 ## 5. Rendering and quality contract
 
-### 5.1 Canvas frame selection
+### 5.1 Canvas page selection (doc 59 P3 amendment)
 
-Add a rendering primitive in `packages/ui/src/asset-frame-source.ts` (new),
-exported through the existing UI package boundary. It accepts the loaded asset,
-selected frame, and explicit `original | omit-baked-shadow` presentation intent.
-It returns a reusable draw descriptor containing image and source rectangle.
+`world-asset-presentation.ts` selects a committed page cohort for world contexts.
+Original intent uses `LoadedAsset.image`; shadowless intent uses the `.omit.png`
+image at the **same page-local frame rectangle**. Anchor, destination size,
+transform, flip, seasonal identity and marker recolours remain unchanged.
+`asset-frame-types.ts` contains only pure frame/span metadata helpers.
+`AssetFrameSourceCache`, its tests, `WorldShadowAssets`, filtered-frame budgets,
+pinning and runtime clearing/preparation are removed.
 
-- Original intent returns the original atlas and its existing rectangle.
-- Suppression with zero matching pixels returns the original descriptor.
-- Suppression with matches copies only that frame to a snug offscreen canvas,
-  clears the compiled spans, and caches the result. Its source rectangle starts
-  at `(0, 0)`; destination size, anchor, transform, and flip remain unchanged.
-- Build outside the steady-state painter loop. Use integer coordinates and
-  disabled smoothing for extraction; clearing must not touch adjacent atlas
-  frames. Never use `getImageData` to classify pixels during a draw.
-- The cache is keyed by actual image identity, atlas revision, frame rectangle,
-  and shadow metadata identity. Seasonal image changes and marker overrides
-  therefore cannot accidentally share a filtered frame. Reuse a descriptor on
-  cache hits; do not allocate an object per sprite per frame.
-- Caches have explicit lifecycle and byte accounting. Start with an 8 MiB
-  filtered-frame budget per renderer session, charging `width * height * 4`;
-  report browser overhead separately. Evict unpinned least-recently-used frames.
-  Do not duplicate entire category atlases per asset instance.
-- In-flight preparation carries a generation token. Space/revision changes or
-  a switch to Basic discard stale results and release disposable surfaces.
-  Basic startup creates no filtered surfaces; entering Basic releases them.
+The UI loader requests omit pages only for unified Dynamic. A candidate cohort
+keeps the previous complete cohort usable until all required pages are ready;
+commit occurs at the quality frame boundary. A newly streamed affected asset's
+load promise waits for its omit source before publication. Basic/Classic/reset
+cancel outstanding requests and release omit page references and any marker
+recolour canvases. These pages never enter the permanent original-page cache.
+Unique decoded image bytes and marker Canvas bytes are diagnosed separately.
 
-Integrate at common world draw helpers in `overworld-art.ts`, then audit direct
-atlas consumers in `raised-terrain-depth.ts`, `ground-cache.ts`,
-`animated-terrain.ts`, `farmland.ts`, and `live-map-runtime.ts`. Include authored
-objects, generated trees, stumps, props, placement ghosts, and animated frames.
-Do not blindly change UI drawing functions that live beside world helpers.
-
-World chunk/composite caches containing affected artwork include presentation
-intent in their cache identity. Rebuild visible affected chunks on a mode switch
-and invalidate hidden chunks lazily. Selecting the original intent for a UI
-thumbnail must not change the world intent or require reloading the asset.
-
-Caster and receiver masks also exclude declared shadow spans. Although current
-alpha thresholds already exclude the observed low-alpha colours from casters,
-owner coverage must not treat a baked ground ellipse as elevated artwork.
-Use body-only coverage for dynamic lighting; do not derive collision from it.
+World frame descriptors are immutable rectangle metadata with a lazy image
+getter. They create no surfaces and retain no omit image after cohort reset,
+even when inherited chunk contexts outlive the quality transition. Chunk cache
+keys include cohort identity/revision; original UI contexts remain independent.
+Dynamic casts from body-only geometry; collision remains unchanged.
 
 ### 5.2 Quality state and settings
 
 Introduce `LightingQuality = 'basic' | 'dynamic'` and store it as
 `orchard.video.lighting-quality`. The shared setter is used by Graphics UI,
-diagnostics, and automation. The UI displays **Lighting: Basic / Dynamic** and
-briefly describes Basic as baked shadows with day/night colour.
+diagnostics, and automation. The settled Video UI displays **Lighting: Basic / Classic / Dynamic**;
+Basic retains baked shadows with day/night colour.
 
 Persistence precedence:
 
@@ -299,22 +283,18 @@ Persistence precedence:
    player preference. If a full-bright diagnostic is retained, give it a
    separate development-only control with no automatic persistence migration.
 4. Preserve the stored Classic/Unified solver value independently. Basic ignores
-   it; switching back to Dynamic restores it. Keep the comparison control in
-   developer tooling during the rollout rather than presenting three qualities.
+   it; the existing Video selector maps Basic / Classic / Dynamic onto the two
+   persisted keys.
 
 Maintain requested and effective quality while preparing a transition. Basic
-can commit on the next frame boundary. Dynamic commits only when visible frame
-surfaces, required chunks, and lighting inputs are ready; until then retain the
-previous complete presentation. First load or later streaming of uncached
-dynamic assets uses a bounded preparation queue; retain placeholders/previous
-valid frames until ready, never briefly flash their baked shadows. Cancel or
-supersede stale requests when the player toggles again.
-
-Cache-budget exhaustion must not cause an allocation/eviction cycle every
-frame. If the visible working set cannot fit or required preparation fails,
-retain/fall back to effective Basic with a concise setting status and a recorded
-diagnostic reason. Keep the requested choice so the player can retry; never
-silently draw an unfiltered dynamic sprite as the success path.
+and Classic release variant ownership at the next frame boundary. Dynamic
+commits only when its required page cohort and lighting inputs are ready;
+until then retain the previous complete presentation. A newly streamed asset
+waits for its required page before its loader publishes it. Cancellation and
+superseded generation guards prevent late results from reviving retired pages.
+A page load/decode/dimension failure records a concise reason and uses the
+existing complete Basic fallback while preserving the requested choice for
+retry. There is no filtered-frame budget, preparation queue or budget fallback.
 
 ### 5.3 Basic render path
 
@@ -505,7 +485,7 @@ the time-of-day tint into source images.
 | Source metadata | `packages/tools/src/assets/types.ts`, `validate-assets.ts` | Optional colour, validation, classification report |
 | Build | `packages/tools/src/build-atlas.ts`, `assets/png.ts` | Exact span generation and revisioned category metadata |
 | Loader | `packages/ui/src/assets.ts`, `sprite.ts`, package exports | Validated metadata and frame source integration |
-| Canvas cache | New `packages/ui/src/asset-frame-source.ts` | Bounded filtered frame surfaces and lifecycle |
+| Atlas page presentation | `packages/ui/src/atlas-variant-cohort.ts`, `packages/engine/src/world-asset-presentation.ts` | Atomic whole-page selection and explicit omission lifecycle; doc 59 P3 replaces the former frame cache |
 | World drawing | `packages/engine/src/overworld-art.ts` and direct consumers listed in §5 | Explicit presentation intent, cache invalidation |
 | Lighting | `lighting.ts`, `light-occlusion.ts`, `light-flood.ts` | Basic bypass, clean coverage, doc 47 receiver integration |
 | Celestial state | New `celestial-lighting.ts`, `celestial-lighting-presets.ts` | Shared seasonal sun/moon evaluator |

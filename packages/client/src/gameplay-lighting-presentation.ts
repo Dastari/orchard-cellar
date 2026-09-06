@@ -1,25 +1,63 @@
-import { WorldShadowAssets } from '@orchard/engine/world-lighting-renderer';
+import { AtlasVariantCohort, AtlasVariantLoadError, worldAtlasVariants } from '@orchard/ui';
 import type { LightingQualityState } from '@orchard/engine/lighting-quality';
 import type { LightingModel } from '@orchard/engine/lighting';
 
-/** Mechanical ownership extraction; constructor timing, frame quality order
- * and the existing dynamic-error Basic redraw are unchanged. */
-export function createGameplayShadowAssets(): WorldShadowAssets {
-  return new WorldShadowAssets();
-}
-export function prepareGameplayLightingFrame(lightingQuality: LightingQualityState,
-  lightingModel: LightingModel, lightingFailure: string | null, shadowAssets: WorldShadowAssets): void {
-  if (lightingQuality.requested === 'basic') {
-    lightingQuality.commit(lightingQuality.generation, false);
-    shadowAssets.reset();
-  } else if (lightingModel === 'classic') {
-    // Classic needs neither shadow omission preparation nor seasonal surfaces.
-    lightingQuality.commit(lightingQuality.generation, true);
-  } else if (lightingFailure !== null) {
-    lightingQuality.fallback(lightingQuality.generation, lightingFailure);
-  } else {
-    shadowAssets.beginFrame();
-    lightingQuality.commit(lightingQuality.generation, true);
+/** Select one complete page cohort at a frame boundary. The loader holds late
+ * assets behind the same publication barrier; original UI images stay immutable. */
+export class GameplayLightingPresentation {
+  private started = false;
+  private prepared = false;
+  private generation = 0;
+  private failureValue: string | null = null;
+  model: LightingModel = 'unified';
+  modelChanged = false;
+  constructor(readonly pages: AtlasVariantCohort = worldAtlasVariants) {}
+  get failure(): string | null { return this.failureValue ?? this.pages.failure; }
+  get retainedBytes(): number {
+    const state = this.pages.diagnostics();
+    return state.decodedPageBytes + state.recoloredSurfaceBytes;
+  }
+  reset(): void {
+    this.generation++;
+    if (this.started || this.pages.active || this.pages.pending) this.pages.reset();
+    this.started = false; this.prepared = false; this.failureValue = null;
+  }
+  prepare(quality: LightingQualityState, requestedModel: LightingModel, failure: string | null): void {
+    const previous = this.model;
+    if (quality.requested === 'basic' || requestedModel === 'classic') {
+      if (this.started || this.pages.active || this.pages.pending || this.failure !== null) this.reset();
+      this.model = requestedModel;
+      quality.commit(quality.generation, quality.requested !== 'basic');
+    } else {
+      const reason = failure ?? this.failure;
+      if (reason !== null) {
+        this.reset(); this.failureValue = reason;
+        this.model = requestedModel;
+        quality.fallback(quality.generation, reason);
+      } else {
+        if (!this.started) {
+          this.started = true;
+          const generation = this.generation;
+          void this.pages.prepare().then((ready) => {
+            if (generation !== this.generation) return;
+            this.prepared = ready;
+            if (!ready) this.failureValue = this.pages.failure ?? 'atlas_variant_preparation_cancelled';
+          }).catch((error: unknown) => {
+            if (generation === this.generation) this.failureValue = error instanceof Error ? error.message : String(error);
+          });
+        }
+        if (this.prepared && this.pages.commit()) {
+          this.model = requestedModel;
+          quality.commit(quality.generation, true);
+        } else {
+          // Preserve an already complete Classic or Dynamic frame until the
+          // new cohort is ready. Initial entry stays on complete Basic artwork.
+          quality.reason = 'preparing';
+          if (quality.effective === 'basic') quality.fallback(quality.generation, 'preparing');
+        }
+      }
+    }
+    this.modelChanged = previous !== this.model;
   }
 }
 
@@ -27,8 +65,9 @@ export function renderWithGameplayLightingFallback(alpha: number, renderFrame: (
   lightingEffectsDisabled: () => boolean, setFailure: (reason: string) => void): void {
   try { renderFrame(alpha); } catch (error: unknown) {
     const reason = error instanceof Error ? error.message : String(error);
-    if (!/^(?:world_asset_frame_|receiver_|directional_|world_receiver_|world_ground_)/.test(reason)
-      || lightingEffectsDisabled()) throw error;
+    if (!(error instanceof AtlasVariantLoadError)
+      && !/^(?:receiver_|directional_|world_receiver_|world_ground_)/.test(reason)) throw error;
+    if (lightingEffectsDisabled()) throw error;
     console.warn('Dynamic lighting unavailable; using Basic.', reason);
     setFailure(reason);
     // Discard the unfinished world buffer and redraw the complete Basic frame.

@@ -1,3 +1,4 @@
+import { OMIT_ATLAS_FORMAT, clearDeclaredPagePixels, pageShadowSelections, type DeclaredPageAsset } from './assets/omit-atlas-page.js';
 import { buildBackdropPages } from './build-backdrop-pages.js';
 import { compileEmissiveFrames } from './assets/emissive.js';
 import { createHash } from 'node:crypto';
@@ -123,7 +124,7 @@ export async function buildAtlases(): Promise<void> {
 
   const categories = [...new Set(assets.map((asset) => asset.category))].sort();
   const revision = createHash('sha256')
-    .update(JSON.stringify({ assets, palette, seasons: seasonSource, categorySchema: ATLAS_CATEGORY_SCHEMA_VERSION }))
+    .update(JSON.stringify({ assets, palette, seasons: seasonSource, categorySchema: ATLAS_CATEGORY_SCHEMA_VERSION, omitFormat: OMIT_ATLAS_FORMAT }))
     .digest('hex')
     .slice(0, 20);
   const revisionId = stableAssetId(`atlas:${revision}`);
@@ -133,12 +134,14 @@ export async function buildAtlases(): Promise<void> {
     revisionId,
     placeholderAssetId: MISSING_ASSET_ID,
     atlases: {},
+    omitAtlases: {},
     pages: {},
     assets: {},
     assetCategories: {},
     assetsById: {},
   };
   const atlasRecords = metadata['atlases'] as Record<string, string>;
+  const omitAtlasRecords = metadata['omitAtlases'] as Record<string, string>;
   const pageRecords = metadata['pages'] as Record<string, BuiltPageDescriptor>;
   const assetRecords = metadata['assets'] as Record<string, unknown>;
   const assetCategories = metadata['assetCategories'] as Record<string, string>;
@@ -265,6 +268,9 @@ export async function buildAtlases(): Promise<void> {
       }
     }
     for (const page of pages) {
+      const shadowSelections = pageShadowSelections(Object.fromEntries(page.assets.map((asset) => [
+        asset.name, assetRecords[asset.name] as DeclaredPageAsset,
+      ])));
       for (const season of seasons) {
         const rgba = new Uint8Array(page.width * page.height * 4);
         for (const placement of placements.get(page.pageId) ?? []) {
@@ -285,6 +291,12 @@ export async function buildAtlases(): Promise<void> {
         const filename = `atlas_${page.pageId.replace(':', '_')}_${season}.png`;
         await writeFile(new URL(filename, outputRoot), encodePng(page.width, page.height, rgba));
         atlasRecords[`${page.pageId}:${season}`] = filename;
+        if (shadowSelections.length > 0) {
+          clearDeclaredPagePixels(rgba, page.width, page.height, shadowSelections);
+          const omitFilename = filename.replace(/\.png$/, '.omit.png');
+          await writeFile(new URL(omitFilename, outputRoot), encodePng(page.width, page.height, rgba));
+          omitAtlasRecords[`${page.pageId}:${season}`] = omitFilename;
+        }
       }
     }
     await writeFile(new URL(`atlas_${category}.meta.json`, outputRoot), JSON.stringify({

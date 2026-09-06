@@ -1,4 +1,5 @@
-import { AssetFrameSourceCache, selectAtlasFrame, type LoadedAsset } from '@orchard/ui';
+import { ReviewAtlasPages } from './review-atlas-pages.js';
+import { type LoadedAsset } from '@orchard/ui';
 import type { LightingReviewAsset } from './lighting-review.js';
 import { celestialLightingAtCalendar } from './celestial-lighting.js';
 import { CelestialReceiverScene } from './receiver-lighting.js';
@@ -26,8 +27,7 @@ export async function runCelestialShadowReview(inputs: readonly LightingReviewAs
     biomes: new Uint8Array(240), blocked: Array<boolean>(240).fill(false), horseJumpableTerrain: Array<boolean>(240).fill(false),
     elevations: new Int16Array(240), dirtCliffRoles: new Uint8Array(240), dirtTerraces: new Uint8Array(240), projectionStyle: 'interior', baseDatum: 0 } as TerrainArray;
   const mapper = new LightCoordinateMapper(terrain);
-  const frames = new AssetFrameSourceCache(), tints = new ReceiverFrameCache();
-  const frameRequests = [...assets.values()].map((asset) => ({ asset, frame: selectAtlasFrame(asset.metadata, 'base')! }));
+  const frames = new ReviewAtlasPages(inputs), tints = new ReceiverFrameCache();
   const objects = [
     { name: 'tree_cf_oak_mature', x: 72, y: 116, level: 0, owner: 'oak' },
     { name: 'tree_cf_oak_stump', x: 132, y: 116, level: 0, owner: 'stump' },
@@ -68,7 +68,7 @@ export async function runCelestialShadowReview(inputs: readonly LightingReviewAs
     const sky = celestialLightingAtCalendar({ continuousDay: 3.5, clockHours: panel.hour, lunarProgress: panel.newMoon ? 0.5 : 0, lunarIllumination: panel.newMoon ? 0 : 1 });
     if (panel.basic) { frames.reset(); tints.reset(); scene.reset(); lightmap.reset(); }
     else {
-      if (await frames.prepareVisible(frameRequests) !== 'ready') throw new Error('review_frame_preparation_failed');
+      await frames.prepare();
       scene.prepare(sky, casters);
       await scene.prepareHeights([0, 4, ...objects.map((object) => mapper.heightAtLevel(object.level)
         + Math.round(mapper.heightForPixels(assets.get(object.name)!.anchor[1] / 2)))]);
@@ -117,11 +117,11 @@ export async function runCelestialShadowReview(inputs: readonly LightingReviewAs
     output.fillStyle = '#d7e3ff'; output.font = '17px monospace'; output.fillText(panel.label, x + 12, y + 25);
     output.drawImage(canvas, x, y + 36);
     evidence.push({ ...panel, sky, rasterMs, shadowCacheBytes: scene.cache.bytes, shadowBuilds: scene.cache.builds, tintedFrameBytes: tints.bytes,
-      filteredFrameBytes: frames.bytes, receiverRasterBytes: scene.retainedRasterBytes, retainedMaskBytes: scene.retainedMaskBytes });
+      omitPageBytes: frames.bytes, receiverRasterBytes: scene.retainedRasterBytes, retainedMaskBytes: scene.retainedMaskBytes });
   }
   const image = board.toDataURL();
   frames.reset(); tints.reset(); scene.reset(); lightmap.reset(); setWorldAssetPresentation(context);
-  return { image, evidence, releasedBytes: { frames: frames.bytes, tints: tints.bytes, shadows: scene.cache.bytes, lightmap: lightmap.retainedSurfaceBytes },
+  return { image, evidence, releasedBytes: { omitPages: frames.bytes, tints: tints.bytes, shadows: scene.cache.bytes, lightmap: lightmap.retainedSurfaceBytes },
     fixture: 'local combined renderer fixture with synthetic stepped platform; no gameplay deployment', userAgent: navigator.userAgent };
 }
 
