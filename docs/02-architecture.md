@@ -7,6 +7,15 @@ Binding architecture for Orchard & Cellar. Read [01-engine-decision.md](01-engin
 > [19-overworld-spacetimedb-spike.md](19-overworld-spacetimedb-spike.md). The former
 > `FarmRoom`, custom WebSocket, Fastify, and SQLite design is retired.
 
+> **Rendering amendment (2026-09-06):** doc 59 authorizes an experimental
+> WebGL2 world pass behind the shared `WorldPassBackend` seam in `packages/engine`.
+> The Video toggle “Experimental: WebGL renderer” persists per client and defaults
+> off. Canvas 2D remains the default, golden reference, automatic failure fallback,
+> and HUD renderer. The engine remains TypeScript with no new dependencies.
+> This supersedes the earlier no-WebGL restriction; making WebGL2 the default is
+> outside this plan. See the `client/rendering` row in `DECISIONS.md` and
+> [doc 47 §15](47-rendering-lighting-performance-plan.md).
+
 ## Repository layout (npm workspaces monorepo)
 
 ```

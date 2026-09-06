@@ -1,6 +1,6 @@
 # 01 — Engine Decision: Rust/Bevy vs HTML5 Canvas
 
-**Decision: TypeScript + HTML5 Canvas 2D, custom lightweight engine. Not Bevy.**
+**Decision: TypeScript custom lightweight engine. Canvas 2D is the default and reference renderer; doc 59 authorizes an experimental WebGL2 world backend.**
 
 **Backend amendment (2026-08-24):** the rendering/engine decision remains binding.
 The owner expanded multiplayer into a friends-only persistent overworld where players
@@ -36,9 +36,13 @@ pre-rendered tile layers — Canvas 2D handles an order of magnitude more.
   because everything is in-repo and greppable.
 - **Godot**: good engine, wrong workflow — editor-centric scene files are hostile to
   text-only agents, and web export has the same WASM weight problems as Bevy.
-- **WebGL renderer**: not needed at this scale. The renderer is isolated behind a small
-  interface (`Renderer` in `client/render/`), so a WebGL2 batch renderer can be swapped
-  in later without touching game logic if profiling ever demands it. It won't.
+- **Experimental WebGL2 world renderer**: authorized by the 2026-09-06
+  `client/rendering` row in `DECISIONS.md` and [doc 59 P8](59-client-render-performance-recovery-plan.md).
+  It will use the shared `WorldPassBackend` seam in `packages/engine`, behind
+  the persisted Video toggle “Experimental: WebGL renderer”, off by default.
+  Canvas 2D remains the reference, default and automatic fallback on any failure;
+  the HUD stays on Canvas. This supersedes the earlier no-WebGL anti-goal.
+  Adoption as the default is outside doc 59. No engine or dependency change is authorized.
 
 ## What "custom lightweight engine" means
 
@@ -58,7 +62,7 @@ No general-purpose engine. A small set of purpose-built modules (specified in
 | Layer | Choice |
 |---|---|
 | Language | TypeScript everywhere (strict mode) |
-| Client | HTML5 Canvas 2D, Vite dev/build, no UI framework — in-canvas UI (see 13-ui-ux.md) |
+| Client | Canvas 2D default/reference and HUD; experimental WebGL2 world backend authorized by doc 59, off by default. Vite dev/build, no UI framework (see 13-ui-ux.md) |
 | Server | SpaceTimeDB 2.8 TypeScript module, identity-authorized reducers, scheduled authority |
 | Shared | `packages/sim` — pure, deterministic game logic, zero DOM/Node imports |
 | Database | SpaceTimeDB normalized durable tables and commit log (see 08-database.md) |
