@@ -315,7 +315,7 @@ import {
   unifiedDecorationLightReceiver,
 } from '@orchard/engine/lighting';
 import { deterministicFlameFlicker, isLightEmitterKind, placeablePointLight } from '@orchard/engine/light-sources';
-import { RenderMetrics } from '@orchard/engine/metrics';
+import { renderMetrics, renderDiagnostics, renderMetricsSnapshot } from './gameplay-render-diagnostics.js';
 import { RainWeather } from '@orchard/engine/particles';
 import { enqueueRaisedTerrainDepth } from '@orchard/engine/raised-terrain-depth';
 import {
@@ -489,7 +489,6 @@ function releaseDynamicLighting(): void {
 }
 const rain = new RainWeather(art.rainStreak, art.rainSplash);
 const weatherEffects = new WeatherEffects(art.cloudShadow, art.windGust, art.oakLeaf, art.birchLeaf, art.spruceLeaf);
-const renderMetrics = new RenderMetrics();
 const stopLongTaskObserver = import.meta.env.DEV ? renderMetrics.observeLongTasks() : null;
 if (import.meta.hot !== undefined && stopLongTaskObserver !== null) {
   import.meta.hot.dispose(stopLongTaskObserver);
@@ -719,7 +718,6 @@ let observedSpaceId = TOPSIDE_SPACE_ID;
 let portalTransitionStartedAtMs = -1;
 let lastNetworkStatus = '';
 let debugCollision = false;
-let debugMetrics = false;
 let debugEntitiesHidden = false;
 type TerrainInspectorModule = typeof import('@orchard/engine/terrain-inspector');
 let terrainInspector: TerrainInspectorModule | null = null;
@@ -6633,10 +6631,10 @@ function renderFrame(alpha = 1): void {
     );
     uiContext.restore();
   }
-  if (!interfaceHidden && debugMetrics) {
+  if (!interfaceHidden && renderDiagnostics.enabled) {
     uiContext.save();
     uiContext.translate(uiOriginX, uiOriginY);
-    const metrics = renderMetrics.snapshot();
+    const metrics = renderMetricsSnapshot();
     const net = network.metrics();
     const ownPosition = network.ownPosition();
     const remoteDepths = [...remoteBuffers.values()].map((buffer) => buffer.depth);
@@ -7137,7 +7135,7 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'F3' && !event.repeat) {
-    debugMetrics = !debugMetrics;
+    renderDiagnostics.enabled = !renderDiagnostics.enabled;
     event.preventDefault();
     return;
   }
@@ -8095,16 +8093,16 @@ Object.assign(window, {
     setLightingQuality,
     // Presentation-only review seam; never changes the shared clock or player position.
     setLightingPreview: (preview: typeof lightingPreview) => { lightingPreview = preview; },
-    setMetricsDebug: (enabled: boolean) => { debugMetrics = enabled; },
+    setMetricsDebug: (enabled: boolean) => { renderDiagnostics.enabled = enabled; },
     setEntitiesHidden: (hidden: boolean) => { debugEntitiesHidden = hidden; },
     benchmarkScenario: async (id: RenderBenchmarkScenarioId) => {
       const { renderBenchmarkScenario } = await import('@orchard/engine/render-benchmark-scenarios');
       return renderBenchmarkScenario(id);
     },
-    renderMetrics: () => renderMetrics.snapshot(),
+    renderMetrics: () => renderMetricsSnapshot(),
     diagnostics: () => ({
       schemaVersion: 1,
-      rendering: renderMetrics.snapshot(),
+      rendering: renderMetricsSnapshot(),
       lighting: {
         model: lightingModel,
         effectsDisabled: lightingEffectsDisabled,
