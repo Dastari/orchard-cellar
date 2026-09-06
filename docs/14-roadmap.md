@@ -471,6 +471,8 @@ repeatable production loop.
 - [ ] Doc 59 P4 — Static/moving coverage and constant-time receivers — IN PROGRESS: codex, 2026-09-06
   - Receiver lane owns bounded scene/cache modules; integrator owns gameplay extraction, wiring, ledger and gates. Brief: `docs/lanes/59-p4-receivers.md`.
 
+- [ ] Doc 59 P5 — Tint pool and cap-layer consolidation — IN PROGRESS: codex, 2026-09-06
+  - P4 retained-field implementation is committed; its sampling accuracy gate remains OPEN. Exact-RGB tint-page pooling proceeds independently; five-bit quantization and dim derivations failed the pixel gate.
 - [ ] Doc 59 P6 — Painter and context hot path — IN PROGRESS: codex, 2026-09-06
   - Independent of P2 after P0. Integrator alone extracts enqueue/sort ownership from overworld-main.ts before changing it; measured P2 captures and heavy checks remain sequential.
 
