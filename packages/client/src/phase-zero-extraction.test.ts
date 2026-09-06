@@ -124,7 +124,8 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Doc 59 P0 adds the required touch-accessible Render-panel capture action.
 // Doc 59 P1 adds the persisted World scale control in the same Video panel.
 // Doc 59 P3 deletes the filtered-frame export and keeps only shared frame metadata.
-const STRUCTURAL_SEAM_DIGEST = '39568888d51ac7a423a7a254c4ddf0d1ad2bef7f821211ca83bd5904ff6c806a';
+// Doc 59 P6 shares the outer painter state pair with authored-map sprites.
+const STRUCTURAL_SEAM_DIGEST = '1c6e80459d83051e8b627b5affb3313a76a0842f3db29ac372a98b4230faab24';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

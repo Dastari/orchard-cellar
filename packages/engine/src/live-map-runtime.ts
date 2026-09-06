@@ -1,3 +1,4 @@
+import { saveSpriteTransform, restoreSpriteTransform } from './painter-context.js';
 import { worldAssetFrameSource } from './world-asset-presentation.js';
 import {
   LIVE_ISLAND_MAP_ID,
@@ -306,7 +307,7 @@ export function enqueueLiveMapObjects(
         draw: () => {
           const screenX = Math.round((worldX - options.cameraX) * options.scale);
           const screenY = Math.round((worldFootY - options.cameraY) * options.scale);
-          options.context.save();
+          const savedTransform = saveSpriteTransform(options.context, true);
           options.context.translate(screenX, screenY);
           options.context.rotate(object.quarterTurns * Math.PI / 2);
           const objectScale = object.scale ?? 1;
@@ -325,7 +326,7 @@ export function enqueueLiveMapObjects(
             frame.width * options.scale,
             frame.height * options.scale,
           );
-          options.context.restore();
+          restoreSpriteTransform(options.context, savedTransform);
         },
       });
       count += 1;

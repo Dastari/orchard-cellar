@@ -426,6 +426,14 @@ callers), `overworld-art.ts` `drawSprite`, `renderer.test.ts`.
 **Exit:** Basic `painterSort` + `painterDraw` p95 recorded; Basic target from
 §1 met or the gap explained.
 
+**2026-09-06 implementation amendment:** P6 also changes the authored-map
+sprite closure in `live-map-runtime.ts`, which is nested under the same painter
+item and otherwise adds a second native state pair. The reviewed source-shape
+digest in `phase-zero-extraction.test.ts` is deliberately recaptured for that
+change; its independent package-ownership assertions remain unchanged. Legacy
+queue producers retain an adapter into numeric identities so their established
+lexical tie order and exact fractional foot-depth order remain stable.
+
 ### P7 — Frame pacing and HUD caching
 
 **Files:** `loop.ts`, `overworld-main.ts` uiDraw stage (≈6179–6690),
@@ -1754,3 +1762,107 @@ scoped ESLint; `node .../P4/build-goldens.mjs`, `run-goldens.mjs`,
 `run-scale-goldens.mjs`; `tsx .../P4/compare-goldens.ts`,
 `compare-paged-terrain.ts`; `tsx .../P4/receiver-lane-counters.ts`;
 `tsx .../P4/raster-accuracy-experiment.ts` (the earlier three failed approaches).
+
+### 2026-09-06 — P6 implementation checkpoint; desktop and global pair gate open
+
+Status: **IN PROGRESS**. Numeric queue preparation, retained arrays and sprite
+state ownership are integrated; the real-client sort/draw exit and literal
+one-native-pair-per-item gate remain open. Full canonical gate: **PASS**, `check-runtime.log`, 590 suites / 3,475 tests,
+915.89 seconds; typechecks, lint, lifecycle checks and asset validation green.
+Artifacts are under `output/perf-59-20260906/P6/`; exact integrated source paths
+and SHA-256 values are in `integrated-source-hashes.json` (base `f5f8e053`).
+Mechanical enqueue/sort extraction `3ad33cb1` and painter-effect extraction
+`ec23d536` precede behavior changes; their check logs are retained here.
+
+Queued items now carry numeric kind, identity and prepared plane/depth keys.
+A reused array sorts in place. Lexical tie ranks preserve the existing comparator,
+including stable collation-equivalent strings and exact fractional depth inside
+a packed bin. The retained identity cache prunes expired projectile identities
+and enforces a 4,096-entry bound after sorting; an oversized current queue keeps
+its correct prepared order and releases cached identities afterwards. Legacy
+producers still construct string ties, so this is not a claim of zero producer
+string allocation. Hot enqueue classification and the sort no longer run their
+former regular expression and locale comparison on every item/comparison.
+
+The outer gameplay sprite wrapper owns native state save/restore. Anchored,
+banded, swaying, rotated and flipped helpers restore only their changed state
+inside that ownership; callers outside it retain native isolation. Authored-map
+sprite closures adopt the same helper. Display Canvas creation requests
+`alpha:false`. `desynchronized` remains false: its input-to-submit driver is
+prepared but authenticated measurement and physical tearing review are unavailable.
+Transforming helpers still allocate DOMMatrix snapshots; no zero-heap claim is made.
+
+`integrated-tests.log`: five suites / 27 tests pass; client typechecking passes.
+The recorded 283-item frame sorts identically to the previous comparator, with
+additional fractional-bin, streaming-insertion and collation-tie cases.
+A 600-frame identity churn test retains three active keys, peaks at five and
+retires 1,198 expired identities. A 64-item frame under a 32-key test limit
+preserves order and leaves zero cached identities afterwards.
+
+`painter-context-comparison.json` draws 19 actual sprite/effect cases: **86 → 19
+native pairs**, **zero changed channels**, including rotated landmarks and wildlife
+hit flash. This fixture was inspected visually. These counts exclude terrain,
+ground and HUD; they are not per-frame real-client totals. Current integrated
+`golden-comparison.json` has zero changed channels on all four lighting boards
+against P4, and `paged-terrain-comparison.json` has exact terrain/pond output
+and HUD witnesses at 1×/2×/Native. Earlier private-worktree captures are retained
+under `pre-p4-integration/`.
+
+`cutaway-state-feasibility/` records a remaining technical constraint: Canvas
+clip regions intersect and cannot be reopened without restoring state. The
+current three-pass cutaway requires three independent clips. A one-pair
+accumulating-clip witness changes 11,498 channels (maximum 130); flattening two
+overlapping cliff subframes into a preallocated scratch and masking once changes
+15,500 channels (maximum 34), because alpha no longer applies per subframe.
+The HUD witness remains exact. This is a clipping-semantics fixture, not a full
+terrain benchmark. Necessary clipping pairs and remaining transform-only terrain
+pairs are retained; the literal one-pair-per-logical-item test is not claimed.
+
+The last measured desktop baseline is preserved below in original milliseconds
+p50/p95/p99. P6 after cells and all 14 real-client counters remain unmeasured
+pending authentication. Basic's ≤6ms budget and the stage residual cannot yet
+be assessed for this integrated change; no long-task result is claimed.
+
+| Stage | Basic P2 before | Classic P2 before | Dynamic P2 before | P6 after |
+|---|---:|---:|---:|---|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 | unmeasured — authentication required |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 | unmeasured — authentication required |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 | unmeasured — authentication required |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 | unmeasured — authentication required |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 | unmeasured — authentication required |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 | unmeasured — authentication required |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 | unmeasured — authentication required |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 | unmeasured — authentication required |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingDynamicSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 | unmeasured — authentication required |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 | unmeasured — authentication required |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 | unmeasured — authentication required |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 | unmeasured — authentication required |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 | unmeasured — authentication required |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 | unmeasured — authentication required |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+Physical iPad: **owner to run**. In the approved candidate preview, select Video
+→ World scale 1×, world zoom 2 and browser zoom 100%; System → Developer →
+Render → **Run protocol + copy JSON**, keeping Safari foreground for 105 seconds.
+Use **Copy capture JSON** if clipboard completion is refused; repeat at 2× and
+Native. Attach device/iPadOS/Safari versions to the export, which includes
+commit/backend/policy/DPR/resolution, every stage and every counter. No desktop
+CPU throttle is substituted. Shared minute-per-mode/policy play is also pending
+the authenticated session.
+
+Commands: `npm run check`; `npm exec vitest run` for painter-depth,
+painter-context, renderer, gameplay-painter and structural-seam tests;
+client typecheck and scoped ESLint; `node .../P6/build-goldens.mjs`,
+`run-goldens.mjs`, `run-scale-goldens.mjs`; `tsx .../P6/compare-goldens.ts`,
+`compare-paged-terrain.ts`, `compare-painter-context.ts`; the recorded-frame,
+19-sprite and cutaway fixture commands/provenance alongside their artifacts.
+`capture-desynchronized.mjs` has not run; it is not listed as a passed check.

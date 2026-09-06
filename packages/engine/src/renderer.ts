@@ -1,3 +1,5 @@
+import { comparePreparedWorldDepthItems, type WorldItemKind, type WorldItemIdentity } from './painter-depth.js';
+export { WorldItemKind } from './painter-depth.js';
 import { CanvasWorldPresent, type WorldScalePolicy } from './world-pass-present.js';
 export { worldPresentLayout, type WorldScalePolicy } from './world-pass-present.js';
 import { MIN_WORLD_ZOOM, canvasHostViewport } from './display.js';
@@ -115,7 +117,14 @@ export interface WorldDepthItem {
   readonly elevationLayer?: number;
   /** Within one plane: surface, cliff boundary, then world entities. */
   readonly depthPhase?: 'surface' | 'boundary' | 'entity';
-  readonly tie: string;
+  /** Legacy producers are normalized at the shared painter boundary. */
+  readonly tie: string | number;
+  readonly debugTie?: string;
+  readonly kind?: WorldItemKind;
+  readonly sortKey?: number;
+  readonly sortPlane?: number;
+  readonly sortDepth?: number;
+  readonly sortIdentity?: WorldItemIdentity;
   readonly draw: () => void;
 }
 
@@ -131,7 +140,7 @@ function terrainUnderlayOrder(phase: WorldDepthItem['depthPhase']): number {
 
 export function sortWorldDepthItems<T extends Pick<
   WorldDepthItem,
-  'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase'
+  'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase' | 'debugTie' | 'sortKey' | 'sortPlane' | 'sortDepth' | 'sortIdentity'
 >>(
   items: readonly T[],
 ): T[] {
@@ -143,11 +152,14 @@ export function sortWorldDepthItems<T extends Pick<
  * second, subtly different depth implementation. */
 export function compareWorldDepthItems<T extends Pick<
   WorldDepthItem,
-  'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase'
+  'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase' | 'debugTie' | 'sortKey' | 'sortPlane' | 'sortDepth' | 'sortIdentity'
 >>(
   left: T,
   right: T,
 ): number {
+  if (left.sortKey !== undefined && right.sortKey !== undefined) {
+    return comparePreparedWorldDepthItems(left, right);
+  }
   return (left.elevationLayer ?? 0) - (right.elevationLayer ?? 0)
     // A plane's opaque surface and cosmetic ground-contact trim must be below
     // every painter-sorted actor on that plane, regardless of their row. A
@@ -155,7 +167,7 @@ export function compareWorldDepthItems<T extends Pick<
     || terrainUnderlayOrder(left.depthPhase) - terrainUnderlayOrder(right.depthPhase)
     || worldDepthY(left) - worldDepthY(right)
     || depthPhaseOrder(left.depthPhase) - depthPhaseOrder(right.depthPhase)
-    || left.tie.localeCompare(right.tie);
+    || String(left.debugTie ?? left.tie).localeCompare(String(right.debugTie ?? right.tie));
 }
 
 export function worldDepthY(item: Pick<WorldDepthItem, 'footY' | 'depthOffset'>): number {
@@ -206,7 +218,7 @@ export class UnifiedRenderer {
   private readonly present = new CanvasWorldPresent();
 
   constructor(readonly canvas: HTMLCanvasElement) {
-    const displayContext = canvas.getContext('2d');
+    const displayContext = canvas.getContext('2d', { alpha: false });
     if (displayContext === null) throw new Error('Canvas 2D unavailable');
     this.displayContext = displayContext;
     this.worldCanvas = document.createElement('canvas');
