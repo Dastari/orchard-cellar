@@ -5,6 +5,7 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      'output/playwright/**',
       'output/**/client-dist/**',
       'output/**/publish-candidate/**',
       'output/lighting-58-20260905/runtime/review.js',

@@ -22,7 +22,7 @@ describe('world-only shadow presentation', () => {
     const key = worldAssetPresentationKey(chunk);
     await cache.prepareVisible([]);
     expect(worldAssetPresentationKey(chunk)).toBe(key);
-    expect(() => worldAssetFrameSource(chunk, asset, frame)).toThrow('unprepared_world_asset_frame');
+    expect(() => worldAssetFrameSource(chunk, asset, frame)).toThrow('world_asset_frame_surface_unavailable');
     cache.reset();
     expect(worldAssetPresentationKey(chunk)).not.toBe(key);
     setWorldAssetPresentation(world);
@@ -36,8 +36,12 @@ describe('world-only shadow presentation', () => {
     const cache = new AssetFrameSourceCache(8, () => surface);
     const context = { drawImage: vi.fn() } as unknown as CanvasRenderingContext2D;
     setWorldAssetPresentation(context, cache, 'omit-baked-shadow');
-    expect(() => drawAuthoredOverworldObject(context, asset, 'base', 0, 20, 30, 0, 0, 2)).toThrow('unprepared_world_asset_frame');
+    // Doc 58 / 0.5.6 streams a missing frame synchronously from declared spans.
+    drawAuthoredOverworldObject(context, asset, 'base', 0, 20, 30, 0, 0, 2);
+    expect(cache.builds).toBe(1);
+    expect(context.drawImage).toHaveBeenLastCalledWith(surface, 0, 0, 2, 1, 38, 58, 4, 2);
     await cache.prepareVisible([{ asset, frame }]);
+    expect(cache.builds).toBe(1);
     drawAuthoredOverworldObject(context, asset, 'base', 0, 20, 30, 0, 0, 2);
     expect(context.drawImage).toHaveBeenLastCalledWith(surface, 0, 0, 2, 1, 38, 58, 4, 2);
     drawUiAsset(context, asset, 0, 0, 2);

@@ -117,7 +117,11 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // and retained mobile-control placement settings
 // landed across these package seams. This remains a source-shape tripwire: any later change must be
 // reviewed and deliberately re-captured here.
-const STRUCTURAL_SEAM_DIGEST = 'e09940ba843b2326d17192528bfc83696471d02d7f1a933ccca438901fd2136e';
+// Doc 59 preflight pins the supplied 0.5.7 baseline, including doc 58's
+// shared frame-source export and complete Basic/Classic/Dynamic Video selector.
+// All five seams are unchanged from the preserved pre-implementation snapshot;
+// import-direction and ownership assertions below remain independent gates.
+const STRUCTURAL_SEAM_DIGEST = 'cf6eb58b4b1dc968bf55733b00dcaff2b326a43f37d2080380719c0577ca8a81';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

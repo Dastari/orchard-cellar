@@ -480,3 +480,86 @@ directed that WebGL2 ship as an experimental client-side Video toggle, off by
 default, rather than waiting on a Canvas budget failure. §3.2 and P8 were
 rewritten accordingly; DECISIONS.md records the three decisions; doc 58 §3
 carries the D1/D3 amendment note. Nothing implemented yet. Next step is P0.
+
+### 2026-09-06 — P0 preflight
+
+The supplied workspace is version 0.5.7 with 2,212 modified/untracked/staged
+paths. Integration uses `/home/toby/projects/orchard-cellar-perf59` on
+`perf59-integration`, seeded from current source; the original index is untouched.
+Snapshot commit `3cfbf395` is a preservation checkpoint, not a qualified release.
+The initial `npm run check` passed lifecycle integrity, world build and types,
+then failed with 778 lint errors exclusively in historical `output/playwright/`
+artifacts. The bounded preflight exception excludes that directory in ESLint;
+new `output/perf-59-*` harnesses and application source remain checked.
+Evidence: `output/perf-59-20260906/P0/check-initial.log`,
+`preexisting.patch`, `preexisting-status.txt`, `integration-baseline.txt`.
+P0 is not complete; no performance or visual acceptance is claimed.
+
+P0 gameplay access is OPEN after three approaches: the existing development
+database never completes current clock/environment subscriptions; a fresh
+`orchard-cellar-dev-perf59` database built from unchanged authority source rejects
+the local profile (`authentication_invalid_issuer`); canonical shared-browser
+sign-in requires credentials with no active OIDC session. No auth policy was
+changed. The sub-millisecond loading-screen readings (zero world items/chunks)
+are rejected as baseline evidence. `P0/local-start.png` records that state.
+
+The isolated worktree also exposes three release dry-run tests that require the
+canonical repository path (`P0/release-continuity.log`). Therefore verified task
+edits are mirrored into the original workspace for `npm run check`, with its
+pre-existing index preserved. Commits stay on the integration branch.
+
+P0 status: **incomplete, blocked at authenticated gameplay baseline**. No renderer
+code, counter instrumentation, capture button, or 0.6.0 release candidate has
+landed. P1–P8 are unstarted because their P0 dependency has no measured exit.
+The complete preflight handoff is `output/perf-59-20260906/P0/README.md`.
+
+| Device / modes | Stage p50/p95/p99 | Per-frame counters | Status |
+|---|---|---|---|
+| Local Linux Chromium, Basic/Classic/Dynamic | not measured in gameplay | not instrumented | blocked; loading-screen results rejected |
+| Shared desktop Chromium, Basic/Classic/Dynamic | not measured | not instrumented | signed out; credential form reached |
+| Physical iPad, Basic/Classic/Dynamic | owner to run | owner to run | protocol button and exact steps still pending implementation |
+
+Original PNG verification: **36/36 unchanged**; largest decoded image remains
+106,561,536 bytes. No later milestone's structural or timing gate is claimed.
+
+The canonical preflight check finished in 803.12 s: **564 suites / 3,403 tests
+passed; three suites / four tests failed**. All four are stale baseline
+assertions: farmcraft now uses the existing exact Cute Fantasy apple, two shadow
+tests still expect the pre-0.5.6 unprepared-frame error, and the structural seam
+digest predates the current shared export/Video selector. The bounded test-only
+correction records exact apple provenance, synchronous frame build/reuse and
+surface-unavailability semantics, and re-pins the preserved 0.5.7 seam digest.
+Every seam matches snapshot `3cfbf395`; individual source hashes are in
+`P0/structural-baseline-hashes.json`. No runtime, artwork or auth change is made.
+
+The first focused correction exposed two further existing derived skill icons
+(anvil and fishing rod). The provenance fixture now explicitly checks the three
+approved source-asset references; all other icons retain their native source
+region/provenance assertions. No artwork is changed.
+
+Preflight commands (no production publish):
+
+```sh
+npm run check
+npx vitest run packages/tools/src/assets/skill-icons.test.ts packages/client/src/phase-zero-extraction.test.ts packages/engine/src/shadow-presentation.test.ts
+npx eslint packages/tools/src/assets/skill-icons.test.ts packages/client/src/phase-zero-extraction.test.ts packages/engine/src/shadow-presentation.test.ts
+VITE_ENABLE_LOCAL_PROFILES=true VITE_SPACETIMEDB_DATABASE=orchard-cellar-dev npm run dev -w @orchard/client -- --port 5180
+spacetime publish orchard-cellar-dev-perf59 --no-config --server http://127.0.0.1:3000 --module-path packages/world --delete-data=never --yes
+VITE_ENABLE_LOCAL_PROFILES=true VITE_SPACETIMEDB_DATABASE=orchard-cellar-dev-perf59 npm run dev -w @orchard/client -- --port 5180
+```
+
+The focused corrected fixtures pass **3 suites / 10 tests**, and scoped lint
+passes (`P0/preflight-corrections-2.log`). Full verification of the settled
+files is recorded separately in `P0/check-settled-preflight.log`.
+
+Final settled preflight gate: **`npm run check` exit 0**, **567 suites /
+3,407 tests passed**, test duration **817.95 s**; sim line coverage **92.38%**.
+Lifecycle integrity, checked world build, all workspace typechecks, lint,
+coverage thresholds and validation of **1,021 art assets, 3 songs, 10 SFX,
+55 palette colours and four seasonal remaps** pass. The four edited code/test
+files stayed unchanged throughout this gate; **36/36 original atlas PNGs remain
+byte-identical**. Evidence: `P0/check-settled-preflight.log` and
+`P0/settled-task-hashes.json`. This is preflight qualification only: P0 has no
+gameplay stage measurements or instrumentation, and its authenticated-session
+blocker remains OPEN. No 0.6.0 version bump, candidate build, or production
+deployment was performed.
