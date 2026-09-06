@@ -249,6 +249,13 @@ policy accepted or B revised.
    equal or better; content addressing and service-worker retention (items 6
    and 8) proceed under doc 47 on its own gate and are not required for P3.
 
+P2 implementation amendment (2026-09-06): include loaded-page dimensions,
+decoded bytes and image request-to-ready timings in the existing one-button
+protocol JSON. This minimally extends `gameplay-render-protocol.ts`; the data
+comes from the new page loader and does not run in the steady-frame path.
+Desktop decoder-only CPU timings are captured separately with Chromium trace
+events, rather than mislabelling request/onload latency as pure decode time.
+
 **Tests:** builder rejects an asset larger than a page; every page under both
 caps; manifest round-trip through old and new readers; all 36 current PNGs'
 frame pixels reproduced byte-exact on their new pages.
@@ -1103,3 +1110,45 @@ colors, four seasonal remaps). `matched-source-hashes.json` still matches all
 measured/gated runtime and test files. Later artifact-only additions pass
 `P1/artifact-lint.log`. P1 implementation and desktop qualification are complete;
 the named shared-preview and physical-iPad qualifications remain open.
+
+
+### P2 reader gate — in progress, 2026-09-06
+
+The page readers precede the writer switch. New index v4, category v3,
+marker v2 and compact registry v4 readers retain the supplied legacy versions.
+Page identity is category-scoped; declared and decoded dimensions are checked
+against 512×2048 / 4 MiB, including cached-image reuse. The complete-asset
+shelf packer rejects oversized assets and never splits an asset across pages.
+The preview reader and existing gameplay protocol understand page identities;
+protocol JSON adds loaded-page sizes and request-to-ready latency. Decoder-only
+CPU timing is measured separately with Chromium trace events.
+
+Files: `packages/ui/src/{assets,atlas-page-format,atlas-page-loader}.ts`, their
+new format/loading tests, `packages/tools/src/assets/atlas-pages.ts` and its
+test, `packages/tools/src/preview.ts`, `packages/client/src/gameplay-render-protocol.ts`,
+and the P2 lane briefs. Reader review findings and fixes are in
+`output/perf-59-20260906/P2/reader-review.md`; focused reader/cache/marker
+checks pass (12 tests), as do client typecheck and scoped lint. The full
+reader gate passed (`P2/check-readers.log`); the writer is authorized only
+after this reader commit.
+
+Pre-writer cold startup (`P2/startup-legacy.json`): 5,124.200 ms to first
+gameplay, 10 images, 126,623,744 decoded bytes total, largest image
+106,561,536 bytes. Chromium's `Decode Image` events total 70.263 ms across
+10 events. The other nested trace event groups are retained separately and
+are not summed into that CPU figure. Device/browser/settings and commit
+identity are in the artifact. This is startup evidence, not a frame-stage
+measurement; the complete matched stage/counter tables follow at P2 exit.
+
+Physical iPad: **owner to run**. On an approved candidate, open
+System → Developer → Render and use the protocol/copy-JSON action, keeping
+Safari foregrounded throughout the 5-second warm-up plus 30-second sample
+for each Basic, Classic and Dynamic capture. Record iPad model, iPadOS/Safari,
+DPR, zoom, resolution, commit, world scale and backend. Retain the JSON's
+asset page dimensions and decoded-byte totals; report any texture/canvas
+limit error. No desktop throttle result substitutes for this row.
+
+Unresolved: P2 writer, original/frame-pixel comparison, paged startup,
+full stage/counter capture and physical-iPad result remain pending. The shared
+preview rendering failure remains OPEN as recorded in P0/P1. No P2 exit is
+claimed by this intermediate reader entry.
