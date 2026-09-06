@@ -324,6 +324,15 @@ zero coverage rebuilds over 600 walking frames with a fixed sky; zero string
 allocations in `begin`/`sample` (count via a test seam).
 **Exit:** `lightingReceiver`, coverage rebuilds and `painterDraw` p95 recorded.
 
+P4 implementation OPEN (2026-09-06): step 3's proposed merged-field lookup
+failed the one-byte accuracy gate in three measured representations (4-px
+bilinear, 1-px bilinear, and 1-px strongest/runner-up owner fields; maximum
+RGB errors 85, 87 and 50 respectively over 76,800 samples each). The
+`client/performance` OPEN entry in `DECISIONS.md` records the reproducer and
+requires retaining the accurate per-caster sample loop. Independent static/moving
+coverage reuse and numeric-key work proceeds; constant-time ground sampling
+and complete P4 acceptance remain open.
+
 ### P5 — Tint pool and cap-layer consolidation
 
 **Files:** `receiver-frame-source.ts`, `ground-light-source.ts`,
