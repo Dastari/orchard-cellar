@@ -1,6 +1,7 @@
 import { renderOperationCounters, type AssetFrameSource } from '@orchard/ui';
 import type { RgbColor } from './lighting.js';
 import { LightingNumericKey } from './lighting-numeric-key.js';
+import { webglFrameSource } from './webgl/hooks.js';
 
 export const RECEIVER_TINT_PAGE_WIDTH = 512;
 export const RECEIVER_TINT_PAGE_HEIGHT = 2048;
@@ -159,5 +160,6 @@ export function withWorldReceiverLight(context: CanvasRenderingContext2D, cache:
 }
 export function receiverFrameSource(context: CanvasRenderingContext2D, source: AssetFrameSource): AssetFrameSource {
   const receiver = receivers.get(context);
-  return receiver === undefined ? source : receiver.cache.source(source, receiver.color);
+  return receiver === undefined ? source : webglFrameSource(context, source, { receiverRgb: receiver.color })
+    ?? receiver.cache.source(source, receiver.color);
 }

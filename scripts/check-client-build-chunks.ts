@@ -69,4 +69,19 @@ for (const lazyChunk of ['terrain-inspector', 'render-benchmark-scenarios'] as c
   }
 }
 
-console.log(`Client chunk boundaries verified: ${stableChunks.join(', ')}; diagnostics remain lazy.`);
+const webglChunk = oneChunkNamed('webgl-world');
+const backendEntry = oneChunkNamed('world-pass-webgl');
+if (!overworldDynamicImports.includes(backendEntry)) throw new Error('Experimental backend entry must remain a dynamic gameplay import');
+const visited = new Set<string>();
+function visitStatic(file: string): void {
+  if (visited.has(file)) return;
+  visited.add(file);
+  for (const imported of staticImports(readFileSync(resolve(assetsDirectory, file), 'utf8'))) visitStatic(imported);
+}
+visitStatic(overworldChunk);
+if (visited.has(webglChunk) || visited.has(backendEntry)) throw new Error('Experimental WebGL implementation became an eager gameplay dependency');
+if (!staticImports(readFileSync(resolve(assetsDirectory, backendEntry), 'utf8')).includes(webglChunk)) {
+  throw new Error('Experimental backend entry no longer loads its isolated implementation');
+}
+
+console.log(`Client chunk boundaries verified: ${stableChunks.join(', ')}; diagnostics and experimental WebGL remain lazy.`);

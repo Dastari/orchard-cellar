@@ -8,7 +8,8 @@ export type ProtocolMode = 'basic' | 'classic' | 'dynamic';
 export interface GameplayDiagnosticState {
   readonly display: { readonly dpr: number; readonly cssWidth: number;
     readonly cssHeight: number; readonly worldZoom: number; readonly uiScale: number;
-    readonly worldScale: '1x' | '2x' | 'native'; readonly backend: 'canvas2d';
+    readonly worldScale: '1x' | '2x' | 'native'; readonly backend: 'canvas2d' | 'webgl2';
+    readonly worldPassFallbackReason: string | null;
     readonly presentationCap: 'off' | '30hz'; readonly hudCache?: HudDisplayCacheDiagnostics };
   readonly lighting: { readonly requestedQuality: 'basic' | 'dynamic';
     readonly effectiveQuality: 'basic' | 'dynamic'; readonly model: 'classic' | 'unified';
@@ -54,6 +55,8 @@ export async function captureGameplayProtocol(metrics: RenderMetrics, game: Prot
   game.setLightingQuality(options.mode === 'basic' ? 'basic' : 'dynamic');
   const buffer = new RenderProtocolBuffer();
   const longTasks: number[] = [];
+  const gpuTimes: number[] = [];
+  let gpuGeneration = -1, gpuSequence = 0, gpuSupported = false, gpuDisjointStart = 0, gpuDisjointEnd = 0;
   let sampleStart = Infinity, sampleEnd = Infinity;
   const longTasksSupported = typeof PerformanceObserver !== 'undefined'
     && PerformanceObserver.supportedEntryTypes.includes('longtask');
@@ -95,6 +98,16 @@ export async function captureGameplayProtocol(metrics: RenderMetrics, game: Prot
             sampleStart = warmStart + 5_000; sampleEnd = sampleStart + 30_000;
           }
           if (frame.renderItems === 0) throw new Error('render_protocol_loading_frame');
+          const telemetry = metrics.worldBackendTelemetry, gpu = telemetry.gpu;
+          gpuSupported ||= gpu?.gpuTimingAvailable ?? false;
+          if (gpu !== null) {
+            if (telemetry.generation !== gpuGeneration) { gpuGeneration = telemetry.generation; gpuSequence = 0; }
+            if (frame.timestamp < sampleStart) gpuDisjointStart = gpu.gpuDisjointSamples;
+            gpuDisjointEnd = gpu.gpuDisjointSamples;
+            if (gpu.gpuCompletedSamples > gpuSequence && gpu.gpuTimeMs !== null
+              && frame.timestamp >= sampleStart && frame.timestamp < sampleEnd) gpuTimes.push(gpu.gpuTimeMs);
+            gpuSequence = gpu.gpuCompletedSamples;
+          }
           if (frame.timestamp < sampleStart) return;
           if (frame.timestamp >= sampleEnd) { resolve(); return; }
           buffer.record(frame);
@@ -115,9 +128,14 @@ export async function captureGameplayProtocol(metrics: RenderMetrics, game: Prot
         note: 'Browser UI zoom must be recorded by the driver; DPR alone cannot identify it.' },
       worldScale: final.display.worldScale, backend: final.display.backend, scenario: options.scenario,
       presentationCap: final.display.presentationCap,
+      worldPassFallbackReason: final.display.worldPassFallbackReason,
+      worldPass: metrics.worldBackendTelemetry,
+      gpu: { supported: gpuSupported, samplesMs: gpuTimes, ...protocolDistribution(gpuTimes),
+        disjointSamples: Math.max(0, gpuDisjointEnd - gpuDisjointStart),
+        scope: 'nonblocking completed world-pass timer queries observed during the active sample; excludes Canvas final present and HUD; unavailable is not zero GPU time' },
       protocol: { warmupMs: 5_000, sampleMs: 30_000, activeRaf: true,
         walking: options.walking !== false, walkingPath: 'right/down/left/up, 625 ms per leg; authority collision applies',
-        counterScope: 'whole-client Canvas 2D from first rAF after prior submission through current submission, including skipped-rAF work, HUD and offscreen construction; earlier async work excluded',
+        counterScope: 'whole-client Canvas 2D from first rAF after prior submission through current submission, including skipped-rAF work, HUD and offscreen construction; earlier async work and WebGL submissions excluded; GPU batch/resource counts are separate worldPass diagnostics',
         tintReuses: 'exact tinted-frame cache hits; surface recycling reported separately' },
       before: matched.state, after: final, assets: atlasPageDiagnostics(), ...buffer.report(),
       longTasks: { supported: longTasksSupported, atLeast50Ms: longTasks.filter((value) => value >= 50).length,

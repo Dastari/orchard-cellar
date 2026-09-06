@@ -8,7 +8,8 @@ import type { LightingReceiverClass } from './lighting-types.js';
 import type { TileLightmap } from './lighting.js';
 import type { PointLight } from './lighting.js';
 import { ReceiverFrameCache, withWorldReceiverLight } from './receiver-frame-source.js';
-import { withGroundSpriteSource } from './ground-light-source.js';
+import { groundSourceContext, withGroundSpriteSource } from './ground-light-source.js';
+import { webglFrameSource, webglWorldBackend } from './webgl/hooks.js';
 import { CelestialReceiverScene } from './receiver-lighting.js';
 import { lightingOwner, terrainLightingOwner } from './lighting-owner.js';
 export { lightingOwner } from './lighting-owner.js';
@@ -107,6 +108,9 @@ export class WorldLightingRenderer {
     const plane = { canvas, left, top, step }; this.planes.set(level, plane); return plane;
   }
   compositeGround(context: CanvasRenderingContext2D, scale: number, level = terrainBaseDatum(this.terrain)): void {
+    // A flattened CPU multiply would conceal the unresolved GPU lighting
+    // accuracy gate. Reject before creating/uploading Canvas lighting surfaces.
+    if (webglWorldBackend(context) !== undefined) throw new Error('webgl_accuracy_unverified_ground_composite');
     const plane = this.plane(level);
     context.save();
     try {
@@ -145,6 +149,16 @@ export class WorldLightingRenderer {
   /** Tint a projected chunk run before its alpha/cutaway composition. Multiplying
    * the destination afterwards would also darken the actor behind a cutaway. */
   groundSource(source: AssetFrameSource, x: number, y: number, level: number): AssetFrameSource {
+    const target = groundSourceContext();
+    if (target !== undefined && webglWorldBackend(target) !== undefined) {
+      const step = 4;
+      const left = Math.floor(this.cameraX / step) * step - step;
+      const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
+      const field = this.scene.rawFieldCached(this.localRevision, left, top,
+        Math.ceil(this.width / step) + 3, Math.ceil(this.height / step) + 3, this.mapper.heightAtLevel(level), step,
+        (worldX, worldY) => this.lightmap!.sampleReceiverLight(worldX, this.mapper.projectedY(worldY, level), level));
+      return webglFrameSource(target, source, { ground: { field, worldX: x, worldY: y } })!;
+    }
     const plane = this.plane(level);
     this.runCanvas ??= document.createElement('canvas');
     const canvas = this.runCanvas;

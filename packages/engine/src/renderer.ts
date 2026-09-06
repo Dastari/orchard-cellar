@@ -211,11 +211,15 @@ export function drawSortedWorldDepthQueue(
 /** Owns display sizing and the only world-to-display composite. */
 export class UnifiedRenderer {
   private readonly displayContext: CanvasRenderingContext2D;
-  private readonly backend: WorldPassBackend;
+  private backend: WorldPassBackend;
+  beforeWorldFrame: (() => void) | undefined;
+  afterWorldFrame: (() => void) | undefined;
+  worldBackendFailure: ((error: unknown) => boolean) | undefined;
   private dprValue = 1;
   private cssWidthValue = 1;
   private cssHeightValue = 1;
   private frameLayout: WorldPassLayout | null = null;
+  private worldPassInProgressValue = false;
   private worldScaleValue: WorldScalePolicy = 'native';
 
   constructor(readonly canvas: HTMLCanvasElement) {
@@ -240,6 +244,23 @@ export class UnifiedRenderer {
   }
   get worldWidth(): number { return this.backend.width; }
   get worldHeight(): number { return this.backend.height; }
+  get worldPassBackend(): WorldPassBackend['kind'] { return this.backend.kind; }
+  get worldPassInProgress(): boolean { return this.worldPassInProgressValue; }
+
+  /** The client calls this only at a frame boundary, or before restarting a
+   * failed frame. A candidate must reserve successfully before replacing Canvas. */
+  replaceWorldBackend(candidate: WorldPassBackend): Error | undefined {
+    if (candidate === this.backend) return undefined;
+    try { this.reserveBackend(candidate); }
+    catch (error) { candidate.dispose(); throw error; }
+    const previous = this.backend;
+    this.backend = candidate; this.frameLayout = null; this.worldPassInProgressValue = false;
+    let cleanupFailure: Error | undefined;
+    try { previous.dispose(); }
+    catch (error) { cleanupFailure = error instanceof Error ? error : new Error(String(error)); }
+    this.assertNearestNeighbour();
+    return cleanupFailure;
+  }
 
   resize(cssWidth?: number, cssHeight?: number, dpr = devicePixelRatio): void {
     const hostViewport = canvasHostViewport(this.canvas);
@@ -261,6 +282,8 @@ export class UnifiedRenderer {
   }
 
   beginWorld(zoom: number): RenderFrame {
+    this.beforeWorldFrame?.();
+    this.worldPassInProgressValue = true;
     const layout = worldPassLayout(this.cssWidthValue, this.cssHeightValue, this.dprValue, zoom, this.worldScaleValue);
     if (layout.width > this.backend.width || layout.height > this.backend.height) {
       throw new Error('world_pass_capacity_not_reserved');
@@ -273,12 +296,18 @@ export class UnifiedRenderer {
   compositeWorld(): void {
     if (this.frameLayout === null) throw new Error('beginWorld must precede compositeWorld');
     this.backend.composite(this.displayContext, this.canvas.width, this.canvas.height);
+    this.worldPassInProgressValue = false;
+    this.afterWorldFrame?.();
   }
 
   /** Release all world/present surfaces when the owning client is disposed. */
   dispose(): void {
+    this.beforeWorldFrame = undefined; this.afterWorldFrame = undefined; this.worldBackendFailure = undefined;
     try { disposeHudDisplayCaches(this.canvas); }
-    finally { this.backend.dispose(); this.frameLayout = null; }
+    finally {
+      try { this.backend.dispose(); }
+      finally { this.frameLayout = null; this.worldPassInProgressValue = false; }
+    }
   }
 
   beginUi(uiScale: number): CanvasRenderingContext2D {
@@ -303,13 +332,21 @@ export class UnifiedRenderer {
   }
 
   private reserveWorldPass(): void {
+    try { this.reserveBackend(this.backend); }
+    catch (error) {
+      if (this.backend.kind !== 'webgl2' || !this.worldBackendFailure?.(error)) throw error;
+      this.reserveBackend(this.backend);
+    }
+  }
+
+  private reserveBackend(backend: WorldPassBackend): void {
     // Fixed policies are largest at minimum zoom. Native's ceil(deviceZoom)
     // may approach dpr + 1/minZoom at a threshold; reserve that upper bound.
     const density = this.worldScaleValue === 'native' ? this.dprValue + 1 / MIN_WORLD_ZOOM
       : (this.worldScaleValue === '2x' ? 2 : 1) / MIN_WORLD_ZOOM;
     const capacity = worldPassCapacity(Math.ceil(this.cssWidthValue * density),
-      Math.ceil(this.cssHeightValue * density), this.backend.width, this.backend.height);
-    this.backend.reserve(capacity.width, capacity.height,
+      Math.ceil(this.cssHeightValue * density), backend.width, backend.height);
+    backend.reserve(capacity.width, capacity.height,
       this.worldScaleValue !== 'native' ? this.canvas.width : 0,
       this.worldScaleValue !== 'native' ? this.canvas.height : 0);
   }

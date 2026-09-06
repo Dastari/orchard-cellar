@@ -467,18 +467,18 @@ repeatable production loop.
 - [x] Doc 59 P2 — Bounded atlas pages and dual readers — DONE: codex, 2026-09-06 (desktop implementation; startup latency/shared preview qualified, iPad owner to run)
   - Dual readers `5de3e736` preceded bounded writers: 156 atlas pages and three backdrop tiles, every loaded image ≤4 MiB. All 36 originals/frame pixels and review goldens unchanged. Full check passes 577 suites / 3,440 tests; doc 59 §8 records all 22 stages/counters, one 51-ms Dynamic long task and startup +108.8-ms residual.
 - [ ] Doc 59 P3 — Shadowless page variants and runtime filtering removal — IN PROGRESS: codex, 2026-09-06
-  - P2 bounded readers/writers are committed. Builder lane emits declared-span-only omit variants; integrator owns atomic runtime presentation and deletion after mechanical main extraction. No dormant filtered cache remains at exit.
+  - Committed `ed18ed63`:100 omit pages, runtime filtered-frame machinery deleted, atomic page cohorts; historical344-asset comparison and Canvas goldens pass. Authenticated after-stage measurements/shared play remain blocked by the expired session.
 - [ ] Doc 59 P4 — Static/moving coverage and constant-time receivers — IN PROGRESS: codex, 2026-09-06
-  - Receiver lane owns bounded scene/cache modules; integrator owns gameplay extraction, wiring, ledger and gates. Brief: `docs/lanes/59-p4-receivers.md`.
+  - Committed `22f8dcea`: static/moving coverage and retained raster/ImageData uploads;600-frame allocation witnesses and exact goldens pass. Constant-time sampling failed three accuracy approaches and is OPEN; accurate caster sampling remains.
 
 - [ ] Doc 59 P5 — Tint pool and cap-layer consolidation — IN PROGRESS: codex, 2026-09-06
-  - P4 retained-field implementation is committed; its sampling accuracy gate remains OPEN. Exact-RGB tint-page pooling proceeds independently; five-bit quantization and dim derivations failed the pixel gate.
+  - Committed `96c9b6c0`: bounded exact-RGB tint pages, reset/disposal and exact goldens. Five-bit quantization and dim derivations failed three pixel approaches; world filters/cap scratch consolidation remain OPEN. No zero tint-build claim for continuously changing RGB.
 - [ ] Doc 59 P6 — Painter and context hot path — IN PROGRESS: codex, 2026-09-06
-  - Independent of P2 after P0. Integrator alone extracts enqueue/sort ownership from overworld-main.ts before changing it; measured P2 captures and heavy checks remain sequential.
+  - Committed `af5588d6`: mechanically extracted painter ownership, retained numeric sort state,86→19 pairs in the sprite fixture with exact pixels. Raised-terrain clips still require multiple pairs; global one-pair/desynchronized-present gates remain OPEN.
 - [ ] Doc 59 P7 — Frame pacing and HUD caching — IN PROGRESS: codex, 2026-09-06
-  - P1 and P6 implementations are committed. Frame pacing preserves fixed updates; HUD sections need explicit semantic invalidation and exact backing-resolution goldens. Physical iPad default/thermal evidence remains owner to run.
+  - Committed `e0a92b1d`/`556999ba`: persisted30Hz cap preserving fixed updates and three ordered HUD caches,45 exact comparisons,247→80 stationary drawImage calls/frame. Full check600 suites/3,509 tests. Authenticated timings pending; iPad cap default stays off and battery/thermal evidence is owner to run.
 - [ ] Doc 59 P8 — Experimental WebGL2 world pass — IN PROGRESS: codex, 2026-09-06
-  - P0/P2 inputs and prerequisite docs commit 485edbbc exist. Integrator owns the Canvas backend seam first, with exact goldens before any WebGL implementation. Toggle remains absent until backend parity and failure policy are implemented.
+  - Prerequisite docs `485edbbc`, exact Canvas seam `1b0ed15e`, then guarded WebGL integration with persisted off-default toggle, frame-boundary fallback and resource disposal. Canvas-copy present wins pixel parity; three GPU lighting approximations fail and unverified paths visibly fall back. Final 0.6.0 check passes 610 suites / 3,560 tests; isolated builds and Canvas goldens pass. Full acceptance remains OPEN and the release candidate is HOLD; see doc59 P8 ledger and output/perf-59-20260906/release/README.md.
 
 Execute [47-rendering-lighting-performance-plan.md](47-rendering-lighting-performance-plan.md)
 from its measured M0 foundation through the post-release M13 retirement gate. Preserve

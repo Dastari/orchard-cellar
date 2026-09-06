@@ -1,3 +1,5 @@
+import { changeExperimentalWebGL, readExperimentalWebGL, worldBackendStatus } from './world-backend-setting.js';
+export { changeExperimentalWebGL, readExperimentalWebGL, worldBackendStatus, updateWorldBackendStatus, EXPERIMENTAL_WEBGL_EVENT } from './world-backend-setting.js';
 import { compactVideoRows, videoRowHeight as videoSettingsRowHeight } from './video-rows.js';
 import { changePresentationCap, readPresentationCap } from './presentation-cap-setting.js';
 export { changePresentationCap, readPresentationCap, PRESENTATION_CAP_EVENT, type PresentationCapSetting } from './presentation-cap-setting.js';
@@ -402,6 +404,7 @@ export interface OverworldUiLayout {
   readonly lightingQualityButton: UiRect;
   readonly worldScaleButton: UiRect;
   readonly presentationCapButton: UiRect;
+  readonly experimentalWebGLButton: UiRect;
   readonly developerWindow: UiRect;
   readonly developerContent: UiRect;
   readonly developerTabs: Readonly<Record<DeveloperTab, UiRect>>;
@@ -735,6 +738,8 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
   };
   const worldScaleButton = { ...lightingQualityButton, y: lightingQualityButton.y + videoRowHeight };
   const presentationCapButton = { ...worldScaleButton, y: worldScaleButton.y + videoRowHeight };
+  const experimentalWebGLButton = { ...presentationCapButton, x: settingsContent.x + settingsContent.width - 60,
+    width: 50, y: presentationCapButton.y + videoRowHeight };
   const settingsRowStep = Math.max(18, Math.min(30, Math.floor((settingsContent.height - 28) / 5)));
   const settingsRowY = (row: number): number => settingsContent.y + 18 + row * settingsRowStep;
   const settingsSliderLabelSpace = Math.min(72, Math.max(70, Math.floor(settingsContent.width * 0.25)));
@@ -879,6 +884,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     lightingQualityButton,
     worldScaleButton,
     presentationCapButton,
+    experimentalWebGLButton,
     developerWindow,
     developerContent,
     developerTabs,
@@ -1167,6 +1173,7 @@ export class OverworldUi {
   private readonly lightingQualityNode: WidgetNode;
   private readonly worldScaleNode: WidgetNode;
   private readonly presentationCapNode: WidgetNode;
+  private readonly experimentalWebGLNode: WidgetNode;
   private readonly renderProtocolNode: WidgetNode;
   private readonly developerTabNodes: Readonly<Record<DeveloperTab, WidgetNode>>;
   private readonly masterSlider: Slider;
@@ -1640,6 +1647,13 @@ export class OverworldUi {
         return true;
       },
     });
+    this.experimentalWebGLNode = widget('button', 'window.settings.video.experimental-webgl', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down' || event.button !== 0) return false;
+        changeExperimentalWebGL(!readExperimentalWebGL());
+        return true;
+      },
+    });
     this.renderProtocolNode = widget('button', 'window.developer.render.protocol', {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down' || event.button !== 0) return false;
@@ -1736,6 +1750,7 @@ export class OverworldUi {
       this.lightingQualityNode,
       this.worldScaleNode,
       this.presentationCapNode,
+      this.experimentalWebGLNode,
       this.renderProtocolNode,
       ...DEVELOPER_TABS.map((tab) => this.developerTabNodes[tab]),
       this.previousDayNode,
@@ -1979,6 +1994,7 @@ export class OverworldUi {
     this.lightingQualityNode.setBounds(this.layout.lightingQualityButton);
     this.worldScaleNode.setBounds(this.layout.worldScaleButton);
     this.presentationCapNode.setBounds(this.layout.presentationCapButton);
+    this.experimentalWebGLNode.setBounds(this.layout.experimentalWebGLButton);
     this.renderProtocolNode.setBounds({ ...this.layout.orePreviewButton,
       x: this.layout.developerContent.x + 12, width: this.layout.developerContent.width - 24,
       y: this.layout.orePreviewButton.y + 30 });
@@ -3009,6 +3025,8 @@ export class OverworldUi {
     this.worldScaleNode.enabled = this.worldScaleNode.visible;
     this.presentationCapNode.visible = this.lightingQualityNode.visible;
     this.presentationCapNode.enabled = this.presentationCapNode.visible;
+    this.experimentalWebGLNode.visible = this.lightingQualityNode.visible;
+    this.experimentalWebGLNode.enabled = this.experimentalWebGLNode.visible;
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].visible = developerVisible;
     const developerWorldVisible = developerVisible && this.developerTab === 'world';
     const developerRenderVisible = developerVisible && this.developerTab === 'render';
@@ -3904,6 +3922,7 @@ export class OverworldUi {
       ['LIGHTING', lightingSettingsMode(this.model).toUpperCase()],
       ['WORLD SCALE', worldScaleSettingLabel(readWorldScale())],
       ['30 HZ CAP', readPresentationCap() === '30hz' ? 'ON' : 'OFF'],
+      ['EXPERIMENTAL: WEBGL RENDERER', readExperimentalWebGL() ? 'ON' : 'OFF'],
       ['WEATHER DETAIL', 'HIGH'],
     ] as const : this.settingsTab === 'interface' ? [
       ['HUD VISIBILITY', 'FULL'],
@@ -3921,27 +3940,33 @@ export class OverworldUi {
       ['HOLD ASSIST', 'OFF'],
     ] as const;
     const visibleRows = this.settingsTab === 'video' && compactVideoRows(settingsContent.height)
-      ? settingRows.filter(([label]) => label === 'LIGHTING' || label === 'WORLD SCALE' || label === '30 HZ CAP') : settingRows;
+      ? settingRows.filter(([label]) => label === 'LIGHTING' || label === 'WORLD SCALE' || label === '30 HZ CAP' || label === 'EXPERIMENTAL: WEBGL RENDERER') : settingRows;
     const rowHeight = this.settingsTab === 'video' ? videoSettingsRowHeight(settingsContent.height)
       : Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / visibleRows.length)));
     visibleRows.forEach(([label, value], index) => {
       const y = settingsContent.y + 23 + index * rowHeight;
-      drawPixelTextInRect(context, this.fonts, label, {
-        x: settingsContent.x + 10, y, width: Math.max(40, settingsContent.width * 0.46), height: Math.min(18, rowHeight),
+      const displayLabel = label === 'EXPERIMENTAL: WEBGL RENDERER' && settingsContent.width < 280 ? 'WEBGL*' : label;
+      drawPixelTextInRect(context, this.fonts, displayLabel, {
+        x: settingsContent.x + 10, y, width: label === 'EXPERIMENTAL: WEBGL RENDERER' ? settingsContent.width - 75 : Math.max(40, settingsContent.width * 0.46), height: Math.min(18, rowHeight),
       }, { verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
       const interactiveLightingModel = this.settingsTab === 'video' && label === 'LIGHTING';
       const interactiveWorldScale = this.settingsTab === 'video' && label === 'WORLD SCALE';
       const interactiveCap = this.settingsTab === 'video' && label === '30 HZ CAP';
+      const interactiveBackend = this.settingsTab === 'video' && label === 'EXPERIMENTAL: WEBGL RENDERER';
       drawMenuButton(context, this.skin, this.fonts, this.pointer, interactiveLightingModel
-        ? this.lightingQualityNode.bounds : interactiveWorldScale ? this.worldScaleNode.bounds : interactiveCap ? this.presentationCapNode.bounds : {
+        ? this.lightingQualityNode.bounds : interactiveWorldScale ? this.worldScaleNode.bounds : interactiveCap ? this.presentationCapNode.bounds : interactiveBackend ? this.experimentalWebGLNode.bounds : {
         x: settingsContent.x + Math.floor(settingsContent.width * 0.5), y,
         width: Math.max(40, settingsContent.width * 0.5 - 10), height: Math.min(18, rowHeight),
-      }, value, { tone: interactiveLightingModel || interactiveWorldScale || interactiveCap ? 'green' : 'silver', disabled: !interactiveLightingModel && !interactiveWorldScale && !interactiveCap });
+      }, value, { tone: interactiveLightingModel || interactiveWorldScale || interactiveCap || interactiveBackend ? 'green' : 'silver', disabled: !interactiveLightingModel && !interactiveWorldScale && !interactiveCap && !interactiveBackend });
     });
     const lightingHint = lightingSettingsMode(this.model) === 'dynamic' && this.model.lightingEffectsDisabled
       ? this.model.lightingFallbackReason === 'preparing' ? 'PREPARING DYNAMIC LIGHTING...' : 'DYNAMIC UNAVAILABLE; USING BASIC'
       : 'CLICK LIGHTING: BASIC / CLASSIC / DYNAMIC';
-    drawPixelTextInRect(context, this.fonts, this.settingsTab === 'video' ? lightingHint : 'CONFIGURATION SUPPORT IS RESERVED FOR A LATER UPDATE.', {
+    const backend = worldBackendStatus();
+    const videoHint = backend.fallbackReason !== null ? `CANVAS: ${backend.fallbackReason.replace(/^webgl_/, '').replaceAll('_', ' ').toUpperCase()}`
+      : backend.preparing ? 'PREPARING EXPERIMENTAL WEBGL...' : backend.backend === 'webgl2' ? 'EXPERIMENTAL WEBGL ACTIVE'
+        : settingsContent.width < 280 ? '* EXPERIMENTAL WEBGL RENDERER' : lightingHint;
+    drawPixelTextInRect(context, this.fonts, this.settingsTab === 'video' ? videoHint : 'CONFIGURATION SUPPORT IS RESERVED FOR A LATER UPDATE.', {
       x: settingsContent.x + 10,
       y: settingsContent.y + settingsContent.height - 17,
       width: settingsContent.width - 20,

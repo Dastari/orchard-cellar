@@ -13,12 +13,14 @@ export class CanvasWorldPresent {
   private readonly canvas = document.createElement('canvas');
   private readonly context: CanvasRenderingContext2D;
   constructor() {
-    const context = this.canvas.getContext('2d');
-    if (context === null) {
-      this.canvas.width = this.canvas.height = 0;
-      throw new Error('World present Canvas 2D unavailable');
+    try {
+      const context = this.canvas.getContext('2d');
+      if (context === null) throw new Error('World present Canvas 2D unavailable');
+      this.context = context;
+    } catch (error) {
+      try { this.dispose(); } catch { /* Preserve the constructor failure. */ }
+      throw error;
     }
-    this.context = context;
     this.canvas.width = this.canvas.height = 0;
   }
   reserve(width: number, height: number): void {
@@ -26,7 +28,12 @@ export class CanvasWorldPresent {
     if (this.canvas.height < height) this.canvas.height = height;
   }
   get bytes(): number { return this.canvas.width * this.canvas.height * 4; }
-  dispose(): void { this.canvas.width = this.canvas.height = 0; }
+  dispose(): void {
+    const failures: unknown[] = [];
+    try { this.canvas.width = 0; } catch (error) { failures.push(error); }
+    try { this.canvas.height = 0; } catch (error) { failures.push(error); }
+    if (failures.length) throw new AggregateError(failures, 'world_present_disposal_failed');
+  }
   draw(target: CanvasRenderingContext2D, source: HTMLCanvasElement,
     sourceWidth: number, sourceHeight: number, width: number, height: number): void {
     const present = worldPresentLayout(sourceWidth, sourceHeight, width, height);

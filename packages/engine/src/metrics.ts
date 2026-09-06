@@ -165,8 +165,21 @@ export interface CompletedRenderFrame {
   readonly counters: Readonly<RenderCounterValues>;
 }
 export type RenderFrameObserver = (frame: CompletedRenderFrame) => void;
+export interface WorldGpuDiagnostics {
+  readonly gpuTimingAvailable: boolean; readonly gpuTimeMs: number | null;
+  readonly gpuCompletedSamples: number; readonly gpuDisjointSamples: number;
+  readonly gpuPendingQueries: number; readonly gpuQueries: number;
+  readonly textures: number; readonly textureBytes: number; readonly textureUploads: number;
+  readonly buffers: number; readonly programs: number; readonly vertexArrays: number;
+  readonly drawCalls: number; readonly bytes: number;
+}
+export interface WorldBackendTelemetry {
+  readonly backend: 'canvas2d' | 'webgl2'; readonly fallbackReason: string | null;
+  readonly generation: number; readonly gpu: WorldGpuDiagnostics | null;
+}
 
 export interface RenderMetricsSnapshot {
+  readonly worldPass: WorldBackendTelemetry;
   readonly counters: Readonly<RenderCounterValues>;
   readonly nativeCanvasCountersSupported: boolean;
   readonly schemaVersion: 2;
@@ -186,6 +199,12 @@ export interface RenderMetricsSnapshot {
 /** Renderer-wide telemetry. The legacy average/worst fields remain in the
  * snapshot while callers migrate to the distribution and named stages. */
 export class RenderMetrics {
+  private worldBackend: WorldBackendTelemetry = { backend: 'canvas2d', fallbackReason: null, generation: 0, gpu: null };
+  get worldBackendTelemetry(): WorldBackendTelemetry { return this.worldBackend; }
+  recordWorldBackend(backend: 'canvas2d' | 'webgl2', fallbackReason: string | null,
+    generation: number, gpu: WorldGpuDiagnostics | null): void {
+    this.worldBackend = { backend, fallbackReason, generation, gpu };
+  }
   private readonly frames: FixedMetricSeries;
   private readonly frameIntervals = new FixedMetricSeries(FRAME_INTERVAL_CAPACITY);
   private readonly inputToRenderSubmit = new FixedMetricSeries(FRAME_INTERVAL_CAPACITY);
@@ -301,6 +320,7 @@ export class RenderMetrics {
     const frame = this.frames.snapshot();
     return {
       schemaVersion: 2,
+      worldPass: this.worldBackend,
       counters: { ...this.completedCounters },
       nativeCanvasCountersSupported: renderCounterSupport.nativeCanvas,
       frame,

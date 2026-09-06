@@ -2665,3 +2665,15 @@ See [doc58 release ledger](58-seasonal-lighting-and-baked-shadow-plan.md) and
 [measured evidence](../output/lighting-58-20260906/release/README.md) for the
 45-asset rollout, remaining candidates, authenticated checks, and performance
 limits. Earlier pending-publication entries above are historical checkpoints.
+
+
+**2026-09-06 doc59 implementation checkpoint (unreleased):** P2 bounded pages
+and P3 per-page omit variants replace doc58 runtime filtered frames. Canvas 1×
+with nearest-then-smooth present is the client default; Video also offers2×
+and Native. The experimental WebGL2 preference defaults off and always retains
+Canvas fallback/HUD. Its CSS-layer present failed pixel parity, so Canvas-copy
+is retained. Three translucent shader approximations failed the one-step gate;
+unverified operations visibly fall back and P8 adoption/full parity remains
+OPEN. Raw-field GPU inputs do not imply accepted GPU lighting. Doc59 §8 records
+original stage numbers, device limits, unresolved Classic/filter/receiver/painter
+gates and physical iPad rows; no performance target or deployment is claimed.

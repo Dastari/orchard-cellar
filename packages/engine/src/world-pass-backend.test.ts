@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CanvasWorldPassBackend } from './world-pass-canvas.js';
 import { UnifiedRenderer, worldPassLayout } from './renderer.js';
+import { CanvasWorldPresent } from './world-pass-present.js';
 
 afterEach(() => vi.unstubAllGlobals());
 function surfaces() {
@@ -14,6 +15,19 @@ function surfaces() {
   return result;
 }
 describe('Canvas world backend lifetime and submission boundary', () => {
+  it('attempts both present backing axes when one disposal setter throws', () => {
+    const canvases = surfaces(), present = new CanvasWorldPresent(), backing = canvases[0]!;
+    present.reserve(1280, 720);
+    Object.defineProperty(backing, 'width', { get: () => 1280, set: () => { throw new Error('width failed'); } });
+    expect(() => present.dispose()).toThrow('world_present_disposal_failed');
+    expect(backing.height).toBe(0); expect(present.bytes).toBe(0);
+  });
+  it('clears an inaccessible present backing when context creation throws', () => {
+    const canvas = { width: 300, height: 150, getContext: () => { throw new Error('context creation failed'); } };
+    vi.stubGlobal('document', { createElement: () => canvas });
+    expect(() => new CanvasWorldPassBackend()).toThrow('context creation failed');
+    expect([canvas.width, canvas.height]).toEqual([0, 0]);
+  });
   it('retains world and present capacity then releases every backing on dispose', () => {
     const canvases = surfaces();
     const backend = new CanvasWorldPassBackend();

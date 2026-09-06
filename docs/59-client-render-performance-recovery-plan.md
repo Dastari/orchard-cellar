@@ -523,6 +523,23 @@ backend (grep test).
 **Exit:** toggle shipped off by default; both backends' stage p95s, GPU
 timings where available, and memory recorded on both devices in the ledger.
 
+P8 accuracy OPEN (2026-09-06): three translucent shader representations fail
+the one-step Canvas gate, with sprite maxima2 and4,144 /3,064 /840 channels above
+one. The corrected ground residual is maximum2 /160 channels above one. The
+first attempt's separate coordinate bug and all original results are preserved
+under P8/webgl. Production must reject unverified receiver/ground/multiply and
+source-downsampling operations, with a visible session Canvas fallback; the
+internal fixture switch is never a Video option. Actual unlit source-over and
+the existing seasonal fixture qualify within one step, but this does not close
+the full P8 lighting/parity gate. No fourth approximation is attempted.
+
+P8 presentation choice (2026-09-06): retain Canvas-copy. On the matched synthetic
+SwiftShader fixture it is slower (composite p95 7.1ms vs layer0.5ms) but has exact
+presentation pixels; the CSS pixelated layer differs by up to82 steps at the
+required fractional upscale. Hardware gameplay and iPad results remain pending.
+
+P8 integration scope extension (2026-09-06): the extracted gameplay renderer, lighting-fallback and protocol modules own client policy without further main-file logic edits. The existing receiver/ground source adapters, receiver scene and world-lighting renderer carry immutable source/RGB/raw-field metadata to the GPU hook; atlas presentation releases GPU cohorts. These bounded producer changes are needed to bypass CPU tint/scratch surfaces. Metrics and Video row helpers carry backend diagnostics. No schema, dependency or deployment changes.
+
 P8 seam scope extension (2026-09-06): `world-pass-present.ts` gains explicit
 backing disposal so the extracted Canvas backend owns its complete resource
 lifetime. The existing gameplay compatibility context stays available while
@@ -2283,3 +2300,209 @@ and `compare-hud.ts`; P7 `build-goldens.mjs`, `run-goldens.mjs`,
 `compare-paged-terrain.ts`. Agent fixture evidence is preserved under `hud/`;
 the integrated replay is under `hud-integrated/`. iPad remains **owner to run**
 using the preceding P7 cap-OFF/cap-ON protocol steps and physical battery trace.
+
+
+### 2026-09-06 — P8 experimental backend integration checkpoint
+
+Status: **IN PROGRESS**. Initial integration check passes **610 suites /3,558 tests**, **888.03s** Vitest duration, plus types/lint/assets (`P8/check-webgl.log`). Final 0.6.0 check also passes: **610 suites / 3,560 tests**, **818.90s**, with types, lint and asset validation (`release/check-0.6.0.log`). The persisted Video
+control defaults off; Canvas 1× remains the client default. Known unsupported
+lighting/downsampling operations deliberately latch Canvas with a visible
+`worldPassFallbackReason`. Full GPU lighting parity and authenticated desktop
+acceptance are OPEN, not waived by the experimental label.
+
+`P8/integrated/source-hashes-before-final-ownership.json` identifies40 initial runtime/test files against
+`556999ba`: lazy client backend controller and tests, frame retry handling,
+metrics/protocol metadata, Video policy/layout, renderer ownership, source
+adapters, retained raw coverage/local fields,16 new WebGL modules/tests and
+Canvas present cleanup. The backend seam was already committed separately.
+No new dependencies. All new modules remain below400 lines. `world-readback.test.ts`
+recursively checks engine/client/UI runtime sources, including WebGL; only
+existing CPU source-art preprocessing is explicitly allowed.
+
+The shared painter submits directly through the strict GPU context adapter.
+Page textures are nearest filtered; immutable images upload once per revision;
+mutable Canvas sources require a matching frame/revision. Receiver RGB is vertex
+data. Ground metadata carries the three coverage byte fields plus local RGBA,
+with shader corner-max resolve before interpolation. The Canvas producer path
+remains unchanged. GPU ground source preparation bypasses the tint pool, scratch
+Canvas and ImageData. Raw fields retain at most8 entries /16MiB including their
+coverage references, and use monotonically increasing upload revisions even
+across entry eviction/reset. Review caught and fixed a repeated-revision texture
+staleness case. A600-moving-update test retains the same arrays, samples local
+RGB only on local revision changes, performs zero CPU RGB merges, and releases
+all scene bytes on reset. Dynamic destination multiply currently rejects before
+creating a Canvas lighting plane; it does not conceal the parity gap with a CPU
+flattened world upload.
+
+Toggle transitions occur at frame boundaries. Stale asynchronous module loads
+are ignored; disabling releases the GPU backend. Every backend failure latches
+Canvas for the session while preserving the stored choice. World errors retry
+a complete frame once; lighting failure can independently retry once. HUD
+errors are outside the world phase and retain their original exception. Resize,
+constructor/import/shader/resource/extension/restore failures have explicit
+tests. Cleanup attempts every buffer, VAO, program, shader, texture, query, event
+listener and backing axis even when another release throws. Restoration rebuilds
+GPU objects from retained CPU page/field sources.
+
+`P8/integrated/focused-tests.log`:18 suites /82 tests pass before the final
+raw-revision regression assertion; that assertion also passes in its3-test suite.
+Engine/client typechecks and scoped lint pass. Agent ownership/release followups
+have28 focused tests plus real-browser loss/restoration probes. Full canonical
+`npm run check` is recorded in `P8/check-webgl.log`.
+
+`P8/integrated/golden-comparison.json`: all four Canvas lighting review boards
+exact, zero changed channels. `paged-terrain-comparison.json`: all six terrain
+and pond views exact at1×/2×/Native, HUD witness exact. The integrated Video
+fixture clicks ON, reloads to confirm persistence, activates a real WebGL2
+backend, invokes `WEBGL_lose_context`, renders the next boundary on Canvas and
+shows **CANVAS: CONTEXT LOST** while the toggle staysON. The actual lost backend
+releases **10,190,852 bytes →0**, textures1→0, buffer/program/VAO1→0 each. Root
+viewed normal and compact screenshots. Evidence: `P8/integrated/video/` and
+`dist/video-review.js`; isolated UI/world fixture, not authenticated gameplay.
+
+The software-GPU device is Chrome152.0.7977.64 / Linux6.17.2-1-pve / Ryzen9955HX,
+ANGLE Vulkan SwiftShader, no throttling. `P8/webgl/device.json` records this;
+there is no hardware-GPU or iPad performance claim. Both present candidates use
+1280×720, DPR1, zoom3, world1×427×240,600 unlit sprites,5-second warm-up and
+30-second active-rAF sample,1,802 frames each:
+
+| Synthetic present stage, ms p50/p95/p99 | Canvas copy (kept) | CSS world layer (rejected) |
+|---|---:|---:|
+| GPU CPU-side submission | 0.300/0.500/0.600 | 0.300/0.500/0.600 |
+| Final present | 5.700/7.100/8.000 | 0.300/0.500/1.200 |
+| Whole synthetic frame | 6.100/7.500/8.300 | 0.600/0.900/1.500 |
+| Retained bytes | 5,181,768 | 1,495,368 |
+| Texture count / uploads / batches per frame | 2 /2 total /2 | 2 /2 total /2 |
+| Bytes after dispose | 0 | 0 |
+
+Canvas copy preserves the P1 nearest-then-smooth contract exactly. The CSS layer
+changes194,053 channels above one step, maximum82, on the matched presentation
+fixture, with HUD exact. Therefore its faster synthetic number is not accepted.
+`P8/webgl/present-*.json` preserves original timings and pixel results.
+
+The three lighting attempts and original residuals are preserved in
+`P8/webgl/attempt-{1,2,3}.json` and `rounding-attempts.md`: sprite channels above
+one4,144 /3,064 /840 (maximum2); corrected ground channels568 then160
+(maximum2). Attempt1 also had a coordinate bug, maximum156. Unlit source-over
+qualifies within one; the actual seasonal board qualifies within one in the
+internal diagnostic mode, but full GPU lighting does not. Source downsampling
+has a separate maximum138 edge discrepancy. Production rejects these unverified
+paths and shows Canvas fallback; no fourth approximation is attempted.
+
+Metrics label the active backend and reason. Optional disjoint timer queries
+retain at most8 reusable queries and poll only available, non-disjoint results;
+this software device reports unavailable, **not zero GPU time**. Protocol JSON
+separates Canvas native counters from GPU batches/resources and records latest
+completed GPU times observed during the active sample (batched completions may
+not all be represented). GPU scope excludes Canvas final present/HUD.
+
+The last real-client desktop baseline remains P2. Every stage below is original
+ms p50/p95/p99; neither synthetic present timings nor unit-test injections are
+substituted for after-stage gameplay measurements.
+
+| Stage | Basic P2 before | Classic P2 before | Dynamic P2 before | P8 Canvas / WebGL after |
+|---|---:|---:|---:|---|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 | unmeasured — authentication required |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 | unmeasured — authentication required |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 | unmeasured — authentication required |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 | unmeasured — authentication required |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 | unmeasured — authentication required |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 | unmeasured — authentication required |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 | unmeasured — authentication required |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 | unmeasured — authentication required |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingDynamicSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 | unmeasured — authentication required |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 | unmeasured — authentication required |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 | unmeasured — authentication required |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 | unmeasured — authentication required |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 | unmeasured — authentication required |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 | unmeasured — authentication required |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+Real-client per-frame counters after P8 are **unmeasured — authentication
+required**. GPU fixture resource counts above and raw-field allocation tests
+are separate evidence. No zero-lighting Classic claim or desktop6/10ms target
+claim is made. Shared-preview walking and minute-per-mode/scale/backend visual
+review remain blocked by the expired authenticated session.
+
+Physical iPad: **owner to run**. Open the candidate preview after signing in;
+Video → World scale1×, 30Hz cap OFF, Experimental WebGL OFF; use System → Developer
+→ Render → **Run protocol + copy JSON** and keep Safari visible for105 seconds.
+Repeat with WebGL ON, preserving any fallback reason (a Canvas fallback sample
+is not a GPU sample), then2×/Native and cap ON. Record iPad model/iPadOS/Safari,
+DPR, browser zoom100%, resolution and a matched battery/thermal trace. JSON
+contains commit, all stages/counters, actual backend and optional GPU timing.
+Use **Copy capture JSON** if automatic clipboard copy is refused.
+
+Commands: canonical `npm run check`; focused Vitest suites; engine/client
+`tsc --noEmit`; scoped ESLint; private P8 `build-goldens.mjs`, `run-goldens.mjs`,
+`run-scale-goldens.mjs` (also `PERF59_POND=1`), `compare-goldens.ts`,
+`compare-paged-terrain.ts`, `review-video.mjs`; agent parity/present/loss scripts
+listed in `P8/webgl/handoff.md`. No deployment or production-dist build occurred.
+
+
+P8 literal-fixture follow-up: `P8/webgl/all-fixtures/` runs30 jobs against the
+current integration, with no automatic Canvas fallback in the harness. All
+Canvas baselines complete. Production GPU rejects unverified multiply in
+Seasonal/Celestial and legacy Lighting, and ground composite in World plus all
+six terrain/pond boards. Diagnostic GPU completes Seasonal16panels (maximum1,
+zero channels above1) and Celestial9panels (**maximum63,229,351 channels above1**);
+Celestial platform tops/shadows visibly differ. Legacy Lighting stops after two
+modes on unsupported `context.filter`; World/terrain retain the ground guard.
+Native Canvas board labels are exact on both completed GPU boards, but neither
+contains an explicit HUD witness. There is no completed GPU World/terrain HUD
+witness comparison. These results explicitly fail P8's full parity gate; no
+fourth shader approximation was attempted. Source hashes, original per-job
+results, PNGs and reproduction commands are included.
+
+
+P8 final packaging/ownership checkpoint: the build probe initially placed GPU
+implementation code in the eager Canvas chunk despite the dynamic client import
+(Canvas chunk254.39kB). A dedicated `webgl-world` group excluding recursive
+dependency capture keeps27.75kB of GPU implementation lazy; Canvas chunk226.66kB.
+`scripts/check-client-build-chunks.ts` now traverses static imports to reject any
+eager path to the GPU implementation. This minimally extends P8 scope to the
+existing Vite config/chunk gate. Build warning thresholds for unrelated existing
+UI/simulation chunks are unchanged. Version-only manifest/lock changes prepare
+0.6.0 as requested; no dependency versions change.
+
+Final ownership review also found that the disposed GPU wrapper reported zero
+managed bytes while its geometry object still retained540,672 CPU staging bytes.
+Geometry now releases that array and separately accounts the equally sized GPU
+buffer; backend disposal clears adapter state too. Active geometry bytes remain
+1,081,344; both allocations reach0 after disposal, including injected deletion
+failure. The final browser context-loss replay includes that fix. GPU resource
+telemetry is refreshed after the current world composite, so per-frame batch
+counts do not lag a submitted frame. `final-ownership-tests.log`:10 suites /56
+tests pass, including source-boundary checks. All rendering methods/shaders
+remain unchanged by disposal fixes. Final full 0.6.0 gate passes below.
+
+
+The final frozen source set is `P8/integrated/source-hashes.json`:55 explicit
+files against556999ba, including13 version-only manifests/lockfiles and the two
+packaging files. Both canonical/integrator source hashes matched the initial
+passed gate before this final update. The final full gate is
+`release/check-0.6.0.log`: **PASS**, 610 suites / 3,560 tests, 818.90 seconds Vitest duration; types, lint and asset validation pass. All 55 source hashes match canonical, integrator and private build roots.
+The release request, rollback artifact and exact proposed live commands are in
+`output/perf-59-20260906/release/README.md`, explicitly **HOLD**. The request does
+not authorize deployment or waive any OPEN acceptance requirement.
+
+
+Final release lockfile correction: the initial broad version bump also touched
+`packages/world/node_modules/typescript`, whose pre-existing version field was
+0.5.7 despite a5.6.3 resolved tarball/integrity and installed compiler. Restore
+that field to5.6.3; only root/workspace manifests become0.6.0. No resolved
+dependency, integrity or declaration changes. The interrupted initial0.6.0
+check is preserved as `release/check-0.6.0-pre-lock-fix.log`; it is not a pass.
+The final gate was restarted after this correction and passed.
+
+
+Release preparation: isolated `npm run build` passes (`release/build-0.6.0-final.log`); the production-mode client build and chunk-isolation gate pass. All 323 regenerated files are byte-identical. Static artifact smoke has zero browser exceptions and loads neither omit pages nor the GPU implementation on sign-in; this is not authenticated gameplay evidence. The final committed build is sealed as `release/client-0.6.0.tar`, with `client-0.6.0.sha256` and `candidate-manifest.json` recording its exact commit, source and file hashes. The 384-file rollback archive is `release/client-dist-before-0.6.0.tar`; production remains unchanged. Archive completion and exact gate/build provenance are recorded in the linked release README. P3–P8 acceptance remains OPEN, so this is a held candidate, not a completed release.

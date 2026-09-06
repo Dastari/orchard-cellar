@@ -3,7 +3,7 @@ import { sameProtocolDisplay, type GameplayDiagnosticState } from './gameplay-re
 
 it('accepts changing HUD telemetry while still rejecting changed capture geometry or policy', () => {
   const before: GameplayDiagnosticState['display'] = { dpr: 1, cssWidth: 1280, cssHeight: 720, worldZoom: 2,
-    uiScale: 2, worldScale: '1x', backend: 'canvas2d', presentationCap: 'off',
+    uiScale: 2, worldScale: '1x', backend: 'canvas2d', presentationCap: 'off', worldPassFallbackReason: null,
     hudCache: { bytes: 11059200, caches: 3, builds: 3, reuses: 100, allocations: 3 } };
   expect(sameProtocolDisplay(before, { ...before, hudCache: { ...before.hudCache!, reuses: 1900 } })).toBe(true);
   expect(sameProtocolDisplay(before, { ...before, worldScale: 'native' })).toBe(false);

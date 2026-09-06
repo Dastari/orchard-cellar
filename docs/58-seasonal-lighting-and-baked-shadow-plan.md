@@ -1146,3 +1146,20 @@ phases and 1,175 exact fullbright pixels. Public 0.5.7 artifacts verified; world
 process unchanged. Classic stays default. Authenticated lantern/device acceptance,
 Classic fullbright treatment and local-light character shadows remain pending.
 See [release evidence and limits](../output/playwright/animal-grounding-20260906/README.md).
+
+
+### 2026-09-06 — doc59 recovery implementation, unreleased
+
+Doc59's settled A1/B2/C amendments now have implementation checkpoints:100
+bounded omit-page variants load only for the atomic Dynamic cohort; the runtime
+filtered-frame cache/preparation machinery is deleted. Original artwork and the
+36 legacy atlases remain immutable;341 unique assets in the historical344
+comparison have zero unexpected changed pixels. D4 and D10 still bind.
+
+Canvas 1× is the default world resolution, with2×/Native in Video. Ordered HUD
+caches and an optional30Hz presentation cap preserve Canvas pixels and fixed
+updates. Experimental WebGL is off by default and falls back visibly; incomplete
+GPU lighting parity does not amend this document's visual contract. Classic's
+legacy lightmap and remaining world filters/cap scratch work are explicitly
+OPEN in doc59. These are local implementation records, not a0.6.0 deployment
+or completed desktop/iPad performance acceptance.

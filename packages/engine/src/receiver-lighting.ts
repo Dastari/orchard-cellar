@@ -4,6 +4,7 @@ import { directionalGeometryKey, directionalMaskBytes, DirectionalShadowCache, s
 import type { RgbColor } from './lighting.js';
 import type { LightingReceiver, LightingReceiverClass, ReceiverLightContributions } from './lighting-types.js';
 import { LightingIdentities, LightingNumericKey } from './lighting-numeric-key.js';
+import { RawReceiverFields, type RawReceiverField } from './receiver-raw-field.js';
 import { blitReceiverCoverage, contactCoverage, copyReceiverCoverage, createReceiverCoverage, type PreparedCaster, type ReceiverCoverageBounds, type ReceiverCoverageChannels } from './receiver-coverage.js';
 
 const BLACK: RgbColor = { r: 0, g: 0, b: 0 };
@@ -49,6 +50,7 @@ const EMPTY_CASTERS: readonly DirectionalCaster[] = [];
 /** Retain static receiver planes independently of interpolated actor placement.
  * Working coverage and RGB buffers remain allocated across moving updates. */
 export class CelestialReceiverScene {
+  private readonly rawFields = new RawReceiverFields();
   private staticCasters: readonly DirectionalCaster[] = EMPTY_CASTERS;
   private movingCasters: readonly DirectionalCaster[] = EMPTY_CASTERS;
   private staticIdentity: number | undefined;
@@ -82,6 +84,7 @@ export class CelestialReceiverScene {
     this.lookupKey(geometry);
     const staticChanged = staticIdentity === undefined ? fixed !== this.staticCasters : staticIdentity !== this.staticIdentity;
     if (staticChanged || geometry !== this.geometryKey) {
+      this.rawFields.reset();
       this.prepared.clear(); this.preparedBytes = 0; this.activeMasks.clear(); this.coverageFields.clear(); this.coverageBytes = 0; this.coverageCount = 0;
       this.generation++; this.revision++;
     }
@@ -228,6 +231,12 @@ export class CelestialReceiverScene {
     this.merge(entry.raster, receiverHeight, local); entry.revision = this.revision; entry.localRevision = localRevision;
     return entry.raster;
   }
+  rawFieldCached(localRevision: string | number, left: number, top: number, width: number, height: number,
+    receiverHeight: number, step = 1, local?: (x: number, y: number) => RgbColor): RawReceiverField {
+    if (this.skyValue === null) throw new Error('celestial_scene_not_prepared');
+    const coverage = this.coverage(left, top, width, height, receiverHeight, step).working;
+    return this.rawFields.get(localRevision, this.revision, this.skyValue, left, top, width, height, receiverHeight, step, coverage, local);
+  }
   rasterize(left: number, top: number, width: number, height: number, receiverHeight: number, step = 1, local?: (x: number, y: number) => RgbColor): ReceiverLightRaster {
     // NaN is deliberately unequal to its previous value: callers without a
     // local revision always refresh RGB while retaining the same backing array.
@@ -256,9 +265,10 @@ export class CelestialReceiverScene {
     return [...this.coverageFields.values()].flatMap((bucket) => bucket.map((plane) => ({ static: plane.fixed, working: plane.working })));
   }
   get retainedMaskBytes(): number { return this.cache.bytes + this.preparedBytes; }
-  get retainedRasterBytes(): number { return this.rasterBytes; }
+  get retainedRasterBytes(): number { return this.rasterBytes + this.rawFields.bytes; }
   get retainedCoverageBytes(): number { return this.coverageBytes; }
   reset(): void {
+    this.rawFields.reset();
     this.generation++; this.revision++; this.prepared.clear(); this.preparedBytes = 0; this.rasters.clear(); this.rasterBytes = 0; this.rasterCount = 0;
     this.coverageFields.clear(); this.coverageBytes = 0; this.coverageCount = 0; this.skySignature = []; this.movingSignature = [];
     this.staticCasters = EMPTY_CASTERS; this.movingCasters = EMPTY_CASTERS; this.staticIdentity = undefined; this.skyValue = null; this.geometryKey = -1;
