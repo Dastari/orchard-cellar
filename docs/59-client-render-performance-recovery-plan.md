@@ -507,6 +507,15 @@ backend (grep test).
 **Exit:** toggle shipped off by default; both backends' stage p95s, GPU
 timings where available, and memory recorded on both devices in the ledger.
 
+P8 seam scope extension (2026-09-06): `world-pass-present.ts` gains explicit
+backing disposal so the extracted Canvas backend owns its complete resource
+lifetime. The existing gameplay compatibility context stays available while
+semantic sprite/chunk/cap/plane/weather/particle submissions are connected to
+the experimental implementation. Canvas consumes the existing prepared sprite
+source; the common command also carries immutable artwork, receiver RGB and
+variant metadata for GPU submission. No WebGL code or toggle ships in the
+Canvas extraction commit.
+
 ## 6. Verification
 
 Automated (run the relevant subset per milestone, all at P6):
@@ -1982,3 +1991,100 @@ engine typecheck and scoped ESLint; `node .../P5/tint-pool-build.mjs`,
 `compare-goldens.ts`, `compare-paged-terrain.ts`. Formula experiments and their
 original failed comparisons remain alongside `quantization-comparison.json`
 and under `filter-feasibility/`; no fourth approximation was attempted.
+
+### 2026-09-06 — P8 Canvas ownership/submission seam checkpoint
+
+Status: **IN PROGRESS**, Canvas seam only. Prerequisite experimental-backend
+wording in docs01/02/21 was committed as `485edbbc` before prototype work.
+No WebGL code, toggle, GPU timing or WebGL parity is claimed at this checkpoint.
+Full canonical gate: **591 suites / 3,482 tests passed**, 872.53 seconds
+(`check-canvas-seam.log`); typecheck, lint and asset validation pass. Artifacts are under
+`output/perf-59-20260906/P8/`; `seam-source-hashes.json` records the five changed
+engine files against `96c9b6c0`.
+
+`WorldPassBackend` owns world/present capacity, begin/composite and disposal,
+and names sprite, cap-run, chunk, smooth-plane, weather and particle submissions.
+The Canvas implementation retains the existing frame reset/composite sequence.
+Sprite commands carry immutable artwork plus RGB/variant metadata and the exact
+prepared Canvas source. The gameplay painter still uses its existing Canvas
+compatibility context; this is not yet a complete backend-neutral submission
+migration. HUD drawing remains on the display Canvas. Backend switching and
+client teardown still need to call the new disposal boundary in the later
+experimental integration.
+
+`seam-tests.log`: two suites / 17 tests pass. Six hundred begins retain two
+surfaces; explicit disposal releases all world/present backing bytes and rejects
+new semantic submissions. The display context is validated before allocating
+backend surfaces; a failed world context releases partial backings. Semantic
+submissions require begin first. Review found and corrected an initially missing
+smooth-sampling setting for quarter-resolution light planes and missing partial
+constructor cleanup; both now have focused tests. Engine typecheck and scoped
+ESLint pass. Duplicate old world ownership/composite code is removed from
+UnifiedRenderer rather than retained as a second implementation.
+
+`golden-comparison.json` and `paged-terrain-comparison.json` record exact four
+lighting boards and six terrain/pond policy views. Their direct-context route
+alone does not prove the new semantic methods, so `seam-submission-review.ts`
+adds a browser fixture calling sprite/flip/cap/chunk/multiplyPlane/weather/particles
+explicitly. `seam-submission-comparison.json` has **zero changed channels** and
+an exact HUD witness. That fixture retains **5,013,504 → 0 bytes** on disposal.
+Its external screenshot includes a four-pixel transparent strip below the
+1280×720 drawing surface, forcing RGBA PNG output for the existing CPU decoder;
+viewport metadata is accurately 1280×724. No world pixel readback or new image
+decoder dependency is introduced. Initial opaque RGB screenshot decoding and
+a probe for unavailable optional Pillow are fixture-tooling failures, not
+rendering or pixel-approximation results.
+
+The last measured desktop baseline remains P2, in original milliseconds
+p50/p95/p99. Authentication is still required for P8 Canvas seam overhead and
+real-client stage/counter captures. Neither the three-percent dormant abstraction
+ceiling nor any WebGL adoption/presentation claim is inferred from compilation.
+
+| Stage | Basic P2 before | Classic P2 before | Dynamic P2 before | P8 Canvas seam after |
+|---|---:|---:|---:|---|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 | unmeasured — authentication required |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 | unmeasured — authentication required |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 | unmeasured — authentication required |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 | unmeasured — authentication required |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 | unmeasured — authentication required |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 | unmeasured — authentication required |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 | unmeasured — authentication required |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 | unmeasured — authentication required |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingDynamicSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 | unmeasured — authentication required |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 | unmeasured — authentication required |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 | unmeasured — authentication required |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 | unmeasured — authentication required |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 | unmeasured — authentication required |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 | unmeasured — authentication required |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+Real-client per-frame counters and long-task results after this seam remain
+**unmeasured — authentication required**. There is no experimental backend yet,
+so both WebGL presentation topologies, context-loss restoration, automatic
+fallback reasons, Video persistence and backend parity are outstanding P8 work.
+
+Physical iPad: **owner to run**. In the approved candidate preview set World
+scale 1×, world zoom 2 and browser zoom 100%; System → Developer → Render →
+**Run protocol + copy JSON**, keeping Safari foreground for all 105 seconds.
+Use **Copy capture JSON** if clipboard completion is refused and repeat at
+2×/Native. Attach model/iPadOS/Safari versions; commit/backend/policy/DPR/resolution,
+stages and counters are embedded. Repeat for WebGL only after that implementation
+exists. No CPU-throttle sample or local fixture replaces physical capture.
+
+Commands: `npm run check`; focused renderer/world-pass-backend Vitest suites;
+engine typecheck and scoped ESLint; `node .../P8/build-goldens.mjs`,
+`run-goldens.mjs`, `run-scale-goldens.mjs`, `run-seam-submission.mjs`;
+`tsx .../P8/compare-goldens.ts`, `compare-paged-terrain.ts`,
+`compare-seam-submission.ts`. The first private-worktree fixture route lacked
+generated assets; its failure log is retained and the corrected harness reads
+the same integrated generated pages as the reference. Primary Khronos API
+references for upcoming work are recorded in `primary-api-references.json`.

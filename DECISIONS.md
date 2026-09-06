@@ -204,3 +204,5 @@
 
 
 | 2026-09-06 | client/performance | Doc 59 P6 scope amendment: include the authored-map sprite closure in `live-map-runtime.ts` and its reviewed `phase-zero-extraction.test.ts` source digest. These sprites run inside the gameplay painter and must share its single native state pair. Keep exact fractional depth and lexical tie order through the legacy producer adapter; numeric hashes identify items but do not reorder hash collisions. | Settled implementation scope; docs/59 updated in the same change. |
+
+| 2026-09-06 | client/rendering | Doc 59 P8 Canvas seam minimally extends its file scope to world-pass-present.ts for explicit backing disposal and partial-constructor cleanup. The extracted backend retains the existing compatibility context while exposing sprite/chunk/cap/plane/weather/particle capabilities; Canvas sprite commands consume the current exact prepared source alongside immutable artwork/RGB/variant metadata for the later GPU path. No WebGL implementation or Video toggle is shipped by this extraction. | Required lifecycle seam; doc59 updated in the same commit. |
