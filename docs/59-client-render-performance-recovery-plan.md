@@ -368,6 +368,14 @@ step on the terrain review fixture.
 **Exit:** tint builds per frame ≈ 0 in steady state; `groundSource`
 operations = 0; `painterDraw`/`ground` p95 recorded.
 
+P5 feasibility OPEN (2026-09-06): three uniform five-bit representations
+failed the existing one-step celestial artwork golden: nearest 32 levels,
+bit replication and multiples of eight produced maximum channel errors
+4, 5 and 59, with 23,028 / 25,852 / 65,540 channels above one respectively.
+See the P5 OPEN decision and `output/perf-59-20260906/P5/quantization-comparison.json`.
+Retain exact RGB for tint-page pooling; quantization is not accepted and P5
+is not complete. The four-colour / 40-call fixture is accuracy evidence only.
+
 ### P6 — Painter and context hot path
 
 **Files:** `renderer.ts` (`compareWorldDepthItems`, constructor),
