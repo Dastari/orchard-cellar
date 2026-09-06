@@ -1,5 +1,7 @@
 /** Semantic counters are always available; native Canvas probes are opt-in.
- * Values belong to one active rAF, never to a rolling or cumulative window. */
+ * Values start at the first rAF after the preceding presentation and end at
+ * the current submission, including skipped-rAF preparation under a cap.
+ * Async work before that first rAF remains outside the P0 frame scope. */
 export const RENDER_COUNTER_IDS = [
   'drawImageCalls', 'distinctDrawImageSources', 'tintBuilds', 'tintReuses',
   'tintSurfaceReuses', 'filteredFrameBuilds', 'coverageFieldRebuilds',

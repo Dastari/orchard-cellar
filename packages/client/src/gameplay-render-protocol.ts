@@ -8,7 +8,8 @@ export type ProtocolMode = 'basic' | 'classic' | 'dynamic';
 export interface GameplayDiagnosticState {
   readonly display: { readonly dpr: number; readonly cssWidth: number;
     readonly cssHeight: number; readonly worldZoom: number; readonly uiScale: number;
-    readonly worldScale: '1x' | '2x' | 'native'; readonly backend: 'canvas2d' };
+    readonly worldScale: '1x' | '2x' | 'native'; readonly backend: 'canvas2d';
+    readonly presentationCap: 'off' | '30hz' };
   readonly lighting: { readonly requestedQuality: 'basic' | 'dynamic';
     readonly effectiveQuality: 'basic' | 'dynamic'; readonly model: 'classic' | 'unified';
     readonly fallbackReason: string | null; readonly retainedSurfaceBytes: number };
@@ -107,9 +108,10 @@ export async function captureGameplayProtocol(metrics: RenderMetrics, game: Prot
       browserZoom: { visualViewportScale: visualViewport?.scale ?? 1,
         note: 'Browser UI zoom must be recorded by the driver; DPR alone cannot identify it.' },
       worldScale: final.display.worldScale, backend: final.display.backend, scenario: options.scenario,
+      presentationCap: final.display.presentationCap,
       protocol: { warmupMs: 5_000, sampleMs: 30_000, activeRaf: true,
         walking: options.walking !== false, walkingPath: 'right/down/left/up, 625 ms per leg; authority collision applies',
-        counterScope: 'whole-client Canvas 2D, including HUD and offscreen construction',
+        counterScope: 'whole-client Canvas 2D from first rAF after prior submission through current submission, including skipped-rAF work, HUD and offscreen construction; earlier async work excluded',
         tintReuses: 'exact tinted-frame cache hits; surface recycling reported separately' },
       before: matched.state, after: final, assets: atlasPageDiagnostics(), ...buffer.report(),
       longTasks: { supported: longTasksSupported, atLeast50Ms: longTasks.filter((value) => value >= 50).length,

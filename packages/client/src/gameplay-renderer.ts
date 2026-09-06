@@ -1,4 +1,4 @@
-import { readWorldScale, WORLD_SCALE_EVENT } from '@orchard/ui';
+import { readPresentationCap, readWorldScale, WORLD_SCALE_EVENT } from '@orchard/ui';
 import { UnifiedRenderer } from '@orchard/engine/renderer';
 
 /** Client policy owns persistence; the shared renderer also serves Studio. */
@@ -20,6 +20,7 @@ export function gameplayDisplaySnapshot(renderer: UnifiedRenderer, worldZoom: nu
     uiScale: uiScale(),
     worldScale: renderer.worldScale,
     backend: 'canvas2d' as const,
+    presentationCap: readPresentationCap(),
     activeWorldPixels: renderer.activeWorldPixels,
     worldBackingWidth: renderer.worldWidth,
     worldBackingHeight: renderer.worldHeight,

@@ -201,12 +201,14 @@ export class RenderMetrics {
   private pendingInputTimestamp = Number.NaN;
   private accumulatedUpdateStepsValue = 0;
   private discardedElapsedMsValue = 0;
+  private submittedSinceRaf = true;
 
   constructor(sampleCapacity = DEFAULT_SAMPLE_CAPACITY) {
     this.frames = new FixedMetricSeries(sampleCapacity);
   }
 
   record(frameMs: number, renderItems: number): void {
+    this.submittedSinceRaf = true;
     this.frames.record(frameMs);
     this.renderItemsValue = Math.max(0, Math.floor(renderItems));
     for (const id of RENDER_COUNTER_IDS) this.completedCounters[id] = renderOperationCounters[id];
@@ -229,8 +231,13 @@ export class RenderMetrics {
   }
 
   recordRafTimestamp(milliseconds: number): void {
-    this.currentStages.fill(0);
-    resetRenderOperationCounters();
+    // A presentation cap may skip rAF submissions. Preserve their simulation
+    // and preparation work in the next submitted frame's protocol totals.
+    if (this.submittedSinceRaf) {
+      this.currentStages.fill(0);
+      resetRenderOperationCounters();
+      this.submittedSinceRaf = false;
+    }
     if (Number.isFinite(this.previousRafTimestamp)) {
       this.frameIntervals.record(milliseconds - this.previousRafTimestamp);
     }

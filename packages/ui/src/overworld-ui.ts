@@ -1,3 +1,6 @@
+import { compactVideoRows, videoRowHeight as videoSettingsRowHeight } from './video-rows.js';
+import { changePresentationCap, readPresentationCap } from './presentation-cap-setting.js';
+export { changePresentationCap, readPresentationCap, PRESENTATION_CAP_EVENT, type PresentationCapSetting } from './presentation-cap-setting.js';
 import { changeWorldScale, readWorldScale, worldScaleSettingLabel } from './world-scale-setting.js';
 export { changeWorldScale, readWorldScale, worldScaleSettingLabel, WORLD_SCALE_EVENT, type WorldScaleSetting } from './world-scale-setting.js';
 import { renderProtocolAction } from './render-protocol-action.js';
@@ -396,6 +399,7 @@ export interface OverworldUiLayout {
   readonly settingsTabs: Readonly<Record<SettingsTab, UiRect>>;
   readonly lightingQualityButton: UiRect;
   readonly worldScaleButton: UiRect;
+  readonly presentationCapButton: UiRect;
   readonly developerWindow: UiRect;
   readonly developerContent: UiRect;
   readonly developerTabs: Readonly<Record<DeveloperTab, UiRect>>;
@@ -720,14 +724,15 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     width: Math.max(80, settingsWindow.width - settingsTabWidth - 38),
     height: Math.max(80, settingsWindow.height - 48),
   };
-  const videoRowHeight = Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / 7)));
+  const videoRowHeight = videoSettingsRowHeight(settingsContent.height);
   const lightingQualityButton = {
     x: settingsContent.x + Math.floor(settingsContent.width * 0.5),
-    y: settingsContent.y + 23 + 4 * videoRowHeight,
+    y: settingsContent.y + 23 + (compactVideoRows(settingsContent.height) ? 0 : 4) * videoRowHeight,
     width: Math.max(40, settingsContent.width * 0.5 - 10),
     height: Math.min(18, videoRowHeight),
   };
   const worldScaleButton = { ...lightingQualityButton, y: lightingQualityButton.y + videoRowHeight };
+  const presentationCapButton = { ...worldScaleButton, y: worldScaleButton.y + videoRowHeight };
   const settingsRowStep = Math.max(18, Math.min(30, Math.floor((settingsContent.height - 28) / 5)));
   const settingsRowY = (row: number): number => settingsContent.y + 18 + row * settingsRowStep;
   const settingsSliderLabelSpace = Math.min(72, Math.max(70, Math.floor(settingsContent.width * 0.25)));
@@ -871,6 +876,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     settingsTabs,
     lightingQualityButton,
     worldScaleButton,
+    presentationCapButton,
     developerWindow,
     developerContent,
     developerTabs,
@@ -1131,6 +1137,7 @@ export class OverworldUi {
   private readonly settingsTabNodes: Readonly<Record<SettingsTab, WidgetNode>>;
   private readonly lightingQualityNode: WidgetNode;
   private readonly worldScaleNode: WidgetNode;
+  private readonly presentationCapNode: WidgetNode;
   private readonly renderProtocolNode: WidgetNode;
   private readonly developerTabNodes: Readonly<Record<DeveloperTab, WidgetNode>>;
   private readonly masterSlider: Slider;
@@ -1597,6 +1604,13 @@ export class OverworldUi {
         return true;
       },
     });
+    this.presentationCapNode = widget('button', 'window.settings.video.presentation-cap', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down' || event.button !== 0) return false;
+        changePresentationCap(readPresentationCap() === '30hz' ? 'off' : '30hz');
+        return true;
+      },
+    });
     this.renderProtocolNode = widget('button', 'window.developer.render.protocol', {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down' || event.button !== 0) return false;
@@ -1692,6 +1706,7 @@ export class OverworldUi {
       ...SETTINGS_TABS.map((tab) => this.settingsTabNodes[tab]),
       this.lightingQualityNode,
       this.worldScaleNode,
+      this.presentationCapNode,
       this.renderProtocolNode,
       ...DEVELOPER_TABS.map((tab) => this.developerTabNodes[tab]),
       this.previousDayNode,
@@ -1934,6 +1949,7 @@ export class OverworldUi {
     for (const tab of SETTINGS_TABS) this.settingsTabNodes[tab].setBounds(this.layout.settingsTabs[tab]);
     this.lightingQualityNode.setBounds(this.layout.lightingQualityButton);
     this.worldScaleNode.setBounds(this.layout.worldScaleButton);
+    this.presentationCapNode.setBounds(this.layout.presentationCapButton);
     this.renderProtocolNode.setBounds({ ...this.layout.orePreviewButton,
       x: this.layout.developerContent.x + 12, width: this.layout.developerContent.width - 24,
       y: this.layout.orePreviewButton.y + 30 });
@@ -2910,6 +2926,8 @@ export class OverworldUi {
     this.lightingQualityNode.enabled = this.lightingQualityNode.visible;
     this.worldScaleNode.visible = this.lightingQualityNode.visible;
     this.worldScaleNode.enabled = this.worldScaleNode.visible;
+    this.presentationCapNode.visible = this.lightingQualityNode.visible;
+    this.presentationCapNode.enabled = this.presentationCapNode.visible;
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].visible = developerVisible;
     const developerWorldVisible = developerVisible && this.developerTab === 'world';
     const developerRenderVisible = developerVisible && this.developerTab === 'render';
@@ -3804,6 +3822,7 @@ export class OverworldUi {
       ['UI SCALE', 'AUTO'],
       ['LIGHTING', lightingSettingsMode(this.model).toUpperCase()],
       ['WORLD SCALE', worldScaleSettingLabel(readWorldScale())],
+      ['30 HZ CAP', readPresentationCap() === '30hz' ? 'ON' : 'OFF'],
       ['WEATHER DETAIL', 'HIGH'],
     ] as const : this.settingsTab === 'interface' ? [
       ['HUD VISIBILITY', 'FULL'],
@@ -3820,19 +3839,23 @@ export class OverworldUi {
       ['COLOUR FILTER', 'NONE'],
       ['HOLD ASSIST', 'OFF'],
     ] as const;
-    const rowHeight = Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / settingRows.length)));
-    settingRows.forEach(([label, value], index) => {
+    const visibleRows = this.settingsTab === 'video' && compactVideoRows(settingsContent.height)
+      ? settingRows.filter(([label]) => label === 'LIGHTING' || label === 'WORLD SCALE' || label === '30 HZ CAP') : settingRows;
+    const rowHeight = this.settingsTab === 'video' ? videoSettingsRowHeight(settingsContent.height)
+      : Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / visibleRows.length)));
+    visibleRows.forEach(([label, value], index) => {
       const y = settingsContent.y + 23 + index * rowHeight;
       drawPixelTextInRect(context, this.fonts, label, {
-        x: settingsContent.x + 10, y, width: Math.max(40, settingsContent.width * 0.46), height: 18,
+        x: settingsContent.x + 10, y, width: Math.max(40, settingsContent.width * 0.46), height: Math.min(18, rowHeight),
       }, { verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
       const interactiveLightingModel = this.settingsTab === 'video' && label === 'LIGHTING';
       const interactiveWorldScale = this.settingsTab === 'video' && label === 'WORLD SCALE';
+      const interactiveCap = this.settingsTab === 'video' && label === '30 HZ CAP';
       drawMenuButton(context, this.skin, this.fonts, this.pointer, interactiveLightingModel
-        ? this.lightingQualityNode.bounds : interactiveWorldScale ? this.worldScaleNode.bounds : {
+        ? this.lightingQualityNode.bounds : interactiveWorldScale ? this.worldScaleNode.bounds : interactiveCap ? this.presentationCapNode.bounds : {
         x: settingsContent.x + Math.floor(settingsContent.width * 0.5), y,
         width: Math.max(40, settingsContent.width * 0.5 - 10), height: Math.min(18, rowHeight),
-      }, value, { tone: interactiveLightingModel || interactiveWorldScale ? 'green' : 'silver', disabled: !interactiveLightingModel && !interactiveWorldScale });
+      }, value, { tone: interactiveLightingModel || interactiveWorldScale || interactiveCap ? 'green' : 'silver', disabled: !interactiveLightingModel && !interactiveWorldScale && !interactiveCap });
     });
     const lightingHint = lightingSettingsMode(this.model) === 'dynamic' && this.model.lightingEffectsDisabled
       ? this.model.lightingFallbackReason === 'preparing' ? 'PREPARING DYNAMIC LIGHTING...' : 'DYNAMIC UNAVAILABLE; USING BASIC'

@@ -439,8 +439,9 @@ lexical tie order and exact fractional foot-depth order remain stable.
 **Files:** `loop.ts`, `overworld-main.ts` uiDraw stage (≈6179–6690),
 `overworld-ui.ts`, `renderer.ts` `beginUi`/`endUi`, Video settings.
 
-1. Optional 30 Hz presentation cap (render every other rAF while simulation
-   keeps 60 Hz fixed steps and interpolation). Default off on desktop, on when
+1. Optional 30 Hz presentation cap (absolute deadlines select presentations
+   on 60/120/144 Hz displays while simulation keeps 60 Hz fixed steps and
+   interpolation on every rAF). Default off on desktop, on when
    the P0 iPad baseline shows sustained > 16 ms.
 2. HUD layer: draw the HUD into its own canvas only when its model changes
    (`uiModel`/`uiLayout` already separate model from draw); composite the
@@ -449,6 +450,17 @@ lexical tie order and exact fractional foot-depth order remain stable.
 **Tests:** 30 Hz cap halves `uiDraw`/world submissions without changing fixed
 update count; HUD golden identical between cached and direct paths.
 **Exit:** iPad sustained p95 and battery/thermal trace recorded per doc 47.
+
+P7 implementation scope extension (2026-09-06): the mechanically extracted
+`gameplay-loop.ts` applies the persisted policy and cross-tab changes; the existing
+`gameplay-renderer.ts` and protocol capture include the applied preference.
+`metrics.ts` retains skipped-rAF work until submission, with a focused attribution
+test. `render-operation-counters.ts` and the protocol describe the exact interval:
+first rAF after the previous submission through the current submission; earlier
+async work remains excluded as in P0. Compact Video windows omit informational
+placeholder rows so the three actionable controls stay clear of the footer.
+The structural UI seam digest is recaptured for that reviewed control addition.
+The physical iPad baseline is pending, so the default remains off on all devices.
 
 ### P8 — Experimental WebGL2 world pass (decision C, Video toggle)
 
@@ -2088,3 +2100,109 @@ engine typecheck and scoped ESLint; `node .../P8/build-goldens.mjs`,
 generated assets; its failure log is retained and the corrected harness reads
 the same integrated generated pages as the reference. Primary Khronos API
 references for upcoming work are recorded in `primary-api-references.json`.
+
+
+### 2026-09-06 — P7 presentation pacing checkpoint
+
+Status: **IN PROGRESS**. P1 and P6 implementation inputs are merged, but
+physical iPad acceptance and authenticated after-captures remain outstanding.
+HUD cache is an independent lane and is not claimed by this pacing checkpoint.
+Artifacts: `output/perf-59-20260906/P7/`. Full pacing gate: **596 suites / 3,495 tests passed**, **879.21 seconds**
+(`check-pacing.log`); typecheck, lint and asset validation pass.
+
+Mechanical main extraction `1e63a449` moves only loop construction into new
+`gameplay-loop.ts`; `loop-extraction-source-hashes.json` asserts the exact two
+main replacements. Its canonical check passes **591 suites / 3,482 tests** in
+**848.56 seconds**, with types/lint/asset validation green
+(`check-loop-extraction.log`). The subsequent pacing implementation changes
+16 source/test files listed and hashed in `pacing-source-hashes.json`: loop and
+new cadence/policy modules, gameplay renderer/protocol metadata, Video rows,
+metrics attribution, focused tests and the reviewed structural seam digest.
+
+Video gains **30 Hz cap**, persisted per client and off by default. It applies
+on a frame boundary, including cross-tab storage changes, while all rAFs still
+advance the same fixed-step accumulator and interpolation. Absolute deadlines
+avoid turning a purported 30 Hz cap into 60/72 Hz on high-refresh displays.
+Suspend/resume resets the presentation deadline; overdue presentations are
+skipped rather than replayed. Storage denial retains a consistent session
+choice without interrupting gameplay. The iPad automatic default remains off
+because the physical P0 baseline has not been supplied.
+
+`pacing-integrated-tests.log` records **8 suites / 132 focused UI/loop/metrics/seam tests** passing.
+`cadence-controlled.json` exercises the actual FixedStepLoop with deterministic
+timestamps; these are functional counts, **not device performance**:
+
+| Controlled display Hz | 10-second rAF count | Fixed updates off / on | Submissions off / on, including initial |
+|---|---:|---:|---:|
+| 60 | 600 | 600 / 600 | 601 / 301 |
+| 120 | 1,200 | 600 / 600 | 1,201 / 301 |
+| 144 | 1,440 | 600 / 600 | 1,441 / 301 |
+
+Every capped submission has the same interpolation/update state as the
+corresponding uncapped rAF. Metrics preserve skipped-rAF update time and native
+source counts until the next submission. The exact scope starts at the first
+rAF after the preceding submission; async Canvas work before that rAF remains
+excluded as in P0. The focused witness records update time **2 + 3 = 5 ms**,
+two draws from one distinct source, then resets to **1 ms / zero draws** on the
+next interval. These injected times test attribution and are not benchmark data.
+Capture JSON now includes the cap in display and top-level metadata.
+
+Review found and fixed compact layout overlap, discarded skipped-rAF metrics
+and cross-tab preference/active-rate mismatch. `pacing-fixture/` contains real
+OverworldUi/skin/font browser captures and persistence results. Chrome
+152.0.7977.64 on Linux, DPR1, browser zoom100%, headless/no throttle, UI scale2;
+1280×720 display Canvas in a 3200×1600 browser viewport. The compact fixture
+uses a 720×360 Canvas / 360×180 logical UI. Root viewed both on and compact
+screenshots. Clicking enables the cap, reload retains it, and a second click
+disables it. Compact Video omits informational rows so controls stay above the
+fallback/footer text; bounds tests include 240×140 through 640×360 logical UI.
+This isolated UI fixture is not authenticated gameplay or shared-preview review.
+
+The last measured real-client desktop baseline remains P2, in original
+milliseconds p50/p95/p99. No after-stage improvement, long-task result, walking
+visual result or battery/thermal result is inferred from controlled timestamps.
+
+| Stage | Basic P2 before | Classic P2 before | Dynamic P2 before | P7 pacing after |
+|---|---:|---:|---:|---|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 | unmeasured — authentication required |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 | unmeasured — authentication required |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 | unmeasured — authentication required |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 | unmeasured — authentication required |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 | unmeasured — authentication required |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 | unmeasured — authentication required |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 | unmeasured — authentication required |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 | unmeasured — authentication required |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingDynamicSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 | unmeasured — authentication required |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 | unmeasured — authentication required |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 | unmeasured — authentication required |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 | unmeasured — authentication required |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 | unmeasured — authentication required |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 | unmeasured — authentication required |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+Real-client per-frame counters after pacing remain **unmeasured — authentication
+required**. Canvas/lighting/terrain goldens are repeated at the P7 implementation
+boundary; full shared-browser walking, all scale/mode combinations and physical
+acceptance remain outstanding. No global zero-lighting Classic claim is made.
+
+Physical iPad: **owner to run**. In the candidate preview, choose Canvas,
+World scale1×, world zoom2 and browser zoom100%. Set Video → 30 Hz cap OFF;
+System → Developer → Render → **Run protocol + copy JSON**, keep Safari visible
+for105 seconds, then repeat with cap ON and at2×/Native. Use **Copy capture JSON**
+if clipboard completion is refused. Record iPad model/iPadOS/Safari and a matched
+battery/thermal trace per doc47 §19; the JSON embeds commit, policy, cap, DPR,
+resolution, all stages and counters. No desktop CPU throttle replaces this row.
+
+Commands: `npm run check`; focused Vitest loop/policy/Video/metrics/UI/seam tests;
+client typecheck and scoped ESLint; `node .perf59-pacing-review/review-video.mjs`;
+`tsx .perf59-pacing-review/cadence-review.mjs`. Private replay workspace and exact
+UI fixture input copies are documented in `pacing-fixture/README.md`.
