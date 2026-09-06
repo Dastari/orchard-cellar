@@ -1,3 +1,5 @@
+import { changeWorldScale, readWorldScale, worldScaleSettingLabel } from './world-scale-setting.js';
+export { changeWorldScale, readWorldScale, worldScaleSettingLabel, WORLD_SCALE_EVENT, type WorldScaleSetting } from './world-scale-setting.js';
 import { renderProtocolAction } from './render-protocol-action.js';
 import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, clickContainerSlot, craftingRecipeOutput, hotbarSlotForInputCode, hotbarSlotLabel, itemContainerContentResolver, itemDefinition, itemStacksCompatible, matchingRecipeId, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks, recipeDefinition, runtimeCraftingRecipeOutput, runtimeDurabilityDefinition, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition, runtimeRecipeSkillSatisfied, toolDurabilityDefinition, type ContainerSnapshot, type ContentRegistry, type CraftingStation, type FrameDefinitionId, type ItemStack, type MoonPhase, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
 import type { LoadedAsset } from './assets.js';
@@ -393,6 +395,7 @@ export interface OverworldUiLayout {
   readonly settingsContent: UiRect;
   readonly settingsTabs: Readonly<Record<SettingsTab, UiRect>>;
   readonly lightingQualityButton: UiRect;
+  readonly worldScaleButton: UiRect;
   readonly developerWindow: UiRect;
   readonly developerContent: UiRect;
   readonly developerTabs: Readonly<Record<DeveloperTab, UiRect>>;
@@ -717,13 +720,14 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     width: Math.max(80, settingsWindow.width - settingsTabWidth - 38),
     height: Math.max(80, settingsWindow.height - 48),
   };
-  const videoRowHeight = Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / 6)));
+  const videoRowHeight = Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / 7)));
   const lightingQualityButton = {
     x: settingsContent.x + Math.floor(settingsContent.width * 0.5),
     y: settingsContent.y + 23 + 4 * videoRowHeight,
     width: Math.max(40, settingsContent.width * 0.5 - 10),
     height: Math.min(18, videoRowHeight),
   };
+  const worldScaleButton = { ...lightingQualityButton, y: lightingQualityButton.y + videoRowHeight };
   const settingsRowStep = Math.max(18, Math.min(30, Math.floor((settingsContent.height - 28) / 5)));
   const settingsRowY = (row: number): number => settingsContent.y + 18 + row * settingsRowStep;
   const settingsSliderLabelSpace = Math.min(72, Math.max(70, Math.floor(settingsContent.width * 0.25)));
@@ -866,6 +870,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     settingsContent,
     settingsTabs,
     lightingQualityButton,
+    worldScaleButton,
     developerWindow,
     developerContent,
     developerTabs,
@@ -1125,6 +1130,7 @@ export class OverworldUi {
   private readonly developerBackNode: WidgetNode;
   private readonly settingsTabNodes: Readonly<Record<SettingsTab, WidgetNode>>;
   private readonly lightingQualityNode: WidgetNode;
+  private readonly worldScaleNode: WidgetNode;
   private readonly renderProtocolNode: WidgetNode;
   private readonly developerTabNodes: Readonly<Record<DeveloperTab, WidgetNode>>;
   private readonly masterSlider: Slider;
@@ -1583,6 +1589,14 @@ export class OverworldUi {
         return true;
       },
     });
+    this.worldScaleNode = widget('button', 'window.settings.video.world-scale', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down' || event.button !== 0) return false;
+        const current = readWorldScale();
+        changeWorldScale(current === '1x' ? '2x' : current === '2x' ? 'native' : '1x');
+        return true;
+      },
+    });
     this.renderProtocolNode = widget('button', 'window.developer.render.protocol', {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down' || event.button !== 0) return false;
@@ -1677,6 +1691,7 @@ export class OverworldUi {
       this.developerBackNode,
       ...SETTINGS_TABS.map((tab) => this.settingsTabNodes[tab]),
       this.lightingQualityNode,
+      this.worldScaleNode,
       this.renderProtocolNode,
       ...DEVELOPER_TABS.map((tab) => this.developerTabNodes[tab]),
       this.previousDayNode,
@@ -1918,6 +1933,7 @@ export class OverworldUi {
     this.developerBackNode.setBounds(this.layout.developerBackButton);
     for (const tab of SETTINGS_TABS) this.settingsTabNodes[tab].setBounds(this.layout.settingsTabs[tab]);
     this.lightingQualityNode.setBounds(this.layout.lightingQualityButton);
+    this.worldScaleNode.setBounds(this.layout.worldScaleButton);
     this.renderProtocolNode.setBounds({ ...this.layout.orePreviewButton,
       x: this.layout.developerContent.x + 12, width: this.layout.developerContent.width - 24,
       y: this.layout.orePreviewButton.y + 30 });
@@ -2892,6 +2908,8 @@ export class OverworldUi {
     for (const tab of SETTINGS_TABS) this.settingsTabNodes[tab].visible = settingsVisible;
     this.lightingQualityNode.visible = settingsVisible && this.settingsTab === 'video';
     this.lightingQualityNode.enabled = this.lightingQualityNode.visible;
+    this.worldScaleNode.visible = this.lightingQualityNode.visible;
+    this.worldScaleNode.enabled = this.worldScaleNode.visible;
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].visible = developerVisible;
     const developerWorldVisible = developerVisible && this.developerTab === 'world';
     const developerRenderVisible = developerVisible && this.developerTab === 'render';
@@ -3785,6 +3803,7 @@ export class OverworldUi {
       ['WORLD ZOOM', 'AUTO'],
       ['UI SCALE', 'AUTO'],
       ['LIGHTING', lightingSettingsMode(this.model).toUpperCase()],
+      ['WORLD SCALE', worldScaleSettingLabel(readWorldScale())],
       ['WEATHER DETAIL', 'HIGH'],
     ] as const : this.settingsTab === 'interface' ? [
       ['HUD VISIBILITY', 'FULL'],
@@ -3808,11 +3827,12 @@ export class OverworldUi {
         x: settingsContent.x + 10, y, width: Math.max(40, settingsContent.width * 0.46), height: 18,
       }, { verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
       const interactiveLightingModel = this.settingsTab === 'video' && label === 'LIGHTING';
+      const interactiveWorldScale = this.settingsTab === 'video' && label === 'WORLD SCALE';
       drawMenuButton(context, this.skin, this.fonts, this.pointer, interactiveLightingModel
-        ? this.lightingQualityNode.bounds : {
+        ? this.lightingQualityNode.bounds : interactiveWorldScale ? this.worldScaleNode.bounds : {
         x: settingsContent.x + Math.floor(settingsContent.width * 0.5), y,
         width: Math.max(40, settingsContent.width * 0.5 - 10), height: Math.min(18, rowHeight),
-      }, value, { tone: interactiveLightingModel ? 'green' : 'silver', disabled: !interactiveLightingModel });
+      }, value, { tone: interactiveLightingModel || interactiveWorldScale ? 'green' : 'silver', disabled: !interactiveLightingModel && !interactiveWorldScale });
     });
     const lightingHint = lightingSettingsMode(this.model) === 'dynamic' && this.model.lightingEffectsDisabled
       ? this.model.lightingFallbackReason === 'preparing' ? 'PREPARING DYNAMIC LIGHTING...' : 'DYNAMIC UNAVAILABLE; USING BASIC'

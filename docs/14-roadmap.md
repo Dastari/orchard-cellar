@@ -460,8 +460,9 @@ repeatable production loop.
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
 - [x] Doc 59 P0 — Attribution and device baseline — DONE: codex, 2026-09-06 (qualification gaps recorded in doc 59 §8)
-  - Resumed after owner login. Diagnostics extraction `a7070426` is green; P0 counters, capture action and preliminary desktop stage tables are implemented. Walking samples and the full attribution gate pass (569 suites / 3,411 tests). Shared-preview active-rAF/screenshots remain OPEN. P1–P8 are unstarted; no release candidate.
-- [ ] Doc 59 P1 — World-pass resolution and Video scale policy — IN PROGRESS: codex, 2026-09-06
+  - Resumed after owner login. Diagnostics extraction `a7070426` is green; P0 counters, capture action and preliminary desktop stage tables are implemented. Walking samples and the full attribution gate pass (569 suites / 3,411 tests). Shared-preview active-rAF/screenshots remain OPEN. P1 follows with its measured scale matrix; no release candidate.
+- [x] Doc 59 P1 — World-pass resolution and Video scale policy — DONE: codex, 2026-09-06 (implementation/desktop; shared preview OPEN, iPad owner to run)
+  - Canvas 1× default, persisted 1×/2×/Native selector, allocation-free renderer zoom sweeps. Four unchanged goldens; new terrain/pond 1× comparison ≤1 step, HUD exact. Controlled 376-item scene: Basic 13.2 ms / Dynamic 18.9 ms p95 at 1×; Native backing regression and all stages/counters in doc 59 §8. Full check passes 571 suites / 3,416 tests. No deployment.
 
 Execute [47-rendering-lighting-performance-plan.md](47-rendering-lighting-performance-plan.md)
 from its measured M0 foundation through the post-release M13 retirement gate. Preserve

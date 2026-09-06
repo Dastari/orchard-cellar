@@ -10,6 +10,8 @@ import {
   sortWorldDepthItems,
   worldPassCapacity,
   worldPassLayout,
+  worldPresentLayout,
+  UnifiedRenderer,
 } from './renderer.js';
 
 describe('unified renderer zoom math', () => {
@@ -23,6 +25,56 @@ describe('unified renderer zoom math', () => {
     expect(fractional.deviceZoom).toBe(4.5);
     expect(fractional.integerScale).toBe(5);
     expect([fractional.width, fractional.height]).toEqual([2134, 1200]);
+  });
+
+  it('keeps fixed world policies independent of DPR and preserves Native', () => {
+    for (const dpr of [1, 2, 3]) for (const zoom of [2, 2.25, 3.5, 8]) {
+      for (const [policy, expected] of [['1x', 1], ['2x', 2]] as const) {
+        const layout = worldPassLayout(1280, 720, dpr, zoom, policy);
+        expect(layout.integerScale).toBe(expected);
+        expect(layout.width).toBe(Math.ceil(1280 * expected / zoom));
+        expect(layout.height).toBe(Math.ceil(720 * expected / zoom));
+      }
+      expect(worldPassLayout(1280, 720, dpr, zoom, 'native'))
+        .toEqual(worldPassLayout(1280, 720, dpr, zoom));
+    }
+  });
+
+  it('selects the largest nearest integer upscale before the smooth remainder', () => {
+    expect(worldPresentLayout(640, 360, 1280, 720)).toEqual({
+      factor: 2, nearestWidth: 1280, nearestHeight: 720, exact: true,
+    });
+    expect(worldPresentLayout(569, 320, 1280, 720)).toEqual({
+      factor: 2, nearestWidth: 1138, nearestHeight: 640, exact: false,
+    });
+    expect(worldPresentLayout(1707, 960, 1280, 720).factor).toBe(1);
+  });
+
+  it('never grows backing stores during a complete supported zoom sweep', () => {
+    const surfaces: Array<{ width: number; height: number }> = [];
+    const createCanvas = () => {
+      const context = { setTransform: vi.fn(), clearRect: vi.fn(), fillRect: vi.fn(), drawImage: vi.fn() };
+      const canvas = { width: 300, height: 150, style: {}, parentElement: null,
+        getContext: () => context };
+      surfaces.push(canvas);
+      return canvas;
+    };
+    vi.stubGlobal('document', { createElement: createCanvas });
+    vi.stubGlobal('innerWidth', 1280); vi.stubGlobal('innerHeight', 720);
+    try {
+      for (const dpr of [1, 2, 3]) for (const policy of ['1x', '2x', 'native'] as const) {
+        const renderer = new UnifiedRenderer(createCanvas() as unknown as HTMLCanvasElement);
+        renderer.resize(1280, 720, dpr); renderer.setWorldScale(policy);
+        const capacities = surfaces.map(({ width, height }) => [width, height]);
+        for (let i = 0; i <= 600; i++) {
+          renderer.beginWorld(2 + i / 100); renderer.compositeWorld();
+        }
+        for (let i = 600; i >= 0; i--) {
+          renderer.beginWorld(2 + i / 100); renderer.compositeWorld();
+        }
+        expect(surfaces.map(({ width, height }) => [width, height])).toEqual(capacities);
+      }
+    } finally { vi.unstubAllGlobals(); }
   });
 
   it('allows finite maps to sit inside a larger black viewport while respecting offscreen budgets', () => {

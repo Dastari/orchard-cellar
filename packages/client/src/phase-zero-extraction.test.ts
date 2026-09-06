@@ -122,7 +122,8 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // All five seams are unchanged from the preserved pre-implementation snapshot;
 // import-direction and ownership assertions below remain independent gates.
 // Doc 59 P0 adds the required touch-accessible Render-panel capture action.
-const STRUCTURAL_SEAM_DIGEST = '83950f65a54e3f34635e473ba5885f1b80c69f5c4f40a77bbc8fcd66ae962b8a';
+// Doc 59 P1 adds the persisted World scale control in the same Video panel.
+const STRUCTURAL_SEAM_DIGEST = 'b1cd886141d5805b4cb75543ca17879e079a32bc97f34c439b24536d795b652a';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

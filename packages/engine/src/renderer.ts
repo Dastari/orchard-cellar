@@ -1,3 +1,5 @@
+import { CanvasWorldPresent, type WorldScalePolicy } from './world-pass-present.js';
+export { worldPresentLayout, type WorldScalePolicy } from './world-pass-present.js';
 import { MIN_WORLD_ZOOM, canvasHostViewport } from './display.js';
 
 export const MAX_WORLD_PASS_WIDTH = 4096;
@@ -11,6 +13,7 @@ export interface WorldPassLayout {
   readonly zoom: number;
   readonly deviceZoom: number;
   readonly integerScale: number;
+  readonly worldScale: WorldScalePolicy;
   readonly width: number;
   readonly height: number;
 }
@@ -47,13 +50,14 @@ export function worldPassLayout(
   cssHeight: number,
   dpr: number,
   zoom: number,
+  worldScale: WorldScalePolicy = 'native',
 ): WorldPassLayout {
   const safeWidth = Math.max(1, Math.floor(cssWidth));
   const safeHeight = Math.max(1, Math.floor(cssHeight));
   const safeDpr = Math.max(1, dpr);
   const safeZoom = Math.max(0.01, zoom);
   const deviceZoom = safeZoom * safeDpr;
-  const preferredScale = Math.max(1, Math.ceil(deviceZoom));
+  const preferredScale = worldScale === 'native' ? Math.max(1, Math.ceil(deviceZoom)) : worldScale === '2x' ? 2 : 1;
   // Fractional zoom/DPR thresholds can increase ceil(deviceZoom) by one and
   // make the logical pass wider than its capped backing canvas. Limit the
   // integer pass first so the active source rectangle is never clipped.
@@ -67,6 +71,7 @@ export function worldPassLayout(
     zoom: safeZoom,
     deviceZoom,
     integerScale,
+    worldScale,
     width: Math.ceil(safeWidth * safeDpr * integerScale / deviceZoom),
     height: Math.ceil(safeHeight * safeDpr * integerScale / deviceZoom),
   };
@@ -197,6 +202,8 @@ export class UnifiedRenderer {
   private cssWidthValue = 1;
   private cssHeightValue = 1;
   private frameLayout: WorldPassLayout | null = null;
+  private worldScaleValue: WorldScalePolicy = 'native';
+  private readonly present = new CanvasWorldPresent();
 
   constructor(readonly canvas: HTMLCanvasElement) {
     const displayContext = canvas.getContext('2d');
@@ -212,6 +219,14 @@ export class UnifiedRenderer {
   get cssWidth(): number { return this.cssWidthValue; }
   get cssHeight(): number { return this.cssHeightValue; }
   get dpr(): number { return this.dprValue; }
+  get worldScale(): WorldScalePolicy { return this.worldScaleValue; }
+  get activeWorldPixels(): number { return this.frameLayout === null ? 0 : this.frameLayout.width * this.frameLayout.height; }
+  get presentBytes(): number { return this.present.bytes; }
+  setWorldScale(policy: WorldScalePolicy): void {
+    if (policy === this.worldScaleValue) return;
+    this.worldScaleValue = policy;
+    this.reserveWorldPass();
+  }
   get worldWidth(): number { return this.worldCanvas.width; }
   get worldHeight(): number { return this.worldCanvas.height; }
 
@@ -226,6 +241,7 @@ export class UnifiedRenderer {
     if (this.canvas.height !== backingHeight) this.canvas.height = backingHeight;
     this.canvas.style.width = `${this.cssWidthValue}px`;
     this.canvas.style.height = `${this.cssHeightValue}px`;
+    this.reserveWorldPass();
     this.assertNearestNeighbour();
   }
 
@@ -234,15 +250,10 @@ export class UnifiedRenderer {
   }
 
   beginWorld(zoom: number): RenderFrame {
-    const layout = worldPassLayout(this.cssWidthValue, this.cssHeightValue, this.dprValue, zoom);
-    const capacity = worldPassCapacity(
-      layout.width,
-      layout.height,
-      this.worldCanvas.width,
-      this.worldCanvas.height,
-    );
-    if (this.worldCanvas.width !== capacity.width) this.worldCanvas.width = capacity.width;
-    if (this.worldCanvas.height !== capacity.height) this.worldCanvas.height = capacity.height;
+    const layout = worldPassLayout(this.cssWidthValue, this.cssHeightValue, this.dprValue, zoom, this.worldScaleValue);
+    if (layout.width > this.worldCanvas.width || layout.height > this.worldCanvas.height) {
+      throw new Error('world_pass_capacity_not_reserved');
+    }
     this.worldContextValue.setTransform(1, 0, 0, 1, 0, 0);
     this.worldContextValue.imageSmoothingEnabled = false;
     this.worldContextValue.globalCompositeOperation = 'source-over';
@@ -260,18 +271,8 @@ export class UnifiedRenderer {
     this.displayContext.globalCompositeOperation = 'source-over';
     this.displayContext.globalAlpha = 1;
     this.displayContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.displayContext.imageSmoothingEnabled = true;
-    this.displayContext.drawImage(
-      this.worldCanvas,
-      0,
-      0,
-      this.frameLayout.width,
-      this.frameLayout.height,
-      0,
-      0,
-      this.canvas.width,
-      this.canvas.height,
-    );
+    this.present.draw(this.displayContext, this.worldCanvas,
+      this.frameLayout.width, this.frameLayout.height, this.canvas.width, this.canvas.height);
     this.displayContext.imageSmoothingEnabled = false;
   }
 
@@ -294,6 +295,18 @@ export class UnifiedRenderer {
   endUi(): void {
     this.displayContext.restore();
     this.displayContext.imageSmoothingEnabled = false;
+  }
+
+  private reserveWorldPass(): void {
+    // Fixed policies are largest at minimum zoom. Native's ceil(deviceZoom)
+    // may approach dpr + 1/minZoom at a threshold; reserve that upper bound.
+    const density = this.worldScaleValue === 'native' ? this.dprValue + 1 / MIN_WORLD_ZOOM
+      : (this.worldScaleValue === '2x' ? 2 : 1) / MIN_WORLD_ZOOM;
+    const capacity = worldPassCapacity(Math.ceil(this.cssWidthValue * density),
+      Math.ceil(this.cssHeightValue * density), this.worldCanvas.width, this.worldCanvas.height);
+    if (this.worldCanvas.width !== capacity.width) this.worldCanvas.width = capacity.width;
+    if (this.worldCanvas.height !== capacity.height) this.worldCanvas.height = capacity.height;
+    if (this.worldScaleValue !== 'native') this.present.reserve(this.canvas.width, this.canvas.height);
   }
 
   private assertNearestNeighbour(): void {
