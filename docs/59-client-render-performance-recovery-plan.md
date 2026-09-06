@@ -256,6 +256,13 @@ comes from the new page loader and does not run in the steady-frame path.
 Desktop decoder-only CPU timings are captured separately with Chromium trace
 events, rather than mislabelling request/onload latency as pure decode time.
 
+P2 decoded-image amendment (2026-09-06): the first paged startup capture
+found the client sign-in backdrop at 1536×1024 / 6 MiB. Include
+`packages/ui/src/orchard-backdrop.ts` and new backdrop tile loader/builder/tests
+to compose its original pixels from three 512×1024 generated tiles. Preserve
+the original PNG used by existing Keycloak/PWA tooling. This closes the same
+4-MiB decoded-image cap; it adds no new artwork or service-worker retention scope.
+
 **Tests:** builder rejects an asset larger than a page; every page under both
 caps; manifest round-trip through old and new readers; all 36 current PNGs'
 frame pixels reproduced byte-exact on their new pages.
@@ -1161,3 +1168,336 @@ Unresolved: P2 writer, original/frame-pixel comparison, paged startup,
 full stage/counter capture and physical-iPad result remain pending. The shared
 preview rendering failure remains OPEN as recorded in P0/P1. No P2 exit is
 claimed by this intermediate reader entry.
+
+
+### P2 — Bounded atlas writers and desktop qualification, 2026-09-06
+
+Reader commit `5de3e736` landed before the writer format switch. Writers now
+emit index v4, category v3, marker v2 and registry v4, with stable category/page
+identities and local frame coordinates. The 1,021 assets occupy 39 pages per
+season / 156 PNGs; characters are the first target and occupy 30 pages per
+season. Props use two; other categories fit one each. Every page is at most
+512×2048 / 4,194,304 decoded bytes; whole assets never span pages. The builder
+holds one output page at a time. Content addressing and service-worker
+retention remain out of scope. Existing generated-asset discovery serves the
+page files. Original legacy PNGs remain present and immutable.
+
+The decoded-image audit also found a 6-MiB sign-in backdrop. The documented
+P2 amendment splits it into three 512×1024 images, reconstructing the original
+crop only while building the retained UI viewport cache. That temporary
+6-MiB **Canvas** backing is released in `finally`; it is not a decoded image
+and is not created by steady world drawing. Independent fractional tile draws
+and a shared-transform attempt failed the exact backdrop golden; the final
+single-crop reconstruction is exact at four viewport/DPR combinations. The
+superseded failure artifacts remain in P2 for audit.
+
+Files: reader files listed above plus `packages/tools/src/build-atlas.ts`,
+`validate-assets.ts`, `assets/{types,asset-registry.test}.ts`, new
+`assets/atlas-page-validation{,.test}.ts`, `build-backdrop-pages{,.test}.ts`,
+`packages/ui/src/orchard-backdrop.ts` and new `backdrop-pages{,.test}.ts`.
+Root docs/roadmap and lane notes record the format ordering and scope amendment.
+Generated files are build outputs, not edits to any of the 36 source PNGs.
+
+Artifacts are under `output/perf-59-20260906/P2/`. `page-pixel-comparison.json`
+proves 36/36 original hashes unchanged, 105,076 frames / 117,681,744 pixels
+reproduced exactly and 6,648 semantic marker pixels preserved. All 1,021
+assets have page IDs in marker metadata, including assets with no markers.
+`packer-counts.json` records every page height and decoded size. The corrected
+builder measurement is 10.26 seconds / 477,104 KiB peak RSS for the whole
+catalog build; this is process RSS, not just the page buffer.
+
+| Startup measurement | Legacy | Paged including backdrop |
+|---|---:|---:|
+| First gameplay, ms | 5124.200 | 5233.000 |
+| Loaded images | 10 | 39 |
+| Total decoded image bytes | 126623744 | 116514816 |
+| Largest decoded image bytes | 106561536 | 4194304 |
+| Chromium Decode Image CPU, ms | 70.263 | 33.578 |
+| Decode Image events | 10 | 28 |
+| Physical iPad | owner to run | owner to run |
+
+`startup-{legacy,paged}.json` and `capture-startup.mjs` retain device/settings
+and numeric trace groups. Different nested decoder groups are not added to
+one another. First gameplay is **108.800 ms slower (+2.12%)** in these single
+cold samples; startup equal-or-better latency is not proven, despite lower
+recorded decode CPU and decoded bytes. `startup-paged-before-backdrop.json`
+is the superseded cap failure, not the final result.
+
+Desktop frame samples use Chrome 152.0.7977.64, Linux 6.17.2-1-pve,
+AMD Ryzen 9 9955HX, 1280×720, DPR 1, browser zoom 100%, world zoom 2, UI scale 2,
+Canvas 2D. Source identity is `82187fea` plus the recorded diff/source hashes.
+Each mode receives the required 5-second warm-up and 30-second active-rAF
+walking sample. A 30-second initial settle precedes the protocol to exclude
+startup/HUD fade-in. Fixed review camera is (5701,6178), spring day 3.5,
+07:00, full lunar illumination, cloud cover 0. No CPU throttling is used.
+`desktop-legacy-before-pages.json` and `desktop-matched-scales.json` contain
+all samples. The earlier cold/settling capture remains explicitly named
+`desktop-legacy-before-pages-cold.json` and is not the comparison baseline.
+
+**Matching qualification:** viewport/DPR/zoom/sky and camera match; the live
+world continues to change. Legacy Basic render items are p50/p95 382/386,
+paged Basic 376/376. Paged Native Classic p95 is 382 and Native Dynamic
+p50/p95 is 380/384. Other rows are mostly 376. Accordingly these before/after
+numbers do not establish a perfectly content-controlled causal speedup.
+
+#### P2 pre-page versus paged 1× stage measurements
+
+Cells are original milliseconds p50/p95/p99. Live content differs as qualified below.
+
+| Stage | Basic before → after | Classic before → after | Dynamic before → after |
+|---|---:|---:|---:|
+| Whole frame | 12.000/14.000/16.000 → 9.400/11.500/12.700 | 12.000/13.800/15.400 → 10.600/12.800/14.800 | 16.900/19.300/21.300 → 15.200/20.500/26.800 |
+| snapshotPrepare | 0.000/0.100/0.100 → 0.000/0.100/0.200 | 0.000/0.100/0.200 → 0.000/0.100/0.200 | 0.000/0.100/0.100 → 0.000/0.100/0.200 |
+| ground | 0.300/0.400/0.500 → 0.300/0.500/0.600 | 0.300/0.400/0.500 → 0.300/0.500/0.600 | 0.300/0.400/0.500 → 0.400/0.600/0.700 |
+| painterBuild | 4.400/5.400/6.600 → 4.600/5.800/6.800 | 4.400/5.300/6.300 → 5.100/6.500/7.900 | 4.300/5.200/6.000 → 5.100/7.400/9.500 |
+| painterSort | 0.100/0.100/0.200 → 0.100/0.100/0.200 | 0.100/0.100/0.200 → 0.100/0.100/0.200 | 0.100/0.100/0.200 → 0.100/0.200/0.200 |
+| painterDraw | 2.600/3.000/3.500 → 0.500/0.700/0.800 | 2.200/2.600/3.000 → 0.600/0.700/0.900 | 2.600/3.200/3.700 → 2.300/3.200/4.400 |
+| weather | 0.000/0.200/0.300 → 0.000/0.100/0.200 | 0.000/0.100/0.200 → 0.000/0.100/0.200 | 0.000/0.200/0.300 → 0.000/0.200/0.300 |
+| lightingBoundsResize | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.100 → 0.000/0.000/0.100 | 0.000/0.000/0.100 → 0.000/0.000/0.100 |
+| lightingOcclusionRaster | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 |
+| lightingSolve | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 |
+| lightingMerge | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 |
+| lightingUpload | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 |
+| lightingReceiver | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 |
+| lightingComposite | 0.000/0.100/0.100 → 0.000/0.100/0.100 | 0.000/0.100/0.100 → 0.000/0.100/0.100 | 0.000/0.000/0.000 → 0.000/0.000/0.000 |
+| lightingStaticSolve | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 |
+| lightingDynamicSolve | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 |
+| finalWorldComposite | 0.200/0.300/0.300 → 1.600/2.000/2.200 | 0.700/0.800/0.900 → 2.100/2.600/3.000 | 1.800/2.000/2.300 → 1.400/2.200/2.800 |
+| uiModel | 0.400/0.500/0.600 → 0.400/0.600/0.700 | 0.400/0.500/0.600 → 0.500/0.600/0.700 | 0.400/0.600/0.700 → 0.500/0.800/1.100 |
+| uiLayout | 0.500/0.600/0.700 → 0.500/0.600/0.700 | 0.500/0.600/0.700 → 0.500/0.700/0.800 | 0.500/0.600/0.800 → 0.500/0.700/1.100 |
+| uiDraw | 3.400/4.000/4.500 → 1.300/1.900/2.100 | 3.300/3.900/4.400 → 1.400/1.900/2.100 | 3.300/3.900/4.300 → 1.400/2.100/2.500 |
+| fixedUpdate | 0.200/0.400/0.400 → 0.200/0.300/0.400 | 0.200/0.300/0.400 → 0.200/0.400/0.500 | 0.200/0.300/0.400 → 0.200/0.400/0.600 |
+| catchUp | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.000/0.000 → 0.000/0.000/0.000 | 0.000/0.300/0.400 → 0.000/0.400/0.500 |
+| Physical iPad | owner to run | owner to run | owner to run |
+
+#### P2 desktop controlled scale matrix
+
+All timings are milliseconds; cells are p50/p95/p99. Counters use p50/p95/max.
+
+**World scale 1x, Canvas 2D**
+
+| Stage | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 |
+| lightingStaticSolve (unsupported) | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingAnimatedStaticSolve (unsupported) | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingDynamicSolve (unsupported) | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 |
+| Physical iPad | owner to run | owner to run | owner to run |
+
+| Per-frame counter | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| drawImageCalls | 1739.000/1753.000/1753.000 | 1740.000/1754.000/1754.000 | 1740.000/1754.000/1754.000 |
+| distinctDrawImageSources | 42.000/42.000/42.000 | 43.000/43.000/43.000 | 111.000/118.000/120.000 |
+| tintBuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/1.000 |
+| tintReuses | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 334.000/341.000/341.000 |
+| tintSurfaceReuses | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| filteredFrameBuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| coverageFieldRebuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/1.000/1.000 |
+| preparedHeightRebuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/1.000/1.000 |
+| groundSourceOperations | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| imageDataAllocations | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 1.000/1.000/1.000 |
+| saveCalls | 676.000/676.000/676.000 | 676.000/676.000/676.000 | 667.000/676.000/676.000 |
+| restoreCalls | 676.000/676.000/676.000 | 676.000/676.000/676.000 | 667.000/676.000/676.000 |
+| saveRestorePairs | 676.000/676.000/676.000 | 676.000/676.000/676.000 | 667.000/676.000/676.000 |
+| surfaceAllocations | 0.000/1.000/1.000 | 0.000/1.000/1.000 | 0.000/1.000/1.000 |
+
+| Sample | Frames | Active world pixels | Render items p50/p95 | Long tasks ≥50ms |
+|---|---:|---:|---:|---:|
+| basic | 1800 | 230400 | 376/376 | 0 |
+| classic | 1800 | 230400 | 376/376 | 0 |
+| dynamic | 1542 | 230400 | 375/376 | 1 |
+
+**World scale 2x, Canvas 2D**
+
+| Stage | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| Whole frame | 11.000/13.900/17.100 | 13.300/15.700/17.900 | 18.500/21.100/23.100 |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 |
+| ground | 0.300/0.400/0.600 | 0.300/0.400/0.500 | 0.400/0.500/0.600 |
+| painterBuild | 4.600/5.900/8.100 | 4.800/5.900/7.400 | 4.800/5.700/6.700 |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.100/0.200 |
+| painterDraw | 0.500/0.700/0.900 | 0.600/0.700/0.900 | 2.300/3.000/3.500 |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingComposite | 0.000/0.100/0.200 | 0.000/0.100/0.100 | 0.000/0.000/0.000 |
+| lightingStaticSolve (unsupported) | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingAnimatedStaticSolve (unsupported) | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingDynamicSolve (unsupported) | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| finalWorldComposite | 3.500/4.200/4.900 | 5.300/6.000/6.900 | 5.100/5.800/6.600 |
+| uiModel | 0.500/0.600/0.800 | 0.500/0.600/0.800 | 0.500/0.700/0.800 |
+| uiLayout | 0.500/0.700/0.800 | 0.500/0.700/0.800 | 0.500/0.600/1.000 |
+| uiDraw | 1.300/1.800/2.100 | 1.300/1.800/2.200 | 1.300/1.900/2.000 |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.300/0.400 | 0.200/0.400/0.400 |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.300 | 0.000/0.300/0.400 |
+| Physical iPad | owner to run | owner to run | owner to run |
+
+| Per-frame counter | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| drawImageCalls | 1739.000/1753.000/1753.000 | 1714.000/1754.000/1754.000 | 1740.000/1754.000/1776.000 |
+| distinctDrawImageSources | 42.000/42.000/42.000 | 43.000/43.000/43.000 | 118.000/126.000/133.000 |
+| tintBuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/7.000/11.000 |
+| tintReuses | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 334.000/341.000/341.000 |
+| tintSurfaceReuses | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/7.000/11.000 |
+| filteredFrameBuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/1.000 |
+| coverageFieldRebuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 1.000/1.000/1.000 |
+| preparedHeightRebuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 1.000/1.000/1.000 |
+| groundSourceOperations | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| imageDataAllocations | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 1.000/1.000/1.000 |
+| saveCalls | 676.000/676.000/676.000 | 676.000/676.000/676.000 | 676.000/676.000/676.000 |
+| restoreCalls | 676.000/676.000/676.000 | 676.000/676.000/676.000 | 676.000/676.000/676.000 |
+| saveRestorePairs | 676.000/676.000/676.000 | 676.000/676.000/676.000 | 676.000/676.000/676.000 |
+| surfaceAllocations | 0.000/1.000/1.000 | 0.000/1.000/1.000 | 0.000/1.000/3.000 |
+
+| Sample | Frames | Active world pixels | Render items p50/p95 | Long tasks ≥50ms |
+|---|---:|---:|---:|---:|
+| basic | 1785 | 921600 | 376/376 | 0 |
+| classic | 1763 | 921600 | 376/376 | 0 |
+| dynamic | 1401 | 921600 | 376/376 | 0 |
+
+**World scale native, Canvas 2D**
+
+| Stage | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| Whole frame | 15.800/17.700/19.800 | 14.300/20.500/22.700 | 19.500/25.900/28.400 |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 |
+| ground | 0.300/0.500/0.500 | 0.300/0.500/0.500 | 0.400/0.500/0.600 |
+| painterBuild | 4.900/5.900/6.700 | 4.900/6.200/7.300 | 4.800/5.800/7.100 |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.100/0.200 |
+| painterDraw | 0.500/0.700/0.800 | 0.500/0.700/0.900 | 2.400/3.100/3.600 |
+| weather | 0.000/0.100/0.200 | 0.000/0.200/0.200 | 0.100/0.200/0.300 |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 |
+| lightingStaticSolve (unsupported) | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingAnimatedStaticSolve (unsupported) | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| lightingDynamicSolve (unsupported) | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| finalWorldComposite | 7.600/8.500/9.600 | 5.300/11.000/12.100 | 4.900/10.600/11.900 |
+| uiModel | 0.500/0.700/0.800 | 0.500/0.700/0.800 | 0.500/0.700/0.800 |
+| uiLayout | 0.500/0.700/0.800 | 0.500/0.700/0.800 | 0.500/0.700/1.000 |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.200 | 1.300/1.900/2.200 |
+| fixedUpdate | 0.200/0.400/0.400 | 0.200/0.400/0.400 | 0.300/0.400/0.500 |
+| catchUp | 0.000/0.300/0.400 | 0.000/0.300/0.400 | 0.000/0.400/0.500 |
+| Physical iPad | owner to run | owner to run | owner to run |
+
+| Per-frame counter | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| drawImageCalls | 1713.000/1753.000/1753.000 | 1740.000/1754.000/1763.000 | 1747.000/1773.000/1796.000 |
+| distinctDrawImageSources | 42.000/42.000/42.000 | 37.000/44.000/44.000 | 172.000/185.000/196.000 |
+| tintBuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 4.000/13.000/22.000 |
+| tintReuses | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 285.000/293.000/297.000 |
+| tintSurfaceReuses | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 4.000/13.000/22.000 |
+| filteredFrameBuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/1.000 |
+| coverageFieldRebuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 1.000/1.000/1.000 |
+| preparedHeightRebuilds | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 1.000/1.000/1.000 |
+| groundSourceOperations | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 |
+| imageDataAllocations | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 1.000/1.000/1.000 |
+| saveCalls | 676.000/676.000/676.000 | 670.000/679.000/682.000 | 672.000/681.000/683.000 |
+| restoreCalls | 676.000/676.000/676.000 | 670.000/679.000/682.000 | 672.000/681.000/683.000 |
+| saveRestorePairs | 676.000/676.000/676.000 | 670.000/679.000/682.000 | 672.000/681.000/683.000 |
+| surfaceAllocations | 0.000/1.000/1.000 | 0.000/1.000/1.000 | 0.000/1.000/2.000 |
+
+| Sample | Frames | Active world pixels | Render items p50/p95 | Long tasks ≥50ms |
+|---|---:|---:|---:|---:|
+| basic | 1609 | 921600 | 376/376 | 0 |
+| classic | 1553 | 921600 | 376/382 | 0 |
+| dynamic | 1233 | 921600 | 380/384 | 0 |
+
+
+#### P2 residuals, visual evidence and device follow-up
+
+Default 1× Basic p95 is 11.500 ms (5.500 ms above target); Dynamic p95 is
+20.500 ms (10.500 ms above target). Dynamic records **one 51-ms long task**;
+all eight other rows record zero. The observer does not attribute that task
+to one renderer stage, so no unsupported GC/browser/decoder cause is asserted.
+Basic painter build remains 5.800 ms p95, while painter draw is 0.700 ms;
+Dynamic painter build/draw are 7.400/3.200 ms. Later milestones must address
+those costs and the remaining HUD/composite costs shown above.
+
+Basic and Classic have zero filtered-frame, tint, coverage and ImageData
+counter work in this scene. Classic's legacy lightmap path still exists;
+this is not proof of zero lighting for every Classic scene. No `.omit` pages
+exist or load yet; they are P3. After restoring Basic, retained lighting bytes
+are **zero** (`afterRestore`). Dynamic still allocates one ImageData each
+frame and surface allocations p95 is one at every policy. The surface probe
+covers the whole client, so zero world allocation is not claimed without
+attribution. Runtime filtering remains present until P3; tint pool/coverage
+work remain P4/P5. The live route has no cap runs, retaining P0's cap-workload
+qualification. The run's performance and allocation Definition of Done is
+not yet satisfied.
+
+`golden-comparison.json`: all four lighting boards have zero changed channels,
+including exact HUD witnesses. `paged-terrain-comparison.json`: nested caps
+and pond fixtures at each of 1×/2×/Native exactly match P1 at the same policy.
+`backdrop-golden-comparison.json`: zero differences at 1280×720 DPR1,
+997×733 DPR1, 720×1280 DPR2 and 853×479 DPR3. No world readback was introduced;
+comparisons decode exported PNGs in the CPU tools. `video-settings.json` and
+`video-{default-1x,1x,2x,native}.png` verify the existing controls and persistence.
+All six cycles in `lighting-switch-cycles.json` restore Basic to zero retained
+lighting bytes; the Video footer retains the lighting explanation pending P8.
+
+Local authenticated Playwright drove 35 seconds of protocol walking plus
+25 seconds of additional walking in every policy/mode. All 27 start/mid/end
+screenshots are retained. The integrator viewed each combination and the
+lighting/cap/pond boards: artwork, directional shadows and HUD retain the
+prior local contract. Shared `/run` acceptance is still **OPEN: technical**;
+the canonical authenticated tab does not yield active frames/screenshots.
+Local browser evidence does not close that shared-preview requirement.
+
+Physical iPad: **owner to run**. Serve this candidate through an approved
+preview/release, select Video → World scale 1× with world zoom 2 and browser
+zoom 100%, then System → Developer → Render → **Run protocol + copy JSON**.
+Keep Safari foreground for 105 seconds while Basic/Classic/Dynamic run;
+if the deferred clipboard write is refused, tap **Copy capture JSON** after
+completion. Repeat at 2× and Native. Save model, iPadOS and Safari versions
+with each JSON; DPR/resolution/commit/backend/world scale, all stages/counters
+and loaded image sizes are captured. Report any texture or Canvas limit.
+No desktop throttle sample substitutes for the physical result.
+
+Commands (each separately): `npm run check`; `npm run assets:build`;
+`npm run assets:validate`; focused Vitest reader, page packer/validation,
+asset registry and backdrop tests; UI/tools/client typechecks and scoped ESLint;
+`npm exec tsx .../P2/compare-page-pixels.ts`;
+`node .../P2/capture-startup.mjs`, `capture-before-pages.mjs`,
+`capture-matched.mjs`, `review-video.mjs`, `build-goldens.mjs`, `run-goldens.mjs`,
+`run-scale-goldens.mjs`, `run-backdrop-review.mjs`;
+`npm exec tsx .../P2/compare-goldens.ts`, `compare-paged-terrain.ts`,
+`compare-backdrop.ts`; `python3 .../P2/render-ledger.py`.
+Auth input is a short-lived existing session, privately passed then deleted;
+no authentication-policy or live deployment changes occurred.
+
+Full writer gate: **PASS**, `P2/check-writers.log`: **577 suites / 3,440 tests**,
+913.13 seconds for coverage; all typechecks, lint, lifecycle/world checks and
+asset validation pass (1,021 art assets, three songs, ten SFX, 55 palette colors
+and four seasonal remaps). Captured source hashes still match the gated sources. Read-only independent review found no blocking code defect;
+its measurement qualifications are incorporated above. P2 desktop page-size,
+pixel and memory requirements are met; physical-device/shared-preview and
+startup-latency qualifications remain open.

@@ -1,3 +1,5 @@
+import { packAtlasPages } from './assets/atlas-pages.js';
+import { framesForAsset } from './assets/pixels.js';
 import { compileEmissiveFrames } from './assets/emissive.js';
 import { fileURLToPath } from 'node:url';
 import {
@@ -530,6 +532,14 @@ export async function validateAssetSources(): Promise<void> {
     if (asset.autotile === 'blob47' && asset.frames['base']?.length !== 5) {
       errors.push(`${asset.name}: blob47 source must contain five template frames`);
     }
+  }
+  for (const category of new Set(assets.map((asset) => asset.category))) {
+    try {
+      packAtlasPages(category, assets.filter((asset) => asset.category === category).map((asset) => ({
+        name: asset.name, width: asset.size[0], height: asset.size[1],
+        frameCount: Object.values(framesForAsset(asset)).reduce((sum, frames) => sum + frames.length, 0),
+      })));
+    } catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
   }
   validateTerrainCliffFamilies(assets, palette.colors, errors);
   for (const season of seasonNames) {

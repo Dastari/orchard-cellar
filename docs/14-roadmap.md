@@ -464,9 +464,8 @@ repeatable production loop.
 - [x] Doc 59 P1 — World-pass resolution and Video scale policy — DONE: codex, 2026-09-06 (implementation/desktop; shared preview OPEN, iPad owner to run)
   - Canvas 1× default, persisted 1×/2×/Native selector, allocation-free renderer zoom sweeps. Four unchanged goldens; new terrain/pond 1× comparison ≤1 step, HUD exact. Controlled 376-item scene: Basic 13.2 ms / Dynamic 18.9 ms p95 at 1×; Native backing regression and all stages/counters in doc 59 §8. Full check passes 571 suites / 3,416 tests. No deployment.
 
-- [ ] Doc 59 P2 — Bounded atlas pages and dual readers — IN PROGRESS: codex, 2026-09-06
-  - Integrator owns readers, merge, measurements and ledger; builder lane brief: `docs/lanes/59-p2-builder.md`. Writers wait for committed dual readers.
-
+- [x] Doc 59 P2 — Bounded atlas pages and dual readers — DONE: codex, 2026-09-06 (desktop implementation; startup latency/shared preview qualified, iPad owner to run)
+  - Dual readers `5de3e736` preceded bounded writers: 156 atlas pages and three backdrop tiles, every loaded image ≤4 MiB. All 36 originals/frame pixels and review goldens unchanged. Full check passes577 suites/3,440 tests; doc59 §8 records all22 stages/counters, one51-ms Dynamic long task and startup+108.8ms residual.
 - [ ] Doc 59 P4 — Static/moving coverage and constant-time receivers — IN PROGRESS: codex, 2026-09-06
   - Receiver lane owns bounded scene/cache modules; integrator owns gameplay extraction, wiring, ledger and gates. Brief: `docs/lanes/59-p4-receivers.md`.
 

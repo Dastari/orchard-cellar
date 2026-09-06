@@ -1,7 +1,6 @@
-import { loadHtmlImage } from './html-image.js';
+import { loadBackdropPages, drawBackdropPages, type BackdropPages } from './backdrop-pages.js';
 
-export const ORCHARD_BACKDROP_URL = '/ui/island-background.png';
-let islandImage: HTMLImageElement | null = null;
+let islandImage: BackdropPages | null = null;
 let pendingImage: Promise<void> | null = null;
 const viewportImages = new WeakMap<CanvasRenderingContext2D, {
   readonly width: number; readonly height: number; readonly ratio: number;
@@ -11,7 +10,7 @@ const viewportImages = new WeakMap<CanvasRenderingContext2D, {
 /** Decorative art never delays sign-in or requires a world connection. */
 export function loadOrchardBackdrop(): Promise<void> {
   if (islandImage !== null) return Promise.resolve();
-  pendingImage ??= loadHtmlImage(ORCHARD_BACKDROP_URL, 'island backdrop', 6_000)
+  pendingImage ??= loadBackdropPages()
     .then((image) => { islandImage = image; })
     .catch(() => undefined)
     .finally(() => { pendingImage = null; });
@@ -28,7 +27,7 @@ export function drawOrchardBackdrop(
   context.imageSmoothingEnabled = false;
   context.fillStyle = '#38633f';
   context.fillRect(0, 0, width, height);
-  if (islandImage !== null && islandImage.naturalWidth > 0 && islandImage.naturalHeight > 0) {
+  if (islandImage !== null && islandImage.width > 0 && islandImage.height > 0) {
     const ratio = Math.max(1, context.getTransform().a);
     let cached = viewportImages.get(context);
     if (cached === undefined || cached.width !== width || cached.height !== height || cached.ratio !== ratio) {
@@ -37,10 +36,10 @@ export function drawOrchardBackdrop(
       const paint = canvas.getContext('2d');
       if (paint !== null) {
         paint.imageSmoothingEnabled = false;
-        const scale = Math.max(canvas.width / islandImage.naturalWidth, canvas.height / islandImage.naturalHeight);
-        const drawnWidth = Math.ceil(islandImage.naturalWidth * scale);
-        const drawnHeight = Math.ceil(islandImage.naturalHeight * scale);
-        paint.drawImage(islandImage,
+        const scale = Math.max(canvas.width / islandImage.width, canvas.height / islandImage.height);
+        const drawnWidth = Math.ceil(islandImage.width * scale);
+        const drawnHeight = Math.ceil(islandImage.height * scale);
+        drawBackdropPages(paint, islandImage,
           Math.floor((canvas.width - drawnWidth) / 2), Math.floor((canvas.height - drawnHeight) / 2),
           drawnWidth, drawnHeight);
         paint.fillStyle = 'rgba(16, 24, 19, 0.18)';

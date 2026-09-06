@@ -1761,6 +1761,19 @@ fix does not mark M8 complete.
 
 ## 13. M9 — Bounded atlas pages and demand-driven asset loading
 
+**2026-09-06 doc 59 P2 delivery:** page-format items 1, 2, 3, 5 and 7
+are implemented under [doc 59's narrower recovery scope](59-client-render-performance-recovery-plan.md#p2--bounded-atlas-pages-doc-47-m9-page-format).
+Dual readers landed before index v4/category v3/marker v2/registry v4 writers.
+The 1,021 assets occupy 39 pages per season (characters: 30); every decoded
+page is at most 4 MiB. All 36 legacy PNGs remain byte-identical as required
+by doc 59 and are no longer selected by the new manifest. A 6-MiB UI backdrop
+also loads from three bounded tiles. Startup decoded bytes changed from
+126,623,744 to 116,514,816 in the measured client; this does **not** meet M9's
+full 40% reduction gate. Content addressing, reference-counted eviction,
+supported-release retention and the full M9 loading/adoption gate remain
+separate work. Physical iPad and shared-preview qualifications remain open;
+doc 59 §8 records original timing tables and the desktop page-size evidence.
+
 ### Objective
 
 Eliminate extremely tall decoded atlases, lower startup/decoded memory, permit
