@@ -467,6 +467,9 @@ repeatable production loop.
 - [ ] Doc 59 P2 — Bounded atlas pages and dual readers — IN PROGRESS: codex, 2026-09-06
   - Integrator owns readers, merge, measurements and ledger; builder lane brief: `docs/lanes/59-p2-builder.md`. Writers wait for committed dual readers.
 
+- [ ] Doc 59 P4 — Static/moving coverage and constant-time receivers — IN PROGRESS: codex, 2026-09-06
+  - Receiver lane owns bounded scene/cache modules; integrator owns gameplay extraction, wiring, ledger and gates. Brief: `docs/lanes/59-p4-receivers.md`.
+
 - [ ] Doc 59 P6 — Painter and context hot path — IN PROGRESS: codex, 2026-09-06
   - Independent of P2 after P0. Integrator alone extracts enqueue/sort ownership from overworld-main.ts before changing it; measured P2 captures and heavy checks remain sequential.
 
