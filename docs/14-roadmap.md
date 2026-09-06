@@ -464,6 +464,9 @@ repeatable production loop.
 - [x] Doc 59 P1 — World-pass resolution and Video scale policy — DONE: codex, 2026-09-06 (implementation/desktop; shared preview OPEN, iPad owner to run)
   - Canvas 1× default, persisted 1×/2×/Native selector, allocation-free renderer zoom sweeps. Four unchanged goldens; new terrain/pond 1× comparison ≤1 step, HUD exact. Controlled 376-item scene: Basic 13.2 ms / Dynamic 18.9 ms p95 at 1×; Native backing regression and all stages/counters in doc 59 §8. Full check passes 571 suites / 3,416 tests. No deployment.
 
+- [ ] Doc 59 P2 — Bounded atlas pages and dual readers — IN PROGRESS: codex, 2026-09-06
+  - Integrator owns readers, merge, measurements and ledger; builder lane brief: `docs/lanes/59-p2-builder.md`. Writers wait for committed dual readers.
+
 Execute [47-rendering-lighting-performance-plan.md](47-rendering-lighting-performance-plan.md)
 from its measured M0 foundation through the post-release M13 retirement gate. Preserve
 Canvas 2D, the fixed authoritative simulation, deterministic painter ordering, and the
