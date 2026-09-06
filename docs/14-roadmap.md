@@ -465,7 +465,9 @@ repeatable production loop.
   - Canvas 1× default, persisted 1×/2×/Native selector, allocation-free renderer zoom sweeps. Four unchanged goldens; new terrain/pond 1× comparison ≤1 step, HUD exact. Controlled 376-item scene: Basic 13.2 ms / Dynamic 18.9 ms p95 at 1×; Native backing regression and all stages/counters in doc 59 §8. Full check passes 571 suites / 3,416 tests. No deployment.
 
 - [x] Doc 59 P2 — Bounded atlas pages and dual readers — DONE: codex, 2026-09-06 (desktop implementation; startup latency/shared preview qualified, iPad owner to run)
-  - Dual readers `5de3e736` preceded bounded writers: 156 atlas pages and three backdrop tiles, every loaded image ≤4 MiB. All 36 originals/frame pixels and review goldens unchanged. Full check passes577 suites/3,440 tests; doc59 §8 records all22 stages/counters, one51-ms Dynamic long task and startup+108.8ms residual.
+  - Dual readers `5de3e736` preceded bounded writers: 156 atlas pages and three backdrop tiles, every loaded image ≤4 MiB. All 36 originals/frame pixels and review goldens unchanged. Full check passes 577 suites / 3,440 tests; doc 59 §8 records all 22 stages/counters, one 51-ms Dynamic long task and startup +108.8-ms residual.
+- [ ] Doc 59 P3 — Shadowless page variants and runtime filtering removal — IN PROGRESS: codex, 2026-09-06
+  - P2 bounded readers/writers are committed. Builder lane emits declared-span-only omit variants; integrator owns atomic runtime presentation and deletion after mechanical main extraction. No dormant filtered cache remains at exit.
 - [ ] Doc 59 P4 — Static/moving coverage and constant-time receivers — IN PROGRESS: codex, 2026-09-06
   - Receiver lane owns bounded scene/cache modules; integrator owns gameplay extraction, wiring, ledger and gates. Brief: `docs/lanes/59-p4-receivers.md`.
 
