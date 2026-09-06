@@ -459,6 +459,9 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
+- [ ] Doc 59 P0 — Attribution and device baseline — IN PROGRESS: codex, 2026-09-06
+  - Handoff: preflight evidence in `output/perf-59-20260906/P0/README.md`; authenticated gameplay blocked after three approaches (DECISIONS.md). Counters, capture button and measurements remain unimplemented; P1–P8 unstarted. No release candidate.
+
 Execute [47-rendering-lighting-performance-plan.md](47-rendering-lighting-performance-plan.md)
 from its measured M0 foundation through the post-release M13 retirement gate. Preserve
 Canvas 2D, the fixed authoritative simulation, deterministic painter ordering, and the
