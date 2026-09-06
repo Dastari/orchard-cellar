@@ -459,8 +459,8 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
-- [ ] Doc 59 P0 — Attribution and device baseline — IN PROGRESS: codex, 2026-09-06
-  - Handoff: preflight evidence in `output/perf-59-20260906/P0/README.md`; authenticated gameplay blocked after three approaches (DECISIONS.md). Counters, capture button and measurements remain unimplemented; P1–P8 unstarted. No release candidate.
+- [x] Doc 59 P0 — Attribution and device baseline — DONE: codex, 2026-09-06 (qualification gaps recorded in doc 59 §8)
+  - Resumed after owner login. Diagnostics extraction `a7070426` is green; P0 counters, capture action and preliminary desktop stage tables are implemented. Walking samples and the full attribution gate pass (569 suites / 3,411 tests). Shared-preview active-rAF/screenshots remain OPEN. P1–P8 are unstarted; no release candidate.
 
 Execute [47-rendering-lighting-performance-plan.md](47-rendering-lighting-performance-plan.md)
 from its measured M0 foundation through the post-release M13 retirement gate. Preserve

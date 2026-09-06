@@ -1,3 +1,6 @@
+export { renderProtocolAction } from './render-protocol-action.js';
+import { renderOperationCounters } from './render-operation-counters.js';
+export * from './render-operation-counters.js';
 import type { LoadedAsset } from './assets.js';
 import type { BuiltBakedShadowFrame } from './baked-shadow.js';
 import type { AtlasFrame } from './sprite.js';
@@ -172,7 +175,7 @@ export class AssetFrameSourceCache {
       entry.surface = surface;
       this.resident.set(entry, true);
       entry.filtered = { ...entry.original, image: surface, x: 0, y: 0, width: surface.width, height: surface.height };
-      this.bytesValue += entry.original.width * entry.original.height * 4; this.buildsValue++;
+      this.bytesValue += entry.original.width * entry.original.height * 4; this.buildsValue++; renderOperationCounters.filteredFrameBuilds++;
     } catch {
       if (surface !== undefined) surface.width = surface.height = 0;
       return 'surface-unavailable';

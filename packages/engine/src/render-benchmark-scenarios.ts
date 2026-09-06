@@ -1,5 +1,6 @@
 export const RENDER_BENCHMARK_SCENARIO_IDS = [
   'day-clear-baseline',
+  'client-0.5.0-recovery',
   'new-moon-player-lantern-dense-trees',
   'sixteen-steady-lights-one-moving-light',
   'forty-maximum-radius-blocked-lights',
@@ -33,6 +34,13 @@ export interface RenderBenchmarkScenario {
   readonly excavationCount: number;
   readonly coldAssetLoad: boolean;
   readonly fixedRenderAlpha: number;
+  readonly recoveryWorkload?: {
+    readonly renderItemReference: number;
+    readonly walkingActors: number;
+    readonly visibleCasters: null;
+    readonly capRuns: null;
+    readonly provenance: string;
+  };
 }
 
 const COMMON = {
@@ -63,6 +71,13 @@ RenderBenchmarkScenario
     ...COMMON,
     id: 'day-clear-baseline',
     space: 'overworld',
+  },
+  'client-0.5.0-recovery': {
+    ...COMMON, id: 'client-0.5.0-recovery', space: 'overworld',
+    recoveryWorkload: {
+      renderItemReference: 661, walkingActors: 1, visibleCasters: null, capRuns: null,
+      provenance: 'doc58 release/gameplay-acceptance.json records 661 render items; caster/cap counts and exact placement were not recorded. Capture current live content and report this matching limitation.',
+    },
   },
   'new-moon-player-lantern-dense-trees': {
     ...COMMON,

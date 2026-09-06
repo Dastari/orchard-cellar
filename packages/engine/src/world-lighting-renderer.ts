@@ -1,4 +1,4 @@
-import { AssetFrameSourceCache, type AssetFrameSource, type LoadedAsset } from '@orchard/ui';
+import { renderOperationCounters, AssetFrameSourceCache, type AssetFrameSource, type LoadedAsset } from '@orchard/ui';
 import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import type { CelestialLighting } from './celestial-lighting.js';
 import { groundedSpriteCaster, type DirectionalCaster } from './directional-shadows.js';
@@ -180,6 +180,7 @@ export class WorldLightingRenderer {
     context.globalCompositeOperation = 'destination-in'; context.imageSmoothingEnabled = false;
     context.drawImage(source.image, source.x, source.y, source.width, source.height, 0, 0, source.width, source.height);
     context.globalCompositeOperation = 'source-over';
+    renderOperationCounters.groundSourceOperations += 3;
     return { image: canvas, x: 0, y: 0, width: source.width, height: source.height };
   }
   get bytes(): number {

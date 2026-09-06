@@ -1,3 +1,4 @@
+import { renderOperationCounters } from '@orchard/ui';
 import { maximumLight, type CelestialLighting } from './celestial-lighting.js';
 import { directionalGeometry, directionalMaskBytes, DirectionalShadowCache, sampleDirectionalMask, type DirectionalCaster, type DirectionalShadowMask } from './directional-shadows.js';
 import type { RgbColor } from './lighting.js';
@@ -106,7 +107,7 @@ export class CelestialReceiverScene {
       this.prepared.clear(); this.preparedBytes = 0;
     }
     this.preparedBytes += bytes;
-    this.prepared.set(height, list);
+    this.prepared.set(height, list); renderOperationCounters.preparedHeightRebuilds++;
     return list;
   }
   sample(receiver: LightingReceiver, local: RgbColor = BLACK): ReceiverLightContributions {
@@ -162,6 +163,7 @@ export class CelestialReceiverScene {
           contact[index] = Math.max(contact[index]!, Math.round(contactCoverage(caster, left + (x + 0.5) * step, top + (y + 0.5) * step, receiverHeight) * 255));
         }
       }
+      renderOperationCounters.coverageFieldRebuilds++;
       this.coverageFields.set(coverageKey, coverage); this.coverageBytes += bytes;
     }
     const { sun, moon, contact } = coverage;

@@ -121,7 +121,8 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // shared frame-source export and complete Basic/Classic/Dynamic Video selector.
 // All five seams are unchanged from the preserved pre-implementation snapshot;
 // import-direction and ownership assertions below remain independent gates.
-const STRUCTURAL_SEAM_DIGEST = 'cf6eb58b4b1dc968bf55733b00dcaff2b326a43f37d2080380719c0577ca8a81';
+// Doc 59 P0 adds the required touch-accessible Render-panel capture action.
+const STRUCTURAL_SEAM_DIGEST = '83950f65a54e3f34635e473ba5885f1b80c69f5c4f40a77bbc8fcd66ae962b8a';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

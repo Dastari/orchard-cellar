@@ -1,4 +1,4 @@
-import type { AssetFrameSource } from '@orchard/ui';
+import { renderOperationCounters, type AssetFrameSource } from '@orchard/ui';
 import type { RgbColor } from './lighting.js';
 
 /** Snug RGB-tinted sprite frames, independent of shared/original artwork.
@@ -33,7 +33,7 @@ export class ReceiverFrameCache {
     }
     const key = `${id}:${emissionId}:${source.x}:${source.y}:${source.width}:${source.height}:${color.r}:${color.g}:${color.b}`;
     const existing = this.entries.get(key);
-    if (existing !== undefined) { this.entries.delete(key); this.entries.set(key, existing); return existing; }
+    if (existing !== undefined) { this.entries.delete(key); this.entries.set(key, existing); renderOperationCounters.tintReuses++; return existing; }
     const bytes = source.width * source.height * 4;
     if (bytes > this.budgetBytes) throw new Error('receiver_frame_budget_exceeded');
     let canvas: HTMLCanvasElement | undefined;
@@ -44,7 +44,7 @@ export class ReceiverFrameCache {
     }
     canvas ??= this.spareSurfaces.pop();
     if (canvas === undefined) { canvas = document.createElement('canvas'); this.allocationsValue++; }
-    else this.reuses++;
+    else { this.reuses++; renderOperationCounters.tintSurfaceReuses++; }
     if (canvas.width !== source.width || canvas.height !== source.height) {
       canvas.width = source.width; canvas.height = source.height;
     }
@@ -70,7 +70,7 @@ export class ReceiverFrameCache {
       context.drawImage(source.image, source.x + x, source.y + y, width, 1, x, y, width, 1);
     }
     const result = { image: canvas, x: 0, y: 0, width: canvas.width, height: canvas.height };
-    this.entries.set(key, result); this.bytesValue += bytes; this.builds++;
+    this.entries.set(key, result); this.bytesValue += bytes; this.builds++; renderOperationCounters.tintBuilds++;
     return result;
   }
   private retireOldest(): HTMLCanvasElement {

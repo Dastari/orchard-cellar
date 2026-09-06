@@ -189,6 +189,17 @@ snapshot (≈8092), `receiver-frame-source.ts`, `asset-frame-source.ts`,
 **Exit:** ledger table of stage p95s and counters per mode per device. This is
 the baseline every later milestone diffs against.
 
+**2026-09-06 implementation amendment:** the retained 0.5.0 evidence has no
+camera/placement replay or caster/cap-run counts, and the supplied implementation
+is already 0.5.7. Use the newly captured live 0.5.7 stationary/walking workload
+as the forward comparison baseline, retaining the old 13.4/21.5 ms numbers as
+historical reference only. Report workload counts and route limitations rather
+than claiming an exact 661-item reconstruction. The nested-terrain golden is
+the cap visual reference; a representative cap performance sample remains an
+explicit qualification gap to close before claiming P7's cap improvement.
+This evidence limitation does not change the performance targets or A1/B2/C.
+
+
 ### P1 — World-pass resolution (decision B2)
 
 **Files:** `renderer.ts` (`worldPassLayout`, `worldPassCapacity`,
@@ -563,3 +574,221 @@ byte-identical**. Evidence: `P0/check-settled-preflight.log` and
 gameplay stage measurements or instrumentation, and its authenticated-session
 blocker remains OPEN. No 0.6.0 version bump, candidate build, or production
 deployment was performed.
+
+### 2026-09-06 — P0 resumed: attribution implementation
+
+Owner login resolved the previous authentication entry. Canonical gameplay was
+confirmed with 729 render items and 28 resident ground chunks. Those rolling
+60-frame metrics are an access check, **not** a protocol baseline. The private
+candidate preview is `https://orchard.tail7a58a6.ts.net:5181/`; canonical visual
+reference remains `https://orchard.dastari.net/`. No production service or
+served build was replaced. A temporary Tailscale certificate lives under
+`/tmp/orchard-perf59-tls/`, outside artifacts and version control.
+
+Mechanical extraction `a7070426` moves only gameplay metrics state/snapshot
+access into `gameplay-render-diagnostics.ts`. Its full `npm run check` passed
+**567 suites / 3,407 tests**, duration **827.66 s**, with asset validation green.
+Evidence: `P0/check-diagnostics-extraction.log`. Instrumentation work follows
+that commit in the extracted/new modules.
+
+The P0 scope includes the minimal Render-panel UI hook and its reviewed
+structural seam digest, as recorded in DECISIONS.md. New counters distinguish
+exact tint cache hits (`tintReuses`) from recycled tint canvases
+(`tintSurfaceReuses`). Native Canvas counters cover the whole client, including
+HUD and offscreen construction; their support flag is false outside an active
+probe. Semantic counters remain available. The 16,384-frame capture buffer
+copies completed-frame timings, resets inactive stages each rAF, accumulates
+repeated fixed updates, and rejects overflow, hidden tabs and loading frames.
+The three reserved solve stages remain explicitly unsupported.
+
+The earlier `release/gameplay-acceptance.json` supplies a 661-item reference
+and Linux Headless Chrome provenance. It supplies neither visible caster/cap
+run counts nor exact placements. The new `client-0.5.0-recovery` descriptor
+preserves that limitation explicitly; exact old-content reproduction is not
+claimed. Current live-scene measurements must retain their own content counts.
+
+Shared-browser qualification currently remains OPEN: explicit open/show still
+reports `visible:false`; focusing the page does not deliver an active rAF;
+resizing times out. Screenshot calls also fail. Manual `update`/`render` can
+produce 403 items in the candidate, proving data/render availability, but is
+excluded from protocol measurements. Local Playwright runs the real client;
+no CPU throttling is substituted for physical iPad results.
+
+Physical iPad: **owner to run**. On the candidate, open the gameplay System
+menu → Developer → Render → **Run protocol + copy JSON**. Keep the PWA visible
+for all three modes (5-second warm-up + 30-second capture each). The action
+closes the panel, runs Basic/Classic/Dynamic and restores prior lighting. It
+copies JSON on completion; if Safari rejects deferred clipboard writing,
+reopen Render and tap **Copy capture JSON**. Record iPad model and Safari/iPadOS
+version alongside the exported browser/DPR/resolution metadata. No desktop
+throttling result is an iPad result.
+
+#### P0 preliminary stationary desktop sample (not the walking exit gate)
+
+Device: orchard, AMD Ryzen 9 9955HX; Linux 6.17.2-1-pve; Headless Chrome 152.0.7977.64; 1280×720 CSS, DPR 1, browser zoom 100%, world zoom 2, Canvas native world policy. No CPU throttling. Source: instrumented worktree based on `adae7adc` with mechanical extraction `a7070426`; this preliminary sample predates the walking driver. Artifact: `P0/desktop-local.json`, `P0/local-device.json`, `P0/local-authenticated.png`, command `node output/perf-59-20260906/P0/capture-local.mjs`.
+
+| Stage (ms p50 / p95 / p99) | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| Whole frame | 11.900 / 14.200 / 16.400 | 14.700 / 16.800 / 18.900 | 17.100 / 20.000 / 23.300 |
+| snapshotPrepare | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.100 |
+| ground | 0.300 / 0.500 / 0.500 | 0.300 / 0.400 / 0.500 | 0.300 / 0.500 / 0.600 |
+| painterBuild | 4.500 / 5.700 / 6.800 | 4.300 / 5.400 / 6.200 | 4.400 / 5.300 / 6.100 |
+| painterSort | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 |
+| painterDraw | 1.600 / 2.100 / 2.400 | 1.600 / 2.100 / 2.400 | 2.400 / 3.100 / 4.000 |
+| weather | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.200 / 0.300 |
+| lightingBoundsResize | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.100 | 0.000 / 0.000 / 0.100 |
+| lightingOcclusionRaster | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingSolve | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.100 | 0.000 / 0.200 / 0.200 |
+| lightingMerge | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 |
+| lightingUpload | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.100 | 0.000 / 0.100 / 0.100 |
+| lightingReceiver | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingComposite | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.100 | 0.000 / 0.000 / 0.000 |
+| lightingStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingAnimatedStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingDynamicSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| finalWorldComposite | 0.600 / 0.800 / 1.000 | 4.000 / 4.600 / 5.100 | 3.100 / 3.600 / 4.000 |
+| uiModel | 0.500 / 0.600 / 0.700 | 0.400 / 0.600 / 0.700 | 0.400 / 0.600 / 0.700 |
+| uiLayout | 0.500 / 0.700 / 0.800 | 0.500 / 0.600 / 0.800 | 0.500 / 0.600 / 0.900 |
+| uiDraw | 3.300 / 4.400 / 4.800 | 3.200 / 3.700 / 4.100 | 3.100 / 3.600 / 4.300 |
+| fixedUpdate | 0.200 / 0.300 / 0.400 | 0.100 / 0.200 / 0.300 | 0.100 / 0.200 / 0.300 |
+| catchUp | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.200 / 0.300 |
+| Physical iPad | owner to run | owner to run | owner to run |
+
+| Per-frame counter (p50 / p95 / maximum) | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| drawImageCalls | 1713 / 2043 / 2044 | 1715 / 1715 / 1716 | 1716 / 1717 / 1847 |
+| distinctDrawImageSources | 39 / 40 / 40 | 41 / 41 / 41 | 118 / 123 / 163 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 1 / 69 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 | 311 / 311 / 311 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 52 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 1 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 1 / 1 / 1 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 1 / 1 / 1 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| imageDataAllocations | 0 / 0 / 0 | 0 / 0 / 0 | 1 / 1 / 1 |
+| saveCalls | 653 / 660 / 660 | 654 / 654 / 654 | 654 / 654 / 654 |
+| restoreCalls | 653 / 660 / 660 | 654 / 654 / 654 | 654 / 654 / 654 |
+| saveRestorePairs | 653 / 660 / 660 | 654 / 654 / 654 | 654 / 654 / 654 |
+| surfaceAllocations | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 0 / 42 |
+
+Samples: Basic 1,800 frames; Classic 1,795; Dynamic 1,626. All three recorded zero long tasks ≥50 ms. Lighting bytes after capture: Basic **0**, Classic **170,752**, Dynamic **4,574,577**. Basic/Classic semantic tint/filter/coverage/ground-source counters are all zero; Classic still executes its existing lightmap stages, so zero total Classic lighting work is **not** claimed. Dynamic still builds filtered frames (maximum 1/frame), tint frames (maximum 69/frame), coverage (1/frame), ImageData (1/frame), and surfaces (maximum 42/frame). These are measured baseline failures for the later milestones.
+
+The current scene has 375 render items, below the earlier 661-item reference. This stationary sample does not satisfy the required walking/content-matched exit, and no target improvement is claimed from the whole-frame difference against 0.5.0. The zero `groundSourceOperations` counter also means this live scene does not exercise projected cap runs. Required fixture/golden and walking qualification remains in progress.
+
+#### P0 fixture comparison
+
+`P0/golden-comparison.json` records **zero changed channels** for all four
+boards: lighting (1280×1224), seasonal lighting (1280×900), celestial shadows
+(1920×1260), and production world lighting/nested terrain (1920×1680). All
+12 world-lighting HUD witnesses remain exactly `[255,255,255,255]`. The world
+board was visually inspected for sun/moon movement, elevated cliff caps, Basic
+baked shadows, lantern fill and the white HUD witness. Source baseline is the
+preserved `a7070426` implementation; candidate differs by P0 instrumentation.
+
+The unadapted world fixture failed **before drawing** with `budget-exceeded`
+(`P0/run-goldens.log`): its old setup bulk-prepares all loaded animation frames,
+where current gameplay uses 0.5.6 immediate preparation. The golden builder
+applies the same `frames.beginFrame()` setup to both baseline and candidate;
+no runtime renderer change or budget increase is made. This compatibility
+adapter is explicit in `P0/build-goldens.mjs` and the passing rerun log is
+`P0/run-goldens-current-preparation.log`. The unadapted fixture failure remains
+recorded; the pixel-equivalence result applies to the current-preparation
+fixtures, not to the obsolete bulk-preparation setup.
+
+Commands: `node output/perf-59-20260906/P0/build-goldens.mjs`,
+`node output/perf-59-20260906/P0/run-goldens.mjs`,
+`npm exec tsx -- output/perf-59-20260906/P0/compare-goldens.ts`.
+Artifacts include `baseline-run*.png`, `candidate-run*.png`, corresponding
+JSON evidence, and `P0/golden-baseline-source.json`. The CPU-source-only
+readback grep passes (`world-readback.test.ts`); whole-client runtime Canvas
+sources are scanned, with four explicitly pinned CPU asset preprocessing
+reads and no permitted world/lightmap/present readback.
+
+The first full attribution gate reached **569 suites / 3,411 tests** and caught
+one new scenario registry ordering error (568 suites / 3,410 tests passed).
+The scenario definition order now matches the ID order; no assertion was
+weakened. The focused rerun passes **5 suites / 20 tests**. Logs:
+`P0/check-attribution.log`, `P0/focused-attribution.log`. The settled full gate
+is rerun after the walking sample so its CPU load is excluded from measurement.
+Generated golden bundles live in `P0/dist/`, covered by the existing generated
+`dist` lint exclusion; authored capture/build/compare scripts pass scoped lint
+(`P0/artifact-lint.log`). No new broad lint exclusion was added.
+
+#### P0 walking desktop protocol
+
+Source commit **`a7070426b9218c9dcf2b8bade6b1d0256b0ac2d1`**, dirty source diff SHA-256 `acb65184005bf6197c3c1e6e0103300107dd71919df5bd4c529f02350caa50a5`; individual source hashes in `P0/walking-source-hashes.json`. Same Linux Ryzen/Chrome device, 1280×720, DPR 1, 100% browser zoom, world zoom 2 and Canvas native policy as above. Capture command: `node output/perf-59-20260906/P0/capture-local.mjs`. Artifacts: `P0/desktop-walking.json`, `P0/capture-walking.log`. No concurrent full check or CPU throttling during this run.
+
+The driver moves one actor through the normal keyboard path (right/down/left/up, 500 ms per leg), without teleporting or changing shared content/time. The camera follows the actor; server collision applies. This samples actual moving gameplay, with naturally varying visible items. The earlier exact 661-item layout remains unavailable and is not represented as reproduced.
+
+| Stage (ms p50 / p95 / p99) | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| Whole frame | 11.900 / 14.400 / 16.300 | 13.500 / 15.900 / 18.700 | 18.700 / 21.500 / 23.900 |
+| snapshotPrepare | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 |
+| ground | 0.300 / 0.400 / 0.500 | 0.300 / 0.400 / 0.500 | 0.400 / 0.500 / 0.600 |
+| painterBuild | 4.700 / 5.800 / 7.000 | 4.800 / 6.000 / 7.200 | 4.800 / 5.800 / 6.800 |
+| painterSort | 0.100 / 0.100 / 0.200 | 0.100 / 0.100 / 0.200 | 0.100 / 0.100 / 0.200 |
+| painterDraw | 1.500 / 2.000 / 2.300 | 1.400 / 1.900 / 2.200 | 2.300 / 3.200 / 3.800 |
+| weather | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.200 / 0.300 |
+| lightingBoundsResize | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.100 | 0.000 / 0.100 / 0.100 |
+| lightingOcclusionRaster | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingSolve | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingMerge | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.100 | 0.000 / 0.100 / 0.200 |
+| lightingUpload | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.100 | 0.000 / 0.100 / 0.100 |
+| lightingReceiver | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingComposite | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.100 | 0.000 / 0.000 / 0.000 |
+| lightingStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingAnimatedStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingDynamicSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| finalWorldComposite | 0.700 / 0.900 / 1.100 | 2.400 / 2.700 / 3.000 | 3.200 / 3.800 / 4.300 |
+| uiModel | 0.500 / 0.600 / 0.700 | 0.500 / 0.600 / 0.700 | 0.500 / 0.600 / 0.700 |
+| uiLayout | 0.500 / 0.700 / 0.800 | 0.500 / 0.700 / 0.800 | 0.500 / 0.700 / 1.100 |
+| uiDraw | 3.400 / 4.500 / 5.100 | 3.300 / 4.000 / 4.500 | 3.300 / 4.000 / 4.400 |
+| fixedUpdate | 0.200 / 0.300 / 0.400 | 0.200 / 0.300 / 0.400 | 0.200 / 0.300 / 0.500 |
+| catchUp | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.300 / 0.400 |
+| Physical iPad | owner to run | owner to run | owner to run |
+
+| Per-frame counter (p50 / p95 / maximum) | Basic | Classic | Dynamic |
+|---|---:|---:|---:|
+| drawImageCalls | 1698 / 2082 / 2093 | 1694 / 1756 / 1777 | 1708 / 1731 / 1836 |
+| distinctDrawImageSources | 34 / 36 / 36 | 35 / 37 / 37 | 125 / 138 / 174 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 1 / 12 / 64 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 | 311 / 324 / 325 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 1 / 12 / 64 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 1 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 1 / 1 / 1 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 1 / 1 / 1 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| imageDataAllocations | 0 / 0 / 0 | 0 / 2 / 2 | 1 / 3 / 3 |
+| saveCalls | 664 / 685 / 692 | 627 / 665 / 668 | 629 / 656 / 656 |
+| restoreCalls | 664 / 685 / 692 | 627 / 665 / 668 | 629 / 656 / 656 |
+| saveRestorePairs | 664 / 685 / 692 | 627 / 665 / 668 | 629 / 656 / 656 |
+| surfaceAllocations | 0 / 1 / 1 | 0 / 1 / 1 | 0 / 1 / 3 |
+
+Basic **1,798 frames**, Classic **1,798**, Dynamic **1,479**; zero long tasks ≥50 ms in all three samples. Visible render-item p50/p95: Basic **359/371**, Classic **347/371**, Dynamic **361/376**. The final Dynamic → Basic transition reaches **0 retained lighting bytes** (`afterRestore` in the JSON). Basic has zero tint/filter/coverage/ground-source/ImageData work. Classic retains its existing lightmap behavior, including up to two ImageData allocations when moving bounds change. Dynamic still has filtered-frame builds (maximum 1/frame), tint builds (p95 12/frame), coverage/prepared-height rebuilds (1/frame), and ImageData allocations (p95 3/frame). These remain baseline failures for P1–P7.
+
+Whole-frame target gaps at P0 are **8.4 ms** for Basic (14.4 vs ≤6 ms) and **11.5 ms** for Dynamic (21.5 vs ≤10 ms). Largest measured stage p95s: painterBuild **5.8/6.0/5.8 ms**, painterDraw **2.0/1.9/3.2 ms**, finalWorldComposite **0.9/2.7/3.8 ms**, uiDraw **4.5/4.0/4.0 ms** (Basic/Classic/Dynamic). Stage percentiles overlap and must not be summed. No GPU-completion timing is claimed.
+
+Remaining qualification gaps: exact historical content cannot be reconstructed from the retained release evidence; this live walking route contains no projected cap runs; the shared preview still fails active-rAF/screenshot automation (a later `visible:true` status also failed the rAF probe). The nested-terrain fixture covers cap pixels but is not substituted for a gameplay cap performance sample. iPad remains **owner to run**, using the capture steps above.
+
+#### P0 committed attribution gate
+
+Settled **`npm run check` exit 0**: **569 suites / 3,411 tests passed**,
+duration **823.25 s**, sim line coverage **92.38%**; lifecycle/world build,
+workspace types, lint, coverage and all asset validation pass. Evidence:
+`P0/check-attribution-settled.log`. Authored artifact scripts also pass lint.
+All measured source files stayed unchanged during this gate; **36/36** original
+atlas PNGs remain byte-identical (`P0/attribution-atlas-integrity.json`).
+
+Changed runtime files: `packages/engine/src/{metrics,receiver-frame-source,
+receiver-lighting,render-benchmark-scenarios,world-lighting-renderer}.ts`,
+`packages/ui/src/{asset-frame-source,overworld-ui}.ts`, and the extracted
+`packages/client/src/gameplay-render-diagnostics.ts`. New modules are
+`packages/ui/src/{render-operation-counters,render-protocol-action}.ts`,
+`packages/engine/src/render-protocol-buffer.ts`, and
+`packages/client/src/{gameplay-render-protocol,gameplay-render-protocol-launcher,
+render-canvas-probe,render-protocol-walk}.ts`. New tests are
+`render-protocol-buffer.test.ts` and `world-readback.test.ts`; the existing
+client structural seam digest is reviewed for the UI capture action.
+All new source modules are below 400 lines. Docs/14, this ledger and DECISIONS.md
+record the scope and measurement qualifications. P0 attribution is landed;
+physical iPad and shared-preview visual qualification remain explicitly open.

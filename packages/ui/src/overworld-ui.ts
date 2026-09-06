@@ -1,3 +1,4 @@
+import { renderProtocolAction } from './render-protocol-action.js';
 import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, clickContainerSlot, craftingRecipeOutput, hotbarSlotForInputCode, hotbarSlotLabel, itemContainerContentResolver, itemDefinition, itemStacksCompatible, matchingRecipeId, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks, recipeDefinition, runtimeCraftingRecipeOutput, runtimeDurabilityDefinition, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition, runtimeRecipeSkillSatisfied, toolDurabilityDefinition, type ContainerSnapshot, type ContentRegistry, type CraftingStation, type FrameDefinitionId, type ItemStack, type MoonPhase, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
 import type { LoadedAsset } from './assets.js';
 import { isolatedAtlasFrameImage } from './atlas-frame-image.js';
@@ -1124,6 +1125,7 @@ export class OverworldUi {
   private readonly developerBackNode: WidgetNode;
   private readonly settingsTabNodes: Readonly<Record<SettingsTab, WidgetNode>>;
   private readonly lightingQualityNode: WidgetNode;
+  private readonly renderProtocolNode: WidgetNode;
   private readonly developerTabNodes: Readonly<Record<DeveloperTab, WidgetNode>>;
   private readonly masterSlider: Slider;
   private readonly musicSlider: Slider;
@@ -1581,6 +1583,14 @@ export class OverworldUi {
         return true;
       },
     });
+    this.renderProtocolNode = widget('button', 'window.developer.render.protocol', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down' || event.button !== 0) return false;
+        renderProtocolAction.run();
+        this.openWindow = null;
+        return true;
+      },
+    });
     this.developerTabNodes = Object.fromEntries(DEVELOPER_TABS.map((tab) => [tab, widget(
       'button', `window.developer.tab.${tab}`, {
         onPointer: (event) => {
@@ -1667,6 +1677,7 @@ export class OverworldUi {
       this.developerBackNode,
       ...SETTINGS_TABS.map((tab) => this.settingsTabNodes[tab]),
       this.lightingQualityNode,
+      this.renderProtocolNode,
       ...DEVELOPER_TABS.map((tab) => this.developerTabNodes[tab]),
       this.previousDayNode,
       this.timeSlider.node,
@@ -1907,6 +1918,9 @@ export class OverworldUi {
     this.developerBackNode.setBounds(this.layout.developerBackButton);
     for (const tab of SETTINGS_TABS) this.settingsTabNodes[tab].setBounds(this.layout.settingsTabs[tab]);
     this.lightingQualityNode.setBounds(this.layout.lightingQualityButton);
+    this.renderProtocolNode.setBounds({ ...this.layout.orePreviewButton,
+      x: this.layout.developerContent.x + 12, width: this.layout.developerContent.width - 24,
+      y: this.layout.orePreviewButton.y + 30 });
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].setBounds(this.layout.developerTabs[tab]);
     this.masterSlider.setBounds(this.layout.masterSlider);
     this.musicSlider.setBounds(this.layout.musicSlider);
@@ -2881,6 +2895,7 @@ export class OverworldUi {
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].visible = developerVisible;
     const developerWorldVisible = developerVisible && this.developerTab === 'world';
     const developerRenderVisible = developerVisible && this.developerTab === 'render';
+    this.renderProtocolNode.visible = developerRenderVisible;
     for (const node of [this.previousDayNode, this.timeSlider.node, this.nextDayNode, this.weatherModeNode, this.windDirectionNode]) {
       node.visible = developerWorldVisible;
     }
@@ -3040,17 +3055,10 @@ export class OverworldUi {
       this.layout.orePreviewButton.y + 5, { color: '#6b4428' });
     this.lightingEffectsToggle.draw(context);
     this.orePreviewToggle.draw(context);
-    const placeholderRows = [
-      ['COLLISION BOUNDS', false],
-      ['PATHFINDING OVERLAY', false],
-    ] as const;
-    const renderPlaceholderStart = Math.min(102, Math.max(72, developerContent.height - 48));
-    placeholderRows.forEach(([label, value], index) => {
-      const row = { x: developerContent.x + developerContent.width - 48,
-        y: developerContent.y + renderPlaceholderStart + index * 24, width: 40, height: 18 };
-      drawLabel(context, this.fonts, label, developerContent.x + 12, row.y + 5, { color: '#8c6c54' });
-      drawToggleSwitch(context, this.skin, row, { value, style: 'neutral', enabled: false });
-    });
+    drawMenuButton(context, this.skin, this.fonts, this.pointer, {
+      ...this.layout.orePreviewButton, x: developerContent.x + 12,
+      width: developerContent.width - 24, y: this.layout.orePreviewButton.y + 30,
+    }, renderProtocolAction.label);
   }
 
   private drawHotbar(context: CanvasRenderingContext2D): void {

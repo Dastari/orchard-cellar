@@ -1,3 +1,5 @@
+import { RENDER_COUNTER_IDS, renderOperationCounters, renderCounterSupport, resetRenderOperationCounters, type RenderCounterValues } from '@orchard/ui';
+
 export const RENDER_STAGE_IDS = [
   'snapshotPrepare',
   'ground',
@@ -154,7 +156,19 @@ export interface FramePacingSnapshot {
   readonly missed144Hz: number;
 }
 
+/** Stage/counter arrays are borrowed until the next rAF; copy inside the callback. */
+export interface CompletedRenderFrame {
+  readonly timestamp: number;
+  readonly frameMs: number;
+  readonly renderItems: number;
+  readonly stages: Float64Array;
+  readonly counters: Readonly<RenderCounterValues>;
+}
+export type RenderFrameObserver = (frame: CompletedRenderFrame) => void;
+
 export interface RenderMetricsSnapshot {
+  readonly counters: Readonly<RenderCounterValues>;
+  readonly nativeCanvasCountersSupported: boolean;
   readonly schemaVersion: 2;
   readonly frame: MetricDistributionSnapshot;
   readonly averageFrameMs: number;
@@ -177,6 +191,11 @@ export class RenderMetrics {
   private readonly inputToRenderSubmit = new FixedMetricSeries(FRAME_INTERVAL_CAPACITY);
   private readonly longTasks = new FixedMetricSeries(FRAME_INTERVAL_CAPACITY);
   private readonly stages = RENDER_STAGE_IDS.map(() => new FixedMetricSeries());
+  private readonly currentStages = new Float64Array(RENDER_STAGE_IDS.length);
+  private readonly completedCounters = { ...renderOperationCounters };
+  private readonly frameObservers = new Set<RenderFrameObserver>();
+  private readonly completedFrame = { timestamp: 0, frameMs: 0, renderItems: 0,
+    stages: this.currentStages, counters: this.completedCounters };
   private renderItemsValue = 0;
   private previousRafTimestamp = Number.NaN;
   private pendingInputTimestamp = Number.NaN;
@@ -190,15 +209,28 @@ export class RenderMetrics {
   record(frameMs: number, renderItems: number): void {
     this.frames.record(frameMs);
     this.renderItemsValue = Math.max(0, Math.floor(renderItems));
+    for (const id of RENDER_COUNTER_IDS) this.completedCounters[id] = renderOperationCounters[id];
+    this.completedFrame.timestamp = this.previousRafTimestamp;
+    this.completedFrame.frameMs = frameMs;
+    this.completedFrame.renderItems = this.renderItemsValue;
+    for (const observer of this.frameObservers) observer(this.completedFrame);
+  }
+
+  observeFrames(observer: RenderFrameObserver): () => void {
+    this.frameObservers.add(observer);
+    return () => { this.frameObservers.delete(observer); };
   }
 
   resetStage(stage: RenderStageId): void { this.stages[RENDER_STAGE_INDEX[stage]] = new FixedMetricSeries(); }
 
   recordStage(stage: RenderStageId, milliseconds: number): void {
     this.stages[RENDER_STAGE_INDEX[stage]]?.record(milliseconds);
+    this.currentStages[RENDER_STAGE_INDEX[stage]]! += Number.isFinite(milliseconds) ? Math.max(0, milliseconds) : 0;
   }
 
   recordRafTimestamp(milliseconds: number): void {
+    this.currentStages.fill(0);
+    resetRenderOperationCounters();
     if (Number.isFinite(this.previousRafTimestamp)) {
       this.frameIntervals.record(milliseconds - this.previousRafTimestamp);
     }
@@ -262,6 +294,8 @@ export class RenderMetrics {
     const frame = this.frames.snapshot();
     return {
       schemaVersion: 2,
+      counters: { ...this.completedCounters },
+      nativeCanvasCountersSupported: renderCounterSupport.nativeCanvas,
       frame,
       averageFrameMs: frame.mean,
       worstFrameMs: frame.maximum,
