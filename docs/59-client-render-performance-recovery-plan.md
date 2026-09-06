@@ -1866,3 +1866,119 @@ client typecheck and scoped ESLint; `node .../P6/build-goldens.mjs`,
 `compare-paged-terrain.ts`, `compare-painter-context.ts`; the recorded-frame,
 19-sprite and cutaway fixture commands/provenance alongside their artifacts.
 `capture-desynchronized.mjs` has not run; it is not listed as a passed check.
+
+### 2026-09-06 — P5 tint-page checkpoint; filters, cap consolidation and measurements open
+
+Status: **IN PROGRESS**. The exact-RGB page pool is integrated; five-bit
+quantization, filter removal, cap-layer consolidation and the real-client stage
+exit remain open. Full canonical gate: **PASS**, `check-tint-runtime.log`, 590 suites / 3,478 tests,
+873.58 seconds; typechecks, lint, lifecycle checks and asset validation green. Artifacts are under
+`output/perf-59-20260906/P5/`; `integrated-source-hashes.json` identifies both
+changed engine files, `receiver-frame-source.ts` and its replacement tests.
+The old per-entry Canvas/LRU implementation and obsolete tests are removed.
+
+Receiver frames now shelf-pack into 512×2048 pages, keyed by collision-checked
+numeric tuples for source identity, emission identity, frame rectangle and exact
+RGB. The default four-MiB budget permits one page. A full page evicts its complete
+generation and reuses its backing; returned frame rectangles include packed
+x/y offsets and retain the immediate-draw scratch contract. Each build clips its
+copy/multiply/destination-in/emission sequence to its own rectangle, so adjacent
+entries survive. Source artwork stays immutable; no filter or readback is added.
+Reset zeros every backing and releases all cached entries and counted bytes.
+
+Constructor `surfaceLimit` now limits pages; `tintSurfaceReuses` and public
+`reuses` count page-generation recycling. A budget below four MiB or a frame
+wider than 512 / taller than 2048 throws the existing receiver_frame budget
+error; white passthrough remains allocation-free. No production caller supplies
+a sub-page custom budget. Cached access checks for context loss; unavailable,
+lost or failed draw surfaces release the affected page and use the established
+failure prefix. No smaller hidden per-frame cache remains.
+
+`tint-pool-tests.log`: nine tests pass, including 20,000-colour churn through
+one page/four rollovers, stale-generation lookup, context loss and reset.
+Engine typechecking and source/artifact ESLint pass. `tint-pool-comparison.json`
+compares a Chromium source-isolation/translucency/emission/rollover board and all
+four lighting boards: **zero changed channels**, including the exact HUD witness.
+The unchanged previous cache is substituted for the reference bundle only.
+Current integrated goldens and terrain/pond scale comparisons are recorded
+separately as `golden-comparison.json` and `paged-terrain-comparison.json`.
+
+The following are **browser fixture counts**, not real-client stage timings:
+
+| Workload | Before | Page pool |
+|---|---:|---:|
+| Six warm exact-colour frames: sources | 6 | 1 |
+| Same warm set: retained bytes | 24576 | 4194304 |
+| 600 repeated frames × 12 reads: new surfaces | 0 | 0 |
+| Same 600 frames: new tint builds | 0 | 0 |
+| 12 large changing-colour frames: sources | 4 | 1 |
+| Same churn: retained bytes | 4194304 | 4194304 |
+| Same churn: tint builds | 12 | 12 |
+| Same churn: surface / page-generation reuses | 8 | 2 |
+| Reset bytes / surfaces | 0 / 0 | 0 / 0 |
+
+The fixed page increases memory for tiny working sets, while staying within the
+existing four-MiB pixel budget. Constant colours in the warm fixture do not prove
+zero tint builds under continuous moving-shadow RGB changes. Exact RGB remains
+because the three five-bit approximations exceed the one-step artwork gate.
+The three dim derivations also exceed it; hit-only CPU feasibility does not yet
+remove the runtime effects. Every original world filter still needing replacement
+is an unresolved P5 requirement, not a passed grep gate.
+
+`cap-review/design.md` records why a single flattened viewport layer changes
+current semantics: flat entity artwork interleaves with actors; cutaway opacity
+applies to individual overlapping subframes; transformed landmarks sample their
+light field before their transform. A packed source-command atlas could retain
+that order, but needs collection seams, explicit overflow bounds and base-ground
+integration. A two-level 512×2048-slot design plus shared scratch would retain
+12 MiB; eight levels would retain 36 MiB. This design is not implemented and no
+one-multiply or zero-groundSource claim is made. Existing accurate cap rendering
+remains, and its counters must be measured after authentication is restored.
+
+Last measured real-client baseline, original milliseconds p50/p95/p99:
+
+| Stage | Basic P2 before | Classic P2 before | Dynamic P2 before | P5 after |
+|---|---:|---:|---:|---|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 | unmeasured — authentication required |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 | unmeasured — authentication required |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 | unmeasured — authentication required |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 | unmeasured — authentication required |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 | unmeasured — authentication required |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 | unmeasured — authentication required |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 | unmeasured — authentication required |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 | unmeasured — authentication required |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingDynamicSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 | unmeasured — authentication required |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 | unmeasured — authentication required |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 | unmeasured — authentication required |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 | unmeasured — authentication required |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 | unmeasured — authentication required |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 | unmeasured — authentication required |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+All 14 real-client after counters, long-task counts and painterDraw/ground p95
+remain **unmeasured — authentication required**. Basic/Dynamic desktop budgets
+and shared minute-per-mode/scale gameplay review therefore remain open.
+
+Physical iPad: **owner to run**. In the approved candidate preview, choose Video
+→ World scale 1×, world zoom 2 and browser zoom 100%; System → Developer →
+Render → **Run protocol + copy JSON**, keeping Safari foreground for 105 seconds.
+If clipboard completion is refused use **Copy capture JSON**; repeat at 2× and
+Native. Attach model/iPadOS/Safari versions; commit/backend/policy/DPR/resolution,
+stages and counters are in the JSON. No desktop throttle substitutes for it.
+
+Commands: `npm run check`; `npm exec vitest run packages/engine/src/receiver-frame-source.test.ts`;
+engine typecheck and scoped ESLint; `node .../P5/tint-pool-build.mjs`,
+`tint-pool-run.mjs`; `tsx .../P5/tint-pool-compare.ts`; integrated
+`build-goldens.mjs`, `run-goldens.mjs`, `run-scale-goldens.mjs`,
+`compare-goldens.ts`, `compare-paged-terrain.ts`. Formula experiments and their
+original failed comparisons remain alongside `quantization-comparison.json`
+and under `filter-feasibility/`; no fourth approximation was attempted.
