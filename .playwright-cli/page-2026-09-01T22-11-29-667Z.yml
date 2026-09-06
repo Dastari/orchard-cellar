@@ -1,0 +1,7 @@
+- main [ref=f3e2]:
+  - generic "Orchard and Cellar" [ref=f3e3]
+  - textbox "New local development profile name"
+  - status "Opening the Orchard. 8%" [ref=f3e5]:
+    - text: OPENING THE ORCHARD CHECKING YOUR ACCOUNT
+    - generic [ref=f3e6]: 8%
+  - status [ref=f3e7]

@@ -349,10 +349,6 @@ export function recoverableArrowDirection(
   return { x: Math.cos(radians), y: Math.sin(radians) };
 }
 
-export function isRecoverableArrow(itemKind: string, durability: number): boolean {
-  return itemKind === 'arrow' && recoverableArrowDirection(durability) !== null;
-}
-
 function segmentAabbFraction(
   from: ProjectilePoint,
   to: ProjectilePoint,

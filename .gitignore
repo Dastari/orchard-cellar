@@ -2,7 +2,7 @@ node_modules/
 dist/
 coverage/
 build/
-packages/client/public/generated/
+packages/assets/generated/
 packages/assets/review/
 # Raw source captures and licensed asset packs are local-only. Their terms do not
 # permit redistribution.

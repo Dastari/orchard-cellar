@@ -5,7 +5,7 @@ export function uiMetadataErrors(asset: AssetSource): string[] {
   const errors: string[] = [];
   // Legacy UI anchors predate explicit layout intent. All Cute Fantasy catalog
   // entries must opt in so consumers never have to infer scaling from pixels.
-  if (asset.sourcePath?.startsWith('references/Cute_Fantasy_UI/') && !asset.uiSizing) {
+  if (asset.sourcePath?.startsWith('references/art/kenmi/cute-fantasy/ui/') && !asset.uiSizing) {
     errors.push(`${asset.name}: Cute Fantasy UI assets must declare uiSizing`);
   }
   if (asset.uiSizing === 'nine_slice' && !asset.slice) {

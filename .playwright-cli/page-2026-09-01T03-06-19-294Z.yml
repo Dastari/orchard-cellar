@@ -1,0 +1,89 @@
+- main [ref=e2]:
+  - textbox "New local development profile name"
+  - status [ref=e6]
+  - main [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: ORCHARD & CELLAR / RIG LAB
+        - heading "Character Studio" [level=1] [ref=e11]
+      - paragraph [ref=e12]: Click an equipment slot, then compare Raven icons converted through reusable animated wearable templates.
+    - region [ref=e13]:
+      - generic [ref=e14]:
+        - heading "Equipment" [level=2] [ref=e15]
+        - button "Clear" [ref=e16] [cursor=pointer]
+      - generic [ref=e17]:
+        - button "HEAD Azure Demon Mask" [ref=e297] [cursor=pointer]:
+          - generic [ref=e298]: HEAD
+          - strong [ref=e300]: Azure Demon Mask
+        - button "BODY Crimson Officer Coat" [ref=e301] [cursor=pointer]:
+          - generic [ref=e302]: BODY
+          - strong [ref=e304]: Crimson Officer Coat
+        - button "LEGS Iron Greaves" [pressed] [ref=e305] [cursor=pointer]:
+          - generic [ref=e306]: LEGS
+          - strong [ref=e308]: Iron Greaves
+      - generic [ref=e30]:
+        - checkbox "Hide hair beneath helmets" [checked] [ref=e31]
+        - text: Hide hair beneath helmets
+      - generic [ref=e32]:
+        - strong [ref=e33]: Conversion recipe
+        - generic [ref=e34]: "Raven icon: item identity and native palette"
+        - generic [ref=e35]: "Cute Fantasy: side/back geometry and full animation coverage"
+    - region [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - paragraph [ref=e39]: LIVE CANVAS
+          - heading "Animation test stage" [level=2] [ref=e40]
+        - status [ref=e41]: LEGS selected — 8 wearable choices
+      - generic "Interactive character armor animation stage. Move with WASD or arrow keys, select tools with 1 through 4, and use the selected tool with F." [ref=e43]
+      - generic "Tool hotbar" [ref=e44]:
+        - button "1 Sword" [pressed] [ref=e45] [cursor=pointer]
+        - button "2 Pickaxe" [ref=e48] [cursor=pointer]
+        - button "3 Axe" [ref=e51] [cursor=pointer]
+        - button "4 Bow" [ref=e54] [cursor=pointer]
+      - generic "Animation actions" [ref=e57]:
+        - button "Attack" [ref=e58] [cursor=pointer]
+        - button "Mine" [ref=e59] [cursor=pointer]
+        - button "Chop" [ref=e60] [cursor=pointer]
+        - button "Bow" [ref=e61] [cursor=pointer]
+      - paragraph [ref=e62]: WASD/ARROWS move · 1–4 select · F use · hold mouse on the canvas to draw the bow
+    - region [ref=e309]:
+      - generic [ref=e64]:
+        - heading "Legs choices" [level=2] [ref=e310]
+        - generic [ref=e66]: 5 Raven · 8 total
+      - generic "Available legs equipment" [ref=e311]:
+        - button "NO EQUIPMENT Remove legs item Return Iron Greaves to the inventory" [ref=e312] [cursor=pointer]:
+          - emphasis [ref=e313]: NO EQUIPMENT
+          - generic [ref=e314]: Remove legs item
+          - generic [ref=e315]: Return Iron Greaves to the inventory
+        - button "ANIMATED TEMPLATE Bronze Greaves Same geometry, generated palette" [ref=e316] [cursor=pointer]:
+          - emphasis [ref=e317]: ANIMATED TEMPLATE
+          - generic [ref=e319]: Bronze Greaves
+          - generic [ref=e320]: Same geometry, generated palette
+        - button "ANIMATED TEMPLATE Gold Greaves Same geometry, generated palette" [ref=e321] [cursor=pointer]:
+          - emphasis [ref=e322]: ANIMATED TEMPLATE
+          - generic [ref=e324]: Gold Greaves
+          - generic [ref=e325]: Same geometry, generated palette
+        - button "RAVEN · plate greaves Steel Trail Boots Raven palette → plate greaves" [ref=e326] [cursor=pointer]:
+          - emphasis [ref=e327]: RAVEN · plate greaves
+          - generic [ref=e329]: Steel Trail Boots
+          - generic [ref=e330]: Raven palette → plate greaves
+        - button "RAVEN · plate greaves Night Plate Boots Raven palette → plate greaves" [ref=e331] [cursor=pointer]:
+          - emphasis [ref=e332]: RAVEN · plate greaves
+          - generic [ref=e334]: Night Plate Boots
+          - generic [ref=e335]: Raven palette → plate greaves
+        - button "RAVEN · plate greaves Mossguard Boots Raven palette → plate greaves" [ref=e336] [cursor=pointer]:
+          - emphasis [ref=e337]: RAVEN · plate greaves
+          - generic [ref=e339]: Mossguard Boots
+          - generic [ref=e340]: Raven palette → plate greaves
+        - button "RAVEN · plate greaves Violet Rune Boots Raven palette → plate greaves" [ref=e341] [cursor=pointer]:
+          - emphasis [ref=e342]: RAVEN · plate greaves
+          - generic [ref=e344]: Violet Rune Boots
+          - generic [ref=e345]: Raven palette → plate greaves
+        - button "RAVEN · plate greaves Crimson March Boots Raven palette → plate greaves" [ref=e346] [cursor=pointer]:
+          - emphasis [ref=e347]: RAVEN · plate greaves
+          - generic [ref=e349]: Crimson March Boots
+          - generic [ref=e350]: Raven palette → plate greaves
+      - complementary [ref=e117]:
+        - heading "What this proves" [level=3] [ref=e118]
+        - paragraph [ref=e119]: Raven icons stay untouched in the inventory. Their four-color material ramps are transferred onto a reusable animated helmet, chest, or greaves template.
+        - paragraph [ref=e120]: The template supplies the missing side and back views. Distinctive shapes such as horns and plumes will eventually become separate directional accent layers.

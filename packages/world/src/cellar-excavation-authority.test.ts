@@ -22,21 +22,23 @@ describe('cellar excavation authority', () => {
   });
 
   it('requires an exposed cellar wall and a usable pickaxe on every strike', () => {
-    const reducer = sourceBetween('export const digCellarTile =', 'export const harvestResource =');
+    const reducer = sourceBetween('function applyDigCellarTileLifecycle(', 'function applyHarvestResourceLifecycle(');
     expect(reducer).toContain("definition?.generator !== 'cellar'");
     expect(reducer).toContain('requireWorldModificationAuthorized(ctx, position)');
-    expect(reducer).toContain("slot.itemKind !== 'pickaxe'");
+    expect(reducer).toContain("runtimeToolSpecialization(registry, slot.itemKind) !== 'mining'");
+    expect(reducer).toContain('const registry = contentRegistry(ctx)');
     expect(reducer).toContain('cellarTileIsDug(ctx, position.spaceId');
     expect(reducer).toContain('CELLAR_WALL_TOOL_WEAR');
   });
 
   it('opens terrain, drops a stone heap, and reveals only the excavated ore tile', () => {
-    const reducer = sourceBetween('export const digCellarTile =', 'export const harvestResource =');
+    const reducer = sourceBetween('function applyDigCellarTileLifecycle(', 'function applyHarvestResourceLifecycle(');
     expect(reducer).toContain('ctx.db.cellar_excavation.insert');
     expect(reducer).toContain('cellarWallHitsRequired');
     expect(reducer).toContain('cellarWallStoneQuantity');
     expect(reducer).toContain("itemKind: 'pebble'");
     expect(reducer).toContain('cellarOreKindAt(seed, position.spaceId, tileX, tileY)');
     expect(reducer).toContain('ctx.db.world_resource.insert');
+    expect(source).toContain('cellarExcavationAnchorsAffectingTile(');
   });
 });

@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_field_notes",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......0000001...",
+        "......02022221..",
+        "......03323321..",
+        ".....002022211..",
+        ".....033323321..",
+        "....020222144...",
+        "...02332314563..",
+        "..120222124653..",
+        "...1122121133...",
+        ".....11111.63...",
+        "..........536...",
+        ".........56.36..",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#ead4aa",
+    "1": "#b86f50",
+    "2": "#e4a672",
+    "3": "#3e2731",
+    "4": "#e43b44",
+    "5": "#f6757a",
+    "6": "#a22633"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+  "sourceRegion": [
+    160,
+    64,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.field_notes",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

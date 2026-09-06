@@ -1,4 +1,4 @@
-import { DbConnection, tables } from '../packages/client/src/net/generated/index.js';
+import { DbConnection, tables } from '@orchard/world-bindings';
 import { TILE_SIZE_FIXED } from '../packages/sim/src/index.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import type { Identity } from 'spacetimedb';

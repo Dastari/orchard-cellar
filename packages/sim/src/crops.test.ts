@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AUTHORED_CROP_DEFINITIONS,
   CROP_DEFINITIONS,
   FARMER_BOB_FAST_STRAWBERRY_CROP,
   FARMER_BOB_FAST_STRAWBERRY_SEEDS,
@@ -12,13 +13,15 @@ import {
   cropSeasonalGrowthBetween,
   emptySoilDecayAtTick,
   emptySoilDecayDue,
+  isCropKind,
+  isCropSeedKind,
   wateredGrowthBetween,
 } from './crops.js';
 import { AUTHORITY_HZ } from './net-timing.js';
 import { AUTHORITY_TICKS_PER_DAY, DAYS_PER_SEASON } from './time.js';
 
 describe('crop catalogue', () => {
-  it('covers the 22 authored crop groups and maps every seed back to its crop', () => {
+  it('covers the 22 standard crop groups and maps every seed back to its crop', () => {
     expect(CROP_DEFINITIONS).toHaveLength(22);
     expect(new Set(CROP_DEFINITIONS.map(({ kind }) => kind)).size).toBe(22);
     for (const definition of CROP_DEFINITIONS) {
@@ -38,12 +41,23 @@ describe('crop catalogue', () => {
 
   it('gives Bob\'s quest seed a one-water, thirty-second strawberry crop', () => {
     const definition = cropDefinitionForSeed(FARMER_BOB_FAST_STRAWBERRY_SEEDS);
-    expect(definition).toMatchObject({ kind: 'strawberry', harvestItemKind: 'strawberry' });
+    expect(definition).toMatchObject({
+      kind: FARMER_BOB_FAST_STRAWBERRY_CROP,
+      seedItemKind: FARMER_BOB_FAST_STRAWBERRY_SEEDS,
+      harvestItemKind: 'strawberry',
+      assetKey: 'crop_cf_strawberry',
+      harvestQuantity: 3,
+      seasonless: true,
+      tags: ['crop.quest'],
+    });
     expect(definition?.growthTicks).toBe(BigInt(30 * AUTHORITY_HZ));
     if (definition === null) throw new Error('missing fast strawberry definition');
     expect(cropStoredKindForSeed(FARMER_BOB_FAST_STRAWBERRY_SEEDS, definition))
       .toBe(FARMER_BOB_FAST_STRAWBERRY_CROP);
     expect(cropDefinition(FARMER_BOB_FAST_STRAWBERRY_CROP)).toStrictEqual(definition);
+    expect(AUTHORED_CROP_DEFINITIONS).toHaveLength(23);
+    expect(isCropKind(FARMER_BOB_FAST_STRAWBERRY_CROP)).toBe(false);
+    expect(isCropSeedKind(FARMER_BOB_FAST_STRAWBERRY_SEEDS)).toBe(false);
   });
 });
 
@@ -109,6 +123,14 @@ describe('season-gated crop growth', () => {
 
     expect(outdoor).toMatchObject({ growthTicks: 0n, inSeason: false });
     expect(greenhouse).toMatchObject({ growthTicks: 200n, inSeason: true });
+  });
+
+  it('keeps Bob\'s fast quest strawberries active outdoors during winter', () => {
+    const definition = cropDefinition(FARMER_BOB_FAST_STRAWBERRY_CROP)!;
+    const plantedTick = winterStarts + 100n;
+    expect(cropGrowthAt(
+      definition, 0n, plantedTick, plantedTick, plantedTick + 200n,
+    )).toMatchObject({ growthTicks: 200n, inSeason: true });
   });
 });
 

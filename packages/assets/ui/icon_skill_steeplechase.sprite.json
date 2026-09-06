@@ -1,0 +1,71 @@
+{
+  "name": "icon_skill_steeplechase",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "..000......000..",
+        ".07650000005670.",
+        "060005a33a500060",
+        "00.035aaaa530.00",
+        "..0235aaaa5320..",
+        ".021233aa332120.",
+        ".042113aa311240.",
+        ".014213bb312410.",
+        ".012113bb311210.",
+        "..01153bb35110..",
+        "..03339bb93330..",
+        "...03aabbaa30...",
+        "...03aa88aa30...",
+        "....08000080....",
+        ".....080080.....",
+        "......0..0......"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#28252f",
+    "1": "#2c0e26",
+    "2": "#3c213e",
+    "3": "#4a2a35",
+    "4": "#533c5b",
+    "5": "#5e332d",
+    "6": "#925549",
+    "7": "#ce9678",
+    "8": "#f89320",
+    "9": "#fac83d",
+    "a": "#fb6b1d",
+    "b": "#ffd4a3"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/pets-animals/sheet-16.png",
+  "sourceRegion": [
+    128,
+    32,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.steeplechase",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

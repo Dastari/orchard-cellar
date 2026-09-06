@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_camp_tent",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     96
@@ -131,7 +132,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Tent_Small.png",
-  "sourcePath": "references/Cute_Fantasy/Buildings/Buildings/Tent/Tent_Small.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/Buildings/Tent/Tent_Small.png",
   "sourceRegions": {
     "base": [
       [

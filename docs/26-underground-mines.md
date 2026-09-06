@@ -221,8 +221,8 @@ database, and access-controlled data/reducers must not trust subscription scope.
 
 The lighting system (docs/21, `render/lighting.ts`) already does everything the
 mines need *except* darkness itself: per-tile multiply lightmap, per-channel-max
-point lights with linear falloff, and torch/lantern emission wired to the
-equipped item kind for both local and remote players. What changes:
+point lights with linear falloff, and portable-light emission wired to authored
+item light metadata and replicated lit state for both local and remote players.
 
 - **Per-space ambient.** `lightmap.draw` already takes ambient as an argument;
   in space 0 it stays `ambientAtTick` (with its deliberate comfort floor of
@@ -234,17 +234,14 @@ equipped item kind for both local and remote players. What changes:
   Weather/rain dimming does not apply underground.
 - **The torch becomes a real item** (finally activating the dormant path):
   `torch` in `ITEM_DEFINITIONS`, hotbar icon `icon_cf_torch`, carried art from
-  the pack's `Torch_Idle/Running` player sheets, radius 3 tiles at
-  `TORCH_LIGHT #ffb868` — all constants already exist in `lighting.ts`.
+  the pack's `Torch_Idle/Running` player sheets, with its radius, warm colour,
+  and flicker profile resolved from the live item `light` component.
   Craftable cheap (wood + plant fiber) by hand (docs/28 phases 1–3); **does not burn out**
-  (cozy rule — darkness is atmosphere, not a fuel tax). The `lantern` item
-  follows in a later phase: radius 5, crafted with iron, and — because lights
-  follow `equippedKind` — the meaningful upgrade is that holding a torch
-  occupies your hand-slot logic today, and the lantern is the same but brighter.
-  A "lit while hotbarred, not held" rule is deliberately deferred to keep v1
-  honest: **you hold your light or you swing your pickaxe, not both** — that
-  tension is the mine's core rhythm, and it composes with Vigour pacing
-  (doc 25 §4).
+  (cozy rule — darkness is atmosphere, not a fuel tax). Torch and Lantern occupy
+  the Off Hand slot and each expose the same authored `equipmentUse` and
+  `worldItemUse` toggle lifecycle. Torch retains its radius-3 flicker while the
+  iron Lantern provides a steady radius-4 light, leaving the selected hand free
+  for mining tools.
 - **Static lights:** generated lanterns (§4.5) and crystal glows feed the same
   `pointLights` array. Entrance/exit portals emit a soft glow so the way out is
   always findable.

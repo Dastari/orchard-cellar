@@ -158,6 +158,43 @@ Conventional commits with these types: `feat` `fix` `art` `audio` `docs` `balanc
   the roadmap entry — what's done, what's next, any traps — so the next agent starts
   from your context, not from zero.
 
+### 8.1 Lane briefs for parallel agents
+
+Plans that are too large for one session (docs 55 and 56 are the first) are split into
+**lanes**. A lane is the unit one agent, of any model, can take from a cold start. The
+coordinating agent (or the owner) writes one brief per lane, in the roadmap hand-off
+area or a `docs/lanes/<plan>-<lane>.md` file, using exactly this shape:
+
+```text
+Lane:        55-B2 item interactions
+Goal:        one sentence
+Consumes:    contracts this lane may import but must not change (file paths)
+Owns:        files/directories this lane alone may edit (new files preferred)
+Must not:    files this lane may not touch, even to fix (name the owner lane)
+Depends on:  lanes that must be merged first
+Unblocks:    lanes waiting on this one
+Done when:   observable outcome + the exact verification commands
+Hand-off:    what to leave for the next lane (fixtures, TODO(lane) markers, notes)
+```
+
+Rules that make lanes mergeable:
+
+- **Contracts first.** Types, fixtures, and stub parsers that several lanes need are
+  their own short lane, merged before anyone else starts. A lane that needs a contract
+  change stops and asks the contracts owner; it does not edit the contract.
+- **New files over shared files.** Before working inside a monolith (today
+  `packages/world/src/index.ts`, `packages/client/src/overworld-main.ts`,
+  `packages/ui/src/overworld-ui.ts`), a lane first extracts the code it owns into
+  a new module in one mechanical move commit with no logic change, then works there.
+- **One integrator.** Each phase has a named integrator lane that merges, runs
+  `npm run check`, updates the phase's Done-when in the roadmap, and writes the
+  verification-log entry. Other lanes do not edit the roadmap beyond their claim line.
+- **Worktrees, not branches of branches.** Each lane works in its own git worktree from
+  `main`; rebase daily; a lane older than the integrator's last merge rebases before
+  asking for review.
+- **Tests travel with the lane.** A lane's Done-when names the test files it added;
+  the integrator runs only those plus the full gate, never "trust me".
+
 ## 9. When stuck: the 3-strike rule
 
 After **three failed approaches** to the same problem, stop. Append an `OPEN:` entry to

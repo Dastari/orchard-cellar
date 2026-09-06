@@ -796,7 +796,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Hands_Bare_Lantern_Torch_Idle_Running.png",
-  "sourcePath": "references/Cute_Fantasy/Player/Hands/Hands_Bare_Lantern_Torch_Idle_Running.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Player/Hands/Hands_Bare_Lantern_Torch_Idle_Running.png",
   "sourceRegions": {
     "hold_idle_down": [
       [

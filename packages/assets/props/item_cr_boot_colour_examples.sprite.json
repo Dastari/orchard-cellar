@@ -1,0 +1,152 @@
+{
+  "name": "item_cr_boot_colour_examples",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "green_boots": [
+      [
+        "......44444.....",
+        ".....411199999..",
+        "....4dk19333339.",
+        "....4dd9rv333vv9",
+        "....4kd9rrvvvro9",
+        "....48d9vrrrroo9",
+        ".....489grrooog9",
+        ".....4kd9ggggg9.",
+        ".4..4kkd9vrrro9.",
+        "4k449kk9vvrrro9.",
+        "4dk9v99vvvrrooo9",
+        ".4k9rvvvvrrrooo9",
+        ".4dd9vvvrroooog9",
+        ".4cc9rrrooooog9.",
+        "..449oogggggg9..",
+        ".....99999999..."
+      ]
+    ],
+    "violet_boots": [
+      [
+        ".....55555......",
+        "....51111bbbbb..",
+        "...5m711b33333b.",
+        "...5hm7bwl333lwb",
+        "...5hhmbuwlllwub",
+        "...57hhbuuwwwuqb",
+        "....577bluuuuqlb",
+        "....5mhhblllllb.",
+        "...57777bwuuqqb.",
+        "..5mmmmblllllqb.",
+        ".5mmmhbwwwwuulqb",
+        "5mhhhbwwwuuuqqlb",
+        "5hhhbwuuuuuuqqlf",
+        "5hhhbuuuuuqqqqb.",
+        ".555buuuuuqqqb..",
+        ".....bbbbbbbb..."
+      ]
+    ],
+    "crimson_boots": [
+      [
+        ".....66666......",
+        "....6000006.....",
+        "...6ea00jjjjj...",
+        "...6peaj22222j..",
+        "...6ipjsn222nxj.",
+        "....6ijxsnnntsj.",
+        "...6aajtxxxtssj.",
+        "..6ppppjttsssj..",
+        ".6pppijnnnnnsj..",
+        "6piiijxxxxttntj.",
+        "6iiijxxxttttsnsj",
+        "6eejxtttttsssnsj",
+        ".66jtttssssssjj.",
+        "...jssssssssj...",
+        "....jjjjjjjj....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "green_boots": "state",
+    "violet_boots": "state",
+    "crimson_boots": "state"
+  },
+  "sourcePalette": {
+    "0": "#030000",
+    "1": "#030100",
+    "2": "#0a0203",
+    "3": "#0a0502",
+    "4": "#0a1406",
+    "5": "#0b0913",
+    "6": "#0d0506",
+    "7": "#110e1b",
+    "8": "#111c0b",
+    "9": "#111d0a",
+    "a": "#120507",
+    "b": "#12101d",
+    "c": "#172310",
+    "d": "#1b2913",
+    "e": "#1c0a0d",
+    "f": "#1c1733",
+    "g": "#1e3014",
+    "h": "#201d30",
+    "i": "#211113",
+    "j": "#240d10",
+    "k": "#24331b",
+    "l": "#2e264b",
+    "m": "#2f2b3f",
+    "n": "#310f13",
+    "o": "#3c5f2a",
+    "p": "#3f2a2d",
+    "q": "#463d6c",
+    "r": "#496e35",
+    "s": "#4d1b20",
+    "t": "#5a2f34",
+    "u": "#5a5083",
+    "v": "#618a4b",
+    "w": "#7f74ab",
+    "x": "#ac7178"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "accessories-armour-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/accessories-armour-free/sheets/accessories-armour-16.png",
+  "sourceRegions": {
+    "green_boots": [
+      [
+        64,
+        32,
+        16,
+        16
+      ]
+    ],
+    "violet_boots": [
+      [
+        80,
+        32,
+        16,
+        16
+      ]
+    ],
+    "crimson_boots": [
+      [
+        112,
+        32,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.armour",
+    "source.clockwork_raven",
+    "studio.raven_examples",
+    "item.boots",
+    "slot.legs"
+  ]
+}

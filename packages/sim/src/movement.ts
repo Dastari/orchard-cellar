@@ -45,9 +45,11 @@ export function collisionTileIsBlockedAtPlane(
   elevation: number,
 ): boolean {
   if (tileIsBlocked(map, tileX, tileY)) return true;
-  if (elevation < 0 || map.terrainPlaneBlocked === undefined) return false;
+  if (map.terrainPlaneBlocked === undefined) return false;
   const stride = map.width * map.height;
-  return map.terrainPlaneBlocked[elevation * stride + tileY * map.width + tileX] === 1;
+  const planeIndex = elevation - (map.terrainMinimumElevation ?? 0);
+  if (planeIndex < 0 || planeIndex * stride >= map.terrainPlaneBlocked.length) return false;
+  return map.terrainPlaneBlocked[planeIndex * stride + tileY * map.width + tileX] === 1;
 }
 
 function tileIsHorseJumpableTerrain(map: CollisionMap, tileX: number, tileY: number): boolean {
@@ -98,6 +100,77 @@ function positionCollidesObstacle(position: Vec2Fixed, map: CollisionMap): boole
   return map.obstacles?.some((obstacle) => (
     left <= obstacle.right && right >= obstacle.left && top <= obstacle.bottom && bottom >= obstacle.top
   )) ?? false;
+}
+
+function obstacleMovementAllowed(from: Vec2Fixed, to: Vec2Fixed, map: CollisionMap): boolean {
+  const before = playerHitboxBounds(from);
+  const after = playerHitboxBounds(to);
+  let stillEmbedded = false;
+  let escaping = false;
+  for (const obstacle of map.obstacles ?? []) {
+    // Minimum axis displacement needed to separate the two closed rectangles.
+    // Unlike intersection area, this decreases even when the entire foot box
+    // is contained inside a newly solid object.
+    const beforeDepth = Math.max(0, Math.min(
+      before.right - obstacle.left + 1, obstacle.right - before.left + 1,
+      before.bottom - obstacle.top + 1, obstacle.bottom - before.top + 1,
+    ));
+    const afterDepth = Math.max(0, Math.min(
+      after.right - obstacle.left + 1, obstacle.right - after.left + 1,
+      after.bottom - obstacle.top + 1, obstacle.bottom - after.top + 1,
+    ));
+    // Never enter another object or trade deeper overlap with one obstacle
+    // for reduced overlap with another.
+    if (afterDepth > beforeDepth) return false;
+    if (afterDepth > 0) stillEmbedded = true;
+    if (afterDepth < beforeDepth) escaping = true;
+  }
+  return !stillEmbedded || escaping;
+}
+
+export const PLAYER_JUMP_DURATION_TICKS = 10;
+
+/** Finds a safe landing for an on-foot jump. Water/gap traversal is limited to
+ * terrain explicitly marked jumpable, while cliff traversal is limited by the
+ * elevation delta unlocked in the Explorer tree. Ordinary open ground never
+ * becomes a teleport shortcut. */
+export function findPlayerJumpLanding(
+  player: Vec2Fixed,
+  facing: Direction,
+  map: CollisionMap,
+  maximumGapTiles: number,
+  maximumCliffLevels: number,
+): Vec2Fixed | null {
+  const horizontal = facing.includes('Left') || facing === 'left' ? -1
+    : facing.includes('Right') || facing === 'right' ? 1 : 0;
+  const vertical = facing.includes('up') || facing === 'up' ? -1
+    : facing.includes('down') || facing === 'down' ? 1 : 0;
+  if (horizontal === 0 && vertical === 0) return null;
+  const gapLimit = Math.max(0, Math.min(3, Math.floor(maximumGapTiles)));
+  const cliffLimit = Math.max(0, Math.min(3, Math.floor(maximumCliffLevels)));
+  const startPlane = terrainPlaneAtPosition(player, map);
+  let blockedTiles = 0;
+  let gapOnly = true;
+  const maximumSamples = Math.max(gapLimit + 1, cliffLimit + 2);
+  for (let distance = 1; distance <= maximumSamples; distance += 1) {
+    const candidate = {
+      x: player.x + horizontal * TILE_SIZE_FIXED * distance,
+      y: player.y + vertical * TILE_SIZE_FIXED * distance,
+    };
+    if (positionCollidesObstacle(candidate, map)) return null;
+    if (positionCollidesTerrain(candidate, map)) {
+      blockedTiles += 1;
+      if (!positionCollidesOnlyHorseJumpableTerrain(candidate, map)) gapOnly = false;
+      if ((gapOnly && blockedTiles > gapLimit) || (!gapOnly && cliffLimit === 0)) return null;
+      continue;
+    }
+    const planeDelta = Math.abs(terrainPlaneAtPosition(candidate, map) - startPlane);
+    if (blockedTiles > 0 && gapOnly && blockedTiles <= gapLimit && planeDelta === 0) return candidate;
+    if (planeDelta > 0 && planeDelta <= cliffLimit) return candidate;
+    // Open ground immediately ahead is not something jumping should skip.
+    return null;
+  }
+  return null;
 }
 
 /** True only when the hitbox touches blocked tiles explicitly classified as
@@ -208,7 +281,7 @@ export function terrainPlaneAtPosition(position: Vec2Fixed, map: CollisionMap): 
  * destination-only collision check so contour edges block at its current
  * height while lower-plane actors remain free behind projected wall art. */
 export function movementPositionAllowed(from: Vec2Fixed, to: Vec2Fixed, map: CollisionMap): boolean {
-  if (movementCrossesBlockedElevation(from, to, map) || positionCollidesObstacle(to, map)) return false;
+  if (movementCrossesBlockedElevation(from, to, map) || !obstacleMovementAllowed(from, to, map)) return false;
   const destinationOverlap = terrainCollisionOverlapArea(to, map);
   if (destinationOverlap === 0) return true;
   // Schema/map revisions can make a persisted actor's current position newly

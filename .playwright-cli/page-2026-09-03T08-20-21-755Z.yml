@@ -1,0 +1,64 @@
+- main [ref=f1e2]:
+  - generic [ref=f1e3]:
+    - strong [ref=f1e4]: ORCHARD STUDIO
+    - combobox "Environment" [ref=f1e5]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=f1e6]
+  - generic [ref=f1e7]:
+    - navigation "Studio modes" [ref=f1e8]:
+      - button "Build" [ref=f1e9] [cursor=pointer]
+      - button "Author" [ref=f1e10] [cursor=pointer]
+      - generic [ref=f1e11]:
+        - generic [ref=f1e12]: Local sandbox
+        - generic [ref=f1e13]: Anonymous
+        - generic [ref=f1e14]: Sandbox
+        - generic [ref=f1e15]: Map —
+        - generic [ref=f1e16]: Content —
+    - generic [ref=f1e17]:
+      - heading "Outliner" [level=2] [ref=f1e18]
+      - generic [ref=f1e19]:
+        - button "Local" [ref=f1e20] [cursor=pointer]
+        - button "Live" [ref=f1e21] [cursor=pointer]
+      - list [ref=f1e22]:
+        - listitem [ref=f1e23]:
+          - text: Topside
+          - list [ref=f1e24]:
+            - listitem [ref=f1e25]: Terrain
+            - listitem [ref=f1e26]:
+              - text: Objects
+              - list [ref=f1e27]:
+                - listitem [ref=f1e28]:
+                  - button "Marlow Camp" [ref=f1e29] [cursor=pointer]
+                - listitem [ref=f1e30]:
+                  - button "Estate" [ref=f1e31] [cursor=pointer]
+      - heading "AUTHOR" [level=3] [ref=f1e32]
+      - button "Items & Recipes" [ref=f1e33] [cursor=pointer]
+      - button "Character Studio" [ref=f1e34] [cursor=pointer]
+      - button "Audio Preview" [ref=f1e35] [cursor=pointer]
+      - button "UI Lab" [ref=f1e36] [cursor=pointer]
+    - main [ref=f1e37]:
+      - heading "Character Studio" [level=1] [ref=f1e38]
+      - generic [ref=f1e39]: Opening Character Studio…
+    - generic [ref=f1e40]:
+      - heading "Inspector" [level=2] [ref=f1e41]
+      - heading "Selection" [level=3] [ref=f1e42]
+      - generic [ref=f1e43]:
+        - strong [ref=f1e44]: Selection
+        - generic "Shared selection available to every Studio tool." [ref=f1e45]: definition
+      - generic [ref=f1e46]:
+        - strong [ref=f1e47]: Tool route
+        - generic "Registered route for the active workspace." [ref=f1e48]: /author/character
+      - heading "Authority" [level=3] [ref=f1e49]
+      - generic [ref=f1e50]:
+        - strong [ref=f1e51]: Access
+        - generic "Resolved from the authenticated role matrix." [ref=f1e52]: write
+  - generic [ref=f1e53]:
+    - heading "Validation & Output" [level=2] [ref=f1e54]
+    - generic [ref=f1e55]:
+      - button "Validation" [ref=f1e56] [cursor=pointer]
+      - button "Audit" [disabled] [ref=f1e57]
+      - button "Live Sync" [disabled] [ref=f1e58]
+      - button "Console" [ref=f1e59] [cursor=pointer]
+    - paragraph [ref=f1e60]: Anonymous sandbox — no live adapter constructed.

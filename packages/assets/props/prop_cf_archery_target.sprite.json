@@ -1,5 +1,6 @@
 {
   "name": "prop_cf_archery_target",
+  "bakedShadowColor": "#00000064",
   "category": "props",
   "size": [
     32,
@@ -60,7 +61,7 @@
     "6": "#00000064",
     "7": "#8a4836"
   },
-  "sourcePath": "references/Cute_Fantasy_MilitaryCamp/Archery_Target.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/military-camp/Archery_Target.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Archery_Target.png",

@@ -1,0 +1,115 @@
+- main [ref=f3e2]:
+  - complementary "Development tools" [ref=f3e3]:
+    - generic [ref=f3e4]:
+      - strong [ref=f3e5]: O&C
+      - generic [ref=f3e6]: TOOLS
+    - navigation [ref=f3e7]:
+      - link "Terrain Creator" [ref=f3e8] [cursor=pointer]:
+        - /url: /editor/terrain
+        - generic [ref=f3e10]: Terrain
+      - link "Layout Studio" [ref=f3e11] [cursor=pointer]:
+        - /url: /editor/design
+        - generic [ref=f3e13]: Layout
+      - link "UI Component Lab" [ref=f3e14] [cursor=pointer]:
+        - /url: /editor/ui-lab
+        - generic [ref=f3e16]: UI Lab
+      - link "Character Studio" [ref=f3e17] [cursor=pointer]:
+        - /url: /editor/character-studio
+        - generic [ref=f3e19]: Character
+  - generic [ref=f3e20]:
+    - textbox "New local development profile name"
+    - status [ref=f3e22]
+    - main [ref=f3e23]:
+      - generic [ref=f3e24]:
+        - generic [ref=f3e25]:
+          - paragraph [ref=f3e26]: ORCHARD & CELLAR / RIG LAB
+          - heading "Character Studio" [level=1] [ref=f3e27]
+        - paragraph [ref=f3e28]: Click an equipment slot, then compare Raven icons converted through reusable animated wearable templates.
+      - region [ref=f3e29]:
+        - generic [ref=f3e30]:
+          - heading "Equipment" [level=2] [ref=f3e31]
+          - button "Clear" [ref=f3e32] [cursor=pointer]
+        - generic [ref=f3e33]:
+          - button "HEAD Iron Helm" [pressed] [ref=f3e34] [cursor=pointer]:
+            - generic [ref=f3e35]: HEAD
+            - strong [ref=f3e37]: Iron Helm
+          - button "BODY Iron Plate" [ref=f3e38] [cursor=pointer]:
+            - generic [ref=f3e39]: BODY
+            - strong [ref=f3e41]: Iron Plate
+          - button "LEGS Iron Greaves" [ref=f3e42] [cursor=pointer]:
+            - generic [ref=f3e43]: LEGS
+            - strong [ref=f3e45]: Iron Greaves
+        - generic [ref=f3e46]:
+          - checkbox "Hide hair beneath helmets" [checked] [ref=f3e47]
+          - text: Hide hair beneath helmets
+        - generic [ref=f3e48]:
+          - strong [ref=f3e49]: Conversion recipe
+          - generic [ref=f3e50]: "Raven icon: item identity and native palette"
+          - generic [ref=f3e51]: "Cute Fantasy: side/back geometry and full animation coverage"
+      - region [ref=f3e52]:
+        - generic [ref=f3e53]:
+          - generic [ref=f3e54]:
+            - paragraph [ref=f3e55]: LIVE CANVAS
+            - heading "Animation test stage" [level=2] [ref=f3e56]
+          - status [ref=f3e57]: Ready
+        - generic "Interactive character armor animation stage. Move with WASD or arrow keys, select tools with 1 through 4, and use the selected tool with F." [active] [ref=f3e59]
+        - generic "Tool hotbar" [ref=f3e60]:
+          - button "1 Sword" [pressed] [ref=f3e61] [cursor=pointer]
+          - button "2 Pickaxe" [ref=f3e64] [cursor=pointer]
+          - button "3 Axe" [ref=f3e67] [cursor=pointer]
+          - button "4 Bow" [ref=f3e70] [cursor=pointer]
+        - generic "Animation actions" [ref=f3e73]:
+          - button "Attack" [ref=f3e74] [cursor=pointer]
+          - button "Mine" [ref=f3e75] [cursor=pointer]
+          - button "Chop" [ref=f3e76] [cursor=pointer]
+          - button "Bow" [ref=f3e77] [cursor=pointer]
+        - paragraph [ref=f3e78]: WASD/ARROWS move · 1–4 select · F use · hold mouse on the canvas to draw the bow
+      - region [ref=f3e79]:
+        - generic [ref=f3e80]:
+          - heading "Head choices" [level=2] [ref=f3e81]
+          - generic [ref=f3e82]: 6 Raven · 10 total
+        - generic "Available head equipment" [ref=f3e83]:
+          - button "NO EQUIPMENT Remove head item Return Iron Helm to the inventory" [ref=f3e84] [cursor=pointer]:
+            - emphasis [ref=f3e85]: NO EQUIPMENT
+            - generic [ref=f3e86]: Remove head item
+            - generic [ref=f3e87]: Return Iron Helm to the inventory
+          - button "ANIMATED TEMPLATE Bronze Helm Same geometry, generated palette" [ref=f3e88] [cursor=pointer]:
+            - emphasis [ref=f3e89]: ANIMATED TEMPLATE
+            - generic [ref=f3e91]: Bronze Helm
+            - generic [ref=f3e92]: Same geometry, generated palette
+          - button "ANIMATED TEMPLATE Gold Helm Same geometry, generated palette" [ref=f3e93] [cursor=pointer]:
+            - emphasis [ref=f3e94]: ANIMATED TEMPLATE
+            - generic [ref=f3e96]: Gold Helm
+            - generic [ref=f3e97]: Same geometry, generated palette
+          - button "ANIMATED TEMPLATE Heavy Iron Helm Second authored silhouette" [ref=f3e98] [cursor=pointer]:
+            - emphasis [ref=f3e99]: ANIMATED TEMPLATE
+            - generic [ref=f3e101]: Heavy Iron Helm
+            - generic [ref=f3e102]: Second authored silhouette
+          - button "RAVEN · open plate helm Ivory Skull Mask Raven palette → open plate helm" [ref=f3e103] [cursor=pointer]:
+            - emphasis [ref=f3e104]: RAVEN · open plate helm
+            - generic [ref=f3e106]: Ivory Skull Mask
+            - generic [ref=f3e107]: Raven palette → open plate helm
+          - button "RAVEN · heavy plate helm Bone Visor Raven palette → heavy plate helm" [ref=f3e108] [cursor=pointer]:
+            - emphasis [ref=f3e109]: RAVEN · heavy plate helm
+            - generic [ref=f3e111]: Bone Visor
+            - generic [ref=f3e112]: Raven palette → heavy plate helm
+          - button "RAVEN · heavy plate helm Crimson Guard Raven palette → heavy plate helm" [ref=f3e113] [cursor=pointer]:
+            - emphasis [ref=f3e114]: RAVEN · heavy plate helm
+            - generic [ref=f3e116]: Crimson Guard
+            - generic [ref=f3e117]: Raven palette → heavy plate helm
+          - button "RAVEN · open plate helm Azure Demon Mask Raven palette → open plate helm" [ref=f3e118] [cursor=pointer]:
+            - emphasis [ref=f3e119]: RAVEN · open plate helm
+            - generic [ref=f3e121]: Azure Demon Mask
+            - generic [ref=f3e122]: Raven palette → open plate helm
+          - button "RAVEN · heavy plate helm Sun Mask Raven palette → heavy plate helm" [ref=f3e123] [cursor=pointer]:
+            - emphasis [ref=f3e124]: RAVEN · heavy plate helm
+            - generic [ref=f3e126]: Sun Mask
+            - generic [ref=f3e127]: Raven palette → heavy plate helm
+          - button "RAVEN · open plate helm Bronze Faceguard Raven palette → open plate helm" [ref=f3e128] [cursor=pointer]:
+            - emphasis [ref=f3e129]: RAVEN · open plate helm
+            - generic [ref=f3e131]: Bronze Faceguard
+            - generic [ref=f3e132]: Raven palette → open plate helm
+        - complementary [ref=f3e133]:
+          - heading "What this proves" [level=3] [ref=f3e134]
+          - paragraph [ref=f3e135]: Raven icons stay untouched in the inventory. Their four-color material ramps are transferred onto a reusable animated helmet, chest, or greaves template.
+          - paragraph [ref=f3e136]: The template supplies the missing side and back views. Distinctive shapes such as horns and plumes will eventually become separate directional accent layers.

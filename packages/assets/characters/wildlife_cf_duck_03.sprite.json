@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_duck_03",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -3068,7 +3069,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Duck_03.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Duck/Duck_03.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Duck/Duck_03.png",
   "sourceRegions": {
     "idle_land": [
       [

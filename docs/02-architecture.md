@@ -39,6 +39,11 @@ orchard-cellar/
 │   │       ├── audio/        # mixer, music sequencer, sfx synth
 │   │       ├── ui/           # in-canvas UI: HUD, menus, dialogs, bitmap font
 │   │       └── account-main.ts # account/profile entry; no retired farm scene stack
+│   ├── engine/               # shared canvas renderer, terrain compiler, display and editor overlays
+│   ├── ui/                   # shared design system, widgets, skin, authored storage frames
+│   ├── world-bindings/       # generated SpaceTimeDB client protocol shared by game and Studio
+│   ├── auth/                 # shared OIDC PKCE, token verification, and session peers
+│   ├── studio/               # separate Orchard Studio Vite application
 │   ├── world/
 │   │   └── src/
 │   │       ├── index.ts      # SpaceTimeDB schema, reducers, lifecycle, schedules
@@ -49,7 +54,9 @@ orchard-cellar/
 │   │   ├── tiles/            # *.tile.json
 │   │   ├── maps/             # *.map.json (farm layout, town, cellar interior)
 │   │   ├── music/            # *.song.json tracker files
-│   │   └── sfx/              # *.sfx.json synth params
+│   │   ├── sfx/              # *.sfx.json synth params
+│   │   ├── content/          # generated bootstrap definitions for the live registry (doc 55)
+│   │   └── generated/        # ignored shared atlas output consumed by game and Studio
 │   └── tools/
 │       └── src/
 │           ├── build-atlas.ts    # sprites/tiles → PNG atlases + metadata
@@ -129,14 +136,44 @@ Incremental-game quantities overflow doubles' integer range eventually. Rule:
   table-cache changes through generated bindings rather than a hand-authored protocol.
 - Farm economy is timestamp/lazy driven. Entering or mutating a farm advances its
   deterministic offline state once; absent farms are never scanned at movement rate.
+- Gameplay content is revisioned data. The public `content_head` and
+  `content_definition` rows are parsed by the pure `@orchard/sim` `ContentRegistry`;
+  the authority caches the registry by revision/hash and the game retains its last
+  fully verified revision while a subscription changes. Items, recipes, processes,
+  shops, frames, objects, NPC/dialogue/quest/loot, terrain families, spaces, spawns,
+  crops, creatures, skills, effects, statistics, upgrades, and balance groups all use
+  this one registry. One bootstrap-pack loader parses the 21 generated files under
+  `packages/assets/content` (481 definitions, pinned hash `118a3df3`) through the
+  same validators used for live rows; compatibility views are projected from that
+  registry. The files are the deterministic bootstrap/migration pack, not a second
+  live source of truth.
+- Static and dynamic space rules resolve through `runtimeSpaceDefinition` against
+  that current verified registry on both authority and client. Server collision,
+  portals, homestead bounds, reconnect repair and admin walkability, plus client
+  rendering and regional subscriptions, never fall back to a removed bootstrap
+  static definition. Geometry/presentation/streaming caches include the live content
+  hash so a space revision becomes authoritative without player movement or restart.
+- Studio-authored item lifecycle TypeScript is a reviewed warm-build input, not live
+  row code. The restricted compiler produces the server handler registry and a
+  callback-free client metadata projection from one validated source bundle. Every
+  release regenerates and byte-compares those artifacts before source pinning;
+  callbacks can inspect immutable snapshots and emit only authority-validated effects.
+  The owner approves each specific live change in chat before the agent runs the
+  guarded release; backup, rollback, non-destructive publication, parity and reconnect
+  checks remain mandatory.
+- Processor runtime authority is registry-derived: authored object components select
+  process tags, slot topology, catch-up and manual batch bounds, while authored process
+  definitions select inputs, fuel, outputs and durations. The server and client resolve
+  these fields from the active revision; reducer transactions retain only generic atomic
+  settlement, upgrade arithmetic, attribution, and migration-safe durable timing columns.
 - SpaceTimeDB reducer transactions are the mutation boundary and commit log is the
   durable source of truth. See [08-database.md](08-database.md).
 
 ## Generated client protocol
 
-The schema generates `packages/client/src/net/generated`. Reducer parameters and row
+The schema generates `packages/world-bindings/src`. Reducer parameters and row
 types are therefore single-source, build-checked protocol definitions. Hand-authored
-client networking wraps generated bindings for token persistence, event-maintained
+client networking consumes `@orchard/world-bindings` and wraps it with token persistence, event-maintained
 keyed stores, global/private subscriptions, hysteretic spatial handover, prediction,
 replay reconciliation, timed remote interpolation, development latency injection,
 and UI-facing errors/metrics.

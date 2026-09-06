@@ -1,0 +1,3 @@
+- generic [active] [ref=e1]:
+  - heading "Content registry browser acceptance" [level=1] [ref=e2]
+  - generic [ref=e3]: "{ \"schemaVersion\": 1, \"runtime\": \"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36\", \"definitionCount\": 1459, \"samples\": 25, \"budgetP95Ms\": 50, \"buildMs\": { \"samples\": [ 7.4, 7.7, 7.8, 7.9, 8, 8.1, 8.1, 8.2, 8.2, 8.2, 8.4, 8.5, 8.7, 8.7, 8.8, 8.9, 8.9, 9.3, 9.5, 9.7, 10, 10, 10.1, 10.5, 12.1 ], \"min\": 7.4, \"median\": 8.7, \"p95\": 10.5, \"max\": 12.1, \"mean\": 8.87, \"total\": 221.7 }, \"passed\": true }"

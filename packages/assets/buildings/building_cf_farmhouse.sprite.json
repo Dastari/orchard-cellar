@@ -1,6 +1,7 @@
 {
   "name": "building_cf_farmhouse",
   "category": "buildings",
+  "bakedShadowColor": "#00000064",
   "size": [
     96,
     128
@@ -169,6 +170,6 @@
     "k": "#c78e75",
     "l": "#c7cfdd"
   },
-  "sourcePath": "references/Cute_Fantasy/Buildings/Buildings/Houses/Wood/House_1_Wood_Base_Red.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/Buildings/Houses/Wood/House_1_Wood_Base_Red.png",
   "sourcePaletteMode": "exact"
 }

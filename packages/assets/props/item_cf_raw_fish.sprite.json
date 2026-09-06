@@ -1,0 +1,29 @@
+{
+  "name": "item_cf_raw_fish",
+  "category": "props",
+  "size": [16, 16],
+  "anchor": [8, 15],
+  "frames": { "base": [[
+    "................",
+    "................",
+    "................",
+    ".........tt.....",
+    "....tttttutt....",
+    "..ttuvvvvvuutt..",
+    ".tuvvvvvvvvvut..",
+    "tuvvvvvvvx0vut..",
+    ".tuvvvvvvvvvut..",
+    "..ttuvvvvvuutt..",
+    "....tttttutt....",
+    ".........tt.....",
+    "................",
+    "................",
+    "................",
+    "................"
+  ]] },
+  "frameKinds": { "base": "state" },
+  "lintAllow": ["sparkle"],
+  "approved": true,
+  "tags": ["item.food", "food.raw", "food.fish"],
+  "placement": { "layer": "object", "blocksMovement": false, "builderAvailable": false }
+}

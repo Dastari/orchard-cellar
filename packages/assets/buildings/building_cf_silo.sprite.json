@@ -1,6 +1,7 @@
 {
   "name": "building_cf_silo",
   "category": "buildings",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     80
@@ -112,7 +113,7 @@
     "d": "#d19175",
     "e": "#00000064"
   },
-  "sourcePath": "references/Cute_Fantasy/Buildings/Buildings/Unique_Buildings/Silo/Silo.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/Buildings/Unique_Buildings/Silo/Silo.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Silo.png"

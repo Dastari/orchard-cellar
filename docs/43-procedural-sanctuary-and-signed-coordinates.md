@@ -242,7 +242,11 @@ substitutions.
 
 The composed-tile inspector remains the debugging authority: it shows the semantic
 inputs, selected role, every visual layer/underlay, source asset id, collision/light/
-depth output, and final composition. Licensed source sheets remain ignored under
+depth output, and final composition. Its numbered thumbnails are interactive: click
+a tile body to pin its exact asset id, frame, role, source coordinate, contour and
+depth phase in the text panel; click the O/X corner to include or exclude that layer
+from the composite preview. The stack frame reserves a fixed padded width so the
+heading and a four-layer row cannot overflow at compact UI scales. Licensed source sheets remain ignored under
 `references/`; cataloguing them does not make unreviewed pixels runtime assets.
 
 The initial biome-to-family contract is:
@@ -253,7 +257,7 @@ The initial biome-to-family contract is:
 | woodland/wetland                          | `temperate_woodland`                        | Grass 2 + Water Tile 2                                                                                     |
 | flat plains                               | `temperate_plains`                          | Grass 3 + Water Tile 3                                                                                     |
 | high/arid grass                           | `temperate_highland`                        | Grass 4 + Water Tile 4                                                                                     |
-| cold elevation-4 summit / later snowfield | `snow_highland`                             | Grass 4 substrate plus reviewed snow roles from `Cute_Fantasy_Christmass/Decorations/Christmass_Grass.png` |
+| cold elevation-4 summit / later snowfield | `snow_highland`                             | Grass 4 substrate plus reviewed snow roles from `references/art/kenmi/cute-fantasy/christmas/Decorations/Christmass_Grass.png` |
 | ordinary coast                            | compatible temperate family + `beach` shore | Cute Fantasy Beach sheets                                                                                  |
 | desert                                    | `desert_1..3`                               | matching Desert Beach, Water, Cliff, and Waterfall sets 1–3                                                |
 | Shroomlands                               | `shroom_green/blue/purple`                  | matching ShroomLands grass; ShroomLands cliff/waterfall roles                                              |
@@ -554,7 +558,7 @@ not a cutover instruction.
   family will compose reviewed Christmas snow overlays over Grass 4 only after its
   required-role coverage is complete.
 - The newly available premium Christmas source remains ignored at
-  `references/Cute_Fantasy_Christmass/`. Its license permits use/modification but not
+  `references/art/kenmi/cute-fantasy/christmas/`. Its license permits use/modification but not
   redistribution, so only reviewed semantic extracts may enter public assets. The
   current pack supplies snow overlays/decorations but no complete snowy-tree family.
 

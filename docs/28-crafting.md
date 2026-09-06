@@ -20,7 +20,7 @@ per standing policy.
 
 Design mandate: **Minecraft-style** — gather raw materials, refine them through
 stations, craft tools/gear/placeables on a grid — with content **strictly limited
-to art the licensed paid packs provide** (docs/18 §7; `Cute_Fantasy_Free` is
+to art the licensed paid packs provide** (docs/18 §7; `references/art/kenmi/cute-fantasy/free/` is
 non-commercial and contributes nothing here). Every item in this doc is
 art-verified against a pack sheet; the inventory sweep is §3/§11.
 
@@ -111,10 +111,13 @@ Existing 26 kinds keep their ids. New kinds, with art source:
 |---|---:|---|---|
 | `stick` | 99 | item.resource, material.wood | `Icons/Resources_Icons` sheet |
 | `fiber` | 99 | item.resource, **material.fiber** | `Icons/Resources_Icons` sheet |
+| `string` | 99 | item.resource, material.string | fiber-derived starter material |
+| `leather` | 99 | item.resource, material.leather | cow drop |
 | `pebble`; `iron/copper/gold_piece` | 99 | item.resource, **material.raw** | world stone art; `Icons/Resources_Icons` small stages |
 | `iron_bar`, `copper_bar`, `gold_bar` | 99 | item.resource, **material.bar**, metal.\<x\> | `Icons/Resources_Icons` (bar icons) |
 | `gem_emerald/sapphire/topaz/ruby/amethyst` | 99 | item.resource, **material.gem** | `Icons/Resources_Icons`; mines doc's gem items |
-| `torch`, `lantern` | 16 / 1 | item.tool, gear.hand, **emits.light** | `Player/Tools/Other/*`, `Lantern_Torch.png` (doc 26 §6) |
+| `torch`, `lantern` | 16 / 1 | item.tool/item.equipment/**gear.off_hand**; **emits.light** | `Player/Tools/Other/*`, `Lantern_Torch.png` (doc 26 §6) |
+| `backpack` | 1 | item.equipment, **gear.back**, container.backpack | starter backpack icon |
 | `sword` | 1 | item.tool, gear.hand, **item.weapon** | `Player/Tools/Iron/Iron_Sword.png` + tool icon |
 | `bow` | 1 | item.tool, gear.hand, item.weapon | `Bow/Wooden_Bow.png`, `Other/Bow_Stages.png` |
 | `arrow` | 99 | **item.ammo** | tool icon strip |
@@ -213,6 +216,8 @@ Minecraft's furnace, on our lazy-tick pattern (no per-tick work):
 | Hoe / Sword | 2 bar (iron) + 1–2 stick | 1 tool |
 | Watering can | 3 copper_bar | 1 watering_can |
 | Lantern | 4 iron_bar + 1 torch | 1 lantern *(doc 26 "crafted with iron")* |
+| String | 3 fiber | 1 string |
+| Starter backpack | 4 leather + 2 string | 1 backpack (workbench) |
 
 **Furnace (smelting):** `1 iron_ore → 1 iron_bar` · `1 copper_ore → 1 copper_bar`
 · `1 gold_ore → 1 gold_bar` (each consumes one wood or plank). Gem ores are
@@ -221,8 +226,9 @@ sell opportunity cost.
 
 **Anvil:** gem cutting `2 <gem>_ore → 1 gem_<x>` · Anvil itself: 6 iron_bar
 (workbench) · Plate gear: helm 5 / tunic 8 / pants 7 / boots 4 / gloves 2
-iron_bar; shield 1 iron_bar + 6 plank · Jewelry: ring = 1 gold_bar + 1 gem;
-necklace = 2 gold_bar + 1 gem (gem choice varies the doc 25 modifier).
+iron_bar; shield 1 iron_bar + 6 plank · Utility jewelry: Watch = 1 copper_bar
++ 1 gold_bar at an anvil. Gem rings and necklaces remain the later modifier
+recipes described by doc 25.
 
 **Gated on other systems (recipes authored, disabled until inputs exist):**
 `orchard_tea` (doc 25 — needs obtainable apples), campfire cooking (the pack's

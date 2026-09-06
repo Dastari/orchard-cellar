@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_goblin_thief",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2273,7 +2274,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Goblin_Thief.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Goblins/Goblin_Thief.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Goblins/Goblin_Thief.png",
   "sourceRegions": {
     "idle_down": [
       [

@@ -1,6 +1,6 @@
 # 17 — Reference: The Redesign PDF (Complete Summary)
 
-Summary of `references/Orchard_and_Cellar_Progression_Redesign_Recommendations.pdf`
+Summary of `references/documents/design/orchard-and-cellar-progression-redesign.pdf`
 (9 pages) — the **end build target**. The avatar game implements all four P0s; where
 this doc and [06-progression-economy.md](06-progression-economy.md) differ in
 numbers, 06 wins (it re-scales for the avatar game).

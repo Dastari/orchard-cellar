@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_reindeer",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     64,
     64
@@ -842,7 +843,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Reindeer.png",
-  "sourcePath": "references/Cute_Fantasy_Christmass/Characters/Reindeer.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/christmas/Characters/Reindeer.png",
   "sourceRegions": {
     "idle_side": [
       [

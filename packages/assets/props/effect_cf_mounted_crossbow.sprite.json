@@ -1,6 +1,7 @@
 {
   "name": "effect_cf_mounted_crossbow",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -129,7 +130,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Mounted_Crossbow_anim.png",
-  "sourcePath": "references/Cute_Fantasy_Dungeons/Objects/Mounted_Crossbow_anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/dungeons/Objects/Mounted_Crossbow_anim.png",
   "sourceRegions": {
     "fire": [
       [

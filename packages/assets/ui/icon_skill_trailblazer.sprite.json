@@ -1,0 +1,62 @@
+{
+  "name": "icon_skill_trailblazer",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...........2....",
+        ".......2..2.2...",
+        "...2..2.2.2.2...",
+        "..2.2.2.2...2...",
+        "..2.2...2...2...",
+        "....1...1...1...",
+        "....1...1...0...",
+        "..2.1...1...1...",
+        "..1.2.2.0...2...",
+        "...1..2.1.2.0...",
+        ".......1..1.2...",
+        "...........1....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#569a48",
+    "1": "#8cc37a",
+    "2": "#c1e7b5"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/magic/skills-spells-400/sheet-16.png",
+  "sourceRegion": [
+    144,
+    272,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.trailblazer",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

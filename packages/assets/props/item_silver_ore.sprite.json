@@ -1,0 +1,70 @@
+{
+  "name": "item_silver_ore",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".......00.......",
+        "......0110......",
+        ".....012210.....",
+        "....0122130.....",
+        "....0411330.....",
+        "....0441330.....",
+        "....024230000...",
+        "...0002130110...",
+        "...0110202410...",
+        "...021202410....",
+        "....04204140....",
+        ".....000440.....",
+        "........00......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#555e78",
+    "1": "#d9e1ec",
+    "2": "#afbcd1",
+    "3": "#555e78",
+    "4": "#afbcd1"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "item_silver_ore.png",
+  "sourcePath": "art/custom/tool-progression/item_silver_ore.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.resource",
+    "material.ore",
+    "material.raw",
+    "ore.iron",
+    "source.orchard_derivative"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

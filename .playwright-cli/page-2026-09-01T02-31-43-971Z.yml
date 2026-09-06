@@ -1,0 +1,7 @@
+- main [ref=f2e2]:
+  - generic "Orchard and Cellar" [ref=f2e3]
+  - textbox "New local development profile name"
+  - status "OPENING CHARACTER STUDIO. 12%" [ref=f2e4]:
+    - text: OPENING CHARACTER STUDIO ASSEMBLING THE PAPER DOLL
+    - generic [ref=f2e5]: 12%
+  - status [ref=f2e6]

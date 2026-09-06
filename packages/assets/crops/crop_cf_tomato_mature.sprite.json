@@ -1,6 +1,7 @@
 {
   "name": "crop_cf_tomato_mature",
   "category": "crops",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -43,6 +44,6 @@
     "6": "#c13725",
     "7": "#dc4747"
   },
-  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Crops.png",
   "sourcePaletteMode": "exact"
 }

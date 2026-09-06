@@ -1,0 +1,1034 @@
+- main [ref=f8e2]:
+  - complementary "Development tools" [ref=f8e3]:
+    - generic [ref=f8e4]:
+      - strong [ref=f8e5]: O&C
+      - generic [ref=f8e6]: TOOLS
+    - navigation [ref=f8e7]:
+      - link "Map Editor" [ref=f8e8] [cursor=pointer]:
+        - /url: /editor/map
+        - generic [ref=f8e10]: Map
+      - link "Object Studio" [ref=f8e11] [cursor=pointer]:
+        - /url: /editor/object
+        - generic [ref=f8e13]: Object
+      - link "UI Component Lab" [ref=f8e14] [cursor=pointer]:
+        - /url: /editor/ui-lab
+        - generic [ref=f8e16]: UI Lab
+      - link "Character Studio" [ref=f8e17] [cursor=pointer]:
+        - /url: /editor/character-studio
+        - generic [ref=f8e19]: Character
+      - link "Item & Recipe Studio" [ref=f8e20] [cursor=pointer]:
+        - /url: /editor/items
+        - generic [ref=f8e22]: Items
+  - generic [ref=f8e23]:
+    - textbox "New local development profile name"
+    - status [ref=f8e28]
+    - main [ref=f8e29]:
+      - generic [ref=f8e30]:
+        - generic [ref=f8e31]:
+          - paragraph [ref=f8e32]: ORCHARD & CELLAR / CONTENT WORKBENCH
+          - heading "Item & Recipe Studio" [level=1] [ref=f8e33]
+          - paragraph [ref=f8e34]: One view of inventory metadata, sprites, crafting patterns, processing rules, and known code owners.
+        - generic [ref=f8e35]:
+          - status [ref=f8e36]: SOURCE DATA
+          - button "Import" [ref=f8e37] [cursor=pointer]
+          - button "Export draft" [ref=f8e38] [cursor=pointer]
+          - button "Reset" [ref=f8e39] [cursor=pointer]
+      - complementary [ref=f8e40]:
+        - generic [ref=f8e41]:
+          - generic [ref=f8e42]:
+            - paragraph [ref=f8e43]: INVENTORY REGISTRY
+            - heading "Items" [level=2] [ref=f8e44]
+          - generic [ref=f8e45]: 159 / 159
+        - searchbox "Search inventory items" [ref=f8e46]
+        - group "Item filters" [ref=f8e47]:
+          - button "All" [ref=f8e48] [cursor=pointer]
+          - button "Recipes" [ref=f8e49] [cursor=pointer]
+          - button "Tools" [ref=f8e50] [cursor=pointer]
+          - button "Placeable" [ref=f8e51] [cursor=pointer]
+        - generic [ref=f8e52]:
+          - button "Amethyst Ore amethyst_ore common recipe" [ref=f8e53] [cursor=pointer]:
+            - generic [ref=f8e55]:
+              - strong [ref=f8e56]: Amethyst Ore
+              - generic [ref=f8e57]: amethyst_ore
+            - generic [ref=f8e58]:
+              - emphasis [ref=f8e59]: common
+              - emphasis [ref=f8e60]: recipe
+          - button "Amethyst Pieces amethyst_piece common" [ref=f8e61] [cursor=pointer]:
+            - generic [ref=f8e63]:
+              - strong [ref=f8e64]: Amethyst Pieces
+              - generic [ref=f8e65]: amethyst_piece
+            - emphasis [ref=f8e67]: common
+          - button "Anvil anvil common" [ref=f8e68] [cursor=pointer]:
+            - generic [ref=f8e70]:
+              - strong [ref=f8e71]: Anvil
+              - generic [ref=f8e72]: anvil
+            - emphasis [ref=f8e74]: common
+          - button "Apple apple common" [ref=f8e75] [cursor=pointer]:
+            - generic [ref=f8e77]:
+              - strong [ref=f8e78]: Apple
+              - generic [ref=f8e79]: apple
+            - emphasis [ref=f8e81]: common
+          - button "Arrow arrow common recipe" [ref=f8e82] [cursor=pointer]:
+            - generic [ref=f8e84]:
+              - strong [ref=f8e85]: Arrow
+              - generic [ref=f8e86]: arrow
+            - generic [ref=f8e87]:
+              - emphasis [ref=f8e88]: common
+              - emphasis [ref=f8e89]: recipe
+          - button "Barn barn rare recipe" [ref=f8e90] [cursor=pointer]:
+            - generic [ref=f8e92]:
+              - strong [ref=f8e93]: Barn
+              - generic [ref=f8e94]: barn
+            - generic [ref=f8e95]:
+              - emphasis [ref=f8e96]: rare
+              - emphasis [ref=f8e97]: recipe
+          - button "Barrel barrel common recipe" [ref=f8e98] [cursor=pointer]:
+            - generic [ref=f8e100]:
+              - strong [ref=f8e101]: Barrel
+              - generic [ref=f8e102]: barrel
+            - generic [ref=f8e103]:
+              - emphasis [ref=f8e104]: common
+              - emphasis [ref=f8e105]: recipe
+          - button "Beetroot beetroot common" [ref=f8e106] [cursor=pointer]:
+            - generic [ref=f8e108]:
+              - strong [ref=f8e109]: Beetroot
+              - generic [ref=f8e110]: beetroot
+            - emphasis [ref=f8e112]: common
+          - button "Beetroot Seeds beetroot_seeds common" [ref=f8e113] [cursor=pointer]:
+            - generic [ref=f8e115]:
+              - strong [ref=f8e116]: Beetroot Seeds
+              - generic [ref=f8e117]: beetroot_seeds
+            - emphasis [ref=f8e119]: common
+          - button "Bob's Fast Strawberry Seeds bob_fast_strawberry_seeds rare" [ref=f8e120] [cursor=pointer]:
+            - generic [ref=f8e122]:
+              - strong [ref=f8e123]: Bob's Fast Strawberry Seeds
+              - generic [ref=f8e124]: bob_fast_strawberry_seeds
+            - emphasis [ref=f8e126]: rare
+          - button "Boots boots uncommon" [ref=f8e127] [cursor=pointer]:
+            - generic [ref=f8e129]:
+              - strong [ref=f8e130]: Boots
+              - generic [ref=f8e131]: boots
+            - emphasis [ref=f8e133]: uncommon
+          - button "Cabbage cabbage common" [ref=f8e134] [cursor=pointer]:
+            - generic [ref=f8e136]:
+              - strong [ref=f8e137]: Cabbage
+              - generic [ref=f8e138]: cabbage
+            - emphasis [ref=f8e140]: common
+          - button "Cabbage Seeds cabbage_seeds common" [ref=f8e141] [cursor=pointer]:
+            - generic [ref=f8e143]:
+              - strong [ref=f8e144]: Cabbage Seeds
+              - generic [ref=f8e145]: cabbage_seeds
+            - emphasis [ref=f8e147]: common
+          - button "Cactus cactus common" [ref=f8e148] [cursor=pointer]:
+            - generic [ref=f8e150]:
+              - strong [ref=f8e151]: Cactus
+              - generic [ref=f8e152]: cactus
+            - emphasis [ref=f8e154]: common
+          - button "Camp Cooking Fire camp_cooking_fire common recipe" [ref=f8e155] [cursor=pointer]:
+            - generic [ref=f8e157]:
+              - strong [ref=f8e158]: Camp Cooking Fire
+              - generic [ref=f8e159]: camp_cooking_fire
+            - generic [ref=f8e160]:
+              - emphasis [ref=f8e161]: common
+              - emphasis [ref=f8e162]: recipe
+          - button "Campfire campfire common recipe" [ref=f8e163] [cursor=pointer]:
+            - generic [ref=f8e165]:
+              - strong [ref=f8e166]: Campfire
+              - generic [ref=f8e167]: campfire
+            - generic [ref=f8e168]:
+              - emphasis [ref=f8e169]: common
+              - emphasis [ref=f8e170]: recipe
+          - button "Carrot carrot common" [ref=f8e171] [cursor=pointer]:
+            - generic [ref=f8e173]:
+              - strong [ref=f8e174]: Carrot
+              - generic [ref=f8e175]: carrot
+            - emphasis [ref=f8e177]: common
+          - button "Carrot Seeds carrot_seeds common" [ref=f8e178] [cursor=pointer]:
+            - generic [ref=f8e180]:
+              - strong [ref=f8e181]: Carrot Seeds
+              - generic [ref=f8e182]: carrot_seeds
+            - emphasis [ref=f8e184]: common
+          - button "Cherries cherry common" [ref=f8e185] [cursor=pointer]:
+            - generic [ref=f8e187]:
+              - strong [ref=f8e188]: Cherries
+              - generic [ref=f8e189]: cherry
+            - emphasis [ref=f8e191]: common
+          - button "Chest chest common recipe" [ref=f8e192] [cursor=pointer]:
+            - generic [ref=f8e194]:
+              - strong [ref=f8e195]: Chest
+              - generic [ref=f8e196]: chest
+            - generic [ref=f8e197]:
+              - emphasis [ref=f8e198]: common
+              - emphasis [ref=f8e199]: recipe
+          - button "Cooked Beef cooked_beef uncommon" [ref=f8e200] [cursor=pointer]:
+            - generic [ref=f8e202]:
+              - strong [ref=f8e203]: Cooked Beef
+              - generic [ref=f8e204]: cooked_beef
+            - emphasis [ref=f8e206]: uncommon
+          - button "Cooked Fish cooked_fish uncommon" [ref=f8e207] [cursor=pointer]:
+            - generic [ref=f8e209]:
+              - strong [ref=f8e210]: Cooked Fish
+              - generic [ref=f8e211]: cooked_fish
+            - emphasis [ref=f8e213]: uncommon
+          - button "Cooking Fire cooking_fire common recipe" [ref=f8e214] [cursor=pointer]:
+            - generic [ref=f8e216]:
+              - strong [ref=f8e217]: Cooking Fire
+              - generic [ref=f8e218]: cooking_fire
+            - generic [ref=f8e219]:
+              - emphasis [ref=f8e220]: common
+              - emphasis [ref=f8e221]: recipe
+          - button "Coop coop uncommon recipe" [ref=f8e222] [cursor=pointer]:
+            - generic [ref=f8e224]:
+              - strong [ref=f8e225]: Coop
+              - generic [ref=f8e226]: coop
+            - generic [ref=f8e227]:
+              - emphasis [ref=f8e228]: uncommon
+              - emphasis [ref=f8e229]: recipe
+          - button "Copper Bar copper_bar uncommon" [ref=f8e230] [cursor=pointer]:
+            - generic [ref=f8e232]:
+              - strong [ref=f8e233]: Copper Bar
+              - generic [ref=f8e234]: copper_bar
+            - emphasis [ref=f8e236]: uncommon
+          - button "Copper Ore Chunk copper_ore common recipe" [ref=f8e237] [cursor=pointer]:
+            - generic [ref=f8e239]:
+              - strong [ref=f8e240]: Copper Ore Chunk
+              - generic [ref=f8e241]: copper_ore
+            - generic [ref=f8e242]:
+              - emphasis [ref=f8e243]: common
+              - emphasis [ref=f8e244]: recipe
+          - button "Copper Pieces copper_piece common" [ref=f8e245] [cursor=pointer]:
+            - generic [ref=f8e247]:
+              - strong [ref=f8e248]: Copper Pieces
+              - generic [ref=f8e249]: copper_piece
+            - emphasis [ref=f8e251]: common
+          - button "Corn corn common" [ref=f8e252] [cursor=pointer]:
+            - generic [ref=f8e254]:
+              - strong [ref=f8e255]: Corn
+              - generic [ref=f8e256]: corn
+            - emphasis [ref=f8e258]: common
+          - button "Corn Seeds corn_seeds common" [ref=f8e259] [cursor=pointer]:
+            - generic [ref=f8e261]:
+              - strong [ref=f8e262]: Corn Seeds
+              - generic [ref=f8e263]: corn_seeds
+            - emphasis [ref=f8e265]: common
+          - button "Cucumber cucumber common" [ref=f8e266] [cursor=pointer]:
+            - generic [ref=f8e268]:
+              - strong [ref=f8e269]: Cucumber
+              - generic [ref=f8e270]: cucumber
+            - emphasis [ref=f8e272]: common
+          - button "Cucumber Seeds cucumber_seeds common" [ref=f8e273] [cursor=pointer]:
+            - generic [ref=f8e275]:
+              - strong [ref=f8e276]: Cucumber Seeds
+              - generic [ref=f8e277]: cucumber_seeds
+            - emphasis [ref=f8e279]: common
+          - button "Emerald Ore emerald_ore common recipe" [ref=f8e280] [cursor=pointer]:
+            - generic [ref=f8e282]:
+              - strong [ref=f8e283]: Emerald Ore
+              - generic [ref=f8e284]: emerald_ore
+            - generic [ref=f8e285]:
+              - emphasis [ref=f8e286]: common
+              - emphasis [ref=f8e287]: recipe
+          - button "Emerald Pieces emerald_piece common" [ref=f8e288] [cursor=pointer]:
+            - generic [ref=f8e290]:
+              - strong [ref=f8e291]: Emerald Pieces
+              - generic [ref=f8e292]: emerald_piece
+            - emphasis [ref=f8e294]: common
+          - button "Estate Bottles bottles rare" [ref=f8e295] [cursor=pointer]:
+            - generic [ref=f8e297]:
+              - strong [ref=f8e298]: Estate Bottles
+              - generic [ref=f8e299]: bottles
+            - emphasis [ref=f8e301]: rare
+          - button "Estate Shed shed uncommon recipe" [ref=f8e302] [cursor=pointer]:
+            - generic [ref=f8e304]:
+              - strong [ref=f8e305]: Estate Shed
+              - generic [ref=f8e306]: shed
+            - generic [ref=f8e307]:
+              - emphasis [ref=f8e308]: uncommon
+              - emphasis [ref=f8e309]: recipe
+          - button "Fence fence common recipe" [ref=f8e310] [cursor=pointer]:
+            - generic [ref=f8e312]:
+              - strong [ref=f8e313]: Fence
+              - generic [ref=f8e314]: fence
+            - generic [ref=f8e315]:
+              - emphasis [ref=f8e316]: common
+              - emphasis [ref=f8e317]: recipe
+          - button "Fence Gate fence_gate common recipe" [ref=f8e318] [cursor=pointer]:
+            - generic [ref=f8e320]:
+              - strong [ref=f8e321]: Fence Gate
+              - generic [ref=f8e322]: fence_gate
+            - generic [ref=f8e323]:
+              - emphasis [ref=f8e324]: common
+              - emphasis [ref=f8e325]: recipe
+          - button "Fermentation Cask fermentation_cask uncommon recipe" [ref=f8e326] [cursor=pointer]:
+            - generic [ref=f8e328]:
+              - strong [ref=f8e329]: Fermentation Cask
+              - generic [ref=f8e330]: fermentation_cask
+            - generic [ref=f8e331]:
+              - emphasis [ref=f8e332]: uncommon
+              - emphasis [ref=f8e333]: recipe
+          - button "Fiber fiber common" [ref=f8e334] [cursor=pointer]:
+            - generic [ref=f8e336]:
+              - strong [ref=f8e337]: Fiber
+              - generic [ref=f8e338]: fiber
+            - emphasis [ref=f8e340]: common
+          - button "Fin's Fish & Fire Handbook fishing_handbook rare" [ref=f8e341] [cursor=pointer]:
+            - generic [ref=f8e343]:
+              - strong [ref=f8e344]: Fin's Fish & Fire Handbook
+              - generic [ref=f8e345]: fishing_handbook
+            - emphasis [ref=f8e347]: rare
+          - button "Fishing Rod fishing_rod common recipe" [pressed] [ref=f8e348] [cursor=pointer]:
+            - generic [ref=f8e350]:
+              - strong [ref=f8e351]: Fishing Rod
+              - generic [ref=f8e352]: fishing_rod
+            - generic [ref=f8e353]:
+              - emphasis [ref=f8e354]: common
+              - emphasis [ref=f8e355]: recipe
+          - button "Fresh Must must uncommon" [ref=f8e356] [cursor=pointer]:
+            - generic [ref=f8e358]:
+              - strong [ref=f8e359]: Fresh Must
+              - generic [ref=f8e360]: must
+            - emphasis [ref=f8e362]: uncommon
+          - button "Fruit Press fruit_press uncommon recipe" [ref=f8e363] [cursor=pointer]:
+            - generic [ref=f8e365]:
+              - strong [ref=f8e366]: Fruit Press
+              - generic [ref=f8e367]: fruit_press
+            - generic [ref=f8e368]:
+              - emphasis [ref=f8e369]: uncommon
+              - emphasis [ref=f8e370]: recipe
+          - button "Furnace furnace common recipe" [ref=f8e371] [cursor=pointer]:
+            - generic [ref=f8e373]:
+              - strong [ref=f8e374]: Furnace
+              - generic [ref=f8e375]: furnace
+            - generic [ref=f8e376]:
+              - emphasis [ref=f8e377]: common
+              - emphasis [ref=f8e378]: recipe
+          - button "Garlic garlic common" [ref=f8e379] [cursor=pointer]:
+            - generic [ref=f8e381]:
+              - strong [ref=f8e382]: Garlic
+              - generic [ref=f8e383]: garlic
+            - emphasis [ref=f8e385]: common
+          - button "Garlic Seeds garlic_seeds common" [ref=f8e386] [cursor=pointer]:
+            - generic [ref=f8e388]:
+              - strong [ref=f8e389]: Garlic Seeds
+              - generic [ref=f8e390]: garlic_seeds
+            - emphasis [ref=f8e392]: common
+          - button "Gloves gloves uncommon" [ref=f8e393] [cursor=pointer]:
+            - generic [ref=f8e395]:
+              - strong [ref=f8e396]: Gloves
+              - generic [ref=f8e397]: gloves
+            - emphasis [ref=f8e399]: uncommon
+          - button "Gold Bar gold_bar rare" [ref=f8e400] [cursor=pointer]:
+            - generic [ref=f8e402]:
+              - strong [ref=f8e403]: Gold Bar
+              - generic [ref=f8e404]: gold_bar
+            - emphasis [ref=f8e406]: rare
+          - button "Gold Ore Chunk gold_ore common recipe" [ref=f8e407] [cursor=pointer]:
+            - generic [ref=f8e409]:
+              - strong [ref=f8e410]: Gold Ore Chunk
+              - generic [ref=f8e411]: gold_ore
+            - generic [ref=f8e412]:
+              - emphasis [ref=f8e413]: common
+              - emphasis [ref=f8e414]: recipe
+          - button "Gold Pieces gold_piece common" [ref=f8e415] [cursor=pointer]:
+            - generic [ref=f8e417]:
+              - strong [ref=f8e418]: Gold Pieces
+              - generic [ref=f8e419]: gold_piece
+            - emphasis [ref=f8e421]: common
+          - button "Grapes grape common" [ref=f8e422] [cursor=pointer]:
+            - generic [ref=f8e424]:
+              - strong [ref=f8e425]: Grapes
+              - generic [ref=f8e426]: grape
+            - emphasis [ref=f8e428]: common
+          - button "Grapes Seeds grape_seeds common" [ref=f8e429] [cursor=pointer]:
+            - generic [ref=f8e431]:
+              - strong [ref=f8e432]: Grapes Seeds
+              - generic [ref=f8e433]: grape_seeds
+            - emphasis [ref=f8e435]: common
+          - button "Green Pepper green_pepper common" [ref=f8e436] [cursor=pointer]:
+            - generic [ref=f8e438]:
+              - strong [ref=f8e439]: Green Pepper
+              - generic [ref=f8e440]: green_pepper
+            - emphasis [ref=f8e442]: common
+          - button "Green Pepper Seeds green_pepper_seeds common" [ref=f8e443] [cursor=pointer]:
+            - generic [ref=f8e445]:
+              - strong [ref=f8e446]: Green Pepper Seeds
+              - generic [ref=f8e447]: green_pepper_seeds
+            - emphasis [ref=f8e449]: common
+          - button "Greenhouse greenhouse rare recipe" [ref=f8e450] [cursor=pointer]:
+            - generic [ref=f8e452]:
+              - strong [ref=f8e453]: Greenhouse
+              - generic [ref=f8e454]: greenhouse
+            - generic [ref=f8e455]:
+              - emphasis [ref=f8e456]: rare
+              - emphasis [ref=f8e457]: recipe
+          - button "Helm helm uncommon" [ref=f8e458] [cursor=pointer]:
+            - generic [ref=f8e460]:
+              - strong [ref=f8e461]: Helm
+              - generic [ref=f8e462]: helm
+            - emphasis [ref=f8e464]: uncommon
+          - button "Homestead Deed homestead_deed legendary" [ref=f8e465] [cursor=pointer]:
+            - generic [ref=f8e467]:
+              - strong [ref=f8e468]: Homestead Deed
+              - generic [ref=f8e469]: homestead_deed
+            - emphasis [ref=f8e471]: legendary
+          - button "Hot Pepper hot_pepper common" [ref=f8e472] [cursor=pointer]:
+            - generic [ref=f8e474]:
+              - strong [ref=f8e475]: Hot Pepper
+              - generic [ref=f8e476]: hot_pepper
+            - emphasis [ref=f8e478]: common
+          - button "Hot Pepper Seeds hot_pepper_seeds common" [ref=f8e479] [cursor=pointer]:
+            - generic [ref=f8e481]:
+              - strong [ref=f8e482]: Hot Pepper Seeds
+              - generic [ref=f8e483]: hot_pepper_seeds
+            - emphasis [ref=f8e485]: common
+          - button "Iron Axe axe common" [ref=f8e486] [cursor=pointer]:
+            - generic [ref=f8e488]:
+              - strong [ref=f8e489]: Iron Axe
+              - generic [ref=f8e490]: axe
+            - emphasis [ref=f8e492]: common
+          - button "Iron Bar iron_bar uncommon" [ref=f8e493] [cursor=pointer]:
+            - generic [ref=f8e495]:
+              - strong [ref=f8e496]: Iron Bar
+              - generic [ref=f8e497]: iron_bar
+            - emphasis [ref=f8e499]: uncommon
+          - button "Iron Hammer hammer common" [ref=f8e500] [cursor=pointer]:
+            - generic [ref=f8e502]:
+              - strong [ref=f8e503]: Iron Hammer
+              - generic [ref=f8e504]: hammer
+            - emphasis [ref=f8e506]: common
+          - button "Iron Hoe hoe common" [ref=f8e507] [cursor=pointer]:
+            - generic [ref=f8e509]:
+              - strong [ref=f8e510]: Iron Hoe
+              - generic [ref=f8e511]: hoe
+            - emphasis [ref=f8e513]: common
+          - button "Iron Ore Chunk iron_ore common recipe" [ref=f8e514] [cursor=pointer]:
+            - generic [ref=f8e516]:
+              - strong [ref=f8e517]: Iron Ore Chunk
+              - generic [ref=f8e518]: iron_ore
+            - generic [ref=f8e519]:
+              - emphasis [ref=f8e520]: common
+              - emphasis [ref=f8e521]: recipe
+          - button "Iron Pickaxe pickaxe common" [ref=f8e522] [cursor=pointer]:
+            - generic [ref=f8e524]:
+              - strong [ref=f8e525]: Iron Pickaxe
+              - generic [ref=f8e526]: pickaxe
+            - emphasis [ref=f8e528]: common
+          - button "Iron Pieces iron_piece common" [ref=f8e529] [cursor=pointer]:
+            - generic [ref=f8e531]:
+              - strong [ref=f8e532]: Iron Pieces
+              - generic [ref=f8e533]: iron_piece
+            - emphasis [ref=f8e535]: common
+          - button "Iron Shovel shovel common" [ref=f8e536] [cursor=pointer]:
+            - generic [ref=f8e538]:
+              - strong [ref=f8e539]: Iron Shovel
+              - generic [ref=f8e540]: shovel
+            - emphasis [ref=f8e542]: common
+          - button "Iron Sword sword common" [ref=f8e543] [cursor=pointer]:
+            - generic [ref=f8e545]:
+              - strong [ref=f8e546]: Iron Sword
+              - generic [ref=f8e547]: sword
+            - emphasis [ref=f8e549]: common
+          - button "Jane's Gardening Journal janes_gardening_book rare" [ref=f8e550] [cursor=pointer]:
+            - generic [ref=f8e552]:
+              - strong [ref=f8e553]: Jane's Gardening Journal
+              - generic [ref=f8e554]: janes_gardening_book
+            - emphasis [ref=f8e556]: rare
+          - button "Lantern lantern common" [ref=f8e557] [cursor=pointer]:
+            - generic [ref=f8e559]:
+              - strong [ref=f8e560]: Lantern
+              - generic [ref=f8e561]: lantern
+            - emphasis [ref=f8e563]: common
+          - button "Leather leather common" [ref=f8e564] [cursor=pointer]:
+            - generic [ref=f8e566]:
+              - strong [ref=f8e567]: Leather
+              - generic [ref=f8e568]: leather
+            - emphasis [ref=f8e570]: common
+          - button "Leek leek common" [ref=f8e571] [cursor=pointer]:
+            - generic [ref=f8e573]:
+              - strong [ref=f8e574]: Leek
+              - generic [ref=f8e575]: leek
+            - emphasis [ref=f8e577]: common
+          - button "Leek Seeds leek_seeds common" [ref=f8e578] [cursor=pointer]:
+            - generic [ref=f8e580]:
+              - strong [ref=f8e581]: Leek Seeds
+              - generic [ref=f8e582]: leek_seeds
+            - emphasis [ref=f8e584]: common
+          - button "Marlow's Book marlow_book common" [ref=f8e585] [cursor=pointer]:
+            - generic [ref=f8e587]:
+              - strong [ref=f8e588]: Marlow's Book
+              - generic [ref=f8e589]: marlow_book
+            - emphasis [ref=f8e591]: common
+          - button "Necklace necklace epic" [ref=f8e592] [cursor=pointer]:
+            - generic [ref=f8e594]:
+              - strong [ref=f8e595]: Necklace
+              - generic [ref=f8e596]: necklace
+            - emphasis [ref=f8e598]: epic
+          - button "Onion onion common" [ref=f8e599] [cursor=pointer]:
+            - generic [ref=f8e601]:
+              - strong [ref=f8e602]: Onion
+              - generic [ref=f8e603]: onion
+            - emphasis [ref=f8e605]: common
+          - button "Onion Seeds onion_seeds common" [ref=f8e606] [cursor=pointer]:
+            - generic [ref=f8e608]:
+              - strong [ref=f8e609]: Onion Seeds
+              - generic [ref=f8e610]: onion_seeds
+            - emphasis [ref=f8e612]: common
+          - button "Orchard Tea orchard_tea common recipe" [ref=f8e613] [cursor=pointer]:
+            - generic [ref=f8e615]:
+              - strong [ref=f8e616]: Orchard Tea
+              - generic [ref=f8e617]: orchard_tea
+            - generic [ref=f8e618]:
+              - emphasis [ref=f8e619]: common
+              - emphasis [ref=f8e620]: recipe
+          - button "Pants pants uncommon" [ref=f8e621] [cursor=pointer]:
+            - generic [ref=f8e623]:
+              - strong [ref=f8e624]: Pants
+              - generic [ref=f8e625]: pants
+            - emphasis [ref=f8e627]: uncommon
+          - button "Parsley parsley common" [ref=f8e628] [cursor=pointer]:
+            - generic [ref=f8e630]:
+              - strong [ref=f8e631]: Parsley
+              - generic [ref=f8e632]: parsley
+            - emphasis [ref=f8e634]: common
+          - button "Parsley Seeds parsley_seeds common" [ref=f8e635] [cursor=pointer]:
+            - generic [ref=f8e637]:
+              - strong [ref=f8e638]: Parsley Seeds
+              - generic [ref=f8e639]: parsley_seeds
+            - emphasis [ref=f8e641]: common
+          - button "Peach peach common" [ref=f8e642] [cursor=pointer]:
+            - generic [ref=f8e644]:
+              - strong [ref=f8e645]: Peach
+              - generic [ref=f8e646]: peach
+            - emphasis [ref=f8e648]: common
+          - button "Pear pear common" [ref=f8e649] [cursor=pointer]:
+            - generic [ref=f8e651]:
+              - strong [ref=f8e652]: Pear
+              - generic [ref=f8e653]: pear
+            - emphasis [ref=f8e655]: common
+          - button "Pebble pebble common" [ref=f8e656] [cursor=pointer]:
+            - generic [ref=f8e658]:
+              - strong [ref=f8e659]: Pebble
+              - generic [ref=f8e660]: pebble
+            - emphasis [ref=f8e662]: common
+          - button "Pomace pomace common" [ref=f8e663] [cursor=pointer]:
+            - generic [ref=f8e665]:
+              - strong [ref=f8e666]: Pomace
+              - generic [ref=f8e667]: pomace
+            - emphasis [ref=f8e669]: common
+          - button "Potato potato common" [ref=f8e670] [cursor=pointer]:
+            - generic [ref=f8e672]:
+              - strong [ref=f8e673]: Potato
+              - generic [ref=f8e674]: potato
+            - emphasis [ref=f8e676]: common
+          - button "Potato Seeds potato_seeds common" [ref=f8e677] [cursor=pointer]:
+            - generic [ref=f8e679]:
+              - strong [ref=f8e680]: Potato Seeds
+              - generic [ref=f8e681]: potato_seeds
+            - emphasis [ref=f8e683]: common
+          - button "Preserved Beetroot preserved_beetroot uncommon" [ref=f8e684] [cursor=pointer]:
+            - generic [ref=f8e686]:
+              - strong [ref=f8e687]: Preserved Beetroot
+              - generic [ref=f8e688]: preserved_beetroot
+            - emphasis [ref=f8e690]: uncommon
+          - button "Preserved Cabbage preserved_cabbage uncommon" [ref=f8e691] [cursor=pointer]:
+            - generic [ref=f8e693]:
+              - strong [ref=f8e694]: Preserved Cabbage
+              - generic [ref=f8e695]: preserved_cabbage
+            - emphasis [ref=f8e697]: uncommon
+          - button "Preserved Carrot preserved_carrot uncommon" [ref=f8e698] [cursor=pointer]:
+            - generic [ref=f8e700]:
+              - strong [ref=f8e701]: Preserved Carrot
+              - generic [ref=f8e702]: preserved_carrot
+            - emphasis [ref=f8e704]: uncommon
+          - button "Preserved Corn preserved_corn uncommon" [ref=f8e705] [cursor=pointer]:
+            - generic [ref=f8e707]:
+              - strong [ref=f8e708]: Preserved Corn
+              - generic [ref=f8e709]: preserved_corn
+            - emphasis [ref=f8e711]: uncommon
+          - button "Preserved Cucumber preserved_cucumber uncommon" [ref=f8e712] [cursor=pointer]:
+            - generic [ref=f8e714]:
+              - strong [ref=f8e715]: Preserved Cucumber
+              - generic [ref=f8e716]: preserved_cucumber
+            - emphasis [ref=f8e718]: uncommon
+          - button "Preserved Garlic preserved_garlic uncommon" [ref=f8e719] [cursor=pointer]:
+            - generic [ref=f8e721]:
+              - strong [ref=f8e722]: Preserved Garlic
+              - generic [ref=f8e723]: preserved_garlic
+            - emphasis [ref=f8e725]: uncommon
+          - button "Preserved Grapes preserved_grape uncommon" [ref=f8e726] [cursor=pointer]:
+            - generic [ref=f8e728]:
+              - strong [ref=f8e729]: Preserved Grapes
+              - generic [ref=f8e730]: preserved_grape
+            - emphasis [ref=f8e732]: uncommon
+          - button "Preserved Green Pepper preserved_green_pepper uncommon" [ref=f8e733] [cursor=pointer]:
+            - generic [ref=f8e735]:
+              - strong [ref=f8e736]: Preserved Green Pepper
+              - generic [ref=f8e737]: preserved_green_pepper
+            - emphasis [ref=f8e739]: uncommon
+          - button "Preserved Hot Pepper preserved_hot_pepper uncommon" [ref=f8e740] [cursor=pointer]:
+            - generic [ref=f8e742]:
+              - strong [ref=f8e743]: Preserved Hot Pepper
+              - generic [ref=f8e744]: preserved_hot_pepper
+            - emphasis [ref=f8e746]: uncommon
+          - button "Preserved Leek preserved_leek uncommon" [ref=f8e747] [cursor=pointer]:
+            - generic [ref=f8e749]:
+              - strong [ref=f8e750]: Preserved Leek
+              - generic [ref=f8e751]: preserved_leek
+            - emphasis [ref=f8e753]: uncommon
+          - button "Preserved Onion preserved_onion uncommon" [ref=f8e754] [cursor=pointer]:
+            - generic [ref=f8e756]:
+              - strong [ref=f8e757]: Preserved Onion
+              - generic [ref=f8e758]: preserved_onion
+            - emphasis [ref=f8e760]: uncommon
+          - button "Preserved Parsley preserved_parsley uncommon" [ref=f8e761] [cursor=pointer]:
+            - generic [ref=f8e763]:
+              - strong [ref=f8e764]: Preserved Parsley
+              - generic [ref=f8e765]: preserved_parsley
+            - emphasis [ref=f8e767]: uncommon
+          - button "Preserved Potato preserved_potato uncommon" [ref=f8e768] [cursor=pointer]:
+            - generic [ref=f8e770]:
+              - strong [ref=f8e771]: Preserved Potato
+              - generic [ref=f8e772]: preserved_potato
+            - emphasis [ref=f8e774]: uncommon
+          - button "Preserved Pumpkin preserved_pumpkin uncommon" [ref=f8e775] [cursor=pointer]:
+            - generic [ref=f8e777]:
+              - strong [ref=f8e778]: Preserved Pumpkin
+              - generic [ref=f8e779]: preserved_pumpkin
+            - emphasis [ref=f8e781]: uncommon
+          - button "Preserved Red Pepper preserved_red_pepper uncommon" [ref=f8e782] [cursor=pointer]:
+            - generic [ref=f8e784]:
+              - strong [ref=f8e785]: Preserved Red Pepper
+              - generic [ref=f8e786]: preserved_red_pepper
+            - emphasis [ref=f8e788]: uncommon
+          - button "Preserved Strawberry preserved_strawberry uncommon" [ref=f8e789] [cursor=pointer]:
+            - generic [ref=f8e791]:
+              - strong [ref=f8e792]: Preserved Strawberry
+              - generic [ref=f8e793]: preserved_strawberry
+            - emphasis [ref=f8e795]: uncommon
+          - button "Preserved Sunflower preserved_sunflower uncommon" [ref=f8e796] [cursor=pointer]:
+            - generic [ref=f8e798]:
+              - strong [ref=f8e799]: Preserved Sunflower
+              - generic [ref=f8e800]: preserved_sunflower
+            - emphasis [ref=f8e802]: uncommon
+          - button "Preserved Tomato preserved_tomato uncommon" [ref=f8e803] [cursor=pointer]:
+            - generic [ref=f8e805]:
+              - strong [ref=f8e806]: Preserved Tomato
+              - generic [ref=f8e807]: preserved_tomato
+            - emphasis [ref=f8e809]: uncommon
+          - button "Preserved Turnip preserved_turnip uncommon" [ref=f8e810] [cursor=pointer]:
+            - generic [ref=f8e812]:
+              - strong [ref=f8e813]: Preserved Turnip
+              - generic [ref=f8e814]: preserved_turnip
+            - emphasis [ref=f8e816]: uncommon
+          - button "Preserved Watermelon preserved_watermelon uncommon" [ref=f8e817] [cursor=pointer]:
+            - generic [ref=f8e819]:
+              - strong [ref=f8e820]: Preserved Watermelon
+              - generic [ref=f8e821]: preserved_watermelon
+            - emphasis [ref=f8e823]: uncommon
+          - button "Preserved Wheat preserved_wheat uncommon" [ref=f8e824] [cursor=pointer]:
+            - generic [ref=f8e826]:
+              - strong [ref=f8e827]: Preserved Wheat
+              - generic [ref=f8e828]: preserved_wheat
+            - emphasis [ref=f8e830]: uncommon
+          - button "Preserved Yellow Pepper preserved_yellow_pepper uncommon" [ref=f8e831] [cursor=pointer]:
+            - generic [ref=f8e833]:
+              - strong [ref=f8e834]: Preserved Yellow Pepper
+              - generic [ref=f8e835]: preserved_yellow_pepper
+            - emphasis [ref=f8e837]: uncommon
+          - button "Pumpkin pumpkin common" [ref=f8e838] [cursor=pointer]:
+            - generic [ref=f8e840]:
+              - strong [ref=f8e841]: Pumpkin
+              - generic [ref=f8e842]: pumpkin
+            - emphasis [ref=f8e844]: common
+          - button "Pumpkin Seeds pumpkin_seeds common" [ref=f8e845] [cursor=pointer]:
+            - generic [ref=f8e847]:
+              - strong [ref=f8e848]: Pumpkin Seeds
+              - generic [ref=f8e849]: pumpkin_seeds
+            - emphasis [ref=f8e851]: common
+          - button "Raw Beef raw_beef common" [ref=f8e852] [cursor=pointer]:
+            - generic [ref=f8e854]:
+              - strong [ref=f8e855]: Raw Beef
+              - generic [ref=f8e856]: raw_beef
+            - emphasis [ref=f8e858]: common
+          - button "Raw Chicken raw_chicken common" [ref=f8e859] [cursor=pointer]:
+            - generic [ref=f8e861]:
+              - strong [ref=f8e862]: Raw Chicken
+              - generic [ref=f8e863]: raw_chicken
+            - emphasis [ref=f8e865]: common
+          - button "Raw Fish raw_fish common" [ref=f8e866] [cursor=pointer]:
+            - generic [ref=f8e868]:
+              - strong [ref=f8e869]: Raw Fish
+              - generic [ref=f8e870]: raw_fish
+            - emphasis [ref=f8e872]: common
+          - button "Raw Mutton raw_mutton common" [ref=f8e873] [cursor=pointer]:
+            - generic [ref=f8e875]:
+              - strong [ref=f8e876]: Raw Mutton
+              - generic [ref=f8e877]: raw_mutton
+            - emphasis [ref=f8e879]: common
+          - button "Raw Pork raw_pork common" [ref=f8e880] [cursor=pointer]:
+            - generic [ref=f8e882]:
+              - strong [ref=f8e883]: Raw Pork
+              - generic [ref=f8e884]: raw_pork
+            - emphasis [ref=f8e886]: common
+          - button "Red Pepper red_pepper common" [ref=f8e887] [cursor=pointer]:
+            - generic [ref=f8e889]:
+              - strong [ref=f8e890]: Red Pepper
+              - generic [ref=f8e891]: red_pepper
+            - emphasis [ref=f8e893]: common
+          - button "Red Pepper Seeds red_pepper_seeds common" [ref=f8e894] [cursor=pointer]:
+            - generic [ref=f8e896]:
+              - strong [ref=f8e897]: Red Pepper Seeds
+              - generic [ref=f8e898]: red_pepper_seeds
+            - emphasis [ref=f8e900]: common
+          - button "Roast Chicken cooked_chicken uncommon" [ref=f8e901] [cursor=pointer]:
+            - generic [ref=f8e903]:
+              - strong [ref=f8e904]: Roast Chicken
+              - generic [ref=f8e905]: cooked_chicken
+            - emphasis [ref=f8e907]: uncommon
+          - button "Roast Mutton cooked_mutton uncommon" [ref=f8e908] [cursor=pointer]:
+            - generic [ref=f8e910]:
+              - strong [ref=f8e911]: Roast Mutton
+              - generic [ref=f8e912]: cooked_mutton
+            - emphasis [ref=f8e914]: uncommon
+          - button "Roast Pork cooked_pork uncommon" [ref=f8e915] [cursor=pointer]:
+            - generic [ref=f8e917]:
+              - strong [ref=f8e918]: Roast Pork
+              - generic [ref=f8e919]: cooked_pork
+            - emphasis [ref=f8e921]: uncommon
+          - button "Ruby Ore ruby_ore common recipe" [ref=f8e922] [cursor=pointer]:
+            - generic [ref=f8e924]:
+              - strong [ref=f8e925]: Ruby Ore
+              - generic [ref=f8e926]: ruby_ore
+            - generic [ref=f8e927]:
+              - emphasis [ref=f8e928]: common
+              - emphasis [ref=f8e929]: recipe
+          - button "Ruby Pieces ruby_piece common" [ref=f8e930] [cursor=pointer]:
+            - generic [ref=f8e932]:
+              - strong [ref=f8e933]: Ruby Pieces
+              - generic [ref=f8e934]: ruby_piece
+            - emphasis [ref=f8e936]: common
+          - button "Sapphire Ore sapphire_ore common recipe" [ref=f8e937] [cursor=pointer]:
+            - generic [ref=f8e939]:
+              - strong [ref=f8e940]: Sapphire Ore
+              - generic [ref=f8e941]: sapphire_ore
+            - generic [ref=f8e942]:
+              - emphasis [ref=f8e943]: common
+              - emphasis [ref=f8e944]: recipe
+          - button "Sapphire Pieces sapphire_piece common" [ref=f8e945] [cursor=pointer]:
+            - generic [ref=f8e947]:
+              - strong [ref=f8e948]: Sapphire Pieces
+              - generic [ref=f8e949]: sapphire_piece
+            - emphasis [ref=f8e951]: common
+          - button "Shield shield rare" [ref=f8e952] [cursor=pointer]:
+            - generic [ref=f8e954]:
+              - strong [ref=f8e955]: Shield
+              - generic [ref=f8e956]: shield
+            - emphasis [ref=f8e958]: rare
+          - button "Sign sign common recipe" [ref=f8e959] [cursor=pointer]:
+            - generic [ref=f8e961]:
+              - strong [ref=f8e962]: Sign
+              - generic [ref=f8e963]: sign
+            - generic [ref=f8e964]:
+              - emphasis [ref=f8e965]: common
+              - emphasis [ref=f8e966]: recipe
+          - button "Silo silo rare recipe" [ref=f8e967] [cursor=pointer]:
+            - generic [ref=f8e969]:
+              - strong [ref=f8e970]: Silo
+              - generic [ref=f8e971]: silo
+            - generic [ref=f8e972]:
+              - emphasis [ref=f8e973]: rare
+              - emphasis [ref=f8e974]: recipe
+          - button "Sprinkler sprinkler uncommon" [ref=f8e975] [cursor=pointer]:
+            - generic [ref=f8e977]:
+              - strong [ref=f8e978]: Sprinkler
+              - generic [ref=f8e979]: sprinkler
+            - emphasis [ref=f8e981]: uncommon
+          - button "Standing Torch standing_torch common recipe" [ref=f8e982] [cursor=pointer]:
+            - generic [ref=f8e984]:
+              - strong [ref=f8e985]: Standing Torch
+              - generic [ref=f8e986]: standing_torch
+            - generic [ref=f8e987]:
+              - emphasis [ref=f8e988]: common
+              - emphasis [ref=f8e989]: recipe
+          - button "Starter Backpack backpack common recipe" [ref=f8e990] [cursor=pointer]:
+            - generic [ref=f8e992]:
+              - strong [ref=f8e993]: Starter Backpack
+              - generic [ref=f8e994]: backpack
+            - generic [ref=f8e995]:
+              - emphasis [ref=f8e996]: common
+              - emphasis [ref=f8e997]: recipe
+          - button "Stick stick common recipe" [ref=f8e998] [cursor=pointer]:
+            - generic [ref=f8e1000]:
+              - strong [ref=f8e1001]: Stick
+              - generic [ref=f8e1002]: stick
+            - generic [ref=f8e1003]:
+              - emphasis [ref=f8e1004]: common
+              - emphasis [ref=f8e1005]: recipe
+          - button "Stone stone common recipe" [ref=f8e1006] [cursor=pointer]:
+            - generic [ref=f8e1008]:
+              - strong [ref=f8e1009]: Stone
+              - generic [ref=f8e1010]: stone
+            - generic [ref=f8e1011]:
+              - emphasis [ref=f8e1012]: common
+              - emphasis [ref=f8e1013]: recipe
+          - button "Strawberry strawberry common" [ref=f8e1014] [cursor=pointer]:
+            - generic [ref=f8e1016]:
+              - strong [ref=f8e1017]: Strawberry
+              - generic [ref=f8e1018]: strawberry
+            - emphasis [ref=f8e1020]: common
+          - button "Strawberry Seeds strawberry_seeds common" [ref=f8e1021] [cursor=pointer]:
+            - generic [ref=f8e1023]:
+              - strong [ref=f8e1024]: Strawberry Seeds
+              - generic [ref=f8e1025]: strawberry_seeds
+            - emphasis [ref=f8e1027]: common
+          - button "String string common recipe" [ref=f8e1028] [cursor=pointer]:
+            - generic [ref=f8e1030]:
+              - strong [ref=f8e1031]: String
+              - generic [ref=f8e1032]: string
+            - generic [ref=f8e1033]:
+              - emphasis [ref=f8e1034]: common
+              - emphasis [ref=f8e1035]: recipe
+          - button "Sunflower sunflower common" [ref=f8e1036] [cursor=pointer]:
+            - generic [ref=f8e1038]:
+              - strong [ref=f8e1039]: Sunflower
+              - generic [ref=f8e1040]: sunflower
+            - emphasis [ref=f8e1042]: common
+          - button "Sunflower Seeds sunflower_seeds common" [ref=f8e1043] [cursor=pointer]:
+            - generic [ref=f8e1045]:
+              - strong [ref=f8e1046]: Sunflower Seeds
+              - generic [ref=f8e1047]: sunflower_seeds
+            - emphasis [ref=f8e1049]: common
+          - button "Tomato tomato common" [ref=f8e1050] [cursor=pointer]:
+            - generic [ref=f8e1052]:
+              - strong [ref=f8e1053]: Tomato
+              - generic [ref=f8e1054]: tomato
+            - emphasis [ref=f8e1056]: common
+          - button "Tomato Seeds tomato_seeds common" [ref=f8e1057] [cursor=pointer]:
+            - generic [ref=f8e1059]:
+              - strong [ref=f8e1060]: Tomato Seeds
+              - generic [ref=f8e1061]: tomato_seeds
+            - emphasis [ref=f8e1063]: common
+          - button "Topaz Ore topaz_ore common recipe" [ref=f8e1064] [cursor=pointer]:
+            - generic [ref=f8e1066]:
+              - strong [ref=f8e1067]: Topaz Ore
+              - generic [ref=f8e1068]: topaz_ore
+            - generic [ref=f8e1069]:
+              - emphasis [ref=f8e1070]: common
+              - emphasis [ref=f8e1071]: recipe
+          - button "Topaz Pieces topaz_piece common" [ref=f8e1072] [cursor=pointer]:
+            - generic [ref=f8e1074]:
+              - strong [ref=f8e1075]: Topaz Pieces
+              - generic [ref=f8e1076]: topaz_piece
+            - emphasis [ref=f8e1078]: common
+          - button "Torch torch common recipe" [ref=f8e1079] [cursor=pointer]:
+            - generic [ref=f8e1081]:
+              - strong [ref=f8e1082]: Torch
+              - generic [ref=f8e1083]: torch
+            - generic [ref=f8e1084]:
+              - emphasis [ref=f8e1085]: common
+              - emphasis [ref=f8e1086]: recipe
+          - button "Tunic tunic uncommon" [ref=f8e1087] [cursor=pointer]:
+            - generic [ref=f8e1089]:
+              - strong [ref=f8e1090]: Tunic
+              - generic [ref=f8e1091]: tunic
+            - emphasis [ref=f8e1093]: uncommon
+          - button "Turnip turnip common" [ref=f8e1094] [cursor=pointer]:
+            - generic [ref=f8e1096]:
+              - strong [ref=f8e1097]: Turnip
+              - generic [ref=f8e1098]: turnip
+            - emphasis [ref=f8e1100]: common
+          - button "Turnip Seeds turnip_seeds common" [ref=f8e1101] [cursor=pointer]:
+            - generic [ref=f8e1103]:
+              - strong [ref=f8e1104]: Turnip Seeds
+              - generic [ref=f8e1105]: turnip_seeds
+            - emphasis [ref=f8e1107]: common
+          - button "Watch watch rare recipe" [ref=f8e1108] [cursor=pointer]:
+            - generic [ref=f8e1110]:
+              - strong [ref=f8e1111]: Watch
+              - generic [ref=f8e1112]: watch
+            - generic [ref=f8e1113]:
+              - emphasis [ref=f8e1114]: rare
+              - emphasis [ref=f8e1115]: recipe
+          - button "Watering Can watering_can common" [ref=f8e1116] [cursor=pointer]:
+            - generic [ref=f8e1118]:
+              - strong [ref=f8e1119]: Watering Can
+              - generic [ref=f8e1120]: watering_can
+            - emphasis [ref=f8e1122]: common
+          - button "Watermelon watermelon common" [ref=f8e1123] [cursor=pointer]:
+            - generic [ref=f8e1125]:
+              - strong [ref=f8e1126]: Watermelon
+              - generic [ref=f8e1127]: watermelon
+            - emphasis [ref=f8e1129]: common
+          - button "Watermelon Seeds watermelon_seeds common" [ref=f8e1130] [cursor=pointer]:
+            - generic [ref=f8e1132]:
+              - strong [ref=f8e1133]: Watermelon Seeds
+              - generic [ref=f8e1134]: watermelon_seeds
+            - emphasis [ref=f8e1136]: common
+          - button "Wheat wheat common" [ref=f8e1137] [cursor=pointer]:
+            - generic [ref=f8e1139]:
+              - strong [ref=f8e1140]: Wheat
+              - generic [ref=f8e1141]: wheat
+            - emphasis [ref=f8e1143]: common
+          - button "Wheat Seeds wheat_seeds common" [ref=f8e1144] [cursor=pointer]:
+            - generic [ref=f8e1146]:
+              - strong [ref=f8e1147]: Wheat Seeds
+              - generic [ref=f8e1148]: wheat_seeds
+            - emphasis [ref=f8e1150]: common
+          - button "Wood wood common" [ref=f8e1151] [cursor=pointer]:
+            - generic [ref=f8e1153]:
+              - strong [ref=f8e1154]: Wood
+              - generic [ref=f8e1155]: wood
+            - emphasis [ref=f8e1157]: common
+          - button "Wooden Boat boat uncommon recipe" [ref=f8e1158] [cursor=pointer]:
+            - generic [ref=f8e1160]:
+              - strong [ref=f8e1161]: Wooden Boat
+              - generic [ref=f8e1162]: boat
+            - generic [ref=f8e1163]:
+              - emphasis [ref=f8e1164]: uncommon
+              - emphasis [ref=f8e1165]: recipe
+          - button "Wooden Bow bow common" [ref=f8e1166] [cursor=pointer]:
+            - generic [ref=f8e1168]:
+              - strong [ref=f8e1169]: Wooden Bow
+              - generic [ref=f8e1170]: bow
+            - emphasis [ref=f8e1172]: common
+          - button "Wooden Planks plank common recipe" [ref=f8e1173] [cursor=pointer]:
+            - generic [ref=f8e1175]:
+              - strong [ref=f8e1176]: Wooden Planks
+              - generic [ref=f8e1177]: plank
+            - generic [ref=f8e1178]:
+              - emphasis [ref=f8e1179]: common
+              - emphasis [ref=f8e1180]: recipe
+          - button "Workbench workbench common recipe" [ref=f8e1181] [cursor=pointer]:
+            - generic [ref=f8e1183]:
+              - strong [ref=f8e1184]: Workbench
+              - generic [ref=f8e1185]: workbench
+            - generic [ref=f8e1186]:
+              - emphasis [ref=f8e1187]: common
+              - emphasis [ref=f8e1188]: recipe
+          - button "Yellow Pepper yellow_pepper common" [ref=f8e1189] [cursor=pointer]:
+            - generic [ref=f8e1191]:
+              - strong [ref=f8e1192]: Yellow Pepper
+              - generic [ref=f8e1193]: yellow_pepper
+            - emphasis [ref=f8e1195]: common
+          - button "Yellow Pepper Seeds yellow_pepper_seeds common" [ref=f8e1196] [cursor=pointer]:
+            - generic [ref=f8e1198]:
+              - strong [ref=f8e1199]: Yellow Pepper Seeds
+              - generic [ref=f8e1200]: yellow_pepper_seeds
+            - emphasis [ref=f8e1202]: common
+      - region [ref=f8e1203]:
+        - generic [ref=f8e1206]:
+          - paragraph [ref=f8e1207]: fishing_rod
+          - heading "Fishing Rod" [level=2] [ref=f8e1208]
+          - paragraph [ref=f8e1209]: COMMON · STACK 1 · CRAFTABLE
+        - navigation "Item editor sections" [ref=f8e1210]:
+          - button "Details" [ref=f8e1211] [cursor=pointer]
+          - button "Recipes" [ref=f8e1212] [cursor=pointer]
+          - button "Sprite" [active] [ref=f8e1213] [cursor=pointer]
+          - button "Linked code" [ref=f8e1214] [cursor=pointer]
+        - generic [ref=f8e1271]:
+          - generic [ref=f8e1274]:
+            - generic [ref=f8e1275]:
+              - generic [ref=f8e1276]: Generated asset key
+              - textbox "Generated asset key" [ref=f8e1277]: item_cf_fishing_rod
+            - generic [ref=f8e1278]:
+              - generic [ref=f8e1279]: Animation / variant / state
+              - combobox "Animation / variant / state" [ref=f8e1280]:
+                - option "base" [selected]
+            - generic [ref=f8e1281]: "props · asset #3458926289 · item.tool, kind.props, review.approved, state.base, tool.fishing_rod"
+          - searchbox "Find a generated asset by name, category, or tag" [ref=f8e1282]
+          - generic [ref=f8e1283]:
+            - heading "Generated asset library" [level=3] [ref=f8e1284]
+            - generic [ref=f8e1285]: 970 matches · showing 72
+          - generic [ref=f8e1286]:
+            - button "action_cf_base" [ref=f8e1287] [cursor=pointer]
+            - button "action_cf_hair_1_brown" [ref=f8e1290] [cursor=pointer]
+            - button "action_cf_hair_2_black" [ref=f8e1293] [cursor=pointer]
+            - button "action_cf_hair_3_blonde" [ref=f8e1296] [cursor=pointer]
+            - button "action_cf_hair_4_ginger" [ref=f8e1299] [cursor=pointer]
+            - button "action_cf_hair_5_grey" [ref=f8e1302] [cursor=pointer]
+            - button "action_cf_hair_6_brown" [ref=f8e1305] [cursor=pointer]
+            - button "action_cf_hands" [ref=f8e1308] [cursor=pointer]
+            - button "action_cf_pants_farmer_black" [ref=f8e1311] [cursor=pointer]
+            - button "action_cf_pants_farmer_blue" [ref=f8e1314] [cursor=pointer]
+            - button "action_cf_pants_farmer_green" [ref=f8e1317] [cursor=pointer]
+            - button "action_cf_pants_farmer_red" [ref=f8e1320] [cursor=pointer]
+            - button "action_cf_pants_farmer_white_brown" [ref=f8e1323] [cursor=pointer]
+            - button "action_cf_shirt_farmer_blue" [ref=f8e1326] [cursor=pointer]
+            - button "action_cf_shirt_farmer_green" [ref=f8e1329] [cursor=pointer]
+            - button "action_cf_shirt_farmer_orange" [ref=f8e1332] [cursor=pointer]
+            - button "action_cf_shirt_farmer_purple" [ref=f8e1335] [cursor=pointer]
+            - button "action_cf_shirt_farmer_red" [ref=f8e1338] [cursor=pointer]
+            - button "action_cf_shirt_farmer_white_brown" [ref=f8e1341] [cursor=pointer]
+            - button "action_cf_shoes_black" [ref=f8e1344] [cursor=pointer]
+            - button "action_cf_shoes_blue" [ref=f8e1347] [cursor=pointer]
+            - button "action_cf_shoes_brown" [ref=f8e1350] [cursor=pointer]
+            - button "action_cf_shoes_green" [ref=f8e1353] [cursor=pointer]
+            - button "action_cf_shoes_red" [ref=f8e1356] [cursor=pointer]
+            - button "actor_cf_angel_01" [ref=f8e1359] [cursor=pointer]
+            - button "actor_cf_angel_02" [ref=f8e1362] [cursor=pointer]
+            - button "actor_cf_goblin_archer" [ref=f8e1365] [cursor=pointer]
+            - button "actor_cf_goblin_maceman" [ref=f8e1368] [cursor=pointer]
+            - button "actor_cf_goblin_spearman" [ref=f8e1371] [cursor=pointer]
+            - button "actor_cf_goblin_thief" [ref=f8e1374] [cursor=pointer]
+            - button "actor_cf_knight_archer" [ref=f8e1377] [cursor=pointer]
+            - button "actor_cf_knight_spearman" [ref=f8e1380] [cursor=pointer]
+            - button "actor_cf_knight_swordman" [ref=f8e1383] [cursor=pointer]
+            - button "actor_cf_knight_templar" [ref=f8e1386] [cursor=pointer]
+            - button "actor_cf_orc_archer" [ref=f8e1389] [cursor=pointer]
+            - button "actor_cf_orc_chief" [ref=f8e1392] [cursor=pointer]
+            - button "actor_cf_orc_grunt" [ref=f8e1395] [cursor=pointer]
+            - button "actor_cf_orc_peon" [ref=f8e1398] [cursor=pointer]
+            - button "avatar_base" [ref=f8e1401] [cursor=pointer]
+            - button "avatar_cf_farmer" [ref=f8e1404] [cursor=pointer]
+            - button "avatar_cf_farmer_axe" [ref=f8e1407] [cursor=pointer]
+            - button "building_cf_barn" [ref=f8e1410] [cursor=pointer]
+            - button "building_cf_coop" [ref=f8e1413] [cursor=pointer]
+            - button "building_cf_farmhouse" [ref=f8e1416] [cursor=pointer]
+            - button "building_cf_fisherman_hut" [ref=f8e1419] [cursor=pointer]
+            - button "building_cf_greenhouse" [ref=f8e1422] [cursor=pointer]
+            - button "building_cf_shed" [ref=f8e1425] [cursor=pointer]
+            - button "building_cf_silo" [ref=f8e1428] [cursor=pointer]
+            - button "building_cf_windmill" [ref=f8e1431] [cursor=pointer]
+            - button "crop_cf_beetroot" [ref=f8e1434] [cursor=pointer]
+            - button "crop_cf_cabbage" [ref=f8e1437] [cursor=pointer]
+            - button "crop_cf_carrot" [ref=f8e1440] [cursor=pointer]
+            - button "crop_cf_carrot_mature" [ref=f8e1443] [cursor=pointer]
+            - button "crop_cf_corn" [ref=f8e1446] [cursor=pointer]
+            - button "crop_cf_corn_mature" [ref=f8e1449] [cursor=pointer]
+            - button "crop_cf_cucumber" [ref=f8e1452] [cursor=pointer]
+            - button "crop_cf_garlic" [ref=f8e1455] [cursor=pointer]
+            - button "crop_cf_grape" [ref=f8e1458] [cursor=pointer]
+            - button "crop_cf_grapes_mature" [ref=f8e1461] [cursor=pointer]
+            - button "crop_cf_green_pepper" [ref=f8e1464] [cursor=pointer]
+            - button "crop_cf_hot_pepper" [ref=f8e1467] [cursor=pointer]
+            - button "crop_cf_leek" [ref=f8e1470] [cursor=pointer]
+            - button "crop_cf_onion" [ref=f8e1473] [cursor=pointer]
+            - button "crop_cf_parsley" [ref=f8e1476] [cursor=pointer]
+            - button "crop_cf_potato" [ref=f8e1479] [cursor=pointer]
+            - button "crop_cf_pumpkin" [ref=f8e1482] [cursor=pointer]
+            - button "crop_cf_pumpkin_mature" [ref=f8e1485] [cursor=pointer]
+            - button "crop_cf_red_pepper" [ref=f8e1488] [cursor=pointer]
+            - button "crop_cf_strawberry" [ref=f8e1491] [cursor=pointer]
+            - button "crop_cf_sunflower" [ref=f8e1494] [cursor=pointer]
+            - button "crop_cf_tomato" [ref=f8e1497] [cursor=pointer]
+            - button "crop_cf_tomato_mature" [ref=f8e1500] [cursor=pointer]
+      - complementary [ref=f8e1249]:
+        - generic [ref=f8e1251]:
+          - paragraph [ref=f8e1252]: AT A GLANCE
+          - heading "Runtime view" [level=2] [ref=f8e1253]
+        - generic [ref=f8e1254]:
+          - generic [ref=f8e1255]:
+            - term [ref=f8e1256]: Sprite
+            - definition [ref=f8e1257]: item_cf_fishing_rod
+            - term [ref=f8e1258]: Economy
+            - definition [ref=f8e1259]: buy 400 · sell 160
+            - term [ref=f8e1260]: Crafting
+            - definition [ref=f8e1261]: 1 output recipe(s)
+            - term [ref=f8e1262]: Skill
+            - definition [ref=f8e1263]: fishing
+            - term [ref=f8e1264]: Durability
+            - definition [ref=f8e1265]: 160 uses · repair with wood
+          - heading "Processing links (1)" [level=3] [ref=f8e1266]
+          - button "fishing_rod Crafting output ×1" [ref=f8e1268] [cursor=pointer]:
+            - strong [ref=f8e1269]: fishing_rod
+            - generic [ref=f8e1270]: Crafting output ×1

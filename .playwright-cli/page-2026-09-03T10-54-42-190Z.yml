@@ -1,0 +1,229 @@
+- main [ref=f3e2]:
+  - generic [ref=f3e3]:
+    - strong [ref=f3e4]: ORCHARD STUDIO
+    - combobox "Environment" [ref=f3e5]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=f3e6]
+    - combobox "Workspace layout" [ref=f3e7]:
+      - option "author-default" [selected]
+    - button "Save layout" [ref=f3e8] [cursor=pointer]
+  - generic [ref=f3e9]:
+    - navigation "Studio modes" [ref=f3e10]:
+      - button "Build" [ref=f3e11] [cursor=pointer]
+      - button "Author" [ref=f3e12] [cursor=pointer]
+      - generic [ref=f3e13]:
+        - generic [ref=f3e14]: Local sandbox
+        - generic [ref=f3e15]: Anonymous
+        - generic [ref=f3e16]: Sandbox
+        - generic [ref=f3e17]: Map —
+        - generic [ref=f3e18]: Content —
+    - generic [ref=f3e19]:
+      - heading "Dialogue Graph" [level=2] [ref=f3e20]
+      - heading "AUTHOR TOOLS" [level=3] [ref=f3e21]
+      - button "Items & Recipes" [ref=f3e22] [cursor=pointer]
+      - button "NPC Studio" [ref=f3e23] [cursor=pointer]
+      - button "Dialogue Graph" [ref=f3e24] [cursor=pointer]
+      - button "Quest Editor" [ref=f3e25] [cursor=pointer]
+      - button "Character Studio" [ref=f3e26] [cursor=pointer]
+      - button "Audio Preview" [ref=f3e27] [cursor=pointer]
+      - button "UI Lab" [ref=f3e28] [cursor=pointer]
+      - button "World Tables" [ref=f3e29] [cursor=pointer]
+      - button "Pack Studio" [ref=f3e30] [cursor=pointer]
+      - heading "SCENE" [level=3] [ref=f3e31]
+      - generic [ref=f3e32]:
+        - button "Local" [ref=f3e33] [cursor=pointer]
+        - button "Live" [ref=f3e34] [cursor=pointer]
+      - list [ref=f3e35]:
+        - listitem [ref=f3e36]:
+          - text: Topside
+          - list [ref=f3e37]:
+            - listitem [ref=f3e38]: Terrain
+            - listitem [ref=f3e39]:
+              - text: Objects
+              - list [ref=f3e40]:
+                - listitem [ref=f3e41]:
+                  - button "Marlow Camp" [ref=f3e42] [cursor=pointer]
+                - listitem [ref=f3e43]:
+                  - button "Estate" [ref=f3e44] [cursor=pointer]
+    - main [ref=f3e45]:
+      - button "Split view" [ref=f3e47] [cursor=pointer]
+      - generic [ref=f3e49]:
+        - heading "Dialogue Graph" [level=1] [ref=f3e50]
+        - generic [ref=f3e51]:
+          - generic [ref=f3e52]:
+            - button "NPCs" [ref=f3e53] [cursor=pointer]
+            - button "Dialogue" [ref=f3e54] [cursor=pointer]
+            - button "Quests" [ref=f3e55] [cursor=pointer]
+            - button "New dialogue" [ref=f3e56] [cursor=pointer]
+            - searchbox "Search narrative content" [ref=f3e57]
+            - button "Retired" [ref=f3e58] [cursor=pointer]
+            - button "Undo" [ref=f3e59] [cursor=pointer]
+            - button "Redo" [ref=f3e60] [cursor=pointer]
+            - textbox "Narrative publish note" [ref=f3e61]:
+              - /placeholder: Publish note
+            - button "Publish" [disabled] [ref=f3e62]
+            - button "Rebase" [disabled] [ref=f3e63]
+            - status [ref=f3e64]: ANONYMOUS · HEAD 0 · 0 changes · 0 errors
+          - complementary [ref=f3e65]:
+            - table [ref=f3e66]:
+              - rowgroup [ref=f3e67]:
+                - row [ref=f3e68]:
+                  - columnheader "Name" [ref=f3e69]
+                  - columnheader "Stable id" [ref=f3e70]
+                  - columnheader "Used by" [ref=f3e71]
+              - rowgroup [ref=f3e72]:
+                - row [ref=f3e73]:
+                  - cell "farmer_bob" [ref=f3e74]
+                  - cell "dialogue:farmer_bob" [ref=f3e75]
+                  - cell "1" [ref=f3e76]
+                - row [ref=f3e77]:
+                  - cell "fisherman_fin" [ref=f3e78]
+                  - cell "dialogue:fisherman_fin" [ref=f3e79]
+                  - cell "1" [ref=f3e80]
+                - row [ref=f3e81]:
+                  - cell "tool_merchant" [ref=f3e82]
+                  - cell "dialogue:tool_merchant" [ref=f3e83]
+                  - cell "1" [ref=f3e84]
+          - generic [ref=f3e85]:
+            - textbox "Definition JSON" [ref=f3e86]: "{ \"id\": \"dialogue:farmer_bob\", \"kind\": \"dialogue\", \"schemaVersion\": 1, \"initialNodeId\": \"greeting\", \"shop\": \"shop:farmer_supplies\", \"nodes\": [ { \"id\": \"greeting\", \"speaker\": \"Farmer Bob\", \"body\": \"Morning! Or afternoon. Jane says I lose track when the watering starts. What can I do for you?\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"strawberry_complete\", \"label\": \"I brought Jane the strawberries.\", \"nextNodeId\": \"strawberry_rewarded\", \"questMarker\": \"complete\", \"quest\": { \"quest\": \"quest:farmer_bob_fast_strawberries\", \"requires\": \"complete\", \"action\": \"turn_in\" } }, { \"id\": \"strawberry_offer\", \"label\": \"Do you need help on the farm?\", \"nextNodeId\": \"strawberry_request\", \"questMarker\": \"offer\", \"quest\": { \"quest\": \"quest:farmer_bob_fast_strawberries\", \"requires\": \"available\" } }, { \"id\": \"strawberry_active\", \"label\": \"How do I grow those strawberries?\", \"nextNodeId\": \"strawberry_reminder\", \"quest\": { \"quest\": \"quest:farmer_bob_fast_strawberries\", \"requires\": \"active\" } }, { \"id\": \"bottle_complete\", \"label\": \"I sold my first Bottle.\", \"nextNodeId\": \"bottle_rewarded\", \"questMarker\": \"complete\", \"quest\": { \"quest\": \"quest:marlow_first_bottle\", \"requires\": \"complete\", \"action\": \"turn_in\" } }, { \"id\": \"bottle_offer\", \"label\": \"What can I make from the harvest?\", \"nextNodeId\": \"bottle_request\", \"questMarker\": \"offer\", \"quest\": { \"quest\": \"quest:marlow_first_bottle\", \"requires\": \"available\" } }, { \"id\": \"bottle_active\", \"label\": \"Remind me about fruit production.\", \"nextNodeId\": \"bottle_reminder\", \"quest\": { \"quest\": \"quest:marlow_first_bottle\", \"requires\": \"active\" } }, { \"id\": \"offer\", \"label\": \"What farming supplies do you sell?\", \"nextNodeId\": \"shop\" }, { \"id\": \"jane\", \"label\": \"Tell me about Jane.\", \"nextNodeId\": \"about_jane\" }, { \"id\": \"farm\", \"label\": \"How do you keep this place running?\", \"nextNodeId\": \"about_farm\" }, { \"id\": \"grave\", \"label\": \"Whose grave is by the trees?\", \"nextNodeId\": \"about_grave\" }, { \"id\": \"goodbye\", \"label\": \"Goodbye.\", \"nextNodeId\": null } ] }, { \"id\": \"strawberry_request\", \"speaker\": \"Farmer Bob\", \"body\": \"Jane loves strawberries. I promised her some before supper, but the ordinary seeds take all day and she has never been patient. Take these six special packets. My farm is protected, so till clear grass elsewhere in the overworld, plant all six, then water them once. They should be ready in about thirty seconds—even in winter.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"accept\", \"label\": \"I will grow them for Jane.\", \"nextNodeId\": \"strawberry_accepted\", \"tone\": \"accept\", \"quest\": { \"quest\": \"quest:farmer_bob_fast_strawberries\", \"requires\": \"available\", \"action\": \"accept\" } }, { \"id\": \"tools\", \"label\": \"What if I need farming tools?\", \"nextNodeId\": \"strawberry_tools\" }, { \"id\": \"decline\", \"label\": \"Not just now.\", \"nextNodeId\": \"greeting\", \"tone\": \"decline\" } ] }, { \"id\": \"strawberry_tools\", \"speaker\": \"Farmer Bob\", \"body\": \"I sell hoes, shovels, watering cans, and every ordinary seed I can get into a paper packet. These special strawberry seeds are for the job, though. Jane says selling miracles by the sack would ruin the market.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"accept\", \"label\": \"All right. I will grow them.\", \"nextNodeId\": \"strawberry_accepted\", \"tone\": \"accept\", \"quest\": { \"quest\": \"quest:farmer_bob_fast_strawberries\", \"requires\": \"available\", \"action\": \"accept\" } }, { \"id\": \"shop\", \"label\": \"Show me your supplies first.\", \"nextNodeId\": \"shop\" }, { \"id\": \"back\", \"label\": \"Maybe later.\", \"nextNodeId\": \"greeting\" } ] }, { \"id\": \"strawberry_accepted\", \"speaker\": \"Farmer Bob\", \"body\": \"Good! Find clear overworld ground outside my fence, then till, plant all six, water once, and keep an eye on them. Bring me three strawberries. Jane will be delighted. She has been awfully quiet today.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"goodbye\", \"label\": \"I will be back soon.\", \"nextNodeId\": null } ] }, { \"id\": \"strawberry_reminder\", \"speaker\": \"Farmer Bob\", \"body\": \"Find clear overworld grass outside my protected farm—anywhere else on the overworld is fine. Till it with a hoe, plant all six special packets, and water once. Thirty seconds or so, in any season. Then bring three strawberries back. Do not worry if Jane does not come out to greet you. She rests a lot these days.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"shop\", \"label\": \"I need farming supplies.\", \"nextNodeId\": \"shop\" }, { \"id\": \"goodbye\", \"label\": \"I understand.\", \"nextNodeId\": null } ] }, { \"id\": \"strawberry_rewarded\", \"speaker\": \"Farmer Bob\", \"body\": \"Thanks, my wife will love these. Here was one of her favourite books on gardening. I am sure she will not mind; I have not seen her reading it much lately. It has her notes for presses, barrels, and cellar casks too.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"goodbye\", \"label\": \"Thank you, Bob.\", \"nextNodeId\": null } ] }, { \"id\": \"bottle_request\", \"speaker\": \"Farmer Bob\", \"body\": \"Jane wrote the whole chain down. Press three pieces of fruit into Must, age three Must in a Fermentation Cask, then sell the finished Bottle to Marlow. Do that and I will help mark out more room at your homestead.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"accept\", \"label\": \"I will produce a Bottle.\", \"nextNodeId\": \"bottle_accepted\", \"tone\": \"accept\", \"quest\": { \"quest\": \"quest:marlow_first_bottle\", \"requires\": \"available\", \"action\": \"accept\" } }, { \"id\": \"decline\", \"label\": \"Not yet.\", \"nextNodeId\": \"greeting\", \"tone\": \"decline\" } ] }, { \"id\": \"bottle_accepted\", \"speaker\": \"Farmer Bob\", \"body\": \"Fruit Press first, Fermentation Cask second, Marlow last. Jane underlined that last part twice. She never trusted him around an unpriced bottle.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"goodbye\", \"label\": \"Time to get to work.\", \"nextNodeId\": null } ] }, { \"id\": \"bottle_reminder\", \"speaker\": \"Farmer Bob\", \"body\": \"Press three Fruit, age the three Must into one Bottle, and sell it to Marlow. Jane's journal contains the station recipes if you read it from your inventory.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"goodbye\", \"label\": \"I remember now.\", \"nextNodeId\": null } ] }, { \"id\": \"bottle_rewarded\", \"speaker\": \"Farmer Bob\", \"body\": \"A proper first vintage! Jane would say not to drink the profits. Here is five gold for the trouble. She would have liked that too.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"goodbye\", \"label\": \"Thank you, Bob.\", \"nextNodeId\": null } ] }, { \"id\": \"about_jane\", \"speaker\": \"Farmer Bob\", \"body\": \"Best gardener on the island. She could shame a seed into sprouting. I still set out two mugs at breakfast. Habit is just love with nowhere urgent to be.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"back\", \"label\": \"I had another question.\", \"nextNodeId\": \"greeting\" }, { \"id\": \"goodbye\", \"label\": \"Take care, Bob.\", \"nextNodeId\": null } ] }, { \"id\": \"about_farm\", \"speaker\": \"Farmer Bob\", \"body\": \"Fence keeps the cows in, gate lets good sense out. I rotate the plots, water at the roots, and talk to the pumpkins. Jane says the pumpkins are the only ones listening properly.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"shop\", \"label\": \"Show me your supplies.\", \"nextNodeId\": \"shop\" }, { \"id\": \"back\", \"label\": \"I had another question.\", \"nextNodeId\": \"greeting\" } ] }, { \"id\": \"about_grave\", \"speaker\": \"Farmer Bob\", \"body\": \"Jane picked that spot herself. Said the morning sun was lovely under those trees. I keep the flowers fresh so she has something cheerful to look at while she rests.\", \"mode\": \"dialogue\", \"choices\": [ { \"id\": \"back\", \"label\": \"I had another question.\", \"nextNodeId\": \"greeting\" }, { \"id\": \"goodbye\", \"label\": \"Goodbye, Bob.\", \"nextNodeId\": null } ] }, { \"id\": \"shop\", \"speaker\": \"Farmer Bob\", \"body\": \"Seeds in dry packets, tools by the handle. Jane did the labels. Mine always looked like frightened worms.\", \"mode\": \"shop\", \"choices\": [ { \"id\": \"back\", \"label\": \"Back to our conversation.\", \"nextNodeId\": \"greeting\" }, { \"id\": \"goodbye\", \"label\": \"Goodbye.\", \"nextNodeId\": null } ] } ] }"
+            - button "Apply JSON" [ref=f3e87] [cursor=pointer]
+            - generic [ref=f3e88]:
+              - article [ref=f3e89]:
+                - strong [ref=f3e90]: Farmer Bob · greeting
+                - generic [ref=f3e91]: "Portrait: npc_cf_farmer_bob"
+                - textbox "greeting dialogue text" [ref=f3e92]: Morning! Or afternoon. Jane says I lose track when the watering starts. What can I do for you?
+                - list [ref=f3e93]:
+                  - listitem [ref=f3e94]: I brought Jane the strawberries. → strawberry_rewarded · complete/turn_in
+                  - listitem [ref=f3e95]: Do you need help on the farm? → strawberry_request · available/view
+                  - listitem [ref=f3e96]: How do I grow those strawberries? → strawberry_reminder · active/view
+                  - listitem [ref=f3e97]: I sold my first Bottle. → bottle_rewarded · complete/turn_in
+                  - listitem [ref=f3e98]: What can I make from the harvest? → bottle_request · available/view
+                  - listitem [ref=f3e99]: Remind me about fruit production. → bottle_reminder · active/view
+                  - listitem [ref=f3e100]: What farming supplies do you sell? → shop
+                  - listitem [ref=f3e101]: Tell me about Jane. → about_jane
+                  - listitem [ref=f3e102]: How do you keep this place running? → about_farm
+                  - listitem [ref=f3e103]: Whose grave is by the trees? → about_grave
+                  - listitem [ref=f3e104]: Goodbye. → END
+              - article [ref=f3e105]:
+                - strong [ref=f3e106]: Farmer Bob · strawberry_request
+                - generic [ref=f3e107]: "Portrait: npc_cf_farmer_bob"
+                - textbox "strawberry_request dialogue text" [ref=f3e108]: Jane loves strawberries. I promised her some before supper, but the ordinary seeds take all day and she has never been patient. Take these six special packets. My farm is protected, so till clear grass elsewhere in the overworld, plant all six, then water them once. They should be ready in about thirty seconds—even in winter.
+                - list [ref=f3e109]:
+                  - listitem [ref=f3e110]: I will grow them for Jane. → strawberry_accepted · available/accept
+                  - listitem [ref=f3e111]: What if I need farming tools? → strawberry_tools
+                  - listitem [ref=f3e112]: Not just now. → greeting
+              - article [ref=f3e113]:
+                - strong [ref=f3e114]: Farmer Bob · strawberry_tools
+                - generic [ref=f3e115]: "Portrait: npc_cf_farmer_bob"
+                - textbox "strawberry_tools dialogue text" [ref=f3e116]: I sell hoes, shovels, watering cans, and every ordinary seed I can get into a paper packet. These special strawberry seeds are for the job, though. Jane says selling miracles by the sack would ruin the market.
+                - list [ref=f3e117]:
+                  - listitem [ref=f3e118]: All right. I will grow them. → strawberry_accepted · available/accept
+                  - listitem [ref=f3e119]: Show me your supplies first. → shop
+                  - listitem [ref=f3e120]: Maybe later. → greeting
+              - article [ref=f3e121]:
+                - strong [ref=f3e122]: Farmer Bob · strawberry_accepted
+                - generic [ref=f3e123]: "Portrait: npc_cf_farmer_bob"
+                - textbox "strawberry_accepted dialogue text" [ref=f3e124]: Good! Find clear overworld ground outside my fence, then till, plant all six, water once, and keep an eye on them. Bring me three strawberries. Jane will be delighted. She has been awfully quiet today.
+                - list [ref=f3e125]:
+                  - listitem [ref=f3e126]: I will be back soon. → END
+              - article [ref=f3e127]:
+                - strong [ref=f3e128]: Farmer Bob · strawberry_reminder
+                - generic [ref=f3e129]: "Portrait: npc_cf_farmer_bob"
+                - textbox "strawberry_reminder dialogue text" [ref=f3e130]: Find clear overworld grass outside my protected farm—anywhere else on the overworld is fine. Till it with a hoe, plant all six special packets, and water once. Thirty seconds or so, in any season. Then bring three strawberries back. Do not worry if Jane does not come out to greet you. She rests a lot these days.
+                - list [ref=f3e131]:
+                  - listitem [ref=f3e132]: I need farming supplies. → shop
+                  - listitem [ref=f3e133]: I understand. → END
+              - article [ref=f3e134]:
+                - strong [ref=f3e135]: Farmer Bob · strawberry_rewarded
+                - generic [ref=f3e136]: "Portrait: npc_cf_farmer_bob"
+                - textbox "strawberry_rewarded dialogue text" [ref=f3e137]: Thanks, my wife will love these. Here was one of her favourite books on gardening. I am sure she will not mind; I have not seen her reading it much lately. It has her notes for presses, barrels, and cellar casks too.
+                - list [ref=f3e138]:
+                  - listitem [ref=f3e139]: Thank you, Bob. → END
+              - article [ref=f3e140]:
+                - strong [ref=f3e141]: Farmer Bob · bottle_request
+                - generic [ref=f3e142]: "Portrait: npc_cf_farmer_bob"
+                - textbox "bottle_request dialogue text" [ref=f3e143]: Jane wrote the whole chain down. Press three pieces of fruit into Must, age three Must in a Fermentation Cask, then sell the finished Bottle to Marlow. Do that and I will help mark out more room at your homestead.
+                - list [ref=f3e144]:
+                  - listitem [ref=f3e145]: I will produce a Bottle. → bottle_accepted · available/accept
+                  - listitem [ref=f3e146]: Not yet. → greeting
+              - article [ref=f3e147]:
+                - strong [ref=f3e148]: Farmer Bob · bottle_accepted
+                - generic [ref=f3e149]: "Portrait: npc_cf_farmer_bob"
+                - textbox "bottle_accepted dialogue text" [ref=f3e150]: Fruit Press first, Fermentation Cask second, Marlow last. Jane underlined that last part twice. She never trusted him around an unpriced bottle.
+                - list [ref=f3e151]:
+                  - listitem [ref=f3e152]: Time to get to work. → END
+              - article [ref=f3e153]:
+                - strong [ref=f3e154]: Farmer Bob · bottle_reminder
+                - generic [ref=f3e155]: "Portrait: npc_cf_farmer_bob"
+                - textbox "bottle_reminder dialogue text" [ref=f3e156]: Press three Fruit, age the three Must into one Bottle, and sell it to Marlow. Jane's journal contains the station recipes if you read it from your inventory.
+                - list [ref=f3e157]:
+                  - listitem [ref=f3e158]: I remember now. → END
+              - article [ref=f3e159]:
+                - strong [ref=f3e160]: Farmer Bob · bottle_rewarded
+                - generic [ref=f3e161]: "Portrait: npc_cf_farmer_bob"
+                - textbox "bottle_rewarded dialogue text" [ref=f3e162]: A proper first vintage! Jane would say not to drink the profits. Here is five gold for the trouble. She would have liked that too.
+                - list [ref=f3e163]:
+                  - listitem [ref=f3e164]: Thank you, Bob. → END
+              - article [ref=f3e165]:
+                - strong [ref=f3e166]: Farmer Bob · about_jane
+                - generic [ref=f3e167]: "Portrait: npc_cf_farmer_bob"
+                - textbox "about_jane dialogue text" [ref=f3e168]: Best gardener on the island. She could shame a seed into sprouting. I still set out two mugs at breakfast. Habit is just love with nowhere urgent to be.
+                - list [ref=f3e169]:
+                  - listitem [ref=f3e170]: I had another question. → greeting
+                  - listitem [ref=f3e171]: Take care, Bob. → END
+              - article [ref=f3e172]:
+                - strong [ref=f3e173]: Farmer Bob · about_farm
+                - generic [ref=f3e174]: "Portrait: npc_cf_farmer_bob"
+                - textbox "about_farm dialogue text" [ref=f3e175]: Fence keeps the cows in, gate lets good sense out. I rotate the plots, water at the roots, and talk to the pumpkins. Jane says the pumpkins are the only ones listening properly.
+                - list [ref=f3e176]:
+                  - listitem [ref=f3e177]: Show me your supplies. → shop
+                  - listitem [ref=f3e178]: I had another question. → greeting
+              - article [ref=f3e179]:
+                - strong [ref=f3e180]: Farmer Bob · about_grave
+                - generic [ref=f3e181]: "Portrait: npc_cf_farmer_bob"
+                - textbox "about_grave dialogue text" [ref=f3e182]: Jane picked that spot herself. Said the morning sun was lovely under those trees. I keep the flowers fresh so she has something cheerful to look at while she rests.
+                - list [ref=f3e183]:
+                  - listitem [ref=f3e184]: I had another question. → greeting
+                  - listitem [ref=f3e185]: Goodbye, Bob. → END
+              - article [ref=f3e186]:
+                - strong [ref=f3e187]: Farmer Bob · shop
+                - generic [ref=f3e188]: "Portrait: npc_cf_farmer_bob"
+                - textbox "shop dialogue text" [ref=f3e189]: Seeds in dry packets, tools by the handle. Jane did the labels. Mine always looked like frightened worms.
+                - list [ref=f3e190]:
+                  - listitem [ref=f3e191]: Back to our conversation. → greeting
+                  - listitem [ref=f3e192]: Goodbye. → END
+            - generic [ref=f3e193]:
+              - button "Restart play-through" [ref=f3e194] [cursor=pointer]
+              - textbox "Quest state fixture" [ref=f3e195]: "{}"
+              - paragraph [ref=f3e196]: "Farmer Bob: Morning! Or afternoon. Jane says I lose track when the watering starts. What can I do for you?"
+              - button "Do you need help on the farm?" [ref=f3e197] [cursor=pointer]
+              - button "What can I make from the harvest?" [ref=f3e198] [cursor=pointer]
+              - button "What farming supplies do you sell?" [ref=f3e199] [cursor=pointer]
+              - button "Tell me about Jane." [ref=f3e200] [cursor=pointer]
+              - button "How do you keep this place running?" [ref=f3e201] [cursor=pointer]
+              - button "Whose grave is by the trees?" [ref=f3e202] [cursor=pointer]
+              - button "Goodbye." [ref=f3e203] [cursor=pointer]
+          - group [ref=f3e204]:
+            - generic "History (0)" [ref=f3e205]
+    - generic [ref=f3e206]:
+      - heading "Inspector" [level=2] [ref=f3e207]
+      - heading "Narrative" [level=3] [ref=f3e208]
+      - generic [ref=f3e209]:
+        - strong [ref=f3e210]: Definition
+        - generic "Stable content identifier." [ref=f3e211]: dialogue:farmer_bob
+      - generic [ref=f3e212]:
+        - strong [ref=f3e213]: Kind
+        - generic "Shared schema discriminator." [ref=f3e214]: dialogue
+      - generic [ref=f3e215]:
+        - strong [ref=f3e216]: Referenced by
+        - generic "Live draft reference graph." [ref=f3e217]: "1"
+  - generic [ref=f3e218]:
+    - heading "Validation & Output" [level=2] [ref=f3e219]
+    - generic [ref=f3e220]:
+      - button "Validation" [ref=f3e221] [cursor=pointer]
+      - button "Audit" [disabled] [ref=f3e222]
+      - button "Live Sync" [disabled] [ref=f3e223]
+      - button "Console" [ref=f3e224] [cursor=pointer]
+    - paragraph [ref=f3e225]: Anonymous sandbox — no live adapter constructed.

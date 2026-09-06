@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_snail_02",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -472,7 +473,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Snail_2.png",
-  "sourcePath": "references/Cute_Fantasy_ShroomLands/Snails/Snail_2.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/shroomlands/Snails/Snail_2.png",
   "sourceRegions": {
     "idle_side": [
       [

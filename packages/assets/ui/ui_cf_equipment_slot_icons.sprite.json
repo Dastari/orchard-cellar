@@ -190,7 +190,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "UI_Premade.png",
-  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Premade.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/ui/UI/UI_Premade.png",
   "sourceRegions": {
     "neck": [[42, 45, 16, 16]],
     "head": [[64, 34, 16, 16]],

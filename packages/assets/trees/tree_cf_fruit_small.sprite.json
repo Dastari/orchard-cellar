@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_fruit_small",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     32,
     64
@@ -87,7 +88,7 @@
     "7": "#91533b",
     "8": "#b86f50"
   },
-  "sourcePath": "references/Cute_Fantasy/Trees/Small_Fruit_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Trees/Small_Fruit_Tree.png",
   "sourceRegion": [32, 0, 32, 64],
   "sourcePaletteMode": "exact",
   "approved": true,

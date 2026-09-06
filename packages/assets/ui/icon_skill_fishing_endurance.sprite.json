@@ -1,0 +1,51 @@
+{
+  "name": "icon_skill_fishing_endurance",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "............0...",
+        "...........0....",
+        "..........0.....",
+        ".........0......",
+        "........0.......",
+        ".......0........",
+        "......0.........",
+        ".....0..........",
+        "....0...........",
+        "...0......x.....",
+        "...0......tx....",
+        ".........t.x....",
+        ".........t.x....",
+        "..........tx....",
+        "...........x...."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "lintAllow": [
+    "sparkle"
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.fishing_endurance",
+    "source.asset.item_cf_fishing_rod"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

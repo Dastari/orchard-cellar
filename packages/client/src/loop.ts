@@ -15,6 +15,8 @@ export interface FixedStepLoopObserver {
   ): void;
 }
 
+export const MAX_FIXED_UPDATE_STEPS_PER_FRAME = 4;
+
 export class FixedStepAccumulator {
   private accumulator = 0;
   private lastUpdateStepsValue = 0;
@@ -29,13 +31,20 @@ export class FixedStepAccumulator {
     const nonNegativeElapsed = Math.max(elapsedSeconds, 0);
     const acceptedElapsed = Math.min(nonNegativeElapsed, 0.25);
     this.lastDiscardedSecondsValue = nonNegativeElapsed - acceptedElapsed;
-    this.lastUpdateStepsValue = 0;
     this.accumulator += acceptedElapsed;
-    while (this.accumulator >= this.stepSeconds) {
+
+    const pendingSteps = Math.floor(this.accumulator / this.stepSeconds);
+    this.lastUpdateStepsValue = Math.min(
+      pendingSteps,
+      MAX_FIXED_UPDATE_STEPS_PER_FRAME,
+    );
+    for (let step = 0; step < this.lastUpdateStepsValue; step += 1) {
       update();
-      this.accumulator -= this.stepSeconds;
-      this.lastUpdateStepsValue += 1;
     }
+
+    const discardedSteps = pendingSteps - this.lastUpdateStepsValue;
+    this.lastDiscardedSecondsValue += discardedSteps * this.stepSeconds;
+    this.accumulator -= pendingSteps * this.stepSeconds;
     return this.accumulator / this.stepSeconds;
   }
 }

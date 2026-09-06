@@ -17,6 +17,9 @@ export interface AssetSource {
   readonly variantTopologies?: Readonly<Record<string, 'blob47'>>;
   readonly markers?: Readonly<Record<string, string>>;
   readonly markerRamps?: Readonly<Record<string, readonly string[]>>;
+  /** Exact translucent ground-shadow RGBA; original pixels remain in the atlas. */
+  readonly bakedShadowColor?: string;
+  readonly emissiveColors?: readonly string[];
   /** Native RGB(A) values retained from an owner-licensed source image. */
   readonly sourcePalette?: Readonly<Record<string, string>>;
   readonly lintAllow?: readonly string[];

@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_palm_mature",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     48,
     64
@@ -91,7 +92,7 @@
     "8": "#00000028",
     "9": "#b86f50"
   },
-  "sourcePath": "references/Cute_Fantasy_Desert/Props/Palm_Tree_1.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Props/Palm_Tree_1.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Palm_Tree_1.png"

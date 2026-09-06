@@ -1,6 +1,7 @@
 {
   "name": "player_cf_base",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     40
@@ -1542,7 +1543,7 @@
     "2": "#f6ca9f",
     "3": "#00000064"
   },
-  "sourcePath": "references/Cute_Fantasy/Player/Player_Base/Player_Base_animations.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Player/Player_Base/Player_Base_animations.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Player_Base_animations.png"

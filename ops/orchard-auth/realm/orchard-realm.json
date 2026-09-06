@@ -88,6 +88,44 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "orchard-studio",
+      "name": "Orchard Studio production browser",
+      "enabled": true,
+      "publicClient": true,
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "redirectUris": ["https://cellar.dastari.net/"],
+      "webOrigins": ["https://cellar.dastari.net"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://cellar.dastari.net/",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "true"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "email"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "orchard-studio audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "orchard-studio",
+            "id.token.claim": "true",
+            "access.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "false"
+          }
+        }
+      ]
     }
   ]
 }

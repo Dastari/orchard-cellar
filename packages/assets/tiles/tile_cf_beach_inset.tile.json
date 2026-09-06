@@ -90,7 +90,7 @@
     "1": "#00cdf9",
     "2": "#0095e9"
   },
-  "sourcePath": "references/Cute_Fantasy/Tiles/Beach/Beach_Tiles.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/Beach/Beach_Tiles.png",
   "sourcePaletteMode": "exact",
   "frameKinds": {
     "base": "variant"

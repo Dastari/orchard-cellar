@@ -29,6 +29,9 @@ are ignored. Licensed source sheets and design captures live in a local
   modified game assets under the applicable pack terms. The purchased source packs
   are not redistributed. Cute Fantasy Free is licensed for non-commercial use, so
   this project remains non-commercial while those derived assets are present.
+- The local reference library also contains owner-purchased **Clockwork Raven
+  Studios / Raven Fantasy** icon sheets by Caio. They are catalogued for future
+  reviewed imports and are not redistributed with this repository.
 - **Sprout Lands Basic** is by **Cup Nooble**. It was used as a style reference
   under its non-commercial terms; its source pack and pixels are not distributed
   here.

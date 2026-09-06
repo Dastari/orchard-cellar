@@ -69,7 +69,10 @@ export function caveFloorDecorationFrameAt(
   tileY: number,
 ): number | null {
   const hash = caveFloorHash(seed, spaceId, tileX, tileY, 0x6a09e667);
-  return hash % 47 === 0 ? (hash >>> 8) % 3 : null;
+  // The authored example uses cracks and pebble marks throughout open floor,
+  // including near supported walls. Keep them sparse, but visible enough to
+  // break up broad cellar rooms without placing explicit world entities.
+  return hash % 37 === 0 ? (hash >>> 8) % 3 : null;
 }
 
 /** Resolves the normal-floor side of a rocky-floor boundary. Re-run this for

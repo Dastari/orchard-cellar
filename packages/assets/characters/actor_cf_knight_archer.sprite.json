@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_knight_archer",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     48
@@ -3312,7 +3313,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Archer.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Knights/Archer.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Knights/Archer.png",
   "sourceRegions": {
     "idle_down": [
       [

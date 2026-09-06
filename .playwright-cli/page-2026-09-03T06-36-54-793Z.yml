@@ -1,0 +1,69 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - strong [ref=e4]: ORCHARD STUDIO
+    - combobox "Environment" [ref=e5]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=e6]
+  - generic [ref=e7]:
+    - navigation "Studio modes" [ref=e8]:
+      - button "Build" [ref=e9] [cursor=pointer]
+      - button "Author" [ref=e10] [cursor=pointer]
+      - generic [ref=e11]:
+        - generic [ref=e12]: Local sandbox
+        - generic [ref=e13]: Anonymous
+        - generic [ref=e14]: Sandbox
+        - generic [ref=e15]: Map —
+        - generic [ref=e16]: Content —
+    - generic [ref=e17]:
+      - heading "Outliner" [level=2] [ref=e18]
+      - generic [ref=e19]:
+        - button "Local" [ref=e20] [cursor=pointer]
+        - button "Live" [ref=e21] [cursor=pointer]
+      - list [ref=e22]:
+        - listitem [ref=e23]:
+          - text: Topside
+          - list [ref=e24]:
+            - listitem [ref=e25]: Terrain
+            - listitem [ref=e26]:
+              - text: Objects
+              - list [ref=e27]:
+                - listitem [ref=e28]:
+                  - button "Marlow Camp" [ref=e29] [cursor=pointer]
+                - listitem [ref=e30]:
+                  - button "Estate" [ref=e31] [cursor=pointer]
+      - heading "BUILD" [level=3] [ref=e32]
+      - button "Map Editor" [ref=e33] [cursor=pointer]
+      - button "Object Studio" [ref=e34] [cursor=pointer]
+    - main [ref=e35]:
+      - heading "Map Editor" [level=1] [ref=e36]
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - button "←" [ref=e39] [cursor=pointer]
+          - button "→" [ref=e40] [cursor=pointer]
+          - button "−" [ref=e41] [cursor=pointer]
+          - button "+" [ref=e42] [cursor=pointer]
+        - generic "Map Editor canvas viewport" [ref=e43]
+        - paragraph [ref=e44]: Spatial workspace. Use the toolbar buttons to pan or zoom; selections appear in the Inspector.
+    - generic [ref=e45]:
+      - heading "Inspector" [level=2] [ref=e46]
+      - heading "Selection" [level=3] [ref=e47]
+      - generic [ref=e48]:
+        - strong [ref=e49]: Selection
+        - generic "Shared selection available to every Studio tool." [ref=e50]: none
+      - generic [ref=e51]:
+        - strong [ref=e52]: Tool route
+        - generic "Registered route for the active workspace." [ref=e53]: /build/map
+      - heading "Authority" [level=3] [ref=e54]
+      - generic [ref=e55]:
+        - strong [ref=e56]: Access
+        - generic "Resolved from the authenticated role matrix." [ref=e57]: write
+  - generic [ref=e58]:
+    - heading "Validation & Output" [level=2] [ref=e59]
+    - generic [ref=e60]:
+      - button "Validation" [ref=e61] [cursor=pointer]
+      - button "Audit" [disabled] [ref=e62]
+      - button "Live Sync" [disabled] [ref=e63]
+      - button "Console" [ref=e64] [cursor=pointer]
+    - paragraph [ref=e65]: Anonymous sandbox — no live adapter constructed.

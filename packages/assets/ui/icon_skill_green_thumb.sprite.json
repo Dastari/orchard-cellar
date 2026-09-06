@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_green_thumb",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".......011......",
+        ".......0..1.....",
+        ".......12.0.....",
+        "....34.3451.00..",
+        "....4654612022..",
+        ".....55555021...",
+        "...345345341....",
+        "...4654354651...",
+        "...5555555150...",
+        "..345345340.2...",
+        "..46.46.46.01...",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3dd73d",
+    "1": "#299929",
+    "2": "#175217",
+    "3": "#528531",
+    "4": "#1f451c",
+    "5": "#050d05",
+    "6": "#0b210b"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+  "sourceRegion": [
+    160,
+    16,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.green_thumb",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

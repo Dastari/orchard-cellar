@@ -1,0 +1,31 @@
+{
+  "format": "orchard-generated-login-island-v1",
+  "width": 1536,
+  "height": 1024,
+  "centerTileX": 376,
+  "centerTileY": 337,
+  "zoom": 1,
+  "frameMs": 0,
+  "seed": 1329809490,
+  "generator": "terrainForWorld + generateSurvivalResources + generateSurvivalDecorations",
+  "renderer": "GroundChunkCache + drawAnimatedTerrain + native object/resource drawing",
+  "atlasRevision": "719e016c232722a6d11a",
+  "sourceSha256": {
+    "packages/tools/src/render-login-island.ts": "e6db55d6f8448b885f79eec8e46c92f76bba4ec9cd5e150f8cca6824ca54973d",
+    "packages/sim/src/survival-world.ts": "e23d84b9a502430412126927f0c1ed40cd4daa7ed3803ce91c393274a91d61c9",
+    "packages/sim/src/content/bootstrap-spaces.ts": "5b27b1f6a14d617df05ed2253bf0882ea19a8b639f464227adbce1b998e81cc6",
+    "packages/engine/src/terrain.ts": "2fcb5a7b01b2846fb442f03d91bc0d5e4ac3ba30e0dd15f52096e7210ecd092a",
+    "packages/engine/src/ground-cache.ts": "58de894663e46965fbfec4142fa6b3caad695f7a7e07f9081791926043f64d3e",
+    "packages/engine/src/animated-terrain.ts": "8461b45ff9c3931013e4a76210fcdf8b1dbfaa1dd88c44f8b6a494993223fec1",
+    "packages/engine/src/overworld-art.ts": "216a879674b4699de37cdb0e95c1cfd424343873ab9f5e8d4bb2eea936c874f5",
+    "packages/client/public/generated/atlas.meta.json": "b24426954a3a98a9fd6742e6ff9a84bdb5b601163e38cc4562e955e80ae71165"
+  },
+  "decorations": 1229,
+  "resources": 340,
+  "draws": 1545,
+  "players": 0,
+  "liveData": false,
+  "imageSha256": "2ab9a8df83b3254684058b9f80aa9f22d7d41f431868dd77e2749a1cdedce621",
+  "rgbaSha256": "735e5fa0a2e4287116d95a9ac88099d52f90a01745942f5f6926d7cd77e3ece0",
+  "reproduce": "npx tsx packages/tools/src/render-login-island.ts"
+}

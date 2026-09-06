@@ -128,9 +128,10 @@ Tile-resolution lightmap, composited in the world pass (Terraria-style):
   warm tint, dusk purple, night clamped at the R12 palette tints
   (`#141420`/`#232338`, docs/10 §R12) but **never below ~35% luminance** — the
   island must stay readable at midnight. Unit-test the curve keyframes.
-- **Point lights:** v1 sources are the player's selected Lantern (radius 5 tiles,
-  warm `#ffd9a0`) and Torch (radius 3); every remote player with one selected also
-  emits (selection is already public via hotbar state). Optional additive glow:
+- **Point lights:** portable sources resolve from the live item `light` component.
+  Lantern uses a steady radius-4 profile and Torch a flickering radius-3 profile;
+  local and remote players emit only while the authored off-hand light is lit.
+  Optional additive glow:
   after the multiply pass, draw a small radial gradient per light with
   `globalCompositeOperation = 'lighter'` at low alpha.
 - **Occlusion:** none in v1 (lights shine through ridges/trees). When wanted later,

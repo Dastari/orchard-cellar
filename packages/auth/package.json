@@ -1,0 +1,17 @@
+{
+  "name": "@orchard/auth",
+  "version": "0.5.7",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./oidc-token": "./src/oidc-token.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}

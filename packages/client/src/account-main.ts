@@ -6,7 +6,7 @@ import {
 } from './account-profile.js';
 import { accountButtonRects, accountPointerAction } from './account-actions.js';
 import {
-  beginOidcPopupLogin,
+  beginOidcLogin,
   completeOidcCallback,
   ensureOidcSession,
   hasOidcCallback,
@@ -15,21 +15,21 @@ import {
   signOutOidc,
   type OidcEntryIntent,
   type OidcSession,
-} from './auth/oidc.js';
+} from '@orchard/auth';
 import {
   canvasHostViewport,
   canvasSafeAreaInsets,
   centeredFixedSceneLayout,
   insetCanvasViewport,
-} from './display.js';
-import { loadGeneratedAsset } from './render/assets.js';
-import { drawPixelText, loadPixelUi } from './render/pixel-ui.js';
-import { drawUiSkinAsset, loadUiSkin } from './ui/skin.js';
-import { drawCanvasTextInput } from './ui/canvas-text-input.js';
-import { drawGatewayFrame } from './ui/gateway-frame.js';
-import { drawOrchardBackdrop } from './ui/orchard-backdrop.js';
-import { AudioBus } from './audio/audio-bus.js';
-import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen } from './loading-screen.js';
+} from '@orchard/engine/display';
+import { loadGeneratedAsset } from '@orchard/ui';
+import { drawPixelText, loadPixelUi } from '@orchard/ui';
+import { drawUiSkinAsset, loadGameplayUiSkin } from '@orchard/ui';
+import { drawCanvasTextInput } from '@orchard/ui';
+import { drawGatewayFrame } from '@orchard/ui';
+import { drawOrchardBackdrop, loadOrchardBackdrop } from '@orchard/ui';
+import { AudioBus } from '@orchard/engine/audio/audio-bus';
+import { dismissLoadingScreen, setLoadingScreenStage, upgradeLoadingScreen } from '@orchard/engine/loading-screen';
 
 // Remove authorization codes and provider errors from the address bar before
 // loading assets or making the token request. NPM is separately configured to
@@ -45,6 +45,7 @@ if (canvasElement === null || inputElement === null) throw new Error('Missing ac
 const canvas: HTMLCanvasElement = canvasElement;
 const input: HTMLInputElement = inputElement;
 canvas.classList.add('account-screen');
+void loadOrchardBackdrop();
 const canvasContext = canvas.getContext('2d');
 if (canvasContext === null) throw new Error('Canvas 2D unavailable');
 const context: CanvasRenderingContext2D = canvasContext;
@@ -56,7 +57,7 @@ setLoadingScreenStage({
   title: 'OPENING THE ORCHARD', detail: 'LAYING OUT THE ACCOUNT DESK', progress: 55,
 });
 const [ui, skin, orchardEmblem] = await Promise.all([
-  loadPixelUi(), loadUiSkin(), loadGeneratedAsset('icon_resource_fruit', 'summer'),
+  loadPixelUi(), loadGameplayUiSkin(), loadGeneratedAsset('icon_resource_fruit', 'summer'),
 ]);
 upgradeLoadingScreen(ui, skin, orchardEmblem);
 const clientVersion = import.meta.env.VITE_CLIENT_VERSION;
@@ -179,11 +180,12 @@ function drawLocalPreview(): void {
   });
 }
 
-function render(timeMs = performance.now()): void {
+function render(): void {
   animationFrameId = null;
+  if (displayPixelRatio !== Math.max(1, devicePixelRatio)) resize();
   context.setTransform(displayPixelRatio, 0, 0, displayPixelRatio, 0, 0);
   context.imageSmoothingEnabled = false;
-  drawOrchardBackdrop(context, viewport.width, viewport.height, timeMs);
+  drawOrchardBackdrop(context, viewport.width, viewport.height);
   context.save();
   context.translate(scene.x, scene.y);
   context.scale(scene.scale, scene.scale);
@@ -237,11 +239,9 @@ async function submitAccount(intent: OidcEntryIntent = 'login'): Promise<void> {
     return;
   }
   authBusy = true;
-  message = intent === 'login' ? 'SIGN-IN WINDOW OPEN' : 'ACCOUNT WINDOW OPEN';
+  message = intent === 'login' ? 'OPENING SIGN IN' : 'OPENING ACCOUNT SERVICE';
   try {
-    authSession = await beginOidcPopupLogin(intent);
-    message = `WELCOME BACK, ${authSession.displayName.toUpperCase()}`;
-    authBusy = false;
+    await beginOidcLogin(intent);
   } catch (error: unknown) {
     authBusy = false;
     authError = error instanceof Error ? error.message : 'Unable to start login.';

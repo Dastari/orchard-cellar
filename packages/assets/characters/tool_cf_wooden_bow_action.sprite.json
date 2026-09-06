@@ -1233,7 +1233,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Wooden_Bow.png",
-  "sourcePath": "references/Cute_Fantasy/Player/Tools/Bow/Wooden_Bow.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Player/Tools/Bow/Wooden_Bow.png",
   "sourceRegions": {
     "ranged_weapon_down": [
       [

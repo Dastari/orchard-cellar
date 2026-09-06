@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_flowers_pink",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -42,6 +43,6 @@
     "5": "#d84650",
     "6": "#f68187"
   },
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Flowers.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Flowers.png",
   "sourcePaletteMode": "exact"
 }

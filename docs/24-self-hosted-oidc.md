@@ -336,9 +336,29 @@ Rollout evidence:
   labels to 25 pixels, and account-registration action to 22 pixels. The registration
   link is now a full 220-pixel neutral nine-slice action instead of small inline text.
   The password visibility control no longer stretches a generic button sprite: it is
-  a 50-pixel cream control joined to the password field, with matching inset borders
-  and a centered 21-pixel eye glyph. Browser inspection confirmed those computed
-  dimensions and no horizontal overflow. Private/public health, discovery, JWKS, TLS,
+  a 50-pixel cream control joined to the password field, with a left divider and a
+  centered 21-pixel eye glyph. Browser inspection confirmed those computed dimensions
+  and no horizontal overflow. Private/public health, discovery, JWKS, TLS,
   exact-origin, and secret-scan checks passed after restart; backup
   `20260826T013253Z` completed the encrypted NAS upload/download hash-verification
   round trip.
+
+## 12. Orchard Studio browser client (repository-ready 2026-09-03)
+
+Orchard Studio uses the existing realm and identity namespace through a separate
+public OIDC client, `orchard-studio`. It retains Authorization Code + S256 PKCE and
+the realm's bounded/revocable sessions, but its redirect URI and post-logout redirect
+are exactly `https://cellar.dastari.net/` and its web origin is exactly
+`https://cellar.dastari.net`. The production client has no secret, localhost
+redirect, wildcard, or game-origin redirect. Its audience mapper adds
+`orchard-studio` to the ID token, and the world accepts either reviewed browser
+audience without changing issuer/subject identity derivation.
+
+The redacted realm export, two-client restore assertion, world audience policy,
+static Studio build/CSP, systemd unit, NPM fragment, and public build-environment
+example are versioned. The NPM proxy, certificate, exact HAProxy SNI entry, and edge
+security configuration became live on 2026-09-03 after recoverable backups; the Studio
+upstream is not installed yet. Keycloak reconcile, exact-redirect negative tests,
+non-destructive module publication, clean-browser login/session checks, log/secret
+scan, and post-change restore test are documented in `ops/orchard-auth/README.md` and
+`ops/orchard-runtime/README.md` and remain required before Studio is usable.

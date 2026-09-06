@@ -21,16 +21,18 @@ interface Extract {
   readonly placement: NonNullable<AssetSource['placement']>;
 }
 
-const resources = 'references/Cute_Fantasy/Icons/Outline/Resources_Icons_Outline.png';
-const food = 'references/Cute_Fantasy/Icons/Outline/Food_Icons_Outline.png';
-const foodNoOutline = 'references/Cute_Fantasy/Icons/No Outline/Food_Icons_NO_Outline.png';
-const tables = 'references/Cute_Fantasy/Buildings/House_Decor/Tables.png';
-const signs = 'references/Cute_Fantasy/Outdoor decoration/Signs.png';
-const gate = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fence_Big_Gate.png';
-const torch = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Torch_Anim.png';
-const furnaces = 'references/Cute_Fantasy/Buildings/House_Decor/Furnaces.png';
-const furnaceAnimation = 'references/Cute_Fantasy/Buildings/House_Decor/Furnace_Anim.png';
-const barrels = 'references/Cute_Fantasy/Outdoor decoration/barrels.png';
+const resources = 'references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png';
+const food = 'references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png';
+const foodNoOutline = 'references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png';
+const tables = 'references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Tables.png';
+const signs = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Signs.png';
+const gate = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fence_Big_Gate.png';
+const torch = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Torch_Anim.png';
+const furnaces = 'references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Furnaces.png';
+const furnaceAnimation = 'references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Furnace_Anim.png';
+const barrels = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/barrels.png';
+const clocks = 'references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Clocks.png';
+const huntingMaterials = 'references/art/clockwork-raven/equipment/monster-hunting-220/sheet-16-no-outline.png';
 
 const itemPlacement: NonNullable<AssetSource['placement']> = {
   layer: 'object', blocksMovement: false, builderAvailable: false,
@@ -49,8 +51,11 @@ const extracts: readonly Extract[] = [
     placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
   },
   {
-    name: 'prop_cf_barrel', source: barrels, size: [16, 16], anchor: [8, 15],
-    groups: { closed: [[64, 0, 16, 16]], open: [[80, 0, 16, 16]] },
+    // Both states begin at source y=13. Tight-cropping the transparent 13 px
+    // headroom keeps the complete barrel while allowing slot fitters to use
+    // the available icon area; the adjusted anchor preserves world placement.
+    name: 'prop_cf_barrel', source: barrels, size: [16, 19], anchor: [8, 18],
+    groups: { closed: [[64, 13, 16, 19]], open: [[48, 13, 16, 19]] },
     frameKinds: { closed: 'state', open: 'state' },
     tags: ['world.placeable', 'container.barrel', 'interaction.openable'],
     placement: { layer: 'object', footprint: [1, 1], blocksMovement: true, builderAvailable: false },
@@ -61,9 +66,23 @@ const extracts: readonly Extract[] = [
     tags: ['item.resource', 'material.fiber'], placement: itemPlacement,
   },
   {
+    // Brown hide frame from the licensed hunting-material bank.
+    name: 'item_cf_leather', source: huntingMaterials, size: [16, 16], anchor: [8, 15],
+    groups: { base: [[224, 128, 16, 16]] }, frameKinds: { base: 'state' },
+    tags: ['item.resource', 'material.leather'], placement: itemPlacement,
+  },
+  {
     name: 'item_cf_backpack', source: resources, size: [16, 16], anchor: [8, 15],
     groups: { base: [[64, 64, 16, 16]] }, frameKinds: { base: 'state' },
     tags: ['item.equipment', 'equipment.back'], placement: itemPlacement,
+  },
+  {
+    // The compact round clock face reads as a pocket watch at inventory scale.
+    // Keep the 16px source crop exact; it was selected from the dedicated
+    // clock sheet after reviewing all time-related reference icons.
+    name: 'item_cf_watch', source: clocks, size: [16, 16], anchor: [8, 15],
+    groups: { base: [[32, 0, 16, 16]] }, frameKinds: { base: 'state' },
+    tags: ['item.equipment', 'equipment.ring', 'utility.time'], placement: itemPlacement,
   },
   {
     name: 'item_cf_grape', source: food, size: [16, 16], anchor: [8, 15],

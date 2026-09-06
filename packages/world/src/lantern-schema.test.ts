@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
-
 function reducerSource(name: string): string {
   const start = source.indexOf(`export const ${name} =`);
   const end = source.indexOf('\nexport const ', start + 1);
@@ -24,19 +23,28 @@ describe('switchable lantern authority', () => {
     expect(source.slice(positionStart, positionEnd)).toContain('equippedLit: t.bool().default(true)');
   });
 
-  it('authenticates before reading state and validates dropped-lantern reach server-side', () => {
-    for (const name of ['toggleHeldLantern', 'toggleWorldLantern']) {
-      const reducer = reducerSource(name);
-      expect(reducer.indexOf('requireAuthorizedSender('), name).toBeGreaterThanOrEqual(0);
-      expect(reducer.indexOf('requireAuthorizedSender('), name).toBeLessThan(reducer.indexOf('.find('));
-    }
-    expect(reducerSource('toggleWorldLantern')).toContain('itemWithinPickupReach(');
+  it('retires specialized lantern functions in favour of generic lifecycle authority', () => {
+    expect(existsSync(new URL('./behaviour/lights.ts', import.meta.url))).toBe(false);
+    expect(source).toContain("target.kind === 'world_item'");
+    expect(source).toContain("contentRegistry(ctx).items.get(`item:${row.itemKind}`)?.light === undefined");
   });
 
   it('preserves lantern state across drop and pickup instead of overloading durability', () => {
     expect(reducerSource('dropSelected')).toContain('lit: slot.lit');
-    expect(reducerSource('pickupWorldItem')).toContain('{ lit: candidate.lit }');
+    expect(reducerSource('pickupWorldItem')).toContain('lit: candidate.lit');
     expect(source).toContain('item.lit !== lit');
     expect(source).toContain('left?.lit === right?.lit');
+    expect(source).not.toContain('isSwitchableLightKind');
+  });
+
+  it('operates an authored switchable light only from the restricted off-hand row', () => {
+    expect(source).toContain('const equippedLifecycleLight = ()');
+    expect(source).toContain("subjectItem?.containerId !== 'equipment'");
+    expect(source).toContain('`${ctx.sender.toHexString()}:${subjectItem.slot}`');
+    expect(source).toContain('row.id !== subjectItem.instanceId');
+    expect(source).toContain('row.quantity <= 0');
+    expect(source).toContain('definition?.light === undefined');
+    expect(source).toContain("definition.equip?.slot !== 'off_hand'");
+    expect(source).toContain("throw new SenderError('equipment_light_required')");
   });
 });

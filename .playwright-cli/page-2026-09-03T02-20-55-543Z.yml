@@ -1,0 +1,28 @@
+- main [ref=f8e2]:
+  - complementary "Development tools" [ref=f8e3]:
+    - generic [ref=f8e4]:
+      - strong [ref=f8e5]: O&C
+      - generic [ref=f8e6]: TOOLS
+    - navigation [ref=f8e7]:
+      - link "Map Editor" [ref=f8e8] [cursor=pointer]:
+        - /url: /editor/map
+        - generic [ref=f8e10]: Map
+      - link "Object Studio" [ref=f8e11] [cursor=pointer]:
+        - /url: /editor/object
+        - generic [ref=f8e13]: Object
+      - link "UI Component Lab" [ref=f8e14] [cursor=pointer]:
+        - /url: /editor/ui-lab
+        - generic [ref=f8e16]: UI Lab
+      - link "Character Studio" [ref=f8e17] [cursor=pointer]:
+        - /url: /editor/character-studio
+        - generic [ref=f8e19]: Character
+      - link "Item & Recipe Studio" [ref=f8e20] [cursor=pointer]:
+        - /url: /editor/items
+        - generic [ref=f8e22]: Items
+  - generic [ref=f8e23]:
+    - generic "Orchard and Cellar" [ref=f8e24]
+    - textbox "New local development profile name"
+    - status "OPENING ITEM STUDIO. 24%" [ref=f8e26]:
+      - text: OPENING ITEM STUDIO INDEXING ITEMS, RECIPES, AND SPRITES
+      - generic [ref=f8e27]: 24%
+    - status [ref=f8e28]

@@ -5,10 +5,12 @@ import {
   availableSkillPoints,
   skillExperienceForLevel,
   skillLevelForExperience,
+  skillNodeIsImplemented,
   skillNodeDefinition,
   skillNodesForTrack,
   skillPurchaseRejection,
   skillRespecCostBronze,
+  specializationRankTotal,
 } from './skill-trees.js';
 
 describe('36§3 skill track progression', () => {
@@ -70,7 +72,25 @@ describe('36§4 skill graph registry', () => {
       experience: skillExperienceForLevel(3), spentPoints: 0, bonusPoints: 10, ranks: { trailblazer: 1 },
     })).toBeNull();
     expect(skillPurchaseRejection('surefooted', {
-      experience: skillExperienceForLevel(10), spentPoints: 0, bonusPoints: 10, ranks: { trailblazer: 5, surefooted: 1 },
+      experience: skillExperienceForLevel(10), spentPoints: 0, bonusPoints: 10, ranks: { trailblazer: 5, surefooted: 3 },
     })).toBe('skill_rank_maxed');
+  });
+
+  it('groups the Farming tree into profession branches for quality gates', () => {
+    expect(skillNodeDefinition('prospector')?.track).toBe('farming');
+    expect(skillNodeDefinition('animal_bond')?.specialization).toBe('animal_husbandry');
+    expect(specializationRankTotal({ mining_endurance: 2, prospector: 1, green_thumb: 5 }, 'mining'))
+      .toBe(3);
+  });
+
+  it('marks live effects independently from placeholder descriptions', () => {
+    for (const id of ['archery_basics', 'measured_stride', 'cartographer', 'farmcraft',
+      'mining_endurance', 'fishing_endurance', 'woodcutting_endurance', 'stable_hand']) {
+      expect(skillNodeIsImplemented(skillNodeDefinition(id)!)).toBe(true);
+    }
+    for (const id of ['trailblazer', 'steady_draw', 'green_thumb', 'master_angler', 'beekeeping']) {
+      expect(skillNodeIsImplemented(skillNodeDefinition(id)!)).toBe(false);
+    }
+    expect(SKILL_NODE_DEFINITIONS.some((node) => node.description.startsWith('Planned:'))).toBe(false);
   });
 });

@@ -174,6 +174,8 @@ export const ARCHERY_TARGET_REGEN_INTERVAL_TICKS = 20;
 
 /** Legacy-island stepped terrain. Higher contours are repeated insets of the
  * same organic mask; tiny eroded islands are discarded before autotiling. */
+/** Live island biome budget, intentionally narrower than the shared signed
+ * authoring limit: keeping three courses bounds navigation and face density. */
 export const SURVIVAL_TERRAIN_MAX_ELEVATION = 3;
 export const SURVIVAL_TERRAIN_CONTOUR_INSET_TILES = 4;
 export const SURVIVAL_TERRAIN_MINIMUM_SUMMIT_TILES = 24;

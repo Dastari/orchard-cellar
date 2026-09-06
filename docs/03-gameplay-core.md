@@ -50,7 +50,9 @@ presented on return as the "While you were away" letter.
 
 ## 3. The estate (Homestead destination spaces)
 
-One exterior map + one interior, both authored in `packages/assets/maps/`:
+One exterior destination and one interior destination, generated from the shared
+space/elevation contracts today; future authored revisions use `MapDocumentV2`
+rather than the retired character-grid files:
 
 - **Estate exterior, 64×64 tiles**: farmhouse (top, like the reference image), orchard
   ground with **plantable plots** (start: 12 usable; expandable to 120 by clearing

@@ -1,5 +1,6 @@
 {
   "name": "prop_oak_barrel",
+  "bakedShadowColor": "#00000064",
   "category": "props",
   "size": [
     16,
@@ -59,6 +60,6 @@
     "6": "#b86f50",
     "7": "#c42430"
   },
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/barrels.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/barrels.png",
   "sourcePaletteMode": "exact"
 }

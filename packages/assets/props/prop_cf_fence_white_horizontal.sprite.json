@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_fence_white_horizontal",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     16
@@ -41,6 +42,6 @@
     "4": "#eee9e3",
     "5": "#ffffff"
   },
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/White_Fence.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/White_Fence.png",
   "sourcePaletteMode": "exact"
 }

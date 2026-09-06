@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_homestead_tent_large",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     76,
     96
@@ -125,7 +126,7 @@
     "a": "#8a4836",
     "b": "#bf6f4a"
   },
-  "sourcePath": "references/Cute_Fantasy_MilitaryCamp/Military_Tents.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/military-camp/Military_Tents.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Military_Tents.png",

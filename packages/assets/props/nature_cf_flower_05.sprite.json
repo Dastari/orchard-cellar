@@ -1,6 +1,7 @@
 {
   "name": "nature_cf_flower_05",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -144,7 +145,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Flowers_5_Anim.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Flower_Animations/Not_Potted/Flowers_5_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Flower_Animations/Not_Potted/Flowers_5_Anim.png",
   "sourceRegions": {
     "sway": [
       [

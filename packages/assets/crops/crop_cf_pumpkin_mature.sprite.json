@@ -1,6 +1,7 @@
 {
   "name": "crop_cf_pumpkin_mature",
   "category": "crops",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -44,6 +45,6 @@
     "7": "#f77622",
     "8": "#feae34"
   },
-  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Crops.png",
   "sourcePaletteMode": "exact"
 }

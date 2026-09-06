@@ -1,0 +1,62 @@
+- main [ref=f2e2]:
+  - generic [ref=f2e3]:
+    - strong [ref=f2e4]: ORCHARD STUDIO
+    - combobox "Environment" [ref=f2e5]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=f2e6]
+  - generic [ref=f2e7]:
+    - navigation "Studio modes" [ref=f2e8]:
+      - button "Build" [ref=f2e9] [cursor=pointer]
+      - button "Author" [ref=f2e10] [cursor=pointer]
+      - generic [ref=f2e11]:
+        - generic [ref=f2e12]: Local sandbox
+        - generic [ref=f2e13]: Anonymous
+        - generic [ref=f2e14]: Sandbox
+        - generic [ref=f2e15]: Map —
+        - generic [ref=f2e16]: Content —
+    - generic [ref=f2e17]:
+      - heading "Outliner" [level=2] [ref=f2e18]
+      - generic [ref=f2e19]:
+        - button "Local" [ref=f2e20] [cursor=pointer]
+        - button "Live" [ref=f2e21] [cursor=pointer]
+      - list [ref=f2e22]:
+        - listitem [ref=f2e23]:
+          - text: Topside
+          - list [ref=f2e24]:
+            - listitem [ref=f2e25]: Terrain
+            - listitem [ref=f2e26]:
+              - text: Objects
+              - list [ref=f2e27]:
+                - listitem [ref=f2e28]:
+                  - button "Marlow Camp" [ref=f2e29] [cursor=pointer]
+                - listitem [ref=f2e30]:
+                  - button "Estate" [ref=f2e31] [cursor=pointer]
+      - heading "BUILD" [level=3] [ref=f2e32]
+      - button "Map Editor" [ref=f2e33] [cursor=pointer]
+      - button "Object Studio" [ref=f2e34] [cursor=pointer]
+    - main [ref=f2e35]:
+      - heading "Object Studio" [level=1] [ref=f2e36]
+      - generic [ref=f2e37]: Opening Object Studio…
+    - generic [ref=f2e38]:
+      - heading "Inspector" [level=2] [ref=f2e39]
+      - heading "Selection" [level=3] [ref=f2e40]
+      - generic [ref=f2e41]:
+        - strong [ref=f2e42]: Selection
+        - generic "Shared selection available to every Studio tool." [ref=f2e43]: none
+      - generic [ref=f2e44]:
+        - strong [ref=f2e45]: Tool route
+        - generic "Registered route for the active workspace." [ref=f2e46]: /build/object
+      - heading "Authority" [level=3] [ref=f2e47]
+      - generic [ref=f2e48]:
+        - strong [ref=f2e49]: Access
+        - generic "Resolved from the authenticated role matrix." [ref=f2e50]: write
+  - generic [ref=f2e51]:
+    - heading "Validation & Output" [level=2] [ref=f2e52]
+    - generic [ref=f2e53]:
+      - button "Validation" [ref=f2e54] [cursor=pointer]
+      - button "Audit" [disabled] [ref=f2e55]
+      - button "Live Sync" [disabled] [ref=f2e56]
+      - button "Console" [ref=f2e57] [cursor=pointer]
+    - paragraph [ref=f2e58]: Anonymous sandbox — no live adapter constructed.

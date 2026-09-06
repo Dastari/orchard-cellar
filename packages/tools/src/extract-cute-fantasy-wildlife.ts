@@ -128,15 +128,15 @@ const waterBirdRows: readonly RowAnimation[] = [
 ];
 
 const families = [
-  { species: 'cow', folder: 'Cute_Fantasy/Animals/Cow', files: Array.from({ length: 9 }, (_, i) => `Cow_${String(i + 1).padStart(2, '0')}.png`), rows: quadrupedRows },
-  { species: 'sheep', folder: 'Cute_Fantasy/Animals/Sheep', files: Array.from({ length: 9 }, (_, i) => `Sheep_${String(i + 1).padStart(2, '0')}.png`), rows: quadrupedRows },
-  { species: 'pig', folder: 'Cute_Fantasy/Animals/Pig', files: Array.from({ length: 16 }, (_, i) => `Pig_${String(i + 1).padStart(2, '0')}.png`), rows: quadrupedRows },
-  { species: 'horse', folder: 'Cute_Fantasy/Animals/Horse', files: Array.from({ length: 5 }, (_, i) => `Horse_${String(i + 1).padStart(2, '0')}.png`), rows: quadrupedRows },
-  { species: 'chicken', folder: 'Cute_Fantasy/Animals/Chicken', files: Array.from({ length: 18 }, (_, i) => `Chicken_${String(i + 1).padStart(2, '0')}.png`), rows: birdRows },
-  { species: 'rooster', folder: 'Cute_Fantasy/Animals/Chicken', files: ['Rooster.png'], rows: birdRows },
-  { species: 'duck', folder: 'Cute_Fantasy/Animals/Duck', files: ['Duck_01.png', 'Duck_02.png', 'Duck_03.png', 'Duck_04.png', 'Duck_in_a_hat.png'], rows: waterBirdRows },
-  { species: 'goose', folder: 'Cute_Fantasy/Animals/Goose', files: Array.from({ length: 6 }, (_, i) => `Goose_${String(i + 1).padStart(2, '0')}.png`), rows: birdRows },
-  { species: 'swan', folder: 'Cute_Fantasy/Animals/Swan', files: Array.from({ length: 3 }, (_, i) => `Swan_${String(i + 1).padStart(2, '0')}.png`), rows: waterBirdRows },
+  { species: 'cow', folder: 'art/kenmi/cute-fantasy/core/Animals/Cow', files: Array.from({ length: 9 }, (_, i) => `Cow_${String(i + 1).padStart(2, '0')}.png`), rows: quadrupedRows },
+  { species: 'sheep', folder: 'art/kenmi/cute-fantasy/core/Animals/Sheep', files: Array.from({ length: 9 }, (_, i) => `Sheep_${String(i + 1).padStart(2, '0')}.png`), rows: quadrupedRows },
+  { species: 'pig', folder: 'art/kenmi/cute-fantasy/core/Animals/Pig', files: Array.from({ length: 16 }, (_, i) => `Pig_${String(i + 1).padStart(2, '0')}.png`), rows: quadrupedRows },
+  { species: 'horse', folder: 'art/kenmi/cute-fantasy/core/Animals/Horse', files: Array.from({ length: 5 }, (_, i) => `Horse_${String(i + 1).padStart(2, '0')}.png`), rows: quadrupedRows },
+  { species: 'chicken', folder: 'art/kenmi/cute-fantasy/core/Animals/Chicken', files: Array.from({ length: 18 }, (_, i) => `Chicken_${String(i + 1).padStart(2, '0')}.png`), rows: birdRows },
+  { species: 'rooster', folder: 'art/kenmi/cute-fantasy/core/Animals/Chicken', files: ['Rooster.png'], rows: birdRows },
+  { species: 'duck', folder: 'art/kenmi/cute-fantasy/core/Animals/Duck', files: ['Duck_01.png', 'Duck_02.png', 'Duck_03.png', 'Duck_04.png', 'Duck_in_a_hat.png'], rows: waterBirdRows },
+  { species: 'goose', folder: 'art/kenmi/cute-fantasy/core/Animals/Goose', files: Array.from({ length: 6 }, (_, i) => `Goose_${String(i + 1).padStart(2, '0')}.png`), rows: birdRows },
+  { species: 'swan', folder: 'art/kenmi/cute-fantasy/core/Animals/Swan', files: Array.from({ length: 3 }, (_, i) => `Swan_${String(i + 1).padStart(2, '0')}.png`), rows: waterBirdRows },
 ] as const;
 
 for (const family of families) {
@@ -154,12 +154,12 @@ for (const family of families) {
 }
 
 const simpleSheets = [
-  { name: 'wildlife_cf_frog', folder: 'Cute_Fantasy/Animals/Frog', files: 6, prefix: 'Frog_', padded: true, size: [32, 32] as const, anchor: [16, 31] as const, rows: [['idle_side', 0], ['hop_side', 1], ['action_side', 2], ['hit_side', 3]] as const, category: 'characters' as const },
-  { name: 'wildlife_cf_mouse', folder: 'Cute_Fantasy/Animals/Mouse', files: 4, prefix: 'Mouse_', padded: true, size: [32, 32] as const, anchor: [16, 31] as const, rows: [['idle_side', 0], ['walk_side', 1], ['forage_side', 2], ['hit_side', 3]] as const, category: 'characters' as const },
-  { name: 'wildlife_cf_camel', folder: 'Cute_Fantasy_Desert/Animals/Camel', files: 3, prefix: 'Camel_', size: [48, 32] as const, anchor: [24, 31] as const, rows: [['idle_side', 0], ['walk_side', 1], ['run_side', 2], ['action_1_side', 3], ['action_2_side', 4], ['rest_side', 5], ['lie_down_side', 6], ['sleep_side', 7], ['hit_side', 8]] as const, category: 'props' as const },
-  { name: 'wildlife_cf_scarab', folder: 'Cute_Fantasy_Desert/Animals/Scarab', files: 4, names: ['Scarab_Black.png', 'Scarab_Yellow.png', 'Scarab_Brown.png', 'Scarab_Green.png'], size: [16, 16] as const, anchor: [8, 15] as const, rows: [['walk_side', 0], ['idle_side', 1], ['hit_side', 2]] as const, category: 'props' as const },
-  { name: 'wildlife_cf_vulture', folder: 'Cute_Fantasy_Desert/Animals/Vulture', files: 4, prefix: 'Vulture_', size: [48, 48] as const, anchor: [24, 47] as const, rows: [['idle_side', 0], ['walk_side', 1], ['fly_side', 2], ['fly_down', 3], ['fly_up', 4], ['sleep_side', 5], ['hit_side', 6]] as const, category: 'props' as const },
-  { name: 'wildlife_cf_snail', folder: 'Cute_Fantasy_ShroomLands/Snails', files: 4, prefix: 'Snail_', size: [32, 32] as const, anchor: [16, 31] as const, rows: [['idle_side', 0], ['idle_down', 1], ['idle_up', 2], ['walk_side', 3], ['walk_down', 4], ['walk_up', 5]] as const, category: 'characters' as const },
+  { name: 'wildlife_cf_frog', folder: 'art/kenmi/cute-fantasy/core/Animals/Frog', files: 6, prefix: 'Frog_', padded: true, size: [32, 32] as const, anchor: [16, 31] as const, rows: [['idle_side', 0], ['hop_side', 1], ['action_side', 2], ['hit_side', 3]] as const, category: 'characters' as const },
+  { name: 'wildlife_cf_mouse', folder: 'art/kenmi/cute-fantasy/core/Animals/Mouse', files: 4, prefix: 'Mouse_', padded: true, size: [32, 32] as const, anchor: [16, 31] as const, rows: [['idle_side', 0], ['walk_side', 1], ['forage_side', 2], ['hit_side', 3]] as const, category: 'characters' as const },
+  { name: 'wildlife_cf_camel', folder: 'art/kenmi/cute-fantasy/desert/Animals/Camel', files: 3, prefix: 'Camel_', size: [48, 32] as const, anchor: [24, 31] as const, rows: [['idle_side', 0], ['walk_side', 1], ['run_side', 2], ['action_1_side', 3], ['action_2_side', 4], ['rest_side', 5], ['lie_down_side', 6], ['sleep_side', 7], ['hit_side', 8]] as const, category: 'props' as const },
+  { name: 'wildlife_cf_scarab', folder: 'art/kenmi/cute-fantasy/desert/Animals/Scarab', files: 4, names: ['Scarab_Black.png', 'Scarab_Yellow.png', 'Scarab_Brown.png', 'Scarab_Green.png'], size: [16, 16] as const, anchor: [8, 15] as const, rows: [['walk_side', 0], ['idle_side', 1], ['hit_side', 2]] as const, category: 'props' as const },
+  { name: 'wildlife_cf_vulture', folder: 'art/kenmi/cute-fantasy/desert/Animals/Vulture', files: 4, prefix: 'Vulture_', size: [48, 48] as const, anchor: [24, 47] as const, rows: [['idle_side', 0], ['walk_side', 1], ['fly_side', 2], ['fly_down', 3], ['fly_up', 4], ['sleep_side', 5], ['hit_side', 6]] as const, category: 'props' as const },
+  { name: 'wildlife_cf_snail', folder: 'art/kenmi/cute-fantasy/shroomlands/Snails', files: 4, prefix: 'Snail_', size: [32, 32] as const, anchor: [16, 31] as const, rows: [['idle_side', 0], ['idle_down', 1], ['idle_up', 2], ['walk_side', 3], ['walk_down', 4], ['walk_up', 5]] as const, category: 'characters' as const },
 ] as const;
 
 for (const sheet of simpleSheets) for (let variant = 0; variant < sheet.files; variant += 1) {
@@ -179,7 +179,7 @@ for (const sheet of simpleSheets) for (let variant = 0; variant < sheet.files; v
 
 // Bees and butterflies use native 16px cells rather than the livestock grid.
 for (const compact of [
-  { name: 'wildlife_cf_bee_01', source: 'Cute_Fantasy/Animals/Bee/Bee_Flying_Animation.png', rows: [['fly_side', 0], ['fly_side_alt', 1]] as const, fps: 12 },
+  { name: 'wildlife_cf_bee_01', source: 'art/kenmi/cute-fantasy/core/Animals/Bee/Bee_Flying_Animation.png', rows: [['fly_side', 0], ['fly_side_alt', 1]] as const, fps: 12 },
 ] as const) {
   const image = decodePng(await readFile(resolve(sourceRoot, compact.source)));
   await writeExactAsset({
@@ -189,7 +189,7 @@ for (const compact of [
 }
 
 {
-  const source = 'Cute_Fantasy/Animals/Butterfly/Butterfly.png';
+  const source = 'art/kenmi/cute-fantasy/core/Animals/Butterfly/Butterfly.png';
   // The sheet is eight colour rows of two 8x8 wing states. It is not four
   // 16x16 frames: interpreting it that way draws four butterflies at once.
   for (let variant = 0; variant < 8; variant += 1) {
@@ -218,7 +218,7 @@ const capybaraAnimations = [
 ] as const;
 for (let variant = 0; variant < 2; variant += 1) for (const [animation, suffix] of capybaraAnimations) {
   const prefix = variant === 0 ? '' : 'Albino_';
-  const source = `Cute_Fantasy/Animals/Kapybara/Static/${prefix}Kapybara_${suffix}.png`;
+  const source = `art/kenmi/cute-fantasy/core/Animals/Kapybara/Static/${prefix}Kapybara_${suffix}.png`;
   const image = decodePng(await readFile(resolve(sourceRoot, source)));
   await writeExactAsset({
     name: `wildlife_cf_capybara_${String(variant + 1).padStart(2, '0')}_${animation}`,
@@ -231,7 +231,7 @@ for (let variant = 0; variant < 2; variant += 1) for (const [animation, suffix] 
 // with the horse occupying the centred 32px crop.
 const mountedHorseSources = ['Brown', 'White', 'Chocolate', 'Gray', 'Black'] as const;
 for (let variant = 0; variant < mountedHorseSources.length; variant += 1) {
-  const source = `Cute_Fantasy/Player/Player_Mounts/Horse/Player_Horse_${mountedHorseSources[variant]}.png`;
+  const source = `art/kenmi/cute-fantasy/core/Player/Player_Mounts/Horse/Player_Horse_${mountedHorseSources[variant]}.png`;
   const sourceRegions = {
     mount: [
       ...Array.from({ length: 2 }, (_, frame) => [frame * 64 + 16, 16, 32, 32] as const),
@@ -249,11 +249,11 @@ for (let variant = 0; variant < mountedHorseSources.length; variant += 1) {
 }
 
 await writeExactAsset({
-  name: 'prop_cf_bee_hive', source: 'Cute_Fantasy/Animals/Bee/Bee_Hive.png',
+  name: 'prop_cf_bee_hive', source: 'art/kenmi/cute-fantasy/core/Animals/Bee/Bee_Hive.png',
   size: [16, 16], anchor: [8, 15], sourceRegions: { base: [[0, 0, 16, 16]] }, category: 'props', fps: 1,
 });
 {
-  const source = 'Cute_Fantasy/Animals/Bee/Bee_Nest.png';
+  const source = 'art/kenmi/cute-fantasy/core/Animals/Bee/Bee_Nest.png';
   const sourceRegions = { base: Array.from({ length: 6 }, (_, frame) => [frame % 2 * 16, Math.floor(frame / 2) * 16, 16, 16] as const) };
   await writeExactAsset({ name: 'prop_cf_bee_nest', source, size: [16, 16], anchor: [8, 15], sourceRegions, category: 'props', fps: 1 });
 }

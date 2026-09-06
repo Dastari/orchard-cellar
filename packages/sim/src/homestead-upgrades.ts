@@ -1,3 +1,4 @@
+import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
 import { BRONZE_PER_GOLD } from './commerce.js';
 
 export const HOMESTEAD_UPGRADE_KINDS = [
@@ -18,28 +19,8 @@ export interface HomesteadUpgradeDefinition {
   readonly costGrowth: number;
 }
 
-export const HOMESTEAD_UPGRADE_DEFINITIONS = {
-  rich_soil: {
-    kind: 'rich_soil', displayName: 'Rich Soil',
-    description: '+10% watered crop growth per rank.',
-    maximumRank: 3, baseCostGold: 2, costGrowth: 3,
-  },
-  selective_seeds: {
-    kind: 'selective_seeds', displayName: 'Selective Seeds',
-    description: '+10% average crop yield per rank.',
-    maximumRank: 3, baseCostGold: 3, costGrowth: 3,
-  },
-  barrel_cellar: {
-    kind: 'barrel_cellar', displayName: 'Barrel Cellar',
-    description: '+8 batch capacity and 10% faster curing per rank.',
-    maximumRank: 3, baseCostGold: 4, costGrowth: 3,
-  },
-  estate_vintage: {
-    kind: 'estate_vintage', displayName: 'Estate Vintage',
-    description: 'Age Bottles longer into increasingly valuable estate vintages.',
-    maximumRank: 3, baseCostGold: 6, costGrowth: 3,
-  },
-} as const satisfies Readonly<Record<HomesteadUpgradeKind, HomesteadUpgradeDefinition>>;
+export const HOMESTEAD_UPGRADE_DEFINITIONS = BOOTSTRAP_COMPILED_CONTENT.upgrades as
+  Readonly<Record<HomesteadUpgradeKind, HomesteadUpgradeDefinition>>;
 
 export function isHomesteadUpgradeKind(kind: string): kind is HomesteadUpgradeKind {
   return Object.prototype.hasOwnProperty.call(HOMESTEAD_UPGRADE_DEFINITIONS, kind);

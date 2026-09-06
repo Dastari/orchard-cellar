@@ -1,0 +1,68 @@
+{
+  "name": "icon_skill_hive_keeper",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "........0122....",
+        ".......030112...",
+        "......4404.51...",
+        ".....464667..1..",
+        "....46466677....",
+        "...4646667677...",
+        "...4466666768...",
+        "...6666667688...",
+        "...4667676868...",
+        "....67676868....",
+        ".....676868.....",
+        "......7888......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#b86f50",
+    "1": "#3e8948",
+    "2": "#63c74d",
+    "3": "#733e39",
+    "4": "#fee761",
+    "5": "#265c42",
+    "6": "#feae34",
+    "7": "#f77622",
+    "8": "#be4a2f"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+  "sourceRegion": [
+    112,
+    96,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.hive_keeper",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

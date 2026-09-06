@@ -43,7 +43,7 @@ scheduled-reducer auth finding was based on pre-2.x behavior and is corrected be
 
 Correction verified against current SpacetimeDB 2.x docs and generated bindings:
 `onSchedule` reducers are private by default. `stepWorld` and `decayEmptyTopsideSoil` are
-absent from `packages/client/src/net/generated`, as required. Defense-in-depth now rejects
+absent from `packages/world-bindings/src`, as required. Defense-in-depth now rejects
 senders other than `ctx.databaseIdentity`; that SDK context accessor was verified against
 the installed SpacetimeDB 2.8.2 declaration before implementation.
 

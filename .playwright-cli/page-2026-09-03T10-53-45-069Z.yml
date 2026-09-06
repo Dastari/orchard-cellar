@@ -1,0 +1,471 @@
+- main [ref=f1e2]:
+  - generic [ref=f1e3]:
+    - strong [ref=f1e4]: ORCHARD STUDIO
+    - combobox "Environment" [ref=f1e5]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=f1e6]
+    - combobox "Workspace layout" [ref=f1e7]:
+      - option "build-default" [selected]
+    - button "Save layout" [ref=f1e8] [cursor=pointer]
+  - generic [ref=f1e9]:
+    - navigation "Studio modes" [ref=f1e10]:
+      - button "Build" [ref=f1e11] [cursor=pointer]
+      - button "Author" [ref=f1e12] [cursor=pointer]
+      - generic [ref=f1e13]:
+        - generic [ref=f1e14]: Local sandbox
+        - generic [ref=f1e15]: Anonymous
+        - generic [ref=f1e16]: Sandbox
+        - generic [ref=f1e17]: Map —
+        - generic [ref=f1e18]: Content —
+    - generic [ref=f1e19]:
+      - heading "Map Editor" [level=2] [ref=f1e20]
+      - heading "BUILD TOOLS" [level=3] [ref=f1e21]
+      - button "Map Editor" [ref=f1e22] [cursor=pointer]
+      - button "Object Studio" [ref=f1e23] [cursor=pointer]
+      - button "Tile Editor" [ref=f1e24] [cursor=pointer]
+      - heading "SCENE" [level=3] [ref=f1e25]
+      - generic [ref=f1e26]:
+        - button "Local" [ref=f1e27] [cursor=pointer]
+        - button "Live" [ref=f1e28] [cursor=pointer]
+      - list [ref=f1e29]:
+        - listitem [ref=f1e30]:
+          - text: Live Island
+          - list [ref=f1e31]:
+            - listitem [ref=f1e32]: Generated Base
+            - listitem [ref=f1e33]: Terrain Overrides
+            - listitem [ref=f1e34]:
+              - text: Ground Details
+              - list [ref=f1e35]:
+                - listitem [ref=f1e36]:
+                  - button "landmark-3200000002" [ref=f1e37] [cursor=pointer]
+                - listitem [ref=f1e38]:
+                  - button "landmark-3200000014" [ref=f1e39] [cursor=pointer]
+                - listitem [ref=f1e40]:
+                  - button "landmark-3200000013" [ref=f1e41] [cursor=pointer]
+                - listitem [ref=f1e42]:
+                  - button "landmark-3000000017" [ref=f1e43] [cursor=pointer]
+                - listitem [ref=f1e44]:
+                  - button "landmark-3000000014" [ref=f1e45] [cursor=pointer]
+                - listitem [ref=f1e46]:
+                  - button "landmark-3000000015" [ref=f1e47] [cursor=pointer]
+                - listitem [ref=f1e48]:
+                  - button "landmark-3000000018" [ref=f1e49] [cursor=pointer]
+                - listitem [ref=f1e50]:
+                  - button "landmark-3000000013" [ref=f1e51] [cursor=pointer]
+                - listitem [ref=f1e52]:
+                  - button "landmark-3000000016" [ref=f1e53] [cursor=pointer]
+                - listitem [ref=f1e54]:
+                  - button "landmark-3000000002" [ref=f1e55] [cursor=pointer]
+                - listitem [ref=f1e56]:
+                  - button "landmark-3000000019" [ref=f1e57] [cursor=pointer]
+                - listitem [ref=f1e58]:
+                  - button "landmark-3000000020" [ref=f1e59] [cursor=pointer]
+                - listitem [ref=f1e60]:
+                  - button "landmark-3000000021" [ref=f1e61] [cursor=pointer]
+                - listitem [ref=f1e62]:
+                  - button "landmark-3000000022" [ref=f1e63] [cursor=pointer]
+                - listitem [ref=f1e64]:
+                  - button "landmark-3100000090" [ref=f1e65] [cursor=pointer]
+                - listitem [ref=f1e66]:
+                  - button "landmark-3100000091" [ref=f1e67] [cursor=pointer]
+                - listitem [ref=f1e68]:
+                  - button "landmark-3100000092" [ref=f1e69] [cursor=pointer]
+                - listitem [ref=f1e70]:
+                  - button "landmark-3100000093" [ref=f1e71] [cursor=pointer]
+                - listitem [ref=f1e72]:
+                  - button "landmark-3100000094" [ref=f1e73] [cursor=pointer]
+                - listitem [ref=f1e74]:
+                  - button "landmark-3100000095" [ref=f1e75] [cursor=pointer]
+                - listitem [ref=f1e76]:
+                  - button "landmark-3100000096" [ref=f1e77] [cursor=pointer]
+                - listitem [ref=f1e78]:
+                  - button "landmark-3100000097" [ref=f1e79] [cursor=pointer]
+                - listitem [ref=f1e80]:
+                  - button "landmark-3100000098" [ref=f1e81] [cursor=pointer]
+                - listitem [ref=f1e82]:
+                  - button "landmark-3100000099" [ref=f1e83] [cursor=pointer]
+                - listitem [ref=f1e84]:
+                  - button "landmark-3100000100" [ref=f1e85] [cursor=pointer]
+                - listitem [ref=f1e86]:
+                  - button "landmark-3100000101" [ref=f1e87] [cursor=pointer]
+                - listitem [ref=f1e88]:
+                  - button "landmark-3100000102" [ref=f1e89] [cursor=pointer]
+                - listitem [ref=f1e90]:
+                  - button "landmark-3100000103" [ref=f1e91] [cursor=pointer]
+                - listitem [ref=f1e92]:
+                  - button "landmark-3100000104" [ref=f1e93] [cursor=pointer]
+                - listitem [ref=f1e94]:
+                  - button "landmark-3100000105" [ref=f1e95] [cursor=pointer]
+                - listitem [ref=f1e96]:
+                  - button "landmark-3100000106" [ref=f1e97] [cursor=pointer]
+                - listitem [ref=f1e98]:
+                  - button "landmark-3100000107" [ref=f1e99] [cursor=pointer]
+                - listitem [ref=f1e100]:
+                  - button "landmark-3100000108" [ref=f1e101] [cursor=pointer]
+                - listitem [ref=f1e102]:
+                  - button "landmark-3100000109" [ref=f1e103] [cursor=pointer]
+                - listitem [ref=f1e104]:
+                  - button "landmark-3100000110" [ref=f1e105] [cursor=pointer]
+                - listitem [ref=f1e106]:
+                  - button "landmark-3100000111" [ref=f1e107] [cursor=pointer]
+                - listitem [ref=f1e108]:
+                  - button "landmark-3100000112" [ref=f1e109] [cursor=pointer]
+                - listitem [ref=f1e110]:
+                  - button "landmark-3100000113" [ref=f1e111] [cursor=pointer]
+                - listitem [ref=f1e112]:
+                  - button "landmark-3100000114" [ref=f1e113] [cursor=pointer]
+                - listitem [ref=f1e114]:
+                  - button "landmark-3100000115" [ref=f1e115] [cursor=pointer]
+                - listitem [ref=f1e116]:
+                  - button "landmark-3100000116" [ref=f1e117] [cursor=pointer]
+                - listitem [ref=f1e118]:
+                  - button "landmark-3100000129" [ref=f1e119] [cursor=pointer]
+                - listitem [ref=f1e120]:
+                  - button "landmark-3100000130" [ref=f1e121] [cursor=pointer]
+                - listitem [ref=f1e122]:
+                  - button "landmark-3100000131" [ref=f1e123] [cursor=pointer]
+                - listitem [ref=f1e124]:
+                  - button "landmark-3100000117" [ref=f1e125] [cursor=pointer]
+                - listitem [ref=f1e126]:
+                  - button "landmark-3100000118" [ref=f1e127] [cursor=pointer]
+                - listitem [ref=f1e128]:
+                  - button "landmark-3100000119" [ref=f1e129] [cursor=pointer]
+                - listitem [ref=f1e130]:
+                  - button "landmark-3100000123" [ref=f1e131] [cursor=pointer]
+                - listitem [ref=f1e132]:
+                  - button "landmark-3100000124" [ref=f1e133] [cursor=pointer]
+                - listitem [ref=f1e134]:
+                  - button "landmark-3100000125" [ref=f1e135] [cursor=pointer]
+                - listitem [ref=f1e136]:
+                  - button "landmark-3100000132" [ref=f1e137] [cursor=pointer]
+                - listitem [ref=f1e138]:
+                  - button "landmark-3100000133" [ref=f1e139] [cursor=pointer]
+                - listitem [ref=f1e140]:
+                  - button "landmark-3100000134" [ref=f1e141] [cursor=pointer]
+                - listitem [ref=f1e142]:
+                  - button "landmark-3100000120" [ref=f1e143] [cursor=pointer]
+                - listitem [ref=f1e144]:
+                  - button "landmark-3100000121" [ref=f1e145] [cursor=pointer]
+                - listitem [ref=f1e146]:
+                  - button "landmark-3100000122" [ref=f1e147] [cursor=pointer]
+                - listitem [ref=f1e148]:
+                  - button "landmark-3100000126" [ref=f1e149] [cursor=pointer]
+                - listitem [ref=f1e150]:
+                  - button "landmark-3100000127" [ref=f1e151] [cursor=pointer]
+                - listitem [ref=f1e152]:
+                  - button "landmark-3100000128" [ref=f1e153] [cursor=pointer]
+            - listitem [ref=f1e154]:
+              - text: World Objects
+              - list [ref=f1e155]:
+                - listitem [ref=f1e156]:
+                  - button "landmark-3200000008" [ref=f1e157] [cursor=pointer]
+                - listitem [ref=f1e158]:
+                  - button "landmark-3200000009" [ref=f1e159] [cursor=pointer]
+                - listitem [ref=f1e160]:
+                  - button "landmark-3200000001" [ref=f1e161] [cursor=pointer]
+                - listitem [ref=f1e162]:
+                  - button "landmark-3200000012" [ref=f1e163] [cursor=pointer]
+                - listitem [ref=f1e164]:
+                  - button "landmark-3200000007" [ref=f1e165] [cursor=pointer]
+                - listitem [ref=f1e166]:
+                  - button "landmark-3200000006" [ref=f1e167] [cursor=pointer]
+                - listitem [ref=f1e168]:
+                  - button "landmark-3200000003" [ref=f1e169] [cursor=pointer]
+                - listitem [ref=f1e170]:
+                  - button "landmark-3200000011" [ref=f1e171] [cursor=pointer]
+                - listitem [ref=f1e172]:
+                  - button "landmark-3200000004" [ref=f1e173] [cursor=pointer]
+                - listitem [ref=f1e174]:
+                  - button "landmark-3200000005" [ref=f1e175] [cursor=pointer]
+                - listitem [ref=f1e176]:
+                  - button "landmark-3200000010" [ref=f1e177] [cursor=pointer]
+                - listitem [ref=f1e178]:
+                  - button "landmark-3000000005" [ref=f1e179] [cursor=pointer]
+                - listitem [ref=f1e180]:
+                  - button "landmark-3000000009" [ref=f1e181] [cursor=pointer]
+                - listitem [ref=f1e182]:
+                  - button "landmark-3000000004" [ref=f1e183] [cursor=pointer]
+                - listitem [ref=f1e184]:
+                  - button "landmark-3000000003" [ref=f1e185] [cursor=pointer]
+                - listitem [ref=f1e186]:
+                  - button "landmark-3000000001" [ref=f1e187] [cursor=pointer]
+                - listitem [ref=f1e188]:
+                  - button "landmark-3000000006" [ref=f1e189] [cursor=pointer]
+                - listitem [ref=f1e190]:
+                  - button "landmark-3000000007" [ref=f1e191] [cursor=pointer]
+                - listitem [ref=f1e192]:
+                  - button "landmark-3000000008" [ref=f1e193] [cursor=pointer]
+                - listitem [ref=f1e194]:
+                  - button "landmark-3000000011" [ref=f1e195] [cursor=pointer]
+                - listitem [ref=f1e196]:
+                  - button "landmark-3000000012" [ref=f1e197] [cursor=pointer]
+                - listitem [ref=f1e198]:
+                  - button "landmark-3000000010" [ref=f1e199] [cursor=pointer]
+                - listitem [ref=f1e200]:
+                  - button "landmark-3100000000" [ref=f1e201] [cursor=pointer]
+                - listitem [ref=f1e202]:
+                  - button "landmark-3100000002" [ref=f1e203] [cursor=pointer]
+                - listitem [ref=f1e204]:
+                  - button "landmark-3100000004" [ref=f1e205] [cursor=pointer]
+                - listitem [ref=f1e206]:
+                  - button "landmark-3100000006" [ref=f1e207] [cursor=pointer]
+                - listitem [ref=f1e208]:
+                  - button "landmark-3100000008" [ref=f1e209] [cursor=pointer]
+                - listitem [ref=f1e210]:
+                  - button "landmark-3100000010" [ref=f1e211] [cursor=pointer]
+                - listitem [ref=f1e212]:
+                  - button "landmark-3100000012" [ref=f1e213] [cursor=pointer]
+                - listitem [ref=f1e214]:
+                  - button "landmark-3100000014" [ref=f1e215] [cursor=pointer]
+                - listitem [ref=f1e216]:
+                  - button "landmark-3100000016" [ref=f1e217] [cursor=pointer]
+                - listitem [ref=f1e218]:
+                  - button "landmark-3100000018" [ref=f1e219] [cursor=pointer]
+                - listitem [ref=f1e220]:
+                  - button "landmark-3100000020" [ref=f1e221] [cursor=pointer]
+                - listitem [ref=f1e222]:
+                  - button "landmark-3100000022" [ref=f1e223] [cursor=pointer]
+                - listitem [ref=f1e224]:
+                  - button "landmark-3100000023" [ref=f1e225] [cursor=pointer]
+                - listitem [ref=f1e226]:
+                  - button "landmark-3100000025" [ref=f1e227] [cursor=pointer]
+                - listitem [ref=f1e228]:
+                  - button "landmark-3100000027" [ref=f1e229] [cursor=pointer]
+                - listitem [ref=f1e230]:
+                  - button "landmark-3100000029" [ref=f1e231] [cursor=pointer]
+                - listitem [ref=f1e232]:
+                  - button "landmark-3100000031" [ref=f1e233] [cursor=pointer]
+                - listitem [ref=f1e234]:
+                  - button "landmark-3100000033" [ref=f1e235] [cursor=pointer]
+                - listitem [ref=f1e236]:
+                  - button "landmark-3100000035" [ref=f1e237] [cursor=pointer]
+                - listitem [ref=f1e238]:
+                  - button "landmark-3100000037" [ref=f1e239] [cursor=pointer]
+                - listitem [ref=f1e240]:
+                  - button "landmark-3100000039" [ref=f1e241] [cursor=pointer]
+                - listitem [ref=f1e242]:
+                  - button "landmark-3100000041" [ref=f1e243] [cursor=pointer]
+                - listitem [ref=f1e244]:
+                  - button "landmark-3100000043" [ref=f1e245] [cursor=pointer]
+                - listitem [ref=f1e246]:
+                  - button "landmark-3100000045" [ref=f1e247] [cursor=pointer]
+                - listitem [ref=f1e248]:
+                  - button "landmark-3100000046" [ref=f1e249] [cursor=pointer]
+                - listitem [ref=f1e250]:
+                  - button "landmark-3100000047" [ref=f1e251] [cursor=pointer]
+                - listitem [ref=f1e252]:
+                  - button "landmark-3100000048" [ref=f1e253] [cursor=pointer]
+                - listitem [ref=f1e254]:
+                  - button "landmark-3100000049" [ref=f1e255] [cursor=pointer]
+                - listitem [ref=f1e256]:
+                  - button "landmark-3100000087" [ref=f1e257] [cursor=pointer]
+                - listitem [ref=f1e258]:
+                  - button "landmark-3100000088" [ref=f1e259] [cursor=pointer]
+                - listitem [ref=f1e260]:
+                  - button "landmark-3100000142" [ref=f1e261] [cursor=pointer]
+                - listitem [ref=f1e262]:
+                  - button "landmark-3100000143" [ref=f1e263] [cursor=pointer]
+                - listitem [ref=f1e264]:
+                  - button "landmark-3100000138" [ref=f1e265] [cursor=pointer]
+                - listitem [ref=f1e266]:
+                  - button "landmark-3100000050" [ref=f1e267] [cursor=pointer]
+                - listitem [ref=f1e268]:
+                  - button "landmark-3100000051" [ref=f1e269] [cursor=pointer]
+                - listitem [ref=f1e270]:
+                  - button "landmark-3100000144" [ref=f1e271] [cursor=pointer]
+                - listitem [ref=f1e272]:
+                  - button "landmark-3100000086" [ref=f1e273] [cursor=pointer]
+                - listitem [ref=f1e274]:
+                  - button "landmark-3100000145" [ref=f1e275] [cursor=pointer]
+                - listitem [ref=f1e276]:
+                  - button "landmark-3100000139" [ref=f1e277] [cursor=pointer]
+                - listitem [ref=f1e278]:
+                  - button "landmark-3100000140" [ref=f1e279] [cursor=pointer]
+                - listitem [ref=f1e280]:
+                  - button "landmark-3100000052" [ref=f1e281] [cursor=pointer]
+                - listitem [ref=f1e282]:
+                  - button "landmark-3100000053" [ref=f1e283] [cursor=pointer]
+                - listitem [ref=f1e284]:
+                  - button "landmark-3100000089" [ref=f1e285] [cursor=pointer]
+                - listitem [ref=f1e286]:
+                  - button "landmark-3100000141" [ref=f1e287] [cursor=pointer]
+                - listitem [ref=f1e288]:
+                  - button "landmark-3100000054" [ref=f1e289] [cursor=pointer]
+                - listitem [ref=f1e290]:
+                  - button "landmark-3100000055" [ref=f1e291] [cursor=pointer]
+                - listitem [ref=f1e292]:
+                  - button "landmark-3100000056" [ref=f1e293] [cursor=pointer]
+                - listitem [ref=f1e294]:
+                  - button "landmark-3100000057" [ref=f1e295] [cursor=pointer]
+                - listitem [ref=f1e296]:
+                  - button "landmark-3100000058" [ref=f1e297] [cursor=pointer]
+                - listitem [ref=f1e298]:
+                  - button "landmark-3100000059" [ref=f1e299] [cursor=pointer]
+                - listitem [ref=f1e300]:
+                  - button "landmark-3100000060" [ref=f1e301] [cursor=pointer]
+                - listitem [ref=f1e302]:
+                  - button "landmark-3100000061" [ref=f1e303] [cursor=pointer]
+                - listitem [ref=f1e304]:
+                  - button "landmark-3100000062" [ref=f1e305] [cursor=pointer]
+                - listitem [ref=f1e306]:
+                  - button "landmark-3100000063" [ref=f1e307] [cursor=pointer]
+                - listitem [ref=f1e308]:
+                  - button "landmark-3100000064" [ref=f1e309] [cursor=pointer]
+                - listitem [ref=f1e310]:
+                  - button "landmark-3100000065" [ref=f1e311] [cursor=pointer]
+                - listitem [ref=f1e312]:
+                  - button "landmark-3100000066" [ref=f1e313] [cursor=pointer]
+                - listitem [ref=f1e314]:
+                  - button "landmark-3100000067" [ref=f1e315] [cursor=pointer]
+                - listitem [ref=f1e316]:
+                  - button "landmark-3100000068" [ref=f1e317] [cursor=pointer]
+                - listitem [ref=f1e318]:
+                  - button "landmark-3100000069" [ref=f1e319] [cursor=pointer]
+                - listitem [ref=f1e320]:
+                  - button "landmark-3100000070" [ref=f1e321] [cursor=pointer]
+                - listitem [ref=f1e322]:
+                  - button "landmark-3100000071" [ref=f1e323] [cursor=pointer]
+                - listitem [ref=f1e324]:
+                  - button "landmark-3100000072" [ref=f1e325] [cursor=pointer]
+                - listitem [ref=f1e326]:
+                  - button "landmark-3100000073" [ref=f1e327] [cursor=pointer]
+                - listitem [ref=f1e328]:
+                  - button "landmark-3100000074" [ref=f1e329] [cursor=pointer]
+                - listitem [ref=f1e330]:
+                  - button "landmark-3100000075" [ref=f1e331] [cursor=pointer]
+                - listitem [ref=f1e332]:
+                  - button "landmark-3100000076" [ref=f1e333] [cursor=pointer]
+                - listitem [ref=f1e334]:
+                  - button "landmark-3100000077" [ref=f1e335] [cursor=pointer]
+                - listitem [ref=f1e336]:
+                  - button "landmark-3100000078" [ref=f1e337] [cursor=pointer]
+                - listitem [ref=f1e338]:
+                  - button "landmark-3100000079" [ref=f1e339] [cursor=pointer]
+                - listitem [ref=f1e340]:
+                  - button "landmark-3100000146" [ref=f1e341] [cursor=pointer]
+                - listitem [ref=f1e342]:
+                  - button "landmark-3100000080" [ref=f1e343] [cursor=pointer]
+                - listitem [ref=f1e344]:
+                  - button "landmark-3100000081" [ref=f1e345] [cursor=pointer]
+                - listitem [ref=f1e346]:
+                  - button "landmark-3100000147" [ref=f1e347] [cursor=pointer]
+                - listitem [ref=f1e348]:
+                  - button "landmark-3100000082" [ref=f1e349] [cursor=pointer]
+                - listitem [ref=f1e350]:
+                  - button "landmark-3100000083" [ref=f1e351] [cursor=pointer]
+                - listitem [ref=f1e352]:
+                  - button "landmark-3100000084" [ref=f1e353] [cursor=pointer]
+                - listitem [ref=f1e354]:
+                  - button "landmark-3100000001" [ref=f1e355] [cursor=pointer]
+                - listitem [ref=f1e356]:
+                  - button "landmark-3100000003" [ref=f1e357] [cursor=pointer]
+                - listitem [ref=f1e358]:
+                  - button "landmark-3100000005" [ref=f1e359] [cursor=pointer]
+                - listitem [ref=f1e360]:
+                  - button "landmark-3100000007" [ref=f1e361] [cursor=pointer]
+                - listitem [ref=f1e362]:
+                  - button "landmark-3100000009" [ref=f1e363] [cursor=pointer]
+                - listitem [ref=f1e364]:
+                  - button "landmark-3100000011" [ref=f1e365] [cursor=pointer]
+                - listitem [ref=f1e366]:
+                  - button "landmark-3100000013" [ref=f1e367] [cursor=pointer]
+                - listitem [ref=f1e368]:
+                  - button "landmark-3100000015" [ref=f1e369] [cursor=pointer]
+                - listitem [ref=f1e370]:
+                  - button "landmark-3100000017" [ref=f1e371] [cursor=pointer]
+                - listitem [ref=f1e372]:
+                  - button "landmark-3100000019" [ref=f1e373] [cursor=pointer]
+                - listitem [ref=f1e374]:
+                  - button "landmark-3100000021" [ref=f1e375] [cursor=pointer]
+                - listitem [ref=f1e376]:
+                  - button "landmark-3100000085" [ref=f1e377] [cursor=pointer]
+                - listitem [ref=f1e378]:
+                  - button "landmark-3100000024" [ref=f1e379] [cursor=pointer]
+                - listitem [ref=f1e380]:
+                  - button "landmark-3100000026" [ref=f1e381] [cursor=pointer]
+                - listitem [ref=f1e382]:
+                  - button "landmark-3100000028" [ref=f1e383] [cursor=pointer]
+                - listitem [ref=f1e384]:
+                  - button "landmark-3100000030" [ref=f1e385] [cursor=pointer]
+                - listitem [ref=f1e386]:
+                  - button "landmark-3100000032" [ref=f1e387] [cursor=pointer]
+                - listitem [ref=f1e388]:
+                  - button "landmark-3100000034" [ref=f1e389] [cursor=pointer]
+                - listitem [ref=f1e390]:
+                  - button "landmark-3100000036" [ref=f1e391] [cursor=pointer]
+                - listitem [ref=f1e392]:
+                  - button "landmark-3100000038" [ref=f1e393] [cursor=pointer]
+                - listitem [ref=f1e394]:
+                  - button "landmark-3100000040" [ref=f1e395] [cursor=pointer]
+                - listitem [ref=f1e396]:
+                  - button "landmark-3100000042" [ref=f1e397] [cursor=pointer]
+                - listitem [ref=f1e398]:
+                  - button "landmark-3100000044" [ref=f1e399] [cursor=pointer]
+            - listitem [ref=f1e400]: Gameplay Objects
+            - listitem [ref=f1e401]: Player-Owned Objects
+            - listitem [ref=f1e402]:
+              - text: Canopy / Foreground
+              - list [ref=f1e403]:
+                - listitem [ref=f1e404]:
+                  - button "landmark-3100000135" [ref=f1e405] [cursor=pointer]
+                - listitem [ref=f1e406]:
+                  - button "landmark-3100000136" [ref=f1e407] [cursor=pointer]
+                - listitem [ref=f1e408]:
+                  - button "landmark-3100000137" [ref=f1e409] [cursor=pointer]
+            - listitem [ref=f1e410]: Anchors and Zones
+    - main [ref=f1e411]:
+      - button "Split view" [ref=f1e413] [cursor=pointer]
+      - generic [ref=f1e415]:
+        - heading "Map Editor" [level=1] [ref=f1e416]
+        - generic [ref=f1e417]:
+          - generic [ref=f1e418]:
+            - button "Terrain" [ref=f1e419] [cursor=pointer]
+            - button "Objects" [ref=f1e420] [cursor=pointer]
+            - button "Biomes" [ref=f1e421] [cursor=pointer]
+            - button "Scatter" [ref=f1e422] [cursor=pointer]
+            - button "Undo" [ref=f1e423] [cursor=pointer]
+            - button "Redo" [ref=f1e424] [cursor=pointer]
+            - button "Publish" [disabled] [ref=f1e425]
+            - textbox "Spawn definition" [ref=f1e426]: object:standing_torch
+            - textbox "Spawn reason" [ref=f1e427]:
+              - /placeholder: Reason for spawn
+            - button "Preview spawn here" [ref=f1e428] [cursor=pointer]
+            - button "Commit spawn here" [disabled] [ref=f1e429]
+            - button "←" [ref=f1e430] [cursor=pointer]
+            - button "→" [ref=f1e431] [cursor=pointer]
+            - button "−" [ref=f1e432] [cursor=pointer]
+            - button "+" [ref=f1e433] [cursor=pointer]
+          - generic:
+            - button "◉ Anchors and Zones" [ref=f1e434] [cursor=pointer]
+            - button "◉ Canopy / Foreground" [ref=f1e435] [cursor=pointer]
+            - button "◉ Player-Owned Objects" [ref=f1e436] [cursor=pointer]
+            - button "◉ Gameplay Objects" [ref=f1e437] [cursor=pointer]
+            - button "◉ World Objects" [ref=f1e438] [cursor=pointer]
+            - button "◉ Ground Details" [ref=f1e439] [cursor=pointer]
+            - button "◉ Terrain Overrides" [ref=f1e440] [cursor=pointer]
+            - button "◉ Generated Base" [ref=f1e441] [cursor=pointer]
+          - generic [ref=f1e442]:
+            - generic "Map Editor tile canvas" [ref=f1e443]
+            - paragraph [ref=f1e444]: "Live Island: 832 by 832 tiles. Terrain, Objects, Biomes, and Scatter workspaces are available."
+    - generic [ref=f1e445]:
+      - heading "Inspector" [level=2] [ref=f1e446]
+      - heading "Document" [level=3] [ref=f1e447]
+      - generic [ref=f1e448]:
+        - strong [ref=f1e449]: Map
+        - generic "Current local MapDocumentV3 draft." [ref=f1e450]: Live Island
+      - generic [ref=f1e451]:
+        - strong [ref=f1e452]: Revision
+        - generic "Local document revision." [ref=f1e453]: "0"
+      - generic [ref=f1e454]:
+        - strong [ref=f1e455]: Workspace
+        - generic "Active Map Editor workspace." [ref=f1e456]: terrain
+  - generic [ref=f1e457]:
+    - heading "Validation & Output" [level=2] [ref=f1e458]
+    - generic [ref=f1e459]:
+      - button "Validation" [ref=f1e460] [cursor=pointer]
+      - button "Audit" [disabled] [ref=f1e461]
+      - button "Live Sync" [disabled] [ref=f1e462]
+      - button "Console" [ref=f1e463] [cursor=pointer]
+    - paragraph [ref=f1e464]: Anonymous sandbox — no live adapter constructed.

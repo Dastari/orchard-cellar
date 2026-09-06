@@ -1,0 +1,1822 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - strong [ref=e4]: ORCHARD STUDIO
+    - combobox "Environment" [ref=e5]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=e6]
+  - generic [ref=e7]:
+    - navigation "Studio modes" [ref=e8]:
+      - button "Build" [ref=e9] [cursor=pointer]
+      - button "Author" [ref=e10] [cursor=pointer]
+      - generic [ref=e11]:
+        - generic [ref=e12]: Local sandbox
+        - generic [ref=e13]: Anonymous
+        - generic [ref=e14]: Sandbox
+        - generic [ref=e15]: Map —
+        - generic [ref=e16]: Content —
+    - generic [ref=e17]:
+      - heading "Outliner" [level=2] [ref=e18]
+      - generic [ref=e19]:
+        - button "Local" [ref=e20] [cursor=pointer]
+        - button "Live" [ref=e21] [cursor=pointer]
+      - list [ref=e22]:
+        - listitem [ref=e23]:
+          - text: Topside
+          - list [ref=e24]:
+            - listitem [ref=e25]: Terrain
+            - listitem [ref=e26]:
+              - text: Objects
+              - list [ref=e27]:
+                - listitem [ref=e28]:
+                  - button "Marlow Camp" [ref=e29] [cursor=pointer]
+                - listitem [ref=e30]:
+                  - button "Estate" [ref=e31] [cursor=pointer]
+      - heading "AUTHOR" [level=3] [ref=e32]
+      - button "Items & Recipes" [ref=e33] [cursor=pointer]
+      - button "Character Studio" [ref=e34] [cursor=pointer]
+      - button "Audio Preview" [ref=e35] [cursor=pointer]
+      - button "UI Lab" [ref=e36] [cursor=pointer]
+    - main [ref=e37]:
+      - heading "UI Lab" [level=1] [ref=e38]
+      - generic [ref=e40]:
+        - heading "Orchard Studio UI Lab" [level=1] [ref=e41]
+        - article [ref=e42]:
+          - heading "Mode Rail" [level=2] [ref=e44]
+          - tablist [ref=e45]:
+            - tab "Local" [selected] [ref=e46] [cursor=pointer]
+            - tab "Live" [ref=e47] [cursor=pointer]
+          - paragraph [ref=e48]: Build, Author, Operate, and Observe switcher
+          - table [ref=e49]:
+            - rowgroup [ref=e50]:
+              - row [ref=e51]:
+                - columnheader "Name" [ref=e52]
+                - columnheader "Kind" [ref=e53]
+                - columnheader "State" [ref=e54]
+            - rowgroup [ref=e55]:
+              - row [ref=e56]:
+                - cell "Apple Press" [ref=e57]
+                - cell "object" [ref=e58]
+                - cell "Draft" [ref=e59]
+              - row [ref=e60]:
+                - cell "Furnace" [ref=e61]
+                - cell "object" [ref=e62]
+                - cell "Live" [ref=e63]
+              - row [ref=e64]:
+                - cell "Oil Lamp" [ref=e65]
+                - cell "item" [ref=e66]
+                - cell "Invalid" [ref=e67]
+        - article [ref=e68]:
+          - heading "World Outliner" [level=2] [ref=e70]
+          - tablist [ref=e71]:
+            - tab "Local" [selected] [ref=e72] [cursor=pointer]
+            - tab "Live" [ref=e73] [cursor=pointer]
+          - paragraph [ref=e74]: Draft spaces, layers, objects, prefabs, landmarks, NPC homes, and spawn rules
+          - table [ref=e75]:
+            - rowgroup [ref=e76]:
+              - row [ref=e77]:
+                - columnheader "Name" [ref=e78]
+                - columnheader "Kind" [ref=e79]
+                - columnheader "State" [ref=e80]
+            - rowgroup [ref=e81]:
+              - row [ref=e82]:
+                - cell "Apple Press" [ref=e83]
+                - cell "object" [ref=e84]
+                - cell "Draft" [ref=e85]
+              - row [ref=e86]:
+                - cell "Furnace" [ref=e87]
+                - cell "object" [ref=e88]
+                - cell "Live" [ref=e89]
+              - row [ref=e90]:
+                - cell "Oil Lamp" [ref=e91]
+                - cell "item" [ref=e92]
+                - cell "Invalid" [ref=e93]
+        - article [ref=e94]:
+          - generic [ref=e95]:
+            - heading "Live Outliner" [level=2] [ref=e96]
+            - text: Read
+          - tablist [ref=e97]:
+            - tab "Local" [selected] [ref=e98] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e99]
+          - paragraph [ref=e100]: Subscribed live entities and players
+          - table [ref=e101]:
+            - rowgroup [ref=e102]:
+              - row [ref=e103]:
+                - columnheader "Name" [ref=e104]
+                - columnheader "Kind" [ref=e105]
+                - columnheader "State" [ref=e106]
+            - rowgroup [ref=e107]:
+              - row [ref=e108]:
+                - cell "Apple Press" [ref=e109]
+                - cell "object" [ref=e110]
+                - cell "Draft" [ref=e111]
+              - row [ref=e112]:
+                - cell "Furnace" [ref=e113]
+                - cell "object" [ref=e114]
+                - cell "Live" [ref=e115]
+              - row [ref=e116]:
+                - cell "Oil Lamp" [ref=e117]
+                - cell "item" [ref=e118]
+                - cell "Invalid" [ref=e119]
+        - article [ref=e120]:
+          - heading "Inspector" [level=2] [ref=e122]
+          - tablist [ref=e123]:
+            - tab "Local" [selected] [ref=e124] [cursor=pointer]
+            - tab "Live" [ref=e125] [cursor=pointer]
+          - paragraph [ref=e126]: Typed properties, reset, pin, and why help
+          - table [ref=e127]:
+            - rowgroup [ref=e128]:
+              - row [ref=e129]:
+                - columnheader "Name" [ref=e130]
+                - columnheader "Kind" [ref=e131]
+                - columnheader "State" [ref=e132]
+            - rowgroup [ref=e133]:
+              - row [ref=e134]:
+                - cell "Apple Press" [ref=e135]
+                - cell "object" [ref=e136]
+                - cell "Draft" [ref=e137]
+              - row [ref=e138]:
+                - cell "Furnace" [ref=e139]
+                - cell "object" [ref=e140]
+                - cell "Live" [ref=e141]
+              - row [ref=e142]:
+                - cell "Oil Lamp" [ref=e143]
+                - cell "item" [ref=e144]
+                - cell "Invalid" [ref=e145]
+        - article [ref=e146]:
+          - heading "Content Browser" [level=2] [ref=e148]
+          - tablist [ref=e149]:
+            - tab "Local" [selected] [ref=e150] [cursor=pointer]
+            - tab "Live" [ref=e151] [cursor=pointer]
+          - paragraph [ref=e152]: Definitions and references to or from the selection
+          - table [ref=e153]:
+            - rowgroup [ref=e154]:
+              - row [ref=e155]:
+                - columnheader "Name" [ref=e156]
+                - columnheader "Kind" [ref=e157]
+                - columnheader "State" [ref=e158]
+            - rowgroup [ref=e159]:
+              - row [ref=e160]:
+                - cell "Apple Press" [ref=e161]
+                - cell "object" [ref=e162]
+                - cell "Draft" [ref=e163]
+              - row [ref=e164]:
+                - cell "Furnace" [ref=e165]
+                - cell "object" [ref=e166]
+                - cell "Live" [ref=e167]
+              - row [ref=e168]:
+                - cell "Oil Lamp" [ref=e169]
+                - cell "item" [ref=e170]
+                - cell "Invalid" [ref=e171]
+        - article [ref=e172]:
+          - heading "Asset Library" [level=2] [ref=e174]
+          - tablist [ref=e175]:
+            - tab "Local" [selected] [ref=e176] [cursor=pointer]
+            - tab "Live" [ref=e177] [cursor=pointer]
+          - paragraph [ref=e178]: Reviewed asset registry and coverage states
+          - table [ref=e179]:
+            - rowgroup [ref=e180]:
+              - row [ref=e181]:
+                - columnheader "Name" [ref=e182]
+                - columnheader "Kind" [ref=e183]
+                - columnheader "State" [ref=e184]
+            - rowgroup [ref=e185]:
+              - row [ref=e186]:
+                - cell "Apple Press" [ref=e187]
+                - cell "object" [ref=e188]
+                - cell "Draft" [ref=e189]
+              - row [ref=e190]:
+                - cell "Furnace" [ref=e191]
+                - cell "object" [ref=e192]
+                - cell "Live" [ref=e193]
+              - row [ref=e194]:
+                - cell "Oil Lamp" [ref=e195]
+                - cell "item" [ref=e196]
+                - cell "Invalid" [ref=e197]
+        - article [ref=e198]:
+          - heading "Validation" [level=2] [ref=e200]
+          - tablist [ref=e201]:
+            - tab "Local" [selected] [ref=e202] [cursor=pointer]
+            - tab "Live" [ref=e203] [cursor=pointer]
+          - paragraph [ref=e204]: Draft and publish diagnostics
+          - table [ref=e205]:
+            - rowgroup [ref=e206]:
+              - row [ref=e207]:
+                - columnheader "Name" [ref=e208]
+                - columnheader "Kind" [ref=e209]
+                - columnheader "State" [ref=e210]
+            - rowgroup [ref=e211]:
+              - row [ref=e212]:
+                - cell "Apple Press" [ref=e213]
+                - cell "object" [ref=e214]
+                - cell "Draft" [ref=e215]
+              - row [ref=e216]:
+                - cell "Furnace" [ref=e217]
+                - cell "object" [ref=e218]
+                - cell "Live" [ref=e219]
+              - row [ref=e220]:
+                - cell "Oil Lamp" [ref=e221]
+                - cell "item" [ref=e222]
+                - cell "Invalid" [ref=e223]
+        - article [ref=e224]:
+          - generic [ref=e225]:
+            - heading "Audit Tail" [level=2] [ref=e226]
+            - text: Read
+          - tablist [ref=e227]:
+            - tab "Local" [selected] [ref=e228] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e229]
+          - paragraph [ref=e230]: Recent audited authority actions
+          - table [ref=e231]:
+            - rowgroup [ref=e232]:
+              - row [ref=e233]:
+                - columnheader "Name" [ref=e234]
+                - columnheader "Kind" [ref=e235]
+                - columnheader "State" [ref=e236]
+            - rowgroup [ref=e237]:
+              - row [ref=e238]:
+                - cell "Apple Press" [ref=e239]
+                - cell "object" [ref=e240]
+                - cell "Draft" [ref=e241]
+              - row [ref=e242]:
+                - cell "Furnace" [ref=e243]
+                - cell "object" [ref=e244]
+                - cell "Live" [ref=e245]
+              - row [ref=e246]:
+                - cell "Oil Lamp" [ref=e247]
+                - cell "item" [ref=e248]
+                - cell "Invalid" [ref=e249]
+        - article [ref=e250]:
+          - generic [ref=e251]:
+            - heading "Live Sync Log" [level=2] [ref=e252]
+            - text: Read
+          - tablist [ref=e253]:
+            - tab "Local" [selected] [ref=e254] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e255]
+          - paragraph [ref=e256]: Publish queue and head reconciliation
+          - table [ref=e257]:
+            - rowgroup [ref=e258]:
+              - row [ref=e259]:
+                - columnheader "Name" [ref=e260]
+                - columnheader "Kind" [ref=e261]
+                - columnheader "State" [ref=e262]
+            - rowgroup [ref=e263]:
+              - row [ref=e264]:
+                - cell "Apple Press" [ref=e265]
+                - cell "object" [ref=e266]
+                - cell "Draft" [ref=e267]
+              - row [ref=e268]:
+                - cell "Furnace" [ref=e269]
+                - cell "object" [ref=e270]
+                - cell "Live" [ref=e271]
+              - row [ref=e272]:
+                - cell "Oil Lamp" [ref=e273]
+                - cell "item" [ref=e274]
+                - cell "Invalid" [ref=e275]
+        - article [ref=e276]:
+          - heading "Animation" [level=2] [ref=e278]
+          - tablist [ref=e279]:
+            - tab "Local" [selected] [ref=e280] [cursor=pointer]
+            - tab "Live" [ref=e281] [cursor=pointer]
+          - paragraph [ref=e282]: Frame preview and scrubber
+          - table [ref=e283]:
+            - rowgroup [ref=e284]:
+              - row [ref=e285]:
+                - columnheader "Name" [ref=e286]
+                - columnheader "Kind" [ref=e287]
+                - columnheader "State" [ref=e288]
+            - rowgroup [ref=e289]:
+              - row [ref=e290]:
+                - cell "Apple Press" [ref=e291]
+                - cell "object" [ref=e292]
+                - cell "Draft" [ref=e293]
+              - row [ref=e294]:
+                - cell "Furnace" [ref=e295]
+                - cell "object" [ref=e296]
+                - cell "Live" [ref=e297]
+              - row [ref=e298]:
+                - cell "Oil Lamp" [ref=e299]
+                - cell "item" [ref=e300]
+                - cell "Invalid" [ref=e301]
+        - article [ref=e302]:
+          - heading "Audio Mixer" [level=2] [ref=e304]
+          - tablist [ref=e305]:
+            - tab "Local" [selected] [ref=e306] [cursor=pointer]
+            - tab "Live" [ref=e307] [cursor=pointer]
+          - paragraph [ref=e308]: Preview channels and authored levels
+          - table [ref=e309]:
+            - rowgroup [ref=e310]:
+              - row [ref=e311]:
+                - columnheader "Name" [ref=e312]
+                - columnheader "Kind" [ref=e313]
+                - columnheader "State" [ref=e314]
+            - rowgroup [ref=e315]:
+              - row [ref=e316]:
+                - cell "Apple Press" [ref=e317]
+                - cell "object" [ref=e318]
+                - cell "Draft" [ref=e319]
+              - row [ref=e320]:
+                - cell "Furnace" [ref=e321]
+                - cell "object" [ref=e322]
+                - cell "Live" [ref=e323]
+              - row [ref=e324]:
+                - cell "Oil Lamp" [ref=e325]
+                - cell "item" [ref=e326]
+                - cell "Invalid" [ref=e327]
+        - article [ref=e328]:
+          - generic [ref=e329]:
+            - heading "Telemetry" [level=2] [ref=e330]
+            - text: Read
+          - tablist [ref=e331]:
+            - tab "Local" [selected] [ref=e332] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e333]
+          - paragraph [ref=e334]: Authority and client performance counters
+          - table [ref=e335]:
+            - rowgroup [ref=e336]:
+              - row [ref=e337]:
+                - columnheader "Name" [ref=e338]
+                - columnheader "Kind" [ref=e339]
+                - columnheader "State" [ref=e340]
+            - rowgroup [ref=e341]:
+              - row [ref=e342]:
+                - cell "Apple Press" [ref=e343]
+                - cell "object" [ref=e344]
+                - cell "Draft" [ref=e345]
+              - row [ref=e346]:
+                - cell "Furnace" [ref=e347]
+                - cell "object" [ref=e348]
+                - cell "Live" [ref=e349]
+              - row [ref=e350]:
+                - cell "Oil Lamp" [ref=e351]
+                - cell "item" [ref=e352]
+                - cell "Invalid" [ref=e353]
+        - article [ref=e354]:
+          - heading "Console" [level=2] [ref=e356]
+          - tablist [ref=e357]:
+            - tab "Local" [selected] [ref=e358] [cursor=pointer]
+            - tab "Live" [ref=e359] [cursor=pointer]
+          - paragraph [ref=e360]: Client error reports and structured diagnostics
+          - table [ref=e361]:
+            - rowgroup [ref=e362]:
+              - row [ref=e363]:
+                - columnheader "Name" [ref=e364]
+                - columnheader "Kind" [ref=e365]
+                - columnheader "State" [ref=e366]
+            - rowgroup [ref=e367]:
+              - row [ref=e368]:
+                - cell "Apple Press" [ref=e369]
+                - cell "object" [ref=e370]
+                - cell "Draft" [ref=e371]
+              - row [ref=e372]:
+                - cell "Furnace" [ref=e373]
+                - cell "object" [ref=e374]
+                - cell "Live" [ref=e375]
+              - row [ref=e376]:
+                - cell "Oil Lamp" [ref=e377]
+                - cell "item" [ref=e378]
+                - cell "Invalid" [ref=e379]
+        - article [ref=e380]:
+          - heading "Behaviour" [level=2] [ref=e382]
+          - tablist [ref=e383]:
+            - tab "Local" [selected] [ref=e384] [cursor=pointer]
+            - tab "Live" [ref=e385] [cursor=pointer]
+          - paragraph [ref=e386]: Lifecycle handlers for the selected definition
+          - table [ref=e387]:
+            - rowgroup [ref=e388]:
+              - row [ref=e389]:
+                - columnheader "Name" [ref=e390]
+                - columnheader "Kind" [ref=e391]
+                - columnheader "State" [ref=e392]
+            - rowgroup [ref=e393]:
+              - row [ref=e394]:
+                - cell "Apple Press" [ref=e395]
+                - cell "object" [ref=e396]
+                - cell "Draft" [ref=e397]
+              - row [ref=e398]:
+                - cell "Furnace" [ref=e399]
+                - cell "object" [ref=e400]
+                - cell "Live" [ref=e401]
+              - row [ref=e402]:
+                - cell "Oil Lamp" [ref=e403]
+                - cell "item" [ref=e404]
+                - cell "Invalid" [ref=e405]
+        - article [ref=e406]:
+          - heading "Instance Overrides" [level=2] [ref=e408]
+          - tablist [ref=e409]:
+            - tab "Local" [selected] [ref=e410] [cursor=pointer]
+            - tab "Live" [ref=e411] [cursor=pointer]
+          - paragraph [ref=e412]: Definition inheritance and instance overrides
+          - table [ref=e413]:
+            - rowgroup [ref=e414]:
+              - row [ref=e415]:
+                - columnheader "Name" [ref=e416]
+                - columnheader "Kind" [ref=e417]
+                - columnheader "State" [ref=e418]
+            - rowgroup [ref=e419]:
+              - row [ref=e420]:
+                - cell "Apple Press" [ref=e421]
+                - cell "object" [ref=e422]
+                - cell "Draft" [ref=e423]
+              - row [ref=e424]:
+                - cell "Furnace" [ref=e425]
+                - cell "object" [ref=e426]
+                - cell "Live" [ref=e427]
+              - row [ref=e428]:
+                - cell "Oil Lamp" [ref=e429]
+                - cell "item" [ref=e430]
+                - cell "Invalid" [ref=e431]
+        - article [ref=e432]:
+          - heading "History" [level=2] [ref=e434]
+          - tablist [ref=e435]:
+            - tab "Local" [selected] [ref=e436] [cursor=pointer]
+            - tab "Live" [ref=e437] [cursor=pointer]
+          - paragraph [ref=e438]: Local commands and live audit undo
+          - table [ref=e439]:
+            - rowgroup [ref=e440]:
+              - row [ref=e441]:
+                - columnheader "Name" [ref=e442]
+                - columnheader "Kind" [ref=e443]
+                - columnheader "State" [ref=e444]
+            - rowgroup [ref=e445]:
+              - row [ref=e446]:
+                - cell "Apple Press" [ref=e447]
+                - cell "object" [ref=e448]
+                - cell "Draft" [ref=e449]
+              - row [ref=e450]:
+                - cell "Furnace" [ref=e451]
+                - cell "object" [ref=e452]
+                - cell "Live" [ref=e453]
+              - row [ref=e454]:
+                - cell "Oil Lamp" [ref=e455]
+                - cell "item" [ref=e456]
+                - cell "Invalid" [ref=e457]
+        - article [ref=e458]:
+          - heading "Layouts" [level=2] [ref=e460]
+          - tablist [ref=e461]:
+            - tab "Local" [selected] [ref=e462] [cursor=pointer]
+            - tab "Live" [ref=e463] [cursor=pointer]
+          - paragraph [ref=e464]: Named dock arrangements per mode
+          - table [ref=e465]:
+            - rowgroup [ref=e466]:
+              - row [ref=e467]:
+                - columnheader "Name" [ref=e468]
+                - columnheader "Kind" [ref=e469]
+                - columnheader "State" [ref=e470]
+            - rowgroup [ref=e471]:
+              - row [ref=e472]:
+                - cell "Apple Press" [ref=e473]
+                - cell "object" [ref=e474]
+                - cell "Draft" [ref=e475]
+              - row [ref=e476]:
+                - cell "Furnace" [ref=e477]
+                - cell "object" [ref=e478]
+                - cell "Live" [ref=e479]
+              - row [ref=e480]:
+                - cell "Oil Lamp" [ref=e481]
+                - cell "item" [ref=e482]
+                - cell "Invalid" [ref=e483]
+        - article [ref=e484]:
+          - heading "Studio Settings" [level=2] [ref=e486]
+          - tablist [ref=e487]:
+            - tab "Local" [selected] [ref=e488] [cursor=pointer]
+            - tab "Live" [ref=e489] [cursor=pointer]
+          - paragraph [ref=e490]: Theme, shortcuts, scale, and environment
+          - table [ref=e491]:
+            - rowgroup [ref=e492]:
+              - row [ref=e493]:
+                - columnheader "Name" [ref=e494]
+                - columnheader "Kind" [ref=e495]
+                - columnheader "State" [ref=e496]
+            - rowgroup [ref=e497]:
+              - row [ref=e498]:
+                - cell "Apple Press" [ref=e499]
+                - cell "object" [ref=e500]
+                - cell "Draft" [ref=e501]
+              - row [ref=e502]:
+                - cell "Furnace" [ref=e503]
+                - cell "object" [ref=e504]
+                - cell "Live" [ref=e505]
+              - row [ref=e506]:
+                - cell "Oil Lamp" [ref=e507]
+                - cell "item" [ref=e508]
+                - cell "Invalid" [ref=e509]
+        - article [ref=e510]:
+          - generic [ref=e511]:
+            - heading "World Settings" [level=2] [ref=e512]
+            - text: Read
+          - tablist [ref=e513]:
+            - tab "Local" [selected] [ref=e514] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e515]
+          - paragraph [ref=e516]: Balance groups and space flags
+          - table [ref=e517]:
+            - rowgroup [ref=e518]:
+              - row [ref=e519]:
+                - columnheader "Name" [ref=e520]
+                - columnheader "Kind" [ref=e521]
+                - columnheader "State" [ref=e522]
+            - rowgroup [ref=e523]:
+              - row [ref=e524]:
+                - cell "Apple Press" [ref=e525]
+                - cell "object" [ref=e526]
+                - cell "Draft" [ref=e527]
+              - row [ref=e528]:
+                - cell "Furnace" [ref=e529]
+                - cell "object" [ref=e530]
+                - cell "Live" [ref=e531]
+              - row [ref=e532]:
+                - cell "Oil Lamp" [ref=e533]
+                - cell "item" [ref=e534]
+                - cell "Invalid" [ref=e535]
+        - article [ref=e536]:
+          - heading "Tool Registry" [level=2] [ref=e538]
+          - tablist [ref=e539]:
+            - tab "Local" [selected] [ref=e540] [cursor=pointer]
+            - tab "Live" [ref=e541] [cursor=pointer]
+          - paragraph [ref=e542]: Discoverable built-in and registered tools
+          - table [ref=e543]:
+            - rowgroup [ref=e544]:
+              - row [ref=e545]:
+                - columnheader "Name" [ref=e546]
+                - columnheader "Kind" [ref=e547]
+                - columnheader "State" [ref=e548]
+            - rowgroup [ref=e549]:
+              - row [ref=e550]:
+                - cell "Apple Press" [ref=e551]
+                - cell "object" [ref=e552]
+                - cell "Draft" [ref=e553]
+              - row [ref=e554]:
+                - cell "Furnace" [ref=e555]
+                - cell "object" [ref=e556]
+                - cell "Live" [ref=e557]
+              - row [ref=e558]:
+                - cell "Oil Lamp" [ref=e559]
+                - cell "item" [ref=e560]
+                - cell "Invalid" [ref=e561]
+        - article [ref=e562]:
+          - heading "Search Everywhere" [level=2] [ref=e564]
+          - tablist [ref=e565]:
+            - tab "Local" [selected] [ref=e566] [cursor=pointer]
+            - tab "Live" [ref=e567] [cursor=pointer]
+          - paragraph [ref=e568]: Commands, content, players, entities, spaces, and docs
+          - table [ref=e569]:
+            - rowgroup [ref=e570]:
+              - row [ref=e571]:
+                - columnheader "Name" [ref=e572]
+                - columnheader "Kind" [ref=e573]
+                - columnheader "State" [ref=e574]
+            - rowgroup [ref=e575]:
+              - row [ref=e576]:
+                - cell "Apple Press" [ref=e577]
+                - cell "object" [ref=e578]
+                - cell "Draft" [ref=e579]
+              - row [ref=e580]:
+                - cell "Furnace" [ref=e581]
+                - cell "object" [ref=e582]
+                - cell "Live" [ref=e583]
+              - row [ref=e584]:
+                - cell "Oil Lamp" [ref=e585]
+                - cell "item" [ref=e586]
+                - cell "Invalid" [ref=e587]
+        - article [ref=e588]:
+          - heading "Preview" [level=2] [ref=e590]
+          - tablist [ref=e591]:
+            - tab "Local" [selected] [ref=e592] [cursor=pointer]
+            - tab "Live" [ref=e593] [cursor=pointer]
+          - paragraph [ref=e594]: Client rendering with the local draft overlay
+          - table [ref=e595]:
+            - rowgroup [ref=e596]:
+              - row [ref=e597]:
+                - columnheader "Name" [ref=e598]
+                - columnheader "Kind" [ref=e599]
+                - columnheader "State" [ref=e600]
+            - rowgroup [ref=e601]:
+              - row [ref=e602]:
+                - cell "Apple Press" [ref=e603]
+                - cell "object" [ref=e604]
+                - cell "Draft" [ref=e605]
+              - row [ref=e606]:
+                - cell "Furnace" [ref=e607]
+                - cell "object" [ref=e608]
+                - cell "Live" [ref=e609]
+              - row [ref=e610]:
+                - cell "Oil Lamp" [ref=e611]
+                - cell "item" [ref=e612]
+                - cell "Invalid" [ref=e613]
+        - article [ref=e614]:
+          - generic [ref=e615]:
+            - heading "Observe" [level=2] [ref=e616]
+            - text: Read
+          - tablist [ref=e617]:
+            - tab "Local" [selected] [ref=e618] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e619]
+          - paragraph [ref=e620]: Presence and telemetry workspace
+          - table [ref=e621]:
+            - rowgroup [ref=e622]:
+              - row [ref=e623]:
+                - columnheader "Name" [ref=e624]
+                - columnheader "Kind" [ref=e625]
+                - columnheader "State" [ref=e626]
+            - rowgroup [ref=e627]:
+              - row [ref=e628]:
+                - cell "Apple Press" [ref=e629]
+                - cell "object" [ref=e630]
+                - cell "Draft" [ref=e631]
+              - row [ref=e632]:
+                - cell "Furnace" [ref=e633]
+                - cell "object" [ref=e634]
+                - cell "Live" [ref=e635]
+              - row [ref=e636]:
+                - cell "Oil Lamp" [ref=e637]
+                - cell "item" [ref=e638]
+                - cell "Invalid" [ref=e639]
+        - article [ref=e640]:
+          - heading "Mode Rail" [level=2] [ref=e642]
+          - tablist [ref=e643]:
+            - tab "Local" [selected] [ref=e644] [cursor=pointer]
+            - tab "Live" [ref=e645] [cursor=pointer]
+          - paragraph [ref=e646]: Build, Author, Operate, and Observe switcher
+          - table [ref=e647]:
+            - rowgroup [ref=e648]:
+              - row [ref=e649]:
+                - columnheader "Name" [ref=e650]
+                - columnheader "Kind" [ref=e651]
+                - columnheader "State" [ref=e652]
+            - rowgroup [ref=e653]:
+              - row [ref=e654]:
+                - cell "Apple Press" [ref=e655]
+                - cell "object" [ref=e656]
+                - cell "Draft" [ref=e657]
+              - row [ref=e658]:
+                - cell "Furnace" [ref=e659]
+                - cell "object" [ref=e660]
+                - cell "Live" [ref=e661]
+              - row [ref=e662]:
+                - cell "Oil Lamp" [ref=e663]
+                - cell "item" [ref=e664]
+                - cell "Invalid" [ref=e665]
+        - article [ref=e666]:
+          - heading "World Outliner" [level=2] [ref=e668]
+          - tablist [ref=e669]:
+            - tab "Local" [selected] [ref=e670] [cursor=pointer]
+            - tab "Live" [ref=e671] [cursor=pointer]
+          - paragraph [ref=e672]: Draft spaces, layers, objects, prefabs, landmarks, NPC homes, and spawn rules
+          - table [ref=e673]:
+            - rowgroup [ref=e674]:
+              - row [ref=e675]:
+                - columnheader "Name" [ref=e676]
+                - columnheader "Kind" [ref=e677]
+                - columnheader "State" [ref=e678]
+            - rowgroup [ref=e679]:
+              - row [ref=e680]:
+                - cell "Apple Press" [ref=e681]
+                - cell "object" [ref=e682]
+                - cell "Draft" [ref=e683]
+              - row [ref=e684]:
+                - cell "Furnace" [ref=e685]
+                - cell "object" [ref=e686]
+                - cell "Live" [ref=e687]
+              - row [ref=e688]:
+                - cell "Oil Lamp" [ref=e689]
+                - cell "item" [ref=e690]
+                - cell "Invalid" [ref=e691]
+        - article [ref=e692]:
+          - generic [ref=e693]:
+            - heading "Live Outliner" [level=2] [ref=e694]
+            - text: Read
+          - tablist [ref=e695]:
+            - tab "Local" [selected] [ref=e696] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e697]
+          - paragraph [ref=e698]: Subscribed live entities and players
+          - table [ref=e699]:
+            - rowgroup [ref=e700]:
+              - row [ref=e701]:
+                - columnheader "Name" [ref=e702]
+                - columnheader "Kind" [ref=e703]
+                - columnheader "State" [ref=e704]
+            - rowgroup [ref=e705]:
+              - row [ref=e706]:
+                - cell "Apple Press" [ref=e707]
+                - cell "object" [ref=e708]
+                - cell "Draft" [ref=e709]
+              - row [ref=e710]:
+                - cell "Furnace" [ref=e711]
+                - cell "object" [ref=e712]
+                - cell "Live" [ref=e713]
+              - row [ref=e714]:
+                - cell "Oil Lamp" [ref=e715]
+                - cell "item" [ref=e716]
+                - cell "Invalid" [ref=e717]
+        - article [ref=e718]:
+          - heading "Inspector" [level=2] [ref=e720]
+          - tablist [ref=e721]:
+            - tab "Local" [selected] [ref=e722] [cursor=pointer]
+            - tab "Live" [ref=e723] [cursor=pointer]
+          - paragraph [ref=e724]: Typed properties, reset, pin, and why help
+          - table [ref=e725]:
+            - rowgroup [ref=e726]:
+              - row [ref=e727]:
+                - columnheader "Name" [ref=e728]
+                - columnheader "Kind" [ref=e729]
+                - columnheader "State" [ref=e730]
+            - rowgroup [ref=e731]:
+              - row [ref=e732]:
+                - cell "Apple Press" [ref=e733]
+                - cell "object" [ref=e734]
+                - cell "Draft" [ref=e735]
+              - row [ref=e736]:
+                - cell "Furnace" [ref=e737]
+                - cell "object" [ref=e738]
+                - cell "Live" [ref=e739]
+              - row [ref=e740]:
+                - cell "Oil Lamp" [ref=e741]
+                - cell "item" [ref=e742]
+                - cell "Invalid" [ref=e743]
+        - article [ref=e744]:
+          - heading "Content Browser" [level=2] [ref=e746]
+          - tablist [ref=e747]:
+            - tab "Local" [selected] [ref=e748] [cursor=pointer]
+            - tab "Live" [ref=e749] [cursor=pointer]
+          - paragraph [ref=e750]: Definitions and references to or from the selection
+          - table [ref=e751]:
+            - rowgroup [ref=e752]:
+              - row [ref=e753]:
+                - columnheader "Name" [ref=e754]
+                - columnheader "Kind" [ref=e755]
+                - columnheader "State" [ref=e756]
+            - rowgroup [ref=e757]:
+              - row [ref=e758]:
+                - cell "Apple Press" [ref=e759]
+                - cell "object" [ref=e760]
+                - cell "Draft" [ref=e761]
+              - row [ref=e762]:
+                - cell "Furnace" [ref=e763]
+                - cell "object" [ref=e764]
+                - cell "Live" [ref=e765]
+              - row [ref=e766]:
+                - cell "Oil Lamp" [ref=e767]
+                - cell "item" [ref=e768]
+                - cell "Invalid" [ref=e769]
+        - article [ref=e770]:
+          - heading "Asset Library" [level=2] [ref=e772]
+          - tablist [ref=e773]:
+            - tab "Local" [selected] [ref=e774] [cursor=pointer]
+            - tab "Live" [ref=e775] [cursor=pointer]
+          - paragraph [ref=e776]: Reviewed asset registry and coverage states
+          - table [ref=e777]:
+            - rowgroup [ref=e778]:
+              - row [ref=e779]:
+                - columnheader "Name" [ref=e780]
+                - columnheader "Kind" [ref=e781]
+                - columnheader "State" [ref=e782]
+            - rowgroup [ref=e783]:
+              - row [ref=e784]:
+                - cell "Apple Press" [ref=e785]
+                - cell "object" [ref=e786]
+                - cell "Draft" [ref=e787]
+              - row [ref=e788]:
+                - cell "Furnace" [ref=e789]
+                - cell "object" [ref=e790]
+                - cell "Live" [ref=e791]
+              - row [ref=e792]:
+                - cell "Oil Lamp" [ref=e793]
+                - cell "item" [ref=e794]
+                - cell "Invalid" [ref=e795]
+        - article [ref=e796]:
+          - heading "Validation" [level=2] [ref=e798]
+          - tablist [ref=e799]:
+            - tab "Local" [selected] [ref=e800] [cursor=pointer]
+            - tab "Live" [ref=e801] [cursor=pointer]
+          - paragraph [ref=e802]: Draft and publish diagnostics
+          - table [ref=e803]:
+            - rowgroup [ref=e804]:
+              - row [ref=e805]:
+                - columnheader "Name" [ref=e806]
+                - columnheader "Kind" [ref=e807]
+                - columnheader "State" [ref=e808]
+            - rowgroup [ref=e809]:
+              - row [ref=e810]:
+                - cell "Apple Press" [ref=e811]
+                - cell "object" [ref=e812]
+                - cell "Draft" [ref=e813]
+              - row [ref=e814]:
+                - cell "Furnace" [ref=e815]
+                - cell "object" [ref=e816]
+                - cell "Live" [ref=e817]
+              - row [ref=e818]:
+                - cell "Oil Lamp" [ref=e819]
+                - cell "item" [ref=e820]
+                - cell "Invalid" [ref=e821]
+        - article [ref=e822]:
+          - generic [ref=e823]:
+            - heading "Audit Tail" [level=2] [ref=e824]
+            - text: Read
+          - tablist [ref=e825]:
+            - tab "Local" [selected] [ref=e826] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e827]
+          - paragraph [ref=e828]: Recent audited authority actions
+          - table [ref=e829]:
+            - rowgroup [ref=e830]:
+              - row [ref=e831]:
+                - columnheader "Name" [ref=e832]
+                - columnheader "Kind" [ref=e833]
+                - columnheader "State" [ref=e834]
+            - rowgroup [ref=e835]:
+              - row [ref=e836]:
+                - cell "Apple Press" [ref=e837]
+                - cell "object" [ref=e838]
+                - cell "Draft" [ref=e839]
+              - row [ref=e840]:
+                - cell "Furnace" [ref=e841]
+                - cell "object" [ref=e842]
+                - cell "Live" [ref=e843]
+              - row [ref=e844]:
+                - cell "Oil Lamp" [ref=e845]
+                - cell "item" [ref=e846]
+                - cell "Invalid" [ref=e847]
+        - article [ref=e848]:
+          - generic [ref=e849]:
+            - heading "Live Sync Log" [level=2] [ref=e850]
+            - text: Read
+          - tablist [ref=e851]:
+            - tab "Local" [selected] [ref=e852] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e853]
+          - paragraph [ref=e854]: Publish queue and head reconciliation
+          - table [ref=e855]:
+            - rowgroup [ref=e856]:
+              - row [ref=e857]:
+                - columnheader "Name" [ref=e858]
+                - columnheader "Kind" [ref=e859]
+                - columnheader "State" [ref=e860]
+            - rowgroup [ref=e861]:
+              - row [ref=e862]:
+                - cell "Apple Press" [ref=e863]
+                - cell "object" [ref=e864]
+                - cell "Draft" [ref=e865]
+              - row [ref=e866]:
+                - cell "Furnace" [ref=e867]
+                - cell "object" [ref=e868]
+                - cell "Live" [ref=e869]
+              - row [ref=e870]:
+                - cell "Oil Lamp" [ref=e871]
+                - cell "item" [ref=e872]
+                - cell "Invalid" [ref=e873]
+        - article [ref=e874]:
+          - heading "Animation" [level=2] [ref=e876]
+          - tablist [ref=e877]:
+            - tab "Local" [selected] [ref=e878] [cursor=pointer]
+            - tab "Live" [ref=e879] [cursor=pointer]
+          - paragraph [ref=e880]: Frame preview and scrubber
+          - table [ref=e881]:
+            - rowgroup [ref=e882]:
+              - row [ref=e883]:
+                - columnheader "Name" [ref=e884]
+                - columnheader "Kind" [ref=e885]
+                - columnheader "State" [ref=e886]
+            - rowgroup [ref=e887]:
+              - row [ref=e888]:
+                - cell "Apple Press" [ref=e889]
+                - cell "object" [ref=e890]
+                - cell "Draft" [ref=e891]
+              - row [ref=e892]:
+                - cell "Furnace" [ref=e893]
+                - cell "object" [ref=e894]
+                - cell "Live" [ref=e895]
+              - row [ref=e896]:
+                - cell "Oil Lamp" [ref=e897]
+                - cell "item" [ref=e898]
+                - cell "Invalid" [ref=e899]
+        - article [ref=e900]:
+          - heading "Audio Mixer" [level=2] [ref=e902]
+          - tablist [ref=e903]:
+            - tab "Local" [selected] [ref=e904] [cursor=pointer]
+            - tab "Live" [ref=e905] [cursor=pointer]
+          - paragraph [ref=e906]: Preview channels and authored levels
+          - table [ref=e907]:
+            - rowgroup [ref=e908]:
+              - row [ref=e909]:
+                - columnheader "Name" [ref=e910]
+                - columnheader "Kind" [ref=e911]
+                - columnheader "State" [ref=e912]
+            - rowgroup [ref=e913]:
+              - row [ref=e914]:
+                - cell "Apple Press" [ref=e915]
+                - cell "object" [ref=e916]
+                - cell "Draft" [ref=e917]
+              - row [ref=e918]:
+                - cell "Furnace" [ref=e919]
+                - cell "object" [ref=e920]
+                - cell "Live" [ref=e921]
+              - row [ref=e922]:
+                - cell "Oil Lamp" [ref=e923]
+                - cell "item" [ref=e924]
+                - cell "Invalid" [ref=e925]
+        - article [ref=e926]:
+          - generic [ref=e927]:
+            - heading "Telemetry" [level=2] [ref=e928]
+            - text: Read
+          - tablist [ref=e929]:
+            - tab "Local" [selected] [ref=e930] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e931]
+          - paragraph [ref=e932]: Authority and client performance counters
+          - table [ref=e933]:
+            - rowgroup [ref=e934]:
+              - row [ref=e935]:
+                - columnheader "Name" [ref=e936]
+                - columnheader "Kind" [ref=e937]
+                - columnheader "State" [ref=e938]
+            - rowgroup [ref=e939]:
+              - row [ref=e940]:
+                - cell "Apple Press" [ref=e941]
+                - cell "object" [ref=e942]
+                - cell "Draft" [ref=e943]
+              - row [ref=e944]:
+                - cell "Furnace" [ref=e945]
+                - cell "object" [ref=e946]
+                - cell "Live" [ref=e947]
+              - row [ref=e948]:
+                - cell "Oil Lamp" [ref=e949]
+                - cell "item" [ref=e950]
+                - cell "Invalid" [ref=e951]
+        - article [ref=e952]:
+          - heading "Console" [level=2] [ref=e954]
+          - tablist [ref=e955]:
+            - tab "Local" [selected] [ref=e956] [cursor=pointer]
+            - tab "Live" [ref=e957] [cursor=pointer]
+          - paragraph [ref=e958]: Client error reports and structured diagnostics
+          - table [ref=e959]:
+            - rowgroup [ref=e960]:
+              - row [ref=e961]:
+                - columnheader "Name" [ref=e962]
+                - columnheader "Kind" [ref=e963]
+                - columnheader "State" [ref=e964]
+            - rowgroup [ref=e965]:
+              - row [ref=e966]:
+                - cell "Apple Press" [ref=e967]
+                - cell "object" [ref=e968]
+                - cell "Draft" [ref=e969]
+              - row [ref=e970]:
+                - cell "Furnace" [ref=e971]
+                - cell "object" [ref=e972]
+                - cell "Live" [ref=e973]
+              - row [ref=e974]:
+                - cell "Oil Lamp" [ref=e975]
+                - cell "item" [ref=e976]
+                - cell "Invalid" [ref=e977]
+        - article [ref=e978]:
+          - heading "Behaviour" [level=2] [ref=e980]
+          - tablist [ref=e981]:
+            - tab "Local" [selected] [ref=e982] [cursor=pointer]
+            - tab "Live" [ref=e983] [cursor=pointer]
+          - paragraph [ref=e984]: Lifecycle handlers for the selected definition
+          - table [ref=e985]:
+            - rowgroup [ref=e986]:
+              - row [ref=e987]:
+                - columnheader "Name" [ref=e988]
+                - columnheader "Kind" [ref=e989]
+                - columnheader "State" [ref=e990]
+            - rowgroup [ref=e991]:
+              - row [ref=e992]:
+                - cell "Apple Press" [ref=e993]
+                - cell "object" [ref=e994]
+                - cell "Draft" [ref=e995]
+              - row [ref=e996]:
+                - cell "Furnace" [ref=e997]
+                - cell "object" [ref=e998]
+                - cell "Live" [ref=e999]
+              - row [ref=e1000]:
+                - cell "Oil Lamp" [ref=e1001]
+                - cell "item" [ref=e1002]
+                - cell "Invalid" [ref=e1003]
+        - article [ref=e1004]:
+          - heading "Instance Overrides" [level=2] [ref=e1006]
+          - tablist [ref=e1007]:
+            - tab "Local" [selected] [ref=e1008] [cursor=pointer]
+            - tab "Live" [ref=e1009] [cursor=pointer]
+          - paragraph [ref=e1010]: Definition inheritance and instance overrides
+          - table [ref=e1011]:
+            - rowgroup [ref=e1012]:
+              - row [ref=e1013]:
+                - columnheader "Name" [ref=e1014]
+                - columnheader "Kind" [ref=e1015]
+                - columnheader "State" [ref=e1016]
+            - rowgroup [ref=e1017]:
+              - row [ref=e1018]:
+                - cell "Apple Press" [ref=e1019]
+                - cell "object" [ref=e1020]
+                - cell "Draft" [ref=e1021]
+              - row [ref=e1022]:
+                - cell "Furnace" [ref=e1023]
+                - cell "object" [ref=e1024]
+                - cell "Live" [ref=e1025]
+              - row [ref=e1026]:
+                - cell "Oil Lamp" [ref=e1027]
+                - cell "item" [ref=e1028]
+                - cell "Invalid" [ref=e1029]
+        - article [ref=e1030]:
+          - heading "History" [level=2] [ref=e1032]
+          - tablist [ref=e1033]:
+            - tab "Local" [selected] [ref=e1034] [cursor=pointer]
+            - tab "Live" [ref=e1035] [cursor=pointer]
+          - paragraph [ref=e1036]: Local commands and live audit undo
+          - table [ref=e1037]:
+            - rowgroup [ref=e1038]:
+              - row [ref=e1039]:
+                - columnheader "Name" [ref=e1040]
+                - columnheader "Kind" [ref=e1041]
+                - columnheader "State" [ref=e1042]
+            - rowgroup [ref=e1043]:
+              - row [ref=e1044]:
+                - cell "Apple Press" [ref=e1045]
+                - cell "object" [ref=e1046]
+                - cell "Draft" [ref=e1047]
+              - row [ref=e1048]:
+                - cell "Furnace" [ref=e1049]
+                - cell "object" [ref=e1050]
+                - cell "Live" [ref=e1051]
+              - row [ref=e1052]:
+                - cell "Oil Lamp" [ref=e1053]
+                - cell "item" [ref=e1054]
+                - cell "Invalid" [ref=e1055]
+        - article [ref=e1056]:
+          - heading "Layouts" [level=2] [ref=e1058]
+          - tablist [ref=e1059]:
+            - tab "Local" [selected] [ref=e1060] [cursor=pointer]
+            - tab "Live" [ref=e1061] [cursor=pointer]
+          - paragraph [ref=e1062]: Named dock arrangements per mode
+          - table [ref=e1063]:
+            - rowgroup [ref=e1064]:
+              - row [ref=e1065]:
+                - columnheader "Name" [ref=e1066]
+                - columnheader "Kind" [ref=e1067]
+                - columnheader "State" [ref=e1068]
+            - rowgroup [ref=e1069]:
+              - row [ref=e1070]:
+                - cell "Apple Press" [ref=e1071]
+                - cell "object" [ref=e1072]
+                - cell "Draft" [ref=e1073]
+              - row [ref=e1074]:
+                - cell "Furnace" [ref=e1075]
+                - cell "object" [ref=e1076]
+                - cell "Live" [ref=e1077]
+              - row [ref=e1078]:
+                - cell "Oil Lamp" [ref=e1079]
+                - cell "item" [ref=e1080]
+                - cell "Invalid" [ref=e1081]
+        - article [ref=e1082]:
+          - heading "Studio Settings" [level=2] [ref=e1084]
+          - tablist [ref=e1085]:
+            - tab "Local" [selected] [ref=e1086] [cursor=pointer]
+            - tab "Live" [ref=e1087] [cursor=pointer]
+          - paragraph [ref=e1088]: Theme, shortcuts, scale, and environment
+          - table [ref=e1089]:
+            - rowgroup [ref=e1090]:
+              - row [ref=e1091]:
+                - columnheader "Name" [ref=e1092]
+                - columnheader "Kind" [ref=e1093]
+                - columnheader "State" [ref=e1094]
+            - rowgroup [ref=e1095]:
+              - row [ref=e1096]:
+                - cell "Apple Press" [ref=e1097]
+                - cell "object" [ref=e1098]
+                - cell "Draft" [ref=e1099]
+              - row [ref=e1100]:
+                - cell "Furnace" [ref=e1101]
+                - cell "object" [ref=e1102]
+                - cell "Live" [ref=e1103]
+              - row [ref=e1104]:
+                - cell "Oil Lamp" [ref=e1105]
+                - cell "item" [ref=e1106]
+                - cell "Invalid" [ref=e1107]
+        - article [ref=e1108]:
+          - generic [ref=e1109]:
+            - heading "World Settings" [level=2] [ref=e1110]
+            - text: Read
+          - tablist [ref=e1111]:
+            - tab "Local" [selected] [ref=e1112] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e1113]
+          - paragraph [ref=e1114]: Balance groups and space flags
+          - table [ref=e1115]:
+            - rowgroup [ref=e1116]:
+              - row [ref=e1117]:
+                - columnheader "Name" [ref=e1118]
+                - columnheader "Kind" [ref=e1119]
+                - columnheader "State" [ref=e1120]
+            - rowgroup [ref=e1121]:
+              - row [ref=e1122]:
+                - cell "Apple Press" [ref=e1123]
+                - cell "object" [ref=e1124]
+                - cell "Draft" [ref=e1125]
+              - row [ref=e1126]:
+                - cell "Furnace" [ref=e1127]
+                - cell "object" [ref=e1128]
+                - cell "Live" [ref=e1129]
+              - row [ref=e1130]:
+                - cell "Oil Lamp" [ref=e1131]
+                - cell "item" [ref=e1132]
+                - cell "Invalid" [ref=e1133]
+        - article [ref=e1134]:
+          - heading "Tool Registry" [level=2] [ref=e1136]
+          - tablist [ref=e1137]:
+            - tab "Local" [selected] [ref=e1138] [cursor=pointer]
+            - tab "Live" [ref=e1139] [cursor=pointer]
+          - paragraph [ref=e1140]: Discoverable built-in and registered tools
+          - table [ref=e1141]:
+            - rowgroup [ref=e1142]:
+              - row [ref=e1143]:
+                - columnheader "Name" [ref=e1144]
+                - columnheader "Kind" [ref=e1145]
+                - columnheader "State" [ref=e1146]
+            - rowgroup [ref=e1147]:
+              - row [ref=e1148]:
+                - cell "Apple Press" [ref=e1149]
+                - cell "object" [ref=e1150]
+                - cell "Draft" [ref=e1151]
+              - row [ref=e1152]:
+                - cell "Furnace" [ref=e1153]
+                - cell "object" [ref=e1154]
+                - cell "Live" [ref=e1155]
+              - row [ref=e1156]:
+                - cell "Oil Lamp" [ref=e1157]
+                - cell "item" [ref=e1158]
+                - cell "Invalid" [ref=e1159]
+        - article [ref=e1160]:
+          - heading "Search Everywhere" [level=2] [ref=e1162]
+          - tablist [ref=e1163]:
+            - tab "Local" [selected] [ref=e1164] [cursor=pointer]
+            - tab "Live" [ref=e1165] [cursor=pointer]
+          - paragraph [ref=e1166]: Commands, content, players, entities, spaces, and docs
+          - table [ref=e1167]:
+            - rowgroup [ref=e1168]:
+              - row [ref=e1169]:
+                - columnheader "Name" [ref=e1170]
+                - columnheader "Kind" [ref=e1171]
+                - columnheader "State" [ref=e1172]
+            - rowgroup [ref=e1173]:
+              - row [ref=e1174]:
+                - cell "Apple Press" [ref=e1175]
+                - cell "object" [ref=e1176]
+                - cell "Draft" [ref=e1177]
+              - row [ref=e1178]:
+                - cell "Furnace" [ref=e1179]
+                - cell "object" [ref=e1180]
+                - cell "Live" [ref=e1181]
+              - row [ref=e1182]:
+                - cell "Oil Lamp" [ref=e1183]
+                - cell "item" [ref=e1184]
+                - cell "Invalid" [ref=e1185]
+        - article [ref=e1186]:
+          - heading "Preview" [level=2] [ref=e1188]
+          - tablist [ref=e1189]:
+            - tab "Local" [selected] [ref=e1190] [cursor=pointer]
+            - tab "Live" [ref=e1191] [cursor=pointer]
+          - paragraph [ref=e1192]: Client rendering with the local draft overlay
+          - table [ref=e1193]:
+            - rowgroup [ref=e1194]:
+              - row [ref=e1195]:
+                - columnheader "Name" [ref=e1196]
+                - columnheader "Kind" [ref=e1197]
+                - columnheader "State" [ref=e1198]
+            - rowgroup [ref=e1199]:
+              - row [ref=e1200]:
+                - cell "Apple Press" [ref=e1201]
+                - cell "object" [ref=e1202]
+                - cell "Draft" [ref=e1203]
+              - row [ref=e1204]:
+                - cell "Furnace" [ref=e1205]
+                - cell "object" [ref=e1206]
+                - cell "Live" [ref=e1207]
+              - row [ref=e1208]:
+                - cell "Oil Lamp" [ref=e1209]
+                - cell "item" [ref=e1210]
+                - cell "Invalid" [ref=e1211]
+        - article [ref=e1212]:
+          - generic [ref=e1213]:
+            - heading "Observe" [level=2] [ref=e1214]
+            - text: Read
+          - tablist [ref=e1215]:
+            - tab "Local" [selected] [ref=e1216] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e1217]
+          - paragraph [ref=e1218]: Presence and telemetry workspace
+          - table [ref=e1219]:
+            - rowgroup [ref=e1220]:
+              - row [ref=e1221]:
+                - columnheader "Name" [ref=e1222]
+                - columnheader "Kind" [ref=e1223]
+                - columnheader "State" [ref=e1224]
+            - rowgroup [ref=e1225]:
+              - row [ref=e1226]:
+                - cell "Apple Press" [ref=e1227]
+                - cell "object" [ref=e1228]
+                - cell "Draft" [ref=e1229]
+              - row [ref=e1230]:
+                - cell "Furnace" [ref=e1231]
+                - cell "object" [ref=e1232]
+                - cell "Live" [ref=e1233]
+              - row [ref=e1234]:
+                - cell "Oil Lamp" [ref=e1235]
+                - cell "item" [ref=e1236]
+                - cell "Invalid" [ref=e1237]
+        - article [ref=e1238]:
+          - heading "Mode Rail" [level=2] [ref=e1240]
+          - tablist [ref=e1241]:
+            - tab "Local" [selected] [ref=e1242] [cursor=pointer]
+            - tab "Live" [ref=e1243] [cursor=pointer]
+          - paragraph [ref=e1244]: Build, Author, Operate, and Observe switcher
+          - table [ref=e1245]:
+            - rowgroup [ref=e1246]:
+              - row [ref=e1247]:
+                - columnheader "Name" [ref=e1248]
+                - columnheader "Kind" [ref=e1249]
+                - columnheader "State" [ref=e1250]
+            - rowgroup [ref=e1251]:
+              - row [ref=e1252]:
+                - cell "Apple Press" [ref=e1253]
+                - cell "object" [ref=e1254]
+                - cell "Draft" [ref=e1255]
+              - row [ref=e1256]:
+                - cell "Furnace" [ref=e1257]
+                - cell "object" [ref=e1258]
+                - cell "Live" [ref=e1259]
+              - row [ref=e1260]:
+                - cell "Oil Lamp" [ref=e1261]
+                - cell "item" [ref=e1262]
+                - cell "Invalid" [ref=e1263]
+        - article [ref=e1264]:
+          - heading "World Outliner" [level=2] [ref=e1266]
+          - tablist [ref=e1267]:
+            - tab "Local" [selected] [ref=e1268] [cursor=pointer]
+            - tab "Live" [ref=e1269] [cursor=pointer]
+          - paragraph [ref=e1270]: Draft spaces, layers, objects, prefabs, landmarks, NPC homes, and spawn rules
+          - table [ref=e1271]:
+            - rowgroup [ref=e1272]:
+              - row [ref=e1273]:
+                - columnheader "Name" [ref=e1274]
+                - columnheader "Kind" [ref=e1275]
+                - columnheader "State" [ref=e1276]
+            - rowgroup [ref=e1277]:
+              - row [ref=e1278]:
+                - cell "Apple Press" [ref=e1279]
+                - cell "object" [ref=e1280]
+                - cell "Draft" [ref=e1281]
+              - row [ref=e1282]:
+                - cell "Furnace" [ref=e1283]
+                - cell "object" [ref=e1284]
+                - cell "Live" [ref=e1285]
+              - row [ref=e1286]:
+                - cell "Oil Lamp" [ref=e1287]
+                - cell "item" [ref=e1288]
+                - cell "Invalid" [ref=e1289]
+        - article [ref=e1290]:
+          - generic [ref=e1291]:
+            - heading "Live Outliner" [level=2] [ref=e1292]
+            - text: Read
+          - tablist [ref=e1293]:
+            - tab "Local" [selected] [ref=e1294] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e1295]
+          - paragraph [ref=e1296]: Subscribed live entities and players
+          - table [ref=e1297]:
+            - rowgroup [ref=e1298]:
+              - row [ref=e1299]:
+                - columnheader "Name" [ref=e1300]
+                - columnheader "Kind" [ref=e1301]
+                - columnheader "State" [ref=e1302]
+            - rowgroup [ref=e1303]:
+              - row [ref=e1304]:
+                - cell "Apple Press" [ref=e1305]
+                - cell "object" [ref=e1306]
+                - cell "Draft" [ref=e1307]
+              - row [ref=e1308]:
+                - cell "Furnace" [ref=e1309]
+                - cell "object" [ref=e1310]
+                - cell "Live" [ref=e1311]
+              - row [ref=e1312]:
+                - cell "Oil Lamp" [ref=e1313]
+                - cell "item" [ref=e1314]
+                - cell "Invalid" [ref=e1315]
+        - article [ref=e1316]:
+          - heading "Inspector" [level=2] [ref=e1318]
+          - tablist [ref=e1319]:
+            - tab "Local" [selected] [ref=e1320] [cursor=pointer]
+            - tab "Live" [ref=e1321] [cursor=pointer]
+          - paragraph [ref=e1322]: Typed properties, reset, pin, and why help
+          - table [ref=e1323]:
+            - rowgroup [ref=e1324]:
+              - row [ref=e1325]:
+                - columnheader "Name" [ref=e1326]
+                - columnheader "Kind" [ref=e1327]
+                - columnheader "State" [ref=e1328]
+            - rowgroup [ref=e1329]:
+              - row [ref=e1330]:
+                - cell "Apple Press" [ref=e1331]
+                - cell "object" [ref=e1332]
+                - cell "Draft" [ref=e1333]
+              - row [ref=e1334]:
+                - cell "Furnace" [ref=e1335]
+                - cell "object" [ref=e1336]
+                - cell "Live" [ref=e1337]
+              - row [ref=e1338]:
+                - cell "Oil Lamp" [ref=e1339]
+                - cell "item" [ref=e1340]
+                - cell "Invalid" [ref=e1341]
+        - article [ref=e1342]:
+          - heading "Content Browser" [level=2] [ref=e1344]
+          - tablist [ref=e1345]:
+            - tab "Local" [selected] [ref=e1346] [cursor=pointer]
+            - tab "Live" [ref=e1347] [cursor=pointer]
+          - paragraph [ref=e1348]: Definitions and references to or from the selection
+          - table [ref=e1349]:
+            - rowgroup [ref=e1350]:
+              - row [ref=e1351]:
+                - columnheader "Name" [ref=e1352]
+                - columnheader "Kind" [ref=e1353]
+                - columnheader "State" [ref=e1354]
+            - rowgroup [ref=e1355]:
+              - row [ref=e1356]:
+                - cell "Apple Press" [ref=e1357]
+                - cell "object" [ref=e1358]
+                - cell "Draft" [ref=e1359]
+              - row [ref=e1360]:
+                - cell "Furnace" [ref=e1361]
+                - cell "object" [ref=e1362]
+                - cell "Live" [ref=e1363]
+              - row [ref=e1364]:
+                - cell "Oil Lamp" [ref=e1365]
+                - cell "item" [ref=e1366]
+                - cell "Invalid" [ref=e1367]
+        - article [ref=e1368]:
+          - heading "Asset Library" [level=2] [ref=e1370]
+          - tablist [ref=e1371]:
+            - tab "Local" [selected] [ref=e1372] [cursor=pointer]
+            - tab "Live" [ref=e1373] [cursor=pointer]
+          - paragraph [ref=e1374]: Reviewed asset registry and coverage states
+          - table [ref=e1375]:
+            - rowgroup [ref=e1376]:
+              - row [ref=e1377]:
+                - columnheader "Name" [ref=e1378]
+                - columnheader "Kind" [ref=e1379]
+                - columnheader "State" [ref=e1380]
+            - rowgroup [ref=e1381]:
+              - row [ref=e1382]:
+                - cell "Apple Press" [ref=e1383]
+                - cell "object" [ref=e1384]
+                - cell "Draft" [ref=e1385]
+              - row [ref=e1386]:
+                - cell "Furnace" [ref=e1387]
+                - cell "object" [ref=e1388]
+                - cell "Live" [ref=e1389]
+              - row [ref=e1390]:
+                - cell "Oil Lamp" [ref=e1391]
+                - cell "item" [ref=e1392]
+                - cell "Invalid" [ref=e1393]
+        - article [ref=e1394]:
+          - heading "Validation" [level=2] [ref=e1396]
+          - tablist [ref=e1397]:
+            - tab "Local" [selected] [ref=e1398] [cursor=pointer]
+            - tab "Live" [ref=e1399] [cursor=pointer]
+          - paragraph [ref=e1400]: Draft and publish diagnostics
+          - table [ref=e1401]:
+            - rowgroup [ref=e1402]:
+              - row [ref=e1403]:
+                - columnheader "Name" [ref=e1404]
+                - columnheader "Kind" [ref=e1405]
+                - columnheader "State" [ref=e1406]
+            - rowgroup [ref=e1407]:
+              - row [ref=e1408]:
+                - cell "Apple Press" [ref=e1409]
+                - cell "object" [ref=e1410]
+                - cell "Draft" [ref=e1411]
+              - row [ref=e1412]:
+                - cell "Furnace" [ref=e1413]
+                - cell "object" [ref=e1414]
+                - cell "Live" [ref=e1415]
+              - row [ref=e1416]:
+                - cell "Oil Lamp" [ref=e1417]
+                - cell "item" [ref=e1418]
+                - cell "Invalid" [ref=e1419]
+        - article [ref=e1420]:
+          - generic [ref=e1421]:
+            - heading "Audit Tail" [level=2] [ref=e1422]
+            - text: Read
+          - tablist [ref=e1423]:
+            - tab "Local" [selected] [ref=e1424] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e1425]
+          - paragraph [ref=e1426]: Recent audited authority actions
+          - table [ref=e1427]:
+            - rowgroup [ref=e1428]:
+              - row [ref=e1429]:
+                - columnheader "Name" [ref=e1430]
+                - columnheader "Kind" [ref=e1431]
+                - columnheader "State" [ref=e1432]
+            - rowgroup [ref=e1433]:
+              - row [ref=e1434]:
+                - cell "Apple Press" [ref=e1435]
+                - cell "object" [ref=e1436]
+                - cell "Draft" [ref=e1437]
+              - row [ref=e1438]:
+                - cell "Furnace" [ref=e1439]
+                - cell "object" [ref=e1440]
+                - cell "Live" [ref=e1441]
+              - row [ref=e1442]:
+                - cell "Oil Lamp" [ref=e1443]
+                - cell "item" [ref=e1444]
+                - cell "Invalid" [ref=e1445]
+        - article [ref=e1446]:
+          - generic [ref=e1447]:
+            - heading "Live Sync Log" [level=2] [ref=e1448]
+            - text: Read
+          - tablist [ref=e1449]:
+            - tab "Local" [selected] [ref=e1450] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e1451]
+          - paragraph [ref=e1452]: Publish queue and head reconciliation
+          - table [ref=e1453]:
+            - rowgroup [ref=e1454]:
+              - row [ref=e1455]:
+                - columnheader "Name" [ref=e1456]
+                - columnheader "Kind" [ref=e1457]
+                - columnheader "State" [ref=e1458]
+            - rowgroup [ref=e1459]:
+              - row [ref=e1460]:
+                - cell "Apple Press" [ref=e1461]
+                - cell "object" [ref=e1462]
+                - cell "Draft" [ref=e1463]
+              - row [ref=e1464]:
+                - cell "Furnace" [ref=e1465]
+                - cell "object" [ref=e1466]
+                - cell "Live" [ref=e1467]
+              - row [ref=e1468]:
+                - cell "Oil Lamp" [ref=e1469]
+                - cell "item" [ref=e1470]
+                - cell "Invalid" [ref=e1471]
+        - article [ref=e1472]:
+          - heading "Animation" [level=2] [ref=e1474]
+          - tablist [ref=e1475]:
+            - tab "Local" [selected] [ref=e1476] [cursor=pointer]
+            - tab "Live" [ref=e1477] [cursor=pointer]
+          - paragraph [ref=e1478]: Frame preview and scrubber
+          - table [ref=e1479]:
+            - rowgroup [ref=e1480]:
+              - row [ref=e1481]:
+                - columnheader "Name" [ref=e1482]
+                - columnheader "Kind" [ref=e1483]
+                - columnheader "State" [ref=e1484]
+            - rowgroup [ref=e1485]:
+              - row [ref=e1486]:
+                - cell "Apple Press" [ref=e1487]
+                - cell "object" [ref=e1488]
+                - cell "Draft" [ref=e1489]
+              - row [ref=e1490]:
+                - cell "Furnace" [ref=e1491]
+                - cell "object" [ref=e1492]
+                - cell "Live" [ref=e1493]
+              - row [ref=e1494]:
+                - cell "Oil Lamp" [ref=e1495]
+                - cell "item" [ref=e1496]
+                - cell "Invalid" [ref=e1497]
+        - article [ref=e1498]:
+          - heading "Audio Mixer" [level=2] [ref=e1500]
+          - tablist [ref=e1501]:
+            - tab "Local" [selected] [ref=e1502] [cursor=pointer]
+            - tab "Live" [ref=e1503] [cursor=pointer]
+          - paragraph [ref=e1504]: Preview channels and authored levels
+          - table [ref=e1505]:
+            - rowgroup [ref=e1506]:
+              - row [ref=e1507]:
+                - columnheader "Name" [ref=e1508]
+                - columnheader "Kind" [ref=e1509]
+                - columnheader "State" [ref=e1510]
+            - rowgroup [ref=e1511]:
+              - row [ref=e1512]:
+                - cell "Apple Press" [ref=e1513]
+                - cell "object" [ref=e1514]
+                - cell "Draft" [ref=e1515]
+              - row [ref=e1516]:
+                - cell "Furnace" [ref=e1517]
+                - cell "object" [ref=e1518]
+                - cell "Live" [ref=e1519]
+              - row [ref=e1520]:
+                - cell "Oil Lamp" [ref=e1521]
+                - cell "item" [ref=e1522]
+                - cell "Invalid" [ref=e1523]
+        - article [ref=e1524]:
+          - generic [ref=e1525]:
+            - heading "Telemetry" [level=2] [ref=e1526]
+            - text: Read
+          - tablist [ref=e1527]:
+            - tab "Local" [selected] [ref=e1528] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e1529]
+          - paragraph [ref=e1530]: Authority and client performance counters
+          - table [ref=e1531]:
+            - rowgroup [ref=e1532]:
+              - row [ref=e1533]:
+                - columnheader "Name" [ref=e1534]
+                - columnheader "Kind" [ref=e1535]
+                - columnheader "State" [ref=e1536]
+            - rowgroup [ref=e1537]:
+              - row [ref=e1538]:
+                - cell "Apple Press" [ref=e1539]
+                - cell "object" [ref=e1540]
+                - cell "Draft" [ref=e1541]
+              - row [ref=e1542]:
+                - cell "Furnace" [ref=e1543]
+                - cell "object" [ref=e1544]
+                - cell "Live" [ref=e1545]
+              - row [ref=e1546]:
+                - cell "Oil Lamp" [ref=e1547]
+                - cell "item" [ref=e1548]
+                - cell "Invalid" [ref=e1549]
+        - article [ref=e1550]:
+          - heading "Console" [level=2] [ref=e1552]
+          - tablist [ref=e1553]:
+            - tab "Local" [selected] [ref=e1554] [cursor=pointer]
+            - tab "Live" [ref=e1555] [cursor=pointer]
+          - paragraph [ref=e1556]: Client error reports and structured diagnostics
+          - table [ref=e1557]:
+            - rowgroup [ref=e1558]:
+              - row [ref=e1559]:
+                - columnheader "Name" [ref=e1560]
+                - columnheader "Kind" [ref=e1561]
+                - columnheader "State" [ref=e1562]
+            - rowgroup [ref=e1563]:
+              - row [ref=e1564]:
+                - cell "Apple Press" [ref=e1565]
+                - cell "object" [ref=e1566]
+                - cell "Draft" [ref=e1567]
+              - row [ref=e1568]:
+                - cell "Furnace" [ref=e1569]
+                - cell "object" [ref=e1570]
+                - cell "Live" [ref=e1571]
+              - row [ref=e1572]:
+                - cell "Oil Lamp" [ref=e1573]
+                - cell "item" [ref=e1574]
+                - cell "Invalid" [ref=e1575]
+        - article [ref=e1576]:
+          - heading "Behaviour" [level=2] [ref=e1578]
+          - tablist [ref=e1579]:
+            - tab "Local" [selected] [ref=e1580] [cursor=pointer]
+            - tab "Live" [ref=e1581] [cursor=pointer]
+          - paragraph [ref=e1582]: Lifecycle handlers for the selected definition
+          - table [ref=e1583]:
+            - rowgroup [ref=e1584]:
+              - row [ref=e1585]:
+                - columnheader "Name" [ref=e1586]
+                - columnheader "Kind" [ref=e1587]
+                - columnheader "State" [ref=e1588]
+            - rowgroup [ref=e1589]:
+              - row [ref=e1590]:
+                - cell "Apple Press" [ref=e1591]
+                - cell "object" [ref=e1592]
+                - cell "Draft" [ref=e1593]
+              - row [ref=e1594]:
+                - cell "Furnace" [ref=e1595]
+                - cell "object" [ref=e1596]
+                - cell "Live" [ref=e1597]
+              - row [ref=e1598]:
+                - cell "Oil Lamp" [ref=e1599]
+                - cell "item" [ref=e1600]
+                - cell "Invalid" [ref=e1601]
+        - article [ref=e1602]:
+          - heading "Instance Overrides" [level=2] [ref=e1604]
+          - tablist [ref=e1605]:
+            - tab "Local" [selected] [ref=e1606] [cursor=pointer]
+            - tab "Live" [ref=e1607] [cursor=pointer]
+          - paragraph [ref=e1608]: Definition inheritance and instance overrides
+          - table [ref=e1609]:
+            - rowgroup [ref=e1610]:
+              - row [ref=e1611]:
+                - columnheader "Name" [ref=e1612]
+                - columnheader "Kind" [ref=e1613]
+                - columnheader "State" [ref=e1614]
+            - rowgroup [ref=e1615]:
+              - row [ref=e1616]:
+                - cell "Apple Press" [ref=e1617]
+                - cell "object" [ref=e1618]
+                - cell "Draft" [ref=e1619]
+              - row [ref=e1620]:
+                - cell "Furnace" [ref=e1621]
+                - cell "object" [ref=e1622]
+                - cell "Live" [ref=e1623]
+              - row [ref=e1624]:
+                - cell "Oil Lamp" [ref=e1625]
+                - cell "item" [ref=e1626]
+                - cell "Invalid" [ref=e1627]
+        - article [ref=e1628]:
+          - heading "History" [level=2] [ref=e1630]
+          - tablist [ref=e1631]:
+            - tab "Local" [selected] [ref=e1632] [cursor=pointer]
+            - tab "Live" [ref=e1633] [cursor=pointer]
+          - paragraph [ref=e1634]: Local commands and live audit undo
+          - table [ref=e1635]:
+            - rowgroup [ref=e1636]:
+              - row [ref=e1637]:
+                - columnheader "Name" [ref=e1638]
+                - columnheader "Kind" [ref=e1639]
+                - columnheader "State" [ref=e1640]
+            - rowgroup [ref=e1641]:
+              - row [ref=e1642]:
+                - cell "Apple Press" [ref=e1643]
+                - cell "object" [ref=e1644]
+                - cell "Draft" [ref=e1645]
+              - row [ref=e1646]:
+                - cell "Furnace" [ref=e1647]
+                - cell "object" [ref=e1648]
+                - cell "Live" [ref=e1649]
+              - row [ref=e1650]:
+                - cell "Oil Lamp" [ref=e1651]
+                - cell "item" [ref=e1652]
+                - cell "Invalid" [ref=e1653]
+        - article [ref=e1654]:
+          - heading "Layouts" [level=2] [ref=e1656]
+          - tablist [ref=e1657]:
+            - tab "Local" [selected] [ref=e1658] [cursor=pointer]
+            - tab "Live" [ref=e1659] [cursor=pointer]
+          - paragraph [ref=e1660]: Named dock arrangements per mode
+          - table [ref=e1661]:
+            - rowgroup [ref=e1662]:
+              - row [ref=e1663]:
+                - columnheader "Name" [ref=e1664]
+                - columnheader "Kind" [ref=e1665]
+                - columnheader "State" [ref=e1666]
+            - rowgroup [ref=e1667]:
+              - row [ref=e1668]:
+                - cell "Apple Press" [ref=e1669]
+                - cell "object" [ref=e1670]
+                - cell "Draft" [ref=e1671]
+              - row [ref=e1672]:
+                - cell "Furnace" [ref=e1673]
+                - cell "object" [ref=e1674]
+                - cell "Live" [ref=e1675]
+              - row [ref=e1676]:
+                - cell "Oil Lamp" [ref=e1677]
+                - cell "item" [ref=e1678]
+                - cell "Invalid" [ref=e1679]
+        - article [ref=e1680]:
+          - heading "Studio Settings" [level=2] [ref=e1682]
+          - tablist [ref=e1683]:
+            - tab "Local" [selected] [ref=e1684] [cursor=pointer]
+            - tab "Live" [ref=e1685] [cursor=pointer]
+          - paragraph [ref=e1686]: Theme, shortcuts, scale, and environment
+          - table [ref=e1687]:
+            - rowgroup [ref=e1688]:
+              - row [ref=e1689]:
+                - columnheader "Name" [ref=e1690]
+                - columnheader "Kind" [ref=e1691]
+                - columnheader "State" [ref=e1692]
+            - rowgroup [ref=e1693]:
+              - row [ref=e1694]:
+                - cell "Apple Press" [ref=e1695]
+                - cell "object" [ref=e1696]
+                - cell "Draft" [ref=e1697]
+              - row [ref=e1698]:
+                - cell "Furnace" [ref=e1699]
+                - cell "object" [ref=e1700]
+                - cell "Live" [ref=e1701]
+              - row [ref=e1702]:
+                - cell "Oil Lamp" [ref=e1703]
+                - cell "item" [ref=e1704]
+                - cell "Invalid" [ref=e1705]
+        - article [ref=e1706]:
+          - generic [ref=e1707]:
+            - heading "World Settings" [level=2] [ref=e1708]
+            - text: Read
+          - tablist [ref=e1709]:
+            - tab "Local" [selected] [ref=e1710] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e1711]
+          - paragraph [ref=e1712]: Balance groups and space flags
+          - table [ref=e1713]:
+            - rowgroup [ref=e1714]:
+              - row [ref=e1715]:
+                - columnheader "Name" [ref=e1716]
+                - columnheader "Kind" [ref=e1717]
+                - columnheader "State" [ref=e1718]
+            - rowgroup [ref=e1719]:
+              - row [ref=e1720]:
+                - cell "Apple Press" [ref=e1721]
+                - cell "object" [ref=e1722]
+                - cell "Draft" [ref=e1723]
+              - row [ref=e1724]:
+                - cell "Furnace" [ref=e1725]
+                - cell "object" [ref=e1726]
+                - cell "Live" [ref=e1727]
+              - row [ref=e1728]:
+                - cell "Oil Lamp" [ref=e1729]
+                - cell "item" [ref=e1730]
+                - cell "Invalid" [ref=e1731]
+        - article [ref=e1732]:
+          - heading "Tool Registry" [level=2] [ref=e1734]
+          - tablist [ref=e1735]:
+            - tab "Local" [selected] [ref=e1736] [cursor=pointer]
+            - tab "Live" [ref=e1737] [cursor=pointer]
+          - paragraph [ref=e1738]: Discoverable built-in and registered tools
+          - table [ref=e1739]:
+            - rowgroup [ref=e1740]:
+              - row [ref=e1741]:
+                - columnheader "Name" [ref=e1742]
+                - columnheader "Kind" [ref=e1743]
+                - columnheader "State" [ref=e1744]
+            - rowgroup [ref=e1745]:
+              - row [ref=e1746]:
+                - cell "Apple Press" [ref=e1747]
+                - cell "object" [ref=e1748]
+                - cell "Draft" [ref=e1749]
+              - row [ref=e1750]:
+                - cell "Furnace" [ref=e1751]
+                - cell "object" [ref=e1752]
+                - cell "Live" [ref=e1753]
+              - row [ref=e1754]:
+                - cell "Oil Lamp" [ref=e1755]
+                - cell "item" [ref=e1756]
+                - cell "Invalid" [ref=e1757]
+        - article [ref=e1758]:
+          - heading "Search Everywhere" [level=2] [ref=e1760]
+          - tablist [ref=e1761]:
+            - tab "Local" [selected] [ref=e1762] [cursor=pointer]
+            - tab "Live" [ref=e1763] [cursor=pointer]
+          - paragraph [ref=e1764]: Commands, content, players, entities, spaces, and docs
+          - table [ref=e1765]:
+            - rowgroup [ref=e1766]:
+              - row [ref=e1767]:
+                - columnheader "Name" [ref=e1768]
+                - columnheader "Kind" [ref=e1769]
+                - columnheader "State" [ref=e1770]
+            - rowgroup [ref=e1771]:
+              - row [ref=e1772]:
+                - cell "Apple Press" [ref=e1773]
+                - cell "object" [ref=e1774]
+                - cell "Draft" [ref=e1775]
+              - row [ref=e1776]:
+                - cell "Furnace" [ref=e1777]
+                - cell "object" [ref=e1778]
+                - cell "Live" [ref=e1779]
+              - row [ref=e1780]:
+                - cell "Oil Lamp" [ref=e1781]
+                - cell "item" [ref=e1782]
+                - cell "Invalid" [ref=e1783]
+        - article [ref=e1784]:
+          - heading "Preview" [level=2] [ref=e1786]
+          - tablist [ref=e1787]:
+            - tab "Local" [selected] [ref=e1788] [cursor=pointer]
+            - tab "Live" [ref=e1789] [cursor=pointer]
+          - paragraph [ref=e1790]: Client rendering with the local draft overlay
+          - table [ref=e1791]:
+            - rowgroup [ref=e1792]:
+              - row [ref=e1793]:
+                - columnheader "Name" [ref=e1794]
+                - columnheader "Kind" [ref=e1795]
+                - columnheader "State" [ref=e1796]
+            - rowgroup [ref=e1797]:
+              - row [ref=e1798]:
+                - cell "Apple Press" [ref=e1799]
+                - cell "object" [ref=e1800]
+                - cell "Draft" [ref=e1801]
+              - row [ref=e1802]:
+                - cell "Furnace" [ref=e1803]
+                - cell "object" [ref=e1804]
+                - cell "Live" [ref=e1805]
+              - row [ref=e1806]:
+                - cell "Oil Lamp" [ref=e1807]
+                - cell "item" [ref=e1808]
+                - cell "Invalid" [ref=e1809]
+        - article [ref=e1810]:
+          - generic [ref=e1811]:
+            - heading "Observe" [level=2] [ref=e1812]
+            - text: Read
+          - tablist [ref=e1813]:
+            - tab "Local" [selected] [ref=e1814] [cursor=pointer]
+            - tab "Live" [disabled] [ref=e1815]
+          - paragraph [ref=e1816]: Presence and telemetry workspace
+          - table [ref=e1817]:
+            - rowgroup [ref=e1818]:
+              - row [ref=e1819]:
+                - columnheader "Name" [ref=e1820]
+                - columnheader "Kind" [ref=e1821]
+                - columnheader "State" [ref=e1822]
+            - rowgroup [ref=e1823]:
+              - row [ref=e1824]:
+                - cell "Apple Press" [ref=e1825]
+                - cell "object" [ref=e1826]
+                - cell "Draft" [ref=e1827]
+              - row [ref=e1828]:
+                - cell "Furnace" [ref=e1829]
+                - cell "object" [ref=e1830]
+                - cell "Live" [ref=e1831]
+              - row [ref=e1832]:
+                - cell "Oil Lamp" [ref=e1833]
+                - cell "item" [ref=e1834]
+                - cell "Invalid" [ref=e1835]
+    - generic [ref=e1836]:
+      - heading "Inspector" [level=2] [ref=e1837]
+      - heading "Ui-Lab" [level=3] [ref=e1838]
+      - generic [ref=e1839]:
+        - strong [ref=e1840]: Control families
+        - generic "Shared @orchard/ui primitives rendered by the Studio shell." [ref=e1841]: "69"
+      - generic [ref=e1842]:
+        - strong [ref=e1843]: Source package
+        - generic "The lab consumes the same primitives as the game client." [ref=e1844]: "@orchard/ui"
+  - generic [ref=e1845]:
+    - heading "Validation & Output" [level=2] [ref=e1846]
+    - generic [ref=e1847]:
+      - button "Validation" [ref=e1848] [cursor=pointer]
+      - button "Audit" [disabled] [ref=e1849]
+      - button "Live Sync" [disabled] [ref=e1850]
+      - button "Console" [ref=e1851] [cursor=pointer]
+    - paragraph [ref=e1852]: Anonymous sandbox — no live adapter constructed.

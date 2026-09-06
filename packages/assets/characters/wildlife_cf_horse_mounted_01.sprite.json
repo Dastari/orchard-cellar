@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_horse_mounted_01",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -849,7 +850,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Player_Horse_Brown.png",
-  "sourcePath": "references/Cute_Fantasy/Player/Player_Mounts/Horse/Player_Horse_Brown.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Player/Player_Mounts/Horse/Player_Horse_Brown.png",
   "sourceRegions": {
     "mount": [
       [

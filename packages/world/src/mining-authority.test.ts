@@ -27,14 +27,18 @@ describe('authoritative repeatable mining', () => {
   });
 
   it('resolves payouts through shared simulation rules and grants Explorer XP', () => {
-    const reducer = sourceBetween('export const harvestResource =', 'function authorityBowChargeMs(');
+    const reducer = sourceBetween('function applyHarvestResourceLifecycle(', 'function authorityBowChargeMs(');
     expect(reducer).toContain('miningWorkPerHit(');
-    expect(reducer).toContain('resolveMiningYield({');
+    expect(reducer).toContain('resolveMiningLoot(contentRegistry(ctx).loots, {');
+    expect(reducer).toContain('applyLootDropsBehaviour(ctx, resolved.drops, {');
     expect(reducer).toContain("'explorer'");
     expect(reducer).toContain('MINING_DROP_RESERVATION_TICKS');
     expect(reducer).toContain("throw new SenderError('mining_claimed_by_other_party')");
     expect(reducer).toContain('world_resource_mining_claim.resourceId.find(resource.id)');
-    expect(reducer).toContain('miningRequiredPickaxeTier(');
+    expect(reducer).toContain('runtimeToolCanMineResource(registry, slot.itemKind, miningKind)');
+    expect(reducer).not.toContain('miningRequiredPickaxeTier(');
+    expect(reducer.indexOf('runtimeToolCanMineResource('))
+      .toBeLessThan(reducer.indexOf('const storedClaim ='));
   });
 
   it('moves surface population slots but replenishes cave veins and rocks in place', () => {

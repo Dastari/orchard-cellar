@@ -1,0 +1,67 @@
+{
+  "name": "icon_skill_prospector",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....001........",
+        "....02221.......",
+        "...1233120......",
+        "..123313120.....",
+        "..0231313123....",
+        "..0233131123....",
+        "...10131101.....",
+        "....1011034.....",
+        ".....1001564....",
+        "......13..567...",
+        "...........567..",
+        "............56..",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#c0cbdc",
+    "1": "#8b9bb4",
+    "2": "#262b44",
+    "3": "#5a6988",
+    "4": "#b86f50",
+    "5": "#3e2731",
+    "6": "#733e39",
+    "7": "#e4a672"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+  "sourceRegion": [
+    96,
+    144,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.prospector",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

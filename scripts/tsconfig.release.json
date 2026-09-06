@@ -1,0 +1,26 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "exactOptionalPropertyTypes": false,
+    "declaration": false,
+    "noEmit": true
+  },
+  "include": [
+    "world-rejoin-credentials.ts",
+    "world-release-routine.ts",
+    "chest-migration-runner.ts",
+    "world-rejoin-smoke.ts",
+    "world-rejoin-snapshot.ts",
+    "stage-a-acceptance.ts",
+    "stage-a-acceptance-evidence.ts",
+    "placeable-interaction-acceptance.ts",
+    "placeable-interaction-acceptance-policy.ts",
+    "content-head-release.ts",
+    "legacy-cooking-release-gate.ts",
+    "../packages/tools/src/world-state-parity.ts"
+  ]
+}

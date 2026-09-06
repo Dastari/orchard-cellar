@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_camp_cooking_fire",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     32
@@ -250,7 +251,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Campfire_Pot_Anim.png",
-  "sourcePath": "references/Cute_Fantasy_MilitaryCamp/Campfire_Pot_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/military-camp/Campfire_Pot_Anim.png",
   "sourceRegions": {
     "burn": [
       [
@@ -309,5 +310,10 @@
     ],
     "blocksMovement": true,
     "builderAvailable": false
-  }
+  },
+  "emissiveColors": [
+    "#ed7614",
+    "#ffa214",
+    "#ffc825"
+  ]
 }

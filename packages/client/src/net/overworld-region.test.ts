@@ -5,6 +5,7 @@ import {
   MAX_VIEW_RADIUS,
   outsideRegionCenterDeadband,
   regionSubscriptionQueryCount,
+  rogueRunRequiresRegionRefresh,
   subscriptionChunkBounds,
   viewRadiusForViewport,
 } from './overworld-connection.js';
@@ -42,15 +43,21 @@ describe('overworld regional subscriptions', () => {
     expect(bounds.maxX).toBeGreaterThanOrEqual(8);
   });
 
-  it('34§5 uses one bounded rectangular query per regional table', () => {
-    expect(regionSubscriptionQueryCount({ minX: 2, minY: 3, maxX: 2, maxY: 3 })).toBe(18);
-    expect(regionSubscriptionQueryCount({ minX: 0, minY: 0, maxX: 2, maxY: 1 })).toBe(18);
+  it('34§5 uses one indexed query per regional table', () => {
+    expect(regionSubscriptionQueryCount({ minX: 2, minY: 3, maxX: 2, maxY: 3 })).toBe(17);
+    expect(regionSubscriptionQueryCount({ minX: 0, minY: 0, maxX: 2, maxY: 1 })).toBe(17);
+    expect(regionSubscriptionQueryCount(
+      { minX: 0, minY: 0, maxX: 2, maxY: 1 },
+      30_001,
+      'cellar',
+    )).toBe(17);
   });
 
   it('26§13 bounds an instance space and budgets every space-aware table', () => {
     const bounds = subscriptionChunkBounds(1, 1, { x: 9, y: 9 }, 32);
     expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 1, maxY: 1 });
-    expect(regionSubscriptionQueryCount(bounds, 65_534)).toBe(17);
+    expect(regionSubscriptionQueryCount(bounds, 65_534)).toBe(16);
+    expect(regionSubscriptionQueryCount(bounds, 50_000, 'roguelike')).toBe(5);
   });
 
   it('34§4 does not churn a boundary crossing and return inside the deadband', () => {
@@ -95,13 +102,59 @@ describe('overworld regional subscriptions', () => {
     expect(source).toContain('connection.db.ownCurrentHomestead.spaceId.find(row.spaceId)');
     expect(source).toContain('connection.db.homestead.spaceId.find(row.spaceId)');
     expect(region).not.toContain('row.residenceSpaceId.eq(spaceId)');
-    expect(region).toContain('portals, campfires, ...homesteadQueries');
+    expect(region).toContain('rogueInstance');
+    expect(region).toContain('? [positions, playerJumps, projectiles, npcs, rogueEnemyProfiles, ...discoveryQueries]');
+    expect(region).toContain('rogueInstance ? [] : [portals, campfires, ...homesteadQueries]');
     expect(region).toContain('core world streaming remains active');
-    expect(region.indexOf('.subscribe([portals, campfires, ...homesteadQueries])'))
-      .toBeLessThan(region.indexOf('positions, playerJumps, resources, soil, crops'));
+    expect(region).toContain('private subscribeCellarExcavations');
+    expect(region).toContain('this.subscribeCellarExcavations(connection, spaceId');
+    expect(region).not.toContain('surfaces, cellarExcavations');
+    expect(region.indexOf('.subscribe(auxiliaryQueries)'))
+      .toBeLessThan(region.indexOf('.subscribe(coreQueries)'));
     expect(region).not.toContain('hydrateRegion');
     expect(region.match(/row\.spaceId\.eq\(spaceId\)/g)).toHaveLength(16);
     expect(region.indexOf('previous?.isActive()')).toBeGreaterThan(region.indexOf('.onApplied('));
+  });
+
+  it('subscribes to the complete cellar excavation set used by authority collision', () => {
+    const source = readFileSync(new URL('./overworld-connection.ts', import.meta.url), 'utf8');
+    const start = source.indexOf('const query = tables.cellarExcavation');
+    const end = source.indexOf('let next:', start);
+    const query = source.slice(start, end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(query).toContain('row.spaceId.eq(spaceId)');
+    expect(query).not.toContain('row.chunkX');
+    expect(query).not.toContain('row.chunkY');
+  });
+
+  it('rehydrates cellar collision rows before retiring the previous per-space subscription', () => {
+    const source = readFileSync(new URL('./overworld-connection.ts', import.meta.url), 'utf8');
+    const subscription = source.slice(
+      source.indexOf('private subscribeCellarExcavations'),
+      source.indexOf('private bindTableEvents'),
+    );
+    const hydrate = source.slice(
+      source.indexOf('private hydrateCellarExcavations'),
+      source.indexOf('private hydrateSelf'),
+    );
+    expect(subscription).toContain('this.hydrateCellarExcavations(connection, spaceId)');
+    expect(subscription.indexOf('this.hydrateCellarExcavations(connection, spaceId)'))
+      .toBeLessThan(subscription.indexOf('previous?.isActive()'));
+    expect(hydrate).toContain('this.cellarExcavations.clear()');
+    expect(hydrate).toContain('connection.db.cellarExcavation.iter()');
+    expect(hydrate).toContain('row.spaceId === spaceId');
+    expect(hydrate).toContain('this.cellarExcavationRevisionValue += 1');
+  });
+
+  it('refreshes once for a newly resolved Delve space but not run-state updates', () => {
+    expect(rogueRunRequiresRegionRefresh(null, { spaceId: 50_000 }, 50_000)).toBe(true);
+    expect(rogueRunRequiresRegionRefresh(
+      { spaceId: 50_000 },
+      { spaceId: 50_000 },
+      50_000,
+    )).toBe(false);
+    expect(rogueRunRequiresRegionRefresh(null, { spaceId: 50_000 }, 1)).toBe(false);
+    expect(rogueRunRequiresRegionRefresh({ spaceId: 50_000 }, null, 50_000)).toBe(false);
   });
 
   it('isolates and verifies hot singleton rows before other subscriptions', () => {
@@ -132,7 +185,9 @@ describe('overworld regional subscriptions', () => {
     const stage1Baseline = 8 + 15 + 11 * 11 * 8;
     const bounds = subscriptionChunkBounds(20, 20, viewRadiusForViewport(1920, 1080, 1));
     const stage2Settled = 2 + 5 + 28 + regionSubscriptionQueryCount(bounds);
-    expect(stage2Settled).toBe(53);
+    // Cellar excavation moved to a dedicated per-space subscription, removing
+    // that table from ordinary viewport churn.
+    expect(stage2Settled).toBe(52);
     expect(stage2Settled).toBeLessThanOrEqual(stage1Baseline);
   });
 });

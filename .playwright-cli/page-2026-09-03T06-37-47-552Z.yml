@@ -1,0 +1,71 @@
+- main [ref=e2]:
+  - generic [ref=e66]:
+    - strong [ref=e67]: ORCHARD STUDIO
+    - combobox "Environment" [ref=e68]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=e69]
+  - generic [ref=e70]:
+    - navigation "Studio modes" [ref=e71]:
+      - button "Build" [ref=e72] [cursor=pointer]
+      - button "Author" [ref=e73] [cursor=pointer]
+      - generic [ref=e74]:
+        - generic [ref=e75]: Local sandbox
+        - generic [ref=e76]: Anonymous
+        - generic [ref=e77]: Sandbox
+        - generic [ref=e78]: Map —
+        - generic [ref=e79]: Content —
+    - generic [ref=e80]:
+      - heading "Outliner" [level=2] [ref=e81]
+      - generic [ref=e82]:
+        - button "Local" [ref=e83] [cursor=pointer]
+        - button "Live" [ref=e84] [cursor=pointer]
+      - list [ref=e85]:
+        - listitem [ref=e86]:
+          - text: Topside
+          - list [ref=e87]:
+            - listitem [ref=e88]: Terrain
+            - listitem [ref=e89]:
+              - text: Objects
+              - list [ref=e90]:
+                - listitem [ref=e91]:
+                  - button "Marlow Camp" [ref=e92] [cursor=pointer]
+                - listitem [ref=e93]:
+                  - button "Estate" [ref=e94] [cursor=pointer]
+      - heading "AUTHOR" [level=3] [ref=e95]
+      - button "Items & Recipes" [ref=e96] [cursor=pointer]
+      - button "Character Studio" [ref=e97] [cursor=pointer]
+      - button "Audio Preview" [ref=e98] [cursor=pointer]
+      - button "UI Lab" [ref=e99] [cursor=pointer]
+    - main [ref=e100]:
+      - heading "Items & Recipes" [level=1] [ref=e101]
+      - generic [ref=e102]:
+        - generic [ref=e103]:
+          - button "←" [ref=e104] [cursor=pointer]
+          - button "→" [ref=e105] [cursor=pointer]
+          - button "−" [ref=e106] [cursor=pointer]
+          - button "+" [ref=e107] [cursor=pointer]
+        - generic "Items & Recipes canvas viewport" [ref=e108]
+        - paragraph [ref=e109]: Spatial workspace. Use the toolbar buttons to pan or zoom; selections appear in the Inspector.
+    - generic [ref=e110]:
+      - heading "Inspector" [level=2] [ref=e111]
+      - heading "Selection" [level=3] [ref=e112]
+      - generic [ref=e113]:
+        - strong [ref=e114]: Selection
+        - generic "Shared selection available to every Studio tool." [ref=e115]: none
+      - generic [ref=e116]:
+        - strong [ref=e117]: Tool route
+        - generic "Registered route for the active workspace." [ref=e118]: /author/items
+      - heading "Authority" [level=3] [ref=e119]
+      - generic [ref=e120]:
+        - strong [ref=e121]: Access
+        - generic "Resolved from the authenticated role matrix." [ref=e122]: write
+  - generic [ref=e123]:
+    - heading "Validation & Output" [level=2] [ref=e124]
+    - generic [ref=e125]:
+      - button "Validation" [ref=e126] [cursor=pointer]
+      - button "Audit" [disabled] [ref=e127]
+      - button "Live Sync" [disabled] [ref=e128]
+      - button "Console" [ref=e129] [cursor=pointer]
+    - paragraph [ref=e130]: Anonymous sandbox — no live adapter constructed.

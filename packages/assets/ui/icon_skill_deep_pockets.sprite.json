@@ -1,0 +1,65 @@
+{
+  "name": "icon_skill_deep_pockets",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...0112...10....",
+        "....3001.103....",
+        ".....330033.....",
+        ".......445......",
+        "......205344....",
+        ".....211053.4...",
+        "....11210433....",
+        "...2022104333...",
+        "...0011005333...",
+        "...3000003333...",
+        "...333333333....",
+        "....3333333.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#697339",
+    "1": "#90b850",
+    "2": "#bbeaaa",
+    "3": "#3e3627",
+    "4": "#a29f26",
+    "5": "#dfe43b"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+  "sourceRegion": [
+    160,
+    80,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.deep_pockets",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

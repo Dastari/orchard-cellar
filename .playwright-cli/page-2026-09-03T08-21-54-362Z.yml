@@ -1,0 +1,1098 @@
+- main [ref=e2]:
+  - generic [ref=e454]:
+    - strong [ref=e455]: ORCHARD STUDIO
+    - combobox "Environment" [ref=e456]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=e457]
+  - generic [ref=e458]:
+    - navigation "Studio modes" [ref=e459]:
+      - button "Build" [ref=e460] [cursor=pointer]
+      - button "Author" [ref=e461] [cursor=pointer]
+      - generic [ref=e462]:
+        - generic [ref=e463]: Local sandbox
+        - generic [ref=e464]: Anonymous
+        - generic [ref=e465]: Sandbox
+        - generic [ref=e466]: Map —
+        - generic [ref=e467]: Content —
+    - generic [ref=e468]:
+      - heading "Outliner" [level=2] [ref=e469]
+      - generic [ref=e470]:
+        - button "Local" [ref=e471] [cursor=pointer]
+        - button "Live" [ref=e472] [cursor=pointer]
+      - list [ref=e473]:
+        - listitem [ref=e474]:
+          - text: Live Island
+          - list [ref=e475]:
+            - listitem [ref=e476]: Generated Base
+            - listitem [ref=e477]: Terrain Overrides
+            - listitem [ref=e478]:
+              - text: Ground Details
+              - list [ref=e479]:
+                - listitem [ref=e480]:
+                  - button "landmark-3200000002" [ref=e481] [cursor=pointer]
+                - listitem [ref=e482]:
+                  - button "landmark-3200000014" [ref=e483] [cursor=pointer]
+                - listitem [ref=e484]:
+                  - button "landmark-3200000013" [ref=e485] [cursor=pointer]
+                - listitem [ref=e486]:
+                  - button "landmark-3000000017" [ref=e487] [cursor=pointer]
+                - listitem [ref=e488]:
+                  - button "landmark-3000000014" [ref=e489] [cursor=pointer]
+                - listitem [ref=e490]:
+                  - button "landmark-3000000015" [ref=e491] [cursor=pointer]
+                - listitem [ref=e492]:
+                  - button "landmark-3000000018" [ref=e493] [cursor=pointer]
+                - listitem [ref=e494]:
+                  - button "landmark-3000000013" [ref=e495] [cursor=pointer]
+                - listitem [ref=e496]:
+                  - button "landmark-3000000016" [ref=e497] [cursor=pointer]
+                - listitem [ref=e498]:
+                  - button "landmark-3000000002" [ref=e499] [cursor=pointer]
+                - listitem [ref=e500]:
+                  - button "landmark-3000000019" [ref=e501] [cursor=pointer]
+                - listitem [ref=e502]:
+                  - button "landmark-3000000020" [ref=e503] [cursor=pointer]
+                - listitem [ref=e504]:
+                  - button "landmark-3000000021" [ref=e505] [cursor=pointer]
+                - listitem [ref=e506]:
+                  - button "landmark-3000000022" [ref=e507] [cursor=pointer]
+                - listitem [ref=e508]:
+                  - button "landmark-3100000090" [ref=e509] [cursor=pointer]
+                - listitem [ref=e510]:
+                  - button "landmark-3100000091" [ref=e511] [cursor=pointer]
+                - listitem [ref=e512]:
+                  - button "landmark-3100000092" [ref=e513] [cursor=pointer]
+                - listitem [ref=e514]:
+                  - button "landmark-3100000093" [ref=e515] [cursor=pointer]
+                - listitem [ref=e516]:
+                  - button "landmark-3100000094" [ref=e517] [cursor=pointer]
+                - listitem [ref=e518]:
+                  - button "landmark-3100000095" [ref=e519] [cursor=pointer]
+                - listitem [ref=e520]:
+                  - button "landmark-3100000096" [ref=e521] [cursor=pointer]
+                - listitem [ref=e522]:
+                  - button "landmark-3100000097" [ref=e523] [cursor=pointer]
+                - listitem [ref=e524]:
+                  - button "landmark-3100000098" [ref=e525] [cursor=pointer]
+                - listitem [ref=e526]:
+                  - button "landmark-3100000099" [ref=e527] [cursor=pointer]
+                - listitem [ref=e528]:
+                  - button "landmark-3100000100" [ref=e529] [cursor=pointer]
+                - listitem [ref=e530]:
+                  - button "landmark-3100000101" [ref=e531] [cursor=pointer]
+                - listitem [ref=e532]:
+                  - button "landmark-3100000102" [ref=e533] [cursor=pointer]
+                - listitem [ref=e534]:
+                  - button "landmark-3100000103" [ref=e535] [cursor=pointer]
+                - listitem [ref=e536]:
+                  - button "landmark-3100000104" [ref=e537] [cursor=pointer]
+                - listitem [ref=e538]:
+                  - button "landmark-3100000105" [ref=e539] [cursor=pointer]
+                - listitem [ref=e540]:
+                  - button "landmark-3100000106" [ref=e541] [cursor=pointer]
+                - listitem [ref=e542]:
+                  - button "landmark-3100000107" [ref=e543] [cursor=pointer]
+                - listitem [ref=e544]:
+                  - button "landmark-3100000108" [ref=e545] [cursor=pointer]
+                - listitem [ref=e546]:
+                  - button "landmark-3100000109" [ref=e547] [cursor=pointer]
+                - listitem [ref=e548]:
+                  - button "landmark-3100000110" [ref=e549] [cursor=pointer]
+                - listitem [ref=e550]:
+                  - button "landmark-3100000111" [ref=e551] [cursor=pointer]
+                - listitem [ref=e552]:
+                  - button "landmark-3100000112" [ref=e553] [cursor=pointer]
+                - listitem [ref=e554]:
+                  - button "landmark-3100000113" [ref=e555] [cursor=pointer]
+                - listitem [ref=e556]:
+                  - button "landmark-3100000114" [ref=e557] [cursor=pointer]
+                - listitem [ref=e558]:
+                  - button "landmark-3100000115" [ref=e559] [cursor=pointer]
+                - listitem [ref=e560]:
+                  - button "landmark-3100000116" [ref=e561] [cursor=pointer]
+                - listitem [ref=e562]:
+                  - button "landmark-3100000129" [ref=e563] [cursor=pointer]
+                - listitem [ref=e564]:
+                  - button "landmark-3100000130" [ref=e565] [cursor=pointer]
+                - listitem [ref=e566]:
+                  - button "landmark-3100000131" [ref=e567] [cursor=pointer]
+                - listitem [ref=e568]:
+                  - button "landmark-3100000117" [ref=e569] [cursor=pointer]
+                - listitem [ref=e570]:
+                  - button "landmark-3100000118" [ref=e571] [cursor=pointer]
+                - listitem [ref=e572]:
+                  - button "landmark-3100000119" [ref=e573] [cursor=pointer]
+                - listitem [ref=e574]:
+                  - button "landmark-3100000123" [ref=e575] [cursor=pointer]
+                - listitem [ref=e576]:
+                  - button "landmark-3100000124" [ref=e577] [cursor=pointer]
+                - listitem [ref=e578]:
+                  - button "landmark-3100000125" [ref=e579] [cursor=pointer]
+                - listitem [ref=e580]:
+                  - button "landmark-3100000132" [ref=e581] [cursor=pointer]
+                - listitem [ref=e582]:
+                  - button "landmark-3100000133" [ref=e583] [cursor=pointer]
+                - listitem [ref=e584]:
+                  - button "landmark-3100000134" [ref=e585] [cursor=pointer]
+                - listitem [ref=e586]:
+                  - button "landmark-3100000120" [ref=e587] [cursor=pointer]
+                - listitem [ref=e588]:
+                  - button "landmark-3100000121" [ref=e589] [cursor=pointer]
+                - listitem [ref=e590]:
+                  - button "landmark-3100000122" [ref=e591] [cursor=pointer]
+                - listitem [ref=e592]:
+                  - button "landmark-3100000126" [ref=e593] [cursor=pointer]
+                - listitem [ref=e594]:
+                  - button "landmark-3100000127" [ref=e595] [cursor=pointer]
+                - listitem [ref=e596]:
+                  - button "landmark-3100000128" [ref=e597] [cursor=pointer]
+            - listitem [ref=e598]:
+              - text: World Objects
+              - list [ref=e599]:
+                - listitem [ref=e600]:
+                  - button "landmark-3200000008" [ref=e601] [cursor=pointer]
+                - listitem [ref=e602]:
+                  - button "landmark-3200000009" [ref=e603] [cursor=pointer]
+                - listitem [ref=e604]:
+                  - button "landmark-3200000001" [ref=e605] [cursor=pointer]
+                - listitem [ref=e606]:
+                  - button "landmark-3200000012" [ref=e607] [cursor=pointer]
+                - listitem [ref=e608]:
+                  - button "landmark-3200000007" [ref=e609] [cursor=pointer]
+                - listitem [ref=e610]:
+                  - button "landmark-3200000006" [ref=e611] [cursor=pointer]
+                - listitem [ref=e612]:
+                  - button "landmark-3200000003" [ref=e613] [cursor=pointer]
+                - listitem [ref=e614]:
+                  - button "landmark-3200000011" [ref=e615] [cursor=pointer]
+                - listitem [ref=e616]:
+                  - button "landmark-3200000004" [ref=e617] [cursor=pointer]
+                - listitem [ref=e618]:
+                  - button "landmark-3200000005" [ref=e619] [cursor=pointer]
+                - listitem [ref=e620]:
+                  - button "landmark-3200000010" [ref=e621] [cursor=pointer]
+                - listitem [ref=e622]:
+                  - button "landmark-3000000005" [ref=e623] [cursor=pointer]
+                - listitem [ref=e624]:
+                  - button "landmark-3000000009" [ref=e625] [cursor=pointer]
+                - listitem [ref=e626]:
+                  - button "landmark-3000000004" [ref=e627] [cursor=pointer]
+                - listitem [ref=e628]:
+                  - button "landmark-3000000003" [ref=e629] [cursor=pointer]
+                - listitem [ref=e630]:
+                  - button "landmark-3000000001" [ref=e631] [cursor=pointer]
+                - listitem [ref=e632]:
+                  - button "landmark-3000000006" [ref=e633] [cursor=pointer]
+                - listitem [ref=e634]:
+                  - button "landmark-3000000007" [ref=e635] [cursor=pointer]
+                - listitem [ref=e636]:
+                  - button "landmark-3000000008" [ref=e637] [cursor=pointer]
+                - listitem [ref=e638]:
+                  - button "landmark-3000000011" [ref=e639] [cursor=pointer]
+                - listitem [ref=e640]:
+                  - button "landmark-3000000012" [ref=e641] [cursor=pointer]
+                - listitem [ref=e642]:
+                  - button "landmark-3000000010" [ref=e643] [cursor=pointer]
+                - listitem [ref=e644]:
+                  - button "landmark-3100000000" [ref=e645] [cursor=pointer]
+                - listitem [ref=e646]:
+                  - button "landmark-3100000002" [ref=e647] [cursor=pointer]
+                - listitem [ref=e648]:
+                  - button "landmark-3100000004" [ref=e649] [cursor=pointer]
+                - listitem [ref=e650]:
+                  - button "landmark-3100000006" [ref=e651] [cursor=pointer]
+                - listitem [ref=e652]:
+                  - button "landmark-3100000008" [ref=e653] [cursor=pointer]
+                - listitem [ref=e654]:
+                  - button "landmark-3100000010" [ref=e655] [cursor=pointer]
+                - listitem [ref=e656]:
+                  - button "landmark-3100000012" [ref=e657] [cursor=pointer]
+                - listitem [ref=e658]:
+                  - button "landmark-3100000014" [ref=e659] [cursor=pointer]
+                - listitem [ref=e660]:
+                  - button "landmark-3100000016" [ref=e661] [cursor=pointer]
+                - listitem [ref=e662]:
+                  - button "landmark-3100000018" [ref=e663] [cursor=pointer]
+                - listitem [ref=e664]:
+                  - button "landmark-3100000020" [ref=e665] [cursor=pointer]
+                - listitem [ref=e666]:
+                  - button "landmark-3100000022" [ref=e667] [cursor=pointer]
+                - listitem [ref=e668]:
+                  - button "landmark-3100000023" [ref=e669] [cursor=pointer]
+                - listitem [ref=e670]:
+                  - button "landmark-3100000025" [ref=e671] [cursor=pointer]
+                - listitem [ref=e672]:
+                  - button "landmark-3100000027" [ref=e673] [cursor=pointer]
+                - listitem [ref=e674]:
+                  - button "landmark-3100000029" [ref=e675] [cursor=pointer]
+                - listitem [ref=e676]:
+                  - button "landmark-3100000031" [ref=e677] [cursor=pointer]
+                - listitem [ref=e678]:
+                  - button "landmark-3100000033" [ref=e679] [cursor=pointer]
+                - listitem [ref=e680]:
+                  - button "landmark-3100000035" [ref=e681] [cursor=pointer]
+                - listitem [ref=e682]:
+                  - button "landmark-3100000037" [ref=e683] [cursor=pointer]
+                - listitem [ref=e684]:
+                  - button "landmark-3100000039" [ref=e685] [cursor=pointer]
+                - listitem [ref=e686]:
+                  - button "landmark-3100000041" [ref=e687] [cursor=pointer]
+                - listitem [ref=e688]:
+                  - button "landmark-3100000043" [ref=e689] [cursor=pointer]
+                - listitem [ref=e690]:
+                  - button "landmark-3100000045" [ref=e691] [cursor=pointer]
+                - listitem [ref=e692]:
+                  - button "landmark-3100000046" [ref=e693] [cursor=pointer]
+                - listitem [ref=e694]:
+                  - button "landmark-3100000047" [ref=e695] [cursor=pointer]
+                - listitem [ref=e696]:
+                  - button "landmark-3100000048" [ref=e697] [cursor=pointer]
+                - listitem [ref=e698]:
+                  - button "landmark-3100000049" [ref=e699] [cursor=pointer]
+                - listitem [ref=e700]:
+                  - button "landmark-3100000087" [ref=e701] [cursor=pointer]
+                - listitem [ref=e702]:
+                  - button "landmark-3100000088" [ref=e703] [cursor=pointer]
+                - listitem [ref=e704]:
+                  - button "landmark-3100000142" [ref=e705] [cursor=pointer]
+                - listitem [ref=e706]:
+                  - button "landmark-3100000143" [ref=e707] [cursor=pointer]
+                - listitem [ref=e708]:
+                  - button "landmark-3100000138" [ref=e709] [cursor=pointer]
+                - listitem [ref=e710]:
+                  - button "landmark-3100000050" [ref=e711] [cursor=pointer]
+                - listitem [ref=e712]:
+                  - button "landmark-3100000051" [ref=e713] [cursor=pointer]
+                - listitem [ref=e714]:
+                  - button "landmark-3100000144" [ref=e715] [cursor=pointer]
+                - listitem [ref=e716]:
+                  - button "landmark-3100000086" [ref=e717] [cursor=pointer]
+                - listitem [ref=e718]:
+                  - button "landmark-3100000145" [ref=e719] [cursor=pointer]
+                - listitem [ref=e720]:
+                  - button "landmark-3100000139" [ref=e721] [cursor=pointer]
+                - listitem [ref=e722]:
+                  - button "landmark-3100000140" [ref=e723] [cursor=pointer]
+                - listitem [ref=e724]:
+                  - button "landmark-3100000052" [ref=e725] [cursor=pointer]
+                - listitem [ref=e726]:
+                  - button "landmark-3100000053" [ref=e727] [cursor=pointer]
+                - listitem [ref=e728]:
+                  - button "landmark-3100000089" [ref=e729] [cursor=pointer]
+                - listitem [ref=e730]:
+                  - button "landmark-3100000141" [ref=e731] [cursor=pointer]
+                - listitem [ref=e732]:
+                  - button "landmark-3100000054" [ref=e733] [cursor=pointer]
+                - listitem [ref=e734]:
+                  - button "landmark-3100000055" [ref=e735] [cursor=pointer]
+                - listitem [ref=e736]:
+                  - button "landmark-3100000056" [ref=e737] [cursor=pointer]
+                - listitem [ref=e738]:
+                  - button "landmark-3100000057" [ref=e739] [cursor=pointer]
+                - listitem [ref=e740]:
+                  - button "landmark-3100000058" [ref=e741] [cursor=pointer]
+                - listitem [ref=e742]:
+                  - button "landmark-3100000059" [ref=e743] [cursor=pointer]
+                - listitem [ref=e744]:
+                  - button "landmark-3100000060" [ref=e745] [cursor=pointer]
+                - listitem [ref=e746]:
+                  - button "landmark-3100000061" [ref=e747] [cursor=pointer]
+                - listitem [ref=e748]:
+                  - button "landmark-3100000062" [ref=e749] [cursor=pointer]
+                - listitem [ref=e750]:
+                  - button "landmark-3100000063" [ref=e751] [cursor=pointer]
+                - listitem [ref=e752]:
+                  - button "landmark-3100000064" [ref=e753] [cursor=pointer]
+                - listitem [ref=e754]:
+                  - button "landmark-3100000065" [ref=e755] [cursor=pointer]
+                - listitem [ref=e756]:
+                  - button "landmark-3100000066" [ref=e757] [cursor=pointer]
+                - listitem [ref=e758]:
+                  - button "landmark-3100000067" [ref=e759] [cursor=pointer]
+                - listitem [ref=e760]:
+                  - button "landmark-3100000068" [ref=e761] [cursor=pointer]
+                - listitem [ref=e762]:
+                  - button "landmark-3100000069" [ref=e763] [cursor=pointer]
+                - listitem [ref=e764]:
+                  - button "landmark-3100000070" [ref=e765] [cursor=pointer]
+                - listitem [ref=e766]:
+                  - button "landmark-3100000071" [ref=e767] [cursor=pointer]
+                - listitem [ref=e768]:
+                  - button "landmark-3100000072" [ref=e769] [cursor=pointer]
+                - listitem [ref=e770]:
+                  - button "landmark-3100000073" [ref=e771] [cursor=pointer]
+                - listitem [ref=e772]:
+                  - button "landmark-3100000074" [ref=e773] [cursor=pointer]
+                - listitem [ref=e774]:
+                  - button "landmark-3100000075" [ref=e775] [cursor=pointer]
+                - listitem [ref=e776]:
+                  - button "landmark-3100000076" [ref=e777] [cursor=pointer]
+                - listitem [ref=e778]:
+                  - button "landmark-3100000077" [ref=e779] [cursor=pointer]
+                - listitem [ref=e780]:
+                  - button "landmark-3100000078" [ref=e781] [cursor=pointer]
+                - listitem [ref=e782]:
+                  - button "landmark-3100000079" [ref=e783] [cursor=pointer]
+                - listitem [ref=e784]:
+                  - button "landmark-3100000146" [ref=e785] [cursor=pointer]
+                - listitem [ref=e786]:
+                  - button "landmark-3100000080" [ref=e787] [cursor=pointer]
+                - listitem [ref=e788]:
+                  - button "landmark-3100000081" [ref=e789] [cursor=pointer]
+                - listitem [ref=e790]:
+                  - button "landmark-3100000147" [ref=e791] [cursor=pointer]
+                - listitem [ref=e792]:
+                  - button "landmark-3100000082" [ref=e793] [cursor=pointer]
+                - listitem [ref=e794]:
+                  - button "landmark-3100000083" [ref=e795] [cursor=pointer]
+                - listitem [ref=e796]:
+                  - button "landmark-3100000084" [ref=e797] [cursor=pointer]
+                - listitem [ref=e798]:
+                  - button "landmark-3100000001" [ref=e799] [cursor=pointer]
+                - listitem [ref=e800]:
+                  - button "landmark-3100000003" [ref=e801] [cursor=pointer]
+                - listitem [ref=e802]:
+                  - button "landmark-3100000005" [ref=e803] [cursor=pointer]
+                - listitem [ref=e804]:
+                  - button "landmark-3100000007" [ref=e805] [cursor=pointer]
+                - listitem [ref=e806]:
+                  - button "landmark-3100000009" [ref=e807] [cursor=pointer]
+                - listitem [ref=e808]:
+                  - button "landmark-3100000011" [ref=e809] [cursor=pointer]
+                - listitem [ref=e810]:
+                  - button "landmark-3100000013" [ref=e811] [cursor=pointer]
+                - listitem [ref=e812]:
+                  - button "landmark-3100000015" [ref=e813] [cursor=pointer]
+                - listitem [ref=e814]:
+                  - button "landmark-3100000017" [ref=e815] [cursor=pointer]
+                - listitem [ref=e816]:
+                  - button "landmark-3100000019" [ref=e817] [cursor=pointer]
+                - listitem [ref=e818]:
+                  - button "landmark-3100000021" [ref=e819] [cursor=pointer]
+                - listitem [ref=e820]:
+                  - button "landmark-3100000085" [ref=e821] [cursor=pointer]
+                - listitem [ref=e822]:
+                  - button "landmark-3100000024" [ref=e823] [cursor=pointer]
+                - listitem [ref=e824]:
+                  - button "landmark-3100000026" [ref=e825] [cursor=pointer]
+                - listitem [ref=e826]:
+                  - button "landmark-3100000028" [ref=e827] [cursor=pointer]
+                - listitem [ref=e828]:
+                  - button "landmark-3100000030" [ref=e829] [cursor=pointer]
+                - listitem [ref=e830]:
+                  - button "landmark-3100000032" [ref=e831] [cursor=pointer]
+                - listitem [ref=e832]:
+                  - button "landmark-3100000034" [ref=e833] [cursor=pointer]
+                - listitem [ref=e834]:
+                  - button "landmark-3100000036" [ref=e835] [cursor=pointer]
+                - listitem [ref=e836]:
+                  - button "landmark-3100000038" [ref=e837] [cursor=pointer]
+                - listitem [ref=e838]:
+                  - button "landmark-3100000040" [ref=e839] [cursor=pointer]
+                - listitem [ref=e840]:
+                  - button "landmark-3100000042" [ref=e841] [cursor=pointer]
+                - listitem [ref=e842]:
+                  - button "landmark-3100000044" [ref=e843] [cursor=pointer]
+            - listitem [ref=e844]: Gameplay Objects
+            - listitem [ref=e845]: Player-Owned Objects
+            - listitem [ref=e846]:
+              - text: Canopy / Foreground
+              - list [ref=e847]:
+                - listitem [ref=e848]:
+                  - button "landmark-3100000135" [ref=e849] [cursor=pointer]
+                - listitem [ref=e850]:
+                  - button "landmark-3100000136" [ref=e851] [cursor=pointer]
+                - listitem [ref=e852]:
+                  - button "landmark-3100000137" [ref=e853] [cursor=pointer]
+            - listitem [ref=e854]: Anchors and Zones
+      - heading "AUTHOR" [level=3] [ref=e855]
+      - button "Items & Recipes" [ref=e856] [cursor=pointer]
+      - button "Character Studio" [ref=e857] [cursor=pointer]
+      - button "Audio Preview" [ref=e858] [cursor=pointer]
+      - button "UI Lab" [ref=e859] [cursor=pointer]
+    - main [ref=e860]:
+      - heading "Items & Recipes" [level=1] [ref=e861]
+      - generic [ref=e862]:
+        - generic [ref=e863]:
+          - button "item" [ref=e864] [cursor=pointer]
+          - button "recipe" [ref=e865] [cursor=pointer]
+          - button "process" [ref=e866] [cursor=pointer]
+          - button "shop" [ref=e867] [cursor=pointer]
+          - searchbox "Search content definitions" [ref=e868]
+          - textbox "Content publish note" [ref=e869]:
+            - /placeholder: Publish note
+          - button "Publish" [disabled] [ref=e870]
+          - button "Rebase" [disabled] [ref=e871]
+        - status [ref=e872]: ANONYMOUS · HEAD 0 · 0 changes · 0 errors
+        - table [ref=e874]:
+          - rowgroup [ref=e875]:
+            - row [ref=e876]:
+              - columnheader "Name" [ref=e877]
+              - columnheader "Stable id" [ref=e878]
+              - columnheader "Kind" [ref=e879]
+          - rowgroup [ref=e880]:
+            - row [ref=e881]:
+              - cell "Amethyst Ore" [ref=e882]
+              - cell "item:amethyst_ore" [ref=e883]
+              - cell "item" [ref=e884]
+            - row [ref=e885]:
+              - cell "Amethyst Pieces" [ref=e886]
+              - cell "item:amethyst_piece" [ref=e887]
+              - cell "item" [ref=e888]
+            - row [ref=e889]:
+              - cell "Anvil" [ref=e890]
+              - cell "item:anvil" [ref=e891]
+              - cell "item" [ref=e892]
+            - row [ref=e893]:
+              - cell "Apple" [ref=e894]
+              - cell "item:apple" [ref=e895]
+              - cell "item" [ref=e896]
+            - row [ref=e897]:
+              - cell "Arrow" [ref=e898]
+              - cell "item:arrow" [ref=e899]
+              - cell "item" [ref=e900]
+            - row [ref=e901]:
+              - cell "Iron Axe" [ref=e902]
+              - cell "item:axe" [ref=e903]
+              - cell "item" [ref=e904]
+            - row [ref=e905]:
+              - cell "Starter Backpack" [ref=e906]
+              - cell "item:backpack" [ref=e907]
+              - cell "item" [ref=e908]
+            - row [ref=e909]:
+              - cell "Barn" [ref=e910]
+              - cell "item:barn" [ref=e911]
+              - cell "item" [ref=e912]
+            - row [ref=e913]:
+              - cell "Barrel" [ref=e914]
+              - cell "item:barrel" [ref=e915]
+              - cell "item" [ref=e916]
+            - row [ref=e917]:
+              - cell "Beetroot" [ref=e918]
+              - cell "item:beetroot" [ref=e919]
+              - cell "item" [ref=e920]
+            - row [ref=e921]:
+              - cell "Beetroot Seeds" [ref=e922]
+              - cell "item:beetroot_seeds" [ref=e923]
+              - cell "item" [ref=e924]
+            - row [ref=e925]:
+              - cell "Wooden Boat" [ref=e926]
+              - cell "item:boat" [ref=e927]
+              - cell "item" [ref=e928]
+            - row [ref=e929]:
+              - cell "Bob's Fast Strawberry Seeds" [ref=e930]
+              - cell "item:bob_fast_strawberry_seeds" [ref=e931]
+              - cell "item" [ref=e932]
+            - row [ref=e933]:
+              - cell "Boots" [ref=e934]
+              - cell "item:boots" [ref=e935]
+              - cell "item" [ref=e936]
+            - row [ref=e937]:
+              - cell "Estate Bottles" [ref=e938]
+              - cell "item:bottles" [ref=e939]
+              - cell "item" [ref=e940]
+            - row [ref=e941]:
+              - cell "Wooden Bow" [ref=e942]
+              - cell "item:bow" [ref=e943]
+              - cell "item" [ref=e944]
+            - row [ref=e945]:
+              - cell "Cabbage" [ref=e946]
+              - cell "item:cabbage" [ref=e947]
+              - cell "item" [ref=e948]
+            - row [ref=e949]:
+              - cell "Cabbage Seeds" [ref=e950]
+              - cell "item:cabbage_seeds" [ref=e951]
+              - cell "item" [ref=e952]
+            - row [ref=e953]:
+              - cell "Cactus" [ref=e954]
+              - cell "item:cactus" [ref=e955]
+              - cell "item" [ref=e956]
+            - row [ref=e957]:
+              - cell "Camp Cooking Fire" [ref=e958]
+              - cell "item:camp_cooking_fire" [ref=e959]
+              - cell "item" [ref=e960]
+            - row [ref=e961]:
+              - cell "Campfire" [ref=e962]
+              - cell "item:campfire" [ref=e963]
+              - cell "item" [ref=e964]
+            - row [ref=e965]:
+              - cell "Carrot" [ref=e966]
+              - cell "item:carrot" [ref=e967]
+              - cell "item" [ref=e968]
+            - row [ref=e969]:
+              - cell "Carrot Seeds" [ref=e970]
+              - cell "item:carrot_seeds" [ref=e971]
+              - cell "item" [ref=e972]
+            - row [ref=e973]:
+              - cell "Cherries" [ref=e974]
+              - cell "item:cherry" [ref=e975]
+              - cell "item" [ref=e976]
+            - row [ref=e977]:
+              - cell "Chest" [ref=e978]
+              - cell "item:chest" [ref=e979]
+              - cell "item" [ref=e980]
+            - row [ref=e981]:
+              - cell "Cooked Beef" [ref=e982]
+              - cell "item:cooked_beef" [ref=e983]
+              - cell "item" [ref=e984]
+            - row [ref=e985]:
+              - cell "Roast Chicken" [ref=e986]
+              - cell "item:cooked_chicken" [ref=e987]
+              - cell "item" [ref=e988]
+            - row [ref=e989]:
+              - cell "Cooked Fish" [ref=e990]
+              - cell "item:cooked_fish" [ref=e991]
+              - cell "item" [ref=e992]
+            - row [ref=e993]:
+              - cell "Roast Mutton" [ref=e994]
+              - cell "item:cooked_mutton" [ref=e995]
+              - cell "item" [ref=e996]
+            - row [ref=e997]:
+              - cell "Roast Pork" [ref=e998]
+              - cell "item:cooked_pork" [ref=e999]
+              - cell "item" [ref=e1000]
+            - row [ref=e1001]:
+              - cell "Cooking Fire" [ref=e1002]
+              - cell "item:cooking_fire" [ref=e1003]
+              - cell "item" [ref=e1004]
+            - row [ref=e1005]:
+              - cell "Coop" [ref=e1006]
+              - cell "item:coop" [ref=e1007]
+              - cell "item" [ref=e1008]
+            - row [ref=e1009]:
+              - cell "Copper Bar" [ref=e1010]
+              - cell "item:copper_bar" [ref=e1011]
+              - cell "item" [ref=e1012]
+            - row [ref=e1013]:
+              - cell "Copper Ore Chunk" [ref=e1014]
+              - cell "item:copper_ore" [ref=e1015]
+              - cell "item" [ref=e1016]
+            - row [ref=e1017]:
+              - cell "Copper Pieces" [ref=e1018]
+              - cell "item:copper_piece" [ref=e1019]
+              - cell "item" [ref=e1020]
+            - row [ref=e1021]:
+              - cell "Corn" [ref=e1022]
+              - cell "item:corn" [ref=e1023]
+              - cell "item" [ref=e1024]
+            - row [ref=e1025]:
+              - cell "Corn Seeds" [ref=e1026]
+              - cell "item:corn_seeds" [ref=e1027]
+              - cell "item" [ref=e1028]
+            - row [ref=e1029]:
+              - cell "Cucumber" [ref=e1030]
+              - cell "item:cucumber" [ref=e1031]
+              - cell "item" [ref=e1032]
+            - row [ref=e1033]:
+              - cell "Cucumber Seeds" [ref=e1034]
+              - cell "item:cucumber_seeds" [ref=e1035]
+              - cell "item" [ref=e1036]
+            - row [ref=e1037]:
+              - cell "Emerald Ore" [ref=e1038]
+              - cell "item:emerald_ore" [ref=e1039]
+              - cell "item" [ref=e1040]
+            - row [ref=e1041]:
+              - cell "Emerald Pieces" [ref=e1042]
+              - cell "item:emerald_piece" [ref=e1043]
+              - cell "item" [ref=e1044]
+            - row [ref=e1045]:
+              - cell "Fence" [ref=e1046]
+              - cell "item:fence" [ref=e1047]
+              - cell "item" [ref=e1048]
+            - row [ref=e1049]:
+              - cell "Fence Gate" [ref=e1050]
+              - cell "item:fence_gate" [ref=e1051]
+              - cell "item" [ref=e1052]
+            - row [ref=e1053]:
+              - cell "Fermentation Cask" [ref=e1054]
+              - cell "item:fermentation_cask" [ref=e1055]
+              - cell "item" [ref=e1056]
+            - row [ref=e1057]:
+              - cell "Fiber" [ref=e1058]
+              - cell "item:fiber" [ref=e1059]
+              - cell "item" [ref=e1060]
+            - row [ref=e1061]:
+              - cell "Fin's Fish & Fire Handbook" [ref=e1062]
+              - cell "item:fishing_handbook" [ref=e1063]
+              - cell "item" [ref=e1064]
+            - row [ref=e1065]:
+              - cell "Fishing Rod" [ref=e1066]
+              - cell "item:fishing_rod" [ref=e1067]
+              - cell "item" [ref=e1068]
+            - row [ref=e1069]:
+              - cell "Fruit Press" [ref=e1070]
+              - cell "item:fruit_press" [ref=e1071]
+              - cell "item" [ref=e1072]
+            - row [ref=e1073]:
+              - cell "Furnace" [ref=e1074]
+              - cell "item:furnace" [ref=e1075]
+              - cell "item" [ref=e1076]
+            - row [ref=e1077]:
+              - cell "Garlic" [ref=e1078]
+              - cell "item:garlic" [ref=e1079]
+              - cell "item" [ref=e1080]
+            - row [ref=e1081]:
+              - cell "Garlic Seeds" [ref=e1082]
+              - cell "item:garlic_seeds" [ref=e1083]
+              - cell "item" [ref=e1084]
+            - row [ref=e1085]:
+              - cell "Gloves" [ref=e1086]
+              - cell "item:gloves" [ref=e1087]
+              - cell "item" [ref=e1088]
+            - row [ref=e1089]:
+              - cell "Gold Bar" [ref=e1090]
+              - cell "item:gold_bar" [ref=e1091]
+              - cell "item" [ref=e1092]
+            - row [ref=e1093]:
+              - cell "Gold Ore Chunk" [ref=e1094]
+              - cell "item:gold_ore" [ref=e1095]
+              - cell "item" [ref=e1096]
+            - row [ref=e1097]:
+              - cell "Gold Pieces" [ref=e1098]
+              - cell "item:gold_piece" [ref=e1099]
+              - cell "item" [ref=e1100]
+            - row [ref=e1101]:
+              - cell "Grapes" [ref=e1102]
+              - cell "item:grape" [ref=e1103]
+              - cell "item" [ref=e1104]
+            - row [ref=e1105]:
+              - cell "Grapes Seeds" [ref=e1106]
+              - cell "item:grape_seeds" [ref=e1107]
+              - cell "item" [ref=e1108]
+            - row [ref=e1109]:
+              - cell "Green Pepper" [ref=e1110]
+              - cell "item:green_pepper" [ref=e1111]
+              - cell "item" [ref=e1112]
+            - row [ref=e1113]:
+              - cell "Green Pepper Seeds" [ref=e1114]
+              - cell "item:green_pepper_seeds" [ref=e1115]
+              - cell "item" [ref=e1116]
+            - row [ref=e1117]:
+              - cell "Greenhouse" [ref=e1118]
+              - cell "item:greenhouse" [ref=e1119]
+              - cell "item" [ref=e1120]
+            - row [ref=e1121]:
+              - cell "Iron Hammer" [ref=e1122]
+              - cell "item:hammer" [ref=e1123]
+              - cell "item" [ref=e1124]
+            - row [ref=e1125]:
+              - cell "Helm" [ref=e1126]
+              - cell "item:helm" [ref=e1127]
+              - cell "item" [ref=e1128]
+            - row [ref=e1129]:
+              - cell "Iron Hoe" [ref=e1130]
+              - cell "item:hoe" [ref=e1131]
+              - cell "item" [ref=e1132]
+            - row [ref=e1133]:
+              - cell "Homestead Deed" [ref=e1134]
+              - cell "item:homestead_deed" [ref=e1135]
+              - cell "item" [ref=e1136]
+            - row [ref=e1137]:
+              - cell "Hot Pepper" [ref=e1138]
+              - cell "item:hot_pepper" [ref=e1139]
+              - cell "item" [ref=e1140]
+            - row [ref=e1141]:
+              - cell "Hot Pepper Seeds" [ref=e1142]
+              - cell "item:hot_pepper_seeds" [ref=e1143]
+              - cell "item" [ref=e1144]
+            - row [ref=e1145]:
+              - cell "Iron Bar" [ref=e1146]
+              - cell "item:iron_bar" [ref=e1147]
+              - cell "item" [ref=e1148]
+            - row [ref=e1149]:
+              - cell "Iron Ore Chunk" [ref=e1150]
+              - cell "item:iron_ore" [ref=e1151]
+              - cell "item" [ref=e1152]
+            - row [ref=e1153]:
+              - cell "Iron Pieces" [ref=e1154]
+              - cell "item:iron_piece" [ref=e1155]
+              - cell "item" [ref=e1156]
+            - row [ref=e1157]:
+              - cell "Jane's Gardening Journal" [ref=e1158]
+              - cell "item:janes_gardening_book" [ref=e1159]
+              - cell "item" [ref=e1160]
+            - row [ref=e1161]:
+              - cell "Lantern" [ref=e1162]
+              - cell "item:lantern" [ref=e1163]
+              - cell "item" [ref=e1164]
+            - row [ref=e1165]:
+              - cell "Leather" [ref=e1166]
+              - cell "item:leather" [ref=e1167]
+              - cell "item" [ref=e1168]
+            - row [ref=e1169]:
+              - cell "Leek" [ref=e1170]
+              - cell "item:leek" [ref=e1171]
+              - cell "item" [ref=e1172]
+            - row [ref=e1173]:
+              - cell "Leek Seeds" [ref=e1174]
+              - cell "item:leek_seeds" [ref=e1175]
+              - cell "item" [ref=e1176]
+            - row [ref=e1177]:
+              - cell "Marlow's Book" [ref=e1178]
+              - cell "item:marlow_book" [ref=e1179]
+              - cell "item" [ref=e1180]
+            - row [ref=e1181]:
+              - cell "Fresh Must" [ref=e1182]
+              - cell "item:must" [ref=e1183]
+              - cell "item" [ref=e1184]
+            - row [ref=e1185]:
+              - cell "Necklace" [ref=e1186]
+              - cell "item:necklace" [ref=e1187]
+              - cell "item" [ref=e1188]
+            - row [ref=e1189]:
+              - cell "Onion" [ref=e1190]
+              - cell "item:onion" [ref=e1191]
+              - cell "item" [ref=e1192]
+            - row [ref=e1193]:
+              - cell "Onion Seeds" [ref=e1194]
+              - cell "item:onion_seeds" [ref=e1195]
+              - cell "item" [ref=e1196]
+            - row [ref=e1197]:
+              - cell "Orchard Tea" [ref=e1198]
+              - cell "item:orchard_tea" [ref=e1199]
+              - cell "item" [ref=e1200]
+            - row [ref=e1201]:
+              - cell "Pants" [ref=e1202]
+              - cell "item:pants" [ref=e1203]
+              - cell "item" [ref=e1204]
+            - row [ref=e1205]:
+              - cell "Parsley" [ref=e1206]
+              - cell "item:parsley" [ref=e1207]
+              - cell "item" [ref=e1208]
+            - row [ref=e1209]:
+              - cell "Parsley Seeds" [ref=e1210]
+              - cell "item:parsley_seeds" [ref=e1211]
+              - cell "item" [ref=e1212]
+            - row [ref=e1213]:
+              - cell "Peach" [ref=e1214]
+              - cell "item:peach" [ref=e1215]
+              - cell "item" [ref=e1216]
+            - row [ref=e1217]:
+              - cell "Pear" [ref=e1218]
+              - cell "item:pear" [ref=e1219]
+              - cell "item" [ref=e1220]
+            - row [ref=e1221]:
+              - cell "Pebble" [ref=e1222]
+              - cell "item:pebble" [ref=e1223]
+              - cell "item" [ref=e1224]
+            - row [ref=e1225]:
+              - cell "Iron Pickaxe" [ref=e1226]
+              - cell "item:pickaxe" [ref=e1227]
+              - cell "item" [ref=e1228]
+            - row [ref=e1229]:
+              - cell "Wooden Planks" [ref=e1230]
+              - cell "item:plank" [ref=e1231]
+              - cell "item" [ref=e1232]
+            - row [ref=e1233]:
+              - cell "Pomace" [ref=e1234]
+              - cell "item:pomace" [ref=e1235]
+              - cell "item" [ref=e1236]
+            - row [ref=e1237]:
+              - cell "Potato" [ref=e1238]
+              - cell "item:potato" [ref=e1239]
+              - cell "item" [ref=e1240]
+            - row [ref=e1241]:
+              - cell "Potato Seeds" [ref=e1242]
+              - cell "item:potato_seeds" [ref=e1243]
+              - cell "item" [ref=e1244]
+            - row [ref=e1245]:
+              - cell "Preserved Beetroot" [ref=e1246]
+              - cell "item:preserved_beetroot" [ref=e1247]
+              - cell "item" [ref=e1248]
+            - row [ref=e1249]:
+              - cell "Preserved Cabbage" [ref=e1250]
+              - cell "item:preserved_cabbage" [ref=e1251]
+              - cell "item" [ref=e1252]
+            - row [ref=e1253]:
+              - cell "Preserved Carrot" [ref=e1254]
+              - cell "item:preserved_carrot" [ref=e1255]
+              - cell "item" [ref=e1256]
+            - row [ref=e1257]:
+              - cell "Preserved Corn" [ref=e1258]
+              - cell "item:preserved_corn" [ref=e1259]
+              - cell "item" [ref=e1260]
+            - row [ref=e1261]:
+              - cell "Preserved Cucumber" [ref=e1262]
+              - cell "item:preserved_cucumber" [ref=e1263]
+              - cell "item" [ref=e1264]
+            - row [ref=e1265]:
+              - cell "Preserved Garlic" [ref=e1266]
+              - cell "item:preserved_garlic" [ref=e1267]
+              - cell "item" [ref=e1268]
+            - row [ref=e1269]:
+              - cell "Preserved Grapes" [ref=e1270]
+              - cell "item:preserved_grape" [ref=e1271]
+              - cell "item" [ref=e1272]
+            - row [ref=e1273]:
+              - cell "Preserved Green Pepper" [ref=e1274]
+              - cell "item:preserved_green_pepper" [ref=e1275]
+              - cell "item" [ref=e1276]
+            - row [ref=e1277]:
+              - cell "Preserved Hot Pepper" [ref=e1278]
+              - cell "item:preserved_hot_pepper" [ref=e1279]
+              - cell "item" [ref=e1280]
+            - row [ref=e1281]:
+              - cell "Preserved Leek" [ref=e1282]
+              - cell "item:preserved_leek" [ref=e1283]
+              - cell "item" [ref=e1284]
+            - row [ref=e1285]:
+              - cell "Preserved Onion" [ref=e1286]
+              - cell "item:preserved_onion" [ref=e1287]
+              - cell "item" [ref=e1288]
+            - row [ref=e1289]:
+              - cell "Preserved Parsley" [ref=e1290]
+              - cell "item:preserved_parsley" [ref=e1291]
+              - cell "item" [ref=e1292]
+            - row [ref=e1293]:
+              - cell "Preserved Potato" [ref=e1294]
+              - cell "item:preserved_potato" [ref=e1295]
+              - cell "item" [ref=e1296]
+            - row [ref=e1297]:
+              - cell "Preserved Pumpkin" [ref=e1298]
+              - cell "item:preserved_pumpkin" [ref=e1299]
+              - cell "item" [ref=e1300]
+            - row [ref=e1301]:
+              - cell "Preserved Red Pepper" [ref=e1302]
+              - cell "item:preserved_red_pepper" [ref=e1303]
+              - cell "item" [ref=e1304]
+            - row [ref=e1305]:
+              - cell "Preserved Strawberry" [ref=e1306]
+              - cell "item:preserved_strawberry" [ref=e1307]
+              - cell "item" [ref=e1308]
+            - row [ref=e1309]:
+              - cell "Preserved Sunflower" [ref=e1310]
+              - cell "item:preserved_sunflower" [ref=e1311]
+              - cell "item" [ref=e1312]
+            - row [ref=e1313]:
+              - cell "Preserved Tomato" [ref=e1314]
+              - cell "item:preserved_tomato" [ref=e1315]
+              - cell "item" [ref=e1316]
+            - row [ref=e1317]:
+              - cell "Preserved Turnip" [ref=e1318]
+              - cell "item:preserved_turnip" [ref=e1319]
+              - cell "item" [ref=e1320]
+            - row [ref=e1321]:
+              - cell "Preserved Watermelon" [ref=e1322]
+              - cell "item:preserved_watermelon" [ref=e1323]
+              - cell "item" [ref=e1324]
+            - row [ref=e1325]:
+              - cell "Preserved Wheat" [ref=e1326]
+              - cell "item:preserved_wheat" [ref=e1327]
+              - cell "item" [ref=e1328]
+            - row [ref=e1329]:
+              - cell "Preserved Yellow Pepper" [ref=e1330]
+              - cell "item:preserved_yellow_pepper" [ref=e1331]
+              - cell "item" [ref=e1332]
+            - row [ref=e1333]:
+              - cell "Pumpkin" [ref=e1334]
+              - cell "item:pumpkin" [ref=e1335]
+              - cell "item" [ref=e1336]
+            - row [ref=e1337]:
+              - cell "Pumpkin Seeds" [ref=e1338]
+              - cell "item:pumpkin_seeds" [ref=e1339]
+              - cell "item" [ref=e1340]
+            - row [ref=e1341]:
+              - cell "Raw Beef" [ref=e1342]
+              - cell "item:raw_beef" [ref=e1343]
+              - cell "item" [ref=e1344]
+            - row [ref=e1345]:
+              - cell "Raw Chicken" [ref=e1346]
+              - cell "item:raw_chicken" [ref=e1347]
+              - cell "item" [ref=e1348]
+            - row [ref=e1349]:
+              - cell "Raw Fish" [ref=e1350]
+              - cell "item:raw_fish" [ref=e1351]
+              - cell "item" [ref=e1352]
+            - row [ref=e1353]:
+              - cell "Raw Mutton" [ref=e1354]
+              - cell "item:raw_mutton" [ref=e1355]
+              - cell "item" [ref=e1356]
+            - row [ref=e1357]:
+              - cell "Raw Pork" [ref=e1358]
+              - cell "item:raw_pork" [ref=e1359]
+              - cell "item" [ref=e1360]
+            - row [ref=e1361]:
+              - cell "Red Pepper" [ref=e1362]
+              - cell "item:red_pepper" [ref=e1363]
+              - cell "item" [ref=e1364]
+            - row [ref=e1365]:
+              - cell "Red Pepper Seeds" [ref=e1366]
+              - cell "item:red_pepper_seeds" [ref=e1367]
+              - cell "item" [ref=e1368]
+            - row [ref=e1369]:
+              - cell "Ruby Ore" [ref=e1370]
+              - cell "item:ruby_ore" [ref=e1371]
+              - cell "item" [ref=e1372]
+            - row [ref=e1373]:
+              - cell "Ruby Pieces" [ref=e1374]
+              - cell "item:ruby_piece" [ref=e1375]
+              - cell "item" [ref=e1376]
+            - row [ref=e1377]:
+              - cell "Sapphire Ore" [ref=e1378]
+              - cell "item:sapphire_ore" [ref=e1379]
+              - cell "item" [ref=e1380]
+            - row [ref=e1381]:
+              - cell "Sapphire Pieces" [ref=e1382]
+              - cell "item:sapphire_piece" [ref=e1383]
+              - cell "item" [ref=e1384]
+            - row [ref=e1385]:
+              - cell "Estate Shed" [ref=e1386]
+              - cell "item:shed" [ref=e1387]
+              - cell "item" [ref=e1388]
+            - row [ref=e1389]:
+              - cell "Shield" [ref=e1390]
+              - cell "item:shield" [ref=e1391]
+              - cell "item" [ref=e1392]
+            - row [ref=e1393]:
+              - cell "Iron Shovel" [ref=e1394]
+              - cell "item:shovel" [ref=e1395]
+              - cell "item" [ref=e1396]
+            - row [ref=e1397]:
+              - cell "Sign" [ref=e1398]
+              - cell "item:sign" [ref=e1399]
+              - cell "item" [ref=e1400]
+            - row [ref=e1401]:
+              - cell "Silo" [ref=e1402]
+              - cell "item:silo" [ref=e1403]
+              - cell "item" [ref=e1404]
+            - row [ref=e1405]:
+              - cell "Sprinkler" [ref=e1406]
+              - cell "item:sprinkler" [ref=e1407]
+              - cell "item" [ref=e1408]
+            - row [ref=e1409]:
+              - cell "Standing Torch" [ref=e1410]
+              - cell "item:standing_torch" [ref=e1411]
+              - cell "item" [ref=e1412]
+            - row [ref=e1413]:
+              - cell "Stick" [ref=e1414]
+              - cell "item:stick" [ref=e1415]
+              - cell "item" [ref=e1416]
+            - row [ref=e1417]:
+              - cell "Stone" [ref=e1418]
+              - cell "item:stone" [ref=e1419]
+              - cell "item" [ref=e1420]
+            - row [ref=e1421]:
+              - cell "Strawberry" [ref=e1422]
+              - cell "item:strawberry" [ref=e1423]
+              - cell "item" [ref=e1424]
+            - row [ref=e1425]:
+              - cell "Strawberry Seeds" [ref=e1426]
+              - cell "item:strawberry_seeds" [ref=e1427]
+              - cell "item" [ref=e1428]
+            - row [ref=e1429]:
+              - cell "String" [ref=e1430]
+              - cell "item:string" [ref=e1431]
+              - cell "item" [ref=e1432]
+            - row [ref=e1433]:
+              - cell "Sunflower" [ref=e1434]
+              - cell "item:sunflower" [ref=e1435]
+              - cell "item" [ref=e1436]
+            - row [ref=e1437]:
+              - cell "Sunflower Seeds" [ref=e1438]
+              - cell "item:sunflower_seeds" [ref=e1439]
+              - cell "item" [ref=e1440]
+            - row [ref=e1441]:
+              - cell "Iron Sword" [ref=e1442]
+              - cell "item:sword" [ref=e1443]
+              - cell "item" [ref=e1444]
+            - row [ref=e1445]:
+              - cell "Tomato" [ref=e1446]
+              - cell "item:tomato" [ref=e1447]
+              - cell "item" [ref=e1448]
+            - row [ref=e1449]:
+              - cell "Tomato Seeds" [ref=e1450]
+              - cell "item:tomato_seeds" [ref=e1451]
+              - cell "item" [ref=e1452]
+            - row [ref=e1453]:
+              - cell "Topaz Ore" [ref=e1454]
+              - cell "item:topaz_ore" [ref=e1455]
+              - cell "item" [ref=e1456]
+            - row [ref=e1457]:
+              - cell "Topaz Pieces" [ref=e1458]
+              - cell "item:topaz_piece" [ref=e1459]
+              - cell "item" [ref=e1460]
+            - row [ref=e1461]:
+              - cell "Torch" [ref=e1462]
+              - cell "item:torch" [ref=e1463]
+              - cell "item" [ref=e1464]
+            - row [ref=e1465]:
+              - cell "Tunic" [ref=e1466]
+              - cell "item:tunic" [ref=e1467]
+              - cell "item" [ref=e1468]
+            - row [ref=e1469]:
+              - cell "Turnip" [ref=e1470]
+              - cell "item:turnip" [ref=e1471]
+              - cell "item" [ref=e1472]
+            - row [ref=e1473]:
+              - cell "Turnip Seeds" [ref=e1474]
+              - cell "item:turnip_seeds" [ref=e1475]
+              - cell "item" [ref=e1476]
+            - row [ref=e1477]:
+              - cell "Watch" [ref=e1478]
+              - cell "item:watch" [ref=e1479]
+              - cell "item" [ref=e1480]
+            - row [ref=e1481]:
+              - cell "Watering Can" [ref=e1482]
+              - cell "item:watering_can" [ref=e1483]
+              - cell "item" [ref=e1484]
+            - row [ref=e1485]:
+              - cell "Watermelon" [ref=e1486]
+              - cell "item:watermelon" [ref=e1487]
+              - cell "item" [ref=e1488]
+            - row [ref=e1489]:
+              - cell "Watermelon Seeds" [ref=e1490]
+              - cell "item:watermelon_seeds" [ref=e1491]
+              - cell "item" [ref=e1492]
+            - row [ref=e1493]:
+              - cell "Wheat" [ref=e1494]
+              - cell "item:wheat" [ref=e1495]
+              - cell "item" [ref=e1496]
+            - row [ref=e1497]:
+              - cell "Wheat Seeds" [ref=e1498]
+              - cell "item:wheat_seeds" [ref=e1499]
+              - cell "item" [ref=e1500]
+            - row [ref=e1501]:
+              - cell "Wood" [ref=e1502]
+              - cell "item:wood" [ref=e1503]
+              - cell "item" [ref=e1504]
+            - row [ref=e1505]:
+              - cell "Workbench" [ref=e1506]
+              - cell "item:workbench" [ref=e1507]
+              - cell "item" [ref=e1508]
+            - row [ref=e1509]:
+              - cell "Yellow Pepper" [ref=e1510]
+              - cell "item:yellow_pepper" [ref=e1511]
+              - cell "item" [ref=e1512]
+            - row [ref=e1513]:
+              - cell "Yellow Pepper Seeds" [ref=e1514]
+              - cell "item:yellow_pepper_seeds" [ref=e1515]
+              - cell "item" [ref=e1516]
+        - generic [ref=e1517]:
+          - heading "Amethyst Ore" [level=2] [ref=e1518]
+          - spinbutton "Buy price" [ref=e1519]: "200"
+          - spinbutton "Sell price" [ref=e1520]: "80"
+          - button "Apply prices" [ref=e1521] [cursor=pointer]
+        - group [ref=e1522]:
+          - generic "History (0)" [ref=e1523]
+    - generic [ref=e1524]:
+      - heading "Inspector" [level=2] [ref=e1525]
+      - heading "Items" [level=3] [ref=e1526]
+      - generic [ref=e1527]:
+        - strong [ref=e1528]: Definition
+        - generic "Stable content identifier." [ref=e1529]: item:amethyst_ore
+      - generic [ref=e1530]:
+        - strong [ref=e1531]: Kind
+        - generic "Shared content schema discriminator." [ref=e1532]: item
+      - generic [ref=e1533]:
+        - strong [ref=e1534]: References
+        - generic "Definitions that reference this entry." [ref=e1535]: "1"
+  - generic [ref=e1536]:
+    - heading "Validation & Output" [level=2] [ref=e1537]
+    - generic [ref=e1538]:
+      - button "Validation" [ref=e1539] [cursor=pointer]
+      - button "Audit" [disabled] [ref=e1540]
+      - button "Live Sync" [disabled] [ref=e1541]
+      - button "Console" [ref=e1542] [cursor=pointer]
+    - paragraph [ref=e1543]: Anonymous sandbox — no live adapter constructed.

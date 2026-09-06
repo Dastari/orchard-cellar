@@ -9,6 +9,7 @@ import {
   type PlayerState,
 } from '@orchard/sim';
 import { describe, expect, it, vi } from 'vitest';
+import { CloudDriftIntegrator, weatherLoopPhase } from '@orchard/engine/weather-effects';
 import {
   AvatarAnimationController,
   LatencyInjector,
@@ -240,9 +241,61 @@ describe('remote interpolation', () => {
     const clock = new FrameVisualTickClock();
     expect(clock.advance(1_000, 100n)).toBe(100);
     expect(clock.advance(1_050, 101n)).toBe(101);
-    expect(clock.advance(5_000, 180n)).toBe(180);
+    expect(clock.advance(5_000, 180n)).toBe(101);
+    expect(clock.advance(5_050, 181n)).toBe(102);
     clock.reset();
     expect(clock.advance(5_010, 220n)).toBe(220);
+  });
+
+  it('does not replay login clock hydration or successive reconnect observations as cosmetic motion', () => {
+    const clock = new FrameVisualTickClock();
+    expect(clock.advance(0, 0n)).toBe(0);
+    for (let frame = 1; frame <= 20; frame += 1) {
+      // A late initial head followed by buffered clock observations must not
+      // relocate the phase of already visible gusts, leaves and water.
+      expect(clock.advance(frame * 50, 10_000_000n + BigInt(frame * 100))).toBe(frame);
+    }
+    expect(clock.advance(1_050, -10_000n)).toBe(21);
+  });
+
+  it('preserves weather phase across short and long tab resumes without hidden-time debt', () => {
+    const clock = new FrameVisualTickClock();
+    clock.advance(0, 500n);
+    expect(clock.advance(50, 501n)).toBe(501);
+    clock.pause();
+    expect(clock.advance(100, 502n)).toBe(501);
+    expect(clock.advance(150, 503n)).toBe(502);
+    clock.pause();
+    expect(clock.advance(60_000, 1_700n)).toBe(502);
+    for (let frame = 1; frame <= 60; frame += 1) {
+      expect(clock.advance(60_000 + frame * 50, 1_700n + BigInt(frame))).toBe(502 + frame);
+    }
+  });
+
+  it('continues at normal frame speed through stale observations for an entire hour', () => {
+    const clock = new FrameVisualTickClock();
+    clock.advance(0, 100_000_000n);
+    for (let frame = 1; frame <= 72_000; frame += 1) clock.advance(frame * 50, 100_000_000n);
+    expect(clock.renderTick).toBe(100_072_000);
+  });
+
+  it('keeps actual cloud displacement and gust phase continuous through resumed authority catch-up', () => {
+    const clock = new FrameVisualTickClock();
+    const drift = new CloudDriftIntegrator();
+    const sample = (now: number, authority: bigint) => {
+      const tick = clock.advance(now, authority);
+      return { cloud: drift.advance(tick, 10, 1, 0), gust: weatherLoopPhase(tick / AUTHORITY_HZ, 4, 0) };
+    };
+    sample(0, 100n);
+    const before = sample(50, 101n);
+    clock.pause();
+    expect(sample(60_000, 1_300n)).toEqual(before);
+    const resumed = sample(60_050, 1_301n);
+    expect(resumed.cloud[0] - before.cloud[0]).toBeCloseTo(0.5);
+    expect(resumed.gust - before.gust).toBeCloseTo(0.05 / 4);
+    const caughtUp = sample(60_100, 500_000n);
+    expect(caughtUp.cloud[0] - resumed.cloud[0]).toBeCloseTo(0.5);
+    expect(caughtUp.gust - resumed.gust).toBeCloseTo(0.05 / 4);
   });
 });
 

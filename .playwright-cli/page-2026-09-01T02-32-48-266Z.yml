@@ -1,0 +1,81 @@
+- main [ref=f3e2]:
+  - textbox "New local development profile name"
+  - status [ref=f3e6]
+  - main [ref=f3e7]:
+    - generic [ref=f3e8]:
+      - generic [ref=f3e9]:
+        - paragraph [ref=f3e10]: ORCHARD & CELLAR / RIG LAB
+        - heading "Character Studio" [level=1] [ref=f3e11]
+      - paragraph [ref=f3e12]: Move and fight on the checkerboard while swapping equipment. The blue proxy helm is a deliberately rigid inventory-icon experiment.
+    - region [ref=f3e13]:
+      - generic [ref=f3e14]:
+        - heading "Equipment" [level=2] [ref=f3e15]
+        - button "Clear" [ref=f3e16] [cursor=pointer]
+      - generic [ref=f3e17]:
+        - button "HEAD Iron Helm" [ref=f3e18] [cursor=pointer]:
+          - generic [ref=f3e19]: HEAD
+          - strong [ref=f3e21]: Iron Helm
+        - button "BODY Iron Plate" [ref=f3e22] [cursor=pointer]:
+          - generic [ref=f3e23]: BODY
+          - strong [ref=f3e25]: Iron Plate
+        - button "LEGS Iron Greaves" [ref=f3e26] [cursor=pointer]:
+          - generic [ref=f3e27]: LEGS
+          - strong [ref=f3e29]: Iron Greaves
+      - generic [ref=f3e30]:
+        - checkbox "Hide hair beneath helmets" [checked] [ref=f3e31]
+        - text: Hide hair beneath helmets
+      - generic [ref=f3e32]:
+        - strong [ref=f3e33]: Rig comparison
+        - generic [ref=f3e34]: "Cute Fantasy: active 32×40 / 56-row adapter"
+        - generic [ref=f3e35]: "Universal LPC: candidate 64px adapter; asset and licence audit required"
+    - region [ref=f3e36]:
+      - generic [ref=f3e37]:
+        - generic [ref=f3e38]:
+          - paragraph [ref=f3e39]: LIVE CANVAS
+          - heading "Animation test stage" [level=2] [ref=f3e40]
+        - status [ref=f3e41]: Ready
+      - generic "Interactive character armor animation stage. Move with WASD or arrow keys, select tools with 1 through 4, and use the selected tool with F." [ref=f3e43]
+      - generic "Tool hotbar" [ref=f3e44]:
+        - button "1 Sword" [pressed] [ref=f3e45] [cursor=pointer]
+        - button "2 Pickaxe" [ref=f3e48] [cursor=pointer]
+        - button "3 Axe" [ref=f3e51] [cursor=pointer]
+        - button "4 Bow" [ref=f3e54] [cursor=pointer]
+      - generic "Animation actions" [ref=f3e57]:
+        - button "Attack" [ref=f3e58] [cursor=pointer]
+        - button "Mine" [ref=f3e59] [cursor=pointer]
+        - button "Chop" [ref=f3e60] [cursor=pointer]
+        - button "Bow" [ref=f3e61] [cursor=pointer]
+      - paragraph [ref=f3e62]: WASD/ARROWS move · 1–4 select · F use · hold mouse on the canvas to draw the bow
+    - region [ref=f3e63]:
+      - generic [ref=f3e64]:
+        - heading "Armor inventory" [level=2] [ref=f3e65]
+        - generic [ref=f3e66]: Click or drag to equip
+      - list [ref=f3e67]:
+        - 'listitem "Bronze Helm: Same geometry, generated palette" [active] [ref=f3e68] [cursor=pointer]':
+          - generic [ref=f3e70]: Bronze Helm
+          - generic [ref=f3e71]: Same geometry, generated palette
+        - 'listitem "Gold Helm: Same geometry, generated palette" [ref=f3e72] [cursor=pointer]':
+          - generic [ref=f3e74]: Gold Helm
+          - generic [ref=f3e75]: Same geometry, generated palette
+        - 'listitem "Heavy Iron Helm: Second authored silhouette" [ref=f3e76] [cursor=pointer]':
+          - generic [ref=f3e78]: Heavy Iron Helm
+          - generic [ref=f3e79]: Second authored silhouette
+        - 'listitem "Icon Proxy Helm: Rigid inventory-icon experiment" [ref=f3e80] [cursor=pointer]':
+          - generic [ref=f3e82]: Icon Proxy Helm
+          - generic [ref=f3e83]: Rigid inventory-icon experiment
+        - 'listitem "Bronze Plate: Same geometry, generated palette" [ref=f3e84] [cursor=pointer]':
+          - generic [ref=f3e86]: Bronze Plate
+          - generic [ref=f3e87]: Same geometry, generated palette
+        - 'listitem "Gold Plate: Same geometry, generated palette" [ref=f3e88] [cursor=pointer]':
+          - generic [ref=f3e90]: Gold Plate
+          - generic [ref=f3e91]: Same geometry, generated palette
+        - 'listitem "Bronze Greaves: Same geometry, generated palette" [ref=f3e92] [cursor=pointer]':
+          - generic [ref=f3e94]: Bronze Greaves
+          - generic [ref=f3e95]: Same geometry, generated palette
+        - 'listitem "Gold Greaves: Same geometry, generated palette" [ref=f3e96] [cursor=pointer]':
+          - generic [ref=f3e98]: Gold Greaves
+          - generic [ref=f3e99]: Same geometry, generated palette
+      - complementary [ref=f3e100]:
+        - heading "What this proves" [level=3] [ref=f3e101]
+        - paragraph [ref=f3e102]: Each colored item maps to a shared wearable family. Bronze and gold are generated from the Iron animation geometry rather than maintained as extra sheets.
+        - paragraph [ref=f3e103]: The proxy helmet uses a single UI icon attached near the head. Try it while facing north and during attacks to expose where rigid attachments stop working.

@@ -104,7 +104,7 @@ every entrance has a reachable return and that POI footprints do not overlap.
 ## 4. Homestead destination model
 
 Marlow sells one **Homestead Deed** per character. Its inventory icon is the plain
-mail/envelope cell extracted from the licensed `Cute_Fantasy_UI/UI/UI_Icons.png`
+mail/envelope cell extracted from the licensed `references/art/kenmi/cute-fantasy/ui/UI/UI_Icons.png`
 sheet with normal source metadata. It is stack-one, non-droppable, non-storable,
 non-giftable, and non-resellable; a rejected placement never consumes it.
 

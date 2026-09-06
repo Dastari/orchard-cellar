@@ -1,0 +1,21 @@
+{
+  "name": "@orchard/engine",
+  "version": "0.5.7",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@orchard/sim": "*",
+    "@orchard/ui": "*"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}

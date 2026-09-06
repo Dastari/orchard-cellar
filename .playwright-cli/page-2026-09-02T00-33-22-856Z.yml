@@ -1,0 +1,23 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic [ref=f1e5]: Orchard & Cellar
+  - main [ref=f1e6]:
+    - heading "Enter the Orchard" [level=1] [ref=f1e8]
+    - generic [ref=f1e9]:
+      - generic [ref=f1e12]:
+        - generic [ref=f1e13]:
+          - generic [ref=f1e14]: Email
+          - textbox "Email" [active] [ref=f1e17]
+        - generic [ref=f1e18]:
+          - generic [ref=f1e19]: Password
+          - generic [ref=f1e21]:
+            - textbox "Password" [ref=f1e24]
+            - button "Show password" [ref=f1e26] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f1e27]: 
+          - link "Forgot Password?" [ref=f1e32] [cursor=pointer]:
+            - /url: /realms/orchard/login-actions/reset-credentials?client_id=orchard-web&tab_id=6p4Zt1rbFvQ&client_data=eyJydSI6Imh0dHBzOi8vb3JjaGFyZC5kYXN0YXJpLm5ldC8iLCJydCI6ImNvZGUiLCJzdCI6InNlY29uZC10aGVtZS1wbGF5d3JpZ2h0In0
+        - button "Sign In" [ref=f1e35] [cursor=pointer]
+      - generic [ref=f1e41]:
+        - text: New to the Orchard?
+        - link "Create Account" [ref=f1e42] [cursor=pointer]:
+          - /url: /realms/orchard/login-actions/registration?client_id=orchard-web&tab_id=6p4Zt1rbFvQ&client_data=eyJydSI6Imh0dHBzOi8vb3JjaGFyZC5kYXN0YXJpLm5ldC8iLCJydCI6ImNvZGUiLCJzdCI6InNlY29uZC10aGVtZS1wbGF5d3JpZ2h0In0

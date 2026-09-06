@@ -1,5 +1,6 @@
 {
   "name": "prop_cf_chest",
+  "bakedShadowColor": "#00000064",
   "category": "props",
   "size": [
     16,
@@ -134,7 +135,7 @@
     "8": "#5e2c26",
     "9": "#00000064"
   },
-  "sourcePath": "references/Cute_Fantasy/Buildings/House_Decor/Chest_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Chest_Anim.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Chest_Anim.png"

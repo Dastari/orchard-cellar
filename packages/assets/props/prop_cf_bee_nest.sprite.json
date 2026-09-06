@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_bee_nest",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -144,7 +145,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Bee_Nest.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Bee/Bee_Nest.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Bee/Bee_Nest.png",
   "sourceRegions": {
     "base": [
       [

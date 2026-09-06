@@ -5,6 +5,12 @@ import {
   type MapStampDocumentV1,
   type MapStampPlacement,
 } from './map-stamp.js';
+import {
+  createMapPrefabDocument,
+  normalizeMapPrefab,
+  transformMapPrefabCollisionMask,
+  type MapPrefabDocumentV2,
+} from './map-prefab.js';
 
 export const TILE_OBJECT_WORKSPACE_SCHEMA_VERSION = 1 as const;
 export const TILE_OBJECT_COLLISION_RESOLUTION = 4 as const;
@@ -29,6 +35,8 @@ export interface TileObjectDefinition {
   readonly placementIds: readonly string[];
   readonly cellIds: readonly string[];
   readonly collectionId: string | null;
+  readonly pivotTileX?: number;
+  readonly pivotTileY?: number;
 }
 
 export interface TileObjectCollectionFrame {
@@ -42,7 +50,7 @@ export interface TileObjectCollectionFrame {
 }
 
 /** Authentication-free visual workbench state. This is intentionally not a
- * world map: selected object definitions export to MapStampDocumentV1 before
+ * world map: selected object definitions export to MapPrefabDocumentV2 before
  * they can be validated and placed into a map. */
 export interface TileObjectWorkspaceV1 {
   readonly schemaVersion: typeof TILE_OBJECT_WORKSPACE_SCHEMA_VERSION;
@@ -126,6 +134,11 @@ function parseObject(value: unknown): TileObjectDefinition | null {
     || typeof candidate['label'] !== 'string' || candidate['label'].length < 1 || candidate['label'].length > 64
     || !(candidate['collectionId'] === null
       || (typeof candidate['collectionId'] === 'string' && ID.test(candidate['collectionId'])))) return null;
+  const hasPivotX = candidate['pivotTileX'] !== undefined;
+  const hasPivotY = candidate['pivotTileY'] !== undefined;
+  if (hasPivotX !== hasPivotY
+    || (hasPivotX && (!integerInRange(candidate['pivotTileX'], 0, MAX_DIMENSION - 1)
+      || !integerInRange(candidate['pivotTileY'], 0, MAX_DIMENSION - 1)))) return null;
   const placementIds = stringArray(candidate['placementIds']);
   const cellIds = stringArray(candidate['cellIds']);
   if (placementIds === null || cellIds === null || placementIds.length === 0) return null;
@@ -135,6 +148,10 @@ function parseObject(value: unknown): TileObjectDefinition | null {
     placementIds: [...placementIds],
     cellIds: [...cellIds],
     collectionId: candidate['collectionId'],
+    ...(hasPivotX ? {
+      pivotTileX: candidate['pivotTileX'] as number,
+      pivotTileY: candidate['pivotTileY'] as number,
+    } : {}),
   };
 }
 
@@ -227,6 +244,36 @@ export function tileObjectWorkspaceFromMapStamp(stamp: MapStampDocumentV1): Tile
     revision: stamp.revision,
     placements: [...stamp.placements],
   };
+}
+
+export function tileObjectWorkspaceFromMapPrefab(prefab: MapPrefabDocumentV2): TileObjectWorkspaceV1 {
+  const collection = prefab.collection === null ? null : {
+    ...prefab.collection,
+    tileX: 0,
+    tileY: 0,
+    width: prefab.width,
+    height: prefab.height,
+  };
+  return normalizeTileObjectWorkspace({
+    ...createTileObjectWorkspace({
+      id: prefab.id,
+      title: prefab.title,
+      width: prefab.width,
+      height: prefab.height,
+      assetRegistryRevision: prefab.assetRegistryRevision,
+    }),
+    revision: prefab.revision,
+    placements: [...prefab.placements],
+    cells: [...prefab.cells],
+    objects: prefab.placements.length === 0 ? [] : [{
+      id: prefab.id.replaceAll('-', '_'),
+      label: prefab.title,
+      placementIds: prefab.placements.map((placement) => placement.id),
+      cellIds: prefab.cells.map((cell) => cell.id),
+      collectionId: collection?.id ?? null,
+    }],
+    collections: collection === null ? [] : [collection],
+  });
 }
 
 export function parseTileObjectWorkspace(source: string): TileObjectWorkspaceV1 {
@@ -340,6 +387,163 @@ export function upsertTileObjectCollection(
   });
 }
 
+export function removeTileObjectCollection(
+  workspace: TileObjectWorkspaceV1,
+  collectionId: string,
+): TileObjectWorkspaceV1 {
+  if (!workspace.collections.some((collection) => collection.id === collectionId)) return workspace;
+  return changed(workspace, {
+    collections: workspace.collections.filter((collection) => collection.id !== collectionId),
+    objects: workspace.objects.map((object) => object.collectionId === collectionId
+      ? { ...object, collectionId: null }
+      : object),
+  });
+}
+
+export function assignTileObjectCollection(
+  workspace: TileObjectWorkspaceV1,
+  objectId: string,
+  collectionId: string | null,
+): TileObjectWorkspaceV1 {
+  const object = workspace.objects.find((entry) => entry.id === objectId);
+  if (object === undefined) return workspace;
+  if (collectionId !== null && !workspace.collections.some((entry) => entry.id === collectionId)) {
+    throw new TypeError('Tile object collection does not exist');
+  }
+  if (object.collectionId === collectionId) return workspace;
+  return changed(workspace, {
+    objects: workspace.objects.map((entry) => entry.id === objectId
+      ? { ...entry, collectionId }
+      : entry),
+  });
+}
+
+export function moveTileObjectCollection(
+  workspace: TileObjectWorkspaceV1,
+  collectionId: string,
+  deltaX: number,
+  deltaY: number,
+  moveContents = true,
+): TileObjectWorkspaceV1 {
+  if (!Number.isInteger(deltaX) || !Number.isInteger(deltaY)) {
+    throw new TypeError('Collection movement must use whole tiles');
+  }
+  const collection = workspace.collections.find((entry) => entry.id === collectionId);
+  if (collection === undefined || (deltaX === 0 && deltaY === 0)) return workspace;
+  const movedCollection = parseCollection({
+    ...collection,
+    tileX: collection.tileX + deltaX,
+    tileY: collection.tileY + deltaY,
+  }, workspace.width, workspace.height);
+  if (movedCollection === null) throw new RangeError('Collection movement leaves the workspace');
+  const memberObjects = new Set(workspace.objects
+    .filter((object) => moveContents && object.collectionId === collectionId)
+    .map((object) => object.id));
+  const placementIds = new Set(workspace.objects
+    .filter((object) => memberObjects.has(object.id))
+    .flatMap((object) => object.placementIds));
+  const cellIds = new Set(workspace.objects
+    .filter((object) => memberObjects.has(object.id))
+    .flatMap((object) => object.cellIds));
+  const placements = workspace.placements.map((entry) => placementIds.has(entry.id)
+    ? { ...entry, tileX: entry.tileX + deltaX, tileY: entry.tileY + deltaY }
+    : entry);
+  const cells = workspace.cells.map((entry) => cellIds.has(entry.id)
+    ? { ...entry, tileX: entry.tileX + deltaX, tileY: entry.tileY + deltaY }
+    : entry);
+  if (placements.some((entry) => !isMapStampPlacement(entry, workspace.width, workspace.height))
+    || cells.some((entry) => parseCell(entry, workspace.width, workspace.height) === null)) {
+    throw new RangeError('Collection contents leave the workspace');
+  }
+  return changed(workspace, {
+    placements,
+    cells,
+    collections: workspace.collections.map((entry) => entry.id === collectionId ? movedCollection : entry),
+  });
+}
+
+export function setTileObjectPivot(
+  workspace: TileObjectWorkspaceV1,
+  objectId: string,
+  tileX: number,
+  tileY: number,
+): TileObjectWorkspaceV1 {
+  if (!integerInRange(tileX, 0, workspace.width - 1)
+    || !integerInRange(tileY, 0, workspace.height - 1)) {
+    throw new RangeError('Tile object pivot leaves the workspace');
+  }
+  const object = workspace.objects.find((entry) => entry.id === objectId);
+  if (object === undefined) return workspace;
+  if (object.pivotTileX === tileX && object.pivotTileY === tileY) return workspace;
+  return changed(workspace, {
+    objects: workspace.objects.map((entry) => entry.id === objectId
+      ? { ...entry, pivotTileX: tileX, pivotTileY: tileY }
+      : entry),
+  });
+}
+
+export type TileObjectTransform = 'rotate_clockwise' | 'rotate_counterclockwise' | 'flip_horizontal';
+
+export function transformTileObject(
+  workspace: TileObjectWorkspaceV1,
+  objectId: string,
+  transform: TileObjectTransform,
+): TileObjectWorkspaceV1 {
+  const object = workspace.objects.find((entry) => entry.id === objectId);
+  if (object === undefined) return workspace;
+  const placementIds = new Set(object.placementIds);
+  const cellIds = new Set(object.cellIds);
+  const memberCoordinates = [
+    ...workspace.placements.filter((entry) => placementIds.has(entry.id)),
+    ...workspace.cells.filter((entry) => cellIds.has(entry.id)),
+  ];
+  const pivotX = object.pivotTileX
+    ?? Math.floor((Math.min(...memberCoordinates.map((entry) => entry.tileX))
+      + Math.max(...memberCoordinates.map((entry) => entry.tileX))) / 2);
+  const pivotY = object.pivotTileY
+    ?? Math.floor((Math.min(...memberCoordinates.map((entry) => entry.tileY))
+      + Math.max(...memberCoordinates.map((entry) => entry.tileY))) / 2);
+  const transformPoint = (tileX: number, tileY: number): { readonly tileX: number; readonly tileY: number } => {
+    const deltaX = tileX - pivotX;
+    const deltaY = tileY - pivotY;
+    if (transform === 'rotate_clockwise') return { tileX: pivotX - deltaY, tileY: pivotY + deltaX };
+    if (transform === 'rotate_counterclockwise') return { tileX: pivotX + deltaY, tileY: pivotY - deltaX };
+    return { tileX: pivotX - deltaX, tileY };
+  };
+  const placements = workspace.placements.map((entry) => {
+    if (!placementIds.has(entry.id)) return entry;
+    const point = transformPoint(entry.tileX, entry.tileY);
+    return {
+      ...entry,
+      ...point,
+      quarterTurns: transform === 'rotate_clockwise'
+        ? (entry.quarterTurns + 1) % 4 as 0 | 1 | 2 | 3
+        : transform === 'rotate_counterclockwise'
+          ? (entry.quarterTurns + 3) % 4 as 0 | 1 | 2 | 3
+          : entry.quarterTurns,
+      flipX: transform === 'flip_horizontal' ? !entry.flipX : entry.flipX,
+    };
+  });
+  const cells = workspace.cells.map((entry) => {
+    if (!cellIds.has(entry.id)) return entry;
+    const point = transformPoint(entry.tileX, entry.tileY);
+    return {
+      ...entry,
+      ...point,
+      collisionMask: transformMapPrefabCollisionMask(
+        entry.collisionMask,
+        transform === 'rotate_clockwise' ? 1 : transform === 'rotate_counterclockwise' ? 3 : 0,
+        transform === 'flip_horizontal',
+      ),
+    };
+  });
+  if (placements.some((entry) => !isMapStampPlacement(entry, workspace.width, workspace.height))
+    || cells.some((entry) => parseCell(entry, workspace.width, workspace.height) === null)) {
+    throw new RangeError('Tile object transform leaves the workspace');
+  }
+  return changed(workspace, { placements, cells });
+}
+
 export function groupTileObject(
   workspace: TileObjectWorkspaceV1,
   object: TileObjectDefinition,
@@ -419,6 +623,59 @@ export function tileObjectToMapStamp(
   return normalizeMapStamp({
     ...stamp,
     placements: placements.map((entry) => ({
+      ...entry,
+      tileX: entry.tileX - minimumX,
+      tileY: entry.tileY - minimumY,
+    })),
+  });
+}
+
+export function tileObjectToMapPrefab(
+  workspace: TileObjectWorkspaceV1,
+  objectId: string,
+): MapPrefabDocumentV2 {
+  const object = workspace.objects.find((entry) => entry.id === objectId);
+  if (object === undefined) throw new TypeError('Tile object does not exist');
+  const placementIds = new Set(object.placementIds);
+  const cellIds = new Set(object.cellIds);
+  const placements = workspace.placements.filter((entry) => placementIds.has(entry.id));
+  const cells = workspace.cells.filter((entry) => cellIds.has(entry.id));
+  const coordinates = [
+    ...placements.map((entry) => ({ tileX: entry.tileX, tileY: entry.tileY })),
+    ...cells.map((entry) => ({ tileX: entry.tileX, tileY: entry.tileY })),
+  ];
+  const minimumX = Math.min(...coordinates.map((entry) => entry.tileX));
+  const minimumY = Math.min(...coordinates.map((entry) => entry.tileY));
+  const maximumX = Math.max(...coordinates.map((entry) => entry.tileX));
+  const maximumY = Math.max(...coordinates.map((entry) => entry.tileY));
+  const collection = object.collectionId === null
+    ? null
+    : workspace.collections.find((entry) => entry.id === object.collectionId) ?? null;
+  const prefab = createMapPrefabDocument({
+    id: object.id.replaceAll('_', '-'),
+    title: object.label,
+    width: maximumX - minimumX + 1,
+    height: maximumY - minimumY + 1,
+    assetRegistryRevision: workspace.assetRegistryRevision,
+    tags: collection === null ? [] : [collection.id],
+    collection: collection === null ? null : {
+      id: collection.id,
+      label: collection.label,
+      color: collection.color,
+    },
+  });
+  return normalizeMapPrefab({
+    ...prefab,
+    pivot: {
+      tileX: (object.pivotTileX ?? Math.floor((minimumX + maximumX) / 2)) - minimumX,
+      tileY: (object.pivotTileY ?? Math.floor((minimumY + maximumY) / 2)) - minimumY,
+    },
+    placements: placements.map((entry) => ({
+      ...entry,
+      tileX: entry.tileX - minimumX,
+      tileY: entry.tileY - minimumY,
+    })),
+    cells: cells.map((entry) => ({
       ...entry,
       tileX: entry.tileX - minimumX,
       tileY: entry.tileY - minimumY,

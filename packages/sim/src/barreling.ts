@@ -75,9 +75,10 @@ export function barrelBatch(slots: readonly (BarrelStack | null)[]): BarrelBatch
 export function barrelCanSeal(
   slots: readonly (BarrelStack | null)[],
   maximumBatch = BARREL_MAX_BATCH,
+  minimumBatch = BARREL_MIN_BATCH,
 ): boolean {
   const batch = barrelBatch(slots);
-  return batch !== null && batch.quantity >= BARREL_MIN_BATCH && batch.quantity <= maximumBatch;
+  return batch !== null && batch.quantity >= minimumBatch && batch.quantity <= maximumBatch;
 }
 
 function stacksEqual(left: BarrelStack | null, right: BarrelStack | null): boolean {
@@ -109,37 +110,6 @@ export function barrelMutationIsValid(
   return batch === null
     ? after.every((stack) => stack === null)
     : batch.quantity <= maximumBatch;
-}
-
-export interface SettledBarrel {
-  readonly slots: readonly (BarrelStack | null)[];
-  readonly sealedAtTick: bigint | undefined;
-  readonly completedCropKind: CropKind | null;
-  readonly completedQuantity: number;
-}
-
-export function settleBarrel(
-  slots: readonly (BarrelStack | null)[],
-  sealedAtTick: bigint | undefined,
-  authorityTick: bigint,
-  cureTicks = BARREL_CURE_TICKS,
-  maximumBatch = BARREL_MAX_BATCH,
-): SettledBarrel {
-  if (sealedAtTick === undefined || authorityTick - sealedAtTick < cureTicks) {
-    return { slots, sealedAtTick, completedCropKind: null, completedQuantity: 0 };
-  }
-  const batch = barrelBatch(slots);
-  if (batch === null || !barrelCanSeal(slots, maximumBatch)) {
-    return { slots, sealedAtTick: undefined, completedCropKind: null, completedQuantity: 0 };
-  }
-  const output = preservedCropKind(batch.cropKind);
-  if (output === null) return { slots, sealedAtTick: undefined, completedCropKind: null, completedQuantity: 0 };
-  return {
-    slots: [{ itemKind: output, quantity: batch.quantity }, ...Array.from({ length: BARREL_SLOT_CAPACITY - 1 }, () => null)],
-    sealedAtTick: undefined,
-    completedCropKind: batch.cropKind,
-    completedQuantity: batch.quantity,
-  };
 }
 
 export function barrelProgress(

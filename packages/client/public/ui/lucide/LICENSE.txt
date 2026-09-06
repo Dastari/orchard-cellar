@@ -16,4 +16,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 Source: https://lucide.dev/
 Vendored icons: undo-2, redo-2, save, folder-open, file-up, file-down,
-grid-3x3, layers, shield-x, wand-sparkles.
+grid-3x3, layers, shield-x, wand-sparkles, cloud, cloud-upload, eye,
+mouse-pointer-2, sprout, paintbrush, land-plot, pickaxe, brick-wall,
+droplets, route, mountain, move-down, between-horizontal-start,
+align-horizontal-justify-center, list-chevrons-up-down, pen-tool, eraser,
+replace, map, box, palette, gamepad-2, trees, package, copy-plus, trash-2,
+eye-off, rotate-cw, flip-horizontal-2, maximize-2.

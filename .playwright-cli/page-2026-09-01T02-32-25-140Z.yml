@@ -1,0 +1,7 @@
+- main [ref=f3e2]:
+  - generic "Orchard and Cellar" [ref=f3e3]
+  - textbox "New local development profile name"
+  - status "OPENING CHARACTER STUDIO. 24%" [ref=f3e4]:
+    - text: OPENING CHARACTER STUDIO LOADING ARMOR RIGS AND TOOLS
+    - generic [ref=f3e5]: 24%
+  - status [ref=f3e6]

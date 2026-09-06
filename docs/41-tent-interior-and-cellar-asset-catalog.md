@@ -31,7 +31,7 @@ implements doc 40 §8.2 and does not supersede the sanctuary/zoned-world directi
 | rails, corners and intersections | `Tiles/Cave/Rails.png` | catalogued for the rail-layout pass |
 | minecart | `Outdoor decoration/Minecrats.png` | catalogued for the rail-layout pass |
 | blue/green/orange crystals and ore | `Outdoor decoration/Cave_Decorations.png`, cave rock animations | catalogued for resource-node pass |
-| loose stones, cracked earth and stalagmites | `Cave_Floor_Decoration.png`, `Cave_Decorations.png` | initial rocks; fuller decal scatter later |
+| loose stones, cracked earth and stalagmites | `Cave_Floor_Decoration.png`, `Cave_Decorations.png` | pebble decals plus wall-foot stalagmite scatter |
 | pool and rock-edged water | `Tiles/Cave/Cave_Water.png`, `Cave_Water_Animation.png` | catalogued for generated water chambers |
 | small cave creatures | no direct static terrain tile; wildlife sheets require a later behavior review | intentionally deferred |
 
@@ -72,24 +72,58 @@ The exact reviewed cave contour mapping is:
 | bottom-left / bottom / bottom-right | 32 / 5 / 33 |
 | inner top-left / top-right | 20 / 18 |
 | inner bottom-left / bottom-right | 6 / 4 |
-| upper face left / middle / right | 42 / 43 / 44 |
-| lower face left / middle / right | 49 / 50 / 51 |
+| upper face left cap / middle / right cap | 46 / 43 / 47 |
+| lower face left cap / middle / right cap | 53 / 50 / 54 |
+| protruding-column middle variant (upper / lower) | 44 / 51 |
 
-The cellar generator now emits a 1024×1024 binary excavation grid. Collision treats
-`dug=1` as walkable and all other cells as solid. Presentation fills every dug cell
+Frames 42 and 49 are byte-identical to the seamless middles and are not mapped.
+The protruding column is chosen deterministically per face column so both courses
+agree, roughly one column in six inside a seamless run and never at a cap.
+
+The cellar generator emits a 1024×1024 binary excavation grid. Collision treats
+`dug=1` as walkable and all other cells as solid. The field is a grid of aligned
+2×2 macro-cells: every excavation, starter room and persisted manual dig is a whole
+macro-cell (even first cell, even size), so solid rock and open floor are both
+unions of aligned 2×2 blocks. No one-cell wall, one-cell step or one-cell notch can
+exist, which is the minimum the rounded 2×2 corner bank can express, and the outer
+rock ring stays one macro-cell thick. A persisted dig row is read as the macro-cell
+containing its anchor, so legacy misaligned rows are repaired in place rather than
+rewritten or deleted; the authority snaps every strike to that anchor, so all four
+cells share one progress row and one persisted excavation. Only the struck anchor
+owns mining progress, ore reveal and stone reward. Presentation fills every dug cell
 with the plain middle tile, derives rocky edge/corner transitions from the same
 eight-neighbour mask used by path blending, and interprets solid rock as elevation
-one. The ground cache now supplies only open-floor or solid-rock substrate; it no
-longer bakes a competing 3×3 wall ring. The shared raised-terrain resolver derives
-all cap stones, convex and concave corners, narrow side profiles, and two-course
-front-facing walls from that elevation boundary. The two projected face courses are
-the walk-behind depth of this one logical elevation change; they are not two cellar
-levels. Long back
-wall runs may receive the complete 5×2 `Cave_Wall_Support.png` overlay; partial
-support fragments are never scattered as terrain. Untouched rock and the viewport
-outside the finite generation array repeat the darkened underground rock tile. The
-starter excavation occupies the central portion of that field; no contour is emitted
-at the outer map edge, so zooming out cannot reveal a false rectangular perimeter wall.
+one above the floor datum.
+
+Rock is raised terrain under the one shared elevation system. Its opaque surface,
+rim ring and both authored wall courses are displaced north by the two-row wall
+height, exactly as an outdoor cliff is: the face courses are drawn on the rock's own
+two southern cells, the floor directly in front of a wall is ordinary visible floor,
+and the two visible front-face courses are blocking cave wall. On the fixed floor
+plane, collision clears rock coverage vacated by the northward projection and then
+writes every blocking face course back at its projected destination; the first
+excavated floor row south of the wall stays open, so no phantom rows are added below
+the artwork. The same rock remains solid on the raised plane, and deeper rock still
+forms the boundary. Every rim, rounded
+convex turn and concave inset arc stays on the solid cell that owns it. A front face
+that meets a side rim, or ends at open floor, finishes with its dark-outlined cap
+frame; because interior rims are opaque, a face beside solid rock is never treated
+as continuing behind that rock. Pickaxe targeting strikes the faced logical
+neighbour when it is exposed rock, and maps pointer picks on the drawn wall back
+to the rock two rows south (rim) or the south edge that owns a face course. Long
+back wall runs may receive the complete 5×2 `Cave_Wall_Support.png` overlay.
+Placement is derived from complete resolved front-face runs, centred with a two-tile
+gap between structures, so both posts stay on authored wall and partial support
+fragments are never scattered as terrain. Deterministic cracks and pebble decals
+may continue up to supported walls, while dense rocky floor patches retain a
+one-tile wall clearance. Stalagmite clusters and spikes
+(`tile_cf_cave_floor_stalagmite`, the 4×2 `Cave_Decorations.png` sheet) gather on
+the floor directly under a front wall and beside side rims, with a sparse scatter
+elsewhere and none beneath the projected front-wall courses; they are ground decals, never
+collision. Untouched rock and the viewport outside the finite generation array
+repeat the darkened underground rock tile. The starter excavation occupies the
+central portion of that field; no contour is emitted at the outer map edge, so
+zooming out cannot reveal a false rectangular perimeter wall.
 
 Rooms and corridors can therefore be added or removed solely by changing the
 excavation grid. Floors, projected walls, supports, visible bounds and authoritative

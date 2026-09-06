@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  FIRST_BOTTLE_QUEST_ID,
-  FARMER_BOB_STRAWBERRY_QUEST_ID,
-  MARLOW_BOOK_QUEST_ID,
   questAcceptBaselines,
   questDefinition,
+  questDefinitionFromContent,
+  runtimeQuestDefinition,
   questIsComplete,
   questDefinitionForUniqueItem,
   questLocationAtTile,
@@ -15,7 +14,21 @@ import {
   type QuestDefinition,
   type QuestProgressSource,
 } from './quests.js';
+import { BRONZE_PER_SILVER } from './commerce.js';
 import { TILE_SIZE_FIXED } from './state.js';
+import { bootstrapContentRows } from './content/bootstrap-registry.js';
+import { buildContentRegistry } from './content/registry.js';
+
+const definitions = Object.values(QUEST_DEFINITIONS);
+const marlowBook = definitions.find((definition) => definition.world?.surfaceItemsOnAccept !== undefined)!;
+const firstBottle = definitions.find((definition) => (
+  definition.objectives.some((objective) => objective.kind === 'statistic'
+    && objective.statisticKind === 'bottles_produced')
+))!;
+const bobStrawberries = definitions.find((definition) => (
+  definition.acceptItems?.some(({ itemKind }) => itemKind === 'bob_fast_strawberry_seeds')
+))!;
+const fishingLesson = definitions.find((definition) => definition.world?.personalResource !== undefined)!;
 
 function source(
   statistics: Readonly<Record<string, bigint>> = {},
@@ -35,21 +48,33 @@ describe('quest definitions and progress', () => {
     expect(questDefinition('not-a-real-quest')).toBeNull();
   });
 
+  it('projects quest authority from a published live revision', () => {
+    const rows = bootstrapContentRows().map((row) => row.id !== `quest:${marlowBook.id}` ? row : {
+      ...row,
+      json: JSON.stringify({
+        ...(JSON.parse(String(row.json)) as object), title: 'Published title',
+      }),
+    });
+    const registry = buildContentRegistry(rows).registry;
+    expect(runtimeQuestDefinition(registry, marlowBook.id)?.title).toBe('Published title');
+    expect(runtimeQuestDefinition(registry, 'missing')).toBeNull();
+  });
+
   it('requires Marlow\'s physical book to remain in carried inventory', () => {
-    const definition = questDefinition(MARLOW_BOOK_QUEST_ID)!;
+    const definition = questDefinition(marlowBook.id)!;
     expect(definition.abandonRemovesItems).toEqual([{ itemKind: 'marlow_book', count: 1 }]);
     const before = source();
     const baselines = questAcceptBaselines(definition, before);
     expect(questIsComplete(definition, baselines, before)).toBe(false);
     expect(questIsComplete(definition, baselines, source({}, { marlow_book: 1 }))).toBe(true);
-    expect(questDefinitionForUniqueItem('marlow_book')?.id).toBe(MARLOW_BOOK_QUEST_ID);
+    expect(questDefinitionForUniqueItem('marlow_book')?.id).toBe(marlowBook.id);
     expect(questDefinitionForUniqueItem('wood')).toBeNull();
   });
 
   it('tracks the first Bottle loop from post-accept production and sale counters', () => {
-    const definition = questDefinition(FIRST_BOTTLE_QUEST_ID)!;
-    expect(definition.prerequisiteQuestIds).toEqual([FARMER_BOB_STRAWBERRY_QUEST_ID]);
-    expect(definition.rewards.homesteadSizeTier).toBe(1);
+    const definition = questDefinition(firstBottle.id)!;
+    expect(definition.prerequisiteQuestIds).toEqual([bobStrawberries.id]);
+    expect(definition.rewards.homesteadSizeTier).toBeUndefined();
     const accepted = source({
       'press_cycles_completed:': 9n,
       'bottles_produced:': 2n,
@@ -65,15 +90,59 @@ describe('quest definitions and progress', () => {
   });
 
   it('starts Bob\'s farming line with a fast seed and Jane\'s journal reward', () => {
-    const definition = questDefinition(FARMER_BOB_STRAWBERRY_QUEST_ID)!;
+    const definition = questDefinition(bobStrawberries.id)!;
     expect(definition.giverNpcId).toBe(3n);
     expect(definition.acceptItems).toEqual([
-      { itemKind: 'bob_fast_strawberry_seeds', count: 1 },
+      { itemKind: 'bob_fast_strawberry_seeds', count: 6 },
     ]);
     expect(definition.objectives).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'statistic', count: 6n }),
       expect.objectContaining({ kind: 'collect', items: [{ itemKind: 'strawberry', count: 3 }] }),
     ]));
+    expect(definition.summary).toContain('outside his protected farm');
+    expect(definition.summary).toContain('Any clear overworld ground elsewhere is fine');
+    expect(definition.rewards.bronze).toBe(75n * BRONZE_PER_SILVER);
     expect(definition.rewards.items).toContainEqual({ itemKind: 'janes_gardening_book', count: 1 });
+  });
+
+  it('gives Fin\'s spare rod and completes only after the exact tutorial catch count', () => {
+    const definition = questDefinition(fishingLesson.id)!;
+    const target = definition.objectives.find((objective) => objective.kind === 'statistic')!;
+    expect(definition.giverNpcId).toBeGreaterThan(0n);
+    expect(definition.acceptItems).toEqual([{ itemKind: 'fishing_rod', count: 1 }]);
+    expect(definition.rewards.items).toEqual([{ itemKind: 'fishing_handbook', count: 1 }]);
+    const accepted = source({ 'fish_caught:raw_fish': 9n });
+    const baselines = questAcceptBaselines(definition, accepted);
+    expect(questIsComplete(definition, baselines, source({
+      'fish_caught:raw_fish': 9n + target.count - 1n,
+    }))).toBe(false);
+    expect(questIsComplete(definition, baselines, source({
+      'fish_caught:raw_fish': 9n + target.count,
+    }))).toBe(true);
+  });
+
+  it('projects renamed quest, NPC, surface, and personal-resource ids without branches', () => {
+    const registry = buildContentRegistry(bootstrapContentRows()).registry;
+    const content = registry.quests.get(`quest:${fishingLesson.id}`)!;
+    const renamed = {
+      ...content,
+      id: 'quest:harbour_lesson' as const,
+      giver: 'npc:fisherman_fin' as const,
+      world: {
+        ...content.world,
+        personalResource: {
+          ...content.world!.personalResource!,
+          resourceId: '987654321',
+          tileX: 401,
+          tileY: 302,
+        },
+      },
+    };
+    const projected = questDefinitionFromContent(registry, renamed);
+    expect(projected).toMatchObject({
+      id: 'harbour_lesson',
+      world: { personalResource: { resourceId: 987654321n, tileX: 401, tileY: 302 } },
+    });
   });
 
   it('supports multi-item collection objectives without accepting stale client counts', () => {

@@ -72,6 +72,10 @@ suite.
 | [46-live-first-bottle-loop.md](46-live-first-bottle-loop.md) | Fruit-to-bottle production chain | Cellar production work |
 | [47-rendering-lighting-performance-plan.md](47-rendering-lighting-performance-plan.md) | Renderer, lighting, and client performance program | Rendering/performance work |
 | [48-repeatable-mining-loop.md](48-repeatable-mining-loop.md) | Active node populations, richness, yields, parties, skills, respawn, and mining art | Any mining work |
+| [55-game-authoring-suite.md](55-game-authoring-suite.md) | Live content registry, behaviour graphs, frame designer, NPC/dialogue/quest studios; plan to retire compile-time content | Any editor, content-definition, interaction, station-window, NPC, dialogue, or quest authoring work |
+| [56-orchard-studio.md](56-orchard-studio.md) | Separate Studio app unifying map/object/tile/behaviour/quest authoring with live player support, world administration, and the audited admin procedure/reducer API | Any editor extraction, admin tool, player-support, or operator workflow work |
+| [58-seasonal-lighting-and-baked-shadow-plan.md](58-seasonal-lighting-and-baked-shadow-plan.md) | Single-asset RGBA shadow omission, Basic lighting fallback, and seasonal sun/moon illumination and shadows (proposed) | Asset shadow metadata, lighting quality, celestial lighting, or low-end rendering work |
+| [59-client-render-performance-recovery-plan.md](59-client-render-performance-recovery-plan.md) | World-pass resolution, bounded atlas pages, shadowless page delivery, static/moving shadow coverage, tint pool, painter hot path, experimental WebGL2 toggle (adopted 2026-09-06) | Any client frame-rate, Canvas fill-rate, atlas paging, or lighting performance work |
 
 Minimal startup ritual for an implementing agent: **00 → 01 → 02 → 15 → your
 milestone in 14 → the docs that milestone lists.** Docs are binding; deviations go
@@ -84,5 +88,9 @@ resource/item, skill icon, prop, building, sprite, or animation source.
 
 - The original incremental capture and redesign PDF are local-only material in the
   ignored `references/` directory; they are not part of the published repository.
+
+- Licensed art is organized locally under `references/art/<vendor>/`. Use the
+  tracked Cute Fantasy and Clockwork Raven indexes in `docs/reference-assets/`
+  before opening source sheets manually.
 
 Docs 16/17 summarize both faithfully; implementers should rarely need the raw files.

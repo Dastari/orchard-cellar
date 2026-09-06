@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { craftingStationWithinReach } from '@orchard/sim';
-import { placeablePointLight } from '../render/light-sources.js';
+import { placeablePointLight } from '@orchard/engine/light-sources';
 
 interface PlaceableFixture {
   readonly id: bigint;

@@ -1,0 +1,93 @@
+- main [ref=e2]:
+  - textbox "New local development profile name"
+  - status [ref=e6]
+  - main [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: ORCHARD & CELLAR / RIG LAB
+        - heading "Character Studio" [level=1] [ref=e11]
+      - paragraph [ref=e12]: Click an equipment slot, then compare Raven icons converted through reusable animated wearable templates.
+    - region [ref=e13]:
+      - generic [ref=e14]:
+        - heading "Equipment" [level=2] [ref=e15]
+        - button "Clear" [ref=e16] [cursor=pointer]
+      - generic [ref=e17]:
+        - button "HEAD Azure Demon Mask" [ref=e182] [cursor=pointer]:
+          - generic [ref=e183]: HEAD
+          - strong [ref=e185]: Azure Demon Mask
+        - button "BODY Iron Plate" [pressed] [ref=e186] [cursor=pointer]:
+          - generic [ref=e187]: BODY
+          - strong [ref=e189]: Iron Plate
+        - button "LEGS Iron Greaves" [ref=e190] [cursor=pointer]:
+          - generic [ref=e191]: LEGS
+          - strong [ref=e193]: Iron Greaves
+      - generic [ref=e30]:
+        - checkbox "Hide hair beneath helmets" [checked] [ref=e31]
+        - text: Hide hair beneath helmets
+      - generic [ref=e32]:
+        - strong [ref=e33]: Conversion recipe
+        - generic [ref=e34]: "Raven icon: item identity and native palette"
+        - generic [ref=e35]: "Cute Fantasy: side/back geometry and full animation coverage"
+    - region [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - paragraph [ref=e39]: LIVE CANVAS
+          - heading "Animation test stage" [level=2] [ref=e40]
+        - status [ref=e41]: BODY selected — 9 wearable choices
+      - generic "Interactive character armor animation stage. Move with WASD or arrow keys, select tools with 1 through 4, and use the selected tool with F." [ref=e43]
+      - generic "Tool hotbar" [ref=e44]:
+        - button "1 Sword" [pressed] [ref=e45] [cursor=pointer]
+        - button "2 Pickaxe" [ref=e48] [cursor=pointer]
+        - button "3 Axe" [ref=e51] [cursor=pointer]
+        - button "4 Bow" [ref=e54] [cursor=pointer]
+      - generic "Animation actions" [ref=e57]:
+        - button "Attack" [ref=e58] [cursor=pointer]
+        - button "Mine" [ref=e59] [cursor=pointer]
+        - button "Chop" [ref=e60] [cursor=pointer]
+        - button "Bow" [ref=e61] [cursor=pointer]
+      - paragraph [ref=e62]: WASD/ARROWS move · 1–4 select · F use · hold mouse on the canvas to draw the bow
+    - region [ref=e194]:
+      - generic [ref=e64]:
+        - heading "Body choices" [level=2] [ref=e195]
+        - generic [ref=e66]: 6 Raven · 9 total
+      - generic "Available body equipment" [ref=e196]:
+        - button "NO EQUIPMENT Remove body item Return Iron Plate to the inventory" [ref=e197] [cursor=pointer]:
+          - emphasis [ref=e198]: NO EQUIPMENT
+          - generic [ref=e199]: Remove body item
+          - generic [ref=e200]: Return Iron Plate to the inventory
+        - button "ANIMATED TEMPLATE Bronze Plate Same geometry, generated palette" [ref=e201] [cursor=pointer]:
+          - emphasis [ref=e202]: ANIMATED TEMPLATE
+          - generic [ref=e204]: Bronze Plate
+          - generic [ref=e205]: Same geometry, generated palette
+        - button "ANIMATED TEMPLATE Gold Plate Same geometry, generated palette" [ref=e206] [cursor=pointer]:
+          - emphasis [ref=e207]: ANIMATED TEMPLATE
+          - generic [ref=e209]: Gold Plate
+          - generic [ref=e210]: Same geometry, generated palette
+        - button "RAVEN · plate chest Ivory Brigandine Raven palette → plate chest" [ref=e211] [cursor=pointer]:
+          - emphasis [ref=e212]: RAVEN · plate chest
+          - generic [ref=e214]: Ivory Brigandine
+          - generic [ref=e215]: Raven palette → plate chest
+        - button "RAVEN · plate chest Steel Longcoat Raven palette → plate chest" [ref=e216] [cursor=pointer]:
+          - emphasis [ref=e217]: RAVEN · plate chest
+          - generic [ref=e219]: Steel Longcoat
+          - generic [ref=e220]: Raven palette → plate chest
+        - button "RAVEN · plate chest Black Knight Plate Raven palette → plate chest" [ref=e221] [cursor=pointer]:
+          - emphasis [ref=e222]: RAVEN · plate chest
+          - generic [ref=e224]: Black Knight Plate
+          - generic [ref=e225]: Raven palette → plate chest
+        - button "RAVEN · plate chest Crimson Officer Coat Raven palette → plate chest" [ref=e226] [cursor=pointer]:
+          - emphasis [ref=e227]: RAVEN · plate chest
+          - generic [ref=e229]: Crimson Officer Coat
+          - generic [ref=e230]: Raven palette → plate chest
+        - button "RAVEN · plate chest Violet Spell Plate Raven palette → plate chest" [ref=e231] [cursor=pointer]:
+          - emphasis [ref=e232]: RAVEN · plate chest
+          - generic [ref=e234]: Violet Spell Plate
+          - generic [ref=e235]: Raven palette → plate chest
+        - button "RAVEN · plate chest Verdant Warden Plate Raven palette → plate chest" [ref=e236] [cursor=pointer]:
+          - emphasis [ref=e237]: RAVEN · plate chest
+          - generic [ref=e239]: Verdant Warden Plate
+          - generic [ref=e240]: Raven palette → plate chest
+      - complementary [ref=e117]:
+        - heading "What this proves" [level=3] [ref=e118]
+        - paragraph [ref=e119]: Raven icons stay untouched in the inventory. Their four-color material ramps are transferred onto a reusable animated helmet, chest, or greaves template.
+        - paragraph [ref=e120]: The template supplies the missing side and back views. Distinctive shapes such as horns and plumes will eventually become separate directional accent layers.

@@ -1,0 +1,25 @@
+- main [ref=f4e2]:
+  - complementary "Development tools" [ref=f4e3]:
+    - generic [ref=f4e4]:
+      - strong [ref=f4e5]: O&C
+      - generic [ref=f4e6]: TOOLS
+    - navigation [ref=f4e7]:
+      - link "Map Editor" [ref=f4e8] [cursor=pointer]:
+        - /url: /editor/map
+        - generic [ref=f4e10]: Map
+      - link "Object Studio" [ref=f4e11] [cursor=pointer]:
+        - /url: /editor/object
+        - generic [ref=f4e13]: Object
+      - link "UI Component Lab" [ref=f4e14] [cursor=pointer]:
+        - /url: /editor/ui-lab
+        - generic [ref=f4e16]: UI Lab
+      - link "Character Studio" [ref=f4e17] [cursor=pointer]:
+        - /url: /editor/character-studio
+        - generic [ref=f4e19]: Character
+  - generic [ref=f4e20]:
+    - generic "Orchard and Cellar" [ref=f4e21]
+    - textbox "New local development profile name"
+    - status "OPENING OBJECT STUDIO. 24%" [ref=f4e23]:
+      - text: OPENING OBJECT STUDIO INDEXING ASSETS AND PREFABS
+      - generic [ref=f4e24]: 24%
+    - status [ref=f4e25]

@@ -1,7 +1,8 @@
 [Unit]
-Description=Orchard & Cellar frontend
+Description=Orchard & Cellar static frontend
 Wants=network-online.target orchard-world.service
 After=network-online.target orchard-world.service
+ConditionPathExists=/home/toby/projects/orchard-cellar/packages/client/dist/index.html
 
 [Service]
 Type=simple
@@ -9,8 +10,9 @@ User=toby
 Group=toby
 WorkingDirectory=/home/toby/projects/orchard-cellar
 Environment=HOME=/home/toby
+Environment=NODE_ENV=production
 Environment=PATH=/home/toby/.nvm/versions/node/v24.19.0/bin:/home/toby/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
-ExecStart=/home/toby/.nvm/versions/node/v24.19.0/bin/npm run dev -w @orchard/client -- --host 10.0.1.150
+ExecStart=/home/toby/.nvm/versions/node/v24.19.0/bin/npm run preview -w @orchard/client -- --host 10.0.1.150 --port 5173 --strictPort
 Restart=always
 RestartSec=3
 TimeoutStopSec=30

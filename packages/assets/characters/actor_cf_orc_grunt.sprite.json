@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_orc_grunt",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     64,
     64
@@ -2522,7 +2523,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Orc_Grunt.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Orcs/Orc_Grunt.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Orcs/Orc_Grunt.png",
   "sourceRegions": {
     "idle_down": [
       [

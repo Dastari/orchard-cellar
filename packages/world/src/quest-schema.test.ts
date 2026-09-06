@@ -63,18 +63,15 @@ describe('per-player quest authority', () => {
     expect(reducer).toContain('refreshPlayerQuests(ctx, ctx.sender, authorityTick)');
   });
 
-  it('lets only the owner reset their own complete quest state for replay', () => {
-    const reducer = sourceBetween('export const resetMyQuestProgress =', 'export const debugUsePortal =');
-    expect(reducer).toContain('requireWorldOwner(');
-    expect(reducer).toContain('player_quest.by_identity.filter(ctx.sender)');
-    expect(reducer).toContain('player_quest_baseline.by_identity.filter(ctx.sender)');
-    expect(reducer).toContain('quest_world_item.by_identity.filter(ctx.sender)');
-    expect(reducer).toContain("removePlayerCarriedItem(ctx, 'marlow_book', carried)");
-    expect(reducer).toContain("action: 'reset_my_quest_progress'");
+  it('retires caller debug reset in favour of the exact-player admin reset', () => {
+    expect(source).not.toContain('export const resetMyQuestProgress =');
+    const reducer = sourceBetween('export const adminResetQuests =', 'function adminPositionPointAtTile(');
+    expect(reducer).toContain("operation: 'reset_quests'");
+    expect(reducer).toContain('adminProgressionMutationBase(input)');
   });
 
   it('lets a player abandon only their own active quest and cleans quest-owned state', () => {
-    const reducer = sourceBetween('export const abandonQuest =', 'export const resetMyQuestProgress =');
+    const reducer = sourceBetween('export const abandonQuest =', 'export const setDisplayName =');
     expect(reducer).toContain('requireAuthorizedSender(');
     expect(reducer).toContain("row.state !== 'active' && row.state !== 'complete'");
     expect(reducer).toContain('definition.abandonRemovesItems ?? []');

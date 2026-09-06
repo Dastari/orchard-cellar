@@ -24,7 +24,7 @@ describe('docs/53 T5 chunk-bounded action scans', () => {
     expect(drop).toContain('worldItemsInChunkNeighborhood(ctx, drop.spaceId, drop.x, drop.y)');
     expect(drop).not.toContain('world_item.iter()');
 
-    const pickup = sourceBetween('export const pickupWorldItem =', 'export const beginBowCharge =');
+    const pickup = sourceBetween('export const pickupWorldItem =', 'function authorityBowChargeMs(');
     expect(pickup).toContain(
       'worldItemsInChunkNeighborhood(ctx, position.spaceId, position.x, position.y)',
     );

@@ -1,0 +1,67 @@
+{
+  "name": "icon_skill_master_forester",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        "....00666400....",
+        "...0277666640...",
+        "..046776776640..",
+        "..046666776760..",
+        "..047677676640..",
+        "..046677666740..",
+        "..024466666640..",
+        "...0224466420...",
+        "....00224400....",
+        "......0110......",
+        "......0330......",
+        "......03530.....",
+        ".....0135310....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#2e222f",
+    "1": "#3b3d29",
+    "2": "#541d14",
+    "3": "#5a562e",
+    "4": "#76351b",
+    "5": "#7b5e33",
+    "6": "#a0591e",
+    "7": "#cf8b25"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "trees-and-logs-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/trees-and-logs/sheets/trees-and-logs-16.png",
+  "sourceRegion": [
+    32,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.master_forester",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

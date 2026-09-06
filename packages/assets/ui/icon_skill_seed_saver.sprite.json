@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_seed_saver",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "..........0.....",
+        "........102.....",
+        "........02......",
+        "........201.....",
+        "......34.201....",
+        ".....354..22....",
+        "....4345........",
+        "....546.........",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3e8948",
+    "1": "#63c74d",
+    "2": "#265c42",
+    "3": "#c0efb2",
+    "4": "#96c352",
+    "5": "#27321b",
+    "6": "#878e37"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+  "sourceRegion": [
+    48,
+    64,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.seed_saver",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "name": "icon_skill_cartographer",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "..011111111122..",
+        "..011343000012..",
+        "...01130031112..",
+        "....0313000112..",
+        "....0110000312..",
+        "....0111110012..",
+        "....0111103015..",
+        "....0100301125..",
+        "..222255551125..",
+        "..222222255225..",
+        "..121112225225..",
+        "...12111225555..",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#ead4aa",
+    "1": "#e4a672",
+    "2": "#b86f50",
+    "3": "#621a22",
+    "4": "#e8b796",
+    "5": "#733e39"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/ui/attributes-menu-states-240/sheet-16-no-outline.png",
+  "sourceRegion": [
+    112,
+    192,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.cartographer",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

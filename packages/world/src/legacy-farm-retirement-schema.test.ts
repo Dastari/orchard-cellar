@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
-const generated = readFileSync(new URL('../../client/src/net/generated/index.ts', import.meta.url), 'utf8');
+const generated = readFileSync(new URL('../../world-bindings/src/index.ts', import.meta.url), 'utf8');
 
 function between(startAnchor: string, endAnchor: string): string {
   const start = source.indexOf(startAnchor);
@@ -20,15 +20,21 @@ describe('T11 legacy farm retirement', () => {
       ['const farm_activity = table(', 'const movement_timer = table('],
     ] as const) expect(between(start, end)).not.toContain('public: true');
     expect(source).not.toContain('export const useFarmTile =');
+    expect(source).not.toContain('export const useFarmTool =');
+    expect(source).not.toContain('export const restoreFarmTile =');
     expect(generated).not.toContain('use_farm_tile');
+    expect(generated).not.toContain('use_farm_tool');
+    expect(generated).not.toContain('restore_farm_tile');
     expect(generated).not.toContain("name: 'farm_parcel'");
     expect(generated).not.toContain("name: 'crop_patch'");
     expect(generated).not.toContain("name: 'farm_activity'");
     for (const file of [
-      '../../client/src/net/generated/use_farm_tile_reducer.ts',
-      '../../client/src/net/generated/farm_parcel_table.ts',
-      '../../client/src/net/generated/crop_patch_table.ts',
-      '../../client/src/net/generated/farm_activity_table.ts',
+      '../../world-bindings/src/use_farm_tile_reducer.ts',
+      '../../world-bindings/src/use_farm_tool_reducer.ts',
+      '../../world-bindings/src/restore_farm_tile_reducer.ts',
+      '../../world-bindings/src/farm_parcel_table.ts',
+      '../../world-bindings/src/crop_patch_table.ts',
+      '../../world-bindings/src/farm_activity_table.ts',
     ]) expect(existsSync(new URL(file, import.meta.url)), file).toBe(false);
   });
 
@@ -48,13 +54,16 @@ describe('T11 legacy farm retirement', () => {
   });
 
   it('leaves compatibility columns and tables inert outside migration paths', () => {
-    const cropReducer = between('export const useCropTile =', 'export const tendTree =');
+    const cropReducer = between('export const harvestCropTile =', 'export const tendTree =');
     const treeReducer = between('export const tendTree =', 'export const stepWorld =');
     const connect = between('export const onConnect =', 'export const onDisconnect =');
     expect(cropReducer).not.toContain('farm_activity');
     expect(treeReducer).not.toContain('private_inventory');
     expect(connect).not.toContain('private_inventory.insert');
     expect(connect).not.toContain('farm_activity.insert');
+    expect(source).not.toContain('export const useCropTile =');
+    expect(generated).not.toContain('use_crop_tile');
+    expect(existsSync(new URL('../../world-bindings/src/use_crop_tile_reducer.ts', import.meta.url))).toBe(false);
     expect(source).toContain('wood: t.u32()');
     expect(source).toContain('stone: t.u32()');
     expect(source).toContain('ensureLegacyFarmMigration(ctx);');

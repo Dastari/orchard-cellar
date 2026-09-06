@@ -1,6 +1,7 @@
 {
   "name": "building_cf_barn",
   "category": "buildings",
+  "bakedShadowColor": "#00000064",
   "size": [
     128,
     144
@@ -186,6 +187,6 @@
     "l": "#b86f50",
     "m": "#c78e75"
   },
-  "sourcePath": "references/Cute_Fantasy/Buildings/Buildings/Unique_Buildings/Barn/Barn_Base_Red.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/Buildings/Unique_Buildings/Barn/Barn_Base_Red.png",
   "sourcePaletteMode": "exact"
 }

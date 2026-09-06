@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CUTE_FANTASY_PLAYER_ROWS } from '@orchard/sim';
 import { loadPalette, workspaceRoot } from './assets/load.js';
 import { decodePng, type DecodedPng } from './assets/png.js';
 import type { AssetSource } from './assets/types.js';
@@ -10,7 +11,6 @@ const CROP_X = 16;
 const CROP_Y = 8;
 const WIDTH = 32;
 const HEIGHT = 40;
-const FRAME_COUNT = 6;
 
 const parts = [
   ['action_cf_base', 'Player/Player_Base/Player_Base_animations.png'],
@@ -39,16 +39,7 @@ const parts = [
   ['action_cf_shoes_red', 'Player/Feet/Shoes_1_Red.png'],
 ] as const;
 
-const animationRows = [
-  ['swing_sword_down', 6, 4], ['swing_sword_right', 9, 4], ['swing_sword_up', 12, 4],
-  ['hold_idle_down', 20, 1], ['hold_idle_right', 21, 1], ['hold_idle_up', 22, 1],
-  ['hold_walk_down', 23, 5], ['hold_walk_right', 24, 5], ['hold_walk_up', 25, 5],
-  ['ranged_weapon_down', 29], ['ranged_weapon_right', 30], ['ranged_weapon_up', 31],
-  ['swing_axe_down', 32], ['swing_axe_right', 33], ['swing_axe_up', 34],
-  ['swing_pickaxe_down', 35], ['swing_pickaxe_right', 36], ['swing_pickaxe_up', 37],
-  ['swing_hoe_down', 38], ['swing_hoe_right', 39], ['swing_hoe_up', 40],
-  ['water_down', 41], ['water_right', 42], ['water_up', 43],
-] as const;
+const animationRows = CUTE_FANTASY_PLAYER_ROWS.filter((entry) => entry.sets.some((set) => set === 'action'));
 
 function nativeHex(image: DecodedPng, x: number, y: number): string | null {
   const offset = (y * image.width + x) * 4;
@@ -61,7 +52,7 @@ function nativeHex(image: DecodedPng, x: number, y: number): string | null {
 
 const rootPath = fileURLToPath(workspaceRoot);
 const outputRoot = resolve(rootPath, 'packages/assets/characters');
-const sourceRoot = resolve(rootPath, 'references/Cute_Fantasy');
+const sourceRoot = resolve(rootPath, 'references/art/kenmi/cute-fantasy/core');
 const paletteCharacters = Object.keys((await loadPalette()).colors);
 await mkdir(outputRoot, { recursive: true });
 
@@ -69,11 +60,11 @@ for (const [name, relativeSource] of parts) {
   const source = resolve(sourceRoot, relativeSource);
   const image = decodePng(await readFile(source));
   if (image.width !== 576 || image.height !== 3584) throw new Error(`${relativeSource} is not a 9x56 player sheet`);
-  const sourceRegions = Object.fromEntries(animationRows.map(([animation, row, authoredFrameCount]) => [
-    animation,
-    Array.from({ length: authoredFrameCount ?? FRAME_COUNT }, (_, frame) => [
-      frame * CELL_SIZE + CROP_X,
-      row * CELL_SIZE + CROP_Y,
+  const sourceRegions = Object.fromEntries(animationRows.map((entry) => [
+    entry.name,
+    Array.from({ length: entry.outputFrameCount }, (_, frame) => [
+      Math.min(frame, entry.authoredFrameCount - 1) * CELL_SIZE + CROP_X,
+      entry.row * CELL_SIZE + CROP_Y,
       WIDTH,
       HEIGHT,
     ] as const),
@@ -116,7 +107,7 @@ for (const [name, relativeSource] of parts) {
   await writeFile(resolve(outputRoot, `${name}.sprite.json`), `${JSON.stringify(asset, null, 2)}\n`);
 }
 
-console.log(`Extracted ${parts.length} modular character sword/hold/action layers from canonical rows 6-43.`);
+console.log(`Extracted ${parts.length} modular character sword/hold/action layers from canonical rows 6-49.`);
 
 const heldLightHandsSource = resolve(sourceRoot, 'Player/Hands/Hands_Bare_Lantern_Torch_Idle_Running.png');
 const heldLightHandsImage = decodePng(await readFile(heldLightHandsSource));

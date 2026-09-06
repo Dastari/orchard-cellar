@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   craftItem,
+  BOOTSTRAP_ITEM_CONTAINER_CONTENT,
   clickContainerSlot,
   distributeItemStack,
+  fillCraftingRecipeFromInventory,
+  canUseToolWithSkillRanks,
+  ITEM_DEFINITIONS,
+  TOOL_QUALITY_REQUIRED_SPECIALIZATION_RANKS,
   insertItemStack,
   insertItemStackPartial,
   itemDefinition,
+  itemStacksCompatible,
   isUniqueQuestItemKind,
   matchingRecipeId,
   moveItemStacks,
@@ -15,21 +21,72 @@ import {
   pickupAllToCursor,
   sortAndStackContainer,
   slotAcceptsItem,
+  toolQualityRequiredRanks,
 } from './item-containers.js';
+import {
+  ACTIVE_EQUIPMENT_SLOTS,
+  EQUIPMENT_SLOTS,
+  activeEquipmentSlotAccepts,
+} from './inventory-layout.js';
 import { MOVE_RULE_FIXTURES } from './item-containers.fixtures.js';
 
 describe('shared container stacking rules', () => {
+  it('merges newly granted fiber with persisted stacks without requiring an empty cell', () => {
+    const hotbar = { id: 'hotbar', capacity: 1, slots: [{ itemKind: 'fiber', quantity: 10, lit: true }] };
+    const fresh = { itemKind: 'fiber', quantity: 1 };
+    const inserted = insertItemStack(hotbar, fresh);
+    expect(inserted.ok && inserted.container.slots).toEqual([{ itemKind: 'fiber', quantity: 11, lit: true }]);
+    const moved = quickMoveItemStack({
+      hotbar, grant: { id: 'grant', capacity: 1, slots: [fresh] },
+    }, { fromContainer: 'grant', fromIndex: 0, toContainers: ['hotbar'] }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
+    expect(moved.ok && moved.containers.hotbar?.slots).toEqual([{ itemKind: 'fiber', quantity: 11, lit: true }]);
+    expect(moved.ok && moved.containers.grant?.slots).toEqual([null]);
+    expect(hotbar.slots[0]?.quantity).toBe(10);
+  });
+
+  it('merges fresh crafted arrows into persisted output while retaining explicit power and wear differences', () => {
+    const crafted = craftItem({
+      grid: { id: 'grid', capacity: 10, slots: [
+        { itemKind: 'stick', quantity: 1, lit: true }, { itemKind: 'stone', quantity: 1, lit: true },
+        null, null, null, null, null, null, null, { itemKind: 'arrow', quantity: 5, lit: true },
+      ] },
+    }, { recipeId: 'arrows', gridContainer: 'grid', resultIndex: 9 });
+    expect(crafted.ok && crafted.containers.grid?.slots[9]).toEqual({ itemKind: 'arrow', quantity: 9, lit: true });
+    if (!crafted.ok) throw new Error('arrow recipe fixture failed');
+    const moved = quickMoveItemStack({
+      hotbar: { id: 'hotbar', capacity: 1, slots: [{ itemKind: 'arrow', quantity: 5, lit: true }] },
+      output: { id: 'output', capacity: 1, slots: [crafted.crafted] },
+    }, { fromContainer: 'output', fromIndex: 0, toContainers: ['hotbar'] }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
+    expect(moved.ok && moved.containers.hotbar?.slots).toEqual([{ itemKind: 'arrow', quantity: 9, lit: true }]);
+    expect(itemStacksCompatible({ itemKind: 'lantern', quantity: 1 }, { itemKind: 'lantern', quantity: 1, lit: false })).toBe(false);
+    expect(itemStacksCompatible({ itemKind: 'axe', quantity: 1, durability: 5 }, { itemKind: 'axe', quantity: 1, durability: 6, lit: true })).toBe(false);
+  });
+
   it('distinguishes protected quest artifacts from ordinary objective materials', () => {
     expect(isUniqueQuestItemKind('marlow_book')).toBe(true);
+    expect(isUniqueQuestItemKind('bob_fast_strawberry_seeds')).toBe(false);
+    expect(itemDefinition('bob_fast_strawberry_seeds')).toMatchObject({ maxStack: 99 });
     expect(isUniqueQuestItemKind('wood')).toBe(false);
     expect(isUniqueQuestItemKind('missing')).toBe(false);
   });
 
   it('registers stable item quality independently of quest ownership', () => {
     expect(itemDefinition('wood')?.quality).toBe('common');
-    expect(itemDefinition('axe')?.quality).toBe('uncommon');
-    expect(itemDefinition('sword')?.quality).toBe('rare');
-    expect(itemDefinition('ring')?.quality).toBe('epic');
+    // Starter equipment deliberately begins at the lowest quality; later
+    // qualities are specialization-gated rather than baked into starter gear.
+    for (const itemKind of [
+      'axe', 'hoe', 'pickaxe', 'watering_can', 'fishing_rod',
+      'sword', 'bow', 'shovel', 'hammer', 'lantern',
+    ]) expect(itemDefinition(itemKind)?.quality).toBe('common');
+    expect(itemDefinition('watch')).toMatchObject({
+      displayName: 'Watch', quality: 'rare', maxStack: 1,
+      tags: expect.arrayContaining(['item.equipment', 'gear.ring', 'utility.time']),
+      iconKey: 'item_cf_watch',
+    });
+    expect(itemDefinition('ring')).toBeNull();
+    expect(itemDefinition('strawberry')?.tags).toContain('crop.fruit');
+    expect(itemDefinition('watermelon')?.tags).toContain('crop.fruit');
+    expect(itemDefinition('leather')?.iconKey).toBe('item_cf_leather');
     expect(itemDefinition('homestead_deed')?.quality).toBe('legendary');
     expect(itemDefinition('marlow_book')).toMatchObject({ quality: 'common' });
     expect(isUniqueQuestItemKind('marlow_book')).toBe(true);
@@ -37,7 +94,7 @@ describe('shared container stacking rules', () => {
 
   for (const fixture of MOVE_RULE_FIXTURES) {
     it(fixture.name, () => {
-      const result = moveItemStacks(fixture.containers, fixture.request);
+      const result = moveItemStacks(fixture.containers, fixture.request, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
       if (!result.ok) {
         expect(result).toMatchObject(fixture.expected);
         return;
@@ -69,8 +126,44 @@ describe('shared container stacking rules', () => {
 
   it('does not mutate authoritative input snapshots', () => {
     const containers = { bag: { id: 'bag', capacity: 2, slots: [{ itemKind: 'wood', quantity: 4 }, null] } } as const;
-    moveItemStacks(containers, { fromContainer: 'bag', fromIndex: 0, toContainer: 'bag', toIndex: 1, quantity: 2 });
+    moveItemStacks(containers, { fromContainer: 'bag', fromIndex: 0, toContainer: 'bag', toIndex: 1, quantity: 2 }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(containers.bag.slots).toEqual([{ itemKind: 'wood', quantity: 4 }, null]);
+  });
+
+  it('atomically fills a known recipe from multiple carried stacks without overwriting the grid', () => {
+    const containers = {
+      hotbar: { id: 'hotbar', capacity: 2, slots: [
+        { itemKind: 'plank', quantity: 6 },
+        { itemKind: 'iron_bar', quantity: 2 },
+      ] },
+      backpack: { id: 'backpack', capacity: 1, slots: [null] },
+      crafting: { id: 'crafting', capacity: 9, slots: Array.from({ length: 9 }, () => null) },
+    } as const;
+    const filled = fillCraftingRecipeFromInventory(containers, 'barrel', BOOTSTRAP_ITEM_CONTAINER_CONTENT);
+    expect(filled).toMatchObject({
+      ok: true,
+      movedQuantity: 8,
+      containers: {
+        hotbar: { slots: [null, null] },
+        crafting: { slots: [
+          { itemKind: 'iron_bar', quantity: 1 }, { itemKind: 'plank', quantity: 1 }, { itemKind: 'iron_bar', quantity: 1 },
+          { itemKind: 'plank', quantity: 1 }, null, { itemKind: 'plank', quantity: 1 },
+          { itemKind: 'plank', quantity: 1 }, { itemKind: 'plank', quantity: 1 }, { itemKind: 'plank', quantity: 1 },
+        ] },
+      },
+    });
+    expect(containers.hotbar.slots).toEqual([
+      { itemKind: 'plank', quantity: 6 },
+      { itemKind: 'iron_bar', quantity: 2 },
+    ]);
+
+    const blocked = fillCraftingRecipeFromInventory({
+      ...containers,
+      crafting: { ...containers.crafting, slots: [
+        { itemKind: 'stone', quantity: 1 }, ...containers.crafting.slots.slice(1),
+      ] },
+    }, 'barrel', BOOTSTRAP_ITEM_CONTAINER_CONTENT);
+    expect(blocked).toEqual({ ok: false, code: 'recipe_inputs_missing' });
   });
 
   it('sorts and compacts compatible stacks without losing metadata', () => {
@@ -86,7 +179,7 @@ describe('shared container stacking rules', () => {
         null,
       ],
     } as const;
-    const result = sortAndStackContainer(container);
+    const result = sortAndStackContainer(container, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(result).toMatchObject({
       ok: true,
       outcome: 'sort',
@@ -113,11 +206,11 @@ describe('shared container stacking rules', () => {
     } as const;
     const swapped = moveItemStacks(containers, {
       fromContainer: 'hotbar', fromIndex: 0, toContainer: 'hotbar', toIndex: 1, quantity: 1,
-    });
+    }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(swapped.ok && swapped.containers.hotbar?.slots.map((stack) => stack?.lit)).toEqual([true, false]);
     const quick = quickMoveItemStack(containers, {
       fromContainer: 'hotbar', fromIndex: 0, toContainers: ['backpack'],
-    });
+    }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(quick.ok && quick.containers.backpack?.slots[0]?.lit).toBe(false);
   });
 
@@ -150,13 +243,27 @@ describe('shared container stacking rules', () => {
   });
 
   it('uses equipment tags as slot acceptance types', () => {
-    const equipment = {
-      id: 'equipment', capacity: 2, slots: [null, null],
-      restrictions: { 0: { requiredTags: ['gear.head'] }, 1: { requiredTags: ['gear.ring'] } },
-    } as const;
-    expect(slotAcceptsItem(equipment, 0, 'helm')).toBe(true);
-    expect(slotAcceptsItem(equipment, 0, 'ring')).toBe(false);
-    expect(slotAcceptsItem(equipment, 1, 'ring')).toBe(true);
+    expect(Object.entries(ITEM_DEFINITIONS)
+      .filter(([, definition]) => (definition.tags as readonly string[]).includes('item.equipment'))
+      .map(([itemKind]) => itemKind).sort()).toEqual(['backpack', 'lantern', 'torch', 'watch']);
+    expect(EQUIPMENT_SLOTS).toHaveLength(9);
+    expect(ACTIVE_EQUIPMENT_SLOTS.map((slot) => slot.id)).toEqual(['watch', 'backpack', 'off_hand']);
+    expect(EQUIPMENT_SLOTS.filter((slot) => slot.acceptedKinds.length === 0)).toHaveLength(6);
+    expect(activeEquipmentSlotAccepts(2, 'watch')).toBe(true);
+    expect(activeEquipmentSlotAccepts(2, 'backpack')).toBe(false);
+    expect(activeEquipmentSlotAccepts(4, 'backpack')).toBe(true);
+    expect(activeEquipmentSlotAccepts(5, 'lantern')).toBe(true);
+    expect(activeEquipmentSlotAccepts(5, 'torch')).toBe(true);
+    expect(activeEquipmentSlotAccepts(5, 'shield')).toBe(false);
+  });
+
+  it('gates upgraded tools by ranks in their matching specialization', () => {
+    expect(TOOL_QUALITY_REQUIRED_SPECIALIZATION_RANKS).toEqual({
+      common: 0, uncommon: 3, rare: 6, epic: 10, legendary: 15,
+    });
+    expect(toolQualityRequiredRanks('pickaxe')).toBe(0);
+    expect(canUseToolWithSkillRanks('pickaxe', {})).toBe(true);
+    expect(canUseToolWithSkillRanks('sword', {})).toBe(true);
   });
 });
 
@@ -217,11 +324,39 @@ describe('crafting recipes', () => {
 });
 
 describe('Minecraft-style bulk slot gestures', () => {
+  it('preserves durable stacks above a reduced cap without creating items during a quick move', () => {
+    const containers = {
+      escrow: { id: 'escrow', capacity: 1, slots: [{ itemKind: 'cooked_beef', quantity: 4, lit: true }] },
+      hotbar: { id: 'hotbar', capacity: 1, slots: [{ itemKind: 'cooked_beef', quantity: 5, lit: true }] },
+      backpack: { id: 'backpack', capacity: 2, slots: [null, null] },
+    };
+    const original = structuredClone(containers);
+    const content = { maxStackFor: () => 4, hasTag: () => false };
+    const request = { fromContainer: 'escrow', fromIndex: 0, toContainers: ['hotbar', 'backpack'] };
+    const result = quickMoveItemStack(containers, request, content);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.code);
+    expect(result.movedQuantity).toBe(4);
+    expect(result.containers.hotbar!.slots).toEqual(original.hotbar.slots);
+    expect(result.containers.backpack!.slots).toEqual([
+      { itemKind: 'cooked_beef', quantity: 4, lit: true }, null,
+    ]);
+    expect(result.containers.escrow!.slots).toEqual([null]);
+    expect(Object.values(result.containers).flatMap(({ slots }) => slots)
+      .reduce((total, stack) => total + (stack?.quantity ?? 0), 0)).toBe(9);
+    expect(containers).toEqual(original);
+
+    expect(quickMoveItemStack({ ...containers,
+      backpack: { id: 'backpack', capacity: 0, slots: [] },
+    }, request, content)).toEqual({ ok: false, code: 'container_full' });
+    expect(containers).toEqual(original);
+  });
+
   it('shift-click merges existing stacks before using empty slots', () => {
     const result = quickMoveItemStack({
       hotbar: { id: 'hotbar', capacity: 1, slots: [{ itemKind: 'wood', quantity: 10 }] },
       backpack: { id: 'backpack', capacity: 2, slots: [{ itemKind: 'wood', quantity: 95 }, null] },
-    }, { fromContainer: 'hotbar', fromIndex: 0, toContainers: ['backpack'] });
+    }, { fromContainer: 'hotbar', fromIndex: 0, toContainers: ['backpack'] }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(result).toMatchObject({
       ok: true,
       movedQuantity: 10,
@@ -236,7 +371,7 @@ describe('Minecraft-style bulk slot gestures', () => {
     }, {
       fromContainer: 'hotbar', fromIndex: 0,
       targets: [0, 1, 2].map((index) => ({ container: 'crafting', index })),
-    });
+    }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(result).toMatchObject({
       ok: true,
       containers: {
@@ -259,7 +394,7 @@ describe('Minecraft-style bulk slot gestures', () => {
       chest: { id: 'chest', capacity: 3, slots: [{ itemKind: 'wood', quantity: 95 }, null, null] },
     }, {
       itemKind: 'wood', fromContainers: ['hotbar', 'backpack'], toContainers: ['chest'],
-    });
+    }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(result).toMatchObject({
       ok: true,
       movedQuantity: 200,
@@ -283,18 +418,18 @@ describe('Minecraft cursor stack authority', () => {
   } as const;
 
   it('picks up a whole stack on left click and the larger half on right click', () => {
-    expect(clickContainerSlot(menu, null, { container: 'hotbar', index: 0, button: 'left' }))
+    expect(clickContainerSlot(menu, null, { container: 'hotbar', index: 0, button: 'left' }, BOOTSTRAP_ITEM_CONTAINER_CONTENT))
       .toMatchObject({ ok: true, cursor: { itemKind: 'wood', quantity: 15 }, containers: { hotbar: { slots: [null, null, null] } } });
-    expect(clickContainerSlot(menu, null, { container: 'hotbar', index: 0, button: 'right' }))
+    expect(clickContainerSlot(menu, null, { container: 'hotbar', index: 0, button: 'right' }, BOOTSTRAP_ITEM_CONTAINER_CONTENT))
       .toMatchObject({ ok: true, cursor: { itemKind: 'wood', quantity: 8 }, containers: { hotbar: { slots: [{ itemKind: 'wood', quantity: 7 }, null, null] } } });
   });
 
   it('places all with left click, one with right click, and swaps incompatible stacks with either button', () => {
-    expect(clickContainerSlot(menu, { itemKind: 'wood', quantity: 4 }, { container: 'hotbar', index: 1, button: 'left' }))
+    expect(clickContainerSlot(menu, { itemKind: 'wood', quantity: 4 }, { container: 'hotbar', index: 1, button: 'left' }, BOOTSTRAP_ITEM_CONTAINER_CONTENT))
       .toMatchObject({ ok: true, cursor: null, containers: { hotbar: { slots: [{ itemKind: 'wood', quantity: 15 }, { itemKind: 'wood', quantity: 4 }, null] } } });
-    expect(clickContainerSlot(menu, { itemKind: 'wood', quantity: 4 }, { container: 'hotbar', index: 1, button: 'right' }))
+    expect(clickContainerSlot(menu, { itemKind: 'wood', quantity: 4 }, { container: 'hotbar', index: 1, button: 'right' }, BOOTSTRAP_ITEM_CONTAINER_CONTENT))
       .toMatchObject({ ok: true, cursor: { quantity: 3 }, containers: { hotbar: { slots: [{ itemKind: 'wood', quantity: 15 }, { itemKind: 'wood', quantity: 1 }, null] } } });
-    expect(clickContainerSlot(menu, { itemKind: 'wood', quantity: 4 }, { container: 'backpack', index: 1, button: 'right' }))
+    expect(clickContainerSlot(menu, { itemKind: 'wood', quantity: 4 }, { container: 'backpack', index: 1, button: 'right' }, BOOTSTRAP_ITEM_CONTAINER_CONTENT))
       .toMatchObject({ ok: true, outcome: 'swap', cursor: { itemKind: 'stone', quantity: 7 }, containers: { backpack: { slots: [{ itemKind: 'wood', quantity: 90 }, { itemKind: 'wood', quantity: 4 }] } } });
   });
 
@@ -303,7 +438,7 @@ describe('Minecraft cursor stack authority', () => {
       crafting: { id: 'crafting', capacity: 3, slots: [null, null, null] },
     }, { itemKind: 'plank', quantity: 10 }, {
       mode: 'even', targets: [0, 1, 2].map((index) => ({ container: 'crafting', index })),
-    });
+    }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(result).toMatchObject({
       ok: true,
       cursor: { itemKind: 'plank', quantity: 1 },
@@ -316,14 +451,14 @@ describe('Minecraft cursor stack authority', () => {
       hotbar: { id: 'hotbar', capacity: 3, slots: [null, null, null] },
     }, { itemKind: 'wood', quantity: 2 }, {
       mode: 'one_each', targets: [0, 1, 1, 2].map((index) => ({ container: 'hotbar', index })),
-    })).toMatchObject({
+    }, BOOTSTRAP_ITEM_CONTAINER_CONTENT)).toMatchObject({
       ok: true, cursor: null,
       containers: { hotbar: { slots: [{ quantity: 1 }, { quantity: 1 }, null] } },
     });
   });
 
   it('double-click collects compatible stacks up to the item maximum', () => {
-    expect(pickupAllToCursor(menu, { itemKind: 'wood', quantity: 5 }, ['hotbar', 'backpack']))
+    expect(pickupAllToCursor(menu, { itemKind: 'wood', quantity: 5 }, ['hotbar', 'backpack'], BOOTSTRAP_ITEM_CONTAINER_CONTENT))
       .toMatchObject({
         ok: true, cursor: { itemKind: 'wood', quantity: 99 },
         containers: {

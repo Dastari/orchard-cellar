@@ -1,0 +1,80 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - strong [ref=e4]: ORCHARD STUDIO
+    - combobox "Environment" [ref=e5]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=e6]
+  - generic [ref=e7]:
+    - navigation "Studio modes" [ref=e8]:
+      - button "Build" [ref=e9] [cursor=pointer]
+      - button "Author" [ref=e10] [cursor=pointer]
+      - generic [ref=e11]:
+        - generic [ref=e12]: Local sandbox
+        - generic [ref=e13]: Anonymous
+        - generic [ref=e14]: Sandbox
+        - generic [ref=e15]: Map —
+        - generic [ref=e16]: Content —
+    - generic [ref=e17]:
+      - heading "Outliner" [level=2] [ref=e18]
+      - generic [ref=e19]:
+        - button "Local" [ref=e20] [cursor=pointer]
+        - button "Live" [ref=e21] [cursor=pointer]
+      - list [ref=e22]:
+        - listitem [ref=e23]:
+          - text: Topside
+          - list [ref=e24]:
+            - listitem [ref=e25]: Terrain
+            - listitem [ref=e26]:
+              - text: Objects
+              - list [ref=e27]:
+                - listitem [ref=e28]:
+                  - button "Marlow Camp" [ref=e29] [cursor=pointer]
+                - listitem [ref=e30]:
+                  - button "Estate" [ref=e31] [cursor=pointer]
+      - heading "AUTHOR" [level=3] [ref=e32]
+      - button "Items & Recipes" [ref=e33] [cursor=pointer]
+      - button "Character Studio" [ref=e34] [cursor=pointer]
+      - button "Audio Preview" [ref=e35] [cursor=pointer]
+      - button "UI Lab" [ref=e36] [cursor=pointer]
+    - main [ref=e37]:
+      - heading "Audio Preview" [level=1] [ref=e38]
+      - generic [ref=e39]:
+        - paragraph [ref=e40]: Playback starts only after an explicit cue. Opening this tool does not create an AudioContext.
+        - generic [ref=e41]:
+          - heading "Music" [level=2] [ref=e42]
+          - button "theme_title" [ref=e43] [cursor=pointer]
+          - button "theme_spring" [ref=e44] [cursor=pointer]
+          - button "theme_night" [ref=e45] [cursor=pointer]
+        - generic [ref=e46]:
+          - heading "Sound effects" [level=2] [ref=e47]
+          - button "footstep_grass" [ref=e48] [cursor=pointer]
+          - button "footstep_path" [ref=e49] [cursor=pointer]
+          - button "footstep_cellar" [ref=e50] [cursor=pointer]
+          - button "ui_hover" [ref=e51] [cursor=pointer]
+          - button "ui_confirm" [ref=e52] [cursor=pointer]
+          - button "bird_chirp_1" [ref=e53] [cursor=pointer]
+          - button "bird_chirp_2" [ref=e54] [cursor=pointer]
+          - button "bird_chirp_3" [ref=e55] [cursor=pointer]
+          - button "wind_gust" [ref=e56] [cursor=pointer]
+        - button "Stop" [ref=e57] [cursor=pointer]
+        - progressbar "Audio peak meter" [ref=e58]
+        - status [ref=e59]: idle · no song · peak 0.000
+    - generic [ref=e60]:
+      - heading "Inspector" [level=2] [ref=e61]
+      - heading "Audio" [level=3] [ref=e62]
+      - generic [ref=e63]:
+        - strong [ref=e64]: Music cues
+        - generic "Streamed music registered by the game AudioBus." [ref=e65]: "3"
+      - generic [ref=e66]:
+        - strong [ref=e67]: Sound cues
+        - generic "Synthesized and scheduled game sound effects." [ref=e68]: "9"
+  - generic [ref=e69]:
+    - heading "Validation & Output" [level=2] [ref=e70]
+    - generic [ref=e71]:
+      - button "Validation" [ref=e72] [cursor=pointer]
+      - button "Audit" [disabled] [ref=e73]
+      - button "Live Sync" [disabled] [ref=e74]
+      - button "Console" [ref=e75] [cursor=pointer]
+    - paragraph [ref=e76]: Anonymous sandbox — no live adapter constructed.

@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
   facedResource,
   facedInteractionTile,
+  interactionTileAtProjectedWorldPoint,
   interactionTileAtWorldPoint,
   interactionTileInReach,
   nearbyWorldItem,
@@ -49,6 +50,20 @@ describe('survival controls', () => {
     expect(interactionTileAtWorldPoint(playerX, playerY, 14 * 16, 10 * 16, 192)).toBeNull();
     expect(interactionTileAtWorldPoint(playerX, playerY, -1, 10 * 16, 192)).toBeNull();
     expect(interactionTileInReach(playerX, playerY, { tileX: 11, tileY: 11 })).toBe(true);
+  });
+
+  it('unprojects an elevated pointer before resolving the authoritative tile', () => {
+    const playerX = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const playerY = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const twoElevationRows = 2 * 16;
+    expect(interactionTileAtProjectedWorldPoint(
+      playerX,
+      playerY,
+      11 * 16 + 4,
+      10 * 16 + 12 - twoElevationRows,
+      twoElevationRows,
+      192,
+    )).toEqual({ tileX: 11, tileY: 10 });
   });
 
   it('marks placement over terrain, obstacles, and player hitboxes as blocked', () => {
@@ -128,12 +143,12 @@ describe('survival controls', () => {
 
   it('gives occupied hotbar tools compact unambiguous labels', () => {
     expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemLabel))
-      .toEqual(['IRON AXE', 'IRON PICKAXE', 'IRON HOE', 'WATERING CAN', 'WOOD', '--']);
+      .toEqual(['WOODEN AXE', 'WOODEN PICKAXE', 'WOODEN HOE', 'WATERING CAN', 'WOOD', '--']);
   });
 
   it('gives occupied slots full hover names', () => {
     expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemName))
-      .toEqual(['IRON AXE', 'IRON PICKAXE', 'IRON HOE', 'WATERING CAN', 'WOOD', null]);
+      .toEqual(['WOODEN AXE', 'WOODEN PICKAXE', 'WOODEN HOE', 'WATERING CAN', 'WOOD', null]);
   });
 
   it('continuously faces the cursor only while the bow is equipped', () => {

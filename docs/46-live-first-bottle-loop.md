@@ -70,25 +70,22 @@ item definitions.
   press completions, one new Bottle, and one actual sale of `bottles` to Marlow.
   Existing Presses and Casks are valid—the quest never forces players to duplicate
   stations they already built.
-- Turn-in awards 5 gold, 250 Farming XP, and raises the owner's Homestead to Tier 1.
-  Tier 1 opens a 48×48 plot north/east/west of the original 32×32 plot while retaining
-  the established southern gate, portal path, residence, crops, and placed objects at
-  their exact coordinates.
-- Client terrain and authority collision keys include the resolved Homestead size, so
-  expansion takes effect immediately and never reuses a stale Tier-0 collision map.
+- Turn-in awards 5 gold and 250 Farming XP. The quest does not require ownership of a
+  Homestead and does not attempt to create or upgrade one when rewards are granted.
 
 ## 6. Estate Vintage progression
 
 The permanent Estate Vintage ladder keeps `bottles` as one stack/quest kind while
 changing the estate's active aging programme. Ranks cost 6 / 18 / 54 gold and change
-one cask cycle and Marlow's authority-derived unit price as follows:
+one cask cycle and Marlow's authority-derived unit price as follows (the base is the
+`bottles` entry in the commerce table, so every rank scales with it):
 
 | Rank | Label | Aging | Bottle value |
 |---:|---|---:|---:|
-| 0 | Estate | 30 min | 120 bronze |
-| 1 | Select | 45 min | 240 bronze |
-| 2 | Reserve | 60 min | 480 bronze |
-| 3 | Grand Vintage | 90 min | 960 bronze |
+| 0 | Estate | 30 min | 50 silver (5,000 bronze) |
+| 1 | Select | 45 min | 1 gold (10,000 bronze) |
+| 2 | Reserve | 60 min | 2 gold (20,000 bronze) |
+| 3 | Grand Vintage | 90 min | 4 gold (40,000 bronze) |
 
 The output item remains `bottles`, preserving stacking and the guided quest. The cask
 label, progress/remaining timer, merchant quote, and sale transaction all derive from

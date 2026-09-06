@@ -1,0 +1,25 @@
+- main [ref=f2e2]:
+  - complementary "Development tools" [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - strong [ref=f2e5]: O&C
+      - generic [ref=f2e6]: TOOLS
+    - navigation [ref=f2e7]:
+      - link "Terrain Creator" [ref=f2e8] [cursor=pointer]:
+        - /url: /editor/terrain
+        - generic [ref=f2e10]: Terrain
+      - link "Layout Studio" [ref=f2e11] [cursor=pointer]:
+        - /url: /editor/design
+        - generic [ref=f2e13]: Layout
+      - link "UI Component Lab" [ref=f2e14] [cursor=pointer]:
+        - /url: /editor/ui-lab
+        - generic [ref=f2e16]: UI Lab
+      - link "Character Studio" [ref=f2e17] [cursor=pointer]:
+        - /url: /editor/character-studio
+        - generic [ref=f2e19]: Character
+  - generic [ref=f2e20]:
+    - generic "Orchard and Cellar public UI component lab with 27 live UI migration candidates and 87 imported actor and effect specimens. Pan and zoom the specimen canvas; press M to jump to the live UI gallery." [ref=f2e21]
+    - textbox "New local development profile name"
+    - status [ref=f2e23]
+  - textbox "UI lab canvas text field":
+    - /placeholder: TYPE A FARM NOTE
+  - status "UI lab interaction status" [ref=f2e24]

@@ -1,0 +1,83 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - strong [ref=e4]: ORCHARD STUDIO
+    - combobox "Environment" [ref=e5]:
+      - option "Local sandbox" [selected]
+      - option "Local live"
+      - option "Production"
+    - button "Connect" [disabled] [ref=e6]
+  - generic [ref=e7]:
+    - navigation "Studio modes" [ref=e8]:
+      - button "Build" [ref=e9] [cursor=pointer]
+      - button "Author" [ref=e10] [cursor=pointer]
+      - generic [ref=e11]:
+        - generic [ref=e12]: Local sandbox
+        - generic [ref=e13]: Anonymous
+        - generic [ref=e14]: Sandbox
+        - generic [ref=e15]: Map —
+        - generic [ref=e16]: Content —
+    - generic [ref=e17]:
+      - heading "Outliner" [level=2] [ref=e18]
+      - generic [ref=e19]:
+        - button "Local" [ref=e20] [cursor=pointer]
+        - button "Live" [ref=e21] [cursor=pointer]
+      - list [ref=e22]:
+        - listitem [ref=e23]:
+          - text: Topside
+          - list [ref=e24]:
+            - listitem [ref=e25]: Terrain
+            - listitem [ref=e26]:
+              - text: Objects
+              - list [ref=e27]:
+                - listitem [ref=e28]:
+                  - button "Marlow Camp" [ref=e29] [cursor=pointer]
+                - listitem [ref=e30]:
+                  - button "Estate" [ref=e31] [cursor=pointer]
+      - heading "BUILD" [level=3] [ref=e32]
+      - button "Map Editor" [ref=e33] [cursor=pointer]
+      - button "Map Editor" [ref=e34] [cursor=pointer]
+      - button "Map Editor" [ref=e35] [cursor=pointer]
+      - button "Object Studio" [ref=e36] [cursor=pointer]
+    - main [ref=e37]:
+      - heading "Map Editor" [level=1] [ref=e38]
+      - generic [ref=e39]:
+        - generic [ref=e40]:
+          - button "Terrain" [ref=e41] [cursor=pointer]
+          - button "Objects" [ref=e42] [cursor=pointer]
+          - button "Biomes" [ref=e43] [cursor=pointer]
+          - button "Scatter" [ref=e44] [cursor=pointer]
+          - button "Undo" [ref=e45] [cursor=pointer]
+          - button "Redo" [ref=e46] [cursor=pointer]
+          - button "Publish" [ref=e47] [cursor=pointer]
+        - generic [ref=e48]:
+          - button "◉ Anchors and Zones" [ref=e49] [cursor=pointer]
+          - button "◉ Canopy / Foreground" [ref=e50] [cursor=pointer]
+          - button "◉ Player-Owned Objects" [ref=e51] [cursor=pointer]
+          - button "◉ Gameplay Objects" [ref=e52] [cursor=pointer]
+          - button "◉ World Objects" [ref=e53] [cursor=pointer]
+          - button "◉ Ground Details" [ref=e54] [cursor=pointer]
+          - button "◉ Terrain Overrides" [ref=e55] [cursor=pointer]
+          - button "◉ Generated Base" [ref=e56] [cursor=pointer]
+        - generic [ref=e57]:
+          - generic "Map Editor tile canvas" [ref=e58]
+          - paragraph [ref=e59]: "Live Island: 832 by 832 tiles. Terrain, Objects, Biomes, and Scatter workspaces are available."
+    - generic [ref=e60]:
+      - heading "Inspector" [level=2] [ref=e61]
+      - heading "Document" [level=3] [ref=e62]
+      - generic [ref=e63]:
+        - strong [ref=e64]: Map
+        - generic "Current local MapDocumentV3 draft." [ref=e65]: Live Island
+      - generic [ref=e66]:
+        - strong [ref=e67]: Revision
+        - generic "Local document revision." [ref=e68]: "0"
+      - generic [ref=e69]:
+        - strong [ref=e70]: Workspace
+        - generic "Active Map Editor workspace." [ref=e71]: terrain
+  - generic [ref=e72]:
+    - heading "Validation & Output" [level=2] [ref=e73]
+    - generic [ref=e74]:
+      - button "Validation" [ref=e75] [cursor=pointer]
+      - button "Audit" [disabled] [ref=e76]
+      - button "Live Sync" [disabled] [ref=e77]
+      - button "Console" [ref=e78] [cursor=pointer]
+    - paragraph [ref=e79]: Anonymous sandbox — no live adapter constructed.

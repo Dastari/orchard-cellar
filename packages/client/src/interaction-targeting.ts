@@ -6,10 +6,13 @@ export type InteractionTargetKind =
   | 'merchant'
   | 'player'
   | 'horse'
+  | 'boat'
   | 'gatherable'
   | 'crop'
   | 'quest_item'
   | 'embedded_arrow'
+  | 'rogue_entrance'
+  | 'rogue_door'
   | 'grave'
   | 'world_item';
 
@@ -30,12 +33,15 @@ const TIE_PRIORITY: Readonly<Record<InteractionTargetKind, number>> = {
   merchant: 4,
   player: 5,
   horse: 6,
-  gatherable: 7,
-  crop: 8,
-  quest_item: 9,
-  embedded_arrow: 10,
-  grave: 11,
-  world_item: 12,
+  boat: 7,
+  gatherable: 8,
+  crop: 9,
+  quest_item: 10,
+  embedded_arrow: 11,
+  rogue_entrance: 12,
+  rogue_door: 13,
+  grave: 14,
+  world_item: 15,
 };
 
 /** Resolves the one target represented by the interaction prompt and E key.

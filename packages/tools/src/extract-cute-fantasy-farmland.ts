@@ -9,8 +9,8 @@ const TILE_SIZE = 16;
 const SHEET_COLUMNS = 7;
 const SHEET_ROWS = 8;
 const sources = [
-  ['tile_cf_farmland', 'references/Cute_Fantasy/Tiles/FarmLand/FarmLand_Tile.png'],
-  ['tile_cf_farmland_wet', 'references/Cute_Fantasy/Tiles/FarmLand/FarmLand_Wet_Tile.png'],
+  ['tile_cf_farmland', 'references/art/kenmi/cute-fantasy/core/Tiles/FarmLand/FarmLand_Tile.png'],
+  ['tile_cf_farmland_wet', 'references/art/kenmi/cute-fantasy/core/Tiles/FarmLand/FarmLand_Wet_Tile.png'],
 ] as const;
 
 function pixel(image: DecodedPng, x: number, y: number): readonly [number, number, number, number] {

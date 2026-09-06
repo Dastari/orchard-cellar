@@ -3,7 +3,7 @@ import { farmActionPrompt, type FarmActionPromptState } from './farm-action-prom
 
 const BASE: FarmActionPromptState = {
   targeted: true,
-  selectedItem: 'watering_can',
+  selectedTool: 'water',
   seedSelected: false,
   soilExists: true,
   soilWatered: false,
@@ -29,7 +29,7 @@ describe('farm action prompt', () => {
   it('retains passive crop status when no farm tool action takes priority', () => {
     expect(farmActionPrompt({
       ...BASE,
-      selectedItem: 'empty',
+      selectedTool: null,
       cropName: 'Strawberry',
     })).toBe('STRAWBERRY NEEDS WATER');
   });
@@ -37,7 +37,7 @@ describe('farm action prompt', () => {
   it('uses the inventory interaction key for mature crop harvesting', () => {
     expect(farmActionPrompt({
       ...BASE,
-      selectedItem: 'empty',
+      selectedTool: null,
       cropName: 'Strawberry',
       cropMature: true,
       cropWatered: true,
@@ -45,7 +45,7 @@ describe('farm action prompt', () => {
   });
 
   it('offers to dig up a crop at any growth stage when the hoe is selected', () => {
-    const crop = { ...BASE, selectedItem: 'hoe', cropName: 'Strawberry' };
+    const crop = { ...BASE, selectedTool: 'cultivate' as const, cropName: 'Strawberry' };
     expect(farmActionPrompt({ ...crop, cropMature: false })).toBe('[F] DIG UP STRAWBERRY');
     expect(farmActionPrompt({ ...crop, cropMature: true })).toBe('[F] DIG UP STRAWBERRY');
   });

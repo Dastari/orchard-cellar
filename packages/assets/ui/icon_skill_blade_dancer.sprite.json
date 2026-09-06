@@ -1,0 +1,65 @@
+{
+  "name": "icon_skill_blade_dancer",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "442222244411....",
+        "222...22244411..",
+        "........2244411.",
+        ".....22200111332",
+        "2222200111113322",
+        "331111111333022.",
+        "5331133330222...",
+        "05333000222.00..",
+        "2053333022..0100",
+        ".205333300222011",
+        ".220553333022201",
+        "2122205533330222",
+        ".231.22055333302",
+        "..23122220553333",
+        "...23112.2205533",
+        "....23112..22055"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#602141",
+    "1": "#9c99a4",
+    "2": "#9f173b",
+    "3": "#cfccd7",
+    "4": "#fb6b1d",
+    "5": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "warrior-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/warrior/sheets/warrior-skills-16.png",
+  "sourceRegion": [
+    192,
+    80,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.blade_dancer",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

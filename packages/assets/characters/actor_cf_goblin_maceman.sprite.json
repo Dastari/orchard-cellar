@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_goblin_maceman",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2273,7 +2274,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Goblin_Maceman.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Goblins/Goblin_Maceman.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Goblins/Goblin_Maceman.png",
   "sourceRegions": {
     "idle_down": [
       [

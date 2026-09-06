@@ -1,0 +1,7 @@
+- main [ref=f7e2]:
+  - generic "Orchard and Cellar" [ref=f7e3]
+  - textbox "New local development profile name"
+  - status "OPENING ITEM STUDIO. 12%" [ref=f7e5]:
+    - text: OPENING ITEM STUDIO CATALOGUING ITEMS AND PATTERNS
+    - generic [ref=f7e6]: 12%
+  - status [ref=f7e7]

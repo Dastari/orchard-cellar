@@ -1,0 +1,56 @@
+[
+  {
+    "id": "balance:admin_support_items_per_mutation",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 20,
+    "unit": "count",
+    "description": "Maximum total item quantity in one support give/remove remedy."
+  },
+  {
+    "id": "balance:admin_support_mutations_per_hour",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 30,
+    "unit": "count",
+    "description": "Maximum committed support remedies per operator in a rolling hour."
+  },
+  {
+    "id": "balance:admin_support_skill_points_per_mutation",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 3,
+    "unit": "count",
+    "description": "Maximum skill points granted by support in one remedy."
+  },
+  {
+    "id": "balance:admin_support_stat_delta_per_mutation",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 5,
+    "unit": "count",
+    "description": "Maximum absolute statistic patch applied by support in one remedy."
+  },
+  {
+    "id": "balance:admin_support_teleport_distance_tiles",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 256,
+    "unit": "tiles",
+    "description": "Maximum same-space Manhattan distance for a support teleport."
+  },
+  {
+    "id": "balance:admin_support_wallet_delta_bronze_per_mutation",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 500,
+    "unit": "bronze",
+    "description": "Maximum absolute wallet adjustment by support in one remedy."
+  }
+]

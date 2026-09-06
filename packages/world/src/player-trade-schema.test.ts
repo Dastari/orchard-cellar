@@ -35,6 +35,9 @@ describe('secure direct player trading', () => {
     expect(reducer).toContain('tradeForPlayer(ctx, target)');
     expect(reducer).toContain('requester.spaceId !== recipient.spaceId');
     expect(reducer).toContain('PLAYER_TRADE_REACH_FIXED ** 2');
+    const accept = between('export const acceptTradeRequest =', 'export const cancelTrade =');
+    expect(accept).toContain('PLAYER_TRADE_REQUEST_TTL_TICKS');
+    expect(accept).toContain("throw new SenderError('trade_request_expired')");
   });
 
   it('moves offered items into escrow and clears both approvals after every offer change', () => {

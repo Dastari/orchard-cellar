@@ -46,7 +46,8 @@ export function resolveCombatDamage(input: CombatDamageInput): CombatDamageResul
     attackerModifiers,
   );
   const variancePermille = 900 + statelessRoll([...input.seedParts, 'variance'], 201);
-  const critical = statelessRoll([...input.seedParts, 'critical'], 20) >= 18;
+  const criticalChanceBasisPoints = resolveModifierTarget('criticalChance', 1_000, attackerModifiers);
+  const critical = statelessRoll([...input.seedParts, 'critical'], 10_000) < criticalChanceBasisPoints;
   const variedPower = Math.floor(attackPowerCenti * variancePermille / 1_000);
   const criticalPower = critical ? Math.floor(variedPower * 3 / 2) : variedPower;
   const armorCenti = resolveModifierTarget(

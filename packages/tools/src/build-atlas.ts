@@ -1,11 +1,15 @@
+import { compileEmissiveFrames } from './assets/emissive.js';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { compileBakedShadow } from './assets/baked-shadow.js';
+import { framesForAsset, resolveColor } from './assets/pixels.js';
+export { expandBlob47 } from './assets/pixels.js';
 import { stableAssetId } from './assets/asset-id.js';
 import { frameKind, variantTopology } from './assets/frame-kind.js';
 import { loadAssets, loadPalette, readJson, workspaceRoot } from './assets/load.js';
-import { encodePng, hexToRgba, setPixel } from './assets/png.js';
-import type { AssetSource, BuiltFrame, PaletteSource, PixelGrid } from './assets/types.js';
+import { encodePng, setPixel } from './assets/png.js';
+import type { AssetSource, BuiltFrame, PixelGrid } from './assets/types.js';
 
 interface SeasonSource {
   readonly required: readonly string[];
@@ -17,11 +21,12 @@ interface SeasonSource {
 
 type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 const seasons: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
-const outputRoot = new URL('packages/client/public/generated/', workspaceRoot);
+const outputRoot = new URL('packages/assets/generated/', workspaceRoot);
 const ATLAS_WIDTH = 512;
 const MISSING_ASSET_NAME = 'system_missing_asset';
 const MISSING_ASSET_ID = 0;
 export const ASSET_REGISTRY_SCHEMA_VERSION = 2;
+export const ATLAS_CATEGORY_SCHEMA_VERSION = 2;
 
 interface RegistrySourceRecord {
   readonly assetId: number;
@@ -102,98 +107,6 @@ async function copyJsonAssets(folder: 'maps' | 'music' | 'sfx'): Promise<void> {
   }
 }
 
-function rotateGrid(grid: PixelGrid, turns: number): string[] {
-  let result = [...grid];
-  for (let turn = 0; turn < turns; turn += 1) {
-    const height = result.length;
-    const width = result[0]?.length ?? 0;
-    result = Array.from({ length: width }, (_, y) =>
-      Array.from({ length: height }, (_, x) => result[height - 1 - x]?.[y] ?? '.').join(''),
-    );
-  }
-  return result;
-}
-
-function copyQuadrant(target: string[][], source: PixelGrid, quadrant: number): void {
-  const startX = quadrant % 2 === 0 ? 0 : 8;
-  const startY = quadrant < 2 ? 0 : 8;
-  for (let y = startY; y < startY + 8; y += 1) {
-    for (let x = startX; x < startX + 8; x += 1) target[y]![x] = source[y]?.[x] ?? '.';
-  }
-}
-
-export function expandBlob47(frames: readonly PixelGrid[]): PixelGrid[] {
-  const [center, edge, outer, inner, isolated] = frames;
-  if (!center || !edge || !outer || !inner || !isolated) throw new Error('blob47 requires five template frames');
-  const results: PixelGrid[] = [];
-  for (let cardinals = 0; cardinals < 16; cardinals += 1) {
-    const north = (cardinals & 1) !== 0;
-    const east = (cardinals & 2) !== 0;
-    const south = (cardinals & 4) !== 0;
-    const west = (cardinals & 8) !== 0;
-    const eligible = [north && east, east && south, south && west, west && north];
-    const combinations = 1 << eligible.filter(Boolean).length;
-    for (let diagonalChoice = 0; diagonalChoice < combinations; diagonalChoice += 1) {
-      if (cardinals === 0) {
-        results.push(isolated);
-        continue;
-      }
-      let choiceBit = 0;
-      const diagonals = eligible.map((allowed) => allowed && (diagonalChoice & (1 << choiceBit++)) !== 0);
-      const target = Array.from({ length: 16 }, () => Array.from({ length: 16 }, () => '.'));
-      const corners = [
-        { adjacent: [north, west] as const, diagonal: diagonals[3] ?? false, rotation: 0 },
-        { adjacent: [north, east] as const, diagonal: diagonals[0] ?? false, rotation: 1 },
-        { adjacent: [south, east] as const, diagonal: diagonals[1] ?? false, rotation: 2 },
-        { adjacent: [south, west] as const, diagonal: diagonals[2] ?? false, rotation: 3 },
-      ];
-      for (let quadrant = 0; quadrant < corners.length; quadrant += 1) {
-        const corner = corners[quadrant]!;
-        const [first, second] = corner.adjacent;
-        let template: PixelGrid = center;
-        let rotation = corner.rotation;
-        if (!first && !second) template = outer;
-        else if (first && second && !corner.diagonal) template = inner;
-        else if (!first || !second) {
-          template = edge;
-          if (quadrant === 0) rotation = !first ? 0 : 3;
-          if (quadrant === 1) rotation = !first ? 0 : 1;
-          if (quadrant === 2) rotation = !first ? 2 : 1;
-          if (quadrant === 3) rotation = !first ? 2 : 3;
-        }
-        copyQuadrant(target, rotateGrid(template, rotation), quadrant);
-      }
-      results.push(target.map((row) => row.join('')));
-    }
-  }
-  if (results.length !== 47) throw new Error(`blob47 generated ${results.length} variants`);
-  return results;
-}
-
-function framesForAsset(asset: AssetSource): Readonly<Record<string, readonly PixelGrid[]>> {
-  if (asset.autotile !== 'blob47') return asset.frames;
-  const base = asset.frames['base'];
-  if (!base) throw new Error(`${asset.name} is missing base frames`);
-  return { ...asset.frames, base: expandBlob47(base) };
-}
-
-function resolveColor(
-  character: string,
-  palette: PaletteSource,
-  remap: Readonly<Record<string, string>>,
-  markers: Readonly<Record<string, string>>,
-  sourcePalette: Readonly<Record<string, string>>,
-): readonly [number, number, number, number] {
-  if (character === '.') return [0, 0, 0, 0];
-  const sourceHex = sourcePalette[character];
-  if (sourceHex) return hexToRgba(sourceHex);
-  const marker = markers[character] ?? palette.markerDefaults[character] ?? character;
-  const remapped = remap[marker] ?? marker;
-  const hex = palette.colors[remapped];
-  if (!hex) throw new Error(`Unknown palette character ${character}`);
-  return hexToRgba(hex);
-}
-
 export async function buildAtlases(): Promise<void> {
   const [assets, palette, seasonSource] = await Promise.all([
     loadAssets(),
@@ -204,7 +117,7 @@ export async function buildAtlases(): Promise<void> {
 
   const categories = [...new Set(assets.map((asset) => asset.category))].sort();
   const revision = createHash('sha256')
-    .update(JSON.stringify({ assets, palette, seasons: seasonSource }))
+    .update(JSON.stringify({ assets, palette, seasons: seasonSource, categorySchema: ATLAS_CATEGORY_SCHEMA_VERSION }))
     .digest('hex')
     .slice(0, 20);
   const revisionId = stableAssetId(`atlas:${revision}`);
@@ -299,6 +212,8 @@ export async function buildAtlases(): Promise<void> {
       assetRecords[asset.name] = {
         assetId,
         category,
+        ...(asset.emissiveColors === undefined ? {} : { emissiveFrames: compileEmissiveFrames(asset, palette) }),
+        ...(asset.bakedShadowColor === undefined ? {} : { bakedShadow: compileBakedShadow(asset, palette, seasonSource) }),
         anchor: asset.anchor,
         collision: asset.collision ?? [],
         animations,
@@ -353,7 +268,7 @@ export async function buildAtlases(): Promise<void> {
       atlasRecords[`${category}:${season}`] = filename;
     }
     await writeFile(new URL(`atlas_${category}.meta.json`, outputRoot), JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: ATLAS_CATEGORY_SCHEMA_VERSION,
       revision,
       category,
       assets: Object.fromEntries(categoryAssets.map((asset) => [asset.name, assetRecords[asset.name]])),

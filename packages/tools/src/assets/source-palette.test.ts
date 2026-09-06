@@ -5,11 +5,11 @@ import type { AssetSource } from './types.js';
 const valid: AssetSource = {
   name: 'tile_cf_test', category: 'tiles', size: [1, 1], anchor: [0, 0],
   frames: { base: [['a']] }, approved: true,
-  importedFrom: 'Test.png', sourcePath: 'references/Cute_Fantasy/Tiles/Test.png',
+  importedFrom: 'Test.png', sourcePath: 'references/art/kenmi/cute-fantasy/core/Tiles/Test.png',
   sourcePalette: { a: '#ffffff' }, sourcePaletteMode: 'exact',
 };
 
-describe('licensed source palette provenance', () => {
+describe('source palette provenance', () => {
   it('allocates a distinct stable grid key for every native RGB color', () => {
     const characterByColor = new Map<string, string>();
     const colorByCharacter = new Map<string, string>();
@@ -25,13 +25,31 @@ describe('licensed source palette provenance', () => {
     expect(sourcePaletteErrors(valid, new Set(['a']))).toEqual([]);
     expect(sourcePaletteErrors({
       ...valid,
-      sourcePath: 'references/Cute_Fantasy_Christmass/Characters/Santa_Claus.png',
+      sourcePath: 'references/art/kenmi/cute-fantasy/christmas/Characters/Santa_Claus.png',
       importedFrom: 'Santa_Claus.png',
+    }, new Set(['a']))).toEqual([]);
+    expect(sourcePaletteErrors({
+      ...valid,
+      sourcePath: 'references/art/clockwork-raven/equipment/armor-500/sheet-16.png',
+      importedFrom: 'sheet-16.png',
     }, new Set(['a']))).toEqual([]);
   });
 
   it('allows nonzero native alpha for licensed shadows', () => {
     expect(sourcePaletteErrors({ ...valid, sourcePalette: { a: '#091b1528' } }, new Set(['a']))).toEqual([]);
+  });
+
+  it('allows approved project artwork with matching exact source provenance', () => {
+    expect(sourcePaletteErrors({
+      ...valid, sourcePath: 'art/custom/string.png', importedFrom: 'string.png',
+    }, new Set(['a']))).toEqual([]);
+  });
+
+  it('allows the retained owner-authored original tool masters', () => {
+    expect(sourcePaletteErrors({
+      ...valid, sourcePath: 'references/art/orchard-originals/tools/Tool_Icons_Extra_NO_Outline.png',
+      importedFrom: 'Tool_Icons_Extra_NO_Outline.png',
+    }, new Set(['a']))).toEqual([]);
   });
 
   it('rejects arbitrary overrides and incomplete exact palettes', () => {
@@ -43,18 +61,23 @@ describe('licensed source palette provenance', () => {
       sourcePalette: { a: '#123456' },
     }, new Set(['a', 'b']))).toEqual(expect.arrayContaining([
       expect.stringContaining('approved asset'),
-      expect.stringContaining('not an approved Cute Fantasy input'),
+      expect.stringContaining('not an approved source input'),
       expect.stringContaining('missing used character b'),
     ]));
   });
 
   it.each([
-    'references/Cute_Fantasy/../unlicensed/Test.png',
-    'references/Cute_Fantasy_Evil/Test.png',
-    'references/Cute_Fantasy/Tiles/../../unlicensed/Test.png',
+    'art/custom-evil/Test.png',
+    'references/art/orchard-originals/tools-evil/Test.png',
+    'references/art/orchard-originals/tools/../Test.png',
+    'references/art/orchard-originals/unreviewed/Test.png',
+    'art/custom/../Test.png',
+    'references/art/kenmi/cute-fantasy/core/../unlicensed/Test.png',
+    'references/art/kenmi/cute-fantasy-evil/Test.png',
+    'references/art/kenmi/cute-fantasy/core/Tiles/../../unlicensed/Test.png',
   ])('rejects traversal and prefix-confusion provenance: %s', (sourcePath) => {
     expect(sourcePaletteErrors({ ...valid, sourcePath }, new Set(['a']))).toContainEqual(
-      expect.stringContaining('not an approved Cute Fantasy input'),
+      expect.stringContaining('not an approved source input'),
     );
   });
 });

@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { FixedStepAccumulator } from './loop.js';
-import { Camera } from './render/camera.js';
-import { parseAtlasMetadata, sortByY, SpriteAnimator, type YSortableSprite } from './render/sprite.js';
+import {
+  FixedStepAccumulator,
+  MAX_FIXED_UPDATE_STEPS_PER_FRAME,
+} from './loop.js';
+import { Camera } from '@orchard/engine/camera';
+import { parseAtlasMetadata, sortByY, SpriteAnimator, type YSortableSprite } from '@orchard/ui';
 
 const metadata = parseAtlasMetadata({
   image: 'test.png',
@@ -23,13 +26,37 @@ describe('engine logic', () => {
     expect(alpha).toBeCloseTo(0.5);
   });
 
-  it('clamps long frames to the catch-up ceiling', () => {
+  it('caps long-frame catch-up work and discards the excess whole steps', () => {
+    const accumulator = new FixedStepAccumulator(1 / 60);
+    const update = vi.fn();
+    const alpha = accumulator.advance(2, update);
+    expect(update).toHaveBeenCalledTimes(MAX_FIXED_UPDATE_STEPS_PER_FRAME);
+    expect(accumulator.lastUpdateSteps).toBe(MAX_FIXED_UPDATE_STEPS_PER_FRAME);
+    expect(accumulator.lastDiscardedSeconds).toBeCloseTo(
+      2 - MAX_FIXED_UPDATE_STEPS_PER_FRAME / 60,
+    );
+    expect(alpha).toBeCloseTo(0);
+  });
+
+  it('retains interpolation remainder after discarding excess catch-up steps', () => {
+    const accumulator = new FixedStepAccumulator(1 / 60);
+    const update = vi.fn();
+    const alpha = accumulator.advance(10.5 / 60, update);
+    expect(update).toHaveBeenCalledTimes(MAX_FIXED_UPDATE_STEPS_PER_FRAME);
+    expect(accumulator.lastDiscardedSeconds).toBeCloseTo(6 / 60);
+    expect(alpha).toBeCloseTo(0.5);
+  });
+
+  it('resumes ordinary cadence on the frame after a catch-up discard', () => {
     const accumulator = new FixedStepAccumulator(1 / 60);
     const update = vi.fn();
     accumulator.advance(2, update);
-    expect(update).toHaveBeenCalledTimes(15);
-    expect(accumulator.lastUpdateSteps).toBe(15);
-    expect(accumulator.lastDiscardedSeconds).toBe(1.75);
+    update.mockClear();
+    const alpha = accumulator.advance(2.5 / 60, update);
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(accumulator.lastUpdateSteps).toBe(2);
+    expect(accumulator.lastDiscardedSeconds).toBe(0);
+    expect(alpha).toBeCloseTo(0.5);
   });
 
   it('clamps a following camera to world bounds', () => {

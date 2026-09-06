@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_chicken_14",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2633,7 +2634,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Chicken_14.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Chicken/Chicken_14.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Chicken/Chicken_14.png",
   "sourceRegions": {
     "idle_side": [
       [

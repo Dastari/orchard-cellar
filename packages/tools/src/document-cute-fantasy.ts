@@ -49,7 +49,7 @@ interface Entry {
 
 interface DocumentedIndex {
   readonly version: 1;
-  readonly sourcePattern: 'references/Cute_Fantasy*/**/*.png';
+  readonly sourcePattern: 'references/art/kenmi/cute-fantasy/**/*.png';
   readonly sourceRevision: string;
   readonly entryCount: number;
   readonly companionSources: readonly CompanionSource[];
@@ -69,6 +69,7 @@ interface CompanionSource {
 
 const rootPath = fileURLToPath(workspaceRoot);
 const referencesPath = resolve(rootPath, 'references');
+const cuteFantasyPath = resolve(referencesPath, 'art/kenmi/cute-fantasy');
 const outputRoot = resolve(rootPath, 'docs/reference-assets');
 
 function slash(path: string): string { return path.split(sep).join('/'); }
@@ -149,7 +150,8 @@ async function reviewedAssetsBySource(): Promise<Map<string, string[]>> {
     try { value = JSON.parse(await readFile(path, 'utf8')); } catch { continue; }
     if (!value || typeof value !== 'object') continue;
     const asset = value as { readonly name?: unknown; readonly sourcePath?: unknown; readonly tags?: unknown };
-    if (typeof asset.name !== 'string' || typeof asset.sourcePath !== 'string' || !asset.sourcePath.startsWith('references/Cute_Fantasy')) continue;
+    if (typeof asset.name !== 'string' || typeof asset.sourcePath !== 'string'
+      || !asset.sourcePath.startsWith('references/art/kenmi/cute-fantasy/')) continue;
     const tags = Array.isArray(asset.tags) ? asset.tags.filter((tag): tag is string => typeof tag === 'string') : [];
     const label = `${asset.name}${tags.length > 0 ? ` [${tags.join(', ')}]` : ''}`;
     const existing = result.get(asset.sourcePath) ?? [];
@@ -192,7 +194,7 @@ function animalLayout(source: string, width: number, height: number): Layout | n
   if (/\/Animals\/Camel\//.test(source)) return grid('animation-grid', width, height, 48, 32, 'verified', '48×32 cells; one action per row.');
   if (/\/Animals\/Scarab\//.test(source)) return grid('animation-grid', width, height, 16, 16, 'verified', '16×16 cells; walk, idle, and hit rows.');
   if (/\/Animals\/Vulture\//.test(source)) return grid('animation-grid', width, height, 48, 48, 'verified', '48×48 cells; one action/direction per row.');
-  if (/Cute_Fantasy_ShroomLands\/Snails\/Snail_[1-4]\.png$/.test(source)) return grid('animation-grid', width, height, 32, 32, 'verified', '32×32 cells; six action/direction rows.');
+  if (/\/shroomlands\/Snails\/Snail_[1-4]\.png$/.test(source)) return grid('animation-grid', width, height, 32, 32, 'verified', '32×32 cells; six action/direction rows.');
   return null;
 }
 
@@ -200,7 +202,7 @@ function layoutFor(source: string, width: number, height: number): Layout {
   const file = basename(source);
   const animal = animalLayout(source, width, height);
   if (animal) return animal;
-  if (/Cute_Fantasy_Christmass\/Decorations\/Christmass_Grass\.png$/.test(source)) {
+  if (/\/christmas\/Decorations\/Christmass_Grass\.png$/.test(source)) {
     return grid('tile-grid', width, height, 16, 16, 'verified', '8×5 snow-cover and winter-decoration cells. Review semantic overlay roles individually; this is not a complete standalone terrain family.');
   }
   if (width === 576 && height === 3584) {
@@ -210,7 +212,7 @@ function layoutFor(source: string, width: number, height: number): Layout {
   if (/\/Player\/(Accessories|Head|Hands|Chest|Legs|Feet|Tools|Player_Base|Player_Mounts)\//.test(source) && width % 64 === 0 && height % 64 === 0) {
     return grid('modular-animation-grid', width, height, 64, 64, 'family', 'Modular player/equipment layer using 64×64 action cells; compose against the matching body row.');
   }
-  if (/Cute_Fantasy_Characters\//.test(source) || /Cute_Fantasy_Volcano\/Enemies\/Cowling/.test(source)) {
+  if (/\/characters\//.test(source) || /\/volcano\/Enemies\/Cowling/.test(source)) {
     const cell = width === 512 ? 64 : 48;
     return grid('animation-grid', width, height, cell, cell, 'family', `${cell}×${cell} combat-actor cells arranged by action row.`);
   }
@@ -221,8 +223,8 @@ function layoutFor(source: string, width: number, height: number): Layout {
   if (/\/(Enemies|Witch)\//.test(source) && width % 32 === 0 && height % 32 === 0 && !/VFX/.test(file)) {
     return grid('animation-grid', width, height, 32, 32, 'inferred', 'Actor animation sheet aligned to 32×32 cells; verify semantic row names during extraction.');
   }
-  if ((/\/Buildings\/Buildings\//.test(source) || /Cute_Fantasy_Desert\/Houses\//.test(source)
-    || /Cute_Fantasy_ShroomLands\/Houses\//.test(source) || /Cute_Fantasy_Volcano\/Buildings\//.test(source))
+  if ((/\/Buildings\/Buildings\//.test(source) || /\/desert\/Houses\//.test(source)
+    || /\/shroomlands\/Houses\//.test(source) || /\/volcano\/Buildings\//.test(source))
     && !/Interior|Filler|Tile/i.test(file)) {
     return grid('single', width, height, width, height, 'family', 'One complete building variant; crop as a whole sprite and use an authored footprint collider.');
   }
@@ -255,11 +257,11 @@ function animationSetsFor(source: string, width: number, height: number): string
   if (/\/Animals\/Camel\//.test(source)) return ['idle/walk/run', 'action 1/action 2', 'rest/lie/sleep', 'hit'];
   if (/\/Animals\/Scarab\//.test(source)) return ['walk', 'idle', 'hit'];
   if (/\/Animals\/Vulture\//.test(source)) return ['idle/walk/fly side', 'fly down/up', 'sleep', 'hit'];
-  if (/Cute_Fantasy_ShroomLands\/Snails\/Snail_[1-4]\.png$/.test(source)) return ['idle: side/down/up', 'walk: side/down/up'];
+  if (/\/shroomlands\/Snails\/Snail_[1-4]\.png$/.test(source)) return ['idle: side/down/up', 'walk: side/down/up'];
   if (/\/Flying_Skull\.png$/.test(source)) return ['idle (6)', 'turn/hit (3)', 'attack or cast (6)', 'death/fall (6); verify state names'];
   if (/\/Player\//.test(source) && width === 576 && height === 3584) return ['See canonical 56-row modular player map in docs/11-asset-pipeline.md'];
   if (/\/Player\/(Accessories|Head|Hands|Chest|Legs|Feet|Tools|Player_Base|Player_Mounts)\//.test(source)) return ['Modular action/direction rows; align with the matching 64×64 body cells'];
-  if (/Cute_Fantasy_Characters\//.test(source) || /\/Cowling/.test(source)) return ['combat actor: idle/walk/attack × down/side/up', 'collapse/hit rows; verify per archetype'];
+  if (/\/characters\//.test(source) || /\/Cowling/.test(source)) return ['combat actor: idle/walk/attack × down/side/up', 'collapse/hit rows; verify per archetype'];
   if (/Anim|Animation|Animated/i.test(file)) return [humanize(file).replace(/\b(anim|animation|animated)\b/ig, '').trim().toLowerCase()];
   if (/\/NPCs \(Premade\)\//.test(source)) return ['premade NPC action/direction rows; frame counts vary with profession tools'];
   if (/\/Enemies\//.test(source) || /\/Shroomlings\//.test(source) || /\/Witch\//.test(source)) return ['multi-row actor action set; verify row names and authored frame counts during extraction'];
@@ -368,7 +370,7 @@ function overview(index: DocumentedIndex): string {
   const playerSource = index.companionSources[0];
   return `# Cute Fantasy source sprite index
 
-This is the durable discovery index for **every PNG under \`references/Cute_Fantasy*/\`**. It contains ${index.entryCount} source images across ${packs.length} pack roots at source revision \`${index.sourceRevision}\`. Search this file or [the compact JSON](cute-fantasy-index.json) for ordinary names and aliases such as \`boat\`, \`ship\`, \`sword\`, \`blade\`, \`flying skull\`, \`carrot\`, \`lily pad\`, or \`capybara\`.
+This is the durable discovery index for **every PNG under \`references/art/kenmi/cute-fantasy/\`**. It contains ${index.entryCount} source images across ${packs.length} pack roots at source revision \`${index.sourceRevision}\`. Search this file or [the compact JSON](cute-fantasy-index.json) for ordinary names and aliases such as \`boat\`, \`ship\`, \`sword\`, \`blade\`, \`flying skull\`, \`carrot\`, \`lily pad\`, or \`capybara\`.
 
 The source PNGs are licensed references and must not be committed elsewhere. This index is discovery metadata, not permission to copy a sheet directly into runtime assets. Import a reviewed semantic crop through the text-grid asset pipeline described in [docs/11](../11-asset-pipeline.md).
 
@@ -411,7 +413,7 @@ jq -r '.entries[] | select(.tileSet != null) | [.source, .tileSet, .collision] |
 
 ## Companion Aseprite composition source
 
-\`${playerSource?.source ?? 'references/Player_Aseprite_Files/Player_Main_All.aseprite'}\` is the layered source companion for the modular player. It is ${playerSource?.dimensions.join('×') ?? '576×3584'}, contains ${playerSource?.timelineFrames ?? 8} Aseprite timeline frames at ${playerSource?.frameDurationsMs[0] ?? 100} ms, and has ${playerSource?.frameTags.length ?? 0} named frame tags. Its back-to-front layer order is: ${playerSource?.layersBackToFront.map((layer) => `\`${layer}\``).join(', ') ?? '`horse`, `tool_under`, `base`, `shoes`, `pants`, `shirt`, `hair`, `accesory`, `hands`, `tool_top`'}. Preserve the source spelling \`accesory\` when addressing that layer. This file confirms composition order and timing only: the eight Aseprite timeline frames are **not** the 56 semantic animation rows, so docs/11 remains authoritative for row names and per-row frame counts.
+\`${playerSource?.source ?? 'references/authoring/player/player-main-all.aseprite'}\` is the layered source companion for the modular player. It is ${playerSource?.dimensions.join('×') ?? '576×3584'}, contains ${playerSource?.timelineFrames ?? 8} Aseprite timeline frames at ${playerSource?.frameDurationsMs[0] ?? 100} ms, and has ${playerSource?.frameTags.length ?? 0} named frame tags. Its back-to-front layer order is: ${playerSource?.layersBackToFront.map((layer) => `\`${layer}\``).join(', ') ?? '`horse`, `tool_under`, `base`, `shoes`, `pants`, `shirt`, `hair`, `accesory`, `hands`, `tool_top`'}. Preserve the source spelling \`accesory\` when addressing that layer. This file confirms composition order and timing only: the eight Aseprite timeline frames are **not** the 56 semantic animation rows, so docs/11 remains authoritative for row names and per-row frame counts.
 
 ## Summary
 
@@ -449,12 +451,12 @@ ${entries.map((entry) => `| \`${markdown(entry.source)}\` | ${markdown(entry.des
 }
 
 async function main(): Promise<void> {
-  const roots = (await readdir(referencesPath, { withFileTypes: true }))
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith('Cute_Fantasy'))
-    .map((entry) => join(referencesPath, entry.name)).sort();
+  const roots = (await readdir(cuteFantasyPath, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(cuteFantasyPath, entry.name)).sort();
   const files = (await Promise.all(roots.map(walk))).flat().sort();
   const reviewedBySource = await reviewedAssetsBySource();
-  const playerCompanionSource = 'references/Player_Aseprite_Files/Player_Main_All.aseprite';
+  const playerCompanionSource = 'references/authoring/player/player-main-all.aseprite';
   const playerCompanionBytes = await readFile(resolve(rootPath, playerCompanionSource));
   const companionSources = [inspectAseprite(playerCompanionSource, playerCompanionBytes)];
   const canonicalByHash = new Map<string, string>();
@@ -476,8 +478,8 @@ async function main(): Promise<void> {
     entries.push({
       id: slug(source.replace(/^references\//, '').replace(/\.png$/i, '')),
       source,
-      pack: sourceParts[1] ?? 'unknown',
-      section: sourceParts.slice(2, -1).join('/'),
+      pack: sourceParts[4] ?? 'unknown',
+      section: sourceParts.slice(5, -1).join('/'),
       name: humanize(basename(source)),
       description,
       reviewedAssets,
@@ -498,7 +500,7 @@ async function main(): Promise<void> {
     ...companionSources.map((source) => `${source.source}:${source.sha256}`),
   ].join('\n');
   const revision = createHash('sha256').update(revisionInput).digest('hex').slice(0, 16);
-  const index: DocumentedIndex = { version: 1, sourcePattern: 'references/Cute_Fantasy*/**/*.png', sourceRevision: revision, entryCount: entries.length, companionSources, entries };
+  const index: DocumentedIndex = { version: 1, sourcePattern: 'references/art/kenmi/cute-fantasy/**/*.png', sourceRevision: revision, entryCount: entries.length, companionSources, entries };
   await mkdir(outputRoot, { recursive: true });
   await Promise.all([
     writeFile(resolve(outputRoot, 'cute-fantasy-index.json'), `${JSON.stringify(index, null, 2)}\n`),

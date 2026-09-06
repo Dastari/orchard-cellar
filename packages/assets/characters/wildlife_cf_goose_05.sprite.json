@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_goose_05",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2905,7 +2906,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Goose_05.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Goose/Goose_05.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Goose/Goose_05.png",
   "sourceRegions": {
     "idle_side": [
       [

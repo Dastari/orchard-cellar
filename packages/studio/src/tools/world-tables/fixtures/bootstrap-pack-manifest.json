@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "engineVersion": 1,
+  "contentHash": "dfdf555b",
+  "definitionCount": 531,
+  "kindCounts": {
+    "item": 181,
+    "recipe": 61,
+    "process": 37,
+    "shop": 2,
+    "tileset": 14,
+    "object": 21,
+    "frame": 9,
+    "loot": 30,
+    "npc": 5,
+    "dialogue": 3,
+    "quest": 4,
+    "balance": 6,
+    "crop": 23,
+    "creature": 18,
+    "spawn": 16,
+    "space": 3,
+    "skill_tree": 3,
+    "effect": 4,
+    "statistic": 86,
+    "upgrade": 4,
+    "balance_group": 1
+  }
+}

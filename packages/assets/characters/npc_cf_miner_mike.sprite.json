@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_miner_mike",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     40
@@ -2529,7 +2530,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Miner_Mike.png",
-  "sourcePath": "references/Cute_Fantasy/NPCs (Premade)/Miner_Mike.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/NPCs (Premade)/Miner_Mike.png",
   "sourceRegions": {
     "idle_down": [
       [

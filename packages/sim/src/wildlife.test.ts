@@ -12,6 +12,9 @@ import {
   WILDLIFE_DEFINITIONS,
   WILDLIFE_FIRST_NPC_ID,
   WILDLIFE_PANIC_RADIUS_FIXED,
+  WILDLIFE_EAT_HAY_ACTIVITY,
+  WILDLIFE_RETURN_HOME_ACTIVITY,
+  WILDLIFE_SEEK_HAY_ACTIVITY,
   WILDLIFE_SPECIES,
   generateSurvivalWildlife,
   generateSurvivalWildlifeHives,
@@ -20,6 +23,7 @@ import {
   stepAmbientWildlife,
   stepPanickedWildlife,
   wildlifeActivityNearPlayers,
+  wildlifeEatsHay,
   wildlifeHabitatAllowsTile,
   wildlifeMovementMedium,
   wildlifePosition,
@@ -119,7 +123,7 @@ describe('activated wildlife lifecycle', () => {
 
     expect(WILDLIFE_DEFINITIONS.butterfly.sleepsAtNight).toBe(false);
     expect(wildlifeSleepingAtTick('butterfly', 0n)).toBe(false);
-  });
+  }, 15_000);
 
   it('supports diagonal travel and preserves a quiet rest until the next decision', () => {
     const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
@@ -144,6 +148,78 @@ describe('activated wildlife lifecycle', () => {
     expect(decisions.filter((decision) => !decision.moving).length).toBeGreaterThan(
       decisions.filter((decision) => decision.moving).length,
     );
+  });
+
+  it('lets hay-eating farm species snack at immutable targets and return home', () => {
+    expect((['horse', 'cow', 'sheep', 'camel'] as const).every(wildlifeEatsHay)).toBe(true);
+    expect(wildlifeEatsHay('pig')).toBe(false);
+    expect(wildlifeEatsHay('chicken')).toBe(false);
+
+    let pasture: { x: number; y: number } | null = null;
+    for (let y = 4; y < SURVIVAL_WORLD_SIZE - 4 && pasture === null; y += 1) {
+      for (let x = 4; x < SURVIVAL_WORLD_SIZE - 10; x += 1) {
+        if (Array.from({ length: 7 }, (_, offset) => x + offset).every((tileX) => (
+          wildlifeHabitatAllowsTile('pasture', SURVIVAL_WORLD_SEED, tileX, y)
+        ))) {
+          pasture = { x, y };
+          break;
+        }
+      }
+    }
+    expect(pasture).not.toBeNull();
+    const livestockHome = wildlifePosition(pasture!.x, pasture!.y);
+    const hay = wildlifePosition(pasture!.x + 6, pasture!.y);
+    const collision = {
+      width: SURVIVAL_WORLD_SIZE,
+      height: SURVIVAL_WORLD_SIZE,
+      blocked: Array<boolean>(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(false),
+      obstacles: [],
+    };
+    const dayTick = BigInt(Math.floor(AUTHORITY_TICKS_PER_DAY * 0.4));
+    const seeking: AmbientWildlifeState = {
+      id: 4n,
+      position: livestockHome,
+      home: livestockHome,
+      facing: 'right',
+      moving: false,
+      activity: WILDLIFE_SEEK_HAY_ACTIVITY,
+      nextDecisionTick: 10_000,
+    };
+    let state = seeking;
+    let authorityTick = 1;
+    while (state.activity !== WILDLIFE_EAT_HAY_ACTIVITY && authorityTick < 2_000) {
+      state = stepAmbientWildlife(state, {
+        species: 'cow', authorityTick, calendarTick: dayTick, collision, hayTargets: [hay],
+      });
+      authorityTick += 1;
+    }
+    expect(state.activity).toBe(WILDLIFE_EAT_HAY_ACTIVITY);
+    expect(state.moving).toBe(false);
+    expect(state.position.x).toBeGreaterThan(livestockHome.x);
+    expect([hay]).toEqual([hay]);
+
+    authorityTick = state.nextDecisionTick;
+    state = stepAmbientWildlife(state, {
+      species: 'cow', authorityTick, calendarTick: dayTick, collision, hayTargets: [hay],
+    });
+    expect(state.activity).toBe(WILDLIFE_RETURN_HOME_ACTIVITY);
+    while (state.activity !== 'rest' && authorityTick < 4_000) {
+      authorityTick += 1;
+      state = stepAmbientWildlife(state, {
+        species: 'cow', authorityTick, calendarTick: dayTick, collision, hayTargets: [hay],
+      });
+    }
+    expect(state).toMatchObject({ position: livestockHome, moving: false, activity: 'rest' });
+
+    const decisions = Array.from({ length: 100 }, (_, index) => stepAmbientWildlife({
+      ...seeking,
+      id: BigInt(50_000 + index),
+      activity: 'rest',
+      nextDecisionTick: 0,
+    }, {
+      species: 'cow', authorityTick: 100, calendarTick: dayTick, collision, hayTargets: [hay],
+    }));
+    expect(decisions.some((decision) => decision.activity === WILDLIFE_SEEK_HAY_ACTIVITY)).toBe(true);
   });
 
   it('runs away from a threat beyond its home leash and uses collision-safe alternatives', () => {

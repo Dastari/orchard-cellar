@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BOW_BASE_DAMAGE_CENTI } from './balance.js';
 import { regeneratedCombatTargetHealth, resolveCombatDamage } from './combat.js';
+import type { Modifier } from './modifiers.js';
 
 describe('32§3 deterministic combat damage', () => {
   const damage = (seed: string) => resolveCombatDamage({
@@ -36,6 +37,17 @@ describe('32§3 deterministic combat damage', () => {
       seedParts: [0x4f434852, 'archer', 42n, 'armor-fixture'],
     });
     expect(armored.damageCenti).toBe(Math.max(100, Math.floor((unarmored.damageCenti - 200) * 0.8)));
+  });
+
+  it('lets the shared modifier pipeline raise deterministic critical chance', () => {
+    const guaranteedCritical: Modifier = {
+      id: 'test.critical', target: 'criticalChance', layer: 'override', value: 10_000, source: 'effect',
+    };
+    expect(resolveCombatDamage({
+      attackKind: 'melee', weaponBaseCenti: 100, scalingAttribute: 10,
+      armorCenti: 0, armorPctBasisPoints: 0, seedParts: ['guaranteed-critical'],
+      attackerModifiers: [guaranteedCritical],
+    }).critical).toBe(true);
   });
 });
 

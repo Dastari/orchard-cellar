@@ -22,6 +22,43 @@ solver/compositor boundary. A stored mode survives reload, changing modes
 invalidates every affected field/cache exactly once, and no authority or
 simulation state depends on the selection.
 
+### Doc 58 implementation amendment — 2026-09-05
+
+The owner-directed seasonal overhaul now implements Basic/Dynamic quality,
+lighting work bypass in Basic, a bounded exact-RGBA omission cache and shared
+seasonal ambient evaluation. These quality/ambient changes apply to both solver
+choices and amend the earlier requirement for pixel-identical public Classic
+presentation. Classic/Unified remain independently selectable in Developer settings;
+the frozen legacy ambient/solver fixture retains the historical comparison.
+
+The new cache is enabled only in the local omission fixture. Public Dynamic still
+uses original art until replacement sun/moon and contact shadows pass together.
+The original native-contact-shadow option and fixed nighttime directional offset
+are superseded by doc 58's single-asset omission and moving lunar-source design,
+but that replacement shadow rendering is not yet implemented. Existing receiver,
+height and performance milestones remain open.
+
+The desktop browser fixture reports Basic with zero mask calls, point lights,
+field rebuilds, visited light texels and retained lightmap canvases. This is bounded
+operation evidence, not a low-end hardware or full gameplay performance acceptance.
+See [doc 58 §12](58-seasonal-lighting-and-baked-shadow-plan.md#12-bookkeeping-and-execution-ledger)
+and `output/lighting-58-20260905/runtime/` for measurements and remaining gates.
+
+### Doc 59 performance recovery amendment — 2026-09-06
+
+The 0.5.0 whole-frame measurements (Basic 13.4 ms, Dynamic 21.5 ms p95, desktop)
+and a code review of the shipped receiver pipeline are consolidated in
+[doc 59](59-client-render-performance-recovery-plan.md). It sequences M9 atlas
+paging (the character atlas decodes to 106 MB), a world-pass resolution policy,
+removal of per-frame filtered and tint surfaces, a static/moving directional
+coverage split, painter hot-path cleanup, and the evidence needed to open §15's
+WebGL2 work. On 2026-09-06 the owner confirmed doc 59's decisions: build-time
+shadowless page variants (amending doc 58 D1/D3), a 1× world pass default with
+a Video scale option, and a WebGL2 world pass shipped as an **experimental,
+off-by-default Video toggle** with Canvas as reference, default and fallback.
+This amends §15's entry condition only; its technical requirements and the
+adoption numbers for making WebGL2 the default are unchanged.
+
 ## Execution ledger
 
 ### 2026-08-29 — implementation start / M0 baseline
@@ -140,7 +177,7 @@ Before implementation:
        npm run typecheck
        npm run lint
        npm test
-       npx vitest run packages/client/src/render
+       npx vitest run packages/engine/src
        npm run assets:validate
        npm run build
 
@@ -381,17 +418,17 @@ visual/performance scenario protocol.
 
 ### Primary files
 
-- packages/client/src/render/metrics.ts
-- packages/client/src/render/lighting.ts
+- packages/engine/src/metrics.ts
+- packages/engine/src/lighting.ts
 - packages/client/src/overworld-main.ts
 - packages/client/src/loop.ts
-- packages/client/src/render/renderer.ts
+- packages/engine/src/renderer.ts
 - packages/client/src/main.ts
 - packages/client/src/account-main.ts
 - new packages/client/src/lifecycle-registry.ts
 - new packages/client/src/lifecycle-registry.test.ts
-- new packages/client/src/render/render-benchmark.ts
-- new packages/client/src/render/render-benchmark-scenarios.ts
+- new packages/engine/src/render-benchmark.ts
+- new packages/engine/src/render-benchmark-scenarios.ts
 - relevant Vitest files
 
 ### Implementation
@@ -533,12 +570,12 @@ in-view output.
 
 ### Primary files
 
-- packages/client/src/render/lighting.ts
-- packages/client/src/render/light-flood.ts
-- packages/client/src/render/camera.ts
+- packages/engine/src/lighting.ts
+- packages/engine/src/light-flood.ts
+- packages/engine/src/camera.ts
 - packages/client/src/overworld-main.ts
-- packages/client/src/render/lighting.test.ts
-- packages/client/src/render/light-flood.test.ts
+- packages/engine/src/lighting.test.ts
+- packages/engine/src/light-flood.test.ts
 
 ### Implementation
 
@@ -602,14 +639,14 @@ This milestone corresponds to docs/39 v2.0.
 
 ### Primary files
 
-- packages/client/src/render/lighting.ts
-- packages/client/src/render/light-flood.ts
-- packages/client/src/render/light-occlusion.ts
-- packages/client/src/render/renderer.ts
+- packages/engine/src/lighting.ts
+- packages/engine/src/light-flood.ts
+- packages/engine/src/light-occlusion.ts
+- packages/engine/src/renderer.ts
 - packages/client/src/overworld-main.ts
-- packages/client/src/render/lighting.test.ts
-- packages/client/src/render/light-flood.test.ts
-- packages/client/src/render/renderer.test.ts
+- packages/engine/src/lighting.test.ts
+- packages/engine/src/light-flood.test.ts
+- packages/engine/src/renderer.test.ts
 
 ### Implementation
 
@@ -731,14 +768,14 @@ the per-level-field amendment before M3 begins.
 
 ### Primary files
 
-- packages/client/src/render/lighting.ts
-- packages/client/src/render/light-flood.ts
-- packages/client/src/render/light-occlusion.ts
-- packages/client/src/render/terrain.ts
-- packages/client/src/render/raised-terrain-depth.ts
+- packages/engine/src/lighting.ts
+- packages/engine/src/light-flood.ts
+- packages/engine/src/light-occlusion.ts
+- packages/engine/src/terrain.ts
+- packages/engine/src/raised-terrain-depth.ts
 - packages/sim/src/map-compiler.ts
 - packages/tools/src/validate-assets.ts
-- packages/client/src/render/renderer.ts
+- packages/engine/src/renderer.ts
 - packages/client/src/overworld-main.ts
 - related tests, exact field fixtures, and deterministic review screenshots
 
@@ -957,8 +994,8 @@ This milestone corresponds to docs/39 v2.2 and v2.4.
 - packages/tools/src/validate-assets.ts
 - packages/tools/src/build-atlas.ts
 - packages/tools/src/assets/pipeline.test.ts
-- packages/client/src/render/assets.ts
-- packages/client/src/render/light-occlusion.ts
+- packages/ui/src/assets.ts
+- packages/engine/src/light-occlusion.ts
 - packages/client/src/overworld-main.ts
 - packages/assets/**/*.sprite.json
 - packages/assets/**/*.tile.json
@@ -1128,13 +1165,13 @@ or scan/allocate whole-world occlusion arrays.
 
 ### Primary files
 
-- packages/client/src/render/lighting.ts
-- packages/client/src/render/light-sources.ts
-- packages/client/src/render/light-occlusion.ts
-- packages/client/src/render/terrain.ts
-- packages/client/src/render/ground-cache.ts
+- packages/engine/src/lighting.ts
+- packages/engine/src/light-sources.ts
+- packages/engine/src/light-occlusion.ts
+- packages/engine/src/terrain.ts
+- packages/engine/src/ground-cache.ts
 - packages/client/src/overworld-main.ts
-- new packages/client/src/render/light-occlusion-chunks.ts
+- new packages/engine/src/light-occlusion-chunks.ts
 - related tests
 
 ### Implementation
@@ -1228,13 +1265,13 @@ defaults.
 
 ### Primary files
 
-- packages/client/src/render/lighting.ts
-- packages/client/src/render/light-sources.ts
-- packages/client/src/render/particles.ts
-- packages/client/src/render/animated-terrain.ts
+- packages/engine/src/lighting.ts
+- packages/engine/src/light-sources.ts
+- packages/engine/src/particles.ts
+- packages/engine/src/animated-terrain.ts
 - packages/client/src/overworld-main.ts
-- packages/client/src/overworld-art.ts
-- new packages/client/src/render/light-frame-preparer.ts
+- packages/engine/src/overworld-art.ts
+- new packages/engine/src/light-frame-preparer.ts
 - settings/UI modules for accessibility and render quality
 - related tests and deterministic review-screenshot fixtures
 
@@ -1450,24 +1487,24 @@ frames.
 ### Primary files
 
 - packages/client/src/overworld-main.ts
-- packages/client/src/render/renderer.ts
-- packages/client/src/render/raised-terrain-depth.ts
-- packages/client/src/render/terrain.ts
-- packages/client/src/render/farmland.ts
-- packages/client/src/render/animated-terrain.ts
-- packages/client/src/render/pixel-ui.ts
-- packages/client/src/ui/overworld-ui.ts
+- packages/engine/src/renderer.ts
+- packages/engine/src/raised-terrain-depth.ts
+- packages/engine/src/terrain.ts
+- packages/engine/src/farmland.ts
+- packages/engine/src/animated-terrain.ts
+- packages/ui/src/pixel-ui.ts
+- packages/ui/src/overworld-ui.ts
 - packages/client/src/net/keyed-store.ts
 - packages/client/src/net/keyed-store.test.ts
 - packages/client/src/net/netcode.ts
 - packages/client/src/net/netcode.test.ts
 - packages/client/src/net/overworld-connection.ts
-- new packages/client/src/render/world-frame.ts
-- new packages/client/src/render/world-scene-builder.ts
-- new packages/client/src/render/world-renderer.ts
-- new packages/client/src/render/frame-indexes.ts
-- new packages/client/src/ui/overworld-ui-model.ts
-- new packages/client/src/render/text-cache.ts
+- new packages/engine/src/world-frame.ts
+- new packages/engine/src/world-scene-builder.ts
+- new packages/engine/src/world-renderer.ts
+- new packages/engine/src/frame-indexes.ts
+- new packages/ui/src/overworld-ui-model.ts
+- new packages/engine/src/text-cache.ts
 - related tests
 
 ### Implementation
@@ -1610,21 +1647,21 @@ minimap, and cellar mutations proportional to changed/visible chunks.
 
 ### Primary files
 
-- packages/client/src/render/particles.ts
-- packages/client/src/render/renderer.ts
-- packages/client/src/render/ground-cache.ts
-- packages/client/src/render/terrain.ts
-- packages/client/src/render/farmland.ts
-- packages/client/src/render/animated-terrain.ts
+- packages/engine/src/particles.ts
+- packages/engine/src/renderer.ts
+- packages/engine/src/ground-cache.ts
+- packages/engine/src/terrain.ts
+- packages/engine/src/farmland.ts
+- packages/engine/src/animated-terrain.ts
 - packages/client/src/overworld-main.ts
 - packages/sim/src/cave-autotile.ts
 - packages/sim/src/cave-autotile.test.ts
 - packages/client/src/net/overworld-connection.ts
-- packages/client/src/render/light-occlusion.ts
-- packages/client/src/render/terrain.test.ts
-- packages/client/src/render/ground-cache.test.ts
-- new packages/client/src/render/cellar-terrain.ts
-- new packages/client/src/render/cellar-terrain.test.ts
+- packages/engine/src/light-occlusion.ts
+- packages/engine/src/terrain.test.ts
+- packages/engine/src/ground-cache.test.ts
+- new packages/engine/src/cellar-terrain.ts
+- new packages/engine/src/cellar-terrain.test.ts
 - new packages/client/src/net/overworld-connection.cellar-region.test.ts
 - relevant tests
 
@@ -1646,6 +1683,14 @@ minimap, and cellar mutations proportional to changed/visible chunks.
    existing camera/zoom behavior.
 
 ### Dynamic-ground and cellar implementation
+
+The 2026-09 cave repair removes an independent zone-entry stall ahead of this
+milestone: interior light classification no longer invokes the contour resolver for
+untouched solid rock, because projected front faces can only land in excavated
+receiving cells. On the 1024×1024 starter cellar benchmark this reduced initial
+light-occlusion construction from 3212.8 ms to 38.4 ms with identical 52 front-face
+cells. The incremental excavation/cache work below remains required; this hot-path
+fix does not mark M8 complete.
 
 1. Introduce a client-only CellarTerrainOverlay that clones the generator's
    blocked/elevation/collision buffers once per space/seed/base version and
@@ -1728,14 +1773,14 @@ future GPU-compatible texture sizes, and make transient asset failures retryable
 - packages/tools/src/assets/types.ts
 - packages/tools/src/assets/pipeline.test.ts
 - packages/tools/src/preview.ts
-- packages/client/src/render/assets.ts
-- packages/client/src/render/assets.test.ts
-- new packages/client/src/render/asset-page-cache.ts
-- new packages/client/src/render/asset-page-cache.test.ts
-- packages/client/src/overworld-art.ts
-- packages/client/src/overworld-art.test.ts
-- packages/client/src/loading-screen.ts
-- packages/client/src/loading-screen.test.ts
+- packages/ui/src/assets.ts
+- packages/ui/src/assets.test.ts
+- new packages/engine/src/asset-page-cache.ts
+- new packages/engine/src/asset-page-cache.test.ts
+- packages/engine/src/overworld-art.ts
+- packages/engine/src/overworld-art.test.ts
+- packages/engine/src/loading-screen.ts
+- packages/engine/src/loading-screen.test.ts
 - packages/client/src/optimization-boundaries.test.ts
 - packages/client/vite.config.ts
 - packages/client/pwa-service-worker.ts
@@ -1902,14 +1947,14 @@ silently introduce the topology as an implementation detail.
 
 ### Primary files
 
-- packages/client/src/render/renderer.ts
-- packages/client/src/render/lighting.ts
-- packages/client/src/render/ground-cache.ts
-- packages/client/src/render/terrain.ts
+- packages/engine/src/renderer.ts
+- packages/engine/src/lighting.ts
+- packages/engine/src/ground-cache.ts
+- packages/engine/src/terrain.ts
 - packages/client/src/loop.ts
-- packages/client/src/display.ts
-- new packages/client/src/render/hud-presenter.ts
-- new packages/client/src/render/hud-presenter.test.ts
+- packages/engine/src/display.ts
+- new packages/engine/src/hud-presenter.ts
+- new packages/engine/src/hud-presenter.test.ts
 - packages/client/src/overworld-main.ts
 - packages/client/src/net/overworld-connection.ts
 - packages/client/src/main.ts
@@ -2581,3 +2626,29 @@ The complete program is done only when:
 The intended meaning of “one shot” is one agent owning the whole dependency
 chain, evidence, and cleanup. It is not permission for a flag-day rewrite that
 remains red until the final step.
+
+### 2026-09-05 — doc 58 receiver/height implementation checkpoint
+
+Doc 58 now implements the shared four-subunit height mapper, receiver class/owner
+records, optional per-elevation local RGB fields and south-facing RGB resolve,
+finite directional silhouette/volume projection, and per-receiver sky/local max
+composition. The combined browser fixture exercises omission plus replacement
+sun/moon/contact shadows, separately lit body artwork and a synthetic upper plane.
+These are the required receiver/height seams for doc 58; gameplay still calls the
+legacy composite and has not enabled the new pass. This does not complete this
+plan's full M3/M4 channel/region/emitter contracts or later performance milestones.
+
+The 200-caster isolated benchmark records zero steady geometry rebuilds, resident
+lookup below timer resolution, 2.1 ms cold coverage and 1.1 ms local RGB re-merge p95.
+Full painter, real-world receivers, animated inputs, GPU/low-end and public fallback
+acceptance remain open. See doc 58's execution ledger and
+`output/lighting-58-20260905/shadows/` for artifacts and measurement scope.
+
+
+**2026-09-06 release update:** doc58's seasonal receiver renderer is deployed in
+0.5.0 as the Dynamic default. Exact declared baked pixels are omitted only after
+complete frame preparation; Basic retains original art and one world tint.
+See [doc58 release ledger](58-seasonal-lighting-and-baked-shadow-plan.md) and
+[measured evidence](../output/lighting-58-20260906/release/README.md) for the
+45-asset rollout, remaining candidates, authenticated checks, and performance
+limits. Earlier pending-publication entries above are historical checkpoints.

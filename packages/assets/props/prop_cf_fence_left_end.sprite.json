@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_fence_left_end",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -45,7 +46,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Fence_Big.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Fence_Big.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Fence_Big.png",
   "sourceRegions": {
     "base": [
       [

@@ -12,6 +12,21 @@ function sourceBetween(startAnchor: string, endAnchor: string): string {
 }
 
 describe('session-only lifecycle chat notices', () => {
+  it('resolves channel, whisper, and local speech visibility through indexes', () => {
+    const messages = sourceBetween('const chat_message = table(', 'const chat_migration = table(');
+    expect(messages).toContain("accessor: 'by_conversation'");
+    expect(messages).toContain("accessor: 'by_sender'");
+    expect(messages).toContain("accessor: 'by_recipient'");
+    const visibleMessages = sourceBetween('export const visibleChatMessages =', 'export const visibleWorldSpeech =');
+    expect(visibleMessages).toContain('chat_message.by_conversation.filter(');
+    expect(visibleMessages).toContain('chat_message.by_sender.filter(ctx.sender)');
+    expect(visibleMessages).toContain('chat_message.by_recipient.filter(ctx.sender)');
+    expect(visibleMessages).not.toContain('chat_message.iter()');
+    const speech = sourceBetween('export const visibleWorldSpeech =', 'export const startRogueRun =');
+    expect(speech).toContain('world_speech.by_space.filter(caller.spaceId)');
+    expect(speech).not.toContain('world_speech.iter()');
+  });
+
   it('stores notices in a private per-connection inbox exposed through an own view', () => {
     const table = sourceBetween('const session_chat_notice = table(', 'const membership = table(');
     expect(table).toContain("name: 'session_chat_notice'");
@@ -29,27 +44,11 @@ describe('session-only lifecycle chat notices', () => {
     expect(broadcast).not.toContain('ctx.db.chat_message.insert({');
   });
 
-  it('returns owner-only connection history through a transient read-only view', () => {
-    const view = sourceBetween('export const requestLastConnections =', 'export const requestBalanceTop =');
-    expect(view.indexOf("membership?.role !== 'owner'")).toBeLessThan(view.indexOf('connection_audit.iter()'));
-    expect(view).toContain('recentConnectionEvents(');
-    expect(view).toContain('lastConnectionEventMessage(');
-    expect(view).toContain('docs/53 T9: deliberate owner-triggered transient scan');
-    expect(view).not.toContain('insertSessionChatNotice(');
-    expect(view).not.toContain('ctx.db.chat_message.insert');
-    expect(view).not.toContain('ctx.db.world_speech.insert');
-  });
-
-  it('returns a bounded top-ten balance projection through a transient member view', () => {
-    const view = sourceBetween('export const requestBalanceTop =', 'export const ownChatChannels =');
-    expect(view.indexOf('membership === null')).toBeLessThan(view.indexOf('player_wallet.iter()'));
-    expect(view).toContain('topBalanceLeaderboard(');
-    expect(view).toContain('BALANCE_LEADERBOARD_LIMIT');
-    expect(view).toContain('balanceLeaderboardMessage(');
-    expect(view).toContain('docs/53 T9: deliberate member-triggered transient scan');
-    expect(view).not.toContain('insertSessionChatNotice(');
-    expect(view).not.toContain('ctx.db.chat_message.insert');
-    expect(view).not.toContain('ctx.db.world_speech.insert');
+  it('keeps operational history out of game chat after Studio procedure retirement', () => {
+    expect(source).not.toContain('export const requestLastConnections =');
+    expect(source).not.toContain('export const requestBalanceTop =');
+    expect(source).toContain('export const adminConnectionsPage = spacetimedb.procedure(');
+    expect(source).toContain('export const adminFindPlayers = spacetimedb.procedure(');
   });
 
   it('purges legacy rows once, hides them defensively, and clears recipient inboxes', () => {

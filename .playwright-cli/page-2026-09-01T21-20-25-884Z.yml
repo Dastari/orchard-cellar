@@ -1,0 +1,23 @@
+- main [ref=f5e2]:
+  - complementary "Development tools" [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - strong [ref=f5e5]: O&C
+      - generic [ref=f5e6]: TOOLS
+    - navigation [ref=f5e7]:
+      - link "Terrain Creator" [ref=f5e8] [cursor=pointer]:
+        - /url: /editor/terrain
+        - generic [ref=f5e10]: Terrain
+      - link "Layout Studio" [ref=f5e11] [cursor=pointer]:
+        - /url: /editor/design
+        - generic [ref=f5e13]: Layout
+      - link "UI Component Lab" [ref=f5e14] [cursor=pointer]:
+        - /url: /editor/ui-lab
+        - generic [ref=f5e16]: UI Lab
+      - link "Character Studio" [ref=f5e17] [cursor=pointer]:
+        - /url: /editor/character-studio
+        - generic [ref=f5e19]: Character
+  - generic [ref=f5e20]:
+    - generic "Orchard and Cellar seed world editor" [ref=f5e21]
+    - status "OPENING THE SEED WORLD. 24%" [ref=f5e22]:
+      - text: OPENING THE SEED WORLD NO ACCOUNT OR WORLD DATABASE CONNECTION REQUIRED
+      - generic [ref=f5e23]: 24%

@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_orc_peon",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     64,
     64
@@ -2118,7 +2119,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Orc_Peon.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Orcs/Orc_Peon.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Orcs/Orc_Peon.png",
   "sourceRegions": {
     "idle_down": [
       [

@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_goblin_archer",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     48
@@ -3000,7 +3001,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Goblin_Archer.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Goblins/Goblin_Archer.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Goblins/Goblin_Archer.png",
   "sourceRegions": {
     "idle_down": [
       [

@@ -1,0 +1,5 @@
+- main [ref=e2]:
+  - generic "Orchard and Cellar seed world editor" [ref=e3]
+  - status "OPENING THE SEED WORLD. 24%" [ref=e4]:
+    - text: OPENING THE SEED WORLD NO ACCOUNT OR WORLD DATABASE CONNECTION REQUIRED
+    - generic [ref=e5]: 24%
