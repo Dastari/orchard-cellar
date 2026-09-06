@@ -475,6 +475,8 @@ repeatable production loop.
   - P4 retained-field implementation is committed; its sampling accuracy gate remains OPEN. Exact-RGB tint-page pooling proceeds independently; five-bit quantization and dim derivations failed the pixel gate.
 - [ ] Doc 59 P6 — Painter and context hot path — IN PROGRESS: codex, 2026-09-06
   - Independent of P2 after P0. Integrator alone extracts enqueue/sort ownership from overworld-main.ts before changing it; measured P2 captures and heavy checks remain sequential.
+- [ ] Doc 59 P7 — Frame pacing and HUD caching — IN PROGRESS: codex, 2026-09-06
+  - P1 and P6 implementations are committed. Frame pacing preserves fixed updates; HUD sections need explicit semantic invalidation and exact backing-resolution goldens. Physical iPad default/thermal evidence remains owner to run.
 - [ ] Doc 59 P8 — Experimental WebGL2 world pass — IN PROGRESS: codex, 2026-09-06
   - P0/P2 inputs and prerequisite docs commit 485edbbc exist. Integrator owns the Canvas backend seam first, with exact goldens before any WebGL implementation. Toggle remains absent until backend parity and failure policy are implemented.
 
