@@ -1,9 +1,10 @@
+import { createGameplayPainter, sortGameplayWorldDepthItems } from './gameplay-painter.js';
 import { createGameplayRenderer, gameplayDisplaySnapshot } from './gameplay-renderer.js';
 import { selectedLightEquipRequest } from './selected-item-use.js';
-import { WorldShadowAssets, WorldLightingRenderer, celestialCastersFromOcclusion, lightingOwner } from '@orchard/engine/world-lighting-renderer';
+import { WorldShadowAssets, WorldLightingRenderer, celestialCastersFromOcclusion } from '@orchard/engine/world-lighting-renderer';
 import { setWorldAssetPresentation } from '@orchard/engine/world-asset-presentation';
 import { setGroundLightSource } from '@orchard/engine/ground-light-source';
-import { humanoidShadowContactY, wildlifeShadowBody, horseShadowBody, rogueEnemyShadowBody, type ActorShadowBody } from '@orchard/engine/overworld-art';
+import { humanoidShadowContactY, wildlifeShadowBody, horseShadowBody, rogueEnemyShadowBody } from '@orchard/engine/overworld-art';
 import { withWorldReceiverLight } from '@orchard/engine/receiver-frame-source';
 import type { DirectionalCaster } from '@orchard/engine/directional-shadows';
 import { celestialLightingAtTick, celestialLightingAtCalendar } from '@orchard/engine/celestial-lighting';
@@ -331,8 +332,6 @@ import { drawPixelPanel, drawPixelText, measurePixelText } from '@orchard/ui';
 import {
   MAX_WORLD_ZOOM,
   drawSortedWorldDepthQueue,
-  sortWorldDepthItems,
-  type WorldDepthItem,
 } from '@orchard/engine/renderer';
 import {
   cellarExposedWallAt,
@@ -4280,7 +4279,6 @@ function renderFrame(alpha = 1): void {
   );
   // All non-ground world art (players, trees, items, future buildings/props/NPCs)
   // must enter this queue so weather and later depth layers cannot bypass it.
-  const worldDepthItems: WorldDepthItem[] = [];
   const projectionAt = (worldX: number, worldFootY: number): number => (
     terrainProjectedDepthAtFoot(terrain, worldX, worldFootY)
   );
@@ -4288,7 +4286,6 @@ function renderFrame(alpha = 1): void {
     worldFootY - projectionAt(worldX, worldFootY)
   );
   let drawWorldReceiver: (footX: number, footY: number, draw: () => void, face?: UnifiedLightReceiver) => void = (_x, _y, draw) => draw();
-  const movingCelestialCasters: DirectionalCaster[] = [];
   const projectTargetable = (
     entity: TargetableWorldEntity,
     worldX: number,
@@ -4297,42 +4294,11 @@ function renderFrame(alpha = 1): void {
     ...entity,
     y: entity.y - projectionAt(worldX, worldFootY),
   });
-  const enqueueWorldDepth = (
-    worldX: number,
-    worldFootY: number,
-    item: WorldDepthItem,
-    terrainSampleY = worldFootY,
-    unifiedReceiver: UnifiedLightReceiver = 'south',
-    shadowContactY = terrainSampleY,
-    shadowBody?: ActorShadowBody,
-  ): void => {
-    const elevation = terrainProjectedElevationAtFoot(terrain, worldX, terrainSampleY);
-    const projection = projectionAt(worldX, terrainSampleY);
-    if (seasonalDynamic && /^(player|npc|merchant|rogue-enemy|boat|combat-target|hive|placeable):/.test(item.tie)) {
-      // Upright actor volumes follow the interpolated contact each frame. Their
-      // artwork/animation is lit independently of the ground shadow footprint.
-      const boat = item.tie.startsWith('boat:');
-      const level = terrainElevationAtWorldFoot(terrain, worldX, terrainSampleY);
-      movingCelestialCasters.push({ owner: lightingOwner(worldX, terrainSampleY),
-        worldX, worldY: shadowContactY + (shadowBody?.offsetY ?? 0), baseHeightSubunits: level * 4,
-        heightSubunits: Math.max(1, Math.round((shadowBody?.heightPixels ?? (boat ? 12 : 22)) / (terrainVisualProjectionRowsPerLevel(terrain) * 4))),
-        footprint: { left: -(shadowBody?.halfWidth ?? (boat ? 12 : 4)), right: shadowBody?.halfWidth ?? (boat ? 12 : 4), top: -2, bottom: 1 }, contact: shadowBody?.contact ?? true });
-    }
-    worldDepthItems.push({
-      ...item,
-      footY: item.footY - projection,
-      depthOffset: terrainProjectedSortOffset(elevation),
-      elevationLayer: Math.ceil(Math.max(0, elevation - 0.001)),
-      depthPhase: 'entity',
-      draw: () => {
-        context.save();
-        try {
-          context.translate(0, -projection * scale);
-          drawWorldReceiver(worldX, terrainSampleY, item.draw, unifiedReceiver);
-        } finally { context.restore(); }
-      },
-    });
-  };
+  const { worldDepthItems, movingCelestialCasters, enqueueWorldDepth } = createGameplayPainter({
+    terrain, context, scale, seasonalDynamic, projectionAt,
+    // Preserve the original late-bound receiver closure, assigned below.
+    drawWorldReceiver: (x, y, draw, face) => drawWorldReceiver(x, y, draw, face),
+  });
   const localCutawayElevation = terrainProjectedElevationAtFoot(
     terrain,
     localX,
@@ -5486,7 +5452,7 @@ function renderFrame(alpha = 1): void {
     seasonalLighting!.compositeFlameGlows(context, pointLights, scale);
   }
   const painterSortStartedAt = performance.now();
-  const sortedWorldDepthItems = sortWorldDepthItems(worldDepthItems);
+  const sortedWorldDepthItems = sortGameplayWorldDepthItems(worldDepthItems);
   renderMetrics.recordStage('painterSort', performance.now() - painterSortStartedAt);
   const painterDrawStartedAt = performance.now();
   let painterWeatherMs = 0;
