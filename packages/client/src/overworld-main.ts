@@ -1,3 +1,6 @@
+import { gameplayProtocolLighting } from './gameplay-protocol-lighting.js';
+import { createGameplayProtocolWorkload } from './gameplay-protocol-workload.js';
+import { protocolPondTies } from './render-protocol-ponds.js';
 import { gameplayDiagnostics } from './gameplay-diagnostic-snapshot.js';
 import { drawLandmarkTransform, drawWildlifeHitFlash } from './gameplay-painter-effects.js';
 import { GameplayCelestialPass } from './gameplay-celestial-pass.js';
@@ -7995,6 +7998,25 @@ const removeConnectionLifecycle = installConnectionLifecycle(window, document, {
 import.meta.hot?.dispose(removeConnectionLifecycle);
 Object.assign(window, {
   __orchardOverworld: {
+    protocolLighting: gameplayProtocolLighting(lightingQuality, atlasPresentation, celestialPass),
+    prepareProtocolWorkload: createGameplayProtocolWorkload({
+      renderer, pass: celestialPass,
+      get cameraX() { return latestCameraX; }, get cameraY() { return latestCameraY; },
+      get zoom() { return worldZoom; },
+      get seed() { return latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED; },
+      get contentRevision() { return latestSnapshot.content.registry.contentHash; },
+      get mapRevision() { return latestSnapshot.liveMapDocument?.revision ?? 0; },
+      get mapContentHash() { return latestSnapshot.liveMapDocument?.contentHash ?? ''; },
+      get resourceRevision() { return network.resourceRevision; },
+      get uiWindow() { return overworldUi.openWindow; }, setUiWindow(value) { overworldUi.openWindow = value; },
+      get playerIdentity() { return latestSnapshot.identityHex; },
+      get lightingPreview() { return lightingPreview; }, get lightPreview() { return lightPreviewKind; },
+      setLightingPreview(value) { lightingPreview = value; }, setLightPreview(value) { lightPreviewKind = value; },
+      pondTies: () => protocolPondTies(activeSpaceDefinition.generator === 'homestead'
+        ? homesteadSurroundingDecorations(latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED)
+        : topsideDecorations(latestSnapshot, latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED),
+      activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID ? liveIslandDocument(latestSnapshot.liveMapDocument) : null),
+    }),
     snapshot: () => network.snapshot(),
     update,
     render,

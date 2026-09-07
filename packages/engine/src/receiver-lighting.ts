@@ -72,7 +72,7 @@ export class CelestialReceiverScene {
   private readonly coverageFields = new Map<number, CoveragePlane[]>();
   private coverageBytes = 0;
   private coverageCount = 0;
-  readonly diagnostics = { staticCoverageBuilds: 0, movingCoverageBlits: 0, movingCastersBlitted: 0, rgbMerges: 0, numericKeyLookups: 0 };
+  readonly diagnostics = { staticCoverageBuilds: 0, movingCoverageBlits: 0, movingCastersBlitted: 0, rgbMerges: 0, numericKeyLookups: 0, skyRgbRevision: 0, staticCasters: 0 };
   constructor(readonly pixelsPerHeightSubunit: number, readonly cache = new DirectionalShadowCache(),
     private readonly observeKey?: (key: number) => void) {}
   private lookupKey(key: number): number { this.observeKey?.(key); this.diagnostics.numericKeyLookups++; return key; }
@@ -91,7 +91,9 @@ export class CelestialReceiverScene {
     const key = this.key.reset().add(sky.diffuse.r).add(sky.diffuse.g).add(sky.diffuse.b)
       .add(sky.sun.illumination.r).add(sky.sun.illumination.g).add(sky.sun.illumination.b)
       .add(sky.moon.illumination.r).add(sky.moon.illumination.g).add(sky.moon.illumination.b);
-    if (!key.matches(this.skySignature)) { this.skySignature = key.copy(); this.revision++; }
+    if (!key.matches(this.skySignature)) {
+      this.skySignature = key.copy(); this.revision++; this.diagnostics.skyRgbRevision++;
+    }
     key.reset().add(moving.length);
     for (const caster of moving) {
       const f = caster.footprint, body = caster.silhouette;
@@ -102,6 +104,7 @@ export class CelestialReceiverScene {
     if (!key.matches(this.movingSignature)) {
       key.copyInto(this.movingSignature); this.movingRevision++; this.generation++; this.revision++;
     }
+    this.diagnostics.staticCasters = fixed.length;
     this.staticCasters = fixed; this.staticIdentity = staticIdentity; this.movingCasters = moving; this.geometryKey = geometry; this.skyValue = sky;
   }
   /** Prepare pending geometry without committing a stale moving/static generation. */

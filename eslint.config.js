@@ -5,6 +5,7 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      'build/releases/**/previous-dist/**',
       'output/playwright/**',
       'output/**/client-dist/**',
       'output/**/publish-candidate/**',

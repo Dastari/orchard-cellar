@@ -1,3 +1,4 @@
+import { protocolPainterWitness } from './render-protocol-painter-witness.js';
 import { beginPainterItem, endPainterItem } from '@orchard/engine/painter-context';
 import { WorldItemIdentities, WorldItemKind, prepareWorldDepthItem } from '@orchard/engine/painter-depth';
 import { compareWorldDepthItems, type WorldDepthItem } from '@orchard/engine/renderer';
@@ -27,6 +28,7 @@ const queueIdentities = new WeakMap<WorldDepthItem[], WorldItemIdentities>();
 /** Reuse the frame queue while retaining the established painter order. */
 export function createGameplayPainter(input: GameplayPainterInput) {
   const { terrain, context, scale, seasonalDynamic, projectionAt, drawWorldReceiver } = input;
+  protocolPainterWitness?.begin(terrain, context, scale);
   let retained = storage.get(context);
   if (retained === undefined) {
     retained = { items: [], moving: [], identities: new WorldItemIdentities(), terrain };
@@ -75,6 +77,7 @@ export function createGameplayPainter(input: GameplayPainterInput) {
     };
     prepareWorldDepthItem(queued, identities);
     worldDepthItems.push(queued);
+    protocolPainterWitness?.enqueue(worldX, queued.footY, item.debugTie ?? item.tie);
   };
   return { worldDepthItems, movingCelestialCasters, enqueueWorldDepth };
 }

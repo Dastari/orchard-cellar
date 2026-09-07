@@ -2753,3 +2753,220 @@ remains System → Developer → Render → Run protocol + copy JSON, keep Safar
 visible, repeat every world scale, and record the device/iPadOS/Safari/DPR/zoom/
 resolution and client commit; the forthcoming A-1 update adds workload and
 sky-step qualification. A-1 is not complete and release remains HOLD.
+
+### A-1 capture implementation scope — 2026-09-07
+
+After mechanical extraction `524c3d1e`, the follow-up adds optional painter
+observation in `gameplay-painter.ts` and extends the existing gameplay protocol
+modules. This is the narrowly recorded P0 file-scope extension in DECISIONS.md;
+sorting and drawing are unchanged. New bounded modules own request attribution,
+RGB-step recording, workload validation, the camera route, pond identity mapping,
+and presentation restoration. The launcher pins the artwork season from actual
+atlas filenames, a sunset clock, a camera square and lantern preview, closes the
+diagnostics window while walking, and restores the original UI/Video/preview
+settings. No shared clock or player-position mutation is used.
+
+The capture rejects causal comparison when the actual rendered player is absent,
+not walking, or outside the viewport; when cap/pond/light/caster content is absent;
+when scene revisions change; or when measured camera paths/item populations do
+not match. Dynamic preflight caster density is retained only as a scalar witness
+for Basic/Classic, which do not retain Dynamic surfaces for this measurement.
+Every Image.src request is tagged with its effective and requested quality at
+queue dispatch, including suite preflight and restoration. A deterministic sunset
+RGB step occurs ten seconds into the active sample; its first and following frame
+have independent complete stage/counter distributions.
+
+The implementation gate and browser evidence are pending below. These additions
+prepare A-1; they do not claim that the currently signed-out shared tab has yielded
+a qualified scene or performance sample. The authenticated workload and P6b remain
+open under A-10, and release remains HOLD.
+
+### A-1 authenticated repeatability checkpoint — 2026-09-07
+
+Owner sign-in resolved the access blocker. The isolated production candidate ran the real client against the live world at the canonical origin through local Playwright routes; no served frontend changed. Candidate label `524c3d1e-a1-route-clock`, base commit `524c3d1e`; exact 24-file scope/hashes and commands are in `output/perf-59-20260907/P0/repeatable-capture/`. The added ESLint exclusion covers only generated rollback bundles at `build/releases/**/previous-dist/**`, as recorded in DECISIONS.md.
+
+Reference device: orchard / AMD Ryzen 9 9955HX, Linux 6.17.2-1-pve x86_64 (glibc 2.43), Headless Chrome 152.0.0.0, CSS 1280×720, DPR 1, browser zoom 1, world zoom 2, Canvas, presentation cap off, no CPU throttling. Every JSON includes metadata. Fixed seed 1329809490, summer asset URLs, day 10.5 sunset, camera origin (5369.875, 5442.3125), 20-pixel square, normal authoritative walking and presentation-only lantern. Every mode has 5-second warm-up and 30-second active-rAF sampling.
+
+The original route-clock comparison normalized each recording independently to its first and last rAF; uneven cadence falsely shifted comparisons. The fix records the actual submitted camera route clock and compares common elapsed times. A regression test checks unequal cadence/boundary offsets and still rejects a two-pixel route change. Earlier `canvas-*-route-clock-diagnostic.json` results and their source manifest remain preserved and disqualified from causal comparison.
+
+**Canvas 1x: milliseconds p50 / p95 / p99.** Artifact: `P0/repeatable-capture/canvas-1x.json`.
+
+| Stage | Basic | Classic | Dynamic |
+| --- | --- | --- | --- |
+| whole frame | 9.700 / 12.000 / 14.800 | 11.400 / 14.700 / 21.400 | 23.400 / 32.100 / 42.200 |
+| snapshotPrepare | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 |
+| ground | 0.400 / 0.500 / 0.600 | 0.400 / 0.600 / 0.700 | 0.400 / 0.600 / 0.800 |
+| painterBuild | 4.800 / 6.300 / 7.700 | 5.000 / 6.900 / 10.800 | 5.100 / 7.500 / 11.200 |
+| painterSort | 0.100 / 0.200 / 0.200 | 0.100 / 0.200 / 0.200 | 0.100 / 0.200 / 0.300 |
+| painterDraw | 1.500 / 1.900 / 2.500 | 1.500 / 2.000 / 3.200 | 11.300 / 16.900 / 21.500 |
+| weather | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.200 / 0.300 |
+| lightingBoundsResize | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.100 | 0.000 / 0.100 / 0.200 |
+| lightingOcclusionRaster | 0.000 / 0.000 / 0.000 | 0.000 / 0.300 / 0.400 | 0.000 / 0.400 / 0.500 |
+| lightingSolve | 0.000 / 0.000 / 0.000 | 0.100 / 0.200 / 0.200 | 0.200 / 0.300 / 0.300 |
+| lightingMerge | 0.000 / 0.000 / 0.000 | 0.100 / 0.200 / 0.200 | 7.200 / 10.300 / 13.200 |
+| lightingUpload | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.200 | 0.100 / 0.300 / 0.400 |
+| lightingReceiver | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 2.400 / 3.500 / 5.100 |
+| lightingComposite | 0.000 / 0.000 / 0.100 | 0.000 / 0.100 / 0.100 | 0.000 / 0.000 / 0.000 |
+| lightingStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingAnimatedStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingDynamicSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| finalWorldComposite | 0.400 / 0.500 / 0.600 | 1.700 / 2.000 / 2.700 | 0.400 / 1.200 / 1.800 |
+| uiModel | 0.500 / 0.600 / 0.800 | 0.500 / 0.700 / 1.100 | 0.600 / 0.900 / 1.400 |
+| uiLayout | 0.500 / 0.700 / 0.900 | 0.500 / 0.700 / 1.200 | 0.600 / 0.800 / 1.300 |
+| uiDraw | 1.200 / 1.800 / 2.100 | 1.300 / 1.900 / 2.400 | 1.300 / 2.000 / 2.600 |
+| fixedUpdate | 0.200 / 0.400 / 0.500 | 0.200 / 0.400 / 0.800 | 0.300 / 0.500 / 0.900 |
+| catchUp | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.400 | 0.200 / 0.500 / 0.800 |
+
+| Counter: p50 / p95 / p99; mean per frame | Basic | Classic | Dynamic |
+| --- | --- | --- | --- |
+| drawImageCalls | 1767.000 / 1791.000 / 1791.000; 1771.5620 | 1768.000 / 1792.000 / 1792.000; 1772.5611 | 2107.000 / 2130.000 / 2138.000; 2089.1834 |
+| distinctDrawImageSources | 34.000 / 34.000 / 35.000; 34.0256 | 35.000 / 35.000 / 36.000; 35.0260 | 40.000 / 40.000 / 41.000; 39.7641 |
+| tintBuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 7.000; 0.2264 |
+| tintReuses | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 56.000 / 56.000 / 63.000; 54.7192 |
+| tintSurfaceReuses | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 |
+| filteredFrameBuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 |
+| coverageFieldRebuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 3.000; 0.0573 |
+| preparedHeightRebuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0029 |
+| groundSourceOperations | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 336.000 / 336.000 / 336.000; 312.3266 |
+| imageDataAllocations | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 2.000; 0.0543 | 0.000 / 0.000 / 2.000; 0.0917 |
+| saveCalls | 426.000 / 447.000 / 447.000; 428.2198 | 428.000 / 449.000 / 449.000; 430.2460 | 429.000 / 449.000 / 449.000; 431.0067 |
+| restoreCalls | 426.000 / 447.000 / 447.000; 428.2198 | 428.000 / 449.000 / 449.000; 430.2460 | 429.000 / 449.000 / 449.000; 431.0067 |
+| saveRestorePairs | 426.000 / 447.000 / 447.000; 428.2198 | 428.000 / 449.000 / 449.000; 430.2460 | 429.000 / 449.000 / 449.000; 431.0067 |
+| surfaceAllocations | 0.000 / 1.000 / 1.000; 0.0874 | 0.000 / 1.000 / 1.000; 0.0577 | 0.000 / 1.000 / 1.000; 0.1223 |
+
+| Mode | Cap runs min | Pond min | Carried light min | Static casters min | Lighting bytes | Long tasks ≥50ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| basic | 1 | 1 | 1 | 277 | 0 | 0 |
+| classic | 1 | 1 | 1 | 277 | 164864 | 0 |
+| dynamic | 1 | 1 | 1 | 276 | 91539386 | 10 |
+
+Request dispatch attribution (variant / effective quality / requested quality / effective model → count): omit/basic/dynamic/classic → 22; omit/basic/dynamic/unified → 22; omit/dynamic/dynamic/classic → 22. All requested atlas URLs are summer. Preparation can dispatch omit pages while complete Basic/Classic is still presented; no omit request is attributed to requested Basic.
+
+**Canvas 2x: milliseconds p50 / p95 / p99.** Artifact: `P0/repeatable-capture/canvas-2x.json`.
+
+| Stage | Basic | Classic | Dynamic |
+| --- | --- | --- | --- |
+| whole frame | 12.400 / 24.200 / 28.100 | 15.800 / 20.700 / 23.900 | 28.000 / 34.100 / 38.100 |
+| snapshotPrepare | 0.100 / 0.200 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 |
+| ground | 0.500 / 0.900 / 1.100 | 0.400 / 0.600 / 0.800 | 0.400 / 0.600 / 0.700 |
+| painterBuild | 5.800 / 12.100 / 15.400 | 5.300 / 7.600 / 9.900 | 5.100 / 6.100 / 6.900 |
+| painterSort | 0.100 / 0.200 / 0.300 | 0.100 / 0.200 / 0.300 | 0.100 / 0.200 / 0.300 |
+| painterDraw | 2.600 / 4.400 / 6.100 | 2.300 / 3.300 / 4.100 | 15.700 / 19.400 / 22.000 |
+| weather | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.200 / 0.300 |
+| lightingBoundsResize | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 |
+| lightingOcclusionRaster | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.400 | 0.000 / 0.300 / 0.400 |
+| lightingSolve | 0.000 / 0.000 / 0.000 | 0.100 / 0.200 / 0.200 | 0.200 / 0.300 / 0.300 |
+| lightingMerge | 0.000 / 0.000 / 0.000 | 0.100 / 0.200 / 0.200 | 9.300 / 13.400 / 15.100 |
+| lightingUpload | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.200 | 0.100 / 0.300 / 0.400 |
+| lightingReceiver | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 2.300 / 3.100 / 3.500 |
+| lightingComposite | 0.000 / 0.000 / 0.100 | 0.000 / 0.100 / 0.100 | 0.000 / 0.000 / 0.000 |
+| lightingStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingAnimatedStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingDynamicSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| finalWorldComposite | 0.500 / 0.800 / 1.200 | 4.600 / 5.500 / 6.400 | 0.500 / 0.700 / 0.900 |
+| uiModel | 0.600 / 1.200 / 1.600 | 0.600 / 0.900 / 1.200 | 0.600 / 0.800 / 1.000 |
+| uiLayout | 0.600 / 1.000 / 1.500 | 0.600 / 0.800 / 1.200 | 0.600 / 0.700 / 1.100 |
+| uiDraw | 1.400 / 2.700 / 3.900 | 1.300 / 2.100 / 2.600 | 1.300 / 1.900 / 2.200 |
+| fixedUpdate | 0.300 / 0.600 / 1.600 | 0.200 / 0.400 / 0.500 | 0.300 / 0.400 / 0.500 |
+| catchUp | 0.000 / 0.600 / 1.600 | 0.000 / 0.400 / 0.500 | 0.300 / 0.400 / 0.500 |
+
+| Counter: p50 / p95 / p99; mean per frame | Basic | Classic | Dynamic |
+| --- | --- | --- | --- |
+| drawImageCalls | 1800.000 / 1817.000 / 1823.000; 1798.0603 | 1801.000 / 1818.000 / 1824.000; 1799.0220 | 2170.000 / 2188.000 / 2194.000; 2158.2998 |
+| distinctDrawImageSources | 34.000 / 36.000 / 37.000; 34.8381 | 35.000 / 37.000 / 38.000; 35.8188 | 41.000 / 43.000 / 44.000; 41.4315 |
+| tintBuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 1.000 / 1.000; 0.0899 |
+| tintReuses | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 50.000 / 55.000 / 56.000; 49.1563 |
+| tintSurfaceReuses | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 |
+| filteredFrameBuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 |
+| coverageFieldRebuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 4.000 / 4.000; 0.9293 |
+| preparedHeightRebuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 4.000; 0.1071 |
+| groundSourceOperations | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 363.000 / 372.000 / 372.000; 356.8908 |
+| imageDataAllocations | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 2.000; 0.0640 | 0.000 / 2.000 / 2.000; 0.1028 |
+| saveCalls | 422.000 / 440.000 / 440.000; 423.6406 | 424.000 / 442.000 / 442.000; 425.7422 | 424.000 / 442.000 / 443.000; 425.6210 |
+| restoreCalls | 422.000 / 440.000 / 440.000; 423.6406 | 424.000 / 442.000 / 442.000; 425.7422 | 424.000 / 442.000 / 443.000; 425.6210 |
+| saveRestorePairs | 422.000 / 440.000 / 440.000; 423.6406 | 424.000 / 442.000 / 442.000; 425.7422 | 424.000 / 442.000 / 443.000; 425.6210 |
+| surfaceAllocations | 0.000 / 1.000 / 1.000; 0.0648 | 0.000 / 1.000 / 1.000; 0.0666 | 0.000 / 1.000 / 1.000; 0.1113 |
+
+| Mode | Cap runs min | Pond min | Carried light min | Static casters min | Lighting bytes | Long tasks ≥50ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| basic | 5 | 1 | 1 | 278 | 0 | 2 |
+| classic | 5 | 1 | 1 | 278 | 164864 | 0 |
+| dynamic | 5 | 1 | 1 | 278 | 89245654 | 1 |
+
+Request dispatch attribution (variant / effective quality / requested quality / effective model → count): omit/basic/dynamic/classic → 22; omit/basic/dynamic/unified → 22; omit/dynamic/dynamic/classic → 22. All requested atlas URLs are summer. Preparation can dispatch omit pages while complete Basic/Classic is still presented; no omit request is attributed to requested Basic.
+
+**Canvas native: milliseconds p50 / p95 / p99.** Artifact: `P0/repeatable-capture/canvas-native.json`.
+
+| Stage | Basic | Classic | Dynamic |
+| --- | --- | --- | --- |
+| whole frame | 11.300 / 15.400 / 18.100 | 17.000 / 19.500 / 21.700 | 28.500 / 34.200 / 39.300 |
+| snapshotPrepare | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.100 |
+| ground | 0.400 / 0.600 / 0.800 | 0.400 / 0.500 / 0.600 | 0.400 / 0.500 / 0.600 |
+| painterBuild | 4.900 / 7.100 / 8.900 | 5.000 / 6.100 / 7.000 | 4.900 / 5.800 / 6.900 |
+| painterSort | 0.100 / 0.200 / 0.200 | 0.100 / 0.200 / 0.200 | 0.100 / 0.200 / 0.200 |
+| painterDraw | 2.800 / 3.800 / 4.700 | 2.800 / 3.500 / 4.200 | 16.200 / 19.900 / 23.900 |
+| weather | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.000 / 0.200 / 0.200 |
+| lightingBoundsResize | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.100 |
+| lightingOcclusionRaster | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.400 | 0.000 / 0.300 / 0.400 |
+| lightingSolve | 0.000 / 0.000 / 0.000 | 0.100 / 0.200 / 0.200 | 0.200 / 0.300 / 0.300 |
+| lightingMerge | 0.000 / 0.000 / 0.000 | 0.100 / 0.100 / 0.200 | 9.300 / 13.200 / 14.900 |
+| lightingUpload | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.200 | 0.100 / 0.300 / 0.400 |
+| lightingReceiver | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 2.300 / 3.100 / 3.600 |
+| lightingComposite | 0.000 / 0.000 / 0.100 | 0.000 / 0.100 / 0.100 | 0.000 / 0.000 / 0.000 |
+| lightingStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingAnimatedStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingDynamicSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| finalWorldComposite | 0.600 / 0.800 / 1.100 | 5.700 / 6.400 / 7.100 | 0.800 / 1.000 / 1.200 |
+| uiModel | 0.500 / 0.800 / 0.900 | 0.600 / 0.700 / 0.900 | 0.600 / 0.700 / 0.800 |
+| uiLayout | 0.500 / 0.700 / 0.900 | 0.500 / 0.700 / 1.000 | 0.600 / 0.700 / 1.100 |
+| uiDraw | 1.300 / 1.900 / 2.300 | 1.300 / 1.900 / 2.200 | 1.300 / 1.900 / 2.200 |
+| fixedUpdate | 0.200 / 0.300 / 0.500 | 0.200 / 0.300 / 0.400 | 0.300 / 0.400 / 0.600 |
+| catchUp | 0.000 / 0.000 / 0.300 | 0.000 / 0.300 / 0.400 | 0.300 / 0.400 / 0.600 |
+
+| Counter: p50 / p95 / p99; mean per frame | Basic | Classic | Dynamic |
+| --- | --- | --- | --- |
+| drawImageCalls | 1800.000 / 1817.000 / 1819.000; 1798.0934 | 1801.000 / 1818.000 / 1820.000; 1799.0944 | 2170.000 / 2188.000 / 2202.000; 2158.5780 |
+| distinctDrawImageSources | 34.000 / 36.000 / 37.000; 34.8267 | 35.000 / 37.000 / 38.000; 35.8333 | 41.000 / 43.000 / 44.000; 41.4133 |
+| tintBuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 1.000 / 1.000; 0.1232 |
+| tintReuses | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 50.000 / 55.000 / 57.000; 49.6761 |
+| tintSurfaceReuses | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 |
+| filteredFrameBuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 |
+| coverageFieldRebuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 4.000 / 4.000; 0.9466 |
+| preparedHeightRebuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 4.000; 0.1091 |
+| groundSourceOperations | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 363.000 / 372.000 / 372.000; 356.8659 |
+| imageDataAllocations | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 2.000; 0.0661 | 0.000 / 2.000 / 2.000; 0.1047 |
+| saveCalls | 422.000 / 440.000 / 440.000; 423.7565 | 424.000 / 442.000 / 442.000; 425.6811 | 424.000 / 442.000 / 443.000; 425.6619 |
+| restoreCalls | 422.000 / 440.000 / 440.000; 423.7565 | 424.000 / 442.000 / 442.000; 425.6811 | 424.000 / 442.000 / 443.000; 425.6619 |
+| saveRestorePairs | 422.000 / 440.000 / 440.000; 423.7565 | 424.000 / 442.000 / 442.000; 425.6811 | 424.000 / 442.000 / 443.000; 425.6619 |
+| surfaceAllocations | 0.000 / 1.000 / 1.000; 0.0544 | 0.000 / 1.000 / 1.000; 0.0654 | 0.000 / 1.000 / 1.000; 0.1047 |
+
+| Mode | Cap runs min | Pond min | Carried light min | Static casters min | Lighting bytes | Long tasks ≥50ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| basic | 5 | 1 | 1 | 278 | 0 | 0 |
+| classic | 5 | 1 | 1 | 278 | 164864 | 1 |
+| dynamic | 5 | 1 | 1 | 278 | 89245654 | 2 |
+
+Request dispatch attribution (variant / effective quality / requested quality / effective model → count): omit/basic/dynamic/classic → 22; omit/basic/dynamic/unified → 22; omit/dynamic/dynamic/classic → 22. All requested atlas URLs are summer. Preparation can dispatch omit pages while complete Basic/Classic is still presented; no omit request is attributed to requested Basic.
+
+All nine scene witnesses qualify; all six within-scale Basic/Classic/Dynamic comparisons pass both population and actual route gates. These are new populated-scene baselines, not improvements over the earlier offscreen-player/flat-scene captures. Stages can nest and percentile values must not be summed.
+
+At 1×, Basic retains **zero lighting bytes**, and every tint/filtered/coverage/ground-source/ImageData lighting counter is zero. Classic retains 164,864 legacy lightmap bytes under A-2. Dynamic exposes **336 ground-source operations p95**, painterDraw **16.9 ms p95** with nested lightingMerge **10.3 ms p95**, lightingReceiver **3.5 ms p95**, and ten long tasks. A-7 painterBuild, A-3 receiver indexing, A-6 cap-run caching and the previously identified minimap allocation remain necessary. The performance gates have not passed.
+
+Dynamic sky-step first/following frames retain every stage/counter separately in each JSON. At 1× the first observed step costs **27.000 ms**, with 3 coverage rebuilds, 3 prepared-height rebuilds, 336 ground-source operations, zero tint builds and zero surface allocations. One induced step per capture is not a multi-run sky-burst p95 qualification. Basic/Classic explicitly have no observed Dynamic RGB-revision step.
+
+Verification: seven focused suites / **23 tests** pass after the camera-clock correction; client typecheck, private production build and lint pass. The first full gate failed one existing 15-second map-editor timeout; the focused retry passed that test in 13.08 seconds but failed global coverage when run alone, so it is diagnostic only. The next full gate stopped at 58,244 generated-backup lint errors; the narrow exclusion fixed lint. `check-route-clock.log` is the new full gate, running after all captures with the private browser stopped. No full-pass claim is made until its exit file is recorded.
+
+All **36 original atlas PNGs** match P0 in both source and private workspaces (`original-atlases.json`). All ten Canvas golden PNGs matched the previous reference byte for byte (`golden-comparison.json`); the later correction changes capture evidence only. Screenshots `authenticated-candidate-world.png`, `route-search.png` and `route-trial-view.png` show the actual game and pond/cliff route. They do not complete the pending shared-candidate minute-per-setting review.
+
+| Device | Stage/counter evidence | Status |
+| --- | --- | --- |
+| Physical iPad | owner to run | owner to run |
+| Hardware WebGL2 | owner to run | owner to run; software GPU is functional evidence only |
+
+iPad steps: on the candidate walk to the recorded pond/cliff area, keeping the local player visible. System → Developer → Render → **Run protocol + copy JSON**. Keep Safari visible for all three modes; the action closes the panel and restores prior presentation settings. If clipboard permission is rejected, reopen Render and tap **Copy capture JSON**. Repeat World scale 1×, 2× and Native, and record iPad model, iPadOS/Safari version and browser zoom alongside exported DPR/resolution/commit/backend metadata. An unqualified workload is not comparison evidence. No desktop CPU throttling substitutes for this row.
+
+Release remains **HOLD**. Authentication is resolved; remaining failures are rendering/performance and pending full-gate/device review, not a request for another owner approval.
+
+Shared candidate visual review remains **OPEN: technical** after three documented origin approaches, recorded in DECISIONS.md and `shared-preview-origin-block.json`. The Windows T3 browser reaches the Tailnet static preview with active visibility, but account-refresh CORS, then production self-only CSP, then the world-token CORS preflight prevent private-origin gameplay. Only the private harness response was amended for the CSP diagnostic; no live security setting or production file changed. The private preview was stopped and temporary capture credentials removed. Canonical login and all nine local Playwright captures are successful. Continue under A-10; do not label these failed loading views as gameplay review.
+
+Full settled A-1 gate: **`npm run check` exit 0**. Test Files  618 passed (618); Tests  3587 passed (3587); Duration  984.65s (transform 8.70s, setup 0ms, import 112.17s, tests 769.69s, environment 45ms). Lifecycle integrity, world build, all workspace typechecks, lint, coverage and asset validation pass (1,021 art assets). Scoped lint also passes for the later private-preview harness. `decoded-image-limits.json` proves the maximum decoded image is exactly 4,194,304 bytes in all nine samples. Source render behavior is unchanged by this instrumentation checkpoint; performance/device failures listed above remain open.
