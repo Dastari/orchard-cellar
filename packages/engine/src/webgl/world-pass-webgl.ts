@@ -20,6 +20,7 @@ export interface WebGLSourceOptions {
   readonly receiverRgb?: RgbColor;
   readonly ground?: { readonly field: WebGLGroundField; readonly worldX: number; readonly worldY: number };
   readonly variant?: WorldSpriteVariant;
+  /** Producer revision for a stable source; mutable unversioned canvases refresh on every draw. */
   readonly revision?: number;
 }
 export interface WebGLWorldPassOptions {
@@ -161,7 +162,9 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
       const rgb=options.receiverRgb;
       if(rgb && (rgb.r!==255 || rgb.g!==255 || rgb.b!==255))throw new WebGLWorldPassError('webgl_accuracy_unverified_receiver_tint');
     }
-    const revision=options.revision ?? (image instanceof HTMLCanvasElement || (typeof OffscreenCanvas!=='undefined' && image instanceof OffscreenCanvas) ? this.frameRevision:0);
+    // A Canvas can change between two draws in one frame. NaN forces a flush
+    // and upload without colliding with any producer-supplied revision.
+    const revision=options.revision ?? (image instanceof HTMLCanvasElement || (typeof OffscreenCanvas!=='undefined' && image instanceof OffscreenCanvas) ? Number.NaN:0);
     const texture=this.select(image,revision,field,state);
     const rgb=options.receiverRgb;
     const mode=field ? 2 : rgb && (rgb.r!==255 || rgb.g!==255 || rgb.b!==255) ? 1:0;
@@ -194,7 +197,6 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
       if (top<rect[3]!) quad(0,top,rect[2]!,rect[3]!-top,1);
     }
   }
-  private frameRevision=0;
   private select(image:CanvasImageSource,revision:number,field:WebGLGroundField | undefined,state:CanvasState) {
     if(state.composite==='multiply' && !this.options.allowUnverifiedLighting)throw new WebGLWorldPassError('webgl_accuracy_unverified_multiply');
     const old=this.selectedState;
@@ -222,7 +224,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     // Opaque world backing has black as the Canvas-cleared presentation value.
     this.fill(rect,[0,0,0,1],{...state,alpha:1,composite:'copy'});
   }
-  private invalidateSelection():void { this.selectedImage=null; this.selectedField=undefined; this.selectedState=null; this.selectedTexture=null; this.selectedFieldRevision=undefined; this.selectedRevision=Number.NaN; this.frameRevision++; }
+  private invalidateSelection():void { this.selectedImage=null; this.selectedField=undefined; this.selectedState=null; this.selectedTexture=null; this.selectedFieldRevision=undefined; this.selectedRevision=Number.NaN; }
   private requireFrame():void { this.requireActive(); if (!this.layout) throw new WebGLWorldPassError('webgl_frame_not_begun'); }
   private requireActive():void {
     if (this.disposed) throw new WebGLWorldPassError('webgl_disposed');

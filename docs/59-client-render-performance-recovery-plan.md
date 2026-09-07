@@ -2506,3 +2506,95 @@ The final gate was restarted after this correction and passed.
 
 
 Release preparation: isolated `npm run build` passes (`release/build-0.6.0-final.log`); the production-mode client build and chunk-isolation gate pass. All 323 regenerated files are byte-identical. Static artifact smoke has zero browser exceptions and loads neither omit pages nor the GPU implementation on sign-in; this is not authenticated gameplay evidence. The final committed build is sealed as `release/client-0.6.0.tar`, with `client-0.6.0.sha256` and `candidate-manifest.json` recording its exact commit, source and file hashes. The 384-file rollback archive is `release/client-dist-before-0.6.0.tar`; production remains unchanged. Archive completion and exact gate/build provenance are recorded in the linked release README. P3–P8 acceptance remains OPEN, so this is a held candidate, not a completed release.
+
+
+### P8 follow-up — mutable Canvas source correction (2026-09-07)
+
+P8 remains IN PROGRESS under its existing claim. The 2026-09-07
+client/rendering DECISIONS row records the bounded ordering exception while
+authenticated repeatability capture is unavailable; remaining follow-up work
+keeps the amended order. Source correction:
+`packages/engine/src/webgl/world-pass-webgl.ts` and new
+`packages/engine/src/webgl/world-pass-mutable-source.test.ts`. A Canvas rewritten
+between two draws previously reused the frame's first texture upload. Unversioned
+mutable canvases now force a flush and upload on every draw; explicit producer
+revisions keep caching. The obsolete implicit frame counter is removed. No
+shader, accuracy guard, Video default, dependency or live file changed.
+
+Artifacts: `output/perf-59-20260907/P8/cache-confirm/README.md`, original probe
+under `P8/cache-probe/`, full Canvas replays under `P8/canvas-goldens/`, and
+`P8/sampling-results.md` plus its linked diagnostic directories. Source hashes,
+Chrome/OS/GPU metadata, original JSON, PNGs, commands and limitations are retained.
+Base commit 5205f9d6 plus the hashed correction; the existing sealed 0.6.0 archive
+contains the base commit only. It has not been silently replaced.
+
+| Pixel check | Before max / channels >1 | Corrected max / channels >1 |
+| --- | ---: | ---: |
+| One mutable source, red then blue | 255 / 2,048 | 0 / 0 |
+| Existing seasonal fixture | 1 / 0 | 1 / 0 |
+| Existing celestial fixture | 63 / 229,351 | 2 / 484 |
+
+All ten Canvas reference boards are byte-identical: seasonal, celestial, legacy
+lighting, world lighting and all six scale/pond terrain boards. Board labels are exact, but
+these two fixtures have no explicit HUD witness; celestial remains outside the
+original one-step gate. Visually inspected celestial and before/after mutable
+source boards. Texture uploads for the complete fixtures: mutable 1→2,
+seasonal 7→7, celestial 62→70; GPU draw calls seasonal 122→122 and celestial
+93→93. These are whole-fixture counts, not per-frame gameplay counters.
+Unversioned unchanged sources also refresh each draw; no speedup is claimed.
+
+Real WEBGL_lose_context replay: 1,091,588 active/restored managed bytes, zero
+after dispose; upload count 1→2 on restoration. Thirteen failure reasons are
+recorded; frame-failure disposal returns managed bytes to zero. All 36 original
+atlas PNG hashes still match P0. Production accuracy fallbacks remain enabled.
+
+| New protocol evidence, all RENDER_STAGE_IDS | p50 | p95 | p99 | Per-frame counters |
+| --- | --- | --- | --- | --- |
+| Desktop Basic / Classic / Dynamic | not captured | not captured | not captured | not captured |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+These synchronous SwiftShader fixtures are functional evidence, not active-rAF
+or hardware performance samples. Last desktop stage tables remain in
+`output/perf-59-20260906/release/authenticated-resume.md`, with their original
+workload qualifications; no new comparison or allocation claim is made here.
+Shared browser tab_5 currently shows Account. Dedicated-account setup awaits a
+distinct email because the provided email belongs to the owner's existing
+Orchard login. Existing credentials/roles were not modified. iPad steps: sign in
+on the candidate, use the fixed visible-player route/content, select scale and
+backend in Video, open diagnostics, press Run render protocol, keep foreground
+for all three 35-second mode captures, copy JSON; record device/OS/browser,
+resolution/DPR/zoom. Repeat for each scale/backend and reject fallback samples
+as GPU evidence. These steps are expanded in the artifact README.
+
+Sampling investigation stays separate from the source fix. Explicit nearest tie
+selection made the prior 600-sprite downscale fixture exact with Canvas-copy
+(HUD exact); CSS layer still differs by 82 steps. A 120-case 4 MiB atlas sweep
+then rejected both the simple tie rule (24 failed, max249, 6,846 changed channels)
+and the relative-crop-coordinate variant (22 failed, max249, 6,510 changed).
+The current sampler fails 70 cases, max249, 51,036 changed. Neither prototype
+enters runtime; no third attempt or new lighting-rounding approximation was
+made. The general downsample guard and existing P8 OPEN remain.
+
+Commands: focused WebGL tests (7 suites /33 tests), final independent
+HTMLCanvasElement/OffscreenCanvas regression (4 pass; unpatched source failed
+3/4), actual-source Chrome fixtures, lifetime/failure replay, source/artifact
+ESLint, P0 atlas-hash comparison, and canonical `npm run check`. The first full
+run was interrupted to correct the OffscreenCanvas test's class independence;
+the next failed artifact lint because generated bundles were outside `dist`.
+Both logs are preserved; bundles were moved to `dist` without rule exceptions.
+A subsequent run terminated with exit143 after approximately fifteen minutes
+without test results; the final run uses a detached runner and exit-status file.
+Isolated production-mode client build, lazy chunk boundaries and static artifact
+smoke pass; all 56 relevant source hashes match the three working roots.
+Final gate: PASS — 611 suites / 3,564 tests; Vitest 1,075.49 seconds; lifecycle, world build, types, lint, coverage thresholds and asset validation pass (`P8/cache-probe/check.log`, exit0).
+
+This is a tested correctness follow-up, not P8 exit or a release approval.
+Remaining gates include cropped/fractional sampling, full GPU fixture parity,
+matched visible-player gameplay captures and painter-build recovery. Release
+remains HOLD; no deployment request is advanced while these remain unresolved.
+
+Independent allocation finding (no runtime change): the exact existing minimap
+callback allocates 29 canvases for 29 tile transitions over 600 calls, and zero
+while stationary after warm-up. The isolated terrain-stub replay and source
+hash are under `output/perf-59-20260907/P7/minimap-probe/`; it does not attribute
+every earlier gameplay allocation or replace the required main-file extraction.
