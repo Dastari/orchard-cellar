@@ -1,8 +1,9 @@
+import { gameplayDiagnostics } from './gameplay-diagnostic-snapshot.js';
 import { drawLandmarkTransform, drawWildlifeHitFlash } from './gameplay-painter-effects.js';
 import { GameplayCelestialPass } from './gameplay-celestial-pass.js';
 import { GameplayLightingPresentation, renderWithGameplayLightingFallback } from './gameplay-lighting-presentation.js';
 import { createGameplayPainter, sortGameplayWorldDepthItems } from './gameplay-painter.js';
-import { createGameplayRenderer, gameplayDisplaySnapshot } from './gameplay-renderer.js';
+import { createGameplayRenderer } from './gameplay-renderer.js';
 import { selectedLightEquipRequest } from './selected-item-use.js';
 import { setWorldAssetPresentation } from '@orchard/engine/world-asset-presentation';
 import { setGroundLightSource } from '@orchard/engine/ground-light-source';
@@ -8023,46 +8024,9 @@ Object.assign(window, {
       return renderBenchmarkScenario(id);
     },
     renderMetrics: () => renderMetricsSnapshot(),
-    diagnostics: () => ({
-      schemaVersion: 1,
-      rendering: renderMetricsSnapshot(),
-      lighting: {
-        model: atlasPresentation.model,
-        requestedModel: lightingModel,
-        effectsDisabled: lightingEffectsDisabled,
-        requestedQuality: lightingQuality.requested,
-        effectiveQuality: lightingQuality.effective,
-        retainedSurfaceBytes: lightmap.retainedSurfaceBytes + atlasPresentation.retainedBytes + (celestialPass.renderer?.bytes ?? 0),
-        fallbackReason: lightingQuality.reason,
-        omitPages: atlasPresentation.pages.diagnostics(),
-        tintedSurfaces: celestialPass.renderer?.frames.surfaces ?? 0,
-        tintCanvasAllocations: celestialPass.renderer?.frames.allocations ?? 0,
-        tintSurfaceReuses: celestialPass.renderer?.frames.reuses ?? 0,
-        tintedBytes: celestialPass.renderer?.frames.bytes ?? 0,
-        receiverCoverage: celestialPass.renderer?.scene.diagnostics ?? null,
-        renderer: lightingQuality.effective === 'basic' ? 'basic-filter'
-          : atlasPresentation.model === 'classic' ? 'classic-lightmap' : 'seasonal-receivers-v1',
-        averageMs: lightmap.averageMs,
-        floodMs: lightmap.floodMs,
-        fieldRebuilds: lightmap.fieldRebuilds,
-        floodTexelsVisited: lightmap.floodTexelsVisited,
-        occlusionRebuilds: lightmap.occlusionRebuilds,
-        occlusionCacheHits: lightmap.occlusionCacheHits,
-        boundsResizeMs: lightmap.boundsResizeMs,
-        rasterizeMs: lightmap.rasterizeMs,
-        mergeMs: lightmap.mergeMs,
-        uploadMs: lightmap.uploadMs,
-        receiverMs: lightmap.receiverMs,
-        compositeMs: lightmap.compositeMs,
-      },
-      display: gameplayDisplaySnapshot(renderer, worldZoom, currentUiScale),
-      world: {
-        spaceId: activeSpaceDefinition.spaceId,
-        lightCount: latestLightCount,
-        particleCount: rain.activeCount,
-        residentGroundChunks: groundCache.residentCount,
-      },
-    }),
+    diagnostics: () => gameplayDiagnostics({ atlasPresentation, lightingModel, lightingEffectsDisabled,
+      lightingQuality, lightmap, celestialPass, renderer, worldZoom, currentUiScale,
+      activeSpaceDefinition, latestLightCount, rain, groundCache }),
     lightmapMetrics: () => ({
       averageMs: lightmap.averageMs,
       floodMs: lightmap.floodMs,

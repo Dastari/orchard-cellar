@@ -2720,3 +2720,36 @@ deployment once fixes and gates are complete; no live action occurs at this
 claim. Runtime remains b72f683d, whose full check passed 611 suites /3,564 tests
 with unchanged code after that gate. Authenticated A-1 capture remains pending
 while shared tab_5 shows Account; offline preparation continues under A-10.
+
+### A-1 diagnostics extraction checkpoint — 2026-09-07
+
+Before extending the gameplay capture API, mechanically moved its existing
+on-demand diagnostic expression into the new 68-line
+`packages/client/src/gameplay-diagnostic-snapshot.ts`; `overworld-main.ts`
+now supplies the same inputs to that function. No render, cache or lighting
+policy changes are part of this checkpoint. The TypeScript AST printer emits
+identical diagnostic expressions before and after; evidence is
+`output/perf-59-20260907/P0/diagnostics-extraction/mechanical-equivalence.json`.
+This satisfies doc 15 §8.1 before the subsequent diagnostic API wiring.
+
+Commands: focused ESLint, AST equivalence comparison, canonical `npm run check`
+(detached runner to avoid the tool session timeout). The full gate passed:
+**611 test files, 3,564 tests, 1080.30 s Vitest duration**, exit **0**; all asset
+validation passed. Logs and exit status are in the same artifact directory.
+The later A-1 capture changes are being developed separately in the integrator
+and are excluded from this extraction commit and its gate claim.
+
+| Evidence | Desktop | iPad |
+| --- | --- | --- |
+| All 22 render-stage p50/p95/p99 values | not captured at this mechanical checkpoint | owner to run |
+| All 14 per-frame operation counters | not captured at this mechanical checkpoint | owner to run |
+
+No new performance or visual improvement is claimed. The shared canonical
+preview still exposes the Account screen and no gameplay API, so authenticated
+A-1 timings and the minute-per-setting review remain OPEN: technical under
+A-10. Earlier disqualified measurements remain preserved in the preceding
+ledger; this checkpoint does not relabel them as a baseline. The iPad procedure
+remains System → Developer → Render → Run protocol + copy JSON, keep Safari
+visible, repeat every world scale, and record the device/iPadOS/Safari/DPR/zoom/
+resolution and client commit; the forthcoming A-1 update adds workload and
+sky-step qualification. A-1 is not complete and release remains HOLD.
