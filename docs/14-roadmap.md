@@ -459,6 +459,7 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
+- [ ] Doc 59 A-3 / P4 — Exact spatial receiver candidates — IN PROGRESS: codex, 2026-09-07
 - [ ] Doc 59 A-7 / P6b — Mechanical painter-producer extraction, producer attribution and retained commands — IN PROGRESS: codex, 2026-09-07
   - A-1 desktop captures now qualify across all modes/scales (commit 1ac77538); shared private-origin visual review remains OPEN under A-10. Preserve the measured pond/cap workload, original command order and exact Canvas output. Full A-1 check: 618 suites / 3,587 tests passed.
 
