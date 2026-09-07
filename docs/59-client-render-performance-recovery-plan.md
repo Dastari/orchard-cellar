@@ -4014,7 +4014,59 @@ All six captures have zero long tasks≥50ms. Allocation percentiles are zero th
 
 All18 headless60-second movement cases complete,573–599 moving100ms samples each; all screenshots inspected with normal actor-follow camera. Actor, cliff caps, shadows and HUD render normally at each scale and mode. All nine WebGL-requested cases latch to Canvas with **webgl_unsupported_clip_path**. Video visibly shows **CANVAS: UNSUPPORTED CLIP PATH**. Return to Canvas1×/Basic is verified. Six settled mode cycles show Basic zero lighting ownership and Basic/Classic zero omit bytes; all Dynamic transitions finish ready. Earlier rapid-switch samples caught pending Dynamic loads and remain separately labelled. These reviews overlapped full checks and are functional evidence only, not GPU timings or shared-browser review.
 
-Reverse-order Classic diagnostic: pending completion before commit.
+Reverse-order Classic repeat, after all checks/builds were idle during each capture: updated first **6.100000381 /7.299999237 /8ms**, old second **6.100000381 /7.200000763 /7.900001526ms** (p50/p95/p99). Both1800 frames,739 items p95,zero long tasks and zero surfaces including maximum. Seed/season/content/route match; both still no_pond. The difference is small but repeats in the same direction, so Classic non-regression remains unproven; this is not relabelled as a speedup. Full repeat stages/counters are below and in `reverse-summary.json`. Current plain sources/build are restored.
+
+| Repeat stage (ms p50 / p95 / p99) | Updated first | Old second |
+| --- | --- | --- |
+| whole frame | 6.1 / 7.299999 / 8 | 6.1 / 7.200001 / 7.900002 |
+| snapshotPrepare | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 |
+| ground | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.4 / 0.400002 |
+| painterBuild | 1 / 1.5 / 1.699999 | 1 / 1.4 / 1.6 |
+| painterSort | 0.200001 / 0.300001 / 0.4 | 0.200001 / 0.300001 / 0.4 |
+| painterDraw | 1 / 1.299999 / 1.400002 | 1 / 1.200001 / 1.4 |
+| weather | 0 / 0.099998 / 0.1 | 0 / 0.099998 / 0.1 |
+| lightingBoundsResize | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 |
+| lightingOcclusionRaster | 0 / 0.199999 / 0.300001 | 0 / 0.199999 / 0.300001 |
+| lightingSolve | 0.099998 / 0.1 / 0.200001 | 0 / 0.1 / 0.200001 |
+| lightingMerge | 0.099998 / 0.1 / 0.200001 | 0.099998 / 0.1 / 0.200001 |
+| lightingUpload | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 |
+| lightingReceiver | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingComposite | 0 / 0.099998 / 0.1 | 0 / 0.1 / 0.1 |
+| lightingStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 | 0 / 0 / 0 |
+| finalWorldComposite | 2.299999 / 2.800001 / 3.1 | 2.299999 / 2.799999 / 3.1 |
+| uiModel | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.4 / 0.400002 |
+| uiLayout | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.6 |
+| uiDraw | 0.4 / 0.699999 / 0.800001 | 0.4 / 0.700001 / 1 |
+| fixedUpdate | 0.199999 / 0.299999 / 0.4 | 0.199999 / 0.300001 / 0.4 |
+| catchUp | 0 / 0 / 0 | 0 / 0 / 0 |
+
+| Repeat per-frame counter (p50 / p95 / p99) | Updated first | Old second |
+| --- | --- | --- |
+| drawImageCalls | 944 / 962 / 968 | 949 / 1281 / 1292 |
+| distinctDrawImageSources | 32 / 32 / 33 | 32 / 33 / 33 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 |
+| imageDataAllocations | 0 / 0 / 2 | 0 / 0 / 2 |
+| capRunRequests | 0 / 0 / 0 | 0 / 0 / 0 |
+| flatSourceRequests | 0 / 0 / 0 | 0 / 0 / 0 |
+| capRunComposites | 0 / 0 / 0 | 0 / 0 / 0 |
+| flatSourceComposites | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceReuses | 0 / 0 / 0 | 0 / 0 / 0 |
+| receiverSamples | 0 / 0 / 0 | 0 / 0 / 0 |
+| receiverCandidates | 0 / 0 / 0 | 0 / 0 / 0 |
+| receiverFullLoopCandidates | 0 / 0 / 0 | 0 / 0 / 0 |
+| saveCalls | 588 / 599 / 604 | 586 / 601 / 606 |
+| restoreCalls | 588 / 599 / 604 | 586 / 601 / 606 |
+| saveRestorePairs | 588 / 599 / 604 | 586 / 601 / 606 |
+| surfaceAllocations | 0 / 0 / 0 | 0 / 0 / 0 |
+
 
 | Device / gate | Status |
 | --- | --- |
