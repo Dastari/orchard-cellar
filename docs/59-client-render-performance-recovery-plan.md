@@ -645,8 +645,11 @@ are then removed; HUD skin filters are out of scope.
 withdrawn because translucent cap artwork depends on painter order. Keep
 per-run commands. Cache each tinted run by (chunk, run, level, plane revision)
 so the three-operation composite runs once per plane change instead of per
-frame. Exit counter: `groundSourceOperations` is zero in steady state and at
-most the visible run count on a plane revision change. A-1's workload must
+frame. Exit: native `groundSourceOperations` remains zero for unchanged source/lighting
+inputs in steady state. For cliff caps, the new logical `capRunComposites` counter
+is at most the visible run count on a plane revision change. Record flat-sprite
+composites separately; the historical counter counts three native draws per
+composite across both producers and its old values must not be relabelled. A-1's workload must
 contain cap runs so this is actually measured.
 
 **A-7 Retained painter commands (new P6b).** `painterBuild` at 5.1 ms p95 is
@@ -3109,3 +3112,9 @@ The user reported signing back in, but a newly opened controlled Keycloak tab st
 Additional A-3 checks: the existing world-readback guard and sky-step capture tests pass **2 files / 3 tests** (`capture-readback-tests.log`); all 36 original atlas SHA-256 values still match the baseline in both canonical and private build workspaces (`original-atlases.json`). I also inspected `goldens/terrain-1x-pond-canvas.png`. The private diagnostic client build passes in **907 ms** with label `8d7b094f-receiver-index-painter-profile`; its only differences from the integration runtime are the preserved optional painter profiler wrappers (`private-candidate-differences.json`) and their new profiler module. This debug build is for attribution, not the sealed release artifact. The isolated test-account login harness is prepared and lint-clean, but the private account record explicitly remains `created: false`; no Keycloak account or role was changed.
 
 A-3 implementation complete gate: **`npm run check` exit 0**, **619 files / 3,592 tests passed in 907.42 s** (tests 738.13 s), with lifecycle integrity, world build, all workspace typechecks, ESLint, coverage and asset validation green. Checked source hashes still match `check-source-files.json`. Artifact: `check.log`. This is a verified implementation checkpoint, not completion of the authenticated desktop stage/counter exit or the shared minute-per-setting review.
+
+### A-6 / P5 follow-up claim — 2026-09-07
+
+IN PROGRESS: codex, 2026-09-07. Exact receiver indexing is committed as **d9d5ac92**, full check **619 files / 3,592 tests** green; authenticated exits stay pending under A-10. Continue the independent A-6 Canvas fix without marking A-7/A-3 complete. Scope: `packages/engine/src/world-lighting-renderer.ts`, new run-cache modules/tests and `packages/ui/src/render-operation-counters.ts` for separate native/cap/sprite attribution. Keep every run in painter order, retain shared bounded pages, key source rectangles and world placement exactly, and verify raster identity/revision/window changes. Where a plane changed, compare its retained CPU texels over the run's complete smoothing support before repainting; unchanged local input can reuse exact pixels without world readback. Fixtures must prove alpha/cutaway composition, window edges and moving changes. No source artwork changes.
+
+`output/perf-59-20260907/P5/ground-run-cache/` will contain source hashes, exact goldens, allocation/counter evidence and the repeated authenticated stage tables when access returns. iPad **owner to run** through System → Developer → Render → Run protocol + copy JSON for 1×/2×/Native with device/iPadOS/Safari/browser zoom. The preceding unchanged runtime full gate is the gate for this documentation claim. A-6's old counter-unit contradiction is corrected explicitly in §8 and DECISIONS, preserving historical raw values.
