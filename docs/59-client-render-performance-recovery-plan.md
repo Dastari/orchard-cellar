@@ -3325,3 +3325,95 @@ Physical iPad **owner to run**: System → Developer → Render → Run protocol
 Full repository gate is running in `check.log`, with source freeze `check-source-files.json`. No deployment or completed A-7 claim.
 
 Decoration checkpoint complete gate: **`npm run check` exit 0**, **622 files / 3,603 tests** pass; Vitest duration **885.05 s** (tests 723.90 s). All workspace typechecks, ESLint, lifecycle integrity, checked world build, coverage and asset validation pass. All eight frozen runtime/test hashes still match `check-source-files.json`. This is a committed A-7 substep; remaining entity retention and all previously disclosed scene/release gates stay open.
+
+### A-7 entity source-command retention checkpoint — 2026-09-07
+
+Base **8b10d5b4**; active A-7 claim continues. The six extracted entity producers now retain their source commands, source ties and draw callbacks in per-context, per-producer pools. Typed capture records receive current row/art/camera/animation state before enqueue. Keys separate producer call sites, entity identities and instance artwork kinds; duplicate same-frame submissions remain independent. Terrain replacement/revision clears ownership, three unseen frames retire entries, and each producer is bounded to 4,096 retained commands. Placeable retirement runs before returning animation state. Wildlife retains its hit-flash predicate and raw draw callbacks as well. The projectile helper is module-level; its bigint authority IDs and numeric prediction tokens remain distinct. No surfaces belong to these pools.
+
+Files: the six `gameplay-painter-{decorations,resources,projectiles,placeables,npcs,players}.ts` modules, new `retained-frame-commands.ts`, and three new focused test modules. All new modules remain below 400 lines (largest producer: 338). Original per-frame source-command bodies are replaced in production. The output-only legacy fixture pins all six producers plus the queue to **8b10d5b4**. Artifact directory: `output/perf-59-20260907/P6/producer-profile/entity-retention/`; exact runtime hashes `source-files.json`, complete check source freeze `check-source-files.json`.
+
+Validation: scoped ESLint and client typecheck pass; **6 focused files / 12 tests** pass, including 600-frame resource and wildlife draws with current state, stable wildlife effect callbacks, duplicate isolation, terrain invalidation and bounded retirement. `command-frame.json` replays the entire recorded frame: **555 sorted command tuples exactly equal**. All ten standard Canvas goldens are byte-identical to 8b10d5b4 (`goldens/golden-comparison.json`); all **36 original atlas PNGs remain byte-identical** in both canonical and private assets (`original-atlases.json`). The paired local gameplay screenshots were inspected for actor/tree overlap, cliff caps and the HUD. This is not the still-open shared minute-per-setting review.
+
+Measurement commands: private `npx vite build --config <artifact>/vite.config.ts --mode client-production`; `python3 <artifact>/capture.py spawn-legacy-canvas-1x --legacy`, then `python3 <artifact>/capture.py spawn-retained-canvas-1x`. Same authenticated test connection, content **dfdf555b:21a3c554:4:371**, seed 1329809490, summer, camera **(7088, 6146)**, walking square at 625 ms per leg, matched sunset steps. AMD Ryzen 9 9955HX, Linux 6.17.2-1-pve, HeadlessChrome 152.0.7977.64, 1280×720, DPR 1, browser zoom 1, world zoom 2, Canvas 1×, cap off, no CPU throttling. Each mode has the required 5-second warm-up and 30-second active-rAF sample. Both suites remain **unqualified: `no_pond`**; these are authenticated spawn diagnostics, not an A-1 exit. Runtime is frozen for both variants; timing samples ran without build/check/CPU-profile contention. The private A/B injection lacks source maps, so no new source-site CPU allocation attribution is claimed.
+
+All stage timings in milliseconds, **p50 / p95 / p99**. Intervals can nest; do not sum percentiles.
+
+| Stage | Before Basic | Before Classic | Before Dynamic | Retained Basic | Retained Classic | Retained Dynamic |
+|---|---|---|---|---|---|---|
+| whole frame | 6 / 8.299999 / 9.5 | 6.5 / 8.5 / 10.099998 | 18.799999 / 29.700001 / 38.6 | 5.5 / 7.1 / 8.1 | 6.6 / 9.700001 / 12.300001 | 17.400002 / 27.700001 / 33.700001 |
+| snapshotPrepare | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.199999 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.1 |
+| ground | 0.4 / 0.5 / 0.6 | 0.300001 / 0.5 / 0.6 | 0.300001 / 0.5 / 0.6 | 0.300001 / 0.5 / 0.6 | 0.300001 / 0.5 / 0.700001 | 0.300001 / 0.5 / 0.6 |
+| painterBuild | 1.1 / 1.799999 / 2.200001 | 1.1 / 1.6 / 1.900002 | 1.1 / 1.699999 / 2.200001 | 1 / 1.5 / 1.799999 | 1.1 / 1.799999 / 2.200001 | 1.1 / 1.699999 / 2.300001 |
+| painterSort | 0.200001 / 0.300001 / 0.400002 | 0.200001 / 0.300001 / 0.4 | 0.200001 / 0.4 / 0.400002 | 0.200001 / 0.300001 / 0.4 | 0.200001 / 0.300001 / 0.400002 | 0.200001 / 0.4 / 0.5 |
+| painterDraw | 1.099998 / 1.599998 / 1.9 | 1 / 1.400002 / 2 | 11.799999 / 20.300001 / 28 | 1 / 1.4 / 1.6 | 1.099998 / 1.699999 / 2.200001 | 11.1 / 19.1 / 23.200001 |
+| weather | 0 / 0.1 / 0.1 | 0 / 0 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.099998 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 |
+| lightingBoundsResize | 0 / 0 / 0 | 0 / 0.099998 / 0.199999 | 0 / 0.099998 / 0.1 | 0 / 0 / 0 | 0 / 0 / 0.199999 | 0 / 0.099998 / 0.1 |
+| lightingOcclusionRaster | 0 / 0 / 0 | 0 / 0.200001 / 0.4 | 0 / 0.299999 / 0.4 | 0 / 0 / 0 | 0 / 0.200001 / 0.4 | 0 / 0.299999 / 0.4 |
+| lightingSolve | 0 / 0 / 0 | 0.099998 / 0.1 / 0.200001 | 0.1 / 0.200001 / 0.200001 | 0 / 0 / 0 | 0.099998 / 0.1 / 0.200001 | 0.1 / 0.200001 / 0.200001 |
+| lightingMerge | 0 / 0 / 0 | 0.099998 / 0.199999 / 0.200001 | 9.299999 / 16 / 19.200001 | 0 / 0 / 0 | 0.099998 / 0.199999 / 0.200001 | 9.000002 / 15.800001 / 17.799999 |
+| lightingUpload | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0.1 / 0.299997 / 0.300001 | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0.200001 / 0.300001 |
+| lightingReceiver | 0 / 0 / 0 | 0 / 0 / 0 | 0.4 / 0.799997 / 0.999996 | 0 / 0 / 0 | 0 / 0 / 0 | 0.4 / 0.799999 / 1 |
+| lightingComposite | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| finalWorldComposite | 1.800001 / 2.5 / 3 | 2.4 / 3.1 / 3.599998 | 1.1 / 2.5 / 3 | 1.700001 / 2.4 / 2.700001 | 2.5 / 3.4 / 4.5 | 0.800001 / 2.200001 / 2.700001 |
+| uiModel | 0.300001 / 0.5 / 0.6 | 0.300001 / 0.5 / 0.6 | 0.4 / 0.6 / 0.700001 | 0.299999 / 0.400002 / 0.5 | 0.300001 / 0.5 / 0.699999 | 0.4 / 0.5 / 0.700001 |
+| uiLayout | 0.4 / 0.6 / 0.700001 | 0.4 / 0.599998 / 0.6 | 0.4 / 0.6 / 0.800001 | 0.4 / 0.5 / 0.6 | 0.4 / 0.6 / 0.700001 | 0.4 / 0.6 / 0.9 |
+| uiDraw | 0.400002 / 1 / 1.200001 | 0.4 / 0.9 / 1.1 | 0.4 / 1 / 1.299999 | 0.4 / 0.9 / 1.1 | 0.4 / 0.9 / 1.1 | 0.4 / 0.900002 / 1.299999 |
+| fixedUpdate | 0.200001 / 0.4 / 0.5 | 0.200001 / 0.300001 / 0.400002 | 0.200001 / 0.4 / 0.5 | 0.199999 / 0.300001 / 0.4 | 0.200001 / 0.300001 / 0.5 | 0.200001 / 0.300001 / 0.5 |
+| catchUp | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0.4 / 0.5 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0.300001 / 0.5 |
+
+Per-frame counters, **p50 / p95 / p99**:
+
+| Counter | Before Basic | Before Classic | Before Dynamic | Retained Basic | Retained Classic | Retained Dynamic |
+|---|---|---|---|---|---|---|
+| drawImageCalls | 944 / 961 / 965 | 945 / 966 / 970 | 974 / 1115 / 1172 | 946 / 965 / 969 | 947 / 966 / 970 | 959 / 1108 / 1150 |
+| distinctDrawImageSources | 31 / 31 / 32 | 32 / 32 / 33 | 400 / 416 / 416 | 31 / 31 / 32 | 32 / 32 / 33 | 403 / 415 / 416 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 7 / 8 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 1 / 7 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 | 101 / 105 / 109 | 0 / 0 / 0 | 0 / 0 / 0 | 98 / 110 / 110 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 4 / 4 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 4 / 4 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 | 30 / 165 / 210 | 0 / 0 / 0 | 0 / 0 / 0 | 27 / 162 / 195 |
+| imageDataAllocations | 0 / 0 / 0 | 0 / 0 / 2 | 0 / 2 / 2 | 0 / 0 / 0 | 0 / 0 / 2 | 0 / 0 / 2 |
+| capRunRequests | 0 / 0 / 0 | 0 / 0 / 0 | 118 / 122 / 122 | 0 / 0 / 0 | 0 / 0 / 0 | 118 / 120 / 120 |
+| flatSourceRequests | 0 / 0 / 0 | 0 / 0 / 0 | 256 / 273 / 275 | 0 / 0 / 0 | 0 / 0 / 0 | 253 / 271 / 273 |
+| capRunComposites | 0 / 0 / 0 | 0 / 0 / 0 | 7 / 24 / 29 | 0 / 0 / 0 | 0 / 0 / 0 | 5 / 23 / 29 |
+| flatSourceComposites | 0 / 0 / 0 | 0 / 0 / 0 | 5 / 39 / 51 | 0 / 0 / 0 | 0 / 0 / 0 | 5 / 38 / 50 |
+| groundSourceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 359 / 388 / 393 | 0 / 0 / 0 | 0 / 0 / 0 | 361 / 381 / 389 |
+| receiverSamples | 0 / 0 / 0 | 0 / 0 / 0 | 303 / 314 / 314 | 0 / 0 / 0 | 0 / 0 / 0 | 303 / 314 / 314 |
+| receiverCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 843 / 874 / 879 | 0 / 0 / 0 | 0 / 0 / 0 | 842 / 872 / 879 |
+| receiverFullLoopCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 103929 / 108016 / 108016 | 0 / 0 / 0 | 0 / 0 / 0 | 103929 / 108016 / 108016 |
+| saveCalls | 578 / 603 / 605 | 579 / 606 / 612 | 579 / 611 / 616 | 578 / 611 / 612 | 579 / 608 / 613 | 572 / 604 / 606 |
+| restoreCalls | 578 / 603 / 605 | 579 / 606 / 612 | 579 / 611 / 616 | 578 / 611 / 612 | 579 / 608 / 613 | 572 / 604 / 606 |
+| saveRestorePairs | 578 / 603 / 605 | 579 / 606 / 612 | 579 / 611 / 616 | 578 / 611 / 612 | 579 / 608 / 613 | 572 / 604 / 606 |
+| surfaceAllocations | 0 / 1 / 1 | 0 / 1 / 1 | 0 / 1 / 1 | 0 / 1 / 1 | 0 / 1 / 1 | 0 / 1 / 1 |
+
+| Evidence | Before Basic | Before Classic | Before Dynamic | Retained Basic | Retained Classic | Retained Dynamic |
+|---|---|---|---|---|---|---|
+| Captured frames | 1800 | 1799 | 1310 | 1800 | 1794 | 1451 |
+| Long tasks ≥50 ms | 0 | 0 | 3 | 0 | 0 | 1 |
+| Maximum long task ms | 0 | 0 | 57 | 0 | 0 | 58 |
+| Render items p50/p95/p99 | 717 / 739 / 739 | 717 / 739 / 739 | 717 / 739 / 739 | 717 / 739 / 739 | 717 / 739 / 739 | 717 / 739 / 739 |
+| Lighting retained bytes at end | 0 | 161280 | 97377689 | 0 | 161280 | 97380073 |
+| Largest decoded page bytes | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 |
+
+Basic ends with zero lighting bytes and all tint, filtered-frame, coverage, ground-source and ImageData lighting counters zero. Basic/Classic omit-page ownership is zero; Classic retains its amended legacy lightmap. Every decoded page is ≤4 MiB. Dynamic still has whole-client surface allocations and ground-run composites during walking. Source-command retention is not a claim of zero whole-frame allocations.
+
+The remaining gap is explicit: retained Basic whole-frame p95 **7.100000 ms**, Dynamic **27.700001 ms**; Dynamic has one **58 ms** long task. `painterBuild` p95 is **1.5 / 1.8 / 1.7 ms** across the three modes in this diagnostic scene, but Classic whole-frame p95 rose from **8.5 to 9.700001 ms** and no uniform speedup is claimed. Dynamic `lightingMerge` remains **15.8 ms p95**, nested in `painterDraw` **19.1 ms p95**. The earlier decoration optimization remains the substantial measured producer win. Remaining A-7 work includes nested entity draw callbacks, terrain producer closures and the qualified A-1 scene; these are not silently counted as complete.
+
+| Device gate | Status |
+|---|---|
+| Desktop A-1 pond/cliff scene | OPEN: route qualification, diagnostic scene only |
+| iPad | **owner to run** |
+| Hardware WebGL | **owner to run**; Canvas measurements above |
+
+Owner capture: in the pond/cliff scene with the carried lantern visible, open System → Developer → Render, choose **Run protocol + copy JSON**, enter device/OS/browser/zoom metadata and the candidate commit, then save the copied JSON under this artifact directory. Repeat at 1×, 2× and Native. This one-button capture performs warm-up, active-rAF sampling, walking and sky steps; retain failed workload witnesses as failures. Physical iPad and hardware GPU results cannot be substituted with CPU throttling.
+
+Full `npm run check` is running in `check.log`, status file `check.exit`; no deployment or completed A-7 claim. Runtime and test files are frozen in `check-source-files.json`. The release remains HOLD on the disclosed technical gates, under the owner's existing conditional deployment authorization.
+
+The first full check found one obsolete allocation-shape assertion in `packages/studio/src/tools/map/live-world-schema.test.ts`: it required the literal `enqueueWorldDepth(x, y, {`, which disappears when the source command is retained. That assertion is replaced, not weakened, by `gameplay-homestead-retention.test.ts`: it executes the producer and checks ground contact (24,48), tent entrance depth 32, current artwork draw arguments, then changed row contact (56,80), depth 64 and stable command identity. The remaining five Studio authority/schema checks stay intact. This minimal test-only scope extension is recorded in DECISIONS. The first full run is preserved as `check-obsolete-allocation-assertion.log` (624 files / 3,608 tests passed, one failed; 996.54 s). Production runtime bytes and the recorded captures/goldens are unchanged. The complete check is rerun after this test correction.
+
+Entity checkpoint complete gate: **`npm run check` exit 0**. Test Files  626 passed (626); Tests  3609 passed (3609); Duration  990.85s (transform 9.19s, setup 0ms, import 100.03s, tests 806.79s, environment 39ms). All workspace typechecks, lint, lifecycle integrity, checked world build, coverage and asset validation pass. All **12** frozen runtime/test hashes match `check-source-files.json`. The replacement homestead behavior test and remaining Studio schema tests pass (2 focused files / 6 tests); its initial missing `liveMapDocument: null` fixture is preserved in `homestead-test-incomplete-fixture.log`. The fixture was corrected before the complete run reached its test phase; final source hashes are recorded. Runtime bytes remain identical to the measured candidate. A-7 is still an incomplete milestone for the previously listed nested-callback and scene gates; this commits the source-command retention substep only.

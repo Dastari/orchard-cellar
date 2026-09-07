@@ -462,6 +462,7 @@ repeatable production loop.
 - [ ] Doc 59 A-6 / P5 — Retained per-run ground tint sources — IN PROGRESS: codex, 2026-09-07
 - [ ] Doc 59 A-3 / P4 — Exact spatial receiver candidates — IN PROGRESS: codex, 2026-09-07
 - [ ] Doc 59 A-7 / P6b — Mechanical painter-producer extraction, producer attribution and retained commands — IN PROGRESS: codex, 2026-09-07
+  - Decoration indexing and entity source-command retention are implemented. Latest matched spawn diagnostic: painterBuild p95 1.5 / 1.8 / 1.7 ms (Basic / Classic / Dynamic), all ten Canvas goldens exact. Authentication is resolved through the ordinary test account; its pond route is OPEN. Nested draw/terrain closures, qualified scene review and release gates remain open; see doc 59 entity-retention ledger.
   - A-1 desktop captures now qualify across all modes/scales (commit 1ac77538); shared private-origin visual review remains OPEN under A-10. Preserve the measured pond/cap workload, original command order and exact Canvas output. Full A-1 check: 618 suites / 3,587 tests passed.
 
 - [ ] Doc 59 A-1 / P0 follow-up — Repeatable workload, effective-quality request attribution and sky-step capture — IN PROGRESS: codex, 2026-09-07

@@ -45,11 +45,6 @@ describe('Map Editor live player-owned world state', () => {
     expect(game).toContain('homesteadTentPresentationTargets(activeSpaceDefinition, snapshot.homesteads)');
   });
 
-  it('keeps the game terrain-plane projection for committed homestead rows', () => {
-    expect(game).toContain('const y = (tileY + 1) * 16;');
-    expect(game).toContain('enqueueWorldDepth(x, y, {');
-  });
-
   it('uses authoritative live resource rows when the world subscription is synchronized', () => {
     for (const [table, projection] of [
       ['worldCombatTarget', 'combat_targets'],
