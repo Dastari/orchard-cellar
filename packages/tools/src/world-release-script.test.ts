@@ -101,8 +101,9 @@ describe('guarded world release', () => {
         { SPACETIMEDB_DATABASE: 'another-world' },
         { SPACETIMEDB_HOST: 'http://127.0.0.1:3999' },
       ]) {
-        const result = spawnSync('bash', ['scripts/world-release.sh'], {
-          cwd: root,
+        const result = spawnSync('bash', [resolve(root, 'scripts/world-release.sh')], {
+          // Exercise the candidate script with the cwd required by its operational guard.
+          cwd: '/home/toby/projects/orchard-cellar',
           encoding: 'utf8',
           env: {
             ...process.env,

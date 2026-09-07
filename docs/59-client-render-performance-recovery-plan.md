@@ -2974,3 +2974,8 @@ Full settled A-1 gate: **`npm run check` exit 0**. Test Files  618 passed (618);
 ### A-7 / P6b claim — 2026-09-07
 
 Claimed in M7.3 before source implementation. First extract all painter producers from `overworld-main.ts` in a mechanical no-logic-change commit, then profile and retain commands in the new bounded modules. The A-1 populated route is the comparison baseline; Basic/Classic/Dynamic 1× painterBuild p95 is 6.3 / 6.9 / 7.5 ms. Target remains ≤2 ms. This documentation claim reuses the immediately preceding green full gate with unchanged runtime sources; it makes no optimization, performance-exit or release claim.
+
+
+### P6b verification prerequisite — isolated release dry-runs, 2026-09-07
+
+The release-script tests now execute the candidate script by absolute path using its required canonical operational working directory. No production shell script, target guard, or token assertion changes. This lets the isolated integration worktree run the same complete gate while unrelated Studio work continues in the canonical checkout. Files: `scripts/release-continuity.test.ts`, `packages/tools/src/world-release-script.test.ts`. Focused tests: 17 passed; scoped lint passes. Complete `npm run check` passes in the isolated worktree; Test Files  618 passed (618); Tests  3587 passed (3587); Duration  1011.81s (transform 8.52s, setup 0ms, import 110.26s, tests 816.60s, environment 41ms). Evidence: `output/perf-59-20260907/P6/painter-extraction/check-worktree.log`, `release-worktree-tests.log`, `release-worktree-lint.log`. The concurrent mechanical extraction is covered by that frozen gate and is committed separately next; this test-only prerequisite makes no rendering performance or deployment claim.
