@@ -166,7 +166,7 @@ Dependencies: `P0 -> P1`; `P0 -> P2 -> P3`; `P0 -> P4 -> P5`; `P0 -> P6`;
 P6 and P8 are independent and may proceed in parallel after their inputs.
 
 Each milestone records changed files, commands, artifact paths, unresolved
-failures and measured counters in §8.
+failures and measured counters in §9.
 
 ### P0 — Attribution and device baseline
 
@@ -324,9 +324,8 @@ service-worker retention or content-addressing work is added.
 2. `CelestialReceiverScene` keeps the static coverage field per (level, sky
    geometry key, 4-px window). Per frame, copy it into a working field and blit
    only moving casters. Contact coverage follows the same split.
-3. Replace `sample()`'s caster loop for ground-level receivers with a bilinear
-   read of the merged field at the sprite foot. Keep the loop only for heights
-   with no rasterised plane, and rasterise those planes lazily.
+3. ~~Merged-field lookup~~ Amended by §8 A-3: spatial index over caster
+   bounds feeding the unchanged sample loop; result bit-identical.
 4. Use `rasterizeCached` (or reuse one `ImageData` per level) so the RGB merge
    and `putImageData` run only when the coverage, local-light revision or sky
    signature changed.
@@ -366,19 +365,16 @@ existing stage values, so the remaining accurate caster loop is attributed.
 `ground-cache.ts` (`drawProjectedRun`), `raised-terrain-depth.ts`,
 `overworld-art.ts` dimmed/hit-flash draws, `overworld-ui.ts` filter uses.
 
-1. Quantise receiver RGB to 5 bits per channel before keying (32 steps; below
-   the visible threshold on the multiplied art). Measure distinct colours per
-   frame; expect single digits in open light.
+1. ~~Five-bit quantisation~~ Amended by §8 A-4: exact RGB keys on tint pages;
+   measure the sky-step burst per A-1.
 2. Replace per-entry canvases with shelf-packed tint pages (512×2048). Key is
    (page identity, frame rect, quantised RGB). Evict by page generation, not
    per entry. Consecutive sprites with the same tint share one source.
 3. Add `dim` and `hitFlash` as tint-pool variants (pre-multiplied brightness
    and saturation) and remove every `context.filter` use in world drawing.
-   HUD filter uses move to pre-rendered skin frames or are removed.
-4. Cap runs: draw all runs for a level untinted into a per-level cap layer
-   sized to the viewport, multiply the level's plane once, then composite the
-   layer with its cutaway mask. Remove `groundSource` and the scratch canvas.
-   Flat sprites (`withGroundSpriteSource`) draw into the same layer.
+   Gate amended by §8 A-5 (two steps). HUD skin filters are out of scope.
+4. ~~Per-level cap layer~~ Amended by §8 A-6: keep per-run commands in
+   painter order; cache tinted runs by (chunk, run, level, plane revision).
 
 **Tests:** tinted pixel equals `round(src × rgb / 255)` for the quantised rgb;
 no `filter` assignment in engine world code (lint rule or grep test); one
@@ -402,6 +398,8 @@ within one step. See `P5/filter-feasibility/filter-comparison.json` and the
 DECISIONS entry; no runtime replacement or complete filter-removal claim is made.
 
 ### P6 — Painter and context hot path
+
+See §8 A-7 for the added **P6b — retained painter commands** milestone.
 
 **Files:** `renderer.ts` (`compareWorldDepthItems`, constructor),
 `overworld-main.ts` (`enqueueWorldDepth`, `enqueueRaisedTerrainDepth`
@@ -508,9 +506,9 @@ no runtime mask is needed.
    active backend and fallback reason). Switching backends mid-session is
    allowed at frame boundaries and releases the inactive backend's GPU
    resources.
-5. **Parity fixtures.** Each lighting review fixture renders on both backends;
-   difference must be within one 8-bit step per channel on lit artwork and
-   zero on the HUD witness. Add a context-loss test using
+5. **Parity fixtures.** Each lighting review fixture renders on both backends.
+   Gates amended by §8 A-8: experimental-enable gate two steps / 0.5 % /
+   HUD exact; default-on gate one step. Add a context-loss test using
    `WEBGL_lose_context`.
 6. **Default-on decision.** Separate from shipping the toggle. Requires doc 47
    §15 adoption numbers on the P0 fixture on both devices, the battery/thermal
@@ -586,7 +584,121 @@ default and self-reverts to Canvas on any failure, so shipping it carries no
 default-path risk. Checked rollback is the previous `client-dist` as in every
 0.5.x release.
 
-## 8. Bookkeeping and execution ledger
+## 8. Amendments after the first implementation pass (2026-09-06)
+
+Owner-approved on 2026-09-06 after reviewing the P0–P8 ledger, the OPEN
+decisions and `output/perf-59-20260906/release/authenticated-resume.md`. These
+amend the milestone text above; where they conflict, this section wins. The
+settled decisions A1, B2 and C are unchanged. Targets in §1 are unchanged.
+
+State at amendment: 0.6.0 candidate `5205f9d6`, desktop 1× p95 Basic 9.5 ms
+(from 13.4), Dynamic 10.5 ms (from 21.5), zero long tasks, tint/filtered/
+coverage/ground-source/ImageData counters all zero in steady state, distinct
+draw sources 24–26. `painterBuild` is 5.1 ms p95 in every mode and is now the
+dominant cost. WebGL2 backend integrated, off by default, lit paths latched to
+Canvas fallback; measured only on SwiftShader.
+
+**A-1 Benchmark repeatability (P0).** The comparison workload is pinned:
+fixed seed, fixed season (asset URLs must match the label), fixed camera
+route with the local player visible and walking, content that includes cliff
+cap runs, a pond, at least one carried light and at least 150 static casters.
+Item count must match within ±2 % between any two samples that are compared;
+otherwise the samples are reported side by side and no improvement is
+claimed. Asset request logs attribute each request to the *effective* quality
+at request time, not the protocol's requested mode. A sky-step frame (the
+first frame after the sky RGB changes) is captured separately so tint rebuild
+bursts are measured, not hidden by steady-state percentiles.
+
+**A-2 "Zero lighting work" is a Basic requirement only.** Classic is the
+legacy solver and keeps its live lightmap, ImageData allocations on bounds
+change and retained lightmap bytes, exactly as doc 58 §3 D6 scoped it. Any
+sentence in this plan or its kickoff prompt that extended the requirement to
+Classic is withdrawn. Classic is still measured and must not regress.
+
+**A-3 Receiver sampling (P4 step 3).** The merged-field lookup is withdrawn;
+the three measured representations changed the reference result by up to 87
+steps because max composition and bilinear interpolation are not the
+per-caster resolve. Replace it with a spatial index over caster mask bounds
+(uniform grid keyed on the 4-px window) that yields candidate lists per
+receiver. The existing sample loop, its owner exclusion and its evaluation
+order run unchanged over the candidates, so the result is **bit-identical**
+to the full loop and the test is equality, not tolerance. No O(1) claim; the
+exit is `lightingReceiver` p95 and candidate count per sample recorded.
+
+**A-4 Tint keys stay exact RGB (P5 step 1).** Five-bit quantisation is
+withdrawn. Exact RGB with shelf-packed tint pages is the accepted design; the
+steady-state counters already show zero builds. The remaining risk is the
+sky-step burst; A-1 measures it. If the burst exceeds 2 ms p95 on the
+reference device, the accepted mitigation is to spread rebuilds across at
+most two frames by drawing the previous page for one frame, recorded as a
+one-frame lag in the ledger, never a colour change.
+
+**A-5 Dim and hit-flash variants (P5 step 3).** `context.filter` output is
+itself browser-specific. The gate for the CPU-derived `dim` and `hitFlash`
+variants is amended to **within two 8-bit steps per channel** against the
+Chromium filter reference, HUD witness exact. The formula that matched hit
+flash within one step and dimming within two (brightness clamped before
+saturation, 0.88 opacity in alpha) is accepted. World `context.filter` uses
+are then removed; HUD skin filters are out of scope.
+
+**A-6 Cap runs stay in painter order (P5 step 4).** Per-level flattening is
+withdrawn because translucent cap artwork depends on painter order. Keep
+per-run commands. Cache each tinted run by (chunk, run, level, plane revision)
+so the three-operation composite runs once per plane change instead of per
+frame. Exit counter: `groundSourceOperations` is zero in steady state and at
+most the visible run count on a plane revision change. A-1's workload must
+contain cap runs so this is actually measured.
+
+**A-7 Retained painter commands (new P6b).** `painterBuild` at 5.1 ms p95 is
+the largest remaining stage and is present in Basic. Steps: (1) extract
+painter build out of `overworld-main.ts` into a module in a no-logic-change
+commit; (2) profile its producers individually (terrain projection sampling,
+presentation resolution, closure and item creation, string ties, regex,
+light collection) and record the split in the ledger; (3) retain per-entity
+draw commands across frames keyed by entity identity, updating only position,
+animation frame, terrain projection and visibility from revisions, with no
+per-frame closures or string ties; (4) keep the depth sort on the retained
+array. Target `painterBuild` p95 ≤ 2 ms on the A-1 workload. Golden: the
+sorted command sequence for a recorded frame is identical before and after.
+
+**A-8 WebGL2 parity gates split (P8 step 5).** Do **not** emulate the Canvas
+2D operation sequence with GPU intermediate passes; Canvas 2D output already
+differs between browsers by one to two steps, and reproducing Skia's
+premultiplied 8-bit rounding on the GPU is not a bounded task. Two gates:
+
+- *Experimental-enable gate* (lets a lit path run when the toggle is on):
+  maximum two steps per channel on lit artwork, at most 0.5 % of channels
+  above one step, zero channels above two, HUD exact. The current sprite
+  (max 2) and corrected ground (max 2, 160 channels) residuals pass this
+  gate. The celestial diagnostic (max 63) and source downsampling (max 138)
+  are **bugs**, not rounding, and must be fixed before those paths enable.
+- *Default-on gate* (unchanged): one step per channel plus the doc 47 §15
+  adoption numbers on hardware. Not part of this run.
+
+Paths that fail the enable gate keep latching Canvas with a visible reason.
+
+**A-9 GPU performance evidence.** SwiftShader numbers are functional
+evidence only. WebGL2 timing, like the iPad rows, is **owner to run** on
+hardware with the release README capture steps. The ledger must not present
+software-GPU timings as backend performance.
+
+**A-10 Environment.** Authenticated capture requires an owner sign-in that
+stays valid for the capture window, and the shared preview must deliver
+active rAF. When either is unavailable, the agent records the block and
+continues with offline goldens without relabelling them as gameplay
+measurements, as it has done. Release remains **HOLD** until §1 desktop
+targets are met or the residual gap is attributed per stage. The owner’s
+2026-09-07 instruction, "please continue with fixes then deploy once complete",
+authorizes the completed 0.6.0 client deployment after the remaining gates pass;
+this supersedes the earlier stop-before-deployment boundary. Prepare and record
+the exact candidate, rollback and live commands before applying that authorization.
+
+Order of work after this amendment: A-1 → A-7 → A-3, A-6, A-5 (exact Canvas
+work, any order) → A-8 bug fixes and enable-gate qualification → allocation
+attribution (whole-client `surfaceAllocations` p95 1 must be owned) → final
+desktop capture → owner-run iPad and GPU captures → release request.
+
+## 9. Bookkeeping and execution ledger
 
 ### 2026-09-06 — plan authored
 
@@ -2598,3 +2710,13 @@ callback allocates 29 canvases for 29 tile transitions over 600 calls, and zero
 while stationary after warm-up. The isolated terrain-stub replay and source
 hash are under `output/perf-59-20260907/P7/minimap-probe/`; it does not attribute
 every earlier gameplay allocation or replace the required main-file extraction.
+
+
+### A-1 / P0 follow-up claim — 2026-09-07
+
+Claimed in M7.3 before implementation. Adopt the owner’s pending first-pass
+amendments as the binding follow-up scope. The latest instruction authorizes
+deployment once fixes and gates are complete; no live action occurs at this
+claim. Runtime remains b72f683d, whose full check passed 611 suites /3,564 tests
+with unchanged code after that gate. Authenticated A-1 capture remains pending
+while shared tab_5 shows Account; offline preparation continues under A-10.

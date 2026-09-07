@@ -459,6 +459,9 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
+- [ ] Doc 59 A-1 / P0 follow-up — Repeatable workload, effective-quality request attribution and sky-step capture — IN PROGRESS: codex, 2026-09-07
+  - Follow owner amendments in doc 59 §8; subsequent order is P6b painter producers, exact Canvas fixes, GPU qualification and allocation attribution. Deployment of the completed 0.6.0 client is authorized by the owner’s 2026-09-07 instruction, conditional on the remaining release gates.
+
 - [x] Doc 59 P0 — Attribution and device baseline — DONE: codex, 2026-09-06 (qualification gaps recorded in doc 59 §8)
   - Resumed after owner login. Diagnostics extraction `a7070426` is green; P0 counters, capture action and preliminary desktop stage tables are implemented. Walking samples and the full attribution gate pass (569 suites / 3,411 tests). Shared-preview active-rAF/screenshots remain OPEN. P1 follows with its measured scale matrix; no release candidate.
 - [x] Doc 59 P1 — World-pass resolution and Video scale policy — DONE: codex, 2026-09-06 (implementation/desktop; shared preview OPEN, iPad owner to run)
