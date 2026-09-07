@@ -1,5 +1,6 @@
+import type { RawReceiverField } from '../receiver-raw-field.js';
 import type { AssetFrameSource } from '@orchard/ui';
-import type { WorldPassBackend, WorldPassImage, WorldPassSprite, WorldSpriteVariant } from '../world-pass-backend.js';
+import type { WorldPassBackend, WorldPassImage, WorldPassSprite, WorldSpriteVariant, WorldPassRectangle } from '../world-pass-backend.js';
 import type { WorldPassLayout } from '../renderer.js';
 import type { RgbColor } from '../lighting.js';
 import { CanvasWorldPresent } from '../world-pass-present.js';
@@ -18,7 +19,7 @@ export type { WebGLCoverageField } from './coverage-textures.js';
 export type WebGLGroundField=WebGLLightField | WebGLCoverageField;
 export interface WebGLSourceOptions {
   readonly receiverRgb?: RgbColor;
-  readonly ground?: { readonly field: WebGLGroundField; readonly worldX: number; readonly worldY: number };
+  readonly ground?: { readonly field: WebGLGroundField; readonly worldX: number; readonly worldY: number; readonly plane?: boolean };
   readonly variant?: WorldSpriteVariant;
   /** Producer revision for a stable source; mutable unversioned canvases refresh on every draw. */
   readonly revision?: number;
@@ -123,6 +124,17 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     this.context.save(); try { this.context.globalCompositeOperation='multiply'; this.context.imageSmoothingEnabled=true; this.submit(draw); }
     finally { this.context.restore(); }
   }
+  multiplyRawLightPlane(field: RawReceiverField, destination: WorldPassRectangle): void {
+    this.requireFrame();
+    const source = { image: this.white, x: 0, y: 0, width: 1, height: 1 };
+    this.context.save();
+    try {
+      this.context.globalCompositeOperation = 'multiply';
+      this.context.imageSmoothingEnabled = false;
+      this.associateSource(source, { revision: 0, ground: { field, worldX: field.left, worldY: field.top, plane: true } });
+      this.context.drawImage(this.white, 0, 0, 1, 1, destination.x, destination.y, destination.width, destination.height);
+    } finally { this.context.restore(); }
+  }
   weather(draw:(context:CanvasRenderingContext2D)=>void):void { this.requireFrame(); draw(this.context); }
   particles(draw:(context:CanvasRenderingContext2D)=>void):void { this.requireFrame(); draw(this.context); }
   composite(target:CanvasRenderingContext2D,width:number,height:number):void {
@@ -157,19 +169,14 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     const options=matches ? pending.options:{};
     if (options.variant && options.variant!=='normal') throw new WebGLWorldPassError(`webgl_unverified_variant:${options.variant}`);
     const field=options.ground?.field;
-    if(!this.options.allowUnverifiedLighting) {
-      if(field)throw new WebGLWorldPassError('webgl_accuracy_unverified_ground');
-      const rgb=options.receiverRgb;
-      if(rgb && (rgb.r!==255 || rgb.g!==255 || rgb.b!==255))throw new WebGLWorldPassError('webgl_accuracy_unverified_receiver_tint');
-    }
     // A Canvas can change between two draws in one frame. NaN forces a flush
     // and upload without colliding with any producer-supplied revision.
     const revision=options.revision ?? (image instanceof HTMLCanvasElement || (typeof OffscreenCanvas!=='undefined' && image instanceof OffscreenCanvas) ? Number.NaN:0);
     const texture=this.select(image,revision,field,state);
     const rgb=options.receiverRgb;
-    const mode=field ? 2 : rgb && (rgb.r!==255 || rgb.g!==255 || rgb.b!==255) ? 1:0;
+    const mode=options.ground?.plane ? 5 : field ? 2 : rgb && (rgb.r!==255 || rgb.g!==255 || rgb.b!==255) ? 1:0;
     const color=rgb ? [rgb.r/255,rgb.g/255,rgb.b/255,1]:[1,1,1,1];
-    const light=field ? [(options.ground!.worldX-field.left)/(field.width*field.step),(options.ground!.worldY-field.top)/(field.height*field.step),
+    const light=options.ground?.plane ? [0,0,1,1] : field ? [(options.ground!.worldX-field.left)/(field.width*field.step),(options.ground!.worldY-field.top)/(field.height*field.step),
       (options.ground!.worldX+rect[2]!-field.left)/(field.width*field.step),(options.ground!.worldY+rect[3]!-field.top)/(field.height*field.step)]:[0,0,0,0];
     const emission=matches ? pending.source.emissiveSpans:undefined;
     const quad=(left:number,top:number,width:number,height:number,operation:number) => {
@@ -198,7 +205,6 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     }
   }
   private select(image:CanvasImageSource,revision:number,field:WebGLGroundField | undefined,state:CanvasState) {
-    if(state.composite==='multiply' && !this.options.allowUnverifiedLighting)throw new WebGLWorldPassError('webgl_accuracy_unverified_multiply');
     const old=this.selectedState;
     const changed=image!==this.selectedImage || revision!==this.selectedRevision || field!==this.selectedField || !old
       || old.composite!==state.composite || old.smooth!==state.smooth || old.clip!==state.clip || field?.revision!==this.selectedFieldRevision;

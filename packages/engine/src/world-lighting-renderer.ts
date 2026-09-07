@@ -1,3 +1,4 @@
+import type { RawReceiverField } from './receiver-raw-field.js';
 import { renderOperationCounters, type AssetFrameSource } from '@orchard/ui';
 import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import type { CelestialLighting } from './celestial-lighting.js';
@@ -111,10 +112,25 @@ export class WorldLightingRenderer {
     }
     const plane = { canvas, left, top, step, pixels: raster.pixels, revision: raster.revision }; this.planes.set(level, plane); return plane;
   }
+  /** Raw coverage and local RGB are consumed synchronously by the GPU path. */
+  private rawPlane(level: number): RawReceiverField {
+    const step = 4;
+    const left = Math.floor(this.cameraX / step) * step - step;
+    const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
+    const projection = this.mapper.projectionAtLevel(level);
+    return this.scene.rawFieldCached(this.localRevision, left, top,
+      Math.ceil(this.width / step) + 3, Math.ceil(this.height / step) + 3, this.mapper.heightAtLevel(level), step,
+      (worldX, worldY) => this.lightmap!.sampleReceiverLight(worldX, worldY - projection, level, 'flat', this.localSample));
+  }
   compositeGround(context: CanvasRenderingContext2D, scale: number, level = terrainBaseDatum(this.terrain)): void {
-    // A flattened CPU multiply would conceal the unresolved GPU lighting
-    // accuracy gate. Reject before creating/uploading Canvas lighting surfaces.
-    if (webglWorldBackend(context) !== undefined) throw new Error('webgl_accuracy_unverified_ground_composite');
+    const backend = webglWorldBackend(context);
+    if (backend !== undefined) {
+      const field = this.rawPlane(level);
+      backend.multiplyRawLightPlane(field, { x: (field.left - this.cameraX) * scale,
+        y: (this.mapper.projectedY(field.top, level) - this.cameraY) * scale,
+        width: field.width * field.step * scale, height: field.height * field.step * scale });
+      return;
+    }
     const plane = this.plane(level);
     context.save();
     try {
@@ -157,12 +173,7 @@ export class WorldLightingRenderer {
     else renderOperationCounters.flatSourceRequests++;
     const target = groundSourceContext();
     if (target !== undefined && webglWorldBackend(target) !== undefined) {
-      const step = 4;
-      const left = Math.floor(this.cameraX / step) * step - step;
-      const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
-      const field = this.scene.rawFieldCached(this.localRevision, left, top,
-        Math.ceil(this.width / step) + 3, Math.ceil(this.height / step) + 3, this.mapper.heightAtLevel(level), step,
-        (worldX, worldY) => this.lightmap!.sampleReceiverLight(worldX, this.mapper.projectedY(worldY, level), level));
+      const field = this.rawPlane(level);
       return webglFrameSource(target, source, { ground: { field, worldX: x, worldY: y } })!;
     }
     return this.groundRuns.source(source, x, y, level, this.plane(level), capRun);

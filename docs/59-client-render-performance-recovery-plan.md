@@ -3701,3 +3701,108 @@ Per-frame counters, **p50 / p95 / p99**:
 | Omit-page decoded bytes at end | 0 | 0 |
 | Largest decoded page bytes | 4194304 | 4194304 |
 | Workload failures | no_pond | no_pond |
+
+### P8 qualified raw ground-plane submission checkpoint — 2026-09-07
+
+Artifacts: `output/perf-59-20260907/P8/ground-plane/`. Base **d4134843**, after the green P7 minimap checkpoint; changed source and tests frozen in `source-files.json`. Files: `packages/engine/src/world-pass-backend.ts`, `world-lighting-renderer.ts`, `receiver-raw-field.test.ts`, `webgl/world-pass-webgl.ts`, `webgl/shaders.ts`, new `webgl/world-pass-raw-plane.test.ts`; roadmap, doc47, DECISIONS and this ledger.
+
+Add the optional raw-field multiply-plane capability at the backend boundary. WorldLightingRenderer shares its raw coverage/local RGB plane between ground sprites and the ground composite. The GPU submits one rectangle using existing raw textures, resolves the per-corner channel maximum in one fragment pass and interpolates that result; no CPU-resolved lighting upload or GPU intermediate pass is added. The plane samples full field UVs rather than snapping them to the white source texture. Canvas retains its existing exact branch. Raw local sampling reuses the retained RGB destination and computes terrain projection once per field request. Qualified receiver-tint, per-source ground and multiply guards are removed after the tests below; source downsampling, filters, unverified variants and resource/failure guards remain.
+
+The temporary overlay is first built only outside the checked worktree (`primitive/`, `fixtures/`). After the P7 commit, integrate the same behavior and repeat against **untransformed production engine code**, with no `allowUnverifiedLighting` opt-in (`production-primitive/`, `production-fixtures/`). Review transformations replace only fixture world contexts/flushes with the backend. The world fixture's explicit `ctx.getImageData` HUD readback is omitted from the GPU wrapper only; its drawn witness is compared in the exported PNG. No GPU readback is added to the client. All ten Canvas boards remain byte-identical to P7; the engine world-readback grep test passes.
+
+Production-engine PNG results (counts are RGBA channels on panel artwork regions, excluding labels):
+
+| Fixture | Completed panels | Maximum channel step | Channels above one | Channels above two | Above-one percent | HUD witness |
+|---|---:|---:|---:|---:|---:|---|
+| Seasonal | 16 | 1 | 0 | 0 | 0 | No explicit witness in existing fixture; labels exact |
+| Celestial | 9 | 2 | 484 | 0 | 0.005471% | No explicit witness in existing fixture; labels exact |
+| World lighting | 12 | 1 | 0 | 0 | 0 | Exact |
+| Terrain 1× dry | 12 | 1 | 0 | 0 | 0 | Exact |
+| Terrain 1× pond | 12 | 1 | 0 | 0 | 0 | Exact |
+| Terrain 2× dry | 12 | 1 | 0 | 0 | 0 | Exact |
+| Terrain 2× pond | 12 | 1 | 0 | 0 | 0 | Exact |
+| Terrain Native dry | 12 | 1 | 0 | 0 | 0 | Exact |
+| Terrain Native pond | 12 | 1 | 0 | 0 | 0 | Exact |
+| Legacy lighting | 2 before rejection | — | — | — | — | Unsupported filter; no completed-board claim |
+
+The 36 separate raw-plane cases cover scales1/2/3, camera fractions0/.25/.5/.75, uniform sky, coverage gradients and varying local RGB over high-contrast backgrounds: maximum2, at most0.4231770833% above one, no channels above two, exact HUD. These qualify the A-8 experimental-enable subset; the one-step default-on gate is not claimed. Plane edges are padded outside the viewport as in production; arbitrary exposed fractional-edge antialiasing is not qualified. The terrain/pond board was visually inspected for shadow direction, nested cliff caps, pond and HUD witness.
+
+Real-browser 600-frame raw-plane lifetime test: zero new surfaces and ImageData; five textures/3,595 texture bytes and five uploads stay fixed, total managed bytes1,109,519 unchanged. A field revision adds exactly four uploads; disposal returns all managed bytes/resources to zero. Unit tests also exercise full plane UVs, signed terrain levels, one retained local RGB, upload failure state restoration, downsampling/filter rejection and disposal. Six scoped test files /26 tests pass; engine typecheck and scoped ESLint pass. First upload-failure injection hit the white page and correctly returned its wrapped error; move the injection after initial upload to test raw-field failure specifically. The original assertion failure is retained in `focused-white-upload-injection.log`.
+
+The updated original browser failure fixture records receiver/ground/multiply as three successful submissions, and all ten remaining failure classes as explicit failures (variant, downsample, copy, destination-in, clip, page size, unavailable WebGL, shader compile, link and buffer allocation). Every created backend releases all managed resources. `WEBGL_lose_context` also restores and reuploads the new raw plane before drawing again, then disposes to zero (`lifecycle/`). Captured browser warnings include an internal GPU stall message during Canvas presentation and the deliberately failed shader cleanup warning; neither is an application `readPixels` call. Existing Canvas-copy-vs-layer presentation evidence remains in `P8/present-tie-probe`: Canvas-copy is exact on that downscale still, CSS layer differs by up to82 with exact HUD; retain Canvas-copy. No SwiftShader timing is used as GPU performance evidence.
+
+Authenticated desktop Canvas sample: `ground-plane-canvas-1x.json`, 5-second warm-up +30-second active-rAF per mode, no build/check/profile overlap. AMD Ryzen9 9955HX, Linux6.17.2-1-pve, Chrome152.0.7977.64 headless, 1280×720, DPR1, browser zoom1/world zoom2, Canvas1×, presentation cap off, no throttle. Seed1329809490, summer, content dfdf555b:21a3c554:4:386, camera square7088:6146. All three captures fail only `no_pond`; scene qualification remains OPEN. Latest whole-frame p95 is8.3/10.4/18.5ms Basic/Classic/Dynamic, zero long tasks in every mode and zero per-frame surface allocations (including maximum). Previous P7 diagnostic was8.1/9.9/17.7ms with five Classic long tasks; this is a renewed-session observation, not a causal before/after comparison or speedup claim. Basic's residual includes painterBuild1.7ms, painterDraw2.4ms and finalWorldComposite2.5ms p95. Dynamic has nested painterDraw12.3ms, lightingMerge7.8ms and finalWorldComposite2.4ms p95; do not sum nested stages. Full original distributions and counters follow.
+
+Basic retains zero lighting bytes/work and Basic/Classic own no omit pages; Classic keeps its amended legacy solver. Filtered-frame builds remain zero, largest decoded page4MiB. Lighting bounds changes can still allocate ImageData; no whole-client zero-allocation claim. The test account needed ordinary session renewal for the initial capture; `gameplay-ready.json` preserves the sign-in state, `session-renewal.log` and `gameplay-ready-renewed.json` show the successful ordinary login. Owner tabs and live files are unchanged.
+
+The initial authenticated WebGL request succeeds in Basic (`gameplay-webgl-request.json`). A subsequent gameplay downsampling operation latches Canvas with `webgl_accuracy_unverified_downsample`, as required. The shared canonical preview still reports hidden (tab_5); headless movement review is supplementary and cannot qualify shared active-rAF review. Output-only visual replay initially misread diagnostic snapshot.players as a Map; its movement counters are invalid and preserved under `visual-replay-invalid-position-probe/`. The interrupted harness also left an rAF callback; abort its replacement before accepting results, reload the page, add explicit cancellation/timeout and use the existing predictedPosition diagnostic. The discarded preflight is under `visual-replay-orphan-preflight/`. No candidate runtime code changed for these harness corrections. Movement/Video review completion: **18 headless 60-second cases complete**, all nine world-scale/lighting combinations with Canvas selected, then all nine with WebGL requested. Ordinary predicted walking is confirmed in every case. All Canvas-selected cases have no backend failure; the first WebGL walking case reaches `webgl_unsupported_clip_path`, and that Canvas fallback correctly stays latched for the rest of the session. These are Canvas fallback reviews, not nine successful GPU runs or GPU timings. All18 screenshots were visually inspected: cliff caps, tree depth, dynamic directional shadows and HUD render normally at1×/2×/Native. The actor moves toward the minimap in later fixed-camera cases, so full actor visibility/motion quality is not claimed throughout. The missing pond remains covered only by deterministic golden fixtures. Early cases overlap the full check; no timing inference is made from any replay. The Video screenshot explicitly shows **CANVAS: UNSUPPORTED CLIP PATH**, with Native and the experimental preference ON (`video-footer.png/json`). After review the test client is returned to Canvas1×/Basic, with zero retained lighting and omit bytes (`after-review.json`). The owner shared tab is reopened with open/show but still reports hidden (`shared-preview-status.json`); no shared active-review claim. The terrain cutaway's three Path2D clips are the next concrete unsupported operation to address; general downsampling/filter paths remain separate OPENs.
+
+Physical iPad and hardware WebGL: **owner to run**. At a pond/cliff scene with a carried lantern, System → Developer → Render → **Run protocol + copy JSON**. Record device, OS, browser, DPR, browser zoom, resolution, candidate commit, world scale and requested/effective backend. Save JSON here and repeat1×/2×/Native, Basic/Classic/Dynamic. Hardware WebGL samples must state any fallback reason; Canvas fallback is not a GPU timing result. Do not substitute CPU throttling or software GPU timings.
+
+Commands: scoped `npx vitest run ... --coverage.enabled=false`, engine typecheck, scoped ESLint; `node <artifact>/{production-primitive,production-fixtures,lifecycle}/build.mjs` and `run.mjs`; primitive `lifetime.mjs` and `compare.ts`; fixture `compare.ts`; private `npx vite build --mode client-production`; `python3 <artifact>/capture.py ground-plane-canvas-1x`; `python3 <artifact>/report.py`; `python3 <artifact>/visual-replay.py`; full `npm run check`. Full `npm run check` passes (exit 0): **630 files / 3,618 tests**. Vitest duration897.06s (725.54s tests). Lifecycle integrity, world build, all types, lint, coverage and asset validation pass. All six frozen source hashes and all36 original atlas hashes in both roots still match. Release remains HOLD for the disclosed technical gates; deployment authorization is already recorded.
+
+All stage timings in milliseconds, **p50 / p95 / p99**. Nested intervals must not be summed.
+
+| Stage | Basic | Classic | Dynamic |
+|---|---|---|---|
+| whole frame | 6.299999 / 8.299999 / 9.1 | 7.200001 / 10.4 / 11.5 | 10.699999 / 18.5 / 23.6 |
+| snapshotPrepare | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.1 |
+| ground | 0.4 / 0.6 / 0.699999 | 0.4 / 0.6 / 0.700001 | 0.4 / 0.5 / 0.6 |
+| painterBuild | 1.1 / 1.700001 / 1.9 | 1.199999 / 1.9 / 2.200001 | 1 / 1.5 / 1.9 |
+| painterSort | 0.200001 / 0.300001 / 0.4 | 0.200001 / 0.4 / 0.400002 | 0.200001 / 0.300001 / 0.4 |
+| painterDraw | 1.200001 / 2.400002 / 2.9 | 1.300001 / 2.6 / 3.1 | 5.700001 / 12.300001 / 17.1 |
+| weather | 0 / 0.1 / 0.1 | 0 / 0.099998 / 0.1 | 0 / 0.1 / 0.1 |
+| lightingBoundsResize | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 0 / 0.099998 / 0.1 |
+| lightingOcclusionRaster | 0 / 0 / 0 | 0 / 0.200001 / 0.5 | 0 / 0.199999 / 0.4 |
+| lightingSolve | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 0.1 / 0.200001 / 0.200001 |
+| lightingMerge | 0 / 0 / 0 | 0 / 0.199999 / 0.200001 | 2 / 7.800003 / 9.299997 |
+| lightingUpload | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0.099998 / 0.200001 / 0.299999 |
+| lightingReceiver | 0 / 0 / 0 | 0 / 0 / 0 | 0.399998 / 0.700001 / 0.900002 |
+| lightingComposite | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| finalWorldComposite | 1.700001 / 2.5 / 2.900002 | 2.4 / 3.799999 / 4.200001 | 1.1 / 2.4 / 2.699999 |
+| uiModel | 0.4 / 0.599998 / 0.6 | 0.4 / 0.6 / 0.700001 | 0.4 / 0.5 / 0.599998 |
+| uiLayout | 0.5 / 0.6 / 0.700001 | 0.5 / 0.6 / 0.700001 | 0.4 / 0.5 / 0.699999 |
+| uiDraw | 0.5 / 0.799999 / 1.099998 | 0.5 / 0.799999 / 1.1 | 0.4 / 0.799999 / 1 |
+| fixedUpdate | 0.200001 / 0.4 / 0.5 | 0.200001 / 0.4 / 0.400002 | 0.200001 / 0.300001 / 0.4 |
+| catchUp | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0.199999 |
+
+Per-frame counters, **p50 / p95 / p99**:
+
+| Counter | Basic | Classic | Dynamic |
+|---|---|---|---|
+| drawImageCalls | 937 / 962 / 962 | 938 / 965 / 965 | 965 / 1096 / 1154 |
+| distinctDrawImageSources | 30 / 31 / 32 | 31 / 32 / 33 | 400 / 414 / 415 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 7 / 8 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 | 99 / 109 / 110 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 4 / 4 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 | 18 / 150 / 204 |
+| imageDataAllocations | 0 / 0 / 0 | 0 / 0 / 2 | 0 / 0 / 2 |
+| capRunRequests | 0 / 0 / 0 | 0 / 0 / 0 | 118 / 120 / 120 |
+| flatSourceRequests | 0 / 0 / 0 | 0 / 0 / 0 | 258 / 271 / 271 |
+| capRunComposites | 0 / 0 / 0 | 0 / 0 / 0 | 3 / 21 / 25 |
+| flatSourceComposites | 0 / 0 / 0 | 0 / 0 / 0 | 4 / 37 / 53 |
+| groundSourceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 367 / 385 / 388 |
+| receiverSamples | 0 / 0 / 0 | 0 / 0 / 0 | 302 / 313 / 313 |
+| receiverCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 838 / 871 / 876 |
+| receiverFullLoopCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 103284 / 107359 / 107359 |
+| saveCalls | 573 / 598 / 598 | 574 / 604 / 604 | 588 / 604 / 606 |
+| restoreCalls | 573 / 598 / 598 | 574 / 604 / 604 | 588 / 604 / 606 |
+| saveRestorePairs | 573 / 598 / 598 | 574 / 604 / 604 | 588 / 604 / 606 |
+| surfaceAllocations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+| Evidence | Basic | Classic | Dynamic |
+|---|---|---|---|
+| Captured frames | 1800 | 1800 | 1782 |
+| Long tasks ≥50 ms | 0 | 0 | 0 |
+| Maximum long task ms | 0 | 0 | 0 |
+| Render items p50/p95/p99 | 716 / 738 / 738 | 716 / 738 / 738 | 716 / 738 / 738 |
+| Lighting retained bytes at end | 0 | 161280 | 97393001 |
+| Omit-page decoded bytes at end | 0 | 0 | 72515584 |
+| Largest decoded page bytes | 4194304 | 4194304 | 4194304 |
+| Workload failures | no_pond | no_pond | no_pond |

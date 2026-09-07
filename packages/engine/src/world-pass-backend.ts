@@ -1,3 +1,4 @@
+import type { RawReceiverField } from './receiver-raw-field.js';
 import type { WorldPassLayout } from './renderer.js';
 import type { AssetFrameSource } from '@orchard/ui';
 import type { RgbColor } from './lighting.js';
@@ -36,6 +37,8 @@ export interface WorldPassBackend {
   chunk(draw: WorldPassImage): void;
   /** Quarter/tile-resolution light planes use smooth sampling, unlike artwork. */
   multiplyPlane(draw: WorldPassImage): void;
+  /** Optional raw-field capability; Canvas keeps its existing resolved-image path. */
+  multiplyRawLightPlane?(field: RawReceiverField, destination: WorldPassRectangle): void;
   weather(draw: (context: CanvasRenderingContext2D) => void): void;
   particles(draw: (context: CanvasRenderingContext2D) => void): void;
   composite(target: CanvasRenderingContext2D, width: number, height: number): void;

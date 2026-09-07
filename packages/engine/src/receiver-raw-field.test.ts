@@ -52,8 +52,9 @@ describe('raw GPU lighting inputs', () => {
     const create = vi.fn(() => { throw new Error('unexpected Canvas surface'); });
     vi.stubGlobal('document', { createElement: create });
     const context = {} as CanvasRenderingContext2D;
+    const multiplyRawLightPlane = vi.fn();
     const associateSource = vi.fn((source: AssetFrameSource, options: WebGLSourceOptions) => { void options; return source; }), releasePresentation = vi.fn();
-    registerWebGLWorldBackend(context, { associateSource, releasePresentation } as unknown as WebGLWorldPassBackend);
+    registerWebGLWorldBackend(context, { associateSource, releasePresentation, multiplyRawLightPlane } as unknown as WebGLWorldPassBackend);
     const source = { image: {} as CanvasImageSource, x: 2, y: 3, width: 8, height: 8 };
     const frames = new ReceiverFrameCache(), color = { r: 50, g: 60, b: 70 };
     withWorldReceiverLight(context, frames, color, () => expect(receiverFrameSource(context, source)).toBe(source));
@@ -64,13 +65,41 @@ describe('raw GPU lighting inputs', () => {
     expect(associateSource.mock.lastCall?.[1]).toMatchObject({ ground: { worldX: 12, worldY: 13,
       field: { width: 19, height: 19, step: 4 } } });
     expect(world.scene.diagnostics.rgbMerges).toBe(0); expect(create).not.toHaveBeenCalled();
-    expect(() => world.compositeGround(context, 1)).toThrow('webgl_accuracy_unverified_ground_composite');
+    const field = associateSource.mock.lastCall?.[1].ground?.field;
+    for (let frame = 0; frame < 600; frame++) world.compositeGround(context, 1);
+    expect(multiplyRawLightPlane).toHaveBeenCalledTimes(600);
+    expect(multiplyRawLightPlane).toHaveBeenLastCalledWith(field, { x: -4, y: -4, width: 76, height: 76 });
+    expect(world.scene.diagnostics.rgbMerges).toBe(0); expect(create).not.toHaveBeenCalled();
     const pages = { revision: 1, source: () => source.image };
     for (let i = 0; i < 600; i++) setWorldAssetPresentation(context, pages, 'omit-baked-shadow');
     expect(releasePresentation).toHaveBeenCalledOnce(); pages.revision++;
     setWorldAssetPresentation(context, pages, 'omit-baked-shadow'); setWorldAssetPresentation(context);
     expect(releasePresentation).toHaveBeenCalledTimes(3);
     world.reset(); expect(world.bytes).toBe(0); unregisterWebGLWorldBackend(context);
+  });
+  it('projects raw planes and local samples at signed terrain levels', () => {
+    const create = vi.fn(() => { throw new Error('unexpected Canvas surface'); });
+    vi.stubGlobal('document', { createElement: create });
+    const context = {} as CanvasRenderingContext2D, multiplyRawLightPlane = vi.fn();
+    registerWebGLWorldBackend(context, { multiplyRawLightPlane } as unknown as WebGLWorldPassBackend);
+    const world = new WorldLightingRenderer({ width: 20, height: 20, baseDatum: -2 } as TerrainArray);
+    const lightmap = new TileLightmap(), sample = vi.spyOn(lightmap, 'sampleReceiverLight');
+    world.begin(sky, [], [], lightmap, 7.25, 9.5, 64, 32, 1);
+    try {
+      for (const level of [-2, 3]) {
+        sample.mockClear(); world.compositeGround(context, 2, level);
+        const [field, destination] = multiplyRawLightPlane.mock.lastCall!;
+        const top = Math.floor(world.mapper.logicalY(9.5, level) / 4) * 4 - 4;
+        expect(field).toMatchObject({ left: 0, top, width: 19, height: 11, step: 4 });
+        expect(destination).toEqual({ x: -14.5, y: (world.mapper.projectedY(top, level) - 9.5) * 2, width: 152, height: 88 });
+        expect(sample).toHaveBeenCalledTimes(209);
+        expect(sample.mock.calls[0]?.slice(0, 4)).toEqual([2, world.mapper.projectedY(top + 2, level), level, 'flat']);
+        expect(sample.mock.calls[208]?.slice(0, 4)).toEqual([74, world.mapper.projectedY(top + 42, level), level, 'flat']);
+        expect(new Set(sample.mock.calls.map(call => call[4])).size).toBe(1);
+      }
+      expect(world.scene.diagnostics.rgbMerges).toBe(0); expect(create).not.toHaveBeenCalled();
+    } finally { world.reset(); unregisterWebGLWorldBackend(context); }
+    expect(world.bytes).toBe(0);
   });
   it('restores a nested source context even when an inner callback throws', () => {
     const outer = {} as CanvasRenderingContext2D, inner = {} as CanvasRenderingContext2D;

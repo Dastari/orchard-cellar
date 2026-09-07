@@ -44,7 +44,8 @@ vec3 resolvedCorner(ivec2 position) {
 }
 vec4 groundLight() {
  vec2 pageSize=vec2(textureSize(page,0));
- vec2 coord=lightCoord+(floor(texCoord*pageSize)+0.5-texCoord*pageSize)/(vec2(textureSize(light,0))*fieldStep);
+ vec2 coord=lightCoord;
+ if(operation!=5) coord+=(floor(texCoord*pageSize)+0.5-texCoord*pageSize)/(vec2(textureSize(light,0))*fieldStep);
  if(any(lessThan(coord,vec2(0))) || any(greaterThanEqual(coord,vec2(1)))) return vec4(0);
  if(rawCoverage==0) return texture(light,coord);
  vec2 p=coord*vec2(textureSize(light,0))-0.5;
@@ -55,7 +56,8 @@ vec4 groundLight() {
 void main() {
  vec4 original=texture(page,texCoord);
  vec4 value=original;
- if(operation==1 || operation==2 || operation==4) {
+ if(operation==5) { value=groundLight(); }
+ else if(operation==1 || operation==2 || operation==4) {
   vec4 ground=operation==2 ? groundLight() : vec4(tint.rgb,1);
   vec3 rgb=ground.rgb;
   value.rgb=floor(byteRound(rgb*(original.rgb+vec3(1.0-original.a))+original.rgb*(1.0-ground.a))*255.0*original.a)/255.0;

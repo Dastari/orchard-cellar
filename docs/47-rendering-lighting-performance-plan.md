@@ -2677,3 +2677,16 @@ unverified operations visibly fall back and P8 adoption/full parity remains
 OPEN. Raw-field GPU inputs do not imply accepted GPU lighting. Doc59 §8 records
 original stage numbers, device limits, unresolved Classic/filter/receiver/painter
 gates and physical iPad rows; no performance target or deployment is claimed.
+
+
+**2026-09-07 doc59 A-8 follow-up (unreleased):** the raw coverage/local-light
+multiply-plane now has a GPU submission, sharing the existing raw-field texture
+ownership with ground sprites. Nine completed production-engine review boards
+pass the experimental-enable gate; world lighting and six terrain/pond boards
+are within one step with exact HUD witnesses. Seasonal is within one, celestial
+within two (484 channels above one). Receiver tint, ground and multiply guards
+are therefore removed. Source downsampling, unsupported filters/variants and
+all resource/error fallbacks remain explicit; the legacy lighting fixture still
+rejects its filter. Canvas 1× remains the default. This is functional SwiftShader
+evidence, not the hardware adoption gate or a release-completion claim. See
+`output/perf-59-20260907/P8/ground-plane/` and doc59's checkpoint ledger.
