@@ -1,14 +1,14 @@
-import { drawLandmarkTransform } from './gameplay-painter-effects.js';
-import { TOPSIDE_SPACE_ID, authoredMapContentPainterTie, CELLAR_ENTRY_TILE, RESIDENCE_BED_TILE, RESIDENCE_BOOKSHELF_TILE, MARLOW_TENT_BOOKSHELF_TILE, homesteadBoundaryTiles, isInteractivePoiDecorationKind, survivalDecorationBlocksTraversal, fenceJoinMask, placeableHasInterface } from '@orchard/sim';
-import { drawOverworldPlaceable, drawOverworldPoiDecoration, drawOverworldRogueDoor, natureDecorationFrame, overworldPoiDecorationDepthY, pondShimmerFrameAtTick } from '@orchard/engine/overworld-art';
+import { beginDecorationCommands, releaseDecorationCommands } from './gameplay-decoration-commands.js';
+import { TOPSIDE_SPACE_ID, CELLAR_ENTRY_TILE, RESIDENCE_BED_TILE, RESIDENCE_BOOKSHELF_TILE, MARLOW_TENT_BOOKSHELF_TILE, homesteadBoundaryTiles, isInteractivePoiDecorationKind, fenceJoinMask, placeableHasInterface } from '@orchard/sim';
+import { drawOverworldPlaceable, drawOverworldPoiDecoration, drawOverworldRogueDoor, overworldPoiDecorationDepthY } from '@orchard/engine/overworld-art';
 import { worldPointVisible } from '@orchard/engine/camera';
 import { CAMPFIRE_LIGHT_RADIUS_TILES, unifiedDecorationLightReceiver } from '@orchard/engine/lighting';
-import { deterministicFlameFlicker, isLightEmitterKind, placeablePointLight } from '@orchard/engine/light-sources';
+import { deterministicFlameFlicker, placeablePointLight } from '@orchard/engine/light-sources';
 import { liveIslandDocument } from '@orchard/engine/live-map-runtime';
 import { homesteadTentPresentationTargets } from './homestead-presentation.js';
 import type { GameplayPainterInputs, RuntimeSurvivalDecoration } from './gameplay-painter-inputs.js';
 
-type Inputs = Pick<GameplayPainterInputs,
+export type GameplayDecorationInputs = Pick<GameplayPainterInputs,
   'dynamicLighting' | 'snapshot' | 'objectPresentations' | 'lightVisible' | 'pointLights' |
   'projectedLight' | 'debugEntitiesHidden' | 'activeSpaceDefinition' | 'homesteadSurroundingDecorations' | 'seed' |
   'topsideDecorations' | 'visible' | 'enqueueWorldDepth' | 'context' | 'art' |
@@ -17,13 +17,13 @@ type Inputs = Pick<GameplayPainterInputs,
 >;
 
 /** Mechanically extracted painter producer; command order and draw bodies are unchanged. */
-export function enqueueGameplayDecorations(input: Inputs): void {
+export function enqueueGameplayDecorations(input: GameplayDecorationInputs): void {
   const {
     dynamicLighting, snapshot, objectPresentations, lightVisible, pointLights,
     projectedLight, debugEntitiesHidden, activeSpaceDefinition, homesteadSurroundingDecorations, seed,
     topsideDecorations, visible, enqueueWorldDepth, context, art,
-    cameraX, cameraY, scale, visualTickClock, renderWeather,
-    frameLightingModel, drawSouthFacingReceiver, nameplates,
+    cameraX, cameraY, scale,
+    nameplates,
   } = input;
   if (dynamicLighting) for (const placeable of snapshot.placeables) {
     if (placeable.carriedBy !== undefined) continue;
@@ -36,19 +36,17 @@ export function enqueueGameplayDecorations(input: Inputs): void {
       pointLights.push(projectedLight(light.profile === 'flame' ? { ...light, color: { r: 255, g: 142, b: 62 } } : light));
     }
   }
+  if (debugEntitiesHidden || (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID
+    && activeSpaceDefinition.generator !== 'homestead')) releaseDecorationCommands(context);
   if (!debugEntitiesHidden && (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
     || activeSpaceDefinition.generator === 'homestead')) {
     const authoredMapDocument = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
       ? liveIslandDocument(snapshot.liveMapDocument) : null;
     const decorations: readonly RuntimeSurvivalDecoration[] = activeSpaceDefinition.generator === 'homestead'
       ? homesteadSurroundingDecorations(seed) : topsideDecorations(snapshot, seed);
-    const generatedSuppressions = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-      ? new Set(liveIslandDocument(snapshot.liveMapDocument)?.generatedSuppressions ?? [])
-      : new Set<string>();
-    for (const decoration of decorations) {
-    if (generatedSuppressions.has(String(decoration.id))
-      || generatedSuppressions.has(`decoration-${decoration.id}`)
-      || generatedSuppressions.has(`decoration:${decoration.id}`)) continue;
+    const commands = beginDecorationCommands(context, decorations, authoredMapDocument);
+    for (const index of commands.index.query(visible, dynamicLighting ? lightVisible : undefined)) {
+    const decoration = decorations[index]!;
     if (decoration.kind === 'camp_campfire'
       && placeableHasInterface(snapshot.placeables.get(BigInt(decoration.id))?.kind ?? '', 'cooking')) continue;
     if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
@@ -75,59 +73,10 @@ export function enqueueGameplayDecorations(input: Inputs): void {
       }
     }
     if (!worldPointVisible(decorationX, decorationY, visible)) continue;
-    enqueueWorldDepth(decorationX, decorationY, {
-      footY: overworldPoiDecorationDepthY(decoration.kind, decorationY),
-      tie: decoration.landmark === undefined
-        ? `decoration:${decoration.id}`
-        : authoredMapDocument === null
-          ? `landmark:${decoration.landmark.id}`
-          : authoredMapContentPainterTie(
-            authoredMapDocument,
-            decoration.landmark.layer,
-            'landmark',
-            decoration.landmark.id,
-          ),
-      draw: () => {
-        const drawRawDecoration = (): void => drawOverworldPoiDecoration(
-          context,
-          art,
-          decoration.kind,
-          decorationX,
-          decorationY,
-          cameraX,
-          cameraY,
-          scale,
-          decoration.variant,
-          natureDecorationFrame(
-            decoration.kind,
-            visualTickClock.renderTick,
-            decoration.animationOffset,
-            renderWeather.wind,
-          ),
-          campfireLit,
-          frameLightingModel === 'unified' && decoration.kind === 'camp_pond'
-            ? pondShimmerFrameAtTick(visualTickClock.renderTick)
-            : null,
-        );
-        const drawDecoration = (): void => {
-          const landmark = decoration.landmark;
-          if (landmark === undefined) {
-            drawRawDecoration();
-            return;
-          }
-          const screenX = Math.round((decorationX - cameraX) * scale);
-          const screenY = Math.round((decorationY - cameraY) * scale);
-          drawLandmarkTransform(context, landmark, screenX, screenY, drawRawDecoration);
-        };
-        if (frameLightingModel !== 'unified' && (survivalDecorationBlocksTraversal(decoration.kind, 'ground')
-          && decoration.kind !== 'camp_pond' && !isLightEmitterKind(decoration.kind))) {
-          drawSouthFacingReceiver(decorationX, decorationY, drawDecoration);
-        } else {
-          drawDecoration();
-        }
-      },
-    }, decorationY, unifiedDecorationLightReceiver(decoration.kind));
+    enqueueWorldDepth(decorationX, decorationY, commands.get(input, decoration, campfireLit),
+      decorationY, unifiedDecorationLightReceiver(decoration.kind));
     }
+    commands.finish();
   }
   if (!debugEntitiesHidden) {
     for (const target of homesteadTentPresentationTargets(activeSpaceDefinition, snapshot.homesteads)) {

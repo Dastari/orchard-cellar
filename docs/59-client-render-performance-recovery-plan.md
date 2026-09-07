@@ -3165,3 +3165,163 @@ The first harness callback loaded live 0.5.7 HTML after the authentication redir
 The ordinary test character starts on a terrain region disconnected from the target pond under its current walking rules, and has no jump skill. Manual cardinal travel and exact collision-solver route searches at 8- and 4-pixel spacing found no path. The latter explored 4,977 reachable positions; a diagnostic ignoring object obstacles still found no terrain route (5,373 positions). These attempts are recorded OPEN per docs/15 §9. `P6/producer-profile/navigation/` contains the read-only private Vite injection, route finder and raw diagnostics. The injection exposes existing collision inputs and movement functions; it changes no renderer body or authority state and is excluded from production. The first fixture build accidentally omitted `--mode client-production`; its log is preserved, the corrected build uses that mode, and normal dedicated-account login was reverified.
 
 Continue producer CPU/heap attribution and all-stage captures in the authenticated spawn scene, explicitly **unqualified for A-1 because the pond is absent**. Such data can identify work to optimize but cannot close a milestone's required scene exit. No claim compares this new character/content identity to the earlier owner capture. The navigation helper stays idle during timing samples. No role grant, teleport, world mutation or deployment was used to bypass qualification.
+
+### A-7 authenticated spawn attribution; A-3/A-6 diagnostic stages — 2026-09-07
+
+Candidate runtime is c44c6227 plus the preserved optional producer timer and an idle private navigation reader. Exact sources: `P6/producer-profile/spawn-source-files.json`; differences from the integrator are the eight profiler wrappers/protocol files, the new profiler module and one private test-file-only lag. The navigation injection is recorded in `navigation/vite.config.ts`. Build uses `--mode client-production`. Device: AMD Ryzen 9 9955HX, Linux 6.17.2-1-pve, Headless Chrome 152.0.7977.64, 1280×720 CSS and screen, DPR 1, browser zoom 1, world zoom 2, Canvas 1×, uncapped, no throttling. Fixed camera origin (7088, 6146), summer day 10.5, sunset 17→17.25 and normal square keyboard walking. All three samples explicitly fail A-1 with **no_pond**; they are authenticated attribution, not milestone exits.
+
+Unprofiled 5-second warm-up / 30-second active-rAF samples: `spawn-canvas-1x.json`. All original values remain in the JSON; table entries below are **p50 / p95 / p99 milliseconds**, rounded to four decimals. Stages may nest.
+
+| Stage | Basic | Classic | Dynamic |
+| --- | ---: | ---: | ---: |
+| whole frame | 7.9000 / 9.6000 / 10.9000 | 8.7000 / 10.4000 / 11.5000 | 20.4000 / 29.7000 / 34.3000 |
+| snapshotPrepare | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 |
+| ground | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 |
+| painterBuild | 3.4000 / 4.3000 / 5.1000 | 3.4000 / 4.3000 / 5.1000 | 3.7000 / 4.4000 / 5.0000 |
+| painterSort | 0.1000 / 0.2000 / 0.3000 | 0.1000 / 0.2000 / 0.3000 | 0.2000 / 0.2000 / 0.3000 |
+| painterDraw | 1.0000 / 1.3000 / 1.5000 | 1.0000 / 1.3000 / 1.4000 | 11.2000 / 18.9000 / 22.9000 |
+| weather | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 |
+| lightingBoundsResize | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.1000 | 0.0000 / 0.0000 / 0.1000 |
+| lightingOcclusionRaster | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.2000 / 0.3000 | 0.0000 / 0.3000 / 0.4000 |
+| lightingSolve | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.1000 / 0.2000 | 0.1000 / 0.2000 / 0.2000 |
+| lightingMerge | 0.0000 / 0.0000 / 0.0000 | 0.1000 / 0.1000 / 0.2000 | 8.9000 / 14.9000 / 16.8000 |
+| lightingUpload | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.1000 / 0.1000 | 0.1000 / 0.2000 / 0.3000 |
+| lightingReceiver | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.4000 / 0.8000 / 1.0000 |
+| lightingComposite | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.0000 / 0.0000 |
+| lightingStaticSolve | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| lightingAnimatedStaticSolve | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| lightingDynamicSolve | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| finalWorldComposite | 1.9000 / 2.5000 / 2.6000 | 2.6000 / 3.1000 / 3.5000 | 1.1000 / 2.4000 / 2.7000 |
+| uiModel | 0.3000 / 0.4000 / 0.4000 | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.5000 / 0.5000 |
+| uiLayout | 0.4000 / 0.5000 / 0.6000 | 0.4000 / 0.5000 / 0.6000 | 0.4000 / 0.5000 / 0.9000 |
+| uiDraw | 0.4000 / 0.8000 / 1.1000 | 0.4000 / 0.8000 / 1.0000 | 0.4000 / 0.9000 / 1.2000 |
+| fixedUpdate | 0.2000 / 0.3000 / 0.4000 | 0.2000 / 0.3000 / 0.4000 | 0.2000 / 0.3000 / 0.4000 |
+| catchUp | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.3000 / 0.4000 |
+
+Per-frame counters, **p50 / p95 / p99**:
+
+| Counter | Basic | Classic | Dynamic |
+| --- | ---: | ---: | ---: |
+| drawImageCalls | 944.0000 / 968.0000 / 970.0000 | 945.0000 / 968.0000 / 971.0000 | 975.0000 / 1117.0000 / 1171.0000 |
+| distinctDrawImageSources | 30.0000 / 30.0000 / 31.0000 | 31.0000 / 31.0000 / 32.0000 | 400.0000 / 415.0000 / 415.0000 |
+| tintBuilds | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 7.0000 / 7.0000 |
+| tintReuses | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 101.0000 / 106.0000 / 109.0000 |
+| tintSurfaceReuses | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| filteredFrameBuilds | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| coverageFieldRebuilds | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 4.0000 / 4.0000 |
+| preparedHeightRebuilds | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| groundSourceOperations | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 30.0000 / 168.0000 / 213.0000 |
+| imageDataAllocations | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 2.0000 | 0.0000 / 2.0000 / 2.0000 |
+| capRunRequests | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 118.0000 / 122.0000 / 122.0000 |
+| flatSourceRequests | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 257.0000 / 275.0000 / 275.0000 |
+| capRunComposites | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 7.0000 / 26.0000 / 32.0000 |
+| flatSourceComposites | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 4.0000 / 39.0000 / 52.0000 |
+| groundSourceReuses | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 359.0000 / 389.0000 / 393.0000 |
+| receiverSamples | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 301.0000 / 312.0000 / 312.0000 |
+| receiverCandidates | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 840.0000 / 875.0000 / 878.0000 |
+| receiverFullLoopCandidates | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 102942.0000 / 106704.0000 / 106704.0000 |
+| saveCalls | 590.0000 / 613.0000 / 614.0000 | 591.0000 / 612.0000 / 615.0000 | 583.0000 / 611.0000 / 614.0000 |
+| restoreCalls | 590.0000 / 613.0000 / 614.0000 | 591.0000 / 612.0000 / 615.0000 | 583.0000 / 611.0000 / 614.0000 |
+| saveRestorePairs | 590.0000 / 613.0000 / 614.0000 | 591.0000 / 612.0000 / 615.0000 | 583.0000 / 611.0000 / 614.0000 |
+| surfaceAllocations | 0.0000 / 1.0000 / 1.0000 | 0.0000 / 1.0000 / 1.0000 | 0.0000 / 1.0000 / 1.0000 |
+
+| Mode | Frames | Long tasks ≥50 ms | Retained lighting bytes after sample |
+| --- | ---: | ---: | ---: |
+| basic | 1800 | 0 | 0 |
+| classic | 1800 | 0 | 161280 |
+| dynamic | 1241 | 0 | 97242815 |
+
+Basic retains zero lighting bytes and does zero lighting work. A-3 receiver timing and candidate counters are now measured in this scene, but no causal comparison is made to the different owner scene. A-6 native/cap/flat counters likewise describe this scene only. The original p95 targets are still missed; painterBuild and nested lightingMerge/painterDraw remain the leading costs.
+
+Supplementary Basic CPU/heap and producer profiling: `spawn-cpu-heap.json`, `.cpuprofile`, `.heapprofile`, `spawn-attribution.json`; original source maps retained in `baseline-source-maps/`. Profiling overhead is included and these values do not replace unprofiled gate timings. 1,799 sampled frames; per-producer **p50 / p95 / p99 milliseconds**:
+
+| Producer | Timing |
+| --- | ---: |
+| setup | 0.8000 / 1.1000 / 1.4000 |
+| decorations | 2.9000 / 3.8000 / 4.6000 |
+| resources | 0.1000 / 0.2000 / 0.2000 |
+| projectiles | 0.0000 / 0.0000 / 0.1000 |
+| placeables | 0.0000 / 0.0000 / 0.1000 |
+| npcs | 0.0000 / 0.1000 / 0.1000 |
+| players | 0.0000 / 0.1000 / 0.1000 |
+
+The statistical profile assigns 6,891.672 ms sampled CPU and an estimated 2,873,868,632 allocated bytes to the decoration producer entry over the profiled window. That source-map position is the function entry, so it is not a measured split between individual statements. Code inspection identifies full-cohort suppression-string checks before visibility rejection as a hypothesis to validate by an exact spatial query and retained commands. Setup includes 1,271.472 ms in `raisedTerrainProjectionRowsPerLevel`; projection/plan work is separately visible. Native/unmapped work and GC are not reassigned to a producer. The analyzer categories describe source sites, not proven allocation types.
+
+Physical iPad: **owner to run**. System → Developer → Render → **Run protocol + copy JSON**, keeping Safari visible through all three modes; use Copy capture JSON if needed. Repeat World scale 1×/2×/Native and record device/iPadOS/Safari/browser zoom. Select a pond/cliff route with the visible walking player and verify workload qualification. Hardware GPU is also owner to run under A-9. The shared private-origin visual limitation remains OPEN.
+
+### A-7 decoration retention checkpoint — 2026-09-07
+
+Decorations now index immutable source cohorts in 256-world-pixel cells, compute suppression membership only when that cohort changes, and query artwork/light bounds while preserving original numeric source order. Exact per-point visibility, mutable campfire state and painter order remain unchanged. Visible decoration items retain their three draw callbacks and source ties, read the current frame’s art/animation/light state, and retire after two unseen frames; the pool is bounded to 4,096 commands. A changed source/map cohort retires the prior pool. The queue now retains projection/receiver wrappers by source-command identity, updating exact fractional geometry every enqueue; duplicate submissions still produce independent items and terrain replacement clears wrappers. Other entity producers and terrain commands still create their source commands and remain follow-up work.
+
+Files: `gameplay-painter-decorations.ts`, `gameplay-painter.ts`, its existing test, new `gameplay-decoration-index.ts`, `gameplay-decoration-commands.ts`, their tests and `gameplay-painter-command.ts`, all under packages/client/src. Exact hashes and commands/artifacts: `output/perf-59-20260907/P6/producer-profile/decoration-retention/`. Focused **3 files / 6 tests** pass, including 300 fractional-window sequence comparisons, suppression spellings, offscreen light candidates, 600 retained frames, changing art/camera/lighting, culling, duplicate submission, fractional projection and terrain replacement. Client typecheck and scoped ESLint pass.
+
+The output-only A/B Vite fixture pins the original decoration producer and queue to c44c6227. Both versions run in the **same authenticated connection**, with all other runtime sources identical. `command-frame.json` replays all producers against one captured frame’s inputs: all **580 sorted command tuples match exactly**. This proves the recorded command order/geometry, not callback pixel identity. The ten standard Canvas fixture PNGs are also **byte-identical** (`goldens/golden-comparison.json`), and I inspected the paired gameplay screenshots for cliff edges, walking character, tree overlap and HUD. The shared private-origin minute-per-setting review is still OPEN; this local view does not replace it. The private transform intentionally lacks source maps for its injected wrappers, so no new source-site CPU attribution is claimed from that A/B bundle.
+
+The paired 5-second warm-up / 30-second active-rAF captures use the same reference host/browser/DPR/zoom/settings as the spawn attribution above, with camera (7088, 6146), seed 1329809490, summer and content identity dfdf555b:21a3c554:4:371. Both remain **unqualified: no_pond**. These are diagnostic before/after timings, not an A-1 milestone-exit claim. All original values are retained in `legacy-canvas-1x.json` and `retained-canvas-1x.json`. Entries below are **p50 / p95 / p99 milliseconds**; stages can nest.
+
+| Stage | Original Basic | Retained Basic | Original Classic | Retained Classic | Original Dynamic | Retained Dynamic |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| whole frame | 7.9000 / 9.5000 / 10.7000 | 5.9000 / 7.4000 / 8.8000 | 9.0000 / 11.0000 / 12.6000 | 6.6000 / 7.8000 / 9.1000 | 20.6000 / 29.3000 / 34.3000 | 18.4000 / 27.1000 / 32.2000 |
+| snapshotPrepare | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.2000 | 0.0000 / 0.1000 / 0.2000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 |
+| ground | 0.3000 / 0.4000 / 0.4000 | 0.3000 / 0.5000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 |
+| painterBuild | 3.5000 / 4.4000 / 5.2000 | 1.1000 / 1.6000 / 1.9000 | 3.6000 / 4.7000 / 5.8000 | 1.1000 / 1.5000 / 1.7000 | 3.7000 / 4.5000 / 5.2000 | 1.1000 / 1.5000 / 1.8000 |
+| painterSort | 0.2000 / 0.3000 / 0.3000 | 0.2000 / 0.3000 / 0.4000 | 0.2000 / 0.3000 / 0.3000 | 0.2000 / 0.3000 / 0.4000 | 0.2000 / 0.3000 / 0.4000 | 0.2000 / 0.3000 / 0.4000 |
+| painterDraw | 1.0000 / 1.2000 / 1.4000 | 1.0000 / 1.4000 / 1.8000 | 1.0000 / 1.3000 / 1.6000 | 1.0000 / 1.3000 / 1.6000 | 11.5000 / 18.5000 / 23.2000 | 11.8000 / 19.0000 / 23.6000 |
+| weather | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.0000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.0000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 |
+| lightingBoundsResize | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.2000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 |
+| lightingOcclusionRaster | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.2000 / 0.3000 | 0.0000 / 0.2000 / 0.3000 | 0.0000 / 0.3000 / 0.3000 | 0.0000 / 0.3000 / 0.4000 |
+| lightingSolve | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.1000 / 0.2000 | 0.0000 / 0.1000 / 0.2000 | 0.1000 / 0.2000 / 0.2000 | 0.1000 / 0.2000 / 0.2000 |
+| lightingMerge | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.1000 / 0.1000 / 0.2000 | 0.1000 / 0.1000 / 0.2000 | 9.1000 / 15.4000 / 16.8000 | 9.4000 / 15.7000 / 17.8000 |
+| lightingUpload | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 | 0.1000 / 0.2000 / 0.3000 | 0.1000 / 0.2000 / 0.3000 |
+| lightingReceiver | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.4000 / 0.7000 / 0.9000 | 0.4000 / 0.7000 / 0.9000 |
+| lightingComposite | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.1000 / 0.1000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| lightingStaticSolve | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| lightingAnimatedStaticSolve | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| lightingDynamicSolve | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| finalWorldComposite | 1.7000 / 2.3000 / 2.5000 | 1.9000 / 2.5000 / 2.9000 | 2.4000 / 3.1000 / 3.6000 | 2.5000 / 3.1000 / 3.6000 | 0.9000 / 2.0000 / 2.4000 | 1.0000 / 2.3000 / 2.6000 |
+| uiModel | 0.3000 / 0.4000 / 0.4000 | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 | 0.3000 / 0.4000 / 0.5000 |
+| uiLayout | 0.4000 / 0.6000 / 0.7000 | 0.4000 / 0.6000 / 0.7000 | 0.5000 / 0.6000 / 0.7000 | 0.4000 / 0.6000 / 0.7000 | 0.5000 / 0.6000 / 0.8000 | 0.4000 / 0.6000 / 0.8000 |
+| uiDraw | 0.4000 / 0.8000 / 1.1000 | 0.4000 / 0.9000 / 1.2000 | 0.4000 / 1.0000 / 1.2000 | 0.4000 / 0.8000 / 1.0000 | 0.4000 / 1.0000 / 1.2000 | 0.4000 / 1.0000 / 1.2000 |
+| fixedUpdate | 0.2000 / 0.4000 / 0.4000 | 0.2000 / 0.3000 / 0.4000 | 0.2000 / 0.4000 / 0.4000 | 0.2000 / 0.4000 / 0.4000 | 0.2000 / 0.3000 / 0.4000 | 0.2000 / 0.3000 / 0.4000 |
+| catchUp | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.3000 / 0.4000 | 0.0000 / 0.3000 / 0.4000 |
+
+All per-frame counters, **p50 / p95 / p99**:
+
+| Counter | Original Basic | Retained Basic | Original Classic | Retained Classic | Original Dynamic | Retained Dynamic |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| drawImageCalls | 943.0000 / 965.0000 / 969.0000 | 944.0000 / 964.0000 / 968.0000 | 956.0000 / 1018.0000 / 1024.0000 | 946.0000 / 965.0000 / 969.0000 | 972.0000 / 1117.0000 / 1170.0000 | 972.0000 / 1113.0000 / 1171.0000 |
+| distinctDrawImageSources | 31.0000 / 31.0000 / 32.0000 | 30.0000 / 31.0000 / 31.0000 | 31.0000 / 33.0000 / 34.0000 | 32.0000 / 32.0000 / 33.0000 | 402.0000 / 415.0000 / 415.0000 | 402.0000 / 415.0000 / 415.0000 |
+| tintBuilds | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 7.0000 / 8.0000 | 0.0000 / 7.0000 / 8.0000 |
+| tintReuses | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 99.0000 / 105.0000 / 105.0000 | 99.0000 / 105.0000 / 105.0000 |
+| tintSurfaceReuses | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| filteredFrameBuilds | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| coverageFieldRebuilds | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 4.0000 / 4.0000 | 0.0000 / 4.0000 / 4.0000 |
+| preparedHeightRebuilds | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 |
+| groundSourceOperations | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 30.0000 / 168.0000 / 222.0000 | 30.0000 / 168.0000 / 213.0000 |
+| imageDataAllocations | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 2.0000 | 0.0000 / 0.0000 / 2.0000 | 0.0000 / 2.0000 / 2.0000 | 0.0000 / 2.0000 / 2.0000 |
+| capRunRequests | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 118.0000 / 120.0000 / 120.0000 | 118.0000 / 120.0000 / 122.0000 |
+| flatSourceRequests | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 255.0000 / 273.0000 / 273.0000 | 255.0000 / 273.0000 / 273.0000 |
+| capRunComposites | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 7.0000 / 24.0000 / 33.0000 | 7.0000 / 24.0000 / 29.0000 |
+| flatSourceComposites | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 5.0000 / 39.0000 / 55.0000 | 5.0000 / 39.0000 / 53.0000 |
+| groundSourceReuses | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 358.0000 / 387.0000 / 389.0000 | 358.0000 / 387.0000 / 391.0000 |
+| receiverSamples | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 301.0000 / 312.0000 / 312.0000 | 302.0000 / 313.0000 / 313.0000 |
+| receiverCandidates | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 840.0000 / 872.0000 / 877.0000 | 841.0000 / 872.0000 / 878.0000 |
+| receiverFullLoopCandidates | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 0.0000 / 0.0000 / 0.0000 | 102942.0000 / 106704.0000 / 106704.0000 | 103284.0000 / 107359.0000 / 107359.0000 |
+| saveCalls | 577.0000 / 610.0000 / 612.0000 | 576.0000 / 610.0000 / 611.0000 | 578.0000 / 606.0000 / 612.0000 | 578.0000 / 611.0000 / 612.0000 | 577.0000 / 604.0000 / 611.0000 | 578.0000 / 605.0000 / 611.0000 |
+| restoreCalls | 577.0000 / 610.0000 / 612.0000 | 576.0000 / 610.0000 / 611.0000 | 578.0000 / 606.0000 / 612.0000 | 578.0000 / 611.0000 / 612.0000 | 577.0000 / 604.0000 / 611.0000 | 578.0000 / 605.0000 / 611.0000 |
+| saveRestorePairs | 577.0000 / 610.0000 / 612.0000 | 576.0000 / 610.0000 / 611.0000 | 578.0000 / 606.0000 / 612.0000 | 578.0000 / 611.0000 / 612.0000 | 577.0000 / 604.0000 / 611.0000 | 578.0000 / 605.0000 / 611.0000 |
+| surfaceAllocations | 0.0000 / 1.0000 / 1.0000 | 0.0000 / 1.0000 / 1.0000 | 0.0000 / 1.0000 / 1.0000 | 0.0000 / 1.0000 / 1.0000 | 0.0000 / 1.0000 / 1.0000 | 0.0000 / 1.0000 / 1.0000 |
+
+| Mode | Original → retained mean item count | Difference | Original → retained long tasks ≥50 ms | Retained lighting bytes |
+| --- | ---: | ---: | ---: | ---: |
+| basic | 718.8222 → 718.0622 | -0.1057% | 0 → 0 | 0 |
+| classic | 718.0000 → 718.4867 | 0.0678% | 0 → 0 | 161280 |
+| dynamic | 717.7712 → 718.0877 | 0.0441% | 1 → 2 | 97452352 |
+
+Painter building is now 1.5–1.6 ms p95 in this diagnostic, while whole-frame p95 remains 7.4 / 7.8 / 27.1 ms. Dynamic painterDraw remains 19.0 ms p95, including expensive lightingMerge, and two long tasks remain. No work was moved from build to draw to claim the improvement; all stages are disclosed. Basic keeps zero lighting bytes/work. A-6’s increased distinct source count and remaining plane-change composites are preserved in the counters. Further retained entity work, world filters, allocation ownership and required-scene qualification remain open.
+
+Physical iPad **owner to run**: System → Developer → Render → Run protocol + copy JSON, with Safari visible through all modes; use Copy capture JSON if deferred clipboard fails. Repeat World scale 1×/2×/Native, recording device/iPadOS/Safari/browser zoom and requiring the visible walking player, pond and cliff witnesses. No throttled-desktop substitution.
+
+Full repository gate is running in `check.log`, with source freeze `check-source-files.json`. No deployment or completed A-7 claim.
+
+Decoration checkpoint complete gate: **`npm run check` exit 0**, **622 files / 3,603 tests** pass; Vitest duration **885.05 s** (tests 723.90 s). All workspace typechecks, ESLint, lifecycle integrity, checked world build, coverage and asset validation pass. All eight frozen runtime/test hashes still match `check-source-files.json`. This is a committed A-7 substep; remaining entity retention and all previously disclosed scene/release gates stay open.

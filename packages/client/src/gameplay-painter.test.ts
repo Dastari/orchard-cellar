@@ -38,4 +38,31 @@ describe('retained gameplay painter', () => {
     basic.enqueueWorldDepth(24, 32, { footY: 32, tie: 'player:1', draw });
     expect(basic.movingCelestialCasters).toHaveLength(0);
   });
+  it('retains wrappers, updates fractional projection and receiver input, and preserves duplicate submissions', () => {
+    const context = { save: vi.fn(), restore: vi.fn(), translate: vi.fn() };
+    const receiver = vi.fn((_x: number, _y: number, draw: () => void) => draw());
+    const input = { terrain: terrainFixture(), context: context as unknown as CanvasRenderingContext2D,
+      scale: 1, seasonalDynamic: false, projectionAt: () => 0, drawWorldReceiver: receiver };
+    const source = { footY: 32, tie: 'tree:1', draw: vi.fn() };
+    const first = createGameplayPainter(input);
+    first.enqueueWorldDepth(24, 32, source);
+    const retained = first.worldDepthItems[0]!;
+    sortGameplayWorldDepthItems(first.worldDepthItems);
+    const next = createGameplayPainter({ ...input, scale: 2, projectionAt: () => 0.25 });
+    next.enqueueWorldDepth(28, 32, source, 31, 'flat');
+    next.enqueueWorldDepth(29, 32, source, 30, 'south');
+    expect(next.worldDepthItems[0]).toBe(retained);
+    expect(next.worldDepthItems[1]).not.toBe(retained);
+    expect(next.worldDepthItems.map(item => item.footY)).toEqual([31.75, 31.75]);
+    sortGameplayWorldDepthItems(next.worldDepthItems);
+    for (const item of next.worldDepthItems) item.draw();
+    expect(context.translate).toHaveBeenCalledWith(0, -0.5);
+    expect(receiver).toHaveBeenNthCalledWith(1, 28, 31, source.draw, 'flat');
+    expect(receiver).toHaveBeenNthCalledWith(2, 29, 30, source.draw, 'south');
+    expect(source.draw).toHaveBeenCalledTimes(2);
+    const changed = createGameplayPainter({ ...input, terrain: terrainFixture() });
+    changed.enqueueWorldDepth(24, 32, source);
+    expect(changed.worldDepthItems[0]).not.toBe(retained);
+  });
+
 });
