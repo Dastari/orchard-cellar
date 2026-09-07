@@ -460,7 +460,7 @@ repeatable production loop.
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
 - [ ] Doc 59 A-6 / P5 — Retained per-run ground tint sources — IN PROGRESS: codex, 2026-09-07
-  - Next exact follow-up: profile and hoist constant light-plane projection from per-texel sampling; claim/artifacts in doc 59. A-5 CPU post-lighting reconstruction is OPEN after three failed transparency representations.
+  - Constant plane projection and caller-owned RGB sampling are implemented: 628 files / 3,612 tests pass; all ten Canvas boards are exact. Updated spawn diagnostic p95 Basic 5.8 ms, Dynamic 16.8 ms, merge 7.4 ms, zero long tasks. Before/after comparison is rejected for content/walking changes and the missing pond. A-5 CPU post-lighting reconstruction remains OPEN after three failed transparency representations; see doc 59.
 - [ ] Doc 59 A-3 / P4 — Exact spatial receiver candidates — IN PROGRESS: codex, 2026-09-07
 - [ ] Doc 59 A-7 / P6b — Mechanical painter-producer extraction, producer attribution and retained commands — IN PROGRESS: codex, 2026-09-07
   - Decoration indexing and entity source-command retention are implemented. Latest matched spawn diagnostic: painterBuild p95 1.5 / 1.8 / 1.7 ms (Basic / Classic / Dynamic), all ten Canvas goldens exact. Authentication is resolved through the ordinary test account; its pond route is OPEN. Nested draw/terrain closures, qualified scene review and release gates remain open; see doc 59 entity-retention ledger.

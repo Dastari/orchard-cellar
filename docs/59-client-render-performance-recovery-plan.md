@@ -3431,3 +3431,95 @@ Shared transport: `output/perf-59-20260907/P0/shared-proxy/` contains an output-
 IN PROGRESS: codex, 2026-09-07. While the three-attempt A-5 reconstruction path is OPEN, continue independent exact Canvas work. Source inspection finds the light-plane sampler calls `mapper.projectedY(y, level)` for every texel, which recomputes the same terrain projection and allocates a filtered profile-row array each time. Profile Dynamic before changing it, then hoist only the frame-constant level projection outside the raster callback in `world-lighting-renderer.ts`; verify exact pixel fixtures and matched stages/counters. This is within the existing A-6 renderer ownership. Artifacts will be `output/perf-59-20260907/P5/plane-sampling/`. The minimap/placement mechanical extraction is prepared outside the checked tree and remains subsequent work; no logic in main has changed.
 
 A-6 attribution scope refinement: `plane-before-profile.json`, `.cpuprofile`, `.heapprofile` and `before-attribution.json` show **8,133.833 ms sampled self CPU** at `raisedTerrainProjectionRowsPerLevel`, **1,347.934 ms** at raster `merge`, and **421.483 ms** at `sampleReceiverLight`; CPU/heap profiling overhead is included and these are not unprofiled stage percentiles. The profile workload also reports `local_player_not_walking` and `no_pond`, so it is not an exit sample. Engine/sim source maps are archived in `before-dist/`; private producer wrapper maps remain unqualified for source-site attribution. Alongside projection hoisting, remove the per-texel channel closure and add an optional caller-owned RGB destination to `lighting.ts`, with a new numeric helper. Existing ordinary callers keep independent result objects. Plane raster callbacks reuse one scratch RGB and consume it synchronously. This minimal scope extension is recorded in DECISIONS; interpolation order and zero/outside-plane behavior must remain exact.
+
+### A-6 synchronous light-plane sampling checkpoint — 2026-09-07
+
+Artifacts: `output/perf-59-20260907/P5/plane-sampling/`. Files: `packages/engine/src/lighting.ts`, `world-lighting-renderer.ts`, new `receiver-rgb-sampling.ts`, `receiver-rgb-sampling.test.ts`, `world-lighting-plane-sampling.test.ts`.
+
+The synchronous Canvas plane raster now computes the terrain projection once per level and reuses one RGB result. `lighting.ts` retains independent objects for ordinary callers. The extracted numeric helper preserves the previous bilinear arithmetic order and rounding exactly. Runtime base is 3789fae0; `source-files.json` records the five changed runtime/test files. No world state, shader, source artwork or filter changes.
+
+Focused validation: five files / eleven tests pass, including 600 moving frames, two levels with a signed terrain datum, 43,200 checked sample coordinates, one RGB destination and bounded projection calls. Engine types and scoped lint pass. All ten standard Canvas fixture PNGs are byte-identical to db82f63f (`goldens/comparison.json`), including the HUD witness; all 36 original atlases are unchanged in both canonical and private assets (`original-atlases.json`). The world fixture and local gameplay screenshot were visually inspected. This is not the pending shared minute-per-setting review.
+
+Measurement commands: private `npx vite build --config <artifact>/vite.config.ts --mode client-production`; `python3 <artifact>/capture.py plane-before-canvas-1x --legacy`; then `python3 <artifact>/capture.py plane-after-canvas-1x`. The output-only A/B module swaps the previous and current class prototype methods before warm-up; there is no per-texel selection branch. Both variants run in the same authenticated ordinary test connection. No build, full check or CPU/heap sampler ran during these timing captures.
+
+Device: AMD Ryzen 9 9955HX, Linux 6.17.2-1-pve, HeadlessChrome 152.0.7977.64, 1280×720, DPR 1, browser zoom 1, world zoom 2, Canvas 1×, presentation cap off, no CPU throttling. Each mode uses a five-second warm-up and thirty-second active-rAF sample, summer, seed 1329809490, camera (7088,6146), 625-ms walking legs and the protocol sunset RGB step. Exact device/source/settings metadata accompanies every JSON.
+
+**Comparison rejected:** the earlier suite detects content revision changes from `dfdf555b:21a3c554:4:398`, plus an obstructed walking witness in Dynamic. The updated suite has stable revision `dfdf555b:21a3c554:4:405` and passes walking; both lack the required pond. Therefore these are side-by-side diagnostics, not an A-1 exit or a causal speedup claim. The updated suite records Basic / Classic / Dynamic whole-frame p95 5.799999 / 6.600000 / 16.800001 ms, Dynamic merge p95 7.400000 ms, and zero ≥50-ms long tasks in all three modes. The earlier diagnostic records 6.099998 / 7.199999 / 23.500000 ms and Dynamic merge 14.700001 ms. All 22 stages and 22 counters are in `tables.md`, with original JSON precision retained in the capture files.
+
+The separate CPU/heap diagnostics (`plane-{before,after}-profile.*`, `{before,after}-attribution.json`) confirm the targeted terrain-profile function is no longer a dominant sampler site: sampled self CPU is 8,133.833 ms in the 40,204.494-ms before window and 14.912 ms in the 40,181.999-ms after window. These include profiling overhead and differ in world workload; they are attribution, not wall-stage performance measurements. The next large mapped site is the raster merge itself (2,324.335 ms sampled self CPU after), followed by terrain depth and shadow sampling. Source maps for the original capture are archived in `before-dist/`; private wrapper mappings are not used to claim producer allocation types.
+
+Basic has zero retained lighting bytes and zero lighting-work counters; Basic and Classic own no omit pages. Classic keeps its amended legacy lightmap. Maximum decoded page size remains 4 MiB. Dynamic still has walking-dependent ground composites and whole-client surface allocations; the minimap allocation remains pending. No whole-frame allocation-free claim.
+
+The renewal helper initially reported `Expected ordinary sign-in page` because the test client was already connected after reload. A direct state check confirmed an authenticated world and the installed A/B module; no credentials or owner session were needed. The owner's canonical shared tab is connected but reports `document.visibilityState === 'hidden'`; active-rAF qualification remains unavailable there.
+
+Physical iPad: **owner to run**. In the pond/cliff scene with a carried lantern, open System → Developer → Render → **Run protocol + copy JSON**, enter device, OS, browser, zoom and candidate commit, and save the JSON here. Repeat at 1×, 2× and Native. Keep any failed workload witnesses. Hardware WebGL is also owner to run; these samples use Canvas.
+
+Full `npm run check` is running in `check.log`, with result in `check.exit`. Source hashes are frozen in `source-files.json`. Release remains HOLD for the disclosed technical gates; deployment authorization is already recorded.
+
+All stage timings in milliseconds, **p50 / p95 / p99**. Nested intervals must not be summed.
+
+| Stage | Before Basic | Before Classic | Before Dynamic | Updated Basic | Updated Classic | Updated Dynamic |
+|---|---|---|---|---|---|---|
+| whole frame | 5 / 6.099998 / 7.300001 | 5.799999 / 7.199999 / 8.700001 | 15.4 / 23.5 / 26.5 | 4.9 / 5.799999 / 6.700001 | 5.6 / 6.6 / 8.199999 | 9.299999 / 16.800001 / 20.9 |
+| snapshotPrepare | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 |
+| ground | 0.300001 / 0.400002 / 0.5 | 0.300001 / 0.5 / 0.5 | 0.299999 / 0.400002 / 0.5 | 0.300001 / 0.400002 / 0.5 | 0.299999 / 0.400002 / 0.5 | 0.299999 / 0.400002 / 0.5 |
+| painterBuild | 1 / 1.4 / 1.6 | 1 / 1.4 / 1.700001 | 0.900002 / 1.300001 / 1.6 | 0.9 / 1.299999 / 1.5 | 0.900002 / 1.300001 / 1.6 | 0.900002 / 1.300001 / 1.699999 |
+| painterSort | 0.200001 / 0.300001 / 0.300001 | 0.200001 / 0.300001 / 0.4 | 0.200001 / 0.300001 / 0.300001 | 0.200001 / 0.300001 / 0.4 | 0.199999 / 0.300001 / 0.300001 | 0.200001 / 0.300001 / 0.300001 |
+| painterDraw | 1.299999 / 2 / 2.4 | 1.4 / 2 / 2.5 | 9.799999 / 15.699999 / 17.799999 | 1.299999 / 1.9 / 2.199999 | 1.4 / 1.900002 / 2.299999 | 5 / 11.699999 / 14.6 |
+| weather | 0 / 0.099998 / 0.1 | 0 / 0.099998 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0 / 0.1 | 0 / 0.099998 / 0.1 | 0 / 0.1 / 0.1 |
+| lightingBoundsResize | 0 / 0 / 0 | 0 / 0.1 / 0.199999 | 0 / 0.099998 / 0.1 | 0 / 0 / 0 | 0 / 0.1 / 0.199999 | 0 / 0.099998 / 0.1 |
+| lightingOcclusionRaster | 0 / 0 / 0 | 0 / 0.200001 / 0.4 | 0 / 0.299999 / 0.4 | 0 / 0 / 0 | 0 / 0.199999 / 0.4 | 0 / 0.200001 / 0.4 |
+| lightingSolve | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 0 / 0.200001 / 0.200001 | 0 / 0 / 0 | 0 / 0.1 / 0.199999 | 0.1 / 0.200001 / 0.200001 |
+| lightingMerge | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 8.300001 / 14.700001 / 16.299997 | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 1.9 / 7.4 / 8.200003 |
+| lightingUpload | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0.200001 / 0.299999 | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0.200001 / 0.299999 |
+| lightingReceiver | 0 / 0 / 0 | 0 / 0 / 0 | 0.4 / 0.700001 / 0.900002 | 0 / 0 / 0 | 0 / 0 / 0 | 0.4 / 0.700001 / 0.9 |
+| lightingComposite | 0 / 0 / 0.099998 | 0 / 0.1 / 0.1 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| finalWorldComposite | 1.200001 / 1.699999 / 1.9 | 1.799999 / 2.300001 / 2.900002 | 0.6 / 1.9 / 2.1 | 1.199999 / 1.6 / 1.800001 | 1.700001 / 2.200001 / 2.599998 | 1.1 / 2.4 / 2.6 |
+| uiModel | 0.299999 / 0.4 / 0.5 | 0.299999 / 0.400002 / 0.5 | 0.299999 / 0.400002 / 0.5 | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.4 / 0.5 |
+| uiLayout | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.699999 | 0.4 / 0.5 / 0.599998 | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.6 |
+| uiDraw | 0.4 / 0.700001 / 1 | 0.4 / 0.700001 / 1.1 | 0.4 / 0.699999 / 1 | 0.4 / 0.6 / 1 | 0.4 / 0.6 / 1 | 0.4 / 0.6 / 1.099998 |
+| fixedUpdate | 0.200001 / 0.300001 / 0.4 | 0.200001 / 0.300001 / 0.400002 | 0.199999 / 0.300001 / 0.4 | 0.199999 / 0.300001 / 0.4 | 0.200001 / 0.300001 / 0.4 | 0.199999 / 0.300001 / 0.4 |
+| catchUp | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0.200001 / 0.300001 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Per-frame counters, **p50 / p95 / p99**:
+
+| Counter | Before Basic | Before Classic | Before Dynamic | Updated Basic | Updated Classic | Updated Dynamic |
+|---|---|---|---|---|---|---|
+| drawImageCalls | 943 / 1004 / 1018 | 937 / 994 / 1019 | 954 / 1082 / 1132 | 931 / 956 / 956 | 932 / 957 / 957 | 957 / 1104 / 1159 |
+| distinctDrawImageSources | 30 / 32 / 32 | 31 / 33 / 33 | 398 / 407 / 408 | 30 / 30 / 31 | 31 / 31 / 32 | 398 / 415 / 417 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 1 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 7 / 8 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 | 99 / 110 / 110 | 0 / 0 / 0 | 0 / 0 / 0 | 100 / 109 / 110 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 4 / 4 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 4 / 4 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 | 24 / 132 / 192 | 0 / 0 / 0 | 0 / 0 / 0 | 21 / 138 / 192 |
+| imageDataAllocations | 0 / 0 / 0 | 0 / 0 / 2 | 0 / 0 / 2 | 0 / 0 / 0 | 0 / 0 / 2 | 0 / 0 / 2 |
+| capRunRequests | 0 / 0 / 0 | 0 / 0 / 0 | 118 / 118 / 118 | 0 / 0 / 0 | 0 / 0 / 0 | 118 / 122 / 122 |
+| flatSourceRequests | 0 / 0 / 0 | 0 / 0 / 0 | 253 / 263 / 263 | 0 / 0 / 0 | 0 / 0 / 0 | 253 / 271 / 273 |
+| capRunComposites | 0 / 0 / 0 | 0 / 0 / 0 | 3 / 21 / 29 | 0 / 0 / 0 | 0 / 0 / 0 | 3 / 20 / 27 |
+| flatSourceComposites | 0 / 0 / 0 | 0 / 0 / 0 | 4 / 35 / 50 | 0 / 0 / 0 | 0 / 0 / 0 | 4 / 37 / 50 |
+| groundSourceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 362 / 381 / 381 | 0 / 0 / 0 | 0 / 0 / 0 | 363 / 385 / 390 |
+| receiverSamples | 0 / 0 / 0 | 0 / 0 / 0 | 302 / 312 / 312 | 0 / 0 / 0 | 0 / 0 / 0 | 302 / 312 / 312 |
+| receiverCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 840 / 870 / 877 | 0 / 0 / 0 | 0 / 0 / 0 | 839 / 870 / 877 |
+| receiverFullLoopCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 103284 / 106704 / 106704 | 0 / 0 / 0 | 0 / 0 / 0 | 103284 / 106704 / 106704 |
+| saveCalls | 565 / 583 / 584 | 565 / 584 / 585 | 565 / 584 / 584 | 564 / 583 / 583 | 565 / 584 / 584 | 570 / 604 / 608 |
+| restoreCalls | 565 / 583 / 584 | 565 / 584 / 585 | 565 / 584 / 584 | 564 / 583 / 583 | 565 / 584 / 584 | 570 / 604 / 608 |
+| saveRestorePairs | 565 / 583 / 584 | 565 / 584 / 585 | 565 / 584 / 584 | 564 / 583 / 583 | 565 / 584 / 584 | 570 / 604 / 608 |
+| surfaceAllocations | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 0 / 1 |
+
+| Evidence | Before Basic | Before Classic | Before Dynamic | Updated Basic | Updated Classic | Updated Dynamic |
+|---|---|---|---|---|---|---|
+| Captured frames | 1797 | 1799 | 1670 | 1800 | 1799 | 1790 |
+| Long tasks ≥50 ms | 1 | 0 | 0 | 0 | 0 | 0 |
+| Maximum long task ms | 51 | 0 | 0 | 0 | 0 | 0 |
+| Render items p50/p95/p99 | 716 / 738 / 738 | 716 / 738 / 738 | 716 / 738 / 738 | 716 / 738 / 738 | 716 / 738 / 738 | 716 / 738 / 738 |
+| Lighting retained bytes at end | 0 | 161280 | 94664978 | 0 | 161280 | 97242815 |
+| Omit-page decoded bytes at end | 0 | 0 | 72515584 | 0 | 0 | 72515584 |
+| Largest decoded page bytes | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 |
+| Workload failures | seed_season_or_content_changed, no_pond | seed_season_or_content_changed, no_pond | seed_season_or_content_changed, local_player_not_walking, no_pond | no_pond | no_pond | no_pond |
+
+Plane sampling checkpoint complete gate: Full `npm run check` **passes (exit 0): 628 files / 3,612 tests**, 865.60 s (704.36 s tests). Lifecycle integrity, world build, all types, lint, coverage and asset validation pass. All five frozen source hashes still match the measured candidate. Release remains HOLD for the disclosed technical gates; deployment authorization is already recorded.

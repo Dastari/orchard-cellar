@@ -1,3 +1,4 @@
+import { sampleReceiverRgb, blackReceiverRgb, type ReceiverRgbDestination } from './receiver-rgb-sampling.js';
 import { authorityDayProgress, dayProgressAtClockTime, lunarIlluminationAtAuthorityTick } from '@orchard/sim';
 import {
   LIGHT_BANDS,
@@ -649,19 +650,13 @@ export class TileLightmap {
 
   /** Pure RGB sampling of the requested receiver plane, with no emitter loop.
    * The legacy screen-composite field is deliberately not used here. */
-  sampleReceiverLight(worldX: number, projectedWorldY: number, elevation: number, receiver: 'flat' | 'south' | 'omni' = 'flat'): RgbColor {
+  sampleReceiverLight(worldX: number, projectedWorldY: number, elevation: number, receiver: 'flat' | 'south' | 'omni' = 'flat', destination?: ReceiverRgbDestination): RgbColor {
     const buffer = (receiver === 'south' ? this.receiverFaceRgbByElevation : this.receiverPixelsByElevation).get(elevation);
-    if (buffer === undefined || !this.retainedReceiverFields) return { r: 0, g: 0, b: 0 };
+    if (buffer === undefined || !this.retainedReceiverFields) return blackReceiverRgb(destination);
     const width = this.preparedTileWidth * LIGHT_TEXELS_PER_TILE, height = this.preparedTileHeight * LIGHT_TEXELS_PER_TILE;
     const x = lightmapCoordinate(worldX, this.preparedMinTileX, LIGHT_TEXELS_PER_TILE);
     const y = lightmapCoordinate(projectedWorldY, this.preparedMinTileY, LIGHT_TEXELS_PER_TILE);
-    if (x < 0 || y < 0 || x >= width || y >= height) return { r: 0, g: 0, b: 0 };
-    const x0 = Math.floor(x), y0 = Math.floor(y), x1 = Math.min(width - 1, x0 + 1), y1 = Math.min(height - 1, y0 + 1);
-    const fx = x - x0, fy = y - y0;
-    const channel = (c: number) => Math.round(
-      (buffer[(y0 * width + x0) * 4 + c]! * (1 - fx) + buffer[(y0 * width + x1) * 4 + c]! * fx) * (1 - fy)
-      + (buffer[(y1 * width + x0) * 4 + c]! * (1 - fx) + buffer[(y1 * width + x1) * 4 + c]! * fx) * fy);
-    return { r: channel(0), g: channel(1), b: channel(2) };
+    return sampleReceiverRgb(buffer, width, height, x, y, destination);
   }
 
   private southFaceLayer(elevation: number, cellCount: number): Uint8Array {

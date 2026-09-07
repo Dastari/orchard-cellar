@@ -38,6 +38,7 @@ export class WorldLightingRenderer {
   private lightmap: TileLightmap | null = null;
   private localSourceRevision = -1;
   private localRevision = 0;
+  private readonly localSample = { r: 0, g: 0, b: 0 };
   receiverMs = 0;
   mergeMs = 0;
   uploadMs = 0;
@@ -78,8 +79,10 @@ export class WorldLightingRenderer {
     const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
     const width = Math.ceil(this.width / step) + 3, height = Math.ceil(this.height / step) + 3;
     const mergeStarted = performance.now();
+    // The level projection is constant for this synchronous plane raster.
+    const projection = this.mapper.projectionAtLevel(level);
     const raster = this.scene.rasterizeCached(this.localRevision, left, top, width, height, this.mapper.heightAtLevel(level), step,
-      (x, y) => this.lightmap!.sampleReceiverLight(x, this.mapper.projectedY(y, level), level));
+      (x, y) => this.lightmap!.sampleReceiverLight(x, y - projection, level, 'flat', this.localSample));
     this.mergeMs += performance.now() - mergeStarted;
     let upload = this.uploads.get(level);
     if (upload === undefined) {
