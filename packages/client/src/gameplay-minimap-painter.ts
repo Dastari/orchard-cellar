@@ -46,11 +46,12 @@ export function createGameplayMinimap(inputs: MinimapInputs) {
       Math.ceil(rect.height),
     ].join(':');
     if (minimapTerrainCache?.key !== cacheKey) {
-      const cacheCanvas = document.createElement('canvas');
-      cacheCanvas.width = Math.ceil(rect.width);
-      cacheCanvas.height = Math.ceil(rect.height);
+      const cacheCanvas = minimapTerrainCache?.canvas ?? document.createElement('canvas');
+      if (cacheCanvas.width !== Math.ceil(rect.width)) cacheCanvas.width = Math.ceil(rect.width);
+      if (cacheCanvas.height !== Math.ceil(rect.height)) cacheCanvas.height = Math.ceil(rect.height);
       const cacheContext = cacheCanvas.getContext('2d');
       if (cacheContext !== null) {
+        cacheContext.clearRect(0, 0, cacheCanvas.width, cacheCanvas.height);
         cacheContext.imageSmoothingEnabled = false;
         for (let row = 0; row < rows; row += 1) {
           for (let column = 0; column < columns; column += 1) {

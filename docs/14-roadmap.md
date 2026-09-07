@@ -459,8 +459,8 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
-- [ ] Doc 59 P7 allocation follow-up — Extract the minimap painter, then retain its canvas — IN PROGRESS: codex, 2026-09-07
-  - Mechanical minimap extraction passes 628 files / 3,612 tests; the callback body hash is exact and the private client connects. Canvas reuse follows separately, preserving live tracking/resource markers and exact HUD pixels. Evidence under P7/minimap-extraction and P7/minimap-reuse.
+- [x] Doc 59 P7 allocation follow-up — Extract the minimap painter, then retain its canvas — COMPLETE: codex, 2026-09-07
+  - Mechanical extraction and canvas reuse complete; full check 629 files / 3,614 tests green. 600-frame callback pixels exact, 40 old allocations versus one initial canvas; all updated gameplay modes have zero surface allocations. Initial Classic timing has five long tasks, repeat has zero; no whole-frame speedup claim. Ten Canvas boards and 36 originals exact. Missing-pond/shared-review gates remain OPEN. Evidence under P7/minimap-extraction and P7/minimap-reuse.
 
 - [ ] Doc 59 A-6 / P5 — Retained per-run ground tint sources — IN PROGRESS: codex, 2026-09-07
   - Constant plane projection and caller-owned RGB sampling are implemented: 628 files / 3,612 tests pass; all ten Canvas boards are exact. Updated spawn diagnostic p95 Basic 5.8 ms, Dynamic 16.8 ms, merge 7.4 ms, zero long tasks. Before/after comparison is rejected for content/walking changes and the missing pond. A-5 CPU post-lighting reconstruction remains OPEN after three failed transparency representations; see doc 59.
