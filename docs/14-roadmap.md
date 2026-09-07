@@ -459,6 +459,8 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
+- [ ] Doc59 A-11 — Padded static coverage reuse — IN PROGRESS: codex, 2026-09-08. Exact Canvas work first:128px padding,64px alignment, viewport working crops, bounded ownership/reset. Follow A-12/A-13 before GPU amendments. Basic6.3ms accepted as met; A-19 preparation only, no deployment. Evidence output/perf-59-20260908/P4/A11/.
+
 - [x] Doc 59 P7 allocation follow-up — Extract the minimap painter, then retain its canvas — COMPLETE: codex, 2026-09-07
   - Mechanical extraction and canvas reuse complete; full check 629 files / 3,614 tests green. 600-frame callback pixels exact, 40 old allocations versus one initial canvas; all updated gameplay modes have zero surface allocations. Initial Classic timing has five long tasks, repeat has zero; no whole-frame speedup claim. Ten Canvas boards and 36 originals exact. Missing-pond/shared-review gates remain OPEN. Evidence under P7/minimap-extraction and P7/minimap-reuse.
 

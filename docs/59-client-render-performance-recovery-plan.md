@@ -712,6 +712,74 @@ work, any order) → A-8 bug fixes and enable-gate qualification → allocation
 attribution (whole-client `surfaceAllocations` p95 1 must be owned) → final
 desktop capture → owner-run iPad and GPU captures → release request.
 
+
+### 8.1 Second-pass amendments (2026-09-07)
+
+State: candidate `0685bc82`, A-1 diagnostic workload (no pond), desktop 1×
+p95 Basic 6.3 / Classic 7.8 / Dynamic 16.2 ms; `painterBuild` 1.4 ms in every
+mode (A-7 achieved); Dynamic `lightingMerge` 7.5 ms p95 against 1.8 ms p50;
+WebGL2 lit paths latched to Canvas on clip paths, downsampling and filters.
+
+**A-11 Static coverage hysteresis (Dynamic merge spike).** The static
+coverage field is keyed on the camera's 4-px window, so each 4-px camera step
+re-blits every caster. Key it instead on a padded window (viewport plus 128
+world px per side, aligned to 64 px) and reuse it while the camera stays
+inside; the working copy still covers the viewport. Same masks, same texels:
+the result is exact. Exit: static coverage rebuilds only on 64-px boundary
+crossings; `lightingMerge` p95 recorded.
+
+**A-12 Local-light dirty rectangles.** `receiverRevision` advances on every
+quarter-pixel lightmap rebuild and forces a full plane RGB merge. The
+lightmap exposes the changed world bounds per rebuild (union of changed
+lights' radii). The plane merge re-merges only texels inside that rectangle
+plus one texel of bilinear margin; `localRevision` advances only when the
+rectangle intersects the plane. Exact. Exit: Dynamic `lightingMerge` p95
+≤ 1.5 ms on A-1; Dynamic whole-frame p95 remeasured against the 10 ms target.
+
+**A-13 Present pass.** When the fractional remainder of the two-stage upscale
+is exactly 1 (integer device zoom), skip the smoothing pass; the pixels are
+identical. Exit: `finalWorldComposite` p95 recorded (currently 2.0 ms Basic).
+
+**A-14 WebGL sampling gates.** Integer-ratio draws are the supported set and
+must be exact via integer texel arithmetic (`texelFetch`), never interpolated
+UVs. Non-integer-ratio nearest draws are a sampling-rule difference, not a
+colour error: for the *experimental-enable* gate they qualify under a
+texel-shift rule (source texel index differs by at most one on the
+coordinate-coded probe; colour steps are not the measure). The *default-on*
+gate remains exact. Add a per-producer counter of non-integer-ratio world
+draws on the A-1 workload and record it; where a producer can become
+integer-ratio without changing Canvas output, do so.
+
+**A-15 Cutaway edges.** For the experimental-enable gate only: within a 1-px
+band around clip-path edges, at most four steps; outside the band at most two;
+at most 1 % of channels above one overall; HUD exact. Residuals must be shown
+to lie in the band (attribution image). The Canvas cutaway path is unchanged.
+
+**A-16 Dim and hit flash.** CSS filters unpremultiply with 8-bit rounding, so
+translucent pixels cannot match a premultiplied derivation. CPU variants: at
+most two steps on opaque pixels, at most eight on pixels with alpha below
+255. WebGL draws the CPU-derived variant pages as textures instead of
+deriving brightness and saturation in the shader; parity with the Canvas path
+is then by construction.
+
+**A-17 Fallback accounting.** Session latching on an unverified operation
+stays. After A-14 to A-16, the A-1 workload must encounter zero fallback
+reasons with the toggle on; record the encountered set per run. The toggle
+is useless while any gameplay path latches.
+
+**A-18 Workload and review.** Two pinned routes are acceptable: the cliff and
+carried-light route already in use, and a pond route. Report both. The shared
+browser is not required for visual review; Playwright screenshots under
+`output/` are the evidence and the owner reviews them.
+
+**A-19 Release decoupling (owner decision, pending "Go").** Canvas gains ship
+as 0.6.0 independently of WebGL parity. Until the experimental-enable gates
+pass, the WebGL toggle moves from Video to Developer settings so no player
+sees a control that always falls back; it returns to Video in 0.6.x.
+
+Order: A-11, A-12, A-13 (exact Canvas, remeasure Dynamic) → A-16 → A-14 →
+A-15 → A-17 qualification on A-1 → release request per A-19.
+
 ## 9. Bookkeeping and execution ledger
 
 ### 2026-09-06 — plan authored
@@ -4084,3 +4152,7 @@ The remaining callback change is committed as **92a4adf2**; its reverse-order Cl
 A new held static candidate embeds **0685bc82aba7930890ce536e5d8de2329a5e2fa9**: `output/perf-59-20260907/release/client-0.6.0-0685bc82.tar`, SHA256 **045be414726a3bf7029e0b0e4996dd7f2b50497e0a56f323d82c2557d659c666**, 36239360 bytes. Production-mode build and chunk check pass;2,046 build-input files match the integrator. All439 archived static files match the manifest. Private normal-account reconnect preserves identity, position,48 inventory slots and wallet, and returns to Canvas1×/Basic. This proves candidate reconnect only, not a future live postflight.
 
 Read-only live validation at2026-09-07T11:22:41Z confirms all384 served files still match the original0.5.7 rollback, with no extra files. The rollback tar also matches its manifest, SHA2567fa8d720be56039a58bd99c1a6d0e825d48cf1716f2047bb0d3aa1fc265bf3ac, retained at `output/perf-59-20260906/release/client-dist-before-0.6.0.tar`. Public/static validation passes. The refreshed `release/README.md` records P0–P8 scope/gaps, every artifact and the already-existing conditional deployment authorization; `release/commands.md` contains exact proposed build/publication/rollback commands. **None of the live commands ran.** A-5/A-8 pixel failures, scene/shared review and unproven Classic non-regression keep release HOLD; iPad/hardware GPU remain owner to run. Current full stage/counter tables are the preceding checkpoint and reverse repeat, with no new timing claim for packaging.
+
+### A-11 padded static coverage claim — 2026-09-08
+
+IN PROGRESS: codex,2026-09-08. Apply the owner-provided §8.1 and matching2026-09-07 DECISIONS row. Basic6.3ms is accepted as meeting its target; painterBuild1.4ms meets A-7's timing target. Dynamic lightingMerge1.8ms p50/7.5ms p95 is the first priority. A-11 owns `receiver-lighting.ts`, `receiver-coverage.ts`, their tests and new bounded modules: retain a128-world-pixel padded static field aligned to64px, crop identical texels for viewport working coverage, keep moving masks unchanged, and preserve invalidation/budget/disposal. Test camera motion, grid phases, signed coordinates/heights, sky/static revisions and exact direct-blit comparison before measured before/after capture. Artifacts `output/perf-59-20260908/P4/A11/`. No main-file edit. The documentation claim includes the owner's already-present uncommitted amendment files and reuses the unchanged633-file/3627-test runtime gate. A-18 replaces shared-browser qualification with Playwright screenshot evidence and permits two pinned routes. A-19 remains preparation pending owner Go; do not deploy.
