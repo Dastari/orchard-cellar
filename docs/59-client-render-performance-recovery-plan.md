@@ -3118,3 +3118,38 @@ A-3 implementation complete gate: **`npm run check` exit 0**, **619 files / 3,59
 IN PROGRESS: codex, 2026-09-07. Exact receiver indexing is committed as **d9d5ac92**, full check **619 files / 3,592 tests** green; authenticated exits stay pending under A-10. Continue the independent A-6 Canvas fix without marking A-7/A-3 complete. Scope: `packages/engine/src/world-lighting-renderer.ts`, new run-cache modules/tests and `packages/ui/src/render-operation-counters.ts` for separate native/cap/sprite attribution. Keep every run in painter order, retain shared bounded pages, key source rectangles and world placement exactly, and verify raster identity/revision/window changes. Where a plane changed, compare its retained CPU texels over the run's complete smoothing support before repainting; unchanged local input can reuse exact pixels without world readback. Fixtures must prove alpha/cutaway composition, window edges and moving changes. No source artwork changes.
 
 `output/perf-59-20260907/P5/ground-run-cache/` will contain source hashes, exact goldens, allocation/counter evidence and the repeated authenticated stage tables when access returns. iPad **owner to run** through System → Developer → Render → Run protocol + copy JSON for 1×/2×/Native with device/iPadOS/Safari/browser zoom. The preceding unchanged runtime full gate is the gate for this documentation claim. A-6's old counter-unit contradiction is corrected explicitly in §8 and DECISIONS, preserving historical raw values.
+
+A-6 validation scope correction: `world-lighting-renderer.test.ts` now asserts the explicit `false` cap-run argument for flat artwork. The initial focused run passed 12/13 tests and exposed only this old four-argument spy expectation; all existing rectangle, source-scope and no-anchor-tint assertions remain. No production lighting behavior was changed to satisfy the test.
+
+A-6 first implementation finding: all ten existing PNG goldens were byte-identical, but the additional overlapping translucent-run fixture found maximum **2 steps / 1,855 changed channels** at 1× for its initial frame, with 2×/3× exact. Artifacts and source snapshots: `P5/ground-run-cache/shared-page-attempt/`. Shared ground-run tint pages therefore do not satisfy the added exact fixture. Retain bounded original-size canvases per run and recycle them on eviction, preserving the old whole-canvas draw path; keep the existing sprite tint pages. This source-count/performance tradeoff requires the pending gameplay measurement and is recorded in DECISIONS.
+
+### A-6 original-size ground cache implementation checkpoint — 2026-09-07
+
+Each immutable cap/flat-art source now retains its tinted result at its original canvas dimensions and source rectangle. Exact numeric keys include source identity/rectangle, world placement, level and sampling step. A retained CPU-texel proof covers the complete smoothing support; unchanged local samples reuse the result even when a different lighting raster/window has the same revision, or a remote moving shadow changes the global plane. The proof never reads a world surface. Bounds: **8 MiB including pixel proofs, at most 512 cached surfaces, each at most 512×2048**. Eviction reuses an old surface; reset releases every canvas and byte. The three original tint operations and painter order remain unchanged. The WebGL raw-field path remains separate and unchanged.
+
+Files and exact hashes: `output/perf-59-20260907/P5/ground-run-cache/source-files.json`. This change removes the old per-call run scratch code in `world-lighting-renderer.ts`; new modules are `ground-run-cache.ts` and `ground-run-light-stamp.ts`, with `ground-run-cache.test.ts`. The existing world lifecycle test now asserts flat-source attribution explicitly. Shared render counters preserve `groundSourceOperations` as native three-draw work and add cap/flat request and composite counts plus ground-source reuses. New modules remain below 400 lines.
+
+Focused final validation: **4 files / 14 tests pass** (`tests-final.log`), including 600-frame reuse, revision/identity collision, local versus remote raster updates, window edges, sampling phase, source/level keys, byte/surface eviction, context loss, painting failure, reset and the existing world-readback grep guard. Engine typecheck and scoped lint pass. The first original-size test retry only exposed an assertion still counting one shared page's calls; the corrected assertion counts all owned surfaces and retains the expected total of 9 / 12 draws. No runtime code changed for that correction.
+
+All **ten standard Canvas PNGs are byte-identical** to A-3 (`goldens/golden-comparison.json`). The added real-Chromium fixture `cache-pixel-review.ts` compares every channel of overlapping translucent runs, an actor behind cutaway alpha, window/identity collisions, in-place lighting updates and the HUD witness at three draw scales. Final result: **18/18 comparisons exact, maximum 0 steps**, including the HUD. I inspected `cache-pixel-review.png` (reference left, cache right); the matching images support the byte comparison. Source/runner/result: `cache-pixel-review.ts`, `run-cache-pixels.mjs`, `cache-pixel-review.json`. These are **offline fixture results**, not active-rAF gameplay or a minute-per-setting review.
+
+| Offline fixture, per frame unless stated | Native ground operations | Cap composites | Flat composites | Reuses |
+| --- | ---: | ---: | ---: | ---: |
+| Original reference: eight runs every frame | 24 | 4 | 4 | 0 |
+| Cached initial frame | 24 | 4 | 4 | 0 |
+| Cached unchanged frame | 0 | 0 | 0 | 8 |
+| Changed raster window, colliding revision | 3 | 0 | 1 | 7 |
+| Nearby in-place light change | 9 | 2 | 1 | 5 |
+| New raster identity, equal contents | 0 | 0 | 0 | 8 |
+| Sampling-phase change | 24 | 4 | 4 | 0 |
+
+Each draw scale also ran **600 unchanged frames**: **0 new cache surfaces**, **0 composites**, **4,800 source reuses**. The cache retained **13,120 bytes / 8 surfaces**, then reset to **0 bytes / 0 surfaces**. These are cache-specific allocation diagnostics; native Canvas probes and whole-client surface allocation measurement are explicitly disabled in this fixture. Standard active-rAF capture must still measure distinct sources, whole-client allocations and all stages. Retaining eight full-size sources replaces one shared page/scratch source in this fixture; that source-count tradeoff is disclosed, not assumed to improve batching.
+
+| Required device evidence | Status |
+| --- | --- |
+| Desktop stage p50/p95/p99 and all per-frame counters | pending authenticated capture; no fixture timings substituted |
+| Physical iPad | owner to run — System → Developer → Render → Run protocol + copy JSON; repeat 1×/2×/Native, record device/iPadOS/Safari/browser zoom |
+
+The shared-page attempt and its two-step failure are preserved in `shared-page-attempt/`; the original-size replacement is exact. A-6 implementation validation proceeds with `npm run check` in `check.log`; authenticated exits, A-7 producer attribution and release remain open. No live deployment.
+
+A-6 full gate: **`npm run check` exit 0**, **620 files / 3,598 tests** pass; Vitest duration **897.46 s** (tests 743.15 s). All workspace typechecks, ESLint, lifecycle integrity, checked world build, coverage and asset validation pass. The six frozen source/test hashes still match `check-source-files.json`. The implementation checkpoint is green; authenticated all-stage/counter exits remain pending.

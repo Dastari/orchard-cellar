@@ -6,6 +6,7 @@ export const RENDER_COUNTER_IDS = [
   'drawImageCalls', 'distinctDrawImageSources', 'tintBuilds', 'tintReuses',
   'tintSurfaceReuses', 'filteredFrameBuilds', 'coverageFieldRebuilds',
   'preparedHeightRebuilds', 'groundSourceOperations', 'imageDataAllocations',
+  'capRunRequests', 'flatSourceRequests', 'capRunComposites', 'flatSourceComposites', 'groundSourceReuses',
   'receiverSamples', 'receiverCandidates', 'receiverFullLoopCandidates',
   'saveCalls', 'restoreCalls', 'saveRestorePairs', 'surfaceAllocations',
 ] as const;
@@ -15,6 +16,7 @@ export const renderOperationCounters: RenderCounterValues = {
   drawImageCalls: 0, distinctDrawImageSources: 0, tintBuilds: 0, tintReuses: 0,
   tintSurfaceReuses: 0, filteredFrameBuilds: 0, coverageFieldRebuilds: 0,
   preparedHeightRebuilds: 0, groundSourceOperations: 0, imageDataAllocations: 0,
+  capRunRequests: 0, flatSourceRequests: 0, capRunComposites: 0, flatSourceComposites: 0, groundSourceReuses: 0,
   receiverSamples: 0, receiverCandidates: 0, receiverFullLoopCandidates: 0,
   saveCalls: 0, restoreCalls: 0, saveRestorePairs: 0, surfaceAllocations: 0,
 };

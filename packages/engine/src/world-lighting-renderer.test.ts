@@ -48,7 +48,7 @@ describe('world lighting lifecycle', () => {
     world.drawReceiver(context, 64, 96, 2, 'flat', () => {
       expect(groundSpriteSource(context, source, 40, 49)).toBe(lit);
     });
-    expect(ground).toHaveBeenCalledWith(source, 40, 49, 2);
+    expect(ground).toHaveBeenCalledWith(source, 40, 49, 2, false);
     expect(groundSpriteSource(context, source, 40, 49)).toBe(source);
     expect(world.frames.allocations).toBe(0);
     expect(() => world.drawReceiver(context, 64, 96, 2, 'flat', () => { throw new Error('draw failed'); })).toThrow('draw failed');
