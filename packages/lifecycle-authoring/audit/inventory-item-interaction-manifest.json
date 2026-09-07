@@ -169,7 +169,7 @@
       "classification": "pure-presentation",
       "clientFile": "packages/client/src/overworld-main.ts",
       "clientAnchor": "drawToolInteractionOverlay(",
-      "serverFile": "packages/client/src/overworld-main.ts",
+      "serverFile": "packages/client/src/gameplay-painter-players.ts",
       "serverAnchor": "profile: equippedLight.profile === 'flicker' ? 'flame' : 'steady'",
       "rationale": "Sprites, labels, aim previews, authored light profiles, and held animations do not dispatch authority. Lantern and Torch toggle capability is independently lifecycle-owned."
     }

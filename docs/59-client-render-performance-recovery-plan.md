@@ -2979,3 +2979,93 @@ Claimed in M7.3 before source implementation. First extract all painter producer
 ### P6b verification prerequisite — isolated release dry-runs, 2026-09-07
 
 The release-script tests now execute the candidate script by absolute path using its required canonical operational working directory. No production shell script, target guard, or token assertion changes. This lets the isolated integration worktree run the same complete gate while unrelated Studio work continues in the canonical checkout. Files: `scripts/release-continuity.test.ts`, `packages/tools/src/world-release-script.test.ts`. Focused tests: 17 passed; scoped lint passes. Complete `npm run check` passes in the isolated worktree; Test Files  618 passed (618); Tests  3587 passed (3587); Duration  1011.81s (transform 8.52s, setup 0ms, import 110.26s, tests 816.60s, environment 41ms). Evidence: `output/perf-59-20260907/P6/painter-extraction/check-worktree.log`, `release-worktree-tests.log`, `release-worktree-lint.log`. The concurrent mechanical extraction is covered by that frozen gate and is committed separately next; this test-only prerequisite makes no rendering performance or deployment claim.
+
+A-1 provenance correction found during the P6b extraction capture: the first A-1 1× suite actually pinned camera origin **(5436.875, 5475.3125)**; the 2×/Native suites pinned **(5369.875, 5442.3125)**. The JSON workload identities and table counts are the authoritative records. The earlier prose calling all nine samples one origin was incorrect. All within-scale mode comparisons still pass, but no cross-scale improvement comparison involving that 1× suite is valid. The external driver now waits two active rAFs after setting the camera and asserts the reported origin. Product render/capture code is unchanged by this driver correction. The first extraction capture at (5457.875, 5494.3125) lost pond/cap visibility and is preserved as `P6/painter-extraction/canvas-1x-camera-setup-diagnostic.json`, explicitly unqualified.
+
+### A-7 / P6b mechanical painter extraction checkpoint — 2026-09-07
+
+Moved the setup, decoration, resource/crop/item, projectile, placeable, NPC and player producers into seven new modules, with three shared input types in `gameplay-painter-inputs.ts`. Main falls from 8,088 to 6,698 lines; the largest new module is 284 lines. No producer statement, depth key, draw body or sort changes. Explicit frame inputs and result transfers preserve the late-bound receiver and chest animation state. `mechanical-equivalence.json` confirms exact TypeScript statement trees for all seven bodies against `a7d2880d`; transfers and call order were reviewed separately.
+
+Files: `packages/client/src/overworld-main.ts`, `gameplay-painter-{setup,decorations,resources,projectiles,placeables,npcs,players,inputs}.ts`, and the existing authored-object structural test (`content/object-presentation.test.ts`) retargeted to the moved functions. Its original sprite/light checks remain and main-to-producer calls are also asserted. The exact ten source hashes are in `output/perf-59-20260907/P6/painter-extraction/source-files.json`; DECISIONS.md records the test scope.
+
+Commands: TypeScript AST extraction/equivalence tools; client typecheck; scoped ESLint; nine relevant structural/probe suites (34 tests initially passed, one stale source-location assertion was corrected and passed on retry); production client build with `VITE_RENDER_COMMIT=a7d2880d-painter-extraction`; ten existing Canvas fixture replays; real-client protocol; canonical `npm run check`. Full gate is running in `P6/painter-extraction/check.log` after the local browser stopped; no full-pass claim yet.
+
+The first gameplay capture failed pond/cap qualification because the external driver read the camera before its pending preview rendered. Its original results remain in `canvas-1x-camera-setup-diagnostic.json`. The corrected driver waits two active rAFs and asserts the reported origin. The settled capture below uses the actual fixed origin (5369.875, 5442.3125), seed 1329809490, summer day 10.5 sunset, CSS 1280×720, DPR 1, world zoom 2, Canvas 1×, browser zoom 1 and uncapped presentation; AMD Ryzen 9 9955HX / Linux 6.17.2-1-pve / Headless Chrome 152.0.0.0. Full provenance is in `canvas-1x.json`.
+
+**Settled Canvas 1×: milliseconds p50 / p95 / p99.**
+
+| Stage | Basic | Classic | Dynamic |
+| --- | --- | --- | --- |
+| whole frame | 8.500 / 10.700 / 12.500 | 9.900 / 11.900 / 13.700 | 23.400 / 30.400 / 47.900 |
+| snapshotPrepare | 0.000 / 0.100 / 0.100 | 0.000 / 0.100 / 0.100 | 0.000 / 0.100 / 0.100 |
+| ground | 0.400 / 0.500 / 0.600 | 0.400 / 0.500 / 0.600 | 0.400 / 0.500 / 0.700 |
+| painterBuild | 3.700 / 4.900 / 6.300 | 3.700 / 4.700 / 5.700 | 3.700 / 4.800 / 8.000 |
+| painterSort | 0.100 / 0.200 / 0.200 | 0.100 / 0.200 / 0.200 | 0.100 / 0.200 / 0.300 |
+| painterDraw | 1.600 / 2.000 / 2.500 | 1.600 / 2.000 / 2.300 | 13.000 / 17.600 / 27.500 |
+| weather | 0.000 / 0.100 / 0.200 | 0.000 / 0.100 / 0.200 | 0.100 / 0.200 / 0.500 |
+| lightingBoundsResize | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.100 | 0.000 / 0.100 / 0.100 |
+| lightingOcclusionRaster | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.400 | 0.000 / 0.300 / 0.400 |
+| lightingSolve | 0.000 / 0.000 / 0.000 | 0.100 / 0.200 / 0.200 | 0.200 / 0.300 / 0.400 |
+| lightingMerge | 0.000 / 0.000 / 0.000 | 0.100 / 0.100 / 0.200 | 8.800 / 13.100 / 18.600 |
+| lightingUpload | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.200 | 0.100 / 0.300 / 0.400 |
+| lightingReceiver | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 2.300 / 3.100 / 4.600 |
+| lightingComposite | 0.000 / 0.000 / 0.000 | 0.000 / 0.100 / 0.100 | 0.000 / 0.000 / 0.000 |
+| lightingStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingAnimatedStaticSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| lightingDynamicSolve (unsupported) | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 |
+| finalWorldComposite | 0.300 / 0.500 / 0.600 | 1.600 / 1.900 / 2.200 | 0.400 / 0.600 / 1.100 |
+| uiModel | 0.400 / 0.600 / 0.700 | 0.400 / 0.600 / 0.700 | 0.500 / 0.700 / 1.100 |
+| uiLayout | 0.500 / 0.700 / 0.800 | 0.500 / 0.600 / 0.700 | 0.500 / 0.700 / 1.200 |
+| uiDraw | 1.200 / 1.800 / 2.200 | 1.200 / 1.700 / 2.000 | 1.200 / 1.800 / 2.300 |
+| fixedUpdate | 0.200 / 0.400 / 0.400 | 0.200 / 0.300 / 0.400 | 0.300 / 0.500 / 1.000 |
+| catchUp | 0.000 / 0.000 / 0.000 | 0.000 / 0.000 / 0.000 | 0.200 / 0.500 / 0.900 |
+
+| Counter: p50 / p95 / p99; mean per frame | Basic | Classic | Dynamic |
+| --- | --- | --- | --- |
+| drawImageCalls | 1800.000 / 1817.000 / 1819.000; 1798.0589 | 1801.000 / 1819.000 / 1824.000; 1800.3206 | 2174.000 / 2193.000 / 2201.000; 2163.7747 |
+| distinctDrawImageSources | 34.000 / 36.000 / 36.000; 34.8256 | 36.000 / 38.000 / 38.000; 36.1100 | 42.000 / 44.000 / 45.000; 42.4134 |
+| tintBuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 1.000 / 2.000; 0.2747 |
+| tintReuses | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 45.000 / 49.000 / 50.000; 44.4451 |
+| tintSurfaceReuses | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 |
+| filteredFrameBuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 |
+| coverageFieldRebuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 4.000 / 4.000; 0.8082 |
+| preparedHeightRebuilds | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 4.000; 0.0931 |
+| groundSourceOperations | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 0.000; 0.0000 | 363.000 / 372.000 / 372.000; 356.6648 |
+| imageDataAllocations | 0.000 / 0.000 / 0.000; 0.0000 | 0.000 / 0.000 / 2.000; 0.0533 | 0.000 / 0.000 / 2.000; 0.0894 |
+| saveCalls | 422.000 / 440.000 / 440.000; 423.7444 | 424.000 / 442.000 / 444.000; 426.0211 | 426.000 / 443.000 / 446.000; 427.1052 |
+| restoreCalls | 422.000 / 440.000 / 440.000; 423.7444 | 424.000 / 442.000 / 444.000; 426.0211 | 426.000 / 443.000 / 446.000; 427.1052 |
+| saveRestorePairs | 422.000 / 440.000 / 440.000; 423.7444 | 424.000 / 442.000 / 444.000; 426.0211 | 426.000 / 443.000 / 446.000; 427.1052 |
+| surfaceAllocations | 0.000 / 1.000 / 1.000; 0.0722 | 0.000 / 1.000 / 1.000; 0.0689 | 0.000 / 1.000 / 1.000; 0.0987 |
+
+| Mode | Cap runs min | Ponds min | Lights min | Static casters min | Retained lighting bytes | Long tasks ≥50ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| basic | 5 | 1 | 1 | 278 | 0 | 0 |
+| classic | 5 | 1 | 1 | 278 | 164864 | 0 |
+| dynamic | 5 | 1 | 1 | 278 | 89058932 | 15 |
+
+All three workload witnesses and both within-suite comparisons pass. The corrected camera and per-connection resource-revision component differ from earlier A-1 identities, so these figures are a **new pre-optimization baseline**, not evidence that extraction improved performance. Stage intervals can nest. Basic retains zero lighting bytes and performs zero tint/filtered/coverage/ground-source/ImageData lighting work. Dynamic still performs cap composites and has fifteen long tasks: A-7, A-3/A-6 and allocation work remain open.
+
+All ten Canvas PNGs are byte-identical to A-1 (`goldens/golden-comparison.json`). `mechanical-candidate-world.png` was inspected: the player, cliff caps, pond, trees and HUD remain correctly drawn. This is actual local-client verification; it does not claim the blocked shared-origin minute-per-setting review. No authority logic, atlas pixels, quality defaults, backend policy or deployment changed.
+
+| Device | Stage/counter status |
+| --- | --- |
+| Physical iPad | owner to run |
+| Hardware WebGL2 | owner to run |
+
+iPad capture steps remain System → Developer → Render → **Run protocol + copy JSON**, with Safari visible through all three modes; reopen Render → **Copy capture JSON** if deferred clipboard fails. Repeat World scale 1×/2×/Native and record device/iPadOS/Safari/browser zoom alongside exported DPR/resolution/commit/backend. Use a pond/cliff route with a visible walking player and check the JSON workload qualification. Shared private-origin review remains OPEN under A-10 and the three documented origin failures.
+
+This checkpoint is the required mechanical move only. Producer attribution, retained commands, the ≤2 ms painterBuild target and release gates are not complete.
+
+Extraction full-gate follow-up: `check.log` exited 1 after **872.92 s**, with 609/618 files and 3,576/3,587 tests passing. Seven failed assertions were stale locations after the mechanical move. Six audit tests now read main plus its seven invoked producers through `packages/lifecycle-authoring/src/gameplay-painter-audit.test-support.ts`, which also verifies each producer import/call; the inventory manifest's portable-light presentation anchor follows `gameplay-painter-players.ts`. No authority assertion was removed. Exact additional files: `retargeted-audits.json`; focused retry: **6 files / 27 tests passed** in `audit-retry.log`.
+
+The other four assertions failed in concurrent Studio changes outside the integration branch. Canonical Studio sources changed during that gate. A canonical focused retry already reduced these to one failure, while the isolated branch's unchanged Studio plus lifecycle-integrity tests pass **4 files / 38 tests** (`isolated-prerequisites.log`). Lifecycle integrity also passes directly in the isolated worktree (`isolated-integrity.log`); it does not require the canonical working directory. Run the full gate against the stable integration worktree, retaining all tests, in `check-isolated.log`. No unrelated Studio edits were copied, reverted or committed. Rendering source hashes and all ten pixel goldens remain unchanged by these audit-location fixes.
+
+The initial isolated invocation (`check-isolated.log`, exit 2) rejected the new audit helper location at the lifecycle package `rootDir` boundary. The helper now resides within that package as test support; focused lifecycle typecheck, lint and the same 27 assertions pass (`audit-typecheck.log`, `audit-lint.log`, `audit-relocation-tests.log`). Full gate retry: `check-isolated-ready.log`; checked source manifest: `check-source-files.json`. No renderer source changed during this correction.
+
+The next isolated full run exposed four release-tool cwd assumptions: `scripts/release-continuity.test.ts` and `packages/tools/src/world-release-script.test.ts` invoked relative scripts from the worktree, but the existing operational guards require `/home/toby/projects/orchard-cellar`. Tests now invoke **the candidate script by absolute path** with that required cwd. No production shell file, target restriction, token assertion, or publication behavior changed. The existing **17 tests pass** (`release-worktree-tests.log`), including target override rejection; scoped lint passes. This verification-only correction will be committed separately from the mechanical painter extraction after the complete gate passes. Do not confuse the earlier isolated lifecycle-integrity success with permission for the operational scripts to run from another cwd.
+
+Release continuity note: `output/perf-59-20260907/release/README.md` records the already granted conditional deployment authorization and marks the old 5205f9d6 archive stale. `live-entrypoint-continuity.json` confirms all 221 checked live entrypoint/JavaScript/service-worker files still match the old rollback manifest. This is a read-only subset check, not a fresh complete rollback gate or a deployment.
+
+`check-isolated-ready.log` completed with **616/618 files and 3,583/3,587 tests passed in 904.93 s**, the four cwd failures above only. The corrected complete gate is running as `check-worktree.log`; exact checked files are `check-worktree-source-files.json`. This is not yet a full-pass claim.
+
+Mechanical extraction complete gate: **`npm run check` exit 0** in the isolated integration worktree. Test Files  618 passed (618); Tests  3587 passed (3587); Duration  1011.81s (transform 8.52s, setup 0ms, import 110.26s, tests 816.60s, environment 41ms). Lifecycle integrity, checked world build, all workspace typechecks, ESLint, coverage and asset validation pass. `check-worktree-source-files.json` still matches every checked source/test byte. The only changes after the frozen runtime capture were audit locations and release-test cwd handling. Producer attribution and optimization are next; no P6b performance-exit or deployment claim.

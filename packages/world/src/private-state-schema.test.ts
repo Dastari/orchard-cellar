@@ -1,9 +1,10 @@
+import { gameplayPainterAuditSource } from '../../lifecycle-authoring/src/gameplay-painter-audit.test-support.js';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
 const client = readFileSync(new URL('../../client/src/net/overworld-connection.ts', import.meta.url), 'utf8');
-const main = readFileSync(new URL('../../client/src/overworld-main.ts', import.meta.url), 'utf8');
+const main = gameplayPainterAuditSource();
 
 function between(text: string, startAnchor: string, endAnchor: string): string {
   const start = text.indexOf(startAnchor);
