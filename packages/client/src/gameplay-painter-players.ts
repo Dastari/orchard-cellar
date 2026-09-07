@@ -52,7 +52,10 @@ export function enqueueGameplayPlayers(input: Inputs): void {
     const renderedRemote = display === null || previousDisplay === null
       ? null
       : interpolateFixedPosition(previousDisplay, display, alpha);
-    const mount = offline ? null : snapshot.npcs.find((npc) => npc.rider?.toHexString() === id) ?? null;
+    let mount: ReturnType<typeof snapshot.npcs.find> | null = null;
+    if (!offline) for (const npc of snapshot.npcs) {
+      if (npc.rider?.toHexString() === id) { mount = npc; break; }
+    }
     const mountVariant = mount === null ? 0 : wildlifeProfile(snapshot, mount.id)?.variant ?? 0;
     const jumpState = snapshot.playerJumps.get(id);
     const jumpPresentation = jumpState === undefined ? null : horseJumpPose(
@@ -168,6 +171,94 @@ export function enqueueGameplayPlayers(input: Inputs): void {
         cameraY, scale, appearance, mountVariant, projectionAt, playerProjection, reducedMotionPreference, equipped, equippedLit,
         frameLightingModel, drawSouthFacingReceiver, terrainContactY,
       };
+      let sampledActionKind = 'none', sampledActionFrame: number | null = null;
+      let sampledActionVisual: ReturnType<typeof actionVisualForDirection> = null;
+      let sampledLocomotionFrame = 0, sampledRenderTick = 0;
+      const carriedByPlayer = (row: { readonly carriedBy?: { toHexString(): string } }): boolean => (
+        row.carriedBy?.toHexString() === captured0.id
+      );
+      const drawPlayer = (): void => {
+        const { mount, snapshot, context, art, x, y, mountFacing, facing, moving, horseAnimationFrame, cameraX, cameraY,
+          scale, appearance, mountVariant, local, id, projectionAt, playerProjection, reducedMotionPreference, equipped,
+          equippedLit, offline } = captured0;
+        const actionKind = sampledActionKind, actionFrame = sampledActionFrame, actionVisual = sampledActionVisual;
+        const renderTick = sampledRenderTick;
+        if (mount !== null) {
+          if (runtimeNpcMount(snapshot.content.registry, mount)?.adapter === 'boat') {
+            if (actionKind === 'ranged_weapon' && actionFrame !== null && actionVisual !== null) {
+              drawOverworldBoatMountedAction(
+                context, art, x, y, mountFacing, facing, moving, horseAnimationFrame,
+                cameraX, cameraY, scale, actionFrame, actionVisual, appearance,
+              );
+            } else {
+              drawOverworldBoat(
+                context, art, x, y, mountFacing, moving, horseAnimationFrame,
+                cameraX, cameraY, scale, true, appearance, facing,
+              );
+            }
+            return;
+          }
+          if (actionKind === 'ranged_weapon' && actionFrame !== null && actionVisual !== null) {
+            drawOverworldMountedAction(
+              context, art, x, y, mountFacing, facing, moving, horseAnimationFrame,
+              cameraX, cameraY, scale, actionFrame, actionVisual, appearance, mountVariant,
+            );
+          } else {
+            drawOverworldHorse(
+              context, art, x, y, mountFacing, moving, horseAnimationFrame,
+              cameraX, cameraY, scale, true, appearance, mountVariant,
+            );
+          }
+          return;
+        }
+        const fishingCast = local
+          ? snapshot.fishingCast ?? snapshot.fishingCasts.get(id) ?? null
+          : snapshot.fishingCasts.get(id) ?? null;
+        if (fishingCast !== null && actionKind === 'fish_cast') {
+          const tip = fishingRodTipOffset(facing, actionFrame ?? Number.MAX_SAFE_INTEGER);
+          const targetX = fishingCast.targetTileX * 16 + 8;
+          const targetY = fishingCast.targetTileY * 16 + 8;
+          const targetProjection = projectionAt(targetX, targetY);
+          drawFishingLine(context, {
+            start: {
+              x: (x + tip.x - cameraX) * scale,
+              y: (y + tip.y - cameraY) * scale,
+            },
+            target: {
+              x: (targetX - cameraX) * scale,
+              // enqueueWorldDepth has already translated this draw call by
+              // the player's projection. Compensate so the float lands on
+              // the target water plane even across elevation boundaries.
+              y: (targetY + playerProjection - targetProjection - cameraY) * scale,
+            },
+            elapsedMs: Math.max(0, (renderTick - Number(fishingCast.startedTick)) * AUTHORITY_TICK_MS),
+            timeMs: performance.now(),
+            pixelScale: scale,
+            reducedMotion: reducedMotionPreference.matches,
+          });
+        }
+        drawOverworldAvatar(
+          context, art, x, y, facing, moving, sampledLocomotionFrame,
+          cameraX, cameraY, scale, actionFrame, actionVisual, appearance, equipped, horseAnimationFrame,
+          equippedLit,
+          offline ? 'stone' : 'normal',
+        );
+        if (snapshot.chests.find(carriedByPlayer)) {
+          drawOverworldChest(context, art, x, y - 17, cameraX, cameraY, scale);
+        }
+        if (snapshot.combatTargets.find(carriedByPlayer)) {
+          drawOverworldArcheryTarget(context, art, x, y - 25, cameraX, cameraY, scale);
+        }
+        const handsPlaceable = snapshot.placeables.find(carriedByPlayer);
+        if (handsPlaceable !== undefined) {
+          drawOverworldPlaceable(
+            context, art, handsPlaceable.kind, false, 0,
+            Math.floor(performance.now() / 125), x, y - 17,
+            cameraX, cameraY, scale, placeableHasInterface(handsPlaceable.kind, 'furnace')
+            ? handsPlaceable.smeltStartTick !== undefined : handsPlaceable.lit,
+          );
+        }
+      };
       retained0 = commands.insert(0, id, captured0, {
         footY,
         tie: `player:${id}`,
@@ -175,9 +266,7 @@ export function enqueueGameplayPlayers(input: Inputs): void {
           const {
             avatarAnimations, id, renderTickClock, local, bowChargeStartedAtMs, localActionPresentation, player, offline, display,
             equippedLight, equippedDefinition, facing, localSelectedDefinition, authoredActionArt, art, xFixed, yFixed,
-            unknownActionKinds, currentBowChargeMs, mount, snapshot, context, x, y, mountFacing, moving, horseAnimationFrame,
-            cameraX, cameraY, scale, appearance, mountVariant, projectionAt, playerProjection, reducedMotionPreference, equipped,
-            equippedLit, frameLightingModel, drawSouthFacingReceiver, terrainContactY,
+            unknownActionKinds, currentBowChargeMs, frameLightingModel, drawSouthFacingReceiver, x, terrainContactY,
           } = captured0;
 
           const controller = avatarAnimations.get(id) ?? new AvatarAnimationController();
@@ -234,85 +323,9 @@ export function enqueueGameplayPlayers(input: Inputs): void {
             : null;
           const actionFrame = chargedBowFrame
             ?? (animation.channel === 'action' && !animation.fallback ? animation.frame : null);
-          const drawPlayer = (): void => {
-            if (mount !== null) {
-              if (runtimeNpcMount(snapshot.content.registry, mount)?.adapter === 'boat') {
-                if (actionKind === 'ranged_weapon' && actionFrame !== null && actionVisual !== null) {
-                  drawOverworldBoatMountedAction(
-                    context, art, x, y, mountFacing, facing, moving, horseAnimationFrame,
-                    cameraX, cameraY, scale, actionFrame, actionVisual, appearance,
-                  );
-                } else {
-                  drawOverworldBoat(
-                    context, art, x, y, mountFacing, moving, horseAnimationFrame,
-                    cameraX, cameraY, scale, true, appearance, facing,
-                  );
-                }
-                return;
-              }
-              if (actionKind === 'ranged_weapon' && actionFrame !== null && actionVisual !== null) {
-                drawOverworldMountedAction(
-                  context, art, x, y, mountFacing, facing, moving, horseAnimationFrame,
-                  cameraX, cameraY, scale, actionFrame, actionVisual, appearance, mountVariant,
-                );
-              } else {
-                drawOverworldHorse(
-                  context, art, x, y, mountFacing, moving, horseAnimationFrame,
-                  cameraX, cameraY, scale, true, appearance, mountVariant,
-                );
-              }
-              return;
-            }
-            const fishingCast = local
-              ? snapshot.fishingCast ?? snapshot.fishingCasts.get(id) ?? null
-              : snapshot.fishingCasts.get(id) ?? null;
-            if (fishingCast !== null && actionKind === 'fish_cast') {
-              const tip = fishingRodTipOffset(facing, actionFrame ?? Number.MAX_SAFE_INTEGER);
-              const targetX = fishingCast.targetTileX * 16 + 8;
-              const targetY = fishingCast.targetTileY * 16 + 8;
-              const targetProjection = projectionAt(targetX, targetY);
-              drawFishingLine(context, {
-                start: {
-                  x: (x + tip.x - cameraX) * scale,
-                  y: (y + tip.y - cameraY) * scale,
-                },
-                target: {
-                  x: (targetX - cameraX) * scale,
-                  // enqueueWorldDepth has already translated this draw call by
-                  // the player's projection. Compensate so the float lands on
-                  // the target water plane even across elevation boundaries.
-                  y: (targetY + playerProjection - targetProjection - cameraY) * scale,
-                },
-                elapsedMs: Math.max(0, (renderTick - Number(fishingCast.startedTick)) * AUTHORITY_TICK_MS),
-                timeMs: performance.now(),
-                pixelScale: scale,
-                reducedMotion: reducedMotionPreference.matches,
-              });
-            }
-            drawOverworldAvatar(
-              context, art, x, y, facing, moving, animation.locomotionFrame,
-              cameraX, cameraY, scale, actionFrame, actionVisual, appearance, equipped, horseAnimationFrame,
-              equippedLit,
-              offline ? 'stone' : 'normal',
-            );
-            if (snapshot.chests.find((chest) => chest.carriedBy?.toHexString() === id)) {
-              drawOverworldChest(context, art, x, y - 17, cameraX, cameraY, scale);
-            }
-            if (snapshot.combatTargets.find((target) => target.carriedBy?.toHexString() === id)) {
-              drawOverworldArcheryTarget(context, art, x, y - 25, cameraX, cameraY, scale);
-            }
-            const handsPlaceable = snapshot.placeables.find(
-              (placeable) => placeable.carriedBy?.toHexString() === id,
-            );
-            if (handsPlaceable !== undefined) {
-              drawOverworldPlaceable(
-                context, art, handsPlaceable.kind, false, 0,
-                Math.floor(performance.now() / 125), x, y - 17,
-                cameraX, cameraY, scale, placeableHasInterface(handsPlaceable.kind, 'furnace')
-                ? handsPlaceable.smeltStartTick !== undefined : handsPlaceable.lit,
-              );
-            }
-          };
+          sampledActionKind = actionKind; sampledActionFrame = actionFrame;
+          sampledActionVisual = actionVisual; sampledLocomotionFrame = animation.locomotionFrame;
+          sampledRenderTick = renderTick;
           if (frameLightingModel === 'unified') drawSouthFacingReceiver(x, terrainContactY, drawPlayer);
           else drawPlayer();
 

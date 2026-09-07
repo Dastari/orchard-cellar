@@ -67,13 +67,27 @@ export function enqueueGameplayResources(input: Inputs): void {
         resource, context, art, resourceX, resourceY, cameraX, cameraY, scale, visualTickClock, renderWeather, treeShakeRemaining,
         effectPhase, drawSouthFacingReceiver, miningClassFromWire, sway,
       };
+      let receiverShakeX = 0;
+      const drawRock = (): void => {
+        const { context, art, resourceX, resourceY, cameraX, cameraY, scale } = captured0;
+        drawOverworldPoiDecoration(
+          context, art, 'poi_rock_small', resourceX + receiverShakeX, resourceY, cameraX, cameraY, scale,
+        );
+      };
+      const drawOre = (): void => {
+        const { context, art, resource, resourceX, resourceY, cameraX, cameraY, scale, miningClassFromWire } = captured0;
+        drawOverworldOreNode(
+          context, art, resource.kind, resourceX + receiverShakeX, resourceY, cameraX, cameraY, scale,
+          miningClassFromWire(resource.miningClass, resource.spaceId), resource.richness,
+        );
+      };
       retained0 = commands.insert(0, resource.id, captured0, {
         footY: resourceY,
         tie: `resource:${resource.id}`,
         draw: () => {
           const {
             resource, context, art, resourceX, resourceY, cameraX, cameraY, scale, visualTickClock, renderWeather,
-            treeShakeRemaining, effectPhase, drawSouthFacingReceiver, miningClassFromWire, sway,
+            treeShakeRemaining, effectPhase, drawSouthFacingReceiver, sway,
           } = captured0;
 
           if (resource.kind === 'fish_pool') {
@@ -111,20 +125,15 @@ export function enqueueGameplayResources(input: Inputs): void {
           if (isBreakableRockKind(resource.kind)) {
             if (resource.depleted) return;
             const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;
-            const shakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
-            drawSouthFacingReceiver(resourceX, resourceY, () => drawOverworldPoiDecoration(
-              context, art, 'poi_rock_small', resourceX + shakeX, resourceY, cameraX, cameraY, scale,
-            ));
+            receiverShakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
+            drawSouthFacingReceiver(resourceX, resourceY, drawRock);
             return;
           }
           if (isMineableOreKind(resource.kind)) {
             if (resource.depleted) return;
             const shaking = (treeShakeRemaining.get(resource.id) ?? 0) > 0;
-            const shakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
-            drawSouthFacingReceiver(resourceX, resourceY, () => drawOverworldOreNode(
-              context, art, resource.kind, resourceX + shakeX, resourceY, cameraX, cameraY, scale,
-              miningClassFromWire(resource.miningClass, resource.spaceId), resource.richness,
-            ));
+            receiverShakeX = shaking ? (effectPhase < 2 ? -1 : 1) : 0;
+            drawSouthFacingReceiver(resourceX, resourceY, drawOre);
             return;
           }
           if (resource.depleted) {
