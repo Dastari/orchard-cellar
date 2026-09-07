@@ -459,6 +459,9 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
+- [ ] Doc 59 A-7 / P6b — Mechanical painter-producer extraction, producer attribution and retained commands — IN PROGRESS: codex, 2026-09-07
+  - A-1 desktop captures now qualify across all modes/scales (commit 1ac77538); shared private-origin visual review remains OPEN under A-10. Preserve the measured pond/cap workload, original command order and exact Canvas output. Full A-1 check: 618 suites / 3,587 tests passed.
+
 - [ ] Doc 59 A-1 / P0 follow-up — Repeatable workload, effective-quality request attribution and sky-step capture — IN PROGRESS: codex, 2026-09-07
   - Follow owner amendments in doc 59 §8; subsequent order is P6b painter producers, exact Canvas fixes, GPU qualification and allocation attribution. Deployment of the completed 0.6.0 client is authorized by the owner’s 2026-09-07 instruction, conditional on the remaining release gates.
 
