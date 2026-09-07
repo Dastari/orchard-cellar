@@ -475,6 +475,17 @@ Video panel and footer, `lighting-quality.ts` (persistence pattern),
 `metrics.ts` (`worldPassBackend` label, GPU timer query when available),
 docs/01 and docs/21 (name the experimental backend before code lands).
 
+**2026-09-07 P8 cutaway ownership extension:** the authenticated ground-plane
+checkpoint identifies `terrain-cutaway.ts` Path2D clipping as a remaining
+backend operation. P8 also owns that bounded hook plus `webgl/canvas-adapter.ts`,
+`webgl/geometry.ts`, `webgl/shaders.ts`, `webgl/world-pass-webgl.ts` and relevant
+or new tests/modules for registering and sampling reusable terrain clip masks.
+These masks contain only clip coverage; original and `.omit` artwork stay
+immutable. Keep Canvas geometry/order exact and retain fallback for unknown
+paths. No GPU readback, CPU-resolved lighting texture or lighting intermediate
+framebuffer is permitted; prove bounded memory, 600-frame surface reuse,
+context restoration and the A-8 pixel/HUD gate before enabling the known paths.
+
 Inputs: P0 counters and fixture; P2 pages (≤ 4 MiB, so every page is a
 legal texture on the minimum supported GPU). P3's `.omit` pages are used as-is;
 no runtime mask is needed.
@@ -3806,3 +3817,7 @@ Per-frame counters, **p50 / p95 / p99**:
 | Omit-page decoded bytes at end | 0 | 0 | 72515584 |
 | Largest decoded page bytes | 4194304 | 4194304 | 4194304 |
 | Workload failures | no_pond | no_pond | no_pond |
+
+### P8 terrain cutaway clip follow-up claim — 2026-09-07
+
+IN PROGRESS: codex, 2026-09-07. Ground-plane checkpoint **7fff5781** passes630 test files /3,618 tests, all ten Canvas boards and the A-8 qualified lighting subset. Eighteen60-second headless reviews expose `webgl_unsupported_clip_path` during normal movement, and Video displays the retained Canvas reason. The next bounded fix registers the existing terrain cutaway's inside/outside/stipple geometry, rasterizes small reusable clip masks and samples their coverage in the world fragment shader while preserving the three painter calls. Unknown paths and unsupported operations retain fallback. Ownership is extended in P8's Files section and DECISIONS in this same documentation commit; no main-file logic change. Test coordinate transforms, cropped bounds/AA, camera fractions, signed levels, cutaway depth/order, all scales,600-frame surface/ImageData/texture lifetime, upload failures and context loss before enabling. Artifacts: `output/perf-59-20260907/P8/cutaway-clips/`. No implementation or parity success is claimed yet. This claim reuses the unchanged7fff5781 full runtime gate. Physical iPad and hardware GPU are **owner to run** via the existing one-button protocol with full device/commit/settings metadata. A-5 reconstruction, general downsampling, the missing pond and shared active preview remain separate OPENs.
