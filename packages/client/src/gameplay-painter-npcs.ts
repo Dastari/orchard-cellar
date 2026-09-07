@@ -110,25 +110,22 @@ export function enqueueGameplayNpcs(input: Inputs): void {
           frameLightingModel, drawSouthFacingReceiver, x, baseY, context, art, y, facing, moving, fishermanActionFrame, cameraX,
           cameraY, scale, npc,
         };
+        const drawMerchant = (): void => {
+          const { context, art, x, y, facing, moving, fishermanActionFrame, cameraX, cameraY, scale, npc } = captured1;
+          drawOverworldMerchant(
+            context, art, x, y, facing, moving,
+            fishermanActionFrame, cameraX, cameraY, scale,
+            npc.kind, npc.wanderDirection,
+          );
+        };
         retained1 = commands.insert(1, npc.id, captured1, {
           footY: y,
           tie: `merchant:${npc.id}`,
           draw: () => {
-            const {
-              frameLightingModel, drawSouthFacingReceiver, x, baseY, context, art, y, facing, moving, fishermanActionFrame,
-              cameraX, cameraY, scale, npc,
-            } = captured1;
+            const { frameLightingModel, drawSouthFacingReceiver, x, baseY } = captured1;
             return frameLightingModel === 'unified'
-              ? drawSouthFacingReceiver(x, baseY, () => drawOverworldMerchant(
-                context, art, x, y, facing, moving,
-                fishermanActionFrame, cameraX, cameraY, scale,
-                npc.kind, npc.wanderDirection,
-              ))
-              : drawOverworldMerchant(
-                context, art, x, y, facing, moving,
-                fishermanActionFrame, cameraX, cameraY, scale,
-                npc.kind, npc.wanderDirection,
-              );
+              ? drawSouthFacingReceiver(x, baseY, drawMerchant)
+              : drawMerchant();
           },
         });
       }

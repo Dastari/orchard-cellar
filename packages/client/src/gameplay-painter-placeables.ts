@@ -52,20 +52,22 @@ export function enqueueGameplayPlaceables(input: Inputs) {
         chestAnimationStartedAtMs, chest, activeChestId, closingChestId, drawSouthFacingReceiver, x, y, context, art, cameraX,
         cameraY, scale,
       };
+      let frameIndex = 0;
+      const drawChest = (): void => {
+        const { context, art, x, y, cameraX, cameraY, scale } = captured0;
+        drawOverworldChest(context, art, x, y, cameraX, cameraY, scale, frameIndex);
+      };
       retained0 = commands.insert(0, chest.id, captured0, {
         footY: y, tie: `chest:${chest.id}`,
         draw: () => {
           const {
-            chestAnimationStartedAtMs, chest, activeChestId, closingChestId, drawSouthFacingReceiver, x, y, context, art, cameraX,
-            cameraY, scale,
+            chestAnimationStartedAtMs, chest, activeChestId, closingChestId, drawSouthFacingReceiver, x, y,
           } = captured0;
 
           const elapsedFrame = Math.min(5, Math.floor((performance.now() - chestAnimationStartedAtMs) / (1_000 / 6)));
-          const frameIndex = chest.id === activeChestId ? elapsedFrame
+          frameIndex = chest.id === activeChestId ? elapsedFrame
             : chest.id === closingChestId ? 5 - elapsedFrame : 0;
-          drawSouthFacingReceiver(x, y, () => {
-            drawOverworldChest(context, art, x, y, cameraX, cameraY, scale, frameIndex);
-          });
+          drawSouthFacingReceiver(x, y, drawChest);
 
         },
       });
@@ -96,14 +98,16 @@ export function enqueueGameplayPlaceables(input: Inputs) {
     let retained1 = commands.find<Captures1>(1, target.id);
     if (retained1 === undefined) {
       const captured1: Captures1 = { drawSouthFacingReceiver, x, y, context, art, cameraX, cameraY, scale };
+      const drawTarget = (): void => {
+        const { context, art, x, y, cameraX, cameraY, scale } = captured1;
+        drawOverworldArcheryTarget(context, art, x, y, cameraX, cameraY, scale);
+      };
       retained1 = commands.insert(1, target.id, captured1, {
         footY: y,
         tie: `combat-target:${target.id}`,
         draw: () => {
-          const { drawSouthFacingReceiver, x, y, context, art, cameraX, cameraY, scale } = captured1;
-          drawSouthFacingReceiver(x, y, () => {
-            drawOverworldArcheryTarget(context, art, x, y, cameraX, cameraY, scale);
-          });
+          const { drawSouthFacingReceiver, x, y } = captured1;
+          drawSouthFacingReceiver(x, y, drawTarget);
         },
       });
     }
@@ -144,30 +148,30 @@ export function enqueueGameplayPlaceables(input: Inputs) {
         presentation, context, x, y, cameraX, cameraY, scale, pressContents, art, placeable, fenceMask, frameLightingModel,
         definition, drawSouthFacingReceiver,
       };
+      const drawPlaceable = (): void => {
+        const { presentation, context, x, y, cameraX, cameraY, scale, pressContents, art, placeable, fenceMask } = captured2;
+        const authoredSprite = presentation.authored ? presentation.sprite : null;
+        if (authoredSprite?.asset !== null && authoredSprite?.asset !== undefined
+          && drawAuthoredOverworldObject(
+            context, authoredSprite.asset, authoredSprite.animation,
+            Math.floor(performance.now() / 125), x, y, cameraX, cameraY,
+            scale, authoredSprite.scale, pressContents,
+          )) return;
+        drawOverworldPlaceable(
+          context, art, placeable.kind, placeable.open, fenceMask,
+          Math.floor(performance.now() / 125), x, y, cameraX, cameraY, scale,
+          placeableHasInterface(placeable.kind, 'furnace') ? placeable.smeltStartTick !== undefined : placeable.lit,
+          pressContents,
+        );
+      };
       retained2 = commands.insert(2, placeable.id, captured2, {
         footY: y,
         tie: `placeable:${placeable.id}`,
         draw: () => {
           const {
-            presentation, context, x, y, cameraX, cameraY, scale, pressContents, art, placeable, fenceMask, frameLightingModel,
-            definition, drawSouthFacingReceiver,
+            presentation, x, y, placeable, frameLightingModel, definition, drawSouthFacingReceiver,
           } = captured2;
 
-          const drawPlaceable = (): void => {
-            const authoredSprite = presentation.authored ? presentation.sprite : null;
-            if (authoredSprite?.asset !== null && authoredSprite?.asset !== undefined
-              && drawAuthoredOverworldObject(
-                context, authoredSprite.asset, authoredSprite.animation,
-                Math.floor(performance.now() / 125), x, y, cameraX, cameraY,
-                scale, authoredSprite.scale, pressContents,
-              )) return;
-            drawOverworldPlaceable(
-              context, art, placeable.kind, placeable.open, fenceMask,
-              Math.floor(performance.now() / 125), x, y, cameraX, cameraY, scale,
-              placeableHasInterface(placeable.kind, 'furnace') ? placeable.smeltStartTick !== undefined : placeable.lit,
-              pressContents,
-            );
-          };
           if (frameLightingModel === 'unified'
             || ((presentation.collision?.blocksMovement ?? (definition?.blocksMovement === true))
               && presentation.light === null
@@ -198,16 +202,18 @@ export function enqueueGameplayPlaceables(input: Inputs) {
     let retained3 = commands.find<Captures3>(3, surface.id);
     if (retained3 === undefined) {
       const captured3: Captures3 = { frameLightingModel, drawSouthFacingReceiver, x, y, context, art, cameraX, cameraY, scale };
+      const drawSurface = (): void => {
+        const { context, art, x, y, cameraX, cameraY, scale } = captured3;
+        drawOverworldPoiDecoration(context, art, 'marlow_tent_table', x, y, cameraX, cameraY, scale);
+      };
       retained3 = commands.insert(3, surface.id, captured3, {
         footY: y,
         tie: `surface:${surface.id}`,
         draw: () => {
-          const { frameLightingModel, drawSouthFacingReceiver, x, y, context, art, cameraX, cameraY, scale } = captured3;
+          const { frameLightingModel, drawSouthFacingReceiver, x, y } = captured3;
           return frameLightingModel === 'unified'
-            ? drawSouthFacingReceiver(x, y, () => drawOverworldPoiDecoration(
-              context, art, 'marlow_tent_table', x, y, cameraX, cameraY, scale,
-            ))
-            : drawOverworldPoiDecoration(context, art, 'marlow_tent_table', x, y, cameraX, cameraY, scale);
+            ? drawSouthFacingReceiver(x, y, drawSurface)
+            : drawSurface();
         },
       });
     }
@@ -254,16 +260,18 @@ export function enqueueGameplayPlaceables(input: Inputs) {
     let retained5 = commands.find<Captures5>(5, hive.id);
     if (retained5 === undefined) {
       const captured5: Captures5 = { frameLightingModel, drawSouthFacingReceiver, x, y, context, art, hive, cameraX, cameraY, scale };
+      const drawHive = (): void => {
+        const { context, art, hive, x, y, cameraX, cameraY, scale } = captured5;
+        drawOverworldHive(context, art, hive.kind, hive.variant, x, y, cameraX, cameraY, scale);
+      };
       retained5 = commands.insert(5, hive.id, captured5, {
         footY: y,
         tie: `hive:${hive.id}`,
         draw: () => {
-          const { frameLightingModel, drawSouthFacingReceiver, x, y, context, art, hive, cameraX, cameraY, scale } = captured5;
+          const { frameLightingModel, drawSouthFacingReceiver, x, y } = captured5;
           return frameLightingModel === 'unified'
-            ? drawSouthFacingReceiver(x, y, () => drawOverworldHive(
-              context, art, hive.kind, hive.variant, x, y, cameraX, cameraY, scale,
-            ))
-            : drawOverworldHive(context, art, hive.kind, hive.variant, x, y, cameraX, cameraY, scale);
+            ? drawSouthFacingReceiver(x, y, drawHive)
+            : drawHive();
         },
       });
     }
