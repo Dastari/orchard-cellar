@@ -5798,3 +5798,94 @@ Owner iPad steps: System → Developer → Render → **Run protocol + copy JSON
 ### A-17 complete-run fallback accounting — claim,2026-09-08
 
 IN PROGRESS: codex,2026-09-08 aftera93914dc. Each mode/route starts a fresh session with WebGL requested; capture the encountered set from enable/preparation through restoration and count actual backend submissions. Endpoint status alone does not qualify this gate. Use the unchanged checked A-15 runtime (643 files/3664 tests); output-only bounded observation wraps the existing diagnostics seam, with no new rendering algorithm or removal of guards. All22 stages/per-frame counters, original timings, route limitations and screenshots go under output/perf-59-20260908/P8/A17/. A-14 remains OPEN even if a particular route sees no fallback. iPad owner to run via System → Developer → Render → Run protocol + copy JSON on both routes, recording device/settings/commit metadata. No deployment; A-19 request follows.
+
+
+### A-17 complete-run fallback accounting — measured checkpoint, 2026-09-08
+
+**Encountered-fallback condition PASS; experimental performance FAIL on this software GPU.** No rendering code changed after a93914dc. Files changed: this ledger, roadmap and DECISIONS; output-only capture/report scripts and artifacts under `output/perf-59-20260908/P8/A17/`. Commands: `python3 .../A17/run.py`, `python3 .../A17/report.py`; six fresh-session five-second warm-ups plus30-second active-rAF protocols, no simultaneous builds/tests/profiles or CPU throttling. Reuse unchanged A-15 `npm run check`:643 files/3664 tests,946.9306194782257seconds, plus10 exact Canvas boards,18 minute movement reviews and actual context-loss/disposal checks. `checked-source-files.json` compares every tracked build input with the private candidate:zero differences. Protocol source commit a93914dc; injected build label40709d3d is stale and explicitly superseded by this source proof.
+
+Desktop AMD Ryzen9 9955HX, Linux6.17.2-1-pve, Chrome152 headless,1280×720,DPR1,browser zoom1,world zoom2,world scale1×,WebGL requested,cap off. `gpu-driver.json` identifies ANGLE/Vulkan SwiftShader Device(Subzero), with no GPU timer support. These are software GPU measurements, not hardware GPU acceptance. Live weather is used; the first two raw metadata descriptions mistakenly retained the earlier clear-weather override wording. `capture-provenance-note.txt` corrects that description without rewriting captures. A-15 Canvas baselines used clear weather, so this is not a matched backend speed comparison.
+
+The bounded observer records initial status, enable/preparation, every submitted frame through warm-up/sample/restoration and final status; each run's `*-encountered.json` preserves transitions. Encountered sets are **empty in all six runs** and observed submissions after enable are exclusively WebGL. A-14's general sampler remains OPEN; this workload does not qualify unsupported draw domains. No guard was removed to achieve these results.
+
+Cliff whole-frame p95 Basic/Classic/Dynamic **62.200000763/80.900001526/93.899999619ms**, compared with the preceding Canvas route's **6.799999237/7.699998856/11.599998474ms** (different weather/backend, not isolated optimization). Cliff WebGL painterDraw p9519.9/21.6/30.9ms and finalWorldComposite39.9/58.9/60.3ms dominate. Pond whole p9537.100000381/69.600000381/65.800001144ms. The measured long tasks below are actual failures, not omitted warm-up work. Final Canvas-copy presentation waits on the software GPU; the existing two-present comparison still selects Canvas copy for exact pixels, while the CSS-layer alternative failed parity. No new present or sampler experiment is justified here; A-19 keeps this backend in Developer, off by default.
+
+All timings ms, p50 / p95 / p99; nested stages must not be summed. Raw JSON retains original precision.
+
+| Stage | cliff-basic | cliff-classic | cliff-dynamic | pond-basic | pond-classic | pond-dynamic |
+|---|---|---|---|---|---|---|
+| whole frame | 56.300001 / 62.200001 / 74 | 74.800001 / 80.900002 / 85.1 | 83.199999 / 93.9 / 104.1 | 33.200001 / 37.1 / 39.6 | 62.699999 / 69.6 / 73.5 | 57.9 / 65.800001 / 71.699999 |
+| snapshotPrepare | 0.1 / 0.200001 / 0.200001 | 0.1 / 0.199999 / 0.200001 | 0.1 / 0.200001 / 0.200001 | 0.099998 / 0.1 / 0.200001 | 0.1 / 0.199999 / 0.200001 | 0.1 / 0.200001 / 0.200001 |
+| ground | 1.799999 / 2.5 / 3.1 | 1.9 / 2.699999 / 3.699999 | 1.799999 / 2.400002 / 3.300001 | 1.4 / 1.9 / 2.5 | 1.4 / 1.800001 / 2.299999 | 1.4 / 2.200001 / 4.199999 |
+| painterBuild | 1.1 / 1.6 / 2.200001 | 1.1 / 1.4 / 2.299999 | 1 / 1.400002 / 2.1 | 1 / 1.200001 / 1.9 | 1 / 1.200001 / 2.299999 | 1 / 1.300001 / 2.1 |
+| painterSort | 0.200001 / 0.300001 / 0.4 | 0.199999 / 0.300001 / 0.400002 | 0.200001 / 0.300001 / 0.400002 | 0.1 / 0.200001 / 0.299999 | 0.1 / 0.200001 / 0.300001 | 0.1 / 0.200001 / 0.300001 |
+| painterDraw | 15.300001 / 19.9 / 25.699999 | 15.800001 / 21.599998 / 25.9 | 23.699999 / 30.9 / 49.200001 | 3.400002 / 4.799999 / 5.299999 | 3.200003 / 4.599998 / 5.4 | 6.5 / 9.1 / 11 |
+| weather | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.200001 |
+| lightingBoundsResize | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 0 / 0.199999 / 0.200001 | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.200001 |
+| lightingOcclusionRaster | 0 / 0 / 0 | 0 / 0.299999 / 0.300001 | 0 / 0.300001 / 0.400002 | 0 / 0 / 0 | 0 / 0.199999 / 0.200001 | 0 / 0.200001 / 0.200001 |
+| lightingSolve | 0 / 0 / 0 | 0.099998 / 0.1 / 0.200001 | 0.1 / 0.200001 / 0.200001 | 0 / 0 / 0 | 0.1 / 0.200001 / 0.299999 | 0.299999 / 0.4 / 0.400002 |
+| lightingMerge | 0 / 0 / 0 | 0.099998 / 0.199999 / 0.200001 | 0.099998 / 0.1 / 0.200001 | 0 / 0 / 0 | 0.099998 / 0.1 / 0.200001 | 0.1 / 0.199999 / 0.200001 |
+| lightingUpload | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.200001 |
+| lightingReceiver | 0 / 0 / 0 | 0 / 0 / 0 | 0.499998 / 0.800001 / 1.000002 | 0 / 0 / 0 | 0 / 0 / 0 | 0.200001 / 0.500002 / 1.000002 |
+| lightingComposite | 0 / 0 / 0.1 | 0.299999 / 0.5 / 0.800001 | 0 / 0 / 0 | 0 / 0 / 0.099998 | 0.200001 / 0.4 / 0.400002 | 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| finalWorldComposite | 36 / 39.9 / 47.200001 | 53.6 / 58.900002 / 62.799999 | 53.6 / 60.299999 / 65 | 25.599998 / 28.5 / 31.299999 | 54.299999 / 60.800001 / 64 | 45.700001 / 51.699999 / 55.4 |
+| uiModel | 0.400002 / 0.6 / 0.700001 | 0.5 / 0.6 / 0.799999 | 0.4 / 0.5 / 0.6 | 0.400002 / 0.599998 / 0.800001 | 0.4 / 0.5 / 0.700001 | 0.4 / 0.5 / 0.6 |
+| uiLayout | 0.5 / 0.6 / 1.400002 | 0.5 / 0.6 / 1.300001 | 0.5 / 0.6 / 1.099998 | 0.400002 / 0.6 / 1.299999 | 0.4 / 0.6 / 1.5 | 0.400002 / 0.6 / 0.800001 |
+| uiDraw | 0.5 / 1 / 1.4 | 0.5 / 1.199999 / 1.5 | 0.599998 / 1.199999 / 1.800001 | 0.5 / 0.9 / 1.200001 | 0.5 / 1 / 1.4 | 0.5 / 1.1 / 1.4 |
+| fixedUpdate | 0.4 / 0.5 / 0.800001 | 0.4 / 0.5 / 0.700001 | 0.4 / 0.599998 / 0.700001 | 0.299999 / 0.4 / 0.5 | 0.4 / 0.5 / 0.799999 | 0.4 / 0.6 / 1.4 |
+| catchUp | 0.4 / 0.5 / 0.800001 | 0.4 / 0.5 / 0.700001 | 0.4 / 0.599998 / 0.700001 | 0.299999 / 0.4 / 0.5 | 0.4 / 0.5 / 0.799999 | 0.4 / 0.6 / 1.4 |
+
+| Per-frame counter | cliff-basic | cliff-classic | cliff-dynamic | pond-basic | pond-classic | pond-dynamic |
+|---|---|---|---|---|---|---|
+| drawImageCalls | 193 / 523 / 523 | 193 / 212 / 523 | 193 / 523 / 523 | 180 / 510 / 510 | 180 / 510 / 510 | 180 / 510 / 510 |
+| distinctDrawImageSources | 12 / 13 / 13 | 12 / 13 / 13 | 12 / 13 / 13 | 12 / 13 / 13 | 12 / 13 / 13 | 12 / 13 / 13 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| imageDataAllocations | 0 / 0 / 0 | 0 / 2 / 2 | 0 / 2 / 2 | 0 / 0 / 0 | 0 / 2 / 2 | 0 / 2 / 2 |
+| capRunRequests | 0 / 0 / 0 | 0 / 0 / 0 | 102 / 104 / 104 | 0 / 0 / 0 | 0 / 0 / 0 | 26 / 26 / 26 |
+| flatSourceRequests | 0 / 0 / 0 | 0 / 0 / 0 | 216 / 227 / 229 | 0 / 0 / 0 | 0 / 0 / 0 | 95 / 98 / 98 |
+| capRunComposites | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| flatSourceComposites | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| receiverSamples | 0 / 0 / 0 | 0 / 0 / 0 | 300 / 317 / 317 | 0 / 0 / 0 | 0 / 0 / 0 | 257 / 263 / 263 |
+| receiverCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 878 / 915 / 916 | 0 / 0 / 0 | 0 / 0 / 0 | 52 / 72 / 72 |
+| receiverFullLoopCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 98400 / 103976 / 103976 | 0 / 0 / 0 | 0 / 0 / 0 | 23130 / 23670 / 23670 |
+| saveCalls | 22 / 29 / 29 | 22 / 24 / 29 | 22 / 29 / 29 | 18 / 25 / 25 | 18 / 25 / 25 | 18 / 25 / 25 |
+| restoreCalls | 22 / 29 / 29 | 22 / 24 / 29 | 22 / 29 / 29 | 18 / 25 / 25 | 18 / 25 / 25 | 18 / 25 / 25 |
+| saveRestorePairs | 22 / 29 / 29 | 22 / 24 / 29 | 22 / 29 / 29 | 18 / 25 / 25 | 18 / 25 / 25 | 18 / 25 / 25 |
+| surfaceAllocations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+| Evidence | cliff-basic | cliff-classic | cliff-dynamic | pond-basic | pond-classic | pond-dynamic |
+|---|---|---|---|---|---|---|
+| Active sample frames | 501 | 383 | 344 | 839 | 456 | 486 |
+| Observed GPU submissions including preparation | 741 | 586 | 482 | 1104 | 767 | 708 |
+| Observed Canvas submissions | 0 | 0 | 0 | 0 | 0 | 0 |
+| Encountered fallback reasons | [] | [] | [] | [] | [] | [] |
+| Long tasks >=50 ms | 501 | 383 | 344 | 0 | 455 | 487 |
+| Maximum long task ms | 87 | 91 | 124 | 0 | 79 | 82 |
+| Retained lighting bytes | 0 | 161280 | 88683578 | 0 | 164864 | 83953014 |
+| Omit decoded bytes | 0 | 0 | 72515584 | 0 | 0 | 72515584 |
+| Largest decoded page bytes | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 |
+| Legacy workload issues | no_pond | no_pond | no_pond | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters |
+
+
+Per-producer totals for every run are in `sampling.json` and `sampling-tables.md`; nearest noninteger counts remain zero. These counters describe the observed workload only. Basic retains zero lighting bytes and Basic/Classic load zero omit bytes; Classic's small legacy field is the accepted A-2 exception. Filtered builds remain zero. All six route PNGs were opened; they are post-protocol Basic restoration screenshots, not separate Dynamic visual proof. A-15's18 minute reviews on unchanged runtime supply the per-setting evidence. The full Overworld banner, HUD, cliff caps and pond are visible; an initial suspected missing banner suffix was an inspection mistake, resolved by reopening the original images. No pixel or HUD change was made.
+
+| Device / gate | Result |
+|---|---|
+| Desktop A-17 encountered fallback set | PASS: empty for all six runs,zero Canvas submissions after enable |
+| Desktop experimental performance | FAIL on SwiftShader: cliff p9562.2–93.9ms and many≥50ms tasks |
+| Canvas default | Remains checked A-15 runtime; accepted historical Basic6.3ms, Dynamic merge0.9ms, whole11.6ms residual |
+| General WebGL enable | OPEN:A-14 sampler; software performance failure recorded, hardware performance unqualified |
+| iPad | **owner to run** |
+| Hardware GPU | **owner to run** |
+
+Owner steps: System → Developer → Render → **Run protocol + copy JSON**, separately at cliff/carried-light and pond, with device,OS,browser,DPR,browser zoom,resolution,commit,world scale/backend. Repeat modes/scales; do not substitute CPU throttling. Next: direct retained0.5.7/current cold cliff frame-delivery comparison, then A-19 Canvas-only release preparation. No deployment.
