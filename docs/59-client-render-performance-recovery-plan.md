@@ -5894,3 +5894,33 @@ Owner steps: System → Developer → Render → **Run protocol + copy JSON**, s
 ### A-19 Canvas release preparation — claim,2026-09-08
 
 IN PROGRESS: codex,2026-09-08 after77af54bf. Scope: owned Video/Developer render controls in packages/ui/src/overworld-ui.ts, mechanically extracted before behavior changes into bounded modules; video-rows.ts/tests and structural extraction audit; current rendering contract docs01/02/21/47/58/59/14/DECISIONS; new tests and release artifacts. Preserve Canvas1× defaults and persisted choice, keep fallback reason visible in Video, move experimental toggle into Developer until enable gates pass. No changes to gameplay authority, sampler or world pixels. Supplemental old0.5.7/current cliff cold-transition delivery evidence is separate from readiness-qualified all-stage protocols. Artifacts output/perf-59-20260908/P8/A19/ and output/perf-59-20260908/release/. Claim uses unchanged643-file/3664-test A-15 full gate; every runtime boundary will run npm run check. Version0.6.0 already set. Build/package/release request only; do not deploy.
+
+
+### A-19 mechanical UI extraction and direct cliff delivery — checkpoint,2026-09-08
+
+Extracted unchanged shared panel drawing, Video choice/footer drawing, Developer Render drawing and renderer-control node/layout policy into four bounded modules (24/31/44/78lines). Files: packages/ui/src/overworld-ui.ts plus new overworld-panel-drawing.ts,settings-choice-rows.ts,developer-render-panel.ts,world-render-controls.ts; reviewed packages/client/src/phase-zero-extraction.test.ts digest. No behavior or visibility change; WebGL still in Video in this mechanical commit. Source body comparison proves moved helpers exact and both painting blocks identical after this→view renaming. Other four structural seams unchanged; digest86dc3754a1729cfebc31c65e9b49b0936ec90dc0f9887de3b28189e1efa0aea4.
+
+Artifacts output/perf-59-20260908/P8/A19/mechanical/. Commands: extraction/source comparison, UI typecheck, focused ESLint, npm run check, node build-panels.mjs/run-panels.mjs mechanical, and goldens build/run/compare. Full gate **643files/3664tests,926.2194895744324seconds**, green. Sixteen real settings/Developer panels byte-identical and10 complete world/lighting/terrain boards byte-identical, including HUD. First output-only terrain fixture mixed private/current UI singleton imports and rejected six cases; aligned its import to the same integrator root, then all10passed. No runtime change or relaxed assertion resolved that harness issue. Preferences fixture uses actual browser storage without forced init values:Canvas1×/WebGLoff defaults and all six scale/backend reload combinations pass.
+
+The mechanical commit has no measured rendering optimization; A-15's full22-stage/counter tables remain its unchanged world-runtime reference. Fresh complete A-19 before/after protocols follow the actual control relocation. Supplemental cliff measurements below are raw delivery evidence, not substituted stage measurements. iPad **owner to run**, System→Developer→Render→Run protocol+copyJSON at cliff/carried-light and pond, device/OS/browser/DPR/zoom/resolution/commit/scale/backend recorded.
+
+**Supplemental cold cliff delivery comparison**
+
+Retained0.5.7 archive SHA256 `7fa8d720be56039a58bd99c1a6d0e825d48cf1716f2047bb0d3aa1fc265bf3ac` versus unchanged checked A15 runtime a93914dc. Private candidate source proof: ../../A17/checked-source-files.json. The old active entry imports overworld-main-DHM4IWZm.js; no production file or service changed. Metadata and all original timestamps/long tasks/positions/before-after diagnostics in evidence/*.json. All three PNGs opened: cliff caps, trees and HUD present; different end positions preclude pixel comparison.
+
+Normal signed-in actor movement, same route and fixed17:00 sky,1280×720,DPR1,Chrome152/Linux/9955HX,zoom2,Canvas. Only one test client rendered at a time; no profiling,CPU throttle,tests or builds. Begin Basic at cliff, request Dynamic and move for35seconds. Final30seconds shown separately after5seconds warm-up. This is supplemental delivery evidence, not a replacement for readiness-qualified22-stage/counter protocol. Live weather/content/trajectory may differ. No matched isolated-change speedup claim.
+
+| Run | Final30s frame gaps p50/p95/p99/max ms | Gaps≥50ms | Long tasks≥50ms | Cold35s max frame gap/task ms | Distance px |
+|---|---|---|---|---|---|
+| legacy-native | 33.30000000000291 / 50 / 50.10000000000218 / 50.10000000000582 | 157 | 1 | 116.69999999999982 / 127 | 1255.473146542499 |
+| current-native | 16.69999999999709 / 16.799999999995634 / 16.80000000000291 / 33.400000000001455 | 0 | 0 | 150.0 / 153 | 1527.7761720402987 |
+| current-1x | 16.69999999999709 / 16.799999999999272 / 16.80000000000291 / 33.30000000000291 | 0 | 0 | 133.30000000000018 / 136 | 733.605551275464 |
+
+Sustained delivery improves on the candidate in both Native and1×; the first Dynamic activation still incurs a136–153ms task, versus127ms on the old client. Thus this evidence does not prove elimination of every hitch or reproduce the owner's full halt. Cold-transition work remains a residual separate from warm boundary-crossing merge spikes. All three runs remain connected and end effectively Dynamic; no authority/collision override. Browser restored to current candidate, Basic1×.
+
+iPad: **owner to run**, System→Developer→Render→Run protocol+copyJSON on cliff/carried-light and pond, record device/OS/browser/DPR/zoom/resolution/commit/scale/backend. For the original symptom also record first entry with Dynamic selected and whether stalls repeat after first approach; no desktop throttling substitute.
+
+
+A-15 artifact correction discovered during this audit: its cliff/pond screenshot helpers saved new images under producer-profile/a15 but copied from a14. Original files remain preserved. A15/after-cliff-corrected.png and pond-17-corrected.png/pond-18-corrected.png now preserve the actual A15 saved images; all three reopened. Raw A15 timing/counter JSON, separately captured A1 screenshots and all18 minute reviews are unaffected. See A15/cliff-screenshot-provenance-correction.txt. This supersedes any A15 attribution of the three earlier copied PNGs.
+
+Read-only live preflight: public HTTP200 index and all384 local served files still match the retained0.5.7rollback. No deployment/service/world operation. Next commit relocates the experimental control; no release request or owner Go has been issued yet.

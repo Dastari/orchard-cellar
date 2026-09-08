@@ -1,17 +1,20 @@
-import { changeExperimentalWebGL, readExperimentalWebGL, worldBackendStatus } from './world-backend-setting.js';
+import { drawLabel, drawMenuButton, drawInsetPanel } from './overworld-panel-drawing.js';
+import { drawSettingsChoiceRows } from './settings-choice-rows.js';
+import { drawDeveloperRender } from './developer-render-panel.js';
+import { createExperimentalWebGLNode, experimentalWebGLBounds, syncExperimentalWebGLNode, renderProtocolBounds, developerRenderButtons } from './world-render-controls.js';
 export { changeExperimentalWebGL, readExperimentalWebGL, worldBackendStatus, updateWorldBackendStatus, EXPERIMENTAL_WEBGL_EVENT } from './world-backend-setting.js';
 import { compactVideoRows, videoRowHeight as videoSettingsRowHeight } from './video-rows.js';
 import { changePresentationCap, readPresentationCap } from './presentation-cap-setting.js';
 export { changePresentationCap, readPresentationCap, PRESENTATION_CAP_EVENT, type PresentationCapSetting } from './presentation-cap-setting.js';
 import { HudSectionCache, type HudCacheKey } from './hud-section-cache.js';
 export { disposeHudDisplayCaches, hudDisplayCacheDiagnostics, type HudDisplayCacheDiagnostics } from './hud-display-caches.js';
-import { changeWorldScale, readWorldScale, worldScaleSettingLabel } from './world-scale-setting.js';
+import { changeWorldScale, readWorldScale } from './world-scale-setting.js';
 export { changeWorldScale, readWorldScale, worldScaleSettingLabel, WORLD_SCALE_EVENT, type WorldScaleSetting } from './world-scale-setting.js';
 import { renderProtocolAction } from './render-protocol-action.js';
 import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, clickContainerSlot, craftingRecipeOutput, hotbarSlotForInputCode, hotbarSlotLabel, itemContainerContentResolver, itemDefinition, itemStacksCompatible, matchingRecipeId, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks, recipeDefinition, runtimeCraftingRecipeOutput, runtimeDurabilityDefinition, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition, runtimeRecipeSkillSatisfied, toolDurabilityDefinition, type ContainerSnapshot, type ContentRegistry, type CraftingStation, type FrameDefinitionId, type ItemStack, type MoonPhase, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
 import type { LoadedAsset } from './assets.js';
 import { isolatedAtlasFrameImage } from './atlas-frame-image.js';
-import { drawOutlinedPixelText, drawPixelText, drawPixelTextInRect, measurePixelText, type PixelUi } from './pixel-ui.js';
+import { drawOutlinedPixelText, drawPixelTextInRect, measurePixelText, type PixelUi } from './pixel-ui.js';
 import { craftingRecipeBookEntries, craftingRecipePattern } from './recipe-book.js';
 import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
 import { UiInputRouter } from './input-router.js';
@@ -738,8 +741,6 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
   };
   const worldScaleButton = { ...lightingQualityButton, y: lightingQualityButton.y + videoRowHeight };
   const presentationCapButton = { ...worldScaleButton, y: worldScaleButton.y + videoRowHeight };
-  const experimentalWebGLButton = { ...presentationCapButton, x: settingsContent.x + settingsContent.width - 60,
-    width: 50, y: presentationCapButton.y + videoRowHeight };
   const settingsRowStep = Math.max(18, Math.min(30, Math.floor((settingsContent.height - 28) / 5)));
   const settingsRowY = (row: number): number => settingsContent.y + 18 + row * settingsRowStep;
   const settingsSliderLabelSpace = Math.min(72, Math.max(70, Math.floor(settingsContent.width * 0.25)));
@@ -766,6 +767,8 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     width: Math.max(80, developerWindow.width - developerTabWidth - 38),
     height: Math.max(80, developerWindow.height - 48),
   };
+  const experimentalWebGLButton = experimentalWebGLBounds(settingsContent, presentationCapButton, videoRowHeight, developerContent);
+  const developerRender = developerRenderButtons(developerContent);
   const paperOrigin = { x: inventoryWindow.x + 22, y: inventoryWindow.y + 51 };
   const equipmentCells = Array.from({ length: EQUIPMENT_SLOTS.length }, (_, index) => (
     [index % 3, Math.floor(index / 3)] as const
@@ -843,8 +846,8 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     nextDayButton: { x: developerContent.x + developerContent.width - 66, y: developerContent.y + 25, width: 58, height: 20 },
     weatherButton: { x: developerContent.x + 8, y: developerContent.y + 56, width: developerContent.width - 16, height: 22 },
     windDirectionButton: { x: developerContent.x + 8, y: developerContent.y + 84, width: developerContent.width - 16, height: 22 },
-    lightingEffectsButton: { x: developerContent.x + developerContent.width - 48, y: developerContent.y + 32, width: 40, height: 18 },
-    orePreviewButton: { x: developerContent.x + developerContent.width - 48, y: developerContent.y + 67, width: 40, height: 18 },
+    lightingEffectsButton: developerRender.lighting,
+    orePreviewButton: developerRender.ore,
     mobileMenuButton: { x: width - 50, y: 4, width: 44, height: 24 },
     craftingButton: {
       x: Math.max(4, hotbar.x - 28),
@@ -1046,46 +1049,6 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
 
 function fitLabel(text: string, characters: number): string {
   return text.length <= characters ? text : `${text.slice(0, Math.max(0, characters - 3))}...`;
-}
-
-function drawLabel(context: CanvasRenderingContext2D, ui: PixelUi, text: string, x: number, y: number, options: { align?: CanvasTextAlign; color?: string; font?: 'body' | 'header' } = {}): void {
-  drawPixelText(context, ui, text, Math.round(x), Math.round(y), { align: options.align, color: options.color ?? '#3f2d25', font: options.font });
-}
-
-function drawMenuButton(
-  context: CanvasRenderingContext2D,
-  skin: UiSkin,
-  fonts: PixelUi,
-  pointer: UiPoint,
-  rect: UiRect,
-  label: string,
-  options: {
-    readonly tone?: FantasyButtonTone;
-    readonly glyph?: FantasyButtonGlyph;
-    readonly disabled?: boolean;
-    readonly active?: boolean;
-    readonly compact?: boolean;
-  } = {},
-): void {
-  const tone = options.tone ?? (options.active === true ? 'green' : 'peach');
-  drawFantasyButton(context, skin, fonts, rect, {
-    tone,
-    shape: options.compact === true || options.active === true ? 'square' : 'chamfered',
-    ...(options.compact === true ? { size: 'small' as const } : {}),
-    state: options.disabled === true ? 'disabled' : 'idle',
-    hovered: options.disabled !== true && containsPoint(rect, pointer),
-    hoverOutline: 'gold',
-    ...(options.compact === true ? {} : { label }),
-    ...(options.glyph === undefined ? {} : { glyph: options.glyph }),
-  });
-}
-
-function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: UiRect): void {
-  drawUiSkinAsset(context, skin.frameThin, rect);
-  context.save();
-  context.fillStyle = '#ead0aa44';
-  context.fillRect(rect.x + 6, rect.y + 7, Math.max(0, rect.width - 12), Math.max(0, rect.height - 14));
-  context.restore();
 }
 
 export class OverworldUi {
@@ -1647,13 +1610,7 @@ export class OverworldUi {
         return true;
       },
     });
-    this.experimentalWebGLNode = widget('button', 'window.settings.video.experimental-webgl', {
-      onPointer: (event) => {
-        if (event.kind !== 'pointer_down' || event.button !== 0) return false;
-        changeExperimentalWebGL(!readExperimentalWebGL());
-        return true;
-      },
-    });
+    this.experimentalWebGLNode = createExperimentalWebGLNode();
     this.renderProtocolNode = widget('button', 'window.developer.render.protocol', {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down' || event.button !== 0) return false;
@@ -1995,9 +1952,7 @@ export class OverworldUi {
     this.worldScaleNode.setBounds(this.layout.worldScaleButton);
     this.presentationCapNode.setBounds(this.layout.presentationCapButton);
     this.experimentalWebGLNode.setBounds(this.layout.experimentalWebGLButton);
-    this.renderProtocolNode.setBounds({ ...this.layout.orePreviewButton,
-      x: this.layout.developerContent.x + 12, width: this.layout.developerContent.width - 24,
-      y: this.layout.orePreviewButton.y + 30 });
+    this.renderProtocolNode.setBounds(renderProtocolBounds(this.layout));
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].setBounds(this.layout.developerTabs[tab]);
     this.masterSlider.setBounds(this.layout.masterSlider);
     this.musicSlider.setBounds(this.layout.musicSlider);
@@ -3025,8 +2980,7 @@ export class OverworldUi {
     this.worldScaleNode.enabled = this.worldScaleNode.visible;
     this.presentationCapNode.visible = this.lightingQualityNode.visible;
     this.presentationCapNode.enabled = this.presentationCapNode.visible;
-    this.experimentalWebGLNode.visible = this.lightingQualityNode.visible;
-    this.experimentalWebGLNode.enabled = this.experimentalWebGLNode.visible;
+    syncExperimentalWebGLNode(this.experimentalWebGLNode, this.lightingQualityNode.visible, developerVisible, this.developerTab);
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].visible = developerVisible;
     const developerWorldVisible = developerVisible && this.developerTab === 'world';
     const developerRenderVisible = developerVisible && this.developerTab === 'render';
@@ -3184,16 +3138,10 @@ export class OverworldUi {
       return;
     }
 
-    drawLabel(context, this.fonts, 'UNIFIED SOLVER', developerContent.x + 12,
-      this.layout.lightingEffectsButton.y + 5, { color: '#6b4428' });
-    drawLabel(context, this.fonts, 'CELLAR ORE VEINS', developerContent.x + 12,
-      this.layout.orePreviewButton.y + 5, { color: '#6b4428' });
-    this.lightingEffectsToggle.draw(context);
-    this.orePreviewToggle.draw(context);
-    drawMenuButton(context, this.skin, this.fonts, this.pointer, {
-      ...this.layout.orePreviewButton, x: developerContent.x + 12,
-      width: developerContent.width - 24, y: this.layout.orePreviewButton.y + 30,
-    }, renderProtocolAction.label);
+    drawDeveloperRender(context, {
+      fonts: this.fonts, skin: this.skin, pointer: this.pointer, layout: this.layout,
+      lightingEffectsToggle: this.lightingEffectsToggle, orePreviewToggle: this.orePreviewToggle,
+    });
   }
 
   private drawHotbar(context: CanvasRenderingContext2D): void {
@@ -3914,64 +3862,12 @@ export class OverworldUi {
       return;
     }
 
-    const settingRows = this.settingsTab === 'video' ? [
-      ['DISPLAY MODE', this.model.fullscreen ? 'FULLSCREEN' : 'WINDOWED'],
-      ['PIXEL SCALING', 'INTEGER'],
-      ['WORLD ZOOM', 'AUTO'],
-      ['UI SCALE', 'AUTO'],
-      ['LIGHTING', lightingSettingsMode(this.model).toUpperCase()],
-      ['WORLD SCALE', worldScaleSettingLabel(readWorldScale())],
-      ['30 HZ CAP', readPresentationCap() === '30hz' ? 'ON' : 'OFF'],
-      ['EXPERIMENTAL: WEBGL RENDERER', readExperimentalWebGL() ? 'ON' : 'OFF'],
-      ['WEATHER DETAIL', 'HIGH'],
-    ] as const : this.settingsTab === 'interface' ? [
-      ['HUD VISIBILITY', 'FULL'],
-      ['MINIMAP', 'EXPANDED'],
-      ['CHAT TIMESTAMPS', 'OFF'],
-      ['TOOLTIP DELAY', 'SHORT'],
-      ['ITEM LABELS', 'ON'],
-      ['UI SAFE AREA', 'AUTO'],
-    ] as const : [
-      ['REDUCED MOTION', 'OFF'],
-      ['FLASH REDUCTION', 'OFF'],
-      ['HIGH CONTRAST', 'OFF'],
-      ['CHAT TEXT SIZE', 'NORMAL'],
-      ['COLOUR FILTER', 'NONE'],
-      ['HOLD ASSIST', 'OFF'],
-    ] as const;
-    const visibleRows = this.settingsTab === 'video' && compactVideoRows(settingsContent.height)
-      ? settingRows.filter(([label]) => label === 'LIGHTING' || label === 'WORLD SCALE' || label === '30 HZ CAP' || label === 'EXPERIMENTAL: WEBGL RENDERER') : settingRows;
-    const rowHeight = this.settingsTab === 'video' ? videoSettingsRowHeight(settingsContent.height)
-      : Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / visibleRows.length)));
-    visibleRows.forEach(([label, value], index) => {
-      const y = settingsContent.y + 23 + index * rowHeight;
-      const displayLabel = label === 'EXPERIMENTAL: WEBGL RENDERER' && settingsContent.width < 280 ? 'WEBGL*' : label;
-      drawPixelTextInRect(context, this.fonts, displayLabel, {
-        x: settingsContent.x + 10, y, width: label === 'EXPERIMENTAL: WEBGL RENDERER' ? settingsContent.width - 75 : Math.max(40, settingsContent.width * 0.46), height: Math.min(18, rowHeight),
-      }, { verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
-      const interactiveLightingModel = this.settingsTab === 'video' && label === 'LIGHTING';
-      const interactiveWorldScale = this.settingsTab === 'video' && label === 'WORLD SCALE';
-      const interactiveCap = this.settingsTab === 'video' && label === '30 HZ CAP';
-      const interactiveBackend = this.settingsTab === 'video' && label === 'EXPERIMENTAL: WEBGL RENDERER';
-      drawMenuButton(context, this.skin, this.fonts, this.pointer, interactiveLightingModel
-        ? this.lightingQualityNode.bounds : interactiveWorldScale ? this.worldScaleNode.bounds : interactiveCap ? this.presentationCapNode.bounds : interactiveBackend ? this.experimentalWebGLNode.bounds : {
-        x: settingsContent.x + Math.floor(settingsContent.width * 0.5), y,
-        width: Math.max(40, settingsContent.width * 0.5 - 10), height: Math.min(18, rowHeight),
-      }, value, { tone: interactiveLightingModel || interactiveWorldScale || interactiveCap || interactiveBackend ? 'green' : 'silver', disabled: !interactiveLightingModel && !interactiveWorldScale && !interactiveCap && !interactiveBackend });
+    drawSettingsChoiceRows(context, {
+      fonts: this.fonts, skin: this.skin, pointer: this.pointer, layout: this.layout,
+      settingsTab: this.settingsTab, model: this.model, lightingQualityNode: this.lightingQualityNode,
+      worldScaleNode: this.worldScaleNode, presentationCapNode: this.presentationCapNode,
+      experimentalWebGLNode: this.experimentalWebGLNode,
     });
-    const lightingHint = lightingSettingsMode(this.model) === 'dynamic' && this.model.lightingEffectsDisabled
-      ? this.model.lightingFallbackReason === 'preparing' ? 'PREPARING DYNAMIC LIGHTING...' : 'DYNAMIC UNAVAILABLE; USING BASIC'
-      : 'CLICK LIGHTING: BASIC / CLASSIC / DYNAMIC';
-    const backend = worldBackendStatus();
-    const videoHint = backend.fallbackReason !== null ? `CANVAS: ${backend.fallbackReason.replace(/^webgl_/, '').replaceAll('_', ' ').toUpperCase()}`
-      : backend.preparing ? 'PREPARING EXPERIMENTAL WEBGL...' : backend.backend === 'webgl2' ? 'EXPERIMENTAL WEBGL ACTIVE'
-        : settingsContent.width < 280 ? '* EXPERIMENTAL WEBGL RENDERER' : lightingHint;
-    drawPixelTextInRect(context, this.fonts, this.settingsTab === 'video' ? videoHint : 'CONFIGURATION SUPPORT IS RESERVED FOR A LATER UPDATE.', {
-      x: settingsContent.x + 10,
-      y: settingsContent.y + settingsContent.height - 17,
-      width: settingsContent.width - 20,
-      height: 10,
-    }, { align: 'center', color: '#8c6c54', overflow: 'ellipsis' });
   }
 
   private drawCooking(context: CanvasRenderingContext2D, rect: UiRect): void {
