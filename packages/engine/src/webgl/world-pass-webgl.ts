@@ -1,5 +1,6 @@
 import { registerWorldSamplingContext, unregisterWorldSamplingContext, countWorldSampling } from '@orchard/ui';
 import { resetUnlitWorldEffects } from '../receiver-frame-source.js';
+import { WorldPathClips } from './path-clips.js';
 import type { RawReceiverField } from '../receiver-raw-field.js';
 import type { AssetFrameSource } from '@orchard/ui';
 import type { WorldPassBackend, WorldPassImage, WorldPassSprite, WorldSpriteVariant, WorldPassRectangle } from '../world-pass-backend.js';
@@ -45,6 +46,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
   private geometry:WorldGeometry;
   private readonly gpuTimer:WebGLGpuTimer;
   private readonly coverageTextures:CoverageTextures;
+  private readonly pathClips:WorldPathClips;
   private layout:WorldPassLayout | null=null;
   private disposed=false;
   private lost=false;
@@ -71,11 +73,13 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
       this.present=new CanvasWorldPresent();cleanup.push(()=>this.present.dispose());
       this.textures=new WorldTextures(this.gl);cleanup.push(()=>this.textures.dispose());
       this.coverageTextures=new CoverageTextures(this.gl);cleanup.push(()=>this.coverageTextures.dispose());
+      this.pathClips=new WorldPathClips(this.gl);cleanup.push(()=>this.pathClips.dispose());
       this.geometry=new WorldGeometry(this.gl);cleanup.push(()=>this.geometry.dispose());
       this.gpuTimer=new WebGLGpuTimer(this.gl);cleanup.push(()=>this.gpuTimer.dispose());
       this.white.width=this.white.height=1;
       const white=requireWebGL(this.white.getContext('2d'),'webgl_white_source_unavailable');white.fillStyle='#ffffff';white.fillRect(0,0,1,1);
       this.adapter=new WebGLCanvasAdapter({canvas:this.canvas,valid:()=>this.requireActive(),
+        pathClip:(path,rule)=>this.pathClips.resolve(path,rule),
         image:(image,rect,state)=>this.image(image,rect,state),fill:(rect,color,state)=>this.fill(rect,color,state),clear:(rect,state)=>this.clear(rect,state)});
       this.context=this.adapter.context;registerWorldSamplingContext(this.context);cleanup.push(()=>unregisterWorldSamplingContext(this.context));cleanup.push(()=>unregisterWebGLWorldBackend(this.context));registerWebGLWorldBackend(this.context,this);
       cleanup.push(()=>this.canvas.removeEventListener('webglcontextlost',this.onLost));this.canvas.addEventListener('webglcontextlost',this.onLost);
@@ -90,8 +94,8 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
   get width():number { return this.canvas.width; }
   get height():number { return this.canvas.height; }
   get presentBytes():number { return this.present.bytes; }
-  get bytes():number { return this.disposed ? 0 : this.width*this.height*4+this.presentBytes+this.textures.bytes+this.coverageTextures.bytes+this.geometry.bytes+4; }
-  get diagnostics() { return { ...this.gpuTimer.diagnostics,textures:this.textures.count+this.coverageTextures.count,textureBytes:this.textures.bytes+this.coverageTextures.bytes,textureUploads:this.textures.uploads+this.coverageTextures.uploads,
+  get bytes():number { return this.disposed ? 0 : this.width*this.height*4+this.presentBytes+this.textures.bytes+this.coverageTextures.bytes+this.pathClips.bytes+this.geometry.bytes+4; }
+  get diagnostics() { return { ...this.gpuTimer.diagnostics,textures:this.textures.count+this.coverageTextures.count+this.pathClips.count,textureBytes:this.textures.bytes+this.coverageTextures.bytes+this.pathClips.textureBytes,textureUploads:this.textures.uploads+this.coverageTextures.uploads+this.pathClips.uploads,
     buffers:this.disposed ? 0:1,programs:this.disposed ? 0:1,vertexArrays:this.disposed ? 0:1,framebuffers:0,drawCalls:this.geometry.draws,
     bytes:this.bytes,contextLost:this.lost,restoreFailure:this.restoreFailure }; }
   reserve(width:number,height:number,presentWidth:number,presentHeight:number):void {
@@ -103,9 +107,12 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
   begin(layout:WorldPassLayout):void {
     this.requireActive();
     if (layout.width>this.width || layout.height>this.height) throw new WebGLWorldPassError('world_pass_capacity_not_reserved');
-    this.layout=layout; this.adapter.reset(); this.pending=null; this.invalidateSelection();
+    this.layout=layout; this.pathClips.begin(); this.adapter.reset(); this.pending=null; this.invalidateSelection();
     this.geometry.begin(this.width,this.height);this.gpuTimer.begin();
     this.gl.disable(this.gl.SCISSOR_TEST); this.gl.clearColor(0,0,0,1); this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+  }
+  associateClip(path: Path2D, rectangle: WorldPassRectangle, outside: number): void {
+    this.requireFrame(); this.pathClips.register(path, rectangle, outside);
   }
   associateSource(source:AssetFrameSource,options:WebGLSourceOptions):AssetFrameSource {
     const previous=this.pending;
@@ -214,7 +221,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
   private select(image:CanvasImageSource,revision:number,field:WebGLGroundField | undefined,state:CanvasState) {
     const old=this.selectedState;
     const changed=image!==this.selectedImage || revision!==this.selectedRevision || field!==this.selectedField || !old
-      || old.composite!==state.composite || old.smooth!==state.smooth || old.clip!==state.clip || field?.revision!==this.selectedFieldRevision;
+      || old.composite!==state.composite || old.smooth!==state.smooth || old.clip!==state.clip || old.pathClip!==state.pathClip || field?.revision!==this.selectedFieldRevision;
     if(!changed && this.selectedTexture)return this.selectedTexture;
     if (changed) {
       this.flush(); this.selectedImage=image; this.selectedRevision=revision; this.selectedField=field; this.selectedFieldRevision=field?.revision; this.selectedState={...state};
@@ -225,6 +232,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     this.geometry.coverage(field && 'coverage' in field ? field:undefined,field?.step);
     if (field) { if ('coverage' in field) this.coverageTextures.bind(field); else this.textures.field(field); }
     else { this.gl.activeTexture(this.gl.TEXTURE1); this.gl.bindTexture(this.gl.TEXTURE_2D,texture.texture); }
+    if (state.pathClip) this.pathClips.bind(state.pathClip);
     this.gl.activeTexture(this.gl.TEXTURE0); this.gl.bindTexture(this.gl.TEXTURE_2D,texture.texture);
     this.selectedTexture=texture;return texture;
   }
@@ -250,7 +258,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
   };
   private readonly onRestored=():void => {
     if (this.disposed) return;
-    try { this.geometry=new WorldGeometry(this.gl); this.gpuTimer.restore();this.textures.invalidate(); this.coverageTextures.invalidate(); this.invalidateSelection(); this.lost=false; this.options.onRestored?.(); }
+    try { this.geometry=new WorldGeometry(this.gl); this.gpuTimer.restore();this.textures.invalidate(); this.coverageTextures.invalidate(); this.pathClips.invalidate(); this.invalidateSelection(); this.lost=false; this.options.onRestored?.(); }
     catch (error) { this.restoreFailure=error instanceof Error ? error.message:'webgl_restore_failed'; this.options.onFailure?.(this.restoreFailure); }
   };
   dispose():void {
@@ -263,7 +271,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
       ()=>this.canvas.removeEventListener('webglcontextlost',this.onLost),
       ()=>this.canvas.removeEventListener('webglcontextrestored',this.onRestored),
       ()=>this.adapter.reset(),
-      ()=>this.gpuTimer.dispose(),()=>this.geometry.dispose(),()=>this.textures.dispose(),()=>this.coverageTextures.dispose(),()=>this.present.dispose(),
+      ()=>this.gpuTimer.dispose(),()=>this.geometry.dispose(),()=>this.textures.dispose(),()=>this.coverageTextures.dispose(),()=>this.pathClips.dispose(),()=>this.present.dispose(),
       ()=>{this.white.width=0;},()=>{this.white.height=0;},()=>{this.canvas.width=0;},()=>{this.canvas.height=0;},
     ],'webgl_dispose_failed');
   }

@@ -49,6 +49,11 @@ export class WorldGeometry {
     const gl=this.gl;
     if (state.clip) { gl.enable(gl.SCISSOR_TEST); gl.scissor(Math.ceil(state.clip[0]),height-Math.floor(state.clip[3]),Math.max(0,Math.floor(state.clip[2])-Math.ceil(state.clip[0])),Math.max(0,Math.floor(state.clip[3])-Math.ceil(state.clip[1]))); }
     else gl.disable(gl.SCISSOR_TEST);
+    gl.uniform1i(this.program.clipEnabled,state.pathClip?1:0);
+    if (state.pathClip) {
+      const {x,y,width,height}=state.pathClip.rectangle;
+      gl.uniform4f(this.program.clipRectangle,x,y,width,height);gl.uniform1f(this.program.clipOutside,state.pathClip.outside);
+    }
     gl.blendEquation(gl.FUNC_ADD);
     switch (state.composite) {
       case 'source-over': gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA); break;

@@ -1,9 +1,11 @@
+import type { WorldPathClip } from './path-clips.js';
 import { WebGLWorldPassError } from './failure.js';
 import { imageDimensions } from './textures.js';
 export type Matrix = readonly [number, number, number, number, number, number];
 export interface CanvasState {
   matrix: Matrix; alpha: number; composite: GlobalCompositeOperation;
   smooth: boolean; fill: string; clip: readonly [number, number, number, number] | null;
+  pathClip?: WorldPathClip;
 }
 export interface CanvasSink {
   readonly canvas: HTMLCanvasElement;
@@ -11,6 +13,7 @@ export interface CanvasSink {
   fill(rectangle: readonly number[], color: readonly number[], state: CanvasState): void;
   clear(rectangle: readonly number[], state: CanvasState): void;
   valid(): void;
+  pathClip?(path: Path2D, rule: CanvasFillRule, state: CanvasState): WorldPathClip;
 }
 export function multiplyMatrix(a: Matrix, b: Matrix): Matrix {
   return [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1], a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3],
@@ -60,7 +63,14 @@ export class WebGLCanvasAdapter {
       beginPath: () => { this.path=null; },
       rect: (...args: number[]) => { if (this.path!==null) throw new WebGLWorldPassError('webgl_unsupported_multi_rect_path'); this.path=args; },
       clip: (...args: unknown[]) => {
-        if (args.some((arg) => typeof arg==='object') || this.path===null) throw new WebGLWorldPassError('webgl_unsupported_clip_path');
+        if (args.length && typeof args[0] === 'object') {
+          if (!this.sink.pathClip || this.state.pathClip !== undefined
+            || this.state.matrix.some((value, index) => value !== [1,0,0,1,0,0][index])) throw new WebGLWorldPassError('webgl_unsupported_clip_path');
+          const rule = args[1] ?? 'nonzero';
+          if (rule !== 'nonzero' && rule !== 'evenodd') throw new WebGLWorldPassError('webgl_unsupported_clip_path');
+          this.state.pathClip = this.sink.pathClip(args[0] as Path2D, rule, this.state); return;
+        }
+        if (this.path===null) throw new WebGLWorldPassError('webgl_unsupported_clip_path');
         const [x,y,w,h]=this.path as readonly [number,number,number,number]; const m=this.state.matrix;
         if (m[1]!==0 || m[2]!==0) throw new WebGLWorldPassError('webgl_unsupported_rotated_clip');
         let left=Math.min(x*m[0]+m[4],(x+w)*m[0]+m[4]),top=Math.min(y*m[3]+m[5],(y+h)*m[3]+m[5]);

@@ -1,3 +1,4 @@
+import { webglWorldBackend } from './webgl/hooks.js';
 import { TILE_SIZE_PIXELS } from '@orchard/sim';
 import { compareWorldDepthItems, type WorldDepthItem } from './renderer.js';
 
@@ -144,6 +145,16 @@ export function createTerrainCutawayMask(
         scale,
       );
     }
+  }
+  const backend = webglWorldBackend(context);
+  if (backend !== undefined) {
+    // Integer local bounds include the Canvas ellipse antialias gutter.
+    const halfWidth = Math.ceil(screenRadiusX) + 2, halfHeight = Math.ceil(screenRadiusY) + 2;
+    const rectangle = { x: screenCenterX - halfWidth, y: screenCenterY - halfHeight,
+      width: halfWidth * 2, height: halfHeight * 2 };
+    backend.associateClip(inside, rectangle, 0);
+    backend.associateClip(outside, rectangle, 1);
+    backend.associateClip(stipple, rectangle, 0);
   }
   const visibility = Math.max(0, Math.min(1, focus.visibility ?? 1));
   return {

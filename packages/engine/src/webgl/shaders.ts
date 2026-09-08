@@ -23,6 +23,11 @@ uniform sampler2D light;
 uniform sampler2D sunCoverage;
 uniform sampler2D moonCoverage;
 uniform sampler2D contactCoverage;
+uniform sampler2D clipMask;
+uniform int clipEnabled;
+uniform vec4 clipRectangle;
+uniform float clipOutside;
+uniform vec2 resolution;
 uniform int rawCoverage;
 uniform float fieldStep;
 uniform vec3 diffuseLight;
@@ -53,6 +58,12 @@ vec4 groundLight() {
  return vec4(mix(mix(resolvedCorner(corner),resolvedCorner(corner+ivec2(1,0)),f.x),
             mix(resolvedCorner(corner+ivec2(0,1)),resolvedCorner(corner+ivec2(1,1)),f.x),f.y),1);
 }
+float clipCoverage() {
+ if(clipEnabled==0) return 1.0;
+ vec2 point=vec2(gl_FragCoord.x,resolution.y-gl_FragCoord.y)-clipRectangle.xy;
+ if(any(lessThan(point,vec2(0))) || any(greaterThanEqual(point,clipRectangle.zw))) return clipOutside;
+ return texelFetch(clipMask,ivec2(floor(point)),0).a;
+}
 void main() {
  vec4 original=texture(page,texCoord);
  vec4 value=original;
@@ -64,9 +75,9 @@ void main() {
   if(ground.a==0.0) value.a=byteRound(vec3(original.a*original.a)).r;
   if(operation==4) { value.rgb=byteRound(original.rgb+value.rgb*(1.0-original.a)); value.a=original.a+original.a*(1.0-original.a); }
  } else if(operation==3) { value=vec4(tint.rgb,1); }
- outputColor=floor(value*255.0*floor(tint.a*256.0)/256.0+0.0001)/255.0;
+ outputColor=floor(value*255.0*floor(tint.a*256.0)/256.0+0.0001)/255.0*clipCoverage();
 }`;
-export interface WorldProgram { readonly program: WebGLProgram; readonly resolution: WebGLUniformLocation; readonly rawCoverage:WebGLUniformLocation; readonly fieldStep:WebGLUniformLocation; readonly diffuseLight:WebGLUniformLocation; readonly sunLight:WebGLUniformLocation; readonly moonLight:WebGLUniformLocation }
+export interface WorldProgram { readonly clipEnabled:WebGLUniformLocation; readonly clipRectangle:WebGLUniformLocation; readonly clipOutside:WebGLUniformLocation; readonly program: WebGLProgram; readonly resolution: WebGLUniformLocation; readonly rawCoverage:WebGLUniformLocation; readonly fieldStep:WebGLUniformLocation; readonly diffuseLight:WebGLUniformLocation; readonly sunLight:WebGLUniformLocation; readonly moonLight:WebGLUniformLocation }
 export function createWorldProgram(gl: WebGL2RenderingContext): WorldProgram {
   const program = requireWebGL(gl.createProgram(), 'webgl_program_unavailable');
   const shaders: WebGLShader[] = [];
@@ -83,8 +94,10 @@ export function createWorldProgram(gl: WebGL2RenderingContext): WorldProgram {
     gl.useProgram(program);
     gl.uniform1i(requireWebGL(gl.getUniformLocation(program, 'page'), 'webgl_page_uniform'), 0);
     gl.uniform1i(requireWebGL(gl.getUniformLocation(program, 'light'), 'webgl_light_uniform'), 1);
+    gl.uniform1i(requireWebGL(gl.getUniformLocation(program, 'clipMask'), 'webgl_clip_uniform'), 5);
     for (const [name,unit] of [['sunCoverage',2],['moonCoverage',3],['contactCoverage',4]] as const) gl.uniform1i(requireWebGL(gl.getUniformLocation(program,name),'webgl_coverage_uniform'),unit);
-    result={ program, fieldStep:requireWebGL(gl.getUniformLocation(program,'fieldStep'),'webgl_field_step_uniform'),rawCoverage:requireWebGL(gl.getUniformLocation(program,'rawCoverage'),'webgl_raw_uniform'),
+    result={ program, clipEnabled:requireWebGL(gl.getUniformLocation(program,'clipEnabled'),'webgl_clip_enabled_uniform'),
+      clipRectangle:requireWebGL(gl.getUniformLocation(program,'clipRectangle'),'webgl_clip_rectangle_uniform'),clipOutside:requireWebGL(gl.getUniformLocation(program,'clipOutside'),'webgl_clip_outside_uniform'), fieldStep:requireWebGL(gl.getUniformLocation(program,'fieldStep'),'webgl_field_step_uniform'),rawCoverage:requireWebGL(gl.getUniformLocation(program,'rawCoverage'),'webgl_raw_uniform'),
       diffuseLight:requireWebGL(gl.getUniformLocation(program,'diffuseLight'),'webgl_diffuse_uniform'),sunLight:requireWebGL(gl.getUniformLocation(program,'sunLight'),'webgl_sun_uniform'),moonLight:requireWebGL(gl.getUniformLocation(program,'moonLight'),'webgl_moon_uniform'),resolution: requireWebGL(gl.getUniformLocation(program, 'resolution'), 'webgl_resolution_uniform') };
   }catch(error){failed=true;failure=error;}
   const errors=collectWebGLCleanup(shaders.flatMap(shader=>[()=>gl.detachShader(program,shader),()=>gl.deleteShader(shader)]));
