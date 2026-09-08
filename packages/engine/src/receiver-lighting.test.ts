@@ -37,7 +37,9 @@ describe('retained static and moving receiver coverage', () => {
     expect(last.static).toEqual(staticBytes);
     reference.prepare(sky, [...fixed, ...actor]);
     expect(raster.pixels).toEqual(reference.rasterize(0, 0, 64, 64, 0, 4).pixels);
-    // A real window change is a separate, legitimate static invalidation.
+    // Viewport changes inside the padded static field reuse its exact texels.
+    scene.rasterizeCached(1, 64, 0, 64, 64, 0, 4);
+    expect(scene.diagnostics.staticCoverageBuilds).toBe(warmBuilds);
     scene.rasterizeCached(1, 128, 0, 64, 64, 0, 4);
     expect(scene.diagnostics.staticCoverageBuilds).toBe(warmBuilds + 1);
   });
@@ -134,7 +136,7 @@ describe('retained static and moving receiver coverage', () => {
       const far = scene.rasterizeCached(1, 190, 190, 4, 4, 0);
       expect(near).not.toBe(far);
       expect(scene.rasterizeCached(1, 90, 90, 4, 4, 0)).toBe(near);
-      expect(scene.diagnostics.staticCoverageBuilds).toBe(2);
+      expect(scene.diagnostics.staticCoverageBuilds).toBe(1);
     } finally { collision.mockRestore(); }
   });
 
