@@ -38,7 +38,8 @@ export class WorldLightingRenderer {
   private height = 0;
   private lightmap: TileLightmap | null = null;
   private localSourceRevision = -1;
-  private localRevision = 0;
+  private rawLocalRevision = 0;
+  private localDamage: { source: TileLightmap; projection: number } | null = null;
   private readonly localSample = { r: 0, g: 0, b: 0 };
   receiverMs = 0;
   mergeMs = 0;
@@ -52,8 +53,9 @@ export class WorldLightingRenderer {
     this.receiverMs = this.mergeMs = this.uploadMs = 0;
     this.scene.prepareSplit(sky, fixed, moving, staticIdentity);
     if (this.lightmap !== lightmap || this.localSourceRevision !== lightmap.receiverRevision) {
-      this.localRevision++; this.localSourceRevision = lightmap.receiverRevision;
+      this.rawLocalRevision++; this.localSourceRevision = lightmap.receiverRevision;
     }
+    if (this.lightmap !== lightmap) this.localDamage = { source: lightmap, projection: 0 };
     this.lightmap = lightmap; this.cameraX = cameraX; this.cameraY = cameraY; this.width = width; this.height = height;
     this.planes.clear();
   }
@@ -82,8 +84,9 @@ export class WorldLightingRenderer {
     const mergeStarted = performance.now();
     // The level projection is constant for this synchronous plane raster.
     const projection = this.mapper.projectionAtLevel(level);
-    const raster = this.scene.rasterizeCached(this.localRevision, left, top, width, height, this.mapper.heightAtLevel(level), step,
-      (x, y) => this.lightmap!.sampleReceiverLight(x, y - projection, level, 'flat', this.localSample));
+    this.localDamage!.projection = projection;
+    const raster = this.scene.rasterizeCached(this.lightmap!.receiverRevision, left, top, width, height, this.mapper.heightAtLevel(level), step,
+      (x, y) => this.lightmap!.sampleReceiverLight(x, y - projection, level, 'flat', this.localSample), this.localDamage!);
     this.mergeMs += performance.now() - mergeStarted;
     let upload = this.uploads.get(level);
     if (upload === undefined) {
@@ -118,7 +121,7 @@ export class WorldLightingRenderer {
     const left = Math.floor(this.cameraX / step) * step - step;
     const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
     const projection = this.mapper.projectionAtLevel(level);
-    return this.scene.rawFieldCached(this.localRevision, left, top,
+    return this.scene.rawFieldCached(this.rawLocalRevision, left, top,
       Math.ceil(this.width / step) + 3, Math.ceil(this.height / step) + 3, this.mapper.heightAtLevel(level), step,
       (worldX, worldY) => this.lightmap!.sampleReceiverLight(worldX, worldY - projection, level, 'flat', this.localSample));
   }
@@ -190,7 +193,7 @@ export class WorldLightingRenderer {
     this.frames.reset(); this.scene.reset(); this.planes.clear();
     for (const { canvas } of this.uploads.values()) canvas.width = canvas.height = 0;
     this.uploads.clear();
-    this.groundRuns.reset(); this.lightmap = null;
+    this.groundRuns.reset(); this.lightmap = null; this.localDamage = null;
     if (this.flameGlow !== null) this.flameGlow.width = this.flameGlow.height = 0;
     this.flameGlow = null;
   }

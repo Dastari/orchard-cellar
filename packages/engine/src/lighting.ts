@@ -1,3 +1,4 @@
+import { LocalLightDamage, type WorldLightBounds } from './local-light-damage.js';
 import { sampleReceiverRgb, blackReceiverRgb, type ReceiverRgbDestination } from './receiver-rgb-sampling.js';
 import { authorityDayProgress, dayProgressAtClockTime, lunarIlluminationAtAuthorityTick } from '@orchard/sim';
 import {
@@ -303,6 +304,7 @@ export class TileLightmap {
   private floodMsValue = 0;
   private fieldRebuildsValue = 0;
   private receiverRevisionValue = 0;
+  private readonly receiverDamage = new LocalLightDamage();
   private occlusionRebuildsValue = 0;
   private occlusionCacheHitsValue = 0;
   private boundsResizeMsValue = 0;
@@ -329,6 +331,7 @@ export class TileLightmap {
   /** Drop all lighting-only backing stores without allocating replacements. */
   reset(): void {
     this.receiverRevisionValue++;
+    this.receiverDamage.reset(this.receiverRevisionValue);
     if (this.surfaces !== null) {
       this.surfaces.canvas.width = this.surfaces.canvas.height = 0;
       this.surfaces.haloCanvas.width = this.surfaces.haloCanvas.height = 0;
@@ -346,7 +349,7 @@ export class TileLightmap {
     this.lightmapFrameTimes.fill(0); this.lightmapFrameCursor = this.lightmapFrameCount = 0;
   }
   get retainedSurfaceBytes(): number {
-    return this.surfaces === null ? 0 : this.surfaces.canvas.width * this.surfaces.canvas.height * 8;
+    return (this.surfaces === null ? 0 : this.surfaces.canvas.width * this.surfaces.canvas.height * 8) + this.receiverDamage.bytes;
   }
 
   get floodTexelsVisited(): number { return this.floodTexelsVisitedValue; }
@@ -354,6 +357,8 @@ export class TileLightmap {
   get fieldRebuilds(): number { return this.fieldRebuildsValue; }
   /** Monotonic identity of local receiver bytes, including reset and resizing. */
   get receiverRevision(): number { return this.receiverRevisionValue; }
+  get receiverChangedBounds(): WorldLightBounds | null { return this.receiverDamage.since(this.receiverRevisionValue - 1); }
+  receiverChangesSince(revision: number): WorldLightBounds | null { return this.receiverDamage.since(revision); }
   get occlusionRebuilds(): number { return this.occlusionRebuildsValue; }
   get occlusionCacheHits(): number { return this.occlusionCacheHitsValue; }
   get boundsResizeMs(): number { return this.boundsResizeMsValue; }
@@ -433,6 +438,9 @@ export class TileLightmap {
     if (rebuild) {
       this.fieldRebuildsValue += 1;
       this.receiverRevisionValue++;
+      if (retainReceiverFields) this.receiverDamage.rebuild(this.receiverRevisionValue, lights, minTileX * 16, minTileY * 16, width, height,
+        occlusionWindowChanged || lightingModel !== this.lastLightingModel || retainReceiverFields !== this.retainedReceiverFields);
+      else this.receiverDamage.reset(this.receiverRevisionValue);
       this.lightPixels.fill(0);
       this.haloPixels.fill(0);
       for (const facePixels of this.southFacePixelsByElevation.values()) facePixels.fill(0);

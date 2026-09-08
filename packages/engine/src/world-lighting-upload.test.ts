@@ -1,3 +1,4 @@
+import { CelestialReceiverScene } from './receiver-lighting.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WorldLightingRenderer } from './world-lighting-renderer.js';
 import { TileLightmap } from './lighting.js';
@@ -45,12 +46,18 @@ describe('retained receiver uploads', () => {
       heightSubunits: 4, footprint: { left: -3, right: 3, top: -2, bottom: 1 }, contact: true };
     const coverageBefore = renderer.scene.diagnostics.staticCoverageBuilds;
     const uploadBefore = upload.mock.calls.length;
+    const reference = new CelestialReceiverScene(4);
     for (let frame = 0; frame < 600; frame++) {
-      renderer.begin(sky, [], [{ ...caster, worldX: 50 + frame / 1000 }], local, 0, 0, 100, 100, 1);
+      const moving = [{ ...caster, worldX: 50 + frame / 1000 }];
+      renderer.begin(sky, [], moving, local, 0, 0, 100, 100, 1);
+      reference.prepareSplit(sky, [], moving, 1);
       renderer.compositeGround(context, 1);
+      const expected = reference.rasterize(-4, -4, 28, 28, 0, 4);
+      expect((upload.mock.calls.at(-1)![0] as ImageData).data).toEqual(expected.pixels);
     }
     expect(renderer.scene.diagnostics.staticCoverageBuilds).toBe(coverageBefore);
-    expect(upload.mock.calls.length - uploadBefore).toBe(600);
+    expect(upload.mock.calls.length - uploadBefore).toBeGreaterThan(0);
+    expect(upload.mock.calls.length - uploadBefore).toBeLessThan(600);
     expect(allocations).toBe(1); expect(create).toHaveBeenCalledOnce();
     expect(upload.mock.calls.at(-1)![0]).toBe(retainedImage);
     renderer.reset(); expect(renderer.bytes).toBe(0);

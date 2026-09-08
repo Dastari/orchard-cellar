@@ -45,7 +45,7 @@ describe('raw GPU lighting inputs', () => {
     expect(revisited.coverage.sun).toBe(coverage.sun);
     expect(revisited.revision).toBeGreaterThan(first.revision);
     expect(revisited.localPixels[0]).toBe(200);
-    expect(scene.retainedRasterBytes).toBeLessThanOrEqual(8 * 16 * 16 * 7 + merged.pixels.byteLength);
+    expect(scene.retainedRasterBytes).toBeLessThanOrEqual(8 * 16 * 16 * 7 + merged.pixels.byteLength * 2);
     scene.reset(); expect(scene.retainedRasterBytes + scene.retainedCoverageBytes + scene.retainedMaskBytes).toBe(0);
   });
   it('routes immutable receiver/ground sources and releases page textures on every cohort revision', () => {
