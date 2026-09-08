@@ -1,6 +1,6 @@
 # 59 — Client Render Performance Recovery Plan
 
-Implementation plan, **2026-09-06**. Status: **adopted — owner confirmed decisions A1, B2 and C (experimental WebGL2 toggle) on 2026-09-06; Canvas recovery implemented with measured residuals; A-19 release preparation, P8 general sampling/hardware performance still open; see §9**.
+Implementation plan, **2026-09-06**. Status: **adopted — owner confirmed decisions A1, B2 and C (experimental WebGL2 toggle) on 2026-09-06; Canvas recovery implemented with measured residuals; A-19 release prepared and awaiting owner Go, P8 general sampling/hardware performance still open; see §9**.
 Companion to [21](21-unified-renderer.md) (Canvas composition),
 [47](47-rendering-lighting-performance-plan.md) (performance program, M9 atlas
 pages, M11 backend gates), and
@@ -6145,3 +6145,31 @@ The old0.5.7/current cold cliff comparison and partial CPU attribution are retai
 | Hardware GPU | **owner to run** |
 
 Owner capture: System→Developer→Render→**Run protocol+copyJSON** at cliff/carried-light and pond, record device/OS/browser/DPR/browser zoom/resolution/commit/world scale/backend and repeat required modes/scales. No CPU-throttled substitute. Packaging the committed0.6.0 static client and exact rollback/publication request follows. No world publish, Studio deploy or live change is authorized in this run; release-specific owner Go remains required under A-19 and ops/orchard-runtime/README.md.
+
+
+### 2026-09-08 — A-19 release artifact and request prepared; not deployed
+
+**Scope/status.** Static gameplay client 0.6.0 from runtime commit `fd0cb7e664bf41e752164bc47c5ca3950532c6fe`; Canvas 1× remains default, experimental WebGL remains off and confined to Developer → Render. No world publication, migration, Studio deployment, service change or live static swap. This entry closes release preparation only; it does not close the A-14 sampling, hardware GPU or physical iPad gates. The current request supersedes the September 7 request and its obsolete conditional-approval wording.
+
+**Files/evidence.** Final tracked edits are this ledger and `docs/14-roadmap.md`. Runtime and the checked source bytes are unchanged. Artifacts are under `output/perf-59-20260908/release/`: `README.md` (release scope/gates/residuals), `commands.md` (exact proposed build/publication/rollback commands), `performance.md` / `performance.json` (all 22 stage p50/p95/p99 values and per-frame counters), `candidate.json`, source/static manifests, archive validation, build/static logs and same-account reconnect evidence. The A-19 milestone's original matched before/after stage/counter tables and minute-review evidence immediately precede this entry and remain under `output/perf-59-20260908/P8/A19/`; packaging is not a new runtime milestone or a new timing sample.
+
+**Commands/results.** `npm run check` passed on the unchanged runtime: 644 test files / 3,670 tests, 959.181298494339 seconds. Packaging ran `npm run build`, the isolated client production build with `VITE_RENDER_COMMIT=fd0cb7e664bf41e752164bc47c5ca3950532c6fe`, `npm run client:chunks:check`, and candidate-specific `CLIENT_STATIC_DRY_RUN=true npm run client:static:validate`: all pass. Generic Vite 500 kB warnings remain; diagnostics/WebGL lazy-boundary checks pass. The validator defaults to the canonical checkout, so the first dry-run checked old live output; the corrected candidate dry-run explicitly sets `CLIENT_STATIC_REPOSITORY` and an output-only `CLIENT_STATIC_UNIT` path mirror. `static-validation-scope.txt` preserves that distinction. No unit was installed. Proposed publication/rollback shell blocks pass `bash -n` only and have not executed.
+
+**Archive/continuity.** `client-0.6.0-fd0cb7e6.tar`, 36,259,840 bytes, SHA256 `f1908c6138255632e396bfac44f0191bc1832c88967077fa8bb7088e3dc5b290`; all 439 static files match the manifest, with safe archive paths/types. The source manifest pins 2,066 inputs in both the integrator and isolated build checkout. Post-build validation preserves all 36 original atlas PNGs and 323 generated pages. Private production-candidate reconnect preserves ordinary test identity, position, all 48 inventory slot rows and wallet. The actual candidate Video screenshot was opened: Canvas 1×, no experimental control in Video, readable HUD/footer. Basic is the selected test preference, not a lighting-default change. Read-only public preflight still matches all 384 retained live 0.5.7 files; no release was published.
+
+Rollback artifact: `output/perf-59-20260906/release/client-dist-before-0.6.0.tar`, SHA256 `7fa8d720be56039a58bd99c1a6d0e825d48cf1716f2047bb0d3aa1fc265bf3ac`. Publication commands first verify both archives and live continuity, retain the exact old directory, stop/swap/start only the frontend, validate public static serving and require live same-account postflight. A failed required gate stops or rolls back. These commands are a reviewable request only; release-specific owner Go remains required by A-19 and `ops/orchard-runtime/README.md` §Lifecycle code checks and release approval.
+
+| Final desktop evidence (ms) | p50 | p95 | p99 |
+|---|---:|---:|---:|
+| Pinned cliff Dynamic whole frame | 8.199998856 | 12.299999237 | 16 |
+| Pinned cliff Dynamic lightingMerge | 0.600000381 | 0.900003433 | 2.099998474 |
+| Larger cliff whole frame (supplementary) | 7.600000381 | 10.299999237 | 14.600000381 |
+| Larger cliff lightingMerge (supplementary) | 0 | 0.700000763 | 0.899997711 |
+| Larger cliff rAF gap (supplementary) | 16.7 | 16.7 | 16.8 |
+| Physical iPad | owner to run | owner to run | owner to run |
+
+The preceding original tables contain every stage and counter, device/OS/browser/DPR/zoom/resolution/commit/settings metadata, six matched route/mode comparisons and their qualification limits. All 12 warm before/after protocol captures have zero ≥50 ms tasks; surface allocations and filtered-frame builds are zero. Six mode cycles leave Basic with zero lighting bytes and Basic/Classic with zero omit bytes; Classic retains its approved legacy field. Historical Basic 6.3 ms is accepted as met; fresh Basic p95 6.700000763 ms remains recorded separately. Dynamic merge meets 1.5 ms, but whole-frame p95 remains 2.299999237 ms above 10 ms. Dominant stage p95 values are painterDraw 6.200000763 ms, finalWorldComposite 2.300001144 ms and painterBuild 1.399999619 ms; nested percentiles must not be summed.
+
+**Cliff limitation and open gates.** The complete owner-reported halt remains unreproduced. The ordinary old/current cliff comparison improves steady delivery but still shows a first-Dynamic cold task of 136–153 ms (old 127 ms), separate from warm acceptance. Partial profiled attribution does not prove one sole cause. A-14 remains OPEN after three approaches; A-15/A-16 amended pixel gates pass and A-17's six normal-route fallback sets are empty, but SwiftShader WebGL cliff p95 62.2–93.9 ms fails performance. Canvas gains are prepared independently of these experimental enable gates. Ten complete Canvas golden boards are byte-exact including HUD; 16 control fixtures and 18 minute movement reviews are retained. The final release request explicitly records each residual rather than claiming the original full Definition of Done is satisfied.
+
+**Owner capture.** iPad remains **owner to run**: on an accessible candidate, System → Developer → Render → **Run protocol + copy JSON**, separately at cliff/carried-light and pond, repeating lighting modes/world scales. Record device, OS, browser, DPR, browser zoom, resolution, commit and backend/scale with each sample. No CPU-throttled substitute. Hardware GPU qualification also remains owner to run. Release preparation is complete; deployment awaits an explicit Go for this reviewed artifact.

@@ -465,7 +465,7 @@ receiver indexing and retained tint/callback work are implemented. A-18 replaces
 the shared-browser gate with Playwright evidence and permits separate cliff/pond
 routes. A-15 resolves the old clip guard on the qualified domain. A-14 general
 sampling and hardware WebGL performance remain open; WebGL stays Developer-only.
-Canvas gains are being packaged for0.6.0, with the full-halt symptom unreproduced
+Canvas gains are packaged for 0.6.0, with the full-halt symptom unreproduced
 and cold-transition residual explicit. Physical iPad is owner to run. No deploy.
 
 
@@ -477,7 +477,7 @@ and cold-transition residual explicit. Physical iPad is owner to run. No deploy.
 - [ ] Doc59 A-14 — COUNTERS DONE / SAMPLER OPEN: codex,2026-09-08. Full642 files/3659 tests,10 exact boards,18 movement reviews; both route tables and per-producer counters in doc59§9/output/perf-59-20260908/P8/A14/. Third sampling approach stopped; Canvas guard retained. Dynamic merge p951.0ms, whole11.4ms; changed-content comparison limitation explicit. Moving-cliff max23.8ms/no50ms tasks, complete halt unreproduced. A-15 follows; no deployment.
 - [x] Doc59 A-15 — DONE: codex,2026-09-08. Bounded clip masks pass72/72 amended edge cases (band3/outside2/HUD0),600 warm frames allocate0 canvases/ImageData, actual context loss restores, disposal0. Full643 files/3664 tests;10 exact Canvas boards,18 movement reviews (all9 GPU requests stay WebGL),both route tables. Dynamic merge p950.9ms,whole11.6ms;moving-cliff max29ms/no50ms tasks. A-17 follows; A-14 remains OPEN; no deployment.
 - [x] Doc59 A-17 — FALLBACK CONDITION DONE / GPU PERFORMANCE OPEN: codex,2026-09-08. Six fresh-session route/mode runs encounter no fallback and submit only WebGL; full22-stage/counter evidence in doc59§9/output/perf-59-20260908/P8/A17/. SwiftShader cliff p9562.2–93.9ms and long tasks fail performance; do not claim hardware acceptance. Unchanged checked A-15 runtime. A-14 remains OPEN; A-19 Developer-only toggle/Canvas release request follows, no deployment.
-- [ ] Doc59 A-19 — IMPLEMENTED / RELEASE PACKAGING IN PROGRESS: codex,2026-09-08. Developer-only persisted WebGL control, Canvas1×default and visible fallback; full644files/3670tests,10 exact boards,16 panel fixtures,18 movement reviews and both route stage/counter tables. Dynamic merge p950.900003433ms; whole/cold-cliff residual explicit. No deployment; release-specific owner Go required.
+- [x] Doc59 A-19 — RELEASE PREPARED / OWNER GO PENDING: codex,2026-09-08. Developer-only persisted WebGL control, Canvas1×default and visible fallback; full644files/3670tests,10 exact boards,16 panel fixtures,18 movement reviews and both route stage/counter tables. Dynamic merge p950.900003433ms; whole/cold-cliff residual explicit. Archive client-0.6.0-fd0cb7e6.tar, build/static/reconnect/integrity gates pass; request and exact rollback/publication commands under output/perf-59-20260908/release/. No deployment; release-specific owner Go required.
 
 - [x] Doc 59 P7 allocation follow-up — Extract the minimap painter, then retain its canvas — COMPLETE: codex, 2026-09-07
   - Mechanical extraction and canvas reuse complete; full check 629 files / 3,614 tests green. 600-frame callback pixels exact, 40 old allocations versus one initial canvas; all updated gameplay modes have zero surface allocations. Initial Classic timing has five long tasks, repeat has zero; no whole-frame speedup claim. Ten Canvas boards and 36 originals exact. Missing-pond/shared-review gates remain OPEN. Evidence under P7/minimap-extraction and P7/minimap-reuse.
@@ -492,7 +492,7 @@ and cold-transition residual explicit. Physical iPad is owner to run. No deploy.
   - A-1 desktop captures now qualify across all modes/scales (commit 1ac77538); shared private-origin visual review remains OPEN under A-10. Preserve the measured pond/cap workload, original command order and exact Canvas output. Full A-1 check: 618 suites / 3,587 tests passed.
 
 - [ ] Doc 59 A-1 / P0 follow-up — Repeatable workload, effective-quality request attribution and sky-step capture — IN PROGRESS: codex, 2026-09-07
-  - Follow owner amendments in doc 59 §8; subsequent order is P6b painter producers, exact Canvas fixes, GPU qualification and allocation attribution. Deployment of the completed 0.6.0 client is authorized by the owner’s 2026-09-07 instruction, conditional on the remaining release gates.
+  - Follow owner amendments in doc 59 §8; subsequent order is P6b painter producers, exact Canvas fixes, GPU qualification and allocation attribution. Historical conditional deployment instruction is superseded by A-19: prepare the Canvas release request, then await release-specific owner Go; no deployment in this run.
 
 - [x] Doc 59 P0 — Attribution and device baseline — DONE: codex, 2026-09-06 (qualification gaps recorded in doc 59 §8)
   - Resumed after owner login. Diagnostics extraction `a7070426` is green; P0 counters, capture action and preliminary desktop stage tables are implemented. Walking samples and the full attribution gate pass (569 suites / 3,411 tests). Shared-preview active-rAF/screenshots remain OPEN. P1 follows with its measured scale matrix; no release candidate.
