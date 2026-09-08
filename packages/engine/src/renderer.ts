@@ -177,36 +177,7 @@ export function worldDepthY(item: Pick<WorldDepthItem, 'footY' | 'depthOffset'>)
   return item.footY + (item.depthOffset ?? 0);
 }
 
-/** Interleaves an impact-depth layer (weather today) around every world drawable. */
-export function drawWorldDepthQueue(
-  items: readonly WorldDepthItem[],
-  cameraY: number,
-  scale: number,
-  drawDepthRange: (minimumDepth: number, maximumDepth: number) => number,
-): number {
-  return drawSortedWorldDepthQueue(sortWorldDepthItems(items), cameraY, scale, drawDepthRange);
-}
-
-/** Draws an already sorted queue so instrumentation can own sort and draw as
- * disjoint stages without adding a second ordering implementation. */
-export function drawSortedWorldDepthQueue(
-  sortedItems: readonly WorldDepthItem[],
-  cameraY: number,
-  scale: number,
-  drawDepthRange: (minimumDepth: number, maximumDepth: number) => number,
-): number {
-  let draws = 0;
-  let previousDepth = Number.NEGATIVE_INFINITY;
-  for (const item of sortedItems) {
-    const depth = (worldDepthY(item) - cameraY) * scale;
-    if (depth >= previousDepth) {
-      draws += drawDepthRange(previousDepth, depth);
-      previousDepth = depth;
-    }
-    item.draw();
-  }
-  return draws + drawDepthRange(previousDepth, Number.POSITIVE_INFINITY);
-}
+export { drawWorldDepthQueue, drawSortedWorldDepthQueue } from './world-depth-draw.js';
 
 /** Owns display sizing and the only world-to-display composite. */
 export class UnifiedRenderer {
