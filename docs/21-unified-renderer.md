@@ -193,8 +193,15 @@ weather remains later content. Snow/leaves are not part of this task.
 
 ## 8. Instrumentation and budgets
 
-- Debug HUD (suggest `F3`; `F` and `G` are taken): frame ms (avg/worst over 60),
-  draw calls this frame, resident ground chunks, particle count, current `z`/`k`.
+- F3 debug HUD: delivered-game FPS over the recent one-second window, latest
+  frame gap and maximum foreground gap over five seconds, then separately labelled
+  CPU render ms (average/worst over60 submissions). FPS uses timestamps of submitted
+  game frames, respects the30Hz presentation cap, and prorates the interval crossing
+  the window boundary to avoid a phantom31FPS at30Hz. It is not reciprocal CPU time
+  or a claim about physical GPU scanout. History resets on loop restart and tab
+  visibility transitions. A fixed2048-interval ring records without allocations;
+  the debug distribution snapshot refreshes at most four times per second.
+  Draw counts, resident chunks, particles, zoom and network diagnostics remain below.
 - Budgets on a mid laptop: render ≤ 4 ms, zero allocations in the per-tile and
   per-particle loops, `network.snapshot()` called **once** per frame (currently
   twice — pass the result from update to render).

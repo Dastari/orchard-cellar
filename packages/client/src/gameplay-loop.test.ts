@@ -19,3 +19,15 @@ it('applies persisted, same-tab and cross-tab cap settings to the active loop', 
   storage.setItem('orchard.video.presentation-cap', '30hz'); window.dispatchEvent(new Event('storage'));
   expect(rate).toHaveBeenLastCalledWith(30);
 });
+
+it('connects document visibility to the active presentation counter', () => {
+  const window = new EventTarget(), document = new EventTarget();
+  vi.stubGlobal('window', window); vi.stubGlobal('document', document);
+  const resetPresentation = vi.fn();
+  createGameplayLoop({ update: () => {}, render: () => {} }, {
+    recordRafTimestamp: () => {}, recordFixedUpdate: () => {}, recordCatchUp: () => {}, resetPresentation,
+  });
+  document.dispatchEvent(new Event('visibilitychange'));
+  document.dispatchEvent(new Event('visibilitychange'));
+  expect(resetPresentation).toHaveBeenCalledTimes(2);
+});

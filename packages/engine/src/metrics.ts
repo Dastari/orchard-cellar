@@ -1,3 +1,4 @@
+import { PresentationMetrics, type PresentationSnapshot } from './presentation-metrics.js';
 import { RENDER_COUNTER_IDS, renderOperationCounters, renderCounterSupport, resetRenderOperationCounters, type RenderCounterValues } from '@orchard/ui';
 
 export const RENDER_STAGE_IDS = [
@@ -179,6 +180,7 @@ export interface WorldBackendTelemetry {
 }
 
 export interface RenderMetricsSnapshot {
+  readonly presentation: PresentationSnapshot;
   readonly worldPass: WorldBackendTelemetry;
   readonly counters: Readonly<RenderCounterValues>;
   readonly nativeCanvasCountersSupported: boolean;
@@ -199,6 +201,9 @@ export interface RenderMetricsSnapshot {
 /** Renderer-wide telemetry. The legacy average/worst fields remain in the
  * snapshot while callers migrate to the distribution and named stages. */
 export class RenderMetrics {
+  private readonly presentation = new PresentationMetrics();
+  private presentationReady = false;
+  resetPresentation(): void { this.presentation.reset(); this.presentationReady = false; }
   private worldBackend: WorldBackendTelemetry = { backend: 'canvas2d', fallbackReason: null, generation: 0, gpu: null };
   get worldBackendTelemetry(): WorldBackendTelemetry { return this.worldBackend; }
   recordWorldBackend(backend: 'canvas2d' | 'webgl2', fallbackReason: string | null,
@@ -227,6 +232,7 @@ export class RenderMetrics {
   }
 
   record(frameMs: number, renderItems: number): void {
+    if (this.presentationReady) this.presentation.record(this.previousRafTimestamp);
     this.submittedSinceRaf = true;
     this.frames.record(frameMs);
     this.renderItemsValue = Math.max(0, Math.floor(renderItems));
@@ -250,6 +256,7 @@ export class RenderMetrics {
   }
 
   recordRafTimestamp(milliseconds: number): void {
+    this.presentationReady = true;
     // A presentation cap may skip rAF submissions. Preserve their simulation
     // and preparation work in the next submitted frame's protocol totals.
     if (this.submittedSinceRaf) {
@@ -320,6 +327,7 @@ export class RenderMetrics {
     const frame = this.frames.snapshot();
     return {
       schemaVersion: 2,
+      presentation: this.presentation.snapshot(),
       worldPass: this.worldBackend,
       counters: { ...this.completedCounters },
       nativeCanvasCountersSupported: renderCounterSupport.nativeCanvas,
