@@ -6213,3 +6213,151 @@ The final shared before/after shadow capture below records every stage/counter w
 | iPad | **owner to run** |
 
 Owner capture: System→Developer→Render→**Run protocol +copyJSON**, at cliff/carried-light and pond, with F3 open to inspect FPS/gaps; repeat modes/scales and record device/OS/browser/DPR/browser zoom/resolution/commit/backend/world scale. No CPU-throttled substitute.0.6.1 is not deployed; prior Go covered0.6.0 only.
+
+### 2026-09-08 — Exact shadow-direction work reductions; recurring pause remains a residual
+
+**Files/change.** `packages/engine/src/receiver-lighting.ts` now retains plane RGB when only celestial geometry changes. Existing coverage-byte comparisons update the changed texels; static-caster content and sky RGB still invalidate the full plane. Geometry continues to invalidate projected masks, prepared heights and coverage, so no stale direction is displayed. `directional-shadows.ts` avoids `Math.hypot` outside the existing2–10px contact band: the old clamp is exactly0/1 there, with unchanged mask bytes and integrals. No changed shadow shape, temporal approximation, extra cache budget, surface, delayed update or world readback. New bounded `receiver-direction-update.test.ts` and `directional-shadow-golden.test.ts` pin full-merge equivalence/invalidation and the original320-case mask digest. Controlled30-direction fixture:144000→5268 RGB texels merged with exactly equal pixels; this is a work-count result, not a game-frame timing claim. The frozen1,880,710 mask bytes hash to `135b22553ce1fdc26f39a2127cdc2cd01966e98ffcbfa9cef5dfdd3dcf629cb1`.
+
+**Gates.** Complete final FPS+shadow `npm run check`:650 files/3688 tests,911.5909390449524seconds, pass. Focused10files/42tests, client typecheck, scoped ESLint,10 byte-identical complete Canvas golden boards, nine one-minute connected/moving mode×scale reviews and two pond sky witnesses pass. Every screenshot was opened. All36 original atlas PNGs and323 generated pages remain unchanged; no runtime filtered-frame machinery returns. Source hashes still match the checked working tree. See the preceding FPS entry for exact files/commands/artifacts and mode-cycle byte counters. No fresh full check is claimed for each browser run; unchanged checked code is shared by all captures.
+
+**Attribution and measurement limits.** The original accelerated-sky probe coincides with prepared-height/coverage rebuilds on four receiving layers. Supplementary CPU/heap sampling identifies terrain cap/flat-run collection and projection work; native Canvas work is substantial. This is partial attribution, not proof that a single function accounts for the entire hitch. Both exact reductions are retained, but RGB+geometry changes still require full recolouring and coverage reconstruction still bursts. No claim that periodic pauses, cold first-Dynamic136–153ms tasks, the previously reported complete halt, or all desktop targets are resolved.
+
+Artifact root: `output/perf-59-20260908/P0/fps-shadow-update/`. `measure-directions.py` runs5s warm-up+30s active-rAF each for walking cliff/carried-light and a stationary cliff diagnostic, before then after; `repeat-measure-directions.py` repeats after then before because live content changed during the first updated walking run. Both variants use the same corrected0.6.1 FPS code and differ only in the two engine modules; their original parent hash8404ff7b plus2069-file manifests identify exact inputs. `candidate-source-manifest.json` identifies checked final source. Each raw JSON records commit, source variant, device/OS/browser, resolution1280×720,DPR1,browser zoom1,world zoom2,Canvas1×,cap off and sky0.03h/second. This deliberately accelerated cadence is a diagnostic, not normal celestial frequency or full A1 qualification. No concurrent agent check/build/profile ran during captures. World content and collision-limited motion remain live: each workload issue is retained, stationary samples intentionally report `local_player_not_walking`, and cliff samples retain `no_pond`; separate pond images satisfy visual review only. Reversed samples are additional evidence, not replacements for rejected/mismatched earlier results.
+
+The first driver attempted browser RPC four seconds after launch, before ordinary PKCE sign-in finished. No measurement started. The same browser signed in normally and was reused with candidate reload; `*.startup-race` and `startup-race-note.txt` preserve the test-harness failure. There was no game authentication/production fault and no owner action was needed. `performance.json`/`performance.md` retain all original distributions, counters, unsupported-stage flags, sky-step first-frame timing, bounded warm prepared-height-rebuild subsets and separate raw warm-up maxima. Prepared-height counters are a proxy that can also include content/height changes; sky-step first-frame data identifies the protocol's changed-sky frame directly. Post-protocol screenshots show restored Basic, not the measured Dynamic state; actual Dynamic review remains in the nine-minute matrix.
+
+The following tables use **p50 /p95 /p99 /maximum**, original milliseconds for stages and per-frame values for counters; nested percentiles must not be summed. First sequence is before→after; repeat is after→before. Exact source/qualification metadata accompanies every raw sample.
+
+First sequence — columns before walking /after walking /before stationary /after stationary.
+
+| Stage/counter | Before walk | After walk | Before still | After still |
+|---|---|---|---|---|
+| whole frame | 8.09999847412 / 14.8999996185 / 20.8000011444 / 45.4000015259 | 9 / 16.5 / 23.5 / 56.7999992371 | 6.90000152588 / 10.1999988556 / 20.7999992371 / 47.7000007629 | 7.69999885559 / 10.6999988556 / 20 / 59.6000003815 |
+| rAF interval | 16.7 / 16.7 / 16.8 / 33.4 | 16.7 / 16.8 / 16.8 / 50 | 16.7 / 16.8 / 16.8 / 33.4 | 16.7 / 16.7 / 16.8 / 50.1 |
+| snapshotPrepare | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.10000038147 / 0.5 | 0 / 0.10000038147 / 0.10000038147 / 0.299999237061 | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 |
+| ground | 0.299999237061 / 0.39999961853 / 0.5 / 0.60000038147 | 0.299999237061 / 0.5 / 0.599998474121 / 0.700000762939 | 0.300001144409 / 0.5 / 0.60000038147 / 1.70000076294 | 0.300001144409 / 0.5 / 0.60000038147 / 0.799999237061 |
+| painterBuild | 0.900001525879 / 1.30000114441 / 1.60000038147 / 7.60000038147 | 1 / 1.70000076294 / 2 / 5.69999885559 | 1 / 1.60000038147 / 1.89999961853 / 3.39999961853 | 1.10000038147 / 1.79999923706 / 1.90000152588 / 5.39999961853 |
+| painterSort | 0.199998855591 / 0.300001144409 / 0.39999961853 / 1.5 | 0.199998855591 / 0.300001144409 / 0.300001144409 / 0.89999961853 | 0.199998855591 / 0.300001144409 / 0.300001144409 / 0.60000038147 | 0.199998855591 / 0.300001144409 / 0.300001144409 / 1.09999847412 |
+| painterDraw | 4 / 10.2000007629 / 13.5 / 34.3000011444 | 4.39999961853 / 11.1000003815 / 16.4000015259 / 44.9000015259 | 3.20000076294 / 4.79999923706 / 11.5 / 35.8000011444 | 3.30000114441 / 4.69999885559 / 11.1000003815 / 49.1000003815 |
+| weather | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 |
+| lightingBoundsResize | 0 / 0.0999984741211 / 0.10000038147 / 0.200000762939 | 0 / 0 / 0.10000038147 / 0.200000762939 | 0 / 0 / 0.10000038147 / 0.10000038147 | 0 / 0 / 0.10000038147 / 0.10000038147 |
+| lightingOcclusionRaster | 0 / 0.200000762939 / 0.300001144409 / 0.400001525879 | 0 / 0.200000762939 / 0.39999961853 / 0.5 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingSolve | 0.0999984741211 / 0.200000762939 / 0.200000762939 / 0.299999237061 | 0.10000038147 / 0.200000762939 / 0.200000762939 / 0.300001144409 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingMerge | 0.5 / 2.20000076294 / 8.80000114441 / 16.6000003815 | 0.60000038147 / 2.60000038147 / 8.89999961853 / 23.4000015259 | 0 / 0.10000038147 / 10.7999973297 / 17.6000022888 | 0 / 0.10000038147 / 10.2000007629 / 23 |
+| lightingUpload | 0 / 0.199998855591 / 0.299997329712 / 0.400001525879 | 0 / 0.200000762939 / 0.299999237061 / 0.300001144409 | 0 / 0 / 0 / 0.200000762939 | 0 / 0 / 0 / 0.200000762939 |
+| lightingReceiver | 0.399997711182 / 0.699998855591 / 0.799999237061 / 1.09999847412 | 0.39999961853 / 0.700000762939 / 0.900001525879 / 2.30000114441 | 0.399997711182 / 0.700000762939 / 0.89999961853 / 2 | 0.39999961853 / 0.700002670288 / 0.900001525879 / 2.80000114441 |
+| lightingComposite | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| finalWorldComposite | 1 / 2.29999923706 / 2.60000038147 / 3.70000076294 | 1.10000038147 / 2.5 / 3 / 3.5 | 1 / 1.5 / 1.70000076294 / 5.90000152588 | 1.20000076294 / 3.19999885559 / 3.5 / 4.5 |
+| uiModel | 0.299999237061 / 0.39999961853 / 0.400001525879 / 0.5 | 0.299999237061 / 0.5 / 0.599998474121 / 1.39999961853 | 0.299999237061 / 0.400001525879 / 0.5 / 1 | 0.300001144409 / 0.5 / 0.5 / 0.799999237061 |
+| uiLayout | 0.39999961853 / 0.5 / 0.60000038147 / 3.10000038147 | 0.39999961853 / 0.60000038147 / 0.700000762939 / 1.39999961853 | 0.39999961853 / 0.60000038147 / 0.699998855591 / 3.60000038147 | 0.39999961853 / 0.60000038147 / 0.700000762939 / 1 |
+| uiDraw | 0.39999961853 / 0.700000762939 / 0.89999961853 / 4.39999961853 | 0.39999961853 / 0.800001144409 / 1.10000038147 / 1.80000114441 | 0.39999961853 / 0.60000038147 / 0.700000762939 / 1 | 0.39999961853 / 0.60000038147 / 0.799999237061 / 1.19999885559 |
+| fixedUpdate | 0.199998855591 / 0.300001144409 / 0.39999961853 / 3.09999847412 | 0.199998855591 / 0.300001144409 / 0.5 / 8.70000076294 | 0.10000038147 / 0.299999237061 / 0.300001144409 / 1 | 0.10000038147 / 0.200000762939 / 0.300001144409 / 0.60000038147 |
+| catchUp | 0 / 0 / 0 / 0.299999237061 | 0 / 0 / 0 / 0.5 | 0 / 0 / 0 / 0.200000762939 | 0 / 0 / 0 / 0.300001144409 |
+| drawImageCalls | 885 / 1216 / 1323 / 1845 | 883 / 1215 / 1292 / 1774 | 855 / 855 / 874 / 1485 | 855 / 855 / 874 / 1485 |
+| distinctDrawImageSources | 339 / 356 / 362 / 363 | 328 / 352 / 361 / 362 | 327 / 327 / 328 / 331 | 327 / 327 / 328 / 330 |
+| tintBuilds | 0 / 7 / 8 / 23 | 0 / 7 / 8 / 27 | 0 / 0 / 0 / 24 | 0 / 0 / 0 / 24 |
+| tintReuses | 99 / 113 / 116 / 119 | 98 / 114 / 115 / 117 | 97 / 110 / 114 / 114 | 101 / 110 / 114 / 114 |
+| tintSurfaceReuses | 0 / 0 / 0 / 1 | 0 / 0 / 0 / 1 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 |
+| preparedHeightRebuilds | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 |
+| groundSourceOperations | 15 / 114 / 177 / 606 | 18 / 114 / 165 / 612 | 0 / 0 / 0 / 582 | 0 / 0 / 0 / 582 |
+| imageDataAllocations | 0 / 0 / 2 / 2 | 0 / 0 / 2 / 2 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| capRunRequests | 96 / 104 / 108 / 108 | 96 / 104 / 108 / 108 | 98 / 98 / 98 / 98 | 98 / 98 / 98 / 98 |
+| flatSourceRequests | 218 / 236 / 236 / 236 | 207 / 236 / 236 / 236 | 205 / 205 / 205 / 205 | 205 / 205 / 205 / 205 |
+| capRunComposites | 3 / 19 / 30 / 83 | 4 / 19 / 30 / 84 | 0 / 0 / 0 / 73 | 0 / 0 / 0 / 73 |
+| flatSourceComposites | 0 / 18 / 39 / 124 | 2 / 17 / 34 / 127 | 0 / 0 / 0 / 121 | 0 / 0 / 0 / 121 |
+| groundSourceReuses | 308 / 338 / 340 / 340 | 297 / 331 / 340 / 340 | 303 / 303 / 303 / 303 | 303 / 303 / 303 / 303 |
+| receiverSamples | 297 / 303 / 308 / 308 | 297 / 303 / 308 / 308 | 300 / 300 / 300 / 300 | 300 / 300 / 300 / 300 |
+| receiverCandidates | 744 / 843 / 858 / 876 | 741 / 867 / 879 / 882 | 742 / 872 / 877 / 877 | 742 / 872 / 877 / 877 |
+| receiverFullLoopCandidates | 98010 / 99990 / 102564 / 102564 | 98235 / 99990 / 102564 / 102564 | 97500 / 97500 / 97500 / 97500 | 97500 / 97500 / 97500 / 97500 |
+| saveCalls | 549 / 572 / 581 / 594 | 545 / 565 / 574 / 575 | 540 / 540 / 542 / 564 | 540 / 540 / 542 / 564 |
+| restoreCalls | 549 / 572 / 581 / 594 | 545 / 565 / 574 / 575 | 540 / 540 / 542 / 564 | 540 / 540 / 542 / 564 |
+| saveRestorePairs | 549 / 572 / 581 / 594 | 545 / 565 / 574 / 575 | 540 / 540 / 542 / 564 | 540 / 540 / 542 / 564 |
+| surfaceAllocations | 0 / 0 / 0 / 21 | 0 / 0 / 0 / 21 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| ≥50ms tasks (count) | 0 | 2 | 0 | 2 |
+| sky-step first-frame CPU | 20.8000011444 / 36.3999996185 / 45.4000015259 / 45.4000015259 | 20.3000011444 / 52.5 / 56.7999992371 / 56.7999992371 | 21.5 / 36 / 36.8999996185 / 36.8999996185 | 20.3000011444 / 50.8999996185 / 59.6000003815 / 59.6000003815 |
+| sky-step first-frame merge | 9.90000152588 / 16.4999961853 / 16.6000003815 / 16.6000003815 | 9.59999847412 / 22.0000038147 / 23.4000015259 / 23.4000015259 | 11.4999980927 / 16.1999988556 / 17.6000022888 / 17.6000022888 | 11.3000011444 / 22.6999988556 / 23 / 23 |
+
+`direction-before-walking.json`: issues `no_pond`; 1 content revisions; 1795 warm frames.
+
+`direction-after-walking.json`: issues `seed_season_or_content_changed, no_pond`; 12 content revisions; 1781 warm frames.
+
+`direction-before-stationary.json`: issues `local_player_not_walking, no_pond`; 1 content revisions; 1791 warm frames.
+
+`direction-after-stationary.json`: issues `local_player_not_walking, no_pond`; 1 content revisions; 1788 warm frames.
+
+
+Reverse-order repeat — columns before walking /after walking /before stationary /after stationary.
+
+| Stage/counter | Before walk | After walk | Before still | After still |
+|---|---|---|---|---|
+| whole frame | 8.10000038147 / 15 / 23.7999992371 / 55.8999996185 | 7.5 / 11.2000007629 / 19.5999984741 / 46.6999988556 | 6.89999961853 / 8.60000038147 / 20.3000011444 / 39.8999996185 | 7 / 9.70000076294 / 18 / 50.6999988556 |
+| rAF interval | 16.7 / 16.8 / 16.8 / 49.9 | 16.7 / 16.8 / 16.8 / 33.4 | 16.7 / 16.7 / 16.8 / 33.4 | 16.7 / 16.7 / 16.8 / 50 |
+| snapshotPrepare | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.10000038147 / 0.39999961853 | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 |
+| ground | 0.300001144409 / 0.5 / 0.5 / 0.799999237061 | 0.299999237061 / 0.400001525879 / 0.5 / 0.700000762939 | 0.299999237061 / 0.400001525879 / 0.5 / 1.30000114441 | 0.300001144409 / 0.5 / 0.599998474121 / 1 |
+| painterBuild | 1.09999847412 / 1.60000038147 / 1.89999961853 / 6.10000038147 | 1 / 1.5 / 1.79999923706 / 2.5 | 1 / 1.39999961853 / 1.69999885559 / 2.5 | 1 / 1.59999847412 / 1.70000076294 / 2.20000076294 |
+| painterSort | 0.199998855591 / 0.300001144409 / 0.300001144409 / 0.5 | 0.199998855591 / 0.300001144409 / 0.300001144409 / 0.60000038147 | 0.199998855591 / 0.299999237061 / 0.300001144409 / 0.400001525879 | 0.199998855591 / 0.300001144409 / 0.300001144409 / 0.5 |
+| painterDraw | 3.89999961853 / 8.89999961853 / 15.2000007629 / 43.5 | 3.5 / 6.20000076294 / 11.5 / 36.7999992371 | 3.20000076294 / 4.19999885559 / 11.6999988556 / 31.6000003815 | 3.29999923706 / 4.5 / 10.3999996185 / 34.2999992371 |
+| weather | 0 / 0.10000038147 / 0.10000038147 / 0.300001144409 | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.10000038147 / 0.60000038147 | 0 / 0.10000038147 / 0.10000038147 / 0.200000762939 |
+| lightingBoundsResize | 0 / 0 / 0.10000038147 / 0.200000762939 | 0 / 0.0999984741211 / 0.10000038147 / 0.299999237061 | 0 / 0 / 0.10000038147 / 0.10000038147 | 0 / 0 / 0.10000038147 / 0.10000038147 |
+| lightingOcclusionRaster | 0 / 0.199998855591 / 0.300001144409 / 0.5 | 0 / 0 / 0.300001144409 / 0.400001525879 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingSolve | 0 / 0.200000762939 / 0.200000762939 / 0.300001144409 | 0 / 0.199998855591 / 0.200000762939 / 0.300001144409 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingMerge | 0.399995803833 / 2.60000038147 / 9.10000228882 / 21.9999980927 | 0 / 2.09999847412 / 9.5 / 16.3999996185 | 0 / 0.10000038147 / 9.10000038147 / 16.8000011444 | 0 / 0.10000038147 / 8.59999847412 / 23.3999996185 |
+| lightingUpload | 0 / 0.199998855591 / 0.299999237061 / 0.300001144409 | 0 / 0.10000038147 / 0.200000762939 / 0.39999961853 | 0 / 0 / 0 / 0.299999237061 | 0 / 0 / 0 / 0.299999237061 |
+| lightingReceiver | 0.39999961853 / 0.700000762939 / 0.89999961853 / 1.4999961853 | 0.399997711182 / 0.699998855591 / 0.800001144409 / 1.30000114441 | 0.300001144409 / 0.699998855591 / 0.800003051758 / 5.30000114441 | 0.399997711182 / 0.700000762939 / 0.899997711182 / 1.59999847412 |
+| lightingComposite | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| finalWorldComposite | 1.10000038147 / 2.29999923706 / 3 / 3.79999923706 | 1.10000038147 / 2.29999923706 / 2.59999847412 / 3.70000076294 | 1 / 1.20000076294 / 1.5 / 2.29999923706 | 1.10000038147 / 1.5 / 1.70000076294 / 4.60000038147 |
+| uiModel | 0.299999237061 / 0.5 / 0.5 / 0.60000038147 | 0.299999237061 / 0.39999961853 / 0.5 / 1 | 0.299999237061 / 0.39999961853 / 0.5 / 3.5 | 0.299999237061 / 0.400001525879 / 0.5 / 6.10000038147 |
+| uiLayout | 0.39999961853 / 0.599998474121 / 0.699998855591 / 7.39999961853 | 0.39999961853 / 0.5 / 0.699998855591 / 7 | 0.39999961853 / 0.5 / 0.60000038147 / 6.30000114441 | 0.39999961853 / 0.5 / 0.60000038147 / 0.800001144409 |
+| uiDraw | 0.39999961853 / 0.800001144409 / 1.10000038147 / 1.69999885559 | 0.39999961853 / 0.700000762939 / 0.89999961853 / 1.30000114441 | 0.39999961853 / 0.5 / 0.699998855591 / 1 | 0.39999961853 / 0.60000038147 / 0.700000762939 / 0.89999961853 |
+| fixedUpdate | 0.199998855591 / 0.300001144409 / 0.39999961853 / 8 | 0.199998855591 / 0.299999237061 / 0.39999961853 / 1.79999923706 | 0.10000038147 / 0.200000762939 / 0.300001144409 / 2.79999923706 | 0.10000038147 / 0.200000762939 / 0.300001144409 / 6.70000076294 |
+| catchUp | 0 / 0 / 0 / 0.39999961853 | 0 / 0 / 0 / 0.39999961853 | 0 / 0 / 0 / 0.200000762939 | 0 / 0 / 0 / 0.299999237061 |
+| drawImageCalls | 886 / 1218 / 1294 / 1761 | 886 / 1216 / 1350 / 1837 | 855 / 855 / 874 / 1485 | 855 / 855 / 874 / 1485 |
+| distinctDrawImageSources | 340 / 361 / 362 / 363 | 340 / 362 / 362 / 363 | 327 / 327 / 328 / 330 | 327 / 327 / 328 / 331 |
+| tintBuilds | 0 / 1 / 8 / 25 | 0 / 0 / 1 / 21 | 0 / 0 / 0 / 24 | 0 / 0 / 0 / 24 |
+| tintReuses | 100 / 112 / 115 / 118 | 102 / 112 / 115 / 118 | 97 / 110 / 114 / 114 | 97 / 110 / 114 / 114 |
+| tintSurfaceReuses | 0 / 0 / 0 / 1 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 |
+| preparedHeightRebuilds | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 | 0 / 0 / 4 / 4 |
+| groundSourceOperations | 9 / 123 / 177 / 618 | 0 / 123 / 177 / 627 | 0 / 0 / 0 / 582 | 0 / 0 / 0 / 582 |
+| imageDataAllocations | 0 / 0 / 2 / 2 | 0 / 0 / 2 / 2 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| capRunRequests | 96 / 104 / 108 / 108 | 96 / 104 / 104 / 104 | 98 / 98 / 98 / 98 | 98 / 98 / 98 / 98 |
+| flatSourceRequests | 220 / 236 / 236 / 236 | 222 / 236 / 236 / 236 | 205 / 205 / 205 / 205 | 205 / 205 / 205 / 205 |
+| capRunComposites | 3 / 18 / 28 / 84 | 0 / 13 / 19 / 84 | 0 / 0 / 0 / 73 | 0 / 0 / 0 / 73 |
+| flatSourceComposites | 0 / 20 / 40 / 122 | 0 / 28 / 40 / 131 | 0 / 0 / 0 / 121 | 0 / 0 / 0 / 121 |
+| groundSourceReuses | 316 / 340 / 340 / 340 | 316 / 340 / 340 / 340 | 303 / 303 / 303 / 303 | 303 / 303 / 303 / 303 |
+| receiverSamples | 296 / 303 / 303 / 308 | 296 / 303 / 303 / 303 | 300 / 300 / 300 / 300 | 300 / 300 / 300 / 300 |
+| receiverCandidates | 704 / 863 / 877 / 922 | 699 / 828 / 866 / 878 | 742 / 872 / 877 / 877 | 742 / 872 / 877 / 877 |
+| receiverFullLoopCandidates | 97680 / 99990 / 99990 / 102564 | 97680 / 99990 / 99990 / 99990 | 97500 / 97500 / 97500 / 97500 | 97500 / 97500 / 97500 / 97500 |
+| saveCalls | 550 / 574 / 575 / 583 | 555 / 574 / 581 / 595 | 540 / 540 / 542 / 564 | 540 / 540 / 542 / 564 |
+| restoreCalls | 550 / 574 / 575 / 583 | 555 / 574 / 581 / 595 | 540 / 540 / 542 / 564 | 540 / 540 / 542 / 564 |
+| saveRestorePairs | 550 / 574 / 575 / 583 | 555 / 574 / 581 / 595 | 540 / 540 / 542 / 564 | 540 / 540 / 542 / 564 |
+| surfaceAllocations | 0 / 0 / 0 / 21 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| ≥50ms tasks (count) | 1 | 0 | 0 | 1 |
+| sky-step first-frame CPU | 23.6000003815 / 47 / 55.8999996185 / 55.8999996185 | 20.1000003815 / 37.3999996185 / 39.7999992371 / 39.7999992371 | 21.5 / 38.3000011444 / 39.8999996185 / 39.8999996185 | 18.5 / 41.6000003815 / 50.6999988556 / 50.6999988556 |
+| sky-step first-frame merge | 10.9000015259 / 18.3000011444 / 21.9999980927 / 21.9999980927 | 10.5999965668 / 14.3999996185 / 16.3999996185 / 16.3999996185 | 10.5000019073 / 16 / 16.8000011444 / 16.8000011444 | 9.99999809265 / 15.6999988556 / 23.3999996185 / 23.3999996185 |
+
+`repeat-direction-before-walking.json`: issues `seed_season_or_content_changed, no_pond`; 3 content revisions; 1786 warm frames.
+
+`repeat-direction-after-walking.json`: issues `seed_season_or_content_changed, local_player_not_walking, no_pond`; 3 content revisions; 1792 warm frames.
+
+`repeat-direction-before-stationary.json`: issues `local_player_not_walking, no_pond`; 1 content revisions; 1793 warm frames.
+
+`repeat-direction-after-stationary.json`: issues `local_player_not_walking, no_pond`; 1 content revisions; 1793 warm frames.
+
+**Result/residual.** No reliable end-to-end speedup is established. First walking whole-frame p95 worsens14.8999996185→16.5ms with content changes, whereas reverse-order walking improves15→11.2000007629ms but fails matched walking/content qualification. Stationary p99 improves20.7999992371→20ms and20.3000011444→18ms, yet p95 worsens10.1999988556→10.6999988556ms and8.60000038147→9.70000076294ms; updated stationary maxima59.6000003815/50.6999988556ms remain above the original47.7000007629/39.8999996185ms. Updated runs have2/2/0/1 warm≥50ms tasks (first walking/stationary, repeat walking/stationary); this does not meet the zero-long-task objective. Retain all these original values rather than selecting only the favourable percentiles. The code proves fewer exact RGB operations in the controlled direction-only case and removes redundant distance evaluation; further work is needed to eliminate the visible pause when multiple layers and sky RGB refresh together. No fourth WebGL sampler attempt or lighting approximation was added. Historical owner-accepted Basic6.3ms remains accepted, not remeasured by these Dynamic diagnostics.
+
+| Remaining device gate | Status |
+|---|---|
+| Desktop recurring shadow pause | Residual; exact work reductions pass, timing improvement unqualified |
+| iPad | **owner to run** |
+
+Owner capture: System→Developer→Render→**Run protocol +copyJSON**, separately at cliff/carried-light and pond with normal sky progression; inspect F3 recent maximum gap, repeat required lighting/world scales, and record device/OS/browser/DPR/browser zoom/resolution/commit/backend/scale. No desktop-throttling substitute.0.6.1 gameplay-only release preparation follows; no deployment is authorized by the previous0.6.0 Go.

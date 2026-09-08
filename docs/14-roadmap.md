@@ -459,7 +459,7 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
-- [ ] F3 delivered FPS and shadow-direction hitch follow-up — IN PROGRESS: codex, 2026-09-08. Owner request after0.6.0 deployment. Scope: mechanically extract F3 timing rows, add presentation-cadence FPS/frame-gap metrics, measure directional-update stalls and apply only pixel-exact bounded fixes supported by attribution. Docs59§9 follow-up; no Studio changes or deployment without release-specific Go.
+- [x] F3 delivered FPS and shadow-direction hitch follow-up — IMPLEMENTED: codex, 2026-09-08.650files/3688tests and10 exact Canvas goldens pass. FPS/cap/stall display verified; exact shadow work reductions checked, periodic pause remains a measured residual.0.6.1 release preparation; awaiting specific Go. Owner request after0.6.0 deployment. Scope: mechanically extract F3 timing rows, add presentation-cadence FPS/frame-gap metrics, measure directional-update stalls and apply only pixel-exact bounded fixes supported by attribution. Docs59§9 follow-up; no Studio changes or deployment without release-specific Go.
 
 **Current doc59 status,2026-09-08:** the A-11–A-19 rows and doc59§9 supersede
 historical pending claims below. Runtime omission filtering, world CSS filters,

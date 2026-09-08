@@ -94,7 +94,10 @@ export class CelestialReceiverScene {
     if (staticChanged || geometry !== this.geometryKey) {
       this.rawFields.reset(); this.staticCoverage.clearFields();
       this.prepared.clear(); this.preparedBytes = 0; this.indexBytes = 0; this.activeMasks.clear(); this.coverageFields.clear(); this.coverageBytes = 0; this.coverageCount = 0;
-      this.generation++; this.revision++; this.rasterBaseRevision++;
+      // Coverage bytes already identify exactly which texels changed. A new
+      // shadow direction alone does not invalidate unchanged plane RGB.
+      this.generation++; this.revision++;
+      if (staticChanged) this.rasterBaseRevision++;
     }
     const key = this.key.reset().add(sky.diffuse.r).add(sky.diffuse.g).add(sky.diffuse.b)
       .add(sky.sun.illumination.r).add(sky.sun.illumination.g).add(sky.sun.illumination.b)
