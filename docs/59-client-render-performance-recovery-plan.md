@@ -5889,3 +5889,8 @@ Per-producer totals for every run are in `sampling.json` and `sampling-tables.md
 | Hardware GPU | **owner to run** |
 
 Owner steps: System → Developer → Render → **Run protocol + copy JSON**, separately at cliff/carried-light and pond, with device,OS,browser,DPR,browser zoom,resolution,commit,world scale/backend. Repeat modes/scales; do not substitute CPU throttling. Next: direct retained0.5.7/current cold cliff frame-delivery comparison, then A-19 Canvas-only release preparation. No deployment.
+
+
+### A-19 Canvas release preparation — claim,2026-09-08
+
+IN PROGRESS: codex,2026-09-08 after77af54bf. Scope: owned Video/Developer render controls in packages/ui/src/overworld-ui.ts, mechanically extracted before behavior changes into bounded modules; video-rows.ts/tests and structural extraction audit; current rendering contract docs01/02/21/47/58/59/14/DECISIONS; new tests and release artifacts. Preserve Canvas1× defaults and persisted choice, keep fallback reason visible in Video, move experimental toggle into Developer until enable gates pass. No changes to gameplay authority, sampler or world pixels. Supplemental old0.5.7/current cliff cold-transition delivery evidence is separate from readiness-qualified all-stage protocols. Artifacts output/perf-59-20260908/P8/A19/ and output/perf-59-20260908/release/. Claim uses unchanged643-file/3664-test A-15 full gate; every runtime boundary will run npm run check. Version0.6.0 already set. Build/package/release request only; do not deploy.
