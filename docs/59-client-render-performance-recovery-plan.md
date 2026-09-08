@@ -753,22 +753,22 @@ draws on the A-1 workload and record it; where a producer can become
 integer-ratio without changing Canvas output, do so.
 
 **A-14a Coordinate-coded probe domain (2026-09-08 owner amendment).**
-The probe excludes destination phases within1e-4px of a half-pixel tie.
-At origins80/272/464/656 plus0.49999/0.50001, float32 in the GPU attribute
+The probe excludes destination phases within 1e-4 px of a half-pixel tie.
+At origins 80/272/464/656 plus 0.49999/0.50001, float32 in the GPU attribute
 path and Skia matrix cannot reliably represent the distinction, and rasteriser
-tie rules differ. Of the original38/720 failures,35 collapse to an exact.5
-on at least one axis; the remaining3 have only a2e-5-source-texel margin on
-a2× downsample axis. The unchanged investigation harness passes864/864 at
-phases0.4,0.45,0.499,0.501,0.55,0.6. This corrects the probe domain, not the
-sampler or pixel gate: integer-ratio draws remain exact via integer texel
-arithmetic; noninteger nearest draws retain the≤1-source-texel-shift rule
-with zero coverage failures. No new colour tolerance. Production sprite
+tie rules differ. Of the original 38/720 failures, 35 collapse to an exact .5
+on at least one axis; the remaining 3 have only a 2e-5-source-texel margin on
+a 2× downsample axis. The unchanged investigation harness passes 864/864 at
+phases 0.4, 0.45, 0.499, 0.501, 0.55, 0.6. This corrects the probe domain,
+not the sampler or pixel gate: integer-ratio draws remain exact via integer
+texel arithmetic; noninteger nearest draws retain the ≤1-source-texel-shift
+rule with zero coverage failures. No new colour tolerance. Production sprite
 producers round destinations; the preserved route tables have zero
-noninteger-ratio/non-axis-aligned sprite draws. The original2026-09-08 A-14
+noninteger-ratio/non-axis-aligned sprite draws. The original 2026-09-08 A-14
 OPEN/third-approach conclusion is **resolved by this amendment**: the near-tie
 probe defect is not a third failed sampler approach and docs15§9 does not
 bar qualification/integration of the unchanged prototype. Original evidence
-underP8/A14 remains untouched; new evidence goes underP8/A14a. The toggle
+under P8/A14 remains untouched; new evidence goes under P8/A14a. The toggle
 stays in Developer until A-14a/A-15/A-16/A-17 pass on one candidate; moving
 it to Video requires a separate owner decision.
 
@@ -797,7 +797,9 @@ browser is not required for visual review; Playwright screenshots under
 **A-19 Release decoupling (owner decision, pending "Go").** Canvas gains ship
 as 0.6.0 independently of WebGL parity. Until the experimental-enable gates
 pass, the WebGL toggle moves from Video to Developer settings so no player
-sees a control that always falls back; it returns to Video in 0.6.x.
+sees a control that always falls back. Per the 2026-09-08 follow-up, a later
+move back to Video requires a separate owner decision; passing the functional
+gates does not itself authorize that UI change.
 
 Order: A-11, A-12, A-13 (exact Canvas, remeasure Dynamic) → A-16 → A-14 →
 A-15 → A-17 qualification on A-1 → release request per A-19.
@@ -6497,3 +6499,27 @@ The separate post-protocol WebGL2-unavailable injection correctly latches Canvas
 ### 2026-09-08 — P8 follow-up D: hardware-availability classification claim
 
 IN PROGRESS: codex, after672c079f (C functional gates PASS). Record read-only `lspci -k`, the Radeon iGPU's vfio-pci binding and this host's unavailable graphics-device/module state under `P8/A14a/D/`. Accept the independent investigation as established; no attempt to optimize away software rasterisation or alter the hypervisor. Replace the current A-17 performance FAIL/OPEN wording with **hardware GPU unavailable on this host**. Preserve all old/new software timings as diagnostics, separately from the six same-candidate empty fallback sets. Hardware timing remains owner to run on iPad, the VM that already owns the GPU, or another desktop with hardware acceleration. Developer/off remains; no deployment or world/schema/Studio change. Docs-only step reuses unchanged C full651file/3691test pass,1054.214558424428seconds.
+
+### 2026-09-08 — P8 follow-up D checkpoint: hardware GPU unavailable on this host
+
+D is complete after C's qualified runtime672c079f. Read-only commands `lspci -k` and `lspci -D -s 01:00.0 -k` exit0; full output/stderr is preserved in `output/perf-59-20260908/P8/A14a/D/`. The exact device row is:
+
+```text
+0000:01:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] Granite Ridge [Radeon Graphics] (rev d8)
+        Subsystem: Device 1f4c:b021
+        Kernel driver in use: vfio-pci
+```
+
+`hardware.json` records `/dev/dri` absent and `/sys/module/amdgpu` absent. `modinfo amdgpu` exits1 with “Module amdgpu not found” (`modinfo-amdgpu.txt`). A separate metadata-only browser context reports `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)` in `chrome-driver.json`; it runs after normal captures and makes no timing claim. This records the owner's established investigation, not a new attempt to solve software rasterisation in application code.
+
+The current A-17 timing classification is **hardware GPU unavailable on this host**, not FAIL. Original SwiftShader cliff p9562.2–93.9ms, finalWorldComposite36–60ms and painterDraw15–31ms remain software diagnostics. The current candidate's cliff p9572.7000007629/105.699998856/126.700000763ms and pond52.1999988556/94.5/84.1999988556ms are likewise software diagnostics, with all original22-stage tables/counters/long tasks preserved in the C entry and `A17/`. Their slow values do not constitute a hardware performance verdict. No CPU throttling, hardware substitution, driver rebinding or hypervisor proposal/change was made.
+
+Files: doc59,DECISIONS,roadmap and the explicitly requested `output/perf-59-20260908/release/README.md` status rows. The previous release README is preserved as `D/release-README-before-A14a.md`; its deployed0.6.0 archive and every originalA14 artifact remain unchanged. The README distinguishes current source qualification from the old released archive, which does not acquire the new sampler without a separate build/release. The earlier0.6.1 FPS release artifact also remains unchanged. C's checked source hashes still match, full651files/3691tests pass in1054.214558424428seconds; docs-only D adds no new runtime timing sample. `git diff --check` passes. Current release blockers are correctly classified: A-14a/A-15/A-16/A-17 functional PASS on one candidate; hardware timing **owner to run**.
+
+| Device / gate | Status |
+|---|---|
+| This host, hardware GPU timing | **hardware GPU unavailable on this host** |
+| This host, SwiftShader accuracy/lifecycle/fallback | PASS; source672c079f,651files/3691tests,all four functional gates |
+| iPad, GPU-owning VM, or another hardware-accelerated desktop | **owner to run** |
+
+Owner capture: open the same candidate on the iPad, the VM that already owns the GPU, or another hardware-accelerated desktop. System→Developer→Render: explicitly enable Experimental WebGL, then **Run protocol +copyJSON**, separately at cliff/carried-light and pond. Repeat Basic/Classic/Dynamic and required world scales; include device/OS/browser/DPR/browser zoom/resolution/commit/backend/world scale and confirm hardware acceleration. Keep raw stage timings, counters, long tasks and encountered fallback sets. No CPU-throttled or SwiftShader timing substitute. Canvas remains default1×; WebGL stays off by default under Developer. Moving it to Video is a separate owner decision. No deployment, world/schema publication or Studio change occurred in A–D.
