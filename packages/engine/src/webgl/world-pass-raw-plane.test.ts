@@ -44,7 +44,8 @@ describe('qualified raw ground-plane submission', () => {
       const vertices = f.calls.bufferSubData.mock.calls[0]![2] as Float32Array;
       expect([...vertices.slice(0, 2)]).toEqual([-4.25, -4.5]);
       expect([...vertices.slice(8, 11)]).toEqual([0, 0, 5]);
-      expect([...vertices.slice(19, 22)]).toEqual([1, 0, 5]);
+      expect([...vertices.slice(21, 23)]).toEqual([0, 0]); // Raw planes retain texture sampling.
+      expect([...vertices.slice(31, 34)]).toEqual([1, 0, 5]);
       for (let frame = 0; frame < 600; frame++) {
         f.backend.begin(f.layout); f.backend.multiplyRawLightPlane(f.field, f.rect); f.backend.flush();
       }

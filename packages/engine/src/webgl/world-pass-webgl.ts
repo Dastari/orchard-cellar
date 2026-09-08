@@ -196,7 +196,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     const quad=(left:number,top:number,width:number,height:number,operation:number) => {
       const sx=rect[0]!+left,sy=rect[1]!+top;
       this.geometry.quad([rect[4]!+left*rect[6]!/rect[2]!,rect[5]!+top*rect[7]!/rect[3]!,width*rect[6]!/rect[2]!,height*rect[7]!/rect[3]!],
-        [sx/texture.width,sy/texture.height,(sx+width)/texture.width,(sy+height)/texture.height],color,light,operation,state);
+        [sx/texture.width,sy/texture.height,(sx+width)/texture.width,(sy+height)/texture.height],color,light,operation,state,operation===5 ? undefined : [sx,sy,width,height]);
     };
     if (mode!==1 || !emission?.length) quad(0,0,rect[2]!,rect[3]!,mode);
     else {

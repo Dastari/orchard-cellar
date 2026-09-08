@@ -10,8 +10,8 @@ function mockGL(){
 describe('individual GPU resource deletion failures',()=>{
   it('accounts CPU staging separately from GPU allocation and drops staging ownership when disposed',()=>{
     const {gl,calls}=mockGL(),geometry=new WorldGeometry(gl),staging=Reflect.get(geometry,'vertices') as Float32Array;
-    expect(staging.byteLength).toBe(540672);expect(geometry.cpuBytes).toBe(staging.byteLength);
-    expect(calls.bufferData.mock.calls[0]![1]).toBe(staging.byteLength);expect(geometry.gpuBytes).toBe(staging.byteLength);expect(geometry.bytes).toBe(1081344);
+    expect(staging.byteLength).toBe(1130496);expect(geometry.cpuBytes).toBe(staging.byteLength);
+    expect(calls.bufferData.mock.calls[0]![1]).toBe(staging.byteLength);expect(geometry.gpuBytes).toBe(staging.byteLength);expect(geometry.bytes).toBe(2260992);
     Reflect.set(geometry,'count',6);geometry.dispose();
     expect(Reflect.get(geometry,'vertices')).not.toBe(staging);expect(Reflect.get(geometry,'vertices').byteLength).toBe(0);
     expect(geometry.cpuBytes).toBe(0);expect(geometry.gpuBytes).toBe(0);expect(geometry.bytes).toBe(0);

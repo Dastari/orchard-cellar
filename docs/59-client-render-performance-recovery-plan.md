@@ -6409,3 +6409,87 @@ IN PROGRESS: codex, after2427f501. Copy the frozen A-14 browser bundle and probe
 IN PROGRESS: codex, after773ca4af. Integrate the proven quotient mapping in bounded `webgl/geometry.ts`, `webgl/shaders.ts`, `webgl/world-pass-webgl.ts` plus a new bounded mapping module/tests. No monolith logic edits are needed; `renderer.ts` and `overworld-main.ts` stay untouched, so no new mechanical extraction is required. Retain every downsample, variant, composite and clip guard. Axis-aligned nearest integer-ratio image draws use integer texel selection; smoothed draws and raw ground planes retain texture(). Reuse the current clip shader's existing resolution uniform rather than duplicate the earlier prototype declaration. Geometry gains12 float attributes per vertex: capacity12288 vertices, CPU/GPU staging each1130496bytes instead of540672bytes, explicitly owned and disposed by existing geometry lifecycle; no new surface/readback/dependency.
 
 Required same-candidate gates: full `npm run check`, A-14a production sweeps,10 byte-identical Canvas boards/HUD, A-15 edge attribution and A-16 CPU-variant gate, A-17 six fresh-session encountered sets. Keep Developer/off/default Canvas unchanged. All evidence underP8/A14a/production andP8/A14a/C; any gate failure stops C and leaves the production sampler out, while A/B/D still land. Existing preparation/deployment artifacts are not rebuilt or published by this task. Hardware timing remains owner to run; SwiftShader is functional evidence only.
+
+### 2026-09-08 — P8 follow-up C checkpoint: production sampler and functional gates PASS
+
+**C implementation/review.** Production changes are limited to `webgl/geometry.ts`, `shaders.ts`, `world-pass-webgl.ts`, new `integer-mapping.ts`/tests and two existing geometry-lifetime/raw-plane test assertions. The helper and shader quotient are byte-identical to the qualified prototype (`C/integration-proof.json`); the submission change only supplies the integer source rectangle and explicitly omits it for operation5 raw ground. Smooth/raw plane paths retain texture(); axis-aligned nearest integer-ratio image sampling uses texelFetch with integer arithmetic and the prototype's float32-aligned quad coverage. Every existing downsample, variant, composite and clip guard stays. Renderer/main monoliths are byte-identical, so no extraction was needed. No world/schema/default/toggle/deployment/dependency change.
+
+Geometry capacity remains12288 vertices;23 floats per vertex replace11, making CPU and GPU staging each1130496bytes (formerly540672), total2260992bytes. Existing resource accounting/disposal owns both. New mapping tests exercise crop/independent ratios, quarter-turn/reflection, smooth/raw-plane and unsupported-domain selection. The first preliminary unit run still read the second vertex at the old stride11; `C/preflight-old-stride.log` preserves it. Before acceptance runs, the assertion was updated to the new stride23 with the same expected raw-plane UV/mode and an additional zero sampling-axis assertion. No rendering algorithm or tolerance was changed to fix that test adapter. Cleanup byte expectations likewise follow the explicitly recorded buffer growth. Focused10files/45tests and scoped ESLint pass.
+
+**Same-candidate pixel gates.** Production built directly from the checked source, without the prototype build plugin, passes120/120 crop,576/576 expanded,720/720 amended fractional and288/288 additional phases (1704 total,806 integer exact/898 noninteger≤1-texel, all coverage failures0). Results under `production/` are distinct from `prototype/`; originalP8/A14 remains hash-identical. A-15 passes72/72: band maximum3, outside2, worst0.799560546875% channels above one, HUD0 and no outside-band>2 residual. `A15/current-edge-witness.png` shows Canvas/GPU/blue1px band/residual attribution and was opened; no pixel gate changed. A-16 production CPU/GPU variant240 cases: GPU/CPU maximum1, opaque reference maximum2, translucent4, HUD exact. Decoded-source432/emissive864/placement288 cases also pass the existing opaque≤2/translucent≤8 thresholds. All10 complete Canvas boards are byte-identical to the prior checked0.6.1/FPS baseline, including normal HUD; source/golden hashes retained.
+
+**Lifecycle/allocation.**600 native effect-cache warm frames allocate0 surfaces/ImageData, with20 tint reuses and0 builds each frame, disposal0bytes/0surfaces.600 GPU clip-resource frames allocate0 surfaces/ImageData, preserve3314184 tracked bytes through actual WEBGL_lose_context restoration, and dispose to0 bytes/textures/buffers/programs/VAOs. Draw during loss is rejected and the deliberate loss reports only `webgl_context_lost`; this isolated injected failure is not included in the normal A-17 encountered sets. All36 original atlas PNGs and323 generated pages are unchanged in both roots. No runtime readback/filter/filtered-frame machinery is added; the full repository readback guard remains part of check.
+
+**Measurement scope.** The actual canonical-origin client uses privately routed checked gameplay static files and the ordinary dedicated test account. Fresh-session A-17 captures cover cliff/carried-light and pond, each Basic/Classic/Dynamic,5s warm-up+30s active-rAF, Canvas reference/default unchanged and WebGL requested per session. Each JSON records commit-parent34ff2cfb plus exact candidate source hashes, device/OS/browser/DPR/zoom/resolution/backend/world scale, every22-stage distribution, counters, original timings and workload flags. These SwiftShader values are **software-rasterisation diagnostics only**, not a hardware timing pass/fail or a CPU-throttled substitute. No concurrent check/build/profile runs during the six A-17 captures. The minute-review matrix runs alongside check and makes no timing claim. The physical iPad and hardware GPU remain **owner to run**. The original stage/counter values follow; nested percentiles must not be summed.
+
+All timings ms, p50 / p95 / p99; nested stages must not be summed. Raw JSON retains original precision.
+
+| Stage | cliff-basic | cliff-classic | cliff-dynamic | pond-basic | pond-classic | pond-dynamic |
+|---|---|---|---|---|---|---|
+| whole frame | 66.2999992371 / 72.7000007629 / 78.1000003815 | 97.3000011444 / 105.699998856 / 111.5 | 111.200000763 / 126.700000763 / 138.300001144 | 45.3999996185 / 52.1999988556 / 56.6000003815 | 87.1000003815 / 94.5 / 99.8999996185 | 76.3999996185 / 84.1999988556 / 92.6000003815 |
+| snapshotPrepare | 0.0999984741211 / 0.199998855591 / 0.200000762939 | 0.10000038147 / 0.200000762939 / 0.200000762939 | 0.10000038147 / 0.200000762939 / 0.200000762939 | 0.10000038147 / 0.199998855591 / 0.200000762939 | 0.10000038147 / 0.199998855591 / 0.200000762939 | 0.10000038147 / 0.200000762939 / 0.200000762939 |
+| ground | 1.89999961853 / 2.5 / 3.5 | 2.20000076294 / 2.90000152588 / 3.5 | 2.29999923706 / 3.69999885559 / 8 | 1.69999885559 / 2.5 / 3.19999885559 | 1.79999923706 / 2.39999961853 / 3.40000152588 | 1.69999885559 / 2.5 / 5.10000038147 |
+| painterBuild | 1.10000038147 / 1.39999961853 / 1.89999961853 | 1.20000076294 / 2 / 2.5 | 1.20000076294 / 2 / 2.39999961853 | 1.10000038147 / 1.89999961853 / 2.5 | 1.10000038147 / 1.70000076294 / 2.29999923706 | 1.10000038147 / 1.80000114441 / 2.40000152588 |
+| painterSort | 0.200000762939 / 0.300001144409 / 0.39999961853 | 0.200000762939 / 0.39999961853 / 0.5 | 0.200000762939 / 0.39999961853 / 0.5 | 0.10000038147 / 0.200000762939 / 0.300001144409 | 0.10000038147 / 0.200000762939 / 0.299999237061 | 0.10000038147 / 0.200000762939 / 0.300001144409 |
+| painterDraw | 15.7000007629 / 19.7999992371 / 22.5 | 18.5999984741 / 24.5 / 33.7000007629 | 29.3999996185 / 41.1999988556 / 51.2999992371 | 4.29999923706 / 6.39999961853 / 7.79999923706 | 4.09999847412 / 5.89999961853 / 8.19999885559 | 7.5 / 10.7000007629 / 18.1000003815 |
+| weather | 0 / 0.10000038147 / 0.199998855591 | 0 / 0.10000038147 / 0.10000038147 | 0 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.200000762939 | 0 / 0.199998855591 / 0.200000762939 |
+| lightingBoundsResize | 0 / 0 / 0 | 0 / 0.199998855591 / 0.200000762939 | 0 / 0.200000762939 / 0.200000762939 | 0 / 0 / 0 | 0 / 0.199998855591 / 0.200000762939 | 0 / 0.199998855591 / 0.200000762939 |
+| lightingOcclusionRaster | 0 / 0 / 0 | 0 / 0.300001144409 / 0.400001525879 | 0 / 0.400001525879 / 0.5 | 0 / 0 / 0 | 0 / 0.200000762939 / 0.299999237061 | 0 / 0.200000762939 / 0.300001144409 |
+| lightingSolve | 0 / 0 / 0 | 0.0999984741211 / 0.199998855591 / 0.200000762939 | 0.10000038147 / 0.200000762939 / 0.60000038147 | 0 / 0 / 0 | 0.10000038147 / 0.200000762939 / 0.300001144409 | 0.299999237061 / 0.5 / 1.20000076294 |
+| lightingMerge | 0 / 0 / 0 | 0.10000038147 / 0.200000762939 / 0.200000762939 | 0.10000038147 / 0.200000762939 / 0.200000762939 | 0 / 0 / 0 | 0.10000038147 / 0.199998855591 / 0.200000762939 | 0.10000038147 / 0.200000762939 / 0.300001144409 |
+| lightingUpload | 0 / 0 / 0 | 0 / 0.10000038147 / 0.199998855591 | 0 / 0.10000038147 / 0.200000762939 | 0 / 0 / 0 | 0 / 0.10000038147 / 0.200000762939 | 0 / 0.10000038147 / 0.200000762939 |
+| lightingReceiver | 0 / 0 / 0 | 0 / 0 / 0 | 0.60000038147 / 1.0000038147 / 1.30000114441 | 0 / 0 / 0 | 0 / 0 / 0 | 0.200000762939 / 0.500001907349 / 0.699996948242 |
+| lightingComposite | 0 / 0 / 0 | 0.39999961853 / 0.60000038147 / 1.29999923706 | 0 / 0 / 0 | 0 / 0 / 0 | 0.299999237061 / 0.5 / 0.60000038147 | 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| finalWorldComposite | 45.6000003815 / 50.7999992371 / 53.3999996185 | 72.3000011444 / 79.3999996185 / 82.5 | 74.5 / 83.7000007629 / 94 | 36.1000003815 / 40 / 44.2000007629 | 77.3000011444 / 83.0999984741 / 85.8999996185 | 62.1000003815 / 68.5 / 70.5 |
+| uiModel | 0.39999961853 / 0.5 / 0.89999961853 | 0.5 / 0.700000762939 / 1.10000038147 | 0.5 / 0.799999237061 / 1.69999885559 | 0.5 / 0.700000762939 / 0.800001144409 | 0.5 / 0.700000762939 / 0.800001144409 | 0.5 / 0.700000762939 / 0.89999961853 |
+| uiLayout | 0.5 / 0.60000038147 / 0.89999961853 | 0.5 / 0.700000762939 / 1.29999923706 | 0.60000038147 / 0.900001525879 / 2 | 0.5 / 0.700000762939 / 1.10000038147 | 0.5 / 0.700000762939 / 1.5 | 0.599998474121 / 0.799999237061 / 1.10000038147 |
+| uiDraw | 0.5 / 1.10000038147 / 1.5 | 0.60000038147 / 1.39999961853 / 1.60000038147 | 0.700000762939 / 1.5 / 2.10000038147 | 0.60000038147 / 1.29999923706 / 1.79999923706 | 0.60000038147 / 1.30000114441 / 1.70000076294 | 0.60000038147 / 1.30000114441 / 1.69999885559 |
+| fixedUpdate | 0.39999961853 / 0.5 / 0.800001144409 | 0.39999961853 / 0.60000038147 / 0.60000038147 | 0.5 / 0.700000762939 / 1.5 | 0.39999961853 / 0.60000038147 / 0.800001144409 | 0.400001525879 / 0.60000038147 / 0.700000762939 | 0.400001525879 / 0.699998855591 / 1 |
+| catchUp | 0.39999961853 / 0.5 / 0.800001144409 | 0.39999961853 / 0.60000038147 / 0.60000038147 | 0.5 / 0.700000762939 / 1.5 | 0.39999961853 / 0.60000038147 / 0.800001144409 | 0.400001525879 / 0.60000038147 / 0.700000762939 | 0.400001525879 / 0.699998855591 / 1 |
+
+| Per-frame counter | cliff-basic | cliff-classic | cliff-dynamic | pond-basic | pond-classic | pond-dynamic |
+|---|---|---|---|---|---|---|
+| drawImageCalls | 193 / 523 / 523 | 193 / 212 / 523 | 212 / 274 / 523 | 199 / 510 / 510 | 180 / 510 / 510 | 180 / 510 / 510 |
+| distinctDrawImageSources | 12 / 13 / 13 | 12 / 13 / 13 | 13 / 15 / 15 | 13 / 14 / 15 | 12 / 13 / 13 | 12 / 13 / 13 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| imageDataAllocations | 0 / 0 / 0 | 0 / 2 / 2 | 0 / 2 / 2 | 0 / 0 / 0 | 0 / 2 / 2 | 0 / 2 / 2 |
+| capRunRequests | 0 / 0 / 0 | 0 / 0 / 0 | 102 / 104 / 104 | 0 / 0 / 0 | 0 / 0 / 0 | 26 / 26 / 26 |
+| flatSourceRequests | 0 / 0 / 0 | 0 / 0 / 0 | 218 / 227 / 227 | 0 / 0 / 0 | 0 / 0 / 0 | 95 / 98 / 98 |
+| capRunComposites | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| flatSourceComposites | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| receiverSamples | 0 / 0 / 0 | 0 / 0 / 0 | 300 / 317 / 317 | 0 / 0 / 0 | 0 / 0 / 0 | 257 / 263 / 263 |
+| receiverCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 879 / 915 / 916 | 0 / 0 / 0 | 0 / 0 / 0 | 52 / 72 / 72 |
+| receiverFullLoopCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 98400 / 103976 / 103976 | 0 / 0 / 0 | 0 / 0 / 0 | 23130 / 23670 / 23670 |
+| saveCalls | 22 / 29 / 29 | 22 / 24 / 29 | 23 / 25 / 29 | 19 / 25 / 25 | 18 / 25 / 25 | 18 / 25 / 25 |
+| restoreCalls | 22 / 29 / 29 | 22 / 24 / 29 | 23 / 25 / 29 | 19 / 25 / 25 | 18 / 25 / 25 | 18 / 25 / 25 |
+| saveRestorePairs | 22 / 29 / 29 | 22 / 24 / 29 | 23 / 25 / 29 | 19 / 25 / 25 | 18 / 25 / 25 | 18 / 25 / 25 |
+| surfaceAllocations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+| Evidence | cliff-basic | cliff-classic | cliff-dynamic | pond-basic | pond-classic | pond-dynamic |
+|---|---|---|---|---|---|---|
+| Active sample frames | 432 | 297 | 259 | 613 | 329 | 374 |
+| Observed GPU submissions including preparation | 650 | 463 | 365 | 798 | 546 | 528 |
+| Observed Canvas submissions | 0 | 0 | 0 | 0 | 0 | 0 |
+| Encountered fallback reasons | [] | [] | [] | [] | [] | [] |
+| Long tasks >=50 ms | 431 | 297 | 258 | 132 | 329 | 373 |
+| Maximum long task ms | 99 | 124 | 153 | 71 | 115 | 106 |
+| Retained lighting bytes | 0 | 161280 | 88683578 | 0 | 164864 | 83953014 |
+| Omit decoded bytes | 0 | 0 | 72515584 | 0 | 0 | 72515584 |
+| Largest decoded page bytes | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 |
+| Legacy workload issues | no_pond | no_pond | no_pond | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters |
+
+**Exit.** `npm run check` passes651 files/3691 tests in1054.214558424428seconds (`C/check.log`, `check.exit`, `check-duration.json`). All checked runtime/test hashes remain unchanged. Commands: `C/check.py`, `C/pixel-gates.py`, A15/resources build/run, private client production build, `npm run client:chunks:check`, `C/gameplay.py`, `C/footer.py`, `verify-assets.py`, `git diff --check`. The client build retains lazy diagnostics/WebGL boundaries. All18 one-minute reviews are connected/moving and retain the requested backend; every screenshot plus both pond witnesses and six protocol screenshots was opened. `C/result.json` ties all gates to the same source manifest. No required acceptance gate failed; C is retained.
+
+All six normal A-17 encountered sets are `[]`, with0 Canvas submissions after enable and positive WebGL submissions. The exact submission counts and original22-stage/counter tables above are retained even when software timings exceed desktop targets. Both routes retain the existing workload limitations (cliff `no_pond`; pond sparse/offscreen-actor and other recorded flags), so they are not relabelled as a fully populated combined scene. GPU timer queries are unavailable, not zero-cost. Basic retains0 lighting bytes; Basic/Classic load0 omit bytes. All filtered-frame-build counters stay0. One cliff Dynamic frame reports1 surface allocation (p50/p95/p990); this live counter outlier is not attributed by the current probe and is not represented as zero. The fixed-input600-frame resource/cache proofs above remain0 allocations. No new surface-creation site is introduced by the sampler. Original cold cliff/FPS-follow-up residuals are not claimed fixed by this WebGL work.
+
+The separate post-protocol WebGL2-unavailable injection correctly latches Canvas, remains connected and shows **CANVAS: WEBGL2 UNAVAILABLE** in the Video footer; its deliberate reason is not folded into the six normal sets. The override is removed and the test preference returned to Canvas/off. The toggle remains under Developer; a move back to Video requires a separate owner decision. No deployment, world publication/schema change or Studio change. Physical iPad/hardware GPU remain **owner to run**: System→Developer→Render→Run protocol +copyJSON at cliff/carried-light and pond, each lighting mode and desired world scale; record device/OS/browser/DPR/browser zoom/resolution/commit/backend/world scale. Hardware timing classification D follows this checkpoint.
