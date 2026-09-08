@@ -1,4 +1,5 @@
 import { sampleDirectionalMask, type DirectionalCaster, type DirectionalShadowMask } from './directional-shadows.js';
+import type { StaticMaskSamples } from './receiver-static-mask-samples.js';
 
 export interface PreparedCaster {
   caster: DirectionalCaster;
@@ -25,8 +26,9 @@ export function contactCoverage(caster: DirectionalCaster, x: number, y: number,
   const distance = Math.hypot((x - centerX) / Math.max(1, (f.right - f.left) / 2 + 1), (y - centerY) / Math.max(1, (f.bottom - f.top) / 2 + 1));
   return Math.max(0, Math.min(1, (1 - distance) / 0.4));
 }
-function blitMask(target: Uint8Array, caster: DirectionalCaster, mask: DirectionalShadowMask | null, bounds: ReceiverCoverageBounds): void {
+function blitMask(target: Uint8Array, caster: DirectionalCaster, mask: DirectionalShadowMask | null, bounds: ReceiverCoverageBounds, samples?: StaticMaskSamples): void {
   if (mask === null) return;
+  if (samples?.blit(target, caster, mask, bounds)) return;
   const { left, top, width, height, step } = bounds;
   const minX = Math.max(0, Math.floor((caster.worldX + mask.left - left) / step));
   const minY = Math.max(0, Math.floor((caster.worldY + mask.top - top) / step));
@@ -38,10 +40,10 @@ function blitMask(target: Uint8Array, caster: DirectionalCaster, mask: Direction
   }
 }
 /** Blit only the supplied cohort; moving updates never touch the static arrays. */
-export function blitReceiverCoverage(target: ReceiverCoverageChannels, items: readonly PreparedCaster[], bounds: ReceiverCoverageBounds): void {
+export function blitReceiverCoverage(target: ReceiverCoverageChannels, items: readonly PreparedCaster[], bounds: ReceiverCoverageBounds, samples?: StaticMaskSamples): void {
   const { left, top, width, height, receiverHeight, step } = bounds;
   for (const item of items) {
-    blitMask(target.sun, item.caster, item.sun, bounds); blitMask(target.moon, item.caster, item.moon, bounds);
+    blitMask(target.sun, item.caster, item.sun, bounds, samples); blitMask(target.moon, item.caster, item.moon, bounds, samples);
     const caster = item.caster;
     if (!caster.contact || receiverHeight !== caster.baseHeightSubunits) continue;
     const f = caster.footprint;

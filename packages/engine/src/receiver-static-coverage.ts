@@ -1,5 +1,6 @@
 import { blitReceiverCoverage, createReceiverCoverage, type PreparedCaster,
   type ReceiverCoverageBounds, type ReceiverCoverageChannels } from './receiver-coverage.js';
+import { StaticMaskSamples } from './receiver-static-mask-samples.js';
 
 interface StaticField extends ReceiverCoverageBounds { readonly channels: ReceiverCoverageChannels }
 const ALIGNMENT = 64, PADDING = 128;
@@ -9,9 +10,10 @@ const ALIGNMENT = 64, PADDING = 128;
 export class PaddedStaticCoverage {
   private readonly fields: StaticField[] = [];
   private retainedBytes = 0;
+  private readonly samples: StaticMaskSamples;
   builds = 0;
-  constructor(readonly budgetBytes = 2 * 1024 * 1024) {}
-  get bytes(): number { return this.retainedBytes; }
+  constructor(readonly budgetBytes = 2 * 1024 * 1024) { this.samples = new StaticMaskSamples(Math.floor(budgetBytes / 2)); }
+  get bytes(): number { return this.retainedBytes + this.samples.bytes; }
 
   /** Returns false for grids that cannot be copied exactly, or oversized fields.
    * Such callers retain the original direct mask blit, without resampling. */
@@ -40,14 +42,15 @@ export class PaddedStaticCoverage {
       const paddedWidth = (Math.ceil(right / ALIGNMENT) * ALIGNMENT + PADDING - paddedLeft) / step;
       const paddedHeight = (Math.ceil(bottom / ALIGNMENT) * ALIGNMENT + PADDING - paddedTop) / step;
       const bytes = paddedWidth * paddedHeight * 3;
-      if (bytes > this.budgetBytes) return false;
-      while (this.retainedBytes + bytes > this.budgetBytes || this.fields.length >= 64) {
+      const fieldBudget = this.budgetBytes - this.samples.budgetBytes;
+      if (bytes > fieldBudget) return false;
+      while (this.retainedBytes + bytes > fieldBudget || this.fields.length >= 64) {
         const oldest = this.fields.shift()!;
         this.retainedBytes -= oldest.width * oldest.height * 3;
       }
       field = { left: paddedLeft, top: paddedTop, width: paddedWidth, height: paddedHeight,
         step, receiverHeight, channels: createReceiverCoverage(paddedWidth * paddedHeight) };
-      blitReceiverCoverage(field.channels, casters, field);
+      blitReceiverCoverage(field.channels, casters, field, this.samples);
       this.fields.push(field); this.retainedBytes += bytes; this.builds++;
     }
     const offsetX = (left - field.left) / step, offsetY = (top - field.top) / step;
@@ -64,5 +67,6 @@ export class PaddedStaticCoverage {
     }
     return true;
   }
-  reset(): void { this.fields.length = 0; this.retainedBytes = 0; this.builds = 0; }
+  clearFields(): void { this.fields.length = 0; this.retainedBytes = 0; this.builds = 0; }
+  reset(): void { this.clearFields(); this.samples.reset(); }
 }

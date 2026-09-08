@@ -92,7 +92,7 @@ export class CelestialReceiverScene {
     this.lookupKey(geometry);
     const staticChanged = staticIdentity === undefined ? fixed !== this.staticCasters : staticIdentity !== this.staticIdentity;
     if (staticChanged || geometry !== this.geometryKey) {
-      this.rawFields.reset(); this.staticCoverage.reset();
+      this.rawFields.reset(); this.staticCoverage.clearFields();
       this.prepared.clear(); this.preparedBytes = 0; this.indexBytes = 0; this.activeMasks.clear(); this.coverageFields.clear(); this.coverageBytes = 0; this.coverageCount = 0;
       this.generation++; this.revision++; this.rasterBaseRevision++;
     }

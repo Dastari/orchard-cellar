@@ -8,6 +8,33 @@ import { lightingOwner } from '@orchard/engine/world-lighting-renderer';
 import { GameplayCelestialPass } from './gameplay-celestial-pass.js';
 
 describe('gameplay static and moving celestial orchestration', () => {
+  it('keeps prepared coverage through 600 equivalent streamed maps and invalidates a changed local caster', () => {
+    const terrain = { width: 400, height: 400, baseDatum: 0 } as TerrainArray;
+    const trunk = { footX: 64, footY: 96, elevationLayer: 0,
+      obstacle: { left: 60 * FIXED_UNITS_PER_PIXEL, right: 68 * FIXED_UNITS_PER_PIXEL, top: 0, bottom: 0 },
+      receiver: { left: 63, top: 93, width: 2, height: 4, opaque: new Uint8Array([1, 1, 1, 1, 1, 1, 0, 0]) } };
+    const sky = celestialLightingAtCalendar({ clockHours: 17, continuousDay: 3.5, lunarProgress: 0, lunarIllumination: 1 });
+    const local = new TileLightmap(), pass = new GameplayCelestialPass();
+    let revision = -1;
+    for (let frame = 0; frame < 600; frame++) {
+      const occlusion = { trunkOccluders: [
+        { ...trunk, receiver: { ...trunk.receiver, opaque: new Uint8Array(trunk.receiver.opaque) } },
+        { ...trunk, footX: 5000 + frame },
+      ] } as unknown as LightOcclusionMap;
+      pass.prepare(terrain, occlusion, [], sky, local, frame % 2 * 128, 0, 100, 100, 0, 'legacy', false);
+      const raster = pass.renderer!.scene.rasterizeCached(1, 0, 0, 32, 32, 0, 4);
+      if (frame === 0) revision = raster.revision;
+      expect(raster.revision).toBe(revision);
+      expect(pass.renderer!.scene.diagnostics.staticCoverageBuilds).toBe(1);
+    }
+    const changed = { trunkOccluders: [{ ...trunk, footX: 65 }] } as unknown as LightOcclusionMap;
+    pass.prepare(terrain, changed, [], sky, local, 128, 0, 100, 100, 0, 'legacy', false);
+    const raster = pass.renderer!.scene.rasterizeCached(1, 0, 0, 32, 32, 0, 4);
+    expect(raster.revision).toBeGreaterThan(revision);
+    expect(pass.renderer!.scene.diagnostics.staticCoverageBuilds).toBe(2);
+    pass.resetRenderer(); pass.clearStatic();
+  });
+
   it('retains numeric static identity and owner membership through 600 actor updates', () => {
     const terrain = { width: 20, height: 20, baseDatum: 0 } as TerrainArray;
     const occlusion = { trunkOccluders: [{ footX: 64, footY: 96, elevationLayer: 0,
@@ -31,7 +58,12 @@ describe('gameplay static and moving celestial orchestration', () => {
     expect(first[1]).toHaveLength(1); expect(first[2]).toHaveLength(1);
     expect(first[2][0]!.worldX).toBe(90.599);
     pass.prepare(terrain, occlusion, [moving], sky, local, 128, 0, 100, 100, 0, 'legacy', false);
-    expect(begin.mock.calls.at(-1)![1]).not.toBe(first[1]); expect(begin.mock.calls.at(-1)![8]).not.toBe(first[8]);
+    expect(begin.mock.calls.at(-1)![1]).toBe(first[1]); expect(begin.mock.calls.at(-1)![8]).toBe(first[8]);
+    const refreshed = { ...occlusion, trunkOccluders: [...occlusion.trunkOccluders!] };
+    pass.prepare(terrain, refreshed, [moving], sky, local, 128, 0, 100, 100, 0, 'legacy', false);
+    expect(begin.mock.calls.at(-1)![1]).toBe(first[1]); expect(begin.mock.calls.at(-1)![8]).toBe(first[8]);
+    pass.prepare(terrain, { ...refreshed, trunkOccluders: [] }, [moving], sky, local, 128, 0, 100, 100, 0, 'legacy', false);
+    expect(begin.mock.calls.at(-1)![1]).toHaveLength(0); expect(begin.mock.calls.at(-1)![8]).not.toBe(first[8]);
     pass.prepare(terrain, occlusion, [moving], sky, local, 128, 0, 100, 100, 0, 'legacy', true);
     expect(begin.mock.calls.at(-1)![1]).toHaveLength(0); expect(begin.mock.calls.at(-1)![2]).toHaveLength(0);
     pass.resetRenderer(); pass.clearStatic(); expect(pass.renderer).toBeNull();

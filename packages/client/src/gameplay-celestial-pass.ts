@@ -4,6 +4,7 @@ import type { CelestialLighting } from '@orchard/engine/celestial-lighting';
 import type { LightOcclusionMap } from '@orchard/engine/light-occlusion';
 import type { TileLightmap } from '@orchard/engine/lighting';
 import type { TerrainArray } from '@orchard/engine/terrain';
+import { sameStaticCasterCohort } from './static-caster-cohort.js';
 
 const EMPTY_CASTERS: readonly DirectionalCaster[] = [];
 /** Keep occlusion-derived casters and owner membership until the terrain or
@@ -36,13 +37,18 @@ export class GameplayCelestialPass {
     const width = Math.ceil(viewportWidth / 128), height = Math.ceil(viewportHeight / 128);
     if (this.staticSource !== lightOcclusion || this.boundsX !== x || this.boundsY !== y
       || this.boundsWidth !== width || this.boundsHeight !== height) {
-      this.staticCasters = celestialCastersFromOcclusion(lightOcclusion, this.renderer.mapper,
+      const next = celestialCastersFromOcclusion(lightOcclusion, this.renderer.mapper,
         cameraX - 128, cameraY - 128 - terrainProjectionMargin,
         cameraX + viewportWidth + 128, cameraY + viewportHeight + 128 + terrainProjectionMargin);
       this.staticSource = lightOcclusion; this.boundsX = x; this.boundsY = y;
-      this.boundsWidth = width; this.boundsHeight = height; this.staticRevision++;
-      this.staticOwners.clear();
-      for (const caster of this.staticCasters) this.staticOwners.add(caster.owner);
+      this.boundsWidth = width; this.boundsHeight = height;
+      // Streaming can replace the source map without changing any relevant
+      // caster. Keep all prepared planes and padded coverage in that case.
+      if (!sameStaticCasterCohort(this.staticCasters, next)) {
+        this.staticCasters = next; this.staticRevision++;
+        this.staticOwners.clear();
+        for (const caster of next) this.staticOwners.add(caster.owner);
+      }
     }
     this.moving.length = 0;
     if (!debugEntitiesHidden) for (const caster of movingCelestialCasters) {
