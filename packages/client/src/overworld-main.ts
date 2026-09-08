@@ -87,6 +87,7 @@ import {
 import { lightingModelFromStoredValue, TileLightmap, type LightingModel } from '@orchard/engine/lighting';
 import { isLightEmitterKind } from '@orchard/engine/light-sources';
 import { renderMetrics, renderDiagnostics, renderMetricsSnapshot } from './gameplay-render-diagnostics.js';
+import { debugMetricsSnapshot, frameTimingRows } from './debug-frame-timing.js';
 import { RainWeather } from '@orchard/engine/particles';
 
 import { liveIslandDocument, liveIslandTerrain, liveMapObjectCollisionObstacles } from '@orchard/engine/live-map-runtime';
@@ -5004,7 +5005,7 @@ function renderFrame(alpha = 1): void {
   if (!interfaceHidden && renderDiagnostics.enabled) {
     uiContext.save();
     uiContext.translate(uiOriginX, uiOriginY);
-    const metrics = renderMetricsSnapshot();
+    const metrics = debugMetricsSnapshot();
     const net = network.metrics();
     const ownPosition = network.ownPosition();
     const remoteDepths = [...remoteBuffers.values()].map((buffer) => buffer.depth);
@@ -5012,7 +5013,7 @@ function renderFrame(alpha = 1): void {
     const remoteMax = remoteDepths.length === 0 ? 0 : Math.max(...remoteDepths);
     const activeModifiers = snapshotPlayerModifiers(snapshot);
     const lines = [
-      `FRAME ${metrics.averageFrameMs.toFixed(2)} AVG ${metrics.worstFrameMs.toFixed(2)} WORST`,
+      ...frameTimingRows(metrics),
       `ITEMS ${metrics.renderItems} CHUNKS ${groundCache.residentCount} PARTICLES ${rain.activeCount}`,
       `LIGHT ${dynamicLighting ? frameLightingModel.toUpperCase() : 'BASIC'} ${lightmap.averageMs.toFixed(2)}ms AVG ${lightmap.floodMs.toFixed(2)}ms FLOOD #${lightmap.fieldRebuilds}`,
       `BND ${lightmap.boundsResizeMs.toFixed(2)} OCC ${lightmap.rasterizeMs.toFixed(2)} SOLVE ${lightmap.floodMs.toFixed(2)} MERGE ${lightmap.mergeMs.toFixed(2)}`,
