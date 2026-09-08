@@ -459,6 +459,8 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
+- [ ] WebGL fallback footer readability — IN PROGRESS: codex, 2026-09-09. Owner reports truncated strokeStyle reason on enable near fishing village. Wrap Developer/Video reason, preserve guards and record fixed-line prop coverage gap; output/perf-59-20260909/fallback-footer/.
+
 - [x] Gameplay 0.6.1 qualified P8 release — DEPLOYED: codex, 2026-09-09, after owner Deploy. Source672c079f; all439 public files exact and same identity/position/48 inventory slots/wallet preserved. F3 verified; Canvas1× and Developer/off retained. Only frontend restarted; Studio/world unchanged. Rollback and evidence output/perf-59-20260909/release/.
 
 - [x] P8 A-14a sampler qualification and A-17 hardware classification — DONE: codex, 2026-09-08. A→B→C→D checkpoints in doc59§9/DECISIONS. Source672c079f:651files/3691tests,1704 sampler cases,10 exact Canvas boards,A15/A16 gates and six empty A17 fallback sets pass. Hardware GPU unavailable on this host; owner to run. Developer/off stays; no deployment.
