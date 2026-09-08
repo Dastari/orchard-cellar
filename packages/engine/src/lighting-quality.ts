@@ -46,7 +46,6 @@ export function compositeBasicLighting(context: CanvasRenderingContext2D, width:
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.beginPath(); context.rect(0, 0, width, height); context.clip();
     context.globalAlpha = 1;
-    context.filter = 'none';
     context.globalCompositeOperation = 'multiply';
     context.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
     context.fillRect(0, 0, width, height);

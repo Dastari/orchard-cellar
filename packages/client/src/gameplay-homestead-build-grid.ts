@@ -1,3 +1,4 @@
+import { withWorldFrameEffect } from '@orchard/engine/world-frame-effect';
 import { homesteadPlotBounds, runtimeHomesteadBuildDefinition, homesteadTentFootprint,
   HOMESTEAD_TENT_TILE, homesteadBuildFootprintTiles, homesteadPlayableTile, type SpaceDefinition } from '@orchard/sim';
 import { drawOverworldPlaceable, type OverworldArt } from '@orchard/engine/overworld-art';
@@ -84,8 +85,7 @@ export function drawHomesteadBuildGrid(
     if (selection.kind === 'place') {
       context.save();
       context.globalAlpha = valid ? 0.62 : 0.42;
-      context.filter = valid ? 'brightness(1.15)' : 'grayscale(0.7) sepia(1) hue-rotate(315deg) saturate(3)';
-      drawOverworldPlaceable(
+      withWorldFrameEffect(context, valid ? 'placement-valid' : 'placement-invalid', () => drawOverworldPlaceable(
         context,
         art,
         selection.itemKind,
@@ -98,7 +98,7 @@ export function drawHomesteadBuildGrid(
         cameraY,
         scale,
         true,
-      );
+      ));
       context.restore();
     }
   }

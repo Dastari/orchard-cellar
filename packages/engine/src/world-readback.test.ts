@@ -10,6 +10,7 @@ const CPU_SOURCE_READERS: Readonly<Record<string, readonly string[]>> = {
     'context.getImageData(0, 0, frame.width, frame.height)',
   ],
   'engine/world-anchored-draw.ts': ['stoneContext.getImageData(0, 0, source.width, source.height)'],
+  'engine/world-effect-source-pixels.ts': ['context.getImageData(0, 0, source.width, source.height)'],
   'engine/light-occlusion.ts': ['context.getImageData(0, 0, frame.width, frame.height)'],
 };
 function sources(directory: URL): URL[] {
@@ -21,6 +22,14 @@ function sources(directory: URL): URL[] {
   });
 }
 describe('world surfaces stay write-only', () => {
+  it('keeps gameplay world effect producers free of native Canvas filters', () => {
+    for (const name of ['engine/world-anchored-draw.ts', 'engine/overworld-art.ts', 'engine/lighting-quality.ts',
+      'client/gameplay-painter-effects.ts', 'client/gameplay-homestead-build-grid.ts']) {
+      const [workspace, file] = name.split('/');
+      expect(readFileSync(new URL(`../../${workspace}/src/${file}`, import.meta.url), 'utf8'), name)
+        .not.toMatch(/\bcontext\.filter\b/);
+    }
+  });
   it('greps every runtime Canvas/WebGL source for unreviewed pixel readbacks', () => {
     for (const workspace of ['engine', 'client', 'ui']) {
       for (const url of sources(new URL(`../../${workspace}/src/`, import.meta.url))) {

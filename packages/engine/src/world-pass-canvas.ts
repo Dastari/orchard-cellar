@@ -1,3 +1,4 @@
+import { resetUnlitWorldEffects } from './receiver-frame-source.js';
 import type { WorldPassBackend, WorldPassImage, WorldPassSprite } from './world-pass-backend.js';
 import type { WorldPassLayout } from './renderer.js';
 import { CanvasWorldPresent } from './world-pass-present.js';
@@ -85,6 +86,7 @@ export class CanvasWorldPassBackend implements WorldPassBackend {
     } else this.context.drawImage(source.image, source.x, source.y, source.width, source.height, x, y, width, height);
   }
   dispose(): void {
+    resetUnlitWorldEffects();
     if (this.disposed) return;
     this.disposed = true; this.layout = null;
     this.canvas.width = this.canvas.height = 0;

@@ -1,3 +1,4 @@
+import { withWorldFrameEffect } from '@orchard/engine/world-frame-effect';
 import { saveSpriteTransform, restoreSpriteTransform } from '@orchard/engine/painter-context';
 import type { MapLandmarkInstance } from '@orchard/sim';
 
@@ -17,11 +18,8 @@ export function drawLandmarkTransform(context: CanvasRenderingContext2D,
 export function drawWildlifeHitFlash(context: CanvasRenderingContext2D,
   flashing: () => boolean, draw: () => void): void {
   const enabled = flashing();
-  const previousFilter = context.filter;
   const saved = saveSpriteTransform(context, false);
-  if (enabled) context.filter = 'brightness(2.15) saturate(0.25)';
-  try { draw(); } finally {
-    if (enabled) context.filter = previousFilter;
+  try { withWorldFrameEffect(context, enabled ? 'wildlife-hit' : undefined, draw); } finally {
     restoreSpriteTransform(context, saved);
   }
 }

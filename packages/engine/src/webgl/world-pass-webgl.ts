@@ -1,3 +1,4 @@
+import { resetUnlitWorldEffects } from '../receiver-frame-source.js';
 import type { RawReceiverField } from '../receiver-raw-field.js';
 import type { AssetFrameSource } from '@orchard/ui';
 import type { WorldPassBackend, WorldPassImage, WorldPassSprite, WorldSpriteVariant, WorldPassRectangle } from '../world-pass-backend.js';
@@ -116,7 +117,11 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     this.presentation=revision;
   }
   sprite(draw:WorldPassSprite):void {
-    this.associateSource(draw.source,{receiverRgb:draw.receiverRgb,variant:draw.variant}); this.submit(draw);
+    if (draw.variant === 'normal') {
+      this.associateSource(draw.source, { receiverRgb: draw.receiverRgb }); this.submit(draw);
+    } else {
+      this.associateSource(draw.canvasSource, { variant: 'normal' }); this.submit({ ...draw, source: draw.canvasSource });
+    }
   }
   capRun(draw:WorldPassImage):void { this.submit(draw); }
   chunk(draw:WorldPassImage):void { this.submit(draw); }
@@ -247,6 +252,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     catch (error) { this.restoreFailure=error instanceof Error ? error.message:'webgl_restore_failed'; this.options.onFailure?.(this.restoreFailure); }
   };
   dispose():void {
+    resetUnlitWorldEffects();
     if (this.disposed) return;
     this.disposed=true;this.layout=null;this.pending=null;this.presentation=undefined;this.invalidateSelection();
     cleanupWebGL([

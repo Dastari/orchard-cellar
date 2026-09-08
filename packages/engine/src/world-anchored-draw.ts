@@ -1,3 +1,4 @@
+import { withWorldFrameEffect } from './world-frame-effect.js';
 import { selectAtlasFrame, type LoadedAsset, type AtlasFrame, type AssetFrameSource } from '@orchard/ui';
 import { saveSpriteTransform, restoreSpriteTransform } from './painter-context.js';
 import { worldAssetFrameSource } from './world-asset-presentation.js';
@@ -86,7 +87,7 @@ export function drawAnchored(
 ): void {
   const selected = frame(asset, animation, frameIndex);
   if (selected === null) return;
-  const original = worldAssetFrameSource(context, asset, selected, palette === 'stone' ? stoneFrameSource : undefined);
+  const original = worldAssetFrameSource(context, asset, selected, palette === 'stone' ? stoneFrameSource : undefined, dimmed ? 'dim' : undefined);
   if (original === null) return;
   const source = groundSpriteSource(context, original, worldX - asset.anchor[0], worldY - asset.anchor[1]);
   const sourceHeight = Math.max(0, Math.min(source.height, maximumSourceRows ?? source.height));
@@ -97,13 +98,7 @@ export function drawAnchored(
   const anchorX = flipX ? source.width - 1 - asset.anchor[0] : asset.anchor[0];
   const x = Math.round((worldX - cameraX - anchorX) * zoom);
   const y = Math.round((worldY - cameraY - asset.anchor[1]) * zoom);
-  const previousAlpha = dimmed ? context.globalAlpha : 1;
-  const previousFilter = dimmed ? context.filter : '';
   const savedTransform = saveSpriteTransform(context, flipX);
-  if (dimmed) {
-    context.filter = "brightness(42%) saturate(55%)";
-    context.globalAlpha *= 0.88;
-  }
   if (flipX) {
     context.translate(x + source.width * zoom, 0);
     context.scale(-1, 1);
@@ -131,7 +126,6 @@ export function drawAnchored(
       sourceHeight * zoom,
     );
   }
-  if (dimmed) { context.globalAlpha = previousAlpha; context.filter = previousFilter; }
   restoreSpriteTransform(context, savedTransform);
 }
 
@@ -140,13 +134,11 @@ export function drawRogueEnemyVisual(
   visual: { readonly asset: LoadedAsset; readonly animation: string; readonly frameIndex: number; readonly flip: boolean },
   x: number, y: number, cameraX: number, cameraY: number, zoom: number, hitFlash: boolean,
 ): void {
-  const previousFilter = hitFlash ? context.filter : '';
   const savedTransform = saveSpriteTransform(context, false);
-  if (hitFlash) context.filter = 'brightness(210%) saturate(40%)';
-  drawAnchored(
-    context, visual.asset, visual.animation, visual.frameIndex,
-    x, y, cameraX, cameraY, zoom, visual.flip,
-  );
-  if (hitFlash) context.filter = previousFilter;
-  restoreSpriteTransform(context, savedTransform);
+  try {
+    withWorldFrameEffect(context, hitFlash ? 'enemy-hit' : undefined, () => drawAnchored(
+      context, visual.asset, visual.animation, visual.frameIndex,
+      x, y, cameraX, cameraY, zoom, visual.flip,
+    ));
+  } finally { restoreSpriteTransform(context, savedTransform); }
 }

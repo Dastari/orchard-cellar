@@ -14,7 +14,7 @@ export interface WorldPassImage {
 export type WorldSpriteVariant = 'normal' | 'dim' | 'enemy-hit' | 'wildlife-hit';
 export interface WorldPassSprite extends WorldPassImage {
   /** Canvas consumes the existing exact prepared source. GPU submission uses
-   * the immutable artwork and the same receiver/variant inputs directly. */
+   * immutable artwork for normal draws and the prepared CPU page for effects. */
   readonly canvasSource: AssetFrameSource;
   readonly receiverRgb: RgbColor;
   readonly variant: WorldSpriteVariant;

@@ -58,6 +58,19 @@ describe('mutable world source submission', () => {
     } finally { backend.dispose(); }
     expect(backend.bytes).toBe(0);
   });
+  it('submits a CPU variant page and refreshes it after packed-page mutation', () => {
+    const backend = begin(), image = new TestCanvas(), prepared = new TestCanvas();
+    prepared.pixels = 'dim';
+    const source = { image: image as unknown as CanvasImageSource, x: 0, y: 0, width: 32, height: 32 };
+    const canvasSource = { ...source, image: prepared as unknown as CanvasImageSource };
+    try {
+      backend.sprite({ source, canvasSource, destination: { x: 0, y: 0, width: 32, height: 32 }, receiverRgb: { r: 10, g: 20, b: 30 }, variant: 'dim' });
+      prepared.pixels = 'flash';
+      backend.sprite({ source, canvasSource, destination: { x: 32, y: 0, width: 32, height: 32 }, receiverRgb: { r: 10, g: 20, b: 30 }, variant: 'enemy-hit' });
+      backend.flush(); expect(events).toEqual(['upload:dim', 'draw:dim', 'upload:flash', 'draw:flash']);
+    } finally { backend.dispose(); }
+    expect(backend.bytes).toBe(0);
+  });
   it('retains explicitly versioned sources until their producer changes revision', () => {
     const backend = begin(), image = new TestCanvas();
     const source = { image: image as unknown as CanvasImageSource, x: 0, y: 0, width: 32, height: 32 };

@@ -1,3 +1,4 @@
+import { unlitWorldEffectDiagnostics } from '@orchard/engine/receiver-frame-source';
 import type { TileLightmap, LightingModel } from '@orchard/engine/lighting';
 import type { LightingQualityState } from '@orchard/engine/lighting-quality';
 import type { GameplayCelestialPass } from './gameplay-celestial-pass.js';
@@ -27,6 +28,7 @@ export function gameplayDiagnostics({ atlasPresentation, lightingModel, lighting
   activeSpaceDefinition, latestLightCount, rain, groundCache }: GameplayDiagnosticsInput) {
   return {
     schemaVersion: 1,
+    artEffects: unlitWorldEffectDiagnostics(),
     rendering: renderMetricsSnapshot(),
     lighting: {
       model: atlasPresentation.model,
@@ -34,7 +36,7 @@ export function gameplayDiagnostics({ atlasPresentation, lightingModel, lighting
       effectsDisabled: lightingEffectsDisabled,
       requestedQuality: lightingQuality.requested,
       effectiveQuality: lightingQuality.effective,
-      retainedSurfaceBytes: lightmap.retainedSurfaceBytes + atlasPresentation.retainedBytes + (celestialPass.renderer?.bytes ?? 0),
+      retainedSurfaceBytes: unlitWorldEffectDiagnostics().omitBytes + lightmap.retainedSurfaceBytes + atlasPresentation.retainedBytes + (celestialPass.renderer?.bytes ?? 0),
       fallbackReason: lightingQuality.reason,
       omitPages: atlasPresentation.pages.diagnostics(),
       tintedSurfaces: celestialPass.renderer?.frames.surfaces ?? 0,
