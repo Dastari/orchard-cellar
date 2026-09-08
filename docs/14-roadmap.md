@@ -459,6 +459,7 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
+- [ ] P8 A-14a sampler qualification and A-17 hardware classification — IN PROGRESS: codex, 2026-09-08. Owner-directed A→B→C→D, separate doc59§9/DECISIONS checkpoints, no deployment or toggle relocation.
 - [x] F3 delivered FPS and shadow-direction hitch follow-up — IMPLEMENTED: codex, 2026-09-08.0.6.1 artifact d2b75e60 prepared in `output/perf-59-20260908/fps-shadow-release/`;650files/3688tests and10 exact Canvas goldens pass. FPS/cap/stall display verified; exact shadow work reductions checked, recurring pause remains a measured residual (docs59§9). Gameplay-only release awaits specific Go;0.6.0 and Studio remain unchanged.
 
 **Current doc59 status,2026-09-08:** the A-11–A-19 rows and doc59§9 supersede

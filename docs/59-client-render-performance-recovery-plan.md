@@ -752,6 +752,26 @@ gate remains exact. Add a per-producer counter of non-integer-ratio world
 draws on the A-1 workload and record it; where a producer can become
 integer-ratio without changing Canvas output, do so.
 
+**A-14a Coordinate-coded probe domain (2026-09-08 owner amendment).**
+The probe excludes destination phases within1e-4px of a half-pixel tie.
+At origins80/272/464/656 plus0.49999/0.50001, float32 in the GPU attribute
+path and Skia matrix cannot reliably represent the distinction, and rasteriser
+tie rules differ. Of the original38/720 failures,35 collapse to an exact.5
+on at least one axis; the remaining3 have only a2e-5-source-texel margin on
+a2× downsample axis. The unchanged investigation harness passes864/864 at
+phases0.4,0.45,0.499,0.501,0.55,0.6. This corrects the probe domain, not the
+sampler or pixel gate: integer-ratio draws remain exact via integer texel
+arithmetic; noninteger nearest draws retain the≤1-source-texel-shift rule
+with zero coverage failures. No new colour tolerance. Production sprite
+producers round destinations; the preserved route tables have zero
+noninteger-ratio/non-axis-aligned sprite draws. The original2026-09-08 A-14
+OPEN/third-approach conclusion is **resolved by this amendment**: the near-tie
+probe defect is not a third failed sampler approach and docs15§9 does not
+bar qualification/integration of the unchanged prototype. Original evidence
+underP8/A14 remains untouched; new evidence goes underP8/A14a. The toggle
+stays in Developer until A-14a/A-15/A-16/A-17 pass on one candidate; moving
+it to Video requires a separate owner decision.
+
 **A-15 Cutaway edges.** For the experimental-enable gate only: within a 1-px
 band around clip-path edges, at most four steps; outside the band at most two;
 at most 1 % of channels above one overall; HUD exact. Residuals must be shown
@@ -6371,3 +6391,9 @@ FPS and exact shadow work reductions are committed in23f07407/d2b75e60. Packaged
 `live-preflight.py` proves all439 current0.6.0 local static files and public HTML remain unchanged. Frontend/Studio PID/start times, Studio package/guard, AGENTS.md and `.git/cellar-ui-release.md` match preflight. `README.md`/`commands.md` contain concrete scope, gate results, original before/after timings and explicit residuals. Proposed publication and rollback scripts pass shell/Python syntax validation only; no live service action or static swap has executed. Publication uses a fresh ordinary-account witness, pinned archives, exact retained live directory, a bounded30s public HTML readiness wait,439-file public validation and same-player reconnect inside the rollback trap. The earlier test-browser startup race is resolved separately from this production readiness check.
 
 Rollback for this new release is the **currently deployed0.6.0**, `output/perf-59-20260908/release/client-0.6.0-fd0cb7e6.tar`,SHA256 `f1908c6138255632e396bfac44f0191bc1832c88967077fa8bb7088e3dc5b290`; the old0.5.7 rollback is not the0.6.1 release rollback. No database publication/migration or Studio deployment. iPad remains **owner to run** via the preceding exact panel capture steps; no throttled substitution. Prior Go covered0.6.0 only. Prepared0.6.1 awaits a specific owner Go under `ops/orchard-runtime/README.md` §Lifecycle code checks and release approval.
+
+### 2026-09-08 — P8 follow-up A: A-14a probe amendment claim and checkpoint
+
+Claimed by codex after26e2b4e2. Read `output/investigation-webgl-20260908/README.md` first and accept its reproducible float32/probe and vfio-pci findings as established. Added§8.1 A-14a as explicitly directed by the owner: exclude phases within1e-4px of a half-pixel tie, preserve exact integer sampling and the noninteger≤1-texel/zero-coverage gate. Resolve the September8 A-14 OPEN row by this amendment, not by introducing another sampler approach. The35 collapsed-axis cases,3 marginal2× cases and864/864 independent non-tie sweep are the reason; no re-derivation or new tolerance.
+
+Files: doc59,DECISIONS,roadmap. Output `P8/A14a/original-a14-manifest.json` pins all preserved original evidence; `A-unchanged-code-gate.json` verifies2069 runtime source hashes still match checked d2b75e60. `npm run check` remains green on unchanged code:650files/3688tests,911.5909390449524seconds. `git diff --check` passes. This is a docs-only checkpoint, not a new desktop timing sample; original stage/counter tables remain the preceding follow-up ledger. B reruns the unchanged prototype, then C integrates only if all requested gates pass; D records hardware unavailable. No deployment, world/schema change, backend default or toggle relocation. iPad remains **owner to run** through System→Developer→Render→Run protocol +copyJSON at both pinned routes with device/OS/browser/DPR/zoom/resolution/commit/backend/world scale recorded.
