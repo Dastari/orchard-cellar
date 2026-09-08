@@ -6,10 +6,10 @@ import { describe, expect, it } from 'vitest';
  * so a new readback cannot hide in a broad file exclusion. */
 const CPU_SOURCE_READERS: Readonly<Record<string, readonly string[]>> = {
   'engine/overworld-art.ts': [
-    'stoneContext.getImageData(0, 0, source.width, source.height)',
     'sourceContext.getImageData(0, 0, source.width, source.height)',
     'context.getImageData(0, 0, frame.width, frame.height)',
   ],
+  'engine/world-anchored-draw.ts': ['stoneContext.getImageData(0, 0, source.width, source.height)'],
   'engine/light-occlusion.ts': ['context.getImageData(0, 0, frame.width, frame.height)'],
 };
 function sources(directory: URL): URL[] {
