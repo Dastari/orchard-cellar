@@ -38,8 +38,9 @@ pre-rendered tile layers — Canvas 2D handles an order of magnitude more.
   text-only agents, and web export has the same WASM weight problems as Bevy.
 - **Experimental WebGL2 world renderer**: authorized by the 2026-09-06
   `client/rendering` row in `DECISIONS.md` and [doc 59 P8](59-client-render-performance-recovery-plan.md).
-  It will use the shared `WorldPassBackend` seam in `packages/engine`, behind
-  the persisted Video toggle “Experimental: WebGL renderer”, off by default.
+  It uses the shared `WorldPassBackend` seam in `packages/engine`, behind
+  the persisted Developer → Render toggle “Experimental: WebGL renderer”, off by default.
+  Doc59 A-19 keeps it out of Video until the experimental-enable gates pass.
   Canvas 2D remains the reference, default and automatic fallback on any failure;
   the HUD stays on Canvas. This supersedes the earlier no-WebGL anti-goal.
   Adoption as the default is outside doc 59. No engine or dependency change is authorized.

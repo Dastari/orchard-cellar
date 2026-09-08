@@ -16,6 +16,16 @@ the illumination. **Full-moon nights must cast visible moon shadows**, moving
 with the moon in Dynamic mode. Do not maintain shadowed/shadowless source assets or ship
 separate lighting variants of the artwork.
 
+**Current compilation amendment (doc59 A1/P3,0.6.0 candidate):** the prohibition
+above concerns separately authored artwork. The builder now emits derived
+per-page `.omit.png` files by clearing declared spans, with outside-span equality
+asserted. Dynamic loads those pages atomically; Basic/Classic use originals.
+Runtime frame filtering and its preparation/budget/fallback machinery are deleted.
+D1/D3 are amended; immutable authored originals and D10 atomic transitions remain.
+Canvas1× is the default; the experimental WebGL control remains in Developer
+pending enable gates. No0.6.0 deployment is implied. See doc59§9 for current
+cliff measurements, cold-transition residuals and the release request.
+
 This document specifies the implementation; completed portions are recorded in §12.
 The owner requirements above are settled. Numeric art presets below are proposed
 starting values to tune through the existing visual-review workflow.

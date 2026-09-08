@@ -129,8 +129,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Doc 59 P8 adds the experimental backend control and fallback footer.
 // Doc 59 A-14 exports the opt-in world-only sampling counters.
 // A-19 mechanically extracts the owned Video/Developer controls and painting.
+// Its feature wiring removes the retired Video-only parameters after relocation.
 // The other four structural seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '86dc3754a1729cfebc31c65e9b49b0936ec90dc0f9887de3b28189e1efa0aea4';
+const STRUCTURAL_SEAM_DIGEST = '672835c2f078b9066f519d6b76c1a7fc587a3cd057e7bffc55b5bc0fd970ff31';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

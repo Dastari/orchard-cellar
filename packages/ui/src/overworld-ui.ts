@@ -767,7 +767,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     width: Math.max(80, developerWindow.width - developerTabWidth - 38),
     height: Math.max(80, developerWindow.height - 48),
   };
-  const experimentalWebGLButton = experimentalWebGLBounds(settingsContent, presentationCapButton, videoRowHeight, developerContent);
+  const experimentalWebGLButton = experimentalWebGLBounds(developerContent);
   const developerRender = developerRenderButtons(developerContent);
   const paperOrigin = { x: inventoryWindow.x + 22, y: inventoryWindow.y + 51 };
   const equipmentCells = Array.from({ length: EQUIPMENT_SLOTS.length }, (_, index) => (
@@ -2980,7 +2980,7 @@ export class OverworldUi {
     this.worldScaleNode.enabled = this.worldScaleNode.visible;
     this.presentationCapNode.visible = this.lightingQualityNode.visible;
     this.presentationCapNode.enabled = this.presentationCapNode.visible;
-    syncExperimentalWebGLNode(this.experimentalWebGLNode, this.lightingQualityNode.visible, developerVisible, this.developerTab);
+    syncExperimentalWebGLNode(this.experimentalWebGLNode, developerVisible, this.developerTab);
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].visible = developerVisible;
     const developerWorldVisible = developerVisible && this.developerTab === 'world';
     const developerRenderVisible = developerVisible && this.developerTab === 'render';
@@ -3866,7 +3866,6 @@ export class OverworldUi {
       fonts: this.fonts, skin: this.skin, pointer: this.pointer, layout: this.layout,
       settingsTab: this.settingsTab, model: this.model, lightingQualityNode: this.lightingQualityNode,
       worldScaleNode: this.worldScaleNode, presentationCapNode: this.presentationCapNode,
-      experimentalWebGLNode: this.experimentalWebGLNode,
     });
   }
 

@@ -55,7 +55,8 @@ coverage split, painter hot-path cleanup, and the evidence needed to open §15's
 WebGL2 work. On 2026-09-06 the owner confirmed doc 59's decisions: build-time
 shadowless page variants (amending doc 58 D1/D3), a 1× world pass default with
 a Video scale option, and a WebGL2 world pass shipped as an **experimental,
-off-by-default Video toggle** with Canvas as reference, default and fallback.
+off-by-default toggle** with Canvas as reference, default and fallback.
+Doc59 A-19 places it in Developer → Render until experimental-enable gates pass.
 This amends §15's entry condition only; its technical requirements and the
 adoption numbers for making WebGL2 the default are unchanged.
 
@@ -2692,3 +2693,25 @@ evidence, not the hardware adoption gate or a release-completion claim. See
 `output/perf-59-20260907/P8/ground-plane/` and doc59's checkpoint ledger.
 
 2026-09-08 A-16 implementation amendment (qualification in doc59 §9): CPU dim/hit/placement effect variants replace the remaining gameplay Canvas filters, after upright receiver tint. The existing4 MiB receiver page remains; when effects are used it gains at most12 MiB auxiliary immutable-source pixels/reader/upload scratch. A separate white-art effect cache is capped at16 MiB including its page and auxiliary storage. Original-only art-effect bytes are exposed separately; omit-derived art-effect bytes are included in lighting retention and released at presentation changes. Both caches explicitly dispose; Basic still retains zero lighting/omit bytes. This is an explicit bounded28 MiB worst-case addition over the former4 MiB tint cache, recorded in DECISIONS. It does not restore runtime baked-shadow filtering. A-16 permits2 steps on opaque effect artwork and8 on translucent effect artwork; normal artwork and HUD gates are unchanged. WebGL uses the CPU variant pages as textures. No enable/default gate or deployment is implied.
+
+
+**2026-09-08 current doc59 candidate status (unreleased, supersedes earlier open checkpoints):**
+A-11 retains the exact static field in a128px padded,64px-aligned window;
+A-12 uses local-light damage plus one texel and intersection-only plane revisions.
+The pinned cliff Dynamic merge p95 is0.9ms; larger normal cliff approaches no
+longer show the former23–25ms merge spikes. Complete owner-reported halt remains
+unreproduced and a cold Dynamic transition still has136–153ms tasks. Basic6.3ms
+is accepted as met; current whole-frame residuals remain in doc59§9.
+
+P2/P3 ship bounded original/omit pages and delete runtime filtered-frame machinery;
+all36 original atlas PNGs remain byte-identical. Basic retains zero lighting and
+omit bytes; Classic retains its approved legacy field and never loads omit pages.
+Compiled variants amend doc58 D1/D3; D4 artwork immutability and D10 atomic
+transitions remain binding. A-16 CPU effect pages pass opaque2/translucent4/HUD0.
+A-15 cutaways pass72 amended edge cases (band3/outside2,0.799560546875% above-one,
+HUD exact). A-17's six actual WebGL runs encounter no fallback, but software GPU
+performance fails; A-14 general sampling remains OPEN after three approaches.
+The experimental toggle is therefore in Developer → Render, off by default,
+with the fallback reason retained in Video. Canvas1× is the proposed0.6.0
+release. Hardware GPU and iPad are owner to run. This changes neither the
+exact default-on adoption gate nor release-specific owner Go requirements.

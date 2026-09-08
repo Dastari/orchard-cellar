@@ -1,6 +1,6 @@
 # 59 — Client Render Performance Recovery Plan
 
-Implementation plan, **2026-09-06**. Status: **adopted — owner confirmed decisions A1, B2 and C (experimental WebGL2 toggle) on 2026-09-06; implementation in progress; P0–P2 desktop checkpoints recorded below**.
+Implementation plan, **2026-09-06**. Status: **adopted — owner confirmed decisions A1, B2 and C (experimental WebGL2 toggle) on 2026-09-06; Canvas recovery implemented with measured residuals; A-19 release preparation, P8 general sampling/hardware performance still open; see §9**.
 Companion to [21](21-unified-renderer.md) (Canvas composition),
 [47](47-rendering-lighting-performance-plan.md) (performance program, M9 atlas
 pages, M11 backend gates), and
@@ -5924,3 +5924,224 @@ iPad: **owner to run**, System→Developer→Render→Run protocol+copyJSON on c
 A-15 artifact correction discovered during this audit: its cliff/pond screenshot helpers saved new images under producer-profile/a15 but copied from a14. Original files remain preserved. A15/after-cliff-corrected.png and pond-17-corrected.png/pond-18-corrected.png now preserve the actual A15 saved images; all three reopened. Raw A15 timing/counter JSON, separately captured A1 screenshots and all18 minute reviews are unaffected. See A15/cliff-screenshot-provenance-correction.txt. This supersedes any A15 attribution of the three earlier copied PNGs.
 
 Read-only live preflight: public HTTP200 index and all384 local served files still match the retained0.5.7rollback. No deployment/service/world operation. Next commit relocates the experimental control; no release request or owner Go has been issued yet.
+
+
+### A-19 Developer control relocation — measured checkpoint,2026-09-08
+
+**Canvas release preparation implemented; no deployment.** After mechanical extraction9cd7fc14, the experimental toggle is in Developer→Render and absent from Video. The persisted key and default off are preserved; Canvas1× stays default. Video retains actual backend fallback status. Four Developer rows fit above the footer at240×140,360×180,480×270,640×360; compact layouts retain existing ellipsis. Retired Video parameters/row/branch removed. No world renderer, authority, shader, sampler, artwork or lighting formula change.
+
+Files: packages/ui/src/world-render-controls.ts,developer-render-panel.ts,settings-choice-rows.ts,video-rows.ts and test; new world-render-controls.test.ts; minimal forwarded argument removal in overworld-ui.ts and reviewed structural digest in packages/client/src/phase-zero-extraction.test.ts. Docs01/02/21/47/58/59/14 and DECISIONS describe the current0.6.0 candidate and supersede historical Video/shared-preview/clip/filter blockers. All new modules≤400lines. Structural digest672835c2f078b9066f519d6b76c1a7fc587a3cd057e7bffc55b5bc0fd970ff31; other four seams unchanged.
+
+Artifacts output/perf-59-20260908/P8/A19/. Commands: focused Vitest4files/18tests, UI typecheck, focused ESLint; **npm run check644files/3670tests,959.181298494339seconds,green**; private production client builds, panel build/run,10 original world/lighting/terrain goldens,18 minute movement reviews, six lighting cycles, asset hash checks, browser preference lifetime test, simulated actual-client WebGL capability failure, quiet before/after protocol and larger cliff capture. See individual logs/run-validation.py/run-measurement.py. Checked source hashes remained unchanged. Sixteen final panel fixtures and all18 movement PNGs plus pond17/18 and actual Video footer were opened. All9 ordinary GPU requests stay WebGL; all18 reviews remain connected and moving (minimum96 sampled movements). These functional reviews overlap repository checks and make no timing claim.
+
+The separate simulated getContext(webgl2)=null test makes exactly one failed context request, preserves connection and falls back to Canvas with **worldPassFallbackReason=webgl2_unavailable** visibly rendered in Video. Native API restored immediately. The reason remains session-latched after turning the preference off; the subsequent fresh measurement session clears it. This deliberately injected failure is not part of A-17's normal-workload encountered set. Real context-loss restoration/disposal retains the checked A-15 gate. Browser storage without forced init defaults provesCanvas1×/WebGLoff plus all six persisted scale/backend reload combinations.
+
+Desktop AMD Ryzen9 9955HX,Linux6.17.2-1-pve,Chrome152 headless,1280×720,DPR1,browser zoom1,world zoom2,Canvas1×,cap off. Five-second warm-up/30-second active-rAF, no simultaneous tests/builds/profiles, no CPU throttle. Both private builds use the same output-only clear-weather/tick0/north override, restored afterwards. Before is committed mechanical9cd7fc14; after is the uncommitted A-19 UI delta on that parent, explicitly identified by source manifests. Final release source manifest ties these bytes to the committed artifact. Comparison findings: {"cliff": [{"mode": "basic", "comparisonIssues": [], "beforeLegacyIssues": ["no_pond"], "afterLegacyIssues": ["no_pond"]}, {"mode": "classic", "comparisonIssues": [], "beforeLegacyIssues": ["no_pond"], "afterLegacyIssues": ["no_pond"]}, {"mode": "dynamic", "comparisonIssues": [], "beforeLegacyIssues": ["no_pond"], "afterLegacyIssues": ["no_pond"]}], "pond": [{"mode": "basic", "comparisonIssues": [], "beforeLegacyIssues": ["invalid_frame_evidence", "local_player_not_visible", "local_player_not_walking", "no_carried_light", "fewer_than_150_static_casters"], "afterLegacyIssues": ["invalid_frame_evidence", "local_player_not_visible", "local_player_not_walking", "no_carried_light", "fewer_than_150_static_casters"]}, {"mode": "classic", "comparisonIssues": [], "beforeLegacyIssues": ["invalid_frame_evidence", "local_player_not_visible", "local_player_not_walking", "no_carried_light", "fewer_than_150_static_casters"], "afterLegacyIssues": ["invalid_frame_evidence", "local_player_not_visible", "local_player_not_walking", "no_carried_light", "fewer_than_150_static_casters"]}, {"mode": "dynamic", "comparisonIssues": [], "beforeLegacyIssues": ["invalid_frame_evidence", "local_player_not_visible", "local_player_not_walking", "no_carried_light", "fewer_than_150_static_casters"], "afterLegacyIssues": ["invalid_frame_evidence", "local_player_not_visible", "local_player_not_walking", "no_carried_light", "fewer_than_150_static_casters"]}]}. Legacy no_pond at cliff and missing-player/carried-light/static-density pond flags are separate A-18 route limitations, not falsely claimed combined qualification.
+
+Cliff whole-frame p95 B/C/D **6.600000381/7.400001526/11→6.700000763/7.299999237/12.299999237ms**. Dynamic merge **0.600000381/0.900003433/2.099998474ms** p50/p95/p99. The UI move does not optimize world drawing; report measured variation without an isolated speedup claim. The remaining whole-frame gap against10ms is 2.299999237ms. Largest measured stage p95s are painterDraw6.200000763, finalWorldComposite2.300001144, painterBuild1.399999619ms, with UI model/layout/draw0.4/0.5/0.7ms. Nested intervals and their percentiles must not be summed. Whole-frame p50 stays8.2ms; the before/after means8.519166651/8.592222207ms are close despite the changed tail. Historical Basic6.3ms remains owner-accepted as met; fresh values are not relabelled. Both complete22-stage/counter tables follow; raw JSON retains full precision.
+
+**Cliff/carried-light route**
+
+All stage timings in milliseconds, **p50 / p95 / p99**. Nested intervals must not be summed.
+
+| Stage | Before Basic | Before Classic | Before Dynamic | After Basic | After Classic | After Dynamic |
+|---|---|---|---|---|---|---|
+| whole frame | 5.5 / 6.6 / 7.700001 | 6.200001 / 7.400002 / 8.700001 | 8.199999 / 11 / 15.199999 | 5.5 / 6.700001 / 7.799999 | 6 / 7.299999 / 8.5 | 8.199999 / 12.299999 / 16 |
+| snapshotPrepare | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 |
+| ground | 0.299999 / 0.400002 / 0.5 | 0.299999 / 0.400002 / 0.5 | 0.299999 / 0.400002 / 0.5 | 0.300001 / 0.5 / 0.6 | 0.300001 / 0.5 / 0.5 | 0.300001 / 0.5 / 0.6 |
+| painterBuild | 0.9 / 1.4 / 1.6 | 0.9 / 1.300001 / 1.599998 | 0.9 / 1.299999 / 1.5 | 0.9 / 1.200001 / 1.5 | 0.9 / 1.299999 / 1.5 | 0.9 / 1.4 / 1.699999 |
+| painterSort | 0.199999 / 0.300001 / 0.300001 | 0.199999 / 0.300001 / 0.300001 | 0.199999 / 0.299999 / 0.300001 | 0.199999 / 0.300001 / 0.300001 | 0.199999 / 0.299999 / 0.300001 | 0.199999 / 0.300001 / 0.4 |
+| painterDraw | 1.799999 / 2.200001 / 2.700001 | 1.800001 / 2.299999 / 3 | 4.1 / 6 / 10.799999 | 1.799999 / 2.200001 / 3 | 1.700001 / 2.200001 / 2.799999 | 4 / 6.200001 / 10.799999 |
+| weather | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.099998 / 0.1 | 0 / 0.1 / 0.1 |
+| lightingBoundsResize | 0 / 0 / 0 | 0 / 0 / 0.1 | 0 / 0.099998 / 0.199999 | 0 / 0 / 0 | 0 / 0 / 0.1 | 0 / 0 / 0.1 |
+| lightingOcclusionRaster | 0 / 0 / 0 | 0 / 0.199999 / 0.300001 | 0 / 0.199999 / 0.300001 | 0 / 0 / 0 | 0 / 0.199999 / 0.300001 | 0 / 0.199999 / 0.300001 |
+| lightingSolve | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 0.1 / 0.200001 / 0.200001 | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 0.1 / 0.200001 / 0.200001 |
+| lightingMerge | 0 / 0 / 0 | 0.1 / 0.199999 / 0.200001 | 0.6 / 0.900002 / 1.9 | 0 / 0 / 0 | 0.099998 / 0.1 / 0.200001 | 0.6 / 0.900003 / 2.099998 |
+| lightingUpload | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0.200001 / 0.300001 | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0.200001 / 0.300001 |
+| lightingReceiver | 0 / 0 / 0 | 0 / 0 / 0 | 0.4 / 0.700001 / 0.800003 | 0 / 0 / 0 | 0 / 0 / 0 | 0.399998 / 0.699999 / 0.800003 |
+| lightingComposite | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| finalWorldComposite | 1.1 / 1.299999 / 1.5 | 1.700001 / 1.900002 / 2.200001 | 1 / 2.299999 / 2.5 | 1.099998 / 1.299999 / 1.5 | 1.6 / 1.9 / 2.299999 | 1 / 2.300001 / 2.800001 |
+| uiModel | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.400002 / 0.5 | 0.299999 / 0.4 / 0.5 | 0.299999 / 0.400002 / 0.5 |
+| uiLayout | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.599998 | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.6 |
+| uiDraw | 0.4 / 0.700001 / 0.9 | 0.4 / 0.699999 / 0.800001 | 0.4 / 0.699999 / 0.800001 | 0.4 / 0.700001 / 1 | 0.4 / 0.6 / 0.799999 | 0.4 / 0.699999 / 0.800001 |
+| fixedUpdate | 0.199999 / 0.300001 / 0.300001 | 0.199999 / 0.300001 / 0.4 | 0.199999 / 0.299999 / 0.300001 | 0.1 / 0.299999 / 0.300001 | 0.1 / 0.299999 / 0.300001 | 0.1 / 0.299999 / 0.300001 |
+| catchUp | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Per-frame counters, **p50 / p95 / p99**:
+
+| Counter | Before Basic | Before Classic | Before Dynamic | After Basic | After Classic | After Dynamic |
+|---|---|---|---|---|---|---|
+| drawImageCalls | 879 / 1209 / 1218 | 878 / 891 / 899 | 898 / 984 / 1030 | 879 / 1209 / 1218 | 878 / 891 / 899 | 898 / 984 / 1030 |
+| distinctDrawImageSources | 34 / 35 / 35 | 35 / 35 / 36 | 347 / 356 / 357 | 34 / 35 / 35 | 35 / 35 / 36 | 347 / 356 / 357 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 7 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 7 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 | 95 / 105 / 106 | 0 / 0 / 0 | 0 / 0 / 0 | 95 / 105 / 106 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 | 18 / 114 / 153 | 0 / 0 / 0 | 0 / 0 / 0 | 18 / 114 / 153 |
+| imageDataAllocations | 0 / 0 / 0 | 0 / 0 / 2 | 0 / 0 / 2 | 0 / 0 / 0 | 0 / 0 / 2 | 0 / 0 / 2 |
+| capRunRequests | 0 / 0 / 0 | 0 / 0 / 0 | 102 / 104 / 104 | 0 / 0 / 0 | 0 / 0 / 0 | 102 / 104 / 104 |
+| flatSourceRequests | 0 / 0 / 0 | 0 / 0 / 0 | 216 / 227 / 227 | 0 / 0 / 0 | 0 / 0 / 0 | 216 / 227 / 227 |
+| capRunComposites | 0 / 0 / 0 | 0 / 0 / 0 | 6 / 19 / 28 | 0 / 0 / 0 | 0 / 0 / 0 | 6 / 19 / 28 |
+| flatSourceComposites | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 15 / 31 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 15 / 31 |
+| groundSourceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 306 / 325 / 326 | 0 / 0 / 0 | 0 / 0 / 0 | 306 / 325 / 326 |
+| receiverSamples | 0 / 0 / 0 | 0 / 0 / 0 | 300 / 317 / 317 | 0 / 0 / 0 | 0 / 0 / 0 | 300 / 317 / 317 |
+| receiverCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 879 / 915 / 916 | 0 / 0 / 0 | 0 / 0 / 0 | 879 / 915 / 916 |
+| receiverFullLoopCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 98400 / 103976 / 103976 | 0 / 0 / 0 | 0 / 0 / 0 | 98400 / 103976 / 103976 |
+| saveCalls | 554 / 568 / 570 | 554 / 566 / 569 | 554 / 566 / 572 | 554 / 568 / 569 | 554 / 566 / 569 | 554 / 566 / 571 |
+| restoreCalls | 554 / 568 / 570 | 554 / 566 / 569 | 554 / 566 / 572 | 554 / 568 / 569 | 554 / 566 / 569 | 554 / 566 / 571 |
+| saveRestorePairs | 554 / 568 / 570 | 554 / 566 / 569 | 554 / 566 / 572 | 554 / 568 / 569 | 554 / 566 / 569 | 554 / 566 / 571 |
+| surfaceAllocations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+| Evidence | Before Basic | Before Classic | Before Dynamic | After Basic | After Classic | After Dynamic |
+|---|---|---|---|---|---|---|
+| Captured frames | 1800 | 1800 | 1800 | 1800 | 1800 | 1800 |
+| Long tasks ≥50 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| Maximum long task ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| Render items p50/p95/p99 | 661 / 674 / 674 | 661 / 674 / 674 | 661 / 674 / 674 | 661 / 674 / 674 | 661 / 674 / 674 | 661 / 674 / 674 |
+| Lighting retained bytes at end | 0 | 161280 | 102681066 | 0 | 161280 | 102681066 |
+| Omit-page decoded bytes at end | 0 | 0 | 72515584 | 0 | 0 | 72515584 |
+| Largest decoded page bytes | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 |
+| Workload failures | no_pond | no_pond | no_pond | no_pond | no_pond | no_pond |
+
+
+**Separate pond route**
+
+All stage timings in milliseconds, **p50 / p95 / p99**. Nested intervals must not be summed.
+
+| Stage | Before Basic | Before Classic | Before Dynamic | After Basic | After Classic | After Dynamic |
+|---|---|---|---|---|---|---|
+| whole frame | 3.800001 / 4.9 / 5.6 | 5.299999 / 6.400002 / 7.200001 | 6.1 / 8.800001 / 10.4 | 3.9 / 5.1 / 6 | 5.1 / 6.1 / 7.1 | 5.5 / 7.300001 / 8.799999 |
+| snapshotPrepare | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 | 0 / 0.1 / 0.1 |
+| ground | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.6 | 0.4 / 0.6 / 0.700001 | 0.4 / 0.6 / 0.700001 | 0.4 / 0.5 / 0.6 | 0.4 / 0.6 / 0.700001 |
+| painterBuild | 0.800001 / 1.299999 / 1.400002 | 0.9 / 1.300001 / 1.5 | 1 / 1.6 / 1.799999 | 0.800001 / 1.299999 / 1.5 | 0.800001 / 1.200001 / 1.5 | 0.9 / 1.299999 / 1.5 |
+| painterSort | 0.1 / 0.200001 / 0.200001 | 0.1 / 0.200001 / 0.200001 | 0.1 / 0.200001 / 0.299999 | 0.1 / 0.200001 / 0.200001 | 0.1 / 0.200001 / 0.200001 | 0.1 / 0.200001 / 0.200001 |
+| painterDraw | 0.6 / 0.9 / 1.1 | 0.699999 / 0.9 / 1.1 | 1.5 / 2.700001 / 3.300001 | 0.699999 / 0.9 / 1.1 | 0.6 / 0.800001 / 1.099998 | 1.300001 / 2.299999 / 2.700001 |
+| weather | 0 / 0.1 / 0.199999 | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.200001 | 0 / 0.1 / 0.199999 | 0 / 0.1 / 0.199999 | 0 / 0.1 / 0.200001 |
+| lightingBoundsResize | 0 / 0 / 0 | 0 / 0.099998 / 0.1 | 0 / 0 / 0.1 | 0 / 0 / 0 | 0 / 0 / 0.1 | 0 / 0 / 0.1 |
+| lightingOcclusionRaster | 0 / 0 / 0 | 0 / 0 / 0.200001 | 0 / 0 / 0.200001 | 0 / 0 / 0 | 0 / 0 / 0.200001 | 0 / 0 / 0.200001 |
+| lightingSolve | 0 / 0 / 0 | 0 / 0.200001 / 0.200001 | 0 / 0.4 / 0.400002 | 0 / 0 / 0 | 0 / 0.200001 / 0.200001 | 0 / 0.300001 / 0.4 |
+| lightingMerge | 0 / 0 / 0 | 0 / 0.1 / 0.199999 | 0 / 1.199999 / 1.700003 | 0 / 0 / 0 | 0 / 0.1 / 0.200001 | 0 / 0.900002 / 1.4 |
+| lightingUpload | 0 / 0 / 0 | 0 / 0.1 / 0.199999 | 0 / 0.199999 / 0.299999 | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0.199999 / 0.299999 |
+| lightingReceiver | 0 / 0 / 0 | 0 / 0 / 0 | 0.200001 / 0.5 / 0.600002 | 0 / 0 / 0 | 0 / 0 / 0 | 0.200001 / 0.400002 / 0.500002 |
+| lightingComposite | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0.1 / 0.1 | 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| finalWorldComposite | 0.799999 / 1 / 1.299999 | 2 / 2.4 / 2.700001 | 1.4 / 1.900002 / 2.1 | 0.799999 / 1 / 1.299999 | 1.900002 / 2.200001 / 2.6 | 1.299999 / 1.5 / 1.799999 |
+| uiModel | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.5 / 0.5 | 0.299999 / 0.400002 / 0.5 | 0.299999 / 0.4 / 0.400002 | 0.299999 / 0.400002 / 0.5 |
+| uiLayout | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.6 | 0.4 / 0.599998 / 0.700001 | 0.4 / 0.5 / 0.6 | 0.4 / 0.5 / 0.5 | 0.4 / 0.5 / 0.6 |
+| uiDraw | 0.4 / 0.699999 / 0.800001 | 0.4 / 0.699999 / 0.9 | 0.4 / 0.700001 / 1 | 0.4 / 0.699999 / 0.9 | 0.300001 / 0.699999 / 0.800001 | 0.4 / 0.699999 / 0.800001 |
+| fixedUpdate | 0.1 / 0.299999 / 0.300001 | 0.199999 / 0.299999 / 0.4 | 0.199999 / 0.300001 / 0.4 | 0.199999 / 0.300001 / 0.4 | 0.1 / 0.299999 / 0.300001 | 0.1 / 0.299999 / 0.4 |
+| catchUp | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Per-frame counters, **p50 / p95 / p99**:
+
+| Counter | Before Basic | Before Classic | Before Dynamic | After Basic | After Classic | After Dynamic |
+|---|---|---|---|---|---|---|
+| drawImageCalls | 692 / 707 / 712 | 693 / 708 / 716 | 695 / 754 / 772 | 692 / 707 / 715 | 693 / 708 / 713 | 695 / 754 / 772 |
+| distinctDrawImageSources | 22 / 24 / 25 | 23 / 25 / 26 | 147 / 149 / 150 | 22 / 24 / 25 | 23 / 25 / 26 | 147 / 149 / 150 |
+| tintBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| tintReuses | 0 / 0 / 0 | 0 / 0 / 0 | 7 / 7 / 7 | 0 / 0 / 0 | 0 / 0 / 0 | 7 / 7 / 7 |
+| tintSurfaceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| preparedHeightRebuilds | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| groundSourceOperations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 57 / 93 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 57 / 93 |
+| imageDataAllocations | 0 / 0 / 0 | 0 / 0 / 2 | 0 / 0 / 2 | 0 / 0 / 0 | 0 / 0 / 2 | 0 / 0 / 2 |
+| capRunRequests | 0 / 0 / 0 | 0 / 0 / 0 | 26 / 26 / 26 | 0 / 0 / 0 | 0 / 0 / 0 | 26 / 26 / 26 |
+| flatSourceRequests | 0 / 0 / 0 | 0 / 0 / 0 | 95 / 98 / 98 | 0 / 0 / 0 | 0 / 0 / 0 | 95 / 98 / 98 |
+| capRunComposites | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 5 / 7 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 5 / 7 |
+| flatSourceComposites | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 14 / 24 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 14 / 24 |
+| groundSourceReuses | 0 / 0 / 0 | 0 / 0 / 0 | 121 / 124 / 124 | 0 / 0 / 0 | 0 / 0 / 0 | 121 / 124 / 124 |
+| receiverSamples | 0 / 0 / 0 | 0 / 0 / 0 | 257 / 263 / 263 | 0 / 0 / 0 | 0 / 0 / 0 | 257 / 263 / 263 |
+| receiverCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 52 / 72 / 72 | 0 / 0 / 0 | 0 / 0 / 0 | 52 / 72 / 72 |
+| receiverFullLoopCandidates | 0 / 0 / 0 | 0 / 0 / 0 | 23130 / 23670 / 23670 | 0 / 0 / 0 | 0 / 0 / 0 | 23130 / 23670 / 23670 |
+| saveCalls | 359 / 366 / 366 | 361 / 368 / 368 | 361 / 368 / 368 | 359 / 366 / 366 | 361 / 368 / 368 | 361 / 368 / 368 |
+| restoreCalls | 359 / 366 / 366 | 361 / 368 / 368 | 361 / 368 / 368 | 359 / 366 / 366 | 361 / 368 / 368 | 361 / 368 / 368 |
+| saveRestorePairs | 359 / 366 / 366 | 361 / 368 / 368 | 361 / 368 / 368 | 359 / 366 / 366 | 361 / 368 / 368 | 361 / 368 / 368 |
+| surfaceAllocations | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+| Evidence | Before Basic | Before Classic | Before Dynamic | After Basic | After Classic | After Dynamic |
+|---|---|---|---|---|---|---|
+| Captured frames | 1800 | 1800 | 1800 | 1800 | 1800 | 1800 |
+| Long tasks ≥50 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| Maximum long task ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| Render items p50/p95/p99 | 487 / 504 / 504 | 487 / 504 / 504 | 487 / 504 / 504 | 487 / 504 / 504 | 487 / 504 / 504 | 487 / 504 / 504 |
+| Lighting retained bytes at end | 0 | 164864 | 97004246 | 0 | 164864 | 97004246 |
+| Omit-page decoded bytes at end | 0 | 0 | 72515584 | 0 | 0 | 72515584 |
+| Largest decoded page bytes | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 | 4194304 |
+| Workload failures | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters | invalid_frame_evidence, local_player_not_visible, local_player_not_walking, no_carried_light, fewer_than_150_static_casters |
+
+
+**Larger normal-movement cliff route (supplementary)**
+
+1800frames, 543moving frames, 504.75924683235996px travelled. Issues: seed_season_or_content_changed, local_player_not_walking, no_pond. rAF gaps p50/p95/p99/max 16.7 / 16.7 / 16.8 / 16.8ms; 0gaps≥50ms. 0long tasks≥50ms,maximum0ms. This is not a matched before/after route pair; collision-dependent trajectory/content can differ.
+
+| Stage ms / per-frame counter | p50 / p95 / p99 / max |
+|---|---|
+| whole frame | 7.6 / 10.299999 / 14.6 / 19.599998 |
+| snapshotPrepare | 0 / 0.1 / 0.1 / 1.5 |
+| ground | 0.4 / 0.5 / 0.6 / 1.700001 |
+| painterBuild | 1 / 1.5 / 1.699999 / 5.5 |
+| painterSort | 0.199999 / 0.300001 / 0.300001 / 2.5 |
+| painterDraw | 3.4 / 5.200001 / 6.9 / 13.199999 |
+| weather | 0 / 0.1 / 0.1 / 0.200001 |
+| lightingBoundsResize | 0 / 0.099998 / 0.1 / 0.299999 |
+| lightingOcclusionRaster | 0 / 0 / 0.299999 / 0.400002 |
+| lightingSolve | 0 / 0.199999 / 0.200001 / 0.299999 |
+| lightingMerge | 0 / 0.700001 / 0.899998 / 6.899998 |
+| lightingUpload | 0 / 0.1 / 0.200001 / 0.500002 |
+| lightingReceiver | 0.399998 / 0.699999 / 0.899998 / 2.599998 |
+| lightingComposite | 0 / 0 / 0 / 0 |
+| lightingStaticSolve | 0 / 0 / 0 / 0 |
+| lightingAnimatedStaticSolve | 0 / 0 / 0 / 0 |
+| lightingDynamicSolve | 0 / 0 / 0 / 0 |
+| finalWorldComposite | 1.099998 / 2.5 / 2.9 / 11.1 |
+| uiModel | 0.300001 / 0.400002 / 0.5 / 8 |
+| uiLayout | 0.4 / 0.5 / 0.6 / 5.799999 |
+| uiDraw | 0.4 / 0.6 / 0.799999 / 2 |
+| fixedUpdate | 0.1 / 0.299999 / 0.300001 / 1.800001 |
+| catchUp | 0 / 0 / 0 / 0 |
+| drawImageCalls | 880 / 993 / 1074 / 1093 |
+| distinctDrawImageSources | 340 / 361 / 362 / 363 |
+| tintBuilds | 0 / 0 / 1 / 8 |
+| tintReuses | 84 / 90 / 90 / 90 |
+| tintSurfaceReuses | 0 / 0 / 0 / 0 |
+| filteredFrameBuilds | 0 / 0 / 0 / 0 |
+| coverageFieldRebuilds | 0 / 0 / 0 / 0 |
+| preparedHeightRebuilds | 0 / 0 / 0 / 0 |
+| groundSourceOperations | 0 / 123 / 177 / 177 |
+| imageDataAllocations | 0 / 0 / 2 / 2 |
+| capRunRequests | 96 / 104 / 104 / 104 |
+| flatSourceRequests | 222 / 236 / 236 / 236 |
+| capRunComposites | 0 / 13 / 19 / 19 |
+| flatSourceComposites | 0 / 28 / 40 / 40 |
+| groundSourceReuses | 316 / 340 / 340 / 340 |
+| receiverSamples | 296 / 303 / 303 / 303 |
+| receiverCandidates | 823 / 870 / 870 / 870 |
+| receiverFullLoopCandidates | 97680 / 99990 / 99990 / 99990 |
+| saveCalls | 553 / 574 / 574 / 577 |
+| restoreCalls | 553 / 574 / 574 / 577 |
+| saveRestorePairs | 553 / 574 / 574 / 577 |
+| surfaceAllocations | 0 / 0 / 0 / 0 |
+
+
+Per-producer sampling totals in sampling-summary.json/sampling-tables.md remain explicit, with nearest noninteger draws separately counted. All36original atlas PNGs and323generated pages remain unchanged in both worktrees; largest decoded page≤4MiB. Six transition cycles prove Basic0 retained lighting bytes and Basic/Classic0 omit bytes; Classic keeps only its accepted legacy lighting field. Runtime filtered-frame machinery remains deleted. Ten complete Canvas boards are byte-exact, including HUD; A-16 CPU effects and A-15 GPU edges retain their amended independent gates.
+
+The old0.5.7/current cold cliff comparison and partial CPU attribution are retained under cliff-legacy/. Sustained current Native/1×delivery improves versus old, but first Dynamic activation still has136–153ms unprofiled tasks; a separate profiled123ms task shows Canvas/native, whole-terrain occlusion initialization and first receiver work, without attributing its entire duration to one JS function. Complete owner-reported halt remains unreproduced. No fourth sampler or new lighting approximation was attempted. A-14 remains OPEN and SwiftShader GPU performance fails despite A-17's empty normal-workload fallback sets.
+
+| Device / release gate | Result |
+|---|---|
+| Desktop Canvas code / goldens / controls | PASS,644files/3670tests,10 exact boards,16 panel fixtures,18 movement reviews |
+| Desktop Basic | Owner-accepted6.3ms; fresh timings retained above |
+| Desktop Dynamic | Merge target checked above; whole-frame residual reported per stage |
+| Experimental WebGL enable | OPEN:A-14 sampling and hardware/performance qualification; Developer-only/off |
+| iPad | **owner to run** |
+| Hardware GPU | **owner to run** |
+
+Owner capture: System→Developer→Render→**Run protocol+copyJSON** at cliff/carried-light and pond, record device/OS/browser/DPR/browser zoom/resolution/commit/world scale/backend and repeat required modes/scales. No CPU-throttled substitute. Packaging the committed0.6.0 static client and exact rollback/publication request follows. No world publish, Studio deploy or live change is authorized in this run; release-specific owner Go remains required under A-19 and ops/orchard-runtime/README.md.

@@ -11,8 +11,9 @@ later as instanced per-player interiors rendered by this same renderer (M7+). Th
 decision in [01-engine-decision.md](01-engine-decision.md) now includes the
 2026-09-06 `client/rendering` amendment: **Canvas 2D remains the default and
 reference; doc 59 P8 adds an experimental WebGL2 world pass**. It uses the shared
-`WorldPassBackend` seam, behind the persisted Video toggle “Experimental: WebGL
-renderer”, off by default. The HUD stays on Canvas, and any backend failure
+`WorldPassBackend` seam, behind the persisted Developer → Render toggle
+“Experimental: WebGL renderer”, off by default. Doc59 A-19 keeps this control
+out of Video until the experimental-enable gates pass. The HUD stays on Canvas, and any backend failure
 returns the session to Canvas with its reason visible in Video. This explicitly
 supersedes the original milestone's no-WebGL restriction before backend code
 lands. WebGL2 default adoption remains outside doc 59.
@@ -49,6 +50,12 @@ maps/sprites, audio, `account-main.ts`. `CachedTileMapRenderer` in
 (delete the duplicate `canonicalBlob47Index` in `overworld-art.ts`).
 
 ## 3. Compositing pipeline
+
+**Doc59 shipped-code amendment (0.6.0 candidate, not deployed):** the default world
+pass renders at1× world pixels; Video offers1×,2× and Native. A nearest integer
+upscale precedes the smooth fractional present, skipping that copy when the
+remainder is exactly1. HUD stays at display resolution. The original Native
+composition below remains the reference policy.
 
 One module (suggest `src/render/renderer.ts`) owning canvas sizing, the frame
 composite, and the world→screen transform. Nothing else may call

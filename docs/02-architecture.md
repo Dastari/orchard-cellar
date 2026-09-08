@@ -9,8 +9,8 @@ Binding architecture for Orchard & Cellar. Read [01-engine-decision.md](01-engin
 
 > **Rendering amendment (2026-09-06):** doc 59 authorizes an experimental
 > WebGL2 world pass behind the shared `WorldPassBackend` seam in `packages/engine`.
-> The Video toggle “Experimental: WebGL renderer” persists per client and defaults
-> off. Canvas 2D remains the default, golden reference, automatic failure fallback,
+> Under doc59 A-19 the Developer → Render toggle “Experimental: WebGL renderer”
+> persists per client and defaults off; it stays out of Video until enable gates pass. Canvas 2D remains the default, golden reference, automatic failure fallback,
 > and HUD renderer. The engine remains TypeScript with no new dependencies.
 > This supersedes the earlier no-WebGL restriction; making WebGL2 the default is
 > outside this plan. See the `client/rendering` row in `DECISIONS.md` and

@@ -7,13 +7,13 @@ import { lightingSettingsMode, type OverworldUiModel, type OverworldUiLayout, ty
 import { compactVideoRows, videoRowHeight as videoSettingsRowHeight } from './video-rows.js';
 import { readWorldScale, worldScaleSettingLabel } from './world-scale-setting.js';
 import { readPresentationCap } from './presentation-cap-setting.js';
-import { readExperimentalWebGL, worldBackendStatus } from './world-backend-setting.js';
+import { worldBackendStatus } from './world-backend-setting.js';
 import { drawMenuButton } from './overworld-panel-drawing.js';
 export interface SettingsChoiceRowsView {
  readonly fonts: PixelUi; readonly skin: UiSkin; readonly pointer: UiPoint;
  readonly layout: OverworldUiLayout; readonly settingsTab: SettingsTab; readonly model: OverworldUiModel;
  readonly lightingQualityNode: WidgetNode; readonly worldScaleNode: WidgetNode;
- readonly presentationCapNode: WidgetNode; readonly experimentalWebGLNode: WidgetNode;
+ readonly presentationCapNode: WidgetNode;
 }
 export function drawSettingsChoiceRows(context: CanvasRenderingContext2D, view: SettingsChoiceRowsView): void {
     const { settingsContent } = view.layout;
@@ -25,7 +25,6 @@ export function drawSettingsChoiceRows(context: CanvasRenderingContext2D, view: 
       ['LIGHTING', lightingSettingsMode(view.model).toUpperCase()],
       ['WORLD SCALE', worldScaleSettingLabel(readWorldScale())],
       ['30 HZ CAP', readPresentationCap() === '30hz' ? 'ON' : 'OFF'],
-      ['EXPERIMENTAL: WEBGL RENDERER', readExperimentalWebGL() ? 'ON' : 'OFF'],
       ['WEATHER DETAIL', 'HIGH'],
     ] as const : view.settingsTab === 'interface' ? [
       ['HUD VISIBILITY', 'FULL'],
@@ -43,24 +42,22 @@ export function drawSettingsChoiceRows(context: CanvasRenderingContext2D, view: 
       ['HOLD ASSIST', 'OFF'],
     ] as const;
     const visibleRows = view.settingsTab === 'video' && compactVideoRows(settingsContent.height)
-      ? settingRows.filter(([label]) => label === 'LIGHTING' || label === 'WORLD SCALE' || label === '30 HZ CAP' || label === 'EXPERIMENTAL: WEBGL RENDERER') : settingRows;
+      ? settingRows.filter(([label]) => label === 'LIGHTING' || label === 'WORLD SCALE' || label === '30 HZ CAP') : settingRows;
     const rowHeight = view.settingsTab === 'video' ? videoSettingsRowHeight(settingsContent.height)
       : Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / visibleRows.length)));
     visibleRows.forEach(([label, value], index) => {
       const y = settingsContent.y + 23 + index * rowHeight;
-      const displayLabel = label === 'EXPERIMENTAL: WEBGL RENDERER' && settingsContent.width < 280 ? 'WEBGL*' : label;
-      drawPixelTextInRect(context, view.fonts, displayLabel, {
-        x: settingsContent.x + 10, y, width: label === 'EXPERIMENTAL: WEBGL RENDERER' ? settingsContent.width - 75 : Math.max(40, settingsContent.width * 0.46), height: Math.min(18, rowHeight),
+      drawPixelTextInRect(context, view.fonts, label, {
+        x: settingsContent.x + 10, y, width: Math.max(40, settingsContent.width * 0.46), height: Math.min(18, rowHeight),
       }, { verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
       const interactiveLightingModel = view.settingsTab === 'video' && label === 'LIGHTING';
       const interactiveWorldScale = view.settingsTab === 'video' && label === 'WORLD SCALE';
       const interactiveCap = view.settingsTab === 'video' && label === '30 HZ CAP';
-      const interactiveBackend = view.settingsTab === 'video' && label === 'EXPERIMENTAL: WEBGL RENDERER';
       drawMenuButton(context, view.skin, view.fonts, view.pointer, interactiveLightingModel
-        ? view.lightingQualityNode.bounds : interactiveWorldScale ? view.worldScaleNode.bounds : interactiveCap ? view.presentationCapNode.bounds : interactiveBackend ? view.experimentalWebGLNode.bounds : {
+        ? view.lightingQualityNode.bounds : interactiveWorldScale ? view.worldScaleNode.bounds : interactiveCap ? view.presentationCapNode.bounds : {
         x: settingsContent.x + Math.floor(settingsContent.width * 0.5), y,
         width: Math.max(40, settingsContent.width * 0.5 - 10), height: Math.min(18, rowHeight),
-      }, value, { tone: interactiveLightingModel || interactiveWorldScale || interactiveCap || interactiveBackend ? 'green' : 'silver', disabled: !interactiveLightingModel && !interactiveWorldScale && !interactiveCap && !interactiveBackend });
+      }, value, { tone: interactiveLightingModel || interactiveWorldScale || interactiveCap ? 'green' : 'silver', disabled: !interactiveLightingModel && !interactiveWorldScale && !interactiveCap });
     });
     const lightingHint = lightingSettingsMode(view.model) === 'dynamic' && view.model.lightingEffectsDisabled
       ? view.model.lightingFallbackReason === 'preparing' ? 'PREPARING DYNAMIC LIGHTING...' : 'DYNAMIC UNAVAILABLE; USING BASIC'
@@ -68,7 +65,7 @@ export function drawSettingsChoiceRows(context: CanvasRenderingContext2D, view: 
     const backend = worldBackendStatus();
     const videoHint = backend.fallbackReason !== null ? `CANVAS: ${backend.fallbackReason.replace(/^webgl_/, '').replaceAll('_', ' ').toUpperCase()}`
       : backend.preparing ? 'PREPARING EXPERIMENTAL WEBGL...' : backend.backend === 'webgl2' ? 'EXPERIMENTAL WEBGL ACTIVE'
-        : settingsContent.width < 280 ? '* EXPERIMENTAL WEBGL RENDERER' : lightingHint;
+        : lightingHint;
     drawPixelTextInRect(context, view.fonts, view.settingsTab === 'video' ? videoHint : 'CONFIGURATION SUPPORT IS RESERVED FOR A LATER UPDATE.', {
       x: settingsContent.x + 10,
       y: settingsContent.y + settingsContent.height - 17,
