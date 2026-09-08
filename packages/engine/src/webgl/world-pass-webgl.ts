@@ -1,3 +1,4 @@
+import { registerWorldSamplingContext, unregisterWorldSamplingContext, countWorldSampling } from '@orchard/ui';
 import { resetUnlitWorldEffects } from '../receiver-frame-source.js';
 import type { RawReceiverField } from '../receiver-raw-field.js';
 import type { AssetFrameSource } from '@orchard/ui';
@@ -76,7 +77,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
       const white=requireWebGL(this.white.getContext('2d'),'webgl_white_source_unavailable');white.fillStyle='#ffffff';white.fillRect(0,0,1,1);
       this.adapter=new WebGLCanvasAdapter({canvas:this.canvas,valid:()=>this.requireActive(),
         image:(image,rect,state)=>this.image(image,rect,state),fill:(rect,color,state)=>this.fill(rect,color,state),clear:(rect,state)=>this.clear(rect,state)});
-      this.context=this.adapter.context;cleanup.push(()=>unregisterWebGLWorldBackend(this.context));registerWebGLWorldBackend(this.context,this);
+      this.context=this.adapter.context;registerWorldSamplingContext(this.context);cleanup.push(()=>unregisterWorldSamplingContext(this.context));cleanup.push(()=>unregisterWebGLWorldBackend(this.context));registerWebGLWorldBackend(this.context,this);
       cleanup.push(()=>this.canvas.removeEventListener('webglcontextlost',this.onLost));this.canvas.addEventListener('webglcontextlost',this.onLost);
       cleanup.push(()=>this.canvas.removeEventListener('webglcontextrestored',this.onRestored));this.canvas.addEventListener('webglcontextrestored',this.onRestored);
     }catch(error){
@@ -167,6 +168,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     if(rect.some(value=>!Number.isFinite(value)) || rect[2]!<0 || rect[3]!<0 || rect[6]!<0 || rect[7]!<0)throw new WebGLWorldPassError('webgl_unsupported_image_rectangle');
     if(rect[2]===0 || rect[3]===0 || rect[6]===0 || rect[7]===0){this.pending=null;return;}
     const m=state.matrix;
+    countWorldSampling(this.context,rect[2]!,rect[3]!,rect[6]!,rect[7]!,m[0],m[1],m[2],m[3],state.smooth);
     if(!this.options.allowUnverifiedLighting && (rect[6]!*Math.hypot(m[0],m[1])<rect[2]!-1e-6 || rect[7]!*Math.hypot(m[2],m[3])<rect[3]!-1e-6))throw new WebGLWorldPassError('webgl_accuracy_unverified_downsample');
     const pending=this.pending; this.pending=null;
     const matches=pending && pending.source.image===image && pending.source.x===rect[0] && pending.source.y===rect[1]
@@ -257,6 +259,7 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     this.disposed=true;this.layout=null;this.pending=null;this.presentation=undefined;this.invalidateSelection();
     cleanupWebGL([
       ()=>unregisterWebGLWorldBackend(this.context),
+      ()=>unregisterWorldSamplingContext(this.context),
       ()=>this.canvas.removeEventListener('webglcontextlost',this.onLost),
       ()=>this.canvas.removeEventListener('webglcontextrestored',this.onRestored),
       ()=>this.adapter.reset(),

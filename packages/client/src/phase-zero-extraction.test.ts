@@ -127,7 +127,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Doc 59 P6 shares the outer painter state pair with authored-map sprites.
 // Doc 59 P7 adds the presentation cap and ordered HUD caches.
 // Doc 59 P8 adds the experimental backend control and fallback footer.
-const STRUCTURAL_SEAM_DIGEST = '1cbca1983b085f34aa241e3bc45ea56da4b330271ffc271e6e10d6d3287f66c6';
+// Doc 59 A-14 exports the opt-in world-only sampling counters.
+// The other four structural seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = 'f23fdd58489657b5cbf494ea834fd3e27cb5b3cfccac73843f3895c508651690';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

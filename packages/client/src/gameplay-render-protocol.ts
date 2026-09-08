@@ -1,3 +1,4 @@
+import { ProtocolWorldSamplingBuffer } from './render-protocol-world-sampling.js';
 import { ProtocolWorkloadBuffer } from './render-protocol-workload.js';
 import { installProtocolWorkloadProbe } from './render-protocol-workload-probe.js';
 import type { createGameplayProtocolWorkload, GameplayProtocolWorkload } from './gameplay-protocol-workload.js';
@@ -63,6 +64,7 @@ export async function captureGameplayProtocol(metrics: RenderMetrics, game: Prot
   if (document.visibilityState !== 'visible') throw new Error('render_protocol_tab_hidden');
   const initial = game.diagnostics();
   const buffer = new RenderProtocolBuffer();
+  const sampling = new ProtocolWorldSamplingBuffer();
   const skySteps = new ProtocolSkySteps();
   const workload = options.workload ? new ProtocolWorkloadBuffer(options.workload.identity) : null;
   let workloadProbe: ReturnType<typeof installProtocolWorkloadProbe> | null = null;
@@ -137,6 +139,7 @@ export async function captureGameplayProtocol(metrics: RenderMetrics, game: Prot
           if (frame.timestamp < sampleStart) return;
           if (frame.timestamp >= sampleEnd) { resolve(); return; }
           buffer.record(frame);
+          sampling.record();
           if (workloadProbe !== null) workload?.record(workloadProbe.read(), frame.renderItems, frame.timestamp);
         } catch (error) { reject(error); }
       });
@@ -166,6 +169,7 @@ export async function captureGameplayProtocol(metrics: RenderMetrics, game: Prot
         tintReuses: 'exact tinted-frame cache hits; surface recycling reported separately' },
       workload: workload?.report() ?? { qualified: false, issues: ['workload_witness_unavailable'] },
       densityEvidence: options.workload?.densityEvidence ?? null,
+      worldSampling: sampling.report(),
       skySteps: { supported: game.protocolLighting !== undefined, ...skySteps.report() },
       assetRequests: options.assetRequestLog ? undefined : assetRequests.requests, assetRequestScope,
       before: matched.state, after: final, assets: atlasPageDiagnostics(), ...buffer.report(),

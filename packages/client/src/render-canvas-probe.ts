@@ -1,3 +1,5 @@
+import { installWorldSamplingCanvasProbe } from './world-sampling-canvas-probe.js';
+import { worldSamplingProbe } from '@orchard/ui';
 import { countDrawImageSource, countCanvasSave, countCanvasRestore,
   renderOperationCounters, renderCounterSupport } from '@orchard/ui';
 
@@ -34,11 +36,15 @@ export function installRenderCanvasProbe(): () => void {
     if (result instanceof HTMLCanvasElement) renderOperationCounters.surfaceAllocations++;
     return result;
   } });
+  worldSamplingProbe.producers.clear(); worldSamplingProbe.overflow = false;
+  worldSamplingProbe.producer = 'direct-world'; worldSamplingProbe.enabled = true;
+  const disposeSampling = installWorldSamplingCanvasProbe();
   renderCounterSupport.nativeCanvas = true;
   let active = true;
   return () => {
     if (!active) return;
     active = false;
+    disposeSampling(); worldSamplingProbe.enabled = false; worldSamplingProbe.producers.clear();
     proto.drawImage = draw; proto.save = save; proto.restore = restore;
     proto.createImageData = createImageData;
     globalThis.ImageData = NativeImageData; document.createElement = createElement;

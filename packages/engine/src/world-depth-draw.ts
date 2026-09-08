@@ -1,3 +1,4 @@
+import { drawSamplingWorldItem, drawSamplingWeatherRange } from './world-sampling-producers.js';
 import { sortWorldDepthItems, worldDepthY, type WorldDepthItem } from './renderer.js';
 
 /** Interleaves an impact-depth layer (weather today) around every world drawable. */
@@ -23,11 +24,11 @@ export function drawSortedWorldDepthQueue(
   for (const item of sortedItems) {
     const depth = (worldDepthY(item) - cameraY) * scale;
     if (depth >= previousDepth) {
-      draws += drawDepthRange(previousDepth, depth);
+      draws += drawSamplingWeatherRange(drawDepthRange, previousDepth, depth);
       previousDepth = depth;
     }
-    item.draw();
+    drawSamplingWorldItem(item);
   }
-  return draws + drawDepthRange(previousDepth, Number.POSITIVE_INFINITY);
+  return draws + drawSamplingWeatherRange(drawDepthRange, previousDepth, Number.POSITIVE_INFINITY);
 }
 

@@ -1,3 +1,5 @@
+import { resetWorldSamplingCounters } from './world-sampling-counters.js';
+
 /** Semantic counters are always available; native Canvas probes are opt-in.
  * Values start at the first rAF after the preceding presentation and end at
  * the current submission, including skipped-rAF preparation under a cap.
@@ -26,6 +28,7 @@ const sourceFrames = new WeakMap<object, number>();
 const saves = new WeakMap<object, { generation: number; depth: number }>();
 export function resetRenderOperationCounters(): void {
   generation++;
+  resetWorldSamplingCounters();
   for (const id of RENDER_COUNTER_IDS) renderOperationCounters[id] = 0;
 }
 export function countDrawImageSource(source: object): void {
