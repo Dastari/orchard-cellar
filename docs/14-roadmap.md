@@ -459,10 +459,10 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
-- [ ] Gameplay 0.6.1 qualified P8 release — IN PROGRESS: codex, 2026-09-09. Owner Deploy received; source672c079f, Canvas1× and Developer/off preserved. Static-only build, checked rollback, public integrity and same-player reconnect; output/perf-59-20260909/release/.
+- [x] Gameplay 0.6.1 qualified P8 release — DEPLOYED: codex, 2026-09-09, after owner Deploy. Source672c079f; all439 public files exact and same identity/position/48 inventory slots/wallet preserved. F3 verified; Canvas1× and Developer/off retained. Only frontend restarted; Studio/world unchanged. Rollback and evidence output/perf-59-20260909/release/.
 
 - [x] P8 A-14a sampler qualification and A-17 hardware classification — DONE: codex, 2026-09-08. A→B→C→D checkpoints in doc59§9/DECISIONS. Source672c079f:651files/3691tests,1704 sampler cases,10 exact Canvas boards,A15/A16 gates and six empty A17 fallback sets pass. Hardware GPU unavailable on this host; owner to run. Developer/off stays; no deployment.
-- [x] F3 delivered FPS and shadow-direction hitch follow-up — IMPLEMENTED: codex, 2026-09-08.0.6.1 artifact d2b75e60 prepared in `output/perf-59-20260908/fps-shadow-release/`;650files/3688tests and10 exact Canvas goldens pass. FPS/cap/stall display verified; exact shadow work reductions checked, recurring pause remains a measured residual (docs59§9). Gameplay-only release awaits specific Go;0.6.0 and Studio remain unchanged.
+- [x] F3 delivered FPS and shadow-direction hitch follow-up — IMPLEMENTED: codex, 2026-09-08.0.6.1 artifact d2b75e60 prepared in `output/perf-59-20260908/fps-shadow-release/`;650files/3688tests and10 exact Canvas goldens pass. FPS/cap/stall display verified; exact shadow work reductions checked, recurring pause remains a measured residual (docs59§9). The original archive was superseded by the sampler-inclusive0.6.1 deployed on September9 above; Studio remains unchanged.
 
 **Current doc59 status,2026-09-08:** the A-11–A-19 rows and doc59§9 supersede
 historical pending claims below. Runtime omission filtering, world CSS filters,
@@ -472,7 +472,7 @@ routes. A-14a resolves the probe defect and qualifies production integer samplin
 A-15/A-16/A-17 functional gates pass on the same672c079f candidate. Hardware GPU
 timing is unavailable on this host and remains owner to run. WebGL stays
 Developer-only/off; moving it back to Video requires a separate owner decision.
-Canvas gains are deployed as 0.6.0 after explicit owner Go, with the full-halt symptom unreproduced
+Canvas gains were deployed as 0.6.0, then FPS/shadow-work and qualified sampler as 0.6.1 on September9 after owner Deploy, with the full-halt symptom unreproduced
 and cold-transition residual explicit. Physical iPad is owner to run. Only the gameplay static client was deployed.
 
 
