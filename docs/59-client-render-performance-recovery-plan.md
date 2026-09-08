@@ -5572,3 +5572,8 @@ All ten Canvas boards are exact, HUD included. All18 minute-long scale/mode/back
 | Hardware GPU | **owner to run**; software functional probes do not qualify hardware |
 
 Owner iPad steps: on the candidate, System → Developer → Render → **Run protocol + copy JSON**; capture cliff/carried-light and pond, recording device,OS,browser,DPR,browser zoom,resolution,commit,world scale/backend, and repeat required modes/scales. No throttled desktop substitute. A-15 cutaway qualification follows, then A-17 encountered-fallback accounting and A-19 Canvas release preparation.
+
+
+### A-15 cutaway edge-band qualification — claim,2026-09-08
+
+IN PROGRESS: codex,2026-09-08 after8a5357e1. Owner amendment permits≤4 steps within a1px clip-edge band,≤2 outside,≤1% channels above one and exact HUD. Re-evaluate preserved three cutaway prototypes; use the existing bounded raster-mask approach only if it passes attribution and current-runtime qualification. Keep A-16 CPU variant pages, A-14 counters and the still-unqualified sampling guards. Files: terrain-cutaway.ts and WebGL adapter/geometry/shaders/backend, new bounded path-clips module/tests. No monolith logic change, dependencies, world readback, default toggle change or deployment. Evidence under output/perf-59-20260908/P8/A15/. The unchanged642-file/3659-test A-14 gate supports this docs-only claim; runtime exit requires its own full check, pixel/resource/context-loss probes, both route timings/counters and screenshots. iPad owner to run using System → Developer → Render → Run protocol + copy JSON on cliff/carried-light and pond with device/settings/commit metadata.
