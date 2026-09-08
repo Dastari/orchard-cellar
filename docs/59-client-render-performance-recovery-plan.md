@@ -5793,3 +5793,8 @@ The larger normal-movement cliff route records1794 frames,1560 moving frames,154
 | Hardware GPU | **owner to run**; software functional evidence only |
 
 Owner iPad steps: System → Developer → Render → **Run protocol + copy JSON** on the candidate at cliff/carried-light and pond; record device,OS,browser,DPR,browser zoom,resolution,commit,world scale/backend and repeat required modes/scales. No CPU-throttled substitute. A-15 complete under the amended experimental-enable tolerance; A-17 encountered-fallback accounting follows. A-14 prevents moving the toggle out of Developer in the proposed A-19 release. No deployment.
+
+
+### A-17 complete-run fallback accounting — claim,2026-09-08
+
+IN PROGRESS: codex,2026-09-08 aftera93914dc. Each mode/route starts a fresh session with WebGL requested; capture the encountered set from enable/preparation through restoration and count actual backend submissions. Endpoint status alone does not qualify this gate. Use the unchanged checked A-15 runtime (643 files/3664 tests); output-only bounded observation wraps the existing diagnostics seam, with no new rendering algorithm or removal of guards. All22 stages/per-frame counters, original timings, route limitations and screenshots go under output/perf-59-20260908/P8/A17/. A-14 remains OPEN even if a particular route sees no fallback. iPad owner to run via System → Developer → Render → Run protocol + copy JSON on both routes, recording device/settings/commit metadata. No deployment; A-19 request follows.
