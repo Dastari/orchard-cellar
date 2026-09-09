@@ -459,7 +459,7 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
-- [x] WebGL fallback diagnostics — IMPLEMENTED/CHECKED: codex, 2026-09-09,0.6.2. Actual backend/full reason in F3; wrapped Developer/Video footer. Full652files/3697tests,10 exact Canvas boards,8 exact default panels and8 readable fallback panels; actual village strokeStyle fallback reproduced. Stroke support remains a separate known gap. Release59a9df30 prepared with checked rollback and private reconnect; new0.6.2 approval pending. Not deployed; output/perf-59-20260909/fallback-footer/.
+- [x] WebGL fallback diagnostics — IMPLEMENTED/CHECKED: codex, 2026-09-09,0.6.2. Actual backend/full reason in F3; wrapped Developer/Video footer. Full652files/3697tests,10 exact Canvas boards,8 exact default panels and8 readable fallback panels; actual village strokeStyle fallback reproduced. Stroke support remains a separate known gap. Release59a9df30 DEPLOYED after owner approval;439 public files exact, same-player reconnect and live F3 verified, checked0.6.1 rollback retained. Cellar source-atop also remains a known backend gap; output/perf-59-20260909/fallback-footer/.
 
 - [x] Gameplay 0.6.1 qualified P8 release — DEPLOYED: codex, 2026-09-09, after owner Deploy. Source672c079f; all439 public files exact and same identity/position/48 inventory slots/wallet preserved. F3 verified; Canvas1× and Developer/off retained. Only frontend restarted; Studio/world unchanged. Rollback and evidence output/perf-59-20260909/release/.
 
