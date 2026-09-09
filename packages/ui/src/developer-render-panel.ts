@@ -8,6 +8,7 @@ import type { OverworldUiLayout } from './overworld-ui.js';
 import type { Toggle } from './toggle.js';
 import { renderProtocolAction } from './render-protocol-action.js';
 import { drawMenuButton } from './overworld-panel-drawing.js';
+import { drawBackendReason } from './world-backend-feedback.js';
 export interface DeveloperRenderView {
  readonly fonts: PixelUi; readonly skin: UiSkin; readonly pointer: UiPoint; readonly layout: OverworldUiLayout;
  readonly lightingEffectsToggle: Toggle; readonly orePreviewToggle: Toggle;
@@ -28,9 +29,15 @@ export function drawDeveloperRender(context: CanvasRenderingContext2D, view: Dev
       `${label}: ${enabled ? 'ON' : 'OFF'}`, { tone: enabled ? 'green' : 'peach' });
     drawMenuButton(context, view.skin, view.fonts, view.pointer, renderProtocolBounds(view.layout), renderProtocolAction.label);
     const backend = worldBackendStatus();
-    const hint = backend.fallbackReason !== null
-      ? `CANVAS: ${backend.fallbackReason.replace(/^webgl_/, '').replaceAll('_', ' ').toUpperCase()}`
-      : backend.preparing ? 'PREPARING EXPERIMENTAL WEBGL...'
+    if (backend.fallbackReason !== null) {
+      const button = renderProtocolBounds(view.layout), top = button.y + button.height + 3;
+      drawBackendReason(context, view.fonts, backend.fallbackReason, {
+        x: developerContent.x + 10, y: top, width: developerContent.width - 20,
+        height: developerContent.y + developerContent.height - 7 - top,
+      });
+      return;
+    }
+    const hint = backend.preparing ? 'PREPARING EXPERIMENTAL WEBGL...'
         : backend.backend === 'webgl2' ? 'EXPERIMENTAL WEBGL ACTIVE' : '* EXPERIMENTAL WEBGL RENDERER';
     drawPixelTextInRect(context, view.fonts, hint, { x: developerContent.x + 10,
       y: developerContent.y + developerContent.height - 17, width: developerContent.width - 20, height: 10 },

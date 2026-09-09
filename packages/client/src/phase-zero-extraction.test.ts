@@ -131,7 +131,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // A-19 mechanically extracts the owned Video/Developer controls and painting.
 // Its feature wiring removes the retired Video-only parameters after relocation.
 // The other four structural seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '672835c2f078b9066f519d6b76c1a7fc587a3cd057e7bffc55b5bc0fd970ff31';
+// 0.6.2 exports shared fallback formatting for F3 and the panel footers.
+// Only those two ui/index.ts named exports change; other four seams stay exact.
+const STRUCTURAL_SEAM_DIGEST = '38cce2e6d1563c39f1988fe9db51bee49ff4b9c3e21d48a7bd790ff36d60e4e3';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

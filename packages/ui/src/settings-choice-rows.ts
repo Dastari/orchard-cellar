@@ -9,6 +9,7 @@ import { readWorldScale, worldScaleSettingLabel } from './world-scale-setting.js
 import { readPresentationCap } from './presentation-cap-setting.js';
 import { worldBackendStatus } from './world-backend-setting.js';
 import { drawMenuButton } from './overworld-panel-drawing.js';
+import { drawBackendReason } from './world-backend-feedback.js';
 export interface SettingsChoiceRowsView {
  readonly fonts: PixelUi; readonly skin: UiSkin; readonly pointer: UiPoint;
  readonly layout: OverworldUiLayout; readonly settingsTab: SettingsTab; readonly model: OverworldUiModel;
@@ -63,8 +64,15 @@ export function drawSettingsChoiceRows(context: CanvasRenderingContext2D, view: 
       ? view.model.lightingFallbackReason === 'preparing' ? 'PREPARING DYNAMIC LIGHTING...' : 'DYNAMIC UNAVAILABLE; USING BASIC'
       : 'CLICK LIGHTING: BASIC / CLASSIC / DYNAMIC';
     const backend = worldBackendStatus();
-    const videoHint = backend.fallbackReason !== null ? `CANVAS: ${backend.fallbackReason.replace(/^webgl_/, '').replaceAll('_', ' ').toUpperCase()}`
-      : backend.preparing ? 'PREPARING EXPERIMENTAL WEBGL...' : backend.backend === 'webgl2' ? 'EXPERIMENTAL WEBGL ACTIVE'
+    if (view.settingsTab === 'video' && backend.fallbackReason !== null) {
+      const top = settingsContent.y + 23 + visibleRows.length * rowHeight + 3;
+      drawBackendReason(context, view.fonts, backend.fallbackReason, {
+        x: settingsContent.x + 10, y: top, width: settingsContent.width - 20,
+        height: settingsContent.y + settingsContent.height - 7 - top,
+      });
+      return;
+    }
+    const videoHint = backend.preparing ? 'PREPARING EXPERIMENTAL WEBGL...' : backend.backend === 'webgl2' ? 'EXPERIMENTAL WEBGL ACTIVE'
         : lightingHint;
     drawPixelTextInRect(context, view.fonts, view.settingsTab === 'video' ? videoHint : 'CONFIGURATION SUPPORT IS RESERVED FOR A LATER UPDATE.', {
       x: settingsContent.x + 10,

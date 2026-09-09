@@ -1,9 +1,10 @@
-import { changeExperimentalWebGL, readExperimentalWebGL } from './world-backend-setting.js';
+import { changeExperimentalWebGL, readExperimentalWebGL, worldBackendStatus } from './world-backend-setting.js';
 import { widget, type WidgetNode } from './widget.js';
 import type { UiRect } from './geometry.js';
 import type { OverworldUiLayout, DeveloperTab } from './overworld-ui.js';
 function developerRenderRow(content: UiRect, index: number): UiRect {
-  const step = Math.max(8, Math.min(30, Math.floor((content.height - 40) / 4)));
+  const reserved = worldBackendStatus().fallbackReason === null ? 40 : 56;
+  const step = Math.max(8, Math.min(30, Math.floor((content.height - reserved) / 4)));
   return { x: content.x + content.width - 48, y: content.y + 23 + index * step,
     width: 40, height: Math.min(18, step) };
 }

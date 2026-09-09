@@ -459,7 +459,7 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
-- [ ] WebGL fallback footer readability — IN PROGRESS: codex, 2026-09-09. Owner reports truncated strokeStyle reason on enable near fishing village. Wrap Developer/Video reason, preserve guards and record fixed-line prop coverage gap; output/perf-59-20260909/fallback-footer/.
+- [x] WebGL fallback diagnostics — IMPLEMENTED/CHECKED: codex, 2026-09-09,0.6.2. Actual backend/full reason in F3; wrapped Developer/Video footer. Full652files/3697tests,10 exact Canvas boards,8 exact default panels and8 readable fallback panels; actual village strokeStyle fallback reproduced. Stroke support remains a separate known gap. Not deployed; output/perf-59-20260909/fallback-footer/.
 
 - [x] Gameplay 0.6.1 qualified P8 release — DEPLOYED: codex, 2026-09-09, after owner Deploy. Source672c079f; all439 public files exact and same identity/position/48 inventory slots/wallet preserved. F3 verified; Canvas1× and Developer/off retained. Only frontend restarted; Studio/world unchanged. Rollback and evidence output/perf-59-20260909/release/.
 
@@ -471,7 +471,7 @@ historical pending claims below. Runtime omission filtering, world CSS filters,
 receiver indexing and retained tint/callback work are implemented. A-18 replaces
 the shared-browser gate with Playwright evidence and permits separate cliff/pond
 routes. A-14a resolves the probe defect and qualifies production integer sampling;
-A-15/A-16/A-17 functional gates pass on the same672c079f candidate. Hardware GPU
+A-15/A-16/A-17 pinned-route functional gates pass on the same672c079f candidate. The September9 fishing-village report additionally reproduces unsupported strokeStyle; that scene falls back to Canvas and is outside the earlier two routes. Hardware GPU
 timing is unavailable on this host and remains owner to run. WebGL stays
 Developer-only/off; moving it back to Video requires a separate owner decision.
 Canvas gains were deployed as 0.6.0, then FPS/shadow-work and qualified sampler as 0.6.1 on September9 after owner Deploy, with the full-halt symptom unreproduced
