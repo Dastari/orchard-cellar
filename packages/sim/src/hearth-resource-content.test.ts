@@ -4,6 +4,16 @@ import { hearthGatheringContentReady } from './hearth-resource-content.js';
 import { runtimeItemDefinition } from './content/runtime.js';
 
 const registry = bootstrapContentRegistry();
+it('rejects missing or retired shared bonus loot and its materials', () => {
+  const loots = new Map(registry.loots), bonus = loots.get('loot:mining_rock_bonus')!;
+  loots.delete(bonus.id);
+  expect(hearthGatheringContentReady({ ...registry, loots })).toBe(false);
+  loots.set(bonus.id, { ...bonus, retired: true });
+  expect(hearthGatheringContentReady({ ...registry, loots })).toBe(false);
+  const items = new Map(registry.items), fragment = items.get('item:iron_piece')!;
+  items.set(fragment.id, { ...fragment, retired: true });
+  expect(hearthGatheringContentReady({ ...registry, items })).toBe(false);
+});
 it('admits the actual authored gathering registry using bare runtime slugs', () => {
   expect(runtimeItemDefinition(registry, 'item:basalt')).toBeNull();
   expect(runtimeItemDefinition(registry, 'basalt')).not.toBeNull();

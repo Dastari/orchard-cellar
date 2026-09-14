@@ -212,3 +212,29 @@ and UI-facing errors/metrics.
 - No SSR/React/DOM UI framework. No Docker orchestration. No Redis. No message queue.
 - No horizontal scaling work before it is needed.
 - No mod support, no mobile-native wrappers at launch (touch input yes, app store no).
+
+## Mining skill coverage (0.7.0)
+
+Cave-wall and ore-node transactions use shared deterministic mining work
+(3/4/6 per strike). Wall progress remains private and authoritative, with an
+appended default-zero work column; legacy hits convert lazily on the first
+accepted strike. Physical hit counts are retained. Mining Endurance continues
+through the common loadout/spending pipeline. Ordinary rocks, basalt and completed
+walls share an authored bonus loot profile, while primary Hearth material payouts
+remain guaranteed. The gathering readiness check validates referenced bonus loot
+and materials in addition to the primary payout. See [48, coverage amendment](48-repeatable-mining-loop.md#2026-09-15-mining-skill-coverage-amendment)
+for balance, migration and transaction invariants.
+
+### Harvest and cellar bonuses
+
+Estate upgrade lookups normalize garden/residence/cellar IDs through the indexed
+homestead lookup. `active_farm_skill_nodes` projects the current estate owner's
+Farming ranks (the caller's outside estates); `active_farm_upgrades` projects
+the active estate's upgrade ranks. The existing `own_homestead_upgrades` view
+retains its owner-only meaning for economy and release-continuity checks. These views keep
+visitor crop and processor timing aligned with authority. Harvest yield and seed
+bonuses belong to the harvesting actor; growth and barrel speed belong to the
+estate owner. Authored capabilities are resolved only from active implemented
+nodes with valid prerequisites. Daily harvest bonuses use successful harvest
+statistic timestamps and stable authority days. See
+[the audit and repair specification](harvest-cellar-audit.md).

@@ -431,3 +431,20 @@ seasonal crop festivals; prestige integration.
   requests, and worker harvests route to the homestead's shared chest;
   (5) nothing withers — unwatered and out-of-season crops slow or pause,
   never die.
+
+## Harvest/cellar repair contract (0.7.0)
+
+Press fruit into Must, then put Must in a **Fermentation Cask** (three Must per
+bottle). **Preserving Barrels** accept one kind of raw crop, in batches of at least
+four, and must be sealed. They cannot ferment Must. Read Farmer Jane's gardening
+book to learn the existing press, barrel and cask recipes; a cask is crafted from
+a barrel and copper bar at a workbench.
+
+Press **B** at home, including downstairs, to buy estate upgrades. Barrel Cellar
+adds eight crop capacity per rank and increases curing speed; Estate Vintage
+advances Estate → Select → Reserve → Grand Vintage, trading longer aging for a
+higher bottle sale premium. These ranks apply across the owning estate's spaces.
+
+The farming branch now applies its authored crop bonuses and unlocks. Exact
+rates and remaining scope are listed in [the audit](harvest-cellar-audit.md).
+Grafting remains unavailable pending an orchard-specialization interaction.

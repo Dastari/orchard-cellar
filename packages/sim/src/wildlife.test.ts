@@ -54,7 +54,9 @@ function goldenHash(value: unknown): string {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
-describe('deterministic wildlife generation', () => {
+// These functional fixtures generate several complete worlds per test. V8
+// coverage exceeds the ordinary 15-second timeout even on unchanged main.
+describe('deterministic wildlife generation', { timeout: 120_000 }, () => {
   it('spawns every authored species in habitat-correct packs with solitary horses', () => {
     const first = generateSurvivalWildlife();
     expect(generateSurvivalWildlife()).toEqual(first);
@@ -175,7 +177,7 @@ describe('deterministic wildlife generation', () => {
     expect(missingTrailer.report.valid).toBe(false);
     expect(generateSurvivalWildlifeForRegistry(missingTrailer.registry)
       .filter(({ species }) => species === 'moon_hen')).toHaveLength(36);
-  }, 30_000);
+  });
 
   it('places colonies at hives and uses every colour variant where one exists', () => {
     const wildlife = generateSurvivalWildlife();

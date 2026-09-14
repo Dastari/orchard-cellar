@@ -31,6 +31,14 @@ export const SKILL_NODE_CAPABILITIES = [
   'mining_ore_dressing',
   'mining_rockhound',
   'mining_mother_lode',
+  'farming_green_thumb',
+  'farming_seed_saver',
+  'farming_bountiful_harvest',
+  'farming_tender_hand',
+  'farming_master_grower',
+  'farming_barreling',
+  'farming_harvest_festival',
+  'farming_soil_whisperer',
 ] as const;
 export type SkillNodeCapability = (typeof SKILL_NODE_CAPABILITIES)[number];
 

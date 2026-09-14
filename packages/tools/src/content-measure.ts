@@ -5,7 +5,8 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 520 * 1024;
+// 0.7.0 adds farming capabilities and shared mining loot: measured 533,564 bytes.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 522 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

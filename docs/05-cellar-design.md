@@ -1,5 +1,12 @@
 # 05 — Press Yard & Cellar Design
 
+> Runtime status (0.7.0): the current playable loop uses Fruit Press → Must →
+> Fermentation Cask → Bottles. Press B in a home space to buy Barrel Cellar and
+> Estate Vintage ranks. The separate machine/cask models below describe the
+> longer-term design, not currently craftable tiers. See the
+> [harvest/cellar audit](harvest-cellar-audit.md) for implemented bonuses and gaps.
+
+
 Stages two and three of the chain: fruit → must (+ pomace) → bottles, plus the
 Vintage ceremony. Implements the redesign PDF's P0 economy split: **the press is
 funded by Pomace, never by Fruit.**

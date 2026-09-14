@@ -175,3 +175,14 @@ describe('residence purchase controls',()=>{
   });
 
 });
+
+
+it('places residence upgrade rows below every furnishing control', () => {
+  const registry = bootstrapContentRegistry();
+  const entries = [...homesteadBuildDefinitions(registry).values()].slice(0, 4).map(entry => ({ ...entry, iconAnimation: 'base' }));
+  const model = { width: 640, height: 480, entries, furnishing: true, upgrades: Object.values(registry.compiled.upgrades) };
+  const bounds = homesteadBuildPaletteBounds(model);
+  const controls = homesteadBuildPaletteCells(bounds, entries.length, 4);
+  const upgrades = homesteadUpgradePaletteCells(bounds, model);
+  expect(upgrades[0]!.y).toBeGreaterThanOrEqual(Math.max(...controls.map(cell => cell.y + cell.height)));
+});

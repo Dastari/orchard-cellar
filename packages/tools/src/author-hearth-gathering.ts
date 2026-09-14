@@ -5,13 +5,32 @@ import { parseItemDefinition, parseLootDefinition } from '@orchard/sim';
 const directory = resolve(import.meta.dirname, '../../assets/content');
 const items = (JSON.parse(await readFile(resolve(directory, 'items.json'), 'utf8')) as unknown[]).map(parseItemDefinition);
 const loots = (JSON.parse(await readFile(resolve(directory, 'loot.json'), 'utf8')) as unknown[]).map(parseLootDefinition);
+const rock = loots.find(row => row.id === 'loot:mining_rock_large')!;
+const rockBonus = loots.find(row => row.id === 'loot:mining_rock_bonus') ?? parseLootDefinition({
+  id: 'loot:mining_rock_bonus', kind: 'loot', schemaVersion: 1,
+  groups: rock.groups.filter(group => group.id === 'bonus'),
+});
+const bonusGroup = { id: 'bonus', entries: [{ id: 'fragments', weight: 1,
+  target: { loot: 'loot:mining_rock_bonus' } }] };
 const minerals = [['rock_basalt', 'basalt'], ['ore_cinder', 'cinder_ore'], ['ore_emberglass', 'emberglass']] as const;
 const additions = minerals.map(([kind, item]) => parseLootDefinition({
   id: `loot:mining_${kind}`, kind: 'loot', schemaVersion: 1,
   groups: [{ id: 'primary', entries: [{ id: item, weight: 1,
     ...(kind.startsWith('ore_') ? { flags: ['ore'] } : {}),
     target: { item: `item:${item}`, min: 1, max: 1 },
-  }] }],
+  }] }, kind === 'rock_basalt' ? bonusGroup : {
+    id: 'mother_lode', entries: [{ id: 'material', weight: 1, flags: ['ore'],
+      conditions: [
+        { context: { key: 'nodeClass', operator: 'eq', value: 'pure' } },
+        { context: { key: 'maximumRichness', operator: 'gte', value: 5 } },
+        { context: { key: 'yieldsProduced', operator: 'eq', value: 0 } },
+        { skillRank: { skill: 'mother_lode', minimum: 1 } },
+      ], target: { item: `item:${item}`, min: 1, max: 1 },
+    }],
+  }],
+}));
+additions.push(rockBonus, parseLootDefinition({ ...rock,
+  groups: [...rock.groups.filter(group => group.id !== 'bonus'), bonusGroup],
 }));
 additions.push(parseLootDefinition({ id: 'loot:resource_tree_ashwood', kind: 'loot', schemaVersion: 1,
   groups: [{ id: 'primary', entries: [{ id: 'ashwood', weight: 1,

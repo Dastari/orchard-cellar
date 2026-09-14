@@ -922,7 +922,7 @@ fixture), and `publishContentChangeSet`:
 - `interactEntity` resolution: O(interactions on one object); no table scans beyond
   the chunk-neighbourhood reach checks already used.
 - Client content subscription: whole `content_definition` table; measure the initial
-  payload (target ≤ 520 KiB uncompressed) and gate on `content_head` before revealing
+  payload (target ≤ 522 KiB uncompressed) and gate on `content_head` before revealing
   the world after first load.
 - Head advance cost for connected clients: one subscription batch, one registry
   rebuild, invalidation of item-icon and object-sprite caches only.
@@ -2020,6 +2020,12 @@ decision; the unanswered silver balance choice remains provisional. Iron's
 primary mining payout is preserved, while a separate authored secondary loot
 group adds a 10% silver-ore chance. The added furnace process smelts silver ore
 into a silver bar without replacing existing iron inputs or outputs.
+
+2026-09-15 balance amendment: the owner set Silver Pickaxe durability to **1,500**,
+twice Iron Pickaxe's 750. Its swing speed, vigour cost, reach and mining permissions
+remain unchanged. Full repair still costs one Silver Bar plus five bronze. This
+supersedes the provisional silver multiplier for the pickaxe only; other silver
+tools retain their existing durability.
 
 Mobile world input distinguishes a single tap, a two-finger pinch and a
 250 ms long press. A pending tap acts once on release; a pinch owns both fingers

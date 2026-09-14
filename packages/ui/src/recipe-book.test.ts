@@ -31,7 +31,8 @@ describe('crafting recipe list', () => {
       craftingRecipeBookEntries([], inventory, ['planks'], built.registry, ranks)[0];
     expect(entry({})).toMatchObject({ recipeId: 'planks', stationAvailable: true, skillAvailable: false });
     expect(entry({ unrelated: 5 })).toMatchObject({ skillAvailable: false });
-    expect(entry({ greenhouse_charter: 1 })).toMatchObject({ skillAvailable: true });
+    expect(entry({ greenhouse_charter: 1 })).toMatchObject({ skillAvailable: false });
+    expect(entry({ farmcraft: 1, barreling: 1, greenhouse_charter: 1 })).toMatchObject({ skillAvailable: true });
   });
 
   it('reads patterns and outputs from the active live registry', () => {

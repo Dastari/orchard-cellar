@@ -22,6 +22,8 @@ export const OBSERVER_EFFECT_STATISTICS = Object.freeze([
 /** These rows are deliberately not continuity evidence: connecting creates or
  * clears them, or they represent an in-flight/session-only UI interaction. */
 export const WORLD_REJOIN_EXCLUSIONS = Object.freeze([
+  { accessor: 'activeFarmSkillNodes', reason: 'derived estate presentation; durable personal ranks are covered by ownPlayerSkillNodes' },
+  { accessor: 'activeFarmUpgrades', reason: 'derived estate presentation; durable owned upgrades are covered by ownHomesteadUpgrades' },
   { accessor: 'connectionPresenceV2', reason: 'transport presence lease; connecting necessarily replaces it' },
   { accessor: 'playerPublic.online/lastActiveAtMicros', reason: 'presence projection fields changed by the read-only reconnect act' },
   { accessor: 'contentHead.updatedAt', reason: 'first-connect bootstrap seed uses the independent host wall clock' },

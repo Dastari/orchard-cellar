@@ -5,9 +5,9 @@ import { contentDefinitionsHash } from './registry.js';
 describe('bootstrap content pack loader', () => {
   it('loads the complete committed pack deterministically through one parser boundary', () => {
     const definitions = loadBootstrapPackDefinitions();
-    expect(definitions).toHaveLength(895);
-    expect(new Set(definitions.map(({ id }) => id)).size).toBe(895);
-    expect(contentDefinitionsHash(definitions).slice(0, 8)).toBe('6af0522c');
+    expect(definitions).toHaveLength(896);
+    expect(new Set(definitions.map(({ id }) => id)).size).toBe(896);
+    expect(contentDefinitionsHash(definitions).slice(0, 8)).toBe('34de4fe6');
     expect(Object.isFrozen(definitions)).toBe(true);
   });
 });

@@ -7,8 +7,8 @@ Builds on docs 20, 26, 28, 33, 34, and 36.
 
 Find a visible vein or rock, strike it several times, collect its reserved drop,
 consolidate nine matching fragments in the 3×3 crafting grid, smelt metal chunks,
-sell or build with the result, improve Explorer mining skills, and revisit newly
-populated sites later. Mining awards Explorer XP on yields and depletion, never for
+sell or build with the result, improve Farming mining skills, and revisit newly
+populated sites later. Mining awards Farming XP on yields and depletion, never for
 empty swings.
 
 ## Node population and replenishment
@@ -49,7 +49,7 @@ UI is a later presentation phase. A party may contain up to five players.
 
 ## Progression
 
-Mining lives under **Explorer**, not Farming and not a fourth top-level tree:
+Mining lives under **Farming**, matching the authored mining skill branch:
 Prospector reveals odds; Efficient Strikes reduces hits; Ore Dressing improves mixed
 ore yield; Rockhound improves rock surprises; Mother Lode adds a fragment to the
 first payout from a rich pure vein.
@@ -72,3 +72,44 @@ and loot decisions are deterministic simulation functions. `world_resource` gain
 append-only defaulted mining columns and a depleted index; `world_item` gained
 append-only loot-reservation fields. A bounded migration backfills legacy rocks and
 underground ore without clearing player state.
+
+## Mining XP track correction — integrated into 0.7.0
+
+Ore and rock payout XP, including the final depletion bonus, now goes to Farming
+instead of Explorer. This matches the track containing the authored mining skills.
+The shared path covers all mining node classes, including basalt, cinder and
+emberglass. Reward amounts and eligibility are unchanged: partial hits, empty
+swings and rejected actions grant no XP. Cave-wall excavation still has no XP
+reward. Existing historical XP is preserved; this fix routes future rewards only.
+
+## 2026-09-15 mining skill coverage amendment
+
+This amendment supersedes the earlier phase-one coverage limits. Mining's active
+skill branch is Farming. Silver Pickaxe has 1,500 durability (twice Iron), with
+unchanged speed, vigour, reach, permissions and one Silver Bar + five bronze repair.
+
+Efficient Strikes contributes 3/4/6 work per hit at ranks 0/1/2 to both ore nodes
+and cellar walls. Nodes retain their 12-work payout. Each wall requires its
+seeded 5–6 base hits times three work: 5–6 novice, 4–5 trained, or three expert
+hits. Contributions remain additive when players with different ranks alternate.
+Append a private default-zero work column to cellar_dig_progress; the first new
+strike converts legacy hits to three work each. Retain hits as a physical count.
+Do not spend vigour, wear, progress or loot during preflight or rejected actions.
+Each accepted wall hit still costs two durability; node hits cost one.
+
+Mining Endurance uses the selected pickaxe's mining context, including applicable
+gear bonuses, for both paths. Rockhound uses the same authored 1%/2%/3% weighted
+ore-fragment bonus for ordinary rocks, basalt and each completed wall. Preserve
+wall stone heaps and primary mineral payouts. Share the bonus loot definition so
+probabilities cannot drift. Mother Lode adds one matching material on the first
+payout from a pure vein with maximum richness >=5, including cinder/emberglass
+(which have no fragment items). Ore Dressing applies only to mixed deposits with
+a stone-versus-ore roll; guaranteed materials cannot benefit from it. Detection,
+identification and mapping remain passive and never extend harvest reach.
+
+Validation must cover all rank levels, alternating contributors, legacy partial
+progress, preflight and rejected-action non-mutation, exact wear, mineral primary
+payout preservation, conditional bonuses and authored overrides/retirement.
+The module and content changes must be released together after PR review; this
+work does not publish either live. Existing stored Silver durability remains at
+its current value until repaired; newly created and repaired picks receive 1,500.

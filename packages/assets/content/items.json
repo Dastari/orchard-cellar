@@ -229,7 +229,7 @@
     "id": "item:barrel",
     "kind": "item",
     "schemaVersion": 1,
-    "displayName": "Barrel",
+    "displayName": "Preserving Barrel",
     "icon": {
       "asset": "prop_cf_barrel",
       "animation": "closed"
@@ -9631,7 +9631,7 @@
       "sell": 240
     },
     "durability": {
-      "max": 625,
+      "max": 1500,
       "repairMaterial": "item:silver_bar",
       "repairCost": 5
     },

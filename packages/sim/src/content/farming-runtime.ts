@@ -1,3 +1,4 @@
+import { runtimeSkillNodeRank } from '../skill-effects.js';
 import { placeableObjectDefinition, type PlaceableContentReference } from '../crafting.js';
 import type { ContentRegistry } from './registry.js';
 
@@ -20,12 +21,12 @@ export function runtimeObjectProtectsCropSeasons(
 }
 
 export function runtimeRecipeSkillSatisfied(
-  registry: Pick<ContentRegistry, 'recipes'>,
+  registry: Pick<ContentRegistry, 'recipes' | 'skillTrees'>,
   recipeId: string,
   ranks: Readonly<Record<string, number>>,
 ): boolean {
   const recipe = registry.recipes.get(recipeId.startsWith('recipe:') ? recipeId : `recipe:${recipeId}`);
   if (recipe === undefined || recipe.retired === true) return false;
   const requirement = recipe.skillRequirement;
-  return requirement === undefined || (ranks[requirement.skillNode] ?? 0) >= requirement.minimumRank;
+  return requirement === undefined || runtimeSkillNodeRank(registry, ranks, requirement.skillNode) >= requirement.minimumRank;
 }

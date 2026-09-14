@@ -269,6 +269,7 @@ import {
   FISHING_POOL_DEPLETION_EXPLORER_XP,
   miningWorkPerHit,
   resolveMiningLoot,
+  resolveMiningRockBonus,
   resolveFishingLoot,
   statelessRoll,
   surfaceOreRespawnCandidates,
@@ -279,6 +280,7 @@ import {
   cellarOreKindAt,
   cellarOreResourceId,
   cellarWallHitsRequired,
+  cellarWallStrikeProgress,
   cellarExcavationAnchor,
   cellarExcavationAnchorsAffectingTile,
   cellarWallStoneQuantity,
@@ -402,7 +404,7 @@ import {
   type AdminJsonObject,
 } from '@orchard/sim';
 import { runtimeResourceObstacle, runtimeSpaceSurfaceDefinition, runtimeSpaceSurfaceObstacle } from '@orchard/sim';
-import { runtimeSkillCapabilities, runtimeSkillNodeRank } from '@orchard/sim';
+import { farmingSkillEffects, farmingCropDefinition, farmingHarvestReward, firstHarvestOfDay, runtimeSkillCapabilities, runtimeSkillNodeRank } from '@orchard/sim';
 import { AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS } from '@orchard/lifecycle-authoring/generated';
 import { Identity } from 'spacetimedb';
 import {
@@ -2161,6 +2163,7 @@ const cellar_dig_progress = table(
     tileY: t.i16(),
     hits: t.u8(),
     lastHitTick: t.u64(),
+    work: t.u8().default(0),
   },
 );
 
@@ -4340,7 +4343,7 @@ function homesteadUpgradeRank(
   const definition = runtimeUpgradeDefinitionForMechanic(contentRegistry(ctx), mechanic);
   if (definition === null) return 0;
   const upgradeKind = definition.mechanic[1];
-  const rank = ctx.db.homestead_upgrade.id.find(homesteadUpgradeId(spaceId, upgradeKind))?.rank;
+  const rank = ctx.db.homestead_upgrade.id.find(homesteadUpgradeId(homesteadForSpace(ctx, spaceId)?.spaceId ?? spaceId, upgradeKind))?.rank;
   return rank !== undefined && rank <= definition.maximumRank ? rank : 0;
 }
 
@@ -4352,10 +4355,11 @@ function cropDefinitionForHomestead(
   const definition = runtimeCropDefinition(contentRegistry(ctx), cropKind);
   if (definition === null) return null;
   const rank = homesteadUpgradeRank(ctx, spaceId, 'soil');
-  return rank === 0 ? definition : {
+  return farmingCropDefinition(rank === 0 ? definition : {
     ...definition,
     growthTicks: richSoilGrowthTicks(definition.growthTicks, rank),
-  };
+  }, farmingSkillEffects(contentRegistry(ctx), playerSkillRanks(ctx,
+    homesteadForSpace(ctx, spaceId)?.owner ?? ctx.sender)));
 }
 
 function cropAutomaticallyWatered(
@@ -5991,6 +5995,8 @@ const processorBehaviourDependencies: ProcessorBehaviourDependencies = {
   grantSkillExperience,
   recordPlayerStatistic,
   homesteadUpgradeRank,
+  barrelingRank: (ctx, spaceId) => farmingSkillEffects(contentRegistry(ctx), playerSkillRanks(ctx,
+    homesteadForSpace(ctx, spaceId)?.owner ?? ctx.sender)).barreling,
   processCompleted: (ctx, placeable, unitsSettled) => {
     raiseProcessorProcessCompleteEvent(ctx, placeable, unitsSettled);
   },
@@ -7686,6 +7692,27 @@ export const ownHomesteadUpgrades = spacetimedb.view(
   (ctx) => {
     const home = homesteadForOwner(ctx, ctx.sender);
     return home === null ? [] : [...ctx.db.homestead_upgrade.by_space.filter(home.spaceId)];
+  },
+);
+
+export const activeFarmUpgrades = spacetimedb.view(
+  { name: 'active_farm_upgrades', public: true },
+  t.array(homestead_upgrade.rowType),
+  (ctx) => {
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const home = position === null ? null : homesteadForSpace(ctx, position.spaceId);
+    return home === null ? [] : [...ctx.db.homestead_upgrade.by_space.filter(home.spaceId)];
+  },
+);
+
+export const activeFarmSkillNodes = spacetimedb.view(
+  { name: 'active_farm_skill_nodes', public: true },
+  t.array(player_skill_node.rowType),
+  (ctx) => {
+    const position = ctx.db.player_position.identity.find(ctx.sender);
+    const home = position === null ? null : homesteadForSpace(ctx, position.spaceId);
+    return [...ctx.db.player_skill_node.by_identity.filter(home?.owner ?? ctx.sender)]
+      .filter((row) => row.track === 'farming');
   },
 );
 
@@ -18677,7 +18704,7 @@ export const purchaseHomesteadUpgrade = spacetimedb.reducer(
     if (position === null || home === null || clock === null || wallet === null) {
       throw new SenderError('homestead_upgrade_not_ready');
     }
-    if (position.spaceId !== home.spaceId && position.spaceId !== home.residenceSpaceId) {
+    if (homesteadForSpace(ctx, position.spaceId)?.spaceId !== home.spaceId) {
       throw new SenderError('homestead_upgrade_requires_home');
     }
     const id = homesteadUpgradeId(home.spaceId, upgradeKind);
@@ -19635,7 +19662,7 @@ function purchaseMerchantCart(ctx: WorldReducerContext, lines: readonly Merchant
   const ranks = playerSkillRanks(ctx, ctx.sender);
   for (const line of lines) {
     const requirement = runtimeItemPurchaseRequirement(registry, line.itemKind);
-    if (requirement !== null && (ranks[requirement.skillNode] ?? 0) < requirement.minimumRank) {
+    if (requirement !== null && runtimeSkillNodeRank(registry, ranks, requirement.skillNode) < requirement.minimumRank) {
       throw new SenderError(requirement.minimumRank === 1
         ? `${requirement.skillNode}_required`
         : `skill_rank_required:${requirement.skillNode}:${requirement.minimumRank}`);
@@ -20734,12 +20761,18 @@ function applyDigCellarTileLifecycle(
     const anchor = cellarExcavationAnchor(tileX, tileY);
     const id = cellarExcavationId(position.spaceId, anchor.tileX, anchor.tileY);
     const progress = ctx.db.cellar_dig_progress.id.find(id);
-    const hits = (progress?.hits ?? 0) + 1;
-    const opensWall = hits >= cellarWallHitsRequired(seed, position.spaceId, anchor.tileX, anchor.tileY);
+    const skillCapabilities = runtimeSkillCapabilities(registry, playerSkillRanks(ctx, ctx.sender));
+    const { hits, work, opensWall } = cellarWallStrikeProgress(
+      cellarWallHitsRequired(seed, position.spaceId, anchor.tileX, anchor.tileY),
+      progress, skillCapabilities.efficientStrikesRank,
+    );
     const wallOutputKind = opensWall
       ? runtimeItemKindForUniqueTag(registry, CELLAR_WALL_OUTPUT_ITEM_TAG)
       : null;
     if (opensWall && wallOutputKind === null) throw new SenderError('ambient_output_content_missing');
+    const bonusDrops = opensWall ? resolveMiningRockBonus(registry.loots,
+      [seed, position.spaceId, anchor.tileX, anchor.tileY, 'mining.cellar_wall'],
+      skillCapabilities.rockhoundRank) : [];
     if (!mutate) {
       validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
       return;
@@ -20760,7 +20793,7 @@ function applyDigCellarTileLifecycle(
 
     if (!opensWall) {
       const row = {
-        id, spaceId: position.spaceId, tileX: anchor.tileX, tileY: anchor.tileY, hits, lastHitTick: clock.authorityTick,
+        id, spaceId: position.spaceId, tileX: anchor.tileX, tileY: anchor.tileY, hits, work, lastHitTick: clock.authorityTick,
       };
       if (progress === null) ctx.db.cellar_dig_progress.insert(row);
       else ctx.db.cellar_dig_progress.id.update(row);
@@ -20821,6 +20854,13 @@ function applyDigCellarTileLifecycle(
       durability: 0,
       spaceId: position.spaceId,
     });
+    applyLootDropsBehaviour(ctx, bonusDrops, {
+      x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      spaceId: position.spaceId, authorityTick: clock.authorityTick,
+      recipient: ctx.sender, reservedUntilTick: clock.authorityTick + MINING_DROP_RESERVATION_TICKS,
+      recordItemsObtained: true,
+    }, lootAuthorityDependencies);
     recordPlayerStatistic(ctx, ctx.sender, 'rocks_broken', 1n, clock.authorityTick);
 }
 
@@ -22127,7 +22167,7 @@ function applyHarvestResourceLifecycle(
       grantSkillExperience(
         ctx,
         ctx.sender,
-        'explorer',
+        'farming',
         payoutExperience + (depleted ? BigInt(maximumRichness) : 0n),
       );
       return;
@@ -22834,7 +22874,8 @@ function validateFarmToolLifecycleAction(
       tileX,
       tileY,
       soil === null ? null : {
-        watered: soil.watered && clock.authorityTick < soil.wateredAtTick + CROP_WATERING_TICKS,
+        watered: soil.watered && clock.authorityTick < soil.wateredAtTick + CROP_WATERING_TICKS * BigInt(4 + Math.min(3, farmingSkillEffects(registry,
+            playerSkillRanks(ctx, homesteadForSpace(ctx, position.spaceId)?.owner ?? ctx.sender)).tenderHand)) / 4n,
       },
       occupied,
       farmToolDefinition,
@@ -22911,7 +22952,8 @@ function applyFarmToolUse(
         tileX,
         tileY,
         soil === null ? null : {
-          watered: soil.watered && clock.authorityTick < soil.wateredAtTick + CROP_WATERING_TICKS,
+          watered: soil.watered && clock.authorityTick < soil.wateredAtTick + CROP_WATERING_TICKS * BigInt(4 + Math.min(3, farmingSkillEffects(registry,
+            playerSkillRanks(ctx, homesteadForSpace(ctx, position.spaceId)?.owner ?? ctx.sender)).tenderHand)) / 4n,
         },
         occupied,
         farmToolDefinition,
@@ -23139,12 +23181,20 @@ export const harvestCropTile = spacetimedb.reducer(
     );
     if (!growth.mature) throw new SenderError('crop_still_growing');
     const selectiveSeedsRank = homesteadUpgradeRank(ctx, position.spaceId, 'seed');
-    const harvestQuantity = selectiveSeedHarvestQuantity(
+    const baseHarvestQuantity = selectiveSeedHarvestQuantity(
       definition.harvestQuantity,
       selectiveSeedsRank,
       Number((existing.plantedAtTick
         + BigInt(Math.abs(existing.tileX * 73_856_093 ^ existing.tileY * 19_349_663))) % 10n),
     );
+    const skills = farmingSkillEffects(contentRegistry(ctx), playerSkillRanks(ctx, ctx.sender));
+    const previousHarvest = [...ctx.db.player_statistic.by_identity.filter(ctx.sender)]
+      .filter((row) => row.statisticKind === 'crops_harvested')
+      .reduce<bigint | undefined>((last, row) => last === undefined || row.updatedTick > last ? row.updatedTick : last, undefined);
+    const reward = farmingHarvestReward(baseHarvestQuantity, skills,
+      Number(existing.plantedAtTick & 0xffff_ffffn) ^ Math.imul(existing.tileX, 73_856_093)
+        ^ Math.imul(existing.tileY, 19_349_663), firstHarvestOfDay(clock.authorityTick, previousHarvest));
+    const harvestQuantity = reward.quantity;
     const harvestRecipient = cropHome?.owner ?? ctx.sender;
     if (harvestRecipient.isEqual(ctx.sender)) {
       if (!insertPlayerCarriedItem(ctx, definition.harvestItemKind, harvestQuantity)) {
@@ -23158,6 +23208,17 @@ export const harvestCropTile = spacetimedb.reducer(
         durability: 0,
         lit: true,
       }], true);
+    }
+    if (reward.seeds > 0 && definition.tags?.includes('crop.quest') !== true) {
+      if (harvestRecipient.isEqual(ctx.sender)) {
+        if (!insertPlayerCarriedItem(ctx, definition.seedItemKind, reward.seeds)) throw new SenderError('inventory_full');
+      } else {
+        insertEscrowStacksIntoInventory(ctx, harvestRecipient, [{
+          id: `homestead-seed:${existing.id}:${clock.authorityTick}`,
+          itemKind: definition.seedItemKind, quantity: reward.seeds, durability: 0, lit: true,
+        }], true);
+      }
+      recordPlayerStatistic(ctx, harvestRecipient, 'items_obtained', BigInt(reward.seeds), clock.authorityTick, definition.seedItemKind);
     }
     ctx.db.world_crop.id.delete(id);
     const refreshedSoil = ctx.db.world_soil.id.update({
