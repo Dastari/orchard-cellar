@@ -28,7 +28,10 @@ timeout (21.8 seconds for the first test). The slow full coverage run was stoppe
 after this baseline reproduction; no complete coverage pass is claimed. A complete
 run without coverage found a stale Studio bootstrap manifest; it was updated to
 896 definitions / `0ec81315`, and all three model tests passed on rerun. The
-remaining full-run result is recorded separately in the PR.
+complete run (`npx vitest run --fileParallelism=false`) finished with 823 files /
+4,633 tests passed and that sole stale-manifest failure. No other functional
+failures were reported. The corrected three-test file passed separately; the
+whole suite was not rerun after this manifest-only correction.
 
 ## Release considerations
 
