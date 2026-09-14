@@ -11,6 +11,8 @@ import { LiveContentRegistry } from './live-content.js';
 import { LiveObjectPresentationCache, emissiveSpriteLight } from './object-presentation.js';
 
 const overworldSource = readFileSync(new URL('../overworld-main.ts', import.meta.url), 'utf8');
+const placeablePainterSource = readFileSync(new URL('../gameplay-painter-placeables.ts', import.meta.url), 'utf8');
+const lightPainterSource = readFileSync(new URL('../gameplay-painter-decorations.ts', import.meta.url), 'utf8');
 
 const lamp = parseObjectDefinition({
   id: 'object:oil_lamp', kind: 'object', schemaVersion: 1, displayName: 'Oil Lamp',
@@ -90,8 +92,10 @@ describe('live object presentation cache', () => {
   it('feeds the verified cache into authored sprites and shared point lights', () => {
     expect(overworldSource).toContain('new LiveObjectPresentationCache(');
     expect(overworldSource).toContain('objectPresentations.resolve(snapshot.content, placeable)');
-    expect(overworldSource).toContain('drawAuthoredOverworldObject(');
-    expect(overworldSource).toContain('placeablePointLight(placeable, snapshot.clock?.authorityTick ?? 0n, presentation.light)');
+    expect(overworldSource).toContain('enqueueGameplayPlaceables(painterContext)');
+    expect(overworldSource).toContain('enqueueGameplayDecorations(painterContext)');
+    expect(placeablePainterSource).toContain('drawAuthoredOverworldObject(');
+    expect(lightPainterSource).toContain('placeablePointLight(placeable, snapshot.clock?.authorityTick ?? 0n, presentation.light)');
   });
 
   it('keeps compiled rendering for definitions that are absent or invalid', () => {

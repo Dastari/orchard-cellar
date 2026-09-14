@@ -1,3 +1,4 @@
+import { gameplayPainterAuditSource } from '../../../../lifecycle-authoring/src/gameplay-painter-audit.test-support.js';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -7,7 +8,7 @@ const renderer = readFileSync(new URL('./editor-renderer.ts', import.meta.url), 
 const mapRuntime = `${canvas}\n${controller}\n${renderer}`;
 const shellConnection = readFileSync(new URL('../../shell/studio-connection.ts', import.meta.url), 'utf8');
 const gameConnection = readFileSync(new URL('../../../../client/src/net/overworld-connection.ts', import.meta.url), 'utf8');
-const game = readFileSync(new URL('../../../../client/src/overworld-main.ts', import.meta.url), 'utf8');
+const game = gameplayPainterAuditSource();
 
 describe('Map Editor live player-owned world state', () => {
   it('physically retires the unreachable second connection implementation', () => {

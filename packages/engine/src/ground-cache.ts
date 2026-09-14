@@ -1,3 +1,4 @@
+import { worldSamplingProbe, setWorldSamplingProducer } from '@orchard/ui';
 import { groundLightSource } from './ground-light-source.js';
 import { worldAssetFrameSource, worldAssetPresentationKey, inheritWorldAssetPresentation } from './world-asset-presentation.js';
 import {
@@ -447,84 +448,87 @@ export class GroundChunkCache {
     viewportWidth: number,
     viewportHeight: number,
   ): number {
-    this.preparePresentation(context);
-    this.chunks.setCapacity(
-      groundCacheCapacityForViewport(viewportWidth, viewportHeight, scale),
-    );
-    this.prepareTerrain(terrain);
-    const minChunkX = Math.max(0, Math.floor(cameraX / GROUND_CHUNK_PIXELS));
-    const minChunkY = Math.max(0, Math.floor(cameraY / GROUND_CHUNK_PIXELS));
-    const maxChunkX = Math.min(
-      Math.ceil(terrain.width / SURVIVAL_CHUNK_TILES) - 1,
-      Math.floor((cameraX + viewportWidth / scale) / GROUND_CHUNK_PIXELS),
-    );
-    const maxChunkY = Math.min(
-      Math.ceil(terrain.height / SURVIVAL_CHUNK_TILES) - 1,
-      Math.floor((cameraY + viewportHeight / scale) / GROUND_CHUNK_PIXELS),
-    );
-    let drawCalls = 0;
-    if (terrainProjectionStyle(terrain) === 'interior' && terrain.rogueTheme === undefined) {
-      const selected = selectAtlasFrame(art.caveFloorMiddle.metadata, "base", 0);
-      const frame = selected === null ? null : worldAssetFrameSource(context, art.caveFloorMiddle, selected);
-      if (frame !== null) {
-        const firstTileX = Math.floor(cameraX / TILE_SIZE_PIXELS);
-        const firstTileY = Math.floor(cameraY / TILE_SIZE_PIXELS);
-        const lastTileX = Math.ceil(
-          (cameraX + viewportWidth / scale) / TILE_SIZE_PIXELS,
-        );
-        const lastTileY = Math.ceil(
-          (cameraY + viewportHeight / scale) / TILE_SIZE_PIXELS,
-        );
-        for (let tileY = firstTileY; tileY <= lastTileY; tileY += 1) {
-          for (let tileX = firstTileX; tileX <= lastTileX; tileX += 1) {
-            const destinationX = Math.round(
-              (tileX * TILE_SIZE_PIXELS - cameraX) * scale,
-            );
-            const destinationY = Math.round(
-              (tileY * TILE_SIZE_PIXELS - cameraY) * scale,
-            );
-            context.drawImage(
-              frame.image,
-              frame.x,
-              frame.y,
-              frame.width,
-              frame.height,
-              destinationX,
-              destinationY,
-              TILE_SIZE_PIXELS * scale,
-              TILE_SIZE_PIXELS * scale,
-            );
-            context.save();
-            context.globalCompositeOperation = "source-atop";
-            context.fillStyle = "#391f21";
-            context.fillRect(
-              destinationX,
-              destinationY,
-              TILE_SIZE_PIXELS * scale,
-              TILE_SIZE_PIXELS * scale,
-            );
-            context.restore();
+    const previousProducer = worldSamplingProbe.enabled ? setWorldSamplingProducer('ground-cache') : null;
+    try {
+      this.preparePresentation(context);
+      this.chunks.setCapacity(
+        groundCacheCapacityForViewport(viewportWidth, viewportHeight, scale),
+      );
+      this.prepareTerrain(terrain);
+      const minChunkX = Math.max(0, Math.floor(cameraX / GROUND_CHUNK_PIXELS));
+      const minChunkY = Math.max(0, Math.floor(cameraY / GROUND_CHUNK_PIXELS));
+      const maxChunkX = Math.min(
+        Math.ceil(terrain.width / SURVIVAL_CHUNK_TILES) - 1,
+        Math.floor((cameraX + viewportWidth / scale) / GROUND_CHUNK_PIXELS),
+      );
+      const maxChunkY = Math.min(
+        Math.ceil(terrain.height / SURVIVAL_CHUNK_TILES) - 1,
+        Math.floor((cameraY + viewportHeight / scale) / GROUND_CHUNK_PIXELS),
+      );
+      let drawCalls = 0;
+      if (terrainProjectionStyle(terrain) === 'interior' && terrain.rogueTheme === undefined) {
+        const selected = selectAtlasFrame(art.caveFloorMiddle.metadata, "base", 0);
+        const frame = selected === null ? null : worldAssetFrameSource(context, art.caveFloorMiddle, selected);
+        if (frame !== null) {
+          const firstTileX = Math.floor(cameraX / TILE_SIZE_PIXELS);
+          const firstTileY = Math.floor(cameraY / TILE_SIZE_PIXELS);
+          const lastTileX = Math.ceil(
+            (cameraX + viewportWidth / scale) / TILE_SIZE_PIXELS,
+          );
+          const lastTileY = Math.ceil(
+            (cameraY + viewportHeight / scale) / TILE_SIZE_PIXELS,
+          );
+          for (let tileY = firstTileY; tileY <= lastTileY; tileY += 1) {
+            for (let tileX = firstTileX; tileX <= lastTileX; tileX += 1) {
+              const destinationX = Math.round(
+                (tileX * TILE_SIZE_PIXELS - cameraX) * scale,
+              );
+              const destinationY = Math.round(
+                (tileY * TILE_SIZE_PIXELS - cameraY) * scale,
+              );
+              context.drawImage(
+                frame.image,
+                frame.x,
+                frame.y,
+                frame.width,
+                frame.height,
+                destinationX,
+                destinationY,
+                TILE_SIZE_PIXELS * scale,
+                TILE_SIZE_PIXELS * scale,
+              );
+              context.save();
+              context.globalCompositeOperation = "source-atop";
+              context.fillStyle = "#391f21";
+              context.fillRect(
+                destinationX,
+                destinationY,
+                TILE_SIZE_PIXELS * scale,
+                TILE_SIZE_PIXELS * scale,
+              );
+              context.restore();
+            }
           }
+          drawCalls += 1;
         }
-        drawCalls += 1;
       }
-    }
-    for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY += 1) {
-      for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
-        const canvas = this.chunks.getOrCreate(chunkX, chunkY, () =>
-          this.renderChunk(art, terrain, chunkX, chunkY),
-        );
-        context.drawImage(
-          canvas,
-          Math.round((chunkX * GROUND_CHUNK_PIXELS - cameraX) * scale),
-          Math.round((chunkY * GROUND_CHUNK_PIXELS - cameraY) * scale),
-          GROUND_CHUNK_PIXELS * scale,
-          GROUND_CHUNK_PIXELS * scale,
-        );
-        drawCalls += 1;
+      for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY += 1) {
+        for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
+          const canvas = this.chunks.getOrCreate(chunkX, chunkY, () =>
+            this.renderChunk(art, terrain, chunkX, chunkY),
+          );
+          context.drawImage(
+            canvas,
+            Math.round((chunkX * GROUND_CHUNK_PIXELS - cameraX) * scale),
+            Math.round((chunkY * GROUND_CHUNK_PIXELS - cameraY) * scale),
+            GROUND_CHUNK_PIXELS * scale,
+            GROUND_CHUNK_PIXELS * scale,
+          );
+          drawCalls += 1;
+        }
       }
-    }
-    return drawCalls;
+      return drawCalls;
+    } finally { if (previousProducer !== null) setWorldSamplingProducer(previousProducer); }
   }
 
   /** Reuses an already-baked ground chunk as an elevation-aware cap run.

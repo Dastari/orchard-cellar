@@ -1,5 +1,7 @@
 import { emissiveFrameSpans, type AssetPresentation, type AssetFrameSource, type AtlasFrame, type LoadedAsset } from '@orchard/ui';
-import { receiverFrameSource } from './receiver-frame-source.js';
+import type { WorldFrameEffect } from './world-frame-effect.js';
+import { receiverFrameSource, setUnlitEffectPresentation } from './receiver-frame-source.js';
+import { webglWorldBackend } from './webgl/hooks.js';
 
 /** A committed atlas cohort supplies whole pages; it never prepares frames. */
 export interface WorldAssetPages {
@@ -9,6 +11,8 @@ export interface WorldAssetPages {
 const presentations = new WeakMap<CanvasRenderingContext2D, WorldAssetPages>();
 const originals = new WeakMap<LoadedAsset, WeakMap<AtlasFrame, AssetFrameSource>>();
 const pageIds = new WeakMap<WorldAssetPages, number>();
+const gpuPresentations = new WeakMap<CanvasRenderingContext2D, { pages: WorldAssetPages | undefined; revision: number }>();
+let gpuRevision = 0;
 const descriptors = new WeakMap<WorldAssetPages, WeakMap<LoadedAsset, WeakMap<AtlasFrame, AssetFrameSource>>>();
 let nextPageId = 0;
 
@@ -18,6 +22,17 @@ export function setWorldAssetPresentation(context: CanvasRenderingContext2D, pag
   intent: AssetPresentation = 'original'): void {
   if (pages === undefined || intent === 'original') presentations.delete(context);
   else presentations.set(context, pages);
+  const selected = presentations.get(context);
+  setUnlitEffectPresentation(selected, selected?.revision ?? 0);
+  const gpu = webglWorldBackend(context);
+  if (gpu !== undefined) {
+    const committed = presentations.get(context), revision = committed?.revision ?? 0;
+    const previous = gpuPresentations.get(context);
+    if (previous === undefined || previous.pages !== committed || previous.revision !== revision) {
+      gpu.releasePresentation(++gpuRevision);
+      gpuPresentations.set(context, { pages: committed, revision });
+    }
+  }
 }
 export function worldAssetPresentationKey(context: CanvasRenderingContext2D): string {
   const pages = presentations.get(context);
@@ -51,7 +66,7 @@ function descriptor(asset: LoadedAsset, frame: AtlasFrame, pages?: WorldAssetPag
   return source;
 }
 export function worldAssetFrameSource(context: CanvasRenderingContext2D, asset: LoadedAsset, frame: AtlasFrame,
-  transform?: (source: AssetFrameSource) => AssetFrameSource): AssetFrameSource | null {
+  transform?: (source: AssetFrameSource) => AssetFrameSource, effect?: WorldFrameEffect): AssetFrameSource | null {
   const source = descriptor(asset, frame, presentations.get(context));
-  return receiverFrameSource(context, transform?.(source) ?? source);
+  return receiverFrameSource(context, transform?.(source) ?? source, effect);
 }

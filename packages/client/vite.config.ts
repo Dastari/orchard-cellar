@@ -72,6 +72,7 @@ export default defineConfig(({ command }) => {
               name: 'spacetime-runtime',
               test: /node_modules\/(?:spacetimedb|safe-stable-stringify|base64-js)\//,
             },
+            { name: 'webgl-world', includeDependenciesRecursively: false, test: /packages\/engine\/src\/webgl\/(?!hooks\.ts$)/ },
             { name: 'world-bindings', test: /packages\/world-bindings\/src\// },
             { name: 'simulation', test: /packages\/sim\/src\// },
             { name: 'client-network', test: /packages\/client\/src\/net\// },
@@ -81,7 +82,7 @@ export default defineConfig(({ command }) => {
             },
             {
               name: 'canvas-rendering',
-              test: /packages\/(?:engine\/src\/(?!(?:display|editor-terrain|loading-screen|terrain-inspector)\.ts$)|ui\/src\/(?:assets|pixel-ui|sprite)\.ts$)/,
+              test: /packages\/(?:engine\/src\/(?!(?:(?:display|editor-terrain|loading-screen|terrain-inspector)\.ts$|webgl\/(?!hooks\.ts$)))|ui\/src\/(?:assets|pixel-ui|sprite)\.ts$)/,
             },
           ],
         },

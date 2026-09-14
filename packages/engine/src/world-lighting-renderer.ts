@@ -1,3 +1,4 @@
+import type { RawReceiverField } from './receiver-raw-field.js';
 import { renderOperationCounters, type AssetFrameSource } from '@orchard/ui';
 import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import type { CelestialLighting } from './celestial-lighting.js';
@@ -7,8 +8,11 @@ import { LightCoordinateMapper } from './light-coordinate-mapper.js';
 import type { LightingReceiverClass } from './lighting-types.js';
 import type { TileLightmap } from './lighting.js';
 import type { PointLight } from './lighting.js';
+import { GroundRunCache } from './ground-run-cache.js';
+import type { GroundRunLightPlane as Plane } from './ground-run-light-stamp.js';
 import { ReceiverFrameCache, withWorldReceiverLight } from './receiver-frame-source.js';
-import { withGroundSpriteSource } from './ground-light-source.js';
+import { groundSourceContext, withGroundSpriteSource } from './ground-light-source.js';
+import { webglFrameSource, webglWorldBackend } from './webgl/hooks.js';
 import { CelestialReceiverScene } from './receiver-lighting.js';
 import { lightingOwner, terrainLightingOwner } from './lighting-owner.js';
 export { lightingOwner } from './lighting-owner.js';
@@ -16,7 +20,6 @@ import { terrainBaseDatum, type TerrainArray } from './terrain.js';
 
 interface Upload { readonly canvas: HTMLCanvasElement; image: ImageData | null; pixels: WeakRef<Uint8ClampedArray<ArrayBuffer>> | null; revision: number }
 
-interface Plane { readonly canvas: HTMLCanvasElement; readonly left: number; readonly top: number; readonly step: number }
 
 /** Receiver lighting in the actual world painter. Ground planes are resolved at
  * four game pixels and smoothly upsampled; artwork stays nearest-neighbour.
@@ -27,7 +30,7 @@ export class WorldLightingRenderer {
   readonly frames = new ReceiverFrameCache();
   private planes = new Map<number, Plane>();
   private uploads = new Map<number, Upload>();
-  private runCanvas: HTMLCanvasElement | null = null;
+  readonly groundRuns = new GroundRunCache();
   private flameGlow: HTMLCanvasElement | null = null;
   private cameraX = 0;
   private cameraY = 0;
@@ -35,7 +38,9 @@ export class WorldLightingRenderer {
   private height = 0;
   private lightmap: TileLightmap | null = null;
   private localSourceRevision = -1;
-  private localRevision = 0;
+  private rawLocalRevision = 0;
+  private localDamage: { source: TileLightmap; projection: number } | null = null;
+  private readonly localSample = { r: 0, g: 0, b: 0 };
   receiverMs = 0;
   mergeMs = 0;
   uploadMs = 0;
@@ -48,15 +53,16 @@ export class WorldLightingRenderer {
     this.receiverMs = this.mergeMs = this.uploadMs = 0;
     this.scene.prepareSplit(sky, fixed, moving, staticIdentity);
     if (this.lightmap !== lightmap || this.localSourceRevision !== lightmap.receiverRevision) {
-      this.localRevision++; this.localSourceRevision = lightmap.receiverRevision;
+      this.rawLocalRevision++; this.localSourceRevision = lightmap.receiverRevision;
     }
+    if (this.lightmap !== lightmap) this.localDamage = { source: lightmap, projection: 0 };
     this.lightmap = lightmap; this.cameraX = cameraX; this.cameraY = cameraY; this.width = width; this.height = height;
     this.planes.clear();
   }
   drawReceiver(context: CanvasRenderingContext2D, x: number, y: number, level: number,
     receiver: LightingReceiverClass, draw: () => void): void {
     if (receiver === 'flat') {
-      withGroundSpriteSource(context, (source, left, top) => this.groundSource(source, left, top, level), draw);
+      withGroundSpriteSource(context, (source, left, top) => this.groundSource(source, left, top, level, false), draw);
       return;
     }
     const started = performance.now();
@@ -76,8 +82,11 @@ export class WorldLightingRenderer {
     const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
     const width = Math.ceil(this.width / step) + 3, height = Math.ceil(this.height / step) + 3;
     const mergeStarted = performance.now();
-    const raster = this.scene.rasterizeCached(this.localRevision, left, top, width, height, this.mapper.heightAtLevel(level), step,
-      (x, y) => this.lightmap!.sampleReceiverLight(x, this.mapper.projectedY(y, level), level));
+    // The level projection is constant for this synchronous plane raster.
+    const projection = this.mapper.projectionAtLevel(level);
+    this.localDamage!.projection = projection;
+    const raster = this.scene.rasterizeCached(this.lightmap!.receiverRevision, left, top, width, height, this.mapper.heightAtLevel(level), step,
+      (x, y) => this.lightmap!.sampleReceiverLight(x, y - projection, level, 'flat', this.localSample), this.localDamage!);
     this.mergeMs += performance.now() - mergeStarted;
     let upload = this.uploads.get(level);
     if (upload === undefined) {
@@ -104,9 +113,27 @@ export class WorldLightingRenderer {
       upload.revision = raster.revision;
       this.uploadMs += performance.now() - uploadStarted;
     }
-    const plane = { canvas, left, top, step }; this.planes.set(level, plane); return plane;
+    const plane = { canvas, left, top, step, pixels: raster.pixels, revision: raster.revision }; this.planes.set(level, plane); return plane;
+  }
+  /** Raw coverage and local RGB are consumed synchronously by the GPU path. */
+  private rawPlane(level: number): RawReceiverField {
+    const step = 4;
+    const left = Math.floor(this.cameraX / step) * step - step;
+    const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
+    const projection = this.mapper.projectionAtLevel(level);
+    return this.scene.rawFieldCached(this.rawLocalRevision, left, top,
+      Math.ceil(this.width / step) + 3, Math.ceil(this.height / step) + 3, this.mapper.heightAtLevel(level), step,
+      (worldX, worldY) => this.lightmap!.sampleReceiverLight(worldX, worldY - projection, level, 'flat', this.localSample));
   }
   compositeGround(context: CanvasRenderingContext2D, scale: number, level = terrainBaseDatum(this.terrain)): void {
+    const backend = webglWorldBackend(context);
+    if (backend !== undefined) {
+      const field = this.rawPlane(level);
+      backend.multiplyRawLightPlane(field, { x: (field.left - this.cameraX) * scale,
+        y: (this.mapper.projectedY(field.top, level) - this.cameraY) * scale,
+        width: field.width * field.step * scale, height: field.height * field.step * scale });
+      return;
+    }
     const plane = this.plane(level);
     context.save();
     try {
@@ -144,28 +171,21 @@ export class WorldLightingRenderer {
   }
   /** Tint a projected chunk run before its alpha/cutaway composition. Multiplying
    * the destination afterwards would also darken the actor behind a cutaway. */
-  groundSource(source: AssetFrameSource, x: number, y: number, level: number): AssetFrameSource {
-    const plane = this.plane(level);
-    this.runCanvas ??= document.createElement('canvas');
-    const canvas = this.runCanvas;
-    if (canvas.width !== source.width || canvas.height !== source.height) { canvas.width = source.width; canvas.height = source.height; }
-    const context = canvas.getContext('2d');
-    if (context === null) throw new Error('world_ground_surface_unavailable');
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.globalCompositeOperation = 'source-over'; context.imageSmoothingEnabled = false;
-    context.drawImage(source.image, source.x, source.y, source.width, source.height, 0, 0, source.width, source.height);
-    context.globalCompositeOperation = 'multiply'; context.imageSmoothingEnabled = true;
-    context.drawImage(plane.canvas, plane.left - x, plane.top - y, plane.canvas.width * plane.step, plane.canvas.height * plane.step);
-    context.globalCompositeOperation = 'destination-in'; context.imageSmoothingEnabled = false;
-    context.drawImage(source.image, source.x, source.y, source.width, source.height, 0, 0, source.width, source.height);
-    context.globalCompositeOperation = 'source-over';
-    renderOperationCounters.groundSourceOperations += 3;
-    return { image: canvas, x: 0, y: 0, width: source.width, height: source.height };
+  groundSource(source: AssetFrameSource, x: number, y: number, level: number, capRun = true): AssetFrameSource {
+    if (capRun) renderOperationCounters.capRunRequests++;
+    else renderOperationCounters.flatSourceRequests++;
+    const target = groundSourceContext();
+    if (target !== undefined && webglWorldBackend(target) !== undefined) {
+      const field = this.rawPlane(level);
+      return webglFrameSource(target, source, { ground: { field, worldX: x, worldY: y } })!;
+    }
+    return this.groundRuns.source(source, x, y, level, this.plane(level), capRun);
   }
+
   get bytes(): number {
     return this.frames.bytes + this.scene.retainedMaskBytes + this.scene.retainedCoverageBytes + this.scene.retainedRasterBytes
       + [...this.uploads.values()].reduce((sum, upload) => sum + upload.canvas.width * upload.canvas.height * 4 + (upload.image?.data.byteLength ?? 0), 0)
-      + (this.runCanvas === null ? 0 : this.runCanvas.width * this.runCanvas.height * 4)
+      + this.groundRuns.bytes
       + (this.flameGlow === null ? 0 : this.flameGlow.width * this.flameGlow.height * 4);
   }
   reset(): void {
@@ -173,8 +193,7 @@ export class WorldLightingRenderer {
     this.frames.reset(); this.scene.reset(); this.planes.clear();
     for (const { canvas } of this.uploads.values()) canvas.width = canvas.height = 0;
     this.uploads.clear();
-    if (this.runCanvas !== null) this.runCanvas.width = this.runCanvas.height = 0;
-    this.runCanvas = null; this.lightmap = null;
+    this.groundRuns.reset(); this.lightmap = null; this.localDamage = null;
     if (this.flameGlow !== null) this.flameGlow.width = this.flameGlow.height = 0;
     this.flameGlow = null;
   }

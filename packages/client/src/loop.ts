@@ -1,4 +1,5 @@
 import { SIM_TICKS_PER_SECOND } from '@orchard/sim';
+import { PresentationCadence } from './presentation-cadence.js';
 
 export interface LoopCallbacks {
   update(): void;
@@ -6,6 +7,7 @@ export interface LoopCallbacks {
 }
 
 export interface FixedStepLoopObserver {
+  resetPresentation?(): void;
   recordRafTimestamp(milliseconds: number): void;
   recordFixedUpdate(milliseconds: number): void;
   recordCatchUp(
@@ -55,15 +57,20 @@ export class FixedStepLoop {
   private previousTime = 0;
   private frameRequest: number | null = null;
   private frameUpdateMilliseconds = 0;
+  private readonly presentation = new PresentationCadence();
 
   constructor(
     private readonly callbacks: LoopCallbacks,
     private readonly observer?: FixedStepLoopObserver,
   ) {}
 
+  setPresentationRate(hz: 0 | 30): void { this.presentation.hz = hz; }
+
   start(): void {
     if (this.frameRequest !== null) return;
     this.previousTime = performance.now() / 1000;
+    this.presentation.reset(this.previousTime * 1000);
+    this.observer?.resetPresentation?.();
     this.callbacks.render(0);
     this.frameRequest = requestAnimationFrame(this.frame);
   }
@@ -72,6 +79,7 @@ export class FixedStepLoop {
     if (this.frameRequest === null) return;
     cancelAnimationFrame(this.frameRequest);
     this.frameRequest = null;
+    this.observer?.resetPresentation?.();
   }
 
   private readonly frame = (milliseconds: number): void => {
@@ -86,7 +94,7 @@ export class FixedStepLoop {
       this.accumulator.lastDiscardedSeconds * 1000,
       this.frameUpdateMilliseconds,
     );
-    this.callbacks.render(alpha);
+    if (this.presentation.due(milliseconds)) this.callbacks.render(alpha);
     this.frameRequest = requestAnimationFrame(this.frame);
   };
 

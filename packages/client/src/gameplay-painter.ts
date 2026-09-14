@@ -1,4 +1,5 @@
-import { beginPainterItem, endPainterItem } from '@orchard/engine/painter-context';
+import { protocolPainterWitness } from './render-protocol-painter-witness.js';
+import { GameplayPainterCommand } from './gameplay-painter-command.js';
 import { WorldItemIdentities, WorldItemKind, prepareWorldDepthItem } from '@orchard/engine/painter-depth';
 import { compareWorldDepthItems, type WorldDepthItem } from '@orchard/engine/renderer';
 import type { ActorShadowBody } from '@orchard/engine/overworld-art';
@@ -8,7 +9,7 @@ import { lightingOwner } from '@orchard/engine/world-lighting-renderer';
 import { terrainProjectedElevationAtFoot, terrainProjectedSortOffset,
   terrainElevationAtWorldFoot, terrainVisualProjectionRowsPerLevel, type TerrainArray } from '@orchard/engine/terrain';
 
-interface GameplayPainterInput {
+export interface GameplayPainterInput {
   readonly terrain: TerrainArray;
   readonly context: CanvasRenderingContext2D;
   readonly scale: number;
@@ -21,19 +22,24 @@ interface PainterStorage {
   readonly moving: DirectionalCaster[];
   readonly identities: WorldItemIdentities;
   terrain: TerrainArray;
+  commands: WeakMap<WorldDepthItem, GameplayPainterCommand>;
+  generation: number;
 }
 const storage = new WeakMap<CanvasRenderingContext2D, PainterStorage>();
 const queueIdentities = new WeakMap<WorldDepthItem[], WorldItemIdentities>();
 /** Reuse the frame queue while retaining the established painter order. */
 export function createGameplayPainter(input: GameplayPainterInput) {
-  const { terrain, context, scale, seasonalDynamic, projectionAt, drawWorldReceiver } = input;
+  const { terrain, context, scale, seasonalDynamic, projectionAt } = input;
+  protocolPainterWitness?.begin(terrain, context, scale);
   let retained = storage.get(context);
   if (retained === undefined) {
-    retained = { items: [], moving: [], identities: new WorldItemIdentities(), terrain };
+    retained = { items: [], moving: [], identities: new WorldItemIdentities(), terrain, commands: new WeakMap(), generation: 0 };
     storage.set(context, retained); queueIdentities.set(retained.items, retained.identities);
   }
-  if (retained.terrain !== terrain) { retained.identities.clear(); retained.terrain = terrain; }
+  if (retained.terrain !== terrain) { retained.identities.clear(); retained.terrain = terrain; retained.commands = new WeakMap(); }
   const { items: worldDepthItems, moving: movingCelestialCasters, identities } = retained;
+  const commandFrame = ++retained.generation;
+  const commands = retained.commands;
   identities.beginFrame();
   worldDepthItems.length = 0; movingCelestialCasters.length = 0;
   const enqueueWorldDepth = (
@@ -58,23 +64,18 @@ export function createGameplayPainter(input: GameplayPainterInput) {
         heightSubunits: Math.max(1, Math.round((shadowBody?.heightPixels ?? (boat ? 12 : 22)) / (terrainVisualProjectionRowsPerLevel(terrain) * 4))),
         footprint: { left: -(shadowBody?.halfWidth ?? (boat ? 12 : 4)), right: shadowBody?.halfWidth ?? (boat ? 12 : 4), top: -2, bottom: 1 }, contact: shadowBody?.contact ?? true });
     }
-    const queued: WorldDepthItem = {
-      ...item,
-      sortIdentity: identity,
-      footY: item.footY - projection,
-      depthOffset: terrainProjectedSortOffset(elevation),
-      elevationLayer: Math.ceil(Math.max(0, elevation - 0.001)),
-      depthPhase: 'entity',
-      draw: () => {
-        const nested = beginPainterItem(context);
-        try {
-          context.translate(0, -projection * scale);
-          drawWorldReceiver(worldX, terrainSampleY, item.draw, unifiedReceiver);
-        } finally { endPainterItem(context, nested); }
-      },
-    };
+    let queued = commands.get(item);
+    if (queued === undefined) { queued = new GameplayPainterCommand(item, input); commands.set(item, queued); }
+    else if (queued.seen === commandFrame) queued = new GameplayPainterCommand(item, input);
+    queued.input = input; queued.seen = commandFrame;
+    queued.sortIdentity = identity; queued.footY = item.footY - projection;
+    queued.depthOffset = terrainProjectedSortOffset(elevation);
+    queued.elevationLayer = Math.ceil(Math.max(0, elevation - 0.001));
+    queued.projection = projection; queued.worldX = worldX;
+    queued.terrainSampleY = terrainSampleY; queued.receiver = unifiedReceiver;
     prepareWorldDepthItem(queued, identities);
     worldDepthItems.push(queued);
+    protocolPainterWitness?.enqueue(worldX, queued.footY, item.debugTie ?? item.tie);
   };
   return { worldDepthItems, movingCelestialCasters, enqueueWorldDepth };
 }

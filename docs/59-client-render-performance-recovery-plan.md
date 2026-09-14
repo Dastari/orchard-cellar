@@ -166,7 +166,7 @@ Dependencies: `P0 -> P1`; `P0 -> P2 -> P3`; `P0 -> P4 -> P5`; `P0 -> P6`;
 P6 and P8 are independent and may proceed in parallel after their inputs.
 
 Each milestone records changed files, commands, artifact paths, unresolved
-failures and measured counters in §8.
+failures and measured counters in §9.
 
 ### P0 — Attribution and device baseline
 
@@ -324,9 +324,8 @@ service-worker retention or content-addressing work is added.
 2. `CelestialReceiverScene` keeps the static coverage field per (level, sky
    geometry key, 4-px window). Per frame, copy it into a working field and blit
    only moving casters. Contact coverage follows the same split.
-3. Replace `sample()`'s caster loop for ground-level receivers with a bilinear
-   read of the merged field at the sprite foot. Keep the loop only for heights
-   with no rasterised plane, and rasterise those planes lazily.
+3. ~~Merged-field lookup~~ Amended by §8 A-3: spatial index over caster
+   bounds feeding the unchanged sample loop; result bit-identical.
 4. Use `rasterizeCached` (or reuse one `ImageData` per level) so the RGB merge
    and `putImageData` run only when the coverage, local-light revision or sky
    signature changed.
@@ -366,19 +365,16 @@ existing stage values, so the remaining accurate caster loop is attributed.
 `ground-cache.ts` (`drawProjectedRun`), `raised-terrain-depth.ts`,
 `overworld-art.ts` dimmed/hit-flash draws, `overworld-ui.ts` filter uses.
 
-1. Quantise receiver RGB to 5 bits per channel before keying (32 steps; below
-   the visible threshold on the multiplied art). Measure distinct colours per
-   frame; expect single digits in open light.
+1. ~~Five-bit quantisation~~ Amended by §8 A-4: exact RGB keys on tint pages;
+   measure the sky-step burst per A-1.
 2. Replace per-entry canvases with shelf-packed tint pages (512×2048). Key is
    (page identity, frame rect, quantised RGB). Evict by page generation, not
    per entry. Consecutive sprites with the same tint share one source.
 3. Add `dim` and `hitFlash` as tint-pool variants (pre-multiplied brightness
    and saturation) and remove every `context.filter` use in world drawing.
-   HUD filter uses move to pre-rendered skin frames or are removed.
-4. Cap runs: draw all runs for a level untinted into a per-level cap layer
-   sized to the viewport, multiply the level's plane once, then composite the
-   layer with its cutaway mask. Remove `groundSource` and the scratch canvas.
-   Flat sprites (`withGroundSpriteSource`) draw into the same layer.
+   Gate amended by §8 A-5 (two steps). HUD skin filters are out of scope.
+4. ~~Per-level cap layer~~ Amended by §8 A-6: keep per-run commands in
+   painter order; cache tinted runs by (chunk, run, level, plane revision).
 
 **Tests:** tinted pixel equals `round(src × rgb / 255)` for the quantised rgb;
 no `filter` assignment in engine world code (lint rule or grep test); one
@@ -402,6 +398,8 @@ within one step. See `P5/filter-feasibility/filter-comparison.json` and the
 DECISIONS entry; no runtime replacement or complete filter-removal claim is made.
 
 ### P6 — Painter and context hot path
+
+See §8 A-7 for the added **P6b — retained painter commands** milestone.
 
 **Files:** `renderer.ts` (`compareWorldDepthItems`, constructor),
 `overworld-main.ts` (`enqueueWorldDepth`, `enqueueRaisedTerrainDepth`
@@ -439,8 +437,9 @@ lexical tie order and exact fractional foot-depth order remain stable.
 **Files:** `loop.ts`, `overworld-main.ts` uiDraw stage (≈6179–6690),
 `overworld-ui.ts`, `renderer.ts` `beginUi`/`endUi`, Video settings.
 
-1. Optional 30 Hz presentation cap (render every other rAF while simulation
-   keeps 60 Hz fixed steps and interpolation). Default off on desktop, on when
+1. Optional 30 Hz presentation cap (absolute deadlines select presentations
+   on 60/120/144 Hz displays while simulation keeps 60 Hz fixed steps and
+   interpolation on every rAF). Default off on desktop, on when
    the P0 iPad baseline shows sustained > 16 ms.
 2. HUD layer: draw the HUD into its own canvas only when its model changes
    (`uiModel`/`uiLayout` already separate model from draw); composite the
@@ -449,6 +448,21 @@ lexical tie order and exact fractional foot-depth order remain stable.
 **Tests:** 30 Hz cap halves `uiDraw`/world submissions without changing fixed
 update count; HUD golden identical between cached and direct paths.
 **Exit:** iPad sustained p95 and battery/thermal trace recorded per doc 47.
+
+P7 implementation scope extension (2026-09-06): the mechanically extracted
+`gameplay-loop.ts` applies the persisted policy and cross-tab changes; the existing
+`gameplay-renderer.ts` and protocol capture include the applied preference.
+`metrics.ts` retains skipped-rAF work until submission, with a focused attribution
+test. `render-operation-counters.ts` and the protocol describe the exact interval:
+first rAF after the previous submission through the current submission; earlier
+async work remains excluded as in P0. Compact Video windows omit informational
+placeholder rows so the three actionable controls stay clear of the footer.
+The structural UI seam digest is recaptured for that reviewed control addition.
+The physical iPad baseline is pending, so the default remains off on all devices.
+The HUD cache retains three ordered static sections (status/watch, currency,
+hotbar) while live callbacks stay direct. Native display coordinates require
+three display-sized backings; renderer disposal releases their weakly registered
+ownership. HUD diagnostics are recorded but excluded from configuration matching.
 
 ### P8 — Experimental WebGL2 world pass (decision C, Video toggle)
 
@@ -492,9 +506,9 @@ no runtime mask is needed.
    active backend and fallback reason). Switching backends mid-session is
    allowed at frame boundaries and releases the inactive backend's GPU
    resources.
-5. **Parity fixtures.** Each lighting review fixture renders on both backends;
-   difference must be within one 8-bit step per channel on lit artwork and
-   zero on the HUD witness. Add a context-loss test using
+5. **Parity fixtures.** Each lighting review fixture renders on both backends.
+   Gates amended by §8 A-8: experimental-enable gate two steps / 0.5 % /
+   HUD exact; default-on gate one step. Add a context-loss test using
    `WEBGL_lose_context`.
 6. **Default-on decision.** Separate from shipping the toggle. Requires doc 47
    §15 adoption numbers on the P0 fixture on both devices, the battery/thermal
@@ -506,6 +520,23 @@ zero on backend switch and dispose; no `readPixels`/`getImageData` in the
 backend (grep test).
 **Exit:** toggle shipped off by default; both backends' stage p95s, GPU
 timings where available, and memory recorded on both devices in the ledger.
+
+P8 accuracy OPEN (2026-09-06): three translucent shader representations fail
+the one-step Canvas gate, with sprite maxima2 and4,144 /3,064 /840 channels above
+one. The corrected ground residual is maximum2 /160 channels above one. The
+first attempt's separate coordinate bug and all original results are preserved
+under P8/webgl. Production must reject unverified receiver/ground/multiply and
+source-downsampling operations, with a visible session Canvas fallback; the
+internal fixture switch is never a Video option. Actual unlit source-over and
+the existing seasonal fixture qualify within one step, but this does not close
+the full P8 lighting/parity gate. No fourth approximation is attempted.
+
+P8 presentation choice (2026-09-06): retain Canvas-copy. On the matched synthetic
+SwiftShader fixture it is slower (composite p95 7.1ms vs layer0.5ms) but has exact
+presentation pixels; the CSS pixelated layer differs by up to82 steps at the
+required fractional upscale. Hardware gameplay and iPad results remain pending.
+
+P8 integration scope extension (2026-09-06): the extracted gameplay renderer, lighting-fallback and protocol modules own client policy without further main-file logic edits. The existing receiver/ground source adapters, receiver scene and world-lighting renderer carry immutable source/RGB/raw-field metadata to the GPU hook; atlas presentation releases GPU cohorts. These bounded producer changes are needed to bypass CPU tint/scratch surfaces. Metrics and Video row helpers carry backend diagnostics. No schema, dependency or deployment changes.
 
 P8 seam scope extension (2026-09-06): `world-pass-present.ts` gains explicit
 backing disposal so the extracted Canvas backend owns its complete resource
@@ -553,7 +584,121 @@ default and self-reverts to Canvas on any failure, so shipping it carries no
 default-path risk. Checked rollback is the previous `client-dist` as in every
 0.5.x release.
 
-## 8. Bookkeeping and execution ledger
+## 8. Amendments after the first implementation pass (2026-09-06)
+
+Owner-approved on 2026-09-06 after reviewing the P0–P8 ledger, the OPEN
+decisions and `output/perf-59-20260906/release/authenticated-resume.md`. These
+amend the milestone text above; where they conflict, this section wins. The
+settled decisions A1, B2 and C are unchanged. Targets in §1 are unchanged.
+
+State at amendment: 0.6.0 candidate `5205f9d6`, desktop 1× p95 Basic 9.5 ms
+(from 13.4), Dynamic 10.5 ms (from 21.5), zero long tasks, tint/filtered/
+coverage/ground-source/ImageData counters all zero in steady state, distinct
+draw sources 24–26. `painterBuild` is 5.1 ms p95 in every mode and is now the
+dominant cost. WebGL2 backend integrated, off by default, lit paths latched to
+Canvas fallback; measured only on SwiftShader.
+
+**A-1 Benchmark repeatability (P0).** The comparison workload is pinned:
+fixed seed, fixed season (asset URLs must match the label), fixed camera
+route with the local player visible and walking, content that includes cliff
+cap runs, a pond, at least one carried light and at least 150 static casters.
+Item count must match within ±2 % between any two samples that are compared;
+otherwise the samples are reported side by side and no improvement is
+claimed. Asset request logs attribute each request to the *effective* quality
+at request time, not the protocol's requested mode. A sky-step frame (the
+first frame after the sky RGB changes) is captured separately so tint rebuild
+bursts are measured, not hidden by steady-state percentiles.
+
+**A-2 "Zero lighting work" is a Basic requirement only.** Classic is the
+legacy solver and keeps its live lightmap, ImageData allocations on bounds
+change and retained lightmap bytes, exactly as doc 58 §3 D6 scoped it. Any
+sentence in this plan or its kickoff prompt that extended the requirement to
+Classic is withdrawn. Classic is still measured and must not regress.
+
+**A-3 Receiver sampling (P4 step 3).** The merged-field lookup is withdrawn;
+the three measured representations changed the reference result by up to 87
+steps because max composition and bilinear interpolation are not the
+per-caster resolve. Replace it with a spatial index over caster mask bounds
+(uniform grid keyed on the 4-px window) that yields candidate lists per
+receiver. The existing sample loop, its owner exclusion and its evaluation
+order run unchanged over the candidates, so the result is **bit-identical**
+to the full loop and the test is equality, not tolerance. No O(1) claim; the
+exit is `lightingReceiver` p95 and candidate count per sample recorded.
+
+**A-4 Tint keys stay exact RGB (P5 step 1).** Five-bit quantisation is
+withdrawn. Exact RGB with shelf-packed tint pages is the accepted design; the
+steady-state counters already show zero builds. The remaining risk is the
+sky-step burst; A-1 measures it. If the burst exceeds 2 ms p95 on the
+reference device, the accepted mitigation is to spread rebuilds across at
+most two frames by drawing the previous page for one frame, recorded as a
+one-frame lag in the ledger, never a colour change.
+
+**A-5 Dim and hit-flash variants (P5 step 3).** `context.filter` output is
+itself browser-specific. The gate for the CPU-derived `dim` and `hitFlash`
+variants is amended to **within two 8-bit steps per channel** against the
+Chromium filter reference, HUD witness exact. The formula that matched hit
+flash within one step and dimming within two (brightness clamped before
+saturation, 0.88 opacity in alpha) is accepted. World `context.filter` uses
+are then removed; HUD skin filters are out of scope.
+
+**A-6 Cap runs stay in painter order (P5 step 4).** Per-level flattening is
+withdrawn because translucent cap artwork depends on painter order. Keep
+per-run commands. Cache each tinted run by (chunk, run, level, plane revision)
+so the three-operation composite runs once per plane change instead of per
+frame. Exit counter: `groundSourceOperations` is zero in steady state and at
+most the visible run count on a plane revision change. A-1's workload must
+contain cap runs so this is actually measured.
+
+**A-7 Retained painter commands (new P6b).** `painterBuild` at 5.1 ms p95 is
+the largest remaining stage and is present in Basic. Steps: (1) extract
+painter build out of `overworld-main.ts` into a module in a no-logic-change
+commit; (2) profile its producers individually (terrain projection sampling,
+presentation resolution, closure and item creation, string ties, regex,
+light collection) and record the split in the ledger; (3) retain per-entity
+draw commands across frames keyed by entity identity, updating only position,
+animation frame, terrain projection and visibility from revisions, with no
+per-frame closures or string ties; (4) keep the depth sort on the retained
+array. Target `painterBuild` p95 ≤ 2 ms on the A-1 workload. Golden: the
+sorted command sequence for a recorded frame is identical before and after.
+
+**A-8 WebGL2 parity gates split (P8 step 5).** Do **not** emulate the Canvas
+2D operation sequence with GPU intermediate passes; Canvas 2D output already
+differs between browsers by one to two steps, and reproducing Skia's
+premultiplied 8-bit rounding on the GPU is not a bounded task. Two gates:
+
+- *Experimental-enable gate* (lets a lit path run when the toggle is on):
+  maximum two steps per channel on lit artwork, at most 0.5 % of channels
+  above one step, zero channels above two, HUD exact. The current sprite
+  (max 2) and corrected ground (max 2, 160 channels) residuals pass this
+  gate. The celestial diagnostic (max 63) and source downsampling (max 138)
+  are **bugs**, not rounding, and must be fixed before those paths enable.
+- *Default-on gate* (unchanged): one step per channel plus the doc 47 §15
+  adoption numbers on hardware. Not part of this run.
+
+Paths that fail the enable gate keep latching Canvas with a visible reason.
+
+**A-9 GPU performance evidence.** SwiftShader numbers are functional
+evidence only. WebGL2 timing, like the iPad rows, is **owner to run** on
+hardware with the release README capture steps. The ledger must not present
+software-GPU timings as backend performance.
+
+**A-10 Environment.** Authenticated capture requires an owner sign-in that
+stays valid for the capture window, and the shared preview must deliver
+active rAF. When either is unavailable, the agent records the block and
+continues with offline goldens without relabelling them as gameplay
+measurements, as it has done. Release remains **HOLD** until §1 desktop
+targets are met or the residual gap is attributed per stage. The owner’s
+2026-09-07 instruction, "please continue with fixes then deploy once complete",
+authorizes the completed 0.6.0 client deployment after the remaining gates pass;
+this supersedes the earlier stop-before-deployment boundary. Prepare and record
+the exact candidate, rollback and live commands before applying that authorization.
+
+Order of work after this amendment: A-1 → A-7 → A-3, A-6, A-5 (exact Canvas
+work, any order) → A-8 bug fixes and enable-gate qualification → allocation
+attribution (whole-client `surfaceAllocations` p95 1 must be owned) → final
+desktop capture → owner-run iPad and GPU captures → release request.
+
+## 9. Bookkeeping and execution ledger
 
 ### 2026-09-06 — plan authored
 
@@ -2088,3 +2233,550 @@ engine typecheck and scoped ESLint; `node .../P8/build-goldens.mjs`,
 generated assets; its failure log is retained and the corrected harness reads
 the same integrated generated pages as the reference. Primary Khronos API
 references for upcoming work are recorded in `primary-api-references.json`.
+
+
+### 2026-09-06 — P7 presentation pacing checkpoint
+
+Status: **IN PROGRESS**. P1 and P6 implementation inputs are merged, but
+physical iPad acceptance and authenticated after-captures remain outstanding.
+HUD cache is an independent lane and is not claimed by this pacing checkpoint.
+Artifacts: `output/perf-59-20260906/P7/`. Full pacing gate: **596 suites / 3,495 tests passed**, **879.21 seconds**
+(`check-pacing.log`); typecheck, lint and asset validation pass.
+
+Mechanical main extraction `1e63a449` moves only loop construction into new
+`gameplay-loop.ts`; `loop-extraction-source-hashes.json` asserts the exact two
+main replacements. Its canonical check passes **591 suites / 3,482 tests** in
+**848.56 seconds**, with types/lint/asset validation green
+(`check-loop-extraction.log`). The subsequent pacing implementation changes
+16 source/test files listed and hashed in `pacing-source-hashes.json`: loop and
+new cadence/policy modules, gameplay renderer/protocol metadata, Video rows,
+metrics attribution, focused tests and the reviewed structural seam digest.
+
+Video gains **30 Hz cap**, persisted per client and off by default. It applies
+on a frame boundary, including cross-tab storage changes, while all rAFs still
+advance the same fixed-step accumulator and interpolation. Absolute deadlines
+avoid turning a purported 30 Hz cap into 60/72 Hz on high-refresh displays.
+Suspend/resume resets the presentation deadline; overdue presentations are
+skipped rather than replayed. Storage denial retains a consistent session
+choice without interrupting gameplay. The iPad automatic default remains off
+because the physical P0 baseline has not been supplied.
+
+`pacing-integrated-tests.log` records **8 suites / 132 focused UI/loop/metrics/seam tests** passing.
+`cadence-controlled.json` exercises the actual FixedStepLoop with deterministic
+timestamps; these are functional counts, **not device performance**:
+
+| Controlled display Hz | 10-second rAF count | Fixed updates off / on | Submissions off / on, including initial |
+|---|---:|---:|---:|
+| 60 | 600 | 600 / 600 | 601 / 301 |
+| 120 | 1,200 | 600 / 600 | 1,201 / 301 |
+| 144 | 1,440 | 600 / 600 | 1,441 / 301 |
+
+Every capped submission has the same interpolation/update state as the
+corresponding uncapped rAF. Metrics preserve skipped-rAF update time and native
+source counts until the next submission. The exact scope starts at the first
+rAF after the preceding submission; async Canvas work before that rAF remains
+excluded as in P0. The focused witness records update time **2 + 3 = 5 ms**,
+two draws from one distinct source, then resets to **1 ms / zero draws** on the
+next interval. These injected times test attribution and are not benchmark data.
+Capture JSON now includes the cap in display and top-level metadata.
+
+Review found and fixed compact layout overlap, discarded skipped-rAF metrics
+and cross-tab preference/active-rate mismatch. `pacing-fixture/` contains real
+OverworldUi/skin/font browser captures and persistence results. Chrome
+152.0.7977.64 on Linux, DPR1, browser zoom100%, headless/no throttle, UI scale2;
+1280×720 display Canvas in a 3200×1600 browser viewport. The compact fixture
+uses a 720×360 Canvas / 360×180 logical UI. Root viewed both on and compact
+screenshots. Clicking enables the cap, reload retains it, and a second click
+disables it. Compact Video omits informational rows so controls stay above the
+fallback/footer text; bounds tests include 240×140 through 640×360 logical UI.
+This isolated UI fixture is not authenticated gameplay or shared-preview review.
+
+The last measured real-client desktop baseline remains P2, in original
+milliseconds p50/p95/p99. No after-stage improvement, long-task result, walking
+visual result or battery/thermal result is inferred from controlled timestamps.
+
+| Stage | Basic P2 before | Classic P2 before | Dynamic P2 before | P7 pacing after |
+|---|---:|---:|---:|---|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 | unmeasured — authentication required |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 | unmeasured — authentication required |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 | unmeasured — authentication required |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 | unmeasured — authentication required |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 | unmeasured — authentication required |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 | unmeasured — authentication required |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 | unmeasured — authentication required |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 | unmeasured — authentication required |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingDynamicSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 | unmeasured — authentication required |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 | unmeasured — authentication required |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 | unmeasured — authentication required |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 | unmeasured — authentication required |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 | unmeasured — authentication required |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 | unmeasured — authentication required |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+Real-client per-frame counters after pacing remain **unmeasured — authentication
+required**. Canvas/lighting/terrain goldens are repeated at the P7 implementation
+boundary; full shared-browser walking, all scale/mode combinations and physical
+acceptance remain outstanding. No global zero-lighting Classic claim is made.
+
+Physical iPad: **owner to run**. In the candidate preview, choose Canvas,
+World scale1×, world zoom2 and browser zoom100%. Set Video → 30 Hz cap OFF;
+System → Developer → Render → **Run protocol + copy JSON**, keep Safari visible
+for105 seconds, then repeat with cap ON and at2×/Native. Use **Copy capture JSON**
+if clipboard completion is refused. Record iPad model/iPadOS/Safari and a matched
+battery/thermal trace per doc47 §19; the JSON embeds commit, policy, cap, DPR,
+resolution, all stages and counters. No desktop CPU throttle replaces this row.
+
+Commands: `npm run check`; focused Vitest loop/policy/Video/metrics/UI/seam tests;
+client typecheck and scoped ESLint; `node .perf59-pacing-review/review-video.mjs`;
+`tsx .perf59-pacing-review/cadence-review.mjs`. Private replay workspace and exact
+UI fixture input copies are documented in `pacing-fixture/README.md`.
+
+
+### 2026-09-06 — P7 ordered HUD cache integration checkpoint
+
+Status: **IN PROGRESS**. Full HUD `npm run check` passes: **600 suites / 3,509 tests**, **815.24 s** Vitest duration; types, lint and asset validation pass (`P7/check-hud.log`). The P7 stage table above
+also applies to this checkpoint: every real-client after stage/counter and the
+physical iPad battery/thermal result remain **unmeasured — authentication required**
+or **owner to run**, respectively. No isolated HUD count is a gameplay p95.
+
+`hud-integrated-source-hashes.json` records 11 files against `e0a92b1d`:
+OverworldUi, new HUD section/cache-key and weak display-ownership modules/tests,
+renderer disposal/diagnostics and a failing-disposable test, gameplay display and
+protocol diagnostics, a configuration-matching test and structural seam digest.
+`hud-integrated-tests.log`: **7 suites / 139 tests pass**, client typecheck and
+scoped lint pass. The protocol excludes changing HUD build/reuse telemetry from
+its viewport/policy equality check, while retaining that telemetry in before/after
+JSON; otherwise every successful reuse would invalidate a capture.
+
+Status/watch/moon, currency and hotbar composite at their existing positions in
+the UI draw order. Minimap, portraits, vitals, blinking effects, menu/crafting
+buttons, windows, notifications, tooltips, cursor and scene overlays stay direct.
+Keys retain and compare semantic scalar values, exact transforms/geometry and
+asset/image/revision identities; no model JSON is allocated. Explicit artwork
+invalidation covers in-place authored metadata changes. The direct reference
+path disposes caches when disabled; unsupported transforms/alpha/filter remain
+direct. Obsolete direct section calls are replaced in their original positions.
+
+The initial tight-crop prototype changed nearest-neighbour edge decisions:
+maximum **165** over **204 channels** at1×, **235** over **492 channels** at1.25×.
+The accepted version keeps the original display backing dimensions/transform and
+copies only the section rectangle. This retains three RGBA surfaces, **12 bytes
+per display pixel**, or **11,059,200 bytes at1280×720**. This is HUD memory, not
+lighting memory. At644×364 the stationary fixture retains **2,812,992 bytes**.
+
+`hud-integrated/capture.json`, `comparison.json`, bundled source and45 PNGs
+repeat the actual-art browser matrix after integrating the pacing control and
+ownership bridge: **45/45 exact comparisons, zero changed channels**, actual
+browser DPR1/1.25/2 and effective UI scales through2.625. Watch/moon, real apple
+and pickaxe art, independent durability changes, hover, live translucent minimap
+and portrait callbacks, vitals/effect blink, inventory open/close and disposal
+are included. Root viewed the fractional-scale side-by-side capture. Source-root,
+base commit, dirty source hashes, requested asset hashes, OS/browser, viewport,
+DPR, transforms and backend are recorded; these are isolated UI fixtures.
+
+| 600 stationary draws | Direct | Cached |
+|---|---:|---:|
+| drawImage calls total | 148,200 | 48,000 |
+| drawImage calls per draw | 247 | 80 |
+| New cache builds | n/a | 0 |
+| Cache reuses | n/a | 1,800 |
+| New cache Canvas allocations | 0 | 0 |
+| Live minimap calls per UI | 600 | 600 |
+| Live portrait calls per UI | 600 | 600 |
+
+The registered display owner releases every cache. `hud/ownership.json` proves
+**3 caches / 4,395,300 bytes → 0 / 0** on an805×455 backing at browser DPR1.25;
+UI-own retained bytes also reach0, repeated disposal is safe, and later drawing
+constructs three fresh caches. Registry entries are weak and pruned. Renderer
+disposal uses finally so a failed generic HUD disposable cannot strand the
+world/present surfaces; the owning client now invokes renderer disposal on HMR.
+
+`golden-comparison.json`: all four integrated lighting boards are exact against
+the preceding Canvas seam. `paged-terrain-comparison.json`: all six terrain/pond
+policy views are exact at1×/2×/Native, including the HUD witness. These do not
+replace the missing minute-per-mode/scale authenticated gameplay review.
+
+Commands: full `npm run check` in canonical workspace; focused HUD/UI/renderer/
+protocol/seam Vitest suites; client typecheck/scoped ESLint; HUD `measure-hud.mjs`
+and `compare-hud.ts`; P7 `build-goldens.mjs`, `run-goldens.mjs`,
+`run-scale-goldens.mjs` (also with `PERF59_POND=1`), `compare-goldens.ts` and
+`compare-paged-terrain.ts`. Agent fixture evidence is preserved under `hud/`;
+the integrated replay is under `hud-integrated/`. iPad remains **owner to run**
+using the preceding P7 cap-OFF/cap-ON protocol steps and physical battery trace.
+
+
+### 2026-09-06 — P8 experimental backend integration checkpoint
+
+Status: **IN PROGRESS**. Initial integration check passes **610 suites /3,558 tests**, **888.03s** Vitest duration, plus types/lint/assets (`P8/check-webgl.log`). Final 0.6.0 check also passes: **610 suites / 3,560 tests**, **818.90s**, with types, lint and asset validation (`release/check-0.6.0.log`). The persisted Video
+control defaults off; Canvas 1× remains the client default. Known unsupported
+lighting/downsampling operations deliberately latch Canvas with a visible
+`worldPassFallbackReason`. Full GPU lighting parity and authenticated desktop
+acceptance are OPEN, not waived by the experimental label.
+
+`P8/integrated/source-hashes-before-final-ownership.json` identifies40 initial runtime/test files against
+`556999ba`: lazy client backend controller and tests, frame retry handling,
+metrics/protocol metadata, Video policy/layout, renderer ownership, source
+adapters, retained raw coverage/local fields,16 new WebGL modules/tests and
+Canvas present cleanup. The backend seam was already committed separately.
+No new dependencies. All new modules remain below400 lines. `world-readback.test.ts`
+recursively checks engine/client/UI runtime sources, including WebGL; only
+existing CPU source-art preprocessing is explicitly allowed.
+
+The shared painter submits directly through the strict GPU context adapter.
+Page textures are nearest filtered; immutable images upload once per revision;
+mutable Canvas sources require a matching frame/revision. Receiver RGB is vertex
+data. Ground metadata carries the three coverage byte fields plus local RGBA,
+with shader corner-max resolve before interpolation. The Canvas producer path
+remains unchanged. GPU ground source preparation bypasses the tint pool, scratch
+Canvas and ImageData. Raw fields retain at most8 entries /16MiB including their
+coverage references, and use monotonically increasing upload revisions even
+across entry eviction/reset. Review caught and fixed a repeated-revision texture
+staleness case. A600-moving-update test retains the same arrays, samples local
+RGB only on local revision changes, performs zero CPU RGB merges, and releases
+all scene bytes on reset. Dynamic destination multiply currently rejects before
+creating a Canvas lighting plane; it does not conceal the parity gap with a CPU
+flattened world upload.
+
+Toggle transitions occur at frame boundaries. Stale asynchronous module loads
+are ignored; disabling releases the GPU backend. Every backend failure latches
+Canvas for the session while preserving the stored choice. World errors retry
+a complete frame once; lighting failure can independently retry once. HUD
+errors are outside the world phase and retain their original exception. Resize,
+constructor/import/shader/resource/extension/restore failures have explicit
+tests. Cleanup attempts every buffer, VAO, program, shader, texture, query, event
+listener and backing axis even when another release throws. Restoration rebuilds
+GPU objects from retained CPU page/field sources.
+
+`P8/integrated/focused-tests.log`:18 suites /82 tests pass before the final
+raw-revision regression assertion; that assertion also passes in its3-test suite.
+Engine/client typechecks and scoped lint pass. Agent ownership/release followups
+have28 focused tests plus real-browser loss/restoration probes. Full canonical
+`npm run check` is recorded in `P8/check-webgl.log`.
+
+`P8/integrated/golden-comparison.json`: all four Canvas lighting review boards
+exact, zero changed channels. `paged-terrain-comparison.json`: all six terrain
+and pond views exact at1×/2×/Native, HUD witness exact. The integrated Video
+fixture clicks ON, reloads to confirm persistence, activates a real WebGL2
+backend, invokes `WEBGL_lose_context`, renders the next boundary on Canvas and
+shows **CANVAS: CONTEXT LOST** while the toggle staysON. The actual lost backend
+releases **10,190,852 bytes →0**, textures1→0, buffer/program/VAO1→0 each. Root
+viewed normal and compact screenshots. Evidence: `P8/integrated/video/` and
+`dist/video-review.js`; isolated UI/world fixture, not authenticated gameplay.
+
+The software-GPU device is Chrome152.0.7977.64 / Linux6.17.2-1-pve / Ryzen9955HX,
+ANGLE Vulkan SwiftShader, no throttling. `P8/webgl/device.json` records this;
+there is no hardware-GPU or iPad performance claim. Both present candidates use
+1280×720, DPR1, zoom3, world1×427×240,600 unlit sprites,5-second warm-up and
+30-second active-rAF sample,1,802 frames each:
+
+| Synthetic present stage, ms p50/p95/p99 | Canvas copy (kept) | CSS world layer (rejected) |
+|---|---:|---:|
+| GPU CPU-side submission | 0.300/0.500/0.600 | 0.300/0.500/0.600 |
+| Final present | 5.700/7.100/8.000 | 0.300/0.500/1.200 |
+| Whole synthetic frame | 6.100/7.500/8.300 | 0.600/0.900/1.500 |
+| Retained bytes | 5,181,768 | 1,495,368 |
+| Texture count / uploads / batches per frame | 2 /2 total /2 | 2 /2 total /2 |
+| Bytes after dispose | 0 | 0 |
+
+Canvas copy preserves the P1 nearest-then-smooth contract exactly. The CSS layer
+changes194,053 channels above one step, maximum82, on the matched presentation
+fixture, with HUD exact. Therefore its faster synthetic number is not accepted.
+`P8/webgl/present-*.json` preserves original timings and pixel results.
+
+The three lighting attempts and original residuals are preserved in
+`P8/webgl/attempt-{1,2,3}.json` and `rounding-attempts.md`: sprite channels above
+one4,144 /3,064 /840 (maximum2); corrected ground channels568 then160
+(maximum2). Attempt1 also had a coordinate bug, maximum156. Unlit source-over
+qualifies within one; the actual seasonal board qualifies within one in the
+internal diagnostic mode, but full GPU lighting does not. Source downsampling
+has a separate maximum138 edge discrepancy. Production rejects these unverified
+paths and shows Canvas fallback; no fourth approximation is attempted.
+
+Metrics label the active backend and reason. Optional disjoint timer queries
+retain at most8 reusable queries and poll only available, non-disjoint results;
+this software device reports unavailable, **not zero GPU time**. Protocol JSON
+separates Canvas native counters from GPU batches/resources and records latest
+completed GPU times observed during the active sample (batched completions may
+not all be represented). GPU scope excludes Canvas final present/HUD.
+
+The last real-client desktop baseline remains P2. Every stage below is original
+ms p50/p95/p99; neither synthetic present timings nor unit-test injections are
+substituted for after-stage gameplay measurements.
+
+| Stage | Basic P2 before | Classic P2 before | Dynamic P2 before | P8 Canvas / WebGL after |
+|---|---:|---:|---:|---|
+| Whole frame | 9.400/11.500/12.700 | 10.600/12.800/14.800 | 15.200/20.500/26.800 | unmeasured — authentication required |
+| snapshotPrepare | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.100/0.200 | unmeasured — authentication required |
+| ground | 0.300/0.500/0.600 | 0.300/0.500/0.600 | 0.400/0.600/0.700 | unmeasured — authentication required |
+| painterBuild | 4.600/5.800/6.800 | 5.100/6.500/7.900 | 5.100/7.400/9.500 | unmeasured — authentication required |
+| painterSort | 0.100/0.100/0.200 | 0.100/0.100/0.200 | 0.100/0.200/0.200 | unmeasured — authentication required |
+| painterDraw | 0.500/0.700/0.800 | 0.600/0.700/0.900 | 2.300/3.200/4.400 | unmeasured — authentication required |
+| weather | 0.000/0.100/0.200 | 0.000/0.100/0.200 | 0.000/0.200/0.300 | unmeasured — authentication required |
+| lightingBoundsResize | 0.000/0.000/0.000 | 0.000/0.000/0.100 | 0.000/0.000/0.100 | unmeasured — authentication required |
+| lightingOcclusionRaster | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingMerge | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingUpload | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingReceiver | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingComposite | 0.000/0.100/0.100 | 0.000/0.100/0.100 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingAnimatedStaticSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| lightingDynamicSolve | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.000/0.000 | unmeasured — authentication required |
+| finalWorldComposite | 1.600/2.000/2.200 | 2.100/2.600/3.000 | 1.400/2.200/2.800 | unmeasured — authentication required |
+| uiModel | 0.400/0.600/0.700 | 0.500/0.600/0.700 | 0.500/0.800/1.100 | unmeasured — authentication required |
+| uiLayout | 0.500/0.600/0.700 | 0.500/0.700/0.800 | 0.500/0.700/1.100 | unmeasured — authentication required |
+| uiDraw | 1.300/1.900/2.100 | 1.400/1.900/2.100 | 1.400/2.100/2.500 | unmeasured — authentication required |
+| fixedUpdate | 0.200/0.300/0.400 | 0.200/0.400/0.500 | 0.200/0.400/0.600 | unmeasured — authentication required |
+| catchUp | 0.000/0.000/0.000 | 0.000/0.000/0.000 | 0.000/0.400/0.500 | unmeasured — authentication required |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+Real-client per-frame counters after P8 are **unmeasured — authentication
+required**. GPU fixture resource counts above and raw-field allocation tests
+are separate evidence. No zero-lighting Classic claim or desktop6/10ms target
+claim is made. Shared-preview walking and minute-per-mode/scale/backend visual
+review remain blocked by the expired authenticated session.
+
+Physical iPad: **owner to run**. Open the candidate preview after signing in;
+Video → World scale1×, 30Hz cap OFF, Experimental WebGL OFF; use System → Developer
+→ Render → **Run protocol + copy JSON** and keep Safari visible for105 seconds.
+Repeat with WebGL ON, preserving any fallback reason (a Canvas fallback sample
+is not a GPU sample), then2×/Native and cap ON. Record iPad model/iPadOS/Safari,
+DPR, browser zoom100%, resolution and a matched battery/thermal trace. JSON
+contains commit, all stages/counters, actual backend and optional GPU timing.
+Use **Copy capture JSON** if automatic clipboard copy is refused.
+
+Commands: canonical `npm run check`; focused Vitest suites; engine/client
+`tsc --noEmit`; scoped ESLint; private P8 `build-goldens.mjs`, `run-goldens.mjs`,
+`run-scale-goldens.mjs` (also `PERF59_POND=1`), `compare-goldens.ts`,
+`compare-paged-terrain.ts`, `review-video.mjs`; agent parity/present/loss scripts
+listed in `P8/webgl/handoff.md`. No deployment or production-dist build occurred.
+
+
+P8 literal-fixture follow-up: `P8/webgl/all-fixtures/` runs30 jobs against the
+current integration, with no automatic Canvas fallback in the harness. All
+Canvas baselines complete. Production GPU rejects unverified multiply in
+Seasonal/Celestial and legacy Lighting, and ground composite in World plus all
+six terrain/pond boards. Diagnostic GPU completes Seasonal16panels (maximum1,
+zero channels above1) and Celestial9panels (**maximum63,229,351 channels above1**);
+Celestial platform tops/shadows visibly differ. Legacy Lighting stops after two
+modes on unsupported `context.filter`; World/terrain retain the ground guard.
+Native Canvas board labels are exact on both completed GPU boards, but neither
+contains an explicit HUD witness. There is no completed GPU World/terrain HUD
+witness comparison. These results explicitly fail P8's full parity gate; no
+fourth shader approximation was attempted. Source hashes, original per-job
+results, PNGs and reproduction commands are included.
+
+
+P8 final packaging/ownership checkpoint: the build probe initially placed GPU
+implementation code in the eager Canvas chunk despite the dynamic client import
+(Canvas chunk254.39kB). A dedicated `webgl-world` group excluding recursive
+dependency capture keeps27.75kB of GPU implementation lazy; Canvas chunk226.66kB.
+`scripts/check-client-build-chunks.ts` now traverses static imports to reject any
+eager path to the GPU implementation. This minimally extends P8 scope to the
+existing Vite config/chunk gate. Build warning thresholds for unrelated existing
+UI/simulation chunks are unchanged. Version-only manifest/lock changes prepare
+0.6.0 as requested; no dependency versions change.
+
+Final ownership review also found that the disposed GPU wrapper reported zero
+managed bytes while its geometry object still retained540,672 CPU staging bytes.
+Geometry now releases that array and separately accounts the equally sized GPU
+buffer; backend disposal clears adapter state too. Active geometry bytes remain
+1,081,344; both allocations reach0 after disposal, including injected deletion
+failure. The final browser context-loss replay includes that fix. GPU resource
+telemetry is refreshed after the current world composite, so per-frame batch
+counts do not lag a submitted frame. `final-ownership-tests.log`:10 suites /56
+tests pass, including source-boundary checks. All rendering methods/shaders
+remain unchanged by disposal fixes. Final full 0.6.0 gate passes below.
+
+
+The final frozen source set is `P8/integrated/source-hashes.json`:55 explicit
+files against556999ba, including13 version-only manifests/lockfiles and the two
+packaging files. Both canonical/integrator source hashes matched the initial
+passed gate before this final update. The final full gate is
+`release/check-0.6.0.log`: **PASS**, 610 suites / 3,560 tests, 818.90 seconds Vitest duration; types, lint and asset validation pass. All 55 source hashes match canonical, integrator and private build roots.
+The release request, rollback artifact and exact proposed live commands are in
+`output/perf-59-20260906/release/README.md`, explicitly **HOLD**. The request does
+not authorize deployment or waive any OPEN acceptance requirement.
+
+
+Final release lockfile correction: the initial broad version bump also touched
+`packages/world/node_modules/typescript`, whose pre-existing version field was
+0.5.7 despite a5.6.3 resolved tarball/integrity and installed compiler. Restore
+that field to5.6.3; only root/workspace manifests become0.6.0. No resolved
+dependency, integrity or declaration changes. The interrupted initial0.6.0
+check is preserved as `release/check-0.6.0-pre-lock-fix.log`; it is not a pass.
+The final gate was restarted after this correction and passed.
+
+
+Release preparation: isolated `npm run build` passes (`release/build-0.6.0-final.log`); the production-mode client build and chunk-isolation gate pass. All 323 regenerated files are byte-identical. Static artifact smoke has zero browser exceptions and loads neither omit pages nor the GPU implementation on sign-in; this is not authenticated gameplay evidence. The final committed build is sealed as `release/client-0.6.0.tar`, with `client-0.6.0.sha256` and `candidate-manifest.json` recording its exact commit, source and file hashes. The 384-file rollback archive is `release/client-dist-before-0.6.0.tar`; production remains unchanged. Archive completion and exact gate/build provenance are recorded in the linked release README. P3–P8 acceptance remains OPEN, so this is a held candidate, not a completed release.
+
+
+### P8 follow-up — mutable Canvas source correction (2026-09-07)
+
+P8 remains IN PROGRESS under its existing claim. The 2026-09-07
+client/rendering DECISIONS row records the bounded ordering exception while
+authenticated repeatability capture is unavailable; remaining follow-up work
+keeps the amended order. Source correction:
+`packages/engine/src/webgl/world-pass-webgl.ts` and new
+`packages/engine/src/webgl/world-pass-mutable-source.test.ts`. A Canvas rewritten
+between two draws previously reused the frame's first texture upload. Unversioned
+mutable canvases now force a flush and upload on every draw; explicit producer
+revisions keep caching. The obsolete implicit frame counter is removed. No
+shader, accuracy guard, Video default, dependency or live file changed.
+
+Artifacts: `output/perf-59-20260907/P8/cache-confirm/README.md`, original probe
+under `P8/cache-probe/`, full Canvas replays under `P8/canvas-goldens/`, and
+`P8/sampling-results.md` plus its linked diagnostic directories. Source hashes,
+Chrome/OS/GPU metadata, original JSON, PNGs, commands and limitations are retained.
+Base commit 5205f9d6 plus the hashed correction; the existing sealed 0.6.0 archive
+contains the base commit only. It has not been silently replaced.
+
+| Pixel check | Before max / channels >1 | Corrected max / channels >1 |
+| --- | ---: | ---: |
+| One mutable source, red then blue | 255 / 2,048 | 0 / 0 |
+| Existing seasonal fixture | 1 / 0 | 1 / 0 |
+| Existing celestial fixture | 63 / 229,351 | 2 / 484 |
+
+All ten Canvas reference boards are byte-identical: seasonal, celestial, legacy
+lighting, world lighting and all six scale/pond terrain boards. Board labels are exact, but
+these two fixtures have no explicit HUD witness; celestial remains outside the
+original one-step gate. Visually inspected celestial and before/after mutable
+source boards. Texture uploads for the complete fixtures: mutable 1→2,
+seasonal 7→7, celestial 62→70; GPU draw calls seasonal 122→122 and celestial
+93→93. These are whole-fixture counts, not per-frame gameplay counters.
+Unversioned unchanged sources also refresh each draw; no speedup is claimed.
+
+Real WEBGL_lose_context replay: 1,091,588 active/restored managed bytes, zero
+after dispose; upload count 1→2 on restoration. Thirteen failure reasons are
+recorded; frame-failure disposal returns managed bytes to zero. All 36 original
+atlas PNG hashes still match P0. Production accuracy fallbacks remain enabled.
+
+| New protocol evidence, all RENDER_STAGE_IDS | p50 | p95 | p99 | Per-frame counters |
+| --- | --- | --- | --- | --- |
+| Desktop Basic / Classic / Dynamic | not captured | not captured | not captured | not captured |
+| Physical iPad | owner to run | owner to run | owner to run | owner to run |
+
+These synchronous SwiftShader fixtures are functional evidence, not active-rAF
+or hardware performance samples. Last desktop stage tables remain in
+`output/perf-59-20260906/release/authenticated-resume.md`, with their original
+workload qualifications; no new comparison or allocation claim is made here.
+Shared browser tab_5 currently shows Account. Dedicated-account setup awaits a
+distinct email because the provided email belongs to the owner's existing
+Orchard login. Existing credentials/roles were not modified. iPad steps: sign in
+on the candidate, use the fixed visible-player route/content, select scale and
+backend in Video, open diagnostics, press Run render protocol, keep foreground
+for all three 35-second mode captures, copy JSON; record device/OS/browser,
+resolution/DPR/zoom. Repeat for each scale/backend and reject fallback samples
+as GPU evidence. These steps are expanded in the artifact README.
+
+Sampling investigation stays separate from the source fix. Explicit nearest tie
+selection made the prior 600-sprite downscale fixture exact with Canvas-copy
+(HUD exact); CSS layer still differs by 82 steps. A 120-case 4 MiB atlas sweep
+then rejected both the simple tie rule (24 failed, max249, 6,846 changed channels)
+and the relative-crop-coordinate variant (22 failed, max249, 6,510 changed).
+The current sampler fails 70 cases, max249, 51,036 changed. Neither prototype
+enters runtime; no third attempt or new lighting-rounding approximation was
+made. The general downsample guard and existing P8 OPEN remain.
+
+Commands: focused WebGL tests (7 suites /33 tests), final independent
+HTMLCanvasElement/OffscreenCanvas regression (4 pass; unpatched source failed
+3/4), actual-source Chrome fixtures, lifetime/failure replay, source/artifact
+ESLint, P0 atlas-hash comparison, and canonical `npm run check`. The first full
+run was interrupted to correct the OffscreenCanvas test's class independence;
+the next failed artifact lint because generated bundles were outside `dist`.
+Both logs are preserved; bundles were moved to `dist` without rule exceptions.
+A subsequent run terminated with exit143 after approximately fifteen minutes
+without test results; the final run uses a detached runner and exit-status file.
+Isolated production-mode client build, lazy chunk boundaries and static artifact
+smoke pass; all 56 relevant source hashes match the three working roots.
+Final gate: PASS — 611 suites / 3,564 tests; Vitest 1,075.49 seconds; lifecycle, world build, types, lint, coverage thresholds and asset validation pass (`P8/cache-probe/check.log`, exit0).
+
+This is a tested correctness follow-up, not P8 exit or a release approval.
+Remaining gates include cropped/fractional sampling, full GPU fixture parity,
+matched visible-player gameplay captures and painter-build recovery. Release
+remains HOLD; no deployment request is advanced while these remain unresolved.
+
+Independent allocation finding (no runtime change): the exact existing minimap
+callback allocates 29 canvases for 29 tile transitions over 600 calls, and zero
+while stationary after warm-up. The isolated terrain-stub replay and source
+hash are under `output/perf-59-20260907/P7/minimap-probe/`; it does not attribute
+every earlier gameplay allocation or replace the required main-file extraction.
+
+
+### A-1 / P0 follow-up claim — 2026-09-07
+
+Claimed in M7.3 before implementation. Adopt the owner’s pending first-pass
+amendments as the binding follow-up scope. The latest instruction authorizes
+deployment once fixes and gates are complete; no live action occurs at this
+claim. Runtime remains b72f683d, whose full check passed 611 suites /3,564 tests
+with unchanged code after that gate. Authenticated A-1 capture remains pending
+while shared tab_5 shows Account; offline preparation continues under A-10.
+
+### A-1 diagnostics extraction checkpoint — 2026-09-07
+
+Before extending the gameplay capture API, mechanically moved its existing
+on-demand diagnostic expression into the new 68-line
+`packages/client/src/gameplay-diagnostic-snapshot.ts`; `overworld-main.ts`
+now supplies the same inputs to that function. No render, cache or lighting
+policy changes are part of this checkpoint. The TypeScript AST printer emits
+identical diagnostic expressions before and after; evidence is
+`output/perf-59-20260907/P0/diagnostics-extraction/mechanical-equivalence.json`.
+This satisfies doc 15 §8.1 before the subsequent diagnostic API wiring.
+
+Commands: focused ESLint, AST equivalence comparison, canonical `npm run check`
+(detached runner to avoid the tool session timeout). The full gate passed:
+**611 test files, 3,564 tests, 1080.30 s Vitest duration**, exit **0**; all asset
+validation passed. Logs and exit status are in the same artifact directory.
+The later A-1 capture changes are being developed separately in the integrator
+and are excluded from this extraction commit and its gate claim.
+
+| Evidence | Desktop | iPad |
+| --- | --- | --- |
+| All 22 render-stage p50/p95/p99 values | not captured at this mechanical checkpoint | owner to run |
+| All 14 per-frame operation counters | not captured at this mechanical checkpoint | owner to run |
+
+No new performance or visual improvement is claimed. The shared canonical
+preview still exposes the Account screen and no gameplay API, so authenticated
+A-1 timings and the minute-per-setting review remain OPEN: technical under
+A-10. Earlier disqualified measurements remain preserved in the preceding
+ledger; this checkpoint does not relabel them as a baseline. The iPad procedure
+remains System → Developer → Render → Run protocol + copy JSON, keep Safari
+visible, repeat every world scale, and record the device/iPadOS/Safari/DPR/zoom/
+resolution and client commit; the forthcoming A-1 update adds workload and
+sky-step qualification. A-1 is not complete and release remains HOLD.
+
+### A-1 capture implementation scope — 2026-09-07
+
+After mechanical extraction `524c3d1e`, the follow-up adds optional painter
+observation in `gameplay-painter.ts` and extends the existing gameplay protocol
+modules. This is the narrowly recorded P0 file-scope extension in DECISIONS.md;
+sorting and drawing are unchanged. New bounded modules own request attribution,
+RGB-step recording, workload validation, the camera route, pond identity mapping,
+and presentation restoration. The launcher pins the artwork season from actual
+atlas filenames, a sunset clock, a camera square and lantern preview, closes the
+diagnostics window while walking, and restores the original UI/Video/preview
+settings. No shared clock or player-position mutation is used.
+
+The capture rejects causal comparison when the actual rendered player is absent,
+not walking, or outside the viewport; when cap/pond/light/caster content is absent;
+when scene revisions change; or when measured camera paths/item populations do
+not match. Dynamic preflight caster density is retained only as a scalar witness
+for Basic/Classic, which do not retain Dynamic surfaces for this measurement.
+Every Image.src request is tagged with its effective and requested quality at
+queue dispatch, including suite preflight and restoration. A deterministic sunset
+RGB step occurs ten seconds into the active sample; its first and following frame
+have independent complete stage/counter distributions.
+
+The implementation gate and browser evidence are pending below. These additions
+prepare A-1; they do not claim that the currently signed-out shared tab has yielded
+a qualified scene or performance sample. The authenticated workload and P6b remain
+open under A-10, and release remains HOLD.

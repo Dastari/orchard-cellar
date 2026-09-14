@@ -1,3 +1,6 @@
+import { installProtocolAssetRequests } from './render-protocol-asset-requests.js';
+import { compareProtocolWorkloads } from './render-protocol-workload.js';
+import { waitForProtocolRestore } from './render-protocol-restore.js';
 import { renderProtocolAction } from '@orchard/ui';
 import type { RenderMetrics } from '@orchard/engine/metrics';
 import { captureGameplayProtocol, type ProtocolGameplay, type ProtocolOptions } from './gameplay-render-protocol.js';
@@ -25,24 +28,46 @@ export function installGameplayProtocol(metrics: RenderMetrics): void {
       const game = target.__orchardOverworld;
       if (game === undefined) throw new Error('render_protocol_gameplay_unavailable');
       busy = true; api.error = null; api.result = null; lastJson = null;
+      let assetRequestLog: ReturnType<typeof installProtocolAssetRequests> | undefined;
+      let workload: Awaited<ReturnType<NonNullable<ProtocolGameplay['prepareProtocolWorkload']>>> | undefined;
+      let failed = false, failure: unknown;
       try {
+        assetRequestLog = installProtocolAssetRequests(() => game.protocolLighting ?? game.diagnostics().lighting);
+        workload = overrides.workload ?? await game.prepareProtocolWorkload?.(metrics, game);
         const results = [];
         const modes = overrides.mode ? [overrides.mode] : ['basic', 'classic', 'dynamic'] as const;
         for (const mode of modes) {
           renderProtocolAction.label = `CAPTURING ${mode.toUpperCase()}`;
           results.push(await captureGameplayProtocol(metrics, game, {
             mode, commit: import.meta.env['VITE_RENDER_COMMIT'] ?? '',
-            device: navigator.userAgent, scenario: 'live-gameplay-0.5.0-recovery', ...overrides,
+            device: navigator.userAgent, scenario: 'perf59-season-matched-sunset-walking-v1',
+            workload, ...overrides, assetRequestLog,
           }));
         }
-        api.result = { captures: results };
-        lastJson = JSON.stringify(api.result, null, 2);
-        return api.result;
-      } catch (error) {
-        api.error = error instanceof Error ? error.message : String(error);
-        renderProtocolAction.label = 'CAPTURE FAILED — RETRY';
-        throw error;
-      } finally { busy = false; }
+        const comparisons = [];
+        for (let i = 1; i < results.length; i++) {
+          const before = results[0]!, after = results[i]!;
+          comparisons.push({ left: before.mode, right: after.mode,
+            ...('identity' in before.workload && 'identity' in after.workload
+              ? compareProtocolWorkloads(before.workload, after.workload)
+              : { comparable: false, issues: ['workload_witness_unavailable'] }) });
+        }
+        api.result = { captures: results, comparisons, assetRequests: assetRequestLog.requests };
+      } catch (error) { failed = true; failure = error; } finally {
+        try {
+          if (workload && workload !== overrides.workload) {
+            workload.dispose(); await waitForProtocolRestore(metrics, game);
+          }
+        } catch (error) { if (!failed) { failed = true; failure = error; } }
+        assetRequestLog?.dispose(); busy = false;
+      }
+      if (failed || assetRequestLog?.overflow) {
+        api.error = failed ? failure instanceof Error ? failure.message : String(failure) : 'render_protocol_asset_requests_overflow';
+        api.result = null; renderProtocolAction.label = 'CAPTURE FAILED — RETRY';
+        throw new Error(api.error);
+      }
+      lastJson = JSON.stringify(api.result, null, 2);
+      return api.result;
     },
   };
   target.__orchardRenderProtocol = api;

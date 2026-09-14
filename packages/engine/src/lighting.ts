@@ -1,3 +1,5 @@
+import { LocalLightDamage, type WorldLightBounds } from './local-light-damage.js';
+import { sampleReceiverRgb, blackReceiverRgb, type ReceiverRgbDestination } from './receiver-rgb-sampling.js';
 import { authorityDayProgress, dayProgressAtClockTime, lunarIlluminationAtAuthorityTick } from '@orchard/sim';
 import {
   LIGHT_BANDS,
@@ -302,6 +304,7 @@ export class TileLightmap {
   private floodMsValue = 0;
   private fieldRebuildsValue = 0;
   private receiverRevisionValue = 0;
+  private readonly receiverDamage = new LocalLightDamage();
   private occlusionRebuildsValue = 0;
   private occlusionCacheHitsValue = 0;
   private boundsResizeMsValue = 0;
@@ -328,6 +331,7 @@ export class TileLightmap {
   /** Drop all lighting-only backing stores without allocating replacements. */
   reset(): void {
     this.receiverRevisionValue++;
+    this.receiverDamage.reset(this.receiverRevisionValue);
     if (this.surfaces !== null) {
       this.surfaces.canvas.width = this.surfaces.canvas.height = 0;
       this.surfaces.haloCanvas.width = this.surfaces.haloCanvas.height = 0;
@@ -345,7 +349,7 @@ export class TileLightmap {
     this.lightmapFrameTimes.fill(0); this.lightmapFrameCursor = this.lightmapFrameCount = 0;
   }
   get retainedSurfaceBytes(): number {
-    return this.surfaces === null ? 0 : this.surfaces.canvas.width * this.surfaces.canvas.height * 8;
+    return (this.surfaces === null ? 0 : this.surfaces.canvas.width * this.surfaces.canvas.height * 8) + this.receiverDamage.bytes;
   }
 
   get floodTexelsVisited(): number { return this.floodTexelsVisitedValue; }
@@ -353,6 +357,8 @@ export class TileLightmap {
   get fieldRebuilds(): number { return this.fieldRebuildsValue; }
   /** Monotonic identity of local receiver bytes, including reset and resizing. */
   get receiverRevision(): number { return this.receiverRevisionValue; }
+  get receiverChangedBounds(): WorldLightBounds | null { return this.receiverDamage.since(this.receiverRevisionValue - 1); }
+  receiverChangesSince(revision: number): WorldLightBounds | null { return this.receiverDamage.since(revision); }
   get occlusionRebuilds(): number { return this.occlusionRebuildsValue; }
   get occlusionCacheHits(): number { return this.occlusionCacheHitsValue; }
   get boundsResizeMs(): number { return this.boundsResizeMsValue; }
@@ -432,6 +438,9 @@ export class TileLightmap {
     if (rebuild) {
       this.fieldRebuildsValue += 1;
       this.receiverRevisionValue++;
+      if (retainReceiverFields) this.receiverDamage.rebuild(this.receiverRevisionValue, lights, minTileX * 16, minTileY * 16, width, height,
+        occlusionWindowChanged || lightingModel !== this.lastLightingModel || retainReceiverFields !== this.retainedReceiverFields);
+      else this.receiverDamage.reset(this.receiverRevisionValue);
       this.lightPixels.fill(0);
       this.haloPixels.fill(0);
       for (const facePixels of this.southFacePixelsByElevation.values()) facePixels.fill(0);
@@ -649,19 +658,13 @@ export class TileLightmap {
 
   /** Pure RGB sampling of the requested receiver plane, with no emitter loop.
    * The legacy screen-composite field is deliberately not used here. */
-  sampleReceiverLight(worldX: number, projectedWorldY: number, elevation: number, receiver: 'flat' | 'south' | 'omni' = 'flat'): RgbColor {
+  sampleReceiverLight(worldX: number, projectedWorldY: number, elevation: number, receiver: 'flat' | 'south' | 'omni' = 'flat', destination?: ReceiverRgbDestination): RgbColor {
     const buffer = (receiver === 'south' ? this.receiverFaceRgbByElevation : this.receiverPixelsByElevation).get(elevation);
-    if (buffer === undefined || !this.retainedReceiverFields) return { r: 0, g: 0, b: 0 };
+    if (buffer === undefined || !this.retainedReceiverFields) return blackReceiverRgb(destination);
     const width = this.preparedTileWidth * LIGHT_TEXELS_PER_TILE, height = this.preparedTileHeight * LIGHT_TEXELS_PER_TILE;
     const x = lightmapCoordinate(worldX, this.preparedMinTileX, LIGHT_TEXELS_PER_TILE);
     const y = lightmapCoordinate(projectedWorldY, this.preparedMinTileY, LIGHT_TEXELS_PER_TILE);
-    if (x < 0 || y < 0 || x >= width || y >= height) return { r: 0, g: 0, b: 0 };
-    const x0 = Math.floor(x), y0 = Math.floor(y), x1 = Math.min(width - 1, x0 + 1), y1 = Math.min(height - 1, y0 + 1);
-    const fx = x - x0, fy = y - y0;
-    const channel = (c: number) => Math.round(
-      (buffer[(y0 * width + x0) * 4 + c]! * (1 - fx) + buffer[(y0 * width + x1) * 4 + c]! * fx) * (1 - fy)
-      + (buffer[(y1 * width + x0) * 4 + c]! * (1 - fx) + buffer[(y1 * width + x1) * 4 + c]! * fx) * fy);
-    return { r: channel(0), g: channel(1), b: channel(2) };
+    return sampleReceiverRgb(buffer, width, height, x, y, destination);
   }
 
   private southFaceLayer(elevation: number, cellCount: number): Uint8Array {

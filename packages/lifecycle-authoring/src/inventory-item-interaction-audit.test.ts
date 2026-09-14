@@ -1,3 +1,4 @@
+import { gameplayPainterAuditSource } from './gameplay-painter-audit.test-support.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -26,7 +27,7 @@ const read = (path: string): string => readFileSync(resolve(repository, path), '
 const manifest = JSON.parse(read(
   'packages/lifecycle-authoring/audit/inventory-item-interaction-manifest.json',
 )) as AuditManifest;
-const game = read('packages/client/src/overworld-main.ts');
+const game = gameplayPainterAuditSource();
 const simContainers = read('packages/sim/src/item-containers.ts');
 const world = read('packages/world/src/index.ts');
 const objects = JSON.parse(read('packages/assets/content/objects.json')) as {

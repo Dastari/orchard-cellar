@@ -1,9 +1,15 @@
+import { resetWorldSamplingCounters } from './world-sampling-counters.js';
+
 /** Semantic counters are always available; native Canvas probes are opt-in.
- * Values belong to one active rAF, never to a rolling or cumulative window. */
+ * Values start at the first rAF after the preceding presentation and end at
+ * the current submission, including skipped-rAF preparation under a cap.
+ * Async work before that first rAF remains outside the P0 frame scope. */
 export const RENDER_COUNTER_IDS = [
   'drawImageCalls', 'distinctDrawImageSources', 'tintBuilds', 'tintReuses',
   'tintSurfaceReuses', 'filteredFrameBuilds', 'coverageFieldRebuilds',
   'preparedHeightRebuilds', 'groundSourceOperations', 'imageDataAllocations',
+  'capRunRequests', 'flatSourceRequests', 'capRunComposites', 'flatSourceComposites', 'groundSourceReuses',
+  'receiverSamples', 'receiverCandidates', 'receiverFullLoopCandidates',
   'saveCalls', 'restoreCalls', 'saveRestorePairs', 'surfaceAllocations',
 ] as const;
 export type RenderCounterId = (typeof RENDER_COUNTER_IDS)[number];
@@ -12,6 +18,8 @@ export const renderOperationCounters: RenderCounterValues = {
   drawImageCalls: 0, distinctDrawImageSources: 0, tintBuilds: 0, tintReuses: 0,
   tintSurfaceReuses: 0, filteredFrameBuilds: 0, coverageFieldRebuilds: 0,
   preparedHeightRebuilds: 0, groundSourceOperations: 0, imageDataAllocations: 0,
+  capRunRequests: 0, flatSourceRequests: 0, capRunComposites: 0, flatSourceComposites: 0, groundSourceReuses: 0,
+  receiverSamples: 0, receiverCandidates: 0, receiverFullLoopCandidates: 0,
   saveCalls: 0, restoreCalls: 0, saveRestorePairs: 0, surfaceAllocations: 0,
 };
 export const renderCounterSupport = { nativeCanvas: false };
@@ -20,6 +28,7 @@ const sourceFrames = new WeakMap<object, number>();
 const saves = new WeakMap<object, { generation: number; depth: number }>();
 export function resetRenderOperationCounters(): void {
   generation++;
+  resetWorldSamplingCounters();
   for (const id of RENDER_COUNTER_IDS) renderOperationCounters[id] = 0;
 }
 export function countDrawImageSource(source: object): void {

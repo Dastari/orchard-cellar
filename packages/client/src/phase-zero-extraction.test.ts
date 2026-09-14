@@ -125,7 +125,15 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Doc 59 P1 adds the persisted World scale control in the same Video panel.
 // Doc 59 P3 deletes the filtered-frame export and keeps only shared frame metadata.
 // Doc 59 P6 shares the outer painter state pair with authored-map sprites.
-const STRUCTURAL_SEAM_DIGEST = '1c6e80459d83051e8b627b5affb3313a76a0842f3db29ac372a98b4230faab24';
+// Doc 59 P7 adds the presentation cap and ordered HUD caches.
+// Doc 59 P8 adds the experimental backend control and fallback footer.
+// Doc 59 A-14 exports the opt-in world-only sampling counters.
+// A-19 mechanically extracts the owned Video/Developer controls and painting.
+// Its feature wiring removes the retired Video-only parameters after relocation.
+// The other four structural seams are unchanged.
+// 0.6.2 exports shared fallback formatting for F3 and the panel footers.
+// Only those two ui/index.ts named exports change; other four seams stay exact.
+const STRUCTURAL_SEAM_DIGEST = '38cce2e6d1563c39f1988fe9db51bee49ff4b9c3e21d48a7bd790ff36d60e4e3';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

@@ -1,8 +1,9 @@
+import { gameplayPainterAuditSource } from '../../../lifecycle-authoring/src/gameplay-painter-audit.test-support.js';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const worldSource = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
-const clientSource = readFileSync(new URL('../../../client/src/overworld-main.ts', import.meta.url), 'utf8');
+const clientSource = gameplayPainterAuditSource();
 const connectionSource = readFileSync(
   new URL('../../../client/src/net/overworld-connection.ts', import.meta.url),
   'utf8',

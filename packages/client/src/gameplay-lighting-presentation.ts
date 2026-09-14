@@ -1,6 +1,7 @@
 import { AtlasVariantCohort, AtlasVariantLoadError, worldAtlasVariants } from '@orchard/ui';
 import type { LightingQualityState } from '@orchard/engine/lighting-quality';
 import type { LightingModel } from '@orchard/engine/lighting';
+import { fallbackGameplayWorldBackend } from './gameplay-world-backend.js';
 
 /** Select one complete page cohort at a frame boundary. The loader holds late
  * assets behind the same publication barrier; original UI images stay immutable. */
@@ -63,14 +64,19 @@ export class GameplayLightingPresentation {
 
 export function renderWithGameplayLightingFallback(alpha: number, renderFrame: (alpha: number) => void,
   lightingEffectsDisabled: () => boolean, setFailure: (reason: string) => void): void {
-  try { renderFrame(alpha); } catch (error: unknown) {
-    const reason = error instanceof Error ? error.message : String(error);
-    if (!(error instanceof AtlasVariantLoadError)
-      && !/^(?:receiver_|directional_|world_receiver_|world_ground_)/.test(reason)) throw error;
-    if (lightingEffectsDisabled()) throw error;
-    console.warn('Dynamic lighting unavailable; using Basic.', reason);
-    setFailure(reason);
-    // Discard the unfinished world buffer and redraw the complete Basic frame.
-    renderFrame(alpha);
+  let retriedBackend = false, retriedLighting = false;
+  for (;;) {
+    try { renderFrame(alpha); return; } catch (error: unknown) {
+      if (!retriedBackend && fallbackGameplayWorldBackend(error)) {
+        retriedBackend = true; continue;
+      }
+      const reason = error instanceof Error ? error.message : String(error);
+      if (!(error instanceof AtlasVariantLoadError)
+        && !/^(?:receiver_|directional_|world_receiver_|world_ground_)/.test(reason)) throw error;
+      if (retriedLighting || lightingEffectsDisabled()) throw error;
+      console.warn('Dynamic lighting unavailable; using Basic.', reason);
+      setFailure(reason); retriedLighting = true;
+      // Each policy can retry once; both discard the unfinished world surface.
+    }
   }
 }

@@ -1,3 +1,5 @@
+import { registerWorldSamplingContext, unregisterWorldSamplingContext } from '@orchard/ui';
+import { resetUnlitWorldEffects } from './receiver-frame-source.js';
 import type { WorldPassBackend, WorldPassImage, WorldPassSprite } from './world-pass-backend.js';
 import type { WorldPassLayout } from './renderer.js';
 import { CanvasWorldPresent } from './world-pass-present.js';
@@ -20,6 +22,7 @@ export class CanvasWorldPassBackend implements WorldPassBackend {
       if (context === null) throw new Error('Offscreen Canvas 2D unavailable');
       this.canvas = canvas; this.context = context;
       context.imageSmoothingEnabled = false;
+      registerWorldSamplingContext(context);
     } catch (error) {
       if (canvas !== undefined) canvas.width = canvas.height = 0;
       this.present.dispose(); throw error;
@@ -85,8 +88,10 @@ export class CanvasWorldPassBackend implements WorldPassBackend {
     } else this.context.drawImage(source.image, source.x, source.y, source.width, source.height, x, y, width, height);
   }
   dispose(): void {
+    resetUnlitWorldEffects();
     if (this.disposed) return;
     this.disposed = true; this.layout = null;
+    unregisterWorldSamplingContext(this.context);
     this.canvas.width = this.canvas.height = 0;
     this.present.dispose();
   }

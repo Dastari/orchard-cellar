@@ -55,4 +55,6 @@ export * from './studio/index.js';
 
 export * from './asset-frame-types.js';
 export * from './render-operation-counters.js';
+export * from './world-sampling-counters.js';
 export { renderProtocolAction } from './render-protocol-action.js';
+export { worldBackendReason, wrapBackendReason } from './world-backend-feedback.js';

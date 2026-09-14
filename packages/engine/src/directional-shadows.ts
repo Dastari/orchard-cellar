@@ -149,9 +149,18 @@ export function projectDirectionalCaster(caster: DirectionalCaster, source: Cele
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     let sum = 0;
     for (let k = -2; k <= 2; k++) if (y + k >= 0 && y + k < height) sum += horizontal[(y + k) * width + x]! * weights[k + 2]!;
-    const blend = Math.min(1, Math.max(0, (Math.hypot(left + x + 0.5, top + y + 0.5) - 2) / 8));
     const index = y * width + x;
-    mask.coverage[index] = Math.round(firm[index]! * (1 - blend) + sum / 9 * blend);
+    // Only the two-to-ten-pixel contact band uses the distance curve. Beyond
+    // it the original clamp is exactly one; inside it the clamp is zero.
+    // Half-integer texel centres cannot lie exactly on either circle.
+    const dx = left + x + .5, dy = top + y + .5;
+    const distanceSquared = dx * dx + dy * dy;
+    if (distanceSquared >= 100) mask.coverage[index] = Math.round(sum / 9);
+    else if (distanceSquared <= 4) mask.coverage[index] = firm[index]!;
+    else {
+      const blend = (Math.hypot(dx, dy) - 2) / 8;
+      mask.coverage[index] = Math.round(firm[index]! * (1 - blend) + sum / 9 * blend);
+    }
   }
   for (let y = 0; y < height; y++) {
     let row = 0;

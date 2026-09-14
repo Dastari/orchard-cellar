@@ -1,3 +1,4 @@
+import { PresentationMetrics, type PresentationSnapshot } from './presentation-metrics.js';
 import { RENDER_COUNTER_IDS, renderOperationCounters, renderCounterSupport, resetRenderOperationCounters, type RenderCounterValues } from '@orchard/ui';
 
 export const RENDER_STAGE_IDS = [
@@ -165,8 +166,22 @@ export interface CompletedRenderFrame {
   readonly counters: Readonly<RenderCounterValues>;
 }
 export type RenderFrameObserver = (frame: CompletedRenderFrame) => void;
+export interface WorldGpuDiagnostics {
+  readonly gpuTimingAvailable: boolean; readonly gpuTimeMs: number | null;
+  readonly gpuCompletedSamples: number; readonly gpuDisjointSamples: number;
+  readonly gpuPendingQueries: number; readonly gpuQueries: number;
+  readonly textures: number; readonly textureBytes: number; readonly textureUploads: number;
+  readonly buffers: number; readonly programs: number; readonly vertexArrays: number;
+  readonly drawCalls: number; readonly bytes: number;
+}
+export interface WorldBackendTelemetry {
+  readonly backend: 'canvas2d' | 'webgl2'; readonly fallbackReason: string | null;
+  readonly generation: number; readonly gpu: WorldGpuDiagnostics | null;
+}
 
 export interface RenderMetricsSnapshot {
+  readonly presentation: PresentationSnapshot;
+  readonly worldPass: WorldBackendTelemetry;
   readonly counters: Readonly<RenderCounterValues>;
   readonly nativeCanvasCountersSupported: boolean;
   readonly schemaVersion: 2;
@@ -186,6 +201,15 @@ export interface RenderMetricsSnapshot {
 /** Renderer-wide telemetry. The legacy average/worst fields remain in the
  * snapshot while callers migrate to the distribution and named stages. */
 export class RenderMetrics {
+  private readonly presentation = new PresentationMetrics();
+  private presentationReady = false;
+  resetPresentation(): void { this.presentation.reset(); this.presentationReady = false; }
+  private worldBackend: WorldBackendTelemetry = { backend: 'canvas2d', fallbackReason: null, generation: 0, gpu: null };
+  get worldBackendTelemetry(): WorldBackendTelemetry { return this.worldBackend; }
+  recordWorldBackend(backend: 'canvas2d' | 'webgl2', fallbackReason: string | null,
+    generation: number, gpu: WorldGpuDiagnostics | null): void {
+    this.worldBackend = { backend, fallbackReason, generation, gpu };
+  }
   private readonly frames: FixedMetricSeries;
   private readonly frameIntervals = new FixedMetricSeries(FRAME_INTERVAL_CAPACITY);
   private readonly inputToRenderSubmit = new FixedMetricSeries(FRAME_INTERVAL_CAPACITY);
@@ -201,12 +225,15 @@ export class RenderMetrics {
   private pendingInputTimestamp = Number.NaN;
   private accumulatedUpdateStepsValue = 0;
   private discardedElapsedMsValue = 0;
+  private submittedSinceRaf = true;
 
   constructor(sampleCapacity = DEFAULT_SAMPLE_CAPACITY) {
     this.frames = new FixedMetricSeries(sampleCapacity);
   }
 
   record(frameMs: number, renderItems: number): void {
+    if (this.presentationReady) this.presentation.record(this.previousRafTimestamp);
+    this.submittedSinceRaf = true;
     this.frames.record(frameMs);
     this.renderItemsValue = Math.max(0, Math.floor(renderItems));
     for (const id of RENDER_COUNTER_IDS) this.completedCounters[id] = renderOperationCounters[id];
@@ -229,8 +256,14 @@ export class RenderMetrics {
   }
 
   recordRafTimestamp(milliseconds: number): void {
-    this.currentStages.fill(0);
-    resetRenderOperationCounters();
+    this.presentationReady = true;
+    // A presentation cap may skip rAF submissions. Preserve their simulation
+    // and preparation work in the next submitted frame's protocol totals.
+    if (this.submittedSinceRaf) {
+      this.currentStages.fill(0);
+      resetRenderOperationCounters();
+      this.submittedSinceRaf = false;
+    }
     if (Number.isFinite(this.previousRafTimestamp)) {
       this.frameIntervals.record(milliseconds - this.previousRafTimestamp);
     }
@@ -294,6 +327,8 @@ export class RenderMetrics {
     const frame = this.frames.snapshot();
     return {
       schemaVersion: 2,
+      presentation: this.presentation.snapshot(),
+      worldPass: this.worldBackend,
       counters: { ...this.completedCounters },
       nativeCanvasCountersSupported: renderCounterSupport.nativeCanvas,
       frame,

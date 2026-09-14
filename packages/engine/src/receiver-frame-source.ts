@@ -1,6 +1,9 @@
 import { renderOperationCounters, type AssetFrameSource } from '@orchard/ui';
 import type { RgbColor } from './lighting.js';
 import { LightingNumericKey } from './lighting-numeric-key.js';
+import { WorldEffectSourcePixels } from './world-effect-source-pixels.js';
+import { worldFrameEffect, worldFrameEffectId, type WorldFrameEffect } from './world-frame-effect.js';
+import { webglFrameSource } from './webgl/hooks.js';
 
 export const RECEIVER_TINT_PAGE_WIDTH = 512;
 export const RECEIVER_TINT_PAGE_HEIGHT = 2048;
@@ -19,6 +22,7 @@ interface Slot { readonly page: TintPage; readonly x: number; readonly y: number
 /** Exact-RGB frames share bounded tint pages. A generation rollover invalidates
  * the whole page; callers must draw returned scratch rectangles immediately. */
 export class ReceiverFrameCache {
+  private readonly effectPixels = new WorldEffectSourcePixels();
   private readonly entries = new Map<number, TintEntry[]>();
   private readonly pages: TintPage[] = [];
   private readonly key = new LightingNumericKey();
@@ -33,18 +37,18 @@ export class ReceiverFrameCache {
     if (!Number.isSafeInteger(budgetBytes) || budgetBytes < 0
       || !Number.isSafeInteger(surfaceLimit) || surfaceLimit < 1) throw new Error('Invalid receiver cache budget');
   }
-  get bytes(): number { return this.pages.length * RECEIVER_TINT_PAGE_BYTES; }
-  get surfaces(): number { return this.pages.length; }
+  get bytes(): number { return this.pages.length * RECEIVER_TINT_PAGE_BYTES + this.effectPixels.bytes; }
+  get surfaces(): number { return this.pages.length + this.effectPixels.surfaces; }
   get allocations(): number { return this.allocationsValue; }
   /** Results are immediate-draw scratch sources. Consumers must not retain or
    * derive another identity-keyed cache from their mutable Canvas image. */
-  source(source: AssetFrameSource, color: RgbColor): AssetFrameSource {
-    if (color.r === 255 && color.g === 255 && color.b === 255) return source;
+  source(source: AssetFrameSource, color: RgbColor, effect?: WorldFrameEffect): AssetFrameSource {
+    if (effect === undefined && color.r === 255 && color.g === 255 && color.b === 255) return source;
     if (!Number.isSafeInteger(source.width) || !Number.isSafeInteger(source.height)
       || source.width <= 0 || source.height <= 0 || source.width > RECEIVER_TINT_PAGE_WIDTH
       || source.height > RECEIVER_TINT_PAGE_HEIGHT || this.budgetBytes < RECEIVER_TINT_PAGE_BYTES) throw new Error('receiver_frame_budget_exceeded');
     const key = this.key.reset().add(this.identity(source.image)).add(source.emissiveSpans?.length ? this.identity(source.emissiveSpans) : 0)
-      .add(source.x).add(source.y).add(source.width).add(source.height).add(color.r).add(color.g).add(color.b);
+      .add(source.x).add(source.y).add(source.width).add(source.height).add(color.r).add(color.g).add(color.b).add(worldFrameEffectId(effect));
     const bucket = this.entries.get(key.hash);
     if (bucket !== undefined) for (const entry of bucket) if (key.matches(entry.signature)) {
       this.requireContext(entry.page); entry.page.used = ++this.clock;
@@ -52,7 +56,10 @@ export class ReceiverFrameCache {
     }
     const slot = this.reserve(source.width, source.height);
     const { page, x, y } = slot;
-    try { this.draw(page.context, source, color, x, y); }
+    try {
+      if (effect === undefined) this.draw(page.context, source, color, x, y);
+      else this.effectPixels.draw(page.context, source, color, effect, x, y);
+    }
     catch (error) { this.release(page); throw new Error('receiver_frame_surface_unavailable', { cause: error }); }
     const result = { image: page.canvas, x, y, width: source.width, height: source.height };
     const entry = { hash: key.hash, signature: key.copy(), source: result, page };
@@ -106,7 +113,7 @@ export class ReceiverFrameCache {
     return { page, x, y };
   }
   private requireContext(page: TintPage): void {
-    if (page.context.isContextLost?.()) { this.release(page); throw new Error('receiver_frame_surface_unavailable'); }
+    if (page.context.isContextLost?.()) { this.release(page); this.effectPixels.reset(); throw new Error('receiver_frame_surface_unavailable'); }
   }
   private draw(context: CanvasRenderingContext2D, source: AssetFrameSource, color: RgbColor, x: number, y: number): void {
     context.setTransform(1, 0, 0, 1, 0, 0);
@@ -143,6 +150,7 @@ export class ReceiverFrameCache {
     if (index >= 0) this.pages.splice(index, 1);
   }
   reset(): void {
+    this.effectPixels.reset();
     for (const page of this.pages) { page.canvas.width = page.canvas.height = 0; page.entries.length = 0; }
     this.pages.length = 0; this.entries.clear(); this.identities = new WeakMap(); this.sequence = 0; this.clock = 0;
     this.builds = 0; this.reuses = 0; this.allocationsValue = 0;
@@ -157,7 +165,24 @@ export function withWorldReceiverLight(context: CanvasRenderingContext2D, cache:
     if (previous === undefined) receivers.delete(context); else receivers.set(context, previous);
   }
 }
-export function receiverFrameSource(context: CanvasRenderingContext2D, source: AssetFrameSource): AssetFrameSource {
+const unlitEffects = new ReceiverFrameCache();
+const WHITE: RgbColor = { r: 255, g: 255, b: 255 };
+let unlitPresentation: object | undefined, unlitRevision = 0;
+export function resetUnlitWorldEffects(): void { unlitEffects.reset(); unlitPresentation = undefined; unlitRevision = 0; }
+export function setUnlitEffectPresentation(presentation: object | undefined, revision: number): void {
+  if (unlitPresentation === presentation && unlitRevision === revision) return;
+  resetUnlitWorldEffects(); unlitPresentation = presentation; unlitRevision = revision;
+}
+export function unlitWorldEffectDiagnostics(): { readonly bytes: number; readonly omitBytes: number } {
+  return { bytes: unlitEffects.bytes, omitBytes: unlitPresentation === undefined ? 0 : unlitEffects.bytes };
+}
+export function receiverFrameSource(context: CanvasRenderingContext2D, source: AssetFrameSource,
+  effect = worldFrameEffect(context)): AssetFrameSource {
   const receiver = receivers.get(context);
-  return receiver === undefined ? source : receiver.cache.source(source, receiver.color);
+  if (effect !== undefined) {
+    const prepared = (receiver?.cache ?? unlitEffects).source(source, receiver?.color ?? WHITE, effect);
+    return webglFrameSource(context, prepared, { receiverRgb: WHITE, variant: 'normal' }) ?? prepared;
+  }
+  return receiver === undefined ? source : webglFrameSource(context, source, { receiverRgb: receiver.color })
+    ?? receiver.cache.source(source, receiver.color);
 }

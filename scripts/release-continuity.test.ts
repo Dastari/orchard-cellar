@@ -1,6 +1,7 @@
 import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
@@ -143,8 +144,9 @@ describe('production continuity tooling', () => {
       const token = join(directory, 'tokens.json');
       writeFileSync(token, '{"operator":"test-value-never-printed"}\n', { mode: 0o600 });
       chmodSync(token, 0o600);
-      const result = spawnSync('bash', ['scripts/world-release.sh'], {
-        cwd: new URL('..', import.meta.url), encoding: 'utf8',
+      const result = spawnSync('bash', [fileURLToPath(new URL('./world-release.sh', import.meta.url))], {
+        // The operational guard requires this cwd; the script under test is still this worktree's file.
+        cwd: '/home/toby/projects/orchard-cellar', encoding: 'utf8',
         env: { ...process.env, WORLD_RELEASE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
           WORLD_RELEASE_BACKUP_DIRECTORY: join(directory, 'new-backup'),
           WORLD_RELEASE_PRE_DRAIN_SNAPSHOT: join(directory, 'new-pre-drain.json'),
@@ -163,8 +165,9 @@ describe('production continuity tooling', () => {
       const token = join(directory, 'tokens.json');
       writeFileSync(token, '{"operator":"finalize-value-never-printed"}\n', { mode: 0o600 });
       chmodSync(token, 0o600);
-      const result = spawnSync('bash', ['scripts/world-release-finalize.sh'], {
-        cwd: new URL('..', import.meta.url), encoding: 'utf8',
+      const result = spawnSync('bash', [fileURLToPath(new URL('./world-release-finalize.sh', import.meta.url))], {
+        // The operational guard requires this cwd; the script under test is still this worktree's file.
+        cwd: '/home/toby/projects/orchard-cellar', encoding: 'utf8',
         env: { ...process.env, WORLD_FINALIZE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
           WORLD_FINALIZE_BACKUP_DIRECTORY: join(directory, 'new-backup'),
           WORLD_FINALIZE_PRE_DRAIN_SNAPSHOT: join(directory, 'new-pre-drain.json'),
@@ -232,8 +235,9 @@ describe('production continuity tooling', () => {
       const token = join(directory, 'tokens.json');
       writeFileSync(token, '{"operator":"retirement-value-never-printed"}\n', { mode: 0o600 });
       chmodSync(token, 0o600);
-      const result = spawnSync('bash', ['scripts/world-release-retire-chests.sh'], {
-        cwd: new URL('..', import.meta.url), encoding: 'utf8',
+      const result = spawnSync('bash', [fileURLToPath(new URL('./world-release-retire-chests.sh', import.meta.url))], {
+        // The operational guard requires this cwd; the script under test is still this worktree's file.
+        cwd: '/home/toby/projects/orchard-cellar', encoding: 'utf8',
         env: { ...process.env, WORLD_RETIREMENT_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
           WORLD_RETIREMENT_BACKUP_DIRECTORY: join(directory, 'new-backup'),
           WORLD_RETIREMENT_REHEARSAL_PRE_SNAPSHOT: join(directory, 'rehearsal-pre.json'),

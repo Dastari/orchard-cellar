@@ -1,10 +1,20 @@
-import { changeWorldScale, readWorldScale, worldScaleSettingLabel } from './world-scale-setting.js';
+import { drawLabel, drawMenuButton, drawInsetPanel } from './overworld-panel-drawing.js';
+import { drawSettingsChoiceRows } from './settings-choice-rows.js';
+import { drawDeveloperRender } from './developer-render-panel.js';
+import { createExperimentalWebGLNode, experimentalWebGLBounds, syncExperimentalWebGLNode, renderProtocolBounds, developerRenderButtons } from './world-render-controls.js';
+export { changeExperimentalWebGL, readExperimentalWebGL, worldBackendStatus, updateWorldBackendStatus, EXPERIMENTAL_WEBGL_EVENT } from './world-backend-setting.js';
+import { compactVideoRows, videoRowHeight as videoSettingsRowHeight } from './video-rows.js';
+import { changePresentationCap, readPresentationCap } from './presentation-cap-setting.js';
+export { changePresentationCap, readPresentationCap, PRESENTATION_CAP_EVENT, type PresentationCapSetting } from './presentation-cap-setting.js';
+import { HudSectionCache, type HudCacheKey } from './hud-section-cache.js';
+export { disposeHudDisplayCaches, hudDisplayCacheDiagnostics, type HudDisplayCacheDiagnostics } from './hud-display-caches.js';
+import { changeWorldScale, readWorldScale } from './world-scale-setting.js';
 export { changeWorldScale, readWorldScale, worldScaleSettingLabel, WORLD_SCALE_EVENT, type WorldScaleSetting } from './world-scale-setting.js';
 import { renderProtocolAction } from './render-protocol-action.js';
 import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET, HOTBAR_SLOT_COUNT, clickContainerSlot, craftingRecipeOutput, hotbarSlotForInputCode, hotbarSlotLabel, itemContainerContentResolver, itemDefinition, itemStacksCompatible, matchingRecipeId, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks, recipeDefinition, runtimeCraftingRecipeOutput, runtimeDurabilityDefinition, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition, runtimeRecipeSkillSatisfied, toolDurabilityDefinition, type ContainerSnapshot, type ContentRegistry, type CraftingStation, type FrameDefinitionId, type ItemStack, type MoonPhase, type MoveItemRequest, type WeatherMode, type WindDirectionMode } from '@orchard/sim';
 import type { LoadedAsset } from './assets.js';
 import { isolatedAtlasFrameImage } from './atlas-frame-image.js';
-import { drawOutlinedPixelText, drawPixelText, drawPixelTextInRect, measurePixelText, type PixelUi } from './pixel-ui.js';
+import { drawOutlinedPixelText, drawPixelTextInRect, measurePixelText, type PixelUi } from './pixel-ui.js';
 import { craftingRecipeBookEntries, craftingRecipePattern } from './recipe-book.js';
 import { containsPoint, type UiPoint, type UiRect } from './geometry.js';
 import { UiInputRouter } from './input-router.js';
@@ -396,6 +406,8 @@ export interface OverworldUiLayout {
   readonly settingsTabs: Readonly<Record<SettingsTab, UiRect>>;
   readonly lightingQualityButton: UiRect;
   readonly worldScaleButton: UiRect;
+  readonly presentationCapButton: UiRect;
+  readonly experimentalWebGLButton: UiRect;
   readonly developerWindow: UiRect;
   readonly developerContent: UiRect;
   readonly developerTabs: Readonly<Record<DeveloperTab, UiRect>>;
@@ -720,14 +732,15 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     width: Math.max(80, settingsWindow.width - settingsTabWidth - 38),
     height: Math.max(80, settingsWindow.height - 48),
   };
-  const videoRowHeight = Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / 7)));
+  const videoRowHeight = videoSettingsRowHeight(settingsContent.height);
   const lightingQualityButton = {
     x: settingsContent.x + Math.floor(settingsContent.width * 0.5),
-    y: settingsContent.y + 23 + 4 * videoRowHeight,
+    y: settingsContent.y + 23 + (compactVideoRows(settingsContent.height) ? 0 : 4) * videoRowHeight,
     width: Math.max(40, settingsContent.width * 0.5 - 10),
     height: Math.min(18, videoRowHeight),
   };
   const worldScaleButton = { ...lightingQualityButton, y: lightingQualityButton.y + videoRowHeight };
+  const presentationCapButton = { ...worldScaleButton, y: worldScaleButton.y + videoRowHeight };
   const settingsRowStep = Math.max(18, Math.min(30, Math.floor((settingsContent.height - 28) / 5)));
   const settingsRowY = (row: number): number => settingsContent.y + 18 + row * settingsRowStep;
   const settingsSliderLabelSpace = Math.min(72, Math.max(70, Math.floor(settingsContent.width * 0.25)));
@@ -754,6 +767,8 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     width: Math.max(80, developerWindow.width - developerTabWidth - 38),
     height: Math.max(80, developerWindow.height - 48),
   };
+  const experimentalWebGLButton = experimentalWebGLBounds(developerContent);
+  const developerRender = developerRenderButtons(developerContent);
   const paperOrigin = { x: inventoryWindow.x + 22, y: inventoryWindow.y + 51 };
   const equipmentCells = Array.from({ length: EQUIPMENT_SLOTS.length }, (_, index) => (
     [index % 3, Math.floor(index / 3)] as const
@@ -831,8 +846,8 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     nextDayButton: { x: developerContent.x + developerContent.width - 66, y: developerContent.y + 25, width: 58, height: 20 },
     weatherButton: { x: developerContent.x + 8, y: developerContent.y + 56, width: developerContent.width - 16, height: 22 },
     windDirectionButton: { x: developerContent.x + 8, y: developerContent.y + 84, width: developerContent.width - 16, height: 22 },
-    lightingEffectsButton: { x: developerContent.x + developerContent.width - 48, y: developerContent.y + 32, width: 40, height: 18 },
-    orePreviewButton: { x: developerContent.x + developerContent.width - 48, y: developerContent.y + 67, width: 40, height: 18 },
+    lightingEffectsButton: developerRender.lighting,
+    orePreviewButton: developerRender.ore,
     mobileMenuButton: { x: width - 50, y: 4, width: 44, height: 24 },
     craftingButton: {
       x: Math.max(4, hotbar.x - 28),
@@ -871,6 +886,8 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     settingsTabs,
     lightingQualityButton,
     worldScaleButton,
+    presentationCapButton,
+    experimentalWebGLButton,
     developerWindow,
     developerContent,
     developerTabs,
@@ -1034,47 +1051,34 @@ function fitLabel(text: string, characters: number): string {
   return text.length <= characters ? text : `${text.slice(0, Math.max(0, characters - 3))}...`;
 }
 
-function drawLabel(context: CanvasRenderingContext2D, ui: PixelUi, text: string, x: number, y: number, options: { align?: CanvasTextAlign; color?: string; font?: 'body' | 'header' } = {}): void {
-  drawPixelText(context, ui, text, Math.round(x), Math.round(y), { align: options.align, color: options.color ?? '#3f2d25', font: options.font });
-}
-
-function drawMenuButton(
-  context: CanvasRenderingContext2D,
-  skin: UiSkin,
-  fonts: PixelUi,
-  pointer: UiPoint,
-  rect: UiRect,
-  label: string,
-  options: {
-    readonly tone?: FantasyButtonTone;
-    readonly glyph?: FantasyButtonGlyph;
-    readonly disabled?: boolean;
-    readonly active?: boolean;
-    readonly compact?: boolean;
-  } = {},
-): void {
-  const tone = options.tone ?? (options.active === true ? 'green' : 'peach');
-  drawFantasyButton(context, skin, fonts, rect, {
-    tone,
-    shape: options.compact === true || options.active === true ? 'square' : 'chamfered',
-    ...(options.compact === true ? { size: 'small' as const } : {}),
-    state: options.disabled === true ? 'disabled' : 'idle',
-    hovered: options.disabled !== true && containsPoint(rect, pointer),
-    hoverOutline: 'gold',
-    ...(options.compact === true ? {} : { label }),
-    ...(options.glyph === undefined ? {} : { glyph: options.glyph }),
-  });
-}
-
-function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: UiRect): void {
-  drawUiSkinAsset(context, skin.frameThin, rect);
-  context.save();
-  context.fillStyle = '#ead0aa44';
-  context.fillRect(rect.x + 6, rect.y + 7, Math.max(0, rect.width - 12), Math.max(0, rect.height - 14));
-  context.restore();
-}
-
 export class OverworldUi {
+  private readonly statusCache = new HudSectionCache();
+  private readonly currencyCache = new HudSectionCache();
+  private readonly hotbarCache = new HudSectionCache();
+  private readonly hudHotbarItems: Array<OverworldUiInventorySlot | undefined> = new Array(HOTBAR_SLOT_COUNT);
+  private hudCacheEnabled = true;
+  private hudArtRevision = 0;
+
+  /** Diagnostics/golden reference; disabling also releases retained surfaces. */
+  setHudCacheEnabled(enabled: boolean): void {
+    this.hudCacheEnabled = enabled;
+    if (!enabled) this.disposeHudCache();
+  }
+  /** Call after replacing UI artwork or mutating authored frame metadata. */
+  invalidateHudArtwork(): void { this.hudArtRevision++; }
+  disposeHudCache(): void {
+    this.statusCache.dispose(); this.currencyCache.dispose(); this.hotbarCache.dispose(); this.hudHotbarItems.fill(undefined);
+  }
+  get hudCacheDiagnostics(): { builds: number; reuses: number; allocations: number; bytes: number } {
+    const caches = [this.statusCache, this.currencyCache, this.hotbarCache];
+    return {
+      builds: caches.reduce((sum, cache) => sum + cache.builds, 0),
+      reuses: caches.reduce((sum, cache) => sum + cache.reuses, 0),
+      allocations: caches.reduce((sum, cache) => sum + cache.allocations, 0),
+      bytes: caches.reduce((sum, cache) => sum + cache.bytes, 0),
+    };
+  }
+
   readonly root: WidgetNode;
   private readonly router: UiInputRouter;
   private readonly hotbarNodes: WidgetNode[];
@@ -1131,6 +1135,8 @@ export class OverworldUi {
   private readonly settingsTabNodes: Readonly<Record<SettingsTab, WidgetNode>>;
   private readonly lightingQualityNode: WidgetNode;
   private readonly worldScaleNode: WidgetNode;
+  private readonly presentationCapNode: WidgetNode;
+  private readonly experimentalWebGLNode: WidgetNode;
   private readonly renderProtocolNode: WidgetNode;
   private readonly developerTabNodes: Readonly<Record<DeveloperTab, WidgetNode>>;
   private readonly masterSlider: Slider;
@@ -1597,6 +1603,14 @@ export class OverworldUi {
         return true;
       },
     });
+    this.presentationCapNode = widget('button', 'window.settings.video.presentation-cap', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down' || event.button !== 0) return false;
+        changePresentationCap(readPresentationCap() === '30hz' ? 'off' : '30hz');
+        return true;
+      },
+    });
+    this.experimentalWebGLNode = createExperimentalWebGLNode();
     this.renderProtocolNode = widget('button', 'window.developer.render.protocol', {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down' || event.button !== 0) return false;
@@ -1692,6 +1706,8 @@ export class OverworldUi {
       ...SETTINGS_TABS.map((tab) => this.settingsTabNodes[tab]),
       this.lightingQualityNode,
       this.worldScaleNode,
+      this.presentationCapNode,
+      this.experimentalWebGLNode,
       this.renderProtocolNode,
       ...DEVELOPER_TABS.map((tab) => this.developerTabNodes[tab]),
       this.previousDayNode,
@@ -1934,9 +1950,9 @@ export class OverworldUi {
     for (const tab of SETTINGS_TABS) this.settingsTabNodes[tab].setBounds(this.layout.settingsTabs[tab]);
     this.lightingQualityNode.setBounds(this.layout.lightingQualityButton);
     this.worldScaleNode.setBounds(this.layout.worldScaleButton);
-    this.renderProtocolNode.setBounds({ ...this.layout.orePreviewButton,
-      x: this.layout.developerContent.x + 12, width: this.layout.developerContent.width - 24,
-      y: this.layout.orePreviewButton.y + 30 });
+    this.presentationCapNode.setBounds(this.layout.presentationCapButton);
+    this.experimentalWebGLNode.setBounds(this.layout.experimentalWebGLButton);
+    this.renderProtocolNode.setBounds(renderProtocolBounds(this.layout));
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].setBounds(this.layout.developerTabs[tab]);
     this.masterSlider.setBounds(this.layout.masterSlider);
     this.musicSlider.setBounds(this.layout.musicSlider);
@@ -2510,10 +2526,10 @@ export class OverworldUi {
   }
 
   draw(context: CanvasRenderingContext2D): void {
-    this.drawStatus(context);
+    this.drawCachedStatus(context);
     this.drawMinimapHud(context);
-    this.drawCurrency(context);
-    if (!this.isInventoryWindow(this.openWindowValue)) this.drawHotbar(context);
+    this.drawCachedCurrency(context);
+    if (!this.isInventoryWindow(this.openWindowValue)) this.drawCachedHotbar(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawVitals(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawTargetVitals(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawEffects(context);
@@ -2689,6 +2705,58 @@ export class OverworldUi {
     // Touch pointers commonly emit pointerleave immediately after a tap. Keep
     // the last touch position so a held stack remains visible and movable.
     if (this.model.touchControls !== true) this.pointer = { x: -100, y: -100 };
+  }
+
+  private beginHudKey(cache: HudSectionCache): HudCacheKey {
+    const key = cache.key;
+    key.begin();
+    return key.add(this.hudArtRevision).add(this.model.width).add(this.model.height)
+      .asset(this.fonts.font).asset(this.fonts.headerFont);
+  }
+
+  private drawCachedStatus(context: CanvasRenderingContext2D): void {
+    if (!this.hudCacheEnabled) { this.drawStatus(context); return; }
+    this.beginHudKey(this.statusCache).add(this.zoneCollapsed).add(this.model.zoneName)
+      .add(this.model.moonPhase).add(hasEquippedWatch(this.model.inventory))
+      .add(this.model.timeLabel).add(this.model.dateLabel)
+      .asset(this.skin.banner).asset(this.skin.bookTab).asset(this.skin.moonPhase).asset(this.skin.button)
+      .rect(this.layout.status).rect(this.layout.watchStatus).rect(this.layout.moonPhase).rect(this.layout.collapsedZoneTab);
+    this.statusCache.draw(context, { x: 0, y: 0,
+      width: Math.max(this.layout.collapsedZoneTab.width, this.layout.moonPhase.x + this.layout.moonPhase.width) + 2,
+      height: this.layout.watchStatus.y + this.layout.watchStatus.height + 2 }, draw => this.drawStatus(draw));
+  }
+
+  private drawCachedCurrency(context: CanvasRenderingContext2D): void {
+    if (!this.hudCacheEnabled) { this.drawCurrency(context); return; }
+    this.beginHudKey(this.currencyCache).add(this.model.balanceBronze ?? 0n).rect(this.layout.currency)
+      .asset(this.skin.button).asset(this.skin.backpackIcon)
+      .asset(this.skin.coinGold).asset(this.skin.coinSilver).asset(this.skin.coinBronze);
+    // Coin labels can extend beyond their chrome at very large balances. Retain
+    // the original display clipping rather than cropping them at the button.
+    this.currencyCache.draw(context, { ...this.layout.currency, width: this.model.width }, draw => this.drawCurrency(draw));
+  }
+
+  private drawCachedHotbar(context: CanvasRenderingContext2D): void {
+    if (!this.hudCacheEnabled) { this.drawHotbar(context); return; }
+    const key = this.beginHudKey(this.hotbarCache).add(this.model.selectedSlot).add(this.hoveredSlot)
+      .asset(this.skin.slot).asset(this.skin.selectorConfirm).asset(this.skin.selectorNeutral)
+      .asset(this.skin.barGreen).asset(this.skin.barGold).asset(this.skin.barRed);
+    this.hudHotbarItems.fill(undefined);
+    for (const item of this.model.inventory) {
+      if (Number.isInteger(item.slot) && item.slot >= 0 && item.slot < HOTBAR_SLOT_COUNT) this.hudHotbarItems[item.slot] = item;
+    }
+    let right = 0;
+    for (let slot = 0; slot < HOTBAR_SLOT_COUNT; slot++) {
+      right = Math.max(right, this.layout.slots[slot]!.x + this.layout.slots[slot]!.width);
+      const item = this.hudHotbarItems[slot];
+      key.rect(this.layout.slots[slot]!).add(item?.itemKind).add(item?.quantity)
+        .add(item === undefined ? null : uiDurabilityFraction(item.itemKind, item.durability, this.model.contentRegistry))
+        .asset(item === undefined ? undefined : this.itemArt[item.itemKind]);
+    }
+    const first = this.layout.slots[0]!, last = this.layout.slots[HOTBAR_SLOT_COUNT - 1]!;
+    this.hotbarCache.draw(context, { x: first.x - HOTBAR_RETICLE_SIZE / 2, y: first.y - HOTBAR_RETICLE_SIZE / 2,
+      width: right - first.x + HOTBAR_RETICLE_SIZE,
+      height: last.y + last.height - first.y + HOTBAR_RETICLE_SIZE }, draw => this.drawHotbar(draw));
   }
 
   private drawStatus(context: CanvasRenderingContext2D): void {
@@ -2910,6 +2978,9 @@ export class OverworldUi {
     this.lightingQualityNode.enabled = this.lightingQualityNode.visible;
     this.worldScaleNode.visible = this.lightingQualityNode.visible;
     this.worldScaleNode.enabled = this.worldScaleNode.visible;
+    this.presentationCapNode.visible = this.lightingQualityNode.visible;
+    this.presentationCapNode.enabled = this.presentationCapNode.visible;
+    syncExperimentalWebGLNode(this.experimentalWebGLNode, developerVisible, this.developerTab);
     for (const tab of DEVELOPER_TABS) this.developerTabNodes[tab].visible = developerVisible;
     const developerWorldVisible = developerVisible && this.developerTab === 'world';
     const developerRenderVisible = developerVisible && this.developerTab === 'render';
@@ -3067,16 +3138,10 @@ export class OverworldUi {
       return;
     }
 
-    drawLabel(context, this.fonts, 'UNIFIED SOLVER', developerContent.x + 12,
-      this.layout.lightingEffectsButton.y + 5, { color: '#6b4428' });
-    drawLabel(context, this.fonts, 'CELLAR ORE VEINS', developerContent.x + 12,
-      this.layout.orePreviewButton.y + 5, { color: '#6b4428' });
-    this.lightingEffectsToggle.draw(context);
-    this.orePreviewToggle.draw(context);
-    drawMenuButton(context, this.skin, this.fonts, this.pointer, {
-      ...this.layout.orePreviewButton, x: developerContent.x + 12,
-      width: developerContent.width - 24, y: this.layout.orePreviewButton.y + 30,
-    }, renderProtocolAction.label);
+    drawDeveloperRender(context, {
+      fonts: this.fonts, skin: this.skin, pointer: this.pointer, layout: this.layout,
+      lightingEffectsToggle: this.lightingEffectsToggle, orePreviewToggle: this.orePreviewToggle,
+    });
   }
 
   private drawHotbar(context: CanvasRenderingContext2D): void {
@@ -3797,52 +3862,11 @@ export class OverworldUi {
       return;
     }
 
-    const settingRows = this.settingsTab === 'video' ? [
-      ['DISPLAY MODE', this.model.fullscreen ? 'FULLSCREEN' : 'WINDOWED'],
-      ['PIXEL SCALING', 'INTEGER'],
-      ['WORLD ZOOM', 'AUTO'],
-      ['UI SCALE', 'AUTO'],
-      ['LIGHTING', lightingSettingsMode(this.model).toUpperCase()],
-      ['WORLD SCALE', worldScaleSettingLabel(readWorldScale())],
-      ['WEATHER DETAIL', 'HIGH'],
-    ] as const : this.settingsTab === 'interface' ? [
-      ['HUD VISIBILITY', 'FULL'],
-      ['MINIMAP', 'EXPANDED'],
-      ['CHAT TIMESTAMPS', 'OFF'],
-      ['TOOLTIP DELAY', 'SHORT'],
-      ['ITEM LABELS', 'ON'],
-      ['UI SAFE AREA', 'AUTO'],
-    ] as const : [
-      ['REDUCED MOTION', 'OFF'],
-      ['FLASH REDUCTION', 'OFF'],
-      ['HIGH CONTRAST', 'OFF'],
-      ['CHAT TEXT SIZE', 'NORMAL'],
-      ['COLOUR FILTER', 'NONE'],
-      ['HOLD ASSIST', 'OFF'],
-    ] as const;
-    const rowHeight = Math.max(14, Math.min(27, Math.floor((settingsContent.height - 38) / settingRows.length)));
-    settingRows.forEach(([label, value], index) => {
-      const y = settingsContent.y + 23 + index * rowHeight;
-      drawPixelTextInRect(context, this.fonts, label, {
-        x: settingsContent.x + 10, y, width: Math.max(40, settingsContent.width * 0.46), height: 18,
-      }, { verticalAlign: 'center', color: '#6b4428', overflow: 'ellipsis' });
-      const interactiveLightingModel = this.settingsTab === 'video' && label === 'LIGHTING';
-      const interactiveWorldScale = this.settingsTab === 'video' && label === 'WORLD SCALE';
-      drawMenuButton(context, this.skin, this.fonts, this.pointer, interactiveLightingModel
-        ? this.lightingQualityNode.bounds : interactiveWorldScale ? this.worldScaleNode.bounds : {
-        x: settingsContent.x + Math.floor(settingsContent.width * 0.5), y,
-        width: Math.max(40, settingsContent.width * 0.5 - 10), height: Math.min(18, rowHeight),
-      }, value, { tone: interactiveLightingModel || interactiveWorldScale ? 'green' : 'silver', disabled: !interactiveLightingModel && !interactiveWorldScale });
+    drawSettingsChoiceRows(context, {
+      fonts: this.fonts, skin: this.skin, pointer: this.pointer, layout: this.layout,
+      settingsTab: this.settingsTab, model: this.model, lightingQualityNode: this.lightingQualityNode,
+      worldScaleNode: this.worldScaleNode, presentationCapNode: this.presentationCapNode,
     });
-    const lightingHint = lightingSettingsMode(this.model) === 'dynamic' && this.model.lightingEffectsDisabled
-      ? this.model.lightingFallbackReason === 'preparing' ? 'PREPARING DYNAMIC LIGHTING...' : 'DYNAMIC UNAVAILABLE; USING BASIC'
-      : 'CLICK LIGHTING: BASIC / CLASSIC / DYNAMIC';
-    drawPixelTextInRect(context, this.fonts, this.settingsTab === 'video' ? lightingHint : 'CONFIGURATION SUPPORT IS RESERVED FOR A LATER UPDATE.', {
-      x: settingsContent.x + 10,
-      y: settingsContent.y + settingsContent.height - 17,
-      width: settingsContent.width - 20,
-      height: 10,
-    }, { align: 'center', color: '#8c6c54', overflow: 'ellipsis' });
   }
 
   private drawCooking(context: CanvasRenderingContext2D, rect: UiRect): void {
