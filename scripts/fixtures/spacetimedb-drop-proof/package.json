@@ -1,0 +1,8 @@
+{
+  "name": "orchard-spacetimedb-drop-proof",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "spacetimedb": "2.8.2"
+  }
+}

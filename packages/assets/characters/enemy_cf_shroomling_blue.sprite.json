@@ -1,13 +1,14 @@
 {
   "name": "enemy_cf_shroomling_blue",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
   ],
   "anchor": [
     8,
-    15
+    14
   ],
   "frames": {
     "state_01": [
@@ -2217,7 +2218,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Blue_Shroomling.png",
-  "sourcePath": "references/Cute_Fantasy_ShroomLands/Shroomlings/Blue_Shroomling.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/shroomlands/Shroomlings/Blue_Shroomling.png",
   "sourceRegions": {
     "state_01": [
       [

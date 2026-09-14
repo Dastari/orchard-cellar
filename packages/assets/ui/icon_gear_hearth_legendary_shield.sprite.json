@@ -1,0 +1,68 @@
+{
+  "name": "icon_gear_hearth_legendary_shield",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......9998......",
+        ".....977565.....",
+        "....97975865....",
+        "...9707756065...",
+        "..979797586863..",
+        "..977772055553..",
+        "..955550233333..",
+        "..767675354543..",
+        "...7606534143...",
+        "....76753543....",
+        ".....765343.....",
+        "......3333......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#1192ca",
+    "1": "#1b4d7f",
+    "2": "#3bdae5",
+    "3": "#b3513a",
+    "4": "#dcc061",
+    "5": "#e67932",
+    "6": "#eeaa44",
+    "7": "#f1dd6d",
+    "8": "#f7e4a3",
+    "9": "#ffffff"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/shields-fantasy-160/sheet-16-no-outline.png",
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourceRegion": [
+    96,
+    48,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

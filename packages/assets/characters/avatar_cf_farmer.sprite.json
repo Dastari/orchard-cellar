@@ -1,6 +1,7 @@
 {
   "name": "avatar_cf_farmer",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     32
@@ -441,6 +442,6 @@
     "9": "#d29f70",
     "a": "#f6ca9f"
   },
-  "sourcePath": "references/Cute_Fantasy_Free/Player/Player.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/free/Player/Player.png",
   "sourcePaletteMode": "exact"
 }

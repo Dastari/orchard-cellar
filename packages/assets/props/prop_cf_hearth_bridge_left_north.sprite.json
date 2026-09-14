@@ -1,0 +1,57 @@
+{
+  "name": "prop_cf_hearth_bridge_left_north",
+  "category": "props",
+  "size": [
+    16,
+    15
+  ],
+  "anchor": [
+    8,
+    14
+  ],
+  "frames": {
+    "base": [
+      [
+        "0112112000000000",
+        "0122222033323222",
+        "0222222033232232",
+        "0122222033323222",
+        "0222222033232232",
+        "0000000033323222",
+        "0334443000000000",
+        "0344444000444444",
+        "0444444004444444",
+        "0444444000044444",
+        "5044440656666666",
+        "5666666632222222",
+        "3722222237222222",
+        "3772222237722222",
+        "3333333333333333"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#262b44",
+    "1": "#8e9ab4",
+    "2": "#6c7c9d",
+    "3": "#525f7a",
+    "4": "#3c4258",
+    "5": "#465167",
+    "6": "#5c6985",
+    "7": "#92a1b9"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/Bridge/Bridge_Stone_Horizontal.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Bridge_Stone_Horizontal.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        1,
+        16,
+        15
+      ]
+    ]
+  }
+}

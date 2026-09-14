@@ -1,0 +1,67 @@
+{
+  "name": "icon_skill_battle_conditioning",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".....3100.......",
+        "......13100.....",
+        "......1.13100...",
+        "...33.3.1.1310..",
+        "2..3..333.3.30..",
+        "2..3.133331.30..",
+        "42.33313331330..",
+        "42.1331331130..2",
+        "42..133311110.24",
+        "42...1111110..24",
+        "442...00000..244",
+        "5442..4...4.2445",
+        "7542..34450.2457",
+        "7542..31530.2457",
+        "7542..11410.2457",
+        "6754231545104457"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#28252f",
+    "1": "#5a5666",
+    "2": "#602141",
+    "3": "#9c99a4",
+    "4": "#9f173b",
+    "5": "#e83b3b",
+    "6": "#f89320",
+    "7": "#fb6b1d"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "warrior-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/warrior/sheets/warrior-skills-16.png",
+  "sourceRegion": [
+    176,
+    80,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.battle_conditioning",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

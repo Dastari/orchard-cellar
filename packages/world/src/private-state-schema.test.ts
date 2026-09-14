@@ -1,9 +1,10 @@
+import { gameplayPainterAuditSource } from '../../lifecycle-authoring/src/gameplay-painter-audit.test-support.js';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
 const client = readFileSync(new URL('../../client/src/net/overworld-connection.ts', import.meta.url), 'utf8');
-const main = readFileSync(new URL('../../client/src/overworld-main.ts', import.meta.url), 'utf8');
+const main = gameplayPainterAuditSource();
 
 function between(text: string, startAnchor: string, endAnchor: string): string {
   const start = text.indexOf(startAnchor);
@@ -16,7 +17,7 @@ function between(text: string, startAnchor: string, endAnchor: string): string {
 describe('T10 private high-churn state cutover', () => {
   it('keeps mining leases private and leaves public compatibility columns migration-only', () => {
     const claims = between(source, 'const world_resource_mining_claim = table(', 'const world_soil = table(');
-    const mining = between(source, 'export const harvestResource =', 'function authorityBowChargeMs(');
+    const mining = between(source, 'function applyHarvestResourceLifecycle(', 'function authorityBowChargeMs(');
     expect(claims).not.toContain('public: true');
     expect(claims).toContain('resourceId: t.u64().primaryKey()');
     expect(mining).toContain('world_resource_mining_claim.resourceId.find(resource.id)');

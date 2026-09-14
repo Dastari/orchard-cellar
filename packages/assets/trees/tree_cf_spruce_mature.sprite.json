@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_spruce_mature",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     48,
     64
@@ -90,7 +91,7 @@
     "7": "#b86f50",
     "8": "#91533b"
   },
-  "sourcePath": "references/Cute_Fantasy/Trees/Big_Spruce_tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Trees/Big_Spruce_tree.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Big_Spruce_tree.png",

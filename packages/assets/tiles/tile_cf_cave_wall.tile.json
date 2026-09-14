@@ -1039,7 +1039,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Cave_Walls.png",
-  "sourcePath": "references/Cute_Fantasy/Tiles/Cave/Cave_Walls.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/Cave/Cave_Walls.png",
   "sourceRegions": {
     "base": [
       [
@@ -1381,17 +1381,17 @@
     ]
   },
   "tags": [
-    "world.nature",
-    "decor.ambient",
-    "decor.animated"
+    "terrain.cliff",
+    "terrain.structural",
+    "variant.sheet"
   ],
   "placement": {
-    "layer": "object",
+    "layer": "ground",
     "footprint": [
       1,
       1
     ],
-    "blocksMovement": false,
+    "blocksMovement": true,
     "builderAvailable": false
   }
 }

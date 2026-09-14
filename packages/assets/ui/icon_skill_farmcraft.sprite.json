@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_farmcraft",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "......00........",
+        ".....02100......",
+        "......020.......",
+        ".......000......",
+        "......06550.....",
+        "......05540.....",
+        "......05430.....",
+        ".......000......",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#0e071b",
+    "1": "#1e6f50",
+    "2": "#33984b",
+    "3": "#571c27",
+    "4": "#891e2b",
+    "5": "#c42430",
+    "6": "#f5555d"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Fruit_Trees_Fruit_Objects.png",
+  "importedFrom": "Fruit_Trees_Fruit_Objects.png",
+  "sourceRegion": [
+    16,
+    0,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.farmcraft",
+    "source.asset.item_cf_apple"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

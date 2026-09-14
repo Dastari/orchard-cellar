@@ -1,0 +1,64 @@
+{
+  "name": "icon_material_ashwood",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "...........000..",
+        ".........001110.",
+        "........01133110",
+        "......0013333310",
+        ".....01334443310",
+        "....03334334310.",
+        "...033334333310.",
+        "..044443344310..",
+        ".045555433330...",
+        "0452222543310...",
+        "045255254330....",
+        "04525525430.....",
+        "0452222540......",
+        ".04555540.......",
+        "..044440........",
+        "...0000........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#2e222f",
+    "1": "#4c5f4f",
+    "2": "#5c8ba5",
+    "3": "#697a76",
+    "4": "#849395",
+    "5": "#bac6c8"
+  },
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/trees-and-logs/sheets/trees-and-logs-16.png",
+  "importedFrom": "trees-and-logs-16.png",
+  "sourceRegion": [
+    80,
+    16,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,1714 @@
+{
+  "version": 1,
+  "sourceRoot": "references/art/clockwork-raven",
+  "sourceRevision": "ba1b8e74d49043bf",
+  "summary": {
+    "packs": 34,
+    "sheets": 44,
+    "regularGridSheets": 43,
+    "cataloguedCells": 20656,
+    "sections": {
+      "collections": 10,
+      "equipment": 12,
+      "icon-packs": 10,
+      "magic": 1,
+      "ui": 1
+    }
+  },
+  "packs": [
+    {
+      "id": "collections--accessories-armour-free",
+      "title": "Free RPG Icon Pack — Accessories and Armour",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/accessories-armour-free",
+      "sourceArchive": "FREE RPG Icon Pack - 100+ Accessories and Armor - Clockwork Raven Studios.zip",
+      "archiveSha256": "fa1a4d88b02f2f60aee84463842839b6162336ce6c6e0bde7e1b6336ae5e64ce",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence, attribution, or vendor note was supplied in the archive.",
+      "keywords": [
+        "accessories",
+        "armour",
+        "clothing",
+        "equipment",
+        "hats",
+        "helmets",
+        "jewellery"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/accessories-armour-free/sheets/accessories-armour-16.png",
+          "variant": "accessories-armour",
+          "dimensions": [
+            256,
+            112
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            7
+          ],
+          "cells": 112,
+          "sha256": "7981fb65132892f5649e7bda7f72173941d5eb99a60a182f077ec367d674246b"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "collections--free",
+      "title": "Raven Fantasy Icons — Free",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/free",
+      "sourceArchive": "Free - Raven Fantasy Icons.zip",
+      "archiveSha256": "3656dc0db6c4a3f9ddf38a24fb12c00988379b0dfe24e44cc3b2a36ae0539e13",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence or attribution text was supplied. source-notes/vendor-note.txt is a vendor thank-you/support note.",
+      "keywords": [
+        "armour",
+        "consumables",
+        "currency",
+        "food",
+        "free fantasy rpg icon subset",
+        "gameplay props",
+        "magic",
+        "materials",
+        "tools",
+        "weapons"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/free/sheets/raven-fantasy-icons-free-16.png",
+          "variant": "raven-fantasy-icons-free",
+          "dimensions": [
+            256,
+            2192
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            137
+          ],
+          "cells": 2192,
+          "sha256": "29453ad77469bbe09995cbed4fd409e461b0827e0427e0737eae9cf308ec9e07"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/collections/free/source-notes/vendor-note.txt"
+      ]
+    },
+    {
+      "id": "collections--premium",
+      "title": "Raven Fantasy Icons — Premium",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/premium",
+      "sourceArchive": "Premium - Raven Fantasy Icons.zip",
+      "archiveSha256": "fe6f3143c1bf661b28f3f166484c307c4fb053fe8e642791ccc4441357e02c4b",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence or attribution text was supplied in the archive. The retained source-notes/rpg-maker-readme.txt is an RPG Maker compatibility note, not a licence.",
+      "keywords": [
+        "armour",
+        "broad fantasy rpg inventory icons",
+        "consumables",
+        "currency",
+        "food",
+        "magic",
+        "materials",
+        "tools",
+        "ui/gameplay props",
+        "weapons"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/premium/sheets/raven-fantasy-icons-16.png",
+          "variant": "raven-fantasy-icons",
+          "dimensions": [
+            256,
+            8256
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            516
+          ],
+          "cells": 8256,
+          "sha256": "455c3f952d3187f1efe1a4dd9cc27847915281e80133d57cc139145640b4adea"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/collections/premium/source-notes/rpg-maker-readme.txt"
+      ]
+    },
+    {
+      "id": "collections--premium--updates--epic-weapons-3",
+      "title": "Premium update — Epic Weapons 3",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/premium/updates/epic-weapons-3",
+      "sourceArchive": "Premium - Raven Fantasy Icons.zip",
+      "archiveSha256": "fe6f3143c1bf661b28f3f166484c307c4fb053fe8e642791ccc4441357e02c4b",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence, attribution, palette, or vendor note was supplied for this update.",
+      "keywords": [
+        "axes",
+        "blades",
+        "epic weapons",
+        "fantasy combat",
+        "polearms",
+        "ranged weapons"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/premium/updates/epic-weapons-3/sheets/epic-weapons-3-16.png",
+          "variant": "epic-weapons-3",
+          "dimensions": [
+            256,
+            192
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            12
+          ],
+          "cells": 192,
+          "sha256": "4e9d75bbbfe51659c03b7e48ba7a5ec4713c338dbda7f4a56358b0816d3b3d86"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "collections--premium--updates--skills--acolyte",
+      "title": "Premium update — Acolyte Skills",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/premium/updates/skills/acolyte",
+      "sourceArchive": "Premium - Raven Fantasy Icons.zip",
+      "archiveSha256": "fe6f3143c1bf661b28f3f166484c307c4fb053fe8e642791ccc4441357e02c4b",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence text was supplied. Retained vendor note and palette text are in source-notes/.",
+      "keywords": [
+        "acolyte",
+        "buffs",
+        "cleric",
+        "healing",
+        "holy magic",
+        "priest",
+        "sacred skills"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/premium/updates/skills/acolyte/sheets/acolyte-skills-16.png",
+          "variant": "acolyte-skills",
+          "dimensions": [
+            256,
+            256
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            16
+          ],
+          "cells": 256,
+          "sha256": "64a643cbcce374b14ff3b5f28cc4b867ab39b80c846a0923b817e660ed17af78"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/collections/premium/updates/skills/acolyte/source-notes/palette.txt",
+        "references/art/clockwork-raven/collections/premium/updates/skills/acolyte/source-notes/vendor-note.txt"
+      ]
+    },
+    {
+      "id": "collections--premium--updates--skills--rogue",
+      "title": "Premium update — Rogue Skills",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/premium/updates/skills/rogue",
+      "sourceArchive": "Premium - Raven Fantasy Icons.zip",
+      "archiveSha256": "fe6f3143c1bf661b28f3f166484c307c4fb053fe8e642791ccc4441357e02c4b",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence text was supplied. Retained vendor note and palette text are in source-notes/.",
+      "keywords": [
+        "daggers",
+        "evasion",
+        "poison",
+        "rogue",
+        "shadow skills",
+        "stealth",
+        "thief",
+        "traps"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/premium/updates/skills/rogue/sheets/rogue-skills-16.png",
+          "variant": "rogue-skills",
+          "dimensions": [
+            256,
+            256
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            16
+          ],
+          "cells": 256,
+          "sha256": "0f872039b331ed7df547fab0cde04f7d392ce34f3f61cbff3e11c07adc81ec55"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/collections/premium/updates/skills/rogue/source-notes/palette.txt",
+        "references/art/clockwork-raven/collections/premium/updates/skills/rogue/source-notes/vendor-note.txt"
+      ]
+    },
+    {
+      "id": "collections--premium--updates--skills--warrior",
+      "title": "Premium update — Warrior Skills",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/premium/updates/skills/warrior",
+      "sourceArchive": "Premium - Raven Fantasy Icons.zip",
+      "archiveSha256": "fe6f3143c1bf661b28f3f166484c307c4fb053fe8e642791ccc4441357e02c4b",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence text was supplied. Retained vendor note and palette text are in source-notes/.",
+      "keywords": [
+        "battle skills",
+        "combat",
+        "defence",
+        "fighter",
+        "melee",
+        "warrior",
+        "weapon techniques"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/premium/updates/skills/warrior/sheets/warrior-skills-16.png",
+          "variant": "warrior-skills",
+          "dimensions": [
+            256,
+            288
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            18
+          ],
+          "cells": 288,
+          "sha256": "60ea49c594e192d15979aa9f89ac50794590667e8ab81e834e9bf696b02ac39b"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/collections/premium/updates/skills/warrior/source-notes/palette.txt",
+        "references/art/clockwork-raven/collections/premium/updates/skills/warrior/source-notes/vendor-note.txt"
+      ]
+    },
+    {
+      "id": "collections--premium--updates--skills--wizard",
+      "title": "Premium update — Wizard Skills",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/premium/updates/skills/wizard",
+      "sourceArchive": "Premium - Raven Fantasy Icons.zip",
+      "archiveSha256": "fe6f3143c1bf661b28f3f166484c307c4fb053fe8e642791ccc4441357e02c4b",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence text was supplied. Retained vendor note and palette text are in source-notes/.",
+      "keywords": [
+        "arcane magic",
+        "elemental magic",
+        "mage",
+        "runes",
+        "sorcery",
+        "spells",
+        "wizard"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/premium/updates/skills/wizard/sheets/wizard-skills-16.png",
+          "variant": "wizard-skills",
+          "dimensions": [
+            256,
+            256
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            16
+          ],
+          "cells": 256,
+          "sha256": "fda3403cb8fb522647739256155f5bca36cd74b3687c4ae44053ed79af866e2e"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/collections/premium/updates/skills/wizard/source-notes/palette.txt",
+        "references/art/clockwork-raven/collections/premium/updates/skills/wizard/source-notes/vendor-note.txt"
+      ]
+    },
+    {
+      "id": "collections--premium--updates--trees-and-logs",
+      "title": "Premium update — Trees and Logs",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/premium/updates/trees-and-logs",
+      "sourceArchive": "Premium - Raven Fantasy Icons.zip",
+      "archiveSha256": "fe6f3143c1bf661b28f3f166484c307c4fb053fe8e642791ccc4441357e02c4b",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence, attribution, palette, or vendor note was supplied for this update.",
+      "keywords": [
+        "forest resources",
+        "logs",
+        "lumber",
+        "nature props",
+        "trees",
+        "wood"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/premium/updates/trees-and-logs/sheets/trees-and-logs-16.png",
+          "variant": "trees-and-logs",
+          "dimensions": [
+            256,
+            48
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            3
+          ],
+          "cells": 48,
+          "sha256": "da21968f1f44ccfab4934b641a0b25173479b3cc252b733643ccd63b044000e5"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "collections--starter-legacy",
+      "title": "Raven Fantasy Icons — Starter Pack (legacy)",
+      "section": "collections",
+      "sourceDirectory": "references/art/clockwork-raven/collections/starter-legacy",
+      "sourceArchive": "Raven Fantasy - Pixel Art RPG Icons - Starter Pack.zip",
+      "archiveSha256": "31ccfc26de1f449e5d72bd987c3428c41e967ae26575917907ee472c210f7908",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "No licence or attribution text was supplied. source-notes/vendor-note.txt is a vendor thank-you/support note.",
+      "keywords": [
+        "older starter subset of fantasy rpg inventory icons",
+        "useful for historical reference only"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/collections/starter-legacy/sheets/raven-fantasy-icons-starter-16.png",
+          "variant": "raven-fantasy-icons-starter",
+          "dimensions": [
+            256,
+            1088
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            68
+          ],
+          "cells": 1088,
+          "sha256": "92733cc94012fafe7c574c06357326431ba14d472a20908118b63d14b5d36255"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/collections/starter-legacy/source-notes/vendor-note.txt"
+      ]
+    },
+    {
+      "id": "equipment--accessories-400",
+      "title": "Accessories 400",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/accessories-400",
+      "sourceArchive": "RPG Icon Pack - 400+ Accessories - Clockwork Raven Studios.zip",
+      "archiveSha256": "301e3bc6ce48cc5a2a4841adf1a8cb9b8bb34052b3e3f0f759fc074305fb9373",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "no license or attribution text was included in the archive; retain purchase/source records externally.",
+      "keywords": [
+        "accessories",
+        "bags",
+        "belts",
+        "boots",
+        "cosmetics",
+        "hats",
+        "jewellery",
+        "keys",
+        "necklaces",
+        "rings",
+        "trinkets"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/accessories-400/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            448
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            28
+          ],
+          "cells": 448,
+          "sha256": "74bcf21a91b4087c49e7007725a5331878d802f3aff5fcde3b742c4607587d1d"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "equipment--armor-500",
+      "title": "Armor 500",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/armor-500",
+      "sourceArchive": "RPG Icon Pack - 500+ Armor - Clockwork Raven Studios.zip",
+      "archiveSha256": "03aa10eecebd75960d1882c4fd4e45aced2f0b20bfdcd3ff9224ba097b30ef36",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "no license or attribution text was included in the archive; retain purchase/source records externally.",
+      "keywords": [
+        "armor",
+        "boots",
+        "chestplates",
+        "fantasy gear",
+        "gauntlets",
+        "helmets",
+        "medieval",
+        "shields"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/armor-500/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            560
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            35
+          ],
+          "cells": 560,
+          "sha256": "8f4a56f91e5606ab03be6a9092869f1f03734e3ac2fc698720e61ea098e33a76"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "equipment--clothing-120",
+      "title": "Clothing 120",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/clothing-120",
+      "sourceArchive": "RPG Icon Pack - 120+ Fantasy Clothing.zip",
+      "archiveSha256": "2be5bed2363a83b744a3fc3a5367c0991251a8258fb9fa8d7c98108939ae0771",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note preserved in source-notes/; it grants no explicit license.",
+      "keywords": [
+        "boots",
+        "civilian",
+        "clothing",
+        "dresses",
+        "fantasy apparel",
+        "hats",
+        "hoods",
+        "robes",
+        "tunics"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/clothing-120/sheet-16-no-outline.png",
+          "variant": "no-outline",
+          "dimensions": [
+            256,
+            128
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            8
+          ],
+          "cells": 128,
+          "sha256": "3d4c516506b5744655054de4ae8cf02e3da207f029e6fb02ffd5ec4828b845f2"
+        },
+        {
+          "source": "references/art/clockwork-raven/equipment/clothing-120/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            128
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            8
+          ],
+          "cells": 128,
+          "sha256": "94bc3a8579eaa4cfafa58fa8f79ce207cbb942d2bf95f28806a8bd5a28c27385"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/equipment/clothing-120/source-notes/A Note to the Dev.txt"
+      ]
+    },
+    {
+      "id": "equipment--dark-fantasy-equipment",
+      "title": "Dark Fantasy Equipment",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/dark-fantasy-equipment",
+      "sourceArchive": "RPG Icon Pack - 100+ Dark Fantasy Equipment.zip",
+      "archiveSha256": "d2cc553dfb975170bb0b047c3c9e19e8d3477de3bbd4a19721371a6fd21a9cf1",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note preserved in source-notes/; it grants no explicit license.",
+      "keywords": [
+        "armor",
+        "cursed gear",
+        "dark fantasy",
+        "occult equipment",
+        "skulls",
+        "weapons"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/dark-fantasy-equipment/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            112
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            7
+          ],
+          "cells": 112,
+          "sha256": "1716597d4fc38dcc3adfc47a481436af84276c12bc79d431c7238f4df794a5a1"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/equipment/dark-fantasy-equipment/source-notes/A Note to the Dev.txt"
+      ]
+    },
+    {
+      "id": "equipment--epic-armory",
+      "title": "Epic Armory",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/epic-armory",
+      "sourceArchive": "Rpg Pixel Art Icons - 380+ Epic Armory.zip",
+      "archiveSha256": "0e1fddd9c33a5ed54a32368ed222eb191a8f4bf520c324e3f855b90071f73b59",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note preserved in source-notes/; it grants no explicit license.",
+      "keywords": [
+        "armor",
+        "bows",
+        "epic weapons",
+        "loot rarity",
+        "magical gear",
+        "shields",
+        "swords"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/epic-armory/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            384
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            24
+          ],
+          "cells": 384,
+          "sha256": "03dfc216f8dcc6486bee6eb1b64afcbca9d5d67875a86ad38151d8ce97a3deba"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/equipment/epic-armory/source-notes/Please, dont read this!.txt"
+      ]
+    },
+    {
+      "id": "equipment--epic-weapons-1",
+      "title": "Epic Weapons 1",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/epic-weapons-1",
+      "sourceArchive": "Raven Fantasy - Pixel Art RPG Icons - Epic Weapons.zip",
+      "archiveSha256": "3a362c124d474e07d24efd75a0a985c8ae252b4f2d3407c9b073e1c9f3a1eca3",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note and Resurrect-64 palette acknowledgement are preserved in source-notes/; no explicit asset license was included.",
+      "keywords": [
+        "axes",
+        "bows",
+        "daggers",
+        "epic weapons",
+        "fantasy armory",
+        "guns",
+        "hammers",
+        "staves",
+        "swords"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/epic-weapons-1/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            255,
+            32
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": null,
+          "cells": null,
+          "sha256": "5236c38b7b30c8bfa5328550747e0adb141b8b1fd0b7c954c5635c78a3c6f550"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/equipment/epic-weapons-1/source-notes/A Note to the Dev.txt",
+        "references/art/clockwork-raven/equipment/epic-weapons-1/source-notes/Pallete.txt"
+      ]
+    },
+    {
+      "id": "equipment--epic-weapons-2",
+      "title": "Epic Weapons 2",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/epic-weapons-2",
+      "sourceArchive": "Raven Fantasy - Pixel Art RPG Icons - Epic Weapons 2.zip",
+      "archiveSha256": "34eaf1b41424999f04e31e723c579f30476787700b552e76e62f73596ec9d0d7",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note and Resurrect-64 palette acknowledgement are preserved in source-notes/; no explicit asset license was included.",
+      "keywords": [
+        "axes",
+        "bows",
+        "daggers",
+        "epic weapons",
+        "magical weapons",
+        "melee",
+        "ranged",
+        "staves",
+        "swords"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/epic-weapons-2/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            192
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            12
+          ],
+          "cells": 192,
+          "sha256": "9cc083a246728bea29059f1cb3d165761c97d6b7dc677672652ced296aff8e2b"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/equipment/epic-weapons-2/source-notes/A Note to the Dev.txt",
+        "references/art/clockwork-raven/equipment/epic-weapons-2/source-notes/Pallete.txt"
+      ]
+    },
+    {
+      "id": "equipment--equipment-sets",
+      "title": "Equipment Sets",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/equipment-sets",
+      "sourceArchive": "Raven Fantasy - Pixel Art RPG Icons - Equipment Sets.zip",
+      "archiveSha256": "01e5dd1698eeb27d996f7b2f8d29b87f078e6ce854ad1387ab8fc9d303a98482",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note and Resurrect-64 palette acknowledgement are preserved in source-notes/; no explicit asset license was included.",
+      "keywords": [
+        "armor sets",
+        "coordinated equipment",
+        "fantasy classes",
+        "helmets",
+        "loot",
+        "shields",
+        "weapons"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/equipment-sets/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            400
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            25
+          ],
+          "cells": 400,
+          "sha256": "9fb73ea4c3b7bedca4d6b74fedd879ef66753ef0942f4b324074db0e6c754c27"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/equipment/equipment-sets/source-notes/A Note to the Dev.txt",
+        "references/art/clockwork-raven/equipment/equipment-sets/source-notes/Pallete.txt"
+      ]
+    },
+    {
+      "id": "equipment--masks-110",
+      "title": "Masks 110",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/masks-110",
+      "sourceArchive": "RPG Icon Pack - 110+ Fantasy Masks.zip",
+      "archiveSha256": "02d5ec62d80f0e0097ddd27a0cd25b91f467299586ab7f0bf28fd29f99f36797",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note preserved in source-notes/; it grants no explicit license.",
+      "keywords": [
+        "animal",
+        "ceremonial",
+        "cosmetic equipment",
+        "demon",
+        "faces",
+        "faction",
+        "helmets",
+        "masks"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/masks-110/sheet-16-no-outline.png",
+          "variant": "no-outline",
+          "dimensions": [
+            256,
+            112
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            7
+          ],
+          "cells": 112,
+          "sha256": "84a1950568c8edfef72ffbdc0ab5514269d16736fc35032b0423b4a90d18bf87"
+        },
+        {
+          "source": "references/art/clockwork-raven/equipment/masks-110/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            112
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            7
+          ],
+          "cells": 112,
+          "sha256": "129fda791f9a694a28f56721d9c088841073b82c4bff8a7b5d9096efd9a17698"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/equipment/masks-110/source-notes/A Note to the Dev.txt"
+      ]
+    },
+    {
+      "id": "equipment--monster-hunting-220",
+      "title": "Monster Hunting 220",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/monster-hunting-220",
+      "sourceArchive": "RPG Icon Pack - 220+ Monster Hunting.zip",
+      "archiveSha256": "2f51ff747ca29caabb75ef194e62e31f8811af937652adff3f8811feee00f800",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note preserved in source-notes/; it grants no explicit license.",
+      "keywords": [
+        "bones",
+        "claws",
+        "crafting reagents",
+        "eyes",
+        "hides",
+        "horns",
+        "hunting",
+        "monster drops",
+        "organs",
+        "trophies"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/monster-hunting-220/sheet-16-no-outline.png",
+          "variant": "no-outline",
+          "dimensions": [
+            256,
+            224
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            14
+          ],
+          "cells": 224,
+          "sha256": "96ac65474c41619dcf8c3278d88671825ad60ed9dba7557724b951d9a29d1e3d"
+        },
+        {
+          "source": "references/art/clockwork-raven/equipment/monster-hunting-220/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            224
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            14
+          ],
+          "cells": 224,
+          "sha256": "09cb8551a34ef7ceb5098124c72480c6fd26ab8650c14bccc95aba8045217b32"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/equipment/monster-hunting-220/source-notes/Please, dont read this!.txt"
+      ]
+    },
+    {
+      "id": "equipment--shields-fantasy-160",
+      "title": "Shields Fantasy 160",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/shields-fantasy-160",
+      "sourceArchive": "Rpg Pixel Art Icons - 160 Fantasy Shields.zip",
+      "archiveSha256": "b2a0c4c59c019be0446a006a3c3cc95ef623176c3ebb7ebd735d4c6b2f9970b6",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note preserved in source-notes/; it grants no explicit license.",
+      "keywords": [
+        "bucklers",
+        "fantasy defense",
+        "heraldry",
+        "kite shields",
+        "shields",
+        "tower shields"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/shields-fantasy-160/sheet-16-no-outline.png",
+          "variant": "no-outline",
+          "dimensions": [
+            256,
+            160
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            10
+          ],
+          "cells": 160,
+          "sha256": "f26b9e4add1de2b83b45d874bcec78fdaf7c4a7a3fb8dc98b49d8d92f82aa911"
+        },
+        {
+          "source": "references/art/clockwork-raven/equipment/shields-fantasy-160/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            160
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            10
+          ],
+          "cells": 160,
+          "sha256": "cb39a05da359e10e29574af66fd00d6bbe936246e885d1b8e1455ce294752287"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/equipment/shields-fantasy-160/source-notes/Please, dont read this!.txt"
+      ]
+    },
+    {
+      "id": "equipment--weapons-800",
+      "title": "Weapons 800",
+      "section": "equipment",
+      "sourceDirectory": "references/art/clockwork-raven/equipment/weapons-800",
+      "sourceArchive": "Clock work raven 800 weapon pack.zip",
+      "archiveSha256": "0974570e95844bc343cb77fc1037e3eb0572188f548239fe57ef5531c679e139",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "no license or attribution text was included in the archive; retain purchase/source records externally.",
+      "keywords": [
+        "axes",
+        "bows",
+        "daggers",
+        "elemental colours",
+        "guns",
+        "hammers",
+        "shields",
+        "spears",
+        "staves",
+        "swords",
+        "wands",
+        "weapon sets"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/equipment/weapons-800/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            832
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            52
+          ],
+          "cells": 832,
+          "sha256": "961520686f989617fa494d17cc0c123fbf01a27b6b71b8ddb23f27e5726882ff"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "icon-packs--alchemy-herbs",
+      "title": "Alchemy and Herbs",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/alchemy-herbs",
+      "sourceArchive": "Pixel Art Icons - 280+ Alchemy and Herbs.zip",
+      "archiveSha256": "5a42a3e2926589e2b5226447263745d0b69b739f1c9ff80558fa30b4faf533f6",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive. Purchase note retained in source-notes/readme.txt.",
+      "keywords": [
+        "alchemy",
+        "alchemy ingredients",
+        "flower",
+        "herb",
+        "herbs",
+        "ingredient",
+        "leaf",
+        "magical components",
+        "mushroom",
+        "plant",
+        "plants",
+        "potion",
+        "root",
+        "scroll",
+        "tinctures"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            288
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            18
+          ],
+          "cells": 288,
+          "sha256": "a3d21b0b9ff6eb2a61a88f04ae0ad3d7b3cfde8f9a640890dc09a1d09088b6c2"
+        },
+        {
+          "source": "references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png",
+          "variant": "without-outline",
+          "dimensions": [
+            256,
+            288
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            18
+          ],
+          "cells": 288,
+          "sha256": "b6beeeebfbf8c9c8f8aa594225e469fa05562bd61d9e849ab2866c7145173edc"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/icon-packs/alchemy-herbs/source-notes/readme.txt"
+      ]
+    },
+    {
+      "id": "icon-packs--crafting-materials",
+      "title": "Crafting Materials",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/crafting-materials",
+      "sourceArchive": "Pixel Art Icons - Crafting Materials.zip",
+      "archiveSha256": "c84b3f896c40d85e7bd2c14da61ee247c31513406994cf87364594482add9a54",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive.",
+      "keywords": [
+        "crafting",
+        "ingot",
+        "ingots",
+        "lumber",
+        "material",
+        "metal",
+        "ore",
+        "ores",
+        "processed crafting resources",
+        "resource",
+        "rock",
+        "stone",
+        "stones",
+        "timber",
+        "wood"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/crafting-materials/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            144
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            9
+          ],
+          "cells": 144,
+          "sha256": "c24bd64e1a8ebe8e8acc523b407d3f5afa135fd2189bbccdfef1fcd6baa45871"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "icon-packs--farming-food-beverages",
+      "title": "Farming, Food and Beverages",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/farming-food-beverages",
+      "sourceArchive": "Pixel Art Icons - 300+ Farming, Food and Beverages.zip",
+      "archiveSha256": "f5975e237289da30dca0c0233e4af20d0e69fbad4155e96f7c1ee883004ec5a6",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive. Purchase note retained in source-notes/readme.txt.",
+      "keywords": [
+        "baked goods",
+        "beverage",
+        "beverages",
+        "bread",
+        "cooking",
+        "crop",
+        "crops",
+        "drink",
+        "farm",
+        "food",
+        "fruit",
+        "meal",
+        "meals",
+        "seed",
+        "seeds",
+        "vegetable",
+        "vegetables"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+          "variant": "no-outline",
+          "dimensions": [
+            256,
+            304
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            19
+          ],
+          "cells": 304,
+          "sha256": "1b16c28d1a8f4bb7103dc0933f48df3d8902ab6032399a6266b23efad84f19a6"
+        },
+        {
+          "source": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            304
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            19
+          ],
+          "cells": 304,
+          "sha256": "276324a3472e371461598eac90eafcb54121742656496d73dd1781d6fdd29360"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/icon-packs/farming-food-beverages/source-notes/readme.txt"
+      ]
+    },
+    {
+      "id": "icon-packs--fishing-sea",
+      "title": "Fishing and Sea",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/fishing-sea",
+      "sourceArchive": "Raven Fantasy - Pixel Art RPG Icons - Fishing and Sea.zip",
+      "archiveSha256": "437059960aedb6b678e3ee72fb28760a968b97240bb3dcffd5bdc6babcc7b486",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive. Purchase note retained in source-notes/note-to-developer.txt; palette attribution retained in source-notes/palette.txt.",
+      "keywords": [
+        "bait",
+        "boat",
+        "boats",
+        "fish",
+        "fishing",
+        "hook",
+        "hooks",
+        "marine",
+        "rod",
+        "rods",
+        "sea",
+        "sea treasure",
+        "seafood",
+        "shell",
+        "shells",
+        "tackle"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/fishing-sea/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            112
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            7
+          ],
+          "cells": 112,
+          "sha256": "f39dbbe2266308e15b2b4d7f65f6250f65acd407c25f32233c64dfac4205a975"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/icon-packs/fishing-sea/source-notes/note-to-developer.txt",
+        "references/art/clockwork-raven/icon-packs/fishing-sea/source-notes/palette.txt"
+      ]
+    },
+    {
+      "id": "icon-packs--gems-jewels",
+      "title": "Gems and Jewels",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/gems-jewels",
+      "sourceArchive": "Pixel Art Icons - Gems and Jewels.zip",
+      "archiveSha256": "a88d910e68bbddb79f4a69537628728a1fc7221d90551b6107a122ab2c741c48",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive.",
+      "keywords": [
+        "coloured minerals",
+        "crystal",
+        "crystals",
+        "currency",
+        "cut gems",
+        "diamond",
+        "emerald",
+        "gem",
+        "jewel",
+        "jewels",
+        "mineral",
+        "ruby",
+        "sapphire"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/gems-jewels/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            176
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            11
+          ],
+          "cells": 176,
+          "sha256": "da6bb666dee40f911d5ff99ca9c1d6861ec221e17c5ed3f1235352b7434c677a"
+        },
+        {
+          "source": "references/art/clockwork-raven/icon-packs/gems-jewels/sheet-16-without-outline.png",
+          "variant": "without-outline",
+          "dimensions": [
+            256,
+            176
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            11
+          ],
+          "cells": 176,
+          "sha256": "24ecabea6c40d5efd684e96fa5ddfabd5d075a0dc25c63a4aa4a9817938276c8"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "icon-packs--general-items-tools",
+      "title": "General Items and Tools",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/general-items-tools",
+      "sourceArchive": "Pixel Art Icons - General Itens and Tools.zip",
+      "archiveSha256": "26e04acd61d61b8c4fc48e5130995ebf5f224f73330591f0f01d6c258ee2d1a7",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive. Purchase note retained in source-notes/readme.txt.",
+      "keywords": [
+        "axe",
+        "bag",
+        "bags",
+        "book",
+        "books",
+        "bottle",
+        "chest",
+        "containers",
+        "hammer",
+        "item",
+        "key",
+        "keys",
+        "pickaxe",
+        "tool",
+        "tools",
+        "utility",
+        "utility objects",
+        "weapons"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+          "variant": "classic",
+          "dimensions": [
+            256,
+            192
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            12
+          ],
+          "cells": 192,
+          "sha256": "e2045cb08ac6033bc9e3404c3353d3f67511d829b200b6949431d43766a6ca54"
+        },
+        {
+          "source": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            192
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            12
+          ],
+          "cells": 192,
+          "sha256": "a68ea628bc55737b7a1cb9098a0e7560226597451f760b8fe49140185f875aa4"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/icon-packs/general-items-tools/source-notes/readme.txt"
+      ]
+    },
+    {
+      "id": "icon-packs--pets-animals",
+      "title": "Pets and Animals",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/pets-animals",
+      "sourceArchive": "Raven Fantasy - Pixel Art RPG Icons - Pets and Animals.zip",
+      "archiveSha256": "de333df46bb780d9e90a25a9cc8eff89937a66b9840178c6e6fd2ad276a3cf70",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive. Palette attribution retained in source-notes/palette.txt.",
+      "keywords": [
+        "animal",
+        "bird",
+        "cat",
+        "creature",
+        "creature and monster head portraits",
+        "dog",
+        "head",
+        "monster",
+        "pet",
+        "portrait",
+        "reptile"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/pets-animals/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            96
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            6
+          ],
+          "cells": 96,
+          "sha256": "a90013f736a5932c6b8a31a55796a90b388d2af17a57575e3c50e254c4a2f670"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/icon-packs/pets-animals/source-notes/palette.txt"
+      ]
+    },
+    {
+      "id": "icon-packs--places-seasons",
+      "title": "Places and Seasons",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/places-seasons",
+      "sourceArchive": "Pixel Art Icons -32 Places and Seasons.zip",
+      "archiveSha256": "2103d0dace616eb997f1ae7159e218ccd3c9f3ac5de0ce3a768a5616ddbf87e3",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive. Purchase note retained in source-notes/readme.txt.",
+      "keywords": [
+        "biome",
+        "biome/location symbols",
+        "forest",
+        "homes",
+        "house",
+        "landmark",
+        "landmarks",
+        "map",
+        "place",
+        "season",
+        "seasons",
+        "tower",
+        "towers",
+        "tree",
+        "trees",
+        "village"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/places-seasons/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            32
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            2
+          ],
+          "cells": 32,
+          "sha256": "436f2b2538a46cd6dfcb942e8f44a86a5db005ea6939563f95b98329f9069122"
+        },
+        {
+          "source": "references/art/clockwork-raven/icon-packs/places-seasons/sheet-16-without-outline.png",
+          "variant": "without-outline",
+          "dimensions": [
+            256,
+            32
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            2
+          ],
+          "cells": 32,
+          "sha256": "8ba7dd54cee79ee43f57066e9329964c04c02888f8a1bba2c615255a35f24bf6"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/icon-packs/places-seasons/source-notes/readme.txt"
+      ]
+    },
+    {
+      "id": "icon-packs--potion-pack",
+      "title": "Potion Pack",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/potion-pack",
+      "sourceArchive": "Clockworkraven - POTION PACK.zip",
+      "archiveSha256": "7dcdc35000e2e0456eec19c64907b9caf1c1c52782014666e39fe81cd0a3ef6e",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive.",
+      "keywords": [
+        "alchemy",
+        "bottle",
+        "coloured consumables",
+        "consumable",
+        "elixir",
+        "elixirs",
+        "flask",
+        "flasks",
+        "healing",
+        "potion",
+        "potion bottles",
+        "vial"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/potion-pack/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            160
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            10
+          ],
+          "cells": 160,
+          "sha256": "444b0c14bd6f5d1bcf73c32a71ea4d6129454753c532675847085dfa90e5adea"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "icon-packs--treasure-currency-gems-loot",
+      "title": "Treasure, Currency, Gems and Loot",
+      "section": "icon-packs",
+      "sourceDirectory": "references/art/clockwork-raven/icon-packs/treasure-currency-gems-loot",
+      "sourceArchive": "Raven Fantasy - Pixel Art RPG Icons - Treasure, Currency, Gems and Loot.zip",
+      "archiveSha256": "1fa01d56f6c5febe722f89fd7450d3e98f52a179c402f5959bdacac6b50b8793",
+      "vendor": "Clockwork Raven Studios (Caio)",
+      "licenseStatus": "not included in archive. Purchase note retained in source-notes/note-to-developer.txt; palette attribution retained in source-notes/palette.txt.",
+      "keywords": [
+        "chest",
+        "chests",
+        "coin",
+        "coins",
+        "crystal",
+        "currency",
+        "drop",
+        "gem",
+        "gems",
+        "gold",
+        "loot",
+        "loot drops",
+        "reward",
+        "treasure"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/icon-packs/treasure-currency-gems-loot/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            112
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            7
+          ],
+          "cells": 112,
+          "sha256": "12f12facf55b566bbd51877d3d4f7c7f860b99ac75eab75a1e9bdad2add48df9"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/icon-packs/treasure-currency-gems-loot/source-notes/note-to-developer.txt",
+        "references/art/clockwork-raven/icon-packs/treasure-currency-gems-loot/source-notes/palette.txt"
+      ]
+    },
+    {
+      "id": "magic--skills-spells-400",
+      "title": "Skills Spells 400",
+      "section": "magic",
+      "sourceDirectory": "references/art/clockwork-raven/magic/skills-spells-400",
+      "sourceArchive": "RPG Icon Pack - 400+ Skills and Spells - Clockwork Raven Studios.zip",
+      "archiveSha256": "5b30f30c4875538615f919640639c3ae81a1286ffc5d7fbac8ccaac53add2058",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "no license or attribution text was included in the archive; retain purchase/source records externally.",
+      "keywords": [
+        "buffs",
+        "combat abilities",
+        "debuffs",
+        "effects",
+        "elemental",
+        "magic",
+        "projectiles",
+        "skills",
+        "spells"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/magic/skills-spells-400/sheet-16.png",
+          "variant": "base",
+          "dimensions": [
+            256,
+            448
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            28
+          ],
+          "cells": 448,
+          "sha256": "e8d63eededf1e31b31c8523723cdcbcd8381bc0eec5404174a3f929fc900cbc3"
+        }
+      ],
+      "sourceNotes": []
+    },
+    {
+      "id": "ui--attributes-menu-states-240",
+      "title": "Attributes Menu States 240",
+      "section": "ui",
+      "sourceDirectory": "references/art/clockwork-raven/ui/attributes-menu-states-240",
+      "sourceArchive": "RPG Icon Pack - 240 Attributes, Menu and States.zip",
+      "archiveSha256": "d2843ea8dc47364afdab31417e7fe846e18ae757c55ed3b015789ad61d5e66b6",
+      "vendor": "Clockwork Raven Studios",
+      "licenseStatus": "vendor thank-you note preserved in source-notes/; it grants no explicit license.",
+      "keywords": [
+        "attributes",
+        "buffs",
+        "debuffs",
+        "health",
+        "mana",
+        "menu",
+        "settings",
+        "states",
+        "status effects",
+        "ui"
+      ],
+      "sheets": [
+        {
+          "source": "references/art/clockwork-raven/ui/attributes-menu-states-240/sheet-16-no-outline.png",
+          "variant": "no-outline",
+          "dimensions": [
+            256,
+            240
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            15
+          ],
+          "cells": 240,
+          "sha256": "5679e88b6584ec50b2f154b3b93e5768071ab43380141b09df0465725760f53b"
+        },
+        {
+          "source": "references/art/clockwork-raven/ui/attributes-menu-states-240/sheet-16-outline.png",
+          "variant": "outline",
+          "dimensions": [
+            256,
+            240
+          ],
+          "tileSize": [
+            16,
+            16
+          ],
+          "grid": [
+            16,
+            15
+          ],
+          "cells": 240,
+          "sha256": "c4e0a7255c87201b5911b62af97ebc4d2f9490cfcdba273e1965e08a3e6aa798"
+        }
+      ],
+      "sourceNotes": [
+        "references/art/clockwork-raven/ui/attributes-menu-states-240/source-notes/Please, dont read this!.txt"
+      ]
+    }
+  ]
+}

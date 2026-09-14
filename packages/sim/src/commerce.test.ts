@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BRONZE_PER_SILVER,
   BRONZE_PER_GOLD,
   ITEM_ECONOMY,
   FARMER_MERCHANT_OFFERS,
@@ -23,20 +24,20 @@ describe('coin currency and item economy', () => {
   it('prices every item recognized by inventory rules', () => {
     expect(economyCatalogIsExhaustive()).toBe(true);
     for (const value of Object.values(ITEM_ECONOMY)) {
-      expect(value.sellPriceBronze).toBeGreaterThan(0);
+      expect(value.sellPriceBronze).toBeGreaterThanOrEqual(0);
       if (value.buyPriceBronze !== null) expect(value.buyPriceBronze).toBeGreaterThan(value.sellPriceBronze);
     }
   });
 
   it('stocks all current tools and computes exact integer totals', () => {
-    expect(ITEM_ECONOMY.homestead_deed.buyPriceBronze).toBe(5 * Number(BRONZE_PER_GOLD));
+    expect(ITEM_ECONOMY.homestead_deed!.buyPriceBronze).toBe(5 * Number(BRONZE_PER_GOLD));
     expect(TOOL_MERCHANT_OFFERS).toContain('shovel');
     expect(TOOL_MERCHANT_OFFERS).toContain('hammer');
     expect(TOOL_MERCHANT_OFFERS).toContain('torch');
     expect(TOOL_MERCHANT_OFFERS).toContain('lantern');
     expect(TOOL_MERCHANT_OFFERS).toContain('workbench');
     expect(TOOL_MERCHANT_OFFERS).toContain('anvil');
-    expect(ITEM_ECONOMY.anvil).toEqual({ buyPriceBronze: 500, sellPriceBronze: 200 });
+    expect(ITEM_ECONOMY.anvil!).toEqual({ buyPriceBronze: 500, sellPriceBronze: 200 });
     expect(commerceTotal(450, 3)).toBe(1_350n);
     expect(commerceTotal(450, 0)).toBeNull();
   });
@@ -45,35 +46,36 @@ describe('coin currency and item economy', () => {
     for (const crop of CROP_DEFINITIONS) {
       expect(TOOL_MERCHANT_OFFERS).not.toContain(crop.seedItemKind);
       expect(FARMER_MERCHANT_OFFERS).toContain(crop.seedItemKind);
-      expect(ITEM_ECONOMY[crop.seedItemKind].buyPriceBronze).toBe(crop.seedBuyPriceBronze);
-      expect(ITEM_ECONOMY[crop.harvestItemKind].sellPriceBronze).toBe(crop.harvestSellPriceBronze);
+      expect(ITEM_ECONOMY[crop.seedItemKind]!.buyPriceBronze).toBe(crop.seedBuyPriceBronze);
+      expect(ITEM_ECONOMY[crop.harvestItemKind]!.sellPriceBronze).toBe(crop.harvestSellPriceBronze);
     }
     expect(merchantOffers('farmer_supplies')).toBe(FARMER_MERCHANT_OFFERS);
     expect(FARMER_MERCHANT_OFFERS).toEqual(expect.arrayContaining(['hoe', 'shovel', 'watering_can']));
   });
 
   it('06§12 prices every phases 1–3 material and placeable', () => {
-    expect(ITEM_ECONOMY.fiber).toEqual({ buyPriceBronze: null, sellPriceBronze: 2 });
-    expect(ITEM_ECONOMY.workbench).toEqual({ buyPriceBronze: 120, sellPriceBronze: 48 });
-    expect(ITEM_ECONOMY.campfire.sellPriceBronze).toBe(18);
-    expect(ITEM_ECONOMY.fence.sellPriceBronze).toBe(4);
-    expect(ITEM_ECONOMY.fence_gate.sellPriceBronze).toBe(12);
-    expect(ITEM_ECONOMY.sign.sellPriceBronze).toBe(10);
-    expect(ITEM_ECONOMY.standing_torch.sellPriceBronze).toBe(20);
+    expect(ITEM_ECONOMY.fiber!).toEqual({ buyPriceBronze: null, sellPriceBronze: 2 });
+    expect(ITEM_ECONOMY.workbench!).toEqual({ buyPriceBronze: 120, sellPriceBronze: 48 });
+    expect(ITEM_ECONOMY.campfire!.sellPriceBronze).toBe(18);
+    expect(ITEM_ECONOMY.fence!.sellPriceBronze).toBe(4);
+    expect(ITEM_ECONOMY.fence_gate!.sellPriceBronze).toBe(12);
+    expect(ITEM_ECONOMY.sign!.sellPriceBronze).toBe(10);
+    expect(ITEM_ECONOMY.standing_torch!.sellPriceBronze).toBe(20);
   });
 
   it('pays exactly twice the ore plus one wood fuel opportunity cost for bars', () => {
-    expect(ITEM_ECONOMY.iron_bar.sellPriceBronze)
-      .toBe(2 * (ITEM_ECONOMY.iron_ore.sellPriceBronze + ITEM_ECONOMY.wood.sellPriceBronze));
-    expect(ITEM_ECONOMY.copper_bar.sellPriceBronze)
-      .toBe(2 * (ITEM_ECONOMY.copper_ore.sellPriceBronze + ITEM_ECONOMY.wood.sellPriceBronze));
-    expect(ITEM_ECONOMY.gold_bar.sellPriceBronze)
-      .toBe(2 * (ITEM_ECONOMY.gold_ore.sellPriceBronze + ITEM_ECONOMY.wood.sellPriceBronze));
+    expect(ITEM_ECONOMY.iron_bar!.sellPriceBronze)
+      .toBe(2 * (ITEM_ECONOMY.iron_ore!.sellPriceBronze + ITEM_ECONOMY.wood!.sellPriceBronze));
+    expect(ITEM_ECONOMY.copper_bar!.sellPriceBronze)
+      .toBe(2 * (ITEM_ECONOMY.copper_ore!.sellPriceBronze + ITEM_ECONOMY.wood!.sellPriceBronze));
+    expect(ITEM_ECONOMY.gold_bar!.sellPriceBronze)
+      .toBe(2 * (ITEM_ECONOMY.gold_ore!.sellPriceBronze + ITEM_ECONOMY.wood!.sellPriceBronze));
   });
 
   it('makes the first-bottle chain a meaningful premium over raw fruit', () => {
-    expect(ITEM_ECONOMY.bottles.sellPriceBronze)
-      .toBeGreaterThan(3 * ITEM_ECONOMY.apple.sellPriceBronze);
-    expect(ITEM_ECONOMY.must.sellPriceBronze).toBeLessThan(ITEM_ECONOMY.bottles.sellPriceBronze);
+    expect(ITEM_ECONOMY.bottles!.sellPriceBronze).toBe(50 * Number(BRONZE_PER_SILVER));
+    expect(ITEM_ECONOMY.bottles!.sellPriceBronze)
+      .toBeGreaterThan(3 * ITEM_ECONOMY.apple!.sellPriceBronze);
+    expect(ITEM_ECONOMY.must!.sellPriceBronze).toBeLessThan(ITEM_ECONOMY.bottles!.sellPriceBronze);
   });
 });

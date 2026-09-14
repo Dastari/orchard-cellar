@@ -90,7 +90,7 @@
     "1": "#00ffee",
     "2": "#00d1e0"
   },
-  "sourcePath": "references/Cute_Fantasy_Desert/Tiles/Desert_Beach_Tiles_1.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Tiles/Desert_Beach_Tiles_1.png",
   "sourcePaletteMode": "exact",
   "frameKinds": {
     "base": "variant"

@@ -1,10 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { TOOL_MERCHANT_DIALOGUE, dialogueChoice, dialogueDefinition, dialogueNode } from './dialogue.js';
+import {
+  TOOL_MERCHANT_DIALOGUE, dialogueChoice, dialogueDefinition, dialogueNode,
+  runtimeDialogueDefinition,
+} from './dialogue.js';
+import { bootstrapContentRows } from './content/bootstrap-registry.js';
+import { buildContentRegistry } from './content/registry.js';
 
 describe('reusable NPC dialogue definitions', () => {
   it('resolves definitions through the shared registry', () => {
     expect(dialogueDefinition('tool_merchant')).toBe(TOOL_MERCHANT_DIALOGUE);
     expect(dialogueDefinition('missing')).toBeNull();
+  });
+
+  it('projects dialogue authority from a published live revision', () => {
+    const rows = bootstrapContentRows().map((row) => row.id !== 'dialogue:tool_merchant' ? row : {
+      ...row,
+      json: JSON.stringify({
+        ...(JSON.parse(String(row.json)) as object), initialNodeId: 'about_trade',
+      }),
+    });
+    const registry = buildContentRegistry(rows).registry;
+    expect(runtimeDialogueDefinition(registry, 'tool_merchant')?.initialNodeId).toBe('about_trade');
+    expect(runtimeDialogueDefinition(registry, 'missing')).toBeNull();
   });
 
   it('offers a filterable quest chain plus the reusable route into the shop', () => {

@@ -1,0 +1,234 @@
+[
+  {
+    "id": "enemy:caldera_warden",
+    "kind": "enemy",
+    "schemaVersion": 1,
+    "runtimeKind": "caldera_warden",
+    "displayName": "Caldera Warden",
+    "npcKind": "cowling",
+    "health": 450,
+    "damageCenti": 1400,
+    "pattern": "charge",
+    "rangeTiles": 5,
+    "aggroTiles": 0,
+    "speedPermille": 650,
+    "behavior": {
+      "engine": "warden",
+      "minimumAttackRangeTiles": 0,
+      "repositionTicks": 0
+    },
+    "delvePools": [
+      [
+        "cave",
+        [
+          [
+            "skeleton",
+            "Restless Skeleton",
+            "m",
+            8,
+            8,
+            900
+          ],
+          [
+            "skeleton_bowman",
+            "Skeleton Bowman",
+            "r",
+            6,
+            7,
+            760
+          ],
+          [
+            "slime_small",
+            "Cave Slime",
+            "m",
+            5,
+            5,
+            740
+          ]
+        ]
+      ],
+      [
+        "volcanic",
+        [
+          [
+            "cowling",
+            "Ember Cowling",
+            "m",
+            11,
+            10,
+            1020
+          ],
+          [
+            "cowling_mage",
+            "Cowling Pyromancer",
+            "g",
+            8,
+            11,
+            760
+          ],
+          [
+            "flying_skull",
+            "Cinder Skull",
+            "f",
+            8,
+            9,
+            1160
+          ]
+        ]
+      ],
+      [
+        "dungeon",
+        [
+          [
+            "skeleton_swordman",
+            "Crypt Blade",
+            "m",
+            15,
+            12,
+            1040
+          ],
+          [
+            "skeleton_bowman",
+            "Crypt Bowman",
+            "r",
+            11,
+            11,
+            860
+          ],
+          [
+            "skeleton_mage",
+            "Crypt Mage",
+            "g",
+            12,
+            13,
+            800
+          ],
+          [
+            "slime_big",
+            "Royal Slime",
+            "m",
+            22,
+            14,
+            700
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "id": "enemy:cinder_skull",
+    "kind": "enemy",
+    "schemaVersion": 1,
+    "runtimeKind": "cinder_skull",
+    "displayName": "Cinder Skull",
+    "npcKind": "flying_skull",
+    "health": 42,
+    "damageCenti": 1000,
+    "pattern": "dive",
+    "rangeTiles": 3,
+    "aggroTiles": 4,
+    "speedPermille": 650,
+    "behavior": {
+      "engine": "orbit",
+      "minimumAttackRangeTiles": 2,
+      "repositionTicks": 80,
+      "retreatBelowTiles": 2.4,
+      "orbitWithinTiles": 2.9
+    }
+  },
+  {
+    "id": "enemy:cowling_pyromancer",
+    "kind": "enemy",
+    "schemaVersion": 1,
+    "runtimeKind": "cowling_pyromancer",
+    "displayName": "Cowling Pyromancer",
+    "npcKind": "cowling_mage",
+    "aliases": [
+      "skeleton_bowman",
+      "skeleton_mage"
+    ],
+    "health": 48,
+    "damageCenti": 800,
+    "pattern": "bolt",
+    "rangeTiles": 6,
+    "aggroTiles": 6,
+    "speedPermille": 500,
+    "behavior": {
+      "engine": "kite",
+      "minimumAttackRangeTiles": 3,
+      "repositionTicks": 0,
+      "retreatBelowTiles": 3,
+      "holdWithinTiles": 6,
+      "alternateAttack": {
+        "cycleModulo": 3,
+        "cycle": 2,
+        "pattern": "burst",
+        "damageCenti": 700
+      }
+    }
+  },
+  {
+    "id": "enemy:ember_cowling",
+    "kind": "enemy",
+    "schemaVersion": 1,
+    "runtimeKind": "ember_cowling",
+    "displayName": "Ember Cowling",
+    "npcKind": "cowling",
+    "health": 60,
+    "damageCenti": 900,
+    "pattern": "charge",
+    "rangeTiles": 4,
+    "aggroTiles": 5,
+    "speedPermille": 650,
+    "behavior": {
+      "engine": "pursue",
+      "minimumAttackRangeTiles": 0,
+      "repositionTicks": 0
+    }
+  },
+  {
+    "id": "enemy:ember_slime",
+    "kind": "enemy",
+    "schemaVersion": 1,
+    "runtimeKind": "ember_slime",
+    "displayName": "Ember Slime",
+    "npcKind": "slime_small_red",
+    "aliases": [
+      "slime_small",
+      "slime_big"
+    ],
+    "health": 36,
+    "damageCenti": 600,
+    "pattern": "pulse",
+    "rangeTiles": 1.25,
+    "aggroTiles": 4,
+    "speedPermille": 500,
+    "behavior": {
+      "engine": "pursue",
+      "minimumAttackRangeTiles": 0,
+      "repositionTicks": 0
+    }
+  },
+  {
+    "id": "enemy:rogue_skeleton",
+    "kind": "enemy",
+    "schemaVersion": 1,
+    "runtimeKind": "rogue_skeleton",
+    "displayName": "Rogue Skeleton",
+    "npcKind": "skeleton",
+    "aliases": [
+      "skeleton_swordman"
+    ],
+    "health": 40,
+    "damageCenti": 600,
+    "pattern": "burst",
+    "rangeTiles": 1.5,
+    "aggroTiles": 4,
+    "speedPermille": 650,
+    "behavior": {
+      "engine": "pursue",
+      "minimumAttackRangeTiles": 0,
+      "repositionTicks": 0
+    }
+  }
+]

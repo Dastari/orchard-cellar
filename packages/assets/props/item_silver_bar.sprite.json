@@ -1,0 +1,70 @@
+{
+  "name": "item_silver_bar",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".........00.....",
+        ".......00110....",
+        ".....00112210...",
+        "...00112233210..",
+        ".00112232233210.",
+        ".01122333333210.",
+        ".04112233321140.",
+        ".04411222113440.",
+        ".04341111344400.",
+        "..03321334400...",
+        "...02213400.....",
+        "....02100.......",
+        ".....00.........",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#555e78",
+    "1": "#d9e1ec",
+    "2": "#afbcd1",
+    "3": "#afbcd1",
+    "4": "#555e78"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "item_silver_bar.png",
+  "sourcePath": "art/custom/tool-progression/item_silver_bar.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.resource",
+    "material.metal",
+    "material.bar",
+    "metal.iron",
+    "source.orchard_derivative"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

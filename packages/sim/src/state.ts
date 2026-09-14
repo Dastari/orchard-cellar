@@ -1,4 +1,5 @@
 import { createRng, type RngState } from './rng.js';
+import type { LegacyEconomyCatalog } from './economy-catalog.js';
 import { createInitialEconomy, type EconomyAction, type EconomyState } from './economy-state.js';
 import { createInitialProgression, type PrestigeAction, type ProgressionState } from './progression-state.js';
 import type { TerrainTransition } from './terrain-elevation.js';
@@ -44,6 +45,8 @@ export interface CollisionMap {
    * cliff faces solid on the lower plane while their cap edges independently
    * guard actors walking on the raised plane. */
   readonly terrainPlaneBlocked?: Uint8Array;
+  /** Logical plane represented by the first terrainPlaneBlocked slice. */
+  readonly terrainMinimumElevation?: number;
   /** Some spaces use logical elevation only to project enclosing geometry.
    * Actors in those spaces remain on one physical plane even while their
    * hitbox occupies a coordinate whose source terrain belongs to another
@@ -51,7 +54,7 @@ export interface CollisionMap {
   readonly fixedTerrainPlane?: number;
   /** Optional integer height field and explicit contour crossings. Generated
    * terrain supplies both to client prediction and authority movement. */
-  readonly elevations?: Uint8Array;
+  readonly elevations?: Int16Array | Uint8Array;
   readonly terrainTransitions?: readonly TerrainTransition[];
   /** Blocked terrain tiles a mounted horse may cross during a jump. */
   readonly horseJumpableTerrain?: readonly boolean[];
@@ -127,8 +130,8 @@ export function createPlaceholderCollisionMap(width = 48, height = 32): Collisio
   return createEstateCollisionMap([], width, height);
 }
 
-export function createInitialState(seed = 0x0cce11a): FarmState {
-  const economy = createInitialEconomy();
+export function createInitialState(catalog: LegacyEconomyCatalog, seed = 0x0cce11a): FarmState {
+  const economy = createInitialEconomy(catalog);
   return {
     version: 3,
     tick: 0,

@@ -3,9 +3,9 @@
 Every sprite, tile, animation, and UI element must follow this document. It exists so
 that assets drawn by different agents in different sessions look like one artist made
 them. The reference mood is Stardew Valley's farm exterior: warm, saturated, cozy,
-readable. We do not copy Stardew assets — we match its *discipline*. Six benchmark
-screenshots live in `references/art-inspiration/` (its README maps each to the
-milestones it judges); visual milestones are compared against them side-by-side.
+readable. We do not copy Stardew assets — we match its *discipline*. Search the
+complete `docs/reference-assets/reference-library-index.md` before inspecting local
+reference material; no separate benchmark-screenshot directory is currently retained.
 
 Companion docs: [11-asset-pipeline.md](11-asset-pipeline.md) (how assets are authored
 and built) and the `pixel-art` skill in `.claude/skills/` (working instructions).

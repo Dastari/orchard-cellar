@@ -1,0 +1,154 @@
+[
+  {
+    "id": "upgrade:barrel_cellar",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "mechanic": [
+      "barrel",
+      "barrel_cellar"
+    ],
+    "displayName": "Barrel Cellar",
+    "description": "+8 batch capacity and 10% faster curing per rank.",
+    "maximumRank": 3,
+    "baseCostGold": 4,
+    "costGrowth": 3
+  },
+  {
+    "id": "upgrade:db0",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "displayName": "Field Dressing",
+    "description": "Restore a portion of missing health.",
+    "delveBoon": [
+      "field_dressing",
+      "h",
+      220
+    ]
+  },
+  {
+    "id": "upgrade:db1",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "displayName": "Fleet Foot",
+    "description": "Move faster within the Delve.",
+    "delveBoon": [
+      "fleet_foot",
+      "m",
+      100
+    ]
+  },
+  {
+    "id": "upgrade:db2",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "displayName": "Fletcher's Eye",
+    "description": "Arrows deal more damage.",
+    "delveBoon": [
+      "fletchers_eye",
+      "b",
+      160
+    ]
+  },
+  {
+    "id": "upgrade:db3",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "displayName": "Heavy Blows",
+    "description": "Hits knock enemies farther back.",
+    "delveBoon": [
+      "heavy_blows",
+      "k",
+      240
+    ]
+  },
+  {
+    "id": "upgrade:db4",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "displayName": "Iron Heart",
+    "description": "Raise maximum health and heal the increase.",
+    "delveBoon": [
+      "iron_heart",
+      "x",
+      150
+    ]
+  },
+  {
+    "id": "upgrade:db5",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "displayName": "Keen Edge",
+    "description": "Sword attacks deal more damage.",
+    "delveBoon": [
+      "keen_edge",
+      "s",
+      160
+    ]
+  },
+  {
+    "id": "upgrade:db6",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "displayName": "Lucky Strike",
+    "description": "Critical hits happen more often.",
+    "delveBoon": [
+      "lucky_strike",
+      "c",
+      50
+    ]
+  },
+  {
+    "id": "upgrade:db7",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "displayName": "Quick Hands",
+    "description": "Attack recovery is shorter.",
+    "delveBoon": [
+      "quick_hands",
+      "a",
+      120
+    ]
+  },
+  {
+    "id": "upgrade:estate_vintage",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "mechanic": [
+      "vintage",
+      "estate_vintage"
+    ],
+    "displayName": "Estate Vintage",
+    "description": "Age Bottles longer into increasingly valuable estate vintages.",
+    "maximumRank": 3,
+    "baseCostGold": 6,
+    "costGrowth": 3
+  },
+  {
+    "id": "upgrade:rich_soil",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "mechanic": [
+      "soil",
+      "rich_soil"
+    ],
+    "displayName": "Rich Soil",
+    "description": "+10% watered crop growth per rank.",
+    "maximumRank": 3,
+    "baseCostGold": 2,
+    "costGrowth": 3
+  },
+  {
+    "id": "upgrade:selective_seeds",
+    "kind": "upgrade",
+    "schemaVersion": 1,
+    "mechanic": [
+      "seed",
+      "selective_seeds"
+    ],
+    "displayName": "Selective Seeds",
+    "description": "+10% average crop yield per rank.",
+    "maximumRank": 3,
+    "baseCostGold": 3,
+    "costGrowth": 3
+  }
+]

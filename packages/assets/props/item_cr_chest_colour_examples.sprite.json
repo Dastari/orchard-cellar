@@ -1,0 +1,142 @@
+{
+  "name": "item_cr_chest_colour_examples",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "crimson_plate": [
+      [
+        "................",
+        "....55000055....",
+        "..55bim00imb55..",
+        ".5nk2biiibb2mk2.",
+        "5mkmk22bm22mkmk2",
+        "5km2mel22fak2km2",
+        "5m2.2elllfa2.2k2",
+        "5k2.2elllfa2.2m2",
+        "222.2elllfa2.222",
+        "....2elllfa2....",
+        "....1elllfa1....",
+        "...5k14g914k2...",
+        "...5melll1am2...",
+        "...2kelllf1k2...",
+        "...22aaaaaa22...",
+        "................"
+      ]
+    ],
+    "violet_plate": [
+      [
+        "................",
+        "....55000055....",
+        "..55bim00imb55..",
+        ".5nk2biiibb2mk2.",
+        "5mkmk22bm22mkmk2",
+        "5km2mcj22d6k2km2",
+        "5m2.2cjjjd62.2k2",
+        "5k2.2cjjjd62.2m2",
+        "222.2cjjjd62.222",
+        "....2cjjjd62....",
+        "....1cjjjd61....",
+        "...5k14g914k2...",
+        "...5mcjjj16m2...",
+        "...2kcjjjd1k2...",
+        "...2266666622...",
+        "................"
+      ]
+    ],
+    "verdant_plate": [
+      [
+        "................",
+        "....55000055....",
+        "..55bim00imb55..",
+        ".5nk2biiibb2mk2.",
+        "5mkmk22bm22mkmk2",
+        "5km2m7h2283k2km2",
+        "5m2.27hhh832.2k2",
+        "5k2.27hhh832.2m2",
+        "222.27hhh832.222",
+        "....27hhh832....",
+        "....17hhh831....",
+        "...5k14g914k2...",
+        "...5m7hhh13m2...",
+        "...2k7hhh81k2...",
+        "...2233333322...",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "crimson_plate": "state",
+    "violet_plate": "state",
+    "verdant_plate": "state"
+  },
+  "sourcePalette": {
+    "0": "#181a1a",
+    "1": "#1f1812",
+    "2": "#253231",
+    "3": "#3e5f27",
+    "4": "#3f3326",
+    "5": "#45504f",
+    "6": "#53275f",
+    "7": "#537a38",
+    "8": "#568138",
+    "9": "#5c7b7e",
+    "a": "#5f2729",
+    "b": "#688989",
+    "c": "#6c387a",
+    "d": "#723881",
+    "e": "#7a383b",
+    "f": "#81383c",
+    "g": "#83989a",
+    "h": "#83c347",
+    "i": "#8caeae",
+    "j": "#af47c3",
+    "k": "#b6cccc",
+    "l": "#c3474f",
+    "m": "#cee0e0",
+    "n": "#e3f1f1"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "accessories-armour-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/accessories-armour-free/sheets/accessories-armour-16.png",
+  "sourceRegions": {
+    "crimson_plate": [
+      [
+        208,
+        64,
+        16,
+        16
+      ]
+    ],
+    "violet_plate": [
+      [
+        224,
+        64,
+        16,
+        16
+      ]
+    ],
+    "verdant_plate": [
+      [
+        240,
+        64,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.armour",
+    "source.clockwork_raven",
+    "studio.raven_examples",
+    "item.breastplate",
+    "slot.body"
+  ]
+}

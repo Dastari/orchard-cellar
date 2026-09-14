@@ -1,6 +1,18 @@
+import { packAtlasPages } from './assets/atlas-pages.js';
+import { framesForAsset } from './assets/pixels.js';
+import { compileEmissiveFrames } from './assets/emissive.js';
 import { fileURLToPath } from 'node:url';
+import {
+  TERRAIN_CLIFF_FAMILIES,
+  TERRAIN_SURFACE_FAMILIES,
+  raisedTerrainProjectionRowsPerLevel,
+  type RaisedTerrainFaceProfile,
+  type RaisedTerrainFaceRow,
+  type RaisedTerrainStairFrames,
+} from '@orchard/sim';
 import { assetsRoot, loadAssets, loadPalette, readJson } from './assets/load.js';
 import { frameKind, variantTopology } from './assets/frame-kind.js';
+import { compileBakedShadow } from './assets/baked-shadow.js';
 import { sourcePaletteErrors } from './assets/source-palette.js';
 import { uiMetadataErrors } from './assets/ui-metadata.js';
 import type { AssetSource, PixelGrid } from './assets/types.js';
@@ -72,31 +84,6 @@ function validateSfx(sources: readonly unknown[], errors: string[]): void {
   }
 }
 
-function validateMaps(maps: readonly unknown[], errors: string[]): void {
-  for (const value of maps) {
-    if (!isRecord(value) || typeof value['name'] !== 'string' || !Array.isArray(value['size']) || value['size'].length !== 2 || !isRecord(value['layers']) || !isRecord(value['legend'])) {
-      errors.push('maps: invalid map header'); continue;
-    }
-    const [width, height] = value['size'];
-    if (typeof width !== 'number' || typeof height !== 'number') { errors.push(`${value['name']}: invalid map size`); continue; }
-    for (const layer of ['ground', 'detail', 'canopy']) {
-      const rows = value['layers'][layer];
-      if (!Array.isArray(rows) || rows.length !== height || rows.some((row) => typeof row !== 'string' || row.length !== width)) errors.push(`${value['name']}:${layer} dimensions must match ${width}x${height}`);
-      if (Array.isArray(rows)) for (const row of rows) if (typeof row === 'string') for (const character of row) if (value['legend'][character] === undefined) errors.push(`${value['name']}:${layer} unknown legend character ${character}`);
-    }
-    if (value['name'] === 'estate') {
-      const objects = Array.isArray(value['objects']) ? value['objects'] : [];
-      const visibleTrees = new Set(objects.flatMap((object) => isRecord(object) && object['asset'] === 'tree_apple_fruiting'
-        && typeof object['x'] === 'number' && typeof object['y'] === 'number' ? [`${object['x']},${object['y']}`] : []));
-      const collisionTrees = new Set<string>();
-      for (const y of [17, 22, 27, 32, 37]) for (const x of [12, 16, 20]) collisionTrees.add(`${x},${y}`);
-      if (visibleTrees.size !== collisionTrees.size || [...collisionTrees].some((position) => !visibleTrees.has(position))) {
-        errors.push('estate: every orchard collision tile must have one visible tree object');
-      }
-    }
-  }
-}
-
 function validateCanonicalSize(asset: AssetSource, errors: string[]): void {
   const [width, height] = asset.size;
   if (asset.category === 'tiles' && (width !== 16 || height !== 16)) errors.push(`${asset.name}: tiles must be 16x16`);
@@ -128,6 +115,321 @@ function validateCanonicalSize(asset: AssetSource, errors: string[]): void {
   }
   if (asset.anchor[0] < 0 || asset.anchor[1] < 0 || asset.anchor[0] >= width || asset.anchor[1] >= height) {
     errors.push(`${asset.name}: anchor must be inside the asset`);
+  }
+}
+
+function validateTerrainCliffFamilies(
+  assets: readonly AssetSource[],
+  paletteColors: Readonly<Record<string, string>>,
+  errors: string[],
+): void {
+  const byName = new Map(assets.map((asset) => [asset.name, asset]));
+  const frameContentKey = (assetId: string, frame: number): string | null => {
+    const asset = byName.get(assetId);
+    const grid = asset?.frames['base']?.[frame];
+    if (asset === undefined || grid === undefined) return null;
+    return grid.map((row) => [...row].map((pixel) => pixel === '.'
+      ? 'transparent'
+      : (asset.sourcePalette?.[pixel] ?? paletteColors[pixel] ?? `unknown:${pixel}`).toLowerCase()
+    ).join(',')).join(';');
+  };
+  const validateFrames = (
+    familyId: string,
+    roleGroup: string,
+    assetId: string,
+    frames: readonly number[],
+  ): void => {
+    const asset = byName.get(assetId);
+    if (asset === undefined) {
+      errors.push(`terrain family ${familyId}:${roleGroup} references missing asset ${assetId}`);
+      return;
+    }
+    const frameCount = asset.frames['base']?.length ?? 0;
+    for (const frame of frames) {
+      if (!Number.isSafeInteger(frame) || frame < 0 || frame >= frameCount) {
+        errors.push(`terrain family ${familyId}:${roleGroup} frame ${frame} is outside ${assetId}:base[0..${Math.max(0, frameCount - 1)}]`);
+      } else {
+        const pixels = asset.frames['base']?.[frame] ?? [];
+        if (pixels.every((row) => [...row].every((pixel) => pixel === '.'))) {
+          errors.push(`terrain family ${familyId}:${roleGroup} frame ${frame} in ${assetId} is fully transparent`);
+        }
+      }
+    }
+  };
+  const crossFamilyCliffRoles = new Map<string, {
+    readonly familyId: string;
+    readonly role: string;
+    readonly assetId: string;
+    readonly frame: number;
+    readonly intentional: boolean;
+  }[]>();
+  for (const [familyId, family] of Object.entries(TERRAIN_CLIFF_FAMILIES)) {
+    if (!family.available) continue;
+    const tileSet = family.tileSet;
+    const authoredFaceRows = Object.values(tileSet.faceProfiles).flatMap((profile) => [
+      ...profile.rows,
+      ...(profile.repeatRows ?? (profile.repeatRow === undefined ? [] : [profile.repeatRow])),
+    ]);
+    if (raisedTerrainProjectionRowsPerLevel(tileSet) > 0 && authoredFaceRows.length === 0) {
+      console.warn(`terrain family ${familyId} projects with an empty face bank`);
+    }
+    const duplicateRoleFrames = (roleGroup: string, roles: Readonly<Record<string, number>>): void => {
+      const firstRole = new Map<number, string>();
+      for (const [role, frame] of Object.entries(roles)) {
+        const duplicate = firstRole.get(frame);
+        if (duplicate !== undefined) {
+          errors.push(`terrain family ${familyId}:${roleGroup} roles ${duplicate} and ${role} duplicate frame ${frame}`);
+        } else firstRole.set(frame, role);
+      }
+    };
+    duplicateRoleFrames('edges', tileSet.edgeFrames);
+    duplicateRoleFrames('insets', tileSet.insetFrames);
+    duplicateRoleFrames('ramps', tileSet.rampFrames);
+    const rolesByContent = new Map<string, { readonly role: string; readonly assetId: string; readonly frame: number }[]>();
+    const collectRole = (assetId: string, role: string, frame: number): void => {
+      const key = frameContentKey(assetId, frame);
+      if (key === null) return;
+      rolesByContent.set(key, [...(rolesByContent.get(key) ?? []), { role, assetId, frame }]);
+      const intentional = role.startsWith('ledge.')
+        ? new Set(tileSet.ledgeBank?.intentionalRoleFrameReuse ?? []).has(frame)
+        : assetId === tileSet.assetId
+          && new Set(tileSet.intentionalRoleFrameReuse ?? []).has(frame);
+      crossFamilyCliffRoles.set(key, [
+        ...(crossFamilyCliffRoles.get(key) ?? []),
+        { familyId, role, assetId, frame, intentional },
+      ]);
+    };
+    for (const [role, frame] of Object.entries(tileSet.edgeFrames)) {
+      collectRole(tileSet.assetId, `edge.${role}`, frame);
+    }
+    for (const [profileId, profile] of Object.entries(tileSet.faceProfiles)) {
+      for (const row of (profile as RaisedTerrainFaceProfile).rows) row.frames.forEach((frame: number, join: number) => {
+        collectRole(tileSet.assetId, `face.${profileId}.${row.id}.${join}`, frame);
+      });
+      const repeatRows = (profile as RaisedTerrainFaceProfile).repeatRows
+        ?? ((profile as RaisedTerrainFaceProfile).repeatRow === undefined
+          ? [] : [(profile as RaisedTerrainFaceProfile).repeatRow!]);
+      repeatRows.forEach((row, variant) => row.frames.forEach((frame, join) => {
+        collectRole(tileSet.assetId, `face.${profileId}.${row.id}_repeat_${variant}.${join}`, frame);
+      }));
+    }
+    for (const [role, frame] of Object.entries(tileSet.insetFrames)) {
+      collectRole(tileSet.insetAssetId ?? tileSet.assetId, `inset.${role}`, frame);
+    }
+    for (const [role, frame] of Object.entries(tileSet.rampFrames)) {
+      collectRole(tileSet.rampAssetId ?? tileSet.assetId, `ramp.${role}`, frame);
+    }
+    if (tileSet.rampBank !== null) {
+      for (const [courseId, course] of [
+        ['crest', tileSet.rampBank.crest],
+        ...tileSet.rampBank.treads.map((course, index) => [`tread_${index}`, course] as const),
+        ['base', tileSet.rampBank.base],
+      ] as const) {
+        collectRole(tileSet.rampBank.assetId, `ramp_bank.${courseId}.left`, course.left);
+        course.middle.forEach((frame, index) => collectRole(
+          tileSet.rampBank!.assetId, `ramp_bank.${courseId}.middle_${index}`, frame,
+        ));
+        collectRole(tileSet.rampBank.assetId, `ramp_bank.${courseId}.right`, course.right);
+      }
+    }
+    if (tileSet.ledgeBank !== null && tileSet.ledgeBank !== undefined) {
+      for (const [role, frame] of Object.entries(tileSet.ledgeBank.edgeFrames)) {
+        collectRole(tileSet.ledgeBank.assetId, `ledge.edge.${role}`, frame);
+      }
+      for (const [role, frame] of Object.entries(tileSet.ledgeBank.insetFrames)) {
+        collectRole(tileSet.ledgeBank.assetId, `ledge.inset.${role}`, frame);
+      }
+    }
+    if (tileSet.stairFrames !== null) for (const [course, frames] of Object.entries(tileSet.stairFrames as RaisedTerrainStairFrames)) {
+      frames.forEach((frame: number, lane: number) => collectRole(
+        tileSet.stairAssetId ?? tileSet.assetId, `stair.${course}.${lane}`, frame,
+      ));
+    }
+    tileSet.ladderFrames?.forEach((frame, index) => collectRole(
+      tileSet.ladderAssetId ?? tileSet.assetId, `ladder.${index}`, frame,
+    ));
+    for (const roles of rolesByContent.values()) {
+      if (roles.length < 2) continue;
+      const normalizedRampRoles = roles.map(({ role }) => role.replace(
+        /\.(?:crest|tread_\d+|base)\./u, '.course.',
+      ));
+      const repeatedRampCourse = roles.every(({ role }) => role.startsWith('ramp_bank.'))
+        && new Set(normalizedRampRoles).size === 1;
+      const declaredPrimaryFrames = new Set<number>(tileSet.intentionalRoleFrameReuse ?? []);
+      const ledgeCopyOfDeclaredPrimaryReuse = roles.some(({ role }) => role.startsWith('ledge.'))
+        && roles.some(({ assetId }) => assetId === tileSet.assetId)
+        && roles.every(({ role, assetId, frame }) => (
+          role.startsWith('ledge.')
+          || (assetId === tileSet.assetId && declaredPrimaryFrames.has(frame))
+        ));
+      const intentional = repeatedRampCourse
+        || (roles.every(({ role, frame }) => (
+          role.startsWith('ramp_bank.')
+          && new Set(tileSet.rampBank?.intentionalRoleFrameReuse ?? []).has(frame)
+        )))
+        || ledgeCopyOfDeclaredPrimaryReuse || (
+        roles.every(({ assetId }) => assetId === tileSet.assetId)
+        && roles.every(({ frame }) => declaredPrimaryFrames.has(frame))
+      );
+      if (!intentional) {
+        errors.push(`terrain family ${familyId} roles ${roles.map(({ role, assetId, frame }) => `${role}(${assetId}:${frame})`).join(', ')} duplicate pixel content`);
+      }
+    }
+    if ((tileSet.insetAssetId ?? tileSet.assetId) === tileSet.assetId) {
+      const edgeFrames = new Set(Object.values(tileSet.edgeFrames));
+      for (const [role, frame] of Object.entries(tileSet.insetFrames)) {
+        if (edgeFrames.has(frame)) {
+          errors.push(`terrain family ${familyId}:inset role ${role} duplicates convex edge frame ${frame}`);
+        }
+      }
+    }
+    validateFrames(familyId, 'edges', tileSet.assetId, Object.values(tileSet.edgeFrames));
+    validateFrames(
+      familyId,
+      'faces',
+      tileSet.assetId,
+      Object.values(tileSet.faceProfiles as Readonly<Record<string, RaisedTerrainFaceProfile>>)
+        .flatMap((profile) => [
+          ...profile.rows,
+          ...(profile.repeatRows ?? (profile.repeatRow === undefined ? [] : [profile.repeatRow])),
+        ].flatMap((row: RaisedTerrainFaceRow) => row.frames)),
+    );
+    validateFrames(
+      familyId,
+      'insets',
+      tileSet.insetAssetId ?? tileSet.assetId,
+      Object.values(tileSet.insetFrames),
+    );
+    validateFrames(
+      familyId,
+      'ramps',
+      tileSet.rampAssetId ?? tileSet.assetId,
+      Object.values(tileSet.rampFrames),
+    );
+    if (tileSet.stairFrames !== null) validateFrames(
+      familyId,
+      'stairs',
+      tileSet.stairAssetId ?? tileSet.assetId,
+      Object.values(tileSet.stairFrames).flat(),
+    );
+    if (tileSet.rampBank !== null) validateFrames(
+      familyId,
+      'ramp-bank',
+      tileSet.rampBank.assetId,
+      [tileSet.rampBank.crest, ...tileSet.rampBank.treads, tileSet.rampBank.base]
+        .flatMap((course) => [course.left, ...course.middle, course.right]),
+    );
+    if (tileSet.ledgeBank !== null && tileSet.ledgeBank !== undefined) validateFrames(
+      familyId,
+      'ledge',
+      tileSet.ledgeBank.assetId,
+      [...Object.values(tileSet.ledgeBank.edgeFrames), ...Object.values(tileSet.ledgeBank.insetFrames)],
+    );
+    if (tileSet.ladderFrames !== null) validateFrames(
+      familyId,
+      'ladders',
+      tileSet.ladderAssetId ?? tileSet.assetId,
+      tileSet.ladderFrames,
+    );
+    if (tileSet.waterfallAssetId !== undefined) validateFrames(
+      familyId,
+      'waterfall',
+      tileSet.waterfallAssetId,
+      Array.from(
+        { length: byName.get(tileSet.waterfallAssetId)?.frames['base']?.length ?? 0 },
+        (_, frame) => frame,
+      ),
+    );
+    const primary = byName.get(tileSet.assetId);
+    if (primary !== undefined) {
+      if (primary.placement?.layer !== 'ground' || primary.placement.blocksMovement !== true) {
+        errors.push(`terrain family ${familyId} primary asset ${tileSet.assetId} must be structural ground art`);
+      }
+      if (!primary.tags?.includes('terrain.cliff')) {
+        errors.push(`terrain family ${familyId} primary asset ${tileSet.assetId} must declare terrain.cliff`);
+      }
+    }
+    if (tileSet.ledgeBank !== null && tileSet.ledgeBank !== undefined) {
+      const ledge = byName.get(tileSet.ledgeBank.assetId);
+      if (ledge !== undefined && (ledge.placement?.layer !== 'ground' || ledge.placement.blocksMovement)) {
+        errors.push(`terrain family ${familyId} ledge asset ${tileSet.ledgeBank.assetId} must be non-blocking ground art`);
+      }
+    }
+  }
+  for (const roles of crossFamilyCliffRoles.values()) {
+    if (new Set(roles.map(({ familyId }) => familyId)).size < 2
+      || new Set(roles.map(({ assetId }) => assetId)).size < 2
+      || !roles.some(({ role }) => role.startsWith('ledge.'))) continue;
+    if (roles.every(({ intentional }) => intentional)) continue;
+    errors.push(`terrain families cross-family ledge reuse ${roles.map(({
+      familyId, role, assetId, frame,
+    }) => `${familyId}.${role}(${assetId}:${frame})`).join(', ')} must be declared per frame`);
+  }
+  for (const [familyId, family] of Object.entries(TERRAIN_SURFACE_FAMILIES)) {
+    validateFrames(familyId, 'surface-fill', family.assetId, [0]);
+    validateFrames(familyId, 'surface-fringe', family.sheetAssetId, Object.values(family.fringeFrames));
+    for (const [material, bank] of Object.entries(family.rampBanks)) validateFrames(
+      familyId,
+      `surface-ramp-bank-${material}`,
+      bank.assetId,
+      [bank.crest, ...bank.treads, bank.base]
+        .flatMap((course) => [course.left, ...course.middle, course.right]),
+    );
+    validateFrames(
+      familyId,
+      'surface-ledge',
+      family.ledgeBank.assetId,
+      [...Object.values(family.ledgeBank.edgeFrames), ...Object.values(family.ledgeBank.insetFrames)],
+    );
+    const surfaceRoles = new Map<string, { readonly label: string; readonly assetId: string; readonly frame: number }[]>();
+    const collectSurfaceRole = (assetId: string, role: string, frame: number): void => {
+      const key = frameContentKey(assetId, frame);
+      if (key === null) return;
+      surfaceRoles.set(key, [
+        ...(surfaceRoles.get(key) ?? []),
+        { label: `${role}(${assetId}:${frame})`, assetId, frame },
+      ]);
+    };
+    for (const [material, bank] of Object.entries(family.rampBanks)) for (const [courseId, course] of [
+      ['crest', bank.crest], ...bank.treads.map((course, index) => [`tread_${index}`, course] as const),
+      ['base', bank.base],
+    ] as const) {
+      collectSurfaceRole(bank.assetId, `ramp_bank.${material}.${courseId}.left`, course.left);
+      course.middle.forEach((frame, index) => collectSurfaceRole(bank.assetId, `ramp_bank.${material}.${courseId}.middle_${index}`, frame));
+      collectSurfaceRole(bank.assetId, `ramp_bank.${material}.${courseId}.right`, course.right);
+    }
+    for (const [role, frame] of Object.entries(family.ledgeBank.edgeFrames)) {
+      collectSurfaceRole(family.ledgeBank.assetId, `ledge.edge.${role}`, frame);
+    }
+    for (const [role, frame] of Object.entries(family.ledgeBank.insetFrames)) {
+      collectSurfaceRole(family.ledgeBank.assetId, `ledge.inset.${role}`, frame);
+    }
+    for (const roles of surfaceRoles.values()) if (roles.length > 1) {
+      const normalized = roles.map(({ label }) => label
+        .replace(/\([^)]*\)$/u, '')
+        .replace(/\.(?:crest|tread_\d+|base)\./u, '.course.'));
+      if (roles.every(({ label }) => label.startsWith('ramp_bank.')) && new Set(normalized).size === 1) continue;
+      const declaredRampReuse = roles.every(({ label, assetId, frame }) => (
+        label.startsWith('ramp_bank.')
+        && Object.values(family.rampBanks).some((bank) => (
+          bank.assetId === assetId
+          && new Set(bank.intentionalRoleFrameReuse ?? []).has(frame)
+        ))
+      ));
+      if (declaredRampReuse) continue;
+      errors.push(`terrain surface family ${familyId} roles ${roles.map(({ label }) => label).join(', ')} duplicate pixel content`);
+    }
+    for (const assetId of [
+      family.assetId,
+      family.sheetAssetId,
+      family.ledgeBank.assetId,
+      ...Object.values(family.rampBanks).map((bank) => bank.assetId),
+    ]) {
+      const asset = byName.get(assetId);
+      if (asset !== undefined && (asset.placement?.layer !== 'ground' || asset.placement.blocksMovement)) {
+        errors.push(`terrain surface family ${familyId} asset ${assetId} must be non-blocking ground art`);
+      }
+    }
   }
 }
 
@@ -191,10 +493,9 @@ export async function validateAssetSources(): Promise<void> {
     loadPalette(),
     readJson(new URL('seasons.json', assetsRoot)) as Promise<SeasonSource>,
   ]);
-  const [songs, sfx, maps] = await Promise.all([
+  const [songs, sfx] = await Promise.all([
     readFolder('music', '.song.json'),
     readFolder('sfx', '.sfx.json'),
-    readFolder('maps', '.map.json'),
   ]);
   if (Object.keys(palette.colors).length !== 55) errors.push('palette.json must contain the binding 55 colors');
   for (const [character, hex] of Object.entries(palette.colors)) {
@@ -208,6 +509,8 @@ export async function validateAssetSources(): Promise<void> {
     names.add(asset.name);
     validateCanonicalSize(asset, errors);
     errors.push(...uiMetadataErrors(asset));
+    try { compileBakedShadow(asset, palette, seasonSource); compileEmissiveFrames(asset, palette); }
+    catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
     errors.push(...sourcePaletteErrors(asset, allowed));
     for (const [animation, frames] of Object.entries(asset.frames)) {
       if (frames.length === 0) errors.push(`${asset.name}:${animation} must have at least one frame`);
@@ -230,6 +533,15 @@ export async function validateAssetSources(): Promise<void> {
       errors.push(`${asset.name}: blob47 source must contain five template frames`);
     }
   }
+  for (const category of new Set(assets.map((asset) => asset.category))) {
+    try {
+      packAtlasPages(category, assets.filter((asset) => asset.category === category).map((asset) => ({
+        name: asset.name, width: asset.size[0], height: asset.size[1],
+        frameCount: Object.values(framesForAsset(asset)).reduce((sum, frames) => sum + frames.length, 0),
+      })));
+    } catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
+  }
+  validateTerrainCliffFamilies(assets, palette.colors, errors);
   for (const season of seasonNames) {
     for (const character of seasonSource.required) {
       const target = seasonSource[season][character];
@@ -238,9 +550,8 @@ export async function validateAssetSources(): Promise<void> {
   }
   validateSongs(songs, errors);
   validateSfx(sfx, errors);
-  validateMaps(maps, errors);
   if (errors.length > 0) throw new Error(`Asset validation failed:\n${errors.join('\n')}`);
-  console.log(`Validated ${assets.length} art assets, ${songs.length} songs, ${sfx.length} SFX, ${maps.length} maps, 55 palette colors, and four seasonal remaps.`);
+  console.log(`Validated ${assets.length} art assets, ${songs.length} songs, ${sfx.length} SFX, 55 palette colors, and four seasonal remaps.`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await validateAssetSources();

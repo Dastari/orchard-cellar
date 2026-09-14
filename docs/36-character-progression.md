@@ -5,9 +5,12 @@ quest substrate, HUD tracker, dialogue integration, and Marlow book vertical
 slice are implemented (2026-08-27). The 2026-08-28 progression first slice adds
 the P Character screen, server-validated modular customization, the K Combat /
 Explorer / Farming tree browser, persistent rank purchases/resets, and owner debug
-point grants. The first reviewed effects are now active: Archery Basics, Blade
-Training, Battle Conditioning, and Barreling/cooking Farming XP. Most remaining
-effects and verb gates remain deliberately inactive while their loops are reviewed.**
+point grants. The reviewed live effects now include Archery Basics, Blade
+Training, Battle Conditioning, per-profession tool-Vigour reductions, Measured
+Stride, on-foot jumping/cliff scaling, Stable Hand riding, and Steeplechase.
+The Farming tree now contains Farming, Mining, Fishing, Woodcutting, and Animal
+Husbandry specializations. Every node carries an explicit implementation flag;
+the UI marks working nodes green and placeholders red/hatched.**
 Builds on [25-stats-and-vitals.md](25-stats-and-vitals.md)
 (the modifier pipeline's reserved `'skill'` source finally gets its producer;
 the "attributes hidden" rule is superseded — the character screen is where
@@ -30,8 +33,8 @@ resource zones or Homesteads rather than destructive overworld actions.
 
 ## 1. The progression philosophy (binding)
 
-**Almost every quality-of-life capability is earned.** Sprinting, riding a
-horse, horse-jumping, extra backpack rows, auto-pickup, barrel curing,
+**Almost every quality-of-life capability is earned.** More efficient sprinting,
+riding a horse, jumping/cliff scaling, horse-jumping, auto-pickup, barrel curing,
 sprinkler engineering — each is a node someone chose, remembered unlocking,
 and feels ownership of. The base character walks, swings starter tools,
 farms plots, and talks; everything smoother than that is progression. Two
@@ -81,6 +84,12 @@ one tree visible at a time with a Combat / Explorer / Farming selector,
 "center on root" button, and a header showing track level, XP bar
 (`ui_cf_bar_fill_gold`), and unspent points. Nodes draw as icon medallions
 with the selector-bracket states; edges as pixel lines lit when owned.
+Working nodes carry a green status pip and solid edges. Placeholder nodes are
+muted, diagonally hatched, and use dashed edges plus a red status pip. The legend
+is outside the pannable viewport, and the selected-node panel states either
+`LIVE IN GAME` or `PLACEHOLDER — NO EFFECT YET`; there is no blanket preview
+warning. Farming uses five spaced profession lanes and Center fits the complete
+tree into the available viewport.
 
 ### 2.3 Quests tab
 
@@ -122,11 +131,19 @@ interface SkillNodeDefinition {
   readonly maxRank: number;                             // 1 = keystone, >1 = ranked minor
   readonly pointCost: number;                           // per rank
   readonly requiresLevel?: number;                      // track level gate
+  readonly implemented?: true;                         // rank changes live gameplay now
   readonly effects?: readonly Modifier[];               // doc 25 'skill' source, per rank
   readonly unlocks?: readonly VerbGate[];               // capability keys reducers check
   readonly hidden?: HiddenPrerequisite;                 // §4.2
 }
 ```
+
+Every node has a native 16×16 icon named `icon_skill_<node-id>`. The icons
+are licensed Clockwork Raven crops with source-sheet and crop-region
+provenance stored in their asset metadata; `npm run extract:skill-icons -w
+@orchard/tools` reproduces them. Icon extraction and tests require exact
+coverage of `SKILL_NODE_DEFINITIONS`, so adding or removing a node cannot
+silently leave the tree with a missing or stale icon.
 
 - **Topology**: each tree has one auto-owned **central root**; nodes buy
   only when connected to an owned node (adjacency) and the track level
@@ -141,27 +158,27 @@ interface SkillNodeDefinition {
 
 ### 4.1 Starter content (v1 targets; full node tables live in docs/06)
 
-- **Explorer** (the QoL heartland): Trailblazer ranks (+2% move speed),
-  **Sprint** keystone (hold-to-run, Vigour drain), **Horsemanship**
-  keystone (**riding is a skill** — `interactHorse` gains the gate),
-  **Steeplechase** (horse jump — currently free, now gated), Pathfinder
-  (+speed on paths), Deep Pockets ranks (+4 backpack slots each — the
-  backpack container check reads granted rows), Magnet Hands ranks
-  (auto-pickup radius), Night Eyes (+1 personal light band, doc 27),
-  Cartographer (reserved: unlocks the future minimap the day one exists).
-  The implemented mining branch (doc 48) continues from Cave Whisperer:
-  Prospector, Efficient Strikes, Ore Dressing, Rockhound, and Mother Lode.
+- **Explorer** (the QoL heartland): Measured Stride reduces authoritative Sprint
+  Vigour cost by 6% per rank. Surefooted ranks allow the Space action to jump one,
+  two, then three contiguous gap tiles; Cliff Climber ranks likewise allow one,
+  two, then three elevation levels. Both share the server collision map and safe
+  landing check. Stable Hand lives in Animal Husbandry and gates horse riding;
+  Steeplechase gates the existing horse jump. Placeholder-marked nodes are
+  visible design hooks and have no hidden runtime effect.
 - **Combat**: STR/DEX/CON minors; Vigour Economy ranks (−tool/weapon
-  Vigour cost %); keystones: Shield Discipline (unlocks off-hand shield
-  use — the dormant `gear.off_hand` tag finally gets its consumer),
-  Power Swing (axe/pickaxe damage vs hostiles), Steady Draw (bow damage/
+  Vigour cost %); planned keystones include Shield Discipline (a shield design
+  hook only—the live off-hand slot accepts lanterns exclusively), Power Swing
+  (axe/pickaxe damage vs hostiles), and Steady Draw (bow damage/
   speed ranks; weapons stay *usable* by anyone per §1 — proficiency makes
   them good).
-- **Farming**: Green Thumb ranks (+yield %), Tender Hand ranks (watering
-  effect duration); keystones: **Barreling** (unlocks the doc 35 curing
-  verb), **Sprinkler Engineering** / **Greenhouse Charter** (unlock those
-  homestead purchases), Grafting (fruit-tree improvement hook),
-  Beekeeping (hive interaction hook).
+- **Farming professions**: the shared track branches into Farming, Mining,
+  Fishing, Woodcutting, and Animal Husbandry. Farmcraft, Mining Endurance,
+  Angler's Rhythm, and Woodcutter's Rhythm each reduce only their matching tool
+  actions by 5% per rank (maximum 15%). All definition-level tool qualities use
+  the same specialization-rank thresholds: common 0, uncommon 3, rare 6,
+  epic 10, legendary 15. Starter tools and weapons are common. Animal Husbandry
+  contains the live Stable Hand riding gate and explicit future hooks for pets,
+  breeding, animal care, and beekeeping.
 
 ### 4.2 Hidden nodes
 
@@ -177,10 +194,9 @@ reveal nodes as rewards), or a discovery event. Reveal state is derivable
 ### 4.3 Respec and migration
 
 Respec costs gold (doc 31 sink, `repeatCost`-laddered per track), refunds
-all points, relocks verbs instantly. Migration: riding/jumping are free
-today — at launch every **existing** character receives a one-time Explorer
-XP grant sufficient to buy Horsemanship (grandfathering without a free
-node; new characters earn it, which is the point). Recorded in DECISIONS.
+all points, and relocks verbs instantly. Persisted mining-node ranks from the
+former Explorer layout are re-homed into Farming without changing their rank;
+spent-point totals are recomputed from the current definitions.
 
 ## 5. Quests
 
@@ -258,11 +274,11 @@ usual happy + auth-failure test pairs.
    variants; Cartographer-activates-minimap; prestige interplay with the
    docs/04–06 Vintage heritage.
 
-Implementation note (2026-08-28): the owner requested that the initial node roster
-be selectable and persistent without changing live gameplay. Phase 3 is therefore
-split: the data registry, graph validation, private node rows, purchase/reset
-authority, pan/zoom browser, and developer point grants are implemented; modifier
-compilation and reducer verb gates remain the next explicitly approved slice.
+Implementation note (updated 2026-09-03): the data registry, graph validation,
+private node rows, purchase/reset authority, pan/zoom browser, developer point
+grants, listed modifiers, and listed reducer verb gates are implemented. Future
+design hooks remain visible but are explicitly marked as placeholders independently
+of their description text.
 The populated local `orchard-cellar-world` accepted the additive track columns and
 new private node table without deleting data. Because the caller-private track and
 survival views gained trailing fields, SpaceTimeDB recreated those views and

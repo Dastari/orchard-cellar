@@ -1,0 +1,35 @@
+{
+  "name": "prop_cf_hearth_doorway_jamb_left",
+  "category": "props",
+  "size": [
+    5,
+    8
+  ],
+  "anchor": [
+    2,
+    7
+  ],
+  "frames": {
+    "base": [
+      [
+        "01220",
+        "01220",
+        "01220",
+        "01220",
+        "01220",
+        "01220",
+        "01220",
+        "01220"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#b86f50",
+    "2": "#91533b"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/Houses_Interiors/Interior_Walls.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Interior_Walls.png"
+}

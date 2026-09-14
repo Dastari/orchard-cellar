@@ -50,19 +50,29 @@ export interface ReconciliationResult {
 export class PresentationCorrection {
   private x = 0;
   private y = 0;
+  private previousX = 0;
+  private previousY = 0;
   private remaining = 0;
   constructor(private readonly durationSeconds = 0.1) {}
   begin(previous: { readonly x: number; readonly y: number }, corrected: { readonly x: number; readonly y: number }): void {
-    this.x = previous.x - corrected.x; this.y = previous.y - corrected.y; this.remaining = this.durationSeconds;
+    // Preserve the unfinished displayed offset when another authority update
+    // arrives before this correction has decayed.
+    this.x += previous.x - corrected.x; this.y += previous.y - corrected.y; this.remaining = this.durationSeconds;
+    this.previousX = this.x; this.previousY = this.y;
   }
-  clear(): void { this.x = 0; this.y = 0; this.remaining = 0; }
+  clear(): void { this.x = 0; this.y = 0; this.previousX = 0; this.previousY = 0; this.remaining = 0; }
   advance(dtSeconds: number): void {
+    this.previousX = this.x; this.previousY = this.y;
     if (this.remaining <= 0) return;
     const fraction = Math.min(1, Math.max(0, dtSeconds) / this.remaining);
     this.x *= 1 - fraction; this.y *= 1 - fraction; this.remaining = Math.max(0, this.remaining - dtSeconds);
   }
-  apply(position: { readonly x: number; readonly y: number }): { readonly x: number; readonly y: number } {
-    return { x: position.x + this.x, y: position.y + this.y };
+  apply(position: { readonly x: number; readonly y: number }, alpha = 1): { readonly x: number; readonly y: number } {
+    const amount = Math.max(0, Math.min(1, alpha));
+    return {
+      x: position.x + this.previousX + (this.x - this.previousX) * amount,
+      y: position.y + this.previousY + (this.y - this.previousY) * amount,
+    };
   }
 }
 
@@ -139,6 +149,13 @@ export class LocalPredictionBuffer {
       errorFixed: Math.hypot(dx, dy),
       hardSnap: dx * dx + dy * dy > HARD_SNAP_DISTANCE_SQUARED,
     };
+  }
+
+  /** Defense replaces movement without rewinding the client's credit clock. */
+  discardPendingMovement(): void {
+    this.commands = [];
+    this.steps = [];
+    this.lastAcknowledgedTick = this.tickValue;
   }
 
   reset(lastProcessedSequence = 0n): void {
@@ -392,8 +409,9 @@ export class VisualTickClock {
   reset(): void { this.value = null; }
 }
 
-/** Cosmetic clock advanced exactly once per rendered frame. Long frame gaps are
- * discarded instead of replayed, preventing background-tab weather catch-up. */
+/** Cosmetic phase seeded once from the world, then advanced exactly once per
+ * rendered frame. Authority hydration and calendar changes select real weather
+ * separately; they must not fast-forward its clouds, gusts or foliage. */
 export class FrameVisualTickClock {
   private value: number | null = null;
   private previousFrameMs: number | null = null;
@@ -401,18 +419,14 @@ export class FrameVisualTickClock {
   get renderTick(): number { return this.value ?? 0; }
 
   advance(nowMs: number, latestAuthorityTick: bigint): number {
-    const authority = Number(latestAuthorityTick);
-    if (this.value === null || this.previousFrameMs === null) {
-      this.value = authority;
+    if (this.value === null) this.value = Number(latestAuthorityTick);
+    if (this.previousFrameMs === null) {
       this.previousFrameMs = nowMs;
       return this.value;
     }
     const elapsedMs = nowMs - this.previousFrameMs;
     this.previousFrameMs = nowMs;
-    if (elapsedMs < 0 || elapsedMs > 250 || Math.abs(authority - this.value) > AUTHORITY_HZ * 4) {
-      this.value = authority;
-      return this.value;
-    }
+    if (elapsedMs < 0 || elapsedMs > 250) return this.value;
     this.value += elapsedMs / 1_000 * AUTHORITY_HZ;
     return this.value;
   }
@@ -421,6 +435,9 @@ export class FrameVisualTickClock {
     this.value = null;
     this.previousFrameMs = null;
   }
+
+  /** Suspend frame timing without relocating existing cosmetic particles. */
+  pause(): void { this.previousFrameMs = null; }
 }
 
 export interface AvatarAnimationFrame {
@@ -432,12 +449,103 @@ export interface AvatarAnimationFrame {
   readonly fallback: boolean;
 }
 
+export interface PresentedActionStamp {
+  readonly kind: string;
+  readonly startedTick: bigint;
+}
+
+export interface LocalActionSample extends PresentedActionStamp {
+  readonly predictionToken?: number;
+  readonly elapsedMs?: number;
+}
+
+/** A predicted action and its server echo share one local presentation. The
+ * interpolation clock must not replay a completed prediction's final frames. */
+interface PredictedActionPresentation {
+  readonly token: number;
+  readonly kind: string;
+  readonly startedAtMs: number;
+  readonly baselineTick: bigint;
+  acknowledgedTick: bigint | null;
+  elapsedMs: number;
+  completed: boolean;
+}
+
+export class LocalActionPresentation {
+  private nextToken = 0;
+  private prediction: PredictedActionPresentation | null = null;
+  private pending: PredictedActionPresentation[] = [];
+  private observed: PresentedActionStamp | null = null;
+
+  start(kind: string, startedAtMs: number, authority: PresentedActionStamp, expectsEcho = true): number {
+    this.observe(authority);
+    const token = ++this.nextToken;
+    this.prediction = {
+      token, kind, startedAtMs, baselineTick: authority.startedTick,
+      acknowledgedTick: null, elapsedMs: 0, completed: false,
+    };
+    if (expectsEcho) this.pending.push(this.prediction);
+    // Cosmetic request tracking stays bounded even under rejected input spam.
+    if (this.pending.length > 32) this.pending.shift();
+    return token;
+  }
+
+  private observe(authority: PresentedActionStamp): void {
+    if (this.observed !== null && (authority.startedTick < this.observed.startedTick
+      || (authority.startedTick === this.observed.startedTick && authority.kind === this.observed.kind))) return;
+    this.observed = authority;
+    const matchedIndex = this.pending.findIndex((pending) => pending.kind === authority.kind
+      && authority.startedTick > pending.baselineTick);
+    if (matchedIndex !== -1) {
+      // Echoes follow reducer order, including when the preceding swing's echo
+      // arrives after a newer local swing has already started or completed.
+      const matched = this.pending.splice(matchedIndex, 1)[0]!;
+      matched.acknowledgedTick = authority.startedTick;
+      return;
+    }
+    if (this.prediction === null || authority.startedTick > this.prediction.baselineTick) {
+      this.prediction = null;
+      this.pending = [];
+    }
+  }
+
+  sample(authority: PresentedActionStamp, nowMs: number): LocalActionSample {
+    this.observe(authority);
+    const prediction = this.prediction;
+    if (prediction === null) return authority;
+    prediction.elapsedMs = Math.max(prediction.elapsedMs, nowMs - prediction.startedAtMs, 0);
+    return {
+      kind: prediction.completed ? 'none' : prediction.kind,
+      startedTick: prediction.acknowledgedTick ?? prediction.baselineTick,
+      predictionToken: prediction.token,
+      elapsedMs: prediction.elapsedMs,
+    };
+  }
+
+  complete(token: number): void {
+    if (this.prediction?.token === token) this.prediction.completed = true;
+  }
+
+  reject(token: number): void {
+    this.pending = this.pending.filter((pending) => pending.token !== token);
+    if (this.prediction?.token === token) this.prediction = null;
+  }
+
+  reset(): void {
+    this.prediction = null;
+    this.pending = [];
+    this.observed = null;
+  }
+}
+
 export class AvatarAnimationController {
   private locomotionDistance = 0;
   private lastX: number | null = null;
   private lastY: number | null = null;
   private lastActionKind = 'none';
   private lastActionStartedTick = 0n;
+  private lastPresentationToken: number | undefined;
+  private actionCompleted = false;
   private wasMoving = false;
 
   update(
@@ -451,6 +559,8 @@ export class AvatarAnimationController {
     actionFrames: number,
     actionFps: number,
     actionArtAvailable = true,
+    actionElapsedMs?: number,
+    presentationToken?: number,
   ): AvatarAnimationFrame {
     const distance = this.lastX === null || this.lastY === null ? 0 : Math.hypot(x - this.lastX, y - this.lastY);
     this.lastX = x;
@@ -459,9 +569,12 @@ export class AvatarAnimationController {
     if (moving && !this.wasMoving) this.locomotionDistance = 0;
     this.locomotionDistance += distance;
     this.wasMoving = moving;
-    if (actionKind !== this.lastActionKind || actionStartedTick !== this.lastActionStartedTick) {
+    if (actionKind !== this.lastActionKind || actionStartedTick !== this.lastActionStartedTick
+      || presentationToken !== this.lastPresentationToken) {
       this.lastActionKind = actionKind;
       this.lastActionStartedTick = actionStartedTick;
+      this.lastPresentationToken = presentationToken;
+      this.actionCompleted = false;
     }
     const pixelsPerFrame = Math.max(1, SIM_TICKS_PER_SECOND / Math.max(1, locomotionFps));
     const locomotionFrame = Math.floor(this.locomotionDistance / (pixelsPerFrame * FIXED_UNITS_PER_PIXEL))
@@ -469,15 +582,18 @@ export class AvatarAnimationController {
     if (actionKind !== 'none') {
       const definition = avatarActionDefinition(actionKind);
       const fallback = definition === null || !actionArtAvailable;
-      const elapsedSeconds = Math.max(0, renderTick - Number(actionStartedTick)) / AUTHORITY_HZ;
+      const elapsedSeconds = actionElapsedMs === undefined
+        ? Math.max(0, renderTick - Number(actionStartedTick)) / AUTHORITY_HZ
+        : Math.max(0, actionElapsedMs) / 1_000;
       const rawFrame = Math.floor(elapsedSeconds * Math.max(1, actionFps));
       const playback = definition?.playback ?? 'oneShot';
-      if (playback !== 'oneShot' || rawFrame < Math.max(1, actionFrames)) {
+      if (playback !== 'oneShot' || (!this.actionCompleted && rawFrame < Math.max(1, actionFrames))) {
         const frame = playback === 'loop'
           ? rawFrame % Math.max(1, actionFrames)
           : Math.min(Math.max(1, actionFrames) - 1, rawFrame);
         return { channel: 'action', kind: fallback ? 'fallback_use' : actionKind, frame, locomotionFrame, fallback };
       }
+      this.actionCompleted = true;
     }
     return {
       channel: 'locomotion',

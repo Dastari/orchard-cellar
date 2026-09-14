@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_spruce_sapling",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     32,
     32
@@ -54,7 +55,7 @@
     "6": "#3f2832",
     "7": "#b86f50"
   },
-  "sourcePath": "references/Cute_Fantasy/Trees/Small_Spruce_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Trees/Small_Spruce_Tree.png",
   "sourceRegion": [32, 32, 32, 32],
   "sourcePaletteMode": "exact",
   "approved": true,

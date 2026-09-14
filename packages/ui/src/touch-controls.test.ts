@@ -1,0 +1,209 @@
+import { describe, expect, it } from 'vitest';
+import {
+  TouchControls,
+  prefersTouchControls,
+  touchControlLayout,
+  touchDirectionFromDelta,
+} from './touch-controls.js';
+
+describe('touch controls', () => {
+  it('uses the local primary pointer instead of treating every hybrid device as touch-only', () => {
+    expect(prefersTouchControls(5, true, false)).toBe(true);
+    expect(prefersTouchControls(5, false, true)).toBe(false);
+    expect(prefersTouchControls(5, false, false)).toBe(true);
+    expect(prefersTouchControls(0, false, false)).toBe(false);
+  });
+
+  it('keeps guard held across another finger release, then cancels it on pointer loss or a menu',()=>{
+    const controls=new TouchControls(true),width=390,height=844,layout=touchControlLayout(width,height);
+    const point=(rect:{x:number;y:number})=>({x:rect.x+8,y:rect.y+8});
+    expect(controls.pointerDown(point(layout.blockButton),1,'touch',width,height)).toBe('block');
+    expect(controls.pointerDown(point(layout.dodgeButton),2,'touch',width,height)).toBe('dodge');
+    controls.pointerUp(2);expect(controls.blockHeld).toBe(true);
+    controls.pointerCancel(1);expect(controls.blockHeld).toBe(false);
+    controls.pointerDown(point(layout.blockButton),3,'touch',width,height);
+    controls.setBlocked(true);expect(controls.blockHeld).toBe(false);
+  });
+
+  it('maps a thumb vector onto all eight movement directions', () => {
+    expect(touchDirectionFromDelta(0, 0)).toBe('idle');
+    expect(touchDirectionFromDelta(20, 0)).toBe('right');
+    expect(touchDirectionFromDelta(-20, 0)).toBe('left');
+    expect(touchDirectionFromDelta(0, -20)).toBe('up');
+    expect(touchDirectionFromDelta(0, 20)).toBe('down');
+    expect(touchDirectionFromDelta(20, -20)).toBe('upRight');
+    expect(touchDirectionFromDelta(-20, -20)).toBe('upLeft');
+    expect(touchDirectionFromDelta(20, 20)).toBe('downRight');
+    expect(touchDirectionFromDelta(-20, 20)).toBe('downLeft');
+  });
+
+  it('keeps controls inside both portrait and landscape viewports', () => {
+    for (const [width, height] of [[390, 844], [844, 390]] as const) {
+      const layout = touchControlLayout(width, height);
+      expect(layout.joystickCenter.x - layout.joystickRadius).toBeGreaterThanOrEqual(0);
+      expect(layout.joystickCenter.y - layout.joystickRadius).toBeGreaterThanOrEqual(0);
+      expect(layout.joystickCenter.y + layout.joystickRadius).toBeLessThanOrEqual(height);
+      expect(layout.interactButton.x + layout.interactButton.width).toBeLessThanOrEqual(width);
+      expect(layout.secondaryButton.y).toBeGreaterThanOrEqual(0);
+      expect(layout.jumpButton.y).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('keeps portrait controls lower than the previous hotbar-clearance position', () => {
+    const layout = touchControlLayout(390, 844);
+    expect(layout.joystickCenter.y).toBe(770);
+    expect(layout.interactButton.y + layout.interactButton.height).toBe(793);
+  });
+
+  it('retains the landscape joystick position while reserving the purse row', () => {
+    const layout = touchControlLayout(844, 390);
+    expect(layout.joystickCenter.y).toBe(350);
+    expect(layout.interactButton).toMatchObject({ y: 328, height: 30 });
+  });
+
+  it('supports moving and pressing an action with separate touches', () => {
+    const width = 844;
+    const height = 390;
+    const layout = touchControlLayout(width, height);
+    const controls = new TouchControls(true);
+
+    expect(controls.pointerDown(layout.joystickCenter, 1, 'touch', width, height)).toBe('movement');
+    expect(controls.ownsPointer(1)).toBe(true);
+    expect(controls.pointerMove({
+      x: layout.joystickCenter.x + 30,
+      y: layout.joystickCenter.y - 30,
+    }, 1, width, height)).toBe(true);
+    expect(controls.direction).toBe('upRight');
+
+    expect(controls.pointerDown({
+      x: layout.interactButton.x + 2,
+      y: layout.interactButton.y + 2,
+    }, 2, 'touch', width, height)).toBe('interact');
+    expect(controls.direction).toBe('upRight');
+    expect(controls.pointerUp(2)).toBe(true);
+    expect(controls.direction).toBe('upRight');
+    expect(controls.pointerUp(1)).toBe(true);
+    expect(controls.ownsPointer(1)).toBe(false);
+    expect(controls.direction).toBe('idle');
+  });
+
+  it('exposes a dedicated Space jump action beside E and F', () => {
+    const width = 844;
+    const height = 390;
+    const layout = touchControlLayout(width, height);
+    const controls = new TouchControls(true);
+    expect(controls.pointerDown({
+      x: layout.jumpButton.x + 2,
+      y: layout.jumpButton.y + 2,
+    }, 3, 'touch', width, height)).toBe('jump');
+    expect(controls.ownsPointer(3)).toBe(true);
+  });
+
+  it('keeps input modality local and restores pointer UI after mouse input', () => {
+    const controls = new TouchControls(false);
+    expect(controls.available).toBe(false);
+
+    controls.notePointerType('touch');
+    expect(controls.available).toBe(true);
+
+    const layout = touchControlLayout(390, 844);
+    controls.pointerDown(layout.joystickCenter, 1, 'touch', 390, 844);
+    controls.pointerMove({
+      x: layout.joystickCenter.x + 30,
+      y: layout.joystickCenter.y,
+    }, 1, 390, 844);
+    expect(controls.direction).toBe('right');
+
+    controls.notePointerType('mouse');
+    expect(controls.available).toBe(false);
+    expect(controls.direction).toBe('idle');
+    expect(controls.ownsPointer(1)).toBe(false);
+  });
+
+  it('does not let unknown pointer types change the current local modality', () => {
+    const controls = new TouchControls(true);
+    controls.notePointerType('');
+    expect(controls.available).toBe(true);
+    controls.notePointerType('pen');
+    expect(controls.available).toBe(false);
+  });
+
+  it('keeps a captured thumb moving below the canvas boundary', () => {
+    const width = 390;
+    const height = 844;
+    const layout = touchControlLayout(width, height);
+    const controls = new TouchControls(true);
+
+    controls.pointerDown(layout.joystickCenter, 1, 'touch', width, height);
+    expect(controls.pointerMove({
+      x: layout.joystickCenter.x,
+      y: height + 20,
+    }, 1, width, height)).toBe(true);
+    expect(controls.direction).toBe('down');
+  });
+
+  it('releases movement whenever controls are blocked by a modal', () => {
+    const width = 844;
+    const height = 390;
+    const layout = touchControlLayout(width, height);
+    const controls = new TouchControls(true);
+    controls.pointerDown(layout.joystickCenter, 1, 'touch', width, height);
+    controls.pointerMove({ x: layout.joystickCenter.x + 30, y: layout.joystickCenter.y }, 1, width, height);
+    expect(controls.direction).toBe('right');
+    controls.setBlocked(true);
+    expect(controls.direction).toBe('idle');
+    expect(controls.visible).toBe(false);
+  });
+
+  it('keeps an action pointer claimed until release when that action opens a modal', () => {
+    const width = 844;
+    const height = 390;
+    const layout = touchControlLayout(width, height);
+    const controls = new TouchControls(true);
+    controls.pointerDown({
+      x: layout.interactButton.x + 2,
+      y: layout.interactButton.y + 2,
+    }, 7, 'touch', width, height);
+    controls.setBlocked(true);
+    expect(controls.pointerMove({ x: 400, y: 200 }, 7, width, height)).toBe(true);
+    expect(controls.pointerUp(7)).toBe(true);
+    expect(controls.pointerUp(7)).toBe(false);
+  });
+});
+
+
+describe('adjustable thumb layout', () => {
+  it.each([[390, 844], [844, 390], [480, 270]])('mirrors control hit areas and raises both sides within %sx%s', (width, height) => {
+    for (const swapped of [false, true]) for (const bottomOffset of [0, 40, 120]) {
+      const layout = touchControlLayout(width, height, { swapped, bottomOffset });
+      expect(layout.joystickCenter.x).toBe(swapped ? width - 42 : 42);
+      expect(layout.joystickCenter.y - layout.joystickRadius).toBeGreaterThanOrEqual(0);
+      for (const rect of [layout.interactButton, layout.secondaryButton, layout.jumpButton]) {
+        expect(rect.x).toBeGreaterThanOrEqual(0);
+        expect(rect.y).toBeGreaterThanOrEqual(0);
+        expect(rect.x + rect.width).toBeLessThanOrEqual(width);
+        expect(rect.y + rect.height).toBeLessThanOrEqual(height);
+      }
+      const controls = new TouchControls(true);
+      controls.setPreferences({ swapped, bottomOffset });
+      expect(controls.pointerDown(layout.joystickCenter, 1, 'touch', width, height)).toBe('movement');
+      controls.pointerMove({ x: layout.joystickCenter.x + 20, y: layout.joystickCenter.y }, 1, width, height);
+      expect(controls.direction).toBe('right');
+      expect(controls.pointerDown({ x: layout.interactButton.x + 2, y: layout.interactButton.y + 2 }, 2, 'touch', width, height)).toBe('interact');
+      controls.pointerUp(1);
+      controls.pointerUp(2);
+    }
+  });
+
+  it('does not leave a moving thumb captured after the control layout changes', () => {
+    const controls = new TouchControls(true);
+    const layout = touchControlLayout(844, 390);
+    controls.pointerDown(layout.joystickCenter, 1, 'touch', 844, 390);
+    controls.pointerMove({ x: layout.joystickCenter.x + 20, y: layout.joystickCenter.y }, 1, 844, 390);
+    controls.setPreferences({ swapped: true, bottomOffset: 20 });
+    expect(controls.direction).toBe('idle');
+    expect(controls.ownsPointer(1)).toBe(false);
+    const swapped = touchControlLayout(844, 390, { swapped: true, bottomOffset: 0 });
+    expect(swapped.joystickCenter.y + swapped.joystickRadius).toBeLessThanOrEqual(390 - 40);
+  });
+});

@@ -1,0 +1,1489 @@
+{
+  "generatorVersion": 30,
+  "seed": 1329809490,
+  "decorations": {
+    "count": 7457,
+    "sha256": "c97fb8ffddd87f89854c68dc81e169680315412767064aa3c4b40c297eb75f66",
+    "preRoleSha256": "f9c61fca02db4ccb0c2042d43f2c3cfebc72348be616a8f2ef8e80db511c8a63"
+  },
+  "landmarks": [
+    [
+      {
+        "id": 3000000001,
+        "kind": "camp_tent",
+        "tileX": 332,
+        "tileY": 357,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000002,
+        "kind": "camp_pond",
+        "tileX": 341,
+        "tileY": 355,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000003,
+        "kind": "camp_fishing_rod",
+        "tileX": 339,
+        "tileY": 356,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000004,
+        "kind": "camp_campfire",
+        "tileX": 336,
+        "tileY": 356,
+        "variant": 0,
+        "animationOffset": 3
+      },
+      {
+        "id": 3000000005,
+        "kind": "camp_bench",
+        "tileX": 336,
+        "tileY": 354,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000006,
+        "kind": "camp_round_stool",
+        "tileX": 334,
+        "tileY": 357,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000007,
+        "kind": "camp_stump_seat",
+        "tileX": 338,
+        "tileY": 357,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000008,
+        "kind": "camp_bench",
+        "tileX": 336,
+        "tileY": 358,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000009,
+        "kind": "camp_rock",
+        "tileX": 330,
+        "tileY": 356,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000010,
+        "kind": "camp_rock",
+        "tileX": 342,
+        "tileY": 361,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000011,
+        "kind": "camp_flowers",
+        "tileX": 331,
+        "tileY": 360,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000012,
+        "kind": "camp_flowers",
+        "tileX": 340,
+        "tileY": 360,
+        "variant": 1,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000013,
+        "kind": "nature_grass",
+        "tileX": 330,
+        "tileY": 353,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000014,
+        "kind": "nature_grass",
+        "tileX": 333,
+        "tileY": 352,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000015,
+        "kind": "nature_grass",
+        "tileX": 338,
+        "tileY": 352,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000016,
+        "kind": "nature_grass",
+        "tileX": 342,
+        "tileY": 353,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000017,
+        "kind": "nature_flower_grass",
+        "tileX": 331,
+        "tileY": 352,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000018,
+        "kind": "nature_flower_grass",
+        "tileX": 341,
+        "tileY": 352,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000019,
+        "kind": "nature_flower",
+        "tileX": 330,
+        "tileY": 358,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000020,
+        "kind": "nature_flower",
+        "tileX": 341,
+        "tileY": 358,
+        "variant": 1,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000021,
+        "kind": "nature_grass",
+        "tileX": 330,
+        "tileY": 361,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3000000022,
+        "kind": "nature_grass",
+        "tileX": 341,
+        "tileY": 361,
+        "variant": 0,
+        "animationOffset": 0
+      }
+    ],
+    [
+      {
+        "id": 3100000000,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 368,
+        "variant": 6,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000001,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 389,
+        "variant": 3,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000002,
+        "kind": "farm_fence",
+        "tileX": 372,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000003,
+        "kind": "farm_fence",
+        "tileX": 372,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000004,
+        "kind": "farm_fence",
+        "tileX": 373,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000005,
+        "kind": "farm_fence",
+        "tileX": 373,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000006,
+        "kind": "farm_fence",
+        "tileX": 374,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000007,
+        "kind": "farm_fence",
+        "tileX": 374,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000008,
+        "kind": "farm_fence",
+        "tileX": 375,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000009,
+        "kind": "farm_fence",
+        "tileX": 375,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000010,
+        "kind": "farm_fence",
+        "tileX": 376,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000011,
+        "kind": "farm_fence",
+        "tileX": 376,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000012,
+        "kind": "farm_fence",
+        "tileX": 377,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000013,
+        "kind": "farm_fence",
+        "tileX": 377,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000014,
+        "kind": "farm_fence",
+        "tileX": 378,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000015,
+        "kind": "farm_fence",
+        "tileX": 378,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000016,
+        "kind": "farm_fence",
+        "tileX": 379,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000017,
+        "kind": "farm_fence",
+        "tileX": 379,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000018,
+        "kind": "farm_fence",
+        "tileX": 380,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000019,
+        "kind": "farm_fence",
+        "tileX": 380,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000020,
+        "kind": "farm_fence",
+        "tileX": 381,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000021,
+        "kind": "farm_fence",
+        "tileX": 381,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000022,
+        "kind": "farm_fence",
+        "tileX": 382,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000023,
+        "kind": "farm_fence",
+        "tileX": 383,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000024,
+        "kind": "farm_fence",
+        "tileX": 383,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000025,
+        "kind": "farm_fence",
+        "tileX": 384,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000026,
+        "kind": "farm_fence",
+        "tileX": 384,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000027,
+        "kind": "farm_fence",
+        "tileX": 385,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000028,
+        "kind": "farm_fence",
+        "tileX": 385,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000029,
+        "kind": "farm_fence",
+        "tileX": 386,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000030,
+        "kind": "farm_fence",
+        "tileX": 386,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000031,
+        "kind": "farm_fence",
+        "tileX": 387,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000032,
+        "kind": "farm_fence",
+        "tileX": 387,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000033,
+        "kind": "farm_fence",
+        "tileX": 388,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000034,
+        "kind": "farm_fence",
+        "tileX": 388,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000035,
+        "kind": "farm_fence",
+        "tileX": 389,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000036,
+        "kind": "farm_fence",
+        "tileX": 389,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000037,
+        "kind": "farm_fence",
+        "tileX": 390,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000038,
+        "kind": "farm_fence",
+        "tileX": 390,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000039,
+        "kind": "farm_fence",
+        "tileX": 391,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000040,
+        "kind": "farm_fence",
+        "tileX": 391,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000041,
+        "kind": "farm_fence",
+        "tileX": 392,
+        "tileY": 368,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000042,
+        "kind": "farm_fence",
+        "tileX": 392,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000043,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 368,
+        "variant": 12,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000044,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 389,
+        "variant": 9,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000045,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 369,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000046,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 369,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000047,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 370,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000048,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 370,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000049,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 371,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000050,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 371,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000051,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 372,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000052,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 372,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000053,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 373,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000054,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 373,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000055,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 374,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000056,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 374,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000057,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 375,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000058,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 375,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000059,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 376,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000060,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 376,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000061,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 377,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000062,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 377,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000063,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 378,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000064,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 378,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000065,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 379,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000066,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 379,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000067,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 380,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000068,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 380,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000069,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 381,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000070,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 381,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000071,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 382,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000072,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 382,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000073,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 383,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000074,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 383,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000075,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 384,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000076,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 384,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000077,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 385,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000078,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 385,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000079,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 386,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000080,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 386,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000081,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 387,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000082,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 387,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000083,
+        "kind": "farm_fence",
+        "tileX": 371,
+        "tileY": 388,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000084,
+        "kind": "farm_fence",
+        "tileX": 393,
+        "tileY": 388,
+        "variant": 5,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000085,
+        "kind": "farm_gate",
+        "tileX": 382,
+        "tileY": 389,
+        "variant": 10,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000086,
+        "kind": "farm_house",
+        "tileX": 382,
+        "tileY": 372,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000087,
+        "kind": "farm_hay_stack",
+        "tileX": 374,
+        "tileY": 371,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000088,
+        "kind": "farm_hay_bale",
+        "tileX": 376,
+        "tileY": 371,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000089,
+        "kind": "farm_hay_bale",
+        "tileX": 374,
+        "tileY": 373,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000090,
+        "kind": "farm_crop_wheat",
+        "tileX": 386,
+        "tileY": 375,
+        "variant": 3,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000091,
+        "kind": "farm_crop_wheat",
+        "tileX": 387,
+        "tileY": 375,
+        "variant": 3,
+        "animationOffset": 7
+      },
+      {
+        "id": 3100000092,
+        "kind": "farm_crop_wheat",
+        "tileX": 388,
+        "tileY": 375,
+        "variant": 3,
+        "animationOffset": 14
+      },
+      {
+        "id": 3100000093,
+        "kind": "farm_crop_wheat",
+        "tileX": 389,
+        "tileY": 375,
+        "variant": 3,
+        "animationOffset": 21
+      },
+      {
+        "id": 3100000094,
+        "kind": "farm_crop_wheat",
+        "tileX": 386,
+        "tileY": 376,
+        "variant": 3,
+        "animationOffset": 13
+      },
+      {
+        "id": 3100000095,
+        "kind": "farm_crop_wheat",
+        "tileX": 387,
+        "tileY": 376,
+        "variant": 3,
+        "animationOffset": 20
+      },
+      {
+        "id": 3100000096,
+        "kind": "farm_crop_wheat",
+        "tileX": 388,
+        "tileY": 376,
+        "variant": 3,
+        "animationOffset": 27
+      },
+      {
+        "id": 3100000097,
+        "kind": "farm_crop_wheat",
+        "tileX": 389,
+        "tileY": 376,
+        "variant": 3,
+        "animationOffset": 34
+      },
+      {
+        "id": 3100000098,
+        "kind": "farm_crop_wheat",
+        "tileX": 386,
+        "tileY": 377,
+        "variant": 3,
+        "animationOffset": 26
+      },
+      {
+        "id": 3100000099,
+        "kind": "farm_crop_wheat",
+        "tileX": 387,
+        "tileY": 377,
+        "variant": 3,
+        "animationOffset": 33
+      },
+      {
+        "id": 3100000100,
+        "kind": "farm_crop_wheat",
+        "tileX": 388,
+        "tileY": 377,
+        "variant": 3,
+        "animationOffset": 40
+      },
+      {
+        "id": 3100000101,
+        "kind": "farm_crop_wheat",
+        "tileX": 389,
+        "tileY": 377,
+        "variant": 3,
+        "animationOffset": 47
+      },
+      {
+        "id": 3100000102,
+        "kind": "farm_crop_strawberry",
+        "tileX": 386,
+        "tileY": 380,
+        "variant": 3,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000103,
+        "kind": "farm_crop_strawberry",
+        "tileX": 387,
+        "tileY": 380,
+        "variant": 3,
+        "animationOffset": 7
+      },
+      {
+        "id": 3100000104,
+        "kind": "farm_crop_strawberry",
+        "tileX": 388,
+        "tileY": 380,
+        "variant": 3,
+        "animationOffset": 14
+      },
+      {
+        "id": 3100000105,
+        "kind": "farm_crop_strawberry",
+        "tileX": 389,
+        "tileY": 380,
+        "variant": 3,
+        "animationOffset": 21
+      },
+      {
+        "id": 3100000106,
+        "kind": "farm_crop_strawberry",
+        "tileX": 386,
+        "tileY": 381,
+        "variant": 3,
+        "animationOffset": 13
+      },
+      {
+        "id": 3100000107,
+        "kind": "farm_crop_strawberry",
+        "tileX": 387,
+        "tileY": 381,
+        "variant": 3,
+        "animationOffset": 20
+      },
+      {
+        "id": 3100000108,
+        "kind": "farm_crop_strawberry",
+        "tileX": 388,
+        "tileY": 381,
+        "variant": 3,
+        "animationOffset": 27
+      },
+      {
+        "id": 3100000109,
+        "kind": "farm_crop_strawberry",
+        "tileX": 389,
+        "tileY": 381,
+        "variant": 3,
+        "animationOffset": 34
+      },
+      {
+        "id": 3100000110,
+        "kind": "farm_crop_strawberry",
+        "tileX": 386,
+        "tileY": 382,
+        "variant": 3,
+        "animationOffset": 26
+      },
+      {
+        "id": 3100000111,
+        "kind": "farm_crop_strawberry",
+        "tileX": 387,
+        "tileY": 382,
+        "variant": 3,
+        "animationOffset": 33
+      },
+      {
+        "id": 3100000112,
+        "kind": "farm_crop_strawberry",
+        "tileX": 388,
+        "tileY": 382,
+        "variant": 3,
+        "animationOffset": 40
+      },
+      {
+        "id": 3100000113,
+        "kind": "farm_crop_strawberry",
+        "tileX": 389,
+        "tileY": 382,
+        "variant": 3,
+        "animationOffset": 47
+      },
+      {
+        "id": 3100000114,
+        "kind": "farm_crop_corn",
+        "tileX": 382,
+        "tileY": 384,
+        "variant": 3,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000115,
+        "kind": "farm_crop_corn",
+        "tileX": 383,
+        "tileY": 384,
+        "variant": 3,
+        "animationOffset": 7
+      },
+      {
+        "id": 3100000116,
+        "kind": "farm_crop_corn",
+        "tileX": 384,
+        "tileY": 384,
+        "variant": 3,
+        "animationOffset": 14
+      },
+      {
+        "id": 3100000117,
+        "kind": "farm_crop_corn",
+        "tileX": 382,
+        "tileY": 385,
+        "variant": 3,
+        "animationOffset": 13
+      },
+      {
+        "id": 3100000118,
+        "kind": "farm_crop_corn",
+        "tileX": 383,
+        "tileY": 385,
+        "variant": 3,
+        "animationOffset": 20
+      },
+      {
+        "id": 3100000119,
+        "kind": "farm_crop_corn",
+        "tileX": 384,
+        "tileY": 385,
+        "variant": 3,
+        "animationOffset": 27
+      },
+      {
+        "id": 3100000120,
+        "kind": "farm_crop_corn",
+        "tileX": 382,
+        "tileY": 386,
+        "variant": 3,
+        "animationOffset": 26
+      },
+      {
+        "id": 3100000121,
+        "kind": "farm_crop_corn",
+        "tileX": 383,
+        "tileY": 386,
+        "variant": 3,
+        "animationOffset": 33
+      },
+      {
+        "id": 3100000122,
+        "kind": "farm_crop_corn",
+        "tileX": 384,
+        "tileY": 386,
+        "variant": 3,
+        "animationOffset": 40
+      },
+      {
+        "id": 3100000123,
+        "kind": "farm_crop_sunflower",
+        "tileX": 387,
+        "tileY": 385,
+        "variant": 3,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000124,
+        "kind": "farm_crop_sunflower",
+        "tileX": 388,
+        "tileY": 385,
+        "variant": 3,
+        "animationOffset": 7
+      },
+      {
+        "id": 3100000125,
+        "kind": "farm_crop_sunflower",
+        "tileX": 389,
+        "tileY": 385,
+        "variant": 3,
+        "animationOffset": 14
+      },
+      {
+        "id": 3100000126,
+        "kind": "farm_crop_sunflower",
+        "tileX": 387,
+        "tileY": 386,
+        "variant": 3,
+        "animationOffset": 13
+      },
+      {
+        "id": 3100000127,
+        "kind": "farm_crop_sunflower",
+        "tileX": 388,
+        "tileY": 386,
+        "variant": 3,
+        "animationOffset": 20
+      },
+      {
+        "id": 3100000128,
+        "kind": "farm_crop_sunflower",
+        "tileX": 389,
+        "tileY": 386,
+        "variant": 3,
+        "animationOffset": 27
+      },
+      {
+        "id": 3100000129,
+        "kind": "farm_crop_pumpkin",
+        "tileX": 374,
+        "tileY": 385,
+        "variant": 3,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000130,
+        "kind": "farm_crop_pumpkin",
+        "tileX": 375,
+        "tileY": 385,
+        "variant": 3,
+        "animationOffset": 7
+      },
+      {
+        "id": 3100000131,
+        "kind": "farm_crop_pumpkin",
+        "tileX": 376,
+        "tileY": 385,
+        "variant": 3,
+        "animationOffset": 14
+      },
+      {
+        "id": 3100000132,
+        "kind": "farm_crop_pumpkin",
+        "tileX": 374,
+        "tileY": 386,
+        "variant": 3,
+        "animationOffset": 13
+      },
+      {
+        "id": 3100000133,
+        "kind": "farm_crop_pumpkin",
+        "tileX": 375,
+        "tileY": 386,
+        "variant": 3,
+        "animationOffset": 20
+      },
+      {
+        "id": 3100000134,
+        "kind": "farm_crop_pumpkin",
+        "tileX": 376,
+        "tileY": 386,
+        "variant": 3,
+        "animationOffset": 27
+      },
+      {
+        "id": 3100000135,
+        "kind": "farm_tree_oak",
+        "tileX": 389,
+        "tileY": 370,
+        "variant": 0,
+        "animationOffset": 11
+      },
+      {
+        "id": 3100000136,
+        "kind": "farm_tree_oak",
+        "tileX": 392,
+        "tileY": 371,
+        "variant": 0,
+        "animationOffset": 43
+      },
+      {
+        "id": 3100000137,
+        "kind": "farm_tree_oak",
+        "tileX": 391,
+        "tileY": 374,
+        "variant": 0,
+        "animationOffset": 76
+      },
+      {
+        "id": 3100000138,
+        "kind": "farm_grave",
+        "tileX": 390,
+        "tileY": 371,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000139,
+        "kind": "farm_flowers",
+        "tileX": 389,
+        "tileY": 372,
+        "variant": 0,
+        "animationOffset": 19
+      },
+      {
+        "id": 3100000140,
+        "kind": "farm_flowers",
+        "tileX": 391,
+        "tileY": 372,
+        "variant": 1,
+        "animationOffset": 51
+      },
+      {
+        "id": 3100000141,
+        "kind": "farm_flowers",
+        "tileX": 390,
+        "tileY": 373,
+        "variant": 2,
+        "animationOffset": 81
+      },
+      {
+        "id": 3100000142,
+        "kind": "farm_flowers",
+        "tileX": 380,
+        "tileY": 371,
+        "variant": 1,
+        "animationOffset": 23
+      },
+      {
+        "id": 3100000143,
+        "kind": "farm_flowers",
+        "tileX": 384,
+        "tileY": 371,
+        "variant": 0,
+        "animationOffset": 57
+      },
+      {
+        "id": 3100000144,
+        "kind": "farm_potted_flowers",
+        "tileX": 379,
+        "tileY": 372,
+        "variant": 0,
+        "animationOffset": 31
+      },
+      {
+        "id": 3100000145,
+        "kind": "farm_potted_flowers",
+        "tileX": 385,
+        "tileY": 372,
+        "variant": 1,
+        "animationOffset": 67
+      },
+      {
+        "id": 3100000146,
+        "kind": "farm_stump",
+        "tileX": 372,
+        "tileY": 386,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3100000147,
+        "kind": "farm_fallen_log",
+        "tileX": 378,
+        "tileY": 387,
+        "variant": 0,
+        "animationOffset": 0
+      }
+    ],
+    [
+      {
+        "id": 3200000001,
+        "kind": "fisher_hut",
+        "tileX": 403,
+        "tileY": 315,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000002,
+        "kind": "fisher_dock",
+        "tileX": 407,
+        "tileY": 317,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000003,
+        "kind": "camp_campfire",
+        "tileX": 403,
+        "tileY": 319,
+        "variant": 0,
+        "animationOffset": 17
+      },
+      {
+        "id": 3200000004,
+        "kind": "camp_bench",
+        "tileX": 402,
+        "tileY": 321,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000005,
+        "kind": "camp_round_stool",
+        "tileX": 404,
+        "tileY": 321,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000006,
+        "kind": "camp_stump_seat",
+        "tileX": 401,
+        "tileY": 319,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000007,
+        "kind": "camp_fishing_rod",
+        "tileX": 405,
+        "tileY": 318,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000008,
+        "kind": "fisher_fixed_line",
+        "tileX": 406,
+        "tileY": 311,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000009,
+        "kind": "fisher_fixed_line",
+        "tileX": 406,
+        "tileY": 314,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000010,
+        "kind": "fisher_fixed_line",
+        "tileX": 407,
+        "tileY": 321,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000011,
+        "kind": "camp_rock",
+        "tileX": 399,
+        "tileY": 320,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000012,
+        "kind": "camp_flowers",
+        "tileX": 400,
+        "tileY": 317,
+        "variant": 0,
+        "animationOffset": 29
+      },
+      {
+        "id": 3200000013,
+        "kind": "nature_grass",
+        "tileX": 405,
+        "tileY": 322,
+        "variant": 0,
+        "animationOffset": 0
+      },
+      {
+        "id": 3200000014,
+        "kind": "nature_flower_grass",
+        "tileX": 400,
+        "tileY": 322,
+        "variant": 0,
+        "animationOffset": 0
+      }
+    ]
+  ]
+}

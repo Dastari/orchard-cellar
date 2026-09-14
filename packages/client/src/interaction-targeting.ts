@@ -6,11 +6,17 @@ export type InteractionTargetKind =
   | 'merchant'
   | 'player'
   | 'horse'
+  | 'boat'
   | 'gatherable'
   | 'crop'
   | 'quest_item'
   | 'embedded_arrow'
-  | 'grave'
+  | 'hearth_stash'
+  | 'hearth_supply_cache'
+  | 'ferry'
+  | 'outdoor_encounter'
+  | 'rogue_entrance'
+  | 'rogue_door'
   | 'world_item';
 
 export interface InteractionCandidate {
@@ -26,16 +32,22 @@ const TIE_PRIORITY: Readonly<Record<InteractionTargetKind, number>> = {
   portal: 0,
   placeable: 1,
   chest: 2,
+  hearth_stash:2,
+  hearth_supply_cache:2,
   campfire: 3,
   merchant: 4,
   player: 5,
   horse: 6,
-  gatherable: 7,
-  crop: 8,
-  quest_item: 9,
-  embedded_arrow: 10,
-  grave: 11,
-  world_item: 12,
+  boat: 7,
+  gatherable: 8,
+  crop: 9,
+  quest_item: 10,
+  embedded_arrow: 11,
+  rogue_entrance: 12,
+  rogue_door: 13,
+  world_item: 14,
+  outdoor_encounter: 15,
+  ferry:16,
 };
 
 /** Resolves the one target represented by the interaction prompt and E key.

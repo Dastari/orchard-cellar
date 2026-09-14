@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_farmer_bob",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     40
@@ -3307,7 +3308,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Farmer_Bob.png",
-  "sourcePath": "references/Cute_Fantasy/NPCs (Premade)/Farmer_Bob.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/NPCs (Premade)/Farmer_Bob.png",
   "sourceRegions": {
     "idle_down": [
       [

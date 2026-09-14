@@ -1,0 +1,63 @@
+{
+  "name": "icon_gear_hearth_rare_legs",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......11111111..",
+        ".....1013443321.",
+        "....101300000031",
+        "....101401111041",
+        "....101221111131",
+        "....101023243201",
+        "....100111222001",
+        "....100144120001",
+        "..11000144312001",
+        ".100111444301011",
+        "100140444330211.",
+        "101444003302201.",
+        "101443330022001.",
+        ".1143400220001..",
+        "...1102220011...",
+        ".....111111....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#254d48",
+    "1": "#2e1c2c",
+    "2": "#367f63",
+    "3": "#89ab83",
+    "4": "#b0bb8f"
+  },
+  "sourcePath": "references/art/clockwork-raven/collections/premium/sheets/raven-fantasy-icons-16.png",
+  "importedFrom": "raven-fantasy-icons-16.png",
+  "sourceRegion": [
+    128,
+    6752,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

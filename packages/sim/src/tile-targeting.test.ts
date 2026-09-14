@@ -3,6 +3,9 @@ import { TILE_SIZE_FIXED, type CollisionMap } from './state.js';
 import { playerHitboxBounds } from './movement.js';
 import {
   AXE_SWING_REACH_TILES,
+  CAMPFIRE_INTERACTION_REACH_FIXED,
+  CAMPFIRE_INTERACTION_REACH_TILES,
+  FISHING_ROD_REACH_TILES,
   FORWARD_SWING_OFFSET_TILES,
   facedTileTarget,
   forwardSwingTargetInReach,
@@ -21,9 +24,11 @@ describe('shared tile targeting', () => {
 
   it('uses a smaller forward-offset area for contact tools', () => {
     expect(AXE_SWING_REACH_TILES).toBe(1);
+    expect(FISHING_ROD_REACH_TILES).toBe(3);
     expect(FORWARD_SWING_OFFSET_TILES).toBe(1);
     expect(resourceToolReachFixed('axe')).toBe(TILE_SIZE_FIXED);
     expect(resourceToolReachFixed('pickaxe')).toBe(TILE_SIZE_FIXED);
+    expect(resourceToolReachFixed('fishing_rod')).toBe(3 * TILE_SIZE_FIXED);
     expect(resourceToolForwardOffsetFixed('axe')).toBe(TILE_SIZE_FIXED);
     expect(resourceToolForwardOffsetFixed('pickaxe')).toBe(TILE_SIZE_FIXED);
     expect(resourceToolForwardOffsetFixed('hoe')).toBe(0);
@@ -50,6 +55,23 @@ describe('shared tile targeting', () => {
     const nearer = { id: 3n, tileX: 10, tileY: 9 };
     const outOfRange = { id: 1n, tileX: 14, tileY: 10 };
     expect(nearestTileTarget(playerX, playerY, [farther, outOfRange, nearer], 2 * TILE_SIZE_FIXED)).toBe(nearer);
+  });
+
+  it('gives campfire actions a shared three-tile radial reach', () => {
+    expect(CAMPFIRE_INTERACTION_REACH_TILES).toBe(3);
+    expect(CAMPFIRE_INTERACTION_REACH_FIXED).toBe(3 * TILE_SIZE_FIXED);
+    expect(nearestTileTarget(
+      playerX,
+      playerY,
+      [{ id: 1n, tileX: 13, tileY: 10 }],
+      CAMPFIRE_INTERACTION_REACH_FIXED,
+    )).not.toBeNull();
+    expect(nearestTileTarget(
+      playerX,
+      playerY,
+      [{ id: 1n, tileX: 14, tileY: 10 }],
+      CAMPFIRE_INTERACTION_REACH_FIXED,
+    )).toBeNull();
   });
 
   it('retains adjacent facing targets and accepts mouse targets up to three tiles away', () => {

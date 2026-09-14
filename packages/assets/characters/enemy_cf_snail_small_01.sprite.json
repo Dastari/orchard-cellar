@@ -1,13 +1,14 @@
 {
   "name": "enemy_cf_snail_small_01",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
   ],
   "anchor": [
     8,
-    15
+    12
   ],
   "frames": {
     "idle": [
@@ -53,7 +54,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Snail_Small_1.png",
-  "sourcePath": "references/Cute_Fantasy_ShroomLands/Snails/Snail_Small_1.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/shroomlands/Snails/Snail_Small_1.png",
   "sourceRegions": {
     "idle": [
       [

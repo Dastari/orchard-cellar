@@ -1,0 +1,384 @@
+{
+  "format": "orchard-selected-item-capability-audit-v1",
+  "scope": "Every explicit selected-item kind branch and every selected-item-adjacent specialized gameplay surface in the overworld client.",
+  "classifications": [
+    "item-owned-onUse",
+    "object-tile-entity-owned-lifecycle",
+    "pure-presentation",
+    "engine-control"
+  ],
+  "explicitSelectedKinds": [
+    "empty"
+  ],
+  "derivedCapabilityRules": [
+    {
+      "id": "authored-data-direct-use",
+      "selection": "every live item definition with a secondary onUse data action",
+      "requiredTrigger": "secondary"
+    },
+    {
+      "id": "seed-placement",
+      "selection": "every live item tagged item.seed",
+      "requiredTrigger": "place"
+    },
+    {
+      "id": "placeable-placement",
+      "selection": "every live item tagged item.placeable, plus boat and homestead_deed",
+      "requiredTrigger": "place"
+    },
+    {
+      "id": "durability-repair",
+      "selection": "every live durability-bearing item",
+      "requiredTrigger": "useWith"
+    }
+  ],
+  "selectedItemBranches": [
+    {
+      "id": "hotbar-selection-and-empty-sentinel",
+      "anchor": "function selectedItem(snapshot: OverworldView)",
+      "selectedKinds": [
+        "empty"
+      ],
+      "classification": "engine-control",
+      "status": "keep",
+      "reason": "Selection is input/inventory state, not an item action."
+    },
+    {
+      "id": "held-light-rendering",
+      "anchor": "const heldLightEquipped = equippedLight !== undefined",
+      "selectedKinds": [
+        "lantern",
+        "torch"
+      ],
+      "classification": "pure-presentation",
+      "status": "keep",
+      "reason": "Sprite and light preview only; it performs no authoritative mutation."
+    },
+    {
+      "id": "world-resource-targeting",
+      "anchor": "function targetResource(snapshot: OverworldView)",
+      "selectedKinds": [
+        "axe",
+        "pickaxe",
+        "fishing_rod"
+      ],
+      "classification": "pure-presentation",
+      "status": "keep",
+      "reason": "Chooses a reticle/target; authored useWith or useAt performs the mutation."
+    },
+    {
+      "id": "cellar-wall-targeting",
+      "anchor": "function targetCellarWall(snapshot: OverworldView)",
+      "selectedKinds": [
+        "pickaxe"
+      ],
+      "classification": "pure-presentation",
+      "status": "keep",
+      "reason": "Maps projected cellar art to a tile for authored useAt."
+    },
+    {
+      "id": "tool-overlay-and-reticles",
+      "anchor": "function drawToolInteractionOverlay(",
+      "selectedKinds": [
+        "axe",
+        "pickaxe",
+        "sword",
+        "bow",
+        "hoe",
+        "watering_can",
+        "fishing_rod"
+      ],
+      "classification": "pure-presentation",
+      "status": "keep",
+      "reason": "Reach guides, aim guides, and tile reticles do not grant capability."
+    },
+    {
+      "id": "contextual-prompts",
+      "anchor": "const selectedUsePrompt = selectedWorldTool ? null : selectedItemUsePrompt(",
+      "selectedKinds": [
+        "axe",
+        "pickaxe",
+        "lantern",
+        "torch"
+      ],
+      "classification": "pure-presentation",
+      "status": "keep",
+      "reason": "Prompt selection follows lifecycle metadata or target context."
+    },
+    {
+      "id": "generic-direct-secondary",
+      "anchor": "selectedItemUseAction(selectedUseDefinition)",
+      "selectedKinds": [
+        "metadata-derived"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "Food, documents, tea, sword, and future direct-use items derive capability from lifecycle metadata."
+    },
+    {
+      "id": "axe-campfire-dismantle",
+      "anchor": "targetKind: 'placeable', entityId: campfire.id",
+      "selectedKinds": [
+        "axe"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "Generic useWith invokes axe-owned authored code and the validated worldTool effect."
+    },
+    {
+      "id": "anvil-repair",
+      "anchor": "selectedItemLifecycleAction(selectedUseDefinition, 'useWith')",
+      "selectedKinds": [
+        "durability-derived"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "Every durable item's repair capability is declared by authored useWith metadata."
+    },
+    {
+      "id": "equipped-light-toggle",
+      "anchor": "network.useSelected('equipment_use', { equipmentSlot: selectedLight.slot })",
+      "selectedKinds": [
+        "lantern",
+        "torch"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "Each portable light advertises equipmentUse and worldItemUse metadata; authority resolves the concrete active equipment row or ground world-item entity."
+    },
+    {
+      "id": "axe-chest-break",
+      "anchor": "selectedWoodcuttingAction !== null",
+      "selectedKinds": [
+        "axe"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "The axe callback owns chest dismantling through metadata-backed generic useWith dispatch."
+    },
+    {
+      "id": "metadata-placement",
+      "anchor": "selectedItemLifecycleAction(selectedUseDefinition, 'place')",
+      "selectedKinds": [
+        "item.placeable",
+        "boat",
+        "homestead_deed"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "Placement availability is metadata-derived and dispatched through useSelected place."
+    },
+    {
+      "id": "carried-object-placement",
+      "anchor": "carriedCarriablePlaceable(snapshot)",
+      "selectedKinds": [
+        "carried-object"
+      ],
+      "classification": "object-tile-entity-owned-lifecycle",
+      "status": "keep",
+      "reason": "The carried entity, rather than the selected inventory item, owns this placement."
+    },
+    {
+      "id": "seed-keyboard-and-pointer",
+      "anchor": "tags.includes('item.seed') === true",
+      "selectedKinds": [
+        "item.seed"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "Both input lanes invoke authored place callbacks. Crop harvesting remains tile-owned."
+    },
+    {
+      "id": "farm-tool-keyboard-and-pointer",
+      "anchor": "performFarmToolAction(",
+      "selectedKinds": [
+        "hoe",
+        "watering_can"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "Both input lanes invoke metadata-backed place actions with an actionId."
+    },
+    {
+      "id": "world-tool-keyboard",
+      "anchor": "targetKind: 'resource', entityId: resource.id",
+      "selectedKinds": [
+        "axe",
+        "pickaxe"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "Whiff, resource use, and cellar useAt all dispatch through the tool-owned callback."
+    },
+    {
+      "id": "fishing-keyboard-and-pointer",
+      "anchor": "performFishingCast(",
+      "selectedKinds": [
+        "fishing_rod"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "The fishing-rod callback owns cast and reel through authored useAt action IDs; specialized reducer, client, and binding surfaces are retired."
+    },
+    {
+      "id": "bow-aim-and-release",
+      "anchor": "function releaseBowShot()",
+      "selectedKinds": [
+        "bow"
+      ],
+      "classification": "item-owned-onUse",
+      "status": "migrated",
+      "reason": "Pointer timing remains presentation while the bow callback owns begin, cancel, and fire through authored aimedUse; specialized surfaces are retired."
+    },
+    {
+      "id": "crop-harvest-pointer",
+      "anchor": "network.harvestCropTile(farmTarget.tileX, farmTarget.tileY)",
+      "selectedKinds": [
+        "any"
+      ],
+      "classification": "object-tile-entity-owned-lifecycle",
+      "status": "keep",
+      "reason": "The mature crop tile owns harvesting; the selected item grants no capability."
+    },
+    {
+      "id": "drop-selected",
+      "anchor": "network.dropSelected()",
+      "selectedKinds": [
+        "any"
+      ],
+      "classification": "engine-control",
+      "status": "keep",
+      "reason": "Dropping is generic inventory manipulation, not item-authored use."
+    }
+  ],
+  "specializedSurfaces": [
+    {
+      "id": "generic-use-selected",
+      "clientMethods": [
+        "useSelected"
+      ],
+      "serverReducers": [
+        "useSelected"
+      ],
+      "classification": "engine-control",
+      "disposition": "keep"
+    },
+    {
+      "id": "target-owned-world-actions",
+      "clientMethods": [
+        "harvestCropTile",
+        "gatherWorldResource",
+        "pickupEmbeddedArrow",
+        "pickupWorldItem",
+        "pickupQuestWorldItem",
+        "interactEntity",
+        "interactHorse",
+        "interactNpc",
+        "toggleHomesteadGate",
+        "usePortal",
+        "placeHomesteadBuildable",
+        "removeHomesteadBuildable"
+      ],
+      "serverReducers": [
+        "harvestCropTile",
+        "gatherWorldResource",
+        "pickupEmbeddedArrow",
+        "pickupWorldItem",
+        "pickupQuestWorldItem",
+        "interactEntity",
+        "interactHorse",
+        "interactNpc",
+        "toggleHomesteadGate",
+        "usePortal",
+        "placeHomesteadBuildable",
+        "removeHomesteadBuildable"
+      ],
+      "classification": "object-tile-entity-owned-lifecycle",
+      "disposition": "keep"
+    },
+    {
+      "id": "inventory-selection-and-drop",
+      "clientMethods": [
+        "selectHotbar",
+        "dropSelected"
+      ],
+      "serverReducers": [
+        "selectHotbar",
+        "dropSelected"
+      ],
+      "classification": "engine-control",
+      "disposition": "keep"
+    },
+    {
+      "id": "retired-item-action-surfaces",
+      "clientMethods": [
+        "useCropTile",
+        "useFarmTool",
+        "restoreFarmTile",
+        "harvestResource",
+        "harvestCampfire",
+        "digCellarTile",
+        "attackCombatTarget",
+        "castFishingRod",
+        "reelFishingRod",
+        "beginBowCharge",
+        "cancelBowCharge",
+        "fireBow",
+        "placeWorldPlaceable",
+        "repairSelectedTool"
+      ],
+      "serverReducers": [
+        "useCropTile",
+        "useFarmTool",
+        "restoreFarmTile",
+        "harvestResource",
+        "harvestCampfire",
+        "digCellarTile",
+        "attackCombatTarget",
+        "castFishingRod",
+        "reelFishingRod",
+        "beginBowCharge",
+        "cancelBowCharge",
+        "fireBow",
+        "placeWorldPlaceable",
+        "repairSelectedTool"
+      ],
+      "classification": "item-owned-onUse",
+      "disposition": "forbid"
+    },
+    {
+      "id": "hearth-furniture-transactions",
+      "clientMethods": [
+        "placeHearthFurniture",
+        "moveHearthFurniture",
+        "pickupHearthFurniture"
+      ],
+      "serverReducers": [
+        "placeHearthFurniture",
+        "moveHearthFurniture",
+        "pickupHearthFurniture"
+      ],
+      "classification": "object-tile-entity-owned-lifecycle",
+      "disposition": "active-authoritative-transaction",
+      "reason": "Residence placement and custody require dedicated geometry/support/inventory transactions; generic spawn/carry is intentionally forbidden. Exact item ownership is audited in reviewed-item-action-owners.json."
+    }
+  ],
+  "nextMigrations": [
+    {
+      "priority": 1,
+      "id": "repair-only-tools",
+      "currentOwner": "item:hammer and item:shovel authored useWith repair callbacks",
+      "targetOwner": "same single callback per item when gameplay actions are designed",
+      "requiredEngineChange": "None until these tools gain an actual world action; do not invent behavior merely to remove a repair-only state.",
+      "retirement": []
+    },
+    {
+      "priority": 2,
+      "id": "fishing-cast-activation-pinning",
+      "currentOwner": "durable fishing cast bound to pool id and exact tile tuple",
+      "targetOwner": "durable fishing cast additionally bound to the pool activation ordinal",
+      "requiredEngineChange": "Add an activationOrdinal column only through a preserved-world-compatible additive SpacetimeDB schema migration; tile mismatch cancellation is the zero-schema-change guard in this wave.",
+      "retirement": []
+    }
+  ]
+}

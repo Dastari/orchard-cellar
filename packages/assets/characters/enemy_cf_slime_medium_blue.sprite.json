@@ -7,7 +7,7 @@
   ],
   "anchor": [
     16,
-    31
+    21
   ],
   "frames": {
     "idle": [
@@ -728,7 +728,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Slime_Medium_Blue.png",
-  "sourcePath": "references/Cute_Fantasy/Enemies/Slime/Slime_Medium/Slime_Medium_Blue.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Enemies/Slime/Slime_Medium/Slime_Medium_Blue.png",
   "sourceRegions": {
     "idle": [
       [

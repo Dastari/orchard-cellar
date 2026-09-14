@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_fruit_mature",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     48,
     64
@@ -93,7 +94,7 @@
     "8": "#91533b",
     "9": "#b86f50"
   },
-  "sourcePath": "references/Cute_Fantasy/Trees/Big_Fruit_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Trees/Big_Fruit_Tree.png",
   "sourceRegion": [
     32,
     0,

@@ -1,0 +1,68 @@
+{
+  "name": "icon_gear_hearth_harvest_pendant",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        ".....052110.....",
+        "....05452420....",
+        "...0547517420...",
+        "..054775277420..",
+        ".09577451477590.",
+        ".09274451447190.",
+        ".08144451444180.",
+        "..020405204010..",
+        "...0505961010...",
+        "....02596110....",
+        ".....028310.....",
+        "......0110......",
+        ".......00.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#043309",
+    "1": "#0d9f1e",
+    "2": "#2cd24b",
+    "3": "#323b05",
+    "4": "#586c0e",
+    "5": "#75f392",
+    "6": "#879f0e",
+    "7": "#8aac10",
+    "8": "#bddd13",
+    "9": "#e9f157"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/accessories-400/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    176,
+    160,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

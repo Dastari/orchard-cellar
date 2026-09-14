@@ -1,0 +1,61 @@
+{
+  "name": "icon_material_guardian_seal",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "......1111......",
+        ".....121220.....",
+        "....12000020....",
+        "...1202112120...",
+        "...1101220100...",
+        "...1101220100...",
+        "...1201202120...",
+        "....12011120....",
+        ".....120220.....",
+        "......0000......",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#a28426",
+    "1": "#f6df75",
+    "2": "#ff9800"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/gems-jewels/sheet-16-without-outline.png",
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourceRegion": [
+    96,
+    128,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

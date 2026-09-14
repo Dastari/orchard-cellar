@@ -8,11 +8,10 @@ import {
   modifiersForHunger,
   restoreHunger,
   spendHunger,
-  wildlifeFoodDrops,
   wildlifeIsHuntable,
 } from './food.js';
 import { AUTHORITY_HZ } from './net-timing.js';
-import { resolveStats } from './stats.js';
+import { advanceVitals, createFullVitalState, resolveStats } from './stats.js';
 
 describe('repeatable food and hunger loop', () => {
   it('charges hunger only for explicit exertion', () => {
@@ -43,10 +42,16 @@ describe('repeatable food and hunger loop', () => {
     ]).vigourRegenCentiPerSecond).toBe(60);
   });
 
+  it('restores depleted Vigour at the full-hunger rate', () => {
+    const stats = resolveStats(undefined, modifiersForHunger(HUNGER_MAX_CENTI));
+    const depleted = { ...createFullVitalState(stats), vigourCenti: 0 };
+    expect(advanceVitals(depleted, stats, BigInt(AUTHORITY_HZ)).vigourCenti).toBe(1_200);
+  });
+
   it('queues bounded cooking time per item', () => {
-    expect(cookingDurationTicks(CAMPFIRE_COOKING_RECIPES.roast_chicken, 3))
+    expect(cookingDurationTicks(CAMPFIRE_COOKING_RECIPES.roast_chicken!, 3))
       .toBe(BigInt(45 * 3 * AUTHORITY_HZ));
-    expect(cookingDurationTicks(CAMPFIRE_COOKING_RECIPES.roast_chicken, 99))
+    expect(cookingDurationTicks(CAMPFIRE_COOKING_RECIPES.roast_chicken!, 99))
       .toBe(BigInt(45 * 8 * AUTHORITY_HZ));
   });
 
@@ -54,7 +59,5 @@ describe('repeatable food and hunger loop', () => {
     expect(wildlifeIsHuntable('pig')).toBe(true);
     expect(wildlifeIsHuntable('horse')).toBe(false);
     expect(wildlifeIsHuntable('swan')).toBe(false);
-    expect(wildlifeFoodDrops('pig')).toEqual([{ itemKind: 'raw_pork', quantity: 3 }]);
-    expect(wildlifeFoodDrops('butterfly')).toEqual([]);
   });
 });

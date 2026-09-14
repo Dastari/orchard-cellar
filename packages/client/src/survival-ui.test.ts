@@ -3,6 +3,8 @@ import {
   PLAYER_HITBOX_TOP,
   TILE_SIZE_FIXED,
   ITEM_PICKUP_REACH_FIXED,
+  bootstrapContentRegistry,
+  buildContentRegistry,
   resourceToolReachFixed,
   resourceToolForwardOffsetFixed,
   survivalResourceObstacle,
@@ -11,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import {
   facedResource,
   facedInteractionTile,
+  interactionTileAtProjectedWorldPoint,
   interactionTileAtWorldPoint,
   interactionTileInReach,
   nearbyWorldItem,
@@ -49,6 +52,20 @@ describe('survival controls', () => {
     expect(interactionTileAtWorldPoint(playerX, playerY, 14 * 16, 10 * 16, 192)).toBeNull();
     expect(interactionTileAtWorldPoint(playerX, playerY, -1, 10 * 16, 192)).toBeNull();
     expect(interactionTileInReach(playerX, playerY, { tileX: 11, tileY: 11 })).toBe(true);
+  });
+
+  it('unprojects an elevated pointer before resolving the authoritative tile', () => {
+    const playerX = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const playerY = 10 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const twoElevationRows = 2 * 16;
+    expect(interactionTileAtProjectedWorldPoint(
+      playerX,
+      playerY,
+      11 * 16 + 4,
+      10 * 16 + 12 - twoElevationRows,
+      twoElevationRows,
+      192,
+    )).toEqual({ tileX: 11, tileY: 10 });
   });
 
   it('marks placement over terrain, obstacles, and player hitboxes as blocked', () => {
@@ -127,13 +144,13 @@ describe('survival controls', () => {
   });
 
   it('gives occupied hotbar tools compact unambiguous labels', () => {
-    expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemLabel))
-      .toEqual(['IRON AXE', 'IRON PICKAXE', 'IRON HOE', 'WATERING CAN', 'WOOD', '--']);
+    expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map((item) => hotbarItemLabel(item)))
+      .toEqual(['WOODEN AXE', 'WOODEN PICKAXE', 'WOODEN HOE', 'WATERING CAN', 'WOOD', '--']);
   });
 
   it('gives occupied slots full hover names', () => {
-    expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map(hotbarItemName))
-      .toEqual(['IRON AXE', 'IRON PICKAXE', 'IRON HOE', 'WATERING CAN', 'WOOD', null]);
+    expect(['axe', 'pickaxe', 'hoe', 'watering_can', 'wood', 'empty'].map((item) => hotbarItemName(item)))
+      .toEqual(['WOODEN AXE', 'WOODEN PICKAXE', 'WOODEN HOE', 'WATERING CAN', 'WOOD', null]);
   });
 
   it('continuously faces the cursor only while the bow is equipped', () => {
@@ -144,6 +161,42 @@ describe('survival controls', () => {
     expect(equippedItemFacing('bow', 'down', 'upLeft')).toBe('upLeft');
     expect(equippedItemFacing('axe', 'down', 'upLeft')).toBe('down');
     expect(equippedItemFacing('pickaxe', 'right', 'up')).toBe('right');
+  });
+
+  it('uses arbitrary active authored item names and cursor-tracking tags', () => {
+    const source = bootstrapContentRegistry().items.get('item:wood')!;
+    const moonBow = {
+      ...source,
+      id: 'item:moon_bow' as const,
+      displayName: 'Moon Bow',
+      tags: ['item.ranged_weapon'],
+    };
+    const registry = buildContentRegistry([
+      { id: moonBow.id, kind: moonBow.kind, json: moonBow },
+    ]).registry;
+
+    expect(hotbarItemLabel('moon_bow', registry)).toBe('MOON BOW');
+    expect(hotbarItemName('moon_bow', registry)).toBe('MOON BOW');
+    expect(equippedItemTracksCursor('moon_bow', registry)).toBe(true);
+    expect(equippedItemFacing('moon_bow', 'down', 'upLeft', registry)).toBe('upLeft');
+  });
+
+  it('fails neutral for retired or missing live items without restoring bootstrap fields', () => {
+    const source = bootstrapContentRegistry().items.get('item:bow')!;
+    const retiredRegistry = buildContentRegistry([
+      { id: source.id, kind: source.kind, json: { ...source, retired: true } },
+    ]).registry;
+    const missingRegistry = buildContentRegistry([]).registry;
+
+    for (const registry of [retiredRegistry, missingRegistry]) {
+      expect(hotbarItemLabel('bow', registry)).toBe('--');
+      expect(hotbarItemName('bow', registry)).toBeNull();
+      expect(equippedItemTracksCursor('bow', registry)).toBe(false);
+      expect(equippedItemFacing('bow', 'down', 'upLeft', registry)).toBe('down');
+    }
+
+    expect(hotbarItemName('bow')).toBe('WOODEN BOW');
+    expect(equippedItemTracksCursor('bow')).toBe(true);
   });
 
   it('centers ten pointer-selectable slots and wraps to two rows on phones', () => {

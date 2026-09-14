@@ -1,0 +1,70 @@
+{
+  "name": "icon_skill_explorer_root",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "..00........00..",
+        "..00........00..",
+        "..000100001000..",
+        "..000100001000..",
+        "..232233332322..",
+        "..111344441131..",
+        "..112344441121..",
+        "..323155553223..",
+        "..131122221331..",
+        "..666678876666..",
+        "..999988889999..",
+        "..aaaa8888aaaa..",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#b9c5d7",
+    "1": "#8192ab",
+    "2": "#343e5b",
+    "3": "#51607d",
+    "4": "#181622",
+    "5": "#23283c",
+    "6": "#13487d",
+    "7": "#6a3834",
+    "8": "#b1664a",
+    "9": "#0291d3",
+    "a": "#5cbbe7"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/places-seasons/sheet-16-without-outline.png",
+  "sourceRegion": [
+    64,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.explorer_root",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

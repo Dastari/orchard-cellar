@@ -1,13 +1,14 @@
 {
   "name": "enemy_cf_desert_atgier_02",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     64,
     64
   ],
   "anchor": [
     32,
-    63
+    41
   ],
   "frames": {
     "idle_down": [
@@ -4723,7 +4724,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Desert_Warrior_Atgier_2.png",
-  "sourcePath": "references/Cute_Fantasy_Desert/enemies/Desert_Warrior_Atgier_2.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/enemies/Desert_Warrior_Atgier_2.png",
   "sourceRegions": {
     "idle_down": [
       [

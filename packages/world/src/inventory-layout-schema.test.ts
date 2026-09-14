@@ -13,8 +13,8 @@ function sourceBetween(startAnchor: string, endAnchor: string): string {
 
 describe('shared hotbar layout authority', () => {
   it('validates selection against the shared capacity, including index 9', () => {
-    const reducer = sourceBetween('export const selectHotbar =', 'function repairSelectedToolAtAnvil(');
-    expect(reducer).toContain("if (!isHotbarSlot(slot)) throw new SenderError('invalid_hotbar_slot')");
+    const reducer = sourceBetween('export const selectHotbar =', 'export const inventoryCursorClick =');
+    expect(reducer).toContain("if (!isHotbarSlot(slot) && slot !== MAIN_HAND_INVENTORY_SLOT) throw new SenderError('invalid_hotbar_slot')");
     expect(reducer).not.toContain('HOTBAR_SLOTS.length');
   });
 
@@ -28,7 +28,7 @@ describe('shared hotbar layout authority', () => {
   it('retains the historical nine-slot boundary only as versioned migration data', () => {
     const migration = sourceBetween(
       'const inventoryMigration = ctx.db.inventory_migration.identity.find(ctx.sender);',
-      '// Existing characters receive the ranged starter kit',
+      'if (ctx.db.inventory_migration.identity.find(ctx.sender) === null)',
     );
     expect(source).toContain('const HOTBAR_LAYOUT_SLOT_COUNTS = [9, HOTBAR_SLOT_COUNT] as const');
     expect(migration).toContain('hotbarSlotCountForLayoutVersion(storedHotbarLayoutVersion)');

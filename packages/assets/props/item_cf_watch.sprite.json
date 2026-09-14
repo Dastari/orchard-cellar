@@ -1,0 +1,70 @@
+{
+  "name": "item_cf_watch",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....000000.....",
+        "....05443330....",
+        "...0533222230...",
+        "..043666066230..",
+        "..036066660620..",
+        "..036616666620..",
+        "..020661666620..",
+        "..026666111020..",
+        "..026666666620..",
+        "..026066660620..",
+        "...0266066620...",
+        "....02222220....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3f2832",
+    "1": "#858585",
+    "2": "#891e2b",
+    "3": "#c42430",
+    "4": "#ea323c",
+    "5": "#f5555d",
+    "6": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Clocks.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Clocks.png",
+  "sourceRegions": {
+    "base": [
+      [
+        32,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.equipment",
+    "equipment.ring",
+    "utility.time"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

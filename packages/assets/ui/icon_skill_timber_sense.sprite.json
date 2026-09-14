@@ -1,0 +1,67 @@
+{
+  "name": "icon_skill_timber_sense",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......1111......",
+        ".....144221.....",
+        "....10774201....",
+        "...102774201....",
+        "..10424444201...",
+        ".1024022220201..",
+        ".12474000074201.",
+        ".12444202442201.",
+        ".1022220222201..",
+        "..10000300001...",
+        "...111135531....",
+        "....13366531....",
+        "..11566665331...",
+        ".1333555533331..",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#2a2e4e",
+    "1": "#2e222f",
+    "2": "#384b66",
+    "3": "#4c5f4f",
+    "4": "#5c8ba5",
+    "5": "#697a76",
+    "6": "#849395",
+    "7": "#85e3e7"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "trees-and-logs-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/trees-and-logs/sheets/trees-and-logs-16.png",
+  "sourceRegion": [
+    144,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.timber_sense",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

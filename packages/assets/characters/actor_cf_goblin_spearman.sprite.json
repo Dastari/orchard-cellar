@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_goblin_spearman",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     48
@@ -2995,7 +2996,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Goblin_Spearman.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Goblins/Goblin_Spearman.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Goblins/Goblin_Spearman.png",
   "sourceRegions": {
     "idle_down": [
       [

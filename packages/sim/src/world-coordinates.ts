@@ -1,7 +1,7 @@
 import {
   PROCEDURAL_WORLD_CHUNK_TILES,
   PROCEDURAL_WORLD_EXTENT_TILES,
-} from './balance.js';
+} from './world-policy-balance.js';
 
 export interface SpaceTilePoint {
   readonly spaceId: number;

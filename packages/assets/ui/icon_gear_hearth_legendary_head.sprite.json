@@ -1,0 +1,63 @@
+{
+  "name": "icon_gear_hearth_legendary_head",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".....000000.....",
+        "....02242120....",
+        "...0232321320...",
+        "..023224212320..",
+        ".04222142122240.",
+        ".04344332444340.",
+        ".04221132111130.",
+        ".03110032001130.",
+        ".02200032000110.",
+        ".02300021000210.",
+        ".02300000000210.",
+        ".01220000003210.",
+        ".01112000032110.",
+        "..0120....0210..",
+        "...00......00...",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#2e1c2c",
+    "1": "#b64336",
+    "2": "#ff9700",
+    "3": "#ffc300",
+    "4": "#ffffff"
+  },
+  "sourcePath": "references/art/clockwork-raven/collections/premium/sheets/raven-fantasy-icons-16.png",
+  "importedFrom": "raven-fantasy-icons-16.png",
+  "sourceRegion": [
+    48,
+    6784,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

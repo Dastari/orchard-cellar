@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_furnace",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     32
@@ -279,9 +280,9 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Furnaces.png",
-  "sourcePath": "references/Cute_Fantasy/Buildings/House_Decor/Furnaces.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Furnaces.png",
   "sourcePathsByGroup": {
-    "burn": "references/Cute_Fantasy/Buildings/House_Decor/Furnace_Anim.png"
+    "burn": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Furnace_Anim.png"
   },
   "sourceRegions": {
     "off": [
@@ -338,5 +339,12 @@
     ],
     "blocksMovement": true,
     "builderAvailable": false
-  }
+  },
+  "emissiveColors": [
+    "#b15116",
+    "#ba7917",
+    "#dc9741",
+    "#e67733",
+    "#e8a945"
+  ]
 }

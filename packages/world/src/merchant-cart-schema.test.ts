@@ -12,19 +12,25 @@ function sourceBetween(startAnchor: string, endAnchor: string): string {
 }
 
 describe('merchant cart authority', () => {
+  it('authorizes commerce from the authored dialogue mode rather than a reserved node id', () => {
+    const session = sourceBetween('function activeMerchantSession(', 'function questRequirementMatches(');
+    expect(session).toContain("dialogue?.nodes[active.nodeId]?.mode !== 'shop'");
+    expect(session).not.toContain("active.nodeId !== 'shop'");
+  });
+
   it('exposes bounded parallel-array cart reducers without trusting client totals', () => {
-    const commerce = sourceBetween('function merchantCartLines(', '/** Axe strikes break');
+    const commerce = sourceBetween('function merchantCartLines(', '/** Woodcutting-tool strikes break');
     expect(commerce).toContain("itemKinds: t.array(t.string())");
     expect(commerce).toContain('quantities: t.array(t.u16())');
     expect(commerce).toContain('itemKinds.length > MAX_MERCHANT_CART_LINES');
     expect(commerce).not.toContain('totalBronze: t.');
-    expect(commerce).toContain('planMerchantPurchase(inventory.containers, lines)');
-    expect(commerce).toContain('planMerchantSale(inventory.containers, lines)');
+    expect(commerce).toContain('planMerchantPurchase(inventory.containers, lines, [...stockedItems], merchantContent(ctx))');
+    expect(commerce).toMatch(/planMerchantSale\(\s*inventory\.containers, lines, merchantContent\(ctx\), inventory\.containers\.backpack!\.capacity,\s*\)/u);
   });
 
   it('removes authoritative inventory before crediting a mixed sale', () => {
     const sale = sourceBetween('function sellMerchantCartTransaction(', 'export const buyMerchantItem =');
-    expect(sale.indexOf('planMerchantSale(inventory.containers, lines)'))
+    expect(sale.indexOf('planMerchantSale(inventory.containers, lines, merchantContent(ctx))'))
       .toBeLessThan(sale.indexOf('writePlayerInventory('));
     expect(sale.indexOf('writePlayerInventory('))
       .toBeLessThan(sale.indexOf('player_wallet.identity.update'));
@@ -37,12 +43,12 @@ describe('merchant cart authority', () => {
     expect(purchase).toContain('wallet.balanceBronze < planned.totalBronze');
     expect(purchase).toContain('wallet.balanceBronze - planned.totalBronze');
     expect(purchase).toContain("'bronze_spent', planned.totalBronze");
-    expect(purchase.indexOf('planMerchantPurchase(inventory.containers, lines)'))
+    expect(purchase.indexOf('planMerchantPurchase(inventory.containers, lines, [...stockedItems], merchantContent(ctx))'))
       .toBeLessThan(purchase.indexOf('writePlayerInventory('));
   });
 
   it('keeps legacy single-item reducers on the same cart authority path', () => {
-    const reducers = sourceBetween('export const buyMerchantItem =', '/** Axe strikes break');
+    const reducers = sourceBetween('export const buyMerchantItem =', '/** Woodcutting-tool strikes break');
     expect(reducers).toContain('purchaseMerchantCart(ctx, [line])');
     expect(reducers).toContain('sellMerchantCartTransaction(ctx, [line])');
     expect(reducers.match(/requireAuthorizedSender/g)).toHaveLength(4);

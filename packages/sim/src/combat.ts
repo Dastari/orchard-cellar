@@ -1,7 +1,7 @@
 import {
-  BASIS_POINTS,
-  COMBAT_MINIMUM_DAMAGE_CENTI,
-} from './balance.js';
+  BOOTSTRAP_CHARACTER_COMBAT_BALANCE,
+  type CharacterCombatBalanceProfile,
+} from './character-combat-balance.js';
 import { statelessRoll, type SkillCheckSeedPart } from './checks.js';
 import { resolveModifierTarget, type Modifier } from './modifiers.js';
 
@@ -35,6 +35,13 @@ function safeNonNegativeInteger(label: string, value: number): number {
 /** docs/32 §3: one deterministic integer damage path for every present and
  * future actor. Callers supply authority-owned stats and stable seed parts. */
 export function resolveCombatDamage(input: CombatDamageInput): CombatDamageResult {
+  return resolveCombatDamageWithProfile(BOOTSTRAP_CHARACTER_COMBAT_BALANCE, input);
+}
+
+export function resolveCombatDamageWithProfile(
+  profile: CharacterCombatBalanceProfile,
+  input: CombatDamageInput,
+): CombatDamageResult {
   const attackerModifiers = input.attackerModifiers ?? [];
   const defenderModifiers = input.defenderModifiers ?? [];
   const weaponBaseCenti = safeNonNegativeInteger('weaponBaseCenti', input.weaponBaseCenti);
@@ -43,33 +50,23 @@ export function resolveCombatDamage(input: CombatDamageInput): CombatDamageResul
   const attackPowerCenti = resolveModifierTarget(
     input.attackKind === 'ranged' ? 'rangedPower' : 'attackPower',
     baseAttackPower,
-    attackerModifiers,
+    attackerModifiers, profile,
   );
   const variancePermille = 900 + statelessRoll([...input.seedParts, 'variance'], 201);
-  const critical = statelessRoll([...input.seedParts, 'critical'], 20) >= 18;
+  const criticalChanceBasisPoints = resolveModifierTarget('criticalChance', 1_000, attackerModifiers, profile);
+  const critical = statelessRoll([...input.seedParts, 'critical'], 10_000) < criticalChanceBasisPoints;
   const variedPower = Math.floor(attackPowerCenti * variancePermille / 1_000);
   const criticalPower = critical ? Math.floor(variedPower * 3 / 2) : variedPower;
-  const armorCenti = resolveModifierTarget(
-    'armor',
-    safeNonNegativeInteger('armorCenti', input.armorCenti),
-    defenderModifiers,
-  );
-  const armorPctBasisPoints = resolveModifierTarget(
-    'armorPct',
-    safeNonNegativeInteger('armorPctBasisPoints', input.armorPctBasisPoints),
-    defenderModifiers,
-  );
-  const afterFlatArmor = Math.max(0, criticalPower - armorCenti);
-  const afterPercentArmor = Math.floor(
-    afterFlatArmor * (BASIS_POINTS - armorPctBasisPoints) / BASIS_POINTS,
+  const mitigation = resolveCombatMitigationWithProfile(
+    profile, criticalPower, input.armorCenti, input.armorPctBasisPoints, defenderModifiers,
   );
   return {
-    damageCenti: Math.max(COMBAT_MINIMUM_DAMAGE_CENTI, afterPercentArmor),
+    damageCenti: Math.max(profile.combatMinimumDamageCenti, mitigation.damageCenti),
     attackPowerCenti,
     variancePermille,
     critical,
-    armorCenti,
-    armorPctBasisPoints,
+    armorCenti: mitigation.armorCenti,
+    armorPctBasisPoints: mitigation.armorPctBasisPoints,
   };
 }
 
@@ -87,4 +84,39 @@ export function regeneratedCombatTargetHealth(
   const elapsedTicks = toTick - fromTick;
   const recovered = BigInt(regenCentiPerSecond) * elapsedTicks / BigInt(authorityHz);
   return Math.min(maxHealthCenti, healthCenti + Number(recovered));
+}
+
+/** Shared incoming damage calculation. Fixed-power enemy patterns use this
+ * without gaining the player's random critical/variance roll. */
+export function resolveCombatMitigation(
+  damageCenti: number, baseArmorCenti = 0, baseArmorPctBasisPoints = 0,
+  defenderModifiers: readonly Modifier[] = [],
+): { readonly damageCenti: number; readonly armorCenti: number; readonly armorPctBasisPoints: number } {
+  return resolveCombatMitigationWithProfile(
+    BOOTSTRAP_CHARACTER_COMBAT_BALANCE,
+    damageCenti, baseArmorCenti, baseArmorPctBasisPoints, defenderModifiers,
+  );
+}
+
+export function resolveCombatMitigationWithProfile(
+  profile: CharacterCombatBalanceProfile,
+  damageCenti: number, baseArmorCenti = 0, baseArmorPctBasisPoints = 0,
+  defenderModifiers: readonly Modifier[] = [],
+): { readonly damageCenti: number; readonly armorCenti: number; readonly armorPctBasisPoints: number } {
+  safeNonNegativeInteger('damageCenti', damageCenti);
+  const armorCenti = resolveModifierTarget(
+    'armor',
+    safeNonNegativeInteger('armorCenti', baseArmorCenti),
+    defenderModifiers, profile,
+  );
+  const armorPctBasisPoints = resolveModifierTarget(
+    'armorPct',
+    safeNonNegativeInteger('armorPctBasisPoints', baseArmorPctBasisPoints),
+    defenderModifiers, profile,
+  );
+  const afterFlatArmor = Math.max(0, damageCenti - armorCenti);
+  const afterPercentArmor = Math.floor(
+    afterFlatArmor * (profile.basisPoints - armorPctBasisPoints) / profile.basisPoints,
+  );
+  return { damageCenti: damageCenti === 0 ? 0 : Math.max(profile.combatMinimumDamageCenti, afterPercentArmor), armorCenti, armorPctBasisPoints };
 }

@@ -1,4 +1,5 @@
 import { movePlayer } from './movement.js';
+import type { LegacyEconomyCatalog } from './economy-catalog.js';
 import { advanceEconomy, applyEconomyAction } from './economy.js';
 import type { EconomyAction } from './economy-state.js';
 import { applyPrestigeAction } from './prestige.js';
@@ -12,19 +13,20 @@ import {
   type FarmState,
 } from './state.js';
 
-export function advanceTick(state: FarmState, actions: readonly Action[], tick: number): FarmState {
+export function advanceTick(catalog: LegacyEconomyCatalog, state: FarmState,
+  actions: readonly Action[], tick: number): FarmState {
   let direction: Direction | null = null;
   let transition: Extract<Action, { type: 'transition' }> | null = null;
-  let economy = advanceEconomy(state.economy, state.tick, Math.max(state.tick, tick));
+  let economy = advanceEconomy(catalog, state.economy, state.tick, Math.max(state.tick, tick));
   const prestigeActions: PrestigeAction[] = [];
   for (const action of actions) {
     if (action.type === 'move') direction = action.direction;
     else if (action.type === 'transition') transition = action;
     else if (isPrestigeAction(action)) prestigeActions.push(action);
-    else economy = applyEconomyAction(economy, action as EconomyAction, tick);
+    else economy = applyEconomyAction(catalog, economy, action as EconomyAction, tick);
   }
   let progressedState = { ...state, tick, economy };
-  for (const action of prestigeActions) progressedState = applyPrestigeAction(progressedState, action);
+  for (const action of prestigeActions) progressedState = applyPrestigeAction(catalog, progressedState, action);
   economy = progressedState.economy;
   if (transition) {
     const cellar = transition.location === 'cellar';

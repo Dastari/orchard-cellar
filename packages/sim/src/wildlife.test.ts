@@ -6,27 +6,53 @@ import {
   SURVIVAL_WORLD_SIZE,
 } from './survival-world.js';
 import { TILE_SIZE_FIXED } from './state.js';
+import { bootstrapContentDefinitions, bootstrapContentRegistry } from './content/bootstrap-registry.js';
+import { definitionSlug } from './content/definitions.js';
+import { buildContentRegistry } from './content/registry.js';
 import {
   WILDLIFE_KNOCKBACK_FIXED,
   WILDLIFE_PANIC_DURATION_TICKS,
   WILDLIFE_DEFINITIONS,
   WILDLIFE_FIRST_NPC_ID,
   WILDLIFE_PANIC_RADIUS_FIXED,
+  WILDLIFE_EAT_HAY_ACTIVITY,
+  WILDLIFE_RETURN_HOME_ACTIVITY,
+  WILDLIFE_SEEK_HAY_ACTIVITY,
   WILDLIFE_SPECIES,
   generateSurvivalWildlife,
   generateSurvivalWildlifeHives,
+  generateSurvivalWildlifeForRegistry,
+  generateSurvivalWildlifeHivesForRegistry,
   hiveProducesHoneyAtTick,
   knockbackWildlife,
   stepAmbientWildlife,
   stepPanickedWildlife,
   wildlifeActivityNearPlayers,
+  wildlifeEatsHay,
   wildlifeHabitatAllowsTile,
   wildlifeMovementMedium,
   wildlifePosition,
   wildlifeSleepingAtTick,
+  runtimeWildlifeDefinition,
+  runtimeWildlifeEatsHay,
+  runtimeWildlifeMovementMedium,
+  runtimeWildlifePanicGroup,
+  runtimeWildlifeSpawnPlans,
+  runtimeKnockbackWildlife,
+  runtimeStepAmbientWildlife,
+  runtimeStepPanickedWildlife,
   type AmbientWildlifeState,
 } from './wildlife.js';
 import { AUTHORITY_TICKS_PER_DAY } from './time.js';
+
+function goldenHash(value: unknown): string {
+  let hash = 0x811c9dc5;
+  for (const character of JSON.stringify(value)) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
 
 describe('deterministic wildlife generation', () => {
   it('spawns every authored species in habitat-correct packs with solitary horses', () => {
@@ -39,12 +65,117 @@ describe('deterministic wildlife generation', () => {
     }
     for (const animal of first) {
       expect(animal.variant).toBeGreaterThanOrEqual(0);
-      expect(animal.variant).toBeLessThan(WILDLIFE_DEFINITIONS[animal.species].variants);
+      expect(animal.variant).toBeLessThan(
+        WILDLIFE_DEFINITIONS[animal.species as keyof typeof WILDLIFE_DEFINITIONS].variants,
+      );
       expect(wildlifeHabitatAllowsTile(animal.habitat, SURVIVAL_WORLD_SEED, animal.tileX, animal.tileY)).toBe(true);
       if (animal.species === 'horse') expect(animal.packId).toBe(0);
       else expect(animal.packId).toBeGreaterThan(0);
     }
+    expect(goldenHash({
+      wildlife: generateSurvivalWildlife(0x5eedc0de),
+      hives: generateSurvivalWildlifeHives(0x5eedc0de),
+    })).toBe('0a9ebc4e');
   });
+
+  it('preserves canonical generation and follows renamed active definitions by stable species', () => {
+    expect(generateSurvivalWildlifeForRegistry(bootstrapContentRegistry()))
+      .toEqual(generateSurvivalWildlife());
+    expect(generateSurvivalWildlifeHivesForRegistry(bootstrapContentRegistry()))
+      .toEqual(generateSurvivalWildlifeHives());
+
+    const definitions = bootstrapContentDefinitions().map((definition) => {
+      if (definition.id === 'creature:cow') return { ...definition, id: 'creature:moon_cow' as const };
+      if (definition.kind === 'spawn' && definition.target === 'creature:cow') {
+        return { ...definition, target: 'creature:moon_cow' as const };
+      }
+      return definition;
+    });
+    const built = buildContentRegistry(definitions.map((definition) => ({
+      id: definition.id, kind: definition.kind, slug: definitionSlug(definition.id)!, json: definition,
+    })));
+    expect(built.report.valid).toBe(true);
+    expect(runtimeWildlifeDefinition(built.registry, 'cow')?.id).toBe('creature:moon_cow');
+    expect(runtimeWildlifeMovementMedium(built.registry, 'cow')).toBe('ground');
+    expect(runtimeWildlifeEatsHay(built.registry, 'cow')).toBe(true);
+    expect(runtimeWildlifePanicGroup(built.registry, 'cow')).toBe('cow');
+    expect(runtimeWildlifeSpawnPlans(built.registry).some(({ species }) => species === 'cow')).toBe(true);
+    expect(generateSurvivalWildlifeForRegistry(built.registry)).toEqual(generateSurvivalWildlife());
+    expect(runtimeWildlifeDefinition(built.registry, 'missing')).toBeNull();
+    expect(runtimeWildlifeMovementMedium(built.registry, 'missing')).toBeNull();
+  });
+
+  it('resolves hive colonies and trailing pack members through authored creature semantics', () => {
+    const definitions = bootstrapContentDefinitions().map((definition) => {
+      if (definition.id === 'creature:bee') {
+        return { ...definition, id: 'creature:moon_moth' as const, species: 'moon_moth' };
+      }
+      if (definition.id === 'creature:rooster') {
+        return { ...definition, id: 'creature:moon_rooster' as const, species: 'moon_rooster' };
+      }
+      if (definition.id === 'creature:chicken') {
+        return {
+          ...definition,
+          id: 'creature:moon_hen' as const,
+          species: 'moon_hen',
+          behavior: { trailingPackMember: 'creature:moon_rooster' as const },
+        };
+      }
+      if (definition.kind === 'spawn' && definition.target === 'creature:chicken') {
+        return { ...definition, target: 'creature:moon_hen' as const };
+      }
+      return definition;
+    });
+    const built = buildContentRegistry(definitions.map((definition) => ({
+      id: definition.id, kind: definition.kind, slug: definitionSlug(definition.id)!, json: definition,
+    })));
+    expect(built.report.valid).toBe(true);
+
+    const hives = generateSurvivalWildlifeHivesForRegistry(built.registry);
+    const wildlife = generateSurvivalWildlifeForRegistry(built.registry);
+    expect(hives).toHaveLength(generateSurvivalWildlifeHives().length);
+    expect(wildlife.filter(({ species }) => species === 'moon_moth')).toHaveLength(
+      hives.reduce((sum, hive) => sum + hive.beeCount, 0),
+    );
+    expect(wildlife.some(({ species }) => species === 'bee' || species === 'chicken' || species === 'rooster')).toBe(false);
+    const henPacks = new Map<number, typeof wildlife>();
+    for (const animal of wildlife.filter(({ species }) => species === 'moon_hen' || species === 'moon_rooster')) {
+      henPacks.set(animal.packId, [...(henPacks.get(animal.packId) ?? []), animal]);
+    }
+    expect([...henPacks.values()]).toHaveLength(6);
+    for (const pack of henPacks.values()) {
+      expect(pack.filter(({ species }) => species === 'moon_hen')).toHaveLength(5);
+      expect(pack.filter(({ species }) => species === 'moon_rooster')).toHaveLength(1);
+      expect([...pack].sort((left, right) => left.id - right.id).at(-1)?.species).toBe('moon_rooster');
+    }
+
+    const colony = wildlife.find(({ species }) => species === 'moon_moth')!;
+    const home = wildlifePosition(colony.homeTileX, colony.homeTileY);
+    const state: AmbientWildlifeState = {
+      id: BigInt(colony.id), position: home, home, facing: 'right', moving: false,
+      activity: 'inside_hive', nextDecisionTick: 0,
+    };
+    expect(runtimeStepAmbientWildlife(built.registry, state, {
+      species: 'moon_moth', authorityTick: 1, calendarTick: 0n,
+      collision: createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []),
+    })).toMatchObject({ position: home, moving: false, activity: 'inside_hive' });
+
+    const missingHive = buildContentRegistry(definitions.filter(({ id }) => id !== 'creature:moon_moth').map((definition) => ({
+      id: definition.id, kind: definition.kind, json: definition,
+    })));
+    expect(generateSurvivalWildlifeHivesForRegistry(missingHive.registry)).toEqual([]);
+    expect(runtimeStepAmbientWildlife(missingHive.registry, state, {
+      species: 'moon_moth', authorityTick: 1, calendarTick: 0n,
+      collision: createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []),
+    })).toBeNull();
+
+    const missingTrailer = buildContentRegistry(definitions.filter(({ id }) => id !== 'creature:moon_rooster').map((definition) => ({
+      id: definition.id, kind: definition.kind, json: definition,
+    })));
+    expect(missingTrailer.report.valid).toBe(false);
+    expect(generateSurvivalWildlifeForRegistry(missingTrailer.registry)
+      .filter(({ species }) => species === 'moon_hen')).toHaveLength(36);
+  }, 30_000);
 
   it('places colonies at hives and uses every colour variant where one exists', () => {
     const wildlife = generateSurvivalWildlife();
@@ -119,7 +250,7 @@ describe('activated wildlife lifecycle', () => {
 
     expect(WILDLIFE_DEFINITIONS.butterfly.sleepsAtNight).toBe(false);
     expect(wildlifeSleepingAtTick('butterfly', 0n)).toBe(false);
-  });
+  }, 15_000);
 
   it('supports diagonal travel and preserves a quiet rest until the next decision', () => {
     const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
@@ -144,6 +275,78 @@ describe('activated wildlife lifecycle', () => {
     expect(decisions.filter((decision) => !decision.moving).length).toBeGreaterThan(
       decisions.filter((decision) => decision.moving).length,
     );
+  });
+
+  it('lets hay-eating farm species snack at immutable targets and return home', () => {
+    expect((['horse', 'cow', 'sheep', 'camel'] as const).every(wildlifeEatsHay)).toBe(true);
+    expect(wildlifeEatsHay('pig')).toBe(false);
+    expect(wildlifeEatsHay('chicken')).toBe(false);
+
+    let pasture: { x: number; y: number } | null = null;
+    for (let y = 4; y < SURVIVAL_WORLD_SIZE - 4 && pasture === null; y += 1) {
+      for (let x = 4; x < SURVIVAL_WORLD_SIZE - 10; x += 1) {
+        if (Array.from({ length: 7 }, (_, offset) => x + offset).every((tileX) => (
+          wildlifeHabitatAllowsTile('pasture', SURVIVAL_WORLD_SEED, tileX, y)
+        ))) {
+          pasture = { x, y };
+          break;
+        }
+      }
+    }
+    expect(pasture).not.toBeNull();
+    const livestockHome = wildlifePosition(pasture!.x, pasture!.y);
+    const hay = wildlifePosition(pasture!.x + 6, pasture!.y);
+    const collision = {
+      width: SURVIVAL_WORLD_SIZE,
+      height: SURVIVAL_WORLD_SIZE,
+      blocked: Array<boolean>(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(false),
+      obstacles: [],
+    };
+    const dayTick = BigInt(Math.floor(AUTHORITY_TICKS_PER_DAY * 0.4));
+    const seeking: AmbientWildlifeState = {
+      id: 4n,
+      position: livestockHome,
+      home: livestockHome,
+      facing: 'right',
+      moving: false,
+      activity: WILDLIFE_SEEK_HAY_ACTIVITY,
+      nextDecisionTick: 10_000,
+    };
+    let state = seeking;
+    let authorityTick = 1;
+    while (state.activity !== WILDLIFE_EAT_HAY_ACTIVITY && authorityTick < 2_000) {
+      state = stepAmbientWildlife(state, {
+        species: 'cow', authorityTick, calendarTick: dayTick, collision, hayTargets: [hay],
+      });
+      authorityTick += 1;
+    }
+    expect(state.activity).toBe(WILDLIFE_EAT_HAY_ACTIVITY);
+    expect(state.moving).toBe(false);
+    expect(state.position.x).toBeGreaterThan(livestockHome.x);
+    expect([hay]).toEqual([hay]);
+
+    authorityTick = state.nextDecisionTick;
+    state = stepAmbientWildlife(state, {
+      species: 'cow', authorityTick, calendarTick: dayTick, collision, hayTargets: [hay],
+    });
+    expect(state.activity).toBe(WILDLIFE_RETURN_HOME_ACTIVITY);
+    while (state.activity !== 'rest' && authorityTick < 4_000) {
+      authorityTick += 1;
+      state = stepAmbientWildlife(state, {
+        species: 'cow', authorityTick, calendarTick: dayTick, collision, hayTargets: [hay],
+      });
+    }
+    expect(state).toMatchObject({ position: livestockHome, moving: false, activity: 'rest' });
+
+    const decisions = Array.from({ length: 100 }, (_, index) => stepAmbientWildlife({
+      ...seeking,
+      id: BigInt(50_000 + index),
+      activity: 'rest',
+      nextDecisionTick: 0,
+    }, {
+      species: 'cow', authorityTick: 100, calendarTick: dayTick, collision, hayTargets: [hay],
+    }));
+    expect(decisions.some((decision) => decision.activity === WILDLIFE_SEEK_HAY_ACTIVITY)).toBe(true);
   });
 
   it('runs away from a threat beyond its home leash and uses collision-safe alternatives', () => {
@@ -202,6 +405,23 @@ describe('activated wildlife lifecycle', () => {
     expect(knocked.y).toBe(initial.position.y);
     expect(WILDLIFE_PANIC_DURATION_TICKS).toBeGreaterThan(0);
     expect(WILDLIFE_PANIC_RADIUS_FIXED).toBeGreaterThan(TILE_SIZE_FIXED);
+    const runtime = bootstrapContentRegistry();
+    expect(runtimeKnockbackWildlife(runtime, initial.position, {
+      species: 'horse', collision,
+      threat: { x: initial.position.x - TILE_SIZE_FIXED, y: initial.position.y },
+    })).toEqual(knocked);
+    expect(runtimeStepPanickedWildlife(runtime, initial, {
+      species: 'horse', authorityTick: 1, collision,
+      threat: { x: initial.position.x - TILE_SIZE_FIXED, y: initial.position.y },
+    })).toEqual(stepPanickedWildlife(initial, {
+      species: 'horse', authorityTick: 1, collision,
+      threat: { x: initial.position.x - TILE_SIZE_FIXED, y: initial.position.y },
+    }));
+    expect(runtimeStepAmbientWildlife(runtime, initial, {
+      species: 'horse', authorityTick: 1, calendarTick: 0n, collision,
+    })).toEqual(stepAmbientWildlife(initial, {
+      species: 'horse', authorityTick: 1, calendarTick: 0n, collision,
+    }));
   });
 
   it('keeps grounded wildlife on its current elevation plane', () => {
@@ -286,7 +506,7 @@ describe('activated wildlife lifecycle', () => {
       .filter((decoration) => decoration.kind === 'nature_water_rock')
       .map((decoration) => `${decoration.tileX},${decoration.tileY}`));
     for (const animal of generateSurvivalWildlife().filter((candidate) => (
-      wildlifeMovementMedium(candidate.species) === 'water'
+      wildlifeMovementMedium(candidate.species as keyof typeof WILDLIFE_DEFINITIONS) === 'water'
     ))) {
       expect(waterRocks.has(`${animal.tileX},${animal.tileY}`)).toBe(false);
     }

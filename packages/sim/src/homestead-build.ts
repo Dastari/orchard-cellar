@@ -1,6 +1,7 @@
-import { itemDefinition, type ItemStack } from './item-containers.js';
-import { PLACEABLE_KINDS, placeableDefinition, type PlaceableKind } from './crafting.js';
-import { recipeDefinition, recipeIngredientStacks } from './recipes.js';
+import type { ItemStack } from './item-containers.js';
+import { placeableObjectDefinition, type PlaceableContentReference, type PlaceableKind } from './crafting.js';
+import { recipeIngredientStacks } from './recipes.js';
+import type { ContentRegistry } from './content/registry.js';
 
 export type HomesteadBuildLayer = 'prop' | 'station' | 'prefab';
 
@@ -17,47 +18,50 @@ export interface HomesteadBuildDefinition {
   readonly recipeId?: string;
 }
 
-const STATION_KINDS = new Set<PlaceableKind>([
-  'workbench', 'anvil', 'campfire', 'cooking_fire', 'camp_cooking_fire',
-  'furnace', 'barrel', 'fruit_press', 'fermentation_cask',
-]);
+function footprintSize(footprint: readonly (readonly number[])[] | undefined) {
+  return footprint === undefined
+    ? { width: 1, height: 1 }
+    : {
+        width: Math.max(1, ...footprint.map((row) => row.length)),
+        height: Math.max(1, footprint.length),
+      };
+}
 
-const PREFAB_FOOTPRINTS: Partial<Record<PlaceableKind, HomesteadBuildDefinition['footprint']>> = {
-  shed: { width: 4, height: 2 },
-  greenhouse: { width: 6, height: 3 },
-  barn: { width: 8, height: 3 },
-  coop: { width: 5, height: 3 },
-  silo: { width: 3, height: 2 },
-};
+export function runtimeHomesteadBuildDefinition(
+  registry: ContentRegistry,
+  reference: string | PlaceableContentReference,
+): HomesteadBuildDefinition | null {
+  const object = placeableObjectDefinition(registry, reference);
+  const placement = object?.components.placement;
+  if (object === null || placement === undefined || !placement.spaces.includes('homestead')) return null;
+  const item = registry.items.get(placement.item);
+  if (item === undefined || !item.tags.includes('item.placeable')) return null;
+  const tags = object.components.identity?.tags ?? [];
+  const prefab = tags.includes('build.prefab');
+  const station = tags.some((tag) => tag.startsWith('station.'))
+    || object.components.processor !== undefined;
+  const itemKind = placement.item.slice('item:'.length);
+  const recipe = Object.values(registry.compiled.recipes)
+    .find((candidate) => candidate.output.itemKind === itemKind);
+  return Object.freeze({
+    itemKind,
+    displayName: item.displayName,
+    layer: prefab ? 'prefab' : station ? 'station' : 'prop',
+    footprint: footprintSize(placement.footprint ?? object.components.collision?.footprint),
+    minimumSizeTier: prefab ? 1 : 0,
+    ...(recipe === undefined ? {} : { recipeId: recipe.id }),
+  });
+}
 
-/**
- * One shared registry drives the build palette, authority validation,
- * footprints and refunds. A craftable prop cannot silently fall out of build
- * mode when content is added to the ordinary placeable registry.
- */
-export const HOMESTEAD_BUILD_DEFINITIONS = Object.fromEntries(
-  PLACEABLE_KINDS.map((itemKind) => {
-    const item = itemDefinition(itemKind);
-    if (item === null || placeableDefinition(itemKind) === null) {
-      throw new Error(`invalid_homestead_build_definition:${itemKind}`);
-    }
-    const recipe = recipeDefinition(itemKind);
-    const footprint = PREFAB_FOOTPRINTS[itemKind];
-    return [itemKind, {
-      itemKind,
-      displayName: item.displayName,
-      layer: footprint === undefined ? STATION_KINDS.has(itemKind) ? 'station' : 'prop' : 'prefab',
-      footprint: footprint ?? { width: 1, height: 1 },
-      minimumSizeTier: footprint === undefined ? 0 : 1,
-      ...(recipe === null ? {} : { recipeId: recipe.id }),
-    } satisfies HomesteadBuildDefinition] as const;
-  }),
-) as Readonly<Record<PlaceableKind, HomesteadBuildDefinition>>;
-
-export function homesteadBuildDefinition(itemKind: string): HomesteadBuildDefinition | null {
-  return Object.prototype.hasOwnProperty.call(HOMESTEAD_BUILD_DEFINITIONS, itemKind)
-    ? HOMESTEAD_BUILD_DEFINITIONS[itemKind as PlaceableKind]
-    : null;
+export function homesteadBuildDefinitions(
+  registry: ContentRegistry,
+): ReadonlyMap<string, HomesteadBuildDefinition> {
+  return new Map([...registry.objects.values()].flatMap((object) => {
+    const definition = runtimeHomesteadBuildDefinition(registry, {
+      kind: object.components.placement?.item ?? '', definitionId: object.id,
+    });
+    return definition === null ? [] : [[definition.itemKind, definition] as const];
+  }).sort(([left], [right]) => left.localeCompare(right)));
 }
 
 export interface HomesteadBuildTile {
@@ -65,8 +69,8 @@ export interface HomesteadBuildTile {
   readonly tileY: number;
 }
 
-/** Expands a bottom-centre anchor into stable occupied tiles. Even-width
- * footprints bias one tile left, matching the visual anchor convention. */
+/** Expands a bottom-centre anchor into stable occupied tiles. For even widths,
+ * the anchor is the left tile of the central pair, preserving deployed layouts. */
 export function homesteadBuildFootprintTiles(
   definition: Pick<HomesteadBuildDefinition, 'footprint'>,
   tileX: number,
@@ -94,12 +98,13 @@ export function homesteadBuildRemovalRefund(
   itemKind: string,
   placedAtTick: bigint,
   authorityTick: bigint,
+  registry: ContentRegistry,
 ): readonly ItemStack[] {
   if (authorityTick - placedAtTick <= HOMESTEAD_BUILD_UNDO_TICKS) {
-    return itemDefinition(itemKind) === null ? [] : [{ itemKind, quantity: 1 }];
+    return registry.items.has(`item:${itemKind}`) ? [{ itemKind, quantity: 1 }] : [];
   }
-  const definition = homesteadBuildDefinition(itemKind);
-  const recipe = definition?.recipeId === undefined ? null : recipeDefinition(definition.recipeId);
+  const definition = runtimeHomesteadBuildDefinition(registry, itemKind);
+  const recipe = definition?.recipeId === undefined ? null : registry.compiled.recipes[definition.recipeId] ?? null;
   if (recipe === null) return [];
   const ingredients = recipeIngredientStacks(recipe);
   const outputQuantity = Math.max(1, recipe.output.quantity);

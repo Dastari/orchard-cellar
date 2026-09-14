@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_santa_helper",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -1647,7 +1648,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Santa_Claus_Helper.png",
-  "sourcePath": "references/Cute_Fantasy_Christmass/Characters/Santa_Claus_Helper.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/christmas/Characters/Santa_Claus_Helper.png",
   "sourceRegions": {
     "idle_down": [
       [

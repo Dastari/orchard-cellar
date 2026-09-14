@@ -1,0 +1,17 @@
+[
+  {
+    "id": "balance_group:admin_support",
+    "kind": "balance_group",
+    "schemaVersion": 1,
+    "title": "Admin support limits",
+    "description": "Conservative caps for audited live support remedies.",
+    "entries": [
+      "balance:admin_support_items_per_mutation",
+      "balance:admin_support_mutations_per_hour",
+      "balance:admin_support_skill_points_per_mutation",
+      "balance:admin_support_stat_delta_per_mutation",
+      "balance:admin_support_teleport_distance_tiles",
+      "balance:admin_support_wallet_delta_bronze_per_mutation"
+    ]
+  }
+]

@@ -1,0 +1,239 @@
+{
+  "name": "item_cr_mask_examples",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "ivory_skull": [
+      [
+        "................",
+        "................",
+        "..hwwhb..bhwwh..",
+        "...hwwwwwwwwh...",
+        "....hwwwwwwh....",
+        "....wwwwwwww....",
+        "...bwwwwwwwwb...",
+        "..whhwwwwwwhhw..",
+        ".wwh7hwwwwh7hww.",
+        ".whb33wwww33bhw.",
+        "...bh7wwww7hb...",
+        "....hwwwwwwh....",
+        ".....hwwwwh.....",
+        "......hwwh......",
+        "................",
+        "................"
+      ]
+    ],
+    "bone_visor": [
+      [
+        "................",
+        ".cc.............",
+        ".c7c......hwwh..",
+        ".977c7...hwwh...",
+        "..9779ccwwwh....",
+        "..799cc99www....",
+        "...79c9ww9wwb...",
+        "...c79w9w9wwhw..",
+        "..7c39w99hw3hww.",
+        ".99c939www39hhw.",
+        "..9cc3c9hw3wb...",
+        "...779ccwwwh....",
+        "....79ccwwh.....",
+        ".....9ccwh......",
+        "......9c........",
+        "................"
+      ]
+    ],
+    "crimson_guard": [
+      [
+        "................",
+        "...m...rr...m...",
+        ".r.mm.rrrr.mm.r.",
+        ".rrjmjrrrrjmjrr.",
+        ".mrmjjmrrmjjmrm.",
+        ".fmmjfmrrmfjmmf.",
+        ".afmjfjmmjfjmfa.",
+        ".olafafjjfafahl.",
+        ".ttolaaffaahlol.",
+        ".ot73tttool37lh.",
+        ".lo337ttoo733hh.",
+        "...lotttollhh...",
+        ".....lotllh.....",
+        "......ltlh......",
+        ".......oh.......",
+        "................"
+      ]
+    ],
+    "azure_demon": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "..iii......886..",
+        "..diiiii888886..",
+        "...diiii88886...",
+        "..88diii888622..",
+        "..ddddii886666..",
+        ".iiddddi66668dd.",
+        ".idd8ddi666288d.",
+        ".idd.8di662.88d.",
+        "......8i62......",
+        "................",
+        "................"
+      ]
+    ],
+    "sun_mask": [
+      [
+        "................",
+        "....nuvvnnnn....",
+        "...nxvvvnnuun...",
+        "...uxvvvnuuuu...",
+        "...uuxxvuuxuu...",
+        "...nuuxvuvxun...",
+        "..ngnuuvvxungg..",
+        "..ug5nuvxun5gn..",
+        "..ug151uu151gn..",
+        "...gun5xu5nug...",
+        "...gxunvunuug...",
+        "...gnnxvxunng...",
+        "....gnnnnnng....",
+        ".....uvvxuu.....",
+        "......nxun......",
+        "................"
+      ]
+    ],
+    "bronze_face": [
+      [
+        "................",
+        "......kqkk......",
+        "....kpsskkkk....",
+        "...kqssskkppk...",
+        "...psssskpqpp...",
+        "...pqssspsqpk...",
+        "..kepqsssqpkek..",
+        "..pe0pqsqpk0ep..",
+        "..qe440pp044ep..",
+        "...e044qp440e...",
+        "...epqkspkppe...",
+        "...eksksqkqke...",
+        "....eqskkpqe....",
+        "....ekqspqke....",
+        ".....epsqpe.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "ivory_skull": "state",
+    "bone_visor": "state",
+    "crimson_guard": "state",
+    "azure_demon": "state",
+    "sun_mask": "state",
+    "bronze_face": "state"
+  },
+  "sourcePalette": {
+    "0": "#080502",
+    "1": "#0a0601",
+    "2": "#0a1c6b",
+    "3": "#0b0e0f",
+    "4": "#180e05",
+    "5": "#1c1202",
+    "6": "#1e3284",
+    "7": "#211d24",
+    "8": "#2f4ab0",
+    "9": "#322c35",
+    "a": "#3a0406",
+    "b": "#3d3c49",
+    "c": "#443a48",
+    "d": "#4f6ed6",
+    "e": "#602f0c",
+    "f": "#61080b",
+    "g": "#744002",
+    "h": "#778189",
+    "i": "#7794f3",
+    "j": "#930e13",
+    "k": "#9a521b",
+    "l": "#9ba6ae",
+    "m": "#b11418",
+    "n": "#b36d0b",
+    "o": "#b8c6cf",
+    "p": "#bd761c",
+    "q": "#d0a667",
+    "r": "#d82427",
+    "s": "#dcc9b1",
+    "t": "#e0e9ee",
+    "u": "#e2a009",
+    "v": "#e6d4aa",
+    "w": "#e6e5e1",
+    "x": "#eabd54"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/equipment/masks-110/sheet-16-no-outline.png",
+  "sourceRegions": {
+    "ivory_skull": [
+      [
+        16,
+        0,
+        16,
+        16
+      ]
+    ],
+    "bone_visor": [
+      [
+        32,
+        0,
+        16,
+        16
+      ]
+    ],
+    "crimson_guard": [
+      [
+        80,
+        0,
+        16,
+        16
+      ]
+    ],
+    "azure_demon": [
+      [
+        112,
+        0,
+        16,
+        16
+      ]
+    ],
+    "sun_mask": [
+      [
+        224,
+        0,
+        16,
+        16
+      ]
+    ],
+    "bronze_face": [
+      [
+        240,
+        0,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.armour",
+    "source.clockwork_raven",
+    "studio.raven_examples",
+    "item.mask",
+    "slot.head"
+  ]
+}

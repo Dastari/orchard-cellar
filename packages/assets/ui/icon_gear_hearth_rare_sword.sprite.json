@@ -1,0 +1,68 @@
+{
+  "name": "icon_gear_hearth_rare_sword",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "............888.",
+        "...........8772.",
+        "..........87962.",
+        ".........87662..",
+        "........87962...",
+        ".......87662....",
+        "......87662.....",
+        ".....87562......",
+        "....27562.......",
+        ".4427562........",
+        ".137562.........",
+        "..1362..........",
+        ".13030..........",
+        "430.00..........",
+        "11.............."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#251609",
+    "1": "#342315",
+    "2": "#5b6900",
+    "3": "#6a411e",
+    "4": "#a26d40",
+    "5": "#d9ff00",
+    "6": "#e5ff46",
+    "7": "#ebff6e",
+    "8": "#ebff89",
+    "9": "#efff8e"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/weapons-800/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    112,
+    640,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

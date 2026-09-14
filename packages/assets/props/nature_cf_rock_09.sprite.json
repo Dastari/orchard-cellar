@@ -1,6 +1,7 @@
 {
   "name": "nature_cf_rock_09",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -47,7 +48,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Rock_9_Anim.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations/Rock_9_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations/Rock_9_Anim.png",
   "sourceRegions": {
     "base": [
       [

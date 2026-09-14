@@ -1,0 +1,67 @@
+{
+  "name": "icon_skill_master_angler",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".....00.........",
+        "...00770........",
+        "..06657700..0...",
+        "..050566770060..",
+        "..05652566560...",
+        "...05267656050..",
+        "....0756570.0...",
+        "...040020040....",
+        "...043333340....",
+        "...014444410....",
+        "...012222210....",
+        "...012111210....",
+        "....0222220.....",
+        ".....00000......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#2e222f",
+    "1": "#7a3045",
+    "2": "#9e4539",
+    "3": "#cd683d",
+    "4": "#e6904e",
+    "5": "#f79617",
+    "6": "#f9c22b",
+    "7": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/fishing-sea/sheet-16.png",
+  "sourceRegion": [
+    112,
+    80,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.master_angler",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

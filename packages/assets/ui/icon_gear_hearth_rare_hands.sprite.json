@@ -1,0 +1,63 @@
+{
+  "name": "icon_gear_hearth_rare_hands",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......1111......",
+        ".....101221.....",
+        "...1101442011...",
+        "..100133422001..",
+        ".10001222322001.",
+        ".10010002242001.",
+        "1001233300220001",
+        ".11200223302201.",
+        ".13032022202011.",
+        "1203203220111001",
+        "1032032320100001",
+        "1320320220100001",
+        "1203203201000001",
+        "1202010010100001",
+        ".1001.1111.1001.",
+        "..11........11.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#254d48",
+    "1": "#2e1c2c",
+    "2": "#367f63",
+    "3": "#89ab83",
+    "4": "#b0bb8f"
+  },
+  "sourcePath": "references/art/clockwork-raven/collections/premium/sheets/raven-fantasy-icons-16.png",
+  "importedFrom": "raven-fantasy-icons-16.png",
+  "sourceRegion": [
+    160,
+    6752,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

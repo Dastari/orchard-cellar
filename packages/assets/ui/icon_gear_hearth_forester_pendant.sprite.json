@@ -1,0 +1,68 @@
+{
+  "name": "icon_gear_hearth_forester_pendant",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        ".....086440.....",
+        "....08286260....",
+        "...0825845260...",
+        "..082558655260..",
+        ".09855284255890.",
+        ".09652284225490.",
+        ".07422284222470.",
+        "..060208602040..",
+        "...0808934040...",
+        "....06893440....",
+        ".....067140.....",
+        "......0440......",
+        ".......00.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#332804",
+    "1": "#350b13",
+    "2": "#621922",
+    "3": "#8f1f32",
+    "4": "#8f761d",
+    "5": "#9b2230",
+    "6": "#c0ad40",
+    "7": "#cf203f",
+    "8": "#ebe07e",
+    "9": "#ec5b85"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/accessories-400/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    80,
+    160,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

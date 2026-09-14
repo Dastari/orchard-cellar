@@ -1,4 +1,6 @@
-import { SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, survivalBiomeAt, type SurvivalBiome } from './survival-world.js';
+import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
+import { SURVIVAL_CHUNK_TILES, survivalBiomeAt, type SurvivalBiome } from './survival-world.js';
+import type { TerrainTransition } from './terrain-elevation.js';
 
 export interface RgbColor {
   readonly r: number;
@@ -6,8 +8,16 @@ export interface RgbColor {
   readonly b: number;
 }
 
-export type SpaceGenerator = 'island' | 'mine' | 'homestead' | 'residence' | 'marlow_tent' | 'cellar' | 'debug_flat';
+export type SpaceGenerator = 'island' | 'mine' | 'homestead' | 'residence' | 'marlow_tent' | 'cellar' | 'delve_lobby' | 'village_interior' | 'roguelike' | 'debug_flat';
 export type SpaceEnvironment = 'outdoor' | 'indoor' | 'underground';
+
+export interface SpaceRunEntrance {
+  readonly id: string;
+  readonly kind: 'roguelike';
+  readonly tileX: number;
+  readonly tileY: number;
+  readonly reachTiles: number;
+}
 
 export interface SpaceDefinition {
   /** Stable unsigned 16-bit coordinate-world identifier. Space zero is topside forever. */
@@ -22,15 +32,31 @@ export interface SpaceDefinition {
   readonly audioBed: 'estate' | 'cave' | 'homestead' | 'debug';
   /** Debug spaces remain reachable only through owner-authorized reducers. */
   readonly ownerOnly?: boolean;
+  readonly runEntrances?: readonly SpaceRunEntrance[];
+  readonly residenceExpansionRank?: number;
+  readonly residenceArchitectureJson?: string;
   readonly homesteadSite?: { readonly worldTileX: number; readonly worldTileY: number };
+  readonly rogueRoom?: {
+    readonly seed: number;
+    readonly roomNumber: number;
+    readonly roomKind: string;
+    readonly theme: string;
+  };
 }
 
 /** Minimal structural contract intentionally satisfied by future homestead rows. */
 export interface InstanceSpaceRow {
   readonly spaceId: number;
-  readonly sizeTier: number;
+  readonly sizeTier?: number | undefined;
+  readonly instanceKind?: string | undefined;
+  readonly seed?: number | undefined;
+  readonly roomNumber?: number | undefined;
+  readonly roomKind?: string | undefined;
+  readonly theme?: string | undefined;
   readonly ownerName?: string | undefined;
   readonly residenceSpaceId?: number | undefined;
+  readonly residenceExpansionRank?: number | undefined;
+  readonly residenceArchitectureJson?: string | undefined;
   readonly overworldTileX?: number | undefined;
   readonly overworldTileY?: number | undefined;
 }
@@ -73,39 +99,7 @@ export type HomesteadBoundaryKind = 'fence' | 'gate';
 
 const HOMESTEAD_SIZE_TIERS = [HOMESTEAD_TERRAIN_SIZE_TILES, 144, 160, 176] as const;
 
-export const SPACES: readonly SpaceDefinition[] = [
-  {
-    spaceId: TOPSIDE_SPACE_ID,
-    name: 'island',
-    sizeTiles: SURVIVAL_WORLD_SIZE,
-    generator: 'island',
-    environment: 'outdoor',
-    ambient: 'clock',
-    weather: true,
-    audioBed: 'estate',
-  },
-  {
-    spaceId: MARLOW_TENT_SPACE_ID,
-    name: 'marlow_tent',
-    sizeTiles: RESIDENCE_SIZE_TILES,
-    generator: 'marlow_tent',
-    environment: 'indoor',
-    ambient: { r: 194, g: 158, b: 122 },
-    weather: false,
-    audioBed: 'homestead',
-  },
-  {
-    spaceId: DEBUG_SPACE_ID,
-    name: 'debug_flat',
-    sizeTiles: 32,
-    generator: 'debug_flat',
-    environment: 'outdoor',
-    ambient: { r: 176, g: 190, b: 214 },
-    weather: false,
-    audioBed: 'debug',
-    ownerOnly: true,
-  },
-] as const;
+export const SPACES: readonly SpaceDefinition[] = BOOTSTRAP_COMPILED_CONTENT.spaces;
 
 const STATIC_SPACES = new Map(SPACES.map((space) => [space.spaceId, space] as const));
 
@@ -121,14 +115,44 @@ export function spaceDefinitionFor(
   if (!validSpaceId(spaceId)) return undefined;
   const staticDefinition = STATIC_SPACES.get(spaceId);
   if (staticDefinition !== undefined) return staticDefinition;
+  return instanceSpaceDefinitionFor(spaceId, instanceRow);
+}
+
+/** Resolves only persisted instance rows. Live-content authority uses this
+ * after consulting its revision-bound registry so a removed static definition
+ * cannot silently fall back to the bootstrap pack. */
+export function instanceSpaceDefinitionFor(
+  spaceId: number,
+  instanceRow?: InstanceSpaceRow | null,
+): SpaceDefinition | undefined {
+  if (!validSpaceId(spaceId)) return undefined;
   if (instanceRow === undefined || instanceRow === null) return undefined;
+  if (instanceRow.spaceId === spaceId && instanceRow.instanceKind === 'roguelike') {
+    const seed = instanceRow.seed;
+    const roomNumber = instanceRow.roomNumber;
+    const roomKind = instanceRow.roomKind;
+    const theme = instanceRow.theme;
+    if (seed === undefined || roomNumber === undefined || roomKind === undefined || theme === undefined) return undefined;
+    return {
+      spaceId,
+      name: `delve_${spaceId}`,
+      sizeTiles: 32,
+      generator: 'roguelike',
+      environment: 'underground',
+      ambient: theme === 'volcanic' ? { r: 142, g: 73, b: 51 } : theme === 'dungeon'
+        ? { r: 74, g: 79, b: 111 } : { r: 86, g: 92, b: 106 },
+      weather: false,
+      audioBed: 'cave',
+      rogueRoom: { seed, roomNumber, roomKind, theme },
+    };
+  }
   const residenceSpaceId = instanceRow.residenceSpaceId;
   const isExterior = instanceRow.spaceId === spaceId;
   const isResidence = residenceSpaceId === spaceId;
   const isCellar = residenceSpaceId !== undefined && residenceSpaceId + 1 === spaceId;
   if (!isExterior && !isResidence && !isCellar) return undefined;
-  const sizeTiles = isExterior ? HOMESTEAD_SIZE_TIERS[instanceRow.sizeTier]
-    : isResidence ? RESIDENCE_SIZE_TILES : CELLAR_SIZE_TILES;
+  const sizeTiles = isExterior ? HOMESTEAD_SIZE_TIERS[instanceRow.sizeTier ?? 0]
+    : isResidence ? residenceEnvelopeSize(instanceRow.residenceExpansionRank) : CELLAR_SIZE_TILES;
   if (sizeTiles === undefined || sizeTiles % SURVIVAL_CHUNK_TILES !== 0) return undefined;
   const ownerName = instanceRow.ownerName?.trim();
   return {
@@ -142,6 +166,8 @@ export function spaceDefinitionFor(
     ambient: isExterior ? 'clock' : isResidence ? { r: 188, g: 154, b: 118 } : { r: 100, g: 76, b: 68 },
     weather: isExterior,
     audioBed: isCellar ? 'cave' : 'homestead',
+    ...(isResidence?{residenceExpansionRank:validResidenceExpansionRank(instanceRow.residenceExpansionRank),
+      ...(instanceRow.residenceArchitectureJson===undefined?{}:{residenceArchitectureJson:instanceRow.residenceArchitectureJson})}:{}),
     ...(!isExterior || instanceRow.overworldTileX === undefined || instanceRow.overworldTileY === undefined ? {} : {
       homesteadSite: { worldTileX: instanceRow.overworldTileX, worldTileY: instanceRow.overworldTileY },
     }),
@@ -159,8 +185,30 @@ export function instanceSpaceRowFor<T extends InstanceSpaceRow>(
   return undefined;
 }
 
-export function residencePlayableTile(tileX: number, tileY: number): boolean {
-  return tileX >= 3 && tileX <= 12 && tileY >= 3 && tileY <= 12;
+export function validResidenceExpansionRank(rank: number | undefined): 0 | 1 | 2 {
+  return rank === 1 || rank === 2 ? rank : 0;
+}
+export function residenceEnvelopeSize(rank: number | undefined): number {
+  return validResidenceExpansionRank(rank) === 0 ? RESIDENCE_SIZE_TILES : 32;
+}
+/** Keep both connector mouths and halls free of construction and furniture. */
+export function residenceReservedTiles(expansionRank = 0): readonly {tileX: number; tileY: number}[] {
+  const tiles: {tileX: number; tileY: number}[] = [RESIDENCE_ENTRY_TILE, RESIDENCE_EXIT_TILE, RESIDENCE_TRAPDOOR_TILE,
+    {tileX: RESIDENCE_TRAPDOOR_TILE.tileX, tileY: RESIDENCE_TRAPDOOR_TILE.tileY + 1}];
+  const rank = validResidenceExpansionRank(expansionRank);
+  if (rank >= 1) for (let y = 8; y <= 10; y++) for (let x = 12; x <= 16; x++) tiles.push({tileX: x, tileY: y});
+  if (rank === 2) for (let y = 12; y <= 16; y++) for (let x = 20; x <= 22; x++) tiles.push({tileX: x, tileY: y});
+  return tiles;
+}
+/** Monotonic purchased envelope; old room and portals never move. */
+export function residencePlayableTile(tileX: number, tileY: number, expansionRank = 0): boolean {
+  if (!Number.isInteger(tileX) || !Number.isInteger(tileY)) return false;
+  const rank = validResidenceExpansionRank(expansionRank);
+  if (tileX >= 3 && tileX <= 12 && tileY >= 3 && tileY <= 12) return true;
+  if (rank >= 1 && ((tileX >= 16 && tileX <= 25 && tileY >= 3 && tileY <= 12)
+    || (tileX >= 13 && tileX <= 15 && tileY >= 8 && tileY <= 10))) return true;
+  return rank === 2 && ((tileX >= 16 && tileX <= 25 && tileY >= 16 && tileY <= 25)
+    || (tileX >= 20 && tileX <= 22 && tileY >= 13 && tileY <= 15));
 }
 
 export interface CaveExcavationGrid {
@@ -181,19 +229,27 @@ export function generateStarterCellarExcavation(): CaveExcavationGrid {
   };
   // A grid-first Dungeon Keeper-style layout: rooms and connecting corridors
   // only mark excavation. Rendering derives every floor/wall/corner afterward.
+  // Every rectangle is aligned to the 2x2 macro-cell grid (even first cell,
+  // even size), so the starter cave shares the excavation invariant: no rock
+  // or floor feature is ever one cell thick, and no boundary run is odd.
   const offset = (CELLAR_SIZE_TILES - 32) / 2;
-  carve(11 + offset, 3 + offset, 20 + offset, 9 + offset);   // ladder chamber
+  carve(10 + offset, 2 + offset, 21 + offset, 9 + offset);   // ladder chamber
   carve(8 + offset, 8 + offset, 23 + offset, 17 + offset);   // central hall
-  carve(3 + offset, 11 + offset, 10 + offset, 20 + offset);  // western room
-  carve(19 + offset, 14 + offset, 28 + offset, 24 + offset); // eastern room
-  carve(9 + offset, 17 + offset, 22 + offset, 27 + offset);  // southern cellar
-  carve(10 + offset, 7 + offset, 12 + offset, 12 + offset);  // north connector
-  carve(8 + offset, 14 + offset, 11 + offset, 16 + offset);  // west connector
-  carve(21 + offset, 15 + offset, 24 + offset, 18 + offset); // east connector
+  carve(2 + offset, 12 + offset, 11 + offset, 21 + offset);  // western room
+  carve(20 + offset, 14 + offset, 29 + offset, 25 + offset); // eastern room
+  carve(10 + offset, 18 + offset, 21 + offset, 27 + offset); // southern cellar
   return { width, height, dug };
 }
 
 const STARTER_CELLAR_EXCAVATION = generateStarterCellarExcavation();
+
+/** The authoritative residence/cellar portal and authored wall ladder own the
+ * crossing. Do not also generate the terrain-family `ladder` frame here:
+ * Cave_Floor_Ladder.png is a circular floor manhole, not the wall ladder used
+ * by this room. */
+export function starterCellarTerrainTransitions(): readonly TerrainTransition[] {
+  return [];
+}
 
 /** Collision and presentation share this single excavation mask. */
 export function cellarPlayableTile(tileX: number, tileY: number): boolean {

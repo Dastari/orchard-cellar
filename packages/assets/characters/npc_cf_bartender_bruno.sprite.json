@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_bartender_bruno",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     40
@@ -1745,7 +1746,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Bartender_Bruno.png",
-  "sourcePath": "references/Cute_Fantasy/NPCs (Premade)/Bartender_Bruno.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/NPCs (Premade)/Bartender_Bruno.png",
   "sourceRegions": {
     "idle_down": [
       [

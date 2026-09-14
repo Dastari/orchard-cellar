@@ -1,6 +1,7 @@
 {
   "name": "nature_cf_desert_rock_01",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -40,7 +41,7 @@
     "5": "#bd8770",
     "6": "#00000064"
   },
-  "sourcePath": "references/Cute_Fantasy_Desert/Props/Desert_Rocks.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Props/Desert_Rocks.png",
   "sourcePaletteMode": "exact",
   "sourceRegion": [0, 0, 16, 16],
   "approved": true,

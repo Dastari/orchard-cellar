@@ -1,0 +1,68 @@
+{
+  "name": "icon_skill_perfect_volley",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......1145566776",
+        "..11111455667876",
+        "...1114334678765",
+        ".....13345577655",
+        "2877713410556555",
+        "..8.811411454554",
+        "......1144144344",
+        "......8114414344",
+        ".....81111443341",
+        "....7.1118133411",
+        "...7.1..7.111111",
+        ".77......7...11.",
+        "277.....7....11.",
+        "22.......7...11.",
+        "2.......2....1..",
+        "........2......."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#120000",
+    "1": "#461d0f",
+    "2": "#5a5666",
+    "3": "#6e2727",
+    "4": "#cd683d",
+    "5": "#f89320",
+    "6": "#f9c22b",
+    "7": "#ffe4b3",
+    "8": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "rogue-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/rogue/sheets/rogue-skills-16.png",
+  "sourceRegion": [
+    192,
+    208,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.perfect_volley",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

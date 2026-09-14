@@ -3,13 +3,14 @@ import { basename, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadPalette, workspaceRoot } from './assets/load.js';
 import { decodePng, type DecodedPng } from './assets/png.js';
+import { plainItemIconImport } from './assets/plain-item-icon-sources.js';
 import type { AssetSource, FrameKind } from './assets/types.js';
 
 type Region = readonly [number, number, number, number];
 
 interface Extract {
   readonly name: string;
-  readonly category: 'props' | 'characters';
+  readonly category: 'props' | 'characters' | 'buildings';
   readonly source: string;
   readonly size: readonly [number, number];
   readonly anchor: readonly [number, number];
@@ -22,20 +23,23 @@ interface Extract {
   readonly transformPixel?: (color: string | null, x: number, y: number, group: string) => string | null;
 }
 
-const oreSource = 'references/Cute_Fantasy/Outdoor decoration/Ores.png';
-const toolSource = 'references/Cute_Fantasy/Player/Tools/Iron/Iron_Tools.png';
-const swordSource = 'references/Cute_Fantasy/Player/Tools/Iron/Iron_Sword.png';
-const bowSource = 'references/Cute_Fantasy/Player/Tools/Bow/Wooden_Bow.png';
-const arrowSource = 'references/Cute_Fantasy_Dungeons/Objects/Crossbow_Bolt.png';
-const resourceIconsSource = 'references/Cute_Fantasy/Icons/Outline/Resources_Icons_Outline.png';
-const outdoorDecorSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor.png';
-const rockAnimationSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations/Rock_1_Anim.png';
-const campDecorSource = 'references/Cute_Fantasy/Outdoor decoration/Camp_Decor.png';
-const campfireSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Campfire_Anim.png';
-const cookingFireSource = 'references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fireplace_Anim.png';
-const campCookingFireSource = 'references/Cute_Fantasy_MilitaryCamp/Campfire_Pot_Anim.png';
-const tentSource = 'references/Cute_Fantasy/Buildings/Buildings/Tent/Tent_Small.png';
-const portableLightSource = 'references/Cute_Fantasy/Other/Lantern_Torch.png';
+const oreSource = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Ores.png';
+const toolSource = 'references/art/kenmi/cute-fantasy/core/Player/Tools/Iron/Iron_Tools.png';
+const swordSource = 'references/art/kenmi/cute-fantasy/core/Player/Tools/Iron/Iron_Sword.png';
+const bowSource = 'references/art/kenmi/cute-fantasy/core/Player/Tools/Bow/Wooden_Bow.png';
+const fishingRodSource = 'references/art/kenmi/cute-fantasy/core/Player/Tools/Fishing_Rod/Wooden_Fishing_Rod.png';
+const arrowSource = 'references/art/kenmi/cute-fantasy/dungeons/Objects/Crossbow_Bolt.png';
+const resourceIconsSource = 'references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png';
+const outdoorDecorSource = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor.png';
+const rockAnimationSource = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Rock_Animations/Rock_1_Anim.png';
+const campDecorSource = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Camp_Decor.png';
+const campfireSource = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Campfire_Anim.png';
+const cookingFireSource = 'references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fireplace_Anim.png';
+const campCookingFireSource = 'references/art/kenmi/cute-fantasy/military-camp/Campfire_Pot_Anim.png';
+const tentSource = 'references/art/kenmi/cute-fantasy/core/Buildings/Buildings/Tent/Tent_Small.png';
+const fishermanHutSource = 'references/art/kenmi/cute-fantasy/core/Buildings/Buildings/Unique_Buildings/Fisherman_House/Fisherman_House_Base_Blue.png';
+const woodenBridgeSource = 'references/art/kenmi/cute-fantasy/free/Outdoor decoration/Bridge_Wood.png';
+const portableLightSource = 'references/art/kenmi/cute-fantasy/core/Other/Lantern_Torch.png';
 const oreTypes = ['iron', 'copper', 'gold', 'emerald', 'sapphire', 'topaz', 'ruby', 'amethyst'] as const;
 const toolFrames = (y: number): readonly Region[] => Array.from(
   { length: 6 }, (_, frame): Region => [frame * 64, y, 64, 64],
@@ -43,6 +47,17 @@ const toolFrames = (y: number): readonly Region[] => Array.from(
 const swordFrames = (y: number): readonly Region[] => Array.from(
   { length: 4 }, (_, frame): Region => [frame * 64, y, 64, 64],
 );
+const fishingFrames = (y: number, authoredFrames: number, outputFrames = authoredFrames): readonly Region[] => Array.from(
+  { length: outputFrames }, (_, frame): Region => [Math.min(frame, authoredFrames - 1) * 64, y, 64, 64],
+);
+const FISHING_EFFECT_RGB_COLORS = new Set([
+  // Authored monofilament and its highlight.
+  '#ffffff', '#c7cfdd',
+  // Authored red-and-white float.
+  '#c42430', '#ea323c', '#f68187',
+  // Authored water splash and ripple.
+  '#006da8', '#00cdf9', '#0cf1ff',
+]);
 
 const extracts: readonly Extract[] = [
   {
@@ -62,6 +77,21 @@ const extracts: readonly Extract[] = [
     size: [48, 96], anchor: [24, 95], groups: { base: [[0, 0, 48, 96]] }, frameKinds: { base: 'state' },
     tags: ['world.landmark', 'camp.tent', 'decor.permanent'],
     placement: { layer: 'object', footprint: [3, 3], blocksMovement: true, builderAvailable: false },
+  },
+  {
+    name: 'building_cf_fisherman_hut', category: 'buildings', source: fishermanHutSource,
+    size: [96, 112], anchor: [48, 111], groups: { base: [[0, 0, 96, 112]] }, frameKinds: { base: 'state' },
+    tags: ['world.landmark', 'building.fisherman_hut', 'decor.permanent'],
+    placement: { layer: 'object', footprint: [6, 2], blocksMovement: true, builderAvailable: false },
+  },
+  {
+    // The free sheet's left-hand 3x3 block is the complete supported
+    // east-west bridge: upper rail, walkable centre deck, and lower rail.
+    // The separate row above it is the bare-deck variant.
+    name: 'prop_cf_fishing_dock', category: 'props', source: woodenBridgeSource,
+    size: [48, 48], anchor: [8, 31], groups: { base: [[0, 16, 48, 48]] }, frameKinds: { base: 'state' },
+    tags: ['world.landmark', 'water.dock', 'decor.permanent'],
+    placement: { layer: 'object', footprint: [3, 1], blocksMovement: false, builderAvailable: false },
   },
   {
     name: 'prop_cf_campfire', category: 'props', source: campfireSource,
@@ -245,6 +275,37 @@ const extracts: readonly Extract[] = [
     tags: ['character.tool', 'tool.bow', 'action.ranged_weapon'],
   },
   {
+    name: 'tool_cf_wooden_fishing_rod_action',
+    category: 'characters',
+    source: fishingRodSource,
+    size: [64, 64],
+    anchor: [32, 47],
+    groups: {
+      fish_cast_down: fishingFrames(0, 9, 40),
+      fish_cast_right: fishingFrames(64, 8, 40),
+      fish_cast_up: fishingFrames(128, 9, 40),
+      fish_reel_right: fishingFrames(192, 8),
+      fish_reel_down: fishingFrames(256, 8),
+      fish_reel_up: fishingFrames(320, 8),
+    },
+    frameKinds: {
+      fish_cast_down: 'animation', fish_cast_right: 'animation', fish_cast_up: 'animation',
+      fish_reel_right: 'animation', fish_reel_down: 'animation', fish_reel_up: 'animation',
+    },
+    animationFps: {
+      fish_cast_down: 10, fish_cast_right: 10, fish_cast_up: 10,
+      fish_reel_right: 10, fish_reel_down: 10, fish_reel_up: 10,
+    },
+    animationLoop: {
+      fish_cast_down: false, fish_cast_right: false, fish_cast_up: false,
+      fish_reel_right: false, fish_reel_down: false, fish_reel_up: false,
+    },
+    // Retain only the physical rod. The live renderer owns the target-aware
+    // line, float, casting flight, and water ripple.
+    transformPixel: (color) => FISHING_EFFECT_RGB_COLORS.has(color?.slice(0, 7) ?? '') ? null : color,
+    tags: ['character.tool', 'tool.fishing_rod', 'action.fishing', 'effect.procedural-line'],
+  },
+  {
     name: 'tool_cf_iron_axe_action',
     category: 'characters',
     source: toolSource,
@@ -363,11 +424,12 @@ const rootPath = fileURLToPath(workspaceRoot);
 const palette = await loadPalette();
 const paletteCharacters = Object.keys(palette.colors);
 const images = new Map<string, DecodedPng>();
-for (const source of new Set(extracts.map((extract) => extract.source))) {
+const selectedExtracts = extracts.map(plainItemIconImport);
+for (const source of new Set(selectedExtracts.map((extract) => extract.source))) {
   images.set(source, decodePng(await readFile(resolve(rootPath, source))));
 }
 
-for (const extract of extracts) {
+for (const extract of selectedExtracts) {
   const image = images.get(extract.source)!;
   const nativeFrames = Object.fromEntries(Object.entries(extract.groups).map(([group, regions]) => [
     group,

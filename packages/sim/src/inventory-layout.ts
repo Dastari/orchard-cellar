@@ -1,4 +1,4 @@
-import { BASE_BACKPACK_CAPACITY } from './item-containers.js';
+import { BASE_BACKPACK_CAPACITY, BOOTSTRAP_ITEM_CONTAINER_CONTENT, type ItemContainerContentResolver, type SlotRestriction } from './item-containers.js';
 
 /**
  * One shared carried-inventory layout contract. Hotbar capacity is derived
@@ -20,7 +20,7 @@ export const HOTBAR_SLOT_BINDINGS = [
 
 export const HOTBAR_SLOT_COUNT = HOTBAR_SLOT_BINDINGS.length;
 export const BACKPACK_SLOT_COUNT = 20;
-export const EQUIPMENT_SLOT_COUNT = 9;
+export const EQUIPMENT_SLOT_COUNT = 10;
 export const CRAFTING_SLOT_COUNT = 9;
 
 export const HOTBAR_SLOT_OFFSET = 0;
@@ -28,6 +28,40 @@ export const BACKPACK_SLOT_OFFSET = HOTBAR_SLOT_OFFSET + HOTBAR_SLOT_COUNT;
 export const EQUIPMENT_SLOT_OFFSET = BACKPACK_SLOT_OFFSET + BACKPACK_SLOT_COUNT;
 export const CRAFTING_SLOT_OFFSET = EQUIPMENT_SLOT_OFFSET + EQUIPMENT_SLOT_COUNT;
 export const INVENTORY_SLOT_COUNT = CRAFTING_SLOT_OFFSET + CRAFTING_SLOT_COUNT;
+
+/** Stable paper-doll indices. Body is appended; Pack and Watch retain identity.
+ * Tags resolve against the active content registry in both UI and authority. */
+export const EQUIPMENT_SLOTS = [
+  { index: 0, id: 'neck', label: 'NECK', iconAnimation: 'neck', requiredTags: ['gear.neck'] },
+  { index: 1, id: 'head', label: 'HEAD', iconAnimation: 'head', requiredTags: ['gear.head'] },
+  { index: 2, id: 'watch', label: 'WATCH', iconAnimation: 'ring', requiredTags: ['gear.ring','utility.time'] },
+  { index: 3, id: 'main_hand', label: 'MAIN HAND', iconAnimation: 'main_hand', requiredTags: ['gear.hand','item.weapon'] },
+  { index: 4, id: 'backpack', label: 'PACK', iconAnimation: 'body', requiredTags: ['gear.back','container.backpack'] },
+  { index: 5, id: 'off_hand', label: 'OFF HAND', iconAnimation: 'off_hand', requiredTags: ['gear.off_hand'] },
+  { index: 6, id: 'hands', label: 'HANDS', iconAnimation: 'hands', requiredTags: ['gear.hands'] },
+  { index: 7, id: 'legs', label: 'LEGS', iconAnimation: 'legs', requiredTags: ['gear.legs'] },
+  { index: 8, id: 'feet', label: 'FEET', iconAnimation: 'feet', requiredTags: ['gear.feet'] },
+  { index: 9, id: 'body', label: 'BODY', iconAnimation: 'body', requiredTags: ['gear.body'] },
+] as const;
+export const ACTIVE_EQUIPMENT_SLOTS = EQUIPMENT_SLOTS;
+export type ActiveEquipmentSlotId = (typeof ACTIVE_EQUIPMENT_SLOTS)[number]['id'];
+export const ACTIVE_EQUIPMENT_SLOT_INDEXES: readonly number[] = EQUIPMENT_SLOTS.map(slot => slot.index);
+export const EQUIPMENT_SLOT_RESTRICTIONS: Readonly<Record<number,SlotRestriction>> = Object.fromEntries(
+  EQUIPMENT_SLOTS.map(slot => [slot.index,{ requiredTags: [...slot.requiredTags] }]),
+);
+export function activeEquipmentSlotAt(index: number) {
+  return EQUIPMENT_SLOTS.find(slot => slot.index === index) ?? null;
+}
+export function activeEquipmentSlotAccepts(
+  index: number, itemKind: string, content: ItemContainerContentResolver = BOOTSTRAP_ITEM_CONTAINER_CONTENT,
+): boolean {
+  const slot = activeEquipmentSlotAt(index);
+  return slot !== null && content.maxStackFor(itemKind) !== null && slot.requiredTags.every(tag => content.hasTag(itemKind,tag));
+}
+
+export function equippedInventorySlot(slotIndex: number): number {
+  return EQUIPMENT_SLOT_OFFSET + slotIndex;
+}
 
 export type PlayerInventoryContainerId = 'hotbar' | 'backpack' | 'equipment' | 'crafting';
 

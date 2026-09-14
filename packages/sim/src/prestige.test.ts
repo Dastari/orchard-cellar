@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { applyPrestigeAction } from './prestige.js';
-import { createInitialState, type FarmState } from './state.js';
+import { applyPrestigeAction as applyPrestigeActionRuntime } from './prestige.js';
+import { createInitialState as createInitialStateRuntime, type FarmState } from './state.js';
+import type { PrestigeAction } from './progression-state.js';
+import { LEGACY_ECONOMY_CATALOG as CATALOG } from './legacy-economy-catalog.test-support.js';
+
+const createInitialState = (seed: number): FarmState => createInitialStateRuntime(CATALOG, seed);
+const applyPrestigeAction = (state: FarmState, action: PrestigeAction): FarmState => (
+  applyPrestigeActionRuntime(CATALOG, state, action)
+);
 
 describe('M5 prestige reset and carry contracts', () => {
   it('runs an accelerated Vintage to Succession to Lineage golden cycle', () => {

@@ -1,0 +1,1868 @@
+[
+  {
+    "id": "resource:cactus",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Cactus",
+    "runtimeKind": "cactus",
+    "tags": [
+      "world.resource",
+      "resource.plant",
+      "generator.island.cactus"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "cactus",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "cactus",
+          350
+        ],
+        "small": [
+          "cactus",
+          550
+        ],
+        "medium": [
+          "cactus",
+          760
+        ]
+      }
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_cactus",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "cactus"
+    }
+  },
+  {
+    "id": "resource:fallen_branch",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Fallen Branch",
+    "runtimeKind": "fallen_branch",
+    "tags": [
+      "world.resource",
+      "resource.gatherable",
+      "generator.decoration.poi_fallen_log"
+    ],
+    "visual": {
+      "kind": "gatherable",
+      "asset": "poi_fallen_log"
+    },
+    "collision": {
+      "blocksMovement": false,
+      "footprint": {
+        "left": -8,
+        "right": 7,
+        "top": -16,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -8,
+        "right": 7,
+        "top": -16,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "gather",
+      "event": "use"
+    },
+    "health": {
+      "initial": 1
+    },
+    "loot": "loot:resource_fallen_branch",
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "gatherable"
+    }
+  },
+  {
+    "id": "resource:fish_pool",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Fishing Pool",
+    "runtimeKind": "fish_pool",
+    "tags": [
+      "world.resource",
+      "resource.fishing",
+      "generator.island.fish_pool"
+    ],
+    "visual": {
+      "kind": "fish",
+      "asset": "nature_fish_shadow"
+    },
+    "collision": {
+      "blocksMovement": false,
+      "footprint": {
+        "left": -8,
+        "right": 7,
+        "top": -16,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -8,
+        "right": 7,
+        "top": -16,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "fish",
+      "event": "break",
+      "tool": {
+        "specialization": "fishing",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3
+    },
+    "mining": {
+      "nodeClass": "mixed",
+      "richness": 3
+    },
+    "loot": "loot:fishing_pool",
+    "respawn": {
+      "profile": "fishing_pool"
+    },
+    "discovery": {
+      "kind": "fishing"
+    },
+    "statistics": {
+      "depletion": "fish"
+    }
+  },
+  {
+    "id": "resource:loose_stone",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Loose Stone",
+    "runtimeKind": "loose_stone",
+    "tags": [
+      "world.resource",
+      "resource.gatherable",
+      "generator.island.loose_stone"
+    ],
+    "visual": {
+      "kind": "gatherable",
+      "asset": "loose_stone"
+    },
+    "collision": {
+      "blocksMovement": false,
+      "footprint": {
+        "left": -8,
+        "right": 7,
+        "top": -16,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -8,
+        "right": 7,
+        "top": -16,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "gather",
+      "event": "use",
+      "pickupLabel": "Pebble",
+      "pickupFeedbackLabel": "Stone"
+    },
+    "health": {
+      "initial": 1
+    },
+    "loot": "loot:resource_loose_stone",
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "gatherable"
+    }
+  },
+  {
+    "id": "resource:ore_amethyst",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Amethyst Vein",
+    "runtimeKind": "ore_amethyst",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "resource.gem",
+      "generator.island.ore.7"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_amethyst"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 3
+      }
+    },
+    "health": {
+      "initial": 6
+    },
+    "mining": {
+      "nodeClass": "mixed",
+      "richness": 6
+    },
+    "loot": "loot:mining_ore_amethyst",
+    "respawn": {
+      "profile": "surface_ore"
+    },
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:ore_cinder",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Cinder Ore",
+    "runtimeKind": "ore_cinder",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "resource.hearth"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_cinder",
+      "variant": "fixed"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 1,
+        "baselineItem": "item:pickaxe"
+      }
+    },
+    "health": {
+      "initial": 2
+    },
+    "mining": {
+      "nodeClass": "pure",
+      "richness": 2
+    },
+    "loot": "loot:mining_ore_cinder",
+    "lootDelivery": "actor_reserved",
+    "respawn": {
+      "profile": "fixed_site"
+    },
+    "fixedSites": [
+      [
+        "8600000005",
+        728,
+        172,
+        1,
+        "encounter:cinder_terrace_kiln"
+      ]
+    ],
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:ore_copper",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Copper Vein",
+    "runtimeKind": "ore_copper",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "generator.island.ore.1"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_copper"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 1
+      }
+    },
+    "health": {
+      "initial": 6
+    },
+    "mining": {
+      "nodeClass": "mixed",
+      "richness": 6
+    },
+    "loot": "loot:mining_ore_copper",
+    "respawn": {
+      "profile": "surface_ore"
+    },
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:ore_emberglass",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Emberglass",
+    "runtimeKind": "ore_emberglass",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "resource.hearth"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_emberglass",
+      "variant": "fixed"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 1,
+        "baselineItem": "item:pickaxe"
+      }
+    },
+    "health": {
+      "initial": 2
+    },
+    "mining": {
+      "nodeClass": "pure",
+      "richness": 2
+    },
+    "loot": "loot:mining_ore_emberglass",
+    "lootDelivery": "actor_reserved",
+    "respawn": {
+      "profile": "fixed_site"
+    },
+    "fixedSites": [
+      [
+        "8600000006",
+        727,
+        165,
+        1,
+        "encounter:cinder_terrace_kiln"
+      ]
+    ],
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:ore_emerald",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Emerald Vein",
+    "runtimeKind": "ore_emerald",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "resource.gem",
+      "generator.island.ore.3"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_emerald"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 3
+      }
+    },
+    "health": {
+      "initial": 6
+    },
+    "mining": {
+      "nodeClass": "mixed",
+      "richness": 6
+    },
+    "loot": "loot:mining_ore_emerald",
+    "respawn": {
+      "profile": "surface_ore"
+    },
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:ore_gold",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Gold Vein",
+    "runtimeKind": "ore_gold",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "generator.island.ore.2"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_gold"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 2
+      }
+    },
+    "health": {
+      "initial": 6
+    },
+    "mining": {
+      "nodeClass": "mixed",
+      "richness": 6
+    },
+    "loot": "loot:mining_ore_gold",
+    "respawn": {
+      "profile": "surface_ore"
+    },
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:ore_iron",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Iron Vein",
+    "runtimeKind": "ore_iron",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "generator.island.ore.0"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_iron"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 1
+      }
+    },
+    "health": {
+      "initial": 6
+    },
+    "mining": {
+      "nodeClass": "mixed",
+      "richness": 6
+    },
+    "loot": "loot:mining_ore_iron",
+    "respawn": {
+      "profile": "surface_ore"
+    },
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:ore_ruby",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Ruby Vein",
+    "runtimeKind": "ore_ruby",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "resource.gem",
+      "generator.island.ore.6"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_ruby"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 3
+      }
+    },
+    "health": {
+      "initial": 6
+    },
+    "mining": {
+      "nodeClass": "mixed",
+      "richness": 6
+    },
+    "loot": "loot:mining_ore_ruby",
+    "respawn": {
+      "profile": "surface_ore"
+    },
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:ore_sapphire",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Sapphire Vein",
+    "runtimeKind": "ore_sapphire",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "resource.gem",
+      "generator.island.ore.4"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_sapphire"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 3
+      }
+    },
+    "health": {
+      "initial": 6
+    },
+    "mining": {
+      "nodeClass": "mixed",
+      "richness": 6
+    },
+    "loot": "loot:mining_ore_sapphire",
+    "respawn": {
+      "profile": "surface_ore"
+    },
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:ore_topaz",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Topaz Vein",
+    "runtimeKind": "ore_topaz",
+    "tags": [
+      "world.resource",
+      "resource.ore",
+      "resource.gem",
+      "generator.island.ore.5"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "ore_topaz"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 3
+      }
+    },
+    "health": {
+      "initial": 6
+    },
+    "mining": {
+      "nodeClass": "mixed",
+      "richness": 6
+    },
+    "loot": "loot:mining_ore_topaz",
+    "respawn": {
+      "profile": "surface_ore"
+    },
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "ore"
+    }
+  },
+  {
+    "id": "resource:rock_basalt",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Basalt Rock",
+    "runtimeKind": "rock_basalt",
+    "tags": [
+      "world.resource",
+      "resource.rock",
+      "resource.hearth"
+    ],
+    "visual": {
+      "kind": "ore",
+      "asset": "rock_basalt",
+      "variant": "fixed"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 1,
+        "baselineItem": "item:pickaxe"
+      }
+    },
+    "health": {
+      "initial": 2
+    },
+    "mining": {
+      "nodeClass": "rock",
+      "richness": 2
+    },
+    "loot": "loot:mining_rock_basalt",
+    "lootDelivery": "actor_reserved",
+    "respawn": {
+      "profile": "fixed_site"
+    },
+    "fixedSites": [
+      [
+        "8600000001",
+        674,
+        207,
+        0,
+        "encounter:cinder_ash_shore"
+      ],
+      [
+        "8600000002",
+        681,
+        201,
+        0,
+        "encounter:cinder_ash_shore"
+      ]
+    ],
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "rock"
+    }
+  },
+  {
+    "id": "resource:rock_large",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Large Rock",
+    "runtimeKind": "rock_large",
+    "tags": [
+      "world.resource",
+      "resource.rock",
+      "generator.decoration.poi_rock_small"
+    ],
+    "visual": {
+      "kind": "rock",
+      "asset": "poi_rock_small"
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -6,
+        "right": 5,
+        "top": -8,
+        "bottom": -1
+      }
+    },
+    "interaction": {
+      "mode": "mine",
+      "event": "break",
+      "tool": {
+        "specialization": "mining",
+        "minimumTier": 1
+      }
+    },
+    "health": {
+      "initial": 6
+    },
+    "mining": {
+      "nodeClass": "rock",
+      "richness": 6
+    },
+    "loot": "loot:mining_rock_large",
+    "respawn": {
+      "profile": "surface_ore"
+    },
+    "discovery": {
+      "kind": "ore"
+    },
+    "statistics": {
+      "depletion": "rock"
+    }
+  },
+  {
+    "id": "resource:tree",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Tree",
+    "runtimeKind": "tree",
+    "tags": [
+      "world.resource",
+      "resource.tree"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_oak",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_stump_small",
+          1000
+        ],
+        "depletedMedium": [
+          "tree_stump_medium",
+          1000
+        ],
+        "small": [
+          "tree_oak_sapling",
+          1000
+        ],
+        "medium": [
+          "tree_oak_young",
+          1000
+        ]
+      }
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_oak",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_acacia",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Acacia Tree",
+    "runtimeKind": "tree_acacia",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "generator.island.tree.3"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_acacia",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_acacia_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_acacia_stump",
+          500
+        ],
+        "depletedMedium": [
+          "tree_acacia_stump",
+          750
+        ],
+        "small": [
+          "tree_acacia",
+          500
+        ],
+        "medium": [
+          "tree_acacia",
+          750
+        ]
+      },
+      "leaf": [
+        "oak",
+        62
+      ]
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_acacia",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_apple",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Apple Tree",
+    "runtimeKind": "tree_apple",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "resource.fruit_tree",
+      "generator.island.tree.5"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_apple",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_fruit_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_fruit_stump_small",
+          1000
+        ],
+        "depletedMedium": [
+          "tree_fruit_stump_medium",
+          1000
+        ],
+        "small": [
+          "tree_sapling",
+          1000
+        ],
+        "medium": [
+          "tree_young",
+          1000
+        ]
+      }
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_apple",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_ashwood",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Ashwood Tree",
+    "runtimeKind": "tree_ashwood",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "resource.hearth"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_ashwood",
+      "states": {
+        "depleted": [
+          "tree_ashwood_stump",
+          1000
+        ],
+        "small": [
+          "tree_ashwood_stump",
+          1000
+        ],
+        "medium": [
+          "tree_ashwood_stump",
+          1000
+        ]
+      }
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0,
+        "baselineItem": "item:axe"
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "maturityGrowthStage": 3,
+    "loot": "loot:resource_tree_ashwood",
+    "lootDelivery": "actor_reserved",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "respawn": {
+      "profile": "fixed_site"
+    },
+    "fixedSites": [
+      [
+        "8600000003",
+        710,
+        208,
+        0,
+        "encounter:cinder_south_basalt"
+      ],
+      [
+        "8600000004",
+        718,
+        209,
+        0,
+        "encounter:cinder_south_basalt"
+      ]
+    ],
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_birch",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Birch Tree",
+    "runtimeKind": "tree_birch",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "generator.island.tree.1"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_birch",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_birch_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_birch_stump_small",
+          1000
+        ],
+        "depletedMedium": [
+          "tree_birch_stump_medium",
+          1000
+        ],
+        "small": [
+          "tree_birch_sapling",
+          1000
+        ],
+        "medium": [
+          "tree_birch_young",
+          1000
+        ]
+      },
+      "leaf": [
+        "birch",
+        34
+      ]
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_birch",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_cherry",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Cherry Tree",
+    "runtimeKind": "tree_cherry",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "resource.fruit_tree",
+      "generator.island.tree.8"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_cherry",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_fruit_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_fruit_stump_small",
+          1000
+        ],
+        "depletedMedium": [
+          "tree_fruit_stump_medium",
+          1000
+        ],
+        "small": [
+          "tree_sapling",
+          1000
+        ],
+        "medium": [
+          "tree_young",
+          1000
+        ]
+      }
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_cherry",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_oak",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Oak Tree",
+    "runtimeKind": "tree_oak",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "generator.island.tree.0"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_oak",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_stump_small",
+          1000
+        ],
+        "depletedMedium": [
+          "tree_stump_medium",
+          1000
+        ],
+        "small": [
+          "tree_oak_sapling",
+          1000
+        ],
+        "medium": [
+          "tree_oak_young",
+          1000
+        ]
+      }
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_oak",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_palm",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Palm Tree",
+    "runtimeKind": "tree_palm",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "generator.island.tree.4"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_palm",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_palm_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_palm_stump",
+          500
+        ],
+        "depletedMedium": [
+          "tree_palm_stump",
+          750
+        ],
+        "small": [
+          "tree_palm",
+          500
+        ],
+        "medium": [
+          "tree_palm",
+          750
+        ]
+      }
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_palm",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_peach",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Peach Tree",
+    "runtimeKind": "tree_peach",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "resource.fruit_tree",
+      "generator.island.tree.7"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_peach",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_fruit_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_fruit_stump_small",
+          1000
+        ],
+        "depletedMedium": [
+          "tree_fruit_stump_medium",
+          1000
+        ],
+        "small": [
+          "tree_sapling",
+          1000
+        ],
+        "medium": [
+          "tree_young",
+          1000
+        ]
+      }
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_peach",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_pear",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Pear Tree",
+    "runtimeKind": "tree_pear",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "resource.fruit_tree",
+      "generator.island.tree.6"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_pear",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_fruit_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_fruit_stump_small",
+          1000
+        ],
+        "depletedMedium": [
+          "tree_fruit_stump_medium",
+          1000
+        ],
+        "small": [
+          "tree_sapling",
+          1000
+        ],
+        "medium": [
+          "tree_young",
+          1000
+        ]
+      }
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_pear",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  },
+  {
+    "id": "resource:tree_spruce",
+    "kind": "resource",
+    "schemaVersion": 1,
+    "displayName": "Spruce Tree",
+    "runtimeKind": "tree_spruce",
+    "tags": [
+      "world.resource",
+      "resource.tree",
+      "generator.island.tree.2"
+    ],
+    "visual": {
+      "kind": "tree",
+      "asset": "tree_spruce",
+      "anchorOffsetYPixels": -4,
+      "states": {
+        "depleted": [
+          "tree_spruce_stump",
+          1000
+        ],
+        "depletedSmall": [
+          "tree_spruce_stump_small",
+          1000
+        ],
+        "depletedMedium": [
+          "tree_spruce_stump_medium",
+          1000
+        ],
+        "small": [
+          "tree_spruce_sapling",
+          1000
+        ],
+        "medium": [
+          "tree_spruce_young",
+          1000
+        ]
+      },
+      "leaf": [
+        "spruce",
+        34
+      ]
+    },
+    "collision": {
+      "blocksMovement": true,
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "target": {
+      "footprint": {
+        "left": -4,
+        "right": 3,
+        "top": -10,
+        "bottom": -5
+      }
+    },
+    "interaction": {
+      "mode": "harvest",
+      "event": "break",
+      "tool": {
+        "specialization": "woodcutting",
+        "minimumTier": 0
+      }
+    },
+    "health": {
+      "initial": 3,
+      "followsGrowthStage": true
+    },
+    "loot": "loot:resource_tree_spruce",
+    "regrowth": {
+      "enabled": true,
+      "initialProgress": 24
+    },
+    "discovery": {
+      "kind": "none"
+    },
+    "statistics": {
+      "depletion": "tree"
+    }
+  }
+]

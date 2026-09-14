@@ -1,0 +1,627 @@
+[
+  {
+    "id": "shop:delve_supplies",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:arrow"
+      },
+      {
+        "item": "item:torch"
+      },
+      {
+        "item": "item:apple"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:farmer_supplies",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:hoe"
+      },
+      {
+        "item": "item:shovel"
+      },
+      {
+        "item": "item:watering_can"
+      },
+      {
+        "item": "item:wheat_seeds"
+      },
+      {
+        "item": "item:tomato_seeds"
+      },
+      {
+        "item": "item:carrot_seeds"
+      },
+      {
+        "item": "item:turnip_seeds"
+      },
+      {
+        "item": "item:corn_seeds"
+      },
+      {
+        "item": "item:pumpkin_seeds"
+      },
+      {
+        "item": "item:parsley_seeds"
+      },
+      {
+        "item": "item:cabbage_seeds"
+      },
+      {
+        "item": "item:cucumber_seeds"
+      },
+      {
+        "item": "item:hot_pepper_seeds"
+      },
+      {
+        "item": "item:red_pepper_seeds"
+      },
+      {
+        "item": "item:yellow_pepper_seeds"
+      },
+      {
+        "item": "item:green_pepper_seeds"
+      },
+      {
+        "item": "item:watermelon_seeds"
+      },
+      {
+        "item": "item:sunflower_seeds"
+      },
+      {
+        "item": "item:garlic_seeds"
+      },
+      {
+        "item": "item:potato_seeds"
+      },
+      {
+        "item": "item:strawberry_seeds"
+      },
+      {
+        "item": "item:beetroot_seeds"
+      },
+      {
+        "item": "item:onion_seeds"
+      },
+      {
+        "item": "item:leek_seeds"
+      },
+      {
+        "item": "item:grape_seeds"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:general_tools",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:homestead_deed"
+      },
+      {
+        "item": "item:axe"
+      },
+      {
+        "item": "item:pickaxe"
+      },
+      {
+        "item": "item:hoe"
+      },
+      {
+        "item": "item:watering_can"
+      },
+      {
+        "item": "item:fishing_rod"
+      },
+      {
+        "item": "item:bow"
+      },
+      {
+        "item": "item:sword"
+      },
+      {
+        "item": "item:arrow"
+      },
+      {
+        "item": "item:shovel"
+      },
+      {
+        "item": "item:hammer"
+      },
+      {
+        "item": "item:torch"
+      },
+      {
+        "item": "item:lantern"
+      },
+      {
+        "item": "item:workbench"
+      },
+      {
+        "item": "item:anvil"
+      },
+      {
+        "item": "item:sprinkler"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:willow_archivist",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:hearth_angler_pendant_plan"
+      },
+      {
+        "item": "item:hearth_forester_pendant_plan"
+      },
+      {
+        "item": "item:hearth_harvest_pendant_plan"
+      },
+      {
+        "item": "item:hearth_prospector_pendant_plan"
+      },
+      {
+        "item": "item:hearth_wayfarer_pendant_plan"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:willow_carpenter",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:wood"
+      },
+      {
+        "item": "item:plank"
+      },
+      {
+        "item": "item:workbench"
+      },
+      {
+        "item": "item:axe"
+      },
+      {
+        "item": "item:chest"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:willow_cook",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:cooked_beef"
+      },
+      {
+        "item": "item:cooked_chicken"
+      },
+      {
+        "item": "item:cooked_fish"
+      },
+      {
+        "item": "item:cooked_mutton"
+      },
+      {
+        "item": "item:cooked_pork"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:willow_furnisher",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:furniture_rustic_chair"
+      },
+      {
+        "item": "item:furniture_rustic_chair_plan"
+      },
+      {
+        "item": "item:furniture_rustic_dining_table"
+      },
+      {
+        "item": "item:furniture_rustic_dining_table_plan"
+      },
+      {
+        "item": "item:furniture_rustic_bed"
+      },
+      {
+        "item": "item:furniture_rustic_bed_plan"
+      },
+      {
+        "item": "item:furniture_rustic_chest"
+      },
+      {
+        "item": "item:furniture_rustic_chest_plan"
+      },
+      {
+        "item": "item:furniture_rustic_woven_rug"
+      },
+      {
+        "item": "item:furniture_rustic_woven_rug_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_table_lamp"
+      },
+      {
+        "item": "item:furniture_townhouse_table_lamp_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_wall_mirror"
+      },
+      {
+        "item": "item:furniture_townhouse_wall_mirror_plan"
+      },
+      {
+        "item": "item:furniture_rustic_potted_fern"
+      },
+      {
+        "item": "item:furniture_rustic_potted_fern_plan"
+      },
+      {
+        "item": "item:furniture_rustic_stool"
+      },
+      {
+        "item": "item:furniture_rustic_stool_plan"
+      },
+      {
+        "item": "item:furniture_rustic_bench"
+      },
+      {
+        "item": "item:furniture_rustic_bench_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_chair"
+      },
+      {
+        "item": "item:furniture_townhouse_chair_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_loveseat"
+      },
+      {
+        "item": "item:furniture_townhouse_loveseat_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_armchair"
+      },
+      {
+        "item": "item:furniture_townhouse_armchair_plan"
+      },
+      {
+        "item": "item:furniture_rustic_writing_table"
+      },
+      {
+        "item": "item:furniture_rustic_writing_table_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_dining_table"
+      },
+      {
+        "item": "item:furniture_townhouse_dining_table_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_side_table"
+      },
+      {
+        "item": "item:furniture_townhouse_side_table_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_bed"
+      },
+      {
+        "item": "item:furniture_townhouse_bed_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_wardrobe"
+      },
+      {
+        "item": "item:furniture_townhouse_wardrobe_plan"
+      },
+      {
+        "item": "item:furniture_rustic_bookshelf"
+      },
+      {
+        "item": "item:furniture_rustic_bookshelf_plan"
+      },
+      {
+        "item": "item:furniture_rustic_cupboard"
+      },
+      {
+        "item": "item:furniture_rustic_cupboard_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_bookcase"
+      },
+      {
+        "item": "item:furniture_townhouse_bookcase_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_cabinet"
+      },
+      {
+        "item": "item:furniture_townhouse_cabinet_plan"
+      },
+      {
+        "item": "item:furniture_rustic_runner"
+      },
+      {
+        "item": "item:furniture_rustic_runner_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_round_rug"
+      },
+      {
+        "item": "item:furniture_townhouse_round_rug_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_patterned_rug"
+      },
+      {
+        "item": "item:furniture_townhouse_patterned_rug_plan"
+      },
+      {
+        "item": "item:furniture_rustic_standing_lamp"
+      },
+      {
+        "item": "item:furniture_rustic_standing_lamp_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_floor_lamp"
+      },
+      {
+        "item": "item:furniture_townhouse_floor_lamp_plan"
+      },
+      {
+        "item": "item:furniture_rustic_hearth"
+      },
+      {
+        "item": "item:furniture_rustic_hearth_plan"
+      },
+      {
+        "item": "item:furniture_rustic_cooking_range"
+      },
+      {
+        "item": "item:furniture_rustic_cooking_range_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_washstand"
+      },
+      {
+        "item": "item:furniture_townhouse_washstand_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_bath"
+      },
+      {
+        "item": "item:furniture_townhouse_bath_plan"
+      },
+      {
+        "item": "item:furniture_townhouse_flower_planter"
+      },
+      {
+        "item": "item:furniture_townhouse_flower_planter_plan"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:willow_innkeeper",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:apple"
+      },
+      {
+        "item": "item:pear"
+      },
+      {
+        "item": "item:cherry"
+      },
+      {
+        "item": "item:peach"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:willow_smith",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:hearth_common_sword"
+      },
+      {
+        "item": "item:hearth_common_bow"
+      },
+      {
+        "item": "item:hearth_common_shield"
+      },
+      {
+        "item": "item:hearth_common_head"
+      },
+      {
+        "item": "item:hearth_common_body"
+      },
+      {
+        "item": "item:hearth_common_hands"
+      },
+      {
+        "item": "item:hearth_common_legs"
+      },
+      {
+        "item": "item:hearth_common_feet"
+      },
+      {
+        "item": "item:hearth_common_body_plan"
+      },
+      {
+        "item": "item:hearth_common_bow_plan"
+      },
+      {
+        "item": "item:hearth_common_feet_plan"
+      },
+      {
+        "item": "item:hearth_common_hands_plan"
+      },
+      {
+        "item": "item:hearth_common_head_plan"
+      },
+      {
+        "item": "item:hearth_common_legs_plan"
+      },
+      {
+        "item": "item:hearth_common_shield_plan"
+      },
+      {
+        "item": "item:hearth_common_sword_plan"
+      },
+      {
+        "item": "item:hearth_epic_body_plan"
+      },
+      {
+        "item": "item:hearth_epic_bow_plan"
+      },
+      {
+        "item": "item:hearth_epic_feet_plan"
+      },
+      {
+        "item": "item:hearth_epic_hands_plan"
+      },
+      {
+        "item": "item:hearth_epic_head_plan"
+      },
+      {
+        "item": "item:hearth_epic_legs_plan"
+      },
+      {
+        "item": "item:hearth_epic_shield_plan"
+      },
+      {
+        "item": "item:hearth_epic_sword_plan"
+      },
+      {
+        "item": "item:hearth_rare_body_plan"
+      },
+      {
+        "item": "item:hearth_rare_bow_plan"
+      },
+      {
+        "item": "item:hearth_rare_feet_plan"
+      },
+      {
+        "item": "item:hearth_rare_hands_plan"
+      },
+      {
+        "item": "item:hearth_rare_head_plan"
+      },
+      {
+        "item": "item:hearth_rare_legs_plan"
+      },
+      {
+        "item": "item:hearth_rare_shield_plan"
+      },
+      {
+        "item": "item:hearth_rare_sword_plan"
+      },
+      {
+        "item": "item:hearth_uncommon_body_plan"
+      },
+      {
+        "item": "item:hearth_uncommon_bow_plan"
+      },
+      {
+        "item": "item:hearth_uncommon_feet_plan"
+      },
+      {
+        "item": "item:hearth_uncommon_hands_plan"
+      },
+      {
+        "item": "item:hearth_uncommon_head_plan"
+      },
+      {
+        "item": "item:hearth_uncommon_legs_plan"
+      },
+      {
+        "item": "item:hearth_uncommon_shield_plan"
+      },
+      {
+        "item": "item:hearth_uncommon_sword_plan"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:willow_storekeeper",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:hoe"
+      },
+      {
+        "item": "item:shovel"
+      },
+      {
+        "item": "item:watering_can"
+      },
+      {
+        "item": "item:wheat_seeds"
+      },
+      {
+        "item": "item:carrot_seeds"
+      },
+      {
+        "item": "item:turnip_seeds"
+      },
+      {
+        "item": "item:torch"
+      },
+      {
+        "item": "item:arrow"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  }
+]

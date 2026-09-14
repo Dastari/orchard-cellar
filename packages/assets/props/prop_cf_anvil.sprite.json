@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_anvil",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -175,7 +176,7 @@
     "4": "#5a6988",
     "5": "#00000064"
   },
-  "sourcePath": "references/Cute_Fantasy/Buildings/House_Decor/Anvil_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Anvil_Anim.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Anvil_Anim.png",

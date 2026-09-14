@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_interior_table",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     32
@@ -61,7 +62,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Tables.png",
-  "sourcePath": "references/Cute_Fantasy/Buildings/House_Decor/Tables.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Tables.png",
   "sourceRegions": {
     "base": [
       [

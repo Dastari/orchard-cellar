@@ -1,0 +1,16 @@
+{
+  "window": {
+    "minimumTileX": 365,
+    "minimumTileY": 332,
+    "width": 13,
+    "height": 16
+  },
+  "planTileCount": 123,
+  "roleCounts": {
+    "edges": 40,
+    "insets": 11,
+    "ramps": 12,
+    "faces": 80
+  },
+  "fnv1a32": "7376f271"
+}

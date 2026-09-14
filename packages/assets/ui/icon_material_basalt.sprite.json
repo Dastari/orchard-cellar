@@ -1,0 +1,62 @@
+{
+  "name": "icon_material_basalt",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........11....",
+        "....11...1221...",
+        "...1221.123321..",
+        "..1223211232201.",
+        ".12332222122001.",
+        ".1233220010001..",
+        "..12220011111...",
+        "..1000012221....",
+        "...1111223321...",
+        "....1223332221..",
+        "...10022222001..",
+        "....1100000001..",
+        "......1000011...",
+        ".......1111.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#232a30",
+    "1": "#262b44",
+    "2": "#394f5b",
+    "3": "#638689"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/crafting-materials/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    32,
+    128,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

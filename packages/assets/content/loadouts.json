@@ -1,0 +1,98 @@
+[
+  {
+    "id": "loadout:new_player",
+    "kind": "loadout",
+    "schemaVersion": 1,
+    "role": "new_player",
+    "selectedSlot": 0,
+    "entries": [
+      {
+        "item": "item:axe",
+        "quantity": 1,
+        "slot": 0
+      },
+      {
+        "item": "item:pickaxe",
+        "quantity": 1,
+        "slot": 1
+      },
+      {
+        "item": "item:hoe",
+        "quantity": 1,
+        "slot": 2
+      },
+      {
+        "item": "item:watering_can",
+        "quantity": 1,
+        "slot": 3
+      },
+      {
+        "item": "item:bow",
+        "quantity": 1,
+        "slot": 4
+      },
+      {
+        "item": "item:arrow",
+        "quantity": 32,
+        "slot": 5
+      }
+    ],
+    "appearance": {
+      "hairKinds": [
+        "hair_1_brown",
+        "hair_2_black",
+        "hair_3_blonde",
+        "hair_4_ginger",
+        "hair_5_grey",
+        "hair_6_brown"
+      ],
+      "shirtKinds": [
+        "farmer_green",
+        "farmer_blue",
+        "farmer_orange",
+        "farmer_purple",
+        "farmer_red",
+        "farmer_white_brown"
+      ],
+      "pantsKinds": [
+        "farmer_white_brown",
+        "farmer_black",
+        "farmer_blue",
+        "farmer_green",
+        "farmer_red"
+      ],
+      "shoesKinds": [
+        "brown",
+        "black",
+        "blue",
+        "green",
+        "red"
+      ]
+    },
+    "abilities": [
+      {
+        "id": "ability:sprint",
+        "adapter": "sprint",
+        "displayName": "Sprint",
+        "input": "Shift",
+        "primaryAttribute": "con",
+        "tags": [
+          "ability.movement",
+          "resource.vigour",
+          "attribute.con",
+          "modifier.equipment",
+          "modifier.effect",
+          "modifier.skill",
+          "modifier.environment"
+        ],
+        "modifierTargets": [
+          "sprintSpeed",
+          "sprintVigourCost"
+        ],
+        "speedPermille": 1250,
+        "vigourDrainCentiPerSecond": 1000,
+        "baselineAttribute": 10
+      }
+    ]
+  }
+]

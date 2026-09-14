@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_chef_chloe",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     40
@@ -1750,7 +1751,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Chef_Chloe.png",
-  "sourcePath": "references/Cute_Fantasy/NPCs (Premade)/Chef_Chloe.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/NPCs (Premade)/Chef_Chloe.png",
   "sourceRegions": {
     "idle_down": [
       [

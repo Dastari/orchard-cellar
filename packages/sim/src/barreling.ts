@@ -1,4 +1,9 @@
-import { CROP_DEFINITIONS, isCropKind, type CropKind } from './crops.js';
+import {
+  CROP_DEFINITIONS,
+  CROP_HARVEST_ITEM_DEFINITIONS,
+  isCropKind,
+  type CropKind,
+} from './crops.js';
 import { AUTHORITY_HZ } from './net-timing.js';
 
 export const BARREL_SLOT_CAPACITY = 8;
@@ -9,11 +14,17 @@ export const BARREL_CURE_TICKS = BigInt(BARREL_CURE_MINUTES * 60 * AUTHORITY_HZ)
 
 export type PreservedCropKind = `preserved_${CropKind}`;
 
+function harvestIconKey(crop: (typeof CROP_DEFINITIONS)[number]): string {
+  const item = CROP_HARVEST_ITEM_DEFINITIONS[crop.harvestItemKind];
+  if (item === undefined) throw new Error(`bootstrap_crop_item_missing:${crop.harvestItemKind}`);
+  return item.iconKey;
+}
+
 export const PRESERVED_CROP_ITEM_DEFINITIONS = Object.fromEntries(CROP_DEFINITIONS.map((crop) => [
   `preserved_${crop.kind}`,
   {
     displayName: `Preserved ${crop.displayName}`,
-    iconKey: crop.kind === 'grape' ? 'item_cf_crop_grape' : `item_cf_crop_${crop.kind}`,
+    iconKey: harvestIconKey(crop),
     quality: 'uncommon',
     maxStack: 99,
     tags: ['item.crop', 'item.food', 'item.preserved', `crop.${crop.kind}`],
@@ -34,13 +45,19 @@ export const PRESERVED_CROP_ECONOMY = Object.fromEntries(CROP_DEFINITIONS.map((c
   readonly sellPriceBronze: number;
 }>>;
 
-export function preservedCropKind(cropKind: string): PreservedCropKind | null {
-  return isCropKind(cropKind) ? `preserved_${cropKind}` : null;
+export function preservedCropKind(
+  cropKind: string,
+  cropAccepted: (itemKind: string) => boolean = isCropKind,
+): PreservedCropKind | null {
+  return cropAccepted(cropKind) ? `preserved_${cropKind}` : null;
 }
 
-export function cropKindForPreserved(itemKind: string): CropKind | null {
+export function cropKindForPreserved(
+  itemKind: string,
+  cropAccepted: (itemKind: string) => boolean = isCropKind,
+): CropKind | null {
   const cropKind = itemKind.startsWith('preserved_') ? itemKind.slice('preserved_'.length) : '';
-  return isCropKind(cropKind) ? cropKind : null;
+  return cropAccepted(cropKind) ? cropKind : null;
 }
 
 export function isPreservedCropKind(itemKind: string): itemKind is PreservedCropKind {
@@ -59,12 +76,15 @@ export interface BarrelBatch {
   readonly quantity: number;
 }
 
-export function barrelBatch(slots: readonly (BarrelStack | null)[]): BarrelBatch | null {
+export function barrelBatch(
+  slots: readonly (BarrelStack | null)[],
+  cropAccepted: (itemKind: string) => boolean = isCropKind,
+): BarrelBatch | null {
   let cropKind: CropKind | null = null;
   let quantity = 0;
   for (const stack of slots) {
     if (stack === null || stack.quantity <= 0) continue;
-    if (!isCropKind(stack.itemKind)) return null;
+    if (!cropAccepted(stack.itemKind)) return null;
     if (cropKind !== null && cropKind !== stack.itemKind) return null;
     cropKind = stack.itemKind;
     quantity += stack.quantity;
@@ -75,9 +95,11 @@ export function barrelBatch(slots: readonly (BarrelStack | null)[]): BarrelBatch
 export function barrelCanSeal(
   slots: readonly (BarrelStack | null)[],
   maximumBatch = BARREL_MAX_BATCH,
+  minimumBatch = BARREL_MIN_BATCH,
+  cropAccepted: (itemKind: string) => boolean = isCropKind,
 ): boolean {
-  const batch = barrelBatch(slots);
-  return batch !== null && batch.quantity >= BARREL_MIN_BATCH && batch.quantity <= maximumBatch;
+  const batch = barrelBatch(slots, cropAccepted);
+  return batch !== null && batch.quantity >= minimumBatch && batch.quantity <= maximumBatch;
 }
 
 function stacksEqual(left: BarrelStack | null, right: BarrelStack | null): boolean {
@@ -92,12 +114,16 @@ export function barrelMutationIsValid(
   after: readonly (BarrelStack | null)[],
   sealedAtTick: bigint | undefined,
   maximumBatch = BARREL_MAX_BATCH,
+  cropAccepted: (itemKind: string) => boolean = isCropKind,
+  preservedAccepted: (itemKind: string) => boolean = isPreservedCropKind,
 ): boolean {
   if (sealedAtTick !== undefined) {
     return before.length === after.length
       && before.every((stack, index) => stacksEqual(stack, after[index] ?? null));
   }
-  const beforePreserved = before.filter((stack): stack is BarrelStack => stack !== null && isPreservedCropKind(stack.itemKind));
+  const beforePreserved = before.filter((stack): stack is BarrelStack => (
+    stack !== null && preservedAccepted(stack.itemKind)
+  ));
   if (beforePreserved.length > 0) {
     const kind = beforePreserved[0]!.itemKind;
     const beforeQuantity = beforePreserved.reduce((sum, stack) => sum + stack.quantity, 0);
@@ -105,41 +131,10 @@ export function barrelMutationIsValid(
     return output.every((stack) => stack.itemKind === kind)
       && output.reduce((sum, stack) => sum + stack.quantity, 0) <= beforeQuantity;
   }
-  const batch = barrelBatch(after);
+  const batch = barrelBatch(after, cropAccepted);
   return batch === null
     ? after.every((stack) => stack === null)
     : batch.quantity <= maximumBatch;
-}
-
-export interface SettledBarrel {
-  readonly slots: readonly (BarrelStack | null)[];
-  readonly sealedAtTick: bigint | undefined;
-  readonly completedCropKind: CropKind | null;
-  readonly completedQuantity: number;
-}
-
-export function settleBarrel(
-  slots: readonly (BarrelStack | null)[],
-  sealedAtTick: bigint | undefined,
-  authorityTick: bigint,
-  cureTicks = BARREL_CURE_TICKS,
-  maximumBatch = BARREL_MAX_BATCH,
-): SettledBarrel {
-  if (sealedAtTick === undefined || authorityTick - sealedAtTick < cureTicks) {
-    return { slots, sealedAtTick, completedCropKind: null, completedQuantity: 0 };
-  }
-  const batch = barrelBatch(slots);
-  if (batch === null || !barrelCanSeal(slots, maximumBatch)) {
-    return { slots, sealedAtTick: undefined, completedCropKind: null, completedQuantity: 0 };
-  }
-  const output = preservedCropKind(batch.cropKind);
-  if (output === null) return { slots, sealedAtTick: undefined, completedCropKind: null, completedQuantity: 0 };
-  return {
-    slots: [{ itemKind: output, quantity: batch.quantity }, ...Array.from({ length: BARREL_SLOT_CAPACITY - 1 }, () => null)],
-    sealedAtTick: undefined,
-    completedCropKind: batch.cropKind,
-    completedQuantity: batch.quantity,
-  };
 }
 
 export function barrelProgress(

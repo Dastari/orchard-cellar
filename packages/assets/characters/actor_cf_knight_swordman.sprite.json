@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_knight_swordman",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     48
@@ -3303,7 +3304,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Swordman.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Knights/Swordman.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Knights/Swordman.png",
   "sourceRegions": {
     "idle_down": [
       [

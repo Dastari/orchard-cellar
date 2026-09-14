@@ -1,13 +1,14 @@
 {
   "name": "enemy_cf_bombschroom",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
   ],
   "anchor": [
     8,
-    15
+    14
   ],
   "frames": {
     "state_01": [
@@ -1724,7 +1725,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Bombschroom.png",
-  "sourcePath": "references/Cute_Fantasy/Enemies/Bombschroom/Bombschroom.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Enemies/Bombschroom/Bombschroom.png",
   "sourceRegions": {
     "state_01": [
       [

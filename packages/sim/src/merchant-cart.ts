@@ -1,8 +1,9 @@
-import { ITEM_ECONOMY, TOOL_MERCHANT_OFFERS, commerceTotal } from './commerce.js';
-import { isDurableToolKind, normalizeToolDurability } from './durability.js';
+import { ITEM_ECONOMY, commerceTotal } from './commerce.js';
+import { bootstrapDefinitionsOfKind } from './content/bootstrap-pack-loader.js';
 import {
   BASE_BACKPACK_CAPACITY,
-  isUniqueQuestItemKind,
+  TRADE_UNSELLABLE_ITEM_TAG,
+  itemHasTag,
   maxStackFor,
   quickMoveItemStack,
   type ContainerSnapshot,
@@ -14,6 +15,26 @@ export interface MerchantCartLine {
   readonly itemKind: string;
   readonly quantity: number;
 }
+
+export interface MerchantContentResolver {
+  readonly economyFor: (itemKind: string) => { readonly buyPriceBronze: number | null; readonly sellPriceBronze: number } | null;
+  readonly maxStackFor: (itemKind: string) => number | null;
+  readonly initialDurabilityFor: (itemKind: string) => number | null;
+  readonly hasTag: (itemKind: string, tag: string) => boolean;
+  readonly inventoryCapacityFor: (itemKind: string) => number | null;
+}
+
+const LEGACY_MERCHANT_CONTENT: MerchantContentResolver = {
+  economyFor: (itemKind) => ITEM_ECONOMY[itemKind as keyof typeof ITEM_ECONOMY] ?? null,
+  maxStackFor,
+  initialDurabilityFor: (itemKind) => (
+    bootstrapDefinitionsOfKind('item').find(({ id }) => id === `item:${itemKind}`)?.durability?.max ?? null
+  ),
+  hasTag: itemHasTag,
+  inventoryCapacityFor: (itemKind) => (
+    bootstrapDefinitionsOfKind('item').find(({ id }) => id === `item:${itemKind}`)?.equip?.inventoryCapacity ?? null
+  ),
+};
 
 export type MerchantCartFailureCode =
   | 'merchant_cart_empty'
@@ -69,20 +90,22 @@ function persistentContainers(
 export function planMerchantPurchase(
   before: Readonly<Record<string, ContainerSnapshot>>,
   lines: readonly MerchantCartLine[],
+  offeredItemKinds: readonly string[],
+  content: MerchantContentResolver = LEGACY_MERCHANT_CONTENT,
 ): MerchantCartResult {
   const invalid = cartLinesAreValid(lines);
   if (invalid !== null) return invalid;
   let containers = before;
   let totalBronze = 0n;
   for (const line of lines) {
-    if (!TOOL_MERCHANT_OFFERS.some((offer) => offer === line.itemKind)) {
+    if (!offeredItemKinds.includes(line.itemKind)) {
       return failure('merchant_offer_not_found');
     }
-    const economy = ITEM_ECONOMY[line.itemKind as keyof typeof ITEM_ECONOMY];
+    const economy = content.economyFor(line.itemKind);
     const lineTotal = economy?.buyPriceBronze == null
       ? null
       : commerceTotal(economy.buyPriceBronze, line.quantity);
-    const maximum = maxStackFor(line.itemKind);
+    const maximum = content.maxStackFor(line.itemKind);
     if (lineTotal === null || maximum === null) return failure('merchant_offer_not_found');
     totalBronze += lineTotal;
     let remaining = line.quantity;
@@ -97,12 +120,11 @@ export function planMerchantPurchase(
           slots: [{
             itemKind: line.itemKind,
             quantity: batch,
-            ...(isDurableToolKind(line.itemKind)
-              ? { durability: normalizeToolDurability(line.itemKind) }
-              : {}),
+            ...(content.initialDurabilityFor(line.itemKind) === null
+              ? {} : { durability: content.initialDurabilityFor(line.itemKind)! }),
           }],
         },
-      }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] });
+      }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] }, content);
       if (!inserted.ok || inserted.movedQuantity !== batch) return failure('inventory_full');
       containers = persistentContainers(containers, inserted.containers);
       remaining -= batch;
@@ -117,17 +139,22 @@ export function planMerchantPurchase(
 export function planMerchantSale(
   before: Readonly<Record<string, ContainerSnapshot>>,
   lines: readonly MerchantCartLine[],
+  content: MerchantContentResolver = LEGACY_MERCHANT_CONTENT,
+  /** Trusted caller's effective capacity, including separately granted slots.
+   * Never derive this from an untrusted cart or widen the supplied snapshot. */
+  accessibleBackpackCapacity?: number,
 ): MerchantCartResult {
   const invalid = cartLinesAreValid(lines);
   if (invalid !== null) return invalid;
   const next: Record<string, ContainerSnapshot> = { ...before };
   let totalBronze = 0n;
   for (const line of lines) {
-    if (line.itemKind === 'homestead_deed' || isUniqueQuestItemKind(line.itemKind)) {
+    if (content.hasTag(line.itemKind, TRADE_UNSELLABLE_ITEM_TAG)
+      || content.hasTag(line.itemKind, 'item.quest_unique')) {
       return failure('item_not_sellable');
     }
-    const economy = ITEM_ECONOMY[line.itemKind as keyof typeof ITEM_ECONOMY];
-    const lineTotal = economy === undefined
+    const economy = content.economyFor(line.itemKind);
+    const lineTotal = economy === null
       ? null
       : commerceTotal(economy.sellPriceBronze, line.quantity);
     if (lineTotal === null) return failure('item_not_sellable');
@@ -136,7 +163,7 @@ export function planMerchantSale(
       const container = next[containerId];
       if (container === undefined) return failure('sale_quantity_missing');
       const slots = [...container.slots];
-      for (let index = 0; index < slots.length && remaining > 0; index += 1) {
+      for (let index = 0; index < Math.min(container.capacity, slots.length) && remaining > 0; index += 1) {
         const stack = slots[index];
         if (stack?.itemKind !== line.itemKind) continue;
         const removed = Math.min(remaining, stack.quantity);
@@ -148,13 +175,18 @@ export function planMerchantSale(
     if (remaining !== 0) return failure('sale_quantity_missing');
     totalBronze += lineTotal;
   }
-  const stillHasBackpack = Object.values(next).some((container) => (
-    container.slots.some((stack) => stack?.itemKind === 'backpack' && stack.quantity > 0)
-  ));
+  const equippedCapacityItem = next.equipment?.slots[4];
+  const equippedCapacity = equippedCapacityItem === null || equippedCapacityItem === undefined
+    ? BASE_BACKPACK_CAPACITY
+    : content.inventoryCapacityFor(equippedCapacityItem.itemKind) ?? BASE_BACKPACK_CAPACITY;
+  const grantedCapacity = accessibleBackpackCapacity !== undefined
+    && Number.isSafeInteger(accessibleBackpackCapacity) && accessibleBackpackCapacity >= 0
+    ? Math.min(before.backpack?.capacity ?? 0, accessibleBackpackCapacity) : 0;
+  const carriedCapacity = Math.max(equippedCapacity, grantedCapacity);
   const occupiedExpansionSlot = next.backpack?.slots
-    .slice(BASE_BACKPACK_CAPACITY)
+    .slice(carriedCapacity)
     .some((stack) => stack !== null) ?? false;
-  if (!stillHasBackpack && occupiedExpansionSlot) {
+  if (occupiedExpansionSlot) {
     return failure('backpack_not_empty');
   }
   return { ok: true, totalBronze, containers: next };

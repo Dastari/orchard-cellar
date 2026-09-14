@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_ore_sense",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...4444444443...",
+        "..444444444443..",
+        "..444000004443..",
+        "..440666660443..",
+        "..405661665043..",
+        "..440666660443..",
+        "..444000004443..",
+        "..444444444443..",
+        "..344444444443..",
+        "...3333333333...",
+        "....32..........",
+        "....2...........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#193c3e",
+    "1": "#3e2731",
+    "2": "#8b9bb4",
+    "3": "#c0cbdc",
+    "4": "#e9e9e9",
+    "5": "#ff98ba",
+    "6": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/ui/attributes-menu-states-240/sheet-16-no-outline.png",
+  "sourceRegion": [
+    48,
+    96,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.ore_sense",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

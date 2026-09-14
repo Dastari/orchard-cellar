@@ -1,0 +1,43 @@
+{
+  "name": "tile_cf_hearth_townhouse_floor",
+  "category": "tiles",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "0122222201222222",
+        "2012222220122222",
+        "2201222222012222",
+        "1220122212201222",
+        "2221012222210122",
+        "2210201222102012",
+        "2102220121022201",
+        "1022122010221220",
+        "0122222201222222",
+        "2012222220122222",
+        "2201222222012222",
+        "1220122212201222",
+        "2221012222210122",
+        "2210201222102012",
+        "2102220121022201",
+        "1022122010221220"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#743f39",
+    "1": "#91533b",
+    "2": "#b86f50"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/Houses_Interiors/Wood_Floor_Tiles.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Wood_Floor_Tiles.png"
+}

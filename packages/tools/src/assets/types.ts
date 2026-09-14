@@ -17,6 +17,9 @@ export interface AssetSource {
   readonly variantTopologies?: Readonly<Record<string, 'blob47'>>;
   readonly markers?: Readonly<Record<string, string>>;
   readonly markerRamps?: Readonly<Record<string, readonly string[]>>;
+  /** Exact translucent ground-shadow RGBA; original pixels remain in the atlas. */
+  readonly bakedShadowColor?: string;
+  readonly emissiveColors?: readonly string[];
   /** Native RGB(A) values retained from an owner-licensed source image. */
   readonly sourcePalette?: Readonly<Record<string, string>>;
   readonly lintAllow?: readonly string[];
@@ -58,4 +61,19 @@ export interface BuiltFrame {
   readonly width: number;
   readonly height: number;
   readonly durationTicks: number;
+}
+
+
+export interface BuiltPageDescriptor {
+  readonly width: number;
+  readonly height: number;
+  readonly decodedBytes: number;
+}
+export interface BuiltPageAsset {
+  readonly assetId: number;
+  readonly category: string;
+  readonly pageId: string;
+  readonly animations: Readonly<Record<string, readonly BuiltFrame[]>>;
+  readonly variants: Readonly<Record<string, readonly BuiltFrame[]>>;
+  readonly states: Readonly<Record<string, BuiltFrame>>;
 }

@@ -3,18 +3,18 @@ import { canonicalBlob47Index, connectionRole, inferCategory, inferGrid } from '
 
 describe('Cute Fantasy catalog inference', () => {
   it('classifies source families without depending on pack-specific root names', () => {
-    expect(inferCategory('references/Cute_Fantasy/Tiles/Grass/Grass_Tiles_1.png')).toBe('terrain');
-    expect(inferCategory('references/Cute_Fantasy_Free/Player/Player.png')).toBe('character');
-    expect(inferCategory('references/Cute_Fantasy_Volcano/Enemies/Flying_Skull.png')).toBe('enemy');
-    expect(inferCategory('references/Cute_Fantasy/Animals/Cow/Cow_01.png')).toBe('animal');
-    expect(inferCategory('references/Cute_Fantasy/Trees/Medium_Oak_Tree.png')).toBe('vegetation');
-    expect(inferCategory('references/Cute_Fantasy_UI/UI/Icons.png')).toBe('ui');
+    expect(inferCategory('references/art/kenmi/cute-fantasy/core/Tiles/Grass/Grass_Tiles_1.png')).toBe('terrain');
+    expect(inferCategory('references/art/kenmi/cute-fantasy/free/Player/Player.png')).toBe('character');
+    expect(inferCategory('references/art/kenmi/cute-fantasy/volcano/Enemies/Flying_Skull.png')).toBe('enemy');
+    expect(inferCategory('references/art/kenmi/cute-fantasy/core/Animals/Cow/Cow_01.png')).toBe('animal');
+    expect(inferCategory('references/art/kenmi/cute-fantasy/core/Trees/Medium_Oak_Tree.png')).toBe('vegetation');
+    expect(inferCategory('references/art/kenmi/cute-fantasy/ui/UI/Icons.png')).toBe('ui');
   });
 
   it('prefers canonical terrain and character grid sizes', () => {
-    expect(inferGrid('references/Cute_Fantasy/Tiles/Water.png', 112, 96).cell).toEqual([16, 16]);
-    expect(inferGrid('references/Cute_Fantasy_Characters/Characters/Mage.png', 128, 96).cell).toEqual([32, 32]);
-    expect(inferGrid('references/Cute_Fantasy/Buildings/Houses/House.png', 96, 80).mode).toBe('whole');
+    expect(inferGrid('references/art/kenmi/cute-fantasy/core/Tiles/Water.png', 112, 96).cell).toEqual([16, 16]);
+    expect(inferGrid('references/art/kenmi/cute-fantasy/characters/Characters/Mage.png', 128, 96).cell).toEqual([32, 32]);
+    expect(inferGrid('references/art/kenmi/cute-fantasy/core/Buildings/Houses/House.png', 96, 80).mode).toBe('whole');
   });
 
   it('uses the same canonical 47-frame ordering as the runtime autotiler', () => {

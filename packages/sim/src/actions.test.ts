@@ -13,14 +13,13 @@ describe('avatar action registry', () => {
     expect(AVATAR_ACTIONS.swing_axe).toEqual({
       playback: 'oneShot',
       interruptibleByMovement: false,
-      equippedKind: 'axe',
     });
     expect(AVATAR_ACTIONS.swing_pickaxe).toEqual({
       playback: 'oneShot',
       interruptibleByMovement: false,
-      equippedKind: 'pickaxe',
     });
     expect(AVATAR_ACTIONS.fishing_wait).toEqual({ playback: 'loop', interruptibleByMovement: true });
+    expect(AVATAR_ACTIONS.jump).toEqual({ playback: 'oneShot', interruptibleByMovement: false });
   });
 
   it('maps equipment to its shared action without client-side tool rules', () => {
@@ -61,5 +60,21 @@ describe('avatar action registry', () => {
       { itemKind: 'bow', quantity: 1, durability: 20 },
       [{ itemKind: 'arrow', quantity: 1 }],
     )).toBeNull();
+    expect(itemActionRejection(
+      { itemKind: 'orchard_longbow', quantity: 1, durability: 20 },
+      [{ itemKind: 'orchard_arrow', quantity: 1 }],
+      (kind) => kind === 'orchard_longbow' ? 'orchard_arrow' : null,
+    )).toBeNull();
+    expect(itemActionRejection(
+      { itemKind: 'decorative_bow', quantity: 1, durability: 20 },
+      [],
+      () => null,
+    )).toBeNull();
+    expect(itemActionRejection(
+      { itemKind: 'survey_pick', quantity: 1, durability: 0 },
+      [],
+      () => null,
+      (kind) => kind === 'survey_pick',
+    )).toBe('tool_broken');
   });
 });

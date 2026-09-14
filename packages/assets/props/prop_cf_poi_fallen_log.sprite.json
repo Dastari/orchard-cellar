@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_poi_fallen_log",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     16
@@ -50,7 +51,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Outdoor_Decor.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor.png",
   "sourceRegions": {
     "base": [
       [

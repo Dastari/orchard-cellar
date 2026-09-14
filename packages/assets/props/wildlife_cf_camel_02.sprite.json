@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_camel_02",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     32
@@ -1881,7 +1882,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Camel_2.png",
-  "sourcePath": "references/Cute_Fantasy_Desert/Animals/Camel/Camel_2.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Animals/Camel/Camel_2.png",
   "sourceRegions": {
     "idle_side": [
       [

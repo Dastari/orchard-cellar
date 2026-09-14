@@ -16,8 +16,8 @@ describe('player statistics registry', () => {
       expect([...definition.milestones].sort((a, b) => a < b ? -1 : 1)).toEqual(definition.milestones);
       expect(new Set(definition.milestones).size).toBe(definition.milestones.length);
     }
-    expect('reserved' in PLAYER_STATISTIC_DEFINITIONS.damage_dealt).toBe(false);
-    expect(PLAYER_STATISTIC_DEFINITIONS.fish_caught.reserved).toBe(true);
+    expect('reserved' in PLAYER_STATISTIC_DEFINITIONS.damage_dealt!).toBe(false);
+    expect('reserved' in PLAYER_STATISTIC_DEFINITIONS.fish_caught!).toBe(false);
   });
 
   it('resolves only registered definitions and validates their subject contract', () => {
@@ -30,7 +30,8 @@ describe('player statistics registry', () => {
     expect(statisticSubjectIsValid('messages_sent', 'whisper')).toBe(true);
     expect(statisticSubjectIsValid('messages_sent', 'email')).toBe(false);
     expect(statisticSubjectIsValid('distance_travelled', 'horse')).toBe(true);
-    expect(statisticSubjectIsValid('distance_travelled', 'boat')).toBe(false);
+    expect(statisticSubjectIsValid('distance_travelled', 'jump')).toBe(true);
+    expect(statisticSubjectIsValid('distance_travelled', 'boat')).toBe(true);
     expect(statisticSubjectIsValid('damage_dealt', 'archery_target')).toBe(true);
   });
 

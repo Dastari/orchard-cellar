@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_interior_bed",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -64,7 +65,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Beds.png",
-  "sourcePath": "references/Cute_Fantasy/Buildings/House_Decor/Beds.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Beds.png",
   "sourceRegions": {
     "base": [
       [

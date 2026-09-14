@@ -1,0 +1,67 @@
+{
+  "name": "icon_skill_steady_draw",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "........0000000.",
+        ".......011110000",
+        "......0166771000",
+        "....0.1611116100",
+        "...0..0100177710",
+        "......0000733671",
+        "......0003331171",
+        ".......053300161",
+        "..0....16500016.",
+        ".0....12100016..",
+        ".....241..000...",
+        "....401.........",
+        "...102........0.",
+        "..1014...0...0..",
+        ".4242...0.......",
+        "201............."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#461d0f",
+    "1": "#6e2727",
+    "2": "#9c99a4",
+    "3": "#cd683d",
+    "4": "#cfccd7",
+    "5": "#f89320",
+    "6": "#f9c22b",
+    "7": "#ffe4b3"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "rogue-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/rogue/sheets/rogue-skills-16.png",
+  "sourceRegion": [
+    208,
+    208,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.steady_draw",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

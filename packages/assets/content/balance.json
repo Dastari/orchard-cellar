@@ -1,0 +1,133 @@
+[
+  {
+    "id": "balance:admin_support_items_per_mutation",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 20,
+    "unit": "count",
+    "description": "Maximum total item quantity in one support give/remove remedy.",
+    "supportCap": "itemsPerMutation"
+  },
+  {
+    "id": "balance:admin_support_mutations_per_hour",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 30,
+    "unit": "count",
+    "description": "Maximum committed support remedies per operator in a rolling hour.",
+    "supportCap": "mutationsPerHour"
+  },
+  {
+    "id": "balance:admin_support_skill_points_per_mutation",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 3,
+    "unit": "count",
+    "description": "Maximum skill points granted by support in one remedy.",
+    "supportCap": "skillPointsPerMutation"
+  },
+  {
+    "id": "balance:admin_support_stat_delta_per_mutation",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 5,
+    "unit": "count",
+    "description": "Maximum absolute statistic patch applied by support in one remedy.",
+    "supportCap": "statDeltaPerMutation"
+  },
+  {
+    "id": "balance:admin_support_teleport_distance_tiles",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 256,
+    "unit": "tiles",
+    "description": "Maximum same-space Manhattan distance for a support teleport.",
+    "supportCap": "teleportDistanceTiles"
+  },
+  {
+    "id": "balance:admin_support_wallet_delta_bronze_per_mutation",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "admin.support",
+    "value": 500,
+    "unit": "bronze",
+    "description": "Maximum absolute wallet adjustment by support in one remedy.",
+    "supportCap": "walletDeltaBronzePerMutation"
+  },
+  {
+    "id": "balance:character_combat_foundation",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "gameplay.core",
+    "description": "Foundational character vitals, modifier, combat, and archery-target tuning.",
+    "profile": "character_combat",
+    "values": [
+      10,
+      1,
+      30,
+      10000,
+      100,
+      1000,
+      1000,
+      1000,
+      20,
+      10,
+      120,
+      10,
+      1400,
+      1800,
+      100,
+      10000,
+      100,
+      20
+    ]
+  },
+  {
+    "id": "balance:residence_construction_v1",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "gameplay.core",
+    "description": "Residence construction recipe version 1.",
+    "profile": "residence_construction",
+    "values": [
+      1,
+      "item:wood",
+      "item:stone",
+      "item:copper_piece",
+      2,
+      2,
+      1,
+      4,
+      2,
+      4,
+      2,
+      2
+    ]
+  },
+  {
+    "id": "balance:world_policy",
+    "kind": "balance",
+    "schemaVersion": 1,
+    "group": "gameplay.core",
+    "description": "World policy.",
+    "profile": "world_policy",
+    "values": [
+      30,
+      2,
+      24000,
+      60,
+      16,
+      32000,
+      12,
+      3,
+      3,
+      4,
+      24
+    ]
+  }
+]

@@ -1,0 +1,23 @@
+* { box-sizing: border-box; }
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #202925;
+}
+
+#studio {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  outline: none;
+  touch-action: none;
+  image-rendering: pixelated;
+}
+
+#studio:focus-visible {
+  box-shadow: inset 0 0 0 3px #e7b772;
+}

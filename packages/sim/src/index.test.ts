@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { advanceTick } from './tick.js';
-import { createEstateCollisionMap, createInitialState, FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type Action, type FarmState } from './state.js';
+import { advanceTick as advanceTickRuntime } from './tick.js';
+import { createEstateCollisionMap, createInitialState as createInitialStateRuntime,
+  FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type Action, type FarmState } from './state.js';
+import { LEGACY_ECONOMY_CATALOG as CATALOG } from './legacy-economy-catalog.test-support.js';
 import { createRng, nextRng } from './rng.js';
 import { calendarAtTick, nextDayTick, TICKS_PER_DAY } from './time.js';
+
+const createInitialState = (seed: number): FarmState => createInitialStateRuntime(CATALOG, seed);
+const advanceTick = (state: FarmState, actions: readonly Action[], tick: number): FarmState => (
+  advanceTickRuntime(CATALOG, state, actions, tick)
+);
 
 function replay(seed: number, actions: readonly Action[]): FarmState {
   let state = createInitialState(seed);

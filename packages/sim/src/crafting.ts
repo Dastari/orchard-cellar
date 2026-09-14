@@ -1,15 +1,10 @@
-import { FIBER_TILL_DROP_PERCENT } from './balance.js';
-import { BARREL_SLOT_CAPACITY } from './barreling.js';
-import { FERMENTATION_SLOT_CAPACITY, PRESS_SLOT_CAPACITY } from './cellar-production.js';
-import { COOKING_FIRE_SLOT_CAPACITY } from './cooking-fire.js';
-import { placeableInterface } from './item-containers.js';
-import { FURNACE_SLOT_CAPACITY } from './smelting.js';
+import { BOOTSTRAP_WORLD_POLICY_BALANCE } from './world-policy-balance.js';
+import type { ContentRegistry } from './content/registry.js';
+import type { ObjectContentDefinition } from './content/object-definition.js';
+import { resolveObjectCollision } from './content/object-collision.js';
+import type { StateValue } from './behaviour/effects.js';
 
-export const PLACEABLE_KINDS = [
-  'workbench', 'anvil', 'campfire', 'cooking_fire', 'camp_cooking_fire', 'furnace', 'barrel', 'fruit_press', 'fermentation_cask', 'fence', 'fence_gate', 'sign', 'standing_torch',
-  'shed', 'greenhouse', 'barn', 'coop', 'silo', 'sprinkler',
-] as const;
-export type PlaceableKind = typeof PLACEABLE_KINDS[number];
+export type PlaceableKind = string;
 
 export interface PlaceableDefinition {
   readonly blocksMovement: boolean;
@@ -19,49 +14,111 @@ export interface PlaceableDefinition {
   readonly connectsFence: boolean;
 }
 
-export const PLACEABLE_DEFINITIONS = {
-  workbench: { blocksMovement: true, slotCapacity: 0, station: 'workbench', light: null, connectsFence: false },
-  anvil: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
-  campfire: { blocksMovement: true, slotCapacity: 0, station: 'campfire', light: 'flame', connectsFence: false },
-  cooking_fire: { blocksMovement: true, slotCapacity: 2, station: 'campfire', light: 'flame', connectsFence: false },
-  camp_cooking_fire: { blocksMovement: true, slotCapacity: 2, station: 'campfire', light: 'flame', connectsFence: false },
-  furnace: { blocksMovement: true, slotCapacity: 3, station: 'furnace', light: null, connectsFence: false },
-  barrel: { blocksMovement: true, slotCapacity: 8, station: null, light: null, connectsFence: false },
-  fruit_press: { blocksMovement: true, slotCapacity: 3, station: null, light: null, connectsFence: false },
-  fermentation_cask: { blocksMovement: true, slotCapacity: 2, station: null, light: null, connectsFence: false },
-  fence: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: true },
-  fence_gate: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: true },
-  sign: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
-  standing_torch: { blocksMovement: false, slotCapacity: 0, station: null, light: 'flame', connectsFence: false },
-  shed: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
-  greenhouse: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
-  barn: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
-  coop: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
-  silo: { blocksMovement: true, slotCapacity: 0, station: null, light: null, connectsFence: false },
-  sprinkler: { blocksMovement: false, slotCapacity: 0, station: null, light: null, connectsFence: false },
-} as const satisfies Readonly<Record<PlaceableKind, PlaceableDefinition>>;
+export interface PlaceableContentReference {
+  readonly kind: string;
+  readonly definitionId?: string;
+}
+
+function itemDefinitionId(kind: string): string {
+  return kind.startsWith('item:') ? kind : `item:${kind}`;
+}
+
+/** Resolves new rows by their durable object id and pre-schema rows by the
+ * authored placement item. The fallback deliberately does not assume that
+ * object and item ids share a suffix. */
+export function placeableObjectDefinition(
+  registry: Pick<ContentRegistry, 'objects'>,
+  reference: string | PlaceableContentReference,
+): ObjectContentDefinition | null {
+  const kind = typeof reference === 'string' ? reference : reference.kind;
+  const storedId = typeof reference === 'string' ? '' : reference.definitionId?.trim() ?? '';
+  if (storedId.length > 0) {
+    const exact = registry.objects.get(storedId);
+    return exact !== undefined && exact.retired !== true ? exact : null;
+  }
+  const itemId = itemDefinitionId(kind);
+  return [...registry.objects.values()].find((candidate) => candidate.retired !== true
+    && candidate.components.placement?.item === itemId) ?? null;
+}
+
+function stationFromTags(tags: readonly string[]): PlaceableDefinition['station'] {
+  if (tags.includes('station.workbench')) return 'workbench';
+  if (tags.includes('station.furnace')) return 'furnace';
+  return tags.includes('station.campfire') ? 'campfire' : null;
+}
+
+export function runtimePlaceableDefinition(
+  registry: Pick<ContentRegistry, 'objects'>,
+  reference: string | PlaceableContentReference,
+): PlaceableDefinition | null {
+  const object = placeableObjectDefinition(registry, reference);
+  if (object === null) return null;
+  const tags = object.components.identity?.tags ?? [];
+  return {
+    blocksMovement: object.components.collision?.blocksMovement ?? false,
+    slotCapacity: object.components.container?.slotCount ?? 0,
+    station: stationFromTags(tags),
+    light: object.components.light === undefined ? null : 'flame',
+    connectsFence: tags.includes('build.fence'),
+  };
+}
+
+export function placeableKinds(registry: Pick<ContentRegistry, 'objects'>): readonly string[] {
+  return Object.freeze([...registry.objects.values()]
+    .filter((definition) => definition.retired !== true && definition.components.placement !== undefined)
+    .map((definition) => definition.components.placement!.item.slice('item:'.length))
+    .sort((left, right) => left.localeCompare(right)));
+}
+
+/** Typed legacy columns seed old rows; authored rows use their declared state.
+ * Invalid or unavailable content stays solid rather than opening a passage. */
+export function runtimePlaceableBlocksMovement(
+  registry: Pick<ContentRegistry, 'objects'>,
+  reference: PlaceableContentReference & { readonly open: boolean; readonly lit?: boolean; readonly stateJson?: string },
+): boolean {
+  const definition = placeableObjectDefinition(registry, reference);
+  if (definition === null) return true;
+  const collision = definition.components.collision;
+  if (collision?.blocksMovement !== true) return false;
+  if (collision.when === undefined) return true;
+  const declarations = definition.components.states ?? {};
+  const state: Record<string, StateValue> = Object.fromEntries(
+    Object.entries(declarations).map(([name, declaration]) => [name, declaration.default]),
+  );
+  try {
+    const decoded: unknown = JSON.parse(reference.stateJson || '{}');
+    if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) return true;
+    for (const [name, value] of Object.entries(decoded)) {
+      const declaration = declarations[name];
+      if (declaration === undefined) return true;
+      const valid = declaration.type === 'bool' ? typeof value === 'boolean'
+        : declaration.type === 'enum' ? typeof value === 'string' && declaration.values.includes(value)
+          : typeof value === 'number' && Number.isSafeInteger(value)
+            && (declaration.min === undefined || value >= declaration.min)
+            && (declaration.max === undefined || value <= declaration.max);
+      if (!valid) return true;
+      state[name] = value as StateValue;
+    }
+  } catch { return true; }
+  if ((reference.definitionId?.trim() ?? '') === '') {
+    if (declarations.open?.type === 'bool') state.open = reference.open;
+    if (declarations.lit?.type === 'bool' && reference.lit !== undefined) state.lit = reference.lit;
+  }
+  return resolveObjectCollision(definition, state).blocksMovement;
+}
 
 /** Temporary simple anvil economy: one raw copper repairs the selected durable
  * item completely. Keeping this shared prevents prompts and authority drifting. */
 /** Canonical purse units; the UI presents the smallest bronze unit as copper. */
 export const ANVIL_REPAIR_COST_BRONZE = 5;
 
-export function placeableDefinition(kind: string): PlaceableDefinition | null {
-  return Object.prototype.hasOwnProperty.call(PLACEABLE_DEFINITIONS, kind)
-    ? PLACEABLE_DEFINITIONS[kind as PlaceableKind]
-    : null;
-}
-
 /** Processor capacity follows the interface tag. The fallback supports plain
  * storage/decor placeables, while a newly tagged prop needs no UI branching. */
-export function placeableSlotCapacity(kind: string): number {
-  const capability = placeableInterface(kind);
-  if (capability === 'cooking') return COOKING_FIRE_SLOT_CAPACITY;
-  if (capability === 'furnace') return FURNACE_SLOT_CAPACITY;
-  if (capability === 'barrel') return BARREL_SLOT_CAPACITY;
-  if (capability === 'press') return PRESS_SLOT_CAPACITY;
-  if (capability === 'fermentation') return FERMENTATION_SLOT_CAPACITY;
-  return placeableDefinition(kind)?.slotCapacity ?? 0;
+export function runtimePlaceableSlotCapacity(
+  registry: Pick<ContentRegistry, 'objects'>,
+  reference: string | PlaceableContentReference,
+): number {
+  return runtimePlaceableDefinition(registry, reference)?.slotCapacity ?? 0;
 }
 
 export function craftingStationWithinReach(
@@ -80,6 +137,7 @@ export function fiberDropsFromTilling(
   tileX: number,
   tileY: number,
   authorityTick: bigint,
+  dropPercent = BOOTSTRAP_WORLD_POLICY_BALANCE.fiberTillDropPercent,
 ): boolean {
   let hash = (worldSeed ^ 0x46494252) >>> 0;
   for (const part of [spaceId, tileX, tileY, Number(authorityTick & 0xffff_ffffn)]) {
@@ -88,7 +146,7 @@ export function fiberDropsFromTilling(
     hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35) >>> 0;
     hash = (hash ^ (hash >>> 16)) >>> 0;
   }
-  return hash % 100 < FIBER_TILL_DROP_PERCENT;
+  return hash % 100 < dropPercent;
 }
 
 export const FENCE_JOIN_NORTH = 1;

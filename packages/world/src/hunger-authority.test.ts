@@ -25,12 +25,54 @@ describe('authority hunger and Vigour coupling', () => {
 
     const step = source.slice(source.indexOf('export const stepWorld ='));
     expect(step).toMatch(/sprintCostCenti > 0[\s\S]*spendPlayerHunger\([\s\S]*hungerCostForSprintVigour\(sprintCostCenti\)/);
-    expect(source.match(/spendPlayerHunger\(/g)).toHaveLength(3);
+    expect(source.match(/spendPlayerHunger\(/g)).toHaveLength(4);
   });
 
   it('derives hunger penalties from the shared simulation rules', () => {
     const modifiers = sourceBetween('function activePlayerModifiers(', 'function spendPlayerHunger(');
     expect(modifiers).toContain('modifiersForHunger(hunger)');
     expect(modifiers).not.toContain("value: -5_000");
+  });
+
+  it('does not let unaffordable held Sprint intent deadlock Vigour recovery', () => {
+    const affordability = sourceBetween(
+      'function playerCanAffordSprintStep(',
+      'function ensurePlayerStats(',
+    );
+    expect(affordability).toContain('sprintIntentSuppressesVigourRegen(');
+    expect(affordability).toContain('sprintVigourCostForSteps(');
+
+    const step = source.slice(source.indexOf('export const stepWorld ='));
+    expect(step).toContain('advancePlayerStats(ctx, row.identity, authorityTick, sprintWasAffordable)');
+    expect(step).toMatch(/const canSprint = intent\.sprinting\s+&& sprintWasAffordable/);
+  });
+
+  it('lets fruit refresh its five-minute Vigour boon even at full hunger', () => {
+    const preflight = source.slice(
+      source.indexOf("if (kind === 'restoreHunger')"),
+      source.indexOf("if (kind === 'repairSelected')"),
+    );
+    expect(preflight).toContain("runtimeItemHasTag(registry, selected.itemKind, 'crop.fruit')");
+    expect(preflight).toContain('survival.hungerCenti >= HUNGER_MAX_CENTI');
+    expect(preflight).toContain('effect.restoreHunger !== restored');
+
+    const writer = source.slice(
+      source.indexOf('applyEffect: (applied) => {'),
+      source.indexOf('statistic: (authored) => {'),
+    );
+    expect(writer).toContain("authoredReferenceSlug(applied.effectId, 'effect')");
+    expect(writer).toContain('runtimeEffectDefinition(contentRegistry(ctx), effectKind)');
+    expect(writer).toContain('advancePlayerStats(ctx, ctx.sender, authorityTick)');
+    expect(writer).toContain('ctx, ctx.sender, effectKind, authorityTick, applied.stacks ?? 1');
+    expect(writer).not.toContain("applied.effectId === 'fruitful_energy'");
+  });
+
+  it('applies specialization cost reductions and quality gates at the authority spend point', () => {
+    const tools = sourceBetween('function spendToolVigour(', 'function requireUsableTool');
+    expect(tools).toContain('runtimeCanUseToolWithSkillRanks(registry, itemKind, ranks)');
+    expect(tools).toContain('runtimeToolQualityRequiredRanks(registry, itemKind)');
+    expect(tools).toContain(
+      'activePlayerModifiers(ctx, identity, authorityTick, itemKind)',
+    );
   });
 });

@@ -5,7 +5,7 @@ const STATIC_PATH_PREFIXES = ['/assets/', '/generated/', '/music/', '/pwa/', '/u
  * even while package.json remains on the same development version. */
 export function createPwaServiceWorker(buildId: string): string {
   return `const CACHE_NAME = ${JSON.stringify(`orchard-${buildId}`)};
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/pwa/icons/apple-192.png', '/pwa/icons/apple-512.png'];
+const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/pwa/icons/apple-192.png', '/pwa/icons/apple-512.png', '/ui/island-background.png'];
 const STATIC_PATH_PREFIXES = ${JSON.stringify(STATIC_PATH_PREFIXES)};
 
 self.addEventListener('install', (event) => {
@@ -24,24 +24,60 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-async function navigationResponse(request) {
-  const cache = await caches.open(CACHE_NAME);
-  try {
-    const response = await fetch(request);
-    if (response.ok) await cache.put('/index.html', response.clone());
-    return response;
-  } catch {
-    return (await cache.match('/index.html')) || Response.error();
-  }
+function navigationResponse(request) {
+  let resolveResponse;
+  let rejectResponse;
+  const response = new Promise((resolve, reject) => {
+    resolveResponse = resolve;
+    rejectResponse = reject;
+  });
+  const lifetime = (async () => {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const fresh = await fetch(request);
+        const cacheCopy = fresh.ok ? fresh.clone() : null;
+        // Navigation is startup-critical. Release a valid network response
+        // before CacheStorage I/O, while waitUntil keeps the best-effort shell
+        // refresh alive independently of respondWith.
+        resolveResponse(fresh);
+        if (cacheCopy) await cache.put('/index.html', cacheCopy).catch(() => undefined);
+      } catch {
+        resolveResponse((await cache.match('/index.html')) || Response.error());
+      }
+    } catch (error) {
+      rejectResponse(error);
+    }
+  })();
+  return { response, lifetime };
 }
 
-async function staticResponse(request) {
-  const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok && response.status === 200) await cache.put(request, response.clone());
-  return response;
+function staticResponse(request) {
+  let resolveResponse;
+  let rejectResponse;
+  const response = new Promise((resolve, reject) => {
+    resolveResponse = resolve;
+    rejectResponse = reject;
+  });
+  const lifetime = (async () => {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(request);
+      if (cached) {
+        resolveResponse(cached);
+        return;
+      }
+      const fresh = await fetch(request);
+      const cacheCopy = fresh.ok && fresh.status === 200 ? fresh.clone() : null;
+      // Release the network response before starting CacheStorage I/O. Cache
+      // persistence remains protected by the event lifetime registered below.
+      resolveResponse(fresh);
+      if (cacheCopy) await cache.put(request, cacheCopy).catch(() => undefined);
+    } catch (error) {
+      rejectResponse(error);
+    }
+  })();
+  return { response, lifetime };
 }
 
 self.addEventListener('fetch', (event) => {
@@ -50,11 +86,15 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
-    event.respondWith(navigationResponse(request));
+    const pending = navigationResponse(request);
+    event.respondWith(pending.response);
+    event.waitUntil(pending.lifetime);
     return;
   }
   if (STATIC_PATH_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
-    event.respondWith(staticResponse(request));
+    const pending = staticResponse(request);
+    event.respondWith(pending.response);
+    event.waitUntil(pending.lifetime);
   }
 });
 `;

@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_cherry_fruiting",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     32,
     64
@@ -99,7 +100,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Cherry_Tree.png",
-  "sourcePath": "references/Cute_Fantasy/Crops/Cherry_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Cherry_Tree.png",
   "sourceRegions": {
     "base": [
       [

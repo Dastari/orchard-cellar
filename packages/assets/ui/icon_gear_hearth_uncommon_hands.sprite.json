@@ -1,0 +1,63 @@
+{
+  "name": "icon_gear_hearth_uncommon_hands",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......0000......",
+        ".....010220.....",
+        "...0010442100...",
+        "..011033422110..",
+        ".01110222322110.",
+        ".01101112242110.",
+        "0110233311221110",
+        ".00211223312210.",
+        ".03132122212100.",
+        "0213213221000110",
+        "0132132321011110",
+        "0321321221011110",
+        "0213213210111110",
+        "0212101101011110",
+        ".0110.0000.0110.",
+        "..00........00.."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#2e1c2c",
+    "1": "#724e63",
+    "2": "#86718c",
+    "3": "#95adb4",
+    "4": "#ffffff"
+  },
+  "sourcePath": "references/art/clockwork-raven/collections/premium/sheets/raven-fantasy-icons-16.png",
+  "importedFrom": "raven-fantasy-icons-16.png",
+  "sourceRegion": [
+    160,
+    6688,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,14 +1,17 @@
+import { bootstrapDefinitionsOfKind } from './content/bootstrap-pack-loader.js';
+import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
 import type { Modifier } from './modifiers.js';
-import { PRESERVED_CROP_ITEM_DEFINITIONS } from './barreling.js';
-import { CROP_HARVEST_ITEM_DEFINITIONS, CROP_SEED_ITEM_DEFINITIONS } from './crops.js';
-import { FOOD_ITEM_DEFINITIONS } from './food.js';
+import type { ContentRegistry } from './content/registry.js';
 import {
   RECIPES,
+  recipeGridStacks,
   recipeDefinition,
   recipeMatches,
   shapedRecipeIndexes,
+  type RecipeDefinition,
   type RecipeId,
 } from './recipes.js';
+import { specializationRankTotal } from './skill-trees.js';
 
 /** Shared chest geometry. Keeping capacity derived from its authored grid
  * prevents the client layout and server authority from drifting apart. */
@@ -22,6 +25,8 @@ export const BASE_BACKPACK_CAPACITY = 8;
  * player-to-player transfer, merchant sale, and world dropping. Objective
  * materials such as wood deliberately do not receive this tag. */
 export const UNIQUE_QUEST_ITEM_TAG = 'item.quest_unique';
+/** Content-owned merchant prohibition used by deeds and future bound items. */
+export const TRADE_UNSELLABLE_ITEM_TAG = 'trade.unsellable';
 
 /** A placeable's interaction UI is a data capability, not a hard-coded item
  * kind. Adding one of these tags to any registered placeable gives it the
@@ -40,6 +45,8 @@ export type PlaceableInterface = keyof typeof PLACEABLE_INTERFACE_TAGS;
  * render the authored inventory-slot treatment for each registered kind. */
 export type ItemQuality = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
+export type ToolSpecialization = 'farming' | 'mining' | 'fishing' | 'woodcutting';
+
 export interface ItemDefinition {
   readonly displayName: string;
   readonly iconKey: string;
@@ -52,111 +59,36 @@ export interface ItemDefinition {
   readonly modifiers?: readonly Modifier[];
 }
 
-function defineItem(
-  kind: string,
-  displayName: string,
-  maxStack: number,
-  tags: readonly string[],
-  modifiers?: readonly Modifier[],
-  icon?: { readonly key: string; readonly animation?: string },
-  quality: ItemQuality = 'common',
-): ItemDefinition {
-  return {
-    displayName,
-    iconKey: icon?.key ?? `icon_cf_${kind}`,
-    ...(icon?.animation ? { iconAnimation: icon.animation } : {}),
-    quality,
-    maxStack,
-    tags,
-    ...(modifiers ? { modifiers } : {}),
-  };
+export const ITEM_DEFINITIONS: Readonly<Record<string, ItemDefinition>> =
+  BOOTSTRAP_COMPILED_CONTENT.itemDefinitions;
+
+export function toolSpecialization(itemKind: string): ToolSpecialization | null {
+  return bootstrapDefinitionsOfKind('item').find(({ id }) => id === `item:${itemKind}`)?.tool?.specialization ?? null;
 }
 
-export const ITEM_DEFINITIONS = {
-  homestead_deed: defineItem('homestead_deed', 'Homestead Deed', 1, ['item.document', 'item.homestead_deed'], undefined, undefined, 'legendary'),
-  marlow_book: defineItem('marlow_book', 'Marlow\'s Book', 1, ['item.document', 'item.quest_reward', UNIQUE_QUEST_ITEM_TAG], undefined, { key: 'icon_cf_marlow_book' }),
-  janes_gardening_book: defineItem('janes_gardening_book', 'Jane\'s Gardening Journal', 1, ['item.document', 'item.quest_reward', UNIQUE_QUEST_ITEM_TAG], undefined, { key: 'icon_cf_marlow_book' }, 'rare'),
-  bob_fast_strawberry_seeds: defineItem('bob_fast_strawberry_seeds', 'Bob\'s Fast Strawberry Seeds', 99, ['item.seed', 'seed.strawberry', 'item.quest', UNIQUE_QUEST_ITEM_TAG], undefined, { key: 'item_cf_strawberry_seeds' }, 'rare'),
-  axe: defineItem('axe', 'Iron Axe', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
-  hoe: defineItem('hoe', 'Iron Hoe', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
-  pickaxe: defineItem('pickaxe', 'Iron Pickaxe', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
-  watering_can: defineItem('watering_can', 'Watering Can', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
-  bow: defineItem('bow', 'Wooden Bow', 1, ['item.weapon', 'item.ranged_weapon', 'gear.hand'], undefined, undefined, 'rare'),
-  sword: defineItem('sword', 'Iron Sword', 1, ['item.weapon', 'item.melee_weapon', 'gear.hand'], undefined, undefined, 'rare'),
-  shovel: defineItem('shovel', 'Iron Shovel', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
-  hammer: defineItem('hammer', 'Iron Hammer', 1, ['item.tool', 'gear.hand'], undefined, undefined, 'uncommon'),
-  torch: defineItem('torch', 'Torch', 16, ['item.tool', 'gear.hand', 'emits.light'], undefined, { key: 'item_cf_torch' }),
-  lantern: defineItem('lantern', 'Lantern', 1, ['item.tool', 'gear.hand', 'emits.light'], undefined, { key: 'item_cf_lantern' }, 'rare'),
-  arrow: defineItem('arrow', 'Arrow', 99, ['item.ammo', 'ammo.arrow'], undefined, { key: 'item_cf_arrow' }),
-  wood: defineItem('wood', 'Wood', 99, ['item.resource', 'material.wood'], undefined, { key: 'item_cf_wood' }),
-  pebble: defineItem('pebble', 'Pebble', 99, ['item.resource', 'material.stone', 'material.raw'], undefined, { key: 'item_cf_pebble' }),
-  stone: defineItem('stone', 'Stone', 99, ['item.resource', 'material.stone'], undefined, { key: 'item_cf_stone' }),
-  fiber: defineItem('fiber', 'Fiber', 99, ['item.resource', 'material.fiber'], undefined, { key: 'item_cf_fiber' }),
-  iron_piece: defineItem('iron_piece', 'Iron Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.iron'], undefined, { key: 'item_cf_iron_piece' }),
-  copper_piece: defineItem('copper_piece', 'Copper Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.copper'], undefined, { key: 'item_cf_copper_piece' }),
-  gold_piece: defineItem('gold_piece', 'Gold Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.gold'], undefined, { key: 'item_cf_gold_piece' }),
-  emerald_piece: defineItem('emerald_piece', 'Emerald Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.emerald'], undefined, { key: 'item_cf_emerald_piece' }),
-  sapphire_piece: defineItem('sapphire_piece', 'Sapphire Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.sapphire'], undefined, { key: 'item_cf_sapphire_piece' }),
-  topaz_piece: defineItem('topaz_piece', 'Topaz Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.topaz'], undefined, { key: 'item_cf_topaz_piece' }),
-  ruby_piece: defineItem('ruby_piece', 'Ruby Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.ruby'], undefined, { key: 'item_cf_ruby_piece' }),
-  amethyst_piece: defineItem('amethyst_piece', 'Amethyst Pieces', 99, ['item.resource', 'material.ore_piece', 'material.raw', 'ore.amethyst'], undefined, { key: 'item_cf_amethyst_piece' }),
-  iron_ore: defineItem('iron_ore', 'Iron Ore Chunk', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.iron'], undefined, { key: 'item_cf_iron_ore' }),
-  copper_ore: defineItem('copper_ore', 'Copper Ore Chunk', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.copper'], undefined, { key: 'item_cf_copper_ore' }),
-  gold_ore: defineItem('gold_ore', 'Gold Ore Chunk', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.gold'], undefined, { key: 'item_cf_gold_ore' }),
-  iron_bar: defineItem('iron_bar', 'Iron Bar', 99, ['item.resource', 'material.metal', 'material.bar', 'metal.iron'], undefined, { key: 'item_cf_iron_bar' }, 'uncommon'),
-  copper_bar: defineItem('copper_bar', 'Copper Bar', 99, ['item.resource', 'material.metal', 'material.bar', 'metal.copper'], undefined, { key: 'item_cf_copper_bar' }, 'uncommon'),
-  gold_bar: defineItem('gold_bar', 'Gold Bar', 99, ['item.resource', 'material.metal', 'material.bar', 'metal.gold'], undefined, { key: 'item_cf_gold_bar' }, 'rare'),
-  emerald_ore: defineItem('emerald_ore', 'Emerald Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.emerald'], undefined, { key: 'item_cf_emerald_ore' }),
-  sapphire_ore: defineItem('sapphire_ore', 'Sapphire Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.sapphire'], undefined, { key: 'item_cf_sapphire_ore' }),
-  topaz_ore: defineItem('topaz_ore', 'Topaz Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.topaz'], undefined, { key: 'item_cf_topaz_ore' }),
-  ruby_ore: defineItem('ruby_ore', 'Ruby Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.ruby'], undefined, { key: 'item_cf_ruby_ore' }),
-  amethyst_ore: defineItem('amethyst_ore', 'Amethyst Ore', 99, ['item.resource', 'material.ore', 'material.raw', 'ore.amethyst'], undefined, { key: 'item_cf_amethyst_ore' }),
-  plank: defineItem('plank', 'Wooden Planks', 99, ['item.resource', 'material.wood', 'item.crafted'], undefined, { key: 'item_cf_plank' }),
-  stick: defineItem('stick', 'Stick', 99, ['item.resource', 'material.wood', 'item.crafted'], undefined, { key: 'item_cf_stick' }),
-  cactus: defineItem('cactus', 'Cactus', 99, ['item.resource', 'material.plant', 'biome.desert'], undefined, { key: 'resource_cf_cactus' }),
-  chest: defineItem('chest', 'Chest', 16, ['item.placeable', 'item.crafted', 'container.chest'], undefined, { key: 'prop_cf_chest', animation: 'chest' }),
-  workbench: defineItem('workbench', 'Workbench', 16, ['item.placeable', 'item.crafted', 'station.workbench'], undefined, { key: 'prop_cf_workbench' }),
-  anvil: defineItem('anvil', 'Anvil', 1, ['item.placeable', 'item.crafted', 'station.anvil'], undefined, { key: 'prop_cf_anvil', animation: 'animate' }),
-  campfire: defineItem('campfire', 'Campfire', 16, ['item.placeable', 'item.crafted', 'station.campfire', 'emits.light'], undefined, { key: 'prop_cf_campfire', animation: 'burn' }),
-  cooking_fire: defineItem('cooking_fire', 'Cooking Fire', 1, ['item.placeable', 'station.campfire', 'container.cooking_fire', PLACEABLE_INTERFACE_TAGS.cooking, 'emits.light'], undefined, { key: 'prop_cf_cooking_fire', animation: 'burn' }),
-  camp_cooking_fire: defineItem('camp_cooking_fire', 'Camp Cooking Fire', 1, ['item.placeable', 'station.campfire', 'container.cooking_fire', PLACEABLE_INTERFACE_TAGS.cooking, 'emits.light'], undefined, { key: 'prop_cf_camp_cooking_fire', animation: 'burn' }),
-  furnace: defineItem('furnace', 'Furnace', 1, ['item.placeable', 'item.crafted', 'station.furnace', 'container.furnace', PLACEABLE_INTERFACE_TAGS.furnace], undefined, { key: 'prop_cf_furnace', animation: 'off' }),
-  fence: defineItem('fence', 'Fence', 99, ['item.placeable', 'item.crafted', 'build.fence'], undefined, { key: 'prop_cf_fence_corner' }),
-  fence_gate: defineItem('fence_gate', 'Fence Gate', 16, ['item.placeable', 'item.crafted', 'build.fence'], undefined, { key: 'prop_cf_fence_gate' }),
-  sign: defineItem('sign', 'Sign', 16, ['item.placeable', 'item.crafted'], undefined, { key: 'prop_cf_sign' }),
-  standing_torch: defineItem('standing_torch', 'Standing Torch', 16, ['item.placeable', 'item.crafted', 'emits.light'], undefined, { key: 'prop_cf_standing_torch', animation: 'burn' }),
-  fruit_press: defineItem('fruit_press', 'Fruit Press', 1, ['item.placeable', 'item.crafted', 'station.press', 'container.press', PLACEABLE_INTERFACE_TAGS.press], undefined, { key: 'prop_basket_press' }, 'uncommon'),
-  fermentation_cask: defineItem('fermentation_cask', 'Fermentation Cask', 1, ['item.placeable', 'item.crafted', 'station.cellar', 'container.fermentation', PLACEABLE_INTERFACE_TAGS.fermentation], undefined, { key: 'prop_oak_barrel' }, 'uncommon'),
-  sprinkler: defineItem('sprinkler', 'Sprinkler', 1, ['item.placeable', 'build.automation', 'build.sprinkler'], undefined, { key: 'prop_cf_sprinkler' }, 'uncommon'),
-  shed: defineItem('shed', 'Estate Shed', 1, ['item.placeable', 'item.crafted', 'build.prefab'], undefined, { key: 'building_cf_shed' }, 'uncommon'),
-  greenhouse: defineItem('greenhouse', 'Greenhouse', 1, ['item.placeable', 'item.crafted', 'build.prefab', 'build.greenhouse'], undefined, { key: 'building_cf_greenhouse' }, 'rare'),
-  barn: defineItem('barn', 'Barn', 1, ['item.placeable', 'item.crafted', 'build.prefab'], undefined, { key: 'building_cf_barn' }, 'rare'),
-  coop: defineItem('coop', 'Coop', 1, ['item.placeable', 'item.crafted', 'build.prefab'], undefined, { key: 'building_cf_coop' }, 'uncommon'),
-  silo: defineItem('silo', 'Silo', 1, ['item.placeable', 'item.crafted', 'build.prefab'], undefined, { key: 'building_cf_silo' }, 'rare'),
-  ...FOOD_ITEM_DEFINITIONS,
-  ...CROP_SEED_ITEM_DEFINITIONS,
-  ...CROP_HARVEST_ITEM_DEFINITIONS,
-  ...PRESERVED_CROP_ITEM_DEFINITIONS,
-  apple: defineItem('apple', 'Apple', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_apple' }),
-  pear: defineItem('pear', 'Pear', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_pear' }),
-  peach: defineItem('peach', 'Peach', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_peach' }),
-  cherry: defineItem('cherry', 'Cherries', 32, ['item.crop', 'item.food', 'crop.fruit'], undefined, { key: 'item_cf_cherry' }),
-  grape: defineItem('grape', 'Grapes', 99, ['item.crop', 'item.food', 'crop.grape', 'crop.fruit'], undefined, { key: 'item_cf_crop_grape' }),
-  must: defineItem('must', 'Fresh Must', 99, ['item.resource', 'item.cellar', 'cellar.must'], undefined, { key: 'icon_resource_must' }, 'uncommon'),
-  pomace: defineItem('pomace', 'Pomace', 99, ['item.resource', 'item.cellar', 'cellar.pomace'], undefined, { key: 'icon_resource_pomace' }),
-  bottles: defineItem('bottles', 'Estate Bottles', 99, ['item.product', 'item.cellar', 'cellar.bottles'], undefined, { key: 'icon_resource_bottles' }, 'rare'),
-  orchard_tea: defineItem('orchard_tea', 'Orchard Tea', 8, ['item.consumable', 'item.food', 'effect.orchard_tea'], undefined, { key: 'icon_cf_effect_orchard_tea' }),
-  barrel: defineItem('barrel', 'Barrel', 16, ['item.placeable', 'item.crafted', 'container.barrel', PLACEABLE_INTERFACE_TAGS.barrel], undefined, { key: 'prop_cf_barrel', animation: 'closed' }),
-  backpack: defineItem('backpack', 'Backpack', 1, ['item.equipment', 'container.backpack'], undefined, { key: 'item_cf_backpack' }, 'uncommon'),
-  necklace: defineItem('necklace', 'Necklace', 1, ['item.equipment', 'gear.neck'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'neck' }, 'epic'),
-  helm: defineItem('helm', 'Helm', 1, ['item.equipment', 'gear.head'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'head' }, 'uncommon'),
-  tunic: defineItem('tunic', 'Tunic', 1, ['item.equipment', 'gear.body'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'body' }, 'uncommon'),
-  ring: defineItem('ring', 'Ring', 1, ['item.equipment', 'gear.ring'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'ring' }, 'epic'),
-  shield: defineItem('shield', 'Shield', 1, ['item.equipment', 'gear.hand', 'gear.off_hand'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'off_hand' }, 'rare'),
-  gloves: defineItem('gloves', 'Gloves', 1, ['item.equipment', 'gear.hands'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'hands' }, 'uncommon'),
-  pants: defineItem('pants', 'Pants', 1, ['item.equipment', 'gear.legs'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'legs' }, 'uncommon'),
-  boots: defineItem('boots', 'Boots', 1, ['item.equipment', 'gear.feet'], undefined, { key: 'ui_cf_equipment_slot_icons', animation: 'feet' }, 'uncommon'),
-} as const satisfies Readonly<Record<string, ItemDefinition>>;
+export const TOOL_QUALITY_REQUIRED_SPECIALIZATION_RANKS: Readonly<Record<ItemQuality, number>> = {
+  common: 0,
+  uncommon: 3,
+  rare: 6,
+  epic: 10,
+  legendary: 15,
+};
+
+export function toolQualityRequiredRanks(itemKind: string): number {
+  const definition = itemDefinition(itemKind);
+  return definition === null || toolSpecialization(itemKind) === null
+    ? 0
+    : TOOL_QUALITY_REQUIRED_SPECIALIZATION_RANKS[definition.quality];
+}
+
+export function canUseToolWithSkillRanks(
+  itemKind: string,
+  ranks: Readonly<Record<string, number>>,
+): boolean {
+  const specialization = toolSpecialization(itemKind);
+  return specialization === null
+    || specializationRankTotal(ranks, specialization) >= toolQualityRequiredRanks(itemKind);
+}
 
 export type KnownItemKind = keyof typeof ITEM_DEFINITIONS;
 
@@ -166,13 +98,9 @@ export interface ItemStack {
   /** Present only for non-stackable durable tools. Storage authorities must
    * preserve it when moving/swapping the stack. */
   readonly durability?: number;
-  /** Power state for switchable light sources. It is item metadata, so storage
-   * authorities must preserve it through moves, drops, and container swaps. */
+  /** Item power state. Storage is deliberately definition-agnostic and must
+   * preserve this metadata through moves, drops, and container swaps. */
   readonly lit?: boolean;
-}
-
-export function isSwitchableLightKind(itemKind: string): boolean {
-  return itemKind === 'lantern';
 }
 
 export function isUniqueQuestItemKind(itemKind: string): boolean {
@@ -180,7 +108,10 @@ export function isUniqueQuestItemKind(itemKind: string): boolean {
 }
 
 export function stackMetadataMatches(left: ItemStack, right: ItemStack): boolean {
-  return left.durability === right.durability && left.lit === right.lit;
+  // Omitted power state has the same true default used by durable storage.
+  // Fresh authored outputs and grants must merge with their persisted form;
+  // explicitly switched-off items and different durability remain distinct.
+  return left.durability === right.durability && (left.lit ?? true) === (right.lit ?? true);
 }
 
 export function itemStacksCompatible(left: ItemStack, right: ItemStack): boolean {
@@ -192,6 +123,56 @@ export interface SlotRestriction {
   readonly requiredTags?: readonly string[];
   /** Output/result cells may be extracted from but never used as a move target. */
   readonly readOnly?: boolean;
+}
+
+/** The content-owned item policy used by storage and mutation authorities. */
+export interface ItemPolicyResolver {
+  readonly maxStackFor: (itemKind: string) => number | null;
+  readonly hasTag: (itemKind: string, tag: string) => boolean;
+  readonly displayNameFor?: (itemKind: string) => string | null;
+}
+
+/** Compatibility name retained for container APIs while callers migrate to
+ * the broader item-policy terminology. */
+export type ItemContainerContentResolver = ItemPolicyResolver;
+
+/** Explicit compatibility resolver for previews and bootstrap-parity tests.
+ * Authoritative runtimes must instead derive one from their active registry. */
+export const BOOTSTRAP_ITEM_CONTAINER_CONTENT: ItemContainerContentResolver = Object.freeze({
+  maxStackFor,
+  hasTag: itemHasTag,
+  displayNameFor: (itemKind: string) => itemDefinition(itemKind)?.displayName ?? null,
+});
+
+/** Safe default for authority boundaries whose caller has not supplied the
+ * active content snapshot. It never treats compiled/bootstrap content as live. */
+export const FAIL_CLOSED_ITEM_POLICY: ItemPolicyResolver = Object.freeze({
+  maxStackFor: () => null,
+  hasTag: () => false,
+  displayNameFor: () => null,
+});
+
+/** Binds inventory rules to one verified content snapshot. Missing definitions
+ * and retired definitions intentionally resolve to null/false so stale or
+ * unknown mutation inputs fail closed. */
+export function itemPolicyResolver(
+  registry: Pick<ContentRegistry, 'items'>,
+): ItemPolicyResolver {
+  const activeDefinition = (itemKind: string) => {
+    const definition = registry.items.get(`item:${itemKind}`);
+    return definition?.retired === true ? undefined : definition;
+  };
+  return Object.freeze({
+    maxStackFor: (itemKind: string) => activeDefinition(itemKind)?.maxStack ?? null,
+    hasTag: (itemKind: string, tag: string) => activeDefinition(itemKind)?.tags.includes(tag) === true,
+    displayNameFor: (itemKind: string) => activeDefinition(itemKind)?.displayName ?? null,
+  });
+}
+
+export function itemContainerContentResolver(
+  registry: Pick<ContentRegistry, 'items'>,
+): ItemContainerContentResolver {
+  return itemPolicyResolver(registry);
 }
 
 export interface ContainerSnapshot {
@@ -334,7 +315,7 @@ export type ConsumeRecipeResult = ItemRuleFailure | ConsumeRecipeSuccess;
 
 export function itemDefinition(itemKind: string): ItemDefinition | null {
   return Object.prototype.hasOwnProperty.call(ITEM_DEFINITIONS, itemKind)
-    ? ITEM_DEFINITIONS[itemKind as KnownItemKind]
+    ? ITEM_DEFINITIONS[itemKind as KnownItemKind] ?? null
     : null;
 }
 
@@ -361,14 +342,17 @@ export function maxStackFor(itemKind: string): number | null {
   return itemDefinition(itemKind)?.maxStack ?? null;
 }
 
-export function slotAcceptsItem(container: ContainerSnapshot, index: number, itemKind: string): boolean {
-  const definition = itemDefinition(itemKind);
-  if (!definition || !Number.isSafeInteger(index) || index < 0 || index >= container.capacity) return false;
+export function slotAcceptsItem(
+  container: ContainerSnapshot, index: number, itemKind: string,
+  content: ItemContainerContentResolver = BOOTSTRAP_ITEM_CONTAINER_CONTENT,
+): boolean {
+  if (content.maxStackFor(itemKind) === null
+    || !Number.isSafeInteger(index) || index < 0 || index >= container.capacity) return false;
   const restriction = container.restrictions?.[index];
   if (restriction?.readOnly === true) return false;
   if (!restriction) return true;
   if (restriction.acceptedKinds && !restriction.acceptedKinds.includes(itemKind)) return false;
-  return (restriction.requiredTags ?? []).every((tag) => definition.tags.includes(tag));
+  return (restriction.requiredTags ?? []).every((tag) => content.hasTag(itemKind, tag));
 }
 
 /**
@@ -415,8 +399,12 @@ export function insertItemStack(container: ContainerSnapshot, item: ItemStack): 
 /** Inserts as much as possible without ever discarding the remainder. This is
  * used by durable overflow recovery, where a partially-drained safety stack
  * must stay recorded until more player inventory space becomes available. */
-export function insertItemStackPartial(container: ContainerSnapshot, item: ItemStack): InsertItemPartialResult {
-  const maxStack = maxStackFor(item.itemKind);
+export function insertItemStackPartial(
+  container: ContainerSnapshot,
+  item: ItemStack,
+  content: ItemContainerContentResolver = BOOTSTRAP_ITEM_CONTAINER_CONTENT,
+): InsertItemPartialResult {
+  const maxStack = content.maxStackFor(item.itemKind);
   if (maxStack === null) return failure('unknown_item_kind');
   if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) return failure('invalid_quantity');
   const normalized = normalizeContainer(container);
@@ -425,14 +413,14 @@ export function insertItemStackPartial(container: ContainerSnapshot, item: ItemS
   for (let index = 0; index < slots.length && remaining > 0; index += 1) {
     const stack = slots[index];
     if (stack?.itemKind !== item.itemKind || !stackMetadataMatches(stack, item)
-      || !slotAcceptsItem(normalized, index, item.itemKind)) continue;
+      || !slotAcceptsItem(normalized, index, item.itemKind, content)) continue;
     const inserted = Math.min(remaining, maxStack - stack.quantity);
     if (inserted <= 0) continue;
     slots[index] = { ...stack, quantity: stack.quantity + inserted };
     remaining -= inserted;
   }
   for (let index = 0; index < slots.length && remaining > 0; index += 1) {
-    if (slots[index] !== null || !slotAcceptsItem(normalized, index, item.itemKind)) continue;
+    if (slots[index] !== null || !slotAcceptsItem(normalized, index, item.itemKind, content)) continue;
     const inserted = Math.min(remaining, maxStack);
     slots[index] = { ...item, quantity: inserted };
     remaining -= inserted;
@@ -447,9 +435,12 @@ export function insertItemStackPartial(container: ContainerSnapshot, item: ItemS
   };
 }
 
-function validStack(stack: ItemStack | null): stack is ItemStack {
+function validStack(
+  stack: ItemStack | null,
+  content: ItemContainerContentResolver = BOOTSTRAP_ITEM_CONTAINER_CONTENT,
+): stack is ItemStack {
   if (!stack) return false;
-  const maxStack = maxStackFor(stack.itemKind);
+  const maxStack = content.maxStackFor(stack.itemKind);
   return maxStack !== null && Number.isSafeInteger(stack.quantity) && stack.quantity > 0 && stack.quantity <= maxStack;
 }
 
@@ -476,21 +467,24 @@ function withSlots(container: ContainerSnapshot, slots: readonly (ItemStack | nu
  * shared rule behind every storage-pane sort button; callers persist the
  * returned snapshot as one authoritative transaction. Item metadata is part
  * of stack identity, so tools and differently powered lanterns never merge. */
-export function sortAndStackContainer(container: ContainerSnapshot): SortContainerResult {
+export function sortAndStackContainer(
+  container: ContainerSnapshot,
+  content: ItemContainerContentResolver,
+): SortContainerResult {
   const normalized = normalizeContainer(container);
   const groups: { exemplar: ItemStack; quantity: number }[] = [];
   for (const stack of normalized.slots) {
     if (stack === null) continue;
-    if (!validStack(stack)) return failure('unknown_item_kind');
+    if (!validStack(stack, content)) return failure('unknown_item_kind');
     const group = groups.find((candidate) => itemStacksCompatible(candidate.exemplar, stack));
     if (group === undefined) groups.push({ exemplar: { ...stack }, quantity: stack.quantity });
     else group.quantity += stack.quantity;
   }
   groups.sort((left, right) => {
-    const leftDefinition = itemDefinition(left.exemplar.itemKind)!;
-    const rightDefinition = itemDefinition(right.exemplar.itemKind)!;
-    if (leftDefinition.displayName !== rightDefinition.displayName) {
-      return leftDefinition.displayName < rightDefinition.displayName ? -1 : 1;
+    const leftName = content.displayNameFor?.(left.exemplar.itemKind) ?? left.exemplar.itemKind;
+    const rightName = content.displayNameFor?.(right.exemplar.itemKind) ?? right.exemplar.itemKind;
+    if (leftName !== rightName) {
+      return leftName < rightName ? -1 : 1;
     }
     if (left.exemplar.itemKind !== right.exemplar.itemKind) {
       return left.exemplar.itemKind < right.exemplar.itemKind ? -1 : 1;
@@ -503,7 +497,7 @@ export function sortAndStackContainer(container: ContainerSnapshot): SortContain
 
   const stacks: ItemStack[] = [];
   for (const group of groups) {
-    const maximum = maxStackFor(group.exemplar.itemKind)!;
+    const maximum = content.maxStackFor(group.exemplar.itemKind)!;
     let remaining = group.quantity;
     while (remaining > 0) {
       const quantity = Math.min(maximum, remaining);
@@ -515,7 +509,7 @@ export function sortAndStackContainer(container: ContainerSnapshot): SortContain
   const slots = Array.from({ length: normalized.capacity }, () => null as ItemStack | null);
   for (const stack of stacks) {
     const destination = slots.findIndex((candidate, index) => (
-      candidate === null && slotAcceptsItem(normalized, index, stack.itemKind)
+      candidate === null && slotAcceptsItem(normalized, index, stack.itemKind, content)
     ));
     if (destination < 0) return failure('slot_rejects_item');
     slots[destination] = stack;
@@ -526,6 +520,7 @@ export function sortAndStackContainer(container: ContainerSnapshot): SortContain
 export function moveItemStacks(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   request: MoveItemRequest,
+  content: ItemContainerContentResolver,
 ): MoveItemResult {
   const from = containers[request.fromContainer];
   const to = containers[request.toContainer];
@@ -538,11 +533,11 @@ export function moveItemStacks(
 
   const source = from.slots[request.fromIndex] ?? null;
   if (!source) return failure('source_empty');
-  if (!validStack(source)) return failure('unknown_item_kind');
+  if (!validStack(source, content)) return failure('unknown_item_kind');
   if (request.quantity > source.quantity) return failure('source_quantity_changed');
-  if (!slotAcceptsItem(to, request.toIndex, source.itemKind)) return failure('slot_rejects_item');
+  if (!slotAcceptsItem(to, request.toIndex, source.itemKind, content)) return failure('slot_rejects_item');
   const target = to.slots[request.toIndex] ?? null;
-  if (target && !validStack(target)) return failure('unknown_item_kind');
+  if (target && !validStack(target, content)) return failure('unknown_item_kind');
 
   const next = cloneContainers(containers);
   const sameContainer = request.fromContainer === request.toContainer;
@@ -557,7 +552,7 @@ export function moveItemStacks(
     toSlots[request.toIndex] = { ...source, quantity: request.quantity };
     outcome = sourceRemainder ? 'split' : 'move';
   } else if (target.itemKind === source.itemKind && stackMetadataMatches(target, source)) {
-    const maxStack = maxStackFor(source.itemKind)!;
+    const maxStack = content.maxStackFor(source.itemKind)!;
     movedQuantity = Math.min(request.quantity, maxStack - target.quantity);
     if (movedQuantity <= 0) return failure('target_stack_full');
     fromSlots[request.fromIndex] = source.quantity === movedQuantity ? null : { ...source, quantity: source.quantity - movedQuantity };
@@ -565,7 +560,7 @@ export function moveItemStacks(
     outcome = 'merge';
   } else {
     if (request.quantity !== source.quantity) return failure('partial_swap_forbidden');
-    if (!slotAcceptsItem(from, request.fromIndex, target.itemKind)) return failure('slot_rejects_item');
+    if (!slotAcceptsItem(from, request.fromIndex, target.itemKind, content)) return failure('slot_rejects_item');
     fromSlots[request.fromIndex] = target;
     toSlots[request.toIndex] = source;
     outcome = 'swap';
@@ -576,12 +571,74 @@ export function moveItemStacks(
   return { ok: true, outcome, movedQuantity, containers: next };
 }
 
+/** Atomically fills every available ingredient for a recipe from carried
+ * storage. Missing ingredients deliberately leave empty cells for the client
+ * ghost preview; incompatible crafting cells reject the whole operation so a
+ * recipe-book shortcut can never overwrite or displace player items. */
+export function fillCraftingRecipeFromInventory(
+  containers: Readonly<Record<string, ContainerSnapshot>>,
+  recipeId: string,
+  content: ItemContainerContentResolver,
+  recipe: RecipeDefinition | null = recipeDefinition(recipeId),
+): MoveItemResult {
+  const crafting = containers.crafting;
+  if (recipe === null) return failure('recipe_not_found');
+  if (crafting === undefined) return failure('container_not_found');
+  const desired = recipeGridStacks(recipe, crafting.capacity, kind => content.maxStackFor(kind));
+  if (desired === null) return failure('recipe_not_found');
+
+  for (let index = 0; index < desired.length; index += 1) {
+    const current = crafting.slots[index] ?? null;
+    const expected = desired[index];
+    if (current !== null && (expected === null || current.itemKind !== expected?.itemKind || current.quantity <= 0)) {
+      return failure('recipe_inputs_missing');
+    }
+  }
+
+  let next: Readonly<Record<string, ContainerSnapshot>> = containers;
+  let movedQuantity = 0;
+  for (let targetIndex = 0; targetIndex < desired.length; targetIndex += 1) {
+    const target = desired[targetIndex];
+    if (!target) continue;
+    const itemKind = target.itemKind;
+    let needed = target.quantity - (next.crafting?.slots[targetIndex]?.quantity ?? 0);
+    while (needed > 0) {
+      let source: { readonly container: 'hotbar' | 'backpack'; readonly index: number } | null = null;
+      for (const container of ['hotbar', 'backpack'] as const) {
+        const targetStack = next.crafting?.slots[targetIndex];
+        const index = next[container]?.slots.findIndex((stack) => (
+          stack !== null && stack.itemKind === itemKind && stack.quantity > 0
+          && (!targetStack || itemStacksCompatible(targetStack, stack))
+        )) ?? -1;
+        if (index >= 0) {
+          source = { container, index };
+          break;
+        }
+      }
+      if (source === null) break;
+      const moved = moveItemStacks(next, {
+        fromContainer: source.container,
+        fromIndex: source.index,
+        toContainer: 'crafting',
+        toIndex: targetIndex,
+        quantity: Math.min(needed, next[source.container]!.slots[source.index]!.quantity),
+      }, content);
+      if (!moved.ok) return moved;
+      next = moved.containers;
+      movedQuantity += moved.movedQuantity;
+      needed -= moved.movedQuantity;
+    }
+  }
+  return { ok: true, outcome: 'distribute', movedQuantity, containers: next };
+}
+
 /** Minecraft PICKUP authority. The cursor is a real stack, separate from every
  * container slot; mouse-up never implicitly returns it to its source. */
 export function clickContainerSlot(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   cursor: ItemStack | null,
   request: CursorSlotRequest,
+  content: ItemContainerContentResolver,
 ): CursorInteractionResult {
   const container = containers[request.container];
   if (!container) return failure('container_not_found');
@@ -590,8 +647,8 @@ export function clickContainerSlot(
   }
   const normalized = normalizeContainer(container);
   const slot = normalized.slots[request.index] ?? null;
-  if (slot !== null && !validStack(slot)) return failure('unknown_item_kind');
-  if (cursor !== null && !validStack(cursor)) return failure('unknown_item_kind');
+  if (slot !== null && !validStack(slot, content)) return failure('unknown_item_kind');
+  if (cursor !== null && !validStack(cursor, content)) return failure('unknown_item_kind');
   if (cursor === null && slot === null) return failure('source_empty');
 
   const next = cloneContainers(containers);
@@ -608,8 +665,8 @@ export function clickContainerSlot(
   }
 
   if (slot === null) {
-    if (!slotAcceptsItem(normalized, request.index, cursor.itemKind)) return failure('slot_rejects_item');
-    const capacity = maxStackFor(cursor.itemKind)!;
+    if (!slotAcceptsItem(normalized, request.index, cursor.itemKind, content)) return failure('slot_rejects_item');
+    const capacity = content.maxStackFor(cursor.itemKind)!;
     const placed = request.button === 'right' ? 1 : Math.min(cursor.quantity, capacity);
     slots[request.index] = { ...cursor, quantity: placed };
     next[request.container] = withSlots(next[request.container]!, slots);
@@ -621,8 +678,8 @@ export function clickContainerSlot(
   }
 
   if (itemStacksCompatible(slot, cursor)) {
-    if (!slotAcceptsItem(normalized, request.index, cursor.itemKind)) return failure('slot_rejects_item');
-    const free = maxStackFor(cursor.itemKind)! - slot.quantity;
+    if (!slotAcceptsItem(normalized, request.index, cursor.itemKind, content)) return failure('slot_rejects_item');
+    const free = content.maxStackFor(cursor.itemKind)! - slot.quantity;
     const moved = Math.min(cursor.quantity, request.button === 'right' ? Math.min(1, free) : free);
     if (moved <= 0) return failure('target_stack_full');
     slots[request.index] = { ...slot, quantity: slot.quantity + moved };
@@ -635,7 +692,7 @@ export function clickContainerSlot(
   }
 
   // Both mouse buttons swap incompatible stacks in vanilla PICKUP handling.
-  if (!slotAcceptsItem(normalized, request.index, cursor.itemKind)) return failure('slot_rejects_item');
+  if (!slotAcceptsItem(normalized, request.index, cursor.itemKind, content)) return failure('slot_rejects_item');
   slots[request.index] = cursor;
   next[request.container] = withSlots(next[request.container]!, slots);
   return { ok: true, outcome: 'swap', movedQuantity: cursor.quantity, cursor: slot, containers: next };
@@ -648,9 +705,10 @@ export function quickCraftCursorStack(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   cursor: ItemStack | null,
   request: CursorQuickCraftRequest,
+  content: ItemContainerContentResolver,
 ): CursorInteractionResult {
   if (cursor === null) return failure('source_empty');
-  if (!validStack(cursor)) return failure('unknown_item_kind');
+  if (!validStack(cursor, content)) return failure('unknown_item_kind');
   const seen = new Set<string>();
   const targets = request.targets.flatMap((target) => {
     const key = `${target.container}:${target.index}`;
@@ -659,10 +717,10 @@ export function quickCraftCursorStack(
     const container = containers[target.container];
     if (!container) return [];
     if (!Number.isSafeInteger(target.index) || target.index < 0 || target.index >= container.capacity) return [];
-    if (!slotAcceptsItem(container, target.index, cursor.itemKind)) return [];
+    if (!slotAcceptsItem(container, target.index, cursor.itemKind, content)) return [];
     const stack = container.slots[target.index] ?? null;
-    if (stack !== null && (!validStack(stack) || !itemStacksCompatible(stack, cursor))) return [];
-    const available = maxStackFor(cursor.itemKind)! - (stack?.quantity ?? 0);
+    if (stack !== null && (!validStack(stack, content) || !itemStacksCompatible(stack, cursor))) return [];
+    const available = content.maxStackFor(cursor.itemKind)! - (stack?.quantity ?? 0);
     return available > 0 ? [{ ...target, available }] : [];
   });
   if (targets.length === 0) return failure('container_full');
@@ -698,10 +756,11 @@ export function pickupAllToCursor(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   cursor: ItemStack | null,
   containerOrder: readonly string[],
+  content: ItemContainerContentResolver,
 ): CursorInteractionResult {
   if (cursor === null) return failure('source_empty');
-  if (!validStack(cursor)) return failure('unknown_item_kind');
-  const maximum = maxStackFor(cursor.itemKind)!;
+  if (!validStack(cursor, content)) return failure('unknown_item_kind');
+  const maximum = content.maxStackFor(cursor.itemKind)!;
   let needed = maximum - cursor.quantity;
   if (needed <= 0) return failure('target_stack_full');
   const next = cloneContainers(containers);
@@ -712,7 +771,7 @@ export function pickupAllToCursor(
     const slots = [...container.slots];
     for (let index = 0; index < container.capacity && needed > 0; index += 1) {
       const stack = slots[index];
-      if (stack == null || !validStack(stack) || !itemStacksCompatible(stack, cursor)) continue;
+      if (stack == null || !validStack(stack, content) || !itemStacksCompatible(stack, cursor)) continue;
       const moved = Math.min(stack.quantity, needed);
       slots[index] = stack.quantity === moved ? null : { ...stack, quantity: stack.quantity - moved };
       movedQuantity += moved;
@@ -737,6 +796,7 @@ function uniqueContainerIds(ids: readonly string[]): string[] {
 export function quickMoveItemStack(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   request: QuickMoveItemRequest,
+  content: ItemContainerContentResolver,
 ): MoveItemResult {
   const sourceContainer = containers[request.fromContainer];
   if (!sourceContainer) return failure('container_not_found');
@@ -745,22 +805,24 @@ export function quickMoveItemStack(
   }
   const source = sourceContainer.slots[request.fromIndex] ?? null;
   if (!source) return failure('source_empty');
-  if (!validStack(source)) return failure('unknown_item_kind');
+  if (!validStack(source, content)) return failure('unknown_item_kind');
   const destinationIds = uniqueContainerIds(request.toContainers).filter((id) => id !== request.fromContainer);
   if (destinationIds.some((id) => containers[id] === undefined)) return failure('container_not_found');
 
   const next = cloneContainers(containers);
   let remaining = source.quantity;
-  const maximum = maxStackFor(source.itemKind)!;
+  const maximum = content.maxStackFor(source.itemKind)!;
   const passes = ['merge', 'empty'] as const;
   for (const pass of passes) for (const id of destinationIds) {
     const destination = next[id]!;
     const slots = [...destination.slots];
     for (let index = 0; index < destination.capacity && remaining > 0; index += 1) {
-      if (!slotAcceptsItem(destination, index, source.itemKind)) continue;
+      if (!slotAcceptsItem(destination, index, source.itemKind, content)) continue;
       const stack = slots[index];
       if (pass === 'merge' && stack?.itemKind === source.itemKind && stackMetadataMatches(stack, source)) {
-        const moved = Math.min(remaining, maximum - stack.quantity);
+        // A persisted stack may exceed a newly authored cap. Preserve it and
+        // treat it as full; negative headroom must never increase the source.
+        const moved = Math.min(remaining, Math.max(0, maximum - stack.quantity));
         if (moved > 0) slots[index] = { ...stack, quantity: stack.quantity + moved };
         remaining -= moved;
       } else if (pass === 'empty' && stack === null) {
@@ -785,8 +847,9 @@ export function quickMoveItemStack(
 export function quickMoveAllMatchingStacks(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   request: QuickMoveAllMatchingRequest,
+  content: ItemContainerContentResolver,
 ): MoveItemResult {
-  if (maxStackFor(request.itemKind) === null) return failure('unknown_item_kind');
+  if (content.maxStackFor(request.itemKind) === null) return failure('unknown_item_kind');
   const sourceIds = uniqueContainerIds(request.fromContainers);
   if ([...sourceIds, ...request.toContainers].some((id) => containers[id] === undefined)) {
     return failure('container_not_found');
@@ -802,7 +865,7 @@ export function quickMoveAllMatchingStacks(
         fromContainer: sourceId,
         fromIndex: index,
         toContainers: request.toContainers,
-      });
+      }, content);
       if (!moved.ok) {
         if (moved.code === 'container_full') return movedQuantity === 0
           ? moved
@@ -823,6 +886,7 @@ export function quickMoveAllMatchingStacks(
 export function distributeItemStack(
   containers: Readonly<Record<string, ContainerSnapshot>>,
   request: DistributeItemRequest,
+  content: ItemContainerContentResolver,
 ): MoveItemResult {
   const sourceContainer = containers[request.fromContainer];
   if (!sourceContainer) return failure('container_not_found');
@@ -831,7 +895,7 @@ export function distributeItemStack(
   }
   const source = sourceContainer.slots[request.fromIndex] ?? null;
   if (!source) return failure('source_empty');
-  if (!validStack(source)) return failure('unknown_item_kind');
+  if (!validStack(source, content)) return failure('unknown_item_kind');
   const requestedQuantity = request.quantity ?? source.quantity;
   if (!Number.isSafeInteger(requestedQuantity) || requestedQuantity <= 0 || requestedQuantity > source.quantity) {
     return failure('invalid_quantity');
@@ -848,10 +912,10 @@ export function distributeItemStack(
     const container = containers[target.container];
     if (!container) return [];
     if (!Number.isSafeInteger(target.index) || target.index < 0 || target.index >= container.capacity) return [];
-    if (!slotAcceptsItem(container, target.index, source.itemKind)) return [];
+    if (!slotAcceptsItem(container, target.index, source.itemKind, content)) return [];
     const stack = container.slots[target.index] ?? null;
     if (stack !== null && stack.itemKind !== source.itemKind) return [];
-    return [{ ...target, available: (maxStackFor(source.itemKind) ?? 0) - (stack?.quantity ?? 0) }];
+    return [{ ...target, available: (content.maxStackFor(source.itemKind) ?? 0) - (stack?.quantity ?? 0) }];
   }).filter((target) => target.available > 0);
   if (capacities.length === 0) return failure('container_full');
   const movedQuantity = Math.min(requestedQuantity, capacities.reduce((sum, target) => sum + target.available, 0));
@@ -918,6 +982,15 @@ export function consumeCraftingRecipe(
 ): ConsumeRecipeResult {
   const recipe = recipeDefinition(recipeId);
   if (!recipe) return failure('recipe_not_found');
+  return consumeCraftingRecipeDefinition(grid, recipe, resultIndex);
+}
+
+/** Content-registry entry point which consumes an already resolved recipe. */
+export function consumeCraftingRecipeDefinition(
+  grid: ContainerSnapshot,
+  recipe: RecipeDefinition,
+  resultIndex = grid.capacity,
+): ConsumeRecipeResult {
   const normalized = normalizeContainer(grid);
   if (!recipeMatches(recipe, inputSlots(normalized, resultIndex))) return failure('recipe_inputs_missing');
   const slots = [...normalized.slots];

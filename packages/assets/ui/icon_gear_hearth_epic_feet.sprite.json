@@ -1,0 +1,63 @@
+{
+  "name": "icon_gear_hearth_epic_feet",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......111111....",
+        ".....13333331...",
+        "....13333111111.",
+        "....133310422021",
+        "....133124333301",
+        ".....13120111141",
+        "...1133103042221",
+        "..1333311233331.",
+        ".13333112322221.",
+        "133331200033021.",
+        "133313222002221.",
+        ".13133322220331.",
+        "..113333222331..",
+        "...1133333331...",
+        ".....1333311....",
+        "......1111......"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#009ce9",
+    "1": "#2e1c2c",
+    "2": "#3e65b8",
+    "3": "#464979",
+    "4": "#65d4ff"
+  },
+  "sourcePath": "references/art/clockwork-raven/collections/premium/sheets/raven-fantasy-icons-16.png",
+  "importedFrom": "raven-fantasy-icons-16.png",
+  "sourceRegion": [
+    112,
+    6720,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

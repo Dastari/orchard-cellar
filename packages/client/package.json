@@ -1,16 +1,21 @@
 {
   "name": "@orchard/client",
-  "version": "0.2.3",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "editor:dev": "vite --host 0.0.0.0 --port 5174",
     "build": "vite build",
+    "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@orchard/lifecycle-authoring": "*",
+    "@orchard/auth": "*",
+    "@orchard/engine": "*",
     "@orchard/sim": "*",
+    "@orchard/ui": "*",
+    "@orchard/world-bindings": "*",
     "spacetimedb": "2.8.2"
   },
   "devDependencies": {

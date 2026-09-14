@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_desert_trader_02",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -242,7 +243,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Desert_Trader_2.png",
-  "sourcePath": "references/Cute_Fantasy_Desert/NPC/Traders/Desert_Trader_2.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/NPC/Traders/Desert_Trader_2.png",
   "sourceRegions": {
     "idle": [
       [

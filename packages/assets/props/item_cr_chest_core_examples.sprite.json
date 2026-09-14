@@ -1,0 +1,152 @@
+{
+  "name": "item_cr_chest_core_examples",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "ivory_tunic": [
+      [
+        "................",
+        "................",
+        "................",
+        "..ohooo77ooooh..",
+        ".hxotto77hxtxxh.",
+        "otxotxwhhsxtxxoh",
+        "otxotxxwsxxtxxoh",
+        "otxhtxshhsxthxoh",
+        "ooh.oxxxxxxt.ooh",
+        ".hh.oxxxxxxo.hh.",
+        "....oxxxxxxo....",
+        "....oxxxxxxo....",
+        "....oooooooo....",
+        "....hhhhhhhh....",
+        "................",
+        "................"
+      ]
+    ],
+    "steel_coat": [
+      [
+        "................",
+        ".....r2222v.....",
+        "....vnv22vnv....",
+        "..vvnrnrrnnnvv..",
+        ".vnnj8ddddj8nnv.",
+        "a88aj8nungj8a88a",
+        "ajjaj8jmc8j8ajja",
+        "a88aj8nungj8a88a",
+        "ajjaj8jmc8j8ajja",
+        "a88aj8nungj8a88a",
+        ".aaaj8jmc8j8aaa.",
+        "....imcqncc9....",
+        "....aaaaamaa....",
+        "...aj8jmc8m8a...",
+        "...aj8jmc8j8a...",
+        "...aaaa..aaaa..."
+      ]
+    ],
+    "black_plate": [
+      [
+        "................",
+        ".335........e33.",
+        "3kbp5......epkb3",
+        "3f6l5300003elf63",
+        ".333kf3333kf133.",
+        "...3bb6bb6bb1...",
+        "...3441441441...",
+        "...3kf6kf6kf1...",
+        "...3bb6bb6bb1...",
+        "...3441441441...",
+        "..3k3f6kf6f161..",
+        ".3fb6331111kbf1.",
+        "36bf1bkkfbb3fb61",
+        ".361.366611.361.",
+        "..1..3kkfb1..3..",
+        "......1111......"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "ivory_tunic": "state",
+    "steel_coat": "state",
+    "black_plate": "state"
+  },
+  "sourcePalette": {
+    "0": "#030305",
+    "1": "#08090b",
+    "2": "#090b0c",
+    "3": "#0a0c0e",
+    "4": "#0d1013",
+    "5": "#0e1013",
+    "6": "#121518",
+    "7": "#14110d",
+    "8": "#142024",
+    "9": "#15110b",
+    "a": "#161a1c",
+    "b": "#1d2227",
+    "c": "#1f1812",
+    "d": "#202c2e",
+    "e": "#212329",
+    "f": "#252a30",
+    "g": "#2d3a3b",
+    "h": "#2e281f",
+    "i": "#33291d",
+    "j": "#374f56",
+    "k": "#384047",
+    "l": "#3e414b",
+    "m": "#3f3326",
+    "n": "#5c7b7e",
+    "o": "#726047",
+    "p": "#797f8d",
+    "q": "#83989a",
+    "r": "#8fa8ab",
+    "s": "#bbc7c7",
+    "t": "#c3ac80",
+    "u": "#c6cacb",
+    "v": "#c7d3d5",
+    "w": "#dae4e4",
+    "x": "#e7ddca"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "accessories-armour-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/accessories-armour-free/sheets/accessories-armour-16.png",
+  "sourceRegions": {
+    "ivory_tunic": [
+      [
+        0,
+        48,
+        16,
+        16
+      ]
+    ],
+    "steel_coat": [
+      [
+        80,
+        48,
+        16,
+        16
+      ]
+    ],
+    "black_plate": [
+      [
+        80,
+        64,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.armour",
+    "source.clockwork_raven",
+    "studio.raven_examples",
+    "item.breastplate",
+    "slot.body"
+  ]
+}

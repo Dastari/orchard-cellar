@@ -1,0 +1,68 @@
+{
+  "name": "icon_skill_herd_keeper",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".....000000.....",
+        "....03333330....",
+        "..003577775300..",
+        ".07557777775570.",
+        "0752557777552570",
+        "0522555555552250",
+        ".00555555555500.",
+        "..051157751150..",
+        ".03335777753330.",
+        ".03338888883330.",
+        "..055848848550..",
+        "...0566666650...",
+        "....05555550....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#28252f",
+    "1": "#2e222f",
+    "2": "#4a2a35",
+    "3": "#5e332d",
+    "4": "#7a3045",
+    "5": "#925549",
+    "6": "#cd683d",
+    "7": "#ce9678",
+    "8": "#e6904e"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/pets-animals/sheet-16.png",
+  "sourceRegion": [
+    32,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.herd_keeper",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,7 +1,7 @@
 import {
   TILE_SIZE_FIXED, createSurvivalCollisionMap, movePlayer, type Direction, type PlayerState,
 } from '../packages/sim/src/index.js';
-import { DbConnection, tables } from '../packages/client/src/net/generated/index.js';
+import { DbConnection, tables } from '@orchard/world-bindings';
 import type { Identity } from 'spacetimedb';
 
 const HOST = process.env['SPACETIMEDB_HOST'] ?? 'http://127.0.0.1:3000';

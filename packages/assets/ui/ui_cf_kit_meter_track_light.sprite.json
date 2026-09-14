@@ -1,0 +1,62 @@
+{
+  "name": "ui_cf_kit_meter_track_light",
+  "category": "ui",
+  "size": [
+    16,
+    8
+  ],
+  "anchor": [
+    8,
+    7
+  ],
+  "frames": {
+    "idle": [
+      [
+        "................",
+        "..000000000000..",
+        ".01111111111110.",
+        ".01000000000010.",
+        ".01111111111110.",
+        ".02222222222220.",
+        "..000000000000..",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#181425",
+    "1": "#ffffff",
+    "2": "#c0cbdc"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/ui/UI/UI_Bars.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Bars.png",
+  "sourceRegions": {
+    "idle": [
+      [
+        80,
+        80,
+        16,
+        8
+      ]
+    ]
+  },
+  "frameKinds": {
+    "idle": "state"
+  },
+  "uiSizing": "nine_slice",
+  "slice": [
+    3,
+    3,
+    3,
+    3
+  ],
+  "tags": [
+    "ui.kit"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

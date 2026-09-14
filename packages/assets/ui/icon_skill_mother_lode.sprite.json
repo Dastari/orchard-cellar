@@ -1,0 +1,64 @@
+{
+  "name": "icon_skill_mother_lode",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......0000......",
+        ".....044220.....",
+        ".....043310000..",
+        "...000221104430.",
+        "..0343000003220.",
+        "..0432044302110.",
+        "..0220422230420.",
+        "..0110432230210.",
+        "..0420343320320.",
+        "..0110232210110.",
+        "..0210321130210.",
+        "...00013431000..",
+        ".....0211120....",
+        ".....0133210....",
+        "......02210.....",
+        ".......000......"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#2e222f",
+    "1": "#9e4539",
+    "2": "#f79617",
+    "3": "#f9c22b",
+    "4": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/treasure-currency-gems-loot/sheet-16.png",
+  "sourceRegion": [
+    112,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.mother_lode",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

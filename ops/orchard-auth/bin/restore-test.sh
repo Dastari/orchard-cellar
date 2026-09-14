@@ -13,6 +13,16 @@ set -a
 source ./.env
 set +a
 
+expect_studio_client=${AUTH_RESTORE_EXPECT_STUDIO_CLIENT:-true}
+case "$expect_studio_client" in
+  true) expected_studio_count=1 ;;
+  false) expected_studio_count=0 ;;
+  *)
+    echo 'AUTH_RESTORE_EXPECT_STUDIO_CLIENT must be true or false.' >&2
+    exit 64
+    ;;
+esac
+
 dump_file=$(realpath "$1")
 suffix="${$}-$(date -u +%H%M%S)"
 network="orchard-auth-restore-$suffix"
@@ -47,9 +57,13 @@ docker exec -i "$postgres_container" pg_restore --username "$POSTGRES_USER" --db
 
 realm_count=$(docker exec "$postgres_container" psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   --tuples-only --no-align --command "SELECT count(*) FROM realm WHERE name = 'orchard'")
-client_count=$(docker exec "$postgres_container" psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
-  --tuples-only --no-align --command "SELECT count(*) FROM client WHERE client_id = 'orchard-web'")
-[[ "$realm_count" == 1 && "$client_count" == 1 ]]
+web_client_count=$(docker exec "$postgres_container" psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+  --tuples-only --no-align \
+  --command "SELECT count(*) FROM client JOIN realm ON client.realm_id = realm.id WHERE realm.name = 'orchard' AND client.client_id = 'orchard-web'")
+studio_client_count=$(docker exec "$postgres_container" psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+  --tuples-only --no-align \
+  --command "SELECT count(*) FROM client JOIN realm ON client.realm_id = realm.id WHERE realm.name = 'orchard' AND client.client_id = 'orchard-studio'")
+[[ "$realm_count" == 1 && "$web_client_count" == 1 && "$studio_client_count" == "$expected_studio_count" ]]
 
 docker run --detach --name "$keycloak_container" --network "$network" \
   --publish "127.0.0.1:$test_port:8443" \
@@ -81,4 +95,4 @@ let s=""; process.stdin.on("data", d => s += d).on("end", () => {
   if (discovery.issuer !== "https://auth.orchard.dastari.net/realms/orchard") throw new Error("issuer_mismatch");
   if (!discovery.jwks_uri) throw new Error("jwks_missing");
 });'
-echo 'Isolated PostgreSQL restore, realm/client rows, Keycloak health, and discovery passed.'
+echo "Isolated PostgreSQL restore, realm/client rows (orchard-studio expected: $expect_studio_client), Keycloak health, and discovery passed."

@@ -30,8 +30,8 @@ describe('shared player inventory layout', () => {
 
   it('derives every global slot boundary from hotbar capacity', () => {
     expect(BACKPACK_SLOT_OFFSET).toBe(HOTBAR_SLOT_COUNT);
-    expect(CRAFTING_SLOT_OFFSET).toBe(39);
-    expect(INVENTORY_SLOT_COUNT).toBe(48);
+    expect(CRAFTING_SLOT_OFFSET).toBe(40);
+    expect(INVENTORY_SLOT_COUNT).toBe(49);
     expect(inventoryContainerSlotOffset('backpack')).toBe(BACKPACK_SLOT_OFFSET);
     expect(inventoryContainerSlotOffset('crafting')).toBe(CRAFTING_SLOT_OFFSET);
     expect(inventoryContainerSlotCount('hotbar')).toBe(HOTBAR_SLOT_COUNT);

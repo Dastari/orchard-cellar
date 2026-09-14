@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_animal_friend",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "..0..........0..",
+        ".030........030.",
+        ".02300000000320.",
+        ".05211233211250.",
+        ".05512344321550.",
+        ".05122233222150.",
+        ".02002422420020.",
+        ".02360422406320.",
+        "0325226336225230",
+        "0126665335666210",
+        ".00455244255400.",
+        "..004552255400..",
+        "...0344334430...",
+        "....03444430....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#28252f",
+    "1": "#3c213e",
+    "2": "#533c5b",
+    "3": "#7f708a",
+    "4": "#9babb2",
+    "5": "#c7dcd0",
+    "6": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/pets-animals/sheet-16.png",
+  "sourceRegion": [
+    64,
+    16,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.animal_friend",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

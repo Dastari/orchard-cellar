@@ -1,5 +1,6 @@
 {
   "name": "prop_cf_workbench",
+  "bakedShadowColor": "#00000064",
   "category": "props",
   "size": [
     32,
@@ -77,7 +78,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Tables.png",
-  "sourcePath": "references/Cute_Fantasy/Buildings/House_Decor/Tables.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Tables.png",
   "sourceRegions": {
     "base": [
       [

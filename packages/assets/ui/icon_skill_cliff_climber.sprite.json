@@ -1,0 +1,62 @@
+{
+  "name": "icon_skill_cliff_climber",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "........01......",
+        ".......0..0.....",
+        ".......1..0.....",
+        ".......1002.....",
+        "........02......",
+        "........12......",
+        "........202.....",
+        ".....0...202....",
+        ".....1....12....",
+        ".....02...12....",
+        "......01102.....",
+        ".......222......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#8b9bb4",
+    "1": "#5a6988",
+    "2": "#3a4466"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+  "sourceRegion": [
+    0,
+    128,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.cliff_climber",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

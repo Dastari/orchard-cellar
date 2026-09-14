@@ -1,0 +1,220 @@
+import {
+  resolveObjectLight,
+  resolveObjectCollision,
+  runtimePlaceableBlocksMovement,
+  placeableObjectDefinition,
+  hearthFurnitureShapeForPlaceable, hearthFurniturePersistentId, HEARTH_FURNITURE_SUPPORT_STATE_KEY,
+  HEARTH_FURNITURE_REVISION_STATE_KEY,
+  type ObjectContentDefinition,
+  type ObjectStateDefinition,
+  type ResolvedObjectLight,
+  type StateValue,
+} from '@orchard/sim';
+import { loadGeneratedAsset, type LoadedAsset } from '@orchard/ui';
+import type { LiveContentState } from './live-content.js';
+
+export interface ObjectPresentationRow {
+  readonly id: bigint;
+  readonly kind: string;
+  readonly open: boolean;
+  readonly lit: boolean;
+  /** These optional fields keep the client compatible with bindings generated
+   * before the additive world_placeable migration is published. */
+  readonly definitionId?: string;
+  readonly stateJson?: string;
+}
+
+export interface AuthoredObjectSprite {
+  readonly assetName: string;
+  readonly asset: LoadedAsset | null;
+  readonly animation: string;
+  readonly scale: number;
+}
+
+export interface ObjectPresentation {
+  readonly definitionId: string;
+  readonly authored: boolean;
+  readonly stateJsonValid: boolean;
+  readonly state: Readonly<Record<string, StateValue>>;
+  readonly sprite: AuthoredObjectSprite | null;
+  readonly light: ResolvedObjectLight | null;
+  readonly collision: {
+    readonly blocksMovement: boolean;
+    readonly occludesLight: boolean;
+  } | null;
+}
+
+type AssetLoader = (name: string, season?: string) => Promise<LoadedAsset>;
+
+/** Visual fallback for authored flames without a content light component.
+ * Follows the displayed state; an extinguished frame has no emissive spans. */
+export function emissiveSpriteLight(asset: LoadedAsset | null, animation: string, scale = 1): ResolvedObjectLight | null {
+  const spans = asset?.emissiveFrames?.[animation]?.find((frame) => frame.length > 0);
+  if (asset === null || spans === undefined) return null;
+  let weightedY = 0, pixels = 0;
+  for (let i = 0; i < spans.length; i += 3) {
+    weightedY += (spans[i]! + 0.5) * spans[i + 2]!; pixels += spans[i + 2]!;
+  }
+  return { enabled: true, color: [255, 142, 62], radiusTiles: 4,
+    profile: 'flicker', offsetY: (weightedY / pixels - asset.anchor[1]) * scale };
+}
+
+function validStateValue(definition: ObjectStateDefinition, value: unknown): value is StateValue {
+  if (definition.type === 'bool') return typeof value === 'boolean';
+  if (definition.type === 'enum') return typeof value === 'string' && definition.values.includes(value);
+  return typeof value === 'number' && Number.isSafeInteger(value)
+    && (definition.min === undefined || value >= definition.min)
+    && (definition.max === undefined || value <= definition.max);
+}
+
+function resolvedState(
+  registry:LiveContentState['registry'],
+  definition: ObjectContentDefinition,
+  row: ObjectPresentationRow,
+): { readonly valid: boolean; readonly state: Readonly<Record<string, StateValue>> } {
+  const declarations = definition.components.states ?? {};
+  const state: Record<string, StateValue> = Object.fromEntries(
+    Object.entries(declarations).map(([name, declaration]) => [name, declaration.default]),
+  );
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(row.stateJson?.length ? row.stateJson : '{}') as unknown;
+  } catch {
+    return { valid: false, state: Object.freeze({ open: row.open, lit: row.lit }) };
+  }
+  if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) {
+    return { valid: false, state: Object.freeze({ open: row.open, lit: row.lit }) };
+  }
+  for (const [name, value] of Object.entries(decoded)) {
+    if ((name === HEARTH_FURNITURE_SUPPORT_STATE_KEY || name === HEARTH_FURNITURE_REVISION_STATE_KEY)
+      && hearthFurnitureShapeForPlaceable(registry, row) !== null
+      && hearthFurniturePersistentId(value)) continue;
+    const declaration = declarations[name];
+    if (declaration === undefined || !validStateValue(declaration, value)) {
+      return { valid: false, state: Object.freeze({ open: row.open, lit: row.lit }) };
+    }
+    state[name] = value;
+  }
+  // Rows created before definitionId existed keep their typed compatibility
+  // values even after an authored definition for their legacy kind is added.
+  if ((row.definitionId?.trim() ?? '') === '') {
+    if (declarations.open?.type === 'bool') state.open = row.open;
+    if (declarations.lit?.type === 'bool') state.lit = row.lit;
+  }
+  return { valid: true, state: Object.freeze({ open: row.open, lit: row.lit, ...state }) };
+}
+
+function animationFor(
+  definition: ObjectContentDefinition,
+  state: Readonly<Record<string, StateValue>>,
+): string {
+  const animations = definition.components.sprite?.animationByState;
+  if (animations === undefined) return 'base';
+  for (const [name, value] of Object.entries(state).sort(([left], [right]) => left.localeCompare(right))) {
+    if (value === true && animations[name] !== undefined) return animations[name]!;
+    if (typeof value === 'string') {
+      if (animations[`${name}.${value}`] !== undefined) return animations[`${name}.${value}`]!;
+      if (animations[value] !== undefined) return animations[value]!;
+    }
+  }
+  return animations.default ?? 'base';
+}
+
+function contentKey(content: LiveContentState): string {
+  const head = content.head;
+  return head === null
+    ? `${content.source}:${content.registry.contentHash}`
+    : `${head.packId}:${head.revision}:${head.contentHash}`;
+}
+
+/** Revision-keyed presentation cache. It never replaces the verified content
+ * registry and keeps rendering the legacy art while a newly-authored asset is
+ * loading or unavailable. */
+export class LiveObjectPresentationCache {
+  readonly #assets = new Map<string, LoadedAsset | null>();
+  readonly #pendingAssets = new Set<string>();
+  readonly #loadAsset: AssetLoader;
+  readonly #onAssetReady: () => void;
+  #revisionKey = '';
+  #presentations = new Map<string, ObjectPresentation>();
+
+  constructor(onAssetReady: () => void = () => undefined, loadAsset: AssetLoader = loadGeneratedAsset) {
+    this.#onAssetReady = onAssetReady;
+    this.#loadAsset = loadAsset;
+  }
+
+  resolve(content: LiveContentState, row: ObjectPresentationRow): ObjectPresentation {
+    const nextRevisionKey = contentKey(content);
+    if (nextRevisionKey !== this.#revisionKey) {
+      this.#revisionKey = nextRevisionKey;
+      this.#presentations = new Map();
+    }
+    const key = `${row.id}:${row.kind}:${row.open}:${row.lit}:${row.definitionId ?? ''}:${row.stateJson ?? ''}`;
+    const cached = this.#presentations.get(key);
+    if (cached !== undefined) return cached;
+    const storedId = row.definitionId?.trim() ?? '';
+    const definition = storedId === '' ? placeableObjectDefinition(content.registry, row)
+      : content.registry.objects.get(storedId);
+    if (definition === undefined || definition === null || definition.retired === true) {
+      const legacy = Object.freeze({
+        definitionId: `object:${row.kind}`, authored: false, stateJsonValid: true,
+        state: Object.freeze({ open: row.open, lit: row.lit }), sprite: null, light: null,
+        collision: null,
+      });
+      this.#presentations.set(key, legacy);
+      return legacy;
+    }
+    const resolved = resolvedState(content.registry, definition, row);
+    if (!resolved.valid) {
+      const fallback = Object.freeze({
+        definitionId: definition.id, authored: false, stateJsonValid: false,
+        state: resolved.state, sprite: null, light: null,
+        collision: definition.components.collision === undefined ? null : Object.freeze({
+          blocksMovement: runtimePlaceableBlocksMovement(content.registry, row),
+          occludesLight: definition.components.collision.occludesLight ?? false,
+        }),
+      });
+      this.#presentations.set(key, fallback);
+      return fallback;
+    }
+    const spriteDefinition = definition.components.sprite;
+    if (spriteDefinition !== undefined) this.#ensureAsset(spriteDefinition.asset);
+    const presentation = Object.freeze({
+      definitionId: definition.id,
+      authored: true,
+      stateJsonValid: true,
+      state: resolved.state,
+      sprite: spriteDefinition === undefined ? null : Object.freeze({
+        assetName: spriteDefinition.asset,
+        asset: this.#assets.get(spriteDefinition.asset) ?? null,
+        animation: animationFor(definition, resolved.state),
+        scale: spriteDefinition.scale ?? 1,
+      }),
+      light: definition.components.light === undefined
+        ? spriteDefinition === undefined ? null : emissiveSpriteLight(
+          this.#assets.get(spriteDefinition.asset) ?? null,
+          animationFor(definition, resolved.state), spriteDefinition.scale ?? 1,
+        ) : resolveObjectLight(definition.components.light, resolved.state),
+      collision: definition.components.collision === undefined ? null : Object.freeze({
+        blocksMovement: resolveObjectCollision(definition, resolved.state).blocksMovement,
+        occludesLight: definition.components.collision.occludesLight ?? false,
+      }),
+    });
+    this.#presentations.set(key, presentation);
+    return presentation;
+  }
+
+  #ensureAsset(name: string): void {
+    if (this.#assets.has(name) || this.#pendingAssets.has(name)) return;
+    this.#pendingAssets.add(name);
+    void this.#loadAsset(name, 'summer').then((asset) => {
+      this.#assets.set(name, asset);
+    }).catch(() => {
+      this.#assets.set(name, null);
+    }).finally(() => {
+      this.#pendingAssets.delete(name);
+      this.#presentations = new Map();
+      this.#onAssetReady();
+    });
+  }
+}

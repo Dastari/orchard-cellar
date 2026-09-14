@@ -1,8 +1,8 @@
 # 18 — Visual & Audio Style Addendum: The Island Estate
 
 Owner-directed refinements (2026-08-24) after reviewing the M2/M3 build against the
-reference packs in `references/asset-pack/` (Sprout Lands) and
-`references/Cute_Fantasy*/`. This addendum *extends* [10-art-style-guide.md](10-art-style-guide.md)
+the historical Sprout Lands study pack and the retained
+`references/art/kenmi/cute-fantasy/` collection. This addendum *extends* [10-art-style-guide.md](10-art-style-guide.md)
 and [12-audio-design.md](12-audio-design.md); where it is more specific, it wins.
 New benchmarks: `benchmark-curved-edges-cutefantasy.png`, `benchmark-rounded-paths-simple.png`.
 
@@ -98,7 +98,8 @@ song's `iterationNotes`).
 
 ## 7. Reference pack licensing (binding)
 
-- **Sprout Lands Basic** (`references/asset-pack/`, by Cup Nooble): license allows
+- **Sprout Lands Basic** (historical study source, no longer retained in
+  `references/`, by Cup Nooble): license allows
   style reference and modification but **non-commercial use only and no
   redistribution of the pack**. Our policy is stricter and keeps us clean: study
   only, zero pack pixels shipped. The one prior exception — `tile_path` was
@@ -108,12 +109,12 @@ song's `iterationNotes`).
   the whole game. **Rule: nothing with `importedFrom` pointing at a pack file may
   remain in `packages/assets/` at M9** — redraw or delete; CI should eventually
   assert it.
-- **Cute Fantasy paid packs** (`references/Cute_Fantasy*/`, excluding
-  `Cute_Fantasy_Free`, by Kenmi Art): the included paid-pack licenses permit
+- **Cute Fantasy paid packs** (`references/art/kenmi/cute-fantasy/`, excluding
+  `references/art/kenmi/cute-fantasy/free/`, by Kenmi Art): the included paid-pack licenses permit
   commercial and non-commercial project use and modification, and prohibit
   redistribution or resale. The owner explicitly approved them as this private
   build's primary coherent visual source.
-- **Cute Fantasy Free** (`references/Cute_Fantasy_Free/`, by Kenmi Art): its bundled
+- **Cute Fantasy Free** (`references/art/kenmi/cute-fantasy/free/`, by Kenmi Art): its bundled
   terms are non-commercial only. The current `avatar_cf_farmer` derives from its
   `Player.png`, which is permitted for this private non-commercial game but must be
   replaced or separately licensed before any commercial release. Purchased/source

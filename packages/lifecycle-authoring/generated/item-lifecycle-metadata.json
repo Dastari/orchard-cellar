@@ -1,0 +1,1119 @@
+{
+  "format": "orchard-item-lifecycle-metadata-v1",
+  "bundleId": "repository-baseline-item-on-use",
+  "revision": 13,
+  "bundleSha256": "cc95551b15bb9583c24f81028c18ded7f577d93f86ec847fde13ab1f2ebd00b1",
+  "handlers": [
+    {
+      "itemId": "item:anvil",
+      "event": "onUse",
+      "id": "item:anvil.place",
+      "prompt": "PLACE ANVIL",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:apple",
+      "event": "onUse",
+      "id": "item:apple.on_use",
+      "prompt": "EAT APPLE",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:axe",
+      "event": "onUse",
+      "id": "item:axe.world_tool",
+      "prompt": "USE AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:barn",
+      "event": "onUse",
+      "id": "item:barn.place",
+      "prompt": "PLACE BARN",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:barrel",
+      "event": "onUse",
+      "id": "item:barrel.place",
+      "prompt": "PLACE BARREL",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:beetroot",
+      "event": "onUse",
+      "id": "item:beetroot.on_use",
+      "prompt": "EAT BEETROOT",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:beetroot_seeds",
+      "event": "onUse",
+      "id": "item.beetroot-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:boat",
+      "event": "onUse",
+      "id": "item:boat.place",
+      "prompt": "LAUNCH BOAT",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:bob_fast_strawberry_seeds",
+      "event": "onUse",
+      "id": "item.bob-fast-strawberry-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:bow",
+      "event": "onUse",
+      "id": "item:bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ]
+    },
+    {
+      "itemId": "item:cabbage",
+      "event": "onUse",
+      "id": "item:cabbage.on_use",
+      "prompt": "EAT CABBAGE",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:cabbage_seeds",
+      "event": "onUse",
+      "id": "item.cabbage-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:camp_cooking_fire",
+      "event": "onUse",
+      "id": "item:camp_cooking_fire.place",
+      "prompt": "PLACE CAMP COOKING FIRE",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:campfire",
+      "event": "onUse",
+      "id": "item:campfire.place",
+      "prompt": "PLACE CAMPFIRE",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:carrot",
+      "event": "onUse",
+      "id": "item:carrot.on_use",
+      "prompt": "EAT CARROT",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:carrot_seeds",
+      "event": "onUse",
+      "id": "item.carrot-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:cherry",
+      "event": "onUse",
+      "id": "item:cherry.on_use",
+      "prompt": "EAT CHERRIES",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:chest",
+      "event": "onUse",
+      "id": "item:chest.place",
+      "prompt": "PLACE CHEST",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:cooked_beef",
+      "event": "onUse",
+      "id": "item:cooked_beef.on_use",
+      "prompt": "EAT COOKED BEEF",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:cooked_chicken",
+      "event": "onUse",
+      "id": "item:cooked_chicken.on_use",
+      "prompt": "EAT ROAST CHICKEN",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:cooked_fish",
+      "event": "onUse",
+      "id": "item:cooked_fish.on_use",
+      "prompt": "EAT COOKED FISH",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:cooked_mutton",
+      "event": "onUse",
+      "id": "item:cooked_mutton.on_use",
+      "prompt": "EAT ROAST MUTTON",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:cooked_pork",
+      "event": "onUse",
+      "id": "item:cooked_pork.on_use",
+      "prompt": "EAT ROAST PORK",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:cooking_fire",
+      "event": "onUse",
+      "id": "item:cooking_fire.place",
+      "prompt": "PLACE COOKING FIRE",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:coop",
+      "event": "onUse",
+      "id": "item:coop.place",
+      "prompt": "PLACE COOP",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:copper_axe",
+      "event": "onUse",
+      "id": "item:copper_axe.world_tool",
+      "prompt": "USE COPPER AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:copper_hoe",
+      "event": "onUse",
+      "id": "item:copper_hoe.on_use",
+      "prompt": "USE COPPER HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:copper_pickaxe",
+      "event": "onUse",
+      "id": "item:copper_pickaxe.world_tool",
+      "prompt": "USE COPPER PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ]
+    },
+    {
+      "itemId": "item:copper_shovel",
+      "event": "onUse",
+      "id": "item:copper_shovel.repair_at_anvil",
+      "prompt": "REPAIR COPPER SHOVEL",
+      "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:corn",
+      "event": "onUse",
+      "id": "item:corn.on_use",
+      "prompt": "EAT CORN",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:corn_seeds",
+      "event": "onUse",
+      "id": "item.corn-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:cucumber",
+      "event": "onUse",
+      "id": "item:cucumber.on_use",
+      "prompt": "EAT CUCUMBER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:cucumber_seeds",
+      "event": "onUse",
+      "id": "item.cucumber-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:fence",
+      "event": "onUse",
+      "id": "item:fence.place",
+      "prompt": "PLACE FENCE",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:fence_gate",
+      "event": "onUse",
+      "id": "item:fence_gate.place",
+      "prompt": "PLACE FENCE GATE",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:fermentation_cask",
+      "event": "onUse",
+      "id": "item:fermentation_cask.place",
+      "prompt": "PLACE FERMENTATION CASK",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:fishing_handbook",
+      "event": "onUse",
+      "id": "item:fishing_handbook.on_use",
+      "prompt": "READ",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:fishing_rod",
+      "event": "onUse",
+      "id": "item:fishing_rod.on_use",
+      "prompt": "FISH",
+      "triggers": [
+        "useWith",
+        "useAt"
+      ]
+    },
+    {
+      "itemId": "item:fruit_press",
+      "event": "onUse",
+      "id": "item:fruit_press.place",
+      "prompt": "PLACE FRUIT PRESS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:furnace",
+      "event": "onUse",
+      "id": "item:furnace.place",
+      "prompt": "PLACE FURNACE",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:garlic",
+      "event": "onUse",
+      "id": "item:garlic.on_use",
+      "prompt": "EAT GARLIC",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:garlic_seeds",
+      "event": "onUse",
+      "id": "item.garlic-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:gold_axe",
+      "event": "onUse",
+      "id": "item:gold_axe.world_tool",
+      "prompt": "USE GOLD AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:gold_hoe",
+      "event": "onUse",
+      "id": "item:gold_hoe.on_use",
+      "prompt": "USE GOLD HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:gold_pickaxe",
+      "event": "onUse",
+      "id": "item:gold_pickaxe.world_tool",
+      "prompt": "USE GOLD PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ]
+    },
+    {
+      "itemId": "item:gold_shovel",
+      "event": "onUse",
+      "id": "item:gold_shovel.repair_at_anvil",
+      "prompt": "REPAIR GOLD SHOVEL",
+      "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:grape",
+      "event": "onUse",
+      "id": "item:grape.on_use",
+      "prompt": "EAT GRAPES",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:grape_seeds",
+      "event": "onUse",
+      "id": "item.grape-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:green_pepper",
+      "event": "onUse",
+      "id": "item:green_pepper.on_use",
+      "prompt": "EAT GREEN PEPPER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:green_pepper_seeds",
+      "event": "onUse",
+      "id": "item.green-pepper-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:greenhouse",
+      "event": "onUse",
+      "id": "item:greenhouse.place",
+      "prompt": "PLACE GREENHOUSE",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:hammer",
+      "event": "onUse",
+      "id": "item:hammer.repair_at_anvil",
+      "prompt": "REPAIR IRON HAMMER (5 COPPER)",
+      "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:hearth_common_bow",
+      "event": "onUse",
+      "id": "item:hearth_common_bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ]
+    },
+    {
+      "itemId": "item:hearth_common_sword",
+      "event": "onUse",
+      "id": "item:hearth_common_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:hearth_epic_bow",
+      "event": "onUse",
+      "id": "item:hearth_epic_bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ]
+    },
+    {
+      "itemId": "item:hearth_epic_sword",
+      "event": "onUse",
+      "id": "item:hearth_epic_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:hearth_legendary_bow",
+      "event": "onUse",
+      "id": "item:hearth_legendary_bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ]
+    },
+    {
+      "itemId": "item:hearth_legendary_sword",
+      "event": "onUse",
+      "id": "item:hearth_legendary_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:hearth_rare_bow",
+      "event": "onUse",
+      "id": "item:hearth_rare_bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ]
+    },
+    {
+      "itemId": "item:hearth_rare_sword",
+      "event": "onUse",
+      "id": "item:hearth_rare_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:hearth_uncommon_bow",
+      "event": "onUse",
+      "id": "item:hearth_uncommon_bow.on_use",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ]
+    },
+    {
+      "itemId": "item:hearth_uncommon_sword",
+      "event": "onUse",
+      "id": "item:hearth_uncommon_sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:hoe",
+      "event": "onUse",
+      "id": "item:hoe.on_use",
+      "prompt": "USE HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:homestead_deed",
+      "event": "onUse",
+      "id": "item:homestead_deed.place",
+      "prompt": "ESTABLISH HOMESTEAD",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:hot_pepper",
+      "event": "onUse",
+      "id": "item:hot_pepper.on_use",
+      "prompt": "EAT HOT PEPPER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:hot_pepper_seeds",
+      "event": "onUse",
+      "id": "item.hot-pepper-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:iron_axe",
+      "event": "onUse",
+      "id": "item:iron_axe.world_tool",
+      "prompt": "USE IRON AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:iron_hoe",
+      "event": "onUse",
+      "id": "item:iron_hoe.on_use",
+      "prompt": "USE IRON HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:iron_pickaxe",
+      "event": "onUse",
+      "id": "item:iron_pickaxe.world_tool",
+      "prompt": "USE IRON PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ]
+    },
+    {
+      "itemId": "item:iron_shovel",
+      "event": "onUse",
+      "id": "item:iron_shovel.repair_at_anvil",
+      "prompt": "REPAIR IRON SHOVEL",
+      "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:janes_gardening_book",
+      "event": "onUse",
+      "id": "item:janes_gardening_book.on_use",
+      "prompt": "READ",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:lantern",
+      "event": "onUse",
+      "id": "item:lantern.equipment_use",
+      "prompt": "TOGGLE LANTERN",
+      "triggers": [
+        "equipmentUse",
+        "worldItemUse"
+      ]
+    },
+    {
+      "itemId": "item:leek",
+      "event": "onUse",
+      "id": "item:leek.on_use",
+      "prompt": "EAT LEEK",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:leek_seeds",
+      "event": "onUse",
+      "id": "item.leek-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:marlow_book",
+      "event": "onUse",
+      "id": "item:marlow_book.on_use",
+      "prompt": "READ",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:onion",
+      "event": "onUse",
+      "id": "item:onion.on_use",
+      "prompt": "EAT ONION",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:onion_seeds",
+      "event": "onUse",
+      "id": "item.onion-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:orchard_tea",
+      "event": "onUse",
+      "id": "item:orchard_tea.on_use",
+      "prompt": "DRINK ORCHARD TEA",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:parsley",
+      "event": "onUse",
+      "id": "item:parsley.on_use",
+      "prompt": "EAT PARSLEY",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:parsley_seeds",
+      "event": "onUse",
+      "id": "item.parsley-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:peach",
+      "event": "onUse",
+      "id": "item:peach.on_use",
+      "prompt": "EAT PEACH",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:pear",
+      "event": "onUse",
+      "id": "item:pear.on_use",
+      "prompt": "EAT PEAR",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:pickaxe",
+      "event": "onUse",
+      "id": "item:pickaxe.world_tool",
+      "prompt": "USE PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ]
+    },
+    {
+      "itemId": "item:potato",
+      "event": "onUse",
+      "id": "item:potato.on_use",
+      "prompt": "EAT POTATO",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:potato_seeds",
+      "event": "onUse",
+      "id": "item.potato-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:pumpkin",
+      "event": "onUse",
+      "id": "item:pumpkin.on_use",
+      "prompt": "EAT PUMPKIN",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:pumpkin_seeds",
+      "event": "onUse",
+      "id": "item.pumpkin-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:red_pepper",
+      "event": "onUse",
+      "id": "item:red_pepper.on_use",
+      "prompt": "EAT RED PEPPER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:red_pepper_seeds",
+      "event": "onUse",
+      "id": "item.red-pepper-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:shed",
+      "event": "onUse",
+      "id": "item:shed.place",
+      "prompt": "PLACE ESTATE SHED",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:shovel",
+      "event": "onUse",
+      "id": "item:shovel.repair_at_anvil",
+      "prompt": "REPAIR WOODEN SHOVEL",
+      "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:sign",
+      "event": "onUse",
+      "id": "item:sign.place",
+      "prompt": "PLACE SIGN",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:silo",
+      "event": "onUse",
+      "id": "item:silo.place",
+      "prompt": "PLACE SILO",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:silver_axe",
+      "event": "onUse",
+      "id": "item:silver_axe.world_tool",
+      "prompt": "USE SILVER AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:silver_hoe",
+      "event": "onUse",
+      "id": "item:silver_hoe.on_use",
+      "prompt": "USE SILVER HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:silver_pickaxe",
+      "event": "onUse",
+      "id": "item:silver_pickaxe.world_tool",
+      "prompt": "USE SILVER PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ]
+    },
+    {
+      "itemId": "item:silver_shovel",
+      "event": "onUse",
+      "id": "item:silver_shovel.repair_at_anvil",
+      "prompt": "REPAIR SILVER SHOVEL",
+      "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:sprinkler",
+      "event": "onUse",
+      "id": "item:sprinkler.place",
+      "prompt": "PLACE SPRINKLER",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:standing_torch",
+      "event": "onUse",
+      "id": "item:standing_torch.place",
+      "prompt": "PLACE STANDING TORCH",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:stone_axe",
+      "event": "onUse",
+      "id": "item:stone_axe.world_tool",
+      "prompt": "USE STONE AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:stone_hoe",
+      "event": "onUse",
+      "id": "item:stone_hoe.on_use",
+      "prompt": "USE STONE HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:stone_pickaxe",
+      "event": "onUse",
+      "id": "item:stone_pickaxe.world_tool",
+      "prompt": "USE STONE PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ]
+    },
+    {
+      "itemId": "item:stone_shovel",
+      "event": "onUse",
+      "id": "item:stone_shovel.repair_at_anvil",
+      "prompt": "REPAIR STONE SHOVEL",
+      "triggers": [
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:strawberry",
+      "event": "onUse",
+      "id": "item:strawberry.on_use",
+      "prompt": "EAT STRAWBERRY",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:strawberry_seeds",
+      "event": "onUse",
+      "id": "item.strawberry-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:sunflower_seeds",
+      "event": "onUse",
+      "id": "item.sunflower-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:sword",
+      "event": "onUse",
+      "id": "item:sword.on_use",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ]
+    },
+    {
+      "itemId": "item:tomato",
+      "event": "onUse",
+      "id": "item:tomato.on_use",
+      "prompt": "EAT TOMATO",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:tomato_seeds",
+      "event": "onUse",
+      "id": "item.tomato-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:torch",
+      "event": "onUse",
+      "id": "item:torch.equipment_use",
+      "prompt": "TOGGLE TORCH",
+      "triggers": [
+        "equipmentUse",
+        "worldItemUse"
+      ]
+    },
+    {
+      "itemId": "item:turnip",
+      "event": "onUse",
+      "id": "item:turnip.on_use",
+      "prompt": "EAT TURNIP",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:turnip_seeds",
+      "event": "onUse",
+      "id": "item.turnip-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:watering_can",
+      "event": "onUse",
+      "id": "item:watering_can.on_use",
+      "prompt": "WATER",
+      "triggers": [
+        "useWith",
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:watermelon",
+      "event": "onUse",
+      "id": "item:watermelon.on_use",
+      "prompt": "EAT WATERMELON",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:watermelon_seeds",
+      "event": "onUse",
+      "id": "item.watermelon-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:wheat_seeds",
+      "event": "onUse",
+      "id": "item.wheat-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:workbench",
+      "event": "onUse",
+      "id": "item:workbench.place",
+      "prompt": "PLACE WORKBENCH",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:yellow_pepper",
+      "event": "onUse",
+      "id": "item:yellow_pepper.on_use",
+      "prompt": "EAT YELLOW PEPPER",
+      "triggers": [
+        "secondary"
+      ]
+    },
+    {
+      "itemId": "item:yellow_pepper_seeds",
+      "event": "onUse",
+      "id": "item.yellow-pepper-seeds.on-use",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ]
+    }
+  ]
+}

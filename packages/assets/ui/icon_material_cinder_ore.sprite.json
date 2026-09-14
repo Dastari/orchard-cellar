@@ -1,0 +1,65 @@
+{
+  "name": "icon_material_cinder_ore",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        ".....023320.....",
+        "....02365620....",
+        "...0221465610...",
+        "...00221464110..",
+        "..0232221412210.",
+        ".03351322133110.",
+        ".06564122356610.",
+        ".05664123666410.",
+        ".0144123564410..",
+        "..01123664110...",
+        "...011364100....",
+        "....011110......",
+        ".....0000.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#262b44",
+    "1": "#3e2731",
+    "2": "#733e39",
+    "3": "#c28569",
+    "4": "#d94a00",
+    "5": "#ff6f0b",
+    "6": "#ff7800"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/crafting-materials/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

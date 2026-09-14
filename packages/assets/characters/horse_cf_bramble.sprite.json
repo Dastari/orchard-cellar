@@ -1,6 +1,7 @@
 {
   "name": "horse_cf_bramble",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -838,7 +839,7 @@
     "4": "#00000064",
     "5": "#5d2c28"
   },
-  "sourcePath": "references/Cute_Fantasy/Animals/Horse/Horse_01.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Horse/Horse_01.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Horse_01.png"

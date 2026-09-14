@@ -35,7 +35,7 @@ describe('unique quest item reducer policy', () => {
     expect(trade.indexOf('isUniqueQuestItemKind')).toBeLessThan(trade.indexOf('inventory_slot.id.update'));
 
     const menuWrite = sourceBetween('function writeOpenMenuInventory', 'function stashOverflow');
-    expect(menuWrite).toContain("const sharedContainerIds = ['chest', 'placeable'] as const");
+    expect(menuWrite).toContain("const sharedContainerIds = ['chest', 'placeable', 'stash'] as const");
     expect(menuWrite).toContain("throw new SenderError('item_not_tradeable')");
     expect(menuWrite.indexOf('previousUniqueCounts')).toBeLessThan(menuWrite.indexOf('writePlayerInventory'));
   });

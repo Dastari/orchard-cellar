@@ -5,13 +5,18 @@ import {
   FENCE_JOIN_NORTH,
   FENCE_JOIN_SOUTH,
   FENCE_JOIN_WEST,
-  PLACEABLE_DEFINITIONS,
-  placeableSlotCapacity,
+  placeableKinds,
+  runtimePlaceableDefinition,
+  runtimePlaceableSlotCapacity,
   craftingStationWithinReach,
   fenceJoinMask,
   fiberDropsFromTilling,
 } from './crafting.js';
 import { itemDefinition, placeableHasInterface, placeableInterface } from './item-containers.js';
+import { bootstrapContentRegistry, bootstrapContentRows } from './content/bootstrap-registry.js';
+import { buildContentRegistry } from './content/registry.js';
+import type { ItemContentDefinition } from './content/definitions.js';
+import type { ObjectContentDefinition } from './content/object-definition.js';
 
 describe('28§8 deterministic fiber drops', () => {
   it('returns the same result for the same authority inputs', () => {
@@ -38,12 +43,14 @@ describe('28§7 fence joins', () => {
   });
 
   it('keeps gates in the fence connection family and standing torches passable', () => {
-    expect(PLACEABLE_DEFINITIONS.fence_gate.connectsFence).toBe(true);
-    expect(PLACEABLE_DEFINITIONS.standing_torch.blocksMovement).toBe(false);
+    const registry = bootstrapContentRegistry();
+    expect(runtimePlaceableDefinition(registry, 'fence_gate')?.connectsFence).toBe(true);
+    expect(runtimePlaceableDefinition(registry, 'standing_torch')?.blocksMovement).toBe(false);
   });
 
   it('registers the one-tile blocking anvil and its copper repair cost', () => {
-    expect(PLACEABLE_DEFINITIONS.anvil).toMatchObject({ blocksMovement: true, slotCapacity: 0 });
+    expect(runtimePlaceableDefinition(bootstrapContentRegistry(), 'anvil'))
+      .toMatchObject({ blocksMovement: true, slotCapacity: 0 });
     expect(itemDefinition('anvil')).toMatchObject({ maxStack: 1, iconKey: 'prop_cf_anvil', iconAnimation: 'animate' });
     expect(ANVIL_REPAIR_COST_BRONZE).toBe(5);
   });
@@ -56,12 +63,56 @@ describe('28§7 fence joins', () => {
     expect(placeableHasInterface('fruit_press', 'press')).toBe(true);
     expect(placeableHasInterface('fermentation_cask', 'fermentation')).toBe(true);
     expect(placeableInterface('campfire')).toBeNull();
-    expect(placeableSlotCapacity('cooking_fire')).toBe(2);
-    expect(placeableSlotCapacity('camp_cooking_fire')).toBe(2);
-    expect(placeableSlotCapacity('furnace')).toBe(3);
-    expect(placeableSlotCapacity('barrel')).toBe(8);
-    expect(placeableSlotCapacity('fruit_press')).toBe(3);
-    expect(placeableSlotCapacity('fermentation_cask')).toBe(2);
+    const registry = bootstrapContentRegistry();
+    expect(runtimePlaceableSlotCapacity(registry, 'cooking_fire')).toBe(2);
+    expect(runtimePlaceableSlotCapacity(registry, 'camp_cooking_fire')).toBe(2);
+    expect(runtimePlaceableSlotCapacity(registry, 'furnace')).toBe(3);
+    expect(runtimePlaceableSlotCapacity(registry, 'barrel')).toBe(8);
+    expect(runtimePlaceableSlotCapacity(registry, 'fruit_press')).toBe(3);
+    expect(runtimePlaceableSlotCapacity(registry, 'fermentation_cask')).toBe(2);
+  });
+
+  it('projects renamed, non-suffix placeables solely from authored object components', () => {
+    const item: ItemContentDefinition = {
+      id: 'item:portable_beacon', kind: 'item', schemaVersion: 1,
+      displayName: 'Portable Beacon', icon: { asset: 'prop_cf_lantern' },
+      quality: 'common', maxStack: 1, tags: ['item.placeable'],
+      economy: { buy: null, sell: 0 }, onUse: [],
+    };
+    const object: ObjectContentDefinition = {
+      id: 'object:totally_unrelated_machine', kind: 'object', schemaVersion: 1,
+      displayName: 'Beacon Machine', components: {
+        identity: { tags: ['station.campfire'] },
+        collision: { footprint: [[15, 15]], blocksMovement: false },
+        placement: {
+          item: item.id, layer: 'object', spaces: ['homestead'], facing: false,
+          footprint: [[15, 15]],
+        },
+        container: { slotCount: 5, access: 'private', sortAllowed: true },
+      },
+    };
+    const registry = buildContentRegistry([
+      ...bootstrapContentRows(),
+      { id: item.id, kind: item.kind, json: item },
+      { id: object.id, kind: object.kind, json: object },
+    ]).registry;
+    expect(runtimePlaceableDefinition(registry, {
+      kind: 'portable_beacon', definitionId: object.id,
+    })).toEqual({
+      blocksMovement: false, slotCapacity: 5, station: 'campfire', light: null, connectsFence: false,
+    });
+    expect(runtimePlaceableSlotCapacity(registry, 'portable_beacon')).toBe(5);
+    expect(placeableKinds(registry)).toContain('portable_beacon');
+  });
+
+  it('never grants a different definition to an explicit unknown or retired object reference', () => {
+    const registry = bootstrapContentRegistry();
+    expect(runtimePlaceableDefinition(registry, { kind: 'furnace', definitionId: 'object:missing' })).toBeNull();
+    const furnace = registry.objects.get('object:furnace')!;
+    const retiredRegistry = { objects: new Map(registry.objects).set(furnace.id, { ...furnace, retired: true }) };
+    expect(runtimePlaceableDefinition(retiredRegistry, { kind: 'campfire', definitionId: furnace.id })).toBeNull();
+    expect(runtimePlaceableSlotCapacity(registry, { kind: 'furnace', definitionId: 'object:missing' })).toBe(0);
+    expect(runtimePlaceableDefinition(registry, { kind: 'furnace', definitionId: '' })?.station).toBe('furnace');
   });
 });
 

@@ -7,7 +7,7 @@
   ],
   "anchor": [
     32,
-    63
+    41
   ],
   "frames": {
     "idle": [
@@ -1632,7 +1632,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Slime_Big_Red.png",
-  "sourcePath": "references/Cute_Fantasy/Enemies/Slime/Slime_Big/Slime_Big_Red.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Enemies/Slime/Slime_Big/Slime_Big_Red.png",
   "sourceRegions": {
     "idle": [
       [

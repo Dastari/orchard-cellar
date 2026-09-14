@@ -1,0 +1,61 @@
+{
+  "name": "ui_cf_kit_meter_track_dark",
+  "category": "ui",
+  "size": [
+    16,
+    8
+  ],
+  "anchor": [
+    8,
+    7
+  ],
+  "frames": {
+    "idle": [
+      [
+        "................",
+        "...0000000000...",
+        "..011111111110..",
+        "..011111111110..",
+        "..011111111110..",
+        "..011111111110..",
+        "...0000000000...",
+        "................"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#181425",
+    "1": "#3f2832"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/ui/UI/UI_Bars.png",
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "UI_Bars.png",
+  "sourceRegions": {
+    "idle": [
+      [
+        80,
+        32,
+        16,
+        8
+      ]
+    ]
+  },
+  "frameKinds": {
+    "idle": "state"
+  },
+  "uiSizing": "nine_slice",
+  "slice": [
+    3,
+    3,
+    3,
+    3
+  ],
+  "tags": [
+    "ui.kit"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

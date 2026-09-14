@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_rooster_01",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2636,7 +2637,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Rooster.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Chicken/Rooster.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Chicken/Rooster.png",
   "sourceRegions": {
     "idle_side": [
       [

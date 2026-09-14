@@ -1,0 +1,1256 @@
+[
+  {
+    "id": "space:debug_flat",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65534,
+    "name": "debug_flat",
+    "sizeTiles": 32,
+    "generator": "debug_flat",
+    "environment": "outdoor",
+    "ambient": {
+      "r": 176,
+      "g": 190,
+      "b": 214
+    },
+    "weather": false,
+    "audioBed": "debug",
+    "ownerOnly": true
+  },
+  {
+    "id": "space:delve_lobby",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65532,
+    "name": "Cliffside Delve Lobby",
+    "sizeTiles": 24,
+    "generator": "delve_lobby",
+    "environment": "underground",
+    "ambient": {
+      "r": 155,
+      "g": 149,
+      "b": 165
+    },
+    "weather": false,
+    "audioBed": "cave",
+    "hearthLobby": {
+      "points": {
+        "arrival": [
+          12,
+          18
+        ],
+        "exit": [
+          12,
+          19
+        ],
+        "stash": [
+          8,
+          13
+        ],
+        "descent": [
+          12,
+          3
+        ],
+        "counter": [
+          5,
+          14
+        ],
+        "practice": [
+          18,
+          8
+        ]
+      },
+      "stashCapacity": 20,
+      "floorThresholdY": 18,
+      "carves": [
+        [
+          8,
+          4,
+          15,
+          21
+        ],
+        [
+          6,
+          2,
+          17,
+          9
+        ],
+        [
+          2,
+          10,
+          9,
+          17
+        ],
+        [
+          16,
+          6,
+          21,
+          15
+        ],
+        [
+          6,
+          10,
+          17,
+          17
+        ]
+      ],
+      "practiceTarget": [
+        "4294966903",
+        "object:archery_target",
+        "archery_target",
+        20,
+        9
+      ],
+      "torches": [
+        [
+          "1",
+          "object:standing_torch",
+          "standing_torch",
+          10,
+          4
+        ],
+        [
+          "2",
+          "object:standing_torch",
+          "standing_torch",
+          14,
+          4
+        ],
+        [
+          "3",
+          "object:standing_torch",
+          "standing_torch",
+          3,
+          11
+        ],
+        [
+          "4",
+          "object:standing_torch",
+          "standing_torch",
+          19,
+          7
+        ],
+        [
+          "5",
+          "object:standing_torch",
+          "standing_torch",
+          9,
+          18
+        ],
+        [
+          "6",
+          "object:standing_torch",
+          "standing_torch",
+          14,
+          18
+        ]
+      ],
+      "fixtures": [
+        [
+          "personal-stash",
+          "object:chest",
+          "hearth_personal_stash",
+          8,
+          12,
+          10,
+          6,
+          "container.chest"
+        ],
+        [
+          "supply-counter",
+          "object:furniture_rustic_writing_table",
+          "marlow_tent_table",
+          5,
+          13,
+          22,
+          9
+        ],
+        [
+          "west-books",
+          "object:furniture_rustic_bookshelf",
+          "residence_bookshelf",
+          8,
+          3,
+          22,
+          7
+        ],
+        [
+          "east-books",
+          "object:furniture_rustic_bookshelf",
+          "residence_bookshelf",
+          15,
+          3,
+          22,
+          7
+        ],
+        [
+          "supply-stool-west",
+          "object:furniture_rustic_stool",
+          "camp_round_stool",
+          4,
+          14,
+          5,
+          5
+        ],
+        [
+          "supply-stool-east",
+          "object:furniture_rustic_stool",
+          "camp_round_stool",
+          6,
+          14,
+          5,
+          5
+        ],
+        [
+          "gathering-bench-west",
+          "object:furniture_rustic_bench",
+          "camp_bench",
+          8,
+          16,
+          7,
+          5
+        ],
+        [
+          "gathering-bench-east",
+          "object:furniture_rustic_bench",
+          "camp_bench",
+          16,
+          16,
+          7,
+          5
+        ]
+      ]
+    },
+    "runEntrances": [
+      {
+        "id": "cliffside-descent",
+        "kind": "roguelike",
+        "reachTiles": 1.5,
+        "tileX": 12,
+        "tileY": 3
+      }
+    ]
+  },
+  {
+    "id": "space:island",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 0,
+    "name": "island",
+    "sizeTiles": 832,
+    "generator": "island",
+    "environment": "outdoor",
+    "ambient": "clock",
+    "weather": true,
+    "audioBed": "estate",
+    "decorationCollision": [
+      [
+        2,
+        0,
+        0,
+        0,
+        0,
+        "nature_water_rock"
+      ],
+      [
+        2,
+        0,
+        -1,
+        2,
+        1,
+        "fisher_dock"
+      ],
+      [
+        1,
+        -2,
+        -2,
+        2,
+        -1,
+        "farm_house",
+        "fisher_hut"
+      ],
+      [
+        1,
+        -1,
+        0,
+        1,
+        0,
+        "farm_hay_stack",
+        "farm_fallen_log"
+      ],
+      [
+        1,
+        -1,
+        -2,
+        1,
+        -1,
+        "camp_tent"
+      ],
+      [
+        1,
+        -1,
+        -2,
+        1,
+        0,
+        "camp_pond"
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        "camp_campfire",
+        "camp_round_stool",
+        "camp_bench",
+        "camp_stump_seat",
+        "camp_chair",
+        "camp_rock",
+        "farm_fence",
+        "farm_hay_bale",
+        "farm_grave",
+        "farm_tree_oak",
+        "farm_stump"
+      ]
+    ],
+    "decorationGenerator": [
+      [
+        [
+          "nature_grass",
+          3
+        ],
+        [
+          "nature_flower_grass",
+          15
+        ],
+        [
+          "nature_flower",
+          5
+        ],
+        [
+          "nature_mushroom",
+          8
+        ],
+        [
+          "nature_rock",
+          14
+        ],
+        [
+          "nature_lily_pad",
+          12
+        ],
+        [
+          "nature_water_flower",
+          12
+        ],
+        [
+          "nature_cattail",
+          5
+        ],
+        [
+          "nature_water_grass",
+          2
+        ],
+        [
+          "nature_water_rock",
+          10
+        ],
+        [
+          "nature_fish_shadow",
+          1
+        ],
+        [
+          "nature_desert_grass",
+          3
+        ],
+        [
+          "nature_desert_fern",
+          1
+        ],
+        [
+          "nature_desert_bush",
+          2
+        ],
+        [
+          "nature_desert_plant",
+          3
+        ],
+        [
+          "nature_desert_rock",
+          4
+        ]
+      ],
+      [
+        "poi_flowers_pink",
+        "poi_flowers_gold",
+        "poi_stump",
+        "poi_fallen_log",
+        "poi_rock_small"
+      ],
+      [
+        [
+          "nature_flower",
+          72
+        ],
+        [
+          "nature_flower_grass",
+          28
+        ]
+      ],
+      "nature_mushroom",
+      [
+        [
+          "nature_lily_pad",
+          100
+        ],
+        [
+          "nature_water_flower",
+          70
+        ],
+        [
+          "nature_cattail",
+          40
+        ],
+        [
+          "nature_water_grass",
+          40
+        ],
+        [
+          "nature_water_rock",
+          40
+        ]
+      ],
+      [
+        "nature_grass",
+        "nature_flower_grass",
+        150
+      ],
+      [
+        [
+          "nature_desert_grass",
+          680
+        ],
+        [
+          "nature_desert_fern",
+          220
+        ],
+        [
+          "nature_desert_bush",
+          180
+        ],
+        [
+          "nature_desert_plant",
+          180
+        ],
+        [
+          "nature_desert_rock",
+          120
+        ]
+      ]
+    ],
+    "ferry": [
+      [
+        "orchard",
+        "Orchard Island",
+        408,
+        317,
+        407,
+        317,
+        "willowharbour",
+        1
+      ],
+      [
+        "willowharbour",
+        "Willowharbour",
+        209,
+        400,
+        204,
+        400,
+        "willowharbour",
+        0
+      ],
+      [
+        "cinderwake",
+        "Cinderwake",
+        644,
+        207,
+        652,
+        211,
+        "cinderwake-landing",
+        6
+      ]
+    ],
+    "supplyCache": [
+      "cinder_landing",
+      "object:chest",
+      "hearth-cinder-supply-cache",
+      "hearth-prop-cf-chest",
+      2817144658,
+      650,
+      202,
+      650,
+      204
+    ],
+    "landmarks": [
+      {
+        "id": "marlow_camp",
+        "label": "Marlow's Camp",
+        "runtimeIdBase": "3000000000",
+        "bounds": {
+          "minimumTileX": 329,
+          "maximumTileX": 343,
+          "minimumTileY": 350,
+          "maximumTileY": 362
+        },
+        "decorations": [
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_tent",
+            "tileX": 332,
+            "tileY": 357,
+            "idOffset": 1
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "camp_pond",
+            "tileX": 341,
+            "tileY": 355
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_fishing_rod",
+            "tileX": 339,
+            "tileY": 356
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_campfire",
+            "tileX": 336,
+            "tileY": 356,
+            "animationOffset": 3,
+            "roles": [
+              "automated_campfire"
+            ],
+            "placeable": {
+              "runtimeId": "3000000004",
+              "object": "object:camp_cooking_fire",
+              "automation": {
+                "actor": "npc:marlow",
+                "lightMinute": 1110,
+                "extinguishMinute": 390,
+                "jitterMinutes": 24,
+                "lightSalt": "19777",
+                "extinguishSalt": "21068"
+              }
+            }
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_bench",
+            "tileX": 336,
+            "tileY": 354
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_round_stool",
+            "tileX": 334,
+            "tileY": 357
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_stump_seat",
+            "tileX": 338,
+            "tileY": 357
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_bench",
+            "tileX": 336,
+            "tileY": 358
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_rock",
+            "tileX": 330,
+            "tileY": 356
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_rock",
+            "tileX": 342,
+            "tileY": 361
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_flowers",
+            "tileX": 331,
+            "tileY": 360
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_flowers",
+            "tileX": 340,
+            "tileY": 360,
+            "variant": 1
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_grass",
+            "tileX": 330,
+            "tileY": 353
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_grass",
+            "tileX": 333,
+            "tileY": 352
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_grass",
+            "tileX": 338,
+            "tileY": 352
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_grass",
+            "tileX": 342,
+            "tileY": 353
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_flower_grass",
+            "tileX": 331,
+            "tileY": 352
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_flower_grass",
+            "tileX": 341,
+            "tileY": 352
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_flower",
+            "tileX": 330,
+            "tileY": 358
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_flower",
+            "tileX": 341,
+            "tileY": 358,
+            "variant": 1
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_grass",
+            "tileX": 330,
+            "tileY": 361
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_grass",
+            "tileX": 341,
+            "tileY": 361
+          }
+        ],
+        "pathAreas": [
+          {
+            "minimumTileX": 326,
+            "maximumTileX": 346,
+            "minimumTileY": 358,
+            "maximumTileY": 359
+          },
+          {
+            "minimumTileX": 334,
+            "maximumTileX": 335,
+            "minimumTileY": 360,
+            "maximumTileY": 365
+          }
+        ]
+      },
+      {
+        "id": "farmer_bob_farm",
+        "label": "Farmer Bob's Farm",
+        "runtimeIdBase": "3100000000",
+        "bounds": {
+          "minimumTileX": 371,
+          "maximumTileX": 393,
+          "minimumTileY": 368,
+          "maximumTileY": 389
+        },
+        "decorations": [
+          {
+            "layer": "objects",
+            "kind": "fence_rectangle",
+            "decorationKind": "farm_fence",
+            "gateKind": "farm_gate",
+            "bounds": {
+              "minimumTileX": 371,
+              "maximumTileX": 393,
+              "minimumTileY": 368,
+              "maximumTileY": 389
+            },
+            "gateTileX": 382,
+            "gateTileY": 389
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_house",
+            "tileX": 382,
+            "tileY": 372
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_hay_stack",
+            "tileX": 374,
+            "tileY": 371,
+            "roles": [
+              "wildlife_feed"
+            ]
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_hay_bale",
+            "tileX": 376,
+            "tileY": 371,
+            "roles": [
+              "wildlife_feed"
+            ]
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_hay_bale",
+            "tileX": 374,
+            "tileY": 373,
+            "roles": [
+              "wildlife_feed"
+            ]
+          },
+          {
+            "layer": "ground",
+            "kind": "fill_rectangle",
+            "decorationKind": "farm_crop_wheat",
+            "startTileX": 386,
+            "startTileY": 375,
+            "width": 4,
+            "height": 3,
+            "variant": 3,
+            "animationOffsetX": 7,
+            "animationOffsetY": 13
+          },
+          {
+            "layer": "ground",
+            "role": "soil.watered",
+            "kind": "fill_rectangle",
+            "decorationKind": "farm_crop_strawberry",
+            "startTileX": 386,
+            "startTileY": 380,
+            "width": 4,
+            "height": 3,
+            "variant": 3,
+            "animationOffsetX": 7,
+            "animationOffsetY": 13
+          },
+          {
+            "layer": "ground",
+            "kind": "fill_rectangle",
+            "decorationKind": "farm_crop_corn",
+            "startTileX": 382,
+            "startTileY": 384,
+            "width": 3,
+            "height": 3,
+            "variant": 3,
+            "animationOffsetX": 7,
+            "animationOffsetY": 13
+          },
+          {
+            "layer": "ground",
+            "role": "soil.watered",
+            "kind": "fill_rectangle",
+            "decorationKind": "farm_crop_sunflower",
+            "startTileX": 387,
+            "startTileY": 385,
+            "width": 3,
+            "height": 2,
+            "variant": 3,
+            "animationOffsetX": 7,
+            "animationOffsetY": 13
+          },
+          {
+            "layer": "ground",
+            "kind": "fill_rectangle",
+            "decorationKind": "farm_crop_pumpkin",
+            "startTileX": 374,
+            "startTileY": 385,
+            "width": 3,
+            "height": 2,
+            "variant": 3,
+            "animationOffsetX": 7,
+            "animationOffsetY": 13
+          },
+          {
+            "layer": "canopy",
+            "kind": "point",
+            "decorationKind": "farm_tree_oak",
+            "tileX": 389,
+            "tileY": 370,
+            "animationOffset": 11
+          },
+          {
+            "layer": "canopy",
+            "kind": "point",
+            "decorationKind": "farm_tree_oak",
+            "tileX": 392,
+            "tileY": 371,
+            "animationOffset": 43
+          },
+          {
+            "layer": "canopy",
+            "kind": "point",
+            "decorationKind": "farm_tree_oak",
+            "tileX": 391,
+            "tileY": 374,
+            "animationOffset": 76
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_grave",
+            "tileX": 390,
+            "tileY": 371,
+            "placeable": {
+              "runtimeId": "3100000138",
+              "object": "object:farmer_jane_memorial"
+            }
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_flowers",
+            "tileX": 389,
+            "tileY": 372,
+            "animationOffset": 19
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_flowers",
+            "tileX": 391,
+            "tileY": 372,
+            "variant": 1,
+            "animationOffset": 51
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_flowers",
+            "tileX": 390,
+            "tileY": 373,
+            "variant": 2,
+            "animationOffset": 81
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_flowers",
+            "tileX": 380,
+            "tileY": 371,
+            "variant": 1,
+            "animationOffset": 23
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_flowers",
+            "tileX": 384,
+            "tileY": 371,
+            "animationOffset": 57
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_potted_flowers",
+            "tileX": 379,
+            "tileY": 372,
+            "animationOffset": 31
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_potted_flowers",
+            "tileX": 385,
+            "tileY": 372,
+            "variant": 1,
+            "animationOffset": 67
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_stump",
+            "tileX": 372,
+            "tileY": 386
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "farm_fallen_log",
+            "tileX": 378,
+            "tileY": 387
+          }
+        ]
+      },
+      {
+        "id": "fisherman_fin_camp",
+        "label": "Fisherman Fin's Camp",
+        "runtimeIdBase": "3200000000",
+        "bounds": {
+          "minimumTileX": 398,
+          "maximumTileX": 414,
+          "minimumTileY": 306,
+          "maximumTileY": 325
+        },
+        "decorations": [
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "fisher_hut",
+            "tileX": 403,
+            "tileY": 315,
+            "idOffset": 1
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "fisher_dock",
+            "tileX": 407,
+            "tileY": 317
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_campfire",
+            "tileX": 403,
+            "tileY": 319,
+            "animationOffset": 17,
+            "placeable": {
+              "runtimeId": "3200000003",
+              "object": "object:campfire"
+            }
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_bench",
+            "tileX": 402,
+            "tileY": 321
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_round_stool",
+            "tileX": 404,
+            "tileY": 321
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_stump_seat",
+            "tileX": 401,
+            "tileY": 319
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_fishing_rod",
+            "tileX": 405,
+            "tileY": 318
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "fisher_fixed_line",
+            "tileX": 406,
+            "tileY": 311
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "fisher_fixed_line",
+            "tileX": 406,
+            "tileY": 314
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "fisher_fixed_line",
+            "tileX": 407,
+            "tileY": 321
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_rock",
+            "tileX": 399,
+            "tileY": 320
+          },
+          {
+            "layer": "objects",
+            "kind": "point",
+            "decorationKind": "camp_flowers",
+            "tileX": 400,
+            "tileY": 317,
+            "animationOffset": 29
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_grass",
+            "tileX": 405,
+            "tileY": 322
+          },
+          {
+            "layer": "ground",
+            "kind": "point",
+            "decorationKind": "nature_flower_grass",
+            "tileX": 400,
+            "tileY": 322
+          }
+        ],
+        "groundWalkableAreas": [
+          {
+            "minimumTileX": 407,
+            "maximumTileX": 409,
+            "minimumTileY": 317,
+            "maximumTileY": 317
+          }
+        ]
+      }
+    ],
+    "portals": [
+      {
+        "runtimeId": "4294966900",
+        "portalKind": "marlow_tent_enter",
+        "fromSpace": "space:island",
+        "fromTileX": 332,
+        "fromTileY": 357,
+        "toSpace": "space:marlow_tent",
+        "toTileX": 8,
+        "toTileY": 11
+      },
+      {
+        "runtimeId": "4294966901",
+        "portalKind": "marlow_tent_exit",
+        "fromSpace": "space:marlow_tent",
+        "fromTileX": 8,
+        "fromTileY": 12,
+        "toSpace": "space:island",
+        "toTileX": 332,
+        "toTileY": 358
+      }
+    ]
+  },
+  {
+    "id": "space:marlow_tent",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65533,
+    "name": "marlow_tent",
+    "sizeTiles": 16,
+    "generator": "marlow_tent",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "surfaces": [
+      {
+        "id": "4000000100",
+        "kind": "wooden_table",
+        "tileX": 10,
+        "tileY": 6,
+        "capacity": 4,
+        "footprint": [
+          -1,
+          0,
+          1,
+          0
+        ]
+      }
+    ]
+  },
+  {
+    "id": "space:willow_carpenter",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65522,
+    "name": "Alder Workshop",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInterior": [
+      "c",
+      "45rr",
+      "fhk9;4x8fga;4xofga;538m;g067;g0o7;xl7h;xlnh;7zam;h38o;o8mm;xlpne6!camp_bench;s65p;0ykd",
+      "h9hb"
+    ]
+  },
+  {
+    "id": "space:willow_furnisher",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65523,
+    "name": "Thread and Timber",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInterior": [
+      "f",
+      "d5jr;46be;l6se;4ibr;lisr;abmd;ammo",
+      "53g9;wk69;7z89;g097;dy7c;l5oa;ado9-6;qtmc;qtqc;tvr7;v87o;586k;g89n;kt6o;rh5k;9hnl;orqj;elpq;vooo;tvrp"
+    ]
+  },
+  {
+    "id": "space:willow_general_store",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65521,
+    "name": "Harbour Provisions",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInterior": [
+      "g",
+      "75on;enir",
+      "53g9;g086;g0m6;kf8d;kfmd;7z9j;7zbj;7zmj;7zoj;xl8f;xlmf;s68m;s6nm;0yi7"
+    ]
+  },
+  {
+    "id": "space:willow_guild",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65525,
+    "name": "Wayfarers Archive",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInterior": [
+      "u",
+      "55qr",
+      "fhg9;wr87;wro7;wr8c;wroc;ft9j;fh9i;o87j;o8bj;ftnj;fhni;o8lj;o8pj;wr8o;wroo;s6eo;s6io;rhbe;rhll"
+    ]
+  },
+  {
+    "id": "space:willow_inn",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65520,
+    "name": "The Willow Lantern",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInteriorCatalog": [
+      16,
+      24,
+      16,
+      25,
+      13,
+      9,
+      13,
+      11
+    ],
+    "hearthInterior": [
+      "i",
+      "4crr;44a8;l4r8;89ad;l9nd;c4je",
+      "fhg9;wk77;9hn7;7z97;orp5;qf5d;z3i5;ft9i;fh9h;o87i;o8bi;ftni;fhnh;o8li;o8pi;ft9o;fh9n;o87o;o8bo;ftno;fhnn;o8lo;o8po;s67e;s6qe;0yci;0ykn"
+    ]
+  },
+  {
+    "id": "space:willow_smith",
+    "kind": "space",
+    "schemaVersion": 1,
+    "spaceId": 65524,
+    "name": "Ember and Iron",
+    "sizeTiles": 32,
+    "generator": "village_interior",
+    "environment": "indoor",
+    "ambient": {
+      "r": 194,
+      "g": 158,
+      "b": 122
+    },
+    "weather": false,
+    "audioBed": "homestead",
+    "hearthInterior": [
+      "s",
+      "65pn;enir",
+      "fhc9;ru9fa8;4xnfga;qfm6;g076;7zmk;7zok;h39h;xllh",
+      "999b"
+    ]
+  }
+]

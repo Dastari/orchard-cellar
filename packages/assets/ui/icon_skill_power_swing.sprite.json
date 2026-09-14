@@ -1,0 +1,70 @@
+{
+  "name": "icon_skill_power_swing",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "..2222962.......",
+        "4..22966624.....",
+        "42.296656224....",
+        "42296653522724..",
+        ".22665353577724.",
+        ".4226653577a872.",
+        "..42221577a8882.",
+        "....21277a88882.",
+        "....32278888824.",
+        "...3..22888824..",
+        "..3...4228824...",
+        ".3.....42224.333",
+        "3...........3333",
+        "...........33111",
+        "...........31011",
+        "...........31111"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#28252f",
+    "1": "#5a5666",
+    "2": "#602141",
+    "3": "#9c99a4",
+    "4": "#9f173b",
+    "5": "#cfccd7",
+    "6": "#e83b3b",
+    "7": "#f89320",
+    "8": "#fac83d",
+    "9": "#fb6b1d",
+    "a": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "warrior-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/warrior/sheets/warrior-skills-16.png",
+  "sourceRegion": [
+    64,
+    64,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.power_swing",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

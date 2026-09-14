@@ -11,6 +11,7 @@ import {
   itemDefinition,
   hotbarSlotForInputCode,
   playerHitboxBounds,
+  runtimeItemDefinition,
   survivalResourceTargetVector,
   tileTargetAtFixedPoint,
   tileTargetBounds,
@@ -18,7 +19,9 @@ import {
   tileTargetIsBlocked,
   type CollisionMap,
   type Direction,
+  type ItemDefinition,
 } from '@orchard/sim';
+import { runtimeResourceTargetVector, type ContentRegistry } from '@orchard/sim';
 
 export interface TargetableResource {
   readonly id: bigint;
@@ -79,6 +82,27 @@ export function interactionTileAtWorldPoint(
   );
 }
 
+/** Converts a pointer on the projected terrain surface back to the logical
+ * world plane before applying the shared reach and bounds checks. Raised
+ * terrain is drawn north of its authoritative tile, so omitting this inverse
+ * projection stores placements one or more rows north of their preview. */
+export function interactionTileAtProjectedWorldPoint(
+  playerX: number,
+  playerY: number,
+  projectedWorldX: number,
+  projectedWorldY: number,
+  terrainProjectionPixels: number,
+  worldSize: number,
+): TargetableTile | null {
+  return interactionTileAtWorldPoint(
+    playerX,
+    playerY,
+    projectedWorldX,
+    projectedWorldY + terrainProjectionPixels,
+    worldSize,
+  );
+}
+
 /** Client placement preview for terrain/entity obstacles and live player foot
  * hitboxes. Authority repeats this check against the complete world state. */
 export function worldPlacementTileIsBlocked(
@@ -101,6 +125,7 @@ export function facedResource<T extends TargetableResource>(
   resources: Iterable<T>,
   reachFixed = 2 * TILE_SIZE_FIXED,
   forwardOffsetFixed = 0,
+  registry?: ContentRegistry,
 ): T | null {
   const [facingX, facingY] = FACING_VECTOR[facing];
   const [unitX, unitY] = directionUnitVector(facing);
@@ -111,13 +136,10 @@ export function facedResource<T extends TargetableResource>(
   let targetDistance = Number.POSITIVE_INFINITY;
   for (const resource of resources) {
     if (resource.depleted) continue;
-    const targetVector = survivalResourceTargetVector(
-      playerX,
-      playerY,
-      resource.kind,
-      resource.tileX,
-      resource.tileY,
-    );
+    const targetVector = registry === undefined
+      ? survivalResourceTargetVector(playerX, playerY, resource.kind, resource.tileX, resource.tileY)
+      : runtimeResourceTargetVector(registry, resource, playerX, playerY, resource.tileX, resource.tileY);
+    if (targetVector === null) continue;
     const dx = targetVector.x;
     const dy = targetVector.y;
     const areaDx = dx - offsetX;
@@ -200,26 +222,31 @@ export function hotbarSlotAtPoint(
   return slot < HOTBAR_SLOT_COUNT && x < slotX + HOTBAR_HEIGHT ? slot : null;
 }
 
-export function hotbarItemLabel(itemKind: string): string {
-  return itemDefinition(itemKind)?.displayName.toUpperCase() ?? '--';
+function activeItemDefinition(itemKind: string, registry?: ContentRegistry): ItemDefinition | null {
+  return registry === undefined ? itemDefinition(itemKind) : runtimeItemDefinition(registry, itemKind);
 }
 
-export function hotbarItemName(itemKind: string): string | null {
-  return itemDefinition(itemKind)?.displayName.toUpperCase() ?? null;
+export function hotbarItemLabel(itemKind: string, registry?: ContentRegistry): string {
+  return activeItemDefinition(itemKind, registry)?.displayName.toUpperCase() ?? '--';
+}
+
+export function hotbarItemName(itemKind: string, registry?: ContentRegistry): string | null {
+  return activeItemDefinition(itemKind, registry)?.displayName.toUpperCase() ?? null;
 }
 
 /** Only ranged aiming continuously overrides locomotion facing. Other tools
  * turn toward their target when their action is performed. */
-export function equippedItemTracksCursor(itemKind: string): boolean {
-  return itemKind === 'bow';
+export function equippedItemTracksCursor(itemKind: string, registry?: ContentRegistry): boolean {
+  return activeItemDefinition(itemKind, registry)?.tags.includes('item.ranged_weapon') === true;
 }
 
 export function equippedItemFacing(
   itemKind: string,
   characterFacing: Direction,
   aimedFacing: Direction | null,
+  registry?: ContentRegistry,
 ): Direction {
-  return equippedItemTracksCursor(itemKind) ? aimedFacing ?? characterFacing : characterFacing;
+  return equippedItemTracksCursor(itemKind, registry) ? aimedFacing ?? characterFacing : characterFacing;
 }
 
 export const WEATHER_PANEL_WIDTH = 142;

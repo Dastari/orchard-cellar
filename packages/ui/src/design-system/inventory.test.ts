@@ -1,0 +1,176 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { UiSkin } from '../skin.js';
+import type { ContainerSnapshot } from '@orchard/sim';
+import {
+  layoutUiInventoryGroup,
+  drawUiInventorySlotBacking,
+  UiInventoryInteractionModel,
+  uiInventorySelectorRect,
+  uiInventorySlotTone,
+} from './inventory.js';
+
+function fixtures(): Readonly<Record<string, ContainerSnapshot>> {
+  return {
+    bag: {
+      id: 'bag', capacity: 4,
+      slots: [
+        { itemKind: 'wood', quantity: 9 },
+        { itemKind: 'watch', quantity: 1 },
+        { itemKind: 'apple', quantity: 7 },
+        null,
+      ],
+    },
+    chest: { id: 'chest', capacity: 4, slots: [null, null, { itemKind: 'wood', quantity: 98 }, null] },
+    equipment: {
+      id: 'equipment', capacity: 2, slots: [null, null],
+      restrictions: { 0: { requiredTags: ['gear.head'] }, 1: { requiredTags: ['gear.ring'] } },
+    },
+  };
+}
+
+describe('design-system inventory interaction model', () => {
+  it('mutes the complete disabled slot artwork and preserves the surrounding canvas alpha', () => {
+    const draws: Array<{ alpha: number; arguments: unknown[] }> = [];
+    let savedAlpha = 1;
+    const context = {
+      globalAlpha: 0.8,
+      save: () => { savedAlpha = context.globalAlpha; },
+      restore: () => { context.globalAlpha = savedAlpha; },
+      drawImage: (...args: unknown[]) => { draws.push({ alpha: context.globalAlpha, arguments: args }); },
+      fillRect: vi.fn(),
+      getTransform: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+    };
+    const disabledFrame = { x: 10, y: 58, width: 28, height: 31, durationTicks: 1 };
+    const skin = { slot: { image: {}, uiSizing: 'fixed', metadata: {
+      image: '', animations: { disabled: [disabledFrame] },
+    } } } as unknown as UiSkin;
+    drawUiInventorySlotBacking(context as unknown as CanvasRenderingContext2D,
+      skin, { x: 20, y: 30, width: 28, height: 31 }, null, true);
+    expect(draws).toHaveLength(1);
+    expect(draws[0]!.alpha).toBeCloseTo(0.48);
+    expect(draws[0]!.arguments.slice(1, 5)).toEqual([10, 58, 28, 31]);
+    expect(context.fillRect).not.toHaveBeenCalled();
+    expect(context.globalAlpha).toBe(0.8);
+  });
+  it('packs fixed-size inventory slots densely instead of distributing spare space', () => {
+    const layout = layoutUiInventoryGroup(
+      { x: 10, y: 20, width: 200, height: 100 },
+      8,
+      { columns: 4, slotSize: { width: 28, height: 31 }, gap: 2 },
+    );
+
+    expect(layout.content).toEqual({ x: 10, y: 20, width: 118, height: 64 });
+    expect(layout.slots).toEqual([
+      { x: 10, y: 20, width: 28, height: 31 },
+      { x: 40, y: 20, width: 28, height: 31 },
+      { x: 70, y: 20, width: 28, height: 31 },
+      { x: 100, y: 20, width: 28, height: 31 },
+      { x: 10, y: 53, width: 28, height: 31 },
+      { x: 40, y: 53, width: 28, height: 31 },
+      { x: 70, y: 53, width: 28, height: 31 },
+      { x: 100, y: 53, width: 28, height: 31 },
+    ]);
+  });
+
+  it('wraps a group responsively without shrinking slots and supports axis gaps', () => {
+    const layout = layoutUiInventoryGroup(
+      { x: 0, y: 0, width: 91, height: 200 },
+      5,
+      {
+        columns: 4,
+        slotSize: { width: 28, height: 31 },
+        columnGap: 3,
+        rowGap: 5,
+      },
+    );
+
+    expect(layout.columns).toBe(3);
+    expect(layout.rows).toBe(2);
+    expect(layout.content).toEqual({ x: 0, y: 0, width: 90, height: 67 });
+    expect(new Set(layout.slots.map((slot) => `${slot.width}x${slot.height}`)))
+      .toEqual(new Set(['28x31']));
+    expect(layout.slots[3]).toEqual({ x: 0, y: 36, width: 28, height: 31 });
+  });
+
+  it('aligns the packed cluster inside its group without changing slot gaps', () => {
+    const layout = layoutUiInventoryGroup(
+      { x: 10, y: 20, width: 200, height: 100 },
+      8,
+      {
+        columns: 4,
+        slotSize: { width: 28, height: 31 },
+        gap: 2,
+        horizontalAlign: 'center',
+        verticalAlign: 'end',
+      },
+    );
+
+    expect(layout.content).toEqual({ x: 51, y: 56, width: 118, height: 64 });
+    expect(layout.slots[1]!.x - layout.slots[0]!.x).toBe(30);
+    expect(layout.slots[4]!.y - layout.slots[0]!.y).toBe(33);
+  });
+
+  it('maps quality to authored slot tones and lets quest ownership override it', () => {
+    expect(uiInventorySlotTone('wood')).toBe('common');
+    // All starter tools and weapons intentionally begin at common quality.
+    expect(uiInventorySlotTone('axe')).toBe('common');
+    expect(uiInventorySlotTone('sword')).toBe('common');
+    expect(uiInventorySlotTone('watch')).toBe('rare');
+    expect(uiInventorySlotTone('homestead_deed')).toBe('legendary');
+    expect(uiInventorySlotTone('marlow_book')).toBe('quest');
+    expect(uiInventorySlotTone(null)).toBe('common');
+  });
+
+  it('places the visible selector corners outside a standard inventory slot', () => {
+    expect(uiInventorySelectorRect({ x: 40, y: 50, width: 28, height: 31 }))
+      .toEqual({ x: 22, y: 34, width: 63, height: 63 });
+  });
+
+  it('picks up whole and half stacks with Minecraft pointer rules', () => {
+    const left = new UiInventoryInteractionModel(fixtures());
+    expect(left.pointerDown({ container: 'bag', index: 0 }, 0).status).toBe('PICKUP 9');
+    expect(left.cursor).toEqual({ itemKind: 'wood', quantity: 9 });
+    expect(left.stack({ container: 'bag', index: 0 })).toBeNull();
+
+    const right = new UiInventoryInteractionModel(fixtures());
+    expect(right.pointerDown({ container: 'bag', index: 0 }, 2).status).toBe('PICKUP 5');
+    expect(right.cursor?.quantity).toBe(5);
+    expect(right.stack({ container: 'bag', index: 0 })?.quantity).toBe(4);
+  });
+
+  it('previews and commits even and one-each drag distribution', () => {
+    const even = new UiInventoryInteractionModel(fixtures());
+    even.pointerDown({ container: 'bag', index: 0 }, 0);
+    even.pointerDown({ container: 'chest', index: 0 }, 0);
+    even.pointerEnter({ container: 'chest', index: 1 });
+    expect(even.stack({ container: 'chest', index: 0 })?.quantity).toBe(4);
+    expect(even.displayedCursor()?.quantity).toBe(1);
+    expect(even.pointerUp().status).toBe('QUICK_CRAFT 8');
+    expect(even.stack({ container: 'chest', index: 1 })?.quantity).toBe(4);
+
+    const oneEach = new UiInventoryInteractionModel(fixtures());
+    oneEach.pointerDown({ container: 'bag', index: 2 }, 0);
+    oneEach.pointerDown({ container: 'chest', index: 0 }, 2);
+    oneEach.pointerEnter({ container: 'chest', index: 1 });
+    oneEach.pointerEnter({ container: 'chest', index: 3 });
+    expect(oneEach.pointerUp().status).toBe('QUICK_CRAFT 3');
+    expect(oneEach.cursor?.quantity).toBe(4);
+  });
+
+  it('preserves a cursor stack when an equipment restriction rejects it', () => {
+    const model = new UiInventoryInteractionModel(fixtures());
+    model.pointerDown({ container: 'bag', index: 1 }, 0);
+    model.pointerDown({ container: 'equipment', index: 0 }, 0);
+    expect(model.pointerUp().status).toBe('SLOT REJECTS ITEM');
+    expect(model.cursor).toEqual({ itemKind: 'watch', quantity: 1 });
+    expect(model.stack({ container: 'equipment', index: 0 })).toBeNull();
+    expect(model.canAccept({ container: 'equipment', index: 1 })).toBe(true);
+  });
+
+  it('shift-moves through the same shared merge-before-empty authority', () => {
+    const model = new UiInventoryInteractionModel(fixtures(), null, { bag: ['chest'] });
+    expect(model.pointerDown({ container: 'bag', index: 0 }, 0, { shift: true }).status).toBe('QUICK_MOVE 9');
+    expect(model.stack({ container: 'chest', index: 2 })?.quantity).toBe(99);
+    expect(model.stack({ container: 'chest', index: 0 })?.quantity).toBe(8);
+  });
+});

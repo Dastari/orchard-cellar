@@ -1,5 +1,6 @@
 {
   "name": "resource_cf_cactus",
+  "bakedShadowColor": "#00000064",
   "category": "props",
   "size": [
     32,
@@ -54,7 +55,7 @@
     "3": "#26694f",
     "4": "#00000064"
   },
-  "sourcePath": "references/Cute_Fantasy_Desert/Props/Cactus.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Props/Cactus.png",
   "sourcePaletteMode": "exact",
   "sourceRegion": [128, 0, 32, 32],
   "approved": true,

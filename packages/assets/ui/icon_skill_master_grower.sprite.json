@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_master_grower",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....010102.....",
+        "...012222232....",
+        "..02223212223...",
+        "..21222222222...",
+        "..42232223224...",
+        "...422222224....",
+        "....4444444.....",
+        "......556.......",
+        "......565.......",
+        "......66........",
+        ".....565........",
+        "....565.........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#e43b44",
+    "1": "#ffffff",
+    "2": "#a22633",
+    "3": "#c0cbdc",
+    "4": "#3e2731",
+    "5": "#ead4aa",
+    "6": "#e8b796"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+  "sourceRegion": [
+    160,
+    160,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.master_grower",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

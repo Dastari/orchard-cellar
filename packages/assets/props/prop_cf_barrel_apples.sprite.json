@@ -1,5 +1,6 @@
 {
   "name": "prop_cf_barrel_apples",
+  "bakedShadowColor": "#00000064",
   "category": "props",
   "size": [
     16,
@@ -61,6 +62,6 @@
     "8": "#91533b",
     "9": "#b86f50"
   },
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/barrels.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/barrels.png",
   "sourcePaletteMode": "exact"
 }

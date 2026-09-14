@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_orc_chief",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     64,
     64
@@ -2517,7 +2518,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Orc_Chief.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Orcs/Orc_Chief.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Orcs/Orc_Chief.png",
   "sourceRegions": {
     "idle_down": [
       [

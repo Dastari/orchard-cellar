@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_pharaoh",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -1859,7 +1860,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Pharaoh.png",
-  "sourcePath": "references/Cute_Fantasy_Desert/NPC/Pharaoh.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/NPC/Pharaoh.png",
   "sourceRegions": {
     "idle_down": [
       [

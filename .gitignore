@@ -2,7 +2,7 @@ node_modules/
 dist/
 coverage/
 build/
-packages/client/public/generated/
+packages/assets/generated/
 packages/assets/review/
 # Raw source captures and licensed asset packs are local-only. Their terms do not
 # permit redistribution.
@@ -26,3 +26,11 @@ references/
 spacetime-data/
 .world-smoke-tokens.json
 packages/world/dist/
+
+# Local review captures, release artifacts, and rehearsal workspaces.
+output/
+.playwright-cli/
+.release-work/
+
+# Native licensed tool silhouettes remain local source artwork.
+art/custom/tool-progression/

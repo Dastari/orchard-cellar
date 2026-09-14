@@ -1,0 +1,139 @@
+{
+  "name": "prop_cf_stone_cliff_3_cave_entrance",
+  "category": "props",
+  "bakedShadowColor": "#00000028",
+  "size": [
+    48,
+    48
+  ],
+  "anchor": [
+    24,
+    47
+  ],
+  "frames": {
+    "base": [
+      [
+        "vv1hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh1vv",
+        "oohCCwwwwwCwwwwwwwwwwCwwwwwwwwwwwwwwwCwwwwwCChvo",
+        "oohCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCChoo",
+        "oohpppppppppppppppppppppppppppppppppppppppppphio",
+        "oohwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwphdo",
+        "1ihpwwwwpwwwwwwwwwwwwpwwwwwwwwpwwwwwwwwwpwwpphvd",
+        "d1hpppppppppppppppppppppppppppppppppppppppppphvv",
+        "odvhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhvvo",
+        "idvvoohpppphhhhwwwphcccccccchpwwwhhhhpppphvdoovo",
+        "doooodhpppphhhwwwphcccccccccchpwwwhhhpppphvdoooi",
+        "doooidhwppphhwwwphcccccccccccchpwwwhhwppphvvdoii",
+        "dooidohwwpphwwwphcccccccccccccchpwwwhwwpphoodiii",
+        "dioidihwwpphwwphcccccccccccccccchpwwhwwpphoo1d1d",
+        "1iiidihwwwphwphcccccccccccccccccchpwhwwwphodoid1",
+        "1diid1hCwwphphcccccccccccccccccccchphCwwphdoid11",
+        "v1d1ddhCwwphhcccccccccccccccccccccchhCwpph11dd1v",
+        "vvoo11hCwwphccccccbkk8cccc8kk8cccccchCwwphv1d1vv",
+        "ooooodhCwpphccccccbqq7cccc7qq7cccccchCwwphvv1ivo",
+        "ooooidhCwwphcccccfayy6eeee6yy6eccccchCwwphvvdioo",
+        "ooooi1hCwwphccccfxazz5rrrr5zz5rfcccchCwwphoidiio",
+        "ooiiddhCwwphcccjgA9BB4tAAA4BB4tgjccchCwwphoid1do",
+        "1id1d1hwwwphccjugn9BB4nnnn4BB4ngujcchCwwphd1vvvd",
+        "d11vvvhwwwphccuuuu9DD3uuuu3DD3uuuucchCwwphdvvvvv",
+        "odvvvvhwwwphcjuuuu9EE2uuuu2EE2uuuujchCwpph1vovvo",
+        "idvvoohwwpphcuuuuu9EE2uuuu2EE2uuuuuchCwwphvdoovo",
+        "doooodhwwwphjuuuuu9EE2uuuu2EE2uuuuujhCCwphvdoooi",
+        "doooidhwwwphuuuuuh9EE2hhhh2EE2huuuuuhCwwphvvdoii",
+        "dooidohwwwphuuuuhC9EE2wwww2EE2whuuuuhCwwphoodiii",
+        "dioidihwwwphuuuuhC9EE2wCCC2EE2whuuuuhCwwphoo1d1d",
+        "1iisdihwwwphuuuuhp9EE2pppp2EE2phuuuuhCwwphodoids",
+        "1sisslhwwpphuuuuuu9EE2uuuu2EE2uuuuuuhCCwphsoisds",
+        "slllsslhhhhuuuuuuu9mm2uuuu2mm2uuuuuuuhhhhlslslll",
+        "llllllllllllllllllllllllllllllllllllllllllllllll",
+        "ll0000l000l0l00lll0000l000l0l00lll0000l000l0l00l",
+        "000000000000000000000000000000000000000000000000",
+        "000000000000000000000000000000000000000000000000",
+        "000000000000000000000000000000000000000000000000",
+        "000000000000000000000000000000000000000000000000",
+        "000000000000000000000000000000000000000000000000",
+        "000000000000000000000000000000000000000000000000",
+        "000000000000000000000000000000000000000000000000",
+        "000000000000000000000000000000000000000000000000",
+        "................................................",
+        "................................................",
+        "................................................",
+        "................................................",
+        "................................................",
+        "................................................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#00000028",
+    "1": "#262b44",
+    "2": "#272727",
+    "3": "#282727",
+    "4": "#2a2626",
+    "5": "#2c2526",
+    "6": "#2d2526",
+    "7": "#312324",
+    "8": "#332224",
+    "9": "#352123",
+    "a": "#362123",
+    "b": "#372022",
+    "c": "#391f21",
+    "d": "#3c4258",
+    "e": "#3e262c",
+    "f": "#3e262d",
+    "g": "#3e272f",
+    "h": "#3f2832",
+    "i": "#525f7a",
+    "j": "#5d2c28",
+    "k": "#635359",
+    "l": "#637731",
+    "m": "#657392",
+    "n": "#693935",
+    "o": "#6c7c9d",
+    "p": "#743f39",
+    "q": "#74686f",
+    "r": "#784434",
+    "s": "#7c963c",
+    "t": "#804936",
+    "u": "#8a4836",
+    "v": "#8e9ab4",
+    "w": "#91533b",
+    "x": "#935843",
+    "y": "#959099",
+    "z": "#9e9ca6",
+    "A": "#a06047",
+    "B": "#acadb9",
+    "C": "#b86f50",
+    "D": "#babecb",
+    "E": "#c7cfdd"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "Stone_Cliff_3_Cave_Entrance.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/Cliff/Stone_Cliff_3_Cave_Entrance.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        48,
+        48
+      ]
+    ]
+  },
+  "tags": [
+    "terrain.cliff.doorway"
+  ],
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      3,
+      3
+    ],
+    "blocksMovement": true,
+    "builderAvailable": false
+  }
+}

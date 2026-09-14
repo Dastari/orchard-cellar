@@ -28,7 +28,7 @@ does not imply a per-instance crafting-quality roll or add item-row schema.
 3. **Readable at 1×.** Every glyph, icon, and meter must be legible in the raw
    480×270 buffer before scaling. If a design needs sub-pixel finesse, it is wrong.
 4. **The canvas is the truth.** UI state (open overlay, focused widget, cursor
-   position) lives in `client/src/ui/`; scenes route input to the topmost focus
+   position) lives in `packages/ui/src/`; scenes route input to the topmost focus
    holder. Overlays pause *rendering priority*, never the shared simulation.
 
 ## 2. Scene map & input canon
@@ -158,14 +158,12 @@ All HUD chrome sits inside a 4 px safe margin. Wireframe of the 480×270 buffer:
   slides its cell in from the left with a *fruit-pick pop*. Counts abbreviate per the
   notation setting (§6 Settings). A count that just changed ticks up over ≤300 ms
   and its icon does a 1-frame squash.
-- **Day/season dial** (top-right, 28×28): a circular dial whose outer 2 px ring is
-  season-colored — spring R9 blossom pink, summer R3 green, autumn R6/R5 gold-red,
-  winter R7 ice blue — echoing the original game's season arc. A sun/moon pip
-  travels the ring over the 15-minute day; at night the moon pip uses the current
-  one of all eight lunar silhouettes from [27](27-lighting-design.md) §7 and the
-  disc face darkens toward the phase-controlled ambient. Center shows `D3` (day
-  of season) in `font-5x7`. Hover/tap tooltip includes the phase, for example:
-  `"Summer, Day 3 — Year 2 — Last Quarter"`.
+- **Watch readout** (beneath the top-left Zone Ribbon): visible only while a
+  Watch is worn in the ring equipment slot. Its single compact strip shows the
+  current clock time, season/day, and the named moon phase beside the current
+  one of all eight lunar silhouettes from [27](27-lighting-design.md) §7.
+  Hover/tap repeats the complete time, season/day, and phase without relying on
+  icon color. Carrying a Watch in the hotbar or backpack does not unlock it.
 - **Vigour meter** (bottom-center, 96×10 wood-framed bar): fills over time (rate set
   in `sim/balance.ts`). At 100% the frame gains a 2-frame R6 glow pulse. Holding
   interact on a tendable target charges the tend action: the bar overlays the charge
@@ -226,7 +224,12 @@ is the toolbelt mirror: press 1–4 on a hovered tool to assign it. Open/close i
 **Character** (P) — a parchment character sheet showing the shared equipment paper
 doll, Health/Mana/Vigour, base-to-resolved attributes, active effects, and Combat /
 Explorer / Farming levels. The appearance controls cycle only authored variants and
-commit through server validation.
+commit through server validation. Character and Inventory show the same nine
+paper-doll positions; six are visibly locked while Watch, Backpack, and Off Hand
+are active. The turn controls sit beneath the avatar with a clear gap around the
+`TURN` label. Item movement remains in Inventory, where the server validates
+Watch-only, Backpack-only, and Lantern-only destinations and rejects every item
+from reserved slots.
 
 **Skills** (K) — a one-track-at-a-time Combat / Explorer / Farming tree. Drag the
 canvas to pan, wheel to zoom, inspect nodes in the side panel, and spend or reset
@@ -315,7 +318,7 @@ are the only modals that suppress all HUD.
 - **Colorblind-safe resources**: icons are shape-distinct first, color second —
   Fruit = round berry, Pomace = mound, Must = drop, Bottles = bottle, Terroir =
   layered soil wedge, Seeds = teardrop pair. No information is ever color-only
-  (season dial ring also carries the `☀/❄`-style glyph of its season).
+  and the Watch pairs every moon silhouette with its phase name.
 - **Text speed**: letter/ceremony text reveal at Slow/Normal/Instant.
 - **Reduced motion**: disables parallax auto-pan, sway offsets, screen-shake, and
   toast slide (fades instead). Simulation and gameplay animations are unaffected.

@@ -1,16 +1,9 @@
-export type PwaUpdateStatus = 'unsupported' | 'current' | 'checking' | 'available' | 'updating' | 'error';
+import type { PwaUpdateStatus } from '@orchard/ui';
+
+export { pwaUpdateLabel, type PwaUpdateStatus } from '@orchard/ui';
 
 export const PWA_UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1_000;
 const PWA_HISTORY_GUARD_KEY = '__orchardPwaHistoryGuard';
-
-export function pwaUpdateLabel(status: PwaUpdateStatus): string {
-  if (status === 'available') return 'UPDATE';
-  if (status === 'checking') return 'CHECKING';
-  if (status === 'updating') return 'UPDATING';
-  if (status === 'current') return 'CHECK UPDATE';
-  if (status === 'error') return 'RETRY UPDATE';
-  return 'UPDATE UNAVAILABLE';
-}
 
 export function isStandaloneWebApp(): boolean {
   const iosNavigator = navigator as Navigator & { readonly standalone?: boolean };
@@ -86,7 +79,8 @@ export class PwaClient {
   private updateStatus: PwaUpdateStatus = 'unsupported';
   private reloadForUpdate = false;
   private activatedUpdate = false;
-  private started = false;
+  private starting: Promise<void> | null = null;
+  private resumeListenersInstalled = false;
 
   get status(): PwaUpdateStatus { return this.updateStatus; }
 
@@ -97,9 +91,23 @@ export class PwaClient {
   }
 
   async start(): Promise<void> {
-    if (this.started) return;
-    this.started = true;
+    if (this.starting !== null) return this.starting;
+    if (this.registration !== null) return;
     if (!import.meta.env.PROD || !isSecureContext || !('serviceWorker' in navigator)) return;
+    if (!this.resumeListenersInstalled) {
+      this.resumeListenersInstalled = true;
+      window.setInterval(() => void this.checkForUpdate(), PWA_UPDATE_CHECK_INTERVAL_MS);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void this.checkForUpdate();
+      });
+      window.addEventListener('online', () => void this.checkForUpdate());
+      window.addEventListener('pageshow', () => void this.checkForUpdate());
+    }
+    this.starting = this.register().finally(() => { this.starting = null; });
+    return this.starting;
+  }
+
+  private async register(): Promise<void> {
     this.setStatus('checking');
     try {
       this.registration = await navigator.serviceWorker.register('/service-worker.js', {
@@ -122,12 +130,6 @@ export class PwaClient {
         }
       });
       this.refreshStatus();
-      window.setInterval(() => void this.checkForUpdate(), PWA_UPDATE_CHECK_INTERVAL_MS);
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') void this.checkForUpdate();
-      });
-      window.addEventListener('online', () => void this.checkForUpdate());
-      window.addEventListener('pageshow', () => void this.checkForUpdate());
     } catch {
       this.setStatus('error');
     }

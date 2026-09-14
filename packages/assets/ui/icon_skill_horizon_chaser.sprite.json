@@ -1,0 +1,65 @@
+{
+  "name": "icon_skill_horizon_chaser",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "........001.....",
+        ".......0110.....",
+        "......01101.....",
+        "......11210.....",
+        ".....0132210....",
+        ".....1341222....",
+        "....23352442....",
+        "....534224445...",
+        "...2445242442...",
+        "...53424425555..",
+        "..544524422552..",
+        "..255525522552..",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#ffffff",
+    "1": "#c0cbdc",
+    "2": "#36292c",
+    "3": "#a18b94",
+    "4": "#725c64",
+    "5": "#523d43"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/places-seasons/sheet-16-without-outline.png",
+  "sourceRegion": [
+    192,
+    16,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.horizon_chaser",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

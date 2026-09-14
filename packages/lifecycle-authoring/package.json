@@ -1,0 +1,24 @@
+{
+  "name": "@orchard/lifecycle-authoring",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./compiler": "./src/compiler.ts",
+    "./generated": "./generated/item-lifecycles.ts",
+    "./metadata": "./generated/item-lifecycle-metadata.json",
+    "./source": "./source/bootstrap-item-on-use.source.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@orchard/sim": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^6.0.3"
+  }
+}

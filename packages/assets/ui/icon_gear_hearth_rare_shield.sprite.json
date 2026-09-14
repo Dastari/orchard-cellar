@@ -1,0 +1,66 @@
+{
+  "name": "icon_gear_hearth_rare_shield",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".....775556.....",
+        "....53332326....",
+        "...5333332304...",
+        "...5233323204...",
+        "...7233332014...",
+        "...7323322014...",
+        "...7232320014...",
+        "...5323200014...",
+        "....53230014....",
+        ".....732014.....",
+        "......6314......",
+        ".......44.......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#19af24",
+    "1": "#1c5d28",
+    "2": "#4bea5e",
+    "3": "#76ef88",
+    "4": "#b25b2b",
+    "5": "#d9e16e",
+    "6": "#dcba48",
+    "7": "#e6ecf9"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/shields-fantasy-160/sheet-16-no-outline.png",
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourceRegion": [
+    48,
+    48,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

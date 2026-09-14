@@ -1,5 +1,9 @@
 import { resolveModifierTarget, type Modifier } from './modifiers.js';
-import { checkModifier } from './stats.js';
+import {
+  BOOTSTRAP_CHARACTER_COMBAT_BALANCE,
+  type CharacterCombatBalanceProfile,
+} from './character-combat-balance.js';
+import { checkModifierWithProfile } from './stats.js';
 
 export const SKILL_CHECK_DCS = {
   trivial: 5,
@@ -43,9 +47,21 @@ export function skillCheck(
   dc: number,
   modifiers: readonly Modifier[] = [],
 ): SkillCheckResult {
+  return skillCheckWithProfile(
+    BOOTSTRAP_CHARACTER_COMBAT_BALANCE, seedParts, attributeValue, dc, modifiers,
+  );
+}
+
+export function skillCheckWithProfile(
+  profile: CharacterCombatBalanceProfile,
+  seedParts: readonly SkillCheckSeedPart[],
+  attributeValue: number,
+  dc: number,
+  modifiers: readonly Modifier[] = [],
+): SkillCheckResult {
   const roll = 1 + statelessRoll(seedParts, 20);
-  const total = roll + checkModifier(attributeValue)
-    + resolveModifierTarget('checkBonus', 0, modifiers);
+  const total = roll + checkModifierWithProfile(profile, attributeValue)
+    + resolveModifierTarget('checkBonus', 0, modifiers, profile);
   return { roll, total, success: total >= dc };
 }
 
@@ -58,7 +74,20 @@ export function fishingCatchQuality(
   dexterity: number,
   modifiers: readonly Modifier[] = [],
 ): FishingCatchQuality {
-  const check = skillCheck([...seedParts, 'fishing.quality'], dexterity, SKILL_CHECK_DCS.medium, modifiers);
+  return fishingCatchQualityWithProfile(
+    BOOTSTRAP_CHARACTER_COMBAT_BALANCE, seedParts, dexterity, modifiers,
+  );
+}
+
+export function fishingCatchQualityWithProfile(
+  profile: CharacterCombatBalanceProfile,
+  seedParts: readonly SkillCheckSeedPart[],
+  dexterity: number,
+  modifiers: readonly Modifier[] = [],
+): FishingCatchQuality {
+  const check = skillCheckWithProfile(
+    profile, [...seedParts, 'fishing.quality'], dexterity, SKILL_CHECK_DCS.medium, modifiers,
+  );
   if (check.total >= SKILL_CHECK_DCS.hard) return 'rare';
   return check.success ? 'good' : 'common';
 }
@@ -69,5 +98,18 @@ export function forageFindBonus(
   wisdom: number,
   modifiers: readonly Modifier[] = [],
 ): number {
-  return Number(skillCheck([...seedParts, 'forage.find'], wisdom, SKILL_CHECK_DCS.easy, modifiers).success);
+  return forageFindBonusWithProfile(
+    BOOTSTRAP_CHARACTER_COMBAT_BALANCE, seedParts, wisdom, modifiers,
+  );
+}
+
+export function forageFindBonusWithProfile(
+  profile: CharacterCombatBalanceProfile,
+  seedParts: readonly SkillCheckSeedPart[],
+  wisdom: number,
+  modifiers: readonly Modifier[] = [],
+): number {
+  return Number(skillCheckWithProfile(
+    profile, [...seedParts, 'forage.find'], wisdom, SKILL_CHECK_DCS.easy, modifiers,
+  ).success);
 }

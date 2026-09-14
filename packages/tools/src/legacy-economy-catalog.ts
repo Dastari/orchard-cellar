@@ -1,0 +1,82 @@
+import type { LegacyEconomyCatalog } from '@orchard/sim';
+
+const initialPlots: readonly (readonly [number, number])[] = [
+  [12, 17], [16, 17], [20, 17], [12, 22], [16, 22], [20, 22], [12, 27], [16, 27], [20, 27],
+  [12, 32], [16, 32], [20, 32], [12, 37], [16, 37], [20, 37],
+];
+const expansionPlots = Array.from({ length: 10 }, (_, row) => [16 + row * 3, 0] as const)
+  .flatMap(([y]) => [4, 7, 10, 13, 16, 19, 22, 25, 32, 35, 38, 41].map((x) => [x, y] as const));
+const initialKeys = new Set(initialPlots.map(([x, y]) => `${x},${y}`));
+
+export const LEGACY_ECONOMY_CATALOG = Object.freeze({
+  trees: [
+    { id: 'seedlingApple', name: 'Seedling Apple', saplingCost: 15, fruitPerSecond: 0.1, trait: 'none', traitValue: 0 },
+    { id: 'orchardApple', name: 'Orchard Apple', saplingCost: 120, fruitPerSecond: 0.6, trait: 'lifts', traitValue: 0.015 },
+    { id: 'pear', name: 'Pear', saplingCost: 900, fruitPerSecond: 3.2, trait: 'season', traitValue: 1.8, featuredSeason: 'autumn' },
+    { id: 'quince', name: 'Quince', saplingCost: 6_500, fruitPerSecond: 15, trait: 'feedsPress', traitValue: 0.02 },
+    { id: 'plum', name: 'Plum', saplingCost: 48_000, fruitPerSecond: 70, trait: 'lifts', traitValue: 0.012 },
+    { id: 'fig', name: 'Fig', saplingCost: 360_000, fruitPerSecond: 330, trait: 'season', traitValue: 1.8, featuredSeason: 'summer' },
+    { id: 'cherry', name: 'Cherry', saplingCost: 2_800_000, fruitPerSecond: 1_600, trait: 'season', traitValue: 1.8, featuredSeason: 'summer' },
+    { id: 'heritageGrafts', name: 'Heritage Grafts', saplingCost: 22_000_000, fruitPerSecond: 7_500, trait: 'lifts', traitValue: 0.02 },
+    { id: 'frostMedlar', name: 'Frost Medlar', saplingCost: 170_000_000, fruitPerSecond: 36_000, trait: 'season', traitValue: 1.8, featuredSeason: 'winter' },
+    { id: 'valeMedlar', name: 'Vale Medlar', saplingCost: 1_300_000_000, fruitPerSecond: 170_000, trait: 'feedsCellar', traitValue: 0.025 },
+  ],
+  presses: [
+    { tier: 1, name: 'Basket Press', cost: 25, ratePerSecond: 0.5, pads: 1 },
+    { tier: 2, name: 'Screw Press', cost: 180, ratePerSecond: 3, pads: 1 },
+    { tier: 3, name: 'Hydraulic Press', cost: 1_400, ratePerSecond: 18, pads: 1 },
+    { tier: 4, name: 'Belt Line', cost: 12_000, ratePerSecond: 120, pads: 1 },
+    { tier: 5, name: 'Pressing Works', cost: 100_000, ratePerSecond: 900, pads: 2 },
+  ],
+  casks: [
+    { tier: 1, name: 'Demijohn shelf', cost: 80, ratePerSecond: 0.2 },
+    { tier: 2, name: 'Oak Barrels', cost: 300, ratePerSecond: 1.2 },
+    { tier: 3, name: 'Foudre', cost: 2_400, ratePerSecond: 7 },
+    { tier: 4, name: 'Stone Vault', cost: 20_000, ratePerSecond: 40 },
+    { tier: 5, name: 'Cellar Cathedral', cost: 170_000, ratePerSecond: 240 },
+  ],
+  upgrades: [
+    { id: 'pruningShears', name: 'Pruning Shears', currency: 'fruit', cost: 75, effect: 3,
+      mechanic: 'care_decay_days' },
+    { id: 'tallLadders', name: 'Tall Ladders', currency: 'fruit', cost: 450, effect: 4,
+      mechanic: 'care_level' },
+    { id: 'irrigation', name: 'Irrigation', currency: 'fruit', cost: 3_000, effect: 0.5,
+      mechanicValue: 0.925,
+      mechanic: 'off_season_multiplier' },
+    { id: 'beeBoost', name: 'Bee Boost', currency: 'fruit', cost: 20_000, effect: 0.1,
+      mechanic: 'nearby_tree_multiplier' },
+    { id: 'cartMule', name: 'Cart & Mule', currency: 'fruit', cost: 140_000, effect: 1,
+      mechanic: 'auto_haul_fruit' },
+    { id: 'copperPipe', name: 'Copper Pipe', currency: 'pomace', cost: 75, effect: 1,
+      mechanic: 'pipe_must' },
+    { id: 'yardExpansion1', name: 'Yard Expansion I', currency: 'pomace', cost: 500, effect: 3,
+      mechanic: 'press_pads' },
+    { id: 'yardExpansion2', name: 'Yard Expansion II', currency: 'pomace', cost: 4_000, effect: 4,
+      mechanic: 'press_pads' },
+    { id: 'corkBench', name: 'Cork Bench', currency: 'must', cost: 250, effect: 0.15,
+      mechanic: 'bottle_yield' },
+    { id: 'blendingBench', name: 'Blending Bench', currency: 'must', cost: 1_800, effect: 0.25,
+      mechanic: 'bottle_yield' },
+    { id: 'cellarBook', name: 'Cellar Book', currency: 'must', cost: 13_000, effect: 0.4,
+      mechanic: 'bottle_yield' },
+  ],
+  plotClearings: [
+    { plots: 15, fruitCost: 0 }, { plots: 30, fruitCost: 2_000 }, { plots: 60, fruitCost: 16_000 },
+    { plots: 90, fruitCost: 130_000 }, { plots: 120, fruitCost: 1_000_000 },
+  ],
+  orchardPlots: [...initialPlots, ...expansionPlots.filter(([x, y]) => !initialKeys.has(`${x},${y}`))].slice(0, 120),
+  initialTree: { species: 'seedlingApple', x: 20, y: 17 },
+  treeCostGrowth: 1.18, pressCostGrowth: 1.35, caskCostGrowth: 1.35, treeBufferSeconds: 14_400,
+  saplingGrowthDays: 1, youngGrowthDays: 2, youngProductionMultiplier: 0.25,
+  springGrowthMultiplier: 2, featuredSeasonMultiplier: 1.6, offSeasonMultiplier: 0.85,
+  seasonTraitMultiplier: 1.8, summerPressMultiplier: 1.6, winterAgingMultiplier: 1.6,
+  firstPressRepairFruit: 50, pressMustYield: 0.5, pomaceYield: 0.15, bottleValue: 0.1,
+  yardMustCapacity: 100, cellarDigCosts: [0, 500, 25_000], mulchPomaceCost: 5,
+  careMultipliers: [1, 1.25, 1.5, 2], careDecayDays: 2, mulchHoldDays: 3, fedBonusCap: 0.5,
+  vigourChargePerSecond: 0.04, autumnVigourMultiplier: 4, vigourBurstPower: 2,
+  vigourPartialSeconds: [2, 5, 9, 15], autumnChainWindowSeconds: 8, autumnChainStep: 0.1,
+  autumnChainCap: 2, offlineCapSeconds: 28_800, offlineEfficiency: 0.6, offlineChunks: 60,
+  vintageMinimumBottles: 100, vintageBottleDivisor: 100, vintageExponent: 0.45, vintageScale: 6,
+  successionTerroirDivisor: 500, successionExponent: 0.5,
+  lineageHeirloomDivisor: 20, lineageExponent: 0.5,
+} as const satisfies LegacyEconomyCatalog);

@@ -1,0 +1,70 @@
+{
+  "name": "icon_gear_hearth_epic_bow",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..aa.......77b4.",
+        ".a960.....74474.",
+        ".a360...774..74.",
+        "..00...b44...74.",
+        ".......74...74..",
+        "......74...74...",
+        "......74...74...",
+        ".....74..b74....",
+        ".....b4.744.....",
+        ".....74.74......",
+        "....a3..74......",
+        "....851a74......",
+        "....251132......",
+        ".....25552......",
+        "......222......."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#00558d",
+    "1": "#2c1e0d",
+    "2": "#412a10",
+    "3": "#53a6db",
+    "4": "#8a7962",
+    "5": "#8f6e47",
+    "6": "#94d5ff",
+    "7": "#b3a38d",
+    "8": "#bc9d78",
+    "9": "#c3e7ff",
+    "a": "#dff2ff",
+    "b": "#e2dbd2"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/weapons-800/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    192,
+    416,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

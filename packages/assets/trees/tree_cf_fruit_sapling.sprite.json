@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_fruit_sapling",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     16,
     32
@@ -60,7 +61,7 @@
     "7": "#91533b",
     "8": "#b86f50"
   },
-  "sourcePath": "references/Cute_Fantasy/Crops/Fruit_Tree_Stages.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Fruit_Tree_Stages.png",
   "sourceRegion": [
     8,
     16,

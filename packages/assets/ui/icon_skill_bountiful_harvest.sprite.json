@@ -1,0 +1,67 @@
+{
+  "name": "icon_skill_bountiful_harvest",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "....012.........",
+        ".....012...210..",
+        ".....30113010...",
+        "...45330133.....",
+        "..4556333345....",
+        "..5567345356....",
+        "...673357333....",
+        "....333333345...",
+        ".....345334556..",
+        ".....455635567..",
+        ".....5667..67...",
+        "......57........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#265c42",
+    "1": "#3e8948",
+    "2": "#63c74d",
+    "3": "#181425",
+    "4": "#f6757a",
+    "5": "#ff0044",
+    "6": "#a22633",
+    "7": "#3e2731"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+  "sourceRegion": [
+    144,
+    96,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.bountiful_harvest",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

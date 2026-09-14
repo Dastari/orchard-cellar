@@ -1,0 +1,215 @@
+[
+  {
+    "id": "encounter:cinder_ash_shore",
+    "kind": "encounter",
+    "schemaVersion": 1,
+    "runtimeId": "cinder-ash-shore",
+    "runtimeIndex": 0,
+    "tileX": 678,
+    "tileY": 204,
+    "radiusTiles": 6,
+    "elevation": 0,
+    "activation": "proximity",
+    "respawnDelayTicks": 6000,
+    "roles": [
+      "ash_shore_intro"
+    ],
+    "members": [
+      {
+        "enemy": "enemy:ember_slime",
+        "tileX": 676,
+        "tileY": 203
+      },
+      {
+        "enemy": "enemy:ember_slime",
+        "tileX": 680,
+        "tileY": 206
+      }
+    ],
+    "reward": {
+      "revision": "hearth-camps-v1",
+      "combatExperience": 24,
+      "drops": [
+        {
+          "item": "item:basalt",
+          "minimum": 2,
+          "maximum": 2,
+          "chanceBasisPoints": 10000
+        }
+      ]
+    },
+    "completionStatistics": [
+      {
+        "kind": "quest_actions",
+        "subject": "hearth_ash_shore_cleared",
+        "delta": 1
+      }
+    ]
+  },
+  {
+    "id": "encounter:cinder_caldera_warden",
+    "kind": "encounter",
+    "schemaVersion": 1,
+    "runtimeId": "cinder-caldera-warden",
+    "runtimeIndex": 4,
+    "tileX": 721,
+    "tileY": 117,
+    "radiusTiles": 11,
+    "elevation": 3,
+    "activation": "interact",
+    "respawnDelayTicks": 18000,
+    "roles": [
+      "caldera_warden",
+      "coordinated_attacks"
+    ],
+    "members": [
+      {
+        "enemy": "enemy:caldera_warden",
+        "tileX": 721,
+        "tileY": 117
+      }
+    ],
+    "reward": {
+      "revision": "hearth-camps-v1",
+      "combatExperience": 120,
+      "drops": [
+        {
+          "item": "item:guardian_seal",
+          "minimum": 1,
+          "maximum": 1,
+          "chanceBasisPoints": 10000
+        },
+        {
+          "item": "item:emberglass",
+          "minimum": 2,
+          "maximum": 2,
+          "chanceBasisPoints": 10000
+        }
+      ]
+    },
+    "summons": {
+      "phase": 3,
+      "enemy": "enemy:ember_slime",
+      "offsets": [
+        {
+          "tileX": -6,
+          "tileY": -1
+        },
+        {
+          "tileX": 6,
+          "tileY": -1
+        }
+      ]
+    }
+  },
+  {
+    "id": "encounter:cinder_skull_roost",
+    "kind": "encounter",
+    "schemaVersion": 1,
+    "runtimeId": "cinder-skull-roost",
+    "runtimeIndex": 3,
+    "tileX": 736,
+    "tileY": 147,
+    "radiusTiles": 4,
+    "elevation": 2,
+    "activation": "proximity",
+    "respawnDelayTicks": 6000,
+    "roles": [],
+    "members": [
+      {
+        "enemy": "enemy:cinder_skull",
+        "tileX": 736,
+        "tileY": 147
+      }
+    ],
+    "reward": {
+      "revision": "hearth-camps-v1",
+      "combatExperience": 36,
+      "drops": [
+        {
+          "item": "item:cinder_ore",
+          "minimum": 2,
+          "maximum": 2,
+          "chanceBasisPoints": 10000
+        }
+      ]
+    }
+  },
+  {
+    "id": "encounter:cinder_south_basalt",
+    "kind": "encounter",
+    "schemaVersion": 1,
+    "runtimeId": "cinder-south-basalt",
+    "runtimeIndex": 1,
+    "tileX": 715,
+    "tileY": 205,
+    "radiusTiles": 7,
+    "elevation": 0,
+    "activation": "proximity",
+    "respawnDelayTicks": 6000,
+    "roles": [],
+    "members": [
+      {
+        "enemy": "enemy:ember_cowling",
+        "tileX": 715,
+        "tileY": 205
+      }
+    ],
+    "reward": {
+      "revision": "hearth-camps-v1",
+      "combatExperience": 32,
+      "drops": [
+        {
+          "item": "item:ashwood",
+          "minimum": 2,
+          "maximum": 2,
+          "chanceBasisPoints": 10000
+        }
+      ]
+    }
+  },
+  {
+    "id": "encounter:cinder_terrace_kiln",
+    "kind": "encounter",
+    "schemaVersion": 1,
+    "runtimeId": "cinder-terrace-kiln",
+    "runtimeIndex": 2,
+    "tileX": 725,
+    "tileY": 169,
+    "radiusTiles": 7,
+    "elevation": 1,
+    "activation": "proximity",
+    "respawnDelayTicks": 6000,
+    "roles": [],
+    "members": [
+      {
+        "enemy": "enemy:cowling_pyromancer",
+        "tileX": 725,
+        "tileY": 168
+      },
+      {
+        "enemy": "enemy:ember_cowling",
+        "tileX": 722,
+        "tileY": 173
+      }
+    ],
+    "reward": {
+      "revision": "hearth-camps-v1",
+      "combatExperience": 48,
+      "drops": [
+        {
+          "item": "item:emberglass",
+          "minimum": 2,
+          "maximum": 2,
+          "chanceBasisPoints": 10000
+        },
+        {
+          "item": "item:cinder_ore",
+          "minimum": 1,
+          "maximum": 1,
+          "chanceBasisPoints": 10000
+        }
+      ]
+    }
+  }
+]

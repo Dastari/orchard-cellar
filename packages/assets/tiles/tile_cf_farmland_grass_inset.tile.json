@@ -1,6 +1,7 @@
 {
   "name": "tile_cf_farmland_grass_inset",
   "category": "tiles",
+  "bakedShadowColor": "#00000028",
   "size": [
     16,
     16
@@ -866,7 +867,7 @@
     "3": "#00000028",
     "4": "#e4a672"
   },
-  "sourcePath": "references/Cute_Fantasy/Tiles/Grass/Grass_Tiles_1_Blob_TEST_1.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/Grass/Grass_Tiles_1_Blob_TEST_1.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Grass_Tiles_1_Blob_TEST_1.png",

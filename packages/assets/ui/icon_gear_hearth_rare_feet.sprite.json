@@ -1,0 +1,63 @@
+{
+  "name": "icon_gear_hearth_rare_feet",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "......111111....",
+        ".....10000001...",
+        "....10000111111.",
+        "....100013422321",
+        "....100124000031",
+        ".....10123111141",
+        "...1100130342221",
+        "..1000011200001.",
+        ".10000112022221.",
+        "100001233300321.",
+        "100010222332221.",
+        ".10100022223001.",
+        "..110000222001..",
+        "...1100000001...",
+        ".....1000011....",
+        "......1111......"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#254d48",
+    "1": "#2e1c2c",
+    "2": "#367f63",
+    "3": "#89ab83",
+    "4": "#b0bb8f"
+  },
+  "sourcePath": "references/art/clockwork-raven/collections/premium/sheets/raven-fantasy-icons-16.png",
+  "importedFrom": "raven-fantasy-icons-16.png",
+  "sourceRegion": [
+    112,
+    6752,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

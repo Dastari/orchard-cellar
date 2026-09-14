@@ -31,7 +31,7 @@ interface UiExtract {
   readonly tags: readonly string[];
 }
 
-const uiRoot = 'references/Cute_Fantasy_UI/UI';
+const uiRoot = 'references/art/kenmi/cute-fantasy/ui/UI';
 const r = (x: number, y: number, width: number, height: number, rotate: Rotation = 0): Crop => ({
   region: [x, y, width, height],
   ...(rotate ? { rotate } : {}),
@@ -214,6 +214,7 @@ const extracts: readonly UiExtract[] = [
     name: 'ui_cf_slot', source: `${uiRoot}/UI_Frames.png`, size: [28, 31],
     groups: {
       idle: [r(10, 10, 28, 31)],
+      disabled: [r(10, 58, 28, 31)],
       quest: [r(10, 58, 28, 31)],
       uncommon: [r(10, 106, 28, 31)],
       rare: [r(10, 154, 28, 31)],
@@ -221,10 +222,10 @@ const extracts: readonly UiExtract[] = [
       epic: [r(10, 298, 28, 31)],
     },
     frameKinds: {
-      idle: 'state', quest: 'state', uncommon: 'state', rare: 'state',
+      idle: 'state', disabled: 'state', quest: 'state', uncommon: 'state', rare: 'state',
       legendary: 'state', epic: 'state',
     },
-    uiRequiredStates: ['idle', 'quest', 'uncommon', 'rare', 'epic', 'legendary'],
+    uiRequiredStates: ['idle', 'disabled', 'quest', 'uncommon', 'rare', 'epic', 'legendary'],
     uiSizing: 'fixed', tags: ['ui.slot', 'ui.inventory'],
   },
   {
@@ -503,7 +504,7 @@ const extracts: readonly UiExtract[] = [
   },
   {
     name: 'icon_cf_effect_orchard_tea',
-    source: 'references/Cute_Fantasy/Icons/Outline/Food_Icons_Outline.png', size: [16, 16],
+    source: 'references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png', size: [16, 16],
     groups: { base: [r(16, 128, 16, 16)] }, frameKinds: { base: 'state' },
     uiSizing: 'fixed', tags: ['ui.icon', 'item.food', 'effect.orchard_tea'],
   },

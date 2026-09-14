@@ -8,11 +8,14 @@
 Binding owner-directed spec (2026-08-24). The solo farm scene is **retired for now**;
 the root Vite application loads the overworld as its only game client. Farms return
 later as instanced per-player interiors rendered by this same renderer (M7+). The engine
-decision in [01-engine-decision.md](01-engine-decision.md) stands: **Canvas 2D**.
-WebGL2 was evaluated (owner hardware includes a GT730, which does support WebGL2 via
-ANGLE/D3D11) and deliberately deferred — everything below must live behind one
-renderer module so a WebGL2 backend can be swapped in later without touching game
-logic. Do not add WebGL in this milestone.
+decision in [01-engine-decision.md](01-engine-decision.md) now includes the
+2026-09-06 `client/rendering` amendment: **Canvas 2D remains the default and
+reference; doc 59 P8 adds an experimental WebGL2 world pass**. It uses the shared
+`WorldPassBackend` seam, behind the persisted Video toggle “Experimental: WebGL
+renderer”, off by default. The HUD stays on Canvas, and any backend failure
+returns the session to Canvas with its reason visible in Video. This explicitly
+supersedes the original milestone's no-WebGL restriction before backend code
+lands. WebGL2 default adoption remains outside doc 59.
 
 Note: line references below were accurate at authoring time; another agent may have
 touched these files since. Re-verify against the current tree before editing.
@@ -24,7 +27,7 @@ with DPR handling and continuous zoom; chunked ground cache; tile lightmap with
 day/night and point lights; client collision-rebuild fix; weather/particle layer
 hooks; render instrumentation; removal of the farm scene client code.
 
-**Out of scope (do not build here):** WebGL, netcode prediction-replay/snapshot
+**Out of scope for the original doc 21 milestone:** WebGL (now authorized separately by doc 59 P8), netcode prediction-replay/snapshot
 interpolation, combat, farm instancing, auth/permissions, seasonal-atlas cleanup.
 Do **not** modify `packages/sim/src/movement.ts` or `state.ts` collision types —
 they run verbatim on the SpacetimeDB authority; any change there requires a matched
@@ -128,9 +131,10 @@ Tile-resolution lightmap, composited in the world pass (Terraria-style):
   warm tint, dusk purple, night clamped at the R12 palette tints
   (`#141420`/`#232338`, docs/10 §R12) but **never below ~35% luminance** — the
   island must stay readable at midnight. Unit-test the curve keyframes.
-- **Point lights:** v1 sources are the player's selected Lantern (radius 5 tiles,
-  warm `#ffd9a0`) and Torch (radius 3); every remote player with one selected also
-  emits (selection is already public via hotbar state). Optional additive glow:
+- **Point lights:** portable sources resolve from the live item `light` component.
+  Lantern uses a steady radius-4 profile and Torch a flickering radius-3 profile;
+  local and remote players emit only while the authored off-hand light is lit.
+  Optional additive glow:
   after the multiply pass, draw a small radial gradient per light with
   `globalCompositeOperation = 'lighter'` at low alpha.
 - **Occlusion:** none in v1 (lights shine through ridges/trees). When wanted later,

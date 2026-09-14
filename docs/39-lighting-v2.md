@@ -8,6 +8,22 @@ look rules stay binding: quarter-tile texels, 8-bit bands, per-channel max
 merge, one multiply composite, no radial gradients, Canvas 2D
 ([21-unified-renderer.md](21-unified-renderer.md)).
 
+### Doc 58 implementation amendment — 2026-09-05
+
+Basic/Dynamic quality now controls lighting work independently of the developer
+Classic/Unified solver comparison. Basic releases spatial light state and applies
+one ambient tint before world presentation; collision and shared terrain remain
+active. A pure seasonal evaluator now supplies diffuse, sun and blue moon components
+with source direction/altitude. The client currently resolves their unoccluded
+per-channel maximum into ambient for either quality.
+
+Contributor-specific visibility, contact shadows, the receiver/height projection
+seam and moving sun/full-moon shadows are still required before the public Dynamic
+omission rollout. This checkpoint does not adopt or claim completion of the entire
+v2 proposal. [Doc 58](58-seasonal-lighting-and-baked-shadow-plan.md) owns the exact
+single-asset omission and seasonal sky amendments; the existing local-light solver
+math is preserved.
+
 ## 1. Why a v2 — what the current build gets wrong
 
 The night screenshot (lantern in a forest, Autumn 6, 03:51) shows the three
@@ -333,3 +349,12 @@ adds no new cliff. F3 gains `heightGridRebuilds` and per-phase field ms.
 - Art/asset tickets: `light` blocks for existing blocking props, trees per
   growth stage, and cliff tileset rows (mechanical, scriptable first pass
   from current inferred behaviour so v2.2 starts byte-identical).
+
+
+**2026-09-06 release update:** doc58's seasonal receiver renderer is deployed in
+0.5.0 as the Dynamic default. Exact declared baked pixels are omitted only after
+complete frame preparation; Basic retains original art and one world tint.
+See [doc58 release ledger](58-seasonal-lighting-and-baked-shadow-plan.md) and
+[measured evidence](../output/lighting-58-20260906/release/README.md) for the
+45-asset rollout, remaining candidates, authenticated checks, and performance
+limits. Earlier pending-publication entries above are historical checkpoints.

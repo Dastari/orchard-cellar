@@ -1,6 +1,7 @@
 {
   "name": "crop_cf_wheat_mature",
   "category": "crops",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -39,6 +40,6 @@
     "2": "#feae34",
     "3": "#fee761"
   },
-  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Crops.png",
   "sourcePaletteMode": "exact"
 }

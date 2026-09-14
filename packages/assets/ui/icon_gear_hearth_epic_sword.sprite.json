@@ -1,0 +1,68 @@
+{
+  "name": "icon_gear_hearth_epic_sword",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "............888.",
+        "...........8770.",
+        "..........87950.",
+        ".........87550..",
+        "........87950...",
+        ".......87550....",
+        "......87550.....",
+        ".....87350......",
+        "....07350.......",
+        ".6607350........",
+        ".247350.........",
+        "..2450..........",
+        ".24141..........",
+        "641.11..........",
+        "22.............."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#00558d",
+    "1": "#251609",
+    "2": "#342315",
+    "3": "#53a6db",
+    "4": "#6a411e",
+    "5": "#94d5ff",
+    "6": "#a26d40",
+    "7": "#c3e7ff",
+    "8": "#dff2ff",
+    "9": "#e4f4ff"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/weapons-800/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    112,
+    384,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

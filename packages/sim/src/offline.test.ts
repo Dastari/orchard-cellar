@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { OFFLINE_CAP_SECONDS } from './balance.js';
 import { type OrchardTreeState } from './economy-state.js';
-import { applyOffline } from './offline.js';
-import { createInitialState, SIM_TICKS_PER_SECOND } from './state.js';
+import { applyOffline as applyOfflineRuntime } from './offline.js';
+import { createInitialState as createInitialStateRuntime, SIM_TICKS_PER_SECOND,
+  type FarmState } from './state.js';
 import { TICKS_PER_DAY } from './time.js';
+import { LEGACY_ECONOMY_CATALOG as CATALOG } from './legacy-economy-catalog.test-support.js';
+
+const OFFLINE_CAP_SECONDS = CATALOG.offlineCapSeconds;
+const createInitialState = (seed: number): FarmState => createInitialStateRuntime(CATALOG, seed);
+const applyOffline = (state: FarmState, elapsed: number): FarmState => applyOfflineRuntime(CATALOG, state, elapsed);
 
 function matureState(tree: Partial<OrchardTreeState> = {}) {
   const state = createInitialState(73);

@@ -7,8 +7,20 @@ import {
   type MapDocumentV2,
   type MapFeatureKind,
   type MapSurfaceKind,
+  type TerrainOverride,
 } from './map-document.js';
-import type { TerrainTransition } from './terrain-elevation.js';
+import {
+  TERRAIN_ELEVATION_LIMIT,
+  retainMinimumTerrainFootprint,
+  stairRunValid,
+  terrainTransitionValid,
+  type StairRun,
+  type TerrainTransition,
+} from './terrain-elevation.js';
+import {
+  TERRAIN_SURFACE_FAMILY_IDS,
+  type TerrainSurfaceFamilyId,
+} from './terrain-tilesets.js';
 
 export interface MapPoint {
   readonly tileX: number;
@@ -21,6 +33,11 @@ export interface MapCellPatch {
   readonly feature?: MapFeatureKind;
   readonly collision?: 'inherit' | 'force_block' | 'force_walk';
   readonly collisionReason?: string;
+  /** `null` clears the cell override so it inherits the document default. */
+  readonly cliffFamily?: string | null;
+  readonly surfaceFamily?: TerrainSurfaceFamilyId | null;
+  readonly terrainOverride?: TerrainOverride | null;
+  readonly ledge?: boolean;
 }
 
 export const MAP_RESIZE_ANCHORS = [
@@ -31,12 +48,39 @@ export const MAP_RESIZE_ANCHORS = [
 export type MapResizeAnchor = typeof MAP_RESIZE_ANCHORS[number];
 
 export type MapEditCommand =
-  | { readonly kind: 'paint'; readonly points: readonly MapPoint[]; readonly patch: MapCellPatch }
+  | { readonly kind: 'set_default_cliff_family'; readonly family: string }
+  | { readonly kind: 'set_default_surface_family'; readonly family: TerrainSurfaceFamilyId }
+  | {
+    readonly kind: 'paint';
+    readonly points: readonly MapPoint[];
+    readonly patch: MapCellPatch;
+    readonly enforceMinimumTerrainFootprint?: boolean;
+  }
   | { readonly kind: 'line'; readonly from: MapPoint; readonly to: MapPoint; readonly patch: MapCellPatch }
   | { readonly kind: 'fill_surface'; readonly start: MapPoint; readonly surface: MapSurfaceKind }
-  | { readonly kind: 'change_elevation_polygon'; readonly polygon: readonly MapPoint[]; readonly delta: number }
+  | {
+    readonly kind: 'change_elevation_polygon';
+    readonly polygon: readonly MapPoint[];
+    readonly delta: number;
+    readonly enforceMinimumTerrainFootprint?: boolean;
+  }
+  | {
+    readonly kind: 'set_elevation_polygon';
+    readonly polygon: readonly MapPoint[];
+    readonly elevation: number;
+    readonly enforceMinimumTerrainFootprint?: boolean;
+  }
+  | {
+    readonly kind: 'flatten_elevation_polygon';
+    readonly polygon: readonly MapPoint[];
+    readonly enforceMinimumTerrainFootprint?: boolean;
+  }
+  | { readonly kind: 'set_ledge_polygon'; readonly polygon: readonly MapPoint[]; readonly ledge: boolean }
   | { readonly kind: 'add_transition'; readonly transition: TerrainTransition }
+  | { readonly kind: 'add_transitions'; readonly transitions: readonly TerrainTransition[] }
   | { readonly kind: 'remove_transition'; readonly transition: TerrainTransition }
+  | { readonly kind: 'add_stair_run'; readonly run: StairRun }
+  | { readonly kind: 'remove_stair_run'; readonly run: StairRun }
   | {
     readonly kind: 'resize';
     readonly width: number;
@@ -58,15 +102,90 @@ export interface MapEditHistory {
   readonly future: readonly MapDocumentV2[];
 }
 
-function canonicalPatch(document: MapDocumentV2, patch: MapCellPatch): MapCellOverride {
+/** A point brush is anchored at its selected north-west cell, except at the
+ * south/east bounds where its minimum footprint shifts inward. */
+export function minimumTerrainBrushPoints(
+  point: MapPoint,
+  width: number,
+  height: number,
+): readonly MapPoint[] {
+  if (width < 2 || height < 2 || point.tileX < 0 || point.tileY < 0
+    || point.tileX >= width || point.tileY >= height) return [];
+  const firstX = Math.min(point.tileX, width - 2);
+  const firstY = Math.min(point.tileY, height - 2);
+  return [
+    { tileX: firstX, tileY: firstY },
+    { tileX: firstX + 1, tileY: firstY },
+    { tileX: firstX, tileY: firstY + 1 },
+    { tileX: firstX + 1, tileY: firstY + 1 },
+  ];
+}
+
+function normalizeTerrainFootprints(
+  document: MapDocumentV2,
+  cells: Record<string, MapCellOverride>,
+): readonly MapPoint[] {
+  const length = document.width * document.height;
+  const interim = { ...document, cells };
+  const elevations = Int16Array.from({ length }, (_, index) => resolvedMapCellAt(
+    interim,
+    index % document.width,
+    Math.floor(index / document.width),
+  ).elevation);
+  const normalized = elevations.slice();
+  let maximum = document.baseElevation;
+  let minimum = document.baseElevation;
+  for (const elevation of elevations) {
+    maximum = Math.max(maximum, elevation);
+    minimum = Math.min(minimum, elevation);
+  }
+  for (let level = document.baseElevation + 1; level <= maximum; level += 1) {
+    const contour = Uint8Array.from(normalized, (elevation) => Number(elevation >= level));
+    const retained = retainMinimumTerrainFootprint(contour, document.width, document.height);
+    for (let index = 0; index < length; index += 1) {
+      if (contour[index] === 1 && retained[index] === 0) normalized[index] = level - 1;
+    }
+  }
+  for (let level = document.baseElevation - 1; level >= minimum; level -= 1) {
+    const contour = Uint8Array.from(normalized, (elevation) => Number(elevation <= level));
+    const retained = retainMinimumTerrainFootprint(contour, document.width, document.height);
+    for (let index = 0; index < length; index += 1) {
+      if (contour[index] === 1 && retained[index] === 0) normalized[index] = level + 1;
+    }
+  }
+  const changed: MapPoint[] = [];
+  for (let index = 0; index < length; index += 1) {
+    if (normalized[index] === elevations[index]) continue;
+    const point = { tileX: index % document.width, tileY: Math.floor(index / document.width) };
+    if (writeResolvedPatch(interim, cells, point, { elevation: normalized[index]! })) changed.push(point);
+  }
+  return changed;
+}
+
+function canonicalPatch(
+  document: MapDocumentV2,
+  patch: MapCellPatch,
+  baseline: ReturnType<typeof resolvedMapCellAt>,
+): MapCellOverride {
   return {
-    ...(patch.elevation === undefined || patch.elevation === document.baseElevation
+    ...(patch.elevation === undefined || patch.elevation === baseline.elevation
       ? {} : { elevation: patch.elevation }),
-    ...(patch.surface === undefined || patch.surface === document.baseSurface ? {} : { surface: patch.surface }),
-    ...(patch.feature === undefined || patch.feature === 'none' ? {} : { feature: patch.feature }),
-    ...(patch.collision === undefined || patch.collision === 'inherit' ? {} : { collision: patch.collision }),
-    ...(patch.collisionReason === undefined || patch.collisionReason.length === 0
+    ...(patch.surface === undefined || patch.surface === baseline.surface ? {} : { surface: patch.surface }),
+    ...(patch.feature === undefined || patch.feature === baseline.feature ? {} : { feature: patch.feature }),
+    ...(patch.collision === undefined || patch.collision === baseline.collision ? {} : { collision: patch.collision }),
+    ...(patch.collisionReason === undefined || patch.collisionReason === baseline.collisionReason
+      || patch.collisionReason.length === 0
       ? {} : { collisionReason: patch.collisionReason }),
+    ...(patch.cliffFamily === undefined || patch.cliffFamily === null
+      || patch.cliffFamily === baseline.cliffFamily
+      ? {} : { cliffFamily: patch.cliffFamily }),
+    ...(patch.surfaceFamily === undefined || patch.surfaceFamily === null
+      || patch.surfaceFamily === baseline.surfaceFamily
+      ? {} : { surfaceFamily: patch.surfaceFamily }),
+    ...(patch.terrainOverride === undefined || patch.terrainOverride === null
+      || patch.terrainOverride === baseline.terrainOverride
+      ? {} : { terrainOverride: patch.terrainOverride }),
+    ...(patch.ledge !== undefined && patch.ledge !== baseline.ledge ? { ledge: patch.ledge } : {}),
   };
 }
 
@@ -86,8 +205,15 @@ function writeResolvedPatch(
     collision: patch.collision ?? before.collision,
     ...((patch.collisionReason ?? before.collisionReason) === null
       ? {} : { collisionReason: (patch.collisionReason ?? before.collisionReason)! }),
+    cliffFamily: patch.cliffFamily === undefined ? before.cliffFamily : patch.cliffFamily,
+    surfaceFamily: patch.surfaceFamily === undefined ? before.surfaceFamily : patch.surfaceFamily,
+    terrainOverride: patch.terrainOverride === undefined ? before.terrainOverride : patch.terrainOverride,
+    ledge: patch.ledge ?? before.ledge,
   };
-  const next = canonicalPatch(document, resolved);
+  const baselineCells = { ...cells };
+  delete baselineCells[key];
+  const baseline = resolvedMapCellAt({ ...document, cells: baselineCells }, point.tileX, point.tileY);
+  const next = canonicalPatch(document, resolved, baseline);
   if (next.collision === undefined) delete (next as { collisionReason?: string }).collisionReason;
   const previousJson = JSON.stringify(cells[key] ?? {});
   const nextJson = JSON.stringify(next);
@@ -178,6 +304,12 @@ function sameTransition(left: TerrainTransition, right: TerrainTransition): bool
     && left.upperTileY === right.upperTileY;
 }
 
+function sameStairRun(left: StairRun, right: StairRun): boolean {
+  return left.x === right.x && left.y === right.y && left.direction === right.direction
+    && left.fromLevel === right.fromLevel && left.toLevel === right.toLevel
+    && (left.width ?? 2) === (right.width ?? 2);
+}
+
 function horizontalResizeOffset(delta: number, anchor: MapResizeAnchor): number {
   if (anchor.endsWith('east') || anchor === 'east') return delta;
   if (anchor.endsWith('west') || anchor === 'west') return 0;
@@ -243,6 +375,10 @@ function resizeMapDocument(
       upperTileY: upper.tileY,
     }];
   });
+  const stairRuns = (document.stairRuns ?? []).flatMap((run) => {
+    const point = translate(run.x, run.y);
+    return pointInDimensions(point, width, height) ? [{ ...run, x: point.tileX, y: point.tileY }] : [];
+  });
   const scenery = document.scenery.flatMap((placement) => {
     const point = translate(placement.tileX, placement.tileY);
     return pointInDimensions(point, width, height) ? [{ ...placement, ...point }] : [];
@@ -258,12 +394,40 @@ function resizeMapDocument(
     revision: document.revision + 1,
     cells,
     transitions,
+    stairRuns,
     scenery,
     anchors,
   });
 }
 
 export function applyMapEdit(document: MapDocumentV2, command: MapEditCommand): AppliedMapEdit {
+  if (command.kind === 'set_default_cliff_family') {
+    if ((document.defaultCliffFamily ?? 'stone_1') === command.family) return { document, changed: [] };
+    return {
+      document: normalizeMapDocument({
+        ...document,
+        defaultCliffFamily: command.family,
+        revision: document.revision + 1,
+      }),
+      changed: [],
+      fullRebuild: true,
+    };
+  }
+  if (command.kind === 'set_default_surface_family') {
+    if (!TERRAIN_SURFACE_FAMILY_IDS.includes(command.family)
+      || (document.defaultSurfaceFamily ?? 'grass_1') === command.family) {
+      return { document, changed: [] };
+    }
+    return {
+      document: normalizeMapDocument({
+        ...document,
+        defaultSurfaceFamily: command.family,
+        revision: document.revision + 1,
+      }),
+      changed: [],
+      fullRebuild: true,
+    };
+  }
   if (command.kind === 'resize') {
     const resized = resizeMapDocument(document, command.width, command.height, command.anchor);
     return resized === document
@@ -271,6 +435,7 @@ export function applyMapEdit(document: MapDocumentV2, command: MapEditCommand): 
       : { document: resized, changed: [], fullRebuild: true };
   }
   if (command.kind === 'add_transition') {
+    if (!terrainTransitionValid(command.transition)) return { document, changed: [] };
     if (document.transitions.some((candidate) => sameTransition(candidate, command.transition))) {
       return { document, changed: [] };
     }
@@ -285,6 +450,27 @@ export function applyMapEdit(document: MapDocumentV2, command: MapEditCommand): 
       ],
     };
   }
+  if (command.kind === 'add_transitions') {
+    if (command.transitions.length === 0
+      || command.transitions.some((transition) => !terrainTransitionValid(transition))) {
+      return { document, changed: [] };
+    }
+    const additions = command.transitions.filter((transition) => !document.transitions.some(
+      (candidate) => sameTransition(candidate, transition),
+    ));
+    if (additions.length === 0) return { document, changed: [] };
+    return {
+      document: normalizeMapDocument({
+        ...document,
+        revision: document.revision + 1,
+        transitions: [...document.transitions, ...additions],
+      }),
+      changed: additions.flatMap((transition) => [
+        { tileX: transition.lowerTileX, tileY: transition.lowerTileY },
+        { tileX: transition.upperTileX, tileY: transition.upperTileY },
+      ]),
+    };
+  }
   if (command.kind === 'remove_transition') {
     const transitions = document.transitions.filter((candidate) => !sameTransition(candidate, command.transition));
     if (transitions.length === document.transitions.length) return { document, changed: [] };
@@ -294,6 +480,28 @@ export function applyMapEdit(document: MapDocumentV2, command: MapEditCommand): 
         { tileX: command.transition.lowerTileX, tileY: command.transition.lowerTileY },
         { tileX: command.transition.upperTileX, tileY: command.transition.upperTileY },
       ],
+    };
+  }
+  if (command.kind === 'add_stair_run') {
+    if (!stairRunValid(command.run)) return { document, changed: [] };
+    if ((document.stairRuns ?? []).some((candidate) => sameStairRun(candidate, command.run))) {
+      return { document, changed: [] };
+    }
+    return {
+      document: normalizeMapDocument({
+        ...document,
+        revision: document.revision + 1,
+        stairRuns: [...(document.stairRuns ?? []), command.run],
+      }),
+      changed: [{ tileX: command.run.x, tileY: command.run.y }],
+    };
+  }
+  if (command.kind === 'remove_stair_run') {
+    const stairRuns = (document.stairRuns ?? []).filter((candidate) => !sameStairRun(candidate, command.run));
+    if (stairRuns.length === (document.stairRuns ?? []).length) return { document, changed: [] };
+    return {
+      document: normalizeMapDocument({ ...document, revision: document.revision + 1, stairRuns }),
+      changed: [{ tileX: command.run.x, tileY: command.run.y }],
     };
   }
 
@@ -306,16 +514,55 @@ export function applyMapEdit(document: MapDocumentV2, command: MapEditCommand): 
   else if (command.kind === 'fill_surface') {
     points = floodSurfacePoints(document, command.start);
     patch = { surface: command.surface };
-  } else {
+  } else if (command.kind === 'change_elevation_polygon'
+    || command.kind === 'set_elevation_polygon'
+    || command.kind === 'flatten_elevation_polygon'
+    || command.kind === 'set_ledge_polygon') {
     points = rasterMapPolygon(command.polygon);
     patch = {};
+  } else {
+    const exhaustive: never = command;
+    throw new Error(`Unsupported map edit command: ${JSON.stringify(exhaustive)}`);
   }
+  const flattenElevation = command.kind === 'flatten_elevation_polygon'
+    ? command.polygon[0] === undefined
+      ? document.baseElevation
+      : resolvedMapCellAt(
+          document,
+          command.polygon[0].tileX,
+          command.polygon[0].tileY,
+        ).elevation
+    : null;
   for (const point of points) {
     const pointPatch = command.kind === 'change_elevation_polygon'
-      ? { elevation: Math.max(0, resolvedMapCellAt(document, point.tileX, point.tileY).elevation + command.delta) }
+      ? {
+          elevation: Math.max(
+            -TERRAIN_ELEVATION_LIMIT,
+            Math.min(
+              TERRAIN_ELEVATION_LIMIT,
+              resolvedMapCellAt(document, point.tileX, point.tileY).elevation + command.delta,
+            ),
+          ),
+        }
+      : command.kind === 'set_elevation_polygon'
+        ? { elevation: Math.max(-TERRAIN_ELEVATION_LIMIT, Math.min(TERRAIN_ELEVATION_LIMIT, command.elevation)) }
+        : command.kind === 'flatten_elevation_polygon'
+          ? { elevation: flattenElevation! }
+        : command.kind === 'set_ledge_polygon'
+          ? { ledge: command.ledge }
       : patch;
     if (writeResolvedPatch(document, cells, point, pointPatch)) changed.push(point);
   }
+  if ('enforceMinimumTerrainFootprint' in command && command.enforceMinimumTerrainFootprint) {
+    const changedKeys = new Set(changed.map(({ tileX, tileY }) => mapCellKey(tileX, tileY)));
+    for (const point of normalizeTerrainFootprints(document, cells)) {
+      const key = mapCellKey(point.tileX, point.tileY);
+      if (changedKeys.has(key)) continue;
+      changedKeys.add(key);
+      changed.push(point);
+    }
+  }
+  if (JSON.stringify(cells) === JSON.stringify(document.cells)) return { document, changed: [] };
   if (changed.length === 0) return { document, changed };
   return {
     document: normalizeMapDocument({ ...document, revision: document.revision + 1, cells }),

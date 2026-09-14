@@ -1,10 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { TREE_BUFFER_SECONDS } from './balance.js';
-import { createInitialEconomy, type EconomyState, type OrchardTreeState } from './economy-state.js';
-import { advanceEconomy, applyEconomyAction, groveFruitPerSecond } from './economy.js';
-import { createInitialState, SIM_TICKS_PER_SECOND } from './state.js';
-import { advanceTick } from './tick.js';
-import { TICKS_PER_DAY } from './time.js';
+import { createInitialEconomy as createInitialEconomyRuntime,
+  type EconomyAction, type EconomyState, type OrchardTreeState } from './economy-state.js';
+import { advanceEconomy as advanceEconomyRuntime, applyEconomyAction as applyEconomyActionRuntime,
+  groveFruitPerSecond as groveFruitPerSecondRuntime, type EconomyAdvanceOptions } from './economy.js';
+import { createInitialState as createInitialStateRuntime, SIM_TICKS_PER_SECOND,
+  type Action, type FarmState } from './state.js';
+import { advanceTick as advanceTickRuntime } from './tick.js';
+import { TICKS_PER_DAY, type Season } from './time.js';
+import { LEGACY_ECONOMY_CATALOG as CATALOG } from './legacy-economy-catalog.test-support.js';
+import type { LegacyEconomyCatalog } from './economy-catalog.js';
+
+const TREE_BUFFER_SECONDS = CATALOG.treeBufferSeconds;
+const createInitialEconomy = (): EconomyState => createInitialEconomyRuntime(CATALOG);
+const advanceEconomy = (economy: EconomyState, start: number, end: number,
+  options?: EconomyAdvanceOptions): EconomyState => advanceEconomyRuntime(CATALOG, economy, start, end, options);
+const applyEconomyAction = (economy: EconomyState, action: EconomyAction, tick: number): EconomyState => (
+  applyEconomyActionRuntime(CATALOG, economy, action, tick)
+);
+const groveFruitPerSecond = (economy: EconomyState, season: Season): number => (
+  groveFruitPerSecondRuntime(CATALOG, economy, season)
+);
+const createInitialState = (seed: number): FarmState => createInitialStateRuntime(CATALOG, seed);
+const advanceTick = (state: FarmState, actions: readonly Action[], tick: number): FarmState => (
+  advanceTickRuntime(CATALOG, state, actions, tick)
+);
 
 const MICRO = 1_000_000;
 
@@ -218,6 +237,32 @@ describe('M4 deterministic orchard economy', () => {
     }
     const capped = applyEconomyAction(economy, { type: 'clearPlots' }, 0);
     expect(capped).toBe(economy);
+  });
+
+  it('uses arbitrary authored species and upgrade ids without a runtime id branch', () => {
+    const species = 'disposable_test_tree';
+    const irrigation = 'disposable_test_irrigation';
+    const renamed = {
+      ...CATALOG,
+      trees: CATALOG.trees.map((tree) => tree.id === CATALOG.initialTree.species
+        ? { ...tree, id: species } : tree),
+      upgrades: CATALOG.upgrades.map((upgrade) => upgrade.mechanic === 'off_season_multiplier'
+        ? { ...upgrade, id: irrigation } : upgrade),
+      initialTree: { ...CATALOG.initialTree, species },
+    } satisfies LegacyEconomyCatalog;
+    let economy = createInitialEconomyRuntime(renamed);
+    expect(economy.trees[0]?.species).toBe(species);
+
+    economy = applyEconomyActionRuntime(renamed,
+      withResources(economy, { fruit: 3_000 }), { type: 'buyUpgrade', id: irrigation }, 0);
+    expect(economy.upgrades).toContain(irrigation);
+    const tree = economy.trees[0]!;
+    const summerStart = TICKS_PER_DAY * 7;
+    const progressed = advanceEconomyRuntime(renamed, {
+      ...economy,
+      trees: [{ ...tree, stage: 'mature', stageAgeTicks: 0 }],
+    }, summerStart, summerStart + 10 * SIM_TICKS_PER_SECOND);
+    expect(progressed.trees[0]?.bufferMicro).toBe(925_000);
   });
 
   it('spends pomace once to hold Care decay for the documented three days', () => {

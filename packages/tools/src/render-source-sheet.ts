@@ -4,9 +4,9 @@ import { basename, resolve } from 'node:path';
 import { workspaceRoot } from './assets/load.js';
 import { blendPixel, decodePng, encodePng, hexToRgba, setPixel } from './assets/png.js';
 
-const [sourceArg, cellArg = '16x16', scaleArg = '4', rowsArg = '6'] = process.argv.slice(2);
+const [sourceArg, cellArg = '16x16', scaleArg = '4', rowsArg = '6', firstRowArg = '0', lastRowArg] = process.argv.slice(2);
 if (!sourceArg) {
-  throw new Error('Usage: tsx src/render-source-sheet.ts <source.png> [cell-width>x<cell-height>] [scale] [rows-per-page]');
+  throw new Error('Usage: tsx src/render-source-sheet.ts <source.png> [cell-width>x<cell-height>] [scale] [rows-per-page] [first-row] [last-row]');
 }
 
 const cellMatch = /^(\d+)x(\d+)$/.exec(cellArg);
@@ -27,6 +27,8 @@ if (decoded.width % cellWidth || decoded.height % cellHeight) {
 
 const columns = decoded.width / cellWidth;
 const rows = decoded.height / cellHeight;
+const firstRow=Number(firstRowArg), lastRow=lastRowArg===undefined ? rows-1 : Number(lastRowArg);
+if(!Number.isSafeInteger(firstRow) || !Number.isSafeInteger(lastRow) || firstRow<0 || lastRow<firstRow || lastRow>=rows) throw new Error('Invalid source row range');
 const gutter = 2;
 const margin = 8;
 const pageWidth = margin * 2 + columns * cellWidth * scale + (columns - 1) * gutter;
@@ -36,8 +38,8 @@ const divider = hexToRgba('#352a33');
 const outputRoot = resolve(rootPath, 'build/review');
 await mkdir(outputRoot, { recursive: true });
 
-for (let pageStart = 0; pageStart < rows; pageStart += rowsPerPage) {
-  const pageRows = Math.min(rowsPerPage, rows - pageStart);
+for (let pageStart = firstRow; pageStart <= lastRow; pageStart += rowsPerPage) {
+  const pageRows = Math.min(rowsPerPage, lastRow + 1 - pageStart);
   const pageHeight = margin * 2 + pageRows * cellHeight * scale + (pageRows - 1) * gutter;
   const rgba = new Uint8Array(pageWidth * pageHeight * 4);
 

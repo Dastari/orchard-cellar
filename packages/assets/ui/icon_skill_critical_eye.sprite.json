@@ -1,0 +1,63 @@
+{
+  "name": "icon_skill_critical_eye",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......3...3.....",
+        "...3.333.333.3..",
+        "...32222222223..",
+        ".3.22111111122.3",
+        ".3211..000..1123",
+        ".21....222....12",
+        ".13...22222...31",
+        ".13...12221...31",
+        ".22..3.111.3..22",
+        "..2233.030.3322.",
+        "...222.333.222..",
+        ".....2222222....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#6e2727",
+    "1": "#f89320",
+    "2": "#f9c22b",
+    "3": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "rogue-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/rogue/sheets/rogue-skills-16.png",
+  "sourceRegion": [
+    112,
+    192,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.critical_eye",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

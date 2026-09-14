@@ -1,0 +1,29 @@
+{
+  "name": "item_cf_cooked_fish",
+  "category": "props",
+  "size": [16, 16],
+  "anchor": [8, 15],
+  "frames": { "base": [[
+    "................",
+    "................",
+    "................",
+    ".........00.....",
+    "....00000300....",
+    "..003455554300..",
+    ".0345666655430..",
+    "03456677665430..",
+    ".0345666655430..",
+    "..003455554300..",
+    "....00000300....",
+    ".........00.....",
+    "................",
+    "................",
+    "................",
+    "................"
+  ]] },
+  "frameKinds": { "base": "state" },
+  "lintAllow": ["sparkle"],
+  "approved": true,
+  "tags": ["item.food", "item.consumable", "food.cooked", "food.fish"],
+  "placement": { "layer": "object", "blocksMovement": false, "builderAvailable": false }
+}

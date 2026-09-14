@@ -1,15 +1,17 @@
-import { PROCEDURAL_WORLD_CHUNK_TILES } from "./balance.js";
+import { PROCEDURAL_WORLD_CHUNK_TILES } from './world-policy-balance.js';
 import {
   chunkLocalToTile,
   chunkTileBounds,
   signedTileKey,
 } from "./world-coordinates.js";
 
-export const PROCEDURAL_TERRAIN_GENERATOR_VERSION = 6;
+export const PROCEDURAL_TERRAIN_GENERATOR_VERSION = 7;
 export const PROCEDURAL_TERRAIN_HALO_TILES = 4;
 /** Highest logical terrain plane emitted by the current semantic generator.
  * Presentation code uses this to keep projected cliff faces inside sampled
  * terrain instead of accidentally composing against an unsampled void. */
+/** Preview-generator shaping budget. Published/authored maps still use the
+ * wider TERRAIN_ELEVATION_LIMIT; four keeps v1 noise terraces legible. */
 export const PROCEDURAL_TERRAIN_MAX_ELEVATION = 4;
 
 export const PROCEDURAL_TERRAIN_BIOMES = [
@@ -311,7 +313,12 @@ const CARDINAL_NEIGHBORS: readonly (NeighborDefinition & {
 ];
 
 const NOISE_QUANTIZATION = 32_767;
-const SEA_LEVEL = -0.08;
+const LEGACY_SEA_LEVEL = -0.08;
+const PHASE_A_SEA_LEVEL = 0.18;
+
+function seaLevel(generatorVersion: number): number {
+  return generatorVersion >= 7 ? PHASE_A_SEA_LEVEL : LEGACY_SEA_LEVEL;
+}
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
@@ -445,51 +452,61 @@ function warpedTerrainPoint(
   seed: number,
   tileX: number,
   tileY: number,
+  generatorVersion: number,
 ): readonly [number, number] {
-  const warpX = valueNoise(seed, tileX, tileY, 1_024, 0x14c4e7a1) * 112;
-  const warpY = valueNoise(seed, tileX, tileY, 1_024, 0x39d0f5c7) * 112;
+  const phaseA = generatorVersion >= 7;
+  const warpPeriod = phaseA ? 320 : 1_024;
+  const warpStrength = phaseA ? 36 : 112;
+  const warpX = valueNoise(seed, tileX, tileY, warpPeriod, 0x14c4e7a1) * warpStrength;
+  const warpY = valueNoise(seed, tileX, tileY, warpPeriod, 0x39d0f5c7) * warpStrength;
   return [tileX + warpX, tileY + warpY];
 }
 
-function riverNoiseAt(seed: number, tileX: number, tileY: number): number {
-  const [warpedX, warpedY] = warpedTerrainPoint(seed, tileX, tileY);
-  return fractalNoise(seed, warpedX, warpedY, [384, 192, 96], 0x4b73a265);
+function riverNoiseAt(seed: number, tileX: number, tileY: number, generatorVersion: number): number {
+  const [warpedX, warpedY] = warpedTerrainPoint(seed, tileX, tileY, generatorVersion);
+  return fractalNoise(
+    seed, warpedX, warpedY,
+    generatorVersion >= 7 ? [120, 60, 30] : [384, 192, 96],
+    0x4b73a265,
+  );
 }
 
 function floatTerrainFields(
   seed: number,
+  generatorVersion: number,
   tileX: number,
   tileY: number,
 ): FloatTerrainFields {
-  const [warpedX, warpedY] = warpedTerrainPoint(seed, tileX, tileY);
+  const phaseA = generatorVersion >= 7;
+  const [warpedX, warpedY] = warpedTerrainPoint(seed, tileX, tileY, generatorVersion);
   const continentalness = fractalNoise(
     seed,
     warpedX,
     warpedY,
-    [2_048, 1_024, 512, 256],
+    phaseA ? [640, 320, 160, 80] : [2_048, 1_024, 512, 256],
     0x5c81b117,
   );
   const erosion = fractalNoise(
     seed,
     warpedX,
     warpedY,
-    [768, 384, 192],
+    phaseA ? [240, 120, 60] : [768, 384, 192],
     0x238bd911,
   );
   const ridgeSource = fractalNoise(
     seed,
     warpedX,
     warpedY,
-    [512, 256, 128],
+    phaseA ? [160, 80, 40] : [512, 256, 128],
     0x6fa920d3,
   );
   const peaksValleys = 1 - Math.abs(ridgeSource) * 2;
-  const detail = fractalNoise(seed, tileX, tileY, [160, 80, 40], 0x31dacf55);
+  const detail = fractalNoise(seed, tileX, tileY, phaseA ? [48, 24, 12] : [160, 80, 40], 0x31dacf55);
   const rawTemperature = fractalNoise(
     seed,
     tileX,
     tileY,
-    [1_536, 768, 384],
+    phaseA ? [480, 240, 120] : [1_536, 768, 384],
     0x7ec59a3d,
   );
   const latitudeCooling = clamp(Math.abs(tileY) / 32_000, 0, 1) * 0.7;
@@ -498,37 +515,37 @@ function floatTerrainFields(
     seed,
     warpedX,
     warpedY,
-    [1_024, 512, 256],
+    phaseA ? [320, 160, 80] : [1_024, 512, 256],
     0x19f41e87,
   );
-  const river = riverNoiseAt(seed, tileX, tileY);
+  const river = riverNoiseAt(seed, tileX, tileY, generatorVersion);
   const lakeBasin = fractalNoise(
     seed,
     warpedX,
     warpedY,
-    [192, 96, 48],
+    phaseA ? [64, 32, 16] : [192, 96, 48],
     0x25c67fd1,
   );
-  const pondBasin = fractalNoise(seed, tileX, tileY, [56, 28, 14], 0x731ad4b9);
+  const pondBasin = fractalNoise(seed, tileX, tileY, phaseA ? [28, 14, 7] : [56, 28, 14], 0x731ad4b9);
   const strangeness = fractalNoise(
     seed,
     warpedX,
     warpedY,
-    [896, 448, 224],
+    phaseA ? [280, 140, 70] : [896, 448, 224],
     0x4e61c29b,
   );
   const volcanism = fractalNoise(
     seed,
     warpedX,
     warpedY,
-    [1_280, 640, 320],
+    phaseA ? [400, 200, 100] : [1_280, 640, 320],
     0x69b2d40f,
   );
   const height = clamp(
     continentalness * 0.78 +
       peaksValleys * 0.22 -
       erosion * 0.14 +
-      detail * 0.09,
+      detail * (phaseA ? 0.16 : 0.09),
     -1,
     1,
   );
@@ -564,11 +581,13 @@ function quantizedFields(
   };
 }
 
-function logicalElevation(height: number): number {
-  if (height < SEA_LEVEL + 0.18) return 0;
-  if (height < SEA_LEVEL + 0.36) return 1;
-  if (height < SEA_LEVEL + 0.54) return 2;
-  if (height < SEA_LEVEL + 0.72) return 3;
+function logicalElevation(height: number, generatorVersion: number): number {
+  const sea = seaLevel(generatorVersion);
+  const step = generatorVersion >= 7 ? 0.13 : 0.18;
+  if (height < sea + step) return 0;
+  if (height < sea + step * 2) return 1;
+  if (height < sea + step * 3) return 2;
+  if (height < sea + step * 4) return 3;
   return PROCEDURAL_TERRAIN_MAX_ELEVATION;
 }
 
@@ -578,10 +597,12 @@ function inlandWaterKind(
   generatorVersion: number,
   minimumWidthRiver: boolean,
 ): ProceduralWaterKind {
-  const inland = fields.height >= SEA_LEVEL + 0.055;
-  if (!inland || elevation > 2) return "none";
+  const sea = seaLevel(generatorVersion);
+  const inland = fields.height >= sea + (generatorVersion >= 7 ? 0 : 0.055);
+  if (!inland || elevation > (generatorVersion >= 7 ? 4 : 2)) return "none";
   const lake =
-    fields.lakeBasin > 0.48 && fields.moisture > -0.2 && fields.erosion > -0.45;
+    fields.lakeBasin > (generatorVersion >= 7 ? 0.54 : 0.48)
+    && fields.moisture > -0.2 && fields.erosion > -0.45;
   if (lake) return "lake";
   // V1's field threshold produced channels around 14–15 walk tiles wide in
   // ordinary editor views. V2 keeps the same continuous scalar-field path but
@@ -594,32 +615,235 @@ function inlandWaterKind(
         (generatorVersion <= 1
           ? 0.022 + clamp((fields.moisture + 1) * 0.006, 0, 0.012)
           : 0.0024 + clamp((fields.moisture + 1) * 0.0004, 0, 0.0008));
-  if (river && fields.moisture > -0.55) return "river";
+  if (river && (generatorVersion >= 7 || fields.moisture > -0.55)) return "river";
   const pond =
-    fields.pondBasin > 0.69 &&
+    fields.pondBasin > (generatorVersion >= 7 ? 0.62 : 0.69) &&
     fields.moisture > -0.05 &&
-    fields.height < SEA_LEVEL + 0.38;
+    fields.height < sea + (generatorVersion >= 7 ? 0.65 : 0.38);
   return pond ? "pond" : "none";
+}
+
+export const PROCEDURAL_BIOME_TABLE = [
+  ['plains', 'meadow', 'woodland', 'woodland', 'wetland'],
+  ['plains', 'meadow', 'meadow', 'woodland', 'wetland'],
+  ['plains', 'meadow', 'woodland', 'woodland', 'wetland'],
+  ['savanna', 'savanna', 'meadow', 'woodland', 'wetland'],
+  ['desert', 'savanna', 'savanna', 'woodland', 'wetland'],
+] as const satisfies readonly (readonly ProceduralTerrainBiome[])[];
+
+// Empirical quintiles from five disjoint 384x384 v7 windows using the
+// orchard-sanctuary-20 review seed. The octave sum is strongly centre-heavy,
+// so uniform [-1, 1] bins made the outer table rows/columns effectively
+// unreachable (and eliminated desert entirely).
+export const V7_TEMPERATURE_QUANTILE_EDGES = [-0.19, -0.05, 0.06, 0.28] as const;
+export const V7_MOISTURE_QUANTILE_EDGES = [-0.21, -0.07, 0, 0.09] as const;
+const V7_TABLE_BIOMES = new Set<ProceduralTerrainBiome>(PROCEDURAL_BIOME_TABLE.flat());
+
+function quantileBin(value: number, edges: readonly number[]): number {
+  const index = edges.findIndex((edge) => value < edge);
+  return index < 0 ? edges.length : index;
+}
+
+function v7TableBiome(fields: FloatTerrainFields): ProceduralTerrainBiome {
+  return PROCEDURAL_BIOME_TABLE[
+    quantileBin(fields.temperature, V7_TEMPERATURE_QUANTILE_EDGES)
+  ]![quantileBin(fields.moisture, V7_MOISTURE_QUANTILE_EDGES)]!;
+}
+
+function regularizedV7TableBiome(
+  tileX: number,
+  tileY: number,
+  fieldsAt: (tileX: number, tileY: number) => FloatTerrainFields,
+): ProceduralTerrainBiome {
+  const current = v7TableBiome(fieldsAt(tileX, tileY));
+  const counts = new Map<ProceduralTerrainBiome, number>();
+  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      const candidate = v7TableBiome(fieldsAt(tileX + offsetX, tileY + offsetY));
+      counts.set(candidate, (counts.get(candidate) ?? 0) + 1);
+    }
+  }
+  // A cell must have at least two same-biome neighbours in its 3x3 region.
+  // Otherwise use the local modal region. This is a bounded, coordinate-pure
+  // minimum-region pass; unlike an iterative flood fill it cannot vary by
+  // chunk entry point.
+  if ((counts.get(current) ?? 0) >= 3) return current;
+  let replacement = current;
+  let replacementCount = 0;
+  for (const [candidate, count] of counts) {
+    if (count > replacementCount) {
+      replacement = candidate;
+      replacementCount = count;
+    }
+  }
+  return replacement;
+}
+
+type V7SpecialBiome = 'shroomlands' | 'volcanic';
+
+function v7SpecialBiome(
+  fields: FloatTerrainFields,
+  elevation: number,
+): V7SpecialBiome | null {
+  if (fields.volcanism > 0.66 && elevation >= 1 && fields.peaksValleys > 0.1) {
+    return 'volcanic';
+  }
+  if (fields.strangeness > 0.67 && fields.moisture > 0.08 && fields.temperature > -0.5) {
+    return 'shroomlands';
+  }
+  return null;
+}
+
+function legalV7BiomePair(
+  left: ProceduralTerrainBiome,
+  right: ProceduralTerrainBiome,
+): boolean {
+  const pair = [left, right].sort().join(':');
+  return pair !== 'desert:wetland'
+    && pair !== 'desert:shroomlands'
+    && pair !== 'volcanic:wetland';
+}
+
+function supportedV7SpecialBiome(
+  special: V7SpecialBiome,
+  tileX: number,
+  tileY: number,
+  fieldsAt: (tileX: number, tileY: number) => FloatTerrainFields,
+): boolean {
+  let support = 0;
+  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      const candidateFields = fieldsAt(tileX + offsetX, tileY + offsetY);
+      const candidateElevation = logicalElevation(candidateFields.height, 7);
+      if (v7SpecialBiome(candidateFields, candidateElevation) === special) support += 1;
+    }
+  }
+  if (support < 3) return false;
+
+  // Specials are an overlay on the quantized table. Check the regularized
+  // table under the cell and all four neighbours so the if-chain cannot
+  // introduce an adjacency that the table itself forbids.
+  return [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0]].every(([offsetX, offsetY]) => (
+    legalV7BiomePair(
+      special,
+      regularizedV7TableBiome(tileX + offsetX!, tileY + offsetY!, fieldsAt),
+    )
+  ));
+}
+
+function v7OceanAt(
+  tileX: number,
+  tileY: number,
+  fieldsAt: (tileX: number, tileY: number) => FloatTerrainFields,
+): boolean {
+  const sea = seaLevel(7);
+  return [-1, 0, 1].some((offsetY) => [-1, 0, 1].some((offsetX) => (
+    fieldsAt(tileX + offsetX, tileY + offsetY).height < sea
+  )));
+}
+
+function v7CoastAt(
+  tileX: number,
+  tileY: number,
+  fieldsAt: (tileX: number, tileY: number) => FloatTerrainFields,
+): boolean {
+  if (v7OceanAt(tileX, tileY, fieldsAt)) return false;
+  const fields = fieldsAt(tileX, tileY);
+  const gradientX = (
+    fieldsAt(tileX + 1, tileY).height - fieldsAt(tileX - 1, tileY).height
+  ) / 2;
+  const gradientY = (
+    fieldsAt(tileX, tileY + 1).height - fieldsAt(tileX, tileY - 1).height
+  ) / 2;
+  const gradient = Math.max(0.000_001, Math.hypot(gradientX, gradientY));
+  if ((fields.height - seaLevel(7)) / gradient > 3.5) return false;
+  for (let offsetY = -3; offsetY <= 3; offsetY += 1) {
+    for (let offsetX = -3 + Math.abs(offsetY); offsetX <= 3 - Math.abs(offsetY); offsetX += 1) {
+      if (fieldsAt(tileX + offsetX, tileY + offsetY).height < seaLevel(7)) return true;
+    }
+  }
+  return false;
+}
+
+function visibleV7BiomeCandidate(
+  tileX: number,
+  tileY: number,
+  fieldsAt: (tileX: number, tileY: number) => FloatTerrainFields,
+): ProceduralTerrainBiome {
+  if (v7OceanAt(tileX, tileY, fieldsAt)) return 'ocean';
+  if (v7CoastAt(tileX, tileY, fieldsAt)) return 'coast';
+  const fields = fieldsAt(tileX, tileY);
+  const elevation = logicalElevation(fields.height, 7);
+  const special = v7SpecialBiome(fields, elevation);
+  if (special) return special;
+  if (elevation >= 4 || (elevation >= 3 && fields.temperature < -0.35)) return 'cold_highland';
+  if (elevation >= 3) return 'mountain';
+  if (elevation >= 2) return 'highland';
+  return regularizedV7TableBiome(tileX, tileY, fieldsAt);
+}
+
+function visibleRegionV7TableBiome(
+  tileX: number,
+  tileY: number,
+  fieldsAt: (tileX: number, tileY: number) => FloatTerrainFields,
+): ProceduralTerrainBiome {
+  const current = regularizedV7TableBiome(tileX, tileY, fieldsAt);
+  const counts = new Map<ProceduralTerrainBiome, number>();
+  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      if (offsetX === 0 && offsetY === 0) continue;
+      const candidate = visibleV7BiomeCandidate(tileX + offsetX, tileY + offsetY, fieldsAt);
+      counts.set(candidate, (counts.get(candidate) ?? 0) + 1);
+    }
+  }
+  // Coast/elevation masks can clip an otherwise healthy underlying table
+  // region down to one visible cell. Keep the cell only when it has a visible
+  // same-biome peer; otherwise join the most common legal neighbouring region.
+  if ((counts.get(current) ?? 0) > 0) return current;
+  let replacement: ProceduralTerrainBiome = current;
+  let replacementCount = 0;
+  for (const [candidate, count] of counts) {
+    if ((candidate === 'ocean' || candidate === 'coast' || V7_TABLE_BIOMES.has(candidate))
+      && legalV7BiomePair(current, candidate)
+      && count > replacementCount) {
+      replacement = candidate === 'ocean' ? 'coast' : candidate;
+      replacementCount = count;
+    }
+  }
+  return replacement;
 }
 
 function landBiome(
   fields: FloatTerrainFields,
   elevation: number,
+  generatorVersion: number,
+  coast: boolean,
+  tileX = 0,
+  tileY = 0,
+  fieldsAt: (tileX: number, tileY: number) => FloatTerrainFields = () => fields,
 ): ProceduralTerrainBiome {
-  if (fields.height < SEA_LEVEL + 0.07) return "coast";
-  if (fields.volcanism > 0.66 && elevation >= 1 && fields.peaksValleys > 0.1)
-    return "volcanic";
-  if (
-    fields.strangeness > 0.67 &&
-    fields.moisture > 0.08 &&
-    fields.temperature > -0.5
-  ) {
-    return "shroomlands";
+  if (coast) return "coast";
+  if (generatorVersion >= 7) {
+    const special = v7SpecialBiome(fields, elevation);
+    if (special && supportedV7SpecialBiome(special, tileX, tileY, fieldsAt)) return special;
+  } else {
+    if (fields.volcanism > 0.66 && elevation >= 1 && fields.peaksValleys > 0.1)
+      return "volcanic";
+    if (
+      fields.strangeness > 0.67 &&
+      fields.moisture > 0.08 &&
+      fields.temperature > -0.5
+    ) {
+      return "shroomlands";
+    }
   }
   if (elevation >= 4 || (elevation >= 3 && fields.temperature < -0.35))
     return "cold_highland";
   if (elevation >= 3) return "mountain";
   if (elevation >= 2) return "highland";
+  if (generatorVersion >= 7) {
+    return visibleRegionV7TableBiome(tileX, tileY, fieldsAt);
+  }
   if (fields.moisture > 0.52 && elevation === 0) return "wetland";
   if (fields.temperature > 0.34 && fields.moisture < -0.18) return "desert";
   if (fields.temperature > 0.2 && fields.moisture < 0.08) return "savanna";
@@ -734,10 +958,16 @@ function sampleBaseWithGeneratorSeed(
   generatorVersion: number,
   tileX: number,
   tileY: number,
+  fieldsAt: (
+    tileX: number,
+    tileY: number,
+  ) => FloatTerrainFields = (x, y) => floatTerrainFields(seed, generatorVersion, x, y),
 ): SemanticTerrainSample {
-  const fields = floatTerrainFields(seed, tileX, tileY);
-  const ocean = fields.height < SEA_LEVEL;
-  const elevation = ocean ? 0 : logicalElevation(fields.height);
+  const sea = seaLevel(generatorVersion);
+  const fields = fieldsAt(tileX, tileY);
+  let ocean = fields.height < sea;
+  if (generatorVersion >= 7) ocean = v7OceanAt(tileX, tileY, fieldsAt);
+  const elevation = ocean ? 0 : logicalElevation(fields.height, generatorVersion);
   // V3 measures the signed scalar field in tile space. A raw field threshold
   // has a screen-space width proportional to the local gradient, so diagonal
   // bends could collapse to a single tile. Dividing by that gradient gives a
@@ -745,26 +975,56 @@ function sampleBaseWithGeneratorSeed(
   // half-width beyond sqrt(2), preventing a diagonal raster turn from pinching
   // to bank art with no readable water core while retaining V3 byte-for-byte.
   let minimumWidthRiver = false;
-  if (!ocean && elevation <= 2 && generatorVersion >= 3) {
+  if (!ocean && elevation <= (generatorVersion >= 7 ? 4 : 2) && generatorVersion >= 3) {
     const gradientX =
-      (riverNoiseAt(seed, tileX + 1, tileY) -
-        riverNoiseAt(seed, tileX - 1, tileY)) /
+      (fieldsAt(tileX + 1, tileY).river -
+        fieldsAt(tileX - 1, tileY).river) /
       2;
     const gradientY =
-      (riverNoiseAt(seed, tileX, tileY + 1) -
-        riverNoiseAt(seed, tileX, tileY - 1)) /
+      (fieldsAt(tileX, tileY + 1).river -
+        fieldsAt(tileX, tileY - 1).river) /
       2;
     const gradient = Math.max(0.000_001, Math.hypot(gradientX, gradientY));
     const halfWidthTiles = generatorVersion >= 4 ? 1.45 : 1.1;
     minimumWidthRiver = Math.abs(fields.river) / gradient <= halfWidthTiles;
   }
-  const waterKind = ocean
+  let waterKind = ocean
     ? "ocean"
     : inlandWaterKind(fields, elevation, generatorVersion, minimumWidthRiver);
+  if (!ocean && generatorVersion >= 7) {
+    // Grow each raw still-water candidate as a 3x3 stamp. Every emitted cell
+    // therefore owns at least two cardinal peers from the same stamp, unlike
+    // iterative thinning which can leave the final pair of a peeled tendril.
+    // Ocean has precedence but is itself water, so coastal clipping cannot
+    // violate the same minimum-width invariant.
+    let nearLake = false;
+    let nearPond = false;
+    for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+      for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+        const candidate = fieldsAt(tileX + offsetX, tileY + offsetY);
+        const candidateElevation = candidate.height < sea
+          ? 0 : logicalElevation(candidate.height, generatorVersion);
+        const kind = inlandWaterKind(
+          candidate, candidateElevation, generatorVersion, false,
+        );
+        nearLake ||= kind === 'lake';
+        nearPond ||= kind === 'pond';
+      }
+    }
+    if (nearLake) waterKind = 'lake';
+    else if (nearPond) waterKind = 'pond';
+  }
+  let coast = !ocean && fields.height < sea + 0.07;
+  if (!ocean && generatorVersion >= 7) {
+    // The gradient ratio is the primary width rule; v7CoastAt's exact bounded
+    // check closes rare saddle/near-zero-gradient cases beyond the authored
+    // four-tile band.
+    coast = v7CoastAt(tileX, tileY, fieldsAt);
+  }
   const biome: ProceduralTerrainBiome = ocean
     ? "ocean"
-    : landBiome(fields, elevation);
-  const deepOcean = ocean && fields.height < SEA_LEVEL - 0.32;
+    : landBiome(fields, elevation, generatorVersion, coast, tileX, tileY, fieldsAt);
+  const deepOcean = ocean && fields.height < sea - (generatorVersion >= 7 ? 0.22 : 0.32);
   const waterDepth: 0 | 1 | 2 = deepOcean ? 2 : waterKind === "none" ? 0 : 1;
   return {
     tileX,
@@ -791,11 +1051,41 @@ type ProceduralBaseSampleAt = (
   tileY: number,
 ) => SemanticTerrainSample;
 
+// A 1024² step-one review previously retained every heavyweight field and
+// semantic sample (over 1 GB at process peak). 64 rows of a 1024-wide scan
+// exceed every current bounded neighbourhood while placing a hard ceiling on
+// both memos. Replacing the Map, rather than clearing its entries in place,
+// also lets V8 reclaim the old backing store; recomputation remains pure and
+// deterministic.
+const PROCEDURAL_SAMPLE_MEMO_LIMIT = 65_536;
+
+function boundedMemoSet<T>(cache: Map<string, T>, key: string, value: T): Map<string, T> {
+  const target = cache.size >= PROCEDURAL_SAMPLE_MEMO_LIMIT
+    ? new Map<string, T>()
+    : cache;
+  target.set(key, value);
+  return target;
+}
+
 function cachedBaseSampleAt(
   seed: number,
   generatorVersion: number,
 ): ProceduralBaseSampleAt {
-  const cache = new Map<string, SemanticTerrainSample>();
+  let cache = new Map<string, SemanticTerrainSample>();
+  // V7 samples several neighbouring fields for ocean dilation, normalized
+  // beach distance, and minimum-width water stamps. Dense maps previously
+  // recomputed the same expensive fractal fields dozens of times per cell.
+  // Keep this cache scoped to one sampling operation so output and lifetime
+  // remain deterministic while adjacent lookups share the exact field value.
+  let fields = new Map<string, FloatTerrainFields>();
+  const fieldsAt = (tileX: number, tileY: number): FloatTerrainFields => {
+    const key = signedTileKey(tileX, tileY);
+    const cached = fields.get(key);
+    if (cached !== undefined) return cached;
+    const resolved = floatTerrainFields(seed, generatorVersion, tileX, tileY);
+    fields = boundedMemoSet(fields, key, resolved);
+    return resolved;
+  };
   return (tileX, tileY) => {
     const key = signedTileKey(tileX, tileY);
     const cached = cache.get(key);
@@ -805,8 +1095,9 @@ function cachedBaseSampleAt(
       generatorVersion,
       tileX,
       tileY,
+      fieldsAt,
     );
-    cache.set(key, sample);
+    cache = boundedMemoSet(cache, key, sample);
     return sample;
   };
 }
@@ -858,12 +1149,14 @@ const WATERFALL_CENTER_SEARCH = 6;
 const WATERFALL_REPAIR_RADIUS = 4;
 const WATERFALL_REPAIR_FIELD_BAND = 4_096;
 const WATERFALL_CLIFF_SHOULDER_TILES = 2;
+const V7_RIVER_APRON_RADIUS = 1;
 
 /** Finds the seeded river centre on one row without depending on chunk order.
  * V4 guarantees a readable river core, so the minimum absolute scalar value
  * among nearby river cells is its stable discrete centreline. */
 function riverCenterXNear(
   seed: number,
+  generatorVersion: number,
   nearX: number,
   tileY: number,
 ): number | null {
@@ -874,7 +1167,7 @@ function riverCenterXNear(
     tileX <= nearX + WATERFALL_CENTER_SEARCH;
     tileX += 1
   ) {
-    const score = Math.abs(riverNoiseAt(seed, tileX, tileY));
+    const score = Math.abs(riverNoiseAt(seed, tileX, tileY, generatorVersion));
     if (score < bestScore || (score === bestScore && (bestX === null || tileX < bestX))) {
       bestX = tileX;
       bestScore = score;
@@ -893,6 +1186,7 @@ interface ProceduralWaterfallConnection {
  * therefore receive a longer approach instead of leaving a gap. */
 function waterfallConnection(
   seed: number,
+  generatorVersion: number,
   centerX: number,
   crestY: number,
   direction: -1 | 1,
@@ -903,7 +1197,7 @@ function waterfallConnection(
     const tileY = direction < 0
       ? crestY - distance
       : crestY + WATERFALL_VISIBLE_ROWS - 1 + distance;
-    rawCenterX = riverCenterXNear(seed, rawCenterX, tileY) ?? rawCenterX;
+    rawCenterX = riverCenterXNear(seed, generatorVersion, rawCenterX, tileY) ?? rawCenterX;
     const approachRows = distance - 1;
     if (
       approachRows >= WATERFALL_MIN_APPROACH_ROWS &&
@@ -914,7 +1208,17 @@ function waterfallConnection(
     }
   }
   return {
-    centerX: rawCenterX,
+    // V7's fallback corridor must obey the same one-tile-per-approach-row
+    // displacement assumed by its bounded repair scan. The seeded centreline
+    // can otherwise drift by WATERFALL_CENTER_SEARCH on every row, allowing a
+    // distant anchor to mutate a window which did not include that anchor.
+    // Preserve the already-pinned v6 stream byte-for-byte.
+    centerX: generatorVersion >= 7
+      ? Math.max(
+        centerX - WATERFALL_MAX_APPROACH_ROWS,
+        Math.min(centerX + WATERFALL_MAX_APPROACH_ROWS, rawCenterX),
+      )
+      : rawCenterX,
     approachRows: WATERFALL_MAX_APPROACH_ROWS,
   };
 }
@@ -924,18 +1228,21 @@ function waterfallConnection(
  * deliberately keeps the fall at the upper centre and rejoins it later. */
 function proceduralWaterfallAnchorNear(
   seed: number,
+  generatorVersion: number,
   nearX: number,
   crestY: number,
   baseSampleAt: ProceduralBaseSampleAt,
 ): ProceduralWaterfallAnchor | null {
   const centerX = riverCenterXNear(
     seed,
+    generatorVersion,
     nearX,
     crestY,
   );
   if (centerX === null) return null;
   const lowerCenterX = riverCenterXNear(
     seed,
+    generatorVersion,
     centerX,
     crestY + 1,
   );
@@ -949,6 +1256,7 @@ function proceduralWaterfallAnchorNear(
   ) return null;
   const upstream = waterfallConnection(
     seed,
+    generatorVersion,
     centerX,
     crestY,
     -1,
@@ -956,6 +1264,7 @@ function proceduralWaterfallAnchorNear(
   );
   const downstream = waterfallConnection(
     seed,
+    generatorVersion,
     centerX,
     crestY,
     1,
@@ -1032,6 +1341,7 @@ function proceduralWaterfallRepairAt(
   ) {
     const anchor = proceduralWaterfallAnchorNear(
       seed,
+      generatorVersion,
       sample.tileX,
       crestY,
       baseSampleAt,
@@ -1056,6 +1366,7 @@ function proceduralWaterfallRepairAt(
 function sampleWithV6WaterfallRepair(
   sample: SemanticTerrainSample,
   repair: ProceduralWaterfallRepair,
+  generatorVersion: number,
 ): SemanticTerrainSample {
   const inChannel =
     Math.abs(sample.tileX - repair.centerAtRow) <= WATERFALL_HALF_WIDTH;
@@ -1086,7 +1397,8 @@ function sampleWithV6WaterfallRepair(
     };
   }
   if (inFlatCliffSpan) {
-    const waterKind = sample.waterKind === "river" ? "none" : sample.waterKind;
+    const waterKind = sample.waterKind === "river" && generatorVersion < 7
+      ? "none" : sample.waterKind;
     return {
       ...sample,
       surface: surfaceForBiome(sample.biome, waterKind, false),
@@ -1097,7 +1409,7 @@ function sampleWithV6WaterfallRepair(
   }
   // Remove the diagonal seed-river remnant inside the repaired corridor. The
   // ordinary adjacency pass then grows banks around the straightened channel.
-  if (sample.waterKind !== "river") return sample;
+  if (sample.waterKind !== "river" || generatorVersion >= 7) return sample;
   return {
     ...sample,
     surface: surfaceForBiome(sample.biome, "none", false),
@@ -1140,10 +1452,11 @@ function proceduralWaterfallRepairsForBounds(
       candidateX += 1
     ) {
       if (baseSampleAt(candidateX, crestY).waterKind !== "river") continue;
-      const centerX = riverCenterXNear(seed, candidateX, crestY);
+      const centerX = riverCenterXNear(seed, generatorVersion, candidateX, crestY);
       if (centerX !== candidateX) continue;
       const anchor = proceduralWaterfallAnchorNear(
         seed,
+        generatorVersion,
         centerX,
         crestY,
         baseSampleAt,
@@ -1205,13 +1518,14 @@ function cachedCoordinateWaterfallRepairs(
     coordinateWaterfallRepairCache.set(key, cached);
     return cached;
   }
+  const neighborMargin = generatorVersion >= 7 ? V7_RIVER_APRON_RADIUS : 0;
   const repairs = proceduralWaterfallRepairsForBounds(
     seed,
     generatorVersion,
-    chunkX * PROCEDURAL_WORLD_CHUNK_TILES,
-    chunkY * PROCEDURAL_WORLD_CHUNK_TILES,
-    PROCEDURAL_WORLD_CHUNK_TILES,
-    PROCEDURAL_WORLD_CHUNK_TILES,
+    chunkX * PROCEDURAL_WORLD_CHUNK_TILES - neighborMargin,
+    chunkY * PROCEDURAL_WORLD_CHUNK_TILES - neighborMargin,
+    PROCEDURAL_WORLD_CHUNK_TILES + neighborMargin * 2,
+    PROCEDURAL_WORLD_CHUNK_TILES + neighborMargin * 2,
     baseSampleAt,
   );
   coordinateWaterfallRepairCache.set(key, repairs);
@@ -1241,15 +1555,30 @@ function sampleWithGeneratorSeed(
       return sample;
     return { ...sample, waterKind: "waterfall" };
   }
-  const repair = repairsByCoordinate === undefined
-    ? proceduralWaterfallRepairAt(
-        seed,
-        generatorVersion,
-        sample,
-        baseSampleAt,
-      )
-    : repairsByCoordinate.get(signedTileKey(tileX, tileY)) ?? null;
-  return repair === null ? sample : sampleWithV6WaterfallRepair(sample, repair);
+  const directSampleAt = (x: number, y: number): SemanticTerrainSample => {
+    const direct = baseSampleAt(x, y);
+    const repair = repairsByCoordinate === undefined
+      ? proceduralWaterfallRepairAt(seed, generatorVersion, direct, baseSampleAt)
+      : repairsByCoordinate.get(signedTileKey(x, y)) ?? null;
+    return repair === null ? direct : sampleWithV6WaterfallRepair(direct, repair, generatorVersion);
+  };
+  const resolved = directSampleAt(tileX, tileY);
+  if (generatorVersion < 7 || resolved.waterKind !== 'none'
+    || Math.abs(resolved.fields.river) > 8_000) return resolved;
+  // Stamp a one-cell apron around the final repaired river, not around the
+  // pre-repair scalar. A union of 3x3 stamps cannot contain a water cell with
+  // fewer than two cardinal peers, even at a diagonal endpoint.
+  for (let offsetY = -1; offsetY <= 1; offsetY += 1) for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+    if (offsetX === 0 && offsetY === 0) continue;
+    if (directSampleAt(tileX + offsetX, tileY + offsetY).waterKind !== 'river') continue;
+    return {
+      ...resolved,
+      surface: 'water',
+      waterKind: 'river',
+      waterDepth: 1,
+    };
+  }
+  return resolved;
 }
 
 export function sampleProceduralTerrainAt(
@@ -1409,13 +1738,18 @@ export function sampleProceduralTerrainChunk(
   const apron: SemanticTerrainSample[] = [];
   const byCoordinate = new Map<string, SemanticTerrainSample>();
   const baseSampleAt = cachedBaseSampleAt(seededGenerator, generatorVersion);
+  // V7's final river apron asks about the eight neighbouring repaired cells.
+  // Include that exact predicate domain in the bulk repair map; otherwise a
+  // neighbour just outside this caller's output bounds silently resolves as
+  // unrepaired and point/chunk/overview entry paths disagree.
+  const repairNeighborMargin = generatorVersion >= 7 ? V7_RIVER_APRON_RADIUS : 0;
   const repairsByCoordinate = proceduralWaterfallRepairsForBounds(
     seededGenerator,
     generatorVersion,
-    apronMinTileX,
-    apronMinTileY,
-    apronWidth,
-    apronHeight,
+    apronMinTileX - repairNeighborMargin,
+    apronMinTileY - repairNeighborMargin,
+    apronWidth + repairNeighborMargin * 2,
+    apronHeight + repairNeighborMargin * 2,
     baseSampleAt,
   );
   for (let localY = 0; localY < apronHeight; localY += 1) {
@@ -1534,10 +1868,10 @@ export function sampleProceduralTerrainOverview(
     ? proceduralWaterfallRepairsForBounds(
         seededGenerator,
         generatorVersion,
-        options.minTileX,
-        options.minTileY,
-        options.columns,
-        options.rows,
+        options.minTileX - (generatorVersion >= 7 ? V7_RIVER_APRON_RADIUS : 0),
+        options.minTileY - (generatorVersion >= 7 ? V7_RIVER_APRON_RADIUS : 0),
+        options.columns + (generatorVersion >= 7 ? V7_RIVER_APRON_RADIUS * 2 : 0),
+        options.rows + (generatorVersion >= 7 ? V7_RIVER_APRON_RADIUS * 2 : 0),
         baseSampleAt,
       )
     : undefined;

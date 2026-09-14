@@ -1,0 +1,62 @@
+{
+  "name": "icon_skill_deep_ore_sense",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".......222......",
+        "......20002.....",
+        ".....2001112....",
+        "....20222010....",
+        "....202021001...",
+        "....200221021...",
+        ".....220001001..",
+        "......00200100..",
+        ".....200200101..",
+        "....2020001121..",
+        "...20001111121..",
+        "..00111111111...",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#0099db",
+    "1": "#124e89",
+    "2": "#2ce8f5"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/places-seasons/sheet-16-without-outline.png",
+  "sourceRegion": [
+    48,
+    16,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.deep_ore_sense",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

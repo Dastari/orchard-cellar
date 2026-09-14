@@ -1,11 +1,15 @@
-import { BASIS_POINTS, MAX_ATTRIBUTE, MIN_ATTRIBUTE, soften } from './balance.js';
+import { soften } from './balance.js';
+import {
+  BOOTSTRAP_CHARACTER_COMBAT_BALANCE,
+  type CharacterCombatBalanceProfile,
+} from './character-combat-balance.js';
 
 export const STAT_TARGETS = [
   'str', 'dex', 'con', 'int', 'wis', 'cha',
   'maxHealth', 'maxMana', 'maxVigour',
   'healthRegen', 'manaRegen', 'vigourRegen',
   'toolVigourCost', 'swingSpeed', 'sprintSpeed', 'sprintVigourCost', 'checkBonus',
-  'attackPower', 'rangedPower', 'armor', 'armorPct',
+  'attackPower', 'rangedPower', 'criticalChance', 'armor', 'armorPct',
 ] as const;
 export type StatTarget = typeof STAT_TARGETS[number];
 
@@ -33,13 +37,15 @@ const U32_MAX = 0xffff_ffff;
 /** Regen's high technical ceiling is intentionally not a balance target. It
  * keeps the documented soft-cap path live without constraining ordinary v1
  * values; future equipment tuning can lower it in one table. */
-export const STAT_TARGET_RULES: Readonly<Record<StatTarget, StatTargetRule>> = {
-  str: { minimum: MIN_ATTRIBUTE, maximum: MAX_ATTRIBUTE, softcap: false },
-  dex: { minimum: MIN_ATTRIBUTE, maximum: MAX_ATTRIBUTE, softcap: false },
-  con: { minimum: MIN_ATTRIBUTE, maximum: MAX_ATTRIBUTE, softcap: false },
-  int: { minimum: MIN_ATTRIBUTE, maximum: MAX_ATTRIBUTE, softcap: false },
-  wis: { minimum: MIN_ATTRIBUTE, maximum: MAX_ATTRIBUTE, softcap: false },
-  cha: { minimum: MIN_ATTRIBUTE, maximum: MAX_ATTRIBUTE, softcap: false },
+export function statTargetRules(profile: CharacterCombatBalanceProfile): Readonly<Record<StatTarget, StatTargetRule>> {
+  const attribute = { minimum: profile.minimumAttribute, maximum: profile.maximumAttribute, softcap: false };
+  return Object.freeze({
+  str: attribute,
+  dex: attribute,
+  con: attribute,
+  int: attribute,
+  wis: attribute,
+  cha: attribute,
   maxHealth: { minimum: 1, maximum: U32_MAX, softcap: false },
   maxMana: { minimum: 0, maximum: U32_MAX, softcap: false },
   maxVigour: { minimum: 0, maximum: U32_MAX, softcap: false },
@@ -53,9 +59,13 @@ export const STAT_TARGET_RULES: Readonly<Record<StatTarget, StatTargetRule>> = {
   checkBonus: { minimum: -1_000, maximum: 1_000, softcap: false },
   attackPower: { minimum: 0, maximum: U32_MAX, softcap: false },
   rangedPower: { minimum: 0, maximum: U32_MAX, softcap: false },
+  criticalChance: { minimum: 0, maximum: 10_000, softcap: false },
   armor: { minimum: 0, maximum: U32_MAX, softcap: false },
   armorPct: { minimum: 0, maximum: 9_000, softcap: true },
-};
+  });
+}
+
+export const STAT_TARGET_RULES = statTargetRules(BOOTSTRAP_CHARACTER_COMBAT_BALANCE);
 
 export interface ModifierResolution {
   readonly target: StatTarget;
@@ -95,8 +105,9 @@ function selectExclusiveFamilies(modifiers: readonly Modifier[]): {
   };
 }
 
-function clampResolved(target: StatTarget, base: number, value: number): number {
-  const rule = STAT_TARGET_RULES[target];
+function clampResolved(target: StatTarget, base: number, value: number,
+  profile: CharacterCombatBalanceProfile): number {
+  const rule = statTargetRules(profile)[target];
   const bounded = Math.max(rule.minimum, Math.min(rule.maximum, value));
   if (!rule.softcap || bounded <= base || base >= rule.maximum) return Math.floor(bounded);
   return Math.round(soften(rule.maximum, base, bounded - base));
@@ -108,6 +119,7 @@ export function resolveModifierTargetDetailed(
   target: StatTarget,
   base: number,
   modifiers: readonly Modifier[],
+  profile: CharacterCombatBalanceProfile = BOOTSTRAP_CHARACTER_COMBAT_BALANCE,
 ): ModifierResolution {
   validateInteger(`${target} base`, base);
   const relevant = modifiers.filter((modifier) => modifier.target === target);
@@ -125,15 +137,15 @@ export function resolveModifierTargetDetailed(
     .sort((left, right) => right.value - left.value || compareIds(left, right));
 
   let value = base + flats.reduce((sum, modifier) => sum + modifier.value, 0);
-  value = Math.floor(value * (BASIS_POINTS + additivePercent) / BASIS_POINTS);
+  value = Math.floor(value * (profile.basisPoints + additivePercent) / profile.basisPoints);
   for (const modifier of multiplicative) {
-    value = Math.floor(value * (BASIS_POINTS + modifier.value) / BASIS_POINTS);
+    value = Math.floor(value * (profile.basisPoints + modifier.value) / profile.basisPoints);
   }
   if (overrides[0] !== undefined) value = overrides[0].value;
   return {
     target,
     base,
-    value: clampResolved(target, base, value),
+    value: clampResolved(target, base, value, profile),
     applied: selected.applied,
     excludedByFamily: selected.excluded,
   };
@@ -143,8 +155,9 @@ export function resolveModifierTarget(
   target: StatTarget,
   base: number,
   modifiers: readonly Modifier[],
+  profile: CharacterCombatBalanceProfile = BOOTSTRAP_CHARACTER_COMBAT_BALANCE,
 ): number {
-  return resolveModifierTargetDetailed(target, base, modifiers).value;
+  return resolveModifierTargetDetailed(target, base, modifiers, profile).value;
 }
 
 /** Static data lint used by item/effect definition tests. Multiple overrides

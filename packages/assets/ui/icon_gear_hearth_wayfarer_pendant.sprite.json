@@ -1,0 +1,66 @@
+{
+  "name": "icon_gear_hearth_wayfarer_pendant",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".....000000.....",
+        "....02244420....",
+        "...0400000020...",
+        "..020..00..010..",
+        "..020.0420.010..",
+        "...0404751010...",
+        "....02475110....",
+        ".....026310.....",
+        "......0110......",
+        ".......00.......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#051540",
+    "1": "#1a3b93",
+    "2": "#3f60bc",
+    "3": "#4d3d06",
+    "4": "#7293ef",
+    "5": "#a3820e",
+    "6": "#d7ab12",
+    "7": "#f1cf5d"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/accessories-400/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    112,
+    192,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

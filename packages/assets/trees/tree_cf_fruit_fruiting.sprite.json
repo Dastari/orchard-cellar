@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_fruit_fruiting",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     48,
     64
@@ -98,7 +99,7 @@
     "d": "#c42430",
     "e": "#f5555d"
   },
-  "sourcePath": "references/Cute_Fantasy/Crops/Apple_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Apple_Tree.png",
   "sourceRegion": [
     0,
     0,

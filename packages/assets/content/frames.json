@@ -1,0 +1,681 @@
+[
+  {
+    "id": "frame:barrel",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "BARREL",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "entity",
+      "entityContainer": "placeable"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "contents",
+        "kind": "slots",
+        "label": "CONTENTS",
+        "columns": 5,
+        "rows": 2,
+        "bind": {
+          "entitySlots": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        "restriction": {
+          "acceptedFrom": {
+            "stationTag": "container.barrel",
+            "role": "input"
+          }
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "INVENTORY",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      }
+    ],
+    "buttons": [
+      {
+        "label": "SEAL",
+        "interaction": "seal",
+        "onInvoke": {
+          "sealContainer": true
+        },
+        "tone": "success",
+        "visibleWhen": {
+          "state": "sealed",
+          "equals": false
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  },
+  {
+    "id": "frame:chest",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "CHEST",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "entity",
+      "entityContainer": "chest"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "contents",
+        "kind": "slots",
+        "label": "CONTENTS",
+        "columns": 5,
+        "rows": 4,
+        "bind": {
+          "entitySlots": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "INVENTORY",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  },
+  {
+    "id": "frame:cooking",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "COOKING FIRE",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "entity",
+      "entityContainer": "placeable"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "input",
+        "kind": "slots",
+        "label": "RAW FOOD",
+        "columns": 1,
+        "rows": 1,
+        "bind": {
+          "entitySlots": [
+            0
+          ]
+        },
+        "restriction": {
+          "acceptedFrom": {
+            "stationTag": "station.campfire",
+            "role": "input"
+          }
+        }
+      },
+      {
+        "id": "progress",
+        "kind": "bar",
+        "label": "PROGRESS",
+        "minWidth": 18,
+        "bind": {
+          "process": "progress"
+        }
+      },
+      {
+        "id": "output",
+        "kind": "slots",
+        "label": "COOKED FOOD",
+        "columns": 1,
+        "rows": 1,
+        "bind": {
+          "entitySlots": [
+            1
+          ]
+        },
+        "restriction": {
+          "readOnly": true
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "INVENTORY",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      },
+      {
+        "id": "pending_job",
+        "kind": "label",
+        "label": "PENDING COOKING",
+        "bind": {
+          "state": "processJobLabel"
+        },
+        "visibleWhen": {
+          "state": "processJobPending",
+          "equals": true
+        }
+      },
+      {
+        "id": "pending_job_progress",
+        "kind": "bar",
+        "label": "BATCH PROGRESS",
+        "bind": {
+          "state": "processJobProgress"
+        },
+        "visibleWhen": {
+          "state": "processJobPending",
+          "equals": true
+        }
+      }
+    ],
+    "buttons": [
+      {
+        "label": "COLLECT BATCH",
+        "interaction": "collect_job",
+        "onInvoke": {
+          "claimProcessJob": "collect"
+        },
+        "tone": "success",
+        "visibleWhen": {
+          "state": "processJobReady",
+          "equals": true
+        }
+      },
+      {
+        "label": "CANCEL BATCH",
+        "interaction": "cancel_job",
+        "onInvoke": {
+          "claimProcessJob": "cancel"
+        },
+        "tone": "danger",
+        "visibleWhen": {
+          "state": "processJobPending",
+          "equals": true
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  },
+  {
+    "id": "frame:crafting",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "CRAFTING",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "crafting"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "crafting",
+        "kind": "slots",
+        "label": "PATTERN",
+        "columns": 3,
+        "rows": 3,
+        "sizing": "flex",
+        "bind": {
+          "self": "crafting"
+        }
+      },
+      {
+        "id": "recipes",
+        "kind": "recipe_list",
+        "label": "RECIPES",
+        "minWidth": 150,
+        "bind": {
+          "recipeFilter": {
+            "stationTag": "station.crafting"
+          }
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "INVENTORY",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  },
+  {
+    "id": "frame:fermentation",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "FERMENTATION CASK",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "entity",
+      "entityContainer": "placeable"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "input",
+        "kind": "slots",
+        "label": "MUST",
+        "columns": 1,
+        "rows": 1,
+        "bind": {
+          "entitySlots": [
+            0
+          ]
+        },
+        "restriction": {
+          "acceptedFrom": {
+            "stationTag": "station.cellar",
+            "role": "input"
+          }
+        }
+      },
+      {
+        "id": "progress",
+        "kind": "bar",
+        "label": "PROGRESS",
+        "minWidth": 18,
+        "bind": {
+          "process": "progress"
+        }
+      },
+      {
+        "id": "output",
+        "kind": "slots",
+        "label": "BOTTLES",
+        "columns": 1,
+        "rows": 1,
+        "bind": {
+          "entitySlots": [
+            1
+          ]
+        },
+        "restriction": {
+          "readOnly": true
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "INVENTORY",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  },
+  {
+    "id": "frame:furnace",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "FURNACE",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "entity",
+      "entityContainer": "placeable"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "input",
+        "kind": "slots",
+        "label": "ORE",
+        "columns": 1,
+        "rows": 1,
+        "bind": {
+          "entitySlots": [
+            0
+          ]
+        },
+        "restriction": {
+          "acceptedFrom": {
+            "stationTag": "station.furnace",
+            "role": "input"
+          }
+        }
+      },
+      {
+        "id": "fuel",
+        "kind": "slots",
+        "label": "FUEL",
+        "columns": 1,
+        "rows": 1,
+        "bind": {
+          "entitySlots": [
+            1
+          ]
+        },
+        "restriction": {
+          "acceptedFrom": {
+            "stationTag": "station.furnace",
+            "role": "fuel"
+          }
+        }
+      },
+      {
+        "id": "progress",
+        "kind": "bar",
+        "label": "PROGRESS",
+        "minWidth": 18,
+        "bind": {
+          "process": "progress"
+        }
+      },
+      {
+        "id": "output",
+        "kind": "slots",
+        "label": "BARS",
+        "columns": 1,
+        "rows": 1,
+        "bind": {
+          "entitySlots": [
+            2
+          ]
+        },
+        "restriction": {
+          "readOnly": true
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "INVENTORY",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  },
+  {
+    "id": "frame:hearth_stash",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "PERSONAL STASH",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "entity",
+      "entityContainer": "stash"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "contents",
+        "kind": "slots",
+        "label": "YOUR STORED ITEMS",
+        "columns": 5,
+        "rows": 4,
+        "bind": {
+          "entitySlots": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
+          ]
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "INVENTORY",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  },
+  {
+    "id": "frame:pack",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "INVENTORY",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "inventory"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "equipment",
+        "kind": "paper_doll",
+        "label": "EQUIPMENT",
+        "columns": 3,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "equipment"
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "BACKPACK",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      },
+      {
+        "id": "pending_job",
+        "kind": "label",
+        "label": "PENDING COOKING",
+        "bind": {
+          "state": "processJobLabel"
+        },
+        "visibleWhen": {
+          "state": "processJobPending",
+          "equals": true
+        }
+      }
+    ],
+    "buttons": [
+      {
+        "label": "CANCEL BATCH",
+        "interaction": "cancel_job",
+        "onInvoke": {
+          "claimProcessJob": "cancel"
+        },
+        "tone": "danger",
+        "visibleWhen": {
+          "state": "processJobPending",
+          "equals": true
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  },
+  {
+    "id": "frame:press",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "FRUIT PRESS",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "entity",
+      "entityContainer": "placeable"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "input",
+        "kind": "slots",
+        "label": "FRUIT",
+        "columns": 1,
+        "rows": 1,
+        "bind": {
+          "entitySlots": [
+            0
+          ]
+        },
+        "restriction": {
+          "acceptedFrom": {
+            "stationTag": "station.press",
+            "role": "input"
+          }
+        }
+      },
+      {
+        "id": "progress",
+        "kind": "bar",
+        "label": "PROGRESS",
+        "minWidth": 18,
+        "bind": {
+          "process": "progress"
+        }
+      },
+      {
+        "id": "output",
+        "kind": "slots",
+        "label": "MUST + POMACE",
+        "columns": 2,
+        "rows": 1,
+        "bind": {
+          "entitySlots": [
+            1,
+            2
+          ]
+        },
+        "restriction": {
+          "readOnly": true
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "INVENTORY",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  },
+  {
+    "id": "frame:shop",
+    "kind": "frame",
+    "schemaVersion": 1,
+    "title": "SHOP",
+    "style": "wood_parchment",
+    "presentation": {
+      "surface": "merchant"
+    },
+    "resizable": true,
+    "panes": [
+      {
+        "id": "offers",
+        "kind": "recipe_list",
+        "label": "OFFERS",
+        "minWidth": 180,
+        "bind": {
+          "merchant": "offers"
+        }
+      },
+      {
+        "id": "backpack",
+        "kind": "slots",
+        "label": "INVENTORY",
+        "columns": 5,
+        "rows": 4,
+        "sizing": "flex",
+        "bind": {
+          "self": "backpack"
+        }
+      }
+    ],
+    "hotbar": {
+      "label": "HOT BAR"
+    }
+  }
+]

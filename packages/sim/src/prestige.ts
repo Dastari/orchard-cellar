@@ -1,4 +1,5 @@
-import { lineageSeeds, successionHeirlooms, vintageTerroir } from './balance.js';
+import { diminishingPowerReward } from './balance.js';
+import type { LegacyEconomyCatalog } from './economy-catalog.js';
 import { createInitialEconomy } from './economy-state.js';
 import type { PrestigeAction } from './progression-state.js';
 import { TILE_SIZE_FIXED, createEstateCollisionMap, type FarmState } from './state.js';
@@ -12,8 +13,8 @@ function legacyMultiplier(state: FarmState, heirlooms: number, lineages: number)
   return heirloomValue ** heirlooms * 1.5 ** lineages;
 }
 
-function resetRun(state: FarmState, multiplier: number): FarmState['economy'] {
-  const fresh = createInitialEconomy();
+function resetRun(catalog: LegacyEconomyCatalog, state: FarmState, multiplier: number): FarmState['economy'] {
+  const fresh = createInitialEconomy(catalog);
   return {
     ...fresh,
     plotsUnlocked: state.economy.plotsUnlocked,
@@ -23,10 +24,13 @@ function resetRun(state: FarmState, multiplier: number): FarmState['economy'] {
   };
 }
 
-export function applyPrestigeAction(state: FarmState, action: PrestigeAction): FarmState {
+export function applyPrestigeAction(catalog: LegacyEconomyCatalog,
+  state: FarmState, action: PrestigeAction): FarmState {
   if (action.type === 'sealVintage') {
     const bottles = state.economy.resources.bottles;
-    const gain = vintageTerroir(bottles);
+    const gain = bottles < catalog.vintageMinimumBottles ? 0 : diminishingPowerReward(
+      bottles, catalog.vintageBottleDivisor, catalog.vintageExponent, catalog.vintageScale,
+    );
     if (gain <= 0) return state;
     const number = state.progression.vintages + 1;
     const progression = {
@@ -42,13 +46,15 @@ export function applyPrestigeAction(state: FarmState, action: PrestigeAction): F
         sealedAtTick: state.tick,
       }],
     };
-    const economy = resetRun({ ...state, progression }, legacyMultiplier({ ...state, progression }, progression.heirlooms, progression.lineages));
+    const economy = resetRun(catalog, { ...state, progression },
+      legacyMultiplier({ ...state, progression }, progression.heirlooms, progression.lineages));
     const knowledge = Object.fromEntries(Object.entries(economy.knowledge).map(([branch, value]) => [branch, value + 1])) as FarmState['economy']['knowledge'];
     return { ...state, progression, economy: { ...economy, knowledge }, player: resetPlayer(state), collision: createEstateCollisionMap(economy.trees) };
   }
 
   if (action.type === 'succession') {
-    const gain = successionHeirlooms(state.progression.lifetimeTerroir, state.progression.heirlooms);
+    const gain = diminishingPowerReward(state.progression.lifetimeTerroir,
+      catalog.successionTerroirDivisor, catalog.successionExponent, 1, state.progression.heirlooms);
     if (gain <= 0) return state;
     const progression = {
       ...state.progression,
@@ -65,7 +71,8 @@ export function applyPrestigeAction(state: FarmState, action: PrestigeAction): F
     };
   }
 
-  const gain = lineageSeeds(state.progression.lifetimeHeirlooms, state.progression.seedsClaimed);
+  const gain = diminishingPowerReward(state.progression.lifetimeHeirlooms,
+    catalog.lineageHeirloomDivisor, catalog.lineageExponent, 1, state.progression.seedsClaimed);
   if (gain <= 0) return state;
   const progression = {
     ...state.progression,
@@ -76,6 +83,7 @@ export function applyPrestigeAction(state: FarmState, action: PrestigeAction): F
     lineages: state.progression.lineages + 1,
     skillRanks: {},
   };
-  const economy = resetRun({ ...state, progression }, legacyMultiplier({ ...state, progression }, 0, progression.lineages));
+  const economy = resetRun(catalog, { ...state, progression },
+    legacyMultiplier({ ...state, progression }, 0, progression.lineages));
   return { ...state, progression, economy, player: resetPlayer(state), collision: createEstateCollisionMap(economy.trees) };
 }

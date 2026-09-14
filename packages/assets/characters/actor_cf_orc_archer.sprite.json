@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_orc_archer",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     48
@@ -3304,7 +3305,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Orc_Archer.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Orcs/Orc_Archer.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Orcs/Orc_Archer.png",
   "sourceRegions": {
     "idle_down": [
       [

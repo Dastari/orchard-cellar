@@ -1,0 +1,68 @@
+{
+  "name": "icon_gear_hearth_prospector_pendant",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......0000......",
+        ".....074220.....",
+        "....07374340....",
+        "...0736726340...",
+        "..073667466340..",
+        ".09766372366790.",
+        ".09463372336290.",
+        ".08233372333280.",
+        "..040307403020..",
+        "...0707952020...",
+        "....04795220....",
+        ".....048120.....",
+        "......0220......",
+        ".......00.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#153028",
+    "1": "#42111c",
+    "2": "#48665d",
+    "3": "#67242f",
+    "4": "#6f8d85",
+    "5": "#87293f",
+    "6": "#902c3d",
+    "7": "#a2c0b8",
+    "8": "#c1284b",
+    "9": "#e86684"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/accessories-400/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    48,
+    160,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

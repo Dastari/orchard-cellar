@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AUTHORED_CROP_DEFINITIONS,
   CROP_DEFINITIONS,
-  FARMER_BOB_FAST_STRAWBERRY_CROP,
-  FARMER_BOB_FAST_STRAWBERRY_SEEDS,
+  CROP_KINDS,
   CROP_WATERING_TICKS,
   EMPTY_TOPSIDE_SOIL_DECAY_TICKS,
   cropDefinition,
@@ -12,19 +12,82 @@ import {
   cropSeasonalGrowthBetween,
   emptySoilDecayAtTick,
   emptySoilDecayDue,
+  isCropKind,
+  isCropSeedKind,
   wateredGrowthBetween,
+  type CropKind,
 } from './crops.js';
+import { bootstrapContentRegistry, bootstrapContentRows } from './content/bootstrap-registry.js';
+import { buildContentRegistry } from './content/registry.js';
+import { runtimeCropDefinition, runtimeCropDefinitionForSeed } from './content/runtime.js';
 import { AUTHORITY_HZ } from './net-timing.js';
 import { AUTHORITY_TICKS_PER_DAY, DAYS_PER_SEASON } from './time.js';
 
 describe('crop catalogue', () => {
-  it('covers the 22 authored crop groups and maps every seed back to its crop', () => {
+  it('covers the 22 standard crop groups and maps every seed back to its crop', () => {
     expect(CROP_DEFINITIONS).toHaveLength(22);
     expect(new Set(CROP_DEFINITIONS.map(({ kind }) => kind)).size).toBe(22);
     for (const definition of CROP_DEFINITIONS) {
       expect(cropDefinition(definition.kind)).toBe(definition);
       expect(cropDefinitionForSeed(definition.seedItemKind)).toBe(definition);
     }
+  });
+
+  it('preserves licensed source-sheet order from authored metadata', () => {
+    expect(CROP_KINDS).toEqual([
+      'wheat', 'tomato', 'carrot', 'turnip', 'corn', 'pumpkin', 'parsley', 'cabbage',
+      'cucumber', 'hot_pepper', 'red_pepper', 'yellow_pepper', 'green_pepper',
+      'watermelon', 'sunflower', 'garlic', 'potato', 'strawberry', 'beetroot',
+      'onion', 'leek', 'grape',
+    ]);
+  });
+
+  it('runs an arbitrary active-registry crop and seed without a compiled literal union', () => {
+    const base = bootstrapContentRegistry();
+    const wheat = base.crops.get('crop:wheat')!;
+    const wheatSeed = base.items.get('item:wheat_seeds')!;
+    const wheatHarvest = base.items.get('item:wheat')!;
+    const arbitraryKind: CropKind = 'moon_melon';
+    const rows = [
+      ...bootstrapContentRows(),
+      {
+        id: 'item:moon_melon_pips', kind: 'item', slug: 'moon_melon_pips',
+        json: JSON.stringify({
+          ...wheatSeed, id: 'item:moon_melon_pips', displayName: 'Moon Melon Pips',
+          icon: { asset: 'item_cf_moon_melon_pips' }, tags: ['item.seed', 'seed.moon_melon'],
+        }),
+      },
+      {
+        id: 'item:moon_melon', kind: 'item', slug: 'moon_melon',
+        json: JSON.stringify({
+          ...wheatHarvest, id: 'item:moon_melon', displayName: 'Moon Melon',
+          icon: { asset: 'item_cf_crop_moon_melon' }, tags: ['item.crop', 'item.food', 'crop.moon_melon'],
+        }),
+      },
+      {
+        id: 'crop:moon_melon', kind: 'crop', slug: 'moon_melon',
+        json: JSON.stringify({
+          ...wheat, id: 'crop:moon_melon', sourceSheetOrder: 99,
+          displayName: 'Moon Melon', seedItem: 'item:moon_melon_pips',
+          harvestItem: 'item:moon_melon', asset: 'crop_cf_moon_melon',
+          signAsset: 'sign_cf_crop_moon_melon', growthTicks: '120', harvestQuantity: 4,
+        }),
+      },
+    ];
+    const built = buildContentRegistry(rows);
+    expect(built.report.valid).toBe(true);
+    const definition = runtimeCropDefinition(built.registry, arbitraryKind);
+    expect(definition).toMatchObject({
+      kind: arbitraryKind,
+      seedItemKind: 'moon_melon_pips',
+      harvestItemKind: 'moon_melon',
+      growthTicks: 120n,
+      harvestQuantity: 4,
+    });
+    expect(runtimeCropDefinitionForSeed(built.registry, 'moon_melon_pips')).toBe(definition);
+    expect(cropGrowthAt(definition!, 0n, 10n, 10n, 130n)).toMatchObject({
+      growthTicks: 120n, mature: true, stage: 3,
+    });
   });
 
   it('keeps the live farming loop between 8 and 30 real minutes', () => {
@@ -37,13 +100,23 @@ describe('crop catalogue', () => {
   });
 
   it('gives Bob\'s quest seed a one-water, thirty-second strawberry crop', () => {
-    const definition = cropDefinitionForSeed(FARMER_BOB_FAST_STRAWBERRY_SEEDS);
-    expect(definition).toMatchObject({ kind: 'strawberry', harvestItemKind: 'strawberry' });
+    const definition = AUTHORED_CROP_DEFINITIONS.find(({ tags }) => tags?.includes('crop.quest')) ?? null;
+    const seedItemKind = definition?.seedItemKind ?? '';
+    expect(definition).toMatchObject({
+      harvestItemKind: 'strawberry',
+      assetKey: 'crop_cf_strawberry',
+      harvestQuantity: 3,
+      seasonless: true,
+      tags: ['crop.quest'],
+    });
     expect(definition?.growthTicks).toBe(BigInt(30 * AUTHORITY_HZ));
     if (definition === null) throw new Error('missing fast strawberry definition');
-    expect(cropStoredKindForSeed(FARMER_BOB_FAST_STRAWBERRY_SEEDS, definition))
-      .toBe(FARMER_BOB_FAST_STRAWBERRY_CROP);
-    expect(cropDefinition(FARMER_BOB_FAST_STRAWBERRY_CROP)).toStrictEqual(definition);
+    expect(cropDefinitionForSeed(seedItemKind)).toBe(definition);
+    expect(cropStoredKindForSeed(seedItemKind, definition)).toBe(definition.kind);
+    expect(cropDefinition(definition.kind)).toStrictEqual(definition);
+    expect(AUTHORED_CROP_DEFINITIONS).toHaveLength(23);
+    expect(isCropKind(definition.kind)).toBe(false);
+    expect(isCropSeedKind(seedItemKind)).toBe(false);
   });
 });
 
@@ -109,6 +182,14 @@ describe('season-gated crop growth', () => {
 
     expect(outdoor).toMatchObject({ growthTicks: 0n, inSeason: false });
     expect(greenhouse).toMatchObject({ growthTicks: 200n, inSeason: true });
+  });
+
+  it('keeps Bob\'s fast quest strawberries active outdoors during winter', () => {
+    const definition = AUTHORED_CROP_DEFINITIONS.find(({ tags }) => tags?.includes('crop.quest'))!;
+    const plantedTick = winterStarts + 100n;
+    expect(cropGrowthAt(
+      definition, 0n, plantedTick, plantedTick, plantedTick + 200n,
+    )).toMatchObject({ growthTicks: 200n, inSeason: true });
   });
 });
 

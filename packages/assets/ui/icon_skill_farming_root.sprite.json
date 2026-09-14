@@ -1,0 +1,62 @@
+{
+  "name": "icon_skill_farming_root",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".............0..",
+        "...........11...",
+        "....1100..100...",
+        "...1002..1002...",
+        "...1001..002....",
+        "...102..........",
+        "................",
+        "..........10....",
+        ".....1...102....",
+        "........1002....",
+        "...2....102.....",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#e4a672",
+    "1": "#ead4aa",
+    "2": "#b86f50"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+  "sourceRegion": [
+    112,
+    64,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.farming_root",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

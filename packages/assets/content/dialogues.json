@@ -1,0 +1,2542 @@
+[
+  {
+    "id": "dialogue:delve_quartermaster",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:delve_supplies",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Orrin",
+        "body": "Arrows, lamplight, and something to eat. Check your pack before you take the northern door. The stone is patient; you can take your time.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "supplies",
+            "label": "Show me your supplies.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "descent",
+            "label": "How do I begin a Delve?",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "I will finish getting ready.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Orrin",
+        "body": "A few essentials for the road. Buy what you need; the practice target is free to use.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "That is everything.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Orrin",
+        "body": "Use the northern doorway and choose Begin Delve when you are ready. Cancel leaves you here. Your equipment stays fixed during the run. The target in the east bay is for practice; it never starts a descent.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "supplies",
+            "label": "I need supplies first.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "back",
+            "label": "Understood.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:farmer_bob",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:farmer_supplies",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Farmer Bob",
+        "body": "Morning! Or afternoon. Jane says I lose track when the watering starts. What can I do for you?",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "strawberry_complete",
+            "label": "I brought Jane the strawberries.",
+            "nextNodeId": "strawberry_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "strawberry_offer",
+            "label": "Do you need help on the farm?",
+            "nextNodeId": "strawberry_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "strawberry_active",
+            "label": "How do I grow those strawberries?",
+            "nextNodeId": "strawberry_reminder",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "bottle_complete",
+            "label": "I sold my first Bottle.",
+            "nextNodeId": "bottle_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "bottle_offer",
+            "label": "What can I make from the harvest?",
+            "nextNodeId": "bottle_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "bottle_active",
+            "label": "Remind me about fruit production.",
+            "nextNodeId": "bottle_reminder",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "offer",
+            "label": "What farming supplies do you sell?",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "jane",
+            "label": "Tell me about Jane.",
+            "nextNodeId": "about_jane"
+          },
+          {
+            "id": "farm",
+            "label": "How do you keep this place running?",
+            "nextNodeId": "about_farm"
+          },
+          {
+            "id": "grave",
+            "label": "Whose grave is by the trees?",
+            "nextNodeId": "about_grave"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "strawberry_request",
+        "speaker": "Farmer Bob",
+        "body": "Jane loves strawberries. I promised her some before supper, but the ordinary seeds take all day and she has never been patient. Take these six special packets. My farm is protected, so till clear grass elsewhere in the overworld, plant all six, then water them once. They should be ready in about thirty seconds—even in winter.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I will grow them for Jane.",
+            "nextNodeId": "strawberry_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "tools",
+            "label": "What if I need farming tools?",
+            "nextNodeId": "strawberry_tools"
+          },
+          {
+            "id": "decline",
+            "label": "Not just now.",
+            "nextNodeId": "greeting",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "strawberry_tools",
+        "speaker": "Farmer Bob",
+        "body": "I sell hoes, shovels, watering cans, and every ordinary seed I can get into a paper packet. These special strawberry seeds are for the job, though. Jane says selling miracles by the sack would ruin the market.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "All right. I will grow them.",
+            "nextNodeId": "strawberry_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "shop",
+            "label": "Show me your supplies first.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "back",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "strawberry_accepted",
+        "speaker": "Farmer Bob",
+        "body": "Good! Find clear overworld ground outside my fence, then till, plant all six, water once, and keep an eye on them. Bring me three strawberries. Jane will be delighted. She has been awfully quiet today.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I will be back soon.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "strawberry_reminder",
+        "speaker": "Farmer Bob",
+        "body": "Find clear overworld grass outside my protected farm—anywhere else on the overworld is fine. Till it with a hoe, plant all six special packets, and water once. Thirty seconds or so, in any season. Then bring three strawberries back. Do not worry if Jane does not come out to greet you. She rests a lot these days.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "shop",
+            "label": "I need farming supplies.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "goodbye",
+            "label": "I understand.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "strawberry_rewarded",
+        "speaker": "Farmer Bob",
+        "body": "Thanks, my wife will love these. Here was one of her favourite books on gardening. I am sure she will not mind; I have not seen her reading it much lately. It has her notes for presses, barrels, and cellar casks too.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Thank you, Bob.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_request",
+        "speaker": "Farmer Bob",
+        "body": "Jane wrote the whole chain down. Press three pieces of fruit into Must, age three Must in a Fermentation Cask, then sell the finished Bottle to Marlow. Do that and I will help mark out more room at your homestead.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I will produce a Bottle.",
+            "nextNodeId": "bottle_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "Not yet.",
+            "nextNodeId": "greeting",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "bottle_accepted",
+        "speaker": "Farmer Bob",
+        "body": "Fruit Press first, Fermentation Cask second, Marlow last. Jane underlined that last part twice. She never trusted him around an unpriced bottle.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Time to get to work.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_reminder",
+        "speaker": "Farmer Bob",
+        "body": "Press three Fruit, age the three Must into one Bottle, and sell it to Marlow. Jane's journal contains the station recipes if you read it from your inventory.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I remember now.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_rewarded",
+        "speaker": "Farmer Bob",
+        "body": "A proper first vintage! Jane would say not to drink the profits. Here is five gold for the trouble. She would have liked that too.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Thank you, Bob.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_jane",
+        "speaker": "Farmer Bob",
+        "body": "Best gardener on the island. She could shame a seed into sprouting. I still set out two mugs at breakfast. Habit is just love with nowhere urgent to be.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Take care, Bob.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_farm",
+        "speaker": "Farmer Bob",
+        "body": "Fence keeps the cows in, gate lets good sense out. I rotate the plots, water at the roots, and talk to the pumpkins. Jane says the pumpkins are the only ones listening properly.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "shop",
+            "label": "Show me your supplies.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "about_grave",
+        "speaker": "Farmer Bob",
+        "body": "Jane picked that spot herself. Said the morning sun was lovely under those trees. I keep the flowers fresh so she has something cheerful to look at while she rests.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye, Bob.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Farmer Bob",
+        "body": "Seeds in dry packets, tools by the handle. Jane did the labels. Mine always looked like frightened worms.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:fisherman_fin",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Fisherman Fin",
+        "body": "Quiet water, steady hands. I am Fin. If you have come to learn the lake, I can spare a rod and a little patience.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "hearth_arrival_complete",
+            "label": "Finish: A Place Across the Water",
+            "nextNodeId": "hearth_arrival_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "hearth_arrival_offer",
+            "label": "A Place Across the Water",
+            "nextNodeId": "hearth_arrival_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "hearth_arrival_active",
+            "label": "Remind me: A Place Across the Water",
+            "nextNodeId": "hearth_arrival_reminder",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "tutorial_complete",
+            "label": "I caught the three fish.",
+            "nextNodeId": "tutorial_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:fisherman_first_catch",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "tutorial_offer",
+            "label": "Will you teach me to fish?",
+            "nextNodeId": "tutorial_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:fisherman_first_catch",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "tutorial_active",
+            "label": "Remind me how to use the rod.",
+            "nextNodeId": "tutorial_reminder",
+            "quest": {
+              "quest": "quest:fisherman_first_catch",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "advice",
+            "label": "What makes a good fishing spot?",
+            "nextNodeId": "about_fishing"
+          },
+          {
+            "id": "goodbye",
+            "label": "Leave him to the lake.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "tutorial_request",
+        "speaker": "Fisherman Fin",
+        "body": "Take my spare rod. A small school will gather beside the dock while you learn. Select the rod, face the shadow in the water, and cast. Give the line four seconds, then it will reel. Bring me exactly three fish and the school will move on.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I am ready to learn.",
+            "nextNodeId": "tutorial_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:fisherman_first_catch",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "Another time.",
+            "nextNodeId": "greeting",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "tutorial_accepted",
+        "speaker": "Fisherman Fin",
+        "body": "There—the fish shadow beside the end of the dock. The planks are sound, so walk right out. Three casts, three fish. No need to rush the water.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I will give it a try.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "tutorial_reminder",
+        "speaker": "Fisherman Fin",
+        "body": "Equip the spare rod and aim at the fish shadow beside the dock. Cast once for each fish and wait for the reel. The school leaves after your third catch.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Three fish. Understood.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "tutorial_rewarded",
+        "speaker": "Fisherman Fin",
+        "body": "Good work. Keep the rod. Take my Fish & Fire Handbook too—it records the rod pattern and how to cook a catch at a campfire. Read it from your inventory to add the shortcuts to your recipe guide.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Thank you, Fin.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_fishing",
+        "speaker": "Fisherman Fin",
+        "body": "Look for a moving shadow in deep water. Pools hold only so many catches and later settle elsewhere. Dexterity helps you land a better haul, but even the finest angler cannot fish an empty pool.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Back to the water.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "hearth_arrival_request",
+        "speaker": "Fisherman Fin",
+        "body": "The ferry beside me goes to Willowharbour for free. Visit the landing and speak with Pip just north of it. Either of us can sign off your arrival for 150 bronze.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I would like to do that.",
+            "nextNodeId": "hearth_arrival_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "later",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_arrival_accepted",
+        "speaker": "Fisherman Fin",
+        "body": "Use the ferry beside this dock. Speak with Pip just north of the Willowharbour landing; you can finish with Pip without returning here.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "finish",
+            "label": "Complete the introduction.",
+            "nextNodeId": "hearth_arrival_rewarded",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_arrival_reminder",
+        "speaker": "Fisherman Fin",
+        "body": "Visit the landing and speak with Pip just north of it. The harbour square and shops are west of the landing. The return ferry is free.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_arrival_rewarded",
+        "speaker": "Fisherman Fin",
+        "body": "Arrival registered. Here is your 150 bronze. Pip can introduce you to Rowan, the village carpenter.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:tool_merchant",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:general_tools",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Marlow",
+        "body": "Well met, traveller. Tools wear out, supplies wander off, and I make sure neither keeps you down for long.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "quest_complete",
+            "label": "I found your book.",
+            "nextNodeId": "quest_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "quest_offer",
+            "label": "Hey you, yes you, I need your help.",
+            "nextNodeId": "quest_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "quest_active",
+            "label": "About that very important book...",
+            "nextNodeId": "quest_reminder",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "offer",
+            "label": "Let me see what you have to offer.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "trade",
+            "label": "What do you trade?",
+            "nextNodeId": "about_trade"
+          },
+          {
+            "id": "island",
+            "label": "What have you seen on the island?",
+            "nextNodeId": "about_island"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "quest_request",
+        "speaker": "Marlow",
+        "body": "There's a very important book I need, and I am far too old to take the journey to fetch it. Will you help an old man out?",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "where",
+            "label": "Where is the book?",
+            "nextNodeId": "quest_where"
+          },
+          {
+            "id": "accept",
+            "label": "Of course. I'll fetch it.",
+            "nextNodeId": "quest_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "No, I have other things to do.",
+            "nextNodeId": "quest_declined",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "quest_where",
+        "speaker": "Marlow",
+        "body": "It's just in the tent over there, on the table in the corner.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "really",
+            "label": "Really? It's just over there though...",
+            "nextNodeId": "quest_insists"
+          },
+          {
+            "id": "accept",
+            "label": "All right. I'll get it.",
+            "nextNodeId": "quest_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "You can manage that yourself.",
+            "nextNodeId": "quest_declined",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "quest_insists",
+        "speaker": "Marlow",
+        "body": "Yes, just there. But it is an exceptionally important journey, and I have an exceptionally important fire to watch.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "Fine. I accept.",
+            "nextNodeId": "quest_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "Absolutely not.",
+            "nextNodeId": "quest_declined",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "quest_accepted",
+        "speaker": "Marlow",
+        "body": "Splendid. You'll find it on the table inside my tent. Mind the dimensional threshold.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I'll be right back.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "quest_declined",
+        "speaker": "Marlow",
+        "body": "Fair enough then. The tent is not getting any farther away.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "quest_reminder",
+        "speaker": "Marlow",
+        "body": "The book is on the table in my tent. Yes, that tent. The one right over there.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Right. I'll go get it.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "quest_rewarded",
+        "speaker": "Marlow",
+        "body": "Thanks... Oh, wait, I've already read this one. Here, you keep it. Take 1 gold for the trouble, too.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Thanks, Marlow.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_request",
+        "speaker": "Marlow",
+        "body": "A working estate needs a product worth returning for. Press three pieces of fruit into Must, age that Must in a Fermentation Cask, then sell me the finished Bottle. You can use any stations you already own. There is five gold in it for you when you return.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I will make the first Bottle.",
+            "nextNodeId": "bottle_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "Not yet.",
+            "nextNodeId": "greeting",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "bottle_accepted",
+        "speaker": "Marlow",
+        "body": "Good. Fruit Press to make Must and Pomace. Three Must go into the Fermentation Cask. Bring the Bottle to my shop when it is ready.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Time to get to work.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_reminder",
+        "speaker": "Marlow",
+        "body": "Press three Fruit, age the three Must into one Bottle, then sell the Bottle here. The Pomace is yours to reinvest elsewhere.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I remember now.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_rewarded",
+        "speaker": "Marlow",
+        "body": "There it is: fruit into craft, craft into coin, coin into the estate. Five gold, as promised. Spend it wisely.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "This is only the beginning.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_trade",
+        "speaker": "Marlow",
+        "body": "Tools, lights, arrows, and honest coin for anything useful you bring me. Gold, silver, and bronze stay safely in your purse.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "offer",
+            "label": "Let me see what you have to offer.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "deeds",
+            "label": "How do homestead deeds work?",
+            "nextNodeId": "about_deeds"
+          },
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_island",
+        "speaker": "Marlow",
+        "body": "I follow the safer paths, but even those change. Farmer Bob keeps a little holding to the south-east, around 382 east, 378 south. He knows more about soil than I ever will. Keep a lantern close after sunset and never trust a quiet cliff edge.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "offer",
+            "label": "Let me see what you have to offer.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_deeds",
+        "speaker": "Marlow",
+        "body": "Buy a deed here, select it on your hotbar, aim at a clear patch of overworld grass, and press F. That claims your homestead. Use the tent entrance to visit it and the south gate to return.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "offer",
+            "label": "Let me see what you have to offer.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Marlow",
+        "body": "Take your time. I buy useful goods as readily as I sell them.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_archivist",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:willow_archivist",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Iona",
+        "body": "Welcome to the Wayfarers Archive. A good expedition begins with a question and a little preparation.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "equipment_plans",
+            "label": "Show me your utility equipment plans.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "hearth_basalt_complete",
+            "label": "Finish: Stone from the Cinder Shore",
+            "nextNodeId": "hearth_basalt_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:hearth_return_basalt",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "hearth_basalt_offer",
+            "label": "Stone from the Cinder Shore",
+            "nextNodeId": "hearth_basalt_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:hearth_return_basalt",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "hearth_basalt_active",
+            "label": "Remind me: Stone from the Cinder Shore",
+            "nextNodeId": "hearth_basalt_reminder",
+            "quest": {
+              "quest": "quest:hearth_return_basalt",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "hearth_outpost_complete",
+            "label": "Finish: An Opening on the Ash Shore",
+            "nextNodeId": "hearth_outpost_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:hearth_clear_ash_shore",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "hearth_outpost_offer",
+            "label": "An Opening on the Ash Shore",
+            "nextNodeId": "hearth_outpost_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:hearth_clear_ash_shore",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "hearth_outpost_active",
+            "label": "Remind me: An Opening on the Ash Shore",
+            "nextNodeId": "hearth_outpost_reminder",
+            "quest": {
+              "quest": "quest:hearth_clear_ash_shore",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "hearth_prepare_complete",
+            "label": "Finish: Ready for the Ash Shore",
+            "nextNodeId": "hearth_prepare_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "hearth_prepare_offer",
+            "label": "Ready for the Ash Shore",
+            "nextNodeId": "hearth_prepare_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "hearth_prepare_active",
+            "label": "Remind me: Ready for the Ash Shore",
+            "nextNodeId": "hearth_prepare_reminder",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Iona",
+        "body": "Train a skill node before relying on equipment to improve it. Eligible epic and legendary gear can exceed a trained node cap, within the equipment bonus limits. Changing gear never spends your skill points.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "hearth_prepare_request",
+        "speaker": "Iona",
+        "body": "Equip a usable weapon in Main Hand and armor in Body. Bows need ten matching shots in your hotbar or backpack. I will pay you 200 bronze when ready.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I would like to do that.",
+            "nextNodeId": "hearth_prepare_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "later",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_prepare_accepted",
+        "speaker": "Iona",
+        "body": "Your current equipment counts. Bram sells starter gear. Open your inventory to equip Main Hand and Body; bows need ten carried shots. Return for inspection.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "finish",
+            "label": "Complete the contract.",
+            "nextNodeId": "hearth_prepare_rewarded",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_prepare_reminder",
+        "speaker": "Iona",
+        "body": "Keep your weapon and body armor equipped for inspection. A broken weapon does not count. Bows need ten shots in your hotbar or active backpack.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_prepare_rewarded",
+        "speaker": "Iona",
+        "body": "Here is 200 bronze. Iona has a first expedition contract. Read enemy tells and keep an escape route; this inspection is only a starting point.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_outpost_request",
+        "speaker": "Iona",
+        "body": "Take the free ferry to Cinderwake. Help clear the two ember slimes east of landing at Ash Shore. Earn an eligible camp reward, then return for 300 bronze.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I would like to do that.",
+            "nextNodeId": "hearth_outpost_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:hearth_clear_ash_shore",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "later",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_outpost_accepted",
+        "speaker": "Iona",
+        "body": "Accept first, then clear Ash Shore. Keep two basalt: collect your Expedition Reward [O] before returning. Full bags leave the loot reserved; clear credit is separate.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "finish",
+            "label": "Complete the contract.",
+            "nextNodeId": "hearth_outpost_rewarded",
+            "quest": {
+              "quest": "quest:hearth_clear_ash_shore",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_outpost_reminder",
+        "speaker": "Iona",
+        "body": "Ash Shore is east of Cinderwake landing. Help defeat both slimes and earn a camp reward. Collect Expedition Reward [O] and keep two basalt for me.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_outpost_rewarded",
+        "speaker": "Iona",
+        "body": "Here is 300 bronze. Keep your two basalt from the camp reward. I have a short delivery contract for those stones; already-carried basalt counts.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_basalt_request",
+        "speaker": "Iona",
+        "body": "Bring me two basalt for the archive and earn 200 bronze. Your Ash Shore reward contains them. Stones you already carry count; I take them only on completion.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I would like to do that.",
+            "nextNodeId": "hearth_basalt_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:hearth_return_basalt",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "later",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_basalt_accepted",
+        "speaker": "Iona",
+        "body": "If you already carry two basalt, complete the delivery below. Otherwise collect your reserved Expedition Reward [O]. Leave room in your bags, then return.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "finish",
+            "label": "Complete the contract.",
+            "nextNodeId": "hearth_basalt_rewarded",
+            "quest": {
+              "quest": "quest:hearth_return_basalt",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_basalt_reminder",
+        "speaker": "Iona",
+        "body": "I need two basalt. Check your reserved Expedition Reward [O] from Ash Shore. Bring them in your inventory; this delivery consumes two stones.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_basalt_rewarded",
+        "speaker": "Iona",
+        "body": "Two stones for the archive, and 200 bronze for you. That finishes the first expedition introductions. The higher terraces can wait until you are ready.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Iona",
+        "body": "These plans suit a peaceful trade. Each pendant uses iron, wood and fibre; no volcanic materials are needed.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_carpenter",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:willow_carpenter",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Rowan",
+        "body": "Measure twice, then give the wood a chance. I keep timber and the essentials for a working estate.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "hearth_furnish_complete",
+            "label": "Finish: A Corner to Call Home",
+            "nextNodeId": "hearth_furnish_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:hearth_furnish_room",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "hearth_furnish_offer",
+            "label": "A Corner to Call Home",
+            "nextNodeId": "hearth_furnish_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:hearth_furnish_room",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "hearth_furnish_active",
+            "label": "Remind me: A Corner to Call Home",
+            "nextNodeId": "hearth_furnish_reminder",
+            "quest": {
+              "quest": "quest:hearth_furnish_room",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "hearth_carpenter_complete",
+            "label": "Finish: Measure Twice",
+            "nextNodeId": "hearth_carpenter_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "hearth_carpenter_offer",
+            "label": "Measure Twice",
+            "nextNodeId": "hearth_carpenter_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "hearth_carpenter_active",
+            "label": "Remind me: Measure Twice",
+            "nextNodeId": "hearth_carpenter_reminder",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "browse",
+            "label": "Show me your stock.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Rowan",
+        "body": "Your estate is the place to build. Public streets and shop floors belong to the village.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Rowan",
+        "body": "Take your time. Prices are in bronze, with change kept in your purse.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "That is everything.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "hearth_carpenter_request",
+        "speaker": "Rowan",
+        "body": "I am Rowan, the carpenter. Let us start with an introduction to furniture plans and room building. There is 150 bronze toward your first project.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I would like to do that.",
+            "nextNodeId": "hearth_carpenter_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "later",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_carpenter_accepted",
+        "speaker": "Rowan",
+        "body": "We have met, so the introduction is ready to complete below. You can buy finished furniture or reusable plans, then build inside your residence.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "finish",
+            "label": "Complete the introduction.",
+            "nextNodeId": "hearth_carpenter_rewarded",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_carpenter_reminder",
+        "speaker": "Rowan",
+        "body": "Meet Rowan inside the carpenter workshop. Finished furniture and reusable plans lead to the same pieces. Construction stays inside your purchased residence rooms.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_carpenter_rewarded",
+        "speaker": "Rowan",
+        "body": "Here is your 150 bronze. Keep space around your doors, and start with a few useful pieces. Furniture plans are reusable; room expansions add building space.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_furnish_request",
+        "speaker": "Rowan",
+        "body": "Place a seat, table, lamp and rug in your own residence's original room. Buy pieces or craft from reusable plans. Keep all four placed to earn 350 bronze.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I would like to do that.",
+            "nextNodeId": "hearth_furnish_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:hearth_furnish_room",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "later",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_furnish_accepted",
+        "speaker": "Rowan",
+        "body": "Existing pieces count. Use B inside your residence to furnish the original room. Table lamps need support. Return here when the seat, table, lamp and rug are placed.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "finish",
+            "label": "Complete the furnishing contract.",
+            "nextNodeId": "hearth_furnish_rewarded",
+            "quest": {
+              "quest": "quest:hearth_furnish_room",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_furnish_reminder",
+        "speaker": "Rowan",
+        "body": "Keep a seat, table, lamp and rug in the original room. Rugs fit under furniture. Floor lamps and supported table lamps count, even unlit. Your builders can help.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_furnish_rewarded",
+        "speaker": "Rowan",
+        "body": "Here is your 350 bronze. Your furniture stays in your home; this contract pays once. A place to rest makes the next journey easier.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_cook",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:willow_cook",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Nell",
+        "body": "A hot meal makes a better travelling companion than an empty stomach. What can I prepare for you?",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "browse",
+            "label": "Show me your stock.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Nell",
+        "body": "Cooked food restores hunger. Pack a meal before the crossing; it is easier to prepare here than in the ash.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Nell",
+        "body": "Take your time. Prices are in bronze, with change kept in your purse.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "That is everything.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_furnisher",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:willow_furnisher",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Ada",
+        "body": "A room should feel lived in. Start with somewhere to keep your things and a little light.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "browse",
+            "label": "Show me your stock.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Ada",
+        "body": "Ready-made furnishings and crafted pieces should fit the same room. Check the space you have before you buy.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Ada",
+        "body": "Take your time. Prices are in bronze, with change kept in your purse.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "That is everything.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_harbour_guide",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Pip",
+        "body": "Willowharbour, safely ashore. The square and shops are just west of the landing.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "hearth_carpenter_complete",
+            "label": "Finish: Measure Twice",
+            "nextNodeId": "hearth_carpenter_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "hearth_carpenter_offer",
+            "label": "Measure Twice",
+            "nextNodeId": "hearth_carpenter_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "hearth_carpenter_active",
+            "label": "Remind me: Measure Twice",
+            "nextNodeId": "hearth_carpenter_reminder",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "hearth_arrival_complete",
+            "label": "Finish: A Place Across the Water",
+            "nextNodeId": "hearth_arrival_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "hearth_arrival_offer",
+            "label": "A Place Across the Water",
+            "nextNodeId": "hearth_arrival_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "hearth_arrival_active",
+            "label": "Remind me: A Place Across the Water",
+            "nextNodeId": "hearth_arrival_reminder",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Pip",
+        "body": "Use the ferry dock to choose Orchard or Cinderwake. Passage is free, including the trip home. Cinderwake has dangerous enemies beyond its protected landing. The Delve cave is back on Orchard.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "hearth_arrival_request",
+        "speaker": "Pip",
+        "body": "Welcome to Willowharbour. I can register your arrival and introduce you to the village. There is 150 bronze to help you settle in.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I would like to do that.",
+            "nextNodeId": "hearth_arrival_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "later",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_arrival_accepted",
+        "speaker": "Pip",
+        "body": "You are here, and we have met. Your arrival is ready to sign off; choose Complete the introduction below.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "finish",
+            "label": "Complete the introduction.",
+            "nextNodeId": "hearth_arrival_rewarded",
+            "quest": {
+              "quest": "quest:hearth_willowharbour_arrival",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_arrival_reminder",
+        "speaker": "Pip",
+        "body": "Visit the landing and speak with Pip just north of it. The harbour square and shops are west of the landing. The return ferry is free.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_arrival_rewarded",
+        "speaker": "Pip",
+        "body": "Arrival registered. Here is your 150 bronze. Pip can introduce you to Rowan, the village carpenter.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_carpenter_request",
+        "speaker": "Pip",
+        "body": "Rowan runs the carpenter workshop west of the harbour, around the village square. Meet Rowan and ask about plans and room building. Rowan or I can finish the introduction for 150 bronze.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I would like to do that.",
+            "nextNodeId": "hearth_carpenter_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "later",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_carpenter_accepted",
+        "speaker": "Pip",
+        "body": "Find Rowan inside the carpenter workshop. Rowan can finish the introduction there; you do not need to walk back here.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "finish",
+            "label": "Complete the introduction.",
+            "nextNodeId": "hearth_carpenter_rewarded",
+            "quest": {
+              "quest": "quest:hearth_meet_carpenter",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_carpenter_reminder",
+        "speaker": "Pip",
+        "body": "Meet Rowan inside the carpenter workshop. Finished furniture and reusable plans lead to the same pieces. Construction stays inside your purchased residence rooms.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_carpenter_rewarded",
+        "speaker": "Pip",
+        "body": "Here is your 150 bronze. Keep space around your doors, and start with a few useful pieces. Furniture plans are reusable; room expansions add building space.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_innkeeper",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:willow_innkeeper",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Mara",
+        "body": "Welcome to the Willow Lantern. Find a table, share a little news, and let the harbour wait for a moment.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "browse",
+            "label": "Show me your stock.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Mara",
+        "body": "Nell tends the kitchen in the rear of the inn. The shops around the square are open whenever you need them.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Mara",
+        "body": "Take your time. Prices are in bronze, with change kept in your purse.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "That is everything.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_resident_farmer",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Otto",
+        "body": "There is always another job in the yard. I am taking a moment before I remember the next one.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Otto",
+        "body": "You can make your living growing and trading. The volcanic island is there when you want an expedition, not a toll on village life.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_resident_gardener",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Fern",
+        "body": "These little gardens keep me busy. I like a village that leaves room for things to grow.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Fern",
+        "body": "The greenhouse and farmyards lie to the south. A few useful plants can make an ordinary patch of ground feel like home.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_resident_orchard",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Wren",
+        "body": "I came for a season and stayed for the orchard. You can probably guess how that happened.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Wren",
+        "body": "The paths lead back to the square. Follow them east if you are looking for the workshops.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_resident_reader",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Ellis",
+        "body": "Iona lent me another book. I only meant to stop for an hour.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Ellis",
+        "body": "The archive is north of the square. Ask about equipment before paying for a piece you do not understand.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_smith",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:willow_smith",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Bram",
+        "body": "Shorehand gear is a sound beginning. Try the fit before you take it across to Cinderwake.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "hearth_prepare_complete",
+            "label": "Finish: Ready for the Ash Shore",
+            "nextNodeId": "hearth_prepare_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "hearth_prepare_offer",
+            "label": "Ready for the Ash Shore",
+            "nextNodeId": "hearth_prepare_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "hearth_prepare_active",
+            "label": "Remind me: Ready for the Ash Shore",
+            "nextNodeId": "hearth_prepare_reminder",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "browse",
+            "label": "Show me your stock.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Bram",
+        "body": "Equipment can add stats and selected skill ranks. It does not grant earned levels, skill points, prerequisites, or tool knowledge. Higher-quality pieces belong to later work and expeditions.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Bram",
+        "body": "Take your time. Prices are in bronze, with change kept in your purse.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "That is everything.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "hearth_prepare_request",
+        "speaker": "Bram",
+        "body": "Equip a usable weapon in Main Hand and armor in Body. Bows need ten matching shots in your hotbar or backpack. I will pay you 200 bronze when ready.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I would like to do that.",
+            "nextNodeId": "hearth_prepare_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "later",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_prepare_accepted",
+        "speaker": "Bram",
+        "body": "Your current equipment counts. Bram sells starter gear. Open your inventory to equip Main Hand and Body; bows need ten carried shots. Return for inspection.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "finish",
+            "label": "Complete the contract.",
+            "nextNodeId": "hearth_prepare_rewarded",
+            "quest": {
+              "quest": "quest:hearth_prepare_expedition",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_prepare_reminder",
+        "speaker": "Bram",
+        "body": "Keep your weapon and body armor equipped for inspection. A broken weapon does not count. Bows need ten shots in your hotbar or active backpack.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "hearth_prepare_rewarded",
+        "speaker": "Bram",
+        "body": "Here is 200 bronze. Iona has a first expedition contract. Read enemy tells and keep an escape route; this inspection is only a starting point.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:willow_storekeeper",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:willow_storekeeper",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Tavi",
+        "body": "Seeds, everyday tools, and the little things that never seem to stay in a pack. What are you short of?",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "browse",
+            "label": "Show me your stock.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "advice",
+            "label": "Tell me more.",
+            "nextNodeId": "advice"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "advice",
+        "speaker": "Tavi",
+        "body": "A quiet season in the fields can pay for a comfortable home. You do not need to fight to trade here.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Tavi",
+        "body": "Take your time. Prices are in bronze, with change kept in your purse.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "leave",
+            "label": "That is everything.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  }
+]

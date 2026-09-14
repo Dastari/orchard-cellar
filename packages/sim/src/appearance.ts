@@ -1,41 +1,11 @@
-export const PLAYER_HAIR_KINDS = [
-  'hair_1_brown',
-  'hair_2_black',
-  'hair_3_blonde',
-  'hair_4_ginger',
-  'hair_5_grey',
-  'hair_6_brown',
-] as const;
+import type { ContentRegistry } from './content/registry.js';
+import type { PlayerAppearanceCatalogDefinition } from './content/loadout-definition.js';
+import { activeNewPlayerLoadout } from './new-player-loadout.js';
 
-export const PLAYER_SHIRT_KINDS = [
-  'farmer_green',
-  'farmer_blue',
-  'farmer_orange',
-  'farmer_purple',
-  'farmer_red',
-  'farmer_white_brown',
-] as const;
-
-export const PLAYER_PANTS_KINDS = [
-  'farmer_white_brown',
-  'farmer_black',
-  'farmer_blue',
-  'farmer_green',
-  'farmer_red',
-] as const;
-
-export const PLAYER_SHOES_KINDS = [
-  'brown',
-  'black',
-  'blue',
-  'green',
-  'red',
-] as const;
-
-export type PlayerHairKind = (typeof PLAYER_HAIR_KINDS)[number];
-export type PlayerShirtKind = (typeof PLAYER_SHIRT_KINDS)[number];
-export type PlayerPantsKind = (typeof PLAYER_PANTS_KINDS)[number];
-export type PlayerShoesKind = (typeof PLAYER_SHOES_KINDS)[number];
+export type PlayerHairKind = string;
+export type PlayerShirtKind = string;
+export type PlayerPantsKind = string;
+export type PlayerShoesKind = string;
 
 export interface PlayerAppearanceSelection {
   readonly hairKind: PlayerHairKind;
@@ -44,32 +14,38 @@ export interface PlayerAppearanceSelection {
   readonly shoesKind: PlayerShoesKind;
 }
 
-export function isPlayerHairKind(value: string): value is PlayerHairKind {
-  return (PLAYER_HAIR_KINDS as readonly string[]).includes(value);
+export function runtimePlayerAppearanceCatalog(
+  registry: Pick<ContentRegistry, 'loadouts'>,
+): PlayerAppearanceCatalogDefinition | null {
+  return activeNewPlayerLoadout(registry)?.appearance ?? null;
 }
 
-export function isPlayerShirtKind(value: string): value is PlayerShirtKind {
-  return (PLAYER_SHIRT_KINDS as readonly string[]).includes(value);
+export function isPlayerHairKind(catalog: PlayerAppearanceCatalogDefinition, value: string): value is PlayerHairKind {
+  return catalog.hairKinds.includes(value);
 }
 
-export function isPlayerPantsKind(value: string): value is PlayerPantsKind {
-  return (PLAYER_PANTS_KINDS as readonly string[]).includes(value);
+export function isPlayerShirtKind(catalog: PlayerAppearanceCatalogDefinition, value: string): value is PlayerShirtKind {
+  return catalog.shirtKinds.includes(value);
 }
 
-export function isPlayerShoesKind(value: string): value is PlayerShoesKind {
-  return (PLAYER_SHOES_KINDS as readonly string[]).includes(value);
+export function isPlayerPantsKind(catalog: PlayerAppearanceCatalogDefinition, value: string): value is PlayerPantsKind {
+  return catalog.pantsKinds.includes(value);
 }
 
-export function isPlayerAppearanceSelection(value: {
+export function isPlayerShoesKind(catalog: PlayerAppearanceCatalogDefinition, value: string): value is PlayerShoesKind {
+  return catalog.shoesKinds.includes(value);
+}
+
+export function isPlayerAppearanceSelection(catalog: PlayerAppearanceCatalogDefinition, value: {
   readonly hairKind: string;
   readonly shirtKind: string;
   readonly pantsKind: string;
   readonly shoesKind: string;
 }): value is PlayerAppearanceSelection {
-  return isPlayerHairKind(value.hairKind)
-    && isPlayerShirtKind(value.shirtKind)
-    && isPlayerPantsKind(value.pantsKind)
-    && isPlayerShoesKind(value.shoesKind);
+  return isPlayerHairKind(catalog, value.hairKind)
+    && isPlayerShirtKind(catalog, value.shirtKind)
+    && isPlayerPantsKind(catalog, value.pantsKind)
+    && isPlayerShoesKind(catalog, value.shoesKind);
 }
 
 function saltedHash(value: string, salt: number): number {
@@ -97,11 +73,14 @@ function pick<const Values extends readonly string[]>(
  * the authority; using the identity as entropy makes creation deterministic if
  * a connection transaction is retried and does not expose a reroll endpoint.
  */
-export function generatePlayerAppearance(identityHex: string): PlayerAppearanceSelection {
+export function generatePlayerAppearance(
+  catalog: PlayerAppearanceCatalogDefinition,
+  identityHex: string,
+): PlayerAppearanceSelection {
   return {
-    hairKind: pick(PLAYER_HAIR_KINDS, identityHex, 0x1f123bb5),
-    shirtKind: pick(PLAYER_SHIRT_KINDS, identityHex, 0x5f356495),
-    pantsKind: pick(PLAYER_PANTS_KINDS, identityHex, 0x2d83cdac),
-    shoesKind: pick(PLAYER_SHOES_KINDS, identityHex, 0x769c33b1),
+    hairKind: pick(catalog.hairKinds, identityHex, 0x1f123bb5),
+    shirtKind: pick(catalog.shirtKinds, identityHex, 0x5f356495),
+    pantsKind: pick(catalog.pantsKinds, identityHex, 0x2d83cdac),
+    shoesKind: pick(catalog.shoesKinds, identityHex, 0x769c33b1),
   };
 }

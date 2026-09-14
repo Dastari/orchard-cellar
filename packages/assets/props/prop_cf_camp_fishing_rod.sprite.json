@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_camp_fishing_rod",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -49,7 +50,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Camp_Decor.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Camp_Decor.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Camp_Decor.png",
   "sourceRegions": {
     "base": [
       [

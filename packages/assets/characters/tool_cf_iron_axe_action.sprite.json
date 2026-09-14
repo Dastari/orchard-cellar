@@ -1,6 +1,7 @@
 {
   "name": "tool_cf_iron_axe_action",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     64,
     64
@@ -1233,7 +1234,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Iron_Tools.png",
-  "sourcePath": "references/Cute_Fantasy/Player/Tools/Iron/Iron_Tools.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Player/Tools/Iron/Iron_Tools.png",
   "sourceRegions": {
     "axe_down": [
       [

@@ -6,7 +6,7 @@ const grid = ['................', '................'] as const;
 const base: AssetSource = {
   name: 'ui_test', category: 'ui', size: [16, 2], anchor: [0, 0],
   frames: { idle: [grid] }, frameKinds: { idle: 'state' },
-  sourcePath: 'references/Cute_Fantasy_UI/UI/Test.png',
+  sourcePath: 'references/art/kenmi/cute-fantasy/ui/UI/Test.png',
 };
 
 describe('Cute Fantasy UI metadata lint', () => {

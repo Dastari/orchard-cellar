@@ -28,7 +28,6 @@ import {
   encodedBowTargetAim,
   firstProjectileTargetHit,
   firstProjectileTerrainHit,
-  isRecoverableArrow,
   recoverableArrowAngle,
   recoverableArrowDirection,
   projectileTargetAtLanding,
@@ -205,9 +204,6 @@ describe('ranged combat helpers', () => {
     expect(direction).not.toBeNull();
     expect(direction!.x).toBeLessThan(0);
     expect(direction!.y).toBeGreaterThan(0);
-    expect(isRecoverableArrow('arrow', encoded)).toBe(true);
-    expect(isRecoverableArrow('arrow', 0)).toBe(false);
-    expect(isRecoverableArrow('bow', encoded)).toBe(false);
   });
 
   it('detects blocked terrain crossed between authority ticks', () => {

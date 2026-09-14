@@ -27,12 +27,13 @@ describe('Marlow dialogue authority', () => {
     expect(reducer.indexOf('updateWorldNpc(ctx,')).toBeLessThan(reducer.indexOf('ctx.db.active_dialogue.insert(next)'));
   });
 
-  it('lets owner teleports target named NPCs across spaces', () => {
-    const reducer = sourceBetween('export const adminTeleport =', 'export const setDisplayName =');
-    expect(reducer).toContain('const directNpc = npcNamed(argument)');
-    expect(reducer).toContain('const destinationNpc = npcNamed(namedDestination)');
-    expect(reducer).toContain('nextSpaceId = destinationNpc.spaceId');
-    expect(reducer).toContain('teleportPlayer(ctx, teleportedPosition, nextSpaceId, nextX, nextY)');
-    expect(reducer).toContain('ctx.db.world_npc.by_rider.filter(teleportedPosition.identity)');
+  it('retires name-parsing teleports in favour of typed exact-identity and NPC mutations', () => {
+    expect(source).not.toContain('export const adminTeleport =');
+    const player = sourceBetween('export const adminTeleportPlayer =', 'export const adminSetDisplayName =');
+    expect(player).toContain("operation: 'teleport_player'");
+    expect(player).toContain('adminPositionMutationBase(input)');
+    const npc = sourceBetween('export const adminRelocateNpc =', 'export const adminRespawnResources =');
+    expect(npc).toContain("operation: 'relocate_npc'");
+    expect(npc).toContain('npcId');
   });
 });

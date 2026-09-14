@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_oak_stump_small",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     32,
     32
@@ -54,7 +55,7 @@
     "3": "#b86f50",
     "4": "#00000028"
   },
-  "sourcePath": "references/Cute_Fantasy/Trees/Small_Oak_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Trees/Small_Oak_Tree.png",
   "sourceRegion": [0, 18, 32, 32],
   "sourcePaletteMode": "exact",
   "approved": true,

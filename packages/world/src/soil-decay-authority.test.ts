@@ -36,7 +36,7 @@ describe('authoritative empty-soil decay', () => {
   it('rejects stale timers and preserves planted and Homestead soil', () => {
     const reducer = sourceBetween(
       'export const decayEmptyTopsideSoil =',
-      'export const useFarmTool =',
+      'type FarmToolLifecycleAction =',
     );
     expect(reducer).toContain('soil.spaceId !== TOPSIDE_SPACE_ID');
     expect(reducer).toContain('expectedDecayAtTick !== scheduledMessage.expectedDecayAtTick');
@@ -47,13 +47,13 @@ describe('authoritative empty-soil decay', () => {
 
   it('refreshes the timer on tilling, watering, uprooting, and harvest', () => {
     const farming = sourceBetween(
-      'export const useFarmTool =',
+      'function applyFarmToolUse(',
       'export const tendTree =',
     );
     expect(farming.match(/scheduleEmptyTopsideSoilDecay\(/g)).toHaveLength(4);
     expect(farming).toContain('wateredAtTick: clock.authorityTick');
     expect(farming).toContain('tilledAtTick: clock.authorityTick');
-    expect(farming).toContain("const uprootingCrop = selectedItem === 'hoe'");
+    expect(farming).toContain("const uprootingCrop = farmMode === 'cultivate'");
     expect(farming).toContain('ctx.db.world_crop.id.delete(cropRow.id)');
     expect(farming).toContain("'crops_uprooted'");
   });

@@ -1,0 +1,69 @@
+{
+  "entries": [
+    {
+      "name": "tile_cf_hearth_townhouse_floor",
+      "category": "tiles",
+      "sheet": "Houses_Interiors/Wood_Floor_Tiles",
+      "x": 96,
+      "y": 0,
+      "width": 16,
+      "height": 16,
+      "anchor": [
+        8,
+        15
+      ]
+    },
+    {
+      "name": "prop_cf_hearth_partition_window",
+      "category": "props",
+      "sheet": "House_Decor/windows",
+      "x": 0,
+      "y": 32,
+      "width": 16,
+      "height": 32,
+      "anchor": [
+        8,
+        31
+      ]
+    },
+    {
+      "name": "prop_cf_hearth_doorway_frame",
+      "category": "props",
+      "sheet": "Houses_Interiors/Interior_Walls",
+      "x": 48,
+      "y": 16,
+      "width": 32,
+      "height": 26,
+      "anchor": [
+        16,
+        25
+      ]
+    },
+    {
+      "name": "prop_cf_hearth_doorway_jamb_left",
+      "category": "props",
+      "sheet": "Houses_Interiors/Interior_Walls",
+      "x": 48,
+      "y": 34,
+      "width": 5,
+      "height": 8,
+      "anchor": [
+        2,
+        7
+      ]
+    },
+    {
+      "name": "prop_cf_hearth_doorway_jamb_right",
+      "category": "props",
+      "sheet": "Houses_Interiors/Interior_Walls",
+      "x": 75,
+      "y": 34,
+      "width": 5,
+      "height": 8,
+      "anchor": [
+        2,
+        7
+      ]
+    }
+  ]
+}

@@ -1,14 +1,7 @@
 import {
-  BASE_ATTRIBUTE,
-  HEALTH_CENTI_PER_STRENGTH,
-  HEALTH_REGEN_CENTI_PER_SECOND,
-  MANA_CENTI_PER_INTELLIGENCE,
-  MANA_REGEN_CENTI_PER_WISDOM,
-  MAX_ATTRIBUTE,
-  MIN_ATTRIBUTE,
-  VIGOUR_CENTI_PER_CONSTITUTION,
-  VIGOUR_REGEN_CENTI_PER_CONSTITUTION,
-} from './balance.js';
+  BOOTSTRAP_CHARACTER_COMBAT_BALANCE,
+  type CharacterCombatBalanceProfile,
+} from './character-combat-balance.js';
 import { AUTHORITY_HZ } from './net-timing.js';
 import { resolveModifierTarget, type Modifier } from './modifiers.js';
 
@@ -25,12 +18,12 @@ export interface Attributes {
 }
 
 export const BASE_ATTRIBUTES: Attributes = {
-  str: BASE_ATTRIBUTE,
-  dex: BASE_ATTRIBUTE,
-  con: BASE_ATTRIBUTE,
-  int: BASE_ATTRIBUTE,
-  wis: BASE_ATTRIBUTE,
-  cha: BASE_ATTRIBUTE,
+  str: BOOTSTRAP_CHARACTER_COMBAT_BALANCE.baseAttribute,
+  dex: BOOTSTRAP_CHARACTER_COMBAT_BALANCE.baseAttribute,
+  con: BOOTSTRAP_CHARACTER_COMBAT_BALANCE.baseAttribute,
+  int: BOOTSTRAP_CHARACTER_COMBAT_BALANCE.baseAttribute,
+  wis: BOOTSTRAP_CHARACTER_COMBAT_BALANCE.baseAttribute,
+  cha: BOOTSTRAP_CHARACTER_COMBAT_BALANCE.baseAttribute,
 };
 
 export interface ResolvedStats {
@@ -53,52 +46,69 @@ export interface VitalState {
   readonly regenTick: bigint;
 }
 
-function clampAttribute(value: number): number {
-  return Math.max(MIN_ATTRIBUTE, Math.min(MAX_ATTRIBUTE, Math.floor(value)));
+function clampAttribute(profile: CharacterCombatBalanceProfile, value: number): number {
+  return Math.max(profile.minimumAttribute, Math.min(profile.maximumAttribute, Math.floor(value)));
 }
 
-export function createBaseAttributes(overrides: Partial<Attributes> = {}): Attributes {
+export function createBaseAttributesWithProfile(profile: CharacterCombatBalanceProfile,
+  overrides: Partial<Attributes> = {}): Attributes {
   return Object.fromEntries(ATTRIBUTE_IDS.map((attribute) => [
     attribute,
-    clampAttribute(overrides[attribute] ?? BASE_ATTRIBUTE),
+    clampAttribute(profile, overrides[attribute] ?? profile.baseAttribute),
   ])) as unknown as Attributes;
 }
 
+export function createBaseAttributes(overrides: Partial<Attributes> = {}): Attributes {
+  return createBaseAttributesWithProfile(BOOTSTRAP_CHARACTER_COMBAT_BALANCE, overrides);
+}
+
+export function checkModifierWithProfile(profile: CharacterCombatBalanceProfile, attribute: number): number {
+  return Math.floor((attribute - profile.baseAttribute) / 2);
+}
+
 export function checkModifier(attribute: number): number {
-  return Math.floor((attribute - BASE_ATTRIBUTE) / 2);
+  return checkModifierWithProfile(BOOTSTRAP_CHARACTER_COMBAT_BALANCE, attribute);
 }
 
 /** Two-pass resolution: attributes first, then values derived from the resolved
  * attributes plus modifiers aimed directly at those derived targets. */
-export function resolveStats(
-  baseAttributes: Attributes = BASE_ATTRIBUTES,
+export function resolveStatsWithProfile(
+  profile: CharacterCombatBalanceProfile,
+  baseAttributes: Attributes = createBaseAttributesWithProfile(profile),
   modifiers: readonly Modifier[] = [],
 ): ResolvedStats {
   const attributes = Object.fromEntries(ATTRIBUTE_IDS.map((attribute) => [
     attribute,
-    resolveModifierTarget(attribute, clampAttribute(baseAttributes[attribute]), modifiers),
+    resolveModifierTarget(attribute, clampAttribute(profile, baseAttributes[attribute]), modifiers, profile),
   ])) as unknown as Attributes;
   return {
     attributes,
     maxHealthCenti: resolveModifierTarget(
-      'maxHealth', attributes.str * HEALTH_CENTI_PER_STRENGTH, modifiers,
+      'maxHealth', attributes.str * profile.healthCentiPerStrength, modifiers, profile,
     ),
     maxManaCenti: resolveModifierTarget(
-      'maxMana', attributes.int * MANA_CENTI_PER_INTELLIGENCE, modifiers,
+      'maxMana', attributes.int * profile.manaCentiPerIntelligence, modifiers, profile,
     ),
     maxVigourCenti: resolveModifierTarget(
-      'maxVigour', attributes.con * VIGOUR_CENTI_PER_CONSTITUTION, modifiers,
+      'maxVigour', attributes.con * profile.vigourCentiPerConstitution, modifiers, profile,
     ),
     healthRegenCentiPerSecond: resolveModifierTarget(
-      'healthRegen', HEALTH_REGEN_CENTI_PER_SECOND, modifiers,
+      'healthRegen', profile.healthRegenCentiPerSecond, modifiers, profile,
     ),
     manaRegenCentiPerSecond: resolveModifierTarget(
-      'manaRegen', attributes.wis * MANA_REGEN_CENTI_PER_WISDOM, modifiers,
+      'manaRegen', attributes.wis * profile.manaRegenCentiPerWisdom, modifiers, profile,
     ),
     vigourRegenCentiPerSecond: resolveModifierTarget(
-      'vigourRegen', attributes.con * VIGOUR_REGEN_CENTI_PER_CONSTITUTION, modifiers,
+      'vigourRegen', attributes.con * profile.vigourRegenCentiPerConstitution, modifiers, profile,
     ),
   };
+}
+
+export function resolveStats(
+  baseAttributes: Attributes = BASE_ATTRIBUTES,
+  modifiers: readonly Modifier[] = [],
+): ResolvedStats {
+  return resolveStatsWithProfile(BOOTSTRAP_CHARACTER_COMBAT_BALANCE, baseAttributes, modifiers);
 }
 
 export function createFullVitalState(stats: ResolvedStats, regenTick = 0n): VitalState {

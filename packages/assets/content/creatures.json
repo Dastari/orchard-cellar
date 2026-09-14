@@ -1,0 +1,844 @@
+[
+  {
+    "id": "creature:bee",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "bee",
+    "habitat": "hive_air",
+    "variants": 1,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 5,
+    "locomotion": "flutter",
+    "sleepsAtNight": true,
+    "canGraze": false,
+    "ignoresObstacles": true,
+    "behavior": {
+      "hiveReturn": true
+    },
+    "presentation": {
+      "asset": "bee",
+      "animation": "bee",
+      "shadow": "airborne",
+      "target": [
+        7,
+        14
+      ],
+      "hidden": [
+        "inside_hive"
+      ]
+    },
+    "combat": {
+      "name": "Bee",
+      "level": 1,
+      "attributes": {
+        "str": 1,
+        "dex": 15,
+        "con": 4,
+        "int": 1,
+        "wis": 10,
+        "cha": 5
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "bee",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:butterfly",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "butterfly",
+    "habitat": "meadow_air",
+    "variants": 8,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 5,
+    "locomotion": "flutter",
+    "sleepsAtNight": false,
+    "canGraze": false,
+    "ignoresObstacles": true,
+    "presentation": {
+      "asset": "butterfly",
+      "animation": "flutter",
+      "shadow": "airborne",
+      "target": [
+        7,
+        14
+      ],
+      "static": []
+    },
+    "combat": {
+      "name": "Butterfly",
+      "level": 1,
+      "attributes": {
+        "str": 1,
+        "dex": 15,
+        "con": 3,
+        "int": 1,
+        "wis": 9,
+        "cha": 8
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "butterfly",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:camel",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "camel",
+    "habitat": "desert",
+    "variants": 3,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 5,
+    "locomotion": "walk",
+    "sleepsAtNight": true,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "camel",
+      "animation": "camel",
+      "target": [
+        16,
+        26
+      ]
+    },
+    "combat": {
+      "name": "Camel",
+      "level": 2,
+      "attributes": {
+        "str": 13,
+        "dex": 8,
+        "con": 16,
+        "int": 2,
+        "wis": 11,
+        "cha": 7
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "camel",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    },
+    "hayFeeding": {
+      "reachFixed": 512,
+      "journeyTicks": 900,
+      "snackTicks": 160,
+      "decisionOneIn": 14
+    }
+  },
+  {
+    "id": "creature:capybara",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "capybara",
+    "habitat": "freshwater",
+    "variants": 2,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 4,
+    "locomotion": "swim",
+    "sleepsAtNight": true,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "capybara",
+      "animation": "base",
+      "static": [
+        "rest"
+      ],
+      "cycle": "capybara_water"
+    },
+    "combat": {
+      "name": "Capybara",
+      "level": 1,
+      "attributes": {
+        "str": 8,
+        "dex": 8,
+        "con": 12,
+        "int": 2,
+        "wis": 11,
+        "cha": 10
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "capybara",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:chicken",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "chicken",
+    "habitat": "farmyard",
+    "variants": 18,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 4,
+    "locomotion": "walk",
+    "sleepsAtNight": true,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "behavior": {
+      "trailingPackMember": "creature:rooster"
+    },
+    "presentation": {
+      "asset": "chicken",
+      "animation": "fowl"
+    },
+    "loot": "loot:wildlife_chicken",
+    "combat": {
+      "name": "Chicken",
+      "level": 1,
+      "attributes": {
+        "str": 3,
+        "dex": 12,
+        "con": 6,
+        "int": 2,
+        "wis": 9,
+        "cha": 6
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": true,
+      "experience": 14,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "chicken",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:cow",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "cow",
+    "habitat": "pasture",
+    "variants": 9,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 4,
+    "locomotion": "walk",
+    "sleepsAtNight": true,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "cow",
+      "target": [
+        16,
+        26
+      ]
+    },
+    "loot": "loot:wildlife_cow",
+    "combat": {
+      "name": "Cow",
+      "level": 1,
+      "attributes": {
+        "str": 12,
+        "dex": 6,
+        "con": 14,
+        "int": 2,
+        "wis": 10,
+        "cha": 6
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": true,
+      "experience": 28,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "cow",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    },
+    "hayFeeding": {
+      "reachFixed": 512,
+      "journeyTicks": 900,
+      "snackTicks": 160,
+      "decisionOneIn": 14
+    }
+  },
+  {
+    "id": "creature:duck",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "duck",
+    "habitat": "freshwater",
+    "variants": 5,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 5,
+    "locomotion": "swim",
+    "sleepsAtNight": true,
+    "canGraze": false,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "duck",
+      "animation": "waterfowl"
+    },
+    "loot": "loot:wildlife_duck",
+    "combat": {
+      "name": "Duck",
+      "level": 1,
+      "attributes": {
+        "str": 3,
+        "dex": 11,
+        "con": 7,
+        "int": 2,
+        "wis": 10,
+        "cha": 7
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": true,
+      "experience": 14,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "duck",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:frog",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "frog",
+    "habitat": "lakeshore",
+    "variants": 6,
+    "speedFixed": 16,
+    "wanderRadiusTiles": 3,
+    "locomotion": "hop",
+    "sleepsAtNight": false,
+    "canGraze": false,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "frog",
+      "animation": "frog"
+    },
+    "combat": {
+      "name": "Frog",
+      "level": 1,
+      "attributes": {
+        "str": 2,
+        "dex": 13,
+        "con": 5,
+        "int": 2,
+        "wis": 10,
+        "cha": 5
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "frog",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:goose",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "goose",
+    "habitat": "freshwater",
+    "variants": 6,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 5,
+    "locomotion": "swim",
+    "sleepsAtNight": true,
+    "canGraze": false,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "goose",
+      "animation": "goose",
+      "target": [
+        12,
+        20
+      ]
+    },
+    "loot": "loot:wildlife_goose",
+    "combat": {
+      "name": "Goose",
+      "level": 1,
+      "attributes": {
+        "str": 5,
+        "dex": 10,
+        "con": 8,
+        "int": 2,
+        "wis": 10,
+        "cha": 8
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": true,
+      "experience": 18,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "goose",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:horse",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "horse",
+    "habitat": "pasture",
+    "variants": 5,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 5,
+    "locomotion": "walk",
+    "sleepsAtNight": true,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "horse",
+      "renderer": "horse",
+      "target": [
+        16,
+        26
+      ]
+    },
+    "combat": {
+      "name": "Horse",
+      "level": 2,
+      "attributes": {
+        "str": 14,
+        "dex": 12,
+        "con": 14,
+        "int": 2,
+        "wis": 10,
+        "cha": 7
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "horse",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    },
+    "hayFeeding": {
+      "reachFixed": 512,
+      "journeyTicks": 900,
+      "snackTicks": 160,
+      "decisionOneIn": 14
+    }
+  },
+  {
+    "id": "creature:mouse",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "mouse",
+    "habitat": "woodland",
+    "variants": 4,
+    "speedFixed": 16,
+    "wanderRadiusTiles": 3,
+    "locomotion": "walk",
+    "sleepsAtNight": false,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "mouse",
+      "animation": "mouse"
+    },
+    "combat": {
+      "name": "Mouse",
+      "level": 1,
+      "attributes": {
+        "str": 1,
+        "dex": 14,
+        "con": 4,
+        "int": 3,
+        "wis": 11,
+        "cha": 5
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "mouse",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:pig",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "pig",
+    "habitat": "pasture",
+    "variants": 16,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 4,
+    "locomotion": "walk",
+    "sleepsAtNight": true,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "pig",
+      "target": [
+        12,
+        20
+      ]
+    },
+    "loot": "loot:wildlife_pig",
+    "combat": {
+      "name": "Pig",
+      "level": 1,
+      "attributes": {
+        "str": 9,
+        "dex": 8,
+        "con": 12,
+        "int": 2,
+        "wis": 10,
+        "cha": 7
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": true,
+      "experience": 22,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "pig",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:rooster",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "rooster",
+    "habitat": "farmyard",
+    "variants": 1,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 4,
+    "locomotion": "walk",
+    "sleepsAtNight": true,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "rooster",
+      "animation": "fowl"
+    },
+    "loot": "loot:wildlife_rooster",
+    "combat": {
+      "name": "Rooster",
+      "level": 1,
+      "attributes": {
+        "str": 4,
+        "dex": 12,
+        "con": 7,
+        "int": 2,
+        "wis": 9,
+        "cha": 8
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": true,
+      "experience": 14,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "chicken",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:scarab",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "scarab",
+    "habitat": "desert",
+    "variants": 4,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 3,
+    "locomotion": "walk",
+    "sleepsAtNight": false,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "scarab",
+      "animation": "scarab",
+      "target": [
+        7,
+        14
+      ]
+    },
+    "combat": {
+      "name": "Scarab",
+      "level": 1,
+      "attributes": {
+        "str": 2,
+        "dex": 10,
+        "con": 8,
+        "int": 1,
+        "wis": 8,
+        "cha": 3
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "scarab",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:sheep",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "sheep",
+    "habitat": "pasture",
+    "variants": 9,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 4,
+    "locomotion": "walk",
+    "sleepsAtNight": true,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "sheep",
+      "target": [
+        12,
+        20
+      ]
+    },
+    "loot": "loot:wildlife_sheep",
+    "combat": {
+      "name": "Sheep",
+      "level": 1,
+      "attributes": {
+        "str": 8,
+        "dex": 8,
+        "con": 11,
+        "int": 2,
+        "wis": 10,
+        "cha": 7
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": true,
+      "experience": 22,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "sheep",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    },
+    "hayFeeding": {
+      "reachFixed": 512,
+      "journeyTicks": 900,
+      "snackTicks": 160,
+      "decisionOneIn": 14
+    }
+  },
+  {
+    "id": "creature:snail",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "snail",
+    "habitat": "woodland",
+    "variants": 4,
+    "speedFixed": 2,
+    "wanderRadiusTiles": 2,
+    "locomotion": "walk",
+    "sleepsAtNight": true,
+    "canGraze": true,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "snail",
+      "animation": "snail"
+    },
+    "combat": {
+      "name": "Snail",
+      "level": 1,
+      "attributes": {
+        "str": 2,
+        "dex": 2,
+        "con": 12,
+        "int": 1,
+        "wis": 8,
+        "cha": 4
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "snail",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:swan",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "swan",
+    "habitat": "freshwater",
+    "variants": 3,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 5,
+    "locomotion": "swim",
+    "sleepsAtNight": true,
+    "canGraze": false,
+    "ignoresObstacles": false,
+    "presentation": {
+      "asset": "swan",
+      "animation": "waterfowl",
+      "target": [
+        12,
+        20
+      ]
+    },
+    "combat": {
+      "name": "Swan",
+      "level": 1,
+      "attributes": {
+        "str": 5,
+        "dex": 10,
+        "con": 8,
+        "int": 2,
+        "wis": 11,
+        "cha": 10
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "swan",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  },
+  {
+    "id": "creature:vulture",
+    "kind": "creature",
+    "schemaVersion": 1,
+    "species": "vulture",
+    "habitat": "desert",
+    "variants": 4,
+    "speedFixed": 8,
+    "wanderRadiusTiles": 6,
+    "locomotion": "flutter",
+    "sleepsAtNight": true,
+    "canGraze": false,
+    "ignoresObstacles": true,
+    "presentation": {
+      "asset": "vulture",
+      "animation": "vulture",
+      "facing": "right",
+      "shadow": "airborne_while_moving"
+    },
+    "combat": {
+      "name": "Vulture",
+      "level": 2,
+      "attributes": {
+        "str": 7,
+        "dex": 13,
+        "con": 9,
+        "int": 2,
+        "wis": 12,
+        "cha": 6
+      },
+      "innateModifiers": [],
+      "hostile": false,
+      "huntable": false,
+      "experience": 0,
+      "respawnTicks": 12000
+    },
+    "panic": {
+      "group": "vulture",
+      "durationTicks": 160,
+      "radiusFixed": 1792,
+      "speedMultiplierPermille": 2000,
+      "knockbackFixed": 64
+    }
+  }
+]

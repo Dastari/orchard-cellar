@@ -1,0 +1,559 @@
+[
+  {
+    "id": "npc:boat",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "0",
+    "actorAsset": "boat",
+    "displayName": "Wooden Boat",
+    "home": {
+      "spaceId": 0,
+      "tileX": 0,
+      "tileY": 0
+    },
+    "facing": "right",
+    "ai": {
+      "kind": "stationary"
+    },
+    "spawnPolicy": "dynamic",
+    "mount": {
+      "adapter": "boat",
+      "reachFixed": 8192
+    },
+    "questGiver": [],
+    "health": 3,
+    "runtimeKind": "boat"
+  },
+  {
+    "id": "npc:delve_quartermaster",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966920",
+    "actorAsset": "npc_cf_miner_mike",
+    "displayName": "Orrin",
+    "home": {
+      "spaceId": 65532,
+      "tileX": 5,
+      "tileY": 11
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:delve_quartermaster",
+    "shop": "shop:delve_supplies",
+    "questGiver": [],
+    "health": 100
+  },
+  {
+    "id": "npc:farmer_bob",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "3",
+    "actorAsset": "npc_cf_farmer_bob",
+    "displayName": "Farmer Bob",
+    "home": {
+      "spaceId": 0,
+      "tileX": 382,
+      "tileY": 378
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:farmer_bob",
+    "shop": "shop:farmer_supplies",
+    "questGiver": [
+      "quest:farmer_bob_fast_strawberries",
+      "quest:marlow_first_bottle"
+    ],
+    "health": 100,
+    "runtimeKind": "farmer_bob",
+    "initialDecisionDelayTicks": 45,
+    "protectedPack": {
+      "packId": "9000",
+      "response": "Hey! Leave them alone!!",
+      "durationTicks": 120
+    }
+  },
+  {
+    "id": "npc:fisherman_fin",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "7",
+    "actorAsset": "npc_cf_fisherman_fin",
+    "displayName": "Fisherman Fin",
+    "home": {
+      "spaceId": 0,
+      "tileX": 409,
+      "tileY": 317
+    },
+    "facing": "right",
+    "ai": {
+      "kind": "fishing_cycle",
+      "castTicks": 20,
+      "waitTicks": {
+        "minimum": 500,
+        "maximum": 900,
+        "step": 20
+      },
+      "reelTicks": 20,
+      "restTicks": {
+        "minimum": 300,
+        "maximum": 600,
+        "step": 20
+      },
+      "initialRestTicks": {
+        "minimum": 120,
+        "maximum": 240,
+        "step": 20
+      },
+      "barkChanceOneIn": 5,
+      "barks": [
+        "I swear it was THIS big...",
+        "The lake's keeping its secrets today.",
+        "Patience catches more fish than fancy bait.",
+        "Easy now... don't spook the silverfin.",
+        "A quiet line is still a hopeful line.",
+        "Nearly had that one!",
+        "The best bites come when nobody is watching.",
+        "Just one more cast..."
+      ]
+    },
+    "dialogue": "dialogue:fisherman_fin",
+    "questGiver": [
+      "quest:fisherman_first_catch",
+      "quest:hearth_willowharbour_arrival"
+    ],
+    "health": 100,
+    "runtimeKind": "fisherman_fin",
+    "initialDecisionDelayTicks": 45
+  },
+  {
+    "id": "npc:horse",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "1",
+    "actorAsset": "horse",
+    "displayName": "Nados Mum",
+    "home": {
+      "spaceId": 0,
+      "tileX": 372,
+      "tileY": 370
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "mount": {
+      "adapter": "horse",
+      "requiredSkill": "stable_hand",
+      "jumpSkill": "steeplechase",
+      "reachFixed": 8192,
+      "dismountDistanceFixed": 4608,
+      "jump": {
+        "maximumBlockedTiles": 3,
+        "maximumApproachTiles": 1,
+        "durationTicks": 10
+      },
+      "wander": {
+        "radiusFixed": 12288,
+        "speedFixed": 128,
+        "decisionMinimumTicks": 30,
+        "decisionJitterTicks": 71,
+        "blockedRetryTicks": 8
+      }
+    },
+    "wildlifeProfile": {
+      "species": "horse",
+      "variant": 0,
+      "packId": "0",
+      "habitat": "pasture"
+    },
+    "questGiver": [],
+    "health": 140,
+    "runtimeKind": "horse"
+  },
+  {
+    "id": "npc:marlow",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "2",
+    "actorAsset": "npc_cf_bartender_bruno",
+    "displayName": "Marlow",
+    "home": {
+      "spaceId": 0,
+      "tileX": 338,
+      "tileY": 359
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:tool_merchant",
+    "shop": "shop:general_tools",
+    "questGiver": [
+      "quest:marlow_important_book"
+    ],
+    "health": 100,
+    "runtimeKind": "merchant",
+    "initialDecisionDelayTicks": 30
+  },
+  {
+    "id": "npc:willow_archivist",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966936",
+    "actorAsset": "npc_cf_witch",
+    "displayName": "Iona",
+    "home": {
+      "spaceId": 65525,
+      "tileX": 13,
+      "tileY": 9
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_archivist",
+    "shop": "shop:willow_archivist",
+    "questGiver": [
+      "quest:hearth_prepare_expedition",
+      "quest:hearth_clear_ash_shore",
+      "quest:hearth_return_basalt"
+    ],
+    "health": 100,
+    "runtimeKind": "willow_archivist",
+    "commerce": {
+      "recipeExchange": {
+        "payment": {
+          "item": "item:guardian_seal",
+          "count": 3
+        },
+        "recipes": [
+          "recipe:hearth_legendary_body",
+          "recipe:hearth_legendary_bow",
+          "recipe:hearth_legendary_feet",
+          "recipe:hearth_legendary_hands",
+          "recipe:hearth_legendary_head",
+          "recipe:hearth_legendary_legs",
+          "recipe:hearth_legendary_shield",
+          "recipe:hearth_legendary_sword"
+        ]
+      }
+    }
+  },
+  {
+    "id": "npc:willow_carpenter",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966933",
+    "actorAsset": "npc_cf_lumberjack_jack",
+    "displayName": "Rowan",
+    "home": {
+      "spaceId": 65522,
+      "tileX": 17,
+      "tileY": 9
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_carpenter",
+    "shop": "shop:willow_carpenter",
+    "questGiver": [
+      "quest:hearth_meet_carpenter",
+      "quest:hearth_furnish_room"
+    ],
+    "health": 100,
+    "runtimeKind": "willow_carpenter"
+  },
+  {
+    "id": "npc:willow_cook",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966931",
+    "actorAsset": "npc_cf_chef_chloe",
+    "displayName": "Nell",
+    "home": {
+      "spaceId": 65520,
+      "tileX": 13,
+      "tileY": 6
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_cook",
+    "shop": "shop:willow_cook",
+    "questGiver": [],
+    "health": 100,
+    "runtimeKind": "willow_cook",
+    "commerce": {
+      "villageOrders": [
+        {
+          "id": "pantry_carrots",
+          "title": "Preserved carrots for the pantry",
+          "item": "item:preserved_carrot",
+          "quantity": 12,
+          "bonusBronze": 350,
+          "sortOrder": 3
+        },
+        {
+          "id": "pantry_potatoes",
+          "title": "Preserved potatoes for the pantry",
+          "item": "item:preserved_potato",
+          "quantity": 12,
+          "bonusBronze": 350,
+          "sortOrder": 4
+        },
+        {
+          "id": "pantry_grapes",
+          "title": "Preserved grapes for the pantry",
+          "item": "item:preserved_grape",
+          "quantity": 12,
+          "bonusBronze": 350,
+          "sortOrder": 5
+        }
+      ]
+    }
+  },
+  {
+    "id": "npc:willow_furnisher",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966934",
+    "actorAsset": "npc_cf_desert_person_03",
+    "displayName": "Ada",
+    "home": {
+      "spaceId": 65523,
+      "tileX": 13,
+      "tileY": 9
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_furnisher",
+    "shop": "shop:willow_furnisher",
+    "questGiver": [],
+    "health": 100,
+    "runtimeKind": "willow_furnisher"
+  },
+  {
+    "id": "npc:willow_harbour_guide",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966937",
+    "actorAsset": "npc_cf_desert_person_01",
+    "displayName": "Pip",
+    "home": {
+      "spaceId": 0,
+      "tileX": 207,
+      "tileY": 397
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_harbour_guide",
+    "questGiver": [
+      "quest:hearth_willowharbour_arrival",
+      "quest:hearth_meet_carpenter"
+    ],
+    "health": 100,
+    "runtimeKind": "willow_harbour_guide"
+  },
+  {
+    "id": "npc:willow_innkeeper",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966930",
+    "actorAsset": "npc_cf_bartender_katy",
+    "displayName": "Mara",
+    "home": {
+      "spaceId": 65520,
+      "tileX": 13,
+      "tileY": 9
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_innkeeper",
+    "shop": "shop:willow_innkeeper",
+    "questGiver": [],
+    "health": 100,
+    "runtimeKind": "willow_innkeeper",
+    "commerce": {
+      "villageOrders": [
+        {
+          "id": "inn_vintage",
+          "title": "An estate vintage for the inn",
+          "item": "item:bottles",
+          "quantity": 1,
+          "bonusBronze": 350,
+          "sortOrder": 6
+        }
+      ]
+    }
+  },
+  {
+    "id": "npc:willow_resident_farmer",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966941",
+    "actorAsset": "npc_cf_desert_trader_02",
+    "displayName": "Otto",
+    "home": {
+      "spaceId": 0,
+      "tileX": 128,
+      "tileY": 457
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_resident_farmer",
+    "questGiver": [],
+    "health": 100,
+    "runtimeKind": "willow_resident_farmer"
+  },
+  {
+    "id": "npc:willow_resident_gardener",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966938",
+    "actorAsset": "npc_cf_farmer_buba",
+    "displayName": "Fern",
+    "home": {
+      "spaceId": 0,
+      "tileX": 125,
+      "tileY": 381
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_resident_gardener",
+    "questGiver": [],
+    "health": 100,
+    "runtimeKind": "willow_resident_gardener"
+  },
+  {
+    "id": "npc:willow_resident_orchard",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966939",
+    "actorAsset": "npc_cf_desert_person_02",
+    "displayName": "Wren",
+    "home": {
+      "spaceId": 0,
+      "tileX": 114,
+      "tileY": 429
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_resident_orchard",
+    "questGiver": [],
+    "health": 100,
+    "runtimeKind": "willow_resident_orchard"
+  },
+  {
+    "id": "npc:willow_resident_reader",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966940",
+    "actorAsset": "npc_cf_desert_person_04",
+    "displayName": "Ellis",
+    "home": {
+      "spaceId": 0,
+      "tileX": 175,
+      "tileY": 387
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_resident_reader",
+    "questGiver": [],
+    "health": 100,
+    "runtimeKind": "willow_resident_reader"
+  },
+  {
+    "id": "npc:willow_smith",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966935",
+    "actorAsset": "npc_cf_miner_mike",
+    "displayName": "Bram",
+    "home": {
+      "spaceId": 65524,
+      "tileX": 9,
+      "tileY": 9
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_smith",
+    "shop": "shop:willow_smith",
+    "questGiver": [
+      "quest:hearth_prepare_expedition"
+    ],
+    "health": 100,
+    "runtimeKind": "willow_smith"
+  },
+  {
+    "id": "npc:willow_storekeeper",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "4294966932",
+    "actorAsset": "npc_cf_desert_trader_01",
+    "displayName": "Tavi",
+    "home": {
+      "spaceId": 65521,
+      "tileX": 13,
+      "tileY": 9
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:willow_storekeeper",
+    "shop": "shop:willow_storekeeper",
+    "questGiver": [],
+    "health": 100,
+    "runtimeKind": "willow_storekeeper",
+    "commerce": {
+      "villageOrders": [
+        {
+          "id": "market_carrots",
+          "title": "Carrots for the market",
+          "item": "item:carrot",
+          "quantity": 20,
+          "bonusBronze": 350,
+          "sortOrder": 0
+        },
+        {
+          "id": "market_potatoes",
+          "title": "Potatoes for the market",
+          "item": "item:potato",
+          "quantity": 20,
+          "bonusBronze": 350,
+          "sortOrder": 1
+        },
+        {
+          "id": "market_grapes",
+          "title": "Grapes for the market",
+          "item": "item:grape",
+          "quantity": 12,
+          "bonusBronze": 350,
+          "sortOrder": 2
+        }
+      ]
+    }
+  }
+]

@@ -1,6 +1,9 @@
-import { BRONZE_PER_GOLD } from './commerce.js';
-import { isUniqueQuestItemKind } from './item-containers.js';
+import {HEARTH_FURNISHING_CATEGORIES,type HearthFurnishingCategory} from './hearth-furnishing-categories.js';
+import { isUniqueQuestItemKind, itemDefinition } from './item-containers.js';
 import { TILE_SIZE_FIXED } from './state.js';
+import { bootstrapDefinitionsOfKind } from './content/bootstrap-pack-loader.js';
+import type { QuestContentDefinition } from './content/npc-definition.js';
+import type { ContentRegistry } from './content/registry.js';
 
 export type QuestState = 'active' | 'complete' | 'turned_in';
 
@@ -10,6 +13,8 @@ export interface QuestItemRequirement {
 }
 
 export type QuestObjectiveDefinition =
+  | {readonly id:string;readonly kind:'equipment';readonly label:string;readonly category:'weapon'|'body'}
+  | {readonly id:string;readonly kind:'furnishing';readonly label:string;readonly category:HearthFurnishingCategory}
   | {
       readonly id: string;
       readonly kind: 'location';
@@ -71,9 +76,24 @@ export interface QuestDefinition {
   /** Quest-owned carried items removed when the player abandons the quest.
    * Ordinary collected materials must not be listed here. */
   readonly abandonRemovesItems?: readonly QuestItemRequirement[];
+  readonly world?: {
+    readonly surfaceItemsOnAccept?: readonly {
+      readonly objectiveId: string; readonly surfaceId: bigint; readonly slot: number; readonly itemKind: string;
+    }[];
+    readonly personalResource?: {
+      readonly objectiveId: string; readonly resourceId: bigint; readonly resourceKind: string;
+      readonly spaceId: number; readonly tileX: number; readonly tileY: number; readonly itemKind: string;
+    };
+    readonly narrativeTriggers?: readonly {
+      readonly id: string; readonly event: 'water_crop'; readonly subjectKind: string;
+      readonly body: string; readonly tone: string; readonly durationTicks: number;
+    }[];
+  };
 }
 
 export interface QuestProgressSource {
+  readonly equipmentCount?: (category:'weapon'|'body') => number;
+  readonly furnishingCount?: (category:HearthFurnishingCategory) => number;
   readonly statistic: (statisticKind: string, subjectKind: string) => bigint;
   readonly itemCount: (itemKind: string) => number;
 }
@@ -89,86 +109,58 @@ export interface QuestObjectiveProgress {
   readonly components: readonly QuestObjectiveComponentProgress[];
 }
 
-export const MARLOW_BOOK_QUEST_ID = 'marlow_important_book';
-export const MARLOW_BOOK_ACTION = 'recover_marlow_important_book';
-export const FIRST_BOTTLE_QUEST_ID = 'marlow_first_bottle';
-export const FARMER_BOB_STRAWBERRY_QUEST_ID = 'farmer_bob_fast_strawberries';
+const legacyItems = (values: readonly { readonly item: string; readonly count: number }[]) =>
+  values.map(({ item, count }) => ({ itemKind: item.slice('item:'.length), count }));
 
-export const QUEST_DEFINITIONS = {
-  [MARLOW_BOOK_QUEST_ID]: {
-    id: MARLOW_BOOK_QUEST_ID,
-    title: 'A Very Important Book',
-    summary: 'Fetch the very important book from the table inside Marlow\'s tent.',
-    giverNpcId: 2n,
-    objectives: [
-      {
-        id: 'recover_book',
-        kind: 'collect',
-        label: 'Pick up the book from Marlow\'s table',
-        items: [{ itemKind: 'marlow_book', count: 1 }],
-        consumeOnTurnIn: true,
-      },
-    ],
-    rewards: {
-      bronze: BRONZE_PER_GOLD,
-      experience: [{ track: 'explorer', amount: 100n }],
-      // Marlow takes the physical book during hand-in and gives that same
-      // inventory item back after admitting he has already read it.
-      items: [{ itemKind: 'marlow_book', count: 1 }],
-    },
-    abandonRemovesItems: [{ itemKind: 'marlow_book', count: 1 }],
-  },
-  [FARMER_BOB_STRAWBERRY_QUEST_ID]: {
-    id: FARMER_BOB_STRAWBERRY_QUEST_ID,
-    title: "Strawberries for Jane",
-    summary: "Plant Bob's unusually vigorous strawberry seeds, water them once, harvest the crop, and bring three strawberries back for Jane.",
-    giverNpcId: 3n,
-    acceptItems: [{ itemKind: 'bob_fast_strawberry_seeds', count: 1 }],
-    objectives: [
-      {
-        id: 'grow_strawberries', kind: 'statistic', label: 'Harvest Bob\'s fast strawberries',
-        statisticKind: 'crops_harvested', subjectKind: 'strawberry', count: 1n,
-      },
-      {
-        id: 'bring_strawberries', kind: 'collect', label: 'Bring 3 Strawberries to Farmer Bob',
-        items: [{ itemKind: 'strawberry', count: 3 }], consumeOnTurnIn: true,
-      },
-    ],
-    rewards: {
-      bronze: 75n,
-      experience: [{ track: 'farming', amount: 100n }],
-      items: [{ itemKind: 'janes_gardening_book', count: 1 }],
-    },
-    abandonRemovesItems: [{ itemKind: 'bob_fast_strawberry_seeds', count: 1 }],
-  },
-  [FIRST_BOTTLE_QUEST_ID]: {
-    id: FIRST_BOTTLE_QUEST_ID,
-    title: 'From Orchard to Cellar',
-    summary: 'Press fruit, age the Must into your first Bottle, then sell it to prove the estate can sustain itself.',
-    giverNpcId: 3n,
-    prerequisiteQuestIds: [FARMER_BOB_STRAWBERRY_QUEST_ID],
-    objectives: [
-      {
-        id: 'press_fruit', kind: 'statistic', label: 'Press 3 Fruit into Must',
-        statisticKind: 'press_cycles_completed', subjectKind: '', count: 3n,
-      },
-      {
-        id: 'age_bottle', kind: 'statistic', label: 'Age 1 Bottle in a Fermentation Cask',
-        statisticKind: 'bottles_produced', subjectKind: '', count: 1n,
-      },
-      {
-        id: 'sell_bottle', kind: 'statistic', label: 'Sell 1 Bottle to Marlow',
-        statisticKind: 'items_sold', subjectKind: 'bottles', count: 1n,
-      },
-    ],
-    rewards: {
-      bronze: 5n * BRONZE_PER_GOLD,
-      experience: [{ track: 'farming', amount: 250n }],
-      items: [],
-      homesteadSizeTier: 1,
-    },
-  },
-} as const satisfies Readonly<Record<string, QuestDefinition>>;
+export function questDefinitionFromContent(
+  registry: Pick<ContentRegistry, 'npcs'>,
+  definition: QuestContentDefinition,
+): QuestDefinition {
+  const npcId = (id: string): bigint => BigInt(registry.npcs.get(id)?.runtimeId ?? 0);
+  return {
+    id: definition.id.slice('quest:'.length), title: definition.title, summary: definition.summary,
+    giverNpcId: npcId(definition.giver),
+    ...(definition.prerequisites === undefined ? {} : { prerequisiteQuestIds: definition.prerequisites.map((id) => id.slice('quest:'.length)) }),
+    objectives: definition.objectives.map((objective): QuestObjectiveDefinition => {
+      if (objective.kind === 'collect') return { ...objective, items: legacyItems(objective.items) };
+      if (objective.kind === 'talk') return { ...objective, npcIds: objective.npcs.map(npcId) };
+      if (objective.kind === 'statistic') return { ...objective, count: BigInt(objective.count) };
+      return objective;
+    }),
+    ...(definition.acceptItems === undefined ? {} : { acceptItems: legacyItems(definition.acceptItems) }),
+    rewards: { bronze: BigInt(definition.rewards.bronze), experience: definition.rewards.experience.map(({ skill, amount }) => ({ track: skill, amount: BigInt(amount) })), items: legacyItems(definition.rewards.items), ...(definition.rewards.homesteadSizeTier === undefined ? {} : { homesteadSizeTier: definition.rewards.homesteadSizeTier }) },
+    ...(definition.abandonRemovesItems === undefined ? {} : { abandonRemovesItems: legacyItems(definition.abandonRemovesItems) }),
+    ...(definition.world === undefined ? {} : { world: {
+      ...(definition.world.surfaceItemsOnAccept === undefined ? {} : {
+        surfaceItemsOnAccept: definition.world.surfaceItemsOnAccept.map((item) => ({
+          objectiveId: item.objectiveId, surfaceId: BigInt(item.surfaceId), slot: item.slot,
+          itemKind: item.item.slice('item:'.length),
+        })),
+      }),
+      ...(definition.world.personalResource === undefined ? {} : { personalResource: {
+        objectiveId: definition.world.personalResource.objectiveId,
+        resourceId: BigInt(definition.world.personalResource.resourceId),
+        resourceKind: definition.world.personalResource.resourceKind,
+        spaceId: definition.world.personalResource.spaceId,
+        tileX: definition.world.personalResource.tileX,
+        tileY: definition.world.personalResource.tileY,
+        itemKind: definition.world.personalResource.item.slice('item:'.length),
+      } }),
+      ...(definition.world.narrativeTriggers === undefined ? {} : {
+        narrativeTriggers: definition.world.narrativeTriggers,
+      }),
+    } }),
+  };
+}
+
+const bootstrapQuestNpcs = new Map(bootstrapDefinitionsOfKind('npc').map((definition) => [definition.id, definition]));
+
+export const QUEST_DEFINITIONS: Readonly<Record<string, QuestDefinition>> = Object.freeze(
+  Object.fromEntries(bootstrapDefinitionsOfKind('quest').map((definition) => {
+    const projected = questDefinitionFromContent({ npcs: bootstrapQuestNpcs }, definition);
+    return [projected.id, projected];
+  })),
+);
 
 export type QuestId = keyof typeof QUEST_DEFINITIONS;
 
@@ -218,6 +210,10 @@ export function validateQuestDefinition(definition: QuestDefinition): readonly s
     if (objective.label.trim().length === 0) errors.push(`${path} label must not be empty`);
     if (objective.kind === 'collect') {
       errors.push(...validateItemRequirements(objective.items, `${path}.items`));
+    } else if (objective.kind === 'equipment') {
+      if(!['weapon','body'].includes(objective.category))errors.push(`${path}.category is invalid`);
+    } else if (objective.kind === 'furnishing') {
+      if(!HEARTH_FURNISHING_CATEGORIES.includes(objective.category))errors.push(`${path}.category is invalid`);
     } else if (objective.kind === 'location') {
       if (!Number.isInteger(objective.spaceId) || objective.spaceId < 0 || objective.spaceId > 0xffff) {
         errors.push(`${path}.spaceId must be a u16`);
@@ -258,8 +254,9 @@ export function validateQuestDefinition(definition: QuestDefinition): readonly s
   if (definition.abandonRemovesItems !== undefined) {
     errors.push(...validateItemRequirements(definition.abandonRemovesItems, 'abandonRemovesItems'));
     for (const item of definition.abandonRemovesItems) {
-      if (!isUniqueQuestItemKind(item.itemKind)) {
-        errors.push(`abandonRemovesItems item ${item.itemKind} must be tagged as a unique quest item`);
+      if (!isUniqueQuestItemKind(item.itemKind)
+        && itemDefinition(item.itemKind)?.tags.includes('item.quest') !== true) {
+        errors.push(`abandonRemovesItems item ${item.itemKind} must be tagged as a quest-owned item`);
       }
     }
   }
@@ -275,8 +272,19 @@ export function validateQuestDefinition(definition: QuestDefinition): readonly s
 
 export function questDefinition(questId: string): QuestDefinition | null {
   return Object.prototype.hasOwnProperty.call(QUEST_DEFINITIONS, questId)
-    ? QUEST_DEFINITIONS[questId as QuestId]
+    ? QUEST_DEFINITIONS[questId as QuestId] ?? null
     : null;
+}
+
+/** Resolves a quest from the verified live registry. Bootstrap callers retain
+ * questDefinition only as a compatibility API for pure simulation fixtures. */
+export function runtimeQuestDefinition(
+  registry: ContentRegistry,
+  questId: string,
+): QuestDefinition | null {
+  const definition = registry.quests.get(`quest:${questId}`);
+  return definition === undefined || definition.retired === true
+    ? null : questDefinitionFromContent(registry, definition);
 }
 
 /** Resolves the owning quest for a protected artifact. A future destroy flow
@@ -308,15 +316,19 @@ export function questCounterKey(questId: string, objective: QuestObjectiveDefini
 export function questAcceptBaselines(
   definition: QuestDefinition,
   source: QuestProgressSource,
+  admittedSpeakerNpcId?:bigint,
 ): Readonly<Record<string, bigint>> {
   return Object.fromEntries(definition.objectives.map((objective) => {
     const counter = questCounterKey(definition.id, objective);
     if (counter !== null) return [objective.id, source.statistic(counter.statisticKind, counter.subjectKind)];
     if (objective.kind === 'talk') {
-      return [objective.id, objective.npcIds.reduce(
-        (sum, npcId) => sum + source.statistic('quest_npc_talks', npcId.toString()),
-        0n,
-      )];
+      const total=objective.npcIds.reduce(
+        (sum, npcId) => sum + source.statistic('quest_npc_talks', npcId.toString()),0n);
+      // Only a currently admitted speaker can credit the conversation in which
+      // this quest was accepted. Prior visits to other NPCs remain baselined.
+      const credit=admittedSpeakerNpcId!==undefined&&objective.npcIds.includes(admittedSpeakerNpcId)
+        &&source.statistic('quest_npc_talks',admittedSpeakerNpcId.toString())>0n;
+      return [objective.id,credit?total-1n:total];
     }
     return [objective.id, 0n];
   }));
@@ -336,6 +348,8 @@ export function questObjectiveProgress(
   baseline: bigint,
   source: QuestProgressSource,
 ): QuestObjectiveProgress {
+  if(objective.kind==='equipment')return counterProgress(BigInt(Math.max(0,Math.trunc(source.equipmentCount?.(objective.category)??0))),0n,1n,objective.label);
+  if(objective.kind==='furnishing')return counterProgress(BigInt(Math.max(0,Math.trunc(source.furnishingCount?.(objective.category)??0))),0n,1n,objective.label);
   if (objective.kind === 'collect') {
     const components = objective.items.map((item) => ({
       label: item.itemKind,

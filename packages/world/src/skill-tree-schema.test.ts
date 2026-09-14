@@ -24,24 +24,24 @@ describe('authoritative character progression', () => {
   it('validates appearance kinds before updating the public modular selection', () => {
     const reducer = sourceBetween('export const setAppearance =', 'export const purchaseSkillNode =');
     expect(reducer).toContain('requireAuthorizedSender(');
-    expect(reducer).toContain('isPlayerAppearanceSelection(appearance)');
-    expect(reducer.indexOf('isPlayerAppearanceSelection(appearance)'))
+    expect(reducer).toContain('isPlayerAppearanceSelection(appearanceCatalog, appearance)');
+    expect(reducer.indexOf('isPlayerAppearanceSelection(appearanceCatalog, appearance)'))
       .toBeLessThan(reducer.indexOf('player_appearance.identity.update'));
     expect(reducer).toContain("'appearance_changes'");
   });
 
   it('re-derives level, adjacency, points, and rank from authority rows when purchasing', () => {
     const reducer = sourceBetween('export const purchaseSkillNode =', 'export const resetSkillTree =');
-    expect(reducer).toContain('skillNodeDefinition(nodeId)');
+    expect(reducer).toContain('runtimeSkillNodeDefinition(contentRegistry(ctx), nodeId)');
     expect(reducer).toContain('playerSkillRanks(ctx, ctx.sender)');
-    expect(reducer).toContain('skillPurchaseRejection(nodeId');
-    expect(reducer.indexOf('skillPurchaseRejection(nodeId'))
+    expect(reducer).toContain('runtimeSkillPurchaseRejection(contentRegistry(ctx), nodeId');
+    expect(reducer.indexOf('runtimeSkillPurchaseRejection(contentRegistry(ctx), nodeId'))
       .toBeLessThan(reducer.indexOf('player_skill_node.insert'));
     expect(reducer).toContain("'skill_points_spent'");
   });
 
   it('resets only caller-owned ranks and charges the server-derived ladder cost', () => {
-    const reducer = sourceBetween('export const resetSkillTree =', 'export const grantDebugSkillPoints =');
+    const reducer = sourceBetween('export const resetSkillTree =', 'export const heartbeat =');
     expect(reducer).toContain('isSkillTrack(track)');
     expect(reducer).toContain('skillRespecCostBronze(progress.respecCount)');
     expect(reducer).toContain('wallet.balanceBronze < cost');
@@ -50,11 +50,57 @@ describe('authoritative character progression', () => {
     expect(reducer).toContain('spentPoints: 0');
   });
 
-  it('makes debug point grants owner-only, bounded, and audited', () => {
-    const reducer = sourceBetween('export const grantDebugSkillPoints =', 'export const heartbeat =');
-    expect(reducer).toContain('requireWorldOwner(');
-    expect(reducer).toContain('points < 1 || points > 100');
-    expect(reducer).toContain('progress.bonusPoints + points > 65_535');
-    expect(reducer).toContain("action: 'grant_debug_skill_points'");
+  it('retires caller debug grants in favour of exact-player admin grants', () => {
+    expect(source).not.toContain('export const grantDebugSkillPoints =');
+    const reducer = sourceBetween('export const adminGrantSkillPoints =', 'export const adminResetQuests =');
+    expect(reducer).toContain("operation: 'grant_skill_points'");
+    expect(reducer).toContain('adminProgressionMutationBase(input)');
+    expect(reducer).toContain('points');
+  });
+
+  it('gates horse riding and both jump modes from authoritative skill ranks', () => {
+    const mount = sourceBetween('function applyMountLifecycle(', 'export const interactHorse =');
+    expect(mount).toContain('runtimeNpcMount(registry, npc)');
+    expect(mount).toContain('playerSkillRanks(ctx, ctx.sender)');
+    expect(mount).toContain('runtimeSkillNodeRank(registry, ranks, mount.requiredSkill) < 1');
+    expect(mount.indexOf('runtimeSkillNodeRank(registry, ranks, mount.requiredSkill) < 1'))
+      .toBeLessThan(mount.indexOf('vehicleCustodyPlan('));
+
+    const jump = sourceBetween('export const jumpHorse =', 'export const dropSelected =');
+    expect(jump).toContain('const horseMount = runtimeNpcMount(contentRegistry(ctx), horse)');
+    expect(jump).toContain("horseMount?.adapter === 'horse' ? horseMount.jumpSkill : undefined");
+    expect(jump).toContain('runtimeSkillNodeRank(registry, ranks, jumpSkill) < 1');
+    expect(jump.indexOf('runtimeSkillNodeRank(registry, ranks, jumpSkill) < 1'))
+      .toBeLessThan(jump.indexOf('findHorseJumpLanding('));
+    expect(jump).toContain('skillCapabilities.maximumFootGapTiles');
+    expect(jump).toContain('skillCapabilities.maximumFootCliffLevels');
+    expect(jump).toContain('findPlayerJumpLanding(');
+    expect(jump).toContain("actionKind: mountedHorse === null ? 'jump' : 'horse_jump'");
+  });
+
+  it('re-homes persisted mining ranks into the Farming tree during migration', () => {
+    const migration = sourceBetween('function normalizePlayerSkillTracks(', 'function authoredReferenceSlug(');
+    expect(migration).toContain('row.track !== definition.track');
+    expect(migration).toContain('track: definition.track');
+    expect(migration).toContain('definition.pointCost * row.rank');
+    expect(source).toContain('normalizePlayerSkillTracks(ctx, ctx.sender)');
+  });
+
+  it('resolves jump and mining decisions through authored semantic capabilities', () => {
+    const jump = sourceBetween('export const jumpHorse =', 'export const dropSelected =');
+    expect(jump).toContain('runtimeSkillCapabilities(registry, ranks)');
+    expect(jump).not.toContain('ranks.surefooted');
+    expect(jump).not.toContain('ranks.cliff_climber');
+
+    const mining = sourceBetween('const resourceDefinition = runtimeResourceDefinition(registry, resource)',
+      'const itemX = resource.tileX');
+    expect(mining).toContain('runtimeSkillCapabilities(registry, ranks)');
+    expect(mining).toContain('miningWorkPerHit(skillCapabilities.efficientStrikesRank)');
+    expect(mining).toContain('skillCapabilities.oreDressingRank');
+    expect(mining).toContain('skillCapabilities.rockhoundRank');
+    expect(mining).toContain('skillCapabilities.motherLodeRank');
+    for (const id of ['efficient_strikes', 'ore_dressing', 'rockhound', 'mother_lode']) {
+      expect(mining).not.toContain(`ranks.${id}`);
+    }
   });
 });

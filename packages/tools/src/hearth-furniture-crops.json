@@ -1,0 +1,667 @@
+{
+  "format": "orchard-doc60-remaining-furniture-crops-v1",
+  "reviewer": "independent Astra review",
+  "date": "2026-09-09",
+  "status": "proposal; not imported or approved for publication",
+  "count": 24,
+  "units": {
+    "x_y_width_height": "native source pixels; preserve palette and alpha",
+    "gridWidth_gridHeight": "16px logical placement cells; upright art and small native fringe may overhang",
+    "anchor": "native asset anchor pixels, explicit to avoid padded-source recentering",
+    "base": "fixed shared lower-body halfWidth/depth in pixels",
+    "light.offsetY": "emitter offset from presentation anchor, before terrain projection"
+  },
+  "notes": [
+    "Only native south-facing source orientations; no rotation, recolor or composite.",
+    "Standing base sizes and tabletop contact lifts are conservative proposals requiring shared rendered contact and full-body access fixtures.",
+    "Furniture grid reservations follow logical floor occupancy, not total upright sprite height.",
+    "Light offsets are source-based initial measurements; inspect native Dynamic and Basic room fixtures before acceptance.",
+    "Kenmi importer preserves source palette and nonzero alpha; full table fringes retain alpha100 shadows."
+  ],
+  "entries": [
+    {
+      "suffix": "rustic_stool",
+      "sheet": "Chairs",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Chairs.png",
+      "x": 192,
+      "y": 144,
+      "width": 16,
+      "height": 16,
+      "gridWidth": 1,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        8,
+        15
+      ],
+      "orientation": "native-south",
+      "notes": "Plain warm-timber stool with cream seat, not either tufted stool to its left. Seating remains a separate authority/pose contract.",
+      "base": {
+        "halfWidth": 5,
+        "depth": 6
+      },
+      "sourceSha256": "8bd8c262d7611111fcb8d18b587b912fe838bbf4424abb001d01beb9250e540f",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "rustic_bench",
+      "sheet": "Furniture_Other",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Furniture_Other.png",
+      "x": 0,
+      "y": 160,
+      "width": 32,
+      "height": 16,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        15
+      ],
+      "orientation": "native-south",
+      "notes": "Native low plain wooden worktop/bench silhouette with legs. Chosen instead of mislabelling the rear-facing upholstered sofa in Chairs as a wooden bench; review seated-avatar contact before enabling Sit.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 8
+      },
+      "sourceSha256": "3d05997e7eb0fe94cc7511b188adeb7c51c188063404f3c21ec2dec5d1a1c89b",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_chair",
+      "sheet": "Chairs",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Chairs.png",
+      "x": 176,
+      "y": 224,
+      "width": 16,
+      "height": 32,
+      "gridWidth": 1,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        8,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Front-facing blue upholstered chair with brown timber frame, matching the blue townhouse seating family.",
+      "base": {
+        "halfWidth": 5,
+        "depth": 6
+      },
+      "sourceSha256": "8bd8c262d7611111fcb8d18b587b912fe838bbf4424abb001d01beb9250e540f",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_loveseat",
+      "sheet": "Chairs",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Chairs.png",
+      "x": 80,
+      "y": 192,
+      "width": 32,
+      "height": 32,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Front-facing blue two-seat sofa, not the rear-facing variant immediately right.",
+      "base": {
+        "halfWidth": 14,
+        "depth": 10
+      },
+      "sourceSha256": "8bd8c262d7611111fcb8d18b587b912fe838bbf4424abb001d01beb9250e540f",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_armchair",
+      "sheet": "Chairs",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Chairs.png",
+      "x": 16,
+      "y": 192,
+      "width": 16,
+      "height": 32,
+      "gridWidth": 1,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        8,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Front-facing blue armchair; padded back is visual height above a single floor cell.",
+      "base": {
+        "halfWidth": 7,
+        "depth": 9
+      },
+      "sourceSha256": "8bd8c262d7611111fcb8d18b587b912fe838bbf4424abb001d01beb9250e540f",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "rustic_writing_table",
+      "sheet": "Furniture_Other",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Furniture_Other.png",
+      "x": 0,
+      "y": 30,
+      "width": 32,
+      "height": 18,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        17
+      ],
+      "orientation": "native-south",
+      "notes": "Native small writing desk with right-hand drawers and knee opening. Full18px source extent; distinct from the low plain bench. Tabletop lift12 is a proposed contact measurement requiring lamp fixture.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 10
+      },
+      "tabletopSurface": {
+        "insetLeft": 0,
+        "insetTop": 0,
+        "width": 2,
+        "height": 1,
+        "liftPixels": 12
+      },
+      "sourceSha256": "3d05997e7eb0fe94cc7511b188adeb7c51c188063404f3c21ec2dec5d1a1c89b",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_dining_table",
+      "sheet": "Tables",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Tables.png",
+      "x": 8,
+      "y": 216,
+      "width": 50,
+      "height": 33,
+      "gridWidth": 3,
+      "gridHeight": 2,
+      "layer": "standing",
+      "anchor": [
+        24,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "White/cream cloth over warm timber, full native2px right/1px bottom alpha100 shadow. Logical48x32 geometry retains the existing dining-table anchor and upper-row support.",
+      "base": {
+        "halfWidth": 22,
+        "depth": 14
+      },
+      "tabletopSurface": {
+        "insetLeft": 0,
+        "insetTop": 0,
+        "width": 3,
+        "height": 1,
+        "liftPixels": 20
+      },
+      "sourceSha256": "f3967ea0854ffa8d8c0bdb3cc8d4e920c959b5ed2239df95513d0205ddfea5c8",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_side_table",
+      "sheet": "Tables",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Tables.png",
+      "x": 72,
+      "y": 88,
+      "width": 34,
+      "height": 33,
+      "gridWidth": 2,
+      "gridHeight": 2,
+      "layer": "standing",
+      "anchor": [
+        16,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Dark native square tabletop. Body32x32 plus native shadow; cannot honestly occupy the provisional1x1 grid. Original body anchor retained.",
+      "base": {
+        "halfWidth": 14,
+        "depth": 14
+      },
+      "tabletopSurface": {
+        "insetLeft": 0,
+        "insetTop": 0,
+        "width": 2,
+        "height": 1,
+        "liftPixels": 20
+      },
+      "sourceSha256": "f3967ea0854ffa8d8c0bdb3cc8d4e920c959b5ed2239df95513d0205ddfea5c8",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_bed",
+      "sheet": "Beds",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Beds.png",
+      "x": 0,
+      "y": 32,
+      "width": 32,
+      "height": 32,
+      "gridWidth": 2,
+      "gridHeight": 2,
+      "layer": "standing",
+      "anchor": [
+        16,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Blue double bed, upright headboard at north, matching blue townhouse upholstery. Bed remains decorative until a separate interaction is implemented.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 27
+      },
+      "sourceSha256": "55a4d8c8ed52234d39bf4237e890a7a04f2d2f0dc1199f8edcdb2b3d4d8953c5",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_wardrobe",
+      "sheet": "Furniture_Other",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Furniture_Other.png",
+      "x": 128,
+      "y": 80,
+      "width": 32,
+      "height": 32,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Dark double-door wardrobe. Tall cabinet face is visual height; storage must retain dedicated furniture identity and generic container custody.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 13
+      },
+      "sourceSha256": "3d05997e7eb0fe94cc7511b188adeb7c51c188063404f3c21ec2dec5d1a1c89b",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "rustic_bookshelf",
+      "sheet": "BookShelves",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/BookShelves.png",
+      "x": 0,
+      "y": 0,
+      "width": 16,
+      "height": 32,
+      "gridWidth": 1,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        8,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Narrow warm-wood filled bookshelf with lower doors; no invented recolor.",
+      "base": {
+        "halfWidth": 7,
+        "depth": 12
+      },
+      "sourceSha256": "ce81449ba1bd9ed5f71d349b6a87d25acf2bd47ea8cc9957c23a9d3fa5dce518",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "rustic_cupboard",
+      "sheet": "Furniture_Other",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Furniture_Other.png",
+      "x": 0,
+      "y": 80,
+      "width": 32,
+      "height": 32,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Warm timber double-door cupboard with straight upper trim; deliberately distinct in palette from dark wardrobe.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 13
+      },
+      "sourceSha256": "3d05997e7eb0fe94cc7511b188adeb7c51c188063404f3c21ec2dec5d1a1c89b",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_bookcase",
+      "sheet": "BookShelves",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/BookShelves.png",
+      "x": 64,
+      "y": 0,
+      "width": 32,
+      "height": 32,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Wide filled open bookshelf with lower open shelves. Native shelf sheet has one wood palette; distinguish through width/open lower shelves rather than fabricated dark recoloring.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 12
+      },
+      "sourceSha256": "ce81449ba1bd9ed5f71d349b6a87d25acf2bd47ea8cc9957c23a9d3fa5dce518",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_cabinet",
+      "sheet": "Furniture_Other",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Furniture_Other.png",
+      "x": 128,
+      "y": 222,
+      "width": 32,
+      "height": 18,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        17
+      ],
+      "orientation": "native-south",
+      "notes": "Dark low drawer cabinet, full18px native top/edge extent; ordinary storage without tabletop attachment support in this slice.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 10
+      },
+      "sourceSha256": "3d05997e7eb0fe94cc7511b188adeb7c51c188063404f3c21ec2dec5d1a1c89b",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "rustic_runner",
+      "sheet": "Carpets",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Carpets.png",
+      "x": 96,
+      "y": 375,
+      "width": 32,
+      "height": 18,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "floor",
+      "anchor": [
+        16,
+        17
+      ],
+      "orientation": "native-south",
+      "notes": "Native horizontal gold runner,30x18 opaque pixels inside32x18 crop. Two-pixel nonblocking fringe may overhang its2x1 reservation. Do not rotate it to fabricate the provisional1x3 orientation.",
+      "sourceSha256": "4cdb2130c051939287f1b0ca77b089abd8a10217e0f2151eccaee43918536cd0",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_round_rug",
+      "sheet": "Carpets",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Carpets.png",
+      "x": 0,
+      "y": 528,
+      "width": 32,
+      "height": 32,
+      "gridWidth": 2,
+      "gridHeight": 2,
+      "layer": "floor",
+      "anchor": [
+        16,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Native ornate blue/gold circular rug;30px opaque diameter. Full circular outline retained.",
+      "sourceSha256": "4cdb2130c051939287f1b0ca77b089abd8a10217e0f2151eccaee43918536cd0",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_patterned_rug",
+      "sheet": "Carpets",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Carpets.png",
+      "x": 48,
+      "y": 560,
+      "width": 48,
+      "height": 48,
+      "gridWidth": 3,
+      "gridHeight": 3,
+      "layer": "floor",
+      "anchor": [
+        24,
+        47
+      ],
+      "orientation": "native-south",
+      "notes": "Ornate burgundy/red and gold square rug. Actual3x3 footprint replaces provisional3x2 rectangle without scaling.",
+      "sourceSha256": "4cdb2130c051939287f1b0ca77b089abd8a10217e0f2151eccaee43918536cd0",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "rustic_standing_lamp",
+      "sheet": "Standing_Lamps",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Standing_Lamps.png",
+      "x": 0,
+      "y": 128,
+      "width": 16,
+      "height": 32,
+      "gridWidth": 1,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        8,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Warm cream shade on native timber-brown stem. Shade centre around localy8 relative to nativeanchor31; proposed emitter offset-23. No table lift.",
+      "base": {
+        "halfWidth": 4,
+        "depth": 5
+      },
+      "light": {
+        "profile": "steady",
+        "offsetY": -23,
+        "radiusTiles": 3,
+        "bakedFlame": false,
+        "switchable": true
+      },
+      "sourceSha256": "55225be2474048c874783069ea20aba342fc33500d7105b6071ac3c60db8ebe4",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_floor_lamp",
+      "sheet": "Standing_Lamps",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Standing_Lamps.png",
+      "x": 48,
+      "y": 0,
+      "width": 16,
+      "height": 32,
+      "gridWidth": 1,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        8,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Blue shade on gold stem, matching the existing blue/gold tabletop lamp. Native floor-lamp shade sits higher; do not copy tablelamp offset.",
+      "base": {
+        "halfWidth": 4,
+        "depth": 5
+      },
+      "light": {
+        "profile": "steady",
+        "offsetY": -23,
+        "radiusTiles": 3,
+        "bakedFlame": false,
+        "switchable": true
+      },
+      "sourceSha256": "55225be2474048c874783069ea20aba342fc33500d7105b6071ac3c60db8ebe4",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "rustic_hearth",
+      "sheet": "Fireplaces",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Fireplaces.png",
+      "x": 32,
+      "y": 0,
+      "width": 32,
+      "height": 48,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        47
+      ],
+      "orientation": "native-south",
+      "notes": "Large warm brick hood/chimney with dark grate. No baked flame and no matching lit large-hearth variant on this sheet. Warm switched emission behind grate is possible; do not claim native animated flames. No invented recolor or composite.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 12
+      },
+      "light": {
+        "profile": "flame",
+        "offsetY": -8,
+        "radiusTiles": 3,
+        "bakedFlame": false,
+        "switchable": true
+      },
+      "sourceSha256": "cde8dc14d2e9ae59f83636c4bc38028c105305a588406ffb86fe6e3f01faab88",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "rustic_cooking_range",
+      "sheet": "Kitchen_Furniture",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Kitchen_Furniture.png",
+      "x": 0,
+      "y": 0,
+      "width": 16,
+      "height": 32,
+      "gridWidth": 1,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        8,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Native dark iron hob/stove, one tile wide rather than the provisional2x1. Base is extinguished dark grille; adjacent burn frame contains orange flame. Bind burn only to real lit/running state; both frames share dimensions/contact. This is a native on/off pair, not an animated sequence.",
+      "base": {
+        "halfWidth": 7,
+        "depth": 10
+      },
+      "light": {
+        "profile": "flame",
+        "offsetY": -6,
+        "radiusTiles": 3,
+        "bakedFlame": false,
+        "switchable": true,
+        "visibleOnlyWhen": "burn"
+      },
+      "additionalFrames": [
+        {
+          "name": "burn",
+          "sheet": "Kitchen_Furniture",
+          "x": 16,
+          "y": 0,
+          "width": 16,
+          "height": 32,
+          "anchor": [
+            8,
+            31
+          ],
+          "bakedFlame": true
+        }
+      ],
+      "sourceSha256": "5827413a04b75443e62f27b705ae407f6074009cc664f07d32dbe1bebacd7fa1",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_washstand",
+      "sheet": "Bathroom_Furniture",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Bathroom_Furniture.png",
+      "x": 64,
+      "y": 32,
+      "width": 32,
+      "height": 32,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Dark wood double-width basin cabinet, native2-tile width rather than provisional1x1; raised faucet belongs to same complete crop.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 12
+      },
+      "sourceSha256": "6d6d31e09d8930b1c90e17518386cfe7ba2c8468c73024760cf59d29dfe5ce33",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_bath",
+      "sheet": "Bathroom_Furniture",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Bathroom_Furniture.png",
+      "x": 96,
+      "y": 64,
+      "width": 32,
+      "height": 32,
+      "gridWidth": 2,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        16,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Horizontal pale enamel bathtub with blue water; source-native side view and complete feet. Water is static decoration, not a hidden refill/crafting mechanic.",
+      "base": {
+        "halfWidth": 15,
+        "depth": 13
+      },
+      "sourceSha256": "6d6d31e09d8930b1c90e17518386cfe7ba2c8468c73024760cf59d29dfe5ce33",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    },
+    {
+      "suffix": "townhouse_flower_planter",
+      "sheet": "House_Plants",
+      "source": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/House_Plants.png",
+      "x": 64,
+      "y": 128,
+      "width": 16,
+      "height": 32,
+      "gridWidth": 1,
+      "gridHeight": 1,
+      "layer": "standing",
+      "anchor": [
+        8,
+        31
+      ],
+      "orientation": "native-south",
+      "notes": "Actual yellow flowering plant in pale ceramic pot. Native1x1 physical base; no native rectangular flowering trough exists in Planters, so do not invent a2x1 composite. Foliage is visual overhang.",
+      "base": {
+        "halfWidth": 5,
+        "depth": 7
+      },
+      "sourceSha256": "c538ab4b559b5363e3011e3294d5abd422a5b107d6c4520ca99f358fe9d216ba",
+      "reviewStatus": "proposed-native-crop-and-geometry; import/contact-fixture-required"
+    }
+  ],
+  "existingCropCorrection": {
+    "suffix": "rustic_dining_table",
+    "sheet": "Tables",
+    "x": 8,
+    "y": 24,
+    "width": 50,
+    "height": 33,
+    "anchor": [
+      24,
+      31
+    ],
+    "gridWidth": 3,
+    "gridHeight": 2,
+    "notes": "Current48x32 crop excludes103 alpha100 shadow pixels at right/bottom, not opaque table body. Fullcrop retains those native fringes with the same contact anchor and existing support geometry. Requires reimport and renewed asset review, not silent prior approval reuse."
+  }
+}

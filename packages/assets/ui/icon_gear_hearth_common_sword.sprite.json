@@ -1,0 +1,68 @@
+{
+  "name": "icon_gear_hearth_common_sword",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "............888.",
+        "...........8770.",
+        "..........87960.",
+        ".........87660..",
+        "........87960...",
+        ".......87660....",
+        "......87660.....",
+        ".....87460......",
+        "....07460.......",
+        ".5507460........",
+        ".237460.........",
+        "..2360..........",
+        ".23131..........",
+        "531.11..........",
+        "22.............."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#244e69",
+    "1": "#251609",
+    "2": "#342315",
+    "3": "#6a411e",
+    "4": "#7c9db2",
+    "5": "#a26d40",
+    "6": "#a7d1ec",
+    "7": "#c9e6f9",
+    "8": "#e4f1fa",
+    "9": "#e4f4ff"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/weapons-800/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    112,
+    0,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

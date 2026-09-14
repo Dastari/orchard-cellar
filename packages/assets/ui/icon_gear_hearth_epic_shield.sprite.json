@@ -1,0 +1,67 @@
+{
+  "name": "icon_gear_hearth_epic_shield",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......4333......",
+        ".....588373.....",
+        "....58883773....",
+        "...4858437473...",
+        "..588854347773..",
+        "..555556133774..",
+        "..588440122223..",
+        "..488853247773..",
+        "...4858327473...",
+        "....38837773....",
+        ".....383773.....",
+        "......3333......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#17d9d0",
+    "1": "#228a99",
+    "2": "#2b7ab2",
+    "3": "#3271da",
+    "4": "#4861dc",
+    "5": "#7b6ee1",
+    "6": "#7ee0ce",
+    "7": "#d7cdaa",
+    "8": "#f9f4e6"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/shields-fantasy-160/sheet-16-no-outline.png",
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourceRegion": [
+    128,
+    32,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

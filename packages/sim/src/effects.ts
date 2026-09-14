@@ -1,8 +1,5 @@
 import type { Modifier } from './modifiers.js';
 
-export const EFFECT_KINDS = ['well_rested', 'winded', 'orchard_tea'] as const;
-export type EffectKind = typeof EFFECT_KINDS[number];
-
 export interface EffectDefinition {
   readonly name: string;
   readonly maxStacks: number;
@@ -12,39 +9,11 @@ export interface EffectDefinition {
   readonly scaleModifiersWithStacks?: boolean;
 }
 
-export const EFFECT_DEFINITIONS = {
-  well_rested: {
-    name: 'Well Rested',
-    maxStacks: 1,
-    durationTicks: 144_000,
-    modifiers: [{
-      id: 'effect.well_rested.vigour_regen', target: 'vigourRegen',
-      layer: 'pctAdd', value: 2_500, source: 'effect',
-    }],
-  },
-  winded: {
-    name: 'Winded',
-    maxStacks: 1,
-    durationTicks: 1_800,
-    modifiers: [{
-      id: 'effect.winded.vigour_regen', target: 'vigourRegen',
-      layer: 'pctAdd', value: -5_000, source: 'effect',
-    }],
-  },
-  orchard_tea: {
-    name: 'Orchard Tea',
-    maxStacks: 1,
-    durationTicks: 6_000,
-    modifiers: [{
-      id: 'effect.orchard_tea.constitution', target: 'con',
-      layer: 'flat', value: 2, source: 'effect',
-    }],
-  },
-} as const satisfies Readonly<Record<EffectKind, EffectDefinition>>;
+export type EffectDefinitionResolver = (effectKind: string) => EffectDefinition | null;
 
 export interface PlayerEffectState {
   readonly id: bigint;
-  readonly effectKind: EffectKind;
+  readonly effectKind: string;
   readonly stacks: number;
   readonly appliedTick: bigint;
   readonly expiresTick: bigint;
@@ -58,18 +27,24 @@ export function effectActiveAt(effect: PlayerEffectState, authorityTick: bigint)
  * instance is still live. Persistent row identity is retained for DB updates. */
 export function refreshEffect(
   existing: PlayerEffectState | null,
-  effectKind: EffectKind,
+  effectKind: string,
   authorityTick: bigint,
+  definition: EffectDefinition,
   id = existing?.id ?? 0n,
+  appliedStacks = 1,
 ): PlayerEffectState {
-  const definition = EFFECT_DEFINITIONS[effectKind];
+  if (!Number.isSafeInteger(appliedStacks) || appliedStacks < 1) {
+    throw new Error('effect stacks must be a positive safe integer');
+  }
   const refreshing = existing !== null
     && existing.effectKind === effectKind
     && effectActiveAt(existing, authorityTick);
   return {
     id,
     effectKind,
-    stacks: refreshing ? Math.min(definition.maxStacks, existing.stacks + 1) : 1,
+    stacks: refreshing
+      ? Math.min(definition.maxStacks, existing.stacks + appliedStacks)
+      : Math.min(definition.maxStacks, appliedStacks),
     appliedTick: authorityTick,
     expiresTick: authorityTick + BigInt(definition.durationTicks),
   };
@@ -85,9 +60,13 @@ export function activeEffects(
 export function modifiersForEffects(
   effects: readonly PlayerEffectState[],
   authorityTick: bigint,
+  definitionFor: EffectDefinitionResolver,
 ): readonly Modifier[] {
   return activeEffects(effects, authorityTick).flatMap((effect) => {
-    const definition: EffectDefinition = EFFECT_DEFINITIONS[effect.effectKind];
+    const definition = definitionFor(effect.effectKind);
+    // Durable rows outlive content revisions. Missing or retired definitions
+    // are inert until an active revision intentionally reintroduces the slug.
+    if (definition === null) return [];
     const stacks = Math.max(1, Math.min(definition.maxStacks, Math.floor(effect.stacks)));
     return definition.modifiers.map((modifier) => {
       const family = modifier.family ?? definition.family;

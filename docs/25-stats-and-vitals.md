@@ -113,9 +113,10 @@ at derived targets. Modifiers never target other modifiers.
 
 **Contribution sources**, all compiled to a flat `Modifier[]` before resolving:
 
-- **Equipment** — `ITEM_DEFINITIONS` gains an optional `modifiers` field; the nine
-  gear slots (`item-containers.ts`, docs/23 §5's deferred "equipment gameplay
-  effects") become live by data alone.
+- **Equipment** — `ITEM_DEFINITIONS` gains an optional `modifiers` field. All
+  nine persisted indexes remain visible on both paper dolls. Six are locked and
+  reserved; Watch, Backpack, and Off Hand (Lantern) are active. Shared acceptance
+  rules are enforced by both UI and authority.
 - **Effects** — buff/debuff rows (§6), each `effectKind` mapping to a modifier
   list in `packages/sim/src/effects.ts`.
 - **Skills** — docs/06 §6 skill-tree ranks compile to modifiers when M5 lands.
@@ -211,7 +212,9 @@ walking speed instead. Mount movement does not use or charge the rider's Sprint.
   positive effects/buffs, negative effects/debuffs, equipment, and future skills
   use data rather than special cases in movement code.
 - Vigour regeneration is suppressed while an online, unmounted player is actively
-  requesting Sprint. Starting Sprint first settles lazy regeneration through the
+  requesting Sprint **and can afford its next step**. At depletion, held Sprint
+  intent falls back to walking and recovery resumes instead of pinning Vigour at
+  zero. Starting an affordable Sprint first settles lazy regeneration through the
   current authority tick, so reconnect/offline recovery is not lost.
 - Sprint intent is stored on each compressed movement-run segment. Shift changes
   therefore preserve the walking/sprinting classification of already-predicted
@@ -263,6 +266,9 @@ player_effect: {
   - `orchard_tea` — +2 `con` flat, 5 min real; first consumable, crafted from
     existing orchard goods. Proves the potion path: consume item → insert effect
     row → pipeline does the rest.
+  - `fruitful_energy` — +50% `vigourRegen`, 5 min real (6,000 ticks); eating an
+    orchard fruit, grapes, strawberries, or watermelon applies or refreshes it.
+    Fruit may be consumed at full hunger because this boon is independently useful.
 
 ## 7. Skill checks
 

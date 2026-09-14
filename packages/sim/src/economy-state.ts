@@ -1,4 +1,4 @@
-import type { TreeSpeciesId, WorkbenchUpgradeId } from './balance.js';
+import type { LegacyEconomyCatalog, TreeSpeciesId, WorkbenchUpgradeId } from './economy-catalog.js';
 
 export type TreeStage = 'sapling' | 'young' | 'mature';
 
@@ -67,30 +67,15 @@ export type EconomyAction =
   | { readonly type: 'clearPlots' }
   | { readonly type: 'buyCask'; readonly tier: number };
 
-const initialPlots: readonly (readonly [number, number])[] = [
-  [12, 17], [16, 17], [20, 17],
-  [12, 22], [16, 22], [20, 22],
-  [12, 27], [16, 27], [20, 27],
-  [12, 32], [16, 32], [20, 32],
-  [12, 37], [16, 37], [20, 37],
-] as const;
-const expansionPlots = Array.from({ length: 10 }, (_, row) => [16 + row * 3, 0] as const)
-  .flatMap(([y]) => [4, 7, 10, 13, 16, 19, 22, 25, 32, 35, 38, 41].map((x) => [x, y] as const));
-const initialKeys = new Set(initialPlots.map(([x, y]) => `${x},${y}`));
-export const ORCHARD_PLOTS: readonly (readonly [number, number])[] = [
-  ...initialPlots,
-  ...expansionPlots.filter(([x, y]) => !initialKeys.has(`${x},${y}`)),
-].slice(0, 120);
-
-export function createInitialEconomy(): EconomyState {
+export function createInitialEconomy(catalog: LegacyEconomyCatalog): EconomyState {
   return {
     legacyMultiplier: 1,
     resources: { fruit: 0, pomace: 0, must: 0, bottles: 0 },
     trees: [{
       id: 1,
-      species: 'seedlingApple',
-      x: 20,
-      y: 17,
+      species: catalog.initialTree.species,
+      x: catalog.initialTree.x,
+      y: catalog.initialTree.y,
       stage: 'sapling',
       stageAgeTicks: 0,
       care: 0,
@@ -103,11 +88,11 @@ export function createInitialEconomy(): EconomyState {
     hopperFruitMicro: 0,
     yardMustMicro: 0,
     cellarMustMicro: 0,
-    presses: [0, 0, 0, 0, 0],
-    casks: [0, 0, 0, 0, 0],
+    presses: catalog.presses.map(() => 0),
+    casks: catalog.casks.map(() => 0),
     firstPressRepaired: false,
     upgrades: [],
-    plotsUnlocked: 15,
+    plotsUnlocked: catalog.plotClearings[0]?.plots ?? 0,
     vigour: 0,
     vigourRemainder: 0,
     autumnChain: 0,

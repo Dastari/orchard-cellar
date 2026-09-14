@@ -45,6 +45,41 @@
         "...5555555555555555555555..."
       ]
     ],
+    "disabled": [
+      [
+        "...5555555555555555555555...",
+        "..5iiiiiiiiiiiiiiiiiiiiii5..",
+        ".5ibbbbbbbbbbbbbbbbbbbbbbi5.",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "5ibbbbbbbbbbbbbbbbbbbbbbbbi5",
+        "58ibbbbbbbbbbbbbbbbbbbbbbi85",
+        "588iiiiiiiiiiiiiiiiiiiiii885",
+        "5888888888888888888888888885",
+        ".58888888888888888888888885.",
+        "..588888888888888888888885..",
+        "...5555555555555555555555..."
+      ]
+    ],
     "quest": [
       [
         "...5555555555555555555555...",
@@ -223,6 +258,7 @@
   },
   "frameKinds": {
     "idle": "state",
+    "disabled": "state",
     "quest": "state",
     "uncommon": "state",
     "rare": "state",
@@ -253,12 +289,20 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "UI_Frames.png",
-  "sourcePath": "references/Cute_Fantasy_UI/UI/UI_Frames.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/ui/UI/UI_Frames.png",
   "sourceRegions": {
     "idle": [
       [
         10,
         10,
+        28,
+        31
+      ]
+    ],
+    "disabled": [
+      [
+        10,
+        58,
         28,
         31
       ]
@@ -307,6 +351,7 @@
   "uiSizing": "fixed",
   "uiRequiredStates": [
     "idle",
+    "disabled",
     "quest",
     "uncommon",
     "rare",

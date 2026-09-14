@@ -297,7 +297,9 @@ numbers; §3 above remains the retired solo farm scene's tend-charge economy.
 
 A whiff costs half Vigour, rounded up. Initial effects are **Well Rested** (+25%
 Vigour regen, 2 hours / 144,000 ticks), **Winded** (−50% Vigour regen, 90 seconds /
-1,800 ticks), and **Orchard Tea** (+2 CON, 5 minutes / 6,000 ticks). Skill-check
+1,800 ticks), **Orchard Tea** (+2 CON, 5 minutes / 6,000 ticks), and **Fruitful
+Energy** (+50% Vigour regen, 5 minutes / 6,000 ticks, refreshed by eating fruit).
+Skill-check
 DCs are trivial **5**, easy **10**, medium **15**, and hard **20**. At zero Health,
 the character is knocked out: respawn at their spawn slot with **25% Health** and
 Winded, with no item, currency, or durability loss.
@@ -360,6 +362,16 @@ when it is in the player's current space and no more than **2 tiles** away.
 | Standing Torch | 1 Torch + 1 Stick          | 1 Standing Torch |
 | Arrows         | 1 Stick + 1 Stone          | 4 Arrows         |
 
+### Anvil recipes
+
+| Recipe | Inputs                  | Output  |
+| ------ | ----------------------- | ------- |
+| Watch  | 1 Copper Bar + 1 Gold Bar | 1 Watch |
+
+The Watch is the first item accepted by the ring equipment slot. While worn it
+reveals the current time, season/day, and eight-phase lunar readout beneath the
+Zone Ribbon; merely carrying it does not reveal the readout.
+
 ### New item commerce values
 
 Every listed value is bronze per item. A dash means the merchant buys the item
@@ -368,12 +380,14 @@ from players but does not normally stock it.
 | Item           | Buy | Sell |
 | -------------- | --: | ---: |
 | Fiber          |   — |    2 |
+| Bottle         |   — | 5000 |
 | Workbench      | 120 |   48 |
 | Campfire       |   — |   18 |
 | Fence          |   — |    4 |
 | Fence Gate     |   — |   12 |
 | Sign           |   — |   10 |
 | Standing Torch |   — |   20 |
+| Watch          |   — | 1040 |
 
 ## 13. Legacy-island stepped terrain
 

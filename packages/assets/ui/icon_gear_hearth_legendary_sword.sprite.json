@@ -1,0 +1,68 @@
+{
+  "name": "icon_gear_hearth_legendary_sword",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "............888.",
+        "...........8773.",
+        "..........87963.",
+        ".........87663..",
+        "........87963...",
+        ".......87663....",
+        "......87663.....",
+        ".....87563......",
+        "....37563.......",
+        ".4437563........",
+        ".127563.........",
+        "..1263..........",
+        ".12020..........",
+        "420.00..........",
+        "11.............."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#251609",
+    "1": "#342315",
+    "2": "#6a411e",
+    "3": "#8b8d00",
+    "4": "#a26d40",
+    "5": "#eeef3f",
+    "6": "#feff94",
+    "7": "#feffc3",
+    "8": "#feffdf",
+    "9": "#feffe4"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/weapons-800/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    112,
+    192,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "name": "icon_material_emberglass",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".....12.1..0....",
+        "....120.........",
+        "....20..12......",
+        ".......122.12...",
+        "....1.1220.20...",
+        "....2.20........",
+        ".........2......",
+        "....122.20......",
+        "....20..........",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#a25126",
+    "1": "#f6aa75",
+    "2": "#ff2f00"
+  },
+  "sourcePath": "references/art/clockwork-raven/icon-packs/gems-jewels/sheet-16-without-outline.png",
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourceRegion": [
+    16,
+    144,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

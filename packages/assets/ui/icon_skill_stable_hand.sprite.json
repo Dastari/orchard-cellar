@@ -1,0 +1,68 @@
+{
+  "name": "icon_skill_stable_hand",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "....0......0....",
+        "...060....020...",
+        "..06730..02720..",
+        "..056730027610..",
+        ".05373112227120.",
+        ".05355671111110.",
+        ".03553366122210.",
+        ".03000355200010.",
+        ".06570377107110.",
+        ".05535788711110.",
+        "0763578448711670",
+        ".00388833887300.",
+        "...0583003850...",
+        "....00888800....",
+        "......0000......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#28252f",
+    "1": "#4a2a35",
+    "2": "#5e332d",
+    "3": "#d08159",
+    "4": "#ed8099",
+    "5": "#ffaa5e",
+    "6": "#ffd4a3",
+    "7": "#ffecd6",
+    "8": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/pets-animals/sheet-16.png",
+  "sourceRegion": [
+    128,
+    16,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.stable_hand",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

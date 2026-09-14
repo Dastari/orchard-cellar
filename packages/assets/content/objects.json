@@ -1,0 +1,3905 @@
+[
+  {
+    "id": "object:anvil",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Anvil",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted",
+          "station.anvil"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_anvil",
+        "animationByState": {
+          "default": "animate"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:anvil",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "object:archery_target",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Archery Target",
+    "components": {
+      "identity": {
+        "tags": [
+          "damageable",
+          "carryable",
+          "combat.training"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_archery_target",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "damageable": {
+        "model": "health",
+        "maximumHealthCenti": 10000,
+        "minimumHealthCenti": 1,
+        "regeneration": {
+          "amountCenti": 100,
+          "everyTicks": 20
+        },
+        "fixedTargets": [
+          [
+            "4294966900",
+            "space:island",
+            342,
+            376
+          ],
+          [
+            "4294966901",
+            "space:island",
+            346,
+            376
+          ],
+          [
+            "4294966902",
+            "space:island",
+            350,
+            376
+          ]
+        ]
+      },
+      "carry": {
+        "mode": "preserve_entity"
+      }
+    }
+  },
+  {
+    "id": "object:barn",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Barn",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted",
+          "build.prefab"
+        ]
+      },
+      "sprite": {
+        "asset": "building_cf_barn",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:barn",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "object:barrel",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Barrel",
+    "components": {
+      "identity": {
+        "tags": [
+          "container.barrel",
+          "interface.barrel",
+          "item.placeable",
+          "item.crafted"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_barrel",
+        "animationByState": {
+          "default": "closed",
+          "open": "open"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:barrel",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "states": {
+        "open": {
+          "type": "bool",
+          "default": false
+        },
+        "sealed": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "container": {
+        "slotCount": 8,
+        "access": "private",
+        "sortAllowed": false
+      },
+      "processor": {
+        "processTag": "container.barrel",
+        "slotRoles": {
+          "input": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "output": [
+            0
+          ]
+        },
+        "ticksPerUnit": 36000,
+        "catchUpCap": 64,
+        "autoStart": false,
+        "minimumBatch": 4,
+        "maximumBatch": 24,
+        "completionRewards": {
+          "experience": {
+            "skill": "farming",
+            "amount": 1,
+            "batchAmount": 15
+          },
+          "statistics": [
+            {
+              "statistic": "statistic:barrels_cured",
+              "quantity": "batch",
+              "subject": "input"
+            }
+          ]
+        }
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:barrel"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:barrel"
+      }
+    }
+  },
+  {
+    "id": "object:camp_cooking_fire",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Camp Cooking Fire",
+    "components": {
+      "identity": {
+        "tags": [
+          "station.campfire",
+          "container.cooking_fire",
+          "interface.cooking",
+          "emits.light",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_camp_cooking_fire",
+        "animationByState": {
+          "default": "off",
+          "lit": "burn"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:camp_cooking_fire",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          176,
+          84
+        ],
+        "radiusTiles": 4,
+        "profile": "flicker",
+        "offsetY": -6
+      },
+      "container": {
+        "slotCount": 2,
+        "access": "private",
+        "sortAllowed": false,
+        "restrictions": [
+          {
+            "slots": [
+              1
+            ],
+            "readOnly": true
+          }
+        ]
+      },
+      "processor": {
+        "processTag": "station.campfire",
+        "slotRoles": {
+          "input": [
+            0
+          ],
+          "output": [
+            1
+          ]
+        },
+        "ticksPerUnit": 1000,
+        "catchUpCap": 64,
+        "autoStart": true,
+        "completionRewards": {
+          "statistics": [
+            {
+              "statistic": "statistic:food_cooked",
+              "quantity": "units",
+              "subject": "output"
+            }
+          ]
+        }
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:cooking"
+            }
+          ],
+          "priority": 70
+        },
+        {
+          "id": "light",
+          "verb": "secondary",
+          "conditions": [
+            {
+              "state": "lit",
+              "equals": false
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "lit"
+            },
+            {
+              "setLight": {
+                "enabled": true
+              }
+            }
+          ],
+          "priority": 71
+        },
+        {
+          "id": "put_out",
+          "verb": "secondary",
+          "conditions": [
+            {
+              "state": "lit",
+              "equals": true
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "lit"
+            },
+            {
+              "setLight": {
+                "enabled": false
+              }
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:cooking"
+      },
+      "damageable": {
+        "model": "hits",
+        "maximumHits": 3,
+        "toolSpecialization": "woodcutting",
+        "salvageRecipe": "recipe:camp_cooking_fire"
+      }
+    }
+  },
+  {
+    "id": "object:campfire",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Campfire",
+    "components": {
+      "identity": {
+        "tags": [
+          "station.campfire",
+          "emits.light",
+          "item.placeable",
+          "item.crafted"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_campfire",
+        "animationByState": {
+          "default": "off",
+          "lit": "burn"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:campfire",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          176,
+          84
+        ],
+        "radiusTiles": 4,
+        "profile": "flicker",
+        "offsetY": -6
+      },
+      "container": {
+        "slotCount": 2,
+        "access": "private",
+        "sortAllowed": false,
+        "restrictions": [
+          {
+            "slots": [
+              1
+            ],
+            "readOnly": true
+          }
+        ]
+      },
+      "processor": {
+        "processTag": "station.campfire",
+        "slotRoles": {
+          "input": [
+            0
+          ],
+          "output": [
+            1
+          ]
+        },
+        "ticksPerUnit": 1000,
+        "catchUpCap": 64,
+        "autoStart": true,
+        "completionRewards": {
+          "statistics": [
+            {
+              "statistic": "statistic:food_cooked",
+              "quantity": "units",
+              "subject": "output"
+            }
+          ]
+        }
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:cooking"
+            }
+          ],
+          "priority": 70
+        },
+        {
+          "id": "light",
+          "verb": "secondary",
+          "conditions": [
+            {
+              "state": "lit",
+              "equals": false
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "lit"
+            },
+            {
+              "setLight": {
+                "enabled": true
+              }
+            }
+          ],
+          "priority": 71
+        },
+        {
+          "id": "put_out",
+          "verb": "secondary",
+          "conditions": [
+            {
+              "state": "lit",
+              "equals": true
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "lit"
+            },
+            {
+              "setLight": {
+                "enabled": false
+              }
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:cooking"
+      },
+      "damageable": {
+        "model": "hits",
+        "maximumHits": 3,
+        "toolSpecialization": "woodcutting",
+        "salvageRecipe": "recipe:campfire"
+      }
+    }
+  },
+  {
+    "id": "object:chest",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Chest",
+    "components": {
+      "identity": {
+        "tags": [
+          "container",
+          "damageable",
+          "interface.chest",
+          "item.placeable",
+          "item.crafted",
+          "container.chest"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_chest",
+        "animationByState": {
+          "default": "chest"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:chest",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "states": {
+        "open": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "container": {
+        "slotCount": 16,
+        "access": "private",
+        "sortAllowed": true
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:chest"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:chest"
+      },
+      "damageable": {
+        "model": "hits",
+        "maximumHits": 3,
+        "toolSpecialization": "woodcutting",
+        "salvageRecipe": "recipe:chest"
+      },
+      "carry": {
+        "mode": "preserve_entity_or_item_when_empty",
+        "item": "item:chest"
+      }
+    }
+  },
+  {
+    "id": "object:cooking_fire",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Cooking Fire",
+    "components": {
+      "identity": {
+        "tags": [
+          "station.campfire",
+          "container.cooking_fire",
+          "interface.cooking",
+          "emits.light",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_cooking_fire",
+        "animationByState": {
+          "default": "off",
+          "lit": "burn"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:cooking_fire",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          176,
+          84
+        ],
+        "radiusTiles": 4,
+        "profile": "flicker",
+        "offsetY": -6
+      },
+      "container": {
+        "slotCount": 2,
+        "access": "private",
+        "sortAllowed": false,
+        "restrictions": [
+          {
+            "slots": [
+              1
+            ],
+            "readOnly": true
+          }
+        ]
+      },
+      "processor": {
+        "processTag": "station.campfire",
+        "slotRoles": {
+          "input": [
+            0
+          ],
+          "output": [
+            1
+          ]
+        },
+        "ticksPerUnit": 1000,
+        "catchUpCap": 64,
+        "autoStart": true,
+        "completionRewards": {
+          "statistics": [
+            {
+              "statistic": "statistic:food_cooked",
+              "quantity": "units",
+              "subject": "output"
+            }
+          ]
+        }
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:cooking"
+            }
+          ],
+          "priority": 70
+        },
+        {
+          "id": "light",
+          "verb": "secondary",
+          "conditions": [
+            {
+              "state": "lit",
+              "equals": false
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "lit"
+            },
+            {
+              "setLight": {
+                "enabled": true
+              }
+            }
+          ],
+          "priority": 71
+        },
+        {
+          "id": "put_out",
+          "verb": "secondary",
+          "conditions": [
+            {
+              "state": "lit",
+              "equals": true
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "lit"
+            },
+            {
+              "setLight": {
+                "enabled": false
+              }
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:cooking"
+      },
+      "damageable": {
+        "model": "hits",
+        "maximumHits": 3,
+        "toolSpecialization": "woodcutting",
+        "salvageRecipe": "recipe:cooking_fire"
+      }
+    }
+  },
+  {
+    "id": "object:coop",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Coop",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted",
+          "build.prefab"
+        ]
+      },
+      "sprite": {
+        "asset": "building_cf_coop",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:coop",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "object:farmer_jane_memorial",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Farmer Jane's Grave",
+    "components": {
+      "sprite": {
+        "asset": "prop_farmer_jane_grave"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true
+      },
+      "interactions": [
+        {
+          "id": "read",
+          "verb": "use",
+          "prompt": "READ FARMER JANE'S GRAVE",
+          "feedback": "FARMER JANE — BELOVED WIFE AND GARDENER",
+          "reachTiles": 2.5,
+          "conditions": [],
+          "effects": [],
+          "priority": 70
+        }
+      ]
+    }
+  },
+  {
+    "id": "object:fence",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Fence",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted",
+          "build.fence"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_fence_horizontal",
+        "animationByState": {
+          "default": "base"
+        },
+        "fenceJoin": true
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:fence",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "connectsTo": [
+          "build.fence"
+        ]
+      }
+    }
+  },
+  {
+    "id": "object:fence_gate",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Fence Gate",
+    "components": {
+      "identity": {
+        "tags": [
+          "build.fence",
+          "item.placeable",
+          "item.crafted"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_fence_gate",
+        "animationByState": {
+          "default": "closed",
+          "open": "open"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "when": {
+          "state": "open",
+          "equals": false
+        },
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:fence_gate",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "states": {
+        "open": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [
+            {
+              "state": "open",
+              "equals": false
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "open"
+            },
+            {
+              "setCollision": false
+            }
+          ],
+          "priority": 71
+        },
+        {
+          "id": "close",
+          "verb": "use",
+          "conditions": [
+            {
+              "state": "open",
+              "equals": true
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "open"
+            },
+            {
+              "setCollision": true
+            }
+          ],
+          "priority": 70
+        }
+      ]
+    }
+  },
+  {
+    "id": "object:fermentation_cask",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Fermentation Cask",
+    "components": {
+      "identity": {
+        "tags": [
+          "station.cellar",
+          "container.fermentation",
+          "interface.fermentation",
+          "item.placeable",
+          "item.crafted"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_oak_barrel",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:fermentation_cask",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "container": {
+        "slotCount": 2,
+        "access": "private",
+        "sortAllowed": false,
+        "restrictions": [
+          {
+            "slots": [
+              1
+            ],
+            "readOnly": true
+          }
+        ]
+      },
+      "processor": {
+        "processTag": "station.cellar",
+        "slotRoles": {
+          "input": [
+            0
+          ],
+          "output": [
+            1
+          ]
+        },
+        "ticksPerUnit": 36000,
+        "catchUpCap": 64,
+        "autoStart": true,
+        "completionRewards": {
+          "statistics": [
+            {
+              "statistic": "statistic:bottles_produced",
+              "quantity": "output",
+              "outputTag": "cellar.bottles"
+            },
+            {
+              "statistic": "statistic:items_obtained",
+              "quantity": "output",
+              "subject": "output"
+            }
+          ]
+        }
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:fermentation"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:fermentation"
+      }
+    }
+  },
+  {
+    "id": "object:fruit_press",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Fruit Press",
+    "components": {
+      "identity": {
+        "tags": [
+          "station.press",
+          "container.press",
+          "interface.press",
+          "item.placeable",
+          "item.crafted"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_basket_press",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:fruit_press",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "container": {
+        "slotCount": 3,
+        "access": "private",
+        "sortAllowed": false,
+        "restrictions": [
+          {
+            "slots": [
+              1,
+              2
+            ],
+            "readOnly": true
+          }
+        ]
+      },
+      "processor": {
+        "processTag": "station.press",
+        "slotRoles": {
+          "input": [
+            0
+          ],
+          "output": [
+            1,
+            2
+          ]
+        },
+        "ticksPerUnit": 6000,
+        "catchUpCap": 64,
+        "autoStart": true,
+        "completionRewards": {
+          "statistics": [
+            {
+              "statistic": "statistic:fruit_pressed",
+              "quantity": "input",
+              "subject": "input"
+            },
+            {
+              "statistic": "statistic:press_cycles_completed",
+              "quantity": "units"
+            },
+            {
+              "statistic": "statistic:items_obtained",
+              "quantity": "output",
+              "subject": "output"
+            }
+          ]
+        }
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:press"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:press"
+      }
+    }
+  },
+  {
+    "id": "object:furnace",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Furnace",
+    "components": {
+      "identity": {
+        "tags": [
+          "station.furnace",
+          "container.furnace",
+          "interface.furnace",
+          "item.placeable",
+          "item.crafted"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furnace",
+        "animationByState": {
+          "default": "off",
+          "lit": "burn"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:furnace",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "container": {
+        "slotCount": 3,
+        "access": "private",
+        "sortAllowed": false,
+        "restrictions": [
+          {
+            "slots": [
+              2
+            ],
+            "readOnly": true
+          }
+        ]
+      },
+      "processor": {
+        "processTag": "station.furnace",
+        "slotRoles": {
+          "input": [
+            0
+          ],
+          "fuel": [
+            1
+          ],
+          "output": [
+            2
+          ]
+        },
+        "ticksPerUnit": 6000,
+        "catchUpCap": 64,
+        "autoStart": true
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:furnace"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:furnace"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_rustic_bed",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Single Timber Bed",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_bed"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ],
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_bed",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ],
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        7,
+        26
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_rustic_bench",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Timber bench",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_bench"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_bench",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        15,
+        8,
+        8
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_rustic_bookshelf",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Narrow bookshelf",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "container",
+          "interface.chest"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_bookshelf"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_bookshelf",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "open": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "furniture": [
+        7,
+        12
+      ],
+      "container": {
+        "slotCount": 16,
+        "access": "private",
+        "sortAllowed": true
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:chest"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:chest"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_rustic_chair",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Ladder Chair",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_chair"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_chair",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        5,
+        6,
+        12
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_rustic_chest",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Timber Chest",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "container",
+          "interface.chest"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_chest"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_chest",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "open": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "furniture": [
+        7,
+        9
+      ],
+      "container": {
+        "slotCount": 16,
+        "access": "private",
+        "sortAllowed": true
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:chest"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:chest"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_rustic_cooking_range",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Cooking range",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "station.campfire",
+          "emits.light",
+          "item.crafted"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_cooking_range",
+        "animationByState": {
+          "default": "off",
+          "lit": "burn"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_cooking_range",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "furniture": [
+        7,
+        10
+      ],
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          176,
+          84
+        ],
+        "radiusTiles": 3,
+        "profile": "flicker",
+        "offsetY": -6
+      },
+      "container": {
+        "slotCount": 2,
+        "access": "private",
+        "sortAllowed": false,
+        "restrictions": [
+          {
+            "slots": [
+              1
+            ],
+            "readOnly": true
+          }
+        ]
+      },
+      "processor": {
+        "processTag": "station.campfire",
+        "slotRoles": {
+          "input": [
+            0
+          ],
+          "output": [
+            1
+          ]
+        },
+        "ticksPerUnit": 1000,
+        "catchUpCap": 64,
+        "autoStart": true,
+        "completionRewards": {
+          "statistics": [
+            {
+              "statistic": "statistic:food_cooked",
+              "quantity": "units",
+              "subject": "output"
+            }
+          ]
+        }
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:cooking"
+            }
+          ],
+          "priority": 70
+        },
+        {
+          "id": "light",
+          "verb": "secondary",
+          "conditions": [
+            {
+              "state": "lit",
+              "equals": false
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "lit"
+            },
+            {
+              "setLight": {
+                "enabled": true
+              }
+            }
+          ],
+          "priority": 71
+        },
+        {
+          "id": "put_out",
+          "verb": "secondary",
+          "conditions": [
+            {
+              "state": "lit",
+              "equals": true
+            }
+          ],
+          "effects": [
+            {
+              "toggleState": "lit"
+            },
+            {
+              "setLight": {
+                "enabled": false
+              }
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:cooking"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_rustic_cupboard",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Timber cupboard",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "container",
+          "interface.chest"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_cupboard"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_cupboard",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "open": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "furniture": [
+        15,
+        13
+      ],
+      "container": {
+        "slotCount": 16,
+        "access": "private",
+        "sortAllowed": true
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:chest"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:chest"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_rustic_dining_table",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Timber Dining Table",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_dining_table"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_dining_table",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        22,
+        14,
+        [
+          0,
+          0,
+          3,
+          1,
+          20
+        ]
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_rustic_hearth",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Stone hearth",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "emits.light"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_hearth"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_hearth",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "furniture": [
+        15,
+        12
+      ],
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          196,
+          120
+        ],
+        "radiusTiles": 3,
+        "profile": "flicker",
+        "offsetY": -8
+      },
+      "interactions": [
+        {
+          "id": "toggle",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "toggleState": "lit"
+            }
+          ],
+          "priority": 70
+        }
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_rustic_potted_fern",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Potted Fern",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_potted_fern"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_potted_fern",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        5,
+        6
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_rustic_runner",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Hall runner",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_runner"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": false,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_runner",
+        "layer": "overlay",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_rustic_standing_lamp",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Timber standing lamp",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "emits.light"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_standing_lamp"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_standing_lamp",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "furniture": [
+        4,
+        5
+      ],
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          196,
+          120
+        ],
+        "radiusTiles": 3,
+        "profile": "steady",
+        "offsetY": -23
+      },
+      "interactions": [
+        {
+          "id": "toggle",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "toggleState": "lit"
+            }
+          ],
+          "priority": 70
+        }
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_rustic_stool",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Timber stool",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_stool"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_stool",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        5,
+        6,
+        12
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_rustic_woven_rug",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Woven Rug",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_woven_rug"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": false,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_woven_rug",
+        "layer": "ground",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_rustic_writing_table",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Writing table",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_rustic_writing_table"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_rustic_writing_table",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        15,
+        10,
+        [
+          0,
+          0,
+          2,
+          1,
+          12
+        ]
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_armchair",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Hearth armchair",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_armchair"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_armchair",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        7,
+        9,
+        12
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_bath",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Enamel bath",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_bath"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_bath",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        15,
+        13
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_bed",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Blue double bed",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_bed"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ],
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_bed",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ],
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        15,
+        27
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_bookcase",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Wide bookcase",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "container",
+          "interface.chest"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_bookcase"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_bookcase",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "open": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "furniture": [
+        15,
+        12
+      ],
+      "container": {
+        "slotCount": 16,
+        "access": "private",
+        "sortAllowed": true
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:chest"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:chest"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_cabinet",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Townhouse cabinet",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "container",
+          "interface.chest"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_cabinet"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_cabinet",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "open": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "furniture": [
+        15,
+        10
+      ],
+      "container": {
+        "slotCount": 16,
+        "access": "private",
+        "sortAllowed": true
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:chest"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:chest"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_chair",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Cushioned chair",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_chair"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_chair",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        5,
+        6,
+        12
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_dining_table",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Linen dining table",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_dining_table"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_dining_table",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        22,
+        14,
+        [
+          0,
+          0,
+          3,
+          1,
+          20
+        ]
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_floor_lamp",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Blue floor lamp",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "emits.light"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_floor_lamp"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_floor_lamp",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "furniture": [
+        4,
+        5
+      ],
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          196,
+          120
+        ],
+        "radiusTiles": 3,
+        "profile": "steady",
+        "offsetY": -23
+      },
+      "interactions": [
+        {
+          "id": "toggle",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "toggleState": "lit"
+            }
+          ],
+          "priority": 70
+        }
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_flower_planter",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Flower planter",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_flower_planter"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_flower_planter",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_loveseat",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Blue loveseat",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_loveseat"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_loveseat",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        14,
+        10,
+        12
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_patterned_rug",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Burgundy rug",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_patterned_rug"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": false,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_patterned_rug",
+        "layer": "overlay",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_round_rug",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Round blue rug",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_round_rug"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ],
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": false,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_round_rug",
+        "layer": "overlay",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ],
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_side_table",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Side table",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_side_table"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ],
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_side_table",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ],
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        14,
+        14,
+        [
+          0,
+          0,
+          2,
+          1,
+          20
+        ]
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_table_lamp",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Small Table Lamp",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "emits.light"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_table_lamp"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": false,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_table_lamp",
+        "layer": "overlay",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "furniture": [
+        "t"
+      ],
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          196,
+          120
+        ],
+        "radiusTiles": 3,
+        "profile": "steady",
+        "offsetY": -20
+      },
+      "interactions": [
+        {
+          "id": "toggle",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "toggleState": "lit"
+            }
+          ],
+          "priority": 70
+        }
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_wall_mirror",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Wall Mirror",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_wall_mirror"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ],
+          [
+            15
+          ]
+        ],
+        "blocksMovement": false,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_wall_mirror",
+        "layer": "overlay",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ],
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        "w"
+      ]
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_wardrobe",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Tall wardrobe",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable",
+          "container",
+          "interface.chest"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_wardrobe"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_wardrobe",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "states": {
+        "open": {
+          "type": "bool",
+          "default": false
+        }
+      },
+      "furniture": [
+        15,
+        13
+      ],
+      "container": {
+        "slotCount": 16,
+        "access": "private",
+        "sortAllowed": true
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:chest"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:chest"
+      }
+    }
+  },
+  {
+    "id": "object:furniture_townhouse_washstand",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Cabinet washstand",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_furniture_townhouse_washstand"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:furniture_townhouse_washstand",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        15,
+        12
+      ]
+    }
+  },
+  {
+    "id": "object:greenhouse",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Greenhouse",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted",
+          "build.prefab",
+          "build.greenhouse"
+        ]
+      },
+      "sprite": {
+        "asset": "building_cf_greenhouse",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:greenhouse",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ]
+        ]
+      },
+      "farming": {
+        "seasonProtection": "homestead"
+      }
+    }
+  },
+  {
+    "id": "object:lantern",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Ground Lantern",
+    "components": {
+      "identity": {
+        "tags": [
+          "emits.light"
+        ]
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          196,
+          120
+        ],
+        "radiusTiles": 4,
+        "profile": "steady",
+        "offsetY": -6
+      },
+      "interactions": []
+    }
+  },
+  {
+    "id": "object:shed",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Estate Shed",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted",
+          "build.prefab"
+        ]
+      },
+      "sprite": {
+        "asset": "building_cf_shed",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:shed",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15,
+            15
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "object:sign",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Sign",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_sign",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:sign",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "object:silo",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Silo",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted",
+          "build.prefab"
+        ]
+      },
+      "sprite": {
+        "asset": "building_cf_silo",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:silo",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15,
+            15,
+            15
+          ],
+          [
+            15,
+            15,
+            15
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "object:sprinkler",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Sprinkler",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "build.automation",
+          "build.sprinkler"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_sprinkler",
+        "animationByState": {
+          "default": "base"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": false,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:sprinkler",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "farming": {
+        "irrigation": {
+          "radiusTiles": 2
+        }
+      }
+    }
+  },
+  {
+    "id": "object:standing_torch",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Standing Torch",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted",
+          "emits.light"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_standing_torch",
+        "animationByState": {
+          "default": "burn"
+        }
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": false,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:standing_torch",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "states": {
+        "lit": {
+          "type": "bool",
+          "default": true
+        }
+      },
+      "light": {
+        "when": {
+          "state": "lit",
+          "equals": true
+        },
+        "color": [
+          255,
+          176,
+          84
+        ],
+        "radiusTiles": 4,
+        "profile": "flicker",
+        "offsetY": -15
+      }
+    }
+  },
+  {
+    "id": "object:workbench",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Workbench",
+    "components": {
+      "identity": {
+        "tags": [
+          "item.placeable",
+          "item.crafted",
+          "station.workbench"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_cf_workbench",
+        "animationByState": {
+          "default": "base"
+        },
+        "scale": 0.5
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": true
+      },
+      "placement": {
+        "item": "item:workbench",
+        "layer": "object",
+        "spaces": [
+          "homestead"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ]
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "verb": "use",
+          "conditions": [],
+          "effects": [
+            {
+              "openFrame": "frame:crafting"
+            }
+          ],
+          "priority": 70
+        }
+      ],
+      "frame": {
+        "ref": "frame:crafting"
+      }
+    }
+  }
+]

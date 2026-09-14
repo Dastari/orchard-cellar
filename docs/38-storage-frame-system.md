@@ -3,7 +3,7 @@
 Implemented owner-directed UI contract (2026-08-26). This document extends
 [23-ui-system.md](23-ui-system.md) with the concrete layout rules for windows
 that display one or more item containers. The implementation is
-`packages/client/src/ui/storage-frame.ts`.
+`packages/ui/src/storage-frame.ts`.
 
 ## 1. Non-negotiable layout rules
 

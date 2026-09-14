@@ -1,6 +1,7 @@
 {
   "name": "crop_cf_cucumber",
   "category": "crops",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     32
@@ -167,7 +168,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Crops.png",
-  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Crops.png",
   "sourceRegions": {
     "base": [
       [

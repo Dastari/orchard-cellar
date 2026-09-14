@@ -1,6 +1,7 @@
 {
   "name": "resource_cf_ore_gold_pure_medium",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -45,7 +46,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Ores.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Ores.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Ores.png",
   "sourceRegions": {
     "base": [
       [

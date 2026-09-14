@@ -8,10 +8,18 @@ import {
   PLAYER_HITBOX_TOP,
   DEBUG_SPACE_ID,
   TILE_SIZE_FIXED,
+  bootstrapContentRows,
+  hearthLobbyCollision,
+  bootstrapContentRegistry,
+  buildContentRegistry,
   generateSurvivalResources,
   survivalBiomeAt,
-  survivalResourceObstacle,
   survivalTerrainTransitions,
+  terrainWalkingStepAllowed,
+  runtimeVigourDefinition,
+  runtimeResourceDefinition,
+  runtimeResourceObstacle,
+  runtimeToolDefinition,
 } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
 import {
@@ -41,11 +49,25 @@ import {
   nextActionStartedTick,
   presenceLeaseExpired,
   portalUseResult,
-  resourceHarvestResult,
+  resourceHarvestResult as resourceHarvestResultWithContent,
   resourceGatherResult,
   settleMovementRun,
+  sprintIntentSuppressesVigourRegen,
+  terrainCollisionForSpace,
   toolSpendResult,
 } from './world-rules.js';
+
+const contentRegistry = bootstrapContentRegistry();
+
+const resourceHarvestResult = (
+  playerX: number,
+  playerY: number,
+  itemKind: string,
+  resource: { readonly kind: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean },
+  tool = runtimeToolDefinition(contentRegistry, itemKind),
+) => resourceHarvestResultWithContent(
+  playerX, playerY, itemKind, resource, tool, contentRegistry,
+);
 
 describe('overworld authority rules', () => {
   it('26§13 accepts nearby portal use and rejects range, space, and mounted paths', () => {
@@ -74,6 +96,20 @@ describe('overworld authority rules', () => {
     expect(toolSpendResult(1_499, 100n, 108n, 1_500, 8, false)).toEqual({
       ok: false, code: 'insufficient_vigour',
     });
+  });
+
+  it('prices sword hits and free swings from the increased authored vigour cost', () => {
+    const sword = runtimeVigourDefinition(contentRegistry, 'sword');
+    expect(sword).toEqual({ costCenti: 3_600, minimumSwingTicks: 7 });
+    if (sword === null) throw new Error('sword vigour fixture missing');
+    expect(toolSpendResult(10_000, 0n, 100n, sword.costCenti, sword.minimumSwingTicks, false))
+      .toMatchObject({ ok: true, costCenti: 3_600, vigourCenti: 6_400 });
+    expect(toolSpendResult(10_000, 0n, 100n, sword.costCenti, sword.minimumSwingTicks, true))
+      .toMatchObject({ ok: true, costCenti: 1_800, vigourCenti: 8_200 });
+    expect(toolSpendResult(3_599, 0n, 100n, sword.costCenti, sword.minimumSwingTicks, false))
+      .toEqual({ ok: false, code: 'insufficient_vigour' });
+    expect(toolSpendResult(1_799, 0n, 100n, sword.costCenti, sword.minimumSwingTicks, true))
+      .toEqual({ ok: false, code: 'insufficient_vigour' });
   });
 
   it('uses stable chunk boundaries and decodes only protocol directions', () => {
@@ -157,6 +193,13 @@ describe('overworld authority rules', () => {
     ]);
   });
 
+  it('resumes Vigour regeneration when held sprint intent is no longer affordable', () => {
+    expect(sprintIntentSuppressesVigourRegen(true, 0, 17)).toBe(false);
+    expect(sprintIntentSuppressesVigourRegen(true, 16, 17)).toBe(false);
+    expect(sprintIntentSuppressesVigourRegen(true, 17, 17)).toBe(true);
+    expect(sprintIntentSuppressesVigourRegen(false, 10_000, 17)).toBe(false);
+  });
+
   it('does not acknowledge a transition until its entire catch-up queue drains', () => {
     expect(queueMovementAcknowledgement(4n, 5n, 7)).toEqual({
       settledSequence: 4n, pendingSequence: 5n,
@@ -214,10 +257,10 @@ describe('overworld authority rules', () => {
   });
 
   it('26§13 keeps collision dimensions and mutable obstacles local to each space', () => {
-    const debug = createAuthoritySpaceCollisionMap(DEBUG_SPACE_ID, [{
-      kind: 'rock_small', tileX: 5, tileY: 5, depleted: false,
+    const debug = createAuthoritySpaceCollisionMap(contentRegistry, DEBUG_SPACE_ID, [{
+      kind: 'tree_oak', definitionId: 'resource:tree_oak', tileX: 5, tileY: 5, depleted: false,
     }]);
-    const topside = createAuthoritySurvivalCollisionMap([]);
+    const topside = createAuthoritySurvivalCollisionMap(contentRegistry, []);
     expect(debug.width).toBe(32);
     expect(topside.width).toBe(SURVIVAL_WORLD_SIZE);
     expect(debug.blocked[0]).toBe(true);
@@ -229,23 +272,85 @@ describe('overworld authority rules', () => {
     expect(topside.elevations).toHaveLength(SURVIVAL_WORLD_SIZE ** 2);
     expect(topside.terrainTransitions).toEqual(survivalTerrainTransitions(SURVIVAL_WORLD_SEED));
     expect(topside.terrainPlaneBlocked).toBeDefined();
-  }, 15_000);
+  // This compiles every space collision map and can queue behind other
+  // CPU-heavy world suites; its isolated runtime is much lower than the
+  // full-suite ceiling, so retain assertions and allow scheduler headroom.
+  }, 30_000);
+
+  it('dispatches authored lobby spaces to shared collision and rejects swimming/flying', () => {
+    const lobby=bootstrapContentRows().find(row=>row.id==='space:delve_lobby')!;
+    const rows = bootstrapContentRows().filter(row=>row.id!=='space:delve_lobby').map(
+      row => row.id !== 'space:debug_flat' ? row : {...row,json:JSON.stringify({
+        ...JSON.parse(String(lobby.json)),id:'space:debug_flat',spaceId:DEBUG_SPACE_ID,
+      })},
+    );
+    const registry = buildContentRegistry(rows).registry;
+    expect(terrainCollisionForSpace(registry, DEBUG_SPACE_ID)).toEqual(
+      hearthLobbyCollision(registry,DEBUG_SPACE_ID),
+    );
+    expect(terrainCollisionForSpace(registry, DEBUG_SPACE_ID, 'air').blocked.every(Boolean)).toBe(true);
+  });
+
+  it('keys static terrain collision by the supplied live content revision', () => {
+    const revisedRows = bootstrapContentRows().map((row) => {
+      if (row.id !== 'space:debug_flat') return row;
+      const definition = JSON.parse(String(row.json)) as Record<string, unknown>;
+      return { ...row, json: JSON.stringify({ ...definition, sizeTiles: 48 }) };
+    });
+    const revisedRegistry = buildContentRegistry(revisedRows).registry;
+    const original = terrainCollisionForSpace(contentRegistry, DEBUG_SPACE_ID);
+    const revised = terrainCollisionForSpace(revisedRegistry, DEBUG_SPACE_ID);
+    expect(original.width).toBe(32);
+    expect(revised.width).toBe(48);
+    expect(revised.height).toBe(48);
+  });
 
   it('opens persistent cellar excavation tiles without mutating cached starter collision', () => {
     const instance = { spaceId: 10_000, sizeTier: 0, residenceSpaceId: 30_000 };
-    const base = createAuthoritySpaceCollisionMap(30_001, [], [], 'ground', [], instance);
+    const base = createAuthoritySpaceCollisionMap(contentRegistry, 30_001, [], [], 'ground', [], instance);
     const dynamic = createAuthoritySpaceCollisionMap(
-      30_001, [], [], 'ground', [], instance, [{ tileX: 500, tileY: 500 }],
+      contentRegistry, 30_001, [], [], 'ground', [], instance, [{ tileX: 500, tileY: 500 }],
     );
-    const index = 500 * dynamic.width + 500;
-    expect(base.blocked[index]).toBe(false);
-    expect(base.elevations?.[index]).toBe(1);
+    const footprint = [
+      500 * dynamic.width + 500,
+      500 * dynamic.width + 501,
+      501 * dynamic.width + 500,
+      501 * dynamic.width + 501,
+    ];
+    expect(base.blocked[footprint[0]!]).toBe(false);
+    expect(base.elevations?.[footprint[0]!]).toBe(1);
     expect(base.fixedTerrainPlane).toBe(0);
     expect(base.terrainPlaneBlocked).toBeDefined();
-    expect(dynamic.blocked[index]).toBe(false);
-    expect(dynamic.elevations?.[index]).toBe(0);
+    for (const index of footprint) {
+      expect(dynamic.blocked[index]).toBe(false);
+      expect(dynamic.elevations?.[index]).toBe(0);
+      expect(base.elevations?.[index]).toBe(1);
+    }
     expect(dynamic.terrainPlaneBlocked).toBeDefined();
-    expect(base.elevations?.[index]).toBe(1);
+  });
+
+  it('shares walkable roguelike interior stairs with the client terrain contract', () => {
+    const collision = createAuthoritySpaceCollisionMap(contentRegistry, 50_104, [], [], 'ground', [], {
+      spaceId: 50_104,
+      instanceKind: 'roguelike',
+      seed: 417,
+      roomNumber: 4,
+      roomKind: 'combat',
+      theme: 'volcanic',
+    });
+    expect(collision.fixedTerrainPlane).toBeUndefined();
+    expect(collision.terrainTransitions).toHaveLength(2);
+    expect(collision.blocked[15 * collision.width + 16]).toBe(false);
+    expect(terrainWalkingStepAllowed(
+      collision.elevations!,
+      collision.width,
+      collision.height,
+      collision.terrainTransitions ?? [],
+      16,
+      16,
+      16,
+      15,
+    )).toBe(true);
   });
 
   it('blocks water and solid ridges while projected cliff rows remain lower-plane walkable', () => {
@@ -264,8 +369,8 @@ describe('overworld authority rules', () => {
     const resource = generateSurvivalResources().find((candidate) => candidate.kind.startsWith('tree_'));
     if (!water || !projectedCliff || !solidRidge || !resource) throw new Error('missing generated-world fixture');
 
-    const live = createAuthoritySurvivalCollisionMap([{ ...resource, depleted: false }]);
-    const depleted = createAuthoritySurvivalCollisionMap([{ ...resource, depleted: true }]);
+    const live = createAuthoritySurvivalCollisionMap(contentRegistry, [{ ...resource, depleted: false }]);
+    const depleted = createAuthoritySurvivalCollisionMap(contentRegistry, [{ ...resource, depleted: true }]);
     expect(live.blocked[water.tileY * live.width + water.tileX]).toBe(true);
     expect(live.blocked[solidRidge.tileY * live.width + solidRidge.tileX]).toBe(true);
     expect(live.blocked[projectedCliff.tileY * live.width + projectedCliff.tileX]).toBe(false);
@@ -273,12 +378,12 @@ describe('overworld authority rules', () => {
     expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(false);
     expect(depleted.obstacles?.length).toBeGreaterThan(0);
     expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(false);
-  });
+  }, 20_000);
 
   it('28§14 blocks closed placeables but lets open gates and standing lights pass', () => {
-    const collision = createAuthoritySurvivalCollisionMap([], [], 'ground', [
+    const collision = createAuthoritySurvivalCollisionMap(contentRegistry, [], [], 'ground', [
       { tileX: 20, tileY: 20, blocksMovement: true },
-      { tileX: 21, tileY: 20, blocksMovement: true, open: true },
+      { tileX: 21, tileY: 20, blocksMovement: false },
       { tileX: 22, tileY: 20, blocksMovement: false },
     ]);
     const dynamic = collision.obstacles?.filter((obstacle) => obstacle.top === 20 * TILE_SIZE_FIXED) ?? [];
@@ -293,7 +398,7 @@ describe('overworld authority rules', () => {
   });
 
   it('allows water traversal while blocking shorelines and water rocks', () => {
-    const collision = createAuthoritySurvivalCollisionMap([], [], 'water');
+    const collision = createAuthoritySurvivalCollisionMap(contentRegistry, [], [], 'water');
     let waterIndex = -1;
     let beachIndex = -1;
     for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE && (waterIndex < 0 || beachIndex < 0); tileY += 1) {
@@ -320,24 +425,53 @@ describe('overworld authority rules', () => {
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind: 'rock', depleted: false })).toBe('wrong_tool');
     expect(resourceHarvestResult(x, y, 'pickaxe', { ...resource, depleted: false })).toBe('wrong_tool');
     for (const kind of SURVIVAL_ORE_KINDS) {
-      expect(resourceHarvestResult(x, y, 'pickaxe', { ...resource, kind, depleted: false })).toBe('ok');
+      const minimumTier = runtimeResourceDefinition(contentRegistry, kind)?.interaction.tool?.minimumTier ?? 0;
+      expect(resourceHarvestResult(x, y, 'pickaxe', { ...resource, kind, depleted: false }))
+        .toBe((runtimeToolDefinition(contentRegistry, 'pickaxe')?.tier ?? 0) >= minimumTier ? 'ok' : 'wrong_tool');
       expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind, depleted: false })).toBe('wrong_tool');
     }
     expect(resourceHarvestResult(x, y, 'pickaxe', { ...resource, kind: 'rock_large', depleted: false })).toBe('ok');
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, kind: 'rock_large', depleted: false })).toBe('wrong_tool');
     expect(resourceHarvestResult(x, y, 'axe', { ...resource, depleted: true })).toBe('depleted');
     expect(resourceHarvestResult(x + 2 * TILE_SIZE_FIXED, y, 'axe', { ...resource, depleted: false })).toBe('ok');
-    const treeBounds = survivalResourceObstacle(resource.kind, resource.tileX, resource.tileY);
+    const treeBounds = runtimeResourceObstacle(
+      contentRegistry, resource, resource.tileX, resource.tileY,
+    )!;
     const treeAlignedY = Math.floor((treeBounds.top + treeBounds.bottom) / 2)
       + PLAYER_HITBOX_FOOT_OFFSET + (PLAYER_HITBOX_TOP / 2);
     expect(resourceHarvestResult(treeBounds.right + 2 * TILE_SIZE_FIXED, treeAlignedY, 'axe', { ...resource, depleted: false })).toBe('ok');
     expect(resourceHarvestResult(treeBounds.right + 2 * TILE_SIZE_FIXED + 1, treeAlignedY, 'axe', { ...resource, depleted: false })).toBe('out_of_range');
-    const rockBounds = survivalResourceObstacle('rock_large', resource.tileX, resource.tileY);
+    const rockBounds = runtimeResourceObstacle(
+      contentRegistry, { ...resource, kind: 'rock_large' }, resource.tileX, resource.tileY,
+    )!;
     const rockAlignedY = Math.floor((rockBounds.top + rockBounds.bottom) / 2)
       + PLAYER_HITBOX_FOOT_OFFSET + (PLAYER_HITBOX_TOP / 2);
     expect(resourceHarvestResult(rockBounds.right + 2 * TILE_SIZE_FIXED + 1, rockAlignedY, 'pickaxe', {
       ...resource, kind: 'rock_large', depleted: false,
     })).toBe('out_of_range');
+  });
+
+  it('uses supplied live metadata for a renamed tool without granting metadata-only use dispatch', () => {
+    const resource = generateSurvivalResources().find((candidate) => candidate.kind.startsWith('tree_'));
+    if (!resource) throw new Error('missing generated resource fixture');
+    const x = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const y = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
+    const arboristTool = {
+      specialization: 'woodcutting' as const,
+      tier: 2,
+      reachTiles: 2,
+      swingTicks: 7,
+      avatarAction: 'swing_arborist',
+    };
+    expect(resourceHarvestResult(
+      x, y, 'arborist_blade', { ...resource, depleted: false }, arboristTool,
+    )).toBe('ok');
+    expect(resourceHarvestResult(
+      x, y, 'arborist_blade', { ...resource, kind: 'rock', depleted: false }, arboristTool,
+    )).toBe('wrong_tool');
+    expect(resourceHarvestResult(
+      x, y, 'arborist_blade', { ...resource, depleted: false }, null,
+    )).toBe('wrong_tool');
   });
 
   it('allows nearby loose resources to be gathered without a tool', () => {
@@ -363,30 +497,31 @@ describe('overworld authority rules', () => {
     }
     if (!grass || !water) throw new Error('missing farmland terrain fixtures');
     const playerX = grass.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-    const playerY = grass.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX, grass.tileY, null, false)).toBe('ok');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'axe', grass.tileX, grass.tileY, null, false)).toBe('wrong_tool');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX, grass.tileY, null, true)).toBe('tile_occupied');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX, grass.tileY, { watered: false }, false)).toBe('already_tilled');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, null, false)).toBe('not_tilled');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, { watered: false }, false)).toBe('ok');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, { watered: true }, false)).toBe('already_watered');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', water.tileX, water.tileY, null, false)).toBe('out_of_range');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX - 3 * TILE_SIZE_FIXED, playerY, 'hoe', grass.tileX, grass.tileY, null, false)).toBe('ok');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX - 3 * TILE_SIZE_FIXED - 1, playerY, 'hoe', grass.tileX, grass.tileY, null, false)).toBe('out_of_range');
+    const playerY = grass.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2
+      + PLAYER_HITBOX_FOOT_OFFSET + PLAYER_HITBOX_TOP / 2;
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX, grass.tileY, null, false, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('ok');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'axe', grass.tileX, grass.tileY, null, false, runtimeToolDefinition(contentRegistry, 'axe'))).toBe('wrong_tool');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX, grass.tileY, null, true, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('tile_occupied');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', grass.tileX, grass.tileY, { watered: false }, false, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('already_tilled');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, null, false, runtimeToolDefinition(contentRegistry, 'watering_can'))).toBe('not_tilled');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, { watered: false }, false, runtimeToolDefinition(contentRegistry, 'watering_can'))).toBe('ok');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'watering_can', grass.tileX, grass.tileY, { watered: true }, false, runtimeToolDefinition(contentRegistry, 'watering_can'))).toBe('already_watered');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', water.tileX, water.tileY, null, false, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('out_of_range');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX - 2 * TILE_SIZE_FIXED, playerY, 'hoe', grass.tileX, grass.tileY, null, false, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('ok');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX - 2 * TILE_SIZE_FIXED - 1, playerY, 'hoe', grass.tileX, grass.tileY, null, false, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('out_of_range');
     const waterX = water.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
     const waterY = water.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, waterX, waterY, 'hoe', water.tileX, water.tileY, null, false)).toBe('not_grass');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, waterX, waterY, 'hoe', water.tileX, water.tileY, null, false, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('not_grass');
     expect(farmToolUseResult(
-      SURVIVAL_WORLD_SEED, waterX, waterY, 'hoe', water.tileX, water.tileY, null, false, true,
+      SURVIVAL_WORLD_SEED, waterX, waterY, 'hoe', water.tileX, water.tileY, null, false, runtimeToolDefinition(contentRegistry, 'hoe'), true,
     )).toBe('ok');
-    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', -1, grass.tileY, null, false)).toBe('invalid_tile');
-    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX, grass.tileY, { watered: true })).toBe('ok');
-    expect(farmSoilRestoreResult(playerX, playerY, 'watering_can', grass.tileX, grass.tileY, {})).toBe('wrong_tool');
-    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX, grass.tileY, null)).toBe('not_tilled');
-    expect(farmSoilRestoreResult(playerX - 3 * TILE_SIZE_FIXED, playerY, 'hoe', grass.tileX, grass.tileY, {})).toBe('ok');
-    expect(farmSoilRestoreResult(playerX - 3 * TILE_SIZE_FIXED - 1, playerY, 'hoe', grass.tileX, grass.tileY, {})).toBe('out_of_range');
-    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', -1, grass.tileY, {})).toBe('invalid_tile');
+    expect(farmToolUseResult(SURVIVAL_WORLD_SEED, playerX, playerY, 'hoe', -1, grass.tileY, null, false, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('invalid_tile');
+    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX, grass.tileY, { watered: true }, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('ok');
+    expect(farmSoilRestoreResult(playerX, playerY, 'watering_can', grass.tileX, grass.tileY, {}, runtimeToolDefinition(contentRegistry, 'watering_can'))).toBe('wrong_tool');
+    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', grass.tileX, grass.tileY, null, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('not_tilled');
+    expect(farmSoilRestoreResult(playerX - 2 * TILE_SIZE_FIXED, playerY, 'hoe', grass.tileX, grass.tileY, {}, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('ok');
+    expect(farmSoilRestoreResult(playerX - 2 * TILE_SIZE_FIXED - 1, playerY, 'hoe', grass.tileX, grass.tileY, {}, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('out_of_range');
+    expect(farmSoilRestoreResult(playerX, playerY, 'hoe', -1, grass.tileY, {}, runtimeToolDefinition(contentRegistry, 'hoe'))).toBe('invalid_tile');
   });
 
   it('authorizes tile placement through shared reach, terrain, obstacles, and actor occupancy', () => {

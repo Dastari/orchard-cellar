@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_standing_torch",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     32
@@ -309,7 +310,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Torch_Anim.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Torch_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Torch_Anim.png",
   "sourceRegions": {
     "burn": [
       [
@@ -375,5 +376,10 @@
     ],
     "blocksMovement": false,
     "builderAvailable": false
-  }
+  },
+  "emissiveColors": [
+    "#ed7614",
+    "#ffa214",
+    "#ffc825"
+  ]
 }

@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_shield_discipline",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "5555555..5555555",
+        "5200025115200025",
+        ".52025133152025.",
+        ".52625366352625.",
+        ".15566622666541.",
+        ".13524022042531.",
+        ".13540244204531.",
+        ".13542400424531.",
+        ".13542400424531.",
+        ".13540244202531.",
+        ".1335402204531..",
+        "..135242242531..",
+        "...1355225531...",
+        "....13355331....",
+        ".....113311....."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#5a5666",
+    "1": "#602141",
+    "2": "#9c99a4",
+    "3": "#9f173b",
+    "4": "#cfccd7",
+    "5": "#fac83d",
+    "6": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "warrior-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/warrior/sheets/warrior-skills-16.png",
+  "sourceRegion": [
+    160,
+    80,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.shield_discipline",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

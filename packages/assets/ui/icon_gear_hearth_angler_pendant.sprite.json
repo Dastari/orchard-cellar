@@ -1,0 +1,66 @@
+{
+  "name": "icon_gear_hearth_angler_pendant",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".....000000.....",
+        "....02244420....",
+        "...0400000020...",
+        "..020..00..010..",
+        "..020.0420.010..",
+        "...0404751010...",
+        "....02475110....",
+        ".....026310.....",
+        "......0110......",
+        ".......00.......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#053d40",
+    "1": "#1a8d93",
+    "2": "#3eb7bc",
+    "3": "#4d0d06",
+    "4": "#71eaef",
+    "5": "#a31b0e",
+    "6": "#d72312",
+    "7": "#f16a5d"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/accessories-400/sheet-16.png",
+  "importedFrom": "sheet-16.png",
+  "sourceRegion": [
+    112,
+    176,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

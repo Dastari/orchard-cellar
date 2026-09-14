@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_birch_sapling",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     32,
     32
@@ -56,7 +57,7 @@
     "8": "#787564",
     "9": "#dfddce"
   },
-  "sourcePath": "references/Cute_Fantasy/Trees/Small_Birch_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Trees/Small_Birch_Tree.png",
   "sourceRegion": [32, 32, 32, 32],
   "sourcePaletteMode": "exact",
   "approved": true,

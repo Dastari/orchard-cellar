@@ -1,6 +1,7 @@
 {
   "name": "effect_cf_witch_broom",
   "category": "props",
+  "bakedShadowColor": "#00000028",
   "size": [
     32,
     32
@@ -585,7 +586,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Broom.png",
-  "sourcePath": "references/Cute_Fantasy_Halloween/Witch/Broom.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/halloween/Witch/Broom.png",
   "sourceRegions": {
     "state_01": [
       [

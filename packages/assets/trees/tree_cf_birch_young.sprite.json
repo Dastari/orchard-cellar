@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_birch_young",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     32,
     48
@@ -72,7 +73,7 @@
     "8": "#826327",
     "9": "#00000028"
   },
-  "sourcePath": "references/Cute_Fantasy/Trees/Medium_Birch_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Trees/Medium_Birch_Tree.png",
   "sourceRegion": [32, 0, 32, 48],
   "sourcePaletteMode": "exact",
   "approved": true,

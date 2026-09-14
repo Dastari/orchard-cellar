@@ -65,7 +65,7 @@ const paletteLabs = Object.entries(palette.colors).map(([character, hex]) => {
   const value = Number.parseInt(hex.slice(1), 16);
   return { character, lab: oklab((value >>> 16) & 255, (value >>> 8) & 255, value & 255) };
 });
-const preserveSourcePalette = inputPath.includes('/Cute_Fantasy');
+const preserveSourcePalette = inputPath.includes('/art/kenmi/cute-fantasy/');
 const sourceColors = new Map<string, string>();
 const sourceCharacters = Object.keys(palette.colors);
 const characterForSourceColor = new Map<string, string>();

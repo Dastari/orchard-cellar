@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_keen_senses",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...0000000001...",
+        "..000000000001..",
+        "..000222220001..",
+        "..002333332001..",
+        "..024335334201..",
+        "..002333332001..",
+        "..000222220001..",
+        "..000000000001..",
+        "..100000000001..",
+        "...1111111111...",
+        "....16..........",
+        "....6...........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#e9e9e9",
+    "1": "#c0cbdc",
+    "2": "#193c3e",
+    "3": "#ffffff",
+    "4": "#ff98ba",
+    "5": "#3e2731",
+    "6": "#8b9bb4"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/ui/attributes-menu-states-240/sheet-16-no-outline.png",
+  "sourceRegion": [
+    48,
+    96,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.keen_senses",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

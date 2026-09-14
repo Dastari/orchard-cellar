@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_acacia_mature",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     80,
     64
@@ -91,7 +92,7 @@
     "8": "#00000028",
     "9": "#a37865"
   },
-  "sourcePath": "references/Cute_Fantasy_Desert/Props/Acacia_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Props/Acacia_Tree.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Acacia_Tree.png",

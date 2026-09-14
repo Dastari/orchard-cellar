@@ -1,13 +1,14 @@
 {
   "name": "enemy_cf_skeleton_swordman",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
   ],
   "anchor": [
     16,
-    31
+    24
   ],
   "frames": {
     "idle_down": [
@@ -3515,7 +3516,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Skeleton_Swordman.png",
-  "sourcePath": "references/Cute_Fantasy/Enemies/Skeleton/Skeleton_Swordman.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Enemies/Skeleton/Skeleton_Swordman.png",
   "sourceRegions": {
     "idle_down": [
       [

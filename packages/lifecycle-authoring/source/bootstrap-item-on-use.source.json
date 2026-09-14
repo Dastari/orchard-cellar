@@ -1,0 +1,1139 @@
+{
+  "format": "orchard-lifecycle-source-v1",
+  "bundleId": "repository-baseline-item-on-use",
+  "revision": 13,
+  "engineApiVersion": 1,
+  "handlers": [
+    {
+      "itemId": "item:anvil",
+      "id": "item:anvil.place",
+      "event": "onUse",
+      "prompt": "PLACE ANVIL",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:anvil', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:apple",
+      "id": "item:apple.on_use",
+      "event": "onUse",
+      "prompt": "EAT APPLE",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:axe",
+      "id": "item:axe.world_tool",
+      "event": "onUse",
+      "prompt": "USE AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:barn",
+      "id": "item:barn.place",
+      "event": "onUse",
+      "prompt": "PLACE BARN",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:barn', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:barrel",
+      "id": "item:barrel.place",
+      "event": "onUse",
+      "prompt": "PLACE BARREL",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:barrel', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:beetroot",
+      "id": "item:beetroot.on_use",
+      "event": "onUse",
+      "prompt": "EAT BEETROOT",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:beetroot_seeds",
+      "id": "item.beetroot-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:boat",
+      "id": "item:boat.place",
+      "event": "onUse",
+      "prompt": "LAUNCH BOAT",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnNpc: { definitionId: 'npc:boat', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:bob_fast_strawberry_seeds",
+      "id": "item.bob-fast-strawberry-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:bow",
+      "id": "item:bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:cabbage",
+      "id": "item:cabbage.on_use",
+      "event": "onUse",
+      "prompt": "EAT CABBAGE",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:cabbage_seeds",
+      "id": "item.cabbage-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:camp_cooking_fire",
+      "id": "item:camp_cooking_fire.place",
+      "event": "onUse",
+      "prompt": "PLACE CAMP COOKING FIRE",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:camp_cooking_fire', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:campfire",
+      "id": "item:campfire.place",
+      "event": "onUse",
+      "prompt": "PLACE CAMPFIRE",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:campfire', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:carrot",
+      "id": "item:carrot.on_use",
+      "event": "onUse",
+      "prompt": "EAT CARROT",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:carrot_seeds",
+      "id": "item.carrot-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:cherry",
+      "id": "item:cherry.on_use",
+      "event": "onUse",
+      "prompt": "EAT CHERRIES",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:chest",
+      "id": "item:chest.place",
+      "event": "onUse",
+      "prompt": "PLACE CHEST",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:chest', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:cooked_beef",
+      "id": "item:cooked_beef.on_use",
+      "event": "onUse",
+      "prompt": "EAT COOKED BEEF",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:cooked_chicken",
+      "id": "item:cooked_chicken.on_use",
+      "event": "onUse",
+      "prompt": "EAT ROAST CHICKEN",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:cooked_fish",
+      "id": "item:cooked_fish.on_use",
+      "event": "onUse",
+      "prompt": "EAT COOKED FISH",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:cooked_mutton",
+      "id": "item:cooked_mutton.on_use",
+      "event": "onUse",
+      "prompt": "EAT ROAST MUTTON",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:cooked_pork",
+      "id": "item:cooked_pork.on_use",
+      "event": "onUse",
+      "prompt": "EAT ROAST PORK",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:cooking_fire",
+      "id": "item:cooking_fire.place",
+      "event": "onUse",
+      "prompt": "PLACE COOKING FIRE",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:cooking_fire', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:coop",
+      "id": "item:coop.place",
+      "event": "onUse",
+      "prompt": "PLACE COOP",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:coop', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:copper_axe",
+      "id": "item:copper_axe.world_tool",
+      "event": "onUse",
+      "prompt": "USE COPPER AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:copper_hoe",
+      "id": "item:copper_hoe.on_use",
+      "event": "onUse",
+      "prompt": "USE COPPER HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ],
+      "source": "if (context.event.type === 'place') {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('farm_tile_required');\n  else context.emit({ farmTool: { action: context.event.actionId === 'restore' ? 'restore' : 'use', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:copper_pickaxe",
+      "id": "item:copper_pickaxe.world_tool",
+      "event": "onUse",
+      "prompt": "USE COPPER PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useAt') {\n  const targetTile = context.tile;\n  if (context.event.actionId !== 'dig_cellar' || targetTile === undefined) context.pass();\n  else context.emit({ worldTool: { action: 'digCellar', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:copper_shovel",
+      "id": "item:copper_shovel.repair_at_anvil",
+      "event": "onUse",
+      "prompt": "REPAIR COPPER SHOVEL",
+      "triggers": [
+        "useWith"
+      ],
+      "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:corn",
+      "id": "item:corn.on_use",
+      "event": "onUse",
+      "prompt": "EAT CORN",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:corn_seeds",
+      "id": "item.corn-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:cucumber",
+      "id": "item:cucumber.on_use",
+      "event": "onUse",
+      "prompt": "EAT CUCUMBER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:cucumber_seeds",
+      "id": "item.cucumber-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:fence",
+      "id": "item:fence.place",
+      "event": "onUse",
+      "prompt": "PLACE FENCE",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:fence', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:fence_gate",
+      "id": "item:fence_gate.place",
+      "event": "onUse",
+      "prompt": "PLACE FENCE GATE",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:fence_gate', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:fermentation_cask",
+      "id": "item:fermentation_cask.place",
+      "event": "onUse",
+      "prompt": "PLACE FERMENTATION CASK",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:fermentation_cask', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:fishing_handbook",
+      "id": "item:fishing_handbook.on_use",
+      "event": "onUse",
+      "prompt": "READ",
+      "source": "const recipes = ['recipe:fishing_rod', 'process:cook_fish'];\nfor (const recipe of recipes) {\n  if (!context.player.findRecipe(recipe)) context.player.giveRecipe(recipe);\n}\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:fishing_rod",
+      "id": "item:fishing_rod.on_use",
+      "event": "onUse",
+      "prompt": "FISH",
+      "triggers": [
+        "useWith",
+        "useAt"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)\n    || target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'useAt') {\n  if (context.event.actionId === 'cast') {\n    const targetTile = context.tile;\n    if (targetTile === undefined) context.block('fishing_requires_water');\n    else context.emit({ fishing: { action: 'cast', poolId: context.event.targetId, at: targetTile } });\n  } else if (context.event.actionId === 'reel') context.emit({ fishing: { action: 'reel' } });\n  else context.pass();\n} else context.pass();"
+    },
+    {
+      "itemId": "item:fruit_press",
+      "id": "item:fruit_press.place",
+      "event": "onUse",
+      "prompt": "PLACE FRUIT PRESS",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:fruit_press', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:furnace",
+      "id": "item:furnace.place",
+      "event": "onUse",
+      "prompt": "PLACE FURNACE",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:furnace', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:garlic",
+      "id": "item:garlic.on_use",
+      "event": "onUse",
+      "prompt": "EAT GARLIC",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:garlic_seeds",
+      "id": "item.garlic-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:gold_axe",
+      "id": "item:gold_axe.world_tool",
+      "event": "onUse",
+      "prompt": "USE GOLD AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:gold_hoe",
+      "id": "item:gold_hoe.on_use",
+      "event": "onUse",
+      "prompt": "USE GOLD HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ],
+      "source": "if (context.event.type === 'place') {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('farm_tile_required');\n  else context.emit({ farmTool: { action: context.event.actionId === 'restore' ? 'restore' : 'use', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:gold_pickaxe",
+      "id": "item:gold_pickaxe.world_tool",
+      "event": "onUse",
+      "prompt": "USE GOLD PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useAt') {\n  const targetTile = context.tile;\n  if (context.event.actionId !== 'dig_cellar' || targetTile === undefined) context.pass();\n  else context.emit({ worldTool: { action: 'digCellar', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:gold_shovel",
+      "id": "item:gold_shovel.repair_at_anvil",
+      "event": "onUse",
+      "prompt": "REPAIR GOLD SHOVEL",
+      "triggers": [
+        "useWith"
+      ],
+      "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:grape",
+      "id": "item:grape.on_use",
+      "event": "onUse",
+      "prompt": "EAT GRAPES",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:grape_seeds",
+      "id": "item.grape-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:green_pepper",
+      "id": "item:green_pepper.on_use",
+      "event": "onUse",
+      "prompt": "EAT GREEN PEPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:green_pepper_seeds",
+      "id": "item.green-pepper-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:greenhouse",
+      "id": "item:greenhouse.place",
+      "event": "onUse",
+      "prompt": "PLACE GREENHOUSE",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:greenhouse', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:hammer",
+      "id": "item:hammer.repair_at_anvil",
+      "event": "onUse",
+      "prompt": "REPAIR IRON HAMMER (5 COPPER)",
+      "triggers": [
+        "useWith"
+      ],
+      "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:hearth_common_bow",
+      "id": "item:hearth_common_bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hearth_common_sword",
+      "id": "item:hearth_common_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  const target = context.target;\n  if (target === undefined) context.emit({ meleeAttack: { weapon: 'sword' } });\n  else if ('entityType' in target\n    && (target.entityType === 'npc' || target.definitionId === 'object:archery_target')) {\n    context.emit({ meleeAttack: { weapon: 'sword' } });\n  } else context.pass();\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hearth_epic_bow",
+      "id": "item:hearth_epic_bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hearth_epic_sword",
+      "id": "item:hearth_epic_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  const target = context.target;\n  if (target === undefined) context.emit({ meleeAttack: { weapon: 'sword' } });\n  else if ('entityType' in target\n    && (target.entityType === 'npc' || target.definitionId === 'object:archery_target')) {\n    context.emit({ meleeAttack: { weapon: 'sword' } });\n  } else context.pass();\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hearth_legendary_bow",
+      "id": "item:hearth_legendary_bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hearth_legendary_sword",
+      "id": "item:hearth_legendary_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  const target = context.target;\n  if (target === undefined) context.emit({ meleeAttack: { weapon: 'sword' } });\n  else if ('entityType' in target\n    && (target.entityType === 'npc' || target.definitionId === 'object:archery_target')) {\n    context.emit({ meleeAttack: { weapon: 'sword' } });\n  } else context.pass();\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hearth_rare_bow",
+      "id": "item:hearth_rare_bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hearth_rare_sword",
+      "id": "item:hearth_rare_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  const target = context.target;\n  if (target === undefined) context.emit({ meleeAttack: { weapon: 'sword' } });\n  else if ('entityType' in target\n    && (target.entityType === 'npc' || target.definitionId === 'object:archery_target')) {\n    context.emit({ meleeAttack: { weapon: 'sword' } });\n  } else context.pass();\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hearth_uncommon_bow",
+      "id": "item:hearth_uncommon_bow.on_use",
+      "event": "onUse",
+      "prompt": "USE BOW",
+      "triggers": [
+        "useWith",
+        "aimedUse"
+      ],
+      "source": "if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else if (context.event.type === 'aimedUse') {\n  if (context.event.phase === 'begin') context.emit({ bowAction: { phase: 'begin' } });\n  else if (context.event.phase === 'cancel') {\n    context.emit({ bowAction: { phase: 'cancel', chargeMs: context.event.chargeMs } });\n  } else {\n    context.emit({ bowAction: {\n      phase: 'fire',\n      aimX: context.event.aimX,\n      aimY: context.event.aimY,\n      chargeMs: context.event.chargeMs,\n    } });\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hearth_uncommon_sword",
+      "id": "item:hearth_uncommon_sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  const target = context.target;\n  if (target === undefined) context.emit({ meleeAttack: { weapon: 'sword' } });\n  else if ('entityType' in target\n    && (target.entityType === 'npc' || target.definitionId === 'object:archery_target')) {\n    context.emit({ meleeAttack: { weapon: 'sword' } });\n  } else context.pass();\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:hoe",
+      "id": "item:hoe.on_use",
+      "event": "onUse",
+      "prompt": "USE HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ],
+      "source": "if (context.event.type === 'place') {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('farm_tile_required');\n  else context.emit({ farmTool: { action: context.event.actionId === 'restore' ? 'restore' : 'use', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:homestead_deed",
+      "id": "item:homestead_deed.place",
+      "event": "onUse",
+      "prompt": "ESTABLISH HOMESTEAD",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ foundHomestead: { at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:hot_pepper",
+      "id": "item:hot_pepper.on_use",
+      "event": "onUse",
+      "prompt": "EAT HOT PEPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:hot_pepper_seeds",
+      "id": "item.hot-pepper-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:iron_axe",
+      "id": "item:iron_axe.world_tool",
+      "event": "onUse",
+      "prompt": "USE IRON AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:iron_hoe",
+      "id": "item:iron_hoe.on_use",
+      "event": "onUse",
+      "prompt": "USE IRON HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ],
+      "source": "if (context.event.type === 'place') {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('farm_tile_required');\n  else context.emit({ farmTool: { action: context.event.actionId === 'restore' ? 'restore' : 'use', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:iron_pickaxe",
+      "id": "item:iron_pickaxe.world_tool",
+      "event": "onUse",
+      "prompt": "USE IRON PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useAt') {\n  const targetTile = context.tile;\n  if (context.event.actionId !== 'dig_cellar' || targetTile === undefined) context.pass();\n  else context.emit({ worldTool: { action: 'digCellar', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:iron_shovel",
+      "id": "item:iron_shovel.repair_at_anvil",
+      "event": "onUse",
+      "prompt": "REPAIR IRON SHOVEL",
+      "triggers": [
+        "useWith"
+      ],
+      "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:janes_gardening_book",
+      "id": "item:janes_gardening_book.on_use",
+      "event": "onUse",
+      "prompt": "READ",
+      "source": "const recipes = ['recipe:barrel', 'recipe:fermentation_cask', 'recipe:fruit_press', 'recipe:orchard_tea', 'recipe:planks', 'recipe:workbench'];\nfor (const recipe of recipes) {\n  if (!context.player.findRecipe(recipe)) context.player.giveRecipe(recipe);\n}\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:lantern",
+      "id": "item:lantern.equipment_use",
+      "event": "onUse",
+      "prompt": "TOGGLE LANTERN",
+      "triggers": [
+        "equipmentUse",
+        "worldItemUse"
+      ],
+      "source": "const lit = context.item.snapshot.state?.lit !== false;\ncontext.emit({ toggleState: 'lit' });\ncontext.emit({ setLight: { enabled: !lit } });"
+    },
+    {
+      "itemId": "item:leek",
+      "id": "item:leek.on_use",
+      "event": "onUse",
+      "prompt": "EAT LEEK",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:leek_seeds",
+      "id": "item.leek-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:marlow_book",
+      "id": "item:marlow_book.on_use",
+      "event": "onUse",
+      "prompt": "READ",
+      "source": "const recipes = ['recipe:amethyst_ore', 'recipe:arrows', 'recipe:backpack', 'recipe:boat', 'recipe:camp_cooking_fire', 'recipe:campfire', 'recipe:chest', 'recipe:cooking_fire', 'recipe:copper_ore', 'recipe:emerald_ore', 'recipe:fence', 'recipe:fence_gate', 'recipe:fishing_rod', 'recipe:furnace', 'recipe:gold_ore', 'recipe:iron_ore', 'recipe:planks', 'recipe:ruby_ore', 'recipe:sapphire_ore', 'recipe:sign', 'recipe:standing_torch', 'recipe:sticks', 'recipe:stone', 'recipe:string', 'recipe:topaz_ore', 'recipe:torch', 'recipe:watch', 'recipe:workbench'];\nfor (const recipe of recipes) {\n  if (!context.player.findRecipe(recipe)) context.player.giveRecipe(recipe);\n}\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:onion",
+      "id": "item:onion.on_use",
+      "event": "onUse",
+      "prompt": "EAT ONION",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:onion_seeds",
+      "id": "item.onion-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:orchard_tea",
+      "id": "item:orchard_tea.on_use",
+      "event": "onUse",
+      "prompt": "DRINK ORCHARD TEA",
+      "source": "context.item.applyEffect('orchard_tea');\ncontext.item.consume();\ncontext.emit({ statistic: 'orchard_tea_consumed' });"
+    },
+    {
+      "itemId": "item:parsley",
+      "id": "item:parsley.on_use",
+      "event": "onUse",
+      "prompt": "EAT PARSLEY",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:parsley_seeds",
+      "id": "item.parsley-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:peach",
+      "id": "item:peach.on_use",
+      "event": "onUse",
+      "prompt": "EAT PEACH",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:pear",
+      "id": "item:pear.on_use",
+      "event": "onUse",
+      "prompt": "EAT PEAR",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:pickaxe",
+      "id": "item:pickaxe.world_tool",
+      "event": "onUse",
+      "prompt": "USE PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useAt') {\n  const targetTile = context.tile;\n  if (context.event.actionId !== 'dig_cellar' || targetTile === undefined) context.pass();\n  else context.emit({ worldTool: { action: 'digCellar', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:potato",
+      "id": "item:potato.on_use",
+      "event": "onUse",
+      "prompt": "EAT POTATO",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:potato_seeds",
+      "id": "item.potato-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:pumpkin",
+      "id": "item:pumpkin.on_use",
+      "event": "onUse",
+      "prompt": "EAT PUMPKIN",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:pumpkin_seeds",
+      "id": "item.pumpkin-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:red_pepper",
+      "id": "item:red_pepper.on_use",
+      "event": "onUse",
+      "prompt": "EAT RED PEPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:red_pepper_seeds",
+      "id": "item.red-pepper-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:shed",
+      "id": "item:shed.place",
+      "event": "onUse",
+      "prompt": "PLACE ESTATE SHED",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:shed', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:shovel",
+      "id": "item:shovel.repair_at_anvil",
+      "event": "onUse",
+      "prompt": "REPAIR WOODEN SHOVEL",
+      "triggers": [
+        "useWith"
+      ],
+      "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:sign",
+      "id": "item:sign.place",
+      "event": "onUse",
+      "prompt": "PLACE SIGN",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:sign', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:silo",
+      "id": "item:silo.place",
+      "event": "onUse",
+      "prompt": "PLACE SILO",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:silo', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:silver_axe",
+      "id": "item:silver_axe.world_tool",
+      "event": "onUse",
+      "prompt": "USE SILVER AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:silver_hoe",
+      "id": "item:silver_hoe.on_use",
+      "event": "onUse",
+      "prompt": "USE SILVER HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ],
+      "source": "if (context.event.type === 'place') {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('farm_tile_required');\n  else context.emit({ farmTool: { action: context.event.actionId === 'restore' ? 'restore' : 'use', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:silver_pickaxe",
+      "id": "item:silver_pickaxe.world_tool",
+      "event": "onUse",
+      "prompt": "USE SILVER PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useAt') {\n  const targetTile = context.tile;\n  if (context.event.actionId !== 'dig_cellar' || targetTile === undefined) context.pass();\n  else context.emit({ worldTool: { action: 'digCellar', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:silver_shovel",
+      "id": "item:silver_shovel.repair_at_anvil",
+      "event": "onUse",
+      "prompt": "REPAIR SILVER SHOVEL",
+      "triggers": [
+        "useWith"
+      ],
+      "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:sprinkler",
+      "id": "item:sprinkler.place",
+      "event": "onUse",
+      "prompt": "PLACE SPRINKLER",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:sprinkler', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:standing_torch",
+      "id": "item:standing_torch.place",
+      "event": "onUse",
+      "prompt": "PLACE STANDING TORCH",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:standing_torch', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:stone_axe",
+      "id": "item:stone_axe.world_tool",
+      "event": "onUse",
+      "prompt": "USE STONE AXE",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else if (target.definitionId === 'object:chest') {\n    context.emit({ worldTool: { action: 'target' } });\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:stone_hoe",
+      "id": "item:stone_hoe.on_use",
+      "event": "onUse",
+      "prompt": "USE STONE HOE",
+      "triggers": [
+        "useWith",
+        "place"
+      ],
+      "source": "if (context.event.type === 'place') {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('farm_tile_required');\n  else context.emit({ farmTool: { action: context.event.actionId === 'restore' ? 'restore' : 'use', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:stone_pickaxe",
+      "id": "item:stone_pickaxe.world_tool",
+      "event": "onUse",
+      "prompt": "USE STONE PICKAXE",
+      "triggers": [
+        "secondary",
+        "useWith",
+        "useAt"
+      ],
+      "source": "if (context.event.type === 'secondary') context.emit({ worldTool: { action: 'whiff' } });\nelse if (context.event.type === 'useAt') {\n  const targetTile = context.tile;\n  if (context.event.actionId !== 'dig_cellar' || targetTile === undefined) context.pass();\n  else context.emit({ worldTool: { action: 'digCellar', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  const target = context.snapshot.target;\n  if (target === undefined || !('entityType' in target)) context.pass();\n  else if (target.definitionId === 'object:anvil') {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  } else context.emit({ worldTool: { action: 'target' } });\n} else context.pass();"
+    },
+    {
+      "itemId": "item:stone_shovel",
+      "id": "item:stone_shovel.repair_at_anvil",
+      "event": "onUse",
+      "prompt": "REPAIR STONE SHOVEL",
+      "triggers": [
+        "useWith"
+      ],
+      "source": "if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n  || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\nelse {\n  const maximum = context.item.snapshot.state?.repairMaximum;\n  const material = context.item.snapshot.state?.repairMaterial;\n  const cost = context.item.snapshot.state?.repairCostBronze;\n  const durability = context.item.snapshot.durability;\n  if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n  else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n  else {\n    context.player.consumeItem(material);\n    context.emit({ chargeBronze: cost });\n    context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n  }\n}"
+    },
+    {
+      "itemId": "item:strawberry",
+      "id": "item:strawberry.on_use",
+      "event": "onUse",
+      "prompt": "EAT STRAWBERRY",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:strawberry_seeds",
+      "id": "item.strawberry-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:sunflower_seeds",
+      "id": "item.sunflower-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:sword",
+      "id": "item:sword.on_use",
+      "event": "onUse",
+      "prompt": "USE SWORD",
+      "triggers": [
+        "secondary",
+        "useWith"
+      ],
+      "source": "if (context.event.type === 'secondary') {\n  const target = context.target;\n  if (target === undefined) context.emit({ meleeAttack: { weapon: 'sword' } });\n  else if ('entityType' in target\n    && (target.entityType === 'npc' || target.definitionId === 'object:archery_target')) {\n    context.emit({ meleeAttack: { weapon: 'sword' } });\n  } else context.pass();\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:tomato",
+      "id": "item:tomato.on_use",
+      "event": "onUse",
+      "prompt": "EAT TOMATO",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:tomato_seeds",
+      "id": "item.tomato-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:torch",
+      "id": "item:torch.equipment_use",
+      "event": "onUse",
+      "prompt": "TOGGLE TORCH",
+      "triggers": [
+        "equipmentUse",
+        "worldItemUse"
+      ],
+      "source": "const lit = context.item.snapshot.state?.lit !== false;\ncontext.emit({ toggleState: 'lit' });\ncontext.emit({ setLight: { enabled: !lit } });"
+    },
+    {
+      "itemId": "item:turnip",
+      "id": "item:turnip.on_use",
+      "event": "onUse",
+      "prompt": "EAT TURNIP",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:turnip_seeds",
+      "id": "item.turnip-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:watering_can",
+      "id": "item:watering_can.on_use",
+      "event": "onUse",
+      "prompt": "WATER",
+      "triggers": [
+        "useWith",
+        "place"
+      ],
+      "source": "if (context.event.type === 'place') {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('farm_tile_required');\n  else context.emit({ farmTool: { action: 'use', at: targetTile } });\n} else if (context.event.type === 'useWith') {\n  if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)\n    || context.snapshot.target.definitionId !== 'object:anvil') context.pass();\n  else {\n    const maximum = context.item.snapshot.state?.repairMaximum;\n    const material = context.item.snapshot.state?.repairMaterial;\n    const cost = context.item.snapshot.state?.repairCostBronze;\n    const durability = context.item.snapshot.durability;\n    if (typeof maximum !== 'number' || typeof material !== 'string' || typeof cost !== 'number') context.block('wrong_tool');\n    else if (durability === undefined || durability >= maximum) context.block('tool_not_damaged');\n    else {\n      context.player.consumeItem(material);\n      context.emit({ chargeBronze: cost });\n      context.item.repair();\n      context.emit({ statistic: { kind: 'tools_repaired', subject: context.item.snapshot.kind } });\n    }\n  }\n} else context.pass();"
+    },
+    {
+      "itemId": "item:watermelon",
+      "id": "item:watermelon.on_use",
+      "event": "onUse",
+      "prompt": "EAT WATERMELON",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:watermelon_seeds",
+      "id": "item.watermelon-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:wheat_seeds",
+      "id": "item.wheat-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:workbench",
+      "id": "item:workbench.place",
+      "event": "onUse",
+      "prompt": "PLACE WORKBENCH",
+      "triggers": [
+        "place"
+      ],
+      "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:workbench', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:yellow_pepper",
+      "id": "item:yellow_pepper.on_use",
+      "event": "onUse",
+      "prompt": "EAT YELLOW PEPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:yellow_pepper_seeds",
+      "id": "item.yellow-pepper-seeds.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    }
+  ]
+}

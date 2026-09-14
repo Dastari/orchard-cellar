@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_grafting",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "........1..1....",
+        ".....1.101101...",
+        "....1010030031..",
+        "...13013060361..",
+        "...160063603601.",
+        "..1633633363031.",
+        "..1633636360361.",
+        "..1633633360361.",
+        "..1063063033601.",
+        "...16003060061..",
+        "...10300030301..",
+        "....100424001...",
+        ".....115241.....",
+        "....122424211...",
+        "...12242224221..",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#255223",
+    "1": "#2e222f",
+    "2": "#3a3f2f",
+    "3": "#4b7e37",
+    "4": "#5a5a3d",
+    "5": "#776f46",
+    "6": "#83a04b"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "trees-and-logs-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/trees-and-logs/sheets/trees-and-logs-16.png",
+  "sourceRegion": [
+    48,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.grafting",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "icon_gear_hearth_uncommon_shield",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......4443......",
+        ".....433121.....",
+        "....43431321....",
+        "...4343312321...",
+        "..434343132321..",
+        "..433334311111..",
+        "..411113400001..",
+        "..323231012121..",
+        "...3232102121...",
+        "....12310121....",
+        ".....321021.....",
+        "......1111......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#2e3665",
+    "1": "#4b5785",
+    "2": "#7887b0",
+    "3": "#aab7d7",
+    "4": "#e6ecf9"
+  },
+  "sourcePath": "references/art/clockwork-raven/equipment/shields-fantasy-160/sheet-16-no-outline.png",
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourceRegion": [
+    32,
+    0,
+    16,
+    16
+  ],
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "content.hearth",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

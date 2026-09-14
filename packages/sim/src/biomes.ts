@@ -1,0 +1,26 @@
+export const MAP_BIOME_IDS = [
+  'water',
+  'beach',
+  'freshwater',
+  'waterfall',
+  'plains',
+  'meadow',
+  'forest',
+  'valley',
+  'highland',
+  'ridge',
+  'desert',
+  'desert_shore',
+  'desert_ridge',
+  'oasis',
+  'oasis_water',
+  'savanna',
+  'coastal_cliff',
+  'dirt_terrace',
+  'dirt_ridge',
+  'volcanic_ash',
+  'lava',
+  'paving',
+] as const;
+
+export type MapBiomeId = typeof MAP_BIOME_IDS[number];

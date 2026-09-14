@@ -1,13 +1,14 @@
 {
   "name": "enemy_cf_cowling_01",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     48
   ],
   "anchor": [
     24,
-    47
+    31
   ],
   "frames": {
     "idle_down": [
@@ -2707,7 +2708,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Cowling_1.png",
-  "sourcePath": "references/Cute_Fantasy_Volcano/Enemies/Cowling_1.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/volcano/Enemies/Cowling_1.png",
   "sourceRegions": {
     "idle_down": [
       [

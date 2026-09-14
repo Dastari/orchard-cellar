@@ -1,6 +1,7 @@
 {
   "name": "tile_cf_desert_grass_edge",
   "category": "tiles",
+  "bakedShadowColor": "#00000028",
   "size": [
     16,
     16
@@ -181,7 +182,7 @@
     "2": "#1b3c1c",
     "3": "#00000028"
   },
-  "sourcePath": "references/Cute_Fantasy_Desert/Tiles/Desert_Grass.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Tiles/Desert_Grass.png",
   "sourcePaletteMode": "exact",
   "frameKinds": {
     "base": "variant"

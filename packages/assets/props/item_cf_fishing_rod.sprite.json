@@ -1,0 +1,29 @@
+{
+  "name": "item_cf_fishing_rod",
+  "category": "props",
+  "size": [16, 16],
+  "anchor": [8, 15],
+  "frames": { "base": [[
+    "................",
+    "............0...",
+    "...........0....",
+    "..........0.....",
+    ".........0......",
+    "........0.......",
+    ".......0........",
+    "......0.........",
+    ".....0..........",
+    "....0...........",
+    "...0......x.....",
+    "...0......tx....",
+    ".........t.x....",
+    ".........t.x....",
+    "..........tx....",
+    "...........x...."
+  ]] },
+  "frameKinds": { "base": "state" },
+  "lintAllow": ["sparkle"],
+  "approved": true,
+  "tags": ["item.tool", "tool.fishing_rod"],
+  "placement": { "layer": "object", "blocksMovement": false, "builderAvailable": false }
+}
