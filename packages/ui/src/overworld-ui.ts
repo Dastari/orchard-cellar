@@ -1,3 +1,5 @@
+import { HudSectionCache, type HudCacheKey } from './hud-section-cache.js';
+export { disposeHudDisplayCaches, hudDisplayCacheDiagnostics, type HudDisplayCacheDiagnostics } from './hud-display-caches.js';
 import { changeWorldScale, readWorldScale, worldScaleSettingLabel } from './world-scale-setting.js';
 export { changeWorldScale, readWorldScale, worldScaleSettingLabel, WORLD_SCALE_EVENT, type WorldScaleSetting } from './world-scale-setting.js';
 import { renderProtocolAction } from './render-protocol-action.js';
@@ -1075,6 +1077,33 @@ function drawInsetPanel(context: CanvasRenderingContext2D, skin: UiSkin, rect: U
 }
 
 export class OverworldUi {
+  private readonly statusCache = new HudSectionCache();
+  private readonly currencyCache = new HudSectionCache();
+  private readonly hotbarCache = new HudSectionCache();
+  private readonly hudHotbarItems: Array<OverworldUiInventorySlot | undefined> = new Array(HOTBAR_SLOT_COUNT);
+  private hudCacheEnabled = true;
+  private hudArtRevision = 0;
+
+  /** Diagnostics/golden reference; disabling also releases retained surfaces. */
+  setHudCacheEnabled(enabled: boolean): void {
+    this.hudCacheEnabled = enabled;
+    if (!enabled) this.disposeHudCache();
+  }
+  /** Call after replacing UI artwork or mutating authored frame metadata. */
+  invalidateHudArtwork(): void { this.hudArtRevision++; }
+  disposeHudCache(): void {
+    this.statusCache.dispose(); this.currencyCache.dispose(); this.hotbarCache.dispose(); this.hudHotbarItems.fill(undefined);
+  }
+  get hudCacheDiagnostics(): { builds: number; reuses: number; allocations: number; bytes: number } {
+    const caches = [this.statusCache, this.currencyCache, this.hotbarCache];
+    return {
+      builds: caches.reduce((sum, cache) => sum + cache.builds, 0),
+      reuses: caches.reduce((sum, cache) => sum + cache.reuses, 0),
+      allocations: caches.reduce((sum, cache) => sum + cache.allocations, 0),
+      bytes: caches.reduce((sum, cache) => sum + cache.bytes, 0),
+    };
+  }
+
   readonly root: WidgetNode;
   private readonly router: UiInputRouter;
   private readonly hotbarNodes: WidgetNode[];
@@ -2510,10 +2539,10 @@ export class OverworldUi {
   }
 
   draw(context: CanvasRenderingContext2D): void {
-    this.drawStatus(context);
+    this.drawCachedStatus(context);
     this.drawMinimapHud(context);
-    this.drawCurrency(context);
-    if (!this.isInventoryWindow(this.openWindowValue)) this.drawHotbar(context);
+    this.drawCachedCurrency(context);
+    if (!this.isInventoryWindow(this.openWindowValue)) this.drawCachedHotbar(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawVitals(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawTargetVitals(context);
     if (!this.isInventoryWindow(this.openWindowValue)) this.drawEffects(context);
@@ -2689,6 +2718,58 @@ export class OverworldUi {
     // Touch pointers commonly emit pointerleave immediately after a tap. Keep
     // the last touch position so a held stack remains visible and movable.
     if (this.model.touchControls !== true) this.pointer = { x: -100, y: -100 };
+  }
+
+  private beginHudKey(cache: HudSectionCache): HudCacheKey {
+    const key = cache.key;
+    key.begin();
+    return key.add(this.hudArtRevision).add(this.model.width).add(this.model.height)
+      .asset(this.fonts.font).asset(this.fonts.headerFont);
+  }
+
+  private drawCachedStatus(context: CanvasRenderingContext2D): void {
+    if (!this.hudCacheEnabled) { this.drawStatus(context); return; }
+    this.beginHudKey(this.statusCache).add(this.zoneCollapsed).add(this.model.zoneName)
+      .add(this.model.moonPhase).add(hasEquippedWatch(this.model.inventory))
+      .add(this.model.timeLabel).add(this.model.dateLabel)
+      .asset(this.skin.banner).asset(this.skin.bookTab).asset(this.skin.moonPhase).asset(this.skin.button)
+      .rect(this.layout.status).rect(this.layout.watchStatus).rect(this.layout.moonPhase).rect(this.layout.collapsedZoneTab);
+    this.statusCache.draw(context, { x: 0, y: 0,
+      width: Math.max(this.layout.collapsedZoneTab.width, this.layout.moonPhase.x + this.layout.moonPhase.width) + 2,
+      height: this.layout.watchStatus.y + this.layout.watchStatus.height + 2 }, draw => this.drawStatus(draw));
+  }
+
+  private drawCachedCurrency(context: CanvasRenderingContext2D): void {
+    if (!this.hudCacheEnabled) { this.drawCurrency(context); return; }
+    this.beginHudKey(this.currencyCache).add(this.model.balanceBronze ?? 0n).rect(this.layout.currency)
+      .asset(this.skin.button).asset(this.skin.backpackIcon)
+      .asset(this.skin.coinGold).asset(this.skin.coinSilver).asset(this.skin.coinBronze);
+    // Coin labels can extend beyond their chrome at very large balances. Retain
+    // the original display clipping rather than cropping them at the button.
+    this.currencyCache.draw(context, { ...this.layout.currency, width: this.model.width }, draw => this.drawCurrency(draw));
+  }
+
+  private drawCachedHotbar(context: CanvasRenderingContext2D): void {
+    if (!this.hudCacheEnabled) { this.drawHotbar(context); return; }
+    const key = this.beginHudKey(this.hotbarCache).add(this.model.selectedSlot).add(this.hoveredSlot)
+      .asset(this.skin.slot).asset(this.skin.selectorConfirm).asset(this.skin.selectorNeutral)
+      .asset(this.skin.barGreen).asset(this.skin.barGold).asset(this.skin.barRed);
+    this.hudHotbarItems.fill(undefined);
+    for (const item of this.model.inventory) {
+      if (Number.isInteger(item.slot) && item.slot >= 0 && item.slot < HOTBAR_SLOT_COUNT) this.hudHotbarItems[item.slot] = item;
+    }
+    let right = 0;
+    for (let slot = 0; slot < HOTBAR_SLOT_COUNT; slot++) {
+      right = Math.max(right, this.layout.slots[slot]!.x + this.layout.slots[slot]!.width);
+      const item = this.hudHotbarItems[slot];
+      key.rect(this.layout.slots[slot]!).add(item?.itemKind).add(item?.quantity)
+        .add(item === undefined ? null : uiDurabilityFraction(item.itemKind, item.durability, this.model.contentRegistry))
+        .asset(item === undefined ? undefined : this.itemArt[item.itemKind]);
+    }
+    const first = this.layout.slots[0]!, last = this.layout.slots[HOTBAR_SLOT_COUNT - 1]!;
+    this.hotbarCache.draw(context, { x: first.x - HOTBAR_RETICLE_SIZE / 2, y: first.y - HOTBAR_RETICLE_SIZE / 2,
+      width: right - first.x + HOTBAR_RETICLE_SIZE,
+      height: last.y + last.height - first.y + HOTBAR_RETICLE_SIZE }, draw => this.drawHotbar(draw));
   }
 
   private drawStatus(context: CanvasRenderingContext2D): void {
