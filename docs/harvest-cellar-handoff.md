@@ -49,13 +49,17 @@ guard; no Studio deployment is part of this repair.
 
 - Full suite without instrumentation: 4,640 tests / 825 files passed.
 - Final label sizing and updated content fixtures: 14 tests / 3 files passed.
+- Fresh targeted V8 coverage: 21 tests / 4 files passed; the new farming bonus
+  helper has 100% statement, branch, function and line coverage.
 - Type-checking, lint, lifecycle integrity, content/assets validation, world
   build and production client build passed.
 - Coverage is not clean: the existing wildlife colony fixture exceeds its
   explicit 30-second limit under V8 instrumentation (it passes without coverage).
   The long-running coverage process also loaded a stale content-hash fixture
   while the final label change was being made; a fresh focused run passed.
-  See the PR for the final coverage invocation result and CI status.
+  Full instrumented invocation: 4,637 passed / 5 failed. Four stale-content
+  failures were cleared by the fresh targeted coverage run; the wildlife timeout
+  remains. See the PR for CI status.
 
 Local art provenance tests
 use the existing ignored licensed `references` directory from the original
