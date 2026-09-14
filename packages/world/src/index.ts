@@ -22127,7 +22127,7 @@ function applyHarvestResourceLifecycle(
       grantSkillExperience(
         ctx,
         ctx.sender,
-        'explorer',
+        'farming',
         payoutExperience + (depleted ? BigInt(maximumRichness) : 0n),
       );
       return;

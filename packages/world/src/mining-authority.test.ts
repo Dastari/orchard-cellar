@@ -26,12 +26,14 @@ describe('authoritative repeatable mining', () => {
     expect(claims).toContain('claimUntilTick: t.u64()');
   });
 
-  it('resolves payouts through shared simulation rules and grants Explorer XP', () => {
+  it('resolves payouts through shared simulation rules and grants Farming XP', () => {
     const reducer = sourceBetween('function applyHarvestResourceLifecycle(', 'function authorityBowChargeMs(');
     expect(reducer).toContain('miningWorkPerHit(');
     expect(reducer).toContain('resolveMiningLoot(contentRegistry(ctx).loots, {');
     expect(reducer).toContain('applyLootDropsBehaviour(ctx, resolved.drops, {');
-    expect(reducer).toContain("'explorer'");
+    const mining = sourceBetween('const payoutExperience =', '\n      return;');
+    expect(mining).toContain("'farming'");
+    expect(mining).not.toContain("'explorer'");
     expect(reducer).toContain('MINING_DROP_RESERVATION_TICKS');
     expect(reducer).toContain("throw new SenderError('mining_claimed_by_other_party')");
     expect(reducer).toContain('world_resource_mining_claim.resourceId.find(resource.id)');

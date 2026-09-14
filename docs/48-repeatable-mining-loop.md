@@ -7,8 +7,8 @@ Builds on docs 20, 26, 28, 33, 34, and 36.
 
 Find a visible vein or rock, strike it several times, collect its reserved drop,
 consolidate nine matching fragments in the 3×3 crafting grid, smelt metal chunks,
-sell or build with the result, improve Explorer mining skills, and revisit newly
-populated sites later. Mining awards Explorer XP on yields and depletion, never for
+sell or build with the result, improve Farming mining skills, and revisit newly
+populated sites later. Mining awards Farming XP on yields and depletion, never for
 empty swings.
 
 ## Node population and replenishment
@@ -49,7 +49,7 @@ UI is a later presentation phase. A party may contain up to five players.
 
 ## Progression
 
-Mining lives under **Explorer**, not Farming and not a fourth top-level tree:
+Mining lives under **Farming**, matching the authored mining skill branch:
 Prospector reveals odds; Efficient Strikes reduces hits; Ore Dressing improves mixed
 ore yield; Rockhound improves rock surprises; Mother Lode adds a fragment to the
 first payout from a rich pure vein.
@@ -72,3 +72,12 @@ and loot decisions are deterministic simulation functions. `world_resource` gain
 append-only defaulted mining columns and a depleted index; `world_item` gained
 append-only loot-reservation fields. A bounded migration backfills legacy rocks and
 underground ore without clearing player state.
+
+## Mining XP track correction — world 0.6.1
+
+Ore and rock payout XP, including the final depletion bonus, now goes to Farming
+instead of Explorer. This matches the track containing the authored mining skills.
+The shared path covers all mining node classes, including basalt, cinder and
+emberglass. Reward amounts and eligibility are unchanged: partial hits, empty
+swings and rejected actions grant no XP. Cave-wall excavation still has no XP
+reward. Existing historical XP is preserved; this fix routes future rewards only.
