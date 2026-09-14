@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "engineVersion": 1,
-  "contentHash": "6af0522c",
-  "definitionCount": 895,
+  "contentHash": "0ec81315",
+  "definitionCount": 896,
   "kindCounts": {
     "item": 332,
     "recipe": 138,
@@ -11,7 +11,7 @@
     "tileset": 14,
     "object": 55,
     "frame": 10,
-    "loot": 34,
+    "loot": 35,
     "npc": 18,
     "dialogue": 16,
     "quest": 10,
