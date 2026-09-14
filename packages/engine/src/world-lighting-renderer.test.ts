@@ -54,11 +54,11 @@ describe('world lighting lifecycle', () => {
     const sky = celestialLightingAtCalendar({ clockHours: 12, continuousDay: 3.5, lunarProgress: 0, lunarIllumination: 1 });
     const caster = { owner: 'foot:10:20', worldX: 10.1, worldY: 20.1, baseHeightSubunits: 0, heightSubunits: 5,
       footprint: { left: -4, right: 4, top: -3, bottom: 1 }, contact: true };
-    const prepare = vi.spyOn(world.scene, 'prepare');
-    world.begin(sky, [caster], 'same', map, 0, 0, 100, 100);
+    const prepare = vi.spyOn(world.scene, 'prepareSplit');
+    world.begin(sky, [], [caster], map, 0, 0, 100, 100);
     const moved = { ...caster, worldX: 10.2, worldY: 20.2 };
-    world.begin(sky, [moved], 'same', map, 0, 0, 100, 100);
-    expect(prepare.mock.calls[1]![1][0]).toBe(moved);
+    world.begin(sky, [], [moved], map, 0, 0, 100, 100);
+    expect(prepare.mock.calls[1]![2][0]).toBe(moved);
     world.reset();
   });
   it('lights flat artwork across its world rectangle without an anchor tint, then restores scope', () => {

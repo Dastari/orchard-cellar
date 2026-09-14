@@ -10,9 +10,11 @@ import type { PointLight } from './lighting.js';
 import { ReceiverFrameCache, withWorldReceiverLight } from './receiver-frame-source.js';
 import { withGroundSpriteSource } from './ground-light-source.js';
 import { CelestialReceiverScene } from './receiver-lighting.js';
+import { lightingOwner, terrainLightingOwner } from './lighting-owner.js';
+export { lightingOwner } from './lighting-owner.js';
 import { terrainBaseDatum, type TerrainArray } from './terrain.js';
 
-export const lightingOwner = (x: number, y: number): string => `foot:${Math.round(x)}:${Math.round(y)}`;
+interface Upload { readonly canvas: HTMLCanvasElement; image: ImageData | null; pixels: WeakRef<Uint8ClampedArray<ArrayBuffer>> | null; revision: number }
 
 /** Own the bounded world frame cache; bulk preparation is available for previews.
  * No Canvas allocation or mask work takes place when Basic is requested. */
@@ -63,30 +65,30 @@ export class WorldLightingRenderer {
   readonly scene: CelestialReceiverScene;
   readonly frames = new ReceiverFrameCache();
   private planes = new Map<number, Plane>();
-  private uploads = new Map<number, HTMLCanvasElement>();
+  private uploads = new Map<number, Upload>();
   private runCanvas: HTMLCanvasElement | null = null;
   private flameGlow: HTMLCanvasElement | null = null;
-  private casters: readonly DirectionalCaster[] = [];
-  private signature = '';
-  private placementSignature = '';
   private cameraX = 0;
   private cameraY = 0;
   private width = 0;
   private height = 0;
   private lightmap: TileLightmap | null = null;
+  private localSourceRevision = -1;
+  private localRevision = 0;
+  receiverMs = 0;
+  mergeMs = 0;
+  uploadMs = 0;
   constructor(readonly terrain: TerrainArray) {
     this.mapper = new LightCoordinateMapper(terrain);
     this.scene = new CelestialReceiverScene(this.mapper.pixelsPerHeightSubunit);
   }
-  begin(sky: CelestialLighting, casters: readonly DirectionalCaster[], signature: string, lightmap: TileLightmap,
-    cameraX: number, cameraY: number, width: number, height: number): void {
-    // Geometry/owner keys intentionally omit subpixel position. Presentation
-    // must nevertheless consume the latest interpolated feet on every move.
-    const placement = casters.map((caster) => `${caster.worldX}:${caster.worldY}`).join(';');
-    if (signature !== this.signature || placement !== this.placementSignature) {
-      this.casters = casters; this.signature = signature; this.placementSignature = placement;
+  begin(sky: CelestialLighting, fixed: readonly DirectionalCaster[], moving: readonly DirectionalCaster[], lightmap: TileLightmap,
+    cameraX: number, cameraY: number, width: number, height: number, staticIdentity?: number): void {
+    this.receiverMs = this.mergeMs = this.uploadMs = 0;
+    this.scene.prepareSplit(sky, fixed, moving, staticIdentity);
+    if (this.lightmap !== lightmap || this.localSourceRevision !== lightmap.receiverRevision) {
+      this.localRevision++; this.localSourceRevision = lightmap.receiverRevision;
     }
-    this.scene.prepare(sky, this.casters);
     this.lightmap = lightmap; this.cameraX = cameraX; this.cameraY = cameraY; this.width = width; this.height = height;
     this.planes.clear();
   }
@@ -96,9 +98,11 @@ export class WorldLightingRenderer {
       withGroundSpriteSource(context, (source, left, top) => this.groundSource(source, left, top, level), draw);
       return;
     }
+    const started = performance.now();
     const local = this.lightmap!.sampleReceiverLight(x, this.mapper.projectedY(y, level), level, receiver);
     const color = this.scene.sample({ worldX: x, worldY: y, heightSubunits: this.mapper.heightAtLevel(level),
       receiver, owner: lightingOwner(x, y) }, local).combined;
+    this.receiverMs += performance.now() - started;
     withWorldReceiverLight(context, this.frames, color, draw);
   }
   private plane(level: number): Plane {
@@ -110,21 +114,35 @@ export class WorldLightingRenderer {
     const left = Math.floor(this.cameraX / step) * step - step;
     const top = Math.floor(this.mapper.logicalY(this.cameraY, level) / step) * step - step;
     const width = Math.ceil(this.width / step) + 3, height = Math.ceil(this.height / step) + 3;
-    const raster = this.scene.rasterize(left, top, width, height, this.mapper.heightAtLevel(level), step,
+    const mergeStarted = performance.now();
+    const raster = this.scene.rasterizeCached(this.localRevision, left, top, width, height, this.mapper.heightAtLevel(level), step,
       (x, y) => this.lightmap!.sampleReceiverLight(x, this.mapper.projectedY(y, level), level));
-    let canvas = this.uploads.get(level);
-    if (canvas === undefined) {
-      // Retain only a bounded number of upload surfaces across terrain changes.
+    this.mergeMs += performance.now() - mergeStarted;
+    let upload = this.uploads.get(level);
+    if (upload === undefined) {
       if (this.uploads.size >= 8) {
         const first = this.uploads.keys().next().value!;
-        const old = this.uploads.get(first)!; old.width = old.height = 0; this.uploads.delete(first);
+        const old = this.uploads.get(first)!; old.canvas.width = old.canvas.height = 0; this.uploads.delete(first);
       }
-      canvas = document.createElement('canvas'); this.uploads.set(level, canvas);
+      upload = { canvas: document.createElement('canvas'), image: null, pixels: null, revision: -1 };
+      this.uploads.set(level, upload);
     }
-    if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-    const context = canvas.getContext('2d');
-    if (context === null) throw new Error('world_receiver_surface_unavailable');
-    context.putImageData(new ImageData(raster.pixels, width, height), 0, 0);
+    const { canvas } = upload;
+    if (canvas.width !== width || canvas.height !== height || upload.image === null) {
+      canvas.width = width; canvas.height = height;
+      upload.image = new ImageData(width, height); upload.pixels = null; upload.revision = -1;
+    }
+    const samePixels = upload.pixels?.deref() === raster.pixels;
+    if (!samePixels || upload.revision !== raster.revision) {
+      const context = canvas.getContext('2d');
+      if (context === null) throw new Error('world_receiver_surface_unavailable');
+      const uploadStarted = performance.now();
+      upload.image.data.set(raster.pixels);
+      context.putImageData(upload.image, 0, 0);
+      if (!samePixels) upload.pixels = new WeakRef(raster.pixels);
+      upload.revision = raster.revision;
+      this.uploadMs += performance.now() - uploadStarted;
+    }
     const plane = { canvas, left, top, step }; this.planes.set(level, plane); return plane;
   }
   compositeGround(context: CanvasRenderingContext2D, scale: number, level = terrainBaseDatum(this.terrain)): void {
@@ -185,13 +203,14 @@ export class WorldLightingRenderer {
   }
   get bytes(): number {
     return this.frames.bytes + this.scene.retainedMaskBytes + this.scene.retainedCoverageBytes + this.scene.retainedRasterBytes
-      + [...this.uploads.values()].reduce((sum, canvas) => sum + canvas.width * canvas.height * 4, 0)
+      + [...this.uploads.values()].reduce((sum, upload) => sum + upload.canvas.width * upload.canvas.height * 4 + (upload.image?.data.byteLength ?? 0), 0)
       + (this.runCanvas === null ? 0 : this.runCanvas.width * this.runCanvas.height * 4)
       + (this.flameGlow === null ? 0 : this.flameGlow.width * this.flameGlow.height * 4);
   }
   reset(): void {
-    this.frames.reset(); this.scene.reset(); this.planes.clear(); this.casters = []; this.signature = ''; this.placementSignature = '';
-    for (const canvas of this.uploads.values()) canvas.width = canvas.height = 0;
+    this.receiverMs = this.mergeMs = this.uploadMs = 0;
+    this.frames.reset(); this.scene.reset(); this.planes.clear();
+    for (const { canvas } of this.uploads.values()) canvas.width = canvas.height = 0;
     this.uploads.clear();
     if (this.runCanvas !== null) this.runCanvas.width = this.runCanvas.height = 0;
     this.runCanvas = null; this.lightmap = null;
@@ -224,7 +243,7 @@ export function celestialCastersFromOcclusion(map: LightOcclusionMap | undefined
     const x = mask.left + mask.width / 2;
     const y = mapper.logicalY(mask.top + mask.height, level);
     if (x < left - 192 || x > right + 192 || y < top - 192 || y > bottom + 192) continue;
-    result.push({ owner: `terrain:${x}:${y}:${level}`, worldX: x, worldY: y,
+    result.push({ owner: terrainLightingOwner(mask), worldX: x, worldY: y,
       baseHeightSubunits: mapper.heightAtLevel(level), heightSubunits: mapper.heightAtLevel(1),
       footprint: { left: -mask.width / 2, right: mask.width / 2, top: -16, bottom: 0 }, contact: false });
   }

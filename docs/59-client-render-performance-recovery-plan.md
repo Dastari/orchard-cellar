@@ -340,6 +340,14 @@ requires retaining the accurate per-caster sample loop. Independent static/movin
 coverage reuse and numeric-key work proceeds; constant-time ground sampling
 and complete P4 acceptance remain open.
 
+P4 implementation scope extension (2026-09-06): `lighting-types.ts` admits
+numeric owner identities; `lighting.ts` exposes a monotonic local-receiver
+revision that advances on rebuild and reset; the existing renderer lifecycle
+test adopts the split begin API. The new upload test checks stationary and
+moving 600-frame reuse and window changes. Seasonal receiver sampling, raster
+merge (including coverage) and upload timings are added to the corresponding
+existing stage values, so the remaining accurate caster loop is attributed.
+
 ### P5 — Tint pool and cap-layer consolidation
 
 **Files:** `receiver-frame-source.ts`, `ground-light-source.ts`,

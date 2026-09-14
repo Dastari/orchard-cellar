@@ -46,7 +46,9 @@ describe('directional shadow geometry and receiver resolve', () => {
     scene.prepare(skyAt(0), casters);
     expect(scene.rasterizeCached(1, 0, 0, 40, 40, 0, 4)).toBe(first);
     expect(scene.cache.builds).toBe(builds);
-    expect(scene.rasterizeCached(2, 0, 0, 40, 40, 0, 4)).not.toBe(first);
+    const revision = first.revision;
+    expect(scene.rasterizeCached(2, 0, 0, 40, 40, 0, 4)).toBe(first);
+    expect(first.revision).toBe(revision + 1);
     expect(await scene.prepareHeights([4], async () => scene.reset())).toBe(false);
     expect(scene.retainedMaskBytes).toBe(0); expect(scene.retainedRasterBytes).toBe(0);
   });
