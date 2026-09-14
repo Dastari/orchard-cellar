@@ -9,3 +9,8 @@
   excavation retain their existing no-XP behavior.
 - This module-only patch is independent of the Silver Pickaxe/mining-skill PR.
   Client, Studio, schema and authored content versions are unchanged.
+
+Review: [PR #5](https://github.com/Dastari/orchard-cellar/pull/5) is open.
+Local validation passed (24 focused tests, world build/typecheck, lint and
+lifecycle/content/asset checks); GitHub CI was running at handoff. No merge or
+deployment has been performed.
