@@ -53,4 +53,6 @@ export * from './ui-lab-catalog.js';
 export * from './design-system/index.js';
 export * from './studio/index.js';
 
-export * from './asset-frame-source.js';
+export * from './asset-frame-types.js';
+export * from './render-operation-counters.js';
+export { renderProtocolAction } from './render-protocol-action.js';

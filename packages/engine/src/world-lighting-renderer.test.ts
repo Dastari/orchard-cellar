@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LoadedAsset } from '@orchard/ui';
-import { WorldShadowAssets, WorldLightingRenderer, celestialCastersFromOcclusion, lightingOwner } from './world-lighting-renderer.js';
+import { WorldLightingRenderer, celestialCastersFromOcclusion, lightingOwner } from './world-lighting-renderer.js';
 import { LightCoordinateMapper } from './light-coordinate-mapper.js';
 import type { TerrainArray } from './terrain.js';
 import type { LightOcclusionMap } from './light-occlusion.js';
@@ -8,7 +7,6 @@ import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import { groundSpriteSource } from './ground-light-source.js';
 import { celestialLightingAtCalendar } from './celestial-lighting.js';
 import { TileLightmap } from './lighting.js';
-import { inheritWorldAssetPresentation, setWorldAssetPresentation, worldAssetFrameSource, worldAssetPresentationKey } from './world-asset-presentation.js';
 
 const terrain = { width: 20, height: 20, baseDatum: 0 } as TerrainArray;
 afterEach(() => vi.unstubAllGlobals());
@@ -28,27 +26,7 @@ describe('world lighting lifecycle', () => {
     expect(context.drawImage).toHaveBeenLastCalledWith(surface, -20, 0, 80, 80);
     world.reset(); expect(world.bytes).toBe(0); expect(surface.width).toBe(0);
   });
-  it('filters a newly encountered world/ground frame without changing presentation or waiting for poses', () => {
-    vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ({ drawImage: vi.fn(), clearRect: vi.fn() }) }) });
-    const frame = { x: 0, y: 0, width: 2, height: 1, durationTicks: 0 };
-    const future = { ...frame, x: 2 };
-    const asset = { image: {}, name: 'tent', metadata: { animations: { base: [frame, future] } },
-      bakedShadow: { color: '#00000064', frames: { base: [frame, future].map(() => ({ width: 2, height: 1, pixelCount: 1, spans: [0, 0, 1] })) } } } as unknown as LoadedAsset;
-    const assets = new WorldShadowAssets(), world = {} as CanvasRenderingContext2D, ground = {} as CanvasRenderingContext2D;
-    assets.beginFrame(); setWorldAssetPresentation(world, assets.cache, 'omit-baked-shadow');
-    const key = worldAssetPresentationKey(world);
-    inheritWorldAssetPresentation(world, ground);
-    expect(worldAssetFrameSource(ground, asset, frame)?.image).not.toBe(asset.image);
-    expect(assets.cache.bytes).toBe(8); expect(assets.cache.builds).toBe(1);
-    expect(assets.cache.source(asset, future, 'omit-baked-shadow')).toBeNull();
-    assets.beginFrame();
-    expect(worldAssetFrameSource(world, asset, future)?.image).not.toBe(asset.image);
-    expect(assets.cache.builds).toBe(2); expect(worldAssetPresentationKey(world)).toBe(key);
-    expect(worldAssetPresentationKey(ground)).toBe(key);
-    assets.reset(); setWorldAssetPresentation(world);
-    expect(worldAssetFrameSource(world, asset, frame)?.image).toBe(asset.image);
-    expect(assets.cache.bytes).toBe(0);
-  });
+
   it('updates interpolated feet even when the rounded owner/geometry signature is unchanged', () => {
     const world = new WorldLightingRenderer(terrain), map = new TileLightmap();
     const sky = celestialLightingAtCalendar({ clockHours: 12, continuousDay: 3.5, lunarProgress: 0, lunarIllumination: 1 });
@@ -76,37 +54,13 @@ describe('world lighting lifecycle', () => {
     expect(() => world.drawReceiver(context, 64, 96, 2, 'flat', () => { throw new Error('draw failed'); })).toThrow('draw failed');
     expect(groundSpriteSource(context, source, 40, 49)).toBe(source);
   });
-  it('has no retained surfaces before Dynamic and handles an empty declared set', async () => {
+  it('has no retained surfaces before Dynamic and releases empty lighting', () => {
     const create = vi.fn(); vi.stubGlobal('document', { createElement: create });
-    const world = new WorldLightingRenderer(terrain), assets = new WorldShadowAssets();
-    expect(world.bytes).toBe(0); expect(assets.cache.bytes).toBe(0);
-    expect(assets.prepare([])).toBe(false);
-    await Promise.resolve(); expect(assets.prepare([])).toBe(true);
-    world.reset(); assets.reset(); expect(create).not.toHaveBeenCalled();
+    const world = new WorldLightingRenderer(terrain);
+    expect(world.bytes).toBe(0);
+    world.reset(); expect(world.bytes).toBe(0); expect(create).not.toHaveBeenCalled();
   });
-  it('does not publish stale preparation after Basic or a streamed revision change', async () => {
-    const surface = () => ({width:0,height:0,getContext:()=>({drawImage:vi.fn(),clearRect:vi.fn()})});
-    vi.stubGlobal('document', { createElement: surface });
-    const frame = {x:0,y:0,width:2,height:1,durationTicks:0};
-    const asset = { image:{}, name:'tree', atlasRevision:1, metadata:{animations:{base:[frame]}},
-      bakedShadow:{color:'#00000028',frames:{base:[{width:2,height:1,pixelCount:1,spans:[0,0,1]}]}} } as unknown as LoadedAsset;
-    const assets = new WorldShadowAssets();
-    assets.prepare([asset]); assets.reset(); await Promise.resolve();
-    expect(assets.cache.bytes).toBe(0);
-    expect(assets.prepare([asset])).toBe(false); await Promise.resolve();
-    expect(assets.prepare([asset])).toBe(true); expect(assets.cache.bytes).toBe(8);
-    const revision = {...asset,image:{},atlasRevision:2} as LoadedAsset;
-    expect(assets.prepare([revision])).toBe(false); await Promise.resolve();
-    expect(assets.prepare([revision])).toBe(true);
-    assets.reset(); expect(assets.cache.bytes).toBe(0);
-  });
-  it('reports an oversized complete set without enabling partial omission', async () => {
-    const frame = {x:0,y:0,width:4096,height:4096,durationTicks:0};
-    const asset = { image:{}, name:'large', metadata:{animations:{base:[frame]}},
-      bakedShadow:{color:'#00000028',frames:{base:[{width:4096,height:4096,pixelCount:1,spans:[0,0,1]}]}} } as unknown as LoadedAsset;
-    const assets = new WorldShadowAssets(); assets.prepare([asset]); await Promise.resolve();
-    expect(assets.prepare([asset])).toBe(false); expect(assets.failure).toBe('budget-exceeded'); expect(assets.cache.bytes).toBe(0);
-  });
+
   it('grounds clean artwork and converts elevated projected contacts back to logical space', () => {
     const mapper = new LightCoordinateMapper(terrain), x=64,y=96,level=2;
     const projected = mapper.projectedY(y,level);

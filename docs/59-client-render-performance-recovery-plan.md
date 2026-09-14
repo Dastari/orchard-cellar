@@ -301,6 +301,17 @@ mixed frame.
 **Exit:** distinct-source counter for artwork equals loaded page count, not
 sprite count; `painterDraw` p95 delta recorded.
 
+**2026-09-06 P3 implementation scope amendment:** deletion also updates the
+UI index exports and structural-seam digest, removes/replaces old engine cache
+tests, and migrates `lighting-review.ts`, `celestial-shadow-review.ts` and
+`world-lighting-review.ts` to builder-produced omit inputs/page cohorts. These
+are required consumers of the deleted classes. Review-only historical inputs
+retain their original PNGs/frame tables; the same builder span assertion emits
+their tiny omit PNGs offline. No runtime filtering compatibility implementation
+is retained. Existing PWA generated-prefix discovery already accepts `.omit.png`
+and preserves revision query keys; a new executable test proves this, so no
+service-worker retention or content-addressing work is added.
+
 ### P4 — Directional coverage: static/moving split and O(1) receivers
 
 **Files:** `receiver-lighting.ts`, `world-lighting-renderer.ts`,

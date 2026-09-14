@@ -1,8 +1,8 @@
-import { loadedShadowAssets } from '@orchard/ui';
+import { worldAtlasVariants } from '@orchard/ui';
 import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import { loadOverworldArt, drawAuthoredOverworldObject } from './overworld-art.js';
 import { celestialLightingAtCalendar } from './celestial-lighting.js';
-import { WorldLightingRenderer, WorldShadowAssets, celestialCastersFromOcclusion } from './world-lighting-renderer.js';
+import { WorldLightingRenderer, celestialCastersFromOcclusion } from './world-lighting-renderer.js';
 import { setWorldAssetPresentation } from './world-asset-presentation.js';
 import { setGroundLightSource } from './ground-light-source.js';
 import { GroundChunkCache } from './ground-cache.js';
@@ -24,7 +24,7 @@ export async function runWorldLightingReview() {
     elevations:new Int16Array(768),dirtCliffRoles:new Uint8Array(768),dirtTerraces:new Uint8Array(768),baseDatum:0 };
   for(let y=7;y<15;y++) for(let x=12;x<20;x++) terrain.elevations[y*32+x]=1;
   for(let y=8;y<12;y++) for(let x=16;x<19;x++) terrain.elevations[y*32+x]=2;
-  const cache = new GroundChunkCache(), frames = new WorldShadowAssets(), lightmap = new TileLightmap();
+  const cache = new GroundChunkCache(), frames = worldAtlasVariants, lightmap = new TileLightmap();
   const lighting = new WorldLightingRenderer(terrain);
   const canvas = document.createElement('canvas');canvas.width=640;canvas.height=384;
   const ctx=canvas.getContext('2d')!;
@@ -51,10 +51,9 @@ export async function runWorldLightingReview() {
     const sky=celestialLightingAtCalendar({continuousDay:panel.day,clockHours:panel.hour,lunarProgress:panel.newMoon?0.5:0,lunarIllumination:panel.newMoon?0:1,cloudCover:panel.clouds??0});
     if(panel.basic) { frames.reset();lighting.reset();lightmap.reset();resetSpriteLightMasks(); }
     else {
-      const assets=loadedShadowAssets();frames.prepare(assets);
-      while(!frames.prepare(assets)) { if(frames.failure) throw new Error(frames.failure);await yieldFrame(); }
+      if(!await frames.prepare() || !frames.commit()) throw new Error(frames.failure ?? 'review_omit_pages_not_ready');
     }
-    setWorldAssetPresentation(ctx,panel.basic?undefined:frames.cache,panel.basic?'original':'omit-baked-shadow');
+    setWorldAssetPresentation(ctx,panel.basic?undefined:frames,panel.basic?'original':'omit-baked-shadow');
     setGroundLightSource(ctx,panel.basic?undefined:(source,x,y,level)=>lighting.groundSource(source,x,y,level));
     const occlusion=panel.basic?undefined:createLightOcclusionMap(terrain,[],[],objects.map((object)=>{
       const projection=terrainProjectedDepthAtFoot(terrain,object.x,object.y);
@@ -87,10 +86,10 @@ export async function runWorldLightingReview() {
     ctx.fillStyle='#ffffff';ctx.fillRect(8,8,16,8);
     const x=index%3*640,y=Math.floor(index/3)*420;
     out.fillStyle='#101728';out.fillRect(x,y,640,420);out.fillStyle='#ffffff';out.font='16px monospace';out.fillText(panel.label,x+12,y+24);out.drawImage(canvas,x,y+36);
-    evidence.push({label:panel.label,milliseconds,bytes:lighting.bytes+frames.cache.bytes+lightmap.retainedSurfaceBytes,filteredFrames:frames.cache.surfaces,
+    evidence.push({label:panel.label,milliseconds,bytes:lighting.bytes+(frames.diagnostics().decodedPageBytes+frames.diagnostics().recoloredSurfaceBytes)+lightmap.retainedSurfaceBytes,omitPages:frames.diagnostics().pageCount,
       uiPixel:[...ctx.getImageData(10,10,1,1).data],shadowBuilds:lighting.scene.cache.builds});
   }
   frames.reset();lighting.reset();lightmap.reset();resetSpriteLightMasks();
-  return {image:board.toDataURL(),evidence,releasedBytes:lighting.bytes+frames.cache.bytes+lightmap.retainedSurfaceBytes,
+  return {image:board.toDataURL(),evidence,releasedBytes:lighting.bytes+(frames.diagnostics().decodedPageBytes+frames.diagnostics().recoloredSurfaceBytes)+lightmap.retainedSurfaceBytes,
     description:'Actual production painter on deterministic nested terrain; desktop browser CPU submission timing, not an authenticated player session.'};
 }

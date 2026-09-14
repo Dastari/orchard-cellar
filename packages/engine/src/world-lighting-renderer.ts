@@ -1,4 +1,4 @@
-import { renderOperationCounters, AssetFrameSourceCache, type AssetFrameSource, type LoadedAsset } from '@orchard/ui';
+import { renderOperationCounters, type AssetFrameSource } from '@orchard/ui';
 import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import type { CelestialLighting } from './celestial-lighting.js';
 import { groundedSpriteCaster, type DirectionalCaster } from './directional-shadows.js';
@@ -13,45 +13,6 @@ import { CelestialReceiverScene } from './receiver-lighting.js';
 import { terrainBaseDatum, type TerrainArray } from './terrain.js';
 
 export const lightingOwner = (x: number, y: number): string => `foot:${Math.round(x)}:${Math.round(y)}`;
-
-/** Own the bounded world frame cache; bulk preparation is available for previews.
- * No Canvas allocation or mask work takes place when Basic is requested. */
-export class WorldShadowAssets {
-  readonly cache = new AssetFrameSourceCache(8 * 1024 * 1024, undefined, () => new Promise((resolve) => {
-    const channel = new MessageChannel();
-    channel.port1.onmessage = () => { channel.port1.close(); channel.port2.close(); resolve(); };
-    channel.port2.postMessage(null);
-  }));
-  private assets = new Set<LoadedAsset>();
-  private generation = 0;
-  private ready = false;
-  private initialized = false;
-  failure: string | null = null;
-  beginFrame(): void { this.cache.beginFrame(); }
-  prepare(assets: readonly LoadedAsset[]): boolean {
-    if (this.initialized && assets.length === this.assets.size && assets.every((asset) => this.assets.has(asset))) return this.ready;
-    this.initialized = true;
-    this.assets = new Set(assets); this.ready = false; this.failure = null;
-    const generation = ++this.generation;
-    const requests = assets.flatMap((asset) => [
-      ...Object.values(asset.metadata.animations).flat(),
-      ...Object.values(asset.metadata.variants ?? {}).flat(),
-      ...Object.values(asset.metadata.states ?? {}),
-    ].map((frame) => ({ asset, frame })));
-    void this.cache.prepareVisible(requests).then((result) => {
-      if (generation !== this.generation) return;
-      this.ready = result === 'ready';
-      this.failure = result === 'ready' || result === 'cancelled' ? null : result;
-    }).catch((error: unknown) => {
-      if (generation === this.generation) this.failure = String(error);
-    });
-    return false;
-  }
-  reset(): void {
-    this.generation++; this.assets.clear();
-    this.ready = false; this.initialized = false; this.failure = null; this.cache.reset();
-  }
-}
 
 interface Plane { readonly canvas: HTMLCanvasElement; readonly left: number; readonly top: number; readonly step: number }
 
