@@ -14,7 +14,10 @@ export class CanvasWorldPresent {
   private readonly context: CanvasRenderingContext2D;
   constructor() {
     const context = this.canvas.getContext('2d');
-    if (context === null) throw new Error('World present Canvas 2D unavailable');
+    if (context === null) {
+      this.canvas.width = this.canvas.height = 0;
+      throw new Error('World present Canvas 2D unavailable');
+    }
     this.context = context;
     this.canvas.width = this.canvas.height = 0;
   }
@@ -23,6 +26,7 @@ export class CanvasWorldPresent {
     if (this.canvas.height < height) this.canvas.height = height;
   }
   get bytes(): number { return this.canvas.width * this.canvas.height * 4; }
+  dispose(): void { this.canvas.width = this.canvas.height = 0; }
   draw(target: CanvasRenderingContext2D, source: HTMLCanvasElement,
     sourceWidth: number, sourceHeight: number, width: number, height: number): void {
     const present = worldPresentLayout(sourceWidth, sourceHeight, width, height);

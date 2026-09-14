@@ -50,6 +50,17 @@ describe('unified renderer zoom math', () => {
     expect(worldPresentLayout(1707, 960, 1280, 720).factor).toBe(1);
   });
 
+  it('requests an opaque display context without changing world alpha', () => {
+    const display = { getContext: vi.fn(() => ({})), style: {} };
+    const world = { getContext: vi.fn(() => ({})) };
+    vi.stubGlobal('document', { createElement: () => world });
+    try {
+      new UnifiedRenderer(display as unknown as HTMLCanvasElement);
+      expect(display.getContext).toHaveBeenCalledWith('2d', { alpha: false });
+      expect(world.getContext).toHaveBeenCalledWith('2d');
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it('never grows backing stores during a complete supported zoom sweep', () => {
     const surfaces: Array<{ width: number; height: number }> = [];
     const createCanvas = () => {

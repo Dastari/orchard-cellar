@@ -1,4 +1,8 @@
-import { CanvasWorldPresent, type WorldScalePolicy } from './world-pass-present.js';
+import { comparePreparedWorldDepthItems, type WorldItemKind, type WorldItemIdentity } from './painter-depth.js';
+export { WorldItemKind } from './painter-depth.js';
+import type { WorldScalePolicy } from './world-pass-present.js';
+import { CanvasWorldPassBackend } from './world-pass-canvas.js';
+import type { WorldPassBackend } from './world-pass-backend.js';
 export { worldPresentLayout, type WorldScalePolicy } from './world-pass-present.js';
 import { MIN_WORLD_ZOOM, canvasHostViewport } from './display.js';
 
@@ -115,7 +119,14 @@ export interface WorldDepthItem {
   readonly elevationLayer?: number;
   /** Within one plane: surface, cliff boundary, then world entities. */
   readonly depthPhase?: 'surface' | 'boundary' | 'entity';
-  readonly tie: string;
+  /** Legacy producers are normalized at the shared painter boundary. */
+  readonly tie: string | number;
+  readonly debugTie?: string;
+  readonly kind?: WorldItemKind;
+  readonly sortKey?: number;
+  readonly sortPlane?: number;
+  readonly sortDepth?: number;
+  readonly sortIdentity?: WorldItemIdentity;
   readonly draw: () => void;
 }
 
@@ -131,7 +142,7 @@ function terrainUnderlayOrder(phase: WorldDepthItem['depthPhase']): number {
 
 export function sortWorldDepthItems<T extends Pick<
   WorldDepthItem,
-  'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase'
+  'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase' | 'debugTie' | 'sortKey' | 'sortPlane' | 'sortDepth' | 'sortIdentity'
 >>(
   items: readonly T[],
 ): T[] {
@@ -143,11 +154,14 @@ export function sortWorldDepthItems<T extends Pick<
  * second, subtly different depth implementation. */
 export function compareWorldDepthItems<T extends Pick<
   WorldDepthItem,
-  'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase'
+  'footY' | 'tie' | 'depthOffset' | 'elevationLayer' | 'depthPhase' | 'debugTie' | 'sortKey' | 'sortPlane' | 'sortDepth' | 'sortIdentity'
 >>(
   left: T,
   right: T,
 ): number {
+  if (left.sortKey !== undefined && right.sortKey !== undefined) {
+    return comparePreparedWorldDepthItems(left, right);
+  }
   return (left.elevationLayer ?? 0) - (right.elevationLayer ?? 0)
     // A plane's opaque surface and cosmetic ground-contact trim must be below
     // every painter-sorted actor on that plane, regardless of their row. A
@@ -155,7 +169,7 @@ export function compareWorldDepthItems<T extends Pick<
     || terrainUnderlayOrder(left.depthPhase) - terrainUnderlayOrder(right.depthPhase)
     || worldDepthY(left) - worldDepthY(right)
     || depthPhaseOrder(left.depthPhase) - depthPhaseOrder(right.depthPhase)
-    || left.tie.localeCompare(right.tie);
+    || String(left.debugTie ?? left.tie).localeCompare(String(right.debugTie ?? right.tie));
 }
 
 export function worldDepthY(item: Pick<WorldDepthItem, 'footY' | 'depthOffset'>): number {
@@ -196,23 +210,18 @@ export function drawSortedWorldDepthQueue(
 /** Owns display sizing and the only world-to-display composite. */
 export class UnifiedRenderer {
   private readonly displayContext: CanvasRenderingContext2D;
-  private readonly worldCanvas: HTMLCanvasElement;
-  private readonly worldContextValue: CanvasRenderingContext2D;
+  private readonly backend: WorldPassBackend;
   private dprValue = 1;
   private cssWidthValue = 1;
   private cssHeightValue = 1;
   private frameLayout: WorldPassLayout | null = null;
   private worldScaleValue: WorldScalePolicy = 'native';
-  private readonly present = new CanvasWorldPresent();
 
   constructor(readonly canvas: HTMLCanvasElement) {
-    const displayContext = canvas.getContext('2d');
+    const displayContext = canvas.getContext('2d', { alpha: false });
     if (displayContext === null) throw new Error('Canvas 2D unavailable');
     this.displayContext = displayContext;
-    this.worldCanvas = document.createElement('canvas');
-    const worldContext = this.worldCanvas.getContext('2d');
-    if (worldContext === null) throw new Error('Offscreen Canvas 2D unavailable');
-    this.worldContextValue = worldContext;
+    this.backend = new CanvasWorldPassBackend();
     this.assertNearestNeighbour();
   }
 
@@ -221,14 +230,14 @@ export class UnifiedRenderer {
   get dpr(): number { return this.dprValue; }
   get worldScale(): WorldScalePolicy { return this.worldScaleValue; }
   get activeWorldPixels(): number { return this.frameLayout === null ? 0 : this.frameLayout.width * this.frameLayout.height; }
-  get presentBytes(): number { return this.present.bytes; }
+  get presentBytes(): number { return this.backend.presentBytes; }
   setWorldScale(policy: WorldScalePolicy): void {
     if (policy === this.worldScaleValue) return;
     this.worldScaleValue = policy;
     this.reserveWorldPass();
   }
-  get worldWidth(): number { return this.worldCanvas.width; }
-  get worldHeight(): number { return this.worldCanvas.height; }
+  get worldWidth(): number { return this.backend.width; }
+  get worldHeight(): number { return this.backend.height; }
 
   resize(cssWidth?: number, cssHeight?: number, dpr = devicePixelRatio): void {
     const hostViewport = canvasHostViewport(this.canvas);
@@ -251,30 +260,21 @@ export class UnifiedRenderer {
 
   beginWorld(zoom: number): RenderFrame {
     const layout = worldPassLayout(this.cssWidthValue, this.cssHeightValue, this.dprValue, zoom, this.worldScaleValue);
-    if (layout.width > this.worldCanvas.width || layout.height > this.worldCanvas.height) {
+    if (layout.width > this.backend.width || layout.height > this.backend.height) {
       throw new Error('world_pass_capacity_not_reserved');
     }
-    this.worldContextValue.setTransform(1, 0, 0, 1, 0, 0);
-    this.worldContextValue.imageSmoothingEnabled = false;
-    this.worldContextValue.globalCompositeOperation = 'source-over';
-    this.worldContextValue.globalAlpha = 1;
-    this.worldContextValue.clearRect(0, 0, layout.width, layout.height);
-    this.worldContextValue.fillStyle = '#000000';
-    this.worldContextValue.fillRect(0, 0, layout.width, layout.height);
+    this.backend.begin(layout);
     this.frameLayout = layout;
-    return { world: this.worldContextValue, layout };
+    return { world: this.backend.context, layout };
   }
 
   compositeWorld(): void {
     if (this.frameLayout === null) throw new Error('beginWorld must precede compositeWorld');
-    this.displayContext.setTransform(1, 0, 0, 1, 0, 0);
-    this.displayContext.globalCompositeOperation = 'source-over';
-    this.displayContext.globalAlpha = 1;
-    this.displayContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.present.draw(this.displayContext, this.worldCanvas,
-      this.frameLayout.width, this.frameLayout.height, this.canvas.width, this.canvas.height);
-    this.displayContext.imageSmoothingEnabled = false;
+    this.backend.composite(this.displayContext, this.canvas.width, this.canvas.height);
   }
+
+  /** Release all world/present surfaces when the owning client is disposed. */
+  dispose(): void { this.backend.dispose(); this.frameLayout = null; }
 
   beginUi(uiScale: number): CanvasRenderingContext2D {
     this.displayContext.save();
@@ -303,14 +303,14 @@ export class UnifiedRenderer {
     const density = this.worldScaleValue === 'native' ? this.dprValue + 1 / MIN_WORLD_ZOOM
       : (this.worldScaleValue === '2x' ? 2 : 1) / MIN_WORLD_ZOOM;
     const capacity = worldPassCapacity(Math.ceil(this.cssWidthValue * density),
-      Math.ceil(this.cssHeightValue * density), this.worldCanvas.width, this.worldCanvas.height);
-    if (this.worldCanvas.width !== capacity.width) this.worldCanvas.width = capacity.width;
-    if (this.worldCanvas.height !== capacity.height) this.worldCanvas.height = capacity.height;
-    if (this.worldScaleValue !== 'native') this.present.reserve(this.canvas.width, this.canvas.height);
+      Math.ceil(this.cssHeightValue * density), this.backend.width, this.backend.height);
+    this.backend.reserve(capacity.width, capacity.height,
+      this.worldScaleValue !== 'native' ? this.canvas.width : 0,
+      this.worldScaleValue !== 'native' ? this.canvas.height : 0);
   }
 
   private assertNearestNeighbour(): void {
     this.displayContext.imageSmoothingEnabled = false;
-    this.worldContextValue.imageSmoothingEnabled = false;
+    this.backend.context.imageSmoothingEnabled = false;
   }
 }
