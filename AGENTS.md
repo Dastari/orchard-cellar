@@ -22,3 +22,55 @@ rebuild until the reviewed kit is integrated; use the release source for editor
 updates. See `.git/cellar-ui-release.md` for the active artifact and rollback.
 Preserve this guard during unrelated frontend or performance work. Do not deploy
 Studio output produced by bypassing it.
+
+## Git Workflow
+
+
+
+All substantive changes MUST be delivered through a GitHub Pull Request.
+
+
+
+Never commit directly to `main`.
+
+Never push directly to `main`.
+
+Never merge a PR unless explicitly instructed by the user.
+
+
+
+For every task:
+
+
+
+1. Fetch the latest remote state.
+
+2. Inspect existing branches and open PRs.
+
+3. Create a descriptive branch from the current upstream `main`.
+
+4. Make changes.
+
+5. Run the project's required tests, linting and build checks.
+
+6. Commit logical units of work using descriptive commits.
+
+7. Push the branch to `origin`.
+
+8. Create or update a GitHub Pull Request using `gh`.
+
+9. Include:
+
+   - Summary
+
+   - Changes made
+
+   - Testing performed
+
+   - Any risks or outstanding issues
+
+10. Return the PR URL to the user.
+
+
+
+The task is not considered complete until the PR exists.

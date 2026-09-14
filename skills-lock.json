@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "gitx": {
+      "source": "musoyangrigor/gitx-skill",
+      "sourceType": "github",
+      "skillPath": "gitx/SKILL.md",
+      "computedHash": "d82d4c368ffa5fabf584aec5cd67ecb981e5e09de10ffd23251744e445621b35"
+    }
+  }
+}
