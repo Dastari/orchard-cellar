@@ -1,6 +1,7 @@
 {
   "name": "avatar_cf_farmer_axe",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -443,7 +444,7 @@
     "d": "#f6ca9f",
     "e": "#ffffff"
   },
-  "sourcePath": "references/Cute_Fantasy_Free/Player/Player.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/free/Player/Player.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Player.png"

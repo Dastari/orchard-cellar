@@ -1,0 +1,3086 @@
+[
+  {
+    "id": "tileset:basic",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "basic",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "projectionRowsPerLevel": 0,
+    "faceClearanceRows": 0,
+    "surfaceFamily": "grass_1",
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 7
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 6
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 8
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 3
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 5
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 1
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 0
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 2
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 10
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 9
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 13
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_basic_cliff",
+        "frame": 12
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [],
+        "repeatRows": []
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": false,
+        "reason": "No authored ramp variants are available for this source family."
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_basic_cliff",
+      "tile_cf_grass_1_ledge"
+    ]
+  },
+  {
+    "id": "tileset:cave",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "cave",
+    "projectionStyle": "interior",
+    "baseDatum": 0,
+    "fixedPlane": 0,
+    "faceClearanceRows": 2,
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 5
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 32
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 33
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 13
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 11
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 19
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 25
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 26
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 6
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 4
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 20
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_cave_wall",
+        "frame": 18
+      }
+    ],
+    "unavailableRoleGroups": [
+      {
+        "group": "ledge_edge",
+        "reason": "No separate authored ledge bank exists for this source family."
+      },
+      {
+        "group": "ledge_inset",
+        "reason": "No separate authored ledge bank exists for this source family."
+      }
+    ],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_cave_wall",
+            "frames": [
+              46,
+              43,
+              47
+            ],
+            "blocksMovement": true,
+            "blocksLight": true,
+            "middleVariants": [
+              44
+            ]
+          },
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_cave_wall",
+            "frames": [
+              53,
+              50,
+              54
+            ],
+            "blocksMovement": true,
+            "blocksLight": true,
+            "middleVariants": [
+              51
+            ]
+          }
+        ],
+        "repeatRows": []
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": false,
+        "reason": "No authored ramp variants are available for this source family."
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": true,
+        "assetId": "tile_cf_cave_floor_ladder",
+        "variants": [
+          {
+            "id": "ladder",
+            "frames": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "assetIds": [
+      "tile_cf_cave_floor_ladder",
+      "tile_cf_cave_wall"
+    ]
+  },
+  {
+    "id": "tileset:desert_1",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "desert_1",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "faceClearanceRows": 0,
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 80
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 79
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 81
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 27
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 29
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 15
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 14
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 16
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 96
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 95
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 109
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_desert_cliff",
+        "frame": 108
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_desert_1_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_desert_cliff",
+            "frames": [
+              53,
+              54,
+              55
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "foot",
+            "assetId": "tile_cf_desert_cliff",
+            "frames": [
+              79,
+              80,
+              81
+            ],
+            "blocksMovement": false,
+            "blocksLight": false,
+            "contributesHeight": false
+          }
+        ],
+        "repeatRows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_desert_cliff",
+            "frames": [
+              40,
+              41,
+              42
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "wall",
+            "assetId": "tile_cf_desert_cliff",
+            "frames": [
+              66,
+              67,
+              68
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ]
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": true,
+        "assetId": "tile_cf_desert_1_ramp_bank",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "id": "tread.0",
+            "frames": [
+              3,
+              4,
+              5
+            ]
+          }
+        ]
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_desert_1_ledge",
+      "tile_cf_desert_1_ramp_bank",
+      "tile_cf_desert_cliff",
+      "tile_cf_desert_waterfall_1"
+    ]
+  },
+  {
+    "id": "tileset:desert_2",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "desert_2",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "faceClearanceRows": 0,
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 80
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 79
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 81
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 27
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 29
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 15
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 14
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 16
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 96
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 95
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 109
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_desert_cliff_2",
+        "frame": 108
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_desert_2_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_desert_cliff_2",
+            "frames": [
+              53,
+              54,
+              55
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "foot",
+            "assetId": "tile_cf_desert_cliff_2",
+            "frames": [
+              79,
+              80,
+              81
+            ],
+            "blocksMovement": false,
+            "blocksLight": false,
+            "contributesHeight": false
+          }
+        ],
+        "repeatRows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_desert_cliff_2",
+            "frames": [
+              40,
+              41,
+              42
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "wall",
+            "assetId": "tile_cf_desert_cliff_2",
+            "frames": [
+              66,
+              67,
+              68
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ]
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": true,
+        "assetId": "tile_cf_desert_2_ramp_bank",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "id": "tread.0",
+            "frames": [
+              3,
+              4,
+              5
+            ]
+          }
+        ]
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_desert_2_ledge",
+      "tile_cf_desert_2_ramp_bank",
+      "tile_cf_desert_cliff_2",
+      "tile_cf_desert_waterfall_2"
+    ]
+  },
+  {
+    "id": "tileset:desert_3",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "desert_3",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "faceClearanceRows": 0,
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 80
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 79
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 81
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 27
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 29
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 15
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 14
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 16
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 96
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 95
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 109
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_desert_cliff_3",
+        "frame": 108
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_desert_3_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_desert_cliff_3",
+            "frames": [
+              53,
+              54,
+              55
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "foot",
+            "assetId": "tile_cf_desert_cliff_3",
+            "frames": [
+              79,
+              80,
+              81
+            ],
+            "blocksMovement": false,
+            "blocksLight": false,
+            "contributesHeight": false
+          }
+        ],
+        "repeatRows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_desert_cliff_3",
+            "frames": [
+              40,
+              41,
+              42
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "wall",
+            "assetId": "tile_cf_desert_cliff_3",
+            "frames": [
+              66,
+              67,
+              68
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ]
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": true,
+        "assetId": "tile_cf_desert_3_ramp_bank",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "id": "tread.0",
+            "frames": [
+              3,
+              4,
+              5
+            ]
+          }
+        ]
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_desert_3_ledge",
+      "tile_cf_desert_3_ramp_bank",
+      "tile_cf_desert_cliff_3",
+      "tile_cf_desert_waterfall_3"
+    ]
+  },
+  {
+    "id": "tileset:dungeon_1",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "dungeon_1",
+    "projectionStyle": "interior",
+    "baseDatum": 1,
+    "fixedPlane": 0,
+    "faceClearanceRows": 2,
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 31
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 30
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 32
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 17
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 19
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 5
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 4
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 6
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 136
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 134
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 162
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_dungeon_1_wall",
+        "frame": 160
+      }
+    ],
+    "unavailableRoleGroups": [
+      {
+        "group": "ledge_edge",
+        "reason": "No separate authored ledge bank exists for this source family."
+      },
+      {
+        "group": "ledge_inset",
+        "reason": "No separate authored ledge bank exists for this source family."
+      }
+    ],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_dungeon_1_wall",
+            "frames": [
+              82,
+              83,
+              84
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_dungeon_1_wall",
+            "frames": [
+              95,
+              96,
+              97
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ],
+        "repeatRows": []
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": false,
+        "reason": "No authored ramp variants are available for this source family."
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": true,
+        "assetId": "tile_cf_cave_floor_ladder",
+        "variants": [
+          {
+            "id": "ladder",
+            "frames": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "assetIds": [
+      "tile_cf_cave_floor_ladder",
+      "tile_cf_dungeon_1_wall"
+    ]
+  },
+  {
+    "id": "tileset:dungeon_2",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "dungeon_2",
+    "projectionStyle": "interior",
+    "baseDatum": 1,
+    "fixedPlane": 0,
+    "faceClearanceRows": 2,
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 63
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 62
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 64
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 17
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 19
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 5
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 4
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 6
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 123
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 121
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 149
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_dungeon_2_wall",
+        "frame": 147
+      }
+    ],
+    "unavailableRoleGroups": [
+      {
+        "group": "ledge_edge",
+        "reason": "No separate authored ledge bank exists for this source family."
+      },
+      {
+        "group": "ledge_inset",
+        "reason": "No separate authored ledge bank exists for this source family."
+      }
+    ],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_dungeon_2_wall",
+            "frames": [
+              82,
+              83,
+              84
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_dungeon_2_wall",
+            "frames": [
+              88,
+              89,
+              90
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ],
+        "repeatRows": []
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": false,
+        "reason": "No authored ramp variants are available for this source family."
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": true,
+        "assetId": "tile_cf_cave_floor_ladder",
+        "variants": [
+          {
+            "id": "ladder",
+            "frames": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "assetIds": [
+      "tile_cf_cave_floor_ladder",
+      "tile_cf_dungeon_2_wall"
+    ]
+  },
+  {
+    "id": "tileset:shroomlands",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "shroomlands",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "faceClearanceRows": 0,
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_shroomlands_cliff",
+        "frame": 46
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_shroomlands_cliff",
+        "frame": 45
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_shroomlands_cliff",
+        "frame": 47
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_shroomlands_cliff",
+        "frame": 9
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_shroomlands_cliff",
+        "frame": 11
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_shroomlands_cliff",
+        "frame": 1
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_shroomlands_cliff",
+        "frame": 0
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_shroomlands_cliff",
+        "frame": 2
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_shroomlands_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [
+      {
+        "group": "inset",
+        "reason": "No authored inverse inset variants exist for this source family."
+      }
+    ],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_shroomlands_cliff",
+            "frames": [
+              36,
+              37,
+              38
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "foot",
+            "assetId": "tile_cf_shroomlands_cliff",
+            "frames": [
+              45,
+              46,
+              47
+            ],
+            "blocksMovement": false,
+            "blocksLight": false,
+            "contributesHeight": false
+          }
+        ],
+        "repeatRows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_shroomlands_cliff",
+            "frames": [
+              9,
+              10,
+              11
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "wall",
+            "assetId": "tile_cf_shroomlands_cliff",
+            "frames": [
+              18,
+              19,
+              20
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "wall",
+            "assetId": "tile_cf_shroomlands_cliff",
+            "frames": [
+              27,
+              28,
+              29
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ]
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": true,
+        "assetId": "tile_cf_shroomlands_ramp_bank",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              8,
+              9,
+              10
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "id": "tread.0",
+            "frames": [
+              4,
+              5,
+              6
+            ]
+          }
+        ]
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_shroomlands_cliff",
+      "tile_cf_shroomlands_ledge",
+      "tile_cf_shroomlands_ramp_bank",
+      "tile_cf_shroomlands_waterfall"
+    ]
+  },
+  {
+    "id": "tileset:stone_1",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "stone_1",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "faceClearanceRows": 0,
+    "surfaceFamily": "grass_1",
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_stone_cliff_variants",
+        "frame": 30
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_stone_cliff_variants",
+        "frame": 29
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_stone_cliff_variants",
+        "frame": 31
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_stone_cliff_variants",
+        "frame": 15
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_stone_cliff_variants",
+        "frame": 17
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_stone_cliff_variants",
+        "frame": 2
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_stone_cliff_variants",
+        "frame": 1
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_stone_cliff_variants",
+        "frame": 3
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_stone_cliff_1_inverse_overlay",
+        "frame": 1
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_stone_cliff_1_inverse_overlay",
+        "frame": 0
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_stone_cliff_1_inverse_overlay",
+        "frame": 3
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_stone_cliff_1_inverse_overlay",
+        "frame": 2
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_grass_1_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_stone_cliff_variants",
+            "frames": [
+              57,
+              58,
+              59
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "foot",
+            "assetId": "tile_cf_stone_cliff_variants",
+            "frames": [
+              71,
+              72,
+              73
+            ],
+            "blocksMovement": false,
+            "blocksLight": false,
+            "contributesHeight": false
+          }
+        ],
+        "repeatRows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_stone_cliff_variants",
+            "frames": [
+              43,
+              44,
+              45
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ]
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": true,
+        "assetId": "tile_cf_grass_1_ramp_bank_stone",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              12,
+              13,
+              14
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "id": "tread.0",
+            "frames": [
+              4,
+              5,
+              6
+            ]
+          },
+          {
+            "id": "tread.1",
+            "frames": [
+              8,
+              9,
+              10
+            ]
+          }
+        ]
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_grass_1_ledge",
+      "tile_cf_grass_1_ramp_bank_stone",
+      "tile_cf_stone_cliff_1_inverse_overlay",
+      "tile_cf_stone_cliff_variants",
+      "tile_cf_waterfall"
+    ]
+  },
+  {
+    "id": "tileset:stone_2",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "stone_2",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "faceClearanceRows": 0,
+    "surfaceFamily": "grass_2",
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_stone_cliff_2",
+        "frame": 30
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_stone_cliff_2",
+        "frame": 29
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_stone_cliff_2",
+        "frame": 31
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_stone_cliff_2",
+        "frame": 15
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_stone_cliff_2",
+        "frame": 17
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_stone_cliff_2",
+        "frame": 2
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_stone_cliff_2",
+        "frame": 1
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_stone_cliff_2",
+        "frame": 3
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_stone_cliff_2_inverse_overlay",
+        "frame": 1
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_stone_cliff_2_inverse_overlay",
+        "frame": 0
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_stone_cliff_2_inverse_overlay",
+        "frame": 3
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_stone_cliff_2_inverse_overlay",
+        "frame": 2
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_grass_2_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_stone_cliff_2",
+            "frames": [
+              57,
+              58,
+              59
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "foot",
+            "assetId": "tile_cf_stone_cliff_2",
+            "frames": [
+              71,
+              72,
+              73
+            ],
+            "blocksMovement": false,
+            "blocksLight": false,
+            "contributesHeight": false
+          }
+        ],
+        "repeatRows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_stone_cliff_2",
+            "frames": [
+              43,
+              44,
+              45
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ]
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": true,
+        "assetId": "tile_cf_grass_2_ramp_bank_stone",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              12,
+              13,
+              14
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "id": "tread.0",
+            "frames": [
+              4,
+              5,
+              6
+            ]
+          },
+          {
+            "id": "tread.1",
+            "frames": [
+              8,
+              9,
+              10
+            ]
+          }
+        ]
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_grass_2_ledge",
+      "tile_cf_grass_2_ramp_bank_stone",
+      "tile_cf_stone_cliff_2",
+      "tile_cf_stone_cliff_2_inverse_overlay",
+      "tile_cf_waterfall"
+    ]
+  },
+  {
+    "id": "tileset:stone_3",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "stone_3",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "faceClearanceRows": 0,
+    "surfaceFamily": "grass_3",
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_stone_cliff_3",
+        "frame": 30
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_stone_cliff_3",
+        "frame": 29
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_stone_cliff_3",
+        "frame": 31
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_stone_cliff_3",
+        "frame": 15
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_stone_cliff_3",
+        "frame": 17
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_stone_cliff_3",
+        "frame": 2
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_stone_cliff_3",
+        "frame": 1
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_stone_cliff_3",
+        "frame": 3
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_stone_cliff_3_inverse_overlay",
+        "frame": 1
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_stone_cliff_3_inverse_overlay",
+        "frame": 0
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_stone_cliff_3_inverse_overlay",
+        "frame": 3
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_stone_cliff_3_inverse_overlay",
+        "frame": 2
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_grass_3_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_stone_cliff_3",
+            "frames": [
+              57,
+              58,
+              59
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "foot",
+            "assetId": "tile_cf_stone_cliff_3",
+            "frames": [
+              71,
+              72,
+              73
+            ],
+            "blocksMovement": false,
+            "blocksLight": false,
+            "contributesHeight": false
+          }
+        ],
+        "repeatRows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_stone_cliff_3",
+            "frames": [
+              43,
+              44,
+              45
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ]
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": true,
+        "assetId": "tile_cf_grass_3_ramp_bank_stone",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              12,
+              13,
+              14
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "id": "tread.0",
+            "frames": [
+              4,
+              5,
+              6
+            ]
+          },
+          {
+            "id": "tread.1",
+            "frames": [
+              8,
+              9,
+              10
+            ]
+          }
+        ]
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_grass_3_ledge",
+      "tile_cf_grass_3_ramp_bank_stone",
+      "tile_cf_stone_cliff_3",
+      "tile_cf_stone_cliff_3_inverse_overlay",
+      "tile_cf_waterfall"
+    ]
+  },
+  {
+    "id": "tileset:stone_4",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "stone_4",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "faceClearanceRows": 0,
+    "surfaceFamily": "grass_4",
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_stone_cliff_4",
+        "frame": 30
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_stone_cliff_4",
+        "frame": 29
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_stone_cliff_4",
+        "frame": 31
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_stone_cliff_4",
+        "frame": 15
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_stone_cliff_4",
+        "frame": 17
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_stone_cliff_4",
+        "frame": 2
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_stone_cliff_4",
+        "frame": 1
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_stone_cliff_4",
+        "frame": 3
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_stone_cliff_4_inverse_overlay",
+        "frame": 1
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_stone_cliff_4_inverse_overlay",
+        "frame": 0
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_stone_cliff_4_inverse_overlay",
+        "frame": 3
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_stone_cliff_4_inverse_overlay",
+        "frame": 2
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_grass_4_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_stone_cliff_4",
+            "frames": [
+              57,
+              58,
+              59
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "foot",
+            "assetId": "tile_cf_stone_cliff_4",
+            "frames": [
+              71,
+              72,
+              73
+            ],
+            "blocksMovement": false,
+            "blocksLight": false,
+            "contributesHeight": false
+          }
+        ],
+        "repeatRows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_stone_cliff_4",
+            "frames": [
+              43,
+              44,
+              45
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ]
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": true,
+        "assetId": "tile_cf_grass_4_ramp_bank_stone",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              12,
+              13,
+              14
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "id": "tread.0",
+            "frames": [
+              4,
+              5,
+              6
+            ]
+          },
+          {
+            "id": "tread.1",
+            "frames": [
+              8,
+              9,
+              10
+            ]
+          }
+        ]
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_grass_4_ledge",
+      "tile_cf_grass_4_ramp_bank_stone",
+      "tile_cf_stone_cliff_4",
+      "tile_cf_stone_cliff_4_inverse_overlay",
+      "tile_cf_waterfall"
+    ]
+  },
+  {
+    "id": "tileset:volcanic",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "volcanic",
+    "projectionStyle": "raised",
+    "baseDatum": 0,
+    "faceClearanceRows": 0,
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 13
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 12
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 14
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 3
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 5
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 1
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 0
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 2
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 16
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 15
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 18
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_volcanic_cliff",
+        "frame": 17
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 6
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 5
+      },
+      {
+        "group": "ledge_edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 7
+      },
+      {
+        "group": "ledge_edge",
+        "role": "left",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 3
+      },
+      {
+        "group": "ledge_edge",
+        "role": "right",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 4
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 1
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_left",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 0
+      },
+      {
+        "group": "ledge_edge",
+        "role": "top_right",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 2
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 9
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 8
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 11
+      },
+      {
+        "group": "ledge_inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_volcanic_ledge",
+        "frame": 10
+      }
+    ],
+    "unavailableRoleGroups": [],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_volcanic_cliff",
+            "frames": [
+              9,
+              10,
+              11
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "foot",
+            "assetId": "tile_cf_volcanic_cliff",
+            "frames": [
+              12,
+              13,
+              14
+            ],
+            "blocksMovement": false,
+            "blocksLight": false,
+            "contributesHeight": false
+          }
+        ],
+        "repeatRows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_volcanic_cliff",
+            "frames": [
+              6,
+              7,
+              8
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ]
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": true,
+        "assetId": "tile_cf_volcanic_ramp_bank",
+        "variants": [
+          {
+            "id": "base",
+            "frames": [
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "id": "crest",
+            "frames": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "id": "tread.0",
+            "frames": [
+              3,
+              4,
+              5
+            ]
+          }
+        ]
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": false,
+        "reason": "No authored ladder variants are available for this source family."
+      }
+    },
+    "assetIds": [
+      "tile_cf_volcanic_cliff",
+      "tile_cf_volcanic_lavafall",
+      "tile_cf_volcanic_ledge",
+      "tile_cf_volcanic_ramp_bank"
+    ]
+  },
+  {
+    "id": "tileset:volcanic_interior",
+    "kind": "tileset",
+    "schemaVersion": 1,
+    "engineVersion": 1,
+    "familyId": "volcanic_interior",
+    "projectionStyle": "interior",
+    "baseDatum": 1,
+    "fixedPlane": 0,
+    "faceClearanceRows": 2,
+    "roleFrames": [
+      {
+        "group": "edge",
+        "role": "bottom",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 7
+      },
+      {
+        "group": "edge",
+        "role": "bottom_left",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 6
+      },
+      {
+        "group": "edge",
+        "role": "bottom_right",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 8
+      },
+      {
+        "group": "edge",
+        "role": "left",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 3
+      },
+      {
+        "group": "edge",
+        "role": "right",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 5
+      },
+      {
+        "group": "edge",
+        "role": "top",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 1
+      },
+      {
+        "group": "edge",
+        "role": "top_left",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 0
+      },
+      {
+        "group": "edge",
+        "role": "top_right",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 2
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_left",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 16
+      },
+      {
+        "group": "inset",
+        "role": "inner_bottom_right",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 15
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_left",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 18
+      },
+      {
+        "group": "inset",
+        "role": "inner_top_right",
+        "assetId": "tile_cf_volcanic_interior_wall",
+        "frame": 17
+      }
+    ],
+    "unavailableRoleGroups": [
+      {
+        "group": "ledge_edge",
+        "reason": "No separate authored ledge bank exists for this source family."
+      },
+      {
+        "group": "ledge_inset",
+        "reason": "No separate authored ledge bank exists for this source family."
+      }
+    ],
+    "faceProfiles": [
+      {
+        "id": "tall",
+        "rows": [
+          {
+            "id": "wall",
+            "assetId": "tile_cf_volcanic_interior_wall",
+            "frames": [
+              12,
+              13,
+              14
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          },
+          {
+            "id": "lower_wall",
+            "assetId": "tile_cf_volcanic_interior_wall",
+            "frames": [
+              6,
+              7,
+              8
+            ],
+            "blocksMovement": true,
+            "blocksLight": true
+          }
+        ],
+        "repeatRows": []
+      }
+    ],
+    "transitions": {
+      "ramp": {
+        "available": false,
+        "reason": "No authored ramp variants are available for this source family."
+      },
+      "stair": {
+        "available": false,
+        "reason": "No authored stair variants are available for this source family."
+      },
+      "ladder": {
+        "available": true,
+        "assetId": "tile_cf_cave_floor_ladder",
+        "variants": [
+          {
+            "id": "ladder",
+            "frames": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "assetIds": [
+      "tile_cf_cave_floor_ladder",
+      "tile_cf_volcanic_interior_wall"
+    ]
+  }
+]

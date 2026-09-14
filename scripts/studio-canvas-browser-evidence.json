@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-03T21:55:00+10:00",
+  "browser": "Chrome via playwright-cli (headless; host has no X server)",
+  "urls": [
+    "https://cellar.dastari.net/author/items",
+    "https://cellar.dastari.net/author/npcs",
+    "http://127.0.0.1:5176/build/object"
+  ],
+  "build": "@orchard/studio production Vite build served by the Studio static service/NPM origin",
+  "assertions": {
+    "bodyChildren": ["CANVAS"],
+    "bodyDescendantCount": 1,
+    "canvasCount": 1,
+    "htmlUiElementCount": 0,
+    "canvasReady": true,
+    "desktop": {
+      "viewport": [1280, 720],
+      "cssSize": [1280, 720],
+      "backingSizeAtDpr1": [1280, 720],
+      "routes": ["/build/object", "/author/items"],
+      "maximumVisibleActionCount": 40,
+      "alphaGridWorkspace": true,
+      "typedDefinitionInspector": true,
+      "tableSelectionAndWheelPageScroll": true
+    },
+    "drawerResize": {
+      "leftBefore": 270,
+      "leftAfterPointerDrag": 330,
+      "sessionStorage": "{\"left\":330,\"right\":286}",
+      "survivedReload": true,
+      "consoleErrors": 0
+    },
+    "keyboard": {
+      "commandPalette": "Control+K opens the retained canvas palette and canvas text editor accepts ITEMS",
+      "focusedLabel": "Orchard Studio. textbox: Command search. Press Enter to activate.",
+      "tableCommands": ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]
+    },
+    "splitWorkspace": {
+      "rowPrimary": "/author/items",
+      "rowSecondary": "/build/map",
+      "cycledSecondary": "/build/object",
+      "columnMode": true,
+      "secondaryControlsFilteredFromDrawer": true,
+      "directionAndSecondarySurvivedReload": true,
+      "maximumVisibleActionCount": 50
+    },
+    "toolRail": {
+      "routeButtons": "icon-only STUDIO_TOOL_ICONS",
+      "scrollRowObserved": 3,
+      "fixedBottomSessionCard": true,
+      "canvasTooltip": true
+    },
+    "narrow": {
+      "viewport": [720, 540],
+      "cssSize": [720, 540],
+      "backingSizeAtDpr1": [720, 540],
+      "route": "/author/npcs",
+      "visibleActionCount": 29,
+      "fourRegionsVisible": true
+    },
+    "anonymousLiveAdapterConstructed": false,
+    "consoleErrors": 0,
+    "consoleWarnings": 0
+  },
+  "screenshots": [
+    "output/playwright/studio-public-items-final.png",
+    "output/playwright/studio-public-palette-final.png",
+    "output/playwright/studio-public-rail-scrolled.png",
+    "output/playwright/studio-public-npcs-narrow-final.png",
+    "output/playwright/studio-public-split-row-final.png",
+    "output/playwright/studio-public-split-column-final.png",
+    "output/playwright/studio-canvas-items-selected.png",
+    "output/playwright/studio-canvas-items-scrolled.png",
+    "output/playwright/studio-canvas-resized-clean.png"
+  ],
+  "scope": "Anonymous Build/Author canvas acceptance. Authenticated Operate/Observe and live mutation flows require the named OIDC/operator prerequisites in the acceptance manifest."
+}

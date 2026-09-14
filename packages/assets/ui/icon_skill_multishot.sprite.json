@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_multishot",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".1401...........",
+        "114401..2.......",
+        "445440...3...2..",
+        "044540....4...3.",
+        "1044501.....2..4",
+        ".1000401....2...",
+        "....10401..12...",
+        "..2..104011012..",
+        "...3..10400501..",
+        "....4..1040501..",
+        ".......1004560..",
+        "......105554601.",
+        "....22210066560.",
+        ".2.....21100660.",
+        "..3........1000.",
+        "...4............"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#461d0f",
+    "1": "#6e2727",
+    "2": "#cd683d",
+    "3": "#f89320",
+    "4": "#f9c22b",
+    "5": "#ffe4b3",
+    "6": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "rogue-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/rogue/sheets/rogue-skills-16.png",
+  "sourceRegion": [
+    112,
+    208,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.multishot",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

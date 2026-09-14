@@ -1,0 +1,70 @@
+{
+  "name": "icon_tool_gold_pickaxe",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "......AAAAAA....",
+        ".....ADDDDDDAA..",
+        ".....AAAADCDDA..",
+        ".........ADCCDA.",
+        "........A21BCBA.",
+        ".......A210ABBA.",
+        "......A210A.ABA.",
+        ".....A210A..ABA.",
+        "....A210A...ABA.",
+        "...A210A....AA..",
+        "..A210A.........",
+        ".A210A..........",
+        ".A10A...........",
+        ".AAA............",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#4b2d23",
+    "1": "#9c6034",
+    "2": "#d39a52",
+    "A": "#61401f",
+    "B": "#b67c25",
+    "C": "#e8b73e",
+    "D": "#ffe88b"
+  },
+  "tags": [
+    "ui.icon",
+    "item.tool",
+    "source.orchard_derivative",
+    "tool.material.gold"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "approved": true,
+  "importedFrom": "icon_tool_gold_pickaxe.png",
+  "sourcePath": "art/custom/tool-progression/icon_tool_gold_pickaxe.png",
+  "sourcePaletteMode": "exact",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  }
+}

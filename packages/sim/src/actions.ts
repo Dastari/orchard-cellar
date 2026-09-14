@@ -1,18 +1,21 @@
+import { bootstrapDefinitionsOfKind } from './content/bootstrap-pack-loader.js';
 import { isDurableToolKind } from './durability.js';
 
 export interface AvatarActionDefinition {
   readonly playback: 'oneShot' | 'loop';
   readonly interruptibleByMovement: boolean;
-  readonly equippedKind?: string;
 }
 
 export const AVATAR_ACTIONS = {
-  swing_axe: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'axe' },
-  swing_sword: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'sword' },
-  swing_pickaxe: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'pickaxe' },
-  swing_hoe: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'hoe' },
-  water: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'watering_can' },
-  ranged_weapon: { playback: 'oneShot', interruptibleByMovement: false, equippedKind: 'bow' },
+  swing_axe: { playback: 'oneShot', interruptibleByMovement: false },
+  swing_sword: { playback: 'oneShot', interruptibleByMovement: false },
+  swing_pickaxe: { playback: 'oneShot', interruptibleByMovement: false },
+  swing_hoe: { playback: 'oneShot', interruptibleByMovement: false },
+  water: { playback: 'oneShot', interruptibleByMovement: false },
+  ranged_weapon: { playback: 'oneShot', interruptibleByMovement: false },
+  fish_cast: { playback: 'oneShot', interruptibleByMovement: true },
+  fish_reel: { playback: 'oneShot', interruptibleByMovement: true },
+  jump: { playback: 'oneShot', interruptibleByMovement: false },
   pickup: { playback: 'oneShot', interruptibleByMovement: false },
   drop: { playback: 'oneShot', interruptibleByMovement: false },
   fishing_wait: { playback: 'loop', interruptibleByMovement: true },
@@ -29,23 +32,26 @@ export interface ActionInventoryStack {
 
 export type ItemActionRejection = 'tool_broken' | 'out_of_arrows';
 
-/** Ammunition requirements live beside the equipment-to-action registry so
- * future ranged tools cannot accidentally add animation without the matching
- * inventory gate. */
-const REQUIRED_AMMUNITION = {
-  bow: 'arrow',
-} as const satisfies Readonly<Record<string, string>>;
+export type AmmunitionResolver = (itemKind: string) => string | null;
+
+/** Compatibility presentation resolver. Live clients bind the same lookup to
+ * their subscribed registry revision instead. */
+function bootstrapRequiredAmmunition(itemKind: string): string | null {
+  const ammunition = bootstrapDefinitionsOfKind('item').find(({ id }) => id === `item:${itemKind}`)?.ranged?.ammunition;
+  return ammunition?.slice('item:'.length) ?? null;
+}
 
 /** Shared presentation readiness. Authority must still repeat these checks,
  * but clients use this before starting an optimistic animation or sound. */
 export function itemActionRejection(
   equipped: ActionInventoryStack | null | undefined,
   inventory: Iterable<ActionInventoryStack>,
+  ammunitionFor: AmmunitionResolver = bootstrapRequiredAmmunition,
 ): ItemActionRejection | null {
   if (equipped === null || equipped === undefined || equipped.quantity < 1) return null;
   if (isDurableToolKind(equipped.itemKind) && equipped.durability === 0) return 'tool_broken';
-  const ammunition = REQUIRED_AMMUNITION[equipped.itemKind as keyof typeof REQUIRED_AMMUNITION];
-  if (ammunition !== undefined) {
+  const ammunition = ammunitionFor(equipped.itemKind);
+  if (ammunition !== null) {
     for (const stack of inventory) {
       if (stack.itemKind === ammunition && stack.quantity > 0) return null;
     }
@@ -65,12 +71,8 @@ export function isAvatarActionKind(kind: string): kind is AvatarActionKind {
 }
 
 export function avatarActionForEquippedKind(equippedKind: string): AvatarActionKind | null {
-  for (const [kind, definition] of Object.entries(AVATAR_ACTIONS)) {
-    if ('equippedKind' in definition && definition.equippedKind === equippedKind) {
-      return kind as AvatarActionKind;
-    }
-  }
-  return null;
+  const action = bootstrapDefinitionsOfKind('item').find(({ id }) => id === `item:${equippedKind}`)?.equip?.avatarAction;
+  return action !== undefined && isAvatarActionKind(action) ? action : null;
 }
 
 export function avatarActionAfterMovement(kind: string, moved: boolean): string {

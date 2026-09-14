@@ -1,7 +1,15 @@
+import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
+import type { SkillNodePassives } from './content/world-definition.js';
+import type { ContentRegistry } from './content/registry.js';
+
 export const SKILL_TRACKS = ['combat', 'explorer', 'farming'] as const;
 export type SkillTrack = (typeof SKILL_TRACKS)[number];
 
 export const SKILL_LEVEL_CAP = 50;
+export const SKILL_SPECIALIZATIONS = [
+  'farming', 'mining', 'fishing', 'woodcutting', 'animal_husbandry', 'exploration',
+] as const;
+export type SkillSpecialization = (typeof SKILL_SPECIALIZATIONS)[number];
 
 export interface SkillNodeDefinition {
   readonly id: string;
@@ -10,67 +18,20 @@ export interface SkillNodeDefinition {
   readonly description: string;
   readonly position: readonly [x: number, y: number];
   readonly connects: readonly string[];
+  /** Every prerequisite and its prerequisite chain must be owned. */
+  readonly prerequisites?: readonly string[];
+  readonly passive?: SkillNodePassives;
   readonly maxRank: number;
   readonly pointCost: number;
   readonly requiresLevel?: number;
   readonly root?: boolean;
+  /** Branch ownership used by tool-quality gates and contextual effects. */
+  readonly specialization?: SkillSpecialization;
+  /** Present only when buying this node changes live gameplay today. */
+  readonly implemented?: true;
 }
 
-const nodes = [
-  // Explorer — movement, discovery, and creature comforts.
-  { id: 'explorer_root', track: 'explorer', name: 'Wanderlust', description: 'The road begins here.', position: [0, 0], connects: ['trailblazer', 'measured_stride', 'keen_senses'], maxRank: 0, pointCost: 0, root: true },
-  { id: 'trailblazer', track: 'explorer', name: 'Trailblazer', description: 'Planned: gain 2% more top speed while running per rank.', position: [-92, -52], connects: ['explorer_root', 'pathfinder', 'surefooted'], maxRank: 5, pointCost: 1 },
-  { id: 'measured_stride', track: 'explorer', name: 'Measured Stride', description: 'Planned: running consumes 6% less Vigour per rank.', position: [0, -92], connects: ['explorer_root', 'second_wind', 'night_eyes'], maxRank: 3, pointCost: 1 },
-  { id: 'keen_senses', track: 'explorer', name: 'Keen Senses', description: 'Planned: notice hidden caves and secret passages from farther away.', position: [92, -52], connects: ['explorer_root', 'cave_whisperer', 'field_notes'], maxRank: 3, pointCost: 1 },
-  { id: 'pathfinder', track: 'explorer', name: 'Pathfinder', description: 'Planned: move faster on roads, tracks, and well-worn paths.', position: [-158, -112], connects: ['trailblazer', 'horizon_chaser'], maxRank: 3, pointCost: 1, requiresLevel: 3 },
-  { id: 'surefooted', track: 'explorer', name: 'Surefooted', description: 'Planned: jump narrow streams, cracks, and other small gaps.', position: [-154, 24], connects: ['trailblazer', 'steeplechase'], maxRank: 1, pointCost: 2, requiresLevel: 4 },
-  { id: 'second_wind', track: 'explorer', name: 'Second Wind', description: 'Planned: recover Vigour sooner after a long run.', position: [-48, -164], connects: ['measured_stride', 'horizon_chaser'], maxRank: 3, pointCost: 1, requiresLevel: 3 },
-  { id: 'night_eyes', track: 'explorer', name: 'Night Eyes', description: 'Planned: see farther in darkness and notice dim landmarks.', position: [50, -164], connects: ['measured_stride', 'cave_whisperer'], maxRank: 3, pointCost: 1, requiresLevel: 3 },
-  { id: 'cave_whisperer', track: 'explorer', name: 'Cave Whisperer', description: 'Planned: reveal subtler signs of hidden caves on the landscape.', position: [158, -112], connects: ['keen_senses', 'night_eyes', 'cartographer', 'prospector'], maxRank: 1, pointCost: 2, requiresLevel: 5 },
-  { id: 'field_notes', track: 'explorer', name: 'Field Notes', description: 'Planned: discoveries grant more Explorer experience.', position: [154, 24], connects: ['keen_senses', 'deep_pockets'], maxRank: 3, pointCost: 1, requiresLevel: 4 },
-  { id: 'steeplechase', track: 'explorer', name: 'Steeplechase', description: 'Planned: mounted companions can clear larger obstacles.', position: [-176, 96], connects: ['surefooted', 'deep_pockets'], maxRank: 1, pointCost: 2, requiresLevel: 8 },
-  { id: 'horizon_chaser', track: 'explorer', name: 'Horizon Chaser', description: 'Planned: keep full running speed for longer journeys.', position: [-92, -218], connects: ['pathfinder', 'second_wind', 'cartographer'], maxRank: 1, pointCost: 3, requiresLevel: 10 },
-  { id: 'cartographer', track: 'explorer', name: 'Cartographer', description: 'Planned: record discovered routes, caves, and destinations.', position: [94, -218], connects: ['cave_whisperer', 'horizon_chaser', 'deep_pockets'], maxRank: 1, pointCost: 3, requiresLevel: 10 },
-  { id: 'deep_pockets', track: 'explorer', name: 'Deep Pockets', description: 'Planned: unlock additional carried-storage space.', position: [176, 96], connects: ['field_notes', 'steeplechase', 'cartographer'], maxRank: 4, pointCost: 1, requiresLevel: 8 },
-  // Explorer mining branch — extraction in the wilderness and underground.
-  { id: 'prospector', track: 'explorer', name: 'Prospector', description: 'Read exact ore purity, richness, and personal yield odds.', position: [252, -124], connects: ['cave_whisperer', 'efficient_strikes', 'ore_dressing'], maxRank: 1, pointCost: 1, requiresLevel: 5 },
-  { id: 'efficient_strikes', track: 'explorer', name: 'Efficient Strikes', description: 'Reduce the work needed for each mining payout, from four strikes to three and then two.', position: [314, -202], connects: ['prospector', 'mother_lode'], maxRank: 2, pointCost: 1, requiresLevel: 6 },
-  { id: 'ore_dressing', track: 'explorer', name: 'Ore Dressing', description: 'Reduce a mixed outcrop\'s chance to yield stone by 10% per rank.', position: [322, -78], connects: ['prospector', 'rockhound'], maxRank: 3, pointCost: 1, requiresLevel: 6 },
-  { id: 'rockhound', track: 'explorer', name: 'Rockhound', description: 'Increase the chance that an ordinary rock contains a bonus ore fragment.', position: [392, -34], connects: ['ore_dressing', 'mother_lode'], maxRank: 2, pointCost: 1, requiresLevel: 9 },
-  { id: 'mother_lode', track: 'explorer', name: 'Mother Lode', description: 'The first payout from a rich pure vein also yields a matching ore fragment.', position: [410, -154], connects: ['efficient_strikes', 'rockhound'], maxRank: 1, pointCost: 3, requiresLevel: 12 },
-
-  // Combat — weapon mastery and deliberate build choices.
-  { id: 'combat_root', track: 'combat', name: 'Readiness', description: 'Keep your footing and choose your opening.', position: [0, 0], connects: ['archery_basics', 'blade_training', 'battle_conditioning'], maxRank: 0, pointCost: 0, root: true },
-  { id: 'archery_basics', track: 'combat', name: 'Archery Basics', description: 'Deal 3% more damage with arrows per rank.', position: [-92, -52], connects: ['combat_root', 'steady_draw', 'critical_eye'], maxRank: 5, pointCost: 1 },
-  { id: 'blade_training', track: 'combat', name: 'Blade Training', description: 'Deal 3% more damage with swords per rank.', position: [92, -52], connects: ['combat_root', 'quick_recovery', 'power_swing'], maxRank: 5, pointCost: 1 },
-  { id: 'battle_conditioning', track: 'combat', name: 'Battle Conditioning', description: 'Weapon attacks consume 5% less Vigour per rank.', position: [0, 86], connects: ['combat_root', 'shield_discipline', 'battle_hardened'], maxRank: 4, pointCost: 1 },
-  { id: 'steady_draw', track: 'combat', name: 'Steady Draw', description: 'Planned: reach full bow charge sooner without losing range.', position: [-154, -126], connects: ['archery_basics', 'piercing_shot'], maxRank: 3, pointCost: 1, requiresLevel: 3 },
-  { id: 'critical_eye', track: 'combat', name: 'Critical Eye', description: 'Planned: improve ranged critical-strike chance per rank.', position: [-166, 26], connects: ['archery_basics', 'multishot'], maxRank: 3, pointCost: 1, requiresLevel: 4 },
-  { id: 'quick_recovery', track: 'combat', name: 'Quick Recovery', description: 'Planned: shorten the recovery after a sword swing.', position: [154, -126], connects: ['blade_training', 'blade_dancer'], maxRank: 3, pointCost: 1, requiresLevel: 3 },
-  { id: 'power_swing', track: 'combat', name: 'Power Swing', description: 'Planned: charge a heavy melee attack that breaks guard.', position: [166, 26], connects: ['blade_training', 'blade_dancer'], maxRank: 1, pointCost: 2, requiresLevel: 5 },
-  { id: 'shield_discipline', track: 'combat', name: 'Shield Discipline', description: 'Planned: equip and actively guard with an off-hand shield.', position: [-92, 150], connects: ['battle_conditioning', 'battle_hardened'], maxRank: 1, pointCost: 2, requiresLevel: 5 },
-  { id: 'battle_hardened', track: 'combat', name: 'Battle Hardened', description: 'Planned: gain Health and resist interruption per rank.', position: [92, 150], connects: ['battle_conditioning', 'shield_discipline', 'blade_dancer'], maxRank: 3, pointCost: 1, requiresLevel: 6 },
-  { id: 'piercing_shot', track: 'combat', name: 'Piercing Shot', description: 'Planned: arrows retain damage through armoured targets.', position: [-86, -210], connects: ['steady_draw', 'perfect_volley'], maxRank: 1, pointCost: 3, requiresLevel: 9 },
-  { id: 'multishot', track: 'combat', name: 'Multishot', description: 'Planned: loose a fan of arrows at additional ammo and Vigour cost.', position: [-214, 92], connects: ['critical_eye', 'perfect_volley'], maxRank: 1, pointCost: 3, requiresLevel: 10 },
-  { id: 'blade_dancer', track: 'combat', name: 'Blade Dancer', description: 'Planned: consecutive sword hits build a short damage rhythm.', position: [194, 112], connects: ['quick_recovery', 'power_swing', 'battle_hardened'], maxRank: 1, pointCost: 3, requiresLevel: 10 },
-  { id: 'perfect_volley', track: 'combat', name: 'Perfect Volley', description: 'Planned: fully charged shots can trigger a devastating volley.', position: [-174, -194], connects: ['piercing_shot', 'multishot'], maxRank: 1, pointCost: 4, requiresLevel: 15 },
-
-  // Farming — soil, harvests, orchards, and farm automation.
-  { id: 'farming_root', track: 'farming', name: 'Cultivator', description: 'Good harvests begin with patient hands.', position: [0, 0], connects: ['green_thumb', 'tender_hand', 'farmcraft'], maxRank: 0, pointCost: 0, root: true },
-  { id: 'green_thumb', track: 'farming', name: 'Green Thumb', description: 'Planned: improve crop yield by 3% per rank.', position: [-92, -52], connects: ['farming_root', 'seed_saver', 'bountiful_harvest'], maxRank: 5, pointCost: 1 },
-  { id: 'tender_hand', track: 'farming', name: 'Tender Hand', description: 'Planned: watering remains effective longer per rank.', position: [0, -92], connects: ['farming_root', 'soil_whisperer', 'grafting'], maxRank: 3, pointCost: 1 },
-  { id: 'farmcraft', track: 'farming', name: 'Farmcraft', description: 'Planned: use farm stations with less wear and Vigour.', position: [92, -52], connects: ['farming_root', 'barreling', 'beekeeping'], maxRank: 3, pointCost: 1 },
-  { id: 'seed_saver', track: 'farming', name: 'Seed Saver', description: 'Planned: harvested crops sometimes return extra seed.', position: [-154, -126], connects: ['green_thumb', 'master_grower'], maxRank: 3, pointCost: 1, requiresLevel: 3 },
-  { id: 'bountiful_harvest', track: 'farming', name: 'Bountiful Harvest', description: 'Planned: occasionally gather an extra crop bundle.', position: [-166, 26], connects: ['green_thumb', 'sprinkler_engineering'], maxRank: 3, pointCost: 1, requiresLevel: 4 },
-  { id: 'soil_whisperer', track: 'farming', name: 'Soil Whisperer', description: 'Planned: read soil moisture and crop needs at a glance.', position: [-48, -164], connects: ['tender_hand', 'master_grower'], maxRank: 1, pointCost: 2, requiresLevel: 4 },
-  { id: 'grafting', track: 'farming', name: 'Grafting', description: 'Planned: improve and specialize mature orchard trees.', position: [50, -164], connects: ['tender_hand', 'greenhouse_charter'], maxRank: 1, pointCost: 2, requiresLevel: 6 },
-  { id: 'barreling', track: 'farming', name: 'Barreling', description: 'Master crop curing and preserving in farm barrels.', position: [154, -126], connects: ['farmcraft', 'greenhouse_charter'], maxRank: 1, pointCost: 2, requiresLevel: 5 },
-  { id: 'beekeeping', track: 'farming', name: 'Beekeeping', description: 'Planned: tend hives and improve honey harvests.', position: [166, 26], connects: ['farmcraft', 'sprinkler_engineering'], maxRank: 1, pointCost: 2, requiresLevel: 5 },
-  { id: 'sprinkler_engineering', track: 'farming', name: 'Sprinkler Engineering', description: 'Planned: unlock purchase and placement of farm sprinklers.', position: [194, 112], connects: ['bountiful_harvest', 'beekeeping', 'harvest_festival'], maxRank: 1, pointCost: 3, requiresLevel: 10 },
-  { id: 'greenhouse_charter', track: 'farming', name: 'Greenhouse Charter', description: 'Planned: unlock a greenhouse homestead upgrade.', position: [94, -218], connects: ['grafting', 'barreling', 'harvest_festival'], maxRank: 1, pointCost: 3, requiresLevel: 10 },
-  { id: 'master_grower', track: 'farming', name: 'Master Grower', description: 'Planned: reduce poor-weather and out-of-season growth penalties.', position: [-92, -218], connects: ['seed_saver', 'soil_whisperer', 'harvest_festival'], maxRank: 1, pointCost: 3, requiresLevel: 10 },
-  { id: 'harvest_festival', track: 'farming', name: 'Harvest Festival', description: 'Planned: the first harvest of each day gains a major yield bonus.', position: [0, -270], connects: ['sprinkler_engineering', 'greenhouse_charter', 'master_grower'], maxRank: 1, pointCost: 4, requiresLevel: 15 },
-] as const satisfies readonly SkillNodeDefinition[];
+const nodes: readonly SkillNodeDefinition[] = BOOTSTRAP_COMPILED_CONTENT.skillNodes;
 
 export const SKILL_NODE_DEFINITIONS: readonly SkillNodeDefinition[] = nodes;
 const SKILL_NODE_BY_ID = new Map<string, SkillNodeDefinition>(nodes.map((node) => [node.id, node]));
@@ -85,6 +46,19 @@ export function skillNodeDefinition(id: string): SkillNodeDefinition | null {
 
 export function skillNodesForTrack(track: SkillTrack): readonly SkillNodeDefinition[] {
   return nodes.filter((node) => node.track === track);
+}
+
+export function skillNodeIsImplemented(node: SkillNodeDefinition): boolean {
+  return node.implemented === true;
+}
+
+export function specializationRankTotal(
+  ranks: Readonly<Record<string, number>>,
+  specialization: SkillSpecialization,
+): number {
+  return (nodes as readonly SkillNodeDefinition[]).reduce((total, node) => node.specialization === specialization
+    ? total + Math.max(0, Math.floor(ranks[node.id] ?? 0))
+    : total, 0);
 }
 
 /** Total XP threshold for reaching `level`. Level zero always starts at zero. */
@@ -128,19 +102,77 @@ export function skillPurchaseRejection(
   nodeId: string,
   state: SkillPurchaseState,
 ): SkillPurchaseRejection | null {
-  const node = skillNodeDefinition(nodeId);
+  return skillPurchaseRejectionForNodes(nodes, nodeId, state);
+}
+
+export function skillPurchaseRejectionForNodes(
+  definitions: readonly SkillNodeDefinition[],
+  nodeId: string,
+  state: SkillPurchaseState,
+): SkillPurchaseRejection | null {
+  const byId = new Map(definitions.map((definition) => [definition.id, definition]));
+  const node = byId.get(nodeId) ?? null;
   if (node === null) return 'skill_not_found';
   if (node.root === true) return 'skill_root_owned';
   const currentRank = Math.max(0, state.ranks[node.id] ?? 0);
   if (currentRank >= node.maxRank) return 'skill_rank_maxed';
   if (skillLevelForExperience(state.experience) < (node.requiresLevel ?? 0)) return 'skill_level_required';
   const connected = node.connects.some((id) => {
-    const neighbour = skillNodeDefinition(id);
+    const neighbour = byId.get(id);
     return neighbour?.root === true || (state.ranks[id] ?? 0) > 0;
   });
   if (!connected) return 'skill_not_connected';
+  if (node.prerequisites !== undefined) {
+    const owned = ownedSkillNodesWithPrerequisites(definitions, state.ranks);
+    if (!node.prerequisites.every((id) => owned.has(id))) return 'skill_not_connected';
+  }
   if (availableSkillPoints(state.experience, state.spentPoints, state.bonusPoints) < node.pointCost) {
     return 'skill_points_required';
   }
   return null;
+}
+
+export function runtimeSkillNodeDefinition(
+  registry: ContentRegistry,
+  nodeId: string,
+): SkillNodeDefinition | null {
+  return registry.compiled.skillNodes.find(({ id }) => id === nodeId) ?? null;
+}
+
+export function runtimeSkillPurchaseRejection(
+  registry: ContentRegistry,
+  nodeId: string,
+  state: SkillPurchaseState,
+): SkillPurchaseRejection | null {
+  return skillPurchaseRejectionForNodes(registry.compiled.skillNodes, nodeId, state);
+}
+
+/** Resolve ownership without depending on node IDs or traversal order. Missing
+ * references, invalid ranks and prerequisite cycles never grant ownership. */
+export function ownedSkillNodesWithPrerequisites(
+  definitions: readonly SkillNodeDefinition[],
+  ranks: Readonly<Record<string, number>>,
+): ReadonlySet<string> {
+  const byId = new Map(definitions.map((node) => [node.id, node]));
+  const owned = new Set<string>();
+  const visiting = new Set<string>();
+  const rejected = new Set<string>();
+  const visit = (id: string): boolean => {
+    if (owned.has(id)) return true;
+    if (visiting.has(id) || rejected.has(id)) return false;
+    const node = byId.get(id);
+    const rank = ranks[id] ?? 0;
+    if (node === undefined || (node.root !== true && (!Number.isSafeInteger(rank) || rank <= 0 || rank > node.maxRank))) {
+      rejected.add(id);
+      return false;
+    }
+    visiting.add(id);
+    const allowed = (node.prerequisites ?? []).every(visit);
+    visiting.delete(id);
+    if (allowed) owned.add(id);
+    else rejected.add(id);
+    return allowed;
+  };
+  for (const node of definitions) visit(node.id);
+  return owned;
 }

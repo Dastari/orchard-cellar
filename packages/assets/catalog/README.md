@@ -17,7 +17,7 @@ database.
 - `atlas_<category>_<season>.png` — versioned-by-manifest visual data.
 
 Run `npx tsx packages/tools/src/catalog-cute-fantasy.ts` to scan every
-`references/Cute_Fantasy*/**/*.png`. The scanner writes
+`references/art/kenmi/cute-fantasy/**/*.png`. The scanner writes
 `build/cute-fantasy-catalog/catalog.json`, `authoring-registry.json`, review HTML,
 and extraction recipes. Those files are discovery inputs only. An asset becomes
 runtime-authoritative only after it has a reviewed semantic file under

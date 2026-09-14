@@ -1,0 +1,26 @@
+{
+  "name": "@orchard/studio",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "predev": "npm run ui:assets -w @orchard/tools",
+    "prebuild": "node scripts/verify-ui-kit.mjs && npm run ui:assets -w @orchard/tools"
+  },
+  "dependencies": {
+    "@orchard/auth": "*",
+    "@orchard/engine": "*",
+    "@orchard/lifecycle-authoring": "*",
+    "@orchard/sim": "*",
+    "@orchard/ui": "*",
+    "@orchard/world-bindings": "*",
+    "spacetimedb": "2.8.2"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}

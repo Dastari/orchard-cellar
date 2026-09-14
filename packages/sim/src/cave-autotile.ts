@@ -1,23 +1,15 @@
 import type { RaisedTerrainTileSet } from './raised-terrain-autotile.js';
 
-/** Frame order extracted from Cave_Walls.png's authored 3x3 excavation ring. */
-export const CAVE_WALL_NORTH = 0;
-export const CAVE_WALL_EAST = 1;
-export const CAVE_WALL_SOUTH = 2;
-export const CAVE_WALL_WEST = 3;
-export const CAVE_WALL_NORTH_EAST = 4;
-export const CAVE_WALL_SOUTH_EAST = 5;
-export const CAVE_WALL_SOUTH_WEST = 6;
-export const CAVE_WALL_NORTH_WEST = 7;
-
-/** Cave_Walls.png's dark-solid-background ring. The excavated side is drawn
- * independently with Cave_Floor_Middle, so the dark half always faces out. */
-export const CAVE_WALL_ATLAS_FRAMES = [19, 11, 5, 13, 18, 6, 4, 20] as const;
-
 /** Cave_Walls mapped onto the same semantic contour roles as Stone Cliff 1.
  * The dark side is untouched solid rock; the transparent/light side faces the
- * excavation. One logical elevation projects two height-bearing face rows. */
+ * excavation. Rock is raised terrain at elevation one above the floor datum:
+ * its rim and two face courses are displaced north by the face height, so a
+ * player walks behind rock exactly as behind an outdoor cliff. */
 export const CAVE_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
+  assetId: 'tile_cf_cave_wall',
+  projectionStyle: 'interior',
+  fixedPlane: 0,
+  baseDatum: 0,
   edgeFrames: {
     top_left: 25,
     top: 19,
@@ -34,19 +26,26 @@ export const CAVE_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
     inner_bottom_left: 6,
     inner_bottom_right: 4,
   },
-  rampFrames: {},
+  rampFrames: {}, rampBank: null,
+  stairFrames: null,
+  ladderAssetId: 'tile_cf_cave_floor_ladder',
+  ladderFrames: [0],
   faceProfiles: {
     tall: {
       rows: [
+        // Cave_Walls columns 4-5 of rows 6-7 are the dark-outlined end caps;
+        // column 1 is the seamless run and column 2 the protruding column.
         {
           id: 'wall',
-          frames: [42, 43, 44],
+          frames: [46, 43, 47],
+          middleVariants: [44],
           blocksMovement: true,
           blocksLight: true,
         },
         {
           id: 'lower_wall',
-          frames: [49, 50, 51],
+          frames: [53, 50, 54],
+          middleVariants: [51],
           blocksMovement: true,
           blocksLight: true,
         },
@@ -55,6 +54,7 @@ export const CAVE_RAISED_CLIFF_TILE_SET: RaisedTerrainTileSet = {
   },
   edgeBlocksMovement: false,
   edgeBlocksLight: false,
+  edgeInsetMode: 'exclusive',
   faceClearanceRows: 2,
 };
 
@@ -64,17 +64,64 @@ export function caveProjectedRowsPerLevel(): number {
     .filter((row) => row.contributesHeight !== false).length ?? 0;
 }
 
-/** Builds the inverse of the outdoor elevation collision mask from a mutable
- * cellar excavation height field. Uncut rock is solid on both represented
- * planes; an excavated tile is open on the fixed cellar floor plane.
- *
- * The two authored south-wall courses overlap lower floor cells visually in
- * the same way that a cliff face can overlap an actor walking behind it. They
- * are not two additional floor blockers. Keeping collision owned by the
- * source rock cell means a one-tile lateral breach is immediately traversable
- * and gives the client and authority one unambiguous excavation rule. */
+/** The authored cave support is five tiles wide and centred on its terrain
+ * anchor. Only place it where the entire beam is backed by one continuous
+ * raised row; otherwise it floats beyond small pillars and broken ridges. */
+export function caveSupportFitsAt(
+  solidAt: (tileX: number, tileY: number) => boolean,
+  tileX: number,
+  tileY: number,
+): boolean {
+  for (let offsetX = -2; offsetX <= 2; offsetX += 1) {
+    if (!solidAt(tileX + offsetX, tileY)) return false;
+  }
+  return true;
+}
+
+const CAVE_WALL_SUPPORT_WIDTH_TILES = 5;
+const CAVE_WALL_SUPPORT_GAP_TILES = 2;
+
+/** Selects non-overlapping authored 5x2 wall supports from the complete run
+ * of generated south-facing cave wall. Callers key the run on the lower wall
+ * course, so the beam sits across the upper course and the posts reach the
+ * floor. Placement is centred within the run,
+ * so neither post can hang over a notch and the result is stable after cache
+ * rebuilds. The wall callback deliberately describes resolved face topology,
+ * not merely solid rock behind the sprite. */
+export function caveWallSupportAnchorAt(
+  wallFaceAt: (tileX: number, tileY: number) => boolean,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (!wallFaceAt(tileX, tileY)) return false;
+  let firstTileX = tileX;
+  let lastTileX = tileX;
+  while (wallFaceAt(firstTileX - 1, tileY)) firstTileX -= 1;
+  while (wallFaceAt(lastTileX + 1, tileY)) lastTileX += 1;
+  const runLength = lastTileX - firstTileX + 1;
+  if (runLength < CAVE_WALL_SUPPORT_WIDTH_TILES) return false;
+  const supportCount = Math.max(1, Math.floor(
+    (runLength + CAVE_WALL_SUPPORT_GAP_TILES)
+      / (CAVE_WALL_SUPPORT_WIDTH_TILES + CAVE_WALL_SUPPORT_GAP_TILES),
+  ));
+  const occupiedWidth = supportCount * CAVE_WALL_SUPPORT_WIDTH_TILES
+    + (supportCount - 1) * CAVE_WALL_SUPPORT_GAP_TILES;
+  const firstAnchorX = firstTileX + Math.floor((runLength - occupiedWidth) / 2)
+    + Math.floor(CAVE_WALL_SUPPORT_WIDTH_TILES / 2);
+  const stride = CAVE_WALL_SUPPORT_WIDTH_TILES + CAVE_WALL_SUPPORT_GAP_TILES;
+  return tileX >= firstAnchorX
+    && (tileX - firstAnchorX) % stride === 0
+    && tileX <= lastTileX - Math.floor(CAVE_WALL_SUPPORT_WIDTH_TILES / 2);
+}
+
+/** Builds the elevation-plane collision mask for a cellar excavation field.
+ * Uncut rock remains solid on its raised plane. On the fixed cellar-floor
+ * plane, its south boundary is projected north with the artwork: vacated rock
+ * coverage is cleared first, then every blocking direct face course is written
+ * at its projected destination. The visible two-course front wall therefore
+ * blocks, while the first excavated floor row south of it remains open. */
 export function caveTerrainPlaneCollisionBytes(
-  elevations: Uint8Array,
+  elevations: Int16Array | Uint8Array,
   width: number,
   height: number,
 ): Uint8Array {
@@ -84,63 +131,46 @@ export function caveTerrainPlaneCollisionBytes(
   }
   const blocked = new Uint8Array(stride * 2);
   for (let index = 0; index < stride; index += 1) {
-    if ((elevations[index] ?? 1) < 1) continue;
-    blocked[index] = 1;
-    blocked[stride + index] = 1;
+    if ((elevations[index] ?? 1) >= 1) {
+      blocked[index] = 1;
+      blocked[stride + index] = 1;
+    }
+  }
+  const projectionRows = caveProjectedRowsPerLevel();
+  const faceRows = CAVE_RAISED_CLIFF_TILE_SET.faceProfiles.tall?.rows ?? [];
+  const clearanceRows = Math.max(0, Math.trunc(
+    CAVE_RAISED_CLIFF_TILE_SET.faceClearanceRows ?? 0,
+  ));
+  const solidAt = (tileX: number, tileY: number): boolean => tileX >= 0 && tileY >= 0
+    && tileX < width && tileY < height
+    && (elevations[tileY * width + tileX] ?? 1) >= 1;
+  for (let tileY = 0; tileY < height; tileY += 1) {
+    for (let tileX = 0; tileX < width; tileX += 1) {
+      if (!solidAt(tileX, tileY)) continue;
+      let ownsSouthFace = true;
+      for (let depth = 1; depth <= clearanceRows; depth += 1) {
+        if (solidAt(tileX, tileY + depth)) {
+          ownsSouthFace = false;
+          break;
+        }
+      }
+      if (!ownsSouthFace) continue;
+      for (let depth = 0; depth < projectionRows; depth += 1) {
+        const underhangY = tileY - depth;
+        if (underhangY >= 0 && solidAt(tileX, underhangY)) {
+          blocked[underhangY * width + tileX] = 0;
+        }
+      }
+      for (let depth = 1; depth <= faceRows.length; depth += 1) {
+        if (faceRows[depth - 1]?.blocksMovement !== true) continue;
+        const projectedFaceY = tileY + depth - projectionRows;
+        if (projectedFaceY >= 0 && projectedFaceY < height) {
+          blocked[projectedFaceY * width + tileX] = 1;
+        }
+      }
+    }
   }
   return blocked;
-}
-
-export type CaveExcavationSampler = (offsetX: number, offsetY: number) => boolean;
-
-/** Resolve a solid cell bordering excavation to one authored wall face/corner. */
-export function caveWallFrameFor(isDug: CaveExcavationSampler): number | null {
-  if (isDug(0, 0)) return null;
-  const north = isDug(0, -1);
-  const east = isDug(1, 0);
-  const south = isDug(0, 1);
-  const west = isDug(-1, 0);
-  if (north && east) return CAVE_WALL_NORTH_EAST;
-  if (south && east) return CAVE_WALL_SOUTH_EAST;
-  if (south && west) return CAVE_WALL_SOUTH_WEST;
-  if (north && west) return CAVE_WALL_NORTH_WEST;
-  if (north) return CAVE_WALL_NORTH;
-  if (east) return CAVE_WALL_EAST;
-  if (south) return CAVE_WALL_SOUTH;
-  if (west) return CAVE_WALL_WEST;
-  if (isDug(1, -1)) return CAVE_WALL_NORTH_EAST;
-  if (isDug(1, 1)) return CAVE_WALL_SOUTH_EAST;
-  if (isDug(-1, 1)) return CAVE_WALL_SOUTH_WEST;
-  if (isDug(-1, -1)) return CAVE_WALL_NORTH_WEST;
-  return null;
-}
-
-/** Selects the authored atlas frame while preserving the distinction between
- * a cardinal inset (excavation touches two sides) and a diagonal-only outset.
- * They share a topology role but require opposite-facing corner artwork. */
-export function caveWallAtlasFrameFor(isDug: CaveExcavationSampler): number | null {
-  if (isDug(0, 0)) return null;
-  const north = isDug(0, -1);
-  const east = isDug(1, 0);
-  const south = isDug(0, 1);
-  const west = isDug(-1, 0);
-  const edge = CAVE_RAISED_CLIFF_TILE_SET.edgeFrames;
-  const inset = CAVE_RAISED_CLIFF_TILE_SET.insetFrames;
-  // Cardinal openings are the convex edge roles of this solid cell.
-  if (north && east) return edge.top_right ?? null;
-  if (south && east) return edge.bottom_right ?? null;
-  if (south && west) return edge.bottom_left ?? null;
-  if (north && west) return edge.top_left ?? null;
-  if (north) return edge.top ?? null;
-  if (east) return edge.right ?? null;
-  if (south) return edge.bottom ?? null;
-  if (west) return edge.left ?? null;
-  // A diagonal opening with cardinal rock intact is a concave/inset role.
-  if (isDug(1, -1)) return inset.inner_top_right ?? null;
-  if (isDug(1, 1)) return inset.inner_bottom_right ?? null;
-  if (isDug(-1, 1)) return inset.inner_bottom_left ?? null;
-  if (isDug(-1, -1)) return inset.inner_top_left ?? null;
-  return null;
 }
 
 export function caveFloorFrame(tileX: number, tileY: number, seed: number): number {

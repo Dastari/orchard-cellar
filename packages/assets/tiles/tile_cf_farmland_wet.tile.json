@@ -871,7 +871,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "FarmLand_Wet_Tile.png",
-  "sourcePath": "references/Cute_Fantasy/Tiles/FarmLand/FarmLand_Wet_Tile.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/FarmLand/FarmLand_Wet_Tile.png",
   "sourceRegions": {
     "base": [
       [

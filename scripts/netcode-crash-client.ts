@@ -1,4 +1,4 @@
-import { DbConnection, tables } from '../packages/client/src/net/generated/index.js';
+import { DbConnection, tables } from '@orchard/world-bindings';
 
 const HOST = process.env['SPACETIMEDB_HOST'] ?? 'http://127.0.0.1:3000';
 const DATABASE = process.env['SPACETIMEDB_DATABASE'] ?? 'orchard-cellar-world';

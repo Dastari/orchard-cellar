@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  OIDC_CLIENT_IDS,
   OIDC_ISSUER,
   authenticationRejection,
   automaticRegistrationRole,
@@ -10,6 +11,14 @@ import {
 
 describe('SpaceTimeDB OIDC admission policy (24 §5)', () => {
   const clientIds = ['orchard-web'];
+
+  it('trusts only the two reviewed production browser audiences', () => {
+    expect(OIDC_CLIENT_IDS).toEqual(['orchard-web', 'orchard-studio']);
+    expect(authenticationRejection({
+      issuer: OIDC_ISSUER,
+      audience: ['orchard-studio'],
+    })).toBeNull();
+  });
 
   it('allows host-issued identities only while the deployment gate is explicitly open', () => {
     expect(authenticationRejection(null, [])).toBeNull();
@@ -72,8 +81,9 @@ describe('friends-only membership policy (09 §2, 24 §7)', () => {
     expect(canManageMembership('owner', 'moderator')).toBe(true);
   });
 
-  it('reserves world date, time, and weather controls for owners', () => {
+  it('reserves world and live-map controls for owners and explicit administrators', () => {
     expect(canAdministerWorld('owner')).toBe(true);
+    expect(canAdministerWorld('admin')).toBe(true);
     expect(canAdministerWorld('moderator')).toBe(false);
     expect(canAdministerWorld('friend')).toBe(false);
   });

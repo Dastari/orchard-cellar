@@ -1,0 +1,1686 @@
+[
+  {
+    "id": "statistic:admin_teleports",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Admin Teleports",
+    "description": "Successful owner teleport commands.",
+    "category": "exploration",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:animals_hunted",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Animals Hunted",
+    "description": "Food animals defeated in the overworld, split by species.",
+    "category": "combat",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "creature_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:appearance_changes",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Appearance Changes",
+    "description": "Server-validated character appearance updates.",
+    "category": "account",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:arrows_fired",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Arrows Fired",
+    "description": "Valid arrows fired from a bow.",
+    "category": "tools",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:arrows_hit",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Arrow Impacts",
+    "description": "Arrow impacts, split by entity or terrain hit kind.",
+    "category": "tools",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "hit_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:barrels_cured",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Barrels Cured",
+    "description": "Crop batches that completed curing, split by crop kind.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "crop_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:barrels_sealed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Barrels Sealed",
+    "description": "Crop batches sealed for curing, split by crop kind.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "crop_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:bottles_produced",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Bottles Produced",
+    "description": "Finished estate Bottles aged in fermentation vessels.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:bronze_earned",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Bronze Earned",
+    "description": "Lifetime merchant revenue in bronze-equivalent units.",
+    "category": "commerce",
+    "unit": "bronze",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "100",
+      "1000",
+      "10000",
+      "100000",
+      "1000000"
+    ]
+  },
+  {
+    "id": "statistic:bronze_spent",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Bronze Spent",
+    "description": "Lifetime merchant spending in bronze-equivalent units.",
+    "category": "commerce",
+    "unit": "bronze",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "100",
+      "1000",
+      "10000",
+      "100000",
+      "1000000"
+    ]
+  },
+  {
+    "id": "statistic:bronze_spent_on_upgrades",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Bronze Spent on Homestead Upgrades",
+    "description": "Bronze-equivalent gold reinvested into the estate, split by upgrade.",
+    "category": "commerce",
+    "unit": "bronze",
+    "aggregation": "counter",
+    "subject": "upgrade_kind",
+    "milestones": [
+      "100",
+      "1000",
+      "10000",
+      "100000",
+      "1000000"
+    ]
+  },
+  {
+    "id": "statistic:cacti_cut_down",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Cacti Cut Down",
+    "description": "Regrowing desert cacti fully harvested.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:character_names_chosen",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Character Names Chosen",
+    "description": "Permanent character names successfully chosen.",
+    "category": "account",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1"
+    ]
+  },
+  {
+    "id": "statistic:chat_channels_created",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Chat Channels Created",
+    "description": "Player-owned chat channels created.",
+    "category": "social",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:chat_channels_joined",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Chat Channels Joined",
+    "description": "Existing non-default chat channels joined.",
+    "category": "social",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:chat_invitations_sent",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Chat Invitations Sent",
+    "description": "Players successfully invited to private channels.",
+    "category": "social",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:chests_broken",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Chests Broken",
+    "description": "Placed chests destroyed with an axe.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:chests_opened",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Chests Opened",
+    "description": "Placed chests opened.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:chests_picked_up",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Chests Picked Up",
+    "description": "Placed chests lifted or returned to inventory.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:chests_placed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Chests Placed",
+    "description": "Chests placed into the world.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:connections_opened",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Connections Opened",
+    "description": "Authenticated game connections accepted by the world.",
+    "category": "account",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:crafting_actions",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Crafting Actions",
+    "description": "Successful recipe executions.",
+    "category": "crafting",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:crops_harvested",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Crops Harvested",
+    "description": "Crop patches harvested, split by crop kind when crops gain varieties.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "crop_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:crops_planted",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Crops Planted",
+    "description": "Crop patches planted, split by crop kind when crops gain varieties.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "crop_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:crops_uprooted",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Crops Uprooted",
+    "description": "Crop patches deliberately dug up with a hoe without harvesting produce.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "crop_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:damage_dealt",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Damage Dealt",
+    "description": "Authoritative outgoing damage after mitigation, split by damageable target kind.",
+    "category": "combat",
+    "unit": "damage",
+    "aggregation": "counter",
+    "subject": "combat_target_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:damage_taken",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Damage Taken",
+    "description": "Future authoritative incoming damage, split by damage kind.",
+    "category": "combat",
+    "unit": "damage",
+    "aggregation": "counter",
+    "subject": "damage_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ],
+    "reserved": true
+  },
+  {
+    "id": "statistic:dialogue_choices",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Dialogue Choices",
+    "description": "Dialogue choices accepted by the authority.",
+    "category": "social",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:distance_travelled",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Distance Travelled",
+    "description": "Authoritative fixed-point distance travelled, split between foot, jump, horse, and boat.",
+    "category": "exploration",
+    "unit": "fixed_distance",
+    "aggregation": "counter",
+    "subject": "movement_mode",
+    "milestones": [
+      "409600",
+      "4096000",
+      "40960000",
+      "409600000"
+    ]
+  },
+  {
+    "id": "statistic:durability_restored",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Durability Restored",
+    "description": "Total durability points restored, split by tool kind.",
+    "category": "tools",
+    "unit": "durability",
+    "aggregation": "counter",
+    "subject": "tool_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:enemies_defeated",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Enemies Defeated",
+    "description": "Future hostile creatures defeated, split by creature kind.",
+    "category": "combat",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "creature_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ],
+    "reserved": true
+  },
+  {
+    "id": "statistic:farm_tiles_restored",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Farm Tiles Restored",
+    "description": "Tilled soil returned to grass.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:farm_tiles_tilled",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Farm Tiles Tilled",
+    "description": "Grass tiles converted to farmland.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:farm_tiles_watered",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Farm Tiles Watered",
+    "description": "Farmland or crop tiles watered.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:fish_caught",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Fish Caught",
+    "description": "Caught fish, split by fish kind.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "fish_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:food_cooked",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Food Cooked",
+    "description": "Food portions cooked at a campfire, split by item kind.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:food_eaten",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Food Eaten",
+    "description": "Food portions eaten to restore hunger, split by item kind.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:forage_bonus_items",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Lucky Forage Finds",
+    "description": "Extra item units awarded by a successful Wisdom forage check.",
+    "category": "items",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:fruit_pressed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Fruit Pressed",
+    "description": "Fruit units pressed into Must and Pomace, split by fruit kind.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:homestead_upgrades_purchased",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Homestead Upgrades Purchased",
+    "description": "Permanent estate upgrade ranks purchased with gold, split by upgrade.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "upgrade_kind",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:horse_dismounts",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Horse Dismounts",
+    "description": "Successful horse dismounts.",
+    "category": "exploration",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:horse_jumps",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Horse Jumps",
+    "description": "Successful horse jumps over terrain blockers.",
+    "category": "exploration",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:horse_mounts",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Horses Mounted",
+    "description": "Successful horse mounts.",
+    "category": "exploration",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:items_bought",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Items Bought",
+    "description": "Item units bought, split by item kind.",
+    "category": "commerce",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:items_crafted",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Items Crafted",
+    "description": "Output item units crafted, split by item kind.",
+    "category": "crafting",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:items_dropped",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Items Dropped",
+    "description": "Item units deliberately dropped into the world.",
+    "category": "items",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:items_obtained",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Items Obtained",
+    "description": "Item units added through pickup, gathering, crafting, trade, or harvest.",
+    "category": "items",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:items_picked_up",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Ground Items Picked Up",
+    "description": "Item units recovered from world drops.",
+    "category": "items",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:items_sold",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Items Sold",
+    "description": "Item units sold, split by item kind.",
+    "category": "commerce",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:largest_craft_batch",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Largest Craft Batch",
+    "description": "Largest quantity produced by one crafting request.",
+    "category": "crafting",
+    "unit": "count",
+    "aggregation": "maximum",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:longest_horse_jump",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Longest Horse Jump",
+    "description": "Longest authoritative horse jump distance.",
+    "category": "exploration",
+    "unit": "fixed_distance",
+    "aggregation": "maximum",
+    "subject": "none",
+    "milestones": [
+      "4096",
+      "8192",
+      "12288",
+      "16384"
+    ]
+  },
+  {
+    "id": "statistic:merchant_transactions",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Merchant Transactions",
+    "description": "Completed purchases and sales, split by transaction kind.",
+    "category": "commerce",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "transaction_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:messages_sent",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Messages Sent",
+    "description": "Accepted channel, whisper, say, and shout messages, split by kind.",
+    "category": "social",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "chat_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:npc_interactions",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "NPC Conversations Started",
+    "description": "Authority-approved conversations started, split by NPC kind.",
+    "category": "social",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "npc_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:orchard_tea_consumed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Orchard Tea Consumed",
+    "description": "Jars of Orchard Tea consumed.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:orchard_trees_tended",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Orchard Trees Tended",
+    "description": "Successful care actions on orchard trees.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:ore_nodes_depleted",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Ore Nodes Depleted",
+    "description": "Ore or gem nodes fully mined.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "resource_kind",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:placeables_placed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Placeables Placed",
+    "description": "Crafted placeable items committed to the world, split by item kind.",
+    "category": "crafting",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:placeables_removed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Placeables Removed",
+    "description": "Homestead build objects dismantled through the refund-safe build authority, split by item kind.",
+    "category": "crafting",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:player_jumps",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Player Jumps",
+    "description": "Successful on-foot jumps over gaps or cliff faces.",
+    "category": "exploration",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:player_trade_bronze_sent",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Trade Bronze Sent",
+    "description": "Bronze-equivalent currency delivered to another player through completed trades.",
+    "category": "commerce",
+    "unit": "bronze",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "100",
+      "1000",
+      "10000",
+      "100000",
+      "1000000"
+    ]
+  },
+  {
+    "id": "statistic:player_trade_items_sent",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Trade Items Sent",
+    "description": "Item units delivered to another player through a completed trade.",
+    "category": "commerce",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:player_trades_completed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Player Trades Completed",
+    "description": "Secure two-player trades completed after both participants accepted.",
+    "category": "social",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:press_cycles_completed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Press Cycles Completed",
+    "description": "Fruit Press cycles completed across every pressable fruit.",
+    "category": "farming",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:quest_actions",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Quest Actions",
+    "description": "Server-authorized action hooks used by active quest objectives.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "quest_action",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:quest_locations_reached",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Quest Locations Reached",
+    "description": "One-shot entries into active quest location sensors.",
+    "category": "exploration",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "quest_objective",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:quest_npc_talks",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Quest NPC Conversations",
+    "description": "Authority-approved conversations used by accept-time quest objectives.",
+    "category": "social",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "npc_id",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:quests_abandoned",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Quests Abandoned",
+    "description": "Active quests deliberately dropped from the quest log.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "quest_kind",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:quests_accepted",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Quests Accepted",
+    "description": "Quests accepted through authority-backed dialogue.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "quest_kind",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:quests_completed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Quests Completed",
+    "description": "Completed and rewarded quests, split by quest kind.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "quest_kind",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:recipe_books_read",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Recipe Books Read",
+    "description": "Recipe books consumed to reveal crafting patterns, split by book item.",
+    "category": "crafting",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "item_kind",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:recipes_learned",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Recipes Learned",
+    "description": "Crafting patterns permanently revealed in the recipe guide.",
+    "category": "crafting",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:resource_hits",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Resource Hits",
+    "description": "Successful tool hits against world resources, split by resource kind.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "resource_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:resources_depleted",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Resources Depleted",
+    "description": "World resources fully depleted by the player, split by resource kind.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "resource_kind",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:resources_gathered",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Resources Gathered by Hand",
+    "description": "Loose renewable resources gathered directly, split by world resource.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "resource_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:rocks_broken",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Rocks Broken",
+    "description": "Ordinary stone resources fully broken.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:skill_points_spent",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Skill Points Spent",
+    "description": "Points committed to persistent skill ranks, split by track.",
+    "category": "progression",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "skill_track",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:skill_respecs",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Skill Trees Reset",
+    "description": "Completed skill-tree resets, split by track.",
+    "category": "progression",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "skill_track",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
+    "id": "statistic:time_played",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Time Played",
+    "description": "Authority ticks spent in an active world session.",
+    "category": "account",
+    "unit": "authority_ticks",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1200",
+      "72000",
+      "720000",
+      "7200000"
+    ]
+  },
+  {
+    "id": "statistic:times_knocked_out",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Times Knocked Out",
+    "description": "Future cozy knockouts at zero Health.",
+    "category": "combat",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ],
+    "reserved": true
+  },
+  {
+    "id": "statistic:tool_uses",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Tool Uses",
+    "description": "Successful world-changing uses, split by tool kind.",
+    "category": "tools",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "tool_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:tool_whiffs",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Tool Whiffs",
+    "description": "Authority-accepted swings that did not target a resource.",
+    "category": "tools",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "tool_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:tools_broken",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Tools Worn Out",
+    "description": "Tools reduced from usable to zero durability, split by kind.",
+    "category": "tools",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "tool_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:tools_repaired",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Tools Repaired",
+    "description": "Tools restored to full durability, split by kind.",
+    "category": "tools",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "tool_kind",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:trees_cut_down",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Trees Cut Down",
+    "description": "Deciduous, conifer, or fruit trees fully felled.",
+    "category": "world",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  },
+  {
+    "id": "statistic:world_entries",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "World Entries",
+    "description": "Play sessions started after the player had no active connection.",
+    "category": "account",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "10",
+      "50",
+      "100",
+      "500",
+      "1000",
+      "10000"
+    ]
+  }
+]

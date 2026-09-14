@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+const processorSource = readFileSync(new URL('./behaviour/processors.ts', import.meta.url), 'utf8');
+const cookingSource = readFileSync(new URL('./behaviour/cooking.ts', import.meta.url), 'utf8');
 
 function between(startAnchor: string, endAnchor: string): string {
   const start = source.indexOf(startAnchor);
@@ -21,18 +23,54 @@ describe('T12 monolith extraction', () => {
     expect(connect).toContain('findSurvivalSpawnTile(');
   });
 
-  it('preserves useHands branch precedence through placement helpers', () => {
-    const hands = between('export const useHands =', 'function requireHomesteadBuildPlacement(');
-    const carried = hands.indexOf('placeCarriedHandsObject(');
-    const deed = hands.indexOf("selected?.itemKind === 'homestead_deed'");
-    const chest = hands.indexOf('placeCarriedChest(');
-    const facedTarget = hands.indexOf('combatTargetAtFacingTile(');
-    const selected = hands.indexOf('placeSelectedHandsObject(');
-    expect([carried, deed, chest, facedTarget, selected].every((index) => index >= 0)).toBe(true);
-    expect(carried).toBeLessThan(deed);
-    expect(deed).toBeLessThan(chest);
-    expect(chest).toBeLessThan(facedTarget);
-    expect(facedTarget).toBeLessThan(selected);
+  it('routes hands placement and pickup through the generic authority bridge', () => {
+    expect(source).not.toContain('export const useHands =');
+    const selected = between('export const useSelected =', 'export const entityTimerFire =');
+    expect(selected).toContain('useSelectedBehaviour(ctx, request, useSelectedAuthority)');
+    const writer = between('function worldBehaviourEffectWriter(', 'function applyWorldBehaviourEffects(');
+    expect(writer).toContain('placeCarriedHandsObject(');
+    expect(writer).toContain('placeCarriedChest(');
+    expect(writer).toContain('establishHomesteadAt(ctx, tileX, tileY)');
+    expect(writer).toContain('launchBoatAt(ctx, position, boatId, tileX, tileY, definition)');
+    expect(writer).toContain('contentRegistry(ctx).npcs.get(effect.spawnNpc.definitionId)');
+    expect(writer).toContain("contentRegistry(ctx).npcs.get(effect.spawnNpc.definitionId)?.mount?.adapter !== 'boat'");
+  });
+
+  it('retires extracted public reducers and the temporary processor-operation verbs', () => {
+    for (const name of [
+      'interactChest', 'interactPlaceable', 'toggleCampfire', 'startCooking',
+      'collectCooking', 'cancelCooking', 'eatSelectedFood', 'sealBarrel',
+      'repairSelectedTool', 'readRecipeBook', 'toggleHeldLantern', 'toggleWorldLantern',
+    ]) expect(source, name).not.toContain(`export const ${name} = spacetimedb.reducer`);
+    expect(source).not.toContain("request.verb === 'process_start'");
+    expect(source).not.toContain('startCookingBehaviour(ctx');
+    expect(source).not.toContain('collectCookingBehaviour(ctx');
+    expect(source).not.toContain('cancelCookingBehaviour(ctx');
+    expect(source).toContain('sealBarrelBehaviour(ctx');
+  });
+
+  it('keeps live processor behavior extracted and retires superseded item/object modules', () => {
+    expect(processorSource).toContain('settleProcess(definitions, adapter');
+    expect(processorSource).not.toMatch(/settle(?:Furnace|CookingFire|Barrel|CellarProcessor)\(/);
+    expect(cookingSource).not.toContain('player_cooking_job');
+    expect(cookingSource).toContain('barrelCellarBatchCapacity(');
+    for (const path of [
+      './behaviour/interactions.ts',
+      './behaviour/selected-items.ts',
+      './behaviour/lights.ts',
+    ]) expect(existsSync(new URL(path, import.meta.url)), path).toBe(false);
+    expect(source).toContain("if (kind === 'openFrame')");
+    expect(source).toContain("if (kind === 'applyEffect')");
+    expect(source).toContain("if (kind === 'toggleState')");
+    expect(source).toContain('const equippedLifecycleLight = ()');
+    expect(source).toContain("target.kind === 'world_item'");
+  });
+
+  it('leaves processor call sites thin while retaining lazy settlement boundaries', () => {
+    expect(source).toContain(
+      'return settleProcessorPlaceableBehaviour(ctx, placeable, processorBehaviourDependencies)',
+    );
+    expect(source).not.toMatch(/function settle(?:Furnace|CookingFire|Barrel|CellarProduction)Placeable/);
   });
 
   it('routes scheduled maintenance and presence expiry through named helpers', () => {
@@ -45,13 +83,11 @@ describe('T12 monolith extraction', () => {
     expect(step).not.toContain('connection_presence_v2.iter()');
   });
 
-  it('keeps close reducers authenticated and records deferred T8 decisions', () => {
+  it('keeps close reducers authenticated and removes deferred CLI decisions', () => {
     for (const reducer of ['closeChest', 'closeNpcDialogue']) {
       const body = between(`export const ${reducer} =`, '\n});');
       expect(body, reducer).toContain('requireAuthorizedSender(');
     }
-    expect(source.match(/\/\/ docs\/53 T8: pending decision/g)).toHaveLength(7);
-    expect(source.match(/\/\/ docs\/53 T8: retained for authenticated CLI administration\./g))
-      .toHaveLength(2);
+    expect(source).not.toContain('// docs/53 T8: retained for authenticated CLI administration.');
   });
 });

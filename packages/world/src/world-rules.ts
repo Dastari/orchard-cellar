@@ -4,36 +4,42 @@ import {
   ITEM_PICKUP_REACH_FIXED,
   SIM_STEPS_PER_AUTHORITY_TICK,
   SIM_TICKS_PER_SECOND,
-  SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
   TILE_SIZE_FIXED,
   TILE_INTERACTION_REACH_FIXED,
   TOPSIDE_SPACE_ID,
-  createSurvivalCollisionMap,
   isAxeHarvestableResourceKind,
   isBreakableRockKind,
   isGatherableResourceKind,
   isMineableOreKind,
   growthProgressForElapsedTicks,
   growthStageIndexForProgress,
+  generateRogueRoomLayout,
   resourceToolReachFixed,
   resourceToolForwardOffsetFixed,
   survivalBiomeAt,
-  survivalGatherableDrop,
   survivalResourceBlocksMovement,
   survivalResourceObstacle,
   survivalResourceTargetVector,
-  spaceDefinitionFor,
+  runtimeSpaceDefinition,
   homesteadPlayableTile,
   residencePlayableTile,
   cellarPlayableTile,
   caveTerrainPlaneCollisionBytes,
+  cellarExcavationFootprint,
+  terrainPlaneCollisionBytesForElevationGrid,
   tileTargetInReach,
+  tileToolTargetInReach,
   tileTargetIsBlocked,
+  toolSpecialization,
+  itemDefinition,
   type CollisionMap,
+  type ContentRegistry,
   type Direction,
   type MovementMedium,
+  type RuntimeToolDefinition,
 } from '@orchard/sim';
+import { precomputedSurvivalCollisionMap } from './precomputed-survival-collision.js';
 
 export { AUTHORITY_HZ, SIM_STEPS_PER_AUTHORITY_TICK };
 export const CHUNK_TILES = 16;
@@ -67,7 +73,7 @@ export const MAX_SETTLE_STEPS_PER_TICK = MAX_SETTLE_BACKLOG_STEPS;
 const SPACE_TERRAIN_COLLISION = new Map<string, CollisionMap>();
 const DYNAMIC_EXCAVATION_COLLISION = new WeakMap<CollisionMap, {
   readonly blocked: boolean[];
-  readonly elevations?: Uint8Array;
+  readonly elevations?: Int16Array | Uint8Array;
   terrainPlaneBlocked?: Uint8Array;
   readonly keys: Set<string>;
 }>();
@@ -83,7 +89,7 @@ function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator
       : x === 0 || y === 0 || x === sizeTiles - 1 || y === sizeTiles - 1;
   });
   const elevations = generator === 'cellar' && medium === 'ground'
-    ? Uint8Array.from({ length: sizeTiles * sizeTiles }, (_, index) => (
+    ? Int16Array.from({ length: sizeTiles * sizeTiles }, (_, index) => (
       cellarPlayableTile(index % sizeTiles, Math.floor(index / sizeTiles)) ? 0 : 1
     ))
     : undefined;
@@ -94,6 +100,7 @@ function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator
     ...(elevations === undefined ? {} : {
       elevations,
       fixedTerrainPlane: 0,
+      terrainMinimumElevation: 0,
       terrainTransitions: [],
       terrainPlaneBlocked: caveTerrainPlaneCollisionBytes(elevations, sizeTiles, sizeTiles),
     }),
@@ -103,17 +110,62 @@ function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator
 }
 
 export function terrainCollisionForSpace(
+  registry: ContentRegistry,
   spaceId: number,
   medium: MovementMedium = 'ground',
-  instanceRow?: { readonly spaceId: number; readonly sizeTier: number; readonly residenceSpaceId?: number | undefined } | null,
+  instanceRow?: {
+    readonly spaceId: number;
+    readonly sizeTier?: number | undefined;
+    readonly residenceSpaceId?: number | undefined;
+    readonly instanceKind?: string | undefined;
+    readonly seed?: number | undefined;
+    readonly roomNumber?: number | undefined;
+    readonly roomKind?: string | undefined;
+    readonly theme?: string | undefined;
+  } | null,
 ): CollisionMap {
-  const key = `${spaceId}:${medium}:${instanceRow?.sizeTier ?? 0}`;
+  const key = `${registry.contentHash}:${spaceId}:${medium}:${instanceRow?.sizeTier ?? 0}:${instanceRow?.seed ?? 0}:${instanceRow?.roomNumber ?? 0}:${instanceRow?.roomKind ?? ''}:${instanceRow?.theme ?? ''}`;
   const cached = SPACE_TERRAIN_COLLISION.get(key);
   if (cached !== undefined) return cached;
-  const definition = spaceDefinitionFor(spaceId, instanceRow);
+  const definition = runtimeSpaceDefinition(registry, spaceId, instanceRow);
   let collision: CollisionMap;
   if (definition?.generator === 'island') {
-    collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], medium);
+    collision = medium === 'air'
+      ? {
+          width: SURVIVAL_WORLD_SIZE,
+          height: SURVIVAL_WORLD_SIZE,
+          blocked: Array<boolean>(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(false),
+          obstacles: [],
+        }
+      : precomputedSurvivalCollisionMap(medium);
+  } else if (definition?.generator === 'roguelike' && definition.rogueRoom !== undefined) {
+    const layout = generateRogueRoomLayout(
+      definition.rogueRoom.seed,
+      definition.rogueRoom.roomNumber,
+      definition.rogueRoom.roomKind as Parameters<typeof generateRogueRoomLayout>[2],
+    );
+    const defaultCliffFamily = definition.rogueRoom.theme === 'volcanic'
+      ? 'volcanic_interior'
+      : definition.rogueRoom.theme === 'dungeon' ? 'dungeon_1' : 'cave';
+    collision = {
+      width: layout.width,
+      height: layout.height,
+      blocked: medium === 'ground' ? layout.blocked : Array<boolean>(layout.blocked.length).fill(true),
+      ...(medium === 'ground' ? {
+        elevations: layout.elevations,
+        terrainMinimumElevation: 0,
+        terrainTransitions: layout.terrainTransitions,
+        terrainPlaneBlocked: terrainPlaneCollisionBytesForElevationGrid(
+          layout.width,
+          layout.height,
+          layout.elevations,
+          layout.terrainTransitions,
+          defaultCliffFamily,
+        ),
+      } : {}),
+      horseJumpableTerrain: Array<boolean>(layout.blocked.length).fill(false),
+      obstacles: [],
+    };
   } else if (definition?.generator === 'debug_flat' || definition?.generator === 'homestead'
     || definition?.generator === 'residence' || definition?.generator === 'marlow_tent'
     || definition?.generator === 'cellar') {
@@ -174,7 +226,6 @@ export interface AuthorityPlaceableObstacle {
   readonly tileX: number;
   readonly tileY: number;
   readonly blocksMovement: boolean;
-  readonly open?: boolean;
 }
 
 export interface AuthorityExcavatedTile {
@@ -183,31 +234,47 @@ export interface AuthorityExcavatedTile {
 }
 
 export function createAuthoritySurvivalCollisionMap(
+  registry: ContentRegistry,
   resources: readonly AuthoritySurvivalResource[],
   chests: readonly AuthorityPlacedChest[] = [],
   medium: MovementMedium = 'ground',
   placeables: readonly AuthorityPlaceableObstacle[] = [],
 ): CollisionMap {
-  return createAuthoritySpaceCollisionMap(TOPSIDE_SPACE_ID, resources, chests, medium, placeables);
+  return createAuthoritySpaceCollisionMap(registry, TOPSIDE_SPACE_ID, resources, chests, medium, placeables);
 }
 
 export function createAuthoritySpaceCollisionMap(
+  registry: ContentRegistry,
   spaceId: number,
   resources: readonly AuthoritySurvivalResource[],
   chests: readonly AuthorityPlacedChest[] = [],
   medium: MovementMedium = 'ground',
   placeables: readonly AuthorityPlaceableObstacle[] = [],
-  instanceRow?: { readonly spaceId: number; readonly sizeTier: number; readonly residenceSpaceId?: number | undefined } | null,
+  instanceRow?: {
+    readonly spaceId: number;
+    readonly sizeTier?: number | undefined;
+    readonly residenceSpaceId?: number | undefined;
+    readonly instanceKind?: string | undefined;
+    readonly seed?: number | undefined;
+    readonly roomNumber?: number | undefined;
+    readonly roomKind?: string | undefined;
+    readonly theme?: string | undefined;
+  } | null,
   excavatedTiles: readonly AuthorityExcavatedTile[] = [],
 ): CollisionMap {
   // Terrain is immutable for a space definition. Reusing the cached arrays
   // avoids rebuilding the large topside terrain for every authority tick.
-  const terrain = terrainCollisionForSpace(spaceId, medium, instanceRow);
+  const terrain = terrainCollisionForSpace(registry, spaceId, medium, instanceRow);
   let blocked = terrain.blocked;
   let elevations = terrain.elevations;
   let terrainPlaneBlocked = terrain.terrainPlaneBlocked;
   if (excavatedTiles.length > 0) {
-    const currentKeys = new Set(excavatedTiles.map((tile) => `${tile.tileX},${tile.tileY}`));
+    const currentKeys = new Set(excavatedTiles.flatMap((tile) => cellarExcavationFootprint(
+      tile.tileX,
+      tile.tileY,
+      terrain.width,
+      terrain.height,
+    )).map((tile) => `${tile.tileX},${tile.tileY}`));
     let dynamic = DYNAMIC_EXCAVATION_COLLISION.get(terrain);
     if (dynamic === undefined || [...dynamic.keys].some((key) => !currentKeys.has(key))) {
       dynamic = {
@@ -222,16 +289,22 @@ export function createAuthoritySpaceCollisionMap(
     }
     let terrainHeightChanged = false;
     for (const tile of excavatedTiles) {
-      if (tile.tileX < 0 || tile.tileY < 0 || tile.tileX >= terrain.width || tile.tileY >= terrain.height) continue;
-      const key = `${tile.tileX},${tile.tileY}`;
-      if (dynamic.keys.has(key)) continue;
-      const index = tile.tileY * terrain.width + tile.tileX;
-      dynamic.blocked[index] = false;
-      if (dynamic.elevations !== undefined && dynamic.elevations[index] !== 0) {
-        dynamic.elevations[index] = 0;
-        terrainHeightChanged = true;
+      for (const cell of cellarExcavationFootprint(
+        tile.tileX,
+        tile.tileY,
+        terrain.width,
+        terrain.height,
+      )) {
+        const key = `${cell.tileX},${cell.tileY}`;
+        if (dynamic.keys.has(key)) continue;
+        const index = cell.tileY * terrain.width + cell.tileX;
+        dynamic.blocked[index] = false;
+        if (dynamic.elevations !== undefined && dynamic.elevations[index] !== 0) {
+          dynamic.elevations[index] = 0;
+          terrainHeightChanged = true;
+        }
+        dynamic.keys.add(key);
       }
-      dynamic.keys.add(key);
     }
     if (terrainHeightChanged && dynamic.elevations !== undefined) {
       dynamic.terrainPlaneBlocked = caveTerrainPlaneCollisionBytes(
@@ -264,7 +337,7 @@ export function createAuthoritySpaceCollisionMap(
     });
   }
   for (const placeable of medium === 'ground' ? placeables : []) {
-    if (!placeable.blocksMovement || placeable.open === true
+    if (!placeable.blocksMovement
       || placeable.tileX < 0 || placeable.tileY < 0
       || placeable.tileX >= terrain.width || placeable.tileY >= terrain.height) continue;
     obstacles.push({
@@ -289,6 +362,9 @@ export function createAuthoritySpaceCollisionMap(
       : {}),
     ...(medium === 'ground' && terrainPlaneBlocked !== undefined
       ? { terrainPlaneBlocked }
+      : {}),
+    ...(medium === 'ground' && terrain.terrainMinimumElevation !== undefined
+      ? { terrainMinimumElevation: terrain.terrainMinimumElevation }
       : {}),
     horseJumpableTerrain,
     obstacles,
@@ -336,10 +412,15 @@ export function resourceHarvestResult(
   playerY: number,
   selectedItem: string,
   resource: { readonly kind: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean },
+  runtimeTool?: RuntimeToolDefinition | null,
 ): 'ok' | 'depleted' | 'wrong_tool' | 'out_of_range' {
   if (resource.depleted) return 'depleted';
-  const matchingTool = (isAxeHarvestableResourceKind(resource.kind) && selectedItem === 'axe')
-    || ((isMineableOreKind(resource.kind) || isBreakableRockKind(resource.kind)) && selectedItem === 'pickaxe');
+  const specialization = runtimeTool === undefined
+    ? toolSpecialization(selectedItem) ?? undefined
+    : runtimeTool?.specialization;
+  const matchingTool = (isAxeHarvestableResourceKind(resource.kind) && specialization === 'woodcutting')
+    || ((isMineableOreKind(resource.kind) || isBreakableRockKind(resource.kind)) && specialization === 'mining')
+    || (resource.kind === 'fish_pool' && specialization === 'fishing');
   if (!matchingTool) return 'wrong_tool';
   const targetVector = survivalResourceTargetVector(
     playerX,
@@ -351,10 +432,11 @@ export function resourceHarvestResult(
   const dx = targetVector.x;
   const dy = targetVector.y;
   const targetLength = Math.hypot(dx, dy);
-  const forwardOffset = resourceToolForwardOffsetFixed(selectedItem);
+  const toolAuthority = runtimeTool === undefined ? selectedItem : runtimeTool;
+  const forwardOffset = resourceToolForwardOffsetFixed(toolAuthority);
   const areaDx = targetLength > 0 ? dx - dx / targetLength * forwardOffset : dx;
   const areaDy = targetLength > 0 ? dy - dy / targetLength * forwardOffset : dy;
-  const reachFixed = resourceToolReachFixed(selectedItem);
+  const reachFixed = resourceToolReachFixed(toolAuthority);
   if (areaDx * areaDx + areaDy * areaDy > reachFixed * reachFixed) return 'out_of_range';
   return 'ok';
 }
@@ -365,7 +447,7 @@ export function resourceGatherResult(
   resource: { readonly kind: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean },
 ): 'ok' | 'depleted' | 'not_gatherable' | 'out_of_range' {
   if (resource.depleted) return 'depleted';
-  if (!isGatherableResourceKind(resource.kind) || survivalGatherableDrop(resource.kind) === null) return 'not_gatherable';
+  if (!isGatherableResourceKind(resource.kind)) return 'not_gatherable';
   const resourceX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const resourceY = resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
   const dx = resourceX - playerX;
@@ -382,6 +464,15 @@ export type FarmToolUseResult = 'ok'
   | 'already_tilled'
   | 'not_tilled'
   | 'already_watered';
+
+export type FarmToolMode = 'cultivate' | 'water';
+
+function farmToolMode(itemKind: string): FarmToolMode | null {
+  const tags = itemDefinition(itemKind)?.tags ?? [];
+  if (tags.includes('tool.farming.cultivate')) return 'cultivate';
+  if (tags.includes('tool.farming.water')) return 'water';
+  return null;
+}
 
 /** Only natural grass-surface biomes can become player-authored soil. Cliffs,
  * beaches, desert, water, and authored dirt terraces remain immutable. */
@@ -402,17 +493,17 @@ export function farmToolUseResult(
   tileY: number,
   soil: { readonly watered: boolean } | null,
   occupied: boolean,
+  toolDefinition: RuntimeToolDefinition | null,
   tillableOverride?: boolean,
+  modeOverride?: FarmToolMode | null,
 ): FarmToolUseResult {
   if (!Number.isInteger(tileX) || !Number.isInteger(tileY)
     || tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return 'invalid_tile';
-  if (selectedItem !== 'hoe' && selectedItem !== 'watering_can') return 'wrong_tool';
-  const targetX = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-  const targetY = tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-  const dx = targetX - playerX;
-  const dy = targetY - playerY;
-  if (dx * dx + dy * dy > FARM_TOOL_REACH_FIXED * FARM_TOOL_REACH_FIXED) return 'out_of_range';
-  if (selectedItem === 'hoe') {
+  const mode = modeOverride === undefined ? farmToolMode(selectedItem) : modeOverride;
+  if (mode === null) return 'wrong_tool';
+  if (toolDefinition === null || toolDefinition.specialization !== 'farming') return 'wrong_tool';
+  if (!tileToolTargetInReach(toolDefinition, { x: playerX, y: playerY }, { tileX, tileY })) return 'out_of_range';
+  if (mode === 'cultivate') {
     if (!(tillableOverride ?? isTillableSurvivalTile(seed, tileX, tileY))) return 'not_grass';
     if (occupied) return 'tile_occupied';
     return soil === null ? 'ok' : 'already_tilled';
@@ -430,15 +521,15 @@ export function farmSoilRestoreResult(
   tileX: number,
   tileY: number,
   soil: unknown | null,
+  toolDefinition: RuntimeToolDefinition | null,
+  modeOverride?: FarmToolMode | null,
 ): FarmToolUseResult {
   if (!Number.isInteger(tileX) || !Number.isInteger(tileY)
     || tileX < 0 || tileY < 0 || tileX >= SURVIVAL_WORLD_SIZE || tileY >= SURVIVAL_WORLD_SIZE) return 'invalid_tile';
-  if (selectedItem !== 'hoe') return 'wrong_tool';
-  const targetX = tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-  const targetY = tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2;
-  const dx = targetX - playerX;
-  const dy = targetY - playerY;
-  if (dx * dx + dy * dy > FARM_TOOL_REACH_FIXED * FARM_TOOL_REACH_FIXED) return 'out_of_range';
+  const mode = modeOverride === undefined ? farmToolMode(selectedItem) : modeOverride;
+  if (mode !== 'cultivate') return 'wrong_tool';
+  if (toolDefinition === null || toolDefinition.specialization !== 'farming') return 'wrong_tool';
+  if (!tileToolTargetInReach(toolDefinition, { x: playerX, y: playerY }, { tileX, tileY })) return 'out_of_range';
   return soil === null ? 'not_tilled' : 'ok';
 }
 
@@ -593,6 +684,21 @@ export interface DrainedMovementRunQueue {
   readonly intents: readonly MovementRunStep[];
   readonly pendingDirection: string;
   readonly pendingSteps: number;
+}
+
+/** Sprint intent only suppresses Vigour regeneration while the player can
+ * actually pay for a sprint step. Keeping Shift held after depletion must fall
+ * back to walking and recovery instead of creating a zero-Vigour deadlock. */
+export function sprintIntentSuppressesVigourRegen(
+  hasSprintIntent: boolean,
+  vigourCenti: number,
+  oneStepCostCenti: number,
+): boolean {
+  return hasSprintIntent
+    && Number.isSafeInteger(vigourCenti)
+    && Number.isSafeInteger(oneStepCostCenti)
+    && oneStepCostCenti > 0
+    && vigourCenti >= oneStepCostCenti;
 }
 
 export function drainMovementRunQueue(

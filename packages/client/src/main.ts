@@ -1,26 +1,17 @@
-import {
-  clientEntryRoute,
-  offlineDesignEditorPath,
-  offlineEditorPath,
-  UI_LAB_PATH,
-} from './editor/editor-route.js';
-import { initializeLoadingScreen, setLoadingScreenStage } from './loading-screen.js';
+import { initializeLoadingScreen, setLoadingScreenStage } from '@orchard/engine/loading-screen';
 import {
   installGameShellGestureGuards,
   installStandaloneHistoryGuard,
   isStandaloneWebApp,
   pwaClient,
 } from './pwa.js';
+import { clientErrorReporter } from './client-error-reporter.js';
+import { recoverStartupSession } from './startup-session.js';
 
-const entryRoute = clientEntryRoute(location.pathname, location.search);
-const popupCallbackRelayed = entryRoute.kind === 'standard'
-  ? (await import('./auth/oidc.js')).relayOidcPopupCallback()
-  : false;
+const popupCallbackRelayed = (await import('@orchard/auth')).relayOidcPopupCallback();
 if (isStandaloneWebApp()) document.documentElement.classList.add('installed-web-app');
 if (!popupCallbackRelayed) {
-  setLoadingScreenStage(entryRoute.kind === 'ui_lab' ? {
-    title: 'OPENING THE UI LAB', detail: 'LOADING COMPONENT SPECIMENS', progress: 12,
-  } : {
+  setLoadingScreenStage({
     title: 'OPENING THE ORCHARD', detail: 'CHECKING YOUR ACCOUNT', progress: 12,
   });
   await initializeLoadingScreen();
@@ -46,26 +37,7 @@ document.addEventListener('selectstart', (event) => {
   if (!isCanvasInput(event.target)) event.preventDefault();
 });
 
-if (entryRoute.kind === 'ui_lab') {
-  if (location.pathname !== UI_LAB_PATH) {
-    history.replaceState(null, '', `${UI_LAB_PATH}${location.search}${location.hash}`);
-  }
-} else if (entryRoute.kind === 'offline_design_editor') {
-  const canonicalLocation = `${offlineDesignEditorPath(entryRoute.stampId)}${location.search}${location.hash}`;
-  if (`${location.pathname}${location.search}${location.hash}` !== canonicalLocation) {
-    history.replaceState(null, '', canonicalLocation);
-  }
-} else if (entryRoute.kind === 'offline_editor') {
-  const editorParameters = new URLSearchParams(location.search);
-  editorParameters.delete('mode');
-  editorParameters.delete('source');
-  editorParameters.delete('map');
-  const editorSearch = editorParameters.size === 0 ? '' : `?${editorParameters.toString()}`;
-  const canonicalLocation = `${offlineEditorPath(entryRoute.mapId)}${editorSearch}${location.hash}`;
-  if (`${location.pathname}${location.search}${location.hash}` !== canonicalLocation) {
-    history.replaceState(null, '', canonicalLocation);
-  }
-} else if (location.pathname !== '/' && !location.pathname.startsWith('/editor/live')) {
+if (location.pathname !== '/') {
   history.replaceState(null, '', `/${location.search}${location.hash}`);
 }
 
@@ -73,37 +45,12 @@ const parameters = new URLSearchParams(location.search);
 
 async function launchClient(): Promise<void> {
   if (popupCallbackRelayed) return;
-  if (entryRoute.kind === 'ui_lab') {
-    document.title = 'Orchard & Cellar — UI Component Lab';
-    setLoadingScreenStage({
-      title: 'OPENING THE UI LAB', detail: 'ARRANGING THE COMPONENT CANVAS', progress: 24,
-    });
-    await import('./ui-lab.js');
-    return;
-  }
-  if (entryRoute.kind === 'offline_design_editor') {
-    document.title = 'Orchard & Cellar — Layout Studio';
-    setLoadingScreenStage({
-      title: 'OPENING LAYOUT STUDIO', detail: 'INDEXING THE ASSET PALETTE', progress: 24,
-    });
-    await import('./editor/design-studio.js');
-    return;
-  }
-  if (entryRoute.kind === 'offline_editor') {
-    document.title = 'Orchard & Cellar — Offline Creator';
-    setLoadingScreenStage({
-      title: 'OPENING CREATOR MODE', detail: 'NO ACCOUNT OR LIVE WORLD CONNECTION REQUIRED', progress: 24,
-    });
-    await import('./editor/offline-editor.js');
-    return;
-  }
-
   const {
     ensureOidcSession,
     hasOidcCallback,
     localProfilesEnabled,
     oidcConfigured,
-  } = await import('./auth/oidc.js');
+  } = await import('@orchard/auth');
 
   const loggingOut = parameters.has('logout');
   const accountMenuRequested = parameters.has('menu');
@@ -115,7 +62,13 @@ async function launchClient(): Promise<void> {
         && !accountMenuRequested
         && !oidcCallback
         && oidcConfigured
-        && await ensureOidcSession() !== null;
+        && await recoverStartupSession(ensureOidcSession, () => {
+          setLoadingScreenStage({
+            title: 'RECONNECTING TO YOUR ACCOUNT',
+            detail: 'WAITING FOR A CONNECTION — YOUR LOGIN IS SAVED',
+            progress: 12,
+          });
+        }) !== null;
     } catch (error: unknown) {
       setLoadingScreenStage({
         title: 'THE GATE WOULD NOT OPEN',
@@ -150,6 +103,7 @@ async function launchClient(): Promise<void> {
 try {
   await launchClient();
 } catch (error: unknown) {
+  clientErrorReporter.capture('error', error);
   setLoadingScreenStage({
     title: 'SOMETHING WENT ASTRAY',
     detail: 'REFRESH THE PAGE TO TRY THE JOURNEY AGAIN',

@@ -104,6 +104,7 @@ interface AuthoringRegistry {
 
 const rootPath = fileURLToPath(workspaceRoot);
 const referencesPath = resolve(rootPath, 'references');
+const cuteFantasyPath = resolve(referencesPath, 'art/kenmi/cute-fantasy');
 const defaultOutput = resolve(rootPath, 'build/cute-fantasy-catalog');
 
 function option(name: string): string | undefined {
@@ -441,8 +442,9 @@ function reviewHtml(catalog: Catalog, outputDirectory: string): string {
 }
 
 async function buildCatalog(outputDirectory: string): Promise<Catalog> {
-  const rootEntries = await readdir(referencesPath, { withFileTypes: true });
-  const packRoots = rootEntries.filter((entry) => entry.isDirectory() && entry.name.startsWith('Cute_Fantasy')).map((entry) => join(referencesPath, entry.name)).sort();
+  const rootEntries = await readdir(cuteFantasyPath, { withFileTypes: true });
+  const packRoots = rootEntries.filter((entry) => entry.isDirectory())
+    .map((entry) => join(cuteFantasyPath, entry.name)).sort();
   const files = (await Promise.all(packRoots.map(async (root) => await walk(root)))).flat().filter((path) => path.toLowerCase().endsWith('.png')).sort();
   const firstSheetByHash = new Map<string, string>();
   const sheets: CatalogSheet[] = [];
@@ -463,7 +465,7 @@ async function buildCatalog(outputDirectory: string): Promise<Catalog> {
     sheets.push({
       id: `${slash(relative(referencesPath, dirname(path))).replaceAll('/', '_').toLowerCase()}_${basename(path, '.png').toLowerCase().replaceAll(/[^a-z0-9]+/g, '_')}`,
       source,
-      pack: slash(relative(referencesPath, packRoots.find((root) => path.startsWith(`${root}${sep}`)) ?? referencesPath)).split('/')[0] ?? 'unknown',
+      pack: slash(relative(cuteFantasyPath, packRoots.find((root) => path.startsWith(`${root}${sep}`)) ?? cuteFantasyPath)).split('/')[0] ?? 'unknown',
       width: image.width,
       height: image.height,
       hash,
@@ -479,7 +481,7 @@ async function buildCatalog(outputDirectory: string): Promise<Catalog> {
   const catalog: Catalog = {
     version: 1,
     generatedAt: new Date().toISOString(),
-    sourcePattern: 'references/Cute_Fantasy*/**/*.png',
+    sourcePattern: 'references/art/kenmi/cute-fantasy/**/*.png',
     summary: {
       packs: packRoots.length,
       sourceFiles: sheets.length,

@@ -47,15 +47,21 @@ describe('34§6 stage-1 scalability rules', () => {
   it('keeps authorization ahead of indexed lookups in changed client reducers', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     const reducerNames = [
-      'useHands', 'interactChest', 'interactNpc', 'harvestChest', 'interactHorse',
-      'jumpHorse', 'dropSelected', 'gatherWorldResource', 'harvestResource',
-      'attackCombatTarget', 'fireBow', 'useFarmTool', 'restoreFarmTile', 'tendTree',
+      'interactNpc', 'applyMountLifecycle',
+      'jumpHorse', 'dropSelected', 'gatherWorldResource',
+      'tendTree',
     ];
     for (const reducerName of reducerNames) {
-      const start = source.indexOf(`export const ${reducerName} =`);
-      const end = source.indexOf('\nexport const ', start + 1);
-      const reducer = source.slice(start, end < 0 ? source.length : end);
-      const auth = reducer.indexOf('requireAuthorizedSender(');
+      const implementation = reducerName === 'applyMountLifecycle'
+        ? 'function applyMountLifecycle(' : `export const ${reducerName} =`;
+      const implementationSource = source;
+      const start = implementationSource.indexOf(implementation);
+      const end = implementationSource.indexOf('\nexport const ', start + 1);
+      const reducer = implementationSource.slice(start, end < 0 ? implementationSource.length : end);
+      const auth = Math.max(
+        reducer.indexOf('requireAuthorizedSender('),
+        reducer.indexOf('dependencies.authorize(ctx)'),
+      );
       const indexedLookup = Math.max(
         reducer.indexOf('mountedNpcFor('),
         reducer.indexOf('carriedChestFor('),
@@ -64,12 +70,17 @@ describe('34§6 stage-1 scalability rules', () => {
       expect(auth, reducerName).toBeGreaterThanOrEqual(0);
       expect(indexedLookup, reducerName).toBeGreaterThan(auth);
     }
+    const mountTransport = source.slice(source.indexOf('export const interactHorse ='), source.indexOf('export const jumpHorse ='));
+    expect(mountTransport).toContain("interactEntityBehaviour(ctx, { targetKind: 'npc', entityId: horseId, verb: 'use' }");
+    expect(mountTransport).not.toContain('ctx.db.');
+    const generic = readFileSync(new URL('./behaviour/interact-entity.ts', import.meta.url), 'utf8');
+    expect(generic.indexOf('authority.authorize(ctx)')).toBeLessThan(generic.indexOf('authority.resolveTarget(ctx'));
   });
 
   it('26§13 authorizes portal reducers before target and mount lookups', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     const start = source.indexOf('export const usePortal =');
-    const end = source.indexOf('\nexport const debugUsePortal', start);
+    const end = source.indexOf('\nexport const toggleHomesteadGate', start);
     const reducer = source.slice(start, end);
     expect(reducer.indexOf('requireAuthorizedSender(')).toBeGreaterThanOrEqual(0);
     expect(reducer.indexOf('space_portal.id.find')).toBeGreaterThan(reducer.indexOf('requireAuthorizedSender('));
@@ -80,12 +91,75 @@ describe('34§6 stage-1 scalability rules', () => {
     const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     const step = source.slice(source.indexOf('function runOneHertzTickMaintenance('));
     expect(step).toContain('playersBySpace');
-    expect(step).toContain('world_resource.by_chunk.filter(spaceId)');
-    expect(step).toContain('world_chest.by_chunk.filter(spaceId)');
+    expect(step).toContain('world_resource.by_chunk.filter([spaceId, chunkX, chunkY])');
+    expect(step).toContain('world_chest.by_chunk.filter([spaceId, chunkX, chunkY])');
     expect(step).toContain('world_projectile.by_chunk.filter(spaceId)');
-    expect(step).toContain('world_combat_target.by_chunk.filter(spaceId)');
-    expect(step).toContain('world_npc.by_chunk.filter(spaceId)');
+    expect(step).toContain('world_combat_target.by_chunk.filter([spaceId, chunkX, chunkY])');
+    expect(step).toContain('world_npc.by_chunk.filter([spaceId, chunkX, chunkY])');
+    expect(step).toContain('tickCollisionChunkScope(');
     expect(step).toContain('player_position.identity.find(presence.identity)');
+  });
+
+  it('reuses the tick spatial rows and one revision runtime when building collision', () => {
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const collision = source.slice(
+      source.indexOf('interface PrefetchedSpaceCollisionRows'),
+      source.indexOf('function waterCollisionForSpace'),
+    );
+    const tick = source.slice(
+      source.indexOf('const collisionBySpace =', source.indexOf('export const stepWorld =')),
+      source.indexOf("tickStageTiming(telemetryTimingSample, 'collision', true)"),
+    );
+
+    expect(collision).toContain('prefetchedRows?.resources');
+    expect(collision).toContain('prefetchedRows?.chests');
+    expect(collision).toContain('prefetchedRows?.combatTargets');
+    expect(collision).toContain('liveMapRuntimeGeneratedResourceSuppressed(liveMapRuntime, resource.id)');
+    expect(tick.match(/compiledLiveIslandRuntime\(ctx\)/gu)).toHaveLength(1);
+    expect(tick).toContain('collisionForSpace(ctx, spaceId, undefined, {');
+    expect(tick).toContain('resources,\n        chests,\n        combatTargets,\n        chunkScope:');
+    expect(tick).toContain('waterCollisionForSpace(\n        ctx,\n        spaceId,\n        liveMapRuntime,');
+  });
+
+  it('allocates combined projectile terrain lazily and once per projectile-bearing space', () => {
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const collisionSetupStart = source.indexOf(
+      'const collisionBySpace =', source.indexOf('export const stepWorld ='),
+    );
+    const projectileStageStart = source.indexOf(
+      "tickStageTiming(telemetryTimingSample, 'projectiles');", collisionSetupStart,
+    );
+    const collisionSetup = source.slice(collisionSetupStart, projectileStageStart);
+    const projectileStage = source.slice(
+      projectileStageStart,
+      source.indexOf("tickStageTiming(telemetryTimingSample, 'projectiles', true);", projectileStageStart),
+    );
+
+    expect(collisionSetup).toContain('const projectileCollisionBySpace = new Map<number, CollisionMap>()');
+    expect(collisionSetup).not.toContain('projectileTraversalCollision(');
+    expect(collisionSetup).toContain('world_projectile.by_chunk.filter(spaceId)');
+    expect(projectileStage).toContain('const occupiedProjectiles = [...projectilesBySpace.values()].flat()');
+    expect(projectileStage).toContain('let collision = projectileCollisionBySpace.get(projectile.spaceId)');
+    expect(projectileStage).toContain('collision = projectileTraversalCollision(groundCollision, waterCollision)');
+    expect(projectileStage).toContain('projectileCollisionBySpace.set(projectile.spaceId, collision)');
+    expect(projectileStage.match(/projectileTraversalCollision\(/gu)).toHaveLength(1);
+    expect(projectileStage.indexOf('projectileTraversalCollision(groundCollision, waterCollision)'))
+      .toBeGreaterThan(projectileStage.indexOf('const occupiedProjectiles'));
+    expect(projectileStage.indexOf('projectileTraversalCollision(groundCollision, waterCollision)'))
+      .toBeLessThan(projectileStage.indexOf('if (projectile.expiresTick <= authorityTick)'));
+  });
+
+  it('repairs the deterministic bee roster through primary-key probes', () => {
+    const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    const start = source.indexOf('if (authorityTick % 600n === 0n)');
+    const end = source.indexOf("tickStageTiming(telemetryTimingSample, 'collision')", start);
+    const roster = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(roster).toContain('world_wildlife_profile.npcId.find(npcId)');
+    expect(roster).toContain('world_npc.id.find(npcId)');
+    expect(roster).not.toContain('world_wildlife_profile.iter()');
+    expect(roster).not.toContain('world_npc.iter()');
   });
 
   it('keeps identity index results equivalent to the removed full scans', () => {
@@ -123,7 +197,7 @@ describe('34§6 stage-1 scalability rules', () => {
       source.indexOf("tickStageTiming(telemetryTimingSample, 'projectiles')"),
       source.indexOf("tickStageTiming(telemetryTimingSample, 'movement')"),
     );
-    expect(projectileStep).toContain("itemKind: 'arrow'");
+    expect(projectileStep).toContain('itemKind: projectile.ammunitionItemKind');
     expect(projectileStep).toContain('RECOVERABLE_ARROW_LIFETIME_TICKS');
     expect(projectileStep).toContain('recoverableArrowAngle(');
     const pickup = source.slice(
@@ -223,7 +297,7 @@ describe('34§6 stage-1 scalability rules', () => {
     expect(expiry).toContain('world_item.by_expires_tick.filter(expiredThrough)');
     expect(expiry).toContain('world_speech.by_expires_tick.filter(expiredThrough)');
     expect(expiry).not.toMatch(/(?:player_effect|player_party_invite|world_item|world_speech)\.iter\(\)/);
-    expect(source).toContain('worldItemExpiredForRow(item, clock.authorityTick)');
+    expect(source).toContain('worldItemExpiredForRow(contentRegistry(ctx), item, clock.authorityTick)');
     expect(source).toContain('effect.expiresTick > authorityTick');
     expect(source).toContain('speech.expiresTick <= clock');
   });

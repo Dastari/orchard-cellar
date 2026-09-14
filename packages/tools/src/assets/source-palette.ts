@@ -1,18 +1,11 @@
 import { posix } from 'node:path';
 import type { AssetSource } from './types.js';
 
-const LICENSED_PACK_ROOTS = [
-  'references/Cute_Fantasy',
-  'references/Cute_Fantasy_Characters',
-  'references/Cute_Fantasy_Christmass',
-  'references/Cute_Fantasy_Desert',
-  'references/Cute_Fantasy_Dungeons',
-  'references/Cute_Fantasy_Free',
-  'references/Cute_Fantasy_Halloween',
-  'references/Cute_Fantasy_MilitaryCamp',
-  'references/Cute_Fantasy_ShroomLands',
-  'references/Cute_Fantasy_UI',
-  'references/Cute_Fantasy_Volcano',
+const APPROVED_SOURCE_ROOTS = [
+  'art/custom',
+  'references/art/orchard-originals/tools',
+  'references/art/kenmi/cute-fantasy',
+  'references/art/clockwork-raven',
 ] as const;
 
 export function allocateExactSourceCharacter(
@@ -38,9 +31,9 @@ export function sourcePaletteErrors(asset: AssetSource, allowed: ReadonlySet<str
     errors.push(`${asset.name}: sourcePalette requires importedFrom and sourcePath provenance`);
   } else {
     const normalized = posix.normalize(asset.sourcePath);
-    const root = LICENSED_PACK_ROOTS.find((candidate) => normalized.startsWith(`${candidate}/`));
+    const root = APPROVED_SOURCE_ROOTS.find((candidate) => normalized.startsWith(`${candidate}/`));
     if (normalized !== asset.sourcePath || !root) {
-      errors.push(`${asset.name}: sourcePalette sourcePath is not an approved Cute Fantasy input`);
+      errors.push(`${asset.name}: sourcePalette sourcePath is not an approved source input`);
     }
     if (posix.basename(normalized) !== asset.importedFrom) {
       errors.push(`${asset.name}: sourcePath basename does not match importedFrom`);

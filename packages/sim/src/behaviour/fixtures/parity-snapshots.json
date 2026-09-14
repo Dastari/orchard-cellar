@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "baseSnapshot": {
+    "tick": "1000",
+    "registry": {
+      "engineVersion": 1,
+      "revision": "1",
+      "contentHash": "55-a1-parity-fixtures",
+      "definitions": {}
+    },
+    "space": {
+      "id": "space:homestead-1",
+      "kind": "homestead",
+      "tags": ["outdoors"]
+    },
+    "calendar": {
+      "minuteOfDay": 720,
+      "season": "spring"
+    },
+    "actor": {
+      "entityType": "player",
+      "id": "player:fixture",
+      "tags": [],
+      "tile": { "spaceId": "space:homestead-1", "x": 10, "y": 10, "tags": ["grass"] },
+      "bronze": "100",
+      "vitals": { "hunger": 5000, "vigour": 7500 },
+      "inventory": [],
+      "worldRoles": ["player"],
+      "homesteadRoles": { "homestead:1": "owner" },
+      "questStates": {},
+      "statistics": {},
+      "skillRanks": {}
+    },
+    "nearbyObjects": []
+  },
+  "cases": [
+    { "parityRow": 1, "id": "homestead-deed-founding", "eventType": "place", "snapshot": { "selectedItem": { "kind": "homestead_deed", "tags": ["item.homestead_deed"], "count": 1 } } },
+    { "parityRow": 2, "id": "boat-spawn-and-mount", "eventType": "place", "snapshot": { "selectedItem": { "kind": "boat", "tags": ["vehicle.boat"], "count": 1 } } },
+    { "parityRow": 3, "id": "carried-object-place-pickup", "eventType": "pickup", "snapshot": { "target": { "entityType": "object", "id": "object:carried", "definitionId": "object:chest", "tags": ["damageable"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": {} } } },
+    { "parityRow": 4, "id": "placeable-placement", "eventType": "place", "snapshot": { "selectedItem": { "kind": "chest", "tags": ["item.placeable"], "count": 1 } } },
+    { "parityRow": 5, "id": "fence-gate-toggle", "eventType": "use", "snapshot": { "target": { "entityType": "object", "id": "object:gate", "definitionId": "object:fence_gate", "tags": ["build.fence"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": { "open": false } } } },
+    { "parityRow": 6, "id": "anvil-repair", "eventType": "useWith", "snapshot": { "selectedItem": { "kind": "axe", "tags": ["item.tool"], "count": 1, "durability": 4, "maxDurability": 10 } } },
+    { "parityRow": 7, "id": "processor-settlement", "eventType": "processComplete", "snapshot": { "target": { "entityType": "object", "id": "object:furnace", "definitionId": "object:furnace", "tags": ["processor"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": { "processing": true } } } },
+    { "parityRow": 8, "id": "campfire-toggle", "eventType": "secondary", "snapshot": { "target": { "entityType": "object", "id": "object:campfire", "definitionId": "object:campfire", "tags": ["station.campfire"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": { "lit": false } } } },
+    { "parityRow": 9, "id": "held-light-toggle", "eventType": "secondary", "snapshot": { "selectedItem": { "kind": "lantern", "tags": ["emits.light"], "count": 1, "state": { "lit": false } } } },
+    { "parityRow": 10, "id": "ground-light-toggle", "eventType": "worldItemUse", "snapshot": { "target": { "entityType": "object", "id": "17", "definitionId": "object:lantern", "tags": ["emits.light", "world_item"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": { "lit": false } }, "selectedItem": { "kind": "lantern", "definitionId": "item:lantern", "instanceId": "17", "containerId": "world", "tags": ["emits.light"], "count": 1, "state": { "lit": false } } } },
+    { "parityRow": 11, "id": "eat-food", "eventType": "secondary", "snapshot": { "selectedItem": { "kind": "apple", "tags": ["item.food"], "count": 2 } } },
+    { "parityRow": 12, "id": "read-recipe-book", "eventType": "secondary", "snapshot": { "selectedItem": { "kind": "marlow_book", "tags": ["item.document"], "count": 1 } } },
+    { "parityRow": 13, "id": "chest-break-and-salvage", "eventType": "break", "snapshot": { "target": { "entityType": "object", "id": "object:chest", "definitionId": "object:chest", "tags": ["container", "damageable"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": { "health": 0 } } } },
+    { "parityRow": 14, "id": "slot-restrictions", "eventType": "slotChanged", "snapshot": { "container": { "id": "container:furnace", "capacity": 3, "slots": [null, null, null], "roles": { "input": [0], "fuel": [1], "output": [2] } } } },
+    { "parityRow": 15, "id": "placeable-light-components", "eventType": "use", "snapshot": { "target": { "entityType": "object", "id": "object:light", "definitionId": "object:standing_torch", "tags": ["emits.light"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": { "lit": true } } } },
+    { "parityRow": 16, "id": "wildlife-loot-and-xp", "eventType": "break", "snapshot": { "target": { "entityType": "npc", "id": "npc:wildlife", "definitionId": "creature:slime", "tags": ["creature"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": { "health": 0 } } } },
+    { "parityRow": 17, "id": "resource-yield-chain", "eventType": "useWith", "snapshot": { "selectedItem": { "kind": "pickaxe", "tags": ["item.tool", "tool.mining"], "count": 1, "durability": 10, "maxDurability": 10 } } },
+    { "parityRow": 18, "id": "furnace-fuel-values", "eventType": "processComplete", "snapshot": { "container": { "id": "container:furnace", "capacity": 3, "slots": [null, { "kind": "wood", "tags": ["fuel"], "count": 1 }, null], "roles": { "input": [0], "fuel": [1], "output": [2] } } } },
+    { "parityRow": 19, "id": "mining-tool-tier", "eventType": "useWith", "snapshot": { "selectedItem": { "kind": "pickaxe", "tags": ["item.tool", "tool.tier.1"], "count": 1 } } },
+    { "parityRow": 20, "id": "tool-reach-and-swing", "eventType": "useWith", "snapshot": { "selectedItem": { "kind": "axe", "tags": ["item.tool", "tool.woodcutting"], "count": 1 } } },
+    { "parityRow": 21, "id": "npc-materialisation", "eventType": "spawn", "snapshot": { "target": { "entityType": "npc", "id": "npc:fin", "definitionId": "npc:fin", "tags": ["npc.fisher"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": {} } } },
+    { "parityRow": 22, "id": "dialogue-shop-mode", "eventType": "dialogueChoice", "snapshot": { "target": { "entityType": "npc", "id": "npc:merchant", "definitionId": "npc:marlow", "tags": ["merchant"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": {} } } },
+    { "parityRow": 23, "id": "dialogue-quest-gating", "eventType": "dialogueChoice", "snapshot": { "target": { "entityType": "npc", "id": "npc:bob", "definitionId": "npc:bob", "tags": ["quest_giver"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": {} } } },
+    { "parityRow": 24, "id": "quest-only-crop", "eventType": "questState", "snapshot": { "selectedItem": { "kind": "bob_fast_strawberry_seeds", "tags": ["item.seed", "item.quest"], "count": 1 } } },
+    { "parityRow": 25, "id": "crop-fruit-tags", "eventType": "useWith", "snapshot": { "selectedItem": { "kind": "apple", "tags": ["item.crop", "crop.fruit"], "count": 1 } } },
+    { "parityRow": 26, "id": "unsellable-deed", "eventType": "secondary", "snapshot": { "selectedItem": { "kind": "homestead_deed", "tags": ["trade.unsellable"], "count": 1 } } },
+    { "parityRow": 27, "id": "decoration-collision-mask", "eventType": "spawn", "snapshot": { "target": { "entityType": "object", "id": "object:decoration", "definitionId": "object:stone", "tags": ["collision"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": {} } } },
+    { "parityRow": 28, "id": "interior-furniture-collision", "eventType": "spawn", "snapshot": { "space": { "id": "space:cellar", "kind": "interior", "tags": ["indoors"] }, "target": { "entityType": "object", "id": "object:furniture", "definitionId": "object:barrel", "tags": ["collision"], "tile": { "spaceId": "space:cellar", "x": 4, "y": 4, "tags": ["floor"] }, "state": {} } } },
+    { "parityRow": 29, "id": "secondary-resolution-order", "eventType": "secondary", "snapshot": { "selectedItem": { "kind": "watering_can", "tags": ["item.tool"], "count": 1 }, "target": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["soil"] } } },
+    { "parityRow": 30, "id": "processor-frame-open", "eventType": "use", "snapshot": { "target": { "entityType": "object", "id": "object:processor", "definitionId": "object:furnace", "tags": ["processor", "frame"], "tile": { "spaceId": "space:homestead-1", "x": 11, "y": 10, "tags": ["grass"] }, "state": {} } } }
+  ]
+}

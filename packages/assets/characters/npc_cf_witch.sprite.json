@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_witch",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -1930,7 +1931,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Witch.png",
-  "sourcePath": "references/Cute_Fantasy_Halloween/Witch/Witch.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/halloween/Witch/Witch.png",
   "sourceRegions": {
     "idle_down": [
       [

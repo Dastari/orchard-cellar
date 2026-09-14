@@ -1,0 +1,1248 @@
+[
+  {
+    "id": "skill_tree:combat",
+    "kind": "skill_tree",
+    "schemaVersion": 1,
+    "track": "combat",
+    "levelCap": 50,
+    "nodes": [
+      {
+        "id": "combat_root",
+        "track": "combat",
+        "name": "Readiness",
+        "description": "Keep your footing and choose your opening.",
+        "position": [
+          0,
+          0
+        ],
+        "connects": [
+          "archery_basics",
+          "blade_training",
+          "battle_conditioning"
+        ],
+        "maxRank": 0,
+        "pointCost": 0,
+        "root": true,
+        "implemented": true
+      },
+      {
+        "id": "archery_basics",
+        "track": "combat",
+        "name": "Archery Basics",
+        "description": "Deal 3% more damage with arrows per rank.",
+        "position": [
+          -92,
+          -52
+        ],
+        "connects": [
+          "combat_root",
+          "steady_draw",
+          "critical_eye"
+        ],
+        "maxRank": 5,
+        "pointCost": 1,
+        "implemented": true
+      },
+      {
+        "id": "blade_training",
+        "track": "combat",
+        "name": "Blade Training",
+        "description": "Deal 3% more damage with swords per rank.",
+        "position": [
+          92,
+          -52
+        ],
+        "connects": [
+          "combat_root",
+          "quick_recovery",
+          "power_swing"
+        ],
+        "maxRank": 5,
+        "pointCost": 1,
+        "implemented": true
+      },
+      {
+        "id": "battle_conditioning",
+        "track": "combat",
+        "name": "Battle Conditioning",
+        "description": "Weapon attacks consume 5% less Vigour per rank.",
+        "position": [
+          0,
+          86
+        ],
+        "connects": [
+          "combat_root",
+          "shield_discipline",
+          "battle_hardened"
+        ],
+        "maxRank": 4,
+        "pointCost": 1,
+        "implemented": true
+      },
+      {
+        "id": "steady_draw",
+        "track": "combat",
+        "name": "Steady Draw",
+        "description": "Reach full bow charge sooner without losing range.",
+        "position": [
+          -154,
+          -126
+        ],
+        "connects": [
+          "archery_basics",
+          "piercing_shot"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 3
+      },
+      {
+        "id": "critical_eye",
+        "track": "combat",
+        "name": "Critical Eye",
+        "description": "Improve ranged critical-strike chance per rank.",
+        "position": [
+          -166,
+          26
+        ],
+        "connects": [
+          "archery_basics",
+          "multishot"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 4
+      },
+      {
+        "id": "quick_recovery",
+        "track": "combat",
+        "name": "Quick Recovery",
+        "description": "Shorten the recovery after a sword swing.",
+        "position": [
+          154,
+          -126
+        ],
+        "connects": [
+          "blade_training",
+          "blade_dancer"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 3
+      },
+      {
+        "id": "power_swing",
+        "track": "combat",
+        "name": "Power Swing",
+        "description": "Charge a heavy melee attack that breaks guard.",
+        "position": [
+          166,
+          26
+        ],
+        "connects": [
+          "blade_training",
+          "blade_dancer"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 5
+      },
+      {
+        "id": "shield_discipline",
+        "track": "combat",
+        "name": "Shield Discipline",
+        "description": "Equip and actively guard with an off-hand shield.",
+        "position": [
+          -92,
+          150
+        ],
+        "connects": [
+          "battle_conditioning",
+          "battle_hardened"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 5
+      },
+      {
+        "id": "battle_hardened",
+        "track": "combat",
+        "name": "Battle Hardened",
+        "description": "Gain Health and resist interruption per rank.",
+        "position": [
+          92,
+          150
+        ],
+        "connects": [
+          "battle_conditioning",
+          "shield_discipline",
+          "blade_dancer"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 6
+      },
+      {
+        "id": "piercing_shot",
+        "track": "combat",
+        "name": "Piercing Shot",
+        "description": "Arrows retain damage through armoured targets.",
+        "position": [
+          -86,
+          -210
+        ],
+        "connects": [
+          "steady_draw",
+          "perfect_volley"
+        ],
+        "maxRank": 1,
+        "pointCost": 3,
+        "requiresLevel": 9
+      },
+      {
+        "id": "multishot",
+        "track": "combat",
+        "name": "Multishot",
+        "description": "Loose a fan of arrows at additional ammo and Vigour cost.",
+        "position": [
+          -214,
+          92
+        ],
+        "connects": [
+          "critical_eye",
+          "perfect_volley"
+        ],
+        "maxRank": 1,
+        "pointCost": 3,
+        "requiresLevel": 10
+      },
+      {
+        "id": "blade_dancer",
+        "track": "combat",
+        "name": "Blade Dancer",
+        "description": "Consecutive sword hits build a short damage rhythm.",
+        "position": [
+          194,
+          112
+        ],
+        "connects": [
+          "quick_recovery",
+          "power_swing",
+          "battle_hardened"
+        ],
+        "maxRank": 1,
+        "pointCost": 3,
+        "requiresLevel": 10
+      },
+      {
+        "id": "perfect_volley",
+        "track": "combat",
+        "name": "Perfect Volley",
+        "description": "Fully charged shots can trigger a devastating volley.",
+        "position": [
+          -174,
+          -194
+        ],
+        "connects": [
+          "piercing_shot",
+          "multishot"
+        ],
+        "maxRank": 1,
+        "pointCost": 4,
+        "requiresLevel": 15
+      }
+    ]
+  },
+  {
+    "id": "skill_tree:explorer",
+    "kind": "skill_tree",
+    "schemaVersion": 1,
+    "track": "explorer",
+    "levelCap": 50,
+    "nodes": [
+      {
+        "id": "explorer_root",
+        "track": "explorer",
+        "name": "Wanderlust",
+        "description": "The road begins here.",
+        "position": [
+          0,
+          0
+        ],
+        "connects": [
+          "trailblazer",
+          "measured_stride",
+          "keen_senses"
+        ],
+        "maxRank": 0,
+        "pointCost": 0,
+        "root": true,
+        "implemented": true
+      },
+      {
+        "id": "trailblazer",
+        "track": "explorer",
+        "name": "Trailblazer",
+        "description": "Gain 2% more top speed while running per rank.",
+        "position": [
+          -92,
+          -52
+        ],
+        "connects": [
+          "explorer_root",
+          "pathfinder",
+          "surefooted"
+        ],
+        "maxRank": 5,
+        "pointCost": 1
+      },
+      {
+        "id": "measured_stride",
+        "track": "explorer",
+        "name": "Measured Stride",
+        "description": "Running consumes 6% less Vigour per rank.",
+        "position": [
+          0,
+          -92
+        ],
+        "connects": [
+          "explorer_root",
+          "second_wind",
+          "night_eyes"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "specialization": "exploration",
+        "implemented": true
+      },
+      {
+        "id": "keen_senses",
+        "track": "explorer",
+        "name": "Keen Senses",
+        "description": "Notice hidden caves and secret passages from farther away.",
+        "position": [
+          92,
+          -52
+        ],
+        "connects": [
+          "explorer_root",
+          "cave_whisperer",
+          "field_notes"
+        ],
+        "maxRank": 3,
+        "pointCost": 1
+      },
+      {
+        "id": "pathfinder",
+        "track": "explorer",
+        "name": "Pathfinder",
+        "description": "Move faster on roads, tracks, and well-worn paths.",
+        "position": [
+          -158,
+          -112
+        ],
+        "connects": [
+          "trailblazer",
+          "horizon_chaser"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 3
+      },
+      {
+        "id": "surefooted",
+        "track": "explorer",
+        "name": "Surefooted",
+        "description": "Jump one blocked gap tile per rank, up to three.",
+        "position": [
+          -154,
+          24
+        ],
+        "connects": [
+          "trailblazer",
+          "steeplechase",
+          "cliff_climber"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 4,
+        "specialization": "exploration",
+        "implemented": true
+      },
+      {
+        "id": "cliff_climber",
+        "track": "explorer",
+        "name": "Cliff Climber",
+        "description": "Scale one cliff level per rank, up to three.",
+        "position": [
+          -246,
+          30
+        ],
+        "connects": [
+          "surefooted",
+          "steeplechase"
+        ],
+        "maxRank": 3,
+        "pointCost": 2,
+        "requiresLevel": 7,
+        "specialization": "exploration",
+        "implemented": true
+      },
+      {
+        "id": "second_wind",
+        "track": "explorer",
+        "name": "Second Wind",
+        "description": "Recover Vigour sooner after a long run.",
+        "position": [
+          -48,
+          -164
+        ],
+        "connects": [
+          "measured_stride",
+          "horizon_chaser"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 3
+      },
+      {
+        "id": "night_eyes",
+        "track": "explorer",
+        "name": "Night Eyes",
+        "description": "See farther in darkness and notice dim landmarks.",
+        "position": [
+          50,
+          -164
+        ],
+        "connects": [
+          "measured_stride",
+          "cave_whisperer"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 3
+      },
+      {
+        "id": "cave_whisperer",
+        "track": "explorer",
+        "name": "Cave Whisperer",
+        "description": "Reveal subtler signs of hidden caves on the landscape.",
+        "position": [
+          158,
+          -112
+        ],
+        "connects": [
+          "keen_senses",
+          "night_eyes",
+          "cartographer"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 5
+      },
+      {
+        "id": "field_notes",
+        "track": "explorer",
+        "name": "Field Notes",
+        "description": "Discoveries grant more Explorer experience.",
+        "position": [
+          154,
+          24
+        ],
+        "connects": [
+          "keen_senses",
+          "deep_pockets"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 4
+      },
+      {
+        "id": "steeplechase",
+        "track": "explorer",
+        "name": "Steeplechase",
+        "description": "Mounted companions can clear larger obstacles.",
+        "position": [
+          -176,
+          106
+        ],
+        "connects": [
+          "surefooted",
+          "cliff_climber",
+          "deep_pockets"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 8,
+        "specialization": "exploration",
+        "implemented": true
+      },
+      {
+        "id": "horizon_chaser",
+        "track": "explorer",
+        "name": "Horizon Chaser",
+        "description": "Keep full running speed for longer journeys.",
+        "position": [
+          -92,
+          -218
+        ],
+        "connects": [
+          "pathfinder",
+          "second_wind",
+          "cartographer"
+        ],
+        "maxRank": 1,
+        "pointCost": 3,
+        "requiresLevel": 10
+      },
+      {
+        "id": "cartographer",
+        "track": "explorer",
+        "name": "Cartographer",
+        "description": "Track your position on the minimap while exploring.",
+        "position": [
+          94,
+          -218
+        ],
+        "connects": [
+          "cave_whisperer",
+          "horizon_chaser",
+          "deep_pockets"
+        ],
+        "maxRank": 1,
+        "pointCost": 3,
+        "requiresLevel": 10,
+        "implemented": true
+      },
+      {
+        "id": "deep_pockets",
+        "track": "explorer",
+        "name": "Deep Pockets",
+        "description": "Unlock additional carried-storage space.",
+        "position": [
+          176,
+          96
+        ],
+        "connects": [
+          "field_notes",
+          "steeplechase",
+          "cartographer"
+        ],
+        "maxRank": 4,
+        "pointCost": 1,
+        "requiresLevel": 8
+      }
+    ]
+  },
+  {
+    "id": "skill_tree:farming",
+    "kind": "skill_tree",
+    "schemaVersion": 1,
+    "track": "farming",
+    "levelCap": 50,
+    "nodes": [
+      {
+        "id": "farming_root",
+        "track": "farming",
+        "name": "Working the Land",
+        "description": "Choose the rural crafts you want to master.",
+        "position": [
+          0,
+          -300
+        ],
+        "connects": [
+          "green_thumb",
+          "farmcraft",
+          "mining_endurance",
+          "fishing_endurance",
+          "woodcutting_endurance",
+          "animal_bond"
+        ],
+        "maxRank": 0,
+        "pointCost": 0,
+        "root": true,
+        "implemented": true
+      },
+      {
+        "id": "green_thumb",
+        "track": "farming",
+        "name": "Green Thumb",
+        "description": "Improve crop yield by 3% per rank.",
+        "position": [
+          -360,
+          -180
+        ],
+        "connects": [
+          "farming_root",
+          "seed_saver",
+          "bountiful_harvest"
+        ],
+        "maxRank": 5,
+        "pointCost": 1,
+        "specialization": "farming"
+      },
+      {
+        "id": "tender_hand",
+        "track": "farming",
+        "name": "Tender Hand",
+        "description": "Watering remains effective longer per rank.",
+        "position": [
+          -190,
+          -60
+        ],
+        "connects": [
+          "farmcraft",
+          "soil_whisperer",
+          "grafting"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "specialization": "farming"
+      },
+      {
+        "id": "farmcraft",
+        "track": "farming",
+        "name": "Farmcraft",
+        "description": "Hoeing and watering consume 5% less Vigour per rank.",
+        "position": [
+          -160,
+          -180
+        ],
+        "connects": [
+          "farming_root",
+          "barreling",
+          "tender_hand"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "specialization": "farming",
+        "implemented": true
+      },
+      {
+        "id": "seed_saver",
+        "track": "farming",
+        "name": "Seed Saver",
+        "description": "Harvested crops sometimes return extra seed.",
+        "position": [
+          -420,
+          -60
+        ],
+        "connects": [
+          "green_thumb",
+          "master_grower"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 3,
+        "specialization": "farming"
+      },
+      {
+        "id": "bountiful_harvest",
+        "track": "farming",
+        "name": "Bountiful Harvest",
+        "description": "Occasionally gather an extra crop bundle.",
+        "position": [
+          -300,
+          -40
+        ],
+        "connects": [
+          "green_thumb",
+          "sprinkler_engineering"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 4,
+        "specialization": "farming"
+      },
+      {
+        "id": "soil_whisperer",
+        "track": "farming",
+        "name": "Soil Whisperer",
+        "description": "Read soil moisture and crop needs at a glance.",
+        "position": [
+          -250,
+          70
+        ],
+        "connects": [
+          "tender_hand",
+          "master_grower"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 4,
+        "specialization": "farming"
+      },
+      {
+        "id": "grafting",
+        "track": "farming",
+        "name": "Grafting",
+        "description": "Improve and specialize mature orchard trees.",
+        "position": [
+          -140,
+          70
+        ],
+        "connects": [
+          "tender_hand",
+          "greenhouse_charter"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 6,
+        "specialization": "farming"
+      },
+      {
+        "id": "barreling",
+        "track": "farming",
+        "name": "Barreling",
+        "description": "Master crop curing and preserving in farm barrels.",
+        "position": [
+          -70,
+          -60
+        ],
+        "connects": [
+          "farmcraft",
+          "greenhouse_charter"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 5,
+        "specialization": "farming"
+      },
+      {
+        "id": "sprinkler_engineering",
+        "track": "farming",
+        "name": "Sprinkler Engineering",
+        "description": "Unlock purchase and placement of farm sprinklers.",
+        "position": [
+          -390,
+          180
+        ],
+        "connects": [
+          "bountiful_harvest",
+          "harvest_festival"
+        ],
+        "maxRank": 1,
+        "pointCost": 3,
+        "requiresLevel": 10,
+        "specialization": "farming"
+      },
+      {
+        "id": "greenhouse_charter",
+        "track": "farming",
+        "name": "Greenhouse Charter",
+        "description": "Unlock a greenhouse homestead upgrade.",
+        "position": [
+          -100,
+          190
+        ],
+        "connects": [
+          "grafting",
+          "barreling",
+          "harvest_festival"
+        ],
+        "maxRank": 1,
+        "pointCost": 3,
+        "requiresLevel": 10,
+        "specialization": "farming"
+      },
+      {
+        "id": "master_grower",
+        "track": "farming",
+        "name": "Master Grower",
+        "description": "Reduce poor-weather and out-of-season growth penalties.",
+        "position": [
+          -260,
+          190
+        ],
+        "connects": [
+          "seed_saver",
+          "soil_whisperer",
+          "harvest_festival"
+        ],
+        "maxRank": 1,
+        "pointCost": 3,
+        "requiresLevel": 10,
+        "specialization": "farming"
+      },
+      {
+        "id": "harvest_festival",
+        "track": "farming",
+        "name": "Harvest Festival",
+        "description": "The first harvest of each day gains a major yield bonus.",
+        "position": [
+          -230,
+          310
+        ],
+        "connects": [
+          "sprinkler_engineering",
+          "greenhouse_charter",
+          "master_grower"
+        ],
+        "maxRank": 1,
+        "pointCost": 4,
+        "requiresLevel": 15
+      },
+      {
+        "id": "mining_endurance",
+        "track": "farming",
+        "name": "Mining Endurance",
+        "description": "Pickaxe and shovel use consumes 5% less Vigour per rank.",
+        "position": [
+          520,
+          -180
+        ],
+        "connects": [
+          "farming_root",
+          "prospector"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "specialization": "mining",
+        "implemented": true
+      },
+      {
+        "id": "prospector",
+        "track": "farming",
+        "name": "Prospector",
+        "description": "Read exact ore purity, richness, and personal yield odds.",
+        "position": [
+          520,
+          -40
+        ],
+        "connects": [
+          "mining_endurance",
+          "efficient_strikes",
+          "ore_dressing",
+          "ore_sense"
+        ],
+        "maxRank": 1,
+        "pointCost": 1,
+        "requiresLevel": 5,
+        "specialization": "mining",
+        "implemented": true
+      },
+      {
+        "id": "efficient_strikes",
+        "track": "farming",
+        "name": "Efficient Strikes",
+        "description": "Reduce the work needed for each mining payout, from four strikes to three and then two.",
+        "position": [
+          450,
+          100
+        ],
+        "connects": [
+          "prospector",
+          "mother_lode"
+        ],
+        "maxRank": 2,
+        "pointCost": 1,
+        "requiresLevel": 6,
+        "specialization": "mining",
+        "implemented": true
+      },
+      {
+        "id": "ore_dressing",
+        "track": "farming",
+        "name": "Ore Dressing",
+        "description": "Reduce a mixed outcrop's chance to yield stone by 10% per rank.",
+        "position": [
+          590,
+          100
+        ],
+        "connects": [
+          "prospector",
+          "rockhound"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 6,
+        "specialization": "mining",
+        "implemented": true
+      },
+      {
+        "id": "rockhound",
+        "track": "farming",
+        "name": "Rockhound",
+        "description": "Increase the chance that an ordinary rock contains a bonus ore fragment.",
+        "position": [
+          590,
+          240
+        ],
+        "connects": [
+          "ore_dressing",
+          "mother_lode"
+        ],
+        "maxRank": 2,
+        "pointCost": 1,
+        "requiresLevel": 9,
+        "specialization": "mining",
+        "implemented": true
+      },
+      {
+        "id": "mother_lode",
+        "track": "farming",
+        "name": "Mother Lode",
+        "description": "The first payout from a rich pure vein also yields a matching ore fragment.",
+        "position": [
+          450,
+          240
+        ],
+        "connects": [
+          "efficient_strikes",
+          "rockhound"
+        ],
+        "maxRank": 1,
+        "pointCost": 3,
+        "requiresLevel": 12,
+        "specialization": "mining",
+        "implemented": true
+      },
+      {
+        "id": "fishing_endurance",
+        "track": "farming",
+        "name": "Angler's Rhythm",
+        "description": "Fishing rod use consumes 5% less Vigour per rank.",
+        "position": [
+          280,
+          -180
+        ],
+        "connects": [
+          "farming_root",
+          "seasoned_angler"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "specialization": "fishing",
+        "implemented": true
+      },
+      {
+        "id": "seasoned_angler",
+        "track": "farming",
+        "name": "Seasoned Angler",
+        "description": "Qualify for finer fishing gear and more demanding waters.",
+        "position": [
+          280,
+          -20
+        ],
+        "connects": [
+          "fishing_endurance",
+          "master_angler",
+          "fishing_mapping"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 4,
+        "specialization": "fishing",
+        "implemented": true
+      },
+      {
+        "id": "master_angler",
+        "track": "farming",
+        "name": "Master Angler",
+        "description": "Improve difficult catches and rare fish odds.",
+        "position": [
+          280,
+          140
+        ],
+        "connects": [
+          "seasoned_angler"
+        ],
+        "maxRank": 3,
+        "pointCost": 2,
+        "requiresLevel": 9,
+        "specialization": "fishing"
+      },
+      {
+        "id": "woodcutting_endurance",
+        "track": "farming",
+        "name": "Woodcutter's Rhythm",
+        "description": "Axe use consumes 5% less Vigour per rank.",
+        "position": [
+          -540,
+          -180
+        ],
+        "connects": [
+          "farming_root",
+          "timber_sense"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "specialization": "woodcutting",
+        "implemented": true
+      },
+      {
+        "id": "timber_sense",
+        "track": "farming",
+        "name": "Timber Sense",
+        "description": "Qualify for finer axes and read a tree's remaining strength.",
+        "position": [
+          -540,
+          -20
+        ],
+        "connects": [
+          "woodcutting_endurance",
+          "master_forester"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 4,
+        "specialization": "woodcutting",
+        "implemented": true
+      },
+      {
+        "id": "master_forester",
+        "track": "farming",
+        "name": "Master Forester",
+        "description": "Improve timber yields without exhausting groves.",
+        "position": [
+          -540,
+          140
+        ],
+        "connects": [
+          "timber_sense"
+        ],
+        "maxRank": 3,
+        "pointCost": 2,
+        "requiresLevel": 9,
+        "specialization": "woodcutting"
+      },
+      {
+        "id": "animal_bond",
+        "track": "farming",
+        "name": "Animal Bond",
+        "description": "Begin calming, caring for, and training farm animals.",
+        "position": [
+          80,
+          -160
+        ],
+        "connects": [
+          "farming_root",
+          "stable_hand",
+          "beekeeping"
+        ],
+        "maxRank": 1,
+        "pointCost": 1,
+        "specialization": "animal_husbandry",
+        "implemented": true
+      },
+      {
+        "id": "stable_hand",
+        "track": "farming",
+        "name": "Stable Hand",
+        "description": "Ride horses that trust you.",
+        "position": [
+          40,
+          -20
+        ],
+        "connects": [
+          "animal_bond",
+          "animal_friend"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 4,
+        "specialization": "animal_husbandry",
+        "implemented": true
+      },
+      {
+        "id": "animal_friend",
+        "track": "farming",
+        "name": "Animal Friend",
+        "description": "Calm and train suitable animals as pets.",
+        "position": [
+          40,
+          120
+        ],
+        "connects": [
+          "stable_hand",
+          "herd_keeper"
+        ],
+        "maxRank": 2,
+        "pointCost": 2,
+        "requiresLevel": 8,
+        "specialization": "animal_husbandry"
+      },
+      {
+        "id": "herd_keeper",
+        "track": "farming",
+        "name": "Herd Keeper",
+        "description": "Unlock selective breeding and advanced animal care.",
+        "position": [
+          40,
+          260
+        ],
+        "connects": [
+          "animal_friend"
+        ],
+        "maxRank": 2,
+        "pointCost": 2,
+        "requiresLevel": 12,
+        "specialization": "animal_husbandry"
+      },
+      {
+        "id": "beekeeping",
+        "track": "farming",
+        "name": "Beekeeping",
+        "description": "Gather honey safely from tended hives.",
+        "position": [
+          160,
+          -20
+        ],
+        "connects": [
+          "animal_bond",
+          "hive_keeper"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 5,
+        "specialization": "animal_husbandry"
+      },
+      {
+        "id": "hive_keeper",
+        "track": "farming",
+        "name": "Hive Keeper",
+        "description": "Improve hive calm, capacity, and honey yield.",
+        "position": [
+          160,
+          120
+        ],
+        "connects": [
+          "beekeeping"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 8,
+        "specialization": "animal_husbandry"
+      },
+      {
+        "id": "ore_sense",
+        "track": "farming",
+        "name": "Ore Sense",
+        "description": "Sense buried ore within 15 tiles. Unidentified deposits appear grey.",
+        "position": [
+          780,
+          -40
+        ],
+        "connects": [
+          "prospector",
+          "deep_ore_sense"
+        ],
+        "maxRank": 1,
+        "pointCost": 1,
+        "requiresLevel": 6,
+        "specialization": "mining",
+        "implemented": true,
+        "prerequisites": [
+          "prospector"
+        ],
+        "passive": {
+          "buriedOreDetectionRadiusTiles": 15
+        }
+      },
+      {
+        "id": "deep_ore_sense",
+        "track": "farming",
+        "name": "Deep Ore Sense",
+        "description": "Extend buried ore detection fourfold, to 60 tiles.",
+        "position": [
+          930,
+          100
+        ],
+        "connects": [
+          "ore_sense",
+          "ore_identification"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 9,
+        "specialization": "mining",
+        "implemented": true,
+        "prerequisites": [
+          "ore_sense"
+        ],
+        "passive": {
+          "buriedOreDetectionRadiusTiles": 60
+        }
+      },
+      {
+        "id": "ore_identification",
+        "track": "farming",
+        "name": "Ore Identification",
+        "description": "Identify detected deposits by material colour and inspect them from afar.",
+        "position": [
+          930,
+          240
+        ],
+        "connects": [
+          "deep_ore_sense",
+          "ore_mapping"
+        ],
+        "maxRank": 1,
+        "pointCost": 1,
+        "requiresLevel": 10,
+        "specialization": "mining",
+        "implemented": true,
+        "prerequisites": [
+          "deep_ore_sense"
+        ],
+        "passive": {
+          "identifyBuriedOre": true
+        }
+      },
+      {
+        "id": "ore_mapping",
+        "track": "farming",
+        "name": "Ore Mapping",
+        "description": "Show detected and exposed ore deposits on the minimap within 60 tiles.",
+        "position": [
+          930,
+          380
+        ],
+        "connects": [
+          "ore_identification"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 12,
+        "specialization": "mining",
+        "implemented": true,
+        "prerequisites": [
+          "ore_identification"
+        ],
+        "passive": {
+          "minimapRadiusTiles": 60,
+          "minimapResources": [
+            "ore"
+          ]
+        }
+      },
+      {
+        "id": "fishing_mapping",
+        "track": "farming",
+        "name": "Fishing Mapping",
+        "description": "Show active fish pools on the minimap within 60 tiles.",
+        "position": [
+          280,
+          290
+        ],
+        "connects": [
+          "seasoned_angler"
+        ],
+        "maxRank": 1,
+        "pointCost": 2,
+        "requiresLevel": 6,
+        "specialization": "fishing",
+        "implemented": true,
+        "prerequisites": [
+          "seasoned_angler"
+        ],
+        "passive": {
+          "minimapRadiusTiles": 60,
+          "minimapResources": [
+            "fish_pool"
+          ]
+        }
+      }
+    ]
+  }
+]

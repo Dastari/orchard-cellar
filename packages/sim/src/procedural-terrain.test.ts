@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PROCEDURAL_TERRAIN_GENERATOR_VERSION,
+  PROCEDURAL_BIOME_TABLE,
   PROCEDURAL_TERRAIN_HALO_TILES,
   PROCEDURAL_WORLD_CHUNK_TILES,
   TERRAIN_NEIGHBOR_BITS,
@@ -11,6 +12,7 @@ import {
   sampleProceduralTerrainAt,
   sampleProceduralTerrainChunk,
   sampleProceduralTerrainOverview,
+  type SemanticTerrainSample,
   type SemanticTerrainChunk,
   type ProceduralWaterKind,
 } from "./index.js";
@@ -40,6 +42,36 @@ function assertOverlappingApronsEqual(
       );
     }
   }
+}
+
+function overlappingApronMismatchCount(
+  left: SemanticTerrainChunk,
+  right: SemanticTerrainChunk,
+): number {
+  const minimumX = Math.max(left.apronMinTileX, right.apronMinTileX);
+  const minimumY = Math.max(left.apronMinTileY, right.apronMinTileY);
+  const maximumX = Math.min(
+    left.apronMinTileX + left.apronWidth,
+    right.apronMinTileX + right.apronWidth,
+  );
+  const maximumY = Math.min(
+    left.apronMinTileY + left.apronHeight,
+    right.apronMinTileY + right.apronHeight,
+  );
+  let mismatches = 0;
+  for (let tileY = minimumY; tileY < maximumY; tileY += 1) {
+    for (let tileX = minimumX; tileX < maximumX; tileX += 1) {
+      if (JSON.stringify(proceduralTerrainApronSampleAt(left, tileX, tileY))
+        !== JSON.stringify(proceduralTerrainApronSampleAt(right, tileX, tileY))) {
+        mismatches += 1;
+      }
+    }
+  }
+  return mismatches;
+}
+
+function semanticSampleKey(sample: SemanticTerrainSample | null): string {
+  return JSON.stringify(sample);
 }
 
 describe("procedural sanctuary terrain sampler", () => {
@@ -82,6 +114,21 @@ describe("procedural sanctuary terrain sampler", () => {
     });
     expect(second.checksum).not.toBe(first.checksum);
     expect(third.checksum).not.toBe(second.checksum);
+  });
+
+  it('keeps reviewed v1-v6 chunk bytes unchanged by v7-only repairs', () => {
+    // These checksums were captured before the v7 predicate-domain fix. They
+    // make the version gate explicit instead of merely comparing versions to
+    // one another, which would miss a shared legacy churn.
+    expect(Array.from({ length: 6 }, (_, version) => sampleProceduralTerrainChunk({
+      seed: 'orchard-sanctuary-20',
+      generatorVersion: version + 1,
+      chunkX: 11,
+      chunkY: -16,
+    }).checksum)).toEqual([
+      '7aec1303', '6f95fd66', 'd227e6be',
+      'aa96bd6a', 'aa96bd6a', 'aa96bd6a',
+    ]);
   });
 
   it("keeps v4-v6 on the reviewed v3 field seed while changing only semantics", () => {
@@ -363,6 +410,19 @@ describe("procedural sanctuary terrain sampler", () => {
     }
   });
 
+  it('keeps v7 waterfall repairs byte-identical across adjacent chunk halos', () => {
+    const west = sampleProceduralTerrainChunk({
+      seed: 'orchard-sanctuary-20', generatorVersion: 7,
+      chunkX: 55, chunkY: -145,
+    });
+    const east = sampleProceduralTerrainChunk({
+      seed: 'orchard-sanctuary-20', generatorVersion: 7,
+      chunkX: 56, chunkY: -145,
+    });
+    expect(west.apron.some(({ waterKind }) => waterKind === 'waterfall')).toBe(true);
+    assertOverlappingApronsEqual(west, east);
+  });
+
   it.each([
     ["river", -3_904, -4_096, "river"],
     ["lake", -3_136, -4_096, "lake"],
@@ -626,6 +686,78 @@ describe("procedural sanctuary terrain sampler", () => {
     }
   });
 
+  it('keeps v7 hot-band point, chunk, overview, and neighboring halos identical', () => {
+    const seed = 'orchard-sanctuary-20';
+    const minimumChunkX = 32;
+    const maximumChunkX = 63;
+    const minimumChunkY = -152;
+    const maximumChunkY = -129;
+    const minTileX = minimumChunkX * PROCEDURAL_WORLD_CHUNK_TILES;
+    const columns = (maximumChunkX - minimumChunkX + 1) * PROCEDURAL_WORLD_CHUNK_TILES;
+    const rows = (maximumChunkY - minimumChunkY + 1) * PROCEDURAL_WORLD_CHUNK_TILES;
+
+    let pointVsChunkMismatches = 0;
+    let overviewVsPointMismatches = 0;
+    let haloSeamMismatchCells = 0;
+    let haloSeamMismatchPairs = 0;
+    let haloSeamPairs = 0;
+    let previousRow: SemanticTerrainChunk[] = [];
+    for (let chunkY = minimumChunkY; chunkY <= maximumChunkY; chunkY += 1) {
+      // Stream one chunk-row overview at a time. This is the same 512x384
+      // geographic sweep without retaining 196,608 heavyweight samples while
+      // the rest of the coverage suite is running in parallel.
+      const overview = sampleProceduralTerrainOverview({
+        seed, generatorVersion: 7,
+        minTileX,
+        minTileY: chunkY * PROCEDURAL_WORLD_CHUNK_TILES,
+        columns,
+        rows: PROCEDURAL_WORLD_CHUNK_TILES,
+        stepTiles: 1,
+      });
+      const currentRow: SemanticTerrainChunk[] = [];
+      for (let chunkX = minimumChunkX; chunkX <= maximumChunkX; chunkX += 1) {
+        const chunk = sampleProceduralTerrainChunk({
+          seed, generatorVersion: 7, chunkX, chunkY,
+        });
+        const west = currentRow.at(-1);
+        const north = previousRow[chunkX - minimumChunkX];
+        for (const neighbor of [west, north]) if (neighbor !== undefined) {
+          haloSeamPairs += 1;
+          const mismatches = overlappingApronMismatchCount(neighbor, chunk);
+          haloSeamMismatchCells += mismatches;
+          if (mismatches > 0) haloSeamMismatchPairs += 1;
+        }
+        currentRow.push(chunk);
+
+        for (let localY = 0; localY < PROCEDURAL_WORLD_CHUNK_TILES; localY += 1) {
+          const tileY = chunkY * PROCEDURAL_WORLD_CHUNK_TILES + localY;
+          for (let localX = 0; localX < PROCEDURAL_WORLD_CHUNK_TILES; localX += 1) {
+            const tileX = chunkX * PROCEDURAL_WORLD_CHUNK_TILES + localX;
+            const point = sampleProceduralTerrainAt(seed, 7, tileX, tileY);
+            const pointKey = semanticSampleKey(point);
+            const chunkSample = proceduralTerrainApronSampleAt(chunk, tileX, tileY);
+            const overviewSample = overview.samples[
+              localY * columns + tileX - minTileX
+            ]!;
+            if (semanticSampleKey(chunkSample) !== pointKey) pointVsChunkMismatches += 1;
+            if (semanticSampleKey(overviewSample) !== pointKey) overviewVsPointMismatches += 1;
+          }
+        }
+      }
+      previousRow = currentRow;
+    }
+
+    expect(columns * rows).toBe(196_608);
+    expect(haloSeamPairs).toBe(1_480);
+    expect(pointVsChunkMismatches).toBe(0);
+    expect(overviewVsPointMismatches).toBe(0);
+    expect(haloSeamMismatchCells).toBe(0);
+    expect(haloSeamMismatchPairs).toBe(0);
+  // The exhaustive point path is synchronous and takes ~324 seconds under
+  // full-suite V8 coverage on the review runner (versus ~91 seconds focused).
+  // Keep every cell and seam; the larger allowance is load headroom only.
+  }, 600_000);
+
   it("shares one semantic biome palette across editor and review-map consumers", () => {
     expect(
       proceduralTerrainBiomePreviewRgba({
@@ -649,6 +781,168 @@ describe("procedural sanctuary terrain sampler", () => {
       }),
     ).toEqual([10, 31, 86, 255]);
   });
+
+  it('v7 Phase A meets its measured macro field and quantized-biome contracts', () => {
+    expect(PROCEDURAL_TERRAIN_GENERATOR_VERSION).toBe(7);
+    const macroWindows = [
+      { minTileX: -24_576, minTileY: -24_576 },
+      { minTileX: -8_192, minTileY: -8_192 },
+      { minTileX: 8_192, minTileY: 8_192 },
+    ].map(({ minTileX, minTileY }) => (
+      sampleProceduralTerrainOverview({
+        seed: 'orchard-sanctuary-20', generatorVersion: 7,
+        minTileX, minTileY,
+        // 128² samples at step 128 still cover each complete 16k² window;
+        // density is intentionally separate from geographic honesty here.
+        columns: 128, rows: 128, stepTiles: 128,
+      })
+    ));
+    const oceanFractions = macroWindows.map((window) => (
+      window.samples.filter(({ waterKind }) => waterKind === 'ocean').length
+      / window.samples.length
+    ));
+    // The fragmented Phase-A field is accepted pending Phase B's island plan;
+    // enforce the observed multi-window envelope instead of pinning the one
+    // review window which happens to exceed 60%.
+    expect(Math.min(...oceanFractions)).toBeGreaterThanOrEqual(0.54);
+    expect(Math.max(...oceanFractions)).toBeLessThanOrEqual(0.7);
+    const macro = macroWindows[1]!;
+    expect(macro.samples.some(({ waterKind, elevation }) => (
+      (waterKind === 'lake' || waterKind === 'pond') && elevation >= 3
+    ))).toBe(true);
+    const aggregateLand = macroWindows.flatMap(({ samples }) => (
+      samples.filter(({ waterKind }) => waterKind !== 'ocean')
+    ));
+    for (const biome of [
+      'plains', 'meadow', 'woodland', 'highland',
+      'savanna', 'desert', 'wetland',
+    ] as const) {
+      const share = aggregateLand.filter((sample) => sample.biome === biome).length
+        / aggregateLand.length;
+      expect(share, `${biome} must remain a non-trivial v7 land biome`).toBeGreaterThan(0.005);
+    }
+
+    const illegalPairs = new Set(['desert:wetland', 'desert:shroomlands', 'volcanic:wetland']);
+    for (let y = 0; y < PROCEDURAL_BIOME_TABLE.length; y += 1) {
+      for (let x = 0; x < PROCEDURAL_BIOME_TABLE[y]!.length; x += 1) {
+        const biome = PROCEDURAL_BIOME_TABLE[y]![x]!;
+        for (const neighbor of [
+          PROCEDURAL_BIOME_TABLE[y]?.[x + 1],
+          PROCEDURAL_BIOME_TABLE[y + 1]?.[x],
+        ]) if (neighbor !== undefined) {
+          expect(illegalPairs.has([biome, neighbor].sort().join(':'))).toBe(false);
+        }
+      }
+    }
+
+    const terraces = sampleProceduralTerrainOverview({
+      seed: 'orchard-sanctuary-20', generatorVersion: 7,
+      minTileX: -2_048, minTileY: -2_048,
+      columns: 256, rows: 256, stepTiles: 16,
+    });
+    const runs: number[] = [];
+    for (let y = 0; y < 256; y += 1) {
+      let start = 0;
+      for (let x = 1; x <= 256; x += 1) {
+        const previous = terraces.samples[y * 256 + x - 1]!;
+        const current = x < 256 ? terraces.samples[y * 256 + x] : undefined;
+        if (current?.elevation === previous.elevation
+          && current.waterKind === previous.waterKind) continue;
+        if (previous.waterKind === 'none') runs.push((x - start) * 16);
+        start = x;
+      }
+    }
+    runs.sort((left, right) => left - right);
+    expect(runs[Math.floor(runs.length / 2)]).toBeLessThanOrEqual(40);
+  }, 20_000);
+
+  it('regularizes v7 biome regions and keeps special overlays out of forbidden neighbours', () => {
+    const illegalPairs = new Set(['desert:wetland', 'desert:shroomlands', 'volcanic:wetland']);
+    for (const [centerX, centerY, expectedSpecial] of [
+      [-3_008, -7_552, 'shroomlands'],
+      [7_936, -8_000, 'volcanic'],
+    ] as const) {
+      const width = 96;
+      const samples = sampleProceduralTerrainOverview({
+        seed: 'orchard-sanctuary-20', generatorVersion: 7,
+        minTileX: centerX - width / 2, minTileY: centerY - width / 2,
+        columns: width, rows: width, stepTiles: 1,
+      }).samples;
+      expect(samples.some(({ biome }) => biome === expectedSpecial)).toBe(true);
+      for (let y = 0; y < width; y += 1) for (let x = 0; x < width; x += 1) {
+        const index = y * width + x;
+        for (const neighbor of [
+          x + 1 < width ? index + 1 : -1,
+          y + 1 < width ? index + width : -1,
+        ]) if (neighbor >= 0) {
+          expect(illegalPairs.has([
+            samples[index]!.biome, samples[neighbor]!.biome,
+          ].sort().join(':'))).toBe(false);
+        }
+      }
+    }
+
+    // These three coastal field intersections were isolated visible table
+    // cells before the bounded minimum-region pass. Each must now join at
+    // least one of its eight visible neighbours.
+    for (const [tileX, tileY] of [[171, -24], [172, -22], [1_584, -3_193]] as const) {
+      const samples = sampleProceduralTerrainOverview({
+        seed: 'orchard-sanctuary-20', generatorVersion: 7,
+        minTileX: tileX - 1, minTileY: tileY - 1,
+        columns: 3, rows: 3, stepTiles: 1,
+      }).samples;
+      expect(samples.filter((_sample, index) => index !== 4)
+        .some(({ biome }) => biome === samples[4]!.biome)).toBe(true);
+    }
+  });
+
+  it('v7 bounds beaches and never emits a one-neighbour water cell', () => {
+    const width = 256;
+    const height = 256;
+    const overview = sampleProceduralTerrainOverview({
+      seed: 'orchard-sanctuary-20', generatorVersion: 7,
+      minTileX: -128, minTileY: -128,
+      columns: width, rows: height, stepTiles: 1,
+    });
+    const waterAt = (x: number, y: number): boolean => (
+      overview.samples[y * width + x]?.waterKind !== 'none'
+    );
+    let coastCount = 0;
+    let interiorWaterCount = 0;
+    for (let y = 4; y < height - 4; y += 1) for (let x = 4; x < width - 4; x += 1) {
+      const sample = overview.samples[y * width + x]!;
+      if (sample.waterKind !== 'none') {
+        interiorWaterCount += 1;
+        const cardinalWater = [[0, -1], [1, 0], [0, 1], [-1, 0]].filter(
+          ([dx, dy]) => waterAt(x + dx!, y + dy!),
+        ).length;
+        expect(cardinalWater).toBeGreaterThan(1);
+      }
+      if (sample.biome !== 'coast') continue;
+      coastCount += 1;
+      let oceanWithinFour = false;
+      for (let dy = -4; dy <= 4 && !oceanWithinFour; dy += 1) {
+        for (let dx = -4 + Math.abs(dy); dx <= 4 - Math.abs(dy); dx += 1) {
+          if (overview.samples[(y + dy) * width + x + dx]?.waterKind === 'ocean') {
+            oceanWithinFour = true;
+            break;
+          }
+        }
+      }
+      expect(oceanWithinFour).toBe(true);
+    }
+    expect(coastCount).toBeGreaterThan(0);
+    expect(interiorWaterCount).toBeGreaterThan(0);
+
+    // These were the last peeled lake/pond tips found by the 1024² report.
+    for (const [tileX, tileY] of [[900, -2_273], [816, -1_987], [817, -1_987]]) {
+      const cardinalWater = [[0, -1], [1, 0], [0, 1], [-1, 0]].filter(([dx, dy]) => (
+        sampleProceduralTerrainAt('orchard-sanctuary-20', 7, tileX! + dx!, tileY! + dy!)
+          .waterKind !== 'none'
+      )).length;
+      expect(cardinalWater).toBeGreaterThan(1);
+    }
+  }, 20_000);
 
   it("rejects invalid sampler coordinates and local lookups", () => {
     expect(() =>

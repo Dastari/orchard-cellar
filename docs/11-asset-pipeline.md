@@ -14,13 +14,64 @@ verifies that its revision matches the runtime atlas before recolouring. Do not 
 category records or marker pixels back into the bootstrap index: they are intentionally
 off the first-frame path.
 
+### Asset-declared baked shadows (doc 58 foundation)
+
+World artwork may declare one exact `bakedShadowColor`, for example
+`"bakedShadowColor": "#00000028"`. This optional field classifies every matching
+RGBA pixel in that asset; it does not change the pixel grid or create a second asset.
+Only translucent `#RRGGBBAA` values with at least one exported match are valid.
+UI/fonts, recolour-marker overlaps, and seasonal remaps that introduce or remove
+matching coordinates are rejected. Native source palettes retain their exact RGBA.
+
+The atlas builder resolves the same expanded frames and colours used to paint the
+original PNG, then stores `bakedShadow: { color, frames }` in category schema v2.
+Each group contains frame selections with `width`, `height`, `pixelCount`, and flat,
+sorted, disjoint `(y, startX, length)` spans in frame-local coordinates. Empty frame
+selections are valid. The loader validates dimensions, counts, ordering and bounds;
+it accepts category v1/v2 and legacy monolithic records. Category schema contributes
+to the revision, and category/index revisions must agree. The bootstrap index and
+compact registry do not carry these spans. Original atlas PNGs remain unchanged.
+
+Review candidate tree shadows with:
+
+```sh
+npx tsx packages/tools/src/shadow-inventory.ts output/shadow-review trees
+```
+
+The report lists exact counts, bounds and other translucent colours. PNG sheets show
+original/highlighted pairs on light and dark backgrounds. The tool never approves or
+annotates candidates automatically. Thirty-five reviewed tree/stump assets currently
+declare shadows. Runtime omission is available in the local review fixture under
+[58](58-seasonal-lighting-and-baked-shadow-plan.md). The client retains original
+pixels until replacement celestial shadows land alongside suppression.
+
+`AssetFrameSourceCache` prepares snug Canvas frames by copying the original frame
+and clearing compiled spans, without pixel readback. Its 8 MiB surface budget pins
+the complete visible set before evicting unpinned frames; oversized sets report a
+failure rather than cycling allocations. Keys include actual image identity, atlas
+revision, shadow metadata identity and frame rectangle, sharing aliases and repeated
+instances. Preparation yields after eight builds or four milliseconds and rejects
+stale generations. Reset releases surfaces and invalidates world chunk presentation;
+ordinary preparation does not invalidate unchanged chunks.
+
+World draw contexts opt into omission explicitly after preparation. Unprepared
+declared frames fail closed; undeclared and empty frames use original descriptors.
+Common sprite, authored object, terrain, boat, doorway, and ground paths use the
+selector; chunk contexts inherit the world intent. UI drawers and portrait previews
+retain original art. Sprite light masks exclude declared spans independently of the
+alpha threshold and key on actual image identity. Public streaming/readiness and
+generated-shadow integration remain part of doc 58's combined rollout.
+
 ## Licensed Cute Fantasy source discovery
 
-Before searching the purchased source folders manually, search
+When the vendor or family is unknown, start with the complete
+[`reference-library-index.md`](reference-assets/reference-library-index.md), which
+covers every retained file and records provenance and use-policy gates. Before
+searching the purchased Cute Fantasy source folders manually, search
 [`docs/reference-assets/cute-fantasy-index.md`](reference-assets/cute-fantasy-index.md)
 or its machine-readable companion
 [`cute-fantasy-index.json`](reference-assets/cute-fantasy-index.json). The index
-covers every `references/Cute_Fantasy*/**/*.png`, records search aliases, sheet
+covers every `references/art/kenmi/cute-fantasy/**/*.png`, records search aliases, sheet
 geometry, known animation families, reviewed semantic crops, intended tile/entity
 usage, collision recommendations, duplicate sheets, and environment tileset
 contracts. Regenerate it after changing the reference corpus with:
@@ -29,9 +80,26 @@ contracts. Regenerate it after changing the reference corpus with:
 npm run document:cute-fantasy -w @orchard/tools
 ```
 
-The companion `references/Player_Aseprite_Files/Player_Main_All.aseprite` metadata
+The companion `references/authoring/player/player-main-all.aseprite` metadata
 is also captured there for modular-player layer order. It has no named frame tags;
 the 56-row table below remains the semantic animation authority.
+
+## Licensed Clockwork Raven icon discovery
+
+Search [`docs/reference-assets/clockwork-raven-index.md`](reference-assets/clockwork-raven-index.md)
+or its machine-readable companion
+[`clockwork-raven-index.json`](reference-assets/clockwork-raven-index.json) before
+opening the purchased icon sheets. The catalog groups native 16 px sheets by gameplay
+theme, records grid dimensions and provenance, and links each pack's local `SOURCE.md`.
+The reference library deliberately omits numbered single-icon exports and scaled
+32/64 px copies; crop the documented native sheet by zero-based row-major coordinates.
+
+Regenerate all reference indexes after changing the local corpus:
+
+```sh
+npm run document:references -w @orchard/tools
+npm run check:references -w @orchard/tools
+```
 
 ## 1. Sprite source format (`*.sprite.json`)
 
@@ -309,8 +377,8 @@ publication phases land.
 ## 3. Authoring workflow for an agent
 
 1. Read 10-art-style-guide.md §for the asset's category. Open 2–3 approved
-   `*.sprite.json` neighbors as reference (start from `references/anchor-set/` once
-   milestone A1 creates it).
+   `packages/assets/**/*.sprite.json` or `*.tile.json` neighbors as references;
+   locate licensed source candidates through `docs/reference-assets/`.
 2. Block the silhouette first: fill with one mid-ramp index, check shape at 1× in the
    preview tool.
 3. Add the 3-tone shading pass (base, shadow, highlight from the object's ramp),
@@ -365,11 +433,9 @@ while writing rows of characters.
 
 **Image generation (DALL-E/SD/etc., or a harness's native image tool):**
 - Allowed as **concept reference only** — silhouette ideas, color mood, "what does
-  a foudre look like." Save concepts under `references/art-inspiration/`. That
-  folder also holds the owner-supplied **visual benchmarks** (see its README): six
-  Stardew screenshots that are the mandatory quality-comparison bar for visual
-  milestones — study and compare against them, never copy pixels from them, never
-  ship them. Never ship generated output directly either: diffusion
+  a foudre look like." Save concepts under `references/generated/concepts/` and
+  find them through the global reference index. Never ship generated output directly:
+  diffusion
   "pixel art" is off-grid, anti-aliased, and off-palette, and it cannot hold one
   style across an asset set.
 - Optional assisted path: `npm run assets:import <img> --size WxH --name foo` —
@@ -380,8 +446,9 @@ while writing rows of characters.
   Expect imports to work occasionally for props and poorly for characters.
 
 **Public/CC0 asset packs (Kenney, Sprout Lands, LPC, OpenGameArt):**
-- Not shipped. Use them the same way as generated concepts: downloaded into
-  `references/art-inspiration/` for study (the agent Reads them while drawing —
+- Not shipped. Use them the same way as generated concepts: place approved study
+  material in a clearly vendor-labelled directory under `references/art/` and
+  regenerate the global catalog (the agent Reads it while drawing —
   "how does this pack do tree canopies at 16px?").
 - Rationale: our content is bespoke (10 species × growth stages, presses, ceremonies,
   seasonal remaps), so pack adoption still means pixel-editing — in someone else's
@@ -411,3 +478,12 @@ Names: `category_thing_variant_state`, snake_case — e.g. `tile_grass_summer`,
 `tree_apple_sapling`, `avatar_base_walk_down`, `ui_panel_9slice`, `icon_resource_must`.
 The master inventory (what to draw, priorities, sizes) is the Asset List appendix in
 [14-roadmap.md](14-roadmap.md). Check off items there as they land.
+
+
+**2026-09-06 release update:** doc58's seasonal receiver renderer is deployed in
+0.5.0 as the Dynamic default. Exact declared baked pixels are omitted only after
+complete frame preparation; Basic retains original art and one world tint.
+See [doc58 release ledger](58-seasonal-lighting-and-baked-shadow-plan.md) and
+[measured evidence](../output/lighting-58-20260906/release/README.md) for the
+45-asset rollout, remaining candidates, authenticated checks, and performance
+limits. Earlier pending-publication entries above are historical checkpoints.

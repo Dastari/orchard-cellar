@@ -1,6 +1,7 @@
 {
   "name": "enemy_cf_flying_skull",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -626,7 +627,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Flying_Skull.png",
-  "sourcePath": "references/Cute_Fantasy_Volcano/Enemies/Flying_Skull.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/volcano/Enemies/Flying_Skull.png",
   "sourceRegions": {
     "idle": [
       [

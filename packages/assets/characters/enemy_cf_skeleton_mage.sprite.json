@@ -1,6 +1,7 @@
 {
   "name": "enemy_cf_skeleton_mage",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2693,7 +2694,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Skeleton_Mage.png",
-  "sourcePath": "references/Cute_Fantasy/Enemies/Skeleton/Skeleton_Mage.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Enemies/Skeleton/Skeleton_Mage.png",
   "sourceRegions": {
     "idle_down": [
       [

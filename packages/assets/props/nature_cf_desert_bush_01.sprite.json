@@ -1,6 +1,7 @@
 {
   "name": "nature_cf_desert_bush_01",
   "category": "props",
+  "bakedShadowColor": "#00000028",
   "size": [
     16,
     16
@@ -38,7 +39,7 @@
     "3": "#684945",
     "4": "#00000028"
   },
-  "sourcePath": "references/Cute_Fantasy_Desert/Props/Dead_bush.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Props/Dead_bush.png",
   "sourcePaletteMode": "exact",
   "sourceRegion": [0, 0, 16, 16],
   "approved": true,

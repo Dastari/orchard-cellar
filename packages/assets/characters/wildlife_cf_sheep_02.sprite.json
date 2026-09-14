@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_sheep_02",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2762,7 +2763,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Sheep_02.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Sheep/Sheep_02.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Sheep/Sheep_02.png",
   "sourceRegions": {
     "idle_side": [
       [

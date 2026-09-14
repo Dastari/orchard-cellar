@@ -1,6 +1,7 @@
 {
   "name": "enemy_cf_shroomling_alive_small",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -478,7 +479,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Small_Alive_Shroomling.png",
-  "sourcePath": "references/Cute_Fantasy_ShroomLands/Shroomlings/Small_Alive_Shroomling.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/shroomlands/Shroomlings/Small_Alive_Shroomling.png",
   "sourceRegions": {
     "state_01": [
       [

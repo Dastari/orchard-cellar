@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_blade_training",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "........6...356.",
+        "........5..3556.",
+        "......656564556.",
+        "........534556..",
+        "........64556...",
+        "....1..34556....",
+        "...11044556.....",
+        "....144556..6...",
+        "....14566..656..",
+        "....10660.65556.",
+        "...1211000..5...",
+        "..120...0...6...",
+        "..20............",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#5a5666",
+    "1": "#9c99a4",
+    "2": "#cfccd7",
+    "3": "#e83b3b",
+    "4": "#f89320",
+    "5": "#fac83d",
+    "6": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "warrior-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/warrior/sheets/warrior-skills-16.png",
+  "sourceRegion": [
+    16,
+    64,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.blade_training",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

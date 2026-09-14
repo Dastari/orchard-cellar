@@ -1,0 +1,68 @@
+{
+  "name": "icon_skill_beekeeping",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "............01..",
+        "...........012..",
+        ".......33.012...",
+        ".....44443120...",
+        "....45656430....",
+        "....465655430...",
+        "...34755764310..",
+        "...34575643821..",
+        "....34644338....",
+        "....3443338.....",
+        ".....38388......",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#63c74d",
+    "1": "#3e8948",
+    "2": "#265c42",
+    "3": "#feae34",
+    "4": "#ffffff",
+    "5": "#fee761",
+    "6": "#181425",
+    "7": "#262b44",
+    "8": "#f77622"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+  "sourceRegion": [
+    96,
+    96,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.beekeeping",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

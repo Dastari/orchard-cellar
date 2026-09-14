@@ -1,0 +1,69 @@
+{
+  "name": "icon_skill_piercing_shot",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "000000000..787..",
+        "000053000079897.",
+        "0000533007889887",
+        "000113530079897.",
+        "05513153000787..",
+        "0333111300007...",
+        "0035511144000...",
+        "00033316664200..",
+        "00000046777620..",
+        ".0000046767762..",
+        "...00004778872..",
+        ".....0026788822.",
+        "0.....002678822.",
+        ".0.......2222922",
+        "......0....22292",
+        ".......0.....222"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#461d0f",
+    "1": "#5a5666",
+    "2": "#6e2727",
+    "3": "#9c99a4",
+    "4": "#cd683d",
+    "5": "#cfccd7",
+    "6": "#f89320",
+    "7": "#f9c22b",
+    "8": "#ffe4b3",
+    "9": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "rogue-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/rogue/sheets/rogue-skills-16.png",
+  "sourceRegion": [
+    176,
+    208,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.piercing_shot",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -11,6 +11,8 @@ import {
   type Direction,
   type Vec2Fixed,
 } from './state.js';
+import { statelessRoll } from './checks.js';
+import { AUTHORITY_HZ } from './net-timing.js';
 
 export type NpcFacing = 'up' | 'down' | 'left' | 'right';
 export type NpcWanderDirection = NpcFacing | null;
@@ -35,6 +37,107 @@ export const HORSE_JUMP_MAX_BLOCKED_TILES = 3;
 export const HORSE_JUMP_MAX_APPROACH_TILES = 1;
 export const HORSE_JUMP_DURATION_TICKS = 10;
 export const NPC_INTERACTION_REACH_FIXED = Math.floor(TILE_SIZE_FIXED * 1.5);
+
+export type FishermanActivity = 'fish_cast' | 'fish_wait' | 'fish_reel' | 'fish_rest';
+
+export interface FishermanCycleStep {
+  readonly activity: FishermanActivity;
+  readonly nextDecisionTick: bigint;
+  readonly speech?: string;
+}
+
+export const FISHERMAN_REMARKS = [
+  'I swear it was THIS big...',
+  "The lake's keeping its secrets today.",
+  'Patience catches more fish than fancy bait.',
+  "Easy now... don't spook the silverfin.",
+  'A quiet line is still a hopeful line.',
+  'Nearly had that one!',
+  'The best bites come when nobody is watching.',
+  'Just one more cast...',
+] as const;
+
+const FISHERMAN_CAST_TICKS = BigInt(AUTHORITY_HZ);
+const FISHERMAN_REEL_TICKS = BigInt(AUTHORITY_HZ);
+
+function fishermanDurationTicks(
+  id: bigint,
+  authorityTick: bigint,
+  label: string,
+  minimumSeconds: number,
+  maximumSeconds: number,
+): bigint {
+  const spreadSeconds = maximumSeconds - minimumSeconds;
+  const seconds = minimumSeconds + statelessRoll(
+    [id, authorityTick, `fisherman.${label}`],
+    spreadSeconds + 1,
+  );
+  return BigInt(seconds * AUTHORITY_HZ);
+}
+
+function fishermanActivity(value: string): FishermanActivity | null {
+  return value === 'fish_cast' || value === 'fish_wait'
+    || value === 'fish_reel' || value === 'fish_rest' ? value : null;
+}
+
+/** Advances Fin's low-frequency fishing routine only when its persisted
+ * deadline is reached. Most of the cycle is spent waiting or resting, so the
+ * authored cast and reel actions play once instead of looping continuously. */
+export function stepFishermanCycle(
+  id: bigint,
+  activityValue: string,
+  nextDecisionTick: bigint,
+  authorityTick: bigint,
+): FishermanCycleStep {
+  const activity = fishermanActivity(activityValue);
+  if (activityValue === 'fish') {
+    return {
+      activity: 'fish_wait',
+      nextDecisionTick: authorityTick + fishermanDurationTicks(id, authorityTick, 'legacy_wait', 25, 45),
+    };
+  }
+  if (activity === null) {
+    return {
+      activity: 'fish_rest',
+      nextDecisionTick: authorityTick + fishermanDurationTicks(id, authorityTick, 'initial_rest', 6, 12),
+    };
+  }
+  if (activity === 'fish_rest'
+    && nextDecisionTick - authorityTick > BigInt(30 * AUTHORITY_HZ)) {
+    return {
+      activity,
+      nextDecisionTick: authorityTick + fishermanDurationTicks(id, authorityTick, 'rest_clamp', 15, 30),
+    };
+  }
+  if (authorityTick < nextDecisionTick) return { activity, nextDecisionTick };
+
+  if (activity === 'fish_rest') {
+    return { activity: 'fish_cast', nextDecisionTick: authorityTick + FISHERMAN_CAST_TICKS };
+  }
+  if (activity === 'fish_cast') {
+    return {
+      activity: 'fish_wait',
+      nextDecisionTick: authorityTick + fishermanDurationTicks(id, authorityTick, 'wait', 25, 45),
+    };
+  }
+  if (activity === 'fish_wait') {
+    return { activity: 'fish_reel', nextDecisionTick: authorityTick + FISHERMAN_REEL_TICKS };
+  }
+
+  const next: FishermanCycleStep = {
+    activity: 'fish_rest',
+    nextDecisionTick: authorityTick + fishermanDurationTicks(id, authorityTick, 'rest', 15, 30),
+  };
+  // Roughly one remark every five completed cycles: noticeable to visitors,
+  // but uncommon enough not to turn the dock into a repeating chat feed.
+  if (statelessRoll([id, authorityTick, 'fisherman.remark.chance'], 5) !== 0) return next;
+  return {
+    ...next,
+    speech: FISHERMAN_REMARKS[
+      statelessRoll([id, authorityTick, 'fisherman.remark.choice'], FISHERMAN_REMARKS.length)
+    ]!,
+  };
+}
 
 export function npcFacingForDirection(direction: Direction): NpcFacing {
   switch (direction) {
@@ -69,11 +172,11 @@ export function npcFacingTowardPoint(
 /** A mounted rider may aim independently while stopped. The horse adopts the
  * rider's facing only when movement gives it a new travel direction. */
 export function mountedHorseFacing(
-  currentHorseFacing: NpcFacing,
+  currentHorseFacing: Direction,
   riderFacing: Direction,
   riderMoving: boolean,
-): NpcFacing {
-  return riderMoving ? npcFacingForDirection(riderFacing) : currentHorseFacing;
+): Direction {
+  return riderMoving ? riderFacing : currentHorseFacing;
 }
 
 const DIRECTION_VECTORS: Record<NpcFacing, Vec2Fixed> = {

@@ -1,0 +1,165 @@
+{
+  "format": "orchard-reviewed-inert-items-v1",
+  "reviewedAgainst": {
+    "bootstrapItemCount": 181,
+    "lifecycleRevision": 11,
+    "lifecycleBundleSha256": "3b9cd7a8dd00e1c92a1dc5a27164f89886b962b59fb0fe58933110453997b57f",
+    "authoredCallbackCount": 109,
+    "inertItemCount": 72
+  },
+  "groups": [
+    {
+      "classification": "ore_and_refined_material",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [],
+      "reason": "Crafting and processing inputs have no direct item action.",
+      "itemIds": [
+        "item:amethyst_ore",
+        "item:amethyst_piece",
+        "item:copper_bar",
+        "item:copper_ore",
+        "item:copper_piece",
+        "item:emerald_ore",
+        "item:emerald_piece",
+        "item:gold_bar",
+        "item:gold_ore",
+        "item:gold_piece",
+        "item:iron_bar",
+        "item:iron_ore",
+        "item:iron_piece",
+        "item:ruby_ore",
+        "item:ruby_piece",
+        "item:sapphire_ore",
+        "item:sapphire_piece",
+        "item:silver_bar",
+        "item:silver_ore",
+        "item:topaz_ore",
+        "item:topaz_piece"
+      ]
+    },
+    {
+      "classification": "crafting_material",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [],
+      "reason": "Inventory materials are consumed by recipes, processors, or fuel systems rather than direct use.",
+      "itemIds": [
+        "item:cactus",
+        "item:fiber",
+        "item:leather",
+        "item:pebble",
+        "item:plank",
+        "item:stick",
+        "item:stone",
+        "item:string",
+        "item:wood"
+      ]
+    },
+    {
+      "classification": "cellar_intermediate",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [],
+      "reason": "Cellar intermediates participate in station-owned processing and have no direct item action.",
+      "itemIds": [
+        "item:bottles",
+        "item:must",
+        "item:pomace"
+      ]
+    },
+    {
+      "classification": "preserved_food_without_consumption_semantics",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [
+        "tag:item.food"
+      ],
+      "reason": "Preserved produce is intentionally inedible until a restore value and consumption semantics are authored.",
+      "itemIds": [
+        "item:preserved_beetroot",
+        "item:preserved_cabbage",
+        "item:preserved_carrot",
+        "item:preserved_corn",
+        "item:preserved_cucumber",
+        "item:preserved_garlic",
+        "item:preserved_grape",
+        "item:preserved_green_pepper",
+        "item:preserved_hot_pepper",
+        "item:preserved_leek",
+        "item:preserved_onion",
+        "item:preserved_parsley",
+        "item:preserved_potato",
+        "item:preserved_pumpkin",
+        "item:preserved_red_pepper",
+        "item:preserved_strawberry",
+        "item:preserved_sunflower",
+        "item:preserved_tomato",
+        "item:preserved_turnip",
+        "item:preserved_watermelon",
+        "item:preserved_wheat",
+        "item:preserved_yellow_pepper"
+      ]
+    },
+    {
+      "classification": "raw_food_without_consumption_semantics",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [
+        "tag:item.food"
+      ],
+      "reason": "Raw meat and fish are cooking inputs and intentionally have no direct consumption action.",
+      "itemIds": [
+        "item:raw_beef",
+        "item:raw_chicken",
+        "item:raw_fish",
+        "item:raw_mutton",
+        "item:raw_pork"
+      ]
+    },
+    {
+      "classification": "crop_without_consumption_semantics",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [
+        "tag:item.food"
+      ],
+      "reason": "Sunflower and wheat are crop outputs without authored restore values or direct use actions.",
+      "itemIds": [
+        "item:sunflower",
+        "item:wheat"
+      ]
+    },
+    {
+      "classification": "prototype_gear",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [],
+      "reason": "Prototype gear has no equipment component and therefore grants no equipment or selected-item action.",
+      "itemIds": [
+        "item:boots",
+        "item:gloves",
+        "item:helm",
+        "item:necklace",
+        "item:pants",
+        "item:shield",
+        "item:tunic"
+      ]
+    },
+    {
+      "classification": "passive_equipment",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [
+        "component:equip",
+        "tag:item.equipment"
+      ],
+      "reason": "Equipping is an inventory/container operation; these items define no direct equipmentUse action.",
+      "itemIds": [
+        "item:backpack",
+        "item:watch"
+      ]
+    },
+    {
+      "classification": "ammunition_payload",
+      "interactionPolicy": "inert",
+      "advertisedCapabilities": [],
+      "reason": "Arrows are consumed by the bow lifecycle and have no standalone use action.",
+      "itemIds": [
+        "item:arrow"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_fence_gate",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     32
@@ -98,7 +99,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Fence_Big_Gate.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fence_Big_Gate.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Fence_Big_Gate.png",
   "sourceRegions": {
     "closed": [
       [

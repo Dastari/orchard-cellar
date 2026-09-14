@@ -1,0 +1,67 @@
+{
+  "name": "item_cf_leather",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".........01110..",
+        ".......12332110.",
+        "......133221110.",
+        ".....1322110004.",
+        "....11211111044.",
+        "...12321004444..",
+        "...132211004....",
+        "..023122004.....",
+        "..13311204......",
+        ".11321020.......",
+        ".11211011.......",
+        ".10210411.......",
+        ".04114410.......",
+        ".4401440........",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#534c2d",
+    "1": "#93703e",
+    "2": "#b29564",
+    "3": "#cab898",
+    "4": "#362f1a"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/equipment/monster-hunting-220/sheet-16-no-outline.png",
+  "sourceRegions": {
+    "base": [
+      [
+        224,
+        128,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.resource",
+    "material.leather"
+  ],
+  "placement": {
+    "layer": "object",
+    "blocksMovement": false,
+    "builderAvailable": false
+  }
+}

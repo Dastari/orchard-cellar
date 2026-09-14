@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_horse_05",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2625,7 +2626,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Horse_05.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Horse/Horse_05.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Horse/Horse_05.png",
   "sourceRegions": {
     "idle_side": [
       [

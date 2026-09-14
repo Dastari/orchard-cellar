@@ -10,13 +10,6 @@ describe('client content security policy', () => {
     );
   });
 
-  it('adds an explicit development worker policy when the document relies on default-src', () => {
-    const editorPolicy = "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self';";
-    expect(developmentCsp(editorPolicy)).toBe(
-      "default-src 'self'; worker-src 'self' blob:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline';",
-    );
-  });
-
   it('does not broaden script sources beyond the SDK-required eval exception', () => {
     expect(production).not.toContain("'unsafe-inline'");
     expect(production).not.toContain('blob:');

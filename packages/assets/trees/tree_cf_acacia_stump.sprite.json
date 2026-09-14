@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_acacia_stump",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     48,
     64
@@ -88,7 +89,7 @@
     "5": "#7f5b4d",
     "6": "#00000028"
   },
-  "sourcePath": "references/Cute_Fantasy_Desert/Props/Acacia_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Props/Acacia_Tree.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Acacia_Tree.png"

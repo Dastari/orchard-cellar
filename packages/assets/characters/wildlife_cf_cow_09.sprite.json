@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_cow_09",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2898,7 +2899,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Cow_09.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Cow/Cow_09.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Cow/Cow_09.png",
   "sourceRegions": {
     "idle_side": [
       [

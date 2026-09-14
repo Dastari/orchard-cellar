@@ -21,6 +21,22 @@ remains pure presentation: the authority never computes light (combat's
 detection rule re-derives emitter positions from the same pure data, not from
 render state).
 
+### Doc 58 implementation amendment — 2026-09-05
+
+The local client now offers Basic/Dynamic quality independently of the
+Classic/Unified developer solver. Basic uses original artwork and one world-only
+ambient multiply, bypassing spatial lighting work. Both qualities consume the
+new shared seasonal sun/moon evaluator: interpolated daylight length and altitude,
+warm low sun, blue moonlight, independent lunar phase and cloud attenuation.
+This replaces the fixed-hour outdoor ambient schedule in the client; configured
+indoor ambient stays fixed. Original night-floor policy is retained.
+
+The cache and mask contract for exact declared baked-shadow omission is implemented
+and exercised in a local browser fixture. Public suppression and generated moving
+sun/full-moon shadows remain pending together. This does not mark phases 4–7
+complete. See [58 §12](58-seasonal-lighting-and-baked-shadow-plan.md#12-bookkeeping-and-execution-ledger)
+for evidence, remaining acceptance gates and release status.
+
 ## 1. The aesthetic charter (revised, binding)
 
 The light must stay recognizably **pixelated — but finer-grained**. The
@@ -396,3 +412,12 @@ doc 30/06 business).
   plus the phase-name tooltip.
 - Art tickets: none — shafts/halos/shadows are runtime effects; the water
   glint decal from r1 remains the only sprite ask.
+
+
+**2026-09-06 release update:** doc58's seasonal receiver renderer is deployed in
+0.5.0 as the Dynamic default. Exact declared baked pixels are omitted only after
+complete frame preparation; Basic retains original art and one world tint.
+See [doc58 release ledger](58-seasonal-lighting-and-baked-shadow-plan.md) and
+[measured evidence](../output/lighting-58-20260906/release/README.md) for the
+45-asset rollout, remaining candidates, authenticated checks, and performance
+limits. Earlier pending-publication entries above are historical checkpoints.

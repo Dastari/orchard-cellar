@@ -1,0 +1,46 @@
+{
+  "name": "item_string",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......AAAA......",
+        "....BBJJJJJ.....",
+        "...AAAAAAAAAA...",
+        "...PPPAAAIIAA...",
+        "...JJJAAAIIJJ...",
+        "...JJJJJJJJJJ...",
+        "...NNNNNNJJAJ...",
+        "...AAAAAAAJAA...",
+        "...JJJBBIIAAA...",
+        "....BBBBBAA..B..",
+        "......AAAAA.BB..",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "approved": true,
+  "importedFrom": "string.png",
+  "sourcePalette": {
+    "A": "#a29987",
+    "B": "#b2a895",
+    "J": "#cec8b8",
+    "P": "#a79f8c",
+    "I": "#d0cbbd",
+    "N": "#bcb4a2"
+  },
+  "sourcePath": "art/custom/string.png",
+  "sourcePaletteMode": "exact"
+}

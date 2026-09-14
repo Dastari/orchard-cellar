@@ -1,4 +1,4 @@
-import { statelessRoll, type SkillCheckSeedPart } from './checks.js';
+import { bootstrapDefinitionsOfKind } from './content/bootstrap-pack-loader.js';
 
 export const MINING_NODE_CLASSES = ['mixed', 'pure', 'pristine', 'rock'] as const;
 export type MiningNodeClass = (typeof MINING_NODE_CLASSES)[number];
@@ -18,14 +18,11 @@ export type MiningOreResourceKind = (typeof MINING_ORE_RESOURCES)[number];
 
 export type MiningPickaxeTier = 1 | 2 | 3;
 
-/** The current starter item is already the authored iron pickaxe, so it stays
- * tier three and cannot create a progression deadlock. Future crude/copper
- * recipes can opt into the lower tiers without changing node data. */
+/** Bootstrap presentation compatibility. Live mining permissions come from
+ * the active item's authored mineableResources, independently of durability. */
 export function miningPickaxeTierForItem(itemKind: string): MiningPickaxeTier | 0 {
-  if (itemKind === 'pickaxe' || itemKind === 'iron_pickaxe') return 3;
-  if (itemKind === 'copper_pickaxe') return 2;
-  if (itemKind === 'crude_pickaxe') return 1;
-  return 0;
+  const tier = bootstrapDefinitionsOfKind('item').find(({ id }) => id === `item:${itemKind}`)?.tool?.tier ?? 0;
+  return Math.max(0, Math.min(3, tier)) as MiningPickaxeTier | 0;
 }
 
 export function miningRequiredPickaxeTier(
@@ -73,72 +70,6 @@ export function miningHitsUntilYield(progress: number, efficientStrikesRank: num
 export function mixedNodeStoneChancePercent(oreDressingRank: number): number {
   const rank = Math.max(0, Math.min(3, Math.floor(oreDressingRank)));
   return MINING_BASE_STONE_CHANCE_PERCENT - rank * MINING_ORE_DRESSING_REDUCTION_PERCENT;
-}
-
-export function oreFragmentItemKind(kind: MiningOreResourceKind): string {
-  return `${kind.slice('ore_'.length)}_piece`;
-}
-
-export function oreChunkItemKind(kind: MiningOreResourceKind): string {
-  return `${kind.slice('ore_'.length)}_ore`;
-}
-
-/** Rock bonus weights keep useful metals common while retaining a genuinely
- * surprising one-in-many gem find. */
-const ROCK_BONUS_ORE_WEIGHTS: readonly MiningOreResourceKind[] = [
-  'ore_iron', 'ore_iron', 'ore_iron',
-  'ore_copper', 'ore_copper', 'ore_copper',
-  'ore_gold', 'ore_gold',
-  'ore_emerald', 'ore_sapphire', 'ore_topaz', 'ore_ruby', 'ore_amethyst',
-];
-
-export function resolveMiningYield(
-  state: MiningYieldState,
-  seedParts: readonly SkillCheckSeedPart[],
-  oreDressingRank = 0,
-  rockhoundRank = 0,
-  motherLodeRank = 0,
-): MiningYieldResult {
-  if (state.nodeClass === 'rock' || state.kind === 'rock_large') {
-    const bonusChance = MINING_ROCK_BONUS_PERCENT
-      + Math.max(0, Math.min(2, Math.floor(rockhoundRank)));
-    const bonus = statelessRoll([...seedParts, 'mining.rock_bonus'], 100) < bonusChance;
-    if (!bonus) return { drops: [{ itemKind: 'pebble', quantity: 1 }], producedOre: false };
-    const ore = ROCK_BONUS_ORE_WEIGHTS[
-      statelessRoll([...seedParts, 'mining.rock_kind'], ROCK_BONUS_ORE_WEIGHTS.length)
-    ]!;
-    return {
-      drops: [
-        { itemKind: 'pebble', quantity: 1 },
-        { itemKind: oreFragmentItemKind(ore), quantity: 1 },
-      ],
-      producedOre: true,
-    };
-  }
-
-  if (state.nodeClass === 'pure' || state.nodeClass === 'pristine') {
-    const motherLode = state.nodeClass === 'pure'
-      && state.maximumRichness >= 5
-      && state.yieldsProduced === 0
-      && motherLodeRank > 0;
-    return {
-      drops: [
-        { itemKind: oreChunkItemKind(state.kind), quantity: 1 },
-        ...(motherLode ? [{ itemKind: oreFragmentItemKind(state.kind), quantity: 1 }] : []),
-      ],
-      producedOre: true,
-    };
-  }
-
-  // A one-richness mixed node and the final payout of an unlucky larger node
-  // are forced successes. No shared node can disappear without its material.
-  const forceOre = state.richnessRemaining <= 1 && !state.producedOre;
-  const stoneChance = mixedNodeStoneChancePercent(oreDressingRank);
-  const ore = forceOre
-    || statelessRoll([...seedParts, 'mining.mixed_yield'], 100) >= stoneChance;
-  return ore
-    ? { drops: [{ itemKind: oreFragmentItemKind(state.kind), quantity: 1 }], producedOre: true }
-    : { drops: [{ itemKind: 'stone', quantity: 1 }], producedOre: false };
 }
 
 export function miningNodeRichnessLabel(richness: number): 'DEPLETED' | 'LOW' | 'MEDIUM' | 'RICH' {

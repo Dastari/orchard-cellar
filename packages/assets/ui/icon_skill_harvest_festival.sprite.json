@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_harvest_festival",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".......01.......",
+        "....22013145....",
+        "...2603013164...",
+        "..260303313164..",
+        "..560030313164..",
+        "..426111111645..",
+        "...4222224445...",
+        "....44444445....",
+        ".....544555.....",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#63c74d",
+    "1": "#265c42",
+    "2": "#e4a672",
+    "3": "#3e8948",
+    "4": "#b86f50",
+    "5": "#733e39",
+    "6": "#3e2731"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+  "sourceRegion": [
+    0,
+    192,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.harvest_festival",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "name": "item_cr_boot_core_examples",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "steel_boots": [
+      [
+        ".....aaaaa......",
+        "....a2222bbbbb..",
+        "...aca22b55555b.",
+        "...aicabjd555dob",
+        "...afikbojdddolb",
+        "...acffblopoollb",
+        "....accbjllllljb",
+        "....aikibjjjjjb.",
+        "...accccbopollb.",
+        "..aikifbjjjjjlb.",
+        ".accccbopololjlb",
+        "akkkibjjjjjllljb",
+        "afiibpppooojlllb",
+        "afffblooollojlb.",
+        ".aaabllllllllb..",
+        ".....bbbbbbbb..."
+      ]
+    ],
+    "black_boots": [
+      [
+        ".....33333......",
+        "....3000066666..",
+        "...374006111116.",
+        "...3h746e81118m6",
+        "...39hh6me888ge6",
+        "...34996gmmmgee6",
+        "....34468gggge86",
+        "....399768888n6.",
+        "...344446ggeee6.",
+        "..3hhhh688888e6.",
+        ".344446mmmmggng6",
+        "3h999688888gge86",
+        "39996mgggggnee86",
+        "37776gggeeeeee6.",
+        ".3336eeeeeeee6..",
+        ".....66666666..."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "steel_boots": "state",
+    "black_boots": "state"
+  },
+  "sourcePalette": {
+    "0": "#010000",
+    "1": "#020101",
+    "2": "#030100",
+    "3": "#030303",
+    "4": "#050404",
+    "5": "#0a0502",
+    "6": "#0a0908",
+    "7": "#0b0a09",
+    "8": "#0e0c0b",
+    "9": "#100e0d",
+    "a": "#101616",
+    "b": "#122020",
+    "c": "#182524",
+    "d": "#1c2b2b",
+    "e": "#1e1a17",
+    "f": "#273433",
+    "g": "#2a2623",
+    "h": "#2f2c2a",
+    "i": "#3c4947",
+    "j": "#416561",
+    "k": "#4d5756",
+    "l": "#6c8f8c",
+    "m": "#807973",
+    "n": "#929796",
+    "o": "#a4c6c3",
+    "p": "#d0ebe8"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "accessories-armour-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/accessories-armour-free/sheets/accessories-armour-16.png",
+  "sourceRegions": {
+    "steel_boots": [
+      [
+        48,
+        32,
+        16,
+        16
+      ]
+    ],
+    "black_boots": [
+      [
+        96,
+        32,
+        16,
+        16
+      ]
+    ]
+  },
+  "tags": [
+    "item.armour",
+    "source.clockwork_raven",
+    "studio.raven_examples",
+    "item.boots",
+    "slot.legs"
+  ]
+}

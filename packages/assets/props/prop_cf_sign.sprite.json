@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_sign",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     32
@@ -61,7 +62,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Signs.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Signs.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Signs.png",
   "sourceRegions": {
     "base": [
       [

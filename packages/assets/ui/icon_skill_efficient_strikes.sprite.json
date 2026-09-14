@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_efficient_strikes",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".......01.......",
+        "....223333333...",
+        "...2222444443...",
+        "...222234343....",
+        "....2234343.....",
+        ".......51.......",
+        ".......06.......",
+        ".......56.......",
+        ".......51.......",
+        ".......01.......",
+        ".......56.......",
+        ".......06.......",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#b86f50",
+    "1": "#733e39",
+    "2": "#c0cbdc",
+    "3": "#5a6988",
+    "4": "#8b9bb4",
+    "5": "#e4a672",
+    "6": "#3e2731"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+  "sourceRegion": [
+    208,
+    144,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.efficient_strikes",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

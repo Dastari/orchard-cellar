@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_second_wind",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...0000000001...",
+        "..000002300001..",
+        "..000043500001..",
+        "..000435000001..",
+        "..000233330001..",
+        "..000004350001..",
+        "..000043500001..",
+        "..000235000001..",
+        "..100000000001..",
+        "...1111111111...",
+        "....16..........",
+        "....6...........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#e9e9e9",
+    "1": "#c0cbdc",
+    "2": "#feae34",
+    "3": "#f77622",
+    "4": "#fee761",
+    "5": "#be4a2f",
+    "6": "#8b9bb4"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/ui/attributes-menu-states-240/sheet-16-no-outline.png",
+  "sourceRegion": [
+    240,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.second_wind",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

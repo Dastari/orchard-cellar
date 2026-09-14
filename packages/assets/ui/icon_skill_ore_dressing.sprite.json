@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_ore_dressing",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "....0000........",
+        "...06665000.....",
+        "..0611535660....",
+        "...0653532140...",
+        "...0165323240...",
+        "...0614432410...",
+        "..06661144140...",
+        "..066666116640..",
+        "..066661661640..",
+        "..066661661440..",
+        "...06666664440..",
+        "....064444440...",
+        ".....0444440....",
+        "......00000.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#262b44",
+    "1": "#3e2731",
+    "2": "#6588aa",
+    "3": "#8bcdde",
+    "4": "#b86f50",
+    "5": "#c6eaea",
+    "6": "#e4a672"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/crafting-materials/sheet-16.png",
+  "sourceRegion": [
+    144,
+    32,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.ore_dressing",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

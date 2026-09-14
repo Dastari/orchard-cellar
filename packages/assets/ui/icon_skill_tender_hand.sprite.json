@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_tender_hand",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "...0000000001...",
+        "..000002000001..",
+        "..000022300001..",
+        "..000224350001..",
+        "..000342350001..",
+        "..000533550001..",
+        "..000053500001..",
+        "..000055500001..",
+        "..100000000001..",
+        "...1111111111...",
+        "....16..........",
+        "....6...........",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#e9e9e9",
+    "1": "#c0cbdc",
+    "2": "#2ce8f5",
+    "3": "#0099db",
+    "4": "#ffffff",
+    "5": "#124e89",
+    "6": "#8b9bb4"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/ui/attributes-menu-states-240/sheet-16-no-outline.png",
+  "sourceRegion": [
+    80,
+    32,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.tender_hand",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

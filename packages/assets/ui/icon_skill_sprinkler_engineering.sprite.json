@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_sprinkler_engineering",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        ".....5545545....",
+        "..553545545455..",
+        ".45355344344435.",
+        "...535434433..0.",
+        "..0.33403.200...",
+        "....60.0....1...",
+        "....01...2....2.",
+        "..2.....20......",
+        "..62....60...2..",
+        "..10...20...20..",
+        "...10..0.2.621..",
+        "....2...2..21...",
+        ".......21..0....",
+        "..6...02......0.",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#0c94cf",
+    "1": "#184d82",
+    "2": "#37deea",
+    "3": "#3c4563",
+    "4": "#8d9bb2",
+    "5": "#c1cbda",
+    "6": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/magic/skills-spells-400/sheet-16.png",
+  "sourceRegion": [
+    96,
+    64,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.sprinkler_engineering",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

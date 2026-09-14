@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOOL_DURABILITY_BALANCE } from './balance.js';
-import { moveItemStacks, quickMoveItemStack } from './item-containers.js';
+import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, moveItemStacks, quickMoveItemStack } from './item-containers.js';
 import {
   durabilityFraction,
   normalizeToolDurability,
@@ -46,11 +46,11 @@ describe('tool durability', () => {
     } as const;
     const moved = moveItemStacks(base, {
       fromContainer: 'hotbar', fromIndex: 0, toContainer: 'hotbar', toIndex: 1, quantity: 1,
-    });
+    }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(moved.ok && moved.containers.hotbar?.slots[1]?.durability).toBe(73);
     const quick = quickMoveItemStack(base, {
       fromContainer: 'hotbar', fromIndex: 0, toContainers: ['backpack'],
-    });
+    }, BOOTSTRAP_ITEM_CONTAINER_CONTENT);
     expect(quick.ok && quick.containers.backpack?.slots[0]?.durability).toBe(73);
   });
 });

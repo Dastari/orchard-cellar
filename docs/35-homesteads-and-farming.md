@@ -59,7 +59,7 @@ one session; sprinklers are the first "the game plays while I sleep" beat).
 ## 2. Establishing a homestead
 
 - **The deed** is bought with gold through Marlow's merchant dialogue. It uses
-  the plain-envelope cell from licensed `Cute_Fantasy_UI/UI/UI_Icons.png`, is
+  the plain-envelope cell from licensed `references/art/kenmi/cute-fantasy/ui/UI/UI_Icons.png`, is
   stack-one/non-transferable, and is offered only while the character owns no
   Homestead. A failed placement never consumes gold or deed.
 - **Siting**: the player places a compact Homestead POI on the overworld with a
@@ -192,7 +192,7 @@ merchant values. `Crops_2.png` is pixel-identical to the final eight groups of
   occupied footprint cannot also contain reachable farmland.
 - The client derives one of the four authored stages. Hovering any crop shows
   its name, watered/needs-water state, remaining real time, and a 16-step timer
-  taken from `Cute_Fantasy_UI/UI/Loading_Icon.png`.
+  taken from `references/art/kenmi/cute-fantasy/ui/UI/Loading_Icon.png`.
 - A mature owner-grown crop harvests atomically into carried inventory, records
   crop/item statistics, and clears the crop while retaining tilled soil. Full
   inventory rejects before crop deletion. At any growth stage, the owner can use

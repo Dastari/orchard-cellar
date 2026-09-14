@@ -2,14 +2,17 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const overworld = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
-const assetLoader = readFileSync(new URL('./render/assets.ts', import.meta.url), 'utf8');
+const assetLoader = readFileSync(new URL('../../ui/src/assets.ts', import.meta.url), 'utf8');
 const atlasBuilder = readFileSync(new URL('../../tools/src/build-atlas.ts', import.meta.url), 'utf8');
 const vite = readFileSync(new URL('../vite.config.ts', import.meta.url), 'utf8');
+const enginePackage = JSON.parse(readFileSync(
+  new URL('../../engine/package.json', import.meta.url), 'utf8',
+)) as { readonly dependencies: Readonly<Record<string, string>> };
 
 describe('client optimization boundaries', () => {
   it('keeps terrain diagnostics out of the initial gameplay module graph', () => {
-    expect(overworld).not.toContain("from './render/terrain-inspector.js'");
-    expect(overworld).toContain("import('./render/terrain-inspector.js')");
+    expect(overworld).not.toContain("from '@orchard/engine/terrain-inspector'");
+    expect(overworld).toContain("import('@orchard/engine/terrain-inspector')");
   });
 
   it('stops visual simulation while the page is hidden', () => {
@@ -32,5 +35,14 @@ describe('client optimization boundaries', () => {
       'spacetime-runtime', 'world-bindings', 'simulation',
       'client-network', 'game-ui', 'canvas-rendering',
     ]) expect(vite).toContain(`name: '${chunk}'`);
+    expect(vite).toContain('packages\\/ui\\/src\\/');
+    expect(vite).toContain('engine\\/src\\/');
+  });
+
+  it('keeps rendering independent of live bindings and authentication', () => {
+    expect(enginePackage.dependencies).toEqual({
+      '@orchard/sim': '*',
+      '@orchard/ui': '*',
+    });
   });
 });

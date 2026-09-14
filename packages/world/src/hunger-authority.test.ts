@@ -33,4 +33,44 @@ describe('authority hunger and Vigour coupling', () => {
     expect(modifiers).toContain('modifiersForHunger(hunger)');
     expect(modifiers).not.toContain("value: -5_000");
   });
+
+  it('does not let unaffordable held Sprint intent deadlock Vigour recovery', () => {
+    const affordability = sourceBetween(
+      'function playerCanAffordSprintStep(',
+      'function ensurePlayerStats(',
+    );
+    expect(affordability).toContain('sprintIntentSuppressesVigourRegen(');
+    expect(affordability).toContain('sprintVigourCostForSteps(');
+
+    const step = source.slice(source.indexOf('export const stepWorld ='));
+    expect(step).toContain('advancePlayerStats(ctx, row.identity, authorityTick, sprintWasAffordable)');
+    expect(step).toMatch(/const canSprint = intent\.sprinting\s+&& sprintWasAffordable/);
+  });
+
+  it('lets fruit refresh its five-minute Vigour boon even at full hunger', () => {
+    const preflight = source.slice(
+      source.indexOf("if (kind === 'applyEffect')"),
+      source.indexOf("if (kind === 'grantRecipe')"),
+    );
+    expect(preflight).toContain("runtimeItemHasTag(registry, selected.itemKind, 'crop.fruit')");
+    expect(preflight).toContain('survival.hungerCenti >= HUNGER_MAX_CENTI && !fruit');
+    expect(preflight).toContain("effect.applyEffect.effectId === 'fruitful_energy'");
+
+    const writer = source.slice(
+      source.indexOf('applyEffect: (applied) => {'),
+      source.indexOf('grantRecipe: (recipeId) => {'),
+    );
+    expect(writer).toContain("applied.effectId === 'fruitful_energy'");
+    expect(writer).toContain('advancePlayerStats(ctx, ctx.sender, authorityTick)');
+    expect(writer).toContain("applyOrRefreshPlayerEffect(ctx, ctx.sender, 'fruitful_energy', authorityTick)");
+  });
+
+  it('applies specialization cost reductions and quality gates at the authority spend point', () => {
+    const tools = sourceBetween('function spendToolVigour(', 'function requireUsableTool');
+    expect(tools).toContain('runtimeCanUseToolWithSkillRanks(registry, itemKind, ranks)');
+    expect(tools).toContain('runtimeToolQualityRequiredRanks(registry, itemKind)');
+    expect(tools).toContain(
+      'modifiersForToolSpecialization(ranks, runtimeToolSpecialization(registry, itemKind))',
+    );
+  });
 });

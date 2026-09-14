@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_homestead_tent_marker",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     64
@@ -89,7 +90,7 @@
     "6": "#00000064",
     "7": "#743f39"
   },
-  "sourcePath": "references/Cute_Fantasy_MilitaryCamp/Military_Tents.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/military-camp/Military_Tents.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Military_Tents.png",

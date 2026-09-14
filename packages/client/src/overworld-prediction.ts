@@ -31,6 +31,20 @@ export function interpolateFixedPosition(
   };
 }
 
+/** Rebase only the old render anchor into the reconciled coordinate space.
+ * Interpolating an old-coordinate anchor and then adding a correction offset
+ * applies that correction twice near the start of the render interval. */
+export function rebaseInterpolationPosition(
+  previous: Vec2Fixed,
+  predicted: Vec2Fixed,
+  reconciled: Vec2Fixed,
+): Vec2Fixed {
+  return {
+    x: previous.x + reconciled.x - predicted.x,
+    y: previous.y + reconciled.y - predicted.y,
+  };
+}
+
 /** Local interpolation starts each simulation frame at zero displacement, so
  * it cannot be used as a locomotion flag without producing idle/walk chatter.
  * Authority/prediction owns local movement; sampled displacement remains the

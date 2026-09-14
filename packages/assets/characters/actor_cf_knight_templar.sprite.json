@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_knight_templar",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     48
@@ -3306,7 +3307,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Templar.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Knights/Templar.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Knights/Templar.png",
   "sourceRegions": {
     "idle_down": [
       [

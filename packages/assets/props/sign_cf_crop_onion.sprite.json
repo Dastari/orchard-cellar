@@ -1,6 +1,7 @@
 {
   "name": "sign_cf_crop_onion",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -45,7 +46,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Crops_2.png",
-  "sourcePath": "references/Cute_Fantasy/Crops/Crops_2.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Crops_2.png",
   "sourceRegions": {
     "base": [
       [

@@ -7,6 +7,7 @@ describe('25§6 effect definitions', () => {
     expect(EFFECT_DEFINITIONS.well_rested.durationTicks).toBe(144_000);
     expect(EFFECT_DEFINITIONS.winded.durationTicks).toBe(1_800);
     expect(EFFECT_DEFINITIONS.orchard_tea.durationTicks).toBe(6_000);
+    expect(EFFECT_DEFINITIONS.fruitful_energy.durationTicks).toBe(6_000);
     const first = refreshEffect(null, 'orchard_tea', 100n, 7n);
     const refreshed = refreshEffect(first, 'orchard_tea', 200n);
     expect(refreshed).toEqual({
@@ -16,6 +17,14 @@ describe('25§6 effect definitions', () => {
       appliedTick: 200n,
       expiresTick: 6_200n,
     });
+  });
+
+  it('gives fruit a five-minute vigour-regeneration boon', () => {
+    const fruit = refreshEffect(null, 'fruitful_energy', 0n, 3n);
+    // Integer stat resolution floors the 1,199-centi baseline after applying
+    // the exact +50% boon.
+    expect(resolveStats(undefined, modifiersForEffects([fruit], 1n)).vigourRegenCentiPerSecond)
+      .toBe(1_798);
   });
 
   it('filters expiry at every read and compiles live effects into modifiers', () => {

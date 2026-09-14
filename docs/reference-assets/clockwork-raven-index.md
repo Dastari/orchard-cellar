@@ -1,0 +1,76 @@
+# Clockwork Raven icon-sheet index
+
+This is the discovery catalog for the owner-purchased Clockwork Raven / Raven Fantasy source art retained under `references/art/clockwork-raven/`. It indexes 34 packs, 44 native 16 px sheets, and 20,656 regular grid cells at source revision `ba1b8e74d49043bf`.
+
+The library intentionally retains native sheets rather than thousands of numbered single-icon exports or scaled 32/64 px duplicates. A pack's `SOURCE.md` records archive provenance, licence-note status, themes, and cleanup decisions. This catalog is discovery metadata, not permission to redistribute source art.
+
+## Finding an icon
+
+```sh
+# Search pack themes and keywords
+rg -ni 'fish|boat|potion|crop|shield|spell' docs/reference-assets/clockwork-raven-index.md
+
+# Return matching source sheets from the structured index
+jq -r --arg term 'fish' '.packs[] | select((.keywords | index($term)) or (.title | ascii_downcase | contains($term))) | .sheets[].source' docs/reference-assets/clockwork-raven-index.json
+```
+
+Regular sheets use 16×16 row-major cells: `index = row × columns + column`, `x = column × 16`, and `y = row × 16`. Preserve deliberate outline/no-outline variants as separate sources. `epic-weapons-1` is an irregular 255×32 montage and requires manual bounds review.
+
+## collections
+
+| Pack | Search terms | Canonical sheet(s) | Grid / cells | Source notes |
+| --- | --- | --- | --- | --- |
+| **Free RPG Icon Pack — Accessories and Armour**<br><sub>`collections--accessories-armour-free`</sub> | accessories, armour, clothing, equipment, hats, helmets, jewellery | `references/art/clockwork-raven/collections/accessories-armour-free/sheets/accessories-armour-16.png` (accessories-armour) | 16×7 / 112 | `references/art/clockwork-raven/collections/accessories-armour-free/SOURCE.md` |
+| **Raven Fantasy Icons — Free**<br><sub>`collections--free`</sub> | armour, consumables, currency, food, free fantasy rpg icon subset, gameplay props, magic, materials, tools, weapons | `references/art/clockwork-raven/collections/free/sheets/raven-fantasy-icons-free-16.png` (raven-fantasy-icons-free) | 16×137 / 2192 | `references/art/clockwork-raven/collections/free/SOURCE.md` |
+| **Raven Fantasy Icons — Premium**<br><sub>`collections--premium`</sub> | armour, broad fantasy rpg inventory icons, consumables, currency, food, magic, materials, tools, ui/gameplay props, weapons | `references/art/clockwork-raven/collections/premium/sheets/raven-fantasy-icons-16.png` (raven-fantasy-icons) | 16×516 / 8256 | `references/art/clockwork-raven/collections/premium/SOURCE.md` |
+| **Premium update — Epic Weapons 3**<br><sub>`collections--premium--updates--epic-weapons-3`</sub> | axes, blades, epic weapons, fantasy combat, polearms, ranged weapons | `references/art/clockwork-raven/collections/premium/updates/epic-weapons-3/sheets/epic-weapons-3-16.png` (epic-weapons-3) | 16×12 / 192 | `references/art/clockwork-raven/collections/premium/updates/epic-weapons-3/SOURCE.md` |
+| **Premium update — Acolyte Skills**<br><sub>`collections--premium--updates--skills--acolyte`</sub> | acolyte, buffs, cleric, healing, holy magic, priest, sacred skills | `references/art/clockwork-raven/collections/premium/updates/skills/acolyte/sheets/acolyte-skills-16.png` (acolyte-skills) | 16×16 / 256 | `references/art/clockwork-raven/collections/premium/updates/skills/acolyte/SOURCE.md` |
+| **Premium update — Rogue Skills**<br><sub>`collections--premium--updates--skills--rogue`</sub> | daggers, evasion, poison, rogue, shadow skills, stealth, thief, traps | `references/art/clockwork-raven/collections/premium/updates/skills/rogue/sheets/rogue-skills-16.png` (rogue-skills) | 16×16 / 256 | `references/art/clockwork-raven/collections/premium/updates/skills/rogue/SOURCE.md` |
+| **Premium update — Warrior Skills**<br><sub>`collections--premium--updates--skills--warrior`</sub> | battle skills, combat, defence, fighter, melee, warrior, weapon techniques | `references/art/clockwork-raven/collections/premium/updates/skills/warrior/sheets/warrior-skills-16.png` (warrior-skills) | 16×18 / 288 | `references/art/clockwork-raven/collections/premium/updates/skills/warrior/SOURCE.md` |
+| **Premium update — Wizard Skills**<br><sub>`collections--premium--updates--skills--wizard`</sub> | arcane magic, elemental magic, mage, runes, sorcery, spells, wizard | `references/art/clockwork-raven/collections/premium/updates/skills/wizard/sheets/wizard-skills-16.png` (wizard-skills) | 16×16 / 256 | `references/art/clockwork-raven/collections/premium/updates/skills/wizard/SOURCE.md` |
+| **Premium update — Trees and Logs**<br><sub>`collections--premium--updates--trees-and-logs`</sub> | forest resources, logs, lumber, nature props, trees, wood | `references/art/clockwork-raven/collections/premium/updates/trees-and-logs/sheets/trees-and-logs-16.png` (trees-and-logs) | 16×3 / 48 | `references/art/clockwork-raven/collections/premium/updates/trees-and-logs/SOURCE.md` |
+| **Raven Fantasy Icons — Starter Pack (legacy)**<br><sub>`collections--starter-legacy`</sub> | older starter subset of fantasy rpg inventory icons, useful for historical reference only | `references/art/clockwork-raven/collections/starter-legacy/sheets/raven-fantasy-icons-starter-16.png` (raven-fantasy-icons-starter) | 16×68 / 1088 | `references/art/clockwork-raven/collections/starter-legacy/SOURCE.md` |
+
+## equipment
+
+| Pack | Search terms | Canonical sheet(s) | Grid / cells | Source notes |
+| --- | --- | --- | --- | --- |
+| **Accessories 400**<br><sub>`equipment--accessories-400`</sub> | accessories, bags, belts, boots, cosmetics, hats, jewellery, keys, necklaces, rings, trinkets | `references/art/clockwork-raven/equipment/accessories-400/sheet-16.png` (base) | 16×28 / 448 | `references/art/clockwork-raven/equipment/accessories-400/SOURCE.md` |
+| **Armor 500**<br><sub>`equipment--armor-500`</sub> | armor, boots, chestplates, fantasy gear, gauntlets, helmets, medieval, shields | `references/art/clockwork-raven/equipment/armor-500/sheet-16.png` (base) | 16×35 / 560 | `references/art/clockwork-raven/equipment/armor-500/SOURCE.md` |
+| **Clothing 120**<br><sub>`equipment--clothing-120`</sub> | boots, civilian, clothing, dresses, fantasy apparel, hats, hoods, robes, tunics | `references/art/clockwork-raven/equipment/clothing-120/sheet-16-no-outline.png` (no-outline)<br>`references/art/clockwork-raven/equipment/clothing-120/sheet-16-outline.png` (outline) | 16×8 / 128<br>16×8 / 128 | `references/art/clockwork-raven/equipment/clothing-120/SOURCE.md` |
+| **Dark Fantasy Equipment**<br><sub>`equipment--dark-fantasy-equipment`</sub> | armor, cursed gear, dark fantasy, occult equipment, skulls, weapons | `references/art/clockwork-raven/equipment/dark-fantasy-equipment/sheet-16.png` (base) | 16×7 / 112 | `references/art/clockwork-raven/equipment/dark-fantasy-equipment/SOURCE.md` |
+| **Epic Armory**<br><sub>`equipment--epic-armory`</sub> | armor, bows, epic weapons, loot rarity, magical gear, shields, swords | `references/art/clockwork-raven/equipment/epic-armory/sheet-16.png` (base) | 16×24 / 384 | `references/art/clockwork-raven/equipment/epic-armory/SOURCE.md` |
+| **Epic Weapons 1**<br><sub>`equipment--epic-weapons-1`</sub> | axes, bows, daggers, epic weapons, fantasy armory, guns, hammers, staves, swords | `references/art/clockwork-raven/equipment/epic-weapons-1/sheet-16.png` (base) | 255×32 irregular | `references/art/clockwork-raven/equipment/epic-weapons-1/SOURCE.md` |
+| **Epic Weapons 2**<br><sub>`equipment--epic-weapons-2`</sub> | axes, bows, daggers, epic weapons, magical weapons, melee, ranged, staves, swords | `references/art/clockwork-raven/equipment/epic-weapons-2/sheet-16.png` (base) | 16×12 / 192 | `references/art/clockwork-raven/equipment/epic-weapons-2/SOURCE.md` |
+| **Equipment Sets**<br><sub>`equipment--equipment-sets`</sub> | armor sets, coordinated equipment, fantasy classes, helmets, loot, shields, weapons | `references/art/clockwork-raven/equipment/equipment-sets/sheet-16.png` (base) | 16×25 / 400 | `references/art/clockwork-raven/equipment/equipment-sets/SOURCE.md` |
+| **Masks 110**<br><sub>`equipment--masks-110`</sub> | animal, ceremonial, cosmetic equipment, demon, faces, faction, helmets, masks | `references/art/clockwork-raven/equipment/masks-110/sheet-16-no-outline.png` (no-outline)<br>`references/art/clockwork-raven/equipment/masks-110/sheet-16-outline.png` (outline) | 16×7 / 112<br>16×7 / 112 | `references/art/clockwork-raven/equipment/masks-110/SOURCE.md` |
+| **Monster Hunting 220**<br><sub>`equipment--monster-hunting-220`</sub> | bones, claws, crafting reagents, eyes, hides, horns, hunting, monster drops, organs, trophies | `references/art/clockwork-raven/equipment/monster-hunting-220/sheet-16-no-outline.png` (no-outline)<br>`references/art/clockwork-raven/equipment/monster-hunting-220/sheet-16-outline.png` (outline) | 16×14 / 224<br>16×14 / 224 | `references/art/clockwork-raven/equipment/monster-hunting-220/SOURCE.md` |
+| **Shields Fantasy 160**<br><sub>`equipment--shields-fantasy-160`</sub> | bucklers, fantasy defense, heraldry, kite shields, shields, tower shields | `references/art/clockwork-raven/equipment/shields-fantasy-160/sheet-16-no-outline.png` (no-outline)<br>`references/art/clockwork-raven/equipment/shields-fantasy-160/sheet-16-outline.png` (outline) | 16×10 / 160<br>16×10 / 160 | `references/art/clockwork-raven/equipment/shields-fantasy-160/SOURCE.md` |
+| **Weapons 800**<br><sub>`equipment--weapons-800`</sub> | axes, bows, daggers, elemental colours, guns, hammers, shields, spears, staves, swords, wands, weapon sets | `references/art/clockwork-raven/equipment/weapons-800/sheet-16.png` (base) | 16×52 / 832 | `references/art/clockwork-raven/equipment/weapons-800/SOURCE.md` |
+
+## icon-packs
+
+| Pack | Search terms | Canonical sheet(s) | Grid / cells | Source notes |
+| --- | --- | --- | --- | --- |
+| **Alchemy and Herbs**<br><sub>`icon-packs--alchemy-herbs`</sub> | alchemy, alchemy ingredients, flower, herb, herbs, ingredient, leaf, magical components, mushroom, plant, plants, potion, root, scroll, tinctures | `references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-outline.png` (outline)<br>`references/art/clockwork-raven/icon-packs/alchemy-herbs/sheet-16-without-outline.png` (without-outline) | 16×18 / 288<br>16×18 / 288 | `references/art/clockwork-raven/icon-packs/alchemy-herbs/SOURCE.md` |
+| **Crafting Materials**<br><sub>`icon-packs--crafting-materials`</sub> | crafting, ingot, ingots, lumber, material, metal, ore, ores, processed crafting resources, resource, rock, stone, stones, timber, wood | `references/art/clockwork-raven/icon-packs/crafting-materials/sheet-16.png` (base) | 16×9 / 144 | `references/art/clockwork-raven/icon-packs/crafting-materials/SOURCE.md` |
+| **Farming, Food and Beverages**<br><sub>`icon-packs--farming-food-beverages`</sub> | baked goods, beverage, beverages, bread, cooking, crop, crops, drink, farm, food, fruit, meal, meals, seed, seeds, vegetable, vegetables | `references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png` (no-outline)<br>`references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-outline.png` (outline) | 16×19 / 304<br>16×19 / 304 | `references/art/clockwork-raven/icon-packs/farming-food-beverages/SOURCE.md` |
+| **Fishing and Sea**<br><sub>`icon-packs--fishing-sea`</sub> | bait, boat, boats, fish, fishing, hook, hooks, marine, rod, rods, sea, sea treasure, seafood, shell, shells, tackle | `references/art/clockwork-raven/icon-packs/fishing-sea/sheet-16.png` (base) | 16×7 / 112 | `references/art/clockwork-raven/icon-packs/fishing-sea/SOURCE.md` |
+| **Gems and Jewels**<br><sub>`icon-packs--gems-jewels`</sub> | coloured minerals, crystal, crystals, currency, cut gems, diamond, emerald, gem, jewel, jewels, mineral, ruby, sapphire | `references/art/clockwork-raven/icon-packs/gems-jewels/sheet-16-outline.png` (outline)<br>`references/art/clockwork-raven/icon-packs/gems-jewels/sheet-16-without-outline.png` (without-outline) | 16×11 / 176<br>16×11 / 176 | `references/art/clockwork-raven/icon-packs/gems-jewels/SOURCE.md` |
+| **General Items and Tools**<br><sub>`icon-packs--general-items-tools`</sub> | axe, bag, bags, book, books, bottle, chest, containers, hammer, item, key, keys, pickaxe, tool, tools, utility, utility objects, weapons | `references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png` (classic)<br>`references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-outline.png` (outline) | 16×12 / 192<br>16×12 / 192 | `references/art/clockwork-raven/icon-packs/general-items-tools/SOURCE.md` |
+| **Pets and Animals**<br><sub>`icon-packs--pets-animals`</sub> | animal, bird, cat, creature, creature and monster head portraits, dog, head, monster, pet, portrait, reptile | `references/art/clockwork-raven/icon-packs/pets-animals/sheet-16.png` (base) | 16×6 / 96 | `references/art/clockwork-raven/icon-packs/pets-animals/SOURCE.md` |
+| **Places and Seasons**<br><sub>`icon-packs--places-seasons`</sub> | biome, biome/location symbols, forest, homes, house, landmark, landmarks, map, place, season, seasons, tower, towers, tree, trees, village | `references/art/clockwork-raven/icon-packs/places-seasons/sheet-16-outline.png` (outline)<br>`references/art/clockwork-raven/icon-packs/places-seasons/sheet-16-without-outline.png` (without-outline) | 16×2 / 32<br>16×2 / 32 | `references/art/clockwork-raven/icon-packs/places-seasons/SOURCE.md` |
+| **Potion Pack**<br><sub>`icon-packs--potion-pack`</sub> | alchemy, bottle, coloured consumables, consumable, elixir, elixirs, flask, flasks, healing, potion, potion bottles, vial | `references/art/clockwork-raven/icon-packs/potion-pack/sheet-16.png` (base) | 16×10 / 160 | `references/art/clockwork-raven/icon-packs/potion-pack/SOURCE.md` |
+| **Treasure, Currency, Gems and Loot**<br><sub>`icon-packs--treasure-currency-gems-loot`</sub> | chest, chests, coin, coins, crystal, currency, drop, gem, gems, gold, loot, loot drops, reward, treasure | `references/art/clockwork-raven/icon-packs/treasure-currency-gems-loot/sheet-16.png` (base) | 16×7 / 112 | `references/art/clockwork-raven/icon-packs/treasure-currency-gems-loot/SOURCE.md` |
+
+## magic
+
+| Pack | Search terms | Canonical sheet(s) | Grid / cells | Source notes |
+| --- | --- | --- | --- | --- |
+| **Skills Spells 400**<br><sub>`magic--skills-spells-400`</sub> | buffs, combat abilities, debuffs, effects, elemental, magic, projectiles, skills, spells | `references/art/clockwork-raven/magic/skills-spells-400/sheet-16.png` (base) | 16×28 / 448 | `references/art/clockwork-raven/magic/skills-spells-400/SOURCE.md` |
+
+## ui
+
+| Pack | Search terms | Canonical sheet(s) | Grid / cells | Source notes |
+| --- | --- | --- | --- | --- |
+| **Attributes Menu States 240**<br><sub>`ui--attributes-menu-states-240`</sub> | attributes, buffs, debuffs, health, mana, menu, settings, states, status effects, ui | `references/art/clockwork-raven/ui/attributes-menu-states-240/sheet-16-no-outline.png` (no-outline)<br>`references/art/clockwork-raven/ui/attributes-menu-states-240/sheet-16-outline.png` (outline) | 16×15 / 240<br>16×15 / 240 | `references/art/clockwork-raven/ui/attributes-menu-states-240/SOURCE.md` |

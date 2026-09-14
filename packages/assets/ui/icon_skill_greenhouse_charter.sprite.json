@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_greenhouse_charter",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".....000000.....",
+        "....12000000....",
+        "...1232000000...",
+        "..123332000000..",
+        "..233433244444..",
+        "..333333355555..",
+        "..366366356665..",
+        "..344344354445..",
+        "..355333355555..",
+        "................",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#e19d6c",
+    "1": "#b1664a",
+    "2": "#51607d",
+    "3": "#8192ab",
+    "4": "#23283c",
+    "5": "#343e5b",
+    "6": "#181622"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/places-seasons/sheet-16-without-outline.png",
+  "sourceRegion": [
+    0,
+    0,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.greenhouse_charter",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

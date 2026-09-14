@@ -802,7 +802,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Lantern_Idle.png",
-  "sourcePath": "references/Cute_Fantasy/Player/Tools/Other/Lantern_Idle.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Player/Tools/Other/Lantern_Idle.png",
   "sourceRegions": {
     "hold_idle_down": [
       [

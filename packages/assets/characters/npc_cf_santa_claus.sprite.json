@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_santa_claus",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -1852,7 +1853,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Santa_Claus.png",
-  "sourcePath": "references/Cute_Fantasy_Christmass/Characters/Santa_Claus.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/christmas/Characters/Santa_Claus.png",
   "sourceRegions": {
     "idle_down": [
       [

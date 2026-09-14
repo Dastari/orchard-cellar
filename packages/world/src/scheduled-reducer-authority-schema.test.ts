@@ -15,7 +15,7 @@ function reducerSource(name: string, nextName?: string): string {
 
 describe('scheduled reducer authority', () => {
   it.each([
-    ['decayEmptyTopsideSoil', 'useFarmTool'],
+    ['decayEmptyTopsideSoil', undefined],
     ['stepWorld', undefined],
   ] as const)('%s rejects direct client invocation before database work', (name, nextName) => {
     const reducer = reducerSource(name, nextName);

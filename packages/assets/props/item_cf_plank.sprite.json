@@ -13,20 +13,20 @@
     "base": [
       [
         "................",
-        "...........4....",
-        ".........8845...",
-        "........5544555.",
-        ".......66665555.",
-        "......5555M5555.",
-        "....666655MMMMM.",
-        "..JJ555MM555555.",
-        ".S55555555ooooo.",
-        ".SSSS555LLoooo..",
-        ".SSSSSSSLLLL....",
-        ".6666ooooo......",
-        "..666oooo.......",
-        "...55555........",
-        ".....5..........",
+        ".....SSSSSSSS...",
+        "....S8877776S...",
+        "....S7766556S...",
+        "....S2222211S...",
+        "..SSSSSSSSSS....",
+        "..S88777776S....",
+        "..S77665556S....",
+        "..S22222211S....",
+        "SSSSSSSSSSS.....",
+        "S887777776S.....",
+        "S776655556S.....",
+        "S222222211S.....",
+        "SSSSSSSSSSS.....",
+        "................",
         "................"
       ]
     ]
@@ -46,5 +46,5 @@
   },
   "approved": true,
   "importedFrom": "Plank_Icon_Generated.png",
-  "sourcePath": "references/generated/Plank_Icon_Generated.png"
+  "sourcePath": "references/generated/concepts/Plank_Icon_Generated.png"
 }

@@ -1,6 +1,7 @@
 {
   "name": "nature_cf_mushroom_08",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -142,7 +143,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "muschroom_8_Anim.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Muschroom_Animations/muschroom_8_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Muschroom_Animations/muschroom_8_Anim.png",
   "sourceRegions": {
     "sway": [
       [

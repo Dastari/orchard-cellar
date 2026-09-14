@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_knight_spearman",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     48
@@ -3310,7 +3311,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Spearman.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Knights/Spearman.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Knights/Spearman.png",
   "sourceRegions": {
     "idle_down": [
       [

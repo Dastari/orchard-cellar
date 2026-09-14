@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_frog_04",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -876,7 +877,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Frog_04.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Frog/Frog_04.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Frog/Frog_04.png",
   "sourceRegions": {
     "idle_side": [
       [

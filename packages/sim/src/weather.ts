@@ -15,6 +15,8 @@ export interface WeatherVisualState {
   readonly raining: boolean;
   /** Opacity multiplier for authored cloud-shadow sprites. */
   readonly cloudShadow: number;
+  /** Cloud amount before the legacy daylight-only shadow fade; also attenuates moonlight. */
+  readonly cloudCover?: number;
   /** Normalized strength used by wind gusts and vegetation particles. */
   readonly wind: number;
   /** Normalized top-down direction shared by shadows, vegetation, and debris. */
@@ -113,6 +115,7 @@ export function weatherVisualState(
   const [windDirectionX, windDirectionY] = windVectorForMode(windDirection, authorityTick);
   const directed = (state: Omit<WeatherVisualState, 'windDirectionX' | 'windDirectionY'>): WeatherVisualState => ({
     ...state,
+    cloudCover: state.cloudShadow,
     windDirectionX,
     windDirectionY,
   });

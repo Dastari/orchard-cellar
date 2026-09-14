@@ -1,6 +1,7 @@
 {
   "name": "crop_cf_grapes_mature",
   "category": "crops",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     32
@@ -64,6 +65,6 @@
     "b": "#b86f50",
     "c": "#c96ce0"
   },
-  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Crops.png",
   "sourcePaletteMode": "exact"
 }

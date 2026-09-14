@@ -6,6 +6,73 @@ export const CELLAR_WALL_TOOL_WEAR = 2;
 export const CELLAR_WALL_STONE_MIN = 10;
 export const CELLAR_WALL_STONE_MAX = 18;
 
+/** The cellar is a grid of aligned 2x2 macro-cells. Every excavation is a
+ * whole macro-cell, so solid rock and open floor are both unions of aligned
+ * 2x2 blocks: no one-cell wall, one-cell step or one-cell notch can exist,
+ * which is the minimum the rounded 2x2 cave corner bank can express. A
+ * persisted excavation row is interpreted as the macro-cell containing its
+ * anchor; legacy misaligned rows are repaired in place by that reading rather
+ * than by rewriting or deleting a player's cave. */
+export const CELLAR_EXCAVATION_SIZE_TILES = 2;
+
+/** The outer rock ring stays at least one full macro-cell thick. */
+const CELLAR_EXCAVATION_MARGIN_TILES = CELLAR_EXCAVATION_SIZE_TILES;
+
+export interface CellarExcavationTile {
+  readonly tileX: number;
+  readonly tileY: number;
+}
+
+/** North-west corner of the macro-cell containing a tile. */
+export function cellarExcavationAnchor(tileX: number, tileY: number): CellarExcavationTile {
+  return {
+    tileX: Math.floor(tileX / CELLAR_EXCAVATION_SIZE_TILES) * CELLAR_EXCAVATION_SIZE_TILES,
+    tileY: Math.floor(tileY / CELLAR_EXCAVATION_SIZE_TILES) * CELLAR_EXCAVATION_SIZE_TILES,
+  };
+}
+
+export function cellarExcavationFootprint(
+  tileX: number,
+  tileY: number,
+  width: number,
+  height: number,
+): readonly CellarExcavationTile[] {
+  if (!Number.isInteger(tileX) || !Number.isInteger(tileY)) return [];
+  const anchor = cellarExcavationAnchor(tileX, tileY);
+  const last = CELLAR_EXCAVATION_SIZE_TILES - 1;
+  if (anchor.tileX < CELLAR_EXCAVATION_MARGIN_TILES
+    || anchor.tileY < CELLAR_EXCAVATION_MARGIN_TILES
+    || anchor.tileX + last >= width - CELLAR_EXCAVATION_MARGIN_TILES
+    || anchor.tileY + last >= height - CELLAR_EXCAVATION_MARGIN_TILES) return [];
+  return Array.from(
+    { length: CELLAR_EXCAVATION_SIZE_TILES * CELLAR_EXCAVATION_SIZE_TILES },
+    (_, index) => ({
+      tileX: anchor.tileX + index % CELLAR_EXCAVATION_SIZE_TILES,
+      tileY: anchor.tileY + Math.floor(index / CELLAR_EXCAVATION_SIZE_TILES),
+    }),
+  );
+}
+
+/** Persisted anchors whose macro-cell owns a queried floor cell: every anchor
+ * inside that macro-cell, including legacy misaligned ones. */
+export function cellarExcavationAnchorsAffectingTile(
+  tileX: number,
+  tileY: number,
+  width: number,
+  height: number,
+): readonly CellarExcavationTile[] {
+  const anchors: CellarExcavationTile[] = [];
+  const cell = cellarExcavationAnchor(tileX, tileY);
+  for (let anchorY = cell.tileY; anchorY < cell.tileY + CELLAR_EXCAVATION_SIZE_TILES; anchorY += 1) {
+    for (let anchorX = cell.tileX; anchorX < cell.tileX + CELLAR_EXCAVATION_SIZE_TILES; anchorX += 1) {
+      if (cellarExcavationFootprint(anchorX, anchorY, width, height).some(
+        (candidate) => candidate.tileX === tileX && candidate.tileY === tileY,
+      )) anchors.push({ tileX: anchorX, tileY: anchorY });
+    }
+  }
+  return anchors;
+}
+
 const VEIN_CELL_SIZE = 12;
 const VEIN_CHANCE_DENOMINATOR = 4;
 

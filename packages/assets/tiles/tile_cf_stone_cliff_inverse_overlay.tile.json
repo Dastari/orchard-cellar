@@ -1,6 +1,7 @@
 {
   "name": "tile_cf_stone_cliff_inverse_overlay",
   "category": "tiles",
+  "bakedShadowColor": "#00000028",
   "size": [16, 16],
   "anchor": [8, 15],
   "frames": {
@@ -94,7 +95,7 @@
   },
   "approved": true,
   "importedFrom": "Stone_Cliff_1_Tile.png",
-  "sourcePath": "references/Cute_Fantasy/Tiles/Cliff/Stone_Cliff_1_Tile.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/Cliff/Stone_Cliff_1_Tile.png",
   "tags": [
     "terrain.cliff",
     "terrain.cliff.foreground",

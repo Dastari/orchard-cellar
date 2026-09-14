@@ -1,0 +1,40 @@
+{
+  "minimum_raised": { "elevation": 1, "layers": [
+    { "role": "contour.edge.bottom_right", "contourLevel": 1, "frameIndex": 31, "blocksMovement": false, "blocksLight": false }
+  ] },
+  "donut_outer": { "elevation": 1, "layers": [
+    { "role": "contour.edge.left", "contourLevel": 1, "frameIndex": 15, "blocksMovement": false, "blocksLight": false },
+    { "role": "contour.face.foot.left", "contourLevel": 1, "frameIndex": 71, "blocksMovement": false, "blocksLight": false }
+  ] },
+  "donut_hole": { "elevation": 0, "layers": [
+    { "role": "contour.face.foot.middle", "contourLevel": 1, "frameIndex": 72, "blocksMovement": false, "blocksLight": false }
+  ] },
+  "peninsula_tip": { "elevation": 1, "layers": [
+    { "role": "contour.edge.top_right", "contourLevel": 1, "frameIndex": 3, "blocksMovement": false, "blocksLight": false }
+  ] },
+  "corner_nw": { "elevation": 1, "layers": [
+    { "role": "contour.inset.inner_top_left", "contourLevel": 1, "frameIndex": 3, "blocksMovement": false, "blocksLight": false }
+  ] },
+  "corner_ne": { "elevation": 1, "layers": [
+    { "role": "contour.inset.inner_top_right", "contourLevel": 1, "frameIndex": 2, "blocksMovement": false, "blocksLight": false }
+  ] },
+  "corner_sw": { "elevation": 1, "layers": [
+    { "role": "contour.inset.inner_bottom_left", "contourLevel": 1, "frameIndex": 1, "blocksMovement": false, "blocksLight": false }
+  ] },
+  "corner_se": { "elevation": 1, "layers": [
+    { "role": "contour.inset.inner_bottom_right", "contourLevel": 1, "frameIndex": 0, "blocksMovement": false, "blocksLight": false }
+  ] },
+  "pit_in_plateau": { "elevation": 0, "layers": [
+    { "role": "contour.face.lower_wall.middle", "contourLevel": 1, "frameIndex": 58, "blocksMovement": true, "blocksLight": true },
+    { "role": "contour.face.wall.middle", "contourLevel": 2, "frameIndex": 44, "blocksMovement": true, "blocksLight": true }
+  ] },
+  "peak_in_pit": { "elevation": 1, "layers": [
+    { "role": "contour.edge.top_left", "contourLevel": 0, "frameIndex": 1, "blocksMovement": false, "blocksLight": false },
+    { "role": "contour.edge.top_left", "contourLevel": 1, "frameIndex": 1, "blocksMovement": false, "blocksLight": false }
+  ] },
+  "four_to_one": { "elevation": 4, "layers": [
+    { "role": "contour.edge.right", "contourLevel": 2, "frameIndex": 17, "blocksMovement": false, "blocksLight": false },
+    { "role": "contour.edge.right", "contourLevel": 3, "frameIndex": 17, "blocksMovement": false, "blocksLight": false },
+    { "role": "contour.edge.right", "contourLevel": 4, "frameIndex": 17, "blocksMovement": false, "blocksLight": false }
+  ] }
+}

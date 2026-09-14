@@ -1,0 +1,62 @@
+{
+  "name": "icon_skill_cave_whisperer",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        ".......000......",
+        "......01110.....",
+        ".....0112220....",
+        "....01000121....",
+        "....010102112...",
+        "....011002102...",
+        ".....001112112..",
+        "......11011211..",
+        ".....011011212..",
+        "....0101112202..",
+        "...01112222202..",
+        "..11222222222...",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#2ce8f5",
+    "1": "#0099db",
+    "2": "#124e89"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-without-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/places-seasons/sheet-16-without-outline.png",
+  "sourceRegion": [
+    48,
+    16,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.cave_whisperer",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

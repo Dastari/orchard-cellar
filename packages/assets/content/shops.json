@@ -1,0 +1,145 @@
+[
+  {
+    "id": "shop:farmer_supplies",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:hoe"
+      },
+      {
+        "item": "item:shovel"
+      },
+      {
+        "item": "item:watering_can"
+      },
+      {
+        "item": "item:wheat_seeds"
+      },
+      {
+        "item": "item:tomato_seeds"
+      },
+      {
+        "item": "item:carrot_seeds"
+      },
+      {
+        "item": "item:turnip_seeds"
+      },
+      {
+        "item": "item:corn_seeds"
+      },
+      {
+        "item": "item:pumpkin_seeds"
+      },
+      {
+        "item": "item:parsley_seeds"
+      },
+      {
+        "item": "item:cabbage_seeds"
+      },
+      {
+        "item": "item:cucumber_seeds"
+      },
+      {
+        "item": "item:hot_pepper_seeds"
+      },
+      {
+        "item": "item:red_pepper_seeds"
+      },
+      {
+        "item": "item:yellow_pepper_seeds"
+      },
+      {
+        "item": "item:green_pepper_seeds"
+      },
+      {
+        "item": "item:watermelon_seeds"
+      },
+      {
+        "item": "item:sunflower_seeds"
+      },
+      {
+        "item": "item:garlic_seeds"
+      },
+      {
+        "item": "item:potato_seeds"
+      },
+      {
+        "item": "item:strawberry_seeds"
+      },
+      {
+        "item": "item:beetroot_seeds"
+      },
+      {
+        "item": "item:onion_seeds"
+      },
+      {
+        "item": "item:leek_seeds"
+      },
+      {
+        "item": "item:grape_seeds"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  },
+  {
+    "id": "shop:general_tools",
+    "kind": "shop",
+    "schemaVersion": 1,
+    "offers": [
+      {
+        "item": "item:homestead_deed"
+      },
+      {
+        "item": "item:axe"
+      },
+      {
+        "item": "item:pickaxe"
+      },
+      {
+        "item": "item:hoe"
+      },
+      {
+        "item": "item:watering_can"
+      },
+      {
+        "item": "item:fishing_rod"
+      },
+      {
+        "item": "item:bow"
+      },
+      {
+        "item": "item:sword"
+      },
+      {
+        "item": "item:arrow"
+      },
+      {
+        "item": "item:shovel"
+      },
+      {
+        "item": "item:hammer"
+      },
+      {
+        "item": "item:torch"
+      },
+      {
+        "item": "item:lantern"
+      },
+      {
+        "item": "item:workbench"
+      },
+      {
+        "item": "item:anvil"
+      },
+      {
+        "item": "item:sprinkler"
+      }
+    ],
+    "currency": {
+      "kind": "bronze"
+    }
+  }
+]

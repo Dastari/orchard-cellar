@@ -1,6 +1,7 @@
 {
   "name": "crop_cf_corn_mature",
   "category": "crops",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -42,6 +43,6 @@
     "5": "#feae34",
     "6": "#fee761"
   },
-  "sourcePath": "references/Cute_Fantasy/Crops/Crops.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Crops.png",
   "sourcePaletteMode": "exact"
 }

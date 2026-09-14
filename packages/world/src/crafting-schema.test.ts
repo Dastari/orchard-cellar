@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { PLACEABLE_KINDS, placeableDefinition } from '@orchard/sim';
+import { bootstrapContentRegistry, placeableKinds, runtimePlaceableDefinition } from '@orchard/sim';
 
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+const processorsSource = readFileSync(new URL('./behaviour/processors.ts', import.meta.url), 'utf8');
 
 function reducerSource(name: string): string {
   const start = source.indexOf(`export const ${name} =`);
@@ -11,11 +12,24 @@ function reducerSource(name: string): string {
   return source.slice(start, end < 0 ? source.length : end);
 }
 
+function reducerAuthoritySource(name: string): string {
+  if (name === 'harvestChest') {
+    return source.slice(
+      source.indexOf('function harvestChestTransaction('),
+      source.indexOf('/** Axe strikes dismantle'),
+    );
+  }
+  if (name === 'harvestCampfire') {
+    return source.slice(
+      source.indexOf('function applyHarvestCampfireLifecycle('),
+      source.indexOf('\nexport const moveChestItem'),
+    );
+  }
+  return reducerSource(name);
+}
+
 function handsAuthoritySource(): string {
-  return source.slice(
-    source.indexOf('function insertWorldPlaceable('),
-    source.indexOf('/** F dispatches placement'),
-  ) + reducerSource('useHands');
+  return source.slice(source.indexOf('function worldBehaviourEffectWriter('), source.indexOf('function applyWorldBehaviourEffects('));
 }
 
 describe('28§14 phase 3 authority contracts', () => {
@@ -36,29 +50,35 @@ describe('28§14 phase 3 authority contracts', () => {
   it('keeps auth ahead of all reads and writes in every changed reducer', () => {
     for (const reducerName of [
       'craftInventoryRecipe',
-      'useHands',
-      'interactPlaceable',
       'closePlaceable',
       'movePlaceableItem',
-      'useFarmTool',
     ]) {
-      const reducer = reducerSource(reducerName);
-      const auth = reducer.indexOf('requireAuthorizedSender(');
+      const reducer = reducerAuthoritySource(reducerName);
+      const auth = Math.max(
+        reducer.indexOf('requireAuthorizedSender('),
+        reducer.indexOf('dependencies.authorize(ctx)'),
+      );
       expect(auth, reducerName).toBeGreaterThanOrEqual(0);
       for (const operation of ['.find(', '.insert(', '.update(', '.delete(']) {
         const first = reducer.indexOf(operation);
         if (first >= 0) expect(first, `${reducerName}:${operation}`).toBeGreaterThan(auth);
       }
     }
+    const interact = readFileSync(new URL('./behaviour/interact-entity.ts', import.meta.url), 'utf8');
+    const selected = readFileSync(new URL('./behaviour/use-selected.ts', import.meta.url), 'utf8');
+    expect(interact.indexOf('authority.authorize(ctx)')).toBeLessThan(interact.indexOf('authority.resolveTarget(ctx'));
+    expect(selected.indexOf('authority.authorize(ctx)')).toBeLessThan(selected.indexOf('authority.selectedItem(ctx)'));
   });
 
   it('round-trips every phase-3 kind and rejects non-empty or cross-space pickup', () => {
     const hands = handsAuthoritySource();
-    for (const kind of PLACEABLE_KINDS) expect(placeableDefinition(kind), kind).not.toBeNull();
-    expect(hands).toContain("selectedDefinition?.tags.includes('item.placeable')");
-    expect(hands).toContain('insertWorldPlaceable(ctx, position, selected.itemKind, tileX, tileY)');
-    expect(hands).toContain('world_placeable.id.delete');
-    expect(hands).toContain("throw new SenderError('placeable_not_empty')");
+    const registry = bootstrapContentRegistry();
+    for (const kind of placeableKinds(registry)) expect(runtimePlaceableDefinition(registry, kind), kind).not.toBeNull();
+    expect(hands).toContain('placementObjectForSelectedItem(');
+    expect(hands).toContain('insertWorldPlaceable(ctx, position, spawn.definitionId, tileX, tileY)');
+    expect(hands).not.toContain("selected.itemKind !== itemKind");
+    expect(hands).toContain('ctx.db.world_placeable.id.update({');
+    expect(hands).toContain('carriedBy: ctx.sender');
     expect(source).toContain('world_placeable.by_chunk.filter(position.spaceId)');
     expect(source).toContain("throw new SenderError('placement_blocked')");
   });
@@ -68,37 +88,47 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(craft.indexOf("throw new SenderError('station_required')"))
       .toBeLessThan(craft.indexOf('inventory_slot.id.update'));
     const hands = handsAuthoritySource();
-    expect(hands.indexOf('world_placeable.insert')).toBeLessThan(hands.lastIndexOf("'placeables_placed'"));
-    expect(hands.lastIndexOf("'placeables_placed'")).toBeLessThan(hands.lastIndexOf('return;'));
+    expect(hands.indexOf('insertWorldPlaceable(ctx')).toBeLessThan(hands.lastIndexOf("'placeables_placed'"));
+  });
+
+  it('derives manual crafts from the authoritative grid without recipe knowledge', () => {
+    const craft = reducerSource('craftInventoryRecipe');
+    expect(craft).toContain('const recipeId = runtimeMatchingRecipeId(registry, original.crafting)');
+    expect(craft).not.toContain('known_recipe');
+    expect(craft).not.toContain('knownRecipe');
+    expect(craft.indexOf('runtimeMatchingRecipeId(registry, original.crafting)'))
+      .toBeLessThan(craft.indexOf('runtimeRecipeDefinition(registry, recipeId)'));
   });
 
   it('maintains collision, gate state, fiber acquisition, and regional subscriptions', () => {
-    expect(source).toContain('const collision = collisionForSpace(ctx, spaceId)');
-    expect(reducerSource('interactPlaceable')).toContain('open: !placeable.open');
-    expect(reducerSource('useFarmTool')).toContain('fiberDropsFromTilling(');
-    expect(reducerSource('useFarmTool')).toContain("itemKind: 'fiber'");
+    expect(source).toContain('const collisionBySpace = new Map<number, ReturnType<typeof createAuthoritySpaceCollisionMap>>()');
+    expect(source).toContain('const collision = collisionForSpace(ctx, spaceId, undefined, {');
+    expect(source).toContain('collisionBySpace.set(spaceId, collision)');
+    expect(source).toContain('planPlaceableStateEffect(contentRegistry(ctx), row, { toggleState: state })');
+    const farmTool = source.slice(
+      source.indexOf('function applyFarmToolUse('),
+      source.indexOf('function applyFarmTileRestore('),
+    );
+    expect(farmTool).toContain('fiberDropsFromTilling(');
+    expect(farmTool).toContain("itemKind: 'fiber'");
   });
 
   it('keeps tagged processor interfaces, close, and item moves authority-owned', () => {
-    const interact = reducerSource('interactPlaceable');
-    expect(interact).toContain('placeableInterface(placeable.kind)');
-    expect(interact).toContain("interfaceKind === 'barrel'");
-    expect(interact).toContain("interfaceKind === 'furnace'");
-    expect(interact).toContain("interfaceKind === 'cooking'");
-    expect(interact).toContain("interfaceKind === 'press'");
-    expect(interact).toContain("interfaceKind === 'fermentation'");
-    expect(source).toContain('settleFurnacePlaceable(ctx, placeable)');
-    expect(source).toContain('furnaceMutationIsValid(');
-    expect(source).toContain('cellarProcessorMutationIsValid(');
-    expect(source).toContain('settleCellarProductionPlaceable(ctx, placeable)');
-    expect(source).toContain('placeableSlotCapacity(placeable.kind)');
+    expect(source).toContain('placeableFrameDefinition(contentRegistry(ctx), placeable)');
+    expect(source).toContain('settleProcessorPlaceable(ctx, placeable)');
+    expect(source).not.toContain('furnaceMutationIsValid(');
+    expect(source).not.toContain('cookingFireMutationIsValid(');
+    expect(source).not.toContain('cellarProcessorMutationIsValid(');
+    expect(source).toContain('placeableFrameRestrictions(contentRegistry(ctx), placeable)');
+    expect(processorsSource).toContain('settleProcess(definitions, adapter');
+    expect(source).toContain('genericPlaceableCapacity(ctx, placeable)');
     expect(source).toContain('ctx.db.world_placeable_slot.insert({');
-    expect(interact).toContain('active_placeable.insert');
+    expect(source).toContain('ctx.db.active_placeable.insert({ identity: ctx.sender, placeableId: placeable.id })');
     expect(reducerSource('closePlaceable')).toContain('clearActivePlaceable(ctx, ctx.sender)');
     expect(source).toContain('ctx.db.active_placeable.identity.delete(identity)');
     const move = reducerSource('movePlaceableItem');
     expect(move).toContain('moveOpenMenuItem(ctx, request)');
-    expect(source).toContain('const result = moveItemStacks(menu.containers, request)');
+    expect(source).toContain('const result = moveItemStacks(menu.containers, request, activeItemContainerContent(ctx))');
     expect(source).toContain('writeOpenMenuInventory(ctx, menu, result.containers)');
   });
 
@@ -107,47 +137,65 @@ describe('28§14 phase 3 authority contracts', () => {
     expect(placeable).toContain('processStartTick: t.option(t.u64()).default(undefined)');
     expect(placeable).toContain('processStartedBy: t.option(t.identity()).default(undefined)');
     expect(placeable).toContain('processInputKind: t.option(t.string()).default(undefined)');
-    expect(source).toContain("placeableHasInterface(placeable.kind, 'press')");
-    expect(source).toContain("placeableHasInterface(placeable.kind, 'fermentation')");
-    expect(source).toContain("'fruit_pressed'");
-    expect(source).toContain("'bottles_produced'");
+    expect(processorsSource).toContain('const processTag = object.components.processor?.processTag');
+    expect(processorsSource).toContain("if (adapter === 'press') return 'press'");
+    expect(processorsSource).toContain("return adapter === 'fermentation' ? 'fermentation' : null");
+    expect(processorsSource).toContain("'fruit_pressed'");
+    expect(processorsSource).toContain("'bottles_produced'");
     expect(source).not.toContain('scheduled_cellar_processor');
   });
 
   it('salvages chest recipe inputs rather than duplicating the intact crafted object', () => {
-    const harvest = reducerSource('harvestChest');
-    expect(harvest).toContain("recipeDefinition('chest')");
+    const harvest = reducerAuthoritySource('harvestChest');
+    expect(harvest).toContain("runtimeRecipeDefinition(contentRegistry(ctx), 'chest')");
     expect(harvest).toContain('recipeIngredientStacks(chestRecipe)');
     expect(harvest).not.toContain("stacks.unshift({ itemKind: 'chest'");
   });
 
+  it('dismantles movable campfires with an authored woodcutting tool and returns recipe inputs', () => {
+    const harvest = reducerAuthoritySource('harvestCampfire');
+    expect(harvest).toContain("runtimePlaceableDefinition(contentRegistry(ctx), fire)?.station !== 'campfire'");
+    expect(harvest).toContain('isAuthoredLandmarkPlaceable(ctx, fire.id)');
+    expect(harvest).toContain("runtimeToolSpecialization(contentRegistry(ctx), selected.itemKind) !== 'woodcutting'");
+    expect(harvest).toContain('campfireWithinReach(position.x, position.y, fire)');
+    expect(harvest).toContain('recipeIngredientStacks(salvageRecipe)');
+    expect(harvest).toContain('world_placeable_damage');
+    expect(harvest).toContain('if (hits < 3)');
+    expect(harvest).toContain('dropWorldItemStack(ctx');
+  });
+
+  it('uses one shared radial range for placed and landmark campfires', () => {
+    const reach = source.slice(
+      source.indexOf('function assertBehaviourTargetReach('),
+      source.indexOf('function behaviourRegistrySnapshot('),
+    );
+    expect(reach).toContain("target.snapshot.tags.includes('station.campfire')");
+    expect(reach).toContain('CAMPFIRE_INTERACTION_REACH_FIXED');
+    const harvest = reducerAuthoritySource('harvestCampfire');
+    expect(harvest).toContain('campfireWithinReach(position.x, position.y, fire)');
+  });
+
   it('opens the nearest chest radially instead of requiring one faced tile', () => {
-    const interact = reducerSource('interactChest');
-    expect(interact).toContain('nearestTileTarget(');
-    expect(interact).toContain('CHEST_INTERACTION_REACH_FIXED');
-    expect(interact).not.toContain('facingTile(');
+    const reach = source.slice(
+      source.indexOf('function assertBehaviourTargetReach('),
+      source.indexOf('function behaviourRegistrySnapshot('),
+    );
+    expect(reach).toContain("target.kind === 'chest'");
+    expect(reach).toContain('CHEST_INTERACTION_REACH_FIXED');
+    expect(reach).toContain('tileTargetWithinFixedReach(');
   });
 
   it('keeps placed anvils and tagged furnaces out of inventory and repairs anvils atomically for copper', () => {
     const hands = handsAuthoritySource();
-    expect(hands).toContain("targetPlaceable.kind === 'anvil' || placeableHasInterface(targetPlaceable.kind, 'furnace')");
-    expect(hands).toContain("!placeableHasInterface(targetPlaceable.kind, 'furnace')");
+    expect(hands).toContain("target?.kind !== 'placeable'");
     expect(hands).toContain('carriedPlaceableFor(ctx, ctx.sender)');
     expect(hands).toContain('carriedBy: ctx.sender');
-    expect(hands).toContain('carriedBy: undefined');
+    expect(source).toContain('const placed = {\n    ...carriedPlaceable,');
+    expect(source).toContain('carriedBy: undefined');
     expect(source).toContain('world_placeable.by_carrier.filter(row.identity)');
-    const interact = reducerSource('interactPlaceable');
-    expect(interact).toContain("placeable.kind === 'anvil'");
-    expect(interact).toContain('repairSelectedToolAtAnvil(ctx)');
-    const repair = source.slice(
-      source.indexOf('function repairSelectedToolAtAnvil'),
-      source.indexOf('export const consumeOrchardTea'),
-    );
-    expect(repair).toContain('ctx.db.player_wallet.identity.find(ctx.sender)');
-    expect(repair).toContain('ANVIL_REPAIR_COST_BRONZE');
-    expect(repair).toContain('wallet.balanceBronze - repairCost');
-    expect(repair).toContain("throw new SenderError('anvil_copper_missing')");
-    expect(repair).toContain("recordPlayerStatistic(ctx, ctx.sender, 'bronze_spent', repairCost, authorityTick)");
-    expect(repair).not.toContain("'anvil_repair'");
+    expect(hands).toContain('plannedRepairMaterial !== plannedRepairExpectedMaterial');
+    expect(hands).toContain('plannedRepairCharge !== plannedRepairExpectedCharge');
+    expect(hands).toContain('durability: definition.maximum');
+    expect(hands).toContain("ctx, ctx.sender, 'tools_repaired', 1n, authorityTick, selected.itemKind");
   });
 });

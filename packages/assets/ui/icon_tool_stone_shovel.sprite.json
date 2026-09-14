@@ -1,0 +1,70 @@
+{
+  "name": "icon_tool_stone_shovel",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..........000...",
+        ".........02210..",
+        ".........02.10..",
+        ".........02110..",
+        ".........0210...",
+        "........0210....",
+        ".......0210.....",
+        "....AAA210......",
+        "...ADCCA0.......",
+        "..ADCCCBA.......",
+        ".ADCCCBA........",
+        ".ACCCBA.........",
+        ".ABBBA..........",
+        "..AAA...........",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#4b2d23",
+    "1": "#9c6034",
+    "2": "#d39a52",
+    "A": "#34383e",
+    "B": "#626b70",
+    "C": "#929b9b",
+    "D": "#c2c8bd"
+  },
+  "tags": [
+    "ui.icon",
+    "item.tool",
+    "source.orchard_original",
+    "tool.material.stone"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  },
+  "approved": true,
+  "importedFrom": "icon_tool_stone_shovel.png",
+  "sourcePath": "art/custom/tool-progression/icon_tool_stone_shovel.png",
+  "sourcePaletteMode": "exact",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        0,
+        16,
+        16
+      ]
+    ]
+  }
+}

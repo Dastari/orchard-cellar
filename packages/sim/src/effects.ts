@@ -1,6 +1,7 @@
+import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
 import type { Modifier } from './modifiers.js';
 
-export const EFFECT_KINDS = ['well_rested', 'winded', 'orchard_tea'] as const;
+export const EFFECT_KINDS = ['well_rested', 'winded', 'orchard_tea', 'fruitful_energy'] as const;
 export type EffectKind = typeof EFFECT_KINDS[number];
 
 export interface EffectDefinition {
@@ -12,35 +13,14 @@ export interface EffectDefinition {
   readonly scaleModifiersWithStacks?: boolean;
 }
 
-export const EFFECT_DEFINITIONS = {
-  well_rested: {
-    name: 'Well Rested',
-    maxStacks: 1,
-    durationTicks: 144_000,
-    modifiers: [{
-      id: 'effect.well_rested.vigour_regen', target: 'vigourRegen',
-      layer: 'pctAdd', value: 2_500, source: 'effect',
-    }],
-  },
-  winded: {
-    name: 'Winded',
-    maxStacks: 1,
-    durationTicks: 1_800,
-    modifiers: [{
-      id: 'effect.winded.vigour_regen', target: 'vigourRegen',
-      layer: 'pctAdd', value: -5_000, source: 'effect',
-    }],
-  },
-  orchard_tea: {
-    name: 'Orchard Tea',
-    maxStacks: 1,
-    durationTicks: 6_000,
-    modifiers: [{
-      id: 'effect.orchard_tea.constitution', target: 'con',
-      layer: 'flat', value: 2, source: 'effect',
-    }],
-  },
-} as const satisfies Readonly<Record<EffectKind, EffectDefinition>>;
+const BOOTSTRAP_EFFECTS = BOOTSTRAP_COMPILED_CONTENT.effects;
+export const EFFECT_DEFINITIONS: Readonly<Record<EffectKind, EffectDefinition>> = Object.freeze(
+  Object.fromEntries(EFFECT_KINDS.map((kind) => {
+    const definition = BOOTSTRAP_EFFECTS[kind];
+    if (definition === undefined) throw new Error(`bootstrap_effect_missing:${kind}`);
+    return [kind, definition] as const;
+  })) as Record<EffectKind, EffectDefinition>,
+);
 
 export interface PlayerEffectState {
   readonly id: bigint;

@@ -1,0 +1,132 @@
+[
+  {
+    "id": "npc:boat",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "0",
+    "actorAsset": "boat",
+    "displayName": "Wooden Boat",
+    "home": {
+      "spaceId": 0,
+      "tileX": 0,
+      "tileY": 0
+    },
+    "facing": "right",
+    "ai": {
+      "kind": "stationary"
+    },
+    "spawnPolicy": "dynamic",
+    "mount": {
+      "adapter": "boat"
+    },
+    "questGiver": [],
+    "health": 3,
+    "runtimeKind": "boat"
+  },
+  {
+    "id": "npc:farmer_bob",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "3",
+    "actorAsset": "npc_cf_farmer_bob",
+    "displayName": "Farmer Bob",
+    "home": {
+      "spaceId": 0,
+      "tileX": 382,
+      "tileY": 378
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:farmer_bob",
+    "shop": "shop:farmer_supplies",
+    "questGiver": [
+      "quest:farmer_bob_fast_strawberries",
+      "quest:marlow_first_bottle"
+    ],
+    "health": 100,
+    "runtimeKind": "farmer_bob",
+    "initialDecisionDelayTicks": 45,
+    "protectedPack": {
+      "packId": "9000",
+      "response": "Hey! Leave them alone!!",
+      "durationTicks": 120
+    }
+  },
+  {
+    "id": "npc:fisherman_fin",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "7",
+    "actorAsset": "npc_cf_fisherman_fin",
+    "displayName": "Fisherman Fin",
+    "home": {
+      "spaceId": 0,
+      "tileX": 409,
+      "tileY": 317
+    },
+    "facing": "right",
+    "ai": {
+      "kind": "fishing_cycle"
+    },
+    "dialogue": "dialogue:fisherman_fin",
+    "questGiver": [
+      "quest:fisherman_first_catch"
+    ],
+    "health": 100,
+    "runtimeKind": "fisherman_fin",
+    "initialDecisionDelayTicks": 45
+  },
+  {
+    "id": "npc:horse",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "1",
+    "actorAsset": "horse",
+    "displayName": "Horse",
+    "home": {
+      "spaceId": 0,
+      "tileX": 0,
+      "tileY": 0
+    },
+    "facing": "right",
+    "ai": {
+      "kind": "stationary"
+    },
+    "spawnPolicy": "dynamic",
+    "mount": {
+      "adapter": "horse",
+      "requiredSkill": "stable_hand",
+      "jumpSkill": "steeplechase"
+    },
+    "questGiver": [],
+    "health": 140,
+    "runtimeKind": "horse"
+  },
+  {
+    "id": "npc:marlow",
+    "kind": "npc",
+    "schemaVersion": 1,
+    "runtimeId": "2",
+    "actorAsset": "npc_cf_bartender_bruno",
+    "displayName": "Marlow",
+    "home": {
+      "spaceId": 0,
+      "tileX": 338,
+      "tileY": 359
+    },
+    "facing": "down",
+    "ai": {
+      "kind": "stationary"
+    },
+    "dialogue": "dialogue:tool_merchant",
+    "shop": "shop:general_tools",
+    "questGiver": [
+      "quest:marlow_important_book"
+    ],
+    "health": 100,
+    "runtimeKind": "merchant",
+    "initialDecisionDelayTicks": 30
+  }
+]

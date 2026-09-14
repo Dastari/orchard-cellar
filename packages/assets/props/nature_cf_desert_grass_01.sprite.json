@@ -1,6 +1,7 @@
 {
   "name": "nature_cf_desert_grass_01",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -35,7 +36,7 @@
     "0": "#a09d46",
     "1": "#00000064"
   },
-  "sourcePath": "references/Cute_Fantasy_Desert/Props/Desert_Grass_Props.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Props/Desert_Grass_Props.png",
   "sourcePaletteMode": "exact",
   "sourceRegion": [0, 0, 16, 16],
   "approved": true,

@@ -1,3 +1,4 @@
+import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
 import { movementPositionAllowed } from './movement.js';
 import {
   generateSurvivalDecorations,
@@ -39,6 +40,15 @@ export const WILDLIFE_SPECIES = [
 ] as const;
 export type WildlifeSpecies = typeof WILDLIFE_SPECIES[number];
 
+/** Species that are ordinarily fed hay when kept as farm livestock. This is
+ * deliberately narrower than `canGraze`: pigs, poultry, mice, and snails may
+ * forage, but should not perform the authored hay-bale routine. */
+export const HAY_EATING_WILDLIFE_SPECIES = ['horse', 'cow', 'sheep', 'camel'] as const satisfies readonly WildlifeSpecies[];
+
+export function wildlifeEatsHay(species: WildlifeSpecies): boolean {
+  return (HAY_EATING_WILDLIFE_SPECIES as readonly WildlifeSpecies[]).includes(species);
+}
+
 export const WILDLIFE_HABITATS = [
   'pasture', 'farmyard', 'freshwater', 'lakeshore', 'wetland',
   'woodland', 'meadow_air', 'hive_air', 'desert',
@@ -58,28 +68,14 @@ export interface WildlifeSpeciesDefinition {
   readonly ignoresObstacles: boolean;
 }
 
-const HALF_PIXEL = Math.max(1, Math.floor(FIXED_UNITS_PER_PIXEL / 2));
-
-export const WILDLIFE_DEFINITIONS: Readonly<Record<WildlifeSpecies, WildlifeSpeciesDefinition>> = {
-  horse: { habitat: 'pasture', variants: 5, speedFixed: HALF_PIXEL, wanderRadiusTiles: 5, locomotion: 'walk', sleepsAtNight: true, canGraze: true, ignoresObstacles: false },
-  cow: { habitat: 'pasture', variants: 9, speedFixed: HALF_PIXEL, wanderRadiusTiles: 4, locomotion: 'walk', sleepsAtNight: true, canGraze: true, ignoresObstacles: false },
-  sheep: { habitat: 'pasture', variants: 9, speedFixed: HALF_PIXEL, wanderRadiusTiles: 4, locomotion: 'walk', sleepsAtNight: true, canGraze: true, ignoresObstacles: false },
-  pig: { habitat: 'pasture', variants: 16, speedFixed: HALF_PIXEL, wanderRadiusTiles: 4, locomotion: 'walk', sleepsAtNight: true, canGraze: true, ignoresObstacles: false },
-  chicken: { habitat: 'farmyard', variants: 18, speedFixed: HALF_PIXEL, wanderRadiusTiles: 4, locomotion: 'walk', sleepsAtNight: true, canGraze: true, ignoresObstacles: false },
-  rooster: { habitat: 'farmyard', variants: 1, speedFixed: HALF_PIXEL, wanderRadiusTiles: 4, locomotion: 'walk', sleepsAtNight: true, canGraze: true, ignoresObstacles: false },
-  duck: { habitat: 'freshwater', variants: 5, speedFixed: HALF_PIXEL, wanderRadiusTiles: 5, locomotion: 'swim', sleepsAtNight: true, canGraze: false, ignoresObstacles: false },
-  goose: { habitat: 'freshwater', variants: 6, speedFixed: HALF_PIXEL, wanderRadiusTiles: 5, locomotion: 'swim', sleepsAtNight: true, canGraze: false, ignoresObstacles: false },
-  swan: { habitat: 'freshwater', variants: 3, speedFixed: HALF_PIXEL, wanderRadiusTiles: 5, locomotion: 'swim', sleepsAtNight: true, canGraze: false, ignoresObstacles: false },
-  frog: { habitat: 'lakeshore', variants: 6, speedFixed: FIXED_UNITS_PER_PIXEL, wanderRadiusTiles: 3, locomotion: 'hop', sleepsAtNight: false, canGraze: false, ignoresObstacles: false },
-  mouse: { habitat: 'woodland', variants: 4, speedFixed: FIXED_UNITS_PER_PIXEL, wanderRadiusTiles: 3, locomotion: 'walk', sleepsAtNight: false, canGraze: true, ignoresObstacles: false },
-  butterfly: { habitat: 'meadow_air', variants: 8, speedFixed: HALF_PIXEL, wanderRadiusTiles: 5, locomotion: 'flutter', sleepsAtNight: false, canGraze: false, ignoresObstacles: true },
-  bee: { habitat: 'hive_air', variants: 1, speedFixed: HALF_PIXEL, wanderRadiusTiles: 5, locomotion: 'flutter', sleepsAtNight: true, canGraze: false, ignoresObstacles: true },
-  capybara: { habitat: 'freshwater', variants: 2, speedFixed: HALF_PIXEL, wanderRadiusTiles: 4, locomotion: 'swim', sleepsAtNight: true, canGraze: true, ignoresObstacles: false },
-  camel: { habitat: 'desert', variants: 3, speedFixed: HALF_PIXEL, wanderRadiusTiles: 5, locomotion: 'walk', sleepsAtNight: true, canGraze: true, ignoresObstacles: false },
-  scarab: { habitat: 'desert', variants: 4, speedFixed: HALF_PIXEL, wanderRadiusTiles: 3, locomotion: 'walk', sleepsAtNight: false, canGraze: true, ignoresObstacles: false },
-  vulture: { habitat: 'desert', variants: 4, speedFixed: HALF_PIXEL, wanderRadiusTiles: 6, locomotion: 'flutter', sleepsAtNight: true, canGraze: false, ignoresObstacles: true },
-  snail: { habitat: 'woodland', variants: 4, speedFixed: Math.max(1, Math.floor(FIXED_UNITS_PER_PIXEL / 8)), wanderRadiusTiles: 2, locomotion: 'walk', sleepsAtNight: true, canGraze: true, ignoresObstacles: false },
-};
+const BOOTSTRAP_WILDLIFE = BOOTSTRAP_COMPILED_CONTENT;
+export const WILDLIFE_DEFINITIONS: Readonly<Record<WildlifeSpecies, WildlifeSpeciesDefinition>> = Object.freeze(
+  Object.fromEntries(WILDLIFE_SPECIES.map((species) => {
+    const definition = BOOTSTRAP_WILDLIFE.creatures[species];
+    if (definition === undefined) throw new Error(`bootstrap_creature_missing:${species}`);
+    return [species, definition] as const;
+  })) as Record<WildlifeSpecies, WildlifeSpeciesDefinition>,
+);
 
 export interface GeneratedWildlife {
   readonly id: number;
@@ -107,30 +103,22 @@ interface WildlifeLayout {
   readonly hives: readonly GeneratedWildlifeHive[];
 }
 
-interface SpawnPlan {
+export interface WildlifeSpawnPlan {
   readonly species: WildlifeSpecies;
   readonly packCount: number;
   readonly packSize: number;
   readonly minimumPackSpacing: number;
 }
 
-const PACK_PLANS: readonly SpawnPlan[] = [
-  { species: 'cow', packCount: 6, packSize: 3, minimumPackSpacing: 26 },
-  { species: 'sheep', packCount: 6, packSize: 4, minimumPackSpacing: 24 },
-  { species: 'pig', packCount: 8, packSize: 4, minimumPackSpacing: 20 },
-  { species: 'chicken', packCount: 6, packSize: 6, minimumPackSpacing: 22 },
-  { species: 'duck', packCount: 3, packSize: 2, minimumPackSpacing: 18 },
-  { species: 'goose', packCount: 1, packSize: 2, minimumPackSpacing: 24 },
-  { species: 'swan', packCount: 1, packSize: 2, minimumPackSpacing: 24 },
-  { species: 'frog', packCount: 4, packSize: 2, minimumPackSpacing: 22 },
-  { species: 'mouse', packCount: 6, packSize: 3, minimumPackSpacing: 18 },
-  { species: 'butterfly', packCount: 8, packSize: 3, minimumPackSpacing: 18 },
-  { species: 'capybara', packCount: 2, packSize: 1, minimumPackSpacing: 24 },
-  { species: 'camel', packCount: 4, packSize: 3, minimumPackSpacing: 28 },
-  { species: 'scarab', packCount: 4, packSize: 4, minimumPackSpacing: 20 },
-  { species: 'vulture', packCount: 4, packSize: 2, minimumPackSpacing: 28 },
-  { species: 'snail', packCount: 8, packSize: 2, minimumPackSpacing: 14 },
-];
+const BOOTSTRAP_SPAWNS_BY_SPECIES = new Map(
+  BOOTSTRAP_WILDLIFE.spawns.map((plan) => [plan.species, plan] as const),
+);
+export const WILDLIFE_SPAWN_PLANS: readonly WildlifeSpawnPlan[] = Object.freeze(
+  WILDLIFE_SPECIES.flatMap((species) => {
+    const plan = BOOTSTRAP_SPAWNS_BY_SPECIES.get(species);
+    return plan === undefined ? [] : [plan];
+  }),
+);
 
 const layoutCache = new Map<number, WildlifeLayout>();
 
@@ -314,7 +302,7 @@ function buildWildlifeLayout(seed: number): WildlifeLayout {
     });
   }
 
-  for (const plan of PACK_PLANS) {
+  for (const plan of WILDLIFE_SPAWN_PLANS) {
     const definition = WILDLIFE_DEFINITIONS[plan.species];
     const centers = chooseCenters(
       candidates(definition.habitat), plan.packCount, plan.minimumPackSpacing,
@@ -603,6 +591,78 @@ export interface StepAmbientWildlifeOptions {
   readonly authorityTick: number;
   readonly calendarTick: bigint;
   readonly collision: CollisionMap;
+  /** Immutable scenery targets supplied only for authored farm livestock. */
+  readonly hayTargets?: readonly Vec2Fixed[];
+}
+
+export const WILDLIFE_SEEK_HAY_ACTIVITY = 'seek_hay';
+export const WILDLIFE_EAT_HAY_ACTIVITY = 'eat_hay';
+export const WILDLIFE_RETURN_HOME_ACTIVITY = 'return_home';
+const WILDLIFE_HAY_REACH_FIXED = 2 * TILE_SIZE_FIXED;
+const WILDLIFE_HAY_JOURNEY_TICKS = 45 * AUTHORITY_HZ;
+const WILDLIFE_HAY_SNACK_TICKS = 8 * AUTHORITY_HZ;
+
+function closestHayTarget(position: Vec2Fixed, targets: readonly Vec2Fixed[]): Vec2Fixed | null {
+  let closest: Vec2Fixed | null = null;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  for (const target of targets) {
+    const dx = target.x - position.x;
+    const dy = target.y - position.y;
+    const distance = dx * dx + dy * dy;
+    if (distance >= closestDistance) continue;
+    closest = target;
+    closestDistance = distance;
+  }
+  return closest;
+}
+
+function targetWithinReach(position: Vec2Fixed, target: Vec2Fixed, reach: number): boolean {
+  const dx = target.x - position.x;
+  const dy = target.y - position.y;
+  return dx * dx + dy * dy <= reach * reach;
+}
+
+function directionsTowardTarget(
+  state: Pick<AmbientWildlifeState, 'id' | 'position'>,
+  target: Vec2Fixed,
+  authorityTick: number,
+): readonly WildlifeMovementDirection[] {
+  const towardX = target.x - state.position.x;
+  const towardY = target.y - state.position.y;
+  const tieSalt = wildlifeHash(Number(state.id & 0xffff_ffffn), authorityTick, 0x484159);
+  return [...MOVEMENT_DIRECTIONS].sort((left, right) => {
+    const leftVector = DIRECTION_VECTORS[left];
+    const rightVector = DIRECTION_VECTORS[right];
+    const leftLength = leftVector[0] !== 0 && leftVector[1] !== 0 ? Math.SQRT2 : 1;
+    const rightLength = rightVector[0] !== 0 && rightVector[1] !== 0 ? Math.SQRT2 : 1;
+    const leftScore = (leftVector[0] * towardX + leftVector[1] * towardY) / leftLength;
+    const rightScore = (rightVector[0] * towardX + rightVector[1] * towardY) / rightLength;
+    if (rightScore !== leftScore) return rightScore - leftScore;
+    return wildlifeHash(tieSalt, MOVEMENT_DIRECTIONS.indexOf(left), 0)
+      - wildlifeHash(tieSalt, MOVEMENT_DIRECTIONS.indexOf(right), 0);
+  });
+}
+
+function stepWildlifeToward(
+  state: AmbientWildlifeState,
+  target: Vec2Fixed,
+  activity: string,
+  options: StepAmbientWildlifeOptions,
+  seed: number,
+): AmbientWildlifeState | null {
+  const speed = WILDLIFE_DEFINITIONS[options.species].speedFixed;
+  for (const direction of directionsTowardTarget(state, target, options.authorityTick)) {
+    const candidate = wildlifeStepCandidate(state.position, direction, speed);
+    if (!wildlifeCandidateAllowed(state.position, candidate, options.species, options.collision, seed)) continue;
+    return {
+      ...state,
+      position: candidate,
+      facing: facingForMovement(direction),
+      moving: true,
+      activity,
+    };
+  }
+  return null;
 }
 
 /**
@@ -643,6 +703,69 @@ export function stepAmbientWildlife(
       };
     }
   }
+  const hayTargets = wildlifeEatsHay(options.species) ? options.hayTargets ?? [] : [];
+  if (state.activity === WILDLIFE_EAT_HAY_ACTIVITY) {
+    if (options.authorityTick < state.nextDecisionTick) {
+      return { ...state, moving: false, activity: WILDLIFE_EAT_HAY_ACTIVITY };
+    }
+    return {
+      ...state,
+      moving: false,
+      activity: WILDLIFE_RETURN_HOME_ACTIVITY,
+      nextDecisionTick: options.authorityTick + WILDLIFE_HAY_JOURNEY_TICKS,
+    };
+  }
+  if (state.activity === WILDLIFE_RETURN_HOME_ACTIVITY) {
+    if (targetWithinReach(state.position, state.home, definition.speedFixed)) {
+      return {
+        ...state,
+        position: state.home,
+        moving: false,
+        activity: 'rest',
+        nextDecisionTick: options.authorityTick + 90,
+      };
+    }
+    const returning = stepWildlifeToward(
+      state, state.home, WILDLIFE_RETURN_HOME_ACTIVITY, options, seed,
+    );
+    return returning ?? {
+      ...state,
+      moving: false,
+      activity: 'rest',
+      nextDecisionTick: options.authorityTick + 20,
+    };
+  }
+  if (state.activity === WILDLIFE_SEEK_HAY_ACTIVITY) {
+    const hay = closestHayTarget(state.position, hayTargets);
+    if (hay === null || options.authorityTick >= state.nextDecisionTick) {
+      return {
+        ...state,
+        moving: false,
+        activity: WILDLIFE_RETURN_HOME_ACTIVITY,
+        nextDecisionTick: options.authorityTick + WILDLIFE_HAY_JOURNEY_TICKS,
+      };
+    }
+    if (targetWithinReach(state.position, hay, WILDLIFE_HAY_REACH_FIXED)) {
+      return {
+        ...state,
+        moving: false,
+        activity: WILDLIFE_EAT_HAY_ACTIVITY,
+        nextDecisionTick: options.authorityTick + WILDLIFE_HAY_SNACK_TICKS,
+      };
+    }
+    const seeking = stepWildlifeToward(
+      state, hay, WILDLIFE_SEEK_HAY_ACTIVITY, options, seed,
+    );
+    return seeking ?? {
+      ...state,
+      moving: false,
+      activity: WILDLIFE_RETURN_HOME_ACTIVITY,
+      nextDecisionTick: options.authorityTick + WILDLIFE_HAY_JOURNEY_TICKS,
+    };
+  }
+
+  // A livestock animal already out for a snack completes its return before
+  // settling for the night. New hay trips are never selected while asleep.
   if (asleep && !beeReturningToHive && currentHabitatAllowed) {
     return {
       ...state,
@@ -667,6 +790,32 @@ export function stepAmbientWildlife(
       nextDecisionTick = options.authorityTick + 40 + decision % 80;
     }
     else {
+      if (hayTargets.length > 0 && decision % 14 === 0) {
+        const hay = closestHayTarget(state.position, hayTargets);
+        if (hay !== null) {
+          const seekingState = {
+            ...state,
+            activity: WILDLIFE_SEEK_HAY_ACTIVITY,
+            nextDecisionTick: options.authorityTick + WILDLIFE_HAY_JOURNEY_TICKS,
+          };
+          if (targetWithinReach(state.position, hay, WILDLIFE_HAY_REACH_FIXED)) {
+            return {
+              ...seekingState,
+              moving: false,
+              activity: WILDLIFE_EAT_HAY_ACTIVITY,
+              nextDecisionTick: options.authorityTick + WILDLIFE_HAY_SNACK_TICKS,
+            };
+          }
+          return stepWildlifeToward(
+            seekingState, hay, WILDLIFE_SEEK_HAY_ACTIVITY, options, seed,
+          ) ?? {
+            ...state,
+            moving: false,
+            activity: 'rest',
+            nextDecisionTick: options.authorityTick + 90,
+          };
+        }
+      }
       // Long rests and short walks make the island feel inhabited without
       // every animal continuously bobbing. Diagonals prevent grid-like paths.
       const shouldRest = decision % 10 < 6;

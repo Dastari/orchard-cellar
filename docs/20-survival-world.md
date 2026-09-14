@@ -53,19 +53,23 @@ remain M7a work; the M5.7 slice does not grant land permissions.
   remaining inside world bounds. Add future movement types through this semantic
   rule rather than bypassing collision in entity-specific code.
 - Terrain height is an integer rather than a raised/not-raised flag. Every level
-  resolves the same edge, inset, two-row structural face plus non-height foot-shadow
-  row, and collision profile independently.
+  resolves the same edge/inset grammar and one visual wall course plus a
+  non-height foot-shadow row independently.
   Movement may cross adjacent heights only through the exact paired `slope`
   transitions generated for that contour; all other height boundaries fail closed.
-  The two authored stone face rows have lower-plane blockers projected north
-  with their rendered pixels; the third foot/shadow row remains walkable, draws
+  A contour at level `L` places its structural face blocker on plane `L-1`,
+  projected north with the rendered wall pixels; its foot/shadow row remains walkable, draws
   beneath actors, and does not contribute height. A separate per-elevation mask
   blocks cap-edge cells for actors already on the raised surface, while paired
   ramp lanes explicitly remain open. Each raised surface and every occupant on
-  it render north by `elevation × 2 tiles`.
+  it render north by `elevation × 1 tile`.
   That projection creates a lower-plane walk-behind band behind the rear cliff
   cap, but never turns the visible front/side stone face into walkable space or
   leaves a duplicate blocker on the cosmetic shadow row.
+  Stacked courses retain this per-plane rule: an actor on plane 0 is blocked by
+  the L1 face but may walk behind the projected L2/L3 courses, whose blockers
+  belong to planes 1/2. This is deliberate walk-behind semantics, not a single
+  base-plane wall extending through every visual course.
   Every internal
   raised-surface tile participates in the same elevation-aware queue, ordered
   `surface → boundary → entity` within its plane, while planes composite from
@@ -74,6 +78,10 @@ remain M7a work; the M5.7 slice does not grant land permissions.
   crossed only at its paired transition, so upper actors cannot step through the
   same pixels. Light occlusion remains independent and treats the authored wall
   rows as solid.
+- Ledges are a separate flat overlay channel: zero projection, no face rows,
+  no collision planes, and no walk-behind band. Their painted footprint is a
+  base-plane barrier by default; erasing a ledge cell creates a walkable opening
+  (including an optional ramp gap) without changing elevation.
 - Beaches, plains, meadow, forest floor, valleys, and highlands are walkable for
   ground actors. Shoreline blends remain land for water collision, so boats and
   swimmers cannot visually overlap a bank.

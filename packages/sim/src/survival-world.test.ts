@@ -7,14 +7,15 @@ import {
   positionCollides,
 } from './movement.js';
 import { NPC_INTERACTION_REACH_FIXED, stepNpcTowardPoint, stepWanderingNpc, type WanderingNpcState } from './npc.js';
+import { terrainWalkingStepAllowed } from './terrain-elevation.js';
 import {
   SURVIVAL_WORLD_SEED,
   SURVIVAL_WORLD_SIZE,
   SURVIVAL_ISLAND_SIZE,
   SURVIVAL_ISLAND_OFFSET_TILES,
   SURVIVAL_BIOMES,
-  SURVIVAL_CLIFF_ROLES,
   ORE_MIN_SPACING_TILES,
+  FISH_POOL_RESOURCE_ID_BASE,
   SURFACE_ACTIVE_ORE_NODES,
   SURVIVAL_TREE_KINDS,
   SURVIVAL_FRUIT_TREE_KINDS,
@@ -24,12 +25,17 @@ import {
   MARLOW_CAMP,
   MARLOW_CAMPFIRE_TILE,
   FARMER_BOB_FARM,
+  FARMER_BOB_COW_SPAWNS,
+  FARMER_BOB_HAY_TILES,
   FARMER_JANE_GRAVE_TILE,
+  FISHERMAN_CAMP,
+  FISHERMAN_DOCK_WALKABLE_TILES,
   SURVIVAL_MAX_TERRAIN_ELEVATION,
   createSurvivalCollisionMap,
   generateSurvivalResources,
   generateSurvivalDecorations,
   generateSurfaceOreSpawnSites,
+  generateFishPoolSpawnSites,
   generateMarlowCampPathTiles,
   generatedSurvivalResourceAt,
   findSurvivalSpawnTile,
@@ -43,29 +49,30 @@ import {
   survivalBiomeBlocksTraversal,
   survivalBiomeAllowsHorseJump,
   survivalBiomeBlocksMovement,
-  survivalCliffRoleAt,
   survivalDirtCliffRoleAt,
   survivalDirtTerraceAt,
   survivalDirtTerraceRamps,
   survivalMainStreamCenterAt,
   survivalPlateauAt,
   survivalPlateauRamps,
+  survivalStairRuns,
   survivalElevationBytes,
   survivalRaisedTerrainBlocksMovementAt,
+  survivalRaisedTerrainPlansAt,
   survivalRaisedTerrainStructuralAt,
   survivalTerrainHeightAt,
   survivalTerrainTransitions,
   survivalSpawnPosition,
   survivalSpawnTiles,
   survivalOreObstacle,
-  survivalResourceDropAfterHit,
-  survivalResourceDropsAfterHit,
-  survivalGatherableDrop,
   survivalIslandAt,
   survivalResourceInitialHealth,
   survivalDecorationObstacle,
   survivalMarlowCampReservedAt,
   survivalFarmerBobFarmReservedAt,
+  survivalFishermanCampReservedAt,
+  survivalFishermanDockWalkableAt,
+  survivalFishermanDockWaterObstacle,
   survivalStreamAt,
   survivalTreeObstacle,
   survivalWaterRockObstacle,
@@ -74,13 +81,36 @@ import {
   survivalWaterfallAt,
   type SurvivalBiome,
 } from './survival-world.js';
+import { FISH_POOL_ACTIVE_CAP, FISH_POOL_MIN_SPACING_TILES } from './fishing.js';
 
 describe('deterministic survival island', () => {
+  it('activates spaced authoritative fish pools only in deep pond water', () => {
+    const sites = generateFishPoolSpawnSites();
+    const pools = generateSurvivalResources().filter((resource) => resource.kind === 'fish_pool');
+    expect(sites.length).toBeGreaterThan(FISH_POOL_ACTIVE_CAP);
+    expect(pools).toHaveLength(FISH_POOL_ACTIVE_CAP);
+    expect(generateSurvivalDecorations().some((decoration) => decoration.kind === 'nature_fish_shadow')).toBe(false);
+    for (const [index, pool] of pools.entries()) {
+      expect(pool.id).toBe(FISH_POOL_RESOURCE_ID_BASE + index);
+      expect(pool.richness).toBeGreaterThanOrEqual(2);
+      expect(pool.richness).toBeLessThanOrEqual(4);
+      for (const other of pools.slice(index + 1)) {
+        const dx = pool.tileX - other.tileX;
+        const dy = pool.tileY - other.tileY;
+        expect(dx * dx + dy * dy).toBeGreaterThanOrEqual(FISH_POOL_MIN_SPACING_TILES ** 2);
+      }
+    }
+  }, 20_000);
+
   it('authors Farmer Bob\'s protected farm with a walkable gate and no generated resources', () => {
     const decorations = generateSurvivalDecorations();
     const farm = decorations.filter((decoration) => decoration.kind.startsWith('farm_'));
     expect(farm.some((decoration) => decoration.kind === 'farm_house')).toBe(true);
-    expect(farm.some((decoration) => decoration.kind === 'farm_cow')).toBe(true);
+    expect(FARMER_BOB_COW_SPAWNS).toHaveLength(3);
+    expect(farm.filter((decoration) => (
+      decoration.kind === 'farm_hay_stack' || decoration.kind === 'farm_hay_bale'
+    )).map(({ kind, tileX, tileY }) => ({ kind, tileX, tileY }))).toEqual(FARMER_BOB_HAY_TILES);
+    expect(farm.map((decoration) => String(decoration.kind))).not.toContain('farm_cow');
     expect(farm.some((decoration) => decoration.kind === 'farm_crop_strawberry')).toBe(true);
     expect(farm).toContainEqual(expect.objectContaining({
       kind: 'farm_grave',
@@ -98,11 +128,30 @@ describe('deterministic survival island', () => {
     expect(fence).toBeDefined();
     if (gate) expect(survivalDecorationObstacle(gate, 'ground')).toBeNull();
     if (fence) expect(survivalDecorationObstacle(fence, 'ground')).not.toBeNull();
+
+    const house = farm.find((decoration) => decoration.kind === 'farm_house');
+    expect(house).toBeDefined();
+    if (house) expect(survivalDecorationObstacle(house, 'ground')).toEqual({
+      left: (house.tileX - 2) * TILE_SIZE_FIXED,
+      top: (house.tileY - 2) * TILE_SIZE_FIXED,
+      right: (house.tileX + 3) * TILE_SIZE_FIXED - 1,
+      bottom: house.tileY * TILE_SIZE_FIXED - 1,
+    });
+
+    const hayStack = farm.find((decoration) => decoration.kind === 'farm_hay_stack');
+    expect(hayStack).toBeDefined();
+    if (hayStack) expect(survivalDecorationObstacle(hayStack, 'ground')).toEqual({
+      left: (hayStack.tileX - 1) * TILE_SIZE_FIXED,
+      top: hayStack.tileY * TILE_SIZE_FIXED,
+      right: (hayStack.tileX + 2) * TILE_SIZE_FIXED - 1,
+      bottom: (hayStack.tileY + 1) * TILE_SIZE_FIXED - 1,
+    });
   }, 20_000);
 
   it('authors Marlow\'s camp as a clear, collidable permanent landmark', () => {
     const decorations = generateSurvivalDecorations();
-    const camp = decorations.filter((decoration) => decoration.kind.startsWith('camp_'));
+    const camp = decorations.filter((decoration) => decoration.kind.startsWith('camp_')
+      && survivalMarlowCampReservedAt(decoration.tileX, decoration.tileY));
     expect(camp).toHaveLength(12);
     expect(camp.some((decoration) => decoration.kind === 'camp_tent')).toBe(true);
     expect(camp.some((decoration) => decoration.kind === 'camp_campfire')).toBe(true);
@@ -158,6 +207,66 @@ describe('deterministic survival island', () => {
     const fireDy = campfire.y - tending.position.y;
     expect(fireDx * fireDx + fireDy * fireDy).toBeLessThanOrEqual(NPC_INTERACTION_REACH_FIXED ** 2);
     expect(positionCollides(tending.position, collision)).toBe(false);
+  }, 20_000);
+
+  it('authors Fin\'s lake camp with a walkable three-tile dock and protected teaching water', () => {
+    const decorations = generateSurvivalDecorations();
+    const fishingCamp = decorations.filter((decoration) => (
+      survivalFishermanCampReservedAt(decoration.tileX, decoration.tileY)
+    ));
+    expect(fishingCamp).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'fisher_hut', tileX: FISHERMAN_CAMP.hutTileX, tileY: FISHERMAN_CAMP.hutTileY }),
+      expect.objectContaining({ kind: 'fisher_dock', tileX: 407, tileY: 317 }),
+      expect.objectContaining({ kind: 'camp_campfire' }),
+    ]));
+    expect(fishingCamp.filter((decoration) => decoration.kind === 'fisher_fixed_line')).toHaveLength(3);
+    expect(generateSurvivalResources().some((resource) => (
+      survivalFishermanCampReservedAt(resource.tileX, resource.tileY)
+    ))).toBe(false);
+
+    const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
+    for (const tile of FISHERMAN_DOCK_WALKABLE_TILES) {
+      expect(survivalBiomeBlocksMovement(survivalBiomeAt(SURVIVAL_WORLD_SEED, tile.tileX, tile.tileY))).toBe(true);
+      expect(survivalFishermanDockWalkableAt(tile.tileX, tile.tileY)).toBe(true);
+      expect(collision.blocked[tile.tileY * collision.width + tile.tileX]).toBe(false);
+    }
+    expect(survivalFishermanDockWalkableAt(410, 317)).toBe(false);
+
+    const dock = fishingCamp.find((decoration) => decoration.kind === 'fisher_dock');
+    expect(dock).toBeDefined();
+    const waterCollision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], 'water');
+    if (dock) {
+      const waterObstacle = survivalFishermanDockWaterObstacle(dock.tileX, dock.tileY);
+      expect(survivalDecorationObstacle(dock, 'ground')).toBeNull();
+      expect(survivalDecorationObstacle(dock, 'water')).toEqual(waterObstacle);
+      expect(waterCollision.obstacles).toContainEqual(waterObstacle);
+      expect(positionCollides({
+        x: (dock.tileX + 1) * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+        y: dock.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      }, waterCollision)).toBe(true);
+    }
+
+    const hut = fishingCamp.find((decoration) => decoration.kind === 'fisher_hut');
+    expect(hut).toBeDefined();
+    if (hut) expect(survivalDecorationObstacle(hut, 'ground')).toEqual({
+      left: (hut.tileX - 2) * TILE_SIZE_FIXED,
+      top: (hut.tileY - 2) * TILE_SIZE_FIXED,
+      right: (hut.tileX + 3) * TILE_SIZE_FIXED - 1,
+      bottom: hut.tileY * TILE_SIZE_FIXED - 1,
+    });
+    const positionAtTile = (tileX: number, tileY: number) => ({
+      x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 + PLAYER_HITBOX_FOOT_OFFSET,
+    });
+    // The live hut is anchored at403,315. Only its two transparent leftmost
+    // cells open; the remaining five-by-two facade still blocks real movement.
+    expect(hut).toMatchObject({ tileX: 403, tileY: 315 });
+    for (const tileY of [313, 314]) {
+      expect(positionCollides(positionAtTile(400, tileY), collision)).toBe(false);
+      for (let tileX = 401; tileX <= 405; tileX += 1) {
+        expect(positionCollides(positionAtTile(tileX, tileY), collision)).toBe(true);
+      }
+    }
   }, 20_000);
 
   it('is byte-identical for one seed and differs for another', () => {
@@ -234,8 +343,8 @@ describe('deterministic survival island', () => {
     expect(counts.get('oasis')).toBeGreaterThan(100);
   });
 
-  it('30§3 builds connected organic plateaus with one generated slope per nested contour', () => {
-    const roleCounts = new Map(SURVIVAL_CLIFF_ROLES.map((role) => [role, 0]));
+  it('30§3 builds connected organic plateaus with a height-aware crossing per contour component', () => {
+    const roleCounts = new Map<string, number>();
     const plateauMask = new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE);
     let plateauTiles = 0;
     let ridgeTiles = 0;
@@ -244,16 +353,24 @@ describe('deterministic survival island', () => {
     for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE; tileY += 1) {
       for (let tileX = 0; tileX < SURVIVAL_WORLD_SIZE; tileX += 1) {
         const plateau = survivalPlateauAt(SURVIVAL_WORLD_SEED, tileX, tileY);
-        const role = survivalCliffRoleAt(SURVIVAL_WORLD_SEED, tileX, tileY);
+        const plans = survivalRaisedTerrainPlansAt(SURVIVAL_WORLD_SEED, tileX, tileY);
+        const firstContour = plans.find(({ contourLevel }) => contourLevel === 1)?.plan;
         const biome = survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY);
-        roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1);
+        for (const { plan } of plans) {
+          if (plan.edgeRole !== null) roleCounts.set(plan.edgeRole, (roleCounts.get(plan.edgeRole) ?? 0) + 1);
+          if (plan.rampRole !== null) roleCounts.set(plan.rampRole, (roleCounts.get(plan.rampRole) ?? 0) + 1);
+          for (const face of plan.faceLayers.filter((layer) => layer.direct)) {
+            roleCounts.set(face.rowId, (roleCounts.get(face.rowId) ?? 0) + 1);
+          }
+        }
         if (biome === 'ridge') ridgeTiles += 1;
-        if (role.startsWith('ramp_')) expect(biome).toBe('highland');
-        else if (role.startsWith('foot')) {
+        if (plans.some(({ plan }) => plan.rampRole !== null)) expect(biome).toBe('highland');
+        else if (plans.some(({ plan }) => plan.faceLayers.some((face) => face.direct && face.rowId === 'foot'))
+          && !survivalRaisedTerrainStructuralAt(SURVIVAL_WORLD_SEED, tileX, tileY)) {
           expect(biome).not.toBe('ridge');
           expect(survivalBiomeBlocksMovement(biome)).toBe(false);
           expect(generatedSurvivalResourceAt(SURVIVAL_WORLD_SEED, tileX, tileY)).toBeNull();
-        } else if (role !== 'none') expect(biome).toBe('ridge');
+        } else if (survivalRaisedTerrainStructuralAt(SURVIVAL_WORLD_SEED, tileX, tileY)) expect(biome).toBe('ridge');
         if (!plateau) continue;
         plateauMask[tileY * SURVIVAL_WORLD_SIZE + tileX] = 1;
         plateauTiles += 1;
@@ -268,13 +385,18 @@ describe('deterministic survival island', () => {
         const boundary = !north || !east || !south || !west;
         if ((!north && !south) || (!east && !west)) pinchedTiles += 1;
         if (north && east && south && west && diagonalGap) concaveCorners += 1;
-        if (!role.startsWith('ramp_')) expect(role === 'none').toBe(!boundary);
+        if (firstContour?.rampRole === null || firstContour === undefined) {
+          expect(firstContour?.edgeRole === undefined || firstContour.edgeRole === null).toBe(!boundary);
+        }
       }
     }
     expect(plateauTiles).toBeGreaterThan(2_000);
     expect(pinchedTiles).toBe(0);
     expect(concaveCorners).toBeGreaterThan(8);
-    expect(roleCounts.get('wall')).toBeGreaterThan(20);
+    // Generated terraces descend one contour at a time, so each visible
+    // course is terminal lower-wall art. Direct multi-level drops exercise
+    // repeatable `wall` rows in the resolver contract tests.
+    expect(roleCounts.get('wall') ?? 0).toBe(0);
     expect(roleCounts.get('lower_wall')).toBeGreaterThan(20);
     expect(roleCounts.get('foot')).toBeGreaterThan(20);
     const raisedMovementBlockingTiles = Array.from(
@@ -352,14 +474,42 @@ describe('deterministic survival island', () => {
     const elevationCounts = Array.from({ length: SURVIVAL_MAX_TERRAIN_ELEVATION + 1 }, (_, level) => (
       elevations.filter((elevation) => elevation === level).length
     ));
-    expect(elevationCounts).toEqual([689_345, 1_770, 918, 191]);
+    for (let level = 1; level <= SURVIVAL_MAX_TERRAIN_ELEVATION; level += 1) {
+      for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE; tileY += 1) {
+        for (let tileX = 0; tileX < SURVIVAL_WORLD_SIZE; tileX += 1) {
+          const index = tileY * SURVIVAL_WORLD_SIZE + tileX;
+          if ((elevations[index] ?? 0) < level) continue;
+          const belongsToTwoByTwo = [-1, 0].some((offsetY) => [-1, 0].some((offsetX) => (
+            [0, 1].every((dy) => [0, 1].every((dx) => {
+              const x = tileX + offsetX + dx;
+              const y = tileY + offsetY + dy;
+              return x >= 0 && y >= 0 && x < SURVIVAL_WORLD_SIZE && y < SURVIVAL_WORLD_SIZE
+                && (elevations[y * SURVIVAL_WORLD_SIZE + x] ?? 0) >= level;
+            }))
+          )));
+          expect(belongsToTwoByTwo, `L${level} at ${tileX},${tileY}`).toBe(true);
+        }
+      }
+    }
+    // The height-aware stair and its datum approach honestly replace six L1
+    // and six L2 cells; no unrelated terrain is promoted to hide that delta.
+    expect(elevationCounts).toEqual([689_357, 1_770, 906, 191]);
     const ramps = survivalPlateauRamps(SURVIVAL_WORLD_SEED);
     expect(ramps.map(({ contourLevel }) => contourLevel)).toEqual([
-      1, 1, 1, 1,
-      2, 2, 2, 2,
-      3, 3, 3,
+      1, 1, 1,
+      2, 2, 2,
+      3, 3,
     ]);
-    expect(survivalTerrainTransitions(SURVIVAL_WORLD_SEED)).toHaveLength(ramps.length * 2);
+    const stairRuns = survivalStairRuns(SURVIVAL_WORLD_SEED);
+    expect(stairRuns).toHaveLength(1);
+    expect(stairRuns[0]).toMatchObject({
+      direction: 'up',
+      fromLevel: 0,
+      toLevel: SURVIVAL_MAX_TERRAIN_ELEVATION,
+    });
+    const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
+    expect(transitions).toHaveLength(22);
+    expect(transitions.filter(({ kind }) => kind === 'stairs')).toHaveLength(6);
     for (const ramp of ramps) {
       for (let lane = 0; lane < 2; lane += 1) {
         expect(survivalTerrainHeightAt(
@@ -373,12 +523,89 @@ describe('deterministic survival island', () => {
         )).toBeNull();
       }
     }
-    for (const role of SURVIVAL_CLIFF_ROLES.filter((value) => value.startsWith('ramp_'))) {
-      expect(roleCounts.get(role) ?? 0, role).toBe(4);
+    const stair = stairRuns[0]!;
+    for (let course = 0; course <= stair.toLevel - stair.fromLevel; course += 1) {
+      for (let lane = 0; lane < 2; lane += 1) {
+        expect(survivalTerrainHeightAt(
+          SURVIVAL_WORLD_SEED, stair.x + lane, stair.y - course,
+        )).toBe(stair.fromLevel + course);
+        expect(generatedSurvivalResourceAt(
+          SURVIVAL_WORLD_SEED, stair.x + lane, stair.y - course,
+        )).toBeNull();
+      }
+    }
+    const crossingCount = transitions.length / 2;
+    for (const role of ['ramp_top_left', 'ramp_top_right', 'ramp_bottom_left', 'ramp_bottom_right']) {
+      expect(roleCounts.get(role) ?? 0, role).toBe(crossingCount);
     }
   }, 30_000);
 
-  it('30§3 climbs and descends generated slopes while unconnected contours stay solid', () => {
+  it('30§3 reaches every live-seed contour component from the spawn ground plane', () => {
+    const elevations = survivalElevationBytes(SURVIVAL_WORLD_SEED);
+    const biomes = survivalTerrainBytes(SURVIVAL_WORLD_SEED);
+    const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
+    const collision = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, []);
+    const spawn = survivalSpawnTiles()[0]!;
+    const visited = new Uint8Array(elevations.length);
+    const queue = [spawn.tileY * SURVIVAL_WORLD_SIZE + spawn.tileX];
+    visited[queue[0]!] = 1;
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const index = queue[cursor]!;
+      const tileX = index % SURVIVAL_WORLD_SIZE;
+      const tileY = Math.floor(index / SURVIVAL_WORLD_SIZE);
+      for (const [nextX, nextY] of [
+        [tileX, tileY - 1], [tileX + 1, tileY],
+        [tileX, tileY + 1], [tileX - 1, tileY],
+      ] as const) {
+        if (nextX < 0 || nextY < 0 || nextX >= SURVIVAL_WORLD_SIZE || nextY >= SURVIVAL_WORLD_SIZE) continue;
+        const next = nextY * SURVIVAL_WORLD_SIZE + nextX;
+        const activeElevation = elevations[index] ?? 0;
+        if (visited[next] === 1
+          || survivalBiomeBlocksMovement(SURVIVAL_BIOMES[biomes[next]!] ?? 'water')
+          || collisionTileIsBlockedAtPlane(collision, nextX, nextY, activeElevation)
+          || !terrainWalkingStepAllowed(
+            elevations,
+            SURVIVAL_WORLD_SIZE,
+            SURVIVAL_WORLD_SIZE,
+            transitions,
+            tileX,
+            tileY,
+            nextX,
+            nextY,
+          )) continue;
+        visited[next] = 1;
+        queue.push(next);
+      }
+    }
+
+    for (let contourLevel = 1; contourLevel <= SURVIVAL_MAX_TERRAIN_ELEVATION; contourLevel += 1) {
+      const classified = new Uint8Array(elevations.length);
+      for (let start = 0; start < elevations.length; start += 1) {
+        if (classified[start] === 1 || elevations[start]! < contourLevel) continue;
+        const component = [start];
+        classified[start] = 1;
+        let reachable = visited[start] === 1;
+        for (let cursor = 0; cursor < component.length; cursor += 1) {
+          const index = component[cursor]!;
+          const tileX = index % SURVIVAL_WORLD_SIZE;
+          for (const neighbor of [
+            index - 1, index + 1,
+            index - SURVIVAL_WORLD_SIZE, index + SURVIVAL_WORLD_SIZE,
+          ]) {
+            if (neighbor < 0 || neighbor >= elevations.length || classified[neighbor] === 1
+              || elevations[neighbor]! < contourLevel
+              || Math.abs(neighbor % SURVIVAL_WORLD_SIZE - tileX) > 1) continue;
+            classified[neighbor] = 1;
+            reachable ||= visited[neighbor] === 1;
+            component.push(neighbor);
+          }
+        }
+        expect(reachable, `unreachable L${contourLevel} component containing tile ${start}`).toBe(true);
+      }
+    }
+  }, 30_000);
+
+  it('30§3 climbs one slope and a three-level stair while unconnected contours stay solid', () => {
     const ramp = survivalPlateauRamps(SURVIVAL_WORLD_SEED)
       .find(({ contourLevel }) => contourLevel === SURVIVAL_MAX_TERRAIN_ELEVATION);
     expect(ramp).toBeDefined();
@@ -410,6 +637,34 @@ describe('deterministic survival island', () => {
     for (let step = 0; step < climbSteps; step += 1) descended = movePlayer(descended, 'down', collision);
     expect(descended.position).toEqual(start.position);
 
+    const stair = survivalStairRuns(SURVIVAL_WORLD_SEED)[0];
+    expect(stair).toBeDefined();
+    if (stair === undefined) return;
+    const stairStart: PlayerState = {
+      ...start,
+      position: {
+        x: stair.x * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+        y: stair.y * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      },
+    };
+    let stairClimbed = stairStart;
+    let stairSteps = 0;
+    for (let step = 0; step < 64; step += 1) {
+      const next = movePlayer(stairClimbed, 'up', collision);
+      if (next.position.y !== stairClimbed.position.y) stairSteps += 1;
+      stairClimbed = next;
+    }
+    const stairClimbedTileY = Math.floor(
+      (stairClimbed.position.y - PLAYER_HITBOX_FOOT_OFFSET - 1) / TILE_SIZE_FIXED,
+    );
+    expect(survivalTerrainHeightAt(SURVIVAL_WORLD_SEED, stair.x, stairClimbedTileY))
+      .toBe(SURVIVAL_MAX_TERRAIN_ELEVATION);
+    let stairDescended = stairClimbed;
+    for (let step = 0; step < stairSteps; step += 1) {
+      stairDescended = movePlayer(stairDescended, 'down', collision);
+    }
+    expect(stairDescended.position).toEqual(stairStart.position);
+
     const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
     let solidEdge: { readonly tileX: number; readonly lowerTileY: number } | null = null;
     for (let tileY = 1; tileY < SURVIVAL_WORLD_SIZE - 1 && solidEdge === null; tileY += 1) {
@@ -436,7 +691,7 @@ describe('deterministic survival island', () => {
     expect(solidStart.position.y - blocked.position.y).toBeLessThan(24 * FIXED_UNITS_PER_PIXEL);
   });
 
-  it('30§5 projects two lower-plane wall blockers, leaves trim open, and guards the upper cap', () => {
+  it('30§5 projects one lower-plane wall blocker, leaves trim open, and guards the upper cap', () => {
     const transitions = survivalTerrainTransitions(SURVIVAL_WORLD_SEED);
     let southFace: { readonly tileX: number; readonly tileY: number; readonly contourLevel: number } | null = null;
     for (let tileY = 1; tileY < SURVIVAL_WORLD_SIZE - 4 && southFace === null; tileY += 1) {
@@ -456,7 +711,7 @@ describe('deterministic survival island', () => {
     const lowerPlane = southFace.contourLevel - 1;
     expect(collisionTileIsBlockedAtPlane(
       collision, southFace.tileX, southFace.tileY - 1, lowerPlane,
-    )).toBe(true);
+    )).toBe(false);
     expect(collisionTileIsBlockedAtPlane(
       collision, southFace.tileX, southFace.tileY, lowerPlane,
     )).toBe(true);
@@ -695,7 +950,7 @@ describe('deterministic survival island', () => {
     expect(count('nature_water_flower')).toBeGreaterThan(0);
     expect(count('nature_water_grass')).toBeGreaterThan(0);
     expect(count('nature_water_rock')).toBeGreaterThan(0);
-    expect(count('nature_fish_shadow')).toBeGreaterThan(0);
+    expect(count('nature_fish_shadow')).toBe(0);
     expect(count('nature_desert_grass')).toBeGreaterThan(0);
     expect(count('nature_desert_fern')).toBeGreaterThan(0);
     expect(count('nature_desert_bush')).toBeGreaterThan(0);
@@ -761,38 +1016,16 @@ describe('deterministic survival island', () => {
     expect(looseStones.length).toBeLessThan(175);
     expect(branches.length).toBeGreaterThan(0);
     expect(looseStones.every((resource) => isGatherableResourceKind(resource.kind))).toBe(true);
-    expect(survivalGatherableDrop('loose_stone')).toEqual({ itemKind: 'pebble', quantity: 1 });
-    expect(survivalGatherableDrop('fallen_branch')).toEqual({ itemKind: 'wood', quantity: 1 });
   });
 
   it('gives large decorative rocks a bounded six-payout richness reserve', () => {
     const rocks = generateSurvivalResources().filter((resource) => isBreakableRockKind(resource.kind));
     expect(rocks.length).toBeGreaterThan(0);
     expect(survivalResourceInitialHealth('rock_large')).toBe(LARGE_ROCK_INITIAL_HEALTH);
-    const payoutHealth = Array.from({ length: LARGE_ROCK_INITIAL_HEALTH }, (_, hit) =>
-      LARGE_ROCK_INITIAL_HEALTH - hit - 1).filter((health) =>
-      survivalResourceDropAfterHit('rock_large', health) !== null);
-    expect(payoutHealth).toHaveLength(LARGE_ROCK_STONE_RESERVE);
-    expect(payoutHealth).toEqual([5, 4, 3, 2, 1, 0]);
+    expect(LARGE_ROCK_STONE_RESERVE).toBe(LARGE_ROCK_INITIAL_HEALTH);
   });
 
-  it('keeps health-based mining drops as compatibility fragments while authority owns live payouts', () => {
-    expect(survivalResourceDropAfterHit('ore_iron', ORE_NODE_RESERVE_HITS)).toBeNull();
-    expect(survivalResourceDropAfterHit('ore_iron', ORE_NODE_RESERVE_HITS - 1)).toEqual({ itemKind: 'iron_piece', quantity: 1 });
-    expect(survivalResourceDropAfterHit('ore_amethyst', 0)).toEqual({ itemKind: 'amethyst_piece', quantity: 1 });
-    expect(survivalResourceDropAfterHit('tree_oak', 0)).toEqual({ itemKind: 'wood', quantity: 3 });
-    expect(survivalResourceDropAfterHit('tree_oak', 0, 2)).toEqual({ itemKind: 'wood', quantity: 1 });
-    expect(survivalResourceDropAfterHit('tree_oak', 0, 1)).toEqual({ itemKind: 'stick', quantity: 1 });
-    expect(survivalResourceDropAfterHit('tree_oak', 2)).toBeNull();
-    expect(survivalResourceDropsAfterHit('tree_pear', 0)).toEqual([
-      { itemKind: 'wood', quantity: 3 },
-      { itemKind: 'pear', quantity: 2 },
-    ]);
-    expect(survivalResourceDropsAfterHit('tree_pear', 0, 1)).toEqual([
-      { itemKind: 'stick', quantity: 1 },
-    ]);
-    expect(survivalResourceDropAfterHit('cactus', 0, 1)).toEqual({ itemKind: 'cactus', quantity: 1 });
-    expect(survivalResourceDropAfterHit('cactus', 0, 3)).toEqual({ itemKind: 'cactus', quantity: 3 });
+  it('keeps ore and tree obstacle shapes distinct while authored loot owns payouts', () => {
     expect(survivalOreObstacle(10, 10)).not.toEqual(survivalTreeObstacle(10, 10));
   });
 

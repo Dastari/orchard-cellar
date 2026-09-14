@@ -1,6 +1,7 @@
 {
   "name": "building_cf_shed",
   "category": "buildings",
+  "bakedShadowColor": "#00000064",
   "size": [
     96,
     112
@@ -143,7 +144,7 @@
     "c": "#c7cfdd",
     "d": "#92a1b9"
   },
-  "sourcePath": "references/Cute_Fantasy/Buildings/Buildings/Unique_Buildings/Shed/Shed_Base_Red.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/Buildings/Unique_Buildings/Shed/Shed_Base_Red.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Shed_Base_Red.png"

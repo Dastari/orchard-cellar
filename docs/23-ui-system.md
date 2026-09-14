@@ -15,7 +15,7 @@ code path with different compositions and bindings, not bespoke screens.
 ## 1. Art source and extraction
 
 Source: the owner-licensed **Cute Fantasy UI pack**
-(`references/Cute_Fantasy_UI/UI/`). Per the standing licensing decision
+(`references/art/kenmi/cute-fantasy/ui/UI/`). Per the standing licensing decision
 (DECISIONS.md 2026-08-24 art/licensing): commit only reviewed, text-authored
 derivatives with `sourcePalette` exact ramps — never the source sheets. Follow
 docs/10, docs/11, and the `pixel-art` skill for the extract/review loop
@@ -42,7 +42,7 @@ red=danger) for buttons/selectors, not all eight recolors:
 
 ### Actor asset library and animation lab
 
-The public `/ui-lab` route also exposes the owner-licensed NPC and enemy sheets
+The public `/editor/ui-lab` route also exposes the owner-licensed NPC and enemy sheets
 through the normal generated-atlas pipeline. `cute-fantasy-actor-library.ts` is
 the gameplay-facing catalog: entries have stable asset IDs, role/family metadata,
 authored animation-group names, and links to companion projectile, weapon, or VFX
@@ -85,7 +85,7 @@ bevel; compact icon controls explicitly opt into the 16-pixel variant.
 
 ## 2. Widget system
 
-A small **retained widget tree**, in `packages/client/src/ui/` (the module
+A small **retained widget tree**, in `packages/ui/src/` (the module
 docs/02 always reserved), rendered by the doc 21 UI pass. No DOM, no framework.
 
 - **Core interface:** `Widget { layout(constraints): Size; draw(ctx, origin); onPointer?(e); onKey?(e) }`
@@ -193,8 +193,11 @@ backpack, and the paper-doll panel are compositions**:
   closes; server enforces reach on every move anyway).
 - Crafting: `Window("Crafting", Row(InventoryGrid(bind(grid), 3×3), Icon(arrow), Slot(result)), Button("Craft"))`.
 - Player: `Window("Pack", Row(Column(paperDollSlots…), InventoryGrid(bind('self:backpack'), 5×4)))`
-  mirroring the `UI_Premade.png` layout; equipment slots are a kind-restricted
-  container, wired later.
+  mirroring the `UI_Premade.png` layout. All nine paper-doll positions remain
+  visible in both Inventory and Character. Six are visibly locked/reserved; the
+  three currently active kind-restricted slots are Watch (`watch`), Backpack
+  (`backpack`), and Off Hand (`lantern`). The equipment container and authority
+  retain all nine indexes and reject every item kind from reserved slots.
 
 ## 5. Out of scope
 
@@ -221,6 +224,6 @@ effects, container-placement gameplay, chat.
 
 Update docs/13 (point it at this spec for implemented surface) and docs/08
 (container tables). DECISIONS.md entries: Cute Fantasy UI element adoption with
-wood/parchment as primary family; retained widget tree in `client/src/ui`;
+wood/parchment as primary family; retained widget tree in `packages/ui/src`;
 generic container/`moveItem` model replacing `inventory_slot`; drag-drop as
 cosmetic-ghost + single-intent-reducer.

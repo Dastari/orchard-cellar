@@ -1,6 +1,6 @@
 export interface FarmActionPromptState {
   readonly targeted: boolean;
-  readonly selectedItem: string;
+  readonly selectedTool: 'cultivate' | 'water' | null;
   readonly seedSelected: boolean;
   readonly soilExists: boolean;
   readonly soilWatered: boolean;
@@ -16,17 +16,17 @@ export interface FarmActionPromptState {
 export function farmActionPrompt(state: FarmActionPromptState): string | null {
   if (!state.targeted) return null;
   const cropName = state.cropName?.toUpperCase() ?? null;
-  if (state.selectedItem === 'watering_can') {
+  if (state.selectedTool === 'water') {
     if (!state.soilExists) return 'TILL SOIL BEFORE WATERING';
     if (state.soilWatered) return `${cropName ?? 'SOIL'} ALREADY WATERED`;
     return `[F] WATER ${cropName ?? 'SOIL'}`;
   }
-  if (state.selectedItem === 'hoe' && cropName !== null) return `[F] DIG UP ${cropName}`;
+  if (state.selectedTool === 'cultivate' && cropName !== null) return `[F] DIG UP ${cropName}`;
   if (cropName !== null) {
     if (state.cropMature) return `[E] HARVEST ${cropName}`;
     return `${cropName} ${state.cropWatered ? 'GROWING' : 'NEEDS WATER'}`;
   }
   if (state.seedSelected) return state.soilExists ? '[F] PLANT SEEDS' : 'TILL SOIL BEFORE PLANTING';
-  if (state.selectedItem === 'hoe') return state.soilExists ? '[F] RESTORE GRASS' : '[F] TILL SOIL';
+  if (state.selectedTool === 'cultivate') return state.soilExists ? '[F] RESTORE GRASS' : '[F] TILL SOIL';
   return null;
 }

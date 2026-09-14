@@ -150,12 +150,22 @@ slope per connected contour, elevation-aware collision and painter depth, and a
 controlled world-version/resource reconciliation. The semi-infinite doc-30 migration
 remains a later milestone.
 
-**Nested-elevation verification:** the default-seed golden contains 1,770 exact
-level-1 tiles, 918 level-2 tiles, 191 level-3 summit tiles, eleven two-lane slopes,
-and 22 semantic transitions. Golden movement fixtures climb and descend the highest
+**Nested-elevation verification:** after the honest height-aware stair cut, the default-seed
+golden contains 1,770 exact level-1 tiles, 906 level-2 tiles, 191 level-3 summit tiles,
+eight two-lane slopes, one two-lane three-course stair, and 22 semantic transitions.
+Golden movement fixtures climb and descend the highest
 level while an unconnected edge fails closed; renderer fixtures prove every generated
-crossing selects its four ramp frames. `npm run check` passed 107 files / 660 tests,
-all typechecks/lint, the SpaceTimeDB module build, coverage, and 528-asset validation.
+crossing selects its family-owned wide ramp-bank courses. The reviewed crossing matrix
+includes 2-lane×1-level, 2-lane×3-level, and 4-lane banks; the retired 2×2 notch is no
+longer a cliff crossing. Plane-collision fixtures cover every stacked face course and the
+island reachability BFS includes `terrainPlaneBlocked`.
+
+**Round-2 terrain verification (2026-08-31):** the family ordinal decode, space-wide
+projection contract, exact override slot/staleness trace, signed culling, waterfall strata,
+and left/right side-cap underlay symmetry are regression-covered. Terrain painting enforces
+a 2×2 semantic minimum while a one-level mountain uses one structural wall course. Flat
+ledge overlays use the shared eight-edge/four-inset grammar with no projection or collision
+plane; the inspector can select and independently hide every squashed composition layer.
 World version 26 published to the durable local authority without deleting data;
 post-migration 1 Hz telemetry sampled collision at 1.1–2.8 ms and complete ticks at
 2.4–6.0 ms while the idle player position guard continued reporting zero updates.
@@ -280,7 +290,8 @@ authorization, and publication remain later gates.
 compiler; the editor exposes free camera, height/current-plane collision overlays,
 save/load/import/export, and composed/per-frame WHY inspection; an offline editor load
 does not fetch SpaceTimeDB client code or open a WebSocket; and the terrain laboratory
-replaces overworld regeneration as the normal cliff-debug loop.
+replaces overworld regeneration as the normal cliff-debug loop. The terrain laboratory now
+also owns the wide-bank width/height matrix plus flat donut/notched ledge fixtures.
 
 ## M5.13 — Procedurally assisted sanctuary foundation `⏳ in progress (codex, 2026-08-27)`
 
@@ -290,6 +301,12 @@ signed chunk algebra, a pure seed/version multi-noise sampler, semantic biome/te
 families, elevation, oceans/coasts, lakes/ponds/rivers, topology halos, and a headless
 seed-map preview. The licensed `references/` sheets remain local-only; generation
 selects semantic terrain families rather than atlas frames.
+
+**V7 Phase A field rebalance (2026-08-31):** complete without starting the planned macro
+shape or river-tree phases. The 16,384×16,384 review extent measures 60.98% ocean and a
+32-tile terrace-run median (targets 60–70% and ≤40); the step-1 hydrology review measures a
+2-tile maximum beach band, zero water cells with ≤1 cardinal neighbour, highland still
+water through L4 in the macro sample, and zero illegal biome adjacencies.
 
 **Done when:** client/server/tool imports produce byte-identical signed chunks;
 neighbouring chunks generated in either order have identical shoreline, hydrology,
@@ -311,6 +328,47 @@ emit readable floating combat text, and record final damage once; target health 
 selectable/public, regenerates slowly without reaching a destructive death state, and
 carrying/repositioning follows the established full-chest authorization and portal
 settling rules. Sanctuary players, wildlife, NPCs, and scenery remain undamageable.
+
+## M5.15 — Game authoring suite `⏳ in progress (codex, 2026-09-03)`
+
+Implement [55-game-authoring-suite.md](55-game-authoring-suite.md): a live content
+registry (`content_head`/`content_definition` with compare-and-swap publish, rollback,
+and audit), object definitions as components with data-driven states/interactions,
+frame definitions for every container/station window, and NPC/dialogue/quest/loot
+studios. Phase 0 exports the current sim constants as the bootstrap pack and proves
+registry parity; Phase 2a, which needs no content tables and can start at once, adds
+the lifecycle event bus and effect applier and re-expresses every hardcoded behaviour
+as a compiled handler with a golden effect test; later phases replace those handlers
+with authored data graphs and migrate `overworldUiLayout()` to frame definitions. Engine primitives still ship
+through an additive module republish (`world:release`); content never does.
+
+**Depends on:** M5.12 live-publish kernel, M5.10 tag-driven placeables, doc 23/38
+storage frames. **Docs:** 55, 42 §7, 23 §4, 38, 28, 31, 36, 08.
+
+**Done when:** a new item with a recipe, price, on/off light state, and use action is
+published from the browser and used by a second connected client without a rebuild;
+every station window is a frame definition; Marlow, Bob, and Fin are data; and each
+row of doc 55 §11 has a parity test before its code path is deleted.
+
+## M5.16 — Orchard Studio and administration API `⏳ in progress (codex, 2026-09-03)`
+
+Implement [56-orchard-studio.md](56-orchard-studio.md): extract render, UI, bindings,
+and auth into shared workspace packages with no game behaviour change; stand up
+`packages/studio` as a separate application at its own origin with one live session
+and every editor surface moved in (Map Editor, Object Studio, UI Lab, Character
+Studio, Item Studio, audio preview), deleting the game's `/editor` routes and the
+`editor.html`/`audio-preview.html` entries outright; add the audited administration API (procedures for reads, `admin*`
+reducers with `dryRun`, reasons, inverse payloads, and player notices) and the
+Player Manager, Container Inspector, Object Manager, World Control, Membership, and
+Observe tools; then the Tile Editor and the doc 55 studios.
+
+**Depends on:** M5.12 live publish, doc 55 phases as they land, doc 50 §4 tileset
+registry for the Tile Editor. **Docs:** 56, 55, 42, 50, 09, 53, 08.
+
+**Done when:** the game bundle contains no editor code; a stuck player is found,
+inspected, unstuck, and refunded from Studio with an audited reason and a player
+notice; a missing chest is replaced with contents restored; and the CLI-only admin
+reducers are retired.
 
 ## M5.8 — Repeatable mining loop `✅ phase 1 implemented (2026-08-30)`
 
@@ -401,6 +459,30 @@ repeatable production loop.
 
 ## M7.3 — Renderer, lighting, and client-performance hardening `⏳ in progress (codex, 2026-08-29)`
 
+- [ ] Doc 59 A-1 / P0 follow-up — Repeatable workload, effective-quality request attribution and sky-step capture — IN PROGRESS: codex, 2026-09-07
+  - Follow owner amendments in doc 59 §8; subsequent order is P6b painter producers, exact Canvas fixes, GPU qualification and allocation attribution. Deployment of the completed 0.6.0 client is authorized by the owner’s 2026-09-07 instruction, conditional on the remaining release gates.
+
+- [x] Doc 59 P0 — Attribution and device baseline — DONE: codex, 2026-09-06 (qualification gaps recorded in doc 59 §8)
+  - Resumed after owner login. Diagnostics extraction `a7070426` is green; P0 counters, capture action and preliminary desktop stage tables are implemented. Walking samples and the full attribution gate pass (569 suites / 3,411 tests). Shared-preview active-rAF/screenshots remain OPEN. P1 follows with its measured scale matrix; no release candidate.
+- [x] Doc 59 P1 — World-pass resolution and Video scale policy — DONE: codex, 2026-09-06 (implementation/desktop; shared preview OPEN, iPad owner to run)
+  - Canvas 1× default, persisted 1×/2×/Native selector, allocation-free renderer zoom sweeps. Four unchanged goldens; new terrain/pond 1× comparison ≤1 step, HUD exact. Controlled 376-item scene: Basic 13.2 ms / Dynamic 18.9 ms p95 at 1×; Native backing regression and all stages/counters in doc 59 §8. Full check passes 571 suites / 3,416 tests. No deployment.
+
+- [x] Doc 59 P2 — Bounded atlas pages and dual readers — DONE: codex, 2026-09-06 (desktop implementation; startup latency/shared preview qualified, iPad owner to run)
+  - Dual readers `5de3e736` preceded bounded writers: 156 atlas pages and three backdrop tiles, every loaded image ≤4 MiB. All 36 originals/frame pixels and review goldens unchanged. Full check passes 577 suites / 3,440 tests; doc 59 §8 records all 22 stages/counters, one 51-ms Dynamic long task and startup +108.8-ms residual.
+- [ ] Doc 59 P3 — Shadowless page variants and runtime filtering removal — IN PROGRESS: codex, 2026-09-06
+  - Committed `ed18ed63`:100 omit pages, runtime filtered-frame machinery deleted, atomic page cohorts; historical344-asset comparison and Canvas goldens pass. Authenticated after-stage measurements/shared play remain blocked by the expired session.
+- [ ] Doc 59 P4 — Static/moving coverage and constant-time receivers — IN PROGRESS: codex, 2026-09-06
+  - Committed `22f8dcea`: static/moving coverage and retained raster/ImageData uploads;600-frame allocation witnesses and exact goldens pass. Constant-time sampling failed three accuracy approaches and is OPEN; accurate caster sampling remains.
+
+- [ ] Doc 59 P5 — Tint pool and cap-layer consolidation — IN PROGRESS: codex, 2026-09-06
+  - Committed `96c9b6c0`: bounded exact-RGB tint pages, reset/disposal and exact goldens. Five-bit quantization and dim derivations failed three pixel approaches; world filters/cap scratch consolidation remain OPEN. No zero tint-build claim for continuously changing RGB.
+- [ ] Doc 59 P6 — Painter and context hot path — IN PROGRESS: codex, 2026-09-06
+  - Committed `af5588d6`: mechanically extracted painter ownership, retained numeric sort state,86→19 pairs in the sprite fixture with exact pixels. Raised-terrain clips still require multiple pairs; global one-pair/desynchronized-present gates remain OPEN.
+- [ ] Doc 59 P7 — Frame pacing and HUD caching — IN PROGRESS: codex, 2026-09-06
+  - Committed `e0a92b1d`/`556999ba`: persisted30Hz cap preserving fixed updates and three ordered HUD caches,45 exact comparisons,247→80 stationary drawImage calls/frame. Full check600 suites/3,509 tests. Authenticated timings pending; iPad cap default stays off and battery/thermal evidence is owner to run.
+- [ ] Doc 59 P8 — Experimental WebGL2 world pass — IN PROGRESS: codex, 2026-09-06
+  - Prerequisite docs `485edbbc`, exact Canvas seam `1b0ed15e`, then guarded WebGL integration with persisted off-default toggle, frame-boundary fallback and resource disposal. Canvas-copy present wins pixel parity; three GPU lighting approximations fail and unverified paths visibly fall back. Final 0.6.0 check passes 610 suites / 3,560 tests; isolated builds and Canvas goldens pass. Full acceptance remains OPEN and the release candidate is HOLD; see doc59 P8 ledger and output/perf-59-20260906/release/README.md.
+
 Execute [47-rendering-lighting-performance-plan.md](47-rendering-lighting-performance-plan.md)
 from its measured M0 foundation through the post-release M13 retirement gate. Preserve
 Canvas 2D, the fixed authoritative simulation, deterministic painter ordering, and the
@@ -417,6 +499,33 @@ agents edit an overlapping surface concurrently.
 **Current checkpoint:** M0 baseline and instrumentation. M2 onward remains gated on
 formal adoption or amendment of doc 39; the presence of an experimental Unified mode
 does not itself adopt that proposal.
+
+**Doc 58 release (codex, 2026-09-06):** seasonal receiver lighting is deployed as
+0.5.0 and is the Dynamic default. Basic fallback, 45 exact shadow declarations,
+seasonal sun and blue full-moon shadows are integrated into gameplay. Authenticated
+mode-switch and static publication/reconnect checks passed. See
+[release evidence](../output/lighting-58-20260906/release/README.md) for asset
+exceptions and measured whole-frame p95 (Basic 13.4 ms, Dynamic 21.5 ms).
+The broader M7.3 performance target remains open.
+
+**Doc 58 implementation claim (codex, 2026-09-05):** the owner has started the
+seasonal lighting overhaul under M7.3. Asset baseline evidence and the exact RGBA
+source/compiler/loader contract are implemented, with 35 reviewed tree declarations
+and unchanged PNGs. The bounded omission cache and world/mask plumbing, Basic
+quality with a world tint and lighting work bypass, and shared seasonal sun/moon
+ambient evaluation are now implemented locally. Browser fixtures record exact pixel
+removal, Basic operation counts, seasonal appearance, and untinted HUD composition.
+Authenticated gameplay, full acceptance/performance gates, and moving sun/full-moon
+shadows remain open. See the execution ledger in
+[58](58-seasonal-lighting-and-baked-shadow-plan.md). The new quality and ambient
+policy amend the Classic presentation baseline; its local-light solver remains
+selectable in Developer settings and a frozen legacy fixture preserves historical
+comparison. Public baked-shadow suppression remains gated on replacement shadows.
+The next checkpoint adds a combined directional-shadow/receiver fixture: clean
+sun/moon silhouettes, generated contact, owner/height clipping, separate local
+RGB by elevation and blue diffuse moonlight. Public painter integration and
+readiness/fallback acceptance remain pending; M5 is not yet complete. No lighting
+release has been made.
 
 ## M8 — Texture & delight `☐`
 Festivals (4, with mini-games), daily micro-events, the dog, forageables + bees,

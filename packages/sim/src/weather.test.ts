@@ -58,6 +58,8 @@ describe('shared server weather', () => {
     const night = BigInt(Math.round(AUTHORITY_TICKS_PER_DAY * 0.9));
     expect(weatherVisualState('cloudy', midday).cloudShadow).toBe(0.78);
     expect(weatherVisualState('cloudy', night).cloudShadow).toBe(0);
+    expect(weatherVisualState('cloudy', night).cloudCover).toBe(0.78);
+    expect(weatherVisualState('clear', night).cloudCover).toBe(0);
     expect(weatherVisualState('wind', night).wind).toBe(1);
     expect(weatherVisualState('rain', night).cloudShadow).toBe(0.9);
   });

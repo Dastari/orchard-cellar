@@ -1,0 +1,1817 @@
+[
+  {
+    "id": "recipe:amethyst_ore",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:amethyst_ore",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:amethyst_piece",
+        "item:amethyst_piece",
+        "item:amethyst_piece"
+      ],
+      [
+        "item:amethyst_piece",
+        "item:amethyst_piece",
+        "item:amethyst_piece"
+      ],
+      [
+        "item:amethyst_piece",
+        "item:amethyst_piece",
+        "item:amethyst_piece"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:arrows",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:arrow",
+      "count": 4
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:stick",
+        "count": 1
+      },
+      {
+        "item": "item:stone",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "recipe:axe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:axe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        null
+      ],
+      [
+        "item:plank",
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:backpack",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:backpack",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:leather",
+        "count": 4
+      },
+      {
+        "item": "item:string",
+        "count": 2
+      }
+    ]
+  },
+  {
+    "id": "recipe:barn",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:barn",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:plank",
+        "count": 40
+      },
+      {
+        "item": "item:iron_bar",
+        "count": 12
+      },
+      {
+        "item": "item:stone",
+        "count": 16
+      }
+    ]
+  },
+  {
+    "id": "recipe:barrel",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:barrel",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:janes_gardening_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_bar",
+        "item:plank",
+        "item:iron_bar"
+      ],
+      [
+        "item:plank",
+        null,
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:boat",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:boat",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        null,
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:camp_cooking_fire",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:camp_cooking_fire",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_bar",
+        null,
+        "item:iron_bar"
+      ],
+      [
+        null,
+        "item:iron_bar",
+        null
+      ],
+      [
+        null,
+        "item:campfire",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:campfire",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:campfire",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:wood",
+        "count": 3
+      },
+      {
+        "item": "item:stick",
+        "count": 3
+      }
+    ]
+  },
+  {
+    "id": "recipe:chest",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:chest",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        null,
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:cooking_fire",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:cooking_fire",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone",
+        "item:iron_bar",
+        "item:stone"
+      ],
+      [
+        "item:stone",
+        "item:campfire",
+        "item:stone"
+      ],
+      [
+        "item:stone",
+        "item:stone",
+        "item:stone"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:coop",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:coop",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:plank",
+        "count": 24
+      },
+      {
+        "item": "item:iron_bar",
+        "count": 6
+      },
+      {
+        "item": "item:stone",
+        "count": 8
+      }
+    ]
+  },
+  {
+    "id": "recipe:copper_axe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:copper_axe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:copper_bar",
+        "item:copper_bar",
+        null
+      ],
+      [
+        "item:copper_bar",
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:copper_hoe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:copper_hoe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:copper_bar",
+        "item:copper_bar",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:copper_ore",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:copper_ore",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:copper_piece",
+        "item:copper_piece",
+        "item:copper_piece"
+      ],
+      [
+        "item:copper_piece",
+        "item:copper_piece",
+        "item:copper_piece"
+      ],
+      [
+        "item:copper_piece",
+        "item:copper_piece",
+        "item:copper_piece"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:copper_pickaxe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:copper_pickaxe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:copper_bar",
+        "item:copper_bar",
+        "item:copper_bar"
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:copper_shovel",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:copper_shovel",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:copper_bar",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:emerald_ore",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:emerald_ore",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:emerald_piece",
+        "item:emerald_piece",
+        "item:emerald_piece"
+      ],
+      [
+        "item:emerald_piece",
+        "item:emerald_piece",
+        "item:emerald_piece"
+      ],
+      [
+        "item:emerald_piece",
+        "item:emerald_piece",
+        "item:emerald_piece"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:fence",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:fence",
+      "count": 3
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:stick",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:stick",
+        "item:plank"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:fence_gate",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:fence_gate",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stick",
+        "item:plank",
+        "item:stick"
+      ],
+      [
+        "item:stick",
+        "item:plank",
+        "item:stick"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:fermentation_cask",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:fermentation_cask",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:janes_gardening_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:copper_bar"
+      ],
+      [
+        "item:barrel"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:fishing_rod",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:fishing_rod",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stick",
+        null,
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        "item:fiber"
+      ],
+      [
+        null,
+        "item:fiber",
+        "item:stick"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:fruit_press",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:fruit_press",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:janes_gardening_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:iron_bar",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        null,
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        null,
+        "item:plank"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:furnace",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:furnace",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone",
+        "item:stone",
+        "item:stone"
+      ],
+      [
+        "item:stone",
+        null,
+        "item:stone"
+      ],
+      [
+        "item:stone",
+        "item:stone",
+        "item:stone"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:gold_axe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:gold_axe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:gold_bar",
+        "item:gold_bar",
+        null
+      ],
+      [
+        "item:gold_bar",
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:gold_hoe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:gold_hoe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:gold_bar",
+        "item:gold_bar",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:gold_ore",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:gold_ore",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:gold_piece",
+        "item:gold_piece",
+        "item:gold_piece"
+      ],
+      [
+        "item:gold_piece",
+        "item:gold_piece",
+        "item:gold_piece"
+      ],
+      [
+        "item:gold_piece",
+        "item:gold_piece",
+        "item:gold_piece"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:gold_pickaxe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:gold_pickaxe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:gold_bar",
+        "item:gold_bar",
+        "item:gold_bar"
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:gold_shovel",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:gold_shovel",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:gold_bar",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:greenhouse",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:greenhouse",
+      "count": 1
+    },
+    "skillRequirement": {
+      "skillNode": "greenhouse_charter",
+      "minimumRank": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:plank",
+        "count": 20
+      },
+      {
+        "item": "item:iron_bar",
+        "count": 8
+      },
+      {
+        "item": "item:stone",
+        "count": 12
+      }
+    ]
+  },
+  {
+    "id": "recipe:hoe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:hoe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:iron_axe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:iron_axe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_bar",
+        "item:iron_bar",
+        null
+      ],
+      [
+        "item:iron_bar",
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:iron_hoe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:iron_hoe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_bar",
+        "item:iron_bar",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:iron_ore",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:iron_ore",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_piece",
+        "item:iron_piece",
+        "item:iron_piece"
+      ],
+      [
+        "item:iron_piece",
+        "item:iron_piece",
+        "item:iron_piece"
+      ],
+      [
+        "item:iron_piece",
+        "item:iron_piece",
+        "item:iron_piece"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:iron_pickaxe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:iron_pickaxe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:iron_bar",
+        "item:iron_bar",
+        "item:iron_bar"
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:iron_shovel",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:iron_shovel",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:iron_bar",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:orchard_tea",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:orchard_tea",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:janes_gardening_book"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:apple",
+        "count": 1
+      },
+      {
+        "item": "item:pear",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "recipe:pickaxe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:pickaxe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:planks",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:plank",
+      "count": 4
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:wood",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "recipe:ruby_ore",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:ruby_ore",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:ruby_piece",
+        "item:ruby_piece",
+        "item:ruby_piece"
+      ],
+      [
+        "item:ruby_piece",
+        "item:ruby_piece",
+        "item:ruby_piece"
+      ],
+      [
+        "item:ruby_piece",
+        "item:ruby_piece",
+        "item:ruby_piece"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:sapphire_ore",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:sapphire_ore",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:sapphire_piece",
+        "item:sapphire_piece",
+        "item:sapphire_piece"
+      ],
+      [
+        "item:sapphire_piece",
+        "item:sapphire_piece",
+        "item:sapphire_piece"
+      ],
+      [
+        "item:sapphire_piece",
+        "item:sapphire_piece",
+        "item:sapphire_piece"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:shed",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:shed",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:plank",
+        "count": 24
+      },
+      {
+        "item": "item:iron_bar",
+        "count": 4
+      }
+    ]
+  },
+  {
+    "id": "recipe:shovel",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:shovel",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:plank",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:sign",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:sign",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:silo",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:silo",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:stone",
+        "count": 30
+      },
+      {
+        "item": "item:iron_bar",
+        "count": 10
+      }
+    ]
+  },
+  {
+    "id": "recipe:silver_axe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:silver_axe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:silver_bar",
+        "item:silver_bar",
+        null
+      ],
+      [
+        "item:silver_bar",
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:silver_hoe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:silver_hoe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:silver_bar",
+        "item:silver_bar",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:silver_pickaxe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:silver_pickaxe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:silver_bar",
+        "item:silver_bar",
+        "item:silver_bar"
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:silver_shovel",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:silver_shovel",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:silver_bar",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:standing_torch",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:standing_torch",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:torch"
+      ],
+      [
+        "item:stick"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:sticks",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:stick",
+      "count": 4
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank"
+      ],
+      [
+        "item:plank"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:stone",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:stone",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:pebble",
+        "item:pebble",
+        "item:pebble"
+      ],
+      [
+        "item:pebble",
+        "item:pebble",
+        "item:pebble"
+      ],
+      [
+        "item:pebble",
+        "item:pebble",
+        "item:pebble"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:stone_axe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:stone_axe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone",
+        "item:stone",
+        null
+      ],
+      [
+        "item:stone",
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:stone_hoe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:stone_hoe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone",
+        "item:stone",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:stone_pickaxe",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:stone_pickaxe",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:stone",
+        "item:stone",
+        "item:stone"
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:stone_shovel",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:stone_shovel",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        null,
+        "item:stone",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ],
+      [
+        null,
+        "item:stick",
+        null
+      ]
+    ]
+  },
+  {
+    "id": "recipe:string",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:string",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:fiber",
+        "count": 3
+      }
+    ]
+  },
+  {
+    "id": "recipe:topaz_ore",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:topaz_ore",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:topaz_piece",
+        "item:topaz_piece",
+        "item:topaz_piece"
+      ],
+      [
+        "item:topaz_piece",
+        "item:topaz_piece",
+        "item:topaz_piece"
+      ],
+      [
+        "item:topaz_piece",
+        "item:topaz_piece",
+        "item:topaz_piece"
+      ]
+    ]
+  },
+  {
+    "id": "recipe:torch",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:torch",
+      "count": 2
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:wood",
+        "count": 1
+      },
+      {
+        "item": "item:fiber",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "recipe:watch",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:watch",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.anvil"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:copper_bar",
+        "count": 1
+      },
+      {
+        "item": "item:gold_bar",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "recipe:workbench",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:workbench",
+      "count": 1
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:plank",
+        "item:plank"
+      ],
+      [
+        "item:plank",
+        "item:plank"
+      ]
+    ]
+  }
+]

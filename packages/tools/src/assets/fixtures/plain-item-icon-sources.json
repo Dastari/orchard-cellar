@@ -1,0 +1,542 @@
+[
+  {
+    "asset": "item_cf_amethyst_ore",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      64,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_amethyst_piece",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_beetroot",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      32,
+      128,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_beetroot_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      128,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_strawberry_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      176,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_cabbage",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      32,
+      80,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_cabbage_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      80,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_carrot",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      32,
+      64,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_carrot_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      64,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_corn",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      112,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_corn_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      112,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_cucumber",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      32,
+      96,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_cucumber_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      96,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_emerald_ore",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_emerald_piece",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_garlic",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      144,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_garlic_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      144,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_grape",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      80,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_grape_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      80,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_green_pepper",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      64,
+      80,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_green_pepper_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      80,
+      80,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_hot_pepper",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      64,
+      96,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_hot_pepper_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      80,
+      96,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_leek",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      32,
+      160,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_leek_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      160,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_onion",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      32,
+      144,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_onion_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      144,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_parsley",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      32,
+      112,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_parsley_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      112,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_potato",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      160,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_potato_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      160,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_pumpkin",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      96,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_red_pepper",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      64,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_strawberry",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      176,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_sunflower",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      128,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_tomato",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      64,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_turnip",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      64,
+      112,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_watermelon",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      32,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_wheat",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      0,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_crop_yellow_pepper",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      64,
+      64,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_pumpkin_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      96,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_red_pepper_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      80,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_ruby_ore",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      64,
+      32,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_ruby_piece",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      32,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_sapphire_ore",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      64,
+      0,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_sapphire_piece",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      0,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_sunflower_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      128,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_tomato_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      64,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_topaz_ore",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      64,
+      16,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_topaz_piece",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Resources_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      16,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_turnip_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      80,
+      112,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_watermelon_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      48,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_wheat_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      16,
+      48,
+      16,
+      16
+    ]
+  },
+  {
+    "asset": "item_cf_yellow_pepper_seeds",
+    "sourcePath": "references/art/kenmi/cute-fantasy/core/Icons/No Outline/Food_Icons_NO_Outline.png",
+    "sourceRegion": [
+      80,
+      64,
+      16,
+      16
+    ]
+  }
+]

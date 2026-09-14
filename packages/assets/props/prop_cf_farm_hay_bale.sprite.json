@@ -1,6 +1,7 @@
 {
   "name": "prop_cf_farm_hay_bale",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -47,7 +48,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Hay_Bales.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Hay_Bales.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Hay_Bales.png",
   "sourceRegions": {
     "base": [
       [

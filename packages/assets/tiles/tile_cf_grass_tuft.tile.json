@@ -1,6 +1,7 @@
 {
   "name": "tile_cf_grass_tuft",
   "category": "tiles",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -163,7 +164,7 @@
     "1": "#33713b",
     "2": "#00000064"
   },
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Grass_Animations/Grass_3_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Grass_Animations/Grass_3_Anim.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Grass_3_Anim.png",

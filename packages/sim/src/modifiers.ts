@@ -5,7 +5,7 @@ export const STAT_TARGETS = [
   'maxHealth', 'maxMana', 'maxVigour',
   'healthRegen', 'manaRegen', 'vigourRegen',
   'toolVigourCost', 'swingSpeed', 'sprintSpeed', 'sprintVigourCost', 'checkBonus',
-  'attackPower', 'rangedPower', 'armor', 'armorPct',
+  'attackPower', 'rangedPower', 'criticalChance', 'armor', 'armorPct',
 ] as const;
 export type StatTarget = typeof STAT_TARGETS[number];
 
@@ -53,6 +53,7 @@ export const STAT_TARGET_RULES: Readonly<Record<StatTarget, StatTargetRule>> = {
   checkBonus: { minimum: -1_000, maximum: 1_000, softcap: false },
   attackPower: { minimum: 0, maximum: U32_MAX, softcap: false },
   rangedPower: { minimum: 0, maximum: U32_MAX, softcap: false },
+  criticalChance: { minimum: 0, maximum: 10_000, softcap: false },
   armor: { minimum: 0, maximum: U32_MAX, softcap: false },
   armorPct: { minimum: 0, maximum: 9_000, softcap: true },
 };

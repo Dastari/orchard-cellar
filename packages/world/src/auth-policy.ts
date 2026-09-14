@@ -1,11 +1,11 @@
+import { canAdministerWorld } from '@orchard/sim';
+
+export { canAdministerWorld };
+
 export const OIDC_ISSUER = 'https://auth.orchard.dastari.net/realms/orchard';
 
-/**
- * Production deployment gate. Keep this empty until the owner's OIDC-derived
- * SpaceTimeDB identity has been captured, approved, and backed up. The release
- * procedure then sets this to ['orchard-web'] and republishes the module.
- */
-export const OIDC_CLIENT_IDS: readonly string[] = ['orchard-web'];
+/** Production OIDC audience allowlist; every addition requires reviewed exact redirects. */
+export const OIDC_CLIENT_IDS: readonly string[] = ['orchard-web', 'orchard-studio'];
 
 /**
  * Production deployment gate. Add only the owner's captured SpaceTimeDB
@@ -26,7 +26,7 @@ export interface MembershipState {
   readonly blocked: boolean;
 }
 
-export type MembershipRole = 'owner' | 'moderator' | 'friend';
+export type MembershipRole = 'owner' | 'admin' | 'moderator' | 'friend';
 
 export function productionAuthEnabled(clientIds = OIDC_CLIENT_IDS): boolean {
   return clientIds.length > 0;
@@ -72,14 +72,10 @@ export function membershipRejection(
 }
 
 export function membershipRole(role: string): role is MembershipRole {
-  return role === 'owner' || role === 'moderator' || role === 'friend';
+  return role === 'owner' || role === 'admin' || role === 'moderator' || role === 'friend';
 }
 
 export function canManageMembership(actorRole: string, targetRole: string): boolean {
   if (actorRole === 'owner') return membershipRole(targetRole);
   return actorRole === 'moderator' && targetRole === 'friend';
-}
-
-export function canAdministerWorld(role: string): boolean {
-  return role === 'owner';
 }

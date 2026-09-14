@@ -12,6 +12,26 @@ function sourceBetween(startAnchor: string, endAnchor: string): string {
 }
 
 describe('homestead gate, mount, and mutation authority', () => {
+  it('uses indexed instance lookups without changing topside tent collision', () => {
+    const lookup = sourceBetween('function homesteadForSpace(', 'function rogueRunForSpace(');
+    expect(lookup).toContain('homestead.spaceId.find(spaceId)');
+    expect(lookup).toContain('homestead.by_residence_space.filter(spaceId)');
+    expect(lookup).toContain('spaceId === 0');
+    expect(lookup).toContain('homestead.by_residence_space.filter(spaceId - 1)');
+    expect(lookup).not.toContain('homestead.iter()');
+
+    const collision = sourceBetween('function collisionForSpace(', 'function waterCollisionForSpace(');
+    expect(collision).toContain('ctx.db.homestead.spaceId.find(spaceId)');
+    expect(collision).toContain('spaceId === TOPSIDE_SPACE_ID');
+    expect(collision.match(/ctx\.db\.homestead\.iter\(\)/g)).toHaveLength(1);
+  });
+
+  it('uses the owner index for caller-scoped homestead views', () => {
+    const views = sourceBetween('export const ownHomesteadUpgrades =', 'export const ownMembership =');
+    expect(views.match(/homesteadForOwner\(ctx, ctx\.sender\)/g)).toHaveLength(2);
+    expect(views).not.toContain('homestead.iter()');
+  });
+
   it('stores a closed-by-default gate and admits guests only while it is open', () => {
     const schema = sourceBetween('const homestead = table(', 'const world_surface = table(');
     expect(schema).toContain('gateOpen: t.bool().default(false)');
@@ -45,11 +65,11 @@ describe('homestead gate, mount, and mutation authority', () => {
     const helper = sourceBetween('function mutableFarmTileAuthorized(', 'function nextResidenceSpacePair(');
     expect(helper).toContain("homesteadRoleAtLeast(homesteadRoleFor(ctx, home, position.identity), 'worker')");
     expect(helper).toContain('homesteadPlayableTile(');
-    expect(helper).toContain('spaceDefinitionFor(position.spaceId, home)?.sizeTiles');
+    expect(helper).toContain('activeSpaceDefinition(ctx, position.spaceId, home)?.sizeTiles');
     expect(helper).toContain("throw new SenderError('homestead_owner_required')");
-    expect(sourceBetween('export const useFarmTool =', 'export const restoreFarmTile ='))
+    expect(sourceBetween('function validateFarmToolLifecycleAction(', 'function applyFarmToolLifecycleAction('))
       .toContain('mutableFarmTileAuthorized(ctx, position, tileX, tileY)');
-    expect(sourceBetween('export const useHands =', 'export const interactChest ='))
+    expect(sourceBetween('function worldBehaviourEffectWriter(', 'function applyWorldBehaviourEffects('))
       .toContain('requireWorldModificationAuthorized(ctx, position)');
   });
 });

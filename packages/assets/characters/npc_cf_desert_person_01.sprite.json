@@ -1,6 +1,7 @@
 {
   "name": "npc_cf_desert_person_01",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -1851,7 +1852,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Desert_Person_1.png",
-  "sourcePath": "references/Cute_Fantasy_Desert/NPC/Desert_Person_1.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/NPC/Desert_Person_1.png",
   "sourceRegions": {
     "idle_down": [
       [

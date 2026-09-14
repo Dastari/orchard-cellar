@@ -1,6 +1,7 @@
 {
   "name": "effect_cf_witch_cauldron",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -251,7 +252,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Witch_Cauldron_Anim.png",
-  "sourcePath": "references/Cute_Fantasy_Halloween/Witch/Witch_Cauldron_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/halloween/Witch/Witch_Cauldron_Anim.png",
   "sourceRegions": {
     "bubble": [
       [

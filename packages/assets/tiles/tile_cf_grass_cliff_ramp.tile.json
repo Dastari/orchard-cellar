@@ -1,6 +1,7 @@
 {
   "name": "tile_cf_grass_cliff_ramp",
   "category": "tiles",
+  "bakedShadowColor": "#00000028",
   "size": [
     16,
     16
@@ -97,7 +98,7 @@
     "8": "#6c7c9d",
     "9": "#00000028"
   },
-  "sourcePath": "references/Cute_Fantasy/Tiles/Grass/Grass_Tiles_1.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/Grass/Grass_Tiles_1.png",
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Grass_Tiles_1.png",

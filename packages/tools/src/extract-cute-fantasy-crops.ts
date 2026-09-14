@@ -3,6 +3,7 @@ import { basename, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadPalette, workspaceRoot } from './assets/load.js';
 import { decodePng, type DecodedPng } from './assets/png.js';
+import { PLAIN_ITEM_ICON_SOURCES, plainItemIconImport } from './assets/plain-item-icon-sources.js';
 import type { AssetSource, PixelGrid } from './assets/types.js';
 
 const TILE_SIZE = 16;
@@ -31,6 +32,12 @@ function assetFromRegions(
   frameKind: 'state' | 'variant',
   tags: readonly string[],
 ): AssetSource {
+  const selected = plainItemIconImport({ name, source, groups: { base: regions } });
+  if (selected.source !== source) {
+    image = plainImages.get(selected.source)!;
+    source = selected.source;
+    regions = selected.groups.base;
+  }
   const nativeFrames = regions.map(([originX, originY, width, height]) => Array.from({ length: height }, (_, y) => (
     Array.from({ length: width }, (_, x) => nativeHex(image, originX + x, originY + y))
   )));
@@ -71,10 +78,15 @@ async function writeAsset(directory: string, asset: AssetSource): Promise<void> 
 
 const rootPath = fileURLToPath(workspaceRoot);
 const palette = await loadPalette();
-const primarySource = 'references/Cute_Fantasy/Crops/Crops.png';
-const companionSource = 'references/Cute_Fantasy/Crops/Crops_2.png';
+const primarySource = 'references/art/kenmi/cute-fantasy/core/Crops/Crops.png';
+const companionSource = 'references/art/kenmi/cute-fantasy/core/Crops/Crops_2.png';
 const primary = decodePng(await readFile(resolve(rootPath, primarySource)));
 const companion = decodePng(await readFile(resolve(rootPath, companionSource)));
+const plainImages = new Map(await Promise.all(
+  [...new Set(PLAIN_ITEM_ICON_SOURCES.map(({ sourcePath }) => sourcePath))].map(async (source) => (
+    [source, decodePng(await readFile(resolve(rootPath, source)))] as const
+  )),
+));
 if (primary.width !== 112 || primary.height !== 704 || companion.width !== 112 || companion.height !== 256) {
   throw new Error('Unexpected Cute Fantasy crop-sheet dimensions');
 }
@@ -127,7 +139,7 @@ for (const [index, kind] of cropKinds.entries()) {
   ));
 }
 
-const timerSource = 'references/Cute_Fantasy_UI/UI/Loading_Icon.png';
+const timerSource = 'references/art/kenmi/cute-fantasy/ui/UI/Loading_Icon.png';
 const timer = decodePng(await readFile(resolve(rootPath, timerSource)));
 if (timer.width !== 256 || timer.height !== 64) throw new Error('Unexpected Loading_Icon dimensions');
 await writeAsset('ui', assetFromRegions(

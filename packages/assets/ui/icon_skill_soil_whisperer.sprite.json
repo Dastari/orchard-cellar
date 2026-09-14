@@ -1,0 +1,67 @@
+{
+  "name": "icon_skill_soil_whisperer",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".......66.......",
+        "......6653...66.",
+        ".56...6551..653.",
+        "5555..663..5631.",
+        "33565..31..6331.",
+        ".1313.....5.....",
+        "........5...657.",
+        "......5.31.65347",
+        "..5...5.1.653127",
+        "..1356531753127.",
+        "....1356531207..",
+        "...77466312777..",
+        ".77442531004447.",
+        "7442201777022247",
+        "7220777...770007",
+        ".777........777."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#191524",
+    "1": "#1b3a3c",
+    "2": "#272c42",
+    "3": "#295942",
+    "4": "#3c2831",
+    "5": "#42854b",
+    "6": "#67c053",
+    "7": "#70403c"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/magic/skills-spells-400/sheet-16.png",
+  "sourceRegion": [
+    96,
+    192,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.soil_whisperer",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

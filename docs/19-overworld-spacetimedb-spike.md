@@ -100,7 +100,7 @@ the gate must not introduce secrets or require a hosted account.
 ## 6. Repository and development constraints
 
 - Add the candidate module as `packages/world`; generated client bindings live under
-  `packages/client/src/net/generated` and are reproducible from the module schema.
+  `packages/world-bindings/src` and are reproducible from the module schema.
 - `npm run dev` must start assets, Vite, the durable local SpaceTimeDB host, module
   publish/watch, and any required static helper without manual terminal choreography.
 - `npm run check` must build/typecheck the module and client boundary. Generated code

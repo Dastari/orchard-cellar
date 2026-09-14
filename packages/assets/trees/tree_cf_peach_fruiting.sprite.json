@@ -1,6 +1,7 @@
 {
   "name": "tree_cf_peach_fruiting",
   "category": "trees",
+  "bakedShadowColor": "#00000028",
   "size": [
     32,
     64
@@ -101,7 +102,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Peach_Tree.png",
-  "sourcePath": "references/Cute_Fantasy/Crops/Peach_Tree.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Crops/Peach_Tree.png",
   "sourceRegions": {
     "base": [
       [

@@ -53,7 +53,8 @@ describe('26§3 additive spaces schema', () => {
     expect(portals).toContain('toSpace: t.u16()');
     expect(source).toContain('function teleportPlayer(');
     expect(source).toContain('export const usePortal =');
-    expect(source).toContain('export const debugUsePortal =');
+    expect(source).not.toContain('export const debugUsePortal =');
+    expect(source).toContain('export const adminTeleportPlayer =');
   });
 
   it('teleports the complete position tuple and settles pending prediction input', () => {
@@ -71,13 +72,19 @@ describe('26§3 additive spaces schema', () => {
   });
 
   it('allows horses and farm tools only in their sanctioned outdoor instances', () => {
-    for (const reducerName of ['interactHorse', 'jumpHorse']) {
-      const start = source.indexOf(`export const ${reducerName} =`);
+    for (const reducerName of ['applyMountLifecycle', 'jumpHorse']) {
+      const start = source.indexOf(reducerName === 'applyMountLifecycle'
+        ? 'function applyMountLifecycle(' : `export const ${reducerName} =`);
       const end = source.indexOf('\nexport const ', start + 1);
       expect(source.slice(start, end < 0 ? source.length : end), reducerName)
         .toContain('horseAllowedInSpace(ctx, position.spaceId)');
     }
-    for (const reducerName of ['useFarmTool', 'restoreFarmTile', 'useCropTile']) {
+    const farmToolAuthority = source.slice(
+      source.indexOf('function validateFarmToolLifecycleAction('),
+      source.indexOf('function applyFarmToolUse('),
+    );
+    expect(farmToolAuthority).toContain('mutableFarmTileAuthorized(ctx, position, tileX, tileY)');
+    for (const reducerName of ['harvestCropTile']) {
       const start = source.indexOf(`export const ${reducerName} =`);
       const end = source.indexOf('\nexport const ', start + 1);
       expect(source.slice(start, end < 0 ? source.length : end), reducerName)

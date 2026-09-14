@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
 const generatedIndex = readFileSync(
-  new URL('../../client/src/net/generated/index.ts', import.meta.url),
+  new URL('../../world-bindings/src/index.ts', import.meta.url),
   'utf8',
 );
 
@@ -48,7 +48,7 @@ describe('docs/53 T7 consolidated container moves', () => {
       'quick_move_chest_item_reducer.ts',
       'quick_move_all_chest_items_reducer.ts',
     ]) {
-      expect(existsSync(new URL(`../../client/src/net/generated/${file}`, import.meta.url))).toBe(false);
+      expect(existsSync(new URL(`../../world-bindings/src/${file}`, import.meta.url))).toBe(false);
     }
   });
 });

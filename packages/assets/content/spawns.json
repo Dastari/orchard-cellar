@@ -1,0 +1,212 @@
+[
+  {
+    "id": "spawn:farmer_bob_herd",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:cow",
+    "space": "space:island",
+    "strategy": "fixed",
+    "habitat": "pasture",
+    "protectedBy": "npc:farmer_bob",
+    "positions": [
+      {
+        "runtimeId": "4",
+        "tileX": 375,
+        "tileY": 376,
+        "variant": 0
+      },
+      {
+        "runtimeId": "5",
+        "tileX": 378,
+        "tileY": 379,
+        "variant": 1
+      },
+      {
+        "runtimeId": "6",
+        "tileX": 374,
+        "tileY": 382,
+        "variant": 2
+      }
+    ]
+  },
+  {
+    "id": "spawn:wildlife_butterfly",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:butterfly",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "meadow_air",
+    "packCount": 8,
+    "packSize": 3,
+    "minimumPackSpacing": 18
+  },
+  {
+    "id": "spawn:wildlife_camel",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:camel",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "desert",
+    "packCount": 4,
+    "packSize": 3,
+    "minimumPackSpacing": 28
+  },
+  {
+    "id": "spawn:wildlife_capybara",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:capybara",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "freshwater",
+    "packCount": 2,
+    "packSize": 1,
+    "minimumPackSpacing": 24
+  },
+  {
+    "id": "spawn:wildlife_chicken",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:chicken",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "farmyard",
+    "packCount": 6,
+    "packSize": 6,
+    "minimumPackSpacing": 22
+  },
+  {
+    "id": "spawn:wildlife_cow",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:cow",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "pasture",
+    "packCount": 6,
+    "packSize": 3,
+    "minimumPackSpacing": 26
+  },
+  {
+    "id": "spawn:wildlife_duck",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:duck",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "freshwater",
+    "packCount": 3,
+    "packSize": 2,
+    "minimumPackSpacing": 18
+  },
+  {
+    "id": "spawn:wildlife_frog",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:frog",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "lakeshore",
+    "packCount": 4,
+    "packSize": 2,
+    "minimumPackSpacing": 22
+  },
+  {
+    "id": "spawn:wildlife_goose",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:goose",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "freshwater",
+    "packCount": 1,
+    "packSize": 2,
+    "minimumPackSpacing": 24
+  },
+  {
+    "id": "spawn:wildlife_mouse",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:mouse",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "woodland",
+    "packCount": 6,
+    "packSize": 3,
+    "minimumPackSpacing": 18
+  },
+  {
+    "id": "spawn:wildlife_pig",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:pig",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "pasture",
+    "packCount": 8,
+    "packSize": 4,
+    "minimumPackSpacing": 20
+  },
+  {
+    "id": "spawn:wildlife_scarab",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:scarab",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "desert",
+    "packCount": 4,
+    "packSize": 4,
+    "minimumPackSpacing": 20
+  },
+  {
+    "id": "spawn:wildlife_sheep",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:sheep",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "pasture",
+    "packCount": 6,
+    "packSize": 4,
+    "minimumPackSpacing": 24
+  },
+  {
+    "id": "spawn:wildlife_snail",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:snail",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "woodland",
+    "packCount": 8,
+    "packSize": 2,
+    "minimumPackSpacing": 14
+  },
+  {
+    "id": "spawn:wildlife_swan",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:swan",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "freshwater",
+    "packCount": 1,
+    "packSize": 2,
+    "minimumPackSpacing": 24
+  },
+  {
+    "id": "spawn:wildlife_vulture",
+    "kind": "spawn",
+    "schemaVersion": 1,
+    "target": "creature:vulture",
+    "space": "space:island",
+    "strategy": "packs",
+    "habitat": "desert",
+    "packCount": 4,
+    "packSize": 2,
+    "minimumPackSpacing": 28
+  }
+]

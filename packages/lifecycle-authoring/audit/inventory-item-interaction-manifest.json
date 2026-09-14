@@ -1,0 +1,177 @@
+{
+  "format": "orchard-inventory-item-interaction-audit-v1",
+  "classifications": [
+    "item-owned-onUse",
+    "target-owned-non-item-lifecycle",
+    "pure-presentation",
+    "engine-inventory-control"
+  ],
+  "clientAuthorityMethods": [
+    "acceptTradeRequest",
+    "buyMerchantCart",
+    "buyMerchantItem",
+    "cancelTrade",
+    "closeCrafting",
+    "craftInventoryRecipe",
+    "distributeInventoryItem",
+    "dropInventoryCursor",
+    "dropSelected",
+    "declineTrade",
+    "fillCraftingRecipe",
+    "interactEntity",
+    "inventoryCursorClick",
+    "inventoryCursorPickupAll",
+    "inventoryCursorQuickCraft",
+    "inventoryCursorSwapHotbar",
+    "moveInventoryItem",
+    "pickupEmbeddedArrow",
+    "pickupQuestWorldItem",
+    "pickupWorldItem",
+    "quickMoveAllInventoryItems",
+    "quickMoveInventoryItem",
+    "removeTradeOfferItem",
+    "requestTrade",
+    "returnInventoryCursor",
+    "sellMerchantCart",
+    "sellMerchantItem",
+    "selectHotbar",
+    "setTradeAccepted",
+    "setTradeOfferBronze",
+    "setTradeOfferItem",
+    "sortMenuContainer",
+    "throwMenuItem",
+    "useSelected"
+  ],
+  "surfaces": [
+    {
+      "id": "selected-item-invocation",
+      "custody": "selected",
+      "classification": "item-owned-onUse",
+      "clientFile": "packages/client/src/selected-item-use.ts",
+      "clientAnchor": "selectedItemLifecycleAction(",
+      "serverFile": "packages/world/src/behaviour/use-selected.ts",
+      "serverAnchor": "raiseEvent(authority.handlers(ctx)",
+      "rationale": "secondary, useWith, useAt, aimedUse, and place are metadata-selected item lifecycle lanes."
+    },
+    {
+      "id": "equipped-item-invocation",
+      "custody": "equipped",
+      "classification": "item-owned-onUse",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "network.useSelected('equipment_use'",
+      "serverFile": "packages/world/src/behaviour/use-selected.ts",
+      "serverAnchor": "type: 'equipmentUse'",
+      "rationale": "The active equipment row supplies the item snapshot; the item callback owns capability."
+    },
+    {
+      "id": "ground-world-item-invocation",
+      "custody": "world-item",
+      "classification": "item-owned-onUse",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "targetGroundItemUse(",
+      "serverFile": "packages/world/src/behaviour/interact-entity.ts",
+      "serverAnchor": "type: 'worldItemUse'",
+      "rationale": "The concrete world item is both item lifecycle subject and spatial mutation target."
+    },
+    {
+      "id": "world-item-pickup",
+      "custody": "world-item",
+      "classification": "engine-inventory-control",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "network.pickupWorldItem(target.item.id)",
+      "serverFile": "packages/world/src/index.ts",
+      "serverAnchor": "export const pickupWorldItem",
+      "rationale": "Pickup is custody transfer governed by reach, reservation, expiry, stack, and capacity—not item use."
+    },
+    {
+      "id": "inventory-move-split-sort-drop",
+      "custody": "selected/equipped/container",
+      "classification": "engine-inventory-control",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "network.moveInventoryItem(request)",
+      "serverFile": "packages/world/src/index.ts",
+      "serverAnchor": "export const moveInventoryItem",
+      "rationale": "Moves, cursor operations, quick moves, sorting, splitting, dropping, and throwing change custody only."
+    },
+    {
+      "id": "hotbar-selection",
+      "custody": "selected",
+      "classification": "engine-inventory-control",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "network.selectHotbar(slot)",
+      "serverFile": "packages/world/src/index.ts",
+      "serverAnchor": "export const selectHotbar",
+      "rationale": "Selecting a slot changes input focus and presentation; it does not grant the selected item an action."
+    },
+    {
+      "id": "quest-item-and-embedded-arrow-pickup",
+      "custody": "world-item",
+      "classification": "engine-inventory-control",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "network.pickupQuestWorldItem(target.item.id)",
+      "serverFile": "packages/world/src/index.ts",
+      "serverAnchor": "export const pickupQuestWorldItem",
+      "rationale": "Quest pickups and recoverable embedded arrows transfer authoritative world drops; the item does not define pickup capability."
+    },
+    {
+      "id": "carried-object-place",
+      "custody": "carried-object",
+      "classification": "engine-inventory-control",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "handsPlaceable !== null",
+      "serverFile": "packages/world/src/behaviour/use-selected.ts",
+      "serverAnchor": "authority.carriedObject(ctx)",
+      "rationale": "A carried world object is not a selected inventory item; generic placement preserves this separate engine lane."
+    },
+    {
+      "id": "processor-operations",
+      "custody": "processor-slots",
+      "classification": "target-owned-non-item-lifecycle",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "network.frameAction(actionId)",
+      "serverFile": "packages/world/src/index.ts",
+      "serverAnchor": "performFrameAction: (ctx, actionId) =>",
+      "rationale": "The station and its role-bound slots determine processing; inserted items are operands and grant no use capability."
+    },
+    {
+      "id": "campfire-toggle",
+      "custody": "none/selected-tool",
+      "classification": "target-owned-non-item-lifecycle",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "campfire.lit ? 'CAMPFIRE EXTINGUISHED'",
+      "serverFile": "packages/assets/content/objects.json",
+      "serverAnchor": "\"id\": \"object:campfire\"",
+      "rationale": "Lighting is a campfire state interaction. Axe dismantling is separately item-owned useWith."
+    },
+    {
+      "id": "chest-container-use",
+      "custody": "container-target",
+      "classification": "target-owned-non-item-lifecycle",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "network.interactEntity('placeable', target.chest.id, 'use')",
+      "serverFile": "packages/world/src/behaviour/interact-entity.ts",
+      "serverAnchor": "request.verb === 'use'",
+      "rationale": "Open/close and storage are chest capabilities. Axe dismantling is separately item-owned and retains both chest namespaces."
+    },
+    {
+      "id": "crafting-and-commerce",
+      "custody": "inventory/container",
+      "classification": "engine-inventory-control",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "network.craftInventoryRecipe(recipeId, craftAll)",
+      "serverFile": "packages/world/src/index.ts",
+      "serverAnchor": "export const craftInventoryRecipe",
+      "rationale": "Recipe execution, merchant carts, and trade offers are explicit economy/inventory transactions rather than item onUse."
+    },
+    {
+      "id": "item-rendering-and-held-animation",
+      "custody": "selected/equipped/world-item",
+      "classification": "pure-presentation",
+      "clientFile": "packages/client/src/overworld-main.ts",
+      "clientAnchor": "drawToolInteractionOverlay(",
+      "serverFile": "packages/client/src/overworld-main.ts",
+      "serverAnchor": "profile: equippedLight.profile === 'flicker' ? 'flame' : 'steady'",
+      "rationale": "Sprites, labels, aim previews, authored light profiles, and held animations do not dispatch authority. Lantern and Torch toggle capability is independently lifecycle-owned."
+    }
+  ]
+}

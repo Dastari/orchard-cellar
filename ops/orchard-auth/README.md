@@ -12,7 +12,8 @@ Git.
 - PostgreSQL `17.11-alpine3.24`, linux/amd64 manifest digest
   `sha256:7456ef82e5f5bc43d997f4781bbd7c0d6389bff397564649a356e206ba473aee`.
 - Issuer `https://auth.orchard.dastari.net/realms/orchard`.
-- Public browser client `orchard-web`; no client secret.
+- Public browser clients `orchard-web` and `orchard-studio`; neither has a client
+  secret.
 - Private TLS listener `10.0.1.150:8443`; only NPM `10.0.1.248/32` and explicitly
   passed administrator CIDRs may cross `DOCKER-USER`.
 
@@ -92,12 +93,66 @@ restore the pre-change NPM SQLite backup while NPM is quiesced. Restore the exac
 backup, validate HAProxy, then reload it. Do not guess database paths, container names,
 or HAProxy service names; record the discovered values in the acceptance evidence.
 
+## Orchard Studio client rollout
+
+The redacted realm configuration also declares the separate public client
+`orchard-studio`. It follows the same Authorization Code + S256 PKCE policy as
+`orchard-web`, but its redirect, post-logout redirect, and web origin are exactly
+`https://cellar.dastari.net/` and
+`https://cellar.dastari.net`. Do not add the game origin, localhost, or a
+wildcard to this production client, and do not create a client secret.
+
+Adding the repository export does not change the live realm. Before creating the
+client, take and verify the Keycloak/PostgreSQL and NPM/HAProxy backups described
+above. Prove that a pre-change Keycloak dump restores with the intentionally absent
+Studio client before reconciling it:
+
+```bash
+AUTH_RESTORE_EXPECT_STUDIO_CLIENT=false bin/restore-test.sh /approved/pre-change/keycloak.pgdump
+```
+
+The variable accepts only literal `true` or `false`; omitting it retains the
+post-change default that requires both `orchard-web` and `orchard-studio`. Create or
+reconcile only `orchard-studio`, inspect its effective settings,
+then use a harmless S256 authorization request to prove the exact redirect is
+accepted and a game-origin or localhost redirect is rejected. Run
+`bin/secret-scan.sh`, take another off-machine backup, and make
+`bin/restore-test.sh` pass with both public client rows.
+
+After installing the reviewed `realm/orchard-realm.json` and `bin` directory into the
+private service directory, a named master-realm administrator can perform that exact
+operation without placing a password on disk or in shell history:
+
+```bash
+bin/reconcile-studio-client.sh <named-admin-username>
+```
+
+The command prompts silently, refuses a missing/ambiguous template or live client,
+updates no other row, verifies the effective client and audience mapper, checks that
+only the Cellar redirect is accepted, and removes its temporary in-container
+administrator session configuration on every exit path. The removed bootstrap
+administrator must not be recreated to run it.
+
+NPM also generates a per-host access log using its built-in `proxy` format, which
+contains `$request_uri`. After creating or editing proxy host 33, run the idempotent
+`npm/reconcile-studio-log.sh` on the NPM host. It discovers exactly one
+`cellar.dastari.net` configuration, refuses ambiguous log state, changes only that
+generated log to the query-free `orchard_studio` format, validates Nginx, and reloads
+it. Keep a copy of the generated host config before its first application.
+
+The world module accepts the new audience only after its independently reviewed
+`OIDC_CLIENT_IDS` change is built, backed up, and published without `--delete-data`.
+Existing identities do not change because issuer and subject remain unchanged.
+
 ## Keycloak restore
 
 `bin/restore-test.sh /approved/copy/keycloak.pgdump` creates uniquely named temporary
-Docker resources, restores PostgreSQL, verifies the `orchard` realm and `orchard-web`
-client rows, boots the pinned Keycloak image, and checks canonical discovery. Its trap
-removes only those generated test containers/network/volume.
+Docker resources, restores PostgreSQL, verifies the `orchard` realm plus the
+`orchard-web` and `orchard-studio` client rows, boots the pinned Keycloak image, and
+checks canonical discovery. For a pre-reconciliation dump, set
+`AUTH_RESTORE_EXPECT_STUDIO_CLIENT=false` so the same isolated test requires exactly
+one `orchard-web` row and zero `orchard-studio` rows. Its trap removes only those
+generated test containers/network/volume.
 
 For a real restore, stop Keycloak, restore the custom-format dump into an empty pinned
 PostgreSQL volume, start Keycloak, and run both verification scripts before routing

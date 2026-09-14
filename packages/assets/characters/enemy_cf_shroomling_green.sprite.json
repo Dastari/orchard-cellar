@@ -1,6 +1,7 @@
 {
   "name": "enemy_cf_shroomling_green",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     16,
     16
@@ -2056,7 +2057,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Green_Shroomling.png",
-  "sourcePath": "references/Cute_Fantasy_ShroomLands/Shroomlings/Green_Shroomling.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/shroomlands/Shroomlings/Green_Shroomling.png",
   "sourceRegions": {
     "state_01": [
       [

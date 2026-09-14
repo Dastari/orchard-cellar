@@ -87,7 +87,7 @@
     "4": "#9c6754",
     "5": "#3f2832"
   },
-  "sourcePath": "references/Cute_Fantasy/Tiles/Water/Water_Tile_1.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Tiles/Water/Water_Tile_1.png",
   "sourcePaletteMode": "exact",
   "frameKinds": {
     "base": "variant"

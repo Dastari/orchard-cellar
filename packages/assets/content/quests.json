@@ -1,0 +1,221 @@
+[
+  {
+    "id": "quest:farmer_bob_fast_strawberries",
+    "kind": "quest",
+    "schemaVersion": 1,
+    "title": "Strawberries for Jane",
+    "summary": "Plant all six of Bob's unusually vigorous strawberry seeds outside his protected farm. Any clear overworld ground elsewhere is fine. Water them once, harvest all six plants, and bring three strawberries back for Jane.",
+    "giver": "npc:farmer_bob",
+    "objectives": [
+      {
+        "id": "grow_strawberries",
+        "label": "Harvest Bob's fast strawberries",
+        "kind": "statistic",
+        "statisticKind": "crops_harvested",
+        "subjectKind": "strawberry",
+        "count": 6
+      },
+      {
+        "id": "bring_strawberries",
+        "label": "Bring 3 Strawberries to Farmer Bob",
+        "kind": "collect",
+        "items": [
+          {
+            "item": "item:strawberry",
+            "count": 3
+          }
+        ],
+        "consumeOnTurnIn": true
+      }
+    ],
+    "acceptItems": [
+      {
+        "item": "item:bob_fast_strawberry_seeds",
+        "count": 6
+      }
+    ],
+    "rewards": {
+      "bronze": 7500,
+      "experience": [
+        {
+          "skill": "farming",
+          "amount": 100
+        }
+      ],
+      "items": [
+        {
+          "item": "item:janes_gardening_book",
+          "count": 1
+        }
+      ]
+    },
+    "abandonRemovesItems": [
+      {
+        "item": "item:bob_fast_strawberry_seeds",
+        "count": 6
+      }
+    ],
+    "world": {
+      "narrativeTriggers": [
+        {
+          "id": "farmer_bob_fast_strawberries_watered",
+          "event": "water_crop",
+          "subjectKind": "bob_fast_strawberry",
+          "body": "Whoa! These really do grow fast.",
+          "tone": "thought",
+          "durationTicks": 120
+        }
+      ]
+    }
+  },
+  {
+    "id": "quest:fisherman_first_catch",
+    "kind": "quest",
+    "schemaVersion": 1,
+    "title": "Fin's First Catch",
+    "summary": "Use Fin's spare rod at the teaching pool beside his dock and catch exactly three fish.",
+    "giver": "npc:fisherman_fin",
+    "objectives": [
+      {
+        "id": "catch_tutorial_fish",
+        "label": "Catch fish from Fin's teaching pool",
+        "kind": "statistic",
+        "statisticKind": "fish_caught",
+        "subjectKind": "raw_fish",
+        "count": 3
+      }
+    ],
+    "acceptItems": [
+      {
+        "item": "item:fishing_rod",
+        "count": 1
+      }
+    ],
+    "rewards": {
+      "bronze": 2000,
+      "experience": [
+        {
+          "skill": "explorer",
+          "amount": 75
+        }
+      ],
+      "items": [
+        {
+          "item": "item:fishing_handbook",
+          "count": 1
+        }
+      ]
+    },
+    "world": {
+      "personalResource": {
+        "objectiveId": "catch_tutorial_fish",
+        "resourceId": "2200000000",
+        "resourceKind": "fish_pool",
+        "spaceId": 0,
+        "tileX": 412,
+        "tileY": 316,
+        "item": "item:raw_fish"
+      }
+    }
+  },
+  {
+    "id": "quest:marlow_first_bottle",
+    "kind": "quest",
+    "schemaVersion": 1,
+    "title": "From Orchard to Cellar",
+    "summary": "Press fruit, age the Must into your first Bottle, then sell it to prove the estate can sustain itself.",
+    "giver": "npc:farmer_bob",
+    "prerequisites": [
+      "quest:farmer_bob_fast_strawberries"
+    ],
+    "objectives": [
+      {
+        "id": "press_fruit",
+        "label": "Press 3 Fruit into Must",
+        "kind": "statistic",
+        "statisticKind": "press_cycles_completed",
+        "subjectKind": "",
+        "count": 3
+      },
+      {
+        "id": "age_bottle",
+        "label": "Age 1 Bottle in a Fermentation Cask",
+        "kind": "statistic",
+        "statisticKind": "bottles_produced",
+        "subjectKind": "",
+        "count": 1
+      },
+      {
+        "id": "sell_bottle",
+        "label": "Sell 1 Bottle to Marlow",
+        "kind": "statistic",
+        "statisticKind": "items_sold",
+        "subjectKind": "bottles",
+        "count": 1
+      }
+    ],
+    "rewards": {
+      "bronze": 50000,
+      "experience": [
+        {
+          "skill": "farming",
+          "amount": 250
+        }
+      ],
+      "items": []
+    }
+  },
+  {
+    "id": "quest:marlow_important_book",
+    "kind": "quest",
+    "schemaVersion": 1,
+    "title": "A Very Important Book",
+    "summary": "Fetch the very important book from the table inside Marlow's tent.",
+    "giver": "npc:marlow",
+    "objectives": [
+      {
+        "id": "recover_book",
+        "label": "Pick up the book from Marlow's table",
+        "kind": "collect",
+        "items": [
+          {
+            "item": "item:marlow_book",
+            "count": 1
+          }
+        ],
+        "consumeOnTurnIn": true
+      }
+    ],
+    "rewards": {
+      "bronze": 10000,
+      "experience": [
+        {
+          "skill": "explorer",
+          "amount": 100
+        }
+      ],
+      "items": [
+        {
+          "item": "item:marlow_book",
+          "count": 1
+        }
+      ]
+    },
+    "abandonRemovesItems": [
+      {
+        "item": "item:marlow_book",
+        "count": 1
+      }
+    ],
+    "world": {
+      "surfaceItemsOnAccept": [
+        {
+          "objectiveId": "recover_book",
+          "surfaceId": "4000000100",
+          "slot": 0,
+          "item": "item:marlow_book"
+        }
+      ]
+    }
+  }
+]

@@ -345,7 +345,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Campfire_Anim.png",
-  "sourcePath": "references/Cute_Fantasy/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Campfire_Anim.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Outdoor_Decor_Animations/Other_Animations/Campfire_Anim.png",
   "sourceRegions": {
     "burn": [
       [
@@ -420,5 +420,10 @@
     ],
     "blocksMovement": true,
     "builderAvailable": false
-  }
+  },
+  "emissiveColors": [
+    "#ed7614",
+    "#ffa214",
+    "#ffc825"
+  ]
 }

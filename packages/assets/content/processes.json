@@ -1,0 +1,756 @@
+[
+  {
+    "id": "process:cook_beef",
+    "kind": "process",
+    "schemaVersion": 1,
+    "legacyJob": {
+      "recipeId": "cook_beef",
+      "farmingExperiencePerItem": 7
+    },
+    "stationTag": "station.campfire",
+    "input": {
+      "item": "item:raw_beef",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:cooked_beef",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 1000,
+    "experience": {
+      "skill": "farming",
+      "amount": 7
+    },
+    "adapter": "campfire_cooking"
+  },
+  {
+    "id": "process:cook_fish",
+    "kind": "process",
+    "schemaVersion": 1,
+    "legacyJob": {
+      "recipeId": "cook_fish",
+      "farmingExperiencePerItem": 5
+    },
+    "stationTag": "station.campfire",
+    "input": {
+      "item": "item:raw_fish",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:cooked_fish",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 800,
+    "experience": {
+      "skill": "farming",
+      "amount": 5
+    },
+    "adapter": "campfire_cooking"
+  },
+  {
+    "id": "process:ferment_must",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.cellar",
+    "input": {
+      "item": "item:must",
+      "count": 3
+    },
+    "outputs": [
+      {
+        "item": "item:bottles",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "fermentation"
+  },
+  {
+    "id": "process:preserve_beetroot",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:beetroot",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_beetroot",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_cabbage",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:cabbage",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_cabbage",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_carrot",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:carrot",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_carrot",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_corn",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:corn",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_corn",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_cucumber",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:cucumber",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_cucumber",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_garlic",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:garlic",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_garlic",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_grape",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:grape",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_grape",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_green_pepper",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:green_pepper",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_green_pepper",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_hot_pepper",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:hot_pepper",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_hot_pepper",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_leek",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:leek",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_leek",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_onion",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:onion",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_onion",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_parsley",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:parsley",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_parsley",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_potato",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:potato",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_potato",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_pumpkin",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:pumpkin",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_pumpkin",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_red_pepper",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:red_pepper",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_red_pepper",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_strawberry",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:strawberry",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_strawberry",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_sunflower",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:sunflower",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_sunflower",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_tomato",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:tomato",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_tomato",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_turnip",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:turnip",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_turnip",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_watermelon",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:watermelon",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_watermelon",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_wheat",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:wheat",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_wheat",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:preserve_yellow_pepper",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "container.barrel",
+    "input": {
+      "item": "item:yellow_pepper",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:preserved_yellow_pepper",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 36000,
+    "adapter": "barrel"
+  },
+  {
+    "id": "process:press_apple",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.press",
+    "input": {
+      "item": "item:apple",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:must",
+        "count": 1
+      },
+      {
+        "item": "item:pomace",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "adapter": "press"
+  },
+  {
+    "id": "process:press_cherry",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.press",
+    "input": {
+      "item": "item:cherry",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:must",
+        "count": 1
+      },
+      {
+        "item": "item:pomace",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "adapter": "press"
+  },
+  {
+    "id": "process:press_grape",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.press",
+    "input": {
+      "item": "item:grape",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:must",
+        "count": 1
+      },
+      {
+        "item": "item:pomace",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "adapter": "press"
+  },
+  {
+    "id": "process:press_peach",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.press",
+    "input": {
+      "item": "item:peach",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:must",
+        "count": 1
+      },
+      {
+        "item": "item:pomace",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "adapter": "press"
+  },
+  {
+    "id": "process:press_pear",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.press",
+    "input": {
+      "item": "item:pear",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:must",
+        "count": 1
+      },
+      {
+        "item": "item:pomace",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "adapter": "press"
+  },
+  {
+    "id": "process:roast_chicken",
+    "kind": "process",
+    "schemaVersion": 1,
+    "legacyJob": {
+      "recipeId": "roast_chicken",
+      "farmingExperiencePerItem": 5
+    },
+    "stationTag": "station.campfire",
+    "input": {
+      "item": "item:raw_chicken",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:cooked_chicken",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 900,
+    "experience": {
+      "skill": "farming",
+      "amount": 5
+    },
+    "adapter": "campfire_cooking"
+  },
+  {
+    "id": "process:roast_mutton",
+    "kind": "process",
+    "schemaVersion": 1,
+    "legacyJob": {
+      "recipeId": "roast_mutton",
+      "farmingExperiencePerItem": 6
+    },
+    "stationTag": "station.campfire",
+    "input": {
+      "item": "item:raw_mutton",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:cooked_mutton",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 900,
+    "experience": {
+      "skill": "farming",
+      "amount": 6
+    },
+    "adapter": "campfire_cooking"
+  },
+  {
+    "id": "process:roast_pork",
+    "kind": "process",
+    "schemaVersion": 1,
+    "legacyJob": {
+      "recipeId": "roast_pork",
+      "farmingExperiencePerItem": 6
+    },
+    "stationTag": "station.campfire",
+    "input": {
+      "item": "item:raw_pork",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:cooked_pork",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 900,
+    "experience": {
+      "skill": "farming",
+      "amount": 6
+    },
+    "adapter": "campfire_cooking"
+  },
+  {
+    "id": "process:smelt_copper_ore",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.furnace",
+    "input": {
+      "item": "item:copper_ore",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:copper_bar",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "fuelPolicy": {
+      "acceptedItems": [
+        "item:wood",
+        "item:plank"
+      ],
+      "unitsPerItem": 1
+    },
+    "adapter": "smelting"
+  },
+  {
+    "id": "process:smelt_gold_ore",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.furnace",
+    "input": {
+      "item": "item:gold_ore",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:gold_bar",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "fuelPolicy": {
+      "acceptedItems": [
+        "item:wood",
+        "item:plank"
+      ],
+      "unitsPerItem": 1
+    },
+    "adapter": "smelting"
+  },
+  {
+    "id": "process:smelt_iron_ore",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.furnace",
+    "input": {
+      "item": "item:iron_ore",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:iron_bar",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "fuelPolicy": {
+      "acceptedItems": [
+        "item:wood",
+        "item:plank"
+      ],
+      "unitsPerItem": 1
+    },
+    "adapter": "smelting"
+  },
+  {
+    "id": "process:smelt_silver_ore",
+    "kind": "process",
+    "schemaVersion": 1,
+    "stationTag": "station.furnace",
+    "input": {
+      "item": "item:silver_ore",
+      "count": 1
+    },
+    "outputs": [
+      {
+        "item": "item:silver_bar",
+        "count": 1
+      }
+    ],
+    "ticksPerUnit": 6000,
+    "fuelPolicy": {
+      "acceptedItems": [
+        "item:wood",
+        "item:plank"
+      ],
+      "unitsPerItem": 1
+    },
+    "adapter": "smelting"
+  }
+]

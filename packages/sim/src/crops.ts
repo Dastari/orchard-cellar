@@ -1,4 +1,4 @@
-import { AUTHORITY_HZ } from './net-timing.js';
+import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
 import { AUTHORITY_TICKS_PER_DAY, DAYS_PER_SEASON } from './time.js';
 
 export const CROP_STAGE_COUNT = 4;
@@ -19,111 +19,65 @@ export type CropKind = (typeof CROP_KINDS)[number];
 
 export const FARMER_BOB_FAST_STRAWBERRY_SEEDS = 'bob_fast_strawberry_seeds';
 export const FARMER_BOB_FAST_STRAWBERRY_CROP = 'bob_fast_strawberry';
-export const FARMER_BOB_FAST_STRAWBERRY_GROWTH_TICKS = BigInt(30 * AUTHORITY_HZ);
 
 export interface CropDefinition {
-  readonly kind: CropKind;
+  readonly kind: string;
   readonly displayName: string;
-  readonly seedItemKind: `${CropKind}_seeds`;
-  readonly harvestItemKind: CropKind;
-  readonly assetKey: `crop_cf_${CropKind}`;
-  readonly signAssetKey: `sign_cf_crop_${CropKind}`;
+  readonly seedItemKind: string;
+  readonly harvestItemKind: string;
+  readonly assetKey: string;
+  readonly signAssetKey: string;
   readonly growthTicks: bigint;
   readonly harvestQuantity: number;
   readonly seedBuyPriceBronze: number;
   readonly harvestSellPriceBronze: number;
-}
-
-function realMinutes(minutes: number): bigint {
-  return BigInt(minutes * 60 * AUTHORITY_HZ);
-}
-
-function crop(
-  kind: CropKind,
-  displayName: string,
-  growthMinutes: number,
-  harvestQuantity: number,
-  seedBuyPriceBronze: number,
-  harvestSellPriceBronze: number,
-): CropDefinition {
-  return {
-    kind,
-    displayName,
-    seedItemKind: `${kind}_seeds`,
-    harvestItemKind: kind,
-    assetKey: `crop_cf_${kind}`,
-    signAssetKey: `sign_cf_crop_${kind}`,
-    growthTicks: realMinutes(growthMinutes),
-    harvestQuantity,
-    seedBuyPriceBronze,
-    harvestSellPriceBronze,
-  };
+  /** Quest crops may explicitly ignore the ordinary winter dormancy window. */
+  readonly seasonless?: boolean;
+  readonly tags?: readonly string[];
 }
 
 /** The source-sheet order is deliberately preserved. It is the common key
- * between gameplay data and the licensed Crops/Crops_2 artwork. */
-export const CROP_DEFINITIONS = [
-  crop('wheat', 'Wheat', 12, 3, 18, 7),
-  crop('tomato', 'Tomato', 20, 3, 28, 11),
-  crop('carrot', 'Carrot', 15, 2, 20, 9),
-  crop('turnip', 'Turnip', 12, 2, 18, 8),
-  crop('corn', 'Corn', 25, 3, 32, 12),
-  crop('pumpkin', 'Pumpkin', 30, 1, 42, 38),
-  crop('parsley', 'Parsley', 8, 3, 14, 5),
-  crop('cabbage', 'Cabbage', 18, 1, 24, 22),
-  crop('cucumber', 'Cucumber', 18, 3, 24, 9),
-  crop('hot_pepper', 'Hot Pepper', 20, 3, 28, 11),
-  crop('red_pepper', 'Red Pepper', 20, 3, 30, 12),
-  crop('yellow_pepper', 'Yellow Pepper', 20, 3, 30, 12),
-  crop('green_pepper', 'Green Pepper', 20, 3, 30, 12),
-  crop('watermelon', 'Watermelon', 30, 1, 44, 40),
-  crop('sunflower', 'Sunflower', 18, 2, 24, 11),
-  crop('garlic', 'Garlic', 15, 2, 20, 9),
-  crop('potato', 'Potato', 15, 3, 22, 8),
-  crop('strawberry', 'Strawberry', 25, 3, 34, 13),
-  crop('beetroot', 'Beetroot', 15, 2, 20, 9),
-  crop('onion', 'Onion', 15, 2, 20, 9),
-  crop('leek', 'Leek', 18, 2, 24, 11),
-  crop('grape', 'Grapes', 30, 3, 40, 15),
-] as const satisfies readonly CropDefinition[];
+ * between gameplay data and the licensed Crops/Crops_2 artwork. The authored
+ * values themselves come only from the committed bootstrap content pack. */
+const BOOTSTRAP_CROPS = BOOTSTRAP_COMPILED_CONTENT.crops;
+export const AUTHORED_CROP_DEFINITIONS: readonly CropDefinition[] = BOOTSTRAP_CROPS;
+export const CROP_DEFINITIONS: readonly CropDefinition[] = Object.freeze(CROP_KINDS.map((kind) => {
+  const definition = BOOTSTRAP_CROPS.find((candidate) => candidate.kind === kind);
+  if (definition === undefined) throw new Error(`bootstrap_crop_missing:${kind}`);
+  return definition;
+}));
 
-const CROP_BY_KIND = new Map<string, CropDefinition>(
+const AUTHORED_CROP_BY_KIND = new Map<string, CropDefinition>(
+  AUTHORED_CROP_DEFINITIONS.map((definition) => [definition.kind, definition]),
+);
+const AUTHORED_CROP_BY_SEED = new Map<string, CropDefinition>(
+  AUTHORED_CROP_DEFINITIONS.map((definition) => [definition.seedItemKind, definition]),
+);
+const STANDARD_CROP_BY_KIND = new Map<string, CropDefinition>(
   CROP_DEFINITIONS.map((definition) => [definition.kind, definition]),
 );
-const CROP_BY_SEED = new Map<string, CropDefinition>(
+const STANDARD_CROP_BY_SEED = new Map<string, CropDefinition>(
   CROP_DEFINITIONS.map((definition) => [definition.seedItemKind, definition]),
 );
 
 export function cropDefinition(kind: string): CropDefinition | null {
-  if (kind === FARMER_BOB_FAST_STRAWBERRY_CROP) {
-    const strawberry = CROP_BY_KIND.get('strawberry');
-    return strawberry === undefined ? null : {
-      ...strawberry,
-      growthTicks: FARMER_BOB_FAST_STRAWBERRY_GROWTH_TICKS,
-    };
-  }
-  return CROP_BY_KIND.get(kind) ?? null;
+  return AUTHORED_CROP_BY_KIND.get(kind) ?? null;
 }
 
 export function cropDefinitionForSeed(itemKind: string): CropDefinition | null {
-  if (itemKind === FARMER_BOB_FAST_STRAWBERRY_SEEDS) {
-    return cropDefinition(FARMER_BOB_FAST_STRAWBERRY_CROP);
-  }
-  return CROP_BY_SEED.get(itemKind) ?? null;
+  return AUTHORED_CROP_BY_SEED.get(itemKind) ?? null;
 }
 
-export function cropStoredKindForSeed(itemKind: string, definition: CropDefinition): string {
-  return itemKind === FARMER_BOB_FAST_STRAWBERRY_SEEDS
-    ? FARMER_BOB_FAST_STRAWBERRY_CROP
-    : definition.kind;
+export function cropStoredKindForSeed(_itemKind: string, definition: CropDefinition): string {
+  return definition.kind;
 }
 
 export function isCropKind(kind: string): kind is CropKind {
-  return CROP_BY_KIND.has(kind);
+  return STANDARD_CROP_BY_KIND.has(kind);
 }
 
-export function isCropSeedKind(kind: string): kind is CropDefinition['seedItemKind'] {
-  return CROP_BY_SEED.has(kind);
+export function isCropSeedKind(kind: string): kind is `${CropKind}_seeds` {
+  return STANDARD_CROP_BY_SEED.has(kind);
 }
 
 export interface CropGrowthSnapshot {
@@ -193,11 +147,12 @@ export function cropGrowthAt(
   const growthEnd = automaticallyWatered
     ? currentTick
     : currentTick < wateredUntil ? currentTick : wateredUntil;
+  const seasonProtected = greenhouseProtected || definition.seasonless === true;
   const intervalGrowth = (automaticallyWatered || hasBeenWatered) && growthEnd > growthStart
     ? cropSeasonalGrowthBetween(
       growthStart + calendarOffsetTicks,
       growthEnd + calendarOffsetTicks,
-      greenhouseProtected,
+      seasonProtected,
     )
     : 0n;
   const accumulated = storedGrowthTicks + intervalGrowth;
@@ -217,7 +172,7 @@ export function cropGrowthAt(
     wateredUntilTick: automaticallyWatered
       ? currentTick + CROP_WATERING_TICKS
       : wateredAtTick + CROP_WATERING_TICKS,
-    inSeason: greenhouseProtected
+    inSeason: seasonProtected
       || (((currentTick + calendarOffsetTicks) > 0n ? currentTick + calendarOffsetTicks : 0n)
         % CROP_YEAR_TICKS) < CROP_ACTIVE_SEASON_TICKS,
   };
@@ -267,7 +222,10 @@ export const CROP_HARVEST_ITEM_DEFINITIONS = Object.fromEntries(
       iconKey: `item_cf_crop_${definition.harvestItemKind}`,
       quality: 'common',
       maxStack: 99,
-      tags: ['item.crop', 'item.food', `crop.${definition.kind}`],
+      tags: [
+        'item.crop', 'item.food', `crop.${definition.kind}`,
+        ...(['strawberry', 'watermelon'].includes(definition.kind) ? ['crop.fruit'] : []),
+      ],
     },
   ]),
 ) as unknown as Readonly<Record<Exclude<CropKind, 'grape'>, {

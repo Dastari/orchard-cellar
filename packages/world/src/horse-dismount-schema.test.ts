@@ -10,22 +10,26 @@ describe('horse dismount persistence', () => {
       source.indexOf('export const jumpHorse'),
     );
 
-    expect(reducer).toContain('rider: undefined');
-    expect(reducer).toContain('homeX: currentMount.x');
-    expect(reducer).toContain('homeY: currentMount.y');
+    expect(reducer).toContain("interactEntityBehaviour(ctx, { targetKind: 'npc', entityId: horseId, verb: 'use' }");
+    const authority = source.slice(source.indexOf('function applyMountLifecycle('), source.indexOf('export const interactHorse'));
+    expect(authority).toContain('currentMount?.id !== npc.id || npc.rider?.isEqual(ctx.sender) !== true');
+    expect(authority).toContain('const plan = vehicleCustodyPlan(npc, position, {');
+    expect(authority).toContain('updateWorldNpc(ctx, plan.npc)');
+    const custody = readFileSync(new URL('./behaviour/vehicle.ts', import.meta.url), 'utf8');
+    expect(custody).toContain("const reanchor = !mounting && transition.adapter === 'horse'");
+    expect(custody).toContain('rider: mounting ? transition.actor : undefined');
+    expect(custody).toContain('homeX: npc.x, homeY: npc.y');
   });
 
-  it('keeps owner recovery explicit, unridden, and re-homed', () => {
+  it('uses the typed generic NPC relocation replacement for owner recovery', () => {
+    expect(source).not.toContain('export const adminRelocateHorse');
     const reducer = source.slice(
-      source.indexOf('export const adminRelocateHorse'),
-      source.indexOf('export const setDisplayName'),
+      source.indexOf('export const adminRelocateNpc'),
+      source.indexOf('export const adminRespawnResources'),
     );
-
-    expect(reducer).toContain('requireWorldOwner(');
-    expect(reducer).toContain("horse.kind !== 'horse'");
-    expect(reducer).toContain("throw new SenderError('horse_is_mounted')");
-    expect(reducer).toContain('homeX: x');
-    expect(reducer).toContain('homeY: y');
+    expect(reducer).toContain('executeAdminObjectMutation(ctx');
+    expect(reducer).toContain("operation: 'relocate_npc'");
+    expect(reducer).toContain('npcId');
   });
 
   it('runs the legacy two-horse recovery once and never moves a mounted horse', () => {

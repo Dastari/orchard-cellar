@@ -56,14 +56,18 @@ describe('32 training-target combat foundation', () => {
   });
 
   it('keeps lift/place server-authorized, index-backed, and outside inventory', () => {
-    const hands = reducerSource('useHands');
+    const generic = source.slice(
+      source.indexOf('function worldBehaviourEffectWriter('),
+      source.indexOf('function applyWorldBehaviourEffects('),
+    );
     const carried = source.slice(
       source.indexOf('function placeCarriedHandsObject('),
       source.indexOf('function placeCarriedChest('),
     );
-    expect(hands.indexOf('requireAuthorizedSender(')).toBeLessThan(hands.indexOf('carriedCombatTargetFor('));
-    expect(hands).toContain('combatTargetAtFacingTile(ctx, position)');
-    expect(hands).toContain('carriedBy: ctx.sender');
+    expect(source).not.toContain('export const useHands =');
+    expect(generic).toContain("target?.kind !== 'combat_target'");
+    expect(generic).toContain('ctx.db.world_combat_target.id.update({');
+    expect(generic).toContain('carriedBy: ctx.sender');
     expect(carried).toContain('carriedBy: undefined');
     const targetBranches = carried;
     expect(targetBranches).not.toContain('inventory_slot.id.insert');
@@ -87,11 +91,18 @@ describe('32 training-target combat foundation', () => {
   });
 
   it('lets swords damage only forward authoritative targets and food wildlife', () => {
-    const attack = reducerSource('attackCombatTarget');
+    const start = source.indexOf('function applySwordMeleeLifecycle(');
+    const end = source.indexOf('\nfunction applyHarvestResourceLifecycle(', start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const attack = source.slice(start, end);
     expect(attack.indexOf('requireAuthorizedSender(')).toBeLessThan(
-      attack.indexOf('world_combat_target.id.find(targetId)'),
+      attack.indexOf("attackTarget.kind === 'combat_target'"),
     );
-    expect(attack).toContain("slot?.itemKind !== 'sword'");
+    expect(attack).toContain("runtimeItemHasTag(registry, slot.itemKind, 'item.melee_weapon')");
+    expect(attack).not.toContain("slot?.itemKind !== 'sword'");
+    expect(attack).toContain("attackTarget.kind === 'combat_target'");
+    expect(attack).toContain("attackTarget.kind === 'npc'");
     expect(attack).toContain('storedTarget.kind !== ARCHERY_TARGET_KIND');
     expect(attack).toContain('storedTarget.spaceId !== position.spaceId');
     expect(attack).toContain('storedTarget.carriedBy !== undefined');
@@ -99,12 +110,15 @@ describe('32 training-target combat foundation', () => {
     expect(attack).toContain("attackKind: 'melee'");
     expect(attack).toContain('weaponBaseCenti: SWORD_BASE_DAMAGE_CENTI');
     expect(attack).toContain('scalingAttribute: resolved.attributes.str');
-    expect(attack).toContain("actionKind: 'swing_sword'");
+    expect(attack).toContain('actionKind = runtimeItemAvatarAction(registry, slot.itemKind)');
     expect(attack).toContain("'damage_dealt', BigInt(appliedDamage)");
     expect(attack).not.toContain('world_resource');
     expect(attack).toContain('world_npc.id.find(targetId)');
     expect(attack).toContain('wildlifeIsHuntable(profile.species)');
     expect(attack).toContain('damageHuntableWildlife(');
+    expect(source).not.toContain('export const attackCombatTarget =');
+    expect(source).toContain("if (kind === 'meleeAttack')");
+    expect(source).toContain('applySwordMeleeLifecycle(ctx, plannedMeleeAttack)');
   });
 
   it('keeps wildlife hit feedback and herd panic authoritative', () => {
@@ -120,7 +134,7 @@ describe('32 training-target combat foundation', () => {
 
     const damage = source.slice(
       source.indexOf('function panicNearbyWildlife'),
-      source.indexOf('/** Authority owns tool'),
+      source.indexOf('type SwordMeleeTarget'),
     );
     expect(damage).toContain('world_npc.by_chunk.filter(attackedNpc.spaceId)');
     expect(damage).toContain('wildlifePanicGroup(profile.species) !== group');
@@ -134,43 +148,80 @@ describe('32 training-target combat foundation', () => {
     expect(step).toContain('panicUntilTick: undefined');
   });
 
+  it('protects Bob\'s authored livestock and anchors his warning to the NPC', () => {
+    const damage = source.slice(
+      source.indexOf('function damageHuntableWildlife'),
+      source.indexOf('type SwordMeleeTarget'),
+    );
+    expect(damage).toContain('BigInt(definition.protectedPack.packId) === profile.packId');
+    expect(damage).toContain('body: protection.response');
+    expect(damage.indexOf('return 0;')).toBeLessThan(damage.indexOf('const damage = Math.max'));
+    expect(source).toContain('speakerNpcId: t.option(t.u64()).default(undefined)');
+    expect(source).toContain('speakerNpcId: protector.id');
+  });
+
   it('server-times bow charge and binds its range and Vigour price to the same duration', () => {
-    const begin = reducerSource('beginBowCharge');
+    const beginStart = source.indexOf('function applyBowBeginLifecycle(');
+    const cancelStart = source.indexOf('function applyBowCancelLifecycle(', beginStart);
+    const fireStart = source.indexOf('function applyBowFireLifecycle(', cancelStart);
+    const fireEnd = source.indexOf('\nexport const decayEmptyTopsideSoil', fireStart);
+    expect(beginStart).toBeGreaterThanOrEqual(0);
+    expect(cancelStart).toBeGreaterThan(beginStart);
+    expect(fireStart).toBeGreaterThan(cancelStart);
+    expect(fireEnd).toBeGreaterThan(fireStart);
+    const begin = source.slice(beginStart, cancelStart);
     expect(begin.indexOf('requireAuthorizedSender(')).toBeLessThan(begin.indexOf('player_position.identity.find'));
     expect(begin).toContain('bow_charge.identity.find(ctx.sender)');
     expect(begin).toContain("throw new SenderError('bow_already_charging')");
     expect(begin).toContain('ctx.db.bow_charge.insert({');
     expect(begin).toContain('startedTick: clock.authorityTick');
-    expect(begin).toContain("actionKind: 'ranged_weapon'");
+    expect(begin).toContain('actionKind: ranged.avatarAction');
+    expect(begin).toContain('itemKind: selected.itemKind');
     expect(begin).toContain('actionStartedTick: clock.authorityTick');
     expect(begin).toContain('advancePlayerStats(ctx, ctx.sender, clock.authorityTick)');
-    const fire = reducerSource('fireBow');
+    expect(begin).toContain('previewPlayerStats(ctx, ctx.sender, clock.authorityTick)');
+    expect(begin).toContain('if (!mutate) return');
+    const cancel = source.slice(cancelStart, fireStart);
+    expect(cancel).toContain('authorityBowChargeMs(charge.startedTick, clock.authorityTick, chargeMs)');
+    expect(cancel).toContain('validateToolVigourSpend(');
+    const fire = source.slice(fireStart, fireEnd);
     expect(fire).toContain('bow_charge.identity.find(ctx.sender)');
     expect(fire).toContain('authorityBowChargeMs(charge.startedTick, clock.authorityTick, chargeMs)');
     expect(fire).toContain('bowChargedRangePixels(');
-    expect(fire).toContain('bowChargeVigourCostCenti(authoritativeChargeMs)');
+    expect(fire).toContain('bowChargeVigourCostCenti(authoritativeChargeMs, vigour.costCenti)');
     expect(fire).toContain('projectile_charge.insert({');
     expect(fire).toContain('chargeMs: authoritativeChargeMs');
-    expect(fire).toMatch(/bowChargeVigourCostCenti\(authoritativeChargeMs\),\s+true,/);
+    expect(fire).toMatch(/bowChargeVigourCostCenti\(authoritativeChargeMs, vigour\.costCenti\),\s+true,/);
     expect(fire).toContain('bow_charge.identity.delete(ctx.sender)');
     const timer = source.slice(
       source.indexOf('function authorityBowChargeMs'),
-      source.indexOf('export const beginBowCharge'),
+      source.indexOf('function applyBowBeginLifecycle'),
     );
     expect(timer).toContain('authorityTick - startedTick');
     expect(timer).toContain('Math.min(BOW_MAX_CHARGE_MS, requestedChargeMs, elapsedMs)');
+    expect(source).not.toContain('export const beginBowCharge =');
+    expect(source).not.toContain('export const cancelBowCharge =');
+    expect(source).not.toContain('export const fireBow =');
+    const lifecycleWriter = source.slice(
+      source.indexOf('function worldBehaviourEffectWriter('),
+      source.indexOf('function applyWorldBehaviourEffects('),
+    );
+    expect(lifecycleWriter).toContain("if (kind === 'bowAction')");
+    expect(lifecycleWriter).toContain("applyBowBeginLifecycle(ctx, false)");
+    expect(lifecycleWriter).toContain("applyBowCancelLifecycle(ctx, action.chargeMs, false)");
+    expect(lifecycleWriter).toContain("applyBowFireLifecycle(ctx, action.aimX, action.aimY, action.chargeMs, false)");
     const step = source.slice(source.indexOf('export const stepWorld ='));
     expect(step).toContain('activelySprinting || activelyChargingBow');
   });
 
   it('regenerates only indexed targets in occupied spaces and embeds arrows for thirty seconds', () => {
     const step = source.slice(source.indexOf('export const stepWorld ='));
-    expect(step).toContain('world_combat_target.by_chunk.filter(spaceId)');
+    expect(step).toContain('world_combat_target.by_chunk.filter([spaceId, chunkX, chunkY])');
     expect(step).not.toContain('world_combat_target.iter()');
     expect(step).toContain('regenerateCombatTarget(ctx, target, authorityTick)');
     expect(step).toContain('ARCHERY_TARGET_EMBEDDED_ARROW_TICKS');
     expect(step).toContain("projectile.hitKind === 'combat_target'");
-    expect(step).toContain("itemKind: 'arrow'");
+    expect(step).toContain('itemKind: projectile.ammunitionItemKind');
   });
 
   it('keeps exact arrow impact coordinates and preserves their offset when a target moves', () => {
@@ -197,7 +248,7 @@ describe('32 training-target combat foundation', () => {
     expect(pickup).toContain('projectile.expiresTick <= clock.authorityTick');
     expect(pickup).toContain('projectile.spaceId !== position.spaceId');
     expect(pickup).toContain('itemWithinPickupReach(');
-    expect(pickup).toContain("insertPlayerCarriedItem(ctx, 'arrow', 1)");
+    expect(pickup).toContain('insertPlayerCarriedItem(ctx, projectile.ammunitionItemKind, 1)');
     expect(pickup).toContain('world_projectile.id.delete(projectile.id)');
     expect(pickup).toContain('projectile_charge.projectileId.delete(projectile.id)');
   });

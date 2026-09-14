@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_fishing_mapping",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......5555552...",
+        "......54544442..",
+        "......50040042..",
+        ".....554544422..",
+        ".....500040042..",
+        "....545444233...",
+        "...54004023610..",
+        "..245444243160..",
+        "...2244242200...",
+        ".....22222.10...",
+        "..........601...",
+        ".........61.01..",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#3e2731",
+    "1": "#a22633",
+    "2": "#b86f50",
+    "3": "#e43b44",
+    "4": "#e4a672",
+    "5": "#ead4aa",
+    "6": "#f6757a"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-classic.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/general-items-tools/sheet-16-classic.png",
+  "sourceRegion": [
+    160,
+    64,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.fishing_mapping",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

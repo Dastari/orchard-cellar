@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_vulture_01",
   "category": "props",
+  "bakedShadowColor": "#00000064",
   "size": [
     48,
     48
@@ -2121,7 +2122,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Vulture_1.png",
-  "sourcePath": "references/Cute_Fantasy_Desert/Animals/Vulture/Vulture_1.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/desert/Animals/Vulture/Vulture_1.png",
   "sourceRegions": {
     "idle_side": [
       [

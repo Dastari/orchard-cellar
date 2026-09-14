@@ -6,7 +6,6 @@ import {
   barrelCanSeal,
   barrelMutationIsValid,
   barrelProgress,
-  settleBarrel,
 } from './barreling.js';
 
 describe('crop barreling', () => {
@@ -21,15 +20,9 @@ describe('crop barreling', () => {
     expect(barrelMutationIsValid([], [{ itemKind: 'tomato', quantity: BARREL_MAX_BATCH + 1 }], undefined)).toBe(false);
   });
 
-  it('freezes sealed contents and converts a completed batch exactly once', () => {
+  it('freezes sealed contents', () => {
     expect(barrelMutationIsValid(batch, batch, 5n)).toBe(true);
     expect(barrelMutationIsValid(batch, [{ itemKind: 'tomato', quantity: 11 }], 5n)).toBe(false);
-    expect(settleBarrel(batch, 5n, 5n + BARREL_CURE_TICKS - 1n).completedQuantity).toBe(0);
-    const settled = settleBarrel(batch, 5n, 5n + BARREL_CURE_TICKS);
-    expect(settled.completedCropKind).toBe('tomato');
-    expect(settled.completedQuantity).toBe(12);
-    expect(settled.sealedAtTick).toBeUndefined();
-    expect(settled.slots[0]).toEqual({ itemKind: 'preserved_tomato', quantity: 12 });
   });
 
   it('derives cure progress without writes', () => {

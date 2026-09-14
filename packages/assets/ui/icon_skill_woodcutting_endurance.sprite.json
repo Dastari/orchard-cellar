@@ -1,0 +1,65 @@
+{
+  "name": "icon_skill_woodcutting_endurance",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "...........000..",
+        ".........001110.",
+        "........01122110",
+        "......0012222210",
+        ".....01222233210",
+        "....02223323310.",
+        "...022223322210.",
+        "..033332222210..",
+        ".035555322320...",
+        "0354444532210...",
+        "035455453220....",
+        "03545545320.....",
+        "0354444530......",
+        ".03555530.......",
+        "..033330........",
+        "...0000........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#2e222f",
+    "1": "#4b4b20",
+    "2": "#605331",
+    "3": "#6e6c54",
+    "4": "#90908d",
+    "5": "#aba990"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "trees-and-logs-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/trees-and-logs/sheets/trees-and-logs-16.png",
+  "sourceRegion": [
+    0,
+    16,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.woodcutting_endurance",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

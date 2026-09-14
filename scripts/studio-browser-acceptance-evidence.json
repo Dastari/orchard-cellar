@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-03",
+  "browser": "HeadlessChrome/152.0.0.0",
+  "localProductionPreview": "http://127.0.0.1:5176",
+  "studioBuildPassed": true,
+  "anonymousRoutes": [
+    "/build/map",
+    "/build/map/terrain-lab",
+    "/build/map/procedural-world",
+    "/build/object",
+    "/author/items",
+    "/author/npcs",
+    "/author/dialogue",
+    "/author/quests",
+    "/author/character",
+    "/author/audio",
+    "/author/ui-lab",
+    "/build/tiles",
+    "/author/world-tables",
+    "/author/pack"
+  ],
+  "privilegedRoutesRejectedAnonymously": [
+    "/operate/players",
+    "/operate/playbooks",
+    "/operate/membership",
+    "/observe/world",
+    "/operate/containers",
+    "/operate/objects",
+    "/operate/npcs",
+    "/operate/world"
+  ],
+  "allAnonymousRoutesRendered": true,
+  "allConnectButtonsDisabledInSandbox": true,
+  "liveOrOidcRequests": 0,
+  "consoleErrors": 0,
+  "pageErrors": 0,
+  "split": {
+    "renderedTwoIndependentHeadings": true,
+    "horizontalAndVerticalControlsWorked": true,
+    "namedLayoutSavedToSessionStorage": true
+  },
+  "keyboardAndSearch": {
+    "paletteShortcutWorked": true,
+    "globalSearchShortcutWorked": true,
+    "tileSearchNavigatedTo": "/build/tiles",
+    "authorModeShortcutNavigatedTo": "/author/items"
+  },
+  "publicStaticValidation": {
+    "origin": "https://cellar.dastari.net",
+    "csp": true,
+    "noStore": true,
+    "referrerPolicy": true,
+    "contentTypeOptions": true,
+    "sameOriginHealth": true
+  }
+}

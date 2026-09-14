@@ -1,0 +1,70 @@
+[
+  {
+    "id": "effect:fruitful_energy",
+    "kind": "effect",
+    "schemaVersion": 1,
+    "name": "Fruitful Energy",
+    "maxStacks": 1,
+    "durationTicks": 6000,
+    "modifiers": [
+      {
+        "id": "effect.fruitful_energy.vigour_regen",
+        "target": "vigourRegen",
+        "layer": "pctAdd",
+        "value": 5000,
+        "source": "effect"
+      }
+    ]
+  },
+  {
+    "id": "effect:orchard_tea",
+    "kind": "effect",
+    "schemaVersion": 1,
+    "name": "Orchard Tea",
+    "maxStacks": 1,
+    "durationTicks": 6000,
+    "modifiers": [
+      {
+        "id": "effect.orchard_tea.constitution",
+        "target": "con",
+        "layer": "flat",
+        "value": 2,
+        "source": "effect"
+      }
+    ]
+  },
+  {
+    "id": "effect:well_rested",
+    "kind": "effect",
+    "schemaVersion": 1,
+    "name": "Well Rested",
+    "maxStacks": 1,
+    "durationTicks": 144000,
+    "modifiers": [
+      {
+        "id": "effect.well_rested.vigour_regen",
+        "target": "vigourRegen",
+        "layer": "pctAdd",
+        "value": 2500,
+        "source": "effect"
+      }
+    ]
+  },
+  {
+    "id": "effect:winded",
+    "kind": "effect",
+    "schemaVersion": 1,
+    "name": "Winded",
+    "maxStacks": 1,
+    "durationTicks": 1800,
+    "modifiers": [
+      {
+        "id": "effect.winded.vigour_regen",
+        "target": "vigourRegen",
+        "layer": "pctAdd",
+        "value": -5000,
+        "source": "effect"
+      }
+    ]
+  }
+]

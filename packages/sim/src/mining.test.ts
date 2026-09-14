@@ -8,8 +8,12 @@ import {
   miningRequiredPickaxeTier,
   miningWorkPerHit,
   mixedNodeStoneChancePercent,
-  resolveMiningYield,
 } from './mining.js';
+import { resolveMiningLoot } from './behaviour/handlers/loot.js';
+import { bootstrapContentRows } from './content/bootstrap-registry.js';
+import { buildContentRegistry } from './content/registry.js';
+
+const loots = buildContentRegistry(bootstrapContentRows()).registry.loots;
 
 describe('repeatable mining loop', () => {
   it('takes four, three, then two hits per payout as Efficient Strikes improves', () => {
@@ -20,7 +24,7 @@ describe('repeatable mining loop', () => {
 
   it('reduces mixed-node stone chance without making pure nodes impure', () => {
     expect([0, 1, 2, 3].map(mixedNodeStoneChancePercent)).toEqual([70, 60, 50, 40]);
-    expect(resolveMiningYield({
+    expect(resolveMiningLoot(loots, {
       kind: 'ore_copper', nodeClass: 'pure', richnessRemaining: 6,
       maximumRichness: 6,
       yieldsProduced: 0, producedOre: false,
@@ -30,7 +34,7 @@ describe('repeatable mining loop', () => {
   });
 
   it('forces the final mixed payout to matching ore after only stone', () => {
-    expect(resolveMiningYield({
+    expect(resolveMiningLoot(loots, {
       kind: 'ore_amethyst', nodeClass: 'mixed', richnessRemaining: 1,
       maximumRichness: 3,
       yieldsProduced: 2, producedOre: false,
@@ -41,7 +45,7 @@ describe('repeatable mining loop', () => {
 
   it('always gives a rock pebble and only adds an ore fragment on its bonus roll', () => {
     for (let seed = 0; seed < 500; seed += 1) {
-      const result = resolveMiningYield({
+      const result = resolveMiningLoot(loots, {
         kind: 'rock_large', nodeClass: 'rock', richnessRemaining: 3,
         maximumRichness: 3,
         yieldsProduced: seed, producedOre: false,
@@ -52,7 +56,7 @@ describe('repeatable mining loop', () => {
   });
 
   it('gives Mother Lode one fragment on the first payout of a rich pure vein', () => {
-    expect(resolveMiningYield({
+    expect(resolveMiningLoot(loots, {
       kind: 'ore_gold', nodeClass: 'pure', richnessRemaining: 6,
       maximumRichness: 6, yieldsProduced: 0, producedOre: false,
     }, ['mother-lode'], 0, 0, 1).drops).toEqual([
@@ -70,7 +74,8 @@ describe('repeatable mining loop', () => {
   });
 
   it('keeps surface progression open while reserving deep gems for later pickaxes', () => {
-    expect(miningPickaxeTierForItem('pickaxe')).toBe(3);
+    expect(miningPickaxeTierForItem('pickaxe')).toBe(1);
+    expect(miningPickaxeTierForItem('iron_pickaxe')).toBe(3);
     expect(miningRequiredPickaxeTier('ore_emerald', 'pristine')).toBe(1);
     expect(miningRequiredPickaxeTier('ore_copper', 'pure')).toBe(1);
     expect(miningRequiredPickaxeTier('ore_gold', 'pure')).toBe(2);

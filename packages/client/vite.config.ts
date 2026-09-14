@@ -13,6 +13,16 @@ export function developmentCsp(html: string): string {
   return withViteWorker;
 }
 
+export const clientProxy = {
+  '/v1': { target: 'http://127.0.0.1:3000', ws: true },
+};
+
+export const clientListenOptions = {
+  port: 5173,
+  strictPort: true,
+  allowedHosts: ['development.tail7a58a6.ts.net', 'orchard.tail7a58a6.ts.net', 'orchard.dastari.net'],
+};
+
 export default defineConfig(({ command }) => {
   const pwaBuildId = `${clientPackage.version}-${Date.now().toString(36)}`;
   return ({
@@ -41,19 +51,19 @@ export default defineConfig(({ command }) => {
     }] : []),
   ],
   server: {
-    port: 5173,
-    strictPort: true,
-    allowedHosts: ['development.tail7a58a6.ts.net', 'orchard.tail7a58a6.ts.net', 'orchard.dastari.net'],
-    proxy: {
-      '/v1': { target: 'http://127.0.0.1:3000', ws: true },
-    },
+    ...clientListenOptions,
+    proxy: clientProxy,
+  },
+  preview: {
+    ...clientListenOptions,
+    proxy: clientProxy,
   },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 250,
     rolldownOptions: {
-      input: ['index.html', 'editor.html', 'audio-preview.html'],
+      input: 'index.html',
       output: {
         codeSplitting: {
           minSize: 10_000,
@@ -62,13 +72,17 @@ export default defineConfig(({ command }) => {
               name: 'spacetime-runtime',
               test: /node_modules\/(?:spacetimedb|safe-stable-stringify|base64-js)\//,
             },
-            { name: 'world-bindings', test: /packages\/client\/src\/net\/generated\// },
+            { name: 'webgl-world', includeDependenciesRecursively: false, test: /packages\/engine\/src\/webgl\/(?!hooks\.ts$)/ },
+            { name: 'world-bindings', test: /packages\/world-bindings\/src\// },
             { name: 'simulation', test: /packages\/sim\/src\// },
             { name: 'client-network', test: /packages\/client\/src\/net\// },
-            { name: 'game-ui', test: /packages\/client\/src\/ui\// },
+            {
+              name: 'game-ui',
+              test: /packages\/ui\/src\/(?!(?:assets|pixel-ui|sprite)\.ts$)/,
+            },
             {
               name: 'canvas-rendering',
-              test: /packages\/client\/src\/(?:render\/(?!terrain-inspector\.ts$)|overworld-art\.ts$)/,
+              test: /packages\/(?:engine\/src\/(?!(?:(?:display|editor-terrain|loading-screen|terrain-inspector)\.ts$|webgl\/(?!hooks\.ts$)))|ui\/src\/(?:assets|pixel-ui|sprite)\.ts$)/,
             },
           ],
         },

@@ -1,4 +1,22 @@
-import type { TerrainTransition } from './terrain-elevation.js';
+import {
+  TERRAIN_SURFACE_FAMILY_IDS,
+  type TerrainSurfaceFamilyId,
+} from './terrain-tilesets.js';
+import type { RaisedTerrainRole } from './raised-terrain-autotile.js';
+import {
+  TERRAIN_TRANSITION_KINDS,
+  stairRunValid,
+  terrainTransitionValid,
+  type StairRun,
+  type TerrainTransition,
+} from './terrain-elevation.js';
+import {
+  SURVIVAL_WORLD_SEED,
+  survivalBiomeAt,
+  survivalTerrainBlocksTraversalAt,
+  survivalTerrainHeightAt,
+  type SurvivalBiome,
+} from './survival-world.js';
 
 export const MAP_DOCUMENT_SCHEMA_VERSION = 2 as const;
 export const MAP_SURFACE_KINDS = [
@@ -12,12 +30,25 @@ export type MapFeatureKind = typeof MAP_FEATURE_KINDS[number];
 export const MAP_COLLISION_OVERRIDES = ['inherit', 'force_block', 'force_walk'] as const;
 export type MapCollisionOverride = typeof MAP_COLLISION_OVERRIDES[number];
 
+export interface TerrainOverride {
+  /** Exact independently-resolved contour this substitution belongs to. */
+  readonly contourLevel: number;
+  readonly role?: RaisedTerrainRole;
+  readonly frameIndex?: number;
+  readonly family?: string;
+}
+
 export interface MapCellOverride {
   readonly elevation?: number;
   readonly surface?: MapSurfaceKind;
   readonly feature?: MapFeatureKind;
   readonly collision?: MapCollisionOverride;
   readonly collisionReason?: string;
+  readonly cliffFamily?: string;
+  readonly surfaceFamily?: TerrainSurfaceFamilyId;
+  readonly terrainOverride?: TerrainOverride;
+  /** Zero-height lip/barrier overlay. This never changes logical elevation. */
+  readonly ledge?: boolean;
 }
 
 export interface MapSceneryPlacement {
@@ -29,13 +60,62 @@ export interface MapSceneryPlacement {
   readonly state?: string;
 }
 
+export const MAP_GAMEPLAY_ANCHOR_KINDS = [
+  'spawn', 'portal', 'poi', 'npc', 'resource', 'label',
+] as const;
+export type MapGameplayAnchorKind = typeof MAP_GAMEPLAY_ANCHOR_KINDS[number];
+export const MAP_GAMEPLAY_ANCHOR_LABEL_MAX_LENGTH = 96;
+export const MAP_GAMEPLAY_ANCHOR_ELEVATION_MINIMUM = -32;
+export const MAP_GAMEPLAY_ANCHOR_ELEVATION_MAXIMUM = 32;
+
+const MAP_GAMEPLAY_ANCHOR_ID = /^[a-z0-9][a-z0-9_-]{0,95}$/u;
+
+export function mapGameplayAnchorIdValid(id: string): boolean {
+  return MAP_GAMEPLAY_ANCHOR_ID.test(id);
+}
+
+export function mapGameplayAnchorKindRequiresLabel(kind: MapGameplayAnchorKind): boolean {
+  return kind === 'poi' || kind === 'label';
+}
+
 export interface MapGameplayAnchor {
   readonly id: string;
-  readonly kind: 'spawn' | 'portal' | 'poi' | 'npc' | 'resource' | 'label';
+  readonly kind: MapGameplayAnchorKind;
   readonly tileX: number;
   readonly tileY: number;
   readonly elevation: number;
   readonly label?: string;
+}
+
+export function parseMapGameplayAnchor(
+  value: unknown,
+  width: number,
+  height: number,
+): MapGameplayAnchor | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  const kind = candidate['kind'];
+  const label = typeof candidate['label'] === 'string' ? candidate['label'].trim() : undefined;
+  if (typeof candidate['id'] !== 'string' || !mapGameplayAnchorIdValid(candidate['id'])
+    || !MAP_GAMEPLAY_ANCHOR_KINDS.includes(kind as MapGameplayAnchorKind)
+    || !Number.isInteger(candidate['tileX']) || (candidate['tileX'] as number) < 0
+    || (candidate['tileX'] as number) >= width
+    || !Number.isInteger(candidate['tileY']) || (candidate['tileY'] as number) < 0
+    || (candidate['tileY'] as number) >= height
+    || !Number.isInteger(candidate['elevation'])
+    || (candidate['elevation'] as number) < MAP_GAMEPLAY_ANCHOR_ELEVATION_MINIMUM
+    || (candidate['elevation'] as number) > MAP_GAMEPLAY_ANCHOR_ELEVATION_MAXIMUM
+    || (candidate['label'] !== undefined && typeof candidate['label'] !== 'string')
+    || (label !== undefined && (label.length < 1 || label.length > MAP_GAMEPLAY_ANCHOR_LABEL_MAX_LENGTH))
+    || (mapGameplayAnchorKindRequiresLabel(kind as MapGameplayAnchorKind) && label === undefined)) return null;
+  return {
+    id: candidate['id'],
+    kind: kind as MapGameplayAnchorKind,
+    tileX: candidate['tileX'] as number,
+    tileY: candidate['tileY'] as number,
+    elevation: candidate['elevation'] as number,
+    ...(label === undefined ? {} : { label }),
+  };
 }
 
 export interface MapProvenance {
@@ -58,9 +138,14 @@ export interface MapDocumentV2 {
   readonly themeId: string;
   readonly baseElevation: number;
   readonly baseSurface: MapSurfaceKind;
+  /** Missing only on pre-registry schema-v2 documents; normalization supplies
+   * stone_1 so existing authored files migrate without a schema fork. */
+  readonly defaultCliffFamily?: string;
+  readonly defaultSurfaceFamily?: TerrainSurfaceFamilyId;
   readonly revision: number;
   readonly cells: Readonly<Record<string, MapCellOverride>>;
   readonly transitions: readonly TerrainTransition[];
+  readonly stairRuns?: readonly StairRun[];
   readonly scenery: readonly MapSceneryPlacement[];
   readonly anchors: readonly MapGameplayAnchor[];
   readonly provenance: MapProvenance;
@@ -72,6 +157,10 @@ export interface ResolvedMapCell {
   readonly feature: MapFeatureKind;
   readonly collision: MapCollisionOverride;
   readonly collisionReason: string | null;
+  readonly cliffFamily: string;
+  readonly surfaceFamily: TerrainSurfaceFamilyId;
+  readonly terrainOverride: TerrainOverride | null;
+  readonly ledge: boolean;
 }
 
 export interface TerrainMaterialDefinition {
@@ -99,7 +188,8 @@ export type MapTerrainRole =
   | 'contour.inset'
   | 'contour.face'
   | 'contour.face_foot'
-  | 'crossing.slope';
+  | 'crossing.slope'
+  | 'crossing.stairs';
 
 export interface MapThemeAssetRole {
   readonly assetId: string;
@@ -125,11 +215,12 @@ export const ORCHARD_STONE_THEME: MapThemeManifest = {
     'surface.dirt': { assetId: 'tile_cf_path' },
     'feature.path': { assetId: 'tile_cf_path' },
     'feature.river': { assetId: 'tile_cf_freshwater', animation: 'flow' },
-    'contour.edge': { assetId: 'tile_cf_grass_cliff_edge' },
+    'contour.edge': { assetId: 'tile_cf_stone_cliff_variants' },
     'contour.inset': { assetId: 'tile_cf_stone_cliff_inverse_overlay' },
     'contour.face': { assetId: 'tile_cf_stone_cliff_1' },
     'contour.face_foot': { assetId: 'tile_cf_stone_cliff_1' },
-    'crossing.slope': { assetId: 'tile_cf_grass_cliff_ramp' },
+    'crossing.slope': { assetId: 'tile_cf_grass_1_ramp_bank_stone' },
+    'crossing.stairs': { assetId: 'tile_cf_grass_1_ramp_bank_stone' },
   },
 };
 
@@ -144,12 +235,55 @@ export function mapCoordinateInBounds(document: MapDocumentV2, tileX: number, ti
 
 export function resolvedMapCellAt(document: MapDocumentV2, tileX: number, tileY: number): ResolvedMapCell {
   const cell = document.cells[mapCellKey(tileX, tileY)];
+  const generated = generatedBaseCellAt(document, tileX, tileY);
   return {
-    elevation: cell?.elevation ?? document.baseElevation,
-    surface: cell?.surface ?? document.baseSurface,
+    elevation: cell?.elevation ?? generated?.elevation ?? document.baseElevation,
+    surface: cell?.surface ?? generated?.surface ?? document.baseSurface,
     feature: cell?.feature ?? 'none',
-    collision: cell?.collision ?? 'inherit',
-    collisionReason: cell?.collisionReason ?? null,
+    collision: cell?.collision ?? (cell?.surface === undefined ? generated?.collision : undefined) ?? 'inherit',
+    collisionReason: cell?.collisionReason
+      ?? (cell?.surface === undefined ? generated?.collisionReason : null)
+      ?? null,
+    cliffFamily: cell?.cliffFamily ?? document.defaultCliffFamily ?? 'stone_1',
+    surfaceFamily: cell?.surfaceFamily ?? document.defaultSurfaceFamily ?? 'grass_1',
+    terrainOverride: cell?.terrainOverride ?? null,
+    ledge: cell?.ledge ?? false,
+  };
+}
+
+export const SURVIVAL_ISLAND_MAP_GENERATOR = 'survival-island' as const;
+
+export function mapDocumentUsesSurvivalIslandBase(
+  document: Pick<MapDocumentV2, 'provenance'>,
+): boolean {
+  return document.provenance.kind === 'generated'
+    && document.provenance.generator === SURVIVAL_ISLAND_MAP_GENERATOR;
+}
+
+function survivalSurfaceForBiome(biome: SurvivalBiome): MapSurfaceKind {
+  if (biome === 'water' || biome === 'freshwater' || biome === 'waterfall'
+    || biome === 'oasis_water') return 'water';
+  if (biome === 'beach' || biome === 'desert_shore') return 'sand';
+  if (biome === 'highland' || biome === 'ridge' || biome === 'desert_ridge'
+    || biome === 'coastal_cliff') return 'stone';
+  if (biome === 'dirt_terrace' || biome === 'dirt_ridge') return 'dirt';
+  return 'grass';
+}
+
+function generatedBaseCellAt(
+  document: MapDocumentV2,
+  tileX: number,
+  tileY: number,
+): Pick<ResolvedMapCell, 'elevation' | 'surface' | 'collision' | 'collisionReason'> | null {
+  if (!mapDocumentUsesSurvivalIslandBase(document)) return null;
+  const seed = document.provenance.generatorSeed ?? SURVIVAL_WORLD_SEED;
+  const biome = survivalBiomeAt(seed, tileX, tileY);
+  const blocked = survivalTerrainBlocksTraversalAt(seed, tileX, tileY, 'ground');
+  return {
+    elevation: survivalTerrainHeightAt(seed, tileX, tileY),
+    surface: survivalSurfaceForBiome(biome),
+    collision: blocked ? 'force_block' : 'inherit',
+    collisionReason: blocked ? `generated ${biome} terrain` : null,
   };
 }
 
@@ -161,6 +295,10 @@ function canonicalCell(cell: MapCellOverride): MapCellOverride {
     ...(cell.collision === undefined || cell.collision === 'inherit' ? {} : { collision: cell.collision }),
     ...(cell.collisionReason === undefined || cell.collisionReason.length === 0
       ? {} : { collisionReason: cell.collisionReason }),
+    ...(cell.cliffFamily === undefined ? {} : { cliffFamily: cell.cliffFamily }),
+    ...(cell.surfaceFamily === undefined ? {} : { surfaceFamily: cell.surfaceFamily }),
+    ...(cell.terrainOverride === undefined ? {} : { terrainOverride: cell.terrainOverride }),
+    ...(cell.ledge === true ? { ledge: true } : {}),
   };
 }
 
@@ -179,8 +317,14 @@ export function normalizeMapDocument(document: MapDocumentV2): MapDocumentV2 {
   ].join(':');
   return {
     ...document,
+    defaultCliffFamily: document.defaultCliffFamily ?? 'stone_1',
+    defaultSurfaceFamily: document.defaultSurfaceFamily ?? 'grass_1',
     cells,
     transitions: [...document.transitions].sort((left, right) => transitionKey(left).localeCompare(transitionKey(right))),
+    stairRuns: [...(document.stairRuns ?? [])].sort((left, right) => (
+      `${left.fromLevel}:${left.toLevel}:${left.direction}:${left.y}:${left.x}`
+        .localeCompare(`${right.fromLevel}:${right.toLevel}:${right.direction}:${right.y}:${right.x}`)
+    )),
     scenery: [...document.scenery].sort((left, right) => left.id.localeCompare(right.id)),
     anchors: [...document.anchors].sort((left, right) => left.id.localeCompare(right.id)),
   };
@@ -202,11 +346,47 @@ export function parseMapDocument(source: string): MapDocumentV2 {
   if (!Number.isInteger(candidate.baseElevation) || !MAP_SURFACE_KINDS.includes(candidate.baseSurface as MapSurfaceKind)) {
     throw new Error('Map base terrain is invalid');
   }
+  if (candidate.defaultCliffFamily !== undefined
+    && (typeof candidate.defaultCliffFamily !== 'string'
+      || !/^[a-z0-9]+(?:_[a-z0-9]+)*$/u.test(candidate.defaultCliffFamily))) {
+    throw new Error('Map cliff family is invalid');
+  }
+  if (candidate.defaultSurfaceFamily !== undefined
+    && !TERRAIN_SURFACE_FAMILY_IDS.includes(candidate.defaultSurfaceFamily)) {
+    throw new Error('Map surface family is invalid');
+  }
   if (typeof candidate.cells !== 'object' || candidate.cells === null
     || !Array.isArray(candidate.transitions) || !Array.isArray(candidate.scenery)
     || !Array.isArray(candidate.anchors) || typeof candidate.provenance !== 'object'
     || candidate.provenance === null) throw new Error('Map layers are incomplete');
-  return normalizeMapDocument(candidate as MapDocumentV2);
+  if (candidate.stairRuns !== undefined && !Array.isArray(candidate.stairRuns)) {
+    throw new Error('Map stair runs must be an array');
+  }
+  if (candidate.transitions.some((transition) => (
+    typeof transition !== 'object' || transition === null
+    || !TERRAIN_TRANSITION_KINDS.includes((transition as TerrainTransition).kind)
+    || !terrainTransitionValid(transition as TerrainTransition)
+  ))) throw new Error('Map transition is invalid');
+  if ((candidate.stairRuns ?? []).some((run) => (
+    typeof run !== 'object' || run === null || !stairRunValid(run as StairRun)
+  ))) throw new Error('Map stair run is invalid');
+  const anchors = candidate.anchors.map((anchor) => parseMapGameplayAnchor(
+    anchor,
+    candidate.width as number,
+    candidate.height as number,
+  ));
+  if (anchors.some((anchor) => anchor === null)
+    || new Set(anchors.map((anchor) => anchor!.id)).size !== anchors.length) {
+    throw new Error('Map gameplay anchor is invalid');
+  }
+  const reconstructed = normalizeMapDocument({
+    ...(candidate as MapDocumentV2),
+    anchors: anchors as MapGameplayAnchor[],
+  });
+  if (reconstructed.anchors.some((anchor) => (
+    resolvedMapCellAt(reconstructed, anchor.tileX, anchor.tileY).elevation !== anchor.elevation
+  ))) throw new Error('Map gameplay anchor elevation does not match terrain');
+  return reconstructed;
 }
 
 /** Stable non-cryptographic content fingerprint for CLI/UI parity and diffs. */

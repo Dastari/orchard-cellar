@@ -800,7 +800,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Torch_Idle.png",
-  "sourcePath": "references/Cute_Fantasy/Player/Tools/Other/Torch_Idle.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Player/Tools/Other/Torch_Idle.png",
   "sourceRegions": {
     "hold_idle_down": [
       [

@@ -1,0 +1,63 @@
+{
+  "name": "icon_skill_archery_basics",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".3.000....00003.",
+        ".031110..011130.",
+        ".01321333312310.",
+        "0122331001332210",
+        "0122322112232210",
+        "0123223223223210",
+        "0123222332223210",
+        ".01322233222310.",
+        ".01322322322310.",
+        "..013222222310..",
+        "...0132222310...",
+        "....31333313....",
+        "...3.012210.3...",
+        "..3...0110...3..",
+        ".......00.......",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#cd683d",
+    "1": "#f89320",
+    "2": "#f9c22b",
+    "3": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "rogue-skills-16.png",
+  "sourcePath": "references/art/clockwork-raven/collections/premium/updates/skills/rogue/sheets/rogue-skills-16.png",
+  "sourceRegion": [
+    160,
+    192,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.archery_basics",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

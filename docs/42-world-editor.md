@@ -1,11 +1,26 @@
 # 42 — In-Game World Editor, Terrain Grammar, and Agent Sandbox
 
-Implementation plan, **2026-08-27**. Status: **phases 0–1 foundation, unbounded
-signed seed-chunk inspection, recursive grid, and the offline asset-palette/layout-stamp
-foundation are implemented; signed document/handle migration, terrain-family
-expansion, and live publication are not started**. This document plans the owner/admin creator mode requested after the
-nested-elevation and terrain-inspector work. It does not authorize an
-unauthenticated path to mutate the live world.
+Implementation plan, **2026-08-27**, implementation update **2026-09-02**. Status:
+**Map Editor and Object Studio naming/routes, `MapDocumentV3`, `MapPrefabV2`, semantic
+editor icons/tooltips, content layers, object grouping/prefab authoring, biome/scatter
+tools, generated-island curation, and authenticated compare-and-swap live publication
+are implemented. The production island consumes the same published terrain/object
+revision in rendering, client prediction, and server collision authority.** The
+anonymous route remains a local draft surface; only an authenticated owner/admin
+connection can publish a live revision. A connected owner/admin Map Editor is a
+live-authoring session: completed edits are coalesced for 250 ms and automatically
+published, while the Publish button remains an explicit flush-now control.
+
+Adopted product language:
+
+- **Map Editor** (`/editor/map`) is the world authoring surface. Its default document
+  is `live-island`; the permanent terrain fixture remains `/editor/map/terrain-lab`.
+- **Object Studio** (`/editor/object`) is the reusable prefab authoring surface.
+  “World object” is the umbrella term for trees, fences, gates, cactus, buildings,
+  farms, props, surfaces, and composed prefabs; “entity” is reserved for a runtime
+  gameplay instance with mutable state.
+- `/editor/terrain`, `/editor/offline`, and `/editor/design` remain compatibility
+  aliases. New UI, docs, exports, and accessibility labels use the adopted names.
 
 This plan builds on:
 
@@ -277,7 +292,8 @@ Entering creator mode:
 - leaves the avatar stationary and visible for scale unless “hide avatar” is chosen;
 - opens dockable in-canvas panels using [23](23-ui-system.md) widgets;
 - keeps the normal renderer, lighting, season, weather, and depth queue active;
-- edits a private client draft overlay until Preview or Publish is chosen; and
+- continuously autosaves an isolated local draft; a connected owner/admin session
+  additionally synchronizes completed commands to the live head; and
 - returns to play mode without publishing when the draft is discarded.
 
 The default desktop composition follows a professional map-editor hierarchy while
@@ -285,10 +301,11 @@ retaining the game's wood, parchment, bitmap fonts, buttons, slots, and scrollba
 
 - a compact floating map-information plate over the viewport owns map/seed/version,
   revision, chunk-materialization count, and later dirty/publish state;
-- the left tool dock starts with a fixed two-row history/file command group, followed
-  by a separately scrollable icon tool palette, terrain-family picker, and topology
-  mode; save/load/import/export use icons rather than consuming the dock width with
-  labels;
+- the left tool dock starts with a fixed history/file command group, followed by a
+  separately scrollable tool palette. Terrain mode owns terrain families and topology;
+  Object/Biome/Scatter modes own target-layer and the reviewed tile/pattern/prefab
+  catalogue. Save/load/import/export use icons rather
+  than consuming the dock width with labels;
 - grid, height, and collision are stateful icon toggles in the tool palette rather
   than a permanent diagnostic text block; every command, tool, family, topology, and
   finite-resize control exposes contextual hover help in the bottom status plate;
@@ -296,8 +313,11 @@ retaining the game's wood, parchment, bitmap fonts, buttons, slots, and scrollba
   a second descriptive line at a touch-friendly row height, and filters to complete
   compatible manifests; incomplete families remain visible but disabled with their
   missing roles named;
-- the right inspector remains dedicated to selection, composition, layers, and WHY
-  trace instead of duplicating map metadata; and
+- the right rail splits evenly between the clicked-selection inspector and a separate
+  ordered content-layer stack: a world object shows its sprite, name, stable id, tile/elevation,
+  content layer, visibility, prefab revision, rotation, horizontal flip, 1x/2x scale,
+  collision/footprint metadata, and framed clone/delete/hide/rotate/flip/scale actions;
+  a terrain cell shows final composition, layers, collision, and WHY trace; and
 - the top map-information plate is the same thin HUD frame used by the in-game wallet,
   with one clipped, fitted, left-aligned bitmap-font line; the bottom plate owns the
   current tool, active plane, zoom, hover help, and transient operation status; and
@@ -378,6 +398,79 @@ Draft-only **frame audition** may temporarily replace a visual role to compare s
 candidates. It cannot be exported or published until the candidate is registered as a
 semantic theme mapping and passes the role validator.
 
+### 5.4 Editor-wide semantic icon language
+
+All editor routes use one semantic icon registry rather than choosing asset ids,
+atlas cells, or generic SVG filenames independently inside each screen. The audit
+covers the shared development rail and every button, tool, toggle, tab, layer action,
+inspector action, and empty-state command in:
+
+- the Map Editor at `/editor/map` (with `/editor` and `/editor/terrain` aliases);
+- the Object Studio at `/editor/object` (with `/editor/design` as an alias);
+- the UI Lab at `/editor/ui-lab`; and
+- the Character Studio at `/editor/character-studio`.
+
+The expanded [Clockwork Raven icon index](reference-assets/clockwork-raven-index.md)
+is the primary discovery source for better domain-specific matches. Its 34 packs and
+44 native 16 px sheets cover UI/menu states, places and biomes, general tools,
+farming, trees, equipment, clothing, armour, magic, resources, and other concepts
+which the former small command set could represent only with repeated or weakly
+related symbols. Search the machine-readable companion when choosing candidates;
+never browse the 20,656 source cells by guesswork. The global
+[reference-library index](reference-assets/reference-library-index.md) remains the
+fallback when the vendor or family is unknown.
+
+Icon selection follows these rules:
+
+1. Reuse an existing reviewed Orchard/Cute Fantasy runtime icon when it is already an
+   exact semantic match.
+2. Otherwise select the clearest matching native 16 px Clockwork Raven cell, preferring
+   its authored outline/no-outline pair when both exist.
+3. Use a bespoke Orchard icon when no licensed source communicates the action clearly.
+4. Use a Lucide symbol for a small, universally recognised abstract command only when
+   the expanded reference collection has no clearer reviewed/licence-cleared pixel
+   match. Record that fallback in the registry so a later contact-sheet review can
+   replace it deliberately. A generic symbol must not remain merely because it was
+   wired first, and a decorative fantasy item must not replace a clearer abstract
+   command symbol.
+
+The initial audit includes, at minimum:
+
+| Surface | Required distinct icon concepts | Reference families to inspect first |
+| --- | --- | --- |
+| shared rail and files | Map, Object, UI Lab, Character, new, save, load, import, export, undo, redo, copy, paste, duplicate, delete, search, filter, settings | Raven UI/menu states, Places and Seasons, General Items and Tools, armour/clothing |
+| Map Editor | terrain, biome, surface brush, path, river, raise, lower, flatten, smooth, scatter, picker, selection, object placement, anchor/zone, layers, visibility, lock, solo, collision, grid, live preview, publish | Places and Seasons, Trees and Logs, Alchemy and Herbs, Farming/Food, Raven UI states |
+| Object Studio | stamp, marquee, frame/collection, group, explode, pivot, move, rotate, flip, align, collision cells, ground/object/canopy layers, create prefab, publish prefab | General Items and Tools, Trees and Logs, Farming/Food, Raven UI states |
+| UI Lab | controls, layout, typography, input, feedback, states, animation, accessibility, catalogue and reset | Raven UI/menu states; existing Cute Fantasy button, selector, slider, and icon catalogues |
+| Character Studio | body, hair, head, chest, hands, legs, feet, armour, clothing, accessories, dye/material, animation, compare and export | Armour 500, Clothing 120, Accessories 400, Equipment Sets, Masks |
+
+This table names concepts, not permanent source coordinates. Create stable semantic
+ids such as `editor.tool.marquee`, `editor.display.visibility`, and
+`editor.route.character`; map those ids to reviewed runtime assets in one registry.
+Route code consumes the semantic id and cannot scatter raw row/column values or
+reference paths. Intentional aliases such as Save across two editors share one entry;
+unrelated actions may not reuse one icon simply to avoid importing a better match.
+
+Reference sheets remain local source material. For each selected Raven cell, record
+the pack, canonical sheet, zero-based row/column, source revision/hash, outline choice,
+and licence/provenance status; import only the reviewed cell as a semantic
+`packages/assets` definition. The browser, database, map files, prefab exports, and
+public atlas never receive a composite reference sheet or a `references/` path. A
+pack whose licence-use gate is unresolved remains a candidate rather than a runtime
+dependency until that gate is cleared.
+
+Icons render at their native pixel scale or integer multiples with image smoothing
+disabled. Preserve the source palette; communicate hover, active, disabled,
+destructive, and live states through the authored outline/state variant and button
+chrome rather than arbitrary recolouring. Terrain-family rows and object palettes
+continue to use actual material/object thumbnails where those are more informative
+than an action glyph.
+
+Every icon-only control retains the action label in its tooltip and accessibility
+description. The common action definition owns semantic icon id, label, shortcut,
+tooltip, disabled reason, and destructive/active state so the displayed icon cannot
+drift from hover help or keyboard behavior.
+
 ## 6. Authentication-free agent sandbox
 
 The shared client application gains a first-class editor route selected before
@@ -385,11 +478,11 @@ account startup:
 
 ```text
 /editor
-/editor/offline/terrain-lab
+/editor/terrain
 ```
 
 `/editor` opens the procedural seed-world editor. Named offline maps use
-`/editor/offline/<map-id>`. Query parameters may describe optional editor state such
+`/editor/terrain/<map-id>`. Query parameters may describe optional editor state such
 as `?seed=...`; they must not decide whether the game or editor application starts.
 The former `?mode=editor&source=offline&map=...` form is a redirect-only compatibility
 alias and is removed from the address bar after resolution.
@@ -436,6 +529,16 @@ Live mode uses the same UI and compiler with a `LiveWorldEditorRepository`:
 /editor/live
 ```
 
+The implemented client enters this mode by connecting from `/editor/map`. The route
+does not acquire write authority merely by being open: it must have an authenticated
+`owner` or `admin` membership. Once connected, object place/move/rotate/flip/scale,
+generated-content suppression, terrain edits, undo, and redo all enter the same
+debounced publish queue. The editor snapshots each submission, preserves any newer
+local commands while that revision is in flight, and advances only after the
+subscription observes the exact next revision and semantic hash. A different head is
+a compare-and-swap conflict and stops automatic writes until the author reloads or
+merges it.
+
 The player authenticates normally. `owner` is implicitly allowed; an owner may grant
 a dedicated `world_editor` capability in a new normalized private table. Do not
 overload `friend`, Homestead `builder`, or `moderator` permission. Every editor
@@ -469,11 +572,14 @@ the schema is accepted.
 
 ### 7.2 Draft, validation, and publish
 
-1. `beginWorldEdit(spaceId)` returns/creates a private session bound to the caller and
-   the current map revision.
-2. Editing remains local and continuously validates through pure sim. Optional draft
-   checkpoint rows are private and never affect normal clients.
-3. Publish submits bounded changed chunks with the expected base revision.
+1. Connecting subscribes to the public map head and binds the local draft to its
+   current base revision. Browser autosave stores both the canonical draft and this
+   base so a refresh can resume safely.
+2. Editing continuously validates through pure sim and autosaves locally. In an
+   owner/admin live session, completed commands enter a 250 ms coalescing queue;
+   disconnected and unauthorized sessions remain local-only.
+3. Automatic sync, or the explicit Publish flush, submits the canonical document with
+   the expected base revision and a unique client mutation id.
 4. Authority recomputes hashes and validates bounds, topology, collision, crossings,
    protected regions, assets, portal reachability, and occupied cells.
 5. A stale base revision rejects with `map_revision_conflict`; the editor rebases or
@@ -676,6 +782,13 @@ over-dense scenery, and asset packs above their budget.
 - one drag equals one history command; canceled drag changes nothing;
 - composed preview and every per-layer visual thumbnail match the selected cell;
 - palette filters and missing-role diagnostics;
+- every editor action resolves one existing semantic icon and non-empty tooltip;
+- the shared route rail uses four distinct, semantically reviewed icons, and unrelated
+  actions do not accidentally alias one icon without an explicit registry alias;
+- Map, Object, UI Lab, and Character icon contact sheets are reviewed at native 1×
+  and integer-scaled sizes in idle, hover, active, and disabled states;
+- production editor bundles, network requests, map files, and prefab exports contain
+  no composite reference sheet or `references/` source path;
 - unsaved-draft protection, autosave isolation, deterministic import/export; and
 - the unauthenticated offline route creates no SpaceTimeDB/WebSocket connection and
   exposes no live-publish control.
@@ -800,6 +913,23 @@ unmaterialized chunks; Generate reveals the selected payload without a seam or f
 boundary cliff; reload preserves the local materialization set; the inspector reports
 signed coordinates; and network evidence contains no SpaceTimeDB request.
 
+### Phase 1.3 — editor-wide semantic icon audit
+
+- Add the shared semantic editor-icon registry and move route rail, command strips,
+  tools, layer controls, tabs, and inspector actions onto it.
+- Audit Map, Object, UI Lab, and Character against §5.4, replacing repeated,
+  misleading, or generic placeholders with reviewed exact matches from the expanded
+  reference catalogue.
+- Import only the selected native 16 px cells with provenance and licence status;
+  retain Lucide only for documented gaps awaiting a clearer reviewed pixel icon.
+- Generate per-route contact sheets showing icon, semantic id, label, tooltip, source,
+  and all interactive states, and review them at 1× before accepting the mapping.
+
+**Done when:** every editor action and route has a distinct or intentionally aliased
+semantic icon, all icon-only controls have matching tooltips/accessibility labels,
+all four route contact sheets pass review, and the production build contains no raw
+reference sheet or local reference path.
+
 ### Phase 2 — semantic paths, rivers, and terrain-theme swapping
 
 - Add path/river strokes, closed banks, blob/inset cleanup, theme manifests, role
@@ -909,7 +1039,7 @@ tool is still changing quickly.
 - Added `map:create`, `map:stroke`, `map:contour`, `map:validate`, `map:render`,
   `map:inspect`, and `map:diff`. The initial lab hash is `4d4e87e4`; headless validation
   reports zero issues and its SVG review render is disposable output.
-- Added `/editor/offline/terrain-lab`. It branches before OIDC session
+- Added `/editor/terrain`. It branches before OIDC session
   discovery, loads no account/overworld/SpaceTimeDB module, exposes no reducer adapter,
   and supplies free camera, brush/fill, contour raise/lower, collision override,
   undo/redo, local save/load, JSON import/export, absolute-height/current-plane
@@ -994,7 +1124,7 @@ tool is still changing quickly.
 - The family dropdown covers Grass 1–4, Desert 1–3, ShroomLands variants, Volcano,
   and the snow-highland semantic family. Family colours are previews while complete
   role manifests and reviewed extracts remain the authority for publication.
-- The owner-supplied `Cute_Fantasy_Needs_Splitting/*.webp` sheets are a source-only
+- The owner-supplied `references/art/kenmi/cute-fantasy/unsliced-icon-sheets/*.webp` sheets are a source-only
   icon intake backlog. Each chosen icon must be split on the art grid, have its flat
   preview background removed, receive a semantic asset id and provenance, and pass
   normal alpha/palette/render review; the editor never downloads or displays those
@@ -1025,9 +1155,9 @@ tool is still changing quickly.
 
 ### 2026-08-27 — First-class editor pathname routes
 
-- The shared client now resolves `/editor` and `/editor/offline/<map-id>` before OIDC
+- The shared client now resolves `/editor/terrain` and `/editor/terrain/<map-id>` before OIDC
   or account startup. `/editor` selects the procedural seed world; the terrain test
-  map is `/editor/offline/terrain-lab`. Optional state such as `?seed=...` remains a
+  map is `/editor/terrain`. Optional state such as `?seed=...` remains a
   query parameter, but application and map selection are pathname-owned.
 - The former query-only URL and `/editor.html` remain compatibility entries and
   immediately replace themselves with the canonical pathname. `/editor/live` is
@@ -1107,3 +1237,204 @@ tool is still changing quickly.
 - Added pure parsing, relationship validation, canonical serialization, move,
   group, explode, migration, and object-export tests. The authentication-free route
   continues to import no identity, account, SpaceTimeDB, connection, or reducer code.
+
+### 2026-09-02 — Map Editor, Object Studio, and revisioned live-island implementation
+
+- Canonical routes are now `/editor/map`, `/editor/object`, `/editor/ui-lab`, and
+  `/editor/character-studio`. Map Editor defaults to the sparse `live-island`
+  overlay; the old Terrain Editor fixture remains explicitly addressable as
+  `/editor/map/terrain-lab`. Legacy path aliases are sanitized compatibility paths.
+- `MapDocumentV3` adds ordered generated-base, terrain, ground, objects, gameplay,
+  player-owned, canopy, and anchor layers; semantic biomes; embedded `MapPrefabV2` documents;
+  transformed object instances; and reversible generated-object suppressions. A
+  pinned `survival-island` provenance resolver keeps the 832×832 generated base
+  implicit, so a live document serializes authored differences rather than hundreds
+  of thousands of unchanged cells.
+- `MapPrefabV2` is the shared Object Studio / Map Editor / server contract. It carries
+  stable semantic asset references, a pivot, rotation/flip-safe 4×4 collision masks,
+  elevation, tags, a coloured collection label, and allowlisted behaviour metadata.
+  Map documents embed the exact prefab revision used by each instance; they never
+  persist a bare sprite or atlas rectangle.
+- Object Studio now provides a 128×96 general canvas, Shift-add and Ctrl/Cmd-toggle
+  selection, marquee selection, batch movement, grouping/explode, pivot editing,
+  rotate/flip, per-cell elevation and fractional collision, coloured labelled
+  collection frames with drag/resize/rename/colour/delete, collection assignment by
+  dropping an object into a frame, portable workspace import/export, and direct
+  prefab export. Ground/object/canopy target layers have independent visibility and
+  move the current selection when retargeted.
+- Map Editor has explicit Terrain, Objects, Biomes, and Scatter workspaces; independent
+  content-layer visibility; ground/object/gameplay/canopy placement targets; prefab
+  collection/tag filtering; select/drag/rotate/flip/delete object editing; semantic
+  biome paint and flood fill; and deterministic polygon scatter with density, biome,
+  spacing, rotation, and flip constraints committed as one undoable command.
+- Finite authored maps use the central canvas between the editor drawers as their
+  camera viewport. `Home` or unmodified `F` frames the complete non-ocean island
+  with a small water margin, undersized axes remain centred, and camera clamping
+  prevents exposed backing-store void. Below 0.5x zoom the renderer switches off
+  world-object sprites and selection handles; distant terrain uses a cached semantic
+  overview raster instead of overflowing the detailed renderer's finite backing store.
+- The live-island editor composes the existing generated terrain, scenery, and
+  resources. Generated resources/decorations can be selected and suppressed without
+  deleting generator data; undo restores them. Suppression is respected by editor
+  preview, game rendering, light occlusion, client targeting/prediction, server
+  collision, gathering, harvesting, and fishing.
+- The shared editor-icon registry now owns route, workspace, command, display,
+  visibility, and layer concepts. Reviewed Orchard/Cute Fantasy pixel icons are used
+  for route/workspace identity; permissively licensed Lucide SVGs fill small command
+  gaps (`undo`, `redo`, local save/load, import/export, seed randomize, grid, height,
+  collision, auto-edge, layers, visibility, live connect, and publish). Every compact
+  control supplies a matching hover tooltip; semantic ids prevent unrelated buttons
+  from independently choosing the same “close enough” glyph. New icon choices must
+  follow §5.4 and the expanded reference contact-sheet review before adding a fallback.
+- Live publication uses public atomic `live_map_document` heads, private append-only
+  `live_map_revision` history, canonical hashes, idempotent client mutation ids,
+  compare-and-swap expected revisions, owner/admin authorization, behaviour/content
+  limits, immutable rollback history, and permanent admin audit rows. An editor which
+  has fallen behind refuses to publish until it reloads or merges the newer head.
+- The ordinary game client subscribes only to the `live-island` head. A row update
+  atomically recompiles terrain and embedded object collision, invalidates prediction
+  and render caches, draws prefab instances in the world depth queue, and applies the
+  same 4×4 object masks and generated suppressions on SpaceTimeDB authority. Invalid
+  dimensions, seed/version provenance, prefab references, or behaviour archetypes are
+  rejected before the head advances.
+- Tests cover V2 migration, V3 canonical round trips and hashes, generated-base
+  resolution, prefab transforms/collision, workspace grouping/collections, scatter
+  determinism, routes, semantic icon completeness, UI hit targets/tooltips, live auth,
+  compare-and-swap/audit schema shape, and client/server live collision wiring.
+- Shared-browser verification at the canonical Orchard URL exercised all four Map
+  workspaces, generated-base layer visibility, semantic hover help, and the complete
+  Object Studio authoring path: draw and label a coloured collection, stamp multiple
+  pieces, marquee-select them, and convert them into a named reusable object with
+  generated 4×4 collision cells. The production build, SpaceTimeDB module build,
+  all workspace typechecks, ESLint, and asset build pass. The final uninterrupted
+  repository gate passes **232/232 test files and 1,475/1,475 tests**, with 90.6%
+  statement / 94.56% line coverage and validation of 956 art assets.
+
+### 2026-09-02 — Live command sync and selection-focused Map Editor follow-up
+
+- Connected owner/admin sessions now automatically publish completed terrain and
+  object commands after a 250 ms quiet period. In-flight snapshots are hash-checked;
+  edits made during a reducer transaction remain queued for the next revision instead
+  of being replaced by the arriving subscription update. The existing Publish icon
+  flushes the queue immediately, and compare-and-swap still rejects a concurrently
+  advanced head.
+- Finite-map drafts autosave after terrain and object changes. The editor also stores
+  the live base revision, so refreshing after hiding, moving, or deleting an object
+  resumes against that same head. A genuinely newer server head produces a conflict
+  instead of silently restoring or overwriting content.
+- Object, Biome, and Scatter libraries now live exclusively in the left drawer. The
+  upper half of the right drawer is a selection inspector: authored objects show a centred sprite,
+  identity, coordinates, elevation, layer, prefab revision, rotation, flip, 1x/2x
+  scale, visibility, footprint/tags/behaviours, and framed action buttons. Generated
+  resources and decorations expose provenance and reversible suppression metadata;
+  terrain selection retains its full composition/WHY inspector.
+- The Map Editor semantic icon registry now covers every terrain tool, workspace,
+  target layer, live/file command, visibility state, and object action with distinct
+  reviewed runtime or documented Lucide SVG symbols. Text is no longer overlaid on
+  icon buttons, button frames remain game-native, and every compact action has matching
+  hover help.
+- The reviewed map asset catalogue contributes 4,044 prefab visual entries in the
+  current build. Catalogue sorting/model creation is cached and clipped palette tiles
+  are virtualized so the expanded reference set does not become a per-frame Canvas
+  cost.
+- The full repository gate passed the SpaceTimeDB module build, all workspace
+  typechecks, ESLint, **234/234 test files and 1,492/1,492 tests**, coverage thresholds,
+  and validation of 956 art assets. The final disabled-control hover-help addition
+  then passed client typecheck, 37 focused tests, and the production client build.
+  Canonical-browser checks cover generated and authored selection inspectors, a
+  1x-to-2x object transform, disabled-button hover help, the populated palette,
+  autosave restoration across refresh, and zero console errors.
+
+### 2026-09-03 — Editable authored landmarks and immediate object curation
+
+- Farmer Bob's farm, Marlow's camp, and Fisherman Fin's camp are now explicit
+  authored-landmark instances in `MapDocumentV3`. Each fixed prop keeps its
+  specialized world artwork while gaining a stable map id, named group, layer,
+  coordinate/elevation, rotation, flip, scale, and visibility. They can be selected,
+  dragged, cloned, transformed, hidden, or deleted like other authored map content.
+- Seeded nature dressing and resource spawns remain procedural. Their Delete and Hide
+  actions both create a reversible suppression; they are never mislabeled as editable
+  landmarks. Older live documents are upgraded on read, including translation of an
+  existing landmark suppression into the landmark's persisted visibility.
+- The game renderer replaces the legacy fixed-location stream with the published
+  landmark instances, while client prediction and SpaceTimeDB authority remove the
+  original landmark obstacles and install the edited collision silhouettes. Fisherman
+  dock walkability follows the current authored dock position.
+- Object-only commands no longer recompile the complete 832×832 terrain. Selection,
+  autosave, and the local canvas update immediately; connected sessions still coalesce
+  publication for 250 ms in the background. Terrain and biome commands retain the full
+  terrain invalidation path.
+- Full-size icon actions now use the shared semantic icon-button renderer. Its danger
+  tone owns the deny frame and high-contrast white glyph treatment, so Delete behaves
+  consistently in every canvas UI instead of hand-painting a red frame around a dark
+  icon.
+
+### 2026-09-03 — Live player placements and elevation-correct targeting
+
+- A connected live-island Map Editor also subscribes to top-side homesteads, crafted
+  placeables, chests, archery targets, and player-built surfaces. They render in the
+  same elevation-aware depth queue as map content, have mint selection outlines, and
+  expose identity, owner/state, tile, elevation, and persistence metadata in the
+  Selection Inspector.
+- Player placeables, chests, targets, and surfaces are deliberately read-only in the
+  Map Editor. Their disabled clone/delete/hide/transform actions distinguish
+  player-owned database authority from authored map-document content. Homesteads are
+  the narrow exception: an owner/admin may drag their durable overworld marker using
+  the audited relocation reducer described below.
+- Pointer targeting now reverses the active terrain plane's visual projection before
+  sending a logical tile to placement reducers. Placement reticles apply the matching
+  projection when drawn. A tent placed on elevation L2 therefore previews, persists,
+  collides, portals, and renders against one anchor instead of being stored two rows
+  north and shifted north a second time during presentation.
+- Existing homesteads created by the old projected-pointer path retain their persisted
+  coordinates. They should be corrected as an explicit audited data repair after the
+  affected owner/row is confirmed; the client does not guess and migrate every
+  elevated homestead because facing-keyboard placements were already correct.
+
+### 2026-09-03 — Audited homestead relocation and Photoshop-style content layers
+
+- `admin_move_homestead` is an owner/admin-only SpaceTimeDB reducer. It validates the
+  complete 3×4 marker reservation against map bounds, terrain collision, authored and
+  dynamic obstacles, online players, named-location reservations, neighbouring
+  homesteads, and a single flat terrain elevation. It then updates the homestead row,
+  top-side entrance portal, and return portal atomically and appends a permanent world
+  administration audit row. Any failed validation rolls the entire transaction back.
+- In the connected Map Editor, selecting a homestead exposes owner, identity, space,
+  access, coordinate, and elevation data. Owners/admins can drag it; the click offset
+  is retained when grabbing the visible roof, and the preview outlines the complete
+  reservation rather than jumping the anchor to the pointer. The subscription update
+  makes the new location visible to every connected game and editor client without a
+  map-document publish or page refresh.
+- Player-owned live state has its own read-only `player_owned` content layer instead
+  of sharing the authored gameplay layer. Older V3 documents acquire this default
+  layer during normalization, so visibility and session state remain backward
+  compatible.
+- The right drawer is split into independent half-height frames: Selection Inspector
+  above and an ordered content-layer stack below. The highest rendered layer appears
+  at the top, the eye control toggles visibility without changing selection, and
+  clicking the rest of a row makes it the active working layer. Read-only generated
+  and player-owned rows can be inspected/hidden but cannot accept prefab placement.
+- The left Object/Scatter library uses the actual first prefab sprite as a framed icon
+  tile, with the semantic package icon only as a loading or missing-art fallback.
+  Collection filters and hover tooltips retain the prefab name without turning the
+  palette back into a wall of text.
+- Verification passes the SpaceTimeDB module build, all workspace typechecks, full
+  ESLint, the production client build, and **237/237 test files with 1,520/1,520
+  tests**. The shared-preview automation endpoint was unavailable for the local route,
+  so no visual-browser claim is made for this follow-up.
+
+### 2026-09-04 — Canvas eyedropper parity boundary
+
+- The Studio Map Editor now exposes an icon-only, tooltip-labelled eyedropper beside
+  palette search, with `I` to toggle and `Escape` to cancel. Sampling is one-shot on
+  success and changes only editor selection/tool state: document revision, hash, and
+  undo history remain unchanged.
+- Terrain/Biome sampling resolves the composed cell and can select represented
+  surface, path, ledge, collision, biome, and elevation semantics. A generated-base
+  sample targets the editable Terrain layer. Object/Scatter sampling uses visible
+  authored objects' transformed footprints and selects the embedded prefab plus its
+  actual authored layer; live/generated rows remain non-editable.
+- Raw atlas `terrainOverride` substitutions and farmland are not represented by the
+  current left palette or its commands. Those clicks deliberately leave the sampler
+  armed rather than mapping to a visually similar but semantically different tool.
+  Focused repository tests cover this boundary; no deployed-browser claim is made.

@@ -1,6 +1,7 @@
 {
   "name": "actor_cf_angel_02",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     64,
     64
@@ -5115,7 +5116,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Angel_2.png",
-  "sourcePath": "references/Cute_Fantasy_Characters/Angels/Angel_2.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/characters/Angels/Angel_2.png",
   "sourceRegions": {
     "idle_down": [
       [

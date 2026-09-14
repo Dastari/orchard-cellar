@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SURVIVAL_RAISED_CLIFF_TILE_SET } from './survival-world.js';
 import {
   raisedTerrainEdgeRoleAt,
   raisedTerrainContourGrid,
@@ -18,6 +19,8 @@ function gridFrom(rows: readonly string[], ramps: ReadonlyMap<string, RaisedTerr
 }
 
 const TILE_SET: RaisedTerrainTileSet = {
+  assetId: 'test_cliff',
+  projectionStyle: 'raised',
   edgeFrames: {
     top_left: 1, top: 2, top_right: 3,
     left: 4, right: 5,
@@ -35,6 +38,9 @@ const TILE_SET: RaisedTerrainTileSet = {
     ramp_bottom_left: 203,
     ramp_bottom_right: 204,
   },
+  rampBank: null,
+  stairFrames: null,
+  ladderFrames: null,
   faceProfiles: {
     tall: {
       rows: [
@@ -53,6 +59,68 @@ const TILE_SET: RaisedTerrainTileSet = {
 };
 
 describe('shared raised terrain autotile utility', () => {
+  const rectangularElevation = (width: number, elevation: number) => (
+    tileX: number,
+    tileY: number,
+  ): number => tileX >= 0 && tileX < width && tileY >= 0 && tileY < 2 ? elevation : 0;
+  const roleRow = (
+    width: number,
+    elevation: number,
+    tileY: number,
+    contourLevel: number,
+  ): readonly string[] => Array.from({ length: width }, (_, tileX) => {
+    const plan = resolveRaisedTerrainContoursAt(
+      rectangularElevation(width, elevation),
+      elevation,
+      SURVIVAL_RAISED_CLIFF_TILE_SET,
+      'tall',
+      tileX,
+      tileY,
+    ).find((candidate) => candidate.contourLevel === contourLevel)?.plan;
+    const face = plan?.faceLayers.find((layer) => layer.direct);
+    return face === undefined
+      ? `edge.${plan?.edgeRole ?? 'none'}`
+      : `face.${face.rowId}.${face.join}`;
+  });
+
+  it('composes one structural course per level with one terminal foot', () => {
+    expect(roleRow(2, 1, 0, 1)).toEqual(['edge.top_left', 'edge.top_right']);
+    expect(roleRow(2, 1, 1, 1)).toEqual(['edge.bottom_left', 'edge.bottom_right']);
+    expect(roleRow(2, 1, 2, 1)).toEqual([
+      'face.lower_wall.left', 'face.lower_wall.right',
+    ]);
+    expect(roleRow(2, 1, 3, 1)).toEqual(['face.foot.left', 'face.foot.right']);
+
+    expect(roleRow(2, 2, 2, 2)).toEqual(['face.wall.left', 'face.wall.right']);
+    expect(roleRow(2, 2, 2, 1)).toEqual([
+      'face.lower_wall.left', 'face.lower_wall.right',
+    ]);
+    expect(roleRow(2, 2, 3, 1)).toEqual(['face.foot.left', 'face.foot.right']);
+    expect(resolveRaisedTerrainContoursAt(
+      rectangularElevation(2, 2), 2, SURVIVAL_RAISED_CLIFF_TILE_SET, 'tall', 0, 3,
+    ).some(({ contourLevel, plan }) => contourLevel === 2
+      && plan.faceLayers.some((face) => face.direct && face.rowId === 'foot'))).toBe(false);
+  });
+
+  it('uses left, repeatable middle, and right joins across wider cliffs', () => {
+    expect(roleRow(4, 2, 0, 2)).toEqual([
+      'edge.top_left', 'edge.top', 'edge.top', 'edge.top_right',
+    ]);
+    expect(roleRow(4, 2, 1, 2)).toEqual([
+      'edge.bottom_left', 'edge.bottom', 'edge.bottom', 'edge.bottom_right',
+    ]);
+    expect(roleRow(4, 2, 2, 2)).toEqual([
+      'face.wall.left', 'face.wall.middle', 'face.wall.middle', 'face.wall.right',
+    ]);
+    expect(roleRow(4, 2, 2, 1)).toEqual([
+      'face.lower_wall.left', 'face.lower_wall.middle',
+      'face.lower_wall.middle', 'face.lower_wall.right',
+    ]);
+    expect(roleRow(4, 2, 3, 1)).toEqual([
+      'face.foot.left', 'face.foot.middle', 'face.foot.middle', 'face.foot.right',
+    ]);
+  });
+
   it('adapts integer editor elevations into independently resolved contours', () => {
     const elevations = [
       [0, 1, 0],
@@ -65,7 +133,8 @@ describe('shared raised terrain autotile utility', () => {
     expect(firstLevel.raisedAt(1, 0)).toBe(true);
     expect(secondLevel.raisedAt(1, 0)).toBe(false);
     expect(secondLevel.raisedAt(1, 1)).toBe(true);
-    expect(() => raisedTerrainContourGrid(elevationAt, 0)).toThrow('positive integer');
+    expect(raisedTerrainContourGrid(elevationAt, 0).raisedAt(0, 0)).toBe(true);
+    expect(() => raisedTerrainContourGrid(elevationAt, 0.5)).toThrow('integer');
   });
 
   it('30§3 resolves a cliff inside a cliff at every nested contour', () => {
@@ -82,6 +151,25 @@ describe('shared raised terrain autotile utility', () => {
     expect(plans[0]?.plan.edgeRole).toBe('bottom');
     expect(plans[1]?.plan.edgeRole).toBe('bottom_left');
     expect(plans[2]?.plan.edgeRole).toBe('top_left');
+  });
+
+  it('resolves five-level rises, drops, and a signed pit inside a plateau', () => {
+    const peak = (tileX: number): number => tileX === 1 ? 5 : 0;
+    expect(resolveRaisedTerrainContoursAt(
+      peak, 5, TILE_SET, 'tall', 1, 0,
+    ).map(({ contourLevel }) => contourLevel)).toEqual([1, 2, 3, 4, 5]);
+
+    const drop = (tileX: number): number => tileX === 1 ? 0 : 5;
+    expect(resolveRaisedTerrainContoursAt(
+      drop, 5, TILE_SET, 'tall', 0, 0,
+    ).map(({ contourLevel }) => contourLevel)).toEqual([1, 2, 3, 4, 5]);
+
+    const pitInsidePlateau = (tileX: number, tileY: number): number => (
+      tileX === 2 && tileY === 2 ? -2 : 1
+    );
+    expect(resolveRaisedTerrainContoursAt(
+      pitInsidePlateau, 1, TILE_SET, 'tall', 2, 1, undefined, -1,
+    ).map(({ contourLevel }) => contourLevel)).toEqual([-1, 0, 1]);
   });
 
   it('30§3 applies an authored opening to only its named contour', () => {
@@ -124,6 +212,21 @@ describe('shared raised terrain autotile utility', () => {
     expect(raisedTerrainInsetRolesAt(inset, 1, 1)).toEqual(['inner_top_left']);
   });
 
+  it('does not stack an opposite inset corner over a cell that already owns an edge', () => {
+    const caveNotch = gridFrom([
+      '...',
+      '###',
+      '.##',
+    ]);
+    expect(raisedTerrainEdgeRoleAt(caveNotch, 1, 1)).toBe('top');
+    expect(raisedTerrainInsetRolesAt(caveNotch, 1, 1)).toEqual(['inner_bottom_left']);
+    expect(resolveRaisedTerrainTile(caveNotch, {
+      ...TILE_SET, edgeInsetMode: 'exclusive',
+    }, 'tall', 1, 1)).toMatchObject({
+      edgeRole: 'top', insetRoles: [], insetFrames: [],
+    });
+  });
+
   it('changes wall height by selecting a face profile rather than changing topology code', () => {
     const ridge = gridFrom(['###']);
     expect(resolveRaisedTerrainTile(ridge, TILE_SET, 'tall', 1, 1).faceLayers).toEqual([
@@ -146,16 +249,50 @@ describe('shared raised terrain autotile utility', () => {
     expect(resolveRaisedTerrainTile(ridge, TILE_SET, 'short', 1, 2).faceLayers).toEqual([]);
   });
 
-  it('fills only a diagonally continuing face gutter with its authored middle frame', () => {
-    const step = gridFrom([
+  it('fills only the open side of a diagonally continuing face gutter', () => {
+    const unsupportedLeft = gridFrom([
       '.##.',
       '.#..',
     ]);
-    const mixed = resolveRaisedTerrainTile(step, TILE_SET, 'tall', 1, 2).faceLayers;
-    expect(mixed.find((face) => face.direct)).toMatchObject({
+    expect(resolveRaisedTerrainTile(unsupportedLeft, TILE_SET, 'tall', 1, 2).faceLayers
+      .find((face) => face.direct)).toMatchObject({
+      join: 'left', frame: 10,
+    });
+    expect(resolveRaisedTerrainTile(unsupportedLeft, TILE_SET, 'tall', 1, 2).faceLayers
+      .find((face) => face.direct)?.seamUnderlayFrame).toBeUndefined();
+
+    const supportedLeft = gridFrom([
+      '##..',
+      '.#..',
+    ]);
+    expect(resolveRaisedTerrainTile(supportedLeft, TILE_SET, 'tall', 1, 2).faceLayers
+      .find((face) => face.direct)).toMatchObject({
       join: 'left', frame: 10, seamUnderlayFrame: 11,
     });
-    const projectedFoot = resolveRaisedTerrainTile(step, TILE_SET, 'tall', 1, 4).faceLayers
+
+    const supportedRight = gridFrom([
+      '...#',
+      '.##.',
+    ]);
+    expect(resolveRaisedTerrainTile(supportedRight, TILE_SET, 'tall', 2, 2).faceLayers
+      .find((face) => face.direct)).toMatchObject({
+      join: 'right', frame: 12, seamUnderlayFrame: 11,
+    });
+
+    const footOnlyRight = gridFrom([
+      '###',
+      '##.',
+      '...',
+    ]);
+    expect(resolveRaisedTerrainTile(footOnlyRight, TILE_SET, 'tall', 1, 3).faceLayers
+      .find((face) => face.direct && face.rowId === 'lower')).toMatchObject({
+      join: 'right', frame: 22,
+    });
+    expect(resolveRaisedTerrainTile(footOnlyRight, TILE_SET, 'tall', 1, 3).faceLayers
+      .find((face) => face.direct && face.rowId === 'lower')?.seamUnderlayFrame)
+      .toBeUndefined();
+
+    const projectedFoot = resolveRaisedTerrainTile(supportedLeft, TILE_SET, 'tall', 1, 4).faceLayers
       .find((face) => face.direct && face.rowId === 'foot');
     expect(projectedFoot).toBeDefined();
     expect(projectedFoot?.seamUnderlayFrame).toBeUndefined();
@@ -174,6 +311,41 @@ describe('shared raised terrain autotile utility', () => {
       edgeRole: 'right',
       edgeSeamUnderlayFrame: 11,
     });
+
+    const internalLeft = gridFrom([
+      '##.',
+      '.##',
+      '.#.',
+    ]);
+    expect(resolveRaisedTerrainTile(internalLeft, TILE_SET, 'tall', 1, 1)).toMatchObject({
+      edgeRole: 'left',
+      edgeSeamUnderlayFrame: 11,
+    });
+
+    // A diagonal continuation below a terminal side cap does not occupy the
+    // cap's open-side projected slot. Treating the diagonal alone as support
+    // produces a stray middle-wall tile beneath both right and left caps.
+    const trailingRight = gridFrom([
+      '##.',
+      '##.',
+      '.##',
+    ]);
+    expect(resolveRaisedTerrainTile(trailingRight, TILE_SET, 'tall', 1, 1)).toMatchObject({
+      edgeRole: 'right',
+    });
+    expect(resolveRaisedTerrainTile(trailingRight, TILE_SET, 'tall', 1, 1)
+      .edgeSeamUnderlayFrame).toBeUndefined();
+
+    const trailingLeft = gridFrom([
+      '.##',
+      '.##',
+      '##.',
+    ]);
+    expect(resolveRaisedTerrainTile(trailingLeft, TILE_SET, 'tall', 1, 1)).toMatchObject({
+      edgeRole: 'left',
+    });
+    expect(resolveRaisedTerrainTile(trailingLeft, TILE_SET, 'tall', 1, 1)
+      .edgeSeamUnderlayFrame).toBeUndefined();
 
     const outside = gridFrom([
       '##.',

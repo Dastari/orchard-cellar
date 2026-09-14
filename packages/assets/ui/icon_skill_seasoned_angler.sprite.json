@@ -1,0 +1,71 @@
+{
+  "name": "icon_skill_seasoned_angler",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "............00..",
+        "...........0890.",
+        "..........033890",
+        "......0000388380",
+        ".....0333342530.",
+        "....04744b1430..",
+        "...0471871430...",
+        "..03416768430...",
+        ".0347776ab430...",
+        "03119987b1430...",
+        "041922976430....",
+        "04192927430.....",
+        "0319998430......",
+        "031111130.......",
+        ".0344430........",
+        "..00000........."
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#2e222f",
+    "1": "#694f62",
+    "2": "#7a3045",
+    "3": "#7f708a",
+    "4": "#9babb2",
+    "5": "#9e4539",
+    "6": "#ae2334",
+    "7": "#c7dcd0",
+    "8": "#cd683d",
+    "9": "#e6904e",
+    "a": "#e83b3b",
+    "b": "#ffffff"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/fishing-sea/sheet-16.png",
+  "sourceRegion": [
+    0,
+    80,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.seasoned_angler",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

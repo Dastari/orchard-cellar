@@ -1,6 +1,7 @@
 {
   "name": "wildlife_cf_pig_15",
   "category": "characters",
+  "bakedShadowColor": "#00000064",
   "size": [
     32,
     32
@@ -2728,7 +2729,7 @@
   "sourcePaletteMode": "exact",
   "approved": true,
   "importedFrom": "Pig_15.png",
-  "sourcePath": "references/Cute_Fantasy/Animals/Pig/Pig_15.png",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Animals/Pig/Pig_15.png",
   "sourceRegions": {
     "idle_side": [
       [

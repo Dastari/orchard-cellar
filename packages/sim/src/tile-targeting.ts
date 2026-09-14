@@ -1,4 +1,7 @@
+import { bootstrapDefinitionsOfKind } from './content/bootstrap-pack-loader.js';
 import { FIXED_UNITS_PER_PIXEL, TILE_SIZE_FIXED, type CollisionMap, type Direction } from './state.js';
+import type { RuntimeToolDefinition } from './content/runtime.js';
+import { playerInteractionOrigin } from './movement.js';
 
 export interface TileTarget {
   readonly tileX: number;
@@ -19,28 +22,57 @@ export const TILE_INTERACTION_REACH_FIXED = TILE_INTERACTION_REACH_TILES * TILE_
  * hands-pickup remains a separate faced-tile action. */
 export const CHEST_INTERACTION_REACH_TILES = 2;
 export const CHEST_INTERACTION_REACH_FIXED = CHEST_INTERACTION_REACH_TILES * TILE_SIZE_FIXED;
+/** Fires are communal crafting stations and need a little more room than
+ * storage interactions so their light, cooking, and dismantle actions agree. */
+export const CAMPFIRE_INTERACTION_REACH_TILES = 3;
+export const CAMPFIRE_INTERACTION_REACH_FIXED = CAMPFIRE_INTERACTION_REACH_TILES * TILE_SIZE_FIXED;
 /** Ground items can be collected from any direction inside this radial reach. */
 export const ITEM_PICKUP_REACH_FIXED = 24 * FIXED_UNITS_PER_PIXEL;
 /** Base contact-tool radius. Skill-tree progression will expand this through
  * a range modifier; keep the unskilled axe/pickaxe/sword/hammer area small. */
 export const RESOURCE_TOOL_REACH_TILES = 1;
 export const AXE_SWING_REACH_TILES = RESOURCE_TOOL_REACH_TILES;
+/** Fishing is a pointer-targeted tile tool, so its initial range deliberately
+ * matches the hoe and watering can. Skill progression can split these later. */
+export const FISHING_ROD_REACH_TILES = TILE_INTERACTION_REACH_TILES;
 export const FORWARD_SWING_OFFSET_TILES = 1;
 
-const FORWARD_SWING_TOOL_KINDS = new Set(['axe', 'pickaxe', 'sword', 'hammer']);
-
-export function isForwardSwingToolKind(itemKind: string): boolean {
-  return FORWARD_SWING_TOOL_KINDS.has(itemKind);
+function bootstrapToolDefinition(itemKind: string): RuntimeToolDefinition | null {
+  const item = bootstrapDefinitionsOfKind('item').find(({ id }) => id === `item:${itemKind}`);
+  return item?.tool === undefined ? null : {
+    ...item.tool,
+    ...(item.equip?.avatarAction === undefined ? {} : { avatarAction: item.equip.avatarAction }),
+  };
 }
 
-export function resourceToolForwardOffsetFixed(itemKind: string): number {
-  return isForwardSwingToolKind(itemKind) ? FORWARD_SWING_OFFSET_TILES * TILE_SIZE_FIXED : 0;
+export function toolUsesForwardSwing(definition: RuntimeToolDefinition | null): boolean {
+  if (definition === null) return false;
+  return definition.specialization === 'woodcutting' || definition.specialization === 'mining'
+    || (definition.specialization !== 'farming'
+      && definition.avatarAction?.startsWith('swing_') === true);
+}
+
+export function isForwardSwingToolKind(itemKind: string): boolean {
+  return toolUsesForwardSwing(bootstrapToolDefinition(itemKind));
+}
+
+export function resourceToolForwardOffsetFixed(
+  itemKindOrDefinition: string | RuntimeToolDefinition | null,
+): number {
+  const definition = typeof itemKindOrDefinition === 'string'
+    ? bootstrapToolDefinition(itemKindOrDefinition)
+    : itemKindOrDefinition;
+  return toolUsesForwardSwing(definition) ? FORWARD_SWING_OFFSET_TILES * TILE_SIZE_FIXED : 0;
 }
 
 /** Radius of the contact area after any forward swing offset is applied. */
-export function resourceToolReachFixed(itemKind: string): number {
-  const tiles = itemKind === 'axe' ? AXE_SWING_REACH_TILES : RESOURCE_TOOL_REACH_TILES;
-  return tiles * TILE_SIZE_FIXED;
+export function resourceToolReachFixed(
+  itemKindOrDefinition: string | RuntimeToolDefinition | null,
+): number {
+  const definition = typeof itemKindOrDefinition === 'string'
+    ? bootstrapToolDefinition(itemKindOrDefinition)
+    : itemKindOrDefinition;
+  return (definition?.reachTiles ?? RESOURCE_TOOL_REACH_TILES) * TILE_SIZE_FIXED;
 }
 
 /** Authority and prediction share the same contact area: a one-tile circle
@@ -53,16 +85,16 @@ export function forwardSwingTargetInReach(
   facing: Direction,
   targetX: number,
   targetY: number,
-  itemKind: string,
+  itemKindOrDefinition: string | RuntimeToolDefinition | null,
 ): boolean {
   const [facingX, facingY] = FACING_VECTOR[facing];
   const [unitX, unitY] = directionUnitVector(facing);
   const dx = targetX - playerX;
   const dy = targetY - playerY;
   if (dx * facingX + dy * facingY <= 0) return false;
-  const areaDx = dx - unitX * resourceToolForwardOffsetFixed(itemKind);
-  const areaDy = dy - unitY * resourceToolForwardOffsetFixed(itemKind);
-  const reach = resourceToolReachFixed(itemKind);
+  const areaDx = dx - unitX * resourceToolForwardOffsetFixed(itemKindOrDefinition);
+  const areaDy = dy - unitY * resourceToolForwardOffsetFixed(itemKindOrDefinition);
+  const reach = resourceToolReachFixed(itemKindOrDefinition);
   return areaDx * areaDx + areaDy * areaDy <= reach * reach;
 }
 
@@ -108,6 +140,26 @@ export function tileTargetWithinFixedReach(
   const dx = targetX - playerX;
   const dy = targetY - playerY;
   return dx * dx + dy * dy <= reachFixed * reachFixed;
+}
+
+/** Farm tools work around the physical player body, whose visible feet sit
+ * above the durable sprite anchor. Other tile tools retain their own anchor. */
+export function tileToolInteractionOrigin(
+  definition: RuntimeToolDefinition,
+  position: { readonly x: number; readonly y: number },
+): { readonly x: number; readonly y: number } {
+  return definition.specialization === 'farming' ? playerInteractionOrigin(position) : position;
+}
+
+/** Exact authored tile-tool reach, shared by lifecycle authority and client
+ * input/reticles. Range never comes from the broad placement picking ceiling. */
+export function tileToolTargetInReach(
+  definition: RuntimeToolDefinition,
+  position: { readonly x: number; readonly y: number },
+  tile: TileTarget,
+): boolean {
+  const origin = tileToolInteractionOrigin(definition, position);
+  return tileTargetWithinFixedReach(origin.x, origin.y, tile, resourceToolReachFixed(definition));
 }
 
 /** Selects the nearest tile-centred row inside a circular reach. Stable row id
@@ -180,7 +232,8 @@ export function tileTargetIsBlocked(
   if (map.blocked[tileIndex] ?? true) return true;
   if (map.fixedTerrainPlane !== undefined && map.terrainPlaneBlocked !== undefined) {
     const stride = map.width * map.height;
-    if (map.terrainPlaneBlocked[map.fixedTerrainPlane * stride + tileIndex] === 1) return true;
+    const planeIndex = map.fixedTerrainPlane - (map.terrainMinimumElevation ?? 0);
+    if (planeIndex >= 0 && map.terrainPlaneBlocked[planeIndex * stride + tileIndex] === 1) return true;
   }
   const bounds = tileTargetBounds(tile);
   if (map.obstacles?.some((obstacle) => boundsOverlap(bounds, obstacle)) ?? false) return true;

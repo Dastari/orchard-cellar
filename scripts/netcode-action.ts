@@ -2,7 +2,7 @@ import {
   SURVIVAL_WORLD_SIZE, TILE_SIZE_FIXED, createSurvivalCollisionMap, movePlayer,
   type CollisionMap, type Direction, type PlayerState,
 } from '../packages/sim/src/index.js';
-import { DbConnection, tables } from '../packages/client/src/net/generated/index.js';
+import { DbConnection, tables } from '@orchard/world-bindings';
 import { AvatarAnimationController } from '../packages/client/src/net/netcode.js';
 import type { Identity } from 'spacetimedb';
 

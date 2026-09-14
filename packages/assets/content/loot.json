@@ -1,0 +1,3189 @@
+[
+  {
+    "id": "loot:fishing_gem",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "gem",
+        "rollTag": "fishing.gem_kind",
+        "entries": [
+          {
+            "id": "emerald",
+            "weight": 1,
+            "target": {
+              "item": "item:emerald_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "sapphire",
+            "weight": 1,
+            "target": {
+              "item": "item:sapphire_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "topaz",
+            "weight": 1,
+            "target": {
+              "item": "item:topaz_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "ruby",
+            "weight": 1,
+            "target": {
+              "item": "item:ruby_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "amethyst",
+            "weight": 1,
+            "target": {
+              "item": "item:amethyst_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:fishing_pool",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "fish",
+        "entries": [
+          {
+            "id": "common",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "quality",
+                  "operator": "eq",
+                  "value": "common"
+                }
+              }
+            ],
+            "target": {
+              "item": "item:raw_fish",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "good",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "quality",
+                  "operator": "eq",
+                  "value": "good"
+                }
+              }
+            ],
+            "target": {
+              "item": "item:raw_fish",
+              "min": 2,
+              "max": 2
+            }
+          },
+          {
+            "id": "rare",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "quality",
+                  "operator": "eq",
+                  "value": "rare"
+                }
+              }
+            ],
+            "target": {
+              "item": "item:raw_fish",
+              "min": 2,
+              "max": 2
+            }
+          }
+        ]
+      },
+      {
+        "id": "bonus",
+        "rollTag": "fishing.bonus",
+        "conditions": [
+          {
+            "context": {
+              "key": "quality",
+              "operator": "eq",
+              "value": "rare"
+            }
+          }
+        ],
+        "entries": [
+          {
+            "id": "fiber",
+            "weight": 400,
+            "target": {
+              "item": "item:fiber",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "wood",
+            "weight": 250,
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "stone",
+            "weight": 150,
+            "target": {
+              "item": "item:stone",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pebble",
+            "weight": 120,
+            "target": {
+              "item": "item:pebble",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "copper",
+            "weight": 60,
+            "target": {
+              "item": "item:copper_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "gem",
+            "weight": 20,
+            "target": {
+              "loot": "loot:fishing_gem"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_ore_amethyst",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "forced_fragment",
+            "weight": 1,
+            "priority": 100,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "context": {
+                  "key": "richnessRemaining",
+                  "operator": "lte",
+                  "value": 1
+                }
+              },
+              {
+                "context": {
+                  "key": "producedOre",
+                  "operator": "eq",
+                  "value": false
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:amethyst_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "gte",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:amethyst_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_stone",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "lt",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stone",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pure_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:amethyst_ore",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pristine_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pristine"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:amethyst_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:amethyst_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_ore_copper",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "forced_fragment",
+            "weight": 1,
+            "priority": 100,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "context": {
+                  "key": "richnessRemaining",
+                  "operator": "lte",
+                  "value": 1
+                }
+              },
+              {
+                "context": {
+                  "key": "producedOre",
+                  "operator": "eq",
+                  "value": false
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:copper_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "gte",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:copper_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_stone",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "lt",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stone",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pure_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:copper_ore",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pristine_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pristine"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:copper_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:copper_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_ore_emerald",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "forced_fragment",
+            "weight": 1,
+            "priority": 100,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "context": {
+                  "key": "richnessRemaining",
+                  "operator": "lte",
+                  "value": 1
+                }
+              },
+              {
+                "context": {
+                  "key": "producedOre",
+                  "operator": "eq",
+                  "value": false
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:emerald_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "gte",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:emerald_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_stone",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "lt",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stone",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pure_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:emerald_ore",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pristine_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pristine"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:emerald_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:emerald_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_ore_gold",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "forced_fragment",
+            "weight": 1,
+            "priority": 100,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "context": {
+                  "key": "richnessRemaining",
+                  "operator": "lte",
+                  "value": 1
+                }
+              },
+              {
+                "context": {
+                  "key": "producedOre",
+                  "operator": "eq",
+                  "value": false
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:gold_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "gte",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:gold_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_stone",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "lt",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stone",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pure_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:gold_ore",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pristine_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pristine"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:gold_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:gold_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_ore_iron",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "forced_fragment",
+            "weight": 1,
+            "priority": 100,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "context": {
+                  "key": "richnessRemaining",
+                  "operator": "lte",
+                  "value": 1
+                }
+              },
+              {
+                "context": {
+                  "key": "producedOre",
+                  "operator": "eq",
+                  "value": false
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:iron_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "gte",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:iron_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_stone",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "lt",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stone",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pure_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:iron_ore",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pristine_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pristine"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:iron_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:iron_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "silver_trace",
+        "conditions": [
+          {
+            "rareRoll": {
+              "seedTag": "mining.silver_trace",
+              "comparison": "lt",
+              "threshold": 10,
+              "outOf": 100
+            }
+          }
+        ],
+        "entries": [
+          {
+            "id": "silver_ore",
+            "weight": 1,
+            "target": {
+              "item": "item:silver_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_ore_ruby",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "forced_fragment",
+            "weight": 1,
+            "priority": 100,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "context": {
+                  "key": "richnessRemaining",
+                  "operator": "lte",
+                  "value": 1
+                }
+              },
+              {
+                "context": {
+                  "key": "producedOre",
+                  "operator": "eq",
+                  "value": false
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:ruby_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "gte",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:ruby_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_stone",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "lt",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stone",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pure_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:ruby_ore",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pristine_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pristine"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:ruby_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:ruby_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_ore_sapphire",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "forced_fragment",
+            "weight": 1,
+            "priority": 100,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "context": {
+                  "key": "richnessRemaining",
+                  "operator": "lte",
+                  "value": 1
+                }
+              },
+              {
+                "context": {
+                  "key": "producedOre",
+                  "operator": "eq",
+                  "value": false
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:sapphire_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "gte",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:sapphire_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_stone",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "lt",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stone",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pure_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:sapphire_ore",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pristine_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pristine"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:sapphire_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:sapphire_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_ore_topaz",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "forced_fragment",
+            "weight": 1,
+            "priority": 100,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "context": {
+                  "key": "richnessRemaining",
+                  "operator": "lte",
+                  "value": 1
+                }
+              },
+              {
+                "context": {
+                  "key": "producedOre",
+                  "operator": "eq",
+                  "value": false
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:topaz_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "gte",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:topaz_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "mixed_stone",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "mixed"
+                }
+              },
+              {
+                "rareRoll": {
+                  "seedTag": "mining.mixed_yield",
+                  "comparison": "lt",
+                  "threshold": 70,
+                  "outOf": 100,
+                  "rankKey": "ore_dressing",
+                  "perRank": -10
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stone",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pure_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:topaz_ore",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "pristine_chunk",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pristine"
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:topaz_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "fragment",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:topaz_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_rock_large",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "pebble",
+            "weight": 1,
+            "target": {
+              "item": "item:pebble",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "bonus",
+        "rollTag": "mining.rock_kind",
+        "entries": [
+          {
+            "id": "iron",
+            "weight": 3,
+            "conditions": [
+              {
+                "rareRoll": {
+                  "seedTag": "mining.rock_bonus",
+                  "comparison": "lt",
+                  "threshold": 1,
+                  "outOf": 100,
+                  "rankKey": "rockhound",
+                  "perRank": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:iron_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "copper",
+            "weight": 3,
+            "conditions": [
+              {
+                "rareRoll": {
+                  "seedTag": "mining.rock_bonus",
+                  "comparison": "lt",
+                  "threshold": 1,
+                  "outOf": 100,
+                  "rankKey": "rockhound",
+                  "perRank": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:copper_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "gold",
+            "weight": 2,
+            "conditions": [
+              {
+                "rareRoll": {
+                  "seedTag": "mining.rock_bonus",
+                  "comparison": "lt",
+                  "threshold": 1,
+                  "outOf": 100,
+                  "rankKey": "rockhound",
+                  "perRank": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:gold_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "emerald",
+            "weight": 1,
+            "conditions": [
+              {
+                "rareRoll": {
+                  "seedTag": "mining.rock_bonus",
+                  "comparison": "lt",
+                  "threshold": 1,
+                  "outOf": 100,
+                  "rankKey": "rockhound",
+                  "perRank": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:emerald_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "sapphire",
+            "weight": 1,
+            "conditions": [
+              {
+                "rareRoll": {
+                  "seedTag": "mining.rock_bonus",
+                  "comparison": "lt",
+                  "threshold": 1,
+                  "outOf": 100,
+                  "rankKey": "rockhound",
+                  "perRank": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:sapphire_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "topaz",
+            "weight": 1,
+            "conditions": [
+              {
+                "rareRoll": {
+                  "seedTag": "mining.rock_bonus",
+                  "comparison": "lt",
+                  "threshold": 1,
+                  "outOf": 100,
+                  "rankKey": "rockhound",
+                  "perRank": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:topaz_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "ruby",
+            "weight": 1,
+            "conditions": [
+              {
+                "rareRoll": {
+                  "seedTag": "mining.rock_bonus",
+                  "comparison": "lt",
+                  "threshold": 1,
+                  "outOf": 100,
+                  "rankKey": "rockhound",
+                  "perRank": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:ruby_piece",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "amethyst",
+            "weight": 1,
+            "conditions": [
+              {
+                "rareRoll": {
+                  "seedTag": "mining.rock_bonus",
+                  "comparison": "lt",
+                  "threshold": 1,
+                  "outOf": 100,
+                  "rankKey": "rockhound",
+                  "perRank": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:amethyst_piece",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_cactus",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:cactus",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:cactus",
+              "min": 2,
+              "max": 2
+            }
+          },
+          {
+            "id": "small",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:cactus",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_fallen_branch",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "wood",
+            "weight": 1,
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_loose_stone",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "pebble",
+            "weight": 1,
+            "target": {
+              "item": "item:pebble",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_tree_acacia",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "small_stick",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stick",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_tree_apple",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "small_stick",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stick",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "fruit",
+        "entries": [
+          {
+            "id": "fruit",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:apple",
+              "min": 2,
+              "max": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_tree_birch",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "small_stick",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stick",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_tree_cherry",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "small_stick",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stick",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "fruit",
+        "entries": [
+          {
+            "id": "fruit",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:cherry",
+              "min": 2,
+              "max": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_tree_oak",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "small_stick",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stick",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_tree_palm",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "small_stick",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stick",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_tree_peach",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "small_stick",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stick",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "fruit",
+        "entries": [
+          {
+            "id": "fruit",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:peach",
+              "min": 2,
+              "max": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_tree_pear",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "small_stick",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stick",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "fruit",
+        "entries": [
+          {
+            "id": "fruit",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:pear",
+              "min": 2,
+              "max": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:resource_tree_spruce",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "big_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 3
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 3,
+              "max": 3
+            }
+          },
+          {
+            "id": "medium_wood",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 2
+                }
+              }
+            ],
+            "target": {
+              "item": "item:wood",
+              "min": 1,
+              "max": 1
+            }
+          },
+          {
+            "id": "small_stick",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "remainingHealth",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "context": {
+                  "key": "treeGrowthStage",
+                  "operator": "eq",
+                  "value": 1
+                }
+              }
+            ],
+            "target": {
+              "item": "item:stick",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:wildlife_chicken",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "meat",
+        "entries": [
+          {
+            "id": "meat",
+            "weight": 1,
+            "target": {
+              "item": "item:raw_chicken",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:wildlife_cow",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "meat",
+        "entries": [
+          {
+            "id": "meat",
+            "weight": 1,
+            "target": {
+              "item": "item:raw_beef",
+              "min": 4,
+              "max": 4
+            }
+          }
+        ]
+      },
+      {
+        "id": "material",
+        "entries": [
+          {
+            "id": "leather",
+            "weight": 1,
+            "target": {
+              "item": "item:leather",
+              "min": 2,
+              "max": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:wildlife_duck",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "meat",
+        "entries": [
+          {
+            "id": "meat",
+            "weight": 1,
+            "target": {
+              "item": "item:raw_chicken",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:wildlife_goose",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "meat",
+        "entries": [
+          {
+            "id": "meat",
+            "weight": 1,
+            "target": {
+              "item": "item:raw_chicken",
+              "min": 2,
+              "max": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:wildlife_pig",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "meat",
+        "entries": [
+          {
+            "id": "meat",
+            "weight": 1,
+            "target": {
+              "item": "item:raw_pork",
+              "min": 3,
+              "max": 3
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:wildlife_rooster",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "meat",
+        "entries": [
+          {
+            "id": "meat",
+            "weight": 1,
+            "target": {
+              "item": "item:raw_chicken",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:wildlife_sheep",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "meat",
+        "entries": [
+          {
+            "id": "meat",
+            "weight": 1,
+            "target": {
+              "item": "item:raw_mutton",
+              "min": 3,
+              "max": 3
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,5702 @@
+[
+  {
+    "id": "item:amethyst_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Amethyst Ore",
+    "icon": {
+      "asset": "item_cf_amethyst_ore"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore",
+      "material.raw",
+      "ore.amethyst"
+    ],
+    "economy": {
+      "buy": 200,
+      "sell": 80
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:amethyst_piece",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Amethyst Pieces",
+    "icon": {
+      "asset": "item_cf_amethyst_piece"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore_piece",
+      "material.raw",
+      "ore.amethyst"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 9
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:anvil",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Anvil",
+    "icon": {
+      "asset": "prop_cf_anvil",
+      "animation": "animate"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "station.anvil"
+    ],
+    "economy": {
+      "buy": 500,
+      "sell": 200
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:apple",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Apple",
+    "icon": {
+      "asset": "item_cf_apple"
+    },
+    "quality": "common",
+    "maxStack": 32,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.fruit"
+    ],
+    "economy": {
+      "buy": 12,
+      "sell": 5
+    },
+    "food": {
+      "restoreCenti": 700
+    },
+    "onUse": [
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT APPLE",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 700
+            }
+          },
+          {
+            "applyEffect": {
+              "effectId": "fruitful_energy"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:arrow",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Arrow",
+    "icon": {
+      "asset": "item_cf_arrow"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.ammo",
+      "ammo.arrow"
+    ],
+    "economy": {
+      "buy": 4,
+      "sell": 1
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:axe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wooden Axe",
+    "icon": {
+      "asset": "icon_tool_wood_axe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 450,
+      "sell": 180
+    },
+    "durability": {
+      "max": 200,
+      "repairMaterial": "item:wood",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 8
+    },
+    "tool": {
+      "specialization": "woodcutting",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 8
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_axe",
+      "avatarActionAsset": "tool_wood_axe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:backpack",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Starter Backpack",
+    "icon": {
+      "asset": "item_cf_backpack"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.equipment",
+      "gear.back",
+      "container.backpack"
+    ],
+    "economy": {
+      "buy": 1500,
+      "sell": 600
+    },
+    "equip": {
+      "slot": "back",
+      "inventoryCapacity": 20
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:barn",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Barn",
+    "icon": {
+      "asset": "building_cf_barn"
+    },
+    "quality": "rare",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "build.prefab"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 780
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:barrel",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Barrel",
+    "icon": {
+      "asset": "prop_cf_barrel",
+      "animation": "closed"
+    },
+    "quality": "common",
+    "maxStack": 16,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "container.barrel",
+      "interface.barrel"
+    ],
+    "economy": {
+      "buy": 180,
+      "sell": 72
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:beetroot",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Beetroot",
+    "icon": {
+      "asset": "item_cf_crop_beetroot"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.beetroot"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 9
+    },
+    "food": {
+      "restoreCenti": 700
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT BEETROOT",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT BEETROOT",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 700
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:beetroot_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Beetroot Seeds",
+    "icon": {
+      "asset": "item_cf_beetroot_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.beetroot"
+    ],
+    "economy": {
+      "buy": 20,
+      "sell": 5
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:boat",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wooden Boat",
+    "icon": {
+      "asset": "vehicle_cf_boat"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.vehicle",
+      "item.crafted",
+      "vehicle.boat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 5
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:bob_fast_strawberry_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Bob's Fast Strawberry Seeds",
+    "icon": {
+      "asset": "item_cf_strawberry_seeds"
+    },
+    "quality": "rare",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.strawberry",
+      "item.quest"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 1
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:boots",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Boots",
+    "icon": {
+      "asset": "ui_cf_equipment_slot_icons",
+      "animation": "feet"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.prototype"
+    ],
+    "economy": {
+      "buy": 1700,
+      "sell": 680
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:bottles",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Estate Bottles",
+    "icon": {
+      "asset": "icon_resource_bottles"
+    },
+    "quality": "rare",
+    "maxStack": 99,
+    "tags": [
+      "item.product",
+      "item.cellar",
+      "cellar.bottles"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 5000,
+      "salePremium": "estate_vintage"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:bow",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wooden Bow",
+    "icon": {
+      "asset": "icon_cf_bow"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.weapon",
+      "item.ranged_weapon",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 700,
+      "sell": 280
+    },
+    "durability": {
+      "max": 300,
+      "repairMaterial": "item:wood",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 3000,
+      "minimumSwingTicks": 6
+    },
+    "tool": {
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 6
+    },
+    "ranged": {
+      "ammunition": "item:arrow",
+      "projectile": "arrow"
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "ranged_weapon"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:cabbage",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cabbage",
+    "icon": {
+      "asset": "item_cf_crop_cabbage"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.cabbage"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 22
+    },
+    "food": {
+      "restoreCenti": 900
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT CABBAGE",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT CABBAGE",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 900
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:cabbage_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cabbage Seeds",
+    "icon": {
+      "asset": "item_cf_cabbage_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.cabbage"
+    ],
+    "economy": {
+      "buy": 24,
+      "sell": 6
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:cactus",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cactus",
+    "icon": {
+      "asset": "resource_cf_cactus"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.plant",
+      "biome.desert"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 3
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:camp_cooking_fire",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Camp Cooking Fire",
+    "icon": {
+      "asset": "prop_cf_camp_cooking_fire",
+      "animation": "burn"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "station.campfire",
+      "container.cooking_fire",
+      "interface.cooking",
+      "emits.light"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 24
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:campfire",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Campfire",
+    "icon": {
+      "asset": "prop_cf_campfire",
+      "animation": "burn"
+    },
+    "quality": "common",
+    "maxStack": 16,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "station.campfire",
+      "emits.light"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 18
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:carrot",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Carrot",
+    "icon": {
+      "asset": "item_cf_crop_carrot"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.carrot"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 9
+    },
+    "food": {
+      "restoreCenti": 600
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT CARROT",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT CARROT",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 600
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:carrot_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Carrot Seeds",
+    "icon": {
+      "asset": "item_cf_carrot_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.carrot"
+    ],
+    "economy": {
+      "buy": 20,
+      "sell": 5
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:cherry",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cherries",
+    "icon": {
+      "asset": "item_cf_cherry"
+    },
+    "quality": "common",
+    "maxStack": 32,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.fruit"
+    ],
+    "economy": {
+      "buy": 14,
+      "sell": 6
+    },
+    "food": {
+      "restoreCenti": 500
+    },
+    "onUse": [
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT CHERRIES",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 500
+            }
+          },
+          {
+            "applyEffect": {
+              "effectId": "fruitful_energy"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:chest",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Chest",
+    "icon": {
+      "asset": "prop_cf_chest",
+      "animation": "chest"
+    },
+    "quality": "common",
+    "maxStack": 16,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "container.chest"
+    ],
+    "economy": {
+      "buy": 160,
+      "sell": 64
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:cooked_beef",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cooked Beef",
+    "icon": {
+      "asset": "item_cf_cooked_beef"
+    },
+    "quality": "uncommon",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "item.consumable",
+      "food.cooked",
+      "food.meat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 44
+    },
+    "food": {
+      "restoreCenti": 4000,
+      "cookedFrom": "item:raw_beef"
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT COOKED BEEF",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT COOKED BEEF",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 4000
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:cooked_chicken",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Roast Chicken",
+    "icon": {
+      "asset": "item_cf_cooked_chicken"
+    },
+    "quality": "uncommon",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "item.consumable",
+      "food.cooked",
+      "food.meat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 28
+    },
+    "food": {
+      "restoreCenti": 2800,
+      "cookedFrom": "item:raw_chicken"
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT ROAST CHICKEN",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT ROAST CHICKEN",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 2800
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:cooked_fish",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cooked Fish",
+    "icon": {
+      "asset": "item_cf_cooked_fish"
+    },
+    "quality": "uncommon",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "item.consumable",
+      "food.cooked",
+      "food.fish"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 32
+    },
+    "food": {
+      "restoreCenti": 2400,
+      "cookedFrom": "item:raw_fish"
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT COOKED FISH",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT COOKED FISH",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 2400
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:cooked_mutton",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Roast Mutton",
+    "icon": {
+      "asset": "item_cf_cooked_mutton"
+    },
+    "quality": "uncommon",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "item.consumable",
+      "food.cooked",
+      "food.meat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 36
+    },
+    "food": {
+      "restoreCenti": 3200,
+      "cookedFrom": "item:raw_mutton"
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT ROAST MUTTON",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT ROAST MUTTON",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 3200
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:cooked_pork",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Roast Pork",
+    "icon": {
+      "asset": "item_cf_cooked_pork"
+    },
+    "quality": "uncommon",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "item.consumable",
+      "food.cooked",
+      "food.meat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 36
+    },
+    "food": {
+      "restoreCenti": 3400,
+      "cookedFrom": "item:raw_pork"
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT ROAST PORK",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT ROAST PORK",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 3400
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:cooking_fire",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cooking Fire",
+    "icon": {
+      "asset": "prop_cf_cooking_fire",
+      "animation": "burn"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "station.campfire",
+      "container.cooking_fire",
+      "interface.cooking",
+      "emits.light"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 24
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:coop",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Coop",
+    "icon": {
+      "asset": "building_cf_coop"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "build.prefab"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 420
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:copper_axe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Copper Axe",
+    "icon": {
+      "asset": "icon_tool_copper_axe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 450,
+      "sell": 180
+    },
+    "durability": {
+      "max": 200,
+      "repairMaterial": "item:copper_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 8
+    },
+    "tool": {
+      "specialization": "woodcutting",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 8
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_axe",
+      "avatarActionAsset": "tool_copper_axe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:copper_bar",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Copper Bar",
+    "icon": {
+      "asset": "item_cf_copper_bar"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.metal",
+      "material.bar",
+      "metal.copper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 130
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:copper_hoe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Copper Hoe",
+    "icon": {
+      "asset": "icon_tool_copper_hoe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand",
+      "tool.farming.cultivate"
+    ],
+    "economy": {
+      "buy": 350,
+      "sell": 140
+    },
+    "durability": {
+      "max": 180,
+      "repairMaterial": "item:copper_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 500,
+      "minimumSwingTicks": 6
+    },
+    "tool": {
+      "specialization": "farming",
+      "tier": 0,
+      "reachTiles": 2,
+      "swingTicks": 6
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_hoe",
+      "avatarActionAsset": "tool_copper_hoe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:copper_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Copper Ore Chunk",
+    "icon": {
+      "asset": "item_cf_copper_ore"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore",
+      "material.raw",
+      "ore.copper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 63
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:copper_pickaxe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Copper Pickaxe",
+    "icon": {
+      "asset": "icon_tool_copper_pickaxe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 600,
+      "sell": 240
+    },
+    "durability": {
+      "max": 250,
+      "repairMaterial": "item:copper_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 10
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 3,
+      "reachTiles": 1,
+      "swingTicks": 10,
+      "mineableResources": [
+        "rock_large",
+        "ore_iron",
+        "ore_copper",
+        "ore_gold",
+        "ore_emerald",
+        "ore_sapphire",
+        "ore_topaz",
+        "ore_ruby",
+        "ore_amethyst"
+      ]
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_pickaxe",
+      "avatarActionAsset": "tool_copper_pickaxe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:copper_piece",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Copper Pieces",
+    "icon": {
+      "asset": "item_cf_copper_piece"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore_piece",
+      "material.raw",
+      "ore.copper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 7
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:copper_shovel",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Copper Shovel",
+    "icon": {
+      "asset": "icon_tool_copper_shovel"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 400,
+      "sell": 160
+    },
+    "durability": {
+      "max": 220,
+      "repairMaterial": "item:copper_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 1200,
+      "minimumSwingTicks": 7
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 7
+    },
+    "equip": {
+      "slot": "hand"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:corn",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Corn",
+    "icon": {
+      "asset": "item_cf_crop_corn"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.corn"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    },
+    "food": {
+      "restoreCenti": 800
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT CORN",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT CORN",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 800
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:corn_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Corn Seeds",
+    "icon": {
+      "asset": "item_cf_corn_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.corn"
+    ],
+    "economy": {
+      "buy": 32,
+      "sell": 8
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:cucumber",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cucumber",
+    "icon": {
+      "asset": "item_cf_crop_cucumber"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.cucumber"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 9
+    },
+    "food": {
+      "restoreCenti": 500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT CUCUMBER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT CUCUMBER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 500
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:cucumber_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cucumber Seeds",
+    "icon": {
+      "asset": "item_cf_cucumber_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.cucumber"
+    ],
+    "economy": {
+      "buy": 24,
+      "sell": 6
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:emerald_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Emerald Ore",
+    "icon": {
+      "asset": "item_cf_emerald_ore"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore",
+      "material.raw",
+      "ore.emerald"
+    ],
+    "economy": {
+      "buy": 180,
+      "sell": 72
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:emerald_piece",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Emerald Pieces",
+    "icon": {
+      "asset": "item_cf_emerald_piece"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore_piece",
+      "material.raw",
+      "ore.emerald"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 8
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:fence",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Fence",
+    "icon": {
+      "asset": "prop_cf_fence_corner"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "build.fence"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:fence_gate",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Fence Gate",
+    "icon": {
+      "asset": "prop_cf_fence_gate"
+    },
+    "quality": "common",
+    "maxStack": 16,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "build.fence"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:fermentation_cask",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Fermentation Cask",
+    "icon": {
+      "asset": "prop_oak_barrel"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "station.cellar",
+      "container.fermentation",
+      "interface.fermentation"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 240
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:fiber",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Fiber",
+    "icon": {
+      "asset": "item_cf_fiber"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.fiber"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 2
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:fishing_handbook",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Fin's Fish & Fire Handbook",
+    "icon": {
+      "asset": "icon_cf_marlow_book"
+    },
+    "quality": "rare",
+    "maxStack": 1,
+    "tags": [
+      "item.document",
+      "item.quest_reward",
+      "item.quest_unique"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 1
+    },
+    "onUse": [
+      {
+        "id": "read",
+        "verb": "secondary",
+        "prompt": "READ",
+        "conditions": [],
+        "effects": [
+          {
+            "learnRecipes": [
+              "recipe:fishing_rod",
+              "process:cook_fish"
+            ]
+          },
+          {
+            "consumeSelected": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:fishing_rod",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Fishing Rod",
+    "icon": {
+      "asset": "item_cf_fishing_rod"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 400,
+      "sell": 160
+    },
+    "durability": {
+      "max": 160,
+      "repairMaterial": "item:wood",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 600,
+      "minimumSwingTicks": 6
+    },
+    "tool": {
+      "specialization": "fishing",
+      "tier": 0,
+      "reachTiles": 3,
+      "swingTicks": 6
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "fish_cast"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:fruit_press",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Fruit Press",
+    "icon": {
+      "asset": "prop_basket_press"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "station.press",
+      "container.press",
+      "interface.press"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 260
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:furnace",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Furnace",
+    "icon": {
+      "asset": "prop_cf_furnace",
+      "animation": "off"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "station.furnace",
+      "container.furnace",
+      "interface.furnace"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 220
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:garlic",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Garlic",
+    "icon": {
+      "asset": "item_cf_crop_garlic"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.garlic"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 9
+    },
+    "food": {
+      "restoreCenti": 300
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT GARLIC",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT GARLIC",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 300
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:garlic_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Garlic Seeds",
+    "icon": {
+      "asset": "item_cf_garlic_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.garlic"
+    ],
+    "economy": {
+      "buy": 20,
+      "sell": 5
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:gloves",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Gloves",
+    "icon": {
+      "asset": "ui_cf_equipment_slot_icons",
+      "animation": "hands"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.prototype"
+    ],
+    "economy": {
+      "buy": 1600,
+      "sell": 640
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:gold_axe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Gold Axe",
+    "icon": {
+      "asset": "icon_tool_gold_axe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 450,
+      "sell": 180
+    },
+    "durability": {
+      "max": 400,
+      "repairMaterial": "item:gold_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 8
+    },
+    "tool": {
+      "specialization": "woodcutting",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 8
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_axe",
+      "avatarActionAsset": "tool_gold_axe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:gold_bar",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Gold Bar",
+    "icon": {
+      "asset": "item_cf_gold_bar"
+    },
+    "quality": "rare",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.metal",
+      "material.bar",
+      "metal.gold"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 652
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:gold_hoe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Gold Hoe",
+    "icon": {
+      "asset": "icon_tool_gold_hoe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand",
+      "tool.farming.cultivate"
+    ],
+    "economy": {
+      "buy": 350,
+      "sell": 140
+    },
+    "durability": {
+      "max": 360,
+      "repairMaterial": "item:gold_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 500,
+      "minimumSwingTicks": 6
+    },
+    "tool": {
+      "specialization": "farming",
+      "tier": 0,
+      "reachTiles": 2,
+      "swingTicks": 6
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_hoe",
+      "avatarActionAsset": "tool_gold_hoe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:gold_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Gold Ore Chunk",
+    "icon": {
+      "asset": "item_cf_gold_ore"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore",
+      "material.raw",
+      "ore.gold"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 324
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:gold_pickaxe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Gold Pickaxe",
+    "icon": {
+      "asset": "icon_tool_gold_pickaxe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 600,
+      "sell": 240
+    },
+    "durability": {
+      "max": 500,
+      "repairMaterial": "item:gold_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 10
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 1,
+      "reachTiles": 1,
+      "swingTicks": 10,
+      "mineableResources": [
+        "rock_large",
+        "ore_copper",
+        "ore_iron"
+      ]
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_pickaxe",
+      "avatarActionAsset": "tool_gold_pickaxe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:gold_piece",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Gold Pieces",
+    "icon": {
+      "asset": "item_cf_gold_piece"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore_piece",
+      "material.raw",
+      "ore.gold"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 36
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:gold_shovel",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Gold Shovel",
+    "icon": {
+      "asset": "icon_tool_gold_shovel"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 400,
+      "sell": 160
+    },
+    "durability": {
+      "max": 440,
+      "repairMaterial": "item:gold_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 1200,
+      "minimumSwingTicks": 7
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 7
+    },
+    "equip": {
+      "slot": "hand"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:grape",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Grapes",
+    "icon": {
+      "asset": "item_cf_crop_grape"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.grape",
+      "crop.fruit"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 15
+    },
+    "food": {
+      "restoreCenti": 500
+    },
+    "onUse": [
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT GRAPES",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 500
+            }
+          },
+          {
+            "applyEffect": {
+              "effectId": "fruitful_energy"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:grape_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Grapes Seeds",
+    "icon": {
+      "asset": "item_cf_grape_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.grape"
+    ],
+    "economy": {
+      "buy": 40,
+      "sell": 10
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:green_pepper",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Green Pepper",
+    "icon": {
+      "asset": "item_cf_crop_green_pepper"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.green_pepper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    },
+    "food": {
+      "restoreCenti": 500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT GREEN PEPPER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT GREEN PEPPER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 500
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:green_pepper_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Green Pepper Seeds",
+    "icon": {
+      "asset": "item_cf_green_pepper_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.green_pepper"
+    ],
+    "economy": {
+      "buy": 30,
+      "sell": 7
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:greenhouse",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Greenhouse",
+    "icon": {
+      "asset": "building_cf_greenhouse"
+    },
+    "quality": "rare",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "build.prefab",
+      "build.greenhouse"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 520
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:hammer",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Iron Hammer",
+    "icon": {
+      "asset": "icon_cf_hammer"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 500,
+      "sell": 200
+    },
+    "durability": {
+      "max": 300,
+      "repairMaterial": "item:stone",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 1800,
+      "minimumSwingTicks": 9
+    },
+    "tool": {
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 9
+    },
+    "equip": {
+      "slot": "hand"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:helm",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Helm",
+    "icon": {
+      "asset": "ui_cf_equipment_slot_icons",
+      "animation": "head"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.prototype"
+    ],
+    "economy": {
+      "buy": 2200,
+      "sell": 880
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:hoe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wooden Hoe",
+    "icon": {
+      "asset": "icon_tool_wood_hoe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand",
+      "tool.farming.cultivate"
+    ],
+    "economy": {
+      "buy": 350,
+      "sell": 140
+    },
+    "durability": {
+      "max": 180,
+      "repairMaterial": "item:wood",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 500,
+      "minimumSwingTicks": 6
+    },
+    "tool": {
+      "specialization": "farming",
+      "tier": 0,
+      "reachTiles": 2,
+      "swingTicks": 6
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_hoe",
+      "avatarActionAsset": "tool_wood_hoe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:homestead_deed",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Homestead Deed",
+    "icon": {
+      "asset": "icon_cf_homestead_deed"
+    },
+    "quality": "legendary",
+    "maxStack": 1,
+    "tags": [
+      "item.document",
+      "item.homestead_deed",
+      "trade.unsellable"
+    ],
+    "economy": {
+      "buy": 50000,
+      "sell": 1,
+      "purchaseGrant": "homestead_claim"
+    },
+    "droppable": false,
+    "onUse": []
+  },
+  {
+    "id": "item:hot_pepper",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Hot Pepper",
+    "icon": {
+      "asset": "item_cf_crop_hot_pepper"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.hot_pepper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 11
+    },
+    "food": {
+      "restoreCenti": 300
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT HOT PEPPER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT HOT PEPPER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 300
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:hot_pepper_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Hot Pepper Seeds",
+    "icon": {
+      "asset": "item_cf_hot_pepper_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.hot_pepper"
+    ],
+    "economy": {
+      "buy": 28,
+      "sell": 7
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:iron_axe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Iron Axe",
+    "icon": {
+      "asset": "icon_tool_iron_axe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 450,
+      "sell": 180
+    },
+    "durability": {
+      "max": 600,
+      "repairMaterial": "item:iron_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 8
+    },
+    "tool": {
+      "specialization": "woodcutting",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 8
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_axe",
+      "avatarActionAsset": "tool_iron_axe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:iron_bar",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Iron Bar",
+    "icon": {
+      "asset": "item_cf_iron_bar"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.metal",
+      "material.bar",
+      "metal.iron"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 184
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:iron_hoe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Iron Hoe",
+    "icon": {
+      "asset": "icon_tool_iron_hoe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand",
+      "tool.farming.cultivate"
+    ],
+    "economy": {
+      "buy": 350,
+      "sell": 140
+    },
+    "durability": {
+      "max": 540,
+      "repairMaterial": "item:iron_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 500,
+      "minimumSwingTicks": 6
+    },
+    "tool": {
+      "specialization": "farming",
+      "tier": 0,
+      "reachTiles": 2,
+      "swingTicks": 6
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_hoe",
+      "avatarActionAsset": "tool_iron_hoe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:iron_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Iron Ore Chunk",
+    "icon": {
+      "asset": "item_cf_iron_ore"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore",
+      "material.raw",
+      "ore.iron"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 90
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:iron_pickaxe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Iron Pickaxe",
+    "icon": {
+      "asset": "icon_tool_iron_pickaxe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 600,
+      "sell": 240
+    },
+    "durability": {
+      "max": 750,
+      "repairMaterial": "item:iron_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 10
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 3,
+      "reachTiles": 1,
+      "swingTicks": 10,
+      "mineableResources": [
+        "rock_large",
+        "ore_iron",
+        "ore_copper",
+        "ore_gold",
+        "ore_emerald",
+        "ore_sapphire",
+        "ore_topaz",
+        "ore_ruby",
+        "ore_amethyst"
+      ]
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_pickaxe",
+      "avatarActionAsset": "tool_iron_pickaxe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:iron_piece",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Iron Pieces",
+    "icon": {
+      "asset": "item_cf_iron_piece"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore_piece",
+      "material.raw",
+      "ore.iron"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 10
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:iron_shovel",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Iron Shovel",
+    "icon": {
+      "asset": "icon_tool_iron_shovel"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 400,
+      "sell": 160
+    },
+    "durability": {
+      "max": 660,
+      "repairMaterial": "item:iron_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 1200,
+      "minimumSwingTicks": 7
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 7
+    },
+    "equip": {
+      "slot": "hand"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:janes_gardening_book",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Jane's Gardening Journal",
+    "icon": {
+      "asset": "icon_cf_marlow_book"
+    },
+    "quality": "rare",
+    "maxStack": 1,
+    "tags": [
+      "item.document",
+      "item.quest_reward",
+      "item.quest_unique"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 1
+    },
+    "onUse": [
+      {
+        "id": "read",
+        "verb": "secondary",
+        "prompt": "READ",
+        "conditions": [],
+        "effects": [
+          {
+            "learnRecipes": [
+              "recipe:barrel",
+              "recipe:fermentation_cask",
+              "recipe:fruit_press",
+              "recipe:orchard_tea",
+              "recipe:planks",
+              "recipe:workbench"
+            ]
+          },
+          {
+            "consumeSelected": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:lantern",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Lantern",
+    "icon": {
+      "asset": "item_cf_lantern"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "item.equipment",
+      "gear.off_hand",
+      "emits.light"
+    ],
+    "economy": {
+      "buy": 700,
+      "sell": 280
+    },
+    "tool": {
+      "tier": 0,
+      "reachTiles": 1
+    },
+    "light": {
+      "color": [
+        255,
+        196,
+        120
+      ],
+      "radiusTiles": 4,
+      "profile": "steady",
+      "offsetY": -6
+    },
+    "equip": {
+      "slot": "off_hand"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:leather",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Leather",
+    "icon": {
+      "asset": "item_cf_leather"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.leather"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 18
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:leek",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Leek",
+    "icon": {
+      "asset": "item_cf_crop_leek"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.leek"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 11
+    },
+    "food": {
+      "restoreCenti": 600
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT LEEK",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT LEEK",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 600
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:leek_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Leek Seeds",
+    "icon": {
+      "asset": "item_cf_leek_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.leek"
+    ],
+    "economy": {
+      "buy": 24,
+      "sell": 6
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:marlow_book",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Marlow's Book",
+    "icon": {
+      "asset": "icon_cf_marlow_book"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.document",
+      "item.quest_reward",
+      "item.quest_unique"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 1
+    },
+    "onUse": [
+      {
+        "id": "read",
+        "verb": "secondary",
+        "prompt": "READ",
+        "conditions": [],
+        "effects": [
+          {
+            "learnRecipes": [
+              "recipe:amethyst_ore",
+              "recipe:arrows",
+              "recipe:backpack",
+              "recipe:boat",
+              "recipe:camp_cooking_fire",
+              "recipe:campfire",
+              "recipe:chest",
+              "recipe:cooking_fire",
+              "recipe:copper_ore",
+              "recipe:emerald_ore",
+              "recipe:fence",
+              "recipe:fence_gate",
+              "recipe:fishing_rod",
+              "recipe:furnace",
+              "recipe:gold_ore",
+              "recipe:iron_ore",
+              "recipe:planks",
+              "recipe:ruby_ore",
+              "recipe:sapphire_ore",
+              "recipe:sign",
+              "recipe:standing_torch",
+              "recipe:sticks",
+              "recipe:stone",
+              "recipe:string",
+              "recipe:topaz_ore",
+              "recipe:torch",
+              "recipe:watch",
+              "recipe:workbench",
+              "recipe:axe",
+              "recipe:pickaxe",
+              "recipe:hoe",
+              "recipe:shovel",
+              "recipe:stone_axe",
+              "recipe:stone_pickaxe",
+              "recipe:stone_hoe",
+              "recipe:stone_shovel",
+              "recipe:copper_axe",
+              "recipe:copper_pickaxe",
+              "recipe:copper_hoe",
+              "recipe:copper_shovel",
+              "recipe:gold_axe",
+              "recipe:gold_pickaxe",
+              "recipe:gold_hoe",
+              "recipe:gold_shovel",
+              "recipe:silver_axe",
+              "recipe:silver_pickaxe",
+              "recipe:silver_hoe",
+              "recipe:silver_shovel",
+              "recipe:iron_axe",
+              "recipe:iron_pickaxe",
+              "recipe:iron_hoe",
+              "recipe:iron_shovel"
+            ]
+          },
+          {
+            "consumeSelected": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:must",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Fresh Must",
+    "icon": {
+      "asset": "icon_resource_must"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.cellar",
+      "cellar.must"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:necklace",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Necklace",
+    "icon": {
+      "asset": "ui_cf_equipment_slot_icons",
+      "animation": "neck"
+    },
+    "quality": "epic",
+    "maxStack": 1,
+    "tags": [
+      "item.prototype"
+    ],
+    "economy": {
+      "buy": 2000,
+      "sell": 800
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:onion",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Onion",
+    "icon": {
+      "asset": "item_cf_crop_onion"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.onion"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 9
+    },
+    "food": {
+      "restoreCenti": 500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT ONION",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT ONION",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 500
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:onion_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Onion Seeds",
+    "icon": {
+      "asset": "item_cf_onion_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.onion"
+    ],
+    "economy": {
+      "buy": 20,
+      "sell": 5
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:orchard_tea",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Orchard Tea",
+    "icon": {
+      "asset": "icon_cf_effect_orchard_tea"
+    },
+    "quality": "common",
+    "maxStack": 8,
+    "tags": [
+      "item.consumable",
+      "item.food",
+      "effect.orchard_tea"
+    ],
+    "economy": {
+      "buy": 120,
+      "sell": 48
+    },
+    "onUse": [
+      {
+        "id": "drink",
+        "verb": "secondary",
+        "prompt": "DRINK ORCHARD TEA",
+        "conditions": [],
+        "effects": [
+          {
+            "applyEffect": {
+              "effectId": "orchard_tea"
+            }
+          },
+          {
+            "consumeSelected": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:pants",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Pants",
+    "icon": {
+      "asset": "ui_cf_equipment_slot_icons",
+      "animation": "legs"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.prototype"
+    ],
+    "economy": {
+      "buy": 1800,
+      "sell": 720
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:parsley",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Parsley",
+    "icon": {
+      "asset": "item_cf_crop_parsley"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.parsley"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 5
+    },
+    "food": {
+      "restoreCenti": 200
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PARSLEY",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PARSLEY",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 200
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:parsley_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Parsley Seeds",
+    "icon": {
+      "asset": "item_cf_parsley_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.parsley"
+    ],
+    "economy": {
+      "buy": 14,
+      "sell": 3
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:peach",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Peach",
+    "icon": {
+      "asset": "item_cf_peach"
+    },
+    "quality": "common",
+    "maxStack": 32,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.fruit"
+    ],
+    "economy": {
+      "buy": 14,
+      "sell": 6
+    },
+    "food": {
+      "restoreCenti": 800
+    },
+    "onUse": [
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PEACH",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 800
+            }
+          },
+          {
+            "applyEffect": {
+              "effectId": "fruitful_energy"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:pear",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Pear",
+    "icon": {
+      "asset": "item_cf_pear"
+    },
+    "quality": "common",
+    "maxStack": 32,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.fruit"
+    ],
+    "economy": {
+      "buy": 12,
+      "sell": 5
+    },
+    "food": {
+      "restoreCenti": 700
+    },
+    "onUse": [
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PEAR",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 700
+            }
+          },
+          {
+            "applyEffect": {
+              "effectId": "fruitful_energy"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:pebble",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Pebble",
+    "icon": {
+      "asset": "item_cf_pebble"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.stone",
+      "material.raw"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 1
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:pickaxe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wooden Pickaxe",
+    "icon": {
+      "asset": "icon_tool_wood_pickaxe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 600,
+      "sell": 240
+    },
+    "durability": {
+      "max": 250,
+      "repairMaterial": "item:stone",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 10
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 1,
+      "reachTiles": 1,
+      "swingTicks": 10,
+      "mineableResources": [
+        "rock_large",
+        "ore_copper",
+        "ore_iron"
+      ]
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_pickaxe",
+      "avatarActionAsset": "tool_wood_pickaxe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:plank",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wooden Planks",
+    "icon": {
+      "asset": "item_cf_plank"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.wood",
+      "item.crafted"
+    ],
+    "economy": {
+      "buy": 3,
+      "sell": 1
+    },
+    "fuel": {
+      "smelts": 1
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:pomace",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Pomace",
+    "icon": {
+      "asset": "icon_resource_pomace"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.cellar",
+      "cellar.pomace"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:potato",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Potato",
+    "icon": {
+      "asset": "item_cf_crop_potato"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.potato"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 8
+    },
+    "food": {
+      "restoreCenti": 700
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT POTATO",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT POTATO",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 700
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:potato_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Potato Seeds",
+    "icon": {
+      "asset": "item_cf_potato_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.potato"
+    ],
+    "economy": {
+      "buy": 22,
+      "sell": 5
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_beetroot",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Beetroot",
+    "icon": {
+      "asset": "item_cf_crop_beetroot"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.beetroot"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 14
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_cabbage",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Cabbage",
+    "icon": {
+      "asset": "item_cf_crop_cabbage"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.cabbage"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 33
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_carrot",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Carrot",
+    "icon": {
+      "asset": "item_cf_crop_carrot"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.carrot"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 14
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_corn",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Corn",
+    "icon": {
+      "asset": "item_cf_crop_corn"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.corn"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 18
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_cucumber",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Cucumber",
+    "icon": {
+      "asset": "item_cf_crop_cucumber"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.cucumber"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 14
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_garlic",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Garlic",
+    "icon": {
+      "asset": "item_cf_crop_garlic"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.garlic"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 14
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_grape",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Grapes",
+    "icon": {
+      "asset": "item_cf_crop_grape"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.grape"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 23
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_green_pepper",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Green Pepper",
+    "icon": {
+      "asset": "item_cf_crop_green_pepper"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.green_pepper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 18
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_hot_pepper",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Hot Pepper",
+    "icon": {
+      "asset": "item_cf_crop_hot_pepper"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.hot_pepper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 17
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_leek",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Leek",
+    "icon": {
+      "asset": "item_cf_crop_leek"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.leek"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 17
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_onion",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Onion",
+    "icon": {
+      "asset": "item_cf_crop_onion"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.onion"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 14
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_parsley",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Parsley",
+    "icon": {
+      "asset": "item_cf_crop_parsley"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.parsley"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 8
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_potato",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Potato",
+    "icon": {
+      "asset": "item_cf_crop_potato"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.potato"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_pumpkin",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Pumpkin",
+    "icon": {
+      "asset": "item_cf_crop_pumpkin"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.pumpkin"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 57
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_red_pepper",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Red Pepper",
+    "icon": {
+      "asset": "item_cf_crop_red_pepper"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.red_pepper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 18
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_strawberry",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Strawberry",
+    "icon": {
+      "asset": "item_cf_crop_strawberry"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.strawberry"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 20
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_sunflower",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Sunflower",
+    "icon": {
+      "asset": "item_cf_crop_sunflower"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.sunflower"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 17
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_tomato",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Tomato",
+    "icon": {
+      "asset": "item_cf_crop_tomato"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.tomato"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 17
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_turnip",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Turnip",
+    "icon": {
+      "asset": "item_cf_crop_turnip"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.turnip"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_watermelon",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Watermelon",
+    "icon": {
+      "asset": "item_cf_crop_watermelon"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.watermelon"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 60
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_wheat",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Wheat",
+    "icon": {
+      "asset": "item_cf_crop_wheat"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.wheat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 11
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:preserved_yellow_pepper",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Preserved Yellow Pepper",
+    "icon": {
+      "asset": "item_cf_crop_yellow_pepper"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "item.preserved",
+      "crop.yellow_pepper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 18
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:pumpkin",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Pumpkin",
+    "icon": {
+      "asset": "item_cf_crop_pumpkin"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.pumpkin"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 38
+    },
+    "food": {
+      "restoreCenti": 1200
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PUMPKIN",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PUMPKIN",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 1200
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:pumpkin_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Pumpkin Seeds",
+    "icon": {
+      "asset": "item_cf_pumpkin_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.pumpkin"
+    ],
+    "economy": {
+      "buy": 42,
+      "sell": 10
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:raw_beef",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Raw Beef",
+    "icon": {
+      "asset": "item_cf_raw_beef"
+    },
+    "quality": "common",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "food.raw",
+      "food.meat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 22
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:raw_chicken",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Raw Chicken",
+    "icon": {
+      "asset": "item_cf_raw_chicken"
+    },
+    "quality": "common",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "food.raw",
+      "food.meat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 14
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:raw_fish",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Raw Fish",
+    "icon": {
+      "asset": "item_cf_raw_fish"
+    },
+    "quality": "common",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "food.raw",
+      "food.fish"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 16
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:raw_mutton",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Raw Mutton",
+    "icon": {
+      "asset": "item_cf_raw_mutton"
+    },
+    "quality": "common",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "food.raw",
+      "food.meat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 18
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:raw_pork",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Raw Pork",
+    "icon": {
+      "asset": "item_cf_raw_pork"
+    },
+    "quality": "common",
+    "maxStack": 32,
+    "tags": [
+      "item.food",
+      "food.raw",
+      "food.meat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 18
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:red_pepper",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Red Pepper",
+    "icon": {
+      "asset": "item_cf_crop_red_pepper"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.red_pepper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    },
+    "food": {
+      "restoreCenti": 500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT RED PEPPER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT RED PEPPER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 500
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:red_pepper_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Red Pepper Seeds",
+    "icon": {
+      "asset": "item_cf_red_pepper_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.red_pepper"
+    ],
+    "economy": {
+      "buy": 30,
+      "sell": 7
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:ruby_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Ruby Ore",
+    "icon": {
+      "asset": "item_cf_ruby_ore"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore",
+      "material.raw",
+      "ore.ruby"
+    ],
+    "economy": {
+      "buy": 260,
+      "sell": 104
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:ruby_piece",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Ruby Pieces",
+    "icon": {
+      "asset": "item_cf_ruby_piece"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore_piece",
+      "material.raw",
+      "ore.ruby"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:sapphire_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Sapphire Ore",
+    "icon": {
+      "asset": "item_cf_sapphire_ore"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore",
+      "material.raw",
+      "ore.sapphire"
+    ],
+    "economy": {
+      "buy": 220,
+      "sell": 88
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:sapphire_piece",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Sapphire Pieces",
+    "icon": {
+      "asset": "item_cf_sapphire_piece"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore_piece",
+      "material.raw",
+      "ore.sapphire"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 10
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:shed",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Estate Shed",
+    "icon": {
+      "asset": "building_cf_shed"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "build.prefab"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 360
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:shield",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Shield",
+    "icon": {
+      "asset": "ui_cf_equipment_slot_icons",
+      "animation": "off_hand"
+    },
+    "quality": "rare",
+    "maxStack": 1,
+    "tags": [
+      "item.prototype"
+    ],
+    "economy": {
+      "buy": 2100,
+      "sell": 840
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:shovel",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wooden Shovel",
+    "icon": {
+      "asset": "icon_tool_wood_shovel"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 400,
+      "sell": 160
+    },
+    "durability": {
+      "max": 220,
+      "repairMaterial": "item:stone",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 1200,
+      "minimumSwingTicks": 7
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 7
+    },
+    "equip": {
+      "slot": "hand"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:sign",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Sign",
+    "icon": {
+      "asset": "prop_cf_sign"
+    },
+    "quality": "common",
+    "maxStack": 16,
+    "tags": [
+      "item.placeable",
+      "item.crafted"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 10
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:silo",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Silo",
+    "icon": {
+      "asset": "building_cf_silo"
+    },
+    "quality": "rare",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "build.prefab"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 560
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:silver_axe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Silver Axe",
+    "icon": {
+      "asset": "icon_tool_silver_axe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 450,
+      "sell": 180
+    },
+    "durability": {
+      "max": 500,
+      "repairMaterial": "item:silver_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 8
+    },
+    "tool": {
+      "specialization": "woodcutting",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 8
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_axe",
+      "avatarActionAsset": "tool_silver_axe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:silver_bar",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Silver Ingot",
+    "icon": {
+      "asset": "item_silver_bar"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.metal",
+      "material.bar",
+      "metal.silver"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 184
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:silver_hoe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Silver Hoe",
+    "icon": {
+      "asset": "icon_tool_silver_hoe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand",
+      "tool.farming.cultivate"
+    ],
+    "economy": {
+      "buy": 350,
+      "sell": 140
+    },
+    "durability": {
+      "max": 450,
+      "repairMaterial": "item:silver_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 500,
+      "minimumSwingTicks": 6
+    },
+    "tool": {
+      "specialization": "farming",
+      "tier": 0,
+      "reachTiles": 2,
+      "swingTicks": 6
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_hoe",
+      "avatarActionAsset": "tool_silver_hoe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:silver_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Silver Ore",
+    "icon": {
+      "asset": "item_silver_ore"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore",
+      "material.raw",
+      "ore.silver"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 90
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:silver_pickaxe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Silver Pickaxe",
+    "icon": {
+      "asset": "icon_tool_silver_pickaxe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 600,
+      "sell": 240
+    },
+    "durability": {
+      "max": 625,
+      "repairMaterial": "item:silver_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 10
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 3,
+      "reachTiles": 1,
+      "swingTicks": 10,
+      "mineableResources": [
+        "rock_large",
+        "ore_iron",
+        "ore_copper",
+        "ore_gold",
+        "ore_emerald",
+        "ore_sapphire",
+        "ore_topaz",
+        "ore_ruby",
+        "ore_amethyst"
+      ]
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_pickaxe",
+      "avatarActionAsset": "tool_silver_pickaxe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:silver_shovel",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Silver Shovel",
+    "icon": {
+      "asset": "icon_tool_silver_shovel"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 400,
+      "sell": 160
+    },
+    "durability": {
+      "max": 550,
+      "repairMaterial": "item:silver_bar",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 1200,
+      "minimumSwingTicks": 7
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 7
+    },
+    "equip": {
+      "slot": "hand"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:sprinkler",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Sprinkler",
+    "icon": {
+      "asset": "prop_cf_sprinkler"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.placeable",
+      "build.automation",
+      "build.sprinkler"
+    ],
+    "economy": {
+      "buy": 50000,
+      "sell": 20000,
+      "purchaseRequirement": {
+        "skillNode": "sprinkler_engineering",
+        "minimumRank": 1
+      }
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:standing_torch",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Standing Torch",
+    "icon": {
+      "asset": "prop_cf_standing_torch",
+      "animation": "burn"
+    },
+    "quality": "common",
+    "maxStack": 16,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "emits.light"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 20
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:stick",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Stick",
+    "icon": {
+      "asset": "item_cf_stick"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.wood",
+      "item.crafted"
+    ],
+    "economy": {
+      "buy": 2,
+      "sell": 1
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:stone",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Stone",
+    "icon": {
+      "asset": "item_cf_stone"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.stone"
+    ],
+    "economy": {
+      "buy": 8,
+      "sell": 3
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:stone_axe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Stone Axe",
+    "icon": {
+      "asset": "icon_tool_stone_axe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 450,
+      "sell": 180
+    },
+    "durability": {
+      "max": 300,
+      "repairMaterial": "item:stone",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 8
+    },
+    "tool": {
+      "specialization": "woodcutting",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 8
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_axe",
+      "avatarActionAsset": "tool_stone_axe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:stone_hoe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Stone Hoe",
+    "icon": {
+      "asset": "icon_tool_stone_hoe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand",
+      "tool.farming.cultivate"
+    ],
+    "economy": {
+      "buy": 350,
+      "sell": 140
+    },
+    "durability": {
+      "max": 270,
+      "repairMaterial": "item:stone",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 500,
+      "minimumSwingTicks": 6
+    },
+    "tool": {
+      "specialization": "farming",
+      "tier": 0,
+      "reachTiles": 2,
+      "swingTicks": 6
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_hoe",
+      "avatarActionAsset": "tool_stone_hoe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:stone_pickaxe",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Stone Pickaxe",
+    "icon": {
+      "asset": "icon_tool_stone_pickaxe"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 600,
+      "sell": 240
+    },
+    "durability": {
+      "max": 375,
+      "repairMaterial": "item:stone",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 5000,
+      "minimumSwingTicks": 10
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 1,
+      "reachTiles": 1,
+      "swingTicks": 10,
+      "mineableResources": [
+        "rock_large",
+        "ore_copper",
+        "ore_iron"
+      ]
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_pickaxe",
+      "avatarActionAsset": "tool_stone_pickaxe"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:stone_shovel",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Stone Shovel",
+    "icon": {
+      "asset": "icon_tool_stone_shovel"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 400,
+      "sell": 160
+    },
+    "durability": {
+      "max": 330,
+      "repairMaterial": "item:stone",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 1200,
+      "minimumSwingTicks": 7
+    },
+    "tool": {
+      "specialization": "mining",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 7
+    },
+    "equip": {
+      "slot": "hand"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:strawberry",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Strawberry",
+    "icon": {
+      "asset": "item_cf_crop_strawberry"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.strawberry",
+      "crop.fruit"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 13
+    },
+    "food": {
+      "restoreCenti": 600
+    },
+    "onUse": [
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT STRAWBERRY",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 600
+            }
+          },
+          {
+            "applyEffect": {
+              "effectId": "fruitful_energy"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:strawberry_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Strawberry Seeds",
+    "icon": {
+      "asset": "item_cf_strawberry_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.strawberry"
+    ],
+    "economy": {
+      "buy": 34,
+      "sell": 8
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:string",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "String",
+    "icon": {
+      "asset": "item_string"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "item.crafted",
+      "material.string"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 8
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:sunflower",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Sunflower",
+    "icon": {
+      "asset": "item_cf_crop_sunflower"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.sunflower"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 11
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:sunflower_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Sunflower Seeds",
+    "icon": {
+      "asset": "item_cf_sunflower_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.sunflower"
+    ],
+    "economy": {
+      "buy": 24,
+      "sell": 6
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:sword",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Iron Sword",
+    "icon": {
+      "asset": "icon_cf_sword"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.weapon",
+      "item.melee_weapon",
+      "gear.hand"
+    ],
+    "economy": {
+      "buy": 750,
+      "sell": 300
+    },
+    "durability": {
+      "max": 250,
+      "repairMaterial": "item:stone",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 3600,
+      "minimumSwingTicks": 7
+    },
+    "tool": {
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 7
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "swing_sword"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:tomato",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Tomato",
+    "icon": {
+      "asset": "item_cf_crop_tomato"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.tomato"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 11
+    },
+    "food": {
+      "restoreCenti": 500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT TOMATO",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT TOMATO",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 500
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:tomato_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Tomato Seeds",
+    "icon": {
+      "asset": "item_cf_tomato_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.tomato"
+    ],
+    "economy": {
+      "buy": 28,
+      "sell": 7
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:topaz_ore",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Topaz Ore",
+    "icon": {
+      "asset": "item_cf_topaz_ore"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore",
+      "material.raw",
+      "ore.topaz"
+    ],
+    "economy": {
+      "buy": 160,
+      "sell": 64
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:topaz_piece",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Topaz Pieces",
+    "icon": {
+      "asset": "item_cf_topaz_piece"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.ore_piece",
+      "material.raw",
+      "ore.topaz"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 7
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:torch",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Torch",
+    "icon": {
+      "asset": "item_cf_torch"
+    },
+    "quality": "common",
+    "maxStack": 16,
+    "tags": [
+      "item.tool",
+      "item.equipment",
+      "gear.off_hand",
+      "emits.light"
+    ],
+    "economy": {
+      "buy": 80,
+      "sell": 32
+    },
+    "tool": {
+      "tier": 0,
+      "reachTiles": 1
+    },
+    "light": {
+      "color": [
+        255,
+        196,
+        120
+      ],
+      "radiusTiles": 3,
+      "profile": "flicker",
+      "offsetY": -6
+    },
+    "equip": {
+      "slot": "off_hand"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:tunic",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Tunic",
+    "icon": {
+      "asset": "ui_cf_equipment_slot_icons",
+      "animation": "body"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.prototype"
+    ],
+    "economy": {
+      "buy": 2400,
+      "sell": 960
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:turnip",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Turnip",
+    "icon": {
+      "asset": "item_cf_crop_turnip"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.turnip"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 8
+    },
+    "food": {
+      "restoreCenti": 600
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT TURNIP",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT TURNIP",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 600
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:turnip_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Turnip Seeds",
+    "icon": {
+      "asset": "item_cf_turnip_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.turnip"
+    ],
+    "economy": {
+      "buy": 18,
+      "sell": 4
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:watch",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Watch",
+    "icon": {
+      "asset": "item_cf_watch"
+    },
+    "quality": "rare",
+    "maxStack": 1,
+    "tags": [
+      "item.equipment",
+      "item.crafted",
+      "gear.ring",
+      "utility.time"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 1040
+    },
+    "equip": {
+      "slot": "ring"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:watering_can",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Watering Can",
+    "icon": {
+      "asset": "icon_cf_watering_can"
+    },
+    "quality": "common",
+    "maxStack": 1,
+    "tags": [
+      "item.tool",
+      "gear.hand",
+      "tool.farming.water"
+    ],
+    "economy": {
+      "buy": 400,
+      "sell": 160
+    },
+    "durability": {
+      "max": 160,
+      "repairMaterial": "item:stone",
+      "repairCost": 5
+    },
+    "vigour": {
+      "costCenti": 800,
+      "minimumSwingTicks": 6
+    },
+    "tool": {
+      "specialization": "farming",
+      "tier": 0,
+      "reachTiles": 1,
+      "swingTicks": 6
+    },
+    "equip": {
+      "slot": "hand",
+      "avatarAction": "water"
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:watermelon",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Watermelon",
+    "icon": {
+      "asset": "item_cf_crop_watermelon"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.watermelon",
+      "crop.fruit"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 40
+    },
+    "food": {
+      "restoreCenti": 1300
+    },
+    "onUse": [
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT WATERMELON",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 1300
+            }
+          },
+          {
+            "applyEffect": {
+              "effectId": "fruitful_energy"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:watermelon_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Watermelon Seeds",
+    "icon": {
+      "asset": "item_cf_watermelon_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.watermelon"
+    ],
+    "economy": {
+      "buy": 44,
+      "sell": 11
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:wheat",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wheat",
+    "icon": {
+      "asset": "item_cf_crop_wheat"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.wheat"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 7
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:wheat_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wheat Seeds",
+    "icon": {
+      "asset": "item_cf_wheat_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.wheat"
+    ],
+    "economy": {
+      "buy": 18,
+      "sell": 4
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:wood",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Wood",
+    "icon": {
+      "asset": "item_cf_wood"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.resource",
+      "material.wood"
+    ],
+    "economy": {
+      "buy": 6,
+      "sell": 2
+    },
+    "fuel": {
+      "smelts": 1
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:workbench",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Workbench",
+    "icon": {
+      "asset": "prop_cf_workbench"
+    },
+    "quality": "common",
+    "maxStack": 16,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "station.workbench"
+    ],
+    "economy": {
+      "buy": 120,
+      "sell": 48
+    },
+    "onUse": []
+  },
+  {
+    "id": "item:yellow_pepper",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Yellow Pepper",
+    "icon": {
+      "asset": "item_cf_crop_yellow_pepper"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.crop",
+      "item.food",
+      "crop.yellow_pepper"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 12
+    },
+    "food": {
+      "restoreCenti": 500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT YELLOW PEPPER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT YELLOW PEPPER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "applyEffect": {
+              "effectId": "hunger",
+              "stacks": 500
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item:yellow_pepper_seeds",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Yellow Pepper Seeds",
+    "icon": {
+      "asset": "item_cf_yellow_pepper_seeds"
+    },
+    "quality": "common",
+    "maxStack": 99,
+    "tags": [
+      "item.seed",
+      "seed.yellow_pepper"
+    ],
+    "economy": {
+      "buy": 30,
+      "sell": 7
+    },
+    "onUse": []
+  }
+]

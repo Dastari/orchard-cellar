@@ -1,0 +1,71 @@
+{
+  "name": "icon_skill_surefooted",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        ".....22222......",
+        "....2000002.....",
+        "...2430066666...",
+        "...28436111116..",
+        "...2586971117b6.",
+        "....256b9777a96.",
+        "...2336abbba996.",
+        "..288886aa9996..",
+        ".2888567777796..",
+        "285556bbbbaa7a6.",
+        "25556bbbaaaa9796",
+        "2446baaaaa999796",
+        ".226aaa99999966.",
+        "...6999999996...",
+        "....66666666....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#030100",
+    "1": "#0a0502",
+    "2": "#0d0805",
+    "3": "#120a05",
+    "4": "#1c110a",
+    "5": "#211811",
+    "6": "#24150d",
+    "7": "#311d0f",
+    "8": "#3f322a",
+    "9": "#4d2f1b",
+    "a": "#5a402f",
+    "b": "#ac8971"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16.png",
+  "sourcePath": "references/art/clockwork-raven/equipment/accessories-400/sheet-16.png",
+  "sourceRegion": [
+    0,
+    240,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.surefooted",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

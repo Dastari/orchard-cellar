@@ -79,6 +79,27 @@ export function interactionTileAtWorldPoint(
   );
 }
 
+/** Converts a pointer on the projected terrain surface back to the logical
+ * world plane before applying the shared reach and bounds checks. Raised
+ * terrain is drawn north of its authoritative tile, so omitting this inverse
+ * projection stores placements one or more rows north of their preview. */
+export function interactionTileAtProjectedWorldPoint(
+  playerX: number,
+  playerY: number,
+  projectedWorldX: number,
+  projectedWorldY: number,
+  terrainProjectionPixels: number,
+  worldSize: number,
+): TargetableTile | null {
+  return interactionTileAtWorldPoint(
+    playerX,
+    playerY,
+    projectedWorldX,
+    projectedWorldY + terrainProjectionPixels,
+    worldSize,
+  );
+}
+
 /** Client placement preview for terrain/entity obstacles and live player foot
  * hitboxes. Authority repeats this check against the complete world state. */
 export function worldPlacementTileIsBlocked(
@@ -211,7 +232,7 @@ export function hotbarItemName(itemKind: string): string | null {
 /** Only ranged aiming continuously overrides locomotion facing. Other tools
  * turn toward their target when their action is performed. */
 export function equippedItemTracksCursor(itemKind: string): boolean {
-  return itemKind === 'bow';
+  return itemDefinition(itemKind)?.tags.includes('item.ranged_weapon') === true;
 }
 
 export function equippedItemFacing(

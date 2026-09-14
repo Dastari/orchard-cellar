@@ -1,0 +1,66 @@
+{
+  "name": "icon_skill_barreling",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "......0001......",
+        ".....011111.....",
+        ".....100012.....",
+        "....32121223....",
+        "....3.2222.3....",
+        "....3...4443....",
+        "....3.444453....",
+        "....34446563....",
+        "....35565663....",
+        "....35656563....",
+        "....36666663....",
+        ".....333333.....",
+        "................",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#e4a672",
+    "1": "#b86f50",
+    "2": "#733e39",
+    "3": "#c0cbdc",
+    "4": "#4d71c7",
+    "5": "#3f3e89",
+    "6": "#3c265c"
+  },
+  "sourcePaletteMode": "exact",
+  "approved": true,
+  "importedFrom": "sheet-16-no-outline.png",
+  "sourcePath": "references/art/clockwork-raven/icon-packs/farming-food-beverages/sheet-16-no-outline.png",
+  "sourceRegion": [
+    160,
+    208,
+    16,
+    16
+  ],
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.barreling",
+    "source.clockwork_raven"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

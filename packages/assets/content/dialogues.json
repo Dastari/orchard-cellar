@@ -1,0 +1,848 @@
+[
+  {
+    "id": "dialogue:farmer_bob",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:farmer_supplies",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Farmer Bob",
+        "body": "Morning! Or afternoon. Jane says I lose track when the watering starts. What can I do for you?",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "strawberry_complete",
+            "label": "I brought Jane the strawberries.",
+            "nextNodeId": "strawberry_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "strawberry_offer",
+            "label": "Do you need help on the farm?",
+            "nextNodeId": "strawberry_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "strawberry_active",
+            "label": "How do I grow those strawberries?",
+            "nextNodeId": "strawberry_reminder",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "bottle_complete",
+            "label": "I sold my first Bottle.",
+            "nextNodeId": "bottle_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "bottle_offer",
+            "label": "What can I make from the harvest?",
+            "nextNodeId": "bottle_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "bottle_active",
+            "label": "Remind me about fruit production.",
+            "nextNodeId": "bottle_reminder",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "offer",
+            "label": "What farming supplies do you sell?",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "jane",
+            "label": "Tell me about Jane.",
+            "nextNodeId": "about_jane"
+          },
+          {
+            "id": "farm",
+            "label": "How do you keep this place running?",
+            "nextNodeId": "about_farm"
+          },
+          {
+            "id": "grave",
+            "label": "Whose grave is by the trees?",
+            "nextNodeId": "about_grave"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "strawberry_request",
+        "speaker": "Farmer Bob",
+        "body": "Jane loves strawberries. I promised her some before supper, but the ordinary seeds take all day and she has never been patient. Take these six special packets. My farm is protected, so till clear grass elsewhere in the overworld, plant all six, then water them once. They should be ready in about thirty seconds—even in winter.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I will grow them for Jane.",
+            "nextNodeId": "strawberry_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "tools",
+            "label": "What if I need farming tools?",
+            "nextNodeId": "strawberry_tools"
+          },
+          {
+            "id": "decline",
+            "label": "Not just now.",
+            "nextNodeId": "greeting",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "strawberry_tools",
+        "speaker": "Farmer Bob",
+        "body": "I sell hoes, shovels, watering cans, and every ordinary seed I can get into a paper packet. These special strawberry seeds are for the job, though. Jane says selling miracles by the sack would ruin the market.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "All right. I will grow them.",
+            "nextNodeId": "strawberry_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:farmer_bob_fast_strawberries",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "shop",
+            "label": "Show me your supplies first.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "back",
+            "label": "Maybe later.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "strawberry_accepted",
+        "speaker": "Farmer Bob",
+        "body": "Good! Find clear overworld ground outside my fence, then till, plant all six, water once, and keep an eye on them. Bring me three strawberries. Jane will be delighted. She has been awfully quiet today.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I will be back soon.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "strawberry_reminder",
+        "speaker": "Farmer Bob",
+        "body": "Find clear overworld grass outside my protected farm—anywhere else on the overworld is fine. Till it with a hoe, plant all six special packets, and water once. Thirty seconds or so, in any season. Then bring three strawberries back. Do not worry if Jane does not come out to greet you. She rests a lot these days.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "shop",
+            "label": "I need farming supplies.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "goodbye",
+            "label": "I understand.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "strawberry_rewarded",
+        "speaker": "Farmer Bob",
+        "body": "Thanks, my wife will love these. Here was one of her favourite books on gardening. I am sure she will not mind; I have not seen her reading it much lately. It has her notes for presses, barrels, and cellar casks too.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Thank you, Bob.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_request",
+        "speaker": "Farmer Bob",
+        "body": "Jane wrote the whole chain down. Press three pieces of fruit into Must, age three Must in a Fermentation Cask, then sell the finished Bottle to Marlow. Do that and I will help mark out more room at your homestead.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I will produce a Bottle.",
+            "nextNodeId": "bottle_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "Not yet.",
+            "nextNodeId": "greeting",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "bottle_accepted",
+        "speaker": "Farmer Bob",
+        "body": "Fruit Press first, Fermentation Cask second, Marlow last. Jane underlined that last part twice. She never trusted him around an unpriced bottle.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Time to get to work.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_reminder",
+        "speaker": "Farmer Bob",
+        "body": "Press three Fruit, age the three Must into one Bottle, and sell it to Marlow. Jane's journal contains the station recipes if you read it from your inventory.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I remember now.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_rewarded",
+        "speaker": "Farmer Bob",
+        "body": "A proper first vintage! Jane would say not to drink the profits. Here is five gold for the trouble. She would have liked that too.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Thank you, Bob.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_jane",
+        "speaker": "Farmer Bob",
+        "body": "Best gardener on the island. She could shame a seed into sprouting. I still set out two mugs at breakfast. Habit is just love with nowhere urgent to be.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Take care, Bob.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_farm",
+        "speaker": "Farmer Bob",
+        "body": "Fence keeps the cows in, gate lets good sense out. I rotate the plots, water at the roots, and talk to the pumpkins. Jane says the pumpkins are the only ones listening properly.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "shop",
+            "label": "Show me your supplies.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          }
+        ]
+      },
+      {
+        "id": "about_grave",
+        "speaker": "Farmer Bob",
+        "body": "Jane picked that spot herself. Said the morning sun was lovely under those trees. I keep the flowers fresh so she has something cheerful to look at while she rests.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye, Bob.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Farmer Bob",
+        "body": "Seeds in dry packets, tools by the handle. Jane did the labels. Mine always looked like frightened worms.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:fisherman_fin",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Fisherman Fin",
+        "body": "Quiet water, steady hands. I am Fin. If you have come to learn the lake, I can spare a rod and a little patience.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "tutorial_complete",
+            "label": "I caught the three fish.",
+            "nextNodeId": "tutorial_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:fisherman_first_catch",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "tutorial_offer",
+            "label": "Will you teach me to fish?",
+            "nextNodeId": "tutorial_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:fisherman_first_catch",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "tutorial_active",
+            "label": "Remind me how to use the rod.",
+            "nextNodeId": "tutorial_reminder",
+            "quest": {
+              "quest": "quest:fisherman_first_catch",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "advice",
+            "label": "What makes a good fishing spot?",
+            "nextNodeId": "about_fishing"
+          },
+          {
+            "id": "goodbye",
+            "label": "Leave him to the lake.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "tutorial_request",
+        "speaker": "Fisherman Fin",
+        "body": "Take my spare rod. A small school will gather beside the dock while you learn. Select the rod, face the shadow in the water, and cast. Give the line four seconds, then it will reel. Bring me exactly three fish and the school will move on.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I am ready to learn.",
+            "nextNodeId": "tutorial_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:fisherman_first_catch",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "Another time.",
+            "nextNodeId": "greeting",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "tutorial_accepted",
+        "speaker": "Fisherman Fin",
+        "body": "There—the fish shadow beside the end of the dock. The planks are sound, so walk right out. Three casts, three fish. No need to rush the water.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I will give it a try.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "tutorial_reminder",
+        "speaker": "Fisherman Fin",
+        "body": "Equip the spare rod and aim at the fish shadow beside the dock. Cast once for each fish and wait for the reel. The school leaves after your third catch.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Three fish. Understood.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "tutorial_rewarded",
+        "speaker": "Fisherman Fin",
+        "body": "Good work. Keep the rod. Take my Fish & Fire Handbook too—it records the rod pattern and how to cook a catch at a campfire. Read it from your inventory to add the shortcuts to your recipe guide.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Thank you, Fin.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_fishing",
+        "speaker": "Fisherman Fin",
+        "body": "Look for a moving shadow in deep water. Pools hold only so many catches and later settle elsewhere. Dexterity helps you land a better haul, but even the finest angler cannot fish an empty pool.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Back to the water.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue:tool_merchant",
+    "kind": "dialogue",
+    "schemaVersion": 1,
+    "initialNodeId": "greeting",
+    "shop": "shop:general_tools",
+    "nodes": [
+      {
+        "id": "greeting",
+        "speaker": "Marlow",
+        "body": "Well met, traveller. Tools wear out, supplies wander off, and I make sure neither keeps you down for long.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "quest_complete",
+            "label": "I found your book.",
+            "nextNodeId": "quest_rewarded",
+            "questMarker": "complete",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "complete",
+              "action": "turn_in"
+            }
+          },
+          {
+            "id": "quest_offer",
+            "label": "Hey you, yes you, I need your help.",
+            "nextNodeId": "quest_request",
+            "questMarker": "offer",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "available"
+            }
+          },
+          {
+            "id": "quest_active",
+            "label": "About that very important book...",
+            "nextNodeId": "quest_reminder",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "active"
+            }
+          },
+          {
+            "id": "offer",
+            "label": "Let me see what you have to offer.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "trade",
+            "label": "What do you trade?",
+            "nextNodeId": "about_trade"
+          },
+          {
+            "id": "island",
+            "label": "What have you seen on the island?",
+            "nextNodeId": "about_island"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "quest_request",
+        "speaker": "Marlow",
+        "body": "There's a very important book I need, and I am far too old to take the journey to fetch it. Will you help an old man out?",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "where",
+            "label": "Where is the book?",
+            "nextNodeId": "quest_where"
+          },
+          {
+            "id": "accept",
+            "label": "Of course. I'll fetch it.",
+            "nextNodeId": "quest_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "No, I have other things to do.",
+            "nextNodeId": "quest_declined",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "quest_where",
+        "speaker": "Marlow",
+        "body": "It's just in the tent over there, on the table in the corner.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "really",
+            "label": "Really? It's just over there though...",
+            "nextNodeId": "quest_insists"
+          },
+          {
+            "id": "accept",
+            "label": "All right. I'll get it.",
+            "nextNodeId": "quest_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "You can manage that yourself.",
+            "nextNodeId": "quest_declined",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "quest_insists",
+        "speaker": "Marlow",
+        "body": "Yes, just there. But it is an exceptionally important journey, and I have an exceptionally important fire to watch.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "Fine. I accept.",
+            "nextNodeId": "quest_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_important_book",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "Absolutely not.",
+            "nextNodeId": "quest_declined",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "quest_accepted",
+        "speaker": "Marlow",
+        "body": "Splendid. You'll find it on the table inside my tent. Mind the dimensional threshold.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I'll be right back.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "quest_declined",
+        "speaker": "Marlow",
+        "body": "Fair enough then. The tent is not getting any farther away.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "quest_reminder",
+        "speaker": "Marlow",
+        "body": "The book is on the table in my tent. Yes, that tent. The one right over there.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Right. I'll go get it.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "quest_rewarded",
+        "speaker": "Marlow",
+        "body": "Thanks... Oh, wait, I've already read this one. Here, you keep it. Take 1 gold for the trouble, too.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Thanks, Marlow.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_request",
+        "speaker": "Marlow",
+        "body": "A working estate needs a product worth returning for. Press three pieces of fruit into Must, age that Must in a Fermentation Cask, then sell me the finished Bottle. You can use any stations you already own. There is five gold in it for you when you return.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "accept",
+            "label": "I will make the first Bottle.",
+            "nextNodeId": "bottle_accepted",
+            "tone": "accept",
+            "quest": {
+              "quest": "quest:marlow_first_bottle",
+              "requires": "available",
+              "action": "accept"
+            }
+          },
+          {
+            "id": "decline",
+            "label": "Not yet.",
+            "nextNodeId": "greeting",
+            "tone": "decline"
+          }
+        ]
+      },
+      {
+        "id": "bottle_accepted",
+        "speaker": "Marlow",
+        "body": "Good. Fruit Press to make Must and Pomace. Three Must go into the Fermentation Cask. Bring the Bottle to my shop when it is ready.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "Time to get to work.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_reminder",
+        "speaker": "Marlow",
+        "body": "Press three Fruit, age the three Must into one Bottle, then sell the Bottle here. The Pomace is yours to reinvest elsewhere.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "I remember now.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "bottle_rewarded",
+        "speaker": "Marlow",
+        "body": "There it is: fruit into craft, craft into coin, coin into the estate. Five gold, as promised. Spend it wisely.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "goodbye",
+            "label": "This is only the beginning.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_trade",
+        "speaker": "Marlow",
+        "body": "Tools, lights, arrows, and honest coin for anything useful you bring me. Gold, silver, and bronze stay safely in your purse.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "offer",
+            "label": "Let me see what you have to offer.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "deeds",
+            "label": "How do homestead deeds work?",
+            "nextNodeId": "about_deeds"
+          },
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_island",
+        "speaker": "Marlow",
+        "body": "I follow the safer paths, but even those change. Farmer Bob keeps a little holding to the south-east, around 382 east, 378 south. He knows more about soil than I ever will. Keep a lantern close after sunset and never trust a quiet cliff edge.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "offer",
+            "label": "Let me see what you have to offer.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "about_deeds",
+        "speaker": "Marlow",
+        "body": "Buy a deed here, select it on your hotbar, aim at a clear patch of overworld grass, and press F. That claims your homestead. Use the tent entrance to visit it and the south gate to return.",
+        "mode": "dialogue",
+        "choices": [
+          {
+            "id": "offer",
+            "label": "Let me see what you have to offer.",
+            "nextNodeId": "shop"
+          },
+          {
+            "id": "back",
+            "label": "I had another question.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      },
+      {
+        "id": "shop",
+        "speaker": "Marlow",
+        "body": "Take your time. I buy useful goods as readily as I sell them.",
+        "mode": "shop",
+        "frameId": "frame:shop",
+        "choices": [
+          {
+            "id": "back",
+            "label": "Back to our conversation.",
+            "nextNodeId": "greeting"
+          },
+          {
+            "id": "goodbye",
+            "label": "Goodbye.",
+            "nextNodeId": null
+          }
+        ]
+      }
+    ]
+  }
+]

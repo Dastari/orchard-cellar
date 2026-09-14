@@ -29,6 +29,55 @@ export const EQUIPMENT_SLOT_OFFSET = BACKPACK_SLOT_OFFSET + BACKPACK_SLOT_COUNT;
 export const CRAFTING_SLOT_OFFSET = EQUIPMENT_SLOT_OFFSET + EQUIPMENT_SLOT_COUNT;
 export const INVENTORY_SLOT_COUNT = CRAFTING_SLOT_OFFSET + CRAFTING_SLOT_COUNT;
 
+/**
+ * All nine paper-doll positions remain visible. Empty `acceptedKinds` marks a
+ * reserved, visibly locked slot; it does not remove the slot from either UI.
+ * Only Watch, Pack, and Off Hand accept items in the current game slice.
+ */
+export const EQUIPMENT_SLOTS = [
+  { index: 0, id: 'neck', label: 'NECK', iconAnimation: 'neck', acceptedKinds: [] },
+  { index: 1, id: 'head', label: 'HEAD', iconAnimation: 'head', acceptedKinds: [] },
+  { index: 2, id: 'watch', label: 'WATCH', iconAnimation: 'ring', acceptedKinds: ['watch'] },
+  { index: 3, id: 'main_hand', label: 'MAIN HAND', iconAnimation: 'main_hand', acceptedKinds: [] },
+  { index: 4, id: 'backpack', label: 'PACK', iconAnimation: 'body', acceptedKinds: ['backpack'] },
+  {
+    index: 5,
+    id: 'off_hand',
+    label: 'OFF HAND',
+    iconAnimation: 'off_hand',
+    acceptedKinds: ['lantern', 'torch'],
+  },
+  { index: 6, id: 'hands', label: 'HANDS', iconAnimation: 'hands', acceptedKinds: [] },
+  { index: 7, id: 'legs', label: 'LEGS', iconAnimation: 'legs', acceptedKinds: [] },
+  { index: 8, id: 'feet', label: 'FEET', iconAnimation: 'feet', acceptedKinds: [] },
+] as const;
+
+export const ACTIVE_EQUIPMENT_SLOTS = EQUIPMENT_SLOTS.filter(
+  (slot) => slot.acceptedKinds.length > 0,
+);
+
+export type ActiveEquipmentSlotId = (typeof ACTIVE_EQUIPMENT_SLOTS)[number]['id'];
+
+export const ACTIVE_EQUIPMENT_SLOT_INDEXES: readonly number[] = ACTIVE_EQUIPMENT_SLOTS
+  .map((slot) => slot.index);
+
+export const EQUIPMENT_SLOT_RESTRICTIONS = Object.fromEntries(
+  EQUIPMENT_SLOTS.map((slot) => [slot.index, { acceptedKinds: [...slot.acceptedKinds] }]),
+) as Readonly<Record<number, { readonly acceptedKinds: readonly string[] }>>;
+
+export function activeEquipmentSlotAt(index: number) {
+  return ACTIVE_EQUIPMENT_SLOTS.find((slot) => slot.index === index) ?? null;
+}
+
+export function activeEquipmentSlotAccepts(index: number, itemKind: string): boolean {
+  const slot = activeEquipmentSlotAt(index);
+  return slot !== null && (slot.acceptedKinds as readonly string[]).includes(itemKind);
+}
+
+export function equippedInventorySlot(slotIndex: number): number {
+  return EQUIPMENT_SLOT_OFFSET + slotIndex;
+}
+
 export type PlayerInventoryContainerId = 'hotbar' | 'backpack' | 'equipment' | 'crafting';
 
 export function inventoryContainerSlotOffset(containerId: PlayerInventoryContainerId): number {

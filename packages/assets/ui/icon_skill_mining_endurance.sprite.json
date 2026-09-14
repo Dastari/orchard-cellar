@@ -1,0 +1,59 @@
+{
+  "name": "icon_skill_mining_endurance",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "..000000000000..",
+        ".01122222222110.",
+        ".01222222222210.",
+        ".01122222222110.",
+        ".03333333333330.",
+        ".03344444444330.",
+        "..000033330000..",
+        ".....033330.....",
+        "..550333333055..",
+        ".55024333342055.",
+        ".55022444422055.",
+        ".55500000000555.",
+        ".55555555555555.",
+        "..555555555555..",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePalette": {
+    "0": "#262b44",
+    "1": "#c0cbdc",
+    "2": "#8b9bb4",
+    "3": "#3a4466",
+    "4": "#5a6988",
+    "5": "#00000064"
+  },
+  "sourcePaletteMode": "exact",
+  "sourcePath": "references/art/kenmi/cute-fantasy/core/Buildings/House_Decor/Anvil_Anim.png",
+  "importedFrom": "Anvil_Anim.png",
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "ui.skill",
+    "skill.mining_endurance",
+    "source.asset.prop_cf_anvil"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

@@ -12,10 +12,44 @@ import {
   mountedHorseFacing,
   npcFacingForDirection,
   npcFacingTowardPoint,
+  FISHERMAN_REMARKS,
+  stepFishermanCycle,
   stepWanderingNpc,
   stepNpcTowardPoint,
   type WanderingNpcState,
 } from './npc.js';
+
+describe('fisherman work cycle', () => {
+  it('casts once, waits, reels once, and then rests', () => {
+    const initial = stepFishermanCycle(7n, 'idle', 0n, 100n);
+    expect(initial.activity).toBe('fish_rest');
+    expect(initial.nextDecisionTick).toBeGreaterThan(100n);
+
+    const cast = stepFishermanCycle(7n, initial.activity, initial.nextDecisionTick, initial.nextDecisionTick);
+    expect(cast.activity).toBe('fish_cast');
+    const wait = stepFishermanCycle(7n, cast.activity, cast.nextDecisionTick, cast.nextDecisionTick);
+    expect(wait.activity).toBe('fish_wait');
+    expect(wait.nextDecisionTick - cast.nextDecisionTick).toBeGreaterThanOrEqual(25n * 20n);
+    const reel = stepFishermanCycle(7n, wait.activity, wait.nextDecisionTick, wait.nextDecisionTick);
+    expect(reel.activity).toBe('fish_reel');
+    const rest = stepFishermanCycle(7n, reel.activity, reel.nextDecisionTick, reel.nextDecisionTick);
+    expect(rest.activity).toBe('fish_rest');
+    expect(rest.nextDecisionTick - reel.nextDecisionTick).toBeGreaterThanOrEqual(15n * 20n);
+  });
+
+  it('migrates the legacy fishing activity directly into a visible waiting pose', () => {
+    const migrated = stepFishermanCycle(7n, 'fish', 10_000n, 100n);
+    expect(migrated.activity).toBe('fish_wait');
+    expect(migrated.nextDecisionTick).toBeGreaterThanOrEqual(100n + 25n * 20n);
+    expect(migrated.nextDecisionTick).toBeLessThanOrEqual(100n + 45n * 20n);
+  });
+
+  it('is deterministic and only selects authored occasional remarks', () => {
+    const first = stepFishermanCycle(7n, 'fish_reel', 0n, 2_000n);
+    expect(stepFishermanCycle(7n, 'fish_reel', 0n, 2_000n)).toEqual(first);
+    if (first.speech !== undefined) expect(FISHERMAN_REMARKS).toContain(first.speech);
+  });
+});
 
 const open = { width: 32, height: 32, blocked: Array<boolean>(32 * 32).fill(false) };
 const home = { x: 10 * TILE_SIZE_FIXED, y: 10 * TILE_SIZE_FIXED };
@@ -94,7 +128,9 @@ describe('server-authoritative wandering NPCs', () => {
 describe('horse mounting rules', () => {
   it('keeps the horse facing independent from a stationary rider aim', () => {
     expect(mountedHorseFacing('right', 'upLeft', false)).toBe('right');
-    expect(mountedHorseFacing('right', 'upLeft', true)).toBe('left');
+    expect(mountedHorseFacing('upLeft', 'downRight', false)).toBe('upLeft');
+    expect(mountedHorseFacing('right', 'upLeft', true)).toBe('upLeft');
+    expect(mountedHorseFacing('right', 'downRight', true)).toBe('downRight');
     expect(npcFacingForDirection('downRight')).toBe('right');
   });
 

@@ -6,7 +6,7 @@ const grid = ['................', '................'] as const;
 const base: AssetSource = {
   name: 'ui_test', category: 'ui', size: [16, 2], anchor: [0, 0],
   frames: { idle: [grid] }, frameKinds: { idle: 'state' },
-  sourcePath: 'references/Cute_Fantasy_UI/UI/Test.png',
+  sourcePath: 'references/art/kenmi/cute-fantasy/ui/UI/Test.png',
 };
 
 describe('Cute Fantasy UI metadata lint', () => {
@@ -25,4 +25,11 @@ describe('Cute Fantasy UI metadata lint', () => {
   it('accepts a complete fixed-size state asset', () => {
     expect(uiMetadataErrors({ ...base, uiSizing: 'fixed', uiRequiredStates: ['idle'] })).toEqual([]);
   });
+});
+
+it('rejects unclassified kit frames and nonexact palettes', () => {
+  const errors = uiMetadataErrors({ ...base, uiSizing: 'fixed', tags: ['ui.kit'], frameKinds: {} });
+  expect(errors).toContain('ui_test: kit group idle must declare frameKinds');
+  expect(errors).toContain('ui_test: kit group idle must declare sourceRegions');
+  expect(errors).toContain('ui_test: kit art requires exact sourcePalette');
 });
