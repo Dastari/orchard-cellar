@@ -26,7 +26,19 @@ Wildlife multi-world functional fixtures now allow 120 seconds for coverage
 overhead; all assertions remain intact and passed in the full run.
 Focused authority/skill tests (48), world build, all-workspace typechecks,
 lint, content/assets validation and production client build passed.
-Final coverage thresholds and CI remain to be verified before merging.
+Final local coverage: all 827 files / 4,656 tests passed (678.95 seconds).
+Statements 89.52%, branches 84.73%, functions 94.83%, lines 93.65%; all
+configured thresholds passed. The final command was
+`npx vitest run --coverage --fileParallelism --maxWorkers=2`.
+
+GitHub CI remains environment-limited: prior completed runs fail on absent
+licensed art under `references/art/kenmi`, plus coverage timeouts in the old
+wildlife fixtures. The complete local run includes those art tests and passed.
+Hosted checks on the current head were still running at merge preparation;
+no hosted green check is claimed. The user-authorized merge uses the complete
+local validation evidence. No licensed reference files are committed.
+All current heads are included: #3 ac3dbdfd, #4 304b6815, #5 ce289b87.
+Merge status is authoritative on PR #6; no deployment is part of this work.
 No gameplay deployment is authorized by this merge request. Release world,
 client, bindings and reviewed content together through the established process;
 preserve the Studio prebuild guard and use its reviewed release source.

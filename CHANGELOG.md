@@ -2,6 +2,9 @@
 
 ## 0.7.0 — Unreleased
 
+- Mining payout and depletion XP now goes to Farming, matching its skill branch.
+  Historical XP is preserved. Integration review and validation: [PR #6](https://github.com/Dastari/orchard-cellar/pull/6).
+
 - Efficient Strikes now improves cave-wall excavation as well as ore-node mining.
   Fresh walls take 5–6 / 4–5 / 3 hits at ranks 0 / 1 / 2. Mixed-rank contributions
   and existing partial wall progress are preserved.
