@@ -1,8 +1,10 @@
 import { renderOperationCounters } from '@orchard/ui';
 import { maximumLight, type CelestialLighting } from './celestial-lighting.js';
-import { directionalGeometry, directionalMaskBytes, DirectionalShadowCache, sampleDirectionalMask, type DirectionalCaster, type DirectionalShadowMask } from './directional-shadows.js';
+import { directionalGeometryKey, directionalMaskBytes, DirectionalShadowCache, sampleDirectionalMask, type DirectionalCaster, type DirectionalShadowMask } from './directional-shadows.js';
 import type { RgbColor } from './lighting.js';
 import type { LightingReceiver, LightingReceiverClass, ReceiverLightContributions } from './lighting-types.js';
+import { LightingIdentities, LightingNumericKey } from './lighting-numeric-key.js';
+import { blitReceiverCoverage, contactCoverage, copyReceiverCoverage, createReceiverCoverage, type PreparedCaster, type ReceiverCoverageBounds, type ReceiverCoverageChannels } from './receiver-coverage.js';
 
 const BLACK: RgbColor = { r: 0, g: 0, b: 0 };
 const scale = (color: RgbColor, value: number): RgbColor => ({ r: Math.round(color.r * value), g: Math.round(color.g * value), b: Math.round(color.b * value) });
@@ -19,43 +21,87 @@ export function resolveReceiverLight(sky: CelestialLighting, receiver: LightingR
   return { diffuse, sun, moon, local, combined: maximumLight(diffuse, sun, moon, local) };
 }
 
-interface PreparedCaster {
-  readonly caster: DirectionalCaster;
-  readonly sun: DirectionalShadowMask | null;
-  readonly moon: DirectionalShadowMask | null;
-}
 export interface ReceiverLightRaster {
   readonly left: number; readonly top: number;
   readonly width: number; readonly height: number; readonly step: number;
   readonly pixels: Uint8ClampedArray<ArrayBuffer>;
+  /** Changes only when RGB bytes are merged; uploaders retain ImageData. */
+  revision: number;
 }
 
-/** A scene uses logical feet and explicit receiver height; painter code chooses
- * the visible receiver. It must never reuse ground RGB on elevated sprite art. */
+interface CoveragePlane extends ReceiverCoverageBounds {
+  readonly signature: readonly number[];
+  readonly fixed: ReceiverCoverageChannels;
+  readonly working: ReceiverCoverageChannels;
+  movingRevision: number;
+}
+interface PreparedPlane {
+  readonly fixed: PreparedCaster[]; readonly moving: PreparedCaster[];
+  movingRevision: number;
+}
+interface CachedRaster {
+  readonly signature: readonly number[]; readonly raster: ReceiverLightRaster;
+  revision: number;
+  localRevision: string | number;
+}
+const EMPTY_CASTERS: readonly DirectionalCaster[] = [];
+
+/** Retain static receiver planes independently of interpolated actor placement.
+ * Working coverage and RGB buffers remain allocated across moving updates. */
 export class CelestialReceiverScene {
-  private casters: readonly DirectionalCaster[] = [];
+  private staticCasters: readonly DirectionalCaster[] = EMPTY_CASTERS;
+  private movingCasters: readonly DirectionalCaster[] = EMPTY_CASTERS;
+  private staticIdentity: number | undefined;
   private skyValue: CelestialLighting | null = null;
-  private geometryKey = '';
-  private readonly prepared = new Map<number, readonly PreparedCaster[]>();
+  private geometryKey = -1;
+  private readonly prepared = new Map<number, PreparedPlane>();
   private preparedBytes = 0;
   private generation = 0;
-  private rasterSignature = '';
-  private readonly rasters = new Map<string, ReceiverLightRaster>();
+  private revision = 0;
+  private movingRevision = 0;
+  private skySignature: readonly number[] = [];
+  private movingSignature: number[] = [];
+  private readonly activeMasks = new Set<DirectionalShadowMask | null>();
+  private readonly key = new LightingNumericKey();
+  private readonly identities = new LightingIdentities();
+  private readonly rasters = new Map<number, CachedRaster[]>();
   private rasterBytes = 0;
-  private readonly coverageFields = new Map<string, { sun: Uint8Array; moon: Uint8Array; contact: Uint8Array }>();
+  private rasterCount = 0;
+  private readonly coverageFields = new Map<number, CoveragePlane[]>();
   private coverageBytes = 0;
-  constructor(readonly pixelsPerHeightSubunit: number, readonly cache = new DirectionalShadowCache()) {}
+  private coverageCount = 0;
+  readonly diagnostics = { staticCoverageBuilds: 0, movingCoverageBlits: 0, movingCastersBlitted: 0, rgbMerges: 0, numericKeyLookups: 0 };
+  constructor(readonly pixelsPerHeightSubunit: number, readonly cache = new DirectionalShadowCache(),
+    private readonly observeKey?: (key: number) => void) {}
+  private lookupKey(key: number): number { this.observeKey?.(key); this.diagnostics.numericKeyLookups++; return key; }
   prepare(sky: CelestialLighting, casters: readonly DirectionalCaster[]): void {
-    const key = `${directionalGeometry(sky.sun)?.key ?? '-'}:${directionalGeometry(sky.moon)?.key ?? '-'}`;
-    if (casters !== this.casters || key !== this.geometryKey) {
-      this.prepared.clear(); this.preparedBytes = 0; this.coverageFields.clear(); this.coverageBytes = 0; this.generation++;
-    }
-    const signature = `${key}:${sky.diffuse.r}:${sky.diffuse.g}:${sky.diffuse.b}:${sky.sun.illumination.r}:${sky.sun.illumination.g}:${sky.sun.illumination.b}:${sky.moon.illumination.r}:${sky.moon.illumination.g}:${sky.moon.illumination.b}`;
-    if (casters !== this.casters || signature !== this.rasterSignature) { this.rasters.clear(); this.rasterBytes = 0; this.rasterSignature = signature; }
-    this.casters = casters; this.geometryKey = key; this.skyValue = sky;
+    this.prepareSplit(sky, casters, EMPTY_CASTERS);
   }
-  /** Prepare pending sky geometry outside painting. The caller keeps its prior
-   * complete presentation until this generation is ready to commit. */
+  prepareSplit(sky: CelestialLighting, fixed: readonly DirectionalCaster[], moving: readonly DirectionalCaster[], staticIdentity?: number): void {
+    const geometry = (directionalGeometryKey(sky.sun) ?? 0) * 131072 + (directionalGeometryKey(sky.moon) ?? 0);
+    this.lookupKey(geometry);
+    const staticChanged = staticIdentity === undefined ? fixed !== this.staticCasters : staticIdentity !== this.staticIdentity;
+    if (staticChanged || geometry !== this.geometryKey) {
+      this.prepared.clear(); this.preparedBytes = 0; this.activeMasks.clear(); this.coverageFields.clear(); this.coverageBytes = 0; this.coverageCount = 0;
+      this.generation++; this.revision++;
+    }
+    const key = this.key.reset().add(sky.diffuse.r).add(sky.diffuse.g).add(sky.diffuse.b)
+      .add(sky.sun.illumination.r).add(sky.sun.illumination.g).add(sky.sun.illumination.b)
+      .add(sky.moon.illumination.r).add(sky.moon.illumination.g).add(sky.moon.illumination.b);
+    if (!key.matches(this.skySignature)) { this.skySignature = key.copy(); this.revision++; }
+    key.reset().add(moving.length);
+    for (const caster of moving) {
+      const f = caster.footprint, body = caster.silhouette;
+      key.add(typeof caster.owner === 'number' ? 1 : 0).add(this.identities.get(caster.owner)).add(caster.worldX).add(caster.worldY).add(caster.baseHeightSubunits).add(caster.heightSubunits)
+        .add(f.left).add(f.top).add(f.right).add(f.bottom).add(caster.contact ? 1 : 0)
+        .add(this.identities.get(body?.opaque)).add(body?.width ?? 0).add(body?.height ?? 0).add(body?.anchorX ?? 0).add(body?.anchorY ?? 0);
+    }
+    if (!key.matches(this.movingSignature)) {
+      key.copyInto(this.movingSignature); this.movingRevision++; this.generation++; this.revision++;
+    }
+    this.staticCasters = fixed; this.staticIdentity = staticIdentity; this.movingCasters = moving; this.geometryKey = geometry; this.skyValue = sky;
+  }
+  /** Prepare pending geometry without committing a stale moving/static generation. */
   async prepareHeights(heights: readonly number[], yieldBatch: () => Promise<void> = () => new Promise((resolve) => {
     const channel = new MessageChannel();
     channel.port1.onmessage = () => { channel.port1.close(); channel.port2.close(); resolve(); };
@@ -65,7 +111,7 @@ export class CelestialReceiverScene {
     const generation = this.generation, sky = this.skyValue;
     let start = performance.now(), count = 0;
     for (const height of new Set(heights)) {
-      for (const caster of this.casters) {
+      for (const cohort of [this.staticCasters, this.movingCasters]) for (const caster of cohort) {
         if (generation !== this.generation) return false;
         this.cache.get(caster, sky.sun, height, this.pixelsPerHeightSubunit);
         this.cache.get(caster, sky.moon, height, this.pixelsPerHeightSubunit);
@@ -76,44 +122,51 @@ export class CelestialReceiverScene {
     }
     return generation === this.generation;
   }
-  rasterizeCached(localRevision: string | number, left: number, top: number, width: number, height: number, receiverHeight: number, step = 1, local?: (x: number, y: number) => RgbColor): ReceiverLightRaster {
-    const key = `${localRevision}:${left}:${top}:${width}:${height}:${receiverHeight}:${step}`;
-    const existing = this.rasters.get(key);
-    if (existing !== undefined) { this.rasters.delete(key); this.rasters.set(key, existing); return existing; }
-    const raster = this.rasterize(left, top, width, height, receiverHeight, step, local);
-    const bytes = raster.pixels.byteLength;
-    if (bytes > 16 * 1024 * 1024) throw new Error('receiver_raster_budget_exceeded');
-    while (this.rasterBytes + bytes > 16 * 1024 * 1024 || this.rasters.size >= 64) {
-      const oldest = this.rasters.keys().next().value;
-      if (oldest === undefined) break;
-      this.rasterBytes -= this.rasters.get(oldest)!.pixels.byteLength; this.rasters.delete(oldest);
+  private prepareCohort(target: PreparedCaster[], casters: readonly DirectionalCaster[], height: number): boolean {
+    let masksChanged = target.length !== casters.length;
+    for (let i = 0; i < casters.length; i++) {
+      const caster = casters[i]!;
+      const sun = this.cache.get(caster, this.skyValue!.sun, height, this.pixelsPerHeightSubunit);
+      const moon = this.cache.get(caster, this.skyValue!.moon, height, this.pixelsPerHeightSubunit);
+      const item = target[i];
+      if (item === undefined) { target.push({ caster, sun, moon }); masksChanged = true; }
+      else { masksChanged ||= item.sun !== sun || item.moon !== moon; item.caster = caster; item.sun = sun; item.moon = moon; }
     }
-    this.rasters.set(key, raster); this.rasterBytes += bytes; return raster;
+    target.length = casters.length; return masksChanged;
   }
-  private atHeight(height: number): readonly PreparedCaster[] {
-    const existing = this.prepared.get(height);
-    if (existing !== undefined) return existing;
+  private atHeight(height: number): PreparedPlane {
     if (this.skyValue === null) throw new Error('celestial_scene_not_prepared');
-    const list = this.casters.map((caster) => ({ caster,
-      sun: this.cache.get(caster, this.skyValue!.sun, height, this.pixelsPerHeightSubunit),
-      moon: this.cache.get(caster, this.skyValue!.moon, height, this.pixelsPerHeightSubunit) }));
-    const unique = new Set(list.flatMap(({ sun, moon }) => [sun, moon]));
-    let bytes = 0;
-    for (const mask of unique) bytes += directionalMaskBytes(mask);
-    if (bytes > this.cache.budgetBytes) throw new Error('directional_receiver_plane_budget_exceeded');
-    // Active receiver planes have their own bounded references. Cache eviction
-    // alone cannot release a mask that an active plane still references.
-    if (this.preparedBytes + bytes > this.cache.budgetBytes || this.prepared.size >= 64) {
-      this.prepared.clear(); this.preparedBytes = 0;
+    let plane = this.prepared.get(height);
+    let masksChanged = false;
+    if (plane === undefined) {
+      plane = { fixed: [], moving: [], movingRevision: -1 };
+      this.prepareCohort(plane.fixed, this.staticCasters, height); masksChanged = true;
+      if (this.prepared.size >= 64) { this.prepared.clear(); this.preparedBytes = 0; this.activeMasks.clear(); }
+      this.prepared.set(height, plane); renderOperationCounters.preparedHeightRebuilds++;
     }
-    this.preparedBytes += bytes;
-    this.prepared.set(height, list); renderOperationCounters.preparedHeightRebuilds++;
-    return list;
+    if (plane.movingRevision !== this.movingRevision) {
+      masksChanged = this.prepareCohort(plane.moving, this.movingCasters, height) || masksChanged; plane.movingRevision = this.movingRevision;
+    }
+    if (masksChanged) {
+      // Count each mask once across active planes. The cache and plane budgets
+      // remain independent, because active references survive cache eviction.
+      const unique = this.activeMasks; unique.clear();
+      for (const current of this.prepared.values()) for (let cohortIndex = 0; cohortIndex < 2; cohortIndex++) {
+        for (const item of cohortIndex === 0 ? current.fixed : current.moving) { unique.add(item.sun); unique.add(item.moon); }
+      }
+      let bytes = 0;
+      for (const mask of unique) bytes += directionalMaskBytes(mask);
+      if (bytes > this.cache.budgetBytes) { this.prepared.clear(); this.preparedBytes = 0; this.activeMasks.clear(); throw new Error('directional_receiver_plane_budget_exceeded'); }
+      this.preparedBytes = bytes;
+    }
+    return plane;
   }
   sample(receiver: LightingReceiver, local: RgbColor = BLACK): ReceiverLightContributions {
     if (this.skyValue === null) throw new Error('celestial_scene_not_prepared');
     let sun = 0, moon = 0, contact = 0;
-    for (const item of this.atHeight(receiver.heightSubunits)) {
+    const plane = this.atHeight(receiver.heightSubunits);
+    // Exact owner exclusion and sample-before-max ordering remain authoritative.
+    for (let cohortIndex = 0; cohortIndex < 2; cohortIndex++) for (const item of cohortIndex === 0 ? plane.fixed : plane.moving) {
       if (item.caster.owner === receiver.owner) continue;
       sun = Math.max(sun, sampleDirectionalMask(item.sun, item.caster, receiver.worldX, receiver.worldY));
       moon = Math.max(moon, sampleDirectionalMask(item.moon, item.caster, receiver.worldX, receiver.worldY));
@@ -121,53 +174,69 @@ export class CelestialReceiverScene {
     }
     return resolveReceiverLight(this.skyValue, receiver.receiver, 1 - sun, 1 - moon, local, contact);
   }
-  /** Rasterize max coverage once per plane, then merge RGB per texel. Cost is
-   * proportional to covered mask area, not viewport pixels times caster count. */
-  rasterize(left: number, top: number, width: number, height: number, receiverHeight: number, step = 1, local?: (x: number, y: number) => RgbColor): ReceiverLightRaster {
-    if (this.skyValue === null) throw new Error('celestial_scene_not_prepared');
+  private coverage(left: number, top: number, width: number, height: number, receiverHeight: number, step: number): CoveragePlane {
     if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0 || step <= 0 || width * height > 4_194_304) throw new Error('invalid_receiver_raster_bounds');
-    const coverageKey = `${left}:${top}:${width}:${height}:${receiverHeight}:${step}`;
-    let coverage = this.coverageFields.get(coverageKey);
+    const key = this.key.reset().add(left).add(top).add(width).add(height).add(receiverHeight).add(step);
+    let coverage = this.coverageFields.get(this.lookupKey(key.hash))?.find((entry) => key.matches(entry.signature));
+    const prepared = this.atHeight(receiverHeight);
     if (coverage === undefined) {
-      const bytes = width * height * 3;
+      const bytes = width * height * 6;
       if (bytes > 8 * 1024 * 1024) throw new Error('directional_coverage_budget_exceeded');
-      while (this.coverageBytes + bytes > 8 * 1024 * 1024 || this.coverageFields.size >= 64) {
+      while (this.coverageBytes + bytes > 8 * 1024 * 1024 || this.coverageCount >= 64) {
         const oldest = this.coverageFields.keys().next().value;
         if (oldest === undefined) break;
-        this.coverageBytes -= this.coverageFields.get(oldest)!.sun.byteLength * 3; this.coverageFields.delete(oldest);
+        for (const entry of this.coverageFields.get(oldest)!) { this.coverageBytes -= entry.width * entry.height * 6; this.coverageCount--; }
+        this.coverageFields.delete(oldest);
       }
-      coverage = { sun: new Uint8Array(width * height), moon: new Uint8Array(width * height), contact: new Uint8Array(width * height) };
-      const { sun, moon, contact } = coverage;
-      const blit = (target: Uint8Array, caster: DirectionalCaster, mask: DirectionalShadowMask | null) => {
-        if (mask === null) return;
-        const minX = Math.max(0, Math.floor((caster.worldX + mask.left - left) / step));
-        const minY = Math.max(0, Math.floor((caster.worldY + mask.top - top) / step));
-        const maxX = Math.min(width, Math.ceil((caster.worldX + mask.left + mask.width - left) / step));
-        const maxY = Math.min(height, Math.ceil((caster.worldY + mask.top + mask.height - top) / step));
-        for (let y = minY; y < maxY; y++) for (let x = minX; x < maxX; x++) {
-          const index = y * width + x;
-          target[index] = Math.max(target[index]!, Math.round(sampleDirectionalMask(mask, caster, left + (x + 0.5) * step, top + (y + 0.5) * step, step) * 255));
-        }
-      };
-      for (const item of this.atHeight(receiverHeight)) {
-        blit(sun, item.caster, item.sun); blit(moon, item.caster, item.moon);
-        const caster = item.caster;
-        if (!caster.contact || receiverHeight !== caster.baseHeightSubunits) continue;
-        const f = caster.footprint;
-        const minX = Math.max(0, Math.floor((caster.worldX + f.left - 1 - left) / step));
-        const maxX = Math.min(width, Math.ceil((caster.worldX + f.right + 1 - left) / step));
-        const minY = Math.max(0, Math.floor((caster.worldY + f.top - 1 - top) / step));
-        const maxY = Math.min(height, Math.ceil((caster.worldY + f.bottom + 1 - top) / step));
-        for (let y = minY; y < maxY; y++) for (let x = minX; x < maxX; x++) {
-          const index = y * width + x;
-          contact[index] = Math.max(contact[index]!, Math.round(contactCoverage(caster, left + (x + 0.5) * step, top + (y + 0.5) * step, receiverHeight) * 255));
-        }
-      }
-      renderOperationCounters.coverageFieldRebuilds++;
-      this.coverageFields.set(coverageKey, coverage); this.coverageBytes += bytes;
+      coverage = { left, top, width, height, receiverHeight, step, signature: key.copy(), fixed: createReceiverCoverage(width * height), working: createReceiverCoverage(width * height), movingRevision: -1 };
+      blitReceiverCoverage(coverage.fixed, prepared.fixed, coverage);
+      renderOperationCounters.coverageFieldRebuilds++; this.diagnostics.staticCoverageBuilds++;
+      const bucket = this.coverageFields.get(key.hash);
+      if (bucket === undefined) this.coverageFields.set(key.hash, [coverage]); else bucket.push(coverage);
+      this.coverageCount++; this.coverageBytes += bytes;
     }
-    const { sun, moon, contact } = coverage;
-    const pixels = new Uint8ClampedArray(width * height * 4);
+    if (coverage.movingRevision !== this.movingRevision) {
+      copyReceiverCoverage(coverage.working, coverage.fixed);
+      blitReceiverCoverage(coverage.working, prepared.moving, coverage);
+      coverage.movingRevision = this.movingRevision;
+      this.diagnostics.movingCoverageBlits++; this.diagnostics.movingCastersBlitted += prepared.moving.length;
+    }
+    return coverage;
+  }
+  rasterizeCached(localRevision: string | number, left: number, top: number, width: number, height: number, receiverHeight: number, step = 1, local?: (x: number, y: number) => RgbColor): ReceiverLightRaster {
+    if (this.skyValue === null) throw new Error('celestial_scene_not_prepared');
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0 || step <= 0 || width * height > 4_194_304) throw new Error('invalid_receiver_raster_bounds');
+    const key = this.key.reset().add(left).add(top).add(width).add(height).add(receiverHeight).add(step);
+    const hash = this.lookupKey(key.hash);
+    let entry = this.rasters.get(hash)?.find((entry) => key.matches(entry.signature));
+    if (entry !== undefined && entry.revision === this.revision && entry.localRevision === localRevision) return entry.raster;
+    if (entry === undefined) {
+      const signature = key.copy();
+      const bytes = width * height * 4;
+      if (bytes > 16 * 1024 * 1024) throw new Error('receiver_raster_budget_exceeded');
+      while (this.rasterBytes + bytes > 16 * 1024 * 1024 || this.rasterCount >= 64) {
+        const oldest = this.rasters.keys().next().value;
+        if (oldest === undefined) break;
+        for (const old of this.rasters.get(oldest)!) { this.rasterBytes -= old.raster.pixels.byteLength; this.rasterCount--; }
+        this.rasters.delete(oldest);
+      }
+      entry = { signature, raster: { left, top, width, height, step, pixels: new Uint8ClampedArray(bytes), revision: 0 }, revision: -1, localRevision };
+      const bucket = this.rasters.get(hash);
+      if (bucket === undefined) this.rasters.set(hash, [entry]); else bucket.push(entry);
+      this.rasterBytes += bytes; this.rasterCount++;
+    }
+    this.merge(entry.raster, receiverHeight, local); entry.revision = this.revision; entry.localRevision = localRevision;
+    return entry.raster;
+  }
+  rasterize(left: number, top: number, width: number, height: number, receiverHeight: number, step = 1, local?: (x: number, y: number) => RgbColor): ReceiverLightRaster {
+    // NaN is deliberately unequal to its previous value: callers without a
+    // local revision always refresh RGB while retaining the same backing array.
+    return this.rasterizeCached(Number.NaN, left, top, width, height, receiverHeight, step, local);
+  }
+  private merge(raster: ReceiverLightRaster, receiverHeight: number, local?: (x: number, y: number) => RgbColor): void {
+    if (this.skyValue === null) throw new Error('celestial_scene_not_prepared');
+    const { left, top, width, height, step, pixels } = raster;
+    const { sun, moon, contact } = this.coverage(left, top, width, height, receiverHeight, step).working;
     const sky = this.skyValue;
     for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
       const index = y * width + x;
@@ -180,19 +249,20 @@ export class CelestialReceiverScene {
       pixels[index * 4 + 2] = Math.max(Math.round(sky.diffuse.b * transmission), Math.round(sky.sun.illumination.b * sunWeight), Math.round(sky.moon.illumination.b * moonWeight), point.b);
       pixels[index * 4 + 3] = 255;
     }
-    return { left, top, width, height, step, pixels };
+    raster.revision++; this.diagnostics.rgbMerges++;
   }
-  /** Conservative bound including cache and active-plane references. */
+  /** Read-only diagnostic seam: callers must never mutate retained arrays. */
+  coverageSnapshot(): readonly { readonly static: ReceiverCoverageChannels; readonly working: ReceiverCoverageChannels }[] {
+    return [...this.coverageFields.values()].flatMap((bucket) => bucket.map((plane) => ({ static: plane.fixed, working: plane.working })));
+  }
   get retainedMaskBytes(): number { return this.cache.bytes + this.preparedBytes; }
   get retainedRasterBytes(): number { return this.rasterBytes; }
   get retainedCoverageBytes(): number { return this.coverageBytes; }
-  reset(): void { this.generation++; this.prepared.clear(); this.preparedBytes = 0; this.rasters.clear(); this.rasterBytes = 0; this.coverageFields.clear(); this.coverageBytes = 0; this.rasterSignature = ''; this.casters = []; this.skyValue = null; this.geometryKey = ''; this.cache.reset(); }
-}
-
-function contactCoverage(caster: DirectionalCaster, x: number, y: number, height: number): number {
-  if (!caster.contact || height !== caster.baseHeightSubunits) return 0;
-  const f = caster.footprint;
-  const centerX = caster.worldX + (f.left + f.right) / 2, centerY = caster.worldY + (f.top + f.bottom) / 2;
-  const distance = Math.hypot((x - centerX) / Math.max(1, (f.right - f.left) / 2 + 1), (y - centerY) / Math.max(1, (f.bottom - f.top) / 2 + 1));
-  return clamp((1 - distance) / 0.4);
+  reset(): void {
+    this.generation++; this.revision++; this.prepared.clear(); this.preparedBytes = 0; this.rasters.clear(); this.rasterBytes = 0; this.rasterCount = 0;
+    this.coverageFields.clear(); this.coverageBytes = 0; this.coverageCount = 0; this.skySignature = []; this.movingSignature = [];
+    this.staticCasters = EMPTY_CASTERS; this.movingCasters = EMPTY_CASTERS; this.staticIdentity = undefined; this.skyValue = null; this.geometryKey = -1;
+    this.cache.reset(); this.identities.reset(); this.activeMasks.clear();
+    for (const key of Object.keys(this.diagnostics) as (keyof typeof this.diagnostics)[]) this.diagnostics[key] = 0;
+  }
 }
