@@ -214,6 +214,18 @@ export function resolveMiningLoot(
   return { drops: result.drops, producedOre: result.flags.includes('ore') };
 }
 
+/** Completed cellar walls share the authored fragment roll with rock nodes. */
+export function resolveMiningRockBonus(
+  definitions: ReadonlyMap<string, LootContentDefinition>,
+  seedParts: LootRollRequest['seedParts'],
+  rockhoundRank: number,
+): readonly LootDrop[] {
+  return rollLoot(definitions, {
+    lootId: 'loot:mining_rock_bonus', seedParts,
+    context: { skillRanks: { rockhound: Math.max(0, Math.min(2, Math.floor(rockhoundRank))) } },
+  }).drops;
+}
+
 export interface FishingLootResult {
   readonly quality: FishingCatchQuality;
   readonly drops: readonly LootDrop[];

@@ -406,6 +406,52 @@
             }
           }
         ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "material",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:cinder_ore",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
       }
     ]
   },
@@ -615,6 +661,52 @@
           {
             "id": "emberglass",
             "weight": 1,
+            "flags": [
+              "ore"
+            ],
+            "target": {
+              "item": "item:emberglass",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "mother_lode",
+        "entries": [
+          {
+            "id": "material",
+            "weight": 1,
+            "conditions": [
+              {
+                "context": {
+                  "key": "nodeClass",
+                  "operator": "eq",
+                  "value": "pure"
+                }
+              },
+              {
+                "context": {
+                  "key": "maximumRichness",
+                  "operator": "gte",
+                  "value": 5
+                }
+              },
+              {
+                "context": {
+                  "key": "yieldsProduced",
+                  "operator": "eq",
+                  "value": 0
+                }
+              },
+              {
+                "skillRank": {
+                  "skill": "mother_lode",
+                  "minimum": 1
+                }
+              }
+            ],
             "flags": [
               "ore"
             ],
@@ -1840,28 +1932,26 @@
             }
           }
         ]
+      },
+      {
+        "id": "bonus",
+        "entries": [
+          {
+            "id": "fragments",
+            "weight": 1,
+            "target": {
+              "loot": "loot:mining_rock_bonus"
+            }
+          }
+        ]
       }
     ]
   },
   {
-    "id": "loot:mining_rock_large",
+    "id": "loot:mining_rock_bonus",
     "kind": "loot",
     "schemaVersion": 1,
     "groups": [
-      {
-        "id": "primary",
-        "entries": [
-          {
-            "id": "pebble",
-            "weight": 1,
-            "target": {
-              "item": "item:pebble",
-              "min": 1,
-              "max": 1
-            }
-          }
-        ]
-      },
       {
         "id": "bonus",
         "rollTag": "mining.rock_kind",
@@ -2056,6 +2146,39 @@
               "item": "item:amethyst_piece",
               "min": 1,
               "max": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "loot:mining_rock_large",
+    "kind": "loot",
+    "schemaVersion": 1,
+    "groups": [
+      {
+        "id": "primary",
+        "entries": [
+          {
+            "id": "pebble",
+            "weight": 1,
+            "target": {
+              "item": "item:pebble",
+              "min": 1,
+              "max": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "bonus",
+        "entries": [
+          {
+            "id": "fragments",
+            "weight": 1,
+            "target": {
+              "loot": "loot:mining_rock_bonus"
             }
           }
         ]

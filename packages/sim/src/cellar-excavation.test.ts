@@ -8,10 +8,31 @@ import {
   cellarOreKindAt,
   cellarOreResourceId,
   cellarWallHitsRequired,
+  cellarWallStrikeProgress,
   cellarWallStoneQuantity,
 } from './cellar-excavation.js';
 
 describe('cellar excavation', () => {
+  it('scales wall work with Efficient Strikes without changing the untrained threshold', () => {
+    for (const [baseHits, expected] of [[5, [5, 4, 3]], [6, [6, 5, 3]]] as const) {
+      for (const rank of [0, 1, 2]) {
+        let progress = cellarWallStrikeProgress(baseHits, null, rank);
+        while (!progress.opensWall) progress = cellarWallStrikeProgress(baseHits, progress, rank);
+        expect(progress.hits).toBe(expected[rank]);
+      }
+    }
+  });
+
+  it('preserves legacy hits and accumulates mixed-rank contributions without revaluing them', () => {
+    const legacy = { hits: 2, work: 0 };
+    const expert = cellarWallStrikeProgress(6, legacy, 2);
+    expect(expert).toEqual({ hits: 3, work: 12, opensWall: false });
+    const trained = cellarWallStrikeProgress(6, expert, 1);
+    expect(trained).toEqual({ hits: 4, work: 16, opensWall: false });
+    expect(cellarWallStrikeProgress(6, trained, 0)).toEqual({ hits: 5, work: 19, opensWall: true });
+    expect(cellarWallStrikeProgress(6, { hits: 2 }, 2)).toEqual(expert);
+    expect(legacy).toEqual({ hits: 2, work: 0 });
+  });
   it('interprets every persisted dig as the aligned 2x2 macro-cell containing it', () => {
     expect(cellarExcavationFootprint(4, 2, 8, 8)).toEqual([
       { tileX: 4, tileY: 2 }, { tileX: 5, tileY: 2 },

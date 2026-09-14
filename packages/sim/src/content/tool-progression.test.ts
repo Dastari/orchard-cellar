@@ -22,18 +22,23 @@ describe('authored tool material progression', () => {
     }
   });
 
-  it('keeps speed and cost unchanged while increasing material durability with the explicit copper exception', () => {
+  it('keeps speed and cost unchanged with the copper and silver pickaxe durability exceptions', () => {
     for (const [tool, maximum] of Object.entries(originals)) {
       const base = registry.items.get(`item:${tool}`)!;
       for (const [material, multiplier] of Object.entries(materials)) {
         const item = registry.items.get(`item:${slug(material, tool)}`)!;
-        expect(item.durability?.max).toBe(maximum * multiplier);
+        expect(item.durability?.max).toBe(material === 'silver' && tool === 'pickaxe'
+          ? 2 * registry.items.get('item:iron_pickaxe')!.durability!.max
+          : maximum * multiplier);
         expect(item.vigour).toEqual(base.vigour);
         expect(item.tool?.swingTicks).toBe(base.tool?.swingTicks);
         expect(item.tool?.reachTiles).toBe(tool === 'hoe' ? 2 : 1);
         expect(item.icon.asset).toBe(`icon_tool_${material}_${tool}`);
       }
     }
+    expect(registry.items.get('item:silver_pickaxe')?.durability).toEqual({
+      max: 1500, repairMaterial: 'item:silver_bar', repairCost: 5,
+    });
   });
 
   it('uses authored mining permissions independently of material durability and vein quality', () => {
