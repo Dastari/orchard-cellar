@@ -4,6 +4,9 @@ import { parseBakedShadow, type BuiltBakedShadow } from './baked-shadow.js';
 import type { AtlasFrame, AtlasMetadata } from './sprite.js';
 import { assetRequestQueue } from './asset-request-queue.js';
 import { loadAtlasPage } from './atlas-page-loader.js';
+import { applyMarkerOverrides, type MarkerPixel } from './atlas-marker-overrides.js';
+import { AtlasVariantLoadError, worldAtlasVariants } from './atlas-variant-cohort.js';
+export { AtlasVariantCohort, AtlasVariantLoadError, worldAtlasVariants } from './atlas-variant-cohort.js';
 export { atlasImageUrl, atlasPageDiagnostics } from './atlas-page-loader.js';
 
 export interface BuiltAssetRecord {
@@ -39,8 +42,6 @@ export interface BuiltAssetRecord {
   };
 }
 
-interface MarkerPixel { readonly x: number; readonly y: number; readonly marker: string; readonly shade: number }
-
 interface AtlasMarkerManifest {
   readonly assetPages?: Readonly<Record<string, string>>;
   readonly schemaVersion: number;
@@ -54,6 +55,7 @@ export interface BuiltAtlasManifest {
   readonly revisionId: number;
   readonly placeholderAssetId: number;
   readonly atlases: Readonly<Record<string, string>>;
+  readonly omitAtlases?: Readonly<Record<string, string>>;
   readonly pages?: Readonly<Record<string, AtlasPageDescriptor>>;
   /** Present on legacy monolithic manifests and in test fixtures. */
   readonly assets?: Readonly<Record<string, BuiltAssetRecord>>;
@@ -217,31 +219,6 @@ export function resolveGeneratedAssetRequestName(manifest: BuiltAtlasManifest, r
   return resolveGeneratedAssetName(manifest, manifest.placeholderAssetId);
 }
 
-function applyMarkerOverrides(
-  image: HTMLImageElement,
-  markerLayers: Readonly<Record<string, readonly (readonly MarkerPixel[])[]>>,
-  overrides: Readonly<Record<string, readonly string[]>>,
-): CanvasImageSource {
-  const canvas = document.createElement('canvas');
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
-  const context = canvas.getContext('2d');
-  if (!context) return image;
-  context.drawImage(image, 0, 0);
-  for (const animationLayers of Object.values(markerLayers)) {
-    for (const framePixels of animationLayers) {
-      for (const pixel of framePixels) {
-        const ramp = overrides[pixel.marker];
-        const color = ramp?.[pixel.shade] ?? ramp?.at(-1);
-        if (!color) continue;
-        context.fillStyle = color;
-        context.fillRect(pixel.x, pixel.y, 1, 1);
-      }
-    }
-  }
-  return canvas;
-}
-
 export async function loadGeneratedAsset(
   name: string,
   season = 'summer',
@@ -258,6 +235,7 @@ export async function loadGeneratedAsset(
   try {
     return await loadRecord(manifest, name, record, season, markerOverrides);
   } catch (error: unknown) {
+    if (error instanceof AtlasVariantLoadError) throw error;
     const placeholderName = resolveGeneratedAssetName(manifest, manifest.placeholderAssetId);
     const placeholder = await loadAssetRecord(manifest, placeholderName);
     if (resolvedName === placeholderName || placeholder === undefined) throw error;
@@ -328,6 +306,12 @@ async function loadRecord(
     },
   };
   if (asset.bakedShadow !== undefined) shadowAssets.add(new WeakRef(asset));
+  const omitFilename = manifest.omitAtlases?.[key];
+  if (omitFilename !== undefined || asset.bakedShadow !== undefined) {
+    await worldAtlasVariants.register(asset, { filename: omitFilename, revision: manifest.revision, descriptor,
+      ...(markerLayers === undefined ? {} : { recolor: (variant: HTMLImageElement) => applyMarkerOverrides(variant, markerLayers, markerOverrides, record) }),
+    });
+  }
   return asset;
 }
 
