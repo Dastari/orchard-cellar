@@ -17,7 +17,16 @@ Local Git rules, the installed GitX skill (including its referenced files), and
 its lockfile are included at the user's commit request. The licensed `references`
 symlink is a local test fixture and must not be committed.
 
-Validation and merge state will be updated after the combined checks finish.
+Review: https://github.com/Dastari/orchard-cellar/pull/6.
+Combined full coverage execution completed: 826 files / 4,655 tests passed;
+one content-budget assertion failed at 533,564 bytes against 520 KiB. The
+0.7.0 budget is now 522 KiB, the smallest whole-KiB ceiling for the measured
+pack. Definitions and gameplay are unchanged by this budget correction.
+Wildlife multi-world functional fixtures now allow 120 seconds for coverage
+overhead; all assertions remain intact and passed in the full run.
+Focused authority/skill tests (48), world build, all-workspace typechecks,
+lint, content/assets validation and production client build passed.
+Final coverage thresholds and CI remain to be verified before merging.
 No gameplay deployment is authorized by this merge request. Release world,
 client, bindings and reviewed content together through the established process;
 preserve the Studio prebuild guard and use its reviewed release source.
