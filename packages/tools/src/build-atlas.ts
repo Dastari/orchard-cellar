@@ -3,13 +3,15 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { compileBakedShadow } from './assets/baked-shadow.js';
+import { ATLAS_PAGE_WIDTH, packAtlasPages } from './assets/atlas-pages.js';
+import { validateAtlasPages } from './assets/atlas-page-validation.js';
 import { framesForAsset, resolveColor } from './assets/pixels.js';
 export { expandBlob47 } from './assets/pixels.js';
 import { stableAssetId } from './assets/asset-id.js';
 import { frameKind, variantTopology } from './assets/frame-kind.js';
 import { loadAssets, loadPalette, readJson, workspaceRoot } from './assets/load.js';
 import { encodePng, setPixel } from './assets/png.js';
-import type { AssetSource, BuiltFrame, PixelGrid } from './assets/types.js';
+import type { AssetSource, BuiltFrame, BuiltPageAsset, BuiltPageDescriptor, PixelGrid } from './assets/types.js';
 
 interface SeasonSource {
   readonly required: readonly string[];
@@ -22,15 +24,16 @@ interface SeasonSource {
 type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 const seasons: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
 const outputRoot = new URL('packages/assets/generated/', workspaceRoot);
-const ATLAS_WIDTH = 512;
+const ATLAS_WIDTH = ATLAS_PAGE_WIDTH;
 const MISSING_ASSET_NAME = 'system_missing_asset';
 const MISSING_ASSET_ID = 0;
-export const ASSET_REGISTRY_SCHEMA_VERSION = 2;
-export const ATLAS_CATEGORY_SCHEMA_VERSION = 2;
+export const ASSET_REGISTRY_SCHEMA_VERSION = 4;
+export const ATLAS_CATEGORY_SCHEMA_VERSION = 3;
 
 interface RegistrySourceRecord {
   readonly assetId: number;
   readonly category: string;
+  readonly pageId: string;
   readonly tags: readonly string[];
   readonly placement: Readonly<Record<string, unknown>>;
   readonly animations: Readonly<Record<string, readonly BuiltFrame[]>>;
@@ -44,6 +47,7 @@ interface CompactRegistryAsset {
   readonly assetId: number;
   readonly name: string;
   readonly category: string;
+  readonly pageId: string;
   readonly tags: readonly string[];
   readonly placement: Readonly<Record<string, unknown>>;
   readonly animations: Readonly<Record<string, unknown>>;
@@ -56,6 +60,7 @@ export function compactRegistryAsset(name: string, record: RegistrySourceRecord)
     assetId: record.assetId,
     name,
     category: record.category,
+    pageId: record.pageId,
     tags: record.tags,
     placement: record.placement,
     animations: Object.fromEntries(Object.entries(record.animations).map(([animation, frames]) => [animation, {
@@ -122,29 +127,41 @@ export async function buildAtlases(): Promise<void> {
     .slice(0, 20);
   const revisionId = stableAssetId(`atlas:${revision}`);
   const metadata: Record<string, unknown> = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     revision,
     revisionId,
     placeholderAssetId: MISSING_ASSET_ID,
     atlases: {},
+    pages: {},
     assets: {},
     assetCategories: {},
     assetsById: {},
   };
   const atlasRecords = metadata['atlases'] as Record<string, string>;
+  const pageRecords = metadata['pages'] as Record<string, BuiltPageDescriptor>;
   const assetRecords = metadata['assets'] as Record<string, unknown>;
   const assetCategories = metadata['assetCategories'] as Record<string, string>;
   const assetsById = metadata['assetsById'] as Record<string, string>;
   const markerRecords: Record<string, Record<string, { x: number; y: number; marker: string; shade: number }[][]>> = {};
+  const markerAssetPages: Record<string, string> = {};
   const idOwners = new Map<number, string>([[MISSING_ASSET_ID, MISSING_ASSET_NAME]]);
 
   for (const category of categories) {
     const categoryAssets = assets.filter((asset) => asset.category === category).sort((a, b) => a.name.localeCompare(b.name));
-    const placements: { asset: AssetSource; animation: string; grid: PixelGrid; frame: BuiltFrame }[] = [];
-    let x = 0;
-    let y = 0;
-    let rowHeight = 0;
+    const pages = packAtlasPages(category, categoryAssets.map((asset) => ({
+      name: asset.name, width: asset.size[0], height: asset.size[1],
+      frameCount: Object.values(framesForAsset(asset)).reduce((sum, grids) => sum + grids.length, 0),
+    })));
+    const packedAssets = new Map(pages.flatMap((page) => page.assets.map((asset) => [asset.name, { ...asset, pageId: page.pageId }] as const)));
+    const placements = new Map<string, { asset: AssetSource; grid: PixelGrid; frame: BuiltFrame }[]>();
+    for (const page of pages) {
+      pageRecords[page.pageId] = { width: page.width, height: page.height, decodedBytes: page.width * page.height * 4 };
+      placements.set(page.pageId, []);
+    }
     for (const asset of categoryAssets) {
+      const packed = packedAssets.get(asset.name);
+      if (!packed) throw new Error(`Missing packed asset: ${asset.name}`);
+      let frameIndex = 0;
       const animations: Record<string, BuiltFrame[]> = {};
       const animationMeta: Record<string, { fps: number; loop: boolean }> = {};
       const variants: Record<string, BuiltFrame[]> = {};
@@ -156,17 +173,18 @@ export async function buildAtlases(): Promise<void> {
         const builtFrames: BuiltFrame[] = [];
         markerLayers[groupName] = [];
         for (const grid of grids) {
-          if (x + asset.size[0] > ATLAS_WIDTH) { x = 0; y += rowHeight; rowHeight = 0; }
+          const position = packed.frames[frameIndex++];
+          if (!position) throw new Error(`Missing packed frame: ${asset.name}`);
           const frame = {
-            x,
-            y,
+            x: position.x,
+            y: position.y,
             width: asset.size[0],
             height: asset.size[1],
             durationTicks: kind === 'animation'
               ? Math.max(1, Math.round(60 / (asset.animationFps?.[groupName] ?? asset.fps ?? 1)))
               : 0,
           };
-          placements.push({ asset, animation: groupName, grid, frame });
+          placements.get(packed.pageId)!.push({ asset, grid, frame });
           builtFrames.push(frame);
           const markerPixels: { x: number; y: number; marker: string; shade: number }[] = [];
           for (const [marker, ramp] of Object.entries(asset.markerRamps ?? {})) {
@@ -179,8 +197,6 @@ export async function buildAtlases(): Promise<void> {
             });
           }
           markerLayers[groupName].push(markerPixels);
-          x += asset.size[0];
-          rowHeight = Math.max(rowHeight, asset.size[1]);
         }
         if (kind === 'animation') {
           animations[groupName] = builtFrames;
@@ -212,6 +228,7 @@ export async function buildAtlases(): Promise<void> {
       assetRecords[asset.name] = {
         assetId,
         category,
+        pageId: packed.pageId,
         ...(asset.emissiveColors === undefined ? {} : { emissiveFrames: compileEmissiveFrames(asset, palette) }),
         ...(asset.bakedShadowColor === undefined ? {} : { bakedShadow: compileBakedShadow(asset, palette, seasonSource) }),
         anchor: asset.anchor,
@@ -241,31 +258,33 @@ export async function buildAtlases(): Promise<void> {
         },
       };
       assetCategories[asset.name] = category;
+      markerAssetPages[asset.name] = packed.pageId;
       if (Object.values(markerLayers).some((frames) => frames.some((pixels) => pixels.length > 0))) {
         markerRecords[asset.name] = markerLayers;
       }
     }
-    const height = Math.max(1, y + rowHeight);
-    for (const season of seasons) {
-      const rgba = new Uint8Array(ATLAS_WIDTH * height * 4);
-      for (const placement of placements) {
-        for (let pixelY = 0; pixelY < placement.asset.size[1]; pixelY += 1) {
-          for (let pixelX = 0; pixelX < placement.asset.size[0]; pixelX += 1) {
-            const character = placement.grid[pixelY]?.[pixelX] ?? '.';
-            const color = resolveColor(
-              character,
-              palette,
-              seasonSource[season],
-              placement.asset.markers ?? {},
-              placement.asset.sourcePalette ?? {},
-            );
-            setPixel(rgba, ATLAS_WIDTH, placement.frame.x + pixelX, placement.frame.y + pixelY, color);
+    for (const page of pages) {
+      for (const season of seasons) {
+        const rgba = new Uint8Array(page.width * page.height * 4);
+        for (const placement of placements.get(page.pageId) ?? []) {
+          for (let pixelY = 0; pixelY < placement.asset.size[1]; pixelY += 1) {
+            for (let pixelX = 0; pixelX < placement.asset.size[0]; pixelX += 1) {
+              const character = placement.grid[pixelY]?.[pixelX] ?? '.';
+              const color = resolveColor(
+                character,
+                palette,
+                seasonSource[season],
+                placement.asset.markers ?? {},
+                placement.asset.sourcePalette ?? {},
+              );
+              setPixel(rgba, ATLAS_WIDTH, placement.frame.x + pixelX, placement.frame.y + pixelY, color);
+            }
           }
         }
+        const filename = `atlas_${page.pageId.replace(':', '_')}_${season}.png`;
+        await writeFile(new URL(filename, outputRoot), encodePng(page.width, page.height, rgba));
+        atlasRecords[`${page.pageId}:${season}`] = filename;
       }
-      const filename = `atlas_${category}_${season}.png`;
-      await writeFile(new URL(filename, outputRoot), encodePng(ATLAS_WIDTH, height, rgba));
-      atlasRecords[`${category}:${season}`] = filename;
     }
     await writeFile(new URL(`atlas_${category}.meta.json`, outputRoot), JSON.stringify({
       schemaVersion: ATLAS_CATEGORY_SCHEMA_VERSION,
@@ -277,6 +296,7 @@ export async function buildAtlases(): Promise<void> {
   if (assetsById[String(MISSING_ASSET_ID)] !== MISSING_ASSET_NAME) {
     throw new Error(`Required placeholder asset ${MISSING_ASSET_NAME} is missing`);
   }
+  validateAtlasPages(pageRecords, assetRecords as Record<string, BuiltPageAsset>, atlasRecords, seasons);
   // Runtime metadata is fetched before the first frame, so keep it compact and
   // move recolouring pixels behind the only feature that consumes them. The
   // editor still receives the complete asset catalogue from atlas.meta.json;
@@ -285,8 +305,9 @@ export async function buildAtlases(): Promise<void> {
   delete runtimeMetadata['assets'];
   await writeFile(new URL('atlas.meta.json', outputRoot), JSON.stringify(runtimeMetadata));
   await writeFile(new URL('atlas.markers.json', outputRoot), JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: 2,
     revision,
+    assetPages: markerAssetPages,
     assets: markerRecords,
   }));
   const registry = {
@@ -300,7 +321,7 @@ export async function buildAtlases(): Promise<void> {
   };
   await writeFile(new URL('asset-registry.json', outputRoot), `${JSON.stringify(registry, null, 2)}\n`);
   await Promise.all([copyJsonAssets('maps'), copyJsonAssets('music'), copyJsonAssets('sfx')]);
-  console.log(`Built ${assets.length} assets across ${categories.length} atlas categories.`);
+  console.log(`Built ${assets.length} assets across ${categories.length} atlas categories (${Object.keys(pageRecords).length} pages per season).`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await buildAtlases();

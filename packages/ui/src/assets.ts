@@ -1,13 +1,18 @@
+import { assertAtlasSchema, atlasPageKey, type AtlasPageDescriptor } from './atlas-page-format.js';
+export { atlasPageKey, parseCompactAssetRegistry } from './atlas-page-format.js';
 import { parseBakedShadow, type BuiltBakedShadow } from './baked-shadow.js';
 import type { AtlasFrame, AtlasMetadata } from './sprite.js';
 import { assetRequestQueue } from './asset-request-queue.js';
-import { loadHtmlImage } from './html-image.js';
+import { loadAtlasPage } from './atlas-page-loader.js';
+export { atlasImageUrl, atlasPageDiagnostics } from './atlas-page-loader.js';
 
 export interface BuiltAssetRecord {
   readonly bakedShadow?: BuiltBakedShadow;
   readonly emissiveFrames?: Readonly<Record<string, readonly (readonly number[])[]>>;
   readonly assetId: number;
   readonly category: string;
+  /** Absent on legacy category/season atlases. */
+  readonly pageId?: string;
   readonly anchor: readonly [number, number];
   readonly collision: readonly (readonly [number, number, number, number])[];
   readonly animations: Readonly<Record<string, readonly AtlasFrame[]>>;
@@ -37,6 +42,7 @@ export interface BuiltAssetRecord {
 interface MarkerPixel { readonly x: number; readonly y: number; readonly marker: string; readonly shade: number }
 
 interface AtlasMarkerManifest {
+  readonly assetPages?: Readonly<Record<string, string>>;
   readonly schemaVersion: number;
   readonly revision: string;
   readonly assets: Readonly<Record<string, Readonly<Record<string, readonly (readonly MarkerPixel[])[]>>>>;
@@ -48,6 +54,7 @@ export interface BuiltAtlasManifest {
   readonly revisionId: number;
   readonly placeholderAssetId: number;
   readonly atlases: Readonly<Record<string, string>>;
+  readonly pages?: Readonly<Record<string, AtlasPageDescriptor>>;
   /** Present on legacy monolithic manifests and in test fixtures. */
   readonly assets?: Readonly<Record<string, BuiltAssetRecord>>;
   readonly assetCategories?: Readonly<Record<string, string>>;
@@ -66,6 +73,7 @@ export interface LoadedAsset {
   readonly emissiveFrames?: Readonly<Record<string, readonly (readonly number[])[]>>;
   readonly assetId: number;
   readonly name: string;
+  readonly pageId?: string;
   readonly image: CanvasImageSource;
   readonly anchor: readonly [number, number];
   readonly collision: readonly (readonly [number, number, number, number])[];
@@ -96,7 +104,6 @@ export interface GeneratedAssetCatalog extends GeneratedAssetRegistry {
 let manifestPromise: Promise<BuiltAtlasManifest> | null = null;
 let markerManifestPromise: Promise<AtlasMarkerManifest> | null = null;
 const categoryManifestPromises = new Map<string, Promise<BuiltAtlasCategoryManifest>>();
-const imagePromises = new Map<string, Promise<HTMLImageElement>>();
 const warnedMissingAssets = new Set<string>();
 
 async function loadManifest(): Promise<BuiltAtlasManifest> {
@@ -104,6 +111,7 @@ async function loadManifest(): Promise<BuiltAtlasManifest> {
     const response = await fetch('/generated/atlas.meta.json');
     if (!response.ok) throw new Error(`Unable to load generated atlas metadata: ${response.status}`);
     const manifest = await response.json() as BuiltAtlasManifest;
+    assertAtlasSchema('index', manifest.schemaVersion);
     if (manifest.assets !== undefined) {
       return { ...manifest, assets: validatedShadowRecords(manifest.assets) };
     }
@@ -121,7 +129,9 @@ async function loadMarkerManifest(revision: string): Promise<AtlasMarkerManifest
   markerManifestPromise ??= assetRequestQueue.run(async () => {
       const response = await fetch(`/generated/atlas.markers.json?rev=${encodeURIComponent(revision)}`);
       if (!response.ok) throw new Error(`Unable to load generated atlas markers: ${response.status}`);
-      return await response.json() as AtlasMarkerManifest;
+      const manifest = await response.json() as AtlasMarkerManifest;
+      assertAtlasSchema('markers', manifest.schemaVersion);
+      return manifest;
     });
   let manifest: AtlasMarkerManifest;
   try {
@@ -146,12 +156,16 @@ function validatedShadowRecords(assets: Readonly<Record<string, BuiltAssetRecord
 export function parseAtlasCategoryManifest(value: unknown, category: string, revision: string): BuiltAtlasCategoryManifest {
   if (typeof value !== 'object' || value === null) throw new Error('Invalid atlas category metadata');
   const manifest = value as BuiltAtlasCategoryManifest;
-  if (manifest.schemaVersion !== 1 && manifest.schemaVersion !== 2) throw new Error('Unsupported atlas category schema');
+  assertAtlasSchema('category', manifest.schemaVersion);
   if (manifest.revision !== revision || manifest.category !== category) {
     throw new Error(`Generated ${category} atlas metadata revision does not match index`);
   }
   if (typeof manifest.assets !== 'object' || manifest.assets === null || Array.isArray(manifest.assets)) {
     throw new Error('Invalid atlas category assets');
+  }
+  for (const [name, record] of Object.entries(manifest.assets)) {
+    if (manifest.schemaVersion >= 3 && record.pageId === undefined) throw new Error(`${name}: missing atlas page identity`);
+    atlasPageKey(record, 'summer');
   }
   return { ...manifest, assets: validatedShadowRecords(manifest.assets) };
 }
@@ -188,27 +202,6 @@ async function loadAssetRecord(
   const category = manifest.assetCategories?.[name];
   if (category === undefined) return undefined;
   return (await loadCategoryManifest(category, manifest.revision)).assets[name];
-}
-
-export function atlasImageUrl(filename: string, revision: string): string {
-  return `/generated/${filename}?rev=${encodeURIComponent(revision)}`;
-}
-
-async function loadImage(filename: string, revision: string): Promise<HTMLImageElement> {
-  const url = atlasImageUrl(filename, revision);
-  const existing = imagePromises.get(url);
-  if (existing) return await existing;
-  const promise = assetRequestQueue.run(async () => await loadHtmlImage(
-    url,
-    `atlas image ${filename}`,
-  ));
-  imagePromises.set(url, promise);
-  try {
-    return await promise;
-  } catch (error) {
-    imagePromises.delete(url);
-    throw error;
-  }
 }
 
 export function resolveGeneratedAssetName(manifest: BuiltAtlasManifest, assetId: number): string {
@@ -295,15 +288,23 @@ async function loadRecord(
   season: string,
   markerOverrides: Readonly<Record<string, readonly string[]>>,
 ): Promise<LoadedAsset> {
-  const filename = manifest.atlases[`${record.category}:${season}`];
-  if (!filename) throw new Error(`Atlas not found for ${record.category}:${season}`);
-  const image = await loadImage(filename, manifest.revision);
+  const key = atlasPageKey(record, season);
+  const filename = manifest.atlases[key];
+  if (!filename) throw new Error(`Atlas not found for ${key}`);
+  const descriptor = record.pageId === undefined ? undefined : manifest.pages?.[record.pageId];
+  if (record.pageId !== undefined && descriptor === undefined) throw new Error(`Missing atlas page descriptor: ${record.pageId}`);
+  const image = await loadAtlasPage(filename, manifest.revision, descriptor);
   const resolvedName = resolveGeneratedAssetName(manifest, record.assetId);
-  const markerLayers = Object.keys(markerOverrides).length === 0
-    ? undefined
-    : record.markerLayers ?? (await loadMarkerManifest(manifest.revision)).assets[resolvedName] ?? {};
+  const markerManifest = Object.keys(markerOverrides).length === 0 || record.markerLayers !== undefined
+    ? undefined : await loadMarkerManifest(manifest.revision);
+  if (markerManifest?.schemaVersion === 2 && markerManifest.assetPages?.[resolvedName] !== record.pageId) {
+    throw new Error(`Atlas marker page identity mismatch: ${resolvedName}`);
+  }
+  const markerLayers = Object.keys(markerOverrides).length === 0 ? undefined
+    : record.markerLayers ?? markerManifest?.assets[resolvedName] ?? {};
   const asset: LoadedAsset = {
     assetId: record.assetId,
+    pageId: record.pageId,
     name,
     image: markerLayers === undefined ? image : applyMarkerOverrides(image, markerLayers, markerOverrides),
     anchor: record.anchor,

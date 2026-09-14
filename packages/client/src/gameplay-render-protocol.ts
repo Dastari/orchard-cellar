@@ -1,3 +1,4 @@
+import { atlasPageDiagnostics } from '@orchard/ui';
 import type { RenderMetrics } from '@orchard/engine/metrics';
 import { RenderProtocolBuffer, protocolDistribution } from '@orchard/engine/render-protocol-buffer';
 import { startRenderProtocolWalk } from './render-protocol-walk.js';
@@ -110,7 +111,7 @@ export async function captureGameplayProtocol(metrics: RenderMetrics, game: Prot
         walking: options.walking !== false, walkingPath: 'right/down/left/up, 625 ms per leg; authority collision applies',
         counterScope: 'whole-client Canvas 2D, including HUD and offscreen construction',
         tintReuses: 'exact tinted-frame cache hits; surface recycling reported separately' },
-      before: matched.state, after: final, ...buffer.report(),
+      before: matched.state, after: final, assets: atlasPageDiagnostics(), ...buffer.report(),
       longTasks: { supported: longTasksSupported, atLeast50Ms: longTasks.filter((value) => value >= 50).length,
         ...protocolDistribution(longTasks) },
     };

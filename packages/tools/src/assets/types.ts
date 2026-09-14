@@ -62,3 +62,18 @@ export interface BuiltFrame {
   readonly height: number;
   readonly durationTicks: number;
 }
+
+
+export interface BuiltPageDescriptor {
+  readonly width: number;
+  readonly height: number;
+  readonly decodedBytes: number;
+}
+export interface BuiltPageAsset {
+  readonly assetId: number;
+  readonly category: string;
+  readonly pageId: string;
+  readonly animations: Readonly<Record<string, readonly BuiltFrame[]>>;
+  readonly variants: Readonly<Record<string, readonly BuiltFrame[]>>;
+  readonly states: Readonly<Record<string, BuiltFrame>>;
+}

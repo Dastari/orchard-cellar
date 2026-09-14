@@ -249,6 +249,13 @@ policy accepted or B revised.
    equal or better; content addressing and service-worker retention (items 6
    and 8) proceed under doc 47 on its own gate and are not required for P3.
 
+P2 implementation amendment (2026-09-06): include loaded-page dimensions,
+decoded bytes and image request-to-ready timings in the existing one-button
+protocol JSON. This minimally extends `gameplay-render-protocol.ts`; the data
+comes from the new page loader and does not run in the steady-frame path.
+Desktop decoder-only CPU timings are captured separately with Chromium trace
+events, rather than mislabelling request/onload latency as pure decode time.
+
 **Tests:** builder rejects an asset larger than a page; every page under both
 caps; manifest round-trip through old and new readers; all 36 current PNGs'
 frame pixels reproduced byte-exact on their new pages.
