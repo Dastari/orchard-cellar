@@ -55,10 +55,12 @@ describe('authored farming capabilities', () => {
     expect(recipe).toBeDefined();
     const requirement = recipe.skillRequirement!;
     const renamed = { ...recipe, id: 'recipe:custom_garden' as const };
-    const registry = { recipes: new Map([[renamed.id, renamed]]) };
+    const registry = { ...base, recipes: new Map([[renamed.id, renamed]]) };
     expect(runtimeRecipeSkillSatisfied(registry, renamed.id, {})).toBe(false);
     expect(runtimeRecipeSkillSatisfied(registry, renamed.id,
-      { [requirement.skillNode]: requirement.minimumRank })).toBe(true);
+      { farmcraft: 1, barreling: 1, [requirement.skillNode]: requirement.minimumRank })).toBe(true);
+    expect(runtimeRecipeSkillSatisfied(registry, renamed.id,
+      { [requirement.skillNode]: requirement.minimumRank })).toBe(false);
     expect(runtimeRecipeSkillSatisfied(registry, 'missing', {})).toBe(false);
     const rows = bootstrapContentRows().map((row) => row.id !== recipe.id ? row : {
       ...row, json: JSON.stringify({ ...recipe,

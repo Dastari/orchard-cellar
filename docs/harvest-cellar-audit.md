@@ -16,6 +16,7 @@ ranks remain the tier path; no new machine economy is introduced.
 Farming skills must resolve active authored capabilities and prerequisite-valid
 ranks. Green Thumb adds 3% expected crop yield/rank; Bountiful Harvest adds a
 10%/rank chance of one extra bundle; Seed Saver returns a seed at 10%/rank;
+Quest-only seeds are excluded from Seed Saver to preserve finite quest grants.
 Tender Hand extends watering by 25%/rank; Master Grower removes the seasonal
 penalty; Barreling gives 20% faster preserving and fermentation. Sprinkler
 Engineering and Greenhouse Charter enable existing authored unlocks. Soil
@@ -31,11 +32,13 @@ keep it honestly unavailable rather than attaching an unrelated bonus.
 
 ## Live observations (2026-09-15)
 
+- Live content revision 9, hash `5b3399a3` (raw rows checked via authenticated read-only SQL).
 - Nado garden 10002, residence 30004, cellar 30005.
 - Preserving barrels 12302/12304; fermentation casks 4129/12299.
 - One active must definition and matching 3:1 fermentation recipe. No missing
-  must variants found. Nado inventory is private and was not accessible through
-  the signed-in observer; exact failed drop remains unobserved.
+  must variants found. Read-only admin inspection found two Must in hotbar slot
+  5 and all four containers empty/unsealed. Casks need three Must to start. The
+  exact failed drop remains unobserved; the preserving barrels reject Must by design.
 - Live processor definitions lack current-main completion XP metadata. A future
   release must publish reviewed content as well as module/client code.
 - Authority upgrade lookup uses processor space directly, losing cellar bonuses.

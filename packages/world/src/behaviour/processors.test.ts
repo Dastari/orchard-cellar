@@ -56,6 +56,7 @@ function run(
   slots: readonly (ItemStack | null)[],
   authorityTick: bigint,
   contentRegistry: ContentRegistry = registry,
+  bonuses = { estateRank: 0, barrelingRank: 0 },
 ) {
   let current = row;
   const slotRows = slots.map((stack, slot) => ({
@@ -100,7 +101,8 @@ function run(
       delta,
       ...(context === undefined ? {} : { context }),
     }),
-    homesteadUpgradeRank: () => 0,
+    homesteadUpgradeRank: () => bonuses.estateRank,
+    barrelingRank: () => bonuses.barrelingRank,
     processCompleted: (_ctx, completedPlaceable, unitsSettled) => completions.push({
       placeableId: completedPlaceable.id,
       unitsSettled,
@@ -357,4 +359,38 @@ describe('data-backed processor authority adapter', () => {
     expect(invalid.statistics).toEqual([]);
     expect(invalid.completions).toEqual([]);
   });
+});
+
+it('applies estate and Barreling timing before settling a cellar cask', () => {
+  const cask = placeable('fermentation_cask', { spaceId: 30005, processStartTick: 0n });
+  const slots = [{ itemKind: 'must', quantity: 3 }, null];
+  const bonuses = { estateRank: 3, barrelingRank: 1 };
+  expect(run(cask, slots, 89_999n, registry, bonuses).slotWrites).toEqual([]);
+  const complete = run(cask, slots, 90_000n, registry, bonuses);
+  expect(complete.error).toBeUndefined();
+  expect(complete.slotWrites).toContainEqual(expect.objectContaining({ slot: 1, itemKind: 'bottles', quantity: 1 }));
+  expect(complete.experience).toEqual([{ identity, amount: 25n }]);
+});
+
+it('preserves barrel inputs in nonzero slots with the authored input duration', () => {
+  const barrel = placeable('barrel', { barrelSealedTick: 0n });
+  const processes = new Map(registry.processes);
+  const definition = processes.get('process:preserve_grape')!;
+  processes.set(definition.id, { ...definition, ticksPerUnit: 120 });
+  const live = { ...registry, processes };
+  const slots = [null, { itemKind: 'grape', quantity: 4 }, ...Array(6).fill(null)];
+  const result = run(barrel, slots, 120n, live);
+  expect(result.error).toBeUndefined();
+  expect(result.slotWrites).toContainEqual(expect.objectContaining({ slot: 0, itemKind: 'preserved_grape', quantity: 4 }));
+});
+
+it('keeps an incomplete two-Must input intact until a third unit arrives', () => {
+  const cask = placeable('fermentation_cask');
+  const waiting = run(cask, [{ itemKind: 'must', quantity: 2 }, null], 100n);
+  expect(waiting.slotWrites).toEqual([]);
+  expect(waiting.result.processStartTick).toBeUndefined();
+  expect(waiting.experience).toEqual([]);
+  const started = run(cask, [{ itemKind: 'must', quantity: 3 }, null], 100n);
+  expect(started.result.processStartTick).toBe(100n);
+  expect(started.slotWrites).toEqual([]);
 });

@@ -85,10 +85,12 @@ describe('36§4 skill graph registry', () => {
 
   it('marks live effects independently from placeholder descriptions', () => {
     for (const id of ['archery_basics', 'measured_stride', 'cartographer', 'farmcraft',
-      'mining_endurance', 'fishing_endurance', 'woodcutting_endurance', 'stable_hand']) {
+      'mining_endurance', 'fishing_endurance', 'woodcutting_endurance', 'stable_hand',
+      'green_thumb', 'seed_saver', 'bountiful_harvest', 'tender_hand', 'soil_whisperer',
+      'barreling', 'master_grower', 'harvest_festival', 'sprinkler_engineering', 'greenhouse_charter']) {
       expect(skillNodeIsImplemented(skillNodeDefinition(id)!)).toBe(true);
     }
-    for (const id of ['trailblazer', 'steady_draw', 'green_thumb', 'master_angler', 'beekeeping']) {
+    for (const id of ['trailblazer', 'steady_draw', 'master_angler', 'beekeeping']) {
       expect(skillNodeIsImplemented(skillNodeDefinition(id)!)).toBe(false);
     }
     expect(SKILL_NODE_DEFINITIONS.some((node) => node.description.startsWith('Planned:'))).toBe(false);

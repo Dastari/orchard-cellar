@@ -59,7 +59,10 @@ describe('production continuity tooling', () => {
         env: { ...process.env, WORLD_RELEASE_MIGRATION_KIND: 'invalid', WORLD_RESTORE_MIGRATION_KIND: 'invalid' },
       });
       expect(result.status).toBe(64);
-      expect(result.stderr).toContain('Usage:');
+      const canonicalCheckout = '/home/toby/projects/orchard-cellar/';
+      if (script === 'scripts/world-release.sh' && fileURLToPath(new URL('..', import.meta.url)) !== canonicalCheckout) {
+        expect(result.stderr).toBe('Run this release from /home/toby/projects/orchard-cellar.\n');
+      } else expect(result.stderr).toContain('Usage:');
     }
   });
 
