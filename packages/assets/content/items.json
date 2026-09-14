@@ -9631,7 +9631,7 @@
       "sell": 240
     },
     "durability": {
-      "max": 625,
+      "max": 1500,
       "repairMaterial": "item:silver_bar",
       "repairCost": 5
     },

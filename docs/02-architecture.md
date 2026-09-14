@@ -212,3 +212,15 @@ and UI-facing errors/metrics.
 - No SSR/React/DOM UI framework. No Docker orchestration. No Redis. No message queue.
 - No horizontal scaling work before it is needed.
 - No mod support, no mobile-native wrappers at launch (touch input yes, app store no).
+
+## Mining skill coverage (0.7.0)
+
+Cave-wall and ore-node transactions use shared deterministic mining work
+(3/4/6 per strike). Wall progress remains private and authoritative, with an
+appended default-zero work column; legacy hits convert lazily on the first
+accepted strike. Physical hit counts are retained. Mining Endurance continues
+through the common loadout/spending pipeline. Ordinary rocks, basalt and completed
+walls share an authored bonus loot profile, while primary Hearth material payouts
+remain guaranteed. The gathering readiness check validates referenced bonus loot
+and materials in addition to the primary payout. See [48, coverage amendment](48-repeatable-mining-loop.md#2026-09-15-mining-skill-coverage-amendment)
+for balance, migration and transaction invariants.

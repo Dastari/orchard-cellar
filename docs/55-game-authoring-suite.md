@@ -2021,6 +2021,12 @@ primary mining payout is preserved, while a separate authored secondary loot
 group adds a 10% silver-ore chance. The added furnace process smelts silver ore
 into a silver bar without replacing existing iron inputs or outputs.
 
+2026-09-15 balance amendment: the owner set Silver Pickaxe durability to **1,500**,
+twice Iron Pickaxe's 750. Its swing speed, vigour cost, reach and mining permissions
+remain unchanged. Full repair still costs one Silver Bar plus five bronze. This
+supersedes the provisional silver multiplier for the pickaxe only; other silver
+tools retain their existing durability.
+
 Mobile world input distinguishes a single tap, a two-finger pinch and a
 250 ms long press. A pending tap acts once on release; a pinch owns both fingers
 without firing a tool; a claimed long press preserves bow charging until release

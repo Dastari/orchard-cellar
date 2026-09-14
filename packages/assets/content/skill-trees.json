@@ -942,7 +942,7 @@
         "iconAsset": "icon_skill_efficient_strikes",
         "track": "farming",
         "name": "Efficient Strikes",
-        "description": "Reduce the work needed for each mining payout, from four strikes to three and then two.",
+        "description": "Mine ore nodes and cave walls more efficiently. Node payouts take four, three, then two strikes; cave walls take five or six, four or five, then three.",
         "position": [
           450,
           100
@@ -988,7 +988,7 @@
         "iconAsset": "icon_skill_rockhound",
         "track": "farming",
         "name": "Rockhound",
-        "description": "Increase the chance that an ordinary rock contains a bonus ore fragment.",
+        "description": "Increase the bonus ore fragment chance from 1% to 2% and then 3% when mining ordinary rocks, basalt or completing a cave wall.",
         "position": [
           590,
           240
@@ -1011,7 +1011,7 @@
         "iconAsset": "icon_skill_mother_lode",
         "track": "farming",
         "name": "Mother Lode",
-        "description": "The first payout from a rich pure vein also yields a matching ore fragment.",
+        "description": "The first payout from a rich pure vein also yields a matching ore fragment, or an extra material for cinder and emberglass.",
         "position": [
           450,
           240

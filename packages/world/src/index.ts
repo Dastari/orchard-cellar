@@ -269,6 +269,7 @@ import {
   FISHING_POOL_DEPLETION_EXPLORER_XP,
   miningWorkPerHit,
   resolveMiningLoot,
+  resolveMiningRockBonus,
   resolveFishingLoot,
   statelessRoll,
   surfaceOreRespawnCandidates,
@@ -279,6 +280,7 @@ import {
   cellarOreKindAt,
   cellarOreResourceId,
   cellarWallHitsRequired,
+  cellarWallStrikeProgress,
   cellarExcavationAnchor,
   cellarExcavationAnchorsAffectingTile,
   cellarWallStoneQuantity,
@@ -2161,6 +2163,7 @@ const cellar_dig_progress = table(
     tileY: t.i16(),
     hits: t.u8(),
     lastHitTick: t.u64(),
+    work: t.u8().default(0),
   },
 );
 
@@ -20734,12 +20737,18 @@ function applyDigCellarTileLifecycle(
     const anchor = cellarExcavationAnchor(tileX, tileY);
     const id = cellarExcavationId(position.spaceId, anchor.tileX, anchor.tileY);
     const progress = ctx.db.cellar_dig_progress.id.find(id);
-    const hits = (progress?.hits ?? 0) + 1;
-    const opensWall = hits >= cellarWallHitsRequired(seed, position.spaceId, anchor.tileX, anchor.tileY);
+    const skillCapabilities = runtimeSkillCapabilities(registry, playerSkillRanks(ctx, ctx.sender));
+    const { hits, work, opensWall } = cellarWallStrikeProgress(
+      cellarWallHitsRequired(seed, position.spaceId, anchor.tileX, anchor.tileY),
+      progress, skillCapabilities.efficientStrikesRank,
+    );
     const wallOutputKind = opensWall
       ? runtimeItemKindForUniqueTag(registry, CELLAR_WALL_OUTPUT_ITEM_TAG)
       : null;
     if (opensWall && wallOutputKind === null) throw new SenderError('ambient_output_content_missing');
+    const bonusDrops = opensWall ? resolveMiningRockBonus(registry.loots,
+      [seed, position.spaceId, anchor.tileX, anchor.tileY, 'mining.cellar_wall'],
+      skillCapabilities.rockhoundRank) : [];
     if (!mutate) {
       validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
       return;
@@ -20760,7 +20769,7 @@ function applyDigCellarTileLifecycle(
 
     if (!opensWall) {
       const row = {
-        id, spaceId: position.spaceId, tileX: anchor.tileX, tileY: anchor.tileY, hits, lastHitTick: clock.authorityTick,
+        id, spaceId: position.spaceId, tileX: anchor.tileX, tileY: anchor.tileY, hits, work, lastHitTick: clock.authorityTick,
       };
       if (progress === null) ctx.db.cellar_dig_progress.insert(row);
       else ctx.db.cellar_dig_progress.id.update(row);
@@ -20821,6 +20830,13 @@ function applyDigCellarTileLifecycle(
       durability: 0,
       spaceId: position.spaceId,
     });
+    applyLootDropsBehaviour(ctx, bonusDrops, {
+      x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      spaceId: position.spaceId, authorityTick: clock.authorityTick,
+      recipient: ctx.sender, reservedUntilTick: clock.authorityTick + MINING_DROP_RESERVATION_TICKS,
+      recordItemsObtained: true,
+    }, lootAuthorityDependencies);
     recordPlayerStatistic(ctx, ctx.sender, 'rocks_broken', 1n, clock.authorityTick);
 }
 

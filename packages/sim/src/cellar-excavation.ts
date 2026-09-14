@@ -1,10 +1,24 @@
 import { SURVIVAL_ORE_KINDS, type SurvivalOreKind } from './survival-world.js';
+import { miningWorkPerHit } from './mining.js';
 
 export const CELLAR_WALL_MIN_HITS = 5;
 export const CELLAR_WALL_MAX_HITS = 6;
 export const CELLAR_WALL_TOOL_WEAR = 2;
 export const CELLAR_WALL_STONE_MIN = 10;
 export const CELLAR_WALL_STONE_MAX = 18;
+
+/** Old rows store only physical hits. Each legacy hit contributed novice work.
+ * Work is additive so changing the contributing miner never revalues old hits. */
+export function cellarWallStrikeProgress(
+  baseHits: number,
+  progress: { readonly hits: number; readonly work?: number } | null,
+  efficientStrikesRank: number,
+): { readonly hits: number; readonly work: number; readonly opensWall: boolean } {
+  const previousWork = progress?.work || (progress?.hits ?? 0) * miningWorkPerHit(0);
+  const work = previousWork + miningWorkPerHit(efficientStrikesRank);
+  return { hits: (progress?.hits ?? 0) + 1, work,
+    opensWall: work >= baseHits * miningWorkPerHit(0) };
+}
 
 /** The cellar is a grid of aligned 2x2 macro-cells. Every excavation is a
  * whole macro-cell, so solid rock and open floor are both unions of aligned
