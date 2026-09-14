@@ -1,3 +1,4 @@
+import { parseVerifiedStudioMapHead } from './verified-live-map.js';
 import {
   LIVE_ISLAND_MAP_ID,
   isMapObjectLayer,
@@ -553,9 +554,7 @@ export class MapEditorModel {
     if (head.mapId !== this.mapId) return;
     let remoteDocument: MapDocumentV3;
     try {
-      remoteDocument = parseMapDocumentV3(head.documentJson);
-      if (remoteDocument.id !== this.mapId || remoteDocument.revision !== head.revision
-        || mapDocumentV3Hash(remoteDocument) !== head.contentHash) throw new TypeError('unverified_live_map_head');
+      remoteDocument = parseVerifiedStudioMapHead(head, this.mapId);
     } catch {
       this.markConflict(head.revision, `Live map revision ${head.revision} could not be verified; local edits were preserved.`);
       return;
@@ -637,12 +636,8 @@ export class MapEditorModel {
     }
     let document: MapDocumentV3;
     try {
-      document = parseMapDocumentV3(head.documentJson);
+      document = parseVerifiedStudioMapHead(head, this.mapId);
     } catch {
-      throw new Error('live_map_head_unverified');
-    }
-    if (document.id !== this.mapId || document.revision !== head.revision
-      || mapDocumentV3Hash(document) !== head.contentHash) {
       throw new Error('live_map_head_unverified');
     }
     this.#reconciledLiveHead = head;

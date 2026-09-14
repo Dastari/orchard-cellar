@@ -72,7 +72,11 @@ export class StudioShellController {
   async connectExplicit(): Promise<void> {
     const environment = this.session.snapshot().environment;
     if (environment === 'sandbox') throw new Error('live_environment_required');
+    if (this.session.snapshot().phase === 'connecting') return;
+    this.#adapter?.disconnect();
+    this.#adapter = null;
     this.session.beginConnect();
+    this.onChanged();
     try {
       if (await this.prepareConnection(environment) === 'redirecting') {
         this.onChanged();

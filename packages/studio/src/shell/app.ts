@@ -182,7 +182,7 @@ export class StudioShellApp {
     if (this.canvas.width !== Math.round(width*dpr)) this.canvas.width = Math.round(width*dpr);
     if (this.canvas.height !== Math.round(height*dpr)) this.canvas.height = Math.round(height*dpr);
     this.#root.resize(width,height,dpr);
-    const route = this.controller.activeRoute(), key = JSON.stringify([route.path,route.access,this.controller.session.snapshot().role,this.#layoutState.splitOpen,this.#layoutState.direction,this.#layoutState.secondaryPath,this.#activeDrawer]);
+    const route = this.controller.activeRoute(), key = JSON.stringify([route.path,route.access,this.controller.session.snapshot().role,this.controller.session.snapshot().phase,this.controller.session.snapshot().mapRevision,this.controller.session.snapshot().error,this.#layoutState.splitOpen,this.#layoutState.direction,this.#layoutState.secondaryPath,this.#activeDrawer]);
     if (key !== this.#shellKey) { this.#shellKey = key; this.buildShell(); this.#dirtyTools = true; }
     this.#root.arrange();
     if (this.#dirtyTools && this.#uiPointerOwner === null) { this.#dirtyTools = false; this.buildTools(); this.#root.arrange(); }
@@ -232,6 +232,22 @@ export class StudioShellApp {
           options:this.controller.tools.routes(this.controller.session.snapshot().role).map(candidate=>({value:candidate.path,
             label:candidate.tool.routes.length>1?`${candidate.tool.label} / ${candidate.path.split('/').at(-1)!.replaceAll('-',' ')}`:candidate.tool.label})),
           layout:{width:'grow'},onChange:path=>this.navigate(path)}),
+        ui.text(this.controller.session.snapshot().phase === 'connected'
+          ? `LIVE MAP R${this.controller.session.snapshot().mapRevision ?? '…'}`
+          : this.controller.session.snapshot().phase === 'connecting' ? 'CONNECTING'
+          : this.controller.session.snapshot().error !== null ? 'CONNECTION FAILED' : 'OFFLINE SANDBOX',
+          { id: 'studio-connection-status' }),
+        ui.button({ id: 'studio-connect', size: 'sm',
+          label: this.controller.session.snapshot().phase === 'connected' ? 'Disconnect' : 'Connect live',
+          disabled: this.controller.session.snapshot().phase === 'connecting',
+          onPress: () => {
+            if (this.controller.session.snapshot().phase === 'connected') this.controller.disconnect();
+            else {
+              this.controller.chooseEnvironment('production');
+              void this.controller.connectExplicit().catch(() => undefined);
+            }
+          },
+        }),
         ui.flex({},[layoutMenuButton,layoutMenu]),
       ]),
     ]});

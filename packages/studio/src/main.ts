@@ -47,3 +47,15 @@ if (callbackError !== null) {
   controller.chooseEnvironment('production');
   void controller.connectExplicit().catch(() => undefined);
 }
+ else {
+  try {
+    const { resumeStudioOidcSession } = await import('./shell/auth.js');
+    if (await resumeStudioOidcSession()) {
+      controller.chooseEnvironment('production');
+      await controller.connectExplicit();
+    }
+  } catch (error: unknown) {
+    controller.session.failed(error instanceof Error ? error.message : String(error));
+    app.render();
+  }
+}
