@@ -1,4 +1,5 @@
 import { comparePreparedWorldDepthItems, type WorldItemKind, type WorldItemIdentity } from './painter-depth.js';
+import { disposeHudDisplayCaches, hudDisplayCacheDiagnostics } from '@orchard/ui';
 export { WorldItemKind } from './painter-depth.js';
 import type { WorldScalePolicy } from './world-pass-present.js';
 import { CanvasWorldPassBackend } from './world-pass-canvas.js';
@@ -231,6 +232,7 @@ export class UnifiedRenderer {
   get worldScale(): WorldScalePolicy { return this.worldScaleValue; }
   get activeWorldPixels(): number { return this.frameLayout === null ? 0 : this.frameLayout.width * this.frameLayout.height; }
   get presentBytes(): number { return this.backend.presentBytes; }
+  get hudCacheDiagnostics(): ReturnType<typeof hudDisplayCacheDiagnostics> { return hudDisplayCacheDiagnostics(this.canvas); }
   setWorldScale(policy: WorldScalePolicy): void {
     if (policy === this.worldScaleValue) return;
     this.worldScaleValue = policy;
@@ -274,7 +276,10 @@ export class UnifiedRenderer {
   }
 
   /** Release all world/present surfaces when the owning client is disposed. */
-  dispose(): void { this.backend.dispose(); this.frameLayout = null; }
+  dispose(): void {
+    try { disposeHudDisplayCaches(this.canvas); }
+    finally { this.backend.dispose(); this.frameLayout = null; }
+  }
 
   beginUi(uiScale: number): CanvasRenderingContext2D {
     this.displayContext.save();

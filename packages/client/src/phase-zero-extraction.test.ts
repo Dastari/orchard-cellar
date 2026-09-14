@@ -125,7 +125,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Doc 59 P1 adds the persisted World scale control in the same Video panel.
 // Doc 59 P3 deletes the filtered-frame export and keeps only shared frame metadata.
 // Doc 59 P6 shares the outer painter state pair with authored-map sprites.
-const STRUCTURAL_SEAM_DIGEST = '1c6e80459d83051e8b627b5affb3313a76a0842f3db29ac372a98b4230faab24';
+// Doc 59 P7 adds the persisted presentation cap control to Video.
+// Doc 59 P7 caches ordered static HUD sections and exports display ownership.
+const STRUCTURAL_SEAM_DIGEST = 'ab3281c4e92b3eccb1022154e8a7a4f6a429a12b7d26c0b03d6daf20e9bce458';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

@@ -1,4 +1,4 @@
-import { readWorldScale, WORLD_SCALE_EVENT } from '@orchard/ui';
+import { readPresentationCap, readWorldScale, WORLD_SCALE_EVENT } from '@orchard/ui';
 import { UnifiedRenderer } from '@orchard/engine/renderer';
 
 /** Client policy owns persistence; the shared renderer also serves Studio. */
@@ -7,7 +7,10 @@ export function createGameplayRenderer(canvas: HTMLCanvasElement): UnifiedRender
   const apply = () => renderer.setWorldScale(readWorldScale());
   apply();
   window.addEventListener(WORLD_SCALE_EVENT, apply);
-  import.meta.hot?.dispose(() => window.removeEventListener(WORLD_SCALE_EVENT, apply));
+  import.meta.hot?.dispose(() => {
+    window.removeEventListener(WORLD_SCALE_EVENT, apply);
+    renderer.dispose();
+  });
   return renderer;
 }
 
@@ -20,9 +23,11 @@ export function gameplayDisplaySnapshot(renderer: UnifiedRenderer, worldZoom: nu
     uiScale: uiScale(),
     worldScale: renderer.worldScale,
     backend: 'canvas2d' as const,
+    presentationCap: readPresentationCap(),
     activeWorldPixels: renderer.activeWorldPixels,
     worldBackingWidth: renderer.worldWidth,
     worldBackingHeight: renderer.worldHeight,
     presentBytes: renderer.presentBytes,
+    hudCache: renderer.hudCacheDiagnostics,
   };
 }

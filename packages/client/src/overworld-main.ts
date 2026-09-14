@@ -223,7 +223,7 @@ import {
   type CanvasViewportInsets,
   type UiScale,
 } from '@orchard/engine/display';
-import { FixedStepLoop } from './loop.js';
+import { createGameplayLoop } from './gameplay-loop.js';
 import { WorldUpdateOverlay } from './world-update-overlay.js';
 import { ConnectionRecoveryOverlay, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
 import { installConnectionLifecycle } from './connection-lifecycle.js';
@@ -7975,7 +7975,7 @@ canvas.addEventListener('wheel', (event) => {
 }, { passive: false });
 
 resize();
-const loop = new FixedStepLoop({ update, render }, renderMetrics);
+const loop = createGameplayLoop({ update, render }, renderMetrics);
 const removeConnectionLifecycle = installConnectionLifecycle(window, document, {
   suspend: () => {
     clearConnectionInput();
