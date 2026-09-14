@@ -123,7 +123,8 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // import-direction and ownership assertions below remain independent gates.
 // Doc 59 P0 adds the required touch-accessible Render-panel capture action.
 // Doc 59 P1 adds the persisted World scale control in the same Video panel.
-const STRUCTURAL_SEAM_DIGEST = 'b1cd886141d5805b4cb75543ca17879e079a32bc97f34c439b24536d795b652a';
+// Doc 59 P6 shares the outer painter state pair with authored-map sprites.
+const STRUCTURAL_SEAM_DIGEST = '6de162b2add4c7a9210cf1fc763a170faefa4b5f6e2356a40dd475ac0857bdf2';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

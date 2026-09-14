@@ -1,3 +1,4 @@
+import { saveSpriteTransform, restoreSpriteTransform } from './painter-context.js';
 import { worldAssetFrameSource } from './world-asset-presentation.js';
 import { groundSpriteSource } from './ground-light-source.js';
 import {
@@ -1321,7 +1322,9 @@ function drawAnchored(
   const anchorX = flipX ? source.width - 1 - asset.anchor[0] : asset.anchor[0];
   const x = Math.round((worldX - cameraX - anchorX) * zoom);
   const y = Math.round((worldY - cameraY - asset.anchor[1]) * zoom);
-  context.save();
+  const previousAlpha = dimmed ? context.globalAlpha : 1;
+  const previousFilter = dimmed ? context.filter : '';
+  const savedTransform = saveSpriteTransform(context, flipX);
   if (dimmed) {
     context.filter = "brightness(42%) saturate(55%)";
     context.globalAlpha *= 0.88;
@@ -1353,7 +1356,8 @@ function drawAnchored(
       sourceHeight * zoom,
     );
   }
-  context.restore();
+  if (dimmed) { context.globalAlpha = previousAlpha; context.filter = previousFilter; }
+  restoreSpriteTransform(context, savedTransform);
 }
 
 export const POND_SHIMMER_FRAME_COUNT = 8;
@@ -1489,7 +1493,7 @@ function drawAnchoredBand(
   const x = Math.round((worldX - cameraX - anchorX) * zoom);
   const y = Math.round((worldY - cameraY - asset.anchor[1] + start) * zoom);
   const height = end - start;
-  context.save();
+  const savedTransform = saveSpriteTransform(context, flipX);
   if (flipX) {
     context.translate(x + source.width * zoom, 0);
     context.scale(-1, 1);
@@ -1517,7 +1521,7 @@ function drawAnchoredBand(
       height * zoom,
     );
   }
-  context.restore();
+  restoreSpriteTransform(context, savedTransform);
 }
 
 function drawAnchoredTreeSway(
@@ -1555,7 +1559,7 @@ function drawAnchoredTreeSway(
   const pivotY = Math.round((worldY - cameraY) * zoom);
   const horizontalShear = -swayX / Math.max(1, asset.anchor[1]);
   const verticalScale = 1 - swayY / Math.max(1, asset.anchor[1]);
-  context.save();
+  const savedTransform = saveSpriteTransform(context, true);
   context.translate(pivotX, pivotY);
   // One foot-anchored draw bends the crown while keeping every translucent pixel
   // single-composited. This avoids the dark seams produced by overlapping bands.
@@ -1572,7 +1576,7 @@ function drawAnchoredTreeSway(
     source.width * zoom,
     source.height * zoom,
   );
-  context.restore();
+  restoreSpriteTransform(context, savedTransform);
 }
 
 function drawAnchoredScaled(
@@ -1979,7 +1983,8 @@ export function drawOverworldPoiDecoration(
     const asset = art.poiDecorations[kind] ?? art.missingItem;
     const screenX = (x - cameraX) * zoom;
     const screenY = (y - cameraY) * zoom;
-    context.save();
+    const previousStroke = context.strokeStyle, previousWidth = context.lineWidth, previousFill = context.fillStyle;
+    const savedTransform = saveSpriteTransform(context, false);
     context.strokeStyle = '#d9e7df';
     context.lineWidth = Math.max(1, zoom);
     context.beginPath();
@@ -1993,7 +1998,8 @@ export function drawOverworldPoiDecoration(
       Math.max(1, Math.round(2 * zoom)),
       Math.max(1, Math.round(2 * zoom)),
     );
-    context.restore();
+    context.strokeStyle = previousStroke; context.lineWidth = previousWidth; context.fillStyle = previousFill;
+    restoreSpriteTransform(context, savedTransform);
     // The camp prop is authored with its tip on the upper-left. Shoreline
     // lines cast east into this lake, so mirror the support around its ground
     // anchor and join the generated line to the now upper-right rod tip.
@@ -2085,7 +2091,9 @@ export function drawOverworldRogueDoor(
   const rotation = normalizedDirection === 'east' ? Math.PI / 2
     : normalizedDirection === 'west' ? -Math.PI / 2
       : normalizedDirection === 'south' ? Math.PI : 0;
-  context.save();
+  const previousAlpha = context.globalAlpha;
+  const previousFill = context.fillStyle;
+  const savedTransform = saveSpriteTransform(context, true);
   context.translate(screenX, screenY);
   context.rotate(rotation);
   context.globalAlpha = 0.52;
@@ -2103,7 +2111,9 @@ export function drawOverworldRogueDoor(
     source.width * zoom,
     source.height * zoom,
   );
-  context.restore();
+  context.globalAlpha = previousAlpha;
+  context.fillStyle = previousFill;
+  restoreSpriteTransform(context, savedTransform);
 }
 
 export function drawOverworldItem(
@@ -2308,7 +2318,8 @@ export function drawOverworldArrow(
 ): void {
   const screenX = Math.round((x - cameraX) * zoom);
   const screenY = Math.round((y - cameraY) * zoom);
-  context.save();
+  const previousFillStyle = context.fillStyle;
+  const savedTransform = saveSpriteTransform(context, true);
   context.translate(screenX, screenY);
   context.scale(zoom, zoom);
   context.rotate(Math.atan2(velocityY, velocityX));
@@ -2331,7 +2342,8 @@ export function drawOverworldArrow(
     context.fillRect(8, 0, 1, 1);
     context.fillRect(7, 2, 1, 1);
   }
-  context.restore();
+  context.fillStyle = previousFillStyle;
+  restoreSpriteTransform(context, savedTransform);
 }
 
 export function drawOverworldChest(
@@ -3416,13 +3428,15 @@ export function drawOverworldRogueEnemy(
 ): void {
   const visual = rogueEnemyVisual(art, kind, activity, facing, moving, animationFrame);
   if (visual === null) return;
-  context.save();
+  const previousFilter = hitFlash ? context.filter : '';
+  const savedTransform = saveSpriteTransform(context, false);
   if (hitFlash) context.filter = 'brightness(210%) saturate(40%)';
   drawAnchored(
     context, visual.asset, visual.animation, visual.frameIndex,
     x, y, cameraX, cameraY, zoom, visual.flip,
   );
-  context.restore();
+  if (hitFlash) context.filter = previousFilter;
+  restoreSpriteTransform(context, savedTransform);
 }
 
 export function drawOverworldHive(
@@ -3682,7 +3696,8 @@ export function drawOverworldBoat(
   const flipX = authored === null && boatFlipsForDirection(facing);
   const screenX = Math.round((x - cameraX) * zoom);
   const screenY = Math.round((y - cameraY) * zoom);
-  context.save();
+  const previousImageSmoothingEnabled = context.imageSmoothingEnabled;
+  const savedTransform = saveSpriteTransform(context, true);
   context.translate(screenX, screenY);
   context.scale(flipX ? -zoom : zoom, zoom);
   context.rotate(angle);
@@ -3691,7 +3706,8 @@ export function drawOverworldBoat(
     source.image, source.x, source.y, source.width, source.height,
     -source.width / 2, -source.height / 2, source.width, source.height,
   );
-  context.restore();
+  context.imageSmoothingEnabled = previousImageSmoothingEnabled;
+  restoreSpriteTransform(context, savedTransform);
   if (!mounted) return;
   // Boats supply their own four-frame movement bob. Keep the rider in one
   // seated pose so horse idle/walk frames cannot animate independently.

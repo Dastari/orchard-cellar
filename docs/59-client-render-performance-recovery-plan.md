@@ -386,6 +386,14 @@ callers), `overworld-art.ts` `drawSprite`, `renderer.test.ts`.
 **Exit:** Basic `painterSort` + `painterDraw` p95 recorded; Basic target from
 §1 met or the gap explained.
 
+**2026-09-06 implementation amendment:** P6 also changes the authored-map
+sprite closure in `live-map-runtime.ts`, which is nested under the same painter
+item and otherwise adds a second native state pair. The reviewed source-shape
+digest in `phase-zero-extraction.test.ts` is deliberately recaptured for that
+change; its independent package-ownership assertions remain unchanged. Legacy
+queue producers retain an adapter into numeric identities so their established
+lexical tie order and exact fractional foot-depth order remain stable.
+
 ### P7 — Frame pacing and HUD caching
 
 **Files:** `loop.ts`, `overworld-main.ts` uiDraw stage (≈6179–6690),

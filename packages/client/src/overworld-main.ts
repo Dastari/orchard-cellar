@@ -1,3 +1,4 @@
+import { drawLandmarkTransform, drawWildlifeHitFlash } from './gameplay-painter-effects.js';
 import { createGameplayPainter, sortGameplayWorldDepthItems } from './gameplay-painter.js';
 import { createGameplayRenderer, gameplayDisplaySnapshot } from './gameplay-renderer.js';
 import { selectedLightEquipRequest } from './selected-item-use.js';
@@ -4475,14 +4476,7 @@ function renderFrame(alpha = 1): void {
           }
           const screenX = Math.round((decorationX - cameraX) * scale);
           const screenY = Math.round((decorationY - cameraY) * scale);
-          context.save();
-          context.translate(screenX, screenY);
-          context.rotate(landmark.quarterTurns * Math.PI / 2);
-          const landmarkScale = landmark.scale ?? 1;
-          context.scale(landmark.flipX ? -landmarkScale : landmarkScale, landmarkScale);
-          context.translate(-screenX, -screenY);
-          drawRawDecoration();
-          context.restore();
+          drawLandmarkTransform(context, landmark, screenX, screenY, drawRawDecoration);
         };
         if (lightingModel !== 'unified' && (survivalDecorationBlocksTraversal(decoration.kind, 'ground')
           && decoration.kind !== 'camp_pond' && !isLightEmitterKind(decoration.kind))) {
@@ -5141,10 +5135,7 @@ function renderFrame(alpha = 1): void {
       { kind: 'npc', id: npc.id }, visualBounds, x, y, npcTargetDimensions(species),
     ), x, y));
     const drawWildlifeActor = (): void => {
-      if (hitAge < NPC_HIT_FLASH_MS && !reducedMotionPreference.matches) {
-        context.save();
-        context.filter = 'brightness(2.15) saturate(0.25)';
-      }
+      drawWildlifeHitFlash(context, () => hitAge < NPC_HIT_FLASH_MS && !reducedMotionPreference.matches, () => {
       if (species === 'horse') drawOverworldHorse(
         context, art, x, y, facing, moving, animationFrame,
         cameraX, cameraY, scale, false, undefined, profile?.variant ?? 0, npc.wanderDirection,
@@ -5153,7 +5144,7 @@ function renderFrame(alpha = 1): void {
         context, art, species, profile?.variant ?? 0, npc.wanderDirection,
         x, y, facing, moving, animationFrame, cameraX, cameraY, scale, inWater,
       );
-      if (hitAge < NPC_HIT_FLASH_MS && !reducedMotionPreference.matches) context.restore();
+      });
     };
     enqueueWorldDepth(x, y, {
       footY: y,
