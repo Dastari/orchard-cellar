@@ -2,7 +2,9 @@
 
 ## Review state
 
+PR: https://github.com/Dastari/orchard-cellar/pull/4 (open, not merged).
 Branch: `fix/harvest-barrel-progression`, based on upstream main `3509eddd`.
+Implementation commit: `9274cecf`.
 Worktree: `/home/toby/projects/orchard-cellar-harvest-audit`.
 Read [the audit/spec](harvest-cellar-audit.md), [the gameplay contract](35-homesteads-and-farming.md#harvestcellar-repair-contract-070)
 and the 0.7.0 changelog before release review. No gameplay deployment or live
@@ -45,6 +47,16 @@ guard; no Studio deployment is part of this repair.
 
 ## Validation
 
-Final test results are recorded in the pull request. Local art provenance tests
+- Full suite without instrumentation: 4,640 tests / 825 files passed.
+- Final label sizing and updated content fixtures: 14 tests / 3 files passed.
+- Type-checking, lint, lifecycle integrity, content/assets validation, world
+  build and production client build passed.
+- Coverage is not clean: the existing wildlife colony fixture exceeds its
+  explicit 30-second limit under V8 instrumentation (it passes without coverage).
+  The long-running coverage process also loaded a stale content-hash fixture
+  while the final label change was being made; a fresh focused run passed.
+  See the PR for the final coverage invocation result and CI status.
+
+Local art provenance tests
 use the existing ignored licensed `references` directory from the original
 checkout through an uncommitted worktree symlink. It is not a source change.
