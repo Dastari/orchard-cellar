@@ -180,6 +180,7 @@ export interface OverworldView {
   readonly portals: ReadonlyKeyedStore<number, SpacePortal>;
   readonly homesteads: ReadonlyKeyedStore<number, Homestead>;
   readonly homesteadUpgrades: ReadonlyKeyedStore<string, HomesteadUpgrade>;
+  readonly activeFarmUpgrades?: ReadonlyKeyedStore<string, HomesteadUpgrade>;
   readonly homesteadMembers: ReadonlyKeyedStore<string, HomesteadGuest>;
   readonly cellarExcavations: ReadonlyKeyedStore<string, CellarExcavation>;
   readonly surfaces: ReadonlyKeyedStore<bigint, WorldSurface>;
@@ -214,6 +215,7 @@ export interface OverworldView {
   readonly combatState?: PlayerCombatState | null;
   readonly equipmentSkillPriority?: readonly string[];
   readonly skillNodes: ReadonlyKeyedStore<string, PlayerSkillNode>;
+  readonly activeFarmSkillNodes?: ReadonlyKeyedStore<string, PlayerSkillNode>;
   readonly questWorldItems: ReadonlyKeyedStore<string, QuestWorldItem>;
   readonly thought: PlayerThought | null;
   readonly rogueRun: RogueRun | null;
@@ -243,6 +245,7 @@ export interface OverworldSnapshot {
   readonly portals: readonly SpacePortal[];
   readonly homesteads: readonly Homestead[];
   readonly homesteadUpgrades: readonly HomesteadUpgrade[];
+  readonly activeFarmUpgrades?: readonly HomesteadUpgrade[];
   readonly homesteadMembers: readonly HomesteadGuest[];
   readonly cellarExcavations: readonly CellarExcavation[];
   readonly surfaces: readonly WorldSurface[];
@@ -261,6 +264,7 @@ export interface OverworldSnapshot {
   readonly combatState?: PlayerCombatState | null;
   readonly equipmentSkillPriority?: readonly string[];
   readonly skillNodes: readonly PlayerSkillNode[];
+  readonly activeFarmSkillNodes?: readonly PlayerSkillNode[];
   readonly questWorldItems: readonly QuestWorldItem[]; readonly thought: PlayerThought | null;
   readonly rogueRun: RogueRun | null; readonly rogueRoomExits: readonly RogueRoomExit[];
   readonly rogueRewardOffers: readonly RogueRewardOffer[]; readonly rogueRunUpgrades: readonly RogueRunUpgrade[];
@@ -426,6 +430,7 @@ export class OverworldConnection {
   private readonly hives = new KeyedStore<bigint, WorldHive>();
   private readonly portals = new KeyedStore<number, SpacePortal>();
   private readonly homesteads = new KeyedStore<number, Homestead>();
+  private readonly activeFarmUpgrades = new KeyedStore<string, HomesteadUpgrade>();
   private readonly homesteadUpgrades = new KeyedStore<string, HomesteadUpgrade>();
   private readonly homesteadMembers = new KeyedStore<string, HomesteadGuest>();
   private readonly cellarExcavations = new KeyedStore<string, CellarExcavation>();
@@ -462,6 +467,7 @@ export class OverworldConnection {
   private combatState: PlayerCombatState | null = null;
   private defenseSequence = 0n;
   private equipmentSkillPriority: readonly string[] = [];
+  private readonly activeFarmSkillNodes = new KeyedStore<string, PlayerSkillNode>();
   private readonly skillNodes = new KeyedStore<string, PlayerSkillNode>();
   private readonly questWorldItems = new KeyedStore<string, QuestWorldItem>();
   private thought: PlayerThought | null = null;
@@ -651,7 +657,7 @@ export class OverworldConnection {
     this.predictionState = null; this.playerJumps.clear(); this.fishingCasts.clear();
     this.sessionChatNotices.clear(); this.operationalChatNotices.clear(); this.inventoryCursor = null; this.knownRecipes.clear();
     this.fishingCast = null;
-    this.homesteadUpgrades.clear();
+    this.activeFarmUpgrades.clear(); this.homesteadUpgrades.clear();
     this.homesteadMembers.clear();
     this.rogueRun = null; this.rogueRoomExits.clear(); this.rogueRewardOffers.clear();
     this.rogueRunUpgrades.clear(); this.outdoorRewards.clear(); this.outdoorRewardsRevision++; this.outdoorEnemyProfiles.clear(); this.rogueEnemyProfiles.clear(); this.enemyAttacks.clear();
@@ -681,7 +687,7 @@ export class OverworldConnection {
     this.profiles.clear(); this.appearances.clear(); this.portals.clear(); this.homesteads.clear();
     this.inventorySlots.clear(); this.effects.clear(); this.openChestSlots.clear(); this.openPlaceableSlots.clear();
     this.chatChannels.clear(); this.chatMessages.clear(); this.quests.clear(); this.questBaselines.clear();
-    this.playerStatistics.clear(); this.skillTracks.clear(); this.skillNodes.clear(); this.equipmentSkillPriority=[]; this.combatState=null; this.questWorldItems.clear();
+    this.playerStatistics.clear(); this.skillTracks.clear(); this.skillNodes.clear(); this.activeFarmSkillNodes.clear(); this.equipmentSkillPriority=[]; this.combatState=null; this.questWorldItems.clear();
     this.positionCommits.drain(() => undefined); this.npcCommits.drain(() => undefined); this.projectileCommits.drain(() => undefined);
     this.deletedPositionIds.clear(); this.deletedNpcIds.clear(); this.deletedProjectileIds.clear();
     this.lastProjectileAuthorityTicks.clear();
@@ -696,7 +702,7 @@ export class OverworldConnection {
       content: this.content.state,
       profiles: this.profiles, appearances: this.appearances, players: this.visiblePlayers, playerJumps: this.playerJumps, fishingCasts: this.fishingCasts,
       resources: this.resources, soil: this.soil, crops: this.crops, worldItems: this.worldItems, projectiles: this.projectiles, combatTargets: this.combatTargets, chests: this.chests, placeables: this.placeables, campfires: this.campfires, npcs: this.npcs, merchants: this.merchants,
-      wildlifeProfiles: this.wildlifeProfiles, outdoorEnemyProfiles:this.outdoorEnemyProfiles,outdoorRewards:this.outdoorRewards,outdoorRewardsRevision:this.outdoorRewardsRevision,rogueEnemyProfiles: this.rogueEnemyProfiles, enemyAttacks:this.enemyAttacks, hives: this.hives, portals: this.portals, homesteads: this.homesteads, homesteadUpgrades: this.homesteadUpgrades, homesteadMembers: this.homesteadMembers, cellarExcavations: this.cellarExcavations, surfaces: this.surfaces, inventorySlots: this.inventorySlots, knownRecipes: this.knownRecipes, inventoryCursor: this.inventoryCursor, effects: this.effects,
+      wildlifeProfiles: this.wildlifeProfiles, outdoorEnemyProfiles:this.outdoorEnemyProfiles,outdoorRewards:this.outdoorRewards,outdoorRewardsRevision:this.outdoorRewardsRevision,rogueEnemyProfiles: this.rogueEnemyProfiles, enemyAttacks:this.enemyAttacks, hives: this.hives, portals: this.portals, homesteads: this.homesteads, homesteadUpgrades: this.homesteadUpgrades, activeFarmUpgrades: this.activeFarmUpgrades, homesteadMembers: this.homesteadMembers, cellarExcavations: this.cellarExcavations, surfaces: this.surfaces, inventorySlots: this.inventorySlots, knownRecipes: this.knownRecipes, inventoryCursor: this.inventoryCursor, effects: this.effects,
       openChestSlots: this.openChestSlots,
       villageOrders:this.villageOrders,
       hearthStashOpen:this.hearthStashOpen,hearthStashSlots:this.hearthStashSlots,
@@ -706,7 +712,7 @@ export class OverworldConnection {
       activeDialogue: this.activeDialogue, wallet: this.wallet,
       tradeSession: this.tradeSession, tradeOffers: this.tradeOffers,
       quests: this.quests, questBaselines: this.questBaselines, playerStatistics: this.playerStatistics,
-      combatState:this.combatState, equipmentSkillPriority:this.equipmentSkillPriority, skillTracks: this.skillTracks, skillNodes: this.skillNodes, questWorldItems: this.questWorldItems, thought: this.thought,
+      combatState:this.combatState, equipmentSkillPriority:this.equipmentSkillPriority, skillTracks: this.skillTracks, skillNodes: this.skillNodes, activeFarmSkillNodes: this.activeFarmSkillNodes, questWorldItems: this.questWorldItems, thought: this.thought,
       rogueRun: this.rogueRun, rogueRoomExits: this.rogueRoomExits,
       rogueRewardOffers: this.rogueRewardOffers, rogueRunUpgrades: this.rogueRunUpgrades,
       liveMapDocument: this.liveMapDocument,
@@ -719,7 +725,7 @@ export class OverworldConnection {
     const view = this.view();
     return { ...view, profiles: this.profiles.toArray(), appearances: this.appearances.toArray(),
       players: this.visiblePlayers.toArray(), playerJumps: this.playerJumps.toArray(), fishingCasts: this.fishingCasts.toArray(), resources: this.resources.toArray(), soil: this.soil.toArray(), crops: this.crops.toArray(), worldItems: this.worldItems.toArray(), projectiles: this.projectiles.toArray(), combatTargets: this.combatTargets.toArray(), chests: this.chests.toArray(), placeables: this.placeables.toArray(), campfires: this.campfires.toArray(), npcs: this.npcs.toArray(), merchants: this.merchants.toArray(),
-      wildlifeProfiles: this.wildlifeProfiles.toArray(), outdoorEnemyProfiles:this.outdoorEnemyProfiles.toArray(),outdoorRewards:this.outdoorRewards.toArray(),outdoorRewardsRevision:this.outdoorRewardsRevision,rogueEnemyProfiles: this.rogueEnemyProfiles.toArray(), enemyAttacks:this.enemyAttacks.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(), homesteads: this.homesteads.toArray(), homesteadUpgrades: this.homesteadUpgrades.toArray(), homesteadMembers: this.homesteadMembers.toArray(), cellarExcavations: this.cellarExcavations.toArray(), surfaces: this.surfaces.toArray(),
+      wildlifeProfiles: this.wildlifeProfiles.toArray(), outdoorEnemyProfiles:this.outdoorEnemyProfiles.toArray(),outdoorRewards:this.outdoorRewards.toArray(),outdoorRewardsRevision:this.outdoorRewardsRevision,rogueEnemyProfiles: this.rogueEnemyProfiles.toArray(), enemyAttacks:this.enemyAttacks.toArray(), hives: this.hives.toArray(), portals: this.portals.toArray(), homesteads: this.homesteads.toArray(), homesteadUpgrades: this.homesteadUpgrades.toArray(), activeFarmUpgrades: this.activeFarmUpgrades.toArray(), homesteadMembers: this.homesteadMembers.toArray(), cellarExcavations: this.cellarExcavations.toArray(), surfaces: this.surfaces.toArray(),
       inventorySlots: this.inventorySlots.toArray().sort((left, right) => left.slot - right.slot),
       knownRecipes: this.knownRecipes.toArray().sort((left, right) => left.recipeId.localeCompare(right.recipeId)),
       effects: this.effects.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
@@ -733,7 +739,7 @@ export class OverworldConnection {
       operationalChatNotices: this.operationalChatNotices.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       worldSpeech: this.worldSpeech.toArray().sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
       quests: this.quests.toArray(), questBaselines: this.questBaselines.toArray(),
-      combatState:this.combatState, equipmentSkillPriority:this.equipmentSkillPriority, playerStatistics: this.playerStatistics.toArray(), skillTracks: this.skillTracks.toArray(), skillNodes: this.skillNodes.toArray(),
+      combatState:this.combatState, equipmentSkillPriority:this.equipmentSkillPriority, playerStatistics: this.playerStatistics.toArray(), skillTracks: this.skillTracks.toArray(), skillNodes: this.skillNodes.toArray(), activeFarmSkillNodes: this.activeFarmSkillNodes.toArray(),
       questWorldItems: this.questWorldItems.toArray(), thought: this.thought,
       rogueRoomExits: this.rogueRoomExits.toArray().sort((left, right) => left.slot - right.slot),
       rogueRewardOffers: this.rogueRewardOffers.toArray().sort((left, right) => left.slot - right.slot),
@@ -1329,12 +1335,14 @@ export class OverworldConnection {
       tables.ownOutdoorRewards,
       tables.ownPlayerSkillTracks,
       tables.ownPlayerSkillNodes,
+      tables.activeFarmSkillNodes,
       tables.ownQuestWorldItems,
       tables.ownPlayerThought,
       tables.ownCharacterProfile,
       tables.ownMembership,
       tables.ownCurrentHomestead,
       tables.ownHomesteadUpgrades,
+      tables.activeFarmUpgrades,
       tables.ownHomesteadMembers,
       tables.ownConnectionNotices,
       tables.ownSessionChatNotices,
@@ -1760,6 +1768,9 @@ export class OverworldConnection {
     connection.db.ownHomesteadUpgrades.onInsert((context, row) => incoming(context.event.id, () => this.homesteadUpgrades.set(row.id, row)));
     connection.db.ownHomesteadUpgrades.onUpdate((context, _old, row) => incoming(context.event.id, () => this.homesteadUpgrades.set(row.id, row)));
     connection.db.ownHomesteadUpgrades.onDelete((context, row) => incoming(context.event.id, () => this.homesteadUpgrades.delete(row.id)));
+    connection.db.activeFarmUpgrades.onInsert((context, row) => incoming(context.event.id, () => this.activeFarmUpgrades.set(row.id, row)));
+    connection.db.activeFarmUpgrades.onUpdate((context, _old, row) => incoming(context.event.id, () => this.activeFarmUpgrades.set(row.id, row)));
+    connection.db.activeFarmUpgrades.onDelete((context, row) => incoming(context.event.id, () => this.activeFarmUpgrades.delete(row.id)));
     connection.db.ownHomesteadMembers.onInsert((context, row) => incoming(context.event.id, () => this.homesteadMembers.set(row.id, row)));
     connection.db.ownHomesteadMembers.onUpdate((context, _old, row) => incoming(context.event.id, () => this.homesteadMembers.set(row.id, row)));
     connection.db.ownHomesteadMembers.onDelete((context, row) => incoming(context.event.id, () => this.homesteadMembers.delete(row.id)));
@@ -1847,6 +1858,9 @@ export class OverworldConnection {
     connection.db.ownPlayerSkillTracks.onInsert((context, row) => incoming(context.event.id, () => this.skillTracks.set(row.id, row)));
     connection.db.ownPlayerSkillTracks.onUpdate((context, _old, row) => incoming(context.event.id, () => this.skillTracks.set(row.id, row)));
     connection.db.ownPlayerSkillTracks.onDelete((context, row) => incoming(context.event.id, () => this.skillTracks.delete(row.id)));
+    connection.db.activeFarmSkillNodes.onInsert((context, row) => incoming(context.event.id, () => this.activeFarmSkillNodes.set(row.id, row)));
+    connection.db.activeFarmSkillNodes.onUpdate((context, _old, row) => incoming(context.event.id, () => this.activeFarmSkillNodes.set(row.id, row)));
+    connection.db.activeFarmSkillNodes.onDelete((context, row) => incoming(context.event.id, () => this.activeFarmSkillNodes.delete(row.id)));
     connection.db.ownPlayerSkillNodes.onInsert((context, row) => incoming(context.event.id, () => {
       this.skillNodes.set(row.id, row);
       const position = this.ownPosition();
@@ -2092,8 +2106,9 @@ export class OverworldConnection {
     this.activeDialogue = [...connection.db.ownActiveDialogue.iter()][0] ?? null;
     const currentHomestead = [...connection.db.ownCurrentHomestead.iter()][0];
     if (currentHomestead !== undefined) this.homesteads.set(currentHomestead.spaceId, currentHomestead);
-    this.homesteadUpgrades.clear();
+    this.activeFarmUpgrades.clear(); this.homesteadUpgrades.clear();
     for (const row of connection.db.ownHomesteadUpgrades.iter()) this.homesteadUpgrades.set(row.id, row);
+    for (const row of connection.db.activeFarmUpgrades.iter()) this.activeFarmUpgrades.set(row.id, row);
     this.homesteadMembers.clear();
     for (const row of connection.db.ownHomesteadMembers.iter()) this.homesteadMembers.set(row.id, row);
     this.quests.clear(); for (const row of connection.db.ownPlayerQuests.iter()) this.quests.set(row.id, row);
@@ -2103,6 +2118,7 @@ export class OverworldConnection {
     this.combatState=[...connection.db.ownCombatState.iter()][0]??null;
     this.equipmentSkillPriority=[...connection.db.ownEquipmentPreferences.iter()][0]?.skillPriority??[];
     this.skillTracks.clear(); for (const row of connection.db.ownPlayerSkillTracks.iter()) this.skillTracks.set(row.id, row);
+    this.activeFarmSkillNodes.clear(); for (const row of connection.db.activeFarmSkillNodes.iter()) this.activeFarmSkillNodes.set(row.id, row);
     this.skillNodes.clear(); for (const row of connection.db.ownPlayerSkillNodes.iter()) this.skillNodes.set(row.id, row);
     this.questWorldItems.clear(); for (const row of connection.db.ownQuestWorldItems.iter()) this.questWorldItems.set(row.id, row);
     this.thought = [...connection.db.ownPlayerThought.iter()][0] ?? null;

@@ -2180,6 +2180,9 @@ describe('overworld inventory and system menu', () => {
     expect(handlers.craftInventoryRecipe).not.toHaveBeenCalled();
     ui.update({ ...model, skills: { nodes: [], tracks: [], ranks: [{ nodeId: 'greenhouse_charter', rank: 1 }], balanceBronze: 0n } });
     ui.pointerDown(point, 0, {});
+    expect(handlers.craftInventoryRecipe).not.toHaveBeenCalled();
+    ui.update({ ...model, skills: { nodes: [], tracks: [], ranks: ['farmcraft', 'barreling', 'greenhouse_charter'].map(nodeId => ({ nodeId, rank: 1 })), balanceBronze: 0n } });
+    ui.pointerDown(point, 0, {});
     expect(handlers.craftInventoryRecipe).toHaveBeenCalledWith('planks', false);
   });
 

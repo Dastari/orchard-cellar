@@ -24,6 +24,12 @@ export const ActiveDialogue = __t.object("ActiveDialogue", {
 });
 export type ActiveDialogue = __Infer<typeof ActiveDialogue>;
 
+export const ActiveFarmSkillNodes = __t.object("ActiveFarmSkillNodes", {});
+export type ActiveFarmSkillNodes = __Infer<typeof ActiveFarmSkillNodes>;
+
+export const ActiveFarmUpgrades = __t.object("ActiveFarmUpgrades", {});
+export type ActiveFarmUpgrades = __Infer<typeof ActiveFarmUpgrades>;
+
 export const ActiveFishingCasts = __t.object("ActiveFishingCasts", {});
 export type ActiveFishingCasts = __Infer<typeof ActiveFishingCasts>;
 

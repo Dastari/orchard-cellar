@@ -1,5 +1,6 @@
 import {
   barrelCellarBatchCapacity,
+  farmingBarrelTicks,
   barrelCellarCureTicks,
   estateVintageTier,
   processTopologyForObject,
@@ -65,6 +66,7 @@ export interface ProcessorBehaviourDependencies {
     authorityTick: bigint,
     context?: string,
   ) => void;
+  readonly barrelingRank?: (ctx: WorldReducerContext, spaceId: number) => number;
   readonly homesteadUpgradeRank: (
     ctx: WorldReducerContext,
     spaceId: number,
@@ -150,7 +152,8 @@ function processorOptions(
     const rank = dependencies.homesteadUpgradeRank(ctx, placeable.spaceId, 'barrel');
     return {
       ...shared,
-      ticksPerUnit: barrelCellarCureTicks(BigInt(authoredTicks), rank),
+      ticksPerUnit: farmingBarrelTicks(barrelCellarCureTicks(BigInt(authoredTicks), rank),
+        dependencies.barrelingRank?.(ctx, placeable.spaceId) ?? 0),
       ...(component.minimumBatch === undefined ? {} : { minimumBatch: component.minimumBatch }),
       maximumBatch: barrelCellarBatchCapacity(component.maximumBatch ?? component.catchUpCap, rank),
     };
@@ -164,11 +167,11 @@ function processorOptions(
       ? null : runtimeItemEconomy(dependencies.contentRegistry(ctx), outputKind);
     return {
       ...shared,
-      ticksPerUnit: estateVintageTier(
+      ticksPerUnit: farmingBarrelTicks(estateVintageTier(
         dependencies.homesteadUpgradeRank(ctx, placeable.spaceId, 'vintage'),
         BigInt(authoredTicks),
         bottleEconomy?.sellPriceBronze ?? 0,
-      ).agingTicks,
+      ).agingTicks, dependencies.barrelingRank?.(ctx, placeable.spaceId) ?? 0),
     };
   }
   return shared;
@@ -225,7 +228,9 @@ export function settleProcessorPlaceableBehaviour(
       ? null
       : dependencies.storedStack(ctx, row.itemKind, row.quantity, row.durability, row.lit);
   });
-  const inputKind = before[topology.inputSlots[0]!]?.itemKind;
+  const inputKind = (adapter === 'barrel'
+    ? topology.inputSlots.map(slot => before[slot]).find(stack => stack != null)
+    : before[topology.inputSlots[0]!])?.itemKind;
   const settled = settleProcess(definitions, adapter, {
     slots: before,
     startTick: startTickFor(placeable, adapter),

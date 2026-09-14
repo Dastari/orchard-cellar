@@ -659,14 +659,18 @@
         ],
         "maxRank": 5,
         "pointCost": 1,
-        "specialization": "farming"
+        "specialization": "farming",
+        "implemented": true,
+        "capabilities": [
+          "farming_green_thumb"
+        ]
       },
       {
         "id": "tender_hand",
         "iconAsset": "icon_skill_tender_hand",
         "track": "farming",
         "name": "Tender Hand",
-        "description": "Watering remains effective longer per rank.",
+        "description": "Watering remains effective 25% longer per rank.",
         "position": [
           -190,
           -60
@@ -678,7 +682,14 @@
         ],
         "maxRank": 3,
         "pointCost": 1,
-        "specialization": "farming"
+        "specialization": "farming",
+        "implemented": true,
+        "prerequisites": [
+          "farmcraft"
+        ],
+        "capabilities": [
+          "farming_tender_hand"
+        ]
       },
       {
         "gearBoostable": true,
@@ -715,7 +726,7 @@
         "iconAsset": "icon_skill_seed_saver",
         "track": "farming",
         "name": "Seed Saver",
-        "description": "Harvested crops sometimes return extra seed.",
+        "description": "Harvests have a 10% chance per rank to return one seed.",
         "position": [
           -420,
           -60
@@ -727,14 +738,21 @@
         "maxRank": 3,
         "pointCost": 1,
         "requiresLevel": 3,
-        "specialization": "farming"
+        "specialization": "farming",
+        "implemented": true,
+        "prerequisites": [
+          "green_thumb"
+        ],
+        "capabilities": [
+          "farming_seed_saver"
+        ]
       },
       {
         "id": "bountiful_harvest",
         "iconAsset": "icon_skill_bountiful_harvest",
         "track": "farming",
         "name": "Bountiful Harvest",
-        "description": "Occasionally gather an extra crop bundle.",
+        "description": "Harvests have a 10% chance per rank to yield an extra crop bundle.",
         "position": [
           -300,
           -40
@@ -746,14 +764,21 @@
         "maxRank": 3,
         "pointCost": 1,
         "requiresLevel": 4,
-        "specialization": "farming"
+        "specialization": "farming",
+        "implemented": true,
+        "prerequisites": [
+          "green_thumb"
+        ],
+        "capabilities": [
+          "farming_bountiful_harvest"
+        ]
       },
       {
         "id": "soil_whisperer",
         "iconAsset": "icon_skill_soil_whisperer",
         "track": "farming",
         "name": "Soil Whisperer",
-        "description": "Read soil moisture and crop needs at a glance.",
+        "description": "Inspect exact crop growth and remaining soil moisture.",
         "position": [
           -250,
           70
@@ -765,7 +790,14 @@
         "maxRank": 1,
         "pointCost": 2,
         "requiresLevel": 4,
-        "specialization": "farming"
+        "specialization": "farming",
+        "implemented": true,
+        "prerequisites": [
+          "tender_hand"
+        ],
+        "capabilities": [
+          "farming_soil_whisperer"
+        ]
       },
       {
         "id": "grafting",
@@ -791,7 +823,7 @@
         "iconAsset": "icon_skill_barreling",
         "track": "farming",
         "name": "Barreling",
-        "description": "Master crop curing and preserving in farm barrels.",
+        "description": "Preserving and fermentation run 20% faster on your estate.",
         "position": [
           -70,
           -60
@@ -803,14 +835,21 @@
         "maxRank": 1,
         "pointCost": 2,
         "requiresLevel": 5,
-        "specialization": "farming"
+        "specialization": "farming",
+        "implemented": true,
+        "prerequisites": [
+          "farmcraft"
+        ],
+        "capabilities": [
+          "farming_barreling"
+        ]
       },
       {
         "id": "sprinkler_engineering",
         "iconAsset": "icon_skill_sprinkler_engineering",
         "track": "farming",
         "name": "Sprinkler Engineering",
-        "description": "Unlock purchase and placement of farm sprinklers.",
+        "description": "Unlock purchase of farm sprinklers, which automatically water nearby crops.",
         "position": [
           -390,
           180
@@ -822,7 +861,11 @@
         "maxRank": 1,
         "pointCost": 3,
         "requiresLevel": 10,
-        "specialization": "farming"
+        "specialization": "farming",
+        "implemented": true,
+        "prerequisites": [
+          "bountiful_harvest"
+        ]
       },
       {
         "id": "greenhouse_charter",
@@ -842,14 +885,18 @@
         "maxRank": 1,
         "pointCost": 3,
         "requiresLevel": 10,
-        "specialization": "farming"
+        "specialization": "farming",
+        "implemented": true,
+        "prerequisites": [
+          "barreling"
+        ]
       },
       {
         "id": "master_grower",
         "iconAsset": "icon_skill_master_grower",
         "track": "farming",
         "name": "Master Grower",
-        "description": "Reduce poor-weather and out-of-season growth penalties.",
+        "description": "Your crops grow through the dormant season.",
         "position": [
           -260,
           190
@@ -862,14 +909,22 @@
         "maxRank": 1,
         "pointCost": 3,
         "requiresLevel": 10,
-        "specialization": "farming"
+        "specialization": "farming",
+        "implemented": true,
+        "prerequisites": [
+          "seed_saver",
+          "soil_whisperer"
+        ],
+        "capabilities": [
+          "farming_master_grower"
+        ]
       },
       {
         "id": "harvest_festival",
         "iconAsset": "icon_skill_harvest_festival",
         "track": "farming",
         "name": "Harvest Festival",
-        "description": "The first harvest of each day gains a major yield bonus.",
+        "description": "Double the yield of your first successful crop harvest each game day.",
         "position": [
           -230,
           310
@@ -881,7 +936,16 @@
         ],
         "maxRank": 1,
         "pointCost": 4,
-        "requiresLevel": 15
+        "requiresLevel": 15,
+        "implemented": true,
+        "prerequisites": [
+          "sprinkler_engineering",
+          "greenhouse_charter",
+          "master_grower"
+        ],
+        "capabilities": [
+          "farming_harvest_festival"
+        ]
       },
       {
         "gearBoostable": true,

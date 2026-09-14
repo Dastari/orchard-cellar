@@ -26,6 +26,7 @@ export interface CropDefinition {
   readonly harvestSellPriceBronze: number;
   /** Quest crops may explicitly ignore the ordinary winter dormancy window. */
   readonly seasonless?: boolean;
+  readonly wateringTicks?: bigint;
   readonly tags?: readonly string[];
 }
 
@@ -139,7 +140,7 @@ export function cropGrowthAt(
   const growthStart = automaticallyWatered
     ? growthUpdatedAtTick
     : growthUpdatedAtTick > wateredAtTick ? growthUpdatedAtTick : wateredAtTick;
-  const wateredUntil = wateredAtTick + CROP_WATERING_TICKS;
+  const wateredUntil = wateredAtTick + (definition.wateringTicks ?? CROP_WATERING_TICKS);
   const growthEnd = automaticallyWatered
     ? currentTick
     : currentTick < wateredUntil ? currentTick : wateredUntil;
@@ -164,10 +165,10 @@ export function cropGrowthAt(
     stage: Math.min(CROP_STAGE_COUNT - 1, Math.floor(progress * CROP_STAGE_COUNT)),
     mature: remainingTicks === 0n,
     watered: automaticallyWatered || (hasBeenWatered
-      && currentTick >= wateredAtTick && currentTick < wateredAtTick + CROP_WATERING_TICKS),
+      && currentTick >= wateredAtTick && currentTick < wateredAtTick + (definition.wateringTicks ?? CROP_WATERING_TICKS)),
     wateredUntilTick: automaticallyWatered
-      ? currentTick + CROP_WATERING_TICKS
-      : wateredAtTick + CROP_WATERING_TICKS,
+      ? currentTick + (definition.wateringTicks ?? CROP_WATERING_TICKS)
+      : wateredAtTick + (definition.wateringTicks ?? CROP_WATERING_TICKS),
     inSeason: seasonProtected
       || (((currentTick + calendarOffsetTicks) > 0n ? currentTick + calendarOffsetTicks : 0n)
         % CROP_YEAR_TICKS) < CROP_ACTIVE_SEASON_TICKS,

@@ -217,6 +217,8 @@ import * as AdminTelemetryProcedure from "./admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "./admin_validate_world_procedure";
 
 // Import all table schema definitions
+import ActiveFarmSkillNodesRow from "./active_farm_skill_nodes_table";
+import ActiveFarmUpgradesRow from "./active_farm_upgrades_table";
 import ActiveFishingCastsRow from "./active_fishing_casts_table";
 import CellarExcavationRow from "./cellar_excavation_table";
 import ContentDefinitionRow from "./content_definition_table";
@@ -866,6 +868,20 @@ const tablesSchema = __schema({
       { name: 'world_wind_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldWindRow),
+  activeFarmSkillNodes: __table({
+    name: 'active_farm_skill_nodes',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, ActiveFarmSkillNodesRow),
+  activeFarmUpgrades: __table({
+    name: 'active_farm_upgrades',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, ActiveFarmUpgradesRow),
   activeFishingCasts: __table({
     name: 'active_fishing_casts',
     indexes: [

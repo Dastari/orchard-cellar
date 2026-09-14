@@ -123,6 +123,7 @@ describe('world rejoin snapshot normalization', () => {
   it('excludes only enumerated session surfaces and observer-effect statistics', () => {
     expect(OBSERVER_EFFECT_STATISTICS).toEqual(['connections_opened', 'world_entries', 'time_played']);
     expect(WORLD_REJOIN_EXCLUSIONS.map(({ accessor }) => accessor)).toEqual([
+      'activeFarmSkillNodes', 'activeFarmUpgrades',
       'connectionPresenceV2', 'playerPublic.online/lastActiveAtMicros',
       'contentHead.updatedAt', 'ownStats.regenTick',
       'ownConnectionNotices', 'ownSessionChatNotices',

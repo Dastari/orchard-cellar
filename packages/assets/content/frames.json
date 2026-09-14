@@ -3,7 +3,7 @@
     "id": "frame:barrel",
     "kind": "frame",
     "schemaVersion": 1,
-    "title": "BARREL",
+    "title": "PRESERVING BARREL",
     "style": "wood_parchment",
     "presentation": {
       "surface": "entity",
@@ -14,9 +14,11 @@
       {
         "id": "contents",
         "kind": "slots",
-        "label": "CONTENTS",
+        "label": "RAW CROPS (4+ OF ONE KIND)",
         "columns": 5,
         "rows": 2,
+        "alignment": "start",
+        "minWidth": 160,
         "bind": {
           "entitySlots": [
             0,
@@ -305,9 +307,11 @@
       {
         "id": "input",
         "kind": "slots",
-        "label": "MUST",
+        "label": "MUST (3 PER BOTTLE)",
         "columns": 1,
         "rows": 1,
+        "alignment": "start",
+        "minWidth": 120,
         "bind": {
           "entitySlots": [
             0

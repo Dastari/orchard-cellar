@@ -4,13 +4,13 @@ import { bootstrapContentRegistry } from './content/bootstrap-registry.js';
 import type { ContentRegistry } from './content/registry.js';
 import type { SkillNodeCapability } from './content/world-definition.js';
 
-function activeImplementedNodes(registry: ContentRegistry) {
+function activeImplementedNodes(registry: Pick<ContentRegistry, 'skillTrees'>) {
   return [...registry.skillTrees.values()].filter((tree) => tree.retired !== true)
     .flatMap((tree) => tree.nodes).filter((node) => node.implemented === true);
 }
 
 function validOwnedRanks(
-  registry: ContentRegistry,
+  registry: Pick<ContentRegistry, 'skillTrees'>,
   ranks: Readonly<Record<string, number>>,
 ): ReadonlyMap<string, number> {
   const nodes = activeImplementedNodes(registry);
@@ -25,7 +25,7 @@ function validOwnedRanks(
 /** Resolve one authored node reference such as a mount requirement while also
  * rejecting stale ranks whose active definition or prerequisite chain is gone. */
 export function runtimeSkillNodeRank(
-  registry: ContentRegistry,
+  registry: Pick<ContentRegistry, 'skillTrees'>,
   ranks: Readonly<Record<string, number>>,
   nodeId: string,
 ): number {
@@ -174,4 +174,37 @@ export function runtimeResourcePerception(
     }
   }
   return { buriedOreRadiusTiles, identifyBuriedOre, minimapOre, minimapFishing, minimapOreRadiusTiles, minimapFishingRadiusTiles };
+}
+
+export interface FarmingSkillEffects {
+  readonly greenThumb: number;
+  readonly seedSaver: number;
+  readonly bountifulHarvest: number;
+  readonly tenderHand: number;
+  readonly masterGrower: boolean;
+  readonly barreling: number;
+  readonly harvestFestival: boolean;
+  readonly soilWhisperer: boolean;
+}
+
+/** Farming capabilities follow authored metadata, including renamed nodes. */
+export function farmingSkillEffects(
+  registry: ContentRegistry, ranks: Readonly<Record<string, number>>,
+): FarmingSkillEffects {
+  const owned = validOwnedRanks(registry, ranks);
+  const capabilities = new Map<SkillNodeCapability, number>();
+  for (const node of activeImplementedNodes(registry)) {
+    const rank = owned.get(node.id) ?? 0;
+    for (const capability of node.capabilities ?? []) {
+      capabilities.set(capability, Math.max(capabilities.get(capability) ?? 0, rank));
+    }
+  }
+  const rank = (key: SkillNodeCapability) => capabilities.get(key) ?? 0;
+  return {
+    greenThumb: rank('farming_green_thumb'), seedSaver: rank('farming_seed_saver'),
+    bountifulHarvest: rank('farming_bountiful_harvest'), tenderHand: rank('farming_tender_hand'),
+    masterGrower: rank('farming_master_grower') > 0, barreling: rank('farming_barreling'),
+    harvestFestival: rank('farming_harvest_festival') > 0,
+    soilWhisperer: rank('farming_soil_whisperer') > 0,
+  };
 }

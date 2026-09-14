@@ -86,3 +86,18 @@ describe('frame restriction resolver', () => {
     }
   });
 });
+
+
+it('distinguishes Nado-style preserving barrels from casks and keeps cask output extraction safe', () => {
+  const content = itemContainerContentResolver(registry);
+  const barrel = { id: 'barrel', capacity: 8, slots: Array(8).fill(null), restrictions: frameRestrictions(frame('barrel'), registry) };
+  const cask = { id: 'cask', capacity: 2, slots: [null, null], restrictions: frameRestrictions(frame('fermentation'), registry) };
+  expect(slotAcceptsItem(barrel, 0, 'must', content)).toBe(false);
+  expect(slotAcceptsItem(barrel, 0, 'grape', content)).toBe(true);
+  expect(slotAcceptsItem(cask, 0, 'must', content)).toBe(true);
+  expect(slotAcceptsItem(cask, 1, 'must', content)).toBe(false);
+  expect(frame('barrel').title).toBe('PRESERVING BARREL');
+  const loaded = { ...cask, slots: [null, { itemKind: 'bottles', quantity: 1 }] };
+  expect(clickContainerSlot({ cask: loaded }, null, { container: 'cask', index: 1, button: 'left' }, content))
+    .toMatchObject({ ok: true, cursor: { itemKind: 'bottles', quantity: 1 } });
+});

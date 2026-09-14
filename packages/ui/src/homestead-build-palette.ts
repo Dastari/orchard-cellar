@@ -64,10 +64,10 @@ export function homesteadBuildPaletteCells(bounds: UiRect, entryCount: number, t
   }));
 }
 
-export function homesteadUpgradePaletteCells(bounds: UiRect, model: Pick<HomesteadBuildPaletteModel, 'entries' | 'upgrades'>): readonly UiRect[] {
+export function homesteadUpgradePaletteCells(bounds: UiRect, model: Pick<HomesteadBuildPaletteModel, 'entries' | 'upgrades' | 'furnishing'>): readonly UiRect[] {
   return model.upgrades.map((_upgrade, index) => ({
     x: bounds.x + 12,
-    y: bounds.y + 44 + Math.ceil((model.entries.length + 1) / COLUMNS) * CELL_SIZE + index * 18,
+    y: bounds.y + 44 + Math.ceil((model.entries.length + (model.furnishing ? 4 : 1)) / COLUMNS) * CELL_SIZE + index * 18,
     width: bounds.width - 24,
     height: 16,
   }));

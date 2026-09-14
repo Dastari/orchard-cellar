@@ -1,3 +1,4 @@
+import { farmingSkillEffects, farmingCropDefinition, farmingBarrelTicks } from '@orchard/sim';
 import { hearthDangerNotice } from '@orchard/sim';
 import { runtimeQuestDefinition } from '@orchard/sim';
 import { runtimeWorldPolicyBalance } from '@orchard/sim';
@@ -974,25 +975,41 @@ let furnishingPaletteEntries: HomesteadBuildPaletteModel['entries'] = [];
 let homesteadPaletteUpgrades: HomesteadBuildPaletteModel['upgrades'] = [];
 
 function homesteadUpgradeRank(
-  snapshot: Pick<OverworldView, 'homesteadUpgrades' | 'content'>,
+  snapshot: Pick<OverworldView, 'homesteadUpgrades' | 'activeFarmUpgrades' | 'content'>,
   mechanic: HomesteadUpgradeMechanic,
 ): number {
   return runtimeHomesteadUpgradeRank(
-    snapshot.content.registry, [...snapshot.homesteadUpgrades], mechanic,
+    snapshot.content.registry, [...(snapshot.activeFarmUpgrades ?? snapshot.homesteadUpgrades)], mechanic,
   );
 }
 
+let estateSkillCache: {
+  registry: OverworldView['content']['registry'];
+  rows: readonly { readonly nodeId: string; readonly rank: number }[];
+  skills: ReturnType<typeof farmingSkillEffects>;
+} | undefined;
+function estateFarmingSkills(snapshot: Pick<OverworldView, 'content' | 'activeFarmSkillNodes'>) {
+  const rows = [...(snapshot.activeFarmSkillNodes ?? [])];
+  if (estateSkillCache?.registry === snapshot.content.registry
+    && rows.length === estateSkillCache.rows.length
+    && rows.every((row, index) => row === estateSkillCache!.rows[index])) return estateSkillCache.skills;
+  const skills = farmingSkillEffects(snapshot.content.registry,
+    Object.fromEntries(rows.map(row => [row.nodeId, row.rank])));
+  estateSkillCache = { registry: snapshot.content.registry, rows, skills };
+  return skills;
+}
+
 function cropDefinitionForSnapshot(
-  snapshot: Pick<OverworldView, 'homesteadUpgrades' | 'content'>,
+  snapshot: Pick<OverworldView, 'homesteadUpgrades' | 'activeFarmUpgrades' | 'content' | 'activeFarmSkillNodes'>,
   cropKind: string,
 ) {
   const definition = runtimeCropDefinition(snapshot.content.registry, cropKind);
   if (definition === null) return null;
   const rank = homesteadUpgradeRank(snapshot, 'soil');
-  return rank === 0 ? definition : {
+  return farmingCropDefinition(rank === 0 ? definition : {
     ...definition,
     growthTicks: richSoilGrowthTicks(definition.growthTicks, rank),
-  };
+  }, estateFarmingSkills(snapshot));
 }
 
 function cropAutomaticallyWateredForSnapshot(
@@ -2366,7 +2383,10 @@ function processorTiming(
   if (runtime === null) return null;
   const inputSlot = runtime.processor.slotRoles.input?.[0];
   const openInput = snapshot.activePlaceable?.id === placeable.id && inputSlot !== undefined
-    ? snapshot.openPlaceableSlots.get(inputSlot)?.itemKind
+    ? (runtime.adapter === 'barrel'
+      ? runtime.processor.slotRoles.input?.map(slot => snapshot.openPlaceableSlots.get(slot))
+        .find(row => row !== undefined && row.itemKind !== 'empty' && row.quantity > 0)
+      : snapshot.openPlaceableSlots.get(inputSlot))?.itemKind
     : undefined;
   const inputKind = openInput ?? (runtime.adapter === 'campfire_cooking'
     ? placeable.cookInputKind
@@ -2387,6 +2407,9 @@ function processorTiming(
     durationTicks = estateVintageTier(
       homesteadUpgradeRank(snapshot, 'vintage'), durationTicks, sellPrice,
     ).agingTicks;
+  }
+  if (runtime.adapter === 'barrel' || runtime.adapter === 'fermentation') {
+    durationTicks = farmingBarrelTicks(durationTicks, estateFarmingSkills(snapshot).barreling);
   }
   const startTick = runtime.adapter === 'smelting' ? placeable.smeltStartTick
     : runtime.adapter === 'campfire_cooking' ? placeable.cookStartTick
@@ -3444,9 +3467,10 @@ function targetOwnedHomesteadGate(snapshot: OverworldView): { readonly open: boo
 }
 
 function canUseHomesteadBuildMode(snapshot: OverworldView): boolean {
-  if (snapshot.identityHex === null || !['homestead', 'residence'].includes(activeSpaceDefinition.generator)) return false;
-  const home = activeSpaceDefinition.generator === 'residence'
-    ? [...snapshot.homesteads].find(home => home.residenceSpaceId === activeSpaceDefinition.spaceId)
+  if (snapshot.identityHex === null || !['homestead', 'residence', 'cellar'].includes(activeSpaceDefinition.generator)) return false;
+  const home = activeSpaceDefinition.generator !== 'homestead'
+    ? [...snapshot.homesteads].find(home => home.residenceSpaceId === activeSpaceDefinition.spaceId
+      || (home.residenceSpaceId !== undefined && home.residenceSpaceId + 1 === activeSpaceDefinition.spaceId))
     : snapshot.homesteads.get(activeSpaceDefinition.spaceId);
   if (home === undefined) return false;
   if (home.owner.toHexString() === snapshot.identityHex) return true;
@@ -4439,7 +4463,7 @@ function renderFrame(alpha = 1): void {
       ...authoredFarmerSoil,
       ...[...snapshot.soil].map((soil) => ({
         ...soil,
-        watered: soil.watered && renderAuthorityTick < soil.wateredAtTick + CROP_WATERING_TICKS,
+        watered: soil.watered && renderAuthorityTick < soil.wateredAtTick + CROP_WATERING_TICKS * BigInt(4 + Math.min(3, estateFarmingSkills(snapshot).tenderHand)) / 4n,
       })),
     ],
     cameraX,
@@ -4810,7 +4834,7 @@ function renderFrame(alpha = 1): void {
     seedSelected: liveItemDefinition(snapshot, farmItem)?.tags.includes('item.seed') === true,
     soilExists: farmSoil !== undefined,
     soilWatered: farmSoil !== undefined && farmSoil.watered
-      && renderAuthorityTick < farmSoil.wateredAtTick + CROP_WATERING_TICKS,
+      && renderAuthorityTick < farmSoil.wateredAtTick + CROP_WATERING_TICKS * BigInt(4 + Math.min(3, estateFarmingSkills(snapshot).tenderHand)) / 4n,
     cropName: farmCropDefinition?.displayName ?? null,
     cropMature: farmCropGrowth?.mature === true,
     cropWatered: farmCropGrowth?.watered === true,
@@ -4937,6 +4961,8 @@ function renderFrame(alpha = 1): void {
   const skillRanks = [...snapshot.skillNodes]
     .filter((row) => isSkillTrack(row.track))
     .map((row) => ({ nodeId: row.nodeId, rank: row.rank }));
+  const personalFarmingSkills = farmingSkillEffects(snapshot.content.registry,
+    Object.fromEntries(skillRanks.map(row => [row.nodeId, row.rank])));
   const skillCapabilities = runtimeSkillCapabilities(
     snapshot.content.registry,
     Object.fromEntries(skillRanks.map(({ nodeId, rank }) => [nodeId, rank])),
@@ -5180,8 +5206,8 @@ function renderFrame(alpha = 1): void {
     height: uiHeight,
     entries: activeSpaceDefinition.generator === 'residence'
       ? furnishingPaletteEntries
-      : homesteadPaletteEntries,
-    upgrades: activeSpaceDefinition.generator === 'residence' ? [] : homesteadPaletteUpgrades,
+      : activeSpaceDefinition.generator === 'cellar' ? [] : homesteadPaletteEntries,
+    upgrades: homesteadPaletteUpgrades,
     counts: [...snapshot.inventorySlots]
       .filter((row) => row.slot < EQUIPMENT_SLOT_OFFSET && row.itemKind !== 'empty' && row.quantity > 0)
       .reduce<Record<string, number>>((counts, row) => {
@@ -5189,7 +5215,7 @@ function renderFrame(alpha = 1): void {
         return counts;
       }, {}),
     upgradeRanks: Object.fromEntries(
-      [...snapshot.homesteadUpgrades].map((row) => [row.upgradeKind, row.rank]),
+      [...(snapshot.activeFarmUpgrades ?? snapshot.homesteadUpgrades)].map((row) => [row.upgradeKind, row.rank]),
     ),
     balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
   });
@@ -5228,7 +5254,7 @@ function renderFrame(alpha = 1): void {
           .find((process) => process.adapter === 'fermentation'
             && process.outputs.some(({ item }) => item === definition.id))?.ticksPerUnit ?? 0);
         return [definition.id.slice('item:'.length), estateVintageTier(
-          homesteadUpgradeRank(snapshot, 'vintage'), agingTicks, definition.economy.sell,
+          runtimeHomesteadUpgradeRank(snapshot.content.registry, [...snapshot.homesteadUpgrades], 'vintage'), agingTicks, definition.economy.sell,
         ).sellPriceBronze];
       })),
     quests: [...snapshot.quests],
@@ -5376,11 +5402,14 @@ function renderFrame(alpha = 1): void {
         cropGreenhouseProtectedForSnapshot(snapshot, hoveredCrop.spaceId),
       );
       const indicator = cropTooltipIndicator(definition, growth);
-      const status = growth.mature
+      const basicStatus = growth.mature
         ? 'READY TO HARVEST'
         : !growth.inSeason
           ? 'DORMANT UNTIL SPRING'
           : `${growth.watered ? 'WATERED' : 'NEEDS WATER'} - ${cropTimeLabel(growth.remainingTicks)} LEFT`;
+      const status = personalFarmingSkills.soilWhisperer && !growth.mature
+        ? `${!growth.inSeason ? 'DORMANT - ' : ''}${Math.floor(growth.progress * 100)}% - ${growth.watered ? `${cropTimeLabel(growth.wateredUntilTick - renderAuthorityTick)} WATER` : 'DRY'}`
+        : basicStatus;
       const width = Math.max(
         104,
         measurePixelText(definition.displayName.toUpperCase(), 1, art.ui.font) + 31,

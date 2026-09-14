@@ -87,6 +87,13 @@ describe('content frame runtime', () => {
     }
   });
 
+  it.each(['fermentation', 'barrel'])('shows the %s batch quantity without truncating its input label', (id) => {
+    const layout = layoutContentFrame({ width: 480, height: 270 }, frame(id), aliases, registry);
+    const input = layout.panes[0]!;
+    expect(input.layout.labelPosition.x).toBe(input.layout.region.x);
+    expect(pixelUi.measurePixelText(input.definition.label!)).toBeLessThanOrEqual(input.layout.region.width);
+  });
+
   it('binds entity and self slots without hardcoded window-specific container logic', () => {
     const furnace = frame('furnace');
     const input = furnace.panes.find(({ id }) => id === 'input')!;
