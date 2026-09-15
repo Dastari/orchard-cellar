@@ -60,7 +60,7 @@ describe('map editor terrain initialization', () => {
     // generic compiler does not include every generated dock/ramp exception.
     expect(terrain.blocked).toBe(production.blocked);
     expect(terrain.horseJumpableTerrain).toBe(production.horseJumpableTerrain);
-  }, process.argv.includes('--coverage') ? 120_000 : 20_000);
+  }, 120_000);
 
   it('returns a completed terrain cache entry in constant time', () => {
     const document = createLiveIslandMapDocument();
@@ -71,7 +71,7 @@ describe('map editor terrain initialization', () => {
 
     expect(second).toBe(first);
     expect(elapsed).toBeLessThan(5);
-  }, process.argv.includes('--coverage') ? 120_000 : 20_000);
+  }, 120_000);
 
   it('limits the trusted validation fast path to untouched production terrain', () => {
     const document = createLiveIslandMapDocument();
@@ -98,7 +98,7 @@ describe('map editor terrain initialization', () => {
       ...bootstrap,
       provenance: { ...bootstrap.provenance, generatorSeed: 42 },
     })).toBe(false);
-  }, process.argv.includes('--coverage') ? 120_000 : 20_000);
+  }, 120_000);
 
   it('compiles preview terrain against the keyed active live tileset resolver', () => {
     const source = bootstrapTilesetDefinitions().find(({ familyId }) => familyId === 'stone_1')!;
@@ -135,7 +135,7 @@ describe('map editor terrain initialization', () => {
     expect(decoded.horseJumpableTerrain).toEqual(terrain.horseJumpableTerrain);
     expect(decoded.biomes).toEqual(terrain.biomes);
     expect(decoded.elevations).toEqual(terrain.elevations);
-  }, process.argv.includes('--coverage') ? 120_000 : 20_000);
+  }, 120_000);
 
   it('copies and transfers the optional authored farmland mask through the worker wire', () => {
     const base = migrateMapDocumentV2(createEmptyMapDocument({
@@ -165,7 +165,7 @@ describe('map editor terrain initialization', () => {
     const decoded = await decodeMapEditorTerrainAsync(encoded.wire);
     expect(decoded.blocked).toEqual(terrain.blocked);
     expect(decoded.horseJumpableTerrain).toEqual(terrain.horseJumpableTerrain);
-  }, process.argv.includes('--coverage') ? 120_000 : 20_000);
+  }, 120_000);
 
   it('cancels stale chunked traversal adoption before doing more UI-thread work', async () => {
     vi.useFakeTimers();
@@ -178,7 +178,7 @@ describe('map editor terrain initialization', () => {
     } finally {
       vi.useRealTimers();
     }
-  }, process.argv.includes('--coverage') ? 120_000 : 20_000);
+  }, 120_000);
 
   it('derives overview layers and authored influence before the worker result is adopted', async () => {
     const base = migrateMapDocumentV2(createEmptyMapDocument({
@@ -228,5 +228,5 @@ describe('generated map resource preview', () => {
     expect(mapGeneratedResourcePreview(migrateMapDocumentV2(createEmptyMapDocument({
       id: 'empty-preview', title: 'Empty', width: 8, height: 8,
     })))).toEqual([]);
-  }, process.argv.includes('--coverage') ? 120_000 : 20_000);
+  }, 120_000);
 });

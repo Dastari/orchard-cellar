@@ -80,5 +80,10 @@ coverage exercises failure, durable recovery, and withholding unverified tokens.
 
 Hosted validation on commit 77edbb62 passed in the push run (820 files, 4,633
 tests), while the slower PR runner hit one remaining hard-coded 20-second Studio
-terrain timeout. Studio's generation fixtures now use the coverage allowance;
+terrain timeout. Studio's generation fixtures now have a fixed 120-second deadline;
 terrain equality and the separate 5ms cache-hit performance assertion are unchanged.
+
+A worker-level probe confirmed that Vitest does not forward the parent CLI's
+`--coverage` argument in worker `process.argv`. The Studio deadlines therefore
+use literal 120-second values, as the simulation fixtures do. No test-body
+assertion or coverage threshold changes.
