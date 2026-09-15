@@ -631,6 +631,7 @@ import {
   type ProcessJobClaimDependencies,
 } from './behaviour/process-jobs.js';
 import { contentEditorAuthorized } from './content/authorization.js';
+import { assertContentIntegrity, contentRecoveryConnection } from './content/recovery.js';
 import { contentRegistryForRows, invalidateContentRegistryCache } from './content/cache.js';
 import {
   authoredFrameAction,
@@ -9571,6 +9572,12 @@ function ensureContentRegistrySeed(ctx: WorldReducerContext): void {
   contentRegistryForRows(seededHead, seed.definitions);
 }
 
+function ensureContentPublicationBase(ctx: WorldReducerContext): void {
+  const head = ctx.db.content_head.packId.find(LIVE_CONTENT_PACK_ID);
+  if (head === null) ensureContentRegistrySeed(ctx);
+  else assertContentIntegrity(head, contentDefinitionRows(ctx));
+}
+
 function requireContentEditor(ctx: WorldReducerContext): void {
   const member = ctx.db.membership.identity.find(ctx.sender);
   requireAuthorizedSender(ctx.senderAuth.jwt, member);
@@ -12821,6 +12828,17 @@ function prepareConnection(ctx: WorldReducerContext): {
 }
 
 export const onConnect = spacetimedb.clientConnected((ctx) => {
+  if (ctx.connectionId === null) throw new SenderError('missing_connection_id');
+  if (contentRecoveryConnection({
+    validateRuntime: () => contentRegistry(ctx),
+    requireEditor: () => requireContentEditor(ctx),
+    verifyIntegrity: () => ensureContentPublicationBase(ctx),
+  })) {
+    ctx.db.connection_notice.insert({
+      connectionId: ctx.connectionId, identity: ctx.sender, kind: 'content_recovery', body: '', issuedAt: ctx.timestamp,
+    });
+    return;
+  }
   const { connectionId, firstLiveConnection, firstStatisticSession } = prepareConnection(ctx);
   let survival = ctx.db.player_survival.identity.find(ctx.sender);
   let playerSpawn = ctx.db.player_spawn.identity.find(ctx.sender);
@@ -13184,6 +13202,14 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
 // existing 30 s presence lease expires; stepWorld owns that cleanup.
 export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
   if (ctx.connectionId === null) return;
+  const notice = ctx.db.connection_notice.connectionId.find(ctx.connectionId);
+  if (notice?.kind === 'content_recovery' && notice.identity.isEqual(ctx.sender)) {
+    ctx.db.inventory_protocol.connectionId.delete(ctx.connectionId);
+    ctx.db.player_defense_input.connectionId.delete(ctx.connectionId);
+    deleteSessionChatNoticesForConnection(ctx, ctx.connectionId);
+    ctx.db.connection_notice.connectionId.delete(ctx.connectionId);
+    return;
+  }
   const stash=ctx.db.active_hearth_stash.identity.find(ctx.sender);
   if(stash!==null&&stash.connectionId.isEqual(ctx.connectionId))clearActiveHearthStash(ctx,ctx.sender);
   ctx.db.inventory_protocol.connectionId.delete(ctx.connectionId);
@@ -13201,7 +13227,6 @@ export const onDisconnect = spacetimedb.clientDisconnected((ctx) => {
   const disconnectedTrade = tradeForPlayer(ctx, ctx.sender);
   if (disconnectedTrade !== null) cancelPlayerTrade(ctx, disconnectedTrade);
   returnInventoryCursorToStorage(ctx, ctx.sender);
-  const notice = ctx.db.connection_notice.connectionId.find(ctx.connectionId);
   if (notice === null || !notice.identity.isEqual(ctx.sender)) return;
   const profile = ctx.db.player_public.identity.find(ctx.sender);
   ctx.db.connection_audit.insert({
@@ -13642,8 +13667,8 @@ export const publishContentChangeSet = spacetimedb.reducer(
     note: t.string(),
   },
   (ctx, input) => {
-    ensureContentRegistrySeed(ctx);
     requireContentEditor(ctx);
+    ensureContentPublicationBase(ctx);
     let normalized;
     try {
       normalized = normalizedContentRequest(input);
@@ -13676,8 +13701,8 @@ export const restoreContentRevision = spacetimedb.reducer(
     note: t.string(),
   },
   (ctx, input) => {
-    ensureContentRegistrySeed(ctx);
     requireContentEditor(ctx);
+    ensureContentPublicationBase(ctx);
     let requestHash: string;
     try {
       requestHash = restoreContentRequestHash(input);
@@ -17151,6 +17176,9 @@ export const resetSkillTree = spacetimedb.reducer(
 export const heartbeat = spacetimedb.reducer({ active: t.bool() }, (ctx, { active }) => {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   if (ctx.connectionId === null) throw new SenderError('missing_connection_id');
+  if (ctx.db.connection_notice.connectionId.find(ctx.connectionId)?.kind === 'content_recovery') {
+    throw new SenderError('content_reconnect_required');
+  }
   const openPlaceable = ctx.db.active_placeable.identity.find(ctx.sender);
   if (openPlaceable !== null) {
     const placeable = ctx.db.world_placeable.id.find(openPlaceable.placeableId);
