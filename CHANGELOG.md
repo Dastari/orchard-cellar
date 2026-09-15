@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 — Unreleased
+
+- Restore Sort & Stack for both chest and backpack panes in authored chest windows.
+- Add shared chest inventory search by item name or ID, preserving physical slot
+  routing for filtered items. Search stays above the hotbar when resized.
+
 ## 0.7.0 — Unreleased
 
 - Mining payout and depletion XP now goes to Farming, matching its skill branch.
