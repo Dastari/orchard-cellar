@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { copyFile, lstat, mkdir, open, readdir, readFile, readlink, realpath, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { keccak_256 } from '@noble/hashes/sha3.js';
 import { pathToFileURL } from 'node:url';
 import { parseStoredRejoinCredentials } from './world-rejoin-credentials.js';
 import { parseContentHeadCandidate, type ContentHeadCandidate } from './content-head-release.js';
@@ -22,12 +22,7 @@ export function programHashFromSql(value: unknown): string {
 }
 
 export function keccak256(bytes: Uint8Array): string {
-  const result = spawnSync('openssl', ['dgst', '-keccak-256', '-r'], { input: bytes, encoding: 'utf8' });
-  const digest = result.stdout?.trim().split(/\s/u)[0];
-  if (result.status !== 0 || digest === undefined || !/^[0-9a-f]{64}$/u.test(digest)) {
-    throw new Error('routine_keccak_unavailable');
-  }
-  return digest;
+  return Buffer.from(keccak_256(bytes)).toString('hex');
 }
 
 export async function treeManifest(directory: string, excludeBuilds = false): Promise<string> {

@@ -459,3 +459,9 @@ the canonical HTTPS origin, then restart it. An edge rollback removes only the S
 NPM proxy/SNI entry or restores its checksumed NPM/HAProxy backup; it never changes the
 game route or world database. Record the archive checksum, quarantined path, parity
 result, module revision, static artifact hash, and service restart times in the incident.
+
+Historical capture and prior-candidate reads verify raw payload integrity rather
+than applying the current runtime parser. This permits upgrades from an older
+content format without changing captured fingerprints. New candidates and their
+complete merged results still require current-runtime validation. See
+[the compatibility contract](../docs/content-release-compatibility.md).

@@ -6,7 +6,7 @@ function overlay() { return new ConnectionRecoveryOverlay({} as PixelUi, {} as U
 const viewport = { width: 257, height: 555, scale: 2, left: 12, top: 24 };
 
 describe('canvas connection recovery', () => {
-  it.each(['reconnecting', 'offline', 'sign-in-required'] as const)('activates only the visible %s button once', state => {
+  it.each(['reconnecting', 'offline', 'sign-in-required', 'content-incompatible'] as const)('activates only the visible %s button once', state => {
     const ui = overlay();
     const action = vi.fn();
     const { button } = connectionRecoveryLayout(viewport);
@@ -71,7 +71,7 @@ describe('canvas connection recovery', () => {
     const { button } = connectionRecoveryLayout(viewport);
     const point = { x: button.x + 2, y: button.y + 2 };
     const action = vi.fn();
-    for (const state of ['reconnecting', 'offline', 'sign-in-required'] as const) {
+    for (const state of ['reconnecting', 'offline', 'sign-in-required', 'content-incompatible'] as const) {
       expect(ui.composite(renderer, viewport, state, true, true)).toBe(false);
       expect(ui.activate(point, viewport, state, action, true)).toBe(false);
       expect(ui.primaryAction(state, true)).toBeNull();

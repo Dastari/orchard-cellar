@@ -31,6 +31,28 @@ afterEach(async () => {
 });
 
 describe('world rejoin credential rotation', () => {
+  it('retains a rotated refresh token after signing-key failure without exposing an unverified identity', async () => {
+    const path = await credentialFile([{ label: 'owner', clientId: 'orchard-web', token: 'old-id', refreshToken: 'old-refresh' }]);
+    const validate = vi.fn(async () => { throw new Error('signing_keys_unavailable'); });
+    await expect(refreshRejoinCredentialFile({ path,
+      refresh: async () => ({ token: 'unverified-id', refreshToken: 'rotated-refresh' }), validate,
+    })).rejects.toThrow('signing_keys_unavailable');
+    expect(validate).toHaveBeenCalledWith('unverified-id', 'orchard-web');
+    await expect(storedAt(path)).resolves.toEqual([
+      { label: 'owner', clientId: 'orchard-web', refreshToken: 'rotated-refresh' },
+    ]);
+    await expect(exists(`${path}.lock`)).resolves.toBe(false);
+    const refresh = vi.fn(async () => ({ token: 'verified-id', refreshToken: 'next-refresh' }));
+    const result = await refreshRejoinCredentialFile({ path, refresh,
+      validate: async () => {
+        expect((await storedAt(path))[0]).not.toHaveProperty('token');
+      },
+    });
+    expect(refresh).toHaveBeenCalledWith({ clientId: 'orchard-web', refreshToken: 'rotated-refresh' });
+    expect(result.credentials).toEqual([{ label: 'owner', token: 'verified-id' }]);
+    expect((await storedAt(path))[0]).toMatchObject({ token: 'verified-id', refreshToken: 'next-refresh' });
+  });
+
   it('keeps the original opaque-token formats compatible and deterministically sorted', async () => {
     const objectForm = parseStoredRejoinCredentials({ second: 'token-b', first: 'token-a' });
     const arrayForm = parseStoredRejoinCredentials([

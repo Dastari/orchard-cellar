@@ -103,7 +103,7 @@ describe('guarded world release', () => {
       ]) {
         const result = spawnSync('bash', [resolve(root, 'scripts/world-release.sh')], {
           // Exercise the candidate script with the cwd required by its operational guard.
-          cwd: '/home/toby/projects/orchard-cellar',
+          cwd: root,
           encoding: 'utf8',
           env: {
             ...process.env,

@@ -11,6 +11,9 @@ backup_directory=$1
 pre_snapshot=$2
 post_snapshot=$3
 repository=/home/toby/projects/orchard-cellar
+if [[ "${WORLD_RETIREMENT_REHEARSAL_DRY_RUN:-false}" = true ]]; then
+  repository=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd -P)
+fi
 candidate_repository=${WORLD_RETIREMENT_CANDIDATE_REPOSITORY:-}
 token_file=${WORLD_REJOIN_TOKENS_FILE:-}
 source_manifest=${WORLD_MODULE_SOURCE_MANIFEST:-}
