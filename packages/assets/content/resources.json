@@ -1197,6 +1197,7 @@
       "initial": 3,
       "followsGrowthStage": true
     },
+    "seedItem": "item:apple_seed",
     "loot": "loot:resource_tree_apple",
     "regrowth": {
       "enabled": true,
@@ -1452,6 +1453,7 @@
       "initial": 3,
       "followsGrowthStage": true
     },
+    "seedItem": "item:cherry_seed",
     "loot": "loot:resource_tree_cherry",
     "regrowth": {
       "enabled": true,
@@ -1690,6 +1692,7 @@
       "initial": 3,
       "followsGrowthStage": true
     },
+    "seedItem": "item:peach_seed",
     "loot": "loot:resource_tree_peach",
     "regrowth": {
       "enabled": true,
@@ -1770,6 +1773,7 @@
       "initial": 3,
       "followsGrowthStage": true
     },
+    "seedItem": "item:pear_seed",
     "loot": "loot:resource_tree_pear",
     "regrowth": {
       "enabled": true,

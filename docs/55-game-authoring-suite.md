@@ -922,7 +922,7 @@ fixture), and `publishContentChangeSet`:
 - `interactEntity` resolution: O(interactions on one object); no table scans beyond
   the chunk-neighbourhood reach checks already used.
 - Client content subscription: whole `content_definition` table; measure the initial
-  payload (target ≤ 522 KiB uncompressed) and gate on `content_head` before revealing
+  payload (target ≤ 523 KiB uncompressed) and gate on `content_head` before revealing
   the world after first load.
 - Head advance cost for connected clients: one subscription batch, one registry
   rebuild, invalidation of item-icon and object-sprite caches only.

@@ -1,3 +1,4 @@
+import { fruitTreeForSeed } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition, farmingBarrelTicks } from '@orchard/sim';
 import { hearthDangerNotice } from '@orchard/sim';
 import { runtimeQuestDefinition } from '@orchard/sim';
@@ -4832,6 +4833,7 @@ function renderFrame(alpha = 1): void {
     targeted: farmTarget !== null,
     selectedTool: farmToolAction?.mode ?? null,
     seedSelected: liveItemDefinition(snapshot, farmItem)?.tags.includes('item.seed') === true,
+    treeSeedSelected: fruitTreeForSeed(snapshot.content.registry, farmItem) !== null,
     soilExists: farmSoil !== undefined,
     soilWatered: farmSoil !== undefined && farmSoil.watered
       && renderAuthorityTick < farmSoil.wateredAtTick + CROP_WATERING_TICKS * BigInt(4 + Math.min(3, estateFarmingSkills(snapshot).tenderHand)) / 4n,

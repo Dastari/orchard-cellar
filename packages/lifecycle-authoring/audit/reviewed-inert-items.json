@@ -1,10 +1,10 @@
 {
   "format": "orchard-reviewed-inert-items-v1",
   "reviewedAgainst": {
-    "bootstrapItemCount": 332,
-    "lifecycleRevision": 13,
-    "lifecycleBundleSha256": "cc95551b15bb9583c24f81028c18ded7f577d93f86ec847fde13ab1f2ebd00b1",
-    "authoredCallbackCount": 119,
+    "bootstrapItemCount": 336,
+    "lifecycleRevision": 14,
+    "lifecycleBundleSha256": "74c44428d5b9ca62c03bfb5704d4408b0e33e059b7fa8279dcfbcdd2d2090fab",
+    "authoredCallbackCount": 123,
     "inertItemCount": 112,
     "dataGraphItemCount": 69,
     "transactionItemCount": 32

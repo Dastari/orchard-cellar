@@ -448,3 +448,13 @@ higher bottle sale premium. These ranks apply across the owning estate's spaces.
 The farming branch now applies its authored crop bonuses and unlocks. Exact
 rates and remaining scope are listed in [the audit](harvest-cellar-audit.md).
 Grafting remains unavailable pending an orchard-specialization interaction.
+
+### Orchard seeds
+
+Mature apple, pear, peach and cherry tree harvests have a 5% chance to drop one
+matching seed alongside wood and fruit. Orchard Seed Saver unlocks after Green
+Thumb at Farming level 3: one point per rank, three ranks, giving 15%, 25%, 35%
+seed odds. Each completed harvest rolls once, irrespective of fruit quantity.
+Select a seed and plant it on clear grass or a tilled tile in an authorized outdoor or
+homestead farm area. Planting consumes one seed; the sapling uses normal tree
+growth and regrowth. It does not require crop watering.

@@ -12,7 +12,7 @@ const derivedSources: Readonly<Record<string, string>> = {
 
 describe('skill icon coverage', () => {
   it('provides one approved icon with explicit source provenance for every skill-tree node', async () => {
-    const expectedNames = SKILL_NODE_DEFINITIONS.map((node) => node.iconAsset).sort();
+    const expectedNames = [...new Set(SKILL_NODE_DEFINITIONS.map((node) => node.iconAsset))].sort();
     const iconFiles = (await readdir(skillIconRoot))
       .filter((name) => /^icon_skill_.+\.sprite\.json$/.test(name))
       .sort();

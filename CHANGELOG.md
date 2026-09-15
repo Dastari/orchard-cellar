@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 — Unreleased
+
+- Mature apple, pear, peach and cherry tree harvests can drop a matching plantable
+  seed (5% base chance). Orchard Seed Saver adds 10 percentage points per rank,
+  reaching 35% at rank three. Plant on clear grass or tilled soil in the homestead or
+  overworld; the matching sapling grows and regrows normally. Tilling is optional.
+- Advance the fruit-tree harvest ordinal for fresh rolls after regrowth and
+  preserve player-planted trees during generated-world reconciliation.
+- Publish module, resource/item/skill content and generated lifecycle artifacts
+  together. No database schema migration.
+
 ## 0.7.1 — Unreleased
 
 - Preserve rotated release credentials through signing-key outages while withholding unverified identity tokens.

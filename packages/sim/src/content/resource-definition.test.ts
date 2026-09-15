@@ -118,3 +118,35 @@ describe('authored resource definitions', () => {
     });
   });
 });
+
+it('validates orchard seed references and rejects ambiguous or non-growing trees', () => {
+  const rows = bootstrapContentRows();
+  const original = rows.find(({ id }) => id === 'resource:tree_apple')!;
+  const apple = JSON.parse(original.json as string) as Record<string, unknown>;
+  const build = (patch: Record<string, unknown>) => buildContentRegistry(rows.map(row => row.id === original.id
+    ? { ...row, json: { ...apple, ...patch } } : row));
+  expect(build({ seedItem: 'item:apple_seed' }).report.errors).toEqual([]);
+  for (const patch of [
+    { seedItem: 'item:missing_seed' }, { seedItem: 'item:wood' },
+    { seedItem: 'item:pear_seed' }, { regrowth: undefined },
+    { tags: ['world.resource', 'resource.tree'] },
+  ]) {
+    expect(build(patch).report.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ definitionId: original.id, path: 'seedItem' }),
+    ]));
+  }
+  expect(build({ seedItem: 'not_an_item_reference' }).report.errors.length).toBeGreaterThan(0);
+});
+
+
+it('lets a replacement tree inherit the seed mapping of a retired definition', () => {
+  const rows = bootstrapContentRows();
+  const original = rows.find(({ id }) => id === 'resource:tree_apple')!;
+  const apple = JSON.parse(original.json as string) as Record<string, unknown>;
+  const replacement = { ...apple, id: 'resource:new_apple', runtimeKind: 'new_apple' };
+  const result = buildContentRegistry([
+    ...rows.map(row => row.id === original.id ? { ...row, json: { ...apple, retired: true, replacement: replacement.id } } : row),
+    { id: replacement.id, kind: 'resource', slug: 'new_apple', json: replacement },
+  ]);
+  expect(result.report.errors).toEqual([]);
+});
