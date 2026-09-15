@@ -1,5 +1,6 @@
 # Chest inventory controls PR handoff
 
+- PR: https://github.com/Dastari/orchard-cellar/pull/9
 - Branch: `fix/chest-inventory-controls`, from upstream main `88931047`.
 - Restores Sort & Stack to both authored chest panes and shares backpack search
   across chest/backpack items. Filtered slots preserve custody and restrictions.
