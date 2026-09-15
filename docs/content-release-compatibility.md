@@ -17,7 +17,7 @@ Candidate preparation, normal candidate parsing and publication verification mus
 validate the target and complete merged result against today's runtime. Retain
 three-way conflict detection, live-only definitions, zero deletion and content-head
 compare-and-swap. Invalid retained custom content blocks release for explicit
-resolution; never silently drop it. No server-side validation is relaxed.
+resolution; never silently drop it. New and resulting content retain strict server-side validation.
 
 ## Evidence and rollout
 
@@ -87,3 +87,20 @@ A worker-level probe confirmed that Vitest does not forward the parent CLI's
 `--coverage` argument in worker `process.argv`. The Studio deadlines therefore
 use literal 120-second values, as the simulation fixtures do. No test-body
 assertion or coverage threshold changes.
+
+## Server recovery path
+
+The server had the same ordering defect: connection initialization and content
+publication both loaded the incompatible pack before an editor could replace it.
+Existing authenticated owners/admins or explicitly granted editors may now open
+a recovery connection after historical row identities, counts, revisions and
+fingerprints pass. These connections skip player/gameplay-session initialization. A minimal
+connection-notice marker isolates their disconnect cleanup and blocks gameplay
+heartbeats; normal expired-session cleanup remains intact. Normal connections and gameplay
+content reads keep strict runtime parsing; membership and grant checks are
+unchanged. No new RPC, table, bootstrap fallback or role is introduced.
+
+Publication authenticates the editor and verifies historical byte integrity before
+planning its transaction. The full resulting registry, CAS, idempotency, inverse
+history and audit remain mandatory. Corruption does not qualify as compatibility.
+Once the new pack is published, ordinary reconnect initialization resumes.
