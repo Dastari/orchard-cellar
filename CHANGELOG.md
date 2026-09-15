@@ -13,6 +13,13 @@
 
 ## 0.7.1 — Unreleased
 
+- Run exhaustive procedural-terrain and survival-world suites without coverage
+  profiling as part of `npm test`; retain every test and enforce unchanged source
+  coverage thresholds in the remaining suites.
+
+- Remove repeated world-module parsing from the cooking release gate and avoid
+  parsing files without protected table names; retain mutation checks and test deadlines.
+
 - Allow authorized content editors to repair verified historical packs before gameplay initialization; preserve strict publication results and isolate recovery disconnects.
 
 - Preserve rotated release credentials through signing-key outages while withholding unverified identity tokens.

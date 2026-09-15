@@ -64,6 +64,16 @@ describe('preserved cooking escrow release compatibility', () => {
     }
   }, 30_000);
 
+  it('rejects receipt-only writers while ignoring inert mentions of the protected tables', () => {
+    const worldFiles = { ...sources.worldFiles,
+      'inert.ts': '// player_cooking_job.clear()\nconst label = "player_process_job_receipt.insert()";',
+    };
+    expect(() => assertRetainedCookingEscrow({ ...sources, worldFiles })).not.toThrow();
+    expect(() => assertRetainedCookingEscrow({ ...sources, worldFiles: { ...worldFiles,
+      'receipt-only.ts': 'function bad(ctx) { ctx.db.player_process_job_receipt.insert(receipt); }',
+    } })).toThrow('cooking_resolution_receipt_unreviewed_writer');
+  });
+
   it('requires both authored collection and globally reachable inventory cancellation', () => {
     expect(() => assertCookingClaimCapability(sources)).not.toThrow();
     for (const action of ['collect', 'cancel']) {
