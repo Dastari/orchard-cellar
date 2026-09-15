@@ -35,3 +35,9 @@ matching live seed/resource references, retirement, deterministic retries/fresh
 harvests, plant consumption/placement authority and growth to maturity. Run the
 repository check command and affected builds. Release module, authored content
 and lifecycle artifacts together after PR review; this task creates a PR only.
+
+The 0.8.0 bootstrap contains 900 definitions (336 items), hash `32433a9b`.
+Its measured initial runtime content payload is 535,114 bytes, 1,550 bytes above
+0.7.0. The whole-KiB budget increases from 522 to 523 KiB. Orchard Seed Saver
+intentionally shares the approved Seed Saver artwork; icon coverage validates
+unique referenced assets and retains source-provenance checks.

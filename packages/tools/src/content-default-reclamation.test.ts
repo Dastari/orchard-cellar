@@ -10,9 +10,9 @@ it('omits repeated common item quality while preserving the complete runtime cat
   expect(source.some(definition => definition.quality === 'common')).toBe(false);
   const runtime = [...bootstrapContentRegistry().items.values()];
   expect(runtime).toHaveLength(source.length);
-  expect(runtime.filter(definition => definition.quality === 'common')).toHaveLength(209);
+  expect(runtime.filter(definition => definition.quality === 'common')).toHaveLength(213);
   expect(runtime.every(definition => Object.prototype.propertyIsEnumerable.call(definition, 'quality'))).toBe(true);
   const durableRows = bootstrapContentRows().filter(({ kind }) => kind === 'item');
   expect(durableRows).toHaveLength(source.length);
-  expect(durableRows.filter(({ json }) => JSON.parse(String(json)).quality === undefined)).toHaveLength(209);
+  expect(durableRows.filter(({ json }) => JSON.parse(String(json)).quality === undefined)).toHaveLength(213);
 });
