@@ -44,12 +44,14 @@ import AdminBackfillLegacyChestsReducer from "./admin_backfill_legacy_chests_red
 import AdminClearCursorReducer from "./admin_clear_cursor_reducer";
 import AdminDespawnEntityReducer from "./admin_despawn_entity_reducer";
 import AdminDrainLegacyChestsReducer from "./admin_drain_legacy_chests_reducer";
+import AdminDrainLegacyFarmRetirementReducer from "./admin_drain_legacy_farm_retirement_reducer";
 import AdminDrainOverflowReducer from "./admin_drain_overflow_reducer";
 import AdminGiveItemsReducer from "./admin_give_items_reducer";
 import AdminGlobalNoticeReducer from "./admin_global_notice_reducer";
 import AdminGrantContentEditorReducer from "./admin_grant_content_editor_reducer";
 import AdminGrantSkillPointsReducer from "./admin_grant_skill_points_reducer";
 import AdminGrantSupportReducer from "./admin_grant_support_reducer";
+import AdminInspectLegacyFarmRetirementReducer from "./admin_inspect_legacy_farm_retirement_reducer";
 import AdminKickReducer from "./admin_kick_reducer";
 import AdminMoveEntityReducer from "./admin_move_entity_reducer";
 import AdminMoveHomesteadReducer from "./admin_move_homestead_reducer";
@@ -76,6 +78,7 @@ import AdminSetChestMigrationPhaseReducer from "./admin_set_chest_migration_phas
 import AdminSetContainerSlotReducer from "./admin_set_container_slot_reducer";
 import AdminSetDisplayNameReducer from "./admin_set_display_name_reducer";
 import AdminSetEntityStateReducer from "./admin_set_entity_state_reducer";
+import AdminSetLegacyFarmRetirementPhaseReducer from "./admin_set_legacy_farm_retirement_phase_reducer";
 import AdminSetMotdReducer from "./admin_set_motd_reducer";
 import AdminSetQuestStateReducer from "./admin_set_quest_state_reducer";
 import AdminSetSlotReducer from "./admin_set_slot_reducer";
@@ -92,6 +95,7 @@ import AdminTeleportPlayerReducer from "./admin_teleport_player_reducer";
 import AdminUndoPlayerReducer from "./admin_undo_player_reducer";
 import AdminUnstickReducer from "./admin_unstick_reducer";
 import AdminVerifyLegacyChestsReducer from "./admin_verify_legacy_chests_reducer";
+import AdminVerifyLegacyFarmRetirementReducer from "./admin_verify_legacy_farm_retirement_reducer";
 import ApproveMemberReducer from "./approve_member_reducer";
 import BuyMerchantCartReducer from "./buy_merchant_cart_reducer";
 import BuyMerchantItemReducer from "./buy_merchant_item_reducer";
@@ -209,6 +213,7 @@ import * as AdminContainerContentsProcedure from "./admin_container_contents_pro
 import * as AdminEntitiesInAreaProcedure from "./admin_entities_in_area_procedure";
 import * as AdminFindPlayersProcedure from "./admin_find_players_procedure";
 import * as AdminHomesteadProcedure from "./admin_homestead_procedure";
+import * as AdminLegacyFarmRetirementStatusProcedure from "./admin_legacy_farm_retirement_status_procedure";
 import * as AdminMissingContainerRecoveryProcedure from "./admin_missing_container_recovery_procedure";
 import * as AdminPlayerInventoryProcedure from "./admin_player_inventory_procedure";
 import * as AdminPlayerMutationResultProcedure from "./admin_player_mutation_result_procedure";
@@ -1309,12 +1314,14 @@ const reducersSchema = __reducers(
   __reducerSchema("admin_clear_cursor", AdminClearCursorReducer),
   __reducerSchema("admin_despawn_entity", AdminDespawnEntityReducer),
   __reducerSchema("admin_drain_legacy_chests", AdminDrainLegacyChestsReducer),
+  __reducerSchema("admin_drain_legacy_farm_retirement", AdminDrainLegacyFarmRetirementReducer),
   __reducerSchema("admin_drain_overflow", AdminDrainOverflowReducer),
   __reducerSchema("admin_give_items", AdminGiveItemsReducer),
   __reducerSchema("admin_global_notice", AdminGlobalNoticeReducer),
   __reducerSchema("admin_grant_content_editor", AdminGrantContentEditorReducer),
   __reducerSchema("admin_grant_skill_points", AdminGrantSkillPointsReducer),
   __reducerSchema("admin_grant_support", AdminGrantSupportReducer),
+  __reducerSchema("admin_inspect_legacy_farm_retirement", AdminInspectLegacyFarmRetirementReducer),
   __reducerSchema("admin_kick", AdminKickReducer),
   __reducerSchema("admin_move_entity", AdminMoveEntityReducer),
   __reducerSchema("admin_move_homestead", AdminMoveHomesteadReducer),
@@ -1341,6 +1348,7 @@ const reducersSchema = __reducers(
   __reducerSchema("admin_set_container_slot", AdminSetContainerSlotReducer),
   __reducerSchema("admin_set_display_name", AdminSetDisplayNameReducer),
   __reducerSchema("admin_set_entity_state", AdminSetEntityStateReducer),
+  __reducerSchema("admin_set_legacy_farm_retirement_phase", AdminSetLegacyFarmRetirementPhaseReducer),
   __reducerSchema("admin_set_motd", AdminSetMotdReducer),
   __reducerSchema("admin_set_quest_state", AdminSetQuestStateReducer),
   __reducerSchema("admin_set_slot", AdminSetSlotReducer),
@@ -1357,6 +1365,7 @@ const reducersSchema = __reducers(
   __reducerSchema("admin_undo_player", AdminUndoPlayerReducer),
   __reducerSchema("admin_unstick", AdminUnstickReducer),
   __reducerSchema("admin_verify_legacy_chests", AdminVerifyLegacyChestsReducer),
+  __reducerSchema("admin_verify_legacy_farm_retirement", AdminVerifyLegacyFarmRetirementReducer),
   __reducerSchema("approve_member", ApproveMemberReducer),
   __reducerSchema("buy_merchant_cart", BuyMerchantCartReducer),
   __reducerSchema("buy_merchant_item", BuyMerchantItemReducer),
@@ -1476,6 +1485,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_entities_in_area", AdminEntitiesInAreaProcedure.params, AdminEntitiesInAreaProcedure.returnType),
   __procedureSchema("admin_find_players", AdminFindPlayersProcedure.params, AdminFindPlayersProcedure.returnType),
   __procedureSchema("admin_homestead", AdminHomesteadProcedure.params, AdminHomesteadProcedure.returnType),
+  __procedureSchema("admin_legacy_farm_retirement_status", AdminLegacyFarmRetirementStatusProcedure.params, AdminLegacyFarmRetirementStatusProcedure.returnType),
   __procedureSchema("admin_missing_container_recovery", AdminMissingContainerRecoveryProcedure.params, AdminMissingContainerRecoveryProcedure.returnType),
   __procedureSchema("admin_player_inventory", AdminPlayerInventoryProcedure.params, AdminPlayerInventoryProcedure.returnType),
   __procedureSchema("admin_player_mutation_result", AdminPlayerMutationResultProcedure.params, AdminPlayerMutationResultProcedure.returnType),
