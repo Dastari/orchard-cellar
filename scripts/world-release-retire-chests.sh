@@ -23,6 +23,10 @@ USAGE
 
 [[ $# -eq 0 ]] || usage
 repository=/home/toby/projects/orchard-cellar
+# Dry-runs inspect the checkout under test; live operations retain the fixed path.
+if [[ "${WORLD_RETIREMENT_DRY_RUN:-false}" = true ]]; then
+  repository=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+fi
 candidate_repository=${WORLD_RETIREMENT_CANDIDATE_REPOSITORY:-}
 [[ "$(pwd -P)" = "$repository" ]] || usage
 

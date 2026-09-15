@@ -153,17 +153,28 @@ function sortedUniqueDefinitions(values: unknown): readonly ReleaseDefinition[] 
   return definitions;
 }
 
-function validateRegistry(definitions: readonly ReleaseDefinition[], expectedHash: string): void {
-  const built = buildContentRegistry(definitions.map(({ id, kind, json }) => ({ id, kind, json })));
-  if (!built.report.valid) fail(`content_release_registry_invalid:${built.report.errors[0]?.code ?? 'unknown'}`);
+/** Historical payloads are evidence, not input to the current game parser. */
+function validateDefinitionIntegrity(definitions: readonly ReleaseDefinition[], expectedHash: string): void {
+  for (const row of definitions) {
+    let payload: Record<string, unknown>;
+    try { payload = record(JSON.parse(row.json), 'content_release_definition_invalid'); }
+    catch { return fail(`content_release_definition_invalid:${row.id}`); }
+    if (payload['id'] !== row.id || payload['kind'] !== row.kind) {
+      fail(`content_release_definition_identity_mismatch:${row.id}`);
+    }
+  }
   if (contentDefinitionRowsHash(definitions) !== expectedHash) fail('content_release_registry_hash_mismatch');
   for (const row of definitions) {
-    const parsed = built.registry.definitions.get(row.id);
-    if (parsed === undefined || parsed.kind !== row.kind
-      || contentDefinitionRowsHash([row]) !== row.hash) {
+    if (contentDefinitionRowsHash([row]) !== row.hash) {
       fail(`content_release_definition_fingerprint_mismatch:${row.id}`);
     }
   }
+}
+
+function validateRegistry(definitions: readonly ReleaseDefinition[], expectedHash: string): void {
+  validateDefinitionIntegrity(definitions, expectedHash);
+  const built = buildContentRegistry(definitions.map(({ id, kind, json }) => ({ id, kind, json })));
+  if (!built.report.valid) fail(`content_release_registry_invalid:${built.report.errors[0]?.code ?? 'unknown'}`);
 }
 
 export function parseContentHeadCapture(value: unknown): ContentHeadCapture {
@@ -178,7 +189,7 @@ export function parseContentHeadCapture(value: unknown): ContentHeadCapture {
     definitions,
   };
   if (capture.head.definitionCount !== definitions.length) fail('content_release_capture_count_mismatch');
-  validateRegistry(definitions, capture.head.contentHash);
+  validateDefinitionIntegrity(definitions, capture.head.contentHash);
   return capture;
 }
 
@@ -323,6 +334,15 @@ export function prepareContentHeadCandidate(args: {
 }
 
 export function parseContentHeadCandidate(value: unknown): ContentHeadCandidate {
+  return parseCandidate(value, false);
+}
+
+/** Digest-pinned prior artifacts may describe an older runtime. Never used for publication. */
+export function parseHistoricalContentHeadCandidate(value: unknown): ContentHeadCandidate {
+  return parseCandidate(value, true);
+}
+
+function parseCandidate(value: unknown, historical: boolean): ContentHeadCandidate {
   const source = record(value, 'content_release_candidate_invalid');
   if (source['format'] !== CONTENT_HEAD_CANDIDATE_FORMAT) fail('content_release_candidate_format');
   const capture = parseContentHeadCapture({
@@ -396,20 +416,20 @@ export function parseContentHeadCandidate(value: unknown): ContentHeadCandidate 
   if (!SHA256.test(candidate.captureSha256) || !LABEL.test(candidate.reviewer)
     || !/^\d+$/u.test(candidate.resultingHead.revision)
     || new Set(upserts.map(({ id }) => id)).size !== upserts.length) fail('content_release_candidate_invalid');
-  verifyCandidateStructure(candidate);
+  verifyCandidateStructure(candidate, historical);
   return candidate;
 }
 
-function verifyCandidateStructure(candidate: ContentHeadCandidate): void {
+function verifyCandidateStructure(candidate: ContentHeadCandidate, historical = false): void {
   const target = candidate.targetDefinitions;
   if (candidate.baseline.definitionCount !== candidate.baselineDefinitions.length
-    || candidate.baseline.contentHash !== definitionsHash(candidate.baselineDefinitions)) {
+    || candidate.baseline.contentHash !== contentDefinitionRowsHash(candidate.baselineDefinitions)) {
     fail('content_release_baseline_mismatch');
   }
-  validateRegistry(candidate.baselineDefinitions, candidate.baseline.contentHash);
+  validateDefinitionIntegrity(candidate.baselineDefinitions, candidate.baseline.contentHash);
   if (candidate.targetBootstrap.definitionCount !== target.length
-    || candidate.targetBootstrap.contentHash !== definitionsHash(target)) fail('content_release_target_mismatch');
-  validateRegistry(target, candidate.targetBootstrap.contentHash);
+    || candidate.targetBootstrap.contentHash !== contentDefinitionRowsHash(target)) fail('content_release_target_mismatch');
+  (historical ? validateDefinitionIntegrity : validateRegistry)(target, candidate.targetBootstrap.contentHash);
   const currentById = new Map(candidate.expectedDefinitions.map((definition) => [definition.id, definition]));
   const baseById = new Map(candidate.baselineDefinitions.map((definition) => [definition.id, definition]));
   const expectedUpsertIds: string[] = [];
@@ -442,9 +462,10 @@ function verifyCandidateStructure(candidate: ContentHeadCandidate): void {
   }
   const definitions = [...result.values()].sort((left, right) => left.id.localeCompare(right.id));
   if (candidate.resultingHead.definitionCount !== definitions.length
-    || candidate.resultingHead.contentHash !== definitionsHash(definitions)) {
+    || candidate.resultingHead.contentHash !== contentDefinitionRowsHash(definitions)) {
     fail('content_release_result_mismatch');
   }
+  (historical ? validateDefinitionIntegrity : validateRegistry)(definitions, candidate.resultingHead.contentHash);
   if (candidate.resultingHead.engineVersion !== candidate.targetBootstrap.engineVersion) {
     fail('content_release_engine_version_mismatch');
   }
@@ -589,7 +610,8 @@ async function candidateFile(
     fail('content_release_candidate_must_be_owner_immutable');
   }
   if (artifact.digest !== expectedDigest) fail('content_release_candidate_digest_mismatch');
-  const candidate = parseContentHeadCandidate(artifact.value);
+  const candidate = requireCurrentBootstrap
+    ? parseContentHeadCandidate(artifact.value) : parseHistoricalContentHeadCandidate(artifact.value);
   if (requireCurrentBootstrap) verifyCandidateAgainstBootstrap(candidate);
   return candidate;
 }

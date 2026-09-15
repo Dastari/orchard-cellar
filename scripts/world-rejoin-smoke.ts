@@ -58,10 +58,6 @@ async function refreshCredential(credential: Required<Pick<StoredRejoinCredentia
   if (!response.ok) throw new Error(`rejoin_refresh_failed:${response.status}`);
   const payload = await response.json() as Record<string, unknown>;
   if (typeof payload['id_token'] !== 'string') throw new Error('rejoin_refresh_invalid_response');
-  await verifyIdTokenSignature(payload['id_token'], `${issuer.replace(/\/$/u, '')}/protocol/openid-connect/certs`);
-  validateIdTokenClaims(
-    decodeJwtClaims(payload['id_token']), undefined, Date.now(), issuer.replace(/\/$/u, ''), credential.clientId,
-  );
   return {
     token: payload['id_token'],
     refreshToken: typeof payload['refresh_token'] === 'string' ? payload['refresh_token'] : credential.refreshToken,
@@ -74,6 +70,11 @@ async function credentials(): Promise<readonly RejoinCredential[]> {
     const resolved = await refreshRejoinCredentialFile({
       path,
       refresh: refreshCredential,
+      validate: async (token, clientId) => {
+        const issuer = (process.env['OIDC_ISSUER'] ?? 'https://auth.orchard.dastari.net/realms/orchard').replace(/\/$/u, '');
+        await verifyIdTokenSignature(token, `${issuer}/protocol/openid-connect/certs`);
+        validateIdTokenClaims(decodeJwtClaims(token), undefined, Date.now(), issuer, clientId);
+      },
       requireRefresh: process.env['WORLD_REJOIN_REQUIRE_REFRESH'] === '1',
     });
     return resolved.credentials;
