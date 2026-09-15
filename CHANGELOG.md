@@ -2,6 +2,8 @@
 
 ## 0.7.1 — Unreleased
 
+- Preserve rotated release credentials through signing-key outages while withholding unverified identity tokens.
+
 - Repair hosted CI prerequisites, dry-run portability and portable Keccak hashing;
   retain local licensed-art checks and pin reviewed imports for public CI.
 

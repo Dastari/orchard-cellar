@@ -66,3 +66,14 @@ Coverage and the two explicitly timed terrain fixtures allow instrumentation
 overhead; assertions and coverage thresholds remain unchanged. GitHub actions use Node-24-compatible
 checkout/setup-node versions. Generated assets and licensed source sheets remain
 untracked.
+
+## Refresh checkpoint repair
+
+The authenticated preflight exposed a second issue: a successful OIDC rotation
+was discarded when the subsequent signing-key request timed out. The release
+credential store now checkpoints the replacement refresh token before validation,
+with no identity token in that intermediate record. Signature and issuer/audience/
+expiry checks must succeed before the usable identity token is saved or returned.
+A failed check releases the lock and permits retry with the replacement refresh
+token; content capture refuses the tokenless intermediate record. Regression
+coverage exercises failure, durable recovery, and withholding unverified tokens.
