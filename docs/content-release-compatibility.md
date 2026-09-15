@@ -62,7 +62,7 @@ all other icon/import tests remain active in CI. Default `npm run check` include
 these original-sheet tests. Refreshing reviewed fingerprints requires passing them
 on the licensed host; hashes cannot establish correctness of new artwork alone.
 
-Coverage-only world generation timeouts allow instrumentation overhead; assertions
-and coverage thresholds remain unchanged. GitHub actions use Node-24-compatible
+Coverage and the two explicitly timed terrain fixtures allow instrumentation
+overhead; assertions and coverage thresholds remain unchanged. GitHub actions use Node-24-compatible
 checkout/setup-node versions. Generated assets and licensed source sheets remain
 untracked.

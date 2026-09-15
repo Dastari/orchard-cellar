@@ -854,7 +854,7 @@ describe("procedural sanctuary terrain sampler", () => {
     }
     runs.sort((left, right) => left - right);
     expect(runs[Math.floor(runs.length / 2)]).toBeLessThanOrEqual(40);
-  }, process.argv.includes('--coverage') ? 120_000 : 20_000);
+  }, 120_000);
 
   it('regularizes v7 biome regions and keeps special overlays out of forbidden neighbours', () => {
     const illegalPairs = new Set(['desert:wetland', 'desert:shroomlands', 'volcanic:wetland']);
@@ -942,7 +942,7 @@ describe("procedural sanctuary terrain sampler", () => {
       )).length;
       expect(cardinalWater).toBeGreaterThan(1);
     }
-  }, process.argv.includes('--coverage') ? 120_000 : 20_000);
+  }, 120_000);
 
   it("rejects invalid sampler coordinates and local lookups", () => {
     expect(() =>

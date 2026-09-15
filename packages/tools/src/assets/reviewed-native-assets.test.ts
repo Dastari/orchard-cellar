@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { expect, it } from 'vitest';
-import expected from './fixtures/reviewed-native-assets.json';
+import expected from './fixtures/reviewed-native-assets.json' with { type: 'json' };
 import { workspaceRoot } from './load.js';
 
 function canonical(value: unknown): unknown {
