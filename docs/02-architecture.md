@@ -259,3 +259,15 @@ heartbeats without changing normal expired-session cleanup. Content
 publication verifies the historical baseline as bytes, then validates the complete
 new registry and commits under the existing CAS/audit contract. Ordinary gameplay
 continues to require a valid current registry.
+
+## Fruit seed loop (0.8.0)
+
+Resource definitions can reference a plantable `seedItem`. The active registry
+resolves seed-to-tree identity and Orchard Seed Saver's semantic capability;
+retired or ambiguous definitions grant no drops or planting. The resource
+harvest authority appends one independent seed roll to mature fruit payouts,
+keyed by world seed, resource ID and activation ordinal. The existing `plantSeed`
+lifecycle preflights permissions, clear ground, collision and exact single-seed
+consumption, then inserts a sapling into `world_resource` and removes any existing soil.
+IDs reserve bit 49 with 48 bits for space and signed tile coordinates; generated
+resource reconciliation preserves this namespace. See [spec](fruit-seeds-spec.md).

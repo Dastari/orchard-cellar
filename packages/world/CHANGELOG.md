@@ -1,5 +1,13 @@
 # World module changelog
 
+## 0.8.0 — Unreleased
+
+- Add matching fruit-tree seed drops and authorized seed-to-sapling planting.
+  Orchard Seed Saver raises the base 5% chance to 35% across three ranks.
+- Preserve planted trees across generated resource reconciliation; advance the
+  harvest ordinal after depletion. Publish module, content and lifecycle bundle
+  revision 14 together. No database schema changes.
+
 ## 0.6.1 — Unreleased
 
 - Award mining payout and depletion XP to Farming, matching the authored mining

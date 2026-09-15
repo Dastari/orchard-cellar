@@ -2,6 +2,7 @@ export interface FarmActionPromptState {
   readonly targeted: boolean;
   readonly selectedTool: 'cultivate' | 'water' | null;
   readonly seedSelected: boolean;
+  readonly treeSeedSelected: boolean;
   readonly soilExists: boolean;
   readonly soilWatered: boolean;
   readonly cropName: string | null;
@@ -26,6 +27,7 @@ export function farmActionPrompt(state: FarmActionPromptState): string | null {
     if (state.cropMature) return `[E] HARVEST ${cropName}`;
     return `${cropName} ${state.cropWatered ? 'GROWING' : 'NEEDS WATER'}`;
   }
+  if (state.seedSelected && state.treeSeedSelected) return '[F] PLANT TREE SEED';
   if (state.seedSelected) return state.soilExists ? '[F] PLANT SEEDS' : 'TILL SOIL BEFORE PLANTING';
   if (state.selectedTool === 'cultivate') return state.soilExists ? '[F] RESTORE GRASS' : '[F] TILL SOIL';
   return null;

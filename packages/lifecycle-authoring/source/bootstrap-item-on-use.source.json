@@ -1,7 +1,7 @@
 {
   "format": "orchard-lifecycle-source-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 13,
+  "revision": 14,
   "engineApiVersion": 1,
   "handlers": [
     {
@@ -20,6 +20,16 @@
       "event": "onUse",
       "prompt": "EAT APPLE",
       "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:apple_seed",
+      "id": "item.apple-seed.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
     },
     {
       "itemId": "item:axe",
@@ -160,6 +170,16 @@
       "event": "onUse",
       "prompt": "EAT CHERRIES",
       "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:cherry_seed",
+      "id": "item.cherry-seed.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
     },
     {
       "itemId": "item:chest",
@@ -770,11 +790,31 @@
       "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
     },
     {
+      "itemId": "item:peach_seed",
+      "id": "item.peach-seed.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
       "itemId": "item:pear",
       "id": "item:pear.on_use",
       "event": "onUse",
       "prompt": "EAT PEAR",
       "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse {\n  const fruit = context.item.snapshot.state?.fruit === true;\n  if (context.player.snapshot.vitals.hunger >= 10_000 && !fruit) context.block('hunger_full');\n  else {\n    context.item.consume();\n    context.player.restoreHunger(restored);\n    context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n    if (fruit) context.item.applyEffect('fruitful_energy');\n  }\n}"
+    },
+    {
+      "itemId": "item:pear_seed",
+      "id": "item.pear-seed.on-use",
+      "event": "onUse",
+      "prompt": "PLANT SEEDS",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
     },
     {
       "itemId": "item:pickaxe",

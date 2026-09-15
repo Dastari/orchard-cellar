@@ -5,6 +5,9 @@ import {
   type ContentRegistry,
   type FrameContentDefinition,
 } from '@orchard/sim';
+import type { ItemSlot } from './item-slot.js';
+import type { UiRect } from './geometry.js';
+import type { ContentFrameLayout } from './content-frame.js';
 import type { PixelUi } from './pixel-ui.js';
 import type { UiSkin } from './skin.js';
 import {
@@ -41,6 +44,7 @@ function update(
   height: number,
   activeFrameId?: `frame:${string}`,
   inventoryFrameState?: Readonly<Record<string, boolean | string | number>>,
+  overrides: Partial<Parameters<OverworldUi['update']>[0]> = {},
 ): void {
   ui.update({
     width, height, connected: true, playerCount: 1, selectedSlot: 0,
@@ -51,6 +55,7 @@ function update(
     raining: false, weatherMode: 'auto', prompt: null, toast: null, contentRegistry: registry,
     ...(activeFrameId === undefined ? {} : { activeFrameId, activeFrameState: { sealed: false } }),
     inventoryFrameState,
+    ...overrides,
   });
 }
 
@@ -153,5 +158,113 @@ describe('authored content frames in Overworld UI', () => {
     const button = internal.activeContentFrame()!.buttons[0]!.rect;
     expect(ui.pointerDown({ x: button.x + 1, y: button.y + 1 }, 0)).toBe(true);
     expect(handlers.frameAction!).toHaveBeenCalledWith('charge');
+  });
+});
+
+
+describe('chest search and sort controls', () => {
+  function setup(width = 480, height = 270, renamed = false) {
+    const source = contentRegistry.frames.get('frame:chest')!;
+    const id = renamed ? 'frame:orchard_storage' : source.id;
+    const registry = renamed ? buildContentRegistry(bootstrapContentRows().map((row) => row.id === source.id
+      ? { ...row, id, json: { ...source, id } } : row)).registry : contentRegistry;
+    const handlers = { ...callbacks(), sortInventoryContainer: vi.fn(), inventoryCursorClick: vi.fn() };
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
+    const refresh = (overrides: Partial<Parameters<OverworldUi['update']>[0]> = {}) => update(ui, registry, width, height, id, undefined, {
+      inventory: [{ slot: 18, itemKind: 'apple', quantity: 3 }],
+      openChestInventory: [{ slot: 11, itemKind: 'apple', quantity: 2 }, { slot: 3, itemKind: 'wood', quantity: 4 }],
+      ...overrides,
+    });
+    refresh();
+    ui.openWindow = renamed ? 'content' : 'chest';
+    const internal = ui as unknown as {
+      inventoryFilterText: string;
+      inventoryFilterInput: { hidden: boolean; blur(): void; focus(): void } | null;
+      inventorySearchRect(): UiRect | null;
+      activeContentFrame(): ContentFrameLayout;
+      visibleItemSlots(): ItemSlot[];
+      chestSortNode: { bounds: UiRect; visible: boolean; enabled: boolean };
+      backpackSortNode: { bounds: UiRect; visible: boolean; enabled: boolean };
+    };
+    return { ui, handlers, internal, refresh };
+  }
+
+  it.each([false, true])('filters both panes without changing physical slot custody (renamed: %s)', (renamed) => {
+    const { ui, handlers, internal, refresh } = setup(480, 270, renamed);
+    internal.inventoryFilterText = '  APPle  ';
+    refresh();
+    const slots = internal.visibleItemSlots().filter((slot) => slot.containerId !== 'hotbar');
+    expect(slots.map((slot) => [slot.containerId, slot.index])).toEqual(expect.arrayContaining([
+      ['chest', 11], ['backpack', 8],
+    ]));
+    expect(slots).toHaveLength(2);
+    for (const slot of slots) {
+      const point = { x: slot.bounds.x + 8, y: slot.bounds.y + 8 };
+      ui.pointerDown(point, 0);
+      ui.pointerUp(point, 0);
+      expect(handlers.inventoryCursorClick).toHaveBeenCalledWith(slot.containerId, slot.index, 'left');
+    }
+    internal.inventoryFilterText = 'no matches';
+    refresh();
+    expect(internal.visibleItemSlots().filter((slot) => slot.containerId !== 'hotbar')).toHaveLength(0);
+    internal.inventoryFilterText = '';
+    refresh();
+    expect(internal.visibleItemSlots().filter((slot) => slot.containerId === 'chest')).toHaveLength(16);
+  });
+
+  it('matches display names and item IDs, retaining empty slots when search is cleared', () => {
+    const { internal, refresh } = setup();
+    const inventory = { openChestInventory: [{ slot: 12, itemKind: 'copper_ore', quantity: 2 }] };
+    for (const query of ['Copper Ore', 'copper_ore']) {
+      internal.inventoryFilterText = query;
+      refresh(inventory);
+      expect(internal.visibleItemSlots().filter((slot) => slot.containerId === 'chest').map((slot) => slot.index)).toEqual([12]);
+    }
+    internal.inventoryFilterText = '';
+    refresh(inventory);
+    expect(internal.visibleItemSlots().filter((slot) => slot.containerId === 'chest')).toHaveLength(16);
+  });
+
+  it.each([[384, 270], [480, 270], [1470, 820]])('fits search and sort around the grids at %ix%i', (width, height) => {
+    const { ui, internal, handlers } = setup(width, height, true);
+    const frame = internal.activeContentFrame();
+    const search = internal.inventorySearchRect()!;
+    expect(search.y).toBeGreaterThanOrEqual(Math.max(...frame.panes.map(({ layout }) => layout.grid.y + layout.grid.height)));
+    expect(search.y + search.height).toBeLessThanOrEqual(frame.storage.divider!.y);
+    expect(search.x).toBeGreaterThan(frame.storage.frame.x);
+    expect(search.x + search.width).toBeLessThan(frame.storage.frame.x + frame.storage.frame.width);
+    for (const [container, node] of [['chest', internal.chestSortNode], ['backpack', internal.backpackSortNode]] as const) {
+      expect(node.visible).toBe(true);
+      expect(node.enabled).toBe(true);
+      const pane = frame.panes.find((pane) => pane.slots.some((binding) => binding.containerId === container))!;
+      expect(node.bounds.y + node.bounds.height).toBeLessThanOrEqual(pane.layout.grid.y);
+      expect(node.bounds.x + node.bounds.width).toBe(pane.layout.grid.x + pane.layout.grid.width);
+      ui.pointerDown({ x: node.bounds.x + 8, y: node.bounds.y + 8 }, 0);
+      expect(handlers.sortInventoryContainer).toHaveBeenLastCalledWith(container);
+    }
+  });
+
+  it('shows and focuses the shared search input for chest frames, then hides it on close', () => {
+    const { ui, internal, refresh } = setup(480, 270, true);
+    const input = { hidden: true, focus: vi.fn(), blur: vi.fn() };
+    internal.inventoryFilterInput = input;
+    refresh();
+    expect(input.hidden).toBe(false);
+    const rect = internal.inventorySearchRect()!;
+    ui.pointerDown({ x: rect.x + 8, y: rect.y + 8 }, 0);
+    expect(input.focus).toHaveBeenCalledWith({ preventScroll: true });
+    ui.openWindow = null;
+    expect(input.hidden).toBe(true);
+    expect(input.blur).toHaveBeenCalled();
+  });
+
+  it('disables sorting while holding a stack and hides chest search after closing', () => {
+    const { ui, internal, refresh } = setup();
+    refresh({ cursorStack: { itemKind: 'wood', quantity: 1 } });
+    expect(internal.chestSortNode.enabled).toBe(false);
+    expect(internal.backpackSortNode.enabled).toBe(false);
+    ui.openWindow = null;
+    expect(internal.inventorySearchRect()).toBeNull();
+    expect(internal.chestSortNode.visible).toBe(false);
   });
 });

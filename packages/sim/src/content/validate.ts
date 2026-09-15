@@ -202,6 +202,7 @@ function itemReferences(definition: SupportedContentDefinition): readonly ItemDe
       'item' in target ? [target.item] : []
     )));
     case 'crop': return [definition.seedItem, definition.harvestItem];
+    case 'resource': return definition.seedItem === undefined ? [] : [definition.seedItem];
     case 'npc': return [
       ...(definition.commerce?.villageOrders ?? []).map(({ item }) => item),
       ...(definition.commerce?.recipeExchange === undefined ? [] : [definition.commerce.recipeExchange.payment.item]),
@@ -210,7 +211,7 @@ function itemReferences(definition: SupportedContentDefinition): readonly ItemDe
     case 'encounter': return definition.reward.drops.map(({ item }) => item);
     case 'balance': return 'profile' in definition && definition.profile === 'residence_construction'
       ? definition.values.slice(1, 4) as readonly ItemDefinitionId[] : [];
-    case 'dialogue': case 'creature': case 'spawn': case 'resource':
+    case 'dialogue': case 'creature': case 'spawn':
     case 'space': case 'skill_tree': case 'effect': case 'statistic': case 'upgrade':
     case 'balance_group': case 'enemy': return [];
     case 'quest': return [
@@ -367,6 +368,15 @@ function validateResourceDefinition(
   const invalid = (message: string, path?: string) => errors.push(issue(
     'error', 'invalid_world_definition', message, definition.id, path,
   ));
+  if (definition.seedItem !== undefined) {
+    const seed = byId.get(definition.seedItem);
+    if (seed?.kind !== 'item' || !seed.tags.includes('item.seed')
+      || (definition.retired !== true && seed.retired === true)) invalid('seedItem must reference a live seed item', 'seedItem');
+    if (!definition.tags.includes('resource.fruit_tree') || definition.regrowth?.enabled !== true
+      || definition.health.followsGrowthStage !== true) invalid('seedItem requires a regrowing fruit tree', 'seedItem');
+    if (definition.retired !== true && [...byId.values()].some((other) => other.kind === 'resource' && other.id !== definition.id
+      && other.retired !== true && other.seedItem === definition.seedItem)) invalid('seedItem must identify one live resource', 'seedItem');
+  }
   const loot = byId.get(definition.loot);
   if (loot?.kind !== 'loot') errors.push(issue(
     'error', 'unresolved_reference', `loot reference does not resolve: ${definition.loot}`, definition.id, 'loot',

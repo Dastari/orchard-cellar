@@ -5,6 +5,7 @@ const BASE: FarmActionPromptState = {
   targeted: true,
   selectedTool: 'water',
   seedSelected: false,
+  treeSeedSelected: false,
   soilExists: true,
   soilWatered: false,
   cropName: null,
@@ -49,4 +50,14 @@ describe('farm action prompt', () => {
     expect(farmActionPrompt({ ...crop, cropMature: false })).toBe('[F] DIG UP STRAWBERRY');
     expect(farmActionPrompt({ ...crop, cropMature: true })).toBe('[F] DIG UP STRAWBERRY');
   });
+});
+
+
+it('offers tree-seed planting on grass and soil while crop seeds still need tilling', () => {
+  const seed = { ...BASE, selectedTool: null, seedSelected: true };
+  for (const soilExists of [false, true]) {
+    expect(farmActionPrompt({ ...seed, treeSeedSelected: true, soilExists })).toBe('[F] PLANT TREE SEED');
+  }
+  expect(farmActionPrompt({ ...seed, soilExists: false })).toBe('TILL SOIL BEFORE PLANTING');
+  expect(farmActionPrompt({ ...seed, soilExists: true })).toBe('[F] PLANT SEEDS');
 });

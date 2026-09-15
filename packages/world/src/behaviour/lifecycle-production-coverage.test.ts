@@ -99,7 +99,7 @@ describe('lifecycle registration versus production raise coverage', () => {
       useWith: { registrations: 39, production: 'raised' },
       useAt: { registrations: 7, production: 'raised' },
       aimedUse: { registrations: 6, production: 'raised' },
-      place: { registrations: 53, production: 'raised' },
+      place: { registrations: 57, production: 'raised' },
       // Empty-container item pickup is compiled from the active carry component.
       pickup: { registrations: 3, production: 'raised' },
       // Authored object graphs plus the active resource-definition loot bridge.

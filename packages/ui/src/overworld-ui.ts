@@ -36,11 +36,13 @@ import {
   type StorageFrameSpec,
 } from './storage-frame.js';
 import {
+  chestInventorySearchRect,
   contentFrameButtonAt,
   contentFramePaneVisible,
   drawContentFrame,
   layoutContentFrame,
   type ContentFrameLayout,
+  type ContentFramePaneLayout,
 } from './content-frame.js';
 import { CurrencyDisplay } from './currency-display.js';
 import { PlayerResourceFrame } from './player-resource-frame.js';
@@ -2123,18 +2125,34 @@ export class OverworldUi {
     this.syncActiveWindow();
   }
 
+  private inventorySearchRect(): UiRect | null {
+    if (this.openWindowValue === 'inventory') return this.layout.inventoryFilter;
+    if (this.openWindowValue === 'crafting') return this.layout.craftingInventoryFilter;
+    const frame = this.activeContentFrame();
+    return frame === null ? null : chestInventorySearchRect(frame);
+  }
+
+  private inventorySlotMatchesSearch(slot: ItemSlot): boolean {
+    const query = this.inventoryFilterText.trim().toLowerCase();
+    if (!query) return true;
+    if (slot.item === null) return false;
+    return slot.item.itemKind.toLowerCase().includes(query)
+      || (this.itemDefinition(slot.item.itemKind)?.displayName.toLowerCase().includes(query) ?? false);
+  }
+
+  private chestPaneSlots(pane: ContentFramePaneLayout): readonly ItemSlot[] {
+    const backpack = this.filteredInventoryBackpackSlots();
+    return pane.slots.flatMap((binding) => {
+      const collection = binding.containerId === 'chest' ? this.chestItemSlots : backpack;
+      const slot = collection.find((candidate) => candidate.index === binding.index);
+      return slot !== undefined && this.inventorySlotMatchesSearch(slot) ? [slot] : [];
+    });
+  }
+
   private filteredInventoryBackpackSlots(): ItemSlot[] {
     const capacity = this.model.backpackSlotCapacity
       ?? (this.model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS);
-    const query = this.inventoryFilterText.trim().toLowerCase();
-    return this.backpackItemSlots.filter((slot, index) => {
-      if (index >= capacity) return false;
-      if (!query) return true;
-      if (slot.item === null) return false;
-      const definition = this.itemDefinition(slot.item.itemKind);
-      return slot.item.itemKind.toLowerCase().includes(query)
-        || (definition?.displayName.toLowerCase().includes(query) ?? false);
-    });
+    return this.backpackItemSlots.filter((slot, index) => index < capacity && this.inventorySlotMatchesSearch(slot));
   }
 
   private syncInventoryBackpackSlots(): void {
@@ -2455,10 +2473,8 @@ export class OverworldUi {
         return true;
       }
     }
-    if ((this.openWindowValue === 'inventory' || this.openWindowValue === 'crafting')
-      && button === 0
-      && containsPoint(this.openWindowValue === 'crafting'
-        ? this.layout.craftingInventoryFilter : this.layout.inventoryFilter, point)) {
+    const searchRect = this.inventorySearchRect();
+    if (searchRect !== null && button === 0 && containsPoint(searchRect, point)) {
       this.inventoryFilterInput?.focus({ preventScroll: true });
       return true;
     }
@@ -3156,8 +3172,8 @@ export class OverworldUi {
     this.lightingEffectsToggle.node.visible = developerRenderVisible;
     this.orePreviewToggle.node.visible = developerRenderVisible;
     if (this.inventoryFilterInput !== null) {
-      this.inventoryFilterInput.hidden = !(inventoryVisible || craftingVisible);
-      if (!inventoryVisible && !craftingVisible) this.inventoryFilterInput.blur();
+      this.inventoryFilterInput.hidden = this.inventorySearchRect() === null;
+      if (this.inventoryFilterInput.hidden) this.inventoryFilterInput.blur();
     }
     if (this.recipeFilterInput !== null) {
       this.recipeFilterInput.hidden = !craftingVisible;
@@ -3197,6 +3213,18 @@ export class OverworldUi {
       ]) slot.visible = false;
     }
     this.applyContentFrameBindings();
+    const chestFrame = this.activeContentFrame();
+    if (chestFrame !== null && chestInventorySearchRect(chestFrame) !== null) {
+      for (const [container, node] of [['chest', this.chestSortNode], ['backpack', this.backpackSortNode]] as const) {
+        const pane = chestFrame.panes.find((candidate) => candidate.slots.some((binding) => binding.containerId === container)
+          && contentFramePaneVisible(candidate.definition, this.activeContentFrameState()));
+        node.visible = pane !== undefined;
+        if (pane !== undefined) node.setBounds({
+          x: pane.layout.grid.x + pane.layout.grid.width - 16,
+          y: pane.layout.labelPosition.y - 4, width: 16, height: 16,
+        });
+      }
+    }
   }
 
   /** Projects authored pane bindings onto the stable retained ItemSlot nodes.
@@ -3207,6 +3235,7 @@ export class OverworldUi {
     if (frame === null) return;
     const state = this.activeContentFrameState();
     const craftingSurface = frame.definition.presentation?.surface === 'crafting';
+    const chestSurface = chestInventorySearchRect(frame) !== null;
     const craftingBackpack = craftingSurface ? this.filteredInventoryBackpackSlots() : [];
     const entitySlots = frame.definition.presentation?.entityContainer === 'chest'
       ? this.chestItemSlots : this.placeableItemSlots;
@@ -3221,8 +3250,13 @@ export class OverworldUi {
     };
     for (const pane of frame.panes) {
       if (!contentFramePaneVisible(pane.definition, state)) continue;
+      const chestSlots = chestSurface
+        && pane.slots.every((binding) => binding.containerId === 'chest' || binding.containerId === 'backpack')
+        ? this.chestPaneSlots(pane) : null;
       pane.slots.forEach((binding, visualIndex) => {
-        const slot = collections[binding.containerId]?.find((candidate) => candidate.index === binding.index);
+        const slot = chestSlots === null
+          ? collections[binding.containerId]?.find((candidate) => candidate.index === binding.index)
+          : chestSlots[visualIndex];
         if (slot === undefined) return;
         // Crafting's recipe list, grid, and result share one composed layout.
         // Keep its retained draw/hit nodes on that same grid while authored
@@ -3234,7 +3268,8 @@ export class OverworldUi {
             : pane.layout.slots[visualIndex];
         if (rect === undefined) return;
         slot.setBounds(rect);
-        slot.setRestriction(binding.restriction);
+        slot.setRestriction(chestSlots === null ? binding.restriction
+          : pane.slots.find((candidate) => candidate.containerId === slot.containerId && candidate.index === slot.index)?.restriction);
         slot.visible = true;
       });
     }
@@ -3663,6 +3698,7 @@ export class OverworldUi {
     const rect = this.activeWindowRect();
     const contentFrame = this.activeContentFrame(window);
     const authoredEntityFrame = contentFrame?.definition.presentation?.surface === 'entity';
+    const chestSearch = contentFrame === null ? null : chestInventorySearchRect(contentFrame);
     if (contentFrame !== null) drawContentFrame(context, contentFrame, {
       progress: this.model.activeFrameProgress,
       state: this.activeContentFrameState(),
@@ -3679,8 +3715,15 @@ export class OverworldUi {
               : binding.containerId === 'hotbar' ? this.inventoryHotbarSlots
                 : binding.containerId === 'equipment' ? this.equipmentItemSlots
                   : binding.containerId === 'crafting' ? this.craftingItemSlots : [];
-        const slot = collection.find((candidate) => candidate.index === binding.index);
-        if (slot === undefined) return;
+        const chestPane = chestSearch !== null
+          && (binding.containerId === 'chest' || binding.containerId === 'backpack');
+        const slot = chestPane
+          ? collection.find((candidate) => candidate.visible && candidate.bounds.x === slotRect.x && candidate.bounds.y === slotRect.y)
+          : collection.find((candidate) => candidate.index === binding.index);
+        if (slot === undefined) {
+          if (chestPane) drawUiInventorySlotBacking(_drawContext, this.skin, slotRect, undefined);
+          return;
+        }
         this.drawItemSlotBacking(_drawContext, slot);
         if (slot.item) this.drawInventoryItem(
           _drawContext, slotRect, slot.item.itemKind, slot.item.quantity, slot.item.durability, slot.item.lit,
@@ -3715,6 +3758,11 @@ export class OverworldUi {
       hovered: containsPoint(this.closeNode.bounds, this.pointer), hoverOutline: 'white',
     });
     if (authoredEntityFrame) {
+      if (chestSearch !== null) {
+        if (this.chestSortNode.visible) this.drawStorageSortButton(context, this.chestSortNode, 'chest');
+        if (this.backpackSortNode.visible) this.drawStorageSortButton(context, this.backpackSortNode, 'backpack');
+        this.drawInventorySearch(context, chestSearch);
+      }
       if (contentFrame.storage.hotbar !== undefined) this.drawWindowHotbar(context, rect, contentFrame.storage);
     }
     else if (window === 'inventory' || window === 'pack') this.drawInventory(context, rect);
@@ -3773,21 +3821,25 @@ export class OverworldUi {
     this.delveCancelButton.draw(context);
   }
 
-  private drawInventory(context: CanvasRenderingContext2D, rect: UiRect): void {
-    drawLabel(context, this.fonts, 'EQUIPMENT', rect.x + 21, rect.y + 35, { color: '#6b4428' });
-    drawUiSkinAsset(context, this.skin.frameThin, this.layout.inventoryFilter);
+  private drawInventorySearch(context: CanvasRenderingContext2D, rect: UiRect): void {
+    drawUiSkinAsset(context, this.skin.frameThin, rect);
     if (this.inventoryFilterInput !== null) {
       drawCanvasTextInput(context, this.fonts, this.inventoryFilterInput, {
-        x: this.layout.inventoryFilter.x + 6,
-        y: this.layout.inventoryFilter.y + 5,
-        width: this.layout.inventoryFilter.width - 12,
+        x: rect.x + 6,
+        y: rect.y + 5,
+        width: rect.width - 12,
         placeholder: 'FILTER ITEMS',
         color: '#51351f',
         placeholderColor: '#986846',
       });
-    } else drawLabel(context, this.fonts, this.inventoryFilterText || 'FILTER ITEMS', this.layout.inventoryFilter.x + 6, this.layout.inventoryFilter.y + 5, {
+    } else drawLabel(context, this.fonts, this.inventoryFilterText || 'FILTER ITEMS', rect.x + 6, rect.y + 5, {
       color: this.inventoryFilterText ? '#51351f' : '#986846',
     });
+  }
+
+  private drawInventory(context: CanvasRenderingContext2D, rect: UiRect): void {
+    drawLabel(context, this.fonts, 'EQUIPMENT', rect.x + 21, rect.y + 35, { color: '#6b4428' });
+    this.drawInventorySearch(context, this.layout.inventoryFilter);
     this.drawStorageSortButton(context, this.backpackSortNode, 'backpack');
     this.equipmentItemSlots.forEach((slot, visualIndex) => {
       const equipmentSlot = slot.bounds;

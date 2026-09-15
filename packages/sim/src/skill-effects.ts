@@ -179,6 +179,7 @@ export function runtimeResourcePerception(
 export interface FarmingSkillEffects {
   readonly greenThumb: number;
   readonly seedSaver: number;
+  readonly orchardSeedSaver: number;
   readonly bountifulHarvest: number;
   readonly tenderHand: number;
   readonly masterGrower: boolean;
@@ -202,6 +203,7 @@ export function farmingSkillEffects(
   const rank = (key: SkillNodeCapability) => capabilities.get(key) ?? 0;
   return {
     greenThumb: rank('farming_green_thumb'), seedSaver: rank('farming_seed_saver'),
+    orchardSeedSaver: rank('farming_orchard_seed_saver'),
     bountifulHarvest: rank('farming_bountiful_harvest'), tenderHand: rank('farming_tender_hand'),
     masterGrower: rank('farming_master_grower') > 0, barreling: rank('farming_barreling'),
     harvestFestival: rank('farming_harvest_festival') > 0,
