@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION } from '@orchard/sim';
+import { contentRecoveryConnection } from './content/recovery.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const printer = ts.createPrinter();
@@ -65,7 +66,7 @@ function runInventoryConnection(
   })));
   const cursor = table([{identity:sender,itemKind:'torch',quantity:1,durability:73,lit:false}]);
   const inventory = table(inventoryRows, 'id');
-  const ctx = { sender, db: {
+  const ctx = { sender, connectionId: {}, db: {
     player_survival: table(newCharacter ? [] : [{ identity: sender }]),
     player_spawn: table(newCharacter ? [] : [{ identity: sender, tileX: 1, tileY: 1, spaceId: 0 }]),
     player_survival_migration: table(newCharacter ? [] : [{ identity: sender, hungerVersion: 1 }]),
@@ -89,7 +90,10 @@ function runInventoryConnection(
   if (end < 0) throw new Error('inventory phase boundary missing');
   const body = callback.body.statements.slice(0, end).map((statement) => printer.printNode(ts.EmitHint.Unspecified, statement, source)).join('\n');
   const dependencies = {
-    prepareConnection: () => ({ connectionId: null, firstLiveConnection: false, firstStatisticSession: false }),
+    contentRecoveryConnection,
+    requireContentEditor: () => { throw new Error('unexpected_recovery_authorization'); },
+    ensureContentPublicationBase: () => { throw new Error('unexpected_recovery_integrity_check'); },
+    prepareConnection: () => ({ connectionId: ctx.connectionId, firstLiveConnection: false, firstStatisticSession: false }),
     HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION, CURRENT_HOTBAR_LAYOUT_VERSION: 1,
     hotbarSlotCountForLayoutVersion: (version:number)=>version===0?9:HOTBAR_SLOT_COUNT,
     planNewPlayerLoadout: (_registry: unknown, request: { existingCharacter: boolean }) => request.existingCharacter

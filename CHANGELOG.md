@@ -2,6 +2,8 @@
 
 ## 0.7.1 — Unreleased
 
+- Allow authorized content editors to repair verified historical packs before gameplay initialization; preserve strict publication results and isolate recovery disconnects.
+
 - Preserve rotated release credentials through signing-key outages while withholding unverified identity tokens.
 
 - Repair hosted CI prerequisites, dry-run portability and portable Keccak hashing;
