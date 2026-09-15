@@ -249,6 +249,17 @@ The historical parser is used only when loading a previous approved candidate;
 normal candidate verification and the production CAS retain strict validation.
 See [the compatibility contract](content-release-compatibility.md).
 
+### Historical content recovery connections
+
+When the durable pack is incompatible with the current runtime, only existing
+authenticated content editors can connect for repair after raw integrity checks.
+They acquire no gameplay session or player initialization side effects. A
+connection-notice marker isolates recovery disconnect cleanup and rejects gameplay
+heartbeats without changing normal expired-session cleanup. Content
+publication verifies the historical baseline as bytes, then validates the complete
+new registry and commits under the existing CAS/audit contract. Ordinary gameplay
+continues to require a valid current registry.
+
 ## Fruit seed loop (0.8.0)
 
 Resource definitions can reference a plantable `seedItem`. The active registry
