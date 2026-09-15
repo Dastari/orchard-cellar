@@ -7,9 +7,13 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      # Original vendor sheets are licensed local fixtures; CI verifies the
+      # reviewed import fingerprints. Full local release checks use the sheets.
+      ORCHARD_TEST_LICENSED_ART: '0'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -18,5 +22,8 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://install.spacetimedb.com | sh -s -- --yes
           "$HOME/.local/bin/spacetime" version install 2.8.2 --use --yes
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install test utilities
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
       - run: npm ci
+      - run: npm run assets:build
       - run: npm run check

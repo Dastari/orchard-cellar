@@ -7,7 +7,18 @@ export default defineConfig({
     // constrained CI and coverage runs so worker contention cannot trip the
     // dedicated per-test performance budgets.
     fileParallelism: process.env.CI !== 'true' && !process.argv.includes('--coverage'),
-    testTimeout: 15_000,
+    // Coverage instruments large world-generation fixtures on hosted CPUs.
+    testTimeout: process.argv.includes('--coverage') ? 120_000 : 15_000,
+    exclude: process.env.ORCHARD_TEST_LICENSED_ART === '0' ? [
+      'packages/tools/src/hearth-architecture-assets.test.ts',
+      'packages/tools/src/hearth-bridge-assets.test.ts',
+      'packages/tools/src/hearth-icon-assets.test.ts',
+      'packages/tools/src/hearth-pavement-assets.test.ts',
+      'packages/tools/src/hearth-resource-assets.test.ts',
+      'packages/tools/src/hearth-seating-assets.test.ts',
+      'packages/tools/src/hearth-village-assets.test.ts',
+      'packages/tools/src/hearth-volcano-scenery-assets.test.ts',
+    ] : [],
     coverage: {
       provider: 'v8',
       include: ['packages/sim/src/**/*.ts'],

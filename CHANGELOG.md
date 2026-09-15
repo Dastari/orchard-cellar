@@ -2,6 +2,9 @@
 
 ## 0.7.1 — Unreleased
 
+- Repair hosted CI prerequisites, dry-run portability and portable Keccak hashing;
+  retain local licensed-art checks and pin reviewed imports for public CI.
+
 - Allow verified historical content to be read during upgrades while strictly
   validating the candidate and preserving conflict checks and live-only content.
 - Explain incompatible game content instead of labeling it a reconnect failure.

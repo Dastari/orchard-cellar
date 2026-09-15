@@ -20,6 +20,7 @@ describe('routine same-schema release', () => {
     expect(programHashFromSql('0x232870958a14e161dc86e59007f7f9f942c85ad19fe8205bc970193c1d82dbd1'))
       .toBe('d1db821d3c1970c95b20e89fd15ac842f9f9f70790e586dc61e1148a95702823');
     expect(() => programHashFromSql('../program')).toThrow('routine_program_hash_invalid');
+    expect(keccak256(Buffer.from('abc'))).toBe('4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45');
     expect(keccak256(Buffer.alloc(0))).toBe('c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470');
   });
 

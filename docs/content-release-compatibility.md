@@ -45,3 +45,24 @@ integration checkout. Original local Git instructions and skill installation are
 untouched. The remaining deployment step needs a fresh authenticated capture and
 the existing guarded schema migration/reconnect workflow, not a standalone client
 replacement. Existing authorization to deploy the gameplay release remains valid.
+
+## Hosted CI portability
+
+CI builds the generated atlas before tests and installs ripgrep explicitly. Release
+dry-runs resolve the checkout containing their script; non-dry runs still require
+the canonical production directory. Program hashing uses pinned `@noble/hashes`
+Keccak-256 instead of depending on the host OpenSSL algorithm list. SHA3-256 is
+not an interchangeable substitute. Empty and nonempty known vectors are tested.
+
+GitHub does not receive original licensed vendor sheets. Its explicit
+`ORCHARD_TEST_LICENSED_ART=0` mode runs a fingerprint regression over 1,008 reviewed
+imports, including pixels, provenance and placement metadata. Eight original-sheet
+files and one plain-icon pixel test are reserved for the full local release gate;
+all other icon/import tests remain active in CI. Default `npm run check` includes
+these original-sheet tests. Refreshing reviewed fingerprints requires passing them
+on the licensed host; hashes cannot establish correctness of new artwork alone.
+
+Coverage-only world generation timeouts allow instrumentation overhead; assertions
+and coverage thresholds remain unchanged. GitHub actions use Node-24-compatible
+checkout/setup-node versions. Generated assets and licensed source sheets remain
+untracked.
