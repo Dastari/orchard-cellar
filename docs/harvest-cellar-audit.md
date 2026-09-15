@@ -51,3 +51,10 @@ upgrade purchase ownership, skill prerequisite rejection, yield probability
 boundaries, daily bonus, seed inventory rollback and processor duration. Run
 repository checks and production client/world builds; preserve Studio's prebuild
 guard. Live read-only inspection is evidence, not a deployment verification.
+
+## Touch build access
+
+Tap the hammer above the crafting spanner to open or close the build catalogue.
+It shares the B-key permission and mounted-state checks. Estate upgrade buttons
+are below the catalogue; purchases remain owner-only. The weapon shortcut sits
+above the hammer so their pointer targets do not overlap.

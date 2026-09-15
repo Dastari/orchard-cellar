@@ -138,7 +138,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Chest controls restore sort/search within shared authored frames, retaining
 // physical slot custody. Review: docs/chest-inventory-controls.md; interaction
 // and browser-canvas checks accompany this re-capture.
-const STRUCTURAL_SEAM_DIGEST = '64af8c580d4d5cee4333b270baffeca05852dcb226b8fecc9a31e4cef1a5f5fa';
+// Mobile build access adds the reviewed hammer HUD callback and overlay hit priority.
+// Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
+const STRUCTURAL_SEAM_DIGEST = '5019baa4292ee521512108b0405591cfdfbfd5f99dc676e900bc5b0a8d764dbf';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
