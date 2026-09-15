@@ -141,10 +141,20 @@ export function expectedContentSnapshot(
         throw new Error('routine_snapshot_head_changed:revision');
       }
       if (candidate.upserts.length === 0) return entry;
+      // Quotes project the current registry hash; their prices, quantities and
+      // receipt revisions still have to match exactly across publication.
+      const orders = entry.tables['ownVillageOrders']?.map((row) => {
+        if (typeof row !== 'object' || row === null || Array.isArray(row)
+          || !('contentHash' in row) || row.contentHash !== expected.contentHash) {
+          throw new Error('routine_snapshot_order_hash_changed');
+        }
+        return { ...row, contentHash: candidate.resultingHead.contentHash };
+      });
       return {
         ...entry,
         tables: {
           ...entry.tables,
+          ...(orders === undefined ? {} : { ownVillageOrders: orders }),
           contentHead: [{
             ...head,
             ...candidate.resultingHead,

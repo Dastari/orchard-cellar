@@ -110,3 +110,13 @@ connection/hydration/retries, real recovery, update/error priority and resuming
 loading; eight fail against the original renderer and pass with this change.
 The prior full-suite results above apply to the original batch. No merge or
 deployment was performed.
+
+## Authorized release preparation
+
+The owner authorized merging and deploying PR #14. Release preparation found the
+previous rollout's documented false mismatch: `ownVillageOrders.contentHash` is
+a view projection of the active registry, not stored player state. The routine
+expected snapshot now checks the prior hash and projects only the approved new
+hash; all quote values and durable state remain subject to exact comparison.
+Fresh, separate Studio PKCE credentials are used for release verification to
+avoid competing with the game's token refresh.

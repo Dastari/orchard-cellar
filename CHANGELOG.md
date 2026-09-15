@@ -2,6 +2,9 @@
 
 ## 0.8.2 — Unreleased
 
+- Account for the published content hash in village-order quote verification while
+  still checking every price, quantity, receipt and player-state field.
+
 - Keep first world connection, subscription hydration and initial retries in the
   normal gateway loading window. Show Reconnecting only after an entered world
   loses its connection; retain update, offline and sign-in recovery actions.

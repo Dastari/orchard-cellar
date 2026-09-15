@@ -60,13 +60,14 @@ describe('routine same-schema release', () => {
     await expect(treeManifest(root)).rejects.toThrow('routine_symbolic_link');
   });
 
-  it('changes only the reviewed content head in expected parity, never player or pending cooking rows', () => {
+  it('changes only the reviewed head and projected quote hash, never player or cooking rows', () => {
     const head = { packId: 'live', revision: '2', contentHash: 'old', definitionCount: 484, engineVersion: 1, clientMutationId: 'prior' } as const;
     const candidate = { database: 'orchard-cellar-world', expectedHead: head, resultingHead: { revision: '3', contentHash: 'new', definitionCount: 484, engineVersion: 1 }, clientMutationId: 'approved', upserts: [{ id: 'object:workbench' }], deletes: [] } as unknown as ContentHeadCandidate;
     const snapshot: WorldRejoinSnapshot = {
       formatVersion: 2, database: candidate.database, capturedAt: '2026-09-05T00:00:00Z', exclusions: WORLD_REJOIN_EXCLUSIONS,
       identities: [{ label: 'owner', identity: 'owner-id', tables: {
         contentHead: [{ ...head, revision: { $bigint: '2' }, updatedBy: { $identity: 'prior-owner' } }],
+        ownVillageOrders: [{ id: 'order:apples', quantity: 5, totalBronze: { $bigint: '120' }, revision: { $bigint: '4' }, contentHash: 'old' }],
         ownCookingJob: [{ quantity: 12, readyTick: { $bigint: '999' } }], ownInventorySlot: [{ quantity: 500 }],
       } }],
     };
@@ -75,6 +76,15 @@ describe('routine same-schema release', () => {
     expect(after.identities[0]!.tables['ownInventorySlot']).toBe(snapshot.identities[0]!.tables['ownInventorySlot']);
     expect(after.identities[0]!.tables['contentHead']).toEqual([{ ...head, ...candidate.resultingHead, revision: { $bigint: '3' }, clientMutationId: 'approved', updatedBy: { $identity: 'owner-id' } }]);
     expect(snapshot.identities[0]!.tables['contentHead']![0]).toMatchObject({ contentHash: 'old' });
+    expect(after.identities[0]!.tables['ownVillageOrders']).toEqual([
+      { ...snapshot.identities[0]!.tables['ownVillageOrders']![0] as object, contentHash: 'new' },
+    ]);
+    expect(snapshot.identities[0]!.tables['ownVillageOrders']![0]).toMatchObject({ contentHash: 'old' });
+    const unchanged = expectedContentSnapshot(snapshot, { ...candidate, upserts: [] }, 'owner');
+    expect(unchanged.identities[0]).toBe(snapshot.identities[0]);
+    snapshot.identities[0]!.tables['ownVillageOrders'] = [{ contentHash: 'unexpected' }];
+    expect(() => expectedContentSnapshot(snapshot, candidate, 'owner')).toThrow('routine_snapshot_order_hash_changed');
+
     expect(() => expectedContentSnapshot(snapshot, { ...candidate, expectedHead: { ...head, contentHash: 'drift' } }, 'owner')).toThrow('routine_snapshot_head_changed');
   });
 
