@@ -20,6 +20,10 @@ USAGE
 
 [[ $# -eq 0 ]] || usage
 repository=/home/toby/projects/orchard-cellar
+# Dry-runs inspect the checkout under test; live operations retain the fixed path.
+if [[ "${WORLD_FINALIZE_DRY_RUN:-false}" = true ]]; then
+  repository=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+fi
 [[ "$(pwd -P)" = "$repository" ]] || {
   printf 'Run this finalizer from %s.\n' "$repository" >&2
   exit 64

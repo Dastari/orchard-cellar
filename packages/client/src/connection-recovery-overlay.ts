@@ -4,7 +4,7 @@ import {
   type PixelUi, type UiPoint, type UiRect, type UiSize, type UiSkin,
 } from '@orchard/ui';
 
-export type ConnectionRecoveryState = 'reconnecting' | 'offline' | 'sign-in-required';
+export type ConnectionRecoveryState = 'reconnecting' | 'offline' | 'sign-in-required' | 'content-incompatible';
 export type ConnectionRecoveryAction = 'retry' | 'sign-in';
 
 export interface ConnectionRecoveryViewport extends UiSize {
@@ -28,6 +28,7 @@ export function connectionRecoveryLayout(viewport: UiSize): { readonly frame: Ui
 }
 
 const copy: Readonly<Record<ConnectionRecoveryState, { readonly title: string; readonly lines: readonly string[] }>> = {
+  'content-incompatible': { title: 'CONTENT UPDATE REQUIRED', lines: ['GAME CONTENT IS INCOMPATIBLE.', 'PLEASE WAIT FOR AN UPDATE.'] },
   reconnecting: { title: 'RECONNECTING', lines: ['RESTORING CONNECTION.', 'RETRY IF NEEDED.'] },
   offline: { title: 'CONNECTION LOST', lines: ['CONNECTION INTERRUPTED.', 'CHECK YOUR CONNECTION.'] },
   'sign-in-required': { title: 'SIGN IN REQUIRED', lines: ['PLEASE SIGN IN AGAIN.', 'REJOIN YOUR WORLD.'] },

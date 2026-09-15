@@ -33,8 +33,7 @@ function tokens(source: string): string {
   }
   return JSON.stringify(result);
 }
-function variableInitializer(source: string, name: string): string {
-  const file = parse(source);
+function variableInitializer(file: ts.SourceFile, name: string): string {
   let result: string | undefined;
   function visit(node: ts.Node): void {
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name) {
@@ -90,7 +89,7 @@ export function assertCookingClaimCapability(sources: CookingCompatibilitySource
   if (adapterAnchors.some((anchor) => !sources.world.includes(anchor))) {
     throw new Error('cooking_authored_claim_adapter_missing');
   }
-  const target = variableInitializer(sources.world, 'processJobClaimDependencies');
+  const target = variableInitializer(parse(sources.world), 'processJobClaimDependencies');
   const targetAnchors = ['ctx.db.world_campfire_state.id.find(job.targetId)',
     'runtimeLandmarkCampfirePlans(registry).some((plan) => plan.runtimeId === job.targetId',
     'plan.spaceId === job.spaceId', 'plan.objectDefinitionId === runtime?.object.id',
@@ -114,24 +113,29 @@ export function assertCookingClaimCapability(sources: CookingCompatibilitySource
   if (!preservedLandmark) throw new Error('cooking_legacy_landmark_alias_changed');
 }
 export function assertRetainedCookingEscrow(sources: CookingCompatibilitySources): void {
-  if (tokens(variableInitializer(sources.world, 'player_cooking_job')) !== tokens(RETAINED_ESCROW)) {
+  const world = parse(sources.world);
+  if (tokens(variableInitializer(world, 'player_cooking_job')) !== tokens(RETAINED_ESCROW)) {
     throw new Error('cooking_escrow_schema_changed');
   }
-  if (tokens(variableInitializer(sources.world, 'player_process_job_receipt')) !== tokens(RESOLUTION_RECEIPT)) {
+  if (tokens(variableInitializer(world, 'player_process_job_receipt')) !== tokens(RESOLUTION_RECEIPT)) {
     throw new Error('cooking_resolution_receipt_schema_changed');
   }
-  const registered = variableInitializer(sources.world, 'spacetimedb');
+  const registered = variableInitializer(world, 'spacetimedb');
   if (!/\bplayer_cooking_job\b/u.test(registered) || !/\bplayer_process_job_receipt\b/u.test(registered)) {
     throw new Error('cooking_escrow_schema_registration_missing');
   }
-  if (!variableInitializer(sources.world, 'ownCookingJob').includes('ctx.db.player_cooking_job.identity.find(ctx.sender)')) {
+  if (!variableInitializer(world, 'ownCookingJob').includes('ctx.db.player_cooking_job.identity.find(ctx.sender)')) {
     throw new Error('cooking_escrow_caller_view_missing');
   }
   if (!sources.rejoin.includes("accessor: 'ownCookingJob'")) throw new Error('cooking_escrow_rejoin_parity_missing');
   const writes: { file: string; call: string }[] = [];
   const receiptWrites: { file: string; call: string }[] = [];
   for (const [name, source] of Object.entries(sources.worldFiles)) {
-    const file = parse(source);
+    // The AST checks below match these literal names in getText(). A source
+    // without either substring cannot match; comments and strings still go
+    // through the AST checks. Reuse only this invocation's exact world text.
+    if (!source.includes('player_cooking_job') && !source.includes('player_process_job_receipt')) continue;
+    const file = source === sources.world ? world : parse(source);
     function visit(node: ts.Node): void {
       if (ts.isCallExpression(node)) {
         const call = node.expression.getText(file);

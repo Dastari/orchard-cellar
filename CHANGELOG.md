@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.1 — Unreleased
+
+- Run exhaustive procedural-terrain and survival-world suites without coverage
+  profiling as part of `npm test`; retain every test and enforce unchanged source
+  coverage thresholds in the remaining suites.
+
+- Remove repeated world-module parsing from the cooking release gate and avoid
+  parsing files without protected table names; retain mutation checks and test deadlines.
+
+- Allow authorized content editors to repair verified historical packs before gameplay initialization; preserve strict publication results and isolate recovery disconnects.
+
+- Preserve rotated release credentials through signing-key outages while withholding unverified identity tokens.
+
+- Repair hosted CI prerequisites, dry-run portability and portable Keccak hashing;
+  retain local licensed-art checks and pin reviewed imports for public CI.
+
+- Allow verified historical content to be read during upgrades while strictly
+  validating the candidate and preserving conflict checks and live-only content.
+- Explain incompatible game content instead of labeling it a reconnect failure.
+
 ## 0.7.0 — Unreleased
 
 - Mining payout and depletion XP now goes to Farming, matching its skill branch.

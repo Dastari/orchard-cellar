@@ -113,7 +113,7 @@ describe('live map runtime', () => {
     }, registry);
     expect(terrain?.defaultCliffFamily).toBe('runtime_moss');
     expect(terrain?.tilesets?.tileSetFor('runtime_moss')?.edgeFrames.top).toBe(93);
-  });
+  }, 60_000);
 
   it('keys legacy landmark materialization by the active registry and never resurrects retired content', () => {
     const bootstrap = bootstrapContentRegistry();

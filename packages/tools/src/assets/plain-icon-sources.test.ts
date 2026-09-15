@@ -47,7 +47,7 @@ describe('plain imported icon variants', () => {
     }
   });
 
-  it('uses available plain sheets and retains exact authored crop pixels', async () => {
+  it.skipIf(process.env['ORCHARD_TEST_LICENSED_ART'] === '0')('uses available plain sheets and retains exact authored crop pixels', async () => {
     const assets = (await loadAssets()).filter((asset) => asset.sourcePath !== undefined
       && (asset.name.startsWith('icon_') || asset.name.startsWith('item_')));
     const images = new Map<string, ReturnType<typeof decodePng>>();
