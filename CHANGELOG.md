@@ -2,6 +2,9 @@
 
 ## 0.7.1 — Unreleased
 
+- Remove repeated world-module parsing from the cooking release gate and avoid
+  parsing files without protected table names; retain mutation checks and test deadlines.
+
 - Allow authorized content editors to repair verified historical packs before gameplay initialization; preserve strict publication results and isolate recovery disconnects.
 
 - Preserve rotated release credentials through signing-key outages while withholding unverified identity tokens.
