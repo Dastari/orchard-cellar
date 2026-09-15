@@ -62,8 +62,8 @@ all other icon/import tests remain active in CI. Default `npm run check` include
 these original-sheet tests. Refreshing reviewed fingerprints requires passing them
 on the licensed host; hashes cannot establish correctness of new artwork alone.
 
-Coverage and the two explicitly timed terrain fixtures allow instrumentation
-overhead; assertions and coverage thresholds remain unchanged. GitHub actions use Node-24-compatible
+Coverage, the two explicitly timed simulation fixtures, and Studio terrain
+initialization fixtures allow instrumentation overhead; assertions and coverage thresholds remain unchanged. GitHub actions use Node-24-compatible
 checkout/setup-node versions. Generated assets and licensed source sheets remain
 untracked.
 
@@ -77,3 +77,8 @@ expiry checks must succeed before the usable identity token is saved or returned
 A failed check releases the lock and permits retry with the replacement refresh
 token; content capture refuses the tokenless intermediate record. Regression
 coverage exercises failure, durable recovery, and withholding unverified tokens.
+
+Hosted validation on commit 77edbb62 passed in the push run (820 files, 4,633
+tests), while the slower PR runner hit one remaining hard-coded 20-second Studio
+terrain timeout. Studio's generation fixtures now use the coverage allowance;
+terrain equality and the separate 5ms cache-hit performance assertion are unchanged.
