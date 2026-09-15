@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 — Unreleased
+
+- Allow verified historical content to be read during upgrades while strictly
+  validating the candidate and preserving conflict checks and live-only content.
+- Explain incompatible game content instead of labeling it a reconnect failure.
+
 ## 0.7.0 — Unreleased
 
 - Mining payout and depletion XP now goes to Farming, matching its skill branch.

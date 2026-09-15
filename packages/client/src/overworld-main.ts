@@ -6029,6 +6029,7 @@ function chatInteractionBlocked(): boolean {
 }
 
 function connectionRecoveryState(): ConnectionRecoveryState {
+  if (latestSnapshot.error === 'content_registry_invalid') return 'content-incompatible';
   const state = network.recoveryState;
   return state === 'offline' || state === 'sign-in-required' ? state : 'reconnecting';
 }

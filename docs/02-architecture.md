@@ -238,3 +238,13 @@ estate owner. Authored capabilities are resolved only from active implemented
 nodes with valid prerequisites. Daily harvest bonuses use successful harvest
 statistic timestamps and stable authority days. See
 [the audit and repair specification](harvest-cellar-audit.md).
+
+### Content release across parser versions
+
+Release captures and digest-pinned historical candidates are verified as immutable
+payload evidence: row identities, counts and fingerprints must match. Their game
+semantics may predate the current parser. New target definitions and the complete
+merged candidate remain subject to current-runtime validation before publication.
+The historical parser is used only when loading a previous approved candidate;
+normal candidate verification and the production CAS retain strict validation.
+See [the compatibility contract](content-release-compatibility.md).
