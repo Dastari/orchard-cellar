@@ -2,6 +2,10 @@
 
 ## 0.7.1 — Unreleased
 
+- Run exhaustive procedural-terrain and survival-world suites without coverage
+  profiling as part of `npm test`; retain every test and enforce unchanged source
+  coverage thresholds in the remaining suites.
+
 - Remove repeated world-module parsing from the cooking release gate and avoid
   parsing files without protected table names; retain mutation checks and test deadlines.
 

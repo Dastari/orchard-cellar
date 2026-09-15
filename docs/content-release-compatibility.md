@@ -104,3 +104,19 @@ Publication authenticates the editor and verifies historical byte integrity befo
 planning its transaction. The full resulting registry, CAS, idempotency, inverse
 history and audit remain mandatory. Corruption does not qualify as compatibility.
 Once the new pack is published, ordinary reconnect initialization resumes.
+
+## Exhaustive test execution
+
+The complete hosted run at f0995034 exposed coverage-profiler overhead in the
+196,608-cell procedural sweep and the whole-world plateau check: they exceeded
+their existing 600-second and 30-second limits. `npm test` now requires both
+`test:coverage` and `test:exhaustive`. The latter runs the unchanged procedural
+terrain and survival-world files serially without coverage profiling. All 51
+tests remain mandatory; their deadlines and geographic coverage are unchanged.
+The remaining suites still measure every simulation source file and enforce the
+existing line/function/statement/branch thresholds. The two exhaustive files are
+excluded only from that profiling pass, not from the full test gate.
+
+The cooking source gate also reuses its parsed world module within each check
+and parses other files only when they contain a protected table name. Existing
+AST-based write checks still distinguish executable mutations from inert text.
