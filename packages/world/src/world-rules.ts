@@ -27,6 +27,8 @@ import {
   runtimeResourceToolAllowed,
   homesteadPlayableTile,
   residencePlayableTile,
+  cellarLadderApproachClear,
+  cellarLadderPortal,
   cellarPlayableTile,
   caveTerrainPlaneCollisionBytes,
   cellarExcavationFootprint,
@@ -408,12 +410,22 @@ export type PortalUseResult = 'ok' | 'no_horses_underground' | 'portal_out_of_ra
 
 export function portalUseResult(
   player: { readonly spaceId: number; readonly x: number; readonly y: number },
-  portal: { readonly fromSpace: number; readonly fromTileX: number; readonly fromTileY: number },
+  portal: {
+    readonly kind?: string;
+    readonly fromSpace: number;
+    readonly fromTileX: number;
+    readonly fromTileY: number;
+  },
   mounted: boolean,
   allowMounted = false,
 ): PortalUseResult {
   if (mounted && !allowMounted) return 'no_horses_underground';
   if (player.spaceId !== portal.fromSpace) return 'portal_out_of_range';
+  // The cellar ladder answers only to its own column; every other portal keeps
+  // the generous three-by-three threshold.
+  if (portal.kind !== undefined && cellarLadderPortal(portal.kind)) {
+    return cellarLadderApproachClear(player, portal) ? 'ok' : 'portal_out_of_range';
+  }
   const tileX = Math.floor(player.x / TILE_SIZE_FIXED);
   const tileY = Math.floor(player.y / TILE_SIZE_FIXED);
   return Math.abs(tileX - portal.fromTileX) <= 1 && Math.abs(tileY - portal.fromTileY) <= 1
