@@ -1484,8 +1484,8 @@
         "name": "Orchard Seed Saver",
         "description": "Mature fruit-tree harvests have a 5% chance to drop a matching plantable seed. Add 10 percentage points per rank: 15%, 25%, 35%.",
         "position": [
-          -690,
-          -60
+          -420,
+          -300
         ],
         "connects": [
           "green_thumb"
