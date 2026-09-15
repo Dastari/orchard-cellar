@@ -54,6 +54,7 @@ export interface RuntimeToolDefinition {
   readonly tier: number;
   readonly reachTiles?: number;
   readonly swingTicks?: number;
+  readonly swing?: { readonly rangeFixed: number; readonly arcDegrees: number; readonly baseDamageCenti?: number };
   readonly avatarAction?: string;
 }
 

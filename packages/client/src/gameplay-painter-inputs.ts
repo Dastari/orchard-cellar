@@ -94,6 +94,7 @@ export interface GameplayPainterInputs {
     placeable: WorldPlaceable,
   ) => RuntimeObjectProcessor | null;
   readonly npcDisplay: Map<bigint, SampledRemote>;
+  readonly previousNpcDisplay: Map<bigint, SampledRemote>;
   readonly renderStarted: number;
   readonly npcHitFeedback: Map<bigint, number>;
   readonly NPC_HIT_HOP_MS: number;

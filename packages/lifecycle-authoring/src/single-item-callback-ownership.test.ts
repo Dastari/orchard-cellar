@@ -46,11 +46,11 @@ describe('single authored item callback ownership', () => {
   });
 
   it('merges hoe and watering-can farm and repair lanes without semantic drift', () => {
-    expect(source.revision).toBe(14);
+    expect(source.revision).toBe(15);
     for (const itemId of ['item:hoe', 'item:watering_can']) {
       const handlers = source.handlers.filter((handler) => handler.itemId === itemId);
       expect(handlers, itemId).toHaveLength(1);
-      expect(handlers[0]?.triggers).toEqual(['useWith', 'place']);
+      expect(handlers[0]?.triggers).toEqual(itemId === 'item:hoe' ? ['secondary', 'useWith', 'place'] : ['useWith', 'place']);
       expect(handlers[0]?.source).toContain("context.event.type === 'place'");
       expect(handlers[0]?.source).toContain("context.event.type === 'useWith'");
       expect(handlers[0]?.source).toContain("context.snapshot.target.definitionId !== 'object:anvil'");
@@ -96,7 +96,7 @@ describe('single authored item callback ownership', () => {
       const itemId = `item:${fixture.kind}`;
       expect(AUTHORED_ITEM_LIFECYCLE_METADATA.filter((entry) => entry.itemId === itemId))
         .toEqual([expect.objectContaining({
-          id: `${itemId}.on_use`, prompt: fixture.prompt, triggers: ['useWith', 'place'],
+          id: `${itemId}.on_use`, prompt: fixture.prompt, triggers: fixture.kind === 'hoe' ? ['secondary', 'useWith', 'place'] : ['useWith', 'place'],
         })]);
       const selectedItem = {
         kind: fixture.kind, definitionId: itemId, tags: ['item.tool'], count: 1, durability: 100,

@@ -7,6 +7,8 @@ import {
 } from './npc-runtime.js';
 import type { NpcContentDefinition } from './npc-definition.js';
 import { resolveCreatureStats } from '../creatures.js';
+import { HORSE_DISMOUNT_DISTANCE_FIXED, HORSE_MOUNT_REACH_FIXED, HORSE_WANDER_RADIUS_FIXED, HORSE_WANDER_SPEED_FIXED, findHorseDismountPosition } from '../npc.js';
+import { TILE_SIZE_FIXED } from '../state.js';
 import { BOAT_MAX_HEALTH } from '../boats.js';
 
 const registry = bootstrapContentRegistry();
@@ -14,15 +16,27 @@ const registry = bootstrapContentRegistry();
 describe('authored NPC runtime identity and mount capability', () => {
   it('preserves legacy mount health and skill requirements in authored metadata', () => {
     expect(registry.npcs.get('npc:boat')?.health).toBe(BOAT_MAX_HEALTH);
-    expect(runtimeNpcMount(registry, { kind: 'boat' })).toEqual({ adapter: 'boat', reachFixed: 8_192 });
+    expect(runtimeNpcMount(registry, { kind: 'boat' })).toEqual({ adapter: 'boat', reachFixed: HORSE_MOUNT_REACH_FIXED });
     expect(registry.npcs.get('npc:horse')?.health).toBe(resolveCreatureStats('horse').maxHealthCenti / 100);
     expect(runtimeNpcMount(registry, { kind: 'horse' })).toMatchObject({
       adapter: 'horse', requiredSkill: 'stable_hand', jumpSkill: 'steeplechase',
-      reachFixed: 8_192, dismountDistanceFixed: 4_608,
+      reachFixed: HORSE_MOUNT_REACH_FIXED, dismountDistanceFixed: HORSE_DISMOUNT_DISTANCE_FIXED,
+      wander: { radiusFixed: HORSE_WANDER_RADIUS_FIXED, speedFixed: HORSE_WANDER_SPEED_FIXED },
     });
     expect(runtimeStarterHorseDefinition(registry)).toMatchObject({
       runtimeId: '1', displayName: 'Nados Mum', home: { tileX: 372, tileY: 370 },
     });
+  });
+  it('dismounts beside the horse in a narrow entrance clearing', () => {
+    const mount = runtimeNpcMount(registry, { kind: 'horse' });
+    if (mount?.adapter !== 'horse') throw new Error('missing horse tuning');
+    const horse = { x: 10.5 * TILE_SIZE_FIXED, y: 10.5 * TILE_SIZE_FIXED };
+    const collision = { width: 32, height: 32, blocked: Array.from({ length: 32 * 32 }, (_, i) => {
+      const x = i % 32, y = Math.floor(i / 32);
+      return x < 9 || x > 12 || y < 9 || y > 12;
+    }) };
+    const landing = findHorseDismountPosition(horse, 'right', collision, mount);
+    expect(landing).toEqual({ x: horse.x + 1.125 * TILE_SIZE_FIXED, y: horse.y });
   });
   it('resolves existing boat and horse rows without modifying durable identity or custody', () => {
     for (const kind of ['boat', 'horse']) {

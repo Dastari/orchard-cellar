@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.8.2 — Unreleased
+
+- Account for the published content hash in village-order quote verification while
+  still checking every price, quantity, receipt and player-state field.
+
+- Keep first world connection, subscription hydration and initial retries in the
+  normal gateway loading window. Show Reconnecting only after an entered world
+  loses its connection; retain update, offline and sign-in recovery actions.
+
+## 0.8.1 — Unreleased
+
+- Correct horse/boat interaction reach from 32 tiles to 2, horse dismount distance
+  from 18 tiles to 1.125, and horse wander radius/speed to their original units.
+- Prioritize dismounting on E while mounted, including beside homestead entrances,
+  and use authored mount reach consistently in client targeting and server checks.
+- Resolve wildlife and enemy action targets through their active creature/enemy
+  definitions so valid sword/axe targets no longer fail as missing NPC definitions.
+- Interpolate NPC/mob positions between rendered frames using the same frame
+  fraction as the camera and players.
+- Swing axes, swords, picks and hoes in the player's facing direction without a
+  selected target. Hit every contact in the authored arc; spend stamina once and
+  apply durability wear per contact, completing the swing before a tool breaks.
+- Use a shorter, narrower pick arc. Preserve mining tiers, ownership and loot
+  rules; left-click retains explicit cellar excavation and farming operations.
+- Show a single-line tool name immediately, then detailed information after a
+  short hover in a bounded panel above the hotbar, including current durability.
+- Publish corrected NPC/item content and generated lifecycles with the module/client update.
+  No stored schema changes; existing player and horse positions are preserved.
+
 ## 0.8.0 — Unreleased
 
 - Regenerate world client bindings for the five existing legacy-farm admin endpoints

@@ -175,7 +175,7 @@ export type Effect =
   }
   | {
     readonly worldTool: {
-      readonly action: 'whiff' | 'target' | 'digCellar';
+      readonly action: 'whiff' | 'target' | 'digCellar' | 'swing';
       readonly at?: TilePosition;
     };
   }

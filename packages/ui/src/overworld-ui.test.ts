@@ -1699,6 +1699,28 @@ describe('overworld inventory and system menu', () => {
     expect(ui.tooltipText()).toBe('WOODEN PLANKS');
   });
 
+  it.each(['bow', 'axe', 'sword', 'pickaxe'])('keeps the %s tooltip label to its name without durability or stat lines', kind => {
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.openWindow = 'crafting';
+    ui.update({
+      width: 480, height: 270, connected: true, playerCount: 1, selectedSlot: 0,
+      inventory: [{ slot: 0, itemKind: kind, quantity: 1, durability: 7 }, { slot: CRAFTING_SLOT_OFFSET + 3, itemKind: 'wood', quantity: 1 }],
+      hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null,
+    });
+    const layout = overworldUiLayout(480, 270);
+    const hotbar = layout.inventoryHotbarSlots[0]!;
+    ui.pointerMove({ x: hotbar.x + 4, y: hotbar.y + 4 });
+    expect(ui.tooltipText()).not.toContain('7');
+    expect(ui.tooltipText()).not.toContain('DAMAGE');
+    expect(ui.tooltipText()).not.toContain('\n');
+    expect(ui.tooltipText()?.toLowerCase()).toContain(kind);
+    ui.pointerMove({ x: layout.craftingResult.x + 4, y: layout.craftingResult.y + 4 });
+    expect(ui.tooltipText()).toBe('WOODEN PLANKS');
+  });
+
   it('uses number keys to swap hovered slots and Q / Control-Q to throw stacks', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import * as sim from '@orchard/sim';
+import { npcBehaviourDefinitionId } from './behaviour/npc-target.js';
 
 const sourceText = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
 const source = ts.createSourceFile('index.ts', sourceText, ts.ScriptTarget.Latest, true);
@@ -68,15 +69,20 @@ describe('active NPC runtime authority', () => {
     let registry = activeRegistry;
     const resolve = new Function(
       'contentRegistry',
-      'runtimeNpcDefinition',
+      'npcBehaviourDefinitionId',
       'TILE_SIZE_FIXED',
       code,
     )(
       () => registry,
-      sim.runtimeNpcDefinition,
+      npcBehaviourDefinitionId,
       sim.TILE_SIZE_FIXED,
     ) as (ctx: unknown, kind: string, id: bigint) => { ref: { definitionId: string } } | null;
-    const ctx = { db: { world_npc: { id: { find: (id: bigint) => id === npc.id ? npc : null } } } };
+    const ctx = { db: {
+      world_npc: { id: { find: (id: bigint) => id === npc.id ? npc : null } },
+      world_wildlife_profile: { npcId: { find: () => null } },
+      outdoor_enemy_profile: { npcId: { find: () => null } },
+      rogue_enemy_profile: { npcId: { find: () => null } },
+    } };
 
     expect(resolve(ctx, 'npc', npc.id)?.ref.definitionId).toBe(renamed.id);
     registry = registryWithNpc(true);

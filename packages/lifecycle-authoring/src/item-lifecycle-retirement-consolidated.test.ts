@@ -124,7 +124,7 @@ describe('consolidated item lifecycle retirement boundary', () => {
       ['item:sword', ['secondary', 'useWith']],
       ['item:bow', ['aimedUse', 'useWith']],
       ['item:fishing_rod', ['useAt', 'useWith']],
-      ['item:hoe', ['place', 'useWith']],
+      ['item:hoe', ['place', 'secondary', 'useWith']],
       ['item:watering_can', ['place', 'useWith']],
       ['item:lantern', ['equipmentUse', 'worldItemUse']],
       ['item:torch', ['equipmentUse', 'worldItemUse']],

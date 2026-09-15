@@ -1,5 +1,16 @@
 # World module changelog
 
+## 0.8.1 — Unreleased
+
+- Resolve facing-based tool swing contacts through bounded server chunk queries.
+  Charge vigour once, apply wear per contact after all hits, and preserve existing
+  combat, resource, ownership, mining, loot and salvage authority.
+
+- Resolve profile-backed creature/enemy targets before item lifecycle dispatch.
+- Apply authored mount reach at the generic interaction gate; owned dismounts
+  retain custody and collision checks. Publish with the corrected NPC content
+  and client. No database schema or stored-row migration.
+
 ## 0.8.0 — Unreleased
 
 - Add matching fruit-tree seed drops and authorized seed-to-sapling planting.

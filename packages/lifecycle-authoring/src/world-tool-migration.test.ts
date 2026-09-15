@@ -57,7 +57,7 @@ describe('authored axe and pickaxe lifecycle migration', () => {
     expect(pickaxe[0]?.id).toBe('item:pickaxe.world_tool');
     expect(pickaxe[0]?.triggers).toEqual(['secondary', 'useWith', 'useAt']);
     for (const handler of [...axe, ...pickaxe]) {
-      expect(handler.source).toContain("worldTool: { action: 'whiff' }");
+      expect(handler.source).toContain("worldTool: { action: 'swing' }");
       expect(handler.source).toContain("worldTool: { action: 'target' }");
       expect(handler.source).toContain("target.definitionId === 'object:anvil'");
       expect(handler.source).toContain('context.item.repair()');
@@ -79,4 +79,26 @@ describe('authored axe and pickaxe lifecycle migration', () => {
       id: 'item:pickaxe.world_tool', triggers: ['secondary', 'useWith', 'useAt'],
     })]);
   });
+});
+
+it('dispatches every authored swinging item without a target', () => {
+  const registry = bootstrapContentRegistry();
+  const actor = { entityType: 'player', id: 'player:test' } as const;
+  for (const item of registry.items.values()) {
+    if (!item.equip?.avatarAction?.startsWith('swing_')) continue;
+    const kind = item.id.slice(5);
+    const handler = AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS.find(entry => entry.id.startsWith(`${item.id}.`) && entry.id.endsWith('.secondary'))?.handler as Handler | undefined;
+    expect(handler, item.id).toBeDefined();
+    // Secondary swings must not consult a target or cursor snapshot.
+    const tile = { spaceId: 'space:test', x: 1, y: 1, tags: [] } as const;
+    const snapshot: ReadOnlySnapshot = {
+      tick: 1n, registry: { engineVersion: 1, revision: 15n, contentHash: 'active', definitions: {} },
+      space: { id: tile.spaceId, kind: 'overworld', tags: [] },
+      calendar: { minuteOfDay: 0, season: 'spring' }, nearbyObjects: [],
+      actor: { ...actor, tags: [], tile, bronze: 100n, vitals: { hunger: 5_000, vigour: 10_000 }, inventory: [], worldRoles: [], homesteadRoles: {}, questStates: {}, statistics: {}, skillRanks: {} },
+      selectedItem: { kind, definitionId: item.id, tags: item.tags, count: 1, durability: 1, state: {} },
+    };
+    expect(handler!({ type: 'secondary', actor, selectedItem: { kind } }, snapshot), item.id)
+      .toEqual({ effects: [{ worldTool: { action: 'swing' } }] });
+  }
 });

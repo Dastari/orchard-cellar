@@ -18,7 +18,7 @@
     "spawnPolicy": "dynamic",
     "mount": {
       "adapter": "boat",
-      "reachFixed": 8192
+      "reachFixed": 512
     },
     "questGiver": [],
     "health": 3,
@@ -149,16 +149,16 @@
       "adapter": "horse",
       "requiredSkill": "stable_hand",
       "jumpSkill": "steeplechase",
-      "reachFixed": 8192,
-      "dismountDistanceFixed": 4608,
+      "reachFixed": 512,
+      "dismountDistanceFixed": 288,
       "jump": {
         "maximumBlockedTiles": 3,
         "maximumApproachTiles": 1,
         "durationTicks": 10
       },
       "wander": {
-        "radiusFixed": 12288,
-        "speedFixed": 128,
+        "radiusFixed": 768,
+        "speedFixed": 8,
         "decisionMinimumTicks": 30,
         "decisionJitterTicks": 71,
         "blockedRetryTicks": 8

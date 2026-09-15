@@ -5,8 +5,9 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// 0.8.0 adds four fruit seeds and Orchard Seed Saver: measured 535,114 bytes.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 523 * 1024;
+// 0.8.1 authors geometry/damage for 24 swing tools: measured 536,535 bytes,
+// up 1,421 bytes (0.27%) from 0.8.0. Keep the budget at the next whole KiB.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 524 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

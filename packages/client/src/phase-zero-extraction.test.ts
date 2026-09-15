@@ -138,7 +138,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Chest controls restore sort/search within shared authored frames, retaining
 // physical slot custody. Review: docs/chest-inventory-controls.md; interaction
 // and browser-canvas checks accompany this re-capture.
-const STRUCTURAL_SEAM_DIGEST = '64af8c580d4d5cee4333b270baffeca05852dcb226b8fecc9a31e4cef1a5f5fa';
+// Gameplay 0.8.1 keeps tool labels to one line and delays bounded equipment
+// details above the hotbar. Review: docs/gameplay-bug-batch.md; tooltip layout,
+// dwell, and real item-label regressions accompany this re-capture.
+const STRUCTURAL_SEAM_DIGEST = 'f0c8469516a493613738fe6a6260247c5d2e51994cb623667093b2a3f2eda959';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

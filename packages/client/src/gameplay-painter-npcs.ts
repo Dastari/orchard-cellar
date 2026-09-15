@@ -1,3 +1,4 @@
+import { interpolateFixedPosition } from './overworld-prediction.js';
 import {authoredNpcArt} from '@orchard/engine/authored-npc-art';
 import { profilePainterProducer } from './painter-producer-profile.js';
 import { drawWildlifeHitFlash } from './gameplay-painter-effects.js';
@@ -8,7 +9,7 @@ import { worldPointVisible } from '@orchard/engine/camera';
 import type { GameplayPainterInputs } from './gameplay-painter-inputs.js';
 
 type Inputs = Pick<GameplayPainterInputs,
-  'debugEntitiesHidden' | 'snapshot' | 'npcDisplay' | 'renderStarted' | 'npcHitFeedback' |
+  'debugEntitiesHidden' | 'snapshot' | 'npcDisplay' | 'previousNpcDisplay' | 'alpha' | 'renderStarted' | 'npcHitFeedback' |
   'NPC_HIT_HOP_MS' | 'reducedMotionPreference' | 'visible' | 'questMarkerForNpc' | 'questMarkerAnchors' |
   'projectedWorldY' | 'targetableEntities' | 'projectTargetable' | 'enqueueWorldDepth' | 'context' |
   'art' | 'horseAnimationFrame' | 'cameraX' | 'cameraY' | 'scale' |
@@ -19,7 +20,7 @@ type Inputs = Pick<GameplayPainterInputs,
 /** Mechanically extracted painter producer; command order and draw bodies are unchanged. */
 function buildEnqueueGameplayNpcs(input: Inputs): void {
   const {
-    debugEntitiesHidden, snapshot, npcDisplay, renderStarted, npcHitFeedback,
+    debugEntitiesHidden, snapshot, npcDisplay, previousNpcDisplay, alpha, renderStarted, npcHitFeedback,
     NPC_HIT_HOP_MS, reducedMotionPreference, visible, questMarkerForNpc, questMarkerAnchors,
     projectedWorldY, targetableEntities, projectTargetable, enqueueWorldDepth, context,
     art, horseAnimationFrame, cameraX, cameraY, scale,
@@ -30,9 +31,11 @@ function buildEnqueueGameplayNpcs(input: Inputs): void {
     const rogueEnemyProfile = snapshot.rogueEnemyProfiles.get(npc.id) ?? snapshot.outdoorEnemyProfiles?.get(npc.id);
     if (npc.rider !== undefined || (npc.health === 0 && rogueEnemyProfile === undefined)) continue;
     const display = npcDisplay.get(npc.id);
+    const rendered = display === undefined ? npc
+      : interpolateFixedPosition(previousNpcDisplay.get(npc.id) ?? display, display, alpha);
     const sleeping = npc.wanderDirection === 'sleep';
-    const x = (sleeping ? npc.x : display?.x ?? npc.x) / FIXED_UNITS_PER_PIXEL;
-    const baseY = (sleeping ? npc.y : display?.y ?? npc.y) / FIXED_UNITS_PER_PIXEL;
+    const x = (sleeping ? npc.x : rendered.x) / FIXED_UNITS_PER_PIXEL;
+    const baseY = (sleeping ? npc.y : rendered.y) / FIXED_UNITS_PER_PIXEL;
     const hitAge = renderStarted - (npcHitFeedback.get(npc.id) ?? Number.NEGATIVE_INFINITY);
     const hitProgress = Math.max(0, Math.min(1, hitAge / NPC_HIT_HOP_MS));
     const hitActive = hitAge >= 0 && hitAge < NPC_HIT_HOP_MS;

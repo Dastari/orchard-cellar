@@ -131,7 +131,7 @@ describe('item authority integration', () => {
     ]);
   });
 
-  it('uses the explicit combat namespace for authored sword swings and targets', () => {
+  it('dispatches authored sword swings through server contact discovery, including older targeted clients', () => {
     const sword = item('sword', ['item.weapon', 'item.melee_weapon'], {
       durability: 250,
       state: { repairMaximum: 250, repairMaterial: 'stone', repairCostBronze: 5 },
@@ -140,7 +140,7 @@ describe('item authority integration', () => {
     useSelectedBehaviour(ctx, {
       verb: 'secondary', targetKind: '', entityId: 0n, tileX: 0, tileY: 0,
     }, authority(whiffLog, sword));
-    expect(whiffLog).toEqual(['authorize', 'validate:meleeAttack', 'write:meleeAttack']);
+    expect(whiffLog).toEqual(['authorize', 'validate:worldTool', 'write:worldTool']);
 
     const target: BehaviourObjectSnapshot = {
       entityType: 'object', id: '9', definitionId: 'object:archery_target',
@@ -155,7 +155,7 @@ describe('item authority integration', () => {
       snapshot: target,
     }));
     expect(targetLog).toEqual([
-      'authorize', 'target-reach', 'validate:meleeAttack', 'write:meleeAttack',
+      'authorize', 'target-reach', 'validate:worldTool', 'write:worldTool',
     ]);
   });
 
