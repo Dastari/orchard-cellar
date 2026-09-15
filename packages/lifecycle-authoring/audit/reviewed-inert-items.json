@@ -2,16 +2,16 @@
   "format": "orchard-reviewed-inert-items-v1",
   "reviewedAgainst": {
     "bootstrapItemCount": 336,
-    "lifecycleRevision": 14,
-    "lifecycleBundleSha256": "74c44428d5b9ca62c03bfb5704d4408b0e33e059b7fa8279dcfbcdd2d2090fab",
+    "lifecycleRevision": 15,
+    "lifecycleBundleSha256": "ae8df218d8e82d118f7577b738bff25fcce78f6467c4b38eb880e2f24b8b5b75",
     "authoredCallbackCount": 123,
     "inertItemCount": 112,
     "dataGraphItemCount": 69,
     "transactionItemCount": 32
   },
   "reattestation": {
-    "date": "2026-09-11",
-    "note": "The 119 actionable callback item IDs and 112 human-reviewed inert item classifications are unchanged; revision 13 changes only callback bodies to bounded hunger/repair capabilities and authored statistics.",
+    "date": "2026-09-16",
+    "note": "The 123 actionable callback item IDs and all 112 previously reviewed inert classifications are unchanged. Revision 15 routes the 24 existing swing tools through server contact discovery, including secondary triggers for six hoes. No inert item gained a capability.",
     "inertClassificationSha256": "9adecf598f35a29517e2a121b44c384bcc5e60650a2b9004810f0b77d70397fa"
   },
   "groups": [

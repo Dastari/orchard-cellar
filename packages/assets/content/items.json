@@ -192,7 +192,12 @@
       "specialization": "woodcutting",
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 8
+      "swingTicks": 8,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90,
+        "baseDamageCenti": 800
+      }
     },
     "equip": {
       "slot": "hand",
@@ -1228,7 +1233,12 @@
       "specialization": "woodcutting",
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 8
+      "swingTicks": 8,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90,
+        "baseDamageCenti": 800
+      }
     },
     "equip": {
       "slot": "hand",
@@ -1288,7 +1298,12 @@
       "specialization": "farming",
       "tier": 0,
       "reachTiles": 2,
-      "swingTicks": 6
+      "swingTicks": 6,
+      "swing": {
+        "rangeFixed": 320,
+        "arcDegrees": 90,
+        "baseDamageCenti": 400
+      }
     },
     "equip": {
       "slot": "hand",
@@ -1347,6 +1362,11 @@
       "tier": 3,
       "reachTiles": 1,
       "swingTicks": 10,
+      "swing": {
+        "rangeFixed": 256,
+        "arcDegrees": 45,
+        "baseDamageCenti": 900
+      },
       "mineableResources": [
         "rock_large",
         "ore_iron",
@@ -3769,7 +3789,12 @@
       "specialization": "woodcutting",
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 8
+      "swingTicks": 8,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90,
+        "baseDamageCenti": 800
+      }
     },
     "equip": {
       "slot": "hand",
@@ -3829,7 +3854,12 @@
       "specialization": "farming",
       "tier": 0,
       "reachTiles": 2,
-      "swingTicks": 6
+      "swingTicks": 6,
+      "swing": {
+        "rangeFixed": 320,
+        "arcDegrees": 90,
+        "baseDamageCenti": 400
+      }
     },
     "equip": {
       "slot": "hand",
@@ -3888,6 +3918,11 @@
       "tier": 1,
       "reachTiles": 1,
       "swingTicks": 10,
+      "swing": {
+        "rangeFixed": 256,
+        "arcDegrees": 45,
+        "baseDamageCenti": 700
+      },
       "mineableResources": [
         "rock_large",
         "ore_copper",
@@ -4784,7 +4819,11 @@
     "tool": {
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 7
+      "swingTicks": 7,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90
+      }
     },
     "equip": {
       "slot": "hand",
@@ -5436,7 +5475,11 @@
     "tool": {
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 7
+      "swingTicks": 7,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90
+      }
     },
     "equip": {
       "slot": "hand",
@@ -5964,7 +6007,11 @@
     "tool": {
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 7
+      "swingTicks": 7,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90
+      }
     },
     "equip": {
       "slot": "hand",
@@ -6650,7 +6697,11 @@
     "tool": {
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 7
+      "swingTicks": 7,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90
+      }
     },
     "equip": {
       "slot": "hand",
@@ -7297,7 +7348,11 @@
     "tool": {
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 7
+      "swingTicks": 7,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90
+      }
     },
     "equip": {
       "slot": "hand",
@@ -7462,7 +7517,12 @@
       "specialization": "farming",
       "tier": 0,
       "reachTiles": 2,
-      "swingTicks": 6
+      "swingTicks": 6,
+      "swing": {
+        "rangeFixed": 320,
+        "arcDegrees": 90,
+        "baseDamageCenti": 400
+      }
     },
     "equip": {
       "slot": "hand",
@@ -7604,7 +7664,12 @@
       "specialization": "woodcutting",
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 8
+      "swingTicks": 8,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90,
+        "baseDamageCenti": 800
+      }
     },
     "equip": {
       "slot": "hand",
@@ -7664,7 +7729,12 @@
       "specialization": "farming",
       "tier": 0,
       "reachTiles": 2,
-      "swingTicks": 6
+      "swingTicks": 6,
+      "swing": {
+        "rangeFixed": 320,
+        "arcDegrees": 90,
+        "baseDamageCenti": 400
+      }
     },
     "equip": {
       "slot": "hand",
@@ -7723,6 +7793,11 @@
       "tier": 3,
       "reachTiles": 1,
       "swingTicks": 10,
+      "swing": {
+        "rangeFixed": 256,
+        "arcDegrees": 45,
+        "baseDamageCenti": 900
+      },
       "mineableResources": [
         "rock_large",
         "ore_iron",
@@ -8515,6 +8590,11 @@
       "tier": 1,
       "reachTiles": 1,
       "swingTicks": 10,
+      "swing": {
+        "rangeFixed": 256,
+        "arcDegrees": 45,
+        "baseDamageCenti": 700
+      },
       "mineableResources": [
         "rock_large",
         "ore_copper",
@@ -9597,7 +9677,12 @@
       "specialization": "woodcutting",
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 8
+      "swingTicks": 8,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90,
+        "baseDamageCenti": 800
+      }
     },
     "equip": {
       "slot": "hand",
@@ -9657,7 +9742,12 @@
       "specialization": "farming",
       "tier": 0,
       "reachTiles": 2,
-      "swingTicks": 6
+      "swingTicks": 6,
+      "swing": {
+        "rangeFixed": 320,
+        "arcDegrees": 90,
+        "baseDamageCenti": 400
+      }
     },
     "equip": {
       "slot": "hand",
@@ -9716,6 +9806,11 @@
       "tier": 3,
       "reachTiles": 1,
       "swingTicks": 10,
+      "swing": {
+        "rangeFixed": 256,
+        "arcDegrees": 45,
+        "baseDamageCenti": 900
+      },
       "mineableResources": [
         "rock_large",
         "ore_iron",
@@ -9884,7 +9979,12 @@
       "specialization": "woodcutting",
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 8
+      "swingTicks": 8,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90,
+        "baseDamageCenti": 800
+      }
     },
     "equip": {
       "slot": "hand",
@@ -9923,7 +10023,12 @@
       "specialization": "farming",
       "tier": 0,
       "reachTiles": 2,
-      "swingTicks": 6
+      "swingTicks": 6,
+      "swing": {
+        "rangeFixed": 320,
+        "arcDegrees": 90,
+        "baseDamageCenti": 400
+      }
     },
     "equip": {
       "slot": "hand",
@@ -9962,6 +10067,11 @@
       "tier": 1,
       "reachTiles": 1,
       "swingTicks": 10,
+      "swing": {
+        "rangeFixed": 256,
+        "arcDegrees": 45,
+        "baseDamageCenti": 700
+      },
       "mineableResources": [
         "rock_large",
         "ore_copper",
@@ -10171,7 +10281,11 @@
     "tool": {
       "tier": 0,
       "reachTiles": 1,
-      "swingTicks": 7
+      "swingTicks": 7,
+      "swing": {
+        "rangeFixed": 384,
+        "arcDegrees": 90
+      }
     },
     "equip": {
       "slot": "hand",

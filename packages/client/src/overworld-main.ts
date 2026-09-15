@@ -624,6 +624,7 @@ const remoteDisplay = new Map<string, SampledRemote>();
 const previousRemoteDisplay = new Map<string, SampledRemote>();
 const npcBuffers = new Map<bigint, RemoteSnapshotBuffer>();
 const npcDisplay = new Map<bigint, SampledRemote>();
+const previousNpcDisplay = new Map<bigint, SampledRemote>();
 const projectileBuffers = new Map<bigint, ProjectileSnapshotBuffer>();
 const projectileDisplay = new Map<bigint, SampledProjectile>();
 const projectileFlightTicks = new Map<bigint, number>();
@@ -2013,7 +2014,7 @@ function update(): void {
     collisionKey = '';
     groundCache.invalidateResource(0, 0);
     remoteBuffers.clear(); remoteDisplay.clear(); previousRemoteDisplay.clear();
-    npcBuffers.clear(); npcDisplay.clear(); projectileBuffers.clear(); projectileDisplay.clear();
+    npcBuffers.clear(); npcDisplay.clear(); previousNpcDisplay.clear(); projectileBuffers.clear(); projectileDisplay.clear();
     projectileFlightTicks.clear(); projectileHitProgress.clear();
     pendingBowProjectile = null;
     predicted = playerState(authoritativePosition);
@@ -2198,6 +2199,7 @@ function update(): void {
   network.drainDeletedNpcIds((id) => {
     npcBuffers.delete(id);
     npcDisplay.delete(id);
+    previousNpcDisplay.delete(id);
     npcHitFeedback.delete(id);
   });
   network.drainProjectileCommits(({ row, authorityTick }) => {
@@ -2266,7 +2268,10 @@ function update(): void {
     // Water and flying wildlife intentionally occupy terrain that blocks
     // players, so NPC presentation must not use player collision extrapolation.
     const sample = buffer.sample(renderTick);
-    if (sample !== null) npcDisplay.set(id, sample);
+    if (sample !== null) {
+      previousNpcDisplay.set(id, npcDisplay.get(id) ?? sample);
+      npcDisplay.set(id, sample);
+    }
   }
   for (const [id, buffer] of projectileBuffers) {
     const sample = buffer.sample(renderTick);
@@ -3512,6 +3517,13 @@ function tileInteractionPoint(tileX: number, tileY: number): { readonly x: numbe
 
 function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
   if (predicted === null) return null;
+  // While riding, E always means dismount, even beside a portal or another NPC.
+  const ridden = localMount(snapshot);
+  const mount = runtimeNpcMount(snapshot.content.registry, ridden);
+  if (ridden !== null && mount !== null) return {
+    kind: mount.adapter, x: ridden.x, y: ridden.y,
+    stableId: `${mount.adapter}:${ridden.id}`, npc: ridden,
+  };
   const candidates: EInteractionTarget[] = [];
   if(activeSpaceDefinition.generator==='delve_lobby'&&snapshot.rogueRun===null){
     const lobby=activeHearthLobbyDefinition(snapshot.content.registry);
@@ -4500,7 +4512,7 @@ function renderFrame(alpha = 1): void {
     effectPhase, miningClassFromWire, cropDefinitionForSnapshot, renderAuthorityTick, cropAutomaticallyWateredForSnapshot,
     cropCalendarOffsetForSnapshot, cropGreenhouseProtectedForSnapshot, liveItemContentDefinition, projectileDisplay, projectileFlightTicks,
     projectileHitProgress, renderTickClock, pendingBowProjectile, projectileCollision, animatedOpenChestId,
-    closingChestId, chestAnimationStartedAtMs, clientProcessorRuntime, npcDisplay, renderStarted,
+    closingChestId, chestAnimationStartedAtMs, clientProcessorRuntime, npcDisplay, previousNpcDisplay, renderStarted,
     npcHitFeedback, NPC_HIT_HOP_MS, reducedMotionPreference, questMarkerForNpc, targetableFromVisualBounds,
     wildlifeProfile, NPC_HIT_FLASH_MS, remoteDisplay, previousRemoteDisplay,
     renderedLocal, equippedLightRow, selectedItem, lightPreviewKind, predicted,
@@ -6301,6 +6313,11 @@ window.addEventListener('keydown', (event) => {
     const selectedUseDefinition = liveItemContentDefinition(snapshot, selectedItem(snapshot));
     const selectedUseAction = selectedItemUseAction(selectedUseDefinition);
     const selectedUseKind = selectedItem(snapshot);
+    if (runtimeToolDefinition(snapshot.content.registry, selectedUseKind)?.swing !== undefined) {
+      performToolAction(() => network.useSelected('secondary'), 'SWING', selectedUseKind);
+      event.preventDefault();
+      return;
+    }
     const selectedWoodcuttingAction = selectedWoodcuttingUseWithAction(selectedUseDefinition);
     const selectedUseIsContextualWorldTool = selectedContextualWorldToolAction(selectedUseDefinition) !== null;
     const selectedUseIsMelee = selectedUseAction !== null
@@ -7140,6 +7157,19 @@ function performWorldPointerAction(
   }
   const farmItem = selectedItem(latestSnapshot);
   const farmItemDefinition = liveItemContentDefinition(latestSnapshot, farmItem);
+  const cellarAction = selectedCellarToolAction(farmItemDefinition);
+  if (event.button === 0 && worldPointerAvailable && cellarAction !== null
+    && localMount(latestSnapshot) === null) {
+    const wall = targetCellarWall(latestSnapshot);
+    if (wall !== null) {
+      const performed = performToolAction(() => network.useSelected('use_at', {
+        tileX: wall.tileX, tileY: wall.tileY, actionId: cellarAction.actionId,
+      }), 'CELLAR WALL STRUCK', farmItem);
+      if (performed) facePredictedTowardTile(wall);
+      event.preventDefault();
+      return;
+    }
+  }
   const farmToolAction = selectedFarmToolAction(farmItemDefinition);
   const fishingToolAction = selectedFishingToolAction(farmItemDefinition);
   if ((event.button === 0 || event.button === 2) && worldPointerAvailable

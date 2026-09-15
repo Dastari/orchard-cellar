@@ -43,7 +43,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     entries: [
       'Left click another player or NPC to select it; click empty ground to clear it.',
       'E: use the closest available interaction (chest, NPC, horse, portal, or pickup).',
-      'F: use the selected tool or item on its highlighted target.',
+      'F: swing axes, swords, picks and hoes in the direction you face. Other items use their highlighted target.',
       'On touch devices, the E and F buttons perform these same actions.',
       'Q: drop the selected hotbar item.',
       'Select a damaged tool and press E while facing an anvil to repair it for 5 copper coins.',
@@ -164,11 +164,11 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
   {
     title: 'ITEMS AND TOOLS',
     entries: [
-      'Dropped items keep their actual item type and quantity.',
+      'Swings hit all contacts in their arc and wear the tool for each contact. Hover over a tool for its details.',
       'Pickups and inventory moves succeed only when the server validates capacity.',
       'The axe harvests trees. Chopped trees regrow over one game day; rain helps a little.',
-      'The pickaxe mines reachable ore veins.',
-      'Select the hoe, target grass up to 3 tiles away, then click or press F to till it.',
+      'The pickaxe mines ore with a short, narrow swing. Left-click an exposed cellar wall to excavate it.',
+      'Select the hoe and left-click grass up to 3 tiles away to till it. Right-click tilled soil to restore grass.',
       'Select the watering can and target tilled soil up to 3 tiles away to water it.',
       'Select the fishing rod and target a clear water tile up to 3 tiles away. Fish shadows mark productive pools.',
       'Chests and crafted placeables use the same tile target. A red frame means placement is blocked.',

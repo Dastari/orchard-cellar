@@ -167,7 +167,7 @@ describe('selected-item lifecycle capability audit', () => {
       ['item:axe', ['secondary', 'useWith']],
       ['item:pickaxe', ['secondary', 'useWith', 'useAt']],
       ['item:sword', ['secondary', 'useWith']],
-      ['item:hoe', ['place', 'useWith']],
+      ['item:hoe', ['place', 'secondary', 'useWith']],
       ['item:watering_can', ['place', 'useWith']],
       ['item:fishing_rod', ['useAt', 'useWith']],
       ['item:bow', ['aimedUse', 'useWith']],

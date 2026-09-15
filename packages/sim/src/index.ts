@@ -1,3 +1,4 @@
+export { toolSwingContains, toolSwingChunks, type ToolSwingGeometry } from './tool-swing.js';
 export * from './movement.js';
 export * from './actions.js';
 export * from './net-timing.js';

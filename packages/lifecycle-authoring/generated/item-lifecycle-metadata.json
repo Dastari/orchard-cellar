@@ -1,8 +1,8 @@
 {
   "format": "orchard-item-lifecycle-metadata-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 14,
-  "bundleSha256": "74c44428d5b9ca62c03bfb5704d4408b0e33e059b7fa8279dcfbcdd2d2090fab",
+  "revision": 15,
+  "bundleSha256": "ae8df218d8e82d118f7577b738bff25fcce78f6467c4b38eb880e2f24b8b5b75",
   "handlers": [
     {
       "itemId": "item:anvil",
@@ -265,6 +265,7 @@
       "id": "item:copper_hoe.on_use",
       "prompt": "USE COPPER HOE",
       "triggers": [
+        "secondary",
         "useWith",
         "place"
       ]
@@ -423,6 +424,7 @@
       "id": "item:gold_hoe.on_use",
       "prompt": "USE GOLD HOE",
       "triggers": [
+        "secondary",
         "useWith",
         "place"
       ]
@@ -607,6 +609,7 @@
       "id": "item:hoe.on_use",
       "prompt": "USE HOE",
       "triggers": [
+        "secondary",
         "useWith",
         "place"
       ]
@@ -654,6 +657,7 @@
       "id": "item:iron_hoe.on_use",
       "prompt": "USE IRON HOE",
       "triggers": [
+        "secondary",
         "useWith",
         "place"
       ]
@@ -922,6 +926,7 @@
       "id": "item:silver_hoe.on_use",
       "prompt": "USE SILVER HOE",
       "triggers": [
+        "secondary",
         "useWith",
         "place"
       ]
@@ -980,6 +985,7 @@
       "id": "item:stone_hoe.on_use",
       "prompt": "USE STONE HOE",
       "triggers": [
+        "secondary",
         "useWith",
         "place"
       ]

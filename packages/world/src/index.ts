@@ -1,3 +1,6 @@
+import { executeToolSwing, type SwingTarget, type ToolSwingContact } from './behaviour/tool-swing.js';
+import { toolSwingContains, toolSwingChunks, runtimeResourceTargetVector } from '@orchard/sim';
+import { npcBehaviourDefinitionId } from './behaviour/npc-target.js';
 import { fruitSeedDrop, fruitTreeForSeed, plantedFruitTreeId, isPlantedFruitTreeId, TREE_REGROWTH_SMALL_PROGRESS } from '@orchard/sim';
 import { vehicleCustodyPlan } from './behaviour/vehicle.js';
 import {
@@ -10010,9 +10013,13 @@ function resolvedBehaviourTarget(
   }
   const npc = ctx.db.world_npc.id.find(entityId);
   if (npc === null) return null;
-  const definition = runtimeNpcDefinition(contentRegistry(ctx), npc);
-  if (definition === null) return null;
-  const snapshot = behaviourNpcSnapshot(npc, definition.id);
+  const definitionId = npcBehaviourDefinitionId(contentRegistry(ctx), npc, {
+    wildlife: ctx.db.world_wildlife_profile.npcId.find(npc.id),
+    outdoor: ctx.db.outdoor_enemy_profile.npcId.find(npc.id),
+    rogue: ctx.db.rogue_enemy_profile.npcId.find(npc.id),
+  });
+  if (definitionId === null) return null;
+  const snapshot = behaviourNpcSnapshot(npc, definitionId);
   return {
     kind: targetKind,
     ref: { entityType: 'npc', id: snapshot.id, definitionId: snapshot.definitionId },
@@ -10092,10 +10099,15 @@ function assertBehaviourTargetReach(
     return;
   }
   const npc = ctx.db.world_npc.id.find(BigInt(target.snapshot.id));
-  if (npc === null || npc.spaceId !== position.spaceId
-    || !npcWithinInteractionReach(position, npc)) {
+  if (npc === null || npc.spaceId !== position.spaceId) {
     throw new SenderError('behaviour_target_out_of_range');
   }
+  const mount = verb === 'use' ? runtimeNpcMount(contentRegistry(ctx), npc) : null;
+  if (mount !== null && npc.rider?.isEqual(ctx.sender) === true) return;
+  const inReach = mount === null
+    ? npcWithinInteractionReach(position, npc)
+    : isMountWithinReach(position, npc, mount);
+  if (!inReach) throw new SenderError('behaviour_target_out_of_range');
 }
 
 function behaviourRegistrySnapshot(ctx: WorldReducerContext) {
@@ -10470,7 +10482,7 @@ function worldBehaviourEffectWriter(
     readonly tileY: number;
   } | undefined;
   let plannedWorldTool: {
-    readonly action: 'whiff' | 'target' | 'digCellar';
+    readonly action: 'whiff' | 'target' | 'digCellar' | 'swing';
     readonly targetId?: bigint;
     readonly targetType?: 'resource' | 'placeable' | 'legacyChest' | 'placeableChest';
     readonly spaceId?: number;
@@ -10709,6 +10721,13 @@ function worldBehaviourEffectWriter(
         throw new SenderError('behaviour_effect_invalid');
       }
       const selected = selectedRow();
+      if (effect.worldTool.action === 'swing') {
+        if (effect.worldTool.at !== undefined) throw new SenderError('behaviour_effect_invalid');
+        requireActor();
+        applyToolSwingLifecycle(ctx, false);
+        plannedWorldTool = { action: 'swing' };
+        return;
+      }
       const specialization = runtimeToolSpecialization(contentRegistry(ctx), selected.itemKind);
       if (specialization !== 'woodcutting' && specialization !== 'mining') {
         throw new SenderError('wrong_tool');
@@ -11371,6 +11390,10 @@ function worldBehaviourEffectWriter(
       const planned = plannedWorldTool;
       if (planned === undefined || action !== planned.action) {
         throw new SenderError('behaviour_world_tool_batch_incomplete');
+      }
+      if (action === 'swing') {
+        applyToolSwingLifecycle(ctx);
+        return;
       }
       if (action === 'whiff') {
         applyHarvestResourceLifecycle(ctx, 0n);
@@ -19923,7 +19946,7 @@ export const sellMerchantCart = spacetimedb.reducer(
 /** Woodcutting-tool strikes break a placed chest after three authoritative hits. The final
  * transaction closes every viewer and spills its recipe components plus every
  * stored stack into recoverable world-item rows. */
-function validatePlaceableChestHarvestEffect(ctx: WorldReducerContext, placeableId: bigint): void {
+function validatePlaceableChestHarvestEffect(ctx: WorldReducerContext, placeableId: bigint, swing?: ToolSwingContact): void {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const position = ctx.db.player_position.identity.find(ctx.sender);
   const survival = ctx.db.player_survival.identity.find(ctx.sender);
@@ -19943,7 +19966,7 @@ function validatePlaceableChestHarvestEffect(ctx: WorldReducerContext, placeable
   }
   requireUsableTool(ctx, selected);
   if (!chestWithinReach(position.x, position.y, chest)) throw new SenderError('target_out_of_range');
-  validateToolVigourSpend(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
+  if (swing === undefined) validateToolVigourSpend(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
   const hits = (ctx.db.world_placeable_damage.placeableId.find(chest.id)?.hits ?? 0) + 1;
   if (hits >= damageable.maximumHits
     && damageable.salvageRecipe !== undefined
@@ -19970,8 +19993,8 @@ function deletePlaceableChestRows(ctx: WorldReducerContext, chest: WorldPlaceabl
   ctx.db.world_placeable.id.delete(chest.id);
 }
 
-function harvestPlaceableChestTransaction(ctx: WorldReducerContext, placeableId: bigint): void {
-  validatePlaceableChestHarvestEffect(ctx, placeableId);
+function harvestPlaceableChestTransaction(ctx: WorldReducerContext, placeableId: bigint, swing?: ToolSwingContact): void {
+  validatePlaceableChestHarvestEffect(ctx, placeableId, swing);
   const position = ctx.db.player_position.identity.find(ctx.sender)!;
   const survival = ctx.db.player_survival.identity.find(ctx.sender)!;
   const clock = ctx.db.world_clock.id.find(0)!;
@@ -19980,12 +20003,12 @@ function harvestPlaceableChestTransaction(ctx: WorldReducerContext, placeableId:
   const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`)!;
   const avatarAction = runtimeItemAvatarAction(contentRegistry(ctx), selected.itemKind);
   if (avatarAction === null) throw new SenderError('tool_avatar_action_not_authored');
-  spendToolVigour(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
+  if (swing === undefined) spendToolVigour(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
   const facing = directionFromAim(
     chest.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.x,
     chest.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.y,
   );
-  ctx.db.player_position.identity.update({
+  if (swing === undefined) ctx.db.player_position.identity.update({
     ...position,
     facing: facing ?? position.facing,
     actionKind: avatarAction,
@@ -19993,8 +20016,8 @@ function harvestPlaceableChestTransaction(ctx: WorldReducerContext, placeableId:
   });
   const damage = ctx.db.world_placeable_damage.placeableId.find(chest.id);
   const hits = (damage?.hits ?? 0) + 1;
-  wearInventoryTool(ctx, selected);
-  recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
+  if (swing === undefined) wearInventoryTool(ctx, selected);
+  if (swing === undefined) recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
   if (hits < damageable.maximumHits) {
     if (damage === null) ctx.db.world_placeable_damage.insert({ placeableId: chest.id, hits });
     else ctx.db.world_placeable_damage.placeableId.update({ ...damage, hits });
@@ -20030,7 +20053,7 @@ function harvestPlaceableChestTransaction(ctx: WorldReducerContext, placeableId:
   deletePlaceableChestRows(ctx, chest);
 }
 
-function validateChestHarvestEffect(ctx: WorldReducerContext, chestId: bigint): void {
+function validateChestHarvestEffect(ctx: WorldReducerContext, chestId: bigint, swing?: ToolSwingContact): void {
   requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const position = ctx.db.player_position.identity.find(ctx.sender);
   const survival = ctx.db.player_survival.identity.find(ctx.sender);
@@ -20054,7 +20077,7 @@ function validateChestHarvestEffect(ctx: WorldReducerContext, chestId: bigint): 
   if (!chestWithinReach(position.x, position.y, chest)) {
     throw new SenderError('target_out_of_range');
   }
-  validateToolVigourSpend(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
+  if (swing === undefined) validateToolVigourSpend(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
   const hits = (ctx.db.world_chest_damage.chestId.find(chest.id)?.hits ?? 0) + 1;
   if (hits >= damageable.maximumHits
     && damageable.salvageRecipe !== undefined
@@ -20063,7 +20086,7 @@ function validateChestHarvestEffect(ctx: WorldReducerContext, chestId: bigint): 
   }
 }
 
-function harvestChestTransaction(ctx: WorldReducerContext, chestId: bigint): void {
+function harvestChestTransaction(ctx: WorldReducerContext, chestId: bigint, swing?: ToolSwingContact): void {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
@@ -20087,12 +20110,12 @@ function harvestChestTransaction(ctx: WorldReducerContext, chestId: bigint): voi
     if (!chestWithinReach(position.x, position.y, chest)) throw new SenderError('target_out_of_range');
     const avatarAction = runtimeItemAvatarAction(contentRegistry(ctx), selected.itemKind);
     if (avatarAction === null) throw new SenderError('tool_avatar_action_not_authored');
-    spendToolVigour(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
+    if (swing === undefined) spendToolVigour(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
     const facing = directionFromAim(
       chest.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.x,
       chest.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.y,
     );
-    ctx.db.player_position.identity.update({
+    if (swing === undefined) ctx.db.player_position.identity.update({
       ...position,
       facing: facing ?? position.facing,
       actionKind: avatarAction,
@@ -20100,8 +20123,8 @@ function harvestChestTransaction(ctx: WorldReducerContext, chestId: bigint): voi
     });
     const damage = ctx.db.world_chest_damage.chestId.find(chest.id);
     const hits = (damage?.hits ?? 0) + 1;
-    wearInventoryTool(ctx, selected);
-    recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
+    if (swing === undefined) wearInventoryTool(ctx, selected);
+    if (swing === undefined) recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
     if (hits < damageable.maximumHits) {
       if (damage === null) ctx.db.world_chest_damage.insert({ chestId: chest.id, hits });
       else ctx.db.world_chest_damage.chestId.update({ ...damage, hits });
@@ -20159,7 +20182,7 @@ function applyHarvestPlaceableLifecycle(
   ctx: WorldReducerContext,
   placeableId: bigint,
   mutate = true,
-): void {
+  swing?: ToolSwingContact): void {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
@@ -20189,17 +20212,17 @@ function applyHarvestPlaceableLifecycle(
     requireUsableTool(ctx, selected);
     if (!campfireWithinReach(position.x, position.y, fire)) throw new SenderError('target_out_of_range');
     if (!mutate) {
-      validateToolVigourSpend(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
+      if (swing === undefined) validateToolVigourSpend(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
       return;
     }
     const avatarAction = runtimeItemAvatarAction(contentRegistry(ctx), selected.itemKind);
     if (avatarAction === null) throw new SenderError('tool_avatar_action_not_authored');
-    spendToolVigour(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
+    if (swing === undefined) spendToolVigour(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
     const facing = directionFromAim(
       fire.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.x,
       fire.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.y,
     );
-    ctx.db.player_position.identity.update({
+    if (swing === undefined) ctx.db.player_position.identity.update({
       ...position,
       facing: facing ?? position.facing,
       actionKind: avatarAction,
@@ -20207,8 +20230,8 @@ function applyHarvestPlaceableLifecycle(
     });
     const damage = ctx.db.world_placeable_damage.placeableId.find(fire.id);
     const hits = (damage?.hits ?? 0) + 1;
-    wearInventoryTool(ctx, selected);
-    recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
+    if (swing === undefined) wearInventoryTool(ctx, selected);
+    if (swing === undefined) recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selected.itemKind);
     if (hits < damageable.maximumHits) {
       if (damage === null) ctx.db.world_placeable_damage.insert({ placeableId: fire.id, hits });
       else ctx.db.world_placeable_damage.placeableId.update({ ...damage, hits });
@@ -21909,6 +21932,110 @@ function stepRogueEnemy(
   });
 }
 
+const TOOL_SWING_RESISTANCE = new Set([
+  'wrong_tool', 'pickaxe_tier_too_low', 'mining_claimed_by_other_party',
+  'space_build_disabled', 'homestead_owner_required', 'landmark_not_movable',
+  'campfire_in_use', 'target_not_ready', 'resource_not_mature', 'resource_depleted',
+  'target_out_of_range', 'target_out_of_reach',
+]);
+
+function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void {
+  requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const position = ctx.db.player_position.identity.find(ctx.sender);
+  const survival = ctx.db.player_survival.identity.find(ctx.sender);
+  const clock = ctx.db.world_clock.id.find(0);
+  if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
+  if (handsOccupiedFor(ctx, ctx.sender)) throw new SenderError('hands_occupied');
+  if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
+  const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  requireUsableTool(ctx, slot);
+  const registry = contentRegistry(ctx);
+  const tool = runtimeToolDefinition(registry, slot.itemKind);
+  const geometry = tool?.swing;
+  const actionKind = runtimeItemAvatarAction(registry, slot.itemKind);
+  if (geometry === undefined || actionKind === null) throw new SenderError('tool_swing_not_authored');
+  const facing = parseDirection(position.facing);
+  if (facing === null || facing === undefined) throw new SenderError('invalid_facing');
+  const chunks = toolSwingChunks(position, geometry.rangeFixed);
+  const resources = chunks.flatMap(([x, y]) => [...ctx.db.world_resource.by_chunk.filter([position.spaceId, x, y])]);
+  const chests = chunks.flatMap(([x, y]) => [...ctx.db.world_chest.by_chunk.filter([position.spaceId, x, y])]);
+  const combatTargets = chunks.flatMap(([x, y]) => [...ctx.db.world_combat_target.by_chunk.filter([position.spaceId, x, y])]);
+  const collision = collisionForSpace(ctx, position.spaceId, undefined, {
+    resources, chests, combatTargets, chunkScope: new Set(chunks.map(([x, y]) => `${x}:${y}`)),
+  });
+  const terrainCollision = { ...collision, obstacles: [] };
+  const contacts: SwingTarget[] = [];
+  const include = (kind: SwingTarget['kind'], id: bigint, point: { x: number; y: number }) => {
+    if (!toolSwingContains(position, facing, point, geometry)
+      || combatElevationAt(collision, position.x, position.y) !== combatElevationAt(collision, point.x, point.y)
+      || combatSegmentObstructed(position, point, terrainCollision)) return;
+    contacts.push({ kind, id });
+  };
+  const tilePoint = (row: { tileX: number; tileY: number }) => ({
+    x: (row.tileX + 0.5) * TILE_SIZE_FIXED, y: (row.tileY + 0.5) * TILE_SIZE_FIXED,
+  });
+  for (const [x, y] of chunks) {
+    const chunk = [position.spaceId, x, y] as const;
+    for (const npc of ctx.db.world_npc.by_chunk.filter(chunk)) {
+      if (npc.health > 0 && npc.rider === undefined) include('npc', npc.id, npc);
+    }
+    for (const resource of ctx.db.world_resource.by_chunk.filter(chunk)) {
+      if (!resource.depleted && !liveMapGeneratedResourceSuppressed(ctx, resource.spaceId, resource.id)
+        && runtimeResourceDefinition(registry, resource) !== null) {
+        const vector = runtimeResourceTargetVector(registry, resource, position.x, position.y, resource.tileX, resource.tileY);
+        const origin = playerInteractionOrigin(position);
+        if (vector !== null) include('resource', resource.id, { x: origin.x + vector.x, y: origin.y + vector.y });
+      }
+    }
+    for (const target of ctx.db.world_combat_target.by_chunk.filter(chunk)) {
+      if (target.carriedBy === undefined && activeCombatTargetHealth(ctx, target) !== null) include('combat_target', target.id, target);
+    }
+    for (const placeable of ctx.db.world_placeable.by_chunk.filter(chunk)) {
+      if (placeable.carriedBy !== undefined || authoredHitsDamageable(ctx, placeable) === null) continue;
+      if (genericChest(ctx, placeable) && ctx.db.chest_migration_mapping.placeableId.find(placeable.id) !== null
+        && !chestMigrationReadsUsePlaceables(ctx)) continue;
+      include('placeable', placeable.id, tilePoint(placeable));
+    }
+    for (const chest of ctx.db.world_chest.by_chunk.filter(chunk)) {
+      if (chest.carriedBy !== undefined || legacyChestDamageable(ctx) === null) continue;
+      if (ctx.db.chest_migration_mapping.chestId.find(chest.id) !== null && chestMigrationReadsUsePlaceables(ctx)) continue;
+      include('chest', chest.id, tilePoint(chest));
+    }
+  }
+  validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, contacts.length === 0);
+  const swing = { prepaid: true } as const;
+  const apply = (target: SwingTarget, write: boolean) => {
+    if (target.kind === 'npc' || target.kind === 'combat_target') {
+      applySwordMeleeLifecycle(ctx, { kind: target.kind, id: target.id }, write, swing);
+    } else if (target.kind === 'resource') {
+      applyHarvestResourceLifecycle(ctx, target.id, write, swing);
+    } else if (target.kind === 'chest') {
+      if (write) harvestChestTransaction(ctx, target.id, swing);
+      else validateChestHarvestEffect(ctx, target.id, swing);
+    } else {
+      const row = ctx.db.world_placeable.id.find(target.id);
+      if (row === null) throw new SenderError('target_not_ready');
+      if (genericChest(ctx, row)) {
+        if (write) harvestPlaceableChestTransaction(ctx, target.id, swing);
+        else validatePlaceableChestHarvestEffect(ctx, target.id, swing);
+      } else applyHarvestPlaceableLifecycle(ctx, target.id, write, swing);
+    }
+  };
+  executeToolSwing(contacts, {
+    validate: target => apply(target, false),
+    resisted: error => error instanceof SenderError && TOOL_SWING_RESISTANCE.has(error.message),
+    spend: empty => spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, empty),
+    hit: target => apply(target, true),
+    finish: wear => {
+      if (wear > 0) wearInventoryTool(ctx, slot, wear);
+      const current = ctx.db.player_position.identity.find(ctx.sender)!;
+      ctx.db.player_position.identity.update({ ...current, actionKind,
+        actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick) });
+      recordPlayerStatistic(ctx, ctx.sender, wear === 0 ? 'tool_whiffs' : 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
+    },
+  }, mutate);
+}
+
 type SwordMeleeTarget = {
   readonly kind: 'combat_target' | 'npc';
   readonly id: bigint;
@@ -21920,7 +22047,7 @@ function applySwordMeleeLifecycle(
   ctx: WorldReducerContext,
   attackTarget: SwordMeleeTarget,
   mutate = true,
-): void {
+  swing?: ToolSwingContact): void {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
@@ -21932,20 +22059,21 @@ function applySwordMeleeLifecycle(
     if (slot === null) throw new SenderError('wrong_tool');
     const registry = contentRegistry(ctx);
     const actionKind = runtimeItemAvatarAction(registry, slot.itemKind);
-    const weaponBaseCenti = runtimeWeaponBaseDamageCenti(registry, slot.itemKind, 'melee');
+    const weaponBaseCenti = runtimeWeaponBaseDamageCenti(registry, slot.itemKind, 'melee')
+      ?? (swing === undefined ? null : runtimeToolDefinition(registry, slot.itemKind)?.swing?.baseDamageCenti ?? null);
     if (weaponBaseCenti === null) throw new SenderError('weapon_damage_not_authored');
     const toolDefinition = runtimeToolDefinition(registry, slot.itemKind);
-    if (!runtimeItemHasTag(registry, slot.itemKind, 'item.melee_weapon')
+    if ((swing === undefined && !runtimeItemHasTag(registry, slot.itemKind, 'item.melee_weapon'))
       || actionKind === null || toolDefinition === null) throw new SenderError('wrong_tool');
     requireUsableTool(ctx, slot);
 
     if (attackTarget === null) {
       if (!mutate) {
-        validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, true);
+        if (swing === undefined) validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, true);
         return;
       }
-      spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, true);
-      ctx.db.player_position.identity.update({
+      if (swing === undefined) spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, true);
+      if (swing === undefined) ctx.db.player_position.identity.update({
         ...position,
         actionKind,
         actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
@@ -21980,17 +22108,17 @@ function applySwordMeleeLifecycle(
     const targetY = wildlife?.y ?? (tile!.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2);
     const swingFacing = decodeDirection(position.facing);
     if (swingFacing === undefined || swingFacing === null) throw new SenderError('invalid_facing');
-    if (!forwardSwingTargetInReach(
+    if (swing === undefined && !forwardSwingTargetInReach(
       position.x, position.y, swingFacing, targetX, targetY, toolDefinition,
     )) throw new SenderError('target_out_of_range');
 
     if (!mutate) {
-      validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
+      if (swing === undefined) validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
       return;
     }
-    spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
+    if (swing === undefined) spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
     const facing = directionFromAim(targetX - position.x, targetY - position.y);
-    ctx.db.player_position.identity.update({
+    if (swing === undefined) ctx.db.player_position.identity.update({
       ...position,
       facing: facing ?? position.facing,
       actionKind,
@@ -22023,8 +22151,8 @@ function applySwordMeleeLifecycle(
         ctx, wildlife, ctx.sender, damage.damageCenti, damage.critical, clock.authorityTick,
       );
       if (!validRogueEnemy) {
-        wearInventoryTool(ctx, slot, 1);
-        recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
+        if (swing === undefined) wearInventoryTool(ctx, slot, 1);
+        if (swing === undefined) recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
       }
       return;
     }
@@ -22048,15 +22176,15 @@ function applySwordMeleeLifecycle(
         ctx, ctx.sender, 'damage_dealt', BigInt(appliedDamage), clock.authorityTick, target.kind,
       );
     }
-    wearInventoryTool(ctx, slot);
-    recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
+    if (swing === undefined) wearInventoryTool(ctx, slot);
+    if (swing === undefined) recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
 }
 
 function applyHarvestResourceLifecycle(
   ctx: WorldReducerContext,
   resourceId: bigint,
   mutate = true,
-): void {
+  swing?: ToolSwingContact): void {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const position = ctx.db.player_position.identity.find(ctx.sender);
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
@@ -22077,11 +22205,11 @@ function applyHarvestResourceLifecycle(
 
     if (resourceId === 0n) {
       if (!mutate) {
-        validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, true);
+        if (swing === undefined) validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, true);
         return;
       }
-      spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, true);
-      ctx.db.player_position.identity.update({
+      if (swing === undefined) spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, true);
+      if (swing === undefined) ctx.db.player_position.identity.update({
         ...position,
         actionKind,
         actionStartedTick: nextActionStartedTick(position.actionStartedTick, clock.authorityTick),
@@ -22103,7 +22231,7 @@ function applyHarvestResourceLifecycle(
     );
     if (result === 'depleted') throw new SenderError('resource_depleted');
     if (result === 'wrong_tool') throw new SenderError('wrong_tool');
-    if (result === 'out_of_range') throw new SenderError('target_out_of_range');
+    if (swing === undefined && result === 'out_of_range') throw new SenderError('target_out_of_range');
 
     const resourceDefinition = runtimeResourceDefinition(registry, resource);
     if (resourceDefinition === null) throw new SenderError('resource_definition_missing');
@@ -22125,15 +22253,15 @@ function applyHarvestResourceLifecycle(
         throw new SenderError('mining_claimed_by_other_party');
       }
       if (!mutate) {
-        validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
+        if (swing === undefined) validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
         return;
       }
-      spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
+      if (swing === undefined) spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
       const resourceFacing = directionFromAim(
         resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.x,
         resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.y,
       );
-      ctx.db.player_position.identity.update({
+      if (swing === undefined) ctx.db.player_position.identity.update({
         ...position,
         facing: resourceFacing ?? position.facing,
         actionKind,
@@ -22150,8 +22278,8 @@ function applyHarvestResourceLifecycle(
       };
       if (storedClaim === null) ctx.db.world_resource_mining_claim.insert(claim);
       else ctx.db.world_resource_mining_claim.resourceId.update(claim);
-      wearInventoryTool(ctx, slot);
-      recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
+      if (swing === undefined) wearInventoryTool(ctx, slot);
+      if (swing === undefined) recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
       recordPlayerStatistic(ctx, ctx.sender, 'resource_hits', 1n, clock.authorityTick, resource.kind);
       if (accumulatedWork < MINING_YIELD_WORK) {
         ctx.db.world_resource.id.update({ ...resource, yieldProgress: accumulatedWork });
@@ -22232,15 +22360,15 @@ function applyHarvestResourceLifecycle(
     }
 
     if (!mutate) {
-      validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
+      if (swing === undefined) validateToolVigourSpend(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
       return;
     }
-    spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
+    if (swing === undefined) spendToolVigour(ctx, ctx.sender, slot.itemKind, clock.authorityTick, false);
     const resourceFacing = directionFromAim(
       resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.x,
       resource.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.y,
     );
-    ctx.db.player_position.identity.update({
+    if (swing === undefined) ctx.db.player_position.identity.update({
       ...position,
       facing: resourceFacing ?? position.facing,
       actionKind,
@@ -22256,8 +22384,8 @@ function applyHarvestResourceLifecycle(
         ? 0
         : resource.regrowthProgress,
     });
-    wearInventoryTool(ctx, slot);
-    recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
+    if (swing === undefined) wearInventoryTool(ctx, slot);
+    if (swing === undefined) recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, slot.itemKind);
     recordPlayerStatistic(ctx, ctx.sender, 'resource_hits', 1n, clock.authorityTick, resource.kind);
     if (nextHealth === 0) {
       recordHearthResourceDepletion(ctx, resource, clock.authorityTick);
