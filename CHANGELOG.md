@@ -2,6 +2,9 @@
 
 ## 0.8.0 — Unreleased
 
+- Regenerate world client bindings for the five existing legacy-farm admin endpoints
+  so the guarded release can verify exact module/client API parity.
+
 - Mature apple, pear, peach and cherry tree harvests can drop a matching plantable
   seed (5% base chance). Orchard Seed Saver adds 10 percentage points per rank,
   reaching 35% at rank three. Plant on clear grass or tilled soil in the homestead or

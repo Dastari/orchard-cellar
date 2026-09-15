@@ -140,6 +140,7 @@ export const CellarDigProgress = __t.object("CellarDigProgress", {
   tileY: __t.i16(),
   hits: __t.u8(),
   lastHitTick: __t.u64(),
+  work: __t.u8(),
 });
 export type CellarDigProgress = __Infer<typeof CellarDigProgress>;
 
@@ -525,6 +526,23 @@ export const InventorySlot = __t.object("InventorySlot", {
   lit: __t.bool(),
 });
 export type InventorySlot = __Infer<typeof InventorySlot>;
+
+export const LegacyFarmRetirementControl = __t.object("LegacyFarmRetirementControl", {
+  id: __t.u8(),
+  phase: __t.string(),
+  inspectionFingerprint: __t.string(),
+  privateInventoryCount: __t.u64(),
+  playerSurvivalCompatibilityCount: __t.u64(),
+  farmParcelCount: __t.u64(),
+  cropPatchCount: __t.u64(),
+  farmActivityCount: __t.u64(),
+  verificationFingerprint: __t.string(),
+  remainingFingerprint: __t.string(),
+  drainFingerprint: __t.string(),
+  updatedAt: __t.timestamp(),
+  updatedBy: __t.identity(),
+});
+export type LegacyFarmRetirementControl = __Infer<typeof LegacyFarmRetirementControl>;
 
 export const LiveMapDocument = __t.object("LiveMapDocument", {
   mapId: __t.string(),

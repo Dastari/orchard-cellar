@@ -16,12 +16,14 @@ import AdminBackfillLegacyChestsReducer from "../admin_backfill_legacy_chests_re
 import AdminClearCursorReducer from "../admin_clear_cursor_reducer";
 import AdminDespawnEntityReducer from "../admin_despawn_entity_reducer";
 import AdminDrainLegacyChestsReducer from "../admin_drain_legacy_chests_reducer";
+import AdminDrainLegacyFarmRetirementReducer from "../admin_drain_legacy_farm_retirement_reducer";
 import AdminDrainOverflowReducer from "../admin_drain_overflow_reducer";
 import AdminGiveItemsReducer from "../admin_give_items_reducer";
 import AdminGlobalNoticeReducer from "../admin_global_notice_reducer";
 import AdminGrantContentEditorReducer from "../admin_grant_content_editor_reducer";
 import AdminGrantSkillPointsReducer from "../admin_grant_skill_points_reducer";
 import AdminGrantSupportReducer from "../admin_grant_support_reducer";
+import AdminInspectLegacyFarmRetirementReducer from "../admin_inspect_legacy_farm_retirement_reducer";
 import AdminKickReducer from "../admin_kick_reducer";
 import AdminMoveEntityReducer from "../admin_move_entity_reducer";
 import AdminMoveHomesteadReducer from "../admin_move_homestead_reducer";
@@ -48,6 +50,7 @@ import AdminSetChestMigrationPhaseReducer from "../admin_set_chest_migration_pha
 import AdminSetContainerSlotReducer from "../admin_set_container_slot_reducer";
 import AdminSetDisplayNameReducer from "../admin_set_display_name_reducer";
 import AdminSetEntityStateReducer from "../admin_set_entity_state_reducer";
+import AdminSetLegacyFarmRetirementPhaseReducer from "../admin_set_legacy_farm_retirement_phase_reducer";
 import AdminSetMotdReducer from "../admin_set_motd_reducer";
 import AdminSetQuestStateReducer from "../admin_set_quest_state_reducer";
 import AdminSetSlotReducer from "../admin_set_slot_reducer";
@@ -64,6 +67,7 @@ import AdminTeleportPlayerReducer from "../admin_teleport_player_reducer";
 import AdminUndoPlayerReducer from "../admin_undo_player_reducer";
 import AdminUnstickReducer from "../admin_unstick_reducer";
 import AdminVerifyLegacyChestsReducer from "../admin_verify_legacy_chests_reducer";
+import AdminVerifyLegacyFarmRetirementReducer from "../admin_verify_legacy_farm_retirement_reducer";
 import ApproveMemberReducer from "../approve_member_reducer";
 import BuyMerchantCartReducer from "../buy_merchant_cart_reducer";
 import BuyMerchantItemReducer from "../buy_merchant_item_reducer";
@@ -182,12 +186,14 @@ export type AdminBackfillLegacyChestsParams = __Infer<typeof AdminBackfillLegacy
 export type AdminClearCursorParams = __Infer<typeof AdminClearCursorReducer>;
 export type AdminDespawnEntityParams = __Infer<typeof AdminDespawnEntityReducer>;
 export type AdminDrainLegacyChestsParams = __Infer<typeof AdminDrainLegacyChestsReducer>;
+export type AdminDrainLegacyFarmRetirementParams = __Infer<typeof AdminDrainLegacyFarmRetirementReducer>;
 export type AdminDrainOverflowParams = __Infer<typeof AdminDrainOverflowReducer>;
 export type AdminGiveItemsParams = __Infer<typeof AdminGiveItemsReducer>;
 export type AdminGlobalNoticeParams = __Infer<typeof AdminGlobalNoticeReducer>;
 export type AdminGrantContentEditorParams = __Infer<typeof AdminGrantContentEditorReducer>;
 export type AdminGrantSkillPointsParams = __Infer<typeof AdminGrantSkillPointsReducer>;
 export type AdminGrantSupportParams = __Infer<typeof AdminGrantSupportReducer>;
+export type AdminInspectLegacyFarmRetirementParams = __Infer<typeof AdminInspectLegacyFarmRetirementReducer>;
 export type AdminKickParams = __Infer<typeof AdminKickReducer>;
 export type AdminMoveEntityParams = __Infer<typeof AdminMoveEntityReducer>;
 export type AdminMoveHomesteadParams = __Infer<typeof AdminMoveHomesteadReducer>;
@@ -214,6 +220,7 @@ export type AdminSetChestMigrationPhaseParams = __Infer<typeof AdminSetChestMigr
 export type AdminSetContainerSlotParams = __Infer<typeof AdminSetContainerSlotReducer>;
 export type AdminSetDisplayNameParams = __Infer<typeof AdminSetDisplayNameReducer>;
 export type AdminSetEntityStateParams = __Infer<typeof AdminSetEntityStateReducer>;
+export type AdminSetLegacyFarmRetirementPhaseParams = __Infer<typeof AdminSetLegacyFarmRetirementPhaseReducer>;
 export type AdminSetMotdParams = __Infer<typeof AdminSetMotdReducer>;
 export type AdminSetQuestStateParams = __Infer<typeof AdminSetQuestStateReducer>;
 export type AdminSetSlotParams = __Infer<typeof AdminSetSlotReducer>;
@@ -230,6 +237,7 @@ export type AdminTeleportPlayerParams = __Infer<typeof AdminTeleportPlayerReduce
 export type AdminUndoPlayerParams = __Infer<typeof AdminUndoPlayerReducer>;
 export type AdminUnstickParams = __Infer<typeof AdminUnstickReducer>;
 export type AdminVerifyLegacyChestsParams = __Infer<typeof AdminVerifyLegacyChestsReducer>;
+export type AdminVerifyLegacyFarmRetirementParams = __Infer<typeof AdminVerifyLegacyFarmRetirementReducer>;
 export type ApproveMemberParams = __Infer<typeof ApproveMemberReducer>;
 export type BuyMerchantCartParams = __Infer<typeof BuyMerchantCartReducer>;
 export type BuyMerchantItemParams = __Infer<typeof BuyMerchantItemReducer>;
@@ -337,3 +345,4 @@ export type TravelHearthFerryParams = __Infer<typeof TravelHearthFerryReducer>;
 export type UnlockHearthLegendaryRecipeParams = __Infer<typeof UnlockHearthLegendaryRecipeReducer>;
 export type UsePortalParams = __Infer<typeof UsePortalReducer>;
 export type UseSelectedParams = __Infer<typeof UseSelectedReducer>;
+
