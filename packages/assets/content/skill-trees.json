@@ -655,7 +655,8 @@
         "connects": [
           "farming_root",
           "seed_saver",
-          "bountiful_harvest"
+          "bountiful_harvest",
+          "orchard_seed_saver"
         ],
         "maxRank": 5,
         "pointCost": 1,
@@ -1475,6 +1476,31 @@
             "fish_pool"
           ]
         }
+      },
+      {
+        "id": "orchard_seed_saver",
+        "iconAsset": "icon_skill_seed_saver",
+        "track": "farming",
+        "name": "Orchard Seed Saver",
+        "description": "Mature fruit-tree harvests have a 5% chance to drop a matching plantable seed. Add 10 percentage points per rank: 15%, 25%, 35%.",
+        "position": [
+          -690,
+          -60
+        ],
+        "connects": [
+          "green_thumb"
+        ],
+        "maxRank": 3,
+        "pointCost": 1,
+        "requiresLevel": 3,
+        "specialization": "farming",
+        "implemented": true,
+        "prerequisites": [
+          "green_thumb"
+        ],
+        "capabilities": [
+          "farming_orchard_seed_saver"
+        ]
       }
     ]
   }

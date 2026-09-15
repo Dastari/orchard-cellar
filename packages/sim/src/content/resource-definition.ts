@@ -86,6 +86,8 @@ export interface ResourceContentDefinition {
     readonly nodeClass: ResourceNodeClass;
     readonly richness: number;
   };
+  /** Plantable secondary output for mature fruit harvests. */
+  readonly seedItem?: `item:${string}`;
   readonly loot: LootDefinitionId;
   /** Engine-owned short custody window for drops that belong to the actor
    * completing an authored resource action. */
@@ -315,6 +317,11 @@ export function parseResourceDefinition(json: string | unknown): ResourceContent
       nodeClass: oneOf<ResourceNodeClass>(mining.nodeClass, '$.mining.nodeClass', NODE_CLASSES),
       richness: integer(mining.richness, '$.mining.richness', 1),
     }) }),
+    ...(source.seedItem === undefined ? {} : { seedItem: (() => {
+      const id = stringValue(source.seedItem, '$.seedItem');
+      if (!/^item:[a-z0-9]+(?:_[a-z0-9]+)*$/u.test(id)) fail('$.seedItem', 'expected item: slug');
+      return id as `item:${string}`;
+    })() }),
     loot: loot as LootDefinitionId,
     ...(source.lootDelivery === undefined ? {} : {
       lootDelivery: oneOf<'actor_reserved'>(source.lootDelivery, '$.lootDelivery', LOOT_DELIVERY),

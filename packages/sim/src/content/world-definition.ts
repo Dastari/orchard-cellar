@@ -33,6 +33,7 @@ export const SKILL_NODE_CAPABILITIES = [
   'mining_mother_lode',
   'farming_green_thumb',
   'farming_seed_saver',
+  'farming_orchard_seed_saver',
   'farming_bountiful_harvest',
   'farming_tender_hand',
   'farming_master_grower',

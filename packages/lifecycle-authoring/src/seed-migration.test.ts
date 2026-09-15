@@ -34,7 +34,7 @@ describe('authored seed migration', () => {
     const expectedIds: ReadonlySet<string> = new Set(expected);
     const handlers = source.handlers.filter((handler) => handler.source.includes('plantSeed:'));
     expect(handlers.map((handler) => handler.itemId)).toEqual(expected);
-    expect(handlers).toHaveLength(23);
+    expect(handlers).toHaveLength(27);
     for (const handler of handlers) {
       expect(handler.event).toBe('onUse');
       expect(handler.triggers).toEqual(['place']);

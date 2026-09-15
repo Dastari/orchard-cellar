@@ -1,7 +1,7 @@
 /* This file is generated from validated Orchard lifecycle source. Do not edit. */
 import { defineItemOnUse, defineItemOnUseHandlers, type AnyHandlerRegistration } from '@orchard/sim';
 
-export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "cc95551b15bb9583c24f81028c18ded7f577d93f86ec847fde13ab1f2ebd00b1" as const;
+export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "74c44428d5b9ca62c03bfb5704d4408b0e33e059b7fa8279dcfbcdd2d2090fab" as const;
 
 export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistration[] = Object.freeze([
   ...defineItemOnUseHandlers({
@@ -38,6 +38,18 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
           if (fruit) context.item.applyEffect('fruitful_energy');
         }
       }
+    },
+  }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:apple_seed",
+    id: "item.apple-seed.on-use",
+    prompt: "PLANT SEEDS",
+    triggers: ["place"] as const,
+    run(context) {
+      const targetTile = context.tile;
+      if (targetTile === undefined) context.block('farm_tile_required');
+      else context.emit({ plantSeed: targetTile });
+      context.item.consume();
     },
   }),
   ...defineItemOnUseHandlers({
@@ -314,6 +326,18 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
           if (fruit) context.item.applyEffect('fruitful_energy');
         }
       }
+    },
+  }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:cherry_seed",
+    id: "item.cherry-seed.on-use",
+    prompt: "PLANT SEEDS",
+    triggers: ["place"] as const,
+    run(context) {
+      const targetTile = context.tile;
+      if (targetTile === undefined) context.block('farm_tile_required');
+      else context.emit({ plantSeed: targetTile });
+      context.item.consume();
     },
   }),
   ...defineItemOnUseHandlers({
@@ -1721,6 +1745,18 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
       }
     },
   }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:peach_seed",
+    id: "item.peach-seed.on-use",
+    prompt: "PLANT SEEDS",
+    triggers: ["place"] as const,
+    run(context) {
+      const targetTile = context.tile;
+      if (targetTile === undefined) context.block('farm_tile_required');
+      else context.emit({ plantSeed: targetTile });
+      context.item.consume();
+    },
+  }),
   defineItemOnUse({
     itemId: "item:pear",
     id: "item:pear.on_use",
@@ -1738,6 +1774,18 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
           if (fruit) context.item.applyEffect('fruitful_energy');
         }
       }
+    },
+  }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:pear_seed",
+    id: "item.pear-seed.on-use",
+    prompt: "PLANT SEEDS",
+    triggers: ["place"] as const,
+    run(context) {
+      const targetTile = context.tile;
+      if (targetTile === undefined) context.block('farm_tile_required');
+      else context.emit({ plantSeed: targetTile });
+      context.item.consume();
     },
   }),
   ...defineItemOnUseHandlers({
@@ -2476,6 +2524,7 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
 export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:anvil","event":"onUse","id":"item:anvil.place","prompt":"PLACE ANVIL","triggers":["place"]}),
   Object.freeze({"itemId":"item:apple","event":"onUse","id":"item:apple.on_use","prompt":"EAT APPLE","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:apple_seed","event":"onUse","id":"item.apple-seed.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:axe","event":"onUse","id":"item:axe.world_tool","prompt":"USE AXE","triggers":["secondary","useWith"]}),
   Object.freeze({"itemId":"item:barn","event":"onUse","id":"item:barn.place","prompt":"PLACE BARN","triggers":["place"]}),
   Object.freeze({"itemId":"item:barrel","event":"onUse","id":"item:barrel.place","prompt":"PLACE BARREL","triggers":["place"]}),
@@ -2491,6 +2540,7 @@ export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:carrot","event":"onUse","id":"item:carrot.on_use","prompt":"EAT CARROT","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:carrot_seeds","event":"onUse","id":"item.carrot-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:cherry","event":"onUse","id":"item:cherry.on_use","prompt":"EAT CHERRIES","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:cherry_seed","event":"onUse","id":"item.cherry-seed.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:chest","event":"onUse","id":"item:chest.place","prompt":"PLACE CHEST","triggers":["place"]}),
   Object.freeze({"itemId":"item:cooked_beef","event":"onUse","id":"item:cooked_beef.on_use","prompt":"EAT COOKED BEEF","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:cooked_chicken","event":"onUse","id":"item:cooked_chicken.on_use","prompt":"EAT ROAST CHICKEN","triggers":["secondary"]}),
@@ -2555,7 +2605,9 @@ export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:parsley","event":"onUse","id":"item:parsley.on_use","prompt":"EAT PARSLEY","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:parsley_seeds","event":"onUse","id":"item.parsley-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:peach","event":"onUse","id":"item:peach.on_use","prompt":"EAT PEACH","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:peach_seed","event":"onUse","id":"item.peach-seed.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:pear","event":"onUse","id":"item:pear.on_use","prompt":"EAT PEAR","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:pear_seed","event":"onUse","id":"item.pear-seed.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:pickaxe","event":"onUse","id":"item:pickaxe.world_tool","prompt":"USE PICKAXE","triggers":["secondary","useWith","useAt"]}),
   Object.freeze({"itemId":"item:potato","event":"onUse","id":"item:potato.on_use","prompt":"EAT POTATO","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:potato_seeds","event":"onUse","id":"item.potato-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),

@@ -1,3 +1,4 @@
+import { fruitSeedDrop, fruitTreeForSeed, plantedFruitTreeId, isPlantedFruitTreeId, TREE_REGROWTH_SMALL_PROGRESS } from '@orchard/sim';
 import { vehicleCustodyPlan } from './behaviour/vehicle.js';
 import {
   planHearthSealExchange, hearthRecipeExchangeNpcForRuntimeId,
@@ -4444,6 +4445,18 @@ function ensureSoilDecayTimers(ctx: WorldReducerContext, currentTick: bigint): v
   else ctx.db.world_scalability_migration.id.update(nextMigration);
 }
 
+function validateFruitSeedPlacement(
+  ctx: WorldReducerContext, position: PlayerPositionRow, tileX: number, tileY: number,
+): void {
+  requireWorldModificationAuthorized(ctx, position);
+  if (ctx.db.world_resource.id.find(plantedFruitTreeId(position.spaceId, tileX, tileY)) !== null) {
+    throw new SenderError('tile_blocked');
+  }
+  const result = tilePlacementResult(position.x, position.y, tileX, tileY,
+    collisionForSpace(ctx, position.spaceId), tileOverlapsAnyPlayer(ctx, position.spaceId, tileX, tileY));
+  if (result !== 'ok') throw new SenderError(result);
+}
+
 function mutableFarmTileAuthorized(
   ctx: WorldReducerContext,
   position: PlayerPositionRow,
@@ -6816,6 +6829,7 @@ function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
     .map((resource) => [BigInt(resource.id), resource]));
   for (const existing of existingRows) {
     if (existing.spaceId !== TOPSIDE_SPACE_ID
+      || isPlantedFruitTreeId(existing.id)
       || isAuthoredHearthResourceSiteId(registry, existing.id)) continue;
     const generated = desired.get(existing.id);
     if (generated === undefined) {
@@ -10652,10 +10666,12 @@ function worldBehaviourEffectWriter(
         3 * TILE_SIZE_FIXED,
       )) throw new SenderError('farm_tile_out_of_range');
       const id = worldSoilId(position.spaceId, tileX, tileY);
-      if (ctx.db.world_soil.id.find(id) === null) throw new SenderError('not_tilled');
-      if (ctx.db.world_crop.id.find(id) !== null) throw new SenderError('crop_occupies_tile');
       const selected = selectedRow();
-      if (runtimeCropDefinitionForSeed(contentRegistry(ctx), selected.itemKind) === null) {
+      const tree = fruitTreeForSeed(contentRegistry(ctx), selected.itemKind);
+      if (tree === null && ctx.db.world_soil.id.find(id) === null) throw new SenderError('not_tilled');
+      if (ctx.db.world_crop.id.find(id) !== null) throw new SenderError('crop_occupies_tile');
+      if (tree !== null) validateFruitSeedPlacement(ctx, position, tileX, tileY);
+      if (tree === null && runtimeCropDefinitionForSeed(contentRegistry(ctx), selected.itemKind) === null) {
         throw new SenderError('select_seed_packet');
       }
       if (ctx.db.world_clock.id.find(0) === null) throw new SenderError('player_not_ready');
@@ -11298,6 +11314,20 @@ function worldBehaviourEffectWriter(
       if (planned === undefined || at.x !== planned.tileX || at.y !== planned.tileY
         || (at.spaceId ?? planned.spaceId.toString()) !== planned.spaceId.toString()) {
         throw new SenderError('behaviour_seed_batch_incomplete');
+      }
+      const tree = fruitTreeForSeed(contentRegistry(ctx), planned.seedItemKind);
+      if (tree !== null) {
+        const id = plantedFruitTreeId(planned.spaceId, planned.tileX, planned.tileY);
+        ctx.db.world_resource.insert({
+          ...generatedWorldResourceRow({ id: Number(id), kind: tree.runtimeKind,
+            tileX: planned.tileX, tileY: planned.tileY }, contentRegistry(ctx)),
+          spaceId: planned.spaceId, growthStage: 1, health: 1,
+          regrowthProgress: TREE_REGROWTH_SMALL_PROGRESS,
+        });
+        const soilId = worldSoilId(planned.spaceId, planned.tileX, planned.tileY);
+        if (ctx.db.world_soil.id.find(soilId) !== null) ctx.db.world_soil.id.delete(soilId);
+        grantSkillExperience(ctx, ctx.sender, 'farming', 2n);
+        return;
       }
       const definition = runtimeCropDefinitionForSeed(contentRegistry(ctx), planned.seedItemKind);
       const clock = ctx.db.world_clock.id.find(0);
@@ -22228,7 +22258,7 @@ function applyHarvestResourceLifecycle(
       },
       state: { depleted: true, health: nextHealth, treeGrowthStage },
     };
-    const drops = registeredLifecycleLoot(ctx, {
+    const drops = [...registeredLifecycleLoot(ctx, {
       type: 'break',
       actor: { entityType: 'player', id: ctx.sender.toHexString() },
       object: { entityType: 'object', id: target.id, definitionId: target.definitionId },
@@ -22237,7 +22267,16 @@ function applyHarvestResourceLifecycle(
       ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED,
       resource.id,
       resource.activationOrdinal,
-    ], { values: { remainingHealth: nextHealth, treeGrowthStage } }).drops;
+    ], { values: { remainingHealth: nextHealth, treeGrowthStage } }).drops];
+    const seedDrop = treeGrowthStage === 3 && resourceDefinition.seedItem !== undefined
+      ? fruitSeedDrop(contentRegistry(ctx), resource, drops,
+      farmingSkillEffects(contentRegistry(ctx), playerSkillRanks(ctx, ctx.sender)).orchardSeedSaver,
+      [ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED, resource.id, resource.activationOrdinal]) : null;
+    if (seedDrop !== null) drops.push(seedDrop);
+    if (resourceDefinition.tags.includes('resource.fruit_tree')) {
+      ctx.db.world_resource.id.update({ ...ctx.db.world_resource.id.find(resource.id)!,
+        activationOrdinal: (resource.activationOrdinal + 1) >>> 0 });
+    }
     if (drops.length === 0) return;
     const itemX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 + 10 * FIXED_UNITS_PER_PIXEL;
     const itemY = (resource.tileY + 1) * TILE_SIZE_FIXED + 3 * FIXED_UNITS_PER_PIXEL;
