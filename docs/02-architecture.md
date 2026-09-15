@@ -271,3 +271,10 @@ lifecycle preflights permissions, clear ground, collision and exact single-seed
 consumption, then inserts a sapling into `world_resource` and removes any existing soil.
 IDs reserve bit 49 with 48 bits for space and signed tile coordinates; generated
 resource reconciliation preserves this namespace. See [spec](fruit-seeds-spec.md).
+
+### Build HUD control
+
+The hammer HUD button and B key share the client build-mode toggle. The retained
+UI routes taps to that callback; the client redraws and prioritizes the hammer
+over the external build catalogue and touch joystick so touch players can also
+close it. Existing modal input ownership remains ahead of the hammer.

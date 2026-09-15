@@ -20,6 +20,20 @@ describe('overworld UI compositing order', () => {
     expect(cursor).toBeGreaterThan(composite.indexOf('touchControls.draw'));
   });
 
+  it('keeps the build toggle above joystick input and the open build catalogue', () => {
+    const start = main.indexOf("canvas.addEventListener('pointerdown'");
+    const end = main.indexOf("canvas.addEventListener('pointerup'", start);
+    const input = main.slice(start, end);
+    const build = input.indexOf('overworldUi.pointerBuildControl');
+    expect(build).toBeGreaterThan(input.indexOf('overworldUi.blockingUpdatePromptVisible'));
+    expect(build).toBeGreaterThan(input.indexOf('tradeUi.pointerDown'));
+    expect(build).toBeLessThan(input.indexOf('touchControls.pointerDown'));
+    expect(build).toBeLessThan(input.indexOf('homesteadBuildPalette.pointerDown'));
+    const frame = main.slice(main.indexOf('questTracker.draw(uiContext)'));
+    expect(frame.indexOf('overworldUi.drawBuildControl')).toBeGreaterThan(frame.indexOf('touchControls.draw'));
+    expect(frame.indexOf('overworldUi.drawBuildControl')).toBeGreaterThan(frame.indexOf('homesteadBuildPalette.draw'));
+  });
+
   it('keeps one cursor renderer while modals retain only their hover state', () => {
     expect(trade).not.toContain('this.skin.cursor');
     expect(npc).not.toContain('this.skin.cursor');

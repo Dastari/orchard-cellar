@@ -753,7 +753,25 @@ document.addEventListener('fullscreenchange', unlockKeyboardAfterFullscreen);
 document.addEventListener('webkitfullscreenchange', unlockKeyboardAfterFullscreen);
 
 const outdoorRewardsModel = new OutdoorRewardsModel();
+function toggleHomesteadBuildMode(): void {
+  if (homesteadBuildMode) {
+    homesteadBuildMode = false;
+    setToast('BUILD MODE CLOSED', 'info', 90);
+  } else if (!canUseHomesteadBuildMode(latestSnapshot)) {
+    setToast('BUILD MODE REQUIRES BUILDER ACCESS TO AN ESTATE OR HOME', 'failure', 120);
+  } else if (localMount(latestSnapshot) !== null) {
+    setToast('DISMOUNT BEFORE BUILDING', 'failure', 120);
+  } else {
+    homesteadBuildMode = true;
+    homesteadBuildPalette.showCatalogue();
+    setToast(activeSpaceDefinition.generator === 'residence'
+      ? 'FURNISH — CHOOSE AN ITEM, THEN CLICK FLOOR, WALL OR TABLETOP'
+      : 'BUILD MODE — PICK FROM THE PALETTE, THEN CLICK A TILE', 'info', 150);
+  }
+}
+
 const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
+  toggleBuild: () => toggleHomesteadBuildMode(),
   selectHotbar: (slot) => selectSlotOptimistically(slot),
   setTimeFraction: (fraction) => sendOwnerWorldUpdate(
     network.setWorldTime(authorityTickAtDayProgress(worldCalendarTick(), fraction)),
@@ -5680,12 +5698,16 @@ function renderFrame(alpha = 1): void {
     questTracker.draw(uiContext);
     chatOverlay.draw(uiContext);
     overworldUi.draw(uiContext);
-    if (homesteadBuildMode && overworldUi.openWindow === null) homesteadBuildPalette.draw(uiContext);
+    if (homesteadBuildMode && overworldUi.openWindow === null) {
+      homesteadBuildPalette.draw(uiContext);
+    }
     if (onlinePlayersVisible) overworldUi.drawOnlinePlayers(uiContext, onlinePlayers);
     npcInteractionUi.draw(uiContext);
     tradeUi.draw(uiContext, uiWidth, uiHeight);
     characterNamePrompt.draw(uiContext);
     touchControls.draw(uiContext, art.ui, art.uiSkin, uiWidth, uiHeight);
+    if (!characterNamePrompt.isActive && !npcInteractionUi.active && !chatOverlay.isOpen
+      && snapshot.tradeSession === null) overworldUi.drawBuildControl(uiContext);
     if (snapshot.rogueRun !== null && overworldUi.openWindow === null) {
       if (snapshot.rogueRun.phase === 'reward') drawRogueRewardOverlay(
         snapshot.content.registry,
@@ -6258,20 +6280,7 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyB' && !event.repeat) {
-    if (homesteadBuildMode) {
-      homesteadBuildMode = false;
-      setToast('BUILD MODE CLOSED', 'info', 90);
-    } else if (!canUseHomesteadBuildMode(latestSnapshot)) {
-      setToast('BUILD MODE REQUIRES BUILDER ACCESS TO AN ESTATE OR HOME', 'failure', 120);
-    } else if (localMount(latestSnapshot) !== null) {
-      setToast('DISMOUNT BEFORE BUILDING', 'failure', 120);
-    } else {
-      homesteadBuildMode = true;
-      homesteadBuildPalette.showCatalogue();
-      setToast(activeSpaceDefinition.generator === 'residence'
-        ? 'FURNISH — CHOOSE AN ITEM, THEN CLICK FLOOR, WALL OR TABLETOP'
-        : 'BUILD MODE — PICK FROM THE PALETTE, THEN CLICK A TILE', 'info', 150);
-    }
+    toggleHomesteadBuildMode();
     event.preventDefault();
     return;
   }
@@ -6869,6 +6878,12 @@ canvas.addEventListener('pointerdown', (event) => {
     return;
   }
   const [uiWidth, uiHeight] = touchControlViewport();
+  if (!interfaceHidden && !characterNamePrompt.isActive && !npcInteractionUi.active
+    && !chatOverlay.isOpen && overworldUi.pointerBuildControl({ x, y }, event.button)) {
+    canvas.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    return;
+  }
   const touchAction = touchControls.pointerDown(
     { x, y },
     event.pointerId,

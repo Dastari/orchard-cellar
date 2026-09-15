@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1 — Mobile build access
+
+- Add a hammer button above the crafting spanner to toggle the build menu without a keyboard. Move the weapon shortcut above it to keep targets separate.
+
+
 ## 0.8.0 — Unreleased
 
 - Regenerate world client bindings for the five existing legacy-farm admin endpoints

@@ -334,6 +334,7 @@ export type MinimapDrawer = (
 ) => void;
 
 export interface OverworldUiCallbacks {
+  readonly toggleBuild?: () => void;
   readonly selectHotbar: (slot: number) => void;
   readonly setTimeFraction: (fraction: number) => void;
   readonly shiftDay: (days: number) => void;
@@ -408,6 +409,7 @@ export interface OverworldUiLayout {
   readonly orePreviewButton: UiRect;
   readonly mobileMenuButton: UiRect;
   readonly craftingButton: UiRect;
+  readonly buildButton: UiRect;
   readonly moonPhase: UiRect;
   readonly collapsedZoneTab: UiRect;
   readonly minimap: UiRect;
@@ -907,6 +909,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     lightingEffectsButton: { x: developerContent.x + developerContent.width - 48, y: developerContent.y + 32, width: 40, height: 18 },
     orePreviewButton: { x: developerContent.x + developerContent.width - 48, y: developerContent.y + 67, width: 40, height: 18 },
     mobileMenuButton: { x: width - 50, y: 4, width: 44, height: 24 },
+    buildButton: { x: Math.max(4, hotbar.x - 28), y: hotbar.y - 30, width: 24, height: 24 },
     craftingButton: {
       x: Math.max(4, hotbar.x - 28),
       y: hotbar.y + Math.round((Math.min(SLOT_HEIGHT, hotbar.height) - 24) / 2),
@@ -923,7 +926,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     minimapZoomOutButton: { x: width - 112, y: 76, width: 24, height: 14 },
     minimapZoomInButton: { x: width - 34, y: 76, width: 24, height: 14 },
     hotbar,
-    weaponShortcut: {x:Math.max(4,hotbar.x-32),y:hotbar.y-34,width:28,height:31},
+    weaponShortcut: {x:Math.max(4,hotbar.x-32),y:hotbar.y-64,width:28,height:31},
     vitals,
     targetVitals,
     slots: Array.from({ length: HOTBAR_SLOT_COUNT }, (_, slot) => ({
@@ -1197,6 +1200,7 @@ export class OverworldUi {
   private readonly orePreviewToggle: Toggle;
   private readonly mobileMenuNode: WidgetNode;
   private readonly craftingNode: WidgetNode;
+  private readonly buildNode: WidgetNode;
   private readonly windowNode: WidgetNode;
   private readonly closeNode: WidgetNode;
   private readonly inventoryHotbarSlots: ItemSlot[];
@@ -1528,6 +1532,13 @@ export class OverworldUi {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down') return false;
         this.openWindow = this.openWindowValue === 'system' ? null : 'system';
+        return true;
+      },
+    });
+    this.buildNode = widget('button', 'hud.build', {
+      onPointer: (event) => {
+        if (event.kind !== 'pointer_down') return false;
+        this.callbacks.toggleBuild?.();
         return true;
       },
     });
@@ -1864,6 +1875,7 @@ export class OverworldUi {
       hotbar,
       this.weaponShortcutNode,
       this.craftingNode,
+      this.buildNode,
       this.mobileMenuNode,
       this.windowNode,
       this.updatePromptNode,
@@ -2087,6 +2099,8 @@ export class OverworldUi {
     this.mobileMenuNode.setBounds(this.layout.mobileMenuButton);
     this.mobileMenuNode.visible = (model.touchControls === true || model.width < 420)
       && this.openWindowValue === null;
+    this.buildNode.setBounds(this.layout.buildButton);
+    this.buildNode.visible = this.openWindowValue === null && this.callbacks.toggleBuild !== undefined;
     this.craftingNode.setBounds(this.layout.craftingButton);
     this.craftingNode.visible = this.openWindowValue === null;
     this.signOutNode.setBounds(this.layout.signOutButton);
@@ -2699,6 +2713,22 @@ export class OverworldUi {
     return this.router.routeWheel({ point, deltaX, deltaY });
   }
 
+  /** Keep the build toggle reachable above the external build catalogue. */
+  pointerBuildControl(point: UiPoint, button: number): boolean {
+    if (button !== 0 || !this.buildNode.visible || !this.buildNode.contains(point)) return false;
+    this.callbacks.toggleBuild?.();
+    return true;
+  }
+
+  drawBuildControl(context: CanvasRenderingContext2D): void {
+    if (this.buildNode.visible) {
+      const rect = this.layout.buildButton;
+      drawUiSkinAsset(context, this.skin.button, rect, this.buildNode.contains(this.pointer) ? 'hover' : 'idle');
+      const hammer = this.itemArt.hammer;
+      if (hammer) this.drawItemArtwork(context, { ...rect, x: rect.x - 2, y: rect.y - 3 }, 'hammer', hammer);
+    }
+  }
+
   draw(context: CanvasRenderingContext2D): void {
     this.drawCachedStatus(context);
     this.drawMinimapHud(context);
@@ -2722,6 +2752,7 @@ export class OverworldUi {
         this.layout.craftingButton.y + 4,
       );
     }
+    this.drawBuildControl(context);
     if (this.openWindowValue === 'help') this.helpBook.draw(context, this.model.width, this.model.height);
     else if (this.openWindowValue) {
       if (this.openWindowValue === 'delve-confirmation') {
@@ -3606,6 +3637,7 @@ export class OverworldUi {
       if (this.quitNode.contains(this.pointer)) return 'QUIT TO TITLE';
     }
     if (this.openWindowValue === null) {
+      if (this.buildNode.visible && this.buildNode.contains(this.pointer)) return 'BUILD (B)';
       if (this.craftingNode.contains(this.pointer)) return 'CRAFTING';
       if (this.currencyNode.contains(this.pointer)) return 'BACKPACK';
       if (this.model.moonPhase !== undefined && containsPoint(this.layout.moonPhase, this.pointer)) return MOON_PHASE_LABELS[this.model.moonPhase].toUpperCase();
