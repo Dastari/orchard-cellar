@@ -10,6 +10,9 @@
 - Allow verified historical content to be read during upgrades while strictly
   validating the candidate and preserving conflict checks and live-only content.
 - Explain incompatible game content instead of labeling it a reconnect failure.
+- Restore Sort & Stack for both chest and backpack panes in authored chest windows.
+- Add shared chest inventory search by item name or ID, preserving physical slot
+  routing for filtered items. Search stays above the hotbar when resized.
 
 ## 0.7.0 — Unreleased
 

@@ -137,7 +137,21 @@ export function frameStorageSpec(definition: FrameContentDefinition): StorageFra
     ...(definition.preferredWidth === undefined ? {} : { preferredWidth: definition.preferredWidth }),
     ...(definition.resizable === undefined ? {} : { resizable: definition.resizable }),
     ...(definition.hotbar === undefined ? {} : { hotbar: { label: definition.hotbar.label } }),
-    ...((definition.buttons?.length ?? 0) === 0 ? {} : { footerHeight: 22 }),
+    ...((definition.buttons?.length ?? 0) === 0 && definition.presentation?.entityContainer !== 'chest'
+      ? {} : { footerHeight: ((definition.buttons?.length ?? 0) > 0 ? 22 : 0)
+        + (definition.presentation?.entityContainer === 'chest' ? 26 : 0) }),
+  };
+}
+
+/** Search shares the space between the chest panes and the hotbar. */
+export function chestInventorySearchRect(frame: ContentFrameLayout): UiRect | null {
+  if (frame.definition.presentation?.surface !== 'entity'
+    || frame.definition.presentation.entityContainer !== 'chest') return null;
+  return {
+    x: frame.storage.frame.x + 17,
+    y: Math.max(...frame.panes.map(({ layout }) => layout.grid.y + layout.grid.height)) + 4,
+    width: frame.storage.frame.width - 34,
+    height: 22,
   };
 }
 

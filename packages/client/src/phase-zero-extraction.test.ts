@@ -135,7 +135,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // gives unknown effect slugs a neutral HUD icon rather than another effect's art.
 // Live inventory slots also reject retained artwork for missing or retired
 // definitions before selecting an authored animation frame.
-const STRUCTURAL_SEAM_DIGEST = '1b38bc154509f35fcefe522a47d9d490334040fba9e1ed51e92b60e524fcb406';
+// Chest controls restore sort/search within shared authored frames, retaining
+// physical slot custody. Review: docs/chest-inventory-controls.md; interaction
+// and browser-canvas checks accompany this re-capture.
+const STRUCTURAL_SEAM_DIGEST = '64af8c580d4d5cee4333b270baffeca05852dcb226b8fecc9a31e4cef1a5f5fa';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
