@@ -18,6 +18,7 @@ import {
   artifactSha256,
   canonicalArtifactBytes,
   parseContentHeadCandidate,
+  parseHistoricalContentHeadCandidate,
   parseContentHeadCapture,
   prepareContentHeadCandidate,
   verifyCandidateAgainstBootstrap,
@@ -209,5 +210,73 @@ describe('content-head compatibility release candidate', () => {
       expect(verified.status, verified.stderr).toBe(0);
       expect(JSON.parse(verified.stdout)).toMatchObject({ ok: true, mode: 'verify', digest });
     } finally { rmSync(directory, { recursive: true, force: true }); }
+  });
+});
+
+
+describe('release across content parser versions', () => {
+  function historical() {
+    const current = capture(bootstrapContentDefinitions());
+    const definitions = current.definitions.map(row => {
+      if (row.id !== 'upgrade:barrel_cellar') return row;
+      const payload = JSON.parse(row.json);
+      delete payload.mechanic; // Exact revision-9 shape, now required by the runtime.
+      const old = { ...row, json: JSON.stringify(payload) };
+      return { ...old, hash: contentDefinitionRowsHash([old]) };
+    });
+    const hash = contentDefinitionRowsHash(definitions);
+    const captured = parseContentHeadCapture({ ...current, definitions,
+      head: { ...current.head, contentHash: hash } });
+    const template = prepare(current);
+    const prior = { ...template, baselineDefinitions: definitions, expectedDefinitions: definitions,
+      targetDefinitions: definitions, expectedHead: captured.head,
+      baseline: { ...template.baseline, contentHash: hash },
+      targetBootstrap: { ...template.targetBootstrap, contentHash: hash },
+      resultingHead: { ...template.resultingHead, contentHash: hash }, upserts: [] };
+    return { captured, prior };
+  }
+
+  it('reads a historical approved artifact and upgrades its old fields without rewriting captured evidence', () => {
+    const { captured, prior } = historical();
+    expect(buildContentRegistry(captured.definitions).report.valid).toBe(false);
+    expect(() => parseContentHeadCandidate(prior)).toThrow('content_release_registry_invalid');
+    const approved = parseHistoricalContentHeadCandidate(prior);
+    const next = prepare(captured, approved);
+    expect(next.upserts.map(row => row.id)).toEqual(['upgrade:barrel_cellar']);
+    expect(next.expectedDefinitions).toEqual(captured.definitions);
+    expect(() => verifyCandidateAgainstBootstrap(parseContentHeadCandidate(next))).not.toThrow();
+    expect(() => verifyCandidateAgainstBootstrap(approved)).toThrow();
+  });
+
+  it('rejects altered fingerprints, identities, truncated captures and forged historical results', () => {
+    const { captured, prior } = historical();
+    const first = captured.definitions[0]!;
+    expect(() => parseContentHeadCapture({ ...captured, definitions: captured.definitions.slice(1) }))
+      .toThrow('content_release_capture_count_mismatch');
+    const altered = { ...first, json: JSON.stringify({ ...JSON.parse(first.json), id: 'item:imposter' }) };
+    expect(() => parseContentHeadCapture({ ...captured, definitions: [altered, ...captured.definitions.slice(1)] }))
+      .toThrow('content_release_definition_identity_mismatch');
+    expect(() => parseHistoricalContentHeadCandidate({ ...prior,
+      resultingHead: { ...prior.resultingHead, contentHash: '00000000' } })).toThrow('content_release_result_mismatch');
+  });
+
+  it('preserves conflict detection and rejects obsolete custom content in the resulting registry', () => {
+    const { captured, prior } = historical();
+    const edited = captured.definitions.map(row => {
+      if (row.id !== 'upgrade:barrel_cellar') return row;
+      const changed = { ...row, json: JSON.stringify({ ...JSON.parse(row.json), baseCostGold: 999 }) };
+      return { ...changed, hash: contentDefinitionRowsHash([changed]) };
+    });
+    const changedCapture = parseContentHeadCapture({ ...captured, definitions: edited,
+      head: { ...captured.head, contentHash: contentDefinitionRowsHash(edited) } });
+    expect(() => prepare(changedCapture, parseHistoricalContentHeadCandidate(prior)))
+      .toThrow('content_release_custom_conflict');
+    const custom = { id: 'upgrade:custom', kind: 'upgrade', revision: '1', json: '{"id":"upgrade:custom","kind":"upgrade","schemaVersion":1}', hash: '' };
+    custom.hash = contentDefinitionRowsHash([custom]);
+    const definitions = [...captured.definitions, custom];
+    const withCustom = parseContentHeadCapture({ ...captured, definitions,
+      head: { ...captured.head, definitionCount: definitions.length, contentHash: contentDefinitionRowsHash(definitions) } });
+    expect(() => prepare(withCustom, parseHistoricalContentHeadCandidate(prior)))
+      .toThrow('content_release_registry_invalid');
   });
 });

@@ -11,6 +11,20 @@
 - Publish module, resource/item/skill content and generated lifecycle artifacts
   together. No database schema migration.
 
+## 0.7.1 — Unreleased
+
+- Preserve rotated release credentials through signing-key outages while withholding unverified identity tokens.
+
+- Repair hosted CI prerequisites, dry-run portability and portable Keccak hashing;
+  retain local licensed-art checks and pin reviewed imports for public CI.
+
+- Allow verified historical content to be read during upgrades while strictly
+  validating the candidate and preserving conflict checks and live-only content.
+- Explain incompatible game content instead of labeling it a reconnect failure.
+- Restore Sort & Stack for both chest and backpack panes in authored chest windows.
+- Add shared chest inventory search by item name or ID, preserving physical slot
+  routing for filtered items. Search stays above the hotbar when resized.
+
 ## 0.7.0 — Unreleased
 
 - Mining payout and depletion XP now goes to Farming, matching its skill branch.

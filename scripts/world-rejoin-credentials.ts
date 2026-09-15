@@ -24,6 +24,7 @@ export interface RefreshRejoinCredentialFileOptions {
   readonly path: string;
   readonly refresh: (credential: Required<Pick<StoredRejoinCredential, 'clientId' | 'refreshToken'>>)
     => Promise<RefreshedRejoinCredential>;
+  readonly validate?: (token: string, clientId: NonNullable<StoredRejoinCredential['clientId']>) => Promise<void>;
   readonly requireRefresh?: boolean;
   readonly minimumCredentials?: number;
   readonly signal?: AbortSignal;
@@ -236,6 +237,15 @@ export async function refreshRejoinCredentialFile(
         const refreshed = await options.refresh({ clientId: credential.clientId, refreshToken: credential.refreshToken });
         if (refreshed.token.length === 0 || refreshed.refreshToken.length === 0) {
           throw new Error('rejoin_refresh_invalid_response');
+        }
+        if (options.validate !== undefined) {
+          // Rotation has already consumed the old refresh token. Preserve its
+          // replacement before network-dependent verification, but withhold the
+          // identity token until validation succeeds. Capture refuses tokenless
+          // records; a retry can safely rotate the checkpointed refresh token.
+          stored[index] = { label: credential.label, clientId: credential.clientId, refreshToken: refreshed.refreshToken };
+          expectedFingerprint = await persistCredentialCheckpoint(options.path, stored, expectedFingerprint);
+          await options.validate(refreshed.token, credential.clientId);
         }
         stored[index] = { ...credential, token: refreshed.token, refreshToken: refreshed.refreshToken };
         expectedFingerprint = await persistCredentialCheckpoint(options.path, stored, expectedFingerprint);
