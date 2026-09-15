@@ -1,4 +1,4 @@
-# Gameplay bug batch — 0.8.1
+# Gameplay bug batch — 0.8.1–0.8.2
 
 ## Review state
 
@@ -92,3 +92,21 @@ For the next bug, inspect current branch/PR state, reproduce with the owner's
 evidence, add a focused regression, update this file and the changelog, and push
 another logical commit to the same PR. Existing unrelated PRs #11 and #13 remain
 separate. Do not overwrite the original checkout's uncommitted `AGENTS.md` edit.
+
+## Initial login follow-up — 0.8.2
+
+The world renderer dismissed startup loading before subscriptions/player data
+were ready and mapped both `connecting` and `ready` to the Reconnecting dialog.
+It now continues the same gateway window with the current loading stage inside
+the world render loop. Only an interrupted connection after a rendered world
+frame uses Reconnecting. Initial handshake retries and connected data hydration
+stay in loading. Update decisions, offline, sign-in and incompatible-content
+errors keep their actions; clearing them returns to loading without a second
+animation loop. Startup account retries say Connecting, too.
+
+Validation: all 537 client tests (116 files), workspace typecheck/lint, client
+production build and bundle gates pass. Ten new regressions cover initial
+connection/hydration/retries, real recovery, update/error priority and resuming
+loading; eight fail against the original renderer and pass with this change.
+The prior full-suite results above apply to the original batch. No merge or
+deployment was performed.

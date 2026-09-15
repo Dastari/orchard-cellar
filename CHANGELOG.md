@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.2 — Unreleased
+
+- Keep first world connection, subscription hydration and initial retries in the
+  normal gateway loading window. Show Reconnecting only after an entered world
+  loses its connection; retain update, offline and sign-in recovery actions.
+
 ## 0.8.1 — Unreleased
 
 - Correct horse/boat interaction reach from 32 tiles to 2, horse dismount distance

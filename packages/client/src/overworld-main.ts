@@ -1,3 +1,4 @@
+import { drawInitialWorldLoading } from './initial-world-loading.js';
 import { fruitTreeForSeed } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition, farmingBarrelTicks } from '@orchard/sim';
 import { hearthDangerNotice } from '@orchard/sim';
@@ -4361,7 +4362,14 @@ function renderFrame(alpha = 1): void {
       worldUpdateOverlay.draw(renderer, overworldUi, overlayViewport, hasRenderedWorldFrame);
     } else {
       worldUpdateOverlay.reset();
-      connectionRecoveryOverlay.composite(renderer, overlayViewport, connectionRecoveryState(), hasRenderedWorldFrame);
+      const recoveryState = connectionRecoveryState();
+      if (recoveryState === null) {
+        drawInitialWorldLoading(renderer, {
+          ui: art.ui, skin: art.uiSkin, apple: art.fruitItems['apple'] ?? art.missingItem,
+        }, loadingStage, import.meta.env.VITE_CLIENT_VERSION);
+      } else {
+        connectionRecoveryOverlay.composite(renderer, overlayViewport, recoveryState, hasRenderedWorldFrame);
+      }
     }
     const submittedAt = performance.now();
     renderMetrics.record(submittedAt - renderStarted, 0);
@@ -6042,10 +6050,11 @@ function chatInteractionBlocked(): boolean {
     || npcInteractionUi.active;
 }
 
-function connectionRecoveryState(): ConnectionRecoveryState {
+function connectionRecoveryState(): ConnectionRecoveryState | null {
   if (latestSnapshot.error === 'content_registry_invalid') return 'content-incompatible';
   const state = network.recoveryState;
-  return state === 'offline' || state === 'sign-in-required' ? state : 'reconnecting';
+  if (state === 'offline' || state === 'sign-in-required') return state;
+  return hasRenderedWorldFrame && state !== 'ready' ? 'reconnecting' : null;
 }
 
 function currentWorldLoadingStage(): ReturnType<typeof worldLoadingStage> {
