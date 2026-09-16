@@ -45,6 +45,10 @@
 
 ## 0.7.1 — Unreleased
 
+- Narrow the cellar wall ladder's interaction reach to the tile column in front of it.
+  The ladder no longer claims the prompt from chests, crops or furniture placed a tile
+  to either side. Prompt and authority share one reach contract.
+
 - Run exhaustive procedural-terrain and survival-world suites without coverage
   profiling as part of `npm test`; retain every test and enforce unchanged source
   coverage thresholds in the remaining suites.

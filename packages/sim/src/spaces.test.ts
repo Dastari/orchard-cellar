@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { TILE_SIZE_FIXED } from './state.js';
 import {
+  CELLAR_ENTRY_TILE,
+  CELLAR_EXIT_TILE,
   DEBUG_SPACE_ID,
+  cellarLadderApproachClear,
+  cellarLadderPortal,
   interiorFurnitureBlockingTiles,
   starterCellarTerrainTransitions,
   TOPSIDE_SPACE_ID,
@@ -55,5 +60,23 @@ describe('26§2 space registry', () => {
 
   it('leaves the cellar crossing to its portal and wall ladder without generating a floor manhole', () => {
     expect(starterCellarTerrainTransitions()).toEqual([]);
+  });
+
+  it('reaches the cellar ladder only from its own column and the tile in front', () => {
+    expect(cellarLadderPortal('cellar_exit:toby')).toBe(true);
+    expect(cellarLadderPortal('cellar_enter:toby')).toBe(false);
+    expect(cellarLadderPortal('residence_exit:toby')).toBe(false);
+    const portal = { fromTileX: CELLAR_EXIT_TILE.tileX, fromTileY: CELLAR_EXIT_TILE.tileY };
+    const at = (tileX: number, tileY: number) => cellarLadderApproachClear({
+      x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    }, portal);
+    expect(at(CELLAR_EXIT_TILE.tileX, CELLAR_EXIT_TILE.tileY)).toBe(true);
+    // Arriving from the trapdoor lands one tile in front of the ladder.
+    expect(at(CELLAR_ENTRY_TILE.tileX, CELLAR_ENTRY_TILE.tileY)).toBe(true);
+    expect(at(CELLAR_EXIT_TILE.tileX - 1, CELLAR_EXIT_TILE.tileY)).toBe(false);
+    expect(at(CELLAR_EXIT_TILE.tileX + 1, CELLAR_EXIT_TILE.tileY + 1)).toBe(false);
+    expect(at(CELLAR_EXIT_TILE.tileX, CELLAR_EXIT_TILE.tileY - 1)).toBe(false);
+    expect(at(CELLAR_EXIT_TILE.tileX, CELLAR_EXIT_TILE.tileY + 2)).toBe(false);
   });
 });

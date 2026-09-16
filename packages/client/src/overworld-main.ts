@@ -33,7 +33,8 @@ import { hearthFurnitureShapeForPlaceable, hearthFurniturePlacementFromRow, hear
 import { furnishingPreview, furnitureAtTile, furniturePickupFailure } from './hearth-furnishing.js';
 import { FurnitureMoveController } from './furniture-move-controller.js';
 import { drawAuthoredOverworldObject } from '@orchard/engine/overworld-art';
-import {activeHearthLobbyDefinition,hearthLobbyPortalApproachClear,
+import {activeHearthLobbyDefinition,cellarLadderApproachClear,cellarLadderPortal,
+  hearthLobbyPortalApproachClear,
   runtimeHearthLobbyDefinition,runtimeSpaceDefinition} from '@orchard/sim';
 import {loadAuthoredNpcArt} from '@orchard/engine/authored-npc-art';
 import {runtimeHearthFerryNetwork,type HearthFerryDock} from '@orchard/sim';
@@ -3456,9 +3457,11 @@ function targetPortal(snapshot: OverworldView): SpacePortal | null {
     const destinationLobby=runtimeHearthLobbyDefinition(snapshot.content.registry,portal.toSpace);
     if((activeSpaceDefinition.generator==='delve_lobby'&&sourceLobby===null)
       ||(destination?.generator==='delve_lobby'&&destinationLobby===null))return false;
-    return sourceLobby!==null||destinationLobby!==null
-      ? hearthLobbyPortalApproachClear(position,portal,worldCollision)
-      : Math.abs(portal.fromTileX-tileX)<=1&&Math.abs(portal.fromTileY-tileY)<=1;
+    if(sourceLobby!==null||destinationLobby!==null)return hearthLobbyPortalApproachClear(position,portal,worldCollision);
+    // The cellar ladder is a wall fixture: only its own column prompts, so
+    // anything stored beside it keeps its own prompt.
+    if(cellarLadderPortal(portal.kind))return cellarLadderApproachClear(position,portal);
+    return Math.abs(portal.fromTileX-tileX)<=1&&Math.abs(portal.fromTileY-tileY)<=1;
   })??null;
 }
 

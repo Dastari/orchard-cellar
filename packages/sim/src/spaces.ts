@@ -1,4 +1,5 @@
 import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
+import { TILE_SIZE_FIXED } from './state.js';
 import { SURVIVAL_CHUNK_TILES, survivalBiomeAt, type SurvivalBiome } from './survival-world.js';
 import type { TerrainTransition } from './terrain-elevation.js';
 
@@ -249,6 +250,26 @@ const STARTER_CELLAR_EXCAVATION = generateStarterCellarExcavation();
  * by this room. */
 export function starterCellarTerrainTransitions(): readonly TerrainTransition[] {
   return [];
+}
+
+/** The cellar crossing is a wall ladder, not a floor hatch. The generic
+ * three-by-three portal box reached a tile to either side and diagonally
+ * behind, so it shadowed chests, crops and furniture parked beside the ladder
+ * and answered every prompt with CLIMB UP. Standing in the ladder's own column
+ * — on its base tile or the single tile in front of it — is the whole reach. */
+export function cellarLadderPortal(kind: string): boolean {
+  return kind.startsWith('cellar_exit:');
+}
+
+/** One physical reach contract for the ladder prompt and portal authority. */
+export function cellarLadderApproachClear(
+  position: { readonly x: number; readonly y: number },
+  portal: { readonly fromTileX: number; readonly fromTileY: number },
+): boolean {
+  const tileX = Math.floor(position.x / TILE_SIZE_FIXED);
+  const tileY = Math.floor(position.y / TILE_SIZE_FIXED);
+  return tileX === portal.fromTileX
+    && (tileY === portal.fromTileY || tileY === portal.fromTileY + 1);
 }
 
 /** Collision and presentation share this single excavation mask. */
