@@ -3,13 +3,14 @@ import type { ContentRegistry } from './content/registry.js';
 import type { ObjectContentDefinition } from './content/object-definition.js';
 import { resolveObjectCollision } from './content/object-collision.js';
 import type { StateValue } from './behaviour/effects.js';
+import type { CraftingStation } from './recipes.js';
 
 export type PlaceableKind = string;
 
 export interface PlaceableDefinition {
   readonly blocksMovement: boolean;
   readonly slotCapacity: number;
-  readonly station: 'workbench' | 'furnace' | 'campfire' | null;
+  readonly station: CraftingStation | null;
   readonly light: 'flame' | null;
   readonly connectsFence: boolean;
 }
@@ -44,6 +45,7 @@ export function placeableObjectDefinition(
 function stationFromTags(tags: readonly string[]): PlaceableDefinition['station'] {
   if (tags.includes('station.workbench')) return 'workbench';
   if (tags.includes('station.furnace')) return 'furnace';
+  if (tags.includes('station.anvil')) return 'anvil';
   return tags.includes('station.campfire') ? 'campfire' : null;
 }
 

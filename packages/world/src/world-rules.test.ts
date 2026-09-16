@@ -76,6 +76,7 @@ describe('overworld authority rules', () => {
       spaceId: 0,
       x: 11 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
       y: 12 * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      facing: 'down',
     };
     expect(portalUseResult(nearby, portal, false)).toBe('ok');
     expect(portalUseResult({ ...nearby, x: 13 * TILE_SIZE_FIXED }, portal, false)).toBe('portal_out_of_range');
@@ -83,22 +84,27 @@ describe('overworld authority rules', () => {
     expect(portalUseResult(nearby, portal, true)).toBe('no_horses_underground');
     expect(portalUseResult(nearby, portal, true, true)).toBe('ok');
   });
-  it('26§13 keeps the cellar ladder reach to its column and the tile in front of it', () => {
+  it('26§13 climbs a cellar ladder only from the tile at its foot, facing it', () => {
     const ladder = { kind: 'cellar_exit:toby', fromSpace: 0, fromTileX: 10, fromTileY: 12 };
-    const standing = (tileX: number, tileY: number) => ({
+    const standing = (tileX: number, tileY: number, facing = 'up') => ({
       spaceId: 0,
       x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
       y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      facing,
     });
-    expect(portalUseResult(standing(10, 12), ladder, false)).toBe('ok');
     expect(portalUseResult(standing(10, 13), ladder, false)).toBe('ok');
-    expect(portalUseResult(standing(11, 12), ladder, false)).toBe('portal_out_of_range');
+    // The ladder's own base tile, the sides, and the diagonals are all out.
+    expect(portalUseResult(standing(10, 12), ladder, false)).toBe('portal_out_of_range');
+    expect(portalUseResult(standing(11, 13), ladder, false)).toBe('portal_out_of_range');
     expect(portalUseResult(standing(9, 13), ladder, false)).toBe('portal_out_of_range');
-    expect(portalUseResult(standing(10, 11), ladder, false)).toBe('portal_out_of_range');
     expect(portalUseResult(standing(10, 14), ladder, false)).toBe('portal_out_of_range');
-    expect(portalUseResult(standing(10, 12), ladder, true)).toBe('no_horses_underground');
+    // Standing at the foot but looking elsewhere does not reach the rungs.
+    for (const facing of ['down', 'left', 'right', 'upLeft', 'upRight', 'idle', 'sideways']) {
+      expect(portalUseResult(standing(10, 13, facing), ladder, false)).toBe('portal_out_of_range');
+    }
+    expect(portalUseResult(standing(10, 13), ladder, true)).toBe('no_horses_underground');
     // Trapdoors and doors keep the generous three-by-three threshold.
-    expect(portalUseResult(standing(11, 12), { ...ladder, kind: 'cellar_enter:toby' }, false)).toBe('ok');
+    expect(portalUseResult(standing(11, 12, 'down'), { ...ladder, kind: 'cellar_enter:toby' }, false)).toBe('ok');
   });
   it('25§15 commits exact tool costs and leaves rejected spends unchanged', () => {
     expect(toolSpendResult(10_000, 0n, 100n, 1_500, 8, false)).toEqual({

@@ -55,6 +55,22 @@ describe('28§7 fence joins', () => {
     expect(ANVIL_REPAIR_COST_BRONZE).toBe(5);
   });
 
+  it('counts a placed anvil as the crafting station its recipes ask for', () => {
+    const registry = bootstrapContentRegistry();
+    // Every authored station tag must reach recipe availability; an anvil that
+    // reported no station left anvil recipes permanently unsatisfiable.
+    expect(runtimePlaceableDefinition(registry, 'anvil')?.station).toBe('anvil');
+    expect(runtimePlaceableDefinition(registry, 'workbench')?.station).toBe('workbench');
+    expect(runtimePlaceableDefinition(registry, 'furnace')?.station).toBe('furnace');
+    const anvilRecipes = [...registry.recipes.values()]
+      .filter((recipe) => recipe.retired !== true
+        && recipe.stationRequirement?.objectTag === 'station.anvil');
+    expect(anvilRecipes.length).toBeGreaterThan(0);
+    const player = { spaceId: 0, tileX: 10, tileY: 10 };
+    expect(craftingStationWithinReach(player, { spaceId: 0, tileX: 10, tileY: 11 }, 2)).toBe(true);
+    expect(craftingStationWithinReach(player, { spaceId: 0, tileX: 13, tileY: 10 }, 2)).toBe(false);
+  });
+
   it('derives processor UI contracts and capacities from item tags', () => {
     expect(placeableInterface('cooking_fire')).toBe('cooking');
     expect(placeableInterface('camp_cooking_fire')).toBe('cooking');

@@ -3458,8 +3458,9 @@ function targetPortal(snapshot: OverworldView): SpacePortal | null {
     if((activeSpaceDefinition.generator==='delve_lobby'&&sourceLobby===null)
       ||(destination?.generator==='delve_lobby'&&destinationLobby===null))return false;
     if(sourceLobby!==null||destinationLobby!==null)return hearthLobbyPortalApproachClear(position,portal,worldCollision);
-    // The cellar ladder is a wall fixture: only its own column prompts, so
-    // anything stored beside it keeps its own prompt.
+    // The cellar ladder is a wall fixture climbed from the tile at its foot.
+    // Reading the settled row rather than prediction keeps the prompt and the
+    // reducer's own reach test in agreement on the exact tile and facing.
     if(cellarLadderPortal(portal.kind))return cellarLadderApproachClear(position,portal);
     return Math.abs(portal.fromTileX-tileX)<=1&&Math.abs(portal.fromTileY-tileY)<=1;
   })??null;

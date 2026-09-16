@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TILE_SIZE_FIXED } from './state.js';
+import type { Direction } from './state.js';
 import {
   CELLAR_ENTRY_TILE,
   CELLAR_EXIT_TILE,
@@ -7,6 +8,7 @@ import {
   cellarLadderApproachClear,
   cellarLadderPortal,
   interiorFurnitureBlockingTiles,
+  spaceReceivesRain,
   starterCellarTerrainTransitions,
   TOPSIDE_SPACE_ID,
   spaceDefinitionFor,
@@ -62,21 +64,40 @@ describe('26§2 space registry', () => {
     expect(starterCellarTerrainTransitions()).toEqual([]);
   });
 
-  it('reaches the cellar ladder only from its own column and the tile in front', () => {
+  it('climbs the cellar ladder only from the tile at its foot, facing it', () => {
     expect(cellarLadderPortal('cellar_exit:toby')).toBe(true);
     expect(cellarLadderPortal('cellar_enter:toby')).toBe(false);
     expect(cellarLadderPortal('residence_exit:toby')).toBe(false);
     const portal = { fromTileX: CELLAR_EXIT_TILE.tileX, fromTileY: CELLAR_EXIT_TILE.tileY };
-    const at = (tileX: number, tileY: number) => cellarLadderApproachClear({
+    const at = (tileX: number, tileY: number, facing: Direction = 'up') => cellarLadderApproachClear({
       x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
       y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      facing,
     }, portal);
-    expect(at(CELLAR_EXIT_TILE.tileX, CELLAR_EXIT_TILE.tileY)).toBe(true);
-    // Arriving from the trapdoor lands one tile in front of the ladder.
+    // Arriving from the trapdoor lands on exactly that tile.
     expect(at(CELLAR_ENTRY_TILE.tileX, CELLAR_ENTRY_TILE.tileY)).toBe(true);
-    expect(at(CELLAR_EXIT_TILE.tileX - 1, CELLAR_EXIT_TILE.tileY)).toBe(false);
-    expect(at(CELLAR_EXIT_TILE.tileX + 1, CELLAR_EXIT_TILE.tileY + 1)).toBe(false);
-    expect(at(CELLAR_EXIT_TILE.tileX, CELLAR_EXIT_TILE.tileY - 1)).toBe(false);
-    expect(at(CELLAR_EXIT_TILE.tileX, CELLAR_EXIT_TILE.tileY + 2)).toBe(false);
+    expect(at(CELLAR_EXIT_TILE.tileX, CELLAR_EXIT_TILE.tileY)).toBe(false);
+    expect(at(CELLAR_ENTRY_TILE.tileX - 1, CELLAR_ENTRY_TILE.tileY)).toBe(false);
+    expect(at(CELLAR_ENTRY_TILE.tileX + 1, CELLAR_ENTRY_TILE.tileY)).toBe(false);
+    expect(at(CELLAR_ENTRY_TILE.tileX, CELLAR_ENTRY_TILE.tileY + 1)).toBe(false);
+    for (const facing of ['down', 'left', 'right', 'upLeft', 'upRight'] as const) {
+      expect(at(CELLAR_ENTRY_TILE.tileX, CELLAR_ENTRY_TILE.tileY, facing)).toBe(false);
+    }
+  });
+
+  it('drops rain on open-air spaces only, and honours the per-space admin flag', () => {
+    expect(spaceReceivesRain({ environment: 'outdoor', weather: true })).toBe(true);
+    expect(spaceReceivesRain({ environment: 'outdoor', weather: false })).toBe(false);
+    expect(spaceReceivesRain({ environment: 'underground', weather: true })).toBe(false);
+    expect(spaceReceivesRain({ environment: 'indoor', weather: true })).toBe(false);
+    expect(spaceReceivesRain({ environment: 'outdoor', weather: false }, true)).toBe(true);
+    expect(spaceReceivesRain({ environment: 'outdoor', weather: true }, false)).toBe(false);
+    // A homestead is open air; its residence and cellar are not.
+    for (const spaceId of [40_000, 40_001]) {
+      const space = spaceDefinitionFor(spaceId, {
+        spaceId: 39_999, residenceSpaceId: 40_000, ownerName: 'toby', sizeTier: 0,
+      });
+      expect(space === undefined ? null : spaceReceivesRain(space)).toBe(false);
+    }
   });
 });

@@ -186,6 +186,11 @@ merchant values. `Crops_2.png` is pixel-identical to the final eight groups of
   after watering again. Nothing withers, regresses, or dies. Current durations
   run 8–30 real minutes of watered time: quick crops complete in one care window,
   while premium crops require one return visit without blocking an entire session.
+- Rain waters what the sky can reach. While a shower runs, the weather sweep tops
+  up every crop tile in an open-air space — the island and every Homestead, never
+  a residence or cellar — settling the lapsed window first so no earned growth is
+  discarded. Only tiles that would otherwise run dry during the shower are
+  written, and tilled soil without a crop is left to its own decay timer.
 - Outdoor crops grow from spring through autumn and pause harmlessly in winter.
   A placed greenhouse removes that seasonal pause for its entire Homestead. This
   estate-wide rule is intentional: the authored greenhouse is a solid prefab whose

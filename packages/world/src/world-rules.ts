@@ -409,7 +409,12 @@ export type TilePlacementResult = 'ok' | 'invalid_tile' | 'out_of_range' | 'tile
 export type PortalUseResult = 'ok' | 'no_horses_underground' | 'portal_out_of_range';
 
 export function portalUseResult(
-  player: { readonly spaceId: number; readonly x: number; readonly y: number },
+  player: {
+    readonly spaceId: number;
+    readonly x: number;
+    readonly y: number;
+    readonly facing: string;
+  },
   portal: {
     readonly kind?: string;
     readonly fromSpace: number;
@@ -421,8 +426,8 @@ export function portalUseResult(
 ): PortalUseResult {
   if (mounted && !allowMounted) return 'no_horses_underground';
   if (player.spaceId !== portal.fromSpace) return 'portal_out_of_range';
-  // The cellar ladder answers only to its own column; every other portal keeps
-  // the generous three-by-three threshold.
+  // A wall ladder is climbed from the tile at its foot while facing it; every
+  // other portal keeps the generous three-by-three threshold.
   if (portal.kind !== undefined && cellarLadderPortal(portal.kind)) {
     return cellarLadderApproachClear(player, portal) ? 'ok' : 'portal_out_of_range';
   }

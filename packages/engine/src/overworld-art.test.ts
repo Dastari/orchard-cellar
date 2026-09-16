@@ -1,6 +1,7 @@
 import { bootstrapContentRegistry, runtimeCreaturePresentation, type ContentRegistry, type CropContentDefinition, type ItemContentDefinition } from '@orchard/sim';
 import type { LoadedAsset } from '@orchard/ui';
 import { describe, expect, it, vi } from 'vitest';
+import { authoredResourceVisual, type OverworldArt } from './overworld-art.js';
 import { authoredActorShadowBody, authoredWildlifeAnimationName, authoredWildlifeFlipsForDirection, BOW_LOCOMOTION_SPLIT_ROW, MOUNTED_ACTION_Y_OFFSET, actionToolFlipsForDirection, additionalTerrainAssetIds, axeAnimationForDirection, avatarAnimationForDirection, boatCardinalFacing, boatFlipsForDirection, boatRiderLayerMaximumRows, boatRiderOffset, boatTravelBob, bowLocomotionBobOffset, capybaraVisualAtFrame, createOverworldContentArtRequests, heldLightAnimationForDirection, heldLightFrameIndices, horseFlipsForDirection, horseFrameForDirection, horseJumpPose, idleAvatarAnimationForDirection, isOverworldRoad, isPondWaterPixel, natureDecorationFrame, overworldItemIconKey, overworldPlaceableVisualScale, overworldPoiDecorationDepthY, pondShimmerFrameAtTick, sortWorldDrawItems, wildlifeAnimationName, wildlifeFlipsForDirection } from './overworld-art.js';
 import { canonicalBlob47Index } from './tilemap.js';
 
@@ -257,6 +258,21 @@ describe('overworld art topology', () => {
     expect(overworldItemIconKey('workbench')).toBe('prop_cf_workbench');
     expect(overworldItemIconKey('fiber')).toBe('item_cf_fiber');
     expect(overworldItemIconKey('future_item')).toBe('system_missing_asset');
+  });
+
+  it('draws an authored resource named for a nature family from that family', () => {
+    const fishShadow = { name: 'nature_cf_fish_shadow_01' } as unknown as LoadedAsset;
+    const missingItem = { name: 'system_missing_asset' } as unknown as LoadedAsset;
+    const art = {
+      hearthResources: {}, fruitTrees: {}, poiDecorations: {}, oreNodes: {},
+      natureDecorations: { nature_fish_shadow: [fishShadow] },
+      missingItem,
+    } as unknown as OverworldArt;
+    // The fishing pool names the decoration family, not one atlas entry.
+    expect(authoredResourceVisual(art, { kind: 'fish', asset: 'nature_fish_shadow' }))
+      .toEqual({ asset: fishShadow, scale: 1 });
+    expect(authoredResourceVisual(art, { kind: 'fish', asset: 'nature_nothing_here' }))
+      .toEqual({ asset: missingItem, scale: 1 });
   });
 
   it('rests vegetation in calm weather while fish and water continue moving', () => {

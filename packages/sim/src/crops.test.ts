@@ -13,6 +13,7 @@ import {
   emptySoilDecayAtTick,
   emptySoilDecayDue,
   isCropKind,
+  rainWateringDue,
   isCropSeedKind,
   wateredGrowthBetween,
   type CropKind,
@@ -157,6 +158,44 @@ describe('water-gated crop growth', () => {
     const mature = cropGrowthAt(wheat, wheat.growthTicks, 0n, 0n, 0n);
     expect(mature).toMatchObject({ progress: 1, stage: 3, mature: true });
     expect(mature.remainingTicks).toBe(0n);
+  });
+});
+
+describe('rain watering', () => {
+  const sweep = BigInt(AUTHORITY_TICKS_PER_DAY / 24);
+
+  it('tops up dry tiles and tiles whose window lapses before the next sweep', () => {
+    const now = 10_000n;
+    expect(rainWateringDue({ watered: false, wateredAtTick: 0n }, now, sweep)).toBe(true);
+    // Watered long enough ago that the window closes within this shower's hour.
+    expect(rainWateringDue(
+      { watered: true, wateredAtTick: now + sweep - CROP_WATERING_TICKS }, now, sweep,
+    )).toBe(true);
+    // Still comfortably wet: the shower writes nothing.
+    expect(rainWateringDue({ watered: true, wateredAtTick: now }, now, sweep)).toBe(false);
+    expect(rainWateringDue(
+      { watered: true, wateredAtTick: now + sweep - CROP_WATERING_TICKS + 1n }, now, sweep,
+    )).toBe(false);
+  });
+
+  it('respects the crop\'s own shorter watering window', () => {
+    const now = 10_000n;
+    const soil = { watered: true, wateredAtTick: now - 100n };
+    expect(rainWateringDue(soil, now, sweep)).toBe(false);
+    expect(rainWateringDue(soil, now, sweep, 50n)).toBe(true);
+  });
+
+  it('settles the lapsed window before a fresh stamp so no growth is lost', () => {
+    const grape = cropDefinition('grape')!;
+    const wateredAt = 1_000n;
+    const rainTick = wateredAt + CROP_WATERING_TICKS + 500n;
+    const settled = cropGrowthAt(grape, 0n, wateredAt, wateredAt, rainTick);
+    expect(settled.growthTicks).toBe(CROP_WATERING_TICKS);
+    // Re-stamping after settling continues from the earned progress.
+    const afterRain = cropGrowthAt(grape, settled.growthTicks, rainTick, rainTick, rainTick + 200n);
+    expect(afterRain.growthTicks).toBe(CROP_WATERING_TICKS + 200n);
+    // Stamping without settling first would have discarded that whole window.
+    expect(cropGrowthAt(grape, 0n, wateredAt, rainTick, rainTick + 200n).growthTicks).toBe(200n);
   });
 });
 
