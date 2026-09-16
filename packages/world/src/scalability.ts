@@ -45,6 +45,7 @@ export interface TickUpdateCounters {
   itemRowsScanned: number;
   auditRowsScanned: number;
   speechRowsScanned: number;
+  soilRowsScanned: number;
   rowsScanned: number;
 }
 
@@ -56,7 +57,8 @@ export type TickRowScanKind =
   | 'inviteRowsScanned'
   | 'itemRowsScanned'
   | 'auditRowsScanned'
-  | 'speechRowsScanned';
+  | 'speechRowsScanned'
+  | 'soilRowsScanned';
 
 export function emptyTickUpdateCounters(): TickUpdateCounters {
   return {
@@ -77,6 +79,7 @@ export function emptyTickUpdateCounters(): TickUpdateCounters {
     itemRowsScanned: 0,
     auditRowsScanned: 0,
     speechRowsScanned: 0,
+    soilRowsScanned: 0,
     rowsScanned: 0,
   };
 }

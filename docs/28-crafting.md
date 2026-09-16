@@ -155,7 +155,9 @@ export interface RecipeDefinition {
   (§5.2), not the grid.
 - `craftInventoryRecipe` gains the station-proximity check: a `world_placeable`
   row of the required station kind within 2 tiles in the caller's space,
-  else `station_required` SenderError.
+  else `station_required` SenderError. A placed object reports its station from
+  its authored `station.*` identity tag; every tag in the union above must be
+  projected, or recipes requiring it can never be satisfied.
 - **INT quality hook (doc 25 §1) is reserved, not spent**: recipes have no
   quality rolls in v1. First use will be cooking quality when food lands.
 

@@ -112,9 +112,10 @@ Additive columns, with one honest caveat about indexes:
   — horses stay topside, the pack has no cave horse and neither should we),
   reject unless the player's tile is within 1 tile of `fromTile`
   (`portal_out_of_range`). Wall ladders are the exception: a cellar exit
-  (`cellar_exit:*`) accepts only its own tile column — the ladder's base tile
-  and the single tile in front of it — so objects stored beside the ladder keep
-  their own prompt. The client prompt and the reducer share
+  (`cellar_exit:*`) is climbed only from the single tile at the foot of the
+  ladder — `fromTile` plus one row south — while facing the ladder itself, so
+  anything stored beside it keeps its own prompt. An idle or diagonal facing
+  does not reach the rungs. The client prompt and the reducer share
   `cellarLadderApproachClear`. Then perform the **generalized `adminTeleport` body**
   (extracted to a shared helper): write x/y/spaceId + recomputed chunk, clear
   moving/action/jump, settle `player_input` so prediction doesn't rubber-band,

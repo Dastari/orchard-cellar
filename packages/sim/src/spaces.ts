@@ -1,5 +1,6 @@
 import { BOOTSTRAP_COMPILED_CONTENT } from './content/bootstrap-projection.js';
-import { TILE_SIZE_FIXED } from './state.js';
+import { TILE_SIZE_FIXED, isDirection } from './state.js';
+import { facedTileTarget } from './tile-targeting.js';
 import { SURVIVAL_CHUNK_TILES, survivalBiomeAt, type SurvivalBiome } from './survival-world.js';
 import type { TerrainTransition } from './terrain-elevation.js';
 
@@ -212,6 +213,15 @@ export function residencePlayableTile(tileX: number, tileY: number, expansionRan
     || (tileX >= 20 && tileX <= 22 && tileY >= 13 && tileY <= 15));
 }
 
+/** Weather falls only on open-air spaces. The per-space admin flag can close
+ * the sky over one of them without changing its authored definition. */
+export function spaceReceivesRain(
+  space: Pick<SpaceDefinition, 'environment' | 'weather'>,
+  adminWeather?: boolean,
+): boolean {
+  return space.environment === 'outdoor' && (adminWeather ?? space.weather);
+}
+
 export interface CaveExcavationGrid {
   readonly width: number;
   readonly height: number;
@@ -255,21 +265,25 @@ export function starterCellarTerrainTransitions(): readonly TerrainTransition[] 
 /** The cellar crossing is a wall ladder, not a floor hatch. The generic
  * three-by-three portal box reached a tile to either side and diagonally
  * behind, so it shadowed chests, crops and furniture parked beside the ladder
- * and answered every prompt with CLIMB UP. Standing in the ladder's own column
- * — on its base tile or the single tile in front of it — is the whole reach. */
+ * and answered every prompt with CLIMB UP. A ladder is climbed from the one
+ * tile in front of its base, facing it — nothing else is in reach. */
 export function cellarLadderPortal(kind: string): boolean {
   return kind.startsWith('cellar_exit:');
 }
 
-/** One physical reach contract for the ladder prompt and portal authority. */
+/** One physical reach contract for the ladder prompt and portal authority.
+ * The faced tile carries the direction test, so a diagonal facing that looks
+ * past the ladder does not count as standing at its foot. */
 export function cellarLadderApproachClear(
-  position: { readonly x: number; readonly y: number },
+  position: { readonly x: number; readonly y: number; readonly facing: string },
   portal: { readonly fromTileX: number; readonly fromTileY: number },
 ): boolean {
   const tileX = Math.floor(position.x / TILE_SIZE_FIXED);
   const tileY = Math.floor(position.y / TILE_SIZE_FIXED);
-  return tileX === portal.fromTileX
-    && (tileY === portal.fromTileY || tileY === portal.fromTileY + 1);
+  if (tileX !== portal.fromTileX || tileY !== portal.fromTileY + 1) return false;
+  if (!isDirection(position.facing)) return false;
+  const faced = facedTileTarget(position.x, position.y, position.facing);
+  return faced.tileX === portal.fromTileX && faced.tileY === portal.fromTileY;
 }
 
 /** Collision and presentation share this single excavation mask. */
