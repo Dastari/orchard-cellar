@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.3 — Unreleased
+
+- Repair mining after the facing-swing change. A pick swing measured a resource's
+  contact point from the feet while the point itself is authored at chest height,
+  which cost an upward swing more than half its reach; and the swing key returned
+  before the cellar-wall strike it cannot perform, so cellar walls could not be
+  mined with F at all. Swing reach and arc are unchanged.
+
 ## 0.8.2 — Unreleased
 
 - Add a hammer button above the crafting spanner to toggle the build menu without a

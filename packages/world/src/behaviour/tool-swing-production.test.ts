@@ -87,6 +87,28 @@ describe('production server swing discovery', () => {
     expect(f.spend).toHaveBeenCalledTimes(1);
     expect(f.wear).toHaveBeenCalledExactlyOnceWith(ctx, f.slot, 4);
   });
+  it('measures a resource contact in the frame its target vector is authored in', () => {
+    // A wall or vein one tile north sits within a pick's one-tile arc. Measuring
+    // the chest-height contact point from the feet added the body offset and
+    // pushed every upward swing out of range.
+    const f = fixture('pickaxe');
+    f.position().facing = 'up';
+    const resource = { id: 7n, tileX: 8, tileY: 7, spaceId: 0, depleted: false };
+    const ctx = { ...f.ctx, db: { ...f.ctx.db,
+      world_npc: { by_chunk: { filter: () => [] } },
+      world_resource: { by_chunk: { filter: () => [resource] } },
+    } };
+    const mined: bigint[] = [];
+    production('applyToolSwingLifecycle', { ...f.dependencies,
+      runtimeResourceDefinition: () => ({}), liveMapGeneratedResourceSuppressed: () => false,
+      // One tile straight up, as measured from the interaction origin.
+      runtimeResourceTargetVector: () => ({ x: 0, y: -sim.TILE_SIZE_FIXED }),
+      combatSegmentObstructed: () => false,
+      applyHarvestResourceLifecycle: (_ctx: unknown, id: bigint, write: boolean) => { if (write) mined.push(id); },
+    })(ctx);
+    expect(mined).toEqual([7n]);
+    expect(f.wear).toHaveBeenCalledExactlyOnceWith(ctx, f.slot, 1);
+  });
   it('uses the smaller pick arc and keeps preflight free of mutations', () => {
     const f = fixture('pickaxe');
     const apply = production('applyToolSwingLifecycle', f.dependencies);
