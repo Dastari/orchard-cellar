@@ -1,6 +1,6 @@
 import {
   activeEquipmentSlotAccepts, compileEquipmentLoadout, EQUIPMENT_SLOTS, EQUIPMENT_SLOT_OFFSET,
-  itemContainerContentResolver, MAIN_HAND_INVENTORY_SLOT,
+  itemContainerContentResolver, MAIN_HAND_INVENTORY_SLOT, TILE_SIZE_FIXED,
   type ContentRegistry, type EquippedInventoryEntry, type Modifier,
 } from '@orchard/sim';
 const labels: Partial<Record<Modifier['target'],string>> = {
@@ -19,7 +19,7 @@ export function equipmentDescriptionLines(
   trainedRanks:Readonly<Record<string,number>>, skillPriority:readonly string[] = [],
 ): readonly string[] | null {
   const item=registry.items.get(`item:${itemKind}`);
-  if (item===undefined || item.retired===true || (item.combat===undefined && !item.tags.includes('item.armor')
+  if (item===undefined || item.retired===true || (item.combat===undefined && item.tool?.swing===undefined && !item.tags.includes('item.armor')
     && !item.tags.includes('item.shield') && item.equip?.slot!=='neck')) return null;
   const content=itemContainerContentResolver(registry);
   const slot=EQUIPMENT_SLOTS.find(slot=>activeEquipmentSlotAccepts(slot.index,itemKind,content));
@@ -41,6 +41,14 @@ export function equipmentDescriptionLines(
     lines.push('BONUSES APPLY WHEN EQUIPPED AND SELECTED');
   }
   lines.push(...(item.modifiers??[]).map(modifierLabel));
+  if (item.tool?.swing !== undefined) {
+    if (item.combat === undefined && item.tool.swing.baseDamageCenti !== undefined) lines.push(`BASE DAMAGE ${item.tool.swing.baseDamageCenti / 100}`);
+    lines.push('F: SWING IN FACING DIRECTION');
+    if (item.tool.specialization === 'mining') lines.push('LEFT CLICK: DIG CELLAR WALL');
+    if (item.tool.specialization === 'farming') lines.push('LEFT CLICK: TILL / RIGHT CLICK: RESTORE');
+    lines.push(`SWING ${item.tool.swing.arcDegrees} DEG / ${item.tool.swing.rangeFixed / TILE_SIZE_FIXED} TILES`);
+  }
+  if (item.durability !== undefined) lines.push(`MAX DURABILITY ${item.durability.max}`);
   if (item.equip?.skillNode!==undefined) {
     const id=item.equip.skillNode;
     const node=[...registry.skillTrees.values()].flatMap(tree=>tree.nodes).find(node=>node.id===id);

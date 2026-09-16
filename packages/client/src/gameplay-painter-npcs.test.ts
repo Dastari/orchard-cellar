@@ -57,7 +57,10 @@ function worldNpc() {
 function renderNpc(
   registry: ReturnType<typeof buildContentRegistry>['registry'],
   art: object,
-  options: { readonly npc?: ReturnType<typeof worldNpc>; readonly wildlifeSpecies?: string } = {},
+  options: { readonly npc?: ReturnType<typeof worldNpc>; readonly wildlifeSpecies?: string;
+    readonly previous?: { x: number; y: number }; readonly current?: { x: number; y: number };
+    readonly alpha?: number; readonly cameraX?: number; readonly cameraY?: number;
+  } = {},
 ) {
   const queued: WorldDepthItem[] = [];
   const targetableEntities: unknown[] = [];
@@ -74,7 +77,9 @@ function renderNpc(
       outdoorEnemyProfiles: new Map(),
       clock: { authorityTick: 105n },
     },
-    npcDisplay: new Map(),
+    npcDisplay: new Map(options.current ? [[npc.id, options.current]] : []),
+    previousNpcDisplay: new Map(options.previous ? [[npc.id, options.previous]] : []),
+    alpha: options.alpha ?? 1,
     renderStarted: 1_000,
     npcHitFeedback: new Map(),
     NPC_HIT_HOP_MS: 100,
@@ -89,8 +94,8 @@ function renderNpc(
     context: { save: vi.fn(), restore: vi.fn(), filter: 'none' },
     art,
     horseAnimationFrame: 4,
-    cameraX: 0,
-    cameraY: 0,
+    cameraX: options.cameraX ?? 0,
+    cameraY: options.cameraY ?? 0,
     scale: 1,
     targetableFromVisualBounds: (target: unknown) => target,
     nameplates,
@@ -189,5 +194,23 @@ describe('authored NPC painter authority', () => {
       expect(rendered.targetableEntities).toHaveLength(0);
     }
     expect(engine.drawAuthoredOverworldWildlife).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('NPC render-frame interpolation', () => {
+  it.each([0, 0.25, 0.5, 0.75, 1])('keeps diagonal NPC motion aligned with the camera at alpha %s', async alpha => {
+    const registry = bootstrapContentRegistry();
+    const art = {};
+    const npc = { ...worldNpc(), kind: 'sheep', moving: true, wanderDirection: 'walk' };
+    const previous = { x: 64 * FIXED_UNITS_PER_PIXEL, y: 80 * FIXED_UNITS_PER_PIXEL };
+    const current = { x: 68 * FIXED_UNITS_PER_PIXEL, y: 84 * FIXED_UNITS_PER_PIXEL };
+    const cameraX = 10 + 4 * alpha, cameraY = 20 + 4 * alpha;
+    engine.drawAuthoredOverworldWildlife.mockClear();
+    const result = renderNpc(registry, art, { npc, wildlifeSpecies: 'sheep', previous, current, alpha, cameraX, cameraY });
+    for (const item of result.queued) item.draw();
+    const call = engine.drawAuthoredOverworldWildlife.mock.calls[0]!;
+    expect(Number(call[5]) - Number(call[10])).toBe(54);
+    expect(Number(call[6]) - Number(call[11])).toBe(60);
   });
 });

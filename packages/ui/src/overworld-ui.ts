@@ -1,3 +1,4 @@
+import { EquipmentTooltipDwell, equipmentTooltipRect } from './equipment-tooltip.js';
 import type { HearthDangerNotice } from '@orchard/sim';
 import {HEARTH_LOBBY_STASH_CAPACITY} from '@orchard/sim';
 import {FerryMenu} from './ferry-menu.js';
@@ -1287,6 +1288,7 @@ export class OverworldUi {
   private layout = overworldUiLayout(480, 270);
   private pointer: UiPoint = { x: -100, y: -100 };
   private hoveredSlot: number | null = null;
+  private readonly equipmentTooltipDwell = new EquipmentTooltipDwell();
   private cursorPress: {
     readonly origin: ItemSlot;
     readonly button: 'left' | 'right';
@@ -3500,17 +3502,20 @@ export class OverworldUi {
   }
 
   private drawTooltip(context: CanvasRenderingContext2D): void {
+    const item = this.hoveredItem();
+    const detailsReady = this.equipmentTooltipDwell.ready(item?.itemKind ?? null, performance.now());
     const text = this.tooltipText();
     if (!text) return;
-    const item=this.hoveredItem();
-    const gear=text.startsWith('REQUIRES ') || item===null || this.model.contentRegistry===undefined ? null : equipmentDescriptionLines(
+    const gear=!detailsReady || this.model.touchControls === true || text.startsWith('REQUIRES ') || item===null || this.model.contentRegistry===undefined ? null : equipmentDescriptionLines(
       this.model.contentRegistry,item.itemKind,this.model.inventory,this.model.selectedSlot,
       Object.fromEntries((this.model.skills?.ranks??[]).map(({nodeId,rank})=>[nodeId,rank])),this.model.skills?.skillPriority??[],
     );
     if (gear!==null) {
       const maximumWidth=Math.min(this.model.width-12,390);
-      const characters=Math.max(16,Math.floor((maximumWidth-16)/6));
-      const lines=gear.flatMap(line=>{
+      const characters=Math.max(4,Math.floor((maximumWidth-16)/6));
+      const details = item?.durability === undefined ? gear : gear.map(line =>
+        line.startsWith('MAX DURABILITY ') ? `DURABILITY ${item.durability} / ${line.slice(15)}` : line);
+      const lines=details.flatMap(line=>{
         const rows:string[]=[]; let current='';
         for (const word of line.split(' ')) {
           if (current && current.length+word.length+1>characters) {rows.push(current);current=word;}
@@ -3521,16 +3526,16 @@ export class OverworldUi {
       });
       const width=Math.min(maximumWidth,Math.max(150,...lines.map(line=>measurePixelText(line)+16)));
       const height=lines.length*10+12;
-      const rect={x:Math.round((this.model.width-width)/2),y:Math.max(4,this.model.height-height-6),width,height};
+      const rect = equipmentTooltipRect(this.model.width, this.touchInventoryTooltipRect(), width, height);
       drawUiSkinAsset(context,this.skin.frameThin,rect);
-      lines.forEach((line,index)=>drawLabel(context,this.fonts,line,rect.x+8,rect.y+6+index*10,{color:'#5f3b24'}));
+      lines.slice(0, Math.max(0, Math.floor((rect.height - 12) / 10))).forEach((line,index)=>drawLabel(context,this.fonts,line,rect.x+8,rect.y+6+index*10,{color:'#5f3b24'}));
       return;
     }
     const width = Math.min(this.model.width - 12, Math.max(104, measurePixelText(text) + 16));
     const base = this.touchInventoryTooltipRect();
     const rect = { ...base, x: Math.round((this.model.width - width) / 2), width };
     drawUiLabelPlate(context, this.skin, rect);
-    drawLabel(context, this.fonts, fitLabel(text, 44), rect.x + rect.width / 2, rect.y + 4, { align: 'center', color: '#5f3b24' });
+    drawLabel(context, this.fonts, fitLabel(text, Math.max(4, Math.floor((rect.width - 16) / 6))), rect.x + rect.width / 2, rect.y + 4, { align: 'center', color: '#5f3b24' });
   }
 
   /** Touch users cannot hover away from an item. Keep its label below the
@@ -3557,7 +3562,7 @@ export class OverworldUi {
     const asset = kind === 'failure' ? this.skin.buttonDeny
       : kind === 'success' ? this.skin.buttonConfirm : this.skin.button;
     drawUiSkinAsset(context, asset, rect, 'idle');
-    drawLabel(context, this.fonts, fitLabel(text, 44), rect.x + rect.width / 2, rect.y + 4, {
+    drawLabel(context, this.fonts, fitLabel(text, Math.max(4, Math.floor((rect.width - 16) / 6))), rect.x + rect.width / 2, rect.y + 4, {
       align: 'center', color: kind === 'info' ? '#5f3b24' : '#fff1cf',
     });
   }
@@ -3672,8 +3677,7 @@ export class OverworldUi {
     if (item !== null) {
       const label = this.itemDefinition(item.itemKind)?.displayName.toUpperCase()
         ?? item.itemKind.replaceAll('_', ' ').toUpperCase();
-      const durability = this.durabilityDefinition(item.itemKind);
-      return durability === null ? label : `${label}  ${item.durability ?? durability.maximum}/${durability.maximum}`;
+      return label;
     }
     const effectIndex = this.effectRects().findIndex((rect) => containsPoint(rect, this.pointer));
     const effect = (this.model.effects ?? [])[effectIndex];

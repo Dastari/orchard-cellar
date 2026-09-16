@@ -32,12 +32,12 @@ describe('NPC/dialogue/quest content definitions', () => {
     const boat = npcsJson.find(({ id }) => id === 'npc:boat')!;
     const horse = npcsJson.find(({ id }) => id === 'npc:horse')!;
     const fisher = npcsJson.find(({ id }) => id === 'npc:fisherman_fin')!;
-    expect(boat.mount).toMatchObject({ adapter: 'boat', reachFixed: 8_192 });
+    expect(boat.mount).toMatchObject({ adapter: 'boat', reachFixed: 512 });
     expect(horse).toMatchObject({
       mount: {
-        adapter: 'horse', reachFixed: 8_192, dismountDistanceFixed: 4_608,
+        adapter: 'horse', reachFixed: 512, dismountDistanceFixed: 288,
         jump: { maximumBlockedTiles: 3, maximumApproachTiles: 1, durationTicks: 10 },
-        wander: { radiusFixed: 12_288, speedFixed: 128, blockedRetryTicks: 8 },
+        wander: { radiusFixed: 768, speedFixed: 8, blockedRetryTicks: 8 },
       },
       wildlifeProfile: { species: 'horse', variant: 0, packId: '0', habitat: 'pasture' },
     });
@@ -127,10 +127,10 @@ describe('NPC/dialogue/quest content definitions', () => {
       home: { spaceId: 0, tileX: 372, tileY: 370 }, facing: 'down', health: 140,
       wildlifeProfile: { species: 'horse', variant: 0, packId: '0', habitat: 'pasture' },
       mount: {
-        adapter: 'horse', reachFixed: 8_192, dismountDistanceFixed: 4_608,
+        adapter: 'horse', reachFixed: 512, dismountDistanceFixed: 288,
         jump: { maximumBlockedTiles: 3, maximumApproachTiles: 1, durationTicks: 10 },
         wander: {
-          radiusFixed: 12_288, speedFixed: 128, decisionMinimumTicks: 30,
+          radiusFixed: 768, speedFixed: 8, decisionMinimumTicks: 30,
           decisionJitterTicks: 71, blockedRetryTicks: 8,
         },
       },
@@ -157,7 +157,7 @@ describe('NPC/dialogue/quest content definitions', () => {
 
   it('requires authored boat interaction reach', () => {
     const boat = bootstrapNpcDefinitions().find((definition) => definition.id === 'npc:boat')!;
-    expect(boat.mount).toEqual({ adapter: 'boat', reachFixed: 8_192 });
+    expect(boat.mount).toEqual({ adapter: 'boat', reachFixed: 512 });
     expect(() => parseNpcDefinition({ ...boat, mount: { adapter: 'boat' } }))
       .toThrow(/reachFixed/u);
     expect(parseNpcDefinition({ ...boat, mount: { adapter: 'boat', reachFixed: 313 } }).mount)

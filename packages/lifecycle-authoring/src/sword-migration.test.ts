@@ -16,12 +16,7 @@ const metadata = JSON.parse(readFileSync(
 }[] };
 
 const EXPECTED_SOURCE = `if (context.event.type === 'secondary') {
-  const target = context.target;
-  if (target === undefined) context.emit({ meleeAttack: { weapon: 'sword' } });
-  else if ('entityType' in target
-    && (target.entityType === 'npc' || target.definitionId === 'object:archery_target')) {
-    context.emit({ meleeAttack: { weapon: 'sword' } });
-  } else context.pass();
+  context.emit({ worldTool: { action: 'swing' } });
 } else if (context.event.type === 'useWith') {
   if (context.snapshot.target === undefined || !('entityType' in context.snapshot.target)
     || context.snapshot.target.definitionId !== 'object:anvil') context.pass();
@@ -42,7 +37,7 @@ const EXPECTED_SOURCE = `if (context.event.type === 'secondary') {
 } else context.pass();`;
 
 describe('authored sword lifecycle migration', () => {
-  it('owns swing, targeted melee, and anvil repair in one callback', () => {
+  it('owns facing-based swings and anvil repair in one callback', () => {
     const handlers = source.handlers.filter(({ itemId }) => itemId === 'item:sword');
     expect(handlers).toEqual([expect.objectContaining({
       id: 'item:sword.on_use',

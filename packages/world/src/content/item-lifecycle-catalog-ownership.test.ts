@@ -115,7 +115,7 @@ describe('bootstrap item lifecycle catalog ownership', () => {
     const callbackIds = [...callbackCounts.keys()].sort();
 
     expect(inertManifest.format).toBe('orchard-reviewed-inert-items-v1');
-    expect(lifecycleSource.revision).toBe(14);
+    expect(lifecycleSource.revision).toBe(15);
     expect(items).toHaveLength(336);
     expect(callbackIds).toHaveLength(123);
     expect(inertIds).toHaveLength(112);
@@ -123,7 +123,7 @@ describe('bootstrap item lifecycle catalog ownership', () => {
       bootstrapItemCount: 336,
       dataGraphItemCount: 69,
       transactionItemCount: 32,
-      lifecycleRevision: 14,
+      lifecycleRevision: 15,
       lifecycleBundleSha256: AUTHORED_LIFECYCLE_BUNDLE_SHA256,
       authoredCallbackCount: 123,
       inertItemCount: 112,

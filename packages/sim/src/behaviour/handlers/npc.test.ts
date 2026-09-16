@@ -69,7 +69,7 @@ describe('compiled NPC/dialogue/quest handlers', () => {
     }))).toEqual({ blocked: 'mounted_action_forbidden' });
     expect(registerNpcHandlers([{ ...boat, retired: true }], dialogues).registrations).toHaveLength(0);
     const { mount, ...inert } = boat;
-    expect(mount).toEqual({ adapter: 'boat', reachFixed: 8_192 });
+    expect(mount).toEqual({ adapter: 'boat', reachFixed: 512 });
     expect(registerNpcHandlers([inert], dialogues).registrations).toHaveLength(0);
   });
 

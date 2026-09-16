@@ -83,6 +83,23 @@ describe('overworld authority rules', () => {
     expect(portalUseResult(nearby, portal, true)).toBe('no_horses_underground');
     expect(portalUseResult(nearby, portal, true, true)).toBe('ok');
   });
+  it('26§13 keeps the cellar ladder reach to its column and the tile in front of it', () => {
+    const ladder = { kind: 'cellar_exit:toby', fromSpace: 0, fromTileX: 10, fromTileY: 12 };
+    const standing = (tileX: number, tileY: number) => ({
+      spaceId: 0,
+      x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+      y: tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
+    });
+    expect(portalUseResult(standing(10, 12), ladder, false)).toBe('ok');
+    expect(portalUseResult(standing(10, 13), ladder, false)).toBe('ok');
+    expect(portalUseResult(standing(11, 12), ladder, false)).toBe('portal_out_of_range');
+    expect(portalUseResult(standing(9, 13), ladder, false)).toBe('portal_out_of_range');
+    expect(portalUseResult(standing(10, 11), ladder, false)).toBe('portal_out_of_range');
+    expect(portalUseResult(standing(10, 14), ladder, false)).toBe('portal_out_of_range');
+    expect(portalUseResult(standing(10, 12), ladder, true)).toBe('no_horses_underground');
+    // Trapdoors and doors keep the generous three-by-three threshold.
+    expect(portalUseResult(standing(11, 12), { ...ladder, kind: 'cellar_enter:toby' }, false)).toBe('ok');
+  });
   it('25§15 commits exact tool costs and leaves rejected spends unchanged', () => {
     expect(toolSpendResult(10_000, 0n, 100n, 1_500, 8, false)).toEqual({
       ok: true, costCenti: 1_500, vigourCenti: 8_500, lastSwingTick: 100n,

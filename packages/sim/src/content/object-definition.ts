@@ -661,8 +661,8 @@ export function parseDataGraphEffect(value: unknown, path = '$'): Effect {
     case 'worldTool': {
       const worldTool = record(source.worldTool, `${path}.worldTool`);
       const action = stringValue(worldTool.action, `${path}.worldTool.action`);
-      if (action !== 'whiff' && action !== 'target' && action !== 'digCellar') {
-        fail(`${path}.worldTool.action`, 'expected whiff, target, or digCellar');
+      if (action !== 'whiff' && action !== 'target' && action !== 'digCellar' && action !== 'swing') {
+        fail(`${path}.worldTool.action`, 'expected whiff, target, digCellar, or swing');
       }
       return { worldTool: {
         action,

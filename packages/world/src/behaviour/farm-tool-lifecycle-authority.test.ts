@@ -38,7 +38,7 @@ describe('authored hoe and watering-can lifecycle authority', () => {
       expect(owned, itemId).toHaveLength(1);
       const handler = owned[0];
       expect(handler, itemId).toBeDefined();
-      expect(handler?.triggers).toEqual(['useWith', 'place']);
+      expect(handler?.triggers).toEqual(itemId === 'item:hoe' ? ['secondary', 'useWith', 'place'] : ['useWith', 'place']);
       expect(handler?.source).toContain('context.emit({ farmTool:');
       expect(handler?.source).toContain("context.snapshot.target.definitionId !== 'object:anvil'");
       expect(handler?.source).toContain('context.item.repair()');

@@ -64,7 +64,7 @@ async function launchClient(): Promise<void> {
         && oidcConfigured
         && await recoverStartupSession(ensureOidcSession, () => {
           setLoadingScreenStage({
-            title: 'RECONNECTING TO YOUR ACCOUNT',
+            title: 'CONNECTING TO YOUR ACCOUNT',
             detail: 'WAITING FOR A CONNECTION — YOUR LOGIN IS SAVED',
             progress: 12,
           });

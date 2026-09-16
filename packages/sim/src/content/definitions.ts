@@ -201,6 +201,7 @@ export interface ItemContentDefinition extends DefinitionBase<'item', ItemDefini
     readonly tier: number;
     readonly reachTiles?: number;
     readonly swingTicks?: number;
+    readonly swing?: { readonly rangeFixed: number; readonly arcDegrees: number; readonly baseDamageCenti?: number };
     /** Reviewed resource adapters this tool may mine; absence grants none. */
     readonly mineableResources?: readonly string[];
   };
@@ -560,6 +561,7 @@ export function parseItemDefinition(json: string | unknown): ItemContentDefiniti
   const food = source.food === undefined ? undefined : record(source.food, '$.food');
   const fuel = source.fuel === undefined ? undefined : record(source.fuel, '$.fuel');
   const tool = source.tool === undefined ? undefined : record(source.tool, '$.tool');
+  const swing = tool?.swing === undefined ? undefined : record(tool.swing, '$.tool.swing');
   const ranged = source.ranged === undefined ? undefined : record(source.ranged, '$.ranged');
   const light = source.light === undefined ? undefined : record(source.light, '$.light');
   const equip = source.equip === undefined ? undefined : record(source.equip, '$.equip');
@@ -669,6 +671,13 @@ export function parseItemDefinition(json: string | unknown): ItemContentDefiniti
         ? {} : { reachTiles: integer(tool.reachTiles, '$.tool.reachTiles', 1) }),
       ...(optionalInteger(tool.swingTicks, '$.tool.swingTicks', 1) === undefined
         ? {} : { swingTicks: integer(tool.swingTicks, '$.tool.swingTicks', 1) }),
+      ...(swing === undefined ? {} : { swing: {
+        rangeFixed: integer(swing.rangeFixed, '$.tool.swing.rangeFixed', 1, 1024),
+        arcDegrees: integer(swing.arcDegrees, '$.tool.swing.arcDegrees', 1, 180),
+        ...(swing.baseDamageCenti === undefined ? {} : {
+          baseDamageCenti: integer(swing.baseDamageCenti, '$.tool.swing.baseDamageCenti', 1, 100_000),
+        }),
+      } }),
       ...(tool.mineableResources === undefined ? {} : {
         mineableResources: strings(tool.mineableResources, '$.tool.mineableResources'),
       }),

@@ -138,9 +138,12 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Chest controls restore sort/search within shared authored frames, retaining
 // physical slot custody. Review: docs/chest-inventory-controls.md; interaction
 // and browser-canvas checks accompany this re-capture.
+// Gameplay 0.8.1 keeps tool labels to one line and delays bounded equipment
+// details above the hotbar. Review: docs/gameplay-bug-batch.md; tooltip layout,
+// dwell, and real item-label regressions accompany this re-capture.
 // Mobile build access adds the reviewed hammer HUD callback and overlay hit priority.
 // Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
-const STRUCTURAL_SEAM_DIGEST = '5019baa4292ee521512108b0405591cfdfbfd5f99dc676e900bc5b0a8d764dbf';
+const STRUCTURAL_SEAM_DIGEST = '1dd4de931dc46d0392312b2a7f9ff6bafd14514d5480e3b3e4c3ff8f4eb60802';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
