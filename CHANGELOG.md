@@ -2,6 +2,9 @@
 
 ## 0.8.2 — Unreleased
 
+- Add a hammer button above the crafting spanner to toggle the build menu without a
+  keyboard. Move the weapon shortcut above it to keep touch targets separate.
+
 - Account for the published content hash in village-order quote verification while
   still checking every price, quantity, receipt and player-state field.
 

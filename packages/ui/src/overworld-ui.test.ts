@@ -800,6 +800,33 @@ describe('overworld retained UI layout', () => {
     expect(ui.openWindow).toBe('crafting');
   });
 
+  it.each([[320, 568], [480, 270], [600, 900]])('opens and closes build from touch without overlapping shortcuts at %sx%s', (width, height) => {
+    const toggleBuild = vi.fn();
+    const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, { ...callbacks(), toggleBuild });
+    const model = {
+      width, height, connected: true, touchControls: true,
+      playerCount: 1, selectedSlot: 0, inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto' as const, prompt: null, toast: null,
+    };
+    ui.update(model);
+    const layout = overworldUiLayout(width, height);
+    expect(layout.buildButton.y).toBeGreaterThanOrEqual(0);
+    expect(layout.weaponShortcut.y + layout.weaponShortcut.height).toBeLessThanOrEqual(layout.buildButton.y);
+    expect(layout.buildButton.y + layout.buildButton.height).toBeLessThanOrEqual(layout.craftingButton.y);
+    const point = { x: layout.buildButton.x + 12, y: layout.buildButton.y + 12 };
+    expect(ui.pointerDown(point, 0, { pointerType: 'touch' })).toBe(true);
+    expect(toggleBuild).toHaveBeenCalledTimes(1);
+    ui.pointerUp(point, 0);
+    expect(ui.pointerBuildControl(point, 0)).toBe(true);
+    expect(toggleBuild).toHaveBeenCalledTimes(2);
+    ui.openWindow = 'system';
+    ui.update(model);
+    expect(ui.pointerBuildControl(point, 0)).toBe(false);
+    expect(toggleBuild).toHaveBeenCalledTimes(2);
+  });
+
   it('offers a fullscreen toggle from the Escape menu', () => {
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);

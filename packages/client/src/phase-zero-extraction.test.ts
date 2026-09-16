@@ -141,7 +141,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Gameplay 0.8.1 keeps tool labels to one line and delays bounded equipment
 // details above the hotbar. Review: docs/gameplay-bug-batch.md; tooltip layout,
 // dwell, and real item-label regressions accompany this re-capture.
-const STRUCTURAL_SEAM_DIGEST = 'f0c8469516a493613738fe6a6260247c5d2e51994cb623667093b2a3f2eda959';
+// Mobile build access adds the reviewed hammer HUD callback and overlay hit priority.
+// Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
+const STRUCTURAL_SEAM_DIGEST = '1dd4de931dc46d0392312b2a7f9ff6bafd14514d5480e3b3e4c3ff8f4eb60802';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
