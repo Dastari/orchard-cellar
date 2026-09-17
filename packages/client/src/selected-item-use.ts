@@ -134,6 +134,22 @@ export function selectedCellarToolAction(
     : null;
 }
 
+/** What the swing key does for a tool that has an authored swing. A swing is a
+ * sector of entity contacts: it cannot excavate terrain, so a cellar wall in
+ * reach keeps the explicit strike it had before swings existed. A targeted
+ * resource stays with the swing, which contacts every resource in the arc. */
+export function swingKeyIntent(actor: {
+  readonly hasAuthoredSwing: boolean;
+  readonly resourceTargeted: boolean;
+  readonly cellarWallInReach: boolean;
+  readonly cellarToolReady: boolean;
+}): 'swing' | 'dig_cellar' | 'contextual' {
+  if (!actor.hasAuthoredSwing) return 'contextual';
+  return !actor.resourceTargeted && actor.cellarWallInReach && actor.cellarToolReady
+    ? 'dig_cellar'
+    : 'swing';
+}
+
 /** A contextual world tool owns both whiff/direct use and target use. The
  * client uses this to avoid dispatching the direct callback ahead of a valid
  * resource/campfire/chest target. */

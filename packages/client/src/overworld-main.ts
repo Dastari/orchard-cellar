@@ -178,6 +178,7 @@ import {
   selectedItemLifecyclePrompt,
   selectedItemUseAction,
   selectedItemUsePrompt,
+  swingKeyIntent,
   selectedWoodcuttingUseWithAction,
 } from './selected-item-use.js';
 import { homesteadTentPresentationTargets } from './homestead-presentation.js';
@@ -6335,7 +6336,24 @@ window.addEventListener('keydown', (event) => {
     const selectedUseDefinition = liveItemContentDefinition(snapshot, selectedItem(snapshot));
     const selectedUseAction = selectedItemUseAction(selectedUseDefinition);
     const selectedUseKind = selectedItem(snapshot);
-    if (runtimeToolDefinition(snapshot.content.registry, selectedUseKind)?.swing !== undefined) {
+    const cellarToolAction = selectedCellarToolAction(selectedUseDefinition);
+    const swingIntent = swingKeyIntent({
+      hasAuthoredSwing: runtimeToolDefinition(snapshot.content.registry, selectedUseKind)?.swing !== undefined,
+      resourceTargeted: targetResource(snapshot) !== null,
+      cellarWallInReach: targetCellarWall(snapshot) !== null,
+      cellarToolReady: cellarToolAction !== null && isVitalsTool(selectedUseKind)
+        && localMount(snapshot) === null,
+    });
+    if (swingIntent === 'dig_cellar') {
+      const cellarWall = targetCellarWall(snapshot)!;
+      const performed = performToolAction(() => network.useSelected('use_at', {
+        tileX: cellarWall.tileX, tileY: cellarWall.tileY, actionId: cellarToolAction!.actionId,
+      }), 'CELLAR WALL STRUCK', selectedUseKind);
+      if (performed) facePredictedTowardTile(cellarWall);
+      event.preventDefault();
+      return;
+    }
+    if (swingIntent === 'swing') {
       performToolAction(() => network.useSelected('secondary'), 'SWING', selectedUseKind);
       event.preventDefault();
       return;

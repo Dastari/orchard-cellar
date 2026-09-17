@@ -2,6 +2,11 @@
 
 ## 0.8.3 — Unreleased
 
+- Repair mining after the facing-swing change. A pick swing measured a resource's
+  contact point from the feet while the point itself is authored at chest height,
+  which cost an upward swing more than half its reach; and the swing key returned
+  before the cellar-wall strike it cannot perform, so cellar walls could not be
+  mined with F at all. Swing reach and arc are unchanged.
 - Draw fishing pools from their authored nature artwork again. A resource whose
   visual names a decoration family resolved to no atlas entry and rendered the
   placeholder "?" tile.

@@ -11,6 +11,7 @@ import {
   selectedItemUseAction,
   selectedItemUsePrompt,
   selectedWoodcuttingUseWithAction,
+  swingKeyIntent,
 } from './selected-item-use.js';
 
 function item(onUse: ItemContentDefinition['onUse']): ItemContentDefinition {
@@ -187,6 +188,19 @@ describe('selected item use lifecycle', () => {
     expect(selectedFishingToolAction(renamedRod, null)).toBeNull();
     expect(selectedCellarToolAction({ ...renamedPickaxe, tool: { ...renamedPickaxe.tool!, specialization: 'woodcutting' } }, useAtMining)).toBeNull();
     expect(selectedContextualWorldToolAction(renamedPickaxe, secondary, null)).toBeNull();
+  });
+
+  it('keeps the explicit cellar strike ahead of a swing that cannot dig terrain', () => {
+    const wall = { hasAuthoredSwing: true, resourceTargeted: false, cellarWallInReach: true, cellarToolReady: true };
+    expect(swingKeyIntent(wall)).toBe('dig_cellar');
+    // A resource in front still belongs to the swing, which contacts the whole arc.
+    expect(swingKeyIntent({ ...wall, resourceTargeted: true })).toBe('swing');
+    expect(swingKeyIntent({ ...wall, cellarWallInReach: false })).toBe('swing');
+    // Mounted, broken or non-mining tools cannot dig, so they swing instead.
+    expect(swingKeyIntent({ ...wall, cellarToolReady: false })).toBe('swing');
+    // Tools without an authored swing keep the original contextual world-tool path.
+    expect(swingKeyIntent({ ...wall, hasAuthoredSwing: false })).toBe('contextual');
+    expect(swingKeyIntent({ ...wall, hasAuthoredSwing: false, cellarWallInReach: false })).toBe('contextual');
   });
 
   it('exposes seed planting as an authored place lifecycle without stealing direct F use', () => {

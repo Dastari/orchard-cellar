@@ -22039,8 +22039,19 @@ function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void 
   });
   const terrainCollision = { ...collision, obstacles: [] };
   const contacts: SwingTarget[] = [];
-  const include = (kind: SwingTarget['kind'], id: bigint, point: { x: number; y: number }) => {
-    if (!toolSwingContains(position, facing, point, geometry)
+  // The sector is anchored at the actor's position, so every reach point must be
+  // expressed in that frame. A resource's contact point is authored relative to
+  // the interaction origin at chest height; measuring it from the feet instead
+  // shortened an upward swing by the body offset — more than half a pick's
+  // reach — and lengthened a downward one. Elevation and line of sight still
+  // use the contact's true world point.
+  const include = (
+    kind: SwingTarget['kind'],
+    id: bigint,
+    point: { x: number; y: number },
+    reachPoint: { x: number; y: number } = point,
+  ) => {
+    if (!toolSwingContains(position, facing, reachPoint, geometry)
       || combatElevationAt(collision, position.x, position.y) !== combatElevationAt(collision, point.x, point.y)
       || combatSegmentObstructed(position, point, terrainCollision)) return;
     contacts.push({ kind, id });
@@ -22058,7 +22069,9 @@ function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void 
         && runtimeResourceDefinition(registry, resource) !== null) {
         const vector = runtimeResourceTargetVector(registry, resource, position.x, position.y, resource.tileX, resource.tileY);
         const origin = playerInteractionOrigin(position);
-        if (vector !== null) include('resource', resource.id, { x: origin.x + vector.x, y: origin.y + vector.y });
+        if (vector !== null) include('resource', resource.id,
+          { x: origin.x + vector.x, y: origin.y + vector.y },
+          { x: position.x + vector.x, y: position.y + vector.y });
       }
     }
     for (const target of ctx.db.world_combat_target.by_chunk.filter(chunk)) {

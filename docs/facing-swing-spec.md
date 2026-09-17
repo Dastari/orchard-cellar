@@ -33,6 +33,13 @@ explicit tile-use farming actions. E remains interaction; F performs the swing.
   Unexpected failures roll back the reducer transaction.
 - Cursor/selected entity must not rotate or restrict a swing. Existing explicit
   repair, farming, cellar excavation and interaction commands remain available.
+- A swing is a sector of *entity* contacts and cannot excavate terrain. The swing
+  key therefore keeps the explicit cellar-wall strike ahead of the swing whenever
+  a wall is in reach and no resource is targeted; every other case swings.
+- Contact geometry is measured in one frame. A resource's contact point is
+  authored relative to the interaction origin, so its reach is measured with that
+  same vector from the actor's position; elevation and line of sight use the
+  contact's true world point.
 
 ## Verification
 
