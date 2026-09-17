@@ -2,6 +2,10 @@
 
 ## 0.8.3 — Unreleased
 
+- Repair tools at an anvil again. Since the facing-swing change, F swung any tool
+  with an authored swing, which is every pickaxe, axe and hoe, before the anvil
+  branch could run. A damaged tool faced at an anvil now repairs; an undamaged
+  one, or one facing anything else, still swings.
 - Carry placed barrels, fermentation casks, fruit presses, furnaces and anvils
   again. The content pack authored no carry policy for them, so F did nothing and
   the authority answered "not carryable". Each is now a heavy station: it is

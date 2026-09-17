@@ -203,6 +203,16 @@ describe('selected item use lifecycle', () => {
     expect(swingKeyIntent({ ...wall, hasAuthoredSwing: false, cellarWallInReach: false })).toBe('contextual');
   });
 
+  it('keeps anvil repair ahead of a swing that cannot work an anvil', () => {
+    const anvil = { hasAuthoredSwing: true, resourceTargeted: false, cellarWallInReach: false, cellarToolReady: false };
+    expect(swingKeyIntent({ ...anvil, anvilRepairReady: true })).toBe('repair');
+    expect(swingKeyIntent({ ...anvil, anvilRepairReady: false })).toBe('swing');
+    expect(swingKeyIntent(anvil)).toBe('swing');
+    // A faced anvil outranks a cellar wall behind it; an undamaged tool swings.
+    expect(swingKeyIntent({ ...anvil, anvilRepairReady: true, cellarWallInReach: true, cellarToolReady: true })).toBe('repair');
+    expect(swingKeyIntent({ ...anvil, anvilRepairReady: true, hasAuthoredSwing: false })).toBe('contextual');
+  });
+
   it('exposes seed planting as an authored place lifecycle without stealing direct F use', () => {
     const carrotSeeds = bootstrapContentRegistry().items.get('item:carrot_seeds')!;
     expect(selectedItemLifecycleAction(carrotSeeds, 'place')).toMatchObject({
