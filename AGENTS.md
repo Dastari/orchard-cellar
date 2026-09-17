@@ -74,3 +74,14 @@ For every task:
 
 
 The task is not considered complete until the PR exists.
+
+## Production publishing and credential handoff
+
+Before preparing a deployment, read
+[the agent publishing runbook](ops/orchard-runtime/PUBLISHING.md) and the linked
+runtime procedure. Determine the actual code/content/full-schema scope, preserve
+the reviewed Studio guard, and use the applicable guarded release lane. Obtain
+reconnect credentials through the authorized shared browser and a private encrypted
+local handoff; share only the resulting file path, never tokens in chat. Validate
+refresh before handing the file to the publishing agent. Coordinate checkout and
+credential ownership with that agent; do not race refreshes or bypass failed gates.
