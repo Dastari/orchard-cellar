@@ -26,6 +26,8 @@ import {
   MAX_COMMITTED_ATTACKERS, closestCombatPointOnSegment, combatSegmentObstructed, type EnemyAttackPattern,
   AUTHORITY_TICK_MICROS,
   CROP_WATERING_TICKS,
+  rainWateringDue,
+  spaceReceivesRain,
   BRONZE_PER_GOLD,
   BACKPACK_SLOT_OFFSET,
   BASE_BACKPACK_CAPACITY,
@@ -459,6 +461,7 @@ import {
   recordTickRowTouch,
   updateRowWhenChanged,
   worldItemExpired,
+  type TickUpdateCounters,
 } from './scalability.js';
 import {
   BOOTSTRAP_OWNER_IDENTITIES,
@@ -4352,10 +4355,14 @@ function homesteadUpgradeRank(
   return rank !== undefined && rank <= definition.maximumRank ? rank : 0;
 }
 
+/** `tender` names whose farming skills shape the crop. Interactive paths use
+ * the caller; unattended sweeps name the crop's own owner, since no player is
+ * present to attribute the growth to. */
 function cropDefinitionForHomestead(
   ctx: WorldReducerContext,
   spaceId: number,
   cropKind: string,
+  tender?: WorldReducerContext['sender'],
 ) {
   const definition = runtimeCropDefinition(contentRegistry(ctx), cropKind);
   if (definition === null) return null;
@@ -4364,7 +4371,7 @@ function cropDefinitionForHomestead(
     ...definition,
     growthTicks: richSoilGrowthTicks(definition.growthTicks, rank),
   }, farmingSkillEffects(contentRegistry(ctx), playerSkillRanks(ctx,
-    homesteadForSpace(ctx, spaceId)?.owner ?? ctx.sender)));
+    homesteadForSpace(ctx, spaceId)?.owner ?? tender ?? ctx.sender)));
 }
 
 function cropAutomaticallyWatered(
@@ -4378,6 +4385,73 @@ function cropAutomaticallyWatered(
     placeable.carriedBy === undefined
     && runtimeObjectIrrigatesTile(registry, placeable, tileX, tileY)
   ));
+}
+
+/** Rain is the world's own watering can. While a shower runs, every crop in an
+ * open-air space — the island and every homestead — is topped up on the weather
+ * sweep, so a farm left in the rain keeps growing. Growth is settled against
+ * the lapsed window first, exactly as a player's watering can does, so the
+ * fresh stamp never discards progress the previous window had earned. */
+function waterCropsInTheRain(
+  ctx: WorldReducerContext,
+  authorityTick: bigint,
+  counters: TickUpdateCounters,
+): void {
+  const registry = contentRegistry(ctx);
+  const sweepTicks = BigInt(TREE_REGROWTH_SWEEP_TICKS);
+  const calendarOffset = cropCalendarOffset(ctx);
+  const rainReaches = new Map<number, boolean>();
+  const greenhouses = new Map<number, boolean>();
+  const irrigators = new Map<number, readonly WorldPlaceableRow[]>();
+  for (const crop of ctx.db.world_crop.iter()) {
+    recordTickRowScan(counters, 'soilRowsScanned');
+    const soil = ctx.db.world_soil.id.find(crop.id);
+    if (soil === null) continue;
+    let reached = rainReaches.get(soil.spaceId);
+    if (reached === undefined) {
+      const space = activeSpaceDefinition(ctx, soil.spaceId, instanceForSpace(ctx, soil.spaceId));
+      reached = space !== undefined
+        && spaceReceivesRain(space, effectiveSpaceAdminBoolean(ctx, soil.spaceId, 'weather'));
+      rainReaches.set(soil.spaceId, reached);
+    }
+    if (!reached) continue;
+    const definition = cropDefinitionForHomestead(ctx, soil.spaceId, crop.cropKind, crop.owner);
+    if (definition === null) continue;
+    if (!rainWateringDue(soil, authorityTick, sweepTicks,
+      definition.wateringTicks ?? CROP_WATERING_TICKS)) continue;
+    let protectedSeasons = greenhouses.get(soil.spaceId);
+    if (protectedSeasons === undefined) {
+      protectedSeasons = cropGreenhouseProtected(ctx, soil.spaceId);
+      greenhouses.set(soil.spaceId, protectedSeasons);
+    }
+    let spaceIrrigators = irrigators.get(soil.spaceId);
+    if (spaceIrrigators === undefined) {
+      spaceIrrigators = [...ctx.db.world_placeable.by_chunk.filter(soil.spaceId)]
+        .filter((placeable) => placeable.carriedBy === undefined
+          && runtimeObjectIrrigatesTile(registry, placeable, placeable.tileX, placeable.tileY));
+      irrigators.set(soil.spaceId, spaceIrrigators);
+    }
+    const settled = cropGrowthAt(
+      definition,
+      crop.growthTicks,
+      crop.growthUpdatedAtTick,
+      soil.wateredAtTick,
+      authorityTick,
+      soil.watered,
+      spaceIrrigators.some((placeable) => runtimeObjectIrrigatesTile(
+        registry, placeable, crop.tileX, crop.tileY,
+      )),
+      calendarOffset,
+      protectedSeasons,
+    );
+    ctx.db.world_crop.id.update({
+      ...crop,
+      growthTicks: settled.growthTicks,
+      growthUpdatedAtTick: authorityTick,
+    });
+    ctx.db.world_soil.id.update({ ...soil, watered: true, wateredAtTick: authorityTick });
+    recordTickRowTouch(counters, undefined, 2);
+  }
 }
 
 /** A greenhouse is an estate-scale seasonal upgrade. Its authored building
@@ -23727,6 +23801,7 @@ export const stepWorld = spacetimedb.reducer(
     if (authorityTick % BigInt(TREE_REGROWTH_SWEEP_TICKS) === 0n) {
       const weatherMode = isWeatherMode(environment.weatherMode) ? environment.weatherMode : 'auto';
       const raining = rainForWeatherMode(weatherMode, calendarTick);
+      if (raining) waterCropsInTheRain(ctx, authorityTick, updateCounters);
       // Cadence: TREE_REGROWTH_SWEEP_TICKS. The index union bounds work to
       // active regrowth plus legacy depleted trees requiring a one-time reset.
       const regrowing = new Map<bigint, WorldResourceRow>();

@@ -175,6 +175,19 @@ export function cropGrowthAt(
   };
 }
 
+/** True when a shower must top a tile up: it is dry, or its watering window
+ * would lapse before the next weather sweep. Rain therefore writes only to the
+ * tiles that would otherwise go thirsty mid-shower, not to every wet tile on
+ * every sweep. */
+export function rainWateringDue(
+  soil: { readonly watered: boolean; readonly wateredAtTick: bigint },
+  currentTick: bigint,
+  sweepTicks: bigint,
+  wateringTicks = CROP_WATERING_TICKS,
+): boolean {
+  return !soil.watered || soil.wateredAtTick + wateringTicks <= currentTick + sweepTicks;
+}
+
 /** Empty overworld soil gets a fresh grace period whenever it is tilled,
  * watered, or returned to an empty cultivated state after harvest. */
 export function emptySoilDecayAtTick(

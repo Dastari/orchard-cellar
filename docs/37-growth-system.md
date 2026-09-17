@@ -36,8 +36,10 @@ fractional bonus deterministically.
 Dense Homestead and overworld crops follow docs/34 and docs/35: persist settled
 watered-growth ticks and the last boundary tick, then derive the live overlap with
 the current watering window. Do not add a scheduled per-crop update loop. A row is
-written only for planting, watering settlement, harvesting, or a future durable
-modifier boundary.
+written only for planting, watering settlement, harvesting, rain reaching an
+open-air tile whose window would otherwise lapse, or a future durable modifier
+boundary. Rain settles growth exactly as a watering can does, on the same weather
+sweep that feeds tree regrowth, so it adds no new cadence.
 
 ## 3. Stage and harvest contract
 

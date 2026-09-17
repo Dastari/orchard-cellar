@@ -9,7 +9,7 @@ const declaration=source.statements.find(node=>ts.isFunctionDeclaration(node)&&n
 if(!declaration)throw new Error('targetPortal missing');
 function fixture(){
   const unit=TILE_SIZE_FIXED;
-  const position={spaceId:0,x:12*unit,y:10.5*unit};
+  const position={spaceId:0,x:12*unit,y:10.5*unit,facing:'up'};
   const portal={kind:'hearth_lobby_exit',fromSpace:0,fromTileX:10,fromTileY:10,toSpace:65532};
   const collision={width:32,height:32,blocked:Array<boolean>(1024).fill(false),elevations:new Int16Array(1024)} satisfies CollisionMap;
   const active={generator:'island'};
@@ -33,14 +33,17 @@ describe('lobby portal prompt parity',()=>{
     f.position.x=11.5*f.unit;f.position.y=10.5*f.unit;f.collision.elevations[10*32+11]=1;
     expect(f.target()).toBeNull();
   });
-  it('narrows the cellar ladder to its own column and the tile in front of it',()=>{
+  it('prompts the cellar ladder only at the foot tile with the ladder faced',()=>{
     const f=fixture();f.portal.toSpace=1;f.portal.kind='cellar_exit:toby';
-    f.position.x=10.5*f.unit;f.position.y=10.5*f.unit;expect(f.target()).toBe(f.portal);
-    f.position.y=11.5*f.unit;expect(f.target()).toBe(f.portal);
+    f.position.x=10.5*f.unit;f.position.y=11.5*f.unit;expect(f.target()).toBe(f.portal);
+    for(const facing of ['down','left','right','upLeft','upRight','idle']){
+      f.position.facing=facing;expect(f.target()).toBeNull();
+    }
+    f.position.facing='up';
+    f.position.y=10.5*f.unit;expect(f.target()).toBeNull();
     f.position.y=12.5*f.unit;expect(f.target()).toBeNull();
-    f.position.y=9.5*f.unit;expect(f.target()).toBeNull();
-    f.position.x=11.5*f.unit;f.position.y=10.5*f.unit;expect(f.target()).toBeNull();
-    f.position.x=9.5*f.unit;f.position.y=11.5*f.unit;expect(f.target()).toBeNull();
+    f.position.y=11.5*f.unit;f.position.x=11.5*f.unit;expect(f.target()).toBeNull();
+    f.position.x=9.5*f.unit;expect(f.target()).toBeNull();
   });
   it('checks geometry on lobby exits and preserves generic square targeting',()=>{
     const f=fixture();f.portal.toSpace=1;expect(f.target()).toBeNull();

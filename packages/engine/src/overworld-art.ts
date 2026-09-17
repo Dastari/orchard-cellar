@@ -1816,8 +1816,11 @@ export interface AuthoredResourceVisual {
 }
 
 function authoredResourceAsset(art: OverworldArt, asset: string): LoadedAsset {
+  // Nature decoration families are variant lists. An authored resource such as
+  // the fishing pool names the family, not a single atlas entry, so its first
+  // variant is the canonical sprite; without this the pool drew the "?" tile.
   const dynamic = hearthResourceVisualAsset(art, asset)
-    ?? art.fruitTrees[asset] ?? art.poiDecorations[asset];
+    ?? art.fruitTrees[asset] ?? art.poiDecorations[asset] ?? art.natureDecorations[asset]?.[0];
   if (dynamic !== undefined) return dynamic;
   switch (asset) {
     case 'loose_stone': return art.rockStone;

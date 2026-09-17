@@ -14,15 +14,23 @@ export interface Vec2Fixed {
   readonly y: number;
 }
 
-export type Direction =
-  | 'up'
-  | 'down'
-  | 'left'
-  | 'right'
-  | 'upLeft'
-  | 'upRight'
-  | 'downLeft'
-  | 'downRight';
+export const DIRECTIONS = [
+  'up',
+  'down',
+  'left',
+  'right',
+  'upLeft',
+  'upRight',
+  'downLeft',
+  'downRight',
+] as const;
+
+export type Direction = (typeof DIRECTIONS)[number];
+
+/** Stored facings arrive as plain strings, and `idle` is a legal one. */
+export function isDirection(value: string): value is Direction {
+  return (DIRECTIONS as readonly string[]).includes(value);
+}
 
 export interface PlayerState {
   readonly position: Vec2Fixed;
