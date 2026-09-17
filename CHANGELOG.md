@@ -1,5 +1,10 @@
 # Changelog
 
+## Publishing guidance — 2026-09-17
+
+- Documented release-lane selection, encrypted shared-preview credential handoff,
+  refresh validation, content equality and signed-in verification for future agents.
+
 ## 0.8.3 — Unreleased
 
 - Carry placed barrels, fermentation casks, fruit presses, furnaces and anvils
