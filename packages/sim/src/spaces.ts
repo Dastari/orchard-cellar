@@ -95,8 +95,12 @@ export function interiorFurnitureBlockingTiles(generator: SpaceGenerator): reado
 /** The cellar is one 1024×1024-tile underground field. The initial rooms
  * occupy only its centre; progression controls how much rock may be dug. */
 export const CELLAR_SIZE_TILES = 1_024;
-export const CELLAR_ENTRY_TILE = { tileX: 512, tileY: 502 } as const;
-export const CELLAR_EXIT_TILE = { tileX: 512, tileY: 501 } as const;
+/** The ladder chamber's floor begins on row 498. The wall ladder's foot-anchored
+ * sprite covers the two wall-face rows and that first floor row, so its bottom
+ * rung sits on `CELLAR_EXIT_TILE` and the tile directly below it is where the
+ * player arrives from the trapdoor and stands to climb back up. */
+export const CELLAR_ENTRY_TILE = { tileX: 512, tileY: 499 } as const;
+export const CELLAR_EXIT_TILE = { tileX: 512, tileY: 498 } as const;
 export type HomesteadBoundaryKind = 'fence' | 'gate';
 
 const HOMESTEAD_SIZE_TIERS = [HOMESTEAD_TERRAIN_SIZE_TILES, 144, 160, 176] as const;

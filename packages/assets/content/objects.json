@@ -39,6 +39,9 @@
             15
           ]
         ]
+      },
+      "carry": {
+        "mode": "preserve_entity"
       }
     }
   },
@@ -311,6 +314,9 @@
       ],
       "frame": {
         "ref": "frame:barrel"
+      },
+      "carry": {
+        "mode": "preserve_entity"
       }
     }
   },
@@ -1244,6 +1250,9 @@
       ],
       "frame": {
         "ref": "frame:fermentation"
+      },
+      "carry": {
+        "mode": "preserve_entity"
       }
     }
   },
@@ -1352,6 +1361,9 @@
       ],
       "frame": {
         "ref": "frame:press"
+      },
+      "carry": {
+        "mode": "preserve_entity"
       }
     }
   },
@@ -1450,6 +1462,9 @@
       ],
       "frame": {
         "ref": "frame:furnace"
+      },
+      "carry": {
+        "mode": "preserve_entity"
       }
     }
   },

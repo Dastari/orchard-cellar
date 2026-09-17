@@ -223,9 +223,11 @@ function buildEnqueueGameplayDecorations(input: Inputs): void {
           { kind: 'residence_bookshelf', ...MARLOW_TENT_BOOKSHELF_TILE },
         ]
         : [
-        // The ladder leans on the chamber's north wall; its three-tile sprite
-        // overlaps the displaced lower wall course above the first floor row.
-        { kind: 'cellar_ladder', tileX: CELLAR_ENTRY_TILE.tileX, tileY: CELLAR_ENTRY_TILE.tileY - 3 },
+        // The ladder leans on the chamber's north wall. Its foot-anchored
+        // three-tile sprite is drawn from the top edge of the entry tile, so it
+        // covers the two wall-face rows and the first floor row: the bottom rung
+        // rests on the exit tile and the climb prompt is one tile below it.
+        { kind: 'cellar_ladder', tileX: CELLAR_ENTRY_TILE.tileX, tileY: CELLAR_ENTRY_TILE.tileY },
         { kind: 'poi_rock_small', tileX: CELLAR_ENTRY_TILE.tileX - 4, tileY: CELLAR_ENTRY_TILE.tileY + 5 },
         { kind: 'poi_rock_small', tileX: CELLAR_ENTRY_TILE.tileX + 5, tileY: CELLAR_ENTRY_TILE.tileY + 17 },
       ];

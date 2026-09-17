@@ -424,6 +424,10 @@ palette, and prefab building footprints. Barrels become load-bearing there
 - One bar takes five real minutes. Furnace fire animation and the gold-fill UI
   progress bar derive from `smeltStartTick`; reopening after offline time applies
   all affordable whole-bar completions atomically.
-- Furnaces (including their contents) and anvils remain world entities when picked
-  up and render over the carrier's head. The barrel now requires six planks and two iron bars and
-  uses the licensed closed/open pair while its container is active.
+- Furnaces, anvils, barrels, fermentation casks and fruit presses are heavy
+  stations: once placed they are only ever carried (`carry.mode:
+  preserve_entity`), never picked up into the inventory. Carrying keeps the same
+  world entity, contents and all, renders it over the carrier's head, and
+  occupies both hands until it is put down. The barrel now requires six planks
+  and two iron bars and uses the licensed closed/open pair while its container
+  is active.

@@ -2,6 +2,16 @@
 
 ## 0.8.3 — Unreleased
 
+- Carry placed barrels, fermentation casks, fruit presses, furnaces and anvils
+  again. The content pack authored no carry policy for them, so F did nothing and
+  the authority answered "not carryable". Each is now a heavy station: it is
+  carried in both hands as the same world entity, contents and all, and never
+  enters the inventory. Faced heavy stations show a `[F] CARRY` hint.
+- Climb the cellar ladder from the tile directly below its bottom rung. The
+  ladder art is drawn from its foot, so it stood three floor rows above the
+  climb tile; the exit portal and the trapdoor arrival now sit on the chamber's
+  first two floor rows and existing homesteads are repaired on connect.
+
 - Repair mining after the facing-swing change. A pick swing measured a resource's
   contact point from the feet while the point itself is authored at chest height,
   which cost an upward swing more than half its reach; and the swing key returned

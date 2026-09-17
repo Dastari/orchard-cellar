@@ -3731,10 +3731,19 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
       if (authoredPrompt !== null) return `[E] ${authoredPrompt}`;
       return target.portal.kind.startsWith('homestead_exit:') ? '[E] LEAVE FARM' : '[E] USE PORTAL';
     }
-    case 'placeable': if(hearthFurnitureShapeForPlaceable(
-      snapshot.content.registry, target.placeable,
-    )?.seatPoseOffsetPixels!==undefined)return '[E] SIT';
-      return `[E] ${target.presentation?.prompt ?? 'USE'}`;
+    case 'placeable': {
+      if(hearthFurnitureShapeForPlaceable(
+        snapshot.content.registry, target.placeable,
+      )?.seatPoseOffsetPixels!==undefined)return '[E] SIT';
+      const usePrompt = `[E] ${target.presentation?.prompt ?? 'USE'}`;
+      // Heavy stations are carried in both hands, never pocketed: the hint
+      // only appears while the placeable is faced and the hands are free.
+      const carriable = targetPlaceable(snapshot)?.id === target.placeable.id
+        && runtimeObjectCarry(snapshot.content.registry, target.placeable)?.mode === 'preserve_entity'
+        && carriedChest(snapshot) === null && carriedCombatTarget(snapshot) === null
+        && carriedPlaceable(snapshot) === null;
+      return carriable ? `${usePrompt}  [F] CARRY` : usePrompt;
+    }
     case 'chest': return woodcuttingAction !== null
       ? '[E] OPEN CHEST  [F] BREAK WITH AXE'
       : targetFacedChest(snapshot)?.id === target.chest.id
@@ -4902,13 +4911,13 @@ function renderFrame(alpha = 1): void {
     : network.ownPosition()?.actionKind==='sitting' ? '[E] STAND / MOVE TO STAND'
     : farmGate !== null ? `[F] ${farmGate.open ? 'CLOSE' : 'OPEN'} FARM GATE`
     : handsCombatTarget !== null ? '[F] PLACE ARCHERY TARGET'
-      : facedCombatTarget !== null ? '[F] PICK UP ARCHERY TARGET'
+      : facedCombatTarget !== null ? '[F] CARRY ARCHERY TARGET'
         : handsPlaceable !== null ? `[F] PLACE ${liveItemLabel(snapshot, handsPlaceable.kind)}`
         : handsChest !== null ? '[F] PLACE CHEST'
           : selectedPlacePrompt !== null ? selectedPlacePrompt
             : actionPlaceable !== null
               && objectHasAuthoredTag(snapshot.content.registry, actionPlaceable, 'station.anvil')
-              ? selectedRepairPrompt ?? `[F] PICK UP ${liveItemLabel(snapshot, actionPlaceable.kind)}`
+              ? selectedRepairPrompt ?? `[F] CARRY ${liveItemLabel(snapshot, actionPlaceable.kind)}`
               : farmToolAction !== null && farmPrompt !== null
                 ? farmPrompt
               : interaction === null ? farmPrompt : interactionPrompt(interaction, snapshot);
@@ -6542,7 +6551,7 @@ window.addEventListener('keydown', (event) => {
           placing
             ? network.useSelected('place', { tileX: tile.tileX, tileY: tile.tileY })
             : network.interactEntity('combat_target', targetFacedCombatTarget(snapshot)!.id, 'pickup'),
-          placing ? `${label} PLACED` : `${label} PICKED UP`,
+          placing ? `${label} PLACED` : `${label} CARRIED`,
         );
       }
       event.preventDefault();
@@ -6593,7 +6602,7 @@ window.addEventListener('keydown', (event) => {
             : network.interactEntity('placeable', facedPlaceable!.id, 'pickup'),
           placing
             ? `${liveItemLabel(snapshot, handsPlaceable.kind)} PLACED`
-            : 'PLACEABLE PICKED UP',
+            : `${liveItemLabel(snapshot, facedPlaceable!.kind)} CARRIED`,
         );
       }
       event.preventDefault();
