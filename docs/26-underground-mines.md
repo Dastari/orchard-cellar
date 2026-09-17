@@ -114,7 +114,10 @@ Additive columns, with one honest caveat about indexes:
   (`portal_out_of_range`). Wall ladders are the exception: a cellar exit
   (`cellar_exit:*`) is climbed only from the single tile at the foot of the
   ladder — `fromTile` plus one row south — while facing the ladder itself, so
-  anything stored beside it keeps its own prompt. An idle or diagonal facing
+  anything stored beside it keeps its own prompt. `fromTile` (`CELLAR_EXIT_TILE`)
+  is the bottom rung on the chamber's first floor row, so the climb tile is the
+  tile directly below the ladder art; the trapdoor lands the player on that same
+  tile (`CELLAR_ENTRY_TILE`). An idle or diagonal facing
   does not reach the rungs. The client prompt and the reducer share
   `cellarLadderApproachClear`. Then perform the **generalized `adminTeleport` body**
   (extracted to a shared helper): write x/y/spaceId + recomputed chunk, clear

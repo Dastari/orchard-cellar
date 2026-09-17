@@ -7,6 +7,7 @@ import {
   DEBUG_SPACE_ID,
   cellarLadderApproachClear,
   cellarLadderPortal,
+  cellarPlayableTile,
   interiorFurnitureBlockingTiles,
   spaceReceivesRain,
   starterCellarTerrainTransitions,
@@ -68,6 +69,11 @@ describe('26§2 space registry', () => {
     expect(cellarLadderPortal('cellar_exit:toby')).toBe(true);
     expect(cellarLadderPortal('cellar_enter:toby')).toBe(false);
     expect(cellarLadderPortal('residence_exit:toby')).toBe(false);
+    // The exit portal is the ladder's bottom rung on the chamber's first floor
+    // row; the entry tile is the single tile directly below it.
+    expect(cellarPlayableTile(CELLAR_EXIT_TILE.tileX, CELLAR_EXIT_TILE.tileY)).toBe(true);
+    expect(cellarPlayableTile(CELLAR_EXIT_TILE.tileX, CELLAR_EXIT_TILE.tileY - 1)).toBe(false);
+    expect(CELLAR_ENTRY_TILE).toEqual({ tileX: CELLAR_EXIT_TILE.tileX, tileY: CELLAR_EXIT_TILE.tileY + 1 });
     const portal = { fromTileX: CELLAR_EXIT_TILE.tileX, fromTileY: CELLAR_EXIT_TILE.tileY };
     const at = (tileX: number, tileY: number, facing: Direction = 'up') => cellarLadderApproachClear({
       x: tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,

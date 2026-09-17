@@ -135,6 +135,13 @@ describe('authored object capabilities', () => {
     expect(runtimeObjectDefinition(registry, { kind: 'moon_crate' })?.id).toBe(renamed.id);
   });
 
+  it('carries heavy stations as world entities and never as inventory items', () => {
+    const registry = bootstrapContentRegistry();
+    for (const kind of ['barrel', 'fermentation_cask', 'fruit_press', 'furnace', 'anvil']) {
+      expect(runtimeObjectCarry(registry, { kind })).toEqual({ mode: 'preserve_entity' });
+    }
+  });
+
   it('keeps furniture storage outside gameplay damage and carry capabilities', () => {
     const registry = bootstrapContentRegistry();
     const furniture = { kind: 'furniture_rustic_chest' };
