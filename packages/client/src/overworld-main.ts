@@ -3205,6 +3205,23 @@ function targetPlaceable(snapshot: OverworldView): WorldPlaceable | null {
     && row.tileX === target.tileX && row.tileY === target.tileY) ?? null;
 }
 
+/** A damaged tool faced at an anvil is repaired by F rather than swung. The
+ * authority re-checks the facing tile, durability and repair material. */
+function targetAnvilRepairReady(
+  snapshot: OverworldView,
+  definition: ReturnType<typeof liveItemContentDefinition>,
+): boolean {
+  const anvil = targetPlaceable(snapshot);
+  if (anvil === null || !objectHasAuthoredTag(snapshot.content.registry, anvil, 'station.anvil')) return false;
+  if (selectedItemLifecycleAction(definition, 'useWith') === null) return false;
+  if (localMount(snapshot) !== null || carriedChest(snapshot) !== null
+    || carriedCombatTarget(snapshot) !== null || carriedPlaceable(snapshot) !== null) return false;
+  const row = selectedItemRow(snapshot);
+  if (row === undefined || row.quantity <= 0) return false;
+  const durability = runtimeDurabilityDefinition(snapshot.content.registry, row.itemKind);
+  return durability !== null && row.durability < durability.maximum;
+}
+
 function nearbyCraftingStations(snapshot: OverworldView): readonly CraftingStation[] {
   const player = network.ownPosition();
   if (player === null) return [];
@@ -6352,6 +6369,7 @@ window.addEventListener('keydown', (event) => {
       cellarWallInReach: targetCellarWall(snapshot) !== null,
       cellarToolReady: cellarToolAction !== null && isVitalsTool(selectedUseKind)
         && localMount(snapshot) === null,
+      anvilRepairReady: targetAnvilRepairReady(snapshot, selectedUseDefinition),
     });
     if (swingIntent === 'dig_cellar') {
       const cellarWall = targetCellarWall(snapshot)!;

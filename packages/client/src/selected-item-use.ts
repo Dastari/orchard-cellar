@@ -135,16 +135,19 @@ export function selectedCellarToolAction(
 }
 
 /** What the swing key does for a tool that has an authored swing. A swing is a
- * sector of entity contacts: it cannot excavate terrain, so a cellar wall in
- * reach keeps the explicit strike it had before swings existed. A targeted
- * resource stays with the swing, which contacts every resource in the arc. */
+ * sector of entity contacts: it cannot excavate terrain or work an anvil, so a
+ * damaged tool faced at an anvil keeps its repair and a cellar wall in reach
+ * keeps the explicit strike it had before swings existed. A targeted resource
+ * stays with the swing, which contacts every resource in the arc. */
 export function swingKeyIntent(actor: {
   readonly hasAuthoredSwing: boolean;
   readonly resourceTargeted: boolean;
   readonly cellarWallInReach: boolean;
   readonly cellarToolReady: boolean;
-}): 'swing' | 'dig_cellar' | 'contextual' {
+  readonly anvilRepairReady?: boolean;
+}): 'swing' | 'dig_cellar' | 'repair' | 'contextual' {
   if (!actor.hasAuthoredSwing) return 'contextual';
+  if (actor.anvilRepairReady === true) return 'repair';
   return !actor.resourceTargeted && actor.cellarWallInReach && actor.cellarToolReady
     ? 'dig_cellar'
     : 'swing';

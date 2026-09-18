@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.8.3 — Unreleased
+## 0.8.4 — Anvil repair release
+
+- Repair tools at an anvil again. Since the facing-swing change, F swung any tool
+  with an authored swing, which is every pickaxe, axe and hoe, before the anvil
+  branch could run. A damaged tool faced at an anvil now repairs; an undamaged
+  one, or one facing anything else, still swings.
+- Increase the measured content payload budget to 525 KiB for the existing heavy-station carry definitions.
+
+## 0.8.3
 
 - Carry placed barrels, fermentation casks, fruit presses, furnaces and anvils
   again. The content pack authored no carry policy for them, so F did nothing and
