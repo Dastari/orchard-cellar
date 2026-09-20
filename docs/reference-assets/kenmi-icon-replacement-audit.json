@@ -1,0 +1,273 @@
+{
+  "scope": "Repository-authored assets; not a live published-content audit",
+  "sourceCommit": "1d2462cdeb70a96bdbc0e259bf3491d2d8a38a9d",
+  "status": "recommendations-only",
+  "recommendations": [
+    {
+      "kind": "skill",
+      "target": "farmcraft",
+      "currentAsset": "icon_skill_farmcraft",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        0,
+        80,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        51
+      ],
+      "reason": "A hoe describes hoeing/watering effort more clearly than the current apple.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "skill",
+      "target": "mining_endurance",
+      "currentAsset": "icon_skill_mining_endurance",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        1
+      ],
+      "reason": "A pickaxe describes mining effort more clearly than the current anvil.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "skill",
+      "target": "tender_hand",
+      "currentAsset": "icon_skill_tender_hand",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        0,
+        512,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        321
+      ],
+      "reason": "A watering can directly describes longer-lasting watering.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "skill",
+      "target": "farming_root",
+      "currentAsset": "icon_skill_farming_root",
+      "category": "Farming",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "sourceSha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "sourceRegion": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        1
+      ],
+      "reason": "A readable wheat head anchors the rural tree; current mark is very small.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "skill",
+      "target": "seed_saver",
+      "currentAsset": "icon_skill_seed_saver",
+      "category": "Farming",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "sourceSha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "sourceRegion": [
+        16,
+        0,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        2
+      ],
+      "reason": "Use a seed packet for returned crop seeds.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "skill",
+      "target": "orchard_seed_saver",
+      "currentAsset": "icon_skill_seed_saver",
+      "category": "Farming",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "sourceSha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "sourceRegion": [
+        16,
+        160,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        102
+      ],
+      "reason": "Fruit-labelled packet distinguishes orchard seed saving from crop seed saving.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "skill",
+      "target": "woodcutting_endurance",
+      "currentAsset": "icon_skill_woodcutting_endurance",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        0,
+        192,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        121
+      ],
+      "reason": "A chopping axe describes tool effort; a log instead suggests harvested output.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "skill",
+      "target": "ore_dressing",
+      "currentAsset": "icon_skill_ore_dressing",
+      "category": "Resources",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "sourceSha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "sourceRegion": [
+        16,
+        48,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        32
+      ],
+      "reason": "A cluster of ore fragments describes sorting yield better than the current container.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "skill",
+      "target": "mother_lode",
+      "currentAsset": "icon_skill_mother_lode",
+      "category": "Resources",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "sourceSha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "sourceRegion": [
+        48,
+        192,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        124
+      ],
+      "reason": "A rich ore outcrop describes the first rich-vein payout better than coins.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "item",
+      "target": "item:apple_seed",
+      "currentAsset": "icon_resource_seeds",
+      "category": "Farming",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "sourceSha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "sourceRegion": [
+        16,
+        160,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        102
+      ],
+      "reason": "Replace shared generic seed art with an apple-labelled packet.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "item",
+      "target": "item:peach_seed",
+      "currentAsset": "icon_resource_seeds",
+      "category": "Farming",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "sourceSha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "sourceRegion": [
+        64,
+        160,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        105
+      ],
+      "reason": "Replace shared generic seed art with a peach-labelled packet.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "item",
+      "target": "item:pear_seed",
+      "currentAsset": "icon_resource_seeds",
+      "category": "Farming",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "sourceSha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "sourceRegion": [
+        112,
+        160,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        108
+      ],
+      "reason": "Replace shared generic seed art with a pear-labelled packet.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "item",
+      "target": "item:cherry_seed",
+      "currentAsset": "icon_resource_seeds",
+      "category": "Farming",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "sourceSha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "sourceRegion": [
+        0,
+        176,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        111
+      ],
+      "reason": "Replace shared generic seed art with a cherry-labelled packet.",
+      "priority": "first-pass"
+    },
+    {
+      "kind": "item",
+      "target": "item:bottles",
+      "currentAsset": "icon_resource_bottles",
+      "category": "Food",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "sourceSha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "sourceRegion": [
+        96,
+        192,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        127
+      ],
+      "reason": "Candidate wine-style bottle; preserves cellar-product rather than magic-potion meaning.",
+      "priority": "review-cellar-vessel"
+    }
+  ]
+}

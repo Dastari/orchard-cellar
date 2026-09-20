@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Icon audit
+
+- Audit 336 item definitions and 66 skill nodes against the new Kenmi premium
+  icons. Record 13 first-pass replacements, a cellar bottle candidate, verified
+  source coordinates, and keep/defer decisions without changing runtime artwork.
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool
