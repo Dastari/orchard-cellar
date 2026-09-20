@@ -1,0 +1,69 @@
+{
+  "name": "icon_seed_peach",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "....00000000....",
+        "...0777775550...",
+        "...0755555540...",
+        "...0075444400...",
+        "...0700000040...",
+        "...0755533540...",
+        "...0755532340...",
+        "...0755331340...",
+        "...0753883540...",
+        "...0753863540...",
+        "...0755335440...",
+        "....07754440....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+  "sourceRegion": [
+    64,
+    160,
+    16,
+    16
+  ],
+  "importedFrom": "Farming_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#33984b",
+    "2": "#5ac54f",
+    "3": "#a33e54",
+    "4": "#bf6f4a",
+    "5": "#e69c69",
+    "6": "#e77773",
+    "7": "#f6ca9f",
+    "8": "#ffb584"
+  },
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "item.seed",
+    "seed.orchard",
+    "fruit.peach",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

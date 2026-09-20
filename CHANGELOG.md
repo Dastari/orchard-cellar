@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.5 — Kenmi tool, skill and seed icons
+
+- Replace the hammer (including the build button) and all six shovel-tier icons
+  with Kenmi silhouettes; retain distinct wood/stone/metal palettes and update
+  both tool generators to preserve the new artwork.
+- Use clearer native artwork for nine farming/mining skills and distinct packets
+  for apple, cherry, peach and pear seeds. Orchard Seed Saver now has its own icon.
+- Preserve item IDs, gameplay rules and tool animations; add reproducible imports,
+  source-pixel checks and reviewed asset fingerprints.
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool

@@ -13,20 +13,20 @@
     "base": [
       [
         "................",
-        "..........000...",
-        ".........02210..",
-        ".........02.10..",
-        ".........02110..",
-        ".........0210...",
-        "........0210....",
-        ".......0210.....",
-        "....AAA210......",
-        "...ADCCA0.......",
-        "..ADCCCBA.......",
-        ".ADCCCBA........",
-        ".ACCCBA.........",
-        ".ABBBA..........",
-        "..AAA...........",
+        "...........00...",
+        "..........0600..",
+        ".........060110.",
+        "........04013350",
+        ".......040133570",
+        ".......02035570.",
+        "......02007770..",
+        ".....040.0000...",
+        "....060.........",
+        "...060..........",
+        "..060...........",
+        "0040............",
+        "020.............",
+        "000.............",
         "................"
       ]
     ]
@@ -34,37 +34,35 @@
   "frameKinds": {
     "base": "state"
   },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+  "sourceRegion": [
+    32,
+    128,
+    16,
+    16
+  ],
+  "importedFrom": "Tools_all_16x16.png",
+  "sourcePaletteMode": "exact",
   "sourcePalette": {
-    "0": "#4b2d23",
-    "1": "#9c6034",
-    "2": "#d39a52",
-    "A": "#583128",
-    "B": "#a45232",
-    "C": "#db884c",
-    "D": "#f7c07b"
+    "0": "#000000",
+    "1": "#743f39",
+    "2": "#8a4836",
+    "3": "#b86f50",
+    "4": "#bf6f4a",
+    "5": "#e4a672",
+    "6": "#e69c69",
+    "7": "#ead4aa"
   },
+  "approved": true,
   "tags": [
     "ui.icon",
     "item.tool",
-    "source.orchard_original",
-    "tool.material.copper"
+    "tool.shovel",
+    "tool.material.copper",
+    "source.kenmi"
   ],
   "placement": {
     "layer": "ui",
     "builderAvailable": false
-  },
-  "approved": true,
-  "importedFrom": "icon_tool_copper_shovel.png",
-  "sourcePath": "art/custom/tool-progression/icon_tool_copper_shovel.png",
-  "sourcePaletteMode": "exact",
-  "sourceRegions": {
-    "base": [
-      [
-        0,
-        0,
-        16,
-        16
-      ]
-    ]
   }
 }
