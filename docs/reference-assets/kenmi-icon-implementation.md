@@ -3,12 +3,10 @@
 Implements the user-approved first pass from
 [the icon audit, PR #22](https://github.com/Dastari/orchard-cellar/pull/22):
 hammer, six shovel tiers, nine farming/mining skills, and four orchard seed icons.
-The follow-up inventory HUD change uses the closed-pack variant from the existing
-Kenmi UI kit (`UI_Icons.png`, `[160,32,16,16]`), since the new pack has no backpack.
-Inventory and Build share one renderer for 24×24 button chrome, hover state and
-16×16 icons inset by four pixels. Currency stays adjacent; the existing combined
-click target and keyboard behavior are retained. Hover state and button geometry
-are included in the currency cache key.
+Crafting and Build share one renderer for 24×24 button chrome, hover state and
+16×16 icons inset by four pixels. Crafting uses the existing Kenmi wrench
+(`ui_cf_icon_crafting`), distinct from Build's new hammer. Inventory remains
+available through the original bottom-right gold/purse display.
 The legacy `icon_cf_shovel` alias uses the same iron-spade artwork. Item IDs,
 progression, rewards, prices and all swing animations are unchanged.
 
@@ -47,7 +45,6 @@ for the complete reference index.
 ```sh
 npm run extract:premium-icons -w @orchard/tools
 npm run extract:skill-icons -w @orchard/tools -- farmcraft mining_endurance tender_hand farming_root seed_saver orchard_seed_saver woodcutting_endurance ore_dressing mother_lode
-npm run extract:cute-fantasy-ui -w @orchard/tools -- ui_cf_icon_backpack
 npm run assets:build
 npm run assets:validate
 ```
@@ -66,8 +63,8 @@ reference distinct `icon_seed_<fruit>` assets. Orchard Seed Saver now references
 
 Local preview: `output/icon-audit/implemented-icons.png`, generated from the actual
 committed sprite descriptors, showing 4× and native-size artwork plus the skill
-UI's opacity states. `output/icon-audit/inventory-build-buttons.png` compares the
-Build and Inventory button artwork at native size and 4×. These are sprite
+UI's opacity states. `output/icon-audit/crafting-build-buttons.png` compares the
+Build and Crafting button artwork at native size and 4×. These are sprite
 reviews, not deployed browser screenshots.
 
 Validation: the broad workspace run passed 4,726 tests and exposed two stale
@@ -91,3 +88,7 @@ Do not rebuild the retired Studio renderer or bypass its prebuild guard.
 
 The optional cellar-bottle candidate, equipment prototypes, preserved-crop
 composites and other deferred audit suggestions are not part of this change.
+
+Crafting correction: narrow-screen layout, shared button rendering, hover state,
+crafting activation and hiding the shortcut while a window is open are covered
+by the HUD tests. The mistaken inventory-button changes were reverted.

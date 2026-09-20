@@ -1,9 +1,9 @@
 # Changelog
 
-## 0.8.5 — Kenmi icons and inventory button
+## 0.8.5 — Kenmi icons and crafting button
 
-- Give inventory a square backpack button matching Build, with the closed-pack
-  Kenmi UI icon and matching hover-state handling; retain adjacent currency.
+- Frame the crafting wrench button to match Build’s size, icon inset and hover
+  handling. Inventory stays on the original bottom-right gold/purse display.
 - Replace the hammer (including the build button) and all six shovel-tier icons
   with Kenmi silhouettes; retain distinct wood/stone/metal palettes and update
   both tool generators to preserve the new artwork.

@@ -401,7 +401,6 @@ export interface OverworldUiLayout {
   readonly status: UiRect;
   readonly watchStatus: UiRect;
   readonly currency: UiRect;
-  readonly inventoryButton: UiRect;
   readonly timeSlider: UiRect;
   readonly previousDayButton: UiRect;
   readonly nextDayButton: UiRect;
@@ -903,7 +902,6 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     status,
     watchStatus,
     currency,
-    inventoryButton: { x: currency.x + currency.width - 24, y: currency.y + 1, width: 24, height: 24 },
     previousDayButton: { x: developerContent.x + 8, y: developerContent.y + 25, width: 58, height: 20 },
     timeSlider: { x: developerContent.x + 72, y: developerContent.y + 27, width: Math.max(32, developerContent.width - 144), height: 16 },
     nextDayButton: { x: developerContent.x + developerContent.width - 66, y: developerContent.y + 25, width: 58, height: 20 },
@@ -2731,6 +2729,12 @@ export class OverworldUi {
     }
   }
 
+  drawCraftingControl(context: CanvasRenderingContext2D): void {
+    if (this.openWindowValue === null) {
+      this.drawHudIconButton(context, this.layout.craftingButton, this.craftingNode.contains(this.pointer), this.skin.craftingIcon);
+    }
+  }
+
   private drawHudIconButton(context: CanvasRenderingContext2D, rect: UiRect,
     hovered: boolean, icon: LoadedAsset | undefined): void {
     drawUiSkinAsset(context, this.skin.button, rect, hovered ? 'hover' : 'idle');
@@ -2754,14 +2758,7 @@ export class OverworldUi {
         align: 'center', color: '#5f3b24',
       });
     }
-    if (this.openWindowValue === null) {
-      drawUiSkinNatural(
-        context,
-        this.skin.craftingIcon,
-        this.layout.craftingButton.x + 4,
-        this.layout.craftingButton.y + 4,
-      );
-    }
+    this.drawCraftingControl(context);
     this.drawBuildControl(context);
     if (this.openWindowValue === 'help') this.helpBook.draw(context, this.model.width, this.model.height);
     else if (this.openWindowValue) {
@@ -2945,7 +2942,6 @@ export class OverworldUi {
   private drawCachedCurrency(context: CanvasRenderingContext2D): void {
     if (!this.hudCacheEnabled) { this.drawCurrency(context); return; }
     this.beginHudKey(this.currencyCache).add(this.model.balanceBronze ?? 0n).rect(this.layout.currency)
-      .rect(this.layout.inventoryButton).add(this.currencyNode.contains(this.pointer))
       .asset(this.skin.button).asset(this.skin.backpackIcon)
       .asset(this.skin.coinGold).asset(this.skin.coinSilver).asset(this.skin.coinBronze);
     // Coin labels can extend beyond their chrome at very large balances. Retain
@@ -3325,11 +3321,11 @@ export class OverworldUi {
 
   private drawCurrency(context: CanvasRenderingContext2D): void {
     const { currency } = this.layout;
-    drawUiSkinAsset(context, this.skin.button, { ...currency, width: currency.width - 28 }, 'idle');
+    drawUiSkinAsset(context, this.skin.button, currency, 'idle');
     this.currencyDisplay.draw(context, this.model.balanceBronze ?? 0n, currency.x + 7, currency.y + 9, {
       size: 'small', align: 'left', color: '#5f3b24', includeZero: true,
     });
-    this.drawHudIconButton(context, this.layout.inventoryButton, this.currencyNode.contains(this.pointer), this.skin.backpackIcon);
+    drawUiSkinNatural(context, this.skin.backpackIcon, currency.x + currency.width - 21, currency.y + 5);
   }
 
   private drawDeveloper(context: CanvasRenderingContext2D): void {
