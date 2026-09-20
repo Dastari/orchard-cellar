@@ -1,7 +1,7 @@
 /* This file is generated from validated Orchard lifecycle source. Do not edit. */
 import { defineItemOnUse, defineItemOnUseHandlers, type AnyHandlerRegistration } from '@orchard/sim';
 
-export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "ae8df218d8e82d118f7577b738bff25fcce78f6467c4b38eb880e2f24b8b5b75" as const;
+export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "e30c76556545cabae3b5de0838eae243f0aa0abbb782dbb26b6e1a98082d08b8" as const;
 
 export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistration[] = Object.freeze([
   ...defineItemOnUseHandlers({
@@ -354,6 +354,20 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
           context.emit({ spawnObject: { definitionId: 'object:chest', at: targetTile } });
           context.item.consume();
         }
+      }
+    },
+  }),
+  ...defineItemOnUseHandlers({
+    itemId: "item:compost",
+    id: "item:compost.on_use",
+    prompt: "COMPOST CROP (+25% GROWTH, ONCE PER PLANTING)",
+    triggers: ["place"] as const,
+    run(context) {
+      const targetTile = context.tile;
+      if (targetTile === undefined) context.block('farm_tile_required');
+      else {
+        context.emit({ compostCrop: targetTile });
+        context.item.consume();
       }
     },
   }),
@@ -2530,6 +2544,7 @@ export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:cherry","event":"onUse","id":"item:cherry.on_use","prompt":"EAT CHERRIES","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:cherry_seed","event":"onUse","id":"item.cherry-seed.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:chest","event":"onUse","id":"item:chest.place","prompt":"PLACE CHEST","triggers":["place"]}),
+  Object.freeze({"itemId":"item:compost","event":"onUse","id":"item:compost.on_use","prompt":"COMPOST CROP (+25% GROWTH, ONCE PER PLANTING)","triggers":["place"]}),
   Object.freeze({"itemId":"item:cooked_beef","event":"onUse","id":"item:cooked_beef.on_use","prompt":"EAT COOKED BEEF","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:cooked_chicken","event":"onUse","id":"item:cooked_chicken.on_use","prompt":"EAT ROAST CHICKEN","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:cooked_fish","event":"onUse","id":"item:cooked_fish.on_use","prompt":"EAT COOKED FISH","triggers":["secondary"]}),

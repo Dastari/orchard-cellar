@@ -278,3 +278,7 @@ The hammer HUD button and B key share the client build-mode toggle. The retained
 UI routes taps to that callback; the client redraws and prioritizes the hammer
 over the external build catalogue and touch joystick so touch players can also
 close it. Existing modal input ownership remains ahead of the hammer.
+
+## Compost crop authority (0.9.0)
+
+The authored Compost `place` lifecycle emits `compostCrop` plus one selected-item consumption through the existing transactional `useSelected` path. The world writer validates the whole batch before updating inventory or crops. Its crop plan settles elapsed watered growth and appends one bounded 25% advance; a default-false `world_crop.composted` column prevents reapplication for that planting. The column is appended after existing fields for additive migration. Generated public bindings expose treatment status for the farm prompt. No tick sweep or separate treatment table is needed. See [ADR-002](adr/002-crop-compost.md).

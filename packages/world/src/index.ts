@@ -2289,6 +2289,7 @@ const world_crop = table(
     growthTicks: t.u64(),
     growthUpdatedAtTick: t.u64(),
     spaceId: t.u16().default(0),
+    composted: t.bool().default(false),
   },
 );
 
@@ -10543,6 +10544,7 @@ function worldBehaviourEffectWriter(
   let plannedRepairExpectedCharge = ANVIL_REPAIR_COST_BRONZE;
   let plannedRepairCharge = 0;
   let plannedTargetIdentityMutation = false;
+  let plannedCompost: ReturnType<typeof compostCropPlan> | undefined;
   let plannedSeedPlant: {
     readonly seedItemKind: string;
     readonly spaceId: number;
@@ -10739,6 +10741,13 @@ function worldBehaviourEffectWriter(
       }
       validateHomesteadDeedPlacement(ctx, position, tileX, tileY);
       plannedItemSpawns += 1;
+      return;
+    }
+    if (kind === 'compostCrop') {
+      if (!('compostCrop' in effect) || plannedCompost !== undefined) throw new SenderError('behaviour_effect_invalid');
+      const { position, tileX, tileY } = requestedTile(effect.compostCrop);
+      const selected = selectedRow();
+      plannedCompost = compostCropPlan(ctx, position, selected.itemKind, tileX, tileY);
       return;
     }
     if (kind === 'plantSeed') {
@@ -11409,6 +11418,14 @@ function worldBehaviourEffectWriter(
       const { tileX, tileY } = requestedTile(founding.at!);
       establishHomesteadAt(ctx, tileX, tileY);
     },
+    compostCrop: (at) => {
+      const planned = plannedCompost;
+      if (planned === undefined || at.x !== planned.tileX || at.y !== planned.tileY
+        || (at.spaceId ?? planned.spaceId.toString()) !== planned.spaceId.toString()) {
+        throw new SenderError('behaviour_compost_batch_incomplete');
+      }
+      ctx.db.world_crop.id.update(planned);
+    },
     plantSeed: (at) => {
       const planned = plannedSeedPlant;
       if (planned === undefined || at.x !== planned.tileX || at.y !== planned.tileY
@@ -11443,6 +11460,7 @@ function worldBehaviourEffectWriter(
         chunkY: Math.floor(planned.tileY / SURVIVAL_CHUNK_TILES),
         plantedAtTick: clock.authorityTick,
         growthTicks: 0n,
+        composted: false,
         growthUpdatedAtTick: clock.authorityTick,
         spaceId: planned.spaceId,
       });
@@ -11923,6 +11941,12 @@ function worldBehaviourEffectWriter(
     if (plannedHungerRestore !== undefined
       && (plannedSelectedConsumption !== 1 || plannedRepairEffect)) {
       throw new SenderError('behaviour_food_batch_incomplete');
+    }
+    if (plannedCompost !== undefined
+      && (effectCount !== 2 || plannedSelectedConsumption !== 1 || plannedSeedPlant !== undefined || inventorySensitiveEngineAction
+        || plannedPlaceableSpawns > 0 || plannedItemSpawns > 0 || plannedTargetIdentityMutation
+        || plannedHungerRestore !== undefined || plannedInventoryConsumption.size > 0)) {
+      throw new SenderError('behaviour_compost_batch_incomplete');
     }
     if (plannedSeedPlant !== undefined && plannedSelectedConsumption !== 1) {
       throw new SenderError('behaviour_seed_batch_incomplete');
@@ -19392,6 +19416,7 @@ function ensureLegacyFarmMigration(ctx: WorldReducerContext): void {
       chunkY: Math.floor(crop.tileY / SURVIVAL_CHUNK_TILES),
       plantedAtTick: crop.plantedAtTick,
       growthTicks,
+      composted: false,
       growthUpdatedAtTick: authorityTick,
       spaceId: crop.spaceId,
     });
@@ -23422,6 +23447,46 @@ function applyFarmTileRestore(
     wearInventoryTool(ctx, slot);
     recordPlayerStatistic(ctx, ctx.sender, 'tool_uses', 1n, clock.authorityTick, selectedItem);
     recordPlayerStatistic(ctx, ctx.sender, 'farm_tiles_restored', 1n, clock.authorityTick);
+}
+
+/** Preflight only: elapsed growth is settled before the one-planting boost. */
+function compostCropPlan(
+  ctx: WorldReducerContext,
+  position: PlayerPositionRow,
+  selectedItem: string,
+  tileX: number,
+  tileY: number,
+) {
+  if (handsOccupiedFor(ctx, ctx.sender)) throw new SenderError('hands_occupied');
+  if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
+  if (!mutableFarmTileAuthorized(ctx, position, tileX, tileY)) throw new SenderError('homestead_owner_required');
+  if (!tileTargetWithinFixedReach(position.x, position.y, { tileX, tileY }, 3 * TILE_SIZE_FIXED)) {
+    throw new SenderError('farm_tile_out_of_range');
+  }
+  if (!runtimeItemHasTag(contentRegistry(ctx), selectedItem, 'item.farming.compost')) {
+    throw new SenderError('select_compost');
+  }
+  const clock = ctx.db.world_clock.id.find(0);
+  if (clock === null) throw new SenderError('player_not_ready');
+  const id = worldSoilId(position.spaceId, tileX, tileY);
+  const soil = ctx.db.world_soil.id.find(id);
+  if (soil === null) throw new SenderError('not_tilled');
+  const crop = ctx.db.world_crop.id.find(id);
+  if (crop === null) throw new SenderError('crop_not_found');
+  if (homesteadForSpace(ctx, position.spaceId) === null && !crop.owner.isEqual(ctx.sender)) {
+    throw new SenderError('owner_only_compost');
+  }
+  if (crop.composted) throw new SenderError('crop_already_composted');
+  const definition = cropDefinitionForHomestead(ctx, position.spaceId, crop.cropKind);
+  if (definition === null) throw new SenderError('unknown_crop_kind');
+  const growth = cropGrowthAt(definition, crop.growthTicks, crop.growthUpdatedAtTick,
+    soil.wateredAtTick, clock.authorityTick, soil.watered,
+    cropAutomaticallyWatered(ctx, position.spaceId, tileX, tileY), cropCalendarOffset(ctx),
+    cropGreenhouseProtected(ctx, position.spaceId));
+  if (growth.mature) throw new SenderError('crop_already_mature');
+  const advanced = growth.growthTicks + definition.growthTicks / 4n;
+  return { ...crop, composted: true, growthUpdatedAtTick: clock.authorityTick,
+    growthTicks: advanced > definition.growthTicks ? definition.growthTicks : advanced };
 }
 
 export const harvestCropTile = spacetimedb.reducer(

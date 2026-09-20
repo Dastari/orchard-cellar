@@ -112,6 +112,7 @@ export function rejectingBehaviourEffectAdapters(
     carry: () => reject('carry'),
     placeCarried: () => reject('placeCarried'),
     plantSeed: () => reject('plantSeed'),
+    compostCrop: () => reject('compostCrop'),
     farmTool: () => reject('farmTool'),
     worldTool: () => reject('worldTool'),
     meleeAttack: () => reject('meleeAttack'),
@@ -214,6 +215,7 @@ export function applyBehaviourEffects(
     else if ('carry' in effect) writer.apply('carry', effect.carry, effect, index);
     else if ('placeCarried' in effect) writer.apply('placeCarried', effect.placeCarried, effect, index);
     else if ('plantSeed' in effect) writer.apply('plantSeed', effect.plantSeed, effect, index);
+    else if ('compostCrop' in effect) writer.apply('compostCrop', effect.compostCrop, effect, index);
     else if ('farmTool' in effect) writer.apply('farmTool', effect.farmTool, effect, index);
     else if ('worldTool' in effect) writer.apply('worldTool', effect.worldTool, effect, index);
     else if ('meleeAttack' in effect) writer.apply('meleeAttack', effect.meleeAttack, effect, index);

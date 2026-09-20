@@ -1,8 +1,8 @@
 {
   "format": "orchard-item-lifecycle-metadata-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 15,
-  "bundleSha256": "ae8df218d8e82d118f7577b738bff25fcce78f6467c4b38eb880e2f24b8b5b75",
+  "revision": 16,
+  "bundleSha256": "e30c76556545cabae3b5de0838eae243f0aa0abbb782dbb26b6e1a98082d08b8",
   "handlers": [
     {
       "itemId": "item:anvil",
@@ -182,6 +182,15 @@
       "event": "onUse",
       "id": "item:chest.place",
       "prompt": "PLACE CHEST",
+      "triggers": [
+        "place"
+      ]
+    },
+    {
+      "itemId": "item:compost",
+      "event": "onUse",
+      "id": "item:compost.on_use",
+      "prompt": "COMPOST CROP (+25% GROWTH, ONCE PER PLANTING)",
       "triggers": [
         "place"
       ]

@@ -10840,5 +10840,23 @@
       "buy": 30,
       "sell": 7
     }
+  },
+  {
+    "id": "item:compost",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Compost",
+    "icon": {
+      "asset": "icon_resource_pomace"
+    },
+    "maxStack": 99,
+    "tags": [
+      "item.crafted",
+      "item.farming.compost"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 4
+    }
   }
 ]
