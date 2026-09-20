@@ -1,5 +1,7 @@
 # Village order milestones handoff
 
+PR: https://github.com/Dastari/orchard-cellar/pull/29 (open; CI queued at creation).
+
 Implementation branch: `feat/village-order-milestones`, standalone version 0.11.0
 from upstream main. The coordinator will stack this after compost and preserved
 provisions. Do not merge into main or deploy without the user's explicit request.
