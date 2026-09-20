@@ -1,7 +1,9 @@
 # Changelog
 
-## 0.8.5 — Kenmi tool, skill and seed icons
+## 0.8.5 — Kenmi icons and inventory button
 
+- Give inventory a square backpack button matching Build, with the closed-pack
+  Kenmi UI icon and matching hover-state handling; retain adjacent currency.
 - Replace the hammer (including the build button) and all six shovel-tier icons
   with Kenmi silhouettes; retain distinct wood/stone/metal palettes and update
   both tool generators to preserve the new artwork.

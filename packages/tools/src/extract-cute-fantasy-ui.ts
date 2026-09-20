@@ -441,7 +441,7 @@ const extracts: readonly UiExtract[] = [
   },
   {
     name: 'ui_cf_icon_backpack', source: `${uiRoot}/UI_Icons.png`, size: [16, 16],
-    groups: { base: [r(144, 32, 16, 16)] }, frameKinds: { base: 'state' },
+    groups: { base: [r(160, 32, 16, 16)] }, frameKinds: { base: 'state' },
     uiSizing: 'fixed', tags: ['ui.icon', 'ui.inventory', 'ui.backpack'],
   },
   {

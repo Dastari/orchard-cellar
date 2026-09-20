@@ -3,6 +3,12 @@
 Implements the user-approved first pass from
 [the icon audit, PR #22](https://github.com/Dastari/orchard-cellar/pull/22):
 hammer, six shovel tiers, nine farming/mining skills, and four orchard seed icons.
+The follow-up inventory HUD change uses the closed-pack variant from the existing
+Kenmi UI kit (`UI_Icons.png`, `[160,32,16,16]`), since the new pack has no backpack.
+Inventory and Build share one renderer for 24×24 button chrome, hover state and
+16×16 icons inset by four pixels. Currency stays adjacent; the existing combined
+click target and keyboard behavior are retained. Hover state and button geometry
+are included in the currency cache key.
 The legacy `icon_cf_shovel` alias uses the same iron-spade artwork. Item IDs,
 progression, rewards, prices and all swing animations are unchanged.
 
@@ -41,6 +47,7 @@ for the complete reference index.
 ```sh
 npm run extract:premium-icons -w @orchard/tools
 npm run extract:skill-icons -w @orchard/tools -- farmcraft mining_endurance tender_hand farming_root seed_saver orchard_seed_saver woodcutting_endurance ore_dressing mother_lode
+npm run extract:cute-fantasy-ui -w @orchard/tools -- ui_cf_icon_backpack
 npm run assets:build
 npm run assets:validate
 ```
@@ -59,7 +66,17 @@ reference distinct `icon_seed_<fruit>` assets. Orchard Seed Saver now references
 
 Local preview: `output/icon-audit/implemented-icons.png`, generated from the actual
 committed sprite descriptors, showing 4× and native-size artwork plus the skill
-UI's opacity states. This is a sprite review, not a deployed browser screenshot.
+UI's opacity states. `output/icon-audit/inventory-build-buttons.png` compares the
+Build and Inventory button artwork at native size and 4×. These are sprite
+reviews, not deployed browser screenshots.
+
+Validation: the broad workspace run passed 4,726 tests and exposed two stale
+bootstrap-content hash expectations after the five icon-reference changes. Both
+expectations were refreshed and their tests pass. The final focused run passes
+150 tests across seven files, and the exhaustive simulation run passes all 51
+tests. Workspace typechecking/lint passed before the HUD follow-up; UI typechecking
+and changed-file lint passed afterward. Assets validate/build, content validates,
+and UI/tools/client builds pass. The client retains its existing chunk-size warning.
 
 Tests verify exact source pixels, six distinct shovel palettes with identical
 silhouette/handle, four distinct seed packets, complete skill/item coverage and
