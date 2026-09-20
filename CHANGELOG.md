@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0 — 2026-09-21
+
+- Mature apple, pear, peach and cherry trees now offer renewable E/touch fruit picking every game day, with ripening countdowns and existing seed-saver rolls. Picking preserves the tree; axe felling yields forestry materials only.
+- Persist readiness independently of tree health with an additive defaulted schema migration; inventory overflow uses the existing reserved drops.
+
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool

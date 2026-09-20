@@ -8,6 +8,7 @@ export type InteractionTargetKind =
   | 'horse'
   | 'boat'
   | 'gatherable'
+  | 'orchard'
   | 'crop'
   | 'quest_item'
   | 'embedded_arrow'
@@ -41,6 +42,7 @@ const TIE_PRIORITY: Readonly<Record<InteractionTargetKind, number>> = {
   boat: 7,
   gatherable: 8,
   crop: 9,
+  orchard: 9,
   quest_item: 10,
   embedded_arrow: 11,
   rogue_entrance: 12,

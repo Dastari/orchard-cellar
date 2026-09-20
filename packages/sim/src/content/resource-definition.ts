@@ -88,6 +88,12 @@ export interface ResourceContentDefinition {
   };
   /** Plantable secondary output for mature fruit harvests. */
   readonly seedItem?: `item:${string}`;
+  /** Renewable picking is independent of destructive forestry loot. */
+  readonly fruitHarvest?: {
+    readonly item: `item:${string}`;
+    readonly quantity: number;
+    readonly cooldownTicks: number;
+  };
   readonly loot: LootDefinitionId;
   /** Engine-owned short custody window for drops that belong to the actor
    * completing an authored resource action. */
@@ -321,6 +327,14 @@ export function parseResourceDefinition(json: string | unknown): ResourceContent
       const id = stringValue(source.seedItem, '$.seedItem');
       if (!/^item:[a-z0-9]+(?:_[a-z0-9]+)*$/u.test(id)) fail('$.seedItem', 'expected item: slug');
       return id as `item:${string}`;
+    })() }),
+    ...(source.fruitHarvest === undefined ? {} : { fruitHarvest: (() => {
+      const harvest = record(source.fruitHarvest, '$.fruitHarvest');
+      const item = stringValue(harvest.item, '$.fruitHarvest.item');
+      if (!/^item:[a-z0-9]+(?:_[a-z0-9]+)*$/u.test(item)) fail('$.fruitHarvest.item', 'expected item: slug');
+      return Object.freeze({ item: item as `item:${string}`,
+        quantity: integer(harvest.quantity, '$.fruitHarvest.quantity', 1),
+        cooldownTicks: integer(harvest.cooldownTicks, '$.fruitHarvest.cooldownTicks', 1) });
     })() }),
     loot: loot as LootDefinitionId,
     ...(source.lootDelivery === undefined ? {} : {

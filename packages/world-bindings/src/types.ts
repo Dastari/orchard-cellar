@@ -1667,6 +1667,7 @@ export const WorldResource = __t.object("WorldResource", {
   miningPartyId: __t.option(__t.u64()),
   miningClaimUntilTick: __t.u64(),
   definitionId: __t.string(),
+  fruitReadyAtTick: __t.u64(),
 });
 export type WorldResource = __Infer<typeof WorldResource>;
 

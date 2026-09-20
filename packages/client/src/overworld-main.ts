@@ -1,3 +1,5 @@
+import { orchardHarvestPrompt } from './orchard-presentation.js';
+import { orchardFruitStatus, ITEM_PICKUP_REACH_FIXED } from '@orchard/sim';
 import { drawInitialWorldLoading } from './initial-world-loading.js';
 import { fruitTreeForSeed } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition, farmingBarrelTicks } from '@orchard/sim';
@@ -1248,6 +1250,7 @@ function personalQuestResource(snapshot: OverworldView): WorldResource | null {
       miningPartyId: undefined,
       miningClaimUntilTick: 0n,
       definitionId: resourceDefinition.id,
+      fruitReadyAtTick: 0n,
     };
   }
   return null;
@@ -1634,6 +1637,7 @@ function buildHomesteadSurroundingResources(
         activationOrdinal: 0, respawnAtTick: 0n,
         miningClaimedBy: undefined, miningPartyId: undefined, miningClaimUntilTick: 0n,
         definitionId: definition.id,
+        fruitReadyAtTick: 0n,
         ambientOnly: true,
       });
     }
@@ -3544,6 +3548,7 @@ type EInteractionTarget =
       readonly presentation: NonNullable<ReturnType<typeof runtimeResourcePickupPresentation>> })
   | (InteractionCandidate & { readonly kind: 'quest_item'; readonly item: QuestWorldItem })
   | (InteractionCandidate & { readonly kind: 'embedded_arrow'; readonly projectile: WorldProjectile })
+  | (InteractionCandidate & { readonly kind: 'orchard'; readonly resource: WorldResource })
   | (InteractionCandidate & { readonly kind: 'crop'; readonly crop: WorldCrop })
   | (InteractionCandidate & { readonly kind: 'rogue_entrance' })
   | (InteractionCandidate & { readonly kind: 'rogue_door'; readonly exit: RogueRoomExit })
@@ -3675,6 +3680,16 @@ function targetInteraction(snapshot: OverworldView): EInteractionTarget | null {
     kind: 'boat', x: boat.x, y: boat.y,
     stableId: `boat:${boat.id}`, npc: boat,
   });
+  for (const resource of snapshot.resources) {
+    if (resource.spaceId !== activeSpaceDefinition.spaceId || resource.depleted
+      || liveMapSuppressesGeneratedResource(snapshot, resource.id)
+      || runtimeResourceDefinition(snapshot.content.registry, resource)?.fruitHarvest === undefined) continue;
+    const point = tileInteractionPoint(resource.tileX, resource.tileY);
+    const dx = point.x - predicted.position.x;
+    const dy = point.y - predicted.position.y;
+    if (dx * dx + dy * dy > ITEM_PICKUP_REACH_FIXED ** 2) continue;
+    candidates.push({ kind: 'orchard', ...point, stableId: `resource:${resource.id}`, resource });
+  }
   const gatherable = targetGatherableResource(snapshot);
   const gatherablePresentation = gatherable === null ? null
     : runtimeResourcePickupPresentation(snapshot.content.registry, gatherable);
@@ -3774,6 +3789,7 @@ function interactionPrompt(target: EInteractionTarget, snapshot: OverworldView):
     case 'boat': return runtimeNpcMount(snapshot.content.registry, localMount(snapshot))?.adapter === 'boat'
       ? '[E] LEAVE BOAT'
       : '[E] BOARD BOAT';
+    case 'orchard': return orchardHarvestPrompt(snapshot.content.registry, target.resource, snapshot.clock?.authorityTick ?? 0n) ?? 'TREE';
     case 'gatherable': return `[E] PICK UP ${target.presentation.promptLabel.toUpperCase()}`;
     case 'quest_item': return `[E] PICK UP ${liveItemLabel(snapshot, target.item.itemKind)}`;
     case 'embedded_arrow': return '[E] RECOVER ARROW';
@@ -3840,6 +3856,10 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
       showResult(network.interactEntity('npc', target.npc.id, 'use'), dismounting ? 'LEFT BOAT' : 'BOARDED BOAT');
       return;
     }
+    case 'orchard':
+      if (orchardFruitStatus(target.resource, snapshot.clock?.authorityTick ?? 0n) !== 'ok') return;
+      showResult(network.gatherWorldResource(target.resource.id), 'FRUIT PICKED', startPredictedAction('pickup'));
+      return;
     case 'gatherable':
       showResult(
         network.gatherWorldResource(target.resource.id),

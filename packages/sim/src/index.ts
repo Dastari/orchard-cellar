@@ -178,3 +178,5 @@ export * from './hearth-danger-notice.js';
 
 export * from './farming-skills.js';
 export * from './fruit-seeds.js';
+
+export * from './orchard-harvest.js';

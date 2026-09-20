@@ -1,3 +1,4 @@
+import { orchardHarvestResult } from '@orchard/sim';
 import { executeToolSwing, type SwingTarget, type ToolSwingContact } from './behaviour/tool-swing.js';
 import { toolSwingContains, toolSwingChunks, runtimeResourceTargetVector } from '@orchard/sim';
 import { npcBehaviourDefinitionId } from './behaviour/npc-target.js';
@@ -2216,6 +2217,8 @@ const world_resource = table(
     /** Stable authored identity. Existing rows safely resolve through
      * `resource:${kind}` until a normal reconciliation writes this field. */
     definitionId: t.string().default(''),
+    /** Additive migration: old mature trees start with ripe fruit. */
+    fruitReadyAtTick: t.u64().default(0n),
   },
 );
 
@@ -6887,6 +6890,7 @@ function generatedWorldResourceRow(resource: GeneratedSurvivalResource, registry
     miningPartyId: undefined,
     miningClaimUntilTick: 0n,
     definitionId: definition.id,
+    fruitReadyAtTick: 0n,
   };
 }
 
@@ -7153,7 +7157,7 @@ function installHearthResourceSites(ctx: WorldReducerContext, expectedMapRevisio
     const row = initialHearthResourceState(id, registry)!;
     const definitionId = runtimeResourceDefinitionId(registry, row);
     if (definitionId === null) throw new SenderError('resource_definition_missing');
-    return { ...row, definitionId };
+    return { ...row, definitionId, fruitReadyAtTick: 0n };
   });
   if (!hearthGatheringContentReady(registry)) throw new SenderError('hearth_resource_content_missing');
   const players = [...ctx.db.player_position.iter()].filter(player => player.spaceId === TOPSIDE_SPACE_ID);
@@ -20733,6 +20737,36 @@ export const pickupEmbeddedArrow = spacetimedb.reducer(
 );
 
 
+/** Common gather authentication/space/hands/mount checks run before this path. */
+function pickOrchardFruit(
+  ctx: WorldReducerContext, position: PlayerPositionRow, resource: WorldResourceRow, authorityTick: bigint,
+): void {
+  const registry = contentRegistry(ctx);
+  requireHearthResourceHarvestAccess(ctx, position, resource);
+  const result = orchardHarvestResult(registry, resource, position.x, position.y, authorityTick);
+  if (result !== 'ok') throw new SenderError(result);
+  const harvest = runtimeResourceDefinition(registry, resource)!.fruitHarvest!;
+  const drops = [{ itemKind: harvest.item.slice('item:'.length), quantity: harvest.quantity }];
+  const seed = fruitSeedDrop(registry, resource, drops,
+    farmingSkillEffects(registry, playerSkillRanks(ctx, ctx.sender)).orchardSeedSaver,
+    [ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED, resource.id, resource.activationOrdinal]);
+  if (seed !== null) drops.push(seed);
+  ctx.db.world_resource.id.update({ ...resource,
+    fruitReadyAtTick: authorityTick + BigInt(harvest.cooldownTicks),
+    activationOrdinal: (resource.activationOrdinal + 1) >>> 0,
+  });
+  applyLootDropsBehaviour(ctx, drops, {
+    x: position.x, y: position.y, spaceId: resource.spaceId, authorityTick,
+    recipient: ctx.sender, inventoryFirst: true,
+    reservedUntilTick: authorityTick + MINING_DROP_RESERVATION_TICKS,
+    recordItemsObtained: true,
+  }, lootAuthorityDependencies);
+  ctx.db.player_position.identity.update({ ...position, actionKind: 'pickup',
+    actionStartedTick: nextActionStartedTick(position.actionStartedTick, authorityTick) });
+  recordPlayerStatistic(ctx, ctx.sender, 'resources_gathered', 1n, authorityTick, resource.kind);
+  grantSkillExperience(ctx, ctx.sender, 'farming', BigInt(harvest.quantity * 2));
+}
+
 export const gatherWorldResource = spacetimedb.reducer(
   { resourceId: t.u64() },
   (ctx, { resourceId }) => {
@@ -20753,6 +20787,10 @@ export const gatherWorldResource = spacetimedb.reducer(
       throw new SenderError('mounted_action_forbidden');
     }
     const registry = contentRegistry(ctx);
+    if (runtimeResourceDefinition(registry, resource)?.fruitHarvest !== undefined) {
+      pickOrchardFruit(ctx, position, resource, clock.authorityTick);
+      return;
+    }
     const result = resourceGatherResult(position.x, position.y, resource, registry);
     if (result !== 'ok') throw new SenderError(result);
     const definition = runtimeResourceDefinition(registry, resource);
@@ -20998,6 +21036,7 @@ function applyDigCellarTileLifecycle(
         miningPartyId: undefined,
         miningClaimUntilTick: 0n,
         definitionId: resourceDefinition.id,
+        fruitReadyAtTick: 0n,
       });
     }
     dropWorldItemStack(ctx, {
@@ -22511,7 +22550,13 @@ function applyHarvestResourceLifecycle(
       resource.id,
       resource.activationOrdinal,
     ], { values: { remainingHealth: nextHealth, treeGrowthStage } }).drops];
-    const seedDrop = treeGrowthStage === 3 && resourceDefinition.seedItem !== undefined
+    if (resourceDefinition.fruitHarvest !== undefined) {
+      for (let i = drops.length - 1; i >= 0; i--) {
+        if (runtimeItemHasTag(registry, drops[i]!.itemKind, 'crop.fruit')
+          || `item:${drops[i]!.itemKind}` === resourceDefinition.seedItem) drops.splice(i, 1);
+      }
+    }
+    const seedDrop = resourceDefinition.fruitHarvest === undefined && treeGrowthStage === 3 && resourceDefinition.seedItem !== undefined
       ? fruitSeedDrop(contentRegistry(ctx), resource, drops,
       farmingSkillEffects(contentRegistry(ctx), playerSkillRanks(ctx, ctx.sender)).orchardSeedSaver,
       [ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED, resource.id, resource.activationOrdinal]) : null;

@@ -93,7 +93,7 @@ describe('authored loot definition parity', () => {
     expect(resolveResourceHitLoot(loots, 'tree_oak', 0, 1)).toEqual([{ itemKind: 'stick', quantity: 1 }]);
     expect(resolveResourceHitLoot(loots, 'tree_oak', 1, 3)).toEqual([]);
     expect(resolveResourceHitLoot(loots, 'tree_pear', 0, 3)).toEqual([
-      { itemKind: 'wood', quantity: 3 }, { itemKind: 'pear', quantity: 2 },
+      { itemKind: 'wood', quantity: 3 },
     ]);
     expect(resolveResourceHitLoot(loots, 'cactus', 0, 3)).toEqual([{ itemKind: 'cactus', quantity: 3 }]);
     expect(resolveResourceHitLoot(loots, 'loose_stone', 0)).toEqual([{ itemKind: 'pebble', quantity: 1 }]);
