@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Frontend asset delivery audit
+
+- Document measured frontend payloads, live cache/compression behavior, and
+  prioritized asset-loading improvements for catalog growth. Include validation
+  criteria and implementation handoff; no runtime or deployment changes.
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool
