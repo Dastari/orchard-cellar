@@ -9,7 +9,10 @@ sheet. Use the indexes in this order:
    collision, semantic-crop, and runtime-asset guidance for Kenmi Art sources.
 3. [`clockwork-raven-index.md`](clockwork-raven-index.md) adds pack keywords, grid
    geometry, variants, and provenance for native 16 px item/UI icon sheets.
-4. Inspect the selected source sheet, then import only the reviewed semantic region
+4. [`kenmi-premium-icons.md`](kenmi-premium-icons.md) lists the nine premium icon
+   categories and links every one of the 6,982 vendor icon numbers to native-sheet
+   coordinates in its JSON companion.
+5. Inspect the selected source sheet, then import only the reviewed semantic region
    into the text-grid asset pipeline. Reference sheets themselves are not shipped.
 
 The JSON companions are the agent-friendly source of truth. A record's
@@ -26,3 +29,10 @@ npm run check:references -w @orchard/tools
 
 The check fails for corpus drift, stale hashes or dimensions, undeclared layout
 groups, empty directories, and family-catalog paths that no longer exist.
+
+Generated tool-progression review artwork under `references/generated/tool-progression/`
+is catalogued as concept-only alongside `references/generated/concepts/`.
+
+During the premium-icon intake, the uncatalogued temporary `references/tmp/image.png`
+was preserved at `output/reference-library-inbox/tmp/image.png`. Its source and
+licence are unknown; it is outside the curated library pending identification.

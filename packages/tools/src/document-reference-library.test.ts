@@ -13,6 +13,8 @@ describe('reference library catalog routing', () => {
     expect(referenceGroup('references/art/clockwork-raven/equipment/armor/sheet-16.png'))
       .toBe('clockwork-raven-art');
     expect(referenceGroup('references/audio/music/example.mp3')).toBe('audio');
+    expect(referenceGroup('references/generated/tool-progression/review-v2/README.md'))
+      .toBe('generated-concept');
     expect(referenceGroup('references/documents/source-captures/orchard.html')).toBe('source-capture');
   });
 
@@ -26,6 +28,8 @@ describe('reference library catalog routing', () => {
     expect(referenceUsagePolicy('references/art/kenmi/cute-fantasy/shroomlands/Props.png'))
       .toBe('license-review-required');
     expect(referenceUsagePolicy('references/generated/concepts/test.png')).toBe('concept-only');
+    expect(referenceUsagePolicy('references/generated/tool-progression/review-v2/sheet.png'))
+      .toBe('concept-only');
   });
 
   it('reads extended WebP canvas dimensions', () => {
