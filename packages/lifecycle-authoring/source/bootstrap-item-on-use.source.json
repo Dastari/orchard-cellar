@@ -1,7 +1,7 @@
 {
   "format": "orchard-lifecycle-source-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 15,
+  "revision": 16,
   "engineApiVersion": 1,
   "handlers": [
     {
@@ -163,6 +163,13 @@
         "place"
       ],
       "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse context.emit({ plantSeed: targetTile });\ncontext.item.consume();"
+    },
+    {
+      "itemId": "item:cellar_supper",
+      "id": "item:cellar_supper.on_use",
+      "event": "onUse",
+      "prompt": "EAT CELLAR SUPPER",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
     },
     {
       "itemId": "item:cherry",
@@ -768,6 +775,13 @@
       "event": "onUse",
       "prompt": "DRINK ORCHARD TEA",
       "source": "context.item.applyEffect('orchard_tea');\ncontext.item.consume();\ncontext.emit({ statistic: 'orchard_tea_consumed' });"
+    },
+    {
+      "itemId": "item:pantry_lunch",
+      "id": "item:pantry_lunch.on_use",
+      "event": "onUse",
+      "prompt": "EAT PANTRY LUNCH",
+      "source": "const restored = context.item.snapshot.state?.foodRestoreCenti;\nif (typeof restored !== 'number') context.block('item_food_state_unavailable');\nelse if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');\nelse {\n  context.item.consume();\n  context.player.restoreHunger(restored);\n  context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });\n}"
     },
     {
       "itemId": "item:parsley",

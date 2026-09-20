@@ -278,3 +278,20 @@ The hammer HUD button and B key share the client build-mode toggle. The retained
 UI routes taps to that callback; the client redraws and prioritizes the hammer
 over the external build catalogue and touch joystick so touch players can also
 close it. Existing modal input ownership remains ahead of the hammer.
+
+## Village order specialist milestones (0.11.0)
+
+`fulfillVillageOrder` shares its existing receipt/inventory/payment transaction
+with an owner-only `player_village_order_progress` row and permanent recipe
+knowledge. Progress stores at most three distinct raw product IDs, three distinct
+preserved product IDs and a bottle completion flag. Product families derive from
+live tags and fermentation outputs. Existing receipts cannot reconstruct historic
+product diversity, so the new milestone row begins empty without changing prior
+payments or revisions. Repeated orders still pay, but do not advance diversity.
+
+`ownVillageOrders` now projects milestone text and learned meal IDs using indexed
+owner reads. The existing client subscription renders the next milestone and
+announces newly learned recipes. Pantry Lunch (two raw kinds, one preserved) and
+Cellar Supper (two raw, two preserved, one bottle) use existing gated recipe
+knowledge and generated hunger callbacks. No new currency or public player data
+is introduced. See [spec](village-order-milestones-spec.md).

@@ -10,7 +10,7 @@ Connect crop farming, preserving, cellar production, village trade and expeditio
 - Deliver two distinct raw-crop orders, two distinct preserved-crop orders and one bottle order to learn Cellar Supper: one Preserved Potato + one Apple yields one meal restoring 4,800 hunger centi.
 - Existing known-recipe authority gates both manual crafting and recipe-guide fill. Both recipes use ordinary inventory crafting, avoiding dependence on another feature PR.
 - Order panel shows the next recipe and completed/required raw, preserved and bottle deliveries. Completion persists through reconnect and repeated orders never duplicate knowledge.
-- Meals use existing food sprites, explicitly named meal items, max stack 16, no shop purchase, and modest sale value below ingredient opportunity cost. Existing plans and their purchase paths are unchanged.
+- Meals use existing food sprites, explicitly named meal items, max stack 99, no shop purchase, and modest sale value below ingredient opportunity cost. Existing plans and their purchase paths are unchanged.
 
 ## Architecture and invariants
 

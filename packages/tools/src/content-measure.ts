@@ -9,7 +9,8 @@ import {
 // up 1,421 bytes (0.27%) from 0.8.0. 0.8.3 adds a carry policy to five heavy
 // stations: measured 536,710 bytes, up 175 bytes (0.03%). Keep the budget at
 // the next whole KiB.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 525 * 1024;
+// Village-order meals add four definitions: 537,901 bytes; next whole KiB.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 526 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

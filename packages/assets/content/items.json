@@ -721,6 +721,29 @@
     }
   },
   {
+    "id": "item:cellar_supper",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Cellar Supper",
+    "icon": {
+      "asset": "item_cf_cooked_fish"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.food",
+      "item.consumable",
+      "food.cooked"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 10
+    },
+    "food": {
+      "restoreCenti": 4800
+    }
+  },
+  {
     "id": "item:cherry",
     "kind": "item",
     "schemaVersion": 1,
@@ -8303,6 +8326,29 @@
         ]
       }
     ]
+  },
+  {
+    "id": "item:pantry_lunch",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Pantry Lunch",
+    "icon": {
+      "asset": "item_cf_cooked_fish"
+    },
+    "quality": "uncommon",
+    "maxStack": 99,
+    "tags": [
+      "item.food",
+      "item.consumable",
+      "food.cooked"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 10
+    },
+    "food": {
+      "restoreCenti": 3600
+    }
   },
   {
     "id": "item:pants",

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.0 — Village order specialist meals
+
+- Learn Pantry Lunch after delivering two distinct raw products and one preserved product; learn Cellar Supper after two raw, two preserved and one bottle delivery. Repeat orders retain existing bronze payments.
+- Track the next permanent recipe directly in Village Orders and receive a learned-recipe notice. New meals combine preserved produce with fresh crops to restore 36/48 hunger.
+- Persist bounded private progress and grant recipe knowledge atomically with delivery receipts. Existing orders begin the new milestones at zero because historical receipts do not retain product diversity.
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool

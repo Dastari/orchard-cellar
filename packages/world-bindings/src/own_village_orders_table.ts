@@ -21,4 +21,7 @@ export default __t.row({
   totalBronze: __t.u64().name("total_bronze"),
   revision: __t.u64(),
   contentHash: __t.string().name("content_hash"),
+  milestoneTitle: __t.string().name("milestone_title"),
+  milestoneProgress: __t.string().name("milestone_progress"),
+  learnedMeals: __t.array(__t.string()).name("learned_meals"),
 });

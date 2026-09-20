@@ -259,6 +259,27 @@
     ]
   },
   {
+    "id": "recipe:cellar_supper",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "requiresKnowledge": true,
+    "output": {
+      "item": "item:cellar_supper",
+      "count": 1
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:preserved_potato",
+        "count": 1
+      },
+      {
+        "item": "item:apple",
+        "count": 1
+      }
+    ]
+  },
+  {
     "id": "recipe:chest",
     "kind": "recipe",
     "schemaVersion": 1,
@@ -3689,6 +3710,27 @@
       },
       {
         "item": "item:pear",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "recipe:pantry_lunch",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "requiresKnowledge": true,
+    "output": {
+      "item": "item:pantry_lunch",
+      "count": 1
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:preserved_carrot",
+        "count": 1
+      },
+      {
+        "item": "item:potato",
         "count": 1
       }
     ]

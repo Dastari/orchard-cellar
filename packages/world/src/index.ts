@@ -6,6 +6,7 @@ import { vehicleCustodyPlan } from './behaviour/vehicle.js';
 import {
   planHearthSealExchange, hearthRecipeExchangeNpcForRuntimeId,
   hearthFurnishingCounts, hearthExpeditionPreparation, villageOrders, villageOrderQuote, planVillageOrderDelivery,
+  EMPTY_VILLAGE_ORDER_PROGRESS, advanceVillageOrderProgress, villageOrderRewards, villageOrderMilestoneDisplay,
   AUTHORITY_TICKS_PER_DAY,
   SUPPORTED_CONTENT_KINDS,
   AUTHORITY_HZ,
@@ -2064,6 +2065,11 @@ const player_village_order_receipt=table({name:'player_village_order_receipt'},{
   identity:t.identity().primaryKey(),revision:t.u64(),lastOrderId:t.string(),completedTick:t.u64(),
 });
 
+/** One bounded owner-only record: distinct products connect production families. */
+const player_village_order_progress=table({name:'player_village_order_progress'},{
+  identity:t.identity().primaryKey(),rawKinds:t.array(t.string()),preservedKinds:t.array(t.string()),bottleDelivered:t.bool(),
+});
+
 const player_quest_baseline = table(
   { name: 'player_quest_baseline', indexes: [{ accessor: 'by_identity', algorithm: 'btree', columns: ['identity'] }] },
   {
@@ -3005,6 +3011,7 @@ const spacetimedb = schema({
   player_quest,
   player_quest_baseline,
   player_village_order_receipt,
+  player_village_order_progress,
   player_skill_track,
   player_skill_node,
   quest_world_item,
@@ -7701,14 +7708,18 @@ function villageOrderVintageRank(ctx:{readonly db:{
 export const ownVillageOrders=spacetimedb.view({name:'own_village_orders',public:true},t.array(t.row('VillageOrderQuote',{
   id:t.string(),title:t.string(),npcId:t.u64(),itemKind:t.string(),quantity:t.u32(),saleValueBronze:t.u64(),
   bonusBronze:t.u64(),totalBronze:t.u64(),revision:t.u64(),contentHash:t.string(),
+  milestoneTitle:t.string(),milestoneProgress:t.string(),learnedMeals:t.array(t.string()),
 })),ctx=>{
   const registry=contentRegistry(ctx),rank=villageOrderVintageRank(ctx,ctx.sender,registry);
   const revision=ctx.db.player_village_order_receipt.identity.find(ctx.sender)?.revision??0n;
+  const progress=ctx.db.player_village_order_progress.identity.find(ctx.sender)??EMPTY_VILLAGE_ORDER_PROGRESS;
+  const known=['pantry_lunch','cellar_supper'].filter(id=>ctx.db.player_known_recipe.id.find(`${ctx.sender.toHexString()}:${id}`)!==null);
+  const display=villageOrderMilestoneDisplay(registry,progress,known);
   return villageOrders(registry).flatMap(order=>{
     const quote=villageOrderQuote(registry,order.id,rank),npc=registry.npcs.get(order.npc);
     if(!quote||!npc||npc.retired===true)return [];
     return [{id:order.id,title:order.title,npcId:BigInt(npc.runtimeId),itemKind:order.itemKind,quantity:order.quantity,
-      saleValueBronze:quote.saleValueBronze,bonusBronze:quote.bonusBronze,totalBronze:quote.totalBronze,revision,contentHash:registry.contentHash}];
+      saleValueBronze:quote.saleValueBronze,bonusBronze:quote.bonusBronze,totalBronze:quote.totalBronze,revision,contentHash:registry.contentHash,...display,learnedMeals:known}];
   });
 });
 
@@ -19933,11 +19944,21 @@ export const fulfillVillageOrder=spacetimedb.reducer({orderId:t.string(),expecte
       currentRevision:receipt?.revision??0n,balanceBronze:wallet.balanceBronze,containers:inventory.containers,
       estateVintageRank:villageOrderVintageRank(ctx,ctx.sender,registry)});
     if(!plan.ok)throw new SenderError(plan.code);
+    const previousProgress=ctx.db.player_village_order_progress.identity.find(ctx.sender);
+    const nextProgress=advanceVillageOrderProgress(registry,previousProgress??EMPTY_VILLAGE_ORDER_PROGRESS,plan.quote.itemKind);
+    const known=['pantry_lunch','cellar_supper'].filter(id=>ctx.db.player_known_recipe.id.find(`${ctx.sender.toHexString()}:${id}`)!==null);
+    const rewards=villageOrderRewards(registry,nextProgress,known);
     writePlayerInventory(ctx,inventory.rowBySlot,inventory.containers,plan.containers);
     ctx.db.player_wallet.identity.update({...wallet,balanceBronze:plan.nextBalanceBronze});
     const nextReceipt={identity:ctx.sender,revision:plan.nextRevision,lastOrderId:orderId,completedTick:tick};
     if(receipt===null)ctx.db.player_village_order_receipt.insert(nextReceipt);
     else ctx.db.player_village_order_receipt.identity.update(nextReceipt);
+    const nextProgressRow={identity:ctx.sender,rawKinds:[...nextProgress.rawKinds],preservedKinds:[...nextProgress.preservedKinds],bottleDelivered:nextProgress.bottleDelivered};
+    if(previousProgress===null)ctx.db.player_village_order_progress.insert(nextProgressRow);
+    else ctx.db.player_village_order_progress.identity.update(nextProgressRow);
+    for(const recipeId of rewards)ctx.db.player_known_recipe.insert({id:`${ctx.sender.toHexString()}:${recipeId}`,
+      identity:ctx.sender,recipeId,learnedAtTick:tick,sourceKind:'village_orders'});
+    if(rewards.length>0)recordPlayerStatistic(ctx,ctx.sender,'recipes_learned',BigInt(rewards.length),tick);
     updateEquippedFromInventory(ctx,plan.containers);
     refreshSenderQuestsFromInventory(ctx);
     recordPlayerStatistic(ctx,ctx.sender,'merchant_transactions',1n,tick,'sell');
