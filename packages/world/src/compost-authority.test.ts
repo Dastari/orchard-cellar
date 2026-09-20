@@ -8,14 +8,14 @@ const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts'
 const registry = sim.bootstrapContentRegistry();
 const owner = { toHexString: () => 'owner', isEqual: (other: unknown) => other === owner };
 const at = { spaceId: '0', x: 1, y: 1 };
-const effects: sim.Effect[] = [{ compostCrop: at }, { consumeSelected: 1 }];
+const effects: sim.Effect[] = [{ compostCrop: at }, { consumeSelected: 1 }, { statistic: { kind: 'compost_applied' } }];
 function fixture() {
   const position = { x: sim.TILE_SIZE_FIXED, y: sim.TILE_SIZE_FIXED, spaceId: 0 };
   const crop = { id: 'crop', owner, cropKind: 'strawberry', tileX: 1, tileY: 1, spaceId: 0,
     plantedAtTick: 1n, growthTicks: 100n, growthUpdatedAtTick: 1n, composted: false };
   const definition = sim.runtimeCropDefinitionForSeed(registry, 'strawberry_seeds')!;
   const state = { crop: { ...crop }, item: { id: 'owner:0', itemKind: 'compost', quantity: 2, slot: 0, durability: 0, lit: true },
-    soil: true, watered: true, present: true, authorized: true, mounted: false, hands: false, home: false, writes: 0 };
+    soil: true, watered: true, present: true, authorized: true, mounted: false, hands: false, home: false, writes: 0, statistics: [] as unknown[] };
   const ctx = { sender: owner, db: {
     player_position: { identity: { find: () => position } },
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
@@ -33,7 +33,9 @@ function fixture() {
     cropDefinitionForHomestead: () => definition, cropAutomaticallyWatered: () => false,
     cropCalendarOffset: () => 0n, cropGreenhouseProtected: () => false,
     writeInventorySlot: (_ctx: unknown, item: typeof state.item) => { state.item = item; state.writes++; },
-    updateEquippedForIdentity: () => {},
+    updateEquippedForIdentity: () => {}, U64_MAX: (1n << 64n) - 1n,
+    authoredReferenceSlug: (value: string) => value.replace(/^statistic:/, ''),
+    recordPlayerStatistic: (_ctx: unknown, _identity: unknown, kind: string, delta: bigint) => { state.statistics.push({ kind, delta }); },
   };
   const names = ['compostCropPlan', 'worldBehaviourEffectWriter'];
   const declarations = names.map(name => source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name)!.getText(source));
@@ -51,6 +53,7 @@ describe('compost crop authority', () => {
     expect(() => f.apply()).toThrow('crop_already_composted');
     expect(f.state.item.quantity).toBe(1);
     expect(f.state.writes).toBe(2);
+    expect(f.state.statistics).toEqual([{ kind: 'compost_applied', delta: 1n }]);
   });
 
   it('does not fabricate elapsed growth or water dry soil', () => {
@@ -72,7 +75,7 @@ describe('compost crop authority', () => {
     ['hands', true, 'hands_occupied'],
   ] as const)('rejects %s failures before any crop or inventory write', (key, value, error) => {
     const f = fixture(); f.state[key] = value;
-    expect(() => f.apply()).toThrow(error); expect(f.state.writes).toBe(0);
+    expect(() => f.apply()).toThrow(error); expect(f.state.writes).toBe(0); expect(f.state.statistics).toEqual([]);
   });
 
   it('rejects mature, foreign, distant and wrong-item targets without consumption', () => {
@@ -89,13 +92,18 @@ describe('compost crop authority', () => {
 
   it('preflights malformed, duplicate, cross-space and unpaid batches before writes', () => {
     const cases: readonly sim.Effect[][] = [
-      [{ compostCrop: at }], [{ compostCrop: at }, { consumeSelected: 2 }],
+      [{ compostCrop: at }],
+      [{ statistic: { kind: 'compost_applied' } }],
+      [{ compostCrop: at }, { consumeSelected: 1 }],
+      [{ compostCrop: at }, { consumeSelected: 1 }, { statistic: { kind: 'compost_applied', delta: 2 } }],
+      [{ compostCrop: at }, { consumeSelected: 1 }, { statistic: { kind: 'compost_applied', subject: 'carrot' } }],
+      [{ compostCrop: at }, { consumeSelected: 1 }, { statistic: { kind: 'farm_tiles_tilled' } }], [{ compostCrop: at }, { consumeSelected: 2 }],
       [{ compostCrop: at }, { compostCrop: at }, { consumeSelected: 1 }],
       [{ consumeSelected: 1 }, { compostCrop: { ...at, spaceId: '2' } }],
       [{ consumeSelected: 1 }, { compostCrop: { ...at, x: 1.5 } }],
     ];
     for (const batch of cases) {
-      const f = fixture(); expect(() => f.apply(batch)).toThrow(); expect(f.state.writes).toBe(0);
+      const f = fixture(); expect(() => f.apply(batch)).toThrow(); expect(f.state.writes).toBe(0); expect(f.state.statistics).toEqual([]);
     }
     const empty = fixture(); empty.state.item.quantity = 0;
     expect(() => empty.apply()).toThrow('behaviour_selected_item_required'); expect(empty.state.writes).toBe(0);

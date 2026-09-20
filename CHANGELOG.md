@@ -3,6 +3,7 @@
 ## 0.9.0 — Pomace compost
 
 - Handcraft four Pomace and one Fiber into Compost. Select it and use F or the primary pointer action on a growing crop to advance its growth by 25%, once per planting.
+- Record one lifetime `compost_applied` statistic per successful treatment for future quest/milestone connections, with no treatment XP.
 - Settle elapsed growth before treatment, cap progress at maturity, and keep failed, unauthorized or repeated applications free of inventory changes. The new crop marker defaults to false for existing plantings.
 
 ## 0.8.4 — Anvil repair release

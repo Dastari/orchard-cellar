@@ -1,7 +1,7 @@
 /* This file is generated from validated Orchard lifecycle source. Do not edit. */
 import { defineItemOnUse, defineItemOnUseHandlers, type AnyHandlerRegistration } from '@orchard/sim';
 
-export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "e30c76556545cabae3b5de0838eae243f0aa0abbb782dbb26b6e1a98082d08b8" as const;
+export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "e642d56525164ef1fa53c68a277eae68d5b818743b95600ea34bdbb9a9d1645f" as const;
 
 export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistration[] = Object.freeze([
   ...defineItemOnUseHandlers({
@@ -368,6 +368,7 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
       else {
         context.emit({ compostCrop: targetTile });
         context.item.consume();
+        context.emit({ statistic: { kind: 'compost_applied' } });
       }
     },
   }),

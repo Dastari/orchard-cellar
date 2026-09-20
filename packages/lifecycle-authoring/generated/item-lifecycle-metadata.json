@@ -2,7 +2,7 @@
   "format": "orchard-item-lifecycle-metadata-v1",
   "bundleId": "repository-baseline-item-on-use",
   "revision": 16,
-  "bundleSha256": "e30c76556545cabae3b5de0838eae243f0aa0abbb782dbb26b6e1a98082d08b8",
+  "bundleSha256": "e642d56525164ef1fa53c68a277eae68d5b818743b95600ea34bdbb9a9d1645f",
   "handlers": [
     {
       "itemId": "item:anvil",

@@ -39,7 +39,7 @@ describe('press to compost to crop loop', () => {
     };
     expect((registration.handler as Handler)({ type: 'place', actor: { entityType: 'player', id: 'player' },
       subject: { kind: 'compost' }, tile: { spaceId: '0', x: 1, y: 1 } }, snapshot)).toEqual({ effects: [
-      { compostCrop: { spaceId: '0', x: 1, y: 1 } }, { consumeSelected: 1 },
+      { compostCrop: { spaceId: '0', x: 1, y: 1 } }, { consumeSelected: 1 }, { statistic: { kind: 'compost_applied' } },
     ] });
   });
 

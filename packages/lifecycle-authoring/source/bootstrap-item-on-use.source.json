@@ -199,7 +199,7 @@
       "triggers": [
         "place"
       ],
-      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse {\n  context.emit({ compostCrop: targetTile });\n  context.item.consume();\n}"
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse {\n  context.emit({ compostCrop: targetTile });\n  context.item.consume();\n  context.emit({ statistic: { kind: 'compost_applied' } });\n}"
     },
     {
       "itemId": "item:cooked_beef",

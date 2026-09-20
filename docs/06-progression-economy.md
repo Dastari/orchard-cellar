@@ -472,3 +472,7 @@ fuel, and one bar takes **5 real minutes** with offline catch-up. Sale values ar
 Each bar is exactly twice the ore-chunk value plus one wood fuel's 2-bronze sell
 opportunity cost. The crop barrel is a workbench recipe of **6 planks + 2 iron
 bars**, making crop processing a deliberate post-smelting progression step.
+
+## Pomace compost balance amendment (0.9.0)
+
+Four Pomace and one Fiber handcraft into one Compost. A growing crop accepts one application per planting, advancing settled growth by **25% of its required growth ticks, rounded down**, capped at maturity. Watering, crop seasons and harvest quantity are unchanged. A successful application records one `compost_applied` statistic and grants no XP; rejected or repeated treatment consumes nothing and records nothing. Compost sells for 4 bronze, below its ingredient value, to preserve growing as its intended use.

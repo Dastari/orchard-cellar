@@ -10545,6 +10545,7 @@ function worldBehaviourEffectWriter(
   let plannedRepairCharge = 0;
   let plannedTargetIdentityMutation = false;
   let plannedCompost: ReturnType<typeof compostCropPlan> | undefined;
+  let plannedCompostStatistics = 0;
   let plannedSeedPlant: {
     readonly seedItemKind: string;
     readonly spaceId: number;
@@ -11035,6 +11036,11 @@ function worldBehaviourEffectWriter(
         throw new SenderError('behaviour_statistic_invalid');
       }
       const delta = typeof payload.delta === 'bigint' ? payload.delta : BigInt(payload.delta);
+      if (statisticKind === 'compost_applied') {
+        if (delta !== 1n || payload.subject !== '' || ++plannedCompostStatistics !== 1) {
+          throw new SenderError('behaviour_compost_batch_incomplete');
+        }
+      }
       if (definition === null || definition.reserved === true
         || delta < 1n || delta > U64_MAX
         || !statisticSubjectIsValidForDefinition(definition, payload.subject)) {
@@ -11942,8 +11948,9 @@ function worldBehaviourEffectWriter(
       && (plannedSelectedConsumption !== 1 || plannedRepairEffect)) {
       throw new SenderError('behaviour_food_batch_incomplete');
     }
-    if (plannedCompost !== undefined
-      && (effectCount !== 2 || plannedSelectedConsumption !== 1 || plannedSeedPlant !== undefined || inventorySensitiveEngineAction
+    if ((plannedCompost !== undefined || plannedCompostStatistics > 0)
+      && (plannedCompost === undefined || plannedCompostStatistics !== 1
+        || effectCount !== 3 || plannedSelectedConsumption !== 1 || plannedSeedPlant !== undefined || inventorySensitiveEngineAction
         || plannedPlaceableSpawns > 0 || plannedItemSpawns > 0 || plannedTargetIdentityMutation
         || plannedHungerRestore !== undefined || plannedInventoryConsumption.size > 0)) {
       throw new SenderError('behaviour_compost_batch_incomplete');

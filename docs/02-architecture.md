@@ -282,3 +282,5 @@ close it. Existing modal input ownership remains ahead of the hammer.
 ## Compost crop authority (0.9.0)
 
 The authored Compost `place` lifecycle emits `compostCrop` plus one selected-item consumption through the existing transactional `useSelected` path. The world writer validates the whole batch before updating inventory or crops. Its crop plan settles elapsed watered growth and appends one bounded 25% advance; a default-false `world_crop.composted` column prevents reapplication for that planting. The column is appended after existing fields for additive migration. Generated public bindings expose treatment status for the farm prompt. No tick sweep or separate treatment table is needed. See [ADR-002](adr/002-crop-compost.md).
+
+Successful treatment also records exactly one authored `compost_applied` lifetime statistic in the same transaction. The preflight requires this exact unit increment alongside one treatment and one consumed item; rejected actions leave statistics unchanged. This supports future quest and milestone links without granting XP.
