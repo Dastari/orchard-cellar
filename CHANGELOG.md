@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.5 — Hoe and swimming fish fixes
+
+- Route F with a hoe to tilling, crop uprooting, or soil restoration instead of
+  an entity-only swing. Both the swing and direct-use shortcuts yield to the
+  farming action; damaged tools still repair at a faced anvil.
+- Draw fishing pools with the fish sprite’s `sway` animation. The earlier art
+  lookup fix found the correct sheet but requested its nonexistent `base` frame,
+  leaving randomly spawned pools invisible. Depleted pools remain hidden.
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool

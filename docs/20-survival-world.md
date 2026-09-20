@@ -113,6 +113,11 @@ art sourcing, and recipes now live in [28-crafting.md](28-crafting.md); its phas
 1–3 implement sticks, fiber, torch, and the workbench/placeable tier without pulling
 the later weapon or metal mechanics forward.
 
+With a hoe selected, F uses the targeted farm tile: grass is tilled, occupied
+crop soil is uprooted, and empty tilled soil is restored. Farming bypasses both
+generic swing and direct secondary-use shortcuts; a repairable tool at a faced
+anvil retains repair priority. Watering cans also keep their tile action.
+
 `harvest_resource(resourceId)` is atomic and authoritative:
 
 1. sender exists and has selected the required tool;
@@ -142,8 +147,11 @@ modifier and scaling contract is documented in [37-growth-system.md](37-growth-s
 Generated inland-water decoration requires a complete 3×3 water neighbourhood; fish
 shadows and all swimming wildlife require 5×5 clearance. Lakes use a sparse mix of
 single and grouped lily pads/flowers, cattails, grasses, rocks, and fish shadows rather
-than filling every interior tile. Two subtle animated surface families are scattered
-only across full 3×3 ocean tiles, never across shoreline blends.
+than filling every interior tile. Active fishing pools render the nature fish sheet’s
+`sway` animation (there is no `base` frame); depleted pools draw no fish. Random
+spawn sites, population limits, and respawn timing are unchanged. Two subtle animated
+surface families are scattered only across full 3×3 ocean tiles, never across shoreline
+blends.
 
 `pickup_world_item(itemId)` checks authoritative reach and stacks into a matching or
 empty private slot before deleting the shared row. `drop_selected()` takes no item,

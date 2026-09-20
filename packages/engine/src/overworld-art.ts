@@ -1908,7 +1908,9 @@ export function drawAuthoredResourceVisual(
     return;
   }
   if (resolved.scale === 1) {
-    drawAnchored(context, resolved.asset, 'base', animationFrame, x, y, cameraX, cameraY, zoom);
+    // Fish use the animated nature sheet, which has no static base frame.
+    const animation = visual.kind === 'fish' && frame(resolved.asset, 'sway') !== null ? 'sway' : 'base';
+    drawAnchored(context, resolved.asset, animation, animationFrame, x, y, cameraX, cameraY, zoom);
     return;
   }
   drawAnchoredScaled(context, resolved.asset, x, y, cameraX, cameraY, zoom, resolved.scale);
