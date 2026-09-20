@@ -9,7 +9,7 @@ Repeatable orders currently end at bronze and do not visibly link growing, prese
 
 ## Decision
 
-Persist one capped 2/2/1 raw/preserved/bottle row per player and atomically unlock two exclusive meal recipes with existing known-recipe authority. Show progress through owner-only order quotes. Begin new milestone counts at zero; do not fabricate historical credit. Classify live order items through content tags/processes.
+Persist one bounded distinct-item raw/preserved sets (three each) and a bottle flag row per player and atomically unlock two exclusive meal recipes with existing known-recipe authority. Show progress through owner-only order quotes. Begin new milestone counts at zero; do not fabricate historical credit. Classify live order items through content tags/processes.
 
 ## Alternatives and rationale
 
