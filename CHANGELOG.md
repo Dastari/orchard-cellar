@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Documentation
+
+- Audit current and planned gameplay loops against source, identify weak links and
+  stale design status, and propose an estate → outing → return progression network.
+  See the [gameplay loop dependency audit](docs/gameplay-loop-dependency-audit.md).
+  No gameplay behavior or balance values change.
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool

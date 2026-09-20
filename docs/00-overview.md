@@ -26,6 +26,11 @@ suite.
 
 ## Doc map & reading order
 
+For a cross-system inventory of implemented and planned game loops, including
+proposed connections and documentation drift, see the
+[gameplay loop dependency audit](gameplay-loop-dependency-audit.md). Its integration
+suggestions are advisory, not approved feature scope.
+
 | Doc | What it binds | Read when |
 |---|---|---|
 | [01-engine-decision.md](01-engine-decision.md) | Engine/stack choice (Bevy vs Canvas) | Always, first |
