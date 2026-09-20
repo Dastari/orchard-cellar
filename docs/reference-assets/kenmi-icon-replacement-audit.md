@@ -12,7 +12,45 @@ Of 66 skill nodes, 63 use Clockwork Raven sources, two use existing Kenmi art,
 and one reuses the hand-authored fishing rod. Different provenance alone does not
 make a sprite temporary or a good replacement candidate.
 
-## Recommended first pass
+## User-prioritized hammer and shovels
+
+Following direct user feedback, replace the hammer and all six shovel-tier icons
+before the other recommendations. The current hammer comes from the original
+extra-tools sheet; the current shovels use the custom tool-progression geometry.
+
+**Hammer: Tools #351**, zero-based row 35 / column 0, crop `[0, 560, 16, 16]`.
+This is the compact claw-hammer silhouette, with a clearer head and claw than the
+current blocky shape. Prefer it to the larger mallet-like alternatives for the
+ordinary Iron Hammer. `packages/ui/src/overworld-ui.ts` draws `itemArt.hammer` for
+the build-menu button, so the same replacement covers that button and inventory.
+
+**Shovels: Tools row 8**, the long-handled spade family. Their longer shaft and
+more distinct blade separate the tool from the current short, scoop-like shape.
+Keep one silhouette across the six tiers:
+
+| Tier | Vendor source | Crop | Treatment |
+| --- | --- | --- | --- |
+| Wood | #83, row 8 / col 2 | `[32, 128, 16, 16]` | Geometry reference; create a wood palette variant. Do not present the copper-looking native crop as finished wooden art. |
+| Stone | #82, row 8 / col 1 | `[16, 128, 16, 16]` | Geometry reference; create a matte stone palette distinct from iron. |
+| Copper | #83, row 8 / col 2 | `[32, 128, 16, 16]` | Native warm copper candidate. |
+| Iron | #82, row 8 / col 1 | `[16, 128, 16, 16]` | Native dark steel candidate. |
+| Silver | #81, row 8 / col 0 | `[0, 128, 16, 16]` | Native bright silver candidate. |
+| Gold | #84, row 8 / col 3 | `[48, 128, 16, 16]` | Native gold candidate. |
+
+The JSON labels wood/stone as derivative-required; their source rectangles are
+not a claim that the final recoloured artwork exists. The local options board is
+`output/icon-audit/hammer-shovel-options.png`; the focused current-versus-proposed
+hammer/iron-shovel comparison is `output/icon-audit/hammer-shovel-comparison.png`.
+
+Preserve `icon_cf_hammer` and the six `icon_tool_*_shovel` keys so all existing
+consumers benefit. `build-tool-progression-art.ts` currently regenerates the old
+shovel geometry, and `extract-original-tool-icons.ts` regenerates the old hammer.
+Update those source-of-truth import paths together with the descriptors. The
+shovel generator explicitly skips avatar swing overlays, and these hammer/shovel
+item definitions have no `avatarActionAsset`; do not manufacture an animation
+migration for this icon change. Keep other tools' animation art unchanged.
+
+## Other recommended first-pass changes
 
 Replace **nine skill icons and four fruit-tree seed icons**. Exact source paths,
 SHA-256s, 16×16 crop rectangles, vendor icon numbers, current asset names and
@@ -54,7 +92,7 @@ categories. These licensed-art previews are not committed.
 | Seven equipment prototypes | Boots, gloves, helm, necklace, pants, shield and tunic use `ui_cf_equipment_slot_icons` silhouettes | Armor provides head/body/legs/hands/feet art; Weapons provides shields; Treasure & Keys provides pendants. These definitions are tagged `item.prototype`, have no `equip` field, and have no references in the other authored content JSON files. Prioritize after active content. Changing art does not implement equipment behavior. |
 | Plans and books | 69 plan items and three books share `icon_cf_marlow_book` | A real discovery problem, but this pack has no obvious book/blueprint family. Retain until a document-icon design can preserve both plan identity and item family. |
 | Fishing rod, raw fish, cooked fish | Hand-authored sprites with no vendor source path; Fishing Endurance reuses the rod | Review against the existing fishing reference library. No clear rod/raw-fish/whole-cooked-fish replacement found in this new pack; sushi or a hoe is not a substitute. |
-| Existing tool progression | Axe/pickaxe/hoe/shovel items have intentionally authored material-tier art and some corresponding avatar-action assets | Keep the coherent reviewed progression. New icon-only art must not silently desynchronize the inventory tool from its held/action artwork. |
+| Existing tool progression | Axe/pickaxe/hoe items have authored material-tier art and corresponding avatar-action assets | Keep those families for now. Hammer and shovels are specifically prioritized above; preserve tier clarity and update their generators. |
 | Existing Hearth equipment/materials | Already have dedicated native icons, many from Clockwork Raven | Optional future style-unification work, not established placeholder defects. Preserve rarity, silhouette and material distinctions. |
 | Existing crop and ore icons | Already use Kenmi's core native icon art | Keep unless a specific readability improvement is demonstrated. New pack availability alone is not a reason to replace them. |
 | Empty equipment slots | Silhouettes are appropriate for actual empty slots | Keep `ui_cf_equipment_slot_icons` as empty-slot UI; any prototype-item replacements need their own icon assets. |
@@ -173,10 +211,11 @@ the existing library. The new pack does not offer a clear horse replacement.
 
 - Resolved all 336 item and 66 skill icon asset names against local sprite files.
 - Verified every proposed source hash, 16×16 crop, nonempty alpha and vendor-number
-  mapping against the intake coordinate index; inspected all 14 final crops visually.
+  mapping against the intake coordinate index; inspected all 21 candidate mappings visually (wood/stone treatment still requires authoring).
 - Recorded all 66 skill nodes above, including keep/defer decisions.
 - Verified prototype reachability against other authored content files, not against
   live inventories or historical database rows.
 - No runtime tests/build/deployment required for this documentation-only audit.
-- Next action: implement the 13 first-pass mappings, with the UI and content checks
-  above. Cellar bottle choice remains a separate visual-review candidate.
+- Next action: implement the hammer and six shovel tiers first, then the other 13
+  first-pass mappings, with the UI and content checks above. The cellar bottle
+  remains a separate review candidate. Total: 20 priority targets plus one bottle.

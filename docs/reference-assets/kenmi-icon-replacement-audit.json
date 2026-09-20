@@ -4,6 +4,146 @@
   "status": "recommendations-only",
   "recommendations": [
     {
+      "kind": "item",
+      "target": "item:hammer",
+      "currentAsset": "icon_cf_hammer",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        0,
+        560,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        351
+      ],
+      "reason": "User-prioritized replacement of current hammer/shovel silhouette. Hammer also supplies the build-menu button. Preserve six shovel material identities.",
+      "priority": "user-priority-tools",
+      "treatment": "native"
+    },
+    {
+      "kind": "item",
+      "target": "item:shovel",
+      "currentAsset": "icon_tool_wood_shovel",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        32,
+        128,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        83
+      ],
+      "reason": "User-prioritized replacement of current hammer/shovel silhouette. Hammer also supplies the build-menu button. Preserve six shovel material identities.",
+      "priority": "user-priority-tools",
+      "treatment": "wood-palette-derivative-required"
+    },
+    {
+      "kind": "item",
+      "target": "item:stone_shovel",
+      "currentAsset": "icon_tool_stone_shovel",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        16,
+        128,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        82
+      ],
+      "reason": "User-prioritized replacement of current hammer/shovel silhouette. Hammer also supplies the build-menu button. Preserve six shovel material identities.",
+      "priority": "user-priority-tools",
+      "treatment": "stone-palette-derivative-required"
+    },
+    {
+      "kind": "item",
+      "target": "item:copper_shovel",
+      "currentAsset": "icon_tool_copper_shovel",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        32,
+        128,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        83
+      ],
+      "reason": "User-prioritized replacement of current hammer/shovel silhouette. Hammer also supplies the build-menu button. Preserve six shovel material identities.",
+      "priority": "user-priority-tools",
+      "treatment": "native"
+    },
+    {
+      "kind": "item",
+      "target": "item:iron_shovel",
+      "currentAsset": "icon_tool_iron_shovel",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        16,
+        128,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        82
+      ],
+      "reason": "User-prioritized replacement of current hammer/shovel silhouette. Hammer also supplies the build-menu button. Preserve six shovel material identities.",
+      "priority": "user-priority-tools",
+      "treatment": "native"
+    },
+    {
+      "kind": "item",
+      "target": "item:silver_shovel",
+      "currentAsset": "icon_tool_silver_shovel",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        0,
+        128,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        81
+      ],
+      "reason": "User-prioritized replacement of current hammer/shovel silhouette. Hammer also supplies the build-menu button. Preserve six shovel material identities.",
+      "priority": "user-priority-tools",
+      "treatment": "native"
+    },
+    {
+      "kind": "item",
+      "target": "item:gold_shovel",
+      "currentAsset": "icon_tool_gold_shovel",
+      "category": "Tools",
+      "source": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "sourceSha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "sourceRegion": [
+        48,
+        128,
+        16,
+        16
+      ],
+      "vendorIconNumbers": [
+        84
+      ],
+      "reason": "User-prioritized replacement of current hammer/shovel silhouette. Hammer also supplies the build-menu button. Preserve six shovel material identities.",
+      "priority": "user-priority-tools",
+      "treatment": "native"
+    },
+    {
       "kind": "skill",
       "target": "farmcraft",
       "currentAsset": "icon_skill_farmcraft",
