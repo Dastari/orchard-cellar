@@ -1,7 +1,8 @@
 # Orchard UI Kit
 
-Use the exported `ui` factories to compose shared game and Studio surfaces.
-The retained runtime builds on the existing design-system layout and art engines.
+Use the exported `ui` factories to compose Studio tools and game-component previews.
+The production game uses the separate `@orchard/ui` entry; its build excludes this
+kit. The retained runtime builds on the existing design-system layout and art engines.
 
 ```ts
 import { ui, UiRoot, loadUiKitArt } from '@orchard/ui/studio';
@@ -27,8 +28,8 @@ text roles share the 4.5:1 threshold. Face samples are checked against exact sou
 grids, with no caller-supplied ink and no contrast overrides currently required.
 `UI_ICON_CATALOG` names all 624 cells, including outlines and explicit empty cells.
 Lucide is reserved for symbols absent from that catalog. Its manifest and canonical
-SVGs are shared; `npm run pwa:assets` and app dev/build hooks copy the same files to
-both applications at their existing public URLs.
+SVGs live in `packages/ui/public`. `npm run assets:build` copies them to both apps;
+each app’s dev/build hooks refresh only its own copy at the existing public URLs.
 
 Frames tile and never stretch. Fixed tags, discrete meter levels, compact vitals,
 loading frames, and popups retain their authored size. Empty meter tracks have
