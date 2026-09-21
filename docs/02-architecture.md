@@ -16,6 +16,15 @@ Binding architecture for Orchard & Cellar. Read [01-engine-decision.md](01-engin
 > outside this plan. See the `client/rendering` row in `DECISIONS.md` and
 > [doc 47 §15](47-rendering-lighting-performance-plan.md).
 
+## Proposed unified action architecture
+
+[Unified actions specification](unified-actions-spec.md),
+[implementation plan](unified-actions-plan.md), and
+[ADR 002](adr/002-unified-actions-and-repair-custody.md) describe the proposed
+shared targeting/parameter/cost contracts for tools and spells, exact G overlays,
+and transaction-safe repair output collection. This is a planning record; the
+existing runtime remains in effect until the corresponding implementation PRs land.
+
 ## Repository layout (npm workspaces monorepo)
 
 ```

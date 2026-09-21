@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Planning
+
+- Specify unified tool/spell actions, modifiable targeting and resource costs, exact
+  G-debug limits, and a dedicated repair UI with atomic output-to-cursor collection.
+  Record phased delivery and anti-duplication gates; no runtime changes.
+
 ## Unreleased — Documentation
 
 - Audit current and planned gameplay loops against source, identify weak links and
