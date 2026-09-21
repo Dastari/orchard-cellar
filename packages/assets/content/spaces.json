@@ -1127,9 +1127,9 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "b",
-      "38ce;k8se;3icr;kisr;e5hr;85n9;abmd;almo;a9md",
-      "2b5aec!farm_hay_stack;2b8aec!farm_hay_stack;o95dc8!farm_hay_bale;o99dc8!farm_hay_bale;g0l8;g0p8;7zlb;7zob;7zrb;5386;h3a8;0yc6;0yk6;2b5lec!farm_hay_stack;o95oc8!farm_hay_bale;o98oc8!farm_hay_bale;xl9j;7zbr;53nj;h3nl;xlqo;g0lq;7zpr;0ycj;0ykj;2b5cec!farm_hay_stack;2b8cec!farm_hay_stack;2bbaec!farm_hay_stack;2b5nec!farm_hay_stack;2b8lec!farm_hay_stack;o95qc8!farm_hay_bale;o98qc8!farm_hay_bale;7zmc;7zpc;12rd78!barrel;12sd78!barrel;12rk78!barrel;12sk78!barrel;12rm78!barrel",
-      "ghgj"
+      "47sr;e5h8",
+      "2b5aec!farm_hay_stack;2b89ec!farm_hay_stack;o95dc8!farm_hay_bale;o99dc8!farm_hay_bale;g0l8;g0p8;7zlb;7zob;7zrb;5387;h3a8;0yc7;0yk7;2b5lec!farm_hay_stack;o95oc8!farm_hay_bale;o98nc8!farm_hay_bale;xl9j;7zbr;53nj;h3nl;xlqo;g0lq;7zpr;0ycj;0ykj;2b5cec!farm_hay_stack;2b8cec!farm_hay_stack;2bbbec!farm_hay_stack;2b5nec!farm_hay_stack;2b8lec!farm_hay_stack;o95qc8!farm_hay_bale;o98rc8!farm_hay_bale;7zmc;7zpc;12rd78!barrel;12sd78!barrel;12rk78!barrel;12sk78!barrel;12rm78!barrel",
+      "g9gb"
     ],
     "hearthInteriorFloors": [
       {
@@ -1183,8 +1183,8 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "c",
-      "45rr",
-      "fhk9;4x8fga;4xofga;538m;g067;g0o7;xl7h;xlnh;7zam;h38o;o8mm;xlpne6!camp_bench;s65p;0ykd;g05j;5zb7;5zr7;7z5m;7zrl;ftnp;xlaq;xlkq;0ybi;0yrq;dyfp",
+      "45cr;k5rc;kirr;e5hr;b8ka;bnko;d8dc",
+      "fhl8;4x8fga;4xodga;538m;g067;g0o7;xl7h;xlni;7zam;h38o;o8mm;xlpne6!camp_bench;s65p;0ykc;g05j;5zb7;5zr7;7z5m;7zrl;ftnp;xlaq;xlkq;0ybi;0yrq;dyio",
       "h9hb"
     ],
     "hearthInteriorFloors": [
@@ -1248,8 +1248,8 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "f",
-      "d5jr;46be;l6se;4ibr;lisr;abmd;ammo",
-      "53g9;wk69;7z89;g097;dy7c;l5oa;ado9-6;qtmc;qtqc;tvr7;v87o;586k;g89n;kt6o;rh5k;9hnl;orqj;elpq;vooo;tvrp;5mlq;5z47;tvbr;rhmq;0yb7;dyfp"
+      "45cc;k5sc;4icr;kisr;e5hr;b8ka;bnko;d8dc",
+      "53g8;wk69;7z89;g097;dy7c;l5pa;adp9-6;qtmc;qtqc;tvr7;v87o;586k;g89m;kt6o;rh5k;9hnl;orqj;elpq;vooo;tvrp;5mlq;5z47;tvbr;rhnq;0yb7;dyio"
     ],
     "hearthInteriorFloors": [
       {
@@ -1321,9 +1321,9 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "h",
-      "65cc;k5pc;6gcr;kgpr;e5hr;aamc;akmm",
-      "5886;g869;kta9;v88a;rhb6;s666;5mn6;elk6;vom9;kfnb;tvp9;z36g;g09g;el6j;fh9o;o87p;o8bp;s66r;0ycq;9hmi;orog;7zki;voml;53np;o8nr;rhkp;tvpr;dyfn;dyfe",
-      "ghgj"
+      "65cc;k5qc;6icr;kiqr;e5hr;b8ka;bnko;d8dc",
+      "5886;g869;kta8;v88a;rhb6;s666;5mn6;elk6;vom9;kfnb;tvp9;z36i;g09i;el6j;fh9m;o87p;o8bq;s66r;0ycq;9hmj;oroi;7zki;voml;53op;o8nr;rhkq;tvpr;dyin;dyia",
+      "g9gb"
     ],
     "hearthInteriorFloors": [
       {
@@ -1404,8 +1404,8 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "g",
-      "75on;enir",
-      "53g9;g086;g0m6;kf8d;kfmd;7z9j;7zbj;7zmj;7zoj;xl8f;xlmf;s68m;s6nm;0yi7;5z79;5zo9;5z7i;5zoh;7za6;7zk6;tvcm;tvkm;dyfo;0ycg;0ykg;kfac;kfic;g0af;g0if;5z75;5zo5;7zbk;7zmk;128l78!barrel;12ol78!barrel;12kk78!barrel"
+      "75rc;5icr;kirr;e5hr;b8ka;bnko;d8dc",
+      "53g8;g086;g0m6;kf8c;kfmc;7z9j;7zbj;7zmj;7zoj;xlac;xlkc;s68m;s6nm;0yi7;5z79;5zo9;5z7i;5zoi;7za6;7zk6;tvcm;tvkm;dyio;0yci;0yki;kfab;kfic;g08b;g0ib;5z75;5zo5;7zbk;7zmk;128l78!barrel;12ol78!barrel;12kk78!barrel"
     ],
     "hearthInteriorFloors": [
       {
@@ -1468,9 +1468,9 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "p",
-      "59qp;enir",
-      "537a;53na;h3ab;h3lb;g0b9;eli9;s66e;tv9e;xrcf76!farm_potted_flowers;tvje;s6me;xrpf76!farm_potted_flowers;tv6i;xr9j76!farm_potted_flowers;s6ci;xrjj76!farm_potted_flowers;tvmi;s6pi;xl6n;7zao;xlmn;7zpo;0yda;rhio;tv5p;tvqp;tv7f;s6af;tvkf;s6nf;s67k;tvak;s6kk;tvnk;xrbe76!farm_potted_flowers;xroe76!farm_potted_flowers;xr8i76!farm_potted_flowers;xrli76!farm_potted_flowers",
-      "ghgj"
+      "57rp;ephr",
+      "537a;53na;h3ab;h3lb;g0b8;eli8;s66e;tv9e;xrcf76!farm_potted_flowers;tvje;s6me;xrpf76!farm_potted_flowers;tv6i;xr9j76!farm_potted_flowers;s6ci;xrjj76!farm_potted_flowers;tvmi;s6pi;xl6n;7zam;xlmm;7zpo;0yca;rhim;tv5p;tvqp;tv7f;s6af;tvkf;s6nf;s67k;tvak;s6kk;tvnk;xrbe76!farm_potted_flowers;xroe76!farm_potted_flowers;xr8i76!farm_potted_flowers;xrli76!farm_potted_flowers",
+      "g9gb"
     ],
     "hearthInteriorFloors": [
       {
@@ -1560,8 +1560,8 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "u",
-      "d5ir;55be;l5qe;5ibr;liqr;98na;9jnl",
-      "fhg9;wr87;wro7;wr8c;wroc;ft9l;fh9k;o87l;o8bl;ftnl;fhnk;o8ll;o8pl;wr8o;wroo;s6eo;s6io;rhbe;rhqn;53e6;5z57;5zq7;kf5p;kfpp;g85l;g8ql;tvbr;tvlr;dyfo;vogk;wr5c;wrlc;wr5i;wrpi;5zb5;5zl5;rhhh"
+      "55cc;k5rc;5icr;kirr;e5hr;b8ka;bnko;d8dc",
+      "fhg8;wr87;wro7;wr8c;wroc;ft9l;fh9k;o87l;o8bl;ftnl;fhnk;o8ll;o8pl;wr7o;wroo;s6km;s6kq;rhbc;rhqn;53e6;5z57;5zq7;kf5p;kfpp;g85l;g8ql;tvbr;tvlr;dyio;vokk;wr5c;wrlc;wr5i;wrpi;5zb5;5zl5;rhki"
     ],
     "hearthInteriorFloors": [
       {
@@ -1625,8 +1625,8 @@
     ],
     "hearthInterior": [
       "i",
-      "4crr;44a8;l4r8;89ad;l9nd;c4je",
-      "fhg9;9h77;9hn7;7z95;orp5;qf5d;z3i5;ft9i;fh9h;o87i;o8bi;ftni;fhnh;o8li;o8pi;ft9o;fh9n;o87o;o8bo;ftno;fhnn;o8lo;o8po;s67e;s6qe;0yci;0ykn;g0e4;elh4;rh45;rhr7;tv4r;tvrr;5z4k;5zrk;dyfo;xldq;xljq;kt47;vo78;ktl5;vop8;7zr8"
+      "45cc;k5sc;4isr;e5hr;b8ka;bnko;d5dc",
+      "fhg8;9h77;9hn7;7z95;orp5;qf5c;z3k5;ft9k;fh9j;o87k;o8bk;ftnk;fhnj;o8lk;o8pk;ft9q;fh9p;o87q;o8bq;ftnq;fhnp;o8lq;o8pq;s67c;s6qc;0yci;0ykm;g0e5;elg5;rh45;rhr7;tv4r;tvrr;5z4k;5zrk;dyio;xldq;xljq;kt47;vo78;ktl6;vop8;7zr8"
     ],
     "hearthInteriorFloors": [
       {
@@ -1698,9 +1698,9 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "o",
-      "75oc;7gcr;kgor;eahr;bkmm",
-      "qf75;z3a5;g0c5;fha9;o88a;o8ca;ftaa;5zi5;58k6;g8n8;kti9;vola;rhn5;s6oc;wk8h;wkbh;7z9j;g07o;53aq;h3ar;0yco;dy8m;5mmg;elkj;vomm;tvok;kfmq;s6kr;dyfo;0yhf",
-      "ghgj"
+      "65cc;k5qc;6icr;kiqr;e5hr;b8ka;bnko;d8dc",
+      "qf75;z3a5;g0b5;fha8;o88a;o8ca;ftaa;5zk5;58k6;g8n8;ktk8;vola;rhn5;s6oc;wk8j;wkbj;7z9j;g07o;53aq;h3ar;0ycm;dy8m;5mmi;elkj;vomm;tvok;kfmq;s6kr;dyio;0ykc",
+      "g9gb"
     ],
     "hearthInteriorFloors": [
       {
@@ -1772,8 +1772,8 @@
     "audioBed": "homestead",
     "hearthInterior": [
       "s",
-      "65cb;k5pb;e5ir;6fpn;a8mb",
-      "fhc9;ru9ha8;4xnhga;qfm6;g076;7zmk;7zok;h3bi;xllh;g0ma;7z7k;7z9k;5z68;0yi7;0ycj;xl7m;s6om;dyfp;g0k5;7zo7;7zo9;12k978!barrel;12kb78!barrel;qfif;rukia8;4xcgga;7z6i;7z6k;7zcm;7zim;12pi78!barrel;12pk78!barrel",
+      "55cc;k5rc;6irr;e5hr;b8ka;bnko;d8dc",
+      "fhb8;ru9ja8;4xnjga;qfm6;g076;7zmk;7zok;h3bi;xlki;g0ma;7z7k;7z9k;5z68;0yi8;0ycj;xl7m;s6om;dyip;g0k5;7zo7;7zo9;12k978!barrel;12kb78!barrel;qfkc;rukka8;4xdjga;7z6i;7z6k;7zcm;7zim;12pj78!barrel;12pk78!barrel",
       "999b"
     ],
     "hearthInteriorFloors": [

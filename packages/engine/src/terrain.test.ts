@@ -821,6 +821,13 @@ describe("shared client terrain array", () => {
     expect(authoredFarmlandFrameIndexAt(terrain, 2, 2)).toBe(46);
   });
 
+  it('keeps river mouths open where freshwater meets the sea',()=>{
+    const river=terrainFixture(3,3,2);
+    river.biomes[6]=0;river.biomes[7]=0;river.biomes[8]=0;
+    expect(freshwaterFrameIndexAt(river,1,1)).toBe(4);
+    expect(freshwaterInsetFrameIndicesAt(river,1,1)).toEqual([]);
+  });
+
   it("selects grass-edged freshwater and authored waterfall strips", () => {
     const pond = terrainFixture(3, 3, 2);
     expect(freshwaterFrameIndexAt(pond, 1, 1)).toBe(4);

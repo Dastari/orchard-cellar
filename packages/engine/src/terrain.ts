@@ -488,7 +488,7 @@ function oceanWaterBiome(biome: SurvivalBiome): boolean {
 }
 
 function freshwaterBiome(biome: SurvivalBiome): boolean {
-  return biome === "freshwater" || biome === "waterfall";
+  return biome === "freshwater" || biome === "waterfall" || biome === "water";
 }
 
 export function beachFrameIndexAt(
