@@ -1,3 +1,4 @@
+import { kitElement, kitElements, pressKit } from '../kit-test-driver.js';
 import { describe, expect, it, vi } from 'vitest';
 import type { MapDocumentV3 } from '@orchard/sim';
 import type {
@@ -148,19 +149,19 @@ describe('Map Editor Canvas runtime object actions', () => {
     expect(diagnostic.inspectionCache?.inspection).toBeTruthy();
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(context);
-      expect(surface.actions.map(({ id }) => id).filter((id) => id.startsWith('map-selection')))
+      expect(kitElements(surface).map(({ id }) => id).filter((id) => id.startsWith('map-selection')))
         .toContain('map-selection-runtime-move');
     });
-    expect(surface.nodes.find(({ id }) => id === 'map-selection-runtime-move'))
-      .toMatchObject({ symbol: 'pointer', label: undefined });
-    expect(surface.nodes.find(({ id }) => id === 'map-selection-runtime-repair'))
-      .toMatchObject({ symbol: 'replace', label: undefined });
-    expect(surface.nodes.find(({ id }) => id === 'map-selection-runtime-despawn'))
-      .toMatchObject({ symbol: 'trash', label: undefined, tone: 'danger' });
+    expect(kitElement(surface, 'map-selection-runtime-move'))
+      .toMatchObject({ kind: 'button', label: 'Move' });
+    expect(kitElement(surface, 'map-selection-runtime-repair'))
+      .toMatchObject({ kind: 'button', label: 'Repair' });
+    expect(kitElement(surface, 'map-selection-runtime-despawn'))
+      .toMatchObject({ kind: 'button', label: 'Despawn', props: { tone: 'danger' } });
 
-    surface.actions.find(({ id }) => id === 'map-selection-runtime-move')?.activate();
+    pressKit(surface, 'map-selection-runtime-move');
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-runtime-object-receipt')?.label)
+    expect(kitElement(surface, 'map-runtime-object-receipt')?.label)
       .toBe('NO WORLD CHANGE · CHOOSE A TILE');
     expect(surface.input?.pointerDown?.({
       point: { x: WORKSPACE.x + 100, y: WORKSPACE.y + 100 }, button: 0, pointerId: 1,
@@ -173,11 +174,11 @@ describe('Map Editor Canvas runtime object actions', () => {
     ]);
 
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-runtime-object-custody')?.label)
+    expect(kitElement(surface, 'map-runtime-object-custody')?.label)
       .toContain('PLAYER-OWNED CUSTODY');
-    expect(surface.nodes.find(({ id }) => id === 'map-runtime-object-receipt')?.label)
+    expect(kitElement(surface, 'map-runtime-object-receipt')?.label)
       .toBe('BASE object:before-canvas · RECEIPT preview:canvas-runtime-exact');
-    expect(surface.actions.find(({ id }) => id === 'map-runtime-object-confirm'))
+    expect(kitElement(surface, 'map-runtime-object-confirm'))
       .toMatchObject({ disabled: false });
     expect(probe.calls).toHaveLength(1);
 
@@ -186,10 +187,10 @@ describe('Map Editor Canvas runtime object actions', () => {
     expect(probe.calls).toHaveLength(1);
 
     surface = buildMapCanvasTool(context);
-    surface.actions.find(({ id }) => id === 'map-selection-runtime-repair')?.activate();
+    pressKit(surface, 'map-selection-runtime-repair');
     await vi.waitFor(() => expect(probe.calls).toHaveLength(2));
     surface = buildMapCanvasTool(context);
-    surface.actions.find(({ id }) => id === 'map-runtime-object-confirm')?.activate();
+    pressKit(surface, 'map-runtime-object-confirm');
     await vi.waitFor(() => expect(probe.calls).toHaveLength(3));
     expect(probe.calls[2]).toMatchObject([
       { operation: 'repair_entity', entityId: '41', dryRun: false },
@@ -204,15 +205,15 @@ describe('Map Editor Canvas runtime object actions', () => {
     let surface = buildMapCanvasTool(ownerContext);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(ownerContext);
-      expect(surface.actions.map(({ id }) => id)).toContain('map-selection-runtime-despawn');
+      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-runtime-despawn');
     });
-    surface.actions.find(({ id }) => id === 'map-selection-runtime-despawn')?.activate();
+    pressKit(surface, 'map-selection-runtime-despawn');
     await vi.waitFor(() => expect(ownerProbe.calls).toHaveLength(1));
     surface = buildMapCanvasTool(ownerContext);
-    expect(surface.actions.find(({ id }) => id === 'map-runtime-object-confirm'))
+    expect(kitElement(surface, 'map-runtime-object-confirm'))
       .toMatchObject({ disabled: false });
-    expect(surface.nodes.find(({ id }) => id === 'map-runtime-object-confirm'))
-      .toMatchObject({ tone: 'danger' });
+    expect(kitElement(surface, 'map-runtime-object-confirm'))
+      .toMatchObject({ props: { tone: 'danger' } });
     expect(ownerProbe.calls).toHaveLength(1);
 
     const deniedContext = await runtimeContext(liveProbe().api, 'content_editor');
@@ -220,12 +221,13 @@ describe('Map Editor Canvas runtime object actions', () => {
     surface = buildMapCanvasTool(deniedContext);
     await vi.waitFor(() => {
       surface = buildMapCanvasTool(deniedContext);
-      expect(surface.actions.map(({ id }) => id)).toContain('map-selection-runtime-move');
+      expect(kitElements(surface).map(({ id }) => id)).toContain('map-selection-runtime-move');
     });
+    expect(kitElements(surface).some(element => element.label.includes('owner or administrator'))).toBe(true);
     for (const id of ['map-selection-runtime-move', 'map-selection-runtime-repair',
       'map-selection-runtime-despawn']) {
-      expect(surface.actions.find((action) => action.id === id)).toMatchObject({
-        disabled: true, label: expect.stringContaining('owner or administrator'),
+      expect(kitElement(surface, id)).toMatchObject({
+        disabled: true,
       });
     }
   });

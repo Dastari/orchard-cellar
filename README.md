@@ -22,6 +22,11 @@ Local databases, environment files, generated review output, and smoke-test toke
 are ignored. Licensed source sheets and design captures live in a local
 `references/` directory which is deliberately excluded from this repository.
 
+## Cellar Studio
+
+The reviewed editor is maintained in this repository and built independently.
+See [Studio development and deployment](packages/studio/README.md).
+
 ## Art credits and licensing
 
 - The **Cute Fantasy** premium packs and **Cute Fantasy Free** are by

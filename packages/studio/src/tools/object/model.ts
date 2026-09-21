@@ -101,11 +101,18 @@ export class ObjectStudioModel {
 
   explode(id: string): void { this.commit(explodeTileObject(this.#workspace, id)); }
   move(id: string, deltaX: number, deltaY: number, collectionId?: string | null): void {
-    this.commit(moveTileObject(this.#workspace, id, deltaX, deltaY, collectionId));
+    const placement=this.#workspace.placements.find(entry=>entry.id===id);
+    if(placement){
+      if(!Number.isInteger(deltaX)||!Number.isInteger(deltaY))throw new TypeError('Tile movement must use whole tiles');
+      this.commit(upsertTileObjectPlacement(this.#workspace,{...placement,tileX:placement.tileX+deltaX,tileY:placement.tileY+deltaY}));
+    }else this.commit(moveTileObject(this.#workspace, id, deltaX, deltaY, collectionId));
   }
   setPivot(id: string, tileX: number, tileY: number): void { this.commit(setTileObjectPivot(this.#workspace, id, tileX, tileY)); }
   transform(id: string, operation: 'rotate_clockwise' | 'rotate_counterclockwise' | 'flip_horizontal'): void {
-    this.commit(transformTileObject(this.#workspace, id, operation));
+    const placement=this.#workspace.placements.find(entry=>entry.id===id);
+    if(placement)this.commit(upsertTileObjectPlacement(this.#workspace,operation==='flip_horizontal'?{...placement,flipX:!placement.flipX}:{...placement,
+      quarterTurns:((placement.quarterTurns+(operation==='rotate_clockwise'?1:3))%4) as MapStampPlacement['quarterTurns']}));
+    else this.commit(transformTileObject(this.#workspace, id, operation));
   }
   exportPrefab(id: string) { return tileObjectToMapPrefab(this.#workspace, id); }
 

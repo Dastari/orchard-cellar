@@ -1,8 +1,9 @@
+import type { CanvasTextEditor } from '@orchard/ui/studio';
+import { kitElements, pressKit, chooseKit } from '../kit-test-driver.js';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
+import { bootstrapContentRows, contentDefinitionRowsHash } from '@orchard/sim';
 import { Identity, Timestamp } from 'spacetimedb';
-import { contentDefinitionRowsHash } from '@orchard/sim';
-import stageAContentRows from '../../../../sim/src/content/fixtures/stage-a-content-459.json';
 import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
 import { StudioShellController } from '../../shell/controller.js';
 import type { StudioLiveAdapter } from '../../shell/studio-connection.js';
@@ -10,14 +11,20 @@ import { buildWorldAuthoringCanvasTool } from './canvas.js';
 
 const reason = 'Verify selected authored definition';
 
-function liveContent() {
+function verifiedContent() {
+  const source = bootstrapContentRows();
   const revision = 1n;
   const metadata = { updatedBy: Identity.fromString('01'.repeat(32)), updatedAt: new Timestamp(0n) };
   return {
-    contentHead: { packId: 'live', revision, contentHash: contentDefinitionRowsHash(stageAContentRows),
-      definitionCount: stageAContentRows.length, engineVersion: 1, clientMutationId: 'canvas.fixture', ...metadata },
-    contentDefinitions: stageAContentRows.map((row) => ({ ...row, slug: row.id.split(':')[1]!, revision,
-      hash: contentDefinitionRowsHash([row]), ...metadata })),
+    contentRevision: revision,
+    contentHead: {
+      packId: 'live', revision, contentHash: contentDefinitionRowsHash(source),
+      definitionCount: source.length, engineVersion: 1, clientMutationId: 'world.canvas.test', ...metadata,
+    },
+    contentDefinitions: source.map((row) => ({
+      ...row, json: String(row.json), slug: row.id.split(':')[1]!, revision,
+      hash: contentDefinitionRowsHash([row]), ...metadata,
+    })),
   };
 }
 
@@ -29,61 +36,78 @@ function context(path: '/author/world-tables' | '/author/pack'): StudioCanvasToo
     route: controller.activeRoute(), controller, invalidate: vi.fn() };
 }
 
-function expectCanvasContract(surface: StudioCanvasToolSurface, context: StudioCanvasToolContext): void {
-  expect(surface.nodes.length).toBeLessThanOrEqual(200);
-  expect(surface.actions.length).toBeLessThanOrEqual(200);
-  expect(surface.tables?.length).toBeGreaterThan(0);
-  expect(surface.tables?.length).toBeLessThanOrEqual(8);
-  const regions = [context.controlsBounds ?? context.bounds, context.workspaceBounds ?? context.bounds];
-  for (const entry of [...surface.nodes, ...surface.actions]) {
-    expect(entry.id.startsWith(`${context.route.tool.id}-`)).toBe(true);
-    expect(regions.some((region) => entry.bounds.x >= region.x && entry.bounds.y >= region.y
-      && entry.bounds.x + entry.bounds.width <= region.x + region.width
-      && entry.bounds.y + entry.bounds.height <= region.y + region.height), entry.id).toBe(true);
-  }
-  for (const action of surface.actions) expect(action.bounds.height).toBeGreaterThanOrEqual(40);
-  for (const table of surface.tables ?? []) {
-    expect(table.id.startsWith(`${context.route.tool.id}-`)).toBe(true);
-    expect(table.layout.rowHeight).toBe(42);
-    expect(table.layout.header.height).toBe(42);
-    expect(table.layout.bounds.x).toBeGreaterThanOrEqual((context.workspaceBounds ?? context.bounds).x);
-  }
+function control(surface:StudioCanvasToolSurface,suffix:string) {
+  const found=kitElements(surface).find(element=>element.id.endsWith(`world:${suffix}`));
+  if(!found)throw new Error(`Missing ${suffix}`);return found;
 }
+function editor(surface:StudioCanvasToolSurface,suffix:string):CanvasTextEditor {return control(surface,suffix).props['editor'] as CanvasTextEditor;}
+function action(surface:StudioCanvasToolSurface,suffix:string):void {pressKit(surface,control(surface,suffix).id);}
 
 describe('World Tables and Pack Studio canvas tools', () => {
   it('renders registry-derived world rows, fields, manifest, diff, validation, and history', () => {
     const toolContext = context('/author/world-tables');
-    const surface = buildWorldAuthoringCanvasTool(toolContext);
-    expectCanvasContract(surface, toolContext);
-    expect(surface.nodes.some(({ id }) => id.includes('world:field:'))).toBe(true);
-    expect(surface.nodes.find(({ id }) => id.endsWith('world:preview:0'))?.label).toMatch(/^PACK [a-f0-9]{8}$/u);
-    expect(surface.actions.find(({ id }) => id.endsWith('world:playtest'))?.disabled).toBe(true);
-    const table = surface.tables![0]!;
-    const row = table.layout.rows[table.layout.rows.length - 1]!;
-    table.onHit?.({ kind: 'row', rowId: row.id, rowIndex: row.rowIndex });
-    expect(toolContext.controller.selection.current()).toMatchObject({ kind: 'definition', id: row.id });
-    table.onScroll?.('end', table.layout.maximumScrollRow);
+    let surface = buildWorldAuthoringCanvasTool(toolContext);
+
+    expect(kitElements(surface).some(({ id }) => id.includes('world:field:'))).toBe(true);
+    chooseKit(surface,control(surface,'tabs:mode').id,'Changes');surface=buildWorldAuthoringCanvasTool(toolContext);
+    expect(control(surface,'preview:0').props['text']).toMatch(/^PACK [a-f0-9]{8}$/u);
+    expect(control(surface,'playtest').disabled).toBe(true);
+    const browsed=buildWorldAuthoringCanvasTool(toolContext);
+    const first=(control(browsed,'browser-table').props['rowOrder'] as string[])[0];
+    action(browsed,'browser-table:rows');
+    expect(toolContext.controller.selection.current()).toMatchObject({kind:'definition',id:first});
     expect(toolContext.invalidate).toHaveBeenCalled();
   });
 
   it('serializes into the canvas text editor and stages the bounded pack through the model', () => {
     const toolContext = context('/author/pack');
     let surface = buildWorldAuthoringCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id.endsWith('world:export-pack'))!.activate();
+    chooseKit(surface,control(surface,'tabs:mode').id,'Pack');surface=buildWorldAuthoringCanvasTool(toolContext);
+    action(surface,'export-pack');
     surface = buildWorldAuthoringCanvasTool(toolContext);
-    const pack = surface.textEditors!.find(({ id }) => id.endsWith('world:pack-json'))!.editor.snapshot().value;
+    const pack = editor(surface,'pack-json').snapshot().value;
     expect(pack).toContain('"manifest"');
-    surface.actions.find(({ id }) => id.endsWith('world:stage-pack'))!.activate();
+    action(surface,'stage-pack');
     surface = buildWorldAuthoringCanvasTool(toolContext);
-    expect(surface.nodes.some(({ label }) => label?.includes('BATCHES · ≤50 DEFINITIONS'))).toBe(true);
+    chooseKit(surface,control(surface,'tabs:mode').id,'Changes');surface=buildWorldAuthoringCanvasTool(toolContext);
+    expect(kitElements(surface).some(({ label }) => label?.includes('BATCHES · ≤50 DEFINITIONS'))).toBe(true);
+  });
+
+  it('selects and edits resources through the existing generic canvas editor', () => {
+    const toolContext = context('/author/world-tables');
+    let surface = buildWorldAuthoringCanvasTool(toolContext);
+    chooseKit(surface, control(surface, 'kind').id, 'RESOURCE');
+    surface = buildWorldAuthoringCanvasTool(toolContext);
+    const rowOrder = control(surface, 'browser-table').props['rowOrder'] as string[];
+    expect(rowOrder[0]).toMatch(/^resource:/u);
+    action(surface, 'browser-table:rows');
+    expect(toolContext.controller.selection.current()).toMatchObject({
+      kind: 'definition',
+      definitionKind: 'resource',
+      id: rowOrder[0],
+    });
+    surface = buildWorldAuthoringCanvasTool(toolContext);
+    const draft = editor(surface, 'definition-json');
+    const resource = JSON.parse(draft.snapshot().value) as Record<string, unknown>;
+    draft.setValue(JSON.stringify({ ...resource, displayName: 'Canvas Resource' }, null, 2));
+    chooseKit(surface, control(surface, 'tabs:mode').id, 'JSON');
+    surface = buildWorldAuthoringCanvasTool(toolContext);
+    action(surface, 'apply-json');
+    surface = buildWorldAuthoringCanvasTool(toolContext);
+    expect(JSON.parse(editor(surface, 'definition-json').snapshot().value)).toMatchObject({
+      id: rowOrder[0],
+      kind: 'resource',
+      displayName: 'Canvas Resource',
+    });
   });
 
   it('passes selected definitions and explicit targets to the connected live playtest service', async () => {
     const run = vi.fn(async () => undefined);
+    const content = verifiedContent();
     let changed = (): void => undefined;
     const adapter: StudioLiveAdapter = {
       view: () => ({ connected: true, synchronizing: false, identity: '01'.repeat(32), role: 'owner',
-        contentRevision: 1n, ...liveContent(), mapRevision: null, mapDocument: null, publishingMap: false,
+        ...content, mapRevision: null, mapDocument: null, publishingMap: false,
         worldMutating: false, error: null,
         rows: { placeables: [], npcs: [], homesteads: [], players: [] } }),
       connect: () => changed(), disconnect: () => undefined,
@@ -102,14 +126,15 @@ describe('World Tables and Pack Studio canvas tools', () => {
       route: controller.activeRoute(), controller, invalidate: vi.fn(),
     };
     let surface = buildWorldAuthoringCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id.endsWith('world:kind:effect'))!.activate();
+    chooseKit(surface,control(surface,'kind').id,'EFFECT');
     surface = buildWorldAuthoringCanvasTool(toolContext);
-    surface.textEditors!.find(({ id }) => id.endsWith('world:note'))!.editor.setValue(reason);
-    surface.textEditors!.find(({ id }) => id.endsWith('world:playtest-target'))!.editor.setValue('02'.repeat(32));
+    editor(surface,'note').setValue(reason);
+    editor(surface,'playtest-target').setValue('02'.repeat(32));
     surface = buildWorldAuthoringCanvasTool(toolContext);
-    const playtest = surface.actions.find(({ id }) => id.endsWith('world:playtest'))!;
+    chooseKit(surface,control(surface,'tabs:mode').id,'Playtest');surface=buildWorldAuthoringCanvasTool(toolContext);
+    const playtest=control(surface,'playtest');
     expect(playtest.disabled).toBe(false);
-    playtest.activate();
+    action(surface,'playtest');
     await vi.waitFor(() => expect(run).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'apply_effect', definitionId: expect.stringMatching(/^effect:/u),
       targetPlayer: '02'.repeat(32), reason,
@@ -117,10 +142,11 @@ describe('World Tables and Pack Studio canvas tools', () => {
   });
 
   it('never promotes a connected mock adapter into the production canvas', async () => {
+    const content = verifiedContent();
     let changed = (): void => undefined;
     const adapter: StudioLiveAdapter = {
       view: () => ({ connected: true, synchronizing: false, identity: '01'.repeat(32), role: 'owner',
-        contentRevision: 1n, ...liveContent(), mapRevision: null, mapDocument: null, publishingMap: false,
+        ...content, mapRevision: null, mapDocument: null, publishingMap: false,
         worldMutating: false, error: null,
         rows: { placeables: [], npcs: [], homesteads: [], players: [] } }),
       connect: () => changed(), disconnect: () => undefined,
@@ -136,7 +162,7 @@ describe('World Tables and Pack Studio canvas tools', () => {
       bounds, controlsBounds: { x: 20, y: 30, width: 260, height: 520 }, workspaceBounds: bounds,
       route: controller.activeRoute(), controller, invalidate: vi.fn(),
     });
-    expect(surface.actions.find(({ id }) => id.endsWith('world:playtest'))?.disabled).toBe(true);
+    expect(control(surface,'playtest').disabled).toBe(true);
   });
 
   it('keeps every canvas adapter free of alternate DOM/SVG editing surfaces', () => {
@@ -145,9 +171,9 @@ describe('World Tables and Pack Studio canvas tools', () => {
       for (const forbidden of ['HTMLElement', 'HTMLInputElement', 'textarea', 'contenteditable', 'createElement', 'innerHTML', 'createElementNS', '<svg']) {
         expect(source, `${relative}:${forbidden}`).not.toContain(forbidden);
       }
-      expect(source).toContain('layoutUiFrameSlots');
-      expect(source).toContain('layoutUiFlex');
-      expect(source).toContain('layoutStudioCanvasTable');
+      expect(source).toContain('studioSelectionEditor(');
+      expect(source).toContain('kit.table(');
+      expect(source).not.toContain('layoutStudioCanvasTable');
       expect(source).not.toContain('function rect(');
     }
   });

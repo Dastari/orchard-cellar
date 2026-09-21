@@ -1,21 +1,13 @@
+import { StudioAssetPreview } from '../../shell/asset-preview.js';
 import {
   bootstrapContentDefinitions,
-  parseContentDefinition,
   type SupportedContentDefinition,
   type TilesetContentDefinition,
 } from '@orchard/sim';
-import { CanvasTextEditor } from '@orchard/ui';
+import { CanvasTextEditor, ui, uiFixed, type UiTone } from '@orchard/ui/studio';
 import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
-import {
-  canvasAction,
-  canvasLabel,
-  canvasPanel,
-  canvasParts,
-  canvasRows,
-  canvasSlots,
-  finishCanvasTool,
-  reportCanvasError,
-} from '../build-canvas-common.js';
+import { studioLiveContentSnapshot, studioLiveContentStatusSurface } from '../../shell/live-content-readiness.js';
+
 import { createTileEditorModel, type TileEditorAccess, type TileEditorModel } from './model.js';
 
 interface TilesCanvasState {
@@ -24,39 +16,15 @@ interface TilesCanvasState {
   readonly tilesets: readonly TilesetContentDefinition[];
   readonly json: CanvasTextEditor;
   selectedAudition: string | null;
+  selectedFixture: string | null;
   mutationSequence: number;
-}
-
-type LiveContentReadiness = 'offline' | 'loading' | 'unavailable' | 'ready';
-
-function liveContentReadiness(context: StudioCanvasToolContext): LiveContentReadiness {
-  const live = context.controller.liveAdapter();
-  if (live === null) return 'offline';
-  const view = live.view();
-  if (view.error !== null || (!view.connected && !view.synchronizing)) return 'unavailable';
-  if (view.synchronizing || !view.connected
-    || view.contentHead === undefined || view.contentDefinitions === undefined) return 'loading';
-  return view.contentHead === null || view.contentDefinitions.length === 0 ? 'unavailable' : 'ready';
-}
-
-function contentStatusSurface(
-  context: StudioCanvasToolContext,
-  readiness: Exclude<LiveContentReadiness, 'offline' | 'ready'>,
-): StudioCanvasToolSurface {
-  const parts = canvasParts();
-  const controls = canvasPanel(parts, 'content-status-controls', context.controlsBounds ?? context.bounds, 'thin', 3);
-  const workspace = canvasPanel(parts, 'content-status-workspace', context.workspaceBounds ?? context.bounds, 'thin', 3);
-  canvasLabel(parts, 'content-status-title', readiness === 'loading' ? 'LOADING LIVE CONTENT' : 'LIVE CONTENT UNAVAILABLE',
-    controls, { heading: true, tone: readiness === 'loading' ? undefined : 'danger' });
-  canvasLabel(parts, 'content-status-detail', readiness === 'loading'
-    ? 'WAITING FOR VERIFIED LIVE CONTENT' : 'NO VERIFIED LIVE CONTENT HEAD IS AVAILABLE', workspace, { field: true });
-  return finishCanvasTool(context, parts);
+  tab: string;
+  readonly art: StudioAssetPreview;
 }
 
 function definitionsFrom(context: StudioCanvasToolContext): readonly SupportedContentDefinition[] {
-  const live = context.controller.liveAdapter();
-  if (live === null) return bootstrapContentDefinitions();
-  return Object.freeze(live.view().contentDefinitions!.map((row) => parseContentDefinition(row.kind, row.json)));
+  const snapshot = studioLiveContentSnapshot(context.controller.liveAdapter());
+  return snapshot.mode === 'offline' ? bootstrapContentDefinitions() : snapshot.definitions ?? [];
 }
 
 function accessFrom(context: StudioCanvasToolContext): TileEditorAccess {
@@ -86,120 +54,83 @@ function createState(context: StudioCanvasToolContext): TilesCanvasState {
   if (tilesets.length === 0) throw new Error('tile_editor_no_tilesets');
   const model = modelFor(context, tilesets[0]!, definitions);
   return { model, definitions, tilesets, json: new CanvasTextEditor({ maxLength: 32_000, multiline: true }),
-    selectedAudition: null, mutationSequence: 0 };
+    selectedAudition: null, selectedFixture: null, mutationSequence: 0, tab: 'fixtures', art:new StudioAssetPreview(context.invalidate) };
 }
 
 export function buildTilesCanvasTool(context: StudioCanvasToolContext): StudioCanvasToolSurface {
-  const readiness = liveContentReadiness(context);
-  if (readiness === 'loading' || readiness === 'unavailable') return contentStatusSurface(context, readiness);
-  const view = context.controller.liveAdapter()?.view();
-  const sourceKey = view === undefined ? 'offline' : `${view.identity ?? 'anonymous'}:${view.contentHead!.revision}`;
-  const state = context.controller.toolState(`tiles-canvas:${sourceKey}`, () => createState(context));
+  const content = studioLiveContentSnapshot(context.controller.liveAdapter());
+  if (content.mode === 'loading' || content.mode === 'unavailable') {
+    return studioLiveContentStatusSurface(content);
+  }
+  const state = context.controller.toolState(`tiles-canvas:${content.contentKey}`, () => createState(context));
   const snapshot = state.model.snapshot();
   if (state.json.snapshot().value.length === 0) state.json.setValue(JSON.stringify(snapshot.definition, null, 2));
-  const parts = canvasParts();
-  const controlsBody = context.controlsBounds ?? context.bounds;
-  const workspaceBody = context.workspaceBounds ?? context.bounds;
-  const shell = canvasSlots(controlsBody, [
-    { id: 'header', minSize: { width: 0, height: 40 }, main: { mode: 'fixed', size: 40 } },
-    { id: 'toolbar', minSize: { width: 0, height: 128 }, main: { mode: 'fixed', size: 128 } },
-    { id: 'content', minSize: { width: 0, height: 80 }, main: { mode: 'grow', min: 80 } },
-  ], { gap: 6 });
-  const header = canvasSlots(shell['header']!, [
-    { id: 'title', minSize: { width: 80, height: 40 }, main: { mode: 'grow', min: 80 } },
-    { id: 'previous', minSize: { width: 44, height: 40 }, main: { mode: 'fixed', size: 44 } },
-    { id: 'next', minSize: { width: 44, height: 40 }, main: { mode: 'fixed', size: 44 } },
-  ], { direction: 'row', gap: 4 });
-  canvasLabel(parts, 'title', `${snapshot.definition.familyId.toUpperCase()} TILESET · ${snapshot.access.toUpperCase()}`,
-    header['title']!, { heading: true });
-  const choose = (offset: number): void => {
-    const index = state.tilesets.findIndex(({ id }) => id === state.model.snapshot().definition.id);
-    const next = state.tilesets[(index + offset + state.tilesets.length) % state.tilesets.length]!;
-    state.model = modelFor(context, next, state.definitions); state.json.setValue(JSON.stringify(next, null, 2));
-    state.selectedAudition = null; context.invalidate();
+  const report=(title:string,error:unknown)=>{context.controller.notifications.push('error',title,error instanceof Error?error.message:String(error));context.invalidate();};
+  const button=(id:string,label:string,onPress:()=>void,disabled=false,tone:UiTone='primary')=>ui.button({id:`tiles-${id}`,label,disabled,tone,layout:{width:'grow'},onPress:()=>{try{onPress();}catch(error){report(label,error);}}});
+  const choose=(offset:number)=>{
+    const index=state.tilesets.findIndex(({id})=>id===state.model.snapshot().definition.id),next=state.tilesets[(index+offset+state.tilesets.length)%state.tilesets.length]!;
+    state.model=modelFor(context,next,state.definitions);state.json.setValue(JSON.stringify(next,null,2));state.selectedAudition=null;context.invalidate();
   };
-  canvasAction(parts, 'previous', 'Previous tileset family', header['previous']!, () => choose(-1), { glyph: '←' });
-  canvasAction(parts, 'next', 'Next tileset family', header['next']!, () => choose(1), { glyph: '→' });
-  const toolbar = canvasSlots(shell['toolbar']!, [
-    { id: 'projection', minSize: { width: 84, height: 40 }, main: { mode: 'grow', min: 84 } },
-    { id: 'datum-down', minSize: { width: 44, height: 40 }, main: { mode: 'fixed', size: 44 } },
-    { id: 'datum-up', minSize: { width: 44, height: 40 }, main: { mode: 'fixed', size: 44 } },
-    { id: 'json', minSize: { width: 52, height: 40 }, main: { mode: 'fit', preferred: 82, min: 52 } },
-    { id: 'apply', minSize: { width: 52, height: 40 }, main: { mode: 'fit', preferred: 82, min: 52 } },
-    { id: 'publish', minSize: { width: 64, height: 40 }, main: { mode: 'fit', preferred: 100, min: 64 } },
-  ], { direction: 'row', gap: 4, wrap: true });
-  const readOnly = snapshot.access === 'read_only';
-  canvasAction(parts, 'projection', 'Toggle raised or interior projection', toolbar['projection']!, () => {
-    state.model.setProjection(snapshot.definition.projectionStyle === 'raised' ? 'interior' : 'raised',
-      snapshot.definition.baseDatum, snapshot.definition.faceClearanceRows); context.invalidate();
-  }, { glyph: `PROJECTION ${snapshot.definition.projectionStyle.toUpperCase()}`, disabled: readOnly });
-  canvasAction(parts, 'datum-down', 'Lower base datum', toolbar['datum-down']!, () => {
-    state.model.setProjection(snapshot.definition.projectionStyle, snapshot.definition.baseDatum - 1,
-      snapshot.definition.faceClearanceRows); context.invalidate();
-  }, { glyph: '−', disabled: readOnly });
-  canvasAction(parts, 'datum-up', 'Raise base datum', toolbar['datum-up']!, () => {
-    state.model.setProjection(snapshot.definition.projectionStyle, snapshot.definition.baseDatum + 1,
-      snapshot.definition.faceClearanceRows); context.invalidate();
-  }, { glyph: '+', disabled: readOnly });
-  canvasAction(parts, 'json', 'Edit tileset JSON', toolbar['json']!, () => state.json.focus(),
-    { role: 'textbox', glyph: '{ }', disabled: readOnly });
-  canvasAction(parts, 'apply', 'Apply tileset JSON', toolbar['apply']!, () => {
-    try { state.model.replaceDefinition(state.json.snapshot().value); context.invalidate(); }
-    catch (error) { reportCanvasError(context, 'Tileset rejected', error); }
-  }, { glyph: 'APPLY', disabled: readOnly });
-  canvasAction(parts, 'publish', 'Publish tileset family', toolbar['publish']!, () => {
-    state.mutationSequence += 1;
-    void state.model.publish(`tiles.canvas.${state.mutationSequence}`, 'Canvas tileset edit')
-      .then(() => context.controller.notifications.push('success', 'Tileset published', snapshot.definition.id))
-      .catch((error: unknown) => reportCanvasError(context, 'Tileset publish failed', error)).finally(context.invalidate);
-  }, { glyph: 'PUBLISH', disabled: !snapshot.canPublish, tone: 'success' });
-
-  const auditions = canvasPanel(parts, 'auditions-panel', shell['content']!, 'thin', 3);
-  const fixtures = workspaceBody;
-  const auditionSlots = canvasSlots(auditions, [
-    { id: 'title', minSize: { width: 0, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'rows', minSize: { width: 0, height: 40 }, main: { mode: 'grow', min: 38 } },
-    { id: 'status', minSize: { width: 0, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 4 });
-  canvasLabel(parts, 'auditions-title', `FRAME AUDITION · ${snapshot.auditions.length}`, auditionSlots['title']!, { heading: true });
-  const auditionRows = canvasRows(auditionSlots['rows']!, snapshot.auditions.length, 40, 4);
-  snapshot.auditions.slice(0, auditionRows.length).forEach((entry, index) => canvasAction(parts, `audition-${entry.key}`,
-    `Inspect frame audition ${entry.key}`, auditionRows[index]!, () => { state.selectedAudition = entry.key; context.invalidate(); },
-    { role: 'option', glyph: `${entry.key} · ${entry.assetId} #${entry.frames.join(',')}`, active: state.selectedAudition === entry.key }));
-  canvasLabel(parts, 'validation', `${snapshot.validation.errors.length} ERRORS · ${snapshot.validation.warnings.length} WARNINGS · DATUM ${snapshot.definition.baseDatum}`,
-    auditionSlots['status']!, { field: true, tone: snapshot.validation.valid ? 'success' : 'danger' });
-  const fixtureSlots = canvasSlots(fixtures, [
-    { id: 'title', minSize: { width: 0, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'rows', minSize: { width: 0, height: 42 }, main: { mode: 'grow', min: 42 } },
-  ], { gap: 4 });
-  canvasLabel(parts, 'fixtures-title', 'TERRAIN TOPOLOGY FIXTURES', fixtureSlots['title']!, { heading: true });
-  const fixtureRows = canvasRows(fixtureSlots['rows']!, snapshot.fixtures.length, 46, 5);
-  snapshot.fixtures.slice(0, fixtureRows.length).forEach((fixture, index) => canvasLabel(parts, `fixture-${fixture.id}`,
-    `${fixture.id} · ${fixture.tileX},${fixture.tileY} · ${fixture.layers.length} LAYERS`, fixtureRows[index]!, { field: true }));
-  parts.textEditors.push({ id: 'json', editor: state.json });
-  context.controller.validation.setIssues([
-    ...snapshot.validation.errors.map((issue, index) => ({ id: `tiles:error:${index}`, severity: 'error' as const, message: issue.message })),
-    ...snapshot.validation.warnings.map((issue, index) => ({ id: `tiles:warning:${index}`, severity: 'warning' as const, message: issue.message })),
+  const readOnly=snapshot.access==='read_only';
+  const controls=ui.flex({width:'grow',gap:8},[
+    ui.text('Tile family'),
+    ui.select({id:'tiles-family',label:'Tile family',value:snapshot.definition.id,
+      options:state.tilesets.map(entry=>({value:entry.id,label:entry.familyId.replaceAll('_',' ').replace(/^./u,char=>char.toUpperCase())})),
+      onChange:value=>choose(state.tilesets.findIndex(entry=>entry.id===value)-state.tilesets.findIndex(entry=>entry.id===snapshot.definition.id))}),
+    button('publish','Publish',()=>{
+      state.mutationSequence++;void state.model.publish(`tiles.canvas.${state.mutationSequence}`,'Tileset edit')
+        .then(()=>context.controller.notifications.push('success','Tileset published',snapshot.definition.id))
+        .catch((error:unknown)=>report('Tileset publish failed',error)).finally(context.invalidate);
+    },!snapshot.canPublish,'success'),
+    ui.tooltip(`${snapshot.validation.errors.length} errors · ${snapshot.validation.warnings.length} warnings`,
+      ui.text(snapshot.validation.errors.length ? `${snapshot.validation.errors.length} errors` : snapshot.validation.warnings.length ? `${snapshot.validation.warnings.length} warnings` : 'Ready',{id:'tiles-validation'})),
   ]);
-  return finishCanvasTool(context, parts, (drawing) => {
-    const target = fixtureSlots['rows']!;
-    drawing.save();
-    const fixtures = snapshot.fixtures.slice(0, 8);
-    const columns = Math.max(1, Math.min(4, fixtures.length));
-    const cellWidth = target.width / columns;
-    const cellHeight = target.height / Math.max(1, Math.ceil(fixtures.length / columns));
-    fixtures.forEach((fixture, index) => {
-      const x = target.x + index % columns * cellWidth;
-      const y = target.y + Math.floor(index / columns) * cellHeight;
-      const colors = ['#688c58', '#8f7654', '#58758c', '#77618c'];
-      fixture.layers.slice(0, 4).forEach((layer, layerIndex) => {
-        const inset = 7 + layerIndex * 5;
-        drawing.fillStyle = colors[layerIndex] ?? '#d7a95a';
-        drawing.fillRect(x + inset, y + inset, Math.max(4, cellWidth - inset * 2), Math.max(4, cellHeight - inset * 2));
-      });
-      drawing.fillStyle = '#fff3cf'; drawing.font = '11px monospace'; drawing.textAlign = 'center';
-      drawing.fillText(fixture.id.toUpperCase(), x + cellWidth / 2, y + cellHeight - 8);
-    });
-    drawing.restore();
+  const audition=ui.list({id:'tiles-auditions',label:'Frame auditions',items:snapshot.auditions,key:entry=>entry.key,rowHeight:uiFixed(48),layout:{width:'grow',height:'grow'},
+    render:entry=>ui.flex({direction:'row',width:'grow',height:'grow',gap:8},[
+      ui.flex({width:uiFixed(48),height:'grow',shrink:0},[state.art.image(entry.assetId,entry.frames[0]??0)]),
+      button(`audition-${entry.key}`,entry.key.replaceAll('_',' '),()=>{state.selectedAudition=entry.key;context.invalidate();},false,state.selectedAudition===entry.key?'success':'primary'),
+    ]),
   });
+  const fixtureColumns=Math.max(1,Math.min(4,Math.floor((context.workspaceBounds?.width??context.bounds.width)/2/160)));
+  const fixtures=ui.scrollArea({id:'tiles-fixtures',width:'grow',height:'grow',padding:8},[
+    ui.grid({columns:fixtureColumns,gap:8,rowHeight:uiFixed(104),width:'grow'},snapshot.fixtures.map(fixture=>{
+      const card=button(`fixture-${fixture.id}`,fixture.id.replaceAll('_',' '),()=>{state.selectedFixture=fixture.id;state.selectedAudition=null;context.invalidate();},false,state.selectedFixture===fixture.id?'success':'neutral');
+      card.setStyle({width:'grow',height:'grow'});
+      const label=card.label;card.setProps({label:''});card.label=label;
+      card.replaceChildren([ui.flex({width:'grow',height:'grow',gap:4},[
+        ui.stack({width:'grow',height:'grow'},fixture.layers.filter(layer=>layer.assetId).map(layer=>state.art.image(layer.assetId!,layer.frame??0,2))),
+        ui.text(fixture.id.replaceAll('_',' '),{wrap:false,align:'center',layout:{width:'grow',shrink:0}}),
+      ])]);
+      return ui.tooltip(`${fixture.id.replaceAll('_',' ')} · ${fixture.layers.length} layers · ${fixture.tileX}, ${fixture.tileY}`,card,{width:'grow',height:'grow'});
+    })),
+  ]);
+  const workspace=ui.tabs({id:'tiles-tabs',label:'Tileset editor',value:state.tab,onChange:tab=>{state.tab=tab;context.invalidate();},tabs:[
+    {id:'fixtures',label:'Topology',content:fixtures},
+    {id:'auditions',label:'Frames',content:audition},
+    {id:'json',label:'JSON',content:ui.scrollArea({width:'grow',height:'grow',gap:4},[
+      ui.textArea({id:'tiles-json',label:'Tileset JSON',editor:state.json,rows:24,lineCount:true,resizable:true,readOnly}),
+      button('apply','Apply JSON',()=>{state.model.replaceDefinition(state.json.snapshot().value);context.invalidate();},readOnly,'success'),
+    ])},
+  ]});
+  context.controller.validation.setIssues([
+    ...snapshot.validation.errors.map((issue,index)=>({id:`tiles:error:${index}`,severity:'error' as const,message:issue.message})),
+    ...snapshot.validation.warnings.map((issue,index)=>({id:`tiles:warning:${index}`,severity:'warning' as const,message:issue.message})),
+  ]);
+  const selected=snapshot.auditions.find(entry=>entry.key===state.selectedAudition);
+  const fixture=snapshot.fixtures.find(entry=>entry.id===state.selectedFixture);
+  const inspector=ui.flex({width:'grow',gap:8},[
+    ui.text('Projection'),
+    ui.select({id:'tiles-projection',label:'Projection',value:snapshot.definition.projectionStyle,options:['raised','interior'].map(value=>({value,label:value.replace(/^./u,char=>char.toUpperCase())})),onChange:value=>{if(!readOnly){state.model.setProjection(value as 'raised'|'interior',snapshot.definition.baseDatum,snapshot.definition.faceClearanceRows);context.invalidate();}}}),
+    ui.text(`Datum ${snapshot.definition.baseDatum}`),
+    ui.flex({direction:'row',width:'grow',gap:4},[
+      button('datum-down','-',()=>{state.model.setProjection(snapshot.definition.projectionStyle,snapshot.definition.baseDatum-1,snapshot.definition.faceClearanceRows);context.invalidate();},readOnly),
+      button('datum-up','+',()=>{state.model.setProjection(snapshot.definition.projectionStyle,snapshot.definition.baseDatum+1,snapshot.definition.faceClearanceRows);context.invalidate();},readOnly),
+    ]),
+    ...(selected?[ui.text(selected.key.replaceAll('_',' ')),ui.flex({width:'grow',height:uiFixed(96)},[state.art.image(selected.assetId,selected.frames[0]??0,4)]),ui.tooltip(selected.assetId,ui.text(`${selected.frames.length} frames`))]:[]),
+    ...(fixture?[ui.separator(),ui.text(fixture.id.replaceAll('_',' ')),...fixture.layers.filter(layer=>layer.assetId).map(layer=>ui.tooltip(layer.assetId!,ui.flex({width:'grow',gap:4},[
+      ui.text(layer.semanticRole,{wrap:true}),ui.flex({width:'grow',height:uiFixed(48)},[state.art.image(layer.assetId!,layer.frame??0,2)]),
+    ])))]:[]),
+  ]);
+
+  return {kit:{controls,workspace,inspector},lifecycle:{key:'tiles-canvas',dispose:()=>{state.art.dispose();context.controller.releaseToolState('tiles-canvas',state);}}};
 }

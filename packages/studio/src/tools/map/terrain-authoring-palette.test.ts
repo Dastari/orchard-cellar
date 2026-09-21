@@ -29,9 +29,7 @@ function renamedTileset(
   const transition = (entry: TilesetContentDefinition['transitions']['ramp']) => entry.available
     ? { ...entry, assetId } : entry;
   return {
-    ...source,
-    id: `tileset:${familyId}`,
-    familyId,
+    ...source, id: `tileset:${familyId}`, familyId,
     roleFrames: source.roleFrames.map((entry) => ({ ...entry, assetId })),
     faceProfiles: source.faceProfiles.map((profile) => ({
       ...profile,
@@ -183,28 +181,19 @@ describe('terrain authoring palette data', () => {
     const source = bootstrapTilesetDefinitions().find(({ familyId }) => familyId === 'stone_1')!;
     const definition = { ...renamedTileset(source, 'orchard_moss'), surfaceFamily: 'grass_2' };
     const palette = liveTerrainAuthoringPalette([definition], '17:content-a');
-
     expect(terrainCliffFamilyChoices('', palette)).toEqual([
-      expect.objectContaining({
-        familyId: 'orchard_moss',
-        definitionId: 'tileset:orchard_moss',
-        preview: expect.objectContaining({ assetId: 'tile_cf_orchard_moss' }),
-      }),
+      expect.objectContaining({ familyId: 'orchard_moss', definitionId: 'tileset:orchard_moss',
+        preview: expect.objectContaining({ assetId: 'tile_cf_orchard_moss' }) }),
     ]);
-    expect(terrainSurfaceFamilyChoices('', palette).map(({ familyId }) => familyId))
-      .toEqual(['grass_2']);
+    expect(terrainSurfaceFamilyChoices('', palette).map(({ familyId }) => familyId)).toEqual(['grass_2']);
     expect(palette.resolver.tileSetFor('orchard_moss')?.assetId).toBe('tile_cf_orchard_moss');
     expect(palette.resolver.tileSetFor('stone_1')).toBeNull();
-
     const document = applyMapEdit({ ...raisedFixture(), defaultCliffFamily: 'orchard_moss' }, {
-      kind: 'paint',
-      points: [{ tileX: 2, tileY: 2 }, { tileX: 3, tileY: 2 },
+      kind: 'paint', points: [{ tileX: 2, tileY: 2 }, { tileX: 3, tileY: 2 },
         { tileX: 2, tileY: 3 }, { tileX: 3, tileY: 3 }],
       patch: { cliffFamily: 'orchard_moss' },
     }).document;
-    const choices = exactTerrainOverrideChoicesAt({
-      document, tileX: 2, tileY: 2, palette,
-    });
+    const choices = exactTerrainOverrideChoicesAt({ document, tileX: 2, tileY: 2, palette });
     expect(choices.length).toBeGreaterThan(0);
     expect(choices.every(({ familyId, assetId }) => familyId === 'orchard_moss'
       && assetId === 'tile_cf_orchard_moss')).toBe(true);
@@ -212,10 +201,10 @@ describe('terrain authoring palette data', () => {
 
   it('fails closed for missing and retired live families and keys derived state by head', () => {
     const source = bootstrapTilesetDefinitions().find(({ familyId }) => familyId === 'stone_1')!;
-    const retired = { ...renamedTileset(source, 'stone_1'), retired: true };
-    const first = liveTerrainAuthoringPalette([retired], '17:content-a');
+    const first = liveTerrainAuthoringPalette(
+      [{ ...renamedTileset(source, 'stone_1'), retired: true }], '17:content-a',
+    );
     const next = liveTerrainAuthoringPalette([renamedTileset(source, 'orchard_moss')], '18:content-b');
-
     expect(first.contentKey).not.toBe(next.contentKey);
     expect(first.definitions).toEqual([]);
     expect(terrainCliffFamilyChoices('', first)).toEqual([]);

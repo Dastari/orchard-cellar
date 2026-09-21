@@ -1,0 +1,20 @@
+import { expect, it } from 'vitest';
+import { UiRoot } from '../runtime/root.js';
+import { uiHudTooltip } from './hud-tooltip.js';
+it('wraps long labels inside the viewport, tracks its anchor, and hides stale text', () => {
+  let text: string | null = 'CRAFTING';
+  let anchor = { x: 160, y: 170 };
+  const root = new UiRoot({ scale: 1 }); root.resize(320, 200);
+  const tooltip = uiHudTooltip({text,anchor}); root.mount(tooltip); root.arrange();
+  const frame = root.entries().find(entry => entry.element.id === 'hud.tooltip.frame')!.element;
+  const compactHeight = frame.rect.height;
+  expect(frame.rect.width).toBeLessThan(160);
+  expect(frame.rect.y + frame.rect.height).toBe(170);
+  text = 'A very long contextual label that must wrap rather than lose important words at a narrow viewport edge.';
+  root.resize(160, 200); anchor = { x: 159, y: 190 }; tooltip.updateHudTooltip({text,anchor}); root.arrange();
+  expect(frame.rect.height).toBeGreaterThan(compactHeight);
+  expect(frame.rect.x).toBeGreaterThanOrEqual(0);
+  expect(frame.rect.x + frame.rect.width).toBeLessThanOrEqual(160);
+  expect(frame.rect.y + frame.rect.height).toBeLessThanOrEqual(200);
+  text = null; tooltip.updateHudTooltip({text,anchor}); root.arrange(); expect(frame.visible).toBe(false); root.dispose();
+});

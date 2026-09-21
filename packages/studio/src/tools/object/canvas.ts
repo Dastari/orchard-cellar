@@ -1,19 +1,13 @@
+import { studioActionBar, studioIconAction, studioLibraryDrawer } from '../../shell/workspace-controls.js';
+import { StudioAssetPreview } from '../../shell/asset-preview.js';
+import { buildAssetPalette, filterAssetPalette, type AssetPaletteItem } from './asset-palette.js';
 import {
   CURRENT_BEHAVIOUR_ENGINE_VERSION,
   type ObjectContentDefinition,
 } from '@orchard/sim';
-import { CanvasTextEditor } from '@orchard/ui';
+import { CanvasTextEditor, ui, uiFixed, loadGeneratedAssetCatalog, selectAtlasFrame, type UiTone, type UiElement } from '@orchard/ui/studio';
 import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
-import {
-  canvasAction,
-  canvasLabel,
-  canvasPanel,
-  canvasParts,
-  canvasRows,
-  canvasSlots,
-  finishCanvasTool,
-  reportCanvasError,
-} from '../build-canvas-common.js';
+
 import {
   objectBehaviourAccessForConnection,
   objectBehaviourPublishAdapterFromConnection,
@@ -38,6 +32,13 @@ interface ObjectCanvasState {
   graphNodeId: string | null;
   nextPlacement: number;
   mutationSequence: number;
+  readonly art: StudioAssetPreview;
+  readonly query: CanvasTextEditor;
+  palette: readonly AssetPaletteItem[];
+  catalogStarted: boolean;
+  selectedAsset: string | null;
+  prefabTab: string;
+  behaviourTab: string;
 }
 
 function createState(context: StudioCanvasToolContext): ObjectCanvasState {
@@ -65,213 +66,99 @@ function createState(context: StudioCanvasToolContext): ObjectCanvasState {
     }, null),
     behaviour,
     json: new CanvasTextEditor({ maxLength: 32_000, multiline: true }),
-    mode: 'prefab', graphNodeId: null, nextPlacement: 1, mutationSequence: 0,
+    art:new StudioAssetPreview(context.invalidate),query:new CanvasTextEditor({maxLength:120}),palette:[],catalogStarted:false,selectedAsset:null,
+    mode: 'prefab', graphNodeId: null, nextPlacement: 1, mutationSequence: 0, prefabTab:'spatial', behaviourTab:'graph',
   };
 }
 
-function prefabSurface(context: StudioCanvasToolContext, state: ObjectCanvasState,
-  parts: ReturnType<typeof canvasParts>, controlsBounds: ReturnType<typeof canvasPanel>,
-  workspaceBounds: ReturnType<typeof canvasPanel>): void {
-  const model = state.prefab;
-  const workspace = model.workspace();
-  const shell = canvasSlots(controlsBounds, [
-    { id: 'toolbar', minSize: { width: 0, height: 128 }, main: { mode: 'fixed', size: 128 } },
-    { id: 'layers', minSize: { width: 0, height: 90 }, main: { mode: 'grow', min: 90 } },
-  ], { gap: 6 });
-  const tools = canvasSlots(shell['toolbar']!, [
-    { id: 'stamp', minSize: { width: 40, height: 40 }, main: { mode: 'fit', preferred: 64, min: 40 } },
-    { id: 'group', minSize: { width: 40, height: 40 }, main: { mode: 'fit', preferred: 64, min: 40 } },
-    { id: 'left', minSize: { width: 44, height: 40 }, main: { mode: 'fixed', size: 44 } },
-    { id: 'right', minSize: { width: 44, height: 40 }, main: { mode: 'fixed', size: 44 } },
-    { id: 'rotate', minSize: { width: 44, height: 40 }, main: { mode: 'fixed', size: 44 } },
-    ...OBJECT_STUDIO_LAYERS.map((id) => ({ id, minSize: { width: 64, height: 40 }, main: { mode: 'grow' as const, min: 64 } })),
-  ], { direction: 'row', gap: 4, wrap: true });
-  canvasAction(parts, 'prefab-stamp', 'Stamp sample object piece', tools['stamp']!, () => {
-    const ordinal = state.nextPlacement++;
-    model.stamp({ id: `sample-${ordinal}`, assetId: 0, assetName: 'studio_sample',
-      visual: { kind: 'state', name: 'default', frameIndex: 0 }, tileX: 3 + ordinal, tileY: 4,
-      elevation: 0, layer: model.activeLayer(), quarterTurns: 0, flipX: false });
-    context.invalidate();
-  }, { glyph: '+ STAMP', tone: 'success' });
-  canvasAction(parts, 'prefab-group', 'Group selected pieces', tools['group']!, () => {
-    if (model.selectedIds().length === 0) return;
-    model.group(`group_${model.workspace().revision + 1}`, 'Canvas Group'); context.invalidate();
-  }, { glyph: 'GROUP', disabled: model.selectedIds().length === 0 });
-  const selected = model.selectedIds()[0];
-  canvasAction(parts, 'prefab-left', 'Move selected piece left', tools['left']!, () => {
-    if (selected !== undefined) model.move(selected, -1, 0); context.invalidate();
-  }, { glyph: '←', disabled: selected === undefined });
-  canvasAction(parts, 'prefab-right', 'Move selected piece right', tools['right']!, () => {
-    if (selected !== undefined) model.move(selected, 1, 0); context.invalidate();
-  }, { glyph: '→', disabled: selected === undefined });
-  canvasAction(parts, 'prefab-rotate', 'Rotate selected piece clockwise', tools['rotate']!, () => {
-    if (selected !== undefined) model.transform(selected, 'rotate_clockwise'); context.invalidate();
-  }, { glyph: '↻', disabled: selected === undefined });
-  OBJECT_STUDIO_LAYERS.forEach((layer) => canvasAction(parts, `prefab-layer-${layer}`, `Target ${layer} layer`, tools[layer]!, () => {
-    model.selectLayer(layer); context.invalidate();
-  }, { role: 'tab', glyph: layer.toUpperCase(), active: model.activeLayer() === layer }));
-
-  const layerBody = canvasPanel(parts, 'prefab-layers-panel', shell['layers']!, 'thin', 3);
-  const pieceBody = workspaceBounds;
-  const layerSlots = canvasSlots(layerBody, [
-    { id: 'title', minSize: { width: 0, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'rows', minSize: { width: 0, height: 40 }, main: { mode: 'grow', min: 36 } },
-    { id: 'status', minSize: { width: 0, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 4 });
-  canvasLabel(parts, 'prefab-layers-title', 'PREFAB LAYERS', layerSlots['title']!, { heading: true });
-  const layerRows = canvasRows(layerSlots['rows']!, OBJECT_STUDIO_LAYERS.length, 40, 4);
-  OBJECT_STUDIO_LAYERS.slice(0, layerRows.length).forEach((layer, index) => canvasAction(parts,
-    `prefab-visible-${layer}`, `${model.layerVisible(layer) ? 'Hide' : 'Show'} ${layer}`,
-    layerRows[index]!, () => { model.toggleLayer(layer); context.invalidate(); },
-    { glyph: `${model.layerVisible(layer) ? '◉' : '○'} ${layer}`, active: model.layerVisible(layer) }));
-  canvasLabel(parts, 'prefab-status', `${workspace.width}×${workspace.height} · REV ${workspace.revision}`,
-    layerSlots['status']!, { field: true });
-  const pieceSlots = canvasSlots(pieceBody, [
-    { id: 'title', minSize: { width: 0, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'rows', minSize: { width: 0, height: 40 }, main: { mode: 'grow', min: 36 } },
-  ], { gap: 4 });
-  canvasLabel(parts, 'prefab-pieces-title', `PIECES · ${workspace.placements.length}`, pieceSlots['title']!, { heading: true });
-  const pieceRows = canvasRows(pieceSlots['rows']!, Math.max(1, workspace.placements.length), 40, 4);
-  if (workspace.placements.length === 0) canvasLabel(parts, 'prefab-empty', 'EMPTY · USE + STAMP', pieceRows[0]!, { field: true });
-  workspace.placements.slice(0, pieceRows.length).forEach((piece, index) => canvasAction(parts,
-    `prefab-piece-${piece.id}`, `Select prefab piece ${piece.id}`, pieceRows[index]!, () => {
-      model.select(piece.id); context.invalidate();
-    }, { role: 'option', glyph: `${piece.id} · ${piece.layer} · ${piece.tileX},${piece.tileY}`,
-      active: model.selectedIds().includes(piece.id) }));
-}
-
-function behaviourSurface(context: StudioCanvasToolContext, state: ObjectCanvasState,
-  parts: ReturnType<typeof canvasParts>, controlsBounds: ReturnType<typeof canvasPanel>,
-  workspaceBounds: ReturnType<typeof canvasPanel>): void {
-  const snapshot = state.behaviour.snapshot();
-  if (!state.json.snapshot().focused && state.json.snapshot().value.length === 0) {
-    state.json.setValue(JSON.stringify(snapshot.definition, null, 2));
+export function buildObjectCanvasTool(context:StudioCanvasToolContext):StudioCanvasToolSurface {
+  const state=context.controller.toolState('object-canvas',()=>createState(context));
+  if(!state.catalogStarted&&typeof window!=='undefined'){
+    state.catalogStarted=true;
+    void loadGeneratedAssetCatalog().then(catalog=>{
+      if(state.art.disposed)return;
+      state.palette=buildAssetPalette(catalog);state.selectedAsset=state.palette[0]?.key??null;context.invalidate();
+    }).catch((error:unknown)=>{if(!state.art.disposed){context.controller.notifications.push('error','Asset library unavailable',String(error));context.invalidate();}});
   }
-  const shell = canvasSlots(controlsBounds, [
-    { id: 'toolbar', minSize: { width: 0, height: 172 }, main: { mode: 'fixed', size: 172 } },
-    { id: 'details', minSize: { width: 0, height: 90 }, main: { mode: 'grow', min: 90 } },
-  ], { gap: 6 });
-  const toolbar = canvasSlots(shell['toolbar']!, [
-    { id: 'status', minSize: { width: 130, height: 40 }, main: { mode: 'grow', min: 130 } },
-    { id: 'add', minSize: { width: 64, height: 40 }, main: { mode: 'fit', preferred: 118, min: 64 } },
-    { id: 'json', minSize: { width: 52, height: 40 }, main: { mode: 'fit', preferred: 90, min: 52 } },
-    { id: 'apply', minSize: { width: 52, height: 40 }, main: { mode: 'fit', preferred: 90, min: 52 } },
-    { id: 'publish', minSize: { width: 64, height: 40 }, main: { mode: 'fit', preferred: 104, min: 64 } },
-  ], { direction: 'row', gap: 4, wrap: true });
-  canvasLabel(parts, 'behaviour-status', `${snapshot.definition.displayName} · ${snapshot.nodes.length} NODES · ${snapshot.engineGate}`,
-    toolbar['status']!, { field: true, tone: snapshot.validation.valid ? 'success' : 'danger' });
-  canvasAction(parts, 'behaviour-add', 'Add use interaction', toolbar['add']!, () => {
-    try {
-      const ordinal = (state.behaviour.snapshot().definition.components.interactions?.length ?? 0) + 1;
-      state.behaviour.addInteraction({ id: `interaction_${ordinal}`, verb: 'use', prompt: 'USE',
-        conditions: [{ reach: 'object' }], effects: [{ toggleState: 'active' }] });
-      state.json.setValue(JSON.stringify(state.behaviour.snapshot().definition, null, 2)); context.invalidate();
-    } catch (error) { reportCanvasError(context, 'Interaction rejected', error); }
-  }, { glyph: '+ INTERACT', disabled: snapshot.access === 'read_only', tone: 'success' });
-  canvasAction(parts, 'behaviour-json', 'Edit object JSON', toolbar['json']!, () => state.json.focus(),
-    { role: 'textbox', glyph: '{ }', disabled: snapshot.access === 'read_only' });
-  canvasAction(parts, 'behaviour-apply', 'Apply object JSON', toolbar['apply']!, () => {
-    try { state.behaviour.replaceDefinition(state.json.snapshot().value); context.invalidate(); }
-    catch (error) { reportCanvasError(context, 'Object definition rejected', error); }
-  }, { glyph: 'APPLY', disabled: snapshot.access === 'read_only' });
-  canvasAction(parts, 'behaviour-publish', 'Publish object behaviour', toolbar['publish']!, () => {
-    state.mutationSequence += 1;
-    void state.behaviour.publish(`object.canvas.${state.mutationSequence}`, 'Canvas object behaviour')
-      .then(() => context.controller.notifications.push('success', 'Behaviour published', snapshot.definition.id))
-      .catch((error: unknown) => reportCanvasError(context, 'Behaviour publish failed', error)).finally(context.invalidate);
-  }, { glyph: 'PUBLISH', disabled: !snapshot.canPublish, tone: 'success' });
-  const graph = workspaceBounds;
-  const details = canvasPanel(parts, 'behaviour-details-panel', shell['details']!, 'thin', 3);
-  const graphSlots = canvasSlots(graph, [
-    { id: 'title', minSize: { width: 0, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'nodes', minSize: { width: 0, height: 40 }, main: { mode: 'grow', min: 36 } },
-  ], { gap: 4 });
-  canvasLabel(parts, 'behaviour-graph-title', 'TRIGGER → CONDITIONS → EFFECTS', graphSlots['title']!, { heading: true });
-  const graphRows = canvasRows(graphSlots['nodes']!, Math.max(1, snapshot.nodes.length), 40, 5);
-  if (snapshot.nodes.length === 0) canvasLabel(parts, 'behaviour-empty', 'NO INTERACTIONS', graphRows[0]!, { field: true });
-  snapshot.nodes.slice(0, graphRows.length).forEach((node, index) => canvasAction(parts, `behaviour-node-${node.id}`,
-    `Inspect ${node.kind} ${node.label}`, graphRows[index]!, () => { state.graphNodeId = node.id; context.invalidate(); },
-    { role: 'option', glyph: `${node.kind.toUpperCase()} · ${node.label}`, active: state.graphNodeId === node.id }));
-  const selected = snapshot.nodes.find(({ id }) => id === state.graphNodeId);
-  const detailSlots = canvasSlots(details, [
-    { id: 'title', minSize: { width: 0, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'summary', minSize: { width: 0, height: 80 }, main: { mode: 'grow', min: 80 } },
-    { id: 'remove', minSize: { width: 0, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 5 });
-  canvasLabel(parts, 'behaviour-details-title', 'NODE INSPECTOR', detailSlots['title']!, { heading: true });
-  canvasLabel(parts, 'behaviour-details', selected === undefined ? 'SELECT A GRAPH NODE'
-    : `${selected.kind.toUpperCase()}\n${selected.label}\nORDER ${selected.order}`,
-  detailSlots['summary']!, { field: true });
-  canvasAction(parts, 'behaviour-remove', 'Remove selected graph node', detailSlots['remove']!, () => {
-    if (selected === undefined || selected.kind === 'trigger') return;
-    try { state.behaviour.removeNode(selected.id); state.graphNodeId = null; context.invalidate(); }
-    catch (error) { reportCanvasError(context, 'Graph node removal failed', error); }
-  }, { glyph: '− NODE', disabled: selected === undefined || selected.kind === 'trigger' || snapshot.access === 'read_only', tone: 'danger' });
-  parts.textEditors.push({ id: 'behaviour-json', editor: state.json });
-  context.controller.validation.setIssues([
-    ...snapshot.validation.errors.map((issue, index) => ({ id: `object:error:${index}`, severity: 'error' as const, message: issue.message })),
-    ...snapshot.validation.warnings.map((issue, index) => ({ id: `object:warning:${index}`, severity: 'warning' as const, message: issue.message })),
-  ]);
-}
-
-export function buildObjectCanvasTool(context: StudioCanvasToolContext): StudioCanvasToolSurface {
-  const state = context.controller.toolState('object-canvas', () => createState(context));
-  state.prefab.refreshKernels();
-  context.controller.setWorldDraft('object:untitled-layout', state.prefab.worldOutliner());
-  const parts = canvasParts();
-  const controlsBody = context.controlsBounds ?? context.bounds;
-  const workspaceBody = context.workspaceBounds ?? context.bounds;
-  const shell = canvasSlots(controlsBody, [
-    { id: 'tabs', minSize: { width: 0, height: 40 }, main: { mode: 'fixed', size: 40 } },
-    { id: 'surface', minSize: { width: 0, height: 90 }, main: { mode: 'grow', min: 90 } },
-  ], { gap: 6 });
-  const tabs = canvasSlots(shell['tabs']!, [
-    { id: 'prefab', minSize: { width: 88, height: 40 }, main: { mode: 'grow', min: 88 } },
-    { id: 'behaviour', minSize: { width: 88, height: 40 }, main: { mode: 'grow', min: 88 } },
-  ], { direction: 'row', gap: 5 });
-  for (const mode of ['prefab', 'behaviour'] as const) canvasAction(parts, `mode-${mode}`, `Open ${mode} workspace`, tabs[mode]!, () => {
-    state.mode = mode; context.invalidate();
-  }, { role: 'tab', glyph: mode.toUpperCase(), active: state.mode === mode });
-  if (state.mode === 'prefab') prefabSurface(context, state, parts, shell['surface']!, workspaceBody);
-  else behaviourSurface(context, state, parts, shell['surface']!, workspaceBody);
-  return finishCanvasTool(context, parts, (drawing) => {
-    drawing.save();
-    if (state.mode === 'prefab') {
-      const workspace = state.prefab.workspace();
-      const tile = Math.max(8, Math.min(24, Math.floor(Math.min(
-        workspaceBody.width / Math.min(24, workspace.width), workspaceBody.height / Math.min(18, workspace.height),
-      ))));
-      if (context.controller.gridVisible()) {
-        drawing.strokeStyle = 'rgba(255, 255, 255, 0.52)'; drawing.lineWidth = 1;
-        for (let x = workspaceBody.x; x <= workspaceBody.x + workspaceBody.width; x += tile) {
-          drawing.beginPath(); drawing.moveTo(x, workspaceBody.y); drawing.lineTo(x, workspaceBody.y + workspaceBody.height); drawing.stroke();
-        }
-        for (let y = workspaceBody.y; y <= workspaceBody.y + workspaceBody.height; y += tile) {
-          drawing.beginPath(); drawing.moveTo(workspaceBody.x, y); drawing.lineTo(workspaceBody.x + workspaceBody.width, y); drawing.stroke();
-        }
-      }
-      for (const piece of workspace.placements.slice(0, 120)) {
-        drawing.fillStyle = state.prefab.selectedIds().includes(piece.id) ? '#fff2a8' : '#d7a95a';
-        drawing.fillRect(workspaceBody.x + piece.tileX * tile + 2, workspaceBody.y + piece.tileY * tile + 2,
-          Math.max(4, tile - 4), Math.max(4, tile - 4));
-      }
-    } else {
-      const nodes = state.behaviour.snapshot().nodes.slice(0, 24);
-      const laneHeight = Math.max(42, Math.floor(workspaceBody.height / Math.max(1, nodes.length)));
-      nodes.forEach((node, index) => {
-        const x = workspaceBody.x + 24 + (node.kind === 'condition' ? 34 : node.kind === 'effect' ? 68 : 0);
-        const y = workspaceBody.y + 12 + index * laneHeight;
-        const width = Math.max(100, workspaceBody.width - 116);
-        if (index > 0) {
-          drawing.strokeStyle = '#cfb576'; drawing.beginPath();
-          drawing.moveTo(x + 12, y - Math.max(6, laneHeight - 8)); drawing.lineTo(x + 12, y); drawing.stroke();
-        }
-        drawing.fillStyle = node.kind === 'trigger' ? '#8c6246' : node.kind === 'condition' ? '#496c77' : '#587650';
-        drawing.fillRect(x, y, width, Math.max(30, laneHeight - 8));
-        drawing.fillStyle = '#fff3cf'; drawing.font = '12px monospace';
-        drawing.fillText(`${node.kind.toUpperCase()} · ${node.label}`.slice(0, 62), x + 8, y + 20);
-      });
+  state.prefab.refreshKernels();context.controller.setWorldDraft('object:untitled-layout',state.prefab.worldOutliner());
+  const report=(title:string,error:unknown)=>{context.controller.notifications.push('error',title,error instanceof Error?error.message:String(error));context.invalidate();};
+  const button=(id:string,label:string,onPress:()=>void,disabled=false,tone:UiTone='primary')=>ui.button({id:`object-${id}`,label,disabled,tone,layout:{width:'grow',shrink:0},onPress:()=>{try{onPress();}catch(error){report(label,error);}}});
+  const controls:UiElement[]=[ui.select({id:'object-mode',label:'Workspace',value:state.mode,options:[{value:'prefab',label:'Prefab'},{value:'behaviour',label:'Behaviour'}],onChange:mode=>{state.mode=mode as ObjectCanvasState['mode'];context.invalidate();}})];
+  let workspace:UiElement,inspector:UiElement|undefined;
+  if(state.mode==='prefab'){
+    const model=state.prefab,prefab=model.workspace(),selected=model.selectedIds()[0];
+    const asset=state.palette.find(entry=>entry.key===state.selectedAsset);
+    controls.push(
+      ui.input({id:'object-asset-query',label:'Find an asset',placeholder:'Find an asset',editor:state.query,onChange:context.invalidate}),
+      ui.list({id:'object-assets',label:'Asset library',items:filterAssetPalette(state.palette,{search:state.query.snapshot().value}),key:entry=>entry.key,
+        rowHeight:uiFixed(48),layout:{width:'grow',height:uiFixed(144),shrink:0},selected:asset?[asset.key]:[],
+        onSelect:(_keys,entry)=>{state.selectedAsset=entry.key;context.invalidate();},
+        render:entry=>ui.flex({direction:'row',width:'grow',height:'grow',gap:4},[
+          ui.flex({width:uiFixed(32),height:'grow',shrink:0},[state.art.image(entry.assetName,entry.frame,1)]),
+          ui.text(entry.assetName.replace(/^(?:building|item|prop|tile)_cf_/u,'').replaceAll('_',' '),{layout:{width:'grow'}}),
+        ]),
+      }),
+      button('prefab-stamp','Place asset',()=>{if(!asset)return;const ordinal=state.nextPlacement++;model.stamp({id:`piece-${ordinal}`,assetId:asset.assetId,assetName:asset.assetName,visual:asset.visual,tileX:3+ordinal,tileY:4,elevation:0,layer:model.activeLayer(),quarterTurns:0,flipX:false});model.select(`piece-${ordinal}`);context.invalidate();},!asset,'success'),
+      ui.select({id:'object-prefab-layer',label:'Target layer',value:model.activeLayer(),options:OBJECT_STUDIO_LAYERS.map(layer=>({value:layer,label:layer.replace(/^./u,char=>char.toUpperCase())})),onChange:layer=>{model.selectLayer(layer as typeof OBJECT_STUDIO_LAYERS[number]);context.invalidate();}}),
+      ...OBJECT_STUDIO_LAYERS.map(layer=>ui.checkbox({id:`object-prefab-visible-${layer}`,label:layer,value:model.layerVisible(layer),onChange:()=>{model.toggleLayer(layer);context.invalidate();}})),
+      ui.text(`${prefab.width}×${prefab.height} · REV ${prefab.revision}`),
+    );
+    if (selected !== undefined) inspector=ui.flex({width:'grow',gap:4},[
+      ui.text('Transform selection'),
+      button('prefab-group','Group selection',()=>{model.group(`group_${model.workspace().revision+1}`,'Canvas Group');context.invalidate();}),
+      button('prefab-left','Move left',()=>{model.move(selected,-1,0);context.invalidate();}),
+      button('prefab-right','Move right',()=>{model.move(selected,1,0);context.invalidate();}),
+      button('prefab-up','Move up',()=>{model.move(selected,0,-1);context.invalidate();}),
+      button('prefab-down','Move down',()=>{model.move(selected,0,1);context.invalidate();}),
+      button('prefab-rotate','Rotate clockwise',()=>{model.transform(selected,'rotate_clockwise');context.invalidate();}),
+    ]);
+    if(inspector){
+      const [heading,group,left,right,up,down,rotate]=inspector.children;
+      const direction=(control:UiElement,arrow:string)=>{const label=control.label;control.setProps({label:arrow});control.label=label;control.replaceChildren([]);return ui.tooltip(control.label??'Move',control,{width:'grow',height:uiFixed(24)});};
+      inspector.replaceChildren([heading!,ui.grid({columns:2,gap:2,rowHeight:uiFixed(24)},[
+        direction(left!,'<'),direction(right!,'>'),direction(up!,'^'),direction(down!,'v'),
+      ]),studioActionBar([studioIconAction(rotate!,{lucide:'rotate'}),studioIconAction(group!,{lucide:'layers'})])]);
     }
-    drawing.restore();
-  });
+    const pieces=prefab.placements.filter(piece=>model.layerVisible(piece.layer));
+    const scene=ui.stack({width:uiFixed(prefab.width*16),height:uiFixed(prefab.height*16),shrink:0},[
+      ui.viewport({id:'object-prefab-grid',label:'Prefab spatial grid',background:context.controller.gridVisible()?'checkerboard':'none',render:()=>{}}),
+      ...pieces.map(piece=>{
+        const loaded=state.art.asset(piece.assetName),source=loaded?selectAtlasFrame(loaded.metadata,piece.visual.name,piece.visual.frameIndex):null;
+        const swapped=piece.quarterTurns%2===1;
+        const width=source?(swapped?source.height:source.width):16,height=source?(swapped?source.width:source.height):16;
+        const image=loaded&&source?ui.image(loaded.image,source,{label:piece.assetName,integerScale:1,quarterTurns:piece.quarterTurns,flipX:piece.flipX,layout:{width:'grow',height:'grow'}}):ui.text('...');
+        const pick=ui.button({id:`object-prefab-piece-${piece.id}`,label:'',tone:model.selectedIds().includes(piece.id)?'success':'primary',layout:{width:'grow',height:'grow',padding:0},onPress:()=>{model.select(piece.id);context.invalidate();}});
+        pick.replaceChildren([image]);
+        return ui.tooltip(`${piece.assetName} · ${piece.tileX},${piece.tileY}`,pick,
+          {position:'absolute',inset:{left:uiFixed(piece.tileX*16),top:uiFixed(piece.tileY*16)},width:uiFixed(width),height:uiFixed(height)});
+      }),
+    ]);
+    workspace=ui.tabs({id:'object-prefab-tabs',label:'Prefab editor',value:state.prefabTab,onChange:tab=>{state.prefabTab=tab;context.invalidate();},tabs:[
+      {id:'spatial',label:'Layout',content:ui.scrollArea({width:'grow',height:'grow',overflow:'scroll'},[scene])},
+      {id:'pieces',label:`Pieces (${prefab.placements.length})`,content:ui.list({id:'object-prefab-pieces',label:'Prefab pieces',items:prefab.placements,key:piece=>piece.id,rowHeight:uiFixed(32),layout:{width:'grow',height:'grow'},render:piece=>button(`prefab-select-${piece.id}`,`${piece.id} · ${piece.layer} · ${piece.tileX},${piece.tileY}`,()=>{model.select(piece.id);context.invalidate();},false,model.selectedIds().includes(piece.id)?'success':'primary')})},
+    ]});
+  }else{
+    const snapshot=state.behaviour.snapshot();if(state.json.snapshot().value.length===0)state.json.setValue(JSON.stringify(snapshot.definition,null,2));
+    controls.push(ui.text(`${snapshot.definition.displayName} · ${snapshot.nodes.length} NODES · ${snapshot.engineGate}`),
+      button('behaviour-add','Add interaction',()=>{const ordinal=(state.behaviour.snapshot().definition.components.interactions?.length??0)+1;state.behaviour.addInteraction({id:`interaction_${ordinal}`,verb:'use',prompt:'USE',conditions:[{reach:'object'}],effects:[{toggleState:'active'}]});state.json.setValue(JSON.stringify(state.behaviour.snapshot().definition,null,2));context.invalidate();},snapshot.access==='read_only','success'),
+      button('behaviour-publish','Publish behaviour',()=>{state.mutationSequence++;void state.behaviour.publish(`object.canvas.${state.mutationSequence}`,'Canvas object behaviour')
+        .then(()=>context.controller.notifications.push('success','Behaviour published',snapshot.definition.id)).catch((error:unknown)=>report('Behaviour publish failed',error)).finally(context.invalidate);},!snapshot.canPublish,'success'));
+    const selected=snapshot.nodes.find(node=>node.id===state.graphNodeId);
+    inspector=ui.flex({width:'grow',gap:4},[
+      ui.text(selected?`${selected.kind.toUpperCase()}\n${selected.label}\nORDER ${selected.order}`:'SELECT A GRAPH NODE',{id:'object-behaviour-details'}),
+      button('behaviour-remove','Remove node',()=>{if(!selected||selected.kind==='trigger')return;state.behaviour.removeNode(selected.id);state.graphNodeId=null;context.invalidate();},!selected||selected.kind==='trigger'||snapshot.access==='read_only','danger'),
+    ]);
+    workspace=ui.tabs({id:'object-behaviour-tabs',label:'Behaviour editor',value:state.behaviourTab,onChange:tab=>{state.behaviourTab=tab;context.invalidate();},tabs:[
+      {id:'graph',label:'Graph',content:ui.list({id:'object-behaviour-graph',label:'Trigger, conditions and effects',items:snapshot.nodes,key:node=>node.id,rowHeight:uiFixed(40),layout:{width:'grow',height:'grow'},render:node=>button(`behaviour-node-${node.id}`,`${node.kind.toUpperCase()} · ${node.label}`,()=>{state.graphNodeId=node.id;context.invalidate();},false,node.kind==='trigger'?'primary':node.kind==='condition'?'info':'success')})},
+      {id:'json',label:'JSON',content:ui.scrollArea({width:'grow',height:'grow',gap:4},[
+        ui.textArea({id:'object-behaviour-json',label:'Object JSON',editor:state.json,rows:24,lineCount:true,resizable:true,readOnly:snapshot.access==='read_only'}),
+        button('behaviour-apply','Apply JSON',()=>{state.behaviour.replaceDefinition(state.json.snapshot().value);context.invalidate();},snapshot.access==='read_only','success'),
+      ])},
+    ]});
+    context.controller.validation.setIssues([
+      ...snapshot.validation.errors.map((issue,index)=>({id:`object:error:${index}`,severity:'error' as const,message:issue.message})),
+      ...snapshot.validation.warnings.map((issue,index)=>({id:`object:warning:${index}`,severity:'warning' as const,message:issue.message})),
+    ]);
+  }
+  return {kit:{controls:state.mode==='prefab'?studioLibraryDrawer(controls.slice(0,2),controls[2]!,[controls[4]!,ui.flex({direction:'row',width:'grow',gap:4},OBJECT_STUDIO_LAYERS.map(layer=>ui.tooltip(`Toggle ${layer} layer`,ui.iconButton({lucide:'layers'},{label:layer,tone:state.prefab.layerVisible(layer)?'success':'neutral',onPress:()=>{state.prefab.toggleLayer(layer);context.invalidate();}}),{width:uiFixed(24),height:uiFixed(24)}))),controls[3]!]):ui.flex({width:'grow',gap:4},controls),workspace,inspector},lifecycle:{key:'object-canvas',dispose:()=>{state.art.dispose();context.controller.releaseToolState('object-canvas',state);}}};
 }

@@ -7,6 +7,7 @@ import {
   parseWorldPack,
   planBoundedPackImport,
   serializeWorldPack,
+  WORLD_TABLE_KINDS,
   worldPackManifest,
 } from './model.js';
 
@@ -70,5 +71,21 @@ describe('WorldAuthoringModel', () => {
     const live = createWorldAuthoringModel({ access: 'write', createPlaytestAdapter: () => ({ source: 'mock', run }) });
     await live.playtest(request); expect(run).toHaveBeenCalledWith(request);
     await expect(live.playtest({ ...request, definitionId: 'crop:wheat' })).rejects.toThrow('world_playtest_definition_mismatch');
+  });
+
+  it('browses and edits first-class resource definitions through the generic model', () => {
+    expect(WORLD_TABLE_KINDS).toContain('resource');
+    const model = createWorldAuthoringModel({ access: 'write' });
+    const entry = model.browser('resource')[0];
+    expect(entry).toMatchObject({ kind: 'resource', retired: false });
+    const definition = model.definition(entry!.id)!;
+    expect(definition.kind).toBe('resource');
+    model.upsert({ ...definition, displayName: 'Reviewed Resource' });
+    expect(model.definition(entry!.id)).toMatchObject({
+      id: entry!.id,
+      kind: 'resource',
+      displayName: 'Reviewed Resource',
+    });
+    expect(model.snapshot()).toMatchObject({ dirty: true, validation: { valid: true } });
   });
 });

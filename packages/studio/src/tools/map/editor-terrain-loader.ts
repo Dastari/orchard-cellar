@@ -55,11 +55,14 @@ export class MapEditorTerrainLoader {
     this.#nextRequestId += 1;
     return new Promise<MapEditorTerrainLoadResult>((resolve, reject) => {
       this.#pending.set(requestId, { resolve, reject, palette });
-      activeWorker.postMessage({ requestId, document,
+      activeWorker.postMessage({
+        requestId,
+        document,
         ...(palette.mode === 'live' ? {
           tilesetDefinitions: palette.definitions,
           tilesetContentKey: palette.contentKey,
-        } : {}) });
+        } : {}),
+      });
     });
   }
 
@@ -93,17 +96,22 @@ export class MapEditorTerrainLoader {
           && this.#pending.get(event.data.requestId) === request;
         void decodeMapEditorTerrainAsync(event.data.terrain, shouldContinue).then(async (decodedTerrain) => {
           const terrain = request.palette.mode === 'live'
-            ? { ...decodedTerrain, tilesets: request.palette.resolver } : decodedTerrain;
+            ? { ...decodedTerrain, tilesets: request.palette.resolver }
+            : decodedTerrain;
           const decodedDerivatives = await decodeMapEditorTerrainDerivativesAsync(
             event.data.derivatives!,
             terrain,
             shouldContinue,
           );
           const derivatives = request.palette.mode === 'live'
-            ? { ...decodedDerivatives, generatedBaseTerrain: {
-              ...decodedDerivatives.generatedBaseTerrain,
-              tilesets: request.palette.resolver,
-            } } : decodedDerivatives;
+            ? {
+              ...decodedDerivatives,
+              generatedBaseTerrain: {
+                ...decodedDerivatives.generatedBaseTerrain,
+                tilesets: request.palette.resolver,
+              },
+            }
+            : decodedDerivatives;
           return { terrain, derivatives };
         }).then((result) => {
           if (this.#pending.get(event.data.requestId) !== request) return;

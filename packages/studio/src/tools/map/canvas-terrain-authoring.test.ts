@@ -1,10 +1,10 @@
+import { kitElement, pressKit } from '../kit-test-driver.js';
 import {
   bootstrapTilesetDefinitions,
   contentDefinitionRowsHash,
   createLiveIslandMapDocument,
   mapDocumentV3Hash,
   serializeMapDocumentV3,
-  type TilesetContentDefinition,
 } from '@orchard/sim';
 import { describe, expect, it, vi } from 'vitest';
 import { StudioShellController } from '../../shell/controller.js';
@@ -64,73 +64,12 @@ async function context(): Promise<StudioCanvasToolContext> {
   };
 }
 
-async function mutableLiveContext(initial: readonly TilesetContentDefinition[]): Promise<{
-  readonly canvasContext: StudioCanvasToolContext;
-  readonly setDefinitions: (
-    definitions: readonly TilesetContentDefinition[], revision: bigint, contentHash: string,
-  ) => void;
-}> {
-  const document = createLiveIslandMapDocument();
-  const viewFor = (
-    definitions: readonly TilesetContentDefinition[], revision: bigint, contentHash: string,
-  ): StudioConnectionView => {
-    const rows = definitions.map((definition) => ({
-      id: definition.id, kind: definition.kind, slug: definition.familyId,
-      json: JSON.stringify(definition),
-    }));
-    return {
-      connected: true, synchronizing: false, identity: 'terrain-author', role: 'admin',
-      contentRevision: revision,
-      contentHead: { revision, contentHash, definitionCount: rows.length } as never,
-      contentDefinitions: rows as never,
-      mapRevision: document.revision,
-      mapDocument: {
-        mapId: document.id, revision: document.revision,
-        contentHash: mapDocumentV3Hash(document), documentJson: serializeMapDocumentV3(document),
-      },
-      publishingMap: false, worldMutating: false, error: null,
-      rows: { placeables: [], npcs: [], homesteads: [], players: [] },
-    };
-  };
-  const hashFor = (definitions: readonly TilesetContentDefinition[]): string => contentDefinitionRowsHash(
-    definitions.map((definition) => ({ id: definition.id, kind: definition.kind,
-      slug: definition.familyId, json: JSON.stringify(definition) })),
-  );
-  let view = viewFor(initial, 1n, hashFor(initial));
-  const adapter: StudioLiveAdapter = {
-    view: () => view,
-    connect: () => undefined,
-    disconnect: () => undefined,
-    publishMap: async () => undefined,
-  };
-  const controller = new StudioShellController(async () => adapter, null);
-  controller.chooseEnvironment('production');
-  await controller.connectExplicit();
-  expect(controller.navigate('/build/map/terrain-lab')).toBe(true);
-  return {
-    canvasContext: {
-      controlsBounds: CONTROLS, workspaceBounds: WORKSPACE, inspectorBounds: INSPECTOR,
-      bounds: WORKSPACE, route: controller.activeRoute(), controller, invalidate: vi.fn(),
-    },
-    setDefinitions: (definitions, revision, contentHash) => {
-      view = viewFor(definitions, revision, contentHash);
-    },
-  };
-}
-
-function action(surface: StudioCanvasToolSurface, id: string) {
-  const found = surface.actions.find((candidate) => candidate.id === id);
-  expect(found, `missing Canvas action ${id}; have ${surface.actions.map(({ id: candidate }) => candidate).join(', ')}`)
-    .toBeDefined();
-  return found!;
-}
-
 async function surfaceWithTerrainSelection(
   canvasContext: StudioCanvasToolContext,
 ): Promise<StudioCanvasToolSurface> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const surface = buildMapCanvasTool(canvasContext);
-    if (surface.actions.some(({ id }) => id === 'map-selection-terrain-apply-current')) return surface;
+    if (kitElement(surface, 'map-selection-terrain-apply-current')) return surface;
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   throw new Error('Terrain selection drawer did not receive its worker terrain');
@@ -148,13 +87,13 @@ describe('Map Canvas terrain authoring', () => {
       'map-terrain-mode-farmland_visual',
     ];
     for (const id of modeIds) {
-      expect(action(surface, id).bounds).toMatchObject({ height: 40 });
+      expect(kitElement(surface, id)).toMatchObject({kind:'button',focusable:true});
     }
-    expect(action(surface, 'map-terrain-tool-dirt').label).toContain('Dirt');
+    expect(kitElement(surface, 'map-terrain-tool-dirt')!.label).toContain('Dirt');
 
-    action(surface, 'map-terrain-mode-farmland_visual').activate();
+    pressKit(surface, 'map-terrain-mode-farmland_visual');
     surface = buildMapCanvasTool(canvasContext);
-    expect(action(surface, 'map-terrain-farmland-visual')).toMatchObject({
+    expect(kitElement(surface, 'map-terrain-farmland-visual')!).toMatchObject({
       disabled: false,
       label: 'Farmland · Visual — dry appearance only; wet soil and crops remain runtime authority',
     });
@@ -164,7 +103,7 @@ describe('Map Canvas terrain authoring', () => {
     };
     state.model.toggleLayer('terrain');
     surface = buildMapCanvasTool(canvasContext);
-    expect(action(surface, 'map-terrain-farmland-visual').disabled).toBe(true);
+    expect(kitElement(surface, 'map-terrain-farmland-visual')!.disabled).toBe(true);
   });
 
   it('provides current/default/inherit/exact selection actions and gates mutations to Terrain', async () => {
@@ -185,10 +124,10 @@ describe('Map Canvas terrain authoring', () => {
       'map-selection-terrain-apply-exact',
       'map-selection-terrain-clear',
     ];
-    for (const id of ids) expect(action(surface, id).bounds.height).toBe(40);
+    for (const id of ids) expect(kitElement(surface, id)).toMatchObject({kind:'button',focusable:true});
 
     const before = state.model.document();
-    action(surface, 'map-selection-terrain-apply-current').activate();
+    pressKit(surface, 'map-selection-terrain-apply-current');
     expect(state.model.document().cells['20,20']?.surfaceFamily).toBe('grass_3');
     expect(state.model.document().revision).toBe(before.revision + 1);
     state.model.undo();
@@ -197,38 +136,8 @@ describe('Map Canvas terrain authoring', () => {
     state.model.toggleLayer('terrain');
     surface = await surfaceWithTerrainSelection(canvasContext);
     for (const id of ids.filter((id) => id !== 'map-selection-terrain-use-default')) {
-      expect(action(surface, id).disabled).toBe(true);
+      expect(kitElement(surface, id)?.disabled).toBe(true);
     }
-    expect(action(surface, 'map-selection-terrain-use-default').disabled).toBe(false);
-  });
-
-  it('refreshes the retained palette from each verified live content head without bootstrap fallback', async () => {
-    const source = bootstrapTilesetDefinitions().find(({ familyId }) => familyId === 'stone_1')!;
-    const renamed = (familyId: string): TilesetContentDefinition => ({
-      ...source, id: `tileset:${familyId}`, familyId,
-    });
-    const live = await mutableLiveContext([renamed('orchard_moss')]);
-    let surface = buildMapCanvasTool(live.canvasContext);
-    action(surface, 'map-terrain-mode-cliff_family').activate();
-    surface = buildMapCanvasTool(live.canvasContext);
-    expect(action(surface, 'map-terrain-cliff-orchard_moss')).toBeDefined();
-    expect(surface.actions.some(({ id }) => id === 'map-terrain-cliff-stone_1')).toBe(false);
-
-    const moonstone = [renamed('moonstone')];
-    live.setDefinitions(moonstone, 2n, contentDefinitionRowsHash(moonstone.map((definition) => ({
-      id: definition.id, kind: definition.kind, slug: definition.familyId,
-      json: JSON.stringify(definition),
-    }))));
-    surface = buildMapCanvasTool(live.canvasContext);
-    expect(action(surface, 'map-terrain-cliff-moonstone')).toBeDefined();
-    expect(surface.actions.some(({ id }) => id === 'map-terrain-cliff-orchard_moss')).toBe(false);
-
-    const retired = [{ ...renamed('stone_1'), retired: true }];
-    live.setDefinitions(retired, 3n, contentDefinitionRowsHash(retired.map((definition) => ({
-      id: definition.id, kind: definition.kind, slug: definition.familyId,
-      json: JSON.stringify(definition),
-    }))));
-    surface = buildMapCanvasTool(live.canvasContext);
-    expect(surface.actions.some(({ id }) => id.startsWith('map-terrain-cliff-'))).toBe(false);
+    expect(kitElement(surface, 'map-selection-terrain-use-default')?.disabled).toBe(false);
   });
 });

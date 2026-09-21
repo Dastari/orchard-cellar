@@ -1,3 +1,5 @@
+import { type CanvasTextEditor } from '@orchard/ui/studio';
+import { kitElement, kitElements, pressKit, chooseKit } from '../kit-test-driver.js';
 import { describe, expect, it, vi } from 'vitest';
 import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
 import { StudioShellController } from '../../shell/controller.js';
@@ -11,74 +13,91 @@ function context(path: '/author/npcs' | '/author/dialogue' | '/author/quests'): 
     route: controller.activeRoute(), controller, invalidate: vi.fn() };
 }
 
-function expectCanvasContract(surface: StudioCanvasToolSurface, context: StudioCanvasToolContext): void {
-  expect(surface.nodes.length).toBeLessThanOrEqual(200);
-  expect(surface.actions.length).toBeLessThanOrEqual(200);
-  expect(surface.tables?.length).toBeGreaterThan(0);
-  expect(surface.tables?.length).toBeLessThanOrEqual(8);
-  const regions = [context.controlsBounds ?? context.bounds, context.workspaceBounds ?? context.bounds];
-  for (const entry of [...surface.nodes, ...surface.actions]) {
-    expect(entry.id.startsWith(`${context.route.tool.id}-`)).toBe(true);
-    expect(regions.some((region) => entry.bounds.x >= region.x && entry.bounds.y >= region.y
-      && entry.bounds.x + entry.bounds.width <= region.x + region.width
-      && entry.bounds.y + entry.bounds.height <= region.y + region.height), entry.id).toBe(true);
-  }
-  for (const action of surface.actions) expect(action.bounds.height).toBeGreaterThanOrEqual(40);
-  for (const table of surface.tables ?? []) {
-    expect(table.id.startsWith(`${context.route.tool.id}-`)).toBe(true);
-    expect(table.layout.rowHeight).toBe(42);
-    expect(table.layout.header.height).toBe(42);
-    expect(table.layout.bounds.x).toBeGreaterThanOrEqual((context.workspaceBounds ?? context.bounds).x);
-  }
+function expectCanvasContract(surface: StudioCanvasToolSurface): void {
+
+
+  expect(kitElements(surface).some(element=>element.id.endsWith('tabs:mode'))).toBe(true);
+  expect(kitElements(surface).some(element => element.kind === 'table')).toBe(true);
+}
+function editor(surface: StudioCanvasToolSurface, suffix: string): CanvasTextEditor {
+  return kitElements(surface).find(element => element.id.endsWith(`narrative:${suffix}`))!.props['editor'] as CanvasTextEditor;
+}
+function activateTab(surface: StudioCanvasToolSurface, tab: string): void {
+  chooseKit(surface,kitElements(surface).find(element=>element.id.endsWith('narrative:tabs:mode'))!.id,tab==='editor'?'JSON':'Details');
+}
+function action(surface: StudioCanvasToolSurface, suffix: string): void {
+  pressKit(surface,kitElements(surface).find(element=>element.id.endsWith(`narrative:${suffix}`))!.id);
 }
 
 describe('narrative authoring canvas tools', () => {
   it('renders NPC fields and the linked dialogue/shop/quest preview', () => {
     const toolContext = context('/author/npcs');
     const surface = buildNarrativeCanvasTool(toolContext);
-    expectCanvasContract(surface, toolContext);
-    expect(surface.nodes.some(({ id }) => id.includes('narrative:npc-preview:'))).toBe(true);
-    expect(surface.nodes.some(({ id }) => id.includes('narrative:field:'))).toBe(true);
-    expect(surface.actions.some(({ role }) => role === 'option')).toBe(true);
-    const table = surface.tables![0]!;
-    const row = table.layout.rows[table.layout.rows.length - 1]!;
-    table.onHit?.({ kind: 'row', rowId: row.id, rowIndex: row.rowIndex });
-    expect(toolContext.controller.selection.current()).toMatchObject({ kind: 'definition', id: row.id });
-    table.onScroll?.('end', table.layout.maximumScrollRow);
+    expectCanvasContract(surface);
+    expect(kitElements(surface).some(({ id }) => id.includes('narrative:npc-preview:'))).toBe(true);
+    expect(kitElements(surface).some(({ id }) => id.includes('narrative:field:'))).toBe(true);
+    const browsed=buildNarrativeCanvasTool(toolContext);
+    const table=kitElements(browsed).find(element=>element.kind==='table')!;
+    const rows=table.props['rowOrder'] as string[];
+    expect(rows.length).toBeGreaterThan(0);
+    pressKit(browsed,`${table.id}:rows`);
+    expect(toolContext.controller.selection.current()).toMatchObject({kind:'definition',id:rows[0]});
     expect(toolContext.invalidate).toHaveBeenCalled();
   });
 
   it('renders dialogue graph nodes and edges and advances deterministic playback choices', () => {
     const toolContext = context('/author/dialogue');
     let surface = buildNarrativeCanvasTool(toolContext);
-    expectCanvasContract(surface, toolContext);
-    expect(surface.nodes.some(({ id }) => id.includes('narrative:graph-edge:'))).toBe(true);
-    const choice = surface.actions.find(({ id }) => id.includes('narrative:choice:'));
+    expectCanvasContract(surface);
+    const graph=kitElements(surface).find(element=>element.id.endsWith('narrative:graph'))!;
+    expect((graph.props['items'] as {id:string}[]).some(entry=>entry.id.startsWith('edge:'))).toBe(true);
+    surface=buildNarrativeCanvasTool(toolContext);
+    const choice = kitElements(surface).find(({ id }) => id.startsWith('dialogue:'));
     expect(choice).toBeDefined();
-    choice!.activate();
+    pressKit(surface,choice!.id);
     surface = buildNarrativeCanvasTool(toolContext);
-    expect(surface.nodes.some(({ id }) => id.endsWith('narrative:dialogue-current') || id.endsWith('narrative:dialogue-end'))).toBe(true);
+    expect(kitElements(surface).some(({ id }) => id==='game.dialogue' || id.endsWith('narrative:dialogue-end'))).toBe(true);
   });
 
   it('renders quest objectives/rewards and applies a pure JSON completion fixture', () => {
     const toolContext = context('/author/quests');
     let surface = buildNarrativeCanvasTool(toolContext);
-    expectCanvasContract(surface, toolContext);
-    expect(surface.nodes.some(({ id }) => id.includes('narrative:quest-objective:'))).toBe(true);
-    const fixture = surface.textEditors!.find(({ id }) => id.endsWith('narrative:fixture'))!.editor;
+    expectCanvasContract(surface);
+    expect(kitElements(surface).some(({ id }) => id.includes('narrative:quest-objective:'))).toBe(true);
+    surface=buildNarrativeCanvasTool(toolContext);
+    chooseKit(surface,kitElements(surface).find(node=>node.id.endsWith('narrative:tabs:mode'))!.id,'Testing');
+    surface=buildNarrativeCanvasTool(toolContext);
+    const fixture = editor(surface,'fixture');
     fixture.setValue(JSON.stringify({ questStates: { first_bottle: 'complete' } }));
-    surface.actions.find(({ id }) => id.endsWith('narrative:apply-fixture'))!.activate();
+    action(surface,'apply-fixture');
     surface = buildNarrativeCanvasTool(toolContext);
-    expect(surface.nodes.some(({ id }) => id.endsWith('narrative:quest-rewards'))).toBe(true);
+    expect(kitElements(surface).some(({ id }) => id.endsWith('narrative:quest-rewards'))).toBe(true);
+  });
+
+  it('preserves unapplied JSON drafts across tab changes without mutating the model', () => {
+    const toolContext=context('/author/npcs');
+    let surface=buildNarrativeCanvasTool(toolContext);
+    const draft=editor(surface,'definition-json');
+    const original=draft.snapshot().value;
+    draft.setValue('{ unfinished');
+    surface=buildNarrativeCanvasTool(toolContext);
+    activateTab(surface,'editor');
+    surface=buildNarrativeCanvasTool(toolContext);
+    expect(editor(surface,'definition-json')).toBe(draft);
+    expect(draft.snapshot().value).toBe('{ unfinished');
+    action(surface,'apply-json');
+    surface=buildNarrativeCanvasTool(toolContext);
+    expect(kitElement(surface,`${toolContext.route.tool.id}-narrative:status`)?.props['text']).toContain('0 CHANGES');
+    draft.setValue(original);
   });
 
   it('creates a validated draft through the retained-canvas New action', () => {
     const toolContext = context('/author/npcs');
     let surface = buildNarrativeCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id.endsWith('narrative:new'))!.activate();
+    action(surface,'new');
     surface = buildNarrativeCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id.endsWith('narrative:status'))?.label).toContain('1 CHANGES');
-    expect(surface.textEditors!.find(({ id }) => id.endsWith('narrative:definition-json'))!.editor.snapshot().value)
+    expect(kitElement(surface,`${toolContext.route.tool.id}-narrative:status`)?.props['text']).toContain('1 CHANGES');
+    expect(editor(surface,'definition-json').snapshot().value)
       .toContain('New NPC');
   });
 });

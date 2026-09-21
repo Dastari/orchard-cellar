@@ -50,7 +50,8 @@
     "preview": "tsx src/preview.ts",
     "import": "tsx src/import-image.ts",
     "restore-native": "tsx src/restore-native-palettes.ts",
-    "extract:premium-icons": "tsx src/extract-premium-icons.ts"
+    "extract:premium-icons": "tsx src/extract-premium-icons.ts",
+    "ui:assets": "tsx src/copy-ui-public.ts"
   },
   "dependencies": {
     "@orchard/engine": "*",

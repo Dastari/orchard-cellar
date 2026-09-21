@@ -1,4 +1,3 @@
-import { drawTerrainInspectionVisuals, terrainInspectionVisualLayout, type TerrainInspection } from '@orchard/engine/terrain-inspector';
 import {
   TILE_SIZE_PIXELS,
   authoredMapContentPainterTie,
@@ -12,12 +11,12 @@ import {
   treeGrowthStageName,
   type ContentRegistry,
   type MiningNodeClass,
-  type GeneratedSurvivalResource,
   type MapDocumentV3,
   type MapGameplayAnchor,
   type MapGameplayAnchorKind,
 } from '@orchard/sim';
 import {
+  drawTileRaster,
   GroundChunkCache,
   drawAuthoredOverworldObject,
   drawAnimatedTerrain,
@@ -57,10 +56,10 @@ import {
   drawUiIconAsset,
   loadGeneratedAsset,
   type LoadedAsset,
-  type StudioCanvasShellArt,
+  type StudioSpatialArt,
   type UiIconName,
   type UiRect,
-} from '@orchard/ui';
+} from '@orchard/ui/studio';
 import type { MapEditorController, MapEditorLiveMarker } from './editor-controller.js';
 import {
   editorShowsObjectSprites,
@@ -311,7 +310,7 @@ function drawMapEditorSelectionFootprint(
 
 function drawMapGameplayAnchorMarkers(
   context: CanvasRenderingContext2D,
-  art: StudioCanvasShellArt,
+  art: StudioSpatialArt,
   anchors: readonly MapGameplayAnchor[],
   terrain: TerrainArray,
   viewport: UiRect,
@@ -446,11 +445,6 @@ export function visibleMapTileRange(
  * happens only when terrain changes; content, pan, zoom and shell redraws
  * reuse it, and each draw copies only the visible source rectangle. */
 export class MapEditorRenderer {
-  #liveResourceAuthority = false;
-  #generatedResources: readonly GeneratedSurvivalResource[] = [];
-  setLiveResourceAuthority(available: boolean): void { this.#liveResourceAuthority = available; }
-  hasLiveResourceAuthority(): boolean { return this.#liveResourceAuthority; }
-
   #terrainIdentity: object | null = null;
   #terrainPendingIdentity: object | null = null;
   #terrain: TerrainArray | null = null;
@@ -462,7 +456,6 @@ export class MapEditorRenderer {
   #groundCache = new GroundChunkCache();
   #generatedBaseGroundCache = new GroundChunkCache();
   #art: OverworldArt | null = null;
-  #inspectionImage: { inspection: TerrainInspection; image: HTMLCanvasElement } | null = null;
   #artRequest: Promise<void> | null = null;
   #artFailureCount = 0;
   #artRetryAt = 0;
@@ -534,15 +527,9 @@ export class MapEditorRenderer {
     this.#terrainDerivationTimer = null;
     this.#terrainPendingIdentity = null;
     this.#terrain = null;
-    this.#generatedResources = [];
-    this.#inspectionImage = null;
     this.#generatedBaseTerrain = null;
     this.#terrainOverrideInfluenceRuns = null;
     this.#prefabAssetDocument = null;
-    this.#liveRegistry = null;
-    this.#liveObjectAssets.clear();
-    this.#liveObjectAssetRequests.clear();
-    this.#liveNpcArtRequest += 1;
   }
 
   /** Explicit user-action hook for retry buttons or route-level recovery. */
@@ -559,19 +546,6 @@ export class MapEditorRenderer {
     return this.#terrainIdentity === terrainIdentity ? this.#terrain : null;
   }
 
-  inspectionImage(inspection: TerrainInspection): HTMLCanvasElement | null {
-    if (this.#art === null || this.#terrain === null) return null;
-    if (this.#inspectionImage?.inspection === inspection) return this.#inspectionImage.image;
-    const layout = terrainInspectionVisualLayout(inspection);
-    const image = globalThis.document.createElement('canvas');
-    image.width = layout.width; image.height = layout.height;
-    const context = image.getContext('2d');
-    if (context === null) return null;
-    drawTerrainInspectionVisuals(context, this.#art, this.#terrain, this.#groundCache, inspection, 0, 0);
-    this.#inspectionImage = { inspection, image };
-    return image;
-  }
-
   /** Starts the same worker-backed terrain request used by draw(), allowing
    * the first inspector selection to reuse it without owning a compile path. */
   prepareInspectionTerrain(document: MapDocumentV3, terrainIdentity: object): void {
@@ -584,7 +558,7 @@ export class MapEditorRenderer {
     model: MapEditorModel,
     interaction: MapEditorController,
     gridVisible: boolean,
-    shellArt: StudioCanvasShellArt,
+    shellArt: StudioSpatialArt,
   ): void {
     if (this.#disposed) return;
     const document = model.document();
@@ -650,14 +624,7 @@ export class MapEditorRenderer {
       && overviewLayer !== null && terrain !== null) {
       const overview = this.#overviewCache.image(model.terrainIdentity(), overviewLayer);
       if (overview !== null) {
-        context.drawImage(
-          overview,
-          range.minimumX, range.minimumY, sourceWidth, sourceHeight,
-          viewport.x + (range.minimumX * TILE_SIZE_PIXELS - camera.x) * camera.zoom,
-          viewport.y + (range.minimumY * TILE_SIZE_PIXELS - camera.y) * camera.zoom,
-          sourceWidth * TILE_SIZE_PIXELS * camera.zoom,
-          sourceHeight * TILE_SIZE_PIXELS * camera.zoom,
-        );
+        drawTileRaster(context, overview, range, viewport, camera);
       }
     }
 
@@ -680,25 +647,21 @@ export class MapEditorRenderer {
       );
     }
 
-    if (gridVisible) {
-      const tilePixels = TILE_SIZE_PIXELS * camera.zoom;
-      let step = tilePixels >= 8 ? 1 : 16;
-      while (step > 1 && step * tilePixels < 40) step *= 2;
-      const gridLine = (tile: number, vertical: boolean): void => {
-        const origin = tile === 0;
-        const chunk = tile % 16 === 0;
-        context.strokeStyle = origin ? '#fff0bd' : chunk ? '#efcf8fb0' : '#ffffff24';
-        context.lineWidth = origin ? 3 : chunk ? 2 : 1;
-        const position = Math.round((vertical ? viewport.x : viewport.y)
-          + (tile * TILE_SIZE_PIXELS - (vertical ? camera.x : camera.y)) * camera.zoom) + 0.5;
-        context.beginPath();
-        context.moveTo(vertical ? position : viewport.x, vertical ? viewport.y : position);
-        context.lineTo(vertical ? position : viewport.x + viewport.width,
-          vertical ? viewport.y + viewport.height : position);
-        context.stroke();
-      };
-      for (let x = Math.ceil(range.minimumX / step) * step; x <= range.maximumX; x += step) gridLine(x, true);
-      for (let y = Math.ceil(range.minimumY / step) * step; y <= range.maximumY; y += step) gridLine(y, false);
+    if (gridVisible && TILE_SIZE_PIXELS * camera.zoom >= 5) {
+      context.strokeStyle = 'rgba(255, 255, 255, 0.52)';
+      context.lineWidth = 1;
+      context.beginPath();
+      for (let tileX = range.minimumX; tileX <= range.maximumX; tileX += 1) {
+        const x = Math.round(viewport.x + (tileX * TILE_SIZE_PIXELS - camera.x) * camera.zoom) + 0.5;
+        context.moveTo(x, viewport.y);
+        context.lineTo(x, viewport.y + viewport.height);
+      }
+      for (let tileY = range.minimumY; tileY <= range.maximumY; tileY += 1) {
+        const y = Math.round(viewport.y + (tileY * TILE_SIZE_PIXELS - camera.y) * camera.zoom) + 0.5;
+        context.moveTo(viewport.x, y);
+        context.lineTo(viewport.x + viewport.width, y);
+      }
+      context.stroke();
     }
 
     if (terrain !== null) drawActiveMapEditorOverlays(
@@ -713,21 +676,6 @@ export class MapEditorRenderer {
       this.#overlayCache,
       generatedBaseVisible || terrainOverridesVisible,
     );
-
-    const selectedTile = interaction.selectedTerrainPoint();
-    if (selectedTile !== null) {
-      const depth = terrain === null ? 0 : terrainProjectedDepthForElevation(terrain,
-        terrain.elevations[selectedTile.tileY * terrain.width + selectedTile.tileX] ?? 0);
-      const x = Math.round(viewport.x + (selectedTile.tileX * TILE_SIZE_PIXELS - camera.x) * camera.zoom);
-      const y = Math.round(viewport.y + (selectedTile.tileY * TILE_SIZE_PIXELS - depth - camera.y) * camera.zoom);
-      const size = Math.max(3, Math.round(TILE_SIZE_PIXELS * camera.zoom));
-      context.fillStyle = '#ffe39a40';
-      context.fillRect(x, y, size, size);
-      context.strokeStyle = '#5a3528'; context.lineWidth = 4;
-      context.strokeRect(x, y, size, size);
-      context.strokeStyle = '#fff0bd'; context.lineWidth = 2;
-      context.strokeRect(x, y, size, size);
-    }
 
     if (transitionPreview !== null) {
       drawMapEditorTransitionPreview(context, transitionPreview, terrain, viewport, camera);
@@ -915,8 +863,11 @@ export class MapEditorRenderer {
       this.#terrainFallbackTimer = null;
       if (this.#disposed || this.#terrainPendingIdentity !== terrainIdentity) return;
       try {
-        this.acceptTerrain(mapDocument, terrainIdentity,
-          buildMapEditorTerrain(mapDocument, this.#terrainPalette));
+        this.acceptTerrain(
+          mapDocument,
+          terrainIdentity,
+          buildMapEditorTerrain(mapDocument, this.#terrainPalette),
+        );
         this.invalidate();
       } catch (error) {
         if (this.#terrainPendingIdentity !== terrainIdentity) return;
@@ -984,7 +935,6 @@ export class MapEditorRenderer {
     }
     this.#generatedBaseTerrainKey = derivatives.generatedBaseTerrainKey;
     this.#terrainOverrideInfluenceRuns = derivatives.terrainOverrideInfluenceRuns;
-    this.#generatedResources = derivatives.generatedResources ?? [];
     if (typeof document !== 'undefined') {
       this.#overviewCache.accept(terrainIdentity, derivatives.overview);
     }
@@ -1004,7 +954,7 @@ export class MapEditorRenderer {
     return null;
   }
 
-  private detailedArt(shellArt: StudioCanvasShellArt): OverworldArt | null {
+  private detailedArt(shellArt: StudioSpatialArt): OverworldArt | null {
     if (this.#disposed) return null;
     if (this.#art !== null || this.#artRequest !== null) return this.#art;
     if (Date.now() < this.#artRetryAt) return null;
@@ -1191,25 +1141,10 @@ export class MapEditorRenderer {
       });
     }
 
-    if (drawLiveArtwork && !this.#liveResourceAuthority && model.isLayerVisible('generated_base')) {
-      for (const resource of this.#generatedResources) {
-        const worldX = (resource.tileX + 0.5) * TILE_SIZE_PIXELS;
-        const worldY = (resource.tileY + 1) * TILE_SIZE_PIXELS;
-        if (!pointInsideCull(cull, worldX, worldY)) continue;
-        const marker: MapEditorLiveMarker = {
-          id: `generated-preview-${resource.id}`, entityKind: 'resource', kind: resource.kind,
-          label: `Generated ${resource.kind}`, spaceId: 0, tileX: resource.tileX, tileY: resource.tileY,
-          worldX, worldY, elevation: null, footprint: { width: 1, height: 1 },
-          layer: 'generated_base', color: '#72c77a', growthStage: 3,
-          miningClass: resource.nodeClass, richness: resource.richness,
-        };
-        this.enqueueLiveMarker(enqueueProjected, context, art, marker, worldX, worldY, camera, 0);
-      }
-    }
     if (drawLiveArtwork) {
       const liveAnimationFrame = Math.floor(performance.now() / 125);
       for (const marker of interaction.liveMarkers()) {
-        if ((!this.#liveResourceAuthority && marker.entityKind === 'resource') || !model.isLayerVisible(marker.layer)
+        if (!model.isLayerVisible(marker.layer)
           || !pointInsideCull(cull, marker.worldX, marker.worldY)) continue;
         this.enqueueLiveMarker(
           enqueueProjected, context, art, marker, marker.worldX, marker.worldY, camera,

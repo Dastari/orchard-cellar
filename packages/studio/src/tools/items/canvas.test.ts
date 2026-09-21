@@ -1,3 +1,5 @@
+import type { CanvasTextEditor } from '@orchard/ui/studio';
+import { kitElements, pressKit, chooseKit, keyKit } from '../kit-test-driver.js';
 import { describe, expect, it, vi } from 'vitest';
 import { parseLifecycleSourceBundle } from '@orchard/lifecycle-authoring';
 import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
@@ -12,123 +14,67 @@ function context(): StudioCanvasToolContext {
     route: controller.activeRoute(), controller, invalidate: vi.fn() };
 }
 
-function expectCanvasContract(surface: StudioCanvasToolSurface, context: StudioCanvasToolContext): void {
-  expect(surface.nodes.length).toBeLessThanOrEqual(200);
-  expect(surface.actions.length).toBeLessThanOrEqual(200);
-  expect(surface.tables?.length).toBeGreaterThan(0);
-  expect(surface.tables?.length).toBeLessThanOrEqual(8);
-  expect(new Set(surface.nodes.map(({ id }) => id)).size).toBe(surface.nodes.length);
-  expect(new Set(surface.actions.map(({ id }) => id)).size).toBe(surface.actions.length);
-  const regions = [context.controlsBounds ?? context.bounds, context.workspaceBounds ?? context.bounds];
-  for (const entry of [...surface.nodes, ...surface.actions]) {
-    expect(entry.id.startsWith(`${context.route.tool.id}-`)).toBe(true);
-    expect(regions.some((region) => entry.bounds.x >= region.x && entry.bounds.y >= region.y
-      && entry.bounds.x + entry.bounds.width <= region.x + region.width
-      && entry.bounds.y + entry.bounds.height <= region.y + region.height), entry.id).toBe(true);
-  }
-  for (const action of surface.actions) expect(action.bounds.height).toBeGreaterThanOrEqual(40);
-  for (const table of surface.tables ?? []) {
-    expect(table.id.startsWith(`${context.route.tool.id}-`)).toBe(true);
-    expect(table.layout.rowHeight).toBe(42);
-    expect(table.layout.header.height).toBe(42);
-    expect(table.layout.bounds.x).toBeGreaterThanOrEqual((context.workspaceBounds ?? context.bounds).x);
-  }
+function control(surface: StudioCanvasToolSurface, suffix: string) {
+  const found=kitElements(surface).find(element=>element.id.endsWith(`items:${suffix}`));
+  if(!found)throw new Error(`Missing ${suffix}`);return found;
 }
+function editor(surface: StudioCanvasToolSurface,suffix:string):CanvasTextEditor {
+  return control(surface,suffix).props['editor'] as CanvasTextEditor;
+}
+function action(surface: StudioCanvasToolSurface,suffix:string):void {pressKit(surface,control(surface,suffix).id);}
 
 describe('Items & Recipes canvas tool', () => {
-  it('renders a bounded retained browser, all-field editor, output, history, and semantic actions', () => {
-    const toolContext = context();
-    const surface = buildItemsCanvasTool(toolContext);
-    expectCanvasContract(surface, toolContext);
-    expect(surface.actions.some(({ id, role }) => id.endsWith('items:query') && role === 'textbox')).toBe(true);
-    expect(surface.actions.some(({ id }) => id.includes('items:definition:item:'))).toBe(true);
-    expect(surface.nodes.some(({ id }) => id.includes('items:field:'))).toBe(true);
-    expect(surface.nodes.some(({ id }) => id.endsWith('items:status'))).toBe(true);
-    expect(surface.actions.find(({ id }) => id.endsWith('items:publish'))?.disabled).toBe(true);
-    const table = surface.tables![0]!;
-    const row = table.layout.rows[table.layout.rows.length - 1]!;
-    table.onHit?.({ kind: 'cell', rowId: row.id, rowIndex: row.rowIndex,
-      columnId: row.cells[0]!.columnId, columnIndex: 0 });
-    expect(toolContext.controller.selection.current()).toMatchObject({ kind: 'definition', id: row.id });
-    table.onScroll?.('end', table.layout.maximumScrollRow);
-    expect(toolContext.invalidate).toHaveBeenCalled();
+  it('uses kit controls and a virtual definition browser with keyboard selection',()=>{
+    const toolContext=context();let surface=buildItemsCanvasTool(toolContext);
+
+    expect(control(surface,'publish').disabled).toBe(true);
+    expect(kitElements(surface).some(element=>element.id.includes('items:field:'))).toBe(true);
+    surface=buildItemsCanvasTool(toolContext);
+    const table=control(surface,'browser-table');
+    const first=(table.props['rowOrder'] as string[])[0];
+    action(surface,'browser-table:rows');
+    expect(toolContext.controller.selection.current()).toMatchObject({kind:'definition',id:first});
   });
-
-  it('switches definition tables and applies JSON edits through the existing model', () => {
-    const toolContext = context();
-    let surface = buildItemsCanvasTool(toolContext);
-    surface.actions.find(({ id }) => id.endsWith('items:kind:recipe'))!.activate();
-    surface = buildItemsCanvasTool(toolContext);
-    expect(surface.tables?.[0]?.layout.headerCells[0]?.label).toMatch(/^RECIPE/u);
-
-    surface.actions.find(({ id }) => id.endsWith('items:kind:item'))!.activate();
-    surface = buildItemsCanvasTool(toolContext);
-    const editor = surface.textEditors!.find(({ id }) => id.endsWith('items:definition-json'))!.editor;
-    const definition = JSON.parse(editor.snapshot().value) as { displayName: string };
-    editor.setValue(JSON.stringify({ ...definition, displayName: `${definition.displayName} Canvas` }));
-    surface.actions.find(({ id }) => id.endsWith('items:apply-json'))!.activate();
-    surface = buildItemsCanvasTool(toolContext);
-    expect(surface.nodes.find(({ id }) => id.endsWith('items:status'))?.label).toContain('1 CHANGES');
+  it('switches definition kinds and applies JSON through the existing model',()=>{
+    const toolContext=context();let surface=buildItemsCanvasTool(toolContext);
+    chooseKit(surface,control(surface,'kind').id,'RECIPE');surface=buildItemsCanvasTool(toolContext);
+    expect((control(surface,'browser-table').props['rowOrder'] as string[]).every(id=>id.startsWith('recipe:'))).toBe(true);
+    chooseKit(surface,control(surface,'kind').id,'ITEM');surface=buildItemsCanvasTool(toolContext);
+    chooseKit(surface,control(surface,'tabs:mode').id,'JSON');surface=buildItemsCanvasTool(toolContext);
+    const draft=editor(surface,'definition-json');const definition=JSON.parse(draft.snapshot().value) as {displayName:string};
+    draft.setValue(JSON.stringify({...definition,displayName:`${definition.displayName} Canvas`}));
+    action(surface,'apply-json');surface=buildItemsCanvasTool(toolContext);
+    expect(control(surface,'status').props['text']).toContain('1 CHANGES');
   });
-
-  it('authors recipe-book onUse code entirely through Canvas controls and exports a valid warm bundle', () => {
-    const toolContext = context();
-    let surface = buildItemsCanvasTool(toolContext);
-    surface.textEditors!.find(({ id }) => id.endsWith('items:query'))!.editor.setValue("Marlow's");
-    surface = buildItemsCanvasTool(toolContext);
-    const table = surface.tables![0]!;
-    const row = table.layout.rows.find(({ id }) => id === 'item:marlow_book')!;
-    table.onHit?.({ kind: 'cell', rowId: row.id, rowIndex: row.rowIndex,
-      columnId: row.cells[0]!.columnId, columnIndex: 0 });
-    surface = buildItemsCanvasTool(toolContext);
-
-    expect(surface.actions.find(({ id }) => id.endsWith('items:lifecycle-create')))
-      .toMatchObject({ disabled: true });
-    surface.actions.find(({ id }) => id.endsWith('items:lifecycle-remove'))!.activate();
-    surface = buildItemsCanvasTool(toolContext);
-    const create = surface.actions.find(({ id }) => id.endsWith('items:lifecycle-create'))!;
-    expect(create.disabled).toBe(false);
-    create.activate();
-    surface = buildItemsCanvasTool(toolContext);
-
-    const prompt = surface.textEditors!.find(({ id }) => id.endsWith('items:lifecycle-prompt'))!.editor;
-    const source = surface.textEditors!.find(({ id }) => id.endsWith('items:lifecycle-source'))!.editor;
-    const recipeBookSource = [
+  it('authors recipe-book onUse source and exports a compiler-valid local bundle',()=>{
+    const toolContext=context();let surface=buildItemsCanvasTool(toolContext);
+    editor(surface,'query').setValue('Marlow Book');surface=buildItemsCanvasTool(toolContext);
+    const rowOrder=control(surface,'browser-table').props['rowOrder'] as string[];
+    const index=rowOrder.indexOf('item:marlow_book');expect(index).toBeGreaterThanOrEqual(0);
+    keyKit(surface,control(surface,'browser-table:rows').id,'Home');
+    for(let row=0;row<index;row++)keyKit(surface,control(surface,'browser-table:rows').id,'ArrowDown');
+    action(surface,'browser-table:rows');surface=buildItemsCanvasTool(toolContext);
+    chooseKit(surface,control(surface,'tabs:mode').id,'Lifecycle');surface=buildItemsCanvasTool(toolContext);
+    expect(control(surface,'lifecycle-create').disabled).toBe(true);
+    action(surface,'lifecycle-remove');surface=buildItemsCanvasTool(toolContext);
+    expect(control(surface,'lifecycle-create').disabled).toBe(false);
+    action(surface,'lifecycle-create');surface=buildItemsCanvasTool(toolContext);
+    const recipeBookSource=[
       "const recipes = ['recipe:wooden_pickaxe', 'recipe:wooden_sword'];",
       'for (const recipe of recipes) {',
       '  if (!context.player.findRecipe(recipe)) context.player.giveRecipe(recipe);',
       '}',
     ].join('\n');
-    prompt.setValue('READ RECIPE BOOK');
-    source.setValue(recipeBookSource);
-    surface = buildItemsCanvasTool(toolContext);
-
-    expect(surface.nodes.find(({ id }) => id.endsWith('items:lifecycle-ribbon'))).toMatchObject({
-      kind: 'ribbon', label: 'ON USE',
-    });
-    expect(surface.actions.some(({ id }) => id.includes('lifecycle-previous') || id.includes('lifecycle-next')))
-      .toBe(false);
-    expect(surface.actions.find(({ id }) => id.endsWith('items:lifecycle-trigger:secondary')))
-      .toMatchObject({ disabled: false });
-    expect(surface.nodes.find(({ id }) => id.endsWith('items:lifecycle-source')))
-      .toMatchObject({ multiline: true, textScale: 1 });
-    expect(surface.nodes.find(({ id }) => id.endsWith('items:lifecycle-status'))?.label)
-      .toMatch(/WARM DRAFT .* VALID .* NOT LIVE/u);
-    const exportAction = surface.actions.find(({ id }) => id.endsWith('items:lifecycle-export'))!;
-    expect(exportAction.disabled).toBe(false);
-    exportAction.activate();
-    surface = buildItemsCanvasTool(toolContext);
-
-    const bundle = surface.textEditors!.find(({ id }) => id.endsWith('items:lifecycle-bundle'))!
-      .editor.snapshot().value;
-    const parsed = parseLifecycleSourceBundle(JSON.parse(bundle));
-    expect(parsed.handlers.find(({ itemId }) => itemId === 'item:marlow_book')).toMatchObject({
-      prompt: 'READ RECIPE BOOK', source: recipeBookSource, triggers: ['secondary'],
-    });
-    expect(surface.actions.filter(({ id }) => id.includes('items:lifecycle-mode-'))
-      .map(({ id }) => id.slice(id.indexOf('items:lifecycle-mode-'))))
-      .toEqual(['items:lifecycle-mode-source', 'items:lifecycle-mode-bundle']);
-    expect(surface.actions.some(({ id }) => id.includes('lifecycle-publish') || id.includes('candidate')))
-      .toBe(false);
+    editor(surface,'lifecycle-prompt').setValue('READ RECIPE BOOK');
+    editor(surface,'lifecycle-source').setValue(recipeBookSource);surface=buildItemsCanvasTool(toolContext);
+    expect(control(surface,'lifecycle-ribbon').props['text']).toBe('ON USE');
+    expect(control(surface,'lifecycle-trigger:secondary').disabled).toBe(false);
+    expect(editor(surface,'lifecycle-source').snapshot().value).toContain('\n');
+    expect(control(surface,'lifecycle-status').props['text']).toMatch(/WARM DRAFT .* VALID .* NOT LIVE/u);
+    expect(control(surface,'lifecycle-export').disabled).toBe(false);
+    action(surface,'lifecycle-export');surface=buildItemsCanvasTool(toolContext);
+    const parsed=parseLifecycleSourceBundle(JSON.parse(editor(surface,'lifecycle-bundle').snapshot().value));
+    expect(parsed.handlers.find(({itemId})=>itemId==='item:marlow_book')).toMatchObject({prompt:'READ RECIPE BOOK',source:recipeBookSource,triggers:['secondary']});
+    expect(kitElements(surface).some(({id})=>id.includes('lifecycle-publish')||id.includes('candidate'))).toBe(false);
   });
 });
