@@ -151,6 +151,8 @@ const STRUCTURAL_SEAM_DIGEST = '7131ba7a4aca312db0c1e2a63cb6b1eba8c97cb63de106c0
 // Delve keepsake review: docs/delve-keepsake-spec.md. Against main 2aee1799 / Orchard b8870362,
 // all five seams differ only in the admission label announcing the first-win
 // home recipe; package ownership and acyclic-import gates remain unchanged.
+// Willowharbour binds native streetlamps to the authored lighting definition.
+// Review: docs/review/west-town-visual-pass-01.md; fixture-light tests cover this seam.
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

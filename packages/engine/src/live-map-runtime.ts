@@ -379,6 +379,7 @@ export function enqueueLiveMapObjects(
 
 /** Explicit native visual/component pairs: an unlit frame must not emit light. */
 const MAP_LIGHT_VISUALS:Readonly<Record<string,{objectId:string;visual:string}>>={
+  prop_cf_hearth_streetlamp:{objectId:'object:hearth_streetlamp',visual:'base'},
   prop_cf_standing_torch:{objectId:'object:standing_torch',visual:'burn'},
   prop_cf_furniture_rustic_standing_lamp:{objectId:'object:furniture_rustic_standing_lamp',visual:'base'},
   prop_cf_furniture_townhouse_floor_lamp:{objectId:'object:furniture_townhouse_floor_lamp',visual:'base'},

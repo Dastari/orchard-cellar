@@ -1,3 +1,4 @@
+import {prepareWillowharbourUpgrade} from './upgrade-willowharbour-map.js';
 /** Offline candidate export. Never connects to or publishes a world database. */
 import {createHash} from 'node:crypto';
 import {mkdir,readFile,writeFile,rm} from 'node:fs/promises';
@@ -29,7 +30,7 @@ export function validateExportVisual(name:string,built:BuiltPageAsset,size:reado
     if(!frame||frame.width!==size[0]||frame.height!==size[1]) throw new Error(`asset_frame_mismatch:${name}:${visualName}`);
   }
 }
-export async function exportHearthMap(inputPath:string,outputPath:string):Promise<void> {
+export async function exportHearthMap(inputPath:string,outputPath:string,reviewedBaselinePath?:string):Promise<void> {
   const inputFile=resolve(inputPath),output=resolve(outputPath);
   const inputBytes=await readFile(inputFile),raw:unknown=JSON.parse(inputBytes.toString('utf8'));
   const fields=new Set(['schemaVersion','id','title','width','height','tileSize','themeId','baseElevation','baseSurface',
@@ -66,7 +67,9 @@ export async function exportHearthMap(inputPath:string,outputPath:string):Promis
     used.set(name,{assetId:row.assetId,sourceSha256:hash(JSON.stringify(source)),approved:source.approved===true&&row.tags.includes('review.approved')});
     return {id:row.assetId,width:source.size[0],height:source.size[1],anchor:source.anchor};
   };
-  const result=composeHearthContentMap(input,assetFor,registry.revision);
+  const baselineBytes=reviewedBaselinePath===undefined?null:await readFile(resolve(reviewedBaselinePath));
+  const source=baselineBytes===null?input:prepareWillowharbourUpgrade(input,parseMapDocumentV3(baselineBytes.toString('utf8')));
+  const result=composeHearthContentMap(source,assetFor,registry.revision);
   if(result.document===null) throw new Error(`map_conflicts:\n${result.conflicts.join('\n')}`);
   for(const prefab of result.document.prefabs) for(const placement of prefab.placements) {
     const asset=assetFor(placement.assetName),row=byName.get(placement.assetName)!;
@@ -83,7 +86,7 @@ export async function exportHearthMap(inputPath:string,outputPath:string):Promis
   const parsed=parseMapDocumentV3(map);
   const rerun=composeHearthContentMap(parsed,assetFor,registry.revision);
   if(!rerun.document||serializeMapDocumentV3ForTransport(rerun.document)!==map) throw new Error('candidate_roundtrip_not_idempotent');
-  const compilerPaths=['packages/tools/src/hearth-cinder-scenery.ts','packages/tools/src/hearth-map-composition.ts','packages/tools/src/hearth-village.ts','packages/sim/src/hearth-archipelago.ts','packages/tools/src/hearth-archipelago-authoring.ts','packages/engine/src/legacy-landmark-assets.ts','packages/tools/src/legacy-landmark-bounds.ts',
+  const compilerPaths=['packages/tools/src/upgrade-willowharbour-map.ts','packages/tools/src/hearth-cinder-scenery.ts','packages/tools/src/hearth-map-composition.ts','packages/tools/src/hearth-village.ts','packages/sim/src/hearth-archipelago.ts','packages/tools/src/hearth-archipelago-authoring.ts','packages/engine/src/legacy-landmark-assets.ts','packages/tools/src/legacy-landmark-bounds.ts',
     'packages/tools/src/export-hearth-map.ts','packages/tools/src/assets/source-revision.ts'];
   const compilerHashes=Object.fromEntries(await Promise.all(compilerPaths.map(async path=>[path,hash(await readFile(resolve(root,path)))])));
   const assetFileHashes=Object.fromEntries(await Promise.all([...used.keys()].map(async name=>{
@@ -94,6 +97,7 @@ export async function exportHearthMap(inputPath:string,outputPath:string):Promis
     return [path,hash(bytes)];
   })));
   const manifest={format:'hearth-map-candidate-v1',publishReady:false,inputPath:relative(root,inputFile),inputSha256:hash(inputBytes),
+    ...(baselineBytes===null?{}:{reviewedWillowharbourBaselineSha256:hash(baselineBytes)}),
     registrySha256:hash(registryBytes),registryRevision:registry.revision,categoryHashes,compilerHashes,assetFileHashes,
     mapSha256:hash(map),inputRevision:input.revision,candidateRevision:parsed.revision,
     affectedBounds:HEARTH_AUTHORING_ISLANDS,counts:{cells:Object.keys(parsed.cells).length,prefabs:parsed.prefabs.length,objects:parsed.objects.length},
@@ -108,8 +112,8 @@ export async function exportHearthMap(inputPath:string,outputPath:string):Promis
   } catch(error) {await rm(output,{recursive:true,force:true});throw error;}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
-  const [input,output,...extra]=process.argv.slice(2);
-  if(!input||!output||extra.length) throw new Error('Usage: export-hearth-map <saved-map-v3.json> <new-output-directory>');
-  await exportHearthMap(input,output);
+  const [input,output,baseline,...extra]=process.argv.slice(2);
+  if(!input||!output||extra.length) throw new Error('Usage: export-hearth-map <saved-map-v3.json> <new-output-directory> [reviewed-prior-map-v3.json]');
+  await exportHearthMap(input,output,baseline);
   console.log(`Wrote offline candidate: ${resolve(output)} (not publication-ready)`);
 }

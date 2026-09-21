@@ -66,6 +66,8 @@ describe('bootstrap authored object behaviour parity', () => {
       'object:fermentation_cask', 'object:fruit_press', 'object:furnace', 'object:greenhouse',
       'object:lantern', 'object:shed', 'object:sign', 'object:silo', 'object:sprinkler',
       'object:standing_torch', 'object:workbench',
+      'object:hearth_streetlamp', 'object:willow_farm_hay_bale',
+      'object:willow_farm_hay_stack', 'object:willow_farm_potted_flowers',
       ...Object.keys(HEARTH_FURNITURE_SHAPES).map(id => `object:${id}`),
     ].sort());
     const compiledIds = new Set<string>(PLACEABLE_HANDLER_REGISTRATIONS.map(({ id }) => id));

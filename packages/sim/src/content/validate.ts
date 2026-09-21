@@ -603,6 +603,15 @@ function validateWorldDefinition(
       });
     }
     const interior = definition.hearthInterior;
+    if (definition.hearthInteriorFloors !== undefined) {
+      if (interior === undefined) invalid('interior floor regions require an interior', 'hearthInteriorFloors');
+      definition.hearthInteriorFloors.forEach(({ bounds: [left, top, right, bottom] }, index) => {
+        if (left > right || top > bottom || left < 0 || top < 0
+          || right >= definition.sizeTiles || bottom >= definition.sizeTiles)
+          invalid('interior floor region must be ordered and inside the space', `hearthInteriorFloors[${index}]`);
+      });
+    }
+
     if (definition.generator === 'village_interior' && interior === undefined) {
       invalid('village interior spaces require authored interior metadata', 'hearthInterior');
     } else if (definition.generator !== 'village_interior' && interior !== undefined) {
@@ -633,9 +642,12 @@ function validateWorldDefinition(
           const art = encoded.slice(0, 2), x = number36(encoded[2]!), y = number36(encoded[3]!);
           const suffix = encoded.slice(4), support = suffix.startsWith('-');
           const fixed = suffix.length >= 2 && !support;
-          const matches = [...byId.values()].filter(candidate => candidate.kind === 'object'
+          let matches = [...byId.values()].filter(candidate => candidate.kind === 'object'
             && candidate.retired !== true && candidate.components.sprite !== undefined
             && fingerprint(candidate.components.sprite.asset) === art);
+          const authoredPresentation = suffix.includes('!') ? suffix.slice(suffix.indexOf('!') + 1) : undefined;
+          if (matches.length > 1 && authoredPresentation !== undefined) matches = matches.filter(candidate => candidate.kind === 'object'
+            && candidate.components.sprite?.asset === `prop_cf_${authoredPresentation}`);
           if (matches.length !== 1) invalid('interior furniture art must resolve to exactly one active object', `hearthInterior[2].${index}`);
           if (!inside(x, y)) invalid('interior furniture must be inside the authored space', `hearthInterior[2].${index}`);
           if (support && number36(suffix.slice(1)) > index) {

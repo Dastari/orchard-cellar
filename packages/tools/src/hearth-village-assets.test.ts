@@ -7,7 +7,7 @@ import {decodePng,hexToRgba} from './assets/png.js';
 import type {AssetSource} from './assets/types.js';
 const root=resolve(import.meta.dirname,'../../..');
 const entries=[...WILLOWHARBOUR_PLOTS.map(plot=>({name:`building_cf_hearth_${plot.id.replaceAll('-','_')}`,category:'buildings',x:0,y:0,visual:'base',count:1})),
-  ...[['stall_red',0,0],['stall_blue',96,0],['stall_gold',144,0],['bench',32,0],['hedge_horizontal',32,0],['hedge_vertical',0,16]]
+  ...[['streetlamp',0,0],['well',0,0],['trough',16,0],['scarecrow',0,0],['stall_red',0,0],['stall_blue',96,0],['stall_gold',144,0],['bench',32,0],['hedge_horizontal',32,0],['hedge_vertical',0,16]]
     .map(([name,x,y])=>({name:`prop_cf_hearth_${name}`,category:'props',x:Number(x),y:Number(y),visual:'base',count:1})),
   {name:'prop_cf_hearth_fountain',category:'props',x:0,y:0,visual:'flow',count:8}];
 const hash=(bytes:Uint8Array)=>createHash('sha256').update(bytes).digest('hex');

@@ -7,7 +7,7 @@ import {WILLOWHARBOUR_PLOTS,composeHearthArchipelago} from './hearth-archipelago
 import {buildHearthVillageFacades,buildHearthVillageScenery} from './hearth-village.js';
 
 const assetFor = (name: string) => {
-  const category = name.startsWith('crop_') ? 'crops' : name.startsWith('tree_') ? 'trees' : (name.startsWith('prop_') || name.startsWith('vehicle_')) ? 'props' : 'buildings';
+  const category = name.startsWith('wildlife_')?'characters':name.startsWith('crop_') ? 'crops' : name.startsWith('tree_') ? 'trees' : (name.startsWith('prop_') || name.startsWith('vehicle_') || name.startsWith('nature_') || name.startsWith('sign_')) ? 'props' : 'buildings';
   const source = JSON.parse(readFileSync(new URL(`../../assets/${category}/${name}.sprite.json`, import.meta.url),'utf8')) as {
     size: [number,number]; anchor: [number,number];
   };
@@ -22,14 +22,14 @@ describe('Willowharbour facades', () => {
     const scenery=buildHearthVillageScenery(base.cells,assetFor,'test-registry');
     expect(sha256(facades.prefabs)).toBe('d4560bfebcdb9fef42448e87d89d8a47c428e133a518b305d97d1de9248e25d4');
     expect(sha256(facades.objects)).toBe('3b0a10762d476fb7fda1c70a2d24f0ebf685032435512d65b541c672a37e6fb0');
-    expect(sha256(scenery.prefabs)).toBe('6ef1e2553dffb64ddf3f50bc93f1578af8e27b1887b8c0d2a04e26895a0e2ba8');
-    expect(sha256(scenery.objects)).toBe('c54309aac07791626b8d4a9567f9f53c04a13af6e8d4aa208619c119b83f365d');
+    expect(sha256(scenery.prefabs)).toBe('8f3c9df7a579d828a610b26dc4e7c7421f4412dfe1f7d3523564c5872b100d36');
+    expect(sha256(scenery.objects)).toBe('a4f44525bc675d0b463fc1a7025e572f6d09a63c97767c6570be251b6ab0cf6d');
   });
   it('marks only public service thresholds with nonblocking ground runners',()=>{
     const base=composeHearthArchipelago(createLiveIslandMapDocument()).document;
     const scenery=buildHearthVillageScenery(base.cells,assetFor,'test-registry');
     const markers=scenery.objects.filter(o=>o.prefabId==='hearth-prop-cf-furniture-rustic-runner');
-    expect(markers).toHaveLength(6);
+    expect(markers).toHaveLength(10);
     for(const plot of WILLOWHARBOUR_PLOTS) {
       expect(markers.some(o=>o.tileX===plot.door.tileX && o.tileY===plot.door.tileY),plot.id).toBe(plot.enterable);
     }
@@ -110,4 +110,23 @@ describe('Willowharbour facades', () => {
     expect(serializeMapDocumentV3ForTransport(document).length).toBeLessThan(4_000_000);
   });
 
+});
+
+it('grows reproducible mixed-age groves on level land without planting across roads or cliffs',()=>{
+  const cells=composeHearthArchipelago(createLiveIslandMapDocument()).document.cells;
+  const first=buildHearthVillageScenery(cells,assetFor,'fixture');
+  expect(buildHearthVillageScenery(cells,assetFor,'fixture')).toEqual(first);
+  const trees=first.objects.filter(row=>row.layer==='canopy');
+  expect(trees.length).toBeGreaterThan(450);
+  expect(trees.some(row=>row.prefabId.includes('young'))).toBe(true);
+  expect(trees.some(row=>row.prefabId.includes('sapling'))).toBe(true);
+  expect(trees.some(row=>row.elevation>0)).toBe(true);
+  for(const row of trees) {
+    const cell=cells[`${row.tileX},${row.tileY}`];
+    expect(cell?.biome,row.id).toBe('meadow');
+    expect(cell?.elevation??0,row.id).toBe(row.elevation);
+  }
+  // A grove has close canopy companions; the main square remains clear.
+  expect(trees.filter(a=>trees.some(b=>a!==b&&(a.tileX-b.tileX)**2+(a.tileY-b.tileY)**2<=8)).length).toBeGreaterThan(100);
+  expect(trees.some(row=>row.tileX>=163&&row.tileX<=183&&row.tileY>=394&&row.tileY<=406)).toBe(false);
 });

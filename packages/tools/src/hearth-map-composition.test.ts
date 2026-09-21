@@ -5,7 +5,7 @@ import {createLiveIslandMapDocument,parseMapDocumentV3,serializeMapDocumentV3For
 import {buildHearthArchipelagoContribution} from './hearth-archipelago-authoring.js';
 import {composeHearthContentMap} from './hearth-map-composition.js';
 const assetFor=(name:string)=>{
-  const category=name.startsWith('building_')?'buildings':name.startsWith('tree_')?'trees':name.startsWith('crop_')?'crops':'props';
+  const category=name.startsWith('wildlife_')?'characters':name.startsWith('building_')?'buildings':name.startsWith('tree_')?'trees':name.startsWith('crop_')?'crops':'props';
   const source=JSON.parse(readFileSync(new URL(`../../assets/${category}/${name}.sprite.json`,import.meta.url),'utf8')) as {size:[number,number];anchor:[number,number]};
   return {id:1,width:source.size[0],height:source.size[1],anchor:source.anchor};
 };
@@ -13,9 +13,9 @@ const compose=(input:MapDocumentV3)=>composeHearthContentMap(input,assetFor,'fix
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 it('preserves the reviewed map, prefab, and object composition hashes at the tools boundary',()=>{
   const document=compose(createLiveIslandMapDocument()).document!;
-  expect(sha256(serializeMapDocumentV3ForTransport(document))).toBe('9b304627ac26d1bf844da3a61c613feceb941547c4729cbd07f3d1f8decd4315');
-  expect(sha256(JSON.stringify(document.prefabs))).toBe('6e9a37ad9f063d0687a3d16f7c474524783dae3a4ee19480304122891dabc932');
-  expect(sha256(JSON.stringify(document.objects))).toBe('eb8e9e05ccffa0ad6cfa2f525721aa3572c94e934ab78c260ec929fd29e4c578');
+  expect(sha256(serializeMapDocumentV3ForTransport(document))).toBe('ac7c72a379f7b84b6c19e687c52247ab32de672f74d2cbb89027a89403a300f7');
+  expect(sha256(JSON.stringify(document.prefabs))).toBe('431bcfe09761212c4542d3845cda68363c5a85c49dd101b22248f1b3fc188862');
+  expect(sha256(JSON.stringify(document.objects))).toBe('77a139fc653aeb3abd441f01de6d37243e966c2150092ea5f72a0d267523f0bf');
 });
 it('composes once, preserves original authoring and is exactly idempotent',()=>{
   const base=createLiveIslandMapDocument();

@@ -330,3 +330,23 @@ Successful treatment also records exactly one authored `compost_applied` lifetim
 ## Connected estate progression (0.14.0)
 
 Residence expansion prices live in the shared `RESIDENCE_EXPANSION_COSTS_BRONZE` balance constants and flow through `hearthResidenceExpansionQuote` to both client quotes and server debits. Reports read the same quotes. Fishing authority records future catch/depletion XP on Farming, with unchanged single-use cast custody, loot and existing lifetime statistics. No schema, inventory, historical XP or purchased-room migration is needed. See [the accepted specification](connected-estate-progression-spec.md).
+
+### Willowharbour visual authoring (0.9.0)
+
+The tools-only archipelago composer rounds the village coastline, authors variable
+beaches and raised northern shelves, and places seeded mixed-age woodland around
+reserved buildings, paths and level terrain. Paving retains one semantic public
+network; dirt surfaces select soil art for rural lanes, while both surfaces use
+the existing 47-frame native grass fringe. This does not change the original
+island or Cinderwake generator.
+
+All ten village buildings use content-defined interior spaces and bidirectional
+portals. Optional bounded `hearthInteriorFloors` regions select rustic wood,
+parquet, stone or planting soil without changing authoritative collision. See
+[interior contracts](willowharbour-interiors.md) and
+[visual pass specification](west-town-visual-pass-spec.md).
+
+The offline exporter optionally accepts a reviewed prior map export to replace
+only unchanged Willowharbour authoring. It checks prior cells, objects, prefabs
+and transitions, preserves other regions and shared prefabs, then runs the normal
+conflict-aware composer. Publication remains a separate world/content release.

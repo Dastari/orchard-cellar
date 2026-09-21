@@ -5,7 +5,7 @@ import {hearthFurnitureObstacle,type HearthFurniturePlacement} from './hearth-fu
 import {hearthFurnitureShapeForPlaceable} from './hearth-furniture-state.js';
 import {FIXED_UNITS_PER_PIXEL,type CollisionMap} from './state.js';
 
-export type HearthInteriorKind='inn'|'general-store'|'carpenter'|'furnisher'|'smith'|'guild';
+export type HearthInteriorKind='inn'|'general-store'|'carpenter'|'furnisher'|'smith'|'guild'|'garden-cottage'|'orchard-cottage'|'barn'|'greenhouse';
 export interface HearthInteriorFurniture {
   readonly id:string;readonly kind:string;readonly definitionId:`object:${string}`;
   readonly tileX:number;readonly tileY:number;readonly halfWidth:number;readonly depth:number;
@@ -30,18 +30,20 @@ const artFingerprint=(asset:string)=>{
   for(const character of asset){hash^=character.charCodeAt(0);hash=Math.imul(hash,16777619);}
   return ((hash>>>4)%1296).toString(36).padStart(2,'0');
 };
-const objectForArt=(registry:ContentRegistry,fingerprint:string)=>{
+const objectForArt=(registry:ContentRegistry,fingerprint:string,presentation?:string)=>{
   const matches=[...registry.objects.values()].filter(object=>object.retired!==true
     &&object.components.sprite!==undefined&&artFingerprint(object.components.sprite.asset)===fingerprint);
-  return matches.length===1?matches[0]!:null;
+  if(matches.length===1)return matches[0]!;
+  const exact=presentation===undefined?[]:matches.filter(object=>object.components.sprite?.asset===`prop_cf_${presentation}`);
+  return exact.length===1?exact[0]!:null;
 };
-const stationTag=(tags:readonly string[]|undefined)=>{
-  const matches=tags?.filter(tag=>tag.startsWith('station.'))??[];
+const fixtureTag=(tags:readonly string[]|undefined)=>{
+  const matches=tags?.filter(tag=>tag.startsWith('station.')||tag==='container.barrel')??[];
   return matches.length===1?matches[0]:undefined;
 };
 const number36=(value:string)=>Number.parseInt(value,36);
 const numbers=(value:string)=>[...value].map(number36);
-const KINDS={i:'inn',g:'general-store',c:'carpenter',f:'furnisher',s:'smith',u:'guild'} as const;
+const KINDS={i:'inn',g:'general-store',c:'carpenter',f:'furnisher',s:'smith',u:'guild',h:'garden-cottage',o:'orchard-cottage',b:'barn',p:'greenhouse'} as const;
 
 export function runtimeHearthInteriorForSpace(registry:ContentRegistry,spaceId:number):HearthInterior|null{
   const catalog=activeInteriorCatalog(registry);
@@ -62,12 +64,12 @@ export function runtimeHearthInteriorForSpace(registry:ContentRegistry,spaceId:n
   const furniture:HearthInteriorFurniture[]=[];
   for(const [index,item] of items.entries()){
     const [fingerprint,tileX,tileY,fourth,fifth,presentation]=item;
-    const object=objectForArt(registry,String(fingerprint));
+    const object=objectForArt(registry,String(fingerprint),presentation);
     if(object===null)return null;
     const asset=object.components.sprite?.asset;
     if(asset===undefined||!asset.startsWith('prop_cf_'))return null;
     const fixed=item.length>=5,itemKind=presentation??asset.slice('prop_cf_'.length);
-    const objectTag=fixed?stationTag(object.components.identity?.tags):undefined;
+    const objectTag=fixed?fixtureTag(object.components.identity?.tags):undefined;
     if(fixed&&presentation===undefined&&objectTag===undefined)return null;
     const supportIndex=item.length===4&&fourth!==undefined&&fourth<0?-fourth-1:undefined;
     if((item.length===4&&supportIndex===undefined)||(supportIndex!==undefined&&supportIndex>=index))return null;
