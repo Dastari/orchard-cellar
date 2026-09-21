@@ -131,6 +131,15 @@ Finish those P0 deliverables and integrate the phase before P1, as the plan requ
 - [PR 26](https://github.com/Dastari/orchard-cellar/pull/26) fixes farm-tool input priority and fish swimming animation. It was not in upstream main at branch creation; this PR does not claim to ship those fixes.
 - [PR 30](https://github.com/Dastari/orchard-cellar/pull/30) changes fishing XP; baseline current main independently and review the intended reward change on integration.
 - [PR 34](https://github.com/Dastari/orchard-cellar/pull/34) contains the design, ADR, phased plan and rollout gates. Do not silently stack its implementation phases before dependencies merge.
+- Implementation PR: [#35](https://github.com/Dastari/orchard-cellar/pull/35), open; no merge or deployment authorized/performed.
 - Worktree: `/home/toby/projects/orchard-cellar-actions-p0`; branch: `feat/unified-action-baselines`.
 - Next: complete the P0 audits above, then P1's validated action schema and resolver. Before any enabling phase, verify published head, client/schema/bindings compatibility and recovery/rollback; do not infer live state from this bootstrap inventory.
 - This slice changes developer tooling/tests/docs only. No schema, content, runtime action, deployed client or Studio behavior is changed.
+
+## Validation at implementation closeout
+
+`ORCHARD_TEST_LICENSED_ART=0 npm run check` passed: lifecycle integrity, world build,
+workspace typechecks, lint, 4,763 tests (one additional test skipped), coverage gates
+and asset validation. The asset build/validation covered 1,182 assets. The tools
+package build, baseline CLI check and local documentation links also passed.
+GitHub CI was queued at closeout; consult PR #35 for its current result.
