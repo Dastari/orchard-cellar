@@ -9,7 +9,7 @@ import { CombatRegionPolicy, createLiveIslandMapDocument, compileMapDocument, te
 import {HEARTH_CINDER_NATIVE_BASES,HEARTH_CINDER_SCENERY_PLACEMENTS} from './hearth-cinder-scenery.js';
 import {composeHearthContentMap} from './hearth-map-composition.js';
 const assetFor = (name: string) => {
-  const category = name.startsWith('building_') ? 'buildings' : name.startsWith('tree_') ? 'trees' : name.startsWith('crop_') ? 'crops' : 'props';
+  const category = name.startsWith('building_') ? 'buildings' : name.startsWith('tree_') ? 'trees' : name.startsWith('crop_') ? 'crops' : name.startsWith('wildlife_') ? 'characters' : 'props';
   const source = JSON.parse(readFileSync(new URL(`../../assets/${category}/${name}.sprite.json`, import.meta.url), 'utf8')) as { size: [number,number]; anchor: [number,number] };
   return { id: stableAssetId(name), width: source.size[0], height: source.size[1], anchor: source.anchor };
 };

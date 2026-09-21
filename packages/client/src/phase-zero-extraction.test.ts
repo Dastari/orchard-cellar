@@ -143,7 +143,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // dwell, and real item-label regressions accompany this re-capture.
 // Mobile build access adds the reviewed hammer HUD callback and overlay hit priority.
 // Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
-const STRUCTURAL_SEAM_DIGEST = '1dd4de931dc46d0392312b2a7f9ff6bafd14514d5480e3b3e4c3ff8f4eb60802';
+// Willowharbour binds native streetlamps to the authored lighting definition.
+// Review: docs/review/west-town-visual-pass-01.md; fixture-light tests cover this seam.
+const STRUCTURAL_SEAM_DIGEST = '55cca3e40062ce303d3b1a18483044cf73b66af4798c194566ac0480f06103f6';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
