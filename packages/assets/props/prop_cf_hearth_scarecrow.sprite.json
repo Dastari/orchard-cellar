@@ -63,6 +63,6 @@
   },
   "sourcePath": "references/art/kenmi/cute-fantasy/core/Outdoor decoration/Scarecrows.png",
   "sourcePaletteMode": "exact",
-  "approved": false,
+  "approved": true,
   "importedFrom": "Scarecrows.png"
 }
