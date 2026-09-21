@@ -741,7 +741,49 @@
     },
     "food": {
       "restoreCenti": 4800
-    }
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT CELLAR SUPPER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT CELLAR SUPPER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 4800
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "cellar_supper"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:cherry",
@@ -8348,7 +8390,49 @@
     },
     "food": {
       "restoreCenti": 3600
-    }
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PANTRY LUNCH",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PANTRY LUNCH",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 3600
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "pantry_lunch"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:pants",

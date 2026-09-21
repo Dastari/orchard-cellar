@@ -115,17 +115,17 @@ describe('bootstrap item lifecycle catalog ownership', () => {
     const callbackIds = [...callbackCounts.keys()].sort();
 
     expect(inertManifest.format).toBe('orchard-reviewed-inert-items-v1');
-    expect(lifecycleSource.revision).toBe(15);
-    expect(items).toHaveLength(336);
-    expect(callbackIds).toHaveLength(123);
+    expect(lifecycleSource.revision).toBe(16);
+    expect(items).toHaveLength(338);
+    expect(callbackIds).toHaveLength(125);
     expect(inertIds).toHaveLength(112);
     expect(inertManifest.reviewedAgainst).toEqual({
-      bootstrapItemCount: 336,
+      bootstrapItemCount: 338,
       dataGraphItemCount: 69,
       transactionItemCount: 32,
-      lifecycleRevision: 15,
+      lifecycleRevision: 16,
       lifecycleBundleSha256: AUTHORED_LIFECYCLE_BUNDLE_SHA256,
-      authoredCallbackCount: 123,
+      authoredCallbackCount: 125,
       inertItemCount: 112,
     });
     expect([...callbackCounts].filter(([, count]) => count !== 1)).toEqual([]);

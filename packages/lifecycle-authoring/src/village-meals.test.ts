@@ -14,6 +14,9 @@ it('eats each learned meal through one generated callback, refuses full hunger, 
     const event={type:'secondary',actor:{entityType:'player',id:'alice'},selectedItem:{kind}} as const;
     expect(handler(event,snapshot)).toEqual({effects:[{consumeSelected:1},{restoreHunger:item.food!.restoreCenti},{statistic:{kind:'food_eaten',subject:kind}}]});
     expect(handler(event,{...snapshot,actor:{...snapshot.actor!,vitals:{...snapshot.actor!.vitals,hunger:10000}}})).toEqual({blocked:'hunger_full'});
-    expect(item.onUse).toEqual([]);
+    expect(item.onUse).toEqual([
+      expect.objectContaining({id:'reject_when_full',conditions:[{vitals:{hunger:{atLeast:10000}}}],effects:[{fail:'hunger_full'}]}),
+      expect.objectContaining({id:'eat',effects:[{consumeSelected:1},{restoreHunger:item.food!.restoreCenti},{statistic:{kind:'food_eaten',subject:kind}}]}),
+    ]);
   }
 });
