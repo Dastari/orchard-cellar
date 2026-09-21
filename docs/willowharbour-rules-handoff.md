@@ -12,3 +12,11 @@ The local PR39 saved-map upgrade rehearsal completed through `exportHearthMap` w
 Release scope is game/client assets, world code and content plus the reviewed saved-map update. No new persistence table. Before any publication, follow `ops/orchard-runtime/PUBLISHING.md` and its guarded lane; verify the real saved map and live lamp interaction/reconnect behavior through https://orchard.dastari.net/. The current session performed offline engine visual verification and functional tests, not a live authority/reconnect acceptance. Studio UI was deliberately left to the separate editor task; the only Studio file change is the bootstrap content hash fixture.
 
 Validation details are recorded in the PR. Local logs are `/tmp/town-rules-*-final*.log`, `/tmp/town-lamp-tests-final.log`, `/tmp/town-rules-native-tests-final.log`, and `/tmp/town-rules-upgrade-final.log`.
+
+## Final validation
+
+- Coverage: 928 files passed; 5,658 tests passed, two skipped. Statements 88.71%, branches 84.03%, functions 94.26%, lines 92.78%; all thresholds passed.
+- Exhaustive terrain: 51 passed. Licensed native source-pixel checks: 139 passed. Interior layout/routes: 64 passed. Farm, bridge and resident access: five passed.
+- Workspace type checks, ESLint, simulation/tools/world/client builds, 1,309 assets built/validated, and lifecycle integrity passed.
+- Payload 559,637 bytes, within budget, content hash `5107433c`.
+- PR: https://github.com/Dastari/orchard-cellar/pull/40 (base PR39). GitHub checks were still running at local closeout. Working tree clean after documentation commit; no deployment or merge.
