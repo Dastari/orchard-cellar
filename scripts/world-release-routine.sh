@@ -19,6 +19,10 @@ content_candidate=${WORLD_RELEASE_CONTENT_CANDIDATE:-}
 content_candidate_sha256=${WORLD_RELEASE_CONTENT_CANDIDATE_SHA256:-}
 content_owner_label=${WORLD_RELEASE_CONTENT_OWNER_LABEL:-}
 token_file=${WORLD_REJOIN_TOKENS_FILE:-}
+studio_mode=${WORLD_RELEASE_STUDIO_MODE:-build}
+[[ "$studio_mode" = build || "$studio_mode" = preserve-current ]] || {
+  printf 'WORLD_RELEASE_STUDIO_MODE must be build or preserve-current.\n' >&2; exit 64;
+}
 [[ "$evidence" = /* && ! -e "$evidence" && ! -L "$evidence"
   && "$content_candidate" = /* && -f "$content_candidate" && ! -L "$content_candidate"
   && "$content_candidate_sha256" =~ ^[a-f0-9]{64}$
@@ -141,7 +145,16 @@ spacetime generate --lang typescript --js-path "$evidence/candidate-world.js" \
 "${helper[@]}" same-schema "$evidence/public-bindings-before" "$evidence/public-bindings"
 "${helper[@]}" same-schema "$evidence/public-bindings" packages/world-bindings/src
 npm run build --workspace @orchard/client -- --mode client-production --outDir "$evidence/staged/packages/client/dist"
-bash scripts/build-reviewed-studio.sh "$evidence/reviewed-studio-source" "$evidence/staged/packages/studio/dist"
+if [[ "$studio_mode" = preserve-current ]]; then
+  # Same-schema publication retains the independently reviewed, installed UI.
+  # Keep the source UI-kit guard and every static, source, CAS and parity gate.
+  node packages/studio/scripts/verify-ui-kit.mjs
+  "${helper[@]}" preserve-studio "$evidence/rollback/studio-dist" \
+    "$evidence/staged/packages/studio/dist" "$evidence/studio-static-before.sha256"
+else
+  bash scripts/build-reviewed-studio.sh "$evidence/reviewed-studio-source" "$evidence/staged/packages/studio/dist"
+fi
+printf '%s\n' "$studio_mode" > "$evidence/studio-mode"
 "${helper[@]}" static "$evidence/staged/packages/client/dist"
 "${helper[@]}" static "$evidence/staged/packages/studio/dist"
 (cd "$evidence/staged" && "$repository/node_modules/.bin/tsx" "$repository/scripts/check-client-build-chunks.ts")

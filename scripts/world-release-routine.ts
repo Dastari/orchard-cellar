@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { copyFile, lstat, mkdir, open, readdir, readFile, readlink, realpath, writeFile } from 'node:fs/promises';
+import { cp, copyFile, lstat, mkdir, open, readdir, readFile, readlink, realpath, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { pathToFileURL } from 'node:url';
@@ -75,6 +75,22 @@ export async function retainStaticAssets(original: string, staged: string): Prom
     }
   }
   await retain('assets');
+}
+
+/** Preserve the already reviewed Studio release, pinned before any world build. */
+export async function preserveStudioArtifact(original: string, staged: string, manifestFile: string): Promise<void> {
+  const expected = await readFile(manifestFile, 'utf8');
+  await verifyStatic(original);
+  if (await treeManifest(original) !== expected) throw new Error('routine_studio_artifact_changed');
+  // Refuse an existing destination, including a dangling symlink.
+  await mkdir(staged);
+  for (const name of await readdir(original)) {
+    await cp(join(original, name), join(staged, name), { recursive: true, force: false, errorOnExist: true });
+  }
+  if (await treeManifest(staged) !== expected || await treeManifest(original) !== expected) {
+    throw new Error('routine_studio_artifact_changed');
+  }
+  await verifyStatic(staged);
 }
 
 export async function assertSameSchema(deployed: string, candidate: string): Promise<void> {
@@ -238,6 +254,8 @@ async function main(): Promise<void> {
     await verifyStatic(first, second);
   } else if (mode === 'retain-assets' && first !== undefined && second !== undefined) {
     await retainStaticAssets(first, second);
+  } else if (mode === 'preserve-studio' && first !== undefined && second !== undefined && third !== undefined) {
+    await preserveStudioArtifact(first, second, third);
   } else if (mode === 'expected-snapshot' && first !== undefined && second !== undefined && third !== undefined) {
     const snapshot = parseWorldRejoinSnapshot(JSON.parse(await readFile(first, 'utf8')) as unknown);
     const candidate = parseContentHeadCandidate(JSON.parse(await readFile(second, 'utf8')) as unknown);

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Town release verification
+
+- Run CPU-heavy town/Studio fixtures and UI timing budgets in the serial,
+  non-coverage test lane, preserving all assertions and existing timing limits.
+- Allow guarded same-schema world releases to preserve the independently reviewed
+  installed Studio artifact with exact manifest and static validation.
+
 ## 0.17.1 — Willowharbour headwaters and finishing details
 
 - Make streetlamps 3.5× brighter within their existing light radius and use the matching bright native lantern frame.
