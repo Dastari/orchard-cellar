@@ -1,6 +1,6 @@
 # Fruit seeds and Orchard Seed Saver
 
-> Updated by [renewable orchard harvest](renewable-orchard-spec.md): configured fruit trees now grant seed rolls on E/touch picking; felling produces forestry materials only. The original implementation history below describes the previous felling loop.
+> Updated by [renewable orchard harvest](renewable-orchard-spec.md): configured fruit trees grant seed rolls on E/touch picking and again when a ripe tree is felled. Felling a tree that is still ripening produces forestry materials only. The original implementation history below describes the first felling loop.
 
 Status: Accepted. Date: 2026-09-15.
 

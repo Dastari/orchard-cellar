@@ -1,6 +1,6 @@
 import {mapStreetlampPlans,streetlampState,STREETLAMP_DEFINITION} from '@orchard/sim';
 import { DELVE_COMPLETION_FLAG, DELVE_COMPLETION_STATISTIC, delveCompletionTotal, delveCompletionRecipe } from '@orchard/sim';
-import { orchardHarvestResult } from '@orchard/sim';
+import { orchardHarvestResult, orchardFruitStatus } from '@orchard/sim';
 import { executeToolSwing, type SwingTarget, type ToolSwingContact } from './behaviour/tool-swing.js';
 import { toolSwingContains, toolSwingChunks, runtimeResourceTargetVector } from '@orchard/sim';
 import { npcBehaviourDefinitionId } from './behaviour/npc-target.js';
@@ -22646,6 +22646,9 @@ function applyHarvestResourceLifecycle(
     });
     const nextHealth = Math.max(0, resource.health - 1);
     const treeGrowthStage = normalizeTreeGrowthStage(resource.growthStage);
+    const ripeFruitBeforeFell = nextHealth === 0
+      && resourceDefinition.fruitHarvest !== undefined
+      && orchardFruitStatus(resource, clock.authorityTick) === 'ok';
     ctx.db.world_resource.id.update({
       ...resource,
       health: nextHealth,
@@ -22694,10 +22697,20 @@ function applyHarvestResourceLifecycle(
       resource.id,
       resource.activationOrdinal,
     ], { values: { remainingHealth: nextHealth, treeGrowthStage } }).drops];
+    let consumedFruitReadyAtTick: bigint | null = null;
     if (resourceDefinition.fruitHarvest !== undefined) {
       for (let i = drops.length - 1; i >= 0; i--) {
         if (runtimeItemHasTag(registry, drops[i]!.itemKind, 'crop.fruit')
           || `item:${drops[i]!.itemKind}` === resourceDefinition.seedItem) drops.splice(i, 1);
+      }
+      if (ripeFruitBeforeFell) {
+        const harvest = resourceDefinition.fruitHarvest;
+        drops.push({ itemKind: harvest.item.slice('item:'.length), quantity: harvest.quantity });
+        const ripeSeed = fruitSeedDrop(contentRegistry(ctx), resource, drops,
+          farmingSkillEffects(contentRegistry(ctx), playerSkillRanks(ctx, ctx.sender)).orchardSeedSaver,
+          [ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED, resource.id, resource.activationOrdinal]);
+        if (ripeSeed !== null) drops.push(ripeSeed);
+        consumedFruitReadyAtTick = clock.authorityTick + BigInt(harvest.cooldownTicks);
       }
     }
     const seedDrop = resourceDefinition.fruitHarvest === undefined && treeGrowthStage === 3 && resourceDefinition.seedItem !== undefined
@@ -22706,8 +22719,12 @@ function applyHarvestResourceLifecycle(
       [ctx.db.world_seed.id.find(0)?.seed ?? SURVIVAL_WORLD_SEED, resource.id, resource.activationOrdinal]) : null;
     if (seedDrop !== null) drops.push(seedDrop);
     if (resourceDefinition.tags.includes('resource.fruit_tree')) {
-      ctx.db.world_resource.id.update({ ...ctx.db.world_resource.id.find(resource.id)!,
-        activationOrdinal: (resource.activationOrdinal + 1) >>> 0 });
+      const current = ctx.db.world_resource.id.find(resource.id)!;
+      ctx.db.world_resource.id.update({
+        ...current,
+        activationOrdinal: (resource.activationOrdinal + 1) >>> 0,
+        ...(consumedFruitReadyAtTick === null ? {} : { fruitReadyAtTick: consumedFruitReadyAtTick }),
+      });
     }
     if (drops.length === 0) return;
     const itemX = resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 + 10 * FIXED_UNITS_PER_PIXEL;

@@ -1,5 +1,7 @@
 # Renewable orchard PR handoff
 
+Correction, 2026-09-22: chopping a ripe tree again pays its current fruit, seed roll and Farming XP with the wood. A tree that is still ripening after a pick stays forestry-only. See the spec.
+
 - Branch: `feat/renewable-orchard-harvest`; version 0.12.0.
 - Implements [spec](renewable-orchard-spec.md) and [ADR](adr/002-renewable-fruit-state.md). All four species grant two fruit per game day plus the existing seed-saver roll. E/touch picks; axe felling retains forestry loot.
 - Appended defaulted readiness field and regenerated bindings; no deletion/backfill. Tree health/growth updates preserve readiness, as does generated relocation and planted-tree reconciliation.
