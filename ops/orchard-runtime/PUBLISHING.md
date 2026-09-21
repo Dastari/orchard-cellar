@@ -23,6 +23,12 @@ Classify the actual candidate against the deployed module and content head:
   bindings, disables deletion, and verifies same-identity reconnect parity.
   The owner manages Proxmox backups; do not add a fresh application backup/restore
   requirement to routine updates.
+  If Studio was independently deployed from an excluded PR, set
+  `WORLD_RELEASE_STUDIO_MODE=preserve-current` after its agent's explicit checkout
+  and artifact handoff. This validates and copies the exact installed Studio
+  rollback artifact against the pre-build manifest instead of rebuilding that UI.
+  The UI-kit guard, unchanged full schema/public bindings, static validation,
+  rollback, content CAS and reconnect checks still apply. The default is `build`.
 - Stored-schema/data migration: use the migration lane in README, including its
   backup, restoration rehearsal and parity requirements. Additive schema-only
   work uses `WORLD_RELEASE_MIGRATION_KIND=schema-only`; do not request legacy-chest

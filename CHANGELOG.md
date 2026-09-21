@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Town release verification
+
+- Run CPU-heavy town/Studio fixtures and UI timing budgets in the serial,
+  non-coverage test lane, preserving all assertions and existing timing limits.
+- Allow guarded same-schema world releases to preserve the independently reviewed
+  installed Studio artifact with exact manifest and static validation.
+
 ## 0.16.0 — Willowharbour river town refinement
 
 - Continue the river through the town to a sandy estuary, with four traversable bridges and preserved door/return routes. Add shallow native turf banks, cultivated flower beds, mature garden trees, white picket garden returns, connected hedge corners and a cobbled civic square.

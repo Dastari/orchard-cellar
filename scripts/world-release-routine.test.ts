@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
-import { assertSameSchema, expectedContentSnapshot, keccak256, programHashFromSql, retainStaticAssets, treeManifest, verifyStatic } from './world-release-routine.js';
+import { assertSameSchema, expectedContentSnapshot, keccak256, preserveStudioArtifact, programHashFromSql, retainStaticAssets, treeManifest, verifyStatic } from './world-release-routine.js';
 import type { ContentHeadCandidate } from './content-head-release.js';
 import { WORLD_REJOIN_EXCLUSIONS, type WorldRejoinSnapshot } from './world-rejoin-snapshot.js';
 
@@ -15,6 +15,21 @@ async function temporary(): Promise<string> {
 afterEach(async () => { await Promise.all(directories.splice(0).map((path) => rm(path, { recursive: true, force: true }))); });
 
 describe('routine same-schema release', () => {
+  it('preserves the pinned Studio artifact and rejects drift or an occupied destination', async () => {
+    const root = await temporary(), original = join(root, 'reviewed'), staged = join(root, 'staged');
+    await mkdir(join(original, 'assets'), { recursive: true });
+    await writeFile(join(original, 'index.html'), '<script type="module" src="/assets/index-reviewed.js"></script>');
+    await writeFile(join(original, 'assets/index-reviewed.js'), 'console.log("reviewed");');
+    const manifest = join(root, 'reviewed.sha256');
+    await writeFile(manifest, await treeManifest(original));
+    await preserveStudioArtifact(original, staged, manifest);
+    expect(await treeManifest(staged)).toBe(await treeManifest(original));
+    await expect(preserveStudioArtifact(original, staged, manifest)).rejects.toThrow();
+    await writeFile(join(original, 'assets/index-reviewed.js'), 'console.log("changed");');
+    await expect(preserveStudioArtifact(original, join(root, 'drift'), manifest)).rejects.toThrow('routine_studio_artifact_changed');
+    await symlink(original, join(root, 'linked'));
+    await expect(preserveStudioArtifact(join(root, 'linked'), join(root, 'unsafe'), manifest)).rejects.toThrow('routine_symbolic_link');
+  });
   it('interprets the SQL U256 hash as little endian Keccak bytes and rejects malformed hashes', () => {
     expect(programHashFromSql('0x01')).toBe(`01${'00'.repeat(31)}`);
     expect(programHashFromSql('0x232870958a14e161dc86e59007f7f9f942c85ad19fe8205bc970193c1d82dbd1'))
