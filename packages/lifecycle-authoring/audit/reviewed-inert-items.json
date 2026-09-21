@@ -2,17 +2,16 @@
   "format": "orchard-reviewed-inert-items-v1",
   "reviewedAgainst": {
     "bootstrapItemCount": 336,
-    "lifecycleRevision": 15,
-    "lifecycleBundleSha256": "ae8df218d8e82d118f7577b738bff25fcce78f6467c4b38eb880e2f24b8b5b75",
-    "authoredCallbackCount": 123,
-    "inertItemCount": 112,
+    "lifecycleRevision": 16,
+    "lifecycleBundleSha256": "89847b691d1b253f03311054ed6fb9bd77750991dffa9b762699112e8d9eacca",
+    "authoredCallbackCount": 145,
+    "inertItemCount": 90,
     "dataGraphItemCount": 69,
     "transactionItemCount": 32
   },
   "reattestation": {
-    "date": "2026-09-16",
-    "note": "The 123 actionable callback item IDs and all 112 previously reviewed inert classifications are unchanged. Revision 15 routes the 24 existing swing tools through server contact discovery, including secondary triggers for six hoes. No inert item gained a capability.",
-    "inertClassificationSha256": "9adecf598f35a29517e2a121b44c384bcc5e60650a2b9004810f0b77d70397fa"
+    "date": "2026-09-21",
+    "note": "Promote all 22 preserved crops from inert to generated food callbacks; the other 90 inert items remain unchanged. Each preserve now has food metadata, full-hunger rejection, one-item consumption and food_eaten statistics."
   },
   "groups": [
     {
@@ -75,38 +74,6 @@
         "item:bottles",
         "item:must",
         "item:pomace"
-      ]
-    },
-    {
-      "classification": "preserved_food_without_consumption_semantics",
-      "interactionPolicy": "inert",
-      "advertisedCapabilities": [
-        "tag:item.food"
-      ],
-      "reason": "Preserved produce is intentionally inedible until a restore value and consumption semantics are authored.",
-      "itemIds": [
-        "item:preserved_beetroot",
-        "item:preserved_cabbage",
-        "item:preserved_carrot",
-        "item:preserved_corn",
-        "item:preserved_cucumber",
-        "item:preserved_garlic",
-        "item:preserved_grape",
-        "item:preserved_green_pepper",
-        "item:preserved_hot_pepper",
-        "item:preserved_leek",
-        "item:preserved_onion",
-        "item:preserved_parsley",
-        "item:preserved_potato",
-        "item:preserved_pumpkin",
-        "item:preserved_red_pepper",
-        "item:preserved_strawberry",
-        "item:preserved_sunflower",
-        "item:preserved_tomato",
-        "item:preserved_turnip",
-        "item:preserved_watermelon",
-        "item:preserved_wheat",
-        "item:preserved_yellow_pepper"
       ]
     },
     {

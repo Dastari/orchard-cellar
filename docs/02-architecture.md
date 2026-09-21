@@ -278,3 +278,11 @@ The hammer HUD button and B key share the client build-mode toggle. The retained
 UI routes taps to that callback; the client redraws and prioritizes the hammer
 over the external build catalogue and touch joystick so touch players can also
 close it. Existing modal input ownership remains ahead of the hammer.
+
+### Preserved provision interactions
+
+The 22 preserved crop items use authored food metadata and generated item-use
+callbacks through the existing restoreHunger authority capability. They leave the
+reviewed-inert catalogue; no new reducer, schema or subscription is added. Module
+lifecycle artifacts and the matching content definitions must be published together.
+See [preserved provisions](preserved-provisions-spec.md).

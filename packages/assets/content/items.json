@@ -8752,7 +8752,52 @@
     "economy": {
       "buy": null,
       "sell": 14
-    }
+    },
+    "food": {
+      "restoreCenti": 1700
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED BEETROOT",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED BEETROOT",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1700
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_beetroot"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_cabbage",
@@ -8773,7 +8818,52 @@
     "economy": {
       "buy": null,
       "sell": 33
-    }
+    },
+    "food": {
+      "restoreCenti": 1900
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED CABBAGE",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED CABBAGE",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1900
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_cabbage"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_carrot",
@@ -8794,7 +8884,52 @@
     "economy": {
       "buy": null,
       "sell": 14
-    }
+    },
+    "food": {
+      "restoreCenti": 1600
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED CARROT",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED CARROT",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1600
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_carrot"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_corn",
@@ -8815,7 +8950,52 @@
     "economy": {
       "buy": null,
       "sell": 18
-    }
+    },
+    "food": {
+      "restoreCenti": 1800
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED CORN",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED CORN",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1800
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_corn"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_cucumber",
@@ -8836,7 +9016,52 @@
     "economy": {
       "buy": null,
       "sell": 14
-    }
+    },
+    "food": {
+      "restoreCenti": 1500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED CUCUMBER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED CUCUMBER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1500
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_cucumber"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_garlic",
@@ -8857,7 +9082,52 @@
     "economy": {
       "buy": null,
       "sell": 14
-    }
+    },
+    "food": {
+      "restoreCenti": 1300
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED GARLIC",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED GARLIC",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1300
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_garlic"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_grape",
@@ -8878,7 +9148,52 @@
     "economy": {
       "buy": null,
       "sell": 23
-    }
+    },
+    "food": {
+      "restoreCenti": 1500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED GRAPES",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED GRAPES",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1500
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_grape"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_green_pepper",
@@ -8899,7 +9214,52 @@
     "economy": {
       "buy": null,
       "sell": 18
-    }
+    },
+    "food": {
+      "restoreCenti": 1500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED GREEN PEPPER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED GREEN PEPPER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1500
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_green_pepper"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_hot_pepper",
@@ -8920,7 +9280,52 @@
     "economy": {
       "buy": null,
       "sell": 17
-    }
+    },
+    "food": {
+      "restoreCenti": 1300
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED HOT PEPPER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED HOT PEPPER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1300
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_hot_pepper"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_leek",
@@ -8941,7 +9346,52 @@
     "economy": {
       "buy": null,
       "sell": 17
-    }
+    },
+    "food": {
+      "restoreCenti": 1600
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED LEEK",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED LEEK",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1600
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_leek"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_onion",
@@ -8962,7 +9412,52 @@
     "economy": {
       "buy": null,
       "sell": 14
-    }
+    },
+    "food": {
+      "restoreCenti": 1500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED ONION",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED ONION",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1500
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_onion"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_parsley",
@@ -8983,7 +9478,52 @@
     "economy": {
       "buy": null,
       "sell": 8
-    }
+    },
+    "food": {
+      "restoreCenti": 1200
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED PARSLEY",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED PARSLEY",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1200
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_parsley"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_potato",
@@ -9004,7 +9544,52 @@
     "economy": {
       "buy": null,
       "sell": 12
-    }
+    },
+    "food": {
+      "restoreCenti": 1700
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED POTATO",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED POTATO",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1700
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_potato"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_pumpkin",
@@ -9025,7 +9610,52 @@
     "economy": {
       "buy": null,
       "sell": 57
-    }
+    },
+    "food": {
+      "restoreCenti": 2200
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED PUMPKIN",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED PUMPKIN",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 2200
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_pumpkin"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_red_pepper",
@@ -9046,7 +9676,52 @@
     "economy": {
       "buy": null,
       "sell": 18
-    }
+    },
+    "food": {
+      "restoreCenti": 1500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED RED PEPPER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED RED PEPPER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1500
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_red_pepper"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_strawberry",
@@ -9067,7 +9742,52 @@
     "economy": {
       "buy": null,
       "sell": 20
-    }
+    },
+    "food": {
+      "restoreCenti": 1600
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED STRAWBERRY",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED STRAWBERRY",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1600
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_strawberry"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_sunflower",
@@ -9088,7 +9808,52 @@
     "economy": {
       "buy": null,
       "sell": 17
-    }
+    },
+    "food": {
+      "restoreCenti": 1400
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED SUNFLOWER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED SUNFLOWER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1400
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_sunflower"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_tomato",
@@ -9109,7 +9874,52 @@
     "economy": {
       "buy": null,
       "sell": 17
-    }
+    },
+    "food": {
+      "restoreCenti": 1500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED TOMATO",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED TOMATO",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1500
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_tomato"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_turnip",
@@ -9130,7 +9940,52 @@
     "economy": {
       "buy": null,
       "sell": 12
-    }
+    },
+    "food": {
+      "restoreCenti": 1600
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED TURNIP",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED TURNIP",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1600
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_turnip"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_watermelon",
@@ -9151,7 +10006,52 @@
     "economy": {
       "buy": null,
       "sell": 60
-    }
+    },
+    "food": {
+      "restoreCenti": 2300
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED WATERMELON",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED WATERMELON",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 2300
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_watermelon"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_wheat",
@@ -9172,7 +10072,52 @@
     "economy": {
       "buy": null,
       "sell": 11
-    }
+    },
+    "food": {
+      "restoreCenti": 1400
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED WHEAT",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED WHEAT",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1400
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_wheat"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:preserved_yellow_pepper",
@@ -9193,7 +10138,52 @@
     "economy": {
       "buy": null,
       "sell": 18
-    }
+    },
+    "food": {
+      "restoreCenti": 1500
+    },
+    "onUse": [
+      {
+        "id": "reject_when_full",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED YELLOW PEPPER",
+        "conditions": [
+          {
+            "vitals": {
+              "hunger": {
+                "atLeast": 10000
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "fail": "hunger_full"
+          }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "eat",
+        "verb": "secondary",
+        "prompt": "EAT PRESERVED YELLOW PEPPER",
+        "conditions": [],
+        "effects": [
+          {
+            "consumeSelected": 1
+          },
+          {
+            "restoreHunger": 1500
+          },
+          {
+            "statistic": {
+              "kind": "food_eaten",
+              "subject": "preserved_yellow_pepper"
+            }
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "item:pumpkin",

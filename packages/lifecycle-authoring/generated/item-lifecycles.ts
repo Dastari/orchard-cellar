@@ -1,7 +1,7 @@
 /* This file is generated from validated Orchard lifecycle source. Do not edit. */
 import { defineItemOnUse, defineItemOnUseHandlers, type AnyHandlerRegistration } from '@orchard/sim';
 
-export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "ae8df218d8e82d118f7577b738bff25fcce78f6467c4b38eb880e2f24b8b5b75" as const;
+export const AUTHORED_LIFECYCLE_BUNDLE_SHA256 = "89847b691d1b253f03311054ed6fb9bd77750991dffa9b762699112e8d9eacca" as const;
 
 export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistration[] = Object.freeze([
   ...defineItemOnUseHandlers({
@@ -1838,6 +1838,336 @@ export const AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS: readonly AnyHandlerRegistrat
     },
   }),
   defineItemOnUse({
+    itemId: "item:preserved_beetroot",
+    id: "item:preserved_beetroot.on_use",
+    prompt: "EAT PRESERVED BEETROOT",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_cabbage",
+    id: "item:preserved_cabbage.on_use",
+    prompt: "EAT PRESERVED CABBAGE",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_carrot",
+    id: "item:preserved_carrot.on_use",
+    prompt: "EAT PRESERVED CARROT",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_corn",
+    id: "item:preserved_corn.on_use",
+    prompt: "EAT PRESERVED CORN",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_cucumber",
+    id: "item:preserved_cucumber.on_use",
+    prompt: "EAT PRESERVED CUCUMBER",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_garlic",
+    id: "item:preserved_garlic.on_use",
+    prompt: "EAT PRESERVED GARLIC",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_grape",
+    id: "item:preserved_grape.on_use",
+    prompt: "EAT PRESERVED GRAPES",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_green_pepper",
+    id: "item:preserved_green_pepper.on_use",
+    prompt: "EAT PRESERVED GREEN PEPPER",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_hot_pepper",
+    id: "item:preserved_hot_pepper.on_use",
+    prompt: "EAT PRESERVED HOT PEPPER",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_leek",
+    id: "item:preserved_leek.on_use",
+    prompt: "EAT PRESERVED LEEK",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_onion",
+    id: "item:preserved_onion.on_use",
+    prompt: "EAT PRESERVED ONION",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_parsley",
+    id: "item:preserved_parsley.on_use",
+    prompt: "EAT PRESERVED PARSLEY",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_potato",
+    id: "item:preserved_potato.on_use",
+    prompt: "EAT PRESERVED POTATO",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_pumpkin",
+    id: "item:preserved_pumpkin.on_use",
+    prompt: "EAT PRESERVED PUMPKIN",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_red_pepper",
+    id: "item:preserved_red_pepper.on_use",
+    prompt: "EAT PRESERVED RED PEPPER",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_strawberry",
+    id: "item:preserved_strawberry.on_use",
+    prompt: "EAT PRESERVED STRAWBERRY",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_sunflower",
+    id: "item:preserved_sunflower.on_use",
+    prompt: "EAT PRESERVED SUNFLOWER",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_tomato",
+    id: "item:preserved_tomato.on_use",
+    prompt: "EAT PRESERVED TOMATO",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_turnip",
+    id: "item:preserved_turnip.on_use",
+    prompt: "EAT PRESERVED TURNIP",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_watermelon",
+    id: "item:preserved_watermelon.on_use",
+    prompt: "EAT PRESERVED WATERMELON",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_wheat",
+    id: "item:preserved_wheat.on_use",
+    prompt: "EAT PRESERVED WHEAT",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
+    itemId: "item:preserved_yellow_pepper",
+    id: "item:preserved_yellow_pepper.on_use",
+    prompt: "EAT PRESERVED YELLOW PEPPER",
+    run(context) {
+      const restored = context.item.snapshot.state?.foodRestoreCenti;
+      if (typeof restored !== 'number') context.block('item_food_state_unavailable');
+      else if (context.player.snapshot.vitals.hunger >= 10_000) context.block('hunger_full');
+      else {
+        context.item.consume();
+        context.player.restoreHunger(restored);
+        context.emit({ statistic: { kind: 'food_eaten', subject: context.item.snapshot.kind } });
+      }
+    },
+  }),
+  defineItemOnUse({
     itemId: "item:pumpkin",
     id: "item:pumpkin.on_use",
     prompt: "EAT PUMPKIN",
@@ -2599,6 +2929,28 @@ export const AUTHORED_ITEM_LIFECYCLE_METADATA = Object.freeze([
   Object.freeze({"itemId":"item:pickaxe","event":"onUse","id":"item:pickaxe.world_tool","prompt":"USE PICKAXE","triggers":["secondary","useWith","useAt"]}),
   Object.freeze({"itemId":"item:potato","event":"onUse","id":"item:potato.on_use","prompt":"EAT POTATO","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:potato_seeds","event":"onUse","id":"item.potato-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
+  Object.freeze({"itemId":"item:preserved_beetroot","event":"onUse","id":"item:preserved_beetroot.on_use","prompt":"EAT PRESERVED BEETROOT","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_cabbage","event":"onUse","id":"item:preserved_cabbage.on_use","prompt":"EAT PRESERVED CABBAGE","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_carrot","event":"onUse","id":"item:preserved_carrot.on_use","prompt":"EAT PRESERVED CARROT","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_corn","event":"onUse","id":"item:preserved_corn.on_use","prompt":"EAT PRESERVED CORN","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_cucumber","event":"onUse","id":"item:preserved_cucumber.on_use","prompt":"EAT PRESERVED CUCUMBER","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_garlic","event":"onUse","id":"item:preserved_garlic.on_use","prompt":"EAT PRESERVED GARLIC","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_grape","event":"onUse","id":"item:preserved_grape.on_use","prompt":"EAT PRESERVED GRAPES","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_green_pepper","event":"onUse","id":"item:preserved_green_pepper.on_use","prompt":"EAT PRESERVED GREEN PEPPER","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_hot_pepper","event":"onUse","id":"item:preserved_hot_pepper.on_use","prompt":"EAT PRESERVED HOT PEPPER","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_leek","event":"onUse","id":"item:preserved_leek.on_use","prompt":"EAT PRESERVED LEEK","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_onion","event":"onUse","id":"item:preserved_onion.on_use","prompt":"EAT PRESERVED ONION","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_parsley","event":"onUse","id":"item:preserved_parsley.on_use","prompt":"EAT PRESERVED PARSLEY","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_potato","event":"onUse","id":"item:preserved_potato.on_use","prompt":"EAT PRESERVED POTATO","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_pumpkin","event":"onUse","id":"item:preserved_pumpkin.on_use","prompt":"EAT PRESERVED PUMPKIN","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_red_pepper","event":"onUse","id":"item:preserved_red_pepper.on_use","prompt":"EAT PRESERVED RED PEPPER","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_strawberry","event":"onUse","id":"item:preserved_strawberry.on_use","prompt":"EAT PRESERVED STRAWBERRY","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_sunflower","event":"onUse","id":"item:preserved_sunflower.on_use","prompt":"EAT PRESERVED SUNFLOWER","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_tomato","event":"onUse","id":"item:preserved_tomato.on_use","prompt":"EAT PRESERVED TOMATO","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_turnip","event":"onUse","id":"item:preserved_turnip.on_use","prompt":"EAT PRESERVED TURNIP","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_watermelon","event":"onUse","id":"item:preserved_watermelon.on_use","prompt":"EAT PRESERVED WATERMELON","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_wheat","event":"onUse","id":"item:preserved_wheat.on_use","prompt":"EAT PRESERVED WHEAT","triggers":["secondary"]}),
+  Object.freeze({"itemId":"item:preserved_yellow_pepper","event":"onUse","id":"item:preserved_yellow_pepper.on_use","prompt":"EAT PRESERVED YELLOW PEPPER","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:pumpkin","event":"onUse","id":"item:pumpkin.on_use","prompt":"EAT PUMPKIN","triggers":["secondary"]}),
   Object.freeze({"itemId":"item:pumpkin_seeds","event":"onUse","id":"item.pumpkin-seeds.on-use","prompt":"PLANT SEEDS","triggers":["place"]}),
   Object.freeze({"itemId":"item:red_pepper","event":"onUse","id":"item:red_pepper.on_use","prompt":"EAT RED PEPPER","triggers":["secondary"]}),

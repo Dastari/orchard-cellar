@@ -10,7 +10,7 @@ Make the existing 22 preserved crops useful as carried food, connecting growing 
 
 Selecting a preserved crop exposes the existing secondary eat action on keyboard/touch. Eating consumes one item, restores Hunger up to its existing 100-point cap, and records one `food_eaten` statistic with the preserved item kind. Full Hunger rejects without consuming or recording anything. Current authorization, custody, mounted/hands and Delve restrictions apply through the shared item-use authority.
 
-Each preserve restores ten Hunger points more than its raw crop. Preserved wheat and sunflower restore 14 points because their raw forms are not edible. This gives 12–22 Hunger per portion: better portable plant provisions while cooked fish (24) and meat (28–40) keep their role. These exact values are documented alongside the live food economy and covered by golden tests. No persistent effect is granted; Orchard Tea and fruit buffs retain their separate purpose.
+Each preserve restores ten Hunger points more than its raw crop. Preserved wheat and sunflower restore 14 points because their raw forms are not edible. This gives 12–23 Hunger per portion: better portable plant provisions while cooked fish (24) and meat (28–40) keep their role. These exact values are documented alongside the live food economy and covered by golden tests. No persistent effect is granted; Orchard Tea and fruit buffs retain their separate purpose.
 
 ## Architecture and decision
 
@@ -39,3 +39,9 @@ Baseline: zero of 22 preserved crop kinds are edible (source audit). Target: 22/
 - Documentation/version/ledger: feature spec, live food rules, architecture note, changelog and PR record.
 - Observability/research/large payload import: not needed; no new runtime instrumentation or external dataset.
 - Unavailable superpowers skills: manual design, test-first and review workflow used.
+
+## Validation and delivery record
+
+The standalone slice authors matching legacy eat graphs as well as generated callbacks so content projections retain the existing food contract; ownership tests prove only the generated callback dispatches. Actual authority-writer tests cover capped recovery, exact consumption/statistics, stale custody, full Hunger, invalid amounts and replay without duplicate writes. Runtime content measures 546,092 bytes (900 definitions, hash `62fe3a18`), a 9,382-byte increase; the explicit budget is raised to the next whole KiB, 534 KiB.
+
+The first full gate found stale catalog expectations and missing ignored art/atlas inputs in the isolated checkout. Expectations were corrected; licensed references were linked read-only from the original checkout and atlas assets rebuilt. That superseded full run was stopped before completion. The coordinator runs the combined stack gate after integration. No production deployment or live browser playtest is claimed.
