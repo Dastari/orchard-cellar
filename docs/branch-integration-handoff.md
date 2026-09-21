@@ -46,12 +46,23 @@ including alternate experiments and files absent from current source. They remai
 recoverable in their existing local/remote refs and the full Git bundle; they are
 not replayed over the reviewed product. This disposition avoids claiming that
 patches with unique hashes are either unimplemented features or safe to discard.
-The owner was offered a separate choice to revive these experiments; absent that
-choice, retain them as archives.
+The owner explicitly chose to keep these historical snapshots as archives.
 
 Private worktree evidence archives preserve output captures, browser-state
 folders and source-reference links without dereferencing them. Dependencies,
 generated artifacts and coverage directories are regenerable. The primary
 checkout's private inputs, licensed originals and live data remain in place.
 
-Validation and final cleanup results are recorded below when complete.
+## Cleanup performed
+
+All 16 original secondary worktrees were clean and have been removed. Their heads
+are either in the integration ancestry or in already-merged PRs #7/#13/#37, and
+private archives were byte-checked before removal. The primary checkout remains.
+The temporary integration checkout is removed after the final GitHub merge.
+
+A new `/home/toby/projects/orchard-town-refinement` worktree on
+`feat/willowharbour-river-gardens` appeared after the audit. It contains an active
+merge and is deliberately preserved. Its unfinished work is outside this snapshot
+of the 16 owner-approved PRs; it should integrate the new main through its own PR.
+
+Validation and final merge results are recorded below when complete.
