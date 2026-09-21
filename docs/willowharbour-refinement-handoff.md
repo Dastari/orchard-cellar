@@ -37,8 +37,11 @@ production data. Canonical live preview remains https://orchard.dastari.net/.
 Focused checks passed: 62 exterior/interior/river route and fixture tests, 42 native
 source-pixel comparisons, 22 authoring/scenery/composition tests. Builds and asset
 validation passed for 1,213 assets. All 919 content definitions validate; runtime
-payload is 559,597 bytes, within the existing 547 KiB budget. Aggregate coverage,
-exhaustive tests and final workspace lint/typecheck results are recorded in the PR.
+payload is 559,597 bytes (content hash `b5bfc431`), within the existing 547 KiB
+budget. The final coverage report has 924 files passing, 5,643 tests passing and
+2 skipped; line coverage is 92.75%. All 51 exhaustive terrain tests, lifecycle
+integrity and final workspace lint/typecheck checks pass. GitHub CI status is
+available on the PR.
 
 ## Publication
 
