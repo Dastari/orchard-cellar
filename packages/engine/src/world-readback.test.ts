@@ -11,6 +11,7 @@ const CPU_SOURCE_READERS: Readonly<Record<string, readonly string[]>> = {
     'context.getImageData(0, 0, frame.width, frame.height)',
   ],
   'engine/light-occlusion.ts': ['context.getImageData(0, 0, frame.width, frame.height)'],
+  'engine/sprite-variant.ts': ['context.getImageData(0, 0, canvas.width, canvas.height)'],
 };
 function sources(directory: URL): URL[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

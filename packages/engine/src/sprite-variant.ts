@@ -11,7 +11,7 @@ export function spriteAnimationVariant(asset: LoadedAsset, animation: string, op
   if (!frames.length) throw new Error(`Missing sprite animation ${asset.name}/${animation}`);
   const width = Math.max(...frames.map(frame => frame.width)), height = Math.max(...frames.map(frame => frame.height));
   const canvas = (options.createCanvas ?? ((width, height) => new OffscreenCanvas(width, height)))(width * frames.length, height);
-  const context = canvas.getContext('2d');
+  const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Sprite variant canvas unavailable');
   context.imageSmoothingEnabled = false;
   frames.forEach((frame, index) => {
