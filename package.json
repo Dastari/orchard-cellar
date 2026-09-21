@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "npm run assets:build && concurrently -k -n world-host,world,client,assets -c magenta,blue,green,yellow \"npm run world:host\" \"npm run world:dev\" \"VITE_SPACETIMEDB_DATABASE=${ORCHARD_DEV_DATABASE:-orchard-cellar-dev} npm run dev -w @orchard/client\" \"npm run watch -w @orchard/tools\"",
     "build": "npm run assets:build && npm run pwa:assets && npm run build -w @orchard/sim && npm run build -w @orchard/tools && npm run build -w @orchard/world && npm run build -w @orchard/client && npm run build -w @orchard/studio",
-    "check": "npm run lifecycle:integrity && npm run build -w @orchard/world && npm run typecheck && npm run lint && npm test && npm run assets:validate",
+    "check": "npm run lifecycle:integrity && npm run content:validate && npm run build -w @orchard/world && npm run typecheck && npm run lint && npm test && npm run assets:validate",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "npm run test:coverage && npm run test:exhaustive",

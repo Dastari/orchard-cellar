@@ -1132,6 +1132,16 @@
       "g9gb"
     ],
     "hearthInteriorFloors": [],
+    "hearthInteriorWindows": [
+      [
+        10,
+        8
+      ],
+      [
+        23,
+        8
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966816",
@@ -1153,16 +1163,6 @@
         "toTileX": 117,
         "toTileY": 455
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        10,
-        8
-      ],
-      [
-        23,
-        8
-      ]
     ]
   },
   {
@@ -1188,6 +1188,24 @@
       "h9hb"
     ],
     "hearthInteriorFloors": [],
+    "hearthInteriorWindows": [
+      [
+        10,
+        5
+      ],
+      [
+        23,
+        5
+      ],
+      [
+        10,
+        18
+      ],
+      [
+        24,
+        18
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966804",
@@ -1209,24 +1227,6 @@
         "toTileX": 149,
         "toTileY": 406
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        10,
-        5
-      ],
-      [
-        23,
-        5
-      ],
-      [
-        10,
-        18
-      ],
-      [
-        24,
-        18
-      ]
     ]
   },
   {
@@ -1270,6 +1270,24 @@
         "style": "townhouse"
       }
     ],
+    "hearthInteriorWindows": [
+      [
+        7,
+        5
+      ],
+      [
+        25,
+        5
+      ],
+      [
+        8,
+        18
+      ],
+      [
+        23,
+        18
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966806",
@@ -1291,24 +1309,6 @@
         "toTileX": 164,
         "toTileY": 423
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        7,
-        5
-      ],
-      [
-        25,
-        5
-      ],
-      [
-        8,
-        18
-      ],
-      [
-        23,
-        18
-      ]
     ]
   },
   {
@@ -1362,6 +1362,24 @@
         "style": "townhouse"
       }
     ],
+    "hearthInteriorWindows": [
+      [
+        9,
+        5
+      ],
+      [
+        24,
+        5
+      ],
+      [
+        11,
+        18
+      ],
+      [
+        22,
+        18
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966812",
@@ -1383,24 +1401,6 @@
         "toTileX": 123,
         "toTileY": 380
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        9,
-        5
-      ],
-      [
-        24,
-        5
-      ],
-      [
-        11,
-        18
-      ],
-      [
-        22,
-        18
-      ]
     ]
   },
   {
@@ -1425,6 +1425,24 @@
       "g065;kf95;g0l5;kfo5;53e8;127878!barrel;129878!barrel;12n878!barrel;12p878!barrel;0yj5;g06i;g09i;127l78!barrel;12al78!barrel;127n78!barrel;53li;h3lj;58nm;s6qi;0yko"
     ],
     "hearthInteriorFloors": [],
+    "hearthInteriorWindows": [
+      [
+        12,
+        5
+      ],
+      [
+        18,
+        5
+      ],
+      [
+        11,
+        18
+      ],
+      [
+        24,
+        18
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966802",
@@ -1446,24 +1464,6 @@
         "toTileX": 191,
         "toTileY": 403
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        12,
-        5
-      ],
-      [
-        18,
-        5
-      ],
-      [
-        11,
-        18
-      ],
-      [
-        24,
-        18
-      ]
     ]
   },
   {
@@ -1508,6 +1508,20 @@
         "style": "soil"
       }
     ],
+    "hearthInteriorWindows": [
+      [
+        11,
+        8
+      ],
+      [
+        16,
+        8
+      ],
+      [
+        24,
+        8
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966818",
@@ -1529,20 +1543,6 @@
         "toTileX": 142,
         "toTileY": 455
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        11,
-        8
-      ],
-      [
-        16,
-        8
-      ],
-      [
-        24,
-        8
-      ]
     ]
   },
   {
@@ -1567,6 +1567,24 @@
       "5z65;5z85;5za5;ft9a;5388;h389;0yb5;5zk5;5zm5;5zo5;ftna;53m8;h3m9;0yq5;537i;h37j;g0ai;s66o;58ki;v8nm;g8pl;ktml;rhqi;s6qo"
     ],
     "hearthInteriorFloors": [],
+    "hearthInteriorWindows": [
+      [
+        7,
+        5
+      ],
+      [
+        21,
+        5
+      ],
+      [
+        9,
+        18
+      ],
+      [
+        23,
+        18
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966810",
@@ -1588,24 +1606,6 @@
         "toTileX": 179,
         "toTileY": 383
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        7,
-        5
-      ],
-      [
-        21,
-        5
-      ],
-      [
-        9,
-        18
-      ],
-      [
-        23,
-        18
-      ]
     ]
   },
   {
@@ -1650,6 +1650,24 @@
         "style": "stone"
       }
     ],
+    "hearthInteriorWindows": [
+      [
+        7,
+        5
+      ],
+      [
+        22,
+        5
+      ],
+      [
+        10,
+        18
+      ],
+      [
+        22,
+        18
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966800",
@@ -1671,24 +1689,6 @@
         "toTileX": 165,
         "toTileY": 391
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        7,
-        5
-      ],
-      [
-        22,
-        5
-      ],
-      [
-        10,
-        18
-      ],
-      [
-        22,
-        18
-      ]
     ]
   },
   {
@@ -1724,6 +1724,24 @@
         "style": "stone"
       }
     ],
+    "hearthInteriorWindows": [
+      [
+        11,
+        5
+      ],
+      [
+        22,
+        5
+      ],
+      [
+        8,
+        18
+      ],
+      [
+        24,
+        18
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966814",
@@ -1745,24 +1763,6 @@
         "toTileX": 112,
         "toTileY": 428
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        11,
-        5
-      ],
-      [
-        22,
-        5
-      ],
-      [
-        8,
-        18
-      ],
-      [
-        24,
-        18
-      ]
     ]
   },
   {
@@ -1798,6 +1798,16 @@
         "style": "stone"
       }
     ],
+    "hearthInteriorWindows": [
+      [
+        10,
+        5
+      ],
+      [
+        23,
+        5
+      ]
+    ],
     "portals": [
       {
         "runtimeId": "4294966808",
@@ -1819,16 +1829,6 @@
         "toTileX": 187,
         "toTileY": 426
       }
-    ],
-    "hearthInteriorWindows": [
-      [
-        10,
-        5
-      ],
-      [
-        23,
-        5
-      ]
     ]
   }
 ]

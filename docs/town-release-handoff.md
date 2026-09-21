@@ -3,7 +3,30 @@
 The owner approved merging and publishing PRs #39, #40 and #42, in stack order.
 PR #41 is excluded. IndigoForge's explicit primary checkout and service handoff has been received. RubyBay is the current release coordinator.
 
-## Current evidence
+## Latest release checkpoint — 08:15 UTC
+
+PRs #39, #40 and #42 passed all hosted checks and were merged in stack order.
+Merged candidate: `e3420d42`. PR41 remains open and excluded. Owner handoff at
+`/dev/shm/orchard-town-owner-rejoin.json` was decrypted, refresh-validated, and
+verified as unblocked owner. RubyBay exclusively owns refresh during publication.
+
+The guarded release passed 5,773 coverage tests and 99 serial tests, then stopped
+before downtime because space/object exports have noncanonical JSON key ordering.
+A full parsed-JSON comparison proves the regenerated exports have identical values.
+The repair adds `content:validate` early in `npm run check`.
+No production module, content, or map publication has occurred. All services remain
+active. Retry the guarded schema-only release after merging the repair PR; update
+its pinned source commit in the private `run-release.sh` first.
+
+Map publication uses the prepared private `publish-map.mjs`. Run public preflight
+while services are active, then stop both frontend and Studio for its apply phase
+(their Vite proxies carry public world WebSockets). Apply requires both inactive,
+checks the installed registry and repeats live occupancy/content/map CAS checks
+before calling the normal owner reducer. Restart and verify both routes only after
+publication verifies. Acceptance helpers target only OrchardAgent; its browser is
+paused at about:blank while release timing tests run.
+
+## Earlier preparation evidence
 
 - Current desktop shared preview opens https://orchard.dastari.net/ and permits
   page evaluation. It initially had no signed-in session; user sign-in requested.

@@ -2,6 +2,9 @@
 
 ## Unreleased — Town release verification
 
+- Regenerate canonical space/object property ordering and check exports early in CI;
+  definition values and the approved content hash are unchanged.
+
 - Preserve a separately reviewed Studio artifact during guarded schema migrations
   after source-manifest, installed-output, UI-kit and generated API checks.
 - Document the encrypted dedicated development account and verified Content
