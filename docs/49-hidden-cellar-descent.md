@@ -34,6 +34,13 @@ drops are rejected during a Delve. Existing combat skills and equipped-item
 modifiers are deliberately read by combat resolution, so character investment
 matters without the run mutating that investment.
 
+Completing all twelve rooms and claiming the final guardian boon now records a
+full-run victory and permanently reveals the Delver Memorial Planter recipe.
+This optional cosmetic reward uses peaceful crafting materials at home; no boons,
+embers, combat power or gathered materials leave the run. See the
+[completion keepsake contract](delve-keepsake-spec.md) for receipts, content
+retirement and reconnect repair.
+
 ## Networking and future co-op
 
 The server remains authoritative for movement, collision, enemy AI, damage,

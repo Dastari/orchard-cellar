@@ -1,3 +1,4 @@
+import { delveCompletionRewardError } from '../delve-keepsake.js';
 import { equipmentModifierAllowed } from '../equipment-budget.js';
 import {
   type ItemContentDefinition,
@@ -202,7 +203,8 @@ function itemReferences(definition: SupportedContentDefinition): readonly ItemDe
       'item' in target ? [target.item] : []
     )));
     case 'crop': return [definition.seedItem, definition.harvestItem];
-    case 'resource': return definition.seedItem === undefined ? [] : [definition.seedItem];
+    case 'resource': return [...(definition.seedItem === undefined ? [] : [definition.seedItem]),
+      ...(definition.fruitHarvest === undefined ? [] : [definition.fruitHarvest.item])];
     case 'npc': return [
       ...(definition.commerce?.villageOrders ?? []).map(({ item }) => item),
       ...(definition.commerce?.recipeExchange === undefined ? [] : [definition.commerce.recipeExchange.payment.item]),
@@ -376,6 +378,16 @@ function validateResourceDefinition(
       || definition.health.followsGrowthStage !== true) invalid('seedItem requires a regrowing fruit tree', 'seedItem');
     if (definition.retired !== true && [...byId.values()].some((other) => other.kind === 'resource' && other.id !== definition.id
       && other.retired !== true && other.seedItem === definition.seedItem)) invalid('seedItem must identify one live resource', 'seedItem');
+  }
+  if (definition.fruitHarvest !== undefined) {
+    const fruit = byId.get(definition.fruitHarvest.item);
+    if (fruit?.kind !== 'item' || !fruit.tags.includes('crop.fruit') || fruit.retired === true) {
+      invalid('fruitHarvest must reference a live fruit item', 'fruitHarvest.item');
+    }
+    if (!definition.tags.includes('resource.fruit_tree') || definition.regrowth?.enabled !== true
+      || definition.health.followsGrowthStage !== true || definition.interaction.mode !== 'harvest') {
+      invalid('fruitHarvest requires a regrowing harvestable fruit tree', 'fruitHarvest');
+    }
   }
   const loot = byId.get(definition.loot);
   if (loot?.kind !== 'loot') errors.push(issue(
@@ -1684,6 +1696,10 @@ export function validateContentDefinitions(
     undefined,'delveBoon',
   ));
 
+
+  const keepsakeError = delveCompletionRewardError(definitions);
+  if (keepsakeError !== null) errors.push(issue('error', 'invalid_world_definition', keepsakeError,
+    undefined, 'reward.delve_completion'));
 
   const legacyJobOwners = new Map<string, string>();
   const activeProcessInputs = new Map<string, string>();

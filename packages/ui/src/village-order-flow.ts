@@ -2,6 +2,7 @@ export interface VillageOrderOffer {
   readonly id:string;readonly title:string;readonly npcId:bigint;readonly itemKind:string;readonly quantity:number;
   readonly saleValueBronze:bigint;readonly bonusBronze:bigint;readonly totalBronze:bigint;
   readonly revision:bigint;readonly contentHash:string;
+  readonly milestoneTitle?:string;readonly milestoneProgress?:string;readonly learnedMeals?:readonly string[];
 }
 const sameQuote=(a:VillageOrderOffer,b:VillageOrderOffer)=>a.id===b.id&&a.npcId===b.npcId&&a.itemKind===b.itemKind
   &&a.quantity===b.quantity&&a.saleValueBronze===b.saleValueBronze&&a.bonusBronze===b.bonusBronze
@@ -31,16 +32,22 @@ export class VillageOrderFlow {
   get review(){return this.reviewed;}
   get pending(){return this.inFlight;}
   get notice(){return this.message;}
+  get milestone(){return this.current[0]??null;}
   update(scope:string|null,npcId:bigint|null,offers:readonly VillageOrderOffer[]):void{
-    if(scope!==this.scope||npcId!==this.npcId){
+    const changedScope=scope!==this.scope||npcId!==this.npcId;
+    if(changedScope){
       this.serial++;this.inFlight=false;this.reviewed=null;this.message='';this.scope=scope;this.npcId=npcId;
     }
+    const previousMeals=changedScope?undefined:this.current[0]?.learnedMeals;
     this.current=scope===null||npcId===null?[]:offers.filter(offer=>offer.npcId===npcId);
+    const learned=previousMeals===undefined?[]:(this.current[0]?.learnedMeals??[]).filter(id=>!previousMeals.includes(id));
+    const learnedNotice=learned.length?`Learned: ${learned.map(id=>id==='pantry_lunch'?'Pantry Lunch':'Cellar Supper').join(', ')}`:'';
+    if(learnedNotice)this.message=learnedNotice;
     if(!this.reviewed)return;
     const next=this.current.find(offer=>offer.id===this.reviewed!.id);
     if(next&&sameQuote(this.reviewed,next))return;
     // Never infer our own success from a revision another connection may move.
-    this.serial++;this.reviewed=null;this.inFlight=false;this.message=this.current.length===0?'Orders unavailable. Check again.':'Orders updated. Review again.';
+    this.serial++;this.reviewed=null;this.inFlight=false;this.message=learnedNotice||(this.current.length===0?'Orders unavailable. Check again.':'Orders updated. Review again.');
   }
   select(id:string):boolean{
     if(this.inFlight)return false;

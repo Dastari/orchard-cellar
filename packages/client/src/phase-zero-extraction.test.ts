@@ -148,6 +148,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Studio integration shares the player-rig asset contract through the game-safe
 // UI barrel; the workbench stays behind @orchard/ui/studio and the client build guard.
 const STRUCTURAL_SEAM_DIGEST = '7131ba7a4aca312db0c1e2a63cb6b1eba8c97cb63de106c0d67f16183461847c';
+// Delve keepsake review: docs/delve-keepsake-spec.md. Against main 2aee1799 / Orchard b8870362,
+// all five seams differ only in the admission label announcing the first-win
+// home recipe; package ownership and acyclic-import gates remain unchanged.
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

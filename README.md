@@ -50,3 +50,17 @@ See [`CREDITS.md`](CREDITS.md) for the project credit record. Public availabilit
 this source does not grant permission to extract or redistribute third-party art;
 the applicable asset-pack terms remain in force. No project-wide open-source
 license is currently granted.
+
+### Village order specialist meals
+
+Village Orders at the storekeeper, cook and innkeeper now track distinct products.
+Two raw kinds plus one preserved kind teach **Pantry Lunch** (preserved carrot +
+potato, 36 hunger). Two raw kinds, two preserved kinds and a bottle teach
+**Cellar Supper** (preserved potato + apple, 48 hunger). Learned meals appear in
+the recipe book and can be prepared in the inventory crafting grid. Repeat
+deliveries keep their normal bronze payment but only new product kinds advance
+the milestones. Existing players start these new milestones at zero.
+
+The existing `own_village_orders` view includes `milestoneTitle`,
+`milestoneProgress` and `learnedMeals`; its delivery reducer arguments are
+unchanged. Client bindings must ship alongside the module update.

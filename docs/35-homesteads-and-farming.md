@@ -463,3 +463,11 @@ seed odds. Each completed harvest rolls once, irrespective of fruit quantity.
 Select a seed and plant it on clear grass or a tilled tile in an authorized outdoor or
 homestead farm area. Planting consumes one seed; the sapling uses normal tree
 growth and regrowth. It does not require crop watering.
+
+## Pomace compost (0.9.0)
+
+Press fruit to collect Pomace alongside Must. Handcraft **4 Pomace + 1 Fiber → 1 Compost**, with no station or book requirement. Select Compost, target a growing crop, and use **F** or the primary pointer/touch action. The contextual prompt explains the 25% growth advance and one-use-per-planting limit. Mature crops should be harvested with E.
+
+Compost adds a quarter of the crop's required growing time after current watered growth is settled, capped at maturity. It does not water the soil or change seasonal growth rules. Each newly planted crop accepts one treatment. Repeated applications, mature crops, missing soil and invalid targets consume nothing. The current homestead farming permissions apply; public-land crops can only be treated by their owner.
+
+The item reuses the reviewed Pomace icon and has a distinct name and action prompt. Treatment awards no XP; harvesting retains its normal rewards. See [the specification](pomace-compost-spec.md).

@@ -1,6 +1,6 @@
 # 54 — Fishing System
 
-Design doc (2026-08-31). Status: **proposed, not implemented**.
+Historical phase-one design (2026-08-31). The live fishing system now uses authored item lifecycles; this document retains the original implementation plan below. The 0.14.0 progression amendment is current.
 Builds on docs 20 (survival world), 22 (netcode), 25 (stats & vitals), 28
 (crafting), 33 (statistics), 45 (hunger/cooking loop), 48 (mining loop — the
 spawn-system template).
@@ -165,9 +165,7 @@ deterministic, testable, and server-only. A new pure helper
   `reservedFor` reservation.
 - Statistics: un-reserve `fish_caught` (subject `raw_fish`); count whiffs
   under the existing `tool_whiffs`.
-- Progression: fishing lives under **Explorer** alongside mining. Phase one
-  grants flat Explorer XP per catch (5) and per pool depletion (10); named
-  skill nodes (bite-rate, rare-chance) are a later doc.
+- Progression (0.14.0): successful catches grant **5 Farming XP**, with **10 additional Farming XP** when an ordinary pool depletes. Personal tutorial catches award 5 Farming XP without the depletion bonus. Farming contains the Angler's Rhythm, Seasoned Angler and Fishing Mapping specializations. Previous Explorer XP and purchased ranks are preserved; failed/cancelled casts award nothing.
 
 ## Fish as food — cooking integration
 
@@ -243,7 +241,7 @@ three playback shapes.
       min, and relocate; decorative-only shadows no longer spawn.
 - [ ] `raw_fish` cooks to `cooked_fish` at both cooking paths; cooked fish
       restores 2400 centi hunger; raw fish is rejected by `eatSelectedFood`.
-- [ ] `fish_caught` statistic live; Explorer XP on catch/depletion, never on
+- [x] `fish_caught` statistic live; Farming XP on catch/depletion, never on
       whiffs; `fishingCatchQuality` exercised by unit tests across Dexterity
       ranks.
 - [ ] All three icons pass `assets:validate` and the style-bible review render
