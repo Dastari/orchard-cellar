@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Icon audit
+
+- Audit 336 item definitions and 66 skill nodes against the new Kenmi premium
+  icons. Prioritize the hammer and six shovel tiers, plus 13 other first-pass
+  replacements, a cellar bottle candidate, verified
+  source coordinates, and keep/defer decisions without changing runtime artwork.
+
 ## Unreleased — Reference library
 
 - Refresh stale Cute Fantasy catalog paths after the prior library reorganization
