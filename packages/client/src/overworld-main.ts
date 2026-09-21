@@ -6394,6 +6394,7 @@ window.addEventListener('keydown', (event) => {
       cellarToolReady: cellarToolAction !== null && isVitalsTool(selectedUseKind)
         && localMount(snapshot) === null,
       anvilRepairReady: targetAnvilRepairReady(snapshot, selectedUseDefinition),
+      farmToolReady: selectedFarmToolAction(selectedUseDefinition) !== null,
     });
     if (swingIntent === 'dig_cellar') {
       const cellarWall = targetCellarWall(snapshot)!;
@@ -6438,7 +6439,8 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
-    if (selectedUseAction !== null && !selectedUseIsMelee && !selectedUseIsContextualWorldTool) {
+    if (selectedUseAction !== null && !selectedUseIsMelee && !selectedUseIsContextualWorldTool
+      && selectedFarmToolAction(selectedUseDefinition) === null) {
       showResult(network.useSelected('secondary'), null);
       event.preventDefault();
       return;

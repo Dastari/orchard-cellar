@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { expect, it } from 'vitest';
 import { bootstrapContentRegistry, runtimeNpcMount, isMountWithinReach, TILE_SIZE_FIXED } from '@orchard/sim';
-import { selectedCellarToolAction, swingKeyIntent } from './selected-item-use.js';
+import { selectedCellarToolAction, selectedFarmToolAction, swingKeyIntent } from './selected-item-use.js';
 
 it.each(['horse', 'boat'])('makes E dismount a ridden %s before selecting the homestead portal', kind => {
   const source = ts.createSourceFile('overworld-main.ts', readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
@@ -73,7 +73,7 @@ function swingKeyHandler(source: ts.SourceFile) {
   return { statements: [cellar, intent], swing, dig };
 }
 
-it.each(['axe', 'sword', 'pickaxe', 'hoe'])('sends a targetless F swing for %s', async selectedUseKind => {
+it.each(['axe', 'sword', 'pickaxe'])('sends a targetless F swing for %s', async selectedUseKind => {
   const sim = await import('@orchard/sim');
   const source = ts.createSourceFile('overworld-main.ts', readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
   const { statements, swing } = swingKeyHandler(source);
@@ -84,7 +84,7 @@ it.each(['axe', 'sword', 'pickaxe', 'hoe'])('sends a targetless F swing for %s',
     selectedUseDefinition: registry.items.get(`item:${selectedUseKind}`),
     snapshot: { content: { registry } },
     runtimeToolDefinition: sim.runtimeToolDefinition,
-    selectedCellarToolAction, swingKeyIntent,
+    selectedCellarToolAction, selectedFarmToolAction, swingKeyIntent,
     targetResource: () => null, targetCellarWall: () => null, targetAnvilRepairReady: () => false,
     isVitalsTool: () => true, localMount: () => null,
     performToolAction: (action: () => void) => action(),
@@ -112,7 +112,7 @@ it('strikes a cellar wall with F, which a terrain-blind swing cannot do', async 
     selectedUseDefinition: registry.items.get('item:pickaxe'),
     snapshot: { content: { registry } },
     runtimeToolDefinition: sim.runtimeToolDefinition,
-    selectedCellarToolAction, swingKeyIntent,
+    selectedCellarToolAction, selectedFarmToolAction, swingKeyIntent,
     targetResource: () => null, targetCellarWall: () => ({ tileX: 4, tileY: 9 }), targetAnvilRepairReady: () => false,
     isVitalsTool: () => true, localMount: () => null,
     performToolAction: (action: () => void) => { action(); return true; },

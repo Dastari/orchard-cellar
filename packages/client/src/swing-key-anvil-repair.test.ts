@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { expect, it } from 'vitest';
-import { selectedCellarToolAction, swingKeyIntent } from './selected-item-use.js';
+import { selectedCellarToolAction, selectedFarmToolAction, swingKeyIntent } from './selected-item-use.js';
 
 /** The swing-key intent statement and the swing branch it guards, read from
  * the production handler so the routing under test is the shipped one. */
@@ -39,7 +39,7 @@ it.each(['pickaxe', 'axe', 'hoe'])('repairs a damaged %s at a faced anvil instea
       selectedUseDefinition: registry.items.get(`item:${selectedUseKind}`),
       snapshot: { content: { registry } },
       runtimeToolDefinition: sim.runtimeToolDefinition,
-      selectedCellarToolAction, swingKeyIntent,
+      selectedCellarToolAction, selectedFarmToolAction, swingKeyIntent,
       targetResource: () => null, targetCellarWall: () => null,
       targetAnvilRepairReady: () => anvilRepairReady,
       isVitalsTool: () => true, localMount: () => null,
@@ -55,10 +55,10 @@ it.each(['pickaxe', 'axe', 'hoe'])('repairs a damaged %s at a faced anvil instea
   expect(run(true, `${lookups}\nreturn swingIntent;`)).toBe('repair');
   run(true, `${lookups}\n${swing}`);
   expect(calls).toEqual([]);
-  // Without a repairable tool at an anvil the key still swings.
-  expect(run(false, `${lookups}\nreturn swingIntent;`)).toBe('swing');
+  // Without an anvil, the hoe works soil; axes and picks still swing.
+  expect(run(false, `${lookups}\nreturn swingIntent;`)).toBe(selectedUseKind === 'hoe' ? 'contextual' : 'swing');
   run(false, `${lookups}\n${swing}`);
-  expect(calls).toEqual([['secondary']]);
+  expect(calls).toEqual(selectedUseKind === 'hoe' ? [] : [['secondary']]);
 });
 
 it('dispatches the anvil use_with branch after the swing intent yields', () => {
