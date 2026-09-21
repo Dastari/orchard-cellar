@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.0 / Studio 0.9.2 — Integrated town and live editor
+
+- Combine the refined town, persistent streetlights and connected scenery with Studio’s local draft editing, native joins and incremental rendering.
+- Preserve both shared rendering paths and the canonical content validation and serial timing-test gates.
+
 ## Unreleased — Town release verification
 
 - Regenerate canonical space/object property ordering and check exports early in CI;
@@ -37,6 +42,24 @@
 - Separate domestic interior wings with capped and vertical wall faces; give the inn, barn, greenhouse, shop and smith distinct functional envelopes and preserve room/service access.
 - Fix freshwater-to-ocean bank transitions and lock mature tree species independently of the decorative asset catalog.
 - Preserve current-main integration and document independent Astra reference comparison.
+
+## 0.16.1 / Studio 0.9.1 — Immediate local map editing
+
+- Enlarge object and terrain palettes, use generated pixel tools on one row, native inventory reticles and framed in-game category icons. Keep footer chrome intact and place explicit Publish below Auto.
+- Support right-drag panning, dragging objects from the palette and immediate artwork movement while dragging placed objects. Draft edits remain local until Publish.
+- Update sparse terrain cells and affected ground chunks without blanking the map; preserve terrain picking, inherited materials and undo behavior.
+- Load all tree growth/depletion artwork, retain resource definition identities and keep tree sprites visible at overview zoom.
+- Split selection preview/properties and compact layer rows into independent right-hand panels.
+- Add local browser fixture and regression coverage for tree rendering, terrain parity, cache retention, drag/drop and footer layout.
+
+## 0.16.0 / Studio 0.9.0 — Live map authoring
+
+- Require sign-in and a verified live map before opening the Studio workspace; remove offline/connect toolbar controls.
+- Replace map drawer dropdowns with six tools, searchable virtual object/material icon grids, category filters, reticles, height controls and an Auto surround preference. Simplify each layer to visibility and selection.
+- Put authored and live resource trees under Canopy and render resources at overview and detail.
+- Preserve material, biome and collision together; constrain raise/lower to the active plane, generate local footprints, and retain interior floor and grass-family rendering.
+- Share height-aware native fence/hedge joins between Studio and gameplay, with persisted editor overrides. Audit all tile assets and native art limits in [generation rules](docs/studio-generation-rules.md).
+- Studio deploys independently; game/authority updates remain subject to a separate release.
 
 ## 0.15.0 / Studio 0.8.1 — Branch integration
 

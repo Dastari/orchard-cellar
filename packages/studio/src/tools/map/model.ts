@@ -460,7 +460,7 @@ export class MapEditorModel {
   setDefaultSurfaceFamily(family: TerrainSurfaceFamilyId): void {
     this.editTerrain({ kind: 'set_default_surface_family', family });
   }
-  editTerrain(command: MapEditCommand): void { this.apply({ kind: 'terrain', command }); }
+  editTerrain(command: MapEditCommand, biome?: MapBiomeId): void { this.apply({ kind: 'terrain', command, ...(biome === undefined ? {} : {biome}) }); }
   suppressGenerated(generatedId: string, suppressed = true): void {
     this.apply({ kind: 'suppress_generated_object', generatedId, suppressed });
   }

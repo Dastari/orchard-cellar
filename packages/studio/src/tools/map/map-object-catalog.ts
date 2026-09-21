@@ -36,7 +36,7 @@ function behaviorFor(item: AssetPaletteItem): MapPrefabBehavior {
 
 export function mapLayerForPaletteItem(item: AssetPaletteItem): MapObjectLayer {
   if (item.layer === 'ground') return 'ground';
-  if (item.layer === 'canopy') return 'canopy';
+  if (item.category === 'trees' || item.layer === 'canopy') return 'canopy';
   return behaviorFor(item).kind === 'static' ? 'objects' : 'gameplay';
 }
 
@@ -44,7 +44,7 @@ export function mapLayerForPaletteItem(item: AssetPaletteItem): MapObjectLayer {
  * reviewed library. A reviewed asset is safe to expose to owner tooling even
  * when it was not opted into the player-facing construction catalogue. */
 export function mapPaletteItemAvailable(item: AssetPaletteItem): boolean {
-  return item.builderAvailable || item.tags.includes('review.approved');
+  return !item.tags.includes('review.pending');
 }
 
 /** Adapts one generated authoring visual into the same persisted prefab

@@ -1,3 +1,5 @@
+import { mapObjectConnectionMasks } from '@orchard/sim';
+import { drawConnectedObject, preloadConnectedObjectArt } from './connected-objects.js';
 import {streetlampState} from '@orchard/sim';
 import {TransformedLightSpriteCache} from './transformed-light-sprite.js';
 import {mapShadowContacts} from './map-shadow-contacts.js';
@@ -263,7 +265,8 @@ export async function preloadLiveMapObjectAssets(document: MapDocumentV3): Promi
     if (prefab === null) continue;
     for (const placement of prefab.placements) assetNames.add(placement.assetName);
   }
-  await Promise.all([...assetNames].map(requestAsset));
+  const families=new Set([...mapObjectConnectionMasks(document).values()].map(entry=>entry.family));
+  await Promise.all([...assetNames].map(requestAsset).concat([...families].map(family=>preloadConnectedObjectArt(family).catch(()=>undefined))));
 }
 
 export function liveMapObjectAssetsReady(document: MapDocumentV3): boolean {
@@ -303,6 +306,8 @@ function transformedDelta(
 }
 
 export interface LiveMapObjectRenderOptions {
+  /** Full topology source when the caller culls visible objects. */
+  readonly connectionDocument?: MapDocumentV3;
   /** Gameplay draws authoritative placeables; editor/offline previews use auto. */
   readonly materializedStreetlamps?: boolean;
   readonly calendarTick?: bigint;
@@ -320,6 +325,7 @@ export function enqueueLiveMapObjects(
   options: LiveMapObjectRenderOptions,
 ): number {
   if (document === null) return 0;
+  const connections = mapObjectConnectionMasks(options.connectionDocument ?? document);
   let count = 0;
   for (const object of document.objects) {
     if (!object.enabled) continue;
@@ -344,6 +350,8 @@ export function enqueueLiveMapObjects(
           document, object.layer, 'object', object.id, placement.id,
         ),
         draw: () => {
+          const connection = connections.get(object.id);
+          if (connection && drawConnectedObject(options.context,connection.family,connection.mask,worldX,worldFootY,options.cameraX,options.cameraY,options.scale)) return;
           const screenX = Math.round((worldX - options.cameraX) * options.scale);
           const screenY = Math.round((worldFootY - options.cameraY) * options.scale);
           const savedTransform = saveSpriteTransform(options.context, true);

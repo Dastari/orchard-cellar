@@ -1,9 +1,12 @@
+import {terrainElevationAtWorldFoot} from '@orchard/engine/terrain';
+import {drawConnectedObject} from '@orchard/engine/connected-objects';
+import {connectedObjectFamily,connectedObjectIndex} from '@orchard/sim';
 import {seatedFurnitureForPlayer} from './hearth-seating.js';
 import {actionVisualForDirection} from '@orchard/engine/overworld-art';
 import { profilePainterProducer } from './painter-producer-profile.js';
 import { FIXED_UNITS_PER_PIXEL, runtimeObjectDamageable, runtimeObjectDefinition, runtimePlaceableDefinition,
   runtimeSpaceSurfaceDefinition,
-  placeableObjectDefinition, fenceJoinMask,
+  placeableObjectDefinition,
   hearthFurnitureScene, hearthFurnitureDrawGroup, hearthFurnitureShapeForPlaceable } from '@orchard/sim';
 import { drawAuthoredOverworldObject, drawOverworldChest, drawOverworldHive, drawOverworldItem, drawOverworldPlaceable, drawOverworldPoiDecoration } from '@orchard/engine/overworld-art';
 import { worldPointVisible } from '@orchard/engine/camera';
@@ -13,7 +16,7 @@ import type { GameplayPainterInputs } from './gameplay-painter-inputs.js';
 import { objectHasAuthoredTag } from './content/object-interaction.js';
 
 type Inputs = Pick<GameplayPainterInputs,
-  'snapshot' | 'animatedOpenChestId' | 'closingChestId' | 'chestAnimationStartedAtMs' | 'debugEntitiesHidden' |
+  'terrain' | 'snapshot' | 'animatedOpenChestId' | 'closingChestId' | 'chestAnimationStartedAtMs' | 'debugEntitiesHidden' |
   'visible' | 'enqueueWorldDepth' | 'drawSouthFacingReceiver' | 'context' | 'art' |
   'cameraX' | 'cameraY' | 'scale' | 'projectionAt' | 'targetableEntities' |
   'objectPresentations' | 'clientProcessorRuntime' | 'frameLightingModel'
@@ -96,10 +99,13 @@ function buildEnqueueGameplayPlaceables(input: Inputs) {
       }),
     });
   }
-  const fenceTiles = new Set([...snapshot.placeables]
-    .filter((row) => row.carriedBy === undefined
-      && runtimePlaceableDefinition(snapshot.content.registry, row)?.connectsFence === true)
-    .map((row) => `${row.tileX}:${row.tileY}`));
+  const fenceCells=[...snapshot.placeables].flatMap(row=>{
+    const definition=placeableObjectDefinition(snapshot.content.registry,row);
+    const family=connectedObjectFamily(definition?.components.sprite?.asset ?? '');
+    return row.carriedBy === undefined && family ? [{tileX:row.tileX,tileY:row.tileY,
+      elevation:terrainElevationAtWorldFoot(input.terrain,row.tileX*16+8,(row.tileY+1)*16),space:row.spaceId,family}] : [];
+  });
+  const joinMask=connectedObjectIndex(fenceCells);
   const furnitureScene = hearthFurnitureScene(snapshot.content.registry, snapshot.placeables);
   const occupiedSeats=new Set([...snapshot.players].flatMap(player=>{
     const seat=seatedFurnitureForPlayer(player,snapshot.placeables,snapshot.content.registry);
@@ -145,9 +151,9 @@ function buildEnqueueGameplayPlaceables(input: Inputs) {
     if (storedDefinitionId !== '' && authoredDefinition === null) continue;
     const presentation = objectPresentations.resolve(snapshot.content, placeable);
     const definition = runtimePlaceableDefinition(snapshot.content.registry, placeable);
-    const fenceMask = authoredDefinition?.components.sprite?.fenceJoin === true
-      ? fenceJoinMask(placeable.tileX, placeable.tileY, (tileX, tileY) => fenceTiles.has(`${tileX}:${tileY}`))
-      : 0;
+    const connectionFamily=connectedObjectFamily(authoredDefinition?.components.sprite?.asset ?? '');
+    const fenceMask=connectionFamily ? joinMask({tileX:placeable.tileX,tileY:placeable.tileY,
+      elevation:terrainElevationAtWorldFoot(input.terrain,x,y),space:placeable.spaceId,family:connectionFamily}) : 0;
     const processor = clientProcessorRuntime(snapshot, placeable);
     const pressInputSlot = processor?.adapter === 'press'
       ? processor.processor.slotRoles.input?.[0] : undefined;
@@ -160,6 +166,7 @@ function buildEnqueueGameplayPlaceables(input: Inputs) {
       tie: `placeable:${placeable.id}`,
       draw: () => {
         const drawPlaceable = (): void => {
+          if (connectionFamily && placeable.kind !== 'fence_gate' && drawConnectedObject(context,connectionFamily,fenceMask,x,y,cameraX,cameraY,scale)) return;
           if (authoredDefinition !== null) {
             const authoredSprite = presentation.authored ? presentation.sprite : null;
             if (authoredSprite?.asset === null || authoredSprite?.asset === undefined) return;

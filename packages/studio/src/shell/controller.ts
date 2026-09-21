@@ -161,7 +161,8 @@ export class StudioShellController {
     if (view === undefined) return;
     if (view.connected && view.identity !== null && view.role !== null) {
       this.session.connected({ identity: view.identity, role: view.role, contentRevision: view.contentRevision, mapRevision: view.mapRevision });
-    } else if (view.error !== null) this.session.failed(view.error);
+    } else if (!view.connected && this.session.snapshot().phase === 'connected') this.session.failed(view.error ?? 'Connection lost. Reconnect to continue editing the live map.');
+    else if (view.error !== null) this.session.failed(view.error);
     else if (view.connected && !view.synchronizing && view.identity !== null) this.session.failed('studio_role_required');
     this.onChanged();
   }

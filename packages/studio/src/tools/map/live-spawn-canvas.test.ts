@@ -61,27 +61,11 @@ async function liveContext(api: AdminObjectsApi): Promise<StudioCanvasToolContex
 }
 
 describe('Map Editor Canvas functional live spawn mode', () => {
-  it('exposes compact Canvas-native height and collision toggles with keyboard parity', async () => {
-    const context = await liveContext(liveApi().api);
-    let surface = buildMapCanvasTool(context);
-    expect(kitElement(surface, 'map-height-overlay')).toMatchObject({
-      kind: 'button', label: 'H',
-    });
-    expect(kitElement(surface, 'map-collision-overlay')).toMatchObject({
-      kind: 'button', label: 'C',
-    });
-
-
-
-    pressKit(surface, 'map-height-overlay');
-    expect(surface.input?.keyDown?.({ key: 'c', repeat: false,
-      shiftKey: false, altKey: false, ctrlKey: false, metaKey: false })).toBe(true);
-    surface = buildMapCanvasTool(context);
-    expect(kitElement(surface, 'map-height-overlay')?.props['tone']).toBe('success');
-    expect(kitElement(surface, 'map-collision-overlay')?.props['tone']).toBe('success');
-    expect(surface.input?.keyDown?.({ key: 'g', repeat: false,
-      shiftKey: false, altKey: false, ctrlKey: false, metaKey: false })).toBe(false);
-  });
+  it('replaces H/C controls with an active height selector',async()=>{
+ const c=await liveContext(liveApi().api);let s=buildMapCanvasTool(c);expect(kitElement(s,'map-height-overlay')).toBeUndefined();expect(kitElement(s,'map-collision-overlay')).toBeUndefined();
+ pressKit(s,'map-height-up');s=buildMapCanvasTool(c);expect(kitElement(s,'map-current-height')?.label).toBe('Height 1');
+ pressKit(s,'map-height-down');s=buildMapCanvasTool(c);expect(kitElement(s,'map-current-height')?.label).toBe('Height 0');
+});
 
   it('uses a temporary exact preview and never commits before the Canvas confirmation action', async () => {
     const probe = liveApi();

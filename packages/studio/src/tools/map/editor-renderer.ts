@@ -1,3 +1,8 @@
+import { patchMapEditorTerrain } from './editor-terrain-patch.js';
+import { terrainMinimumElevation, terrainMaximumElevation } from '@orchard/engine/terrain';
+import { writeEditorMapOverviewPixel } from './editor-map-overview.js';
+import { connectedObjectFamily, connectedObjectIndex } from '@orchard/sim';
+import { drawConnectedObject } from '@orchard/engine/connected-objects';
 import {
   TILE_SIZE_PIXELS,
   authoredMapContentPainterTie,
@@ -9,6 +14,7 @@ import {
   homesteadBuildFootprintTiles,
   mapLandmarkDecoration,
   treeGrowthStageName,
+  runtimeResourceDefinition,
   type ContentRegistry,
   type MiningNodeClass,
   type MapDocumentV3,
@@ -33,6 +39,7 @@ import {
   drawOverworldRogueEnemy,
   drawOverworldStump,
   drawOverworldTree,
+  drawAuthoredResourceVisual, authoredResourceVisual,
   drawOverworldTreeRegrowth,
   drawOverworldWildlife,
   enqueueLiveMapObjects,
@@ -43,6 +50,7 @@ import {
   preloadLiveMapObjectAssets,
   sortWorldDepthItems,
   terrainProjectedDepthAtFoot,
+  terrainElevationAtWorldFoot,
   terrainProjectedDepthForElevation,
   terrainProjectedElevationAtFoot,
   terrainProjectedSortOffset,
@@ -71,7 +79,7 @@ import type { MapEditorModel } from './model.js';
 import { buildMapEditorTerrain } from './editor-terrain-build.js';
 import { MapEditorTerrainLoader } from './editor-terrain-loader.js';
 import {
-  buildMapEditorTerrainDerivatives,
+  buildMapEditorTerrainDerivatives, mapTerrainOverrideInfluenceRuns,
   mapGeneratedBaseTerrainKey,
   type MapEditorTerrainDerivatives,
   type MapEditorTerrainInfluenceRun,
@@ -363,14 +371,11 @@ export const MAX_EDITOR_DETAILED_TILES = 20_000;
 export const EDITOR_ART_RETRY_INITIAL_MS = 1_000;
 export const EDITOR_ART_RETRY_MAXIMUM_MS = 60_000;
 
-/** Dense one-tile runtime substrates collapse into the terrain overview. At
- * fit-map zoom their minimum three-pixel markers overlap by design and repaint
- * thousands of invisible squares; the exact resources/surfaces return at the
- * same object-detail threshold used by production artwork. */
+/** Keep tree/resource markers visible at overview zoom; only flat surfaces collapse. */
 export function mapEditorOverviewLiveMarkerVisible(
   marker: Pick<MapEditorLiveMarker, 'entityKind'>,
 ): boolean {
-  return marker.entityKind !== 'resource' && marker.entityKind !== 'surface';
+  return marker.entityKind !== 'surface';
 }
 
 export function editorArtRetryDelayMs(failureCount: number): number {
@@ -448,6 +453,9 @@ export class MapEditorRenderer {
   #terrainIdentity: object | null = null;
   #terrainPendingIdentity: object | null = null;
   #terrain: TerrainArray | null = null;
+  #terrainDocument: MapDocumentV3 | null = null;
+  #terrainDerivativesReady=false;
+  #overviewElevationRange={minimum:0,maximum:0};
   #generatedBaseTerrainKey = '';
   #generatedBaseTerrain: TerrainArray | null = null;
   #terrainOverrideInfluenceRuns: readonly MapEditorTerrainInfluenceRun[] | null = null;
@@ -540,8 +548,40 @@ export class MapEditorRenderer {
     this.invalidate();
   }
 
-  /** Shares the completed visual terrain with context inspection. Selection
-   * must never compile a second 832x832 map after the overview is visible. */
+  /** Inspector images use the same loaded assets as the map. */
+  liveMarkerPreview(marker:MapEditorLiveMarker):{image:CanvasImageSource;frame:import('@orchard/ui').AtlasFrame}|undefined {
+    if(this.#art===null||this.#liveRegistry===null)return undefined;
+    if(marker.entityKind==='resource') {
+      const definition=runtimeResourceDefinition(this.#liveRegistry,marker);if(!definition)return undefined;
+      const growth=treeGrowthStageName(marker.growthStage??3);
+      const state=marker.depleted?(growth==='small'?'depleted_small':growth==='medium'?'depleted_medium':'depleted'):growth==='small'||growth==='medium'?growth:'mature';
+      const resolved=authoredResourceVisual(this.#art,definition.visual,state);
+      if(!resolved)return undefined;
+      const frame=resolved.asset.metadata.animations['base']?.[0]??Object.values(resolved.asset.metadata.animations)[0]?.[0];
+      return frame?{image:resolved.asset.image,frame}:undefined;
+    }
+    const presentation=resolveStudioLiveMarkerPresentation(this.#liveRegistry,marker);
+    if(presentation.kind==='npc') {
+      const asset=authoredNpcArt(this.#art,presentation.runtimeKind);
+      const frame=asset&&Object.values(asset.metadata.animations)[0]?.[0];
+      return asset&&frame?{image:asset.image,frame}:undefined;
+    }
+    if(presentation.kind==='object') {
+      const sprite=presentation.definition.components.sprite;if(!sprite)return undefined;
+      this.ensureLiveObjectAsset(sprite.asset);const asset=this.#liveObjectAssets.get(sprite.asset);
+      const frame=asset?.metadata.animations['base']?.[0]??(asset&&Object.values(asset.metadata.animations)[0]?.[0]);
+      return asset&&frame?{image:asset.image,frame}:undefined;
+    }
+    return undefined;
+  }
+
+  landmarkPreview(kind:string):{image:CanvasImageSource;frame:import('@orchard/ui').AtlasFrame}|undefined {
+    const asset=this.#art?.poiDecorations[kind];
+    const frame=asset&&(asset.metadata.animations['base']?.[0]??Object.values(asset.metadata.animations)[0]?.[0]);
+    return asset&&frame?{image:asset.image,frame}:undefined;
+  }
+
+  /** Inspection adopts only a completed terrain matching the current draft. */
   inspectionTerrain(terrainIdentity: object): TerrainArray | null {
     return this.#terrainIdentity === terrainIdentity ? this.#terrain : null;
   }
@@ -561,7 +601,11 @@ export class MapEditorRenderer {
     shellArt: StudioSpatialArt,
   ): void {
     if (this.#disposed) return;
-    const document = model.document();
+    const sourceDocument = model.document();
+    const drag = interaction.snapshot().dragDestination;
+    const document:MapDocumentV3 = drag===null?sourceDocument:{...sourceDocument,
+      objects:drag.kind==='object'?sourceDocument.objects.map(object=>object.id===drag.id?{...object,tileX:drag.tileX,tileY:drag.tileY,elevation:drag.elevation}:object):sourceDocument.objects,
+      landmarks:drag.kind==='landmark'?sourceDocument.landmarks.map(object=>object.id===drag.id?{...object,tileX:drag.tileX,tileY:drag.tileY,elevation:drag.elevation}:object):sourceDocument.landmarks};
     const {
       camera,
       viewport,
@@ -590,8 +634,8 @@ export class MapEditorRenderer {
     );
     const anchorsVisible = model.isLayerVisible('anchors') && document.anchors.length > 0;
     const needsTerrain = terrainMode !== 'none' || (art !== null && wantsObjectSprites) || anchorsVisible;
-    const terrain = needsTerrain ? this.terrainFor(document, model.terrainIdentity()) : null;
-    if (terrain !== null) interaction.adoptPickingTerrain(model.terrainGeometryIdentity(), terrain);
+    const terrain = needsTerrain ? this.terrainFor(sourceDocument, model.terrainIdentity()) : null;
+    if (terrain !== null && this.#terrainIdentity === model.terrainIdentity()) interaction.adoptPickingTerrain(model.terrainGeometryIdentity(), terrain);
     const detailedLayer = terrainMode === 'detail'
       ? mapDetailedTerrainLayerForVisibility(generatedBaseVisible, terrainOverridesVisible)
       : null;
@@ -622,7 +666,7 @@ export class MapEditorRenderer {
     const sourceHeight = range.maximumY - range.minimumY;
     if (terrainMode === 'overview' && sourceWidth > 0 && sourceHeight > 0
       && overviewLayer !== null && terrain !== null) {
-      const overview = this.#overviewCache.image(model.terrainIdentity(), overviewLayer);
+      const overview = this.#overviewCache.image(this.#terrainIdentity ?? model.terrainIdentity(), overviewLayer);
       if (overview !== null) {
         drawTileRaster(context, overview, range, viewport, camera);
       }
@@ -835,7 +879,33 @@ export class MapEditorRenderer {
 
   private terrainFor(mapDocument: MapDocumentV3, terrainIdentity: object): TerrainArray | null {
     if (this.#terrainIdentity === terrainIdentity && this.#terrain !== null) return this.#terrain;
-    if (this.#terrainPendingIdentity === terrainIdentity) return null;
+    const retained = this.#terrainDocument?.id===mapDocument.id && this.#terrain?.width===mapDocument.width
+      &&this.#terrain.height===mapDocument.height ? this.#terrain : null;
+    if (this.#terrainPendingIdentity === terrainIdentity) return retained;
+    const patch=retained&&this.#terrainDocument&&this.#terrainDerivativesReady?patchMapEditorTerrain(retained,this.#terrainDocument,mapDocument):null;
+    if(patch) {
+      if(this.#terrainDerivationTimer!==null)clearTimeout(this.#terrainDerivationTimer);
+      this.#terrainDerivationTimer=null;
+      this.#groundCache.adoptSparseTerrain(retained!,patch.terrain,patch.changed);
+      this.#terrain=patch.terrain;this.#terrainIdentity=terrainIdentity;this.#terrainDocument=mapDocument;this.#terrainPendingIdentity=null;
+      this.#overviewCache.adoptSparse(terrainIdentity,(image,layer)=>{
+        if(layer==='generated_base')return;
+        const ctx=image.getContext('2d');if(!ctx)return;const pixel=new Uint8ClampedArray(4);
+        for(const point of patch.changed){const index=point.tileY*mapDocument.width+point.tileX;
+          if(layer==='terrain'&&!mapDocument.cells[`${point.tileX},${point.tileY}`]){ctx.clearRect(point.tileX,point.tileY,1,1);continue;}
+          writeEditorMapOverviewPixel(pixel,0,patch.terrain.biomes[index]!,patch.terrain.elevations[index]!,this.#overviewElevationRange.minimum,this.#overviewElevationRange.maximum);
+          ctx.fillStyle=`rgb(${pixel[0]},${pixel[1]},${pixel[2]})`;ctx.fillRect(point.tileX,point.tileY,1,1);}
+      });
+      // Sparse edits retain the previous full overview and base. Only isolated
+      // terrain-layer clipping needs a deferred derivative scan.
+      this.#terrainDerivationTimer=setTimeout(()=>{
+        this.#terrainDerivationTimer=null;
+        if(this.#terrainIdentity!==terrainIdentity||this.#disposed)return;
+        if(this.#generatedBaseTerrain)this.#terrainOverrideInfluenceRuns=mapTerrainOverrideInfluenceRuns(patch.terrain,this.#generatedBaseTerrain);
+        this.invalidate();
+      },0);
+      return patch.terrain;
+    }
     if (this.#terrainFallbackTimer !== null) clearTimeout(this.#terrainFallbackTimer);
     this.#terrainFallbackTimer = null;
     if (this.#terrainDerivationTimer !== null) clearTimeout(this.#terrainDerivationTimer);
@@ -853,7 +923,7 @@ export class MapEditorRenderer {
         console.warn('Studio map terrain worker failed; using the compatibility renderer', error);
         this.invalidate();
       });
-      return null;
+      return retained;
     }
     // A module worker can be unavailable in tests, embedded webviews, or a
     // browser with a restrictive worker policy. Preserve that compatibility
@@ -875,7 +945,7 @@ export class MapEditorRenderer {
         console.warn('Studio map terrain compatibility renderer failed', error);
       }
     }, 0);
-    return null;
+    return retained;
   }
 
   private acceptTerrain(
@@ -887,10 +957,13 @@ export class MapEditorRenderer {
     if (this.#terrainDerivationTimer !== null) clearTimeout(this.#terrainDerivationTimer);
     this.#terrainDerivationTimer = null;
     this.#terrain = terrain;
+    this.#terrainDocument = mapDocument;
+    this.#terrainDerivativesReady=false;
+    this.#overviewElevationRange={minimum:Math.min(0,terrainMinimumElevation(terrain)),maximum:Math.max(0,terrainMaximumElevation(terrain))};
     this.#terrainIdentity = terrainIdentity;
     this.#terrainPendingIdentity = null;
     this.#terrainOverrideInfluenceRuns = null;
-    this.#overviewCache.clear();
+    this.#overviewCache.adoptSparse(terrainIdentity,()=>{});
     if (derivatives !== undefined) {
       this.acceptTerrainDerivatives(terrainIdentity, derivatives);
       return this.#terrain;
@@ -925,6 +998,7 @@ export class MapEditorRenderer {
     derivatives: MapEditorTerrainDerivatives,
   ): void {
     if (this.#disposed || this.#terrainIdentity !== terrainIdentity) return;
+    this.#terrainDerivativesReady=true;
     // Sparse authored edits deliberately leave this key unchanged. Retaining
     // the existing immutable base also retains its production ground chunks;
     // replacing it with an equivalent new TerrainArray would make the cache
@@ -1093,6 +1167,7 @@ export class MapEditorRenderer {
         (object.tileY + 1) * TILE_SIZE_PIXELS,
       ) && model.isLayerVisible(object.layer));
       enqueueLiveMapObjects({ ...mapDocument, objects: visibleObjects }, {
+        connectionDocument: mapDocument,
         context,
         cameraX: camera.x,
         cameraY: camera.y,
@@ -1143,12 +1218,19 @@ export class MapEditorRenderer {
 
     if (drawLiveArtwork) {
       const liveAnimationFrame = Math.floor(performance.now() / 125);
+      const connections = interaction.liveMarkers().flatMap(marker=>{
+        const presentation=resolveStudioLiveMarkerPresentation(this.#liveRegistry,marker);
+        const family=presentation.kind==='object'?connectedObjectFamily(presentation.definition.components.sprite?.asset??''):null;
+        return family?[{marker,family,tileX:marker.tileX,tileY:marker.tileY,elevation:marker.elevation??terrainElevationAtWorldFoot(terrain,marker.worldX,marker.worldY),space:marker.spaceId}]:[];
+      });
+      const masks=connectedObjectIndex(connections);
+      const byId=new Map(connections.map(cell=>[cell.marker.id,{family:cell.family,mask:masks(cell)}]));
       for (const marker of interaction.liveMarkers()) {
         if (!model.isLayerVisible(marker.layer)
           || !pointInsideCull(cull, marker.worldX, marker.worldY)) continue;
         this.enqueueLiveMarker(
           enqueueProjected, context, art, marker, marker.worldX, marker.worldY, camera,
-          liveAnimationFrame,
+          liveAnimationFrame, byId.get(marker.id),
         );
       }
     }
@@ -1198,6 +1280,7 @@ export class MapEditorRenderer {
   }
 
   private liveMarkerHasArtwork(marker: MapEditorLiveMarker): boolean {
+    if(marker.entityKind==='resource'&&this.#liveRegistry!==null)return runtimeResourceDefinition(this.#liveRegistry,marker)!==null;
     if (marker.entityKind !== 'placeable' && marker.entityKind !== 'chest'
       && marker.entityKind !== 'combat-target' && marker.entityKind !== 'npc') return true;
     if (marker.entityKind === 'npc' && marker.species === 'bee' && marker.activity === 'inside_hive') {
@@ -1257,11 +1340,13 @@ export class MapEditorRenderer {
     worldY: number,
     camera: { readonly x: number; readonly y: number; readonly zoom: number },
     animationFrameBase: number,
+    connection?: {family:NonNullable<ReturnType<typeof connectedObjectFamily>>;mask:number},
   ): void {
     if (!this.liveMarkerHasArtwork(marker)) return;
     const presentation = resolveStudioLiveMarkerPresentation(this.#liveRegistry, marker);
     const animationFrame = animationFrameBase + (marker.animationPhase ?? marker.id.length % 19);
     const draw = (): void => {
+      if(connection && marker.kind !== 'fence_gate' && drawConnectedObject(context,connection.family,connection.mask,worldX,worldY,camera.x,camera.y,camera.zoom)) return;
       if (presentation.kind === 'object') {
         const sprite = presentation.definition.components.sprite;
         const asset = sprite === undefined ? undefined : this.#liveObjectAssets.get(sprite.asset);
@@ -1279,7 +1364,16 @@ export class MapEditorRenderer {
             camera.x, camera.y, camera.zoom, sprite.scale ?? 1,
           ) || !presentation.legacyFallback) return;
         } else if (!presentation.legacyFallback) return;
-      } else if (presentation.kind === 'neutral') return;
+      } else if (presentation.kind === 'neutral' && ['placeable','chest','combat-target','npc'].includes(marker.entityKind)) return;
+      if(marker.entityKind==='resource' && this.#liveRegistry!==null) {
+        const definition=runtimeResourceDefinition(this.#liveRegistry,marker);
+        if(!definition)return;
+        const growth=treeGrowthStageName(marker.growthStage??3);
+        const visualState=marker.depleted?(growth==='small'?'depleted_small':growth==='medium'?'depleted_medium':'depleted'):growth==='small'||growth==='medium'?growth:'mature';
+        const nodeClass:MiningNodeClass=marker.miningClass==='pure'||marker.miningClass==='pristine'||marker.miningClass==='rock'?marker.miningClass:'mixed';
+        drawAuthoredResourceVisual(context,art,definition.visual,visualState,worldX,worldY,camera.x,camera.y,camera.zoom,nodeClass,marker.richness??1,animationFrame);
+        return;
+      }
       if (marker.entityKind === 'chest') {
         drawOverworldChest(
           context, art, worldX, worldY, camera.x, camera.y, camera.zoom, marker.open ? 5 : 0,

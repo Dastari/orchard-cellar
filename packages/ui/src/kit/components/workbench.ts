@@ -14,6 +14,7 @@ export interface UiWorkbenchNavigation {
 }
 export interface UiWorkbenchDrawer {
   readonly title: string; readonly content: UiElement; readonly width?: UiFixedDimension;
+  readonly minWidth?: UiFixedDimension; readonly maxWidth?: UiFixedDimension;
   readonly visible?: boolean;
   readonly surface?: UiSurfaceStyle;
   /** Let an editor with its own scrolling body fill the available drawer. */
@@ -36,7 +37,13 @@ export interface UiWorkbenchOptions {
 export function uiWorkbench(options: UiWorkbenchOptions): UiElement {
   const id = options.id ?? 'workbench';
   const preferences = { controls: options.controls?.width?.size ?? 135, inspector: options.inspector?.width?.size ?? 143 };
-  for (const side of ['controls', 'inspector'] as const) { uiFixed(preferences[side]); preferences[side] = Math.max(90, Math.min(210, preferences[side])); }
+  const limits=(side:'controls'|'inspector')=>({min:options[side]?.minWidth?.size??90,max:options[side]?.maxWidth?.size??210});
+  const clamp=(side:'controls'|'inspector',width:number)=>Math.max(limits(side).min,Math.min(limits(side).max,width));
+  for (const side of ['controls', 'inspector'] as const) {
+    const {min,max}=limits(side);uiFixed(min);uiFixed(max);uiFixed(preferences[side]);
+    if(min>max)throw new RangeError('workbench_drawer_width_bounds');
+    preferences[side]=clamp(side,preferences[side]);
+  }
   const regions: Partial<Record<UiWorkbenchRegion, UiRect>> = {};
   const region = (name: UiWorkbenchRegion, content: UiElement) => new UiElement({
     id: `${id}.${name}.content`, kind: 'workbench-region', props: { region: name },
@@ -58,7 +65,7 @@ export function uiWorkbench(options: UiWorkbenchOptions): UiElement {
       for (const side of ['controls', 'inspector'] as const) {
         const drawer = drawers[side], definition = options[side]; if (!drawer || !definition) continue;
         const visible = definition.visible !== false && (!narrow || side === (options.activeDrawer ?? (options.controls?.visible !== false && options.controls ? 'controls' : 'inspector')));
-        const width = Math.min(available, Math.max(90, Math.min(210, preferences[side])));
+        const width = Math.min(available, clamp(side,preferences[side]));
         const height = Math.max(0, element.contentRect.height - 8);
         if (drawer.visible !== visible) options.onRegionVisibility?.(side, visible);
         if (drawer.visible !== visible || (drawer.style.width as UiFixedDimension).size !== width || (drawer.style.height as UiFixedDimension).size !== height) drawer.setStyle({ visible, width: uiFixed(width), height: uiFixed(height) });
@@ -81,7 +88,7 @@ export function uiWorkbench(options: UiWorkbenchOptions): UiElement {
     });
     let drag: { point: UiPoint; width: number } | null = null;
     const apply = (width: number) => {
-      preferences[side] = Math.round(Math.max(90, Math.min(210, width)));
+      preferences[side] = Math.round(clamp(side,width));
       plane.invalidate(); options.onDrawerResize?.(side, uiFixed(preferences[side]));
     };
     drawer.append(new UiElement({ id: `${id}.${side}.resize`, kind: 'workbench-resize',
@@ -95,7 +102,7 @@ export function uiWorkbench(options: UiWorkbenchOptions): UiElement {
       },
       onKey(event) {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return false;
-        apply(event.key === 'Home' ? 90 : event.key === 'End' ? 210 : drawer.rect.width + (event.key === 'ArrowRight' ? 8 : -8) * (side === 'controls' ? 1 : -1));
+        apply(event.key === 'Home' ? limits(side).min : event.key === 'End' ? limits(side).max : drawer.rect.width + (event.key === 'ArrowRight' ? 8 : -8) * (side === 'controls' ? 1 : -1));
         return true;
       },
     }));

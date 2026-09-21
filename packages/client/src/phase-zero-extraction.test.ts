@@ -154,9 +154,11 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Review: docs/review/west-town-visual-pass-01.md; fixture-light tests cover this seam.
 
 // Combined review: docs/branch-integration-handoff.md; retain all three approved seam edits.
+// Live editor review: shared authored-object adjacency retains original-art fallback
+// and complete-document topology. See docs/studio-generation-rules.md.
 // Connected town lamps resolve one authoritative state and skip static duplicates.
 // Review: docs/review/willowharbour-rules-pass-01.md.
-const STRUCTURAL_SEAM_DIGEST = '470ecd1cecab639abf975ea41933fe73d16334b977cc8b38bc78cc7f25f1ce7c';
+const STRUCTURAL_SEAM_DIGEST = "eb32925609b88a0fb78884757602cd3a071c92244579e9458d616573336c22dc";
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

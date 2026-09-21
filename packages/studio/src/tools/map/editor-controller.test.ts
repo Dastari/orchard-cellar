@@ -779,13 +779,14 @@ describe('MapEditorController', () => {
     expect(mapDocumentV3Hash(model.document())).toBe(before);
   });
 
-  it('consumes an in-map context click even when it only selects a tile', () => {
-    const { controller, model } = harness();
-    const center = controller.screenToWorld({ x: 500, y: 350 });
-    const tileX = Math.floor(center.x / 16);
-    const tileY = Math.floor(center.y / 16);
-    expect(controller.pointerDown(screenForTile(controller, tileX, tileY), 2)).toBe(true);
-    expect(model.selection()).toMatchObject({ kind: 'tile', tileX, tileY });
+  it('pans with right drag without changing selection, deleting or publishing', () => {
+    const {controller,model}=harness();const document=model.document(),selection=model.selection();
+    const point={x:500,y:350};controller.wheel(point,-800);
+    const camera=controller.snapshot().camera;
+    expect(controller.pointerDown(point,2)).toBe(true);
+    expect(controller.pointerMove({x:530,y:365})).toBe(true);controller.pointerUp();
+    expect(controller.snapshot().camera.x).toBeCloseTo(camera.x-30/camera.zoom);
+    expect(model.document()).toBe(document);expect(model.selection()).toBe(selection);
   });
 
   it('filters embedded prefabs and places the selected prefab on the active object layer', () => {
@@ -1242,7 +1243,7 @@ describe('MapEditorController', () => {
     expect(mapEditorLiveMarkers(rows).map(({ entityKind, layer }) => [entityKind, layer]))
       .toEqual([
         ['placeable', 'player_owned'], ['chest', 'player_owned'],
-        ['homestead', 'player_owned'], ['resource', 'generated_base'],
+        ['homestead', 'player_owned'], ['resource', 'canopy'],
         ['combat-target', 'gameplay'], ['surface', 'gameplay'],
         ['npc', 'gameplay'], ['player', 'gameplay'],
       ]);
@@ -1350,4 +1351,53 @@ describe('MapEditorController', () => {
     expect(controller.pointerUp()).toBe(false);
     expect(model.document().revision).toBe(revision);
   });
+});
+
+describe('semantic material and active height tools',()=>{
+ it('raises only the active plane, expands locally and preserves material and remote overrides',()=>{
+  const {controller,model}=terrainHarness([[3,2,3],[6,6,4]]);
+  model.editTerrain({kind:'paint',points:[{tileX:2,tileY:2}],patch:{surface:'sand',cliffFamily:'desert_2'}},'beach');
+  const before=model.document();controller.selectEditingTool('raise');
+  controller.pointerDown(screenForTile(controller,2,2),0);controller.pointerUp();
+  expect(model.document().cells['2,2']).toMatchObject({elevation:1,surface:'sand',cliffFamily:'desert_2',biome:'beach'});
+  expect(model.document().cells['3,2']?.elevation).toBe(3);
+  expect(model.document().cells['6,6']?.elevation).toBe(4);
+  expect(model.document().cells['2,3']?.elevation).toBe(1);
+  controller.undo();expect(model.document()).toBe(before);
+ });
+ it('supports single-cell manual height and prevents Lower from raising low ground',()=>{
+  const {controller,model}=terrainHarness([[2,2,1],[3,2,3]]);
+  controller.selectEditingTool('lower');controller.adjustActiveElevation(1);controller.setAutomaticGeneration(false);
+  const point=screenForProjectedTile(controller,mapEditorPickingTerrain(model.document()),2,2,1);controller.pointerDown(point,0);controller.pointerUp();
+  expect(resolvedMapCellAt(terrainDocumentForMapV3(model.document()),2,2).elevation).toBe(0);
+  const next=model.document();controller.pointerDown(point,0);controller.pointerUp();expect(model.document()).toBe(next);
+  expect(model.document().cells['3,2']?.elevation).toBe(3);
+ });
+});
+
+it('refuses an automatic raised contour when no supported footprint exists',()=>{
+ const entries:[number,number,number][]=[];
+ for(let y=1;y<=3;y++)for(let x=1;x<=3;x++)if(x!==2||y!==2)entries.push([x,y,3]);
+ const {controller,model}=terrainHarness(entries);const before=model.document();controller.selectEditingTool('raise');
+ controller.pointerDown(screenForTile(controller,2,2),0);controller.pointerUp();
+ expect(model.document()).toBe(before);expect(controller.snapshot().terrainAuthoringFeedback).toContain('2 by 2');
+});
+
+it('does not flood a surface on another active height',async()=>{
+ const {controller,model}=terrainHarness([]);controller.selectEditingTool('fill');controller.adjustActiveElevation(2);
+ controller.selectMaterial('sand','Beach',{surface:'sand'},'beach');const before=model.document();
+ controller.pointerDown(screenForProjectedTile(controller,mapEditorPickingTerrain(model.document()),2,2,2),0);controller.pointerUp();
+ await Promise.resolve();expect(model.document()).toBe(before);expect(controller.snapshot().terrainAuthoringFeedback).toContain('height');
+});
+
+it('samples a manual fence and restores automatic joining for the next placement',()=>{
+ const {controller,model}=terrainHarness([]);
+ const prefab=normalizeMapPrefab({...createMapPrefabDocument({id:'fence-sample',title:'Fence'}),placements:[{id:'visual',assetId:1,assetName:'prop_cf_fence_horizontal',elevation:0,tileX:0,tileY:0,layer:'object',quarterTurns:0,flipX:false,visual:{kind:'variant',name:'base',frameIndex:0}}]});
+ controller.setCatalog([prefab]);controller.selectObjectChoice(prefab.id);controller.setAutomaticGeneration(false);
+ controller.pointerDown(screenForTile(controller,2,2),0);controller.pointerUp();
+ const placed=model.document().objects.at(-1)!;expect(model.document().prefabs.find(p=>p.id===placed.prefabId)?.tags).toContain('studio.connection.manual');
+ controller.toggleEyedropper();controller.pointerDown(screenForTile(controller,2,2),0);controller.pointerUp();
+ expect(controller.snapshot().selectedPrefabId).toBe(prefab.id);controller.setAutomaticGeneration(true);
+ controller.pointerDown(screenForTile(controller,3,2),0);controller.pointerUp();
+ const next=model.document().objects.find(o=>o.tileX===3)!;expect(model.document().prefabs.find(p=>p.id===next.prefabId)?.tags).not.toContain('studio.connection.manual');
 });

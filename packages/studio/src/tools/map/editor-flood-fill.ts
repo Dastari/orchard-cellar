@@ -1,5 +1,6 @@
 import {
   resolvedMapCellAt,
+  resolvedMapBiomeAt,
   terrainDocumentForMapV3,
   type MapDocumentV3,
   type MapPoint,
@@ -58,7 +59,8 @@ export function startMapEditorSurfaceFloodFill(
     if (start.tileX < 0 || start.tileY < 0
       || start.tileX >= document.width || start.tileY >= document.height) return Object.freeze([]);
     const terrain = terrainDocumentForMapV3(document);
-    const source = resolvedMapCellAt(terrain, start.tileX, start.tileY).surface;
+    const source = resolvedMapCellAt(terrain, start.tileX, start.tileY);
+    const biome = resolvedMapBiomeAt(document,start.tileX,start.tileY);
     const length = document.width * document.height;
     const visited = new Uint8Array(length);
     const queue = new Int32Array(length);
@@ -76,7 +78,9 @@ export function startMapEditorSurfaceFloodFill(
         inspected += 1;
         const tileX = offset % document.width;
         const tileY = Math.floor(offset / document.width);
-        if (resolvedMapCellAt(terrain, tileX, tileY).surface !== source) continue;
+        const cell = resolvedMapCellAt(terrain, tileX, tileY);
+        if (resolvedMapBiomeAt(document,tileX,tileY) !== biome || cell.surface !== source.surface || cell.elevation !== source.elevation
+          || cell.surfaceFamily !== source.surfaceFamily || cell.feature !== source.feature) continue;
         matched.push({ tileX, tileY });
         const enqueue = (candidate: number): void => {
           if (visited[candidate] === 1) return;

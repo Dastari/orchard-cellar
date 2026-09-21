@@ -21,3 +21,15 @@ export function parseVerifiedStudioMapHead(head: StudioMapHead, mapId: string): 
   }
   return document;
 }
+
+const checkedHeads = new WeakMap<StudioMapHead, string | null>();
+/** A connected transport is not yet an editable, verified live map. */
+export function studioLiveMapReadiness(head: StudioMapHead | null | undefined): string | null {
+  if (!head) return 'Waiting for the live map';
+  if (checkedHeads.has(head)) return checkedHeads.get(head)!;
+  let error: string | null = null;
+  try { parseVerifiedStudioMapHead(head, 'live-island'); }
+  catch { error = 'The live map could not be verified. Reconnect to retry.'; }
+  checkedHeads.set(head, error);
+  return error;
+}

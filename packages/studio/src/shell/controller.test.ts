@@ -101,3 +101,11 @@ describe('Studio anonymous/live boundary', () => {
     expect(controller.toolState('map-canvas:live-island', () => replacement)).toBe(replacement);
   });
 });
+
+it('revokes connected editing state immediately after transport disconnect',async()=>{
+ let changed=()=>{};let view:StudioConnectionView={...LIVE_VIEW};
+ const controller=new StudioShellController(async(_environment,onChanged)=>{changed=onChanged;return {view:()=>view,connect:()=>changed(),disconnect:()=>undefined};},null);
+ controller.chooseEnvironment('production');await controller.connectExplicit();
+ expect(controller.session.snapshot().phase).toBe('connected');view={...view,connected:false,error:null};changed();
+ expect(controller.session.snapshot()).toMatchObject({phase:'error',role:null});
+});

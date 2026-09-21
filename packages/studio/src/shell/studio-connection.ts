@@ -208,6 +208,7 @@ interface CombatTargetProjectionSource {
 }
 
 interface ResourceProjectionSource {
+  readonly definitionId?: string;
   readonly id: bigint; readonly kind: string; readonly tileX: number; readonly tileY: number;
   readonly spaceId: number; readonly health: number; readonly depleted: boolean;
   readonly growthStage: number; readonly miningClass: string; readonly richness: number;
@@ -308,6 +309,7 @@ const sameResource = (
   left: NonNullable<StudioLiveRows['resources']>[number],
   right: NonNullable<StudioLiveRows['resources']>[number],
 ): boolean => left.id === right.id && left.spaceId === right.spaceId && left.kind === right.kind
+  && left.definitionId === right.definitionId
   && left.tileX === right.tileX && left.tileY === right.tileY && left.health === right.health
   && left.depleted === right.depleted && left.growthStage === right.growthStage
   && left.miningClass === right.miningClass && left.richness === right.richness
@@ -441,6 +443,7 @@ export class StudioRowsProjection {
     if (dirty.has('resources')) {
       const next = Object.freeze(scan('resources', source.worldResource).map((row) => ({
         id: row.id, spaceId: row.spaceId, kind: row.kind, tileX: row.tileX, tileY: row.tileY,
+        definitionId: row.definitionId,
         health: row.health, depleted: row.depleted, growthStage: row.growthStage,
         miningClass: row.miningClass, richness: row.richness, maximumRichness: row.maximumRichness,
       })));

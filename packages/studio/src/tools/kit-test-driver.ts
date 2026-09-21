@@ -10,12 +10,13 @@ export function kitElement(surface: StudioCanvasToolSurface, id: string): UiElem
   return kitElements(surface).find(element => element.id === id);
 }
 function drive(surface: StudioCanvasToolSurface, id: string, keys: readonly string[], modifiers: UiButtonModifiers): boolean {
-  const virtual=kitElements(surface).find(node=>Array.isArray(node.props['items'])&&(node.props['items'] as {id?:string}[]).some(item=>item.id===id));
+  const matches=(item:unknown):boolean=>Array.isArray(item)?item.some(matches):typeof item==='object'&&item!==null&&'id' in item&&item.id===id;
+  const virtual=kitElements(surface).find(node=>Array.isArray(node.props['items'])&&(node.props['items'] as {id?:string}[]).some(matches));
   const element=kitElement(surface,id)??virtual;
   if(!element)throw new Error(`Missing retained control ${id}`);
   let tree=element, row:UiElement|undefined;
   while(tree.parent){if(tree.kind==='list-row')row=tree;tree=tree.parent;}
-  const list=row?.parent?.parent??virtual, index=row?Number(row.props['index']):virtual?(virtual.props['items'] as {id?:string}[]).findIndex(item=>item.id===id):0, height=row?.style.height??virtual?.children[0]?.children[0]?.style.height;
+  const list=row?.parent?.parent??virtual, index=row?Number(row.props['index']):virtual?(virtual.props['items'] as {id?:string}[]).findIndex(matches):0, height=row?.style.height??virtual?.children[0]?.children[0]?.style.height;
   const rowHeight=typeof height==='object'&&height.mode==='fixed'?height.size:0;
   const root=new UiRoot({scale:1});root.resize(280,620);root.mount(tree);root.arrange();
   try {

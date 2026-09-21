@@ -59,7 +59,7 @@ describe('map editor terrain initialization', () => {
     // generic compiler does not include every generated dock/ramp exception.
     expect(terrain.blocked).toBe(production.blocked);
     expect(terrain.horseJumpableTerrain).toBe(production.horseJumpableTerrain);
-  }, 20_000);
+  });
 
   it('returns a completed terrain cache entry in constant time', () => {
     const document = createLiveIslandMapDocument();

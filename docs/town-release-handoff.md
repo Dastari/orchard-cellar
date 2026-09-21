@@ -1,30 +1,36 @@
 # Approved town release — 2026-09-21
 
-The owner approved merging and publishing PRs #39, #40 and #42, in stack order.
-PR #41 is excluded. IndigoForge's explicit primary checkout and service handoff has been received. RubyBay is the current release coordinator.
+The owner approved the town release and subsequently approved all remaining PRs,
+including Studio #41. IndigoForge's explicit primary checkout and service handoff has been received. RubyBay is the current release coordinator.
 
-## Latest release checkpoint — 08:15 UTC
+## Latest release checkpoint — 09:48 UTC
 
-PRs #39, #40 and #42 passed all hosted checks and were merged in stack order.
-Merged candidate: `e3420d42`. PR41 remains open and excluded. Owner handoff at
-`/dev/shm/orchard-town-owner-rejoin.json` was decrypted, refresh-validated, and
-verified as unblocked owner. RubyBay exclusively owns refresh during publication.
+The owner now explicitly approves merging and publishing **all remaining PRs**,
+including Studio #41. This supersedes the earlier exclusion. #43 passed both
+hosted checks and merged at `f6bb638f`; #39, #40 and #42 were already merged.
+RubyBay is integrating #41 with current main in
+`/home/toby/projects/orchard-release-integration`. Root/client/engine/sim/tools/UI
+are 0.18.0; Studio is 0.9.2. The integrated Studio must be rebuilt so town wall
+framing and shared rendering match gameplay; use the migration lane's normal
+`build` mode, retaining the UI-kit guard and rollback artifact.
 
-The guarded release passed 5,773 coverage tests and 99 serial tests, then stopped
-before downtime because space/object exports have noncanonical JSON key ordering.
-A full parsed-JSON comparison proves the regenerated exports have identical values.
-The repair adds `content:validate` early in `npm run check`.
-No production module, content, or map publication has occurred. All services remain
-active. Retry the guarded schema-only release after merging the repair PR; update
-its pinned source commit in the private `run-release.sh` first.
+Conflict resolution retains authoritative lamp rendering and complete-document
+fence topology together. Independent review found the new crafted-fence sprite
+missing from Studio's family resolver; a content-backed regression now checks
+its E/W joins. Focused tests pass; full integration validation is running.
 
-Map publication uses the prepared private `publish-map.mjs`. Run public preflight
-while services are active, then stop both frontend and Studio for its apply phase
-(their Vite proxies carry public world WebSockets). Apply requires both inactive,
-checks the installed registry and repeats live occupancy/content/map CAS checks
-before calling the normal owner reducer. Restart and verify both routes only after
-publication verifies. Acceptance helpers target only OrchardAgent; its browser is
-paused at about:blank while release timing tests run.
+The owner reconnect handoff expired while the session was idle (refresh HTTP400).
+Do not reuse it. Prepare a new encrypted handoff after integration checks, then
+validate owner membership and refresh before publication. No production module,
+content or map publication has occurred; services remain active.
+
+The previous map candidate must be re-exported against integrated source/assets
+and its source/registry hashes repinned. Retain the same reviewed historical
+map baseline and occupancy checks. Public preflight runs while services are active;
+map apply requires frontend and Studio inactive and repeats content/map CAS and
+occupancy checks before the owner reducer. Restore both routes after verification.
+Acceptance helpers target only OrchardAgent. Run all ten interior round trips,
+persisted lamp cycles and canonical signed-in browser verification.
 
 ## Earlier preparation evidence
 
@@ -69,7 +75,8 @@ Studio source snapshot's generated public API exactly matches the candidate.
 The migration preservation option is being validated on #42; it pins installed
 bytes against `output-checked` and validates `source-checked/source-manifest.json`,
 the UI-kit guard and generated public API before downtime.
-Do not merge #41 or silently replace the independently deployed Studio UI.
+Earlier preservation requirement is superseded by the owner’s all-PR approval.
+Rebuild integrated Studio through the guarded lane and retain its prior artifact.
 
 Determine full live/candidate schema equality, prepare the reviewed content and
 saved-map upgrades, retain rollback evidence, and pass same-identity reconnect

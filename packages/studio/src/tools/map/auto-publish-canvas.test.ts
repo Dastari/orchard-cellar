@@ -1,4 +1,4 @@
-import { kitElement, kitElements, pressKit } from '../kit-test-driver.js';
+import { kitElement, pressKit } from '../kit-test-driver.js';
 import {
   createLiveIslandMapDocument,
   mapDocumentV3Hash,
@@ -10,7 +10,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StudioCanvasToolContext } from '../../shell/canvas-tool.js';
 import { StudioShellController } from '../../shell/controller.js';
 import type { StudioConnectionView, StudioLiveAdapter } from '../../shell/index.js';
-import { MAP_AUTO_PUBLISH_DEBOUNCE_MS } from './auto-publish.js';
 import { buildMapCanvasTool } from './canvas.js';
 import type { MapEditorModel } from './model.js';
 
@@ -65,33 +64,12 @@ async function harness() {
 afterEach(() => vi.useRealTimers());
 
 describe('Map Canvas automatic publication', () => {
-  it('is off by default, exposes status, and publishes only the latest quiet edit', async () => {
-    vi.useFakeTimers();
-    const { context, retained, publishMap } = await harness();
-    retained.model.paintBiome([{ tileX: 400, tileY: 400 }], 'forest');
-    let surface = buildMapCanvasTool(context);
-    expect(retained.autoPublishEnabled).toBe(false);
-    expect(kitElement(surface, 'map-auto-publish')).toMatchObject({
-      kind:'checkbox',props:{value:false},
-    });
-    expect(kitElements(surface).some(node=>node.label.includes('AUTO PUBLISH OFF'))).toBe(true);
-    expect(kitElement(surface, 'map-map-stats')?.label).toContain('AUTO OFF');
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(publishMap).not.toHaveBeenCalled();
-
-    pressKit(surface, 'map-auto-publish');
-    surface = buildMapCanvasTool(context);
-    expect(kitElement(surface, 'map-auto-publish')?.props['value']).toBe(true);
-    expect(kitElements(surface).some(node=>node.label.includes('250 ms'))).toBe(true);
-    await vi.advanceTimersByTimeAsync(MAP_AUTO_PUBLISH_DEBOUNCE_MS - 1);
-    retained.model.paintBiome([{ tileX: 401, tileY: 400 }], 'forest');
-    buildMapCanvasTool(context);
-    await vi.advanceTimersByTimeAsync(MAP_AUTO_PUBLISH_DEBOUNCE_MS - 1);
-    expect(publishMap).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1);
-    expect(publishMap).toHaveBeenCalledTimes(1);
-    expect(publishMap.mock.calls[0]?.[2]).toBe(7);
-  });
+  it('keeps surrounding generation independent of live publication',async()=>{
+ vi.useFakeTimers();const {context,retained,publishMap}=await harness();retained.model.paintBiome([{tileX:400,tileY:400}],'forest');
+ let s=buildMapCanvasTool(context);expect(kitElement(s,'map-auto-publish')).toBeUndefined();expect(kitElement(s,'map-auto-generation')?.props['value']).toBe(true);
+ pressKit(s,'map-auto-generation');s=buildMapCanvasTool(context);expect(kitElement(s,'map-auto-generation')?.props['value']).toBe(false);
+ await vi.advanceTimersByTimeAsync(1000);expect(publishMap).not.toHaveBeenCalled();expect(retained.autoPublishEnabled).toBe(false);
+});
 
   it('routes manual publish through the same gate while automatic mode remains off', async () => {
     const { context, retained, publishMap } = await harness();
@@ -103,15 +81,7 @@ describe('Map Canvas automatic publication', () => {
     expect(retained.autoPublishEnabled).toBe(false);
   });
 
-  it('cancels a pending automatic publication when the retained route is disposed', async () => {
-    vi.useFakeTimers();
-    const { context, retained, publishMap } = await harness();
-    retained.model.paintBiome([{ tileX: 400, tileY: 400 }], 'forest');
-    let surface = buildMapCanvasTool(context);
-    pressKit(surface, 'map-auto-publish');
-    surface = buildMapCanvasTool(context);
-    surface.lifecycle?.dispose();
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(publishMap).not.toHaveBeenCalled();
-  });
+  it('does not publish when the route is disposed',async()=>{
+ vi.useFakeTimers();const {context,retained,publishMap}=await harness();retained.model.paintBiome([{tileX:400,tileY:400}],'forest');buildMapCanvasTool(context).lifecycle?.dispose();await vi.advanceTimersByTimeAsync(1000);expect(publishMap).not.toHaveBeenCalled();
+});
 });
