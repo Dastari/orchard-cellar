@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.1 — Ripe fruit when a tree is chopped
+
+- Chopping a ripe apple, pear, peach or cherry tree again drops its fruit, the Orchard Seed Saver seed roll and Farming XP along with the wood.
+- Chopping a tree whose fruit was already picked still drops wood or sticks only, until that fruit ripens again.
+- Picking with E or touch is unchanged.
+
 ## 0.18.0 / Studio 0.9.2 — Integrated town and live editor
 
 - [Player-facing notes for 21 September](docs/releases/2026-09-21.md) cover the integrated gameplay, town, artwork and Studio updates; publication evidence is linked there.

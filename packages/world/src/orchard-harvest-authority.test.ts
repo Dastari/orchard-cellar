@@ -136,6 +136,31 @@ describe('renewable orchard authority', () => {
     }
     expect(seeds).toBeGreaterThan(0); expect(seeds).toBeLessThan(100);
   });
+  it('pays ripe fruit and one seed roll when a planted homestead tree is felled', () => {
+    for (const fruit of ['apple', 'pear', 'peach', 'cherry']) {
+      const f = fixture(fruit, true);
+      const expectedSeed = sim.fruitSeedDrop(registry, f.resource, [{ itemKind: fruit, quantity: 2 }], 3,
+        [42, f.resource.id, 0]);
+      f.fell();
+      expect(f.payouts).toHaveLength(1);
+      expect(f.payouts[0]!.drops).toEqual([
+        { itemKind: 'wood', quantity: 3 },
+        { itemKind: fruit, quantity: 2 },
+        ...(expectedSeed ? [expectedSeed] : []),
+      ]);
+      expect(f.xp).toEqual([4n]);
+      expect(f.resource).toMatchObject({
+        health: 0, depleted: true, activationOrdinal: 1,
+        fruitReadyAtTick: 100n + BigInt(sim.AUTHORITY_TICKS_PER_DAY),
+      });
+      Object.assign(f.resource, { depleted: false, health: 3, growthStage: 3, regrowthProgress: 24 });
+      f.fell();
+      expect(f.payouts[1]!.drops).toEqual([{ itemKind: 'wood', quantity: 3 }]);
+      expect(f.xp).toEqual([4n]);
+      expect(f.resource.fruitReadyAtTick).toBe(100n + BigInt(sim.AUTHORITY_TICKS_PER_DAY));
+      expect(f.resource.activationOrdinal).toBe(2);
+    }
+  });
   it('does not duplicate fruit or seed by picking then felling, and preserves the deadline through regrowth', () => {
     const f = fixture(); f.pick(); const deadline = f.resource.fruitReadyAtTick;
     f.fell(); expect(f.payouts[1]!.drops).toEqual([{ itemKind: 'wood', quantity: 3 }]);

@@ -99,11 +99,12 @@ it('preserves planted outdoor trees during generated resource reconciliation', (
   expect(removed).toEqual([42n]);
 });
 
-it('fells configured fruit trees for wood only and advances the ordinal for regrowth', () => {
+it('pays ripe fruit and a seed roll when a fruit tree is felled, then wood only while it ripens', () => {
   const noop = () => {};
   const identity = { toHexString: () => 'owner' };
   let resource = { id: 4n, kind: 'tree_apple', spaceId: 10, tileX: 5, tileY: 5,
-    health: 3, depleted: false, growthStage: 3, regrowthProgress: 24, activationOrdinal: 0 };
+    health: 3, depleted: false, growthStage: 3, regrowthProgress: 24, activationOrdinal: 0,
+    fruitReadyAtTick: 0n };
   const ranks = { green_thumb: 1, orchard_seed_saver: 3 };
   const payouts: sim.LootDrop[][] = [];
   const position = { spaceId: 10, x: 5.5 * sim.TILE_SIZE_FIXED, y: 7 * sim.TILE_SIZE_FIXED, actionStartedTick: 0n };
@@ -130,16 +131,34 @@ it('fells configured fruit trees for wood only and advances the ordinal for regr
   });
   actions.applyHarvestResourceLifecycle(ctx, 4n, false);
   expect(resource.health).toBe(3); expect(payouts).toEqual([]);
+  let seeds = 0;
   for (let ordinal = 0; ordinal < 100; ordinal++) {
-    resource = { ...resource, health: 3, depleted: false, growthStage: 3 };
+    resource = { ...resource, health: 3, depleted: false, growthStage: 3, fruitReadyAtTick: 0n };
+    const expectedSeed = sim.fruitSeedDrop(registry, resource, [{ itemKind: 'apple', quantity: 2 }], 3,
+      [42, resource.id, ordinal]);
     actions.applyHarvestResourceLifecycle(ctx, 4n);
     actions.applyHarvestResourceLifecycle(ctx, 4n);
     expect(payouts.length).toBe(ordinal);
     actions.applyHarvestResourceLifecycle(ctx, 4n);
     expect(resource.activationOrdinal).toBe(ordinal + 1);
-    expect(payouts[ordinal]).toEqual([{ itemKind: 'wood', quantity: 3 }]);
+    expect(resource.fruitReadyAtTick).toBe(100n + BigInt(sim.AUTHORITY_TICKS_PER_DAY));
+    expect(payouts[ordinal]).toEqual([
+      { itemKind: 'wood', quantity: 3 },
+      { itemKind: 'apple', quantity: 2 },
+      ...(expectedSeed ? [expectedSeed] : []),
+    ]);
+    if (expectedSeed) seeds++;
     expect(() => actions.applyHarvestResourceLifecycle(ctx, 4n)).toThrow('resource_depleted');
   }
+  expect(seeds).toBeGreaterThan(0);
+  expect(seeds).toBeLessThan(100);
+  const deadline = resource.fruitReadyAtTick;
+  resource = { ...resource, health: 3, depleted: false, growthStage: 3 };
+  actions.applyHarvestResourceLifecycle(ctx, 4n);
+  actions.applyHarvestResourceLifecycle(ctx, 4n);
+  actions.applyHarvestResourceLifecycle(ctx, 4n);
+  expect(payouts[payouts.length - 1]).toEqual([{ itemKind: 'wood', quantity: 3 }]);
+  expect(resource.fruitReadyAtTick).toBe(deadline);
   resource = { ...resource, health: 1, depleted: false, growthStage: 1 };
   actions.applyHarvestResourceLifecycle(ctx, 4n);
   expect(payouts[payouts.length - 1]).toEqual([{ itemKind: 'stick', quantity: 1 }]);
