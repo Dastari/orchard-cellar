@@ -36,6 +36,20 @@ describe('chunked ground cache', () => {
     expect(edited.residenceEnvelopeBlocked?.[20*32+20]).toBe(false);
   });
 
+  it('retains distant ground chunks through a sparse elevation edit',()=>{
+    const cache=new GroundChunkCache();
+    const render=vi.spyOn(cache as unknown as {renderChunk:(...args:unknown[])=>HTMLCanvasElement},'renderChunk').mockImplementation(()=>({}) as HTMLCanvasElement);
+    const context={drawImage:vi.fn()} as unknown as CanvasRenderingContext2D;
+    const before:TerrainArray={spaceId:1,seed:1,version:0,width:128,height:128,generator:'debug_flat',biomes:new Uint8Array(16384),
+      blocked:[],horseJumpableTerrain:[],elevations:new Int16Array(16384),dirtTerraces:new Uint8Array(16384),dirtCliffRoles:new Uint8Array(16384)};
+    const draw=(terrain:TerrainArray,x:number,y:number)=>cache.drawTilePreview(context,{} as OverworldArt,terrain,x,y,0,0,1);
+    draw(before,10,10);draw(before,100,100);expect(render).toHaveBeenCalledTimes(2);
+    const next={...before,version:1,elevations:before.elevations.slice()};next.elevations[10*128+10]=2;
+    cache.adoptSparseTerrain(before,next,[{tileX:10,tileY:10}]);
+    draw(next,100,100);expect(render).toHaveBeenCalledTimes(2);
+    draw(next,10,10);expect(render).toHaveBeenCalledTimes(3);
+  });
+
   it('leaves unused cells in a partial boundary chunk transparent', () => {
     const terrain = { width: 80, height: 56 };
     expect(groundTileInsideTerrain(terrain, 79, 55)).toBe(true);

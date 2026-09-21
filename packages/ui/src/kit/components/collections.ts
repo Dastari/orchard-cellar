@@ -14,6 +14,8 @@ export interface UiListOptions<T> {
   readonly selected?: readonly string[]; readonly multiple?: boolean; readonly onSelect?: (keys: readonly string[], item: T) => void;
   readonly onActivate?: (item: T) => void; readonly virtual?: boolean; readonly rowHeight?: ReturnType<typeof uiFixed>; readonly rowPadding?: UiStyle['padding'];
   readonly initialActive?: number; readonly initialScrollY?: number;
+  /** Embedded controls own selection chrome in a virtual palette. */
+  readonly selectionChrome?: boolean;
   readonly onActiveChange?: (index: number) => void; readonly onScroll?: (element: UiElement) => void;
   readonly onKey?: (event: UiElementKey, element: UiElement) => boolean; readonly onArrange?: (element: UiElement) => void;
 }
@@ -58,7 +60,7 @@ export function uiList<T>(options: UiListOptions<T>): UiElement {
         style: { position: 'absolute', inset: { left: 0, top: uiFixed(index * rowHeight) }, width: 'grow', height: uiFixed(rowHeight), display: 'flex', direction: 'column', justify: 'center', padding: options.rowPadding ?? { left: 4, right: 8 } }, children: [options.render(item, index)],
         onPointer(event) { if (event.type === 'down' && event.button === 0) { event.capture(); return true; } if (event.type === 'up') { event.release(); choose(index, options.multiple && event.shiftKey); return true; } if (event.type === 'cancel') { event.release(); return true; } return false; },
         paint(node, { context, art }) {
-          if (art && !art.missingArt && (selected.has(key) || index === active && list.props['focused'])) {
+          if (options.selectionChrome !== false && art && !art.missingArt && (selected.has(key) || index === active && list.props['focused'])) {
             paintUiSkin(context, art.skin.button, `outline.md.chamfered.idle.${index === active && list.props['focused'] ? 'white' : 'gold'}`, node.rect);
           }
         },

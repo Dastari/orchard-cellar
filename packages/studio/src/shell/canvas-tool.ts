@@ -79,6 +79,8 @@ export interface StudioCanvasToolSurface {
 }
 
 export interface StudioCanvasToolContext {
+  /** Full floating panels occluding the spatial canvas, in CSS pixels. */
+  readonly occludedBounds?: readonly UiRect[];
   /** Active tool controls live in the left drawer. */
   readonly controlsBounds: UiRect;
   /** Main editor/canvas/table surface lives in the center. */

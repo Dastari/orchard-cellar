@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.1 / Studio 0.9.1 — Immediate local map editing
+
+- Enlarge object and terrain palettes, use generated pixel tools on one row, native inventory reticles and framed in-game category icons. Keep footer chrome intact and place explicit Publish below Auto.
+- Support right-drag panning, dragging objects from the palette and immediate artwork movement while dragging placed objects. Draft edits remain local until Publish.
+- Update sparse terrain cells and affected ground chunks without blanking the map; preserve terrain picking, inherited materials and undo behavior.
+- Load all tree growth/depletion artwork, retain resource definition identities and keep tree sprites visible at overview zoom.
+- Split selection preview/properties and compact layer rows into independent right-hand panels.
+- Add local browser fixture and regression coverage for tree rendering, terrain parity, cache retention, drag/drop and footer layout.
+
 ## 0.16.0 / Studio 0.9.0 — Live map authoring
 
 - Require sign-in and a verified live map before opening the Studio workspace; remove offline/connect toolbar controls.

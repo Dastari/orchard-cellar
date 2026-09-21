@@ -597,10 +597,10 @@ export function mapEditorLiveMarkers(liveRows: StudioLiveRows | null, registry: 
   }
   for (const row of liveRows?.resources ?? []) {
     if (row.spaceId !== LIVE_ISLAND_SPACE_ID) continue;
-    markers.push({ id: row.id.toString(), entityKind: 'resource', kind: row.kind, label: row.kind,
+    markers.push({ id: row.id.toString(), entityKind: 'resource', kind: row.kind, definitionId: row.definitionId, label: row.kind,
       spaceId: row.spaceId, tileX: row.tileX, tileY: row.tileY, elevation: row.elevation ?? null,
       ...tileMarkerPosition(row.tileX, row.tileY), footprint: Object.freeze({ width: 1, height: 1 }),
-      layer: isChoppableTreeKind(row.kind, registry?.resources ? {resources:registry.resources} : undefined) ? 'canopy' : 'generated_base', color: '#72c77a', health: row.health, depleted: row.depleted,
+      layer: ((row.definitionId&&registry?.resources?.get(row.definitionId)?.visual.kind==='tree')||isChoppableTreeKind(row.kind, registry?.resources ? {resources:registry.resources} : undefined)) ? 'canopy' : 'generated_base', color: '#72c77a', health: row.health, depleted: row.depleted,
       growthStage: row.growthStage, miningClass: row.miningClass, richness: row.richness,
       maxHealth: row.maximumRichness });
   }
@@ -1272,7 +1272,7 @@ export class MapEditorController {
   pointerDown(point: UiPoint, button: number, panModifierHeld = false, shiftHeld = false): boolean {
     if (!this.contains(point)) return false;
     this.cancelFloodFill();
-    if (button === 1 || (button === 0 && panModifierHeld)) {
+    if (button === 1 || button === 2 || (button === 0 && panModifierHeld)) {
       this.#pan = { x: point.x, y: point.y };
       return true;
     }
@@ -1282,11 +1282,6 @@ export class MapEditorController {
     if (tile === null) return false;
     if (button === 0 && this.#eyedropperActive) {
       this.sampleAt(tile.tileX, tile.tileY, tile.elevation);
-      return true;
-    }
-    if (button === 2) {
-      this.selectAt(tile.tileX, tile.tileY);
-      this.deleteSelected();
       return true;
     }
     if (button !== 0) return false;

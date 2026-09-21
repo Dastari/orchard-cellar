@@ -17,6 +17,6 @@ describe('semantic material palette',()=>{
   expect(choices.find(c=>c.id==='biome-paving')?.patch.surface).toBe('stone');
  });
  it('keeps medium icons fixed while growing column count',()=>{
-  expect(mapPaletteColumns(95)).toBe(3);expect(mapPaletteColumns(180)).toBe(6);expect(mapPaletteColumns(290)).toBe(10);
+  expect(mapPaletteColumns(95)).toBe(3);expect(mapPaletteColumns(180)).toBe(3);expect(mapPaletteColumns(290)).toBe(6);
  });
 });

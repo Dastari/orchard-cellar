@@ -3,7 +3,7 @@ import { kitElement, kitElements, pressKit, chooseKit, keyKit } from './kit-test
 import { UiRoot } from '@orchard/ui/studio';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { createLiveIslandMapDocument } from '@orchard/sim';
+import { createLiveIslandMapDocument, createMapPrefabDocument } from '@orchard/sim';
 import type { StudioSpatialArt, CanvasTextEditor } from '@orchard/ui/studio';
 import { StudioShellController } from '../shell/controller.js';
 import type { StudioCanvasToolContext } from '../shell/canvas-tool.js';
@@ -53,6 +53,37 @@ describe('canvas-native Build and asset tools', () => {
  pressKit(s,'map-height-up');s=buildMapCanvasTool(c);expect(kitElement(s,'map-current-height')?.label).toBe('Height 1');
  });
 
+  it('keeps six pixel tools on one row and footer chrome inside the narrow drawer',()=>{
+    const c=context('/build/map/terrain-lab');let s=buildMapCanvasTool(c);pressKit(s,'map-tool-terrain');s=buildMapCanvasTool(c);
+    const root=new UiRoot({scale:1});root.resize(192,360);root.mount(s.kit!.controls!);root.arrange();
+    const tools=['objects','terrain','raise','lower','fill'].map(name=>kitElement(s,'map-tool-'+name)!);
+    tools.push(kitElement(s,'map-eyedropper')!);
+    expect(new Set(tools.map(tool=>tool.rect.y)).size).toBe(1);
+    expect(tools.every(tool=>tool.children.some(child=>child.kind==='map-pixel-tool-icon'))).toBe(true);
+    for(const id of ['map-auto-generation','map-publish']){
+      const button=kitElement(s,id)!;expect(button.rect.width).toBeLessThanOrEqual(192);
+      expect(button.clip.width).toBe(button.rect.width);expect(button.clip.height).toBe(button.rect.height);
+    }
+    expect(kitElement(s,'map-publish')!.rect.y).toBeGreaterThan(kitElement(s,'map-auto-generation')!.rect.y);
+    const entries=kitElements(s).filter(element=>element.id.startsWith('map-material-'));
+    expect(entries.length).toBeGreaterThan(3);expect(entries.every(entry=>entry.rect.width===40&&entry.rect.height===40)).toBe(true);
+    root.dispose();
+  });
+
+  it('places a drawer drag locally only after dropping onto the map, and cancels outside',()=>{
+    const c=context('/build/map/terrain-lab');buildMapCanvasTool(c);
+    const state=c.controller.toolState('map-canvas:terrain-lab',()=>{throw new Error('missing state')}) as {model:{document:()=>{objects:unknown[]}};interaction:{setCatalog:(value:ReturnType<typeof createMapPrefabDocument>[])=>void}};
+    state.interaction.setCatalog([createMapPrefabDocument({id:'drag-fixture',title:'Drag fixture'})]);let s=buildMapCanvasTool(c);
+    const root=new UiRoot({scale:1});root.resize(216,620);root.mount(s.kit!.controls!);root.arrange();
+    const object=kitElements(s).find(element=>element.id.startsWith('map-prefab-')&&!element.disabled)!;
+    const initial=state.model.document().objects.length,point={x:object.rect.x+10,y:object.rect.y+10};
+    const event=(type:'down'|'move'|'up'|'cancel',point:{x:number;y:number})=>object.hooks.onPointer!({type,point,button:0,pointerId:1,capture(){},release(){}},object);
+    event('down',point);event('move',{x:350,y:150});expect(state.model.document().objects).toHaveLength(initial);
+    event('up',{x:350,y:150});expect(state.model.document().objects).toHaveLength(initial+1);
+    event('down',point);event('move',{x:2,y:2});event('up',{x:2,y:2});expect(state.model.document().objects).toHaveLength(initial+1);
+    root.dispose();s=buildMapCanvasTool(c);expect(kitElement(s,'map-publish')?.disabled).toBe(true);
+  });
+
   it('keeps warm map scene construction inside one animation-frame budget', () => {
     const toolContext = context('/build/map');
     buildMapCanvasTool(toolContext);
@@ -77,7 +108,7 @@ describe('canvas-native Build and asset tools', () => {
   it('fits visibility and layer selection on one row',()=>{
  const s=buildMapCanvasTool(context('/build/map'));const root=new UiRoot({scale:1});root.resize(130,620);root.mount(s.kit!.inspector!);root.arrange();
  const eye=kitElement(s,'map-layer-visible-canopy')!,name=kitElement(s,'map-layer-select-canopy')!;
- expect(eye.rect.y).toBe(name.rect.y);expect(eye.rect.height).toBe(24);expect(eye.clip.width).toBe(eye.rect.width);root.dispose();
+ expect(eye.rect.y).toBe(name.rect.y);expect(eye.rect.height).toBe(14);expect(eye.clip.width).toBe(eye.rect.width);root.dispose();
 });
 
   it('exposes exactly one eye and one name per layer',()=>{
@@ -88,7 +119,7 @@ describe('canvas-native Build and asset tools', () => {
 
   it('changes layer selection independently from eye visibility',()=>{
  const c=context('/build/map');let s=buildMapCanvasTool(c);pressKit(s,'map-layer-visible-canopy');pressKit(s,'map-layer-select-objects');s=buildMapCanvasTool(c);
- expect(kitElement(s,'map-layer-visible-canopy')?.label).toContain('Show');expect(kitElement(s,'map-layer-select-objects')?.props['tone']).toBe('success');
+ expect(kitElement(s,'map-layer-visible-canopy')?.label).toContain('Show');expect(kitElement(s,'map-layer-select-objects')?.parent?.props['selected']).toBe(true);
  expect(kitElement(s,'map-layer-visible-objects')?.label).toContain('Hide');
 });
 
@@ -342,7 +373,7 @@ describe('canvas-native Build and asset tools', () => {
  (kitElement(s,'map-object-search')!.props['editor'] as CanvasTextEditor).setValue('grass');buildMapCanvasTool(c);
  const next=buildMapCanvasTool(context('/build/map'));expect(kitElement(next,'map-layer-visible-canopy')?.label).toContain('Show');
  expect((kitElement(next,'map-object-search')!.props['editor'] as CanvasTextEditor).snapshot().value).toBe('grass');
- expect(kitElement(next,'map-tool-terrain')?.props['tone']).toBe('success');}finally{vi.unstubAllGlobals();}
+ expect(kitElement(next,'map-tool-terrain')?.parent?.children.some(child=>child.kind==='palette-selection-reticle')).toBe(true);}finally{vi.unstubAllGlobals();}
 });
 
   it('uses kit tileset editors and preserves datum edits and JSON drafts', () => {

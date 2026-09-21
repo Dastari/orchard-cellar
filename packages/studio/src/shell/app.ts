@@ -238,8 +238,8 @@ export class StudioShellApp {
     }) : primary;
     this.#root.mount(ui.flex({width:'grow',height:'grow'},[ui.workbench({ navigation: this.routeNavigation(),
       workspace, activeDrawer:this.#activeDrawer,
-      controls:{title:'',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio','object'].includes(route.tool.id),visible:this.#toolControlsPath===route.path,width:uiFixed(this.#drawerWidths.left/2),...(route.tool.id==='map'?{minWidth:uiFixed(118),maxWidth:uiFixed(360)}:{}),content:this.#controls},
-      inspector:{title:'Selection',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio'].includes(route.tool.id),visible:this.#toolInspectorPath===route.path||this.#activeDrawer==='inspector',width:uiFixed(this.#drawerWidths.right/2),content:this.#inspector},
+      controls:{title:'',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio','object'].includes(route.tool.id),visible:this.#toolControlsPath===route.path,width:uiFixed(this.#drawerWidths.left/2),...(route.tool.id==='map'?{minWidth:uiFixed(216),maxWidth:uiFixed(480)}:{}),content:this.#controls},
+      inspector:{title:route.tool.id==='map'?'':'Selection',surface:route.tool.id==='map'?'unframed':'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio'].includes(route.tool.id),visible:this.#toolInspectorPath===route.path||this.#activeDrawer==='inspector',width:uiFixed(this.#drawerWidths.right/2),content:this.#inspector},
       onRegionArrange:(name,rect)=>{this.#regions[name]=physical(rect);this.#dirtyTools=true;},
       onRegionVisibility:(name,visible)=>{if(!visible)delete this.#regions[name];this.#dirtyTools=true;},
       onDrawerResize:(side,width)=>{this.#drawerWidths[side==='controls'?'left':'right']=width.size*2;this.persistDrawers();this.render();},
@@ -278,7 +278,7 @@ export class StudioShellApp {
   private replace(node:UiElement, children: readonly UiElement[]):void { for(const child of [...node.children]) child.dispose();node.replaceChildren(children); }
   private buildTool(route:ReturnType<StudioShellController['activeRoute']>,controlsBounds:UiRect,inspectorBounds:UiRect,workspaceBounds:UiRect):StudioCanvasToolSurface|null {
     const builder=this.canvasTools.builder(route.tool.id);
-    if(builder) return builder({route,controller:this.controller,controlsBounds,inspectorBounds,workspaceBounds,bounds:workspaceBounds,invalidate:()=>this.render()});
+    if(builder) return builder({occludedBounds:[this.#regions.controls??controlsBounds,this.#regions.inspector??inspectorBounds],route,controller:this.controller,controlsBounds,inspectorBounds,workspaceBounds,bounds:workspaceBounds,invalidate:()=>this.render()});
     if(!this.#loadingTools.has(route.tool.id)) { this.#loadingTools.add(route.tool.id);void this.canvasTools.load(route.tool.id).then(()=>this.render()).catch((error:unknown)=>{this.canvas.dataset['canvasToolError']=String(error);}).finally(()=>this.#loadingTools.delete(route.tool.id)); }
     return null;
   }
@@ -355,7 +355,7 @@ export class StudioShellApp {
     }
     this.#kitLab.resize();this.#kitLab.invalidate();
   }
-  private clampDrawer(value: number): number { return Math.max(236, Math.min(720, Math.round(value))); }
+  private clampDrawer(value: number): number { return Math.max(236, Math.min(960, Math.round(value))); }
   private persistDrawers(): void {
     try { sessionStorage.setItem(DRAWER_WIDTHS_KEY, JSON.stringify(this.#drawerWidths)); } catch { /* non-persistent sandbox */ }
   }

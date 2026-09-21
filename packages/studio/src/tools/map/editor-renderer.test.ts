@@ -206,7 +206,7 @@ describe('map editor render culling', () => {
     expect(source).toContain('drawAnimatedTerrain(');
     expect(source).toContain('enqueueRaisedTerrainDepth(');
     expect(source).toContain('context.clip(terrainClip');
-    expect(source).toContain('if (this.#terrainPendingIdentity === terrainIdentity) return null');
+    expect(source).toContain('if (this.#terrainPendingIdentity === terrainIdentity) return retained');
     expect(source).toContain('this.#terrainLoader.load(mapDocument, this.#terrainPalette)');
     expect(source).toContain('this.#terrainLoader.dispose()');
     expect(source).toContain('this.#overlayCache.dispose()');
@@ -221,8 +221,8 @@ describe('map editor render culling', () => {
     expect(worker).toContain('buildMapEditorTerrainDerivatives(document, terrain, palette)');
     expect(worker).toContain('encodeMapEditorTerrainDerivatives(');
     expect(source).not.toContain('editorMapOverviewRaster(');
-    expect(source).not.toContain('mapTerrainOverrideInfluenceRuns(');
-    expect(source).toContain('this.#overviewCache.image(model.terrainIdentity(), overviewLayer)');
+    expect(source).toContain('patchMapEditorTerrain(');
+    expect(source).toContain('this.#overviewCache.image(this.#terrainIdentity ?? model.terrainIdentity(), overviewLayer)');
   });
 
   it('backs failed artwork requests off exponentially and caps the cooldown', () => {

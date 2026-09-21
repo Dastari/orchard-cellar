@@ -20,6 +20,8 @@ export class IncrementalMapOverviewCache<Image> {
   #pixels: MapEditorOverviewPixels | null = null;
   #images: Partial<Record<MapOverviewLayer, Image>> = {};
   #nextLayer = 0;
+  #width = 0;
+  #height = 0;
   #scheduled: unknown | null = null;
   #disposed = false;
 
@@ -37,11 +39,34 @@ export class IncrementalMapOverviewCache<Image> {
 
   accept(identity: object, pixels: MapEditorOverviewPixels): void {
     if (this.#disposed) return;
-    this.clear();
+    if(this.#width!==pixels.width||this.#height!==pixels.height)this.clear();
+    else if(this.#scheduled!==null){this.cancel(this.#scheduled);this.#scheduled=null;}
+    this.#width=pixels.width;this.#height=pixels.height;
     this.#identity = identity;
     this.#pixels = pixels;
     this.#nextLayer = 0;
     this.scheduleNext(identity);
+  }
+
+  /** Reuse backing surfaces while sparse cells are repainted by the renderer. */
+  adoptSparse(identity: object, patch: (image: Image, layer: MapOverviewLayer) => void): void {
+    if(this.#disposed)return;
+    if(this.#scheduled!==null){this.cancel(this.#scheduled);this.#scheduled=null;}
+    this.#identity=identity;
+    for(let index=0;index<MATERIALIZATION_ORDER.length;index++) {
+      const layer=MATERIALIZATION_ORDER[index]!;
+      let image=this.#images[layer];
+      // Retained old surfaces may exist while replacement pixels are pending.
+      // The materialization cursor, not image presence, identifies completion.
+      if(this.#pixels&&index>=this.#nextLayer){
+        const previous=image;
+        image=this.createImage(this.#pixels.width,this.#pixels.height,this.#pixels.layers[layer]);
+        this.#images[layer]=image;
+        if(previous!==undefined)this.disposeImage(previous);
+      }
+      if(image!==undefined)patch(image,layer);
+    }
+    this.#pixels=null;this.#nextLayer=MATERIALIZATION_ORDER.length;
   }
 
   image(identity: object, layer: MapOverviewLayer): Image | null {
@@ -75,11 +100,13 @@ export class IncrementalMapOverviewCache<Image> {
       if (this.#disposed || this.#identity !== identity || this.#pixels === null) return;
       const layer = MATERIALIZATION_ORDER[this.#nextLayer]!;
       this.#nextLayer += 1;
+      const previous=this.#images[layer];
       this.#images[layer] = this.createImage(
         this.#pixels.width,
         this.#pixels.height,
         this.#pixels.layers[layer],
       );
+      if(previous!==undefined)this.disposeImage(previous);
       this.invalidate();
       if (this.#nextLayer >= MATERIALIZATION_ORDER.length) this.#pixels = null;
       this.scheduleNext(identity);

@@ -14,11 +14,12 @@ import {
   type TilesetContentDefinition,
 } from '@orchard/sim';
 import { mapMaterialChoices, mapObjectCategory, mapPaletteColumns, MAP_OBJECT_FILTERS, type MapObjectFilter } from './material-palette.js';
+import { mapPixelToolIcon, type MapPixelTool } from './pixel-tool-icons.js';
 import { studioLibraryDrawer } from '../../shell/workspace-controls.js';
 import { terrainProjectedDepthForElevation, type TerrainArray } from '@orchard/engine';
 import {
   ui as kit, uiFixed, UiElement, type UiButtonModifiers, type UiTone,
-  CanvasTextEditor,
+  CanvasTextEditor, drawUiSkinAsset,
   STUDIO_SKIN_TOKENS,
   loadGeneratedAsset,
   loadGeneratedAssetCatalog,
@@ -135,6 +136,7 @@ interface MapCanvasState {
   readonly autoPublish: MapAutoPublishCoordinator;
   autoPublishEnabled: boolean;
   paletteOffset: number;
+  paletteDrag?: { prefabId: string; point: {x:number;y:number}; active: boolean };
   paletteSuggestionsOpen: boolean;
   paletteBounds: UiRect;
   paletteRowCount: number;
@@ -644,7 +646,7 @@ function syncMapAutoPublish(
   const liveAdapter = context.controller.liveAdapter();
   const liveView = liveAdapter?.view();
   state.autoPublish.observe({
-    enabled: state.autoPublishEnabled,
+    enabled: false,
     dirty: state.model.dirty(),
     editKey: state.model.document(),
     conflictRevision: state.model.conflictRevision(),
@@ -1400,7 +1402,7 @@ function exportMapDraft(state: MapCanvasState, context: StudioCanvasToolContext)
   context.invalidate();
 }
 
-interface MapKitPaletteChoice { readonly id:string; readonly label:string; readonly apply:()=>void; readonly preview?:()=>{readonly image:CanvasImageSource;readonly frame:AtlasFrame}|undefined;readonly symbol?:UiIconName;readonly active?:boolean;readonly disabled?:boolean;readonly tone?:UiTone;readonly glyph?:string }
+interface MapKitPaletteChoice { readonly prefabId?:string; readonly id:string; readonly label:string; readonly apply:()=>void; readonly preview?:()=>{readonly image:CanvasImageSource;readonly frame:AtlasFrame}|undefined;readonly symbol?:UiIconName;readonly active?:boolean;readonly disabled?:boolean;readonly tone?:UiTone;readonly glyph?:string }
 function mapKitPaletteChoices(state:MapCanvasState,context:StudioCanvasToolContext,query:string):{choices:MapKitPaletteChoice[];empty:string} {
   const interaction = state.interaction;
   if (interaction.editingTool() !== 'objects') return {
@@ -1413,11 +1415,53 @@ function mapKitPaletteChoices(state:MapCanvasState,context:StudioCanvasToolConte
   };
   return {choices:interaction.allObjectChoices(query)
     .filter(prefab=>state.objectFilter==='all'||mapObjectCategory(prefab)===state.objectFilter)
-    .map(prefab=>({id:`map-prefab-${prefab.id}`,label:prefab.title,
+    .map(prefab=>({id:`map-prefab-${prefab.id}`,prefabId:prefab.id,label:prefab.title,
       apply:()=>{interaction.selectObjectChoice(prefab.id);context.invalidate();},
       preview:()=>prefabPreview(state,context,prefab),symbol:'box',
       active:interaction.snapshot().selectedPrefabId===prefab.id,
     })),empty:state.catalogLoading?'Loading objects':'No matching objects'};
+}
+
+function paletteReticle(state: MapCanvasState, context: StudioCanvasToolContext): UiElement {
+  const asset = previewAsset(state, context, 'ui_cf_selector_confirm');
+  return new UiElement({kind:'palette-selection-reticle',style:{position:'absolute',inset:{left:0,right:0,top:0,bottom:0}},
+    paintOverlay(element,{context:ctx}) {
+      if (asset) drawUiSkinAsset(ctx,asset,element.rect,'idle');
+    }});
+}
+
+function paletteObjectDrag(control: UiElement, choice: MapKitPaletteChoice, state: MapCanvasState,
+  context: StudioCanvasToolContext): UiElement {
+  if (!choice.prefabId) return control;
+  let origin: {x:number;y:number}|undefined;
+  return new UiElement({...control.hooks, children:[...control.children],
+    onPointer(event,element) {
+      if(event.type==='cancel') {origin=undefined;state.paletteDrag=undefined;context.invalidate();return true;}
+      if(event.type==='down' && event.button===0) {
+        origin=event.point;event.capture();state.paletteDrag={prefabId:choice.prefabId!,point:{x:event.point.x*2,y:event.point.y*2},active:false};return true;
+      }
+      if(!origin)return false;
+      const point={x:event.point.x*2,y:event.point.y*2};
+      const active=state.paletteDrag?.active===true||Math.hypot(event.point.x-origin.x,event.point.y-origin.y)>4;
+      state.paletteDrag={prefabId:choice.prefabId!,point,active};
+      if(event.type==='up') {
+        if(active) {
+          const r=context.workspaceBounds;
+          const occluded=(context.occludedBounds??[context.controlsBounds,...(context.inspectorBounds?[context.inspectorBounds]:[])])
+            .some(bounds=>point.x>=bounds.x&&point.y>=bounds.y&&point.x<bounds.x+bounds.width&&point.y<bounds.y+bounds.height);
+          if(!occluded && point.x>=r.x && point.y>=r.y && point.x<r.x+r.width && point.y<r.y+r.height) {
+            state.interaction.selectObjectChoice(choice.prefabId!);
+            state.interaction.pointerDown(point,0);state.interaction.pointerUp();
+          }
+        } else if(event.point.x>=element.rect.x && event.point.x<element.rect.x+element.rect.width
+          &&event.point.y>=element.rect.y&&event.point.y<element.rect.y+element.rect.height) choice.apply();
+        origin=undefined;state.paletteDrag=undefined;event.release();
+      }
+      context.invalidate();return true;
+    },onKey(event,element) {
+      if(event.key==='Escape'){origin=undefined;state.paletteDrag=undefined;context.invalidate();return true;}
+      return control.hooks.onKey?.(event,element)??false;
+    }});
 }
 
 function mapKitPalette(state:MapCanvasState,context:StudioCanvasToolContext):UiElement {
@@ -1425,32 +1469,34 @@ function mapKitPalette(state:MapCanvasState,context:StudioCanvasToolContext):UiE
   children.push(kit.input({id:'map-object-search',label:'Search palette',placeholder:'Search palette',editor:state.search,
     onChange:()=>{state.paletteOffset=0;context.invalidate();}}));
   if(state.interaction.editingTool()==='objects') {
-    const symbols:Record<MapObjectFilter,UiIconName>={all:'grid',plants:'sprout',fences:'cave',buildings:'map',prefabs:'package',other:'box'};
-    children.push(kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,height:uiFixed(52),shrink:0},
-      MAP_OBJECT_FILTERS.map(filter=>kit.tooltip(filter[0]!.toUpperCase()+filter.slice(1),kit.iconButton({lucide:symbols[filter]},
-        {id:`map-filter-${filter}`,label:`Filter ${filter}`,tone:state.objectFilter===filter?'success':'primary',onPress:()=>{
-          state.objectFilter=filter;state.paletteOffset=0;context.invalidate();}}),{width:uiFixed(24),height:uiFixed(24)}))));
+    const samples:Partial<Record<MapObjectFilter,string>>={plants:'tree_cf_oak_mature',fences:'prop_cf_fence_horizontal',buildings:'building_cf_farmhouse',prefabs:'prop_cf_chest'};
+    children.push(kit.frame({id:'map-filter-frame',style:'thin',layout:{width:'grow',shrink:0,padding:4},children:[
+      kit.flex({direction:'row',gap:2,height:uiFixed(24)},MAP_OBJECT_FILTERS.map(filter=>{
+        const asset=samples[filter]?previewAsset(state,context,samples[filter]!):undefined;
+        const frame=asset&&(selectAtlasFrame(asset.metadata,'base',0)??selectAtlasFrame(asset.metadata,'idle',0));
+        return kit.tooltip(filter[0]!.toUpperCase()+filter.slice(1),kit.button({id:`map-filter-${filter}`,label:'',ariaLabel:`Filter ${filter}`,
+          tone:state.objectFilter===filter?'success':'primary',layout:{width:uiFixed(24),height:uiFixed(24),padding:2},
+          children:[asset&&frame?kit.image(asset.image,frame,{label:filter,fit:'contain',layout:{width:'grow',height:'grow'}})
+            :kit.icon({cf:filter==='all'?'backpack':'gift'},{layout:{width:'grow',height:'grow'}})],
+          onPress:()=>{state.objectFilter=filter;state.paletteOffset=0;context.invalidate();}}),{width:uiFixed(24),height:uiFixed(24)});
+      }))]}));
   }
   const result=mapKitPaletteChoices(state,context,state.search.snapshot().value);
   if(result.choices.length===0)children.push(kit.text(result.empty,{id:'map-palette-empty'}));
   let columns=mapPaletteColumns(context.controlsBounds.width/2);
   const rows=()=>Array.from({length:Math.ceil(result.choices.length/columns)},(_,index)=>result.choices.slice(index*columns,(index+1)*columns));
   const list=kit.list<readonly MapKitPaletteChoice[]>({id:'map-palette-list',label:'Placement palette',items:rows(),key:row=>row[0]!.id,
-    rowHeight:uiFixed(28),rowPadding:0,layout:{width:'grow',height:'grow',minHeight:uiFixed(28)},initialScrollY:state.paletteOffset,
+    selectionChrome:false,rowHeight:uiFixed(46),rowPadding:0,layout:{width:'grow',height:'grow',minHeight:uiFixed(46)},initialScrollY:state.paletteOffset,
     onScroll:element=>{state.paletteOffset=element.scroll.y;},
     onArrange:element=>{const next=mapPaletteColumns(element.contentRect.width);if(next!==columns){columns=next;element.setProps({items:rows()},false);}},
-    render:row=>kit.grid({columns,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,width:'grow',height:uiFixed(24)},row.map(choice=>{
+    render:row=>kit.grid({columns,columnWidth:uiFixed(46),rowHeight:uiFixed(46),gap:0,width:'grow',height:uiFixed(46)},row.map(choice=>{
       const preview=choice.preview?.();
-      const control=kit.button({id:choice.id,label:'',ariaLabel:choice.label,disabled:choice.disabled,size:'md',
-        tone:choice.active?'success':'primary',layout:{width:uiFixed(24),height:uiFixed(24),padding:2},onPress:choice.apply,
-        children:[preview?kit.image(preview.image,preview.frame,{label:choice.label,fit:'contain',integerScale:true,layout:{width:'grow',height:'grow'}})
-          :kit.icon({lucide:choice.symbol??'box'},{layout:{width:'grow',height:'grow'}}),
-          ...(choice.active?[new UiElement({kind:'palette-selection-reticle',style:{position:'absolute',inset:{left:0,right:0,top:0,bottom:0}},
-            paintOverlay(element,{context:ctx}) {const r=element.rect;ctx.save();ctx.strokeStyle='#fff4ad';ctx.lineWidth=1;
-              ctx.beginPath();for(const [x,y,dx,dy] of [[r.x,r.y,1,1],[r.x+r.width,r.y,-1,1],[r.x,r.y+r.height,1,-1],[r.x+r.width,r.y+r.height,-1,-1]]){
-                ctx.moveTo(x!+dx!*5,y!);ctx.lineTo(x!,y!);ctx.lineTo(x!,y!+dy!*5);
-              }ctx.stroke();ctx.restore();}})]:[])]});
-      return kit.tooltip(choice.label,control,{width:uiFixed(24),height:uiFixed(24)});
+      const control=paletteObjectDrag(kit.button({id:choice.id,label:'',ariaLabel:choice.label,disabled:choice.disabled,size:'md',
+        layout:{width:uiFixed(40),height:uiFixed(40),padding:4},onPress:choice.apply,
+        children:[preview?kit.image(preview.image,preview.frame,{label:choice.label,fit:'contain',layout:{width:'grow',height:'grow'}})
+          :kit.icon({cf:'gift'},{layout:{width:'grow',height:'grow'}})]}),choice,state,context);
+      return kit.tooltip(choice.label,kit.stack({width:uiFixed(46),height:uiFixed(46),padding:2},[
+        control,...(choice.active?[paletteReticle(state,context)]:[])]),{width:uiFixed(46),height:uiFixed(46)});
     })),
   });
   children.push(list);
@@ -1478,8 +1524,10 @@ function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContex
   if (state.liveSpawnMode && !liveSpawnAvailability.allowed && !state.liveSpawnCommitting) {
     resetLiveSpawn(state);
   }
-  const command=(id:string,label:string,icon:UiIconName,onPress:()=>void,active=false)=>kit.tooltip(label,
-    kit.iconButton({lucide:icon},{id:`map-${id}`,label,onPress,tone:active?'success':'primary'}),{width:uiFixed(24),height:uiFixed(24)});
+  const command=(id:string,label:string,icon:MapPixelTool,onPress:()=>void,active=false)=>kit.tooltip(label,
+    kit.stack({width:uiFixed(28),height:uiFixed(28),padding:2},[kit.button({id:`map-${id}`,label:'',ariaLabel:label,onPress,
+      layout:{width:uiFixed(24),height:uiFixed(24),padding:2},children:[mapPixelToolIcon(icon,context.invalidate)]}),
+      ...(active?[paletteReticle(state,context)]:[])]),{width:uiFixed(28),height:uiFixed(28)});
   const tool=state.interaction.editingTool();
   const choose=(value:NonNullable<ReturnType<MapEditorController['editingTool']>>)=>{
     resetLiveSpawn(state);state.interaction.selectEditingTool(value);state.paletteOffset=0;context.invalidate();
@@ -1488,19 +1536,20 @@ function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContex
     ? state.interaction.allObjectChoices().find(prefab=>prefab.id===interactionSnapshot.selectedPrefabId)?.title??state.model.document().prefabs.find(prefab=>prefab.id===interactionSnapshot.selectedPrefabId)?.title??'Select an object'
     : state.interaction.materialLabel();
   parts.kit.controls=studioLibraryDrawer([
-    kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,height:uiFixed(52),shrink:0},[
-      command('tool-objects','Select objects','pointer',()=>choose('objects'),tool==='objects'&&!interactionSnapshot.eyedropperActive),
-      command('tool-terrain','Paint terrain','landPlot',()=>choose('terrain'),tool==='terrain'&&!interactionSnapshot.eyedropperActive),
-      command('tool-raise','Raise terrain','mountain',()=>choose('raise'),tool==='raise'&&!interactionSnapshot.eyedropperActive),
-      command('tool-lower','Lower terrain','moveDown',()=>choose('lower'),tool==='lower'&&!interactionSnapshot.eyedropperActive),
-      command('tool-fill','Flood fill terrain','waves',()=>choose('fill'),tool==='fill'&&!interactionSnapshot.eyedropperActive),
-      command('eyedropper','Sample selected object or terrain (I)','penTool',()=>{state.interaction.toggleEyedropper();context.invalidate();},interactionSnapshot.eyedropperActive),
+    kit.flex({direction:'row',gap:2,height:uiFixed(28),shrink:0},[
+      command('tool-objects','Select objects','select',()=>choose('objects'),tool==='objects'&&!interactionSnapshot.eyedropperActive),
+      command('tool-terrain','Paint terrain','terrain',()=>choose('terrain'),tool==='terrain'&&!interactionSnapshot.eyedropperActive),
+      command('tool-raise','Raise terrain','raise',()=>choose('raise'),tool==='raise'&&!interactionSnapshot.eyedropperActive),
+      command('tool-lower','Lower terrain','lower',()=>choose('lower'),tool==='lower'&&!interactionSnapshot.eyedropperActive),
+      command('tool-fill','Flood fill terrain','fill',()=>choose('fill'),tool==='fill'&&!interactionSnapshot.eyedropperActive),
+      command('eyedropper','Sample selected object or terrain (I)','eyedropper',()=>{state.interaction.toggleEyedropper();context.invalidate();},interactionSnapshot.eyedropperActive),
     ]),
   ],mapKitPalette(state,context),[
-    kit.text(selectedName,{id:'map-selected-material',maxLines:2,layout:{width:'grow'}}),
+    kit.text(selectedName,{id:'map-selected-material',maxLines:1,layout:{width:'grow',minWidth:uiFixed(0)}}),
     kit.tooltip('Automatically generate surrounding terrain and connect neighboring objects',
-      kit.checkbox({id:'map-auto-generation',label:'Auto surround',value:state.interaction.automaticGeneration(),
-        onChange:value=>{state.interaction.setAutomaticGeneration(value===true);context.invalidate();}}),{width:'grow',shrink:0}),
+      kit.checkbox({id:'map-auto-generation',label:'Auto surround',value:state.interaction.automaticGeneration(),layout:{width:'grow',minWidth:uiFixed(0),shrink:0},
+        onChange:value=>{state.interaction.setAutomaticGeneration(value===true);context.invalidate();}}),{width:'grow',minWidth:uiFixed(0),shrink:0}),
+    mapPublishButton(state,context),
   ]);
 }
 
@@ -1581,29 +1630,35 @@ function heightArrow(direction: number): UiElement {
   }});
 }
 
-function appendWorldOverlayControls(
-  state: MapCanvasState, context: StudioCanvasToolContext, parts: MapCanvasParts,
-): void {
-  const snapshot = state.interaction.snapshot();
-  if(snapshot.terrainAuthoringFeedback)parts.kit.overlays?.append(kit.text(snapshot.terrainAuthoringFeedback,{id:'map-tool-feedback',maxLines:3,layout:{position:'absolute',inset:{left:8,bottom:8},width:uiFixed(260)}}));
+function mapPublishButton(state:MapCanvasState,context:StudioCanvasToolContext):UiElement {
   const view=context.controller.liveAdapter()?.view();
   const publish=mapEditorPublishPresentation({dirty:state.model.dirty(),publishing:state.model.publishing()||view?.publishingMap===true,
     conflictRevision:state.model.conflictRevision(),validation:state.model.validationState(),baseRevision:state.model.baseRevision(),
     connected:view?.connected===true,synchronizing:view?.synchronizing===true,authorized:context.route.access==='write'&&studioRoleCan(view?.role??null,'publish_map'),
     publishAvailable:context.controller.liveAdapter()?.publishMap!==undefined});
+  return kit.tooltip(publish.tooltip,kit.button({id:'map-publish',ariaLabel:publish.tooltip,label:state.model.publishing()?'Publishing…':state.model.dirty()?'Publish changes':'Published',
+    disabled:publish.disabled,onPress:()=>state.autoPublish.requestManual(),layout:{width:'grow',minWidth:uiFixed(0),shrink:0},leading:kit.icon({cf:'save'})}),
+    {width:'grow',minWidth:uiFixed(0),shrink:0});
+}
+
+function appendWorldOverlayControls(
+  state: MapCanvasState, context: StudioCanvasToolContext, parts: MapCanvasParts,
+): void {
+  const snapshot = state.interaction.snapshot();
+  if(snapshot.terrainAuthoringFeedback)parts.kit.overlays?.append(kit.text(snapshot.terrainAuthoringFeedback,{id:'map-tool-feedback',maxLines:3,layout:{position:'absolute',inset:{left:8,bottom:8},width:uiFixed(260)}}));
   parts.kit.overlays?.append(kit.flex({ direction:'row',gap:4,position:'absolute',inset:{left:8,top:8},height:uiFixed(24) },[
     kit.tooltip('Edit lower height level ([)',kit.button({children:[heightArrow(1)],id:'map-height-down',label:'',ariaLabel:'Lower active height',disabled:snapshot.activeElevation<=-8,
       layout:{width:uiFixed(24)},onPress:()=>{state.interaction.adjustActiveElevation(-1);context.invalidate();}})),
     kit.text(`Height ${snapshot.activeElevation}`,{id:'map-current-height',layout:{width:uiFixed(64)}}),
     kit.tooltip('Edit higher height level (])',kit.button({children:[heightArrow(-1)],id:'map-height-up',label:'',ariaLabel:'Raise active height',disabled:snapshot.activeElevation>=8,
       layout:{width:uiFixed(24)},onPress:()=>{state.interaction.adjustActiveElevation(1);context.invalidate();}})),
-    kit.tooltip('Undo',kit.iconButton({lucide:'undo'},{id:'map-undo',label:'Undo',disabled:!state.model.canUndo(),onPress:()=>{state.interaction.undo();context.invalidate();}})),
-    kit.tooltip('Redo',kit.iconButton({lucide:'redo'},{id:'map-redo',label:'Redo',disabled:!state.model.canRedo(),onPress:()=>{state.interaction.redo();context.invalidate();}})),
-    kit.tooltip('Frame map',kit.iconButton({lucide:'map'},{id:'map-frame-map',label:'Frame map',onPress:()=>{state.interaction.frameMap();context.invalidate();}})),
-    kit.tooltip('Export map',kit.iconButton({lucide:'export'},{id:'map-export',label:'Export map',onPress:()=>exportMapDraft(state,context)})),
-    kit.tooltip('Resize map',kit.iconButton({lucide:'scale'},{id:'map-resize-mode',label:state.model.resizeAvailability().reason??'Resize map',disabled:!state.model.resizeAvailability().allowed,onPress:()=>{state.resizeMode=!state.resizeMode;cancelMapResize(state);context.invalidate();}})),
-    kit.tooltip('Place functional live entity',kit.iconButton({lucide:'gamepad'},{id:'map-live-spawn-mode',label:state.liveSpawnMode?'Cancel functional live entity spawn (Escape)':'Spawn selected object as a functional live entity',tone:state.liveSpawnMode?'success':'primary',disabled:!currentLiveSpawnAvailability(state,context,studioMapId(context.route.path)).allowed,onPress:()=>armLiveSpawn(state,context,studioMapId(context.route.path))})),
-    kit.tooltip(publish.tooltip,kit.iconButton({lucide:'cloudPublish'},{id:'map-publish',label:publish.tooltip,disabled:publish.disabled,onPress:()=>state.autoPublish.requestManual()})),
+    kit.tooltip('Undo',kit.iconButton({fantasy:'arrow_left_white_medium'},{id:'map-undo',label:'Undo',disabled:!state.model.canUndo(),onPress:()=>{state.interaction.undo();context.invalidate();}})),
+    kit.tooltip('Redo',kit.iconButton({fantasy:'arrow_right_white_medium'},{id:'map-redo',label:'Redo',disabled:!state.model.canRedo(),onPress:()=>{state.interaction.redo();context.invalidate();}})),
+    kit.tooltip('Frame map',kit.iconButton({fantasy:'book_green'},{id:'map-frame-map',label:'Frame map',onPress:()=>{state.interaction.frameMap();context.invalidate();}})),
+    kit.tooltip('Export map',kit.iconButton({fantasy:'save'},{id:'map-export',label:'Export map',onPress:()=>exportMapDraft(state,context)})),
+    kit.tooltip('Resize map',kit.iconButton({fantasy:'wrench'},{id:'map-resize-mode',label:state.model.resizeAvailability().reason??'Resize map',disabled:!state.model.resizeAvailability().allowed,onPress:()=>{state.resizeMode=!state.resizeMode;cancelMapResize(state);context.invalidate();}})),
+    kit.tooltip('Place functional live entity',kit.iconButton({fantasy:'gift'},{id:'map-live-spawn-mode',label:state.liveSpawnMode?'Cancel functional live entity spawn (Escape)':'Spawn selected object as a functional live entity',tone:state.liveSpawnMode?'success':'primary',disabled:!currentLiveSpawnAvailability(state,context,studioMapId(context.route.path)).allowed,onPress:()=>armLiveSpawn(state,context,studioMapId(context.route.path))})),
+
   ]));
 }
 
@@ -1895,7 +1950,7 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
   const button = (id: string, label: string, onPress: (event: UiButtonModifiers) => void,
     options: { disabled?: boolean; tone?: UiTone; help?: string; icon?: UiIconName } = {}): UiElement => {
     const base = kit.button({ id: `map-${id}`, label, onPress, disabled: options.disabled, tone: options.tone ?? 'primary',
-      ...(options.icon ? { leading: kit.icon({lucide:options.icon}) } : {}), layout:{width:'grow',shrink:0} });
+      ...(options.icon ? { leading: kit.icon({fantasy:'check_white_medium'}) } : {}), layout:{width:'grow',shrink:0} });
     return options.help ? kit.tooltip(options.help,base,{width:'grow',height:uiFixed(24),shrink:0}) : base;
   };
   const action = (id:string,label:string,onPress:()=>void,options:Parameters<typeof button>[3]={}) => children.push(button(id,label,onPress,options));
@@ -1906,20 +1961,23 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
   state.selectionBounds = {x:0,y:0,width:0,height:0}; state.layerBounds = {x:0,y:0,width:0,height:0};
   state.selectionRowCount = 0;
   if (inspection) {
+    const selected=state.model.document().objects.find(value=>value.id===inspection.entity?.id);
+    const prefab=selected&&state.model.document().prefabs.find(value=>value.id===selected.prefabId);
+    const terrainCell=state.model.document().cells[mapCellKey(inspection.tileX,inspection.tileY)];
+    const terrainPreviewId=terrainCell?.surfaceFamily??`biome-${inspection.terrain.biome}`;
+    const terrainPreview=mapMaterialChoices(state.terrainPalette,'').find(value=>value.id===terrainPreviewId)?.preview;
+    const landmark=state.model.document().landmarks.find(value=>value.id===inspection.entity?.id);
+    const marker=state.interaction.liveMarkers().find(value=>value.id===inspection.entity?.id);
+    const preview=marker?state.renderer.liveMarkerPreview(marker):landmark?state.renderer.landmarkPreview(landmark.kind):prefab?prefabPreview(state,context,prefab):inspection.target==='tile'&&terrainPreview
+      ?terrainChoicePreview(state,context,terrainPreview):undefined;
+    if(preview)children.push(kit.image(preview.image,preview.frame,{id:'map-selection-preview',label:inspection.entity?.name??'Selected terrain',fit:'contain',quarterTurns:selected?.quarterTurns,flipX:selected?.flipX,
+      layout:{width:'grow',height:uiFixed(48),shrink:0}}));
     const editableAnchor = inspection.entity?.kind==='authored_anchor'&&!inspection.entity.readOnly;
     if(state.editingAnchorId!==null&&(!editableAnchor||inspection.entity?.id!==state.editingAnchorId))cancelAnchorLabelEdit(state);
     children.push(kit.select({id:'map-selection-view',label:'Inspector view',value:state.inspectorView,
       options:[{value:'selection',label:'Selection'},{value:'schema',label:'Schema'}],onChange:value=>{state.inspectorView=value as 'selection'|'schema';context.invalidate();}}));
     const rows: readonly MapCanvasInspectorRow[] = state.inspectorView==='schema' ? mapCanvasInspectorRows(context.controller.inspector.groups())
       : mapSelectionDrawerRows(inspection).map(row=>({...row,heading:false,danger:false,property:null}));
-    for(const row of rows){
-      children.push(kit.text(row.label,{id:`map-selection-${row.id}-label`,role:row.heading?'header':'body',layout:{width:'grow'}}));
-      const property=row.property;
-      if(property&&parseMapSchemaInspectorAction(property.action)){
-        const availability=mapSchemaInspectorAvailability(property as MapSchemaInspectorField,currentSchemaInspectorAuthority(state,context,mapId));
-        action(`selection-${row.id}`,'Change',()=>beginSchemaInspectorAction(state,context,mapId,property),{disabled:!availability.editable,help:availability.reason,tone:row.danger?'danger':'primary'});
-      }
-    }
     const entity=inspection.entity;
     if(entity?.kind==='authored_object'||entity?.kind==='authored_landmark'){
       action('selection-hide','Visibility',()=>{state.interaction.toggleSelectedVisibility();context.invalidate();},{icon:'visibility',tone:entity.enabled?'success':'primary'});
@@ -1960,27 +2018,45 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
         action('selection-terrain-clear','Clear exact',()=>{state.interaction.clearSelectedExactTerrainOverride();context.invalidate();},{disabled:!available||override?.terrainOverride===undefined,tone:'danger'});
       }
     }
+    for(const row of rows){
+      children.push(kit.text(row.label,{id:`map-selection-${row.id}-label`,role:row.heading?'header':'body',layout:{width:'grow'}}));
+      const property=row.property;
+      if(property&&parseMapSchemaInspectorAction(property.action)){
+        const availability=mapSchemaInspectorAvailability(property as MapSchemaInspectorField,currentSchemaInspectorAuthority(state,context,mapId));
+        action(`selection-${row.id}`,'Change',()=>beginSchemaInspectorAction(state,context,mapId,property),{disabled:!availability.editable,help:availability.reason,tone:row.danger?'danger':'primary'});
+      }
+    }
     if(inspection.suppression.supported){const suppressed=inspection.suppression.suppressed;
       action('selection-suppression',suppressed?'Restore generated':'Suppress generated',()=>{if(inspection.suppression.id!==null){state.model.suppressGenerated(inspection.suppression.id,!suppressed);context.invalidate();}},{tone:suppressed?'success':'danger'});
     }
-    children.push(kit.separator());
+
   } else if(state.editingAnchorId!==null)cancelAnchorLabelEdit(state);
+  const panels:UiElement[]=[];
+  if(children.length)panels.push(kit.frame({id:'map-selection-panel',style:'thin',header:{title:'Selection'},
+    layout:{width:'grow',height:'grow',minHeight:uiFixed(100)},children:[kit.scrollArea({id:'map-selection-scroll',width:'grow',height:'grow'},[kit.flex({width:'grow',gap:4},children)])]}));
   const layers=[...state.model.document().layers].sort((a,b)=>b.order-a.order);
   const activeId=state.interaction.snapshot().activeLayer;
-  children.push(kit.text('Layers',{role:'header'}));
-  for(const layer of layers){
+  const layerRows=layers.map(layer=>{
     const visible=state.model.isLayerEyeVisible(layer.id);
-    children.push(kit.flex({direction:'row',width:'grow',height:uiFixed(24),gap:4,shrink:0},[
-      kit.tooltip(`${visible?'Hide':'Show'} ${layer.label}`,kit.iconButton({lucide:visible?'visibility':'eyeOff'},
-        {id:`map-layer-visible-${layer.id}`,label:`${visible?'Hide':'Show'} ${layer.label}`,tone:visible?'success':'primary',
-          onPress:()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();}}),{width:uiFixed(24),height:uiFixed(24)}),
-      button(`layer-select-${layer.id}`,layer.label,()=>{
+    const activate=(id:string,label:string,onPress:()=>void,content:UiElement,width?:number)=>new UiElement({
+      id,kind:'layer-action',label,focusable:true,pointerMode:'capture',style:{width:width?uiFixed(width):'grow',height:uiFixed(14),padding:0},children:[content],
+      onPointer(event,element){if(event.button!==0)return false;if(event.type==='down')return true;
+        if(event.type==='up'&&event.point.x>=element.rect.x&&event.point.x<element.rect.x+element.rect.width
+          &&event.point.y>=element.rect.y&&event.point.y<element.rect.y+element.rect.height){onPress();return true;}return event.type==='move';},
+      onKey(event){if(event.key==='Enter'||event.key===' '){onPress();return true;}return false;}});
+    return new UiElement({kind:'map-layer-row',props:{selected:activeId===layer.id},style:{display:'flex',direction:'row',width:'grow',height:uiFixed(14),gap:4,shrink:0},
+      paint(element,{context:ctx}){if(activeId===layer.id){ctx.fillStyle='#4f8b54';ctx.fillRect(element.rect.x,element.rect.y,element.rect.width,element.rect.height);}},children:[
+      kit.tooltip(`${visible?'Hide':'Show'} ${layer.label}`,activate(`map-layer-visible-${layer.id}`,`${visible?'Hide':'Show'} ${layer.label}`,
+        ()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();},kit.icon({fantasy:visible?'check_white_medium':'minus_white_small'},{layout:{width:uiFixed(12),height:uiFixed(12)}}),14),{width:uiFixed(14),height:uiFixed(14)}),
+      activate(`map-layer-select-${layer.id}`,layer.label,()=>{
         state.interaction.selectEditingTool(layer.id==='terrain'||layer.id==='generated_base'?'terrain':'objects');
         state.interaction.selectLayer(layer.id);state.paletteOffset=0;context.invalidate();
-      },{tone:activeId===layer.id?'success':'primary'}),
-    ]));
-  }
-  parts.kit.inspector=kit.flex({width:'grow',gap:4},children);
+      },kit.text(layer.label,{maxLines:1,layout:{width:'grow',minWidth:uiFixed(0)}})),
+    ]});
+  });
+  panels.push(kit.frame({id:'map-layers-panel',style:'thin',header:{title:'Layers'},layout:{width:'grow',height:uiFixed(layers.length*14+52),shrink:0},
+    children:[kit.scrollArea({width:'grow',height:'grow'},[kit.flex({width:'grow'},layerRows)])]}));
+  parts.kit.inspector=kit.flex({width:'grow',height:'grow',gap:8},panels);
 }
 
 export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanvasToolSurface {
@@ -2113,6 +2189,12 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
       context.controller.gridVisible(),
       shellArt,
     );
+    if(state.paletteDrag?.active) {
+      const prefab=state.interaction.allObjectChoices().find(value=>value.id===state.paletteDrag!.prefabId);
+      const preview=prefab&&prefabPreview(state,context,prefab);
+      if(preview){const f=preview.frame;const scale=Math.min(96/f.width,96/f.height);drawing.save();drawing.globalAlpha=.75;drawing.imageSmoothingEnabled=false;
+        drawing.drawImage(preview.image,f.x,f.y,f.width,f.height,state.paletteDrag.point.x-f.width*scale/2,state.paletteDrag.point.y-f.height*scale,f.width*scale,f.height*scale);drawing.restore();}
+    }
     drawMapResizePreview(drawing, state.resizeImpact, state.interaction.snapshot());
     drawLiveSpawnTarget(drawing, state);
     drawRuntimeObjectTarget(drawing, state);

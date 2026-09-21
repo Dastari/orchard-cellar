@@ -35,7 +35,7 @@ import {
   terrainCliffFamilyAt,
   terrainBiomeAt,
   terrainColorAt,
-  terrainProjectionStyle,
+  terrainProjectionStyle, terrainVisualProjectionRowsPerLevel, terrainBaseDatum,
   waterDecorationAllowedAt,
   waterfallFrameIndexAt,
   waterfallUsesRaisedCompositionAt,
@@ -490,6 +490,20 @@ export class GroundChunkCache {
 
   invalidateResource(tileX: number, tileY: number): void {
     this.chunks.invalidateResource(tileX, tileY);
+  }
+
+  /** Retain unaffected chunks only after a caller has verified a sparse edit. */
+  adoptSparseTerrain(previous: TerrainArray, next: TerrainArray, points: readonly {tileX:number;tileY:number}[]): void {
+    if(previous.width!==next.width||previous.height!==next.height||previous.seed!==next.seed||previous.generator!==next.generator)return;
+    this.prepareTerrain(previous);
+    this.terrainKey = `${next.spaceId}:${next.generator ?? "unknown"}:${next.width}x${next.height}:${next.seed}:${next.version}:${next.rogueRoomRevision ?? ''}`;
+    // Include topology neighbors and the old/new projected cliff footprints.
+    for(const point of points) {
+      const index=point.tileY*next.width+point.tileX;
+      const radius=4+Math.max(Math.abs((previous.elevations[index]??0)-terrainBaseDatum(previous))*terrainVisualProjectionRowsPerLevel(previous),Math.abs((next.elevations[index]??0)-terrainBaseDatum(next))*terrainVisualProjectionRowsPerLevel(next));
+      for(let y=point.tileY-radius;y<=point.tileY+radius;y+=1)
+        for(let x=point.tileX-2;x<=point.tileX+2;x+=1)this.invalidateResource(x,y);
+    }
   }
 
   private prepareTerrain(terrain: TerrainArray): void {

@@ -1,80 +1,75 @@
 # Cellar Studio live editor handoff
 
 Date: 2026-09-21. Branch: `feat/studio-live-map-tools`.
-
-Pull request: https://github.com/Dastari/orchard-cellar/pull/41 (not merged).
-Implementation commit: `577c63a0`; subsequent documentation records closeout.
+PR: https://github.com/Dastari/orchard-cellar/pull/41 (not merged).
 
 ## Delivered behavior
 
-Studio 0.9.0 authenticates immediately, automatically connects to production and
-gates editing until the live map head verifies. Connection loss closes the editing
-surface. The global sandbox/connect toolbar is removed.
+Studio 0.9.1 authenticates immediately, automatically connects to production and
+gates editing until the live map head verifies. Ordinary edits stay in a browser
+draft until Publish changes, below Auto surround, is selected. Auto controls
+surrounding generation, not publication.
 
-The map drawer has six icon tools, a searchable virtual palette with six object
-filters, fixed medium icon buttons and a selected-item reticle. Its width supports
-three or more palette columns. The footer contains the selected name and Auto
-surround. Canvas controls expose the active height and explicit publication.
-Layer rows contain visibility and selection only. Resource trees now appear under
-Canopy at overview and detail, using the gameplay resource painter.
+Six generated pixel-art tools occupy one row. Both palettes use larger previews,
+the native inventory reticle and responsive grids with at least three columns.
+Native category icons sit in their own frame. The selected name truncates without
+clipping footer button artwork. Right-drag pans, palette objects drag onto the map,
+and existing object artwork follows the pointer before one local history commit.
+The right drawer separates a selection preview/editable properties from compact
+layer rows. The development-only `feedback.fixture.html` exercises these actual
+components without permitting a live connection or publication.
 
-Shared terrain compilation preserves material, biome and height through undo and
-serialization. Height tools respect the active source plane and plan supported
-2×2 footprints. Fill respects semantic boundaries and the active height. Shared
-object topology covers six native fence/hedge families and all sixteen cardinal
-connection masks, including editor-only authored overrides. The game player
-painter derives joins automatically from runtime state.
+The Studio art loader now includes every built-in resource growth/depletion sprite;
+missing sapling/young/stump art previously interrupted the resource paint queue.
+Explicit resource identity is preserved and Canopy trees retain overview silhouettes.
+Small terrain edits resolve affected cells through shared generation rules and
+invalidate nearby ground chunks. Completed terrain remains visible during larger
+compiles. Sparse overview updates preserve shading, undo and pending full replacements.
 
-See [generation rules](studio-generation-rules.md) for the 103-tile inventory,
-biome recipes, native artwork limits and object adjacency contract, and the
-[design specification](studio-live-editor-spec.md) for acceptance criteria.
+Shared generation preserves biome, material, collision and height through undo and
+serialization. Height tools respect the active source plane and supported 2×2
+footprints. Fence/hedge topology covers six native families and all sixteen cardinal
+masks, with editor-only overrides. See [generation rules](studio-generation-rules.md),
+[specification](studio-live-editor-spec.md) and [icon prompts](studio-pixel-tool-icons.md).
 
-## Release boundary and integration
+## Validation
 
-Only Studio is deployed by this task. Shared game/authority changes are delivered
-in this PR and require their own guarded release. No map edits, stored content
-publication, schema migration or game restart are part of this update.
+- Full coverage reports 937 files / 5,701 tests passing. Statements 88.67%, branches
+  83.93%, functions 94.32%, lines 92.78%; all configured thresholds pass.
+- Exhaustive world/terrain suite: 51 tests / two files pass, for 5,752 tests across
+  939 files together with coverage. Targeted final cache, drawer and publication
+  checks also pass.
+- Workspace TypeScript, ESLint, lifecycle integrity, world build and asset validation
+  pass (1,198 art assets, three songs, ten effects, 55 colors, four seasons).
+- Guarded independent Studio production build passes; all 38 changed code/asset
+  inputs match the staged source. The original UI-kit prebuild guard is preserved.
+- Actual local browser verifies palette/object dragging, right-drag pan, immediate
+  terrain feedback, the new palettes/reticles/footer and separate selection panels.
+- Actual resource resolver/painter covers every built-in growth/depletion state.
+  Generated-island/cave-floor parity, sparse chunk retention and cache replacement
+  races have regression coverage. Independent review and diff/credential scans pass.
 
-PR #40 (`feat/willowharbour-connected-world`, stacked on #39) independently changes
-shared rendering and versions. Agent Mail coordination was authorized; editing
-began after its conflicting reservations were released. Reconcile those shared
-files and release versions when integrating the two PRs. Do not drop town lamp,
-interior or boundary changes from that work. This branch recognizes its native
-boundary asset IDs for connectivity.
+## Deployment and integration
 
-Auto surround controls height footprint expansion and object joins. It does not
-disable the terrain compositor globally; exact terrain role overrides remain in
-the inspector. Missing snow source, shroomlands tall inverse corners and dedicated
-lava shore art are documented capability limits, not substituted artwork.
+Studio 0.9.1 is prepared at
+`/home/toby/.local/state/orchard-release/studio-feedback-20260921`.
+The checked source is `source-checked`; intended installed artifact is
+`output-checked`, entry `/assets/index-CpnebIh7.js`. `studio-before` retains the
+previous 0.9.0 artifact. Browser screenshots and validation logs are retained there.
+Installation/public verification results will be recorded after deployment.
 
-## Verification and release evidence
+Only Studio is deployed by this task. Shared gameplay/authority code needs its own
+guarded release. No production test strokes, content publication, schema migration
+or game/world restart are part of this update. PRs #40/#42 independently change
+shared rendering and versions; reconcile them on integration. Release agent RubyBay
+has permission for a narrow isolated-worktree terrain-build test timeout correction;
+primary checkout ownership transfers only after this Studio release is recorded.
 
-- Workspace TypeScript and ESLint checks pass. The final staged build also checks
-  Studio and its shared dependencies with the reviewed UI-kit guard intact.
-- Exhaustive world/terrain suite: 51 tests pass. Targeted final drawer, tree,
-  connection, material, height and native-fringe regressions pass.
-- Full coverage suite: 935 files / 5,688 tests pass. Statements 88.66%, branches
-  83.93%, functions 94.32%, lines 92.78%; all repository thresholds pass. Together
-  with the exhaustive suite this is 5,739 passing tests across 937 files.
-- Lifecycle artifact integrity and the final world build pass. Assets validate:
-  1,198 art assets, three songs, ten sound effects, 55 colors and four seasons.
-- Independent source/native-art review found no remaining material blockers.
-  Final changed-content credential-pattern and whitespace scans pass.
-- The deployed bundle is `/assets/index-D8CYj2-I.js`, built in `studio-production`
-  from `checked-source-release` and installed from `output-release`.
-- Public static/headers/proxy checks and reachable JS/CSS byte validation pass.
-  Game and world PIDs remain 3549396 and 26438 respectively.
-- The first final-install attempt received a transient startup 502 and restored
-  the original artifact. The subsequent release waited for HTTP readiness before
-  running validation and passed. No game/world process was restarted.
+The user confirmed sign-in twice, but automation tab_5 still shows Orchard login
+without a Studio session. Anonymous immediate authentication is verified; authenticated
+live visual verification remains unavailable. Do not infer successful authentication
+from the local fixture or HTTP checks. No credentials are recorded here.
 
-The private release directory is
-`/home/toby/.local/state/orchard-release/studio-live-tools-20260921T0455`.
-The original checked rollback is `studio-before`. Staged releases preserve the
-reviewed UI-kit prebuild guard and collision-check retained hashed assets.
-
-The user confirmed sign-in twice, but the automation-connected preview (`tab_5`)
-still reports the Orchard sign-in page with no Studio session, including after
-reloading the final deployment. Anonymous immediate authentication is verified;
-authenticated visual verification remains unresolved. No credentials are stored
-here, and no production test strokes were published.
+Auto surround does not disable the terrain compositor globally; exact terrain role
+overrides remain in the inspector. Missing native snow source, shroomlands tall
+inverse corners and dedicated lava shore artwork remain documented capability limits.

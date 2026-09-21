@@ -38,7 +38,7 @@ function colorChannels(color: string): readonly [number, number, number] {
 
 const BIOME_CHANNELS = BIOME_COLORS.map(colorChannels);
 
-function writeOverviewPixel(
+export function writeEditorMapOverviewPixel(
   pixels: Uint8ClampedArray,
   offset: number,
   biome: number,
@@ -74,7 +74,7 @@ export function splitEditorMapOverviewLayers(
     terrainOverrides[offset + 1] = raster.pixels[offset + 1]!;
     terrainOverrides[offset + 2] = raster.pixels[offset + 2]!;
     terrainOverrides[offset + 3] = raster.pixels[offset + 3]!;
-    writeOverviewPixel(
+    writeEditorMapOverviewPixel(
       generatedBase,
       offset,
       tile.biome,
@@ -106,7 +106,7 @@ export function editorMapOverviewRaster(terrain: TerrainArray): EditorMapOvervie
     const biome = terrain.biomes[index] ?? 0;
     const elevation = terrain.elevations[index] ?? 0;
     const offset = index * 4;
-    writeOverviewPixel(pixels, offset, biome, elevation, minimumElevation, maximumElevation);
+    writeEditorMapOverviewPixel(pixels, offset, biome, elevation, minimumElevation, maximumElevation);
     if (biome !== oceanBiome) {
       const tileX = index % terrain.width;
       const tileY = Math.floor(index / terrain.width);

@@ -58,5 +58,5 @@ export function mapObjectCategory(prefab: MapPrefabDocumentV2): Exclude<MapObjec
 }
 
 export function mapPaletteColumns(logicalWidth: number): number {
-  return Math.max(3, Math.floor((logicalWidth - 8) / 28));
+  return Math.max(3, Math.floor((logicalWidth - 4) / 46));
 }

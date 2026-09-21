@@ -88,10 +88,10 @@ describe('offline editor viewport zoom', () => {
     expect(editorWorldZoomAfterWheel(1, 100_000, false, minimum)).toBe(minimum);
   });
 
-  it('omits object sprites once tiles become smaller than eight screen pixels', () => {
-    expect(EDITOR_OBJECT_SPRITE_MIN_ZOOM).toBe(0.5);
+  it('keeps tree and object silhouettes visible throughout the supported zoom range', () => {
+    expect(EDITOR_OBJECT_SPRITE_MIN_ZOOM).toBe(1/128);
     expect(editorShowsObjectSprites(0.5)).toBe(true);
-    expect(editorShowsObjectSprites(0.499)).toBe(false);
+    expect(editorShowsObjectSprites(1/128)).toBe(true);
   });
 
   it('culls against world-pass dimensions at fractional zoom and high DPR', () => {

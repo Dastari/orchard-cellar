@@ -779,13 +779,14 @@ describe('MapEditorController', () => {
     expect(mapDocumentV3Hash(model.document())).toBe(before);
   });
 
-  it('consumes an in-map context click even when it only selects a tile', () => {
-    const { controller, model } = harness();
-    const center = controller.screenToWorld({ x: 500, y: 350 });
-    const tileX = Math.floor(center.x / 16);
-    const tileY = Math.floor(center.y / 16);
-    expect(controller.pointerDown(screenForTile(controller, tileX, tileY), 2)).toBe(true);
-    expect(model.selection()).toMatchObject({ kind: 'tile', tileX, tileY });
+  it('pans with right drag without changing selection, deleting or publishing', () => {
+    const {controller,model}=harness();const document=model.document(),selection=model.selection();
+    const point={x:500,y:350};controller.wheel(point,-800);
+    const camera=controller.snapshot().camera;
+    expect(controller.pointerDown(point,2)).toBe(true);
+    expect(controller.pointerMove({x:530,y:365})).toBe(true);controller.pointerUp();
+    expect(controller.snapshot().camera.x).toBeCloseTo(camera.x-30/camera.zoom);
+    expect(model.document()).toBe(document);expect(model.selection()).toBe(selection);
   });
 
   it('filters embedded prefabs and places the selected prefab on the active object layer', () => {

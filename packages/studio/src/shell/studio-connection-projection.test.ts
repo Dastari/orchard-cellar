@@ -22,7 +22,7 @@ function fixture(resourceCount = 1) {
       carriedBy: undefined, healthCenti: 100, maxHealthCenti: 100,
     }],
     resources: Array.from({ length: resourceCount }, (_, index) => ({
-      id: BigInt(index + 10), kind: 'tree', tileX: index, tileY: 1, spaceId: 0,
+      id: BigInt(index + 10), kind: 'tree', definitionId:'resource:oak', tileX: index, tileY: 1, spaceId: 0,
       health: 5, depleted: false, growthStage: 3, miningClass: '', richness: 0,
       maximumRichness: 0,
     })),
@@ -63,6 +63,13 @@ function fixture(resourceCount = 1) {
 }
 
 describe('StudioRowsProjection', () => {
+  it('preserves explicit resource identity and repaints when only that identity changes',()=>{
+    const {data,source}=fixture();const projection=new StudioRowsProjection();projection.refresh(source);
+    expect(projection.rows().resources?.[0]?.definitionId).toBe('resource:oak');
+    data.resources=data.resources.map(row=>({...row,definitionId:'resource:birch'}));projection.mark('resources');
+    expect(projection.refresh(source)).toBe(true);expect(projection.rows().resources?.[0]?.definitionId).toBe('resource:birch');
+  });
+
   it('does not rescan 5,981 resources for a placeable event and retains unchanged arrays', () => {
     const { data, source } = fixture(5_981);
     const projection = new StudioRowsProjection();
