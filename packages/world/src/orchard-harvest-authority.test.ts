@@ -22,7 +22,7 @@ function fixture(fruit = 'apple', planted = false) {
   const resource = { id: planted ? sim.plantedFruitTreeId(10, 5, 5) : 4n, kind: `tree_${fruit}`,
     spaceId: position.spaceId, tileX: 5, tileY: 5, health: 3, depleted: false,
     growthStage: 3, regrowthProgress: 24, activationOrdinal: 0, fruitReadyAtTick: 0n };
-  const switches = { authorized: true, modify: true, access: true, suppressed: false, hands: false, mounted: false };
+  const switches = { authorized: true, modify: true, access: true, suppressed: false, hands: false, mounted: false, alive: true, inventoryLocked: false, protocolValid: true };
   const clock = { authorityTick: 100n };
   const payouts: { drops: sim.LootDrop[]; options: Record<string, unknown> }[] = [];
   const xp: bigint[] = [];
@@ -40,6 +40,11 @@ function fixture(fruit = 'apple', planted = false) {
     t: { u64: noop }, spacetimedb: { reducer: (_schema: unknown, reducer: unknown) => reducer },
     requireAuthorizedSender: () => { if (!switches.authorized) throw new Error('unauthorized'); },
     requireWorldModificationAuthorized: () => { if (!switches.modify) throw new Error('homestead_owner_required'); },
+    requirePersistentInventoryAvailable: () => {
+      if (!switches.protocolValid) throw new Error('inventory_client_update_required');
+      if (switches.inventoryLocked) throw new Error('descent_inventory_locked');
+    },
+    advancePlayerStats: () => ({ healthCenti: switches.alive ? 10000 : 0 }),
     requireHearthResourceHarvestAccess: () => { if (!switches.access) throw new Error('target_not_ready'); },
     liveMapGeneratedResourceSuppressed: () => switches.suppressed,
     handsOccupiedFor: () => switches.hands, mountedNpcFor: () => switches.mounted ? {} : null,
@@ -78,6 +83,9 @@ describe('renewable orchard authority', () => {
   it('rejects permission, space, suppression, mount, hands, maturity and reach failures without payout or ordinal changes', () => {
     const cases: [(f: ReturnType<typeof fixture>) => void, string][] = [
       [f => { f.switches.authorized = false; }, 'unauthorized'],
+      [f => { f.switches.alive = false; }, 'player_not_alive'],
+      [f => { f.switches.inventoryLocked = true; }, 'descent_inventory_locked'],
+      [f => { f.switches.protocolValid = false; }, 'inventory_client_update_required'],
       [f => { f.switches.modify = false; }, 'homestead_owner_required'],
       [f => { f.switches.access = false; }, 'target_not_ready'],
       [f => { f.switches.suppressed = true; }, 'target_not_ready'],
@@ -93,6 +101,25 @@ describe('renewable orchard authority', () => {
       const f = fixture(); change(f);
       expect(() => f.pick()).toThrow(error); expect(f.payouts).toEqual([]);
       expect(f.resource.activationOrdinal).toBe(0); expect(f.resource.fruitReadyAtTick).toBe(0n);
+    }
+  });
+  it('preserves the harvest through rejected dead, custody and stale-protocol retries, then pays once after recovery', () => {
+    for (const [key,blocked,error] of [
+      ['alive',false,'player_not_alive'],
+      ['inventoryLocked',true,'descent_inventory_locked'],
+      ['protocolValid',false,'inventory_client_update_required'],
+    ] as const) {
+      const f=fixture();
+      const before={...f.resource};
+      f.switches[key]=blocked;
+      for(let attempt=0;attempt<2;attempt++)expect(()=>f.pick()).toThrow(error);
+      expect(f.resource).toEqual(before);expect(f.payouts).toEqual([]);expect(f.xp).toEqual([]);
+      f.switches[key]=!blocked;
+      f.pick();
+      const after={...f.resource};
+      expect(f.payouts).toHaveLength(1);expect(f.xp).toEqual([4n]);
+      expect(()=>f.pick()).toThrow('fruit_ripening');
+      expect(f.resource).toEqual(after);expect(f.payouts).toHaveLength(1);expect(f.xp).toEqual([4n]);
     }
   });
   it('rolls seeds once per successful picking ordinal and rejects retries without consuming that ordinal', () => {

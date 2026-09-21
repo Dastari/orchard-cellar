@@ -20741,6 +20741,10 @@ export const pickupEmbeddedArrow = spacetimedb.reducer(
 function pickOrchardFruit(
   ctx: WorldReducerContext, position: PlayerPositionRow, resource: WorldResourceRow, authorityTick: bigint,
 ): void {
+  requirePersistentInventoryAvailable(ctx, ctx.sender);
+  if (advancePlayerStats(ctx, ctx.sender, authorityTick).healthCenti <= 0) {
+    throw new SenderError('player_not_alive');
+  }
   const registry = contentRegistry(ctx);
   requireHearthResourceHarvestAccess(ctx, position, resource);
   const result = orchardHarvestResult(registry, resource, position.x, position.y, authorityTick);

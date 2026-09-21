@@ -3,6 +3,7 @@
 ## 0.12.0 — 2026-09-21
 
 - Mature apple, pear, peach and cherry trees now offer renewable E/touch fruit picking every game day, with ripening countdowns and existing seed-saver rolls. Picking preserves the tree; axe felling yields forestry materials only.
+- Require a living player, current inventory protocol and unlocked persistent inventory before picking; rejected attempts leave the harvest and its rewards untouched.
 - Persist readiness independently of tree health with an additive defaulted schema migration; inventory overflow uses the existing reserved drops.
 
 
