@@ -18,8 +18,9 @@ export function delveCompletionRewardError(definitions: readonly SupportedConten
   if (items.length === 0) return null; // An intentionally disabled/retired reward must not block exit.
   if (items.length !== 1) return 'Delve completion requires at most one active keepsake item';
   const item = items[0]!;
-  if (item.kind !== 'item' || !item.tags.includes('item.placeable') || (item.economy?.sell ?? 0) !== 0) {
-    return 'Delve keepsake must be a non-saleable placeable';
+  if (item.kind !== 'item' || !item.tags.includes('item.placeable') || item.economy?.buy != null
+    || (item.economy?.sell ?? 0) !== 0) {
+    return 'Delve keepsake must be a nonbuyable, non-saleable placeable';
   }
   const recipes = definitions.filter(definition => definition.kind === 'recipe' && definition.retired !== true
     && definition.output.item === item.id);
@@ -32,7 +33,8 @@ export function delveCompletionRewardError(definitions: readonly SupportedConten
 export function delveCompletionRecipe(registry: ContentRegistry): RecipeContentDefinition | null {
   const items = [...registry.items.values()].filter(item => item.retired !== true
     && item.tags.includes(DELVE_COMPLETION_REWARD_TAG));
-  if (items.length !== 1 || !items[0]!.tags.includes('item.placeable') || (items[0]!.economy?.sell ?? 0) !== 0) return null;
+  if (items.length !== 1 || !items[0]!.tags.includes('item.placeable') || items[0]!.economy?.buy != null
+    || (items[0]!.economy?.sell ?? 0) !== 0) return null;
   const recipes = [...registry.recipes.values()].filter(recipe => recipe.retired !== true
     && recipe.output.item === items[0]!.id);
   return recipes.length === 1 && recipes[0]!.requiresKnowledge === true ? recipes[0]! : null;

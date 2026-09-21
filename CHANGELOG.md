@@ -11,6 +11,7 @@
 - Completing all 12 Delve rooms and claiming the final guardian boon now permanently reveals the Delver Memorial Planter recipe, an optional residence keepsake crafted with stone, fiber and sunflowers.
 - Track full Delve victories independently of temporary boons/currency. Content-disabled rewards are repaired on reconnect; death and abandonment grant no completion reward.
 - Preserve completion receipts across quest resets and restore run-entry vitals as before.
+- Keep the earned planter nonbuyable in authored commerce; reject purchase prices, including zero, in reward validation.
 
 
 ## 0.12.0 — 2026-09-21

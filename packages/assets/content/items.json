@@ -1708,7 +1708,7 @@
       "reward.delve_completion"
     ],
     "economy": {
-      "buy": 0,
+      "buy": null,
       "sell": 0
     }
   },
