@@ -65,4 +65,19 @@ A new `/home/toby/projects/orchard-town-refinement` worktree on
 merge and is deliberately preserved. Its unfinished work is outside this snapshot
 of the 16 owner-approved PRs; it should integrate the new main through its own PR.
 
-Validation and final merge results are recorded below when complete.
+## Final local validation
+
+- Coverage suite: 923 files, 5,630 tests passed, two skipped; statements 88.66%,
+  branches 83.93%, functions 94.23%, lines 92.75%.
+- Exhaustive terrain/survival suite: two files, 51 tests passed.
+- Focused integration suite: five files, 28 tests passed (included in coverage).
+- Lifecycle integrity, world build, workspace typechecking, lint, asset validation,
+  full production build, Studio `studio-production` build and client chunk checks passed.
+- Content measurement confirms 919 definitions, hash 0029513b and payload within
+  the 547 KiB budget. Generated 1,192 assets. Studio retains its bundle-size warnings.
+- Coverage uses two workers and `ORCHARD_TEST_LICENSED_ART=0`, matching the CI
+  licensed-art exclusion. No world/database release or live artifact replacement ran.
+
+PR #38 is the merge vehicle. GitHub CI acquired runners during validation but
+remained unfinished; the owner's explicit local-validation/CI-wait waiver applies.
+Private validation logs and final cleanup evidence are retained with the Git bundle.
