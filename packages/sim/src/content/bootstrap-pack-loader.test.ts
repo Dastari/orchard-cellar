@@ -7,7 +7,7 @@ describe('bootstrap content pack loader', () => {
     const definitions = loadBootstrapPackDefinitions();
     expect(definitions).toHaveLength(911);
     expect(new Set(definitions.map(({ id }) => id)).size).toBe(911);
-    expect(contentDefinitionsHash(definitions).slice(0, 8)).toBe('739112ea');
+    expect(contentDefinitionsHash(definitions).slice(0, 8)).toBe('9c3c99cd');
     expect(Object.isFrozen(definitions)).toBe(true);
   });
 });

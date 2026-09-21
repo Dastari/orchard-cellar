@@ -62,7 +62,7 @@ describe('furniture acquisition', () => {
     expect(reward.requiresKnowledge).toBe(true);
     expect(reward.output).toEqual({ item: `item:${id}`, count: 1 });
     expect(reward.stationRequirement).toEqual({ objectTag: 'station.workbench' });
-    expect(registry.items.get(`item:${id}`)?.economy).toEqual({ buy: 0, sell: 0 });
+    expect(registry.items.get(`item:${id}`)?.economy).toEqual({ buy: null, sell: 0 });
     expect(registry.items.has(`item:${id}_plan`)).toBe(false);
     expect(runtimeRecipeIdsUnlockedByBook(registry, `${id}_plan`)).toEqual([]);
     const allOffers = [...registry.shops.values()].flatMap(shop => shop.offers.map(offer => offer.item));

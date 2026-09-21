@@ -13,7 +13,7 @@ describe('Delve keepsake content contract', () => {
     expect(recipe).toMatchObject({ requiresKnowledge: true, stationRequirement: { objectTag: 'station.workbench' },
       inputs: [{ item: 'item:stone', count: 4 }, { item: 'item:fiber', count: 8 }, { item: 'item:sunflower', count: 2 }] });
     expect(runtimeRecipeDefinition(registry, 'delver_memorial_planter')?.requiresKnowledge).toBe(true);
-    expect(registry.items.get(recipe.output.item)?.economy?.sell).toBe(0);
+    expect(registry.items.get(recipe.output.item)?.economy).toEqual({ buy: null, sell: 0 });
     const object = registry.objects.get('object:delver_memorial_planter')!;
     expect(object.components.placement?.spaces).toEqual(['residence']);
     expect(hearthFurnitureShapeFromDefinition(object)).not.toBeNull();
@@ -24,11 +24,19 @@ describe('Delve keepsake content contract', () => {
     const recipe = registry.recipes.get('recipe:delver_memorial_planter')!;
     expect(delveCompletionRewardError(definitions.filter(d => d.id !== reward.id))).toBeNull();
     expect(delveCompletionRewardError([...definitions, { ...reward, id: 'item:duplicate_reward' }])).toContain('at most one');
-    expect(delveCompletionRewardError(definitions.map(d => d.id === reward.id ? { ...reward, economy: { buy: 0, sell: 10 } } : d)))
+    expect(delveCompletionRewardError(definitions.map(d => d.id === reward.id ? { ...reward, economy: { buy: null, sell: 10 } } : d)))
       .toContain('non-saleable');
     expect(delveCompletionRewardError(definitions.map(d => d.id === recipe.id ? { ...recipe, requiresKnowledge: false } : d)))
       .toContain('knowledge-gated');
     const items = new Map(registry.items); items.set(reward.id, { ...reward, retired: true });
+    expect(delveCompletionRecipe({ ...registry, items })).toBeNull();
+  });
+  it.each([0, 1, 100])('rejects numeric purchase price %i in authored and runtime rewards', buy => {
+    const reward = registry.items.get('item:delver_memorial_planter')!;
+    const buyable = { ...reward, economy: { buy, sell: 0 } };
+    expect(delveCompletionRewardError(definitions.map(d => d.id === reward.id ? buyable : d)))
+      .toContain('nonbuyable');
+    const items = new Map(registry.items); items.set(reward.id, buyable);
     expect(delveCompletionRecipe({ ...registry, items })).toBeNull();
   });
   it('reads only bounded completion receipts and never treats arbitrary quest flags as wins', () => {

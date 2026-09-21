@@ -34,7 +34,7 @@ describe('base furniture catalogue contracts', () => {
       expect(object.components.collision?.blocksMovement).toBe(shape.base !== undefined);
       expect(object.components.collision?.when).toBeUndefined();
       expect(runtimeHomesteadBuildDefinition(registry, { kind: shape.id, definitionId: object.id })).toBeNull();
-      if (earnedKeepsake) expect(item.economy).toEqual({ buy: 0, sell: 0 });
+      if (earnedKeepsake) expect(item.economy).toEqual({ buy: null, sell: 0 });
       else expect(item.economy.sell).toBeLessThan(item.economy.buy!);
     }
   });
