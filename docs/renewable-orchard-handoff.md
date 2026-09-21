@@ -29,3 +29,18 @@ guard remains unchanged and no live deployment occurred.
 Cumulative focused validation passed 147 tests across 37 files, covering all four
 connected loops, edible/lifecycle ownership, exact content manifests and default
 quality projection. Checked world build and production client build pass.
+
+## Reviewed main integration
+
+Main `2aee1799` icon and Crafting UI updates are retained through Orders
+`52b00ffc`. Version remains 0.12.0. Content has 907 definitions, hash `605f1cb9`,
+and 548,186 runtime bytes within the unchanged 536 KiB ceiling. Lifecycle revision
+18 and all 148 handlers are unchanged; all earlier gameplay and schema fields
+remain present. Main's premium icon importer and structural UI baseline are preserved.
+
+Validation after main integration: 210 focused tests across 21 files pass, including
+main UI seam checks and premium source-pixel checks using existing licensed-art
+source symlinks. Lifecycle integrity and canonical content validation pass. The
+Orders predecessor passes all workspace typechecks, lint and checked world/client
+builds; the coordinator runs final cumulative gates after this metadata-only merge.
+No deployment.

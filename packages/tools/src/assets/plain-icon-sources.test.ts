@@ -38,9 +38,9 @@ describe('plain imported icon variants', () => {
       expect(asset?.sourceRegions?.base, entry.asset).toEqual([entry.sourceRegion]);
     }
     // Native tool artwork was separately approved; this crop/gem correction
-    // must never redirect any of the 24 tool icons to imported outline sheets.
+    // must never redirect the axe/hoe/pickaxe families; premium shovels have a separate import.
     for (const material of ['wood', 'stone', 'copper', 'gold', 'silver', 'iron']) {
-      for (const tool of ['axe', 'hoe', 'pickaxe', 'shovel']) {
+      for (const tool of ['axe', 'hoe', 'pickaxe']) {
         const name = `icon_tool_${material}_${tool}`;
         expect(assets.get(name)?.sourcePath, name).toBe(`art/custom/tool-progression/${name}.png`);
       }

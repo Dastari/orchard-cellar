@@ -780,7 +780,34 @@ describe('overworld retained UI layout', () => {
     expect(touchLayout.craftingButton).toEqual(layout.craftingButton);
   });
 
-  it('opens inventory from the purse and crafting from the shared desktop ghost tool button', () => {
+  it.each([[320, 568], [480, 270], [600, 900]])('styles crafting like Build with a distinct icon at %sx%s', (width, height) => {
+    const craftingIcon = {} as UiSkin['craftingIcon'];
+    const ui = new OverworldUi({ craftingIcon } as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
+    ui.update({ width, height, connected: true, touchControls: true,
+      playerCount: 1, selectedSlot: 0, inventory: [], hasBackpack: false,
+      audioVolumes: { master: 1, music: 1, sfx: 1 }, canAdministerWorld: false,
+      dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
+      raining: false, weatherMode: 'auto', prompt: null, toast: null });
+    const layout = overworldUiLayout(width, height);
+    expect([layout.craftingButton.width, layout.craftingButton.height])
+      .toEqual([layout.buildButton.width, layout.buildButton.height]);
+    const internal = ui as unknown as { drawHudIconButton: (...args: unknown[]) => void };
+    const draw = vi.spyOn(internal, 'drawHudIconButton').mockImplementation(() => {});
+    const context = {} as CanvasRenderingContext2D;
+    ui.drawCraftingControl(context);
+    expect(draw).toHaveBeenLastCalledWith(context, layout.craftingButton, false, craftingIcon);
+    const point = { x: layout.craftingButton.x + 12, y: layout.craftingButton.y + 12 };
+    ui.pointerMove(point);
+    ui.drawCraftingControl(context);
+    expect(draw).toHaveBeenLastCalledWith(context, layout.craftingButton, true, craftingIcon);
+    expect(ui.pointerDown(point, 0)).toBe(true);
+    expect(ui.openWindow).toBe('crafting');
+    draw.mockClear();
+    ui.drawCraftingControl(context);
+    expect(draw).not.toHaveBeenCalled();
+  });
+
+  it('opens inventory from the purse and crafting from the framed crafting button', () => {
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, callbacks());
     ui.update({
       width: 600, height: 900, connected: true,

@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { loadAssets, workspaceRoot } from './load.js';
 
 describe('plain native tool icons', () => {
-  it('retains exact plain master provenance for the hammer and legacy shovel', async () => {
+  it('uses premium tool provenance for the hammer and legacy shovel', async () => {
     const assets = await loadAssets();
-    for (const [name, x] of [['icon_cf_hammer', 32], ['icon_cf_shovel', 0]] as const) {
+    for (const [name, x, y] of [['icon_cf_hammer', 0, 560], ['icon_cf_shovel', 16, 128]] as const) {
       const asset = assets.find((candidate) => candidate.name === name)!;
-      expect(asset.sourcePath).toBe('references/art/orchard-originals/tools/Tool_Icons_Extra_NO_Outline.png');
-      expect(asset.sourceRegion).toEqual([x, 0, 16, 16]);
+      expect(asset.sourcePath).toBe('references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png');
+      expect(asset.sourceRegion).toEqual([x, y, 16, 16]);
       expect(asset.sourcePaletteMode).toBe('exact');
       expect(Object.values(asset.sourcePalette!)).not.toContain('#f2e3c2');
     }

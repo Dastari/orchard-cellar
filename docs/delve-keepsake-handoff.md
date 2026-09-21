@@ -10,7 +10,7 @@
 
 ## Stacked integration
 
-Merged the reviewed Orchard stack (32b5fbd7), retaining compost, provisions, village milestones, renewable trees, lifecycle revision 18 and regenerated additive bindings. The cumulative pack has 911 definitions, fingerprint `9c3c99cd`, and 549,839 runtime payload bytes. Delve adds 1,645 bytes; the measured cap is the next whole KiB (537 KiB). Reviewed ownership is 340 items: 148 callbacks, 90 inert, 69 data graphs, 33 furniture transactions; 53 foods remain unchanged.
+Merged the reviewed Orchard stack (32b5fbd7), retaining compost, provisions, village milestones, renewable trees, lifecycle revision 18 and regenerated additive bindings. The cumulative pack has 911 definitions, fingerprint `ceeaa585`, and 549,831 runtime payload bytes. Delve adds 1,645 bytes; the measured cap is the next whole KiB (537 KiB). Reviewed ownership is 340 items: 148 callbacks, 90 inert, 69 data graphs, 33 furniture transactions; 53 foods remain unchanged.
 
 Stack checks passed: 56 focused tests across 13 files, all workspace typechecks, lint, lifecycle integrity, content validation and world/client builds. The inherited secondary-registration golden is 158, including both village meals. Root coordinates the final full suite on the economy tip.
 
@@ -22,3 +22,7 @@ Phase-zero seam review compared all five pinned sources against Orchard `666ef9f
 Commerce regression followup authors the earned planter with `buy: null, sell: 0`; both validation and runtime reward resolution reject any numeric purchase price, including zero. Existing commerce assertions remain unchanged. The three extra transport bytes keep the cumulative pack within the existing 537 KiB cap.
 
 Commerce followup validation passed: 33 focused tests across nine files, all workspace typechecks, changed-file lint, source content validation, lifecycle integrity and sim/world builds.
+
+Main-update integration: merged Orchard `b8870362`, including reviewed main `2aee1799` Kenmi icons and Crafting HUD. Compared all five structural seams against new main: only the Delve admission string differs; the independently calculated combined digest is pinned with both reviews. Preserved exclusive `buy: null` reward validation and the premium-icon extraction script. Updated content/Studio fingerprints to `ceeaa585` (911 definitions, 549,831 bytes, still within 537 KiB). Root owns final cumulative broad checks.
+
+Updated-main merge validation: 174 tests across 14 files passed, including combined structural seams, Crafting HUD, premium source pixels, commerce, keepsake authority and content. Source content validation and conflict-resolution-file lint passed; no broad suite was repeated.
