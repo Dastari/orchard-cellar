@@ -1484,6 +1484,7 @@ export const WorldCrop = __t.object("WorldCrop", {
   growthTicks: __t.u64(),
   growthUpdatedAtTick: __t.u64(),
   spaceId: __t.u16(),
+  composted: __t.bool(),
 });
 export type WorldCrop = __Infer<typeof WorldCrop>;
 

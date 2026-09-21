@@ -1,17 +1,17 @@
 {
   "format": "orchard-reviewed-inert-items-v1",
   "reviewedAgainst": {
-    "bootstrapItemCount": 336,
-    "lifecycleRevision": 16,
-    "lifecycleBundleSha256": "89847b691d1b253f03311054ed6fb9bd77750991dffa9b762699112e8d9eacca",
-    "authoredCallbackCount": 145,
+    "bootstrapItemCount": 337,
+    "lifecycleRevision": 17,
+    "lifecycleBundleSha256": "952bf8a37c887c2a969ec44f5f5e9a72e31897c009005c7449ab98ea60a7f865",
+    "authoredCallbackCount": 146,
     "inertItemCount": 90,
     "dataGraphItemCount": 69,
     "transactionItemCount": 32
   },
   "reattestation": {
     "date": "2026-09-21",
-    "note": "Promote all 22 preserved crops from inert to generated food callbacks; the other 90 inert items remain unchanged. Each preserve now has food metadata, full-hunger rejection, one-item consumption and food_eaten statistics."
+    "note": "One Compost callback and 22 preserved food callbacks connect pressing, farming and expeditions. The remaining 90 reviewed inert items retain their classifications."
   },
   "groups": [
     {

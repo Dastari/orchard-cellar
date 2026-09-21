@@ -46,7 +46,7 @@ describe('single authored item callback ownership', () => {
   });
 
   it('merges hoe and watering-can farm and repair lanes without semantic drift', () => {
-    expect(source.revision).toBe(16);
+    expect(source.revision).toBe(17);
     for (const itemId of ['item:hoe', 'item:watering_can']) {
       const handlers = source.handlers.filter((handler) => handler.itemId === itemId);
       expect(handlers, itemId).toHaveLength(1);

@@ -499,3 +499,6 @@ Cooked fish retains 24 Hunger and cooked meat 28–40, preserving their roles. B
 yield, cure duration, sale values and village orders are unchanged. Ordinary food is
 still prohibited inside isolated Delve runs. See
 [preserved provisions](preserved-provisions-spec.md) for the implementation contract.
+## Pomace compost balance amendment (0.9.0)
+
+Four Pomace and one Fiber handcraft into one Compost. A growing crop accepts one application per planting, advancing settled growth by **25% of its required growth ticks, rounded down**, capped at maturity. Watering, crop seasons and harvest quantity are unchanged. A successful application records one `compost_applied` statistic and grants no XP; rejected or repeated treatment consumes nothing and records nothing. Compost sells for 4 bronze, below its ingredient value, to preserve growing as its intended use.

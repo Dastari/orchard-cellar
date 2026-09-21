@@ -1,7 +1,7 @@
 {
   "format": "orchard-lifecycle-source-v1",
   "bundleId": "repository-baseline-item-on-use",
-  "revision": 16,
+  "revision": 17,
   "engineApiVersion": 1,
   "handlers": [
     {
@@ -190,6 +190,16 @@
         "place"
       ],
       "source": "if (context.event.type !== 'place') context.block('placement_tile_required');\nelse {\n  const targetTile = context.tile;\n  if (targetTile === undefined) context.block('placement_tile_required');\n  else {\n    context.emit({ spawnObject: { definitionId: 'object:chest', at: targetTile } });\n    context.item.consume();\n  }\n}"
+    },
+    {
+      "itemId": "item:compost",
+      "id": "item:compost.on_use",
+      "event": "onUse",
+      "prompt": "COMPOST CROP (+25% GROWTH, ONCE PER PLANTING)",
+      "triggers": [
+        "place"
+      ],
+      "source": "const targetTile = context.tile;\nif (targetTile === undefined) context.block('farm_tile_required');\nelse {\n  context.emit({ compostCrop: targetTile });\n  context.item.consume();\n  context.emit({ statistic: { kind: 'compost_applied' } });\n}"
     },
     {
       "itemId": "item:cooked_beef",
