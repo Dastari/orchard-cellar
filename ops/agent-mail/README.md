@@ -37,7 +37,11 @@ The installer verifies a pinned release hash, installs binaries into
 `orchard-agent-mail.service`. Re-running it preserves persistent state.
 It refuses to replace command links belonging to another installation.
 Checked-in `.codex/config.toml` and `.mcp.json` connect Codex and Claude Code
-respectively when this branch is checked out (and after merge). Codex requires a
+respectively when this branch is checked out (and after merge). `AGENTS.md` gives
+the startup sequence; `CLAUDE.md` imports it so Claude reads the same instructions.
+A separate skill is unnecessary for this always-applicable startup routine.
+These are agent instructions, not a hook that forcibly executes MCP calls.
+Codex requires a
 trusted project; Claude may require approving the project MCP server.
 For existing worktrees without these files, register the same endpoint locally:
 

@@ -75,10 +75,29 @@ For every task:
 
 The task is not considered complete until the PR exists.
 
-## Agent Mail coordination
+## Agent Mail startup and coordination
 
-Use the shared local MCP Agent Mail server for inbox checks and advisory file
-reservations. All worktrees use `/home/toby/projects/orchard-cellar` as the project
-key. Register a distinct session identity; check conflicts before editing and
-release reservations on completion. Follow user messaging permissions.
+At the start of every project session, before editing files:
+
+1. Connect to the configured `mcp_agent_mail` MCP server at
+   `http://127.0.0.1:8765/mcp/` and call `health_check`.
+2. Call `ensure_project` with `human_key` set to
+   `/home/toby/projects/orchard-cellar`. Use this same canonical `project_key`
+   across all worktrees; never substitute the current branch's worktree path.
+3. Call `register_agent` with your actual program/model and task description.
+   Omit `name` to get a distinct session identity; retain the returned name.
+4. Call `fetch_inbox` for that identity and inspect active reservations using
+   `resource://file_reservations/{slug}?active_only=true`, using the `slug`
+   returned by `ensure_project`.
+5. Before edits, call `file_reservation_paths` for the specific paths/globs you
+   will change. Check returned conflicts and resolve overlap before proceeding.
+   Renew leases during long work and release them with
+   `release_file_reservations` at completion or handoff.
+
+If the local service is unavailable, run
+`systemctl --user start orchard-agent-mail.service` and retry the health check.
+If tools are missing from the session, report that the client needs a restart;
+do not claim registration or reservation succeeded. Read-only investigation can
+continue while connection problems are resolved. Follow user messaging permissions.
+
 Setup, recovery and client configuration: [Agent Mail runbook](ops/agent-mail/README.md).
