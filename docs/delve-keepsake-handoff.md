@@ -13,3 +13,6 @@
 Merged the reviewed Orchard stack (32b5fbd7), retaining compost, provisions, village milestones, renewable trees, lifecycle revision 18 and regenerated additive bindings. The cumulative pack has 911 definitions, fingerprint `739112ea`, and 549,836 runtime payload bytes. Delve adds 1,642 bytes; the measured cap is the next whole KiB (537 KiB). Reviewed ownership is 340 items: 148 callbacks, 90 inert, 69 data graphs, 33 furniture transactions; 53 foods remain unchanged.
 
 Stack checks passed: 56 focused tests across 13 files, all workspace typechecks, lint, lifecycle integrity, content validation and world/client builds. The inherited secondary-registration golden is 158, including both village meals. Root coordinates the final full suite on the economy tip.
+
+
+Furniture-catalog regression followup explicitly partitions 32 purchasable plan-backed pieces and one earned keepsake, retains common residence/footprint/noncombat constraints for all 33, checks the unique art identity and zero-value economy, and proves the keepsake and a plan are absent from all shops. Homestead palette tests include the earned residence-only shape without adding it to outdoor construction.
