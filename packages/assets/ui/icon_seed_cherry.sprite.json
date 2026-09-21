@@ -1,0 +1,71 @@
+{
+  "name": "icon_seed_cherry",
+  "category": "ui",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "....00000000....",
+        "...0aaaaa8880...",
+        "...0a88888860...",
+        "...00a8666600...",
+        "...0a00000060...",
+        "...0a88833860...",
+        "...0a88315360...",
+        "...0a83433860...",
+        "...0a39238860...",
+        "...0a83373860...",
+        "...0a88838660...",
+        "....0aa86660....",
+        ".....000000.....",
+        "................"
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "state"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+  "sourceRegion": [
+    0,
+    176,
+    16,
+    16
+  ],
+  "importedFrom": "Farming_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#5ac54f",
+    "2": "#5d2c28",
+    "3": "#731144",
+    "4": "#8a4836",
+    "5": "#99e65f",
+    "6": "#bf6f4a",
+    "7": "#c42430",
+    "8": "#e69c69",
+    "9": "#ea323c",
+    "a": "#f6ca9f"
+  },
+  "approved": true,
+  "tags": [
+    "ui.icon",
+    "item.seed",
+    "seed.orchard",
+    "fruit.cherry",
+    "source.kenmi"
+  ],
+  "placement": {
+    "layer": "ui",
+    "builderAvailable": false
+  }
+}

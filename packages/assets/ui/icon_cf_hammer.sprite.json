@@ -13,20 +13,20 @@
     "base": [
       [
         "................",
-        "................",
-        ".......000000...",
-        "......0555440...",
-        "......0544420...",
-        "......0442220...",
-        ".......00300....",
-        "........0310....",
-        ".......0310.....",
-        "......0310......",
-        ".....0310.......",
-        "....0310........",
-        "...0310.........",
-        "...010..........",
-        "....00..........",
+        "........00......",
+        ".......013000...",
+        ".......0013350..",
+        ".........013880.",
+        ".........015580.",
+        "........010880..",
+        ".......030.00...",
+        ".....0050.......",
+        "....0640........",
+        "...07420........",
+        "..07420.........",
+        ".06420..........",
+        ".0420...........",
+        "..00............",
         "................"
       ]
     ]
@@ -34,33 +34,35 @@
   "frameKinds": {
     "base": "state"
   },
-  "lintAllow": [
-    "sparkle"
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+  "sourceRegion": [
+    0,
+    560,
+    16,
+    16
   ],
+  "importedFrom": "Tools_all_16x16.png",
+  "sourcePaletteMode": "exact",
+  "sourcePalette": {
+    "0": "#000000",
+    "1": "#5a6988",
+    "2": "#8a4836",
+    "3": "#8b9bb4",
+    "4": "#bf6f4a",
+    "5": "#c0cbdc",
+    "6": "#e69c69",
+    "7": "#f6ca9f",
+    "8": "#ffffff"
+  },
+  "approved": true,
   "tags": [
     "ui.icon",
-    "item.tool"
+    "item.tool",
+    "tool.hammer",
+    "source.kenmi"
   ],
   "placement": {
     "layer": "ui",
     "builderAvailable": false
-  },
-  "approved": true,
-  "sourcePath": "references/art/orchard-originals/tools/Tool_Icons_Extra_NO_Outline.png",
-  "importedFrom": "Tool_Icons_Extra_NO_Outline.png",
-  "sourceRegion": [
-    32,
-    0,
-    16,
-    16
-  ],
-  "sourcePaletteMode": "exact",
-  "sourcePalette": {
-    "0": "#1a1210",
-    "1": "#6b4423",
-    "2": "#6e6a75",
-    "3": "#8a5b3c",
-    "4": "#969099",
-    "5": "#c4bec6"
   }
 }
