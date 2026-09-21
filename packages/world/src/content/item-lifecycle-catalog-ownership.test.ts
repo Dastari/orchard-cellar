@@ -116,13 +116,13 @@ describe('bootstrap item lifecycle catalog ownership', () => {
 
     expect(inertManifest.format).toBe('orchard-reviewed-inert-items-v1');
     expect(lifecycleSource.revision).toBe(15);
-    expect(items).toHaveLength(336);
+    expect(items).toHaveLength(337);
     expect(callbackIds).toHaveLength(123);
     expect(inertIds).toHaveLength(112);
     expect(inertManifest.reviewedAgainst).toEqual({
-      bootstrapItemCount: 336,
+      bootstrapItemCount: 337,
       dataGraphItemCount: 69,
-      transactionItemCount: 32,
+      transactionItemCount: 33,
       lifecycleRevision: 15,
       lifecycleBundleSha256: AUTHORED_LIFECYCLE_BUNDLE_SHA256,
       authoredCallbackCount: 123,
@@ -199,7 +199,7 @@ it('proves the additional action owners against the actual registry and resolved
   const runtime = objectGraphRegistryForContent(code, {key:'four-owner-audit',revision:1n,contentHash:built.registry.contentHash,registry:built.registry},1);
   expect(actionOwners.format).toBe('orchard-reviewed-item-action-owners-v1');
   expect(actionOwners.dataGraph.itemIds).toHaveLength(69);
-  expect(actionOwners.furnitureTransactions.itemIds).toHaveLength(32);
+  expect(actionOwners.furnitureTransactions.itemIds).toHaveLength(33);
   for(const id of actionOwners.dataGraph.itemIds) {
     const item=built.registry.items.get(id)!;
     expect(item.retired,id).not.toBe(true);

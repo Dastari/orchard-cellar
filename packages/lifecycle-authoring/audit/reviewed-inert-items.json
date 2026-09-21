@@ -1,17 +1,17 @@
 {
   "format": "orchard-reviewed-inert-items-v1",
   "reviewedAgainst": {
-    "bootstrapItemCount": 336,
+    "bootstrapItemCount": 337,
     "lifecycleRevision": 15,
     "lifecycleBundleSha256": "ae8df218d8e82d118f7577b738bff25fcce78f6467c4b38eb880e2f24b8b5b75",
     "authoredCallbackCount": 123,
     "inertItemCount": 112,
     "dataGraphItemCount": 69,
-    "transactionItemCount": 32
+    "transactionItemCount": 33
   },
   "reattestation": {
-    "date": "2026-09-16",
-    "note": "The 123 actionable callback item IDs and all 112 previously reviewed inert classifications are unchanged. Revision 15 routes the 24 existing swing tools through server contact discovery, including secondary triggers for six hoes. No inert item gained a capability.",
+    "date": "2026-09-21",
+    "note": "The 123 actionable callback item IDs and all 112 previously reviewed inert classifications are unchanged. Revision 15 routes the 24 existing swing tools through server contact discovery, including secondary triggers for six hoes. No inert item gained a capability. Delve completion adds one furniture-transaction item, the Delver Memorial Planter; callbacks and inert classifications remain unchanged.",
     "inertClassificationSha256": "9adecf598f35a29517e2a121b44c384bcc5e60650a2b9004810f0b77d70397fa"
   },
   "groups": [
