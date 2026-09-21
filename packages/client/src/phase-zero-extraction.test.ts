@@ -143,7 +143,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // dwell, and real item-label regressions accompany this re-capture.
 // Mobile build access adds the reviewed hammer HUD callback and overlay hit priority.
 // Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
-const STRUCTURAL_SEAM_DIGEST = '1dd4de931dc46d0392312b2a7f9ff6bafd14514d5480e3b3e4c3ff8f4eb60802';
+// Kenmi icon refresh shares Build/Crafting button chrome and preserves purse inventory.
+// Review: docs/reference-assets/kenmi-icon-implementation.md; HUD interaction tests cover the change.
+const STRUCTURAL_SEAM_DIGEST = '348dbb56aabdb3050aca2b686f0187599cfa64ac1fc6e30831322ebe844fc438';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

@@ -13,20 +13,20 @@
     "base": [
       [
         "................",
-        "..........000...",
-        ".........02210..",
-        ".........02.10..",
-        ".........02110..",
-        ".........0210...",
-        "........0210....",
-        ".......0210.....",
-        "....AAA210......",
-        "...ADCCA0.......",
-        "..ADCCCBA.......",
-        ".ADCCCBA........",
-        ".ACCCBA.........",
-        ".ABBBA..........",
-        "..AAA...........",
+        "...........00...",
+        "..........0700..",
+        ".........070110.",
+        "........05012240",
+        ".......050122460",
+        ".......03024460.",
+        "......03006660..",
+        ".....050.0000...",
+        "....070.........",
+        "...070..........",
+        "..070...........",
+        "0050............",
+        "030.............",
+        "000.............",
         "................"
       ]
     ]
@@ -34,37 +34,35 @@
   "frameKinds": {
     "base": "state"
   },
+  "sourcePath": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+  "sourceRegion": [
+    16,
+    128,
+    16,
+    16
+  ],
+  "importedFrom": "Tools_all_16x16.png",
+  "sourcePaletteMode": "exact",
   "sourcePalette": {
-    "0": "#4b2d23",
-    "1": "#9c6034",
-    "2": "#d39a52",
-    "A": "#2d3846",
-    "B": "#536b7c",
-    "C": "#8faaba",
-    "D": "#d5e1e4"
+    "0": "#000000",
+    "1": "#424c6e",
+    "2": "#6c7c9d",
+    "3": "#8a4836",
+    "4": "#8e9ab4",
+    "5": "#bf6f4a",
+    "6": "#c0cbdc",
+    "7": "#e69c69"
   },
+  "approved": true,
   "tags": [
     "ui.icon",
     "item.tool",
-    "source.orchard_original",
-    "tool.material.iron"
+    "tool.shovel",
+    "tool.material.iron",
+    "source.kenmi"
   ],
   "placement": {
     "layer": "ui",
     "builderAvailable": false
-  },
-  "approved": true,
-  "importedFrom": "icon_tool_iron_shovel.png",
-  "sourcePath": "art/custom/tool-progression/icon_tool_iron_shovel.png",
-  "sourcePaletteMode": "exact",
-  "sourceRegions": {
-    "base": [
-      [
-        0,
-        0,
-        16,
-        16
-      ]
-    ]
   }
 }

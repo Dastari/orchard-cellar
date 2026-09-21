@@ -1479,7 +1479,7 @@
       },
       {
         "id": "orchard_seed_saver",
-        "iconAsset": "icon_skill_seed_saver",
+        "iconAsset": "icon_skill_orchard_seed_saver",
         "track": "farming",
         "name": "Orchard Seed Saver",
         "description": "Mature fruit-tree harvests have a 5% chance to drop a matching plantable seed. Add 10 percentage points per rank: 15%, 25%, 35%.",

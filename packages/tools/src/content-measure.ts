@@ -10,7 +10,7 @@ import {
 // stations: measured 536,710 bytes, up 175 bytes (0.03%). Keep the budget at
 // the next whole KiB.
 // 0.10.0 adds food metadata and matching eat graphs for22 preserved crops.
-// Compost, provisions, meals and renewable orchard loot: 548,194 bytes; next whole KiB.
+// Compost, provisions, meals and renewable orchard loot: 548,186 bytes; next whole KiB.
 export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 536 * 1024;
 
 export interface ContentPackMeasurement {
