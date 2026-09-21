@@ -14,7 +14,7 @@ describe('UI lab coverage ledger', () => {
   it('tracks every live migration candidate exactly once', () => {
     const ids = UI_LAB_MIGRATION_SURFACES.map((surface) => surface.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(UI_LAB_MIGRATION_SURFACES).toHaveLength(27);
+    expect(UI_LAB_MIGRATION_SURFACES).toHaveLength(33);
     expect(new Set(UI_LAB_MIGRATION_SURFACES.map((surface) => surface.category))).toEqual(new Set([
       'gateway', 'world', 'storage', 'progression', 'social', 'menu',
     ]));

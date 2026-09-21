@@ -1,3 +1,4 @@
+import { kitElement, kitElements, pressKit } from '../kit-test-driver.js';
 import {
   createLiveIslandMapDocument,
   mapDocumentV3Hash,
@@ -70,20 +71,18 @@ describe('Map Canvas automatic publication', () => {
     retained.model.paintBiome([{ tileX: 400, tileY: 400 }], 'forest');
     let surface = buildMapCanvasTool(context);
     expect(retained.autoPublishEnabled).toBe(false);
-    expect(surface.nodes.find(({ id }) => id === 'map-auto-publish')).toMatchObject({
-      symbol: 'cloudConnect', state: 'idle', label: undefined,
+    expect(kitElement(surface, 'map-auto-publish')).toMatchObject({
+      kind:'checkbox',props:{value:false},
     });
-    expect(surface.actions.find(({ id }) => id === 'map-auto-publish')?.label)
-      .toContain('AUTO PUBLISH OFF');
-    expect(surface.nodes.find(({ id }) => id === 'map-map-stats')?.label).toContain('AUTO OFF');
+    expect(kitElements(surface).some(node=>node.label.includes('AUTO PUBLISH OFF'))).toBe(true);
+    expect(kitElement(surface, 'map-map-stats')?.label).toContain('AUTO OFF');
     await vi.advanceTimersByTimeAsync(1_000);
     expect(publishMap).not.toHaveBeenCalled();
 
-    surface.actions.find(({ id }) => id === 'map-auto-publish')?.activate();
+    pressKit(surface, 'map-auto-publish');
     surface = buildMapCanvasTool(context);
-    expect(surface.nodes.find(({ id }) => id === 'map-auto-publish')?.state).toBe('active');
-    expect(surface.actions.find(({ id }) => id === 'map-auto-publish')?.label)
-      .toContain('250 ms');
+    expect(kitElement(surface, 'map-auto-publish')?.props['value']).toBe(true);
+    expect(kitElements(surface).some(node=>node.label.includes('250 ms'))).toBe(true);
     await vi.advanceTimersByTimeAsync(MAP_AUTO_PUBLISH_DEBOUNCE_MS - 1);
     retained.model.paintBiome([{ tileX: 401, tileY: 400 }], 'forest');
     buildMapCanvasTool(context);
@@ -98,8 +97,8 @@ describe('Map Canvas automatic publication', () => {
     const { context, retained, publishMap } = await harness();
     retained.model.paintBiome([{ tileX: 400, tileY: 400 }], 'forest');
     const surface = buildMapCanvasTool(context);
-    expect(surface.actions.find(({ id }) => id === 'map-publish')).toMatchObject({ disabled: false });
-    surface.actions.find(({ id }) => id === 'map-publish')?.activate();
+    expect(kitElement(surface, 'map-publish')).toMatchObject({ disabled: false });
+    pressKit(surface, 'map-publish');
     await vi.waitFor(() => expect(publishMap).toHaveBeenCalledTimes(1));
     expect(retained.autoPublishEnabled).toBe(false);
   });
@@ -109,7 +108,7 @@ describe('Map Canvas automatic publication', () => {
     const { context, retained, publishMap } = await harness();
     retained.model.paintBiome([{ tileX: 400, tileY: 400 }], 'forest');
     let surface = buildMapCanvasTool(context);
-    surface.actions.find(({ id }) => id === 'map-auto-publish')?.activate();
+    pressKit(surface, 'map-auto-publish');
     surface = buildMapCanvasTool(context);
     surface.lifecycle?.dispose();
     await vi.advanceTimersByTimeAsync(1_000);

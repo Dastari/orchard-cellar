@@ -12,8 +12,8 @@ describe('Object Studio placement mode', () => {
   });
 
   it('requires an explicit semantic action for every stamp', () => {
-    expect(studio).toContain("'Stamp sample object piece'");
+    expect(studio).toContain("'Place asset'");
     expect(studio).toContain('model.stamp({');
-    expect(studio).toContain("role: 'option'");
+    expect(studio).toContain("ui.list({id:'object-prefab-pieces'");
   });
 });

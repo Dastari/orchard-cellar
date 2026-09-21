@@ -1,0 +1,1157 @@
+[
+  {
+    "name": "ui_cf_kit_frame_orange",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      8,
+      8
+    ],
+    "grid": [
+      14,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "shadow_chamfered",
+      "shadow_round",
+      "idle",
+      "shadow_pill",
+      "raised_chamfered",
+      "raised_round",
+      "raised_square",
+      "raised_pill",
+      "bevel_chamfered",
+      "bevel_square",
+      "bevel_pill",
+      "flat_chamfered",
+      "flat_square",
+      "flat_pill"
+    ],
+    "slice": [
+      10,
+      10,
+      10,
+      12
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_tag_orange",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      728,
+      8
+    ],
+    "grid": [
+      4,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "left_round",
+      "down_right",
+      "down_left",
+      "left_square"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_frame_blue_grey",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      8,
+      56
+    ],
+    "grid": [
+      14,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "shadow_chamfered",
+      "shadow_round",
+      "idle",
+      "shadow_pill",
+      "raised_chamfered",
+      "raised_round",
+      "raised_square",
+      "raised_pill",
+      "bevel_chamfered",
+      "bevel_square",
+      "bevel_pill",
+      "flat_chamfered",
+      "flat_square",
+      "flat_pill"
+    ],
+    "slice": [
+      10,
+      10,
+      10,
+      12
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_tag_blue_grey",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      728,
+      56
+    ],
+    "grid": [
+      4,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "left_round",
+      "down_right",
+      "down_left",
+      "left_square"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_frame_green",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      8,
+      104
+    ],
+    "grid": [
+      14,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "shadow_chamfered",
+      "shadow_round",
+      "idle",
+      "shadow_pill",
+      "raised_chamfered",
+      "raised_round",
+      "raised_square",
+      "raised_pill",
+      "bevel_chamfered",
+      "bevel_square",
+      "bevel_pill",
+      "flat_chamfered",
+      "flat_square",
+      "flat_pill"
+    ],
+    "slice": [
+      10,
+      10,
+      10,
+      12
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_tag_green",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      728,
+      104
+    ],
+    "grid": [
+      4,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "left_round",
+      "down_right",
+      "down_left",
+      "left_square"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_frame_blue",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      8,
+      152
+    ],
+    "grid": [
+      14,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "shadow_chamfered",
+      "shadow_round",
+      "idle",
+      "shadow_pill",
+      "raised_chamfered",
+      "raised_round",
+      "raised_square",
+      "raised_pill",
+      "bevel_chamfered",
+      "bevel_square",
+      "bevel_pill",
+      "flat_chamfered",
+      "flat_square",
+      "flat_pill"
+    ],
+    "slice": [
+      10,
+      10,
+      10,
+      12
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_tag_blue",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      728,
+      152
+    ],
+    "grid": [
+      4,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "left_round",
+      "down_right",
+      "down_left",
+      "left_square"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_frame_gold",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      8,
+      200
+    ],
+    "grid": [
+      14,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "shadow_chamfered",
+      "shadow_round",
+      "idle",
+      "shadow_pill",
+      "raised_chamfered",
+      "raised_round",
+      "raised_square",
+      "raised_pill",
+      "bevel_chamfered",
+      "bevel_square",
+      "bevel_pill",
+      "flat_chamfered",
+      "flat_square",
+      "flat_pill"
+    ],
+    "slice": [
+      10,
+      10,
+      10,
+      12
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_tag_gold",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      728,
+      200
+    ],
+    "grid": [
+      4,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "left_round",
+      "down_right",
+      "down_left",
+      "left_square"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_frame_red",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      8,
+      248
+    ],
+    "grid": [
+      14,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "shadow_chamfered",
+      "shadow_round",
+      "idle",
+      "shadow_pill",
+      "raised_chamfered",
+      "raised_round",
+      "raised_square",
+      "raised_pill",
+      "bevel_chamfered",
+      "bevel_square",
+      "bevel_pill",
+      "flat_chamfered",
+      "flat_square",
+      "flat_pill"
+    ],
+    "slice": [
+      10,
+      10,
+      10,
+      12
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_tag_red",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      728,
+      248
+    ],
+    "grid": [
+      4,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "left_round",
+      "down_right",
+      "down_left",
+      "left_square"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_frame_magenta",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      8,
+      296
+    ],
+    "grid": [
+      14,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "shadow_chamfered",
+      "shadow_round",
+      "idle",
+      "shadow_pill",
+      "raised_chamfered",
+      "raised_round",
+      "raised_square",
+      "raised_pill",
+      "bevel_chamfered",
+      "bevel_square",
+      "bevel_pill",
+      "flat_chamfered",
+      "flat_square",
+      "flat_pill"
+    ],
+    "slice": [
+      10,
+      10,
+      10,
+      12
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_tag_magenta",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      36
+    ],
+    "origin": [
+      728,
+      296
+    ],
+    "grid": [
+      4,
+      1
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "left_round",
+      "down_right",
+      "down_left",
+      "left_square"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_parchment_plain",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      32
+    ],
+    "origin": [
+      1016,
+      8
+    ],
+    "grid": [
+      1,
+      3
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "idle",
+      "soft",
+      "rough"
+    ],
+    "slice": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_parchment_tacked",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      32
+    ],
+    "origin": [
+      1064,
+      8
+    ],
+    "grid": [
+      1,
+      3
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "idle",
+      "soft",
+      "rough"
+    ],
+    "slice": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_parchment_torn",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      32
+    ],
+    "origin": [
+      1112,
+      8
+    ],
+    "grid": [
+      1,
+      3
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "idle",
+      "soft",
+      "rough"
+    ],
+    "slice": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_grey_plain",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      32
+    ],
+    "origin": [
+      1160,
+      8
+    ],
+    "grid": [
+      1,
+      3
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "idle",
+      "soft",
+      "rough"
+    ],
+    "slice": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_grey_tacked",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      32
+    ],
+    "origin": [
+      1208,
+      8
+    ],
+    "grid": [
+      1,
+      3
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "idle",
+      "soft",
+      "rough"
+    ],
+    "slice": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_grey_torn",
+    "sheet": "UI_Frames.png",
+    "size": [
+      32,
+      32
+    ],
+    "origin": [
+      1256,
+      8
+    ],
+    "grid": [
+      1,
+      3
+    ],
+    "stride": [
+      48,
+      48
+    ],
+    "names": [
+      "idle",
+      "soft",
+      "rough"
+    ],
+    "slice": [
+      8,
+      8,
+      8,
+      8
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_equipment_peach",
+    "sheet": "UI_Frames.png",
+    "size": [
+      16,
+      16
+    ],
+    "origin": [
+      928,
+      208
+    ],
+    "grid": [
+      7,
+      1
+    ],
+    "stride": [
+      32,
+      16
+    ],
+    "names": [
+      "bag",
+      "head",
+      "ring",
+      "body",
+      "shield",
+      "legs",
+      "weapon"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_equipment_grey",
+    "sheet": "UI_Frames.png",
+    "size": [
+      16,
+      16
+    ],
+    "origin": [
+      928,
+      256
+    ],
+    "grid": [
+      7,
+      1
+    ],
+    "stride": [
+      32,
+      16
+    ],
+    "names": [
+      "bag",
+      "head",
+      "ring",
+      "body",
+      "shield",
+      "legs",
+      "weapon"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_equipment_brown",
+    "sheet": "UI_Frames.png",
+    "size": [
+      16,
+      16
+    ],
+    "origin": [
+      928,
+      304
+    ],
+    "grid": [
+      7,
+      1
+    ],
+    "stride": [
+      32,
+      16
+    ],
+    "names": [
+      "bag",
+      "head",
+      "ring",
+      "body",
+      "shield",
+      "legs",
+      "weapon"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_meter_dark_red",
+    "sheet": "UI_Bars.png",
+    "size": [
+      16,
+      8
+    ],
+    "origin": [
+      0,
+      32
+    ],
+    "grid": [
+      5,
+      2
+    ],
+    "stride": [
+      16,
+      8
+    ],
+    "names": [
+      "level_0",
+      "level_1",
+      "level_2",
+      "level_3",
+      "level_4",
+      "level_5",
+      "level_6",
+      "level_7",
+      "level_8",
+      "level_9"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_meter_light_red",
+    "sheet": "UI_Bars.png",
+    "size": [
+      16,
+      8
+    ],
+    "origin": [
+      0,
+      96
+    ],
+    "grid": [
+      5,
+      2
+    ],
+    "stride": [
+      16,
+      8
+    ],
+    "names": [
+      "level_0",
+      "level_1",
+      "level_2",
+      "level_3",
+      "level_4",
+      "level_5",
+      "level_6",
+      "level_7",
+      "level_8",
+      "level_9"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_meter_dark_blue",
+    "sheet": "UI_Bars.png",
+    "size": [
+      16,
+      8
+    ],
+    "origin": [
+      0,
+      48
+    ],
+    "grid": [
+      5,
+      2
+    ],
+    "stride": [
+      16,
+      8
+    ],
+    "names": [
+      "level_0",
+      "level_1",
+      "level_2",
+      "level_3",
+      "level_4",
+      "level_5",
+      "level_6",
+      "level_7",
+      "level_8",
+      "level_9"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_meter_light_blue",
+    "sheet": "UI_Bars.png",
+    "size": [
+      16,
+      8
+    ],
+    "origin": [
+      0,
+      80
+    ],
+    "grid": [
+      5,
+      2
+    ],
+    "stride": [
+      16,
+      8
+    ],
+    "names": [
+      "level_0",
+      "level_1",
+      "level_2",
+      "level_3",
+      "level_4",
+      "level_5",
+      "level_6",
+      "level_7",
+      "level_8",
+      "level_9"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_meter_dark_green",
+    "sheet": "UI_Bars.png",
+    "size": [
+      16,
+      8
+    ],
+    "origin": [
+      0,
+      64
+    ],
+    "grid": [
+      5,
+      2
+    ],
+    "stride": [
+      16,
+      8
+    ],
+    "names": [
+      "level_0",
+      "level_1",
+      "level_2",
+      "level_3",
+      "level_4",
+      "level_5",
+      "level_6",
+      "level_7",
+      "level_8",
+      "level_9"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_meter_light_green",
+    "sheet": "UI_Bars.png",
+    "size": [
+      16,
+      8
+    ],
+    "origin": [
+      0,
+      112
+    ],
+    "grid": [
+      5,
+      2
+    ],
+    "stride": [
+      16,
+      8
+    ],
+    "names": [
+      "level_0",
+      "level_1",
+      "level_2",
+      "level_3",
+      "level_4",
+      "level_5",
+      "level_6",
+      "level_7",
+      "level_8",
+      "level_9"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_meter_track_dark",
+    "sheet": "UI_Bars.png",
+    "size": [
+      16,
+      8
+    ],
+    "origin": [
+      80,
+      32
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "stride": [
+      16,
+      8
+    ],
+    "names": [
+      "idle"
+    ],
+    "slice": [
+      3,
+      3,
+      3,
+      3
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_meter_track_light",
+    "sheet": "UI_Bars.png",
+    "size": [
+      16,
+      8
+    ],
+    "origin": [
+      80,
+      80
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "stride": [
+      16,
+      8
+    ],
+    "names": [
+      "idle"
+    ],
+    "slice": [
+      3,
+      3,
+      3,
+      3
+    ],
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_vitals_compact",
+    "sheet": "UI_Bars.png",
+    "size": [
+      48,
+      24
+    ],
+    "origin": [
+      256,
+      0
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "stride": [
+      48,
+      24
+    ],
+    "names": [
+      "idle"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_toast",
+    "sheet": "UI_Pop_Up.png",
+    "size": [
+      24,
+      24
+    ],
+    "origin": [
+      60,
+      12
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "stride": [
+      24,
+      24
+    ],
+    "names": [
+      "idle"
+    ],
+    "slice": null,
+    "kind": "state",
+    "fps": null
+  },
+  {
+    "name": "ui_cf_kit_loading_spinner",
+    "sheet": "Loading_Icon.png",
+    "size": [
+      16,
+      16
+    ],
+    "origin": [
+      0,
+      48
+    ],
+    "grid": [
+      8,
+      1
+    ],
+    "stride": [
+      16,
+      16
+    ],
+    "names": [
+      "idle"
+    ],
+    "slice": null,
+    "kind": "animation",
+    "fps": 12
+  }
+]

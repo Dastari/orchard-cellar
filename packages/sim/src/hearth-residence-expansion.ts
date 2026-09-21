@@ -1,3 +1,4 @@
+import { RESIDENCE_EXPANSION_COSTS_BRONZE } from './balance.js';
 import {planHearthSeating} from './hearth-seating.js';
 import type {Vec2Fixed} from './state.js';
 import {hearthFurnitureLayoutFailure, type HearthFurniturePlacementContext} from './hearth-furniture-placement.js';
@@ -40,10 +41,10 @@ export function hearthResidenceExpansionFailure(
 }
 
 
-/** Initial testing prices from the reviewed crop/bottle opportunity-cost baseline.
+/** Doc 06 permanent housing prices preserve bottle income and create repeated-production goals.
  * Sequential ranks keep quotes and authority charges identical. */
 export function hearthResidenceExpansionQuote(currentRank: number): {rank: 1 | 2; costBronze: bigint; name: string} | null {
-  if (currentRank === 0) return {rank: 1, costBronze: 3200n, name: 'East room'};
-  if (currentRank === 1) return {rank: 2, costBronze: 4200n, name: 'South room'};
+  if (currentRank === 0) return {rank: 1, costBronze: RESIDENCE_EXPANSION_COSTS_BRONZE[0], name: 'East room'};
+  if (currentRank === 1) return {rank: 2, costBronze: RESIDENCE_EXPANSION_COSTS_BRONZE[1], name: 'South room'};
   return null;
 }

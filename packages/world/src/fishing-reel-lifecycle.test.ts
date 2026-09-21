@@ -10,6 +10,7 @@ import {
   runtimeTaggedLootTotals,
   runtimeToolDefinition,
   runtimeToolSpecialization,
+  FISHING_CATCH_FARMING_XP, FISHING_POOL_DEPLETION_FARMING_XP,
   type ContentRegistry,
   type LootDrop,
 } from '@orchard/sim';
@@ -28,6 +29,7 @@ const javascript = ts.transpileModule(implementation.getText(source), {
 function fixture(options: {
   readonly registry?: ContentRegistry;
   readonly drops?: readonly LootDrop[];
+  readonly personal?: boolean;
 } = {}) {
   const sender = { toHexString: () => 'fishing-player' };
   let cast: { poolId: bigint; startedTick: bigint; targetTileX: number; targetTileY: number } | null = {
@@ -39,6 +41,7 @@ function fixture(options: {
   const clock = { authorityTick: 1n + FISHING_CAST_TICKS };
   const state = { authorized: true, ready: true, usable: true, occupied: false, mounted: false };
   const writes: string[] = [];
+  const experience: Array<{track: string; amount: bigint}> = [];
   const statistics: Array<{ kind: string; delta: bigint; subject?: string }> = [];
   let fish = 0;
   const registry = options.registry ?? bootstrapContentRegistry();
@@ -64,7 +67,8 @@ function fixture(options: {
     requireUsableTool: () => { if (!state.usable) throw new Error('tool_broken'); },
     handsOccupiedFor: () => state.occupied,
     mountedNpcFor: () => state.mounted ? {} : null,
-    activePersonalQuestResource: () => null,
+    activePersonalQuestResource: () => options.personal ? {resourceKind: 'fish_pool', tileX: 3, tileY: 4, remaining: 3, spaceId: 0, itemKind: 'raw_fish', statisticKind: 'fish_caught', subjectKind: 'raw_fish'} : null,
+    insertPlayerCarriedItem: () => { fish += 1; writes.push('loot'); return true; },
     liveMapGeneratedResourceSuppressed: () => false,
     resourceHarvestResult: () => 'ok',
     ensurePlayerStats: () => ({ str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 }),
@@ -88,14 +92,14 @@ function fixture(options: {
       writes.push('statistic');
     },
     wearInventoryTool: () => { writes.push('wear'); },
-    grantSkillExperience: () => { writes.push('experience'); },
-    FISHING_CATCH_EXPLORER_XP: 1n,
+    grantSkillExperience: (_ctx: unknown, _identity: unknown, track: string, amount: bigint) => { experience.push({track, amount}); writes.push('experience'); },
+    FISHING_CATCH_FARMING_XP, FISHING_POOL_DEPLETION_FARMING_XP, fishingRespawnDelayTicks: () => 3600n,
   };
   const reel = new Function(...Object.keys(dependencies), `${javascript}; return applyFishingReelLifecycle;`)(
     ...Object.values(dependencies),
   ) as (context: typeof ctx, mutate?: boolean) => void;
   return {
-    state, selected, writes, clock, statistics,
+    state, selected, writes, clock, statistics, experience, pool,
     fish: () => fish,
     cast: () => cast,
     startNewCast: () => { cast = { poolId: 7n, startedTick: clock.authorityTick, targetTileX: 3, targetTileY: 4 }; },
@@ -104,6 +108,17 @@ function fixture(options: {
 }
 
 describe('fishing reel terminal completion', () => {
+  it('trains the Farming fishing specialization once on catch and depletion', () => {
+    const test = fixture(); test.pool.richness = 1; test.complete();
+    expect(test.experience).toEqual([{track: 'farming', amount: 5n}, {track: 'farming', amount: 10n}]);
+    test.complete(); expect(test.experience).toHaveLength(2);
+  });
+
+  it('trains Farming for personal tutorial catches without a pool-depletion bonus', () => {
+    const test = fixture({personal: true}); test.complete(); test.complete();
+    expect(test.experience).toEqual([{track: 'farming', amount: 5n}]);
+  });
+
   it('grants a catch once and makes repeated concurrent-client completion effect-free', () => {
     const test = fixture();
     test.complete();
@@ -153,6 +168,7 @@ describe('fishing reel terminal completion', () => {
     const missing = fixture({ drops: [{ itemKind: 'missing_fish', quantity: 1 }] });
     expect(() => missing.complete()).toThrow('loot_item_definition_missing');
     expect(missing.writes).toEqual([]);
+    expect(missing.experience).toEqual([]);
     expect(missing.cast()).not.toBeNull();
 
     const base = bootstrapContentRegistry();
@@ -162,6 +178,7 @@ describe('fishing reel terminal completion', () => {
     const retired = fixture({ registry: { ...base, items } });
     expect(() => retired.complete()).toThrow('loot_item_definition_missing');
     expect(retired.writes).toEqual([]);
+    expect(retired.experience).toEqual([]);
     expect(retired.cast()).not.toBeNull();
   });
 

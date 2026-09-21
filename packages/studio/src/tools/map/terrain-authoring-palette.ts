@@ -78,8 +78,6 @@ export interface ExactTerrainOverrideChoiceRequest {
 }
 
 export interface TerrainAuthoringPalette {
-  /** Changes whenever the verified content head changes. Retained Canvas
-   * caches use this instead of comparing derived arrays by identity. */
   readonly contentKey: string;
   readonly mode: 'offline' | 'live';
   readonly definitions: readonly TilesetContentDefinition[];
@@ -171,18 +169,14 @@ function cliffPreview(definition: TilesetContentDefinition): TerrainPalettePrevi
   throw new TypeError(`Tileset ${definition.id} has no previewable authored frame`);
 }
 
-/** Only active definitions from the selected authority are publishable choices. */
 export function terrainCliffFamilyChoices(
   search = '',
   palette: TerrainAuthoringPalette = OFFLINE_TERRAIN_AUTHORING_PALETTE,
 ): readonly TerrainCliffFamilyChoice[] {
   return palette.definitions.flatMap((definition): readonly TerrainCliffFamilyChoice[] => {
     let preview: TerrainPalettePreview;
-    try {
-      preview = cliffPreview(definition);
-    } catch {
-      return [];
-    }
+    try { preview = cliffPreview(definition); }
+    catch { return []; }
     return [{
       familyId: definition.familyId,
       definitionId: definition.id,

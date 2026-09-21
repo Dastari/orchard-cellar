@@ -90,3 +90,14 @@ export async function prepareStudioOidcConnection(
   await deps.beginLogin();
   return 'redirecting';
 }
+
+/** Resume only an existing same-origin session; an ordinary visit never starts
+ * an unsolicited provider redirect. Connect remains available for a new login. */
+export async function resumeStudioOidcSession(
+  auth: StudioAuthBrowser = browser(),
+  deps: StudioAuthDependencies = dependencies(),
+): Promise<boolean> {
+  if (!deps.configured) return false;
+  assertExactStudioOrigin(auth, deps);
+  return await deps.ensureSession() !== null;
+}

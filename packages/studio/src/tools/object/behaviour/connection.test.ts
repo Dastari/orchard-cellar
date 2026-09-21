@@ -55,7 +55,7 @@ describe('Object Studio Behaviour contribution connection', () => {
 
   it('builds the declared Behaviour workspace inside the canvas Object Studio', () => {
     expect(mountedObjectSource).toContain("mode: 'prefab' | 'behaviour'");
-    expect(mountedObjectSource).toContain("['prefab', 'behaviour']");
-    expect(mountedObjectSource).toContain('behaviourSurface(');
+    expect(mountedObjectSource).toContain("{value:'behaviour',label:'Behaviour'}");
+    expect(mountedObjectSource).toContain('object-behaviour-tabs');
   });
 });

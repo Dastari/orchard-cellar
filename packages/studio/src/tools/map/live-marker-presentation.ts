@@ -1,7 +1,6 @@
 import {
   runtimeCreatureDefinition,
   runtimeNpcDefinition,
-  runtimeObjectDefinition,
   type ContentRegistry,
   type NpcContentDefinition,
   type ObjectContentDefinition,
@@ -20,6 +19,24 @@ export type StudioLiveMarkerPresentation =
 
 const NEUTRAL = Object.freeze({ kind: 'neutral' as const });
 
+function resolveObjectDefinition(
+  registry: ContentRegistry,
+  marker: Pick<MapEditorLiveMarker, 'definitionId' | 'kind'>,
+): ObjectContentDefinition | null {
+  const storedId = marker.definitionId?.trim() ?? '';
+  if (storedId.length > 0) {
+    if (!/^object:[a-z0-9]+(?:_[a-z0-9]+)*$/u.test(storedId)) return null;
+    const exact = registry.objects.get(storedId);
+    return exact !== undefined && exact.retired !== true ? exact : null;
+  }
+  const legacy = registry.objects.get(`object:${marker.kind}`);
+  if (legacy !== undefined && legacy.retired !== true) return legacy;
+  const candidates = [...registry.objects.values()].filter((candidate) => (
+    candidate.retired !== true && candidate.components.placement?.item === `item:${marker.kind}`
+  ));
+  return candidates.length === 1 ? candidates[0]! : null;
+}
+
 /** Selects artwork only through the verified live registry. Explicit durable
  * identities fail closed when missing/retired; blank pre-schema rows retain a
  * narrowly-scoped kind adapter so existing worlds remain visually intact. */
@@ -31,7 +48,7 @@ export function resolveStudioLiveMarkerPresentation(
   if (marker.entityKind === 'placeable' || marker.entityKind === 'chest'
     || marker.entityKind === 'combat-target') {
     const explicit = (marker.definitionId?.trim() ?? '').length > 0;
-    const definition = runtimeObjectDefinition(registry, marker);
+    const definition = resolveObjectDefinition(registry, marker);
     if (definition === null) {
       return explicit || marker.entityKind === 'placeable' ? NEUTRAL
         : Object.freeze({ kind: 'legacy-npc', runtimeKind: marker.kind });

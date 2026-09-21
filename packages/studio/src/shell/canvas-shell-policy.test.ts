@@ -20,52 +20,17 @@ describe('canvas-native Studio source policy', () => {
     expect(source('../main.ts')).toContain("querySelector<HTMLCanvasElement>('#studio')");
   });
 
-  it('renders and operates the retained shell only through shared @orchard/ui canvas primitives', () => {
+  it('owns shell chrome and input through the kit root, with explicit lifecycle teardown', () => {
     const app = source('./app.ts');
-    expect(app).toContain("from '@orchard/ui'");
-    expect(app).toContain('loadStudioCanvasShellArt');
-    expect(app).toContain('drawStudioCanvasShell(context, this.#art');
-    expect(app).toContain("this.canvas.setAttribute('role', 'application')");
-    expect(app).toContain('new UiInputRouter(this.#scene.widgets)');
-    expect(app).toContain('new ResizeObserver(this.onResize)');
-    expect(app).toContain('this.#resizeObserver?.disconnect()');
-    expect(app).toContain('cancelAnimationFrame(this.#drawFrame)');
-    expect(app).toContain("this.canvas.removeEventListener('pointerdown', this.onPointerDown)");
-    expect(app).toContain("this.canvas.removeEventListener('keyup', this.onKeyUp)");
-    expect(app).toContain('reconcileStudioToolLifecycles(this.#mountedToolLifecycles, [])');
-    expect(app).toContain('layoutUiFrameSlots(');
+    expect(app).toContain('new UiRoot('); expect(app).toContain('ui.workbench('); expect(app).toContain('ui.splitPane(');
+    expect(app).toContain('new UiTextBridge('); expect(app).toContain('this.#root.pointer('); expect(app).toContain('this.#root.key(');
+    expect(app).toContain('this.#root.draw('); expect(app).toContain('this.#abort.abort()'); expect(app).toContain('this.#root.dispose()');
+    expect(app).toContain('this.#observer?.disconnect()'); expect(app).toContain('reconcileStudioToolLifecycles(');
+    expect(app).not.toMatch(/drawStudioCanvasShell|drawStudioCanvasTable|new UiInputRouter|new CanvasFocusManager|document\.createElement|innerHTML/u);
+    expect(app).toContain('saveNamedLayout('); expect(app).toContain('restoreNamedLayout('); expect(app).toContain('persistLayoutSession(');
     expect(app).toContain('studioToolIcon(candidate.tool.id)');
-    expect(app).toContain("kind: 'tooltip'");
-    expect(app).toContain("? 'thin_panel' : node.kind");
-    expect(app).not.toContain("panel('tool-surface'");
-    expect(app).toContain("kind: 'alpha_grid'");
-    expect(app).toContain("resizeEdge('drawer-edge-left'");
-    expect(app).toContain("resizeEdge('drawer-edge-right'");
-    expect(app).toContain("kind: 'ribbon'");
-    expect(app).not.toContain("panel('header'");
-    expect(app).not.toContain("panel('output'");
-    expect(app).not.toContain("'ORCHARD STUDIO'");
-    expect(app).not.toContain('PRODUCTION — AUDITED LIVE AUTHORITY');
-    expect(app).toContain("route.tool.id !== 'map'");
-    expect(app).toContain('inspectorBounds');
-    expect(app).toContain('sessionStorage.setItem(`${DRAWER_WIDTHS_KEY}:${this.#layoutRoute}`');
-    expect(app).toContain('layoutStudioCanvasSplit(toolBounds, this.#layoutState.direction, this.#layoutState.ratio)');
-    expect(app).not.toContain("action('layout-save'");
-    expect(app).not.toContain("action('layout-restore'");
-    expect(app).not.toContain("action('layout-split-toggle'");
-    expect(app).toContain("resizeEdge('workspace-split-edge'");
-    expect(app).toContain('studioCanvasSplitRatioAtPoint(');
-    expect(app).not.toContain("id: 'workspace-split-handle', kind: 'thin_panel'");
-    expect(app).toContain('tool.id !== primaryToolId');
-    expect(app).toContain("label('tool-surface-label', 'LOADING WORKSPACE'");
-    expect(app).not.toContain('route.tool.label.toUpperCase()} WORKING CANVAS');
-    expect(app).toContain('workspaceOnly && (inside(nodeCenter, controlsBounds) || inside(nodeCenter, inspectorBounds))');
-    expect(app).toContain('workspaceOnly && (inside(actionCenter, controlsBounds) || inside(actionCenter, inspectorBounds))');
-    expect(app).not.toContain('function inset(');
-    expect(app).not.toMatch(/document\.createElement|innerHTML|HTMLInputElement|HTMLElement/u);
-    expect(app).not.toMatch(/import\(['"]\.\.\/tools\/.*\/view/u);
-    expect(existsSync(new URL('./canvas-shell-layer.ts', import.meta.url))).toBe(false);
     expect(source('./builtin-canvas-tools.ts')).not.toContain('/view.js');
+    expect(existsSync(new URL('./canvas-shell-layer.ts', import.meta.url))).toBe(false);
   });
 
   it('routes unmodified G through one shell-level grid preference without stealing text input', () => {
@@ -76,31 +41,17 @@ describe('canvas-native Studio source policy', () => {
     expect(app).toContain("event.key.toLowerCase() === 'g'");
     expect(app).toContain('!textEditorFocused');
     expect(app).toContain('!event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey');
-    expect(app).toContain('shouldToggleStudioGrid(event, editor !== null)');
+    expect(app).toContain('shouldToggleStudioGrid(event,editing)');
     expect(app).toContain('this.controller.toggleGrid()');
-    expect(app).toContain('if (this.controller.gridVisible())');
+    expect(app).toContain('this.controller.gridVisible()');
   });
 
-  it('keeps full-canvas tool paint behind floating chrome and routes input after shell precedence', () => {
+  it('keeps spatial content behind kit drawers and applies UI input precedence', () => {
     const app = source('./app.ts');
-    const base = app.indexOf('drawStudioCanvasShell(context, this.#art');
-    const toolDraw = app.indexOf('layer.draw(context, this.#art)');
-    const chrome = app.indexOf('drawStudioCanvasShellNodes(context, this.#art, foregroundNodes)');
-    const overlays = app.indexOf('drawStudioCanvasShellNodes(context, this.#art, overlayNodes)');
-    expect(base).toBeGreaterThan(-1);
-    expect(base).toBeLessThan(toolDraw);
-    expect(toolDraw).toBeLessThan(chrome);
-    expect(chrome).toBeLessThan(overlays);
-    expect(app).toContain('captureInput?.(surface.input)');
-    expect(app).toContain('this.#scene.input?.pointerDown?');
-    expect(app).toContain('this.#scene.input?.pointerMove?');
-    expect(app).toContain('this.#scene.input?.pointerUp?');
-    expect(app).toContain('this.#scene?.input?.pointerCancel?');
-    expect(app).toContain('this.#scene.input?.wheel?');
-    expect(app).toContain('this.#scene?.input?.keyDown?');
-    expect(app).toContain('spaceHeld: this.#spaceHeld');
-    expect(app).toContain('this.#toolPointerOwner = event.pointerId');
-    expect(app).toContain('this.#toolPointerOwner === event.pointerId');
+    expect(app).toContain('ui.viewport('); expect(app).toContain('surface.draw?.(context,this.#art)');
+    expect(app).toContain('this.#root.pointer('); expect(app).toContain('this.#toolPointerOwner===event.pointerId');
+    expect(app).toContain('spaceHeld:this.#spaceHeld'); expect(app).toContain('this.#surface?.input?.wheel?.(');
+    expect(app).not.toMatch(/\bcontext\.(?:fillRect|strokeRect|fillText|drawImage)\(/u);
   });
 
   it('limits CSS to the sole canvas surface rather than a second component system', () => {
@@ -124,11 +75,9 @@ describe('canvas-native Studio source policy', () => {
     }
   });
 
-  it('routes retained canvas-table pointer, wheel and keyboard input', () => {
+  it('delegates table wheel and keyboard input to the same retained root', () => {
     const app = source('./app.ts');
-    expect(app).toContain('hitStudioCanvasTable(table.layout, point)');
-    expect(app).toContain("event.key === 'PageUp' ? 'page_up'");
-    expect(app).toContain('scrollStudioCanvasTable(table.layout, command)');
-    expect(app).toContain("event.deltaY < 0 ? 'line_up' : 'line_down'");
+    expect(app).toContain('this.#root.wheel('); expect(app).toContain('this.#root.key(event)');
+    expect(app).not.toContain('hitStudioCanvasTable'); expect(app).not.toContain('scrollStudioCanvasTable');
   });
 });

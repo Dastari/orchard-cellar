@@ -226,8 +226,8 @@ npm run build --workspace @orchard/world
 npm run generate --workspace @orchard/world
 npm run typecheck --workspace @orchard/world-bindings
 
-# Studio's reviewed renderer lives in a separate source checkout. Stage it with
-# the generated API before stopping traffic; never bypass the main UI guard.
+# Stage the integrated Studio with this repository's generated API before
+# stopping traffic; retain the reviewed UI-kit guard.
 studio_stage=$(mktemp -d /tmp/orchard-release-reviewed-studio.XXXXXX)
 bash scripts/build-reviewed-studio.sh "$studio_stage/source" "$studio_stage/dist"
 node --import tsx scripts/world-release-routine.ts manifest "$studio_stage/dist" > "$studio_stage/static.sha256"

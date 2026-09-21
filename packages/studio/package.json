@@ -1,6 +1,6 @@
 {
   "name": "@orchard/studio",
-  "version": "0.7.1",
+  "version": "0.8.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prebuild": "node scripts/verify-ui-kit.mjs && npm run ui:assets -w @orchard/tools"
+    "prebuild": "node scripts/verify-ui-kit.mjs && npm run ui:assets -w @orchard/tools -- studio",
+    "predev": "npm run ui:assets -w @orchard/tools -- studio"
   },
   "dependencies": {
     "@orchard/auth": "*",

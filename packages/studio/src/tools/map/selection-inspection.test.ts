@@ -3,7 +3,6 @@ import {
   createEmptyMapDocument,
   createLiveIslandMapDocument,
   createMapPrefabDocument,
-  createSurvivalAuthoredLandmarkInstances,
   migrateMapDocumentV2,
 } from '@orchard/sim';
 import { describe, expect, it } from 'vitest';
@@ -104,21 +103,16 @@ describe('map selection inspection projection', () => {
 
   it('describes authored object and landmark transforms on their actual layer', () => {
     const prefab = createMapPrefabDocument({ id: 'inspect-tree', title: 'Inspection Tree' });
-    let document = migrateMapDocumentV2(createEmptyMapDocument({
-      id: 'inspect-transforms', title: 'Inspect Transforms', width: 8, height: 8,
-    }));
-    // Entity metadata does not need a full island terrain compilation. Keep the
-    // landmark definition source-authored and move only its fixture position.
-    const landmarkTemplate = createSurvivalAuthoredLandmarkInstances()[0]!;
-    document = { ...document, landmarks: [{ ...landmarkTemplate, tileX: 4, tileY: 4 }] };
+    let document = createLiveIslandMapDocument();
     document = applyMapDocumentV3Edit(document, { kind: 'embed_prefab', prefab }).document;
     document = applyMapDocumentV3Edit(document, { kind: 'place_object', object: {
       id: 'inspect-tree-1', prefabId: prefab.id, prefabRevision: prefab.revision,
-      tileX: 3, tileY: 3, elevation: 0, layer: 'canopy', quarterTurns: 2,
+      tileX: 400, tileY: 400, elevation: 0, layer: 'canopy', quarterTurns: 2,
       flipX: true, scale: 2, enabled: false,
     } }).document;
+    const terrain = buildMapEditorTerrain(document);
     const object = inspectMapSelection({
-      document,
+      document, terrain,
       selection: { kind: 'entity', entityKind: 'map-object', id: 'inspect-tree-1', spaceId: 0 },
       activeLayer: 'objects', hiddenLayers: ['canopy'],
     });
@@ -132,7 +126,7 @@ describe('map selection inspection projection', () => {
 
     const landmark = document.landmarks[0]!;
     const landmarkInspection = inspectMapSelection({
-      document,
+      document, terrain,
       selection: { kind: 'entity', entityKind: 'map-object', id: landmark.id, spaceId: 0 },
       activeLayer: landmark.layer,
     });
@@ -200,16 +194,17 @@ describe('map selection inspection projection', () => {
   });
 
   it('uses explicit generated provenance and reversible canonical suppression ids', () => {
-    let document = migrateMapDocumentV2(createEmptyMapDocument({
-      id: 'inspect-suppression', title: 'Inspect Suppression', width: 8, height: 8,
-    }));
+    let document = createLiveIslandMapDocument();
+    // Match the renderer's shared terrain snapshot. Suppression changes the
+    // entity projection, so both inspections can reuse the same terrain.
+    const terrain = buildMapEditorTerrain(document);
     const generated: MapGeneratedSelectionDescriptor = {
       entityKind: 'resource', id: '42', spaceId: 0, name: 'Apple Tree',
-      tileX: 3, tileY: 3, elevation: 0, layer: 'generated_base',
+      tileX: 400, tileY: 400, elevation: 0, layer: 'generated_base',
       source: 'survival-island:resources', suppressionId: 'resource-42',
     };
     const before = inspectMapSelection({
-      document,
+      document, terrain,
       selection: { kind: 'entity', entityKind: 'resource', id: '42', spaceId: 0 },
       activeLayer: 'generated_base', generatedEntities: [generated],
     });
@@ -223,7 +218,7 @@ describe('map selection inspection projection', () => {
       kind: 'suppress_generated_object', generatedId: 'resource-42', suppressed: true,
     }).document;
     expect(inspectMapSelection({
-      document,
+      document, terrain,
       selection: { kind: 'entity', entityKind: 'resource', id: '42', spaceId: 0 },
       activeLayer: 'generated_base', generatedEntities: [generated],
     })?.suppression).toEqual({

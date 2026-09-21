@@ -1,6 +1,6 @@
 # Complete local reference-library index
 
-This is the coverage index for **every retained file under `references/`**. Revision `11dc70858af9481e` contains 1,146 files (23.6 MiB). The structured [JSON companion](reference-library-index.json) records every path, pack, vendor, licence pointer, use policy, provenance, semantic role, byte size, SHA-256, exact duplicate, format, search terms, domain catalog, and PNG/WebP dimensions.
+This is the coverage index for **every retained file under `references/`**. Revision `228596fb22f64687` contains 1,173 files (25.5 MiB). The structured [JSON companion](reference-library-index.json) records every path, pack, vendor, licence pointer, use policy, provenance, semantic role, byte size, SHA-256, exact duplicate, format, search terms, domain catalog, and PNG/WebP dimensions.
 
 ## Agent lookup order
 
@@ -24,17 +24,17 @@ jq -r '.entries[] | select(.duplicateOf != null) | [.path, .duplicateOf] | @tsv'
 | `audio` | 4 | 11.5 MiB |
 | `authoring-source` | 1 | 843.3 KiB |
 | `clockwork-raven-art` | 111 | 3.4 MiB |
-| `cute-fantasy-art` | 1018 | 5.7 MiB |
+| `cute-fantasy-art` | 1029 | 6.3 MiB |
 | `design-document` | 3 | 283.0 KiB |
-| `generated-concept` | 3 | 1.3 MiB |
-| `library-guide` | 1 | 2.8 KiB |
-| `orchard-original-art` | 3 | 2.2 KiB |
+| `generated-concept` | 19 | 2.6 MiB |
+| `library-guide` | 1 | 3.3 KiB |
+| `orchard-original-art` | 3 | 2.3 KiB |
 | `source-capture` | 2 | 629.7 KiB |
 
-- Cute Fantasy domain entries: 1001
+- Cute Fantasy domain entries: 1010
 - Clockwork Raven domain entries: 111
-- Files covered only by this global index: 34
-- Exact duplicate groups: 19; additional duplicate copies: 37
+- Files covered only by this global index: 52
+- Exact duplicate groups: 20; additional duplicate copies: 39
 
 Exact duplicates are not automatically mistakes. Pack-local source notes and Free/paid pack overlaps may be retained for provenance. The machine index makes each decision auditable.
 
@@ -49,6 +49,8 @@ Exact duplicates are not automatically mistakes. Pack-local source notes and Fre
 | `references/art/kenmi/cute-fantasy/dungeons/read_me.txt` | `cute-fantasy-art` | `licensed-importable` | `txt` | 379 B | — | — |
 | `references/art/kenmi/cute-fantasy/free/read_me.txt` | `cute-fantasy-art` | `noncommercial-only` | `txt` | 502 B | — | — |
 | `references/art/kenmi/cute-fantasy/halloween/read_me.txt` | `cute-fantasy-art` | `licensed-importable` | `txt` | 480 B | — | — |
+| `references/art/kenmi/cute-fantasy/icons/read_me.txt` | `cute-fantasy-art` | `licensed-importable` | `txt` | 614 B | — | — |
+| `references/art/kenmi/cute-fantasy/icons/SOURCE.md` | `cute-fantasy-art` | `licensed-importable` | `md` | 577 B | — | — |
 | `references/art/kenmi/cute-fantasy/ui/Fonts/CuteFantasy-5x9.ttf` | `cute-fantasy-art` | `licensed-importable` | `ttf` | 5.9 KiB | — | — |
 | `references/art/kenmi/cute-fantasy/ui/read_me.txt` | `cute-fantasy-art` | `licensed-importable` | `txt` | 379 B | — | `references/art/kenmi/cute-fantasy/dungeons/read_me.txt` |
 | `references/art/kenmi/cute-fantasy/unsliced-icon-sheets/icons1.webp` | `cute-fantasy-art` | `license-review-required` | `webp` | 6.9 KiB | 305×529 | — |
@@ -59,7 +61,7 @@ Exact duplicates are not automatically mistakes. Pack-local source notes and Fre
 | `references/art/kenmi/cute-fantasy/unsliced-icon-sheets/satff-weapons.webp` | `cute-fantasy-art` | `license-review-required` | `webp` | 1.7 KiB | 571×382 | — |
 | `references/art/kenmi/cute-fantasy/unsliced-icon-sheets/thread-wool.webp` | `cute-fantasy-art` | `license-review-required` | `webp` | 7.6 KiB | 354×604 | — |
 | `references/art/kenmi/cute-fantasy/volcano/read_me.txt` | `cute-fantasy-art` | `licensed-importable` | `txt` | 510 B | — | — |
-| `references/art/orchard-originals/tools/README.md` | `orchard-original-art` | `project-owned` | `md` | 1.6 KiB | — | — |
+| `references/art/orchard-originals/tools/README.md` | `orchard-original-art` | `project-owned` | `md` | 1.7 KiB | — | — |
 | `references/art/orchard-originals/tools/Tool_Icons_Extra_NO_Outline.png` | `orchard-original-art` | `project-owned` | `png` | 278 B | 48×16 | — |
 | `references/art/orchard-originals/tools/Tool_Icons_Extra_Outline.png` | `orchard-original-art` | `project-owned` | `png` | 326 B | 48×16 | — |
 | `references/audio/music/atlasaudio-calm-nature-510279.mp3` | `audio` | `license-review-required` | `mp3` | 2.8 MiB | — | — |
@@ -75,4 +77,20 @@ Exact duplicates are not automatically mistakes. Pack-local source notes and Fre
 | `references/generated/concepts/Farmer_Jane_Grave_Concept.png` | `generated-concept` | `concept-only` | `png` | 843.3 KiB | 887×1774 | — |
 | `references/generated/concepts/item_cf_plank_pre_generated_2026-08-29.sprite.json` | `generated-concept` | `concept-only` | `json` | 845 B | — | — |
 | `references/generated/concepts/Plank_Icon_Generated.png` | `generated-concept` | `concept-only` | `png` | 468.8 KiB | 1254×1254 | — |
-| `references/README.md` | `library-guide` | `reference-only` | `md` | 2.8 KiB | — | — |
+| `references/generated/tool-progression/prompts.json` | `generated-concept` | `concept-only` | `json` | 3.5 KiB | — | — |
+| `references/generated/tool-progression/review-v2/alternative-geometry.json` | `generated-concept` | `concept-only` | `json` | 1.6 KiB | — | — |
+| `references/generated/tool-progression/review-v2/alternative-inventory-preview.png` | `generated-concept` | `concept-only` | `png` | 8.1 KiB | 688×478 | — |
+| `references/generated/tool-progression/review-v2/alternative-palettes.json` | `generated-concept` | `concept-only` | `json` | 635 B | — | — |
+| `references/generated/tool-progression/review-v2/classic-geometry.json` | `generated-concept` | `concept-only` | `json` | 1.6 KiB | — | — |
+| `references/generated/tool-progression/review-v2/classic-inventory-preview.png` | `generated-concept` | `concept-only` | `png` | 9.0 KiB | 688×478 | — |
+| `references/generated/tool-progression/review-v2/classic-palettes.json` | `generated-concept` | `concept-only` | `json` | 635 B | — | `references/generated/tool-progression/review-v2/alternative-palettes.json` |
+| `references/generated/tool-progression/review-v2/README.md` | `generated-concept` | `concept-only` | `md` | 3.1 KiB | — | — |
+| `references/generated/tool-progression/review-v2/render-preview.mts` | `generated-concept` | `concept-only` | `mts` | 4.4 KiB | — | — |
+| `references/generated/tool-progression/review-v2/shovel-redraw-inventory-preview.png` | `generated-concept` | `concept-only` | `png` | 8.9 KiB | 688×478 | — |
+| `references/generated/tool-progression/review-v2/shovel-redraw-palettes.json` | `generated-concept` | `concept-only` | `json` | 635 B | — | `references/generated/tool-progression/review-v2/alternative-palettes.json` |
+| `references/generated/tool-progression/review-v2/shovel-redraw.json` | `generated-concept` | `concept-only` | `json` | 405 B | — | — |
+| `references/generated/tool-progression/wood-axe.png` | `generated-concept` | `concept-only` | `png` | 346.9 KiB | 1254×1254 | — |
+| `references/generated/tool-progression/wood-hoe.png` | `generated-concept` | `concept-only` | `png` | 269.0 KiB | 1254×1254 | — |
+| `references/generated/tool-progression/wood-pickaxe.png` | `generated-concept` | `concept-only` | `png` | 374.7 KiB | 1254×1254 | — |
+| `references/generated/tool-progression/wood-shovel.png` | `generated-concept` | `concept-only` | `png` | 329.2 KiB | 1254×1254 | — |
+| `references/README.md` | `library-guide` | `reference-only` | `md` | 3.3 KiB | — | — |

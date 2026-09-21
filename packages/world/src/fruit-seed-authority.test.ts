@@ -99,7 +99,7 @@ it('preserves planted outdoor trees during generated resource reconciliation', (
   expect(removed).toEqual([42n]);
 });
 
-it('rolls seeds only on completed mature harvests and advances the ordinal for regrowth', () => {
+it('fells configured fruit trees for wood only and advances the ordinal for regrowth', () => {
   const noop = () => {};
   const identity = { toHexString: () => 'owner' };
   let resource = { id: 4n, kind: 'tree_apple', spaceId: 10, tileX: 5, tileY: 5,
@@ -130,7 +130,6 @@ it('rolls seeds only on completed mature harvests and advances the ordinal for r
   });
   actions.applyHarvestResourceLifecycle(ctx, 4n, false);
   expect(resource.health).toBe(3); expect(payouts).toEqual([]);
-  let successes = 0;
   for (let ordinal = 0; ordinal < 100; ordinal++) {
     resource = { ...resource, health: 3, depleted: false, growthStage: 3 };
     actions.applyHarvestResourceLifecycle(ctx, 4n);
@@ -138,12 +137,9 @@ it('rolls seeds only on completed mature harvests and advances the ordinal for r
     expect(payouts.length).toBe(ordinal);
     actions.applyHarvestResourceLifecycle(ctx, 4n);
     expect(resource.activationOrdinal).toBe(ordinal + 1);
-    const expected = sim.fruitSeedDrop(registry, resource, primary, 3, [42, 4n, ordinal]);
-    expect(payouts[ordinal]).toEqual(expected === null ? primary : [...primary, expected]);
-    if (expected !== null) successes++;
+    expect(payouts[ordinal]).toEqual([{ itemKind: 'wood', quantity: 3 }]);
     expect(() => actions.applyHarvestResourceLifecycle(ctx, 4n)).toThrow('resource_depleted');
   }
-  expect(successes).toBeGreaterThan(0); expect(successes).toBeLessThan(100);
   resource = { ...resource, health: 1, depleted: false, growthStage: 1 };
   actions.applyHarvestResourceLifecycle(ctx, 4n);
   expect(payouts[payouts.length - 1]).toEqual([{ itemKind: 'stick', quantity: 1 }]);

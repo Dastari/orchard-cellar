@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import clientPackage from './package.json' with { type: 'json' };
 import { createPwaServiceWorker } from './pwa-service-worker.js';
 
@@ -23,6 +23,29 @@ export const clientListenOptions = {
   allowedHosts: ['development.tail7a58a6.ts.net', 'orchard.tail7a58a6.ts.net', 'orchard.dastari.net'],
 };
 
+/** Check emitted chunks, including dynamic imports, so shared barrel changes
+ * cannot silently ship the Studio workbench in the independent game build. */
+export function clientStudioBoundary(): Plugin {
+  return {
+    name: 'orchard-client-studio-boundary',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const forbidden = [...new Set(Object.values(bundle)
+        .flatMap(output => output.type === 'chunk' ? output.moduleIds : [])
+        .map(id => id.replaceAll('\\', '/').split('?')[0]!)
+        .filter(id => {
+          if (/\/packages\/studio\/src\//.test(id)) return true;
+          if (/\/packages\/ui\/src\/(?:studio-entry\.ts|studio\/spatial-art\.ts)$/.test(id)) return true;
+          const kit = id.match(/\/packages\/ui\/src\/kit\/(.+)$/)?.[1];
+          return kit !== undefined && kit !== 'skin/lucide.ts' && kit !== 'runtime/text-editor.ts';
+        }))].sort();
+      if (forbidden.length > 0) {
+        this.error(`Studio modules leaked into the game build. Keep @orchard/ui/studio imports in Studio:\n${forbidden.join('\n')}`);
+      }
+    },
+  };
+}
+
 export default defineConfig(({ command }) => {
   const pwaBuildId = `${clientPackage.version}-${Date.now().toString(36)}`;
   return ({
@@ -39,6 +62,7 @@ export default defineConfig(({ command }) => {
     include: ['base64-js', 'safe-stable-stringify'],
   },
   plugins: [
+    clientStudioBoundary(),
     ...(command === 'serve' ? [{
       name: 'orchard-development-csp',
       transformIndexHtml: developmentCsp,

@@ -42,3 +42,5 @@ export * from './light-coordinate-mapper.js';
 export * from './directional-shadows.js';
 export * from './receiver-lighting.js';
 export * from './receiver-frame-source.js';
+
+export * from './tile-raster.js';

@@ -5,10 +5,9 @@ import {
   serializeContentDefinitionForTransport,
 } from '@orchard/sim';
 
-// 0.9.0 adds four furnished village interiors, ten paired door routes and
-// room-floor materials: 546,411 measured bytes, +9,701 (+1.81%) over 0.8.3.
-// Keep the initial subscription budget at the next whole KiB.
-export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 534 * 1024;
+// Combined gameplay and Willowharbour content: 919 definitions, 559,532 runtime
+// bytes. Retain the next-whole-KiB subscription guard for this reviewed merge.
+export const CONTENT_INITIAL_PAYLOAD_BUDGET_BYTES = 547 * 1024;
 
 export interface ContentPackMeasurement {
   readonly definitionCount: number;

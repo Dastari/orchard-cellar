@@ -1,4 +1,4 @@
-import type { StudioDockId, StudioDockPlacement, StudioMode } from '@orchard/ui';
+import type { StudioDockId, StudioDockPlacement, StudioMode } from '@orchard/ui/studio';
 
 export const STUDIO_LAYOUT_VERSION = 1;
 export const STUDIO_LAYOUT_STORAGE_KEY = 'orchard.studio.layouts:v1';

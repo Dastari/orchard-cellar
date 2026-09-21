@@ -3,7 +3,7 @@ import { MAX_WORLD_PASS_HEIGHT, MAX_WORLD_PASS_WIDTH } from '@orchard/engine/ren
 export const PROCEDURAL_EDITOR_MIN_ZOOM = 1 / 32;
 export const AUTHORED_EDITOR_MIN_ZOOM = 1 / 8;
 export const EDITOR_MAX_ZOOM = 8;
-export const EDITOR_OBJECT_SPRITE_MIN_ZOOM = 1 / 8;
+export const EDITOR_OBJECT_SPRITE_MIN_ZOOM = 1 / 2;
 export const EDITOR_ABSOLUTE_MIN_ZOOM = 1 / 128;
 
 export interface EditorWorldViewport {

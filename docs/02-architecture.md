@@ -16,6 +16,15 @@ Binding architecture for Orchard & Cellar. Read [01-engine-decision.md](01-engin
 > outside this plan. See the `client/rendering` row in `DECISIONS.md` and
 > [doc 47 §15](47-rendering-lighting-performance-plan.md).
 
+## Proposed unified action architecture
+
+[Unified actions specification](unified-actions-spec.md),
+[implementation plan](unified-actions-plan.md), and
+[ADR 002](adr/002-unified-actions-and-repair-custody.md) describe the proposed
+shared targeting/parameter/cost contracts for tools and spells, exact G overlays,
+and transaction-safe repair output collection. This is a planning record; the
+existing runtime remains in effect until the corresponding implementation PRs land.
+
 ## Repository layout (npm workspaces monorepo)
 
 ```
@@ -279,6 +288,58 @@ UI routes taps to that callback; the client redraws and prioritizes the hammer
 over the external build catalogue and touch joystick so touch players can also
 close it. Existing modal input ownership remains ahead of the hammer.
 
+
+
+## Independently deployed Cellar Studio
+
+The reviewed editor source is `packages/studio`; its Canvas UI kit is
+`packages/ui/src/kit`. It consumes the same current assets, content, simulation,
+authentication and generated bindings as the game, with separate frontend entry,
+build, origin, OIDC client and service. The game retains its existing UI. Studio imports the separate `@orchard/ui/studio`
+entry so editor kit registration and UI Lab never enter the game bundle. Canonical
+Lucide symbols live in `packages/ui/public`; prebuild prepares the requested app's
+ignored public copy. `assets:build` prepares both copies for workspace validation.
+
+`scripts/build-reviewed-studio.sh` stages one repository and its checked lockfile,
+verifies the reviewed kit, and builds Studio without rebuilding or publishing the
+game or database. See [integration spec](studio-integration-spec.md),
+[decision](adr/ADR-studio-single-repository.md), and
+[runtime procedure](../ops/orchard-runtime/README.md).
+
+## Village order specialist milestones (0.11.0)
+
+`fulfillVillageOrder` shares its existing receipt/inventory/payment transaction
+with an owner-only `player_village_order_progress` row and permanent recipe
+knowledge. Progress stores at most three distinct raw product IDs, three distinct
+preserved product IDs and a bottle completion flag. Product families derive from
+live tags and fermentation outputs. Existing receipts cannot reconstruct historic
+product diversity, so the new milestone row begins empty without changing prior
+payments or revisions. Repeated orders still pay, but do not advance diversity.
+
+`ownVillageOrders` now projects milestone text and learned meal IDs using indexed
+owner reads. The existing client subscription renders the next milestone and
+announces newly learned recipes. Pantry Lunch (two raw kinds, one preserved) and
+Cellar Supper (two raw, two preserved, one bottle) use existing gated recipe
+knowledge and generated hunger callbacks. No new currency or public player data
+is introduced. See [spec](village-order-milestones-spec.md).
+
+### Preserved provision interactions
+
+The 22 preserved crop items use authored food metadata and generated item-use
+callbacks through the existing restoreHunger authority capability. They leave the
+reviewed-inert catalogue; no new reducer, schema or subscription is added. Module
+lifecycle artifacts and the matching content definitions must be published together.
+See [preserved provisions](preserved-provisions-spec.md).
+## Compost crop authority (0.9.0)
+
+The authored Compost `place` lifecycle emits `compostCrop` plus one selected-item consumption through the existing transactional `useSelected` path. The world writer validates the whole batch before updating inventory or crops. Its crop plan settles elapsed watered growth and appends one bounded 25% advance; a default-false `world_crop.composted` column prevents reapplication for that planting. The column is appended after existing fields for additive migration. Generated public bindings expose treatment status for the farm prompt. No tick sweep or separate treatment table is needed. See [ADR-002](adr/002-crop-compost.md).
+
+Successful treatment also records exactly one authored `compost_applied` lifetime statistic in the same transaction. The preflight requires this exact unit increment alongside one treatment and one consumed item; rejected actions leave statistics unchanged. This supports future quest and milestone links without granting XP.
+
+## Connected estate progression (0.14.0)
+
+Residence expansion prices live in the shared `RESIDENCE_EXPANSION_COSTS_BRONZE` balance constants and flow through `hearthResidenceExpansionQuote` to both client quotes and server debits. Reports read the same quotes. Fishing authority records future catch/depletion XP on Farming, with unchanged single-use cast custody, loot and existing lifetime statistics. No schema, inventory, historical XP or purchased-room migration is needed. See [the accepted specification](connected-estate-progression-spec.md).
+
 ### Willowharbour visual authoring (0.9.0)
 
 The tools-only archipelago composer rounds the village coastline, authors variable
@@ -298,10 +359,3 @@ The offline exporter optionally accepts a reviewed prior map export to replace
 only unchanged Willowharbour authoring. It checks prior cells, objects, prefabs
 and transitions, preserves other regions and shared prefabs, then runs the normal
 conflict-aware composer. Publication remains a separate world/content release.
-
-## Developer coordination service
-
-[Agent Mail Rust](../ops/agent-mail/README.md) runs as an independent loopback
-systemd user service for Codex and Claude Code. Its SQLite index and Git archive
-live outside the repository; it has no application runtime or deployment role.
-See [ADR 002](adr/002-agent-mail.md) for the shared-service decision.

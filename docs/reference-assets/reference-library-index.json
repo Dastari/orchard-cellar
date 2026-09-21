@@ -1,12 +1,12 @@
 {
   "version": 1,
   "sourceRoot": "references",
-  "sourceRevision": "11dc70858af9481e",
+  "sourceRevision": "228596fb22f64687",
   "summary": {
-    "files": 1146,
-    "bytes": 24773414,
-    "exactDuplicateGroups": 19,
-    "exactDuplicateCopies": 37,
+    "files": 1173,
+    "bytes": 26748259,
+    "exactDuplicateGroups": 20,
+    "exactDuplicateCopies": 39,
     "groups": {
       "audio": {
         "files": 4,
@@ -21,24 +21,24 @@
         "bytes": 3548294
       },
       "cute-fantasy-art": {
-        "files": 1018,
-        "bytes": 6024177
+        "files": 1029,
+        "bytes": 6603482
       },
       "design-document": {
         "files": 3,
         "bytes": 289843
       },
       "generated-concept": {
-        "files": 3,
-        "bytes": 1344445
+        "files": 19,
+        "bytes": 2739368
       },
       "library-guide": {
         "files": 1,
-        "bytes": 2843
+        "bytes": 3338
       },
       "orchard-original-art": {
         "files": 3,
-        "bytes": 2217
+        "bytes": 2339
       },
       "source-capture": {
         "files": 2,
@@ -49,19 +49,20 @@
       "aseprite": 1,
       "html": 1,
       "js": 1,
-      "json": 1,
-      "md": 38,
+      "json": 8,
+      "md": 40,
       "mp3": 4,
+      "mts": 1,
       "pdf": 1,
-      "png": 1049,
+      "png": 1065,
       "ttf": 1,
-      "txt": 42,
+      "txt": 43,
       "webp": 7
     },
     "domainCoverage": {
-      "cute-fantasy": 1001,
+      "cute-fantasy": 1010,
       "clockwork-raven": 111,
-      "global-only": 34
+      "global-only": 52
     }
   },
   "packs": [
@@ -71,7 +72,7 @@
       "usagePolicy": "reference-only",
       "licenseRef": "references/README.md",
       "files": 1,
-      "bytes": 2843
+      "bytes": 3338
     },
     {
       "directory": "references/art/clockwork-raven/collections/accessories-armour-free",
@@ -402,6 +403,14 @@
       "bytes": 38533
     },
     {
+      "directory": "references/art/kenmi/cute-fantasy/icons",
+      "vendor": "Kenmi Art",
+      "usagePolicy": "licensed-importable",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "files": 11,
+      "bytes": 579305
+    },
+    {
       "directory": "references/art/kenmi/cute-fantasy/military-camp",
       "vendor": "Kenmi Art",
       "usagePolicy": "license-review-required",
@@ -447,7 +456,7 @@
       "usagePolicy": "project-owned",
       "licenseRef": "references/art/orchard-originals/tools/README.md",
       "files": 3,
-      "bytes": 2217
+      "bytes": 2339
     },
     {
       "directory": "references/audio/music",
@@ -488,6 +497,22 @@
       "licenseRef": null,
       "files": 3,
       "bytes": 1344445
+    },
+    {
+      "directory": "references/generated/tool-progression",
+      "vendor": null,
+      "usagePolicy": "concept-only",
+      "licenseRef": null,
+      "files": 5,
+      "bytes": 1355081
+    },
+    {
+      "directory": "references/generated/tool-progression/review-v2",
+      "vendor": null,
+      "usagePolicy": "concept-only",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "files": 11,
+      "bytes": 39842
     }
   ],
   "entries": [
@@ -32710,6 +32735,328 @@
       ]
     },
     {
+      "path": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Armor/16x16/Armor_all_16x16.png",
+      "group": "cute-fantasy-art",
+      "format": "png",
+      "sizeBytes": 163221,
+      "sha256": "a4c7e98d96b939b41dbf5c7401ba98ec2124f2efeda62008fe24c4d06150527d",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 160,
+        "height": 2960
+      },
+      "domainIndex": "cute-fantasy",
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "sprite-or-tileset-source",
+      "searchTerms": [
+        "16x16",
+        "all",
+        "armor",
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "icons",
+        "kenmi"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Farming/16x16/Farming_all_16x16.png",
+      "group": "cute-fantasy-art",
+      "format": "png",
+      "sizeBytes": 33052,
+      "sha256": "89ca831ed275302f831af0d0e5a824c0453084090b1a82b0c1eec935d0fc0837",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 160,
+        "height": 336
+      },
+      "domainIndex": "cute-fantasy",
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "sprite-or-tileset-source",
+      "searchTerms": [
+        "16x16",
+        "all",
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "farming",
+        "icons",
+        "kenmi"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Food/16x16/Food_all_16x16.png",
+      "group": "cute-fantasy-art",
+      "format": "png",
+      "sizeBytes": 32103,
+      "sha256": "84b6922e0644dd39aca23a244732400694d19b4105eb628d734c3e0f928c87d8",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 160,
+        "height": 320
+      },
+      "domainIndex": "cute-fantasy",
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "sprite-or-tileset-source",
+      "searchTerms": [
+        "16x16",
+        "all",
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "food",
+        "icons",
+        "kenmi"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Monster_Drops/16x16/Monster_Drops_all_16x16.png",
+      "group": "cute-fantasy-art",
+      "format": "png",
+      "sizeBytes": 32127,
+      "sha256": "294bb790c1123c2b1f6b86a0a2ed26a773528ca0c829040763c31e6406aca594",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 160,
+        "height": 336
+      },
+      "domainIndex": "cute-fantasy",
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "sprite-or-tileset-source",
+      "searchTerms": [
+        "16x16",
+        "all",
+        "art",
+        "cute",
+        "cute fantasy art",
+        "drops",
+        "fantasy",
+        "icons",
+        "kenmi",
+        "monster"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Potions/16x16/Potions_all_16x16.png",
+      "group": "cute-fantasy-art",
+      "format": "png",
+      "sizeBytes": 43660,
+      "sha256": "269d419e354e6145500b9eb814c1e63f1c8d271ef62089ec99a51d431af0904a",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 208,
+        "height": 832
+      },
+      "domainIndex": "cute-fantasy",
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "sprite-or-tileset-source",
+      "searchTerms": [
+        "16x16",
+        "all",
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "icons",
+        "kenmi",
+        "potions"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Resources/16x16/Resources_all_16x16.png",
+      "group": "cute-fantasy-art",
+      "format": "png",
+      "sizeBytes": 83175,
+      "sha256": "764185b380ceb2e541f590e462cac12b95415062054b8e7a37ca5a40536ffba7",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 160,
+        "height": 1520
+      },
+      "domainIndex": "cute-fantasy",
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "sprite-or-tileset-source",
+      "searchTerms": [
+        "16x16",
+        "all",
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "icons",
+        "kenmi",
+        "resources"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Tools/16x16/Tools_all_16x16.png",
+      "group": "cute-fantasy-art",
+      "format": "png",
+      "sizeBytes": 37372,
+      "sha256": "b173252bef3adaf74532b9e4f9e729c4d35d4eee4332a55098fda598d28a98d6",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 160,
+        "height": 896
+      },
+      "domainIndex": "cute-fantasy",
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "sprite-or-tileset-source",
+      "searchTerms": [
+        "16x16",
+        "all",
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "icons",
+        "kenmi",
+        "tools"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Treasure&Keys/16x16/Treasure&Keys_all_16x16.png",
+      "group": "cute-fantasy-art",
+      "format": "png",
+      "sizeBytes": 57254,
+      "sha256": "07cc1140351b69527c3c2454356776469fa4aab4380caac9010e7983e54e72a1",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 128,
+        "height": 1408
+      },
+      "domainIndex": "cute-fantasy",
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "sprite-or-tileset-source",
+      "searchTerms": [
+        "16x16",
+        "all",
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "icons",
+        "kenmi",
+        "treasure&keys"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/Cute_Fantasy_Icons_Weapons/16x16/Weapons_all_16x16.png",
+      "group": "cute-fantasy-art",
+      "format": "png",
+      "sizeBytes": 96150,
+      "sha256": "fd9287e7e077e145009fd773090d49d60f1b37695474586cbdc4b6f41019adda",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 160,
+        "height": 2624
+      },
+      "domainIndex": "cute-fantasy",
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "sprite-or-tileset-source",
+      "searchTerms": [
+        "16x16",
+        "all",
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "icons",
+        "kenmi",
+        "weapons"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "group": "cute-fantasy-art",
+      "format": "txt",
+      "sizeBytes": 614,
+      "sha256": "edd930ac460130b41c5fb129334aff11d2e70cd321d863959eaf53ade85c270c",
+      "duplicateOf": null,
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "provenance-and-license-note",
+      "searchTerms": [
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "icons",
+        "kenmi",
+        "me",
+        "read"
+      ]
+    },
+    {
+      "path": "references/art/kenmi/cute-fantasy/icons/SOURCE.md",
+      "group": "cute-fantasy-art",
+      "format": "md",
+      "sizeBytes": 577,
+      "sha256": "d0c3da177c9912b9cf74a7849af5b32dbb17f6b0ba264774da20efce1616c417",
+      "duplicateOf": null,
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "licensed-importable",
+      "sourceVendor": "Kenmi Art",
+      "sourcePack": "references/art/kenmi/cute-fantasy/icons",
+      "licenseRef": "references/art/kenmi/cute-fantasy/icons/read_me.txt",
+      "provenance": "vendor-original",
+      "semanticRole": "provenance-and-license-note",
+      "searchTerms": [
+        "art",
+        "cute",
+        "cute fantasy art",
+        "fantasy",
+        "icons",
+        "kenmi",
+        "source"
+      ]
+    },
+    {
       "path": "references/art/kenmi/cute-fantasy/military-camp/Archery_Target.png",
       "group": "cute-fantasy-art",
       "format": "png",
@@ -35366,8 +35713,8 @@
       "path": "references/art/orchard-originals/tools/README.md",
       "group": "orchard-original-art",
       "format": "md",
-      "sizeBytes": 1613,
-      "sha256": "e3128939f6889686f5168cc2569d885c8c3adffb918aa0b3495d43e37c273be8",
+      "sizeBytes": 1735,
+      "sha256": "3873b46e433b650174d57e3aa8b58a0a880237bfde094fb6ff16e6d1d5f6541b",
       "duplicateOf": null,
       "dimensions": null,
       "domainIndex": null,
@@ -35770,11 +36117,441 @@
       ]
     },
     {
+      "path": "references/generated/tool-progression/prompts.json",
+      "group": "generated-concept",
+      "format": "json",
+      "sizeBytes": 3596,
+      "sha256": "c75c401887359c1b789f63de895ad293d0c66235bf27c803c9744358b544f322",
+      "duplicateOf": null,
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression",
+      "licenseRef": null,
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "generated",
+        "generated concept",
+        "progression",
+        "prompts",
+        "tool"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/alternative-geometry.json",
+      "group": "generated-concept",
+      "format": "json",
+      "sizeBytes": 1606,
+      "sha256": "4213b1ffc3cfc0cb67265247dd47bbbcfef920fc88242156bb268b66ca0279cd",
+      "duplicateOf": null,
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "alternative",
+        "generated",
+        "generated concept",
+        "geometry",
+        "progression",
+        "review",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/alternative-inventory-preview.png",
+      "group": "generated-concept",
+      "format": "png",
+      "sizeBytes": 8332,
+      "sha256": "41ee1dc26fb26dcff22288af7b8f7fb8efd708bc213ee7247f21158c63c9e013",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 688,
+        "height": 478
+      },
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "alternative",
+        "generated",
+        "generated concept",
+        "inventory",
+        "preview",
+        "progression",
+        "review",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/alternative-palettes.json",
+      "group": "generated-concept",
+      "format": "json",
+      "sizeBytes": 635,
+      "sha256": "3d5a9f4a96c1d08e5a7c61320e2cbd398ec0bb4715dec36af136042d5b24973d",
+      "duplicateOf": null,
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "alternative",
+        "generated",
+        "generated concept",
+        "palettes",
+        "progression",
+        "review",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/classic-geometry.json",
+      "group": "generated-concept",
+      "format": "json",
+      "sizeBytes": 1606,
+      "sha256": "6dcaa0aa75287db9c955d139d607b448e50ada05fe5a186f0109b0f8a4a3141f",
+      "duplicateOf": null,
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "classic",
+        "generated",
+        "generated concept",
+        "geometry",
+        "progression",
+        "review",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/classic-inventory-preview.png",
+      "group": "generated-concept",
+      "format": "png",
+      "sizeBytes": 9246,
+      "sha256": "99b5012e20e898d57b8b7c9059f109654f565628474c1dba8f03d7ed5aebdd50",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 688,
+        "height": 478
+      },
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "classic",
+        "generated",
+        "generated concept",
+        "inventory",
+        "preview",
+        "progression",
+        "review",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/classic-palettes.json",
+      "group": "generated-concept",
+      "format": "json",
+      "sizeBytes": 635,
+      "sha256": "3d5a9f4a96c1d08e5a7c61320e2cbd398ec0bb4715dec36af136042d5b24973d",
+      "duplicateOf": "references/generated/tool-progression/review-v2/alternative-palettes.json",
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "classic",
+        "generated",
+        "generated concept",
+        "palettes",
+        "progression",
+        "review",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/README.md",
+      "group": "generated-concept",
+      "format": "md",
+      "sizeBytes": 3159,
+      "sha256": "e17a1e1098a49e35620057c3ddcea580a994e33b7a318d65bcc259817f4e4431",
+      "duplicateOf": null,
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "provenance-and-license-note",
+      "searchTerms": [
+        "generated",
+        "generated concept",
+        "progression",
+        "readme",
+        "review",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/render-preview.mts",
+      "group": "generated-concept",
+      "format": "mts",
+      "sizeBytes": 4477,
+      "sha256": "8c917336afa9c338cc05d298316317b152a8e638de677fae16eb46a04487312c",
+      "duplicateOf": null,
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "generated",
+        "generated concept",
+        "preview",
+        "progression",
+        "render",
+        "review",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/shovel-redraw-inventory-preview.png",
+      "group": "generated-concept",
+      "format": "png",
+      "sizeBytes": 9106,
+      "sha256": "b864aad6fcca5f9989d2f04282c551c5598208930d594312a359938749ee18b5",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 688,
+        "height": 478
+      },
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "generated",
+        "generated concept",
+        "inventory",
+        "preview",
+        "progression",
+        "redraw",
+        "review",
+        "shovel",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/shovel-redraw-palettes.json",
+      "group": "generated-concept",
+      "format": "json",
+      "sizeBytes": 635,
+      "sha256": "3d5a9f4a96c1d08e5a7c61320e2cbd398ec0bb4715dec36af136042d5b24973d",
+      "duplicateOf": "references/generated/tool-progression/review-v2/alternative-palettes.json",
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "generated",
+        "generated concept",
+        "palettes",
+        "progression",
+        "redraw",
+        "review",
+        "shovel",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/review-v2/shovel-redraw.json",
+      "group": "generated-concept",
+      "format": "json",
+      "sizeBytes": 405,
+      "sha256": "9682d57911e8ae2628ad603e2e67e370bf8fc7388b67df55327486a95d196bd7",
+      "duplicateOf": null,
+      "dimensions": null,
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression/review-v2",
+      "licenseRef": "references/generated/tool-progression/review-v2/README.md",
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "generated",
+        "generated concept",
+        "progression",
+        "redraw",
+        "review",
+        "shovel",
+        "tool",
+        "v2"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/wood-axe.png",
+      "group": "generated-concept",
+      "format": "png",
+      "sizeBytes": 355254,
+      "sha256": "a01e71fb0842b96dde12ffe54017c2f50546fdd2040833c203c7a91d136b08ba",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression",
+      "licenseRef": null,
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "axe",
+        "generated",
+        "generated concept",
+        "progression",
+        "tool",
+        "wood"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/wood-hoe.png",
+      "group": "generated-concept",
+      "format": "png",
+      "sizeBytes": 275416,
+      "sha256": "934fd6ce56cdc63248bac497dcdfa56b98da42ec1a8068e8b804c1ff1a338245",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression",
+      "licenseRef": null,
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "generated",
+        "generated concept",
+        "hoe",
+        "progression",
+        "tool",
+        "wood"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/wood-pickaxe.png",
+      "group": "generated-concept",
+      "format": "png",
+      "sizeBytes": 383668,
+      "sha256": "334478d205559e449c6ff9e0d83d84ecbc8d97a56553fd8b8afc94460e0d9610",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression",
+      "licenseRef": null,
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "generated",
+        "generated concept",
+        "pickaxe",
+        "progression",
+        "tool",
+        "wood"
+      ]
+    },
+    {
+      "path": "references/generated/tool-progression/wood-shovel.png",
+      "group": "generated-concept",
+      "format": "png",
+      "sizeBytes": 337147,
+      "sha256": "53593c3b966cad628efa0363aed220da2e778e231d37d0fe535a5c2f28072b54",
+      "duplicateOf": null,
+      "dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "domainIndex": null,
+      "usagePolicy": "concept-only",
+      "sourceVendor": null,
+      "sourcePack": "references/generated/tool-progression",
+      "licenseRef": null,
+      "provenance": "generated-concept",
+      "semanticRole": "concept-review-material",
+      "searchTerms": [
+        "generated",
+        "generated concept",
+        "progression",
+        "shovel",
+        "tool",
+        "wood"
+      ]
+    },
+    {
       "path": "references/README.md",
       "group": "library-guide",
       "format": "md",
-      "sizeBytes": 2843,
-      "sha256": "412164258aca027aaf05613690454592362f7d7f550003b41f3c2ea9985896bc",
+      "sizeBytes": 3338,
+      "sha256": "53e5ac769c2eee5810ed3b2e2bff6bcbf6c1de6844566e1a928f7990d39e4869",
       "duplicateOf": null,
       "dimensions": null,
       "domainIndex": null,

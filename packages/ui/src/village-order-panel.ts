@@ -7,7 +7,7 @@ export function villageOrderLayout(width:number,height:number){
   const frame={x:8,y:8,width:width-16,height:height-16};
   const bottom=frame.y+frame.height-30;
   return {frame,close:{x:frame.x+frame.width-25,y:frame.y+5,width:20,height:20},
-    rows:Array.from({length:3},(_,i)=>({x:frame.x+10,y:frame.y+30+i*32,width:frame.width-20,height:30})),
+    rows:Array.from({length:3},(_,i)=>({x:frame.x+10,y:frame.y+46+i*25,width:frame.width-20,height:24})),
     back:{x:frame.x+10,y:bottom,width:100,height:24},deliver:{x:frame.x+frame.width-130,y:bottom,width:120,height:24},noticeY:bottom-12};
 }
 export function drawVillageOrderPanel(ctx:CanvasRenderingContext2D,skin:UiSkin,fonts:PixelUi,flow:VillageOrderFlow,width:number,height:number,itemName:(kind:string)=>string){
@@ -22,9 +22,12 @@ export function drawVillageOrderPanel(ctx:CanvasRenderingContext2D,skin:UiSkin,f
     drawPixelText(ctx,fonts,label,rect.x+rect.width/2,rect.y+7,{align:'center',color:confirm||disabled?'#fff1d2':'#51351f'});
   };
   button(l.close,'X');
+  const milestone=flow.milestone;
+  text(milestone?.milestoneTitle??'',l.frame.x+12,l.frame.y+26);
+  text(milestone?.milestoneProgress??'',l.frame.x+12,l.frame.y+36);
   const review=flow.review;
   if(review){
-    const x=l.frame.x+12,y=l.frame.y+31;
+    const x=l.frame.x+12,y=l.frame.y+49;
     text('YOU DELIVER',x,y);text(`${review.quantity} ${itemName(review.itemKind)}`,x,y+14);
     text(`SALE VALUE: ${review.saleValueBronze} BRONZE`,x,y+33);
     text(`ORDER BONUS: ${review.bonusBronze} BRONZE`,x,y+47);
@@ -34,7 +37,7 @@ export function drawVillageOrderPanel(ctx:CanvasRenderingContext2D,skin:UiSkin,f
     flow.offers.slice(0,3).forEach((offer,i)=>{
       const row=l.rows[i]!;drawUiSkinAsset(ctx,skin.button,row,'idle');
       text(`${i+1}. ${offer.quantity} ${itemName(offer.itemKind)}`,row.x+7,row.y+4,row.width-14,'#51351f');
-      text(`Receive ${offer.totalBronze} bronze`,row.x+7,row.y+14,row.width-14,'#51351f');
+      text(`Receive ${offer.totalBronze} bronze`,row.x+7,row.y+13,row.width-14,'#51351f');
     });
     if(flow.offers.length===0)text('No orders available.',l.frame.x+12,l.frame.y+40);
   }

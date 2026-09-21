@@ -93,13 +93,13 @@ describe('lifecycle registration versus production raise coverage', () => {
       // Three process-job callbacks plus the authored container-seal command.
       frameAction: { registrations: 4, production: 'raised' },
       // Sixty-nine plan graphs plus cooking-range light/put_out.
-      secondary: { registrations: 134, production: 'raised' },
+      secondary: { registrations: 158, production: 'raised' },
       equipmentUse: { registrations: 2, production: 'raised' },
       worldItemUse: { registrations: 2, production: 'raised' },
       useWith: { registrations: 39, production: 'raised' },
       useAt: { registrations: 7, production: 'raised' },
       aimedUse: { registrations: 6, production: 'raised' },
-      place: { registrations: 57, production: 'raised' },
+      place: { registrations: 58, production: 'raised' },
       // Empty-container item pickup is compiled from the active carry component.
       pickup: { registrations: 3, production: 'raised' },
       // Authored object graphs plus the active resource-definition loot bridge.

@@ -3,11 +3,12 @@ import {
   type MapDocumentV3,
 } from '@orchard/sim';
 import {
+  drawTileRaster,
   terrainPlaneCollisionCellAt,
   terrainProjectedDepthForElevation,
   type TerrainArray,
 } from '@orchard/engine';
-import type { UiRect } from '@orchard/ui';
+import type { UiRect } from '@orchard/ui/studio';
 import type { VisibleTileRange } from './editor-renderer.js';
 
 export interface MapEditorOverlayVisibility {
@@ -254,20 +255,7 @@ function drawRaster(
   viewport: UiRect,
   camera: { readonly x: number; readonly y: number; readonly zoom: number },
 ): void {
-  const sourceWidth = range.maximumX - range.minimumX;
-  const sourceHeight = range.maximumY - range.minimumY;
-  if (sourceWidth <= 0 || sourceHeight <= 0) return;
-  context.drawImage(
-    raster.image,
-    range.minimumX,
-    range.minimumY,
-    sourceWidth,
-    sourceHeight,
-    viewport.x + (range.minimumX * TILE_SIZE_PIXELS - camera.x) * camera.zoom,
-    viewport.y + (range.minimumY * TILE_SIZE_PIXELS - camera.y) * camera.zoom,
-    sourceWidth * TILE_SIZE_PIXELS * camera.zoom,
-    sourceHeight * TILE_SIZE_PIXELS * camera.zoom,
-  );
+  drawTileRaster(context, raster.image, range, viewport, camera);
 }
 
 /** Draws projected cells only while they are individually readable. At wider

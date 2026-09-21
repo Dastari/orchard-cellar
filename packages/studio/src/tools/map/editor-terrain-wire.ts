@@ -4,7 +4,7 @@ import {
   terrainMinimumElevation,
   type TerrainArray,
 } from '@orchard/engine/terrain';
-import type { GeneratedSurvivalResource, TerrainOverride } from '@orchard/sim';
+import type { TerrainOverride } from '@orchard/sim';
 import type {
   MapEditorOverviewPixels,
   MapEditorTerrainDerivatives,
@@ -28,7 +28,6 @@ export type MapEditorTerrainWire = Omit<
 };
 
 export interface MapEditorTerrainDerivativesWire {
-  readonly generatedResources?: readonly GeneratedSurvivalResource[];
   readonly overview: MapEditorOverviewPixels;
   readonly generatedBaseTerrain?: MapEditorTerrainWire;
   readonly generatedBaseSharesCombined: boolean;
@@ -119,7 +118,6 @@ export function encodeMapEditorTerrainDerivatives(
     : encodeMapEditorTerrain(derivatives.generatedBaseTerrain);
   const wire: MapEditorTerrainDerivativesWire = {
     overview: derivatives.overview,
-    generatedResources: derivatives.generatedResources,
     generatedBaseSharesCombined: sharesCombined,
     ...(generatedBase === undefined ? {} : { generatedBaseTerrain: generatedBase.wire }),
     generatedBaseTerrainKey: derivatives.generatedBaseTerrainKey,
@@ -223,7 +221,6 @@ export async function decodeMapEditorTerrainDerivativesAsync(
     : await decodeMapEditorTerrainAsync(wire.generatedBaseTerrain!, shouldContinue);
   return {
     overview: wire.overview,
-    generatedResources: wire.generatedResources,
     generatedBaseTerrain,
     generatedBaseTerrainKey: wire.generatedBaseTerrainKey,
     terrainOverrideInfluenceRuns: wire.terrainOverrideInfluenceRuns,

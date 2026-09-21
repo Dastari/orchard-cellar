@@ -29,9 +29,9 @@ describe('doc42 verification log in Orchard Studio', () => {
   });
 
   it('uses bounded retained actions, a clipped and culled canvas draw layer, and shell selection', () => {
-    expect(mapCanvas).toContain('finishCanvasTool(context, parts');
+    expect(mapCanvas).toContain('kit: parts.kit');
     expect(mapRenderer).toContain('visibleMapTileRange(document, viewport, camera)');
-    expect(mapRenderer).toContain('sourceWidth * TILE_SIZE_PIXELS * camera.zoom');
+    expect(mapRenderer).toContain('drawTileRaster(context, overview, range, viewport, camera)');
     expect(mapController).toContain('this.model.selectObject(object.id)');
     expect(mapModel).toContain("entityKind: 'map-object'");
   });

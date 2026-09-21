@@ -13,15 +13,19 @@ After relevant checks, build with `--mode studio-production`, restart
 deployment procedure in `ops/orchard-runtime/README.md`. Do not stop to request
 deployment confirmation for these editor updates.
 
-### Cellar UI release source
+### Cellar Studio source and independent build
 
-Cellar's reviewed kit/workspace source is currently isolated at
-`/home/toby/projects/orchard-cellar-studio-release`. This checkout still contains
-Studio's retired renderer. Its Studio prebuild guard intentionally rejects a
-rebuild until the reviewed kit is integrated; use the release source for editor
-updates. See `.git/cellar-ui-release.md` for the active artifact and rollback.
-Preserve this guard during unrelated frontend or performance work. Do not deploy
-Studio output produced by bypassing it.
+Studio's reviewed UI kit and editor source live in this repository under
+`packages/ui/src/kit` and `packages/studio`. Shared source assets live in
+`packages/assets` and `packages/ui/public`; application public copies are generated.
+Use this repository and normal Git/PR workflows for Studio updates.
+
+Build Studio independently with `npm run studio:build -- --mode studio-production`.
+For a staged release, use `scripts/build-reviewed-studio.sh` as documented in
+`ops/orchard-runtime/README.md`. It stages only this repository. Preserve the
+Studio UI-kit prebuild check. The live folder remains `packages/studio/dist`;
+never edit generated live files as source. Studio updates do not require a game
+or world deployment. See `.git/cellar-ui-release.md` for installed artifact/rollback.
 
 ## Git Workflow
 
@@ -101,3 +105,14 @@ do not claim registration or reservation succeeded. Read-only investigation can
 continue while connection problems are resolved. Follow user messaging permissions.
 
 Setup, recovery and client configuration: [Agent Mail runbook](ops/agent-mail/README.md).
+
+## Production publishing and credential handoff
+
+Before preparing a deployment, read
+[the agent publishing runbook](ops/orchard-runtime/PUBLISHING.md) and the linked
+runtime procedure. Determine the actual code/content/full-schema scope, preserve
+the reviewed Studio guard, and use the applicable guarded release lane. Obtain
+reconnect credentials through the authorized shared browser and a private encrypted
+local handoff; share only the resulting file path, never tokens in chat. Validate
+refresh before handing the file to the publishing agent. Coordinate checkout and
+credential ownership with that agent; do not race refreshes or bypass failed gates.

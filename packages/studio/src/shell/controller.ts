@@ -1,4 +1,4 @@
-import { buildStudioRailModel, buildStudioUiLabModel, type StudioRailModel } from '@orchard/ui';
+import { buildStudioRailModel, type StudioRailModel } from '@orchard/ui/studio';
 import { firstAccessibleStudioMode, studioModeAccess } from './access.js';
 import { StudioLayoutManager } from './layouts.js';
 import { StudioBottomDock, StudioCommandPalette, StudioInspectorKernel, StudioTableKernel, StudioValidationPanel } from './kernels.js';
@@ -72,7 +72,11 @@ export class StudioShellController {
   async connectExplicit(): Promise<void> {
     const environment = this.session.snapshot().environment;
     if (environment === 'sandbox') throw new Error('live_environment_required');
+    if (this.session.snapshot().phase === 'connecting') return;
+    this.#adapter?.disconnect();
+    this.#adapter = null;
     this.session.beginConnect();
+    this.onChanged();
     try {
       if (await this.prepareConnection(environment) === 'redirecting') {
         this.onChanged();
@@ -151,7 +155,6 @@ export class StudioShellController {
     });
   }
 
-  uiLab(): ReturnType<typeof buildStudioUiLabModel> { return buildStudioUiLabModel(); }
 
   private reconcileConnection(): void {
     const view = this.#adapter?.view();

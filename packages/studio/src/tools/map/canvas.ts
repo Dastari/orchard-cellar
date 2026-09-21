@@ -1,4 +1,3 @@
-import { terrainInspectionThumbnailRects, terrainInspectionVisualLayout } from '@orchard/engine/terrain-inspector';
 import {
   MAP_BIOME_IDS,
   MAP_GAMEPLAY_ANCHOR_LABEL_MAX_LENGTH,
@@ -15,22 +14,21 @@ import {
   type MapDocumentV3,
   type TilesetContentDefinition,
 } from '@orchard/sim';
+import { studioLibraryDrawer } from '../../shell/workspace-controls.js';
 import { terrainProjectedDepthForElevation, type TerrainArray } from '@orchard/engine';
 import {
+  ui as kit, uiFixed, type UiElement, type UiButtonModifiers, type UiTone,
   CanvasTextEditor,
   STUDIO_SKIN_TOKENS,
-  layoutUiGrid,
-  layoutUiFlex,
   loadGeneratedAsset,
   loadGeneratedAssetCatalog,
   selectAtlasFrame,
   type AtlasFrame,
   type LoadedAsset,
-  type UiFlexItem,
   type UiIconName,
   type UiRect,
   type StudioPropertyRowModel,
-} from '@orchard/ui';
+} from '@orchard/ui/studio';
 import type {
   StudioCanvasToolContext,
   StudioCanvasToolKeyInput,
@@ -40,16 +38,6 @@ import { requestStudioFileDownload } from '../../shell/file-download.js';
 import type { AdminObjectsApi } from '../../admin/objects-api.js';
 import type { StudioSelection } from '../../shell/index.js';
 import { studioRoleCan } from '../../shell/access.js';
-import {
-  canvasAction,
-  canvasLabel,
-  canvasPanel,
-  canvasParts,
-  canvasRows,
-  canvasSlots,
-  finishCanvasTool,
-  reportCanvasError,
-} from '../build-canvas-common.js';
 import { buildAssetPalette, type AssetPaletteItem } from '../object/asset-palette.js';
 import {
   mapContextPaletteKind,
@@ -63,7 +51,7 @@ import {
   MapEditorController,
   type MapEditorLiveMarker,
 } from './editor-controller.js';
-import { MapEditorRenderer } from './editor-renderer.js';
+import { MapEditorRenderer, mapGameplayAnchorMarkerScreenPosition } from './editor-renderer.js';
 import {
   mapObjectCatalogEntriesWithContent,
   mapObjectDefinitionsFromContentRows,
@@ -96,11 +84,10 @@ import {
   type MapSchemaInspectorField,
   type MapSchemaInspectorReceipt,
 } from './schema-inspector-actions.js';
-import { MapEditorModel, type MapEditorWorkspace } from './model.js';
+import { MAP_EDITOR_WORKSPACES, MapEditorModel, type MapEditorWorkspace } from './model.js';
 import { MapRouteSessionStore, mapRouteSessionState, type MapOutlinerView } from './route-session-state.js';
 import { studioMapId } from './routes.js';
 import { mapSelectionDrawerRows } from './selection-drawer.js';
-import { mapRightDrawerCards } from './right-drawer-layout.js';
 import {
   mapCanvasInspectorRows,
   type MapCanvasInspectorRow,
@@ -130,6 +117,7 @@ import {
 import { createMapDocumentExport } from './document-export.js';
 import { MapAutoPublishCoordinator } from './auto-publish.js';
 import { mapResizeImpactLossCount, type MapResizeEdge, type MapResizeImpact } from './resize.js';
+import { verifiedStudioLiveContent } from './live-content-registry.js';
 import {
   MAP_TERRAIN_AUTHORING_MODES,
   OFFLINE_TERRAIN_AUTHORING_PALETTE,
@@ -142,7 +130,6 @@ import {
   type TerrainAuthoringPalette,
   type TerrainPalettePreview,
 } from './terrain-authoring-palette.js';
-import { verifiedStudioLiveContent } from './live-content-registry.js';
 
 interface MapCanvasInspectionCache {
   readonly document: MapDocumentV3;
@@ -166,9 +153,7 @@ interface MapCanvasState {
   readonly autoPublish: MapAutoPublishCoordinator;
   autoPublishEnabled: boolean;
   paletteOffset: number;
-  paletteScrollDrag: boolean;
-  elevationDrag: boolean;
-  elevationBounds: UiRect | null;
+  paletteSuggestionsOpen: boolean;
   paletteBounds: UiRect;
   paletteRowCount: number;
   paletteVisibleRows: number;
@@ -189,8 +174,6 @@ interface MapCanvasState {
   selectionBounds: UiRect;
   selectionRowCount: number;
   selectionActiveKey: string | null;
-  selectedCompositionLayer: number | null;
-  compositionPage: number;
   inspectionCache: MapCanvasInspectionCache | null;
   exactTerrainPaletteCache: {
     readonly document: MapDocumentV3;
@@ -364,7 +347,8 @@ function terrainPaletteSnapshot(context: StudioCanvasToolContext): TerrainPalett
   const ready = view.connected && !view.synchronizing && view.error === null
     && head !== undefined && head !== null && rows !== undefined
     && rows.length === head.definitionCount;
-  const readinessKey = ready ? `${head.revision}:${head.contentHash}`
+  const readinessKey = ready
+    ? `${head.revision}:${head.contentHash}`
     : `unavailable:${String(head?.revision ?? view.contentRevision ?? 'none')}:${rows?.length ?? 'none'}`;
   if (!ready) return { source: rows ?? view, palette: liveTerrainAuthoringPalette([], readinessKey) };
   try {
@@ -380,6 +364,19 @@ function terrainPaletteSnapshot(context: StudioCanvasToolContext): TerrainPalett
     return { source: rows, palette: liveTerrainAuthoringPalette(definitions, readinessKey) };
   } catch {
     return { source: rows, palette: liveTerrainAuthoringPalette([], `${readinessKey}:invalid`) };
+  }
+}
+
+function syncTerrainPalette(state: MapCanvasState, context: StudioCanvasToolContext): void {
+  const snapshot = terrainPaletteSnapshot(context);
+  if (snapshot.source === state.terrainPaletteSource
+    && snapshot.palette.contentKey === state.terrainPalette.contentKey) return;
+  state.terrainPaletteSource = snapshot.source;
+  state.terrainPalette = snapshot.palette;
+  state.exactTerrainPaletteCache = null;
+  state.interaction.setTerrainAuthoringPalette(snapshot.palette);
+  if (state.renderer.setTerrainAuthoringPalette(snapshot.palette)) {
+    state.renderer.prepareInspectionTerrain(state.model.document(), state.model.terrainIdentity());
   }
 }
 
@@ -439,9 +436,6 @@ function createState(context: StudioCanvasToolContext, mapId: string): MapCanvas
     autoPublish: new MapAutoPublishCoordinator(context.invalidate),
     autoPublishEnabled: restored?.autoPublish ?? false,
     paletteOffset: restored?.paletteOffset ?? 0,
-    paletteScrollDrag: false,
-    elevationDrag: false,
-    elevationBounds: null,
     paletteBounds: { x: 0, y: 0, width: 0, height: 0 },
     paletteRowCount: 0,
     paletteVisibleRows: 0,
@@ -460,8 +454,6 @@ function createState(context: StudioCanvasToolContext, mapId: string): MapCanvas
     selectionBounds: { x: 0, y: 0, width: 0, height: 0 },
     selectionRowCount: 0,
     selectionActiveKey: null,
-    selectedCompositionLayer: null,
-    compositionPage: 0,
     inspectionCache: null,
     exactTerrainPaletteCache: null,
     terrainPaletteSource: terrainPalette.source,
@@ -512,7 +504,7 @@ function createState(context: StudioCanvasToolContext, mapId: string): MapCanvas
     previewLoading: new Set(),
     previewFailures: new Set(),
     outlinerDocument: null,
-    leftView: 'palette',
+    leftView: restored?.outlinerView ?? 'palette',
     outlinerOffset: 0,
     outlinerBounds: { x: 0, y: 0, width: 0, height: 0 },
     outlinerRowCount: 0,
@@ -728,28 +720,6 @@ function syncMapAutoPublish(
   }, () => publishMapFromCanvas(state, context));
 }
 
-function appendMapStats(
-  state: MapCanvasState,
-  context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>,
-  bounds: UiRect,
-  label: string,
-): void {
-  const [status, toggle] = layoutUiFlex(bounds, [
-    { minSize: { width: 1, height: 40 }, grow: 1 },
-    { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { direction: 'row', gap: 2, align: 'stretch' });
-  const publication = state.autoPublish.presentation();
-  canvasLabel(parts, 'map-stats', `${state.renderer.hasLiveResourceAuthority() ? label : 'GENERATED PREVIEW · ' + label} · AUTO ${publication.state}`, status!, { field: true });
-  canvasAction(parts, 'auto-publish', publication.tooltip, toggle!, () => {
-    state.autoPublishEnabled = !state.autoPublishEnabled;
-    context.invalidate();
-  }, {
-    symbol: 'cloudConnect', active: state.autoPublishEnabled,
-    ...(publication.state === 'FAILED' ? { tone: 'danger' as const } : {}),
-  });
-}
-
 function syncContentObjectCatalog(state: MapCanvasState, context: StudioCanvasToolContext): void {
   if (state.catalogPalette === null) return;
   const source = context.controller.liveAdapter()?.view().contentDefinitions;
@@ -769,18 +739,6 @@ function syncContentObjectCatalog(state: MapCanvasState, context: StudioCanvasTo
     || state.catalogDefinitionIds.get(state.liveSpawnPrefabId) !== state.liveSpawnDefinitionId)) {
     resetLiveSpawn(state);
   }
-}
-
-function syncTerrainAuthoringPalette(state: MapCanvasState, context: StudioCanvasToolContext): void {
-  const snapshot = terrainPaletteSnapshot(context);
-  if (snapshot.source === state.terrainPaletteSource
-    && snapshot.palette.contentKey === state.terrainPalette.contentKey) return;
-  state.terrainPaletteSource = snapshot.source;
-  state.terrainPalette = snapshot.palette;
-  state.exactTerrainPaletteCache = null;
-  state.paletteOffset = 0;
-  state.interaction.setTerrainAuthoringPalette(snapshot.palette);
-  state.renderer.setTerrainAuthoringPalette(snapshot.palette);
 }
 
 function resetLiveSpawn(state: MapCanvasState, leaveMode = true): void {
@@ -1406,6 +1364,10 @@ function pointInside(point: { readonly x: number; readonly y: number }, bounds: 
     && point.x <= bounds.x + bounds.width && point.y <= bounds.y + bounds.height;
 }
 
+function workspaceLayer(workspace: MapEditorWorkspace): MapContentLayerId {
+  return workspace === 'terrain' || workspace === 'biomes' ? 'terrain' : 'objects';
+}
+
 function workspaceForLayer(layer: MapContentLayerId): MapEditorWorkspace {
   return layer === 'generated_base' || layer === 'terrain' ? 'terrain' : 'objects';
 }
@@ -1415,39 +1377,6 @@ function biomePalette(query: string): readonly MapBiomeId[] {
   return MAP_BIOME_IDS.filter((biome) => biome.includes(normalized));
 }
 
-const MAP_PALETTE_CELL_SIZE = 62;
-const MAP_PALETTE_GAP = 4;
-
-function paletteGridWindow(
-  state: MapCanvasState,
-  bounds: UiRect,
-  itemCount: number,
-): { readonly start: number; readonly count: number; readonly cells: readonly UiRect[] } {
-  bounds = { ...bounds, width: Math.max(40, bounds.width - 16) };
-  const columns = Math.max(1, Math.floor((bounds.width + MAP_PALETTE_GAP)
-    / (MAP_PALETTE_CELL_SIZE + MAP_PALETTE_GAP)));
-  const visibleRows = Math.max(1, Math.floor((bounds.height + MAP_PALETTE_GAP)
-    / (MAP_PALETTE_CELL_SIZE + MAP_PALETTE_GAP)));
-  const rowCount = Math.ceil(itemCount / columns);
-  state.paletteRowCount = rowCount;
-  state.paletteVisibleRows = visibleRows;
-  state.paletteOffset = Math.max(0, Math.min(Math.max(0, rowCount - visibleRows), state.paletteOffset));
-  const start = state.paletteOffset * columns;
-  const count = Math.min(itemCount - start, visibleRows * columns);
-  const items = Array.from({ length: Math.max(0, count) }, () => ({
-    width: MAP_PALETTE_CELL_SIZE,
-    height: MAP_PALETTE_CELL_SIZE,
-  }));
-  const grid = layoutUiGrid(bounds, items, {
-    columns,
-    rowHeight: MAP_PALETTE_CELL_SIZE,
-    columnGap: MAP_PALETTE_GAP,
-    rowGap: MAP_PALETTE_GAP,
-    justifyItems: 'stretch',
-    alignItems: 'stretch',
-  });
-  return { start, count: Math.max(0, count), cells: grid.items };
-}
 
 export function selectedGeneratedMapDescriptor(
   document: MapDocumentV3,
@@ -1719,113 +1648,50 @@ function handleOutlinerTreeKey(
   return treeState.focusedId === null ? null : `outliner-select-${treeState.focusedId}`;
 }
 
-function appendMapOutliner(
-  state: MapCanvasState,
-  context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>,
-  bounds: UiRect,
-): void {
-  const live = state.leftView === 'live';
+function mapKitOutliner(state: MapCanvasState, context: StudioCanvasToolContext): UiElement {
+  const live = state.leftView === 'live', scope = live ? 'live' : 'world';
   const tree = live ? context.controller.liveOutliner() : context.controller.worldOutliner();
   const editor = live ? state.liveOutlinerSearch : state.worldOutlinerSearch;
-  let treeState = createMapOutlinerTreeState(tree,
-    live ? state.liveOutlinerState : state.worldOutlinerState);
-  if (treeState.query !== editor.snapshot().value) {
-    treeState = setMapOutlinerQuery(tree, treeState, editor.snapshot().value);
-  }
-  if (live) state.liveOutlinerState = treeState;
-  else state.worldOutlinerState = treeState;
-  const card = canvasPanel(parts, `${live ? 'live' : 'world'}-outliner-card-panel`, bounds, 'thin', 4);
-  const slots = canvasSlots(card, [
-    { id: 'ribbon', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-    { id: 'search', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-    { id: 'rows', minSize: { width: 1, height: 40 }, main: { mode: 'grow', min: 40 } },
-  ], { gap: 4 });
-  const [searchField, clearSearch] = layoutUiFlex(slots.search!, [
-    { minSize: { width: 72, height: 40 }, grow: 1 },
-    { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { direction: 'row', gap: 2, align: 'stretch' });
-  const searchSnapshot = editor.snapshot();
-  const searchLabel = searchSnapshot.focused
-    ? `${searchSnapshot.value.slice(0, searchSnapshot.focus)}|${searchSnapshot.value.slice(searchSnapshot.focus)}`
-    : searchSnapshot.value || 'SEARCH TREE';
-  const searchId = `outliner-search-${live ? 'live' : 'world'}`;
-  canvasAction(parts, searchId, `Search the ${live ? 'Live' : 'World'} Outliner`, searchField!,
-    () => editor.focus(), { role: 'textbox' });
-  const searchNode = parts.nodes.findIndex(({ id }) => id === searchId);
-  if (searchNode >= 0) parts.nodes[searchNode] = { ...parts.nodes[searchNode]!, label: searchLabel };
-  parts.textEditors.push({ id: searchId, editor });
-  canvasAction(parts, `outliner-clear-${live ? 'live' : 'world'}`, 'Clear Outliner search', clearSearch!, () => {
-    editor.setValue('');
-    state.outlinerOffset = 0;
-    context.invalidate();
-  }, { buttonGlyph: 'cross', disabled: searchSnapshot.value.length === 0 });
-
+  let treeState = createMapOutlinerTreeState(tree, live ? state.liveOutlinerState : state.worldOutlinerState);
+  if (treeState.query !== editor.snapshot().value) treeState = setMapOutlinerQuery(tree, treeState, editor.snapshot().value);
+  const update = (next: typeof treeState) => { if (live) state.liveOutlinerState = next; else state.worldOutlinerState = next; };
+  update(treeState);
   const rows = mapOutlinerTreeRows(tree, treeState);
-  const rowRects = canvasRows(slots.rows!, Math.max(1, rows.length), 40, 2);
-  state.outlinerBounds = slots.rows!;
-  state.outlinerRowCount = rows.length;
-  state.outlinerVisibleRows = rowRects.length;
-  state.outlinerOffset = Math.max(0, Math.min(
-    Math.max(0, rows.length - rowRects.length), state.outlinerOffset,
-  ));
-  const start = rows.length === 0 ? 0 : state.outlinerOffset + 1;
-  const end = Math.min(rows.length, state.outlinerOffset + rowRects.length);
-  parts.nodes.push({
-    id: `${live ? 'live' : 'world'}-outliner-ribbon`,
-    kind: 'ribbon',
-    bounds: slots.ribbon!,
-    label: `${live ? 'LIVE OUTLINER · READ ONLY' : 'WORLD OUTLINER'}${rows.length > rowRects.length ? ` ${start}-${end}/${rows.length}` : ''}`,
+  // Search retains matching ancestors and id matches from the authored model.
+  const visible = new Set(rows.map(row => row.node.id));
+  const nodes = (source: typeof tree): import('@orchard/ui/studio').UiTreeNode[] => source.filter(node => !treeState.query || visible.has(node.id)).map(node => ({
+    id: node.id, label: node.label, children: nodes(node.children),
+  }));
+  state.outlinerBounds = {x:0,y:0,width:0,height:0};
+  state.outlinerRowCount=rows.length;state.outlinerVisibleRows=6;
+  const list = kit.tree({id:`map-outliner-${scope}`,label:live?'Live Outliner (read only)':'World Outliner',nodes:nodes(tree),
+    expanded: rows.filter(row=>row.expanded).map(row=>row.node.id), activeId:treeState.focusedId,
+    selected:treeState.selectedId?[treeState.selectedId]:[],initialScrollY:state.outlinerOffset*24,
+    layout:{width:'grow',height:'grow',minHeight:uiFixed(24)},
+    onScroll:element=>{state.outlinerOffset=Math.floor(element.scroll.y/24);},
+    onActiveChange:id=>update({...live?state.liveOutlinerState:state.worldOutlinerState,focusedId:id}),
+    onExpandedChange:expandedIds=>{update({...live?state.liveOutlinerState:state.worldOutlinerState,expandedIds});context.invalidate();},
+    onSelect:id=>{const row=rows.find(row=>row.node.id===id);if(row)activateOutlinerRow(state,context,row);},
+    onKey:(event,element)=>{
+      const focused = (element.props['items'] as readonly {node:{id:string}}[])[Number(element.props['active'])]?.node.id;
+      if(!focused)return false;
+      const next=handleOutlinerTreeKey(state,context,tree,live,focused,{key:event.key,repeat:false,shiftKey:event.shiftKey??false,ctrlKey:event.ctrlKey??false,metaKey:event.metaKey??false,altKey:event.altKey??false});
+      return next!==null;
+    },
+    trailing:node=>{
+      const row=rows.find(row=>row.node.id===node.id),request=live||!row?null:outlinerLayerMutationRequest(state,row);
+      if(!request)return undefined;
+      const plan=state.model.planOutlinerMutation(request,context.route.access==='write'?'write':'read_only');
+      return kit.tooltip(plan.ok?`Move selected authored node to ${node.label}`:`Cannot move here: ${plan.reason.replaceAll('_',' ')}`,
+        kit.iconButton({lucide:'replace'},{id:`map-outliner-reparent-${node.id}`,label:`Move to ${node.label}`,size:'sm',disabled:!plan.ok,onPress:()=>runOutlinerMutation(state,context,request)}));
+    },
   });
-  if (rows.length === 0) {
-    canvasLabel(parts, `${live ? 'live' : 'world'}-outliner-empty`, live
-      ? 'CONNECT TO VIEW LIVE WORLD' : 'NO AUTHORED MAP NODES', rowRects[0]!, { field: true });
-    return;
-  }
-  rows.slice(state.outlinerOffset, state.outlinerOffset + rowRects.length).forEach((row, index) => {
-    const request = live ? null : outlinerLayerMutationRequest(state, row);
-    const access = context.route.access === 'write' ? 'write' : 'read_only';
-    const plan = request === null ? null : state.model.planOutlinerMutation(request, access);
-    const controls = layoutUiFlex(rowRects[index]!, [
-      { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-      { minSize: { width: 40, height: 40 }, grow: 1 },
-      ...(request === null ? [] : [{ minSize: { width: 40, height: 40 },
-        main: { mode: 'fixed' as const, size: 40 } }]),
-    ], { direction: 'row', gap: 2, align: 'stretch' });
-    const [disclosure, item, reparent] = controls;
-    if (row.node.children.length > 0) {
-      canvasAction(parts, `outliner-toggle-${row.node.id}`, `${row.expanded ? 'Collapse' : 'Expand'} ${row.node.label}`,
-        disclosure!, () => {
-          const source = live ? state.liveOutlinerState : state.worldOutlinerState;
-          const result = applyMapOutlinerTreeKey(tree,
-            { ...source, focusedId: row.node.id }, ' ');
-          if (live) state.liveOutlinerState = result.state;
-          else state.worldOutlinerState = result.state;
-          context.invalidate();
-        }, { symbol: 'layers', active: row.expanded });
-    } else {
-      parts.nodes.push({
-        id: `outliner-kind-${row.node.id}`, kind: 'slot', bounds: disclosure!,
-        symbol: row.node.kind === 'entity' ? 'pointer' : 'layers', state: 'idle',
-      });
-    }
-    canvasAction(parts, `outliner-select-${row.node.id}`,
-      `${row.node.kind === 'entity' ? 'Select' : row.node.kind === 'group' ? 'Target layer' : 'Open'} ${row.node.label}`,
-      item!, () => activateOutlinerRow(state, context, row), {
-        role: row.node.kind === 'entity' ? 'option' : 'button',
-        active: treeState.selectedId === row.node.id,
-        glyph: `${'· '.repeat(row.depth)}${row.node.label.toUpperCase()}`,
-        keyDown: (input) => handleOutlinerTreeKey(state, context, tree, live, row.node.id, input),
-      });
-    if (request !== null && reparent !== undefined) {
-      canvasAction(parts, `outliner-reparent-${row.node.id}`,
-        plan?.ok === true ? `Move selected authored node to ${row.node.label}`
-          : `Cannot move selected authored node here: ${plan?.reason.replaceAll('_', ' ') ?? 'unavailable'}`,
-        reparent, () => { runOutlinerMutation(state, context, request); }, {
-          buttonGlyph: 'return', disabled: plan?.ok !== true,
-        });
-    }
-  });
+  return kit.flex({width:'grow',height:'grow',gap:4},[
+    kit.text(live?'LIVE OUTLINER · READ ONLY':'WORLD OUTLINER',{id:`map-${scope}-outliner-title`}),
+    kit.input({id:`map-outliner-search-${scope}`,label:'Search tree',placeholder:'Search tree',editor,onChange:()=>{state.outlinerOffset=0;context.invalidate();}}),
+    kit.button({id:`map-outliner-clear-${scope}`,label:'Clear search',size:'sm',disabled:!editor.snapshot().value,onPress:()=>{editor.setValue('');state.outlinerOffset=0;context.invalidate();}}),
+    ...(rows.length?[list]:[kit.text(live?'CONNECT TO VIEW LIVE WORLD':'NO AUTHORED MAP NODES',{id:`map-${scope}-outliner-empty`})]),
+  ]);
 }
 
 function exportMapDraft(state: MapCanvasState, context: StudioCanvasToolContext): void {
@@ -1849,246 +1715,28 @@ function exportMapDraft(state: MapCanvasState, context: StudioCanvasToolContext)
   context.invalidate();
 }
 
-function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>, mapId: string): void {
-  const document = state.model.document();
-  const liveAdapter = context.controller.liveAdapter();
-  const liveView = liveAdapter?.view();
-  const resizeAvailability = state.model.resizeAvailability();
-  if (state.resizeImpact !== null && (state.resizeImpact.sourceHash !== mapDocumentV3Hash(document)
-    || !resizeAvailability.allowed)) cancelMapResize(state);
-  if (!resizeAvailability.allowed) state.resizeMode = false;
-  const soloLayer = state.model.soloLayer();
-  if (soloLayer !== null) state.interaction.toggleLayerSolo(soloLayer);
-  const workspace = context.route.path.endsWith('/procedural-world')
-    ? 'scatter' : workspaceForLayer(state.interaction.snapshot().activeLayer);
-  if (state.model.workspace() !== workspace) state.model.selectWorkspace(workspace);
-  let interactionSnapshot = state.interaction.snapshot();
-  if (interactionSnapshot.selectedAnchorKind !== null
-    && !state.interaction.anchorPlacementAvailable()) {
-    state.interaction.selectAnchorKind(null);
-    interactionSnapshot = state.interaction.snapshot();
-  }
-  const activeLayer = interactionSnapshot.activeLayer;
-  const paletteView = state.leftView === 'palette';
-  const paletteKind = mapContextPaletteKind(activeLayer);
-  const liveSpawnAvailability = currentLiveSpawnAvailability(state, context, mapId);
-  if (state.liveSpawnMode && !liveSpawnAvailability.allowed && !state.liveSpawnCommitting) {
-    resetLiveSpawn(state);
-  }
-  const currentContentHead = liveView?.contentHead;
-  const stagedLiveSpawn = state.liveSpawnModel?.pending();
-  if (!state.liveSpawnCommitting && stagedLiveSpawn !== null && stagedLiveSpawn !== undefined
-    && (currentContentHead === null || currentContentHead === undefined
-      || stagedLiveSpawn.contentVersion !== String(currentContentHead.revision)
-      || stagedLiveSpawn.contentFingerprint !== currentContentHead.contentHash)) {
-    // The server fingerprint would reject a changed definition, but removing
-    // the stale Canvas confirmation makes the exact-content guarantee visible.
-    resetLiveSpawn(state, false);
-  }
-  const slots = canvasSlots(context.controlsBounds, [
-    ...(paletteView && workspace === 'terrain' ? [{
-      id: 'terrain-modes', minSize: { width: 1, height: 40 }, main: { mode: 'fixed' as const, size: 40 },
-    }] : []),
-    ...(workspace === 'terrain' ? [{ id: 'elevation', minSize: { width: 1, height: 40 }, main: { mode: 'fixed' as const, size: 40 } }] : []),
-    ...(paletteView ? [{
-      id: 'placement-tools', minSize: { width: 1, height: 40 }, main: { mode: 'fixed' as const, size: 40 },
-    }, {
-      id: 'search', minSize: { width: 1, height: 44 }, main: { mode: 'fixed' as const, size: 44 },
-    }] : []),
-    ...(paletteView && workspace === 'scatter' ? [{
-      id: 'scatter', minSize: { width: 1, height: 42 }, main: { mode: 'fixed' as const, size: 42 },
-    }] : []),
-    ...(paletteView && workspace === 'terrain' && interactionSnapshot.terrainTool === 'transition' ? [{
-      id: 'transition', minSize: { width: 1, height: 42 }, main: { mode: 'fixed' as const, size: 42 },
-    }] : []),
-    { id: 'palette', minSize: { width: 1, height: 80 }, main: { mode: 'grow', min: 80 } },
-    { id: 'stats', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 6 });
-
-  const toolbarX = Math.max(context.workspaceBounds.x + 8, context.controlsBounds.x + context.controlsBounds.width + 30);
-  const toolbarWidth = 316;
-  const toolbar = { x: toolbarX, y: context.workspaceBounds.y + 8, width: toolbarWidth, height: 52 };
-  canvasPanel(parts, 'map-toolbar', toolbar, 'thin', 4);
-  const commands = layoutUiFlex({ x: toolbar.x + 6, y: toolbar.y + 6, width: 216, height: 40 }, Array.from({ length: 5 }, () => ({
-    minSize: { width: 40, height: 40 }, grow: 1,
-  })), { direction: 'row', gap: 4, align: 'stretch' });
-  canvasAction(parts, 'undo', 'Undo map edit', commands[0]!, () => {
-    cancelMapResize(state); state.interaction.undo(); context.invalidate();
-  },
-    { symbol: 'undo', disabled: !state.model.canUndo() });
-  canvasAction(parts, 'redo', 'Redo map edit', commands[1]!, () => {
-    cancelMapResize(state); state.interaction.redo(); context.invalidate();
-  },
-    { symbol: 'redo', disabled: !state.model.canRedo() });
-  canvasAction(parts, 'frame-map', 'Frame the whole map', commands[2]!, () => { state.interaction.frameMap(); context.invalidate(); },
-    { symbol: 'map' });
-  canvasAction(parts, 'export', 'Download the current local map draft as validated JSON',
-    commands[3]!, () => { exportMapDraft(state, context); }, { symbol: 'export' });
-  const publish = mapEditorPublishPresentation({
-    dirty: state.model.dirty(),
-    publishing: state.model.publishing() || liveView?.publishingMap === true,
-    conflictRevision: state.model.conflictRevision(),
-    validation: state.model.validationState(),
-    baseRevision: state.model.baseRevision(),
-    connected: liveView?.connected === true,
-    synchronizing: liveView?.synchronizing === true,
-    authorized: context.route.access === 'write' && studioRoleCan(liveView?.role ?? null, 'publish_map'),
-    publishAvailable: mapId === 'live-island' && liveAdapter?.publishMap !== undefined,
-  });
-  canvasAction(parts, 'publish', publish.tooltip, commands[4]!, () => {
-    state.autoPublish.requestManual();
-  }, { symbol: publish.icon, tone: publish.tone, disabled: publish.disabled,
-    active: publish.state === 'PUBLISHING' });
-
-  if (workspace === 'terrain' && slots['terrain-modes'] !== undefined) {
-    const modes = layoutUiFlex(slots['terrain-modes'], MAP_TERRAIN_AUTHORING_MODES.map(() => ({
-      minSize: { width: 40, height: 40 }, grow: 1,
-    })), { direction: 'row', gap: 1, align: 'stretch' });
-    MAP_TERRAIN_AUTHORING_MODES.forEach((mode, index) => {
-      const presentation = TERRAIN_MODE_PRESENTATION[mode];
-      canvasAction(parts, `terrain-mode-${mode}`, presentation.tooltip, modes[index]!, () => {
-        state.interaction.selectTerrainPaletteMode(mode);
-        state.paletteOffset = 0;
-        context.invalidate();
-      }, { symbol: presentation.symbol, active: interactionSnapshot.terrainPaletteMode === mode });
-    });
-  }
-
-  state.elevationBounds = slots.elevation ?? null;
-  if (slots.elevation !== undefined) {
-    const bounds = slots.elevation;
-    parts.nodes.push({ id: 'elevation-label', kind: 'label', label: `HEIGHT ${interactionSnapshot.activeElevation}`, bounds: { ...bounds, width: 84 }, textScale: 1 });
-    const track = { x: bounds.x + 90, y: bounds.y + 14, width: bounds.width - 100, height: 12 };
-    parts.nodes.push({ id: 'elevation-track', kind: 'thin_panel', bounds: track });
-    const ratio = (interactionSnapshot.activeElevation + 8) / 16;
-    parts.nodes.push({ id: 'elevation-handle', kind: 'button', bounds:
-      { x: track.x + ratio * (track.width - 16), y: bounds.y + 6, width: 16, height: 28 } });
-
-  }
-
-  const searchSnapshot = state.search.snapshot();
-  if (slots.search !== undefined) {
-    const showLiveSpawn = mapId === 'live-island' && workspace === 'objects';
-    const searchItems = [
-      { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-      ...(showLiveSpawn ? [{ minSize: { width: 40, height: 40 }, main: { mode: 'fixed' as const, size: 40 } }] : []),
-      { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-    ] satisfies readonly UiFlexItem[];
-    const searchControls = layoutUiFlex(slots['placement-tools']!, searchItems,
-      { direction: 'row', gap: 4, align: 'stretch' });
-    const eyedropper = searchControls[0]!;
-    const search = slots.search;
-    const liveSpawn = showLiveSpawn ? searchControls[1]! : undefined;
-    const resize = searchControls[showLiveSpawn ? 2 : 1]!;
-    canvasAction(parts, 'eyedropper', 'Sample map content into the palette (I)', eyedropper!, () => {
-      resetLiveSpawn(state);
-      state.interaction.toggleEyedropper();
-      context.invalidate();
-    }, { symbol: 'pointer', active: interactionSnapshot.eyedropperActive });
-    const searchLabel = searchSnapshot.focused
-      ? `${searchSnapshot.value.slice(0, searchSnapshot.focus)}|${searchSnapshot.value.slice(searchSnapshot.focus)}`
-      : searchSnapshot.value || 'SEARCH PALETTE';
-    canvasAction(parts, 'object-search', 'Search the active map palette', search!, () => state.search.focus(),
-      { role: 'textbox' });
-    const searchNodeIndex = parts.nodes.findIndex(({ id }) => id === 'object-search');
-    if (searchNodeIndex >= 0) parts.nodes[searchNodeIndex] = { ...parts.nodes[searchNodeIndex]!, label: searchLabel };
-    parts.textEditors.push({ id: 'object-search', editor: state.search });
-    if (liveSpawn !== undefined) {
-      const spawnAvailability = currentLiveSpawnAvailability(state, context, mapId);
-      canvasAction(parts, 'live-spawn-mode', spawnAvailability.allowed
-        ? state.liveSpawnMode
-          ? 'Cancel functional live entity spawn (Escape)'
-          : 'Spawn selected object as a functional live entity'
-        : spawnAvailability.reason,
-      liveSpawn, () => armLiveSpawn(state, context, mapId), {
-        symbol: 'gamepad',
-        active: state.liveSpawnMode,
-        disabled: !spawnAvailability.allowed || state.liveSpawnPreviewing || state.liveSpawnCommitting,
-        tone: state.liveSpawnMode ? 'danger' : undefined,
-      });
-    }
-    canvasAction(parts, 'resize-mode', resizeAvailability.allowed
-      ? 'Show or hide finite map edge resize handles' : resizeAvailability.reason,
-    resize!, () => {
-      resetLiveSpawn(state);
-      state.resizeMode = !state.resizeMode;
-      if (!state.resizeMode) cancelMapResize(state);
-      context.invalidate();
-    }, { symbol: 'scale', active: state.resizeMode, disabled: !resizeAvailability.allowed });
-  }
-
-  if (workspace === 'scatter' && slots.scatter !== undefined) {
-    const [less, density, more] = layoutUiFlex(slots.scatter, [
-      { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-      { minSize: { width: 72, height: 40 }, grow: 1 },
-      { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-    ], { direction: 'row', gap: 4, align: 'stretch' });
-    canvasAction(parts, 'scatter-less', 'Decrease scatter density', less!, () => {
-      state.interaction.adjustScatterDensity(-500); context.invalidate();
-    }, { buttonGlyph: 'down', disabled: state.interaction.snapshot().scatterDensity === 0 });
-    canvasLabel(parts, 'scatter-density', `${Math.round(state.interaction.snapshot().scatterDensity / 100)}% DENSITY`,
-      density!, { field: true });
-    canvasAction(parts, 'scatter-more', 'Increase scatter density', more!, () => {
-      state.interaction.adjustScatterDensity(500); context.invalidate();
-    }, { buttonGlyph: 'up', disabled: state.interaction.snapshot().scatterDensity === 10_000 });
-  }
-
-  if (workspace === 'terrain' && slots.transition !== undefined) {
-    const controls = layoutUiFlex(slots.transition, Array.from({ length: 5 }, () => ({
-      minSize: { width: 40, height: 40 }, grow: 1,
-    })), { direction: 'row', gap: 4, align: 'stretch' });
-    const transitionKind = interactionSnapshot.transitionKind;
-    canvasAction(parts, 'transition-slope', 'Author a complete slope bank', controls[0]!, () => {
-      state.interaction.selectTransitionKind('slope'); context.invalidate();
-    }, { symbol: 'mountain', active: transitionKind === 'slope' });
-    canvasAction(parts, 'transition-stairs', 'Author a multi-course stair run', controls[1]!, () => {
-      state.interaction.selectTransitionKind('stairs'); context.invalidate();
-    }, { symbol: 'stairs', active: transitionKind === 'stairs' });
-    canvasAction(parts, 'transition-ladder', 'Author a single-lane interaction ladder', controls[2]!, () => {
-      state.interaction.selectTransitionKind('ladder'); context.invalidate();
-    }, { symbol: 'cave', active: transitionKind === 'ladder' });
-    canvasAction(parts, 'transition-width-less',
-      `Decrease transition width from ${interactionSnapshot.transitionWidth} ([)`, controls[3]!, () => {
-        state.interaction.adjustTransitionWidth(-1); context.invalidate();
-      }, { buttonGlyph: 'down', disabled: interactionSnapshot.transitionWidth <= 2
-        || transitionKind === 'ladder' });
-    canvasAction(parts, 'transition-width-more',
-      `Increase transition width from ${interactionSnapshot.transitionWidth} (])`, controls[4]!, () => {
-        state.interaction.adjustTransitionWidth(1); context.invalidate();
-      }, { buttonGlyph: 'up', disabled: interactionSnapshot.transitionWidth >= 4
-        || transitionKind === 'ladder' });
-  }
-
-  if (!paletteView) {
-    appendMapOutliner(state, context, parts, slots.palette!);
-    return;
-  }
-  state.paletteBounds = slots.palette!;
-  const searchQuery = searchSnapshot.value.trim().toLocaleLowerCase();
-  let paletteCount: number | undefined;
+interface MapKitPaletteChoice { readonly id:string; readonly label:string; readonly apply:()=>void; readonly preview?:()=>{readonly image:CanvasImageSource;readonly frame:AtlasFrame}|undefined;readonly symbol?:UiIconName;readonly active?:boolean;readonly disabled?:boolean;readonly tone?:UiTone;readonly glyph?:string }
+function mapKitPaletteChoices(state:MapCanvasState,context:StudioCanvasToolContext,query:string):{choices:MapKitPaletteChoice[];empty:string}{
+  const document=state.model.document(),workspace=state.model.workspace(),interactionSnapshot=state.interaction.snapshot(),paletteKind=mapContextPaletteKind(interactionSnapshot.activeLayer),searchQuery=query.trim().toLocaleLowerCase();
+  const choices:MapKitPaletteChoice[]=[];let empty='NO MATCHING PALETTE ITEMS';
+  const add=(id:string,label:string,apply:()=>void,options:Omit<MapKitPaletteChoice,'id'|'label'|'apply'>={})=>choices.push({id:`map-${id}`,label,apply,...options});
   if (workspace === 'terrain' && paletteKind === 'terrain') {
     const mode = interactionSnapshot.terrainPaletteMode;
     const editable = state.interaction.terrainAuthoringAvailable();
     if (mode === 'brush') {
       const palette = mapTerrainPalette(searchQuery);
-      paletteCount = palette.length;
-      const window = paletteGridWindow(state, slots.palette!, palette.length);
-      const visible = palette.slice(window.start, window.start + window.count);
-      if (visible.length === 0) canvasLabel(parts, 'palette-empty', 'NO MATCHING TERRAIN',
-        { ...slots.palette!, height: 42 }, { field: true });
-      visible.forEach((entry, index) => {
+
+      const visible = palette;
+      if (visible.length === 0) empty = 'NO MATCHING TERRAIN';
+      visible.forEach((entry) => {
         const absoluteIndex = MAP_EDITOR_TERRAIN_TOOLS.indexOf(entry.tool);
-        const preview = terrainPreview(state, context, entry);
-        canvasAction(parts, `terrain-tool-${entry.tool}`,
-          `${entry.title} · ${MAP_EDITOR_TERRAIN_TOOL_LABELS[entry.tool]} (${terrainToolShortcut(absoluteIndex)})`,
-          window.cells[index]!, () => {
+        const preview = () => terrainPreview(state, context, entry);
+        add(`terrain-tool-${entry.tool}`, `${entry.title} · ${MAP_EDITOR_TERRAIN_TOOL_LABELS[entry.tool]} (${terrainToolShortcut(absoluteIndex)})`, () => {
             state.interaction.selectTerrainTool(entry.tool);
             context.invalidate();
           }, {
-            slot: true,
-            ...(preview === undefined ? { symbol: entry.tool === 'inspect' ? 'pointer' as const
-              : entry.tool === 'transition' ? 'stairs' as const : 'map' as const } : { preview }),
+            symbol: entry.tool === 'inspect' ? 'pointer' as const
+              : entry.tool === 'transition' ? 'stairs' as const : 'map' as const, preview,
             active: interactionSnapshot.terrainTool === entry.tool,
             disabled: !editable,
             tone: entry.tool === 'erase_ledge' || entry.tool === 'block' ? 'danger' : undefined,
@@ -2096,32 +1744,22 @@ function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContex
       });
     } else if (mode === 'surface_family') {
       const choices = terrainSurfaceFamilyChoices(searchQuery, state.terrainPalette);
-      paletteCount = choices.length;
-      const window = paletteGridWindow(state, slots.palette!, choices.length);
-      if (choices.length === 0) canvasLabel(parts, 'palette-empty', state.terrainPalette.mode === 'live'
-        ? 'NO ACTIVE LIVE SURFACE TILESETS' : 'NO MATCHING TERRAIN',
-      { ...slots.palette!, height: 42 }, { field: true });
-      choices.slice(window.start, window.start + window.count).forEach((choice, index) => {
-        const preview = terrainChoicePreview(state, context, choice.preview);
-        canvasAction(parts, `terrain-surface-${choice.familyId}`,
-          `Paint ${choice.label} surface family`, window.cells[index]!, () => {
+
+      choices.forEach((choice) => {
+        const preview = () => terrainChoicePreview(state, context, choice.preview);
+        add(`terrain-surface-${choice.familyId}`, `Paint ${choice.label} surface family`, () => {
             state.interaction.selectSurfaceFamily(choice.familyId); context.invalidate();
-          }, { role: 'option', slot: true, ...(preview === undefined ? { symbol: 'landPlot' as const } : { preview }),
+          }, { symbol: 'landPlot' as const, preview,
             active: interactionSnapshot.selectedSurfaceFamily === choice.familyId, disabled: !editable });
       });
     } else if (mode === 'cliff_family') {
       const choices = terrainCliffFamilyChoices(searchQuery, state.terrainPalette);
-      paletteCount = choices.length;
-      const window = paletteGridWindow(state, slots.palette!, choices.length);
-      if (choices.length === 0) canvasLabel(parts, 'palette-empty', state.terrainPalette.mode === 'live'
-        ? 'NO ACTIVE LIVE CLIFF TILESETS' : 'NO MATCHING TERRAIN',
-      { ...slots.palette!, height: 42 }, { field: true });
-      choices.slice(window.start, window.start + window.count).forEach((choice, index) => {
-        const preview = terrainChoicePreview(state, context, choice.preview);
-        canvasAction(parts, `terrain-cliff-${choice.familyId}`,
-          `Paint ${choice.label} cliff family · ${choice.projectionStyle}`, window.cells[index]!, () => {
+
+      choices.forEach((choice) => {
+        const preview = () => terrainChoicePreview(state, context, choice.preview);
+        add(`terrain-cliff-${choice.familyId}`, `Paint ${choice.label} cliff family · ${choice.projectionStyle}`, () => {
             state.interaction.selectCliffFamily(choice.familyId); context.invalidate();
-          }, { role: 'option', slot: true, ...(preview === undefined ? { symbol: 'mountain' as const } : { preview }),
+          }, { symbol: 'mountain' as const, preview,
             active: interactionSnapshot.selectedCliffFamily === choice.familyId, disabled: !editable });
       });
     } else if (mode === 'exact_override') {
@@ -2136,62 +1774,49 @@ function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContex
         };
       }
       const choices = state.exactTerrainPaletteCache?.choices ?? [];
-      paletteCount = choices.length;
-      const window = paletteGridWindow(state, slots.palette!, choices.length);
-      if (point === null || choices.length === 0) canvasLabel(parts, 'palette-empty', point === null
-        ? 'SELECT A TERRAIN CELL' : 'NO COMPATIBLE EXACT TILES',
-      { ...slots.palette!, height: 42 }, { field: true });
-      choices.slice(window.start, window.start + window.count).forEach((choice, index) => {
-        const preview = terrainChoicePreview(state, context, {
+
+      if (point === null || choices.length === 0) empty = point === null
+        ? 'SELECT A TERRAIN CELL' : 'NO COMPATIBLE EXACT TILES';
+      choices.forEach((choice) => {
+        const preview = () => terrainChoicePreview(state, context, {
           assetId: choice.assetId, frameIndex: choice.frameIndex,
         });
-        canvasAction(parts, `terrain-exact-${choice.id}`, choice.label, window.cells[index]!, () => {
+        add(`terrain-exact-${choice.id}`, choice.label, () => {
           state.interaction.selectExactTerrainOverride(choice); context.invalidate();
-        }, { role: 'option', slot: true, ...(preview === undefined ? { symbol: 'replace' as const } : { preview }),
+        }, { symbol: 'replace' as const, preview,
           active: interactionSnapshot.selectedExactTerrainOverrideId === choice.id, disabled: !editable });
       });
     } else {
       const entries = terrainFarmlandVisualChoices(searchQuery);
-      paletteCount = entries.length;
-      const window = paletteGridWindow(state, slots.palette!, entries.length);
-      if (entries.length === 0) canvasLabel(parts, 'palette-empty', 'NO MATCHING TERRAIN',
-        { ...slots.palette!, height: 42 }, { field: true });
-      entries.forEach((entry, index) => canvasAction(parts, 'terrain-farmland-visual',
-        `${entry.label} — ${entry.warning.charAt(0).toLocaleLowerCase()}${entry.warning.slice(1)}`,
-      window.cells[index]!, () => {
+
+      if (entries.length === 0) empty = 'NO MATCHING TERRAIN';
+      entries.forEach((entry) => add('terrain-farmland-visual', `${entry.label} — ${entry.warning.charAt(0).toLocaleLowerCase()}${entry.warning.slice(1)}`, () => {
         state.interaction.selectTerrainPaletteMode('farmland_visual'); context.invalidate();
-      }, { role: 'option', slot: true,
-        ...(terrainChoicePreview(state, context, entry.preview) === undefined
-          ? { symbol: 'sprout' as const } : { preview: terrainChoicePreview(state, context, entry.preview) }),
+      }, { symbol: 'sprout', preview: () => terrainChoicePreview(state, context, entry.preview),
         active: true, disabled: !editable }));
     }
   } else if (workspace === 'biomes') {
     const palette = biomePalette(searchQuery);
-    paletteCount = palette.length;
-    const rows = canvasRows(slots.palette!, Math.max(1, palette.length), 42, 4);
-    state.paletteRowCount = palette.length;
-    state.paletteVisibleRows = rows.length;
-    state.paletteOffset = Math.min(state.paletteOffset, Math.max(0, palette.length - rows.length));
-    const visible = palette.slice(state.paletteOffset, state.paletteOffset + rows.length);
-    if (visible.length === 0) canvasLabel(parts, 'palette-empty', 'NO MATCHING TERRAIN', rows[0]!, { field: true });
-    visible.forEach((biome: MapBiomeId, index) => {
-      canvasAction(parts, `biome-${biome}`, `Paint ${biome}`, rows[index]!, () => {
+
+
+
+    const visible = palette;
+    if (visible.length === 0) empty = 'NO MATCHING TERRAIN';
+    visible.forEach((biome: MapBiomeId) => {
+      add(`biome-${biome}`, `Paint ${biome}`, () => {
         state.interaction.selectBiome(biome); context.invalidate();
-      }, { role: 'option', glyph: biome.replaceAll('_', ' ').toUpperCase(),
+      }, { glyph: biome.replaceAll('_', ' ').toUpperCase(),
         active: state.interaction.snapshot().selectedBiome === biome });
     });
   } else if (paletteKind === 'objects') {
-    const palette = state.interaction.palette(searchSnapshot.value);
-    paletteCount = palette.length;
-    const window = paletteGridWindow(state, slots.palette!, palette.length);
-    const visible = palette.slice(window.start, window.start + window.count);
-    if (visible.length === 0) canvasLabel(parts, 'palette-empty', state.catalogLoading
-      ? 'LOADING ASSET LIBRARY' : 'NO OBJECTS FOR THIS LAYER',
-    { ...slots.palette!, height: 42 }, { field: true });
-    visible.forEach((entry, index) => {
-      const preview = prefabPreview(state, context, entry);
-      canvasAction(parts, `prefab-${entry.id}`, entry.title,
-        window.cells[index]!, () => {
+    const palette = state.interaction.palette(query);
+
+    const visible = palette;
+    if (visible.length === 0) empty = state.catalogLoading
+      ? 'LOADING ASSET LIBRARY' : 'NO OBJECTS FOR THIS LAYER';
+    visible.forEach((entry) => {
+      const preview = () => prefabPreview(state, context, entry);
+      add(`prefab-${entry.id}`, `Place ${entry.title} as authored scenery`, () => {
           const nextDefinitionId = state.catalogDefinitionIds.get(entry.id);
           if (state.liveSpawnMode && isMapFunctionalLiveDefinitionId(nextDefinitionId)) {
             resetLiveSpawn(state, false);
@@ -2200,47 +1825,124 @@ function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContex
           } else if (state.liveSpawnMode) resetLiveSpawn(state);
           state.interaction.selectPrefab(entry.id);
           context.invalidate();
-        },
-        { role: 'option', slot: true, ...(preview === undefined ? { symbol: 'box' as const } : { preview }),
+        }, { symbol: 'box' as const, preview,
           active: interactionSnapshot.selectedPrefabId === entry.id });
     });
   } else if (paletteKind === 'anchors') {
-    const entries = mapAnchorToolPalette(searchSnapshot.value);
-    paletteCount = entries.length;
-    const window = paletteGridWindow(state, slots.palette!, entries.length);
-    const visible = entries.slice(window.start, window.start + window.count);
-    if (visible.length === 0) canvasLabel(parts, 'palette-empty', 'NO MATCHING ANCHOR TOOLS',
-      { ...slots.palette!, height: 42 }, { field: true });
-    visible.forEach((entry, index) => {
+    const entries = mapAnchorToolPalette(query);
+
+    const visible = entries;
+    if (visible.length === 0) empty = 'NO MATCHING ANCHOR TOOLS';
+    visible.forEach((entry) => {
       const available = entry.authorable && state.interaction.anchorPlacementAvailable();
       const tooltip = entry.authorable
         ? available ? `Place ${entry.title}; click map at exact projected terrain elevation`
           : `Cannot place ${entry.title}; select the visible editable Anchors layer`
         : `${entry.title}: runtime authority not available`;
-      canvasAction(parts, `anchor-tool-${entry.kind}`, tooltip, window.cells[index]!, () => {
+      add(`anchor-tool-${entry.kind}`, tooltip, () => {
         if (!entry.authorable) return;
         state.interaction.selectAnchorKind(
           interactionSnapshot.selectedAnchorKind === entry.kind ? null : entry.kind,
         );
         context.invalidate();
-      }, { role: 'option', slot: true, symbol: ANCHOR_KIND_SYMBOLS[entry.kind],
+      }, { symbol: ANCHOR_KIND_SYMBOLS[entry.kind],
         active: interactionSnapshot.selectedAnchorKind === entry.kind,
         disabled: !available });
     });
   } else {
-    state.paletteRowCount = 0;
-    state.paletteVisibleRows = 0;
-    state.paletteOffset = 0;
-    paletteCount = 0;
-    canvasLabel(parts, 'palette-empty', 'LIVE PLAYER OBJECTS · READ ONLY',
-    { ...slots.palette!, height: 42 }, { field: true });
+
+
+
+
+    empty = 'LIVE PLAYER OBJECTS · READ ONLY';
   }
-  if (state.paletteRowCount > state.paletteVisibleRows) parts.nodes.push({
-    id: 'palette-scrollbar', kind: 'scrollbar',
-    bounds: { x: slots.palette!.x + slots.palette!.width - 12, y: slots.palette!.y,
-      width: 12, height: slots.palette!.height },
-    scroll: { total: state.paletteRowCount, visible: state.paletteVisibleRows, position: state.paletteOffset },
+  return {choices,empty};
+}
+
+function mapKitPalette(state:MapCanvasState,context:StudioCanvasToolContext,mapId:string):UiElement {
+  const snapshot=state.interaction.snapshot(),workspace=state.model.workspace(),children:UiElement[]=[];
+  const icon=(id:string,label:string,symbol:UiIconName,onPress:()=>void,disabled=false,active=false)=>kit.tooltip(label,
+    kit.iconButton({lucide:symbol},{id:`map-${id}`,label,onPress,disabled,tone:active?'success':'primary'}),{width:uiFixed(24),height:uiFixed(24)});
+  const strip=(items:UiElement[])=>kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,width:'grow',height:uiFixed(Math.ceil(items.length/3)*28-4),shrink:0},items);
+  if(workspace==='terrain')children.push(strip(MAP_TERRAIN_AUTHORING_MODES.map(mode=>{
+    const presentation=TERRAIN_MODE_PRESENTATION[mode];return icon(`terrain-mode-${mode}`,presentation.tooltip,presentation.symbol,()=>{state.interaction.selectTerrainPaletteMode(mode);state.paletteOffset=0;context.invalidate();},false,snapshot.terrainPaletteMode===mode);
+  })));
+  const resize=state.model.resizeAvailability();
+  const actions=[icon('eyedropper','Sample map content into the palette (I)','pointer',()=>{resetLiveSpawn(state);state.interaction.toggleEyedropper();context.invalidate();},false,snapshot.eyedropperActive),
+    icon('resize-mode',resize.allowed?'Show or hide finite map edge resize handles':resize.reason,'scale',()=>{resetLiveSpawn(state);state.resizeMode=!state.resizeMode;if(!state.resizeMode)cancelMapResize(state);context.invalidate();},!resize.allowed,state.resizeMode)];
+  if(mapId==='live-island'&&workspace==='objects'){
+    const spawn=currentLiveSpawnAvailability(state,context,mapId);
+    actions.push(icon('live-spawn-mode',spawn.allowed?(state.liveSpawnMode?'Cancel functional live entity spawn (Escape)':'Spawn selected object as a functional live entity'):spawn.reason,'gamepad',()=>armLiveSpawn(state,context,mapId),!spawn.allowed||state.liveSpawnPreviewing||state.liveSpawnCommitting,state.liveSpawnMode));
+  }
+  children.push(strip(actions));
+  if(workspace==='scatter')children.push(kit.flex({width:'grow',gap:4},[
+    kit.text(`${Math.round(snapshot.scatterDensity/100)}% DENSITY`,{id:'map-scatter-density'}),
+    strip([icon('scatter-less','Decrease scatter density','chevronLeft',()=>{state.interaction.adjustScatterDensity(-500);context.invalidate();},snapshot.scatterDensity===0),icon('scatter-more','Increase scatter density','chevronRight',()=>{state.interaction.adjustScatterDensity(500);context.invalidate();},snapshot.scatterDensity===10000)]),
+  ]));
+  if(workspace==='terrain'&&snapshot.terrainTool==='transition')children.push(strip([
+    icon('transition-slope','Author a complete slope bank','mountain',()=>{state.interaction.selectTransitionKind('slope');context.invalidate();},false,snapshot.transitionKind==='slope'),
+    icon('transition-stairs','Author a multi-course stair run','stairs',()=>{state.interaction.selectTransitionKind('stairs');context.invalidate();},false,snapshot.transitionKind==='stairs'),
+    icon('transition-ladder','Author a single-lane interaction ladder','cave',()=>{state.interaction.selectTransitionKind('ladder');context.invalidate();},false,snapshot.transitionKind==='ladder'),
+    icon('transition-width-less',`Decrease transition width from ${snapshot.transitionWidth} ([)`,'chevronLeft',()=>{state.interaction.adjustTransitionWidth(-1);context.invalidate();},snapshot.transitionWidth<=2||snapshot.transitionKind==='ladder'),
+    icon('transition-width-more',`Increase transition width from ${snapshot.transitionWidth} (])`,'chevronRight',()=>{state.interaction.adjustTransitionWidth(1);context.invalidate();},snapshot.transitionWidth>=4||snapshot.transitionKind==='ladder'),
+  ]));
+  let result=mapKitPaletteChoices(state,context,state.search.snapshot().value);
+  const empty=kit.text(result.empty,{id:'map-palette-empty',layout:{visible:result.choices.length===0}});
+  const list=kit.list<MapKitPaletteChoice>({id:'map-palette-list',label:'Placement palette',items:result.choices,key:choice=>choice.id,
+    rowHeight:uiFixed(36),layout:{width:'grow',height:'grow',minHeight:uiFixed(36)},initialScrollY:state.paletteOffset,
+    onScroll:element=>{state.paletteOffset=element.scroll.y;},onSelect:(_keys,choice)=>{if(!choice.disabled)choice.apply();},
+    render:choice=>{const preview=choice.preview?.();const control=kit.button({id:choice.id,label:'',disabled:choice.disabled,tone:choice.active?'success':choice.tone??'primary',layout:{width:'grow',height:'grow'},onPress:choice.apply,children:[
+      kit.flex({direction:'row',align:'center',width:'grow',height:'grow',gap:2},[
+        ...(preview?[kit.image(preview.image,preview.frame,{label:choice.label,fit:'contain',integerScale:true,layout:{width:uiFixed(24),height:uiFixed(24),shrink:0}})]:choice.symbol?[kit.icon({lucide:choice.symbol},{layout:{width:uiFixed(16),height:uiFixed(16),shrink:0}})]:[]),
+        kit.text((choice.glyph??choice.label).split(/[\n·—]/u)[0]!.trim().replace(/^(?:Place|Paint) /u,'').replace(/ as authored scenery.*$/u,''),{maxLines:2,layout:{width:'grow'}}),
+      ]),
+    ]});control.label=choice.label;return kit.tooltip(choice.label,control,{width:'grow',height:'grow'});},
   });
+  const search=kit.combobox({id:'map-object-search',label:'Search palette',placeholder:'Search palette',editor:state.search,open:state.paletteSuggestionsOpen,onOpenChange:open=>{state.paletteSuggestionsOpen=open;},
+    suggestions:async query=>mapKitPaletteChoices(state,context,query).choices.map(choice=>({value:choice.id,label:choice.label,disabled:choice.disabled})),
+    onQueryChange:query=>{result=mapKitPaletteChoices(state,context,query);state.paletteOffset=0;list.setProps({items:result.choices,active:0});list.scroll.y=0;empty.setProps({text:result.empty});empty.setStyle({visible:result.choices.length===0});},
+    onChange:id=>{const choice=mapKitPaletteChoices(state,context,'').choices.find(choice=>choice.id===id);if(choice&&!choice.disabled){state.search.setValue('');choice.apply();}},
+  });
+  children.push(search,empty,list);
+  state.paletteBounds={x:0,y:0,width:0,height:0};state.paletteRowCount=result.choices.length;state.paletteVisibleRows=4;
+  return kit.flex({width:'grow',height:'grow',gap:4},children);
+}
+
+function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContext,
+  parts: MapCanvasParts, mapId: string): void {
+  const document = state.model.document();
+  const liveAdapter = context.controller.liveAdapter();
+  const liveView = liveAdapter?.view();
+  const resizeAvailability = state.model.resizeAvailability();
+  if (state.resizeImpact !== null && (state.resizeImpact.sourceHash !== mapDocumentV3Hash(document)
+    || !resizeAvailability.allowed)) cancelMapResize(state);
+  if (!resizeAvailability.allowed) state.resizeMode = false;
+  const workspace = state.model.workspace();
+  let interactionSnapshot = state.interaction.snapshot();
+  if (interactionSnapshot.selectedAnchorKind !== null
+    && !state.interaction.anchorPlacementAvailable()) {
+    state.interaction.selectAnchorKind(null);
+    interactionSnapshot = state.interaction.snapshot();
+  }
+  const activeLayer = interactionSnapshot.activeLayer;
+  const paletteView = state.leftView === 'palette';
+  const liveSpawnAvailability = currentLiveSpawnAvailability(state, context, mapId);
+  if (state.liveSpawnMode && !liveSpawnAvailability.allowed && !state.liveSpawnCommitting) {
+    resetLiveSpawn(state);
+  }
+  const currentContentHead = liveView?.contentHead;
+  const stagedLiveSpawn = state.liveSpawnModel?.pending();
+  if (!state.liveSpawnCommitting && stagedLiveSpawn !== null && stagedLiveSpawn !== undefined
+    && (currentContentHead === null || currentContentHead === undefined
+      || stagedLiveSpawn.contentVersion !== String(currentContentHead.revision)
+      || stagedLiveSpawn.contentFingerprint !== currentContentHead.contentHash)) {
+    // The server fingerprint would reject a changed definition, but removing
+    // the stale Canvas confirmation makes the exact-content guarantee visible.
+    resetLiveSpawn(state, false);
+  }
+    state.paletteBounds={x:0,y:0,width:0,height:0};
+    const command=(id:string,label:string,icon:UiIconName,onPress:()=>void,disabled=false)=>kit.tooltip(label,kit.iconButton({lucide:icon},{id:`map-${id}`,label,onPress,disabled}),{width:uiFixed(24),height:uiFixed(24)});
+    const publish=mapEditorPublishPresentation({dirty:state.model.dirty(),publishing:state.model.publishing()||liveView?.publishingMap===true,conflictRevision:state.model.conflictRevision(),validation:state.model.validationState(),baseRevision:state.model.baseRevision(),connected:liveView?.connected===true,synchronizing:liveView?.synchronizing===true,authorized:context.route.access==='write'&&studioRoleCan(liveView?.role??null,'publish_map'),publishAvailable:mapId==='live-island'&&liveAdapter?.publishMap!==undefined});
   const liveSpawnReceipt = state.liveSpawnModel?.pending() ?? null;
   const stateLabel = state.liveSpawnMode
     ? state.liveSpawnCommitting ? 'LIVE SPAWN · COMMITTING'
@@ -2263,398 +1965,274 @@ function appendLeftDrawer(state: MapCanvasState, context: StudioCanvasToolContex
       } · L${state.interaction.snapshot().activeElevation}`
     : workspace === 'scatter'
       ? `DRAW TO SCATTER · ${Math.round(state.interaction.snapshot().scatterDensity / 100)}%`
-    : `${activeLayer.toUpperCase()} · ${paletteCount ?? 0}`;
-  appendMapStats(state, context, parts, slots.stats!,
-    `${document.width}×${document.height} · ${stateLabel}`);
+    : `${activeLayer.toUpperCase()} · ${state.paletteRowCount}`;
+    parts.kit.controls=studioLibraryDrawer([
+      kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:4,width:'grow',height:uiFixed(52),shrink:0},[
+        command('undo','Undo','undo',()=>{cancelMapResize(state);state.interaction.undo();context.invalidate();},!state.model.canUndo()),
+        command('redo','Redo','redo',()=>{cancelMapResize(state);state.interaction.redo();context.invalidate();},!state.model.canRedo()),
+        command('frame-map','Frame map','map',()=>{state.interaction.frameMap();context.invalidate();}),
+        command('export','Export','export',()=>exportMapDraft(state,context)),
+        command('publish',publish.tooltip,'cloudPublish',()=>state.autoPublish.requestManual(),publish.disabled),
+      ]),
+      kit.select({id:'map-workspace',label:'Workspace',value:workspace,options:MAP_EDITOR_WORKSPACES.map(value=>({value,label:value.replace(/^./u,char=>char.toUpperCase())})),onChange:value=>{resetLiveSpawn(state);state.model.selectWorkspace(value as typeof workspace);state.interaction.selectLayer(workspaceLayer(value as typeof workspace));state.paletteOffset=0;context.invalidate();}}),
+      kit.select({id:'map-left-view',label:'Drawer view',value:state.leftView,options:[{value:'palette',label:'Palette'},{value:'world',label:'World'},{value:'live',label:'Live'}],onChange:value=>{state.leftView=value as typeof state.leftView;state.outlinerOffset=0;context.invalidate();}}),
+    ], paletteView?mapKitPalette(state,context,mapId):mapKitOutliner(state,context), [
+      kit.text(`${document.width}×${document.height} · ${stateLabel} · AUTO ${state.autoPublish.presentation().state}`,{id:'map-map-stats'}),
+      kit.tooltip(state.autoPublish.presentation().tooltip,kit.checkbox({id:'map-auto-publish',label:'Auto',layout:{width:'grow'},value:state.autoPublishEnabled,onChange:value=>{state.autoPublishEnabled=value===true;context.invalidate();}}),{width:'grow',shrink:0}),
+    ]);
+}
+
+/** Overlay content uses the same retained hit tree as the surrounding workbench.
+ * The panel consumes background input; the rest of the map stays interactive
+ * while a move/spawn operation is waiting for a destination. */
+interface MapCanvasParts {
+  readonly kit: { controls?: UiElement; inspector?: UiElement; annotations?: UiElement; overlays?: UiElement };
+}
+function reportCanvasError(context: StudioCanvasToolContext, title: string, error: unknown): void {
+  context.controller.notifications.push('error', title, error instanceof Error ? error.message : String(error));
+  context.invalidate();
+}
+
+function appendMapOverlayPanel(
+  parts: MapCanvasParts, context: StudioCanvasToolContext,
+  id: string, children: readonly UiElement[],
+): void {
+  parts.kit.overlays?.append(kit.frame({ id: `map-${id}-panel`, style: 'thin', blockInput: true,
+    layout: { position: 'absolute', inset: { left: 8, right: 8, top: uiFixed(40) },
+      height: uiFixed(Math.max(80, Math.min(280, context.workspaceBounds.height / 2 - 48))),
+      overflow: 'scroll-y', gap: 8 }, children,
+  }));
+}
+
+function mapOverlayAction(
+  id: string, label: string, onPress: () => void,
+  options: { readonly disabled?: boolean; readonly tone?: UiTone } = {},
+): UiElement {
+  const caption = id.endsWith('-cancel') ? 'Cancel'
+    : id.endsWith('-confirm') ? 'Confirm'
+    : id === 'schema-action-proceed' ? label.startsWith('Preview') ? 'Preview change' : 'Confirm change'
+    : id === 'publish-conflict-reload' ? 'Reload live map'
+    : id === 'publish-conflict-keep-local' ? 'Keep local draft'
+    : id === 'publish-conflict-export' ? 'Export local draft' : label;
+  return kit.tooltip(label, kit.button({ id: `map-${id}`, label: caption, onPress, ...options,
+    layout: { width: 'grow', shrink: 0 } }), { width: 'grow', shrink: 0 });
+}
+
+function appendAnchorAnnotation(state: MapCanvasState, context: StudioCanvasToolContext, parts: MapCanvasParts): void {
+  const selection = state.model.selection();
+  if (selection.kind !== 'entity' || selection.entityKind !== 'map-anchor' || selection.spaceId !== 0
+    || !state.model.isLayerVisible('anchors')) return;
+  const anchor = state.model.document().anchors.find(anchor => anchor.id === selection.id);
+  const terrain = state.renderer.inspectionTerrain(state.model.terrainIdentity());
+  if (!anchor || !terrain) return;
+  const { viewport, camera } = state.interaction.snapshot();
+  const point = mapGameplayAnchorMarkerScreenPosition(anchor, terrain, viewport, camera);
+  if (point.x < viewport.x || point.y < viewport.y || point.x >= viewport.x + viewport.width || point.y >= viewport.y + viewport.height) return;
+  const width = Math.min(200, context.workspaceBounds.width / 2);
+  parts.kit.annotations = kit.stack({ width: 'grow', height: 'grow' }, [kit.speechBubble({
+    id: 'map-anchor-annotation', text: `${anchor.kind.toUpperCase()} · ${anchor.id} · RUNTIME UNBOUND`,
+    tone: 'info', tail: 'down', maxWidth: uiFixed(width),
+    layout: { position: 'absolute', inset: {
+      left: uiFixed(Math.max(0, Math.min(context.workspaceBounds.width / 2 - width, (point.x - viewport.x) / 2 - width / 2))),
+      top: uiFixed(Math.max(0, (point.y - viewport.y) / 2 - 48)),
+    }, width: uiFixed(width) },
+  })]);
 }
 
 function appendWorldOverlayControls(
-  state: MapCanvasState,
-  context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>,
+  state: MapCanvasState, context: StudioCanvasToolContext, parts: MapCanvasParts,
 ): void {
   const snapshot = state.interaction.snapshot();
-  const bounds = context.workspaceBounds;
-  const toolbarX = Math.max(context.workspaceBounds.x + 8, context.controlsBounds.x + context.controlsBounds.width + 30);
-  const toolbarWidth = 316;
-  const startX = toolbarX + toolbarWidth - 90;
-  const buttons = [
-    { x: startX, y: bounds.y + 14, width: 40, height: 40 },
-    { x: startX + 44, y: bounds.y + 14, width: 40, height: 40 },
-  ] as const;
-  canvasAction(parts, 'height-overlay', 'Show or hide elevation overlay (H)', buttons[0], () => {
-    state.interaction.toggleHeightOverlay(); context.invalidate();
-  }, { symbol: 'height', active: snapshot.heightOverlayVisible });
-  canvasAction(parts, 'collision-overlay', 'Show or hide collision overlay (C)', buttons[1], () => {
-    state.interaction.toggleCollisionOverlay(); context.invalidate();
-  }, { symbol: 'collision', active: snapshot.collisionOverlayVisible });
+  parts.kit.overlays?.append(kit.flex({ direction: 'row', gap: 4, position: 'absolute',
+    inset: { left: 8, top: 8 }, height: uiFixed(24) }, [
+    kit.tooltip('Show or hide elevation overlay (H)', kit.button({ id: 'map-height-overlay', label: 'H',
+      tone: snapshot.heightOverlayVisible ? 'success' : 'neutral',
+      onPress: () => { state.interaction.toggleHeightOverlay(); context.invalidate(); },
+      layout: { width: uiFixed(24) } })),
+    kit.tooltip('Show or hide collision overlay (C)', kit.button({ id: 'map-collision-overlay', label: 'C',
+      tone: snapshot.collisionOverlayVisible ? 'success' : 'neutral',
+      onPress: () => { state.interaction.toggleCollisionOverlay(); context.invalidate(); },
+      layout: { width: uiFixed(24) } })),
+  ]));
 }
 
 function appendResizeOverlay(
-  state: MapCanvasState,
-  context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>,
+  state: MapCanvasState, context: StudioCanvasToolContext, parts: MapCanvasParts,
 ): void {
-  const document = state.model.document();
-  const availability = state.model.resizeAvailability();
-  const bounds = context.workspaceBounds;
+  const document = state.model.document(), availability = state.model.resizeAvailability();
   if (!availability.allowed || (!state.resizeMode && state.resizeImpact === null)) return;
   if (state.resizeImpact === null) {
-    const edgeControls: Readonly<Record<MapResizeEdge, readonly [UiRect, UiRect]>> = {
-      west: [
-        { x: bounds.x + 8, y: bounds.y + Math.round(bounds.height / 2) - 43, width: 40, height: 40 },
-        { x: bounds.x + 8, y: bounds.y + Math.round(bounds.height / 2) + 3, width: 40, height: 40 },
-      ],
-      east: [
-        { x: bounds.x + bounds.width - 48, y: bounds.y + Math.round(bounds.height / 2) - 43, width: 40, height: 40 },
-        { x: bounds.x + bounds.width - 48, y: bounds.y + Math.round(bounds.height / 2) + 3, width: 40, height: 40 },
-      ],
-      north: [
-        { x: bounds.x + Math.round(bounds.width / 2) - 43, y: bounds.y + 14, width: 40, height: 40 },
-        { x: bounds.x + Math.round(bounds.width / 2) + 3, y: bounds.y + 14, width: 40, height: 40 },
-      ],
-      south: [
-        { x: bounds.x + Math.round(bounds.width / 2) - 43, y: bounds.y + bounds.height - 48, width: 40, height: 40 },
-        { x: bounds.x + Math.round(bounds.width / 2) + 3, y: bounds.y + bounds.height - 48, width: 40, height: 40 },
-      ],
-    };
-    (['west', 'east', 'north', 'south'] as const).forEach((edge) => {
-      const dimension = edge === 'west' || edge === 'east' ? document.width : document.height;
-      const unavailable = !availability.allowed ? availability.reason
-        : dimension <= 1 ? 'Map edge cannot shrink below one tile' : null;
-      canvasAction(parts, `resize-${edge}-shrink`, unavailable ?? `Preview crop of the ${edge} edge by one tile`,
-        edgeControls[edge][0], () => requestMapResize(state, context, edge, false), {
-          glyph: `${edge[0]!.toUpperCase()}−`, tone: 'danger', disabled: unavailable !== null,
-        });
-      canvasAction(parts, `resize-${edge}-grow`, availability.allowed
-        ? `Grow the ${edge} edge by one tile` : availability.reason,
-      edgeControls[edge][1], () => requestMapResize(state, context, edge, true), {
-        glyph: `${edge[0]!.toUpperCase()}+`, disabled: !availability.allowed,
-      });
-    });
+    appendMapOverlayPanel(parts, context, 'resize-edges', [kit.text('Resize map', { role: 'header' }),
+      ...(['west', 'east', 'north', 'south'] as const).map(edge => {
+        const dimension = edge === 'west' || edge === 'east' ? document.width : document.height;
+        return kit.flex({ direction: 'row', gap: 4, width: 'grow', shrink: 0 }, [
+          mapOverlayAction(`resize-${edge}-shrink`, `Crop ${edge}`, () => requestMapResize(state, context, edge, false),
+            { tone: 'danger', disabled: dimension <= 1 }),
+          mapOverlayAction(`resize-${edge}-grow`, `Grow ${edge}`, () => requestMapResize(state, context, edge, true)),
+        ]);
+      }), mapOverlayAction('resize-cancel', 'Cancel map resize (Escape)', () => { cancelMapResize(state); context.invalidate(); }),
+    ]);
     return;
   }
-
   const impact = state.resizeImpact;
-  const panelWidth = Math.min(460, bounds.width - 24);
-  const panelBounds = {
-    x: bounds.x + Math.round((bounds.width - panelWidth) / 2),
-    y: bounds.y + 12,
-    width: panelWidth,
-    height: 116,
-  };
-  const content = canvasPanel(parts, 'resize-preview-panel', panelBounds, 'thin', 4);
-  const regions = canvasSlots(content, [
-    { id: 'dimensions', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-    { id: 'loss', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-    { id: 'actions', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 3 });
-  canvasLabel(parts, 'resize-preview-dimensions',
-    `CROP ${impact.edge.toUpperCase()} · ${impact.command.width}×${impact.command.height} · ${impact.croppedTileCount} TILES`,
-  regions.dimensions!, { field: true, tone: 'danger' });
   const objectLoss = impact.removedObjectIds.length + impact.removedLandmarkIds.length;
   const transitionLoss = impact.removedTransitionCount + impact.removedStairRunCount;
   const otherLoss = mapResizeImpactLossCount(impact) - objectLoss - transitionLoss;
-  canvasLabel(parts, 'resize-preview-loss',
-    `OBJECT ${objectLoss} · TRANSITION ${transitionLoss} · OTHER ${otherLoss}`,
-  regions.loss!, { field: true, tone: mapResizeImpactLossCount(impact) > 0 ? 'danger' : undefined });
-  const [cancel, confirm] = layoutUiFlex(regions.actions!, Array.from({ length: 2 }, () => ({
-    minSize: { width: 40, height: 40 }, grow: 1,
-  })), { direction: 'row', gap: 5, align: 'stretch' });
-  canvasAction(parts, 'resize-cancel', 'Cancel map crop (Escape)', cancel!, () => {
-    cancelMapResize(state); context.invalidate();
-  }, { buttonGlyph: 'cross' });
-  canvasAction(parts, 'resize-confirm', `Confirm destructive ${impact.edge} edge crop (Enter)`,
-    confirm!, () => confirmMapResize(state, context), { buttonGlyph: 'return', tone: 'danger' });
+  appendMapOverlayPanel(parts, context, 'resize-preview', [
+    kit.text(`CROP ${impact.edge.toUpperCase()} · ${impact.command.width}×${impact.command.height} · ${impact.croppedTileCount} TILES`,
+      { id: 'map-resize-preview-dimensions', layout: { width: 'grow' } }),
+    kit.text(`OBJECT ${objectLoss} · TRANSITION ${transitionLoss} · OTHER ${otherLoss}`,
+      { id: 'map-resize-preview-loss', layout: { width: 'grow' } }),
+    mapOverlayAction('resize-cancel', 'Cancel map crop (Escape)', () => { cancelMapResize(state); context.invalidate(); }),
+    mapOverlayAction('resize-confirm', `Confirm destructive ${impact.edge} edge crop (Enter)`,
+      () => confirmMapResize(state, context), { tone: 'danger' }),
+  ]);
 }
 
 function appendLiveSpawnOverlay(
   state: MapCanvasState,
   context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>,
+  parts: MapCanvasParts,
 ): void {
-  if (!state.liveSpawnMode || state.liveSpawnTarget === null) return;
-  const receipt: MapSpawnHereReceipt | null = state.liveSpawnModel?.pending() ?? null;
-  const bounds = context.workspaceBounds;
-  const panelWidth = Math.min(560, bounds.width - 24);
-  const panelBounds = {
-    x: bounds.x + Math.round((bounds.width - panelWidth) / 2),
-    y: bounds.y + 12,
-    width: panelWidth,
-    height: 250,
-  };
-  const content = canvasPanel(parts, 'live-spawn-preview-panel', panelBounds, 'thin', 4);
-  const regions = canvasSlots(content, [
-    { id: 'ribbon', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-    { id: 'target', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'authority', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'content', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'receipt', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'impact', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'actions', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 3 });
-  parts.nodes.push({ id: 'live-spawn-ribbon', kind: 'ribbon', bounds: regions.ribbon!,
-    label: state.liveSpawnCommitting ? 'SPAWNING LIVE ENTITY' : 'LIVE ENTITY PREVIEW' });
-  const displayName = receipt?.displayName ?? liveSpawnDisplayName(state) ?? 'Functional entity';
-  canvasLabel(parts, 'live-spawn-target',
-    `${displayName.toUpperCase()} · TILE ${state.liveSpawnTarget.tileX},${state.liveSpawnTarget.tileY} · SPACE ${TOPSIDE_SPACE_ID}`,
-  regions.target!, { field: true });
-  canvasLabel(parts, 'live-spawn-authority', receipt === null
+const children:UiElement[]=[];
+if (!state.liveSpawnMode || state.liveSpawnTarget === null) return;
+const receipt: MapSpawnHereReceipt | null = state.liveSpawnModel?.pending() ?? null;
+children.push(kit.text(state.liveSpawnCommitting ? 'SPAWNING LIVE ENTITY' : 'LIVE ENTITY PREVIEW',{id:'map-'+'live-spawn-ribbon',layout:{width:'grow'}}));
+const displayName = receipt?.displayName ?? liveSpawnDisplayName(state) ?? 'Functional entity';
+children.push(kit.text(`${displayName.toUpperCase()} · TILE ${state.liveSpawnTarget.tileX},${state.liveSpawnTarget.tileY} · SPACE ${TOPSIDE_SPACE_ID}`,{id:'map-'+'live-spawn-target',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? 'AUTHORITY CHECK · VALIDATING'
-    : `AUTHORITY ${receipt.authority.toUpperCase()} · REASON ${receipt.reason}`,
-  regions.authority!, { field: true });
-  canvasLabel(parts, 'live-spawn-content', receipt === null
+    : `AUTHORITY ${receipt.authority.toUpperCase()} · REASON ${receipt.reason}`,{id:'map-'+'live-spawn-authority',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? 'CONTENT HEAD · VALIDATING'
-    : `CONTENT R${receipt.contentVersion} · ${receipt.contentFingerprint}`,
-  regions.content!, { field: true });
-  canvasLabel(parts, 'live-spawn-receipt', receipt === null
+    : `CONTENT R${receipt.contentVersion} · ${receipt.contentFingerprint}`,{id:'map-'+'live-spawn-content',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? 'BASE + RECEIPT · VALIDATING'
-    : `BASE ${receipt.baseVersion} · RECEIPT ${receipt.previewFingerprint}`,
-  regions.receipt!, { field: true });
-  canvasLabel(parts, 'live-spawn-impact', receipt === null
+    : `BASE ${receipt.baseVersion} · RECEIPT ${receipt.previewFingerprint}`,{id:'map-'+'live-spawn-receipt',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? 'NO WORLD CHANGE UNTIL CONFIRMED'
-    : `${receipt.preview.preview.changes.length} EXACT CHANGE(S) · ${receipt.preview.warnings.length} WARNING(S)`,
-  regions.impact!, { field: true, tone: receipt?.preview.warnings.length ? 'danger' : 'success' });
-  const [cancel, confirm] = layoutUiFlex(regions.actions!, Array.from({ length: 2 }, () => ({
-    minSize: { width: 40, height: 40 }, grow: 1,
-  })), { direction: 'row', gap: 5, align: 'stretch' });
-  canvasAction(parts, 'live-spawn-cancel', 'Cancel functional live entity spawn (Escape)',
-    cancel!, () => { resetLiveSpawn(state); context.invalidate(); }, {
-      buttonGlyph: 'cross', disabled: state.liveSpawnCommitting,
-    });
-  canvasAction(parts, 'live-spawn-confirm', receipt === null
+    : `${receipt.preview.preview.changes.length} EXACT CHANGE(S) · ${receipt.preview.warnings.length} WARNING(S)`,{id:'map-'+'live-spawn-impact',layout:{width:'grow'}}));
+children.push(mapOverlayAction('live-spawn-cancel','Cancel functional live entity spawn (Escape)',() => { resetLiveSpawn(state); context.invalidate(); },{disabled: state.liveSpawnCommitting}));
+children.push(mapOverlayAction('live-spawn-confirm',receipt === null
     ? 'Wait for the exact live mutation preview before confirming'
-    : `Confirm live spawn of ${receipt.displayName} at ${receipt.tileX},${receipt.tileY}`,
-  confirm!, () => confirmLiveSpawn(state, context), {
-    buttonGlyph: 'return', tone: 'danger',
-    disabled: receipt === null || state.liveSpawnPreviewing || state.liveSpawnCommitting,
-  });
+    : `Confirm live spawn of ${receipt.displayName} at ${receipt.tileX},${receipt.tileY}`,() => confirmLiveSpawn(state, context),{tone: 'danger',disabled: receipt === null || state.liveSpawnPreviewing || state.liveSpawnCommitting}));
+appendMapOverlayPanel(parts,context,'appendLiveSpawnOverlay',children);
 }
 
 function appendRuntimeObjectOverlay(
   state: MapCanvasState,
   context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>,
+  parts: MapCanvasParts,
 ): void {
-  const marker = state.runtimeObjectMarker;
-  if (marker === null) return;
-  const receipt: MapRuntimeObjectReceipt | null = state.runtimeObjectModel?.pending() ?? null;
-  const operation = receipt?.operation ?? (state.runtimeObjectMoveMode ? 'move_entity' : null);
-  const bounds = context.workspaceBounds;
-  const panelWidth = Math.min(580, bounds.width - 24);
-  const panelBounds = {
-    x: bounds.x + Math.round((bounds.width - panelWidth) / 2),
-    y: bounds.y + 12,
-    width: panelWidth,
-    height: 220,
-  };
-  const content = canvasPanel(parts, 'runtime-object-preview-panel', panelBounds, 'thin', 4);
-  const regions = canvasSlots(content, [
-    { id: 'ribbon', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-    { id: 'target', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'custody', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'receipt', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'impact', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'actions', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 3 });
-  const title = operation === 'move_entity' ? 'MOVE LIVE OBJECT'
+const children:UiElement[]=[];
+const marker = state.runtimeObjectMarker;
+if (marker === null) return;
+const receipt: MapRuntimeObjectReceipt | null = state.runtimeObjectModel?.pending() ?? null;
+const operation = receipt?.operation ?? (state.runtimeObjectMoveMode ? 'move_entity' : null);
+const title = operation === 'move_entity' ? 'MOVE LIVE OBJECT'
     : operation === 'repair_entity' ? 'REPAIR LIVE OBJECT'
       : operation === 'despawn_entity' ? 'DESPAWN LIVE OBJECT' : 'LIVE OBJECT PREVIEW';
-  parts.nodes.push({ id: 'runtime-object-ribbon', kind: 'ribbon', bounds: regions.ribbon!,
-    label: state.runtimeObjectCommitting ? 'COMMITTING LIVE OBJECT' : title });
-  const destination = receipt?.to ?? state.runtimeObjectTarget;
-  canvasLabel(parts, 'runtime-object-target', destination === null
+children.push(kit.text(state.runtimeObjectCommitting ? 'COMMITTING LIVE OBJECT' : title,{id:'map-'+'runtime-object-ribbon',layout:{width:'grow'}}));
+const destination = receipt?.to ?? state.runtimeObjectTarget;
+children.push(kit.text(destination === null
     ? `${marker.label.toUpperCase()} ${marker.id} · CLICK A DESTINATION TILE`
-    : `${marker.label.toUpperCase()} ${marker.id} · ${marker.tileX},${marker.tileY} → ${destination.tileX},${destination.tileY}`,
-  regions.target!, { field: true });
-  canvasLabel(parts, 'runtime-object-custody', receipt === null
+    : `${marker.label.toUpperCase()} ${marker.id} · ${marker.tileX},${marker.tileY} → ${destination.tileX},${destination.tileY}`,{id:'map-'+'runtime-object-target',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? 'AUTHORITY SNAPSHOT · VALIDATING'
     : receipt.playerOwned
       ? 'PLAYER-OWNED CUSTODY · OWNER NOTICE + AUDIT REQUIRED'
-      : 'SYSTEM CUSTODY · AUDIT REQUIRED',
-  regions.custody!, { field: true, tone: receipt?.playerOwned ? 'danger' : undefined });
-  canvasLabel(parts, 'runtime-object-receipt', receipt === null
+      : 'SYSTEM CUSTODY · AUDIT REQUIRED',{id:'map-'+'runtime-object-custody',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? state.runtimeObjectMoveMode ? 'NO WORLD CHANGE · CHOOSE A TILE' : 'BASE + RECEIPT · VALIDATING'
-    : `BASE ${receipt.baseVersion} · RECEIPT ${receipt.previewFingerprint}`,
-  regions.receipt!, { field: true });
-  canvasLabel(parts, 'runtime-object-impact', receipt === null
+    : `BASE ${receipt.baseVersion} · RECEIPT ${receipt.previewFingerprint}`,{id:'map-'+'runtime-object-receipt',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? 'NO WORLD CHANGE UNTIL PREVIEWED AND CONFIRMED'
-    : `${receipt.preview.preview.changes.length} EXACT CHANGE(S) · ${receipt.preview.warnings.length} WARNING(S)`,
-  regions.impact!, { field: true,
-    tone: receipt?.operation === 'despawn_entity' || receipt?.preview.warnings.length ? 'danger' : 'success' });
-  const [cancel, confirm] = layoutUiFlex(regions.actions!, Array.from({ length: 2 }, () => ({
-    minSize: { width: 40, height: 40 }, grow: 1,
-  })), { direction: 'row', gap: 5, align: 'stretch' });
-  canvasAction(parts, 'runtime-object-cancel', 'Cancel runtime object action (Escape)', cancel!, () => {
+    : `${receipt.preview.preview.changes.length} EXACT CHANGE(S) · ${receipt.preview.warnings.length} WARNING(S)`,{id:'map-'+'runtime-object-impact',layout:{width:'grow'}}));
+children.push(mapOverlayAction('runtime-object-cancel','Cancel runtime object action (Escape)',() => {
     resetRuntimeObjectAction(state); context.invalidate();
-  }, { buttonGlyph: 'cross', disabled: state.runtimeObjectCommitting });
-  canvasAction(parts, 'runtime-object-confirm', receipt === null
+  },{disabled: state.runtimeObjectCommitting}));
+children.push(mapOverlayAction('runtime-object-confirm',receipt === null
     ? state.runtimeObjectMoveMode ? 'Choose a destination tile before confirming'
       : 'Wait for the exact authority preview before confirming'
-    : `Confirm ${receipt.operation.replaceAll('_', ' ')} with exact receipt and audit`,
-  confirm!, () => confirmRuntimeObjectAction(state, context), {
-    buttonGlyph: 'return', tone: receipt?.operation === 'despawn_entity' ? 'danger' : 'success',
-    disabled: receipt === null || state.runtimeObjectPreviewing || state.runtimeObjectCommitting,
-  });
+    : `Confirm ${receipt.operation.replaceAll('_', ' ')} with exact receipt and audit`,() => confirmRuntimeObjectAction(state, context),{tone: receipt?.operation === 'despawn_entity' ? 'danger' : 'success',disabled: receipt === null || state.runtimeObjectPreviewing || state.runtimeObjectCommitting}));
+appendMapOverlayPanel(parts,context,'appendRuntimeObjectOverlay',children);
 }
 
 function appendNpcLocationOverlay(
   state: MapCanvasState,
   context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>,
+  parts: MapCanvasParts,
 ): void {
-  const marker = state.npcLocationMarker;
-  if (marker === null) return;
-  const receipt: MapNpcLocationReceipt | null = state.npcLocationModel?.pending() ?? null;
-  const bounds = context.workspaceBounds;
-  const panelWidth = Math.min(580, bounds.width - 24);
-  const panelBounds = {
-    x: bounds.x + Math.round((bounds.width - panelWidth) / 2),
-    y: bounds.y + 12,
-    width: panelWidth,
-    height: 220,
-  };
-  const content = canvasPanel(parts, 'npc-location-preview-panel', panelBounds, 'thin', 4);
-  const regions = canvasSlots(content, [
-    { id: 'ribbon', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-    { id: 'target', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'authority', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'receipt', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'impact', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'actions', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 3 });
-  parts.nodes.push({ id: 'npc-location-ribbon', kind: 'ribbon', bounds: regions.ribbon!,
-    label: state.npcLocationCommitting ? 'COMMITTING NPC HOME + LOCATION' : 'NPC HOME + LOCATION' });
-  const destination = receipt?.to ?? state.npcLocationTarget;
-  const homeX = marker.homeTileX ?? marker.tileX;
-  const homeY = marker.homeTileY ?? marker.tileY;
-  canvasLabel(parts, 'npc-location-target', destination === null
+const children:UiElement[]=[];
+const marker = state.npcLocationMarker;
+if (marker === null) return;
+const receipt: MapNpcLocationReceipt | null = state.npcLocationModel?.pending() ?? null;
+children.push(kit.text(state.npcLocationCommitting ? 'COMMITTING NPC HOME + LOCATION' : 'NPC HOME + LOCATION',{id:'map-'+'npc-location-ribbon',layout:{width:'grow'}}));
+const destination = receipt?.to ?? state.npcLocationTarget;
+const homeX = marker.homeTileX ?? marker.tileX;
+const homeY = marker.homeTileY ?? marker.tileY;
+children.push(kit.text(destination === null
     ? `${marker.label.toUpperCase()} ${marker.id} · CLICK A DESTINATION TILE`
-    : `${marker.label.toUpperCase()} ${marker.id} · LIVE ${marker.tileX},${marker.tileY} · HOME ${homeX},${homeY} → ${destination.tileX},${destination.tileY}`,
-  regions.target!, { field: true });
-  canvasLabel(parts, 'npc-location-authority',
-    'AUTHORITY RELOCATES LIVE POSITION + HOME ATOMICALLY', regions.authority!, { field: true });
-  canvasLabel(parts, 'npc-location-receipt', receipt === null
+    : `${marker.label.toUpperCase()} ${marker.id} · LIVE ${marker.tileX},${marker.tileY} · HOME ${homeX},${homeY} → ${destination.tileX},${destination.tileY}`,{id:'map-'+'npc-location-target',layout:{width:'grow'}}));
+children.push(kit.text('AUTHORITY RELOCATES LIVE POSITION + HOME ATOMICALLY',{id:'map-'+'npc-location-authority',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? state.npcLocationMoveMode ? 'NO WORLD CHANGE · CHOOSE A TILE' : 'BASE + RECEIPT · VALIDATING'
-    : `BASE ${receipt.baseVersion} · RECEIPT ${receipt.previewFingerprint}`,
-  regions.receipt!, { field: true });
-  canvasLabel(parts, 'npc-location-impact', receipt === null
+    : `BASE ${receipt.baseVersion} · RECEIPT ${receipt.previewFingerprint}`,{id:'map-'+'npc-location-receipt',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? 'NO WORLD CHANGE UNTIL PREVIEWED AND CONFIRMED'
-    : `${receipt.preview.preview.changes.length} EXACT CHANGE(S) · INVERSE AUDIT REQUIRED`,
-  regions.impact!, { field: true, tone: receipt === null ? undefined : 'success' });
-  const [cancel, confirm] = layoutUiFlex(regions.actions!, Array.from({ length: 2 }, () => ({
-    minSize: { width: 40, height: 40 }, grow: 1,
-  })), { direction: 'row', gap: 5, align: 'stretch' });
-  canvasAction(parts, 'npc-location-cancel', 'Cancel NPC home/location change (Escape)', cancel!, () => {
+    : `${receipt.preview.preview.changes.length} EXACT CHANGE(S) · INVERSE AUDIT REQUIRED`,{id:'map-'+'npc-location-impact',layout:{width:'grow'}}));
+children.push(mapOverlayAction('npc-location-cancel','Cancel NPC home/location change (Escape)',() => {
     resetNpcLocationAction(state); context.invalidate();
-  }, { buttonGlyph: 'cross', disabled: state.npcLocationCommitting });
-  canvasAction(parts, 'npc-location-confirm', receipt === null
+  },{disabled: state.npcLocationCommitting}));
+children.push(mapOverlayAction('npc-location-confirm',receipt === null
     ? state.npcLocationMoveMode ? 'Choose a destination tile before confirming'
       : 'Wait for the exact authority preview before confirming'
-    : `Confirm ${receipt.displayName} home and location with exact receipt and inverse audit`,
-  confirm!, () => confirmNpcLocationAction(state, context), {
-    buttonGlyph: 'return', tone: 'success',
-    disabled: receipt === null || state.npcLocationPreviewing || state.npcLocationCommitting,
-  });
+    : `Confirm ${receipt.displayName} home and location with exact receipt and inverse audit`,() => confirmNpcLocationAction(state, context),{tone: 'success',disabled: receipt === null || state.npcLocationPreviewing || state.npcLocationCommitting}));
+appendMapOverlayPanel(parts,context,'appendNpcLocationOverlay',children);
 }
 
 function appendSchemaInspectorOverlay(
   state: MapCanvasState,
   context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>,
+  parts: MapCanvasParts,
   mapId: string,
 ): void {
-  const field = state.schemaActionField;
-  if (field === null) return;
-  const receipt: MapSchemaInspectorReceipt | null = state.schemaActionModel?.pending() ?? null;
-  const bounds = context.workspaceBounds;
-  const panelWidth = Math.min(600, bounds.width - 24);
-  const panelBounds = {
-    x: bounds.x + Math.round((bounds.width - panelWidth) / 2),
-    y: bounds.y + 12,
-    width: panelWidth,
-    height: 226,
-  };
-  const content = canvasPanel(parts, 'schema-action-panel', panelBounds, 'thin', 4);
-  const regions = canvasSlots(content, [
-    { id: 'ribbon', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-    { id: 'why', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'editor', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-    { id: 'receipt', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'impact', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'actions', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 3 });
-  parts.nodes.push({
-    id: 'schema-action-ribbon', kind: 'ribbon', bounds: regions.ribbon!,
-    label: state.schemaActionCommitting ? `COMMITTING ${field.label.toUpperCase()}`
-      : `SCHEMA ACTION · ${field.label.toUpperCase()}`,
-  });
-  canvasLabel(parts, 'schema-action-why', `WHY  ${field.why}`, regions.why!, { field: true });
-  const snapshot = state.schemaActionEditor.snapshot();
-  const visible = snapshot.focused
-    ? `${snapshot.value.slice(0, snapshot.focus)}|${snapshot.value.slice(snapshot.focus)}`
-    : snapshot.value;
-  canvasAction(parts, 'schema-action-editor', state.schemaActionError
-    ?? `Type a valid ${field.kind} value for ${field.label}`, regions.editor!, () => context.invalidate(), {
-    role: 'textbox', glyph: visible,
-    ...(state.schemaActionError === null ? {} : { tone: 'danger' as const }),
-  });
-  parts.textEditors.push({ id: 'schema-action-editor', editor: state.schemaActionEditor });
-  canvasLabel(parts, 'schema-action-receipt', receipt === null
+const children:UiElement[]=[];
+const field = state.schemaActionField;
+if (field === null) return;
+const receipt: MapSchemaInspectorReceipt | null = state.schemaActionModel?.pending() ?? null;
+children.push(kit.text(state.schemaActionCommitting ? `COMMITTING ${field.label.toUpperCase()}`
+      : `SCHEMA ACTION · ${field.label.toUpperCase()}`,{id:'map-'+'schema-action-ribbon',layout:{width:'grow'}}));
+children.push(kit.text(`WHY  ${field.why}`,{id:'map-'+'schema-action-why',layout:{width:'grow'}}));
+children.push(kit.input({id:'map-schema-action-editor',label:field.label,editor:state.schemaActionEditor,error:state.schemaActionError??undefined,onChange:()=>context.invalidate()}));
+children.push(kit.text(receipt === null
     ? state.schemaActionPreviewing ? 'ASKING AUTHORITY FOR AN EXACT PREVIEW'
       : 'NO WORLD CHANGE · PREVIEW REQUIRED'
-    : `BASE ${receipt.baseVersion} · RECEIPT ${receipt.previewFingerprint}`,
-  regions.receipt!, { field: true });
-  canvasLabel(parts, 'schema-action-impact', receipt === null
+    : `BASE ${receipt.baseVersion} · RECEIPT ${receipt.previewFingerprint}`,{id:'map-'+'schema-action-receipt',layout:{width:'grow'}}));
+children.push(kit.text(receipt === null
     ? 'TYPE → PREVIEW → EXPLICITLY CONFIRM'
-    : `${receipt.stateKey}: ${String(receipt.before).toUpperCase()} → ${String(receipt.after).toUpperCase()} · AUDIT + INVERSE REQUIRED`,
-  regions.impact!, { field: true, tone: receipt === null ? undefined : 'success' });
-  const [cancel, proceed] = layoutUiFlex(regions.actions!, Array.from({ length: 2 }, () => ({
-    minSize: { width: 40, height: 40 }, grow: 1,
-  })), { direction: 'row', gap: 5, align: 'stretch' });
-  canvasAction(parts, 'schema-action-cancel', 'Cancel schema field action (Escape)', cancel!, () => {
+    : `${receipt.stateKey}: ${String(receipt.before).toUpperCase()} → ${String(receipt.after).toUpperCase()} · AUDIT + INVERSE REQUIRED`,{id:'map-'+'schema-action-impact',layout:{width:'grow'}}));
+children.push(mapOverlayAction('schema-action-cancel','Cancel schema field action (Escape)',() => {
     resetSchemaInspectorAction(state); context.invalidate();
-  }, { buttonGlyph: 'cross', disabled: state.schemaActionCommitting });
-  canvasAction(parts, 'schema-action-proceed', receipt === null
+  },{disabled: state.schemaActionCommitting}));
+children.push(mapOverlayAction('schema-action-proceed',receipt === null
     ? 'Preview this typed change against exact live authority'
-    : `Confirm ${receipt.fieldLabel} with the exact receipt and inverse audit`, proceed!, () => {
+    : `Confirm ${receipt.fieldLabel} with the exact receipt and inverse audit`,() => {
     if (receipt === null) previewSchemaInspectorAction(state, context, mapId);
     else confirmSchemaInspectorAction(state, context, mapId);
-  }, {
-    buttonGlyph: 'return', tone: receipt === null ? undefined : 'success',
-    disabled: state.schemaActionPreviewing || state.schemaActionCommitting,
-  });
+  },{tone: receipt === null ? undefined : 'success',disabled: state.schemaActionPreviewing || state.schemaActionCommitting}));
+appendMapOverlayPanel(parts,context,'appendSchemaInspectorOverlay',children);
 }
 
 function appendPublishConflictOverlay(
   state: MapCanvasState,
   context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>,
+  parts: MapCanvasParts,
   revision: number,
 ): void {
-  const bounds = context.workspaceBounds;
-  const panelWidth = Math.min(440, bounds.width - 24);
-  const panelBounds = {
-    x: bounds.x + Math.round((bounds.width - panelWidth) / 2),
-    y: bounds.y + 12,
-    width: panelWidth,
-    height: 82,
-  };
-  const content = canvasPanel(parts, 'publish-conflict-panel', panelBounds, 'thin', 4);
-  const regions = canvasSlots(content, [
-    { id: 'ribbon', minSize: { width: 1, height: 28 }, main: { mode: 'fixed', size: 28 } },
-    { id: 'actions', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 4 });
-  parts.nodes.push({
-    id: 'publish-conflict-ribbon', kind: 'ribbon', bounds: regions.ribbon!,
-    label: `MAP CONFLICT · LIVE R${revision}`,
-  });
-  const [reload, keepLocal, exportLocal] = layoutUiFlex(regions.actions!, Array.from(
-    { length: 3 }, () => ({ minSize: { width: 40, height: 40 }, grow: 1 })),
-  { direction: 'row', gap: 4, align: 'stretch' });
-  canvasAction(parts, 'publish-conflict-reload',
-    `Reload verified live revision ${revision}; discard this local draft and its undo history`,
-  reload!, () => {
+const children:UiElement[]=[];
+children.push(kit.text(`MAP CONFLICT · LIVE R${revision}`,{id:'map-'+'publish-conflict-ribbon',layout:{width:'grow'}}));
+children.push(mapOverlayAction('publish-conflict-reload',`Reload verified live revision ${revision}; discard this local draft and its undo history`,() => {
     try {
       state.model.reloadLatest();
       state.dismissedConflictRevision = null;
@@ -2663,19 +2241,16 @@ function appendPublishConflictOverlay(
     } catch (error: unknown) {
       reportCanvasError(context, 'Latest map reload failed', error);
     }
-  }, { symbol: 'load', tone: 'danger' });
-  canvasAction(parts, 'publish-conflict-keep-local',
-    `Keep the local draft for live revision ${revision}; publishing remains blocked`,
-  keepLocal!, () => {
+  },{tone: 'danger'}));
+children.push(mapOverlayAction('publish-conflict-keep-local',`Keep the local draft for live revision ${revision}; publishing remains blocked`,() => {
     state.dismissedConflictRevision = revision;
     context.controller.notifications.push(
       'info', 'Local map draft kept', `Conflict with live revision ${revision}; publish remains blocked`,
     );
     context.invalidate();
-  }, { symbol: 'save' });
-  canvasAction(parts, 'publish-conflict-export',
-    'Download this conflicting local draft as validated JSON without changing the live map',
-  exportLocal!, () => { exportMapDraft(state, context); }, { symbol: 'export' });
+  },{}));
+children.push(mapOverlayAction('publish-conflict-export','Download this conflicting local draft as validated JSON without changing the live map',() => { exportMapDraft(state, context); },{}));
+appendMapOverlayPanel(parts,context,'publish-conflict',children);
 }
 
 function drawLiveSpawnTarget(
@@ -2762,541 +2337,124 @@ function drawNpcLocationTarget(
 }
 
 function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolContext,
-  parts: ReturnType<typeof canvasParts>): void {
-  const inspector = context.inspectorBounds;
-  if (inspector === undefined) return;
-  const inspection = selectionInspection(state);
-  const schemaRows = mapCanvasInspectorRows(context.controller.inspector.groups());
-  const inspectionRows: readonly MapCanvasInspectorRow[] = inspection === null ? []
-    : state.inspectorView === 'schema'
-    ? schemaRows : mapSelectionDrawerRows(inspection).map((row) => ({
-      ...row, heading: false, danger: false, property: null,
-    }));
-  const hasSelection = inspection !== null;
-  const authored = inspection?.entity?.kind === 'authored_object'
-    || inspection?.entity?.kind === 'authored_landmark';
-  const editableAnchor = inspection?.entity?.kind === 'authored_anchor'
-    && !inspection.entity.readOnly;
-  const runtimeMarker = selectedRuntimeObjectMarker(state);
-  const runtimeObjectSelection = inspection?.entity?.kind === 'live_object'
-    && runtimeMarker !== null
-    && (runtimeMarker.entityKind === 'placeable' || runtimeMarker.entityKind === 'chest');
-  const npcMarker = selectedNpcLocationMarker(state);
-  const npcLocationSelection = inspection?.entity?.kind === 'live_object'
-    && npcMarker !== null;
-  const terrainSelection = inspection?.target === 'tile' && state.model.workspace() === 'terrain';
-  if (state.editingAnchorId !== null && (!editableAnchor
-    || inspection.entity?.id !== state.editingAnchorId)) cancelAnchorLabelEdit(state);
-  const selectionKey = inspection === null ? null : `${state.inspectorView}:` + (
-    inspection.entity === null
-      ? `tile:${inspection.tileX},${inspection.tileY}`
-      : `${inspection.entity.kind}:${inspection.entity.id}`
-  );
-  if (state.selectionActiveKey !== selectionKey) {
-    state.selectionOffset = 0;
-    state.selectionActiveKey = selectionKey;
-    state.selectedCompositionLayer = null;
-    state.compositionPage = 0;
-  }
-  const cards = mapRightDrawerCards(inspector, hasSelection, inspection?.target === 'tile' && state.inspectorView === 'selection');
-  const regions = {
-    selection: cards.selection === null ? undefined
-      : canvasPanel(parts, 'selection-card-panel', cards.selection, 'thin', 4),
-    layers: canvasPanel(parts, 'layers-card-panel', cards.layers, 'thin', 4),
-  } satisfies Readonly<Record<'selection' | 'layers', UiRect | undefined>>;
-
-  if (inspection !== null && regions.selection !== undefined) {
-    const selection = canvasSlots(regions.selection, [
-      { id: 'ribbon', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-      { id: 'views', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-      ...(inspection.target === 'tile' && state.inspectorView === 'selection' ? [{
-        id: 'composition', minSize: { width: 1, height: 160 }, main: { mode: 'fixed' as const, size: 160 },
-      }] : []),
-      { id: 'fields', minSize: { width: 1, height: 40 }, main: { mode: 'grow', min: 40 } },
-      ...(authored || editableAnchor || runtimeObjectSelection || npcLocationSelection || terrainSelection ? [{
-        id: 'actions', minSize: { width: 1, height: authored ? 86 : terrainSelection ? 76 : 42 },
-        main: { mode: 'fixed' as const, size: authored ? 86 : terrainSelection ? 76 : 42 },
-      }] : []),
-      ...(inspection.suppression.supported ? [{
-        id: 'suppression', minSize: { width: 1, height: 42 }, main: { mode: 'fixed' as const, size: 42 },
-      }] : []),
-    ], { gap: 5 });
-    parts.nodes.push({ id: 'selection-ribbon', kind: 'ribbon', ribbonPlacement: 'top-border', bounds: { ...selection.ribbon!, y: cards.selection!.y + 2 }, label: 'SELECTION' });
-    const inspectorViews = layoutUiFlex(selection.views!, Array.from({ length: 2 }, () => ({
-      minSize: { width: 40, height: 40 }, grow: 1,
-    })), { direction: 'row', gap: 4, align: 'stretch' });
-    canvasAction(parts, 'selection-view-visual', 'Show composed selection and terrain details',
-      inspectorViews[0]!, () => {
-        state.inspectorView = 'selection'; state.selectionOffset = 0; context.invalidate();
-      }, { role: 'tab', symbol: 'pointer', active: state.inspectorView === 'selection' });
-    canvasAction(parts, 'selection-view-schema', 'Show the full schema Inspector fields and why help',
-      inspectorViews[1]!, () => {
-        state.inspectorView = 'schema'; state.selectionOffset = 0; context.invalidate();
-      }, { role: 'tab', symbol: 'layers', active: state.inspectorView === 'schema' });
-    if (selection.composition !== undefined) {
-      const image = state.renderer.inspectionImage(inspection.visualComposition);
-      const bounds = selection.composition;
-      if (image !== null) {
-        const visual = terrainInspectionVisualLayout(inspection.visualComposition);
-        const compositeSize = 96;
-        parts.nodes.push({ id: 'selection-composed-tile', kind: 'slot',
-          bounds: { x: bounds.x + (bounds.width - compositeSize) / 2, y: bounds.y, width: compositeSize, height: compositeSize },
-          preview: { image, frame: { x: (visual.width - visual.compositeSize) / 2,
-            y: 9, width: visual.compositeSize, height: visual.compositeSize, durationTicks: 1 }, padding: 3 } });
-        const thumbnails = terrainInspectionThumbnailRects(inspection.visualComposition, 0, 0);
-        const focusedThumbnail = state.selectedCompositionLayer === null ? undefined
-          : thumbnails[state.selectedCompositionLayer];
-        if (focusedThumbnail !== undefined && bounds.width >= 208) {
-          const composed = parts.nodes.find(({ id }) => id === 'selection-composed-tile');
-          if (composed !== undefined) {
-            const index = parts.nodes.indexOf(composed);
-            parts.nodes[index] = { ...composed, bounds: { ...composed.bounds, x: bounds.x + (bounds.width - 208) / 2 } };
-          }
-          parts.nodes.push({ id: 'selection-component-enlarged', kind: 'slot',
-            bounds: { x: bounds.x + (bounds.width - 208) / 2 + 112, y: bounds.y, width: 96, height: 96 },
-            preview: { image, frame: { ...focusedThumbnail, durationTicks: 1 }, padding: 3 } });
-        }
-        const cellSize = 44;
-        const pageSize = Math.max(1, Math.floor(bounds.width / cellSize) - 1);
-        const pageCount = Math.max(1, Math.ceil(thumbnails.length / pageSize));
-        state.compositionPage = Math.min(state.compositionPage, pageCount - 1);
-        const start = state.compositionPage * pageSize;
-        thumbnails.slice(start, start + pageSize).forEach((thumbnail, localIndex) => {
-          const index = start + localIndex;
-          const layer = inspection.visualComposition.layers[index]!;
-          canvasAction(parts, `selection-component-${index}`, `${layer.role}: ${layer.asset} / ${layer.frame}`,
-            { x: bounds.x + localIndex * cellSize, y: bounds.y + 100, width: 40, height: 40 },
-            () => { state.selectedCompositionLayer = index; context.invalidate(); },
-            { slot: true, role: 'option', preview: { image, frame: { ...thumbnail, durationTicks: 1 }, padding: 3 },
-              active: state.selectedCompositionLayer === index });
-        });
-        if (pageCount > 1) canvasAction(parts, 'selection-components-next',
-          `Component page ${state.compositionPage + 1} of ${pageCount}. Show next components`,
-          { x: bounds.x + pageSize * cellSize, y: bounds.y + 100, width: 40, height: 40 },
-          () => { state.compositionPage = (state.compositionPage + 1) % pageCount; context.invalidate(); },
-          { symbol: 'layers' });
-        const layer = state.selectedCompositionLayer === null ? null
-          : inspection.visualComposition.layers[state.selectedCompositionLayer];
-        canvasLabel(parts, 'selection-component-detail', layer === null || layer === undefined
-          ? 'FINAL TILE · SELECT A COMPONENT' : `${layer.role} / ${layer.asset} #${layer.frame}`,
-          { x: bounds.x, y: bounds.y + 142, width: bounds.width, height: 18 });
+  parts: MapCanvasParts): void {
+  if (!context.inspectorBounds) return;
+  const inspection = selectionInspection(state), mapId = studioMapId(context.route.path);
+  const children: UiElement[] = [];
+  const button = (id: string, label: string, onPress: (event: UiButtonModifiers) => void,
+    options: { disabled?: boolean; tone?: UiTone; help?: string; icon?: UiIconName } = {}): UiElement => {
+    const base = kit.button({ id: `map-${id}`, label, onPress, disabled: options.disabled, tone: options.tone ?? 'primary',
+      ...(options.icon ? { leading: kit.icon({lucide:options.icon}) } : {}), layout:{width:'grow',shrink:0} });
+    return options.help ? kit.tooltip(options.help,base,{width:'grow',height:uiFixed(24),shrink:0}) : base;
+  };
+  const action = (id:string,label:string,onPress:()=>void,options:Parameters<typeof button>[3]={}) => children.push(button(id,label,onPress,options));
+  // Scrolling now belongs to the retained drawer, not the map's wheel router.
+  state.selectionBounds = {x:0,y:0,width:0,height:0}; state.layerBounds = {x:0,y:0,width:0,height:0};
+  state.selectionRowCount = 0;
+  if (inspection) {
+    const editableAnchor = inspection.entity?.kind==='authored_anchor'&&!inspection.entity.readOnly;
+    if(state.editingAnchorId!==null&&(!editableAnchor||inspection.entity?.id!==state.editingAnchorId))cancelAnchorLabelEdit(state);
+    children.push(kit.select({id:'map-selection-view',label:'Inspector view',value:state.inspectorView,
+      options:[{value:'selection',label:'Selection'},{value:'schema',label:'Schema'}],onChange:value=>{state.inspectorView=value as 'selection'|'schema';context.invalidate();}}));
+    const rows: readonly MapCanvasInspectorRow[] = state.inspectorView==='schema' ? mapCanvasInspectorRows(context.controller.inspector.groups())
+      : mapSelectionDrawerRows(inspection).map(row=>({...row,heading:false,danger:false,property:null}));
+    for(const row of rows){
+      children.push(kit.text(row.label,{id:`map-selection-${row.id}-label`,role:row.heading?'header':'body',layout:{width:'grow'}}));
+      const property=row.property;
+      if(property&&parseMapSchemaInspectorAction(property.action)){
+        const availability=mapSchemaInspectorAvailability(property as MapSchemaInspectorField,currentSchemaInspectorAuthority(state,context,mapId));
+        action(`selection-${row.id}`,'Change',()=>beginSchemaInspectorAction(state,context,mapId,property),{disabled:!availability.editable,help:availability.reason,tone:row.danger?'danger':'primary'});
       }
     }
-    state.selectionBounds = selection.fields!;
-    state.selectionRowCount = inspectionRows.length;
-    const fieldRows = canvasRows(selection.fields!, inspectionRows.length,
-      state.inspectorView === 'schema' ? 40 : 30, 2);
-    const maximumSelectionOffset = Math.max(0, inspectionRows.length - fieldRows.length);
-    state.selectionOffset = Math.max(0, Math.min(maximumSelectionOffset, state.selectionOffset));
-    inspectionRows.slice(state.selectionOffset, state.selectionOffset + fieldRows.length)
-      .forEach((row, index) => {
-        const property = row.property;
-        const declaredAction = property === null ? null : parseMapSchemaInspectorAction(property.action);
-        if (property !== null && declaredAction !== null) {
-          const mapId = studioMapId(context.route.path);
-          const availability = mapSchemaInspectorAvailability(
-            property as MapSchemaInspectorField,
-            currentSchemaInspectorAuthority(state, context, mapId),
-          );
-          canvasAction(parts, `selection-${row.id}`, availability.reason, fieldRows[index]!, () => {
-            beginSchemaInspectorAction(state, context, mapId, property);
-          }, {
-            glyph: row.label,
-            disabled: !availability.editable,
-            ...(row.danger ? { tone: 'danger' as const } : {}),
-          });
-        } else {
-          canvasLabel(parts, `selection-${row.id}`, row.label, fieldRows[index]!, {
-            field: !row.heading,
-            heading: row.heading,
-            ...(row.danger ? { tone: 'danger' as const } : {}),
-          });
-        }
-      });
-    if (authored) {
-      const actionRows = canvasRows(selection.actions!, 2, 40, 6);
-      const actions = actionRows.flatMap((row) => layoutUiFlex(row, Array.from({ length: 3 }, () => ({
-        minSize: { width: 40, height: 40 }, grow: 1,
-      })), { direction: 'row', gap: 5, align: 'stretch' }));
-      canvasAction(parts, 'selection-hide', 'Hide or show selected map content (Shift+H)', actions[0]!, () => {
-        state.interaction.toggleSelectedVisibility(); context.invalidate();
-      }, { buttonGlyph: 'power', active: inspection.entity?.enabled === true });
-      canvasAction(parts, 'selection-clone', 'Clone selected map content (Ctrl+D)', actions[1]!, () => {
-        state.interaction.cloneSelected(); context.invalidate();
-      }, { buttonGlyph: 'square' });
-      canvasAction(parts, 'selection-rotate', 'Rotate selected map content 90° (R)', actions[2]!, () => {
-        state.interaction.rotateSelected(); context.invalidate();
-      }, { buttonGlyph: 'return' });
-      canvasAction(parts, 'selection-flip', 'Flip selected map content horizontally (X)', actions[3]!, () => {
-        state.interaction.flipSelected(); context.invalidate();
-      }, { buttonGlyph: 'left_2' });
-      canvasAction(parts, 'selection-scale', 'Toggle selected map content between 1× and 2× (=)', actions[4]!, () => {
-        state.interaction.cycleSelectedScale(); context.invalidate();
-      }, { buttonGlyph: 'up_2' });
-      canvasAction(parts, 'selection-delete', 'Delete selected authored map content', actions[5]!, () => {
-        state.interaction.deleteSelected(); context.invalidate();
-      }, { buttonGlyph: 'cross', tone: 'danger' });
-    } else if (editableAnchor) {
-      if (state.editingAnchorId === inspection.entity!.id) {
-        const [field, confirm, cancel] = layoutUiFlex(selection.actions!, [
-          { minSize: { width: 80, height: 40 }, grow: 1 },
-          { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-          { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-        ], { direction: 'row', gap: 3, align: 'stretch' });
-        const labelSnapshot = state.anchorLabel.snapshot();
-        const visibleLabel = labelSnapshot.focused
-          ? `${labelSnapshot.value.slice(0, labelSnapshot.focus)}|${labelSnapshot.value.slice(labelSnapshot.focus)}`
-          : labelSnapshot.value;
-        canvasAction(parts, 'selection-edit-anchor-label', state.anchorLabelError
-          ?? `Edit ${inspection.entity!.name} label`, field!, () => commitAnchorLabelEdit(state, context), {
-          role: 'textbox', glyph: visibleLabel,
-          ...(state.anchorLabelError === null ? {} : { tone: 'danger' as const }),
-        });
-        parts.textEditors.push({ id: 'selection-edit-anchor-label', editor: state.anchorLabel });
-        canvasAction(parts, 'selection-confirm-anchor-label', 'Confirm annotation anchor label (Enter)',
-          confirm!, () => commitAnchorLabelEdit(state, context), {
-            buttonGlyph: 'return', tone: 'success',
-          });
-        canvasAction(parts, 'selection-cancel-anchor-label', 'Cancel annotation anchor label edit (Escape)',
-          cancel!, () => { cancelAnchorLabelEdit(state); context.invalidate(); }, { buttonGlyph: 'cross' });
-      } else {
-        const [edit, remove] = layoutUiFlex(selection.actions!, [
-          { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-          { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-        ], { direction: 'row', gap: 4, align: 'stretch' });
-        canvasAction(parts, 'selection-edit-anchor-label', `Edit ${inspection.entity!.name} label`,
-          edit!, () => {
-            beginAnchorLabelEdit(state, inspection.entity!.id, inspection.entity!.name);
-            context.invalidate();
-          }, { symbol: 'penTool' });
-        canvasAction(parts, 'selection-delete-anchor', 'Delete selected annotation anchor',
-          remove!, () => {
-            state.interaction.deleteSelected(); context.invalidate();
-          }, { buttonGlyph: 'cross', tone: 'danger' });
+    const entity=inspection.entity;
+    if(entity?.kind==='authored_object'||entity?.kind==='authored_landmark'){
+      action('selection-hide','Visibility',()=>{state.interaction.toggleSelectedVisibility();context.invalidate();},{icon:'visibility',tone:entity.enabled?'success':'primary'});
+      action('selection-clone','Clone',()=>{state.interaction.cloneSelected();context.invalidate();});
+      action('selection-rotate','Rotate',()=>{state.interaction.rotateSelected();context.invalidate();});
+      action('selection-flip','Flip',()=>{state.interaction.flipSelected();context.invalidate();});
+      action('selection-scale','Scale',()=>{state.interaction.cycleSelectedScale();context.invalidate();});
+      action('selection-delete','Delete',()=>{state.interaction.deleteSelected();context.invalidate();},{tone:'danger'});
+    }else if(editableAnchor){
+      if(state.editingAnchorId===entity!.id){
+        children.push(kit.input({id:'map-selection-edit-anchor-label',label:'Anchor label',editor:state.anchorLabel,error:state.anchorLabelError??undefined,onSubmit:()=>commitAnchorLabelEdit(state,context)}));
+        if(state.anchorLabelError) children.push(kit.text(state.anchorLabelError,{id:'map-selection-anchor-label-error'}));
+        action('selection-confirm-anchor-label','Confirm',()=>commitAnchorLabelEdit(state,context),{tone:'success'});
+        action('selection-cancel-anchor-label','Cancel',()=>{cancelAnchorLabelEdit(state);context.invalidate();});
+      }else{
+        action('selection-edit-anchor-label','Edit label',()=>{beginAnchorLabelEdit(state,entity!.id,entity!.name);context.invalidate();});
+        action('selection-delete-anchor','Delete',()=>{state.interaction.deleteSelected();context.invalidate();},{tone:'danger'});
       }
-    } else if (runtimeObjectSelection && selection.actions !== undefined) {
-      const mapId = studioMapId(context.route.path);
-      const availability = currentRuntimeObjectAvailability(state, context, mapId, runtimeMarker);
-      const actions = layoutUiFlex(selection.actions, Array.from({ length: 3 }, () => ({
-        minSize: { width: 40, height: 40 }, grow: 1,
-      })), { direction: 'row', gap: 4, align: 'stretch' });
-      const disabledReason = availability.allowed ? null : availability.reason;
-      canvasAction(parts, 'selection-runtime-move', disabledReason
-        ?? `Move ${runtimeMarker.label} through an exact authority preview`, actions[0]!, () => {
-          startRuntimeObjectAction(state, context, mapId, 'move_entity');
-        }, { symbol: 'pointer', disabled: !availability.allowed });
-      canvasAction(parts, 'selection-runtime-repair', disabledReason
-        ?? `Repair ${runtimeMarker.label} through an exact authority preview`, actions[1]!, () => {
-          startRuntimeObjectAction(state, context, mapId, 'repair_entity');
-        }, { symbol: 'replace', disabled: !availability.allowed });
-      canvasAction(parts, 'selection-runtime-despawn', disabledReason
-        ?? `Safely despawn ${runtimeMarker.label}; contents spill through server authority`, actions[2]!, () => {
-          startRuntimeObjectAction(state, context, mapId, 'despawn_entity');
-        }, { symbol: 'trash', tone: 'danger', disabled: !availability.allowed });
-    } else if (npcLocationSelection && selection.actions !== undefined) {
-      const mapId = studioMapId(context.route.path);
-      const availability = currentNpcLocationAvailability(state, context, mapId, npcMarker);
-      canvasAction(parts, 'selection-npc-location', availability.allowed
-        ? `Move ${npcMarker.label} live position and home through an exact authority preview`
-        : availability.reason,
-      selection.actions, () => startNpcLocationAction(state, context, mapId), {
-        symbol: 'pointer', disabled: !availability.allowed,
-      });
-    } else if (terrainSelection && selection.actions !== undefined) {
-      const terrainActions = canvasSlots(selection.actions, [
-        { id: 'status', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-        { id: 'buttons', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-      ], { gap: 4 });
-      const snapshot = state.interaction.snapshot();
-      const cell = inspection.terrain.cell;
-      const defaultFamily = state.model.document().defaultSurfaceFamily ?? 'grass_1';
-      canvasLabel(parts, 'selection-terrain-family-status',
-        `CELL ${cell.surfaceFamily.toUpperCase()} · DEFAULT ${defaultFamily.toUpperCase()}`,
-      terrainActions.status!, { field: true });
-      const actions = layoutUiFlex(terrainActions.buttons!, Array.from({ length: 6 }, () => ({
-        minSize: { width: 40, height: 40 }, grow: 1,
-      })), { direction: 'row', gap: 1, align: 'stretch' });
-      const available = state.interaction.terrainAuthoringAvailable();
-      const override = state.model.document().cells[mapCellKey(inspection.tileX, inspection.tileY)];
-      canvasAction(parts, 'selection-terrain-apply-current', available
-        ? `Apply current palette family ${snapshot.selectedSurfaceFamily} to this cell`
-        : 'Select the visible editable Terrain layer to apply a surface family', actions[0]!, () => {
-          state.interaction.applySelectedSurfaceFamilyToCell(); context.invalidate();
-        }, { symbol: 'landPlot', disabled: !available });
-      canvasAction(parts, 'selection-terrain-use-default',
-        `Use document default family ${defaultFamily} as the current palette family`, actions[1]!, () => {
-          state.interaction.selectDocumentDefaultSurfaceFamily(); context.invalidate();
-        }, { symbol: 'load', disabled: snapshot.selectedSurfaceFamily === defaultFamily
-          && snapshot.terrainPaletteMode === 'surface_family' });
-      canvasAction(parts, 'selection-terrain-apply-default', available
-        ? `Make current palette family ${snapshot.selectedSurfaceFamily} the document default`
-        : 'Select the visible editable Terrain layer to change its default surface family', actions[2]!, () => {
-          state.interaction.setSelectedSurfaceFamilyAsDefault(); context.invalidate();
-        }, { symbol: 'save', disabled: !available || snapshot.selectedSurfaceFamily === defaultFamily });
-      canvasAction(parts, 'selection-terrain-inherit', available
-        ? 'Clear this cell surface-family override so it inherits the document default'
-        : 'Select the visible editable Terrain layer to clear this cell family', actions[3]!, () => {
-          state.interaction.clearSelectedSurfaceFamily(); context.invalidate();
-        }, { symbol: 'eraser', disabled: !available || override?.surfaceFamily === undefined });
-      canvasAction(parts, 'selection-terrain-apply-exact', snapshot.selectedExactTerrainOverrideId === null
-        ? 'Choose a topology-compatible exact tile from the Exact palette first'
-        : available ? 'Apply the armed topology-compatible exact tile to this cell'
-          : 'Select the visible editable Terrain layer to apply the exact tile', actions[4]!, () => {
-          state.interaction.applySelectedExactTerrainOverride(); context.invalidate();
-        }, { symbol: 'replace', disabled: !available || snapshot.selectedExactTerrainOverrideId === null });
-      canvasAction(parts, 'selection-terrain-clear', available
-        ? 'Clear this cell exact tile override'
-        : 'Select the visible editable Terrain layer to clear the exact tile', actions[5]!, () => {
-          state.interaction.clearSelectedExactTerrainOverride(); context.invalidate();
-        }, { symbol: 'trash', tone: 'danger', disabled: !available || override?.terrainOverride === undefined });
-    }
-    if (inspection.suppression.supported && selection.suppression !== undefined) {
-      const suppressed = inspection.suppression.suppressed;
-      canvasAction(parts, 'selection-suppression', suppressed
-        ? `Restore generated map object ${inspection.suppression.id ?? ''}`
-        : `Suppress generated map object ${inspection.suppression.id ?? ''}`,
-      selection.suppression, () => {
-        if (inspection.suppression.id === null) return;
-        state.model.suppressGenerated(inspection.suppression.id, !suppressed);
-        context.invalidate();
-      }, { buttonGlyph: 'power', active: suppressed, tone: suppressed ? 'success' : 'danger' });
-    }
-  } else {
-    state.selectionBounds = { x: 0, y: 0, width: 0, height: 0 };
-    state.selectionRowCount = 0;
-  }
-
-  const layers = canvasSlots(regions.layers!, [
-    { id: 'ribbon', minSize: { width: 1, height: 30 }, main: { mode: 'fixed', size: 30 } },
-    { id: 'rows', minSize: { width: 1, height: 80 }, main: { mode: 'grow', min: 80 } },
-    { id: 'toolbar', minSize: { width: 1, height: 40 }, main: { mode: 'fixed', size: 40 } },
-  ], { gap: 5 });
-  // Photoshop-style stacks read topmost-first even though the document keeps
-  // ascending painter order for rendering and canonical serialization.
-  const documentLayers = [...state.model.document().layers].sort((left, right) => right.order - left.order);
-  const orderedLayerIds = documentLayers.map(({ id }) => id);
-  const activeLayerId = state.interaction.snapshot().activeLayer;
-  state.layerSelection = reconcileMapLayerSelection(
-    orderedLayerIds,
-    state.layerSelection,
-    activeLayerId,
-  );
-  const selectedLayerIds = new Set(state.layerSelection.selected);
-  const selectionCount = selectedLayerIds.size;
-  state.layerBounds = layers.rows!;
-  const rows = canvasRows(layers.rows!, documentLayers.length, 40, 2);
-  const maximumLayerOffset = Math.max(0, documentLayers.length - rows.length);
-  state.layerOffset = Math.max(0, Math.min(maximumLayerOffset, state.layerOffset));
-  const activeLayerIndex = documentLayers.findIndex(({ id }) => id === activeLayerId);
-  if (state.layerActiveId !== activeLayerId
-    || state.layerVisibleCount !== rows.length) {
-    if (activeLayerIndex >= 0 && activeLayerIndex < state.layerOffset) state.layerOffset = activeLayerIndex;
-    else if (activeLayerIndex >= state.layerOffset + rows.length) {
-      state.layerOffset = Math.min(maximumLayerOffset, activeLayerIndex - rows.length + 1);
-    }
-    state.layerActiveId = activeLayerId;
-    state.layerVisibleCount = rows.length;
-  }
-  const visibleLayerStart = documentLayers.length === 0 ? 0 : state.layerOffset + 1;
-  const visibleLayerEnd = Math.min(documentLayers.length, state.layerOffset + rows.length);
-  const layerRange = rows.length < documentLayers.length
-    ? ` ${visibleLayerStart}-${visibleLayerEnd}/${documentLayers.length}`
-    : '';
-  const selectionLabel = selectionCount > 1 ? ` · ${selectionCount} SELECTED` : '';
-  parts.nodes.push({ id: 'layers-ribbon', kind: 'ribbon', ribbonPlacement: 'top-border', bounds: { ...layers.ribbon!, y: cards.layers.y + 2 },
-    label: `LAYERS${selectionLabel}${layerRange}` });
-  documentLayers.slice(state.layerOffset, state.layerOffset + rows.length).forEach((layer, index) => {
-    const [visibility, select, lock] = layoutUiFlex(rows[index]!, [
-      { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-      { minSize: { width: 80, height: 40 }, grow: 1 },
-      { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-    ], { direction: 'row', gap: 2, align: 'stretch' });
-    const visible = state.model.isLayerEyeVisible(layer.id);
-    const selected = selectedLayerIds.has(layer.id);
-    const primary = state.layerSelection?.active === layer.id;
-    const lockable = state.model.canToggleLayerLock(layer.id);
-    const locked = state.model.isLayerLocked(layer.id);
-    canvasAction(parts, `layer-visible-${layer.id}`, `${visible ? 'Hide' : 'Show'} ${layer.label}`,
-      visibility!, () => { state.interaction.toggleLayerVisibility(layer.id); context.invalidate(); },
-      { symbol: visible ? 'visibility' : 'eyeOff', active: visible });
-    // The painted row and its accessible action deliberately share an id.
-    // Otherwise the shell synthesizes a second fallback button bearing the
-    // action label (`Work on ...`) over the Photoshop-style thumbnail/name.
-    parts.nodes.push({
-      id: `layer-select-${layer.id}`, kind: 'button', bounds: select!,
-      state: selected ? 'active' : 'idle',
-    });
-    parts.actions.push({
-      id: `layer-select-${layer.id}`,
-      label: `${primary ? 'Primary target' : selected ? 'Selected layer' : 'Work on'} ${layer.label} `
-        + `(${locked ? lockable ? 'session locked' : 'system locked' : 'editable'}). `
-        + 'Shift selects a range; Ctrl or Command toggles this row',
-      role: 'option',
-      bounds: select!,
-      disabled: false,
-      activate: (input) => {
-        cancelLayerRename(state);
-        const next = applyMapLayerSelectionGesture(
-          orderedLayerIds,
-          state.layerSelection!,
-          layer.id,
-          {
-            range: input?.shiftKey === true,
-            additive: input?.ctrlKey === true || input?.metaKey === true,
-          },
-        );
-        state.layerSelection = next;
-        state.model.selectWorkspace(workspaceForLayer(next.active));
-        state.interaction.selectLayer(next.active);
-        state.paletteOffset = 0;
-        state.search.setValue('');
-        context.invalidate();
-      },
-    });
-    const thumbnailSize = Math.min(32, select!.height - 6);
-    parts.nodes.push({
-      id: `layer-thumbnail-${layer.id}`,
-      kind: 'slot',
-      bounds: {
-        x: select!.x + 4,
-        y: select!.y + Math.round((select!.height - thumbnailSize) / 2),
-        width: thumbnailSize,
-        height: thumbnailSize,
-      },
-      symbol: LAYER_TYPE_SYMBOLS[layer.id],
-      state: primary ? 'active' : locked ? 'disabled' : 'idle',
-    });
-    parts.nodes.push({
-      id: `layer-name-${layer.id}`,
-      kind: 'label',
-      textScale: 1,
-      bounds: {
-        x: select!.x + thumbnailSize + 9,
-        y: select!.y,
-        width: Math.max(1, select!.width - thumbnailSize - 13),
-        height: select!.height,
-      },
-      label: selectionCount > 1
-        ? `${primary ? '>' : selected ? '+' : ' '} ${layer.label.toUpperCase()}`
-        : layer.label.toUpperCase(),
-      state: selected ? 'active' : locked ? 'disabled' : 'idle',
-    });
-    canvasAction(parts, `layer-lock-${layer.id}`, lockable
-      ? `${locked ? 'Unlock' : 'Lock'} ${layer.label} for this editor session`
-      : `${layer.label} is an immutable system layer`, lock!, () => {
-      state.interaction.toggleLayerLock(layer.id); context.invalidate();
-    }, { symbol: locked ? 'lock' : 'unlock', active: locked, disabled: !lockable });
-
-  });
-
-  const activeLayer = state.model.document().layers.find(
-    ({ id }) => id === state.layerSelection?.active,
-  );
-  if (activeLayer === undefined) return;
-  if (state.renamingLayerId !== null && state.renamingLayerId !== activeLayer.id) {
-    cancelLayerRename(state);
-  }
-  if (state.renamingLayerId === activeLayer.id) {
-    const [field, confirm, cancel] = layoutUiFlex(layers.toolbar!, [
-      { minSize: { width: 80, height: 40 }, grow: 1 },
-      { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-      { minSize: { width: 40, height: 40 }, main: { mode: 'fixed', size: 40 } },
-    ], { direction: 'row', gap: 2, align: 'stretch' });
-    const renameSnapshot = state.layerName.snapshot();
-    const renameLabel = renameSnapshot.focused
-      ? `${renameSnapshot.value.slice(0, renameSnapshot.focus)}|${renameSnapshot.value.slice(renameSnapshot.focus)}`
-      : renameSnapshot.value;
-    canvasAction(parts, `layer-rename-${activeLayer.id}`, `Edit ${activeLayer.label} layer name`,
-      field!, () => commitLayerRename(state, context), { role: 'textbox', glyph: renameLabel });
-    parts.textEditors.push({ id: `layer-rename-${activeLayer.id}`, editor: state.layerName });
-    canvasAction(parts, `layer-rename-confirm-${activeLayer.id}`, `Confirm ${activeLayer.label} layer name`,
-      confirm!, () => { commitLayerRename(state, context); context.invalidate(); },
-      { buttonGlyph: 'return', tone: 'success' });
-    canvasAction(parts, `layer-rename-cancel-${activeLayer.id}`, `Cancel ${activeLayer.label} layer rename`,
-      cancel!, () => { cancelLayerRename(state); context.invalidate(); }, { buttonGlyph: 'cross' });
-    return;
-  }
-
-  if (state.layerSelection.selected.length > 1) {
-    const visibilityPlan = planMapLayerBulkVisibility(
-      state.layerSelection.selected,
-      (layer) => state.model.isLayerEyeVisible(layer),
-    );
-    const lockPlan = planMapLayerBulkLock(
-      state.layerSelection.selected,
-      (layer) => state.model.canToggleLayerLock(layer),
-      (layer) => state.model.isLayerUserLocked(layer),
-    );
-    const [visibility, lock] = layoutUiFlex(layers.toolbar!, Array.from(
-      { length: 2 },
-      () => ({ minSize: { width: 40, height: 40 }, grow: 1 }),
-    ), { direction: 'row', gap: 3, align: 'stretch' });
-    canvasAction(parts, 'layers-bulk-visibility', visibilityPlan?.value === true
-      ? `Show all ${selectionCount} selected layers`
-      : `Hide all ${selectionCount} selected layers`, visibility!, () => {
-      if (visibilityPlan === null) return;
-      for (const layer of visibilityPlan.layers) {
-        if (state.model.isLayerEyeVisible(layer) !== visibilityPlan.value) {
-          state.interaction.toggleLayerVisibility(layer);
-        }
+    }else{
+      const runtime=selectedRuntimeObjectMarker(state),npc=selectedNpcLocationMarker(state);
+      if(entity?.kind==='live_object'&&runtime&&(runtime.entityKind==='placeable'||runtime.entityKind==='chest')){
+        const availability=currentRuntimeObjectAvailability(state,context,mapId,runtime);
+        for(const [name,label,operation] of [['move','Move','move_entity'],['repair','Repair','repair_entity'],['despawn','Despawn','despawn_entity']] as const)
+          action(`selection-runtime-${name}`,label,()=>startRuntimeObjectAction(state,context,mapId,operation),{disabled:!availability.allowed,help:availability.allowed?undefined:availability.reason,tone:name==='despawn'?'danger':'primary'});
+      }else if(entity?.kind==='live_object'&&npc){
+        const availability=currentNpcLocationAvailability(state,context,mapId,npc);
+        action('selection-npc-location','Move NPC',()=>startNpcLocationAction(state,context,mapId),{disabled:!availability.allowed,help:availability.allowed?undefined:availability.reason});
+      }else if(inspection.target==='tile'&&state.model.workspace()==='terrain'){
+        const snapshot=state.interaction.snapshot(),available=state.interaction.terrainAuthoringAvailable();
+        const defaultFamily=state.model.document().defaultSurfaceFamily??'grass_1';
+        const override=state.model.document().cells[mapCellKey(inspection.tileX,inspection.tileY)];
+        children.push(kit.text(`Cell ${inspection.terrain.cell.surfaceFamily}; default ${defaultFamily}`));
+        action('selection-terrain-apply-current','Apply family',()=>{state.interaction.applySelectedSurfaceFamilyToCell();context.invalidate();},{disabled:!available});
+        action('selection-terrain-use-default','Use default',()=>{state.interaction.selectDocumentDefaultSurfaceFamily();context.invalidate();},{disabled:snapshot.selectedSurfaceFamily===defaultFamily&&snapshot.terrainPaletteMode==='surface_family'});
+        action('selection-terrain-apply-default','Set default',()=>{state.interaction.setSelectedSurfaceFamilyAsDefault();context.invalidate();},{disabled:!available||snapshot.selectedSurfaceFamily===defaultFamily});
+        action('selection-terrain-inherit','Inherit',()=>{state.interaction.clearSelectedSurfaceFamily();context.invalidate();},{disabled:!available||override?.surfaceFamily===undefined});
+        action('selection-terrain-apply-exact','Apply exact',()=>{state.interaction.applySelectedExactTerrainOverride();context.invalidate();},{disabled:!available||snapshot.selectedExactTerrainOverrideId===null});
+        action('selection-terrain-clear','Clear exact',()=>{state.interaction.clearSelectedExactTerrainOverride();context.invalidate();},{disabled:!available||override?.terrainOverride===undefined,tone:'danger'});
       }
-      context.invalidate();
-    }, { symbol: visibilityPlan?.value === true ? 'visibility' : 'eyeOff',
-      disabled: visibilityPlan === null });
-    const immutableCount = state.layerSelection.selected.length - (lockPlan?.layers.length ?? 0);
-    const immutableDetail = immutableCount > 0
-      ? `; ${immutableCount} immutable system ${immutableCount === 1 ? 'lock remains' : 'locks remain'}`
-      : '';
-    canvasAction(parts, 'layers-bulk-lock', lockPlan?.value === false
-      ? `Unlock ${lockPlan.layers.length} selected editable layers${immutableDetail}`
-      : lockPlan === null
-        ? 'Selected layers have immutable system locks'
-        : `Lock ${lockPlan.layers.length} selected editable layers${immutableDetail}`,
-    lock!, () => {
-      if (lockPlan === null) return;
-      for (const layer of lockPlan.layers) {
-        if (state.model.isLayerUserLocked(layer) !== lockPlan.value) {
-          state.interaction.toggleLayerLock(layer);
-        }
-      }
-      context.invalidate();
-    }, { symbol: lockPlan?.value === false ? 'unlock' : 'lock', disabled: lockPlan === null });
-    return;
+    }
+    if(inspection.suppression.supported){const suppressed=inspection.suppression.suppressed;
+      action('selection-suppression',suppressed?'Restore generated':'Suppress generated',()=>{if(inspection.suppression.id!==null){state.model.suppressGenerated(inspection.suppression.id,!suppressed);context.invalidate();}},{tone:suppressed?'success':'danger'});
+    }
+    children.push(kit.separator());
+  } else if(state.editingAnchorId!==null)cancelAnchorLabelEdit(state);
+  const layers=[...state.model.document().layers].sort((a,b)=>b.order-a.order),ids=layers.map(layer=>layer.id),activeId=state.interaction.snapshot().activeLayer;
+  state.layerSelection=reconcileMapLayerSelection(ids,state.layerSelection,activeId);
+  const selected=new Set(state.layerSelection.selected);
+  children.push(kit.text(`Layers${selected.size>1?` (${selected.size} selected)`:''}`,{role:'header'}));
+  const selectLayer=(value:string,event:UiButtonModifiers={})=>{const id=layers.find(layer=>layer.id===value)?.id;if(!id)return;cancelLayerRename(state);const next=applyMapLayerSelectionGesture(ids,state.layerSelection!,id,{range:event.shiftKey===true,additive:event.ctrlKey===true||event.metaKey===true});state.layerSelection=next;state.model.selectWorkspace(workspaceForLayer(next.active));state.interaction.selectLayer(next.active);state.paletteOffset=0;context.invalidate();};
+  children.push(kit.tree({id:'map-layer-tree',label:'Map layers',nodes:layers.map(layer=>({id:layer.id,label:layer.label})),selected:state.layerSelection.selected,activeId:activeId,
+    rowHeight:uiFixed(60),layout:{width:'grow',height:uiFixed(180),shrink:0},onSelect:id=>selectLayer(id),renderNode:node=>{
+    const layer=layers.find(layer=>layer.id===node.id)!;const rowChildren:UiElement[]=[];
+    const lockable=state.model.canToggleLayerLock(layer.id),locked=state.model.isLayerLocked(layer.id),visible=state.model.isLayerEyeVisible(layer.id),solo=state.model.soloLayer()===layer.id;
+    rowChildren.push(button(`layer-select-${layer.id}`,layer.label,event=>selectLayer(layer.id,event),{icon:LAYER_TYPE_SYMBOLS[layer.id],tone:selected.has(layer.id)?'success':'primary',help:`${layer.label}: ${locked?'locked':'editable'}. Shift selects a range; Ctrl or Command toggles.`}));
+    const iconButton=(id:string,label:string,icon:UiIconName,onPress:()=>void,disabled=false,active=false)=>kit.tooltip(label,kit.iconButton({lucide:icon},{id:`map-${id}`,label,onPress,disabled,tone:active?'success':'primary'}),{width:uiFixed(24),height:uiFixed(24)});
+    rowChildren.push(kit.grid({columns:3,columnWidth:uiFixed(24),rowHeight:uiFixed(24),gap:2,width:'grow',height:uiFixed(24),shrink:0},[
+      iconButton(`layer-visible-${layer.id}`,`${visible?'Hide':'Show'} ${layer.label}`,visible?'visibility':'eyeOff',()=>{state.interaction.toggleLayerVisibility(layer.id);context.invalidate();},false,visible),
+      iconButton(`layer-lock-${layer.id}`,lockable?`${locked?'Unlock':'Lock'} ${layer.label}`:'Immutable system layer',locked?'lock':'unlock',()=>{state.interaction.toggleLayerLock(layer.id);context.invalidate();},!lockable,locked),
+      iconButton(`layer-solo-${layer.id}`,`${solo?'Unsolo':'Solo'} ${layer.label}`,'layers',()=>{state.interaction.toggleLayerSolo(layer.id);context.invalidate();},!lockable,solo),
+    ]));
+    return kit.flex({width:'grow',gap:4},rowChildren);
+  }}));
+  const active=layers.find(layer=>layer.id===state.layerSelection?.active);
+  if(active){
+    if(state.renamingLayerId!==null&&state.renamingLayerId!==active.id)cancelLayerRename(state);
+    if(state.renamingLayerId===active.id){
+      children.push(kit.input({id:`map-layer-rename-${active.id}`,label:'Layer name',editor:state.layerName,onSubmit:()=>commitLayerRename(state,context)}));
+      action(`layer-rename-confirm-${active.id}`,'Confirm name',()=>{commitLayerRename(state,context);context.invalidate();},{tone:'success'});
+      action(`layer-rename-cancel-${active.id}`,'Cancel',()=>{cancelLayerRename(state);context.invalidate();});
+    }else if(selected.size>1){
+      const visibility=planMapLayerBulkVisibility(state.layerSelection.selected,id=>state.model.isLayerEyeVisible(id));
+      const lock=planMapLayerBulkLock(state.layerSelection.selected,id=>state.model.canToggleLayerLock(id),id=>state.model.isLayerUserLocked(id));
+      action('layers-bulk-visibility',visibility?.value?'Show selected':'Hide selected',()=>{if(visibility)for(const id of visibility.layers)if(state.model.isLayerEyeVisible(id)!==visibility.value)state.interaction.toggleLayerVisibility(id);context.invalidate();},{disabled:!visibility});
+      action('layers-bulk-lock',lock?.value===false?'Unlock selected':'Lock selected',()=>{if(lock)for(const id of lock.layers)if(state.model.isLayerUserLocked(id)!==lock.value)state.interaction.toggleLayerLock(id);context.invalidate();},{disabled:!lock});
+    }else{
+      action(`layer-rename-${active.id}`,'Rename layer',()=>{beginLayerRename(state,active.id,active.label);context.invalidate();},{disabled:!state.model.canRenameLayer(active.id)});
+      action(`layer-front-${active.id}`,'Toward front',()=>{state.interaction.reorderLayer(active.id,'toward_front');context.invalidate();},{disabled:!state.model.canReorderLayer(active.id,'toward_front')});
+      action(`layer-back-${active.id}`,'Toward back',()=>{state.interaction.reorderLayer(active.id,'toward_back');context.invalidate();},{disabled:!state.model.canReorderLayer(active.id,'toward_back')});
+    }
   }
-
-  const [rename, towardFront, towardBack] = layoutUiFlex(layers.toolbar!, Array.from(
-    { length: 3 },
-    () => ({ minSize: { width: 40, height: 40 }, grow: 1 }),
-  ), { direction: 'row', gap: 3, align: 'stretch' });
-  const editable = state.model.canRenameLayer(activeLayer.id);
-  const lockedDetail = state.model.isLayerSystemLocked(activeLayer.id)
-    ? `${activeLayer.label} is a required read-only system layer`
-    : `${activeLayer.label} is locked for this editor session`;
-  const painterReorderDetail = isMapObjectLayer(activeLayer.id)
-    ? null : `${activeLayer.label} is not an authored object painter layer`;
-  canvasAction(parts, `layer-rename-${activeLayer.id}`,
-    editable ? `Rename ${activeLayer.label}` : lockedDetail,
-    rename!, () => { beginLayerRename(state, activeLayer.id, activeLayer.label); context.invalidate(); },
-    { glyph: 'Rename', disabled: !editable });
-  const canMoveFront = state.model.canReorderLayer(activeLayer.id, 'toward_front');
-  canvasAction(parts, `layer-front-${activeLayer.id}`,
-    !editable ? lockedDetail : painterReorderDetail
-      ?? `Move ${activeLayer.label} toward front at equal elevation and depth`,
-    towardFront!, () => { state.interaction.reorderLayer(activeLayer.id, 'toward_front'); context.invalidate(); },
-    { glyph: 'Forward', disabled: !canMoveFront });
-  const canMoveBack = state.model.canReorderLayer(activeLayer.id, 'toward_back');
-  canvasAction(parts, `layer-back-${activeLayer.id}`,
-    !editable ? lockedDetail : painterReorderDetail
-      ?? `Move ${activeLayer.label} toward back at equal elevation and depth`,
-    towardBack!, () => { state.interaction.reorderLayer(activeLayer.id, 'toward_back'); context.invalidate(); },
-    { glyph: 'Backward', disabled: !canMoveBack });
+  parts.kit.inspector=kit.flex({width:'grow',gap:4},children);
 }
 
 export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanvasToolSurface {
   const mapId = studioMapId(context.route.path);
   const stateKey = `map-canvas:${mapId}`;
   const state = context.controller.toolState(stateKey, () => createState(context, mapId));
-  syncTerrainAuthoringPalette(state, context);
+  syncTerrainPalette(state, context);
   syncLiveSpawnModel(state, context);
   beginCatalogLoad(state, context);
   syncContentObjectCatalog(state, context);
@@ -3305,7 +2463,6 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
   // unrelated server update and overlaid entities from the wrong document.
   const liveView = mapId === 'live-island' ? context.controller.liveAdapter()?.view() : undefined;
   const liveRows = liveView?.rows ?? null;
-  state.renderer.setLiveResourceAuthority(liveView?.connected === true && liveView.synchronizing === false);
   const contentSource = liveView?.contentDefinitions ?? null;
   const contentAuthorityKey = liveView === undefined ? 'unavailable'
     : `${liveView.connected}:${liveView.synchronizing}:${liveView.error ?? ''}:${String(liveView.contentHead?.revision ?? '')}:${liveView.contentHead?.contentHash ?? ''}:${contentSource?.length ?? -1}`;
@@ -3378,10 +2535,12 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
       viewportHeight: viewport.height,
     });
   }
-  const parts = canvasParts();
+  const parts: MapCanvasParts = { kit: {} };
+  parts.kit.overlays = kit.stack({ width: 'grow', height: 'grow' });
   appendLeftDrawer(state, context, parts, mapId);
   appendRightDrawer(state, context, parts);
   appendWorldOverlayControls(state, context, parts);
+  appendAnchorAnnotation(state, context, parts);
   const showConflict = conflictRevision !== null
     && state.dismissedConflictRevision !== conflictRevision
     && !state.liveSpawnCommitting
@@ -3412,19 +2571,7 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
   }
   persistSession(state);
 
-  const setElevationAt = (x: number): void => {
-    const bounds = state.elevationBounds;
-    if (bounds === null) return;
-    state.interaction.setActiveElevation(Math.round(-8 + 16 * (x - bounds.x - 98) / Math.max(1, bounds.width - 116)));
-    context.invalidate();
-  };
-  const scrollPaletteAt = (y: number): void => {
-    const maximum = Math.max(0, state.paletteRowCount - state.paletteVisibleRows);
-    const fraction = (y - state.paletteBounds.y) / Math.max(1, state.paletteBounds.height);
-    state.paletteOffset = Math.max(0, Math.min(maximum, Math.round(fraction * maximum)));
-    context.invalidate();
-  };
-  const surface = finishCanvasTool(context, parts, (drawing, shellArt) => {
+  const surface: StudioCanvasToolSurface = { kit: parts.kit, draw: (drawing, shellArt) => {
     state.renderer.draw(
       drawing,
       state.model,
@@ -3436,20 +2583,9 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
     drawLiveSpawnTarget(drawing, state);
     drawRuntimeObjectTarget(drawing, state);
     drawNpcLocationTarget(drawing, state);
-  }, {
+  }, input: {
     spaceDragPan: true,
     pointerDown: (input) => {
-      if (input.button === 0 && state.elevationBounds !== null && pointInside(input.point, state.elevationBounds)) {
-        state.elevationDrag = true; setElevationAt(input.point.x); return true;
-      }
-      if (input.button === 0 && state.paletteRowCount > state.paletteVisibleRows
-        && pointInside(input.point, state.paletteBounds)
-        && input.point.x >= state.paletteBounds.x + state.paletteBounds.width - 16) {
-        state.paletteScrollDrag = true; scrollPaletteAt(input.point.y); return true;
-      }
-      // Empty drawer chrome is not a map-painting surface.
-      if (pointInside(input.point, context.controlsBounds)
-        || (context.inspectorBounds !== undefined && pointInside(input.point, context.inspectorBounds))) return true;
       if (state.editingAnchorId !== null) {
         cancelAnchorLabelEdit(state);
         context.invalidate();
@@ -3493,21 +2629,9 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
       }
       return consumed;
     },
-    pointerMove: (input) => {
-      if (state.elevationDrag) { setElevationAt(input.point.x); return true; }
-      if (state.paletteScrollDrag) { scrollPaletteAt(input.point.y); return true; }
-      return state.resizeImpact !== null || state.interaction.pointerMove(input.point);
-    },
-    pointerUp: () => {
-      if (state.elevationDrag) { state.elevationDrag = false; return true; }
-      if (state.paletteScrollDrag) { state.paletteScrollDrag = false; return true; }
-      return state.resizeImpact !== null || state.interaction.pointerUp();
-    },
-    pointerCancel: () => {
-      state.elevationDrag = false;
-      state.paletteScrollDrag = false;
-      return state.resizeImpact !== null || state.interaction.pointerCancel();
-    },
+    pointerMove: (input) => state.resizeImpact !== null || state.interaction.pointerMove(input.point),
+    pointerUp: () => state.resizeImpact !== null || state.interaction.pointerUp(),
+    pointerCancel: () => state.resizeImpact !== null || state.interaction.pointerCancel(),
     wheel: (input) => {
       if (state.selectionRowCount > 0 && pointInside(input.point, state.selectionBounds)) {
         const visibleRows = Math.max(1, Math.floor((state.selectionBounds.height + 2) / 32));
@@ -3633,7 +2757,7 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
         input.altKey,
       );
     },
-  });
+  } };
   return Object.freeze({
     ...surface,
     lifecycle: Object.freeze({
