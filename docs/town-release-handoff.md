@@ -3,34 +3,44 @@
 The owner approved the town release and subsequently approved all remaining PRs,
 including Studio #41. IndigoForge's explicit primary checkout and service handoff has been received. RubyBay is the current release coordinator.
 
-## Latest release checkpoint — 09:48 UTC
+## Release source and operational record
 
-The owner now explicitly approves merging and publishing **all remaining PRs**,
-including Studio #41. This supersedes the earlier exclusion. #43 passed both
-hosted checks and merged at `f6bb638f`; #39, #40 and #42 were already merged.
-RubyBay is integrating #41 with current main in
-`/home/toby/projects/orchard-release-integration`. Root/client/engine/sim/tools/UI
-are 0.18.0; Studio is 0.9.2. The integrated Studio must be rebuilt so town wall
-framing and shared rendering match gameplay; use the migration lane's normal
-`build` mode, retaining the UI-kit guard and rollback artifact.
+All approved feature/fix PRs are merged: #39, #40, #42, #43 and finally #41.
+The integrated runtime source is `56c0e02bf932ae29ebc46995fdbb86ac61ab63ba`
+(0.18.0 / Studio 0.9.2). Both #41 hosted checks pass. The final local full check
+passes 5,809 coverage tests, 101 serial tests, all coverage thresholds, typechecks,
+lint, canonical content validation and validation of 1,320 art assets.
 
-Conflict resolution retains authoritative lamp rendering and complete-document
-fence topology together. Independent review found the new crafted-fence sprite
-missing from Studio's family resolver; a content-backed regression now checks
-its E/W joins. Focused tests pass; full integration validation is running.
+The current publication result, service verification and acceptance evidence are
+maintained in the [release record](https://github.com/Dastari/orchard-cellar/pull/44).
+Consult that record before interpreting the historical checkpoints below as current
+state. Player-facing changes are in [21 September notes](releases/2026-09-21.md).
+A merged PR alone does not prove successful production publication.
 
-The owner reconnect handoff expired while the session was idle (refresh HTTP400).
-Do not reuse it. Prepare a new encrypted handoff after integration checks, then
-validate owner membership and refresh before publication. No production module,
-content or map publication has occurred; services remain active.
+Operational evidence is owner-private at
+`/home/toby/.local/state/orchard-release/town-20260921-rubybay`:
 
-The previous map candidate must be re-exported against integrated source/assets
-and its source/registry hashes repinned. Retain the same reviewed historical
-map baseline and occupancy checks. Public preflight runs while services are active;
-map apply requires frontend and Studio inactive and repeats content/map CAS and
-occupancy checks before the owner reducer. Restore both routes after verification.
-Acceptance helpers target only OrchardAgent. Run all ten interior round trips,
-persisted lamp cycles and canonical signed-in browser verification.
+- `release-integrated.log`: guarded schema-only release, including backup/restore,
+  no-delete publication, content CAS and same-identity reconnect parity.
+- `map-candidate-integrated/manifest.json`: reviewed map revision 6, 39,954 cells,
+  201 prefabs, 2,100 objects, no unapproved assets. Map SHA256 is
+  `392ee6cc1e5d81bdf71e924d3d9b48c09e3dee29139d7e020c7f2dcafb538c43`.
+  Geometry and objects match the earlier approved town candidate exactly; only
+  prefab asset-registry metadata changes for the integrated build.
+- `content-candidate.json`: SHA256
+  `b946603a3e9318f3032232019a4474aab0ac50790380178ec4fc3e2e951b15ea`,
+  56 reviewed upserts, expected head 14, target head 15 / `2f704947`.
+- `production-verified.json`, `map-publication.json`, `portal-acceptance.json`:
+  completion evidence only when present and successful. Never infer completion
+  from a prepared helper or an old candidate file.
+
+Studio is rebuilt from integrated source through the normal guarded `build` lane;
+its earlier 0.9.1 artifact remains rollback evidence. Map publication requires both
+frontend and Studio inactive, then repeats occupancy and map/content CAS checks.
+Live acceptance targets only OrchardAgent and includes all ten interior round trips
+and persisted lamp modes. Temporary reconnect files must be removed after verified
+completion; they are not reusable credentials. The dedicated encrypted account
+vault is retained. See [account roles](agent-development-account.md#publishing-roles).
 
 ## Earlier preparation evidence
 

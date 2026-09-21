@@ -2,6 +2,8 @@
 
 ## 0.18.0 / Studio 0.9.2 — Integrated town and live editor
 
+- [Player-facing notes for 21 September](docs/releases/2026-09-21.md) cover the integrated gameplay, town, artwork and Studio updates; publication evidence is linked there.
+
 - Combine the refined town, persistent streetlights and connected scenery with Studio’s local draft editing, native joins and incremental rendering.
 - Preserve both shared rendering paths and the canonical content validation and serial timing-test gates.
 
