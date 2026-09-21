@@ -137,7 +137,7 @@ describe('homestead build palette layout', () => {
 describe('residence purchase controls',()=>{
   function fixture() {
     const palette=new HomesteadBuildPalette({} as never,{} as never,{});
-    const model={scope:'home',width:320,height:180,counts:{},upgrades:[],upgradeRanks:{},balanceBronze:10000n,
+    const model={scope:'home',width:320,height:180,counts:{},upgrades:[],upgradeRanks:{},balanceBronze:300000n,
       residenceRank:0,residenceOwner:true,furnishing:true,entries:[]};
     palette.setModel(model);
     const room=homesteadBuildPaletteCells(palette.bounds,0,4)[3]!;
@@ -150,11 +150,11 @@ describe('residence purchase controls',()=>{
     expect(palette.bounds.y+palette.bounds.height).toBeLessThan(180);
     buy();expect(palette.takeExpansionRequest()).toEqual({token:1,rank:0,scope:'home'});
     buy();expect(palette.takeExpansionRequest()).toBeNull();
-    palette.setModel({...model,residenceRank:1,balanceBronze:6800n});buy();
+    palette.setModel({...model,residenceRank:1,balanceBronze:240000n});buy();
     expect(palette.takeExpansionRequest()).toEqual({token:2,rank:1,scope:'home'});
   });
   it('blocks nonowners, poor wallets and maximum rank',()=>{
-    for(const change of [{residenceOwner:false},{balanceBronze:3199n},{residenceRank:2}]) {
+    for(const change of [{residenceOwner:false},{balanceBronze:59999n},{residenceRank:2}]) {
       const {palette,model,buy}=fixture();palette.setModel({...model,...change});buy();
       expect(palette.takeExpansionRequest()).toBeNull();
     }
