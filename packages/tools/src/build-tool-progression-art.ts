@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workspaceRoot } from './assets/load.js';
 import { encodePng } from './assets/png.js';
+import { importPremiumTools } from './assets/premium-icon-import.js';
 import type { AssetSource } from './assets/types.js';
 
 const root = fileURLToPath(workspaceRoot);
@@ -15,8 +16,8 @@ const ramps = {
   iron: ['#3c4856', '#5a6c7b', '#8596a3', '#b2c0c7', '#dfe5e4'],
 } as const;
 type Material = keyof typeof ramps;
-type Tool = 'axe' | 'shovel' | 'hoe' | 'pickaxe';
-const tools: readonly Tool[] = ['axe', 'shovel', 'hoe', 'pickaxe'];
+type Tool = 'axe' | 'hoe' | 'pickaxe';
+const tools: readonly Tool[] = ['axe', 'hoe', 'pickaxe'];
 const rgb = (hex: string): number[] => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
 const nearest = (color: readonly number[], ramp: readonly string[]): number => {
   const distances = ramp.map((hex) => rgb(hex).reduce((sum, value, index) => sum + (value - color[index]!) ** 2, 0));
@@ -78,10 +79,9 @@ for (const tool of tools) {
       frames: { base: [rows] }, frameKinds: { base: 'state' },
       sourcePalette: { ...icons.handle,
         ...Object.fromEntries(icons.materials[material].map((color, i) => ['ABCD'[i]!, color])) },
-      tags: ['ui.icon', 'item.tool', tool === 'shovel' ? 'source.orchard_original' : 'source.orchard_derivative', `tool.material.${material}`],
+      tags: ['ui.icon', 'item.tool', 'source.orchard_derivative', `tool.material.${material}`],
       placement: { layer: 'ui', builderAvailable: false },
     });
-    if (tool === 'shovel') continue;
     const original = JSON.parse(await readFile(resolve(root, `packages/assets/characters/tool_cf_iron_${tool}_action.sprite.json`), 'utf8')) as AssetSource;
     await bake({
       ...original, name: `tool_${material}_${tool}`,
@@ -102,4 +102,5 @@ for (const [name, template] of [['item_silver_ore', 'item_cf_iron_ore'], ['item_
     return [key, metal ? ramps.silver[nearest(color, ramps.iron)]! : hex];
   })), tags: [...(original.tags ?? []), 'source.orchard_derivative'] });
 }
-console.log('Baked 24 native tool icons, 18 material swing overlays, and 2 silver material icons.');
+await importPremiumTools();
+console.log('Baked tool icons, premium hammer/shovels, 18 material swing overlays, and 2 silver material icons.');

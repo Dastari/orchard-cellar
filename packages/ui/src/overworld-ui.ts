@@ -2725,10 +2725,22 @@ export class OverworldUi {
   drawBuildControl(context: CanvasRenderingContext2D): void {
     if (this.buildNode.visible) {
       const rect = this.layout.buildButton;
-      drawUiSkinAsset(context, this.skin.button, rect, this.buildNode.contains(this.pointer) ? 'hover' : 'idle');
-      const hammer = this.itemArt.hammer;
-      if (hammer) this.drawItemArtwork(context, { ...rect, x: rect.x - 2, y: rect.y - 3 }, 'hammer', hammer);
+      this.drawHudIconButton(context, rect, this.buildNode.contains(this.pointer), this.itemArt.hammer);
     }
+  }
+
+  drawCraftingControl(context: CanvasRenderingContext2D): void {
+    if (this.openWindowValue === null) {
+      this.drawHudIconButton(context, this.layout.craftingButton, this.craftingNode.contains(this.pointer), this.skin.craftingIcon);
+    }
+  }
+
+  private drawHudIconButton(context: CanvasRenderingContext2D, rect: UiRect,
+    hovered: boolean, icon: LoadedAsset | undefined): void {
+    drawUiSkinAsset(context, this.skin.button, rect, hovered ? 'hover' : 'idle');
+    if (icon !== undefined) drawUiSkinAsset(context, icon, {
+      x: rect.x + 4, y: rect.y + 4, width: 16, height: 16,
+    });
   }
 
   draw(context: CanvasRenderingContext2D): void {
@@ -2746,14 +2758,7 @@ export class OverworldUi {
         align: 'center', color: '#5f3b24',
       });
     }
-    if (this.openWindowValue === null) {
-      drawUiSkinNatural(
-        context,
-        this.skin.craftingIcon,
-        this.layout.craftingButton.x + 4,
-        this.layout.craftingButton.y + 4,
-      );
-    }
+    this.drawCraftingControl(context);
     this.drawBuildControl(context);
     if (this.openWindowValue === 'help') this.helpBook.draw(context, this.model.width, this.model.height);
     else if (this.openWindowValue) {

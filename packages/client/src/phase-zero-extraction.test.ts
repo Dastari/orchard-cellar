@@ -143,10 +143,12 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // dwell, and real item-label regressions accompany this re-capture.
 // Mobile build access adds the reviewed hammer HUD callback and overlay hit priority.
 // Review and controls: docs/harvest-cellar-audit.md; touch routing tests accompany this update.
-// Delve keepsake review: docs/delve-keepsake-spec.md. Against Orchard 666ef9fb,
+// Kenmi icon refresh shares Build/Crafting button chrome and preserves purse inventory.
+// Review: docs/reference-assets/kenmi-icon-implementation.md; HUD interaction tests cover the change.
+// Delve keepsake review: docs/delve-keepsake-spec.md. Against main 2aee1799 / Orchard b8870362,
 // all five seams differ only in the admission label announcing the first-win
 // home recipe; package ownership and acyclic-import gates remain unchanged.
-const STRUCTURAL_SEAM_DIGEST = '86cf06f58689e75887ec8ba6d107127fafaf0fc89c93554d43f1f8be8ccd6042';
+const STRUCTURAL_SEAM_DIGEST = 'da6c69f1f86a65a254db1d4d0b509427c9616f9b93f1c0314603cfce2ed81ca1';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

@@ -50,3 +50,16 @@ renderer guard remains unchanged; no Studio deployment is involved.
 Combined focused validation: 125 tests across 31 files pass, including all three
 loop authority paths, full food/callback ownership and the Studio manifest.
 World/client builds, lifecycle integrity and canonical content validation pass.
+
+## Reviewed main integration
+
+Main `2aee1799` icon and Crafting UI updates are retained through provisions
+`a04da808`. Version remains 0.11.0. Content has 907 definitions, hash `79c51393`,
+and 548,870 runtime bytes within the unchanged 537 KiB ceiling. Lifecycle revision
+18 and all 148 handlers are unchanged; existing order/meal behavior and bindings
+are retained. Main's premium icon importer and structural UI baseline are preserved.
+
+Validation after main integration: 188 focused tests across 16 files pass; the new
+premium source-pixel test passes using the existing licensed art source symlink.
+All workspace typechecks, lint, lifecycle integrity, canonical content validation,
+and checked world/production client builds pass. No deployment.
