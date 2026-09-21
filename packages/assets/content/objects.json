@@ -980,6 +980,50 @@
     }
   },
   {
+    "id": "object:delver_memorial_planter",
+    "kind": "object",
+    "schemaVersion": 1,
+    "displayName": "Delver Memorial Planter",
+    "components": {
+      "identity": {
+        "tags": [
+          "furniture",
+          "item.placeable"
+        ]
+      },
+      "sprite": {
+        "asset": "prop_delver_memorial_planter"
+      },
+      "collision": {
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "blocksMovement": true,
+        "occludesLight": false
+      },
+      "placement": {
+        "item": "item:delver_memorial_planter",
+        "layer": "object",
+        "spaces": [
+          "residence"
+        ],
+        "facing": false,
+        "footprint": [
+          [
+            15
+          ]
+        ],
+        "requiresRole": "builder"
+      },
+      "furniture": [
+        5,
+        7
+      ]
+    }
+  },
+  {
     "id": "object:farmer_jane_memorial",
     "kind": "object",
     "schemaVersion": 1,

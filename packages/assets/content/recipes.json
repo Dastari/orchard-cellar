@@ -514,6 +514,34 @@
     ]
   },
   {
+    "id": "recipe:delver_memorial_planter",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "requiresKnowledge": true,
+    "output": {
+      "item": "item:delver_memorial_planter",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "recipeKind": "shapeless",
+    "inputs": [
+      {
+        "item": "item:stone",
+        "count": 4
+      },
+      {
+        "item": "item:fiber",
+        "count": 8
+      },
+      {
+        "item": "item:sunflower",
+        "count": 2
+      }
+    ]
+  },
+  {
     "id": "recipe:emerald_ore",
     "kind": "recipe",
     "schemaVersion": 1,

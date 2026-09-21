@@ -503,7 +503,7 @@ function setFailureToast(error: unknown, ticks = 120): void {
 }
 
 function rogueRewardClaimedMessage(run: { readonly roomNumber: number }): string {
-  return run.roomNumber >= ROGUE_RUN_ROOM_COUNT - 1 ? 'DELVE CONQUERED' : 'BOON CLAIMED';
+  return run.roomNumber >= ROGUE_RUN_ROOM_COUNT - 1 ? 'DELVE CONQUERED - CHECK YOUR RECIPE GUIDE' : 'BOON CLAIMED';
 }
 let effectPhase = 0;
 let worldZoom = DEFAULT_WORLD_ZOOM;

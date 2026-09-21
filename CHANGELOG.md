@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0 — 2026-09-21
+
+- Completing all 12 Delve rooms and claiming the final guardian boon now permanently reveals the Delver Memorial Planter recipe, an optional residence keepsake crafted with stone, fiber and sunflowers.
+- Track full Delve victories independently of temporary boons/currency. Content-disabled rewards are repaired on reconnect; death and abandonment grant no completion reward.
+- Preserve completion receipts across quest resets and restore run-entry vitals as before.
+
+
 ## 0.8.4 — Anvil repair release
 
 - Repair tools at an anvil again. Since the facing-swing change, F swung any tool

@@ -1,3 +1,4 @@
+import { delveCompletionRewardError } from '../delve-keepsake.js';
 import { equipmentModifierAllowed } from '../equipment-budget.js';
 import {
   type ItemContentDefinition,
@@ -1684,6 +1685,10 @@ export function validateContentDefinitions(
     undefined,'delveBoon',
   ));
 
+
+  const keepsakeError = delveCompletionRewardError(definitions);
+  if (keepsakeError !== null) errors.push(issue('error', 'invalid_world_definition', keepsakeError,
+    undefined, 'reward.delve_completion'));
 
   const legacyJobOwners = new Map<string, string>();
   const activeProcessInputs = new Map<string, string>();

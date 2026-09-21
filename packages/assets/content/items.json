@@ -1609,6 +1609,27 @@
     }
   },
   {
+    "id": "item:delver_memorial_planter",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Delver Memorial Planter",
+    "icon": {
+      "asset": "prop_delver_memorial_planter"
+    },
+    "maxStack": 16,
+    "tags": [
+      "item.placeable",
+      "item.crafted",
+      "furniture",
+      "furniture.townhouse",
+      "reward.delve_completion"
+    ],
+    "economy": {
+      "buy": 0,
+      "sell": 0
+    }
+  },
+  {
     "id": "item:emberglass",
     "kind": "item",
     "schemaVersion": 1,

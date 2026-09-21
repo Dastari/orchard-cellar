@@ -1,3 +1,4 @@
+import { DELVE_COMPLETION_FLAG, DELVE_COMPLETION_STATISTIC, delveCompletionTotal, delveCompletionRecipe } from '@orchard/sim';
 import { executeToolSwing, type SwingTarget, type ToolSwingContact } from './behaviour/tool-swing.js';
 import { toolSwingContains, toolSwingChunks, runtimeResourceTargetVector } from '@orchard/sim';
 import { npcBehaviourDefinitionId } from './behaviour/npc-target.js';
@@ -4270,13 +4271,62 @@ function initializeRogueRoom(
   return next;
 }
 
+/** Receipt is independent of active content, so retirement never traps a player in a run. */
+function syncDelveCompletionKeepsake(
+  ctx: WorldReducerContext, identity: WorldReducerContext['sender'], authorityTick: bigint,
+): void {
+  const identityHex = identity.toHexString();
+  const receipt = ctx.db.player_quest_flag.id.find(`${identityHex}:${DELVE_COMPLETION_FLAG}`);
+  const total = delveCompletionTotal(receipt?.flag);
+  if (total === 0n) return;
+  const registry = contentRegistry(ctx);
+  const statistic = runtimeStatisticDefinition(registry, DELVE_COMPLETION_STATISTIC);
+  if (statistic !== null && statistic.reserved !== true && statistic.aggregation === 'counter'
+    && statistic.subject === 'none') {
+    const previous = ctx.db.player_statistic.id.find(playerStatisticRowId(identityHex, DELVE_COMPLETION_STATISTIC, ''))?.value ?? 0n;
+    if (total > previous) recordPlayerStatistic(ctx, identity, DELVE_COMPLETION_STATISTIC, total - previous, authorityTick);
+  }
+  const recipe = delveCompletionRecipe(registry);
+  if (recipe === null) return;
+  const recipeId = recipe.id.slice('recipe:'.length);
+  const id = `${identityHex}:${recipeId}`;
+  if (ctx.db.player_known_recipe.id.find(id) !== null) return;
+  ctx.db.player_known_recipe.insert({ id, identity, recipeId, learnedAtTick: authorityTick,
+    sourceKind: 'delve_completion' });
+  const learnedStatistic = runtimeStatisticDefinition(registry, 'recipes_learned');
+  if (learnedStatistic !== null && learnedStatistic.reserved !== true
+    && learnedStatistic.aggregation === 'counter' && learnedStatistic.subject === 'none') {
+    recordPlayerStatistic(ctx, identity, 'recipes_learned', 1n, authorityTick);
+  }
+}
+
+function recordDelveCompletion(
+  ctx: WorldReducerContext, identity: WorldReducerContext['sender'], authorityTick: bigint,
+): void {
+  const id = `${identity.toHexString()}:${DELVE_COMPLETION_FLAG}`;
+  const previous = ctx.db.player_quest_flag.id.find(id);
+  const total = delveCompletionTotal(previous?.flag);
+  const next = total < (1n << 64n) - 1n ? total + 1n : total;
+  const row = { id, identity, flag: `${DELVE_COMPLETION_FLAG}:${next}` };
+  if (previous === null) ctx.db.player_quest_flag.insert(row);
+  else ctx.db.player_quest_flag.id.update(row);
+  syncDelveCompletionKeepsake(ctx, identity, authorityTick);
+}
+
 function finishRogueRun(ctx: WorldReducerContext, run: RogueRunRow): void {
+  // The stored run, not a stale caller snapshot, controls reward and cleanup.
+  const stored = ctx.db.rogue_run.id.find(run.id);
+  if (stored === null) return;
+  run = stored;
+  const victorious = run.phase === 'complete' && run.roomNumber === ROGUE_RUN_ROOM_COUNT - 1
+    && run.roomKind === 'boss';
   const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? run.updatedTick;
   clearRogueRoomRows(ctx, run);
   for (const upgrade of [...ctx.db.rogue_run_upgrade.by_run.filter(run.id)]) {
     ctx.db.rogue_run_upgrade.id.delete(upgrade.id);
   }
   for (const member of [...ctx.db.rogue_run_member.by_run.filter(run.id)]) {
+    if (victorious) recordDelveCompletion(ctx, member.identity, authorityTick);
     const position = ctx.db.player_position.identity.find(member.identity);
     if (position !== null) teleportPlayer(
       ctx, position, member.returnSpaceId, member.returnX, member.returnY,
@@ -6731,7 +6781,10 @@ function writeAdminProgressionState(
     if (resetAllQuests || row.questId === resetQuestId) ctx.db.player_quest_reach_presence.id.delete(row.id);
   }
   if (resetAllQuests) {
-    for (const row of [...ctx.db.player_quest_flag.by_identity.filter(identity)]) ctx.db.player_quest_flag.id.delete(row.id);
+    for (const row of [...ctx.db.player_quest_flag.by_identity.filter(identity)]) {
+      // The Delve lifetime receipt is not quest progress and survives quest resets.
+      if (row.id !== `${identityHex}:${DELVE_COMPLETION_FLAG}`) ctx.db.player_quest_flag.id.delete(row.id);
+    }
     if (ctx.db.player_thought.identity.find(identity) !== null) ctx.db.player_thought.identity.delete(identity);
   }
 }
@@ -13107,6 +13160,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     });
   }
   ensurePlayerStats(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
+  syncDelveCompletionKeepsake(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
   const spawn = {
     x: playerSpawn.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
     y: playerSpawn.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,

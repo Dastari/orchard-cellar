@@ -524,6 +524,25 @@
     "reserved": true
   },
   {
+    "id": "statistic:delves_completed",
+    "kind": "statistic",
+    "schemaVersion": 1,
+    "name": "Delves Completed",
+    "description": "Full twelve-room Delve victories. First victory reveals the Delver Memorial Planter recipe.",
+    "category": "exploration",
+    "unit": "count",
+    "aggregation": "counter",
+    "subject": "none",
+    "milestones": [
+      "1",
+      "5",
+      "10",
+      "25",
+      "50",
+      "100"
+    ]
+  },
+  {
     "id": "statistic:dialogue_choices",
     "kind": "statistic",
     "schemaVersion": 1,
