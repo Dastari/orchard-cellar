@@ -299,7 +299,7 @@ try {
    sun:{...baseSky.sun,intensity:0,illumination:{r:0,g:0,b:0}},
    moon:{...baseSky.moon,intensity:0,illumination:{r:0,g:0,b:0}}};
  const lightmap=new TileLightmap(),lightingRenderer=new WorldLightingRenderer(terrain);
- const lights=probe?[{worldX:probe.lightX,worldY:probe.lightY,receiverDirectionWorldY:probe.lightY,radiusTiles:10,color:{r:255,g:170,b:90},strengthPerMille:1000,profile:'flame',elevationLayer:0}]:(${noMapLights}?[]:liveMapObjectPointLights(document,registry,0n)).map(light=>({...light,elevationLayer:0}));
+ const lights=probe?[{worldX:probe.lightX,worldY:probe.lightY,receiverDirectionWorldY:probe.lightY,radiusTiles:10,color:{r:255,g:170,b:90},strengthPerMille:1000,profile:'flame',elevationLayer:0}]:(${noMapLights}?[]:liveMapObjectPointLights(document,registry,dynamic?9000n:0n)).map(light=>({...light,elevationLayer:0}));
  let shadowStudy=null;
  if(dynamic){
    if(${volcanic})throw new Error('Outdoor light study currently supports flat Willowharbour only');
@@ -341,7 +341,7 @@ try {
  if(dynamic){lightingRenderer.compositeGround(context,scale);lightingRenderer.compositeFlameGlows(context,lights,scale);}
  const depthQueue = [];
  enqueueRaisedTerrainDepth(depthQueue, context, art, terrain, ground, cameraX, cameraY, scale, options.width / scale, options.height / scale);
- enqueueLiveMapObjects(document, { context, cameraX, cameraY, scale, timeMs: 0,
+ enqueueLiveMapObjects(document, { context, cameraX, cameraY, scale, timeMs: 0, calendarTick:dynamic?9000n:0n,
    visible: () => true, enqueue: (x,y,item) => {
      const projection=terrainProjectedDepthAtFoot(terrain,x,y),level=terrainElevationAtWorldFoot(terrain,x,y);
      const draw=()=>{context.save();try{context.translate(0,-projection*scale);item.draw();}finally{context.restore();}};
@@ -421,7 +421,7 @@ try {
  draws.sort((a, b) => a.depth - b.depth).forEach(row => row.draw());
  if(basic)compositeBasicLighting(context,options.width,options.height,ambient);
  await fetch('/__login-result', { method: 'POST', body: JSON.stringify({ png: canvas.toDataURL('image/png'),
-  shadowProbe:probe?{...probe,cameraX,cameraY}:null,shadowStudy,mapLights:liveMapObjectPointLights(document,registry,0n).length,seed: SURVIVAL_WORLD_SEED, players: ${pond||volcanic}?1:0, decorations: decorations.length, resources: resources.length+(${volcanic}?6:0), draws: draws.length + document.objects.length+(${volcanic}?19:0) }) });
+  shadowProbe:probe?{...probe,cameraX,cameraY}:null,shadowStudy,mapLights:liveMapObjectPointLights(document,registry,dynamic?9000n:0n).length,seed: SURVIVAL_WORLD_SEED, players: ${pond||volcanic}?1:0, decorations: decorations.length, resources: resources.length+(${volcanic}?6:0), draws: draws.length + document.objects.length+(${volcanic}?19:0) }) });
 } catch (error) {
  await fetch('/__login-result', { method: 'POST', body: JSON.stringify({ error: String(error), stack: error?.stack }) });
 }

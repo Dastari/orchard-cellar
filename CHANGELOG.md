@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.17.0 — Connected town scenery and inhabited rooms
+
+- Resolve native wooden, large wooden, picket, stone, large stone and hedge boundaries from cardinal neighbours; player-built wooden fences now use all sixteen native joins.
+- Close shallow bank contours with native inner/outer corners and two-cell returns; repair the farm gateway and remove decorative Willowharbour chests.
+- Persist streetlamp Auto/On/Off modes through ordinary world objects and interactions; synchronize native artwork and emitted light with world time.
+- Join native interior wall caps and sides, place supported windows, and redesign all ten interiors around their room functions and clear circulation.
+- Record independent Astra visual acceptance and saved-map upgrade rehearsal.
+
 ## 0.16.0 — Willowharbour river town refinement
 
 - Continue the river through the town to a sandy estuary, with four traversable bridges and preserved door/return routes. Add shallow native turf banks, cultivated flower beds, mature garden trees, white picket garden returns, connected hedge corners and a cobbled civic square.

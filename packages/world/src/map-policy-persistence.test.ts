@@ -12,8 +12,9 @@ function fixture(){
   let row={mapId:initial.id,revision:1,documentJson:sim.serializeMapDocumentV3(initial),contentHash:sim.mapDocumentV3Hash(initial),clientMutationId:'initial'};
   const history:unknown[]=[];
   const ctx={sender:{},timestamp:{},db:{live_map_document:{mapId:{find:()=>row,update:(next:typeof row)=>{row=next;}}},
+    world_placeable:{by_placer:{filter:()=>[]}},world_environment:{id:{find:()=>null}},
     live_map_revision:{insert:(next:unknown)=>history.push(next)}}};
-  const dependencies={...sim,SenderError:Error,activeTopsideLandmarks:()=>landmarks,insertLegacyAdminAudit:()=>{}};
+  const dependencies={...sim,SenderError:Error,activeTopsideLandmarks:()=>landmarks,insertLegacyAdminAudit:()=>{},settleTownStreetlamps:()=>{}};
   const commit=new Function(...Object.keys(dependencies),`${javascript};return commitLiveMapSnapshot;`)(...Object.values(dependencies));
   return {ctx,initial,history,current:()=>row,commit};
 }

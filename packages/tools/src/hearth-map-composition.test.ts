@@ -13,9 +13,9 @@ const compose=(input:MapDocumentV3)=>composeHearthContentMap(input,assetFor,'fix
 const sha256=(value:string)=>createHash('sha256').update(value).digest('hex');
 it('preserves the reviewed map, prefab, and object composition hashes at the tools boundary',()=>{
   const document=compose(createLiveIslandMapDocument()).document!;
-  expect(sha256(serializeMapDocumentV3ForTransport(document))).toBe('67889442518e7aa69b25072bc342dbb10c56fe60ec52cc1e618e6f4e93ff3b35');
-  expect(sha256(JSON.stringify(document.prefabs))).toBe('3edc4536febddca9c389edf9c317a1a848d57d084bf47d6fbc4b335f05cbd651');
-  expect(sha256(JSON.stringify(document.objects))).toBe('3c4cae4e58ae2557f7bd4182203c677f493030492e2a56613f6c17f53bd5d1eb');
+  expect(sha256(serializeMapDocumentV3ForTransport(document))).toBe('7e9928a3f1d4f920b7cdc4a064a460974f7066611d818e06c1d11e39bf49c8b3');
+  expect(sha256(JSON.stringify(document.prefabs))).toBe('ace2af54532d9bac97d082aed408fb13bdbab3086b04205cfb68efa93b53db30');
+  expect(sha256(JSON.stringify(document.objects))).toBe('f78ce385e3511018ec4af07e946748e6ac56679ed9196b2ee86ad25f3ad7c1ac');
 });
 it('composes once, preserves original authoring and is exactly idempotent',()=>{
   const base=createLiveIslandMapDocument();

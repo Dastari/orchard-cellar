@@ -28,7 +28,7 @@ for(const [id,source,width,height,x,y] of sources) {
   importReviewed(`prop_cf_hearth_${id}`,['packages/tools/src/import-image.ts',
     `references/art/kenmi/cute-fantasy/core/${source}`, '--size',`${width}x${height}`,
     '--source-size',`${width}x${height}`,'--crop',`${x},${y}`,'--category','props',
-    '--name',`prop_cf_hearth_${id}`]);
+    '--name',`prop_cf_hearth_${id}`, ...(id==='streetlamp'?['--frame-grid','1x2','--animation-names','base,on']:[])]);
 }
 
 importReviewed('prop_cf_hearth_fountain',['packages/tools/src/import-image.ts',

@@ -661,24 +661,26 @@ export class GroundChunkCache {
     for(const jamb of hearthDoorwayFeatures(terrain.residenceArchitecture??[]).jambs){
       const key=`${jamb.tileX},${jamb.tileY}`;const list=residenceJambs.get(key)??[];list.push(jamb);residenceJambs.set(key,list);
     }
+    const frameTile=art.hearthInteriorFrame?selectAtlasFrame(art.hearthInteriorFrame.metadata,'base',0):null;
+    const frameSource=frameTile?worldAssetFrameSource(context,art.hearthInteriorFrame,frameTile):null;
+    const wallFrame=(sx:number,sy:number,w:number,h:number,x:number,y:number)=>{
+      if(frameSource)context.drawImage(frameSource.image,frameSource.x+sx,frameSource.y+sy,w,h,x,y,w,h);
+    };
     if(terrain.generator==='village_interior') {
-      // Wall faces project only into solid envelope cells. Include the following
-      // chunk's anchors so top courses never disappear at cache seams.
-      for(let y=0;y<SURVIVAL_CHUNK_TILES+3;y++)for(let x=0;x<SURVIVAL_CHUNK_TILES;x++) {
+      // Native caps extend five pixels into adjacent solid columns, exactly
+      // meeting the vertical cut walls. Include neighbour chunks' overhangs.
+      for(let y=0;y<SURVIVAL_CHUNK_TILES+3;y++)for(let x=-1;x<=SURVIVAL_CHUNK_TILES;x++) {
         const tx=firstTileX+x,ty=firstTileY+y;
-        if(residenceWallAt(terrain,tx,ty)) {
-          const frame=selectAtlasFrame(art.hearthInteriorWall.metadata,'base',0);
-          const source=frame?worldAssetFrameSource(context,art.hearthInteriorWall,frame):null;
-          if(source)context.drawImage(source.image,source.x,source.y+16,16,32,x*16,(y-1)*16,16,32);
-          // Native wall palette: dark outline, timber top and highlight.
-          const top=(y-1)*16;
-          context.fillStyle='#3f2832';context.fillRect(x*16,top,16,4);
-          context.fillStyle='#8f563b';context.fillRect(x*16,top+1,16,2);
-          context.fillStyle='#d58f67';context.fillRect(x*16,top+2,16,1);
-          for(const [dx,edge] of [[-1,0],[1,13]])if(!residenceWallAt(terrain,tx+dx!,ty)){
-            context.fillStyle='#3f2832';context.fillRect(x*16+edge!,top,3,32);
-            context.fillStyle='#8f563b';context.fillRect(x*16+edge!+1,top+1,1,31);
-          }
+        if(!residenceWallAt(terrain,tx,ty))continue;
+        const frame=selectAtlasFrame(art.hearthInteriorWall.metadata,'base',0);
+        const source=frame?worldAssetFrameSource(context,art.hearthInteriorWall,frame):null;
+        const top=(y-1)*16;
+        if(source)context.drawImage(source.image,source.x,source.y+16,16,32,x*16,top,16,32);
+        wallFrame(16,10,16,6,x*16,top);
+        for(const [dx,sx,offset] of [[-1,11,-5],[1,32,16]])if(!residenceWallAt(terrain,tx+dx!,ty)){
+          wallFrame(sx!,10,5,6,x*16+offset!,top);
+          wallFrame(sx!,16,5,16,x*16+offset!,top+6);
+          wallFrame(sx!,16,5,10,x*16+offset!,top+22);
         }
       }
     }
@@ -710,18 +712,13 @@ export class GroundChunkCache {
           else {
             const open=(x:number,y:number)=>x>=0&&y>=0&&x<terrain.width&&y<terrain.height&&!terrain.blocked[y*terrain.width+x];
             const left=open(tileX-1,tileY),right=open(tileX+1,tileY),above=open(tileX,tileY-1);
-            // Thin vertical cut walls occupy blocked cells, leaving the hall's
-            // full collision width visible; southern cuts expose their timber top.
-            if(left||right){
-              const x=localX*16+(left?0:11),y=localY*16;
-              context.fillStyle='#3f2832';context.fillRect(x,y,5,16);
-              context.fillStyle='#8f563b';context.fillRect(x+1,y,3,16);
-              context.fillStyle='#d58f67';context.fillRect(x+2,y,1,16);
-            }
+            // Both faces matter for a one-cell partition between two rooms.
+            if(left)wallFrame(32,16,5,16,localX*16,localY*16);
+            if(right)wallFrame(11,16,5,16,localX*16+11,localY*16);
             if(above){
-              context.fillStyle='#3f2832';context.fillRect(localX*16,localY*16,16,5);
-              context.fillStyle='#8f563b';context.fillRect(localX*16,localY*16+1,16,3);
-              context.fillStyle='#d58f67';context.fillRect(localX*16,localY*16+2,16,1);
+              wallFrame(16,32,16,7,localX*16,localY*16);
+              if(!open(tileX-1,tileY-1))wallFrame(11,32,5,7,localX*16-5,localY*16);
+              if(!open(tileX+1,tileY-1))wallFrame(32,32,5,7,localX*16+16,localY*16);
             }
           }
           continue;

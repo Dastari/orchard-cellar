@@ -13,10 +13,6 @@ import {
   characterActionAnimation,
   idleAvatarAnimationForDirection,
   isCharacterActionKind,
-  FENCE_JOIN_EAST,
-  FENCE_JOIN_NORTH,
-  FENCE_JOIN_SOUTH,
-  FENCE_JOIN_WEST,
   FIXED_UNITS_PER_PIXEL,
   HORSE_JUMP_DURATION_TICKS,
   SURVIVAL_ORE_KINDS,
@@ -141,6 +137,7 @@ export interface OverworldArt {
 
   readonly interiorWall: LoadedAsset;
   readonly hearthInteriorWall: LoadedAsset;
+  readonly hearthInteriorFrame: LoadedAsset;
   readonly caveFloor: LoadedAsset;
   readonly caveFloor2: LoadedAsset;
   readonly caveFloorDecoration: LoadedAsset;
@@ -500,6 +497,7 @@ async function loadItemIconArt(
   const fenceVariants = await Promise.all(
     [
       ["fence_horizontal", "prop_cf_fence_horizontal"],
+      ["fence_connected", "prop_cf_willow_boundary_wood_large_connected"],
       ["fence_vertical", "prop_cf_fence_vertical"],
       ["fence_corner", "prop_cf_fence_corner"],
       ["fence_left_end", "prop_cf_fence_left_end"],
@@ -622,6 +620,7 @@ const MAP_EDITOR_ASSET_NAMES = {
 
   interiorWall: 'tile_cf_interior_wall',
   hearthInteriorWall: 'prop_cf_hearth_plaster_wall',
+  hearthInteriorFrame: 'prop_cf_willow_wall_frame',
   caveFloor: 'tile_cf_cave_floor',
   caveFloor2: 'tile_cf_cave_floor_2',
   caveFloorDecoration: 'tile_cf_cave_floor_decoration',
@@ -836,6 +835,7 @@ export async function loadOverworldArt(
 
     interiorWall,
     hearthInteriorWall,
+    hearthInteriorFrame,
     caveFloor,
     caveFloor2,
     caveFloorDecoration,
@@ -1020,6 +1020,7 @@ export async function loadOverworldArt(
 
     loadGeneratedAsset("tile_cf_interior_wall", "summer"),
     loadGeneratedAsset("prop_cf_hearth_plaster_wall", "summer"),
+    loadGeneratedAsset("prop_cf_willow_wall_frame", "summer"),
     loadGeneratedAsset("tile_cf_cave_floor", "summer"),
     loadGeneratedAsset("tile_cf_cave_floor_2", "summer"),
     loadGeneratedAsset("tile_cf_cave_floor_decoration", "summer"),
@@ -1202,6 +1203,7 @@ export async function loadOverworldArt(
 
     interiorWall,
     hearthInteriorWall,
+    hearthInteriorFrame,
     caveFloor,
     caveFloor2,
     caveFloorDecoration,
@@ -2404,40 +2406,11 @@ export function drawOverworldPlaceable(
   lit = true,
   contentsOverlay?: string,
 ): void {
-  const northSouth = fenceMask & (FENCE_JOIN_NORTH | FENCE_JOIN_SOUTH);
-  const eastWest = fenceMask & (FENCE_JOIN_EAST | FENCE_JOIN_WEST);
-  if (kind === "fence" && northSouth !== 0 && eastWest !== 0) {
-    const vertical = art.itemIcons.fence_vertical;
-    const horizontalEnd =
-      art.itemIcons[
-        fenceMask & FENCE_JOIN_EAST ? "fence_corner" : "fence_left_end"
-      ];
-    if (vertical !== undefined)
-      drawAnchored(context, vertical, "base", 0, x, y, cameraX, cameraY, zoom);
-    if (horizontalEnd !== undefined)
-      drawAnchored(
-        context,
-        horizontalEnd,
-        "base",
-        0,
-        x,
-        y,
-        cameraX,
-        cameraY,
-        zoom,
-      );
+  if(kind==='fence'){
+    drawAnchored(context,art.itemIcons.fence_connected??art.missingItem,'base',fenceMask&15,x,y,cameraX,cameraY,zoom);
     return;
   }
-  const asset =
-    kind === "fence"
-      ? art.itemIcons[
-          northSouth !== 0 && eastWest === 0
-            ? "fence_vertical"
-            : eastWest !== 0 && northSouth === 0
-              ? "fence_horizontal"
-              : "fence_corner"
-        ]
-      : art.itemIcons[kind];
+  const asset=art.itemIcons[kind];
   const animation =
     kind === "campfire" || kind === "cooking_fire" || kind === "camp_cooking_fire"
       ? lit

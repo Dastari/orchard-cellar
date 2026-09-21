@@ -22,8 +22,8 @@ describe('Willowharbour facades', () => {
     const scenery=buildHearthVillageScenery(base.cells,assetFor,'test-registry');
     expect(sha256(facades.prefabs)).toBe('d4560bfebcdb9fef42448e87d89d8a47c428e133a518b305d97d1de9248e25d4');
     expect(sha256(facades.objects)).toBe('3b0a10762d476fb7fda1c70a2d24f0ebf685032435512d65b541c672a37e6fb0');
-    expect(sha256(scenery.prefabs)).toBe('c7eb3aa9ef515adf25d8dd4212c00aa6af0eb523367e308dd11237b7ac1e26eb');
-    expect(sha256(scenery.objects)).toBe('8146abea728608866688e5b79cdd637aaa41446ab94c7a8fb84d0c7b06c54213');
+    expect(sha256(scenery.prefabs)).toBe('b4dba90ae0c96955e35e72a76cd5d8954415b56badf5fae736b1ea1f91f9e453');
+    expect(sha256(scenery.objects)).toBe('1c7aad97fdc18eadcd07c35ebb02de379c6cf97a20f6bd3ee026ca527f5c9aa4');
   });
   it('marks only public service thresholds with nonblocking ground runners',()=>{
     const base=composeHearthArchipelago(createLiveIslandMapDocument()).document;
@@ -137,7 +137,20 @@ it('keeps mature woodland independent of the decorative asset catalog order',()=
   const mature=scenery.objects.filter(row=>row.layer==='canopy'&&row.prefabId.includes('-mature'));
   expect(mature.length).toBeGreaterThan(300);
   expect(new Set(mature.map(row=>row.prefabId)).size).toBe(4);
-  expect(scenery.objects.filter(row=>row.prefabId.includes('picket-vertical')).length).toBeGreaterThan(8);
-  for(const suffix of ['nw','ne','sw','se'])expect(scenery.objects.some(row=>row.prefabId.endsWith(`hedge-${suffix}`))).toBe(true);
+  expect(scenery.objects.filter(row=>row.prefabId.includes('boundary-picket-')&&(Number(row.prefabId.split('-').at(-1))&5)!==0).length).toBeGreaterThan(8);
+  for(const suffix of [6,12,3,9])expect(scenery.objects.some(row=>row.prefabId.endsWith(`boundary-hedge-${suffix}`))).toBe(true);
   expect(scenery.objects.filter(row=>row.prefabId.endsWith('streetlamp')).length).toBeGreaterThan(30);
+});
+
+it('closes the farm pen on dry land with only the authored two-cell east gate',()=>{
+  const map=composeHearthArchipelago(createLiveIslandMapDocument()).document;
+  const scenery=buildHearthVillageScenery(map.cells,assetFor,'test-registry');
+  const fence=(x:number,y:number)=>scenery.objects.find(o=>o.tileX===x&&o.tileY===y&&o.prefabId.includes('boundary-wood-'));
+  for(let x=121;x<=126;x++)for(const y of [442,451])expect(fence(x,y),`${x},${y}`).toBeDefined();
+  for(let y=443;y<451;y++){
+    expect(fence(121,y)).toBeDefined();
+    expect(Boolean(fence(126,y))).toBe(![447,448].includes(y));
+  }
+  expect(fence(126,442)?.prefabId).toMatch(/-12$/);
+  expect(scenery.objects.some(o=>o.prefabId.includes('chest'))).toBe(false);
 });
